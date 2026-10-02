@@ -132,10 +132,8 @@ CONTAINS
 !> \param method ...
 !> \param rho_set ...
 !> \param deriv_set ...
-!> \param order order of derivatives to calculate
-!>      order must lie between -3 and 3. If it is negative then only
-!>      that order will be calculated, otherwise all derivatives up to
-!>      that order will be calculated.
+!> \param order maximum order of derivatives to calculate
+!>      order must lie between 0 and 3.
 !> \param scale ...
 ! **************************************************************************************************
    SUBROUTINE perdew_wang_lda_eval(method, rho_set, deriv_set, order, scale)
@@ -170,27 +168,25 @@ CONTAINS
       e_rho_rho => dummy
       e_rho_rho_rho => dummy
 
-      IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
-      IF (order >= 1 .OR. order == -1) THEN
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
+      IF (order >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
       END IF
-      IF (order >= 2 .OR. order == -2) THEN
+      IF (order >= 2) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
       END IF
-      IF (order >= 3 .OR. order == -3) THEN
+      IF (order >= 3) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho)
       END IF
-      IF (order > 3 .OR. order < -3) THEN
+      IF (order > 3) THEN
          CPABORT("derivatives bigger than 3 not implemented")
       END IF
 
@@ -219,31 +215,27 @@ CONTAINS
       INTEGER, INTENT(in)                                :: npoints, order
       REAL(kind=dp), INTENT(in)                          :: scale
 
-      INTEGER                                            :: abs_order, k
+      INTEGER                                            :: k
       REAL(KIND=dp), DIMENSION(0:3)                      :: ed
 
-      abs_order = ABS(order)
-
 !$OMP PARALLEL DO PRIVATE (k, ed) DEFAULT(NONE)&
-!$OMP SHARED(npoints,rho,eps_rho,abs_order,scale,e_0,e_rho,e_rho_rho,e_rho_rho_rho,order)
+!$OMP SHARED(npoints,rho,eps_rho,scale,e_0,e_rho,e_rho_rho,e_rho_rho_rho,order)
       DO k = 1, npoints
 
          IF (rho(k) > eps_rho) THEN
 !! order_ is positive as it must be in this case:
 !! ec(:,2) needs ed(:,1) for example
-            CALL pw_lda_ed_loc(rho(k), ed, abs_order)
-            ed(0:abs_order) = scale*ed(0:abs_order)
+            CALL pw_lda_ed_loc(rho(k), ed, order)
+            ed(0:order) = scale*ed(0:order)
 
-            IF (order >= 0) THEN
-               e_0(k) = e_0(k) + rho(k)*ed(0)
-            END IF
-            IF (order >= 1 .OR. order == -1) THEN
+            e_0(k) = e_0(k) + rho(k)*ed(0)
+            IF (order >= 1) THEN
                e_rho(k) = e_rho(k) + ed(0) + rho(k)*ed(1)
             END IF
-            IF (order >= 2 .OR. order == -2) THEN
+            IF (order >= 2) THEN
                e_rho_rho(k) = e_rho_rho(k) + 2.0_dp*ed(1) + rho(k)*ed(2)
             END IF
-            IF (order >= 3 .OR. order == -3) THEN
+            IF (order >= 3) THEN
                e_rho_rho_rho(k) = e_rho_rho_rho(k) + 3.0_dp*ed(2) + rho(k)*ed(3)
             END IF
 
@@ -263,10 +255,8 @@ CONTAINS
 !> \param method ...
 !> \param rho_set ...
 !> \param deriv_set ...
-!> \param order order of derivatives to calculate
-!>      order must lie between -3 and 3. If it is negative then only
-!>      that order will be calculated, otherwise all derivatives up to
-!>      that order will be calculated.
+!> \param order maximum order of derivatives to calculate
+!>      order must lie between 0 and 3.
 !> \param scale ...
 ! **************************************************************************************************
    SUBROUTINE perdew_wang_lsd_eval(method, rho_set, deriv_set, order, scale)
@@ -302,12 +292,10 @@ CONTAINS
       eaa => dummy; eab => dummy; ebb => dummy
       eaaa => dummy; eaab => dummy; eabb => dummy; ebbb => dummy
 
-      IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
-      IF (order >= 1 .OR. order == -1) THEN
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
+      IF (order >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=ea)
@@ -315,7 +303,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=eb)
       END IF
-      IF (order >= 2 .OR. order == -2) THEN
+      IF (order >= 2) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=eaa)
@@ -326,7 +314,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=ebb)
       END IF
-      IF (order >= 3 .OR. order == -3) THEN
+      IF (order >= 3) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa, deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=eaaa)
@@ -340,7 +328,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=ebbb)
       END IF
-      IF (order > 3 .OR. order < -3) THEN
+      IF (order > 3) THEN
          CPABORT("derivatives bigger than 3 not implemented")
       END IF
 
@@ -378,36 +366,32 @@ CONTAINS
       INTEGER, INTENT(in)                                :: npoints, order
       REAL(kind=dp), INTENT(in)                          :: scale
 
-      INTEGER                                            :: abs_order, k
+      INTEGER                                            :: k
       REAL(KIND=dp)                                      :: rho
       REAL(KIND=dp), DIMENSION(0:9)                      :: ed
 
-      abs_order = ABS(order)
-
 !$OMP PARALLEL DO PRIVATE (k, rho, ed) DEFAULT(NONE)&
-!$OMP SHARED(npoints,rhoa,rhob,eps_rho,abs_order,order,e_0,ea,eb,eaa,eab,ebb,eaaa,eaab,eabb,ebbb,scale)
+!$OMP SHARED(npoints,rhoa,rhob,eps_rho,order,e_0,ea,eb,eaa,eab,ebb,eaaa,eaab,eabb,ebbb,scale)
       DO k = 1, npoints
 
          rho = rhoa(k) + rhob(k)
          IF (rho > eps_rho) THEN
 
             ed = 0.0_dp
-            CALL pw_lsd_ed_loc(rhoa(k), rhob(k), ed, abs_order)
+            CALL pw_lsd_ed_loc(rhoa(k), rhob(k), ed, order)
             ed = ed*scale
 
-            IF (order >= 0) THEN
-               e_0(k) = e_0(k) + rho*ed(0)
-            END IF
-            IF (order >= 1 .OR. order == -1) THEN
+            e_0(k) = e_0(k) + rho*ed(0)
+            IF (order >= 1) THEN
                ea(k) = ea(k) + ed(0) + rho*ed(1)
                eb(k) = eb(k) + ed(0) + rho*ed(2)
             END IF
-            IF (order >= 2 .OR. order == -2) THEN
+            IF (order >= 2) THEN
                eaa(k) = eaa(k) + 2.0_dp*ed(1) + rho*ed(3)
                eab(k) = eab(k) + ed(1) + ed(2) + rho*ed(4)
                ebb(k) = ebb(k) + 2.0_dp*ed(2) + rho*ed(5)
             END IF
-            IF (order >= 3 .OR. order == -3) THEN
+            IF (order >= 3) THEN
                eaaa(k) = eaaa(k) + 3.0_dp*ed(3) + rho*ed(6)
                eaab(k) = eaab(k) + 2.0_dp*ed(4) + ed(3) + rho*ed(7)
                eabb(k) = eabb(k) + 2.0_dp*ed(4) + ed(5) + rho*ed(8)

@@ -123,7 +123,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'p86_lda_eval'
 
-      INTEGER                                            :: handle, m, npoints
+      INTEGER                                            :: handle, npoints
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: drho_cutoff, rho_cutoff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: rs
@@ -145,19 +145,16 @@ CONTAINS
                           drho_cutoff=drho_cutoff)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
       CALL p86_init(rho_cutoff)
-      m = ABS(order)
 
       ALLOCATE (rs(npoints))
 
       CALL calc_rs_pw(rho, rs, npoints)
-      IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
 
-         CALL p86_u_0(rho, rs, grho, e_0, npoints)
-      END IF
-      IF (order >= 1 .OR. order == -1) THEN
+      CALL p86_u_0(rho, rs, grho, e_0, npoints)
+      IF (order >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
@@ -168,7 +165,7 @@ CONTAINS
          CALL p86_u_1(rho, grho, rs, e_rho, &
                       e_ndrho, npoints)
       END IF
-      IF (order >= 2 .OR. order == -2) THEN
+      IF (order >= 2) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
@@ -182,7 +179,7 @@ CONTAINS
          CALL p86_u_2(rho, grho, rs, e_rho_rho, &
                       e_rho_ndrho, e_ndrho_ndrho, npoints)
       END IF
-      IF (order >= 3 .OR. order == -3) THEN
+      IF (order >= 3) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho)
@@ -200,7 +197,7 @@ CONTAINS
                       e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho, &
                       npoints)
       END IF
-      IF (order > 3 .OR. order < -3) THEN
+      IF (order > 3) THEN
          CPABORT("derivatives bigger than 3 not implemented")
       END IF
       DEALLOCATE (rs)

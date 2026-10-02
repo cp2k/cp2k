@@ -170,9 +170,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param grad_deriv degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param grad_deriv maximum degree of the derivative that should be evaluated
 !> \param params parameters for functional
 !> \author mguidon (01.2009)
 ! **************************************************************************************************
@@ -209,12 +207,10 @@ CONTAINS
       e_tau => dummy
       e_laplace_rho => dummy
 
-      IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
+      IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
@@ -228,7 +224,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_laplace_rho)
       END IF
-      IF (grad_deriv > 1 .OR. grad_deriv < -1) THEN
+      IF (grad_deriv > 1) THEN
          CPABORT("derivatives bigger than 1 not implemented")
       END IF
 
@@ -268,9 +264,7 @@ CONTAINS
 !> \param e_ndrho derivatives on the grid
 !> \param e_tau derivatives on the grid
 !> \param e_laplace_rho derivatives on the grid
-!> \param grad_deriv degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param grad_deriv maximum degree of the derivative that should be evaluated
 !> \param npoints number of gridpoints
 !> \param epsilon_rho cutoffs
 !> \param sx parameters for  functional
@@ -393,14 +387,14 @@ CONTAINS
 
             Fermi = alpha/(EXP((Fx - mu)/N) + 1.0_dp)
 
-            dFermi_drho = -Fermi**2/alpha/N*(e_rho_br/e_0_lda - e_0_br*e_rho_lda/e_0_lda**2)*EXP((Fx - mu)/N)
-            dFermi_dndrho = -Fermi**2/alpha/N*(e_ndrho_br/e_0_lda)*EXP((Fx - mu)/N)
-            dFermi_dtau = -Fermi**2/alpha/N*(e_tau_br/e_0_lda)*EXP((Fx - mu)/N)
-            dFermi_dlaplace_rho = -Fermi**2/alpha/N*(e_laplace_rho_br/e_0_lda)*EXP((Fx - mu)/N)
-
             e_0(ip) = e_0(ip) + (Fermi*e_0_pbe + (1.0_dp - Fermi)*e_0_br)*sx
 
-            IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+            IF (grad_deriv >= 1) THEN
+
+               dFermi_drho = -Fermi**2/alpha/N*(e_rho_br/e_0_lda - e_0_br*e_rho_lda/e_0_lda**2)*EXP((Fx - mu)/N)
+               dFermi_dndrho = -Fermi**2/alpha/N*(e_ndrho_br/e_0_lda)*EXP((Fx - mu)/N)
+               dFermi_dtau = -Fermi**2/alpha/N*(e_tau_br/e_0_lda)*EXP((Fx - mu)/N)
+               dFermi_dlaplace_rho = -Fermi**2/alpha/N*(e_laplace_rho_br/e_0_lda)*EXP((Fx - mu)/N)
 
                e_rho(ip) = e_rho(ip) + (Fermi*e_rho_pbe + dFermi_drho*e_0_pbe + &
                                         (1.0_dp - Fermi)*e_rho_br - dFermi_drho*e_0_br)*sx
@@ -427,9 +421,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param grad_deriv degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param grad_deriv maximum degree of the derivative that should be evaluated
 !> \param params parameters for functional
 !> \author mguidon (01.2009)
 ! **************************************************************************************************
@@ -470,12 +462,10 @@ CONTAINS
       e_laplace_rhoa => dummy
       e_laplace_rhob => dummy
 
-      IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
+      IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rhoa)
@@ -504,7 +494,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_laplace_rhob)
       END IF
-      IF (grad_deriv > 1 .OR. grad_deriv < -1) THEN
+      IF (grad_deriv > 1) THEN
          CPABORT("derivatives bigger than 1 not implemented")
       END IF
 
@@ -552,9 +542,7 @@ CONTAINS
 !> \param e_ndrho derivatives on the grid
 !> \param e_tau derivatives on the grid
 !> \param e_laplace_rho derivatives on the grid
-!> \param grad_deriv degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param grad_deriv maximum degree of the derivative that should be evaluated
 !> \param npoints number of gridpoints
 !> \param epsilon_rho cutoffs
 !> \param sx parameters for  functional
@@ -671,14 +659,14 @@ CONTAINS
 
             Fermi = alpha/(EXP((Fx - mu)/N) + 1.0_dp)
 
-            dFermi_drho = -Fermi**2/alpha/N*(e_rho_br/e_0_lda - e_0_br*e_rho_lda/e_0_lda**2)*EXP((Fx - mu)/N)
-            dFermi_dndrho = -Fermi**2/alpha/N*(e_ndrho_br/e_0_lda)*EXP((Fx - mu)/N)
-            dFermi_dtau = -Fermi**2/alpha/N*(e_tau_br/e_0_lda)*EXP((Fx - mu)/N)
-            dFermi_dlaplace_rho = -Fermi**2/alpha/N*(e_laplace_rho_br/e_0_lda)*EXP((Fx - mu)/N)
-
             e_0(ip) = e_0(ip) + (Fermi*e_0_pbe + (1.0_dp - Fermi)*e_0_br)*sx
 
-            IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+            IF (grad_deriv >= 1) THEN
+
+               dFermi_drho = -Fermi**2/alpha/N*(e_rho_br/e_0_lda - e_0_br*e_rho_lda/e_0_lda**2)*EXP((Fx - mu)/N)
+               dFermi_dndrho = -Fermi**2/alpha/N*(e_ndrho_br/e_0_lda)*EXP((Fx - mu)/N)
+               dFermi_dtau = -Fermi**2/alpha/N*(e_tau_br/e_0_lda)*EXP((Fx - mu)/N)
+               dFermi_dlaplace_rho = -Fermi**2/alpha/N*(e_laplace_rho_br/e_0_lda)*EXP((Fx - mu)/N)
 
                e_rho(ip) = e_rho(ip) + (Fermi*e_rho_pbe + dFermi_drho*e_0_pbe + &
                                         (1.0_dp - Fermi)*e_rho_br - dFermi_drho*e_0_br)*sx

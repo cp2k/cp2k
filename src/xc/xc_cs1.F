@@ -152,7 +152,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cs1_lda_eval'
 
-      INTEGER                                            :: handle, m, npoints
+      INTEGER                                            :: handle, npoints
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: epsilon_rho
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, e_ndrho_ndrho, &
@@ -169,17 +169,14 @@ CONTAINS
       CALL xc_rho_set_get(rho_set, rho_1_3=rho13, rho=rho, &
                           norm_drho=grho, local_bounds=bo, rho_cutoff=epsilon_rho)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
-      m = ABS(order)
       CALL cs1_init(epsilon_rho)
 
-      IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
 
-         CALL cs1_u_0(rho, grho, rho13, e_0, npoints)
-      END IF
-      IF (order >= 1 .OR. order == -1) THEN
+      CALL cs1_u_0(rho, grho, rho13, e_0, npoints)
+      IF (order >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
@@ -190,7 +187,7 @@ CONTAINS
          CALL cs1_u_1(rho, grho, rho13, e_rho, e_ndrho, &
                       npoints)
       END IF
-      IF (order >= 2 .OR. order == -2) THEN
+      IF (order >= 2) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
@@ -204,7 +201,7 @@ CONTAINS
          CALL cs1_u_2(rho, grho, rho13, e_rho_rho, e_rho_ndrho, &
                       e_ndrho_ndrho, npoints)
       END IF
-      IF (order >= 3 .OR. order == -3) THEN
+      IF (order >= 3) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho)
@@ -221,7 +218,7 @@ CONTAINS
          CALL cs1_u_3(rho, grho, rho13, e_rho_rho_rho, e_rho_rho_ndrho, &
                       e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho, npoints)
       END IF
-      IF (order > 3 .OR. order < -3) THEN
+      IF (order > 3) THEN
          CPABORT("derivatives bigger than 3 not implemented")
       END IF
 
@@ -259,15 +256,13 @@ CONTAINS
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
       CALL cs1_init(epsilon_rho)
 
-      IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
 
-         CALL cs1_ss_0(rhoa, rhob, norm_drhoa, norm_drhob, &
-                       rhoa_1_3, rhob_1_3, e_0, npoints)
-      END IF
-      IF (order >= 1 .OR. order == -1) THEN
+      CALL cs1_ss_0(rhoa, rhob, norm_drhoa, norm_drhob, &
+                    rhoa_1_3, rhob_1_3, e_0, npoints)
+      IF (order >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rhoa)
@@ -285,7 +280,7 @@ CONTAINS
                        rhoa_1_3, rhob_1_3, e_rhoa, e_rhob, e_ndrhoa, e_ndrhob, &
                        npoints)
       END IF
-      IF (order > 1 .OR. order < 1) THEN
+      IF (order > 1) THEN
          CPABORT("derivatives bigger than 3 not implemented")
       END IF
       CALL timestop(handle)

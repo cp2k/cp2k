@@ -111,9 +111,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param grad_deriv degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param grad_deriv maximum degree of the derivative that should be evaluated
 !> \param xb88_lr_params input parameters (scaling)
 !> \par History
 !>      01.2008 created [mguidon]
@@ -161,12 +159,10 @@ CONTAINS
       e_ndrho_ndrho_rho => dummy
       e_ndrho_ndrho_ndrho => dummy
 
-      IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
+      IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
@@ -174,7 +170,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho)
       END IF
-      IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
+      IF (grad_deriv >= 2) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
@@ -185,7 +181,7 @@ CONTAINS
                                          [deriv_norm_drho, deriv_norm_drho], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho)
       END IF
-      IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
+      IF (grad_deriv >= 3) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho)
@@ -199,7 +195,7 @@ CONTAINS
                                          [deriv_norm_drho, deriv_norm_drho, deriv_norm_drho], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho_ndrho)
       END IF
-      IF (grad_deriv > 3 .OR. grad_deriv < -3) THEN
+      IF (grad_deriv > 3) THEN
          CPABORT("derivatives bigger than 3 not implemented")
       END IF
 
@@ -297,56 +293,54 @@ CONTAINS
          my_rho = rho(ii)*0.5_dp
          my_ndrho = norm_drho(ii)*0.5_dp
          IF (my_rho > my_epsilon_rho) THEN
-            IF (grad_deriv >= 0) THEN
-               t1 = my_rho**(0.1e1_dp/0.3e1_dp)
-               t2 = t1*my_rho
-               t3 = 0.1e1_dp/t2
-               xx = my_ndrho*MAX(t3, epsilon_rho43)
-               t5 = my_ndrho**2
-               t6 = beta*t5
-               t7 = my_rho**2
-               t8 = t1**2
-               t10 = 0.1e1_dp/t8/t7
-               t11 = beta*my_ndrho
-               t12 = LOG(xx + SQRT(xx**0.2e1_dp + 0.1e1_dp))
-               t16 = 0.10e1_dp + 0.60e1_dp*t11*t3*t12
-               t17 = 0.1e1_dp/t16
-               t18 = t10*t17
-               t21 = 0.20e1_dp*Cx + 0.20e1_dp*t6*t18
-               t22 = SQRT(t21)
-               t23 = t22*t21
-               t24 = my_rho*t23
-               t26 = rootpi
-               t27 = 0.1e1_dp/t26
-               t28 = 0.1e1_dp/omega
-               t29 = 0.1e1_dp/t22
-               t30 = t28*t29
-               t31 = t26*t1
-               t34 = erf(0.3000000000e1_dp*t30*t31)
-               t36 = omega*t22
-               t37 = 0.1e1_dp/t1
-               t38 = t27*t37
-               t39 = omega**2
-               t40 = 0.1e1_dp/t39
-               t41 = 0.1e1_dp/t21
-               t42 = t40*t41
-               t43 = pi*t8
-               t44 = t42*t43
-               t46 = EXP(-0.8999999998e1_dp*t44)
-               t47 = t39*t21
-               t48 = 0.1e1_dp/pi
-               t49 = 0.1e1_dp/t8
-               t51 = t46 - 0.10e1_dp
-               t52 = t48*t49*t51
-               t55 = t46 - 0.15e1_dp - 0.5555555558e-1_dp*t47*t52
-               t59 = t26*t34 + 0.3333333334e0_dp*t36*t38*t55
-               t60 = t27*t59
+            t1 = my_rho**(0.1e1_dp/0.3e1_dp)
+            t2 = t1*my_rho
+            t3 = 0.1e1_dp/t2
+            xx = my_ndrho*MAX(t3, epsilon_rho43)
+            t5 = my_ndrho**2
+            t6 = beta*t5
+            t7 = my_rho**2
+            t8 = t1**2
+            t10 = 0.1e1_dp/t8/t7
+            t11 = beta*my_ndrho
+            t12 = LOG(xx + SQRT(xx**0.2e1_dp + 0.1e1_dp))
+            t16 = 0.10e1_dp + 0.60e1_dp*t11*t3*t12
+            t17 = 0.1e1_dp/t16
+            t18 = t10*t17
+            t21 = 0.20e1_dp*Cx + 0.20e1_dp*t6*t18
+            t22 = SQRT(t21)
+            t23 = t22*t21
+            t24 = my_rho*t23
+            t26 = rootpi
+            t27 = 0.1e1_dp/t26
+            t28 = 0.1e1_dp/omega
+            t29 = 0.1e1_dp/t22
+            t30 = t28*t29
+            t31 = t26*t1
+            t34 = erf(0.3000000000e1_dp*t30*t31)
+            t36 = omega*t22
+            t37 = 0.1e1_dp/t1
+            t38 = t27*t37
+            t39 = omega**2
+            t40 = 0.1e1_dp/t39
+            t41 = 0.1e1_dp/t21
+            t42 = t40*t41
+            t43 = pi*t8
+            t44 = t42*t43
+            t46 = EXP(-0.8999999998e1_dp*t44)
+            t47 = t39*t21
+            t48 = 0.1e1_dp/pi
+            t49 = 0.1e1_dp/t8
+            t51 = t46 - 0.10e1_dp
+            t52 = t48*t49*t51
+            t55 = t46 - 0.15e1_dp - 0.5555555558e-1_dp*t47*t52
+            t59 = t26*t34 + 0.3333333334e0_dp*t36*t38*t55
+            t60 = t27*t59
 
                !! Multiply with 2.0 because it code comes from LSD
-               e_0(ii) = e_0(ii) - 0.2222222224e0_dp*t24*omega*t60*sx*2.0_dp
+            e_0(ii) = e_0(ii) - 0.2222222224e0_dp*t24*omega*t60*sx*2.0_dp
 
-            END IF
-            IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+            IF (grad_deriv >= 1) THEN
                t64 = t23*omega
                t68 = my_rho*t22*omega
                t69 = t7*my_rho
@@ -421,7 +415,7 @@ CONTAINS
                                             *t200)*sx
 
             END IF
-            IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
+            IF (grad_deriv >= 2) THEN
                t207 = t27*t155
                t211 = my_rho*t29*omega
                t212 = t94**2
@@ -591,7 +585,7 @@ CONTAINS
                                    *sx
 
             END IF
-            IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
+            IF (grad_deriv >= 3) THEN
                t601 = t27*t358
                t605 = my_rho*t104*omega
                t606 = t212*t94
@@ -888,12 +882,10 @@ CONTAINS
          e_ndrho_ndrho_ndrho(i)%array => dummy
       END DO
 
-      IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
+      IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho(1)%array)
@@ -907,7 +899,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho(2)%array)
       END IF
-      IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
+      IF (grad_deriv >= 2) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho(1)%array)
@@ -927,7 +919,7 @@ CONTAINS
                                          [deriv_norm_drhob, deriv_norm_drhob], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho(2)%array)
       END IF
-      IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
+      IF (grad_deriv >= 3) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa, deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho(1)%array)
@@ -953,7 +945,7 @@ CONTAINS
                                          [deriv_norm_drhob, deriv_norm_drhob, deriv_norm_drhob], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho_ndrho(2)%array)
       END IF
-      IF (grad_deriv > 3 .OR. grad_deriv < -3) THEN
+      IF (grad_deriv > 3) THEN
          CPABORT("derivatives bigger than 3 not implemented")
       END IF
 
@@ -1064,55 +1056,53 @@ CONTAINS
          rho = rho_spin(ii)
          ndrho = norm_drho_spin(ii)
          IF (rho > my_epsilon_rho) THEN
-            IF (grad_deriv >= 0) THEN
-               t1 = rho**(0.1e1_dp/0.3e1_dp)
-               t2 = t1*rho
-               t3 = 0.1e1_dp/t2
-               xx = ndrho*MAX(t3, epsilon_rho43)
-               t5 = ndrho**2
-               t6 = beta*t5
-               t7 = rho**2
-               t8 = t1**2
-               t10 = 0.1e1_dp/t8/t7
-               t11 = beta*ndrho
-               t12 = LOG(xx + SQRT(xx**0.2e1_dp + 0.1e1_dp))
-               t16 = 0.10e1_dp + 0.60e1_dp*t11*t3*t12
-               t17 = 0.1e1_dp/t16
-               t18 = t10*t17
-               t21 = 0.20e1_dp*Cx + 0.20e1_dp*t6*t18
-               t22 = SQRT(t21)
-               t23 = t22*t21
-               t24 = rho*t23
-               t26 = rootpi
-               t27 = 0.1e1_dp/t26
-               t28 = 0.1e1_dp/omega
-               t29 = 0.1e1_dp/t22
-               t30 = t28*t29
-               t31 = t26*t1
-               t34 = erf(0.3000000000e1_dp*t30*t31)
-               t36 = omega*t22
-               t37 = 0.1e1_dp/t1
-               t38 = t27*t37
-               t39 = omega**2
-               t40 = 0.1e1_dp/t39
-               t41 = 0.1e1_dp/t21
-               t42 = t40*t41
-               t43 = pi*t8
-               t44 = t42*t43
-               t46 = EXP(-0.8999999998e1_dp*t44)
-               t47 = t39*t21
-               t48 = 0.1e1_dp/pi
-               t49 = 0.1e1_dp/t8
-               t51 = t46 - 0.10e1_dp
-               t52 = t48*t49*t51
-               t55 = t46 - 0.15e1_dp - 0.5555555558e-1_dp*t47*t52
-               t59 = t26*t34 + 0.3333333334e0_dp*t36*t38*t55
-               t60 = t27*t59
+            t1 = rho**(0.1e1_dp/0.3e1_dp)
+            t2 = t1*rho
+            t3 = 0.1e1_dp/t2
+            xx = ndrho*MAX(t3, epsilon_rho43)
+            t5 = ndrho**2
+            t6 = beta*t5
+            t7 = rho**2
+            t8 = t1**2
+            t10 = 0.1e1_dp/t8/t7
+            t11 = beta*ndrho
+            t12 = LOG(xx + SQRT(xx**0.2e1_dp + 0.1e1_dp))
+            t16 = 0.10e1_dp + 0.60e1_dp*t11*t3*t12
+            t17 = 0.1e1_dp/t16
+            t18 = t10*t17
+            t21 = 0.20e1_dp*Cx + 0.20e1_dp*t6*t18
+            t22 = SQRT(t21)
+            t23 = t22*t21
+            t24 = rho*t23
+            t26 = rootpi
+            t27 = 0.1e1_dp/t26
+            t28 = 0.1e1_dp/omega
+            t29 = 0.1e1_dp/t22
+            t30 = t28*t29
+            t31 = t26*t1
+            t34 = erf(0.3000000000e1_dp*t30*t31)
+            t36 = omega*t22
+            t37 = 0.1e1_dp/t1
+            t38 = t27*t37
+            t39 = omega**2
+            t40 = 0.1e1_dp/t39
+            t41 = 0.1e1_dp/t21
+            t42 = t40*t41
+            t43 = pi*t8
+            t44 = t42*t43
+            t46 = EXP(-0.8999999998e1_dp*t44)
+            t47 = t39*t21
+            t48 = 0.1e1_dp/pi
+            t49 = 0.1e1_dp/t8
+            t51 = t46 - 0.10e1_dp
+            t52 = t48*t49*t51
+            t55 = t46 - 0.15e1_dp - 0.5555555558e-1_dp*t47*t52
+            t59 = t26*t34 + 0.3333333334e0_dp*t36*t38*t55
+            t60 = t27*t59
 
-               e_0(ii) = e_0(ii) - 0.2222222224e0_dp*t24*omega*t60*sx
+            e_0(ii) = e_0(ii) - 0.2222222224e0_dp*t24*omega*t60*sx
 
-            END IF
-            IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+            IF (grad_deriv >= 1) THEN
                t64 = t23*omega
                t68 = rho*t22*omega
                t69 = t7*rho
@@ -1187,7 +1177,7 @@ CONTAINS
                                                       *t200)*sx
 
             END IF
-            IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
+            IF (grad_deriv >= 2) THEN
                t207 = t27*t155
                t211 = rho*t29*omega
                t212 = t94**2
@@ -1357,7 +1347,7 @@ CONTAINS
                                         *sx
 
             END IF
-            IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
+            IF (grad_deriv >= 3) THEN
                t601 = t27*t358
                t605 = rho*t104*omega
                t606 = t212*t94

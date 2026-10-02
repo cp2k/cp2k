@@ -118,9 +118,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param grad_deriv degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param grad_deriv maximum degree of the derivative that should be evaluated
 !> \param xb88_lr_ad_params input parameters (scaling)
 !> \par History
 !>      01.2008 created [mguidon]
@@ -167,12 +165,10 @@ CONTAINS
       e_ndrho_ndrho_rho => dummy
       e_ndrho_ndrho_ndrho => dummy
 
-      IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
+      IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
@@ -180,7 +176,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho)
       END IF
-      IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
+      IF (grad_deriv >= 2) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
@@ -191,7 +187,7 @@ CONTAINS
                                          [deriv_norm_drho, deriv_norm_drho], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho)
       END IF
-      IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
+      IF (grad_deriv >= 3) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho)
@@ -205,7 +201,7 @@ CONTAINS
                                          [deriv_norm_drho, deriv_norm_drho, deriv_norm_drho], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho_ndrho)
       END IF
-      IF (grad_deriv > 3 .OR. grad_deriv < -3) THEN
+      IF (grad_deriv > 3) THEN
          CPABORT("derivatives bigger than 3 not implemented")
       END IF
 
@@ -410,148 +406,146 @@ CONTAINS
          my_rho = rho(ii)*0.5_dp
          my_ndrho = norm_drho(ii)*0.5_dp
          IF (my_rho > my_epsilon_rho) THEN
-            IF (grad_deriv >= 0) THEN
-               t1 = my_rho**(0.1e1_dp/0.3e1_dp)
-               xx = my_ndrho*MAX(1.0_dp/t1/my_rho, epsilon_rho43)
-               t4 = lambda*my_rho
-               t6 = my_ndrho**2
-               t7 = beta*t6
-               t8 = lambda**2
-               t9 = t8**2
-               t10 = t9**2
-               t11 = 0.1e1_dp/t10
-               t12 = my_rho**2
-               t13 = t9*t8
-               t14 = 0.1e1_dp/t13
-               t15 = t12*t14
-               t16 = t8*lambda
-               t17 = 0.1e1_dp/t16
-               t18 = my_rho*t17
-               t19 = t18**(0.1e1_dp/0.3e1_dp)
-               t20 = t19**2
-               t22 = 0.1e1_dp/t20/t15
-               t23 = t11*t22
-               t24 = beta*my_ndrho
-               t25 = 0.1e1_dp/t9
-               t26 = t19*t18
-               t27 = 0.1e1_dp/t26
-               t31 = LOG(my_ndrho*t25*t27 + SQRT((my_ndrho*t25*t27)**0.2e1_dp + &
-                                                 0.1e1_dp))
-               t35 = 0.10e1_dp + 0.60e1_dp*t24*t25*t27*t31
-               t36 = 0.1e1_dp/t35
-               t37 = t23*t36
-               t40 = 0.20e1_dp*Cx + 0.20e1_dp*t7*t37
-               t41 = SQRT(t40)
-               t42 = t41*t40
-               t43 = t4*t42
-               t44 = rootpi
-               t45 = 0.1e1_dp/t44
-               t46 = omega*t45
-               t47 = 0.1e1_dp/omega
-               t48 = 0.1e1_dp/t41
-               t49 = t47*t48
-               t50 = t44*t19
-               t53 = erf(0.3000000000e1_dp*t49*t50)
-               t55 = omega*t41
-               t56 = 0.1e1_dp/t19
-               t57 = t45*t56
-               t58 = omega**2
-               t59 = 0.1e1_dp/t58
-               t60 = 0.1e1_dp/t40
-               t61 = t59*t60
-               t62 = pi*t20
-               t63 = t61*t62
-               t65 = EXP(-0.8999999998e1_dp*t63)
-               t66 = t58*t40
-               t67 = 0.1e1_dp/pi
-               t68 = 0.1e1_dp/t20
-               t69 = t67*t68
-               t70 = t65 - 0.10e1_dp
-               t71 = t69*t70
-               t74 = t65 - 0.15e1_dp - 0.5555555558e-1_dp*t66*t71
-               t78 = t44*t53 + 0.3333333334e0_dp*t55*t57*t74
-               t79 = t46*t78
-               t83 = my_rho*t41*omega
-               t84 = t45*t78
-               t85 = t10*lambda
-               t86 = 0.1e1_dp/t85
-               t87 = t86*t22
-               t88 = t87*t36
-               t92 = 0.1e1_dp/t10/t9
-               t93 = t7*t92
-               t94 = t12*my_rho
-               t95 = t94*t86
-               t97 = 0.1e1_dp/t20/t95
-               t98 = t97*t36
-               t99 = t98*my_rho
-               t102 = t7*t11
-               t103 = t35**2
-               t104 = 0.1e1_dp/t103
-               t105 = t22*t104
-               t106 = t9*lambda
-               t107 = 0.1e1_dp/t106
-               t108 = t107*t27
-               t112 = t24*t11
-               t114 = 0.1e1_dp/t19/t15
-               t115 = t114*t31
-               t116 = t115*my_rho
-               t119 = t24*t25
-               t122 = my_ndrho*t11
-               t123 = t114*my_rho
-               t126 = -4*my_ndrho*t107*t27 + 4*t122*t123
-               t130 = 1 + t6*t11*t22
-               t131 = SQRT(t130)
-               t132 = 0.1e1_dp/t131
-               t133 = t27*t126*t132
-               t136 = -0.240e2_dp*t24*t108*t31 + 0.240e2_dp*t112*t116 + 0.60e1_dp &
-                      *t119*t133
-               t137 = t105*t136
-               t140 = -0.160e2_dp*t7*t88 + 0.160e2_dp*t93*t99 - 0.20e1_dp*t102* &
-                      t137
-               t141 = t84*t140
-               t144 = my_rho*t42
-               t145 = SQRT(0.3141592654e1_dp)
-               t146 = 0.1e1_dp/t145
-               t147 = t44*t146
-               t149 = EXP(-0.9000000000e1_dp*t63)
-               t150 = 0.1e1_dp/t42
-               t151 = t47*t150
-               t155 = t49*t44
-               t156 = t68*my_rho
-               t160 = -0.1500000000e1_dp*t151*t50*t140 - 0.3000000000e1_dp*t155 &
-                      *t156*t25
-               t161 = t149*t160
-               t164 = omega*t48
-               t165 = t164*t45
-               t166 = t56*t74
-               t170 = t55*t45
-               t171 = t27*t74
-               t172 = my_rho*t25
-               t176 = t40**2
-               t177 = 0.1e1_dp/t176
-               t178 = t59*t177
-               t182 = t61*pi
-               t183 = t56*my_rho
-               t187 = 0.8999999998e1_dp*t178*t62*t140 + 0.1800000000e2_dp*t182* &
-                      t183*t25
-               t189 = t58*t140
-               t192 = t66*t67
-               t194 = 0.1e1_dp/t20/t18
-               t195 = t194*t70
-               t196 = t195*t172
-               t199 = t68*t187
-               t200 = t199*t65
-               t203 = t187*t65 - 0.5555555558e-1_dp*t189*t71 - 0.1111111112e0_dp* &
-                      t192*t196 - 0.5555555558e-1_dp*t192*t200
-               t207 = (2*t147*t161) + 0.1666666667e0_dp*t165*t166*t140 &
-                      + 0.3333333334e0_dp*t170*t171*t172 + 0.3333333334e0_dp*t55*t57 &
-                      *t203
+            t1 = my_rho**(0.1e1_dp/0.3e1_dp)
+            xx = my_ndrho*MAX(1.0_dp/t1/my_rho, epsilon_rho43)
+            t4 = lambda*my_rho
+            t6 = my_ndrho**2
+            t7 = beta*t6
+            t8 = lambda**2
+            t9 = t8**2
+            t10 = t9**2
+            t11 = 0.1e1_dp/t10
+            t12 = my_rho**2
+            t13 = t9*t8
+            t14 = 0.1e1_dp/t13
+            t15 = t12*t14
+            t16 = t8*lambda
+            t17 = 0.1e1_dp/t16
+            t18 = my_rho*t17
+            t19 = t18**(0.1e1_dp/0.3e1_dp)
+            t20 = t19**2
+            t22 = 0.1e1_dp/t20/t15
+            t23 = t11*t22
+            t24 = beta*my_ndrho
+            t25 = 0.1e1_dp/t9
+            t26 = t19*t18
+            t27 = 0.1e1_dp/t26
+            t31 = LOG(my_ndrho*t25*t27 + SQRT((my_ndrho*t25*t27)**0.2e1_dp + &
+                                              0.1e1_dp))
+            t35 = 0.10e1_dp + 0.60e1_dp*t24*t25*t27*t31
+            t36 = 0.1e1_dp/t35
+            t37 = t23*t36
+            t40 = 0.20e1_dp*Cx + 0.20e1_dp*t7*t37
+            t41 = SQRT(t40)
+            t42 = t41*t40
+            t43 = t4*t42
+            t44 = rootpi
+            t45 = 0.1e1_dp/t44
+            t46 = omega*t45
+            t47 = 0.1e1_dp/omega
+            t48 = 0.1e1_dp/t41
+            t49 = t47*t48
+            t50 = t44*t19
+            t53 = erf(0.3000000000e1_dp*t49*t50)
+            t55 = omega*t41
+            t56 = 0.1e1_dp/t19
+            t57 = t45*t56
+            t58 = omega**2
+            t59 = 0.1e1_dp/t58
+            t60 = 0.1e1_dp/t40
+            t61 = t59*t60
+            t62 = pi*t20
+            t63 = t61*t62
+            t65 = EXP(-0.8999999998e1_dp*t63)
+            t66 = t58*t40
+            t67 = 0.1e1_dp/pi
+            t68 = 0.1e1_dp/t20
+            t69 = t67*t68
+            t70 = t65 - 0.10e1_dp
+            t71 = t69*t70
+            t74 = t65 - 0.15e1_dp - 0.5555555558e-1_dp*t66*t71
+            t78 = t44*t53 + 0.3333333334e0_dp*t55*t57*t74
+            t79 = t46*t78
+            t83 = my_rho*t41*omega
+            t84 = t45*t78
+            t85 = t10*lambda
+            t86 = 0.1e1_dp/t85
+            t87 = t86*t22
+            t88 = t87*t36
+            t92 = 0.1e1_dp/t10/t9
+            t93 = t7*t92
+            t94 = t12*my_rho
+            t95 = t94*t86
+            t97 = 0.1e1_dp/t20/t95
+            t98 = t97*t36
+            t99 = t98*my_rho
+            t102 = t7*t11
+            t103 = t35**2
+            t104 = 0.1e1_dp/t103
+            t105 = t22*t104
+            t106 = t9*lambda
+            t107 = 0.1e1_dp/t106
+            t108 = t107*t27
+            t112 = t24*t11
+            t114 = 0.1e1_dp/t19/t15
+            t115 = t114*t31
+            t116 = t115*my_rho
+            t119 = t24*t25
+            t122 = my_ndrho*t11
+            t123 = t114*my_rho
+            t126 = -4*my_ndrho*t107*t27 + 4*t122*t123
+            t130 = 1 + t6*t11*t22
+            t131 = SQRT(t130)
+            t132 = 0.1e1_dp/t131
+            t133 = t27*t126*t132
+            t136 = -0.240e2_dp*t24*t108*t31 + 0.240e2_dp*t112*t116 + 0.60e1_dp &
+                   *t119*t133
+            t137 = t105*t136
+            t140 = -0.160e2_dp*t7*t88 + 0.160e2_dp*t93*t99 - 0.20e1_dp*t102* &
+                   t137
+            t141 = t84*t140
+            t144 = my_rho*t42
+            t145 = SQRT(0.3141592654e1_dp)
+            t146 = 0.1e1_dp/t145
+            t147 = t44*t146
+            t149 = EXP(-0.9000000000e1_dp*t63)
+            t150 = 0.1e1_dp/t42
+            t151 = t47*t150
+            t155 = t49*t44
+            t156 = t68*my_rho
+            t160 = -0.1500000000e1_dp*t151*t50*t140 - 0.3000000000e1_dp*t155 &
+                   *t156*t25
+            t161 = t149*t160
+            t164 = omega*t48
+            t165 = t164*t45
+            t166 = t56*t74
+            t170 = t55*t45
+            t171 = t27*t74
+            t172 = my_rho*t25
+            t176 = t40**2
+            t177 = 0.1e1_dp/t176
+            t178 = t59*t177
+            t182 = t61*pi
+            t183 = t56*my_rho
+            t187 = 0.8999999998e1_dp*t178*t62*t140 + 0.1800000000e2_dp*t182* &
+                   t183*t25
+            t189 = t58*t140
+            t192 = t66*t67
+            t194 = 0.1e1_dp/t20/t18
+            t195 = t194*t70
+            t196 = t195*t172
+            t199 = t68*t187
+            t200 = t199*t65
+            t203 = t187*t65 - 0.5555555558e-1_dp*t189*t71 - 0.1111111112e0_dp* &
+                   t192*t196 - 0.5555555558e-1_dp*t192*t200
+            t207 = (2*t147*t161) + 0.1666666667e0_dp*t165*t166*t140 &
+                   + 0.3333333334e0_dp*t170*t171*t172 + 0.3333333334e0_dp*t55*t57 &
+                   *t203
                !! Multiply with 2.0 because Code comes from LSD
 
-               e_0(ii) = e_0(ii) + (-0.4444444448e0_dp*t43*t79 + t8*(-0.3333333336e0_dp*t83*t141 &
-                                                                     - 0.2222222224e0_dp*t144*t46*t207))*sx*2.0_dp
-            END IF
-            IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+            e_0(ii) = e_0(ii) + (-0.4444444448e0_dp*t43*t79 + t8*(-0.3333333336e0_dp*t83*t141 &
+                                                                  - 0.2222222224e0_dp*t144*t46*t207))*sx*2.0_dp
+            IF (grad_deriv >= 1) THEN
                t214 = lambda*t42
                t217 = t4*t41
                t218 = t10*t16
@@ -787,7 +781,7 @@ CONTAINS
                                                             *t83*t653 - 0.2222222224e0_dp*t144*t46*t739))*sx
             END IF
 
-            IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
+            IF (grad_deriv >= 2) THEN
                t747 = lambda*t41*omega
                t753 = t4*t48
                t754 = t237**2
@@ -1744,7 +1738,7 @@ CONTAINS
                        t46*t78*t2230 - 0.4444444448e0_dp*t43*t46*t2392 + t8*(t2635 &
                                                                              + t3288)
             END IF
-            IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
+            IF (grad_deriv >= 3) THEN
                e_rho_rho_rho(ii) = e_rho_rho_rho(ii) + t3291*sx
                t3305 = t4*t428
                t3306 = t754*t561
@@ -2899,12 +2893,10 @@ CONTAINS
          e_ndrho_ndrho_ndrho(i)%array => dummy
       END DO
 
-      IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
+      IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho(1)%array)
@@ -2918,7 +2910,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho(2)%array)
       END IF
-      IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
+      IF (grad_deriv >= 2) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho(1)%array)
@@ -2938,7 +2930,7 @@ CONTAINS
                                          [deriv_norm_drhob, deriv_norm_drhob], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho(2)%array)
       END IF
-      IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
+      IF (grad_deriv >= 3) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa, deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho(1)%array)
@@ -2964,7 +2956,7 @@ CONTAINS
                                          [deriv_norm_drhob, deriv_norm_drhob, deriv_norm_drhob], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho_ndrho(2)%array)
       END IF
-      IF (grad_deriv > 3 .OR. grad_deriv < -3) THEN
+      IF (grad_deriv > 3) THEN
          CPABORT("derivatives bigger than 3 not implemented")
       END IF
 
@@ -3181,146 +3173,144 @@ CONTAINS
          rho = rho_spin(ii)
          ndrho = norm_drho_spin(ii)
          IF (rho > my_epsilon_rho) THEN
-            IF (grad_deriv >= 0) THEN
-               t1 = rho**(0.1e1_dp/0.3e1_dp)
-               xx = ndrho*MAX(1.0_dp/t1/rho, epsilon_rho43)
-               t4 = lambda*rho
-               t6 = ndrho**2
-               t7 = beta*t6
-               t8 = lambda**2
-               t9 = t8**2
-               t10 = t9**2
-               t11 = 0.1e1_dp/t10
-               t12 = rho**2
-               t13 = t9*t8
-               t14 = 0.1e1_dp/t13
-               t15 = t12*t14
-               t16 = t8*lambda
-               t17 = 0.1e1_dp/t16
-               t18 = rho*t17
-               t19 = t18**(0.1e1_dp/0.3e1_dp)
-               t20 = t19**2
-               t22 = 0.1e1_dp/t20/t15
-               t23 = t11*t22
-               t24 = beta*ndrho
-               t25 = 0.1e1_dp/t9
-               t26 = t19*t18
-               t27 = 0.1e1_dp/t26
-               t31 = LOG(ndrho*t25*t27 + SQRT((ndrho*t25*t27)**0.2e1_dp + &
-                                              0.1e1_dp))
-               t35 = 0.10e1_dp + 0.60e1_dp*t24*t25*t27*t31
-               t36 = 0.1e1_dp/t35
-               t37 = t23*t36
-               t40 = 0.20e1_dp*Cx + 0.20e1_dp*t7*t37
-               t41 = SQRT(t40)
-               t42 = t41*t40
-               t43 = t4*t42
-               t44 = rootpi
-               t45 = 0.1e1_dp/t44
-               t46 = omega*t45
-               t47 = 0.1e1_dp/omega
-               t48 = 0.1e1_dp/t41
-               t49 = t47*t48
-               t50 = t44*t19
-               t53 = erf(0.3000000000e1_dp*t49*t50)
-               t55 = omega*t41
-               t56 = 0.1e1_dp/t19
-               t57 = t45*t56
-               t58 = omega**2
-               t59 = 0.1e1_dp/t58
-               t60 = 0.1e1_dp/t40
-               t61 = t59*t60
-               t62 = pi*t20
-               t63 = t61*t62
-               t65 = EXP(-0.8999999998e1_dp*t63)
-               t66 = t58*t40
-               t67 = 0.1e1_dp/pi
-               t68 = 0.1e1_dp/t20
-               t69 = t67*t68
-               t70 = t65 - 0.10e1_dp
-               t71 = t69*t70
-               t74 = t65 - 0.15e1_dp - 0.5555555558e-1_dp*t66*t71
-               t78 = t44*t53 + 0.3333333334e0_dp*t55*t57*t74
-               t79 = t46*t78
-               t83 = rho*t41*omega
-               t84 = t45*t78
-               t85 = t10*lambda
-               t86 = 0.1e1_dp/t85
-               t87 = t86*t22
-               t88 = t87*t36
-               t92 = 0.1e1_dp/t10/t9
-               t93 = t7*t92
-               t94 = t12*rho
-               t95 = t94*t86
-               t97 = 0.1e1_dp/t20/t95
-               t98 = t97*t36
-               t99 = t98*rho
-               t102 = t7*t11
-               t103 = t35**2
-               t104 = 0.1e1_dp/t103
-               t105 = t22*t104
-               t106 = t9*lambda
-               t107 = 0.1e1_dp/t106
-               t108 = t107*t27
-               t112 = t24*t11
-               t114 = 0.1e1_dp/t19/t15
-               t115 = t114*t31
-               t116 = t115*rho
-               t119 = t24*t25
-               t122 = ndrho*t11
-               t123 = t114*rho
-               t126 = -4*ndrho*t107*t27 + 4*t122*t123
-               t130 = 1 + t6*t11*t22
-               t131 = SQRT(t130)
-               t132 = 0.1e1_dp/t131
-               t133 = t27*t126*t132
-               t136 = -0.240e2_dp*t24*t108*t31 + 0.240e2_dp*t112*t116 + 0.60e1_dp &
-                      *t119*t133
-               t137 = t105*t136
-               t140 = -0.160e2_dp*t7*t88 + 0.160e2_dp*t93*t99 - 0.20e1_dp*t102* &
-                      t137
-               t141 = t84*t140
-               t144 = rho*t42
-               t145 = SQRT(0.3141592654e1_dp)
-               t146 = 0.1e1_dp/t145
-               t147 = t44*t146
-               t149 = EXP(-0.9000000000e1_dp*t63)
-               t150 = 0.1e1_dp/t42
-               t151 = t47*t150
-               t155 = t49*t44
-               t156 = t68*rho
-               t160 = -0.1500000000e1_dp*t151*t50*t140 - 0.3000000000e1_dp*t155 &
-                      *t156*t25
-               t161 = t149*t160
-               t164 = omega*t48
-               t165 = t164*t45
-               t166 = t56*t74
-               t170 = t55*t45
-               t171 = t27*t74
-               t172 = rho*t25
-               t176 = t40**2
-               t177 = 0.1e1_dp/t176
-               t178 = t59*t177
-               t182 = t61*pi
-               t183 = t56*rho
-               t187 = 0.8999999998e1_dp*t178*t62*t140 + 0.1800000000e2_dp*t182* &
-                      t183*t25
-               t189 = t58*t140
-               t192 = t66*t67
-               t194 = 0.1e1_dp/t20/t18
-               t195 = t194*t70
-               t196 = t195*t172
-               t199 = t68*t187
-               t200 = t199*t65
-               t203 = t187*t65 - 0.5555555558e-1_dp*t189*t71 - 0.1111111112e0_dp* &
-                      t192*t196 - 0.5555555558e-1_dp*t192*t200
-               t207 = (2*t147*t161) + 0.1666666667e0_dp*t165*t166*t140 &
-                      + 0.3333333334e0_dp*t170*t171*t172 + 0.3333333334e0_dp*t55*t57 &
-                      *t203
-               e_0(ii) = e_0(ii) + (-0.4444444448e0_dp*t43*t79 + t8*(-0.3333333336e0_dp*t83*t141 &
-                                                                     - 0.2222222224e0_dp*t144*t46*t207))*sx
-            END IF
-            IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+            t1 = rho**(0.1e1_dp/0.3e1_dp)
+            xx = ndrho*MAX(1.0_dp/t1/rho, epsilon_rho43)
+            t4 = lambda*rho
+            t6 = ndrho**2
+            t7 = beta*t6
+            t8 = lambda**2
+            t9 = t8**2
+            t10 = t9**2
+            t11 = 0.1e1_dp/t10
+            t12 = rho**2
+            t13 = t9*t8
+            t14 = 0.1e1_dp/t13
+            t15 = t12*t14
+            t16 = t8*lambda
+            t17 = 0.1e1_dp/t16
+            t18 = rho*t17
+            t19 = t18**(0.1e1_dp/0.3e1_dp)
+            t20 = t19**2
+            t22 = 0.1e1_dp/t20/t15
+            t23 = t11*t22
+            t24 = beta*ndrho
+            t25 = 0.1e1_dp/t9
+            t26 = t19*t18
+            t27 = 0.1e1_dp/t26
+            t31 = LOG(ndrho*t25*t27 + SQRT((ndrho*t25*t27)**0.2e1_dp + &
+                                           0.1e1_dp))
+            t35 = 0.10e1_dp + 0.60e1_dp*t24*t25*t27*t31
+            t36 = 0.1e1_dp/t35
+            t37 = t23*t36
+            t40 = 0.20e1_dp*Cx + 0.20e1_dp*t7*t37
+            t41 = SQRT(t40)
+            t42 = t41*t40
+            t43 = t4*t42
+            t44 = rootpi
+            t45 = 0.1e1_dp/t44
+            t46 = omega*t45
+            t47 = 0.1e1_dp/omega
+            t48 = 0.1e1_dp/t41
+            t49 = t47*t48
+            t50 = t44*t19
+            t53 = erf(0.3000000000e1_dp*t49*t50)
+            t55 = omega*t41
+            t56 = 0.1e1_dp/t19
+            t57 = t45*t56
+            t58 = omega**2
+            t59 = 0.1e1_dp/t58
+            t60 = 0.1e1_dp/t40
+            t61 = t59*t60
+            t62 = pi*t20
+            t63 = t61*t62
+            t65 = EXP(-0.8999999998e1_dp*t63)
+            t66 = t58*t40
+            t67 = 0.1e1_dp/pi
+            t68 = 0.1e1_dp/t20
+            t69 = t67*t68
+            t70 = t65 - 0.10e1_dp
+            t71 = t69*t70
+            t74 = t65 - 0.15e1_dp - 0.5555555558e-1_dp*t66*t71
+            t78 = t44*t53 + 0.3333333334e0_dp*t55*t57*t74
+            t79 = t46*t78
+            t83 = rho*t41*omega
+            t84 = t45*t78
+            t85 = t10*lambda
+            t86 = 0.1e1_dp/t85
+            t87 = t86*t22
+            t88 = t87*t36
+            t92 = 0.1e1_dp/t10/t9
+            t93 = t7*t92
+            t94 = t12*rho
+            t95 = t94*t86
+            t97 = 0.1e1_dp/t20/t95
+            t98 = t97*t36
+            t99 = t98*rho
+            t102 = t7*t11
+            t103 = t35**2
+            t104 = 0.1e1_dp/t103
+            t105 = t22*t104
+            t106 = t9*lambda
+            t107 = 0.1e1_dp/t106
+            t108 = t107*t27
+            t112 = t24*t11
+            t114 = 0.1e1_dp/t19/t15
+            t115 = t114*t31
+            t116 = t115*rho
+            t119 = t24*t25
+            t122 = ndrho*t11
+            t123 = t114*rho
+            t126 = -4*ndrho*t107*t27 + 4*t122*t123
+            t130 = 1 + t6*t11*t22
+            t131 = SQRT(t130)
+            t132 = 0.1e1_dp/t131
+            t133 = t27*t126*t132
+            t136 = -0.240e2_dp*t24*t108*t31 + 0.240e2_dp*t112*t116 + 0.60e1_dp &
+                   *t119*t133
+            t137 = t105*t136
+            t140 = -0.160e2_dp*t7*t88 + 0.160e2_dp*t93*t99 - 0.20e1_dp*t102* &
+                   t137
+            t141 = t84*t140
+            t144 = rho*t42
+            t145 = SQRT(0.3141592654e1_dp)
+            t146 = 0.1e1_dp/t145
+            t147 = t44*t146
+            t149 = EXP(-0.9000000000e1_dp*t63)
+            t150 = 0.1e1_dp/t42
+            t151 = t47*t150
+            t155 = t49*t44
+            t156 = t68*rho
+            t160 = -0.1500000000e1_dp*t151*t50*t140 - 0.3000000000e1_dp*t155 &
+                   *t156*t25
+            t161 = t149*t160
+            t164 = omega*t48
+            t165 = t164*t45
+            t166 = t56*t74
+            t170 = t55*t45
+            t171 = t27*t74
+            t172 = rho*t25
+            t176 = t40**2
+            t177 = 0.1e1_dp/t176
+            t178 = t59*t177
+            t182 = t61*pi
+            t183 = t56*rho
+            t187 = 0.8999999998e1_dp*t178*t62*t140 + 0.1800000000e2_dp*t182* &
+                   t183*t25
+            t189 = t58*t140
+            t192 = t66*t67
+            t194 = 0.1e1_dp/t20/t18
+            t195 = t194*t70
+            t196 = t195*t172
+            t199 = t68*t187
+            t200 = t199*t65
+            t203 = t187*t65 - 0.5555555558e-1_dp*t189*t71 - 0.1111111112e0_dp* &
+                   t192*t196 - 0.5555555558e-1_dp*t192*t200
+            t207 = (2*t147*t161) + 0.1666666667e0_dp*t165*t166*t140 &
+                   + 0.3333333334e0_dp*t170*t171*t172 + 0.3333333334e0_dp*t55*t57 &
+                   *t203
+            e_0(ii) = e_0(ii) + (-0.4444444448e0_dp*t43*t79 + t8*(-0.3333333336e0_dp*t83*t141 &
+                                                                  - 0.2222222224e0_dp*t144*t46*t207))*sx
+            IF (grad_deriv >= 1) THEN
                t214 = lambda*t42
                t217 = t4*t41
                t218 = t10*t16
@@ -3556,7 +3546,7 @@ CONTAINS
                                                                       *t83*t653 - 0.2222222224e0_dp*t144*t46*t739))*sx
             END IF
 
-            IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
+            IF (grad_deriv >= 2) THEN
                t747 = lambda*t41*omega
                t753 = t4*t48
                t754 = t237**2
@@ -4513,7 +4503,7 @@ CONTAINS
                        t46*t78*t2230 - 0.4444444448e0_dp*t43*t46*t2392 + t8*(t2635 &
                                                                              + t3288)
             END IF
-            IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
+            IF (grad_deriv >= 3) THEN
                e_rho_rho_rho_spin(ii) = e_rho_rho_rho_spin(ii) + t3291*sx
                t3305 = t4*t428
                t3306 = t754*t561

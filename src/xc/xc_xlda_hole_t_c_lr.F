@@ -115,9 +115,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param order degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param order maximum degree of the derivative that should be evaluated
 !> \param params input parameters (scaling, cutoff_radius)
 !> \par History
 !>      12.2008 created [Manuel Guidon]
@@ -153,17 +151,15 @@ CONTAINS
       e_0 => dummy
       e_rho => dummy
 
-      IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
-      IF (order >= 1 .OR. order == -1) THEN
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
+      IF (order >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
       END IF
-      IF (order > 1 .OR. order < -1) THEN
+      IF (order > 1) THEN
          CPABORT("derivatives bigger than 1 not implemented")
       END IF
 
@@ -244,39 +240,37 @@ CONTAINS
                                                             t46, t5, t6, t62, t64, t67, t68, t7, &
                                                             t82, t86, t9, t91, t95
 
-      IF (order >= 0) THEN
-         t1 = rho**2
-         t2 = t1*pi
-         t3 = 3**(0.1e1_dp/0.3e1_dp)
-         t4 = pi**2
-         t5 = t4*rho
-         t6 = t5**(0.1e1_dp/0.3e1_dp)
-         t7 = t6**2
-         t9 = t3/t7
-         t12 = LOG(R*t3*t6)
-         t14 = R**2
-         t15 = t14**2
-         t19 = 0.1e1_dp/D
-         t22 = t3**2
-         t23 = t22*t7
-         t24 = D*t14*t23
-         t25 = EXP(-t24)
-         t32 = 9 + 4*A*t14*t23
-         t33 = LOG(t32)
-         t36 = D**2
-         t41 = expint(1, t24)
-         t46 = 0.1e1_dp/t36
-         t62 = LOG(0.2e1_dp)
-         t64 = LOG(A)
-         t67 = A*t12 + 0.3e1_dp/0.2e1_dp*E*t15*t3*t6*t5*t19*t25 &
-               - A*t33/0.2e1_dp + E/t36/D*t25 + A*t41/0.2e1_dp + E*t14 &
-               *t22*t7*t46*t25 + B*t19*t25/0.2e1_dp + C*t46*t25/0.2e1_dp &
-               + C*t14*t22*t7*t19*t25/0.2e1_dp + A*t62 + A*t64 &
-               /0.2e1_dp
-         t68 = t9*t67
-         e_0 = e_0 + (0.2e1_dp/0.3e1_dp*t2*t68)*sx
-      END IF
-      IF (order >= 1 .OR. order == -1) THEN
+      t1 = rho**2
+      t2 = t1*pi
+      t3 = 3**(0.1e1_dp/0.3e1_dp)
+      t4 = pi**2
+      t5 = t4*rho
+      t6 = t5**(0.1e1_dp/0.3e1_dp)
+      t7 = t6**2
+      t9 = t3/t7
+      t12 = LOG(R*t3*t6)
+      t14 = R**2
+      t15 = t14**2
+      t19 = 0.1e1_dp/D
+      t22 = t3**2
+      t23 = t22*t7
+      t24 = D*t14*t23
+      t25 = EXP(-t24)
+      t32 = 9 + 4*A*t14*t23
+      t33 = LOG(t32)
+      t36 = D**2
+      t41 = expint(1, t24)
+      t46 = 0.1e1_dp/t36
+      t62 = LOG(0.2e1_dp)
+      t64 = LOG(A)
+      t67 = A*t12 + 0.3e1_dp/0.2e1_dp*E*t15*t3*t6*t5*t19*t25 &
+            - A*t33/0.2e1_dp + E/t36/D*t25 + A*t41/0.2e1_dp + E*t14 &
+            *t22*t7*t46*t25 + B*t19*t25/0.2e1_dp + C*t46*t25/0.2e1_dp &
+            + C*t14*t22*t7*t19*t25/0.2e1_dp + A*t62 + A*t64 &
+            /0.2e1_dp
+      t68 = t9*t67
+      e_0 = e_0 + (0.2e1_dp/0.3e1_dp*t2*t68)*sx
+      IF (order >= 1) THEN
          t82 = A/rho
          t86 = t4**2
          t91 = A**2
@@ -296,9 +290,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param order degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param order maximum degree of the derivative that should be evaluated
 !> \param params input parameters (scaling, cutoff_radius)
 !> \par History
 !>      12.2008 created [Manuel Guidon]
@@ -335,12 +327,10 @@ CONTAINS
       e_rhoa => dummy
       e_rhob => dummy
 
-      IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
-      IF (order >= 1 .OR. order == -1) THEN
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
+      IF (order >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rhoa)
@@ -348,7 +338,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rhob)
       END IF
-      IF (order > 1 .OR. order < -1) THEN
+      IF (order > 1) THEN
          CPABORT("derivatives bigger than 2 not implemented")
       END IF
       IF (R == 0.0_dp) THEN

@@ -98,9 +98,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param grad_deriv degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param grad_deriv maximum degree of the derivative that should be evaluated
 !> \param optx_params input parameter (scaling)
 !> \par History
 !>      01.2007 added scaling [Manuel Guidon]
@@ -141,7 +139,7 @@ CONTAINS
       deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drho], &
                                       allocate_deriv=.TRUE.)
       CALL xc_derivative_get(deriv, deriv_data=e_ndrho)
-      IF (grad_deriv > 1 .OR. grad_deriv < -1) THEN
+      IF (grad_deriv > 1) THEN
          CPABORT("derivatives bigger than 1 not implemented")
       END IF
 
@@ -157,9 +155,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param grad_deriv degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param grad_deriv maximum degree of the derivative that should be evaluated
 !> \param optx_params input parameter (scaling)
 !> \par History
 !>      01.2007 added scaling [Manuel Guidon]
@@ -216,7 +212,7 @@ CONTAINS
                                       allocate_deriv=.TRUE.)
       CALL xc_derivative_get(deriv, deriv_data=e_ndrho(2)%array)
 
-      IF (grad_deriv > 1 .OR. grad_deriv < -1) THEN
+      IF (grad_deriv > 1) THEN
          CPABORT("derivatives bigger than 1 not implemented")
       END IF
       DO ispin = 1, 2

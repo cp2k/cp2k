@@ -270,9 +270,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param grad_deriv degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param grad_deriv maximum degree of the derivative that should be evaluated
 !> \param pbe_params ...
 !> \author fawzi
 ! **************************************************************************************************
@@ -311,12 +309,10 @@ CONTAINS
       e_ndrho_ndrho_rho => dummy
       e_ndrho_ndrho_ndrho => dummy
 
-      IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
+      IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
@@ -324,7 +320,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho)
       END IF
-      IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
+      IF (grad_deriv >= 2) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
@@ -335,7 +331,7 @@ CONTAINS
                                          [deriv_norm_drho, deriv_norm_drho], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho)
       END IF
-      IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
+      IF (grad_deriv >= 3) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho)
@@ -349,7 +345,7 @@ CONTAINS
                                          [deriv_norm_drho, deriv_norm_drho, deriv_norm_drho], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho_ndrho)
       END IF
-      IF (grad_deriv > 3 .OR. grad_deriv < -3) THEN
+      IF (grad_deriv > 3) THEN
          CPABORT("derivatives bigger than 3 not implemented")
       END IF
 
@@ -390,9 +386,7 @@ CONTAINS
 !> \param e_ndrho_rho_rho ...
 !> \param e_ndrho_ndrho_rho ...
 !> \param e_ndrho_ndrho_ndrho ...
-!> \param grad_deriv degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param grad_deriv maximum degree of the derivative that should be evaluated
 !> \param npoints ...
 !> \param epsilon_rho ...
 !> \param ! ...
@@ -503,71 +497,68 @@ CONTAINS
       t69 = pi**2
       t627 = 0.1e1_dp/t69/pi
 
-      SELECT CASE (grad_deriv)
-      CASE default
 !$OMP DO
-         DO ii = 1, npoints
-            my_rho = rho(ii)
-            IF (my_rho > epsilon_rho) THEN
-               my_norm_drho = norm_drho(ii)
+      DO ii = 1, npoints
+         my_rho = rho(ii)
+         IF (my_rho > epsilon_rho) THEN
+            my_norm_drho = norm_drho(ii)
 
-               t6 = 0.1e1_dp/my_rho
-               t7 = t5*t6
-               t8 = t7**(0.1e1_dp/0.3e1_dp)
-               rs = t4*t8/0.4e1_dp
-               t11 = 0.1e1_dp + alpha_1_1*rs
-               t13 = 0.1e1_dp/A_1
-               t14 = SQRT(rs)
-               t17 = t14*rs
-               t19 = p_1 + 0.1e1_dp
-               t20 = rs**t19
-               t21 = beta_4_1*t20
-               t22 = beta_1_1*t14 + beta_2_1*rs + beta_3_1*t17 + t21
-               t26 = 0.1e1_dp + t13/t22/0.2e1_dp
-               t27 = LOG(t26)
-               e_c_u_0 = -0.2e1_dp*A_1*t11*t27
-               t65 = 2**(0.1e1_dp/0.3e1_dp)
-               t70 = t69*my_rho
-               t71 = t70**(0.1e1_dp/0.3e1_dp)
-               k_f = t1*t71
-               t72 = k_f*t5
-               t73 = SQRT(t72)
-               k_s = 0.2e1_dp*t73
-               t74 = 0.1e1_dp/k_s
-               t75 = my_norm_drho*t74
-               t = t75*t6/0.2e1_dp
-               t77 = 0.1e1_dp/gamma_var
-               t78 = beta*t77
-               t80 = EXP(-e_c_u_0*t77)
-               t81 = -0.1e1_dp + t80
-               A = t78/t81
-               t83 = t**2
-               t84 = A*t83
-               t85 = 0.1e1_dp + t84
-               t86 = t83*t85
-               t87 = A**2
-               t88 = t83**2
-               t90 = 0.1e1_dp + t84 + t87*t88
-               t91 = 0.1e1_dp/t90
-               t94 = 0.1e1_dp + t78*t86*t91
-               t95 = LOG(t94)
-               epsilon_cGGA = e_c_u_0 + gamma_var*t95
-               kf = k_f
-               ex_unif = -0.3e1_dp/0.4e1_dp*t5*kf
-               t98 = 0.1e1_dp/kf
-               t99 = my_norm_drho*t98
-               s = t99*t6/0.2e1_dp
-               t101 = s**2
-               t103 = 0.1e1_dp/kappa
-               t105 = 0.1e1_dp + mu*t101*t103
-               Fx = 0.1e1_dp + kappa - kappa/t105
-               t108 = my_rho*ex_unif
+            t6 = 0.1e1_dp/my_rho
+            t7 = t5*t6
+            t8 = t7**(0.1e1_dp/0.3e1_dp)
+            rs = t4*t8/0.4e1_dp
+            t11 = 0.1e1_dp + alpha_1_1*rs
+            t13 = 0.1e1_dp/A_1
+            t14 = SQRT(rs)
+            t17 = t14*rs
+            t19 = p_1 + 0.1e1_dp
+            t20 = rs**t19
+            t21 = beta_4_1*t20
+            t22 = beta_1_1*t14 + beta_2_1*rs + beta_3_1*t17 + t21
+            t26 = 0.1e1_dp + t13/t22/0.2e1_dp
+            t27 = LOG(t26)
+            e_c_u_0 = -0.2e1_dp*A_1*t11*t27
+            t65 = 2**(0.1e1_dp/0.3e1_dp)
+            t70 = t69*my_rho
+            t71 = t70**(0.1e1_dp/0.3e1_dp)
+            k_f = t1*t71
+            t72 = k_f*t5
+            t73 = SQRT(t72)
+            k_s = 0.2e1_dp*t73
+            t74 = 0.1e1_dp/k_s
+            t75 = my_norm_drho*t74
+            t = t75*t6/0.2e1_dp
+            t77 = 0.1e1_dp/gamma_var
+            t78 = beta*t77
+            t80 = EXP(-e_c_u_0*t77)
+            t81 = -0.1e1_dp + t80
+            A = t78/t81
+            t83 = t**2
+            t84 = A*t83
+            t85 = 0.1e1_dp + t84
+            t86 = t83*t85
+            t87 = A**2
+            t88 = t83**2
+            t90 = 0.1e1_dp + t84 + t87*t88
+            t91 = 0.1e1_dp/t90
+            t94 = 0.1e1_dp + t78*t86*t91
+            t95 = LOG(t94)
+            epsilon_cGGA = e_c_u_0 + gamma_var*t95
+            kf = k_f
+            ex_unif = -0.3e1_dp/0.4e1_dp*t5*kf
+            t98 = 0.1e1_dp/kf
+            t99 = my_norm_drho*t98
+            s = t99*t6/0.2e1_dp
+            t101 = s**2
+            t103 = 0.1e1_dp/kappa
+            t105 = 0.1e1_dp + mu*t101*t103
+            Fx = 0.1e1_dp + kappa - kappa/t105
+            t108 = my_rho*ex_unif
 
-               IF (grad_deriv >= 0) THEN
-                  e_0(ii) = e_0(ii) + &
-                            scale_ex*t108*Fx + scale_ec*my_rho*epsilon_cGGA
-               END IF
+            e_0(ii) = e_0(ii) + &
+                      scale_ex*t108*Fx + scale_ec*my_rho*epsilon_cGGA
 
+            IF (grad_deriv /= 0) THEN
                t111 = t8**2
                t113 = 0.1e1_dp/t111*t5
                t114 = my_rho**2
@@ -634,11 +625,9 @@ CONTAINS
                Fxrho = 0.2e1_dp*t204*s*srho
                t208 = my_rho*ex_unifrho
 
-               IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
-                  e_rho(ii) = e_rho(ii) + &
-                              scale_ex*(ex_unif*Fx + t208*Fx + t108*Fxrho) + &
-                              scale_ec*(epsilon_cGGA + my_rho*epsilon_cGGArho)
-               END IF
+               e_rho(ii) = e_rho(ii) + &
+                           scale_ex*(ex_unif*Fx + t208*Fx + t108*Fxrho) + &
+                           scale_ec*(epsilon_cGGA + my_rho*epsilon_cGGArho)
 
                tnorm_drho = t74*t6/0.2e1_dp
                t214 = t163*tnorm_drho
@@ -652,665 +641,659 @@ CONTAINS
                snorm_drho = t98*t6/0.2e1_dp
                Fxnorm_drho = 0.2e1_dp*t204*s*snorm_drho
 
-               IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
-                  e_ndrho(ii) = e_ndrho(ii) + &
-                                scale_ex*t108*Fxnorm_drho + scale_ec*my_rho* &
-                                Hnorm_drho
-               END IF
+               e_ndrho(ii) = e_ndrho(ii) + &
+                             scale_ex*t108*Fxnorm_drho + scale_ec*my_rho* &
+                             Hnorm_drho
 
-               t238 = 0.1e1_dp/t69
-               t239 = 0.1e1_dp/t111/t7*t238
-               t240 = t114**2
-               t241 = 0.1e1_dp/t240
-               t246 = 0.1e1_dp/t114/my_rho
-               rsrhorho = -t4*t239*t241/0.18e2_dp + t4*t113* &
-                          t246/0.6e1_dp
-               t252 = 0.2e1_dp*t119*rsrhorho*t27
-               t253 = alpha_1_1*rsrho
-               t255 = t124*t138*t139
-               t259 = 0.1e1_dp/t123/t22
-               t260 = t11*t259
-               t261 = t138**2
-               t262 = t261*t139
-               t265 = 0.1e1_dp/t17
-               t266 = beta_1_1*t265
-               t267 = rsrho**2
-               t271 = t127*rsrhorho/0.2e1_dp
-               t272 = beta_2_1*rsrhorho
-               t273 = beta_3_1*t126
-               t277 = 0.3e1_dp/0.2e1_dp*t131*rsrhorho
-               t278 = t19**2
-               t280 = rs**2
-               t281 = 0.1e1_dp/t280
-               t286 = t21*t19*rsrhorho*t135
-               t290 = -t266*t267/0.4e1_dp + t271 + t272 + 0.3e1_dp/0.4e1_dp &
-                      *t273*t267 + t277 + t21*t278*t267*t281 + t286 - t21*t19 &
-                      *t267*t281
-               t291 = t290*t139
-               t293 = t123**2
-               t294 = 0.1e1_dp/t293
-               t295 = t11*t294
-               t296 = t26**2
-               t297 = 0.1e1_dp/t296
-               t299 = t261*t297*t13
-               e_c_u_0rhorho = -t252 + 0.2e1_dp*t253*t255 - 0.2e1_dp*t260* &
-                               t262 + t125*t291 + t295*t299/0.2e1_dp
-               e_c_u_01rho = e_c_u_0rho
-               t305 = t69**2
-               k_frhorho = -0.2e1_dp/0.9e1_dp*t1/t142/t70*t305
-               t309 = 0.1e1_dp/t73/t72
-               t310 = k_frho**2
-               t315 = t146*k_frhorho*t5
-               k_srhorho = -t309*t310*t238/0.2e1_dp + t315
-               k_s1rho = k_srho
-               t317 = 0.1e1_dp/t148/k_s
-               t318 = my_norm_drho*t317
-               t321 = t115*k_srho
-               t323 = t150*t321/0.2e1_dp
-               t324 = t6*k_srhorho
-               t327 = t115*k_s1rho
-               t329 = t150*t327/0.2e1_dp
-               t330 = t75*t246
-               trhorho = t318*t151*k_s1rho + t323 - t150*t324/0.2e1_dp + &
-                         t329 + t330
-               t331 = t6*k_s1rho
-               t1rho = -t150*t331/0.2e1_dp - t153/0.2e1_dp
-               t336 = beta/t155/gamma_var
-               t338 = 0.1e1_dp/t158/t81
-               t339 = t336*t338
-               t340 = t80**2
-               t341 = e_c_u_0rho*t340
-               t348 = t336*t159
-               t349 = e_c_u_0rho*e_c_u_01rho
-               Arhorho = 0.2e1_dp*t339*t341*e_c_u_01rho + t157*t159* &
-                         e_c_u_0rhorho*t80 - t348*t349*t80
-               A1rho = t157*t159*e_c_u_01rho*t80
-               t354 = t78*t1rho
-               t357 = A1rho*t83
-               t359 = 0.2e1_dp*t168*t1rho
-               t360 = t357 + t359
-               t361 = t360*t91
-               t362 = t361*trho
-               t369 = t357 + t359 + 0.2e1_dp*t179*A1rho + 0.4e1_dp*t183*t1rho
-               t370 = trho*t369
-               t371 = t178*t370
-               t374 = t163*trhorho
-               t377 = t171*t91
-               t378 = t377*t1rho
-               t381 = Arhorho*t83
-               t382 = Arho*t
-               t384 = 0.2e1_dp*t382*t1rho
-               t385 = A1rho*t
-               t387 = 0.2e1_dp*t385*trho
-               t388 = A*t1rho
-               t390 = 0.2e1_dp*t388*trho
-               t392 = 0.2e1_dp*t168*trhorho
-               t393 = t381 + t384 + t387 + t390 + t392
-               t397 = t171*t177
-               t400 = t186*t1rho
-               t401 = t178*t400
-               t404 = t360*t177
-               t408 = 0.1e1_dp/t176/t90
-               t409 = t85*t408
-               t410 = t186*t369
-               t414 = A1rho*t88
-               t417 = A*t182
-               t418 = Arho*t1rho
-               t423 = trho*A1rho
-               t426 = t87*t83
-               t427 = trho*t1rho
-               t432 = t381 + t384 + t387 + t390 + t392 + 0.2e1_dp*t414*Arho + &
-                      0.8e1_dp*t417*t418 + 0.2e1_dp*t179*Arhorho + 0.8e1_dp* &
-                      t417*t423 + 0.12e2_dp*t426*t427 + 0.4e1_dp*t183*trhorho
-               t435 = 0.2e1_dp*t354*t164 + 0.2e1_dp*t162*t362 - 0.2e1_dp &
-                      *t162*t371 + 0.2e1_dp*t162*t374 + 0.2e1_dp*t162*t378 + &
-                      t78*t83*t393*t91 - t175*t397*t369 - 0.2e1_dp*t162*t401 &
-                      - t175*t404*t186 + 0.2e1_dp*t175*t409*t410 - t175*t178 &
-                      *t432
-               t436 = gamma_var*t435
-               t438 = t94**2
-               t439 = 0.1e1_dp/t438
-               t440 = t163*t1rho
-               t448 = 0.2e1_dp*t162*t440 + t78*t83*t360*t91 - t175* &
-                      t178*t369
-               t449 = t439*t448
-               t451 = gamma_var*t448
-               epsilon_cGGArhorho = e_c_u_0rhorho + t436*t191 - t190*t449
-               kfrhorho = k_frhorho
-               ex_unifrhorho = -0.3e1_dp/0.4e1_dp*t5*kfrhorho
-               ex_unif1rho = ex_unifrho
-               t456 = 0.1e1_dp/t195/kf
-               t457 = my_norm_drho*t456
-               t458 = kfrho**2
-               t459 = t6*t458
-               t461 = t115*kfrho
-               t462 = t197*t461
-               t463 = t6*kfrhorho
-               t465 = t197*t463/0.2e1_dp
-               t466 = t99*t246
-               srhorho = t457*t459 + t462 - t465 + t466
-               s1rho = srho
-               t469 = mu**2
-               t470 = 0.1e1_dp/t202/t105*t469
-               t471 = t470*t101
-               t472 = srho*t103
-               t476 = s1rho*srho
-               Fxrhorho = -0.8e1_dp*t471*t472*s1rho + 0.2e1_dp*t204* &
-                          t476 + 0.2e1_dp*t204*s*srhorho
-               Fx1rho = 0.2e1_dp*t204*s*s1rho
-               t487 = my_rho*ex_unifrhorho
-               t491 = my_rho*ex_unif1rho
+               IF (grad_deriv > 1) THEN
+                  t238 = 0.1e1_dp/t69
+                  t239 = 0.1e1_dp/t111/t7*t238
+                  t240 = t114**2
+                  t241 = 0.1e1_dp/t240
+                  t246 = 0.1e1_dp/t114/my_rho
+                  rsrhorho = -t4*t239*t241/0.18e2_dp + t4*t113* &
+                             t246/0.6e1_dp
+                  t252 = 0.2e1_dp*t119*rsrhorho*t27
+                  t253 = alpha_1_1*rsrho
+                  t255 = t124*t138*t139
+                  t259 = 0.1e1_dp/t123/t22
+                  t260 = t11*t259
+                  t261 = t138**2
+                  t262 = t261*t139
+                  t265 = 0.1e1_dp/t17
+                  t266 = beta_1_1*t265
+                  t267 = rsrho**2
+                  t271 = t127*rsrhorho/0.2e1_dp
+                  t272 = beta_2_1*rsrhorho
+                  t273 = beta_3_1*t126
+                  t277 = 0.3e1_dp/0.2e1_dp*t131*rsrhorho
+                  t278 = t19**2
+                  t280 = rs**2
+                  t281 = 0.1e1_dp/t280
+                  t286 = t21*t19*rsrhorho*t135
+                  t290 = -t266*t267/0.4e1_dp + t271 + t272 + 0.3e1_dp/0.4e1_dp &
+                         *t273*t267 + t277 + t21*t278*t267*t281 + t286 - t21*t19 &
+                         *t267*t281
+                  t291 = t290*t139
+                  t293 = t123**2
+                  t294 = 0.1e1_dp/t293
+                  t295 = t11*t294
+                  t296 = t26**2
+                  t297 = 0.1e1_dp/t296
+                  t299 = t261*t297*t13
+                  e_c_u_0rhorho = -t252 + 0.2e1_dp*t253*t255 - 0.2e1_dp*t260* &
+                                  t262 + t125*t291 + t295*t299/0.2e1_dp
+                  e_c_u_01rho = e_c_u_0rho
+                  t305 = t69**2
+                  k_frhorho = -0.2e1_dp/0.9e1_dp*t1/t142/t70*t305
+                  t309 = 0.1e1_dp/t73/t72
+                  t310 = k_frho**2
+                  t315 = t146*k_frhorho*t5
+                  k_srhorho = -t309*t310*t238/0.2e1_dp + t315
+                  k_s1rho = k_srho
+                  t317 = 0.1e1_dp/t148/k_s
+                  t318 = my_norm_drho*t317
+                  t321 = t115*k_srho
+                  t323 = t150*t321/0.2e1_dp
+                  t324 = t6*k_srhorho
+                  t327 = t115*k_s1rho
+                  t329 = t150*t327/0.2e1_dp
+                  t330 = t75*t246
+                  trhorho = t318*t151*k_s1rho + t323 - t150*t324/0.2e1_dp + &
+                            t329 + t330
+                  t331 = t6*k_s1rho
+                  t1rho = -t150*t331/0.2e1_dp - t153/0.2e1_dp
+                  t336 = beta/t155/gamma_var
+                  t338 = 0.1e1_dp/t158/t81
+                  t339 = t336*t338
+                  t340 = t80**2
+                  t341 = e_c_u_0rho*t340
+                  t348 = t336*t159
+                  t349 = e_c_u_0rho*e_c_u_01rho
+                  Arhorho = 0.2e1_dp*t339*t341*e_c_u_01rho + t157*t159* &
+                            e_c_u_0rhorho*t80 - t348*t349*t80
+                  A1rho = t157*t159*e_c_u_01rho*t80
+                  t354 = t78*t1rho
+                  t357 = A1rho*t83
+                  t359 = 0.2e1_dp*t168*t1rho
+                  t360 = t357 + t359
+                  t361 = t360*t91
+                  t362 = t361*trho
+                  t369 = t357 + t359 + 0.2e1_dp*t179*A1rho + 0.4e1_dp*t183*t1rho
+                  t370 = trho*t369
+                  t371 = t178*t370
+                  t374 = t163*trhorho
+                  t377 = t171*t91
+                  t378 = t377*t1rho
+                  t381 = Arhorho*t83
+                  t382 = Arho*t
+                  t384 = 0.2e1_dp*t382*t1rho
+                  t385 = A1rho*t
+                  t387 = 0.2e1_dp*t385*trho
+                  t388 = A*t1rho
+                  t390 = 0.2e1_dp*t388*trho
+                  t392 = 0.2e1_dp*t168*trhorho
+                  t393 = t381 + t384 + t387 + t390 + t392
+                  t397 = t171*t177
+                  t400 = t186*t1rho
+                  t401 = t178*t400
+                  t404 = t360*t177
+                  t408 = 0.1e1_dp/t176/t90
+                  t409 = t85*t408
+                  t410 = t186*t369
+                  t414 = A1rho*t88
+                  t417 = A*t182
+                  t418 = Arho*t1rho
+                  t423 = trho*A1rho
+                  t426 = t87*t83
+                  t427 = trho*t1rho
+                  t432 = t381 + t384 + t387 + t390 + t392 + 0.2e1_dp*t414*Arho + &
+                         0.8e1_dp*t417*t418 + 0.2e1_dp*t179*Arhorho + 0.8e1_dp* &
+                         t417*t423 + 0.12e2_dp*t426*t427 + 0.4e1_dp*t183*trhorho
+                  t435 = 0.2e1_dp*t354*t164 + 0.2e1_dp*t162*t362 - 0.2e1_dp &
+                         *t162*t371 + 0.2e1_dp*t162*t374 + 0.2e1_dp*t162*t378 + &
+                         t78*t83*t393*t91 - t175*t397*t369 - 0.2e1_dp*t162*t401 &
+                         - t175*t404*t186 + 0.2e1_dp*t175*t409*t410 - t175*t178 &
+                         *t432
+                  t436 = gamma_var*t435
+                  t438 = t94**2
+                  t439 = 0.1e1_dp/t438
+                  t440 = t163*t1rho
+                  t448 = 0.2e1_dp*t162*t440 + t78*t83*t360*t91 - t175* &
+                         t178*t369
+                  t449 = t439*t448
+                  t451 = gamma_var*t448
+                  epsilon_cGGArhorho = e_c_u_0rhorho + t436*t191 - t190*t449
+                  kfrhorho = k_frhorho
+                  ex_unifrhorho = -0.3e1_dp/0.4e1_dp*t5*kfrhorho
+                  ex_unif1rho = ex_unifrho
+                  t456 = 0.1e1_dp/t195/kf
+                  t457 = my_norm_drho*t456
+                  t458 = kfrho**2
+                  t459 = t6*t458
+                  t461 = t115*kfrho
+                  t462 = t197*t461
+                  t463 = t6*kfrhorho
+                  t465 = t197*t463/0.2e1_dp
+                  t466 = t99*t246
+                  srhorho = t457*t459 + t462 - t465 + t466
+                  s1rho = srho
+                  t469 = mu**2
+                  t470 = 0.1e1_dp/t202/t105*t469
+                  t471 = t470*t101
+                  t472 = srho*t103
+                  t476 = s1rho*srho
+                  Fxrhorho = -0.8e1_dp*t471*t472*s1rho + 0.2e1_dp*t204* &
+                             t476 + 0.2e1_dp*t204*s*srhorho
+                  Fx1rho = 0.2e1_dp*t204*s*s1rho
+                  t487 = my_rho*ex_unifrhorho
+                  t491 = my_rho*ex_unif1rho
 
-               IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
                   e_rho_rho(ii) = e_rho_rho(ii) + &
                                   scale_ex*(ex_unif1rho*Fx + ex_unif*Fx1rho + &
                                             ex_unifrho*Fx + t487*Fx + t208*Fx1rho + ex_unif*Fxrho + t491 &
                                             *Fxrho + t108*Fxrhorho) + scale_ec*(e_c_u_01rho + t451*t191 &
                                                                                 + epsilon_cGGArho + my_rho*epsilon_cGGArhorho)
-               END IF
 
-               t496 = t149*t6
-               t498 = t74*t115
-               tnorm_drhorho = -t496*k_srho/0.2e1_dp - t498/0.2e1_dp
-               t500 = t78*trho
-               t503 = t377*tnorm_drho
-               t506 = tnorm_drho*t186
-               t507 = t178*t506
-               t510 = t163*tnorm_drhorho
-               t513 = t91*trho
-               t517 = Arho*tnorm_drho
-               t521 = A*tnorm_drhorho
-               t525 = t177*t186
-               t529 = t226*trho
-               t530 = t178*t529
-               t535 = t226*t186
-               t541 = A*trho
-               t548 = tnorm_drho*trho
-               t553 = 0.2e1_dp*t382*tnorm_drho + 0.2e1_dp*t541*tnorm_drho &
-                      + 0.2e1_dp*t168*tnorm_drhorho + 0.8e1_dp*t417*t517 + &
-                      0.12e2_dp*t426*t548 + 0.4e1_dp*t183*tnorm_drhorho
-               t556 = 0.2e1_dp*t500*t214 + 0.2e1_dp*t162*t503 - 0.2e1_dp &
-                      *t162*t507 + 0.2e1_dp*t162*t510 + 0.6e1_dp*t175*t218* &
-                      t513 + 0.2e1_dp*t217*t517*t91 + 0.2e1_dp*t217*t521*t91 - &
-                      0.2e1_dp*t217*t218*t525 - 0.2e1_dp*t162*t530 - t175* &
-                      t397*t226 + 0.2e1_dp*t175*t409*t535 - t175*t178*t553
-               t557 = gamma_var*t556
-               t559 = t439*t189
-               Hnorm_drhorho = t557*t191 - t230*t559
-               t562 = t196*t6
-               snorm_drhorho = -t562*kfrho/0.2e1_dp - t98*t115/0.2e1_dp
-               t566 = snorm_drho*t103
-               Fxnorm_drhorho = -0.8e1_dp*t471*t566*srho + 0.2e1_dp*t204 &
-                                *srho*snorm_drho + 0.2e1_dp*t204*s*snorm_drhorho
+                  t496 = t149*t6
+                  t498 = t74*t115
+                  tnorm_drhorho = -t496*k_srho/0.2e1_dp - t498/0.2e1_dp
+                  t500 = t78*trho
+                  t503 = t377*tnorm_drho
+                  t506 = tnorm_drho*t186
+                  t507 = t178*t506
+                  t510 = t163*tnorm_drhorho
+                  t513 = t91*trho
+                  t517 = Arho*tnorm_drho
+                  t521 = A*tnorm_drhorho
+                  t525 = t177*t186
+                  t529 = t226*trho
+                  t530 = t178*t529
+                  t535 = t226*t186
+                  t541 = A*trho
+                  t548 = tnorm_drho*trho
+                  t553 = 0.2e1_dp*t382*tnorm_drho + 0.2e1_dp*t541*tnorm_drho &
+                         + 0.2e1_dp*t168*tnorm_drhorho + 0.8e1_dp*t417*t517 + &
+                         0.12e2_dp*t426*t548 + 0.4e1_dp*t183*tnorm_drhorho
+                  t556 = 0.2e1_dp*t500*t214 + 0.2e1_dp*t162*t503 - 0.2e1_dp &
+                         *t162*t507 + 0.2e1_dp*t162*t510 + 0.6e1_dp*t175*t218* &
+                         t513 + 0.2e1_dp*t217*t517*t91 + 0.2e1_dp*t217*t521*t91 - &
+                         0.2e1_dp*t217*t218*t525 - 0.2e1_dp*t162*t530 - t175* &
+                         t397*t226 + 0.2e1_dp*t175*t409*t535 - t175*t178*t553
+                  t557 = gamma_var*t556
+                  t559 = t439*t189
+                  Hnorm_drhorho = t557*t191 - t230*t559
+                  t562 = t196*t6
+                  snorm_drhorho = -t562*kfrho/0.2e1_dp - t98*t115/0.2e1_dp
+                  t566 = snorm_drho*t103
+                  Fxnorm_drhorho = -0.8e1_dp*t471*t566*srho + 0.2e1_dp*t204 &
+                                   *srho*snorm_drho + 0.2e1_dp*t204*s*snorm_drhorho
 
-               IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
                   e_ndrho_rho(ii) = e_ndrho_rho(ii) + &
                                     scale_ex*(ex_unif*Fxnorm_drho + t208* &
                                               Fxnorm_drho + t108*Fxnorm_drhorho) + scale_ec*(Hnorm_drho + my_rho &
                                                                                              *Hnorm_drhorho)
-               END IF
 
-               t581 = tnorm_drho**2
-               t586 = A*t581
-               t590 = tnorm_drho*t226
-               t591 = t178*t590
-               t594 = t177*t226
-               t598 = t226**2
-               t605 = 0.2e1_dp*t586 + 0.12e2_dp*t426*t581
-               t609 = gamma_var*(0.2e1_dp*t78*t581*t85*t91 + 0.10e2_dp &
-                                 *t175*t586*t91 - 0.4e1_dp*t162*t591 - 0.4e1_dp*t217* &
-                                 t218*t594 + 0.2e1_dp*t175*t409*t598 - t175*t178*t605)
-               t611 = t229**2
-               t612 = gamma_var*t611
-               Hnorm_drhonorm_drho = t609*t191 - t612*t439
-               t614 = snorm_drho**2
-               Fxnorm_drhonorm_drho = -0.8e1_dp*t470*t101*t614*t103 + &
-                                      0.2e1_dp*t204*t614
+                  t581 = tnorm_drho**2
+                  t586 = A*t581
+                  t590 = tnorm_drho*t226
+                  t591 = t178*t590
+                  t594 = t177*t226
+                  t598 = t226**2
+                  t605 = 0.2e1_dp*t586 + 0.12e2_dp*t426*t581
+                  t609 = gamma_var*(0.2e1_dp*t78*t581*t85*t91 + 0.10e2_dp &
+                                    *t175*t586*t91 - 0.4e1_dp*t162*t591 - 0.4e1_dp*t217* &
+                                    t218*t594 + 0.2e1_dp*t175*t409*t598 - t175*t178*t605)
+                  t611 = t229**2
+                  t612 = gamma_var*t611
+                  Hnorm_drhonorm_drho = t609*t191 - t612*t439
+                  t614 = snorm_drho**2
+                  Fxnorm_drhonorm_drho = -0.8e1_dp*t470*t101*t614*t103 + &
+                                         0.2e1_dp*t204*t614
 
-               IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
                   e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii) + &
                                       scale_ex*t108*Fxnorm_drhonorm_drho + &
                                       scale_ec*my_rho*Hnorm_drhonorm_drho
-               END IF
 
-               IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
-                  rsrhorhorho = -0.5e1_dp/0.54e2_dp*t4/t111/t238/ &
-                                t115*t627/t240/t114 + t4*t239/t240/my_rho/0.3e1_dp &
-                                - t4*t113*t241/0.2e1_dp
-                  rs2rho = rsrho
-                  t645 = alpha_1_1*rsrhorho
-                  t654 = t127*rs2rho/0.2e1_dp + beta_2_1*rs2rho + 0.3e1_dp/ &
-                         0.2e1_dp*t131*rs2rho + t21*t19*rs2rho*t135
-                  t656 = t124*t654*t139
-                  t661 = t140*t654
-                  t664 = rsrho*rs2rho
-                  t669 = t21*t278
-                  t670 = rs2rho*t281
-                  t671 = t670*rsrho
-                  t673 = t21*t19
-                  t675 = -t266*t664/0.4e1_dp + t271 + t272 + 0.3e1_dp/0.4e1_dp &
-                         *t273*t664 + t277 + t669*t671 + t286 - t673*t671
-                  t685 = alpha_1_1*rs2rho
-                  t693 = t675*t139
-                  t701 = t297*t13
-                  t702 = t701*t654
-                  t714 = t267*rs2rho
-                  t717 = rsrhorho*rsrho
-                  t720 = rsrhorho*rs2rho
-                  t740 = rs2rho/t280/rs*t267
-                  t743 = rsrhorho*t281*rsrho
-                  t748 = t670*rsrhorho
-                  t758 = 0.3e1_dp/0.8e1_dp*beta_1_1/t14/t280*t714 - t266* &
-                         t717/0.2e1_dp - t266*t720/0.4e1_dp + t127*rsrhorhorho/ &
-                         0.2e1_dp + beta_2_1*rsrhorhorho - 0.3e1_dp/0.8e1_dp*beta_3_1* &
-                         t265*t714 + 0.3e1_dp/0.2e1_dp*t273*t717 + 0.3e1_dp/ &
-                         0.4e1_dp*t273*t720 + 0.3e1_dp/0.2e1_dp*t131*rsrhorhorho + &
-                         t21*t278*t19*t740 + 0.2e1_dp*t669*t743 - 0.3e1_dp*t669* &
-                         t740 + t669*t748 + t21*t19*rsrhorhorho*t135 - t673*t748 - &
-                         0.2e1_dp*t673*t743 + 0.2e1_dp*t673*t740
-                  t776 = A_1**2
-                  e_c_u_0rhorhorho = -0.2e1_dp*t119*rsrhorhorho*t27 + t645* &
-                                     t656 + 0.2e1_dp*t645*t255 - 0.4e1_dp*t253*t259*t661 + &
-                                     0.2e1_dp*t253*t124*t675*t139 + t253*t294*t138*t297* &
-                                     t13*t654 - 0.2e1_dp*t685*t259*t261*t139 + 0.6e1_dp*t295 &
-                                     *t262*t654 - 0.4e1_dp*t260*t693*t138 - 0.3e1_dp*t11/ &
-                                     t293/t22*t261*t702 + t685*t124*t290*t139 - 0.2e1_dp* &
-                                     t260*t291*t654 + t125*t758*t139 + t295*t290*t702/ &
-                                     0.2e1_dp + t685*t294*t299/0.2e1_dp + t295*t675*t701*t138 &
-                                     + t11/t293/t123*t261/t296/t26/t776*t654/0.2e1_dp
-                  e_c_u_0rho1rho = -t252 + t253*t656 + t685*t255 - 0.2e1_dp* &
-                                   t260*t661 + t125*t693 + t295*t138*t702/0.2e1_dp
-                  e_c_u_01rhorho = e_c_u_0rho1rho
-                  e_c_u_02rho = -0.2e1_dp*t119*rs2rho*t27 + t125*t654*t139
-                  k_frhorhorho = 0.10e2_dp/0.27e2_dp*t1/t142/t114*t69
-                  k_f2rho = kfrho
-                  t801 = k_f**2
-                  t809 = t309*k_frhorho
-                  t812 = t238*k_f2rho
-                  k_srho1rho = -t309*k_frho*t812/0.2e1_dp + t315
-                  k_s1rhorho = k_srho1rho
-                  k_s2rho = t146*k_f2rho*t5
-                  t821 = t148**2
-                  t825 = k_srho*k_s1rho
-                  t831 = t6*k_srho1rho
-                  trhorhorho = -0.3e1_dp*my_norm_drho/t821*t6*t825*k_s2rho - &
-                               t318*t321*k_s1rho + t318*t831*k_s1rho + t318*t151* &
-                               k_s1rhorho - t318*t321*k_s2rho - t150*t246*k_srho + t150* &
-                               t115*k_srho1rho/0.2e1_dp + t318*t324*k_s2rho + t150*t115* &
-                               k_srhorho/0.2e1_dp - t150*t6*(0.3e1_dp/0.4e1_dp/t73/ &
-                                                             t801/t238*t310*t627*k_f2rho - t809*t238*k_frho - t809* &
-                                                             t812/0.2e1_dp + t146*k_frhorhorho*t5)/0.2e1_dp - t318*t327 &
-                               *k_s2rho - t150*t246*k_s1rho + t150*t115*k_s1rhorho/ &
-                               0.2e1_dp - t150*t246*k_s2rho - 0.3e1_dp*t75*t241
-                  t868 = t150*t115*k_s2rho/0.2e1_dp
-                  trho1rho = t318*t151*k_s2rho + t323 - t150*t831/0.2e1_dp + &
-                             t868 + t330
-                  t1rhorho = t318*t331*k_s2rho + t329 - t150*t6*k_s1rhorho/ &
-                             0.2e1_dp + t868 + t330
-                  t2rho = -t150*t6*k_s2rho/0.2e1_dp - t153/0.2e1_dp
-                  t877 = t155**2
-                  t879 = beta/t877
-                  t880 = t158**2
-                  t885 = e_c_u_01rho*e_c_u_02rho
-                  Arhorhorho = 0.6e1_dp*t879/t880*e_c_u_0rho*t340*t80* &
-                               t885 + 0.2e1_dp*t339*e_c_u_0rho1rho*t340*e_c_u_01rho - &
-                               0.6e1_dp*t879*t338*t341*t885 + 0.2e1_dp*t339*t341* &
-                               e_c_u_01rhorho + 0.2e1_dp*t339*e_c_u_0rhorho*t340* &
-                               e_c_u_02rho + t157*t159*e_c_u_0rhorhorho*t80 - t348* &
-                               e_c_u_0rhorho*e_c_u_02rho*t80 - t348*e_c_u_0rho1rho* &
-                               e_c_u_01rho*t80 - t348*e_c_u_0rho*e_c_u_01rhorho*t80 + t879 &
-                               *t159*t349*e_c_u_02rho*t80
-                  Arho1rho = 0.2e1_dp*t339*t341*e_c_u_02rho + t157*t159* &
-                             e_c_u_0rho1rho*t80 - t348*e_c_u_0rho*e_c_u_02rho*t80
-                  A1rhorho = 0.2e1_dp*t339*e_c_u_01rho*t340*e_c_u_02rho + &
-                             t157*t159*e_c_u_01rhorho*t80 - t348*t885*t80
-                  A2rho = t157*t159*e_c_u_02rho*t80
-                  t940 = Arho1rho*t83
-                  t942 = 0.2e1_dp*t382*t2rho
-                  t943 = A2rho*t
-                  t945 = 0.2e1_dp*t943*trho
-                  t946 = A*t2rho
-                  t948 = 0.2e1_dp*t946*trho
-                  t950 = 0.2e1_dp*t168*trho1rho
-                  t951 = A2rho*t88
-                  t954 = Arho*t2rho
-                  t967 = t940 + t942 + t945 + t948 + t950 + 0.2e1_dp*t951*Arho + &
-                         0.8e1_dp*t417*t954 + 0.2e1_dp*t179*Arho1rho + 0.8e1_dp* &
-                         t417*trho*A2rho + 0.12e2_dp*t426*trho*t2rho + 0.4e1_dp* &
-                         t183*trho1rho
-                  t976 = t78*t2rho
-                  t980 = t78*t*t85
-                  t982 = A2rho*t83
-                  t984 = 0.2e1_dp*t168*t2rho
-                  t989 = t982 + t984 + 0.2e1_dp*t179*A2rho + 0.4e1_dp*t183*t2rho
-                  t990 = t369*t989
-                  t994 = t982 + t984
-                  t995 = t994*t177
-                  t998 = Arhorhorho*t83
-                  t999 = Arhorho*t
-                  t1001 = 0.2e1_dp*t999*t2rho
-                  t1004 = 0.2e1_dp*Arho1rho*t*t1rho
-                  t1005 = t954*t1rho
-                  t1006 = 0.2e1_dp*t1005
-                  t1008 = 0.2e1_dp*t382*t1rhorho
-                  t1011 = 0.2e1_dp*A1rhorho*t*trho
-                  t1012 = A1rho*t2rho
-                  t1013 = t1012*trho
-                  t1014 = 0.2e1_dp*t1013
-                  t1016 = 0.2e1_dp*t385*trho1rho
-                  t1017 = A2rho*t1rho
-                  t1018 = t1017*trho
-                  t1019 = 0.2e1_dp*t1018
-                  t1022 = 0.2e1_dp*A*t1rhorho*trho
-                  t1024 = 0.2e1_dp*t388*trho1rho
-                  t1026 = 0.2e1_dp*t943*trhorho
-                  t1028 = 0.2e1_dp*t946*trhorho
-                  t1030 = 0.2e1_dp*t168*trhorhorho
-                  t1031 = t998 + t1001 + t1004 + t1006 + t1008 + t1011 + t1014 + &
-                          t1016 + t1019 + t1022 + t1024 + t1026 + t1028 + t1030
-                  t1035 = t940 + t942 + t945 + t948 + t950
-                  t1042 = t369*t2rho
-                  t1046 = A1rhorho*t83
-                  t1048 = 0.2e1_dp*t385*t2rho
-                  t1050 = 0.2e1_dp*t943*t1rho
-                  t1052 = 0.2e1_dp*t946*t1rho
-                  t1054 = 0.2e1_dp*t168*t1rhorho
-                  t1055 = t1046 + t1048 + t1050 + t1052 + t1054
-                  t1060 = t78*t86
-                  t1061 = t176**2
-                  t1062 = 0.1e1_dp/t1061
-                  t1067 = -0.2e1_dp*t162*t178*t967*t1rho + 0.2e1_dp*t175* &
-                          t409*t967*t369 + 0.2e1_dp*t976*t374 + 0.4e1_dp*t980* &
-                          t408*trho*t990 - t175*t995*t432 + t78*t83*t1031*t91 - &
-                          t175*t1035*t177*t369 - 0.2e1_dp*t162*t995*t370 - &
-                          0.2e1_dp*t162*t397*t1042 + 0.2e1_dp*t162*t1055*t91* &
-                          trho - 0.6e1_dp*t1060*t1062*t186*t990
-                  t1093 = t1046 + t1048 + t1050 + t1052 + t1054 + 0.2e1_dp*t951* &
-                          A1rho + 0.8e1_dp*t417*t1012 + 0.2e1_dp*t179*A1rhorho + &
-                          0.8e1_dp*t417*t1017 + 0.12e2_dp*t426*t1rho*t2rho + &
-                          0.4e1_dp*t183*t1rhorho
-                  t1097 = t1rho*t989
-                  t1103 = trho*t989
-                  t1104 = t178*t1103
-                  t1106 = t994*t91
-                  t1109 = t171*t408
-                  t1115 = t976*t362 + t162*t361*trho1rho - t162*t178*t432 &
-                          *t2rho + t175*t994*t408*t410 - t162*t178*trho1rho*t369 &
-                          - t162*t178*trho*t1093 - t162*t397*t1097 + t175*t409* &
-                          t186*t1093 - t354*t1104 + t162*t1106*trhorho + t175*t1109 &
-                          *t990 + t175*t409*t432*t989
-                  t1118 = t1106*trho
-                  t1121 = t360*t408
-                  t1122 = t186*t989
-                  t1126 = t393*t177
-                  t1129 = t408*t186
-                  t1148 = t186*t2rho
-                  t1152 = 0.2e1_dp*t354*t1118 + 0.2e1_dp*t175*t1121*t1122 &
-                          - t175*t1126*t989 + 0.4e1_dp*t980*t1129*t1042 + 0.2e1_dp* &
-                          t976*t378 - t175*t404*t967 + 0.2e1_dp*t162*t377* &
-                          t1rhorho - 0.2e1_dp*t976*t401 + 0.2e1_dp*t78*t1rhorho*t164 &
-                          - 0.2e1_dp*t162*t404*t1103 - 0.2e1_dp*t162*t404*t1148
-                  t1157 = t393*t91
-                  t1167 = A2rho*t182
-                  t1187 = A1rho*t182
-                  t1196 = t87*t
-                  t1203 = t1008 + 0.8e1_dp*t417*trhorho*A2rho + 0.12e2_dp* &
-                          t426*trhorho*t2rho + 0.8e1_dp*t1167*t423 + 0.8e1_dp*t417* &
-                          trho*A1rhorho + 0.8e1_dp*t417*Arho*t1rhorho + 0.8e1_dp* &
-                          t1167*t418 + 0.8e1_dp*t417*Arho1rho*t1rho + 0.12e2_dp*t426 &
-                          *trho1rho*t1rho + 0.12e2_dp*t426*trho*t1rhorho + t998 + &
-                          0.8e1_dp*t1187*t954 + 0.8e1_dp*t417*trho1rho*A1rho + &
-                          0.8e1_dp*t417*Arhorho*t2rho + 0.24e2_dp*t1196*t427*t2rho &
-                          + 0.2e1_dp*A1rhorho*t88*Arho + t1014
-                  t1218 = t1016 + t1001 + 0.2e1_dp*t951*Arhorho + t1026 + t1028 &
-                          + t1022 + t1011 + t1030 + 0.2e1_dp*t179*Arhorhorho + 0.4e1_dp* &
-                          t183*trhorhorho + 0.2e1_dp*t414*Arho1rho + t1004 + t1006 + &
-                          t1019 + t1024 + 0.24e2_dp*t84*t1018 + 0.24e2_dp*t84*t1005 + &
-                          0.24e2_dp*t84*t1013
-                  t1226 = t163*trho1rho
-                  t1249 = -0.2e1_dp*t162*t178*t186*t1rhorho + 0.2e1_dp* &
-                          t162*t1157*t2rho - t175*t178*(t1203 + t1218) + 0.2e1_dp* &
-                          t162*t1035*t91*t1rho + 0.2e1_dp*t354*t1226 - 0.2e1_dp* &
-                          t162*t995*t400 + 0.2e1_dp*t162*t163*trhorhorho - 0.2e1_dp &
-                          *t162*t178*trhorho*t989 - t175*t1055*t177*t186 - &
-                          0.2e1_dp*t976*t371 - t175*t397*t1093 + 0.4e1_dp*t980* &
-                          t1129*t1097
-                  t1262 = 0.2e1_dp*t162*t163*t2rho + t78*t83*t994*t91 - &
-                          t175*t178*t989
-                  t1263 = t439*t1262
-                  t1291 = 0.2e1_dp*t976*t164 + 0.2e1_dp*t162*t1118 - &
-                          0.2e1_dp*t162*t1104 + 0.2e1_dp*t162*t1226 + 0.2e1_dp*t162 &
-                          *t377*t2rho + t78*t83*t1035*t91 - t175*t397*t989 - &
-                          0.2e1_dp*t162*t178*t1148 - t175*t995*t186 + 0.2e1_dp* &
-                          t175*t409*t1122 - t175*t178*t967
-                  t1292 = gamma_var*t1291
-                  t1295 = 0.1e1_dp/t438/t94
-                  t1329 = 0.2e1_dp*t976*t440 + 0.2e1_dp*t162*t1106*t1rho - &
-                          0.2e1_dp*t162*t178*t1097 + 0.2e1_dp*t162*t163*t1rhorho &
-                          + 0.2e1_dp*t162*t361*t2rho + t78*t83*t1055*t91 - t175* &
-                          t404*t989 - 0.2e1_dp*t162*t178*t1042 - t175*t995*t369 + &
-                          0.2e1_dp*t175*t409*t990 - t175*t178*t1093
-                  kfrhorhorho = k_frhorhorho
-                  kf2rho = k_f2rho
-                  ex_unifrho1rho = ex_unifrhorho
-                  ex_unif1rhorho = ex_unifrho1rho
-                  ex_unif2rho = -0.3e1_dp/0.4e1_dp*t5*kf2rho
-                  t1342 = t195**2
-                  srho1rho = t457*t198*kf2rho + t462/0.2e1_dp - t465 + t197* &
-                             t115*kf2rho/0.2e1_dp + t466
-                  s1rhorho = srho1rho
-                  s2rho = -t197*t6*kf2rho/0.2e1_dp - t200/0.2e1_dp
-                  t1380 = t202**2
-                  t1385 = 0.1e1_dp/t1380*t469*mu*t101*s
-                  t1386 = kappa**2
-                  t1387 = 0.1e1_dp/t1386
-                  t1389 = s1rho*s2rho
-                  t1393 = t470*s
-                  Fxrho1rho = -0.8e1_dp*t471*t472*s2rho + 0.2e1_dp*t204* &
-                              s2rho*srho + 0.2e1_dp*t204*s*srho1rho
-                  Fx1rhorho = -0.8e1_dp*t471*s1rho*t103*s2rho + 0.2e1_dp* &
-                              t204*t1389 + 0.2e1_dp*t204*s*s1rhorho
-                  Fx2rho = 0.2e1_dp*t204*s*s2rho
-                  ex_ldarhorhorho = ex_unif1rhorho*Fx + ex_unif1rho*Fx2rho + &
-                                    ex_unif2rho*Fx1rho + ex_unif*Fx1rhorho + ex_unifrho1rho*Fx + &
-                                    ex_unifrho*Fx2rho + ex_unifrhorho*Fx - 0.3e1_dp/0.4e1_dp*my_rho &
-                                    *t5*kfrhorhorho*Fx + t487*Fx2rho + ex_unifrho*Fx1rho + my_rho &
-                                    *ex_unifrho1rho*Fx1rho + t208*Fx1rhorho + ex_unif2rho*Fxrho &
-                                    + ex_unif*Fxrho1rho + ex_unif1rho*Fxrho + my_rho*ex_unif1rhorho* &
-                                    Fxrho + t491*Fxrho1rho + ex_unif*Fxrhorho + my_rho*ex_unif2rho* &
-                                    Fxrhorho + t108*(0.48e2_dp*t1385*srho*t1387*t1389 - &
-                                                     0.24e2_dp*t1393*t472*t1389 - 0.8e1_dp*t471*srho1rho*t103 &
-                                                     *s1rho - 0.8e1_dp*t471*t472*s1rhorho + 0.2e1_dp*t204* &
-                                                     s1rhorho*srho + 0.2e1_dp*t204*s1rho*srho1rho - 0.8e1_dp* &
-                                                     t471*srhorho*t103*s2rho + 0.2e1_dp*t204*s2rho*srhorho + &
-                                                     0.2e1_dp*t204*s*(-0.3e1_dp*my_norm_drho/t1342*t459*kf2rho &
-                                                                      - t457*t115*t458 + 0.2e1_dp*t457*t463*kfrho - 0.2e1_dp* &
-                                                                      t457*t461*kf2rho - 0.2e1_dp*t197*t246*kfrho + 0.3e1_dp/ &
-                                                                      0.2e1_dp*t197*t115*kfrhorho + t457*t463*kf2rho - t197*t6 &
-                                                                      *kfrhorhorho/0.2e1_dp - t197*t246*kf2rho - 0.3e1_dp*t99* &
-                                                                      t241))
+                  IF (grad_deriv >= 3) THEN
+                     rsrhorhorho = -0.5e1_dp/0.54e2_dp*t4/t111/t238/ &
+                                   t115*t627/t240/t114 + t4*t239/t240/my_rho/0.3e1_dp &
+                                   - t4*t113*t241/0.2e1_dp
+                     rs2rho = rsrho
+                     t645 = alpha_1_1*rsrhorho
+                     t654 = t127*rs2rho/0.2e1_dp + beta_2_1*rs2rho + 0.3e1_dp/ &
+                            0.2e1_dp*t131*rs2rho + t21*t19*rs2rho*t135
+                     t656 = t124*t654*t139
+                     t661 = t140*t654
+                     t664 = rsrho*rs2rho
+                     t669 = t21*t278
+                     t670 = rs2rho*t281
+                     t671 = t670*rsrho
+                     t673 = t21*t19
+                     t675 = -t266*t664/0.4e1_dp + t271 + t272 + 0.3e1_dp/0.4e1_dp &
+                            *t273*t664 + t277 + t669*t671 + t286 - t673*t671
+                     t685 = alpha_1_1*rs2rho
+                     t693 = t675*t139
+                     t701 = t297*t13
+                     t702 = t701*t654
+                     t714 = t267*rs2rho
+                     t717 = rsrhorho*rsrho
+                     t720 = rsrhorho*rs2rho
+                     t740 = rs2rho/t280/rs*t267
+                     t743 = rsrhorho*t281*rsrho
+                     t748 = t670*rsrhorho
+                     t758 = 0.3e1_dp/0.8e1_dp*beta_1_1/t14/t280*t714 - t266* &
+                            t717/0.2e1_dp - t266*t720/0.4e1_dp + t127*rsrhorhorho/ &
+                            0.2e1_dp + beta_2_1*rsrhorhorho - 0.3e1_dp/0.8e1_dp*beta_3_1* &
+                            t265*t714 + 0.3e1_dp/0.2e1_dp*t273*t717 + 0.3e1_dp/ &
+                            0.4e1_dp*t273*t720 + 0.3e1_dp/0.2e1_dp*t131*rsrhorhorho + &
+                            t21*t278*t19*t740 + 0.2e1_dp*t669*t743 - 0.3e1_dp*t669* &
+                            t740 + t669*t748 + t21*t19*rsrhorhorho*t135 - t673*t748 - &
+                            0.2e1_dp*t673*t743 + 0.2e1_dp*t673*t740
+                     t776 = A_1**2
+                     e_c_u_0rhorhorho = -0.2e1_dp*t119*rsrhorhorho*t27 + t645* &
+                                        t656 + 0.2e1_dp*t645*t255 - 0.4e1_dp*t253*t259*t661 + &
+                                        0.2e1_dp*t253*t124*t675*t139 + t253*t294*t138*t297* &
+                                        t13*t654 - 0.2e1_dp*t685*t259*t261*t139 + 0.6e1_dp*t295 &
+                                        *t262*t654 - 0.4e1_dp*t260*t693*t138 - 0.3e1_dp*t11/ &
+                                        t293/t22*t261*t702 + t685*t124*t290*t139 - 0.2e1_dp* &
+                                        t260*t291*t654 + t125*t758*t139 + t295*t290*t702/ &
+                                        0.2e1_dp + t685*t294*t299/0.2e1_dp + t295*t675*t701*t138 &
+                                        + t11/t293/t123*t261/t296/t26/t776*t654/0.2e1_dp
+                     e_c_u_0rho1rho = -t252 + t253*t656 + t685*t255 - 0.2e1_dp* &
+                                      t260*t661 + t125*t693 + t295*t138*t702/0.2e1_dp
+                     e_c_u_01rhorho = e_c_u_0rho1rho
+                     e_c_u_02rho = -0.2e1_dp*t119*rs2rho*t27 + t125*t654*t139
+                     k_frhorhorho = 0.10e2_dp/0.27e2_dp*t1/t142/t114*t69
+                     k_f2rho = kfrho
+                     t801 = k_f**2
+                     t809 = t309*k_frhorho
+                     t812 = t238*k_f2rho
+                     k_srho1rho = -t309*k_frho*t812/0.2e1_dp + t315
+                     k_s1rhorho = k_srho1rho
+                     k_s2rho = t146*k_f2rho*t5
+                     t821 = t148**2
+                     t825 = k_srho*k_s1rho
+                     t831 = t6*k_srho1rho
+                     trhorhorho = -0.3e1_dp*my_norm_drho/t821*t6*t825*k_s2rho - &
+                                  t318*t321*k_s1rho + t318*t831*k_s1rho + t318*t151* &
+                                  k_s1rhorho - t318*t321*k_s2rho - t150*t246*k_srho + t150* &
+                                  t115*k_srho1rho/0.2e1_dp + t318*t324*k_s2rho + t150*t115* &
+                                  k_srhorho/0.2e1_dp - t150*t6*(0.3e1_dp/0.4e1_dp/t73/ &
+                                                                t801/t238*t310*t627*k_f2rho - t809*t238*k_frho - t809* &
+                                                                t812/0.2e1_dp + t146*k_frhorhorho*t5)/0.2e1_dp - t318*t327 &
+                                  *k_s2rho - t150*t246*k_s1rho + t150*t115*k_s1rhorho/ &
+                                  0.2e1_dp - t150*t246*k_s2rho - 0.3e1_dp*t75*t241
+                     t868 = t150*t115*k_s2rho/0.2e1_dp
+                     trho1rho = t318*t151*k_s2rho + t323 - t150*t831/0.2e1_dp + &
+                                t868 + t330
+                     t1rhorho = t318*t331*k_s2rho + t329 - t150*t6*k_s1rhorho/ &
+                                0.2e1_dp + t868 + t330
+                     t2rho = -t150*t6*k_s2rho/0.2e1_dp - t153/0.2e1_dp
+                     t877 = t155**2
+                     t879 = beta/t877
+                     t880 = t158**2
+                     t885 = e_c_u_01rho*e_c_u_02rho
+                     Arhorhorho = 0.6e1_dp*t879/t880*e_c_u_0rho*t340*t80* &
+                                  t885 + 0.2e1_dp*t339*e_c_u_0rho1rho*t340*e_c_u_01rho - &
+                                  0.6e1_dp*t879*t338*t341*t885 + 0.2e1_dp*t339*t341* &
+                                  e_c_u_01rhorho + 0.2e1_dp*t339*e_c_u_0rhorho*t340* &
+                                  e_c_u_02rho + t157*t159*e_c_u_0rhorhorho*t80 - t348* &
+                                  e_c_u_0rhorho*e_c_u_02rho*t80 - t348*e_c_u_0rho1rho* &
+                                  e_c_u_01rho*t80 - t348*e_c_u_0rho*e_c_u_01rhorho*t80 + t879 &
+                                  *t159*t349*e_c_u_02rho*t80
+                     Arho1rho = 0.2e1_dp*t339*t341*e_c_u_02rho + t157*t159* &
+                                e_c_u_0rho1rho*t80 - t348*e_c_u_0rho*e_c_u_02rho*t80
+                     A1rhorho = 0.2e1_dp*t339*e_c_u_01rho*t340*e_c_u_02rho + &
+                                t157*t159*e_c_u_01rhorho*t80 - t348*t885*t80
+                     A2rho = t157*t159*e_c_u_02rho*t80
+                     t940 = Arho1rho*t83
+                     t942 = 0.2e1_dp*t382*t2rho
+                     t943 = A2rho*t
+                     t945 = 0.2e1_dp*t943*trho
+                     t946 = A*t2rho
+                     t948 = 0.2e1_dp*t946*trho
+                     t950 = 0.2e1_dp*t168*trho1rho
+                     t951 = A2rho*t88
+                     t954 = Arho*t2rho
+                     t967 = t940 + t942 + t945 + t948 + t950 + 0.2e1_dp*t951*Arho + &
+                            0.8e1_dp*t417*t954 + 0.2e1_dp*t179*Arho1rho + 0.8e1_dp* &
+                            t417*trho*A2rho + 0.12e2_dp*t426*trho*t2rho + 0.4e1_dp* &
+                            t183*trho1rho
+                     t976 = t78*t2rho
+                     t980 = t78*t*t85
+                     t982 = A2rho*t83
+                     t984 = 0.2e1_dp*t168*t2rho
+                     t989 = t982 + t984 + 0.2e1_dp*t179*A2rho + 0.4e1_dp*t183*t2rho
+                     t990 = t369*t989
+                     t994 = t982 + t984
+                     t995 = t994*t177
+                     t998 = Arhorhorho*t83
+                     t999 = Arhorho*t
+                     t1001 = 0.2e1_dp*t999*t2rho
+                     t1004 = 0.2e1_dp*Arho1rho*t*t1rho
+                     t1005 = t954*t1rho
+                     t1006 = 0.2e1_dp*t1005
+                     t1008 = 0.2e1_dp*t382*t1rhorho
+                     t1011 = 0.2e1_dp*A1rhorho*t*trho
+                     t1012 = A1rho*t2rho
+                     t1013 = t1012*trho
+                     t1014 = 0.2e1_dp*t1013
+                     t1016 = 0.2e1_dp*t385*trho1rho
+                     t1017 = A2rho*t1rho
+                     t1018 = t1017*trho
+                     t1019 = 0.2e1_dp*t1018
+                     t1022 = 0.2e1_dp*A*t1rhorho*trho
+                     t1024 = 0.2e1_dp*t388*trho1rho
+                     t1026 = 0.2e1_dp*t943*trhorho
+                     t1028 = 0.2e1_dp*t946*trhorho
+                     t1030 = 0.2e1_dp*t168*trhorhorho
+                     t1031 = t998 + t1001 + t1004 + t1006 + t1008 + t1011 + t1014 + &
+                             t1016 + t1019 + t1022 + t1024 + t1026 + t1028 + t1030
+                     t1035 = t940 + t942 + t945 + t948 + t950
+                     t1042 = t369*t2rho
+                     t1046 = A1rhorho*t83
+                     t1048 = 0.2e1_dp*t385*t2rho
+                     t1050 = 0.2e1_dp*t943*t1rho
+                     t1052 = 0.2e1_dp*t946*t1rho
+                     t1054 = 0.2e1_dp*t168*t1rhorho
+                     t1055 = t1046 + t1048 + t1050 + t1052 + t1054
+                     t1060 = t78*t86
+                     t1061 = t176**2
+                     t1062 = 0.1e1_dp/t1061
+                     t1067 = -0.2e1_dp*t162*t178*t967*t1rho + 0.2e1_dp*t175* &
+                             t409*t967*t369 + 0.2e1_dp*t976*t374 + 0.4e1_dp*t980* &
+                             t408*trho*t990 - t175*t995*t432 + t78*t83*t1031*t91 - &
+                             t175*t1035*t177*t369 - 0.2e1_dp*t162*t995*t370 - &
+                             0.2e1_dp*t162*t397*t1042 + 0.2e1_dp*t162*t1055*t91* &
+                             trho - 0.6e1_dp*t1060*t1062*t186*t990
+                     t1093 = t1046 + t1048 + t1050 + t1052 + t1054 + 0.2e1_dp*t951* &
+                             A1rho + 0.8e1_dp*t417*t1012 + 0.2e1_dp*t179*A1rhorho + &
+                             0.8e1_dp*t417*t1017 + 0.12e2_dp*t426*t1rho*t2rho + &
+                             0.4e1_dp*t183*t1rhorho
+                     t1097 = t1rho*t989
+                     t1103 = trho*t989
+                     t1104 = t178*t1103
+                     t1106 = t994*t91
+                     t1109 = t171*t408
+                     t1115 = t976*t362 + t162*t361*trho1rho - t162*t178*t432 &
+                             *t2rho + t175*t994*t408*t410 - t162*t178*trho1rho*t369 &
+                             - t162*t178*trho*t1093 - t162*t397*t1097 + t175*t409* &
+                             t186*t1093 - t354*t1104 + t162*t1106*trhorho + t175*t1109 &
+                             *t990 + t175*t409*t432*t989
+                     t1118 = t1106*trho
+                     t1121 = t360*t408
+                     t1122 = t186*t989
+                     t1126 = t393*t177
+                     t1129 = t408*t186
+                     t1148 = t186*t2rho
+                     t1152 = 0.2e1_dp*t354*t1118 + 0.2e1_dp*t175*t1121*t1122 &
+                             - t175*t1126*t989 + 0.4e1_dp*t980*t1129*t1042 + 0.2e1_dp* &
+                             t976*t378 - t175*t404*t967 + 0.2e1_dp*t162*t377* &
+                             t1rhorho - 0.2e1_dp*t976*t401 + 0.2e1_dp*t78*t1rhorho*t164 &
+                             - 0.2e1_dp*t162*t404*t1103 - 0.2e1_dp*t162*t404*t1148
+                     t1157 = t393*t91
+                     t1167 = A2rho*t182
+                     t1187 = A1rho*t182
+                     t1196 = t87*t
+                     t1203 = t1008 + 0.8e1_dp*t417*trhorho*A2rho + 0.12e2_dp* &
+                             t426*trhorho*t2rho + 0.8e1_dp*t1167*t423 + 0.8e1_dp*t417* &
+                             trho*A1rhorho + 0.8e1_dp*t417*Arho*t1rhorho + 0.8e1_dp* &
+                             t1167*t418 + 0.8e1_dp*t417*Arho1rho*t1rho + 0.12e2_dp*t426 &
+                             *trho1rho*t1rho + 0.12e2_dp*t426*trho*t1rhorho + t998 + &
+                             0.8e1_dp*t1187*t954 + 0.8e1_dp*t417*trho1rho*A1rho + &
+                             0.8e1_dp*t417*Arhorho*t2rho + 0.24e2_dp*t1196*t427*t2rho &
+                             + 0.2e1_dp*A1rhorho*t88*Arho + t1014
+                     t1218 = t1016 + t1001 + 0.2e1_dp*t951*Arhorho + t1026 + t1028 &
+                             + t1022 + t1011 + t1030 + 0.2e1_dp*t179*Arhorhorho + 0.4e1_dp* &
+                             t183*trhorhorho + 0.2e1_dp*t414*Arho1rho + t1004 + t1006 + &
+                             t1019 + t1024 + 0.24e2_dp*t84*t1018 + 0.24e2_dp*t84*t1005 + &
+                             0.24e2_dp*t84*t1013
+                     t1226 = t163*trho1rho
+                     t1249 = -0.2e1_dp*t162*t178*t186*t1rhorho + 0.2e1_dp* &
+                             t162*t1157*t2rho - t175*t178*(t1203 + t1218) + 0.2e1_dp* &
+                             t162*t1035*t91*t1rho + 0.2e1_dp*t354*t1226 - 0.2e1_dp* &
+                             t162*t995*t400 + 0.2e1_dp*t162*t163*trhorhorho - 0.2e1_dp &
+                             *t162*t178*trhorho*t989 - t175*t1055*t177*t186 - &
+                             0.2e1_dp*t976*t371 - t175*t397*t1093 + 0.4e1_dp*t980* &
+                             t1129*t1097
+                     t1262 = 0.2e1_dp*t162*t163*t2rho + t78*t83*t994*t91 - &
+                             t175*t178*t989
+                     t1263 = t439*t1262
+                     t1291 = 0.2e1_dp*t976*t164 + 0.2e1_dp*t162*t1118 - &
+                             0.2e1_dp*t162*t1104 + 0.2e1_dp*t162*t1226 + 0.2e1_dp*t162 &
+                             *t377*t2rho + t78*t83*t1035*t91 - t175*t397*t989 - &
+                             0.2e1_dp*t162*t178*t1148 - t175*t995*t186 + 0.2e1_dp* &
+                             t175*t409*t1122 - t175*t178*t967
+                     t1292 = gamma_var*t1291
+                     t1295 = 0.1e1_dp/t438/t94
+                     t1329 = 0.2e1_dp*t976*t440 + 0.2e1_dp*t162*t1106*t1rho - &
+                             0.2e1_dp*t162*t178*t1097 + 0.2e1_dp*t162*t163*t1rhorho &
+                             + 0.2e1_dp*t162*t361*t2rho + t78*t83*t1055*t91 - t175* &
+                             t404*t989 - 0.2e1_dp*t162*t178*t1042 - t175*t995*t369 + &
+                             0.2e1_dp*t175*t409*t990 - t175*t178*t1093
+                     kfrhorhorho = k_frhorhorho
+                     kf2rho = k_f2rho
+                     ex_unifrho1rho = ex_unifrhorho
+                     ex_unif1rhorho = ex_unifrho1rho
+                     ex_unif2rho = -0.3e1_dp/0.4e1_dp*t5*kf2rho
+                     t1342 = t195**2
+                     srho1rho = t457*t198*kf2rho + t462/0.2e1_dp - t465 + t197* &
+                                t115*kf2rho/0.2e1_dp + t466
+                     s1rhorho = srho1rho
+                     s2rho = -t197*t6*kf2rho/0.2e1_dp - t200/0.2e1_dp
+                     t1380 = t202**2
+                     t1385 = 0.1e1_dp/t1380*t469*mu*t101*s
+                     t1386 = kappa**2
+                     t1387 = 0.1e1_dp/t1386
+                     t1389 = s1rho*s2rho
+                     t1393 = t470*s
+                     Fxrho1rho = -0.8e1_dp*t471*t472*s2rho + 0.2e1_dp*t204* &
+                                 s2rho*srho + 0.2e1_dp*t204*s*srho1rho
+                     Fx1rhorho = -0.8e1_dp*t471*s1rho*t103*s2rho + 0.2e1_dp* &
+                                 t204*t1389 + 0.2e1_dp*t204*s*s1rhorho
+                     Fx2rho = 0.2e1_dp*t204*s*s2rho
+                     ex_ldarhorhorho = ex_unif1rhorho*Fx + ex_unif1rho*Fx2rho + &
+                                       ex_unif2rho*Fx1rho + ex_unif*Fx1rhorho + ex_unifrho1rho*Fx + &
+                                       ex_unifrho*Fx2rho + ex_unifrhorho*Fx - 0.3e1_dp/0.4e1_dp*my_rho &
+                                       *t5*kfrhorhorho*Fx + t487*Fx2rho + ex_unifrho*Fx1rho + my_rho &
+                                       *ex_unifrho1rho*Fx1rho + t208*Fx1rhorho + ex_unif2rho*Fxrho &
+                                       + ex_unif*Fxrho1rho + ex_unif1rho*Fxrho + my_rho*ex_unif1rhorho* &
+                                       Fxrho + t491*Fxrho1rho + ex_unif*Fxrhorho + my_rho*ex_unif2rho* &
+                                       Fxrhorho + t108*(0.48e2_dp*t1385*srho*t1387*t1389 - &
+                                                        0.24e2_dp*t1393*t472*t1389 - 0.8e1_dp*t471*srho1rho*t103 &
+                                                        *s1rho - 0.8e1_dp*t471*t472*s1rhorho + 0.2e1_dp*t204* &
+                                                        s1rhorho*srho + 0.2e1_dp*t204*s1rho*srho1rho - 0.8e1_dp* &
+                                                        t471*srhorho*t103*s2rho + 0.2e1_dp*t204*s2rho*srhorho + &
+                                                        0.2e1_dp*t204*s*(-0.3e1_dp*my_norm_drho/t1342*t459*kf2rho &
+                                                                         - t457*t115*t458 + 0.2e1_dp*t457*t463*kfrho - 0.2e1_dp* &
+                                                                         t457*t461*kf2rho - 0.2e1_dp*t197*t246*kfrho + 0.3e1_dp/ &
+                                                                         0.2e1_dp*t197*t115*kfrhorho + t457*t463*kf2rho - t197*t6 &
+                                                                         *kfrhorhorho/0.2e1_dp - t197*t246*kf2rho - 0.3e1_dp*t99* &
+                                                                         t241))
 
-                  e_rho_rho_rho(ii) = e_rho_rho_rho(ii) + &
-                                      scale_ex*ex_ldarhorhorho + scale_ec*( &
-                                      e_c_u_01rhorho + gamma_var*t1329*t191 - t451*t1263 + &
-                                      e_c_u_0rho1rho + t1292*t191 - t190*t1263 + epsilon_cGGArhorho + &
-                                      my_rho*(e_c_u_0rhorhorho + gamma_var*(t1067 + 0.2e1_dp*t1115 + &
+                     e_rho_rho_rho(ii) = e_rho_rho_rho(ii) + &
+                                         scale_ex*ex_ldarhorhorho + scale_ec*( &
+                                         e_c_u_01rhorho + gamma_var*t1329*t191 - t451*t1263 + &
+                                         e_c_u_0rho1rho + t1292*t191 - t190*t1263 + epsilon_cGGArhorho + &
+                                         my_rho*(e_c_u_0rhorhorho + gamma_var*(t1067 + 0.2e1_dp*t1115 + &
                                                                          t1152 + t1249)*t191 - t436*t1263 - t1292*t449 + 0.2e1_dp* &
-                                              t190*t1295*t448*t1262 - t190*t439*t1329))
+                                                 t190*t1295*t448*t1262 - t190*t439*t1329))
 
-                  t1468 = t149*t115
-                  tnorm_drhorhorho = t317*t6*t825 + t1468*k_srho/0.2e1_dp - &
-                                     t496*k_srhorho/0.2e1_dp + t1468*k_s1rho/0.2e1_dp + t74* &
-                                     t246
-                  tnorm_drho1rho = -t496*k_s1rho/0.2e1_dp - t498/0.2e1_dp
-                  t1482 = A1rho*tnorm_drhorho
-                  t1492 = t78*t84
-                  t1493 = tnorm_drho*t177
-                  t1504 = t408*tnorm_drho
-                  t1505 = t1504*t410
-                  t1511 = A1rho*tnorm_drho
-                  t1515 = t226*t1rho
-                  t1521 = A*tnorm_drho1rho
-                  t1525 = 0.2e1_dp*t175*t409*t553*t369 + 0.2e1_dp*t217* &
-                          t1482*t91 - 0.2e1_dp*t162*t178*tnorm_drhorho*t369 + &
-                          0.2e1_dp*t354*t510 - 0.6e1_dp*t1492*t1493*t400 + 0.6e1_dp &
-                          *t175*t218*t91*trhorho + 0.2e1_dp*t162*t1157*tnorm_drho &
-                          + 0.4e1_dp*t980*t1505 - 0.6e1_dp*t1492*t1493*t370 + &
-                          0.6e1_dp*t175*t1511*t513 - 0.2e1_dp*t162*t397*t1515 - &
-                          0.2e1_dp*t354*t507 + 0.6e1_dp*t175*t1521*t513
-                  t1528 = Arhorho*tnorm_drho
-                  t1532 = t177*t369
-                  t1545 = t78*t417
-                  t1565 = 0.2e1_dp*t385*tnorm_drho + 0.2e1_dp*t388* &
-                          tnorm_drho + 0.2e1_dp*t168*tnorm_drho1rho + 0.8e1_dp*t417* &
-                          t1511 + 0.12e2_dp*t426*tnorm_drho*t1rho + 0.4e1_dp*t183* &
-                          tnorm_drho1rho
-                  t1573 = t91*t1rho
-                  t1584 = -0.2e1_dp*t354*t530 + 0.2e1_dp*t217*t1528*t91 - &
-                          0.2e1_dp*t217*t517*t1532 - 0.2e1_dp*t217*t1511*t525 + &
-                          0.2e1_dp*t162*t377*tnorm_drho1rho + 0.2e1_dp*t162*t361* &
-                          tnorm_drhorho + 0.4e1_dp*t1545*t1505 + 0.2e1_dp*t217*A* &
-                          tnorm_drhorhorho*t91 + 0.2e1_dp*t175*t409*t1565*t186 - &
-                          0.2e1_dp*t217*t521*t1532 + 0.6e1_dp*t175*t521*t1573 - &
-                          0.6e1_dp*t1060*t1062*t226*t410 + 0.6e1_dp*t175*t517* &
-                          t1573
-                  t1608 = t408*t226
-                  t1612 = t163*tnorm_drho1rho
-                  t1628 = -0.2e1_dp*t162*t404*t506 + 0.2e1_dp*t354*t503 - &
-                          0.2e1_dp*t162*t178*tnorm_drho*t432 - 0.2e1_dp*t162*t178 &
-                          *t553*t1rho - 0.2e1_dp*t162*t404*t529 - 0.2e1_dp*t162* &
-                          t178*t1565*trho - t175*t1126*t226 + 0.4e1_dp*t980*t1608 &
-                          *t370 + 0.2e1_dp*t500*t1612 + 0.12e2_dp*t78*t168* &
-                          tnorm_drho*t91*t427 + 0.2e1_dp*t162*t163*tnorm_drhorhorho &
-                          - t175*t404*t553 + 0.2e1_dp*t175*t1121*t535
-                  t1629 = Arho*tnorm_drho1rho
-                  t1633 = tnorm_drho*t369
-                  t1646 = t361*tnorm_drho
-                  t1652 = t226*t369
-                  t1660 = t178*t1633
-                  t1672 = t418*tnorm_drho
-                  t1676 = t423*tnorm_drho
-                  t1715 = 0.2e1_dp*t999*tnorm_drho + 0.2e1_dp*t1672 + 0.2e1_dp &
-                          *t382*tnorm_drho1rho + 0.2e1_dp*t1676 + 0.2e1_dp*A*trhorho &
-                          *tnorm_drho + 0.2e1_dp*t541*tnorm_drho1rho + 0.2e1_dp*t385* &
-                          tnorm_drhorho + 0.2e1_dp*t388*tnorm_drhorho + 0.2e1_dp*t168* &
-                          tnorm_drhorhorho + 0.8e1_dp*t1187*t517 + 0.24e2_dp*t84* &
-                          t1672 + 0.8e1_dp*t417*t1629 + 0.8e1_dp*t417*t1528 + &
-                          0.24e2_dp*t84*t1676 + 0.24e2_dp*t1196*t548*t1rho + &
-                          0.12e2_dp*t426*tnorm_drho1rho*trho + 0.12e2_dp*t426* &
-                          tnorm_drho*trhorho + 0.8e1_dp*t417*t1482 + 0.12e2_dp*t426* &
-                          tnorm_drhorho*t1rho + 0.4e1_dp*t183*tnorm_drhorhorho
-                  t1722 = 0.2e1_dp*t217*t1629*t91 - 0.2e1_dp*t162*t397* &
-                          t1633 - t175*t397*t1565 - 0.2e1_dp*t162*t178*t226* &
-                          trhorho + 0.2e1_dp*t78*trhorho*t214 + 0.2e1_dp*t500*t1646 &
-                          - 0.2e1_dp*t217*t1521*t525 + 0.2e1_dp*t175*t1109*t1652 - &
-                          0.2e1_dp*t162*t178*tnorm_drho1rho*t186 - 0.2e1_dp*t500* &
-                          t1660 + 0.4e1_dp*t980*t1608*t400 + 0.2e1_dp*t175*t409* &
-                          t226*t432 - t175*t178*t1715 - 0.2e1_dp*t217*t218*t177* &
-                          t432
-                  t1758 = 0.2e1_dp*t354*t214 + 0.2e1_dp*t162*t1646 - &
-                          0.2e1_dp*t162*t1660 + 0.2e1_dp*t162*t1612 + 0.6e1_dp*t175 &
-                          *t218*t1573 + 0.2e1_dp*t217*t1511*t91 + 0.2e1_dp*t217* &
-                          t1521*t91 - 0.2e1_dp*t217*t218*t1532 - 0.2e1_dp*t162* &
-                          t178*t1515 - t175*t404*t226 + 0.2e1_dp*t175*t409*t1652 - &
-                          t175*t178*t1565
-                  t1759 = gamma_var*t1758
-                  t1761 = t1295*t189
-                  snorm_drho1rho = snorm_drhorho
-                  t1797 = snorm_drhorho*t103
-                  Fxnorm_drho1rho = -0.8e1_dp*t471*t566*s1rho + 0.2e1_dp* &
-                                    t204*s1rho*snorm_drho + 0.2e1_dp*t204*s*snorm_drho1rho
+                     t1468 = t149*t115
+                     tnorm_drhorhorho = t317*t6*t825 + t1468*k_srho/0.2e1_dp - &
+                                        t496*k_srhorho/0.2e1_dp + t1468*k_s1rho/0.2e1_dp + t74* &
+                                        t246
+                     tnorm_drho1rho = -t496*k_s1rho/0.2e1_dp - t498/0.2e1_dp
+                     t1482 = A1rho*tnorm_drhorho
+                     t1492 = t78*t84
+                     t1493 = tnorm_drho*t177
+                     t1504 = t408*tnorm_drho
+                     t1505 = t1504*t410
+                     t1511 = A1rho*tnorm_drho
+                     t1515 = t226*t1rho
+                     t1521 = A*tnorm_drho1rho
+                     t1525 = 0.2e1_dp*t175*t409*t553*t369 + 0.2e1_dp*t217* &
+                             t1482*t91 - 0.2e1_dp*t162*t178*tnorm_drhorho*t369 + &
+                             0.2e1_dp*t354*t510 - 0.6e1_dp*t1492*t1493*t400 + 0.6e1_dp &
+                             *t175*t218*t91*trhorho + 0.2e1_dp*t162*t1157*tnorm_drho &
+                             + 0.4e1_dp*t980*t1505 - 0.6e1_dp*t1492*t1493*t370 + &
+                             0.6e1_dp*t175*t1511*t513 - 0.2e1_dp*t162*t397*t1515 - &
+                             0.2e1_dp*t354*t507 + 0.6e1_dp*t175*t1521*t513
+                     t1528 = Arhorho*tnorm_drho
+                     t1532 = t177*t369
+                     t1545 = t78*t417
+                     t1565 = 0.2e1_dp*t385*tnorm_drho + 0.2e1_dp*t388* &
+                             tnorm_drho + 0.2e1_dp*t168*tnorm_drho1rho + 0.8e1_dp*t417* &
+                             t1511 + 0.12e2_dp*t426*tnorm_drho*t1rho + 0.4e1_dp*t183* &
+                             tnorm_drho1rho
+                     t1573 = t91*t1rho
+                     t1584 = -0.2e1_dp*t354*t530 + 0.2e1_dp*t217*t1528*t91 - &
+                             0.2e1_dp*t217*t517*t1532 - 0.2e1_dp*t217*t1511*t525 + &
+                             0.2e1_dp*t162*t377*tnorm_drho1rho + 0.2e1_dp*t162*t361* &
+                             tnorm_drhorho + 0.4e1_dp*t1545*t1505 + 0.2e1_dp*t217*A* &
+                             tnorm_drhorhorho*t91 + 0.2e1_dp*t175*t409*t1565*t186 - &
+                             0.2e1_dp*t217*t521*t1532 + 0.6e1_dp*t175*t521*t1573 - &
+                             0.6e1_dp*t1060*t1062*t226*t410 + 0.6e1_dp*t175*t517* &
+                             t1573
+                     t1608 = t408*t226
+                     t1612 = t163*tnorm_drho1rho
+                     t1628 = -0.2e1_dp*t162*t404*t506 + 0.2e1_dp*t354*t503 - &
+                             0.2e1_dp*t162*t178*tnorm_drho*t432 - 0.2e1_dp*t162*t178 &
+                             *t553*t1rho - 0.2e1_dp*t162*t404*t529 - 0.2e1_dp*t162* &
+                             t178*t1565*trho - t175*t1126*t226 + 0.4e1_dp*t980*t1608 &
+                             *t370 + 0.2e1_dp*t500*t1612 + 0.12e2_dp*t78*t168* &
+                             tnorm_drho*t91*t427 + 0.2e1_dp*t162*t163*tnorm_drhorhorho &
+                             - t175*t404*t553 + 0.2e1_dp*t175*t1121*t535
+                     t1629 = Arho*tnorm_drho1rho
+                     t1633 = tnorm_drho*t369
+                     t1646 = t361*tnorm_drho
+                     t1652 = t226*t369
+                     t1660 = t178*t1633
+                     t1672 = t418*tnorm_drho
+                     t1676 = t423*tnorm_drho
+                     t1715 = 0.2e1_dp*t999*tnorm_drho + 0.2e1_dp*t1672 + 0.2e1_dp &
+                             *t382*tnorm_drho1rho + 0.2e1_dp*t1676 + 0.2e1_dp*A*trhorho &
+                             *tnorm_drho + 0.2e1_dp*t541*tnorm_drho1rho + 0.2e1_dp*t385* &
+                             tnorm_drhorho + 0.2e1_dp*t388*tnorm_drhorho + 0.2e1_dp*t168* &
+                             tnorm_drhorhorho + 0.8e1_dp*t1187*t517 + 0.24e2_dp*t84* &
+                             t1672 + 0.8e1_dp*t417*t1629 + 0.8e1_dp*t417*t1528 + &
+                             0.24e2_dp*t84*t1676 + 0.24e2_dp*t1196*t548*t1rho + &
+                             0.12e2_dp*t426*tnorm_drho1rho*trho + 0.12e2_dp*t426* &
+                             tnorm_drho*trhorho + 0.8e1_dp*t417*t1482 + 0.12e2_dp*t426* &
+                             tnorm_drhorho*t1rho + 0.4e1_dp*t183*tnorm_drhorhorho
+                     t1722 = 0.2e1_dp*t217*t1629*t91 - 0.2e1_dp*t162*t397* &
+                             t1633 - t175*t397*t1565 - 0.2e1_dp*t162*t178*t226* &
+                             trhorho + 0.2e1_dp*t78*trhorho*t214 + 0.2e1_dp*t500*t1646 &
+                             - 0.2e1_dp*t217*t1521*t525 + 0.2e1_dp*t175*t1109*t1652 - &
+                             0.2e1_dp*t162*t178*tnorm_drho1rho*t186 - 0.2e1_dp*t500* &
+                             t1660 + 0.4e1_dp*t980*t1608*t400 + 0.2e1_dp*t175*t409* &
+                             t226*t432 - t175*t178*t1715 - 0.2e1_dp*t217*t218*t177* &
+                             t432
+                     t1758 = 0.2e1_dp*t354*t214 + 0.2e1_dp*t162*t1646 - &
+                             0.2e1_dp*t162*t1660 + 0.2e1_dp*t162*t1612 + 0.6e1_dp*t175 &
+                             *t218*t1573 + 0.2e1_dp*t217*t1511*t91 + 0.2e1_dp*t217* &
+                             t1521*t91 - 0.2e1_dp*t217*t218*t1532 - 0.2e1_dp*t162* &
+                             t178*t1515 - t175*t404*t226 + 0.2e1_dp*t175*t409*t1652 - &
+                             t175*t178*t1565
+                     t1759 = gamma_var*t1758
+                     t1761 = t1295*t189
+                     snorm_drho1rho = snorm_drhorho
+                     t1797 = snorm_drhorho*t103
+                     Fxnorm_drho1rho = -0.8e1_dp*t471*t566*s1rho + 0.2e1_dp* &
+                                       t204*s1rho*snorm_drho + 0.2e1_dp*t204*s*snorm_drho1rho
 
-                  e_ndrho_rho_rho(ii) = e_ndrho_rho_rho(ii) + &
-                                        scale_ex*(ex_unif1rho*Fxnorm_drho + &
-                                                  ex_unif*Fxnorm_drho1rho + ex_unifrho*Fxnorm_drho + t487* &
-                                                  Fxnorm_drho + t208*Fxnorm_drho1rho + ex_unif*Fxnorm_drhorho + &
-                                                  t491*Fxnorm_drhorho + t108*(0.48e2_dp*t1385*snorm_drho* &
+                     e_ndrho_rho_rho(ii) = e_ndrho_rho_rho(ii) + &
+                                           scale_ex*(ex_unif1rho*Fxnorm_drho + &
+                                                     ex_unif*Fxnorm_drho1rho + ex_unifrho*Fxnorm_drho + t487* &
+                                                     Fxnorm_drho + t208*Fxnorm_drho1rho + ex_unif*Fxnorm_drhorho + &
+                                                     t491*Fxnorm_drhorho + t108*(0.48e2_dp*t1385*snorm_drho* &
                                                                            t1387*t476 - 0.24e2_dp*t1393*t566*t476 - 0.8e1_dp*t471* &
                                                                            snorm_drho1rho*t103*srho - 0.8e1_dp*t471*t566*srhorho + &
                                                                             0.2e1_dp*t204*srhorho*snorm_drho + 0.2e1_dp*t204*srho* &
                                                                        snorm_drho1rho - 0.8e1_dp*t471*t1797*s1rho + 0.2e1_dp*t204* &
                                                                              s1rho*snorm_drhorho + 0.2e1_dp*t204*s*(t456*t6*t458 + &
                                                                           t196*t115*kfrho - t562*kfrhorho/0.2e1_dp + t98*t246))) + &
-                                        scale_ec*(t1759*t191 - t230*t449 + Hnorm_drhorho + my_rho*( &
-                                                  gamma_var*(t1525 + t1584 + t1628 + t1722)*t191 - t557*t449 - &
-                                                  t1759*t559 + 0.2e1_dp*t230*t1761*t448 - t230*t439*t435))
+                                           scale_ec*(t1759*t191 - t230*t449 + Hnorm_drhorho + my_rho*( &
+                                                     gamma_var*(t1525 + t1584 + t1628 + t1722)*t191 - t557*t449 - &
+                                                     t1759*t559 + 0.2e1_dp*t230*t1761*t448 - t230*t439*t435))
 
-                  t1838 = t1504*t535
-                  t1851 = Arho*t581
-                  t1878 = 0.4e1_dp*t175*t409*t226*t553 - 0.2e1_dp*t162* &
-                          t178*t605*trho - 0.4e1_dp*t217*t218*t177*t553 + 0.8e1_dp &
-                          *t1545*t1838 + 0.2e1_dp*t78*t581*t171*t91 - 0.4e1_dp* &
-                          t162*t397*t590 - 0.10e2_dp*t175*t586*t525 - t175*t178* &
-                          (0.2e1_dp*t1851 + 0.4e1_dp*t521*tnorm_drho + 0.24e2_dp*t84* &
-                           t1851 + 0.24e2_dp*t1196*t581*trho + 0.24e2_dp*t426* &
-                           tnorm_drhorho*tnorm_drho) - 0.12e2_dp*t1492*t1493*t529 + &
-                          0.8e1_dp*t980*t1838 - 0.4e1_dp*t162*t178*tnorm_drhorho* &
-                          t226 + 0.20e2_dp*t162*t586*t513
-                  t1889 = t78*t581
-                  t1907 = t85*t1062
-                  t1922 = -0.4e1_dp*t500*t591 + 0.2e1_dp*t175*t409*t605* &
-                          t186 + 0.4e1_dp*t162*t409*t598*trho - 0.2e1_dp*t1889* &
-                          t187 + 0.2e1_dp*t175*t1109*t598 + 0.20e2_dp*t175*t218* &
-                          t91*tnorm_drhorho + 0.10e2_dp*t175*t1851*t91 - 0.4e1_dp* &
-                          t217*t517*t594 - t175*t397*t605 - 0.6e1_dp*t175*t1907* &
-                          t598*t186 - 0.4e1_dp*t162*t178*tnorm_drho*t553 + 0.4e1_dp &
-                          *t78*tnorm_drhorho*t214 - 0.4e1_dp*t217*t521*t594
-                  t1927 = t439*t229
-                  t1933 = t614*t1387
-                  t1937 = t614*t103
+                     t1838 = t1504*t535
+                     t1851 = Arho*t581
+                     t1878 = 0.4e1_dp*t175*t409*t226*t553 - 0.2e1_dp*t162* &
+                             t178*t605*trho - 0.4e1_dp*t217*t218*t177*t553 + 0.8e1_dp &
+                             *t1545*t1838 + 0.2e1_dp*t78*t581*t171*t91 - 0.4e1_dp* &
+                             t162*t397*t590 - 0.10e2_dp*t175*t586*t525 - t175*t178* &
+                             (0.2e1_dp*t1851 + 0.4e1_dp*t521*tnorm_drho + 0.24e2_dp*t84* &
+                              t1851 + 0.24e2_dp*t1196*t581*trho + 0.24e2_dp*t426* &
+                              tnorm_drhorho*tnorm_drho) - 0.12e2_dp*t1492*t1493*t529 + &
+                             0.8e1_dp*t980*t1838 - 0.4e1_dp*t162*t178*tnorm_drhorho* &
+                             t226 + 0.20e2_dp*t162*t586*t513
+                     t1889 = t78*t581
+                     t1907 = t85*t1062
+                     t1922 = -0.4e1_dp*t500*t591 + 0.2e1_dp*t175*t409*t605* &
+                             t186 + 0.4e1_dp*t162*t409*t598*trho - 0.2e1_dp*t1889* &
+                             t187 + 0.2e1_dp*t175*t1109*t598 + 0.20e2_dp*t175*t218* &
+                             t91*tnorm_drhorho + 0.10e2_dp*t175*t1851*t91 - 0.4e1_dp* &
+                             t217*t517*t594 - t175*t397*t605 - 0.6e1_dp*t175*t1907* &
+                             t598*t186 - 0.4e1_dp*t162*t178*tnorm_drho*t553 + 0.4e1_dp &
+                             *t78*tnorm_drhorho*t214 - 0.4e1_dp*t217*t521*t594
+                     t1927 = t439*t229
+                     t1933 = t614*t1387
+                     t1937 = t614*t103
 
-                  e_ndrho_ndrho_rho(ii) = e_ndrho_ndrho_rho(ii) + &
-                                          scale_ex*(ex_unif* &
-                                                    Fxnorm_drhonorm_drho + t208*Fxnorm_drhonorm_drho + t108*( &
-                                                    0.48e2_dp*t1385*t1933*srho - 0.24e2_dp*t1393*t1937*srho &
-                                                    - 0.16e2_dp*t471*t1797*snorm_drho + 0.4e1_dp*t204* &
-                                                    snorm_drhorho*snorm_drho)) + scale_ec*(Hnorm_drhonorm_drho + my_rho &
+                     e_ndrho_ndrho_rho(ii) = e_ndrho_ndrho_rho(ii) + &
+                                             scale_ex*(ex_unif* &
+                                                       Fxnorm_drhonorm_drho + t208*Fxnorm_drhonorm_drho + t108*( &
+                                                       0.48e2_dp*t1385*t1933*srho - 0.24e2_dp*t1393*t1937*srho &
+                                                       - 0.16e2_dp*t471*t1797*snorm_drho + 0.4e1_dp*t204* &
+                                                       snorm_drhorho*snorm_drho)) + scale_ec*(Hnorm_drhonorm_drho + my_rho &
                                                                           *(gamma_var*(t1878 + t1922)*t191 - t609*t559 - 0.2e1_dp* &
-                                                                                             t557*t1927 + 0.2e1_dp*t612*t1761))
+                                                                                                t557*t1927 + 0.2e1_dp*t612*t1761))
 
-                  t2norm_drho = tnorm_drho
-                  t1952 = t226*t2norm_drho
-                  t1964 = 0.2e1_dp*t168*t2norm_drho + 0.4e1_dp*t183*t2norm_drho
-                  t1965 = t178*t1964
-                  t1968 = t226*t1964
-                  t1969 = t1504*t1968
-                  t1972 = A*t2norm_drho
-                  t1990 = 0.2e1_dp*t1972*tnorm_drho + 0.12e2_dp*t426* &
-                          tnorm_drho*t2norm_drho
-                  t2020 = t177*t1964
-                  t2024 = t91*t2norm_drho
-                  t2028 = t78*t2norm_drho
-                  t2031 = -0.20e2_dp*t1492*t1493*t1952 + 0.4e1_dp*t162* &
-                          t409*t598*t2norm_drho - 0.2e1_dp*t1889*t1965 + 0.8e1_dp* &
-                          t1545*t1969 + 0.4e1_dp*t217*t1972*t408*t598 - 0.6e1_dp* &
-                          t175*t1907*t598*t1964 - 0.2e1_dp*t217*t1972*t177*t605 &
-                          - 0.4e1_dp*t217*t218*t177*t1990 + 0.4e1_dp*t175*t409* &
-                          t1990*t226 - 0.24e2_dp*t78*t182*t85*t177*t87*t581* &
-                          t2norm_drho + 0.2e1_dp*t175*t409*t605*t1964 + 0.8e1_dp* &
-                          t980*t1969 - 0.2e1_dp*t162*t178*t605*t2norm_drho - &
-                          0.4e1_dp*t162*t178*t1990*tnorm_drho - 0.10e2_dp*t175* &
-                          t586*t2020 + 0.24e2_dp*t162*t586*t2024 - 0.4e1_dp*t2028* &
-                          t591
-                  t2041 = 0.2e1_dp*t162*t163*t2norm_drho + 0.2e1_dp*t217* &
-                          t1972*t91 - t175*t1965
-                  s2norm_drho = snorm_drho
+                     t2norm_drho = tnorm_drho
+                     t1952 = t226*t2norm_drho
+                     t1964 = 0.2e1_dp*t168*t2norm_drho + 0.4e1_dp*t183*t2norm_drho
+                     t1965 = t178*t1964
+                     t1968 = t226*t1964
+                     t1969 = t1504*t1968
+                     t1972 = A*t2norm_drho
+                     t1990 = 0.2e1_dp*t1972*tnorm_drho + 0.12e2_dp*t426* &
+                             tnorm_drho*t2norm_drho
+                     t2020 = t177*t1964
+                     t2024 = t91*t2norm_drho
+                     t2028 = t78*t2norm_drho
+                     t2031 = -0.20e2_dp*t1492*t1493*t1952 + 0.4e1_dp*t162* &
+                             t409*t598*t2norm_drho - 0.2e1_dp*t1889*t1965 + 0.8e1_dp* &
+                             t1545*t1969 + 0.4e1_dp*t217*t1972*t408*t598 - 0.6e1_dp* &
+                             t175*t1907*t598*t1964 - 0.2e1_dp*t217*t1972*t177*t605 &
+                             - 0.4e1_dp*t217*t218*t177*t1990 + 0.4e1_dp*t175*t409* &
+                             t1990*t226 - 0.24e2_dp*t78*t182*t85*t177*t87*t581* &
+                             t2norm_drho + 0.2e1_dp*t175*t409*t605*t1964 + 0.8e1_dp* &
+                             t980*t1969 - 0.2e1_dp*t162*t178*t605*t2norm_drho - &
+                             0.4e1_dp*t162*t178*t1990*tnorm_drho - 0.10e2_dp*t175* &
+                             t586*t2020 + 0.24e2_dp*t162*t586*t2024 - 0.4e1_dp*t2028* &
+                             t591
+                     t2041 = 0.2e1_dp*t162*t163*t2norm_drho + 0.2e1_dp*t217* &
+                             t1972*t91 - t175*t1965
+                     s2norm_drho = snorm_drho
 
-                  e_ndrho_ndrho_ndrho(ii) = e_ndrho_ndrho_ndrho(ii) + &
-                                            scale_ex*t108*(0.48e2_dp* &
-                                                           t1385*t1933*s2norm_drho - 0.24e2_dp*t1393*t1937* &
-                                                           s2norm_drho) + scale_ec*my_rho*(gamma_var*t2031*t191 - t609* &
+                     e_ndrho_ndrho_ndrho(ii) = e_ndrho_ndrho_ndrho(ii) + &
+                                               scale_ex*t108*(0.48e2_dp* &
+                                                              t1385*t1933*s2norm_drho - 0.24e2_dp*t1393*t1937* &
+                                                              s2norm_drho) + scale_ec*my_rho*(gamma_var*t2031*t191 - t609* &
                                                                             t439*t2041 - 0.2e1_dp*gamma_var*(0.2e1_dp*t2028*t214 + &
                                                                                    0.10e2_dp*t175*t218*t2024 - 0.2e1_dp*t162*t178* &
                                                                            tnorm_drho*t1964 - 0.2e1_dp*t217*t218*t2020 - 0.2e1_dp* &
                                                                             t162*t178*t1952 - 0.2e1_dp*t217*t1972*t594 + 0.2e1_dp* &
                                                                           t175*t409*t1968 - t175*t178*t1990)*t1927 + 0.2e1_dp*t612 &
-                                                                                           *t1295*t2041)
+                                                                                              *t1295*t2041)
+                  END IF
                END IF
             END IF
-         END DO
+         END IF
+      END DO
 !$OMP END DO
-      END SELECT
 
    END SUBROUTINE pbe_lda_calc
 
@@ -1366,12 +1349,10 @@ CONTAINS
       e_ndr_ra => dummy
       e_ndr_rb => dummy
 
-      IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
+      IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ra)
@@ -1388,7 +1369,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrb)
       END IF
-      IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
+      IF (grad_deriv >= 2) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ra_ra)
@@ -1420,7 +1401,7 @@ CONTAINS
                                          [deriv_norm_drhob, deriv_norm_drhob], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrb_ndrb)
       END IF
-      IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
+      IF (grad_deriv >= 3) THEN
          ! to do
       END IF
 
@@ -1601,138 +1582,135 @@ CONTAINS
       t7 = 0.1e1_dp/pi
       t90 = pi**2
 
-      SELECT CASE (grad_deriv)
-      CASE default
 !$OMP DO
-         DO ii = 1, npoints
-            my_rhoa = MAX(rhoa(ii), 0.0_dp)
-            my_rhob = MAX(rhob(ii), 0.0_dp)
+      DO ii = 1, npoints
+         my_rhoa = MAX(rhoa(ii), 0.0_dp)
+         my_rhob = MAX(rhob(ii), 0.0_dp)
+         my_rho = my_rhoa + my_rhob
+         IF (my_rho > epsilon_rho) THEN
+            my_rhoa = MAX(EPSILON(0.0_dp)*1.e4_dp, my_rhoa)
+            my_rhob = MAX(EPSILON(0.0_dp)*1.e4_dp, my_rhob)
             my_rho = my_rhoa + my_rhob
-            IF (my_rho > epsilon_rho) THEN
-               my_rhoa = MAX(EPSILON(0.0_dp)*1.e4_dp, my_rhoa)
-               my_rhob = MAX(EPSILON(0.0_dp)*1.e4_dp, my_rhob)
-               my_rho = my_rhoa + my_rhob
-               my_norm_drho = norm_drho(ii)
-               my_norm_drhoa = norm_drhoa(ii)
-               my_norm_drhob = norm_drhob(ii)
+            my_norm_drho = norm_drho(ii)
+            my_norm_drhoa = norm_drhoa(ii)
+            my_norm_drhob = norm_drhob(ii)
 
-               t1 = my_rhoa - my_rhob
-               t2 = 0.1e1_dp/my_rho
-               chi = t1*t2
-               t8 = t7*t2
-               t9 = t8**(0.1e1_dp/0.3e1_dp)
-               rs = t6*t9/0.4e1_dp
-               t12 = 0.1e1_dp + alpha_1_1*rs
-               t14 = 0.1e1_dp/A_1
-               t15 = SQRT(rs)
-               t18 = t15*rs
-               t20 = p_1 + 0.1e1_dp
-               t21 = rs**t20
-               t22 = beta_4_1*t21
-               t23 = beta_1_1*t15 + beta_2_1*rs + beta_3_1*t18 + t22
-               t27 = 0.1e1_dp + t14/t23/0.2e1_dp
-               t28 = LOG(t27)
-               e_c_u_0 = -0.2e1_dp*A_1*t12*t28
-               t32 = 0.1e1_dp + alpha_1_2*rs
-               t34 = 0.1e1_dp/A_2
-               t38 = p_2 + 0.1e1_dp
-               t39 = rs**t38
-               t40 = beta_4_2*t39
-               t41 = beta_1_2*t15 + beta_2_2*rs + beta_3_2*t18 + t40
-               t45 = 0.1e1_dp + t34/t41/0.2e1_dp
-               t46 = LOG(t45)
-               t50 = 0.1e1_dp + alpha_1_3*rs
-               t52 = 0.1e1_dp/A_3
-               t56 = p_3 + 0.1e1_dp
-               t57 = rs**t56
-               t58 = beta_4_3*t57
-               t59 = beta_1_3*t15 + beta_2_3*rs + beta_3_3*t18 + t58
-               t63 = 0.1e1_dp + t52/t59/0.2e1_dp
-               t64 = LOG(t63)
-               alpha_c = 0.2e1_dp*A_3*t50*t64
-               t66 = 2**(0.1e1_dp/0.3e1_dp)
-               t69 = 1/(2*t66 - 2)
-               t70 = 0.1e1_dp + chi
-               t71 = t70**(0.1e1_dp/0.3e1_dp)
-               t72 = t71*t70
-               t73 = 0.1e1_dp - chi
-               t74 = t73**(0.1e1_dp/0.3e1_dp)
-               t75 = t74*t73
-               f = (t72 + t75 - 0.2e1_dp)*t69
-               t77 = alpha_c*f
-               t78 = 0.9e1_dp/0.8e1_dp/t69
-               t79 = chi**2
-               t80 = t79**2
-               t82 = t78*(0.1e1_dp - t80)
-               t84 = -0.2e1_dp*A_2*t32*t46 - e_c_u_0
-               t85 = t84*f
-               epsilon_c_unif = e_c_u_0 + t77*t82 + t85*t80
-               t87 = t71**2
-               t88 = t74**2
-               phi = t87/0.2e1_dp + t88/0.2e1_dp
-               t91 = t90*my_rho
-               t92 = t91**(0.1e1_dp/0.3e1_dp)
-               t93 = t3*t92*t7
-               t94 = SQRT(t93)
-               k_s = 0.2e1_dp*t94
-               t95 = 0.1e1_dp/phi
-               t96 = my_norm_drho*t95
-               t97 = 0.1e1_dp/k_s
-               t98 = t97*t2
-               t = t96*t98/0.2e1_dp
-               t100 = 0.1e1_dp/gamma_var
-               t101 = beta*t100
-               t102 = epsilon_c_unif*t100
-               t103 = phi**2
-               t104 = t103*phi
-               t105 = 0.1e1_dp/t104
-               t107 = EXP(-t102*t105)
-               t108 = t107 - 0.1e1_dp
-               A = t101/t108
-               t110 = gamma_var*t104
-               t111 = t**2
-               t112 = A*t111
-               t113 = 0.1e1_dp + t112
-               t115 = A**2
-               t116 = t111**2
-               t118 = 0.1e1_dp + t112 + t115*t116
-               t119 = 0.1e1_dp/t118
-               t122 = 0.1e1_dp + t101*t111*t113*t119
-               t123 = LOG(t122)
-               epsilon_cGGA = epsilon_c_unif + t110*t123
-               t124 = t3*t66
-               t125 = t90*my_rhoa
-               t126 = t125**(0.1e1_dp/0.3e1_dp)
-               kf_a = t124*t126
-               ex_unif_a = -0.3e1_dp/0.4e1_dp*t7*kf_a
-               t129 = 0.1e1_dp/kf_a
-               t130 = my_norm_drhoa*t129
-               t131 = 0.1e1_dp/my_rhoa
-               s_a = t130*t131/0.2e1_dp
-               t133 = s_a**2
-               t135 = 0.1e1_dp/kappa
-               t137 = 0.1e1_dp + mu*t133*t135
-               Fx_a = 0.1e1_dp + kappa - kappa/t137
-               t140 = my_rhoa*ex_unif_a
-               t142 = t90*my_rhob
-               t143 = t142**(0.1e1_dp/0.3e1_dp)
-               kf_b = t124*t143
-               ex_unif_b = -0.3e1_dp/0.4e1_dp*t7*kf_b
-               t146 = 0.1e1_dp/kf_b
-               t147 = my_norm_drhob*t146
-               t148 = 0.1e1_dp/my_rhob
-               s_b = t147*t148/0.2e1_dp
-               t150 = s_b**2
-               t153 = 0.1e1_dp + mu*t150*t135
-               Fx_b = 0.1e1_dp + kappa - kappa/t153
-               t156 = my_rhob*ex_unif_b
+            t1 = my_rhoa - my_rhob
+            t2 = 0.1e1_dp/my_rho
+            chi = t1*t2
+            t8 = t7*t2
+            t9 = t8**(0.1e1_dp/0.3e1_dp)
+            rs = t6*t9/0.4e1_dp
+            t12 = 0.1e1_dp + alpha_1_1*rs
+            t14 = 0.1e1_dp/A_1
+            t15 = SQRT(rs)
+            t18 = t15*rs
+            t20 = p_1 + 0.1e1_dp
+            t21 = rs**t20
+            t22 = beta_4_1*t21
+            t23 = beta_1_1*t15 + beta_2_1*rs + beta_3_1*t18 + t22
+            t27 = 0.1e1_dp + t14/t23/0.2e1_dp
+            t28 = LOG(t27)
+            e_c_u_0 = -0.2e1_dp*A_1*t12*t28
+            t32 = 0.1e1_dp + alpha_1_2*rs
+            t34 = 0.1e1_dp/A_2
+            t38 = p_2 + 0.1e1_dp
+            t39 = rs**t38
+            t40 = beta_4_2*t39
+            t41 = beta_1_2*t15 + beta_2_2*rs + beta_3_2*t18 + t40
+            t45 = 0.1e1_dp + t34/t41/0.2e1_dp
+            t46 = LOG(t45)
+            t50 = 0.1e1_dp + alpha_1_3*rs
+            t52 = 0.1e1_dp/A_3
+            t56 = p_3 + 0.1e1_dp
+            t57 = rs**t56
+            t58 = beta_4_3*t57
+            t59 = beta_1_3*t15 + beta_2_3*rs + beta_3_3*t18 + t58
+            t63 = 0.1e1_dp + t52/t59/0.2e1_dp
+            t64 = LOG(t63)
+            alpha_c = 0.2e1_dp*A_3*t50*t64
+            t66 = 2**(0.1e1_dp/0.3e1_dp)
+            t69 = 1/(2*t66 - 2)
+            t70 = 0.1e1_dp + chi
+            t71 = t70**(0.1e1_dp/0.3e1_dp)
+            t72 = t71*t70
+            t73 = 0.1e1_dp - chi
+            t74 = t73**(0.1e1_dp/0.3e1_dp)
+            t75 = t74*t73
+            f = (t72 + t75 - 0.2e1_dp)*t69
+            t77 = alpha_c*f
+            t78 = 0.9e1_dp/0.8e1_dp/t69
+            t79 = chi**2
+            t80 = t79**2
+            t82 = t78*(0.1e1_dp - t80)
+            t84 = -0.2e1_dp*A_2*t32*t46 - e_c_u_0
+            t85 = t84*f
+            epsilon_c_unif = e_c_u_0 + t77*t82 + t85*t80
+            t87 = t71**2
+            t88 = t74**2
+            phi = t87/0.2e1_dp + t88/0.2e1_dp
+            t91 = t90*my_rho
+            t92 = t91**(0.1e1_dp/0.3e1_dp)
+            t93 = t3*t92*t7
+            t94 = SQRT(t93)
+            k_s = 0.2e1_dp*t94
+            t95 = 0.1e1_dp/phi
+            t96 = my_norm_drho*t95
+            t97 = 0.1e1_dp/k_s
+            t98 = t97*t2
+            t = t96*t98/0.2e1_dp
+            t100 = 0.1e1_dp/gamma_var
+            t101 = beta*t100
+            t102 = epsilon_c_unif*t100
+            t103 = phi**2
+            t104 = t103*phi
+            t105 = 0.1e1_dp/t104
+            t107 = EXP(-t102*t105)
+            t108 = t107 - 0.1e1_dp
+            A = t101/t108
+            t110 = gamma_var*t104
+            t111 = t**2
+            t112 = A*t111
+            t113 = 0.1e1_dp + t112
+            t115 = A**2
+            t116 = t111**2
+            t118 = 0.1e1_dp + t112 + t115*t116
+            t119 = 0.1e1_dp/t118
+            t122 = 0.1e1_dp + t101*t111*t113*t119
+            t123 = LOG(t122)
+            epsilon_cGGA = epsilon_c_unif + t110*t123
+            t124 = t3*t66
+            t125 = t90*my_rhoa
+            t126 = t125**(0.1e1_dp/0.3e1_dp)
+            kf_a = t124*t126
+            ex_unif_a = -0.3e1_dp/0.4e1_dp*t7*kf_a
+            t129 = 0.1e1_dp/kf_a
+            t130 = my_norm_drhoa*t129
+            t131 = 0.1e1_dp/my_rhoa
+            s_a = t130*t131/0.2e1_dp
+            t133 = s_a**2
+            t135 = 0.1e1_dp/kappa
+            t137 = 0.1e1_dp + mu*t133*t135
+            Fx_a = 0.1e1_dp + kappa - kappa/t137
+            t140 = my_rhoa*ex_unif_a
+            t142 = t90*my_rhob
+            t143 = t142**(0.1e1_dp/0.3e1_dp)
+            kf_b = t124*t143
+            ex_unif_b = -0.3e1_dp/0.4e1_dp*t7*kf_b
+            t146 = 0.1e1_dp/kf_b
+            t147 = my_norm_drhob*t146
+            t148 = 0.1e1_dp/my_rhob
+            s_b = t147*t148/0.2e1_dp
+            t150 = s_b**2
+            t153 = 0.1e1_dp + mu*t150*t135
+            Fx_b = 0.1e1_dp + kappa - kappa/t153
+            t156 = my_rhob*ex_unif_b
 
-               IF (grad_deriv >= 0) THEN
-                  e_0(ii) = e_0(ii) + &
-                            scale_ex*(0.2e1_dp*t140*Fx_a + 0.2e1_dp*t156*Fx_b) &
-                            /0.2e1_dp + scale_ec*my_rho*epsilon_cGGA
-               END IF
+            e_0(ii) = e_0(ii) + &
+                      scale_ex*(0.2e1_dp*t140*Fx_a + 0.2e1_dp*t156*Fx_b) &
+                      /0.2e1_dp + scale_ec*my_rho*epsilon_cGGA
 
+            IF (grad_deriv /= 0) THEN
                t162 = my_rho**2
                t163 = 0.1e1_dp/t162
                t164 = t1*t163
@@ -1851,12 +1829,10 @@ CONTAINS
                Fx_arhoa = 0.2e1_dp*t346*s_a*s_arhoa
                t350 = my_rhoa*ex_unif_arhoa
 
-               IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
-                  e_ra(ii) = e_ra(ii) + &
-                             scale_ex*(0.2e1_dp*ex_unif_a*Fx_a + 0.2e1_dp* &
-                                       t350*Fx_a + 0.2e1_dp*t140*Fx_arhoa)/0.2e1_dp + scale_ec*( &
-                             epsilon_cGGA + my_rho*epsilon_cGGArhoa)
-               END IF
+               e_ra(ii) = e_ra(ii) + &
+                          scale_ex*(0.2e1_dp*ex_unif_a*Fx_a + 0.2e1_dp* &
+                                    t350*Fx_a + 0.2e1_dp*t140*Fx_arhoa)/0.2e1_dp + scale_ec*( &
+                          epsilon_cGGA + my_rho*epsilon_cGGArhoa)
 
                chirhob = -t2 - t164
                rsrhob = rsrhoa
@@ -1916,12 +1892,10 @@ CONTAINS
                Fx_brhob = 0.2e1_dp*t477*s_b*s_brhob
                t481 = my_rhob*ex_unif_brhob
 
-               IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
-                  e_rb(ii) = e_rb(ii) + &
-                             scale_ex*(0.2e1_dp*ex_unif_b*Fx_b + 0.2e1_dp* &
-                                       t481*Fx_b + 0.2e1_dp*t156*Fx_brhob)/0.2e1_dp + scale_ec*( &
-                             epsilon_cGGA + my_rho*epsilon_cGGArhob)
-               END IF
+               e_rb(ii) = e_rb(ii) + &
+                          scale_ex*(0.2e1_dp*ex_unif_b*Fx_b + 0.2e1_dp* &
+                                    t481*Fx_b + 0.2e1_dp*t156*Fx_brhob)/0.2e1_dp + scale_ec*( &
+                          epsilon_cGGA + my_rho*epsilon_cGGArhob)
 
                t488 = t95*t97
                tnorm_drho = t488*t2/0.2e1_dp
@@ -1933,28 +1907,22 @@ CONTAINS
                t506 = t505*t325
                Hnorm_drho = t110*t506
 
-               IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
-                  e_ndr(ii) = e_ndr(ii) + &
-                              scale_ec*my_rho*Hnorm_drho
-               END IF
+               e_ndr(ii) = e_ndr(ii) + &
+                           scale_ec*my_rho*Hnorm_drho
 
                s_anorm_drhoa = t129*t131/0.2e1_dp
                Fx_anorm_drhoa = 0.2e1_dp*t346*s_a*s_anorm_drhoa
 
-               IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
-                  e_ndra(ii) = e_ndra(ii) + &
-                               scale_ex*t140*Fx_anorm_drhoa
-               END IF
+               e_ndra(ii) = e_ndra(ii) + &
+                            scale_ex*t140*Fx_anorm_drhoa
 
                s_bnorm_drhob = t146*t148/0.2e1_dp
                Fx_bnorm_drhob = 0.2e1_dp*t477*s_b*s_bnorm_drhob
 
-               IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
-                  e_ndrb(ii) = e_ndrb(ii) + &
-                               scale_ex*t156*Fx_bnorm_drhob
-               END IF
+               e_ndrb(ii) = e_ndrb(ii) + &
+                            scale_ex*t156*Fx_bnorm_drhob
 
-               IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
+               IF (grad_deriv >= 2) THEN
                   t518 = 0.1e1_dp/t162/my_rho
                   t519 = t1*t518
                   chirhoarhoa = -0.2e1_dp*t163 + 0.2e1_dp*t519
@@ -2436,9 +2404,9 @@ CONTAINS
                                                    t150*t1949*t135 + 0.2e1_dp*t477*t1949)
                END IF
             END IF
-         END DO
+         END IF
+      END DO
 !$OMP END DO
-      END SELECT
    END SUBROUTINE pbe_lsd_calc
 
 END MODULE xc_pbe

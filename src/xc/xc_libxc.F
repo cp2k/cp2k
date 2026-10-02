@@ -877,7 +877,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param grad_deriv degree of the derivative that should be evaluated;
+!> \param grad_deriv maximum degree of the derivative that should be evaluated;
 !>        all derivatives up to the given degree are evaluated, in a single
 !>        LibXC call per block of grid points
 !> \param libxc_params input parameter (functional name, scaling and parameters)
@@ -919,9 +919,6 @@ CONTAINS
       ! Only "everything up to grad_deriv" is supported. Asking for a single
       ! derivative order in isolation is rejected here rather than further down,
       ! where it would quietly evaluate nothing at all.
-      IF (grad_deriv < 0) THEN
-         CPABORT("Evaluating a single derivative order is not supported.")
-      END IF
       IF (grad_deriv > 3) THEN
          CPABORT("derivatives larger than 3 not implemented")
       END IF
@@ -996,11 +993,9 @@ CONTAINS
          e_${'_'.join(descs)}$ => dummy
       #:endfor
 
-      IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
       IF (grad_deriv >= 1) THEN
          SELECT CASE (xc_f03_func_info_get_family(xc_info))
          CASE (XC_FAMILY_LDA, XC_FAMILY_HYB_LDA)
@@ -1281,9 +1276,6 @@ CONTAINS
       ! Only "everything up to grad_deriv" is supported. Asking for a single
       ! derivative order in isolation is rejected here rather than further down,
       ! where it would quietly evaluate nothing at all.
-      IF (grad_deriv < 0) THEN
-         CPABORT("Evaluating a single derivative order is not supported.")
-      END IF
       IF (grad_deriv > 3) THEN
          CPABORT("derivatives larger than 3 not implemented")
       END IF
@@ -1407,11 +1399,9 @@ CONTAINS
          e_${'_'.join(descs)}$ => dummy
       #:endfor
 
-      IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
       IF (grad_deriv >= 1) THEN
          SELECT CASE (xc_f03_func_info_get_family(xc_info))
          CASE (XC_FAMILY_LDA, XC_FAMILY_HYB_LDA)
@@ -1867,7 +1857,7 @@ CONTAINS
 !> \param e_laplace_rho_tau derivative of the energy density with respect to laplace_rho_tau
 !> \param e_tau_tau derivative of the energy density with respect to tau_tau
 !> \param e_rho_rho_rho derivative of the energy density with respect to rho_rho_rho
-!> \param grad_deriv degree of the derivative that should be evaluated;
+!> \param grad_deriv maximum degree of the derivative that should be evaluated;
 !>        all derivatives up to the given degree are evaluated, in a single
 !>        LibXC call per block of grid points
 !> \param npoints number of points on the grid
@@ -1968,12 +1958,10 @@ CONTAINS
          CALL libxc_worker_eval(w, workers%family, workers%nspin, grad_deriv, no_exc, nb)
 
          ! accumulate; each derivative is added by exactly one loop
-         IF (grad_deriv >= 0) THEN
-            DO i = 1, nb
-               ii = i0 + i
-               e_0(ii) = e_0(ii) + sc*w%exc(i)*rho(ii)
-            END DO
-         END IF
+         DO i = 1, nb
+            ii = i0 + i
+            e_0(ii) = e_0(ii) + sc*w%exc(i)*rho(ii)
+         END DO
          IF (grad_deriv >= 1) THEN
             DO i = 1, nb
                ii = i0 + i
@@ -2141,7 +2129,7 @@ END SUBROUTINE libxc_spin_unpolarized_calc
 !> \param e_rhoa_rhoa_rhob derivative of the energy density with respect to rhoa_rhoa_rhob
 !> \param e_rhoa_rhob_rhob derivative of the energy density with respect to rhoa_rhob_rhob
 !> \param e_rhob_rhob_rhob derivative of the energy density with respect to rhob_rhob_rhob
-!> \param grad_deriv degree of the derivative that should be evaluated;
+!> \param grad_deriv maximum degree of the derivative that should be evaluated;
 !>        all derivatives up to the given degree are evaluated, in a single
 !>        LibXC call per block of grid points
 !> \param npoints number of points on the grid
@@ -2287,12 +2275,10 @@ ASSOCIATE (w => workers%worker(ithread + 1), has_laplace => workers%has_laplace,
       CALL libxc_worker_eval(w, workers%family, workers%nspin, grad_deriv, no_exc, nb)
       ! accumulate; one loop per group of derivatives, selected by the
       ! order requested and the family
-      IF (grad_deriv >= 0) THEN
-         DO i = 1, nb
-            ii = i0 + i
-            e_0(ii) = e_0(ii) + sc*w%exc(i)*(w%rho(1, i) + w%rho(2, i))
-         END DO
-      END IF
+      DO i = 1, nb
+         ii = i0 + i
+         e_0(ii) = e_0(ii) + sc*w%exc(i)*(w%rho(1, i) + w%rho(2, i))
+      END DO
       IF (grad_deriv >= 1) THEN
          DO i = 1, nb
             ii = i0 + i

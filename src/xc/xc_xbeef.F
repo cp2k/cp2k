@@ -125,9 +125,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param grad_deriv degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param grad_deriv maximum degree of the derivative that should be evaluated
 !> \param xbeef_params input parameters (scaling)
 !> \par History
 !>      02.2014 created
@@ -165,12 +163,10 @@ CONTAINS
       e_rho => dummy
       e_ndrho => dummy
 
-      IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
+      IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
@@ -178,7 +174,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho)
       END IF
-      IF (grad_deriv > 1 .OR. grad_deriv < -1) THEN
+      IF (grad_deriv > 1) THEN
          CPABORT("derivatives greater than 1 not implemented")
       END IF
 
@@ -204,9 +200,7 @@ CONTAINS
 !> \param e_0 ...
 !> \param e_rho ...
 !> \param e_ndrho ...
-!> \param grad_deriv degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param grad_deriv maximum degree of the derivative that should be evaluated
 !> \param npoints ...
 !> \param epsilon_rho ...
 !> \param sx scaling-parameter for exchange
@@ -255,12 +249,10 @@ CONTAINS
             s2 = s**2
             t = 2.0_dp*s2/(4.0_dp + s2) - 1.0_dp
 
-            IF (grad_deriv >= 0) THEN !asking for pure e evaluation or also derivatives
-               e_leg(0) = 1 !first legendre pol
-               e_leg(1) = t !second legendre pol
-            END IF
+            e_leg(0) = 1 !first legendre pol
+            e_leg(1) = t !second legendre pol
 
-            IF ((grad_deriv >= 1) .OR. (grad_deriv == -1)) THEN !asking for first derivative or higher
+            IF ((grad_deriv >= 1)) THEN !asking for first derivative or higher
                de_leg(0) = 0
                de_leg(1) = 1
                dt = 4.0_dp*s/(4.0_dp + s2) - 4.0_dp*s*s2/(4.0_dp + s2)**2
@@ -272,20 +264,17 @@ CONTAINS
                e_leg(i) = 2._dp*(t)*e_leg(i - 1) - e_leg(i - 2) - ((t)*e_leg(i - 1) - e_leg(i - 2))/(REAL(i, KIND=dp))
                !taken from quantum espresso beef library.
 
-               IF (ABS(grad_deriv) >= 1) THEN !first derivative
+               IF (grad_deriv >= 1) THEN !first derivative
                   !the zero-derivatives need to be available for the first deriv.
                   de_leg(i) = e_leg(i - 1)*i + de_leg(i - 1)*(t)
                END IF
             END DO
 
-            !NO DERIVATIVE
-            IF (grad_deriv >= 0) THEN
-               !add the scaled legendre linear combination to e_0
-               e_0(ii) = e_0(ii) + SUM(e_leg*a)*e_ueg*sx
-            END IF
+            !add the scaled legendre linear combination to e_0
+            e_0(ii) = e_0(ii) + SUM(e_leg*a)*e_ueg*sx
 
             !FIRST DERIVATIVE
-            IF ((grad_deriv >= 1) .OR. (grad_deriv == -1)) THEN !asking for first derivative or higher
+            IF ((grad_deriv >= 1)) THEN !asking for first derivative or higher
                e_rho(ii) = e_rho(ii) + (SUM(e_leg*a)*e_ueg_drho + SUM(de_leg*a)*dt*ds_rho*e_ueg)*sx
                e_ndrho(ii) = e_ndrho(ii) + (SUM(de_leg*a)*dt*ds_ndrho*e_ueg)*sx
             END IF
@@ -348,12 +337,10 @@ CONTAINS
          e_ndrho(i)%array => dummy
       END DO
 
-      IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
+      IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho(1)%array)
@@ -367,7 +354,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho(2)%array)
       END IF
-      IF (grad_deriv > 1 .OR. grad_deriv < -1) THEN
+      IF (grad_deriv > 1) THEN
          CPABORT("derivatives greater than 1 not implemented")
       END IF
 
@@ -453,12 +440,10 @@ CONTAINS
             s2 = s**2
             t = 2.0_dp*s**2/(4.0_dp + s**2) - 1.0_dp
 
-            IF (grad_deriv >= 0) THEN !asking for pure e evaluation or also derivatives
-               e_leg(0) = 1 !first legendre pol
-               e_leg(1) = t !second legendre pol
-            END IF
+            e_leg(0) = 1 !first legendre pol
+            e_leg(1) = t !second legendre pol
 
-            IF ((grad_deriv >= 1) .OR. (grad_deriv == -1)) THEN !asking for first derivative or higher
+            IF ((grad_deriv >= 1)) THEN !asking for first derivative or higher
                de_leg(0) = 0
                de_leg(1) = 1
                dt = 4.0_dp*s/(4.0_dp + s2) - 4.0_dp*s*s2/(4.0_dp + s2)**2
@@ -470,7 +455,7 @@ CONTAINS
                e_leg(i) = 2._dp*(t)*e_leg(i - 1) - e_leg(i - 2) - ((t)*e_leg(i - 1) - e_leg(i - 2))/(REAL(i, KIND=dp))
                !taken from quantum espresso beef library.
 
-               IF (ABS(grad_deriv) >= 1) THEN !first derivative
+               IF (grad_deriv >= 1) THEN !first derivative
                   !the zero-derivatives need to be available for the first deriv.
                   de_leg(i) = e_leg(i - 1)*i + de_leg(i - 1)*(t)
                END IF
@@ -478,13 +463,11 @@ CONTAINS
             END DO
 
             !NO DERIVATIVE
-            IF (grad_deriv >= 0) THEN
-               !add the scaled legendre linear combination to e_0
-               e_0(ii) = e_0(ii) + SUM(e_leg*a)*e_ueg*sx
-            END IF
+            !add the scaled legendre linear combination to e_0
+            e_0(ii) = e_0(ii) + SUM(e_leg*a)*e_ueg*sx
 
             !FIRST DERIVATIVE
-            IF ((grad_deriv >= 1) .OR. (grad_deriv == -1)) THEN !asking for first derivative or higher
+            IF ((grad_deriv >= 1)) THEN !asking for first derivative or higher
                e_rho_spin(ii) = e_rho_spin(ii) + (SUM(e_leg*a)*e_ueg_drho + SUM(de_leg*a)*dt*ds_rho*e_ueg)*sx
                e_ndrho_spin(ii) = e_ndrho_spin(ii) + (SUM(de_leg*a)*dt*ds_ndrho*e_ueg)*sx
             END IF

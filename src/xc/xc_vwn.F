@@ -200,34 +200,28 @@ CONTAINS
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
 
          CALL vwn_lda_01(rho, x, e_0, e_rho, npoints, sc)
-      ELSE IF (order >= 0) THEN
+      ELSE
          deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
 
          CALL vwn_lda_0(rho, x, e_0, npoints, sc)
-      ELSE IF (order == -1) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_rho)
-
-         CALL vwn_lda_1(rho, x, e_rho, npoints, sc)
       END IF
-      IF (order >= 2 .OR. order == -2) THEN
+      IF (order >= 2) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
 
          CALL vwn_lda_2(rho, x, e_rho_rho, npoints, sc)
       END IF
-      IF (order >= 3 .OR. order == -3) THEN
+      IF (order >= 3) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho)
 
          CALL vwn_lda_3(rho, x, e_rho_rho_rho, npoints, sc)
       END IF
-      IF (order > 3 .OR. order < -3) THEN
+      IF (order > 3) THEN
          CPABORT("derivatives bigger than 3 not implemented")
       END IF
 
@@ -279,57 +273,6 @@ CONTAINS
 !$OMP     END PARALLEL DO
 
    END SUBROUTINE vwn_lda_0
-
-! **************************************************************************************************
-!> \brief ...
-!> \param rho ...
-!> \param x ...
-!> \param e_rho ...
-!> \param npoints ...
-!> \param sc ...
-! **************************************************************************************************
-   SUBROUTINE vwn_lda_1(rho, x, e_rho, npoints, sc)
-
-      REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rho, x
-      REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)         :: e_rho
-      INTEGER, INTENT(in)                                :: npoints
-      REAL(KIND=dp)                                      :: sc
-
-      INTEGER                                            :: ip
-      REAL(KIND=dp)                                      :: at, dat, dex, dln1, dln2, dpx, ex, ln1, &
-                                                            ln2, pa, px, px0, q, xb
-
-      q = SQRT(4.0_dp*c - b*b)
-      xb = 2.0_dp*x0 + b
-      px0 = x0*x0 + b*x0 + c
-
-!$OMP     PARALLEL DO DEFAULT(NONE) &
-!$OMP                 SHARED(npoints, rho, eps_rho, x, b, sc, e_rho) &
-!$OMP                 SHARED(c, x0, q, xb, px0) &
-!$OMP                 PRIVATE(ip,px,dpx,at,pa,dat,ln1,dln1,ln2,dln2,ex,dex)
-
-      DO ip = 1, npoints
-
-         IF (rho(ip) > eps_rho) THEN
-            px = x(ip)*x(ip) + b*x(ip) + c
-            dpx = 2.0_dp*x(ip) + b
-            at = 2.0_dp/q*ATAN(q/dpx)
-            pa = 4.0_dp*x(ip)*x(ip) + 4.0_dp*b*x(ip) + b*b + q*q
-            dat = -4.0_dp/pa
-            ln1 = LOG(x(ip)*x(ip)/px)
-            dln1 = (b*x(ip) + 2.0_dp*c)/(x(ip)*px)
-            ln2 = LOG((x(ip) - x0)**2/px)
-            dln2 = (b*x(ip) + 2.0_dp*c + 2.0_dp*x0*x(ip) + x0*b)/((x(ip) - x0)*px)
-            ex = a*(ln1 + b*at - b*x0/px0*(ln2 + xb*at))
-            dex = a*(dln1 + b*dat - b*x0/px0*(dln2 + xb*dat))
-            e_rho(ip) = e_rho(ip) + (ex - x(ip)*dex/6.0_dp)*sc
-         END IF
-
-      END DO
-
-!$OMP     END PARALLEL DO
-
-   END SUBROUTINE vwn_lda_1
 
 ! **************************************************************************************************
 !> \brief ...
@@ -560,12 +503,10 @@ CONTAINS
       e_aab => dummy
       e_abb => dummy
 
-      IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
-      IF (order >= 1 .OR. order == -1) THEN
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
+      IF (order >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_a)
@@ -574,7 +515,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_b)
       END IF
-      IF (order >= 2 .OR. order == -2) THEN
+      IF (order >= 2) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_aa)
@@ -587,7 +528,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ab)
       END IF
-      IF (order >= 3 .OR. order == -3) THEN
+      IF (order >= 3) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa, deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_aaa)
@@ -605,7 +546,7 @@ CONTAINS
          CALL xc_derivative_get(deriv, deriv_data=e_abb)
 
       END IF
-      IF (order > 3 .OR. order < -3) THEN
+      IF (order > 3) THEN
          CPABORT("derivatives bigger than 3 not implemented")
       END IF
 
@@ -722,59 +663,57 @@ CONTAINS
             myrhob = MAX(EPSILON(0.0_dp)*1.e4_dp, myrhob)
             myrho = myrhoa + myrhob
 
-            IF (order >= 0) THEN
-               t1 = 0.1e1_dp/0.3141592654e1_dp
-               t2 = myrho
-               t3 = 0.1e1_dp/t2
-               t4 = t1*t3
-               t5 = t4**0.3333333332e0_dp
-               t6 = 0.9085602964e0_dp*t5
-               t7 = t4**0.1666666666e0_dp
-               t10 = t6 + 0.9531842930e0_dp*bp*t7 + cp
-               t11 = 0.1e1_dp/t10
-               t14 = LOG(0.9085602964e0_dp*t5*t11)
-               t15 = 0.1906368586e1_dp*t7
-               t16 = t15 + bp
-               t19 = ATAN(Qp/t16)
-               t21 = 0.1e1_dp/Qp
-               t24 = bp*x0p
-               t25 = 0.9531842930e0_dp*t7
-               t26 = t25 - x0p
-               t27 = t26**0.20e1_dp
-               t29 = LOG(t27*t11)
-               t32 = 0.20e1_dp*bp + 0.40e1_dp*x0p
-               t36 = x0p**0.20e1_dp
-               t38 = 0.1e1_dp/(t36 + t24 + cp)
-               t42 = ap*(t14 + 0.20e1_dp*bp*t19*t21 - t24*(t29 + t32*t19 &
-                                                           *t21)*t38)
-               t43 = myrhoa - myrhob
-               t44 = t43*t3
-               t45 = 0.10e1_dp + t44
-               t46 = t45**0.1333333333e1_dp
-               t48 = 0.10e1_dp - t44
-               t49 = t48**0.1333333333e1_dp
-               t51 = 0.1923661050e1_dp*t46 + 0.1923661050e1_dp*t49 - 0.3847322100e1_dp
-               t54 = t6 + 0.9531842930e0_dp*bf*t7 + cf
-               t55 = 0.1e1_dp/t54
-               t58 = LOG(0.9085602964e0_dp*t5*t55)
-               t59 = t15 + bf
-               t62 = ATAN(Qf/t59)
-               t64 = 0.1e1_dp/Qf
-               t67 = bf*x0f
-               t68 = t25 - x0f
-               t69 = t68**0.20e1_dp
-               t71 = LOG(t69*t55)
-               t74 = 0.20e1_dp*bf + 0.40e1_dp*x0f
-               t78 = x0f**0.20e1_dp
-               t80 = 0.1e1_dp/(t78 + t67 + cf)
-               t85 = af*(t58 + 0.20e1_dp*bf*t62*t64 - t67*(t71 + t74*t62 &
-                                                           *t64)*t80) - t42
-               t86 = t51*t85
+            t1 = 0.1e1_dp/0.3141592654e1_dp
+            t2 = myrho
+            t3 = 0.1e1_dp/t2
+            t4 = t1*t3
+            t5 = t4**0.3333333332e0_dp
+            t6 = 0.9085602964e0_dp*t5
+            t7 = t4**0.1666666666e0_dp
+            t10 = t6 + 0.9531842930e0_dp*bp*t7 + cp
+            t11 = 0.1e1_dp/t10
+            t14 = LOG(0.9085602964e0_dp*t5*t11)
+            t15 = 0.1906368586e1_dp*t7
+            t16 = t15 + bp
+            t19 = ATAN(Qp/t16)
+            t21 = 0.1e1_dp/Qp
+            t24 = bp*x0p
+            t25 = 0.9531842930e0_dp*t7
+            t26 = t25 - x0p
+            t27 = t26**0.20e1_dp
+            t29 = LOG(t27*t11)
+            t32 = 0.20e1_dp*bp + 0.40e1_dp*x0p
+            t36 = x0p**0.20e1_dp
+            t38 = 0.1e1_dp/(t36 + t24 + cp)
+            t42 = ap*(t14 + 0.20e1_dp*bp*t19*t21 - t24*(t29 + t32*t19 &
+                                                        *t21)*t38)
+            t43 = myrhoa - myrhob
+            t44 = t43*t3
+            t45 = 0.10e1_dp + t44
+            t46 = t45**0.1333333333e1_dp
+            t48 = 0.10e1_dp - t44
+            t49 = t48**0.1333333333e1_dp
+            t51 = 0.1923661050e1_dp*t46 + 0.1923661050e1_dp*t49 - 0.3847322100e1_dp
+            t54 = t6 + 0.9531842930e0_dp*bf*t7 + cf
+            t55 = 0.1e1_dp/t54
+            t58 = LOG(0.9085602964e0_dp*t5*t55)
+            t59 = t15 + bf
+            t62 = ATAN(Qf/t59)
+            t64 = 0.1e1_dp/Qf
+            t67 = bf*x0f
+            t68 = t25 - x0f
+            t69 = t68**0.20e1_dp
+            t71 = LOG(t69*t55)
+            t74 = 0.20e1_dp*bf + 0.40e1_dp*x0f
+            t78 = x0f**0.20e1_dp
+            t80 = 0.1e1_dp/(t78 + t67 + cf)
+            t85 = af*(t58 + 0.20e1_dp*bf*t62*t64 - t67*(t71 + t74*t62 &
+                                                        *t64)*t80) - t42
+            t86 = t51*t85
 
-               e_0(ip) = e_0(ip) + ((t42 + t86)*t2)*sc
+            e_0(ip) = e_0(ip) + ((t42 + t86)*t2)*sc
 
-            END IF
-            IF (order >= 1 .OR. order == -1) THEN
+            IF (order >= 1) THEN
                t88 = t4**(-0.6666666668e0_dp)
                t89 = t88*t11
                t90 = t2**2
@@ -857,7 +796,7 @@ CONTAINS
                e_b(ip) = e_b(ip) + ((t144 + t213 + t203)*t2 + t42 + t86)*sc
 
             END IF
-            IF (order >= 2 .OR. order == -2) THEN
+            IF (order >= 2) THEN
                t216 = t4**(-0.1666666667e1_dp)
                t217 = t216*t11
                t218 = 0.3141592654e1_dp**2
@@ -1020,7 +959,7 @@ CONTAINS
                e_bb(ip) = e_bb(ip) + ((t332 + t489 + t490 + t452)*t2 + t455 + 0.2e1_dp*t213 + t457)*sc
 
             END IF
-            IF (order >= 3 .OR. order == -3) THEN
+            IF (order >= 3) THEN
                t494 = t4**(-0.2666666667e1_dp)
                t497 = 0.1e1_dp/t218/0.3141592654e1_dp
                t499 = 0.1e1_dp/t220/t90
@@ -1312,85 +1251,83 @@ CONTAINS
             myrhob = MAX(EPSILON(0.0_dp)*1.e4_dp, myrhob)
             myrho = myrhoa + myrhob
 
-            IF (order >= 0) THEN
-               t1 = myrhoa - myrhob
-               t2 = myrho
-               t3 = 0.1e1_dp/t2
-               t4 = t1*t3
-               t5 = 0.10e1_dp + t4
-               t6 = t5**0.1333333333e1_dp
-               t8 = 0.10e1_dp - t4
-               t9 = t8**0.1333333333e1_dp
-               t11 = 0.1923661050e1_dp*t6 + 0.1923661050e1_dp*t9 - 0.3847322100e1_dp
-               t12 = t4**0.40e1_dp
-               t13 = t11*t12
-               t15 = (0.10e1_dp - t13)*ap
-               t16 = 0.1e1_dp/0.3141592654e1_dp
-               t17 = t16*t3
-               t18 = t17**0.3333333332e0_dp
-               t19 = 0.9085602964e0_dp*t18
-               t20 = t17**0.1666666666e0_dp
-               t23 = t19 + 0.9531842930e0_dp*bp*t20 + cp
-               t24 = 0.1e1_dp/t23
-               t27 = LOG(0.9085602964e0_dp*t18*t24)
-               t28 = 0.1906368586e1_dp*t20
-               t29 = t28 + bp
-               t32 = ATAN(Qp/t29)
-               t34 = 0.1e1_dp/Qp
-               t37 = bp*x0p
-               t38 = 0.9531842930e0_dp*t20
-               t39 = t38 - x0p
-               t40 = t39**0.20e1_dp
-               t42 = LOG(t40*t24)
-               t45 = 0.20e1_dp*bp + 0.40e1_dp*x0p
-               t49 = x0p**0.20e1_dp
-               t51 = 0.1e1_dp/(t49 + t37 + cp)
-               t54 = t27 + 0.20e1_dp*bp*t32*t34 - t37*(t42 + t45*t32*t34) &
-                     *t51
-               t55 = t15*t54
-               t56 = 0.10e1_dp - t12
-               t57 = t11*t56
-               t60 = t19 + 0.9531842930e0_dp*ba*t20 + ca
-               t61 = 0.1e1_dp/t60
-               t64 = LOG(0.9085602964e0_dp*t18*t61)
-               t65 = t28 + ba
-               t68 = ATAN(Qa/t65)
-               t70 = 0.1e1_dp/Qa
-               t73 = ba*x0a
-               t74 = t38 - x0a
-               t75 = t74**0.20e1_dp
-               t77 = LOG(t75*t61)
-               t80 = 0.20e1_dp*ba + 0.40e1_dp*x0a
-               t84 = x0a**0.20e1_dp
-               t86 = 0.1e1_dp/(t84 + t73 + ca)
-               t89 = t64 + 0.20e1_dp*ba*t68*t70 - t73*(t77 + t80*t68*t70) &
-                     *t86
-               t90 = aa*t89
-               t91 = 0.1e1_dp/d2f0
-               t92 = t90*t91
-               t93 = t57*t92
-               t96 = t19 + 0.9531842930e0_dp*bf*t20 + cf
-               t97 = 0.1e1_dp/t96
-               t100 = LOG(0.9085602964e0_dp*t18*t97)
-               t101 = t28 + bf
-               t104 = ATAN(Qf/t101)
-               t106 = 0.1e1_dp/Qf
-               t109 = bf*x0f
-               t110 = t38 - x0f
-               t111 = t110**0.20e1_dp
-               t113 = LOG(t111*t97)
-               t116 = 0.20e1_dp*bf + 0.40e1_dp*x0f
-               t120 = x0f**0.20e1_dp
-               t122 = 0.1e1_dp/(t120 + t109 + cf)
-               t125 = t100 + 0.20e1_dp*bf*t104*t106 - t109*(t113 + t116*t104 &
-                                                            *t106)*t122
-               t126 = af*t125
-               t127 = t13*t126
+            t1 = myrhoa - myrhob
+            t2 = myrho
+            t3 = 0.1e1_dp/t2
+            t4 = t1*t3
+            t5 = 0.10e1_dp + t4
+            t6 = t5**0.1333333333e1_dp
+            t8 = 0.10e1_dp - t4
+            t9 = t8**0.1333333333e1_dp
+            t11 = 0.1923661050e1_dp*t6 + 0.1923661050e1_dp*t9 - 0.3847322100e1_dp
+            t12 = t4**0.40e1_dp
+            t13 = t11*t12
+            t15 = (0.10e1_dp - t13)*ap
+            t16 = 0.1e1_dp/0.3141592654e1_dp
+            t17 = t16*t3
+            t18 = t17**0.3333333332e0_dp
+            t19 = 0.9085602964e0_dp*t18
+            t20 = t17**0.1666666666e0_dp
+            t23 = t19 + 0.9531842930e0_dp*bp*t20 + cp
+            t24 = 0.1e1_dp/t23
+            t27 = LOG(0.9085602964e0_dp*t18*t24)
+            t28 = 0.1906368586e1_dp*t20
+            t29 = t28 + bp
+            t32 = ATAN(Qp/t29)
+            t34 = 0.1e1_dp/Qp
+            t37 = bp*x0p
+            t38 = 0.9531842930e0_dp*t20
+            t39 = t38 - x0p
+            t40 = t39**0.20e1_dp
+            t42 = LOG(t40*t24)
+            t45 = 0.20e1_dp*bp + 0.40e1_dp*x0p
+            t49 = x0p**0.20e1_dp
+            t51 = 0.1e1_dp/(t49 + t37 + cp)
+            t54 = t27 + 0.20e1_dp*bp*t32*t34 - t37*(t42 + t45*t32*t34) &
+                  *t51
+            t55 = t15*t54
+            t56 = 0.10e1_dp - t12
+            t57 = t11*t56
+            t60 = t19 + 0.9531842930e0_dp*ba*t20 + ca
+            t61 = 0.1e1_dp/t60
+            t64 = LOG(0.9085602964e0_dp*t18*t61)
+            t65 = t28 + ba
+            t68 = ATAN(Qa/t65)
+            t70 = 0.1e1_dp/Qa
+            t73 = ba*x0a
+            t74 = t38 - x0a
+            t75 = t74**0.20e1_dp
+            t77 = LOG(t75*t61)
+            t80 = 0.20e1_dp*ba + 0.40e1_dp*x0a
+            t84 = x0a**0.20e1_dp
+            t86 = 0.1e1_dp/(t84 + t73 + ca)
+            t89 = t64 + 0.20e1_dp*ba*t68*t70 - t73*(t77 + t80*t68*t70) &
+                  *t86
+            t90 = aa*t89
+            t91 = 0.1e1_dp/d2f0
+            t92 = t90*t91
+            t93 = t57*t92
+            t96 = t19 + 0.9531842930e0_dp*bf*t20 + cf
+            t97 = 0.1e1_dp/t96
+            t100 = LOG(0.9085602964e0_dp*t18*t97)
+            t101 = t28 + bf
+            t104 = ATAN(Qf/t101)
+            t106 = 0.1e1_dp/Qf
+            t109 = bf*x0f
+            t110 = t38 - x0f
+            t111 = t110**0.20e1_dp
+            t113 = LOG(t111*t97)
+            t116 = 0.20e1_dp*bf + 0.40e1_dp*x0f
+            t120 = x0f**0.20e1_dp
+            t122 = 0.1e1_dp/(t120 + t109 + cf)
+            t125 = t100 + 0.20e1_dp*bf*t104*t106 - t109*(t113 + t116*t104 &
+                                                         *t106)*t122
+            t126 = af*t125
+            t127 = t13*t126
 
-               e_0(ip) = e_0(ip) + ((t55 + t93 + t127)*t2)*sc
+            e_0(ip) = e_0(ip) + ((t55 + t93 + t127)*t2)*sc
 
-            END IF
-            IF (order >= 1 .OR. order == -1) THEN
+            IF (order >= 1) THEN
                t129 = t5**0.333333333e0_dp
                t130 = t2**2
                t131 = 0.1e1_dp/t130
@@ -1529,7 +1466,7 @@ CONTAINS
                                     t55 + t93 + t127)*sc
 
             END IF
-            IF (order >= 2 .OR. order == -2) THEN
+            IF (order >= 2) THEN
                t332 = t5**(-0.666666667e0_dp)
                t333 = t133**2
                t337 = 0.1e1_dp/t130/t2
@@ -1856,7 +1793,7 @@ CONTAINS
                                       + t712 + 0.2e1_dp*t326 + 0.80e1_dp*t328 + t715)*sc
 
             END IF
-            IF (order >= 3 .OR. order == -3) THEN
+            IF (order >= 3) THEN
                t842 = 0.3e1_dp*t480
                t851 = 0.3e1_dp*t592
                t857 = 0.3e1_dp*t705
