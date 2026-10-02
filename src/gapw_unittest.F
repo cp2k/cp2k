@@ -10,6 +10,7 @@ PROGRAM gapw_unittest
                                               create_primitive_basis_set,&
                                               deallocate_gto_basis_set,&
                                               gto_basis_set_type
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE gapw_1c_basis_set,               ONLY: create_1c_basis
    USE hartree_local_methods,           ONLY: gapw_background_potential
    USE kinds,                           ONLY: dp
@@ -27,9 +28,10 @@ PROGRAM gapw_unittest
    REAL(dp), PARAMETER :: charges(2) = [-1.0_dp, 0.3_dp]
    REAL(dp) :: rad2(nr), weights(nr), delta_rho(nr), potential(nr), shifted(nr)
    REAL(dp) :: q, g2, periodic_difference, local_difference, correction, error, h, eplus, eminus
-   INTEGER :: i, ix, iy, iz
+   INTEGER :: i, ix, iy, iz, io_unit
 
    CALL cp2k_init()
+   io_unit = cp_logger_get_default_io_unit()
    CALL check_1c_basis()
    DO i = 1, nr
       rad2(i) = ((i - 1)*dr)**2
@@ -64,7 +66,7 @@ PROGRAM gapw_unittest
       END DO
       local_difference = q*q*(SQRT(alpha) - SQRT(beta))/SQRT(2.0_dp*pi)
       error = ABS(periodic_difference - local_difference - correction)
-      WRITE (*, '(A,F8.3,ES16.7)') "GAPW periodic Gaussian background:", q, error
+      IF (io_unit > 0) WRITE (io_unit, '(A,F8.3,ES16.7)') "GAPW periodic Gaussian background:", q, error
       IF (error > 1.e-12_dp) ERROR STOP "GAPW background disagrees with periodic Gaussian electrostatics"
 
       ! The explicit volume derivative contributes E_background to each
@@ -114,7 +116,8 @@ CONTAINS
          orbitals%set_radius = 0.0_dp
          CALL create_1c_basis(orbitals, orbitals, extended, level)
          diffuse = 1.0_dp/(ratio*SQRT(ratio))
-         PRINT '(A,I2,A,I3)', 'GAPW extension level ', level, ': added s primitives ', extended%npgf(2)
+         IF (io_unit > 0) WRITE (io_unit, '(A,I2,A,I3)') &
+            'GAPW extension level ', level, ': added s primitives ', extended%npgf(2)
          IF (extended%npgf(2) /= expected(level)) ERROR STOP 'GAPW extension lost admissible diffuse exponents'
          IF (MINVAL(ABS(extended%zet(:extended%npgf(2), 2) - diffuse)) > 1.e-12_dp) THEN
             ERROR STOP 'GAPW extension is missing the first admissible diffuse exponent'
