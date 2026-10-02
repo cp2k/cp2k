@@ -56,8 +56,7 @@ CONTAINS
 
       DO ikind = 1, nkind
          element_symbol = TRIM(bs_env%ri_rs%atomic_kind_set(ikind)%element_symbol)
-         CALL get_ri_rs_grid_filepath(element_symbol, bs_env%ri_rs%grid_select, &
-                                      bs_env%ri_rs%grid_file_suffix, filepath)
+         CALL get_ri_rs_grid_filepath(element_symbol, bs_env%ri_rs%grid_select, filepath)
          CALL read_ri_rs_grid_file(TRIM(filepath), kind_grids(ikind)%raw_points)
          kind_grids(ikind)%npts = SIZE(kind_grids(ikind)%raw_points, 2)
       END DO
@@ -78,13 +77,11 @@ CONTAINS
 !> \brief Construct the path of a pretabulated RI-RS grid file.
 !> \param element_symbol ...
 !> \param grid_select ...
-!> \param grid_file_suffix ...
 !> \param filepath ...
 ! **************************************************************************************************
-   SUBROUTINE get_ri_rs_grid_filepath(element_symbol, grid_select, grid_file_suffix, filepath)
+   SUBROUTINE get_ri_rs_grid_filepath(element_symbol, grid_select, filepath)
       CHARACTER(LEN=*), INTENT(IN)                       :: element_symbol
       INTEGER, INTENT(IN)                                :: grid_select
-      CHARACTER(LEN=*), INTENT(IN)                       :: grid_file_suffix
       CHARACTER(LEN=*), INTENT(OUT)                      :: filepath
 
       CHARACTER(LEN=default_string_length)               :: suffix
@@ -95,11 +92,7 @@ CONTAINS
       CASE (2)
          suffix = "_cc-pvtz-rs.ion"
       CASE (3)
-         IF (LEN_TRIM(grid_file_suffix) > 0) THEN
-            suffix = TRIM(grid_file_suffix)
-         ELSE
-            suffix = "_rirs.ion"
-         END IF
+         suffix = "_rirs.ion"
       CASE DEFAULT
          CPABORT("Unknown grid_select (1=def2-TZVPP, 2=cc-pVTZ, 3=user-provided).")
       END SELECT
