@@ -1750,7 +1750,8 @@ CONTAINS
          DO iatom = 1, na
             atom_a = atomic_kind_set(ikind)%atom_list(iatom)
             DO is = 1, natorb
-               ns = lao(is) + 1
+               ! Preserve tblite's native shell order, including repeated angular momenta.
+               ns = nao(is)
                norm = 2*lao(is) + 1
                ch_ref(is, atom_a) = tb%calc%h0%refocc(nao(is), ikind)/norm
                ch_orb(is, atom_a) = aocg(is, atom_a) - ch_ref(is, atom_a)
