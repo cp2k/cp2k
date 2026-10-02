@@ -117,8 +117,8 @@ CONTAINS
          status = -1
       END DO
       ALLOCATE (hc(n, n), sc(n, n), dc(n, n), v(n, n))
-      sc = MATMUL(CONJG(TRANSPOSE(c)), MATMUL(s, c))
-      hc = MATMUL(CONJG(TRANSPOSE(c)), MATMUL(h, c))
+      sc(:, :) = MATMUL(CONJG(TRANSPOSE(c)), MATMUL(s, c))
+      hc(:, :) = MATMUL(CONJG(TRANSPOSE(c)), MATMUL(h, c))
       DO i = 1, n
          sc(i, i) = sc(i, i) - 1.0_dp
          hc(i, i) = hc(i, i) - energies(i)
@@ -128,9 +128,9 @@ CONTAINS
       IF (.NOT. ALL(ieee_is_finite(residuals)) .OR. MAXVAL(residuals) > tolerance) RETURN
       status = -1
       DO axis = 1, 3
-         hc = MATMUL(CONJG(TRANSPOSE(c)), MATMUL(dh(:, :, axis), c))
-         sc = MATMUL(CONJG(TRANSPOSE(c)), MATMUL(ds(:, :, axis), c))
-         dc = MATMUL(CONJG(TRANSPOSE(c)), MATMUL(d(:, :, axis), c))
+         hc(:, :) = MATMUL(CONJG(TRANSPOSE(c)), MATMUL(dh(:, :, axis), c))
+         sc(:, :) = MATMUL(CONJG(TRANSPOSE(c)), MATMUL(ds(:, :, axis), c))
+         dc(:, :) = MATMUL(CONJG(TRANSPOSE(c)), MATMUL(d(:, :, axis), c))
          DO j = 1, n
             DO i = 1, n
                v(i, j) = hc(i, j) - energies(i)*sc(i, j) + iu*(energies(i) - energies(j))*dc(i, j)

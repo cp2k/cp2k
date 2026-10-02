@@ -152,12 +152,14 @@ CONTAINS
          CALL property_symmetry_plan(qp, mesh, grid, projection, backend, eps_symmetry, &
                                      property_points, representative, operation)
          nr = property_points%nkp
-         representative_k = property_points%xkp
+         ALLOCATE (representative_k(3, nr))
+         representative_k(:, :) = property_points%xkp
       ELSE
          nr = nk
-         representative_k = mesh
+         ALLOCATE (representative_k(3, nr))
+         representative_k(:, :) = mesh
          ALLOCATE (representative(nk), operation(nk))
-         representative = [(ik, ik=1, nk)]
+         representative(:) = [(ik, ik=1, nk)]
          operation = 0
       END IF
       energies = 0.0_dp
@@ -184,7 +186,7 @@ CONTAINS
                IF (representative(ik) /= ir) CYCLE
                channel = ik + (spin - 1)*nk
                energies(:, channel) = source_energies
-               cur = source_current
+               cur(:, :, :) = source_current
                IF (operation(ik) /= 0) THEN
                   k = mesh(:, ik)
                   CALL operators_at_k()
