@@ -6,18 +6,21 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Finite-window Chern markers in nonorthogonal AO representations.
+!> \brief Finite and periodic physical-window Chern markers in nonorthogonal AO representations.
 !> \author Thomas D. Kuehne, tkuehne@cp2k.org
 ! **************************************************************************************************
 MODULE topology_real_space
-   USE ieee_arithmetic,                 ONLY: ieee_is_finite
-   USE kinds,                           ONLY: dp
-   USE kubo_projected,                  ONLY: projected_eigensystem
-   USE mathconstants,                   ONLY: twopi
+   USE ieee_arithmetic, ONLY: ieee_is_finite
+#if defined(__HAS_IEEE_EXCEPTIONS)
+   USE ieee_exceptions, ONLY: IEEE_ALL, ieee_get_halting_mode, ieee_set_halting_mode
+#endif
+   USE kinds, ONLY: dp
+   USE kubo_projected, ONLY: projected_eigensystem
+   USE mathconstants, ONLY: twopi
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: finite_chern_marker
+   PUBLIC :: finite_chern_marker, periodic_chern_marker
 CONTAINS
 
 ! **************************************************************************************************
@@ -43,11 +46,12 @@ CONTAINS
 
       COMPLEX(dp)                                        :: trace
       COMPLEX(dp), ALLOCATABLE                           :: chol(:, :), cx(:, :), cy(:, :), &
-                                                            frame(:, :), gram(:, :), &
                                                             operators(:, :), PRODUCT(:, :), &
                                                             projector(:, :)
       INTEGER                                            :: axis, i, info, n, nocc
-      REAL(dp), ALLOCATABLE                              :: spectrum(:)
+#if defined(__HAS_IEEE_EXCEPTIONS)
+      LOGICAL :: halt(SIZE(IEEE_ALL))
+#endif
 
       marker = 0.0_dp
       status = -1
@@ -66,23 +70,8 @@ CONTAINS
              1.e-10_dp*MAX(TINY(1.0_dp), MAXVAL(ABS(positions(:, :, axis))))) RETURN
       END DO
 
-      ALLOCATE (frame(n, n), spectrum(n))
-      ! The shared generalized solver checks both Hermiticity and metric conditioning.
-      CALL projected_eigensystem(window, metric, spectrum, frame, status)
+      CALL validate_window_projector(occupied, metric, window, status)
       IF (status /= 0) RETURN
-      status = -4
-      IF (MINVAL(spectrum) < -1.e-10_dp .OR. MAXVAL(spectrum) > 1.0_dp + 1.e-10_dp) RETURN
-      DEALLOCATE (frame, spectrum)
-
-      ALLOCATE (gram(nocc, nocc))
-      gram(:, :) = MATMUL(CONJG(TRANSPOSE(occupied)), MATMUL(metric, occupied))
-      DO i = 1, nocc
-         gram(i, i) = gram(i, i) - 1.0_dp
-      END DO
-      status = -3
-      IF (nocc > 0) THEN
-         IF (MAXVAL(ABS(gram)) > 1.e-9_dp) RETURN
-      END IF
       IF (nocc == 0 .OR. nocc == n) THEN
          status = 0
          RETURN
@@ -93,7 +82,14 @@ CONTAINS
       operators(:, :n) = positions(:, :, 1)
       operators(:, n + 1:2*n) = positions(:, :, 2)
       operators(:, 2*n + 1:) = window
+#if defined(__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_get_halting_mode(IEEE_ALL, halt)
+      CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
       CALL zposv('U', n, 3*n, chol, n, operators, n, info)
+#if defined(__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_set_halting_mode(IEEE_ALL, halt)
+#endif
       status = ABS(info) + 1
       IF (info /= 0) RETURN
       projector(:, :) = MATMUL(occupied, MATMUL(CONJG(TRANSPOSE(occupied)), metric))
@@ -115,4 +111,178 @@ CONTAINS
       END IF
       status = 0
    END SUBROUTINE finite_chern_marker
+
+! **************************************************************************************************
+!> \brief Symmetric periodic Chern marker from metric-dual states at +/- reciprocal torus vectors.
+!> \param occupied Metric-orthonormal occupied coefficients on the complete Born-von-Karman torus
+!> \param metric Positive definite covariant AO overlap
+!> \param twists Covariant integrals of exp(-i*b_j.r), with reciprocal torus vectors in plane order
+!> \param window Covariant physical periodic window, 0 <= W <= S
+!> \param cell_area Physical area of the complete torus, not of the primitive cell
+!> \param window_area Integral of the physical window on that torus
+!> \param eps_dual Minimum singular value of occupied twist overlaps, between zero and one
+!> \param marker Unrounded window average in the same Berry/orientation convention as the finite marker
+!> \param minimum_sv Minimum occupied twist-overlap singular value
+!> \param status Finite-marker statuses, or -6 for an unresolved dual-state overlap
+!> \note Implements Bau/Marrazzo (2024), symmetric Eq. (15). The dual-state outer products are
+!>       not orthogonal projectors. Do not orthonormalize them or replace them by polar factors.
+! **************************************************************************************************
+   SUBROUTINE periodic_chern_marker(occupied, metric, twists, window, cell_area, window_area, eps_dual, &
+                                    marker, minimum_sv, status)
+      COMPLEX(dp), INTENT(IN)                            :: occupied(:, :), metric(:, :), &
+                                                            twists(:, :, :), window(:, :)
+      REAL(dp), INTENT(IN)                               :: cell_area, window_area, eps_dual
+      REAL(dp), INTENT(OUT)                              :: marker, minimum_sv
+      INTEGER, INTENT(OUT)                               :: status
+
+      COMPLEX(dp)                                        :: dummy(1, 1), trace
+      COMPLEX(dp), ALLOCATABLE :: applied(:, :), chol(:, :), dual(:, :), factor(:, :), &
+                                  overlap(:, :), PRODUCT(:, :), projector(:, :), q(:, :, :), rhs(:, :), weighted(:, :), &
+                                  work(:)
+      INTEGER                                            :: axis, branch, first, i, index, info, m, n
+      INTEGER, ALLOCATABLE                               :: pivots(:)
+      REAL(dp)                                           :: sign
+      REAL(dp), ALLOCATABLE                              :: rwork(:), singular(:)
+#if defined(__HAS_IEEE_EXCEPTIONS)
+      LOGICAL :: halt(SIZE(IEEE_ALL))
+#endif
+
+      marker = 0.0_dp
+      minimum_sv = 1.0_dp
+      status = -1
+      n = SIZE(metric, 1)
+      m = SIZE(occupied, 2)
+      IF (n < 1 .OR. ANY(SHAPE(twists) /= [n, n, 2])) RETURN
+      IF (.NOT. ALL(ieee_is_finite([cell_area, window_area, eps_dual]))) RETURN
+      IF (cell_area <= 0.0_dp .OR. window_area <= 0.0_dp) RETURN
+      IF (window_area > cell_area*(1.0_dp + 1.e-10_dp)) RETURN
+      IF (eps_dual <= 0.0_dp .OR. eps_dual >= 1.0_dp) RETURN
+      IF (.NOT. ALL(ieee_is_finite(REAL(twists, dp))) .OR. &
+          .NOT. ALL(ieee_is_finite(AIMAG(twists)))) RETURN
+      CALL validate_window_projector(occupied, metric, window, status)
+      IF (status /= 0 .OR. m == 0 .OR. m == n) RETURN
+      ALLOCATE (chol(n, n), applied(n, 4*m), factor(m, m), overlap(m, m), rhs(m, n), &
+                dual(n, m), q(n, n, 2), projector(n, n), weighted(n, n), PRODUCT(n, n), &
+                pivots(m), singular(m), rwork(5*m), work(5*m))
+      DO axis = 1, 2
+         first = 2*(axis - 1)*m
+         applied(:, first + 1:first + m) = MATMUL(twists(:, :, axis), occupied)
+         applied(:, first + m + 1:first + 2*m) = MATMUL(CONJG(TRANSPOSE(twists(:, :, axis))), occupied)
+      END DO
+      chol(:, :) = metric
+#if defined(__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_get_halting_mode(IEEE_ALL, halt)
+      CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
+      CALL zposv('U', n, 4*m, chol, n, applied, n, info)
+#if defined(__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_set_halting_mode(IEEE_ALL, halt)
+#endif
+      status = ABS(info) + 1
+      IF (info /= 0) RETURN
+      q(:, :, :) = 0.0_dp
+      DO axis = 1, 2
+         DO branch = 1, 2
+            index = 2*(axis - 1) + branch - 1
+            first = index*m
+            dual(:, :) = applied(:, first + 1:first + m)
+            overlap(:, :) = MATMUL(CONJG(TRANSPOSE(occupied)), MATMUL(metric, dual))
+            factor(:, :) = overlap
+            ! LAPACK's values-only SVD probes IEEE arithmetic internally.
+#if defined(__HAS_IEEE_EXCEPTIONS)
+            CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
+            CALL zgesvd('N', 'N', m, m, factor, m, singular, dummy, 1, dummy, 1, &
+                        work, SIZE(work), rwork, info)
+#if defined(__HAS_IEEE_EXCEPTIONS)
+            CALL ieee_set_halting_mode(IEEE_ALL, halt)
+#endif
+            status = ABS(info) + 1
+            IF (info /= 0) RETURN
+            minimum_sv = MIN(minimum_sv, MINVAL(singular))
+            status = -6
+            IF (.NOT. ALL(ieee_is_finite(singular)) .OR. minimum_sv <= eps_dual) RETURN
+            ! Right solve D*M= S^-1*E*C. No explicit inverse, and no change of the dual gauge.
+            factor(:, :) = TRANSPOSE(overlap)
+            rhs(:, :) = TRANSPOSE(dual)
+#if defined(__HAS_IEEE_EXCEPTIONS)
+            CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
+            CALL zgesv(m, n, factor, m, pivots, rhs, m, info)
+#if defined(__HAS_IEEE_EXCEPTIONS)
+            CALL ieee_set_halting_mode(IEEE_ALL, halt)
+#endif
+            status = ABS(info) + 1
+            IF (info /= 0) RETURN
+            dual(:, :) = TRANSPOSE(rhs)
+            sign = REAL(3 - 2*branch, dp)
+            q(:, :, axis) = q(:, :, axis) + sign*MATMUL(dual, MATMUL(CONJG(TRANSPOSE(dual)), metric))
+         END DO
+      END DO
+      projector(:, :) = MATMUL(occupied, MATMUL(CONJG(TRANSPOSE(occupied)), metric))
+      chol(:, :) = metric
+      weighted(:, :) = window
+#if defined(__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
+      CALL zposv('U', n, n, chol, n, weighted, n, info)
+#if defined(__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_set_halting_mode(IEEE_ALL, halt)
+#endif
+      status = ABS(info) + 1
+      IF (info /= 0) RETURN
+      PRODUCT(:, :) = MATMUL(weighted, MATMUL(MATMUL(q(:, :, 1), q(:, :, 2)) - &
+                                              MATMUL(q(:, :, 2), q(:, :, 1)), projector))
+      trace = 0.0_dp
+      DO i = 1, n
+         trace = trace + PRODUCT(i, i)
+      END DO
+      status = -1
+      IF (.NOT. ieee_is_finite(REAL(trace, dp)) .OR. .NOT. ieee_is_finite(AIMAG(trace))) RETURN
+      marker = -(cell_area/window_area)*AIMAG(trace)/(4*twopi)
+      IF (.NOT. ieee_is_finite(marker)) THEN
+         marker = 0.0_dp
+         RETURN
+      END IF
+      status = 0
+   END SUBROUTINE periodic_chern_marker
+
+! **************************************************************************************************
+!> \brief Common shape, positive-metric, physical-window and occupied normalization checks.
+!> \param occupied Metric-orthonormal occupied coefficients
+!> \param metric Covariant positive overlap
+!> \param window Covariant physical window
+!> \param status Zero for success or shared marker error status
+! **************************************************************************************************
+   SUBROUTINE validate_window_projector(occupied, metric, window, status)
+      COMPLEX(dp), INTENT(IN)                            :: occupied(:, :), metric(:, :), &
+                                                            window(:, :)
+      INTEGER, INTENT(OUT)                               :: status
+
+      COMPLEX(dp), ALLOCATABLE                           :: frame(:, :), gram(:, :)
+      INTEGER                                            :: i, m, n
+      REAL(dp), ALLOCATABLE                              :: spectrum(:)
+
+      status = -1
+      n = SIZE(metric, 1)
+      m = SIZE(occupied, 2)
+      IF (n < 1 .OR. SIZE(metric, 2) /= n .OR. SIZE(occupied, 1) /= n .OR. m > n) RETURN
+      IF (ANY(SHAPE(window) /= [n, n])) RETURN
+      IF (.NOT. ALL(ieee_is_finite(REAL(occupied, dp))) .OR. &
+          .NOT. ALL(ieee_is_finite(AIMAG(occupied)))) RETURN
+      ALLOCATE (frame(n, n), spectrum(n), gram(m, m))
+      CALL projected_eigensystem(window, metric, spectrum, frame, status)
+      IF (status /= 0) RETURN
+      status = -4
+      IF (MINVAL(spectrum) < -1.e-10_dp .OR. MAXVAL(spectrum) > 1.0_dp + 1.e-10_dp) RETURN
+      gram(:, :) = MATMUL(CONJG(TRANSPOSE(occupied)), MATMUL(metric, occupied))
+      DO i = 1, m
+         gram(i, i) = gram(i, i) - 1.0_dp
+      END DO
+      status = -3
+      IF (m > 0) THEN
+         IF (MAXVAL(ABS(gram)) > 1.e-9_dp) RETURN
+      END IF
+      status = 0
+   END SUBROUTINE validate_window_projector
 END MODULE topology_real_space
