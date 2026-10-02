@@ -14,7 +14,8 @@
     &END QS
     &MGRID
       CUTOFF 300
-      NGRIDS 1
+      NGRIDS 4
+      REL_CUTOFF 120
     &END MGRID
     &KPOINTS
       SCHEME MONKHORST-PACK 2 2 2
