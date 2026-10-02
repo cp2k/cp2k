@@ -313,6 +313,13 @@ registry["M085"] = GenericMatcher(r"Total FORCE_EVAL ( SIRIUS ) energy", col=9)
 registry["M086"] = GenericMatcher(r"DIPOLE : CheckSum  =", col=5)
 registry["M087"] = GenericMatcher(r"POLAR : CheckSum  =", col=5)
 registry["XAS_excit_ener"] = GenericMatcher(r"XAS excitation energy (eV):", col=7)
+# Squared dipoles for the first RIXS absorption and emission.
+registry["RIXS_absorption_dipole_squared"] = GenericMatcher(
+    r"^\s*[-+0-9.EeDd]+(?:\s+[-+0-9.EeDd]+){4}\s*$", col=5, regex=True, first=True
+)
+registry["RIXS_emission_dipole_squared"] = GenericMatcher(
+    r"^\s*[-+0-9.EeDd]+(?:\s+[-+0-9.EeDd]+){5}\s*$", col=6, regex=True, first=True
+)
 registry["M089"] = GenericMatcher(r"Electronic density on regular grids:", col=7)
 registry["M090"] = GenericMatcher(r"Final localization:", col=3)
 registry["M091"] = GenericMatcher(r"Ionization potentials for XPS", col=8)

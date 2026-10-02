@@ -309,8 +309,17 @@ CONTAINS
             ! reshape sc and sg coeffs (separate spins to columns)
             DO ispin = 1, nspins
                CALL cp_fm_create(core_evects(ispin), core_evect_struct)
-               CALL cp_fm_to_fm_submat(msource=target_ex_coeffs, mtarget=core_evects(ispin), s_firstrow=1, &
-                                       s_firstcol=(c_nstates*(ispin - 1) + 1), t_firstrow=1, t_firstcol=1, nrow=nao, ncol=c_nstates)
+               IF (do_sc) THEN
+                  ! XAS stores alpha and beta coefficient columns together for each excited state.
+                  DO istate = 1, c_nstates
+                     CALL cp_fm_to_fm_submat(msource=target_ex_coeffs, mtarget=core_evects(ispin), s_firstrow=1, &
+                                             s_firstcol=(istate - 1)*nspins + ispin, t_firstrow=1, &
+                                             t_firstcol=istate, nrow=nao, ncol=1)
+                  END DO
+               ELSE
+                  CALL cp_fm_to_fm_submat(msource=target_ex_coeffs, mtarget=core_evects(ispin), s_firstrow=1, &
+                                          s_firstcol=1, t_firstrow=1, t_firstcol=1, nrow=nao, ncol=c_nstates)
+               END IF
             END DO
             DO ispin = 1, nspins
                CALL cp_fm_create(state_gs_coeffs(ispin), gs_coeff_struct)
