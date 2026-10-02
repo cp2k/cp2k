@@ -221,13 +221,16 @@ CONTAINS
    END SUBROUTINE cp_cfm_heevd_base
 
 ! **************************************************************************************************
-!> \brief Raise a Hermitian matrix to a real power, filtering its spectrum.
+!> \brief Raise the positive spectral part of a Hermitian matrix to a real power.
+!>        Eigenmodes with eigenvalues below the nonnegative threshold,
+!>        and all non-positive eigenvalues, are discarded. This routine does not
+!>        implement a general matrix power for indefinite Hermitian matrices.
 !> \param matrix input/output matrix; its upper triangle defines the Hermitian input
 !> \param work optional scratch matrix with the same size and distribution as matrix;
 !>        must not alias matrix; overwritten during reconstruction;
 !>        allocated internally when omitted
 !> \param exponent matrix exponent
-!> \param threshold nonnegative cutoff; smaller and zero eigenvalues are discarded
+!> \param threshold nonnegative lower bound for retained eigenvalues
 !> \param n_dependent optional number of discarded eigenvalues
 !> \param verbose optional flag to print spectral diagnostics (default false)
 !> \param eigvals optional smallest and largest eigenvalues before filtering
