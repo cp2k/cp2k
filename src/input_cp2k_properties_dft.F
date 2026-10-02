@@ -13,6 +13,7 @@
 ! **************************************************************************************************
 MODULE input_cp2k_properties_dft
    USE bibliography, ONLY: Dixon2023, Doll2025, Wong2026, Loring2015, Cerjan2023, Futera2017, &
+                           BauMarrazzo2024, &
                            BiancoResta2011, &
                            Hedin1965, &
                            Hybertsen1986, &
@@ -186,19 +187,45 @@ CONTAINS
 
       NULLIFY (keyword)
       CALL section_create(section, __LOCATION__, name="REAL_SPACE_CHERN", &
-                          description="Finite-window real-space Chern marker from the complete GPW/GAPW AO "// &
-                          "Hamiltonian, overlap and analytic position operators. Requires isolated systems with "// &
-                          "CELL/POISSON PERIODIC NONE and no KPOINTS. Uses a sharp spectral projector below ENERGY, "// &
+                          description="Window-averaged real-space Chern marker from the complete GPW/GAPW AO "// &
+                          "Hamiltonian and overlap. FINITE uses analytic positions in isolated systems. PERIODIC "// &
+                          "uses analytic exponential integrals and metric-dual states on a full 2D AO torus. "// &
+                          "Uses a sharp spectral projector below ENERGY, "// &
                           "not smeared SCF occupations. A finite, basis-dependent marker, not a rounded bulk index "// &
                           "or a Z2 invariant. Does not change WANNIER90 Wilson/Chern/Z2 or external Z2Pack interfaces.", &
-                          repeats=.FALSE., citations=[BiancoResta2011])
+                          repeats=.FALSE., citations=[BiancoResta2011, BauMarrazzo2024])
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
-                          description="Activate finite-window Chern analysis after converged SCF.", &
+                          description="Activate window-averaged Chern analysis after converged SCF.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="FORMULATION", type_of_var=enum_t, &
+                          description="FINITE requires CELL/POISSON PERIODIC NONE without KPOINTS. "// &
+                          "PERIODIC requires matching two-dimensional periodicity and uses the symmetric "// &
+                          "dual-state formula on a Born-von-Karman torus. It is a finite-size estimate, "// &
+                          "not a quantized Wilson invariant. Converge MP_GRID or the physical supercell.", &
+                          enum_c_vals=s2a("FINITE", "PERIODIC"), enum_i_vals=[1, 2], default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="MP_GRID", type_of_var=integer_t, n_var=3, &
+                          description="Full Gamma-centered property torus, independent of the SCF k-point scheme "// &
+                          "and symmetry reduction. Requires PERIODIC. Nonperiodic directions must be one.", &
+                          default_i_vals=[1, 1, 1])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_DUAL", &
+                          description="Minimum singular value of occupied exponential overlaps in PERIODIC. "// &
+                          "Reject singular dual-state transport rather than regularizing its gauge.", default_r_val=1.e-8_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_WINDOW", &
+                          description="Absolute uniform Fourier truncation bound for the periodic Gaussian window. "// &
+                          "Narrow windows requiring more than 64 harmonics per direction are rejected.", default_r_val=1.e-12_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="PLANE", type_of_var=enum_t, &
-                          description="Ordered Cartesian plane in the SUBSYS/COORD frame. Reversing its order "// &
+                          description="Ordered Cartesian plane for FINITE; ordered lattice vectors for PERIODIC "// &
+                          "(X=A, Y=B, Z=C), also in oblique cells. Reversing its order "// &
                           "reverses the marker sign. Positive convention uses Berry connection i<u|grad u>.", &
                           enum_c_vals=s2a("XY", "YX", "XZ", "ZX", "YZ", "ZY"), &
                           enum_i_vals=[1, 2, 3, 4, 5, 6], default_i_val=1)
@@ -213,7 +240,10 @@ CONTAINS
                           description="Required positive widths in the two ordered PLANE directions. "// &
                           "The window is exp(-sum((r_i-center_i)^2/(2*sigma_i^2))), independent of the normal "// &
                           "coordinate. Its physical area is 2*pi*sigma_1*sigma_2. Integrates the AO window "// &
-                          "matrix analytically, not by selecting atoms or AOs. Check window and sample-size dependence.", &
+                          "matrix analytically, not by selecting atoms or AOs. For PERIODIC, sigma divided by the "// &
+                          "torus lattice-vector length defines a fractional-coordinate Gaussian width. Its periodic "// &
+                          "image sum is normalized to peak one, and its area includes the cell Jacobian. "// &
+                          "Check window and sample-size dependence.", &
                           type_of_var=real_t, n_var=2, unit_str="bohr")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -243,7 +273,8 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="MAX_AO", &
-                          description="Safety limit on scalar AO dimension. Dense reference, replicated matrices "// &
+                          description="Safety limit on scalar AO dimension, including all torus cells. "// &
+                          "Dense reference, replicated matrices "// &
                           "and source-rank factorization. SOC doubles the working dimension.", default_i_val=512)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

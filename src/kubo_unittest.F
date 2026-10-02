@@ -8,6 +8,7 @@ MODULE kubo_test_cases
    IMPLICIT NONE
    PRIVATE
    PUBLIC :: check_projected_current, check_bloch_current, check_hall_response, check_real_space_chern, check_gaussian_window
+   PUBLIC :: check_periodic_chern
 CONTAINS
 
 ! **************************************************************************************************
@@ -536,26 +537,22 @@ CONTAINS
       USE kinds, ONLY: dp
       USE kubo_projected, ONLY: projected_eigensystem
       USE topology_real_space, ONLY: finite_chern_marker
-      USE topology_wilson, ONLY: wilson_step, wilson_spectrum, chern_from_wcc
       COMPLEX(dp), PARAMETER :: iu = (0.0_dp, 1.0_dp)
-      INTEGER, PARAMETER :: length = 9, n = 2*length**2, mesh = 32
-      REAL(dp), PARAMETER :: pi = 3.1415926535897932384626433832795_dp
-      COMPLEX(dp) :: h(n, n), s(n, n), r(n, n, 2), w(n, n), c(n, n), b(n, n), cc(n, n), &
-                     sc(n, n), rc(n, n, 2), wc(n, n), factor(n, n), tx(2, 2), ty(2, 2), &
-                     h2(2, 2), s2(2, 2), c2(2, 2), states(2, mesh), PRODUCT(1, 1), overlap(1, 1)
-      REAL(dp) :: e(n), e2(2), masses(3), expected(3), value, changed, full_trace, &
-                  wcc(1, mesh + 1), centre(1), winding, berry, minimum_sv, kx, ky, residual
-      INTEGER :: phase, x, y, i, j, orbital, axis, status, invariant, pivots(n)
+      INTEGER, PARAMETER :: length = 9, n = 2*length**2
+      COMPLEX(dp) :: tx(2, 2), ty(2, 2)
+      COMPLEX(dp), ALLOCATABLE :: h(:, :), s(:, :), r(:, :, :), w(:, :), c(:, :), b(:, :), cc(:, :), &
+                                  sc(:, :), rc(:, :, :), wc(:, :), factor(:, :)
+      REAL(dp) :: e(n), masses(3), expected(3), value, changed, full_trace, winding, residual
+      INTEGER :: phase, x, y, i, j, orbital, axis, status, pivots(n)
 
+      ALLOCATE (h(n, n), s(n, n), r(n, n, 2), w(n, n), c(n, n), b(n, n), cc(n, n), &
+                sc(n, n), rc(n, n, 2), wc(n, n), factor(n, n))
       masses = [-1.0_dp, 1.0_dp, 3.0_dp]
       expected = [1.0_dp, -1.0_dp, 0.0_dp]
       tx = RESHAPE([CMPLX(0.5_dp, 0.0_dp, dp), -0.5_dp*iu, -0.5_dp*iu, &
                     CMPLX(-0.5_dp, 0.0_dp, dp)], [2, 2])
       ty = RESHAPE([CMPLX(0.5_dp, 0.0_dp, dp), CMPLX(0.5_dp, 0.0_dp, dp), &
                     CMPLX(-0.5_dp, 0.0_dp, dp), CMPLX(-0.5_dp, 0.0_dp, dp)], [2, 2])
-      s2 = 0.0_dp
-      s2(1, 1) = 1.0_dp
-      s2(2, 2) = 1.0_dp
       DO phase = 1, 3
          h = 0.0_dp
          s = 0.0_dp
@@ -592,33 +589,8 @@ CONTAINS
          CALL finite_chern_marker(c(:, :n/2), s, r, s, REAL(length**2, dp), full_trace, status)
          IF (status /= 0 .OR. ABS(full_trace) > 1.e-11_dp) ERROR STOP 'Open lattice boundary cancellation'
 
-         ! Use the existing native Wilson implementation, not a second Chern integrator.
-         DO y = 0, mesh
-            ky = 2*pi*REAL(y, dp)/mesh
-            DO x = 0, mesh - 1
-               kx = 2*pi*REAL(x, dp)/mesh
-               h2(1, 1) = masses(phase) + COS(kx) + COS(ky)
-               h2(2, 2) = -h2(1, 1)
-               h2(1, 2) = SIN(kx) - iu*SIN(ky)
-               h2(2, 1) = CONJG(h2(1, 2))
-               CALL projected_eigensystem(h2, s2, e2, c2, status)
-               IF (status /= 0) ERROR STOP 'Wilson reference eigensystem'
-               states(:, x + 1) = c2(:, 1)
-            END DO
-            product = 1.0_dp
-            DO x = 1, mesh
-               overlap(1, 1) = DOT_PRODUCT(states(:, x), states(:, MODULO(x, mesh) + 1))
-               CALL wilson_step(product, overlap, minimum_sv, status, 1.e-10_dp)
-               IF (status /= 0) ERROR STOP 'Native Wilson reference link'
-            END DO
-            CALL wilson_spectrum(product, centre, berry, status)
-            IF (status /= 0) ERROR STOP 'Native Wilson reference spectrum'
-            wcc(:, y + 1) = centre
-         END DO
-         CALL chern_from_wcc(wcc, invariant, winding, status, 1.e-9_dp)
-         IF (status /= 0 .OR. ABS(REAL(invariant, dp) - expected(phase)) > 1.e-12_dp) THEN
-            ERROR STOP 'Native Wilson reference orientation'
-         END IF
+         CALL qwz_wilson_reference(masses(phase), winding)
+         IF (ABS(winding - expected(phase)) > 1.e-12_dp) ERROR STOP 'Native Wilson reference orientation'
          IF (ABS(value - winding) > 0.01_dp) ERROR STOP 'Finite marker versus native Wilson'
 
          b = 0.0_dp
@@ -679,15 +651,238 @@ CONTAINS
       PRINT *, 'Finite-window Chern, native Wilson, metric, gauge, orientation and boundary tests passed.'
    END SUBROUTINE check_real_space_chern
 
+! **************************************************************************************************
+!> \brief Shared independent reciprocal-space reference using CP2K's native Wilson implementation.
+!> \param mass QWZ mass
+!> \param winding Chern winding in the native Berry convention
+! **************************************************************************************************
+   SUBROUTINE qwz_wilson_reference(mass, winding)
+      USE kinds, ONLY: dp
+      USE mathconstants, ONLY: twopi
+      USE kubo_projected, ONLY: projected_eigensystem
+      USE topology_wilson, ONLY: wilson_step, wilson_spectrum, chern_from_wcc
+      REAL(dp), INTENT(IN)                               :: mass
+      REAL(dp), INTENT(OUT)                              :: winding
+
+      COMPLEX(dp), PARAMETER                             :: iu = (0.0_dp, 1.0_dp)
+      INTEGER, PARAMETER                                 :: mesh = 32
+
+      COMPLEX(dp)                                        :: c(2, 2), h(2, 2), overlap(1, 1), &
+                                                            PRODUCT(1, 1), s(2, 2), states(2, mesh)
+      INTEGER                                            :: invariant, status, x, y
+      REAL(dp)                                           :: berry, centre(1), e(2), kx, ky, minimum, &
+                                                            wcc(1, mesh + 1)
+
+      s = 0.0_dp
+      s(1, 1) = 1.0_dp
+      s(2, 2) = 1.0_dp
+      DO y = 0, mesh
+         ky = twopi*REAL(y, dp)/mesh
+         DO x = 0, mesh - 1
+            kx = twopi*REAL(x, dp)/mesh
+            h(1, 1) = mass + COS(kx) + COS(ky)
+            h(2, 2) = -h(1, 1)
+            h(1, 2) = SIN(kx) - iu*SIN(ky)
+            h(2, 1) = CONJG(h(1, 2))
+            CALL projected_eigensystem(h, s, e, c, status)
+            IF (status /= 0) ERROR STOP 'Wilson reference eigensystem'
+            states(:, x + 1) = c(:, 1)
+         END DO
+         product = 1.0_dp
+         DO x = 1, mesh
+            overlap(1, 1) = DOT_PRODUCT(states(:, x), states(:, MODULO(x, mesh) + 1))
+            CALL wilson_step(product, overlap, minimum, status, 1.e-10_dp)
+            IF (status /= 0) ERROR STOP 'Native Wilson reference link'
+         END DO
+         CALL wilson_spectrum(product, centre, berry, status)
+         IF (status /= 0) ERROR STOP 'Native Wilson reference spectrum'
+         wcc(:, y + 1) = centre
+      END DO
+      CALL chern_from_wcc(wcc, invariant, winding, status, 1.e-9_dp)
+      IF (status /= 0) ERROR STOP 'Native Wilson reference winding'
+   END SUBROUTINE qwz_wilson_reference
+
+! **************************************************************************************************
+!> \brief Periodic QWZ phases, physical windows, dual gauges, nonorthogonal bases and spinor TR.
+! **************************************************************************************************
+   SUBROUTINE check_periodic_chern()
+      USE cell_types, ONLY: cell_type
+      USE kinds, ONLY: dp
+      USE mathconstants, ONLY: twopi
+      USE kubo_projected, ONLY: projected_eigensystem
+      USE spectral_localizer, ONLY: localizer_periodic_evaluate
+      USE topology_real_space, ONLY: periodic_chern_marker
+      USE qs_localizer_torus, ONLY: torus_plane_geometry
+      COMPLEX(dp), PARAMETER                             :: iu = (0.0_dp, 1.0_dp)
+      INTEGER, PARAMETER                                 :: length = 9, n = 2*length**2
+
+      COMPLEX(dp)                                        :: tx(2, 2), ty(2, 2)
+      COMPLEX(dp), ALLOCATABLE :: b(:, :), c(:, :), cc(:, :), co(:, :, :), cs(:, :), ec(:, :, :), &
+         epos(:, :, :), es(:, :, :), factor(:, :), h(:, :), hs(:, :), s(:, :), sc(:, :), &
+         si(:, :, :), ss(:, :), w(:, :), wc(:, :)
+      INTEGER                                            :: axis, i, invariant, j, phase, pivots(n), &
+                                                            status, x, y
+      REAL(dp) :: area, changed, duality(2, 2), dx, dy, energies(n), expected(3), gap, lengths(2), &
+         local, masses(3), minimum, normal(3), ratio, reciprocal(3, 2), value, vectors(3, 2), &
+         weight, winding
+      REAL(dp), ALLOCATABLE                              :: energies_spin(:)
+      TYPE(cell_type)                                    :: cell
+
+      cell%hmat = RESHAPE([2.0_dp, 1.0_dp, 0.0_dp, -0.5_dp, 2.0_dp, 0.0_dp, &
+                           0.7_dp, 0.8_dp, 4.0_dp], [3, 3])
+      CALL torus_plane_geometry(cell, [3, 2, 1], [1, 2], lengths, reciprocal, area)
+      vectors(:, 1) = 3*cell%hmat(:, 1)
+      vectors(:, 2) = 2*cell%hmat(:, 2)
+      duality = MATMUL(TRANSPOSE(reciprocal), vectors)/twopi
+      IF (MAXVAL(ABS(duality - RESHAPE([1.0_dp, 0.0_dp, 0.0_dp, 1.0_dp], [2, 2]))) > 1.e-12_dp) THEN
+         ERROR STOP 'Intrinsic torus reciprocal geometry'
+      END IF
+      normal = [0.0_dp, 0.0_dp, 1.0_dp]
+      IF (MAXVAL(ABS(MATMUL(TRANSPOSE(reciprocal), normal))) > 1.e-12_dp) THEN
+         ERROR STOP 'Periodic window depends on normal coordinate'
+      END IF
+      IF (ABS(area - 27.0_dp) > 1.e-12_dp) ERROR STOP 'Oblique torus area'
+      ALLOCATE (h(n, n), s(n, n), epos(n, n, 2), co(n, n, 2), si(n, n, 2), w(n, n), c(n, n), &
+                b(n, n), sc(n, n), wc(n, n), ec(n, n, 2), cc(n, n), factor(n, n))
+      masses = [-1.0_dp, 1.0_dp, 3.0_dp]
+      expected = [1.0_dp, -1.0_dp, 0.0_dp]
+      tx = RESHAPE([CMPLX(0.5_dp, 0.0_dp, dp), -0.5_dp*iu, -0.5_dp*iu, &
+                    CMPLX(-0.5_dp, 0.0_dp, dp)], [2, 2])
+      ty = RESHAPE([CMPLX(0.5_dp, 0.0_dp, dp), CMPLX(0.5_dp, 0.0_dp, dp), &
+                    CMPLX(-0.5_dp, 0.0_dp, dp), CMPLX(-0.5_dp, 0.0_dp, dp)], [2, 2])
+      DO phase = 1, 3
+         h = 0.0_dp
+         s = 0.0_dp
+         epos = 0.0_dp
+         co = 0.0_dp
+         si = 0.0_dp
+         w = 0.0_dp
+         area = 0.0_dp
+         DO y = 0, length - 1
+            DO x = 0, length - 1
+               i = 2*(y*length + x) + 1
+               h(i, i) = masses(phase)
+               h(i + 1, i + 1) = -masses(phase)
+               j = 2*(y*length + MODULO(x + 1, length)) + 1
+               h(i:i + 1, j:j + 1) = h(i:i + 1, j:j + 1) + tx
+               h(j:j + 1, i:i + 1) = h(j:j + 1, i:i + 1) + CONJG(TRANSPOSE(tx))
+               j = 2*(MODULO(y + 1, length)*length + x) + 1
+               h(i:i + 1, j:j + 1) = h(i:i + 1, j:j + 1) + ty
+               h(j:j + 1, i:i + 1) = h(j:j + 1, i:i + 1) + CONJG(TRANSPOSE(ty))
+               dx = REAL(MODULO(x + length/2, length) - length/2, dp)
+               dy = REAL(MODULO(y + length/2, length) - length/2, dp)
+               weight = EXP(-(dx**2 + dy**2)/8.0_dp)
+               area = area + weight
+               DO j = i, i + 1
+                  s(j, j) = 1.0_dp
+                  w(j, j) = weight
+                  epos(j, j, 1) = EXP(-iu*twopi*REAL(x, dp)/length)
+                  epos(j, j, 2) = EXP(-iu*twopi*REAL(y, dp)/length)
+               END DO
+            END DO
+         END DO
+         co = REAL(epos, dp)
+         si = -AIMAG(epos)
+         CALL projected_eigensystem(h, s, energies, c, status)
+         IF (status /= 0) ERROR STOP 'Periodic model eigensystem'
+         CALL periodic_chern_marker(c(:, :n/2), s, epos, s, REAL(length**2, dp), REAL(length**2, dp), &
+                                    1.e-8_dp, value, minimum, status)
+         IF (status /= 0 .OR. ABS(value - expected(phase)) > 0.01_dp) ERROR STOP 'Periodic model Chern phase'
+         CALL qwz_wilson_reference(masses(phase), winding)
+         IF (ABS(value - winding) > 0.01_dp) ERROR STOP 'Periodic marker versus native Wilson'
+         CALL periodic_chern_marker(c(:, :n/2), s, epos, w, REAL(length**2, dp), area, &
+                                    1.e-8_dp, local, minimum, status)
+         IF (status /= 0 .OR. ABS(value - local) > 1.e-11_dp) ERROR STOP 'Periodic physical-window normalization'
+         CALL localizer_periodic_evaluate(h, s, co, si, [0.0_dp, 0.0_dp], 0.0_dp, 1.0_dp, .FALSE., &
+                                          1.e-10_dp, 1.e-10_dp, 1.e-10_dp, invariant, gap, ratio, status)
+         IF (status /= 0 .OR. invariant /= -NINT(expected(phase))) ERROR STOP 'Periodic marker/localizer orientation'
+         b = 0.0_dp
+         DO i = 1, n
+            b(i, i) = (1.0_dp + REAL(MODULO(i, 5), dp)/5)*EXP(iu*0.17_dp*i)
+            IF (i < n) b(i, i + 1) = CMPLX(0.05_dp, 0.03_dp, dp)
+         END DO
+         sc = MATMUL(CONJG(TRANSPOSE(b)), b)
+         wc = MATMUL(CONJG(TRANSPOSE(b)), MATMUL(w, b))
+         DO axis = 1, 2
+            ec(:, :, axis) = MATMUL(CONJG(TRANSPOSE(b)), MATMUL(epos(:, :, axis), b))
+         END DO
+         factor = b
+         cc = c
+         CALL zgesv(n, n/2, factor, n, pivots, cc, n, status)
+         IF (status /= 0) ERROR STOP 'Periodic occupied AO basis change'
+         CALL periodic_chern_marker(cc(:, :n/2), sc, ec, wc, REAL(length**2, dp), area, &
+                                    1.e-8_dp, changed, minimum, status)
+         IF (status /= 0 .OR. ABS(value - changed) > 1.e-11_dp) ERROR STOP 'Periodic marker AO covariance'
+         cc = c
+         cc(:, 1) = (c(:, 1) + iu*c(:, 2))/SQRT(2.0_dp)
+         cc(:, 2) = (iu*c(:, 1) + c(:, 2))/SQRT(2.0_dp)
+         CALL periodic_chern_marker(cc(:, :n/2), s, epos, w, REAL(length**2, dp), area, &
+                                    1.e-8_dp, changed, minimum, status)
+         IF (status /= 0 .OR. ABS(value - changed) > 1.e-11_dp) ERROR STOP 'Periodic occupied gauge'
+         ec = epos*EXP(iu*0.43_dp)
+         CALL periodic_chern_marker(c(:, :n/2), s, ec, w, REAL(length**2, dp), area, &
+                                    1.e-8_dp, changed, minimum, status)
+         IF (status /= 0 .OR. ABS(value - changed) > 1.e-11_dp) ERROR STOP 'Periodic origin phase'
+         CALL periodic_chern_marker(CONJG(c(:, :n/2)), s, epos, w, REAL(length**2, dp), area, &
+                                    1.e-8_dp, changed, minimum, status)
+         IF (status /= 0 .OR. ABS(value + changed) > 1.e-11_dp) ERROR STOP 'Periodic time reversal'
+         CALL periodic_chern_marker(c(:, :n/2), s, epos(:, :, [2, 1]), w, REAL(length**2, dp), area, &
+                                    1.e-8_dp, changed, minimum, status)
+         IF (status /= 0 .OR. ABS(value + changed) > 1.e-11_dp) ERROR STOP 'Periodic plane reversal'
+         PRINT '(A,F5.1,3ES18.9)', 'Periodic Chern mass / marker / window / min dual SV:', &
+            masses(phase), value, local, minimum
+         IF (phase == 1) THEN
+            ALLOCATE (hs(2*n, 2*n), ss(2*n, 2*n), es(2*n, 2*n, 2), cs(2*n, 2*n), energies_spin(2*n))
+            hs = 0.0_dp
+            ss = 0.0_dp
+            es = 0.0_dp
+            hs(:n, :n) = h
+            hs(n + 1:, n + 1:) = CONJG(h)
+            ss(:n, :n) = s
+            ss(n + 1:, n + 1:) = s
+            es(:n, :n, :) = epos
+            es(n + 1:, n + 1:, :) = epos
+            DO i = 1, n, 2
+               hs(i, n + i + 1) = 0.07_dp
+               hs(i + 1, n + i) = -0.07_dp
+            END DO
+            hs(n + 1:, :n) = CONJG(TRANSPOSE(hs(:n, n + 1:)))
+            CALL projected_eigensystem(hs, ss, energies_spin, cs, status)
+            IF (status /= 0) ERROR STOP 'Spin-mixed periodic eigensystem'
+            CALL periodic_chern_marker(cs(:, :n), ss, es, ss, REAL(length**2, dp), REAL(length**2, dp), &
+                                       1.e-8_dp, changed, minimum, status)
+            IF (status /= 0 .OR. ABS(changed) > 1.e-11_dp) ERROR STOP 'TR spinor charge marker'
+            hs(n + 1:, n + 1:) = h
+            hs(:n, n + 1:) = 0.0_dp
+            DO i = 1, n
+               hs(i, n + i) = 0.07_dp*iu
+            END DO
+            hs(n + 1:, :n) = CONJG(TRANSPOSE(hs(:n, n + 1:)))
+            CALL projected_eigensystem(hs, ss, energies_spin, cs, status)
+            IF (status /= 0) ERROR STOP 'Chern spinor eigensystem'
+            CALL periodic_chern_marker(cs(:, :n), ss, es, ss, REAL(length**2, dp), REAL(length**2, dp), &
+                                       1.e-8_dp, changed, minimum, status)
+            IF (status /= 0 .OR. ABS(changed - 2*value) > 1.e-11_dp) ERROR STOP 'Spin-mixed double Chern marker'
+            DEALLOCATE (hs, ss, es, cs, energies_spin)
+         END IF
+      END DO
+      ec = 0.0_dp
+      CALL periodic_chern_marker(c(:, :n/2), s, ec, w, REAL(length**2, dp), area, &
+                                 1.e-8_dp, changed, minimum, status)
+      IF (status /= -6) ERROR STOP 'Singular dual overlap accepted'
+      PRINT *, 'Periodic Chern/window, localizer, metric, dual-gauge and spinor tests passed.'
+   END SUBROUTINE check_periodic_chern
+
 END MODULE kubo_test_cases
 
 PROGRAM kubo_unittest
    USE kubo_test_cases, ONLY: check_projected_current, check_bloch_current, check_hall_response, &
-                              check_real_space_chern, check_gaussian_window
+                              check_real_space_chern, check_gaussian_window, check_periodic_chern
    IMPLICIT NONE
    CALL check_projected_current()
    CALL check_bloch_current()
    CALL check_hall_response()
    CALL check_real_space_chern()
+   CALL check_periodic_chern()
    CALL check_gaussian_window()
 END PROGRAM kubo_unittest
