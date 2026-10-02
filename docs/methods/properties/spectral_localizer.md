@@ -68,15 +68,3 @@ orbital operators include a factor of $i$. Both exports are restricted to isolat
 These are finite-basis local diagnostics. Check stability against basis, system size, query position
 and scale before interpreting a material index. Broader examples are available in
 [TopologicalCP2K](https://github.com/DCM-Uni-Paderborn/TopologicalCP2K).
-
-## Related AO transport operators
-
-`KUBO_TRANSPORT / CURRENT_OPERATOR PROJECTED_AO` uses the finite projected Hamiltonian commutator
-with analytic AO positions. `BLOCH` uses analytic Hamiltonian/overlap derivatives and the AO
-connection on an independent full `MP_GRID`. `SOC` adds post-SCF GTH spin-orbit coupling after a
-restricted SCF. `SYMMETRY` reconstructs property eigenframes and checks current covariance.
-
-`HALL_RESPONSE` additionally evaluates the antisymmetric DC charge response with the same positive
-scalar dissipation. It introduces neither magnetic order nor microscopic scattering, and a
-time-reversal-symmetric Hamiltonian has zero net charge Hall response. `MAX_AO` and `MAX_MEMORY_MB`
-bound dense property storage. The atom-embedding current remains the default.

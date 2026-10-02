@@ -18,4 +18,18 @@
 "bloch-scalar-symmetry.inp" = [{matcher="Kubo_sigma_iso", tol=2e-6, ref=1.07055098e-1},
                              {matcher="Kubo_symmetry_points", tol=0.0, ref=4}]
 "bloch-gapw-symmetry.inp" = [{matcher="Kubo_sigma_iso_2d", tol=2e-6, ref=6.31009978e-9},
-                           {matcher="Kubo_symmetry_points", tol=0.0, ref=4}]
+                           {matcher="Kubo_symmetry_points", tol=0.0, ref=4},
+                           {matcher="Kubo_hall_max", tol=1e-18, ref=0.0}]
+"diamond-k290.inp" = [{matcher="Kubo_sigma_iso", tol=2e-6, ref=9.96335574e2},
+                      {matcher="Kubo_symmetry_points", tol=0.0, ref=3},
+                      {matcher="Kubo_symmetry_current_error", tol=1e-8, ref=0.0},
+                      {matcher="Kubo_hall_max", tol=1e-9, ref=0.0}]
+"kubo-projected-gapw.inp" = [{matcher="Kubo_sigma_iso", tol=2e-6, ref=5.02109726e-1}]
+"kubo-projected-uks.inp" = [{matcher="Kubo_sigma_iso", tol=2e-6, ref=5.02019468e-1},
+                           {matcher="Real_space_chern_marker", tol=1e-10, ref=0.0},
+                           {matcher="Real_space_chern_weight", tol=2e-6, ref=6.98176004753349e-1}]
+"projected-gapw.inp" = [{matcher="Kubo_hall_max", tol=1e-9, ref=0.0},
+                        {matcher="Real_space_chern_marker", tol=1e-10, ref=0.0},
+                        {matcher="Real_space_chern_weight", tol=2e-6, ref=6.40367061171730}]
+"bloch-chain.inp" = [{matcher="Kubo_hall_max", tol=0.0, ref=0.0},
+                     {matcher="Kubo_sigma_iso_1d", tol=2e-6, ref=3.85441018e-18}]

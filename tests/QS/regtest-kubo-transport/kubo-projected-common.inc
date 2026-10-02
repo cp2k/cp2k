@@ -1,38 +1,34 @@
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT finite-chern
+  PROJECT projected-current
   RUN_TYPE ENERGY
 &END GLOBAL
-
 &FORCE_EVAL
   METHOD QUICKSTEP
   &DFT
+    UKS ${PROJECTED_UKS}
     BASIS_SET_FILE_NAME BASIS_MOLOPT_UZH
     POTENTIAL_FILE_NAME POTENTIAL_UZH
+    &QS
+      METHOD ${PROJECTED_QS}
+      EPS_DEFAULT 1.0E-12
+    &END QS
     &MGRID
-      CUTOFF 150
-      NGRIDS 1
+      CUTOFF 200
       REL_CUTOFF 40
     &END MGRID
     &POISSON
       PERIODIC NONE
       POISSON_SOLVER MT
     &END POISSON
-    &QS
-      EPS_DEFAULT 1.0E-12
-      METHOD GPW
-    &END QS
     &SCF
-      EPS_SCF 1.0E-9
+      EPS_SCF 1.0E-10
       MAX_SCF 60
+      SCF_GUESS ATOMIC
       &OT
         MINIMIZER DIIS
         PRECONDITIONER FULL_ALL
       &END OT
-      &PRINT
-        &RESTART OFF
-        &END RESTART
-      &END PRINT
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
@@ -40,12 +36,23 @@
     &END XC
   &END DFT
   &PROPERTIES
-    &REAL_SPACE_CHERN ON
-      ENERGY [hartree] -0.15
-      PLANE XZ
-      WINDOW_CENTER [angstrom] 2.8 3.0 3.1
-      WINDOW_SIGMA [bohr] 1.3 1.8
-    &END REAL_SPACE_CHERN
+    @IF ${PROJECTED_UKS} == T
+      &REAL_SPACE_CHERN ON
+        ENERGY [hartree] -0.15
+        PLANE XZ
+        WINDOW_CENTER [angstrom] 2.8 3.0 3.1
+        WINDOW_SIGMA [bohr] 1.3 1.8
+      &END REAL_SPACE_CHERN
+    @ENDIF
+    &KUBO_TRANSPORT ON
+      CURRENT_OPERATOR PROJECTED_AO
+      SOC F
+      TEMPERATURE 300
+      DISSIPATION [K] 1000
+      NEUTRAL_MU [hartree] -0.1
+      ENERGY_RANGE [hartree] -0.1 -0.09
+      N_MU 1
+    &END KUBO_TRANSPORT
   &END PROPERTIES
   &SUBSYS
     &CELL
@@ -53,8 +60,8 @@
       PERIODIC NONE
     &END CELL
     &COORD
-      H 2.6 3.0 3.0
-      H 3.4 3.0 3.0
+      H 2.63 3.0 3.0
+      H 3.37 3.0 3.0
     &END COORD
     &KIND H
       BASIS_SET DZVP-MOLOPT-GGA-GTH-q1
