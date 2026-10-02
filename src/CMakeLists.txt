@@ -936,6 +936,7 @@ list(
   topology_tqc.F
   topology_snapshot.F
   topology_curvature.F
+  topology_real_space.F
   topology_phason_analysis.F
   wannier_states.F
   wannier_states_types.F

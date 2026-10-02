@@ -7,7 +7,7 @@
 MODULE kubo_test_cases
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: check_projected_current, check_bloch_current, check_hall_response
+   PUBLIC :: check_projected_current, check_bloch_current, check_hall_response, check_real_space_chern
 CONTAINS
 
 ! **************************************************************************************************
@@ -475,12 +475,164 @@ CONTAINS
       END SUBROUTINE liouville_reference
    END SUBROUTINE check_hall_response
 
+! **************************************************************************************************
+!> \brief Crosscheck the finite-window marker with existing native Wilson analysis and AO gauges.
+! **************************************************************************************************
+   SUBROUTINE check_real_space_chern()
+      USE ieee_arithmetic, ONLY: ieee_quiet_nan, ieee_value
+      USE kinds, ONLY: dp
+      USE kubo_projected, ONLY: projected_eigensystem
+      USE topology_real_space, ONLY: finite_chern_marker
+      USE topology_wilson, ONLY: wilson_step, wilson_spectrum, chern_from_wcc
+      COMPLEX(dp), PARAMETER :: iu = (0.0_dp, 1.0_dp)
+      INTEGER, PARAMETER :: length = 9, n = 2*length**2, mesh = 32
+      REAL(dp), PARAMETER :: pi = 3.1415926535897932384626433832795_dp
+      COMPLEX(dp) :: h(n, n), s(n, n), r(n, n, 2), w(n, n), c(n, n), b(n, n), cc(n, n), &
+                     sc(n, n), rc(n, n, 2), wc(n, n), factor(n, n), tx(2, 2), ty(2, 2), &
+                     h2(2, 2), s2(2, 2), c2(2, 2), states(2, mesh), PRODUCT(1, 1), overlap(1, 1)
+      REAL(dp) :: e(n), e2(2), masses(3), expected(3), value, changed, full_trace, &
+                  wcc(1, mesh + 1), centre(1), winding, berry, minimum_sv, kx, ky, residual
+      INTEGER :: phase, x, y, i, j, orbital, axis, status, invariant, pivots(n)
+
+      masses = [-1.0_dp, 1.0_dp, 3.0_dp]
+      expected = [1.0_dp, -1.0_dp, 0.0_dp]
+      tx = RESHAPE([CMPLX(0.5_dp, 0.0_dp, dp), -0.5_dp*iu, -0.5_dp*iu, &
+                    CMPLX(-0.5_dp, 0.0_dp, dp)], [2, 2])
+      ty = RESHAPE([CMPLX(0.5_dp, 0.0_dp, dp), CMPLX(0.5_dp, 0.0_dp, dp), &
+                    CMPLX(-0.5_dp, 0.0_dp, dp), CMPLX(-0.5_dp, 0.0_dp, dp)], [2, 2])
+      s2 = 0.0_dp
+      s2(1, 1) = 1.0_dp
+      s2(2, 2) = 1.0_dp
+      DO phase = 1, 3
+         h = 0.0_dp
+         s = 0.0_dp
+         r = 0.0_dp
+         w = 0.0_dp
+         DO y = 1, length
+            DO x = 1, length
+               i = 2*((y - 1)*length + x) - 1
+               h(i, i) = masses(phase)
+               h(i + 1, i + 1) = -masses(phase)
+               DO orbital = 0, 1
+                  s(i + orbital, i + orbital) = 1.0_dp
+                  r(i + orbital, i + orbital, 1) = REAL(x - (length + 1)/2, dp)
+                  r(i + orbital, i + orbital, 2) = REAL(y - (length + 1)/2, dp)
+                  IF (ABS(x - (length + 1)/2) <= 1 .AND. ABS(y - (length + 1)/2) <= 1) THEN
+                     w(i + orbital, i + orbital) = 1.0_dp
+                  END IF
+               END DO
+               IF (x < length) THEN
+                  h(i:i + 1, i + 2:i + 3) = tx
+                  h(i + 2:i + 3, i:i + 1) = CONJG(TRANSPOSE(tx))
+               END IF
+               IF (y < length) THEN
+                  j = i + 2*length
+                  h(i:i + 1, j:j + 1) = ty
+                  h(j:j + 1, i:i + 1) = CONJG(TRANSPOSE(ty))
+               END IF
+            END DO
+         END DO
+         CALL projected_eigensystem(h, s, e, c, status)
+         IF (status /= 0) ERROR STOP 'Open Chern model eigensystem'
+         CALL finite_chern_marker(c(:, :n/2), s, r, w, 9.0_dp, value, status)
+         IF (status /= 0) ERROR STOP 'Finite-window Chern marker'
+         CALL finite_chern_marker(c(:, :n/2), s, r, s, REAL(length**2, dp), full_trace, status)
+         IF (status /= 0 .OR. ABS(full_trace) > 1.e-11_dp) ERROR STOP 'Open lattice boundary cancellation'
+
+         ! Use the existing native Wilson implementation, not a second Chern integrator.
+         DO y = 0, mesh
+            ky = 2*pi*REAL(y, dp)/mesh
+            DO x = 0, mesh - 1
+               kx = 2*pi*REAL(x, dp)/mesh
+               h2(1, 1) = masses(phase) + COS(kx) + COS(ky)
+               h2(2, 2) = -h2(1, 1)
+               h2(1, 2) = SIN(kx) - iu*SIN(ky)
+               h2(2, 1) = CONJG(h2(1, 2))
+               CALL projected_eigensystem(h2, s2, e2, c2, status)
+               IF (status /= 0) ERROR STOP 'Wilson reference eigensystem'
+               states(:, x + 1) = c2(:, 1)
+            END DO
+            product = 1.0_dp
+            DO x = 1, mesh
+               overlap(1, 1) = DOT_PRODUCT(states(:, x), states(:, MODULO(x, mesh) + 1))
+               CALL wilson_step(product, overlap, minimum_sv, status, 1.e-10_dp)
+               IF (status /= 0) ERROR STOP 'Native Wilson reference link'
+            END DO
+            CALL wilson_spectrum(product, centre, berry, status)
+            IF (status /= 0) ERROR STOP 'Native Wilson reference spectrum'
+            wcc(:, y + 1) = centre
+         END DO
+         CALL chern_from_wcc(wcc, invariant, winding, status, 1.e-9_dp)
+         IF (status /= 0 .OR. ABS(REAL(invariant, dp) - expected(phase)) > 1.e-12_dp) THEN
+            ERROR STOP 'Native Wilson reference orientation'
+         END IF
+         IF (ABS(value - winding) > 0.01_dp) ERROR STOP 'Finite marker versus native Wilson'
+
+         b = 0.0_dp
+         DO i = 1, n
+            b(i, i) = (1.0_dp + REAL(MODULO(i, 5), dp)/5)*EXP(iu*0.17_dp*i)
+            IF (i < n) b(i, i + 1) = CMPLX(0.05_dp, 0.03_dp, dp)
+         END DO
+         sc = MATMUL(CONJG(TRANSPOSE(b)), MATMUL(s, b))
+         wc = MATMUL(CONJG(TRANSPOSE(b)), MATMUL(w, b))
+         DO axis = 1, 2
+            rc(:, :, axis) = MATMUL(CONJG(TRANSPOSE(b)), MATMUL(r(:, :, axis), b))
+         END DO
+         factor = b
+         cc = c
+         CALL zgesv(n, n/2, factor, n, pivots, cc, n, status)
+         IF (status /= 0) ERROR STOP 'Occupied AO basis change'
+         CALL finite_chern_marker(cc(:, :n/2), sc, rc, wc, 9.0_dp, changed, status)
+         residual = ABS(value - changed)
+         IF (status /= 0 .OR. residual > 1.e-11_dp) ERROR STOP 'Metric/window basis covariance'
+         rc(:, :, 1) = rc(:, :, 1) + 2.7_dp*sc
+         rc(:, :, 2) = rc(:, :, 2) - 1.2_dp*sc
+         CALL finite_chern_marker(cc(:, :n/2), sc, rc, wc, 9.0_dp, changed, status)
+         IF (status /= 0 .OR. ABS(value - changed) > 1.e-11_dp) ERROR STOP 'Marker origin covariance'
+         cc(:, 1) = (c(:, 1) + iu*c(:, 2))/SQRT(2.0_dp)
+         cc(:, 2) = (iu*c(:, 1) + c(:, 2))/SQRT(2.0_dp)
+         cc(:, 3:) = c(:, 3:)
+         CALL finite_chern_marker(cc(:, :n/2), s, r, w, 9.0_dp, changed, status)
+         IF (status /= 0 .OR. ABS(value - changed) > 1.e-11_dp) ERROR STOP 'Occupied subspace gauge'
+         CALL finite_chern_marker(CONJG(c(:, :n/2)), s, r, w, 9.0_dp, changed, status)
+         IF (status /= 0 .OR. ABS(value + changed) > 1.e-11_dp) ERROR STOP 'Marker time reversal'
+         CALL finite_chern_marker(c(:, :n/2), s, r(:, :, [2, 1]), w, 9.0_dp, changed, status)
+         IF (status /= 0 .OR. ABS(value + changed) > 1.e-11_dp) ERROR STOP 'Marker plane orientation'
+         CALL finite_chern_marker(c(:, :n/2), s, 2*r, w, 36.0_dp, changed, status)
+         IF (status /= 0 .OR. ABS(value - changed) > 1.e-11_dp) ERROR STOP 'Marker physical length units'
+         CALL finite_chern_marker(c(:, :n/2), s, r, w, 18.0_dp, changed, status)
+         IF (status /= 0 .OR. ABS(value - 2*changed) > 1.e-11_dp) ERROR STOP 'Marker area normalization'
+         PRINT '(A,F5.1,4ES18.9)', 'Real-space Chern mass / marker / Wilson / full trace / AO residual:', &
+            masses(phase), value, winding, full_trace, residual
+      END DO
+
+      CALL finite_chern_marker(c(:, :0), s, r, w, 9.0_dp, changed, status)
+      IF (status /= 0 .OR. changed /= 0.0_dp) ERROR STOP 'Empty occupied marker'
+      CALL finite_chern_marker(c, s, r, w, 9.0_dp, changed, status)
+      IF (status /= 0 .OR. changed /= 0.0_dp) ERROR STOP 'Complete occupied marker'
+      CALL finite_chern_marker(1.1_dp*c(:, :n/2), s, r, w, 9.0_dp, changed, status)
+      IF (status /= -3) ERROR STOP 'Unnormalized occupied marker accepted'
+      CALL finite_chern_marker(c(:, :n/2), s, r, -w, 9.0_dp, changed, status)
+      IF (status /= -4) ERROR STOP 'Negative physical window accepted'
+      CALL finite_chern_marker(c(:, :n/2), s, r, 2*w, 9.0_dp, changed, status)
+      IF (status /= -4) ERROR STOP 'Window greater than identity accepted'
+      CALL finite_chern_marker(c(:, :n/2), s, r, w, 0.0_dp, changed, status)
+      IF (status /= -1) ERROR STOP 'Zero window area accepted'
+      CALL finite_chern_marker(c(:, :n/2), s, r, w, ieee_value(0.0_dp, ieee_quiet_nan), changed, status)
+      IF (status /= -1) ERROR STOP 'NaN window area accepted'
+      s(1, 1) = -1.0_dp
+      CALL finite_chern_marker(c(:, :n/2), s, r, w, 9.0_dp, changed, status)
+      IF (status /= -2) ERROR STOP 'Indefinite marker metric accepted'
+      PRINT *, 'Finite-window Chern, native Wilson, metric, gauge, orientation and boundary tests passed.'
+   END SUBROUTINE check_real_space_chern
+
 END MODULE kubo_test_cases
 
 PROGRAM kubo_unittest
-   USE kubo_test_cases, ONLY: check_projected_current, check_bloch_current, check_hall_response
+   USE kubo_test_cases, ONLY: check_projected_current, check_bloch_current, check_hall_response, check_real_space_chern
    IMPLICIT NONE
    CALL check_projected_current()
    CALL check_bloch_current()
    CALL check_hall_response()
+   CALL check_real_space_chern()
 END PROGRAM kubo_unittest
