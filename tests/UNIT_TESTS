@@ -30,11 +30,10 @@ gapw_background_unittest
 gapw_1c_basis_unittest
 qs_fod_unittest
 qs_ot_complex_ref_unittest
-realspace_grid_cube_unittest
 gx_ac_unittest                                           greenx
 
 spectral_localizer_unittest
 quadratic_pseudospectrum_unittest
-pw_copy_unittest
+pw_unittest
 
 #EOF

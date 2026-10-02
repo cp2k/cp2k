@@ -5,7 +5,7 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 
-PROGRAM pw_copy_unittest
+PROGRAM pw_unittest
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type,&
                                               mp_world_finalize,&
@@ -13,6 +13,9 @@ PROGRAM pw_copy_unittest
    USE pw_copy_all,                     ONLY: pw_copy_match
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_types,                        ONLY: pw_c1d_gs_type
+   USE realspace_grid_cube,             ONLY: cube_read_values,&
+                                              cube_value_format,&
+                                              cube_values_format
 
    IMPLICIT NONE
 
@@ -21,6 +24,7 @@ PROGRAM pw_copy_unittest
 
    ALLOCATE (para_env)
    CALL mp_world_init(para_env)
+   CALL check_cube_values()
    DO mode = 0, 8
       CALL check_copy(mode)
    END DO
@@ -28,6 +32,47 @@ PROGRAM pw_copy_unittest
    CALL mp_world_finalize()
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Preserve three-digit cube exponents and parse adjacent values across z-slices.
+! **************************************************************************************************
+   SUBROUTINE check_cube_values()
+      CHARACTER(LEN=13)                                  :: value
+      CHARACTER(LEN=79)                                  :: values
+      CHARACTER(LEN=92)                                  :: slice_values
+      REAL(KIND=dp), DIMENSION(6)                        :: buffer, reference
+      REAL(KIND=dp), DIMENSION(7)                        :: slice_buffer, slice_reference
+
+      WRITE (value, cube_value_format) 3.33004E-101_dp
+      IF (INDEX(value, "E-101") <= 0) THEN
+         ERROR STOP "Cube value format must preserve three-digit negative exponents."
+      END IF
+
+      reference = [0.0_dp, -0.91458E-35_dp, 3.33004E-101_dp, &
+                   -1.32487E-103_dp, 1.0_dp, -1.0_dp]
+      WRITE (values(1:78), cube_values_format) reference
+      values(79:79) = NEW_LINE("C")
+      IF (INDEX(values, "E-101") <= 0) THEN
+         ERROR STOP "Cube line format must preserve E-101."
+      END IF
+      IF (INDEX(values, "E-103") <= 0) THEN
+         ERROR STOP "Cube line format must preserve E-103."
+      END IF
+      CALL cube_read_values(values, buffer)
+      IF (MAXVAL(ABS(buffer - reference)) > 1.0E-12_dp) THEN
+         ERROR STOP "Cube reader must parse adjacent explicit-exponent values."
+      END IF
+
+      slice_reference(1:6) = reference
+      slice_reference(7) = 0.27183E-123_dp
+      WRITE (slice_values(1:78), cube_values_format) slice_reference(1:6)
+      slice_values(79:79) = NEW_LINE("C")
+      WRITE (slice_values(80:92), cube_value_format) slice_reference(7)
+      CALL cube_read_values(slice_values, slice_buffer)
+      IF (MAXVAL(ABS(slice_buffer - slice_reference)) > 1.0E-12_dp) THEN
+         ERROR STOP "Cube reader must parse multi-line z-slices."
+      END IF
+   END SUBROUTINE check_cube_values
 
 ! **************************************************************************************************
 !> \brief Compare identical, permuted, redistributed, partial and empty PW grids.
@@ -84,4 +129,4 @@ CONTAINS
       CALL source_grid%para%group%free()
    END SUBROUTINE check_copy
 
-END PROGRAM pw_copy_unittest
+END PROGRAM pw_unittest
