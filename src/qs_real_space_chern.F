@@ -175,7 +175,8 @@ CONTAINS
                nocc = COUNT(spectrum < energy)
                CALL finite_chern_marker(c(:, :nocc), s, x, w, area, marker, status)
                IF (status == 0) THEN
-                  gram = MATMUL(CONJG(TRANSPOSE(c(:, :nocc))), MATMUL(w, c(:, :nocc)))
+                  ALLOCATE (gram(nocc, nocc))
+                  gram(:, :) = MATMUL(CONJG(TRANSPOSE(c(:, :nocc))), MATMUL(w, c(:, :nocc)))
                   weight = 0.0_dp
                   DO i = 1, nocc
                      weight = weight + REAL(gram(i, i), dp)

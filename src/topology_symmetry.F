@@ -114,12 +114,13 @@ CONTAINS
       gram(1, 1) = gram(1, 1) - 1.0_dp
       gram(2, 2) = gram(2, 2) - 1.0_dp
       IF (MAXVAL(ABS(gram)) > tolerance) RETURN
+      ALLOCATE (up(m, SIZE(source, 2)), down(m, SIZE(source, 2)))
       IF (antiunitary) THEN
-         up = MATMUL(orbital, CONJG(source(n + 1:, :)))
-         down = -MATMUL(orbital, CONJG(source(:n, :)))
+         up(:, :) = MATMUL(orbital, CONJG(source(n + 1:, :)))
+         down(:, :) = -MATMUL(orbital, CONJG(source(:n, :)))
       ELSE
-         up = MATMUL(orbital, source(:n, :))
-         down = MATMUL(orbital, source(n + 1:, :))
+         up(:, :) = MATMUL(orbital, source(:n, :))
+         down(:, :) = MATMUL(orbital, source(n + 1:, :))
       END IF
       image(:m, :) = spin(1, 1)*up + spin(1, 2)*down
       image(m + 1:, :) = spin(2, 1)*up + spin(2, 2)*down

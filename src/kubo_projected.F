@@ -55,7 +55,7 @@ CONTAINS
       IF (status /= 0) RETURN
       status = -1
       DO axis = 1, 3
-         moment = MATMUL(CONJG(TRANSPOSE(c)), MATMUL(positions(:, :, axis), c))
+         moment(:, :) = MATMUL(CONJG(TRANSPOSE(c)), MATMUL(positions(:, :, axis), c))
          DO j = 1, n
             DO i = 1, n
                current(i, j, axis) = (energies(i) - energies(j))*moment(i, j)
@@ -95,7 +95,7 @@ CONTAINS
       IF (SIZE(energies) /= n .OR. ANY(SHAPE(c) /= [n, n])) RETURN
       IF (.NOT. valid_hermitian(h) .OR. .NOT. valid_hermitian(s)) RETURN
       ALLOCATE (b(n, n), work(MAX(1, 2*n)), rwork(MAX(1, 3*n)))
-      b = s
+      b(:, :) = s
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_get_halting_mode(IEEE_ALL, halt)
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
@@ -110,7 +110,7 @@ CONTAINS
       IF (MAXVAL(energies) <= 0.0_dp) RETURN
       IF (MINVAL(energies) <= 1.e-10_dp*MAXVAL(energies)) RETURN
       c = h
-      b = s
+      b(:, :) = s
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
