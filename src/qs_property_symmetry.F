@@ -10,16 +10,23 @@
 !> \author Thomas D. Kuehne, tkuehne@cp2k.org
 ! **************************************************************************************************
 MODULE qs_property_symmetry
-   USE cell_types, ONLY: cell_type
-   USE input_cp2k_kpoints, ONLY: use_k290_kpoint_symmetry, use_spglib_kpoint_backend, use_spglib_kpoint_symmetry
-   USE kinds, ONLY: dp
-   USE kpoint_methods, ONLY: kpoint_initialize
-   USE kpoint_mo_symmetry_methods, ONLY: kpoint_cell_gauge_action, kpoint_same_periodic
-   USE kpoint_types, ONLY: kpoint_create, kpoint_sym_type, kpoint_type
-   USE particle_types, ONLY: particle_type
-   USE qs_basis_rotation_methods, ONLY: qs_basis_rotation
-   USE qs_environment_types, ONLY: get_qs_env, qs_environment_type
-   USE topology_symmetry, ONLY: spin_rotation, transform_spinor_frame
+   USE cell_types,                      ONLY: cell_type
+   USE input_cp2k_kpoints,              ONLY: use_k290_kpoint_symmetry,&
+                                              use_spglib_kpoint_backend,&
+                                              use_spglib_kpoint_symmetry
+   USE kinds,                           ONLY: dp
+   USE kpoint_methods,                  ONLY: kpoint_initialize
+   USE kpoint_mo_symmetry_methods,      ONLY: kpoint_cell_gauge_action,&
+                                              kpoint_same_periodic
+   USE kpoint_types,                    ONLY: kpoint_create,&
+                                              kpoint_sym_type,&
+                                              kpoint_type
+   USE particle_types,                  ONLY: particle_type
+   USE qs_basis_rotation_methods,       ONLY: qs_basis_rotation
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
+   USE topology_symmetry,               ONLY: spin_rotation,&
+                                              transform_spinor_frame
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
