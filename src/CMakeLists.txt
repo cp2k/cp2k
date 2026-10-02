@@ -680,6 +680,7 @@ list(
   qs_ks_utils.F
   qs_ks_reference.F
   qs_kubo_transport.F
+  qs_real_space_chern.F
   kubo_bloch.F
   kubo_hall.F
   kubo_projected.F
@@ -992,6 +993,7 @@ list(
   aobasis/ai_overlap_aabb.F
   aobasis/ai_overlap_debug.F
   aobasis/ai_overlap.F
+  aobasis/ai_gaussian_window.F
   aobasis/ai_overlap_ppl.F
   aobasis/ai_spin_orbit.F
   aobasis/ai_verfc.F
