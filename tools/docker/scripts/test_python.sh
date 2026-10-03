@@ -5,6 +5,8 @@
 # shellcheck disable=SC1091
 source /opt/cp2k-toolchain/install/setup
 
+set -x
+
 echo -e "\n========== Installing Python Test Dependencies =========="
 apt-get update -qq
 apt-get install -qq --no-install-recommends python3 python3-venv python3-pip
@@ -21,8 +23,8 @@ export CP2K_TEST_AIIDA=1
 
 # Keep the serial build, using the pinned upstream tarball instead of GitHub.
 wget --quiet --tries=3 --timeout=30 -O /opt/lammps.tar.gz \
-  https://download.lammps.org/tars/lammps-22Jul2025_update4.tar.gz
-echo "b456a4d6f19d398dee9880d761594b4bfcb70f8dbb7c2b3aeee51815aa6419c6  /opt/lammps.tar.gz" | sha256sum --check
+  https://www.cp2k.org/static/downloads/lammps-30Sep2026.tar.gz
+echo "a3daf373ff07b8dd98773f2eed2707d0bc5dac96ee2a2599b0d2d98d91c9d20a  /opt/lammps.tar.gz" | sha256sum --check
 mkdir -p /opt/lammps
 tar -xzf /opt/lammps.tar.gz -C /opt/lammps --strip-components=1
 rm /opt/lammps.tar.gz
