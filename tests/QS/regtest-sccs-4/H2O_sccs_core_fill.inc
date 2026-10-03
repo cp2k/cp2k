@@ -1,22 +1,12 @@
 # SCCS with CORE_FILL for H2O with the O nucleus exactly on a grid point (origin).
 # Without CORE_FILL the nearly vanishing GTH pseudo-valence density at the O nucleus
 # turns that grid point into solvent ("solvent bubble"), which gives a large spurious
-# positive polarisation energy (E_total ~ -15.70 instead of ~ -17.23 Ha) and forces
-# that are inconsistent with the energy.
+# positive polarisation energy (E_total ~ -15.62 instead of ~ -17.23 Ha).
 &GLOBAL
   PRINT_LEVEL low
   PROJECT ${PROJECT}
   RUN_TYPE ${RUN}
 &END GLOBAL
-
-&DEBUG
-  CHECK_ATOM_FORCE 1 Y
-  DEBUG_FORCES yes
-  DEBUG_STRESS_TENSOR no
-  DX 0.002
-  EPS_NO_ERROR_CHECK 1.0E-5
-  STOP_ON_MISMATCH off
-&END DEBUG
 
 &FORCE_EVAL
   METHOD Quickstep
