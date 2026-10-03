@@ -150,7 +150,10 @@ MODULE rpa_gw
                                               propagator_sector_occupied,&
                                               propagator_sector_virtual
    USE scf_control_types,               ONLY: scf_control_type
-   USE time_frequency_grids,            ONLY: time_frequency_grid_type
+   USE time_frequency_grids,            ONLY: negative_time,&
+                                              positive_time,&
+                                              time_frequency_grid_type,&
+                                              transform_time_to_frequency
    USE util,                            ONLY: sort
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
@@ -1241,7 +1244,7 @@ CONTAINS
                                                       mat_W, mat_MinvVMinv, &
                                                       vec_Sigma_c_gw(:, :, :, :), &
                                                       qs_env, para_env, &
-                                                      mp2_env, num_fit_points, mo_coeff(1), &
+                                                      mp2_env, mo_coeff(1), &
                                                       do_ri_Sigma_x, vec_Sigma_x_gw(:, :, :), unit_nr, nspins, &
                                                       starts_array_mc, ends_array_mc, eps_filter)
 
@@ -5330,12 +5333,9 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: mo_bounds, pdims_2d
       INTEGER, DIMENSION(3, 1)                           :: index_to_cell_zero
       LOGICAL                                            :: memory_info
-      REAL(KIND=dp)                                      :: ext_scaling, omega, omega_i, omega_sign, &
-                                                            sign_occ_virt, t_i_Clenshaw, tau, &
-                                                            weight_cos, weight_i, weight_sin
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: vec_Sigma_c_gw_cos_omega, &
-         vec_Sigma_c_gw_cos_tau, vec_Sigma_c_gw_neg_tau, vec_Sigma_c_gw_pos_tau, &
-         vec_Sigma_c_gw_sin_omega, vec_Sigma_c_gw_sin_tau
+      REAL(KIND=dp)                                      :: ext_scaling, omega_i, omega_sign, &
+                                                            sign_occ_virt, t_i_Clenshaw, weight_i
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: samples_tau
       TYPE(cp_fm_type)                                   :: fm_scaled_dm_occ_tau
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: greens_fct
       TYPE(dbcsr_type), POINTER                          :: mat_greens_fct_occ, mat_greens_fct_virt
@@ -5368,20 +5368,7 @@ CONTAINS
       mo_end = homo + gw_corr_lev_virt
       CPASSERT(mo_end - mo_start + 1 == gw_corr_lev_tot)
 
-      vec_Sigma_c_gw = z_zero
-      ALLOCATE (vec_Sigma_c_gw_pos_tau(gw_corr_lev_tot, num_integ_points))
-      vec_Sigma_c_gw_pos_tau = 0.0_dp
-      ALLOCATE (vec_Sigma_c_gw_neg_tau(gw_corr_lev_tot, num_integ_points))
-      vec_Sigma_c_gw_neg_tau = 0.0_dp
-      ALLOCATE (vec_Sigma_c_gw_cos_tau(gw_corr_lev_tot, num_integ_points))
-      vec_Sigma_c_gw_cos_tau = 0.0_dp
-      ALLOCATE (vec_Sigma_c_gw_sin_tau(gw_corr_lev_tot, num_integ_points))
-      vec_Sigma_c_gw_sin_tau = 0.0_dp
-
-      ALLOCATE (vec_Sigma_c_gw_cos_omega(gw_corr_lev_tot, num_integ_points))
-      vec_Sigma_c_gw_cos_omega = 0.0_dp
-      ALLOCATE (vec_Sigma_c_gw_sin_omega(gw_corr_lev_tot, num_integ_points))
-      vec_Sigma_c_gw_sin_omega = 0.0_dp
+      ALLOCATE (samples_tau(gw_corr_lev_tot, num_integ_points, 2), SOURCE=0.0_dp)
 
       ALLOCATE (delta_corr_omega(1 + homo - gw_corr_lev_occ:homo + gw_corr_lev_virt, num_integ_points))
       delta_corr_omega(:, :) = z_zero
@@ -5455,14 +5442,16 @@ CONTAINS
                                    t_greens_fct_occ, t_W, [1.0_dp, -1.0_dp], &
                                    mo_bounds, unit_nr_prv, &
                                    t_3c_ctr_RI, t_3c_ctr_AO, calculate_ctr_ri=.TRUE.)
-            CALL trace_sigma_gw(t_3c_ctr_AO, t_3c_ctr_RI, vec_Sigma_c_gw_neg_tau(:, jquad), mo_start, mo_bounds, para_env)
+            CALL trace_sigma_gw(t_3c_ctr_AO, t_3c_ctr_RI, samples_tau(:, jquad, negative_time), &
+                                mo_start, mo_bounds, para_env)
 
             CALL contract_cubic_gw(t_3c_overl_int_gw_AO, t_3c_overl_int_gw_RI, &
                                    t_greens_fct_virt, t_W, [1.0_dp, 1.0_dp], &
                                    mo_bounds, unit_nr_prv, &
                                    t_3c_ctr_RI, t_3c_ctr_AO, calculate_ctr_ri=.FALSE.)
 
-            CALL trace_sigma_gw(t_3c_ctr_AO, t_3c_ctr_RI, vec_Sigma_c_gw_pos_tau(:, jquad), mo_start, mo_bounds, para_env)
+            CALL trace_sigma_gw(t_3c_ctr_AO, t_3c_ctr_RI, samples_tau(:, jquad, positive_time), &
+                                mo_start, mo_bounds, para_env)
          END DO
          CALL dbt_batched_contract_finalize(t_3c_overl_int_gw_AO)
          CALL dbt_batched_contract_finalize(t_3c_overl_int_gw_RI)
@@ -5475,44 +5464,15 @@ CONTAINS
          CALL dbt_clear(t_3c_ctr_AO)
          CALL dbt_clear(t_3c_ctr_RI)
 
-         vec_Sigma_c_gw_cos_tau(:, jquad) = 0.5_dp*(vec_Sigma_c_gw_pos_tau(:, jquad) + &
-                                                    vec_Sigma_c_gw_neg_tau(:, jquad))
-
-         vec_Sigma_c_gw_sin_tau(:, jquad) = 0.5_dp*(vec_Sigma_c_gw_pos_tau(:, jquad) - &
-                                                    vec_Sigma_c_gw_neg_tau(:, jquad))
-
       END DO ! jquad (tau)
       CALL dbt_destroy(t_W)
 
       CALL dbt_destroy(t_greens_fct_occ)
       CALL dbt_destroy(t_greens_fct_virt)
 
-      ! Fourier transform from time to frequency
-      DO jquad = 1, num_fit_points
-
-         DO iquad = 1, num_integ_points
-
-            omega = grid%frequency(jquad)
-            tau = grid%imaginary_time(iquad)
-            weight_cos = grid%cosine_time_to_frequency_weights(jquad, iquad)*COS(omega*tau)
-            weight_sin = grid%sine_time_to_frequency_weights(jquad, iquad)*SIN(omega*tau)
-
-            vec_Sigma_c_gw_cos_omega(:, jquad) = vec_Sigma_c_gw_cos_omega(:, jquad) + &
-                                                 weight_cos*vec_Sigma_c_gw_cos_tau(:, iquad)
-
-            vec_Sigma_c_gw_sin_omega(:, jquad) = vec_Sigma_c_gw_sin_omega(:, jquad) + &
-                                                 weight_sin*vec_Sigma_c_gw_sin_tau(:, iquad)
-
-         END DO
-
-      END DO
-
-      ! for occupied levels, we need the correlation self-energy for negative omega. Therefore, weight_sin
-      ! should be computed with -omega, which results in an additional minus for vec_Sigma_c_gw_sin_omega:
-      vec_Sigma_c_gw_sin_omega(1:gw_corr_lev_occ, :) = -vec_Sigma_c_gw_sin_omega(1:gw_corr_lev_occ, :)
-
-      vec_Sigma_c_gw(:, 1:num_fit_points, 1) = vec_Sigma_c_gw_cos_omega(:, 1:num_fit_points) + &
-                                               gaussi*vec_Sigma_c_gw_sin_omega(:, 1:num_fit_points)
+      CALL transform_time_to_frequency(grid, samples_tau, vec_Sigma_c_gw(:, :, 1))
+      ! Occupied levels use negative frequencies; the time-domain samples are real.
+      vec_Sigma_c_gw(1:gw_corr_lev_occ, :, 1) = CONJG(vec_Sigma_c_gw(1:gw_corr_lev_occ, :, 1))
 
       CALL dbcsr_deallocate_matrix_set(greens_fct)
 
@@ -5654,14 +5614,6 @@ CONTAINS
 
       END IF
 
-      DEALLOCATE (vec_Sigma_c_gw_pos_tau)
-      DEALLOCATE (vec_Sigma_c_gw_neg_tau)
-      DEALLOCATE (vec_Sigma_c_gw_cos_tau)
-      DEALLOCATE (vec_Sigma_c_gw_sin_tau)
-      DEALLOCATE (vec_Sigma_c_gw_cos_omega)
-      DEALLOCATE (vec_Sigma_c_gw_sin_omega)
-      DEALLOCATE (delta_corr_omega)
-
       CALL timestop(handle)
 
    END SUBROUTINE compute_self_energy_cubic_gw
@@ -5689,7 +5641,6 @@ CONTAINS
 !> \param qs_env ...
 !> \param para_env ...
 !> \param mp2_env ...
-!> \param num_fit_points ...
 !> \param fm_mo_coeff ...
 !> \param do_ri_Sigma_x ...
 !> \param vec_Sigma_x_gw ...
@@ -5707,7 +5658,7 @@ CONTAINS
                                                    mat_W, mat_MinvVMinv, &
                                                    vec_Sigma_c_gw, &
                                                    qs_env, para_env, &
-                                                   mp2_env, num_fit_points, fm_mo_coeff, &
+                                                   mp2_env, fm_mo_coeff, &
                                                    do_ri_Sigma_x, vec_Sigma_x_gw, unit_nr, nspins, &
                                                    starts_array_mc, ends_array_mc, eps_filter)
 
@@ -5732,7 +5683,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
-      INTEGER, INTENT(IN)                                :: num_fit_points
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff
       LOGICAL, INTENT(IN)                                :: do_ri_Sigma_x
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: vec_Sigma_x_gw
@@ -5742,7 +5692,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_self_energy_cubic_gw_kpoints'
 
-      INTEGER :: cut_memory, handle, handle2, i_mem, iquad, ispin, j_mem, jquad, nkp_self_energy, &
+      INTEGER :: cut_memory, handle, handle2, i_mem, ikp, ispin, j_mem, jquad, nkp_self_energy, &
          num_integ_points, num_points, unit_nr_prv
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, sizes_AO, sizes_RI
       INTEGER, DIMENSION(2)                              :: mo_end, mo_start, pdims_2d
@@ -5750,11 +5700,9 @@ CONTAINS
       INTEGER, DIMENSION(2, 2)                           :: bounds_ao_ao_j
       INTEGER, DIMENSION(3)                              :: dims_3c
       LOGICAL                                            :: memory_info
-      REAL(KIND=dp)                                      :: omega, t1, t2, tau, weight_cos, &
-                                                            weight_sin
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :) :: vec_Sigma_c_gw_cos_omega, &
-         vec_Sigma_c_gw_cos_tau, vec_Sigma_c_gw_neg_tau, vec_Sigma_c_gw_pos_tau, &
-         vec_Sigma_c_gw_sin_omega, vec_Sigma_c_gw_sin_tau
+      REAL(KIND=dp)                                      :: t1, t2, tau
+      REAL(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :, :)                        :: samples_tau
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: propagator
       TYPE(dbcsr_type), TARGET :: mat_greens_fct_occ, mat_greens_fct_virt, mat_mo_coeff, &
          mat_self_energy_ao_ao_neg_tau, mat_self_energy_ao_ao_pos_tau
@@ -5786,20 +5734,7 @@ CONTAINS
 
       nkp_self_energy = mp2_env%ri_g0w0%nkp_self_energy
 
-      vec_Sigma_c_gw = z_zero
-      ALLOCATE (vec_Sigma_c_gw_pos_tau(gw_corr_lev_tot, num_integ_points, nkp_self_energy, nspins))
-      vec_Sigma_c_gw_pos_tau = 0.0_dp
-      ALLOCATE (vec_Sigma_c_gw_neg_tau(gw_corr_lev_tot, num_integ_points, nkp_self_energy, nspins))
-      vec_Sigma_c_gw_neg_tau = 0.0_dp
-      ALLOCATE (vec_Sigma_c_gw_cos_tau(gw_corr_lev_tot, num_integ_points, nkp_self_energy, nspins))
-      vec_Sigma_c_gw_cos_tau = 0.0_dp
-      ALLOCATE (vec_Sigma_c_gw_sin_tau(gw_corr_lev_tot, num_integ_points, nkp_self_energy, nspins))
-      vec_Sigma_c_gw_sin_tau = 0.0_dp
-
-      ALLOCATE (vec_Sigma_c_gw_cos_omega(gw_corr_lev_tot, num_integ_points, nkp_self_energy, nspins))
-      vec_Sigma_c_gw_cos_omega = 0.0_dp
-      ALLOCATE (vec_Sigma_c_gw_sin_omega(gw_corr_lev_tot, num_integ_points, nkp_self_energy, nspins))
-      vec_Sigma_c_gw_sin_omega = 0.0_dp
+      ALLOCATE (samples_tau(gw_corr_lev_tot, num_integ_points, 2, nkp_self_energy, nspins), SOURCE=0.0_dp)
 
       CALL dbcsr_create(matrix=mat_greens_fct_occ, &
                         template=matrix_s(1)%matrix, &
@@ -5982,17 +5917,13 @@ CONTAINS
 
             IF (jquad <= num_integ_points) THEN
 
-               CALL trafo_to_mo_and_kpoints(qs_env, mat_self_energy_ao_ao_neg_tau, vec_Sigma_c_gw_neg_tau(:, jquad, :, ispin), &
+               CALL trafo_to_mo_and_kpoints(qs_env, mat_self_energy_ao_ao_neg_tau, &
+                                            samples_tau(:, jquad, negative_time, :, ispin), &
                                             homo(ispin), gw_corr_lev_occ(ispin), gw_corr_lev_virt(ispin), ispin)
 
-               CALL trafo_to_mo_and_kpoints(qs_env, mat_self_energy_ao_ao_pos_tau, vec_Sigma_c_gw_pos_tau(:, jquad, :, ispin), &
+               CALL trafo_to_mo_and_kpoints(qs_env, mat_self_energy_ao_ao_pos_tau, &
+                                            samples_tau(:, jquad, positive_time, :, ispin), &
                                             homo(ispin), gw_corr_lev_occ(ispin), gw_corr_lev_virt(ispin), ispin)
-
-               vec_Sigma_c_gw_cos_tau(:, jquad, :, ispin) = 0.5_dp*(vec_Sigma_c_gw_pos_tau(:, jquad, :, ispin) + &
-                                                                    vec_Sigma_c_gw_neg_tau(:, jquad, :, ispin))
-
-               vec_Sigma_c_gw_sin_tau(:, jquad, :, ispin) = 0.5_dp*(vec_Sigma_c_gw_pos_tau(:, jquad, :, ispin) - &
-                                                                    vec_Sigma_c_gw_neg_tau(:, jquad, :, ispin))
             ELSE
 
                CALL trafo_to_mo_and_kpoints(qs_env, mat_self_energy_ao_ao_neg_tau, &
@@ -6022,35 +5953,15 @@ CONTAINS
 
       END IF
 
-      ! Fourier transform from time to frequency
-      DO jquad = 1, num_fit_points
-
-         DO iquad = 1, num_integ_points
-
-            omega = grid%frequency(jquad)
-            tau = grid%imaginary_time(iquad)
-            weight_cos = grid%cosine_time_to_frequency_weights(jquad, iquad)*COS(omega*tau)
-            weight_sin = grid%sine_time_to_frequency_weights(jquad, iquad)*SIN(omega*tau)
-
-            vec_Sigma_c_gw_cos_omega(:, jquad, :, :) = vec_Sigma_c_gw_cos_omega(:, jquad, :, :) + &
-                                                       weight_cos*vec_Sigma_c_gw_cos_tau(:, iquad, :, :)
-
-            vec_Sigma_c_gw_sin_omega(:, jquad, :, :) = vec_Sigma_c_gw_sin_omega(:, jquad, :, :) + &
-                                                       weight_sin*vec_Sigma_c_gw_sin_tau(:, iquad, :, :)
-
-         END DO
-
-      END DO
-
-      ! for occupied levels, we need the correlation self-energy for negative omega. Therefore, weight_sin
-      ! should be computed with -omega, which results in an additional minus for vec_Sigma_c_gw_sin_omega:
       DO ispin = 1, nspins
-         vec_Sigma_c_gw_sin_omega(1:gw_corr_lev_occ(ispin), :, :, ispin) = &
-            -vec_Sigma_c_gw_sin_omega(1:gw_corr_lev_occ(ispin), :, :, ispin)
+         DO ikp = 1, nkp_self_energy
+            CALL transform_time_to_frequency(grid, samples_tau(:, :, :, ikp, ispin), &
+                                             vec_Sigma_c_gw(:, :, ikp, ispin))
+         END DO
+         ! Occupied levels use negative frequencies; the time-domain samples are real.
+         vec_Sigma_c_gw(1:gw_corr_lev_occ(ispin), :, :, ispin) = &
+            CONJG(vec_Sigma_c_gw(1:gw_corr_lev_occ(ispin), :, :, ispin))
       END DO
-
-      vec_Sigma_c_gw(:, 1:num_fit_points, :, :) = vec_Sigma_c_gw_cos_omega(:, 1:num_fit_points, :, :) + &
-                                                  gaussi*vec_Sigma_c_gw_sin_omega(:, 1:num_fit_points, :, :)
 
       CALL dbt_pgrid_destroy(pgrid_2d)
 
@@ -6070,13 +5981,6 @@ CONTAINS
       CALL dbt_destroy(t_3c_O_all)
       CALL dbt_destroy(t_3c_M_W_tmp)
       CALL dbt_destroy(t_3c_O_W)
-
-      DEALLOCATE (vec_Sigma_c_gw_pos_tau)
-      DEALLOCATE (vec_Sigma_c_gw_neg_tau)
-      DEALLOCATE (vec_Sigma_c_gw_cos_tau)
-      DEALLOCATE (vec_Sigma_c_gw_sin_tau)
-      DEALLOCATE (vec_Sigma_c_gw_cos_omega)
-      DEALLOCATE (vec_Sigma_c_gw_sin_omega)
 
       CALL timestop(handle)
 

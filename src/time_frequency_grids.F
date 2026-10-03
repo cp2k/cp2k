@@ -13,7 +13,8 @@
 MODULE time_frequency_grids
    USE greenx_interface,                ONLY: greenx_get_minimax_grid
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: pi
+   USE mathconstants,                   ONLY: pi,&
+                                              z_zero
    USE minimax_exp,                     ONLY: get_exp_minimax_coeff
    USE minimax_exp_gw,                  ONLY: get_exp_minimax_coeff_gw
    USE minimax_rpa,                     ONLY: get_rpa_minimax_coeff,&
@@ -39,9 +40,10 @@ MODULE time_frequency_grids
    INTEGER, PARAMETER :: cosine_time_to_frequency = 1, &
                          sine_time_to_frequency = 2, &
                          cosine_frequency_to_time = 3
+   INTEGER, PARAMETER, PUBLIC :: positive_time = 1, negative_time = 2
 
    PUBLIC :: build_clenshaw_grid, build_minimax_time_frequency_grid, test_least_square_ft, &
-             time_frequency_grid_release, time_frequency_grid_type
+             time_frequency_grid_release, time_frequency_grid_type, transform_time_to_frequency
 
 CONTAINS
 
@@ -62,6 +64,60 @@ CONTAINS
       IF (ALLOCATED(grid%sine_time_to_frequency_weights)) DEALLOCATE (grid%sine_time_to_frequency_weights)
 
    END SUBROUTINE time_frequency_grid_release
+
+! **************************************************************************************************
+!> \brief Transform real positive/negative-time samples to complex positive-frequency values.
+!>        The even part uses the cosine transform and the odd part the sine transform.
+!> \param grid Time/frequency nodes and fitted cosine/sine transform weights.
+!> \param samples_tau Real samples indexed (state, time, branch), with branches
+!>        positive_time and negative_time. The samples include their physical signs.
+!> \param values_omega Complex output indexed (state, frequency), evaluated at the leading
+!>        SIZE(values_omega, 2) positive-frequency nodes of grid.
+! **************************************************************************************************
+   SUBROUTINE transform_time_to_frequency(grid, samples_tau, values_omega)
+      TYPE(time_frequency_grid_type), INTENT(IN)         :: grid
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: samples_tau
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: values_omega
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_time_to_frequency'
+
+      INTEGER                                            :: handle, ifreq, itime, nfreq, nstate, &
+                                                            ntime
+      REAL(KIND=dp)                                      :: weight_cos, weight_sin
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: samples_even, samples_odd
+
+      CALL timeset(routineN, handle)
+
+      nstate = SIZE(samples_tau, 1)
+      ntime = SIZE(samples_tau, 2)
+      nfreq = SIZE(values_omega, 2)
+      CPASSERT(SIZE(samples_tau, 3) == 2)
+      CPASSERT(SIZE(values_omega, 1) == nstate)
+      CPASSERT(ntime == SIZE(grid%imaginary_time))
+      CPASSERT(nfreq <= SIZE(grid%frequency))
+      CPASSERT(nfreq <= SIZE(grid%cosine_time_to_frequency_weights, 1))
+      CPASSERT(ntime == SIZE(grid%cosine_time_to_frequency_weights, 2))
+      CPASSERT(nfreq <= SIZE(grid%sine_time_to_frequency_weights, 1))
+      CPASSERT(ntime == SIZE(grid%sine_time_to_frequency_weights, 2))
+
+      ALLOCATE (samples_even(nstate), samples_odd(nstate))
+      values_omega = z_zero
+      DO itime = 1, ntime
+         samples_even = 0.5_dp*(samples_tau(:, itime, positive_time) + samples_tau(:, itime, negative_time))
+         samples_odd = 0.5_dp*(samples_tau(:, itime, positive_time) - samples_tau(:, itime, negative_time))
+         DO ifreq = 1, nfreq
+            weight_cos = grid%cosine_time_to_frequency_weights(ifreq, itime)* &
+                         COS(grid%frequency(ifreq)*grid%imaginary_time(itime))
+            weight_sin = grid%sine_time_to_frequency_weights(ifreq, itime)* &
+                         SIN(grid%frequency(ifreq)*grid%imaginary_time(itime))
+            values_omega(:, ifreq) = values_omega(:, ifreq) + &
+                                     CMPLX(weight_cos*samples_even, weight_sin*samples_odd, KIND=dp)
+         END DO
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE transform_time_to_frequency
 
 ! **************************************************************************************************
 !> \brief Build a Clenshaw-Curtis frequency grid.

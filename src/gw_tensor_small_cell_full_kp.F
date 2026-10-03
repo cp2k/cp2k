@@ -31,8 +31,7 @@ MODULE gw_tensor_small_cell_full_kp
                                               analyt_conti_and_print,&
                                               de_init_bs_env,&
                                               get_V_tr_R,&
-                                              is_cell_in_index_to_cell,&
-                                              time_to_freq
+                                              is_cell_in_index_to_cell
    USE gw_utils_communication,          ONLY: fm_to_local_array,&
                                               fm_to_local_tensor,&
                                               local_array_to_fm,&
@@ -55,6 +54,9 @@ MODULE gw_tensor_small_cell_full_kp
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE post_scf_bandstructure_utils,    ONLY: get_all_VBM_CBM_bandgaps
    USE qs_environment_types,            ONLY: qs_environment_type
+   USE time_frequency_grids,            ONLY: negative_time,&
+                                              positive_time,&
+                                              transform_time_to_frequency
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1388,9 +1390,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_QP_energies'
 
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: Sigma_c_ikp_n_freq
       INTEGER                                            :: handle, ikp, ispin, j_t
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Sigma_x_ikp_n
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Sigma_c_ikp_n_freq, Sigma_c_ikp_n_time
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Sigma_c_ikp_n_time
       TYPE(cp_cfm_type)                                  :: cfm_mo_coeff
 
       CALL timeset(routineN, handle)
@@ -1398,7 +1401,7 @@ CONTAINS
       CALL cp_cfm_create(cfm_mo_coeff, bs_env%fm_s_Gamma%matrix_struct)
       ALLOCATE (Sigma_x_ikp_n(bs_env%n_ao))
       ALLOCATE (Sigma_c_ikp_n_time(bs_env%n_ao, bs_env%num_time_freq_points, 2))
-      ALLOCATE (Sigma_c_ikp_n_freq(bs_env%n_ao, bs_env%num_time_freq_points, 2))
+      ALLOCATE (Sigma_c_ikp_n_freq(bs_env%n_ao, bs_env%num_freq_points_fit))
 
       DO ispin = 1, bs_env%n_spin
 
@@ -1415,13 +1418,14 @@ CONTAINS
             !    Σ^c_nn(k,+/-i|τ_j|) = sum_µν C^*_µn(k) Σ^c_µν(k,+/-i|τ_j|) C_νn(k)
             DO j_t = 1, bs_env%num_time_freq_points
                CALL trafo_to_k_and_nn(bs_env%fm_Sigma_c_R_pos_tau(:, j_t, ispin), &
-                                      Sigma_c_ikp_n_time(:, j_t, 1), cfm_mo_coeff, bs_env, ikp)
+                                      Sigma_c_ikp_n_time(:, j_t, positive_time), cfm_mo_coeff, bs_env, ikp)
                CALL trafo_to_k_and_nn(bs_env%fm_Sigma_c_R_neg_tau(:, j_t, ispin), &
-                                      Sigma_c_ikp_n_time(:, j_t, 2), cfm_mo_coeff, bs_env, ikp)
+                                      Sigma_c_ikp_n_time(:, j_t, negative_time), cfm_mo_coeff, bs_env, ikp)
             END DO
 
             ! 4. Σ^c_nn(k_i,iω) = ∫ from -∞ to ∞ dτ e^-iωτ Σ^c_nn(k_i,iτ)
-            CALL time_to_freq(bs_env, Sigma_c_ikp_n_time, Sigma_c_ikp_n_freq, ispin)
+            CALL transform_time_to_frequency(bs_env%time_frequency_grid, Sigma_c_ikp_n_time, Sigma_c_ikp_n_freq)
+            Sigma_c_ikp_n_freq(1:bs_env%n_occ(ispin), :) = CONJG(Sigma_c_ikp_n_freq(1:bs_env%n_occ(ispin), :))
 
             ! 5. Analytic continuation Σ^c_nn(k_i,iω) -> Σ^c_nn(k_i,ϵ) and
             !    ϵ_nk_i^GW = ϵ_nk_i^DFT + Σ^c_nn(k_i,ϵ) + Σ^x_nn(k_i) - v^xc_nn(k_i)
