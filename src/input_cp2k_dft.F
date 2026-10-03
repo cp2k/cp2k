@@ -2573,7 +2573,8 @@ CONTAINS
                           "definition of the dielectric function. This fills the low valence density "// &
                           "region at the nuclei of pseudopotential atoms, which otherwise may be treated "// &
                           "as solvent if a grid point is close to a nucleus (similar to the solvent_mode "// &
-                          "'full' of the Environ library). Hydrogen kinds are not filled by default. "// &
+                          "'full' of the Environ library). Kinds without removed core electrons (Z_val = Z, "// &
+                          "e.g. H, He-q2, Li-q3, Be-q4) are not filled by default. "// &
                           "The resulting ionic forces are included.", &
                           usage="CORE_FILL", &
                           default_l_val=.FALSE., &
@@ -2601,7 +2602,8 @@ CONTAINS
                           description="Per-kind spread of the CORE_FILL Gaussian fill density. "// &
                           "Each line contains a kind label (as defined in &KIND) and the spread in bohr. "// &
                           "A spread <= 0 disables the fill for that kind. Kinds not listed use "// &
-                          "CORE_FILL_SPREAD, except hydrogen kinds which are not filled.", &
+                          "CORE_FILL_SPREAD, except kinds without removed core electrons (Z_val = Z) which are "// &
+                          "not filled.", &
                           n_keywords=1, &
                           n_subsections=0, &
                           repeats=.FALSE.)

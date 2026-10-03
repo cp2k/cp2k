@@ -1614,9 +1614,11 @@ CONTAINS
          CALL get_atomic_kind(atomic_kind_set(ikind), name=kind_name, z=z)
          CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
          CALL uppercase(kind_name)
-         ! Default spread; hydrogen has no core region and is not filled (as in Environ)
+         ! Default spread. Kinds without removed core electrons (Z_val = Z, e.g. H-q1, He-q2,
+         ! Li-q3, Be-q4) have no core hole in the valence density and are not filled
+         ! (generalises the hydrogen exception of Environ)
          sigma = sccs_control%core_fill_spread
-         IF (z == 1) sigma = 0.0_dp
+         IF (zeff >= REAL(z, KIND=dp) - 0.5_dp) sigma = 0.0_dp
          found = .FALSE.
          DO iover = 1, SIZE(sccs_control%core_fill_kind_label)
             IF (TRIM(sccs_control%core_fill_kind_label(iover)) == TRIM(kind_name)) THEN
