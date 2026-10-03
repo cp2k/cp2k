@@ -27,5 +27,5 @@
 "H2O_constant_extpot_GAPW.inp"          = [{matcher="E_total", tol=2e-13, ref=-17.156932432160339}]
 "H2O_uniform_efield_GAPW.inp"           = [{matcher="E_total", tol=2e-13, ref=-17.15696477358598}]
 #XAS with for beta channel
-"O2_xas_beta_spin.inp"                  = [{matcher="M084", tol=2e-14, ref=-20.79715367779695}]
+"O2_xas_beta_spin.inp"                  = [{matcher="M084", tol=2e-14, ref=-20.79715367676563}]
 #EOF

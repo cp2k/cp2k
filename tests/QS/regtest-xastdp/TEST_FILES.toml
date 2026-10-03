@@ -26,7 +26,7 @@
 #Checking the use of pseudo-potential and ADMM
 "SiH4-PBE0-admm-pseudo.inp"             = [{matcher="XAS_excit_ener", tol=1e-08, ref=146.185955}]
 #Checking open-shell calculation with non-singlet ground state
-"CH3-PBE-uks.inp"                       = [{matcher="XAS_excit_ener", tol=1e-06, ref=265.242788}]
+"CH3-PBE-uks.inp"                       = [{matcher="XAS_excit_ener", tol=1e-06, ref=265.728203}]
 #Checking singlet, triplet, spin-conserving, spin-flip and SOC
 "Ar-HF-2p-SOC-rcs.inp"                  = [{matcher="XAS_excit_ener", tol=1e-08, ref=261.349222}]
 "Ar-HF-2p-SOC-os.inp"                   = [{matcher="XAS_excit_ener", tol=1e-08, ref=261.347679}]

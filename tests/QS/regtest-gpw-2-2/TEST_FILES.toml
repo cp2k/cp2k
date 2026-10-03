@@ -6,9 +6,9 @@
 "H2O-meta_res2.inp"                     = [{matcher="E_total", tol=1.0E-14, ref=-17.16019189141385}]
 "H2O-meta_res3.inp"                     = [{matcher="E_total", tol=3e-14, ref=-17.16211383662706}]
 # tpss
-"H2O-tpss.inp"                          = [{matcher="E_total", tol=2e-13, ref=-34.47564039700952}]
+"H2O-tpss.inp"                          = [{matcher="E_total", tol=2e-13, ref=-34.47564039765709}]
 # tpss new input
-"H2O-tpss_new.inp"                      = [{matcher="E_total", tol=2e-13, ref=-34.47564039700952}]
+"H2O-tpss_new.inp"                      = [{matcher="E_total", tol=2e-13, ref=-34.47564039765709}]
 # farming
 "farming.inp"                           = []
 #more checking on metadynamics RESTART

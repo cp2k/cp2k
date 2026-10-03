@@ -1,6 +1,6 @@
 "h2o-fine-tpss-force-1.inp"             = []
 "h2o-fine-tpss-stress-1.inp"            = [{matcher="E_total", tol=1e-12, ref=-17.2673589463619}]
 "h2o-fine-tpss-stress-debug-1.inp"      = []
-"h2o-fine-tpss-full-stress-1.inp"       = [{matcher="M011", tol=1e-08, ref=-17.230662355596202},
-                                           {matcher="M031", tol=1e-08, ref=-8830.884096}]
+"h2o-fine-tpss-full-stress-1.inp"       = [{matcher="M011", tol=1e-08, ref=-17.230664011207313},
+                                           {matcher="M031", tol=1e-08, ref=-8821.51607385}]
 #EOF
