@@ -136,7 +136,8 @@ MODULE qs_ks_methods
    USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_sccs,                         ONLY: sccs
+   USE qs_sccs,                         ONLY: sccs,&
+                                              sccs_core_fill_coefficients
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE qs_vxc_atom,                     ONLY: calculate_vxc_atom,&
                                               gapw_cdft_one_center
@@ -1147,6 +1148,25 @@ CONTAINS
                END BLOCK
             ELSE
                CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
+            END IF
+            ! SCCS with core fill: the dielectric function depends on rho_elec + rho_fill(R),
+            ! which yields an additional nuclear force contribution from v_sccs. The fill
+            ! Gaussians enter integrate_v_core_rspace with the sign convention of rho_core
+            ! (-ccore*exp(-calpha*r**2)), hence the negated potential
+            IF (dft_control%do_sccs) THEN
+               IF (dft_control%sccs_control%core_fill) THEN
+                  BLOCK
+                     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: calpha, ccore
+                     TYPE(pw_r3d_rs_type)                               :: v_minus_vsccs
+                     CALL sccs_core_fill_coefficients(qs_env, calpha, ccore)
+                     CALL auxbas_pw_pool%create_pw(v_minus_vsccs)
+                     CALL pw_copy(v_sccs_rspace, v_minus_vsccs)
+                     CALL pw_scale(v_minus_vsccs, -1.0_dp)
+                     CALL integrate_v_core_rspace(v_minus_vsccs, qs_env, calpha=calpha, ccore=ccore)
+                     CALL auxbas_pw_pool%give_back_pw(v_minus_vsccs)
+                     DEALLOCATE (calpha, ccore)
+                  END BLOCK
+               END IF
             END IF
          END IF
 
