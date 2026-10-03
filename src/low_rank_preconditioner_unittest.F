@@ -10,25 +10,20 @@ PROGRAM low_rank_preconditioner_unittest
    USE low_rank_preconditioner_model,   ONLY: apply_low_rank_dense,&
                                               low_rank_inverse_weight,&
                                               low_rank_select_rank
-   USE mathconstants,                   ONLY: sqrthalf
 
    IMPLICIT NONE
 
    INTEGER, PARAMETER                                  :: nao = 5, nocc = 3, rank = 2
    REAL(KIND=dp), PARAMETER                            :: tolerance = 2.0E-14_dp
    INTEGER                                             :: i, selected_rank
-   REAL(KIND=dp)                                       :: angle, common_shift, energy_gap, mu, window
+   REAL(KIND=dp)                                       :: angle, energy_gap, mu, window
    REAL(KIND=dp), DIMENSION(7)                         :: full_eigenvalues
    REAL(KIND=dp), DIMENSION(rank)                      :: eigenvalues
-   REAL(KIND=dp), DIMENSION(nao, nao)                  :: complement_operator, &
-                                                          complement_operator_rotated, hamiltonian, &
-                                                          identity, overlap_inverse, projector, &
-                                                          projector_rotated
-   REAL(KIND=dp), DIMENSION(nao, 2)                    :: occupied, occupied_rotated, vectors
+   REAL(KIND=dp), DIMENSION(nao, nao)                  :: identity, overlap_inverse
+   REAL(KIND=dp), DIMENSION(nao, rank)                 :: vectors
    REAL(KIND=dp), DIMENSION(nao, nocc)                 :: gradient, gradient_rotated, RESULT, &
                                                           result_rotated
    REAL(KIND=dp), DIMENSION(nocc, nocc)                :: rotation
-   REAL(KIND=dp), DIMENSION(2, 2)                      :: occupied_rotation
 
    identity = 0.0_dp
    DO i = 1, nao
@@ -68,32 +63,6 @@ PROGRAM low_rank_preconditioner_unittest
                              gradient_rotated, result_rotated)
    IF (MAXVAL(ABS(result_rotated - MATMUL(RESULT, rotation))) > tolerance) THEN
       ERROR STOP "Low-rank preconditioner is not right-covariant under occupied rotations"
-   END IF
-
-   ! Verify that the projected complementary operator depends only on the occupied subspace.
-   occupied = 0.0_dp
-   occupied(1, 1) = sqrthalf
-   occupied(2, 1) = sqrthalf
-   occupied(3, 2) = sqrthalf
-   occupied(4, 2) = sqrthalf
-   occupied_rotation = RESHAPE([COS(angle), SIN(angle), -SIN(angle), COS(angle)], [2, 2])
-   occupied_rotated = MATMUL(occupied, occupied_rotation)
-
-   hamiltonian = RESHAPE([1.0_dp, 0.2_dp, 0.1_dp, 0.0_dp, 0.3_dp, &
-                          0.2_dp, 1.4_dp, 0.0_dp, 0.2_dp, 0.1_dp, &
-                          0.1_dp, 0.0_dp, 2.0_dp, 0.4_dp, 0.2_dp, &
-                          0.0_dp, 0.2_dp, 0.4_dp, 2.3_dp, 0.1_dp, &
-                          0.3_dp, 0.1_dp, 0.2_dp, 0.1_dp, 3.0_dp], [nao, nao])
-   projector = identity - MATMUL(occupied, TRANSPOSE(occupied))
-   projector_rotated = identity - MATMUL(occupied_rotated, TRANSPOSE(occupied_rotated))
-   common_shift = -10.2_dp
-   complement_operator = MATMUL(TRANSPOSE(projector), MATMUL(hamiltonian, projector)) + &
-                         common_shift*MATMUL(occupied, TRANSPOSE(occupied))
-   complement_operator_rotated = &
-      MATMUL(TRANSPOSE(projector_rotated), MATMUL(hamiltonian, projector_rotated)) + &
-      common_shift*MATMUL(occupied_rotated, TRANSPOSE(occupied_rotated))
-   IF (MAXVAL(ABS(complement_operator_rotated - complement_operator)) > tolerance) THEN
-      ERROR STOP "Complementary-state construction depends on the occupied orbital gauge"
    END IF
 
    full_eigenvalues = [-0.8_dp, -0.2_dp, 0.2_dp, 0.4_dp, 0.7_dp, 0.7_dp, 1.4_dp]

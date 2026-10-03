@@ -21,6 +21,7 @@ import pytest
 
 from cp2k import SocketEnvironment, input_to_string
 from cp2k._transport import receive, send
+from lammps_helpers import check_lammps_reference, lammps_system, run_lammps_npt
 
 
 def test_fragmented_transport():
@@ -342,67 +343,16 @@ def test_lammps_remote_mpi(lj_input, server_factory, tmp_path):
 def test_lammps_remote(lj_input, server_factory, units):
     if not os.environ.get("CP2K_TEST_LAMMPS"):
         pytest.skip("Set CP2K_TEST_LAMMPS")
-    from lammps import lammps
     from cp2k.lammps import ExternalForce
-    from cp2k._units import BOHR_TO_ANGSTROM, HARTREE_TO_EV, HARTREE_TO_KCALMOL
 
-    factor = HARTREE_TO_EV if units == "metal" else HARTREE_TO_KCALMOL
     with server_factory(lj_input) as (config, process):
-        lmp = lammps(cmdargs=["-log", "none", "-screen", "none"])
-        try:
+        with lammps_system(units) as lmp:
             with SocketEnvironment(**config, comm=lmp.get_mpi_comm()) as remote:
                 expected = remote.calculate(stress=True)
-                lmp.commands_string(f"""
-units {units}
-atom_style atomic
-boundary p p p
-region box prism 0 20 0 21 0 22 1 2 3
-create_box 1 box
-create_atoms 1 single 7.2 4.8 4.5
-create_atoms 1 single 4 4 4
-mass 1 39.948
-pair_style zero 8
-pair_coeff * *
-compute cp_pressure all pressure NULL virial
-thermo_style custom step pe c_cp_pressure[1] c_cp_pressure[2] c_cp_pressure[3] c_cp_pressure[4] c_cp_pressure[5] c_cp_pressure[6]
-thermo_modify norm no
-""")
                 with ExternalForce(lmp, remote, atom_ids=[2, 1]) as coupling:
                     coupling.run(0)
-                    assert lmp.get_thermo("pe") == pytest.approx(
-                        expected.energy * factor, abs=1e-10
-                    )
-                    tags = lmp.numpy.extract_atom("id")[:2]
-                    indices = [1 if tag == 1 else 0 for tag in tags]
-                    np.testing.assert_allclose(
-                        lmp.numpy.extract_atom("f")[:2],
-                        expected.forces[indices] * factor / BOHR_TO_ANGSTROM,
-                        atol=1e-10,
-                    )
-                    pressure = (
-                        expected.virial.flat[[0, 4, 8, 1, 2, 5]]
-                        * factor
-                        / np.linalg.det(remote.cell * BOHR_TO_ANGSTROM)
-                        * lmp.extract_global("nktv2p")
-                    )
-                    np.testing.assert_allclose(
-                        lmp.numpy.extract_compute("cp_pressure", 0, 1),
-                        pressure,
-                        atol=1e-10,
-                    )
-                    coupling.command(
-                        "velocity all create 10 731 mom yes rot no dist gaussian"
-                    )
-                    coupling.command(
-                        "fix thermostat all npt temp 10 10 100 iso 0 0 1000"
-                    )
-                    coupling.command(
-                        "timestep " + ("0.0001" if units == "metal" else "0.1")
-                    )
-                    coupling.run(3)
-                    assert np.isfinite(lmp.get_thermo("pe"))
-        finally:
-            lmp.close()
+                    check_lammps_reference(lmp, expected, remote.cell, units)
+                    run_lammps_npt(coupling, units)
         assert process.wait(timeout=10) == 0
 
 

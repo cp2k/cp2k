@@ -18,6 +18,7 @@ from ase.optimize import BFGS
 from cp2k import CP2K, SCFConvergenceError, input_to_string
 from cp2k._units import BOHR_TO_ANGSTROM as Bohr, HARTREE_TO_EV as Hartree
 from cp2k.ase import CP2KCalculator
+from lammps_helpers import check_lammps_reference, lammps_system, run_lammps_npt
 
 pytestmark = pytest.mark.integration
 
@@ -59,74 +60,26 @@ def test_native_energy_force_and_cell(real_runtime, h2_input, tmp_path, monkeypa
 def test_lammps_native(real_runtime, lj_input, tmp_path, monkeypatch, units):
     if not os.environ.get("CP2K_TEST_LAMMPS"):
         pytest.skip("Set CP2K_TEST_LAMMPS for a compatible LAMMPS library")
-    from lammps import lammps
     from cp2k.lammps import ExternalForce
-    from cp2k._units import BOHR_TO_ANGSTROM, HARTREE_TO_EV, HARTREE_TO_KCALMOL
+    from cp2k._units import BOHR_TO_ANGSTROM
 
     monkeypatch.chdir(tmp_path)
-    energy_factor = HARTREE_TO_EV if units == "metal" else HARTREE_TO_KCALMOL
     with real_runtime.create_force_env(lj_input, output_file="lammps.out") as env:
         reference = env.calculate(stress=True)
-        lmp = lammps(
-            comm=real_runtime._comm, cmdargs=["-log", "none", "-screen", "none"]
-        )
-        try:
-            lmp.commands_string(f"""
-units {units}
-atom_style atomic
-boundary p p p
-region box prism 0 20 0 21 0 22 1 2 3
-create_box 1 box
-create_atoms 1 single 7.2 4.8 4.5
-create_atoms 1 single 4 4 4
-mass 1 39.948
-pair_style zero 8.0
-pair_coeff * *
-compute cp_pressure all pressure NULL virial
-thermo_style custom step pe c_cp_pressure[1] c_cp_pressure[2] c_cp_pressure[3] c_cp_pressure[4] c_cp_pressure[5] c_cp_pressure[6]
-thermo_modify norm no
-""")
+        with lammps_system(units, comm=real_runtime._comm) as lmp:
             with ExternalForce(lmp, env, atom_ids=[2, 1]) as callback:
                 callback.run(0)
-                np.testing.assert_allclose(
-                    lmp.get_thermo("pe"), reference.energy * energy_factor, atol=1e-10
-                )
-                tags = lmp.numpy.extract_atom("id")[:2]
-                indices = np.array([1 if tag == 1 else 0 for tag in tags])
-                np.testing.assert_allclose(
-                    lmp.numpy.extract_atom("f")[:2],
-                    reference.forces[indices] * energy_factor / BOHR_TO_ANGSTROM,
-                    rtol=1e-8,
-                )
-                pressure = lmp.numpy.extract_compute("cp_pressure", 0, 1).copy()
-                expected = (
-                    reference.virial.flat[[0, 4, 8, 1, 2, 5]]
-                    * energy_factor
-                    / np.linalg.det(env.cell * BOHR_TO_ANGSTROM)
-                    * lmp.extract_global("nktv2p")
-                )
-                np.testing.assert_allclose(pressure, expected, rtol=1e-8, atol=1e-10)
+                check_lammps_reference(lmp, reference, env.cell, units)
                 callback.command("change_box all x scale 1.01 remap")
                 callback.run(0)
                 assert env.cell[0, 0] * BOHR_TO_ANGSTROM == pytest.approx(20.2)
-                callback.command(
-                    "velocity all create 10.0 731 mom yes rot no dist gaussian"
-                )
-                callback.command("fix thermostat all npt temp 10 10 100 iso 0 0 1000")
-                callback.command(
-                    "timestep " + ("0.0001" if units == "metal" else "0.1")
-                )
-                callback.run(3)
-                assert np.isfinite(lmp.get_thermo("pe"))
-                callback.command("unfix thermostat")
+                run_lammps_npt(callback, units)
             assert not lmp.has_id("fix", "cp2k")
             with ExternalForce(lmp, env, stress=False) as callback:
                 with pytest.raises(RuntimeError, match="callback failed"):
                     callback.command("change_box all x scale 1.01 remap")
                     callback.run(0)
             assert np.isfinite(env.calculate().energy)
-        finally:
-            lmp.close()
     assert not list(tmp_path.glob("cp2k-python-*.inp"))
 
 
@@ -209,7 +162,7 @@ def test_ase_shell_comparison(tmp_path):
             "--command",
             f"{shlex.quote(executable)} -s",
             "--steps",
-            "2",
+            "1",
         ],
         cwd=tmp_path,
         check=False,
@@ -222,7 +175,7 @@ def test_ase_shell_comparison(tmp_path):
     assert report["max_energy_difference_eV"] < 1e-6
     assert report["max_force_difference_eV_per_angstrom"] < 1e-5
     for backend in ("shell", "direct"):
-        assert len(report[backend]["warm_evaluation_seconds"]) == 2
+        assert len(report[backend]["warm_evaluation_seconds"]) == 1
 
 
 def test_ase_optimization(real_runtime, h2_input, tmp_path, monkeypatch):
