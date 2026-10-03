@@ -1,0 +1,11 @@
+@SET SCCS on
+@SET DM cd5
+@SET OT 0
+@SET TD 1
+@SET RUN debug
+@SET PROJECT H2O_sccs_core_fill_debug
+@SET METHOD Andreussi
+@SET KIND_SPREAD 0
+@SET EPS_SCF 1.0E-6
+@SET EPS_SCCS 1.0E-6
+@INCLUDE H2O_sccs_core_fill.inc
