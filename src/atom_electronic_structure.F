@@ -92,6 +92,16 @@ CONTAINS
       END IF
 
       method = atom%method_type
+      IF (ALLOCATED(atom%basis%uspp)) THEN
+         IF (method /= do_rks_atom .AND. method /= do_uks_atom) THEN
+            CPABORT("Atomic USPP currently requires density/gradient Kohn-Sham functionals")
+         END IF
+         IF (atom%relativistic /= do_nonrel_atom) THEN
+            CPABORT("Atomic USPP requires RELATIVISTIC OFF")
+         END IF
+         atom%coulomb_integral_type = do_numeric
+      END IF
+
       SELECT CASE (method)
       CASE (do_rks_atom, do_rhf_atom)
          CALL calculate_atom_restricted(atom, iw, noguess, converged)
@@ -151,6 +161,9 @@ CONTAINS
       END IF
 
       CALL setup_hf_section(hf_frac, do_hfx, atom, xc_section, atom%exchange_integral_type)
+      IF (ALLOCATED(atom%basis%uspp) .AND. do_hfx) THEN
+         CPABORT("Atomic USPP exact-exchange augmentation is not implemented")
+      END IF
 
       method = atom%method_type
       max_iter = atom%optimization%max_iter
@@ -469,6 +482,9 @@ CONTAINS
       END IF
 
       CALL setup_hf_section(hf_frac, do_hfx, atom, xc_section, atom%exchange_integral_type)
+      IF (ALLOCATED(atom%basis%uspp) .AND. do_hfx) THEN
+         CPABORT("Atomic USPP exact-exchange augmentation is not implemented")
+      END IF
 
       method = atom%method_type
       max_iter = atom%optimization%max_iter

@@ -22,6 +22,8 @@ MODULE atom_utils
         CGTO_BASIS, GTO_BASIS, NUM_BASIS, STO_BASIS, atom_basis_type, atom_gthpot_type, &
         atom_hfx_type, atom_potential_type, atom_state, atom_type, ecp_pseudo, eri, gth_pseudo, &
         lmat, no_pseudo, sgp_pseudo, upf_pseudo
+   USE atom_uspp,                       ONLY: atom_uspp_density,&
+                                              atom_uspp_integrate
    USE basis_set_types,                 ONLY: srules
    USE cp_files,                        ONLY: close_file,&
                                               open_file
@@ -408,6 +410,7 @@ CONTAINS
             END DO
          END DO
       END DO
+      CALL atom_uspp_density(density, pmat, basis, maxl, my_typ)
       ! this factor from the product of two spherical harmonics
       density = density/fourpi
 
@@ -1907,6 +1910,8 @@ CONTAINS
       CASE DEFAULT
          CPABORT("Only 0, 1, 2 are supported as the value of derivatives")
       END SELECT
+
+      CALL atom_uspp_integrate(imat, cpot, basis, derivatives)
 
    END SUBROUTINE numpot_matrix
 

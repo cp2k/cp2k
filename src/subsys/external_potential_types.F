@@ -1248,11 +1248,17 @@ CONTAINS
       IF (ASSOCIATED(potential)) THEN
          IF (ALLOCATED(potential%upf_data)) THEN
             potential%nppnl = 0
+            potential%lmax = -1
+            potential%is_nonlocal = .FALSE.
             IF (potential%upf_data%number_of_proj > 0) THEN
                IF (potential%upf_projectors%degree < 0) THEN
                   CALL upf_projector_init(potential%upf_data, 0, potential%upf_projectors)
                END IF
                potential%nppnl = potential%upf_projectors%nproj
+               potential%lmax = MAXVAL(potential%upf_data%lbeta)
+               DO i1 = 1, potential%upf_data%number_of_proj
+                  potential%is_nonlocal(potential%upf_data%lbeta(i1)) = .TRUE.
+               END DO
             END IF
             RETURN
          END IF

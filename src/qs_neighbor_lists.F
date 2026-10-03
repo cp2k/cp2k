@@ -308,11 +308,13 @@ CONTAINS
          cneo_present, core_present, default_present, nonbond1_atom, nonbond2_atom, oce_present, &
          orb_present, ppl_present, ppnl_present, ri_present, xb1_atom, xb2_atom
       REAL(dp)                                           :: almo_rcov, almo_rvdw, eps_schwarz, &
-                                                            omega, pdist, rcut, roperator, subcells
+                                                            omega, pdist, rcut, roperator, &
+                                                            subcells, uspp_radius
       REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, aux_fit_radius, c_radius, calpha, &
          core_radius, nuc_orb_radius, oce_radius, orb_radius, ppl_radius, ppnl_radius, ri_radius, &
          zeff
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius, pair_radius_lb
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius, pair_radius_lb, &
+                                                            uspp_pair_radius
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -467,7 +469,9 @@ CONTAINS
       calpha(:) = 0.0_dp
       zeff(:) = 0.0_dp
 
-      ALLOCATE (pair_radius(nkind, nkind))
+      ALLOCATE (pair_radius(nkind, nkind), uspp_pair_radius(nkind, nkind))
+      uspp_radius = 0.0_dp
+      uspp_pair_radius = 0.0_dp
       IF (gth_potential_present .OR. sgp_potential_present) THEN
          ALLOCATE (ppl_present(nkind), ppl_radius(nkind))
          ppl_radius = 0.0_dp
@@ -570,6 +574,11 @@ CONTAINS
                                   ppl_radius=ppl_radius(ikind), &
                                   ppnl_present=ppnl_present(ikind), &
                                   ppnl_radius=ppnl_radius(ikind))
+               IF (dokp .AND. .NOT. qs_kind_set(ikind)%ghost) THEN
+                  IF (ALLOCATED(sgp_potential%upf_data)) THEN
+                     IF (sgp_potential%upf_data%is_ultrasoft) uspp_radius = MAX(uspp_radius, ppnl_radius(ikind))
+                  END IF
+               END IF
             ELSE
                ppl_present(ikind) = .FALSE.
                ppnl_present(ikind) = .FALSE.
@@ -603,6 +612,17 @@ CONTAINS
 
       END DO
 
+      ! USPP image products can connect orbitals through a common projector beyond S_G support.
+      IF (uspp_radius > 0.0_dp) THEN
+         DO jkind = 1, nkind
+            IF (.NOT. orb_present(jkind)) CYCLE
+            DO ikind = 1, nkind
+               IF (.NOT. orb_present(ikind)) CYCLE
+               uspp_pair_radius(ikind, jkind) = orb_radius(ikind) + orb_radius(jkind) + 2.0_dp*uspp_radius
+            END DO
+         END DO
+      END IF
+
       ! Build the orbital-orbital overlap neighbor lists
       IF (pdist < 0.0_dp) THEN
          pdist = MAX(plane_distance(1, 0, 0, cell), &
@@ -610,6 +630,7 @@ CONTAINS
                      plane_distance(0, 0, 1, cell))
       END IF
       CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius, pdist)
+      pair_radius(:, :) = MAX(pair_radius, uspp_pair_radius)
       CALL build_neighbor_lists(sab_orb, particle_set, atom2d, cell, pair_radius, &
                                 mic=mic, subcells=subcells, molecular=molecule_only, nlname="sab_orb", &
                                 stable_images=stable_images)
@@ -683,6 +704,7 @@ CONTAINS
          ELSE
             CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
          END IF
+         pair_radius(:, :) = MAX(pair_radius, uspp_pair_radius)
          CALL build_neighbor_lists(sab_kp, particle_set, atom2d, cell, pair_radius, &
                                    subcells=subcells, nlname="sab_kp", stable_images=stable_images)
          CALL set_ks_env(ks_env=ks_env, sab_kp=sab_kp)
@@ -1032,6 +1054,7 @@ CONTAINS
 
       DEALLOCATE (atom2d)
       DEALLOCATE (orb_present, default_present, core_present)
+      DEALLOCATE (uspp_pair_radius)
       DEALLOCATE (orb_radius, aux_fit_radius, c_radius, core_radius)
       DEALLOCATE (calpha, zeff)
       DEALLOCATE (pair_radius)

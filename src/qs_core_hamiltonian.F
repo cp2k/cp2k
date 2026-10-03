@@ -107,6 +107,9 @@ MODULE qs_core_hamiltonian
                                               dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
+   USE pw_env_types,                    ONLY: pw_env_get,&
+                                              pw_env_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE qs_cneo_methods,                 ONLY: cneo_core_matrices
    USE qs_condnum,                      ONLY: overlap_condnum
    USE qs_core_matrices,                ONLY: core_matrices,&
@@ -128,6 +131,11 @@ MODULE qs_core_hamiltonian
    USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE qs_uspp_methods,                 ONLY: qs_uspp_core_forces,&
+                                              qs_uspp_core_matrix,&
+                                              qs_uspp_init_ao_matrix,&
+                                              qs_uspp_prepare
+   USE qs_uspp_types,                   ONLY: qs_uspp_type
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
@@ -177,10 +185,13 @@ CONTAINS
          POINTER                                         :: sab_orb, sap_oce
       TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_uspp_type), POINTER                        :: uspp
       TYPE(virial_type), POINTER                         :: virial
 
       IF (calculate_forces) THEN
@@ -327,6 +338,8 @@ CONTAINS
                                  calculate_forces=calculate_forces, &
                                  eps_filter=eps_filter)
 
+      IF (.NOT. calculate_forces) CALL qs_uspp_prepare(ks_env, matrix_s(1, :))
+
       ! (Re-)allocate H matrix based on overlap matrix
       CALL get_ks_env(ks_env, complex_ks=h_is_complex)
       CALL qs_matrix_h_allocate(qs_env, matrix_s(1, 1)%matrix, is_complex=h_is_complex)
@@ -347,6 +360,18 @@ CONTAINS
 
       ! *** core and pseudopotentials
       CALL core_matrices(qs_env, matrix_h, matrix_p, calculate_forces, nder)
+
+      CALL get_ks_env(ks_env, uspp=uspp)
+      IF (ASSOCIATED(uspp)) THEN
+         CALL get_ks_env(ks_env, pw_env=pw_env)
+         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+         IF (calculate_forces) THEN
+            CALL qs_uspp_core_forces(ks_env, auxbas_pw_pool%pw_grid, matrix_h(1, :), &
+                                     matrix_p, matrix_w(1, :))
+         ELSE
+            CALL qs_uspp_core_matrix(uspp, qs_kind_set, particle_set, auxbas_pw_pool%pw_grid, matrix_h(1, :))
+         END IF
+      END IF
 
       ! *** CNEO nuclear V_core
       CALL cneo_core_matrices(qs_env, calculate_forces, nder)
@@ -568,6 +593,7 @@ CONTAINS
          ALLOCATE (matrix_h(1, img)%matrix)
          CALL dbcsr_create(matrix_h(1, img)%matrix, name=TRIM(headline), template=template)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_h(1, img)%matrix, sab_orb)
+         CALL qs_uspp_init_ao_matrix(ks_env, matrix_h(1, img)%matrix)
          CALL dbcsr_set(matrix_h(1, img)%matrix, 0.0_dp)
       END DO
       CALL set_ks_env(ks_env, matrix_h_kp=matrix_h)

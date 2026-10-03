@@ -270,7 +270,7 @@ CONTAINS
          CPABORT("Fixed occupations can only be requested while updating occupations.")
       END IF
 
-      CALL get_qs_env(qs_env, kpoints=kpoints, matrix_s_kp=matrix_s_kp, &
+      CALL get_qs_env(qs_env, kpoints=kpoints, matrix_metric_kp=matrix_s_kp, &
                       energy=energy, rho=rho, scf_env=scf_env, scf_control=scf_control)
       CALL get_kpoint_info(kpoints, sab_nl=sab_nl)
 

@@ -63,8 +63,14 @@ list(
   atoms_input.F
   atom_types.F
   atom_upf.F
+  atom_uspp.F
   upf_projector_integrals.F
   upf_local_integrals.F
+  uspp_augmentation.F
+  uspp_projector_operators.F
+  qs_uspp_projectors.F
+  qs_uspp_types.F
+  qs_uspp_methods.F
   atom_utils.F
   atom_xc.F
   auto_basis.F
@@ -1607,6 +1613,8 @@ set(CP2K_PROGS_F
     common/parallel_rng_types_unittest.F
     atom_upf_unittest.F
     xc/xc_semilocal_unittest.F
+    uspp_fourier_unittest.F
+    uspp_projector_operators_unittest.F
     upf_projector_integrals_unittest.F
     upf_local_integrals_unittest.F
     gapw_background_unittest.F
@@ -2045,6 +2053,8 @@ list(
   "parallel_rng_types_unittest"
   "atom_upf_unittest"
   "xc_semilocal_unittest"
+  "uspp_fourier_unittest"
+  "uspp_projector_operators_unittest"
   "upf_projector_integrals_unittest"
   "upf_local_integrals_unittest"
   "gapw_background_unittest"
@@ -2091,6 +2101,9 @@ add_executable(memory_utilities_unittest common/memory_utilities_unittest.F)
 add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
 add_executable(atom_upf_unittest atom_upf_unittest.F)
 add_executable(xc_semilocal_unittest xc/xc_semilocal_unittest.F)
+add_executable(uspp_fourier_unittest uspp_fourier_unittest.F)
+add_executable(uspp_projector_operators_unittest
+               uspp_projector_operators_unittest.F)
 add_executable(upf_projector_integrals_unittest
                upf_projector_integrals_unittest.F)
 add_executable(upf_local_integrals_unittest upf_local_integrals_unittest.F)

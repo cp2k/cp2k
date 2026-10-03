@@ -119,7 +119,7 @@ CONTAINS
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
                       do_kpoints=do_kpoints, &
-                      matrix_s_kp=matrixkp_s, &
+                      matrix_metric_kp=matrixkp_s, &
                       particle_set=particle_set, &
                       rho=rho, &
                       scf_control=scf_control, &
@@ -284,7 +284,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
-                      matrix_s_kp=matrix_s, &
+                      matrix_metric_kp=matrix_s, &
                       particle_set=particle_set, &
                       rho=rho, &
                       para_env=para_env)
@@ -326,6 +326,7 @@ CONTAINS
          CALL dbcsr_copy(matrix_b=sm_ps, matrix_a=sm_s, name=TRIM(headline))
       END IF
 
+      ! Tr(P S) counts physical electrons, including USPP augmentation when present.
       ! Build Mulliken population matrix for each spin
       DO ispin = 1, nspin
          DO ic = 1, SIZE(matrix_s, 2)

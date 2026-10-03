@@ -19,7 +19,8 @@ PROGRAM upf_local_integrals_unittest
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               ncoset
-   USE upf_local_integrals,             ONLY: upf_local_init,&
+   USE upf_local_integrals,             ONLY: upf_local_fourier,&
+                                              upf_local_init,&
                                               upf_local_matrix,&
                                               upf_local_ri,&
                                               upf_local_type
@@ -71,6 +72,7 @@ PROGRAM upf_local_integrals_unittest
       ! The coarse default EPS_PPL may screen neighbors, never radial samples.
       IF (grid == 4) threshold = 1.e-2_dp
       CALL upf_local_init(pot, .8_dp, la + lb + 2, cache, threshold)
+      CALL check_fourier(cache)
       ma = na*ncoset(la)
       mb = nb*ncoset(lb)
       ld = ncoset(2*MAX(la, lb) + 2)
@@ -151,4 +153,51 @@ PROGRAM upf_local_integrals_unittest
    END DO
    DEALLOCATE (v, da, db)
    CALL cp2k_finalize()
+
+CONTAINS
+
+! **************************************************************************************************
+!> \brief Independent signed-Gaussian transforms and their center/G derivatives.
+!> \param local ...
+! **************************************************************************************************
+   SUBROUTINE check_fourier(local)
+      TYPE(upf_local_type), INTENT(IN)                   :: local
+
+      COMPLEX(KIND=dp)                                   :: analytic(8), dg(3, 8), dr(3, 8), &
+                                                            fourier(8), only_value(8), phase, &
+                                                            ref_dg(3, 8), ref_dr(3, 8)
+      INTEGER                                            :: ig, term
+      REAL(KIND=dp)                                      :: g(3, 8), position(3), radial, &
+                                                            transform_error, volume
+
+      g(:, 1) = 0.0_dp
+      g(:, 2) = [1.e-9_dp, -2.e-9_dp, 3.e-9_dp]
+      g(:, 3) = [0.3_dp, -0.4_dp, 0.7_dp]
+      g(:, 4) = -g(:, 3)
+      g(:, 5) = [0.0_dp, 0.0_dp, 2.0_dp]
+      g(:, 6) = [4.0_dp, -3.0_dp, 1.0_dp]
+      g(:, 7) = [10.0_dp, 0.0_dp, 0.0_dp]
+      g(:, 8) = [20.0_dp, 2.0_dp, -1.0_dp]
+      position = [0.4_dp, -0.7_dp, 1.2_dp]
+      volume = 125.0_dp
+      analytic = 0.0_dp
+      ref_dg = 0.0_dp
+      DO ig = 1, SIZE(analytic)
+         phase = EXP(CMPLX(0.0_dp, -DOT_PRODUCT(g(:, ig), position), dp))/volume
+         DO term = 1, SIZE(gamma)
+            radial = coeff(1, term)*(pi/gamma(term))**1.5_dp*EXP(-SUM(g(:, ig)**2)/(4.0_dp*gamma(term)))
+            analytic(ig) = analytic(ig) + phase*radial
+            ref_dg(:, ig) = ref_dg(:, ig) + phase*radial*(-g(:, ig)/(2.0_dp*gamma(term)) + &
+                                                          CMPLX(0.0_dp, -position, dp))
+         END DO
+         ref_dr(:, ig) = CMPLX(0.0_dp, -g(:, ig), dp)*analytic(ig)
+      END DO
+      CALL upf_local_fourier(local, g, position, volume, fourier, dr, dg)
+      CALL upf_local_fourier(local, g, position, volume, only_value)
+      transform_error = MAX(MAXVAL(ABS(fourier - analytic)), MAXVAL(ABS(dr - ref_dr)), &
+                            MAXVAL(ABS(dg - ref_dg)), MAXVAL(ABS(only_value - fourier)))
+      WRITE (*, '(A,ES23.15)') 'Native local Fourier/derivative maximum error: ', transform_error
+      IF (transform_error > 1.e-10_dp) ERROR STOP 'Local Fourier potential differs from analytic Gaussian transform'
+      IF (ABS(fourier(4) - CONJG(fourier(3))) > 1.e-14_dp) ERROR STOP 'Local Fourier potential lacks conjugation symmetry'
+   END SUBROUTINE check_fourier
 END PROGRAM upf_local_integrals_unittest

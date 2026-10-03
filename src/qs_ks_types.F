@@ -59,6 +59,8 @@ MODULE qs_ks_types
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_release,&
                                               qs_subsys_type
+   USE qs_uspp_types,                   ONLY: qs_uspp_release,&
+                                              qs_uspp_type
    USE task_list_types,                 ONLY: deallocate_task_list,&
                                               task_list_type
    USE virial_types,                    ONLY: virial_type
@@ -147,6 +149,8 @@ MODULE qs_ks_types
       ! hartree is supposed to contain the hartree potential (for cube output)
       ! ugly to keep it always around only for a cube output...
       TYPE(pw_r3d_rs_type), POINTER                         :: v_hartree_rspace => Null()
+
+      TYPE(qs_uspp_type), POINTER                           :: uspp => NULL()
 
       TYPE(kpoint_transitional_type)                        :: matrix_ks, &
                                                                matrix_s, &
@@ -318,6 +322,9 @@ CONTAINS
 !> \param blacs_env ...
 !> \param nelectron_total ...
 !> \param nelectron_spin ...
+!> \param uspp Geometry-dependent USPP data.
+!> \param matrix_metric Orbital normalization metric (Gaussian overlap for ordinary kinds).
+!> \param matrix_metric_kp Metric in the image-indexed representation.
 ! **************************************************************************************************
    SUBROUTINE get_ks_env(ks_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, exc_accint, &
@@ -339,7 +346,7 @@ CONTAINS
                          particle_set, energy, force, local_particles, local_molecules, &
                          molecule_kind_set, molecule_set, subsys, cp_subsys, virial, results, atprop, &
                          nkind, natom, dft_control, dbcsr_dist, distribution_2d, pw_env, &
-                         para_env, blacs_env, nelectron_total, nelectron_spin)
+                         para_env, blacs_env, nelectron_total, nelectron_spin, uspp, matrix_metric, matrix_metric_kp)
 
       TYPE(qs_ks_env_type), INTENT(IN)                   :: ks_env
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: v_hartree_rspace
@@ -396,6 +403,8 @@ CONTAINS
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env
       INTEGER, OPTIONAL                                  :: nelectron_total
       INTEGER, DIMENSION(2), OPTIONAL                    :: nelectron_spin
+      TYPE(qs_uspp_type), OPTIONAL, POINTER              :: uspp
+      TYPE(dbcsr_p_type), OPTIONAL, POINTER              :: matrix_metric(:), matrix_metric_kp(:, :)
 
       IF (.NOT. ASSOCIATED(ks_env%subsys)) CPABORT("get_ks_env: subsys not associated")
 
@@ -406,6 +415,25 @@ CONTAINS
       IF (PRESENT(complex_ks)) complex_ks = ks_env%complex_ks
       IF (PRESENT(exc_accint)) exc_accint = ks_env%exc_accint
       IF (PRESENT(v_hartree_rspace)) v_hartree_rspace => ks_env%v_hartree_rspace
+
+      IF (PRESENT(uspp)) uspp => ks_env%uspp
+      ! Eigensolvers and electron counts use the metric. AO integrals continue to use matrix_s.
+      IF (PRESENT(matrix_metric)) THEN
+         IF (ASSOCIATED(ks_env%uspp)) THEN
+            matrix_metric => get_1d_pointer(ks_env%uspp%metric)
+            CPASSERT(ASSOCIATED(matrix_metric))
+         ELSE
+            matrix_metric => get_1d_pointer(ks_env%matrix_s)
+         END IF
+      END IF
+      IF (PRESENT(matrix_metric_kp)) THEN
+         IF (ASSOCIATED(ks_env%uspp)) THEN
+            matrix_metric_kp => get_2d_pointer(ks_env%uspp%metric)
+            CPASSERT(ASSOCIATED(matrix_metric_kp))
+         ELSE
+            matrix_metric_kp => get_2d_pointer(ks_env%matrix_s)
+         END IF
+      END IF
 
       IF (PRESENT(matrix_ks)) matrix_ks => get_1d_pointer(ks_env%matrix_ks)
       IF (PRESENT(matrix_s)) matrix_s => get_1d_pointer(ks_env%matrix_s)
@@ -570,6 +598,7 @@ CONTAINS
 !> \param pw_env ...
 !> \param para_env ...
 !> \param blacs_env ...
+!> \param uspp Prepared USPP state whose ownership is transferred to the KS environment.
 ! **************************************************************************************************
    SUBROUTINE set_ks_env(ks_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, exc_accint, &
@@ -587,7 +616,7 @@ CONTAINS
                          sab_vdw, sab_scp, sab_almo, sab_kp, sab_kp_nosym, sab_cneo, &
                          task_list, task_list_soft, &
                          subsys, dft_control, dbcsr_dist, distribution_2d, pw_env, &
-                         para_env, blacs_env)
+                         para_env, blacs_env, uspp)
 
       TYPE(qs_ks_env_type), INTENT(INOUT)                :: ks_env
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: v_hartree_rspace
@@ -619,7 +648,9 @@ CONTAINS
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env
+      TYPE(qs_uspp_type), OPTIONAL, POINTER              :: uspp
 
+      IF (PRESENT(uspp)) ks_env%uspp => uspp
       IF (PRESENT(s_mstruct_changed)) ks_env%s_mstruct_changed = s_mstruct_changed
       IF (PRESENT(rho_changed)) ks_env%rho_changed = rho_changed
       IF (PRESENT(potential_changed)) ks_env%potential_changed = potential_changed
@@ -754,6 +785,8 @@ CONTAINS
    SUBROUTINE qs_ks_release(ks_env)
       TYPE(qs_ks_env_type), INTENT(INOUT)                :: ks_env
 
+      CALL qs_uspp_release(ks_env%uspp)
+
       IF (ASSOCIATED(ks_env%v_hartree_rspace)) THEN
          CALL ks_env%v_hartree_rspace%release()
          DEALLOCATE (ks_env%v_hartree_rspace)
@@ -869,6 +902,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_ks_part_release(ks_env)
       TYPE(qs_ks_env_type), INTENT(INOUT)                :: ks_env
+
+      CALL qs_uspp_release(ks_env%uspp)
 
       IF (ASSOCIATED(ks_env%v_hartree_rspace)) THEN
          CALL ks_env%v_hartree_rspace%release()

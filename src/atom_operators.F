@@ -20,6 +20,8 @@ MODULE atom_operators
         atom_basis_gridrep, atom_basis_type, atom_compare_grids, atom_integrals, &
         atom_potential_type, atom_state, cgto_basis, ecp_pseudo, gth_pseudo, gto_basis, lmat, &
         no_pseudo, num_basis, release_atom_basis, sgp_pseudo, sto_basis, upf_pseudo
+   USE atom_upf,                        ONLY: upf_radial_weights
+   USE atom_uspp,                       ONLY: atom_uspp_setup
    USE atom_utils,                      ONLY: &
         atom_solve, contract2, contract2add, contract4, coulomb_potential_numeric, integrate_grid, &
         numpot_matrix, slater_density, wigner_slater_functional
@@ -67,12 +69,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_int_setup'
 
-      INTEGER                                            :: handle, i, ii, info, ipiv(1000), l, l1, &
-                                                            l2, ll, lwork, m, m1, m2, mm1, mm2, n, &
-                                                            n1, n2, nn1, nn2, nu, nx
+      INTEGER                                            :: handle, i, l, l1, l2, ll, m, m1, m2, &
+                                                            mm1, mm2, n, n1, n2, nn1, nn2, nu, nx
       REAL(KIND=dp)                                      :: om, rc, ron, sc, x
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cpot, w, work
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: omat, vmat
+      REAL(KIND=dp), ALLOCATABLE                         :: cpot(:), omat(:, :)
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: eri
 
       CALL timeset(routineN, handle)
@@ -286,45 +286,64 @@ CONTAINS
             CPABORT("Numerical basis not yet implemented for atom_int_setup")
          END SELECT
 
-         ! setup transformation matrix to get an orthogonal basis, remove linear dependencies
-         NULLIFY (integrals%utrans, integrals%uptrans)
-         n = MAXVAL(basis%nbas)
-         ALLOCATE (integrals%utrans(n, n, 0:lmat), integrals%uptrans(n, n, 0:lmat))
-         integrals%utrans = 0._dp
-         integrals%uptrans = 0._dp
-         integrals%nne = integrals%n
-         lwork = 10*n
-         ALLOCATE (omat(n, n), vmat(n, n), w(n), work(lwork))
-         DO l = 0, lmat
-            n = integrals%n(l)
-            IF (n > 0) THEN
-               omat(1:n, 1:n) = integrals%ovlp(1:n, 1:n, l)
-               CALL jacobi(omat(1:n, 1:n), w(1:n), vmat(1:n, 1:n))
-               omat(1:n, 1:n) = vmat(1:n, 1:n)
-               ii = 0
-               DO i = 1, n
-                  IF (w(i) > basis%eps_eig) THEN
-                     ii = ii + 1
-                     integrals%utrans(1:n, ii, l) = omat(1:n, i)/SQRT(w(i))
-                  END IF
-               END DO
-               integrals%nne(l) = ii
-               IF (ii > 0) THEN
-                  omat(1:ii, 1:ii) = MATMUL(TRANSPOSE(integrals%utrans(1:n, 1:ii, l)), integrals%utrans(1:n, 1:ii, l))
-                  DO i = 1, ii
-                     integrals%uptrans(i, i, l) = 1._dp
-                  END DO
-                  CALL dgesv(ii, ii, omat(1:ii, 1:ii), ii, ipiv, integrals%uptrans(1:ii, 1:ii, l), ii, info)
-                  CPASSERT(info == 0)
-               END IF
-            END IF
-         END DO
-         DEALLOCATE (omat, vmat, w, work)
+         CALL atom_metric_transformation(integrals, basis)
       END IF
 
       CALL timestop(handle)
 
    END SUBROUTINE atom_int_setup
+
+! **************************************************************************************************
+!> \brief Canonical orthogonalization of the Gaussian or generalized atomic overlap.
+!> \param integrals Atomic overlap and transformations.
+!> \param basis Basis sizes and linear-dependence threshold.
+! **************************************************************************************************
+   SUBROUTINE atom_metric_transformation(integrals, basis)
+      TYPE(atom_integrals), INTENT(INOUT)                :: integrals
+      TYPE(atom_basis_type), INTENT(IN)                  :: basis
+
+      INTEGER                                            :: i, ii, info, l, n
+      REAL(dp), ALLOCATABLE                              :: omat(:, :), vmat(:, :), w(:)
+      INTEGER                                            :: ipiv(MAXVAL(basis%nbas))
+
+      IF (ASSOCIATED(integrals%utrans)) DEALLOCATE (integrals%utrans)
+      IF (ASSOCIATED(integrals%uptrans)) DEALLOCATE (integrals%uptrans)
+      n = MAXVAL(basis%nbas)
+      ALLOCATE (integrals%utrans(n, n, 0:lmat), integrals%uptrans(n, n, 0:lmat))
+      integrals%utrans = 0._dp
+      integrals%uptrans = 0._dp
+      integrals%nne = integrals%n
+      ALLOCATE (omat(n, n), vmat(n, n), w(n))
+      DO l = 0, lmat
+         n = integrals%n(l)
+         IF (n > 0) THEN
+            IF (ALLOCATED(integrals%metric)) THEN
+               omat(1:n, 1:n) = integrals%metric(1:n, 1:n, l)
+            ELSE
+               omat(1:n, 1:n) = integrals%ovlp(1:n, 1:n, l)
+            END IF
+            CALL jacobi(omat(1:n, 1:n), w(1:n), vmat(1:n, 1:n))
+            omat(1:n, 1:n) = vmat(1:n, 1:n)
+            ii = 0
+            DO i = 1, n
+               IF (w(i) > basis%eps_eig) THEN
+                  ii = ii + 1
+                  integrals%utrans(1:n, ii, l) = omat(1:n, i)/SQRT(w(i))
+               END IF
+            END DO
+            integrals%nne(l) = ii
+            IF (ii > 0) THEN
+               omat(1:ii, 1:ii) = MATMUL(TRANSPOSE(integrals%utrans(1:n, 1:ii, l)), integrals%utrans(1:n, 1:ii, l))
+               DO i = 1, ii
+                  integrals%uptrans(i, i, l) = 1._dp
+               END DO
+               CALL dgesv(ii, ii, omat(1:ii, 1:ii), ii, ipiv, integrals%uptrans(1:ii, 1:ii, l), ii, info)
+               CPASSERT(info == 0)
+            END IF
+         END IF
+      END DO
+      DEALLOCATE (omat, vmat, w)
+   END SUBROUTINE atom_metric_transformation
 
 ! **************************************************************************************************
 !> \brief ...
@@ -665,6 +684,7 @@ CONTAINS
 
       CHARACTER(len=4)                                   :: ptype
       INTEGER                                            :: i, j, k1, k2, la, lb, m, n
+      REAL(dp)                                           :: om, rc, ron, sc, x
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: spot
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: spmat
       TYPE(atom_basis_type)                              :: gbasis
@@ -672,9 +692,55 @@ CONTAINS
       ! get basis representation on UPF grid
       CALL atom_basis_gridrep(basis, gbasis, potential%upf_pot%r, potential%upf_pot%rab)
 
+      IF (potential%upf_pot%is_ultrasoft) THEN
+         gbasis%grid%wr(:) = upf_radial_weights(potential%upf_pot)*potential%upf_pot%r**2
+      END IF
+
       ! local pseudopotential
       integrals%core = 0._dp
       CALL numpot_matrix(integrals%core, potential%upf_pot%vlocal, gbasis, 0)
+
+      IF (potential%upf_pot%is_ultrasoft) THEN
+         CPASSERT(ASSOCIATED(integrals%ovlp))
+         n = SIZE(integrals%ovlp, 1)
+         IF (ALLOCATED(integrals%metric)) DEALLOCATE (integrals%metric)
+         ALLOCATE (integrals%metric(n, n, 0:lmat))
+         integrals%metric(:, :, :) = integrals%ovlp
+         CALL atom_uspp_setup(potential%upf_pot, basis, integrals%core, integrals%metric)
+         CALL atom_metric_transformation(integrals, basis)
+         IF (potential%confinement) THEN
+            CPASSERT(ASSOCIATED(integrals%conf))
+            m = basis%grid%nr
+            ALLOCATE (spot(m))
+            IF (potential%conf_type == poly_conf) THEN
+               rc = potential%rcon
+               sc = potential%scon
+               spot(:) = (basis%grid%rad/rc)**sc
+            ELSE IF (potential%conf_type == barrier_conf) THEN
+               om = potential%rcon
+               ron = potential%scon
+               rc = ron + om
+               DO i = 1, m
+                  IF (basis%grid%rad(i) < ron) THEN
+                     spot(i) = 0.0_dp
+                  ELSE IF (basis%grid%rad(i) < rc) THEN
+                     x = 1.0_dp - (basis%grid%rad(i) - ron)/om
+                     spot(i) = -6.0_dp*x**5 + 15.0_dp*x**4 - 10.0_dp*x**3 + 1.0_dp
+                     x = (rc - basis%grid%rad(i))**2/om/(basis%grid%rad(i) - ron)
+                     spot(i) = spot(i)*x
+                  ELSE
+                     spot(i) = 1.0_dp
+                  END IF
+               END DO
+            ELSE
+               CPABORT("Unsupported atomic USPP confinement potential")
+            END IF
+            ! Rebuild both parts so repeated pseudopotential setup cannot add Q twice.
+            integrals%conf = 0.0_dp
+            CALL numpot_matrix(integrals%conf, spot, basis, 0)
+            DEALLOCATE (spot)
+         END IF
+      END IF
 
       ptype = ADJUSTL(TRIM(potential%upf_pot%pseudo_type))
       IF (ptype(1:2) == "NC" .OR. ptype(1:2) == "US") THEN
@@ -686,7 +752,11 @@ CONTAINS
          DO i = 1, m
             la = potential%upf_pot%lbeta(i)
             DO j = 1, gbasis%nbas(la)
-               spmat(j, i) = integrate_grid(potential%upf_pot%beta(:, i), gbasis%bf(:, j, la), gbasis%grid)
+               IF (ALLOCATED(basis%uspp)) THEN
+                  spmat(j, i) = basis%uspp%beta(j, i)
+               ELSE
+                  spmat(j, i) = integrate_grid(potential%upf_pot%beta(:, i), gbasis%bf(:, j, la), gbasis%grid)
+               END IF
             END DO
          END DO
          DO i = 1, m
@@ -1124,6 +1194,7 @@ CONTAINS
 
       INTEGER                                            :: ll
 
+      IF (ALLOCATED(integrals%metric)) DEALLOCATE (integrals%metric)
       IF (ASSOCIATED(integrals%ovlp)) THEN
          DEALLOCATE (integrals%ovlp)
       END IF

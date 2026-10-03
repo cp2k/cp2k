@@ -3723,7 +3723,7 @@ CONTAINS
             END DO
          END DO
       CASE (ref_charge_mulliken)
-         CALL get_qs_env(qs_env, matrix_s_kp=matrix_s, para_env=para_env)
+         CALL get_qs_env(qs_env, matrix_metric_kp=matrix_s, para_env=para_env)
          CALL mulliken_charges(matrix_p, matrix_s, para_env, charges)
          DO iat = 1, natom
             hirshfeld_env%charges(iat) = SUM(charges(iat, :))

@@ -76,6 +76,11 @@ MODULE atom_types
 
 !> \brief Provides all information about a basis set
 ! **************************************************************************************************
+   TYPE atom_uspp_type
+      INTEGER, ALLOCATABLE :: lbeta(:)
+      REAL(dp), ALLOCATABLE :: beta(:, :), radial(:, :, :)
+   END TYPE atom_uspp_type
+
    TYPE atom_basis_type
       INTEGER                                       :: basis_type = GTO_BASIS
       INTEGER, DIMENSION(0:lmat)                    :: nbas = 0
@@ -88,6 +93,7 @@ MODULE atom_types
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: dbf => NULL() !derivatives (num)
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: ddbf => NULL() !2nd derivatives (num)
       REAL(KIND=dp)                                 :: eps_eig = 0.0_dp
+      TYPE(atom_uspp_type), ALLOCATABLE             :: uspp
       TYPE(grid_atom_type), POINTER                 :: grid => NULL()
       LOGICAL                                       :: geometrical = .FALSE.
       REAL(KIND=dp)                                 :: aval = 0.0_dp, cval = 0.0_dp
@@ -223,6 +229,7 @@ MODULE atom_types
       INTEGER, DIMENSION(0:lmat)                    :: n = 0, nne = 0
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: ovlp => NULL(), kin => NULL(), core => NULL(), clsd => NULL()
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: utrans => NULL(), uptrans => NULL()
+      REAL(KIND=dp), ALLOCATABLE                    :: metric(:, :, :)
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: hnl => NULL()
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: conf => NULL()
       TYPE(eri), DIMENSION(100)                     :: ceri = eri()
@@ -326,7 +333,7 @@ MODULE atom_types
    END TYPE atom_p_type
 
    PUBLIC :: lmat
-   PUBLIC :: atom_p_type, atom_type, atom_basis_type, atom_state, atom_integrals
+   PUBLIC :: atom_p_type, atom_type, atom_basis_type, atom_uspp_type, atom_state, atom_integrals
    PUBLIC :: atom_orbitals, eri, atom_potential_type, atom_hfx_type
    PUBLIC :: atom_gthpot_type, atom_ecppot_type, atom_sgppot_type
    PUBLIC :: atom_optimization_type
@@ -933,6 +940,7 @@ CONTAINS
    SUBROUTINE release_atom_basis(basis)
       TYPE(atom_basis_type), INTENT(INOUT)               :: basis
 
+      IF (ALLOCATED(basis%uspp)) DEALLOCATE (basis%uspp)
       IF (ASSOCIATED(basis%am)) THEN
          DEALLOCATE (basis%am)
       END IF
@@ -2463,7 +2471,7 @@ CONTAINS
          CASE (upf_pseudo)
             CALL section_vals_val_get(potential_section, "POTENTIAL_FILE_NAME", c_val=pseudo_fn)
             CALL section_vals_val_get(potential_section, "POTENTIAL_NAME", c_val=pseudo_name)
-            CALL atom_read_upf(potential%upf_pot, pseudo_fn)
+            CALL atom_read_upf(potential%upf_pot, pseudo_fn, read_augmentation=.TRUE.)
             potential%upf_pot%pname = pseudo_name
          CASE (sgp_pseudo)
             CPABORT("Pseudopotential type SGP is not implemented.")

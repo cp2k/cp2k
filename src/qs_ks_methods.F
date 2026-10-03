@@ -123,7 +123,8 @@ MODULE qs_ks_methods
    USE qs_ks_atom,                      ONLY: update_ks_atom
    USE qs_ks_qmmm_methods,              ONLY: qmmm_calculate_energy,&
                                               qmmm_modify_hartree_pot
-   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                              qs_ks_env_type,&
                                               set_ks_env
    USE qs_ks_utils,                     ONLY: &
         calc_v_sic_rspace, calculate_zmp_potential, check_sum_energies, compute_matrix_vxc, &
@@ -137,6 +138,7 @@ MODULE qs_ks_methods
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_sccs,                         ONLY: sccs
+   USE qs_uspp_types,                   ONLY: qs_uspp_type
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE qs_vxc_atom,                     ONLY: calculate_vxc_atom,&
                                               gapw_cdft_one_center
@@ -271,6 +273,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho_struct, rho_xc
+      TYPE(qs_uspp_type), POINTER                        :: uspp
       TYPE(section_vals_type), POINTER                   :: ace_section, &
                                                             adiabatic_rescaling_section, &
                                                             gauxc_section, hfx_sections, input, &
@@ -1069,6 +1072,10 @@ CONTAINS
       ! *** Add Hartree-Fock contribution if required ***
       hfx_sections => section_vals_get_subs_vals(xc_section, "HF")
       CALL section_vals_get(hfx_sections, explicit=do_hfx)
+      IF (do_hfx) THEN
+         CALL get_ks_env(ks_env, uspp=uspp)
+         IF (ASSOCIATED(uspp)) CPABORT("Exact exchange with USPP augmentation is not implemented")
+      END IF
 
       ace_active = .FALSE.
       ace_rebuild_frequency = 1

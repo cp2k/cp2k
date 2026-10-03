@@ -60,6 +60,8 @@ MODULE qs_rho_methods
                                               qs_rho_get,&
                                               qs_rho_set,&
                                               qs_rho_type
+   USE qs_uspp_methods,                 ONLY: qs_uspp_collocate,&
+                                              qs_uspp_init_ao_matrix
    USE ri_environment_methods,          ONLY: calculate_ri_densities
    USE task_list_types,                 ONLY: task_list_type
 #include "./base/base_uses.f90"
@@ -206,6 +208,7 @@ CONTAINS
                CALL dbcsr_create(matrix=tmatrix, template=refmatrix, name=TRIM(headline), &
                                  matrix_type=dbcsr_type_symmetric)
                CALL cp_dbcsr_alloc_block_from_nbl(tmatrix, sab_orb)
+               IF (.NOT. my_admm) CALL qs_uspp_init_ao_matrix(qs_env%ks_env, tmatrix)
                CALL dbcsr_set(tmatrix, 0.0_dp)
             END DO
          END DO
@@ -485,7 +488,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_update_rho_low'
 
-      INTEGER                                            :: handle, img, ispin, nimg, nspins
+      INTEGER                                            :: handle, idir, img, ispin, nimg, nspins
       LOGICAL                                            :: gapw, gapw_xc
       REAL(KIND=dp)                                      :: dum
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r, tot_rho_r_xc
@@ -549,6 +552,7 @@ CONTAINS
                                  ks_env=ks_env, soft_valid=gapw, &
                                  task_list_external=task_list_external, &
                                  pw_env_external=pw_env_external)
+         CALL qs_uspp_collocate(ks_env, rho_ao, rho_g(ispin), rho_r(ispin), tot_rho_r(ispin))
       END DO
       CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
 
@@ -605,6 +609,10 @@ CONTAINS
                                         drho=drho_r(:, ispin), &
                                         drho_gspace=drho_g(:, ispin), &
                                         qs_env=qs_env, soft_valid=gapw)
+               DO idir = 1, 3
+                  CALL qs_uspp_collocate(ks_env, rho_ao, drho_g(idir, ispin), drho_r(idir, ispin), &
+                                         derivative=[MERGE(1, 0, idir == 1), MERGE(1, 0, idir == 2), MERGE(1, 0, idir == 3)])
+               END DO
             END DO
             CALL qs_rho_set(rho_struct, drho_r_valid=.TRUE., drho_g_valid=.TRUE.)
          END IF

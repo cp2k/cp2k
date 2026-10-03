@@ -239,6 +239,7 @@ Fist/regtest-5-vib                                          mpiranks==1||mpirank
 Fist/regtest-14
 QS/regtest-kind
 QS/regtest-upf
+QS/regtest-uspp
 QS/regtest-ri-laplace-mp2-cubic-2                           libint libxc !ifx
 QS/regtest-lsroks                                           libint !ifx
 QMMM/QS/regtest-cdft                                        parallel mpiranks%2==0

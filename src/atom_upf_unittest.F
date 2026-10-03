@@ -79,6 +79,8 @@ PROGRAM atom_upf_unittest
    CALL check_radial_grid_endpoints()
    CALL check_contracted_basis_reader()
    CALL check_basis_optimization_export()
+   CALL check_uspp_import()
+   CALL check_uspp_atomic()
 
    ! The same temporary is reused for successive KIND sections in Quickstep.
    ALLOCATE (pot%rho_nlcc(3))
@@ -112,7 +114,7 @@ PROGRAM atom_upf_unittest
          INQUIRE (FILE=TRIM(filename)//"/tests/UNIT_TESTS", EXIST=source_root_argument)
          IF (source_root_argument) CYCLE
       END IF
-      CALL atom_read_upf(pot, TRIM(filename))
+      CALL atom_read_upf(pot, TRIM(filename), read_augmentation=.TRUE.)
       IF (ABS(SUM(pot%econf) - pot%zion) > 1.e-10_dp) ERROR STOP "UPF valence count mismatch"
       IF (.NOT. ALL(ieee_is_finite(pot%vlocal))) ERROR STOP "Non-finite UPF local potential"
       IF (ANY(pot%r(2:) <= pot%r(:SIZE(pot%r) - 1))) ERROR STOP "UPF mesh is not increasing"
@@ -121,6 +123,11 @@ PROGRAM atom_upf_unittest
          IF (.NOT. ALL(ieee_is_finite(pot%dion))) ERROR STOP "Non-finite UPF projector coefficients"
          IF (.NOT. ALL(ieee_is_finite(pot%beta))) ERROR STOP "Non-finite UPF projectors"
          IF (MAXVAL(ABS(pot%dion - TRANSPOSE(pot%dion))) > 1.e-10_dp) ERROR STOP "Non-Hermitian UPF D matrix"
+      END IF
+      IF (pot%is_ultrasoft) THEN
+         CALL check_uspp_dataset(pot, TRIM(filename))
+         CALL atom_release_upf(pot)
+         CYCLE
       END IF
       CALL sgp_construction(sgp, upf_pot=pot, error=error)
       IF (.NOT. ALL(ieee_is_finite(error))) ERROR STOP "Non-finite UPF transformation errors"
@@ -728,4 +735,314 @@ CONTAINS
       END IF
    END SUBROUTINE check_basis_optimization_export
 
+! **************************************************************************************************
+!> \brief Analytic Gaussian reference for the atomic USPP metric, potential and adjoint.
+! **************************************************************************************************
+   SUBROUTINE check_uspp_atomic()
+      USE atom_operators, ONLY: atom_int_release, &
+                                atom_int_setup, &
+                                atom_ppint_release, &
+                                atom_ppint_setup
+      USE atom_types, ONLY: atom_basis_gridrep, &
+                            atom_basis_type, &
+                            atom_integrals, &
+                            atom_potential_type, &
+                            init_atom_basis_default_pp, &
+                            lmat, &
+                            release_atom_basis, &
+                            upf_pseudo
+      USE atom_upf, ONLY: atom_release_upf
+      USE atom_utils, ONLY: atom_density, &
+                            numpot_matrix
+      USE input_constants, ONLY: poly_conf
+      USE kinds, ONLY: dp
+      USE mathconstants, ONLY: fourpi
+      INTEGER, PARAMETER                                 :: ng = 6000, nr = 6001
+      REAL(dp), PARAMETER :: alpha(2) = [0.4_dp, 1.5_dp], dr = 0.002_dp, &
+         gamma_beta(3) = [0.6_dp, 1.7_dp, 0.9_dp]
+
+      INTEGER                                            :: i, j, k, l, order, p, pair, q
+      REAL(dp) :: b(2, 3), coefficient(6), egrid, ematrix, errors(5), eta(6), &
+         matrix(2, 2, 0:lmat), pmat(2, 2, 0:lmat), r(ng), ref_b, ref_conf(2, 2, 0:lmat), &
+         ref_h(2, 2, 0:lmat), ref_nl(2, 2, 0:lmat), ref_ovlp(2, 2, 0:lmat), ref_s(2, 2, 0:lmat), &
+         rho(ng), scalar, transformed(2, 2), v(ng), wr(ng)
+      TYPE(atom_basis_type)                              :: basis, template
+      TYPE(atom_integrals)                               :: integrals
+      TYPE(atom_potential_type)                          :: potential
+
+      CALL init_atom_basis_default_pp(template)
+      template%nbas = 0
+      template%nprim = 0
+      template%nbas(0:1) = 2
+      template%nprim(0:1) = 2
+      template%am(1, :) = alpha(1)
+      template%am(2, :) = alpha(2)
+      DO k = 1, ng
+         r(k) = dr*(REAL(ng - k, dp) + 0.5_dp)
+      END DO
+      wr = dr
+      CALL atom_basis_gridrep(template, basis, r, wr)
+      CALL release_atom_basis(template)
+      potential%ppot_type = upf_pseudo
+      potential%confinement = .TRUE.
+      potential%conf_type = poly_conf
+      potential%rcon = 2.0_dp
+      potential%scon = 2.0_dp
+      potential%upf_pot%is_ultrasoft = .TRUE.
+      potential%upf_pot%pseudo_type = 'USPP'
+      potential%upf_pot%number_of_proj = 3
+      potential%upf_pot%mesh_size = nr
+      potential%upf_pot%l_max = 1
+      ALLOCATE (potential%upf_pot%r(nr), potential%upf_pot%rab(nr), potential%upf_pot%vlocal(nr), &
+                potential%upf_pot%beta(nr, 3), potential%upf_pot%lbeta(3), potential%upf_pot%dion(3, 3), &
+                potential%upf_pot%qijl(nr, 6, 0:2))
+      potential%upf_pot%lbeta(:) = [0, 0, 1]
+      potential%upf_pot%dion = 0.0_dp
+      potential%upf_pot%dion(1, 1) = 0.3_dp
+      potential%upf_pot%dion(1, 2) = -0.1_dp
+      potential%upf_pot%dion(2, 1) = -0.1_dp
+      potential%upf_pot%dion(2, 2) = 0.6_dp
+      potential%upf_pot%dion(3, 3) = -0.2_dp
+      potential%upf_pot%qijl = 0.0_dp
+      coefficient = [0.2_dp, -0.035_dp, 0.13_dp, 0.0_dp, 0.0_dp, 0.17_dp]
+      eta = [0.7_dp, 1.1_dp, 1.6_dp, 1.0_dp, 1.0_dp, 0.9_dp]
+      DO k = 1, nr
+         scalar = (k - 1)*dr
+         potential%upf_pot%r(k) = scalar
+         potential%upf_pot%rab(k) = dr
+         potential%upf_pot%vlocal(k) = -0.7_dp*EXP(-0.5_dp*scalar**2)
+         DO p = 1, 3
+            potential%upf_pot%beta(k, p) = scalar**potential%upf_pot%lbeta(p)*EXP(-gamma_beta(p)*scalar**2)
+         END DO
+         DO pair = 1, 6
+            potential%upf_pot%qijl(k, pair, 0) = coefficient(pair)*scalar**2*EXP(-eta(pair)*scalar**2)
+         END DO
+      END DO
+      CALL atom_int_setup(integrals, basis, potential=potential)
+      CALL atom_ppint_setup(integrals, basis, potential)
+      errors = 0.0_dp
+      b = 0.0_dp
+      ref_s = 0.0_dp
+      ref_h = 0.0_dp
+      ref_ovlp = 0.0_dp
+      ref_conf = 0.0_dp
+      ref_nl = 0.0_dp
+      DO p = 1, 3
+         l = potential%upf_pot%lbeta(p)
+         DO i = 1, 2
+            ref_b = uspp_radial_integral(l, alpha(i) + gamma_beta(p))
+            b(i, p) = ref_b
+            errors(1) = MAX(errors(1), ABS(basis%uspp%beta(i, p) - ref_b))
+         END DO
+      END DO
+      DO l = 0, 1
+         DO i = 1, 2
+            DO j = 1, 2
+               ref_ovlp(i, j, l) = uspp_radial_integral(l, alpha(i) + alpha(j))
+               ref_s(i, j, l) = ref_ovlp(i, j, l)
+               ref_h(i, j, l) = -0.7_dp*uspp_radial_integral(l, alpha(i) + alpha(j) + 0.5_dp)
+               ref_conf(i, j, l) = 0.25_dp*uspp_radial_integral(l + 1, alpha(i) + alpha(j))
+               DO p = 1, 3
+                  IF (potential%upf_pot%lbeta(p) /= l) CYCLE
+                  DO q = 1, 3
+                     IF (potential%upf_pot%lbeta(q) /= l) CYCLE
+                     pair = MAX(p, q)*(MAX(p, q) - 1)/2 + MIN(p, q)
+                     ref_s(i, j, l) = ref_s(i, j, l) + b(i, p)*b(j, q)*coefficient(pair)*uspp_radial_integral(0, eta(pair))
+                     ref_h(i, j, l) = ref_h(i, j, l) - &
+                                      0.7_dp*b(i, p)*b(j, q)*coefficient(pair)*uspp_radial_integral(0, eta(pair) + 0.5_dp)
+                     ref_conf(i, j, l) = ref_conf(i, j, l) + &
+                                         0.25_dp*b(i, p)*b(j, q)*coefficient(pair)*uspp_radial_integral(1, eta(pair))
+                     ref_nl(i, j, l) = ref_nl(i, j, l) + b(i, p)*potential%upf_pot%dion(p, q)*b(j, q)
+                  END DO
+               END DO
+            END DO
+         END DO
+         transformed = MATMUL(TRANSPOSE(integrals%utrans(:, :, l)), &
+                              MATMUL(integrals%metric(:, :, l), integrals%utrans(:, :, l)))
+         transformed(1, 1) = transformed(1, 1) - 1.0_dp
+         transformed(2, 2) = transformed(2, 2) - 1.0_dp
+         errors(2) = MAX(errors(2), MAXVAL(ABS(transformed)))
+      END DO
+      errors(1) = MAX(errors(1), MAXVAL(ABS(integrals%ovlp - ref_ovlp)))
+      errors(2) = MAX(errors(2), MAXVAL(ABS(integrals%metric - ref_s)))
+      errors(3) = MAXVAL(ABS(integrals%core - ref_h))
+      errors(3) = MAX(errors(3), MAXVAL(ABS(integrals%hnl - ref_nl)), MAXVAL(ABS(integrals%conf - ref_conf)))
+      pmat = 0.0_dp
+      pmat(1, 1, 0:1) = 0.8_dp
+      pmat(2, 2, 0:1) = 0.45_dp
+      pmat(1, 2, 0:1) = -0.1_dp
+      pmat(2, 1, 0:1) = -0.1_dp
+      CALL atom_density(rho, pmat, basis, 1, typ='RHO')
+      errors(4) = ABS(fourpi*SUM(rho*basis%grid%wr) - SUM(pmat*integrals%metric))
+      v = EXP(-0.23_dp*r**2)*(1.0_dp + 0.2_dp*r**2)
+      DO order = 0, 1
+         matrix = 0.0_dp
+         CALL numpot_matrix(matrix, v, basis, order)
+         IF (order == 0) THEN
+            CALL atom_density(rho, pmat, basis, 1, typ='RHO')
+         ELSE
+            CALL atom_density(rho, pmat, basis, 1, typ='DER')
+         END IF
+         egrid = fourpi*SUM(rho*v*basis%grid%wr)
+         ematrix = SUM(pmat*matrix)
+         errors(5) = MAX(errors(5), ABS(egrid - ematrix))
+      END DO
+      ! Reusing the basis must not retain an obsolete or twice-added augmentation.
+      CALL atom_ppint_release(integrals)
+      CALL atom_ppint_setup(integrals, basis, potential)
+      errors(3) = MAX(errors(3), MAXVAL(ABS(integrals%conf - ref_conf)))
+      CALL atom_ppint_release(integrals)
+      CALL atom_int_release(integrals)
+      CALL atom_int_setup(integrals, basis, potential=potential)
+      CALL atom_ppint_setup(integrals, basis, potential)
+      errors(2) = MAX(errors(2), MAXVAL(ABS(integrals%metric - ref_s)))
+      errors(3) = MAX(errors(3), MAXVAL(ABS(integrals%conf - ref_conf)))
+      CALL atom_ppint_release(integrals)
+      CALL atom_int_release(integrals)
+      WRITE (*, '(A,5ES20.11)') 'Atomic USPP beta/metric/potential/charge/adjoint errors: ', errors
+      IF (MAXVAL(errors) > 1.e-8_dp) ERROR STOP 'Atomic USPP analytic reference failed'
+      CALL release_atom_basis(basis)
+      CALL atom_release_upf(potential%upf_pot)
+   END SUBROUTINE check_uspp_atomic
+
+! **************************************************************************************************
+!> \brief Analytic Gaussian radial integral including the volume element.
+!> \param l Angular momentum of the two factors.
+!> \param exponent Sum of the Gaussian exponents.
+!> \return Integral of r**(2*l+2)*exp(-exponent*r**2) from zero to infinity.
+! **************************************************************************************************
+   REAL(dp) FUNCTION uspp_radial_integral(l, exponent) RESULT(value)
+      INTEGER, INTENT(IN)                                :: l
+      REAL(dp), INTENT(IN)                               :: exponent
+
+      value = 0.5_dp*GAMMA(REAL(l, dp) + 1.5_dp)/exponent**(REAL(l, dp) + 1.5_dp)
+   END FUNCTION uspp_radial_integral
+
+! **************************************************************************************************
+!> \brief Preserve UPF projector, D and augmentation conventions, including null channels.
+! **************************************************************************************************
+   SUBROUTINE check_uspp_import()
+      CHARACTER(LEN=*), PARAMETER :: fixture = "uspp-augmentation-test.upf"
+
+      INTEGER                                            :: unit
+      TYPE(atom_upfpot_type)                             :: pot
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      logger => cp_get_default_logger()
+      IF (logger%para_env%is_source()) THEN
+         OPEN (NEWUNIT=unit, FILE=fixture, STATUS='REPLACE', ACTION='WRITE')
+         WRITE (unit, '(A)') &
+            '<UPF version="2.0.1">', &
+            '<PP_HEADER element="Pt" pseudo_type="USPP" is_ultrasoft="true"', &
+            ' z_valence="16" mesh_size="3" number_of_proj="2" l_max="1" />', &
+            '<PP_MESH mesh="3">', &
+            '<PP_R>', &
+            '0.5 1.0 1.5', &
+            '</PP_R>', &
+            '<PP_RAB>', &
+            '0.5 0.5 0.5', &
+            '</PP_RAB>', &
+            '</PP_MESH>', &
+            '<PP_LOCAL type="real" size="3">', &
+            '6 4 2', &
+            '</PP_LOCAL>', &
+            '<PP_NONLOCAL>', &
+            '<PP_BETA.1 type="real" size="3" index="1" angular_momentum="0">', &
+            '1 4 9', &
+            '</PP_BETA.1>', &
+            '<PP_BETA.2 type="real" size="3" index="2" angular_momentum="1">', &
+            '2 -1 3', &
+            '</PP_BETA.2>', &
+            '<PP_DIJ>', &
+            '2 0 0 8', &
+            '</PP_DIJ>', &
+            '<PP_AUGMENTATION q_with_l="T" nqf="0" nqlc="3">', &
+            '<PP_Q>', &
+            '2 0 0 3', &
+            '</PP_Q>', &
+            '<PP_QIJL.2.2.0 first_index="2" second_index="2" composite_index="3" angular_momentum="0">', &
+            '-3 4 5', &
+            '</PP_QIJL.2.2.0>', &
+            '<PP_QIJL.1.1.0 type="real" size="3" first_index="1" second_index="1"', &
+            ' composite_index="1" angular_momentum="0" is_null="false">', &
+            '1 2 3', &
+            '</PP_QIJL.1.1.0>', &
+            '<PP_QIJL.1.2.1 first_index="1" second_index="2" composite_index="2" angular_momentum="1">', &
+            '4 -5 6', &
+            '</PP_QIJL.1.2.1>', &
+            '<PP_QIJL.2.2.2 first_index="2" second_index="2" composite_index="3"', &
+            ' angular_momentum="2" is_null="T" size="0"/>', &
+            '</PP_AUGMENTATION>', &
+            '</PP_NONLOCAL>', &
+            '</UPF>'
+         CLOSE (unit)
+      END IF
+      CALL logger%para_env%sync()
+      CALL atom_read_upf(pot, fixture, read_augmentation=.TRUE.)
+      IF (ANY(pot%econf(0:3) /= [1, 6, 9, 0])) ERROR STOP 'Wrong 62-electron core subtraction'
+      IF (ANY(SHAPE(pot%qijl) /= [3, 3, 3]) .OR. LBOUND(pot%qijl, 3) /= 0) ERROR STOP 'Wrong augmentation shape'
+      IF (MAXVAL(ABS(pot%qij - RESHAPE([2._dp, 0._dp, 0._dp, 3._dp], [2, 2]))) > 1.e-14_dp) THEN
+         ERROR STOP 'PP_Q normalization changed'
+      END IF
+      IF (MAXVAL(ABS(pot%qijl(:, 1, 0) - [1._dp, 2._dp, 3._dp])) > 1.e-14_dp) ERROR STOP 'Wrong s-s augmentation'
+      IF (MAXVAL(ABS(pot%qijl(:, 2, 1) - [4._dp, -5._dp, 6._dp])) > 1.e-14_dp) ERROR STOP 'Wrong s-p augmentation'
+      IF (MAXVAL(ABS(pot%qijl(:, 3, 0) - [-3._dp, 4._dp, 5._dp])) > 1.e-14_dp) ERROR STOP 'Wrong p-p augmentation'
+      IF (ANY(pot%qijl(:, :, 2) /= 0._dp)) ERROR STOP 'Null augmentation was not zero initialized'
+      IF (MAXVAL(ABS(pot%beta(:, 2) - [4._dp, -1._dp, 2._dp])) > 1.e-14_dp) ERROR STOP 'USPP beta normalization changed'
+      IF (ABS(pot%dion(2, 2) - 4._dp) > 1.e-14_dp) ERROR STOP 'USPP D is not in Hartree'
+      CALL atom_release_upf(pot)
+      IF (ALLOCATED(pot%qij) .OR. ALLOCATED(pot%qijl)) ERROR STOP 'Augmentation arrays were not released'
+      CALL logger%para_env%sync()
+      IF (logger%para_env%is_source()) THEN
+         OPEN (NEWUNIT=unit, FILE=fixture, STATUS='OLD')
+         CLOSE (unit, STATUS='DELETE')
+      END IF
+
+   END SUBROUTINE check_uspp_import
+
+! **************************************************************************************************
+!> \brief Report native augmentation invariants for an optional external original UPF file.
+!> \param pot Original ultrasoft data.
+!> \param filename Dataset path used to identify the optional audit.
+! **************************************************************************************************
+   SUBROUTINE check_uspp_dataset(pot, filename)
+      TYPE(atom_upfpot_type), INTENT(IN)                 :: pot
+      CHARACTER(LEN=*), INTENT(IN)                       :: filename
+
+      INTEGER                                            :: channels, j, l, n, ns, pair
+      REAL(dp)                                           :: error
+      REAL(dp), ALLOCATABLE                              :: weights(:)
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      logger => cp_get_default_logger()
+      IF (.NOT. ALL(ieee_is_finite(pot%qij)) .OR. .NOT. ALL(ieee_is_finite(pot%qijl))) THEN
+         ERROR STOP "Nonfinite USPP augmentation"
+      END IF
+      n = SIZE(pot%r)
+      ALLOCATE (weights(n))
+      weights = 0._dp
+      ns = n - 1 + MODULO(n, 2)
+      weights(1:ns:2) = 2._dp/3._dp
+      weights(2:ns - 1:2) = 4._dp/3._dp
+      weights(1) = 1._dp/3._dp
+      weights(ns) = 1._dp/3._dp
+      IF (ns < n) weights(n - 1:n) = weights(n - 1:n) + .5_dp
+      weights(:) = weights*pot%rab
+      error = 0._dp
+      channels = 0
+      DO j = 1, pot%number_of_proj
+         DO l = 1, j
+            pair = j*(j - 1)/2 + l
+            channels = channels + MIN(pot%lbeta(j), pot%lbeta(l)) + 1
+            IF (pot%lbeta(l) == pot%lbeta(j)) THEN
+               error = MAX(error, ABS(SUM(weights*pot%qijl(:, pair, 0)) - pot%qij(l, j)))
+            END IF
+         END DO
+      END DO
+      IF (logger%para_env%is_source()) THEN
+         WRITE (*, '(A,1X,A,1X,I0,4(1X,ES25.16))') 'USPP augmentation:', TRIM(filename), channels, &
+            SUM(pot%qij), SUM(pot%qijl), SUM(ABS(pot%qijl)), error
+      END IF
+      DEALLOCATE (weights)
+   END SUBROUTINE check_uspp_dataset
 END PROGRAM atom_upf_unittest

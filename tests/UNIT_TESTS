@@ -25,6 +25,8 @@ parallel_rng_types_unittest
 qs_charge_mixing_unittest
 atom_upf_unittest
 xc_semilocal_unittest
+uspp_fourier_unittest
+uspp_projector_operators_unittest
 upf_projector_integrals_unittest
 upf_local_integrals_unittest
 gapw_background_unittest
