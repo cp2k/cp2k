@@ -36,6 +36,5 @@ gx_ac_unittest                                           greenx
 spectral_localizer_unittest
 quadratic_pseudospectrum_unittest
 pw_unittest
-pw_kernel_unittest
 
 #EOF

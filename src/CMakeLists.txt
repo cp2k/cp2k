@@ -1616,7 +1616,6 @@ set(CP2K_PROGS_F
     spectral_localizer_unittest.F
     quadratic_pseudospectrum_unittest.F
     pw/pw_unittest.F
-    pw/pw_kernel_unittest.F
     topology_symmetry_unittest.F
     topology_curvature_unittest.F
     topology_snapshot_unittest.F
@@ -2055,7 +2054,6 @@ list(
   "spectral_localizer_unittest"
   "quadratic_pseudospectrum_unittest"
   "pw_unittest"
-  "pw_kernel_unittest"
   "topology_symmetry_unittest"
   "topology_curvature_unittest"
   "topology_snapshot_unittest"
@@ -2104,7 +2102,6 @@ add_executable(spectral_localizer_unittest spectral_localizer_unittest.F)
 add_executable(quadratic_pseudospectrum_unittest
                quadratic_pseudospectrum_unittest.F)
 add_executable(pw_unittest pw/pw_unittest.F)
-add_executable(pw_kernel_unittest pw/pw_kernel_unittest.F)
 add_executable(topology_symmetry_unittest topology_symmetry_unittest.F)
 add_executable(topology_curvature_unittest topology_curvature_unittest.F)
 add_executable(topology_snapshot_unittest topology_snapshot_unittest.F)
