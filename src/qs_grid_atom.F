@@ -606,7 +606,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: radial_quadrature
 
       INTEGER                                            :: i
-      REAL(dp)                                           :: cost, f, sint, sint2, t, w, x
+      REAL(dp)                                           :: f, sint, t, t2, w, x, xm, xp, y
 
       f = pi/REAL(n + 1, KIND=dp)
 
@@ -623,35 +623,49 @@ CONTAINS
             wr(i) = w/SQRT(1.0_dp - x**2)
             wr(i) = 2.0_dp*wr(i)*r2(i)/(1.0_dp - x)**2
          END DO
-      CASE (do_gapw_gct)
-         ! Transformed Gauss-Chebyshev quadrature formula of the second kind
-         ! u [-1,+1] -> r [0,infinity] => r = (1 + u)/(1 - u)
+      CASE (do_gapw_gct, do_gapw_log)
+         ! Evaluate both endpoint distances without forming x close to +/-1.
+         ! 1+x(t) = 16/(3*pi) * integral_0^t sin(s)**4 ds = O(t**5).
          DO i = 1, n
-            t = REAL(i, dp)*f
-            cost = COS(t)
+            t = REAL(MIN(i, n + 1 - i), dp)*f
             sint = SIN(t)
-            sint2 = sint**2
-            x = REAL(2*i - n - 1, dp)/REAL(n + 1, dp) - &
-                2.0_dp*(1.0_dp + 2.0_dp*sint2/3.0_dp)*cost*sint/pi
-            w = 16.0_dp*sint2**2/REAL(3*(n + 1), dp)
-            r(n + 1 - i) = (1.0_dp + x)/(1.0_dp - x)
+            IF (t < 0.25_dp) THEN
+               t2 = t*t
+               y = -514.0_dp/1455809355.0_dp
+               y = 5461.0_dp/723647925.0_dp + t2*y
+               y = -4.0_dp/31185.0_dp + t2*y
+               y = 62.0_dp/36855.0_dp + t2*y
+               y = -34.0_dp/2079.0_dp + t2*y
+               y = 1.0_dp/9.0_dp + t2*y
+               y = -10.0_dp/21.0_dp + t2*y
+               y = 16.0_dp/(15.0_dp*pi)*t**5*(1.0_dp + t2*y)
+            ELSE
+               y = 2.0_dp/pi*(t - (1.0_dp + 2.0_dp*sint**2/3.0_dp)*COS(t)*sint)
+            END IF
+            IF (i <= (n + 1)/2) THEN
+               xp = y
+               xm = 2.0_dp - y
+            ELSE
+               xp = 2.0_dp - y
+               xm = y
+            END IF
+            w = 16.0_dp*sint**4/(3.0_dp*REAL(n + 1, dp))
+            IF (radial_quadrature == do_gapw_gct) THEN
+               r(n + 1 - i) = xp/xm
+            ELSE IF (xp < 1.e-3_dp) THEN
+               ! -log(1-y), retaining the small positive radius near the origin.
+               y = 0.5_dp*xp
+               r(n + 1 - i) = y*(1.0_dp + y*(0.5_dp + y*(1.0_dp/3.0_dp + &
+                                                         y*(0.25_dp + y/5.0_dp))))/LOG(2.0_dp)
+            ELSE
+               r(n + 1 - i) = LOG(2.0_dp/xm)/LOG(2.0_dp)
+            END IF
             r2(n + 1 - i) = r(n + 1 - i)**2
-            wr(n + 1 - i) = 2.0_dp*w*r2(n + 1 - i)/(1.0_dp - x)**2
-         END DO
-      CASE (do_gapw_log)
-         ! Logarithmic transformed Gauss-Chebyshev quadrature formula of the second kind
-         ! u [-1,+1] -> r [0,infinity] => r = ln(2/(1 - u))/ln(2)
-         DO i = 1, n
-            t = REAL(i, dp)*f
-            cost = COS(t)
-            sint = SIN(t)
-            sint2 = sint**2
-            x = REAL(2*i - n - 1, dp)/REAL(n + 1, dp) - &
-                2.0_dp*(1.0_dp + 2.0_dp*sint2/3.0_dp)*cost*sint/pi
-            w = 16.0_dp*sint2**2/REAL(3*(n + 1), dp)
-            r(n + 1 - i) = LOG(2.0_dp/(1.0_dp - x))/LOG(2.0_dp)
-            r2(n + 1 - i) = r(n + 1 - i)**2
-            wr(n + 1 - i) = w*r2(n + 1 - i)/(LOG(2.0_dp)*(1.0_dp - x))
+            IF (radial_quadrature == do_gapw_gct) THEN
+               wr(n + 1 - i) = 2.0_dp*w*r2(n + 1 - i)/xm**2
+            ELSE
+               wr(n + 1 - i) = w*r2(n + 1 - i)/(LOG(2.0_dp)*xm)
+            END IF
          END DO
       CASE DEFAULT
          CPABORT("Invalid radial quadrature type specified")

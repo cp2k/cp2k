@@ -1075,17 +1075,9 @@ CONTAINS
 
                      END IF
 
-                     IF (.NOT. my_just_sum) THEN
-                        #:if space == "rs"
-                           integral_value = integral_value*pw1%pw_grid%dvol
-                        #:elif space == "gs"
-                           integral_value = integral_value*pw1%pw_grid%vol
-                        #:else
-                           #:stop "Unknown space: "+space
-                        #:endif
-                     END IF
-
                      #:if kind[1]=="1"
+                        ! Apply reciprocal multiplicity before scaling the integral;
+                        ! the unpaired G=0 term must receive the same volume factor.
                         IF (pw1%pw_grid%grid_span == HALFSPACE) THEN
                            integral_value = 2.0_dp*integral_value
                            IF (pw1%pw_grid%have_g0) integral_value = integral_value - &
@@ -1098,6 +1090,16 @@ CONTAINS
                               #:endif
                            END IF
                         #:endif
+
+                        IF (.NOT. my_just_sum) THEN
+                           #:if space == "rs"
+                              integral_value = integral_value*pw1%pw_grid%dvol
+                           #:elif space == "gs"
+                              integral_value = integral_value*pw1%pw_grid%vol
+                           #:else
+                              #:stop "Unknown space: "+space
+                           #:endif
+                        END IF
 
                         IF (.NOT. my_local_only .AND. pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED) &
                            CALL pw1%pw_grid%para%group%sum(integral_value)

@@ -34,8 +34,55 @@ MODULE mt_util
                                                MT1D = 1102, &
                                                MT0D = 1103
 
-   PUBLIC :: MTin_create_screen_fn
+   PUBLIC :: MTin_create_screen_fn, mt2d_kernel_strain
 CONTAINS
+
+! **************************************************************************************************
+!> \brief MT2D Coulomb kernel and its affine strain derivative in the periodic plane.
+!> \param g Cartesian reciprocal vector, transformed by the inverse transpose of the strain.
+!> \param special_dimension Cartesian direction normal to the slab.
+!> \param slab_size Cell thickness in the nonperiodic direction, fixed for in-plane strain.
+!> \param kernel Reciprocal Coulomb kernel, including the existing MT2D G=0 convention.
+!> \param strain Kernel derivative with respect to in-plane affine strain.
+! **************************************************************************************************
+   SUBROUTINE mt2d_kernel_strain(g, special_dimension, slab_size, kernel, strain)
+      REAL(KIND=dp), INTENT(IN)                          :: g(3)
+      INTEGER, INTENT(IN)                                :: special_dimension
+      REAL(KIND=dp), INTENT(IN)                          :: slab_size
+      REAL(KIND=dp), INTENT(OUT)                         :: kernel, strain(3, 3)
+
+      INTEGER                                            :: alpha, beta
+      REAL(KIND=dp)                                      :: f, g2, k, parallel(3), q, radius
+
+      CPASSERT(special_dimension >= 1 .AND. special_dimension <= 3)
+      CPASSERT(slab_size > 0.0_dp)
+      strain = 0.0_dp
+      g2 = SUM(g**2)
+      IF (g2 == 0.0_dp) THEN
+         ! This kernel is independent of in-plane strain. Its volume term is
+         ! already included in the Hartree energy contribution to the virial.
+         kernel = pi*slab_size**2/2.0_dp
+         RETURN
+      END IF
+      parallel = g
+      parallel(special_dimension) = 0.0_dp
+      k = SQRT(SUM(parallel**2))
+      radius = slab_size/2.0_dp
+      q = COS(g(special_dimension)*radius)*EXP(-k*radius)
+      f = 1.0_dp - q
+      kernel = fourpi/g2*f
+      ! For k=0 the reciprocal vector is unchanged by every in-plane strain.
+      ! This also avoids dividing by k at the even-normal modes where K=0.
+      IF (k == 0.0_dp) RETURN
+      DO alpha = 1, 3
+         IF (alpha == special_dimension) CYCLE
+         DO beta = alpha, 3
+            IF (beta == special_dimension) CYCLE
+            strain(alpha, beta) = fourpi/g2*g(alpha)*g(beta)*(2.0_dp*f/g2 - q*radius/k)
+            strain(beta, alpha) = strain(alpha, beta)
+         END DO
+      END DO
+   END SUBROUTINE mt2d_kernel_strain
 
 ! **************************************************************************************************
 !> \brief Initialize the Martyna && Tuckerman Poisson Solver
