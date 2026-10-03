@@ -19,8 +19,7 @@ MODULE post_scf_bandstructure_utils
    USE bse_types,                       ONLY: bse_env_type
    USE bse_util,                        ONLY: bse_window_from_dft
    USE cell_types,                      ONLY: cell_type,&
-                                              get_cell,&
-                                              minimum_image_weights
+                                              get_cell
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose
@@ -73,6 +72,7 @@ MODULE post_scf_bandstructure_utils
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               max_line_length
+   USE kpoint_k_r_trafo_simple,         ONLY: fm_gamma_to_kp
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index,&
                                               rskp_transform
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -2598,7 +2598,7 @@ CONTAINS
    END SUBROUTINE cfm_ikp_from_cfm_spinor_Gamma
 
 ! **************************************************************************************************
-!> \brief Reconstruct a k-point operator from a real Gamma matrix using normalized MIC phases.
+!> \brief Reconstruct a k-point operator from a real Gamma matrix using one MIC phase.
 !> \param cfm_ikp ...
 !> \param fm_Gamma ...
 !> \param ikp ...
@@ -2616,67 +2616,20 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cfm_ikp_from_fm_Gamma'
 
-      COMPLEX(KIND=dp)                                   :: phase
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: phases
-      INTEGER :: col_global, handle, i_atom, i_atom_old, i_cell, i_row, j_atom, j_atom_old, j_col, &
-         n_bf, ncol_local, nrow_local, num_cells, row_global
+      INTEGER                                            :: handle
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_from_bf
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
-      REAL(KIND=dp)                                      :: arg
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: weights
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
 
-      IF (.NOT. ASSOCIATED(cfm_ikp%local_data)) CALL cp_cfm_create(cfm_ikp, fm_Gamma%matrix_struct)
-      CALL cp_cfm_set_all(cfm_ikp, z_zero)
-
-      CALL cp_fm_get_info(matrix=fm_Gamma, nrow_local=nrow_local, ncol_local=ncol_local, &
-                          row_indices=row_indices, col_indices=col_indices)
-
-      IF (basis_type == "ORB") THEN
-         n_bf = qs_env%bs_env%n_ao
-      ELSE IF (basis_type == "RI_AUX") THEN
-         n_bf = qs_env%bs_env%n_RI
-      ELSE
-         CPABORT("Only ORB and RI_AUX basis implemented.")
-      END IF
-
-      ALLOCATE (atom_from_bf(n_bf))
-      CALL get_atom_index_from_basis_function_index(qs_env, atom_from_bf, n_bf, basis_type)
+      CPASSERT(basis_type == "ORB" .OR. basis_type == "RI_AUX")
+      ALLOCATE (atom_from_bf(fm_Gamma%matrix_struct%nrow_global))
+      CALL get_atom_index_from_basis_function_index(qs_env, atom_from_bf, SIZE(atom_from_bf), basis_type)
       NULLIFY (cell, particle_set)
       CALL get_qs_env(qs_env, cell=cell, particle_set=particle_set)
-      index_to_cell => kpoints%index_to_cell
-      num_cells = SIZE(index_to_cell, 2)
-      ALLOCATE (weights(num_cells), phases(num_cells))
-      DO i_cell = 1, num_cells
-         arg = REAL(index_to_cell(1, i_cell), dp)*kpoints%xkp(1, ikp) + &
-               REAL(index_to_cell(2, i_cell), dp)*kpoints%xkp(2, ikp) + &
-               REAL(index_to_cell(3, i_cell), dp)*kpoints%xkp(3, ikp)
-         phases(i_cell) = CMPLX(COS(twopi*arg), SIN(twopi*arg), KIND=dp)
-      END DO
-
-      i_atom_old = 0
-      j_atom_old = 0
-      DO j_col = 1, ncol_local
-         DO i_row = 1, nrow_local
-            row_global = row_indices(i_row)
-            col_global = col_indices(j_col)
-            i_atom = atom_from_bf(row_global)
-            j_atom = atom_from_bf(col_global)
-
-            IF (i_atom /= i_atom_old .OR. j_atom /= j_atom_old) THEN
-               CALL minimum_image_weights(particle_set(i_atom)%r, particle_set(j_atom)%r, &
-                                          cell, index_to_cell, weights)
-               phase = SUM(weights*phases)
-            END IF
-            cfm_ikp%local_data(i_row, j_col) = phase*fm_Gamma%local_data(i_row, j_col)
-            j_atom_old = j_atom
-            i_atom_old = i_atom
-         END DO
-      END DO
+      CALL fm_gamma_to_kp(cfm_ikp, fm_Gamma, cell, particle_set, atom_from_bf, &
+                          kpoints%index_to_cell, kpoints%xkp(:, ikp))
 
       CALL timestop(handle)
 

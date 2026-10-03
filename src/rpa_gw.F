@@ -85,6 +85,7 @@ MODULE rpa_gw
                                               section_vals_type
    USE kinds,                           ONLY: default_path_length,&
                                               dp
+   USE kpoint_k_r_trafo_simple,         ONLY: fm_gamma_to_kp
    USE kpoint_methods,                  ONLY: kpoint_density_matrices,&
                                               kpoint_density_transform,&
                                               kpoint_init_cell_index
@@ -140,10 +141,9 @@ MODULE rpa_gw
    USE qs_tensors,                      ONLY: decompress_tensor
    USE qs_tensors_types,                ONLY: create_2c_tensor
    USE rpa_gw_ic,                       ONLY: apply_ic_corr
-   USE rpa_gw_im_time_util,             ONLY: get_tensor_3c_overl_int_gw
-   USE rpa_gw_kpoints_util,             ONLY: get_mat_cell_T_from_mat_gamma,&
-                                              mat_kp_from_mat_gamma,&
-                                              real_space_to_kpoint_transform_rpa
+   USE rpa_gw_im_time_util,             ONLY: get_atom_index_from_basis_function_index,&
+                                              get_tensor_3c_overl_int_gw
+   USE rpa_gw_kpoints_util,             ONLY: mat_kp_from_mat_gamma
    USE rpa_im_time,                     ONLY: compute_gamma_propagator,&
                                               compute_periodic_dm,&
                                               create_propagator_matrix_set,&
@@ -6209,108 +6209,55 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'trafo_to_mo_and_kpoints'
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: diag_self_energy
-      INTEGER                                            :: handle, ikp, nkp_self_energy, nmo, &
-                                                            periodic(3), size_real_space
+      INTEGER                                            :: handle, ikp, nao, ncol_ao, &
+                                                            nkp_self_energy
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_from_bf
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_cfm_type)                                  :: cfm_self_energy, cfm_work
       TYPE(cp_cfm_type), POINTER                         :: cfm_mo_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: mat_self_energy_ao_ao_kp_im, &
-         mat_self_energy_ao_ao_kp_re, mat_self_energy_ao_ao_real_space
+      TYPE(cp_fm_type)                                   :: fm_gamma
       TYPE(kpoint_type), POINTER                         :: kpoints_Sigma
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, cell=cell, para_env=para_env)
-      CALL get_cell(cell=cell, periodic=periodic)
-
-      size_real_space = 3**(periodic(1) + periodic(2) + periodic(3))
-
-      CALL alloc_mat_set(mat_self_energy_ao_ao_real_space, size_real_space, mat_self_energy_ao_ao)
-
-      CALL dbcsr_copy(mat_self_energy_ao_ao_real_space(1)%matrix, mat_self_energy_ao_ao)
-
+      CALL get_qs_env(qs_env, cell=cell, particle_set=particle_set)
       kpoints_Sigma => qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma
-
-      CALL get_mat_cell_T_from_mat_gamma(mat_self_energy_ao_ao_real_space, qs_env, kpoints_Sigma, 0, 0)
-
       nkp_self_energy = kpoints_Sigma%nkp
+      CALL dbcsr_get_info(mat_self_energy_ao_ao, nfullrows_total=nao, nfullcols_total=ncol_ao)
+      CPASSERT(nao == ncol_ao)
+      ALLOCATE (diag_self_energy(nao), atom_from_bf(nao))
+      CALL get_atom_index_from_basis_function_index(qs_env, atom_from_bf, nao, "ORB")
 
-      CALL alloc_mat_set(mat_self_energy_ao_ao_kp_re, nkp_self_energy, mat_self_energy_ao_ao)
-      CALL alloc_mat_set(mat_self_energy_ao_ao_kp_im, nkp_self_energy, mat_self_energy_ao_ao)
-
-      CALL real_space_to_kpoint_transform_rpa(mat_self_energy_ao_ao_kp_re, mat_self_energy_ao_ao_kp_im, &
-                                              mat_self_energy_ao_ao_real_space, kpoints_Sigma, 1.0E-50_dp)
-
-      CALL dbcsr_get_info(mat_self_energy_ao_ao, nfullrows_total=nmo)
-      ALLOCATE (diag_self_energy(nmo))
-
-      matrix_struct => kpoints_Sigma%kp_env(1)%kpoint_env%mos(1)%cmo_coeff%matrix_struct
-
+      ! Use the AO layout for the operator; the auxiliary k-point solver supplies all nao MOs.
+      matrix_struct => kpoints_Sigma%kp_env(1)%kpoint_env%wmat(1, ispin)%matrix_struct
+      CALL cp_fm_create(fm_gamma, matrix_struct)
+      ! The Gamma self-energy is real symmetric in exact arithmetic. Its general
+      ! DBCSR storage allows tensor batches to accumulate both matrix orientations.
+      CALL copy_dbcsr_to_fm(mat_self_energy_ao_ao, fm_gamma)
       CALL cp_cfm_create(cfm_self_energy, matrix_struct)
-      CALL cp_cfm_create(cfm_work, matrix_struct)
+      CALL cp_cfm_create(cfm_work, kpoints_Sigma%kp_env(1)%kpoint_env%mos(ispin)%cmo_coeff%matrix_struct)
 
       DO ikp = 1, nkp_self_energy
-
-         CALL dbcsr_to_cfm(mat_self_energy_ao_ao_kp_re(ikp)%matrix, &
-                           mat_self_energy_ao_ao_kp_im(ikp)%matrix, cfm_self_energy)
-
+         CALL fm_gamma_to_kp(cfm_self_energy, fm_gamma, cell, particle_set, atom_from_bf, &
+                             kpoints_Sigma%index_to_cell, kpoints_Sigma%xkp(:, ikp))
          cfm_mo_coeff => kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(ispin)%cmo_coeff
-
+         CPASSERT(cfm_mo_coeff%matrix_struct%nrow_global == nao)
+         CPASSERT(cfm_mo_coeff%matrix_struct%ncol_global == nao)
          CALL cfm_contract_ABA(cfm_mo_coeff, cfm_self_energy, workspace=cfm_work)
-
          CALL cp_cfm_get_diag(cfm_self_energy, diag_self_energy)
-
+         ! Taking the real MO diagonal selects the Hermitian part of the operator.
          vec_Sigma(:, ikp) = REAL(diag_self_energy(homo - gw_corr_lev_occ + 1:homo + gw_corr_lev_virt), KIND=dp)
-
       END DO
 
-      CALL dbcsr_deallocate_matrix_set(mat_self_energy_ao_ao_real_space)
-      CALL dbcsr_deallocate_matrix_set(mat_self_energy_ao_ao_kp_re)
-      CALL dbcsr_deallocate_matrix_set(mat_self_energy_ao_ao_kp_im)
-
+      CALL cp_fm_release(fm_gamma)
       CALL cp_cfm_release(cfm_self_energy)
       CALL cp_cfm_release(cfm_work)
-
-      DEALLOCATE (diag_self_energy)
 
       CALL timestop(handle)
 
    END SUBROUTINE trafo_to_mo_and_kpoints
-
-! **************************************************************************************************
-!> \brief ...
-!> \param dbcsr_re ...
-!> \param dbcsr_im ...
-!> \param cfm_mat ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_to_cfm(dbcsr_re, dbcsr_im, cfm_mat)
-
-      TYPE(dbcsr_type), POINTER                          :: dbcsr_re, dbcsr_im
-      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbcsr_to_cfm'
-
-      INTEGER                                            :: handle
-      TYPE(cp_fm_type)                                   :: fm_mat_im, fm_mat_re
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_fm_create(fm_mat_re, cfm_mat%matrix_struct)
-      CALL cp_fm_create(fm_mat_im, cfm_mat%matrix_struct)
-
-      CALL copy_dbcsr_to_fm(dbcsr_re, fm_mat_re)
-      CALL copy_dbcsr_to_fm(dbcsr_im, fm_mat_im)
-
-      CALL cp_fm_to_cfm(fm_mat_re, fm_mat_im, cfm_mat)
-
-      CALL cp_fm_release(fm_mat_re)
-      CALL cp_fm_release(fm_mat_im)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE dbcsr_to_cfm
 
 ! **************************************************************************************************
 !> \brief ...

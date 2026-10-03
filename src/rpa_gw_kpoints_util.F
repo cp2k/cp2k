@@ -1238,9 +1238,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_kp_and_calc_kp_orbitals'
 
-      INTEGER                                            :: handle, i_dim, i_re_im, ikp, ispin, nkp, &
-                                                            nspins
-      INTEGER, DIMENSION(3)                              :: cell_grid, periodic
+      INTEGER                                            :: handle, i_re_im, ikp, ispin, nkp, nspins
+      INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: my_with_xc_terms
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(cell_type), POINTER                           :: cell
@@ -1283,16 +1282,7 @@ CONTAINS
 
       CALL get_cell(cell=cell, periodic=periodic)
 
-      DO i_dim = 1, 3
-         ! we have at most 3 neigboring cells per dimension and at least one because
-         ! the density response at Gamma is only divided to neighboring
-         IF (periodic(i_dim) == 1) THEN
-            cell_grid(i_dim) = MAX(MIN((kpoints%nkp_grid(i_dim)/2)*2 - 1, 1), 3)
-         ELSE
-            cell_grid(i_dim) = 1
-         END IF
-      END DO
-      CALL init_cell_index_rpa(cell_grid, kpoints%cell_to_index, kpoints%index_to_cell, cell)
+      CALL init_cell_index_rpa(2*periodic + 1, kpoints%cell_to_index, kpoints%index_to_cell, cell)
 
       ! get S(k)
       CALL get_qs_env(qs_env, matrix_s=matrix_s, scf_env=scf_env, scf_control=scf_control, dft_control=dft_control)
