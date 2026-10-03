@@ -787,6 +787,7 @@ CONTAINS
       IMPLICIT NONE
       COMPLEX(dp), PARAMETER :: ii = CMPLX(0.0_dp, 1.0_dp, dp)
       INTEGER, PARAMETER :: side = 3, sites = side**3, n = 4*sites
+      REAL(dp), PARAMETER :: masses(3) = [0.0_dp, 4.0_dp, 2.0_dp]
       COMPLEX(dp) :: h(n, n), s(n, n), r(n, n, 3), u(n, n), hc(n, n), sc(n, n), rc(n, n, 3)
       COMPLEX(dp) :: pauli(2, 2, 3), a(2*n, 2*n), dummy(1, 1), work(10*n)
       REAL(dp) :: singular(2*n), rwork(10*n), gap, reference, ratio, mass, shift(3), defect, lower, upper, midpoint
@@ -805,7 +806,7 @@ CONTAINS
       pauli(1, 1, 3) = 1.0_dp
       pauli(2, 2, 3) = -1.0_dp
       DO model = 1, 3
-         mass = REAL(2*(model - 1), dp)
+         mass = masses(model)
          CALL dirac_model(mass)
          ! Bulk inversion eigenvalues at the eight TRIM: strong, not weak, parity.
          sign_product = 1
@@ -843,9 +844,7 @@ CONTAINS
             mass, expected, reference, ABS(reference - MINVAL(singular))
       END DO
 
-      CALL dirac_model(2.0_dp)
-      CALL evaluate(h, s, r, [0.0_dp, 0.0_dp, 0.0_dp], 0.0_dp)
-      reference = gap
+      ! Reuse the validated mass-2 model for the covariance and origin checks.
       u = 0.0_dp
       DO i = 1, n/2
          u(i, i) = CMPLX(0.8_dp + 0.004_dp*i, 0.07_dp*SIN(REAL(i, dp)), dp)

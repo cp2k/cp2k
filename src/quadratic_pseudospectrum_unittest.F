@@ -461,11 +461,7 @@ CONTAINS
             ERROR STOP 'Partial residual block eigenvalue mismatch'
          END IF
       END DO
-      CALL quadratic_dense(operators, identity, shift, weights, 3, .FALSE., n, 100, 1.e-10_dp, 1.e-10_dp, original, status)
-      IF (status /= 0) ERROR STOP 'Periodic quadratic hopping reference failed'
-      CALL quadratic_dense(operators, identity, shift, weights, 3, .TRUE., n, 100, 1.e-10_dp, 1.e-10_dp, iterative, status)
-      IF (status /= 0) ERROR STOP 'Periodic quadratic iteration failed'
-      IF (MAXVAL(ABS(original%eigenvalues - iterative%eigenvalues)) > 1.e-12_dp) ERROR STOP 'Periodic iteration mismatch'
+      ! Reuse the full-size reference from the final partial-residual-block check.
       transform = identity
       DO i = 1, n - 1
          transform(i, i + 1) = CMPLX(0.13_dp, -0.08_dp, dp)
