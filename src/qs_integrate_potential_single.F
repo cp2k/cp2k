@@ -532,11 +532,13 @@ CONTAINS
 !> \param v_rspace ...
 !> \param qs_env ...
 !> \param atecc ...
+!> \param calpha optional Gaussian exponents per kind replacing the core charge exponents
+!> \param ccore optional Gaussian coefficients per kind replacing the core charge coefficients
 ! **************************************************************************************************
-   SUBROUTINE integrate_v_core_rspace(v_rspace, qs_env, atecc)
+   SUBROUTINE integrate_v_core_rspace(v_rspace, qs_env, atecc, calpha, ccore)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_rspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: atecc
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: atecc, calpha, ccore
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_core_rspace'
 
@@ -562,6 +564,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       NULLIFY (virial, force, atprop, dft_control)
+      IF (PRESENT(calpha)) THEN
+         CPASSERT(PRESENT(ccore))
+      END IF
 
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
 
@@ -610,8 +615,14 @@ CONTAINS
 
             IF (dft_control%qs_control%gapw .AND. paw_atom) CYCLE
 
-            CALL get_qs_kind(qs_kind_set(ikind), alpha_core_charge=alpha_core_charge, &
-                             ccore_charge=ccore_charge)
+            IF (PRESENT(calpha)) THEN
+               ! User defined Gaussians (e.g. the SCCS core fill) instead of the core charges
+               alpha_core_charge = calpha(ikind)
+               ccore_charge = ccore(ikind)
+            ELSE
+               CALL get_qs_kind(qs_kind_set(ikind), alpha_core_charge=alpha_core_charge, &
+                                ccore_charge=ccore_charge)
+            END IF
 
             pab(1, 1) = -ccore_charge
             IF (alpha_core_charge == 0.0_dp .OR. pab(1, 1) == 0.0_dp) CYCLE
@@ -669,7 +680,7 @@ CONTAINS
                   virial%pv_ehartree = virial%pv_ehartree + my_virial_a
                   virial%pv_virial = virial%pv_virial + my_virial_a
                END IF
-               IF (ASSOCIATED(atprop)) THEN
+               IF (ASSOCIATED(atprop) .AND. (.NOT. PRESENT(calpha))) THEN
                   atprop%ateb(atom_a) = atprop%ateb(atom_a) + 0.5_dp*hab(1, 1)*pab(1, 1)
                END IF
                IF (PRESENT(atecc)) THEN
