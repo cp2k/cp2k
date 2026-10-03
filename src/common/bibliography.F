@@ -93,6 +93,7 @@ MODULE bibliography
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
                             Schambeck2024, Mewes2018, Sertcan2024, Drautz2019, Lysogorskiy2021, Bochkarev2024, &
                             VazdaCruz2021, Chen2025, Hernandez2025, Marek2025, Hehn2022, Hehn2024, Pasquier2025, &
+                            Hedin1965, Hybertsen1986, Tyagi2024, Tyagi2026, &
                             Hanasaki2025, Graml2026, Tan2025, Broyden1965, Johnson1988, Kerker1981, &
                             FuHo1983, MethfesselPaxton1989, Marzari1999, dosSantos2023, Mermin1965, &
                             KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2, &
@@ -2129,6 +2130,33 @@ CONTAINS
                          "Real-Time Propagation Based on the Bethe–Salpeter Equation", &
                          source="J. Chem. Theory Comput.", volume="21", pages="9814-9822", &
                          year=2025, doi="10.1021/acs.jctc.5c01246")
+
+      CALL add_reference(key=Hedin1965, &
+                         authors=s2a("L. Hedin"), &
+                         title="New method for calculating the one-particle Green's function with application "// &
+                         "to the electron-gas problem", &
+                         source="Phys. Rev.", volume="139", pages="A796-A823", &
+                         year=1965, doi="10.1103/PhysRev.139.A796")
+
+      CALL add_reference(key=Hybertsen1986, &
+                         authors=s2a("M. S. Hybertsen", "S. G. Louie"), &
+                         title="Electron correlation in semiconductors and insulators: Band gaps and "// &
+                         "quasiparticle energies", &
+                         source="Phys. Rev. B", volume="34", pages="5390-5413", &
+                         year=1986, doi="10.1103/PhysRevB.34.5390")
+
+      CALL add_reference(key=Tyagi2024, &
+                         authors=s2a("R. Tyagi", "V. K. Voora"), &
+                         title="Single-Pole Polarization Models: Rapid Evaluation of Electron Affinities of "// &
+                         "Solvated-Electron and Superatomic Molecular Anionic States", &
+                         source="J. Phys. Chem. Lett.", volume="15", pages="1218-1226", &
+                         year=2024, doi="10.1021/acs.jpclett.3c03392")
+
+      CALL add_reference(key=Tyagi2026, &
+                         authors=s2a("R. Tyagi", "J. Wilhelm", "V. Voora"), &
+                         title="Electron affinity of liquid water", &
+                         source="In preparation", &
+                         year=2026)
 
       CALL add_reference(key=Pasquier2025, &
                          authors=s2a("R. Pasquier", "M. Camarasa-Gómez", &

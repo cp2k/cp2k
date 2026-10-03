@@ -67,10 +67,10 @@ MODULE gw_utils
                                               fm_invert,&
                                               local_complex_power
    USE input_constants,                 ONLY: &
-        G0W0, do_potential_coulomb, do_potential_truncated, evGW0, ri_rpa_g0w0_crossing_newton, &
-        ri_rs_large_cell_Gamma, ri_rs_non_periodic, rtp_bse_kernel_ri_ao, rtp_bse_kernel_ri_rs, &
-        rtp_method_bse, rtp_method_bse_linearized, tensor_large_cell_Gamma, &
-        tensor_small_cell_full_kp, xc_none
+        G0W0, cohsex_qp_update, do_potential_coulomb, do_potential_truncated, evGW0, &
+        ri_rpa_g0w0_crossing_newton, ri_rs_large_cell_Gamma, ri_rs_non_periodic, &
+        rtp_bse_kernel_ri_ao, rtp_bse_kernel_ri_rs, rtp_method_bse, rtp_method_bse_linearized, &
+        tensor_large_cell_Gamma, tensor_small_cell_full_kp, tensor_static_cohsex, xc_none
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -197,7 +197,7 @@ CONTAINS
       CALL allocate_GW_eigenvalues(bs_env)
 
       SELECT CASE (bs_env%gw_implementation)
-      CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic)
+      CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic, tensor_static_cohsex)
 
          IF (.NOT. bs_env%do_gw_ri_rs) THEN
             CALL check_sparsity_3c(qs_env, bs_env)
@@ -296,6 +296,8 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "KPOINTS_W", i_vals=bs_env%nkp_grid_chi_eps_W_input)
       CALL section_vals_val_get(gw_sec, "HEDIN_SHIFT", l_val=bs_env%do_hedin_shift)
       CALL section_vals_val_get(gw_sec, "FREQ_MAX_FIT", r_val=bs_env%freq_max_fit)
+      CALL section_vals_val_get(gw_sec, "COHSEX_SCALE_OCC", r_val=bs_env%cohsex_scale_occ)
+      CALL section_vals_val_get(gw_sec, "COHSEX_SCALE_VIRT", r_val=bs_env%cohsex_scale_virt)
       CALL read_rirs_input(bs_env%ri_rs, ri_rs_sec)
       CALL read_rirs_grid_opt(bs_env%ri_rs, grid_opt_sec)
       CALL read_evgw0_input(bs_env%ri_rs, evgw0_sec, do_evgw0)
@@ -573,6 +575,18 @@ CONTAINS
                bs_env%input_memory_per_proc_GB, ' GB'
          END IF
          IF (bs_env%do_gw_ri_rs) CALL print_gw_rirs_input(bs_env)
+         IF (bs_env%do_static_cohsex) THEN
+            IF (bs_env%cohsex_flavor == cohsex_qp_update) THEN
+               WRITE (u, FMT="(T2,A,T71,A10)") "static COHSEX approximation (COHSEX)", "QP_UPDATE"
+            ELSE
+               WRITE (u, FMT="(T2,A,T71,A10)") "static COHSEX approximation (COHSEX)", "DIAGONAL"
+            END IF
+            WRITE (u, FMT="(T2,A,T74,F8.6)") "static COHSEX scaling of Σ^c, occ-occ (COHSEX_SCALE_OCC):", &
+               bs_env%cohsex_scale_occ
+            WRITE (u, FMT="(T2,A,T74,F8.6)") "static COHSEX scaling of Σ^c, virt-virt (COHSEX_SCALE_VIRT):", &
+               bs_env%cohsex_scale_virt
+         END IF
+         WRITE (u, '(A)') ' '
       END IF
 
       CALL timestop(handle)
@@ -988,7 +1002,7 @@ CONTAINS
                nkp_grid_extra(i_dim) = 1
             CASE (1)
                SELECT CASE (bs_env%gw_implementation)
-               CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic)
+               CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic, tensor_static_cohsex)
                   nkp_grid(i_dim) = 4
                   nkp_grid_extra(i_dim) = 6
                CASE (tensor_small_cell_full_kp)
@@ -1834,7 +1848,7 @@ CONTAINS
       energy_ex = energy%ex
 
       SELECT CASE (bs_env%gw_implementation)
-      CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic)
+      CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic, tensor_static_cohsex)
 
          NULLIFY (mat_ks_without_v_xc)
          CALL dbcsr_allocate_matrix_set(mat_ks_without_v_xc, bs_env%n_spin)
@@ -2519,12 +2533,21 @@ CONTAINS
          bs_env%Sigma_x_exists = bs_env%Sigma_x_exists .AND. Sigma_x_spin_exists
       END DO
 
+      ! static COHSEX: Σ^c(iω=0,k=0) restart, one file per spin; if present, χ and W are not needed
+      bs_env%Sigma_c_freq_zero_exists = bs_env%do_static_cohsex
+      DO i_spin = 1, n_spin
+         WRITE (f_S_x, '(3A,I1,A)') TRIM(prefix), bs_env%Sigma_c_freq_zero_name, "_0", i_spin, ".matrix"
+         INQUIRE (file=TRIM(f_S_x), exist=Sigma_x_spin_exists)
+         bs_env%Sigma_c_freq_zero_exists = bs_env%Sigma_c_freq_zero_exists .AND. Sigma_x_spin_exists
+      END DO
+
       ! If any restart files are read, check if the SCF converged in 1 step.
       ! This is important because a re-iterated SCF can lead to spurious GW results
       IF (ANY(bs_env%read_chi(:)) &
           .OR. ANY(bs_env%Sigma_c_exists) &
           .OR. bs_env%all_W_exist &
           .OR. bs_env%Sigma_x_exists &
+          .OR. bs_env%Sigma_c_freq_zero_exists &
           ) THEN
 
          IF (qs_env%scf_env%iter_count /= 1) THEN
@@ -3318,7 +3341,7 @@ CONTAINS
          n_top = MAX(MIN(bs_env%n_mo_retained, n_mo), homo + 1)
 
          SELECT CASE (bs_env%gw_implementation)
-         CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic)
+         CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic, tensor_static_cohsex)
             E_min_ispin = bs_env%eigenval_scf_Gamma(homo + 1, ispin) - &
                           bs_env%eigenval_scf_Gamma(homo, ispin)
             E_max_ispin = bs_env%eigenval_scf_Gamma(n_top, ispin) - &

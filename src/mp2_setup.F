@@ -169,10 +169,10 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%COHSEX", &
                                 i_val=mp2_env%ri_g0w0%cohsex_flavor)
       mp2_env%ri_g0w0%do_static_cohsex = (mp2_env%ri_g0w0%cohsex_flavor /= cohsex_off)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%SCALE_COHSEX_OCC", &
-                                r_val=mp2_env%ri_g0w0%scale_cohsex_occ)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%SCALE_COHSEX_VIRT", &
-                                r_val=mp2_env%ri_g0w0%scale_cohsex_virt)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%COHSEX_SCALE_OCC", &
+                                r_val=mp2_env%ri_g0w0%cohsex_scale_occ)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%COHSEX_SCALE_VIRT", &
+                                r_val=mp2_env%ri_g0w0%cohsex_scale_virt)
 
       NULLIFY (r_vals)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%IC_CORR_LIST", &

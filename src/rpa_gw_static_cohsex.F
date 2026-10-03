@@ -30,16 +30,23 @@
 !>
 !>        Quasiparticle Hamiltonian in the window:
 !>          H^QP_mn    = ϵ_n δ_mn + Σ^x_mn - v^xc_mn + α_mn Σ^c_mn
-!>          α_mn       = α_IP = SCALE_COHSEX_OCC (m,n occupied),  α_EA = SCALE_COHSEX_VIRT (m,n virtual),  H^QP_ia = 0
-!>          ϵ_n^DG     = H^QP_nn                              (diagonal static COHSEX)
-!>          H^QP U     = U ϵ^CN, occ-occ and virt-virt block separately   (canonical static COHSEX)
-!>          C^QP_μn    = Σ_m C_μm U_mn                        (static COHSEX MOs)
+!>          α_mn       = α_IP = COHSEX_SCALE_OCC (m,n occupied),  α_EA = COHSEX_SCALE_VIRT (m,n virtual),  H^QP_ia = 0
+!>          ϵ_n^DG     = H^QP_nn                              (COHSEX DIAGONAL)
+!>          H^QP U     = U ϵ^CN, occ-occ and virt-virt block separately   (COHSEX QP_UPDATE)
+!>          C^QP_μn    = Σ_m C_μm U_mn                        (COHSEX QP_UPDATE MOs)
+!>        COHSEX DIAGONAL prints ϵ^DG only; COHSEX QP_UPDATE also diagonalizes H^QP, prints ϵ^CN
+!>        and the canonical MOs.
 !>
 !> \par History
 !>      09.2026 created [Ritaj Tyagi]
 ! **************************************************************************************************
 MODULE rpa_gw_static_cohsex
    USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE bibliography,                    ONLY: Hedin1965,&
+                                              Hybertsen1986,&
+                                              Tyagi2024,&
+                                              Tyagi2026,&
+                                              cite_reference
    USE bse_util,                        ONLY: fm_general_add_bse
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -66,6 +73,7 @@ MODULE rpa_gw_static_cohsex
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
+   USE input_constants,                 ONLY: cohsex_qp_update
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -107,8 +115,8 @@ MODULE rpa_gw_static_cohsex
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Compute and print the diagonal (ϵ^DG) and canonical (ϵ^CN) static COHSEX quasiparticle
-!>        energies and print the canonical static COHSEX MOs
+!> \brief Compute and print the diagonal (ϵ^DG) static COHSEX quasiparticle energies; with
+!>        COHSEX QP_UPDATE also the canonical (ϵ^CN) energies and the canonical MOs
 !> \param fm_mat_Q on entry the spin-summed 1 + Q_PQ(ω=0); on exit W^c_PQ(0) = [1 + Q(0)]^(-1)_PQ - δ_PQ
 !> \param fm_mat_S_gw per-spin B^P_mp
 !> \param fm_mat_S_gw_work ...
@@ -123,8 +131,8 @@ CONTAINS
 !> \param qs_env ...
 !> \param mp2_env ...
 !> \param eigenval_dg ϵ_n^DG of all MOs (scissor outside the window), nmo x nspins
-!> \param eigenval_cn ϵ_n^CN of all MOs (scissor outside the window), nmo x nspins
-!> \param u_qp_all U_mn of all MOs (δ_mn outside the window), nmo x nmo x nspins
+!> \param eigenval_cn ϵ_n^CN of all MOs (scissor outside the window), nmo x nspins, QP_UPDATE only
+!> \param u_qp_all U_mn of all MOs (δ_mn outside the window), nmo x nmo x nspins, QP_UPDATE only
 ! **************************************************************************************************
    SUBROUTINE static_cohsex_qp_energies(fm_mat_Q, fm_mat_S_gw, fm_mat_S_gw_work, dimen_RI, nmo, homo, &
                                         gw_corr_lev_occ, gw_corr_lev_virt, Eigenval, mo_coeff, unit_nr, &
@@ -148,8 +156,10 @@ CONTAINS
 
       CHARACTER(LEN=10)                                  :: spin_label
       CHARACTER(LEN=3)                                   :: occ_vir
+      CHARACTER(LEN=40)                                  :: cohsex_label
       INTEGER                                            :: handle, ispin, m, n, n_mo_win, no, &
                                                             nspins, nv, p, unit_debug, win_start
+      LOGICAL                                            :: qp_update
       REAL(KIND=dp)                                      :: shift_occ, shift_virt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_can, e_diag, e_qp, scale_vec
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: h_qp, sigma_c, sigma_x, &
@@ -161,6 +171,16 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       nspins = SIZE(fm_mat_S_gw)
+      ! COHSEX QP_UPDATE: diagonalize H^QP (canonical energies and MOs); DIAGONAL: ϵ^DG only
+      qp_update = (mp2_env%ri_g0w0%cohsex_flavor == cohsex_qp_update)
+
+      ! static COHSEX; with QP_UPDATE the quasiparticle update; scaled self-energy if requested
+      CALL cite_reference(Hedin1965)
+      CALL cite_reference(Hybertsen1986)
+      IF (qp_update) CALL cite_reference(Tyagi2024)
+      IF (mp2_env%ri_g0w0%cohsex_scale_occ /= 1.0_dp .OR. mp2_env%ri_g0w0%cohsex_scale_virt /= 1.0_dp) THEN
+         CALL cite_reference(Tyagi2026)
+      END IF
       CALL cp_fm_get_info(mo_coeff(1), para_env=para_env)
 
       ! ==============================================================================
@@ -283,59 +303,20 @@ CONTAINS
          ALLOCATE (h_qp(n_mo_win, n_mo_win))
          h_qp(:, :) = 0.0_dp
          h_qp(1:no, 1:no) = sigma_x(1:no, 1:no) - vxc(1:no, 1:no) + &
-                            mp2_env%ri_g0w0%scale_cohsex_occ*sigma_c(1:no, 1:no)
+                            mp2_env%ri_g0w0%cohsex_scale_occ*sigma_c(1:no, 1:no)
          h_qp(no + 1:, no + 1:) = sigma_x(no + 1:, no + 1:) - vxc(no + 1:, no + 1:) + &
-                                  mp2_env%ri_g0w0%scale_cohsex_virt*sigma_c(no + 1:, no + 1:)
+                                  mp2_env%ri_g0w0%cohsex_scale_virt*sigma_c(no + 1:, no + 1:)
          h_qp(:, :) = 0.5_dp*(h_qp(:, :) + TRANSPOSE(h_qp(:, :)))
          DO n = 1, n_mo_win
             h_qp(n, n) = h_qp(n, n) + Eigenval(win_start + n - 1, ispin)
          END DO
 
-         ALLOCATE (e_diag(n_mo_win), e_can(n_mo_win))
+         ALLOCATE (e_diag(n_mo_win))
          DO n = 1, n_mo_win
             e_diag(n) = h_qp(n, n)
          END DO
 
-         ! ==============================================================================
-         ! 8. Canonical static COHSEX: diagonalize the occ-occ and virt-virt blocks
-         !      Σ_m H^QP_nm U_mk = U_nk ϵ_k^CN,   U block diagonal, overwrites h_qp
-         ! ==============================================================================
-         e_can(:) = 0.0_dp
-         IF (para_env%is_source()) THEN
-            IF (no > 0) CALL diamat_all(h_qp(1:no, 1:no), e_can(1:no))
-            IF (nv > 0) CALL diamat_all(h_qp(no + 1:, no + 1:), e_can(no + 1:))
-         END IF
-         CALL para_env%bcast(h_qp, para_env%source)
-         CALL para_env%bcast(e_can, para_env%source)
-
-         ! ==============================================================================
-         ! 9. Energies and MO transformation for all nmo MOs
-         !      inside the window:   ϵ_n^QP = ϵ_n^CN,  U_mn from step 8
-         !      outside the window:  U_mn = δ_mn and scissor shift of the DFT eigenvalue
-         !        ϵ_n^QP = ϵ_n + (ϵ^CN_first - ϵ_first)   below the window (occupied)
-         !        ϵ_n^QP = ϵ_n + (ϵ^CN_last  - ϵ_last)    above the window (virtual)
-         ! ==============================================================================
-         ALLOCATE (e_qp(nmo), u_qp(nmo, nmo))
-         shift_occ = e_can(1) - Eigenval(win_start, ispin)
-         shift_virt = e_can(n_mo_win) - Eigenval(win_start + n_mo_win - 1, ispin)
-         DO n = 1, nmo
-            IF (n < win_start) THEN
-               e_qp(n) = Eigenval(n, ispin) + shift_occ
-            ELSE IF (n >= win_start + n_mo_win) THEN
-               e_qp(n) = Eigenval(n, ispin) + shift_virt
-            ELSE
-               e_qp(n) = e_can(n - win_start + 1)
-            END IF
-         END DO
-         u_qp(:, :) = 0.0_dp
-         DO n = 1, nmo
-            u_qp(n, n) = 1.0_dp
-         END DO
-         u_qp(win_start:win_start + n_mo_win - 1, win_start:win_start + n_mo_win - 1) = h_qp(:, :)
-
-         ! for a subsequent BSE: ϵ^CN, ϵ^DG (same scissor outside the window) and U of all MOs
-         IF (PRESENT(eigenval_cn)) eigenval_cn(:, ispin) = e_qp(:)
-         IF (PRESENT(u_qp_all)) u_qp_all(:, :, ispin) = u_qp(:, :)
+         ! ϵ^DG of all MOs for a subsequent BSE, scissor shift of the DFT eigenvalue outside the window
          IF (PRESENT(eigenval_dg)) THEN
             DO n = 1, nmo
                IF (n < win_start) THEN
@@ -349,54 +330,124 @@ CONTAINS
             END DO
          END IF
 
+         IF (qp_update) THEN
+            ! ==============================================================================
+            ! 8. Canonical static COHSEX (QP_UPDATE): diagonalize the occ-occ and virt-virt blocks
+            !      Σ_m H^QP_nm U_mk = U_nk ϵ_k^CN
+            ! ==============================================================================
+            ALLOCATE (e_can(n_mo_win))
+            e_can(:) = 0.0_dp
+            IF (para_env%is_source()) THEN
+               IF (no > 0) CALL diamat_all(h_qp(1:no, 1:no), e_can(1:no))
+               IF (nv > 0) CALL diamat_all(h_qp(no + 1:, no + 1:), e_can(no + 1:))
+            END IF
+            CALL para_env%bcast(h_qp, para_env%source)
+            CALL para_env%bcast(e_can, para_env%source)
+
+            ! ==============================================================================
+            ! 9. Energies and MO transformation for all nmo MOs
+            !      inside the window:   ϵ_n^QP = ϵ_n^CN,  U_mn from step 8
+            !      outside the window:  U_mn = δ_mn and scissor shift of the DFT eigenvalue
+            !        ϵ_n^QP = ϵ_n + (ϵ^CN_first - ϵ_first)   below the window (occupied)
+            !        ϵ_n^QP = ϵ_n + (ϵ^CN_last  - ϵ_last)    above the window (virtual)
+            ! ==============================================================================
+            ALLOCATE (e_qp(nmo), u_qp(nmo, nmo))
+            shift_occ = e_can(1) - Eigenval(win_start, ispin)
+            shift_virt = e_can(n_mo_win) - Eigenval(win_start + n_mo_win - 1, ispin)
+            DO n = 1, nmo
+               IF (n < win_start) THEN
+                  e_qp(n) = Eigenval(n, ispin) + shift_occ
+               ELSE IF (n >= win_start + n_mo_win) THEN
+                  e_qp(n) = Eigenval(n, ispin) + shift_virt
+               ELSE
+                  e_qp(n) = e_can(n - win_start + 1)
+               END IF
+            END DO
+            u_qp(:, :) = 0.0_dp
+            DO n = 1, nmo
+               u_qp(n, n) = 1.0_dp
+            END DO
+            u_qp(win_start:win_start + n_mo_win - 1, win_start:win_start + n_mo_win - 1) = h_qp(:, :)
+
+            ! for a subsequent BSE: ϵ^CN and U of all MOs
+            IF (PRESENT(eigenval_cn)) eigenval_cn(:, ispin) = e_qp(:)
+            IF (PRESENT(u_qp_all)) u_qp_all(:, :, ispin) = u_qp(:, :)
+         END IF
+
          ! ==============================================================================
-         ! 10. Print per MO: ϵ_n, Σ^c_nn (unscaled), Σ^x_nn, v^xc_nn, ϵ_n^DG, ϵ_n^CN and
-         !     HOMO, LUMO, gap; ϵ^CN is sorted in each block, i.e. ϵ^CN_HOMO = max over
-         !     the occ block and ϵ^CN_LUMO = min over the virt block
+         ! 10. Print per MO: ϵ_n, Σ^c_nn (unscaled), Σ^x_nn, v^xc_nn, ϵ_n^DG and, with QP_UPDATE,
+         !     ϵ_n^CN; then HOMO, LUMO and gap. ϵ^CN is sorted in each block, i.e.
+         !     ϵ^CN_HOMO = max over the occ block and ϵ^CN_LUMO = min over the virt block
          ! ==============================================================================
          IF (unit_nr > 0) THEN
             spin_label = ""
             IF (nspins == 2 .AND. ispin == 1) spin_label = "Alpha "
             IF (nspins == 2 .AND. ispin == 2) spin_label = "Beta "
             WRITE (unit_nr, "(/,T3,A)") REPEAT("-", 77)
-            WRITE (unit_nr, "(T3,2A)") TRIM(spin_label)//" ", "static COHSEX quasiparticle energies"
-            WRITE (unit_nr, "(T3,A,F6.3,A,F6.3)") "SCALE_COHSEX_OCC =", mp2_env%ri_g0w0%scale_cohsex_occ, &
-               ",  SCALE_COHSEX_VIRT =", mp2_env%ri_g0w0%scale_cohsex_virt
+            ! "static COHSEX" for closed shell, "Alpha static COHSEX" / "Beta static COHSEX" otherwise
+            cohsex_label = TRIM(ADJUSTL(TRIM(spin_label)//" static COHSEX"))
+            WRITE (unit_nr, "(T3,A)") TRIM(cohsex_label)//" quasiparticle energies"
+            WRITE (unit_nr, "(T3,A,F6.3,A,F6.3)") "COHSEX_SCALE_OCC =", mp2_env%ri_g0w0%cohsex_scale_occ, &
+               ",  COHSEX_SCALE_VIRT =", mp2_env%ri_g0w0%cohsex_scale_virt
             WRITE (unit_nr, "(T3,A)") REPEAT("-", 77)
-            WRITE (unit_nr, "(T3,A)") "DG: diagonal of H^QP,  CN: canonical, eigenvalues of the "// &
-               "occ-occ and virt-virt blocks"
-            WRITE (unit_nr, "(/,T3,A,T16,A,T27,A,T38,A,T49,A,T60,A,T71,A)") "MO", "e_n^DFT", "Sigma^c_nn", &
-               "Sigma^x_nn", "v^xc_nn", "e_n^DG", "e_n^CN"
-            WRITE (unit_nr, "(T3,A,T16,A,T27,A,T38,A,T49,A,T60,A,T71,A)") "", "(eV)", "(eV)", "(eV)", &
-               "(eV)", "(eV)", "(eV)"
+            IF (qp_update) THEN
+               WRITE (unit_nr, "(T3,A)") "DG: diagonal of H^QP,  CN: canonical, eigenvalues of the "// &
+                  "occ-occ and virt-virt blocks"
+               WRITE (unit_nr, "(/,T3,A,T16,A,T27,A,T38,A,T49,A,T60,A,T71,A)") "MO", "e_n^DFT", "Sigma^c_nn", &
+                  "Sigma^x_nn", "v^xc_nn", "e_n^DG", "e_n^CN"
+               WRITE (unit_nr, "(T3,A,T16,A,T27,A,T38,A,T49,A,T60,A,T71,A)") "", "(eV)", "(eV)", "(eV)", &
+                  "(eV)", "(eV)", "(eV)"
+            ELSE
+               WRITE (unit_nr, "(T3,A)") "DG: diagonal of H^QP"
+               WRITE (unit_nr, "(/,T3,A,T16,A,T27,A,T38,A,T49,A,T60,A)") "MO", "e_n^DFT", "Sigma^c_nn", &
+                  "Sigma^x_nn", "v^xc_nn", "e_n^DG"
+               WRITE (unit_nr, "(T3,A,T16,A,T27,A,T38,A,T49,A,T60,A)") "", "(eV)", "(eV)", "(eV)", &
+                  "(eV)", "(eV)"
+            END IF
             DO n = 1, n_mo_win
                IF (n <= no) THEN
                   occ_vir = "occ"
                ELSE
                   occ_vir = "vir"
                END IF
-               WRITE (unit_nr, "(T3,I5,A,A3,A,6F11.3)") win_start + n - 1, " (", occ_vir, ")", &
-                  Eigenval(win_start + n - 1, ispin)*evolt, sigma_c(n, n)*evolt, sigma_x(n, n)*evolt, &
-                  vxc(n, n)*evolt, e_diag(n)*evolt, e_can(n)*evolt
+               IF (qp_update) THEN
+                  WRITE (unit_nr, "(T3,I5,A,A3,A,6F11.3)") win_start + n - 1, " (", occ_vir, ")", &
+                     Eigenval(win_start + n - 1, ispin)*evolt, sigma_c(n, n)*evolt, sigma_x(n, n)*evolt, &
+                     vxc(n, n)*evolt, e_diag(n)*evolt, e_can(n)*evolt
+               ELSE
+                  WRITE (unit_nr, "(T3,I5,A,A3,A,5F11.3)") win_start + n - 1, " (", occ_vir, ")", &
+                     Eigenval(win_start + n - 1, ispin)*evolt, sigma_c(n, n)*evolt, sigma_x(n, n)*evolt, &
+                     vxc(n, n)*evolt, e_diag(n)*evolt
+               END IF
             END DO
             IF (no > 0 .AND. nv > 0) THEN
-               WRITE (unit_nr, "(/,T3,A,T60,F11.3,F11.3)") TRIM(spin_label)//" static COHSEX HOMO (eV), DG and CN", &
-                  e_diag(no)*evolt, e_can(no)*evolt
-               WRITE (unit_nr, "(T3,A,T60,F11.3,F11.3)") TRIM(spin_label)//" static COHSEX LUMO (eV), DG and CN", &
-                  e_diag(no + 1)*evolt, MINVAL(e_can(no + 1:))*evolt
-               WRITE (unit_nr, "(T3,A,T60,F11.3,F11.3)") TRIM(spin_label)// &
-                  " static COHSEX HOMO-LUMO gap (eV), DG and CN", &
-                  (e_diag(no + 1) - e_diag(no))*evolt, (MINVAL(e_can(no + 1:)) - MAXVAL(e_can(1:no)))*evolt
+               WRITE (unit_nr, "(/,T3,A,T66,F15.3)") TRIM(cohsex_label)//" HOMO, diagonal (eV)", &
+                  e_diag(no)*evolt
+               WRITE (unit_nr, "(T3,A,T66,F15.3)") TRIM(cohsex_label)//" LUMO, diagonal (eV)", &
+                  e_diag(no + 1)*evolt
+               WRITE (unit_nr, "(T3,A,T66,F15.3)") TRIM(cohsex_label)//" HOMO-LUMO gap, diagonal (eV)", &
+                  (e_diag(no + 1) - e_diag(no))*evolt
+               IF (qp_update) THEN
+                  WRITE (unit_nr, "(T3,A,T66,F15.3)") TRIM(cohsex_label)//" HOMO, canonical (eV)", &
+                     MAXVAL(e_can(1:no))*evolt
+                  WRITE (unit_nr, "(T3,A,T66,F15.3)") TRIM(cohsex_label)//" LUMO, canonical (eV)", &
+                     MINVAL(e_can(no + 1:))*evolt
+                  WRITE (unit_nr, "(T3,A,T66,F15.3)") TRIM(cohsex_label)//" HOMO-LUMO gap, canonical (eV)", &
+                     (MINVAL(e_can(no + 1:)) - MAXVAL(e_can(1:no)))*evolt
+               END IF
             END IF
             WRITE (unit_nr, "(T3,A)") REPEAT("-", 77)
          END IF
 
-         ! ==============================================================================
-         ! 11. Canonical static COHSEX MOs C^QP = C U via DFT%PRINT%MO and DFT%PRINT%MO_CUBES
-         ! ==============================================================================
-         CALL print_static_cohsex_mos(qs_env, mo_coeff(ispin), u_qp, e_qp, homo(ispin), nspins, ispin)
+         IF (qp_update) THEN
+            ! ==============================================================================
+            ! 11. Canonical static COHSEX MOs C^QP = C U via DFT%PRINT%MO and DFT%PRINT%MO_CUBES
+            ! ==============================================================================
+            CALL print_static_cohsex_mos(qs_env, mo_coeff(ispin), u_qp, e_qp, homo(ispin), nspins, ispin)
+            DEALLOCATE (e_can, e_qp, u_qp)
+         END IF
 
-         DEALLOCATE (sigma_c, sigma_x, sigma_x_minus_vxc, vxc, h_qp, e_diag, e_can, e_qp, u_qp)
+         DEALLOCATE (sigma_c, sigma_x, sigma_x_minus_vxc, vxc, h_qp, e_diag)
 
       END DO
 

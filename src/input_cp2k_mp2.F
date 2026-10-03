@@ -14,7 +14,8 @@
 MODULE input_cp2k_mp2
    USE bibliography, ONLY: &
       Bates2013, DelBen2012, DelBen2013, DelBen2015, DelBen2015b, Rybkin2016, Wilhelm2016a, &
-      Wilhelm2016b, Wilhelm2017, Wilhelm2018, Stein2022, Stein2024, Bussy2023
+      Wilhelm2016b, Wilhelm2017, Wilhelm2018, Stein2022, Stein2024, Bussy2023, Hedin1965, &
+      Hybertsen1986, Tyagi2024, Tyagi2026
    USE cp_eri_mme_interface, ONLY: create_eri_mme_section
    USE cp_output_handling, ONLY: add_last_numeric, &
                                  cp_print_key_section_create, &
@@ -736,57 +737,52 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="COHSEX", &
-                          description="Static Coulomb-hole screened-exchange (COHSEX) approximation "// &
-                          "to G0W0. Only the static screened Coulomb "// &
-                          "interaction $W(\omega=0)$ is computed; its correlation part "// &
-                          "$W^\text{c}(0) = W(0) - v$ gives the correlation self-energy "// &
-                          "$\Sigma^\text{c}_{mn} = \frac{1}{2}\sum_p \text{sgn}(\varepsilon_p - "// &
-                          "\varepsilon_\text{F})\, W^\text{c}_{mp,pn}(\omega=0)$. "// &
-                          "The quasiparticle Hamiltonian "// &
-                          "$H^\text{QP}_{mn} = \varepsilon_n^\text{DFT}\delta_{mn} + \Sigma^\text{x}_{mn} "// &
-                          "- v^\text{xc}_{mn} + \alpha_{mn}\,\Sigma^\text{c}_{mn}$, with "// &
-                          "$\alpha_{mn} = \alpha_\text{IP}$ = SCALE_COHSEX_OCC in the occupied-occupied and "// &
-                          "$\alpha_{mn} = \alpha_\text{EA}$ = SCALE_COHSEX_VIRT in the virtual-virtual block, is built for the "// &
-                          "(CORR_MOS_OCC, CORR_MOS_VIRT) MO space. Its diagonal gives the diagonal "// &
-                          "static COHSEX energies $\varepsilon_n^\text{DG} = H^\text{QP}_{nn}$; diagonalizing the "// &
-                          "occupied-occupied and virtual-virtual blocks separately gives the canonical "// &
-                          "static COHSEX energies $\varepsilon_n^\text{CN}$ and MOs. The canonical MOs are printed "// &
-                          "with DFT%PRINT%MO and DFT%PRINT%MO_CUBES. "// &
-                          "The value selects the quasiparticle energies and MOs that enter a BSE after "// &
-                          "COHSEX. The BSE kernel is $W = v + \alpha\, W^\text{c}(\omega=0)$ with "// &
-                       "$\alpha = \alpha_\text{IP} = \alpha_\text{EA}$, i.e. SCALE_COHSEX_OCC = SCALE_COHSEX_VIRT is required: "// &
-                          "$A_{ia,jb} = (\varepsilon_a - \varepsilon_i)\delta_{ij}\delta_{ab} + 2(ia|jb) "// &
-                          "- (ij|ab) - \alpha\,(ij|W^\text{c}|ab)$ and "// &
-                          "$B_{ia,jb} = 2(ia|jb) - (ib|ja) - \alpha\,(ib|W^\text{c}|ja)$.", &
+                          description="Static Coulomb-hole screened-exchange (COHSEX) approximation to "// &
+                          "$G_0W_0$. Only the static screened Coulomb interaction $W(\omega=0)$ is computed; "// &
+                          "its correlation part $W^\text{c}(0) = W(0) - v$ gives the static correlation "// &
+                          "self-energy $\Sigma^\text{c}_{mn} = \frac{1}{2}\sum_p \text{sgn}(\varepsilon_p - "// &
+                          "\varepsilon_\text{F})\, W^\text{c}_{mp,pn}(\omega=0)$. The quasiparticle Hamiltonian "// &
+                          "$H^\text{QP}_{mn} = \varepsilon_n^\text{DFT}\delta_{mn} + \Sigma^\text{x}_{mn} - "// &
+                          "v^\text{xc}_{mn} + \Sigma^\text{c}_{mn}$ is built for the MOs selected by "// &
+                          "CORR_MOS_OCC and CORR_MOS_VIRT; its occupied-virtual blocks are set to zero. "// &
+                          "A subsequent BSE uses $W(\omega=0)$ and the quasiparticle energies (and MOs) "// &
+                          "selected here. No RPA correlation energy is computed.", &
                           usage="COHSEX QP_UPDATE", &
                           enum_c_vals=s2a("OFF", "DIAGONAL", "QP_UPDATE"), &
                           enum_i_vals=[cohsex_off, cohsex_diagonal, cohsex_qp_update], &
                           enum_desc=s2a("No static COHSEX (default without the keyword).", &
-                                        "static COHSEX; a BSE uses the diagonal static COHSEX energies "// &
-                                        "$\varepsilon_n^\text{DG}$ with the Kohn-Sham MOs (default of the "// &
-                                        "lone keyword).", &
-                                        "static COHSEX; a BSE uses the canonical static COHSEX energies "// &
-                                        "$\varepsilon_n^\text{CN}$ with the canonical static COHSEX MOs, i.e. the full "// &
-                                        "static COHSEX quasiparticle Hamiltonian $H^\text{QP}$ including its "// &
-                                        "off-diagonal elements."), &
+                                        "Diagonal static COHSEX (Hedin 1965; Hybertsen and Louie 1986): the "// &
+                                        "quasiparticle energies are the diagonal elements "// &
+                                        "$\varepsilon_n^\text{DG} = H^\text{QP}_{nn}$. "// &
+                                        "A subsequent BSE uses $\varepsilon_n^\text{DG}$ with the Kohn-Sham MOs. "// &
+                                        "Default of the lone keyword.", &
+                                        "Static COHSEX with quasiparticle update (Tyagi and Voora 2024): the "// &
+                                        "occupied-occupied and virtual-virtual blocks of $H^\text{QP}$ are "// &
+                                        "diagonalized separately, giving the canonical static COHSEX energies "// &
+                                        "$\varepsilon_n^\text{CN}$ and MOs. Both $\varepsilon_n^\text{DG}$ and "// &
+                                        "MOs are printed  with DFT%PRINT%MO and "// &
+                                        "DFT%PRINT%MO_CUBES. A subsequent BSE uses $\varepsilon_n^\text{CN}$ "// &
+                                        "with the canonical MOs."), &
+                          citations=[Hedin1965, Hybertsen1986, Tyagi2024], &
                           default_i_val=cohsex_off, lone_keyword_i_val=cohsex_diagonal)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="SCALE_COHSEX_OCC", &
-                          description="Scaling factor $\alpha_\text{IP}$ of the static COHSEX correlation "// &
-                          "self-energy $\Sigma^\text{c}_{ij}$ in the occupied-occupied block (ionization "// &
-                          "potentials).", &
-                          usage="SCALE_COHSEX_OCC 0.6", &
+      CALL keyword_create(keyword, __LOCATION__, name="COHSEX_SCALE_OCC", &
+                          description="Scaling factor of the static COHSEX correlation self-energy in the "// &
+                          "occupied-occupied block of $H^\text{QP}$. With a subsequent BSE, it also scales "// &
+                          "$W^\text{c}(\omega=0)$ in the kernel and must equal COHSEX_SCALE_VIRT.", &
+                          usage="COHSEX_SCALE_OCC 0.6", &
+                          citations=[Tyagi2026], &
                           default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="SCALE_COHSEX_VIRT", &
-                          description="Scaling factor $\alpha_\text{EA}$ of the static COHSEX correlation "// &
-                          "self-energy $\Sigma^\text{c}_{ab}$ in the virtual-virtual block (electron "// &
-                          "affinities).", &
-                          usage="SCALE_COHSEX_VIRT 0.6", &
+      CALL keyword_create(keyword, __LOCATION__, name="COHSEX_SCALE_VIRT", &
+                          description="Scaling factor of the static COHSEX correlation self-energy in the "// &
+                          "virtual-virtual block of $H^\text{QP}$.", &
+                          usage="COHSEX_SCALE_VIRT 0.6", &
+                          citations=[Tyagi2026], &
                           default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

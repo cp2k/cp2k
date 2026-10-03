@@ -27,8 +27,7 @@ MODULE post_scf_bandstructure_types
    USE gw_auto_ri_types,                ONLY: auto_ri_release,&
                                               auto_ri_type
    USE input_constants,                 ONLY: G0W0,&
-                                              rtp_method_bse,&
-                                              rtp_method_bse_linearized,&
+                                              cohsex_off,&
                                               tensor_small_cell_full_kp
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -153,7 +152,8 @@ MODULE post_scf_bandstructure_types
                                                          do_ldos = .FALSE., &
                                                          do_gw_ri_rs = .FALSE., &
                                                          do_dos_pdos = .FALSE., &
-                                                         do_floquet = .FALSE.
+                                                         do_floquet = .FALSE., &
+                                                         do_static_cohsex = .FALSE.
 
       ! various eigenvalues computed in GW code, some depend on k-points
       ! and have therefore three dimensions (band index, k-point, spin)
@@ -175,6 +175,12 @@ MODULE post_scf_bandstructure_types
       LOGICAL                                         :: do_hedin_shift = .FALSE.
       ! which GW flavour was requested; constants from input_constants (G0W0, evGW0, ...)
       INTEGER                                         :: gw_flavour = G0W0
+
+      ! parameters for static COHSEX approximation to GW
+      ! static COHSEX: OFF, DIAGONAL (ϵ^DG only) or QP_UPDATE (also diagonalization, ϵ^CN, MOs)
+      INTEGER                                         :: cohsex_flavor = cohsex_off
+      REAL(KIND=dp)                                   :: cohsex_scale_occ = 1.0_dp, &
+                                                         cohsex_scale_virt = 1.0_dp
 
       ! parameters for RI-RS implementation of GW
       TYPE(ri_rs_env)                                 :: ri_rs
@@ -349,10 +355,12 @@ MODULE post_scf_bandstructure_types
                                                       calc_chi
       LOGICAL, DIMENSION(:, :), ALLOCATABLE        :: Sigma_c_exists
       LOGICAL                                      :: all_W_exist = .FALSE., &
-                                                      Sigma_x_exists = .FALSE.
+                                                      Sigma_x_exists = .FALSE., &
+                                                      Sigma_c_freq_zero_exists = .FALSE.
       CHARACTER(LEN=3)                             :: chi_name = "chi"
       CHARACTER(LEN=6)                             :: W_time_name = "W_time"
       CHARACTER(LEN=7)                             :: Sigma_x_name = "Sigma_x"
+      CHARACTER(LEN=17)                            :: Sigma_c_freq_zero_name = "Sigma_c_freq_zero"
       CHARACTER(LEN=13)                            :: Sigma_p_name = "Sigma_pos_tau", &
                                                       Sigma_n_name = "Sigma_neg_tau"
       CHARACTER(LEN=default_path_length)           :: prefix = ""
@@ -533,9 +541,7 @@ CONTAINS
       CALL cp_fm_release(bs_env%fm_Minv_Gamma)
       CALL cp_fm_release(bs_env%fm_chi_Gamma_freq)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq)
-      IF (bs_env%rtp_method == rtp_method_bse .OR. bs_env%rtp_method == rtp_method_bse_linearized) THEN
-         CALL cp_fm_release(bs_env%fm_W_MIC_freq_zero)
-      END IF
+      CALL cp_fm_release(bs_env%fm_W_MIC_freq_zero)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq_1_extra)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq_1_no_extra)
       CALL cp_cfm_release(bs_env%cfm_work_mo)
