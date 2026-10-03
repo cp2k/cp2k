@@ -570,9 +570,10 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
 
-      !If gapw, check for gpw kinds
+      !If gapw, check for gpw kinds. This filtering applies to the core charges only;
+      !user defined Gaussians (calpha/ccore) are always integrated
       skip_fcore = .FALSE.
-      IF (dft_control%qs_control%gapw) THEN
+      IF (dft_control%qs_control%gapw .AND. (.NOT. PRESENT(calpha))) THEN
          IF (.NOT. dft_control%qs_control%gapw_control%nopaw_as_gpw) skip_fcore = .TRUE.
       END IF
 
@@ -613,7 +614,7 @@ CONTAINS
             CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_of_kind, atom_list=atom_list)
             CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
 
-            IF (dft_control%qs_control%gapw .AND. paw_atom) CYCLE
+            IF (dft_control%qs_control%gapw .AND. paw_atom .AND. (.NOT. PRESENT(calpha))) CYCLE
 
             IF (PRESENT(calpha)) THEN
                ! User defined Gaussians (e.g. the SCCS core fill) instead of the core charges
