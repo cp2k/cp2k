@@ -1606,7 +1606,6 @@ set(CP2K_PROGS_F
     common/parallel_rng_types_unittest.F
     atom_upf_unittest.F
     xc/xc_semilocal_unittest.F
-    qs_grid_atom_unittest.F
     upf_projector_integrals_unittest.F
     upf_local_integrals_unittest.F
     gapw_background_unittest.F
@@ -2046,7 +2045,6 @@ list(
   "parallel_rng_types_unittest"
   "atom_upf_unittest"
   "xc_semilocal_unittest"
-  "qs_grid_atom_unittest"
   "upf_projector_integrals_unittest"
   "upf_local_integrals_unittest"
   "gapw_background_unittest"
@@ -2094,7 +2092,6 @@ add_executable(memory_utilities_unittest common/memory_utilities_unittest.F)
 add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
 add_executable(atom_upf_unittest atom_upf_unittest.F)
 add_executable(xc_semilocal_unittest xc/xc_semilocal_unittest.F)
-add_executable(qs_grid_atom_unittest qs_grid_atom_unittest.F)
 add_executable(upf_projector_integrals_unittest
                upf_projector_integrals_unittest.F)
 add_executable(upf_local_integrals_unittest upf_local_integrals_unittest.F)

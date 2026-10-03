@@ -62,6 +62,7 @@ PROGRAM xc_semilocal_unittest
       CALL section_vals_val_set(functional, 'PBE%PARAMETRIZATION', i_val=variants(variant))
       DO configuration = 1, 3
          DO spin = 1, 2
+            IF (configuration == 1 .AND. spin == 2) CYCLE
             x = [0.4_dp, 0.2_dp, 0.3_dp, 0.2_dp, 0.25_dp]
             IF (configuration == 2) x(spin) = -0.1_dp
             IF (configuration == 3) x(spin) = 1.e-13_dp

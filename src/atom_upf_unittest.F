@@ -32,6 +32,8 @@ PROGRAM atom_upf_unittest
                                               sgp_potential_type
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE input_constants,                 ONLY: contracted_gto,&
+                                              do_gapw_gct,&
+                                              do_gapw_log,&
                                               do_rhf_atom
    USE input_cp2k_atom,                 ONLY: create_atom_section
    USE input_section_types,             ONLY: section_release,&
@@ -45,12 +47,17 @@ PROGRAM atom_upf_unittest
                                               dp
    USE libcp2k,                         ONLY: cp2k_finalize,&
                                               cp2k_init
-   USE mathconstants,                   ONLY: fourpi
+   USE mathconstants,                   ONLY: fourpi,&
+                                              pi
    USE orbital_pointers,                ONLY: co,&
                                               init_orbital_pointers,&
                                               nco,&
                                               nso
    USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
+   USE qs_grid_atom,                    ONLY: allocate_grid_atom,&
+                                              create_grid_atom,&
+                                              deallocate_grid_atom,&
+                                              grid_atom_type
 
    IMPLICIT NONE
    LOGICAL :: source_root_argument
@@ -69,6 +76,7 @@ PROGRAM atom_upf_unittest
    CALL check_nlcc_fit()
    CALL check_basis_origin()
    CALL check_basis_derivatives()
+   CALL check_radial_grid_endpoints()
    CALL check_contracted_basis_reader()
    CALL check_basis_optimization_export()
 
@@ -128,6 +136,39 @@ PROGRAM atom_upf_unittest
    CALL cp2k_finalize()
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Check the repaired radial maps at the size that exposes endpoint cancellation.
+! **************************************************************************************************
+   SUBROUTINE check_radial_grid_endpoints()
+      INTEGER, PARAMETER :: n = 6400, types(2) = [do_gapw_gct, do_gapw_log]
+      REAL(dp), PARAMETER :: inner(2) = [4.83458313724687745e-18_dp, 6.97482911687147684e-18_dp], &
+         outer(2) = [2.06843066219244770e17_dp, 57.5213142095328827_dp]
+
+      INTEGER                                            :: i
+      REAL(dp)                                           :: error
+      TYPE(grid_atom_type), POINTER                      :: grid
+
+      NULLIFY (grid)
+      DO i = 1, SIZE(types)
+         CALL allocate_grid_atom(grid)
+         CALL create_grid_atom(grid, n, 1, 2, 0, types(i))
+         IF (.NOT. ALL(ieee_is_finite(grid%rad)) .OR. .NOT. ALL(ieee_is_finite(grid%wr))) THEN
+            ERROR STOP 'Nonfinite radial grid'
+         END IF
+         IF (ANY(grid%rad <= 0.0_dp) .OR. ANY(grid%wr <= 0.0_dp)) ERROR STOP 'Nonpositive radial grid'
+         IF (ANY(grid%rad(:n - 1) <= grid%rad(2:))) ERROR STOP 'Unordered radial points'
+         ! Independent analytic moments include the r**2 radial measure.
+         error = ABS(SUM(grid%wr*EXP(-grid%rad)) - 2.0_dp)
+         error = MAX(error, ABS(SUM(grid%wr*EXP(-grid%rad)/grid%rad) - 1.0_dp))
+         error = MAX(error, ABS(SUM(grid%wr*EXP(-grid%rad2)) - SQRT(pi)/4.0_dp))
+         IF (error > 1.e-10_dp) ERROR STOP 'Radial moment error'
+         ! Independent high-precision endpoints reject clipping rounded cosines.
+         IF (ABS(grid%rad(n)/inner(i) - 1.0_dp) > 1.e-13_dp .OR. &
+             ABS(grid%rad(1)/outer(i) - 1.0_dp) > 1.e-13_dp) ERROR STOP 'Radial grid endpoint error'
+         CALL deallocate_grid_atom(grid)
+      END DO
+   END SUBROUTINE check_radial_grid_endpoints
 
 ! **************************************************************************************************
 !> \brief Check primitive and contracted Gaussian derivatives on UPF meshes starting at zero.
