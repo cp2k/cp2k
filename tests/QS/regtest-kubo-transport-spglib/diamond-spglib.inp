@@ -1,0 +1,3 @@
+@SET PROPERTY_SYMMETRY T
+@SET PROPERTY_BACKEND SPGLIB
+@INCLUDE ../regtest-kubo-transport/diamond-common.inc

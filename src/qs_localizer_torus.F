@@ -10,7 +10,8 @@
 !> \author Thomas D. Kuehne, tkuehne@cp2k.org
 ! **************************************************************************************************
 MODULE qs_localizer_torus
-   USE cell_types,                      ONLY: cell_type
+   USE cell_types,                      ONLY: cell_transform_input_cartesian,&
+                                              cell_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
         dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
@@ -43,8 +44,145 @@ MODULE qs_localizer_torus
    IMPLICIT NONE
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_localizer_torus'
-   PUBLIC :: localizer_torus_operators, torus_translation_operators
+   PUBLIC :: localizer_torus_operators, torus_translation_operators, torus_gaussian_window, torus_plane_geometry
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Intrinsic reciprocal vectors of a two-dimensional torus, perpendicular to its normal.
+!> \param cell Primitive cell
+!> \param grid Torus replication
+!> \param directions Ordered lattice axes
+!> \param lengths Torus lattice-vector lengths
+!> \param reciprocal Two reciprocal torus vectors including 2*pi
+!> \param area Physical area
+!> \note Unlike rows of the 3D cell inverse, these vectors do not mix a tilted vacuum axis
+!>       into the 2D window or exponential operators.
+! **************************************************************************************************
+   SUBROUTINE torus_plane_geometry(cell, grid, directions, lengths, reciprocal, area)
+      TYPE(cell_type), INTENT(IN)                        :: cell
+      INTEGER, INTENT(IN)                                :: grid(3), directions(2)
+      REAL(dp), INTENT(OUT)                              :: lengths(2), reciprocal(3, 2), area
+
+      INTEGER                                            :: j
+      REAL(dp)                                           :: cross(3), gram(2, 2), vectors(3, 2)
+
+      DO j = 1, 2
+         vectors(:, j) = cell%hmat(:, directions(j))*grid(directions(j))
+      END DO
+      cross = [vectors(2, 1)*vectors(3, 2) - vectors(3, 1)*vectors(2, 2), &
+               vectors(3, 1)*vectors(1, 2) - vectors(1, 1)*vectors(3, 2), &
+               vectors(1, 1)*vectors(2, 2) - vectors(2, 1)*vectors(1, 2)]
+      area = NORM2(cross)
+      CPASSERT(area > 0.0_dp)
+      gram = MATMUL(TRANSPOSE(vectors), vectors)
+      lengths = SQRT([gram(1, 1), gram(2, 2)])
+      reciprocal(:, 1) = twopi*(gram(2, 2)*vectors(:, 1) - gram(1, 2)*vectors(:, 2))/area**2
+      reciprocal(:, 2) = twopi*(gram(1, 1)*vectors(:, 2) - gram(1, 2)*vectors(:, 1))/area**2
+   END SUBROUTINE torus_plane_geometry
+
+! **************************************************************************************************
+!> \brief Analytic AO matrix of a normalized periodized Gaussian in two lattice coordinates.
+!> \param qs_env Frozen converged environment
+!> \param grid Full property torus
+!> \param directions Ordered lattice axes of the two-dimensional periodic cell
+!> \param center Cartesian center in bohr
+!> \param width Widths in bohr along the two torus lattice vectors
+!> \param eps_window Absolute uniform Fourier truncation bound
+!> \param window Newly allocated physical window matrix, independent of the normal coordinate
+!> \param cell_area Physical torus area, including the oblique-cell Jacobian
+!> \param area Integral of the normalized window on that torus
+!> \note The peak is one. Widths are fractional-coordinate widths times lattice-vector lengths,
+!>       not Cartesian widths in an oblique plane. No atom or AO labels define the window.
+! **************************************************************************************************
+   SUBROUTINE torus_gaussian_window(qs_env, grid, directions, center, width, eps_window, window, cell_area, area)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: grid(3), directions(2)
+      REAL(dp), INTENT(IN)                               :: center(3), width(2), eps_window
+      TYPE(dbcsr_p_type), POINTER                        :: window(:)
+      REAL(dp), INTENT(OUT)                              :: cell_area, area
+
+      INTEGER                                            :: harmonic(3), j, m1, m2, modes(2), nimages
+      LOGICAL                                            :: do_kpoints
+      REAL(dp)                                           :: coefficient, decay(2), fractional(2), &
+                                                            k(3), lengths(2), norm(2), phase, &
+                                                            point(3), reciprocal(3, 2), tail, &
+                                                            tau(2)
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dbcsr_p_type), POINTER                        :: cb(:, :), primitive_s(:, :), sb(:, :)
+      TYPE(dbcsr_type)                                   :: cosine, sine
+      TYPE(kpoint_type), POINTER                         :: berry
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_set_p_type), POINTER            :: pairs(:)
+      TYPE(qs_environment_type), POINTER                 :: qp
+
+      NULLIFY (qp, berry, cb, sb)
+      CALL get_qs_env(qs_env, do_kpoints=do_kpoints)
+      IF (do_kpoints) THEN
+         qp => qs_env
+      ELSE
+         CALL create_kp_from_gamma(qs_env, qp)
+      END IF
+      CALL get_qs_env(qp, cell=cell, para_env=para_env, sab_all=pairs, matrix_s_kp=primitive_s)
+      CALL torus_plane_geometry(cell, grid, directions, lengths, reciprocal, cell_area)
+      tau = width/lengths
+      point = center
+      CALL cell_transform_input_cartesian(cell, point)
+      fractional = MATMUL(TRANSPOSE(reciprocal), point)/twopi
+      decay = 0.5_dp*(twopi*MIN(tau, 10.0_dp))**2
+      IF (ANY(decay < 1.e-4_dp)) THEN
+         CPABORT('Periodic Chern window too narrow: use wider WINDOW_SIGMA.')
+      END IF
+      norm = 1.0_dp
+      ! A geometric bound on both Fourier tails bounds the full two-dimensional window.
+      DO j = 1, 2
+         modes(j) = 0
+         DO
+            tail = 2*EXP(-decay(j)*REAL(modes(j) + 1, dp)**2)/ &
+                   (1 - EXP(-decay(j)*REAL(2*modes(j) + 3, dp)))
+            IF (tail <= eps_window/8) EXIT
+            modes(j) = modes(j) + 1
+            IF (modes(j) > 64) THEN
+               CPABORT('Periodic Chern window too narrow: use wider WINDOW_SIGMA.')
+            END IF
+            norm(j) = norm(j) + 2*EXP(-decay(j)*REAL(modes(j), dp)**2)
+         END DO
+      END DO
+      area = cell_area/PRODUCT(norm)
+      ALLOCATE (window(1))
+      ALLOCATE (window(1)%matrix)
+      CALL create_torus(primitive_s(1, 1)%matrix, PRODUCT(grid), window(1)%matrix)
+      CALL dbcsr_finalize(window(1)%matrix)
+      CALL dbcsr_create(cosine, template=window(1)%matrix)
+      CALL dbcsr_create(sine, template=window(1)%matrix)
+      CALL kpoint_create(berry)
+      CALL kpoint_init_cell_index(berry, pairs, para_env, nimages)
+      DO m1 = 0, modes(1)
+         DO m2 = -modes(2), modes(2)
+            IF (m1 == 0 .AND. m2 < 0) CYCLE
+            harmonic = 0
+            harmonic(directions) = [m1, m2]
+            k = MATMUL(reciprocal, REAL([m1, m2], dp))
+            CALL build_berry_kpoint_matrix(qp, cb, sb, k, ordered=.TRUE., ordered_kpoints=berry)
+            CALL dbcsr_set(cosine, 0.0_dp)
+            CALL dbcsr_set(sine, 0.0_dp)
+            CALL lift_berry(cb, sb, berry%index_to_cell, grid, 0, cosine, sine, harmonic)
+            phase = twopi*DOT_PRODUCT(REAL([m1, m2], dp), fractional)
+            coefficient = EXP(-decay(1)*REAL(m1, dp)**2 - decay(2)*REAL(m2, dp)**2)/PRODUCT(norm)
+            IF (ANY(harmonic /= 0)) coefficient = 2*coefficient
+            CALL dbcsr_add(window(1)%matrix, cosine, 1.0_dp, coefficient*COS(phase))
+            CALL dbcsr_add(window(1)%matrix, sine, 1.0_dp, coefficient*SIN(phase))
+            CALL dbcsr_deallocate_matrix_set(cb)
+            CALL dbcsr_deallocate_matrix_set(sb)
+         END DO
+      END DO
+      CALL dbcsr_release(cosine)
+      CALL dbcsr_release(sine)
+      CALL kpoint_release(berry)
+      IF (.NOT. do_kpoints) THEN
+         CALL qs_env_release(qp)
+         DEALLOCATE (qp)
+      END IF
+   END SUBROUTINE torus_gaussian_window
 
 ! **************************************************************************************************
 !> \brief Lift scalar image operators and ordered Berry integrals to a full real-cell torus.
@@ -57,18 +195,21 @@ CONTAINS
 !> \param cosines Newly allocated torus cosine matrices, in directions order
 !> \param sines Newly allocated sine matrices, indexed by lattice direction
 !> \param soc Newly allocated torus SOC components when requested
+!> \param reciprocal Optional Cartesian reciprocal vectors, one per requested direction
 !> \note No SCF weights or reconstructed occupied MOs enter. Keeping a real-cell AO basis
 !>       also retains the standard physical time-reversal representation for the AII solver.
 ! **************************************************************************************************
-   SUBROUTINE localizer_torus_operators(qs_env, grid, directions, do_soc, h, s, cosines, sines, soc)
+   SUBROUTINE localizer_torus_operators(qs_env, grid, directions, do_soc, h, s, cosines, sines, soc, reciprocal)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: grid(3), directions(:)
       LOGICAL, INTENT(IN)                                :: do_soc
       TYPE(dbcsr_p_type), POINTER                        :: h(:), s(:), cosines(:), sines(:), &
                                                             soc(:, :)
+      REAL(dp), INTENT(IN), OPTIONAL                     :: reciprocal(:, :)
 
       INTEGER                                            :: axis, j, nimages
       LOGICAL                                            :: do_kpoints
+      REAL(dp)                                           :: wave(3)
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_p_type), POINTER                        :: cb(:, :), sb(:, :)
       TYPE(kpoint_type), POINTER                         :: berry
@@ -100,7 +241,9 @@ CONTAINS
       END DO
       DO j = 1, SIZE(directions)
          axis = directions(j)
-         CALL build_berry_kpoint_matrix(qp, cb, sb, twopi*cell%h_inv(axis, :)/REAL(grid(axis), dp), &
+         wave = twopi*cell%h_inv(axis, :)/REAL(grid(axis), dp)
+         IF (PRESENT(reciprocal)) wave = reciprocal(:, j)
+         CALL build_berry_kpoint_matrix(qp, cb, sb, wave, &
                                         ordered=.TRUE., ordered_kpoints=berry)
          ALLOCATE (cosines(j)%matrix)
          CALL dbcsr_create(cosines(j)%matrix, template=s(1)%matrix, name='TORUS COS')
@@ -324,19 +467,24 @@ CONTAINS
 !> \param axis Direction of the reciprocal torus coordinate
 !> \param cosine Full torus cosine
 !> \param sine Full torus sine
+!> \param harmonic Optional arbitrary reciprocal integer vector instead of axis
 ! **************************************************************************************************
-   SUBROUTINE lift_berry(cosmat, sinmat, cells, grid, axis, cosine, sine)
+   SUBROUTINE lift_berry(cosmat, sinmat, cells, grid, axis, cosine, sine, harmonic)
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: cosmat(:, :), sinmat(:, :)
       INTEGER, INTENT(IN)                                :: cells(:, :), grid(3), axis
       TYPE(dbcsr_type), INTENT(INOUT)                    :: cosine, sine
+      INTEGER, INTENT(IN), OPTIONAL                      :: harmonic(3)
 
-      INTEGER                                            :: ir
+      INTEGER                                            :: ir, wave(3)
 
+      wave = 0
+      IF (axis /= 0) wave(ABS(axis)) = SIGN(1, axis)
+      IF (PRESENT(harmonic)) wave = harmonic
       DO ir = 1, SIZE(cells, 2)
-         CALL lift_blocks(cosmat(1, ir)%matrix, grid, cells(:, ir), axis, .FALSE., cosine)
-         CALL lift_blocks(sinmat(1, ir)%matrix, grid, cells(:, ir), -axis, .TRUE., cosine)
-         CALL lift_blocks(cosmat(1, ir)%matrix, grid, cells(:, ir), axis, .TRUE., sine)
-         CALL lift_blocks(sinmat(1, ir)%matrix, grid, cells(:, ir), axis, .FALSE., sine)
+         CALL lift_blocks(cosmat(1, ir)%matrix, grid, cells(:, ir), 0, .FALSE., cosine, wave)
+         CALL lift_blocks(sinmat(1, ir)%matrix, grid, cells(:, ir), 0, .TRUE., cosine, -wave)
+         CALL lift_blocks(cosmat(1, ir)%matrix, grid, cells(:, ir), 0, .TRUE., sine, wave)
+         CALL lift_blocks(sinmat(1, ir)%matrix, grid, cells(:, ir), 0, .FALSE., sine, wave)
       END DO
       CALL dbcsr_finalize(cosine)
       CALL dbcsr_finalize(sine)
@@ -350,12 +498,14 @@ CONTAINS
 !> \param axis Zero for no phase, signed reciprocal direction otherwise
 !> \param sine Use sine rather than cosine of the translation phase
 !> \param destination Accumulated torus matrix
+!> \param harmonic Optional reciprocal integer vector
 ! **************************************************************************************************
-   SUBROUTINE lift_blocks(source, grid, displacement, axis, sine, destination)
+   SUBROUTINE lift_blocks(source, grid, displacement, axis, sine, destination, harmonic)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: source
       INTEGER, INTENT(IN)                                :: grid(3), displacement(3), axis
       LOGICAL, INTENT(IN)                                :: sine
       TYPE(dbcsr_type), INTENT(INOUT)                    :: destination
+      INTEGER, INTENT(IN), OPTIONAL                      :: harmonic(3)
 
       INTEGER                                            :: blocks, col, it, iu, row, t(3), u(3)
       LOGICAL                                            :: transposed
@@ -374,8 +524,10 @@ CONTAINS
             u = MODULO(t + displacement, grid)
             iu = 1 + u(1) + grid(1)*(u(2) + grid(2)*u(3))
             factor = 1.0_dp
-            IF (axis /= 0) THEN
-               phase = twopi*REAL(t(ABS(axis)), dp)/REAL(grid(ABS(axis)), dp)
+            IF (axis /= 0 .OR. PRESENT(harmonic)) THEN
+               phase = 0.0_dp
+               IF (axis /= 0) phase = twopi*REAL(t(ABS(axis)), dp)/REAL(grid(ABS(axis)), dp)
+               IF (PRESENT(harmonic)) phase = twopi*SUM(REAL(harmonic*t, dp)/REAL(grid, dp))
                IF (sine) THEN
                   factor = SIN(phase)
                ELSE
