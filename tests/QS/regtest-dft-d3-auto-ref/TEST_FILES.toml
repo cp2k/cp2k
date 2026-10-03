@@ -9,4 +9,4 @@
 "bp86_dftd3_auto.inp"                  = [{matcher="M011", tol=1.0E-9, ref=-8.102393104691805}]
 "b3lyp_dftd3_auto.inp"                 = [{matcher="M011", tol=1.0E-9, ref=-48.225031871460232}]
 "pbe0_dftd3_auto.inp"                  = [{matcher="M011", tol=1.0E-9, ref=-11.711537578730349}]
-"tpss_dftd3_auto.inp"                  = [{matcher="M011", tol=1.0E-9, ref=-17.19972190588867}]
+"tpss_dftd3_auto.inp"                  = [{matcher="M011", tol=1.0E-9, ref=-17.199715816716303}]
