@@ -66,4 +66,5 @@
 "UO2-2x2x2-coord-2.inp"                 = [{matcher="M011", tol=1.0E-14, ref=-77.461096471996385}]
 "UO2-2x2x2-coord-3.inp"                 = [{matcher="M011", tol=1.0E-14, ref=-77.461096471996257}]
 "UO2-2x2x2-coord-scaled-1.inp"          = [{matcher="M011", tol=4e-14, ref=-77.461096482422832}]
+"uo2_rhombo_spme.inp" = [{matcher="M011", tol=1.0E-14, ref=-2.420650985604885}]
 #EOF
