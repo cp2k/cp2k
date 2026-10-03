@@ -24,7 +24,7 @@
                            {matcher="Kubo_hall_max", tol=1e-18, ref=0.0},
                            {matcher="Real_space_chern_marker", tol=1e-10, ref=0.0},
                            {matcher="Real_space_chern_weight", tol=2e-6, ref=12.7435519545900}]
-"diamond-k290.inp" = [{matcher="Kubo_sigma_iso", tol=2e-6, ref=9.96335574e2},
+"diamond-k290.inp" = [{matcher="Kubo_sigma_iso", tol=2e-6, ref=2.88132297},
                       {matcher="Kubo_symmetry_points", tol=0.0, ref=3},
                       {matcher="Kubo_symmetry_current_error", tol=1e-8, ref=0.0},
                       {matcher="Kubo_hall_max", tol=1e-9, ref=0.0}]

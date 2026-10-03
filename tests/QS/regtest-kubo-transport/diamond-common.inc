@@ -1,3 +1,4 @@
+# Expanded diamond lattice for inexpensive nonsymmorphic SOC/AO covariance checks.
 &GLOBAL
   PRINT_LEVEL LOW
   PROJECT diamond-kubo
@@ -24,6 +25,11 @@
       SYMMETRY F
     &END KPOINTS
     &SCF
+      ADDED_MOS 22
+      &SMEAR ON
+        METHOD FERMI_DIRAC
+        ELECTRONIC_TEMPERATURE 300
+      &END SMEAR
       SCF_GUESS ATOMIC
       EPS_SCF 1.0E-10
       MAX_SCF 80
@@ -60,9 +66,9 @@
   &END PROPERTIES
   &SUBSYS
     &CELL
-      A 0.0 1.7835 1.7835
-      B 1.7835 0.0 1.7835
-      C 1.7835 1.7835 0.0
+      A 0.0 4.0 4.0
+      B 4.0 0.0 4.0
+      C 4.0 4.0 0.0
       PERIODIC XYZ
     &END CELL
     &COORD
