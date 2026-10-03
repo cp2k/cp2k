@@ -1,0 +1,4 @@
+@SET project he2_hexagonal
+@SET backend K290
+@SET reuse T
+@INCLUDE "he2_hexagonal.inc"

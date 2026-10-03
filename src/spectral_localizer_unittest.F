@@ -6,6 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE spectral_localizer_test_cases
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+
    IMPLICIT NONE
    PRIVATE
    PUBLIC :: check_localizer_2d, check_localizer_3d, check_localizer_flattening
@@ -32,9 +34,10 @@ CONTAINS
 #endif
       COMPLEX(KIND=dp), ALLOCATABLE :: h(:, :), s(:, :), r(:, :, :), transform(:, :), &
                                        hc(:, :), sc(:, :), rc(:, :, :), hs(:, :), ss(:, :), rs(:, :, :)
-      INTEGER :: axis, i, index, reference, status, n, pf, permutation(4)
+      INTEGER :: axis, i, index, reference, status, n, pf, permutation(4), io
       REAL(KIND=dp) :: gap, gap_reference, ratio, skew(4, 4), exact
 
+      io = cp_logger_get_default_io_unit()
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_get_halting_mode(IEEE_ALL, original_halt)
 #endif
@@ -256,7 +259,7 @@ CONTAINS
             IF (status == 0) ERROR STOP 'Invalid AII dimensions accepted'
             DEALLOCATE (q, matrix, reference, expected, actual)
          END DO
-         WRITE (*, '(A,ES14.5)') 'AII signed-permutation maximum error: ', largest
+         IF (io > 0) WRITE (io, '(A,ES14.5)') 'AII signed-permutation maximum error: ', largest
       END SUBROUTINE aii_transform_tests
 
 ! **************************************************************************************************
@@ -791,12 +794,13 @@ CONTAINS
       COMPLEX(dp) :: h(n, n), s(n, n), r(n, n, 3), u(n, n), hc(n, n), sc(n, n), rc(n, n, 3)
       COMPLEX(dp) :: pauli(2, 2, 3), a(2*n, 2*n), dummy(1, 1), work(10*n)
       REAL(dp) :: singular(2*n), rwork(10*n), gap, reference, ratio, mass, shift(3), defect, lower, upper, midpoint
-      INTEGER :: i, j, axis, model, index, expected, status, sign_product, kx, ky, kz
+      INTEGER :: i, j, axis, model, index, expected, status, sign_product, kx, ky, kz, io
 #if defined(__HAS_IEEE_EXCEPTIONS)
       LOGICAL :: halt(SIZE(IEEE_ALL)), current_halt(SIZE(IEEE_ALL))
       CALL ieee_get_halting_mode(IEEE_ALL, halt)
 #endif
 
+      io = cp_logger_get_default_io_unit()
       CALL determinant_controls()
       pauli = 0.0_dp
       pauli(1, 2, 1) = 1.0_dp
@@ -840,7 +844,7 @@ CONTAINS
          CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif
          IF (status /= 0 .OR. ABS(reference - MINVAL(singular)) > 2.e-12_dp) ERROR STOP '3D singular gap mismatch'
-         WRITE (*, '(A,F4.1,I3,2ES18.9)') '3D Dirac mass, index, gap, SVD error: ', &
+         IF (io > 0) WRITE (io, '(A,F4.1,I3,2ES18.9)') '3D Dirac mass, index, gap, SVD error: ', &
             mass, expected, reference, ABS(reference - MINVAL(singular))
       END DO
 
@@ -864,7 +868,7 @@ CONTAINS
       CALL evaluate(hc, sc, rc, [0.0_dp, 0.0_dp, 0.0_dp], 0.0_dp)
       defect = ABS(gap - reference)
       IF (status /= 0 .OR. index /= 1 .OR. defect > 3.e-12_dp) ERROR STOP '3D nonorthogonal spin-mixing basis'
-      WRITE (*, '(A,ES18.9)') '3D nonorthogonal spin-mixing gap residual: ', defect
+      IF (io > 0) WRITE (io, '(A,ES18.9)') '3D nonorthogonal spin-mixing gap residual: ', defect
       shift = [1.2_dp, -0.8_dp, 0.4_dp]
       DO axis = 1, 3
          rc(:, :, axis) = r(:, :, axis) + shift(axis)*s
@@ -897,7 +901,7 @@ CONTAINS
       CALL localizer_3d_evaluate(h, s, r, [0.0_dp, 0.0_dp, 0.0_dp], 0.0_dp, midpoint, &
                                  1.e-10_dp, 1.e-10_dp, 1.e-8_dp, index, gap, ratio, status)
       IF (status /= 1) ERROR STOP '3D closing gap assigned an index'
-      WRITE (*, '(A,2ES18.9)') '3D localizer transition scale and unresolved gap: ', midpoint, gap
+      IF (io > 0) WRITE (io, '(A,2ES18.9)') '3D localizer transition scale and unresolved gap: ', midpoint, gap
       CALL localizer_3d_evaluate(h, s, r, [0.0_dp, 0.0_dp, 0.0_dp], 0.0_dp, 0.5_dp, &
                                  1.e-10_dp, -1.0_dp, 1.e-10_dp, index, gap, ratio, status)
       IF (status /= -1) ERROR STOP '3D invalid metric tolerance accepted'
@@ -922,7 +926,7 @@ CONTAINS
       CALL ieee_get_halting_mode(IEEE_ALL, current_halt)
       IF (ANY(halt .NEQV. current_halt)) ERROR STOP '3D localizer changed IEEE exception modes'
 #endif
-      PRINT *, '3D AII determinant, generalized gap, basis, origin, TR and finite-size tests passed.'
+      IF (io > 0) WRITE (io, *) '3D AII determinant, generalized gap, basis, origin, TR and finite-size tests passed.'
    CONTAINS
 ! **************************************************************************************************
 !> \brief Chiral-block determinant controls independent of the Wilson-Dirac model.
@@ -977,7 +981,7 @@ CONTAINS
 #endif
             svd_gap = MINVAL(values)
             IF (info /= 0 .OR. ABS(measured_gap - svd_gap) > 1.e-12_dp) ERROR STOP '3D high-growth singular gap'
-            WRITE (*, '(A,I2,2ES18.9)') '3D high-growth determinant, gap, SVD error: ', &
+            IF (io > 0) WRITE (io, '(A,I2,2ES18.9)') '3D high-growth determinant, gap, SVD error: ', &
                RESULT, measured_gap, ABS(measured_gap - svd_gap)
          END DO
          ! Independent atomic limit for both signs of a spin-degenerate energy.
@@ -1055,27 +1059,20 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Complex metric-covariant matrix sign against exact spectral constructions.
+!> \param para_env Parallel environment initialized by the unit-test driver.
 !> \author Thomas D. Kuehne, tkuehne@cp2k.org
 ! **************************************************************************************************
-   SUBROUTINE check_localizer_flattening()
+   SUBROUTINE check_localizer_flattening(para_env)
       USE cp_dbcsr_api, ONLY: &
          dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
          dbcsr_finalize, dbcsr_finalize_lib, dbcsr_init_lib, dbcsr_put_block, dbcsr_type_no_symmetry
-      USE cp_log_handling, ONLY: cp_add_default_logger, &
-                                 cp_logger_create, &
-                                 cp_logger_release, &
-                                 cp_logger_type, &
-                                 cp_rm_default_logger
       USE fft_tools, ONLY: finalize_fft, &
                            init_fft
       USE ieee_arithmetic, ONLY: ieee_quiet_nan, &
                                  ieee_value
       USE kinds, ONLY: dp
-      USE machine, ONLY: default_output_unit
       USE mathconstants, ONLY: twopi
-      USE message_passing, ONLY: mp_para_env_type, &
-                                 mp_world_finalize, &
-                                 mp_world_init
+      USE message_passing, ONLY: mp_para_env_type
       USE spectral_localizer_bloch, ONLY: localizer_flatten_bloch
       USE spectral_localizer_dbcsr, ONLY: localizer_dbcsr_dense, &
                                           localizer_dbcsr_release, &
@@ -1087,7 +1084,6 @@ CONTAINS
       IMPLICIT NONE
       INTEGER, PARAMETER :: n = 12, nb = 6, bs = 2
       TYPE(mp_para_env_type), POINTER :: para_env
-      TYPE(cp_logger_type), POINTER :: logger
       TYPE(dbcsr_distribution_type) :: distribution
       TYPE(localizer_matrix_type) :: h, s, flat
       INTEGER, POINTER :: process_grid(:, :), row_dist(:), col_dist(:), sizes(:)
@@ -1097,12 +1093,7 @@ CONTAINS
       INTEGER :: i, j, mode, nr, nc, io, status
       CHARACTER(LEN=32) :: argument
 
-      ALLOCATE (para_env)
-      CALL mp_world_init(para_env)
-      io = -1
-      IF (para_env%is_source()) io = default_output_unit
-      CALL cp_logger_create(logger, para_env=para_env, default_global_unit_nr=io, close_global_unit_on_dealloc=.FALSE.)
-      CALL cp_add_default_logger(logger)
+      io = cp_logger_get_default_io_unit()
       CALL dbcsr_init_lib(para_env%get_handle(), io)
       CALL init_fft('FFTSG', alltoall=.FALSE., pool_limit=4, wisdom_file='', plan_style=1)
       nr = para_env%num_pe
@@ -1276,10 +1267,6 @@ CONTAINS
       DEALLOCATE (process_grid, row_dist, col_dist, sizes)
       CALL dbcsr_finalize_lib()
       CALL finalize_fft(para_env, '')
-      CALL cp_rm_default_logger()
-      CALL cp_logger_release(logger)
-      DEALLOCATE (para_env)
-      CALL mp_world_finalize()
 
    CONTAINS
 
@@ -1441,9 +1428,30 @@ CONTAINS
 END MODULE spectral_localizer_test_cases
 
 PROGRAM spectral_localizer_unittest
+   USE cp_log_handling, ONLY: cp_add_default_logger, &
+                              cp_logger_create, &
+                              cp_logger_release, &
+                              cp_logger_type, &
+                              cp_rm_default_logger
+   USE machine, ONLY: default_output_unit
+   USE message_passing, ONLY: mp_para_env_type, mp_world_finalize, mp_world_init
    USE spectral_localizer_test_cases, ONLY: check_localizer_2d, check_localizer_3d, check_localizer_flattening
    IMPLICIT NONE
+   TYPE(mp_para_env_type), POINTER :: para_env
+   TYPE(cp_logger_type), POINTER :: logger
+   INTEGER :: io
+
+   ALLOCATE (para_env)
+   CALL mp_world_init(para_env)
+   io = -1
+   IF (para_env%is_source()) io = default_output_unit
+   CALL cp_logger_create(logger, para_env=para_env, default_global_unit_nr=io, close_global_unit_on_dealloc=.FALSE.)
+   CALL cp_add_default_logger(logger)
    CALL check_localizer_2d()
    CALL check_localizer_3d()
-   CALL check_localizer_flattening()
+   CALL check_localizer_flattening(para_env)
+   CALL cp_rm_default_logger()
+   CALL cp_logger_release(logger)
+   DEALLOCATE (para_env)
+   CALL mp_world_finalize()
 END PROGRAM spectral_localizer_unittest

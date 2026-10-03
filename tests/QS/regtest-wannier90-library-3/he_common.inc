@@ -1,0 +1,87 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT ${seed}
+  RUN_TYPE ENERGY
+&END GLOBAL
+&FORCE_EVAL
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT_UZH
+    POTENTIAL_FILE_NAME POTENTIAL_UZH
+    &KPOINTS
+      EPS_SYMMETRY 1.e-8
+      PARALLEL_GROUP_SIZE 0
+      SCHEME MONKHORST-PACK 2 2 2
+      SYMMETRY ON
+      SYMMETRY_BACKEND K290
+      WAVEFUNCTIONS COMPLEX
+    &END KPOINTS
+    &MGRID
+      CUTOFF 100
+      REL_CUTOFF 30
+    &END MGRID
+    &PRINT
+      &WANNIER90 ON
+        KPOINTS_SOURCE SCF
+        REUSE_SCF_MOS T
+        SEED_NAME ${seed}
+        USE_BLOCH_PHASES T
+        WANNIER_FUNCTIONS 1
+        @IF ( ${exclude} == T )
+          EXCLUDE_BANDS 5 2 4
+          EXCLUDE_BANDS 3 2
+        @ENDIF
+        @IF ( ${exclude} == WINDOW )
+          EXCLUDE_BANDS 3
+        @ENDIF
+        &LIBRARY ON
+          INITIAL_PROJECTIONS ${projections}
+          WRITE_HR T
+          WRITE_U_MATRICES T
+          CONV_TOL 1.e-10
+          CONV_WINDOW 5
+          NUM_ITER 100
+          DIS_NUM_ITER 1000
+          DIS_CONV_TOL 1.e-10
+          @INCLUDE ${windows}
+        &END LIBRARY
+      &END WANNIER90
+    &END PRINT
+    &QS
+      EPS_DEFAULT 1.e-10
+      METHOD GPW
+    &END QS
+    &SCF
+      ADDED_MOS 4
+      CHOLESKY OFF
+      EPS_EIGVAL 1.e-8
+      EPS_SCF 1.e-9
+      MAX_SCF 100
+      SCF_GUESS ATOMIC
+      &MIXING
+        ALPHA 0.5
+        METHOD BROYDEN_MIXING
+      &END MIXING
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 4.0 4.0 4.0
+    &END CELL
+    &COORD
+      SCALED
+      He 0.5 0.5 0.5
+    &END COORD
+    &KIND He
+      BASIS_SET ORB DZVP-MOLOPT-GGA-GTH-q2
+      POTENTIAL GTH-GGA-q2
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

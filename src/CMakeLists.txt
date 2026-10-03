@@ -934,6 +934,8 @@ list(
   topology_snapshot.F
   topology_curvature.F
   topology_phason_analysis.F
+  wannier90_library.F
+  wannier90_projections.F
   wannier_states.F
   wannier_states_types.F
   xas_control.F
@@ -1629,6 +1631,7 @@ set(CP2K_PROGS_F
     qs_charge_mixing_unittest.F
     qs_fod_unittest.F
     qs_ot_complex_ref_unittest.F
+    wannier90_projections_unittest.F
     subsys/cell_types_unittest.F
     metadyn_tools/graph.F
     motion/dumpdcd.F
@@ -1880,6 +1883,7 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_SIRIUS}>:cp2k::sirius>
     $<$<BOOL:${CP2K_USE_VORI}>:cp2k::VORI::vori>
     $<$<BOOL:${CP2K_USE_SPGLIB}>:Spglib::symspg>
+    $<$<BOOL:${CP2K_USE_WANNIER90}>:Wannier90::wannier90>
     $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:cp2k::libsmeagol::smeagol>
     $<$<BOOL:${CP2K_USE_LIBXC}>:Libxc::xcf03>
     $<$<BOOL:${CP2K_USE_GAUXC}>:gauxc::gauxc>
@@ -1947,6 +1951,7 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_MAXWELL}>:__LIBMAXWELL>
     $<$<BOOL:${CP2K_USE_VORI}>:__LIBVORI>
     $<$<BOOL:${CP2K_USE_SPGLIB}>:__SPGLIB>
+    $<$<BOOL:${CP2K_USE_WANNIER90}>:__WANNIER90>
     $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:__SMEAGOL>
     $<$<BOOL:${CP2K_USE_TBLITE}>:__TBLITE>
     $<$<BOOL:${CP2K_USE_TBLITE}>:__S_DFTD3>
@@ -2067,6 +2072,7 @@ list(
   "qs_charge_mixing_unittest"
   "qs_fod_unittest"
   "qs_ot_complex_ref_unittest"
+  "wannier90_projections_unittest"
   "cell_types_unittest"
   "graph"
   "dumpdcd"
@@ -2118,6 +2124,7 @@ add_executable(ot_covariant_preconditioner_unittest
 add_executable(qs_charge_mixing_unittest qs_charge_mixing_unittest.F)
 add_executable(qs_fod_unittest qs_fod_unittest.F)
 add_executable(qs_ot_complex_ref_unittest qs_ot_complex_ref_unittest.F)
+add_executable(wannier90_projections_unittest wannier90_projections_unittest.F)
 add_executable(cell_types_unittest subsys/cell_types_unittest.F)
 add_executable(graph metadyn_tools/graph.F)
 add_executable(dumpdcd motion/dumpdcd.F)

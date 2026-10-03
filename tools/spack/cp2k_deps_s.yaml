@@ -112,6 +112,15 @@ spack:
       require:
         - "+hdf5"
 
+    wannier90:
+      require:
+        - "~mpi"
+
+    # Yasm's CMake recipe does not declare its C++ compiler dependency.
+    yasm:
+      require:
+        - "build_system=autotools"
+
   repos:
     builtin:
       commit: 13bb171032cedfbc9739b1f23772e0f197df308a # 2026-09-30
@@ -145,6 +154,7 @@ spack:
     - "spglib@2.7.0"
     - "tblite@0.7.0"
     - "trexio@2.6.1"
+    - "wannier90@4.0.2"
 
   view:
     default:
