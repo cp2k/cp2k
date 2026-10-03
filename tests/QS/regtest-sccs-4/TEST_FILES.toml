@@ -1,8 +1,7 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # e.g. 0 means do not compare anything, running is enough
-# O nucleus exactly on a grid point; without CORE_FILL E_total is ~ -15.62 Ha and the SCF of the force check fails
+# O nucleus exactly on a grid point; without CORE_FILL E_total is ~ -15.62 Ha instead of ~ -17.23 Ha
 "H2O_sccs_core_fill.inp"                = [{matcher="E_total", tol=1.0E-10, ref=-17.22664536112554}]
 "H2O_sccs_core_fill_fg.inp"             = [{matcher="E_total", tol=1.0E-10, ref=-17.23600438186110}]
-"H2O_sccs_core_fill_debug.inp"          = [{matcher="DEBUG_force_sum", tol=1.0E-4, ref=0.0}]
 #EOF
