@@ -66,7 +66,7 @@ CONTAINS
       END IF
       parallel = g
       parallel(special_dimension) = 0.0_dp
-      k = SQRT(SUM(parallel**2))
+      k = NORM2(parallel)
       radius = slab_size/2.0_dp
       q = COS(g(special_dimension)*radius)*EXP(-k*radius)
       f = 1.0_dp - q

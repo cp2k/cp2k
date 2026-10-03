@@ -384,7 +384,7 @@ CONTAINS
          g_parallel = g
          g_parallel(iz) = 0.0_dp
          radius = slab_size/2.0_dp
-         kernel = fourpi/g2 - fourpi/g2*COS(g(iz)*radius)*EXP(-SQRT(SUM(g_parallel**2))*radius)
+         kernel = fourpi/g2 - fourpi/g2*COS(g(iz)*radius)*EXP(-NORM2(g_parallel)*radius)
       END IF
    END FUNCTION mt2d_kernel_reference
 
