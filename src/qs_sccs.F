@@ -1624,8 +1624,9 @@ CONTAINS
             IF ((output_unit > 0) .AND. (.NOT. sccs_control%core_fill_printed)) THEN
                IF (ccore(ikind) > 0.0_dp) THEN
                   r_min = 0.0_dp
-                  IF (ccore(ikind) > sccs_control%rho_min) &
+                  IF (ccore(ikind) > sccs_control%rho_min) THEN
                      r_min = SQRT(LOG(ccore(ikind)/sccs_control%rho_min)/calpha(ikind))
+                  END IF
                   WRITE (UNIT=output_unit, FMT="(T3,A,T10,A,T18,I3,T24,F6.2,T34,F8.4,T55,F8.4,A)") &
                      "SCCS|", TRIM(kind_name), z, zeff, sigma, cp_unit_from_cp2k(r_min, "angstrom"), &
                      MERGE(" (input)", "        ", found)
@@ -1638,9 +1639,10 @@ CONTAINS
       END DO
 
       DO iover = 1, SIZE(used)
-         IF (.NOT. used(iover)) &
+         IF (.NOT. used(iover)) THEN
             CALL cp_abort(__LOCATION__, "SCCS| CORE_FILL_KIND: unknown kind label "// &
                           TRIM(sccs_control%core_fill_kind_label(iover)))
+         END IF
       END DO
       IF (PRESENT(output_unit)) THEN
          IF (output_unit > 0) sccs_control%core_fill_printed = .TRUE.
