@@ -3,9 +3,9 @@
 # see regtest/TEST_FILES
 # These tests are a representative set of the GPW ADMM tests, but run under GAPW. The results differ
 # because of the highly non-convreged nature of the calculations (but agree for converged parameters) 
-"CH3-BP-MO_DIAG.inp"                    = [{matcher="E_total", tol=1e-12, ref=-7.37962770836823}]
-"CH3-BP-MO_NO_DIAG.inp"                 = [{matcher="E_total", tol=1e-12, ref=-7.37962770836824}]
-"CH3-BP-CAUCHY.inp"                     = [{matcher="E_total", tol=1e-12, ref=-7.37962770836826}]
+"CH3-BP-MO_DIAG.inp"                    = [{matcher="E_total", tol=1e-12, ref=-7.37962775668757}]
+"CH3-BP-MO_NO_DIAG.inp"                 = [{matcher="E_total", tol=1e-12, ref=-7.37962775668758}]
+"CH3-BP-CAUCHY.inp"                     = [{matcher="E_total", tol=1e-12, ref=-7.37962775668757}]
 "CH4-BP-CAUCHY_SUBSPACE.inp"            = [{matcher="E_total", tol=1e-12, ref=-8.05306368077473}]
 "H2+-BLOCKED-PURIFY-FULL.inp"           = [{matcher="E_total", tol=1e-12, ref=-0.54856281900786}]
 "H2O-ADMMP-OPTX.inp"                    = [{matcher="E_total", tol=1e-12, ref=-16.84585714177486}]

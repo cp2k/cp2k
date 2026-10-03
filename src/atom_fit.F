@@ -400,75 +400,86 @@ CONTAINS
       IF (iunit > 0) THEN
          WRITE (iunit, '(" POWELL| Number of function evaluations",T71,I10)') ostate%nf
          WRITE (iunit, '(" POWELL| Final value of function",T61,F20.10)') ostate%fopt
-         ! x->basis
-         SELECT CASE (basis%basis_type)
-         CASE DEFAULT
-            CPABORT("Unknown basis type for atom_fit_basis")
-         CASE (GTO_BASIS)
-            IF (basis%geometrical) THEN
-               basis%am = 0._dp
-               DO l = 0, lmat
-                  DO i = 1, basis%nbas(l)
-                     ll = i - 1 + basis%start(l)
-                     basis%am(i, l) = x(1)*x(1)*(x(2)*x(2))**(ll)
-                  END DO
-               END DO
-               basis%aval = x(1)*x(1)
-               basis%cval = x(2)*x(2)
-            ELSE
-               DO l = 0, lmat
-                  DO i = 1, basis%nprim(l)
-                     al = x(xtob(i, l))**2
-                     basis%am(i, l) = EXP(al) - 1._dp
-                  END DO
-               END DO
-            END IF
-            basis%bf = 0._dp
-            basis%dbf = 0._dp
-            basis%ddbf = 0._dp
-            nr = basis%grid%nr
+      END IF
+      ! Powell may return an earlier best point. Restore its basis on every rank
+      ! and recompute the orbitals before exporting contraction coefficients.
+      SELECT CASE (basis%basis_type)
+      CASE DEFAULT
+         CPABORT("Unknown basis type for atom_fit_basis")
+      CASE (GTO_BASIS)
+         IF (basis%geometrical) THEN
+            basis%am = 0._dp
             DO l = 0, lmat
                DO i = 1, basis%nbas(l)
-                  al = basis%am(i, l)
-                  DO k = 1, nr
-                     rk = basis%grid%rad(k)
-                     ear = EXP(-al*basis%grid%rad(k)**2)
-                     basis%bf(k, i, l) = rk**l*ear
-                     basis%dbf(k, i, l) = (REAL(l, dp)*rk**(l - 1) - 2._dp*al*rk**(l + 1))*ear
-                     basis%ddbf(k, i, l) = (REAL(l*(l - 1), dp)*rk**(l - 2) - &
-                                            2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al**2*rk**(l + 2))*ear
-                  END DO
+                  ll = i - 1 + basis%start(l)
+                  basis%am(i, l) = x(1)*x(1)*(x(2)*x(2))**(ll)
                END DO
             END DO
-         CASE (STO_BASIS)
+            basis%aval = x(1)*x(1)
+            basis%cval = x(2)*x(2)
+         ELSE
             DO l = 0, lmat
                DO i = 1, basis%nprim(l)
                   al = x(xtob(i, l))**2
-                  basis%as(i, l) = EXP(al) - 1._dp
+                  basis%am(i, l) = EXP(al) - 1._dp
                END DO
             END DO
-            basis%bf = 0._dp
-            basis%dbf = 0._dp
-            basis%ddbf = 0._dp
-            nr = basis%grid%nr
-            DO l = 0, lmat
-               DO i = 1, basis%nbas(l)
-                  al = basis%as(i, l)
-                  nl = basis%ns(i, l)
-                  pf = (2._dp*al)**nl*SQRT(2._dp*al/fac(2*nl))
-                  DO k = 1, nr
-                     rk = basis%grid%rad(k)
-                     ear = rk**(nl - 1)*EXP(-al*rk)
-                     basis%bf(k, i, l) = pf*ear
-                     basis%dbf(k, i, l) = pf*(REAL(nl - 1, dp)/rk - al)*ear
-                     basis%ddbf(k, i, l) = pf*(REAL((nl - 2)*(nl - 1), dp)/rk/rk &
-                                               - al*REAL(2*(nl - 1), dp)/rk + al*al)*ear
-                  END DO
+         END IF
+         basis%bf = 0._dp
+         basis%dbf = 0._dp
+         basis%ddbf = 0._dp
+         nr = basis%grid%nr
+         DO l = 0, lmat
+            DO i = 1, basis%nbas(l)
+               al = basis%am(i, l)
+               DO k = 1, nr
+                  rk = basis%grid%rad(k)
+                  ear = EXP(-al*basis%grid%rad(k)**2)
+                  basis%bf(k, i, l) = rk**l*ear
+                  basis%dbf(k, i, l) = (REAL(l, dp)*rk**(l - 1) - 2._dp*al*rk**(l + 1))*ear
+                  basis%ddbf(k, i, l) = (REAL(l*(l - 1), dp)*rk**(l - 2) - &
+                                         2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al**2*rk**(l + 2))*ear
                END DO
             END DO
-         END SELECT
+         END DO
+      CASE (STO_BASIS)
+         DO l = 0, lmat
+            DO i = 1, basis%nprim(l)
+               al = x(xtob(i, l))**2
+               basis%as(i, l) = EXP(al) - 1._dp
+            END DO
+         END DO
+         basis%bf = 0._dp
+         basis%dbf = 0._dp
+         basis%ddbf = 0._dp
+         nr = basis%grid%nr
+         DO l = 0, lmat
+            DO i = 1, basis%nbas(l)
+               al = basis%as(i, l)
+               nl = basis%ns(i, l)
+               pf = (2._dp*al)**nl*SQRT(2._dp*al/fac(2*nl))
+               DO k = 1, nr
+                  rk = basis%grid%rad(k)
+                  ear = rk**(nl - 1)*EXP(-al*rk)
+                  basis%bf(k, i, l) = pf*ear
+                  basis%dbf(k, i, l) = pf*(REAL(nl - 1, dp)/rk - al)*ear
+                  basis%ddbf(k, i, l) = pf*(REAL((nl - 2)*(nl - 1), dp)/rk/rk &
+                                            - al*REAL(2*(nl - 1), dp)/rk + al*al)*ear
+               END DO
+            END DO
+         END DO
+      END SELECT
+      CALL basis_fit(atom_info, basis, pptype, fopt, 0, penalty)
+      IF (iunit > 0) THEN
          CALL atom_print_basis(basis, iunit, " Optimized Basis")
-         CALL atom_print_basis_file(basis, atom_info(1, 1)%atom%orbitals%wfn)
+         print_basis: DO i = 1, SIZE(atom_info, 1)
+            DO j = 1, SIZE(atom_info, 2)
+               IF (pptype .EQV. atom_info(i, j)%atom%pp_calc) THEN
+                  CALL atom_print_basis_file(basis, atom_info(i, j)%atom%orbitals%wfn)
+                  EXIT print_basis
+               END IF
+            END DO
+         END DO print_basis
       END IF
 
       DEALLOCATE (x)

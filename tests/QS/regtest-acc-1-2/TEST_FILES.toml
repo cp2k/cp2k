@@ -1,7 +1,7 @@
 "HF-1.inp"                              = [{matcher="E_total", tol=1e-12, ref=-100.35097095885925}]
 "HF-2.inp"                              = [{matcher="E_total", tol=1e-12, ref=-100.13633530666623}]
 "HF-3.inp"                              = [{matcher="E_total", tol=1e-12, ref=-100.35098058428179}]
-"HF-4.inp"                              = [{matcher="E_total", tol=1e-12, ref=-100.23285464759003}]
+"HF-4.inp"                              = [{matcher="E_total", tol=1e-12, ref=-100.2328546472854}]
 "HF-5.inp"                              = [{matcher="E_total", tol=1e-12, ref=-100.13230431029548}]
 "h2o-uzh-gth-gapw_xc-force-1.inp"       = []
 "h2o-uzh-gth-gapw_xc-stress-debug-1.inp" = []

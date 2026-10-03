@@ -1479,6 +1479,8 @@ CONTAINS
       INTEGER, INTENT(in)                                :: param
       REAL(kind=dp), INTENT(in)                          :: scale_ec, scale_ex
 
+      REAL(dp), PARAMETER :: spin_floor = EPSILON(0.0_dp)*1.e4_dp
+
       INTEGER                                            :: ii
       REAL(kind=dp) :: A, A1rhoa, A1rhob, A_1, A_2, A_3, alpha_1_1, alpha_1_2, alpha_1_3, alpha_c, &
          alpha_c1rhoa, alpha_c1rhob, alpha_crhoa, alpha_crhob, Arhoa, Arhoarhoa, Arhoarhob, Arhob, &
@@ -1588,8 +1590,10 @@ CONTAINS
          my_rhob = MAX(rhob(ii), 0.0_dp)
          my_rho = my_rhoa + my_rhob
          IF (my_rho > epsilon_rho) THEN
-            my_rhoa = MAX(EPSILON(0.0_dp)*1.e4_dp, my_rhoa)
-            my_rhob = MAX(EPSILON(0.0_dp)*1.e4_dp, my_rhob)
+            ! Differentiate the same clipped spin densities used by the energy.
+            ! Gradient norms remain independent; preserve accumulated contributions.
+            my_rhoa = MAX(spin_floor, my_rhoa)
+            my_rhob = MAX(spin_floor, my_rhob)
             my_rho = my_rhoa + my_rhob
             my_norm_drho = norm_drho(ii)
             my_norm_drhoa = norm_drhoa(ii)
@@ -1829,10 +1833,12 @@ CONTAINS
                Fx_arhoa = 0.2e1_dp*t346*s_a*s_arhoa
                t350 = my_rhoa*ex_unif_arhoa
 
-               e_ra(ii) = e_ra(ii) + &
-                          scale_ex*(0.2e1_dp*ex_unif_a*Fx_a + 0.2e1_dp* &
-                                    t350*Fx_a + 0.2e1_dp*t140*Fx_arhoa)/0.2e1_dp + scale_ec*( &
-                          epsilon_cGGA + my_rho*epsilon_cGGArhoa)
+               IF (rhoa(ii) > spin_floor) THEN
+                  e_ra(ii) = e_ra(ii) + &
+                             scale_ex*(0.2e1_dp*ex_unif_a*Fx_a + 0.2e1_dp* &
+                                       t350*Fx_a + 0.2e1_dp*t140*Fx_arhoa)/0.2e1_dp + scale_ec*( &
+                             epsilon_cGGA + my_rho*epsilon_cGGArhoa)
+               END IF
 
                chirhob = -t2 - t164
                rsrhob = rsrhoa
@@ -1892,10 +1898,12 @@ CONTAINS
                Fx_brhob = 0.2e1_dp*t477*s_b*s_brhob
                t481 = my_rhob*ex_unif_brhob
 
-               e_rb(ii) = e_rb(ii) + &
-                          scale_ex*(0.2e1_dp*ex_unif_b*Fx_b + 0.2e1_dp* &
-                                    t481*Fx_b + 0.2e1_dp*t156*Fx_brhob)/0.2e1_dp + scale_ec*( &
-                          epsilon_cGGA + my_rho*epsilon_cGGArhob)
+               IF (rhob(ii) > spin_floor) THEN
+                  e_rb(ii) = e_rb(ii) + &
+                             scale_ex*(0.2e1_dp*ex_unif_b*Fx_b + 0.2e1_dp* &
+                                       t481*Fx_b + 0.2e1_dp*t156*Fx_brhob)/0.2e1_dp + scale_ec*( &
+                             epsilon_cGGA + my_rho*epsilon_cGGArhob)
+               END IF
 
                t488 = t95*t97
                tnorm_drho = t488*t2/0.2e1_dp
@@ -2097,12 +2105,13 @@ CONTAINS
                   t1001 = s_arhoa*t135
                   Fx_a1rhoa = 0.2e1_dp*t346*s_a*s_a1rhoa
 
-                  e_ra_ra(ii) = e_ra_ra(ii) + &
-                                scale_ex*(0.2e1_dp*ex_unif_a1rhoa*Fx_a + &
-                                          0.2e1_dp*ex_unif_a*Fx_a1rhoa + 0.2e1_dp*ex_unif_arhoa*Fx_a - &
-                                          0.3e1_dp/0.2e1_dp*my_rhoa*t7*kf_arhoarhoa*Fx_a + 0.2e1_dp* &
-                                          t350*Fx_a1rhoa + 0.2e1_dp*ex_unif_a*Fx_arhoa + 0.2e1_dp*my_rhoa &
-                                          *ex_unif_a1rhoa*Fx_arhoa + 0.2e1_dp*t140*(-0.8e1_dp*t1000 &
+                  IF (rhoa(ii) > spin_floor) THEN
+                     e_ra_ra(ii) = e_ra_ra(ii) + &
+                                   scale_ex*(0.2e1_dp*ex_unif_a1rhoa*Fx_a + &
+                                             0.2e1_dp*ex_unif_a*Fx_a1rhoa + 0.2e1_dp*ex_unif_arhoa*Fx_a - &
+                                             0.3e1_dp/0.2e1_dp*my_rhoa*t7*kf_arhoarhoa*Fx_a + 0.2e1_dp* &
+                                             t350*Fx_a1rhoa + 0.2e1_dp*ex_unif_a*Fx_arhoa + 0.2e1_dp*my_rhoa &
+                                             *ex_unif_a1rhoa*Fx_arhoa + 0.2e1_dp*t140*(-0.8e1_dp*t1000 &
                                                                        *t1001*s_a1rhoa + 0.2e1_dp*t346*s_a1rhoa*s_arhoa + 0.2e1_dp &
                                                                               *t346*s_a*(my_norm_drhoa/t335/kf_a*t131*t985 + t337* &
                                                                            t341*kf_arhoa - t337*t131*kf_arhoarhoa/0.2e1_dp + t130/ &
@@ -2112,6 +2121,7 @@ CONTAINS
                                                                                   0.3e1_dp*t293*t880*phirhoa + 0.3e1_dp*t293*t123* &
                                                                         phirhoarhoa + 0.3e1_dp*t293*t326*phi1rhoa + t110*t962*t325 &
                                                                                                                   - t110*t967*t879))
+                  END IF
 
                   chirhoarhob = 0.2e1_dp*t519
                   rsrhoarhob = rsrhoarhoa
@@ -2192,12 +2202,14 @@ CONTAINS
                           0.2e1_dp*t297*t313*t321*trhob - t310*t1304*t321 + &
                           0.2e1_dp*t310*t936*t321*t453 - t310*t313*t1327
 
-                  e_ra_rb(ii) = e_ra_rb(ii) + &
-                                scale_ec*(epsilon_cGGArhob + epsilon_cGGArhoa + &
-                                          my_rho*(epsilon_c_unifrhoarhob + 0.6e1_dp*t858*t294*phirhob + &
-                                                  0.3e1_dp*t293*t457*phirhoa + 0.3e1_dp*t293*t123* &
-                                                  phirhoarhob + 0.3e1_dp*t293*t326*phirhob + t110*t1330*t325 &
-                                                  - t110*t967*t456))
+                  IF (rhoa(ii) > spin_floor .AND. rhob(ii) > spin_floor) THEN
+                     e_ra_rb(ii) = e_ra_rb(ii) + &
+                                   scale_ec*(epsilon_cGGArhob + epsilon_cGGArhoa + &
+                                             my_rho*(epsilon_c_unifrhoarhob + 0.6e1_dp*t858*t294*phirhob + &
+                                                     0.3e1_dp*t293*t457*phirhoa + 0.3e1_dp*t293*t123* &
+                                                     phirhoarhob + 0.3e1_dp*t293*t326*phirhob + t110*t1330*t325 &
+                                                     - t110*t967*t456))
+                  END IF
 
                   chirhobrhob = 0.2e1_dp*t163 + 0.2e1_dp*t519
                   rsrhobrhob = rsrhoarhob
@@ -2306,12 +2318,13 @@ CONTAINS
                   t1713 = s_brhob*t135
                   Fx_b1rhob = 0.2e1_dp*t477*s_b*s_b1rhob
 
-                  e_rb_rb(ii) = e_rb_rb(ii) + &
-                                scale_ex*(0.2e1_dp*ex_unif_b1rhob*Fx_b + &
-                                          0.2e1_dp*ex_unif_b*Fx_b1rhob + 0.2e1_dp*ex_unif_brhob*Fx_b - &
-                                          0.3e1_dp/0.2e1_dp*my_rhob*t7*kf_brhobrhob*Fx_b + 0.2e1_dp* &
-                                          t481*Fx_b1rhob + 0.2e1_dp*ex_unif_b*Fx_brhob + 0.2e1_dp*my_rhob &
-                                          *ex_unif_b1rhob*Fx_brhob + 0.2e1_dp*t156*(-0.8e1_dp*t1712 &
+                  IF (rhob(ii) > spin_floor) THEN
+                     e_rb_rb(ii) = e_rb_rb(ii) + &
+                                   scale_ex*(0.2e1_dp*ex_unif_b1rhob*Fx_b + &
+                                             0.2e1_dp*ex_unif_b*Fx_b1rhob + 0.2e1_dp*ex_unif_brhob*Fx_b - &
+                                             0.3e1_dp/0.2e1_dp*my_rhob*t7*kf_brhobrhob*Fx_b + 0.2e1_dp* &
+                                             t481*Fx_b1rhob + 0.2e1_dp*ex_unif_b*Fx_brhob + 0.2e1_dp*my_rhob &
+                                             *ex_unif_b1rhob*Fx_brhob + 0.2e1_dp*t156*(-0.8e1_dp*t1712 &
                                                                        *t1713*s_b1rhob + 0.2e1_dp*t477*s_b1rhob*s_brhob + 0.2e1_dp &
                                                                              *t477*s_b*(my_norm_drhob/t466/kf_b*t148*t1698 + t468* &
                                                                            t472*kf_brhob - t468*t148*kf_brhobrhob/0.2e1_dp + t147/ &
@@ -2321,6 +2334,7 @@ CONTAINS
                                                                                + 0.3e1_dp*t293*t1603*phirhob + 0.3e1_dp*t293*t123* &
                                                                            phirhobrhob + 0.3e1_dp*t293*t457*phi1rhob + t110*t1677* &
                                                                                                            t325 - t110*t1680*t1602))
+                  END IF
                   t1739 = t268*t97
                   t1741 = t95*t273
                   t1743 = t488*t163
@@ -2341,9 +2355,11 @@ CONTAINS
                                                        0.12e2_dp*t953*trhoa*tnorm_drho + 0.4e1_dp*t318* &
                                                        trhoanorm_drho)
 
-                  e_ra_ndr(ii) = e_ra_ndr(ii) + &
-                                 scale_ec*(Hnorm_drho + my_rho*(0.3e1_dp* &
-                                                                t293*t506*phirhoa + t110*t1801*t325 - t110*t967*t505))
+                  IF (rhoa(ii) > spin_floor) THEN
+                     e_ra_ndr(ii) = e_ra_ndr(ii) + &
+                                    scale_ec*(Hnorm_drho + my_rho*(0.3e1_dp* &
+                                                                   t293*t506*phirhoa + t110*t1801*t325 - t110*t967*t505))
+                  END IF
 
                   trhobnorm_drho = -t1739*t1520/0.2e1_dp - t1741*t1529/ &
                                    0.2e1_dp - t1743/0.2e1_dp
@@ -2361,9 +2377,11 @@ CONTAINS
                                                        0.12e2_dp*t953*trhob*tnorm_drho + 0.4e1_dp*t318* &
                                                        trhobnorm_drho)
 
-                  e_rb_ndr(ii) = e_rb_ndr(ii) + &
-                                 scale_ec*(Hnorm_drho + my_rho*(0.3e1_dp* &
-                                                                t293*t506*phirhob + t110*t1865*t325 - t110*t1680*t505))
+                  IF (rhob(ii) > spin_floor) THEN
+                     e_rb_ndr(ii) = e_rb_ndr(ii) + &
+                                    scale_ec*(Hnorm_drho + my_rho*(0.3e1_dp* &
+                                                                   t293*t506*phirhob + t110*t1865*t325 - t110*t1680*t505))
+                  END IF
 
                   t1871 = tnorm_drho**2
                   t1876 = A*t1871
@@ -2378,12 +2396,14 @@ CONTAINS
                                                          0.2e1_dp*t1876 + 0.12e2_dp*t953*t1871))*t325 - t110*t1901 &
                                                    *t966)
 
-                  e_ra_ndra(ii) = e_ra_ndra(ii) + &
-                                  scale_ex*(0.2e1_dp*ex_unif_a* &
-                                            Fx_anorm_drhoa + 0.2e1_dp*t350*Fx_anorm_drhoa + 0.2e1_dp*t140 &
-                                            *(-0.8e1_dp*t1000*t1001*s_anorm_drhoa + 0.2e1_dp*t346* &
-                                              s_anorm_drhoa*s_arhoa + 0.2e1_dp*t346*s_a*(-t336*t131* &
+                  IF (rhoa(ii) > spin_floor) THEN
+                     e_ra_ndra(ii) = e_ra_ndra(ii) + &
+                                     scale_ex*(0.2e1_dp*ex_unif_a* &
+                                               Fx_anorm_drhoa + 0.2e1_dp*t350*Fx_anorm_drhoa + 0.2e1_dp*t140 &
+                                               *(-0.8e1_dp*t1000*t1001*s_anorm_drhoa + 0.2e1_dp*t346* &
+                                                 s_anorm_drhoa*s_arhoa + 0.2e1_dp*t346*s_a*(-t336*t131* &
                                                                                   kf_arhoa/0.2e1_dp - t129*t341/0.2e1_dp)))/0.2e1_dp
+                  END IF
 
                   t1922 = s_anorm_drhoa**2
 
@@ -2391,12 +2411,14 @@ CONTAINS
                                     scale_ex*t140*(-0.8e1_dp*t999* &
                                                    t133*t1922*t135 + 0.2e1_dp*t346*t1922)
 
-                  e_rb_ndrb(ii) = e_rb_ndrb(ii) + &
-                                  scale_ex*(0.2e1_dp*ex_unif_b* &
-                                            Fx_bnorm_drhob + 0.2e1_dp*t481*Fx_bnorm_drhob + 0.2e1_dp*t156 &
-                                            *(-0.8e1_dp*t1712*t1713*s_bnorm_drhob + 0.2e1_dp*t477* &
-                                              s_bnorm_drhob*s_brhob + 0.2e1_dp*t477*s_b*(-t467*t148* &
+                  IF (rhob(ii) > spin_floor) THEN
+                     e_rb_ndrb(ii) = e_rb_ndrb(ii) + &
+                                     scale_ex*(0.2e1_dp*ex_unif_b* &
+                                               Fx_bnorm_drhob + 0.2e1_dp*t481*Fx_bnorm_drhob + 0.2e1_dp*t156 &
+                                               *(-0.8e1_dp*t1712*t1713*s_bnorm_drhob + 0.2e1_dp*t477* &
+                                                 s_bnorm_drhob*s_brhob + 0.2e1_dp*t477*s_b*(-t467*t148* &
                                                                                   kf_brhob/0.2e1_dp - t146*t472/0.2e1_dp)))/0.2e1_dp
+                  END IF
 
                   t1949 = s_bnorm_drhob**2
                   e_ndrb_ndrb(ii) = e_ndrb_ndrb(ii) + &

@@ -4,4 +4,4 @@
 "bp86_dftd3_lib.inp"                  = [{matcher="M011", tol=1.0E-10, ref=-8.10239310481293}]
 "b3lyp_dftd3_lib.inp"                 = [{matcher="M011", tol=1.0E-10, ref=-48.22503187144780}]
 "pbe0_dftd3_lib.inp"                  = [{matcher="M011", tol=1.0E-10, ref=-11.71153757876755}]
-"tpss_dftd3_lib.inp"                  = [{matcher="M011", tol=1.0E-10, ref=-17.19972181276416}]
+"tpss_dftd3_lib.inp"                  = [{matcher="M011", tol=1.0E-10, ref=-17.199715816717074}]

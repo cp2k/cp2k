@@ -6,11 +6,11 @@
 "03_G0W0_bandstructure_IH_chain.inp"    = [{matcher="E_G0W0_direct_gap", tol=5e-04, ref=21.962},
                                            {matcher="E_G0W0_SOC_gap", tol=5e-04, ref=21.622}]
 
-"04_G0W0_SOC_TeH_chain_open_shell_kp_extrapol.inp" = [{matcher="E_G0W0_direct_gap", tol=1e-03, ref=5.174}]
+"04_G0W0_SOC_TeH_chain_open_shell_kp_extrapol.inp" = [{matcher="E_G0W0_direct_gap", tol=1e-03, ref=5.164}]
 
-"05_G0W0_SOC_TeH_chain_open_shell.inp"  = [{matcher="E_G0W0_direct_gap", tol=5e-04, ref=5.178},
-                                           {matcher="E_SCF_SOC_gap", tol=5e-04, ref=0.257},
-                                           {matcher="E_G0W0_SOC_gap", tol=5e-04, ref=5.127}]
+"05_G0W0_SOC_TeH_chain_open_shell.inp"  = [{matcher="E_G0W0_direct_gap", tol=5e-04, ref=5.164},
+                                           {matcher="E_SCF_SOC_gap", tol=5e-04, ref=0.197},
+                                           {matcher="E_G0W0_SOC_gap", tol=5e-04, ref=5.115}]
 
 "06_G0W0_periodic_H2O_Hedin_shift.inp"  = [{matcher="E_G0W0_direct_gap", tol=1e-03, ref=10.417}]
 

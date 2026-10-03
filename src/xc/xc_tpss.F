@@ -215,7 +215,11 @@ CONTAINS
       INTEGER, INTENT(inout)                             :: non_coer
 
       INTEGER                                            :: ii
-      LOGICAL                                            :: t571, t639
+      LOGICAL                                            :: clipped_tau, t571, t639
+      REAL(dp)                                           :: incoming_gradient, incoming_rho, &
+                                                            incoming_tau, partial_gradient, &
+                                                            partial_rho, partial_tau, &
+                                                            tau_unif_inverse
       REAL(kind=dp) :: A, A_1, A_2, A_s1, A_s1rho, A_s2, A_s2rho, alpha, alpha_1_1, alpha_1_2, &
          alphanorm_drho, alpharho, alphatau, Arho, b, beta, beta_1_1, beta_1_2, beta_2_1, &
          beta_2_2, beta_3_1, beta_3_2, beta_4_1, beta_4_2, c, d, e_c_u_0, e_c_u_0rho, e_c_u_1_s1, &
@@ -231,16 +235,16 @@ CONTAINS
          t224, t226, t227, t230, t231, t233, t234, t235, t238, t239, t241, t242, t243, t245, t246, &
          t248, t249, t252, t253, t254, t256, t26, t260, t263, t264, t265
       REAL(kind=dp) :: t267, t268, t269, t27, t271, t272, t274, t275, t276, t277, t278, t279, t28, &
-         t280, t281, t284, t286, t288, t29, t290, t291, t293, t294, t295, t299, t3, t301, t302, &
-         t303, t305, t307, t310, t313, t316, t319, t322, t325, t327, t328, t329, t331, t337, t340, &
-         t343, t344, t35, t351, t36, t370, t371, t376, t383, t385, t386, t39, t390, t391, t395, &
-         t396, t398, t4, t403, t404, t406, t41, t410, t411, t419, t42, t430, t437, t445, t450, &
-         t452, t464, t472, t475, t485, t489, t49, t490, t5, t505, t513, t517, t536, t541, t542, &
-         t546, t547, t549, t55, t554, t555, t557, t561, t562, t569, t574
-      REAL(kind=dp) :: t58, t585, t6, t60, t604, t609, t610, t614, t615, t617, t622, t623, t625, &
-         t629, t630, t637, t642, t645, t659, t67, t7, t71, t73, t77, t78, t79, t799, t80, t84, &
-         t85, t89, t9, t94, t95, t96, t_s1, t_s1norm_drho, t_s1rho, t_s2, t_s2norm_drho, t_s2rho, &
-         tau_w, tau_wnorm_drho, tau_wrho, tildeq_b, tildeq_bnorm_drho, tildeq_brho, tildeq_btau, &
+         t280, t281, t284, t286, t29, t290, t291, t293, t294, t295, t299, t3, t301, t302, t303, &
+         t305, t307, t310, t313, t316, t319, t322, t325, t327, t328, t329, t331, t337, t340, t343, &
+         t344, t35, t351, t36, t370, t371, t376, t383, t385, t386, t39, t390, t391, t395, t396, &
+         t398, t4, t403, t404, t406, t41, t410, t411, t419, t42, t437, t445, t450, t452, t464, &
+         t472, t475, t485, t489, t49, t490, t5, t505, t513, t517, t536, t541, t542, t546, t547, &
+         t549, t55, t554, t555, t557, t561, t562, t569, t574, t58, t585, t6
+      REAL(kind=dp) :: t60, t604, t609, t610, t614, t615, t617, t622, t623, t625, t629, t630, &
+         t637, t642, t645, t659, t67, t7, t71, t73, t77, t78, t79, t799, t80, t84, t85, t89, t9, &
+         t94, t95, t96, t_s1, t_s1norm_drho, t_s1rho, t_s2, t_s2norm_drho, t_s2rho, tau_w, &
+         tau_wnorm_drho, tau_wrho, tildeq_b, tildeq_bnorm_drho, tildeq_brho, tildeq_btau, &
          tnorm_drho, trho, z, znorm_drho, zrho, ztau
 
       kappa = 0.804e0_dp
@@ -287,12 +291,19 @@ CONTAINS
             t254 = my_ndrho**2
             tau_w = t254*t7/0.8e1_dp
 
-            IF (my_tau < tau_w) THEN
-               ! enforce z=norm_rho**2/(8._dp*rho*tau) <1
+            clipped_tau = my_tau < tau_w
+            IF (clipped_tau) THEN
+               ! Project the gradient and kinetic density onto z=1.
                m = 0.5_dp*t254 + 4.0_dp*my_rho*my_tau
                my_tau = m/8._dp/my_rho
                my_ndrho = SQRT(m)
                t254 = m
+               tau_w = my_tau
+               IF (grad_deriv > 0) THEN
+                  incoming_rho = e_rho(ii)
+                  incoming_gradient = e_ndrho(ii)
+                  incoming_tau = e_tau(ii)
+               END IF
                non_coer = non_coer + 1
             END IF
 
@@ -439,8 +450,9 @@ CONTAINS
             p = t275*t284/0.12e2_dp
             t286 = 0.1e1_dp/my_tau
             z = tau_w*t286
-            t288 = 0.1e1_dp/z - 0.1e1_dp
-            alpha = 0.5e1_dp/0.3e1_dp*p*t288
+            ! Use the finite stationary-density limit of (5/3)*p*(1/z-1).
+            tau_unif_inverse = 10.0_dp/9.0_dp*t1*t278/(t281*my_rho)
+            alpha = (my_tau - tau_w)*tau_unif_inverse
             t290 = alpha - 0.1e1_dp
             t291 = b*alpha
             t293 = 0.1e1_dp + t291*t290
@@ -508,9 +520,7 @@ CONTAINS
                tau_wrho = -t254*t343/0.8e1_dp
                prho = -0.2e1_dp/0.9e1_dp*t275*t278/t281/t279/my_rho
                zrho = tau_wrho*t286
-               t430 = p/t299
-               alpharho = 0.5e1_dp/0.3e1_dp*prho*t288 - 0.5e1_dp/0.3e1_dp &
-                          *t430*zrho
+               alpharho = 5.0_dp/3.0_dp*(p - alpha)*t7
                t437 = t290/t294/t293
                tildeq_brho = 0.9e1_dp/0.20e2_dp*alpharho*t295 - 0.9e1_dp/ &
                              0.40e2_dp*t437*(b*alpharho*t290 + t291*alpharho) + &
@@ -518,7 +528,9 @@ CONTAINS
                t445 = c*z
                t450 = c*t299*z
                t452 = 0.1e1_dp/t302/t301
-               t464 = tildeq_b/t313
+               ! The associated first-gradient factors vanish at t313=0.
+               t464 = 0.0_dp
+               IF (t313 > 0.0_dp) t464 = tildeq_b/t313
                t472 = t316*p
                t475 = t319*z
                t485 = t325/t328/t327
@@ -616,8 +628,7 @@ CONTAINS
                tau_wnorm_drho = my_ndrho*t7/0.4e1_dp
                pnorm_drho = my_ndrho*t1*t284/0.6e1_dp
                znorm_drho = tau_wnorm_drho*t286
-               alphanorm_drho = 0.5e1_dp/0.3e1_dp*pnorm_drho*t288 - &
-                                0.5e1_dp/0.3e1_dp*t430*znorm_drho
+               alphanorm_drho = -5.0_dp/3.0_dp*pnorm_drho
                tildeq_bnorm_drho = 0.9e1_dp/0.20e2_dp*alphanorm_drho*t295 - &
                                    0.9e1_dp/0.40e2_dp*t437*(b*alphanorm_drho*t290 + t291* &
                                                             alphanorm_drho) + 0.2e1_dp/0.3e1_dp*pnorm_drho
@@ -660,7 +671,7 @@ CONTAINS
                epsilon_cRevPKZBtau = -0.2e1_dp*t263*t271
                t799 = t264**2
                ztau = -tau_w*t265
-               alphatau = -0.5e1_dp/0.3e1_dp*t430*ztau
+               alphatau = tau_unif_inverse
                tildeq_btau = 0.9e1_dp/0.20e2_dp*alphatau*t295 - 0.9e1_dp/ &
                              0.40e2_dp*t437*(b*alphatau*t290 + t291*alphatau)
 
@@ -672,6 +683,20 @@ CONTAINS
                                                tildeq_btau - 0.73e2_dp/0.4050e4_dp*tildeq_btau*t313 - &
                                                0.73e2_dp/0.225e3_dp*t464*z*ztau + 0.8e1_dp/0.45e2_dp* &
                                                t475*ztau)*t329
+               IF (clipped_tau) THEN
+                  ! Differentiate the same projected gradient and kinetic density
+                  ! used by the energy, preserving other functional contributions.
+                  partial_rho = e_rho(ii) - incoming_rho
+                  partial_gradient = e_ndrho(ii) - incoming_gradient
+                  partial_tau = e_tau(ii) - incoming_tau
+                  e_rho(ii) = incoming_rho + partial_rho + &
+                              2.0_dp*tau(ii)/my_ndrho*partial_gradient - &
+                              norm_drho(ii)**2/(16.0_dp*my_rho**2)*partial_tau
+                  e_ndrho(ii) = incoming_gradient + &
+                                0.5_dp*norm_drho(ii)/my_ndrho*partial_gradient + &
+                                norm_drho(ii)/(8.0_dp*my_rho)*partial_tau
+                  e_tau(ii) = incoming_tau + 2.0_dp*my_rho/my_ndrho*partial_gradient + 0.5_dp*partial_tau
+               END IF
             END IF
          END IF
       END DO
