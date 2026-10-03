@@ -13,7 +13,7 @@
 MODULE rpa_gw_kpoints_util
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
-                                              pbc
+                                              minimum_image_weights
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add_on_diag,&
                                               cp_cfm_get_diag,&
@@ -474,7 +474,7 @@ CONTAINS
    END SUBROUTINE frequency_and_kpoint_integration
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Split a real Gamma matrix among nearest images using normalized equal weights.
 !> \param mat_P_omega ...
 !> \param qs_env ...
 !> \param kpoints ...
@@ -489,16 +489,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mat_cell_T_from_mat_gamma'
 
-      INTEGER                                            :: col, handle, i_cell, i_dim, j_cell, &
-                                                            num_cells_P, num_integ_points, row
-      INTEGER, DIMENSION(3)                              :: cell_grid_P, periodic
+      INTEGER                                            :: col, handle, i_cell, num_cells_P, row
+      INTEGER, DIMENSION(3)                              :: periodic
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_P
-      LOGICAL :: i_cell_is_the_minimum_image_cell
-      REAL(KIND=dp)                                      :: abs_rab_cell_i, abs_rab_cell_j
-      REAL(KIND=dp), DIMENSION(3)                        :: cell_vector, cell_vector_j, rab_cell_i, &
-                                                            rab_cell_j
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
+      LOGICAL                                            :: found
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: weights
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block, image_block
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -506,34 +502,18 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (cell, particle_set)
-      CALL get_qs_env(qs_env, cell=cell, &
-                      particle_set=particle_set)
-      CALL get_cell(cell=cell, h=hmat, periodic=periodic)
+      CALL get_qs_env(qs_env, cell=cell, particle_set=particle_set)
+      CALL get_cell(cell=cell, periodic=periodic)
 
-      DO i_dim = 1, 3
-         ! we have at most 3 neigboring cells per dimension and at least one because
-         ! the density response at Gamma is only divided to neighboring
-         IF (periodic(i_dim) == 1) THEN
-            cell_grid_P(i_dim) = MAX(MIN((kpoints%nkp_grid(i_dim)/2)*2 - 1, 1), 3)
-         ELSE
-            cell_grid_P(i_dim) = 1
-         END IF
-      END DO
-
-      ! overwrite the cell indices in kpoints
-      CALL init_cell_index_rpa(cell_grid_P, kpoints%cell_to_index, kpoints%index_to_cell, cell)
-
+      ! Nearest-neighbour candidate cells depend on periodicity, not on the target k-point mesh.
+      CALL init_cell_index_rpa(2*periodic + 1, kpoints%cell_to_index, kpoints%index_to_cell, cell)
       index_to_cell_P => kpoints%index_to_cell
-
       num_cells_P = SIZE(index_to_cell_P, 2)
+      CPASSERT(SIZE(mat_P_omega) >= num_cells_P)
+      ALLOCATE (weights(num_cells_P))
 
-      num_integ_points = SIZE(mat_P_omega, 1)
-
-      ! first, copy the Gamma-only result from mat_P_omega(1) into all other matrices and
-      ! remove the blocks later which do not belong to the cell index
       DO i_cell = 2, num_cells_P
-         CALL dbcsr_copy(mat_P_omega(i_cell)%matrix, &
-                         mat_P_omega(1)%matrix)
+         CALL dbcsr_copy(mat_P_omega(i_cell)%matrix, mat_P_omega(1)%matrix)
       END DO
 
       IF (jquad == 1 .AND. unit_nr > 0) THEN
@@ -548,41 +528,22 @@ CONTAINS
             WRITE (unit_nr, '(T3,A,T81)') &
                'GW_INFO| Make chi(iw,k) positive definite?                               FALSE'
          END IF
-
       END IF
 
-      DO i_cell = 1, num_cells_P
-
-         CALL dbcsr_iterator_start(iter, mat_P_omega(i_cell)%matrix)
-         DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, row, col, data_block)
-
-            cell_vector(1:3) = MATMUL(hmat, REAL(index_to_cell_P(1:3, i_cell), dp))
-            rab_cell_i(1:3) = pbc(particle_set(row)%r(1:3), cell) - &
-                              (pbc(particle_set(col)%r(1:3), cell) + cell_vector(1:3))
-            abs_rab_cell_i = SQRT(rab_cell_i(1)**2 + rab_cell_i(2)**2 + rab_cell_i(3)**2)
-
-            ! minimum image convention
-            i_cell_is_the_minimum_image_cell = .TRUE.
-            DO j_cell = 1, num_cells_P
-               cell_vector_j(1:3) = MATMUL(hmat, REAL(index_to_cell_P(1:3, j_cell), dp))
-               rab_cell_j(1:3) = pbc(particle_set(row)%r(1:3), cell) - &
-                                 (pbc(particle_set(col)%r(1:3), cell) + cell_vector_j(1:3))
-               abs_rab_cell_j = SQRT(rab_cell_j(1)**2 + rab_cell_j(2)**2 + rab_cell_j(3)**2)
-
-               IF (abs_rab_cell_i > abs_rab_cell_j + 1.0E-6_dp) THEN
-                  i_cell_is_the_minimum_image_cell = .FALSE.
-               END IF
-            END DO
-
-            IF (.NOT. i_cell_is_the_minimum_image_cell) THEN
-               data_block(:, :) = data_block(:, :)*0.0_dp
-            END IF
-
+      CALL dbcsr_iterator_start(iter, mat_P_omega(1)%matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col, data_block)
+         CALL minimum_image_weights(particle_set(row)%r, particle_set(col)%r, &
+                                    cell, index_to_cell_P, weights)
+         ! Keep the Gamma block unchanged until its contributions to all other images are copied.
+         DO i_cell = num_cells_P, 1, -1
+            CALL dbcsr_get_block_p(matrix=mat_P_omega(i_cell)%matrix, row=row, col=col, &
+                                   block=image_block, found=found)
+            CPASSERT(found)
+            image_block = weights(i_cell)*data_block
          END DO
-         CALL dbcsr_iterator_stop(iter)
-
       END DO
+      CALL dbcsr_iterator_stop(iter)
 
       CALL timestop(handle)
 

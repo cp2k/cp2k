@@ -17,7 +17,6 @@ MODULE gw_tensor_large_cell_Gamma
    USE bibliography,                    ONLY: Graml2024,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type,&
-                                              get_cell,&
                                               pbc
    USE constants_operator,              ONLY: operator_coulomb
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add_on_diag,&
@@ -32,10 +31,12 @@ MODULE gw_tensor_large_cell_Gamma
                                               cp_cfm_release,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_type
-   USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
+                                              dbcsr_create,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release,&
+                                              dbcsr_set,&
+                                              dbcsr_type
    USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -78,10 +79,8 @@ MODULE gw_tensor_large_cell_Gamma
                                               dp,&
                                               int_8
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
-   USE kpoint_types,                    ONLY: kpoint_type
    USE machine,                         ONLY: m_walltime
-   USE mathconstants,                   ONLY: twopi,&
-                                              z_one,&
+   USE mathconstants,                   ONLY: z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_file_delete
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat,&
@@ -1421,101 +1420,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE compute_fm_chi_Gamma_freq
-
-! **************************************************************************************************
-!> \brief ...
-!> \param mat_ikp_re ...
-!> \param mat_ikp_im ...
-!> \param mat_Gamma ...
-!> \param kpoints ...
-!> \param ikp ...
-!> \param qs_env ...
-! **************************************************************************************************
-   SUBROUTINE mat_ikp_from_mat_Gamma(mat_ikp_re, mat_ikp_im, mat_Gamma, kpoints, ikp, qs_env)
-      TYPE(dbcsr_type)                                   :: mat_ikp_re, mat_ikp_im, mat_Gamma
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      INTEGER                                            :: ikp
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mat_ikp_from_mat_Gamma'
-
-      INTEGER                                            :: col, handle, i_cell, j_cell, num_cells, &
-                                                            row
-      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
-      LOGICAL :: f, i_cell_is_the_minimum_image_cell
-      REAL(KIND=dp)                                      :: abs_rab_cell_i, abs_rab_cell_j, arg
-      REAL(KIND=dp), DIMENSION(3)                        :: cell_vector, cell_vector_j, rab_cell_i, &
-                                                            rab_cell_j
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block_im, block_re, data_block
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(dbcsr_iterator_type)                          :: iter
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-
-      CALL timeset(routineN, handle)
-
-      ! get the same blocks in mat_ikp_re and mat_ikp_im as in mat_Gamma
-      CALL dbcsr_copy(mat_ikp_re, mat_Gamma)
-      CALL dbcsr_copy(mat_ikp_im, mat_Gamma)
-      CALL dbcsr_set(mat_ikp_re, 0.0_dp)
-      CALL dbcsr_set(mat_ikp_im, 0.0_dp)
-
-      NULLIFY (cell, particle_set)
-      CALL get_qs_env(qs_env, cell=cell, particle_set=particle_set)
-      CALL get_cell(cell=cell, h=hmat)
-
-      index_to_cell => kpoints%index_to_cell
-
-      num_cells = SIZE(index_to_cell, 2)
-
-      DO i_cell = 1, num_cells
-
-         CALL dbcsr_iterator_start(iter, mat_Gamma)
-         DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, row, col, data_block)
-
-            cell_vector(1:3) = MATMUL(hmat, REAL(index_to_cell(1:3, i_cell), dp))
-
-            rab_cell_i(1:3) = pbc(particle_set(row)%r(1:3), cell) - &
-                              (pbc(particle_set(col)%r(1:3), cell) + cell_vector(1:3))
-            abs_rab_cell_i = SQRT(rab_cell_i(1)**2 + rab_cell_i(2)**2 + rab_cell_i(3)**2)
-
-            ! minimum image convention
-            i_cell_is_the_minimum_image_cell = .TRUE.
-            DO j_cell = 1, num_cells
-               cell_vector_j(1:3) = MATMUL(hmat, REAL(index_to_cell(1:3, j_cell), dp))
-               rab_cell_j(1:3) = pbc(particle_set(row)%r(1:3), cell) - &
-                                 (pbc(particle_set(col)%r(1:3), cell) + cell_vector_j(1:3))
-               abs_rab_cell_j = SQRT(rab_cell_j(1)**2 + rab_cell_j(2)**2 + rab_cell_j(3)**2)
-
-               IF (abs_rab_cell_i > abs_rab_cell_j + 1.0E-6_dp) THEN
-                  i_cell_is_the_minimum_image_cell = .FALSE.
-               END IF
-            END DO
-
-            IF (i_cell_is_the_minimum_image_cell) THEN
-               NULLIFY (block_re, block_im)
-               CALL dbcsr_get_block_p(matrix=mat_ikp_re, row=row, col=col, block=block_re, found=f)
-               CALL dbcsr_get_block_p(matrix=mat_ikp_im, row=row, col=col, block=block_im, found=f)
-               CPASSERT(ALL(ABS(block_re) < 1.0E-10_dp))
-               CPASSERT(ALL(ABS(block_im) < 1.0E-10_dp))
-
-               arg = REAL(index_to_cell(1, i_cell), dp)*kpoints%xkp(1, ikp) + &
-                     REAL(index_to_cell(2, i_cell), dp)*kpoints%xkp(2, ikp) + &
-                     REAL(index_to_cell(3, i_cell), dp)*kpoints%xkp(3, ikp)
-
-               block_re(:, :) = COS(twopi*arg)*data_block(:, :)
-               block_im(:, :) = SIN(twopi*arg)*data_block(:, :)
-            END IF
-
-         END DO
-         CALL dbcsr_iterator_stop(iter)
-
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE mat_ikp_from_mat_Gamma
 
 ! **************************************************************************************************
 !> \brief W^MIC_PQ(iω=0) = sum_j w_j W^MIC_PQ(iτ_j) with the time weights w_j of the grid at zero
