@@ -155,7 +155,7 @@ CONTAINS
    END SUBROUTINE evaluate
 
 ! **************************************************************************************************
-!> \brief Check native TPSS and first derivatives at zero and near-zero density gradients.
+!> \brief Check native TPSS derivatives at stationary density points and below the von Weizsaecker bound.
 ! **************************************************************************************************
    SUBROUTINE check_tpss_zero_gradient()
       REAL(dp), PARAMETER :: step = 1.e-5_dp, tau_scales(3) = [0.2_dp, 1.0_dp, 2.0_dp]
@@ -195,8 +195,19 @@ CONTAINS
          CALL evaluate_tpss_point(trial, minus, scratch)
          error = MAX(error, ABS((plus - minus)/(2.0_dp*step) - gradient(2)))
       END DO
-      WRITE (*, '(A,ES15.6)') 'TPSS zero-gradient first-derivative error:', error
-      IF (error > 3.e-8_dp) ERROR STOP 'TPSS zero-gradient potential is not the energy derivative'
+      ! NLCC can give tau below |grad rho|^2/(8*rho). Check the projection Jacobian.
+      x = [0.4_dp, 1.2_dp, 0.05_dp]
+      CALL evaluate_tpss_point(x, energy, gradient)
+      DO axis = 1, 3
+         trial = x
+         trial(axis) = x(axis) + step
+         CALL evaluate_tpss_point(trial, plus, scratch)
+         trial(axis) = x(axis) - step
+         CALL evaluate_tpss_point(trial, minus, scratch)
+         error = MAX(error, ABS((plus - minus)/(2.0_dp*step) - gradient(axis)))
+      END DO
+      WRITE (*, '(A,ES15.6)') 'TPSS limiting-density first-derivative error:', error
+      IF (error > 3.e-8_dp) ERROR STOP 'TPSS limiting-density potential is not the energy derivative'
    END SUBROUTINE check_tpss_zero_gradient
 
 ! **************************************************************************************************

@@ -215,8 +215,11 @@ CONTAINS
       INTEGER, INTENT(inout)                             :: non_coer
 
       INTEGER                                            :: ii
-      LOGICAL                                            :: t571, t639
-      REAL(dp)                                           :: tau_unif_inverse
+      LOGICAL                                            :: clipped_tau, t571, t639
+      REAL(dp)                                           :: incoming_gradient, incoming_rho, &
+                                                            incoming_tau, partial_gradient, &
+                                                            partial_rho, partial_tau, &
+                                                            tau_unif_inverse
       REAL(kind=dp) :: A, A_1, A_2, A_s1, A_s1rho, A_s2, A_s2rho, alpha, alpha_1_1, alpha_1_2, &
          alphanorm_drho, alpharho, alphatau, Arho, b, beta, beta_1_1, beta_1_2, beta_2_1, &
          beta_2_2, beta_3_1, beta_3_2, beta_4_1, beta_4_2, c, d, e_c_u_0, e_c_u_0rho, e_c_u_1_s1, &
@@ -288,12 +291,19 @@ CONTAINS
             t254 = my_ndrho**2
             tau_w = t254*t7/0.8e1_dp
 
-            IF (my_tau < tau_w) THEN
-               ! enforce z=norm_rho**2/(8._dp*rho*tau) <1
+            clipped_tau = my_tau < tau_w
+            IF (clipped_tau) THEN
+               ! Project the gradient and kinetic density onto z=1.
                m = 0.5_dp*t254 + 4.0_dp*my_rho*my_tau
                my_tau = m/8._dp/my_rho
                my_ndrho = SQRT(m)
                t254 = m
+               tau_w = my_tau
+               IF (grad_deriv > 0) THEN
+                  incoming_rho = e_rho(ii)
+                  incoming_gradient = e_ndrho(ii)
+                  incoming_tau = e_tau(ii)
+               END IF
                non_coer = non_coer + 1
             END IF
 
@@ -673,6 +683,20 @@ CONTAINS
                                                tildeq_btau - 0.73e2_dp/0.4050e4_dp*tildeq_btau*t313 - &
                                                0.73e2_dp/0.225e3_dp*t464*z*ztau + 0.8e1_dp/0.45e2_dp* &
                                                t475*ztau)*t329
+               IF (clipped_tau) THEN
+                  ! Differentiate the same projected gradient and kinetic density
+                  ! used by the energy, preserving other functional contributions.
+                  partial_rho = e_rho(ii) - incoming_rho
+                  partial_gradient = e_ndrho(ii) - incoming_gradient
+                  partial_tau = e_tau(ii) - incoming_tau
+                  e_rho(ii) = incoming_rho + partial_rho + &
+                              2.0_dp*tau(ii)/my_ndrho*partial_gradient - &
+                              norm_drho(ii)**2/(16.0_dp*my_rho**2)*partial_tau
+                  e_ndrho(ii) = incoming_gradient + &
+                                0.5_dp*norm_drho(ii)/my_ndrho*partial_gradient + &
+                                norm_drho(ii)/(8.0_dp*my_rho)*partial_tau
+                  e_tau(ii) = incoming_tau + 2.0_dp*my_rho/my_ndrho*partial_gradient + 0.5_dp*partial_tau
+               END IF
             END IF
          END IF
       END DO
