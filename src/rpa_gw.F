@@ -18,7 +18,8 @@ MODULE rpa_gw
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
    USE core_ppnl,                       ONLY: build_core_ppnl
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale,&
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_get_diag,&
+                                              cp_cfm_scale,&
                                               cp_cfm_scale_and_add,&
                                               cp_cfm_scale_and_add_fm,&
                                               cp_cfm_transpose
@@ -50,9 +51,14 @@ MODULE rpa_gw
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_release, &
-        cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
+                                              cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_to_fm_submat,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -65,6 +71,7 @@ MODULE rpa_gw
         dbt_get_block, dbt_get_info, dbt_iterator_blocks_left, dbt_iterator_next_block, &
         dbt_iterator_start, dbt_iterator_stop, dbt_iterator_type, dbt_nblks_total, &
         dbt_pgrid_create, dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
+   USE gw_utils_fm,                     ONLY: cfm_contract_ABA
    USE hfx_types,                       ONLY: block_ind_type,&
                                               dealloc_containers,&
                                               hfx_compression_type
@@ -6084,15 +6091,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_minus_vxc_kpoints'
 
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: diag_Sigma_x_minus_vxc_mo_mo
       INTEGER                                            :: handle, ikp, ispin, nkp_self_energy, &
                                                             nmo, nspins
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_Sigma_x_minus_vxc_mo_mo
-      TYPE(cp_cfm_type)                                  :: cfm_dummy, cfm_mo_coeff, ks_mat_ao_ao, &
-                                                            ks_mat_no_xc_ao_ao, vxc_ao_ao, &
-                                                            vxc_ao_mo, vxc_mo_mo
+      TYPE(cp_cfm_type)                                  :: cfm_dummy, cfm_mo_coeff, cfm_work, vxc
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type)                                   :: fm_dummy, fm_Sigma_x_minus_vxc_mo_mo, &
-                                                            fm_tmp_im, fm_tmp_re
+      TYPE(cp_fm_type)                                   :: fm_dummy, fm_tmp_im, fm_tmp_re
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints_Sigma, kpoints_Sigma_no_xc
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -6111,13 +6115,9 @@ CONTAINS
 
       matrix_struct => kpoints_Sigma%kp_env(1)%kpoint_env%wmat(1, 1)%matrix_struct
 
-      CALL cp_cfm_create(ks_mat_ao_ao, matrix_struct)
-      CALL cp_cfm_create(ks_mat_no_xc_ao_ao, matrix_struct)
-      CALL cp_cfm_create(vxc_ao_ao, matrix_struct)
-      CALL cp_cfm_create(vxc_ao_mo, matrix_struct)
-      CALL cp_cfm_create(vxc_mo_mo, matrix_struct)
+      CALL cp_cfm_create(vxc, matrix_struct)
       CALL cp_cfm_create(cfm_mo_coeff, matrix_struct)
-      CALL cp_fm_create(fm_Sigma_x_minus_vxc_mo_mo, matrix_struct)
+      CALL cp_cfm_create(cfm_work, matrix_struct)
       CALL cp_fm_create(fm_tmp_re, matrix_struct)
       CALL cp_fm_create(fm_tmp_im, matrix_struct)
 
@@ -6150,8 +6150,6 @@ CONTAINS
             END IF
             END ASSOCIATE
 
-            CALL cp_fm_to_cfm(kpoints_Sigma%kp_env(ikp)%kpoint_env%wmat(1, ispin), &
-                              kpoints_Sigma%kp_env(ikp)%kpoint_env%wmat(2, ispin), ks_mat_ao_ao)
             ASSOCIATE (wmat => kpoints_Sigma_no_xc%kp_env(ikp)%kpoint_env%wmat)
             IF (ASSOCIATED(wmat(1, ispin)%matrix_struct)) THEN
                CALL cp_fm_copy_general(wmat(1, ispin), fm_tmp_re, para_env)
@@ -6165,28 +6163,22 @@ CONTAINS
             END IF
             END ASSOCIATE
 
-            CALL cp_fm_to_cfm(fm_tmp_re, fm_tmp_im, vxc_ao_ao)
+            CALL cp_fm_to_cfm(fm_tmp_re, fm_tmp_im, vxc)
 
-            CALL parallel_gemm('N', 'N', nmo, nmo, nmo, z_one, vxc_ao_ao, cfm_mo_coeff, z_zero, vxc_ao_mo)
-            CALL parallel_gemm('C', 'N', nmo, nmo, nmo, z_one, cfm_mo_coeff, vxc_ao_mo, z_zero, vxc_mo_mo)
+            CALL cfm_contract_ABA(cfm_mo_coeff, vxc, workspace=cfm_work)
 
-            CALL cp_cfm_to_fm(vxc_mo_mo, fm_Sigma_x_minus_vxc_mo_mo)
+            CALL cp_cfm_get_diag(vxc, diag_Sigma_x_minus_vxc_mo_mo)
 
-            CALL cp_fm_get_diag(fm_Sigma_x_minus_vxc_mo_mo, diag_Sigma_x_minus_vxc_mo_mo)
-
-            qs_env%mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, ispin, ikp) = diag_Sigma_x_minus_vxc_mo_mo(:)
+            qs_env%mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, ispin, ikp) = &
+               REAL(diag_Sigma_x_minus_vxc_mo_mo, KIND=dp)
 
          END DO
 
       END DO
 
-      CALL cp_cfm_release(ks_mat_ao_ao)
-      CALL cp_cfm_release(ks_mat_no_xc_ao_ao)
-      CALL cp_cfm_release(vxc_ao_ao)
-      CALL cp_cfm_release(vxc_ao_mo)
-      CALL cp_cfm_release(vxc_mo_mo)
+      CALL cp_cfm_release(vxc)
       CALL cp_cfm_release(cfm_mo_coeff)
-      CALL cp_fm_release(fm_Sigma_x_minus_vxc_mo_mo)
+      CALL cp_cfm_release(cfm_work)
       CALL cp_fm_release(fm_tmp_re)
       CALL cp_fm_release(fm_tmp_im)
 
@@ -6216,16 +6208,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'trafo_to_mo_and_kpoints'
 
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: diag_self_energy
       INTEGER                                            :: handle, ikp, nkp_self_energy, nmo, &
                                                             periodic(3), size_real_space
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_self_energy
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_cfm_type)                                  :: cfm_self_energy_ao_ao, &
-                                                            cfm_self_energy_ao_mo, &
-                                                            cfm_self_energy_mo_mo
+      TYPE(cp_cfm_type)                                  :: cfm_self_energy, cfm_work
       TYPE(cp_cfm_type), POINTER                         :: cfm_mo_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type)                                   :: fm_self_energy_mo_mo
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: mat_self_energy_ao_ao_kp_im, &
          mat_self_energy_ao_ao_kp_re, mat_self_energy_ao_ao_real_space
       TYPE(kpoint_type), POINTER                         :: kpoints_Sigma
@@ -6259,33 +6248,21 @@ CONTAINS
 
       matrix_struct => kpoints_Sigma%kp_env(1)%kpoint_env%mos(1)%cmo_coeff%matrix_struct
 
-      CALL cp_cfm_create(cfm_self_energy_ao_ao, matrix_struct)
-      CALL cp_cfm_create(cfm_self_energy_ao_mo, matrix_struct)
-      CALL cp_cfm_create(cfm_self_energy_mo_mo, matrix_struct)
-      CALL cp_cfm_set_all(cfm_self_energy_ao_ao, z_zero)
-      CALL cp_cfm_set_all(cfm_self_energy_ao_mo, z_zero)
-      CALL cp_cfm_set_all(cfm_self_energy_mo_mo, z_zero)
-
-      CALL cp_fm_create(fm_self_energy_mo_mo, matrix_struct)
+      CALL cp_cfm_create(cfm_self_energy, matrix_struct)
+      CALL cp_cfm_create(cfm_work, matrix_struct)
 
       DO ikp = 1, nkp_self_energy
 
          CALL dbcsr_to_cfm(mat_self_energy_ao_ao_kp_re(ikp)%matrix, &
-                           mat_self_energy_ao_ao_kp_im(ikp)%matrix, cfm_self_energy_ao_ao)
+                           mat_self_energy_ao_ao_kp_im(ikp)%matrix, cfm_self_energy)
 
          cfm_mo_coeff => kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(ispin)%cmo_coeff
 
-         CALL parallel_gemm('N', 'N', nmo, nmo, nmo, z_one, cfm_self_energy_ao_ao, cfm_mo_coeff, &
-                            z_zero, cfm_self_energy_ao_mo)
+         CALL cfm_contract_ABA(cfm_mo_coeff, cfm_self_energy, workspace=cfm_work)
 
-         CALL parallel_gemm('C', 'N', nmo, nmo, nmo, z_one, cfm_mo_coeff, cfm_self_energy_ao_mo, &
-                            z_zero, cfm_self_energy_mo_mo)
+         CALL cp_cfm_get_diag(cfm_self_energy, diag_self_energy)
 
-         CALL cp_cfm_to_fm(cfm_self_energy_mo_mo, fm_self_energy_mo_mo)
-
-         CALL cp_fm_get_diag(fm_self_energy_mo_mo, diag_self_energy)
-
-         vec_Sigma(:, ikp) = diag_self_energy(homo - gw_corr_lev_occ + 1:homo + gw_corr_lev_virt)
+         vec_Sigma(:, ikp) = REAL(diag_self_energy(homo - gw_corr_lev_occ + 1:homo + gw_corr_lev_virt), KIND=dp)
 
       END DO
 
@@ -6293,10 +6270,8 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(mat_self_energy_ao_ao_kp_re)
       CALL dbcsr_deallocate_matrix_set(mat_self_energy_ao_ao_kp_im)
 
-      CALL cp_cfm_release(cfm_self_energy_ao_ao)
-      CALL cp_cfm_release(cfm_self_energy_ao_mo)
-      CALL cp_cfm_release(cfm_self_energy_mo_mo)
-      CALL cp_fm_release(fm_self_energy_mo_mo)
+      CALL cp_cfm_release(cfm_self_energy)
+      CALL cp_cfm_release(cfm_work)
 
       DEALLOCATE (diag_self_energy)
 

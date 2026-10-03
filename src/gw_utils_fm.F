@@ -19,6 +19,7 @@ MODULE gw_utils_fm
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
    USE cp_fm_diag,                      ONLY: cp_fm_power
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
@@ -51,20 +52,37 @@ CONTAINS
 !> \param matrix_A left and right matrix A; H denotes its Hermitian transpose
 !> \param matrix_B input matrix B; overwritten by A^H B A if matrix_C is absent
 !> \param matrix_C optional output matrix C=A^H B A
+!> \param workspace optional reusable scratch matrix with the same layout as A;
+!>        its contents are overwritten and it must not alias the input or output matrices
 ! **************************************************************************************************
-   SUBROUTINE cfm_contract_ABA(matrix_A, matrix_B, matrix_C)
+   SUBROUTINE cfm_contract_ABA(matrix_A, matrix_B, matrix_C, workspace)
       TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_A
       TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_B
-      TYPE(cp_cfm_type), INTENT(INOUT), OPTIONAL         :: matrix_C
+      TYPE(cp_cfm_type), INTENT(INOUT), OPTIONAL         :: matrix_C, workspace
 
       INTEGER                                            :: ncol, nrow
+      LOGICAL                                            :: compatible_workspace
       TYPE(cp_cfm_type)                                  :: work
 
       CPASSERT(ASSOCIATED(matrix_A%matrix_struct))
       CPASSERT(ASSOCIATED(matrix_B%matrix_struct))
       CALL cp_cfm_get_info(matrix_A, nrow_global=nrow, ncol_global=ncol)
       CPASSERT(nrow == ncol)
-      CALL cp_cfm_create(work, matrix_A%matrix_struct)
+      IF (PRESENT(workspace)) THEN
+         compatible_workspace = cp_fm_struct_equivalent(matrix_A%matrix_struct, workspace%matrix_struct)
+         compatible_workspace = compatible_workspace .AND. &
+                                ALL(matrix_A%matrix_struct%descriptor == workspace%matrix_struct%descriptor)
+         CPASSERT(compatible_workspace)
+         CPASSERT(ASSOCIATED(workspace%local_data))
+         CPASSERT(.NOT. ASSOCIATED(workspace%local_data, matrix_A%local_data))
+         CPASSERT(.NOT. ASSOCIATED(workspace%local_data, matrix_B%local_data))
+         IF (PRESENT(matrix_C)) THEN
+            CPASSERT(.NOT. ASSOCIATED(workspace%local_data, matrix_C%local_data))
+         END IF
+         work = workspace
+      ELSE
+         CALL cp_cfm_create(work, matrix_A%matrix_struct)
+      END IF
 
       CALL parallel_gemm("N", "N", nrow, nrow, nrow, z_one, matrix_B, matrix_A, &
                          z_zero, work)
@@ -77,7 +95,7 @@ CONTAINS
                             z_zero, matrix_B)
       END IF
 
-      CALL cp_cfm_release(work)
+      IF (.NOT. PRESENT(workspace)) CALL cp_cfm_release(work)
 
    END SUBROUTINE cfm_contract_ABA
 

@@ -21,6 +21,7 @@ MODULE gw_tensor_large_cell_Gamma
                                               pbc
    USE constants_operator,              ONLY: operator_coulomb
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add_on_diag,&
+                                              cp_cfm_get_diag,&
                                               cp_cfm_uplo_to_full
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_cholesky_invert
@@ -30,7 +31,6 @@ MODULE gw_tensor_large_cell_Gamma
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
                                               cp_cfm_to_cfm,&
-                                              cp_cfm_to_fm,&
                                               cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
@@ -43,9 +43,14 @@ MODULE gw_tensor_large_cell_Gamma
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_read_unformatted, cp_fm_release, &
-        cp_fm_set_all, cp_fm_to_fm, cp_fm_type, cp_fm_write_unformatted
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_read_unformatted,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type,&
+                                              cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -106,7 +111,7 @@ MODULE gw_tensor_large_cell_Gamma
              create_fm_W_MIC_time, Fourier_transform_w_to_t, &
              compute_fm_chi_Gamma_freq, compute_QP_energies, fm_write, &
              get_mat_chi_Gamma_tau, get_Sigma_x, create_mat_for_Sigma_c, destroy_mat_Sigma_c, &
-             compute_Sigma_c_occ_vir, fm_Gamma_ao_to_cfm_ikp_mo, print_skipping, &
+             compute_Sigma_c_occ_vir, print_skipping, &
              compute_V_k_by_lattice_sum, compute_MinvVsqrt_Vsqrt, compute_fm_W_MIC_freq_j_from_chi, &
              apply_extrapol_factor
 
@@ -2453,7 +2458,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Sigma_x_ikp_n, V_xc_ikp_n
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Sigma_c_ikp_n_freq, Sigma_c_ikp_n_time
       TYPE(cp_cfm_type)                                  :: cfm_ks_ikp, cfm_mos_ikp, cfm_s_ikp, &
-                                                            cfm_Sigma_x_ikp, cfm_work_ikp
+                                                            cfm_work_ikp
 
       CALL timeset(routineN, handle)
 
@@ -2482,20 +2487,20 @@ CONTAINS
 
             ! 4. V^xc_µν(k=0) -> V^xc_µν(k_i) -> V^xc_nn(k_i)
             CALL to_ikp_and_mo(V_xc_ikp_n, bs_env%fm_V_xc_Gamma(ispin), &
-                               ikp, qs_env, bs_env, cfm_mos_ikp)
+                               ikp, qs_env, bs_env, cfm_mos_ikp, cfm_ks_ikp, cfm_work_ikp)
 
             ! 5. Σ^x_µν(k=0) -> Σ^x_µν(k_i) -> Σ^x_nn(k_i)
             CALL to_ikp_and_mo(Sigma_x_ikp_n, fm_Sigma_x_Gamma(ispin), &
-                               ikp, qs_env, bs_env, cfm_mos_ikp)
+                               ikp, qs_env, bs_env, cfm_mos_ikp, cfm_ks_ikp, cfm_work_ikp)
 
             ! 6. Σ^c_µν(k=0,+/-i|τ_j|) -> Σ^c_µν(k_i,+/-i|τ_j|) -> Σ^c_nn(k_i,+/-i|τ_j|)
             DO j_t = 1, bs_env%num_time_freq_points
                CALL to_ikp_and_mo(Sigma_c_ikp_n_time(:, j_t, 1), &
                                   fm_Sigma_c_Gamma_time(j_t, 1, ispin), &
-                                  ikp, qs_env, bs_env, cfm_mos_ikp)
+                                  ikp, qs_env, bs_env, cfm_mos_ikp, cfm_ks_ikp, cfm_work_ikp)
                CALL to_ikp_and_mo(Sigma_c_ikp_n_time(:, j_t, 2), &
                                   fm_Sigma_c_Gamma_time(j_t, 2, ispin), &
-                                  ikp, qs_env, bs_env, cfm_mos_ikp)
+                                  ikp, qs_env, bs_env, cfm_mos_ikp, cfm_ks_ikp, cfm_work_ikp)
             END DO
 
             ! 7. Σ^c_nn(k_i,iτ) -> Σ^c_nn(k_i,iω)
@@ -2519,88 +2524,52 @@ CONTAINS
       CALL cp_cfm_release(cfm_s_ikp)
       CALL cp_cfm_release(cfm_mos_ikp)
       CALL cp_cfm_release(cfm_work_ikp)
-      CALL cp_cfm_release(cfm_Sigma_x_ikp)
 
       CALL timestop(handle)
 
    END SUBROUTINE compute_QP_energies
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param array_ikp_n ...
-!> \param fm_Gamma ...
-!> \param ikp ...
-!> \param qs_env ...
-!> \param bs_env ...
-!> \param cfm_mos_ikp ...
+!> \brief Reconstruct a k-point Hermitian operator and return its real MO diagonal.
+!> \param array_ikp_n Real diagonal elements in the MO basis.
+!> \param fm_Gamma Real AO operator at the Gamma point.
+!> \param ikp Index of the target k-point.
+!> \param qs_env Quantum simulation environment.
+!> \param bs_env Band-structure environment containing the target k-points.
+!> \param cfm_mos_ikp Complex MO coefficients at the target k-point.
+!> \param cfm_ikp Reusable AO operator buffer; overwritten by its MO projection.
+!> \param workspace Reusable projection scratch matrix with the MO coefficient layout.
 ! **************************************************************************************************
-   SUBROUTINE to_ikp_and_mo(array_ikp_n, fm_Gamma, ikp, qs_env, bs_env, cfm_mos_ikp)
+   SUBROUTINE to_ikp_and_mo(array_ikp_n, fm_Gamma, ikp, qs_env, bs_env, cfm_mos_ikp, cfm_ikp, workspace)
 
-      REAL(KIND=dp), DIMENSION(:)                        :: array_ikp_n
-      TYPE(cp_fm_type)                                   :: fm_Gamma
-      INTEGER                                            :: ikp
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: array_ikp_n
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_Gamma
+      INTEGER, INTENT(IN)                                :: ikp
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(cp_cfm_type)                                  :: cfm_mos_ikp
+      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mos_ikp
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm_ikp, workspace
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'to_ikp_and_mo'
 
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cdiag
       INTEGER                                            :: handle
-      TYPE(cp_fm_type)                                   :: fm_ikp_mo_re
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_create(fm_ikp_mo_re, fm_Gamma%matrix_struct)
+      ! get cfm_µν(k_i) from fm_µν(k=0)
+      CALL cfm_ikp_from_fm_Gamma(cfm_ikp, fm_Gamma, ikp, qs_env, bs_env%kpoints_DOS, "ORB")
 
-      CALL fm_Gamma_ao_to_cfm_ikp_mo(fm_Gamma, fm_ikp_mo_re, ikp, qs_env, bs_env, cfm_mos_ikp)
+      CALL cfm_contract_ABA(cfm_mos_ikp, cfm_ikp, workspace=workspace)
 
-      CALL cp_fm_get_diag(fm_ikp_mo_re, array_ikp_n)
-
-      CALL cp_fm_release(fm_ikp_mo_re)
+      ! Taking the real MO diagonal selects the Hermitian part of the operator.
+      ALLOCATE (cdiag(SIZE(array_ikp_n)))
+      CALL cp_cfm_get_diag(cfm_ikp, cdiag)
+      array_ikp_n = REAL(cdiag, KIND=dp)
 
       CALL timestop(handle)
 
    END SUBROUTINE to_ikp_and_mo
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm_Gamma ...
-!> \param fm_ikp_mo_re ...
-!> \param ikp ...
-!> \param qs_env ...
-!> \param bs_env ...
-!> \param cfm_mos_ikp ...
-! **************************************************************************************************
-   SUBROUTINE fm_Gamma_ao_to_cfm_ikp_mo(fm_Gamma, fm_ikp_mo_re, ikp, qs_env, bs_env, cfm_mos_ikp)
-      TYPE(cp_fm_type)                                   :: fm_Gamma, fm_ikp_mo_re
-      INTEGER                                            :: ikp
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(cp_cfm_type)                                  :: cfm_mos_ikp
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_Gamma_ao_to_cfm_ikp_mo'
-
-      INTEGER                                            :: handle
-      TYPE(cp_cfm_type)                                  :: cfm_ikp_ao, cfm_ikp_mo
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_cfm_create(cfm_ikp_ao, fm_Gamma%matrix_struct)
-      CALL cp_cfm_create(cfm_ikp_mo, fm_Gamma%matrix_struct)
-
-      ! get cfm_µν(k_i) from fm_µν(k=0)
-      CALL cfm_ikp_from_fm_Gamma(cfm_ikp_ao, fm_Gamma, ikp, qs_env, bs_env%kpoints_DOS, "ORB")
-
-      CALL cfm_contract_ABA(cfm_mos_ikp, cfm_ikp_ao, cfm_ikp_mo)
-
-      CALL cp_cfm_to_fm(cfm_ikp_mo, fm_ikp_mo_re)
-
-      CALL cp_cfm_release(cfm_ikp_mo)
-      CALL cp_cfm_release(cfm_ikp_ao)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE fm_Gamma_ao_to_cfm_ikp_mo
 
 ! **************************************************************************************************
 !> \brief Computes bounds (AO or RI) for given atom intervals atoms_1 and atoms_2 from indices_min

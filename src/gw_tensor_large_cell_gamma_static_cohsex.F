@@ -22,6 +22,7 @@ MODULE gw_tensor_large_cell_Gamma_static_cohsex
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_release,&
+                                              cp_cfm_to_fm,&
                                               cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
@@ -53,10 +54,11 @@ MODULE gw_tensor_large_cell_Gamma_static_cohsex
    USE gw_tensor_large_cell_gamma,      ONLY: &
         apply_extrapol_factor, compute_MinvVsqrt_Vsqrt, compute_Sigma_c_occ_vir, &
         compute_V_k_by_lattice_sum, compute_fm_W_MIC_freq_j_from_chi, create_mat_for_Sigma_c, &
-        delete_unnecessary_files, destroy_mat_Sigma_c, fm_Gamma_ao_to_cfm_ikp_mo, fm_read, &
-        fm_write, get_Sigma_x, get_mat_chi_Gamma_tau, print_skipping
+        delete_unnecessary_files, destroy_mat_Sigma_c, fm_read, fm_write, get_Sigma_x, &
+        get_mat_chi_Gamma_tau, print_skipping
    USE gw_utils,                        ONLY: de_init_bs_env
-   USE gw_utils_fm,                     ONLY: fm_contract_ABA
+   USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
+                                              fm_contract_ABA
    USE input_constants,                 ONLY: cohsex_qp_update
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -407,17 +409,25 @@ CONTAINS
             CALL cp_cfm_geeig(cfm_ks_ikp, cfm_s_ikp, cfm_mos_ikp, &
                               bs_env%eigenval_scf(:, ikp, ispin), cfm_work_ikp)
 
+            ! Reuse the KS buffer for the full MO operators. Retain their real parts
+            ! at the existing real COHSEX Hamiltonian boundary.
             ! 4. V^xc_µν(k=0) -> V^xc_µν(k_i) -> V^xc_mn(k_i)
-            CALL fm_Gamma_ao_to_cfm_ikp_mo(bs_env%fm_V_xc_Gamma(ispin), fm_V_xc_ikp_mo, &
-                                           ikp, qs_env, bs_env, cfm_mos_ikp)
+            CALL cfm_ikp_from_fm_Gamma(cfm_ks_ikp, bs_env%fm_V_xc_Gamma(ispin), &
+                                       ikp, qs_env, bs_env%kpoints_DOS, "ORB")
+            CALL cfm_contract_ABA(cfm_mos_ikp, cfm_ks_ikp, workspace=cfm_work_ikp)
+            CALL cp_cfm_to_fm(cfm_ks_ikp, fm_V_xc_ikp_mo)
 
             ! 5. Σ^x_µν(k=0) -> Σ^x_µν(k_i) -> Σ^x_mn(k_i)
-            CALL fm_Gamma_ao_to_cfm_ikp_mo(fm_Sigma_x_Gamma(ispin), fm_Sigma_x_ikp_mo, &
-                                           ikp, qs_env, bs_env, cfm_mos_ikp)
+            CALL cfm_ikp_from_fm_Gamma(cfm_ks_ikp, fm_Sigma_x_Gamma(ispin), &
+                                       ikp, qs_env, bs_env%kpoints_DOS, "ORB")
+            CALL cfm_contract_ABA(cfm_mos_ikp, cfm_ks_ikp, workspace=cfm_work_ikp)
+            CALL cp_cfm_to_fm(cfm_ks_ikp, fm_Sigma_x_ikp_mo)
 
             ! 6. Σ^c_µν(k=0) -> Σ^c_µν(k_i) -> Σ^c_mn(k_i)
-            CALL fm_Gamma_ao_to_cfm_ikp_mo(fm_Sigma_c_Gamma(ispin), fm_Sigma_c_ikp_mo, &
-                                           ikp, qs_env, bs_env, cfm_mos_ikp)
+            CALL cfm_ikp_from_fm_Gamma(cfm_ks_ikp, fm_Sigma_c_Gamma(ispin), &
+                                       ikp, qs_env, bs_env%kpoints_DOS, "ORB")
+            CALL cfm_contract_ABA(cfm_mos_ikp, cfm_ks_ikp, workspace=cfm_work_ikp)
+            CALL cp_cfm_to_fm(cfm_ks_ikp, fm_Sigma_c_ikp_mo)
 
             ! 7. build static COHSEX QP Hamiltonian, diagonalize, and print
             CALL diagonalize_and_print(bs_env, qs_env, fm_Sigma_x_ikp_mo, fm_V_xc_ikp_mo, &
@@ -832,4 +842,3 @@ CONTAINS
    END SUBROUTINE fm_write_formatted
 
 END MODULE gw_tensor_large_cell_Gamma_static_cohsex
-
