@@ -1230,7 +1230,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: dummy_ptr
       LOGICAL                                            :: memory_info, use_virial
       REAL(dp) :: eps_filter, eps_pgf_orb, eps_pgf_orb_old, fac, occ, occ_ddint, occ_der_AO, &
-         occ_der_RI, occ_KBK, omega, pref, spin_fac, t1, t2, tau, weight
+         occ_der_RI, occ_KBK, pref, spin_fac, t1, t2, tau, weight
       REAL(dp), DIMENSION(3, 3)                          :: work_virial, work_virial_ovlp
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -1373,7 +1373,6 @@ CONTAINS
 
       !loop over freqeuncies
       DO iquad = 1, num_integ_points
-         omega = grid%frequency(iquad)
 
          !calculate (1 + Q(w))^-1 - 1 for the given freq.
          !Always take spin alpha (get 2*alpha in closed shell, and alpha+beta in open-shell)
@@ -1402,10 +1401,9 @@ CONTAINS
          CALL dbcsr_add_on_diag(dbcsr_work_symm, -1.0_dp)
 
          DO jquad = 1, num_integ_points
-            tau = grid%imaginary_time(jquad)
 
             !the P matrix to time.
-            weight = grid%cosine_frequency_to_time_weights(jquad, iquad)*COS(tau*omega)
+            weight = grid%cosine_frequency_to_time(jquad, iquad)
             IF (open_shell) THEN
                IF (ispin == 1) THEN
                   !mat_P_omega contains the sum of alpha and beta spin => we only want alpha
@@ -1420,8 +1418,8 @@ CONTAINS
                CALL dbcsr_add(mat_P_tau(jquad)%matrix, mat_P_omega(iquad, 1)%matrix, 1.0_dp, weight)
             END IF
 
-            !convert B matrix to time
-            weight = grid%cosine_time_to_frequency_weights(iquad, jquad)*COS(tau*omega)* &
+            ! The energy derivative uses the weighted adjoint of the forward transform.
+            weight = grid%cosine_time_to_frequency(iquad, jquad)* &
                      grid%frequency_weights(iquad)
             CALL dbt_copy_matrix_to_tensor(dbcsr_work_symm, t_2c_tmp)
             CALL dbt_scale(t_2c_tmp, weight)
@@ -3960,19 +3958,19 @@ CONTAINS
             ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%frequency_weights, &
                       SOURCE=grid%frequency_weights)
             IF (do_im_time) THEN
-               ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%cosine_time_to_frequency_weights, &
-                         SOURCE=grid%cosine_time_to_frequency_weights)
-               ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%cosine_frequency_to_time_weights, &
-                         SOURCE=grid%cosine_frequency_to_time_weights)
+               ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%cosine_time_to_frequency, &
+                         SOURCE=grid%cosine_time_to_frequency)
+               ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%cosine_frequency_to_time, &
+                         SOURCE=grid%cosine_frequency_to_time)
             END IF
          ELSE
             grid%frequency(:) = qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%frequency(:)
             grid%frequency_weights(:) = qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%frequency_weights(:)
             IF (do_im_time) THEN
-               grid%cosine_time_to_frequency_weights(:, :) = &
-                  qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%cosine_time_to_frequency_weights(:, :)
-               grid%cosine_frequency_to_time_weights(:, :) = &
-                  qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%cosine_frequency_to_time_weights(:, :)
+               grid%cosine_time_to_frequency(:, :) = &
+                  qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%cosine_time_to_frequency(:, :)
+               grid%cosine_frequency_to_time(:, :) = &
+                  qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%cosine_frequency_to_time(:, :)
             END IF
          END IF
       END IF

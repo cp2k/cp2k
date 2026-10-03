@@ -223,7 +223,7 @@ CONTAINS
          R_1_minus_S_needed, R_1_minus_T_needed, R_2_minus_S_minus_T_needed
       REAL(dp)                                           :: occ, occ_dm_occ, occ_dm_virt, occ_M_occ, &
                                                             occ_M_virt, occ_O, t1_flop
-      REAL(KIND=dp)                                      :: omega, t1, t2, tau, weight
+      REAL(KIND=dp)                                      :: t1, t2, weight
       TYPE(dbcsr_distribution_type)                      :: dist_P
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: propagator
       TYPE(dbt_pgrid_type)                               :: pgrid_2d
@@ -545,17 +545,14 @@ CONTAINS
                CALL timeset(routineN//"_Fourier_transform", handle3)
 
                ! Fourier transform of P(it) to P(iw)
-               tau = grid%imaginary_time(jquad)
-
                DO iquad = 1, num_integ_points
 
-                  omega = grid%frequency(iquad)
-                  weight = grid%cosine_time_to_frequency_weights(iquad, jquad)
+                  weight = grid%cosine_time_to_frequency(iquad, jquad)
 
                   ! no multiplication with 2.0 as in Kresses paper (Kaltak, JCTC 10, 2498 (2014), Eq. 12)
                   ! because this factor is already absorbed in the weight w_j
                   CALL dbcsr_add(mat_P_omega(iquad, i_cell_T)%matrix, mat_P_global%matrix, &
-                                 1.0_dp, COS(omega*tau)*weight)
+                                 1.0_dp, weight)
 
                END DO
 

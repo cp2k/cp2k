@@ -905,7 +905,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_W_cubic_GW'
 
       INTEGER                                            :: handle, iquad, num_integ_points
-      REAL(KIND=dp)                                      :: tau, weight
+      REAL(KIND=dp)                                      :: weight
 
       CALL timeset(routineN, handle)
 
@@ -925,11 +925,10 @@ CONTAINS
                          0.0_dp, fm_mat_Q)
 
       ! Fourier transform from w to t
+      omega = grid%frequency(jquad)
       DO iquad = 1, num_integ_points
 
-         omega = grid%frequency(jquad)
-         tau = grid%imaginary_time(iquad)
-         weight = grid%cosine_frequency_to_time_weights(iquad, jquad)*COS(tau*omega)
+         weight = grid%cosine_frequency_to_time(iquad, jquad)
 
          IF (jquad == 1) THEN
 

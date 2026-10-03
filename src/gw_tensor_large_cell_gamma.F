@@ -1398,22 +1398,19 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_fm_chi_Gamma_freq'
 
       INTEGER                                            :: handle, i_t
-      REAL(KIND=dp)                                      :: freq_j, time_i, weight_ij
+      REAL(KIND=dp)                                      :: weight_ij
 
       CALL timeset(routineN, handle)
 
       CALL dbcsr_set(bs_env%mat_RI_RI%matrix, 0.0_dp)
 
-      freq_j = bs_env%time_frequency_grid%frequency(j_w)
-
       DO i_t = 1, bs_env%num_time_freq_points
 
-         time_i = bs_env%time_frequency_grid%imaginary_time(i_t)
-         weight_ij = bs_env%time_frequency_grid%cosine_time_to_frequency_weights(j_w, i_t)
+         weight_ij = bs_env%time_frequency_grid%cosine_time_to_frequency(j_w, i_t)
 
          ! Fourier transform
          CALL dbcsr_add(bs_env%mat_RI_RI%matrix, mat_chi_Gamma_tau(i_t)%matrix, &
-                        1.0_dp, COS(time_i*freq_j)*weight_ij)
+                        1.0_dp, weight_ij)
 
       END DO
 
@@ -1499,20 +1496,17 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'Fourier_transform_w_to_t'
 
       INTEGER                                            :: handle, i_t
-      REAL(KIND=dp)                                      :: freq_j, time_i, weight_ij
+      REAL(KIND=dp)                                      :: weight_ij
 
       CALL timeset(routineN, handle)
 
-      freq_j = bs_env%time_frequency_grid%frequency(j_w)
-
       DO i_t = 1, bs_env%num_time_freq_points
 
-         time_i = bs_env%time_frequency_grid%imaginary_time(i_t)
-         weight_ij = bs_env%time_frequency_grid%cosine_frequency_to_time_weights(i_t, j_w)
+         weight_ij = bs_env%time_frequency_grid%cosine_frequency_to_time(i_t, j_w)
 
          ! actual Fourier transform
          CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_W_MIC_time(i_t), &
-                                  beta=weight_ij*COS(time_i*freq_j), matrix_b=fm_W_MIC_freq_j)
+                                  beta=weight_ij, matrix_b=fm_W_MIC_freq_j)
 
       END DO
 

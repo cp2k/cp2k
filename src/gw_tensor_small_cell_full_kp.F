@@ -577,7 +577,7 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: M_inv, M_inv_V_sqrt, V_sqrt
       INTEGER                                            :: handle, i_t, ikp, ikp_local, j_w, n_RI, &
                                                             nimages_scf_desymm
-      REAL(KIND=dp)                                      :: freq_j, t1, time_i, weight_ij
+      REAL(KIND=dp)                                      :: t1, weight_ij
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: chi_R, MWM_R, W_R
 
       CALL timeset(routineN, handle)
@@ -606,9 +606,7 @@ CONTAINS
          ! χ_PQ^R(iτ) -> χ_PQ^R(iω_j) (which is stored in chi_R, single ω_j from j_w loop)
          chi_R(:, :, :) = 0.0_dp
          DO i_t = 1, bs_env%num_time_freq_points
-            freq_j = bs_env%time_frequency_grid%frequency(j_w)
-            time_i = bs_env%time_frequency_grid%imaginary_time(i_t)
-            weight_ij = bs_env%time_frequency_grid%cosine_time_to_frequency_weights(j_w, i_t)*COS(time_i*freq_j)
+            weight_ij = bs_env%time_frequency_grid%cosine_time_to_frequency(j_w, i_t)
 
             CALL fm_to_local_array(bs_env%fm_chi_R_t(:, i_t), chi_R, weight_ij, add=.TRUE.)
          END DO
@@ -663,9 +661,7 @@ CONTAINS
 
          ! 7. Ŵ^R(iω) -> Ŵ^R(iτ) and to fully distributed fm matrix bs_env%fm_MWM_R_t
          DO i_t = 1, bs_env%num_time_freq_points
-            freq_j = bs_env%time_frequency_grid%frequency(j_w)
-            time_i = bs_env%time_frequency_grid%imaginary_time(i_t)
-            weight_ij = bs_env%time_frequency_grid%cosine_frequency_to_time_weights(i_t, j_w)*COS(time_i*freq_j)
+            weight_ij = bs_env%time_frequency_grid%cosine_frequency_to_time(i_t, j_w)
             CALL local_array_to_fm(MWM_R, bs_env%fm_MWM_R_t(:, i_t), weight_ij, add=.TRUE.)
          END DO ! i_t
 

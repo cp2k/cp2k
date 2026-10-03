@@ -32,9 +32,11 @@ MODULE time_frequency_grids
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: frequency_weights
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: imaginary_time
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: time_weights_at_zero_frequency
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: cosine_time_to_frequency_weights
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: cosine_frequency_to_time_weights
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: sine_time_to_frequency_weights
+      ! Complete discrete transforms, including cosine/sine factors.
+      ! Matrix rows index output grid points, columns index input grid points.
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: cosine_time_to_frequency
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: cosine_frequency_to_time
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: sine_time_to_frequency
    END TYPE time_frequency_grid_type
 
    INTEGER, PARAMETER :: cosine_time_to_frequency = 1, &
@@ -59,16 +61,16 @@ CONTAINS
       IF (ALLOCATED(grid%frequency_weights)) DEALLOCATE (grid%frequency_weights)
       IF (ALLOCATED(grid%imaginary_time)) DEALLOCATE (grid%imaginary_time)
       IF (ALLOCATED(grid%time_weights_at_zero_frequency)) DEALLOCATE (grid%time_weights_at_zero_frequency)
-      IF (ALLOCATED(grid%cosine_time_to_frequency_weights)) DEALLOCATE (grid%cosine_time_to_frequency_weights)
-      IF (ALLOCATED(grid%cosine_frequency_to_time_weights)) DEALLOCATE (grid%cosine_frequency_to_time_weights)
-      IF (ALLOCATED(grid%sine_time_to_frequency_weights)) DEALLOCATE (grid%sine_time_to_frequency_weights)
+      IF (ALLOCATED(grid%cosine_time_to_frequency)) DEALLOCATE (grid%cosine_time_to_frequency)
+      IF (ALLOCATED(grid%cosine_frequency_to_time)) DEALLOCATE (grid%cosine_frequency_to_time)
+      IF (ALLOCATED(grid%sine_time_to_frequency)) DEALLOCATE (grid%sine_time_to_frequency)
 
    END SUBROUTINE time_frequency_grid_release
 
 ! **************************************************************************************************
 !> \brief Transform real positive/negative-time samples to complex positive-frequency values.
 !>        The even part uses the cosine transform and the odd part the sine transform.
-!> \param grid Time/frequency nodes and fitted cosine/sine transform weights.
+!> \param grid Valid grid with complete cosine/sine time-to-frequency matrices of matching dimensions.
 !> \param samples_tau Real samples indexed (state, time, branch), with branches
 !>        positive_time and negative_time. The samples include their physical signs.
 !> \param values_omega Complex output indexed (state, frequency), evaluated at the leading
@@ -81,35 +83,26 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_time_to_frequency'
 
-      INTEGER                                            :: handle, ifreq, itime, nfreq, nstate, &
-                                                            ntime
+      INTEGER                                            :: handle, ifreq, itime, nstate
       REAL(KIND=dp)                                      :: weight_cos, weight_sin
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: samples_even, samples_odd
 
       CALL timeset(routineN, handle)
 
       nstate = SIZE(samples_tau, 1)
-      ntime = SIZE(samples_tau, 2)
-      nfreq = SIZE(values_omega, 2)
       CPASSERT(SIZE(samples_tau, 3) == 2)
       CPASSERT(SIZE(values_omega, 1) == nstate)
-      CPASSERT(ntime == SIZE(grid%imaginary_time))
-      CPASSERT(nfreq <= SIZE(grid%frequency))
-      CPASSERT(nfreq <= SIZE(grid%cosine_time_to_frequency_weights, 1))
-      CPASSERT(ntime == SIZE(grid%cosine_time_to_frequency_weights, 2))
-      CPASSERT(nfreq <= SIZE(grid%sine_time_to_frequency_weights, 1))
-      CPASSERT(ntime == SIZE(grid%sine_time_to_frequency_weights, 2))
+      CPASSERT(SIZE(samples_tau, 2) == SIZE(grid%cosine_time_to_frequency, 2))
+      CPASSERT(SIZE(values_omega, 2) <= SIZE(grid%cosine_time_to_frequency, 1))
 
       ALLOCATE (samples_even(nstate), samples_odd(nstate))
       values_omega = z_zero
-      DO itime = 1, ntime
+      DO itime = 1, SIZE(samples_tau, 2)
          samples_even = 0.5_dp*(samples_tau(:, itime, positive_time) + samples_tau(:, itime, negative_time))
          samples_odd = 0.5_dp*(samples_tau(:, itime, positive_time) - samples_tau(:, itime, negative_time))
-         DO ifreq = 1, nfreq
-            weight_cos = grid%cosine_time_to_frequency_weights(ifreq, itime)* &
-                         COS(grid%frequency(ifreq)*grid%imaginary_time(itime))
-            weight_sin = grid%sine_time_to_frequency_weights(ifreq, itime)* &
-                         SIN(grid%frequency(ifreq)*grid%imaginary_time(itime))
+         DO ifreq = 1, SIZE(values_omega, 2)
+            weight_cos = grid%cosine_time_to_frequency(ifreq, itime)
+            weight_sin = grid%sine_time_to_frequency(ifreq, itime)
             values_omega(:, ifreq) = values_omega(:, ifreq) + &
                                      CMPLX(weight_cos*samples_even, weight_sin*samples_odd, KIND=dp)
          END DO
@@ -138,8 +131,6 @@ CONTAINS
       CPASSERT(num_points > 0)
 
       ALLOCATE (grid%frequency(num_points), grid%frequency_weights(num_points))
-      grid%frequency = 0.0_dp
-      grid%frequency_weights = 0.0_dp
 
       DO jquad = 1, num_points - 1
          grid%frequency(jquad) = jquad*pi/(2.0_dp*num_points)
@@ -163,8 +154,8 @@ CONTAINS
 !> \param grid Grid object to fill.
 !> \param build_frequency Whether to construct the frequency components.
 !> \param build_time Whether to construct the imaginary-time components.
-!> \param build_transforms Whether to construct the time/frequency transform weights.
-!> \param build_sine Whether to construct the sine time-to-frequency weights.
+!> \param build_transforms Whether to construct the complete time/frequency transform matrices.
+!> \param build_sine Whether to construct the sine time-to-frequency matrix.
 !> \param time_scaling Scaling applied to the imaginary-time abscissas.
 !> \param time_weight_scaling Scaling applied to the imaginary-time weights.
 !> \param max_fit_error Maximum fitting error across all requested transforms.
@@ -205,9 +196,9 @@ CONTAINS
          CALL greenx_get_minimax_grid(unit_nr, num_points, energy_min, energy_max, regularization, &
                                       grid%imaginary_time, grid%time_weights_at_zero_frequency, &
                                       grid%frequency, grid%frequency_weights, &
-                                      grid%cosine_time_to_frequency_weights, &
-                                      grid%cosine_frequency_to_time_weights, &
-                                      grid%sine_time_to_frequency_weights, external_ierr)
+                                      grid%cosine_time_to_frequency, &
+                                      grid%cosine_frequency_to_time, &
+                                      grid%sine_time_to_frequency, external_ierr)
          IF (external_ierr == 0) THEN
             max_fit_error = 0.0_dp
             IF (PRESENT(used_external_backend)) used_external_backend = .TRUE.
@@ -256,20 +247,20 @@ CONTAINS
          grid%time_weights_at_zero_frequency(:) = points_and_weights(num_points + 1:)/time_weight_scaling/energy_min
 
          IF (build_transforms) THEN
-            ALLOCATE (grid%cosine_time_to_frequency_weights(num_points, num_points))
+            ALLOCATE (grid%cosine_time_to_frequency(num_points, num_points))
             CALL fit_l_sq_weights(cosine_time_to_frequency, num_points, grid%imaginary_time, &
-                                  grid%cosine_time_to_frequency_weights, grid%frequency, energy_min, energy_max, &
+                                  grid%cosine_time_to_frequency, grid%frequency, energy_min, energy_max, &
                                   max_error, num_points_per_magnitude, regularization)
 
-            ALLOCATE (grid%cosine_frequency_to_time_weights(num_points, num_points))
+            ALLOCATE (grid%cosine_frequency_to_time(num_points, num_points))
             CALL fit_l_sq_weights(cosine_frequency_to_time, num_points, grid%imaginary_time, &
-                                  grid%cosine_frequency_to_time_weights, grid%frequency, energy_min, energy_max, &
+                                  grid%cosine_frequency_to_time, grid%frequency, energy_min, energy_max, &
                                   max_error, num_points_per_magnitude, regularization)
 
             IF (build_sine) THEN
-               ALLOCATE (grid%sine_time_to_frequency_weights(num_points, num_points))
+               ALLOCATE (grid%sine_time_to_frequency(num_points, num_points))
                CALL fit_l_sq_weights(sine_time_to_frequency, num_points, grid%imaginary_time, &
-                                     grid%sine_time_to_frequency_weights, grid%frequency, energy_min, energy_max, &
+                                     grid%sine_time_to_frequency, grid%frequency, energy_min, energy_max, &
                                      max_error, num_points_per_magnitude, regularization)
             END IF
          END IF
@@ -277,18 +268,17 @@ CONTAINS
 
       max_fit_error = max_error
 
-      DEALLOCATE (points_and_weights)
-
       CALL timestop(handle)
 
    END SUBROUTINE build_minimax_time_frequency_grid
 
 ! **************************************************************************************************
-!> \brief Calculate least-squares weights for a time/frequency transform.
+!> \brief Calculate a complete least-squares time/frequency transform matrix.
 !> \param transform_kind Type of transform to fit.
 !> \param num_integ_points Number of integration points.
 !> \param tau_tj Imaginary-time integration points.
-!> \param weights Transform weights to construct.
+!> \param weights Complete transform coefficients, including cosine/sine factors.
+!>        Rows index output grid points, columns index input grid points.
 !> \param omega_tj Frequency integration points.
 !> \param E_min Lower end of the fitting interval.
 !> \param E_max Upper end of the fitting interval.
@@ -418,23 +408,25 @@ CONTAINS
          CALL DGEMM('N', 'N', num_integ_points, 1, num_x_nodes, 1.0_dp, mat_SinvVSinvSigma, num_integ_points, &
                     vec_UTy, num_x_nodes, 0.0_dp, weight_work, num_integ_points)
 
-         weights(jquad, :) = weight_work(:)
+         IF (sine_transform) THEN
+            weights(jquad, :) = weight_work(:)*SIN(omega*tau_tj(:))
+         ELSE IF (time_to_frequency) THEN
+            weights(jquad, :) = weight_work(:)*COS(omega*tau_tj(:))
+         ELSE
+            weights(jquad, :) = weight_work(:)*COS(tau*omega_tj(:))
+         END IF
 
          max_error_tmp = 0.0_dp
          DO iii = 1, num_x_nodes
             func_val = 0.0_dp
             IF (time_to_frequency) THEN
                DO jjj = 1, num_integ_points
-                  IF (sine_transform) THEN
-                     func_val = func_val + weight_work(jjj)*SIN(omega*tau_tj(jjj))*EXP(-x_values(iii)*tau_tj(jjj))
-                  ELSE
-                     func_val = func_val + weight_work(jjj)*COS(omega*tau_tj(jjj))*EXP(-x_values(iii)*tau_tj(jjj))
-                  END IF
+                  func_val = func_val + weights(jquad, jjj)*EXP(-x_values(iii)*tau_tj(jjj))
                END DO
             ELSE
                DO jjj = 1, num_integ_points
                   omega = omega_tj(jjj)
-                  func_val = func_val + weight_work(jjj)*COS(tau*omega)*2.0_dp*x_values(iii) &
+                  func_val = func_val + weights(jquad, jjj)*2.0_dp*x_values(iii) &
                              /(x_values(iii)**2 + omega**2)
                END DO
             END IF
@@ -443,9 +435,6 @@ CONTAINS
          max_error = MAX(max_error, max_error_tmp)
 
       END DO
-
-      DEALLOCATE (x_values, y_values, mat_A, weight_work, sing_values, mat_U, mat_SinvVSinvT, work, iwork, &
-                  mat_SinvVSinvSigma, vec_UTy)
 
       CALL timestop(handle)
 
