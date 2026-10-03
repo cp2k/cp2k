@@ -1576,7 +1576,7 @@ CONTAINS
       INTEGER                                            :: ikind, iover, nkind, z
       LOGICAL                                            :: found
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: used
-      REAL(KIND=dp)                                      :: r_min, sigma, zeff
+      REAL(KIND=dp)                                      :: r_thr, rho_thr, sigma, zeff
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1590,11 +1590,23 @@ CONTAINS
       ALLOCATE (calpha(nkind), ccore(nkind), used(SIZE(sccs_control%core_fill_kind_label)))
       used(:) = .FALSE.
 
+      ! Density threshold used only for the diagnostic radius of the fill:
+      ! the onset of the dielectric transition of the chosen method
+      SELECT CASE (sccs_control%method_id)
+      CASE (sccs_andreussi, sccs_saa_andreussi)
+         rho_thr = sccs_control%rho_min
+      CASE (sccs_fattebert_gygi)
+         rho_thr = sccs_control%rho_zero
+      CASE DEFAULT
+         rho_thr = 0.0_dp
+      END SELECT
+
       IF (PRESENT(output_unit)) THEN
          IF ((output_unit > 0) .AND. (.NOT. sccs_control%core_fill_printed)) THEN
-            WRITE (UNIT=output_unit, FMT="(/,T3,A,/,T3,A)") &
+            WRITE (UNIT=output_unit, FMT="(/,T3,A,/,T3,A,ES10.3,/,T3,A)") &
                "SCCS| Core fill: Z_val/(sqrt(pi)*sigma)**3*exp(-r**2/sigma**2) added for the cavity", &
-               "SCCS|   Kind        Z   Z_val   sigma [bohr]   r(fill = rho_min) [Angstrom]"
+               "SCCS| r_thr: radius at which the fill density drops to rho_thr =", rho_thr, &
+               "SCCS|   Kind        Z   Z_val   sigma [bohr]   r_thr [Angstrom]"
          END IF
       END IF
 
@@ -1622,14 +1634,17 @@ CONTAINS
          END IF
          IF (PRESENT(output_unit)) THEN
             IF ((output_unit > 0) .AND. (.NOT. sccs_control%core_fill_printed)) THEN
-               IF (ccore(ikind) > 0.0_dp) THEN
-                  r_min = 0.0_dp
-                  IF (ccore(ikind) > sccs_control%rho_min) THEN
-                     r_min = SQRT(LOG(ccore(ikind)/sccs_control%rho_min)/calpha(ikind))
+               IF ((ccore(ikind) > 0.0_dp) .AND. (rho_thr > 0.0_dp)) THEN
+                  r_thr = 0.0_dp
+                  IF (ccore(ikind) > rho_thr) THEN
+                     r_thr = SQRT(LOG(ccore(ikind)/rho_thr)/calpha(ikind))
                   END IF
-                  WRITE (UNIT=output_unit, FMT="(T3,A,T10,A,T18,I3,T24,F6.2,T34,F8.4,T55,F8.4,A)") &
-                     "SCCS|", TRIM(kind_name), z, zeff, sigma, cp_unit_from_cp2k(r_min, "angstrom"), &
+                  WRITE (UNIT=output_unit, FMT="(T3,A,T10,A,T18,I3,T24,F6.2,T34,F8.4,T50,F8.4,A)") &
+                     "SCCS|", TRIM(kind_name), z, zeff, sigma, cp_unit_from_cp2k(r_thr, "angstrom"), &
                      MERGE(" (input)", "        ", found)
+               ELSE IF (ccore(ikind) > 0.0_dp) THEN
+                  WRITE (UNIT=output_unit, FMT="(T3,A,T10,A,T18,I3,T24,F6.2,T34,F8.4,T50,A)") &
+                     "SCCS|", TRIM(kind_name), z, zeff, sigma, "-"//MERGE(" (input)", "        ", found)
                ELSE
                   WRITE (UNIT=output_unit, FMT="(T3,A,T10,A,T18,I3,T24,F6.2,T34,A)") &
                      "SCCS|", TRIM(kind_name), z, zeff, "no fill"//MERGE(" (input)", "        ", found)
