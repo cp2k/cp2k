@@ -45,12 +45,14 @@ MODULE cp_cfm_diag
    USE cp_dlaf_utils_api, ONLY: cp_dlaf_initialize, cp_dlaf_create_grid
    USE cp_fm_diag, ONLY: dlaf_neigvec_min, FM_DIAG_TYPE_DLAF
 #endif
-   USE cp_log_handling, ONLY: cp_to_string
+   USE cp_log_handling, ONLY: cp_logger_get_default_unit_nr, &
+                              cp_to_string
    USE kinds, ONLY: default_string_length, &
                     dp
    USE machine, ONLY: default_output_unit
    USE mathconstants, ONLY: z_one, &
                             z_zero
+   USE parallel_gemm_api, ONLY: parallel_gemm
 #if defined (__HAS_IEEE_EXCEPTIONS)
    USE ieee_exceptions, ONLY: ieee_get_halting_mode, &
                               ieee_set_halting_mode, &
@@ -63,7 +65,7 @@ MODULE cp_cfm_diag
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_diag'
 
-   PUBLIC :: cp_cfm_heevd, cp_cfm_geeig, cp_cfm_geeig_canon, &
+   PUBLIC :: cp_cfm_heevd, cp_cfm_power, cp_cfm_geeig, cp_cfm_geeig_canon, &
              cp_cfm_geeig_local, cp_cfm_geeig_canon_local
 
    ! Caller-owned LAPACK scratch: no module SAVE state and no cross-worker sharing.
@@ -217,6 +219,103 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_cfm_heevd_base
+
+! **************************************************************************************************
+!> \brief Raise the positive spectral part of a Hermitian matrix to a real power.
+!>        Eigenmodes with eigenvalues below the nonnegative threshold,
+!>        and all non-positive eigenvalues, are discarded. This routine does not
+!>        implement a general matrix power for indefinite Hermitian matrices.
+!> \param matrix input/output matrix; its upper triangle defines the Hermitian input
+!> \param work optional scratch matrix with the same size and distribution as matrix;
+!>        must not alias matrix; overwritten during reconstruction;
+!>        allocated internally when omitted
+!> \param exponent matrix exponent
+!> \param threshold nonnegative lower bound for retained eigenvalues
+!> \param n_dependent optional number of discarded eigenvalues
+!> \param verbose optional flag to print spectral diagnostics (default false)
+!> \param eigvals optional smallest and largest eigenvalues before filtering
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_power(matrix, work, exponent, threshold, n_dependent, verbose, eigvals)
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix
+      TYPE(cp_cfm_type), INTENT(INOUT), OPTIONAL, TARGET :: work
+      REAL(KIND=dp), INTENT(IN)                          :: exponent, threshold
+      INTEGER, INTENT(OUT), OPTIONAL                     :: n_dependent
+      LOGICAL, INTENT(IN), OPTIONAL                      :: verbose
+      REAL(KIND=dp), DIMENSION(2), INTENT(OUT), OPTIONAL :: eigvals
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cp_cfm_power'
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: eigenvalue_scales
+      INTEGER                                            :: handle, i, ncol_global, ndep, nrow_global
+      LOGICAL                                            :: my_verbose
+      REAL(KIND=dp)                                      :: condition_number, sqrt_power_eval
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
+      TYPE(cp_cfm_type), POINTER                         :: cfm_work
+      TYPE(cp_cfm_type), TARGET                          :: local_work
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_cfm_get_info(matrix, nrow_global=nrow_global, ncol_global=ncol_global)
+      CPASSERT(nrow_global == ncol_global)
+      CPASSERT(threshold >= 0.0_dp)
+      IF (PRESENT(work)) THEN
+         cfm_work => work
+      ELSE
+         CALL cp_cfm_create(local_work, matrix%matrix_struct, set_zero=.TRUE.)
+         cfm_work => local_work
+      END IF
+      ALLOCATE (eigenvalues(nrow_global), eigenvalue_scales(nrow_global))
+
+      CALL cp_cfm_heevd(matrix, cfm_work, eigenvalues)
+      IF (PRESENT(eigvals)) eigvals = [eigenvalues(1), eigenvalues(nrow_global)]
+
+      ! Reconstruct matrix**exponent as X*X^H, where
+      ! X = U*diag(eigenvalues**(exponent/2)) on the retained modes.
+      ndep = 0
+      DO i = 1, nrow_global
+         ! Keep zero modes quenched, including inverse powers with threshold=0.
+         IF (eigenvalues(i) < threshold .OR. eigenvalues(i) <= 0.0_dp) THEN
+            sqrt_power_eval = 0.0_dp
+            ndep = ndep + 1
+         ELSE
+            sqrt_power_eval = eigenvalues(i)**(0.5_dp*exponent)
+         END IF
+         eigenvalue_scales(i) = CMPLX(sqrt_power_eval, 0.0_dp, KIND=dp)
+      END DO
+      IF (PRESENT(n_dependent)) n_dependent = ndep
+
+      CALL cp_cfm_column_scale(cfm_work, eigenvalue_scales)
+
+      ! X*X^H = U*diag(eigenvalues**exponent)*U^H on the retained modes.
+      CALL parallel_gemm("N", "C", nrow_global, nrow_global, nrow_global, z_one, &
+                         cfm_work, cfm_work, z_zero, matrix)
+
+      my_verbose = .FALSE.
+      IF (PRESENT(verbose)) my_verbose = verbose
+      IF (matrix%matrix_struct%para_env%is_source() .AND. my_verbose) THEN
+         condition_number = HUGE(0.0_dp)
+         IF (eigenvalues(1) /= 0.0_dp) condition_number = ABS(eigenvalues(nrow_global)/eigenvalues(1))
+         WRITE (UNIT=cp_logger_get_default_unit_nr(), FMT="(/,(T2,A,ES15.6))") &
+            "CP_CFM_POWER: smallest eigenvalue:", eigenvalues(1), &
+            "CP_CFM_POWER: largest eigenvalue: ", eigenvalues(nrow_global), &
+            "CP_CFM_POWER: condition number:   ", condition_number
+         IF (eigenvalues(1) <= 0.0_dp) THEN
+            WRITE (UNIT=cp_logger_get_default_unit_nr(), FMT="(/,T2,A)") &
+               "WARNING: matrix has a non-positive eigenvalue, tighten EPS_DEFAULT"
+         END IF
+         IF (condition_number > 1.0E12_dp) THEN
+            WRITE (UNIT=cp_logger_get_default_unit_nr(), FMT="(/,T2,A)") &
+               "WARNING: high condition number => possibly ill-conditioned matrix"
+         END IF
+      END IF
+
+      DEALLOCATE (eigenvalues, eigenvalue_scales)
+
+      IF (.NOT. PRESENT(work)) CALL cp_cfm_release(local_work)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_cfm_power
 
 ! **************************************************************************************************
 !> \brief   Check C^H*S*C = I for a generalized complex eigenvalue problem.

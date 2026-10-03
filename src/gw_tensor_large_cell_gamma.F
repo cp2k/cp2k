@@ -24,7 +24,8 @@ MODULE gw_tensor_large_cell_Gamma
                                               cp_cfm_uplo_to_full
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_cholesky_invert
-   USE cp_cfm_diag,                     ONLY: cp_cfm_geeig
+   USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
+                                              cp_cfm_power
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
@@ -90,8 +91,7 @@ MODULE gw_tensor_large_cell_Gamma
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_tensors,                      ONLY: build_3c_integrals
-   USE rpa_gw_kpoints_util,             ONLY: cfm_screened_interaction_from_eps_cholesky,&
-                                              cp_cfm_power
+   USE rpa_gw_kpoints_util,             ONLY: cfm_screened_interaction_from_eps_cholesky
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

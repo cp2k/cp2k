@@ -16,7 +16,6 @@ MODULE rpa_gw_kpoints_util
                                               pbc
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add_on_diag,&
-                                              cp_cfm_column_scale,&
                                               cp_cfm_get_diag,&
                                               cp_cfm_scale_and_add_fm,&
                                               cp_cfm_uplo_to_full
@@ -24,7 +23,7 @@ MODULE rpa_gw_kpoints_util
                                               cp_cfm_cholesky_invert
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
                                               cp_cfm_geeig_canon,&
-                                              cp_cfm_heevd
+                                              cp_cfm_power
    USE cp_cfm_types,                    ONLY: cp_cfm_copy_general,&
                                               cp_cfm_create,&
                                               cp_cfm_get_info,&
@@ -90,7 +89,7 @@ MODULE rpa_gw_kpoints_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_gw_kpoints_util'
 
-   PUBLIC :: invert_eps_compute_W_and_Erpa_kp, cp_cfm_power, real_space_to_kpoint_transform_rpa, &
+   PUBLIC :: invert_eps_compute_W_and_Erpa_kp, real_space_to_kpoint_transform_rpa, &
              get_mat_cell_T_from_mat_gamma, get_bandstruc_and_k_dependent_MOs, &
              compute_wkp_W, mat_kp_from_mat_gamma, cfm_screened_interaction_from_eps_cholesky
 
@@ -289,64 +288,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE deallocate_kp_matrices
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param threshold ...
-!> \param exponent ...
-!> \param min_eigval ...
-! **************************************************************************************************
-   SUBROUTINE cp_cfm_power(matrix, threshold, exponent, min_eigval)
-      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix
-      REAL(KIND=dp)                                      :: threshold, exponent
-      REAL(KIND=dp), OPTIONAL                            :: min_eigval
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cp_cfm_power'
-
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: eigenvalues_exponent
-      INTEGER                                            :: handle, i, ncol_global, nrow_global
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
-      TYPE(cp_cfm_type)                                  :: cfm_work
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_cfm_create(cfm_work, matrix%matrix_struct)
-      CALL cp_cfm_set_all(cfm_work, z_zero)
-
-      ! Test that matrix is square
-      CALL cp_cfm_get_info(matrix, nrow_global=nrow_global, ncol_global=ncol_global)
-      CPASSERT(nrow_global == ncol_global)
-      ALLOCATE (eigenvalues(nrow_global), SOURCE=0.0_dp)
-      ALLOCATE (eigenvalues_exponent(nrow_global), SOURCE=z_zero)
-
-      ! Diagonalize matrix: get eigenvectors and eigenvalues
-      CALL cp_cfm_heevd(matrix, cfm_work, eigenvalues)
-
-      DO i = 1, nrow_global
-         IF (eigenvalues(i) > threshold) THEN
-            eigenvalues_exponent(i) = CMPLX((eigenvalues(i))**(0.5_dp*exponent), threshold, KIND=dp)
-         ELSE
-            IF (PRESENT(min_eigval)) THEN
-               eigenvalues_exponent(i) = CMPLX(min_eigval, 0.0_dp, KIND=dp)
-            ELSE
-               eigenvalues_exponent(i) = z_zero
-            END IF
-         END IF
-      END DO
-
-      CALL cp_cfm_column_scale(cfm_work, eigenvalues_exponent)
-
-      CALL parallel_gemm("N", "C", nrow_global, nrow_global, nrow_global, z_one, &
-                         cfm_work, cfm_work, z_zero, matrix)
-
-      DEALLOCATE (eigenvalues, eigenvalues_exponent)
-
-      CALL cp_cfm_release(cfm_work)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE cp_cfm_power
 
 ! **************************************************************************************************
 !> \brief ...

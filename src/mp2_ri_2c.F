@@ -24,6 +24,7 @@ MODULE mp2_ri_2c
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm
+   USE cp_cfm_diag,                     ONLY: cp_cfm_power
    USE cp_cfm_types,                    ONLY: cp_cfm_copy_general,&
                                               cp_cfm_create,&
                                               cp_cfm_release,&
@@ -107,7 +108,6 @@ MODULE mp2_ri_2c
    USE qs_tensors,                      ONLY: build_2c_integrals,&
                                               build_2c_neighbor_lists
    USE rpa_communication,               ONLY: communicate_buffer
-   USE rpa_gw_kpoints_util,             ONLY: cp_cfm_power
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
