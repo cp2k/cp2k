@@ -124,10 +124,12 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: basis_set_file_name, gauxc_model_name, &
                                                             intensities_file_name, &
                                                             potential_file_name
+      CHARACTER(LEN=default_string_length)               :: line
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
-      INTEGER                                            :: admmtype, irep, isize, kg_tnadd_method, &
-                                                            method_id, nrep, xc_deriv_method_id
+      INTEGER                                            :: admmtype, i_rep, ios, irep, isize, &
+                                                            kg_tnadd_method, method_id, n_rep, &
+                                                            nrep, xc_deriv_method_id
       LOGICAL :: at_end, do_hfx, do_ot, do_rpa_admm, do_rtp, exopt1, exopt2, exopt3, explicit, &
          is_present, l_param, local_moment_possible, native_skala_grid, not_SE, was_present
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, tau_cut
@@ -781,6 +783,25 @@ CONTAINS
                                       i_val=dft_control%sccs_control%max_iter)
             CALL section_vals_val_get(sccs_section, "MIXING", &
                                       r_val=dft_control%sccs_control%mixing)
+            CALL section_vals_val_get(sccs_section, "CORE_FILL", &
+                                      l_val=dft_control%sccs_control%core_fill)
+            CALL section_vals_val_get(sccs_section, "CORE_FILL_SPREAD", &
+                                      r_val=dft_control%sccs_control%core_fill_spread)
+            tmp_section => section_vals_get_subs_vals(sccs_section, "CORE_FILL_KIND")
+            CALL section_vals_val_get(tmp_section, "_DEFAULT_KEYWORD_", n_rep_val=n_rep)
+            ALLOCATE (dft_control%sccs_control%core_fill_kind_label(n_rep))
+            ALLOCATE (dft_control%sccs_control%core_fill_kind_spread(n_rep))
+            DO i_rep = 1, n_rep
+               CALL section_vals_val_get(tmp_section, "_DEFAULT_KEYWORD_", i_rep_val=i_rep, c_val=line)
+               READ (line, *, IOSTAT=ios) dft_control%sccs_control%core_fill_kind_label(i_rep), &
+                  dft_control%sccs_control%core_fill_kind_spread(i_rep)
+               IF (ios /= 0) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "SCCS| Invalid line in CORE_FILL_KIND (expected <kind label> <spread in bohr>): "// &
+                                TRIM(line))
+               END IF
+               CALL uppercase(dft_control%sccs_control%core_fill_kind_label(i_rep))
+            END DO
             SELECT CASE (dft_control%sccs_control%method_id)
             CASE (sccs_andreussi)
                tmp_section => section_vals_get_subs_vals(sccs_section, "ANDREUSSI")

@@ -583,7 +583,9 @@ MODULE cp_control_types
 ! **************************************************************************************************
    TYPE sccs_control_type
       LOGICAL                              :: sccs_activated = .FALSE., &
-                                              saa_activated = .FALSE.
+                                              saa_activated = .FALSE., &
+                                              core_fill = .FALSE., &
+                                              core_fill_printed = .FALSE.
       INTEGER                              :: derivative_method = 0, &
                                               max_iter = 0, &
                                               method_id = 0
@@ -603,7 +605,12 @@ MODULE cp_control_types
                                               delta_eta = 0.0_dp, &
                                               alpha_zeta = 0.0_dp, &
                                               delta_zeta = 0.0_dp, &
-                                              R_solv = 0.0_dp
+                                              R_solv = 0.0_dp, &
+                                              core_fill_spread = 0.0_dp
+      ! Per-kind overrides of the core fill spread (kind label, spread in bohr)
+      CHARACTER(LEN=default_string_length), DIMENSION(:), &
+         ALLOCATABLE                       :: core_fill_kind_label
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: core_fill_kind_spread
    END TYPE sccs_control_type
 
 ! **************************************************************************************************
