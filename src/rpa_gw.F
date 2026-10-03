@@ -4061,14 +4061,12 @@ CONTAINS
                   func_val = func_val + Lambda(jjj)/(level_energ_GW - e_fermi - Lambda(jjj + 1))
                END DO
 
-               ! calculate the derivative of the fit function for level_energ_GW
+               ! Derivative of the QP residual: Re[sum_j -r_j/(E-e_fermi-p_j)^2] - 1.
                deriv_val_real = -1.0_dp
                DO iii = 1, num_poles
                   jjj = iii*2
-                  deriv_val_real = deriv_val_real + REAL(Lambda(jjj))/((ABS(level_energ_GW - e_fermi - Lambda(jjj + 1)))**2) &
-                                   - (REAL(Lambda(jjj))*(level_energ_GW - e_fermi) - REAL(Lambda(jjj)*CONJG(Lambda(jjj + 1))))* &
-                                   2.0_dp*(level_energ_GW - e_fermi - REAL(Lambda(jjj + 1)))/ &
-                                   ((ABS(level_energ_GW - e_fermi - Lambda(jjj + 1)))**2)
+                  deriv_val_real = deriv_val_real - REAL(Lambda(jjj)/ &
+                                                         (level_energ_GW - e_fermi - Lambda(jjj + 1))**2, KIND=dp)
 
                END DO
 
