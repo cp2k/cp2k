@@ -106,7 +106,7 @@ MODULE gw_tensor_large_cell_Gamma
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_tensor_large_cell_Gamma'
 
    PUBLIC :: gw_calc_tensor_large_cell_Gamma, &
-             compute_3c_integrals, G_occ_vir, fm_read, write_matrix, &
+             compute_3c_integrals, G_occ_vir, fm_read, &
              fill_fm_Sigma_c_Gamma_time, delete_unnecessary_files, get_W_MIC, &
              create_fm_W_MIC_time, Fourier_transform_w_to_t, &
              compute_fm_chi_Gamma_freq, compute_QP_energies, fm_write, &
@@ -326,8 +326,8 @@ CONTAINS
          CALL local_dbt_to_global_mat(bs_env%t_chi, bs_env%mat_RI_RI_tensor%matrix, &
                                       mat_chi_Gamma_tau(i_t)%matrix, bs_env%para_env)
 
-         CALL write_matrix(mat_chi_Gamma_tau(i_t)%matrix, i_t, bs_env%chi_name, &
-                           bs_env%fm_RI_RI, qs_env)
+         CALL fm_write(bs_env%fm_RI_RI, i_t, bs_env%chi_name, qs_env, &
+                       matrix=mat_chi_Gamma_tau(i_t)%matrix)
 
          CALL destroy_tensors_chi(t_2c_Gocc, t_2c_Gvir, t_3c_for_Gocc, t_3c_for_Gvir, &
                                   t_3c_x_Gocc, t_3c_x_Gvir, t_3c_x_Gocc_2, t_3c_x_Gvir_2)
@@ -468,48 +468,19 @@ CONTAINS
    END SUBROUTINE destroy_tensors_chi
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param matrix_index ...
-!> \param matrix_name ...
-!> \param fm ...
-!> \param qs_env ...
-! **************************************************************************************************
-   SUBROUTINE write_matrix(matrix, matrix_index, matrix_name, fm, qs_env)
-      TYPE(dbcsr_type)                                   :: matrix
-      INTEGER                                            :: matrix_index
-      CHARACTER(LEN=*)                                   :: matrix_name
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_matrix'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_fm_set_all(fm, 0.0_dp)
-
-      CALL copy_dbcsr_to_fm(matrix, fm)
-
-      CALL fm_write(fm, matrix_index, matrix_name, qs_env)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE write_matrix
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm ...
+!> \brief Write a GW restart matrix when requested by the print key.
+!> \param fm Matrix to write, or reusable conversion buffer when matrix is supplied.
 !> \param matrix_index ...
 !> \param matrix_name ...
 !> \param qs_env ...
+!> \param matrix Optional DBCSR source, converted to fm only when output is enabled.
 ! **************************************************************************************************
-   SUBROUTINE fm_write(fm, matrix_index, matrix_name, qs_env)
+   SUBROUTINE fm_write(fm, matrix_index, matrix_name, qs_env, matrix)
       TYPE(cp_fm_type)                                   :: fm
       INTEGER                                            :: matrix_index
       CHARACTER(LEN=*)                                   :: matrix_name
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: matrix
 
       CHARACTER(LEN=*), PARAMETER :: key = 'PROPERTIES%BANDSTRUCTURE%GW%PRINT%RESTART', &
          routineN = 'fm_write'
@@ -526,6 +497,11 @@ CONTAINS
       logger => cp_get_default_logger()
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, key), cp_p_file)) THEN
+
+         IF (PRESENT(matrix)) THEN
+            CALL cp_fm_set_all(fm, 0.0_dp)
+            CALL copy_dbcsr_to_fm(matrix, fm)
+         END IF
 
          IF (matrix_index < 10) THEN
             WRITE (filename, '(3A,I1)') "RESTART_", matrix_name, "_0", matrix_index
@@ -1744,8 +1720,8 @@ CONTAINS
          CALL local_dbt_to_global_mat(t_2c_Sigma_x, bs_env%mat_ao_ao_tensor%matrix, &
                                       mat_Sigma_x_Gamma, bs_env%para_env)
 
-         CALL write_matrix(mat_Sigma_x_Gamma, ispin, bs_env%Sigma_x_name, &
-                           bs_env%fm_work_mo(1), qs_env)
+         CALL fm_write(bs_env%fm_work_mo(1), ispin, bs_env%Sigma_x_name, qs_env, &
+                       matrix=mat_Sigma_x_Gamma)
 
          CALL copy_dbcsr_to_fm(mat_Sigma_x_Gamma, fm_Sigma_x_Gamma(ispin))
 
@@ -1831,10 +1807,10 @@ CONTAINS
                                          mat_Sigma_pos_tau(i_t, ispin)%matrix, &
                                          count_skipped=(i_t == 2))
 
-            CALL write_matrix(mat_Sigma_pos_tau(i_t, ispin)%matrix, read_write_index, &
-                              bs_env%Sigma_p_name, bs_env%fm_work_mo(1), qs_env)
-            CALL write_matrix(mat_Sigma_neg_tau(i_t, ispin)%matrix, read_write_index, &
-                              bs_env%Sigma_n_name, bs_env%fm_work_mo(1), qs_env)
+            CALL fm_write(bs_env%fm_work_mo(1), read_write_index, bs_env%Sigma_p_name, qs_env, &
+                          matrix=mat_Sigma_pos_tau(i_t, ispin)%matrix)
+            CALL fm_write(bs_env%fm_work_mo(1), read_write_index, bs_env%Sigma_n_name, qs_env, &
+                          matrix=mat_Sigma_neg_tau(i_t, ispin)%matrix)
 
             IF (bs_env%unit_nr > 0) THEN
                WRITE (bs_env%unit_nr, '(T2,A,I10,A,I3,A,F10.1,A)') &
