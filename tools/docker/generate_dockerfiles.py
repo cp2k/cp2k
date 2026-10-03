@@ -638,6 +638,7 @@ FROM docker.io/{base_image}
         with_mkl="",
         with_libsmeagol="",
         with_libtorch="no",
+        with_skala_ftorch="no",
         with_deepmd="no",
         with_gauxc="no",
     )
