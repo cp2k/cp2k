@@ -62,6 +62,66 @@ MODULE quadratic_pseudospectrum
       END SUBROUTINE metric_solve
    END INTERFACE
 
+   TYPE, ABSTRACT :: quadratic_operator_type
+   CONTAINS
+      PROCEDURE(operator_method), DEFERRED :: apply
+      PROCEDURE(operator_method), DEFERRED :: adjoint
+      PROCEDURE(metric_method), DEFERRED :: solve
+   END TYPE quadratic_operator_type
+
+   ABSTRACT INTERFACE
+! **************************************************************************************************
+!> \brief ...
+!> \param this ...
+!> \param OPERATOR ...
+!> \param v ...
+!> \param y ...
+!> \param status ...
+! **************************************************************************************************
+      SUBROUTINE operator_method(this, OPERATOR, v, y, status)
+         IMPORT dp, quadratic_operator_type
+         CLASS(quadratic_operator_type), INTENT(INOUT) :: this
+         INTEGER, INTENT(IN) :: operator
+         COMPLEX(dp), INTENT(IN) :: v(:, :)
+         COMPLEX(dp), INTENT(OUT) :: y(:, :)
+         INTEGER, INTENT(OUT) :: status
+      END SUBROUTINE operator_method
+
+! **************************************************************************************************
+!> \brief ...
+!> \param this ...
+!> \param v ...
+!> \param y ...
+!> \param status ...
+! **************************************************************************************************
+      SUBROUTINE metric_method(this, v, y, status)
+         IMPORT dp, quadratic_operator_type
+         CLASS(quadratic_operator_type), INTENT(INOUT) :: this
+         COMPLEX(dp), INTENT(IN) :: v(:, :)
+         COMPLEX(dp), INTENT(OUT) :: y(:, :)
+         INTEGER, INTENT(OUT) :: status
+      END SUBROUTINE metric_method
+   END INTERFACE
+
+   TYPE, EXTENDS(quadratic_operator_type) :: dense_operator_type
+      COMPLEX(dp), POINTER :: operators(:, :, :) => NULL(), metric(:, :) => NULL()
+      COMPLEX(dp), ALLOCATABLE :: factor(:, :)
+   CONTAINS
+      PROCEDURE :: apply => dense_apply
+      PROCEDURE :: adjoint => dense_adjoint
+      PROCEDURE :: solve => dense_solve
+   END TYPE dense_operator_type
+
+   TYPE, EXTENDS(quadratic_operator_type) :: callback_operator_type
+      PROCEDURE(operator_apply), POINTER, NOPASS :: apply_callback => NULL()
+      PROCEDURE(operator_apply), POINTER, NOPASS :: adjoint_callback => NULL()
+      PROCEDURE(metric_solve), POINTER, NOPASS :: solve_callback => NULL()
+   CONTAINS
+      PROCEDURE :: apply => callback_apply
+      PROCEDURE :: adjoint => callback_adjoint
+      PROCEDURE :: solve => callback_solve
+   END TYPE callback_operator_type
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -119,14 +179,15 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE quadratic_dense_complex(operators, metric, shift, weights, nstates, iterative, max_subspace, &
                                       max_iter, tolerance, metric_tolerance, RESULT, status, unitary)
-      COMPLEX(dp), INTENT(IN) :: operators(:, :, :), metric(:, :), shift(:)
+      COMPLEX(dp), INTENT(IN), TARGET :: operators(:, :, :), metric(:, :)
+      COMPLEX(dp), INTENT(IN) :: shift(:)
       REAL(dp), INTENT(IN) :: weights(:), tolerance, metric_tolerance
       INTEGER, INTENT(IN) :: nstates, max_subspace, max_iter
       LOGICAL, INTENT(IN) :: iterative
       TYPE(quadratic_result_type), INTENT(OUT) :: result
       INTEGER, INTENT(OUT) :: status
       LOGICAL, INTENT(IN), OPTIONAL :: unitary(:)
-      COMPLEX(dp), ALLOCATABLE :: factor(:, :)
+      TYPE(dense_operator_type) :: operator_backend
       REAL(dp), ALLOCATABLE :: eigenvalues(:)
       INTEGER :: n
 #if defined(__HAS_IEEE_EXCEPTIONS)
@@ -143,19 +204,21 @@ CONTAINS
       IF (.NOT. hermitian(metric)) RETURN
       IF (.NOT. ALL(ieee_is_finite(REAL(operators, dp))) .OR. &
           .NOT. ALL(ieee_is_finite(AIMAG(operators)))) RETURN
-      ALLOCATE (factor(n, n), eigenvalues(n))
-      factor(:, :) = metric
-      CALL diagonalize(factor, eigenvalues, status)
+      operator_backend%operators => operators
+      operator_backend%metric => metric
+      ALLOCATE (operator_backend%factor(n, n), eigenvalues(n))
+      operator_backend%factor(:, :) = metric
+      CALL diagonalize(operator_backend%factor, eigenvalues, status)
       IF (status /= 0) RETURN
       status = -2
       IF (eigenvalues(n) <= 0.0_dp) RETURN
       IF (eigenvalues(1) <= metric_tolerance*eigenvalues(n)) RETURN
-      factor(:, :) = metric
+      operator_backend%factor(:, :) = metric
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_get_halting_mode(IEEE_ALL, halt)
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
-      CALL zpotrf('L', n, factor, n, status)
+      CALL zpotrf('L', n, operator_backend%factor, n, status)
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif
@@ -163,68 +226,82 @@ CONTAINS
          status = -2
          RETURN
       END IF
-      CALL quadratic_solve(n, shift, weights, nstates, iterative, max_subspace, max_iter, tolerance, &
-                           apply, solve, RESULT, status, adjoint, unitary)
-   CONTAINS
+      CALL quadratic_solve_core(n, shift, weights, nstates, iterative, max_subspace, max_iter, tolerance, &
+                                operator_backend, RESULT, status, unitary)
+   END SUBROUTINE quadratic_dense_complex
+
 ! **************************************************************************************************
 !> \brief Apply a dense covariant operator or the metric.
+!> \param this Dense operator backend
 !> \param OPERATOR Zero for metric, otherwise an observable index
 !> \param v Input block
 !> \param y Output block
 !> \param status Return status
 ! **************************************************************************************************
-      SUBROUTINE apply(OPERATOR, v, y, status)
-      INTEGER, INTENT(IN)                                :: operator
-      COMPLEX(dp), INTENT(IN)                            :: v(:, :)
-      COMPLEX(dp), INTENT(OUT)                           :: y(:, :)
-      INTEGER, INTENT(OUT)                               :: status
+   SUBROUTINE dense_apply(this, OPERATOR, v, y, status)
+      CLASS(dense_operator_type), INTENT(INOUT) :: this
+      INTEGER, INTENT(IN) :: operator
+      COMPLEX(dp), INTENT(IN) :: v(:, :)
+      COMPLEX(dp), INTENT(OUT) :: y(:, :)
+      INTEGER, INTENT(OUT) :: status
 
-         status = 0
-         IF (OPERATOR == 0) THEN
-            y = MATMUL(metric, v)
-         ELSE
-            y = MATMUL(operators(:, :, OPERATOR), v)
-         END IF
-      END SUBROUTINE apply
+      status = 0
+      IF (OPERATOR == 0) THEN
+         y = MATMUL(this%metric, v)
+      ELSE
+         y = MATMUL(this%operators(:, :, OPERATOR), v)
+      END IF
+   END SUBROUTINE dense_apply
+
 ! **************************************************************************************************
-!> \brief Apply the actual covariant adjoint, without assuming a normal operator.
+!> \brief Apply the actual dense covariant adjoint, without assuming a normal operator.
+!> \param this Dense operator backend
 !> \param OPERATOR Observable index
 !> \param v Input block
 !> \param y Adjoint output block
 !> \param status Return status
 ! **************************************************************************************************
-      SUBROUTINE adjoint(OPERATOR, v, y, status)
-      INTEGER, INTENT(IN)                                :: operator
-      COMPLEX(dp), INTENT(IN)                            :: v(:, :)
-      COMPLEX(dp), INTENT(OUT)                           :: y(:, :)
-      INTEGER, INTENT(OUT)                               :: status
+   SUBROUTINE dense_adjoint(this, OPERATOR, v, y, status)
+      CLASS(dense_operator_type), INTENT(INOUT) :: this
+      INTEGER, INTENT(IN) :: operator
+      COMPLEX(dp), INTENT(IN) :: v(:, :)
+      COMPLEX(dp), INTENT(OUT) :: y(:, :)
+      INTEGER, INTENT(OUT) :: status
 
-         y = MATMUL(CONJG(TRANSPOSE(operators(:, :, OPERATOR))), v)
-         status = 0
-      END SUBROUTINE adjoint
+      y = MATMUL(CONJG(TRANSPOSE(this%operators(:, :, OPERATOR))), v)
+      status = 0
+   END SUBROUTINE dense_adjoint
+
 ! **************************************************************************************************
-!> \brief Reuse one Cholesky factorization for AO-metric solutions.
+!> \brief Reuse one dense Cholesky factorization for AO-metric solutions.
+!> \param this Dense operator backend
 !> \param v Right hand sides
 !> \param y Solutions
 !> \param status Return status
 ! **************************************************************************************************
-      SUBROUTINE solve(v, y, status)
-      COMPLEX(dp), INTENT(IN)                            :: v(:, :)
-      COMPLEX(dp), INTENT(OUT)                           :: y(:, :)
-      INTEGER, INTENT(OUT)                               :: status
+   SUBROUTINE dense_solve(this, v, y, status)
+      CLASS(dense_operator_type), INTENT(INOUT) :: this
+      COMPLEX(dp), INTENT(IN) :: v(:, :)
+      COMPLEX(dp), INTENT(OUT) :: y(:, :)
+      INTEGER, INTENT(OUT) :: status
 
-         y = v
+      INTEGER :: n
 #if defined(__HAS_IEEE_EXCEPTIONS)
-         CALL ieee_get_halting_mode(IEEE_ALL, halt)
-         CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+      LOGICAL :: halt(SIZE(IEEE_ALL))
 #endif
-         CALL zpotrs('L', n, SIZE(v, 2), factor, n, y, n, status)
+
+      n = SIZE(this%factor, 1)
+      y = v
 #if defined(__HAS_IEEE_EXCEPTIONS)
-         CALL ieee_set_halting_mode(IEEE_ALL, halt)
+      CALL ieee_get_halting_mode(IEEE_ALL, halt)
+      CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
-         IF (status /= 0) status = -4
-      END SUBROUTINE solve
-   END SUBROUTINE quadratic_dense_complex
+      CALL zpotrs('L', n, SIZE(v, 2), this%factor, n, y, n, status)
+#if defined(__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_set_halting_mode(IEEE_ALL, halt)
+#endif
+      IF (status /= 0) status = -4
+   END SUBROUTINE dense_solve
 
 ! **************************************************************************************************
 !> \brief Solve sum_j w_j^2 A_j S^-1 A_j c = lambda S c without squaring sparse operators.
@@ -243,9 +320,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE quadratic_solve_real(n, shift, weights, nstates, iterative, max_subspace, max_iter, tolerance, &
                                    apply, solve, RESULT, status)
-      INTEGER, INTENT(IN) :: n, nstates, max_subspace, max_iter
-      REAL(dp), INTENT(IN) :: shift(:), weights(:), tolerance
-      LOGICAL, INTENT(IN) :: iterative
+      INTEGER, INTENT(IN)                                :: n
+      REAL(dp), INTENT(IN)                               :: shift(:), weights(:)
+      INTEGER, INTENT(IN)                                :: nstates
+      LOGICAL, INTENT(IN)                                :: iterative
+      INTEGER, INTENT(IN)                                :: max_subspace, max_iter
+      REAL(dp), INTENT(IN)                               :: tolerance
+
       PROCEDURE(operator_apply) :: apply
       PROCEDURE(metric_solve) :: solve
       TYPE(quadratic_result_type), INTENT(OUT) :: result
@@ -274,12 +355,51 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE quadratic_solve_complex(n, shift, weights, nstates, iterative, max_subspace, max_iter, tolerance, &
                                       apply, solve, RESULT, status, adjoint, unitary)
+      INTEGER, INTENT(IN)                                :: n
+      COMPLEX(dp), INTENT(IN)                            :: shift(:)
+      REAL(dp), INTENT(IN)                               :: weights(:)
+      INTEGER, INTENT(IN)                                :: nstates
+      LOGICAL, INTENT(IN)                                :: iterative
+      INTEGER, INTENT(IN)                                :: max_subspace, max_iter
+      REAL(dp), INTENT(IN)                               :: tolerance
+
+      PROCEDURE(operator_apply) :: apply, adjoint
+      PROCEDURE(metric_solve) :: solve
+      TYPE(quadratic_result_type), INTENT(OUT) :: result
+      INTEGER, INTENT(OUT) :: status
+      LOGICAL, INTENT(IN), OPTIONAL :: unitary(:)
+
+      TYPE(callback_operator_type) :: operator_backend
+
+      operator_backend%apply_callback => apply
+      operator_backend%adjoint_callback => adjoint
+      operator_backend%solve_callback => solve
+      CALL quadratic_solve_core(n, shift, weights, nstates, iterative, max_subspace, max_iter, tolerance, &
+                                operator_backend, RESULT, status, unitary)
+   END SUBROUTINE quadratic_solve_complex
+
+! **************************************************************************************************
+!> \brief Shared quadratic solver using an explicit operator backend.
+!> \param n AO/spinor dimension
+!> \param shift Complex query values
+!> \param weights Nonnegative observable scales
+!> \param nstates Number of lowest eigenpairs
+!> \param iterative Whether to use a bounded restarted block Ritz space
+!> \param max_subspace Maximum trial-space size
+!> \param max_iter Maximum Ritz iterations
+!> \param tolerance Relative S^-1 eigenpair residual threshold
+!> \param operator_backend Operator application and metric-solve backend
+!> \param RESULT Eigenpairs, residuals and expectations
+!> \param status 0 success, 1 unconverged, -1 input, -4 numerical failure
+!> \param unitary Optional continuum-unitary mask
+! **************************************************************************************************
+   SUBROUTINE quadratic_solve_core(n, shift, weights, nstates, iterative, max_subspace, max_iter, tolerance, &
+                                   operator_backend, RESULT, status, unitary)
       INTEGER, INTENT(IN) :: n, nstates, max_subspace, max_iter
       COMPLEX(dp), INTENT(IN) :: shift(:)
       REAL(dp), INTENT(IN) :: weights(:), tolerance
       LOGICAL, INTENT(IN) :: iterative
-      PROCEDURE(operator_apply) :: apply, adjoint
-      PROCEDURE(metric_solve) :: solve
+      CLASS(quadratic_operator_type), INTENT(INOUT) :: operator_backend
       TYPE(quadratic_result_type), INTENT(OUT) :: result
       INTEGER, INTENT(OUT) :: status
       LOGICAL, INTENT(IN), OPTIONAL :: unitary(:)
@@ -354,7 +474,7 @@ CONTAINS
          DO pass = 1, 2
             IF (pass == 2) THEN
                ! Cached metric/operator images can drift through repeated Ritz restarts.
-               CALL apply(0, result%states, sc, status)
+               CALL operator_backend%apply(0, result%states, sc, status)
                IF (status /= 0) RETURN
                DO j = 1, nstates
                   square = REAL(DOT_PRODUCT(result%states(:, j), sc(:, j)), dp)
@@ -364,7 +484,7 @@ CONTAINS
                   END IF
                   result%states(:, j) = result%states(:, j)/SQRT(square)
                END DO
-               CALL apply(0, result%states, sc, status)
+               CALL operator_backend%apply(0, result%states, sc, status)
                IF (status /= 0) RETURN
                CALL apply_q(result%states, qc, status)
                IF (status /= 0) RETURN
@@ -372,7 +492,7 @@ CONTAINS
             DO j = 1, nstates
                r(:, j) = qc(:, j) - result%eigenvalues(j)*sc(:, j)
             END DO
-            CALL solve(r, z, status)
+            CALL operator_backend%solve(r, z, status)
             IF (status /= 0) RETURN
             DO j = 1, nstates
                square = REAL(DOT_PRODUCT(r(:, j), z(:, j)), dp)
@@ -433,14 +553,14 @@ CONTAINS
       END IF
       result%eigenvalues = MAX(0.0_dp, result%eigenvalues)
       DO p = 1, SIZE(shift)
-         CALL apply(p, result%states, work, status)
+         CALL operator_backend%apply(p, result%states, work, status)
          IF (status /= 0) RETURN
          DO j = 1, nstates
             result%complex_means(p, j) = DOT_PRODUCT(result%states(:, j), work(:, j))
             result%means(p, j) = REAL(result%complex_means(p, j), dp)
          END DO
          work(:, :) = work - shift(p)*sc
-         CALL solve(work, invwork, status)
+         CALL operator_backend%solve(work, invwork, status)
          IF (status /= 0) RETURN
          DO j = 1, nstates
             square = REAL(DOT_PRODUCT(work(:, j), invwork(:, j)), dp)
@@ -493,7 +613,7 @@ CONTAINS
       LOGICAL, INTENT(OUT)                               :: accepted
 
          accepted = .FALSE.
-         CALL apply(0, trial, strial, status)
+         CALL operator_backend%apply(0, trial, strial, status)
          IF (status /= 0) RETURN
          norm_before = REAL(DOT_PRODUCT(trial(:, 1), strial(:, 1)), dp)
          IF (.NOT. ieee_is_finite(norm_before) .OR. norm_before < 0.0_dp) THEN
@@ -535,31 +655,83 @@ CONTAINS
 
          nrhs = SIZE(block, 2)
          ALLOCATE (sb(n, nrhs), ab(n, nrhs), solved(n, nrhs), second(n, nrhs), ss(n, nrhs))
-         CALL apply(0, block, sb, status)
+         CALL operator_backend%apply(0, block, sb, status)
          IF (status /= 0) RETURN
          image = CMPLX(0.0_dp, 0.0_dp, dp)
          DO op = 1, SIZE(shift)
             IF (weights(op) == 0.0_dp) CYCLE
-            CALL apply(op, block, ab, status)
+            CALL operator_backend%apply(op, block, ab, status)
             IF (status /= 0) RETURN
             IF (continuum(op)) THEN
-               CALL adjoint(op, block, second, status)
+               CALL operator_backend%adjoint(op, block, second, status)
                IF (status /= 0) RETURN
                image = image + weights(op)**2*((1.0_dp + ABS(shift(op))**2)*sb &
                                                - CONJG(shift(op))*ab - shift(op)*second)
                CYCLE
             END IF
             ab(:, :) = ab - shift(op)*sb
-            CALL solve(ab, solved, status)
+            CALL operator_backend%solve(ab, solved, status)
             IF (status /= 0) RETURN
-            CALL adjoint(op, solved, second, status)
+            CALL operator_backend%adjoint(op, solved, second, status)
             IF (status /= 0) RETURN
-            CALL apply(0, solved, ss, status)
+            CALL operator_backend%apply(0, solved, ss, status)
             IF (status /= 0) RETURN
             image = image + weights(op)**2*(second - CONJG(shift(op))*ss)
          END DO
       END SUBROUTINE apply_q
-   END SUBROUTINE quadratic_solve_complex
+   END SUBROUTINE quadratic_solve_core
+
+! **************************************************************************************************
+!> \brief Forward an operator application to the public callback interface.
+!> \param this ...
+!> \param OPERATOR ...
+!> \param v ...
+!> \param y ...
+!> \param status ...
+! **************************************************************************************************
+   SUBROUTINE callback_apply(this, OPERATOR, v, y, status)
+      CLASS(callback_operator_type), INTENT(INOUT) :: this
+      INTEGER, INTENT(IN) :: operator
+      COMPLEX(dp), INTENT(IN) :: v(:, :)
+      COMPLEX(dp), INTENT(OUT) :: y(:, :)
+      INTEGER, INTENT(OUT) :: status
+
+      CALL this%apply_callback(OPERATOR, v, y, status)
+   END SUBROUTINE callback_apply
+
+! **************************************************************************************************
+!> \brief Forward an adjoint application to the public callback interface.
+!> \param this ...
+!> \param OPERATOR ...
+!> \param v ...
+!> \param y ...
+!> \param status ...
+! **************************************************************************************************
+   SUBROUTINE callback_adjoint(this, OPERATOR, v, y, status)
+      CLASS(callback_operator_type), INTENT(INOUT) :: this
+      INTEGER, INTENT(IN) :: operator
+      COMPLEX(dp), INTENT(IN) :: v(:, :)
+      COMPLEX(dp), INTENT(OUT) :: y(:, :)
+      INTEGER, INTENT(OUT) :: status
+
+      CALL this%adjoint_callback(OPERATOR, v, y, status)
+   END SUBROUTINE callback_adjoint
+
+! **************************************************************************************************
+!> \brief Forward a metric solve to the public callback interface.
+!> \param this ...
+!> \param v ...
+!> \param y ...
+!> \param status ...
+! **************************************************************************************************
+   SUBROUTINE callback_solve(this, v, y, status)
+      CLASS(callback_operator_type), INTENT(INOUT) :: this
+      COMPLEX(dp), INTENT(IN) :: v(:, :)
+      COMPLEX(dp), INTENT(OUT) :: y(:, :)
+      INTEGER, INTENT(OUT) :: status
+
+      CALL this%solve_callback(v, y, status)
+   END SUBROUTINE callback_solve
 
 ! **************************************************************************************************
 !> \brief Hermiticity and finiteness check for the dense reference.
@@ -567,8 +739,9 @@ CONTAINS
 !> \return Whether the matrix is finite Hermitian
 ! **************************************************************************************************
    FUNCTION hermitian(matrix) RESULT(valid)
-      COMPLEX(dp), INTENT(IN) :: matrix(:, :)
-      LOGICAL :: valid
+      COMPLEX(dp), INTENT(IN)                            :: matrix(:, :)
+      LOGICAL                                            :: valid
+
       valid = .FALSE.
       IF (.NOT. ALL(ieee_is_finite(REAL(matrix, dp))) .OR. .NOT. ALL(ieee_is_finite(AIMAG(matrix)))) RETURN
       valid = MAXVAL(ABS(matrix - CONJG(TRANSPOSE(matrix)))) <= 1.e-10_dp*MAX(TINY(1.0_dp), MAXVAL(ABS(matrix)))

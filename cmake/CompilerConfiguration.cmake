@@ -75,7 +75,7 @@ add_compile_options(
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,GNU>,$<VERSION_GREATER_EQUAL:$<C_COMPILER_VERSION>,16>>:-Wno-error=deprecated-openmp>"
 )
 add_compile_options(
-  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-fsanitize=leak;-Werror=realloc-lhs>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-fsanitize=leak;-Werror=realloc-lhs;-Werror=trampolines>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-fcheck=all,no-array-temps;-finline-matmul-limit=0>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-ffpe-trap=invalid,zero,overflow>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-finit-derived;-finit-real=snan;-finit-integer=-42>"
