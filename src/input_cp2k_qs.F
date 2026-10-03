@@ -167,6 +167,18 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM_GRID_IMAGE_SHELL", &
+                          description="Number of neighboring lattice cells in each direction for the "// &
+                          "periodic Becke partition of the composite atom-centered XC grid. Applies "// &
+                          "to USPP/PAW GAPW_XC and GAPW and other composite atom-grid XC paths. "// &
+                          "Increase these values to converge the image partition independently of "// &
+                          "radial/angular quadrature. Equal shell counts in different supercells "// &
+                          "do not imply equal sets of physical atom images.", &
+                          usage="ATOM_GRID_IMAGE_SHELL 1 1 1", type_of_var=integer_t, &
+                          default_i_vals=[1, 1, 1], n_var=3)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="EPSFIT", &
                           variants=["EPS_FIT"], &
                           description="GAPW: tolerance controlling the split of Gaussian basis functions "// &
@@ -212,7 +224,8 @@ CONTAINS
          "the local densities are computed even if hard and soft should be equal. "// &
          "If this keyword is not set to true, those atoms with soft basis sets are treated by a GPW scheme, i.e. "// &
          "the corresponding density contribution goes on the global grid and is expanded in PW. "// &
-         "This option nullifies the effect of the GPW_TYPE in the atomic KIND", &
+         "This option nullifies the effect of the GPW_TYPE in the atomic KIND. "// &
+         "It controls the Gaussian density decomposition, not the pseudopotential type.", &
          usage="FORCE_PAW", &
          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -470,7 +483,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
-                          description="Specifies the electronic structure method that should be employed", &
+                          description="Specifies the electronic structure method. For GPW, GAPW_XC and GAPW, "// &
+                          "this selects the Gaussian density representation. The pseudopotential type is "// &
+                          "determined separately by the potential of each atomic KIND.", &
                           usage="METHOD GAPW", &
                           enum_c_vals=s2a("GAPW", "GAPW_XC", "GPW", "LRIGPW", "RIGPW", &
                                     "MNDO", "MNDOD", "AM1", "PM3", "PM6", "PM6-FM", "PDG", "RM1", "PNNL", "DFTB", "xTB", "OFGPW"), &

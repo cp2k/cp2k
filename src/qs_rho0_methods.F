@@ -47,6 +47,7 @@ MODULE qs_rho0_methods
                                               harmonics_atom_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
+                                              has_uspp,&
                                               qs_kind_type,&
                                               set_qs_kind
    USE qs_local_rho_types,              ONLY: allocate_rhoz,&
@@ -554,6 +555,9 @@ CONTAINS
             rho0_mpole%lmax0_kind(ikind) = MIN(2*MAX(maxl, maxl_nuc), &
                                                MAX(l_rho1_max, l_rho1_max_nuc), &
                                                MAX(maxl, maxl_nuc) + laddg, lmaxg)
+            ! The augmentation cross term is a short-range lattice sum only when every
+            ! represented Gaussian multipole is compensated.
+            IF (has_uspp(qs_kind_set)) rho0_mpole%lmax0_kind(ikind) = MAX(l_rho1_max, l_rho1_max_nuc)
          ELSE
             rho0_mpole%lmax0_kind(ikind) = 0
          END IF

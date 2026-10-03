@@ -138,6 +138,9 @@ MODULE qs_ks_methods
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_sccs,                         ONLY: sccs
+   USE qs_uspp_gapw,                    ONLY: qs_uspp_gapw_coulomb
+   USE qs_uspp_methods,                 ONLY: qs_uspp_atom_grid_apply_ks,&
+                                              qs_uspp_atom_grid_type
    USE qs_uspp_types,                   ONLY: qs_uspp_type
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE qs_vxc_atom,                     ONLY: calculate_vxc_atom,&
@@ -224,7 +227,7 @@ CONTAINS
          native_gapw_composite_direct_ao, native_gapw_composite_reference, &
          native_gapw_periodic_atom_composite, native_grid_diagnostics, native_grid_use_cuda, &
          native_skala_evaluator, native_skala_restore_exc
-      LOGICAL :: paw_composite_representation, rigpw, use_gauxc_matrix, use_virial
+      LOGICAL :: paw_composite_representation, rigpw, separate_xc, use_gauxc_matrix, use_virial
       LOGICAL, SAVE :: native_grid_cpu_kpoints_warned = .FALSE.
       REAL(KIND=dp) :: ecore_ppl, edisp, ee_ener, ekin_mol, mulliken_order_p, &
          native_skala_composite_contraction, native_skala_composite_rho_contraction, &
@@ -273,6 +276,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho_struct, rho_xc
+      TYPE(qs_uspp_atom_grid_type), ALLOCATABLE          :: uspp_xc_fields(:)
       TYPE(qs_uspp_type), POINTER                        :: uspp
       TYPE(section_vals_type), POINTER                   :: ace_section, &
                                                             adiabatic_rescaling_section, &
@@ -390,6 +394,8 @@ CONTAINS
       ! Check for GAPW method : additional terms for local densities
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
+      CALL get_ks_env(ks_env, uspp=uspp)
+      separate_xc = gapw_xc .OR. (gapw .AND. ASSOCIATED(uspp))
       IF (gapw_xc .AND. gapw) THEN
          CPABORT(" GAPW and GAPW_XC are not compatible")
       END IF
@@ -406,7 +412,7 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, vppl=vppl_rspace)
       END IF
 
-      IF (gapw_xc) THEN
+      IF (separate_xc) THEN
          CPASSERT(ASSOCIATED(rho_xc))
       END IF
 
@@ -666,11 +672,13 @@ CONTAINS
          IF (PRESENT(ext_xc_section)) xc_section => ext_xc_section
       END IF
 
-      IF (gapw_xc) THEN
+      IF (separate_xc) THEN
          CALL get_qs_env(qs_env=qs_env, rho_xc=rho_struct)
       ELSE
          CALL get_qs_env(qs_env=qs_env, rho=rho_struct)
       END IF
+
+      CALL get_ks_env(ks_env, uspp=uspp)
 
       ! zmp
       IF (dft_control%apply_external_density .OR. dft_control%apply_external_vxc) THEN
@@ -964,6 +972,18 @@ CONTAINS
                                           calculate_forces=calculate_forces)
                END IF
             END IF
+         ELSE IF ((gapw .OR. gapw_xc) .AND. ASSOCIATED(uspp)) THEN
+            ! Integrate the smooth XC background on the uniform grid. The atom grids
+            ! supply F[n_s + delta_n] - F[n_s], including NLCC only in the full field.
+            CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
+                               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+                               edisp=edisp, dispersion_env=qs_env%dispersion_env, &
+                               just_energy=.FALSE., exclude_nlcc=.TRUE., smooth_reference=.TRUE.)
+            IF (edisp /= 0.0_dp) energy%dispersion = edisp
+            ALLOCATE (uspp_xc_fields(nspins))
+            CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, &
+                                    xc_section_external=xc_section, calculate_forces=calculate_forces, &
+                                    composite_vxc_rho=v_rspace_new, uspp_fields=uspp_xc_fields)
          ELSE
             CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
                                vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
@@ -1119,7 +1139,7 @@ CONTAINS
       ! The atom-composite evaluator differentiates its atom-centered NLCC field directly.
       IF (ASSOCIATED(rho_nlcc) .AND. calculate_forces .AND. &
           .NOT. native_gapw_atom_composite_reference .AND. &
-          .NOT. native_direct_valence_atom_composite) THEN
+          .NOT. native_direct_valence_atom_composite .AND. .NOT. ALLOCATED(uspp_xc_fields)) THEN
          DO ispin = 1, nspins
             CALL integrate_rho_nlcc(v_rspace_new(ispin), qs_env)
             IF (dft_control%do_admm) CALL integrate_rho_nlcc(v_rspace_new_aux_fit(ispin), qs_env)
@@ -1193,6 +1213,10 @@ CONTAINS
                                    v_sic_rspace, v_spin_ddapc_rest_r, v_sccs_rspace, v_rspace_embed, &
                                    cdft_control, calculate_forces)
 
+         IF (ALLOCATED(uspp_xc_fields)) THEN
+            CALL qs_uspp_atom_grid_apply_ks(ks_env, uspp_xc_fields, ks_matrix, rho_ao)
+         END IF
+
          IF (use_gauxc_matrix) THEN
             IF (dokp) THEN
                CALL get_qs_env(qs_env=qs_env, matrix_vxc_kp=matrix_vxc_kp)
@@ -1215,7 +1239,7 @@ CONTAINS
 
          IF (gapw .OR. gapw_xc) THEN
             IF (calculate_forces) THEN
-               IF (gapw_xc) THEN
+               IF (separate_xc) THEN
                   CALL get_qs_env(qs_env=qs_env, rho_xc=rho_struct)
                ELSE
                   CALL get_qs_env(qs_env=qs_env, rho=rho_struct)
@@ -1236,7 +1260,7 @@ CONTAINS
                       (gapw_xc .OR. gauxc_gapw_has_paw_pseudopotentials(qs_kind_set))) THEN
                      CALL accint_weight_force(qs_env, rho_struct, rho1, 0, xc_section)
                   END IF
-               ELSE
+               ELSE IF (.NOT. ALLOCATED(uspp_xc_fields)) THEN
                   CALL accint_weight_force(qs_env, rho_struct, rho1, 0, xc_section)
                END IF
                !
@@ -1357,6 +1381,7 @@ CONTAINS
          CALL get_qs_env(qs_env, ecoul_1c=ecoul_1c, local_rho_set=local_rho_set)
          CALL Vh_1c_gg_integrals(qs_env, energy%hartree_1c, ecoul_1c, local_rho_set, para_env, tddft=.FALSE., &
                                  core_2nd=.FALSE.)
+         CALL qs_uspp_gapw_coulomb(qs_env, ks_matrix, rho_ao, energy%hartree_1c, calculate_forces)
          ! CNEO quantum nuclear core energy (kinetic + Z*erfc(r)/r potential from classical nuclei)
          energy%core_cneo = 0.0_dp
          IF (ASSOCIATED(local_rho_set%rhoz_cneo_set)) THEN

@@ -23,6 +23,7 @@ PROGRAM atom_upf_unittest
                                               atom_upfpot_type
    USE atom_utils,                      ONLY: atom_core_density,&
                                               atom_density
+   USE cell_types,                      ONLY: cell_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: silent_print_level
@@ -49,6 +50,7 @@ PROGRAM atom_upf_unittest
                                               cp2k_init
    USE mathconstants,                   ONLY: fourpi,&
                                               pi
+   USE mathlib,                         ONLY: invmat
    USE orbital_pointers,                ONLY: co,&
                                               init_orbital_pointers,&
                                               nco,&
@@ -58,6 +60,11 @@ PROGRAM atom_upf_unittest
                                               create_grid_atom,&
                                               deallocate_grid_atom,&
                                               grid_atom_type
+   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_nlcc_methods,                 ONLY: nlcc_atom_grid_evaluate,&
+                                              nlcc_atom_grid_init,&
+                                              nlcc_atom_grid_type
+   USE qs_vxc_atom_utils,               ONLY: evaluate_nlcc_primitive_fields
 
    IMPLICIT NONE
    LOGICAL :: source_root_argument
@@ -70,6 +77,7 @@ PROGRAM atom_upf_unittest
 
    CALL cp2k_init()
    CALL check_core_derivatives()
+   CALL check_periodic_core_fields()
    CALL check_projector_addition_theorem()
    CALL check_atomic_potential()
    CALL check_upf_units()
@@ -1045,4 +1053,128 @@ CONTAINS
       END IF
       DEALLOCATE (weights)
    END SUBROUTINE check_uspp_dataset
+!> \brief Check periodic core fields against an independent image sum and energy derivatives.
+! **************************************************************************************************
+   SUBROUTINE check_periodic_core_fields()
+      REAL(dp), PARAMETER                                :: step = 1.e-5_dp
+
+      INTEGER                                            :: axis, axis2, boundary, info, ix, iy, iz, &
+                                                            periodicity(3), representation, sign
+      REAL(dp) :: center(3), derivative, energy(2), error, g(3), grad(3), grad_moment(3, 3, 3), &
+         h(3, 3), hess(3, 3), moment(3, 3), point(3), r, reference, reference_g(3), &
+         reference_h(3, 3), rho, shift(3), varied_center(3), varied_point(3), z(3)
+      TYPE(cell_type)                                    :: cell, varied_cell
+      TYPE(nlcc_atom_grid_type)                          :: data
+      TYPE(qs_kind_type)                                 :: kind
+
+      cell%hmat = RESHAPE([2.6_dp, 0.0_dp, 0.0_dp, 0.3_dp, 2.3_dp, 0.0_dp, 0.1_dp, 0.4_dp, 2.8_dp], [3, 3])
+      cell%h_inv = cell%hmat
+      CALL invmat(cell%h_inv, info)
+      IF (info /= 0) ERROR STOP 'Singular core-density test cell'
+      point = [0.2_dp, -0.3_dp, 0.4_dp]
+      center = [1.2_dp, 0.3_dp, 0.8_dp]
+      error = 0.0_dp
+      CALL nlcc_atom_grid_init(kind, DATA, 1.e-15_dp)
+      CALL nlcc_atom_grid_evaluate(DATA, cell, [1, 1, 1], point, center, rho, grad, hess)
+      IF (ABS(rho) + MAXVAL(ABS(grad)) + MAXVAL(ABS(hess)) /= 0.0_dp) ERROR STOP 'Nonzero absent NLCC'
+      DO representation = 1, 2
+         IF (representation == 1) THEN
+            CALL allocate_potential(kind%sgp_potential)
+            kind%sgp_potential%has_nlcc = .TRUE.
+            kind%sgp_potential%n_nlcc = 2
+            ALLOCATE (kind%sgp_potential%a_nlcc(2), kind%sgp_potential%c_nlcc(2))
+            kind%sgp_potential%a_nlcc = [0.7_dp, 2.3_dp]
+            kind%sgp_potential%c_nlcc = [1.8_dp, -0.2_dp]
+         ELSE
+            CALL allocate_potential(kind%gth_potential)
+            ALLOCATE (kind%gth_potential%elec_conf(0))
+            kind%gth_potential%nlcc = .TRUE.
+            kind%gth_potential%nexp_nlcc = 2
+            ALLOCATE (kind%gth_potential%alpha_nlcc(2), kind%gth_potential%nct_nlcc(2), &
+                      kind%gth_potential%cval_nlcc(3, 2))
+            kind%gth_potential%alpha_nlcc = [0.7_dp, 0.9_dp]
+            kind%gth_potential%nct_nlcc = [3, 2]
+            kind%gth_potential%cval_nlcc(:, 1) = [1.3_dp, -0.2_dp, 0.1_dp]
+            kind%gth_potential%cval_nlcc(:, 2) = [-0.1_dp, 0.05_dp, 0.0_dp]
+         END IF
+         CALL nlcc_atom_grid_init(kind, DATA, 1.e-15_dp)
+         DO boundary = 1, 3
+            SELECT CASE (boundary)
+            CASE (1)
+               periodicity = [1, 1, 1]
+            CASE (2)
+               periodicity = [1, 0, 1]
+            CASE (3)
+               periodicity = 0
+            END SELECT
+            CALL nlcc_atom_grid_evaluate(DATA, cell, periodicity, point, center, rho, grad, hess, moment, grad_moment)
+            reference = 0.0_dp
+            reference_g = 0.0_dp
+            reference_h = 0.0_dp
+            DO iz = -7*periodicity(3), 7*periodicity(3)
+               DO iy = -7*periodicity(2), 7*periodicity(2)
+                  DO ix = -7*periodicity(1), 7*periodicity(1)
+                     shift = MATMUL(cell%hmat, REAL([ix, iy, iz], dp))
+                     CALL evaluate_nlcc_primitive_fields(point, center + shift, kind%gth_potential, &
+                                                         kind%sgp_potential, r, g, h)
+                     reference = reference + r
+                     reference_g = reference_g + g
+                     reference_h = reference_h + h
+                  END DO
+               END DO
+            END DO
+            IF (MAX(ABS(reference - rho), MAXVAL(ABS(reference_g - grad)), &
+                    MAXVAL(ABS(reference_h - hess))) > 2.e-12_dp) ERROR STOP 'Incorrect periodic core fields'
+            shift = MATMUL(cell%hmat, REAL([2, -1, 1]*periodicity, dp))
+            CALL nlcc_atom_grid_evaluate(DATA, cell, periodicity, point + shift, center, r, g, h)
+            IF (MAX(ABS(r - rho), MAXVAL(ABS(g - grad)), MAXVAL(ABS(h - hess))) > 2.e-12_dp) THEN
+               ERROR STOP 'Core fields depend on the cell representative'
+            END IF
+            ! F = rho**3/3 + 0.3*|gradient|**2 exercises density and GGA adjoints.
+            z = rho**2*grad + 0.6_dp*MATMUL(hess, grad)
+            DO axis = 1, 3
+               DO sign = 1, 2
+                  varied_point = point
+                  varied_point(axis) = varied_point(axis) + REAL(2*sign - 3, dp)*step
+                  CALL nlcc_atom_grid_evaluate(DATA, cell, periodicity, varied_point, center, r, g, h)
+                  energy(sign) = r**3/3.0_dp + 0.3_dp*SUM(g**2)
+               END DO
+               error = MAX(error, ABS((energy(2) - energy(1))/(2.0_dp*step) - z(axis)))
+               DO sign = 1, 2
+                  varied_center = center
+                  varied_center(axis) = varied_center(axis) + REAL(2*sign - 3, dp)*step
+                  CALL nlcc_atom_grid_evaluate(DATA, cell, periodicity, point, varied_center, r, g, h)
+                  energy(sign) = r**3/3.0_dp + 0.3_dp*SUM(g**2)
+               END DO
+               error = MAX(error, ABS((energy(2) - energy(1))/(2.0_dp*step) + z(axis)))
+               DO axis2 = 1, 3
+                  derivative = z(axis)*(point(axis2) - center(axis2)) - rho**2*moment(axis, axis2) - &
+                               0.6_dp*SUM(grad*grad_moment(:, axis, axis2))
+                  DO sign = 1, 2
+                     varied_cell = cell
+                     varied_cell%hmat(axis, :) = cell%hmat(axis, :) + REAL(2*sign - 3, dp)*step*cell%hmat(axis2, :)
+                     varied_cell%h_inv = varied_cell%hmat
+                     CALL invmat(varied_cell%h_inv, info)
+                     IF (info /= 0) ERROR STOP 'Singular strained core-density test cell'
+                     varied_point = point
+                     varied_center = center
+                     varied_point(axis) = point(axis) + REAL(2*sign - 3, dp)*step*point(axis2)
+                     varied_center(axis) = center(axis) + REAL(2*sign - 3, dp)*step*center(axis2)
+                     CALL nlcc_atom_grid_evaluate(DATA, varied_cell, periodicity, varied_point, varied_center, r, g, h)
+                     energy(sign) = r**3/3.0_dp + 0.3_dp*SUM(g**2)
+                  END DO
+                  error = MAX(error, ABS((energy(2) - energy(1))/(2.0_dp*step) - derivative))
+               END DO
+            END DO
+            CALL nlcc_atom_grid_evaluate(DATA, cell, periodicity, center, center, r, g, h)
+            IF (.NOT. ieee_is_finite(r) .OR. .NOT. ALL(ieee_is_finite(g)) .OR. &
+                .NOT. ALL(ieee_is_finite(h))) ERROR STOP 'Nonfinite core fields at origin'
+         END DO
+         IF (ASSOCIATED(kind%sgp_potential)) CALL deallocate_potential(kind%sgp_potential)
+         IF (ASSOCIATED(kind%gth_potential)) CALL deallocate_potential(kind%gth_potential)
+      END DO
+      WRITE (*, *) 'Periodic NLCC nonlinear energy-derivative error:', error
+      IF (error > 2.e-8_dp) ERROR STOP 'Incorrect periodic NLCC energy derivatives'
+   END SUBROUTINE check_periodic_core_fields
+
 END PROGRAM atom_upf_unittest

@@ -259,7 +259,7 @@ MODULE qs_kind_types
              deallocate_qs_kind_set, &
              get_qs_kind, &
              get_qs_kind_set, &
-             has_nlcc, &
+             has_nlcc, has_uspp, &
              init_qs_kind_set, &
              init_gapw_basis_set, &
              init_gapw_nlcc, &
@@ -4281,6 +4281,26 @@ CONTAINS
       END IF
 
    END SUBROUTINE set_pseudo_state
+
+! **************************************************************************************************
+!> \brief Whether a non-ghost kind carries ultrasoft augmentation.
+!> \param qs_kind_set Current Gaussian kinds.
+!> \return True for at least one scalar USPP kind.
+! **************************************************************************************************
+   FUNCTION has_uspp(qs_kind_set) RESULT(ultrasoft)
+      TYPE(qs_kind_type), INTENT(IN)                     :: qs_kind_set(:)
+      LOGICAL                                            :: ultrasoft
+
+      INTEGER                                            :: ikind
+
+      ultrasoft = .FALSE.
+      DO ikind = 1, SIZE(qs_kind_set)
+         IF (qs_kind_set(ikind)%ghost) CYCLE
+         IF (.NOT. ASSOCIATED(qs_kind_set(ikind)%sgp_potential)) CYCLE
+         IF (.NOT. ALLOCATED(qs_kind_set(ikind)%sgp_potential%upf_data)) CYCLE
+         IF (qs_kind_set(ikind)%sgp_potential%upf_data%is_ultrasoft) ultrasoft = .TRUE.
+      END DO
+   END FUNCTION has_uspp
 
 ! **************************************************************************************************
 !> \brief finds if a given qs run needs to use nlcc

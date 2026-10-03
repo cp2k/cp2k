@@ -365,6 +365,7 @@ MODULE cp_control_types
 ! **************************************************************************************************
    TYPE gapw_control_type
       INTEGER                              :: basis_1c = 0
+      INTEGER, DIMENSION(3)                 :: atom_grid_image_shell = 1
       REAL(KIND=dp)                        :: eps_fit = 0.0_dp, &
                                               eps_iso = 0.0_dp, &
                                               eps_Vrho0 = 0.0_dp, &

@@ -2691,9 +2691,10 @@ CONTAINS
 !> \param image_periodicity optional image directions used by the auxiliary-grid partition
 !> \param image_coords ...
 !> \param target_image ...
+!> \param image_shell optional number of neighboring cells in each direction
 ! **************************************************************************************************
    SUBROUTINE build_periodic_atom_image_layout(atom_coords, cell, target_atom, image_periodicity, &
-                                               image_coords, target_image)
+                                               image_coords, target_image, image_shell)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: atom_coords
       TYPE(cell_type), POINTER                           :: cell
       INTEGER, INTENT(IN)                                :: target_atom
@@ -2701,12 +2702,13 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: image_coords
       INTEGER, INTENT(OUT)                               :: target_image
+      INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: image_shell
 
       INTEGER                                            :: base_shift(3), iatom, idir, image_count, &
                                                             image_index, ix, ix_max, ix_min, iy, &
                                                             iy_max, iy_min, iz, iz_max, iz_min, &
                                                             natom
-      INTEGER, DIMENSION(3)                              :: partition_periodicity
+      INTEGER, DIMENSION(3)                              :: partition_periodicity, shell
       REAL(KIND=dp), DIMENSION(3)                        :: fractional
 
       natom = SIZE(atom_coords, 2)
@@ -2716,11 +2718,14 @@ CONTAINS
       partition_periodicity = cell%perd
       IF (PRESENT(image_periodicity)) partition_periodicity = image_periodicity
       CPASSERT(ALL(partition_periodicity == 0 .OR. partition_periodicity == 1))
+      shell = periodic_partition_image_shell
+      IF (PRESENT(image_shell)) shell = image_shell
+      CPASSERT(ALL(shell >= 1))
 
       image_count = natom
       DO idir = 1, 3
          IF (partition_periodicity(idir) == 1) THEN
-            image_count = image_count*(2*periodic_partition_image_shell + 1)
+            image_count = image_count*(2*shell(idir) + 1)
          END IF
       END DO
       ALLOCATE (image_coords(3, image_count))
@@ -2733,12 +2738,12 @@ CONTAINS
          DO idir = 1, 3
             base_shift(idir) = partition_periodicity(idir)*NINT(fractional(idir))
          END DO
-         ix_min = base_shift(1) - periodic_partition_image_shell*partition_periodicity(1)
-         ix_max = base_shift(1) + periodic_partition_image_shell*partition_periodicity(1)
-         iy_min = base_shift(2) - periodic_partition_image_shell*partition_periodicity(2)
-         iy_max = base_shift(2) + periodic_partition_image_shell*partition_periodicity(2)
-         iz_min = base_shift(3) - periodic_partition_image_shell*partition_periodicity(3)
-         iz_max = base_shift(3) + periodic_partition_image_shell*partition_periodicity(3)
+         ix_min = base_shift(1) - shell(1)*partition_periodicity(1)
+         ix_max = base_shift(1) + shell(1)*partition_periodicity(1)
+         iy_min = base_shift(2) - shell(2)*partition_periodicity(2)
+         iy_max = base_shift(2) + shell(2)*partition_periodicity(2)
+         iz_min = base_shift(3) - shell(3)*partition_periodicity(3)
+         iz_max = base_shift(3) + shell(3)*partition_periodicity(3)
          DO iz = iz_min, iz_max
             DO iy = iy_min, iy_max
                DO ix = ix_min, ix_max
@@ -2758,7 +2763,7 @@ CONTAINS
    END SUBROUTINE build_periodic_atom_image_layout
 
 ! **************************************************************************************************
-!> \brief Return an image-complete periodic atom weight for a prebuilt image layout.
+!> \brief Return a finite-shell periodic atom weight for a prebuilt image layout.
 !> \param grid_point ...
 !> \param image_coords ...
 !> \param target_image ...
@@ -2792,35 +2797,36 @@ CONTAINS
    END SUBROUTINE periodic_atom_image_partition_from_layout
 
 ! **************************************************************************************************
-!> \brief Return an image-complete periodic atom weight without derivatives.
+!> \brief Return a finite-shell periodic atom weight without derivatives.
 !> \param grid_point ...
 !> \param atom_coords ...
 !> \param cell ...
 !> \param target_atom ...
 !> \param weight ...
 !> \param image_periodicity optional image directions used by the auxiliary-grid partition
+!> \param image_shell optional number of neighboring cells in each direction
 ! **************************************************************************************************
    SUBROUTINE periodic_atom_image_partition_value(grid_point, atom_coords, cell, target_atom, &
-                                                  weight, image_periodicity)
+                                                  weight, image_periodicity, image_shell)
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: grid_point
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: atom_coords
       TYPE(cell_type), POINTER                           :: cell
       INTEGER, INTENT(IN)                                :: target_atom
       REAL(KIND=dp), INTENT(OUT)                         :: weight
-      INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: image_periodicity
+      INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: image_periodicity, image_shell
 
       INTEGER                                            :: target_image
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: image_coords
 
       CALL build_periodic_atom_image_layout(atom_coords, cell, target_atom, image_periodicity, &
-                                            image_coords, target_image)
+                                            image_coords, target_image, image_shell)
       CALL periodic_atom_image_partition_from_layout(grid_point, image_coords, target_image, weight)
       DEALLOCATE (image_coords)
 
    END SUBROUTINE periodic_atom_image_partition_value
 
 ! **************************************************************************************************
-!> \brief Return the smooth weight of one reference-cell atom in an image-complete periodic
+!> \brief Return the smooth weight of one reference-cell atom in a finite-shell periodic
 !>        atom partition. Each atom's fixed image shell is centered on the image nearest to the
 !>        target atom. The list is constant over the target atom block and covariant under lattice
 !>        translations of individual atoms.
@@ -2832,9 +2838,10 @@ CONTAINS
 !> \param dweight_datom optional derivative at fixed grid point with respect to base atoms
 !> \param dweight_dstrain optional derivative due to lattice-image translations
 !> \param image_periodicity optional image directions used by the auxiliary-grid partition
+!> \param image_shell optional number of neighboring cells in each direction
 ! **************************************************************************************************
    SUBROUTINE periodic_atom_image_partition(grid_point, atom_coords, cell, target_atom, weight, &
-                                            dweight_datom, dweight_dstrain, image_periodicity)
+                                            dweight_datom, dweight_dstrain, image_periodicity, image_shell)
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: grid_point
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: atom_coords
       TYPE(cell_type), POINTER                           :: cell
@@ -2842,14 +2849,14 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: weight
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
          OPTIONAL                                        :: dweight_datom, dweight_dstrain
-      INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: image_periodicity
+      INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: image_periodicity, image_shell
 
       INTEGER :: active_count, active_image, active_index, base_shift(3), candidate_image, iatom, &
          idir, iimage, image_count, image_index, ix, ix_max, ix_min, iy, iy_max, iy_min, iz, &
          iz_max, iz_min, jatom, jdir, jimage, natom, target_image
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: active_images, image_atom
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: image_shift
-      INTEGER, DIMENSION(3)                              :: partition_periodicity
+      INTEGER, DIMENSION(3)                              :: partition_periodicity, shell
       LOGICAL                                            :: need_derivatives
       REAL(KIND=dp)                                      :: dist_diff, ds_dmu, mu, mu_raw, &
                                                             one_minus_switch, rab, switch
@@ -2868,7 +2875,7 @@ CONTAINS
       CPASSERT(PRESENT(dweight_dstrain) .EQV. need_derivatives)
       IF (.NOT. need_derivatives) THEN
          CALL periodic_atom_image_partition_value( &
-            grid_point, atom_coords, cell, target_atom, weight, image_periodicity)
+            grid_point, atom_coords, cell, target_atom, weight, image_periodicity, image_shell)
          RETURN
       END IF
       IF (need_derivatives) THEN
@@ -2883,11 +2890,14 @@ CONTAINS
       partition_periodicity = cell%perd
       IF (PRESENT(image_periodicity)) partition_periodicity = image_periodicity
       CPASSERT(ALL(partition_periodicity == 0 .OR. partition_periodicity == 1))
+      shell = periodic_partition_image_shell
+      IF (PRESENT(image_shell)) shell = image_shell
+      CPASSERT(ALL(shell >= 1))
 
       image_count = 1
       DO idir = 1, 3
          IF (partition_periodicity(idir) == 1) THEN
-            image_count = image_count*(2*periodic_partition_image_shell + 1)
+            image_count = image_count*(2*shell(idir) + 1)
          END IF
       END DO
       image_count = natom*image_count
@@ -2906,12 +2916,12 @@ CONTAINS
          DO idir = 1, 3
             base_shift(idir) = partition_periodicity(idir)*NINT(fractional(idir))
          END DO
-         ix_min = base_shift(1) - periodic_partition_image_shell*partition_periodicity(1)
-         ix_max = base_shift(1) + periodic_partition_image_shell*partition_periodicity(1)
-         iy_min = base_shift(2) - periodic_partition_image_shell*partition_periodicity(2)
-         iy_max = base_shift(2) + periodic_partition_image_shell*partition_periodicity(2)
-         iz_min = base_shift(3) - periodic_partition_image_shell*partition_periodicity(3)
-         iz_max = base_shift(3) + periodic_partition_image_shell*partition_periodicity(3)
+         ix_min = base_shift(1) - shell(1)*partition_periodicity(1)
+         ix_max = base_shift(1) + shell(1)*partition_periodicity(1)
+         iy_min = base_shift(2) - shell(2)*partition_periodicity(2)
+         iy_max = base_shift(2) + shell(2)*partition_periodicity(2)
+         iz_min = base_shift(3) - shell(3)*partition_periodicity(3)
+         iz_max = base_shift(3) + shell(3)*partition_periodicity(3)
          DO iz = iz_min, iz_max
             DO iy = iy_min, iy_max
                DO ix = ix_min, ix_max

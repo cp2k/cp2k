@@ -48,7 +48,8 @@ MODULE qs_rho_methods
                                               set_qs_env
    USE qs_harris_types,                 ONLY: harris_type
    USE qs_harris_utils,                 ONLY: calculate_harris_density
-   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_kind_types,                   ONLY: has_uspp,&
+                                              qs_kind_type
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
    USE qs_local_rho_types,              ONLY: local_rho_type
@@ -489,7 +490,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_update_rho_low'
 
       INTEGER                                            :: handle, idir, img, ispin, nimg, nspins
-      LOGICAL                                            :: gapw, gapw_xc
+      LOGICAL                                            :: gapw, gapw_xc, separate_xc
       REAL(KIND=dp)                                      :: dum
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r, tot_rho_r_xc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -520,7 +521,7 @@ CONTAINS
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
                       dft_control=dft_control, &
-                      atomic_kind_set=atomic_kind_set)
+                      atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set)
 
       CALL qs_rho_get(rho_struct, &
                       rho_r=rho_r, &
@@ -541,6 +542,7 @@ CONTAINS
       nimg = dft_control%nimages
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
+      separate_xc = gapw_xc .OR. (gapw .AND. has_uspp(qs_kind_set))
 
       CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
       DO ispin = 1, nspins
@@ -556,7 +558,7 @@ CONTAINS
       END DO
       CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
 
-      IF (gapw_xc) THEN
+      IF (separate_xc) THEN
          IF (PRESENT(rho_xc_external)) THEN
             rho_xc => rho_xc_external
          ELSE
@@ -579,7 +581,7 @@ CONTAINS
                                     rho=rho_xc_r(ispin), &
                                     rho_gspace=rho_xc_g(ispin), &
                                     total_rho=tot_rho_r_xc(ispin), &
-                                    ks_env=ks_env, soft_valid=gapw_xc, &
+                                    ks_env=ks_env, soft_valid=separate_xc, &
                                     task_list_external=task_list_external_soft, &
                                     pw_env_external=pw_env_external)
          END DO
@@ -598,7 +600,7 @@ CONTAINS
          CALL calculate_rho_atom_coeff(qs_env, rho_ao_kp, rho_atom_set, qs_kind_set, oce, sab, para_env)
       END IF
 
-      IF (.NOT. gapw_xc) THEN
+      IF (.NOT. separate_xc) THEN
          ! if needed compute also the gradient of the density
          IF (dft_control%drho_by_collocation) THEN
             CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
@@ -646,7 +648,7 @@ CONTAINS
                CALL calculate_drho_elec(matrix_p_kp=rho_ao, &
                                         drho=drho_xc_r(:, ispin), &
                                         drho_gspace=drho_xc_g(:, ispin), &
-                                        qs_env=qs_env, soft_valid=gapw_xc)
+                                        qs_env=qs_env, soft_valid=separate_xc)
             END DO
             CALL qs_rho_set(rho_xc, drho_r_valid=.TRUE., drho_g_valid=.TRUE.)
          END IF
@@ -657,7 +659,7 @@ CONTAINS
                CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
                                        rho=tau_xc_r(ispin), &
                                        rho_gspace=tau_xc_g(ispin), &
-                                       ks_env=ks_env, soft_valid=gapw_xc, &
+                                       ks_env=ks_env, soft_valid=separate_xc, &
                                        compute_tau=.TRUE., &
                                        task_list_external=task_list_external_soft, &
                                        pw_env_external=pw_env_external)

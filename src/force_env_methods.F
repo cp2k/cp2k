@@ -726,11 +726,11 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: unit_string
       INTEGER                                            :: i, ip, iq, j, k, method_id, natom, &
                                                             ncore, nshell, output_unit, symmetry_id
-      LOGICAL                                            :: use_sym_strain_2d
+      LOGICAL                                            :: use_periodic_strain
       REAL(KIND=dp)                                      :: dx_w, eps_w
       REAL(KIND=dp), DIMENSION(2)                        :: numer_energy
       REAL(KIND=dp), DIMENSION(3)                        :: s
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat_deformed, numer_pv_2d, &
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat_deformed, numer_pv_periodic, &
                                                             numer_stress, strain
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ref_pos_atom, ref_pos_core, ref_pos_shell
       TYPE(cell_type), POINTER                           :: cell, cell_local
@@ -754,9 +754,9 @@ CONTAINS
       method_id = 0
       ncore = 0
       nshell = 0
-      numer_pv_2d = 0.0_dp
+      numer_pv_periodic = 0.0_dp
       numer_stress = 0.0_dp
-      use_sym_strain_2d = .FALSE.
+      use_periodic_strain = .FALSE.
 
       logger => cp_get_default_logger()
 
@@ -802,25 +802,28 @@ CONTAINS
       !
       CALL cell_create(cell_local)
       CALL cell_clone(cell, cell_local)
-      IF (COUNT(cell_local%perd /= 0) == 2 .AND. method_id == use_qs_force) THEN
+      ! Match the analytic QS convention: strain only the physical periodic subspace.
+      ! For an isolated system every component is skipped; the existing 1D path is retained.
+      IF ((ALL(cell_local%perd == 0) .OR. COUNT(cell_local%perd /= 0) == 2) .AND. &
+          method_id == use_qs_force) THEN
          CALL get_qs_env(qs_env=force_env%qs_env, dft_control=dft_control)
          SELECT CASE (dft_control%qs_control%method_id)
          CASE (do_method_gapw, do_method_gapw_xc, do_method_gpw, &
                do_method_lrigpw, do_method_ofgpw, do_method_rigpw)
-            use_sym_strain_2d = .TRUE.
+            use_periodic_strain = .TRUE.
          END SELECT
       END IF
       ! First change box
       DO ip = 1, 3
          DO iq = 1, 3
-            IF (use_sym_strain_2d) THEN
+            IF (use_periodic_strain) THEN
                IF (cell_local%perd(ip) == 0 .OR. cell_local%perd(iq) == 0) CYCLE
                IF (iq < ip) CYCLE
             END IF
             IF (virial%pv_diagonal .AND. (ip /= iq)) CYCLE
             DO k = 1, 2
                hmat_deformed = cell_local%hmat
-               IF (use_sym_strain_2d) THEN
+               IF (use_periodic_strain) THEN
                   eps_w = -(-1.0_dp)**k*dx_w
                   strain = 0.0_dp
                   DO i = 1, 3
@@ -861,9 +864,9 @@ CONTAINS
                cell%hmat = cell_local%hmat
             END DO
             CALL init_cell(cell)
-            IF (use_sym_strain_2d) THEN
-               numer_pv_2d(ip, iq) = -0.5_dp*(numer_energy(1) - numer_energy(2))/dx_w
-               numer_pv_2d(iq, ip) = numer_pv_2d(ip, iq)
+            IF (use_periodic_strain) THEN
+               numer_pv_periodic(ip, iq) = -0.5_dp*(numer_energy(1) - numer_energy(2))/dx_w
+               numer_pv_periodic(iq, ip) = numer_pv_periodic(ip, iq)
                IF (output_unit > 0) THEN
                   IF (globenv%run_type_id == debug_run) THEN
                      WRITE (UNIT=output_unit, FMT="(/,T2,A,T19,A,F7.4,A,T44,A,F7.4,A,T69,A)") &
@@ -871,14 +874,14 @@ CONTAINS
                         "E(e"//ACHAR(119 + ip)//ACHAR(119 + iq)//" -", dx_w, ")", &
                         "pv(numerical)"
                      WRITE (UNIT=output_unit, FMT="(T2,A,2(1X,F24.8),1X,F22.8)") &
-                        "DEBUG|", numer_energy(1:2), numer_pv_2d(ip, iq)
+                        "DEBUG|", numer_energy(1:2), numer_pv_periodic(ip, iq)
                   ELSE
                      WRITE (UNIT=output_unit, FMT="(/,T7,A,F7.4,A,T27,A,F7.4,A,T49,A)") &
                         "E(e"//ACHAR(119 + ip)//ACHAR(119 + iq)//" +", dx_w, ")", &
                         "E(e"//ACHAR(119 + ip)//ACHAR(119 + iq)//" -", dx_w, ")", &
                         "pv(numerical)"
                      WRITE (UNIT=output_unit, FMT="(3(1X,F19.8))") &
-                        numer_energy(1:2), numer_pv_2d(ip, iq)
+                        numer_energy(1:2), numer_pv_periodic(ip, iq)
                   END IF
                END IF
             ELSE
@@ -923,8 +926,8 @@ CONTAINS
 
       ! Computing pv_test
       virial%pv_virial = 0.0_dp
-      IF (use_sym_strain_2d) THEN
-         virial%pv_virial = numer_pv_2d
+      IF (use_periodic_strain) THEN
+         virial%pv_virial = numer_pv_periodic
       ELSE
          DO i = 1, 3
             DO j = 1, 3

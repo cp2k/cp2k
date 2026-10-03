@@ -12,6 +12,7 @@ PROGRAM uspp_projector_operators_unittest
    USE atom_upf,                        ONLY: atom_release_upf,&
                                               atom_upfpot_type
    USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE cell_types,                      ONLY: cell_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_release, &
         dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_info, dbcsr_get_stored_coordinates, &
@@ -29,6 +30,7 @@ PROGRAM uspp_projector_operators_unittest
    USE libcp2k,                         ONLY: cp2k_finalize,&
                                               cp2k_init
    USE mathconstants,                   ONLY: pi
+   USE mathlib,                         ONLY: invmat
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_comm_world
    USE orbital_pointers,                ONLY: indco,&
@@ -55,10 +57,10 @@ PROGRAM uspp_projector_operators_unittest
                                               set_ks_env
    USE qs_subsys_types,                 ONLY: qs_subsys_set,&
                                               qs_subsys_type
-   USE qs_uspp_methods,                 ONLY: qs_uspp_collocate,&
-                                              qs_uspp_core_matrix,&
-                                              qs_uspp_init_ao_matrix,&
-                                              qs_uspp_integrate
+   USE qs_uspp_methods,                 ONLY: &
+        qs_uspp_atom_grid_apply, qs_uspp_atom_grid_collocate, qs_uspp_atom_grid_integrate, &
+        qs_uspp_atom_grid_prepare, qs_uspp_atom_grid_type, qs_uspp_collocate, qs_uspp_core_matrix, &
+        qs_uspp_init_ao_matrix, qs_uspp_integrate
    USE qs_uspp_projectors,              ONLY: qs_uspp_projector_gradient,&
                                               qs_uspp_projector_images,&
                                               qs_uspp_projector_matrix,&
@@ -1001,6 +1003,7 @@ CONTAINS
             END DO
          END DO
       END DO
+      CALL check_image_atom_grid(sap, pairs, cells, h_images, p_images, kvec, pkmat, dref)
       atom_grad = 0.0_dp
       cell_grad = 0.0_dp
       CALL qs_uspp_projector_images(bm, sap, pairs, 1, [1, 2], [1, 1], OPERATOR, h_images, p_images, density, &
@@ -1035,8 +1038,360 @@ CONTAINS
    END SUBROUTINE check_image_driver
 
 ! **************************************************************************************************
-!> \brief Exercise mixed kinds, metric access, rebuilding and KS ownership on the MPI grid.
-!> \param sap Neighbor integrals from the periodic-image assembly test.
+!> \brief Exercise the atom-grid adapter with complex Bloch densities and image Hamiltonians.
+!> \param sap Projector image lists, borrowed without changing their ownership.
+!> \param pairs Natural-order AO image-pair metadata.
+!> \param cells Lattice cells of the stored density and Hamiltonian matrices.
+!> \param h_images Zero AO operators, reset to zero on return.
+!> \param p_images AO image densities.
+!> \param kvec Reduced Bloch vector.
+!> \param pkmat Independent complex Bloch density.
+!> \param dref Independent on-site density from complex projector multiplication.
+! **************************************************************************************************
+   SUBROUTINE check_image_atom_grid(sap, pairs, cells, h_images, p_images, kvec, pkmat, dref)
+      TYPE(sap_int_type), INTENT(IN)                     :: sap(:)
+      INTEGER, INTENT(IN)                                :: pairs(:, :), cells(:, :)
+      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: h_images(:)
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: p_images(:)
+      REAL(KIND=dp), INTENT(IN)                          :: kvec(3)
+      COMPLEX(KIND=dp), INTENT(IN)                       :: pkmat(nao, nao)
+      REAL(KIND=dp), INTENT(IN)                          :: dref(nproj, nproj)
+
+      COMPLEX(KIND=dp)                                   :: hk(nao, nao), phase, stored_phase
+      INTEGER                                            :: center, ia, ib, image, info, ja, jb, n, &
+                                                            np, ra, rb
+      REAL(KIND=dp)                                      :: dense(nao, nao), energy, grad(3, 1), &
+                                                            points(3, 1), rho(1), vg(3, 1)
+      TYPE(cell_type)                                    :: cell
+      TYPE(qs_kind_type)                                 :: qs_kinds(2)
+      TYPE(qs_uspp_atom_grid_type)                       :: fields
+      TYPE(qs_uspp_type)                                 :: state
+      TYPE(sap_int_type), TARGET                         :: image_sap(4)
+
+      state%overlaps => bm
+      ALLOCATE (state%center_atoms, SOURCE=[1, 2])
+      ALLOCATE (state%center_kinds, SOURCE=[1, 2])
+      ALLOCATE (state%projector_sizes, SOURCE=pp_sizes)
+      ALLOCATE (state%position, SOURCE=positions)
+      ALLOCATE (state%augmentation, SOURCE=aug)
+      ALLOCATE (state%image_pairs, SOURCE=pairs)
+      ! All AO kinds are one in this synthetic fixture; the two projector kinds differ.
+      image_sap(1) = sap(1)
+      image_sap(3) = sap(1)
+      state%image_integrals => image_sap
+      DO center = 1, 2
+         CALL allocate_potential(qs_kinds(center)%sgp_potential)
+         ALLOCATE (qs_kinds(center)%sgp_potential%upf_data, SOURCE=pot(center))
+      END DO
+      CALL qs_uspp_atom_grid_prepare(state, qs_kinds, p_images, fields, .FALSE.)
+      DO center = 1, 2
+         n = pp_sizes(center)
+         CALL check(MAXVAL(ABS(fields%density(:n, :n, center) - &
+                               dref(first(center):last(center), first(center):last(center)))), &
+                    'atom-grid image projection versus complex Bloch density')
+      END DO
+      cell%hmat(:, 1) = [3.1_dp, 0.0_dp, 0.2_dp]
+      cell%hmat(:, 2) = [0.4_dp, 3.7_dp, 0.0_dp]
+      cell%hmat(:, 3) = [0.0_dp, 0.3_dp, 4.2_dp]
+      cell%h_inv = cell%hmat
+      CALL invmat(cell%h_inv, info)
+      IF (info /= 0) ERROR STOP 'Invalid image atom-grid cell'
+      np = MERGE(1, 0, rank == 0)
+      points(:, 1) = [0.3_dp, 0.1_dp, 0.7_dp]
+      rho = 0.0_dp
+      grad = 0.0_dp
+      vg(:, 1) = [-0.3_dp, 0.2_dp, 0.7_dp]
+      CALL qs_uspp_atom_grid_collocate(state, fields, cell, points(:, :np), rho(:np), grad(:, :np))
+      energy = SUM(0.31_dp*(0.2_dp*rho(:np) + SUM(vg(:, :np)*grad(:, :np), DIM=1)))
+      CALL comm%sum(energy)
+      CALL qs_uspp_atom_grid_integrate(state, fields, cell, points(:, :np), &
+                                       SPREAD(0.31_dp, 1, np), SPREAD(0.2_dp, 1, np), vg(:, :np))
+      CALL qs_uspp_atom_grid_apply(state, fields, h_images)
+      hk = CMPLX(0.0_dp, 0.0_dp, dp)
+      DO image = 1, SIZE(h_images)
+         CALL gather(h_images(image)%matrix, dense)
+         phase = EXP(CMPLX(0.0_dp, 2.0_dp*pi*DOT_PRODUCT(kvec, REAL(cells(:, image), dp)), dp))
+         DO ia = 1, 3
+            ra = 1 + SUM(ao_sizes(:ia - 1)); ja = ra + ao_sizes(ia) - 1
+            DO ib = ia, 3
+               rb = 1 + SUM(ao_sizes(:ib - 1)); jb = rb + ao_sizes(ib) - 1
+               stored_phase = phase
+               IF (case_id == 2 .AND. ia /= ib) stored_phase = CONJG(phase)
+               hk(ra:ja, rb:jb) = hk(ra:ja, rb:jb) + stored_phase*dense(ra:ja, rb:jb)
+               IF (ia /= ib) hk(rb:jb, ra:ja) = hk(rb:jb, ra:ja) + CONJG(stored_phase)*TRANSPOSE(dense(ra:ja, rb:jb))
+            END DO
+         END DO
+         CALL dbcsr_set(h_images(image)%matrix, 0.0_dp)
+      END DO
+      CALL check(ABS(energy - REAL(SUM(CONJG(pkmat)*hk), dp)), 'atom-grid complex Bloch energy pairing')
+      DO center = 1, 2
+         CALL deallocate_potential(qs_kinds(center)%sgp_potential)
+      END DO
+   END SUBROUTINE check_image_atom_grid
+
+! **************************************************************************************************
+!> \brief Check all-center atom quadrature against a Cartesian Gaussian oracle and energy differences.
+!> \param uspp Geometry state with two different projector kinds.
+!> \param qs_kinds Original UPF kinds.
+!> \param sap Synthetic image-resolved projector values and derivatives.
+! **************************************************************************************************
+   SUBROUTINE check_atom_grid(uspp, qs_kinds, sap)
+      TYPE(qs_uspp_type), INTENT(INOUT)                  :: uspp
+      TYPE(qs_kind_type), INTENT(IN)                     :: qs_kinds(:)
+      TYPE(sap_int_type), INTENT(IN)                     :: sap(:)
+
+      INTEGER                                            :: atom, axis, center, image, info, jdir, &
+                                                            n, r, sample, sign
+      REAL(KIND=dp) :: atom_grad(3, 3), cell_grad(3, 3), dense(nao, nao), distance(3), &
+         energies(2), factor, grad(3, 3), grad_ref(3, 3), local_energy, old_positions(3, 2), &
+         perturb(nao, nproj), point_change(3, 3), point_grad(3, 3), points(3, 3), &
+         projected(nproj, nproj), rho(3), rho_ref(3), shifted(3, 3), vgrad(3, 3), vrho(3), w(3)
+      TYPE(cell_type)                                    :: cell, varied_cell
+      TYPE(dbcsr_p_type)                                 :: dmats(1), hmats(1)
+      TYPE(qs_uspp_atom_grid_type), ALLOCATABLE          :: fields, trial
+
+      ALLOCATE (fields, trial)
+      old_positions = uspp%position
+      cell%hmat(:, 1) = [3.1_dp, 0.0_dp, 0.2_dp]
+      cell%hmat(:, 2) = [0.4_dp, 3.7_dp, 0.0_dp]
+      cell%hmat(:, 3) = [0.0_dp, 0.3_dp, 4.2_dp]
+      cell%h_inv = cell%hmat
+      CALL invmat(cell%h_inv, info)
+      IF (info /= 0) ERROR STOP 'Invalid atom-grid test cell'
+      points(:, 1) = positions(:, 1)
+      points(:, 2) = [0.3_dp, 1.1_dp, -0.7_dp]
+      points(:, 3) = [1.7_dp, 0.0_dp, 0.4_dp]
+      w = [0.3_dp, -0.5_dp, 0.8_dp]
+      DO sample = 1, 3
+         IF (MODULO(sample - 1, nranks) /= rank) w(sample) = 0.0_dp
+      END DO
+      ALLOCATE (dmats(1)%matrix, hmats(1)%matrix)
+      CALL dbcsr_copy(dmats(1)%matrix, pm)
+      CALL dbcsr_copy(hmats(1)%matrix, sm)
+      CALL dbcsr_set(hmats(1)%matrix, 0.0_dp)
+      CALL qs_uspp_atom_grid_prepare(uspp, qs_kinds, dmats, fields, .TRUE.)
+      projected = MATMUL(TRANSPOSE(b), MATMUL(p, b))
+      DO center = 1, 2
+         n = pp_sizes(center)
+         CALL check(MAXVAL(ABS(fields%density(:n, :n, center) - &
+                               projected(first(center):last(center), first(center):last(center)))), &
+                    'atom-grid replicated projected density')
+      END DO
+      rho = 0.4_dp
+      grad = 0.07_dp
+      CALL qs_uspp_atom_grid_collocate(uspp, fields, cell, points, rho, grad)
+      CALL atom_grid_gaussian_reference(cell, points, projected, rho_ref, grad_ref)
+      CALL check(MAXVAL(ABS(rho - rho_ref - 0.4_dp)), 'periodic atom-grid Gaussian density oracle', 2.e-10_dp)
+      CALL check(MAXVAL(ABS(grad - grad_ref - 0.07_dp)), 'periodic atom-grid Gaussian gradient oracle', 2.e-8_dp)
+      shifted = points + SPREAD(MATMUL(cell%hmat, [2.0_dp, -1.0_dp, 1.0_dp]), 2, 3)
+      rho_ref = 0.4_dp
+      grad_ref = 0.07_dp
+      CALL qs_uspp_atom_grid_collocate(uspp, fields, cell, shifted, rho_ref, grad_ref)
+      CALL check(MAXVAL(ABS(rho - rho_ref)) + MAXVAL(ABS(grad - grad_ref)), 'atom-grid cell-representative invariance')
+      ! Signed quadrature weights and a nonlinear GGA-like energy exercise cross-center terms.
+      vrho = rho**2
+      vgrad = grad
+      point_grad = 0.0_dp
+      ! Rank-local point batches are unequal and empty when rank >= three.
+      DO sample = rank + 1, 3, nranks
+         CALL qs_uspp_atom_grid_integrate(uspp, fields, cell, points(:, sample:sample), w(sample:sample), &
+                                          vrho(sample:sample), vgrad(:, sample:sample), point_grad(:, sample:sample))
+      END DO
+      CALL qs_uspp_atom_grid_collocate(uspp, fields, cell, points(:, :0), rho_ref(:0), grad_ref(:, :0))
+      CALL qs_uspp_atom_grid_integrate(uspp, fields, cell, points(:, :0), w(:0), vrho(:0), vgrad(:, :0), &
+                                       point_grad(:, :0))
+      atom_grad = 0.0_dp
+      cell_grad = 0.0_dp
+      CALL qs_uspp_atom_grid_apply(uspp, fields, hmats, dmats, sap, atom_grad, cell_grad)
+      CALL comm%sum(atom_grad)
+      CALL comm%sum(cell_grad)
+      CALL comm%sum(point_grad)
+      CALL gather(hmats(1)%matrix, dense)
+      local_energy = SUM(w*(vrho*(rho - 0.4_dp) + SUM(vgrad*(grad - 0.07_dp), DIM=1)))
+      CALL comm%sum(local_energy)
+      CALL check(ABS(SUM(p*dense) - local_energy), 'all-center atom-grid AO/field adjoint')
+      CALL check(MAXVAL(ABS(SUM(atom_grad, DIM=2) + SUM(point_grad, DIM=2))), 'moving-grid translation sum rule')
+      ! A full symmetric AO density direction, including cross-atom blocks.
+      DO sign = 1, 2
+         CALL dbcsr_release(dmats(1)%matrix)
+         rs => ao_sizes; cs => ao_sizes
+         CALL make_matrix(dmats(1)%matrix, 'atom-grid trial density', dist_ao, rs, cs, &
+                          p + REAL(3 - 2*sign, dp)*step*sg, 'S')
+         CALL qs_uspp_atom_grid_prepare(uspp, qs_kinds, dmats, trial, .FALSE.)
+         energies(sign) = atom_grid_energy(uspp, trial, cell, points, w)
+      END DO
+      CALL check(ABS((energies(1) - energies(2))/(2.0_dp*step) - SUM(dense*sg)), &
+                 'atom-grid nonlinear AO density derivative', 2.e-9_dp)
+      DO atom = 1, 3
+         DO axis = 1, 3
+            perturb = 0.0_dp
+            r = 1
+            DO center = 1, 2
+               r = 1
+               DO sample = 1, 3
+                  factor = (0.2_dp*axis + 0.17_dp)*(MERGE(1, 0, atom == sample) - MERGE(1, 0, atom == center))
+                  perturb(r:r + ao_sizes(sample) - 1, first(center):last(center)) = &
+                     factor*db(r:r + ao_sizes(sample) - 1, first(center):last(center))
+                  r = r + ao_sizes(sample)
+               END DO
+            END DO
+            DO sign = 1, 2
+               factor = REAL(3 - 2*sign, dp)*step
+               trial%density(:, :, :) = fields%density
+               projected = MATMUL(TRANSPOSE(b + factor*perturb), MATMUL(p, b + factor*perturb))
+               DO center = 1, 2
+                  n = pp_sizes(center)
+                  trial%density(:n, :n, center) = projected(first(center):last(center), first(center):last(center))
+               END DO
+               IF (atom <= 2) uspp%position(axis, atom) = old_positions(axis, atom) + factor
+               energies(sign) = atom_grid_energy(uspp, trial, cell, points, w)
+            END DO
+            uspp%position(:, :) = old_positions
+            CALL check(ABS((energies(1) - energies(2))/(2.0_dp*step) - atom_grad(axis, atom)), &
+                       'atom-grid center plus projector energy derivative', 2.e-9_dp)
+            point_change = 0.0_dp
+            point_change(axis, atom) = step
+            energies(1) = atom_grid_energy(uspp, fields, cell, points + point_change, w)
+            energies(2) = atom_grid_energy(uspp, fields, cell, points - point_change, w)
+            CALL check(ABS((energies(1) - energies(2))/(2.0_dp*step) - point_grad(axis, atom)), &
+                       'atom-grid moving-point energy derivative', 2.e-9_dp)
+         END DO
+      END DO
+      DO jdir = 1, 3
+         DO axis = 1, 3
+            perturb = 0.0_dp
+            r = 1
+            DO atom = 1, 3
+               DO center = 1, 2
+                  DO image = 1, 2
+                     distance = [0.4_dp*(atom - center) - 5.0_dp*(image - 1), &
+                                 0.7_dp*(atom - center), -0.2_dp*(atom - center)]
+                     factor = MERGE(0.3_dp, 0.7_dp, image == 1)*(0.2_dp*axis + 0.1_dp*image)*distance(jdir)
+                     perturb(r:r + ao_sizes(atom) - 1, first(center):last(center)) = &
+                        perturb(r:r + ao_sizes(atom) - 1, first(center):last(center)) &
+                        + factor*db(r:r + ao_sizes(atom) - 1, first(center):last(center))
+                  END DO
+               END DO
+               r = r + ao_sizes(atom)
+            END DO
+            DO sign = 1, 2
+               factor = REAL(3 - 2*sign, dp)*step
+               trial%density(:, :, :) = fields%density
+               projected = MATMUL(TRANSPOSE(b + factor*perturb), MATMUL(p, b + factor*perturb))
+               DO center = 1, 2
+                  n = pp_sizes(center)
+                  trial%density(:n, :n, center) = projected(first(center):last(center), first(center):last(center))
+               END DO
+               uspp%position(axis, :) = old_positions(axis, :) + factor*old_positions(jdir, :)
+               varied_cell = cell
+               varied_cell%hmat(axis, :) = cell%hmat(axis, :) + factor*cell%hmat(jdir, :)
+               varied_cell%h_inv = varied_cell%hmat
+               CALL invmat(varied_cell%h_inv, info)
+               IF (info /= 0) ERROR STOP 'Invalid strained test cell'
+               energies(sign) = atom_grid_energy(uspp, trial, varied_cell, points, w)
+            END DO
+            uspp%position(:, :) = old_positions
+            CALL check(ABS((energies(1) - energies(2))/(2.0_dp*step) - cell_grad(axis, jdir)), &
+                       'atom-grid source-center and projector strain derivative', 2.e-9_dp)
+         END DO
+      END DO
+      CALL dbcsr_release(dmats(1)%matrix)
+      CALL dbcsr_release(hmats(1)%matrix)
+      DEALLOCATE (dmats(1)%matrix, hmats(1)%matrix)
+   END SUBROUTINE check_atom_grid
+
+! **************************************************************************************************
+!> \brief Independent energy used for finite differences of the complete atom-grid map.
+!> \param uspp Geometry state.
+!> \param fields Projected density.
+!> \param cell Auxiliary cell.
+!> \param points Fixed Cartesian quadrature points.
+!> \param weights Rank-local signed weights.
+!> \return Globally reduced nonlinear energy with a fixed density/gradient environment.
+! **************************************************************************************************
+   REAL(KIND=dp) FUNCTION atom_grid_energy(uspp, fields, cell, points, weights) RESULT(energy)
+      TYPE(qs_uspp_type), INTENT(IN)                     :: uspp
+      TYPE(qs_uspp_atom_grid_type), INTENT(IN)           :: fields
+      TYPE(cell_type), INTENT(IN)                        :: cell
+      REAL(KIND=dp), INTENT(IN)                          :: points(:, :), weights(:)
+
+      REAL(KIND=dp)                                      :: rho(SIZE(weights)), &
+                                                            grad(3, SIZE(weights))
+
+      rho = 0.4_dp
+      grad = 0.07_dp
+      CALL qs_uspp_atom_grid_collocate(uspp, fields, cell, points, rho, grad)
+      energy = SUM(weights*(rho**3/3.0_dp + SUM(grad**2, DIM=1)/2.0_dp))
+      CALL comm%sum(energy)
+   END FUNCTION atom_grid_energy
+
+! **************************************************************************************************
+!> \brief Cartesian Gaussian oracle with a fixed, independent image enumeration.
+!> \param cell Triclinic test cell.
+!> \param points Test points in the central cell.
+!> \param density Dense on-site density.
+!> \param rho Augmentation density.
+!> \param gradient Cartesian density gradient.
+! **************************************************************************************************
+   SUBROUTINE atom_grid_gaussian_reference(cell, points, density, rho, gradient)
+      TYPE(cell_type), INTENT(IN)                        :: cell
+      REAL(KIND=dp), INTENT(IN)                          :: points(:, :), density(nproj, nproj)
+      REAL(KIND=dp), INTENT(OUT)                         :: rho(:), gradient(:, :)
+
+      INTEGER                                            :: axis, c, center, i, ix, iy, iz, j, l, m, &
+                                                            p, sample, u, v
+      REAL(KIND=dp)                                      :: angular(4), angular_d(3, 4), coeff, &
+                                                            radial, x(3)
+
+      rho = 0.0_dp
+      gradient = 0.0_dp
+      DO center = 1, 2
+         DO iz = -5, 5
+            DO iy = -5, 5
+               DO ix = -5, 5
+                  DO sample = 1, SIZE(rho)
+                     x = points(:, sample) - positions(:, center) - MATMUL(cell%hmat, REAL([ix, iy, iz], dp))
+                     radial = EXP(-alpha(center)*SUM(x*x))
+                     angular = 0.0_dp
+                     angular_d = 0.0_dp
+                     DO p = 1, pp_sizes(center)
+                        i = beta(center)%radial_index(p)
+                        l = pot(center)%lbeta(i)
+                        m = beta(center)%angular_index(p) - l*l
+                        DO c = 1, nco(l)
+                           IF (l == 0) THEN
+                              angular(p) = orbtramat(l)%slm(m, c)
+                           ELSE
+                              DO axis = 1, 3
+                                 IF (indco(axis, ncoset(l - 1) + c) == 1) THEN
+                                    angular(p) = angular(p) + orbtramat(l)%slm(m, c)*x(axis)
+                                    angular_d(axis, p) = orbtramat(l)%slm(m, c)
+                                 END IF
+                              END DO
+                           END IF
+                        END DO
+                     END DO
+                     DO v = 1, pp_sizes(center)
+                        j = beta(center)%radial_index(v)
+                        DO u = 1, pp_sizes(center)
+                           i = beta(center)%radial_index(u)
+                           coeff = coefficient(i, j, center)*radial*density(first(center) + u - 1, first(center) + v - 1)
+                           rho(sample) = rho(sample) + coeff*angular(u)*angular(v)
+                           gradient(:, sample) = gradient(:, sample) + coeff* &
+                                                 (angular_d(:, u)*angular(v) + angular(u)*angular_d(:, v) &
+                                                  - 2.0_dp*alpha(center)*x*angular(u)*angular(v))
+                        END DO
+                     END DO
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
+   END SUBROUTINE atom_grid_gaussian_reference
+
+! **************************************************************************************************
+!> \brief Exercise mixed kinds and KS state ownership.
+!> \param sap Image-resolved projector integrals.
 ! **************************************************************************************************
    SUBROUTINE check_state(sap)
       TYPE(sap_int_type), INTENT(INOUT)                  :: sap(:)
@@ -1086,6 +1441,7 @@ CONTAINS
       IF (ANY(uspp%center_kinds /= [3, 1])) ERROR STOP 'Incorrect augmentation-kind mapping'
       IF (ANY(uspp%projector_sizes /= pp_sizes)) ERROR STOP 'Incorrect magnetic-projector count'
       CALL qs_uspp_update(uspp, sm, sap, particles)
+      CALL check_atom_grid(uspp, qs_kinds, sap)
 
       ALLOCATE (subsys, cp_subsys)
       CALL qs_subsys_set(subsys, cp_subsys=cp_subsys)

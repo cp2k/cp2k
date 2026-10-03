@@ -17,6 +17,7 @@ MODULE qs_uspp_types
                                               dbcsr_release_p,&
                                               dbcsr_set,&
                                               dbcsr_type
+   USE gapw_coulomb_types,              ONLY: gapw_coulomb_cache_type
    USE kinds,                           ONLY: dp
    USE kpoint_transitional,             ONLY: kpoint_transitional_release,&
                                               kpoint_transitional_type,&
@@ -50,6 +51,7 @@ MODULE qs_uspp_types
       TYPE(kpoint_transitional_type) :: metric
       TYPE(sap_int_type), POINTER :: image_integrals(:) => NULL()
       INTEGER, ALLOCATABLE :: image_pairs(:, :)
+      TYPE(gapw_coulomb_cache_type), ALLOCATABLE :: coulomb
    END TYPE qs_uspp_type
 
    PUBLIC :: qs_uspp_type, qs_uspp_init, qs_uspp_update, qs_uspp_update_images, qs_uspp_release
@@ -134,6 +136,7 @@ CONTAINS
 
       CALL dbcsr_release_p(uspp%overlaps)
       CALL dbcsr_release_p(uspp%ao_pattern)
+      IF (ALLOCATED(uspp%coulomb)) DEALLOCATE (uspp%coulomb)
       CALL kpoint_transitional_release(uspp%metric)
       IF (ASSOCIATED(uspp%image_integrals)) CALL release_sap_int(uspp%image_integrals)
       IF (ALLOCATED(uspp%image_pairs)) DEALLOCATE (uspp%image_pairs)

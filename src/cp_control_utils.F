@@ -1153,6 +1153,10 @@ CONTAINS
       IF (qs_control%gapw_control%alpha0_hard /= 0.0_dp) qs_control%gapw_control%alpha0_hard_from_input = .TRUE.
       CALL section_vals_val_get(qs_section, "FORCE_PAW", l_val=qs_control%gapw_control%force_paw)
       CALL section_vals_val_get(qs_section, "MAX_RAD_LOCAL", r_val=qs_control%gapw_control%max_rad_local)
+      CALL section_vals_val_get(qs_section, "ATOM_GRID_IMAGE_SHELL", i_vals=tmplist)
+      CPASSERT(SIZE(tmplist) == 3)
+      IF (ANY(tmplist < 1)) CPABORT("ATOM_GRID_IMAGE_SHELL requires three positive integers")
+      qs_control%gapw_control%atom_grid_image_shell = tmplist
 
       CALL section_vals_val_get(qs_section, "MIN_PAIR_LIST_RADIUS", r_val=qs_control%pairlist_radius)
 
@@ -3156,6 +3160,10 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(T2,A,T71,I10)") &
                "QS| GAPW_XC|   atom-s-grid:  max l :", &
                qs_control%gapw_control%lmax_sphere
+         END IF
+         IF (qs_control%gapw .OR. qs_control%gapw_xc) THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,T69,3I4)") &
+               "QS| Composite atom-grid image shell:", qs_control%gapw_control%atom_grid_image_shell
          END IF
          IF (qs_control%mulliken_restraint) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A,T73,ES8.1)") &

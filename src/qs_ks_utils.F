@@ -109,6 +109,7 @@ MODULE qs_ks_utils
                                               integrate_v_rspace_diagonal,&
                                               integrate_v_rspace_one_center
    USE qs_kind_types,                   ONLY: get_qs_kind_set,&
+                                              has_uspp,&
                                               qs_kind_type
    USE qs_ks_qmmm_methods,              ONLY: qmmm_modify_hartree_pot
    USE qs_ks_types,                     ONLY: get_ks_env,&
@@ -1440,9 +1441,8 @@ CONTAINS
       INTEGER                                            :: handle, igroup, ikind, img, ispin, &
                                                             nkind, nspins
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: do_ppl, gapw, gapw_composite_direct_ao, &
-                                                            gapw_composite_reference, gapw_xc, &
-                                                            lrigpw, rigpw, use_work_v_rspace
+      LOGICAL :: do_ppl, gapw, gapw_composite_direct_ao, gapw_composite_reference, gapw_xc, &
+         lrigpw, rigpw, separate_xc, use_work_v_rspace
       REAL(KIND=dp)                                      :: csign, dvol, fadm
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1461,6 +1461,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), POINTER                      :: v_rspace, v_rspace_used, vee
       TYPE(pw_r3d_rs_type), TARGET                       :: v_rspace_work
+      TYPE(qs_kind_type), POINTER                        :: qs_kind_set(:)
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux_fit
       TYPE(section_vals_type), POINTER                   :: input, xc_section
@@ -1474,7 +1475,7 @@ CONTAINS
                rho_ao_nokp, ks_env, admm_env, task_list, v_rspace_used, input, xc_section)
 
       CALL get_qs_env(qs_env, &
-                      dft_control=dft_control, &
+                      dft_control=dft_control, qs_kind_set=qs_kind_set, &
                       input=input, &
                       pw_env=pw_env, &
                       v_hartree_rspace=v_rspace, &
@@ -1484,6 +1485,7 @@ CONTAINS
       CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
+      separate_xc = gapw_xc .OR. (gapw .AND. has_uspp(qs_kind_set))
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       gapw_composite_reference = native_skala_gapw_composite_reference(xc_section) .AND. &
                                  (gapw .OR. gapw_xc)
@@ -1517,7 +1519,7 @@ CONTAINS
                                        calculate_forces=calculate_forces, &
                                        gapw=gapw .AND. .NOT. gapw_composite_direct_ao)
                CALL pw_copy(v_rspace, v_rspace_new(ispin))
-            ELSE IF (gapw_xc) THEN
+            ELSE IF (separate_xc) THEN
                ! SIC not implemented (or at least not tested)
                CPASSERT(dft_control%sic_method_id == sic_none)
                !Only the xc potential, because it has to be integrated with the soft basis
@@ -1530,9 +1532,10 @@ CONTAINS
                                        pmat_kp=rho_ao, hmat_kp=ksmat, &
                                        qs_env=qs_env, &
                                        calculate_forces=calculate_forces, &
-                                       gapw=gapw_xc)
+                                       gapw=separate_xc)
 
-               ! Now the Hartree potential to be integrated with the full basis
+               ! Hartree uses the full basis in GAPW_XC and the soft basis in GAPW.
+               ! The USPP grid adjoint sees only Hartree; XC augmentation is integrated on atoms.
                CALL pw_copy(v_rspace, v_rspace_new(ispin))
             ELSE
                ! Add v_hartree + v_xc = v_rspace_new

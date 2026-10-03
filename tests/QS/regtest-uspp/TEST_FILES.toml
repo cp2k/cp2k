@@ -1,7 +1,17 @@
-# Unmodified SSSP v2.0 GBRV PBE H v1.4. One SCF exercises native USPP energy and forces.
+# Unmodified SSSP v2.0 GBRV PBE H v1.4; energy, force and stress in all three modes.
 "H2_GPW.inp" = [
   {matcher="M011", tol=1e-11, ref=-1.235346744328969},
   {matcher="M031", tol=1e-7, ref=-2.25912458461E+05},
   {matcher="Atomic_force_1_z", tol=1e-6, ref=-0.0135410598},
   {matcher="Atomic_force_2_y", tol=1e-6, ref=0.00926642248},
+]
+"H2_GAPW_XC.inp" = [
+  {matcher="M011", tol=1e-11, ref=-1.109326317612901},
+  {matcher="M031", tol=1e-7, ref=-62957.3656495},
+  {matcher="Atomic_force_1_z", tol=1e-6, ref=0.0173364443},
+]
+"H2_GAPW.inp" = [
+  {matcher="M011", tol=1e-11, ref=-1.109208911863599},
+  {matcher="M031", tol=1e-7, ref=-62878.9532327},
+  {matcher="Atomic_force_1_z", tol=1e-6, ref=0.0180282777},
 ]

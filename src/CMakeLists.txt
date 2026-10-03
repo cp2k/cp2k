@@ -71,6 +71,7 @@ list(
   qs_uspp_projectors.F
   qs_uspp_types.F
   qs_uspp_methods.F
+  qs_uspp_gapw.F
   atom_utils.F
   atom_xc.F
   auto_basis.F
@@ -237,6 +238,8 @@ list(
   group_dist_types.F
   grrm_utils.F
   gapw_1c_basis_set.F
+  gapw_coulomb_integrals.F
+  gapw_coulomb_types.F
   gw_ri_rs_compute_Z_lP.F
   gw_ri_rs_compute_Z_lP_utils.F
   gw_auto_ri_generate_RI_basis.F
@@ -1619,6 +1622,7 @@ set(CP2K_PROGS_F
     upf_local_integrals_unittest.F
     gapw_background_unittest.F
     gapw_1c_basis_unittest.F
+    gapw_coulomb_integrals_unittest.F
     kpoint_lattice_fft_unittest.F
     kpoint_smearing_unittest.F
     topology_wilson_unittest.F
@@ -2059,6 +2063,7 @@ list(
   "upf_local_integrals_unittest"
   "gapw_background_unittest"
   "gapw_1c_basis_unittest"
+  "gapw_coulomb_integrals_unittest"
   "kpoint_lattice_fft_unittest"
   "kpoint_smearing_unittest"
   "topology_wilson_unittest"
@@ -2109,6 +2114,8 @@ add_executable(upf_projector_integrals_unittest
 add_executable(upf_local_integrals_unittest upf_local_integrals_unittest.F)
 add_executable(gapw_background_unittest gapw_background_unittest.F)
 add_executable(gapw_1c_basis_unittest gapw_1c_basis_unittest.F)
+add_executable(gapw_coulomb_integrals_unittest
+               gapw_coulomb_integrals_unittest.F)
 add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)
 add_executable(kpoint_smearing_unittest kpoint_smearing_unittest.F)
 add_executable(topology_wilson_unittest topology_wilson_unittest.F)

@@ -35,6 +35,8 @@ MODULE qs_update_s_mstruct
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
+   USE qs_kind_types,                   ONLY: has_uspp,&
+                                              qs_kind_type
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_did_change,&
                                               qs_ks_env_type,&
@@ -309,25 +311,27 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_rebuild_rho'
 
       INTEGER                                            :: handle
-      LOGICAL                                            :: do_admm, gapw_xc
+      LOGICAL                                            :: do_admm, separate_xc
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(qs_kind_type), POINTER                        :: qs_kind_set(:)
       TYPE(qs_rho_type), POINTER                         :: rho, rho_external, rho_xc
 
       NULLIFY (rho)
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, &
-                      dft_control=dft_control, &
+                      dft_control=dft_control, qs_kind_set=qs_kind_set, &
                       rho=rho, &
                       rho_xc=rho_xc, &
                       rho_external=rho_external)
 
-      gapw_xc = dft_control%qs_control%gapw_xc
+      separate_xc = dft_control%qs_control%gapw_xc .OR. &
+                    (dft_control%qs_control%gapw .AND. has_uspp(qs_kind_set))
       do_admm = dft_control%do_admm
       CALL qs_rho_rebuild(rho, qs_env=qs_env, &
                           rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids)
 
-      IF (gapw_xc) THEN
+      IF (separate_xc) THEN
          CALL qs_rho_rebuild(rho_xc, qs_env=qs_env, &
                              rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids)
       END IF

@@ -103,6 +103,8 @@ CONTAINS
 !> \param native_gapw_composite_override ...
 !> \param native_skala_defer_to_atom_composite prepare VXC storage while deferring the
 !>        native SKALA evaluation to the atom-centered GAPW composite path
+!> \param exclude_nlcc omit the core density when it is evaluated in a separate atom-grid functional
+!> \param smooth_reference integrate the smooth XC reference over the whole uniform grid
 !> \par History
 !>      - 05.2002 modified to use the mp_allgather function each pe
 !>        computes only part of the grid and this is broadcasted to all
@@ -116,7 +118,7 @@ CONTAINS
    SUBROUTINE qs_vxc_create(ks_env, rho_struct, xc_section, vxc_rho, vxc_tau, exc, &
                             just_energy, edisp, dispersion_env, adiabatic_rescale_factor, &
                             pw_env_external, native_skala_atom_force, qs_env_external, &
-                            native_gapw_composite_override, native_skala_defer_to_atom_composite)
+                            native_gapw_composite_override, native_skala_defer_to_atom_composite, exclude_nlcc, smooth_reference)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
@@ -132,7 +134,7 @@ CONTAINS
          OPTIONAL                                        :: native_skala_atom_force
       TYPE(qs_environment_type), OPTIONAL, POINTER       :: qs_env_external
       LOGICAL, INTENT(in), OPTIONAL :: native_gapw_composite_override, &
-         native_skala_defer_to_atom_composite
+         native_skala_defer_to_atom_composite, exclude_nlcc, smooth_reference
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_vxc_create'
 
@@ -208,6 +210,12 @@ CONTAINS
                       virial=virial, &
                       rho_nlcc=rho_nlcc, &
                       rho_nlcc_g=rho_nlcc_g)
+      IF (PRESENT(exclude_nlcc)) THEN
+         IF (exclude_nlcc) NULLIFY (rho_nlcc, rho_nlcc_g)
+      END IF
+      IF (PRESENT(smooth_reference)) THEN
+         IF (smooth_reference) NULLIFY (weights)
+      END IF
       rho_nlcc_use => rho_nlcc
       rho_nlcc_g_use => rho_nlcc_g
       weights_use => weights
