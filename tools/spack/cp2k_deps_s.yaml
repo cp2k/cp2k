@@ -112,6 +112,11 @@ spack:
       require:
         - "+hdf5"
 
+    # Yasm's CMake recipe has many target-related issues.
+    yasm:
+      require:
+        - "build_system=autotools"
+
   repos:
     builtin:
       commit: 13bb171032cedfbc9739b1f23772e0f197df308a # 2026-09-30
@@ -135,6 +140,7 @@ spack:
     - "libgint@release_v1"
     - "libint@2.13.1-cp2k-lmax-5"
     - "libvori@220621"
+    - "libwignernj@0.8.0"
     - "libxc@7.1.2"
     - "libxs@1.0.0"
     - "libxsmm@2.1.0"
