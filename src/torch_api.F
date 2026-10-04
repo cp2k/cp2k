@@ -87,6 +87,7 @@ MODULE torch_api
              torch_model_forward, torch_model_release
    PUBLIC :: torch_model_disable_parameter_gradients, torch_model_forward_mol_tensor, &
              torch_model_remap_device_constants
+   PUBLIC :: torch_model_promote_float32
    PUBLIC :: torch_model_get_attr, torch_model_read_metadata
    PUBLIC :: torch_cuda_device_count, torch_cuda_is_available
    PUBLIC :: torch_allow_tf32, torch_model_freeze, torch_model_freeze_preserving_method, &
@@ -831,6 +832,28 @@ CONTAINS
       MARK_USED(model)
 #endif
    END SUBROUTINE torch_model_remap_device_constants
+
+! **************************************************************************************************
+!> \brief Promote float32 model state and explicit floating-point casts to double precision.
+! **************************************************************************************************
+   SUBROUTINE torch_model_promote_float32(model)
+      TYPE(torch_model_type), INTENT(INOUT)              :: model
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_model_promote_float32(model) BIND(C, name="torch_c_model_promote_float32")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE                           :: model
+         END SUBROUTINE torch_c_model_promote_float32
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(model%c_ptr))
+      CALL torch_c_model_promote_float32(model%c_ptr)
+#else
+      CPABORT("CP2K was compiled without Torch library.")
+      MARK_USED(model)
+#endif
+   END SUBROUTINE torch_model_promote_float32
 
 ! **************************************************************************************************
 !> \brief Disable gradients for inference-only model parameters.

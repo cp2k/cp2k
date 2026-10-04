@@ -15,6 +15,7 @@
 #include <c10/core/DeviceGuard.h>
 #include <torch/csrc/api/include/torch/cuda.h>
 #include <torch/csrc/jit/passes/freeze_module.h>
+#include <torch/csrc/jit/passes/inliner.h>
 #include <torch/script.h>
 
 #include "offload/offload_library.h"
@@ -271,6 +272,69 @@ static void remap_model_device_constants(torch::jit::Module &model,
   }
   for (auto child : model.children()) {
     remap_model_device_constants(child, device);
+  }
+}
+
+static void promote_float32_constants(torch::jit::Block *block) {
+  for (torch::jit::Node *node : block->nodes()) {
+    if (node->kind() == torch::jit::prim::Constant &&
+        node->hasAttribute(torch::jit::attr::value) &&
+        node->kindOf(torch::jit::attr::value) == torch::jit::AttributeKind::t) {
+      const auto tensor = node->t(torch::jit::attr::value);
+      if (tensor.defined() && tensor.scalar_type() == torch::kFloat32) {
+        const auto promoted = tensor.to(torch::kFloat64);
+        node->t_(torch::jit::attr::value, promoted);
+        node->output()->setType(c10::TensorType::create(promoted));
+      }
+    }
+    const auto *schema = node->maybeSchema();
+    if (schema != nullptr) {
+      const auto &arguments = schema->arguments();
+      for (size_t i = 0; i < arguments.size() && i < node->inputs().size();
+           ++i) {
+        const auto value = torch::jit::toIValue(node->input(i));
+        if (arguments[i].name() == "dtype" && value.has_value() &&
+            value->isInt() &&
+            value->toInt() == static_cast<int64_t>(torch::kFloat32)) {
+          // A dtype constant can also be used as a dimension or an index.
+          // Replace this edge only; leave other uses and integer tensors
+          // intact.
+          torch::jit::WithInsertPoint insertion_guard(node);
+          auto *dtype = node->owningGraph()->insertConstant(
+              static_cast<int64_t>(torch::kFloat64));
+          node->replaceInput(i, dtype);
+        }
+      }
+    }
+    for (torch::jit::Block *nested : node->blocks()) {
+      promote_float32_constants(nested);
+    }
+  }
+}
+
+static void promote_model_float32(torch::jit::Module &model) {
+  for (const auto &attribute : model.named_attributes(false)) {
+    const auto &value = attribute.value;
+    if (value.isTensor() && value.toTensor().defined() &&
+        value.toTensor().scalar_type() == torch::kFloat32) {
+      model.setattr(attribute.name, value.toTensor().to(torch::kFloat64));
+    } else if (value.isTensorList()) {
+      auto tensors = value.toTensorList();
+      for (size_t i = 0; i < tensors.size(); ++i) {
+        if (tensors.get(i).defined() &&
+            tensors.get(i).scalar_type() == torch::kFloat32) {
+          tensors.set(i, tensors.get(i).to(torch::kFloat64));
+        }
+      }
+      model.setattr(attribute.name, tensors);
+    }
+  }
+  for (const auto &method : model.get_methods()) {
+    torch::jit::Inline(*method.graph());
+    promote_float32_constants(method.graph()->block());
+  }
+  for (auto child : model.children()) {
+    promote_model_float32(child);
   }
 }
 
@@ -701,6 +765,17 @@ void torch_c_model_remap_device_constants(torch_c_model_t *model) {
     remap_model_device_constants(*model, device);
     initialize_cuda_linalg(device);
   }
+}
+
+/*******************************************************************************
+ * \brief Promote float32 model state and explicit numerical casts to float64.
+ *        Trained values are retained exactly; integer/index operations are
+ * kept.
+ ******************************************************************************/
+void torch_c_model_promote_float32(torch_c_model_t *model) {
+  TorchFloatingPointMaskGuard fpe_guard;
+  torch::NoGradGuard no_grad;
+  promote_model_float32(*model);
 }
 
 /*******************************************************************************

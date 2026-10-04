@@ -1328,7 +1328,7 @@ CONTAINS
                           "The current CP2K bridge uses GauXC's molecular quadrature. Periodic inputs "// &
                           "are limited to isolated validation cells and are not compact periodic "// &
                           "material calculations.", &
-                          n_keywords=29, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=30, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1485,6 +1485,17 @@ CONTAINS
                           "ADMM, and non-k-point multiple-image calculations are not implemented.", &
                           usage="NATIVE_GRID T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_MODEL_FP64", &
+                          description="Promote float32 numerical state and explicit floating-point casts "// &
+                          "in the native SKALA TorchScript model to double precision. Trained parameter "// &
+                          "values are retained exactly. This improves SCF and geometry-derivative "// &
+                          "consistency for mixed-precision exports. Disable to retain the export's "// &
+                          "original numerical precision.", &
+                          usage="NATIVE_GRID_MODEL_FP64 T", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
