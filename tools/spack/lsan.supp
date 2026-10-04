@@ -40,7 +40,6 @@ leak:opal_hash_table_set_value_ptr
 leak:opal_infosubscribe_subscribe
 leak:opal_reachable_allocate
 leak:opal_vasprintf
-leak:pmix_hash_fetch
-leak:PMIx_Value_create
+leak:libpmix.so
 leak:__strdup
 leak:__vasprintf_internal
