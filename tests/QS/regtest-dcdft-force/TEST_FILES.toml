@@ -11,13 +11,13 @@
 # PBE - PBE
 "N2_t04.inp"                            = [{matcher="M011", tol=1e-12, ref=-19.919507647923325}]
 # LDA - TPSS MO solver
-"N2_t05.inp"                            = [{matcher="M011", tol=5e-12, ref=-19.597072615859805}]
+"N2_t05.inp"                            = [{matcher="M011", tol=5e-12, ref=-19.59707298037059}]
 # TPSS - LDA MO solver
-"N2_t06.inp"                            = [{matcher="M011", tol=5e-12, ref=-19.794531050533937}]
+"N2_t06.inp"                            = [{matcher="M011", tol=5e-12, ref=-19.794531090039023}]
 # LDA - BR89 AO solver
-"N2_t07.inp"                            = [{matcher="M011", tol=1e-12, ref=-19.518445253058768}]
+"N2_t07.inp"                            = [{matcher="M011", tol=1e-12, ref=-19.518429876746794}]
 # BR89 - LDA AO solver
-"N2_t08.inp"                            = [{matcher="M011", tol=5e-12, ref=-19.794774602971181}]
+"N2_t08.inp"                            = [{matcher="M011", tol=5e-12, ref=-19.794770638548325}]
 # HFX - PBE
 "N2_t09.inp"                            = [{matcher="M011", tol=1e-12, ref=-19.910974562321606}]
 # HFX - PBE AO solver

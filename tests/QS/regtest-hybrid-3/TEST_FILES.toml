@@ -1,4 +1,4 @@
-"CH3-hybrid-HSE06-lsd.inp"              = [{matcher="E_total", tol=1e-13, ref=-39.78495160223501}]
+"CH3-hybrid-HSE06-lsd.inp"              = [{matcher="E_total", tol=1e-13, ref=-39.78495289680539}]
 "H2O-hybrid-b3lyp_shortcut.inp"         = [{matcher="E_total", tol=4e-14, ref=-76.37338940401885}]
 "H2O-hybrid-pbe0_shortcut.inp"          = [{matcher="E_total", tol=3e-14, ref=-76.31995335312706}]
 "Li-hybrid-rcam-b3lyp.inp"              = [{matcher="E_total", tol=3e-08, ref=-7.4460773270220502}]

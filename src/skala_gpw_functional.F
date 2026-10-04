@@ -99,6 +99,7 @@ MODULE skala_gpw_functional
    TYPE(skala_gapw_atom_cuda_tensor_cache_type), SAVE, TARGET :: cached_atom_cuda_tensors
    CHARACTER(len=default_path_length), SAVE            :: cached_model_path = ""
    LOGICAL, SAVE                                       :: cached_model_loaded = .FALSE.
+   LOGICAL, SAVE                                       :: cached_model_fp64 = .FALSE.
    INTEGER, SAVE                                       :: cached_model_cuda_device = -3
    INTEGER, SAVE                                       :: logged_cuda_device = -3, &
                                                           logged_cuda_device_count = -1, &
@@ -501,7 +502,7 @@ CONTAINS
       CALL torch_use_cuda(native_grid_use_cuda)
       selected_cuda_device = configure_native_grid_cuda( &
                              native_grid_use_cuda, native_grid_cuda_device, rho_r(1)%pw_grid%para%group)
-      CALL ensure_model_loaded(model_path, selected_cuda_device)
+      CALL ensure_model_loaded(model_path, selected_cuda_device, xc_section)
 
       IF (lsd) THEN
          needs%rho_spin = .TRUE.
@@ -773,7 +774,7 @@ CONTAINS
       CALL torch_use_cuda(native_grid_use_cuda)
       selected_cuda_device = configure_native_grid_cuda( &
                              native_grid_use_cuda, native_grid_cuda_device, rho_r(1)%pw_grid%para%group)
-      CALL ensure_model_loaded(model_path, selected_cuda_device)
+      CALL ensure_model_loaded(model_path, selected_cuda_device, xc_section)
 
       IF (lsd) THEN
          needs%rho_spin = .TRUE.
@@ -963,7 +964,7 @@ CONTAINS
       CALL torch_use_cuda(native_grid_use_cuda)
       selected_cuda_device = configure_native_grid_cuda( &
                              native_grid_use_cuda, native_grid_cuda_device, group)
-      CALL ensure_model_loaded(model_path, selected_cuda_device)
+      CALL ensure_model_loaded(model_path, selected_cuda_device, xc_section)
 
       nflat = na*nr
       ALLOCATE (density(nflat, 2), grad(nflat, 3, 2), kin(nflat, 2), &
@@ -1257,7 +1258,7 @@ CONTAINS
       exc = 0.0_dp
       IF (active_rank) THEN
          CALL timeset("skala_atom_tensor_setup", phase_handle)
-         CALL ensure_model_loaded(model_path, selected_cuda_device)
+         CALL ensure_model_loaded(model_path, selected_cuda_device, xc_section)
          CALL atom_composite_chunk_layout(atomic_grid_sizes, chunk_max_rows, &
                                           chunk_atom_begin, chunk_atom_count, &
                                           chunk_row_begin, chunk_row_counts)
@@ -2954,21 +2955,31 @@ CONTAINS
 !> \brief Load and cache the TorchScript SKALA model.
 !> \param model_path ...
 !> \param cuda_device ...
+!> \param xc_section XC settings, including the native model precision.
 ! **************************************************************************************************
-   SUBROUTINE ensure_model_loaded(model_path, cuda_device)
+   SUBROUTINE ensure_model_loaded(model_path, cuda_device, xc_section)
       CHARACTER(len=*), INTENT(IN)                       :: model_path
       INTEGER, INTENT(IN)                                :: cuda_device
+      TYPE(section_vals_type), POINTER                   :: xc_section
+
+      LOGICAL                                            :: fp64
+      TYPE(section_vals_type), POINTER                   :: gauxc_section
+
+      gauxc_section => get_gauxc_section(xc_section)
+      CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_MODEL_FP64", l_val=fp64)
 
       IF (cached_model_loaded) THEN
          IF (TRIM(cached_model_path) == TRIM(model_path) .AND. &
-             cached_model_cuda_device == cuda_device) RETURN
+             cached_model_cuda_device == cuda_device .AND. &
+             (cached_model_fp64 .EQV. fp64)) RETURN
          CALL skala_torch_model_release(cached_model)
          cached_model_loaded = .FALSE.
       END IF
 
-      CALL skala_torch_model_load(cached_model, TRIM(model_path))
+      CALL skala_torch_model_load(cached_model, TRIM(model_path), fp64=fp64)
       cached_model_path = model_path
       cached_model_cuda_device = cuda_device
+      cached_model_fp64 = fp64
       cached_model_loaded = .TRUE.
 
    END SUBROUTINE ensure_model_loaded

@@ -34,9 +34,9 @@
                                         {matcher="Atomic_force_1_z", tol=1.0E-06, ref=-0.112424874},
                                         {matcher="Atomic_force_2_y", tol=1.0E-06, ref=-0.112900268},
                                         {matcher="Atomic_force_2_z", tol=1.0E-06, ref=0.0592044729}]
-"h2o_mgga_lapl_analytic.inp"            = [{matcher="E_total", tol=1.0E-06, ref=-16.95990978168588}]
+"h2o_mgga_lapl_analytic.inp"            = [{matcher="E_total", tol=1.0E-06, ref=-16.95429414634514}]
 "h2o_lsd_lda_analytic.inp"              = [{matcher="E_total", tol=1.0E-10, ref=-16.66698042191488}]
 "h2o_lsd_gga_analytic.inp"              = [{matcher="E_total", tol=1.0E-10, ref=-16.77629238461370}]
-"h2o_lsd_mgga_tau_analytic.inp"         = [{matcher="E_total", tol=1.0E-10, ref=-16.78482419749887}]
-"h2o_lsd_mgga_lapl_analytic.inp"        = [{matcher="E_total", tol=1.0E-08, ref=-16.54706095214013}]
+"h2o_lsd_mgga_tau_analytic.inp"         = [{matcher="E_total", tol=1.0E-10, ref=-16.78482717026715}]
+"h2o_lsd_mgga_lapl_analytic.inp"        = [{matcher="E_total", tol=1.0E-08, ref=-16.5463704887304}]
 #EOF

@@ -238,7 +238,8 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho, sx, sx0, omega
 
       INTEGER                                            :: ip
-      REAL(dp)                                           :: my_ndrho, my_rho
+      REAL(dp)                                           :: gradient_before, gradient_increment, &
+                                                            my_ndrho, my_rho, pullback
       REAL(KIND=dp)                                      :: ss, ss2, sscale, t1, t2, t3, t4, t5, t6, &
                                                             t7, t8, ww
 
@@ -247,6 +248,7 @@ CONTAINS
       DO ip = 1, npoints
          my_rho = MAX(rho(ip), 0.0_dp)
          IF (my_rho > epsilon_rho) THEN
+            gradient_before = e_ndrho(ip)
             my_ndrho = MAX(norm_drho(ip), 0.0_dp)
 
             !Do some precalculation in order to catch the correct branch afterwards
@@ -278,7 +280,15 @@ CONTAINS
             END IF
 
             IF (sx /= 0.0_dp) THEN
-               IF (ww < wcutoff .AND. ss*sscale > gcutoff) THEN
+               IF (omega == 0.0_dp) THEN
+                  IF (ss*sscale > gcutoff) THEN
+                     CALL xwpbe_lda_calc_0(e_0(ip), e_rho(ip), e_ndrho(ip), my_rho, &
+                                           my_ndrho, sscale, sx, order)
+                  ELSE
+                     CALL xwpbe_lda_calc_01(e_0(ip), e_rho(ip), e_ndrho(ip), my_rho, &
+                                            my_ndrho, sscale, sx, order)
+                  END IF
+               ELSE IF (ww < wcutoff .AND. ss*sscale > gcutoff) THEN
                   CALL xwpbe_lda_calc_1(e_0(ip), e_rho(ip), e_ndrho(ip), my_rho, &
                                         my_ndrho, omega, sscale, sx, order)
                ELSE IF (ww < wcutoff .AND. ss*sscale <= gcutoff) THEN
@@ -291,6 +301,14 @@ CONTAINS
                   CALL xwpbe_lda_calc_4(e_0(ip), e_rho(ip), e_ndrho(ip), my_rho, &
                                         my_ndrho, omega, sscale, sx, order)
                END IF
+            END IF
+            IF (order >= 1 .AND. ss > scutoff) THEN
+               ! Pull back g_eff = g*f(s), s = g/(2*k_F*rho), through the large-s scaling.
+               ! The generated expressions differentiate at fixed f(s).
+               pullback = (-smax*ss2 + 3.0_dp*sconst)/(smax*ss2 - sconst)
+               gradient_increment = e_ndrho(ip) - gradient_before
+               e_rho(ip) = e_rho(ip) - gradient_increment*(4.0_dp*my_ndrho/(3.0_dp*my_rho))*pullback
+               e_ndrho(ip) = gradient_before + gradient_increment*(1.0_dp + pullback)
             END IF
          END IF
       END DO
@@ -698,6 +716,15 @@ CONTAINS
       REAL(KIND=dp) :: t52, t53, t54, t56, t58, t59, t6, t61, t63, t65, t66, t67, t68, t69, t7, &
          t70, t71, t72, t73, t74, t76, t77, t78, t79, t8, t80, t81, t83, t84, t86, t88, t89, t9, &
          t92, t93, t94, t95, t97, t98
+
+      IF (ndrho == 0.0_dp) THEN
+         ! The cancelling exp(Q)*E1(Q)+log(Q) terms tend to -Euler's constant.
+         t1 = -f89*clda*(B/(2.0_dp*DD) + C/(2.0_dp*DD**2) + E/DD**3 + &
+                         0.5_dp*A*(-0.577215664901532860606512_dp + LOG(A/(f94*DD))))
+         e_0 = e_0 + sx0*t1*rho**(4.0_dp/3.0_dp)
+         IF (order >= 1) e_rho = e_rho + sx0*(4.0_dp/3.0_dp)*t1*rho**(1.0_dp/3.0_dp)
+         RETURN
+      END IF
 
       t1 = ndrho**2
       t2 = a1*t1
@@ -3091,7 +3118,9 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho, sx, sx0, omega
 
       INTEGER                                            :: ip
-      REAL(dp)                                           :: e_0_temp, my_ndrho, my_rho
+      REAL(dp)                                           :: e_0_temp, gradient_before, &
+                                                            gradient_increment, my_ndrho, my_rho, &
+                                                            pullback
       REAL(KIND=dp)                                      :: ss, ss2, sscale, t1, t2, t3, t4, t5, t6, &
                                                             t7, t8, ww
 
@@ -3101,6 +3130,7 @@ CONTAINS
          !According to spin-scaling relation, we need twice the density and its gradient
          my_rho = 2.0_dp*MAX(rho(ip), 0.0_dp)
          IF (my_rho > epsilon_rho) THEN
+            gradient_before = e_ndrho(ip)
             my_ndrho = 2.0_dp*MAX(norm_drho(ip), 0.0_dp)
 
             !Do some precalculation in order to catch the correct branch afterwards
@@ -3134,7 +3164,15 @@ CONTAINS
             END IF
             e_0_temp = 0.0_dp
             IF (sx /= 0.0_dp) THEN
-               IF (ww < wcutoff .AND. ss*sscale > gcutoff) THEN
+               IF (omega == 0.0_dp) THEN
+                  IF (ss*sscale > gcutoff) THEN
+                     CALL xwpbe_lda_calc_0(e_0_temp, e_rho(ip), e_ndrho(ip), my_rho, &
+                                           my_ndrho, sscale, sx, order)
+                  ELSE
+                     CALL xwpbe_lda_calc_01(e_0_temp, e_rho(ip), e_ndrho(ip), my_rho, &
+                                            my_ndrho, sscale, sx, order)
+                  END IF
+               ELSE IF (ww < wcutoff .AND. ss*sscale > gcutoff) THEN
                   CALL xwpbe_lda_calc_1(e_0_temp, e_rho(ip), e_ndrho(ip), my_rho, &
                                         my_ndrho, omega, sscale, sx, order)
                ELSE IF (ww < wcutoff .AND. ss*sscale <= gcutoff) THEN
@@ -3150,6 +3188,14 @@ CONTAINS
                !According to spin-scaling relation, we need only half of the energy
             END IF
             e_0(ip) = e_0(ip) + 0.5_dp*e_0_temp
+            IF (order >= 1 .AND. ss > scutoff) THEN
+               ! Pull back g_eff = g*f(s), s = g/(2*k_F*rho), through the large-s scaling.
+               ! The generated expressions differentiate at fixed f(s).
+               pullback = (-smax*ss2 + 3.0_dp*sconst)/(smax*ss2 - sconst)
+               gradient_increment = e_ndrho(ip) - gradient_before
+               e_rho(ip) = e_rho(ip) - gradient_increment*(4.0_dp*my_ndrho/(3.0_dp*my_rho))*pullback
+               e_ndrho(ip) = gradient_before + gradient_increment*(1.0_dp + pullback)
+            END IF
          END IF
       END DO
 
