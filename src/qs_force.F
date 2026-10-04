@@ -463,10 +463,7 @@ CONTAINS
                ! There should be a more elegant solution to that ...
             END DO
          END IF
-         ! The vacuum Poisson solvers define stress only in the physical periodic subspace.
-         ! An isolated system has no cell-stress components; retain the existing 1D checks.
-         IF ((.NOT. virial%pv_numer) .AND. &
-             (ALL(cell%perd == 0) .OR. COUNT(cell%perd /= 0) == 2)) THEN
+         IF ((.NOT. virial%pv_numer) .AND. COUNT(cell%perd /= 0) == 2) THEN
             SELECT CASE (dft_control%qs_control%method_id)
             CASE (do_method_gapw, do_method_gapw_xc, do_method_gpw, &
                   do_method_lrigpw, do_method_ofgpw, do_method_rigpw)
