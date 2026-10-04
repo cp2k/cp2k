@@ -215,11 +215,9 @@ CONTAINS
       INTEGER, INTENT(inout)                             :: non_coer
 
       INTEGER                                            :: ii
-      LOGICAL                                            :: clipped_tau, t571, t639
-      REAL(dp)                                           :: incoming_gradient, incoming_rho, &
-                                                            incoming_tau, partial_gradient, &
-                                                            partial_rho, partial_tau, &
-                                                            tau_unif_inverse
+      LOGICAL                                            :: clipped_tau, floored_tau, t571, t639
+      REAL(dp) :: incoming_gradient, incoming_rho, incoming_tau, partial_gradient, partial_rho, &
+         partial_tau, tau_floor, tau_unif_inverse
       REAL(kind=dp) :: A, A_1, A_2, A_s1, A_s1rho, A_s2, A_s2rho, alpha, alpha_1_1, alpha_1_2, &
          alphanorm_drho, alpharho, alphatau, Arho, b, beta, beta_1_1, beta_1_2, beta_2_1, &
          beta_2_2, beta_3_1, beta_3_2, beta_4_1, beta_4_2, c, d, e_c_u_0, e_c_u_0rho, e_c_u_1_s1, &
@@ -228,23 +226,23 @@ CONTAINS
          epsilon_cRevPKZBrho, epsilon_cRevPKZBtau, ex_unif, Fx, gamma_var, Hnorm_drho, k_f_s1, &
          k_f_s1rho, k_s, k_s_s1, k_s_s2, kappa, m, ma, manorm_drho, marho, mb, mbnorm_drho, mbrho
       REAL(kind=dp) :: mu, my_ndrho, my_rho, my_tau, p, p_1, p_2, p_3, phi_s1, phi_s2, pnorm_drho, &
-         prho, rs, rs_s1, rs_s1rho, rs_s2, rs_s2rho, rsrho, t, t1, t100, t101, t111, t12, t13, &
-         t138, t14, t140, t143, t145, t146, t147, t151, t152, t16, t161, t168, t177, t186, t187, &
-         t189, t19, t190, t191, t193, t194, t196, t197, t198, t199, t2, t20, t201, t202, t204, &
-         t205, t208, t209, t21, t211, t212, t213, t215, t216, t218, t219, t22, t220, t221, t223, &
-         t224, t226, t227, t230, t231, t233, t234, t235, t238, t239, t241, t242, t243, t245, t246, &
-         t248, t249, t252, t253, t254, t256, t26, t260, t263, t264, t265
-      REAL(kind=dp) :: t267, t268, t269, t27, t271, t272, t274, t275, t276, t277, t278, t279, t28, &
-         t280, t281, t284, t286, t29, t290, t291, t293, t294, t295, t299, t3, t301, t302, t303, &
-         t305, t307, t310, t313, t316, t319, t322, t325, t327, t328, t329, t331, t337, t340, t343, &
-         t344, t35, t351, t36, t370, t371, t376, t383, t385, t386, t39, t390, t391, t395, t396, &
-         t398, t4, t403, t404, t406, t41, t410, t411, t419, t42, t437, t445, t450, t452, t464, &
-         t472, t475, t485, t489, t49, t490, t5, t505, t513, t517, t536, t541, t542, t546, t547, &
-         t549, t55, t554, t555, t557, t561, t562, t569, t574, t58, t585, t6
-      REAL(kind=dp) :: t60, t604, t609, t610, t614, t615, t617, t622, t623, t625, t629, t630, &
-         t637, t642, t645, t659, t67, t7, t71, t73, t77, t78, t79, t799, t80, t84, t85, t89, t9, &
-         t94, t95, t96, t_s1, t_s1norm_drho, t_s1rho, t_s2, t_s2norm_drho, t_s2rho, tau_w, &
-         tau_wnorm_drho, tau_wrho, tildeq_b, tildeq_bnorm_drho, tildeq_brho, tildeq_btau, &
+         prho, regular_tau, rs, rs_s1, rs_s1rho, rs_s2, rs_s2rho, rsrho, t, t1, t100, t101, t111, &
+         t12, t13, t138, t14, t140, t143, t145, t146, t147, t151, t152, t16, t161, t168, t177, &
+         t186, t187, t189, t19, t190, t191, t193, t194, t196, t197, t198, t199, t2, t20, t201, &
+         t202, t204, t205, t208, t209, t21, t211, t212, t213, t215, t216, t218, t219, t22, t220, &
+         t221, t223, t224, t226, t227, t230, t231, t233, t234, t235, t238, t239, t241, t242, t243, &
+         t245, t246, t248, t249, t252, t253, t254, t256, t26, t260, t263
+      REAL(kind=dp) :: t264, t265, t267, t268, t269, t27, t271, t272, t274, t275, t276, t277, &
+         t278, t279, t28, t280, t281, t284, t286, t29, t290, t291, t293, t294, t295, t299, t3, &
+         t301, t302, t303, t305, t307, t310, t313, t316, t319, t322, t325, t327, t328, t329, t331, &
+         t337, t340, t343, t344, t35, t351, t36, t370, t371, t376, t383, t385, t386, t39, t390, &
+         t391, t395, t396, t398, t4, t403, t404, t406, t41, t410, t411, t419, t42, t437, t445, &
+         t450, t452, t464, t472, t475, t485, t489, t49, t490, t5, t505, t513, t517, t536, t541, &
+         t542, t546, t547, t549, t55, t554, t555, t557, t561, t562, t569, t574
+      REAL(kind=dp) :: t58, t585, t6, t60, t604, t609, t610, t614, t615, t617, t622, t623, t625, &
+         t629, t630, t637, t642, t645, t659, t67, t7, t71, t73, t77, t78, t79, t799, t80, t84, &
+         t85, t89, t9, t94, t95, t96, t_s1, t_s1norm_drho, t_s1rho, t_s2, t_s2norm_drho, t_s2rho, &
+         tau_w, tau_wnorm_drho, tau_wrho, tildeq_b, tildeq_bnorm_drho, tildeq_brho, tildeq_btau, &
          tnorm_drho, trho, z, znorm_drho, zrho, ztau
 
       kappa = 0.804e0_dp
@@ -271,6 +269,7 @@ CONTAINS
       beta_4_2 = 0.62517e0_dp
       p_3 = 0.10e1_dp
 
+      tau_floor = MAX(epsilon_tau, EPSILON(0.0_dp))
       t1 = 3._dp**(0.1e1_dp/0.3e1_dp)
       t2 = 4._dp**(0.1e1_dp/0.3e1_dp)
       t3 = t2**2
@@ -282,10 +281,20 @@ CONTAINS
 !$OMP     DO
 
       DO ii = 1, npoints
-         my_tau = tau(ii)
+         ! Fourier interpolation can give negative tau even at finite density.
+         ! Continue the energy through tau=0; discarding these points makes it
+         ! discontinuous and invalidates the potential and geometry derivatives.
+         floored_tau = tau(ii) <= tau_floor
+         regular_tau = MAX(tau(ii), tau_floor)
+         my_tau = regular_tau
          my_rho = rho(ii)
-         IF (my_rho > epsilon_rho .AND. my_tau > epsilon_tau) THEN
+         IF (my_rho > epsilon_rho) THEN
             my_ndrho = norm_drho(ii)
+            IF (grad_deriv > 0) THEN
+               incoming_rho = e_rho(ii)
+               incoming_gradient = e_ndrho(ii)
+               incoming_tau = e_tau(ii)
+            END IF
 
             t7 = 0.1e1_dp/my_rho
             t254 = my_ndrho**2
@@ -299,11 +308,6 @@ CONTAINS
                my_ndrho = SQRT(m)
                t254 = m
                tau_w = my_tau
-               IF (grad_deriv > 0) THEN
-                  incoming_rho = e_rho(ii)
-                  incoming_gradient = e_ndrho(ii)
-                  incoming_tau = e_tau(ii)
-               END IF
                non_coer = non_coer + 1
             END IF
 
@@ -690,13 +694,14 @@ CONTAINS
                   partial_gradient = e_ndrho(ii) - incoming_gradient
                   partial_tau = e_tau(ii) - incoming_tau
                   e_rho(ii) = incoming_rho + partial_rho + &
-                              2.0_dp*tau(ii)/my_ndrho*partial_gradient - &
+                              2.0_dp*regular_tau/my_ndrho*partial_gradient - &
                               norm_drho(ii)**2/(16.0_dp*my_rho**2)*partial_tau
                   e_ndrho(ii) = incoming_gradient + &
                                 0.5_dp*norm_drho(ii)/my_ndrho*partial_gradient + &
                                 norm_drho(ii)/(8.0_dp*my_rho)*partial_tau
                   e_tau(ii) = incoming_tau + 2.0_dp*my_rho/my_ndrho*partial_gradient + 0.5_dp*partial_tau
                END IF
+               IF (floored_tau) e_tau(ii) = incoming_tau
             END IF
          END IF
       END DO

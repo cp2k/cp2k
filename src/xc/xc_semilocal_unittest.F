@@ -206,6 +206,34 @@ CONTAINS
          CALL evaluate_tpss_point(trial, minus, scratch)
          error = MAX(error, ABS((plus - minus)/(2.0_dp*step) - gradient(axis)))
       END DO
+      ! Negative Fourier-interpolated tau must not discard a finite-density energy.
+      DO configuration = 1, 2
+         x = [0.4_dp, 1.2_dp, -0.05_dp]
+         IF (configuration == 2) x(2) = 0.0_dp
+         CALL evaluate_tpss_point(x, energy, gradient)
+         IF (ABS(energy) < 1.e-4_dp .OR. gradient(3) /= 0.0_dp) THEN
+            ERROR STOP 'TPSS negative-tau continuation is not finite and constant in tau'
+         END IF
+         DO axis = 1, 3
+            IF (axis == 2 .AND. configuration == 2) CYCLE
+            trial = x
+            trial(axis) = x(axis) + step
+            CALL evaluate_tpss_point(trial, plus, scratch)
+            trial(axis) = x(axis) - step
+            CALL evaluate_tpss_point(trial, minus, scratch)
+            error = MAX(error, ABS((plus - minus)/(2.0_dp*step) - gradient(axis)))
+         END DO
+      END DO
+      x = [0.4_dp, 1.2_dp, 0.0_dp]
+      CALL evaluate_tpss_point(x, energy, gradient)
+      trial = x
+      trial(3) = 1.e-10_dp
+      CALL evaluate_tpss_point(trial, plus, scratch)
+      trial(3) = -1.e-10_dp
+      CALL evaluate_tpss_point(trial, minus, scratch)
+      IF (MAX(ABS(plus - energy), ABS(minus - energy)) > 1.e-9_dp) THEN
+         ERROR STOP 'TPSS energy is discontinuous through zero kinetic density'
+      END IF
       WRITE (*, '(A,ES15.6)') 'TPSS limiting-density first-derivative error:', error
       IF (error > 3.e-8_dp) ERROR STOP 'TPSS limiting-density potential is not the energy derivative'
    END SUBROUTINE check_tpss_zero_gradient
@@ -240,6 +268,11 @@ CONTAINS
       rho_set%has%norm_drho = .TRUE.
       rho_set%has%tau = .TRUE.
       CALL xc_dset_create(derivatives, local_bounds=bounds)
+      DO i = 1, SIZE(labels)
+         derivative => xc_dset_get_derivative(derivatives, [labels(i)], allocate_deriv=.TRUE.)
+         CALL xc_derivative_get(derivative, deriv_data=values)
+         values = 0.125_dp
+      END DO
       CALL xc_functionals_eval(functional, lsd=.FALSE., rho_set=rho_set, deriv_set=derivatives, deriv_order=1)
       derivative => xc_dset_get_derivative(derivatives, [INTEGER::])
       CALL xc_derivative_get(derivative, deriv_data=values)
@@ -247,7 +280,7 @@ CONTAINS
       DO i = 1, SIZE(labels)
          derivative => xc_dset_get_derivative(derivatives, [labels(i)])
          CALL xc_derivative_get(derivative, deriv_data=values)
-         gradient(i) = values(1, 1, 1)
+         gradient(i) = values(1, 1, 1) - 0.125_dp
       END DO
       IF (.NOT. ieee_is_finite(energy) .OR. .NOT. ALL(ieee_is_finite(gradient))) THEN
          ERROR STOP 'TPSS energy or first derivative is nonfinite at a stationary density point'
