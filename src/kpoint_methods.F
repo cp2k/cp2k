@@ -135,6 +135,7 @@ MODULE kpoint_methods
    ! Non-owning view of one symmetry contribution; valid while kpoint metadata is unchanged.
    TYPE :: kp_symmetry_op_type
       TYPE(kind_rotmat_type), DIMENSION(:), POINTER :: kind_rot => NULL()
+      TYPE(kind_rotmat_type), DIMENSION(:), POINTER :: kind_rot_right => NULL()
       INTEGER, DIMENSION(:), POINTER :: atom_map => NULL(), atom_kind => NULL()
       INTEGER, DIMENSION(:, :), POINTER :: cell_shift => NULL()
       REAL(KIND=dp), DIMENSION(3) :: xkp = 0.0_dp
@@ -495,6 +496,12 @@ CONTAINS
             DO i = 1, ns
                DO j = 1, nkind
                   NULLIFY (kpoint%kind_rotmat(i, j)%rmat)
+               END DO
+            END DO
+            ALLOCATE (kpoint%kind_rotmat_aux(ns, nkind))
+            DO i = 1, ns
+               DO j = 1, nkind
+                  NULLIFY (kpoint%kind_rotmat_aux(i, j)%rmat)
                END DO
             END DO
             ALLOCATE (kpoint%ibrot(ns))
@@ -2221,7 +2228,7 @@ CONTAINS
 !> \param overlap_rs ...
 ! **************************************************************************************************
    SUBROUTINE kpoint_density_transform(kpoint, denmat, wtype, tempmat, sab_nl, fmwork, for_aux_fit, &
-                                       pmat_ext, overlap_rs)
+                                       pmat_ext, overlap_rs, mixed_aux_orb)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(dbcsr_p_type), DIMENSION(:, :)                :: denmat
@@ -2230,7 +2237,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN), TARGET :: fmwork
-      LOGICAL, OPTIONAL                                  :: for_aux_fit
+      LOGICAL, OPTIONAL                                  :: for_aux_fit, mixed_aux_orb
       TYPE(cp_fm_type), DIMENSION(:, :, :), INTENT(IN), &
          OPTIONAL, TARGET                                :: pmat_ext
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
@@ -2242,7 +2249,7 @@ CONTAINS
                                                             nimg, nkp, nspin
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: aux_fit, do_symmetric, local, &
-                                                            regular_grid_done, &
+                                                            mixed_aux_orb_local, regular_grid_done, &
                                                             regular_grid_eligible
       TYPE(cp_fm_p_type), ALLOCATABLE, &
          DIMENSION(:, :, :)                              :: source
@@ -2260,6 +2267,11 @@ CONTAINS
          aux_fit = for_aux_fit
       ELSE
          aux_fit = .FALSE.
+      END IF
+      IF (PRESENT(mixed_aux_orb)) THEN
+         mixed_aux_orb_local = mixed_aux_orb
+      ELSE
+         mixed_aux_orb_local = .FALSE.
       END IF
 
       IF (aux_fit) THEN
@@ -2348,7 +2360,8 @@ CONTAINS
                                                     transform_plan, regular_grid_done)
       END IF
       IF (.NOT. regular_grid_done) THEN
-         CALL kpoint_density_transform_batched(kpoint, source, denmat, rpmat, transform_plan)
+         CALL kpoint_density_transform_batched(kpoint, source, denmat, rpmat, transform_plan, &
+                                               for_aux_fit=aux_fit, mixed_aux_orb=mixed_aux_orb_local)
       END IF
 
       CALL dbcsr_deallocate_matrix(rpmat)
@@ -2369,12 +2382,14 @@ CONTAINS
 !> \param template union of the source AO sparsities
 !> \param plan neighbor-list traversal and storage conventions
 ! **************************************************************************************************
-   SUBROUTINE kpoint_density_transform_batched(kpoint, source, denmat, template, plan)
+   SUBROUTINE kpoint_density_transform_batched(kpoint, source, denmat, template, plan, for_aux_fit, &
+                                               mixed_aux_orb)
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(cp_fm_p_type), DIMENSION(:, :, :), INTENT(IN) :: source
       TYPE(dbcsr_p_type), DIMENSION(:, :)                :: denmat
       TYPE(dbcsr_type), POINTER                          :: template
       TYPE(kp_transform_plan_type), INTENT(IN)           :: plan
+      LOGICAL, INTENT(IN), OPTIONAL                      :: for_aux_fit, mixed_aux_orb
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform_batched'
       INTEGER(KIND=int_8), PARAMETER                     :: max_bytes = 64_int_8*1024*1024
@@ -2402,7 +2417,8 @@ CONTAINS
       world => kpoint%blacs_env_all%para_env
       CALL dbcsr_get_info(template, row_blk_size=row_size, col_blk_size=col_size, &
                           row_blk_offset=row_offset, col_blk_offset=col_offset)
-      CALL kp_density_groups_create(kpoint, SIZE(row_size), groups)
+      CALL kp_density_groups_create(kpoint, SIZE(row_size), groups, for_aux_fit=for_aux_fit, &
+                                    mixed_aux_orb=mixed_aux_orb)
       CPASSERT(SIZE(row_size) == SIZE(col_size))
       ALLOCATE (tiles(4, SIZE(row_size), SIZE(source, 1), SIZE(source, 2), SIZE(source, 3)))
       DO ispin = 1, SIZE(source, 3)
@@ -2541,11 +2557,12 @@ CONTAINS
 !> \param natom number of AO blocks
 !> \param groups operation views and local contribution lists; zero is the identity
 ! **************************************************************************************************
-   SUBROUTINE kp_density_groups_create(kpoint, natom, groups)
+   SUBROUTINE kp_density_groups_create(kpoint, natom, groups, for_aux_fit, mixed_aux_orb)
       TYPE(kpoint_type), POINTER                         :: kpoint
       INTEGER, INTENT(IN)                                :: natom
       TYPE(kp_density_group_type), ALLOCATABLE, &
          INTENT(OUT)                                     :: groups(:)
+      LOGICAL, INTENT(IN), OPTIONAL                      :: for_aux_fit, mixed_aux_orb
 
       INTEGER                                            :: i, ik, ikp, is, ncontrib, nrot, pass, &
                                                             slot
@@ -2577,8 +2594,9 @@ CONTAINS
                      DO i = 1, natom
                         groups(slot)%inverse(i) = i
                      END DO
-                     IF (slot > 0) THEN
-                        CALL kp_symmetry_op_init(groups(slot)%op, kpoint, kpsym, is)
+                      IF (slot > 0) THEN
+                         CALL kp_symmetry_op_init(groups(slot)%op, kpoint, kpsym, is, for_aux_fit, &
+                                                  mixed_aux_orb)
                         groups(slot)%reverse_phase = kpsym%phase_mode(is) == 2
                         DO i = 1, natom
                            groups(slot)%inverse(groups(slot)%op%atom_map(i)) = i
@@ -2826,7 +2844,7 @@ CONTAINS
                TARGET(:, :) = TARGET + sums
             ELSE
                left_rot => groups(slot)%op%kind_rot(groups(slot)%op%atom_kind(groups(slot)%inverse(jobs(1, 1))))%rmat
-               right_rot => groups(slot)%op%kind_rot(groups(slot)%op%atom_kind(groups(slot)%inverse(jobs(2, 1))))%rmat
+               right_rot => groups(slot)%op%kind_rot_right(groups(slot)%op%atom_kind(groups(slot)%inverse(jobs(2, 1))))%rmat
                DO image = 1, nimage
                   source_block(1:row_size(a), 1:col_size(b)) => sums(:, image)
                   target_block(1:row_size(jobs(1, image)), 1:col_size(jobs(2, image))) => TARGET(:, image)
@@ -3576,20 +3594,36 @@ CONTAINS
 !> \param kpsym symmetry data for the representative k-point
 !> \param is index in the existing symmetry contribution list
 ! **************************************************************************************************
-   SUBROUTINE kp_symmetry_op_init(op, kpoint, kpsym, is)
+   SUBROUTINE kp_symmetry_op_init(op, kpoint, kpsym, is, for_aux_fit, mixed_aux_orb)
       TYPE(kp_symmetry_op_type), INTENT(OUT)             :: op
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(kpoint_sym_type), POINTER                     :: kpsym
       INTEGER, INTENT(IN)                                :: is
+      LOGICAL, INTENT(IN), OPTIONAL                      :: for_aux_fit, mixed_aux_orb
 
       INTEGER                                            :: iatom, rot_slot
-      LOGICAL                                            :: has_phase, perm, rotates
+      LOGICAL                                            :: aux_fit, has_phase, my_mixed, perm, rotates
       REAL(KIND=dp)                                      :: dr
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rot
 
+      aux_fit = .FALSE.
+      IF (PRESENT(for_aux_fit)) aux_fit = for_aux_fit
+      my_mixed = .FALSE.
+      IF (PRESENT(mixed_aux_orb)) my_mixed = mixed_aux_orb
+
       rot_slot = find_kpoint_rotation_slot(kpoint, kpsym%rotp(is))
       CPASSERT(rot_slot > 0)
-      op%kind_rot => kpoint%kind_rotmat(rot_slot, :)
+      IF (aux_fit .AND. ASSOCIATED(kpoint%kind_rotmat_aux)) THEN
+         op%kind_rot => kpoint%kind_rotmat_aux(rot_slot, :)
+         IF (my_mixed) THEN
+            op%kind_rot_right => kpoint%kind_rotmat(rot_slot, :)
+         ELSE
+            op%kind_rot_right => kpoint%kind_rotmat_aux(rot_slot, :)
+         END IF
+      ELSE
+         op%kind_rot => kpoint%kind_rotmat(rot_slot, :)
+         op%kind_rot_right => kpoint%kind_rotmat(rot_slot, :)
+      END IF
       op%atom_map => kpsym%f0(:, is)
       op%atom_kind => kpoint%atype
       op%cell_shift => kpsym%fcell_gauge(:, :, is)

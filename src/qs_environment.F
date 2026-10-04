@@ -563,6 +563,9 @@ CONTAINS
       ! basis set symmetry rotations
       IF (do_kpoints) THEN
          CALL qs_basis_rotation(qs_env, kpoints)
+         IF (dft_control%do_admm) THEN
+            CALL qs_basis_rotation(qs_env, kpoints, basis_type="AUX_FIT", storage_type="AUX_FIT")
+         END IF
       END IF
 
       do_hfx = .FALSE.
@@ -922,9 +925,7 @@ CONTAINS
       END SELECT
 
       IF (LEN_TRIM(reason) > 0) RETURN
-      IF ((do_hfx .OR. do_exx) .AND. do_admm) THEN
-         reason = "HFX/HF with ADMM"
-      ELSE IF (do_bse) THEN
+      IF (do_bse) THEN
          reason = "BSE"
       ELSE IF (do_gw) THEN
          reason = "GW"

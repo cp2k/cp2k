@@ -242,6 +242,8 @@ MODULE kpoint_types
       INTEGER, DIMENSION(:), POINTER          :: ibrot => Null()
       TYPE(kind_rotmat_type), DIMENSION(:, :), &
          POINTER                              :: kind_rotmat => Null()
+      TYPE(kind_rotmat_type), DIMENSION(:, :), &
+         POINTER                              :: kind_rotmat_aux => Null()
       ! pools
       TYPE(qs_matrix_pools_type), POINTER     :: mpools => Null()
       TYPE(qs_diis_buffer_type_kp), POINTER   :: scf_diis_buffer => Null()
@@ -385,6 +387,17 @@ CONTAINS
                END DO
             END DO
             DEALLOCATE (kpoint%kind_rotmat)
+         END IF
+
+         IF (ASSOCIATED(kpoint%kind_rotmat_aux)) THEN
+            DO i = 1, SIZE(kpoint%kind_rotmat_aux, 1)
+               DO j = 1, SIZE(kpoint%kind_rotmat_aux, 2)
+                  IF (ASSOCIATED(kpoint%kind_rotmat_aux(i, j)%rmat)) THEN
+                     DEALLOCATE (kpoint%kind_rotmat_aux(i, j)%rmat)
+                  END IF
+               END DO
+            END DO
+            DEALLOCATE (kpoint%kind_rotmat_aux)
          END IF
 
          IF (ASSOCIATED(kpoint%scf_diis_buffer)) THEN
