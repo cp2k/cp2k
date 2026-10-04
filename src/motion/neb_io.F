@@ -630,11 +630,12 @@ CONTAINS
                                 c_val=TRIM(output_file_path))
       IF (logger%default_global_unit_nr > 0) THEN
          CALL close_file(unit_number=logger%default_global_unit_nr)
+         ! The replica output file may already be open (e.g. by the logger of the replica), then
+         ! its unit is shared, otherwise a free unit is used
          CALL open_file(file_name=output_file_path, &
                         file_status="UNKNOWN", &
                         file_action="WRITE", &
                         file_position="APPEND", &
-                        skip_get_unit_number=.TRUE., &
                         unit_number=logger%default_global_unit_nr)
          WRITE (UNIT=logger%default_global_unit_nr, FMT="(/,(T2,A79))") &
             "*******************************************************************************", &
@@ -667,8 +668,8 @@ CONTAINS
                                  file_status="UNKNOWN", &
                                  file_action="WRITE", &
                                  file_position="APPEND", &
-                                 skip_get_unit_number=.TRUE., &
                                  unit_number=unit_nr)
+                  sub_logger%default_global_unit_nr = unit_nr
                END IF
             END IF
          END DO
