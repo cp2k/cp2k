@@ -13,7 +13,8 @@ MODULE qs_basis_rotation_methods
    USE cp_control_types,                ONLY: dft_control_type
    USE input_constants,                 ONLY: do_method_dftb
    USE kinds,                           ONLY: dp
-   USE kpoint_types,                    ONLY: kpoint_sym_type,&
+   USE kpoint_types,                    ONLY: kind_rotmat_type,&
+                                              kpoint_sym_type,&
                                               kpoint_type
    USE orbital_pointers,                ONLY: nso
    USE orbital_transformation_matrices, ONLY: calculate_rotmat,&
@@ -48,13 +49,14 @@ CONTAINS
 !> \param kpoints ...
 !> \param basis_type ...
 ! **************************************************************************************************
-   SUBROUTINE qs_basis_rotation(qs_env, kpoints, basis_type)
+   SUBROUTINE qs_basis_rotation(qs_env, kpoints, basis_type, storage_type)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kpoint_type), POINTER                         :: kpoints
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: storage_type
 
-      CHARACTER(LEN=12)                                  :: my_basis
+      CHARACTER(LEN=12)                                  :: my_basis, my_storage
       INTEGER                                            :: ik, ikind, ir, ira, irot, jr, lval, &
                                                             nkind, nrot
       REAL(KIND=dp), DIMENSION(3, 3)                     :: rotmat
@@ -62,6 +64,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis
       TYPE(kpoint_sym_type), POINTER                     :: kpsym
+      TYPE(kind_rotmat_type), DIMENSION(:, :), POINTER   :: rotmat_store
       TYPE(orbrotmat_type), DIMENSION(:), POINTER        :: orbrot
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -73,17 +76,27 @@ CONTAINS
       ELSE
          my_basis = "ORB"
       END IF
-      IF (ASSOCIATED(kpoints%kind_rotmat)) THEN
+      IF (PRESENT(storage_type)) THEN
+         my_storage = storage_type
+      ELSE
+         my_storage = "ORB"
+      END IF
+      IF (TRIM(my_storage) == "AUX_FIT") THEN
+         rotmat_store => kpoints%kind_rotmat_aux
+      ELSE
+         rotmat_store => kpoints%kind_rotmat
+      END IF
+      IF (ASSOCIATED(rotmat_store)) THEN
          CALL get_qs_env(qs_env, cell=cell)
          CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
          CALL get_qs_kind_set(qs_kind_set, maxlgto=lval)
-         nrot = SIZE(kpoints%kind_rotmat, 1)
-         nkind = SIZE(kpoints%kind_rotmat, 2)
+         nrot = SIZE(rotmat_store, 1)
+         nkind = SIZE(rotmat_store, 2)
          ! remove possible old rotation matrices
          DO irot = 1, nrot
             DO ikind = 1, nkind
-               IF (ASSOCIATED(kpoints%kind_rotmat(irot, ikind)%rmat)) THEN
-                  DEALLOCATE (kpoints%kind_rotmat(irot, ikind)%rmat)
+               IF (ASSOCIATED(rotmat_store(irot, ikind)%rmat)) THEN
+                  DEALLOCATE (rotmat_store(irot, ikind)%rmat)
                END IF
             END DO
          END DO
@@ -100,21 +113,21 @@ CONTAINS
                      IF (ir == kpoints%ibrot(jr)) ira = jr
                   END DO
                   IF (ira > 0) THEN
-                     IF (.NOT. ASSOCIATED(kpoints%kind_rotmat(ira, 1)%rmat)) THEN
+                     IF (.NOT. ASSOCIATED(rotmat_store(ira, 1)%rmat)) THEN
                         rotmat(1:3, 1:3) = kpsym%rot(1:3, 1:3, irot)
                         CALL calculate_rotmat(orbrot, rotmat, lval)
                         IF (dft_control%qs_control%method_id == do_method_dftb) THEN
                            DO ikind = 1, nkind
                               CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_parameter)
-                              NULLIFY (kpoints%kind_rotmat(ira, ikind)%rmat)
-                              CALL set_rotmat_dftb(kpoints%kind_rotmat(ira, ikind)%rmat, &
+                              NULLIFY (rotmat_store(ira, ikind)%rmat)
+                              CALL set_rotmat_dftb(rotmat_store(ira, ikind)%rmat, &
                                                    orbrot, dftb_parameter)
                            END DO
                         ELSE
                            DO ikind = 1, nkind
                               CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis, basis_type=my_basis)
-                              NULLIFY (kpoints%kind_rotmat(ira, ikind)%rmat)
-                              CALL set_rotmat_basis(kpoints%kind_rotmat(ira, ikind)%rmat, orbrot, orb_basis)
+                              NULLIFY (rotmat_store(ira, ikind)%rmat)
+                              CALL set_rotmat_basis(rotmat_store(ira, ikind)%rmat, orbrot, orb_basis)
                            END DO
                         END IF
                      END IF
