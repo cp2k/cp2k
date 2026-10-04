@@ -76,6 +76,7 @@ MODULE md_run
    USE metadynamics,                    ONLY: metadyn_finalise_plumed,&
                                               metadyn_forces,&
                                               metadyn_initialise_plumed,&
+                                              metadyn_integrator,&
                                               metadyn_write_colvar
    USE metadynamics_types,              ONLY: set_meta_env
    USE particle_list_types,             ONLY: particle_list_type
@@ -395,6 +396,9 @@ CONTAINS
             ! Setup stuff for plumed if needed
             IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
                CALL metadyn_initialise_plumed(force_env, simpar, itimes)
+               ! Include the bias in the first half kick and initial energy/pressure.
+               ! This also initializes PLUMED's first-step bookkeeping on restart.
+               CALL metadyn_integrator(force_env, itimes)
             ELSE
                IF (force_env%meta_env%langevin) THEN
                   CALL create_wiener_process_cv(force_env%meta_env)

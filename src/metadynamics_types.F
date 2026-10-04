@@ -98,6 +98,7 @@ MODULE metadynamics_types
       LOGICAL                                   :: well_tempered = .FALSE.
       LOGICAL                                   :: langevin = .FALSE.
       LOGICAL                                   :: use_plumed = .FALSE.
+      REAL(KIND=dp)                             :: plumed_bias = 0.0_dp
       CHARACTER(LEN=default_path_length)        :: plumed_input_file = ""
       INTEGER                                   :: n_colvar = -1
       REAL(KIND=dp)                             :: ekin_s = 0.0_dp, epot_s = 0.0_dp, dt = 0.0_dp, &

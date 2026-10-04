@@ -21,7 +21,7 @@ if(PKG_CONFIG_FOUND)
   pkg_search_module(CP2K_PLUMED IMPORTED_TARGET GLOBAL plumed plumedInternals)
 endif()
 
-if(NOT ${CP2K_PLUMED_FOUND})
+if(NOT CP2K_PLUMED_FOUND)
   cp2k_find_libraries(PLUMED "plumed")
   cp2k_include_dirs(PLUMED "plumed.h plumed/plumed.h")
 endif()
@@ -39,9 +39,14 @@ if(CP2K_PLUMED_FOUND)
     add_library(cp2k::plumed::plumed INTERFACE IMPORTED)
   endif()
   set_target_properties(
-    cp2k::plumed::plumed
-    PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_PLUMED_INCLUDE_DIRS}"
-               INTERFACE_LINK_LIBRARIES "${CP2K_PLUMED_LINK_LIBRARIES}")
+    cp2k::plumed::plumed PROPERTIES INTERFACE_LINK_LIBRARIES
+                                    "${CP2K_PLUMED_LINK_LIBRARIES}")
+  # CP2K calls the C wrapper through Fortran BIND(C); headers are optional.
+  if(CP2K_PLUMED_INCLUDE_DIRS)
+    set_target_properties(
+      cp2k::plumed::plumed PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+                                      "${CP2K_PLUMED_INCLUDE_DIRS}")
+  endif()
 endif()
 
 mark_as_advanced(CP2K_PLUMED_LINK_LIBRARIES CP2K_PLUMED_INCLUDE_DIRS
