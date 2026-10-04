@@ -1835,6 +1835,404 @@ CONTAINS
 #endif
    END SUBROUTINE libxc_spin_polarized_eval
 
+#if defined (__LIBXC)
+
+! **************************************************************************************************
+!> \brief Compact C2 maximum, with a transition width relative to its positive lower argument.
+!> \param a First argument.
+!> \param b Positive second argument.
+!> \param value Projected maximum.
+!> \param first First derivatives in a and b.
+!> \param second Second derivatives in a and b.
+!> \param active Optional indication that the first argument is not on the identity branch.
+! **************************************************************************************************
+   PURE SUBROUTINE libxc_c2_maximum(a, b, value, first, second, active)
+      REAL(dp), INTENT(IN) :: a, b
+      REAL(dp), INTENT(OUT) :: value, first(2), second(2, 2)
+      LOGICAL, INTENT(OUT), OPTIONAL :: active
+      REAL(dp), PARAMETER :: relative_width = 64.0_dp*SQRT(EPSILON(0.0_dp))
+      REAL(dp) :: width, u, polynomial, slope, curvature, ratio
+
+      width = relative_width*b
+      IF (PRESENT(active)) active = a - b < width
+      second = 0.0_dp
+      IF (a - b >= width) THEN
+         value = a
+         first = [1.0_dp, 0.0_dp]
+      ELSE IF (a - b <= -width) THEN
+         value = b
+         first = [0.0_dp, 1.0_dp]
+      ELSE
+         u = (a - b)/width
+         polynomial = (1.0_dp + u)**3*(3.0_dp - u)/16.0_dp
+         slope = (1.0_dp + u)**2*(2.0_dp - u)/4.0_dp
+         curvature = 0.75_dp*(1.0_dp - u*u)/width
+         ratio = a/b
+         value = b + width*polynomial
+         first = [slope, 1.0_dp + relative_width*polynomial - ratio*slope]
+         second(1, 1) = curvature
+         second(1, 2) = -ratio*curvature
+         second(2, 1) = second(1, 2)
+         second(2, 2) = ratio*ratio*curvature
+      END IF
+   END SUBROUTINE libxc_c2_maximum
+
+! **************************************************************************************************
+!> \brief C2 kinetic projection and its full derivatives in rho, sigma and raw tau.
+!> \param rho Density used in the bounded denominator.
+!> \param sigma Same-spin gradient contraction.
+!> \param raw_tau Unprojected kinetic density.
+!> \param epsilon_rho Density cutoff.
+!> \param epsilon_tau Positive kinetic floor.
+!> \param first Optional first derivatives.
+!> \param second Optional second derivatives.
+!> \param active Optional projection activity, independent of rounding of the value.
+!> \return Projected kinetic density.
+! **************************************************************************************************
+   FUNCTION libxc_c2_project_tau(rho, sigma, raw_tau, epsilon_rho, epsilon_tau, first, second, active) RESULT(value)
+      REAL(dp), INTENT(IN) :: rho, sigma, raw_tau, epsilon_rho, epsilon_tau
+      REAL(dp), INTENT(OUT), OPTIONAL :: first(3), second(3, 3)
+      LOGICAL, INTENT(OUT), OPTIONAL :: active
+      LOGICAL :: projection_active
+      REAL(dp) :: value, denominator, tau_w, lower, lower_first(2), lower_second(2, 2), &
+                  final_first(2), final_second(2, 2), w_first(2), w_second(2, 2), outer(2, 2)
+      INTEGER :: i, j
+
+      denominator = MAX(rho, epsilon_rho, TINY(0.0_dp))
+      tau_w = sigma/(8.0_dp*denominator)
+      CALL libxc_c2_maximum(tau_w, MAX(epsilon_tau, EPSILON(0.0_dp)), lower, lower_first, lower_second)
+      CALL libxc_c2_maximum(raw_tau, lower, value, final_first, final_second, projection_active)
+      IF (PRESENT(active)) active = projection_active
+      IF (.NOT. projection_active) THEN
+         IF (PRESENT(first)) first = [0.0_dp, 0.0_dp, 1.0_dp]
+         IF (PRESENT(second)) second = 0.0_dp
+         RETURN
+      END IF
+      IF (.NOT. PRESENT(first) .AND. .NOT. PRESENT(second)) RETURN
+      w_first = [0.0_dp, 1.0_dp/(8.0_dp*denominator)]
+      w_second = 0.0_dp
+      IF (rho > epsilon_rho) THEN
+         w_first(1) = -tau_w/denominator
+         w_second(1, 1) = 2.0_dp*tau_w/denominator**2
+         w_second(1, 2) = -w_first(2)/denominator
+         w_second(2, 1) = w_second(1, 2)
+      END IF
+      IF (PRESENT(first)) THEN
+         first(1:2) = final_first(2)*lower_first(1)*w_first
+         first(3) = final_first(1)
+      END IF
+      IF (PRESENT(second)) THEN
+         DO j = 1, 2
+            DO i = 1, 2
+               outer(i, j) = w_first(i)*w_first(j)
+            END DO
+         END DO
+         second = 0.0_dp
+         second(1:2, 1:2) = final_first(2)*(lower_first(1)*w_second + lower_second(1, 1)*outer) + &
+                            final_second(2, 2)*lower_first(1)**2*outer
+         second(1:2, 3) = final_second(1, 2)*lower_first(1)*w_first
+         second(3, 1:2) = second(1:2, 3)
+         second(3, 3) = final_second(1, 1)
+      END IF
+   END FUNCTION libxc_c2_project_tau
+
+! **************************************************************************************************
+!> \brief Pull back Libxc meta-GGA derivatives through the kinetic-density projection.
+!> \param w Functional worker with derivatives in Libxc variables.
+!> \param point Point within the worker's current block.
+!> \param raw_tau Kinetic densities before projection.
+!> \param nspin Number of spin channels.
+!> \param grad_deriv Requested derivative order.
+!> \param has_laplace Whether the functional uses the density Laplacian.
+!> \param epsilon_rho Density cutoff used in the projection denominator.
+!> \param epsilon_tau Kinetic-density cutoff used as a positive floor.
+! **************************************************************************************************
+   SUBROUTINE libxc_mgga_tau_pullback(w, point, raw_tau, nspin, grad_deriv, has_laplace, &
+                                      epsilon_rho, epsilon_tau)
+      TYPE(libxc_worker_type), INTENT(INOUT)             :: w
+      INTEGER, INTENT(IN)                                :: point, nspin, grad_deriv
+      REAL(dp), INTENT(IN)                               :: raw_tau(nspin), epsilon_rho, epsilon_tau
+      LOGICAL, INTENT(IN)                                :: has_laplace
+
+      INTEGER                                            :: channel, i, irho, isigma, itau, nvar
+      REAL(dp)                                           :: projected, tau_first(3), tau_second(3, 3)
+      INTEGER                                            :: indices(3), j
+      LOGICAL                                            :: active(2)
+      REAL(dp)                                           :: gradient(9), hessian(9, 9), jacobian(9, 9), &
+                                                            curvature(9, 9, 2), pulled_gradient(9), &
+                                                            pulled_hessian(9, 9)
+
+      IF (grad_deriv < 1) RETURN
+      CPASSERT(nspin == 1 .OR. nspin == 2)
+      nvar = 4
+      IF (nspin == 2) nvar = 9
+      gradient = 0.0_dp
+      hessian = 0.0_dp
+      jacobian = 0.0_dp
+      curvature = 0.0_dp
+      DO i = 1, nvar
+         jacobian(i, i) = 1.0_dp
+      END DO
+
+      ! The transition can change curvature even when its value rounds to raw tau.
+      active = .FALSE.
+      DO channel = 1, nspin
+         irho = channel
+         isigma = 2
+         itau = 4
+         IF (nspin == 2) THEN
+            isigma = 2*channel + 1
+            itau = 7 + channel
+         END IF
+         projected = libxc_c2_project_tau(w%rho(channel, point), w%sigma(isigma - nspin, point), &
+                                          raw_tau(channel), epsilon_rho, epsilon_tau, tau_first, tau_second, active(channel))
+         IF (.NOT. active(channel)) CYCLE
+         jacobian(itau, :) = 0.0_dp
+         indices = [irho, isigma, itau]
+         DO i = 1, 3
+            jacobian(itau, indices(i)) = tau_first(i)
+            DO j = 1, 3
+               curvature(indices(i), indices(j), channel) = tau_second(i, j)
+            END DO
+         END DO
+      END DO
+      IF (.NOT. ANY(active(1:nspin))) RETURN
+      IF (grad_deriv > 2) CPABORT("Libxc meta-GGA tau projection supports derivatives through second order")
+
+      IF (nspin == 1) THEN
+         #:for descs, arr, idx in umgga_deriv_1
+            #:if has_lap((descs, arr, idx))
+            IF (has_laplace) THEN
+               gradient(${umgga_vars.index(descs[0]) + 1}$) = w%${arr}$ (${idx}$, point)
+            END IF
+            #:else
+            gradient(${umgga_vars.index(descs[0]) + 1}$) = w%${arr}$ (${idx}$, point)
+            #:endif
+         #:endfor
+         IF (grad_deriv >= 2) THEN
+            #:for descs, arr, idx in umgga_deriv_2
+               #:set a, b = [umgga_vars.index(d) + 1 for d in descs]
+               #:if has_lap((descs, arr, idx))
+               IF (has_laplace) THEN
+                  hessian(${a}$, ${b}$) = w%${arr}$ (${idx}$, point)
+               END IF
+               #:else
+               hessian(${a}$, ${b}$) = w%${arr}$ (${idx}$, point)
+               #:endif
+               hessian(${b}$, ${a}$) = hessian(${a}$, ${b}$)
+            #:endfor
+         END IF
+      ELSE
+         #:for descs, arr, idx in mgga_deriv_1
+            #:if has_lap((descs, arr, idx))
+            IF (has_laplace) THEN
+               gradient(${mgga_vars.index(descs[0]) + 1}$) = w%${arr}$ (${idx}$, point)
+            END IF
+            #:else
+            gradient(${mgga_vars.index(descs[0]) + 1}$) = w%${arr}$ (${idx}$, point)
+            #:endif
+         #:endfor
+         IF (grad_deriv >= 2) THEN
+            #:for descs, arr, idx in mgga_deriv_2
+               #:set a, b = [mgga_vars.index(d) + 1 for d in descs]
+               #:if has_lap((descs, arr, idx))
+               IF (has_laplace) THEN
+                  hessian(${a}$, ${b}$) = w%${arr}$ (${idx}$, point)
+               END IF
+               #:else
+               hessian(${a}$, ${b}$) = w%${arr}$ (${idx}$, point)
+               #:endif
+               hessian(${b}$, ${a}$) = hessian(${a}$, ${b}$)
+            #:endfor
+         END IF
+      END IF
+
+      pulled_gradient(1:nvar) = MATMUL(TRANSPOSE(jacobian(1:nvar, 1:nvar)), gradient(1:nvar))
+      IF (grad_deriv >= 2) THEN
+         pulled_hessian(1:nvar, 1:nvar) = &
+            MATMUL(TRANSPOSE(jacobian(1:nvar, 1:nvar)), &
+                   MATMUL(hessian(1:nvar, 1:nvar), jacobian(1:nvar, 1:nvar)))
+         DO channel = 1, nspin
+            itau = 4
+            IF (nspin == 2) itau = 7 + channel
+            pulled_hessian(1:nvar, 1:nvar) = pulled_hessian(1:nvar, 1:nvar) + &
+                                             gradient(itau)*curvature(1:nvar, 1:nvar, channel)
+         END DO
+      END IF
+      IF (nspin == 1) THEN
+         #:for descs, arr, idx in umgga_deriv_1
+            #:if has_lap((descs, arr, idx))
+            IF (has_laplace) THEN
+               w%${arr}$ (${idx}$, point) = pulled_gradient(${umgga_vars.index(descs[0]) + 1}$)
+            END IF
+            #:else
+            w%${arr}$ (${idx}$, point) = pulled_gradient(${umgga_vars.index(descs[0]) + 1}$)
+            #:endif
+         #:endfor
+         IF (grad_deriv >= 2) THEN
+            #:for descs, arr, idx in umgga_deriv_2
+               #:set a, b = [umgga_vars.index(d) + 1 for d in descs]
+               #:if has_lap((descs, arr, idx))
+               IF (has_laplace) THEN
+                  w%${arr}$ (${idx}$, point) = pulled_hessian(${a}$, ${b}$)
+               END IF
+               #:else
+               w%${arr}$ (${idx}$, point) = pulled_hessian(${a}$, ${b}$)
+               #:endif
+            #:endfor
+         END IF
+      ELSE
+         #:for descs, arr, idx in mgga_deriv_1
+            #:if has_lap((descs, arr, idx))
+            IF (has_laplace) THEN
+               w%${arr}$ (${idx}$, point) = pulled_gradient(${mgga_vars.index(descs[0]) + 1}$)
+            END IF
+            #:else
+            w%${arr}$ (${idx}$, point) = pulled_gradient(${mgga_vars.index(descs[0]) + 1}$)
+            #:endif
+         #:endfor
+         IF (grad_deriv >= 2) THEN
+            #:for descs, arr, idx in mgga_deriv_2
+               #:set a, b = [mgga_vars.index(d) + 1 for d in descs]
+               #:if has_lap((descs, arr, idx))
+               IF (has_laplace) THEN
+                  w%${arr}$ (${idx}$, point) = pulled_hessian(${a}$, ${b}$)
+               END IF
+               #:else
+               w%${arr}$ (${idx}$, point) = pulled_hessian(${a}$, ${b}$)
+               #:endif
+            #:endfor
+         END IF
+      END IF
+   END SUBROUTINE libxc_mgga_tau_pullback
+
+! **************************************************************************************************
+!> \brief Differentiate exc times the original density through Libxc's individual spin floors.
+!> \param w Evaluated worker buffers before the kinetic-density and negative-density pullbacks.
+!> \param point Grid point in the worker block.
+!> \param grad_deriv Highest evaluated derivative order.
+!> \param has_laplace Whether the functional uses the density Laplacian.
+!> \param epsilon_rho Libxc density cutoff.
+!> \note Libxc returns derivatives of F at m_s=MAX(rho_s,epsilon_rho), whereas CP2K
+!>       accumulates E=n*exc=(n/m)*F with n=SUM(rho_s) and m=SUM(m_s). This pullback
+!>       leaves that energy unchanged, including its original-density normalization.
+! **************************************************************************************************
+   SUBROUTINE libxc_spin_floor_pullback(w, point, grad_deriv, has_laplace, epsilon_rho)
+      TYPE(libxc_worker_type), INTENT(INOUT) :: w
+      INTEGER, INTENT(IN) :: point, grad_deriv
+      LOGICAL, INTENT(IN) :: has_laplace
+      REAL(dp), INTENT(IN) :: epsilon_rho
+
+      INTEGER :: i, j
+      REAL(dp) :: n, m, ratio, functional, third_ratio
+      REAL(dp) :: diagonal(9), dn(9), dm(9), first_ratio(9), second_ratio(9, 9), &
+                  gradient(9), hessian(9, 9)
+
+      IF (grad_deriv < 1 .OR. ALL(w%rho(:, point) >= epsilon_rho)) RETURN
+      n = SUM(w%rho(:, point))
+      IF (n < epsilon_rho) RETURN ! Libxc screened this point to zero.
+      m = SUM(MAX(w%rho(:, point), epsilon_rho))
+      ratio = n/m
+      functional = m*w%exc(point)
+      diagonal = 1.0_dp
+      diagonal(1:2) = MERGE(1.0_dp, 0.0_dp, w%rho(:, point) >= epsilon_rho)
+      dn = 0.0_dp
+      dn(1:2) = 1.0_dp
+      dm = 0.0_dp
+      dm(1:2) = diagonal(1:2)
+      first_ratio = (dn - ratio*dm)/m
+      second_ratio = 0.0_dp
+      DO i = 1, 2
+         DO j = 1, 2
+            second_ratio(i, j) = (-dn(i)*dm(j) - dn(j)*dm(i) + 2.0_dp*ratio*dm(i)*dm(j))/m**2
+         END DO
+      END DO
+      gradient = 0.0_dp
+      hessian = 0.0_dp
+      #:for descs, arr, idx in mgga_deriv_1
+         #:set a = mgga_vars.index(descs[0]) + 1
+         IF (ALLOCATED(w%${arr}$) ${' .AND. has_laplace' if has_lap((descs,arr,idx)) else ''}$) THEN
+            gradient(${a}$) = w%${arr}$ (${idx}$, point)
+         END IF
+      #:endfor
+      IF (grad_deriv >= 2) THEN
+         #:for descs, arr, idx in mgga_deriv_2
+            #:set a,b = [mgga_vars.index(d)+1 for d in descs]
+            IF (ALLOCATED(w%${arr}$) ${' .AND. has_laplace' if has_lap((descs,arr,idx)) else ''}$) THEN
+               hessian(${a}$, ${b}$) = w%${arr}$ (${idx}$, point)
+            END IF
+            hessian(${b}$, ${a}$) = hessian(${a}$, ${b}$)
+         #:endfor
+      END IF
+      ! Use unmodified first and second derivatives in every product-rule term.
+      IF (grad_deriv >= 3) THEN
+         #:for descs, arr, idx in mgga_deriv_3
+            #:set a,b,c = [mgga_vars.index(d)+1 for d in descs]
+            IF (ALLOCATED(w%${arr}$) ${' .AND. has_laplace' if has_lap((descs,arr,idx)) else ''}$) THEN
+               third_ratio = (2.0_dp*(dn(${a}$)*dm(${b}$)*dm(${c}$) + &
+                                      dn(${b}$)*dm(${a}$)*dm(${c}$) + dn(${c}$)*dm(${a}$)*dm(${b}$)) - &
+                              6.0_dp*ratio*dm(${a}$)*dm(${b}$)*dm(${c}$))/m**3
+               w%${arr}$ (${idx}$, point) = ratio*diagonal(${a}$)*diagonal(${b}$)*diagonal(${c}$)* &
+                           w%${arr}$ (${idx}$, point) + first_ratio(${a}$)*diagonal(${b}$)*diagonal(${c}$)*hessian(${b}$, ${c}$) + &
+                                            first_ratio(${b}$)*diagonal(${a}$)*diagonal(${c}$)*hessian(${a}$, ${c}$) + &
+                                            first_ratio(${c}$)*diagonal(${a}$)*diagonal(${b}$)*hessian(${a}$, ${b}$) + &
+                                            second_ratio(${a}$, ${b}$)*diagonal(${c}$)*gradient(${c}$) + &
+                                            second_ratio(${a}$, ${c}$)*diagonal(${b}$)*gradient(${b}$) + &
+                                            second_ratio(${b}$, ${c}$)*diagonal(${a}$)*gradient(${a}$) + third_ratio*functional
+            END IF
+         #:endfor
+      END IF
+      IF (grad_deriv >= 2) THEN
+         #:for descs, arr, idx in mgga_deriv_2
+            #:set a,b = [mgga_vars.index(d)+1 for d in descs]
+            IF (ALLOCATED(w%${arr}$) ${' .AND. has_laplace' if has_lap((descs,arr,idx)) else ''}$) w%${arr}$ (${idx}$, point) = &
+               ratio*diagonal(${a}$)*diagonal(${b}$)*hessian(${a}$, ${b}$) + &
+               first_ratio(${a}$)*diagonal(${b}$)*gradient(${b}$) + &
+               first_ratio(${b}$)*diagonal(${a}$)*gradient(${a}$) + second_ratio(${a}$, ${b}$)*functional
+
+         #:endfor
+      END IF
+      #:for descs, arr, idx in mgga_deriv_1
+         #:set a = mgga_vars.index(descs[0])+1
+         IF (ALLOCATED(w%${arr}$) ${' .AND. has_laplace' if has_lap((descs,arr,idx)) else ''}$) w%${arr}$ (${idx}$, point) = &
+            ratio*diagonal(${a}$)*gradient(${a}$) + first_ratio(${a}$)*functional
+
+      #:endfor
+   END SUBROUTINE libxc_spin_floor_pullback
+
+! **************************************************************************************************
+!> \brief Pull Libxc derivatives back through the negative spin-density clamp.
+!> \param w Evaluated worker buffers, updated before functional contributions are accumulated.
+!> \param point Grid point in the worker block.
+!> \param raw_rho Original alpha and beta densities before MAX(rho,0).
+!> \param grad_deriv Highest evaluated derivative order.
+! **************************************************************************************************
+   SUBROUTINE libxc_spin_density_pullback(w, point, raw_rho, grad_deriv)
+      TYPE(libxc_worker_type), INTENT(INOUT)             :: w
+      INTEGER, INTENT(IN)                                :: point, grad_deriv
+      REAL(dp), INTENT(IN)                               :: raw_rho(2)
+
+      INTEGER                                            :: channel
+
+      IF (grad_deriv < 1 .OR. ALL(raw_rho >= 0.0_dp)) RETURN
+      DO channel = 1, 2
+         IF (raw_rho(channel) >= 0.0_dp) CYCLE
+         #:for order, entries in [(1, mgga_deriv_1), (2, mgga_deriv_2), (3, mgga_deriv_3)]
+         IF (grad_deriv >= ${order}$) THEN
+            #:for descs, arr, idx in entries
+               #:if 'rhoa' in descs or 'rhob' in descs
+                  #:set channels = [i + 1 for i, name in enumerate(['rhoa', 'rhob']) if name in descs]
+                  IF (${ ' .OR. '.join('channel == ' + str(i) for i in channels) }$) THEN
+                     IF (ALLOCATED(w%${arr}$)) w%${arr}$ (${idx}$, point) = 0.0_dp
+                  END IF
+               #:endif
+            #:endfor
+         END IF
+         #:endfor
+      END DO
+   END SUBROUTINE libxc_spin_density_pullback
+#endif
+
 ! **************************************************************************************************
 !> \brief libxc exchange-correlation functionals
 !> \param rho density
@@ -1944,18 +2342,20 @@ CONTAINS
                w%lapl(1, i) = laplace_rho(ii)
                w%tau(1, i) = tau(ii)
             END DO
-            ! LibXC only screens on the density, so screen on tau here by
-            ! zeroing rho; enforce the Fermi hole curvature bound tau >=
-            ! sigma/(8*rho) with the denominator floored at the cutoff.
+            ! Continue at nonpositive tau without discarding finite density.
+            ! The projection's Jacobian and curvature are applied after evaluation.
             DO i = 1, nb
-               IF (w%tau(1, i) <= eps_tau) w%rho(1, i) = 0.0_dp
-               w%tau(1, i) = MAX(w%tau(1, i), &
-                                 w%sigma(1, i)/(8.0_dp*MAX(w%rho(1, i), eps_rho)))
+               w%tau(1, i) = libxc_c2_project_tau(w%rho(1, i), w%sigma(1, i), tau(i0 + i), eps_rho, eps_tau)
             END DO
          END IF
 
          ! one LibXC call for the whole block, on the host or the device
          CALL libxc_worker_eval(w, workers%family, workers%nspin, grad_deriv, no_exc, nb)
+         IF (is_mgga .AND. grad_deriv >= 1) THEN
+            DO i = 1, nb
+               CALL libxc_mgga_tau_pullback(w, i, [tau(i0 + i)], 1, grad_deriv, has_laplace, eps_rho, eps_tau)
+            END DO
+         END IF
 
          ! accumulate; each derivative is added by exactly one loop
          DO i = 1, nb
@@ -2256,23 +2656,31 @@ ASSOCIATE (w => workers%worker(ithread + 1), has_laplace => workers%has_laplace,
             w%tau(1, i) = MAX(tau_a(ii), 0.0_dp)
             w%tau(2, i) = MAX(tau_b(ii), 0.0_dp)
          END DO
-         ! Tau screening and Fermi hole curvature bound, per spin channel
-         ! (see the spin-unpolarized routine); the tau test uses the sum
-         ! of the channels, as the density test does.
+         ! Apply the same continuous kinetic-density projection per spin channel.
          DO i = 1, nb
-            IF (w%tau(1, i) + w%tau(2, i) <= eps_tau) THEN
-               w%rho(1, i) = 0.0_dp
-               w%rho(2, i) = 0.0_dp
-            END IF
-            w%tau(1, i) = MAX(w%tau(1, i), &
-                              w%sigma(1, i)/(8.0_dp*MAX(w%rho(1, i), eps_rho)))
-            w%tau(2, i) = MAX(w%tau(2, i), &
-                              w%sigma(3, i)/(8.0_dp*MAX(w%rho(2, i), eps_rho)))
+            w%tau(1, i) = libxc_c2_project_tau(w%rho(1, i), w%sigma(1, i), tau_a(i0 + i), eps_rho, eps_tau)
+            w%tau(2, i) = libxc_c2_project_tau(w%rho(2, i), w%sigma(3, i), tau_b(i0 + i), eps_rho, eps_tau)
          END DO
       END IF
 
       ! one LibXC call for the whole block, on the host or the device
       CALL libxc_worker_eval(w, workers%family, workers%nspin, grad_deriv, no_exc, nb)
+      IF (grad_deriv >= 1 .AND. .NOT. no_exc) THEN
+         DO i = 1, nb
+            CALL libxc_spin_floor_pullback(w, i, grad_deriv, has_laplace, eps_rho)
+         END DO
+      END IF
+      IF (is_mgga .AND. grad_deriv >= 1) THEN
+         DO i = 1, nb
+            CALL libxc_mgga_tau_pullback(w, i, [tau_a(i0 + i), tau_b(i0 + i)], 2, &
+                                         grad_deriv, has_laplace, eps_rho, eps_tau)
+         END DO
+      END IF
+      IF (grad_deriv >= 1) THEN
+         DO i = 1, nb
+            CALL libxc_spin_density_pullback(w, i, [rhoa(i0 + i), rhob(i0 + i)], grad_deriv)
+         END DO
+      END IF
       ! accumulate; one loop per group of derivatives, selected by the
       ! order requested and the family
       DO i = 1, nb
