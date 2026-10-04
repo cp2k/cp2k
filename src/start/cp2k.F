@@ -50,7 +50,6 @@ PROGRAM cp2k
    USE cp2k_runs,                       ONLY: run_input,&
                                               write_xml_file
    USE cp2k_shell,                      ONLY: launch_cp2k_shell
-   USE cp_files,                        ONLY: open_file
    USE f77_interface,                   ONLY: check_input,&
                                               default_para_env,&
                                               finalize_cp2k,&
@@ -61,7 +60,8 @@ PROGRAM cp2k
    USE iso_fortran_env,                 ONLY: compiler_options,&
                                               compiler_version
    USE kinds,                           ONLY: default_path_length
-   USE machine,                         ONLY: default_output_unit,&
+   USE machine,                         ONLY: default_error_unit,&
+                                              default_output_unit,&
                                               m_cpuid,&
                                               m_cpuid_name,&
                                               m_cpuid_static,&
@@ -130,12 +130,15 @@ PROGRAM cp2k
                command_line_error = .TRUE.
             ELSE
                output_file_name = arg_att
-               CALL open_file(file_name=output_file_name, &
-                              file_status="UNKNOWN", &
-                              file_action="WRITE", &
-                              file_position="APPEND", &
-                              skip_get_unit_number=.TRUE., &
-                              unit_number=output_unit)
+               ! Redirect the standard output (default_output_unit) to the output file
+               OPEN (UNIT=output_unit, FILE=TRIM(output_file_name), STATUS="UNKNOWN", &
+                     FORM="FORMATTED", ACTION="WRITE", POSITION="APPEND", IOSTAT=ierr)
+               IF (ierr /= 0) THEN
+                  ! The standard output might not be connected anymore
+                  WRITE (default_error_unit, "(/,T2,A)") &
+                     "ERROR: The output file "//TRIM(output_file_name)//" cannot be opened"
+                  command_line_error = .TRUE.
+               END IF
             END IF
          ELSE
             i_arg = i_arg + 1
