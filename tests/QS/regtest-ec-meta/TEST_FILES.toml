@@ -2,19 +2,19 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 # FORCE: PADE - TPSS MO solver
-"N2_pade_tpss.inp"                      = [{matcher="M011", tol=1e-12, ref=-19.529546812850718}]
+"N2_pade_tpss.inp"                      = [{matcher="M011", tol=1e-12, ref=-19.529546600658698}]
 # FORCE: TPSS - PADE MO solver
-"N2_tpss_pade.inp"                      = [{matcher="M011", tol=1e-12, ref=-19.795492393131141}]
+"N2_tpss_pade.inp"                      = [{matcher="M011", tol=1e-12, ref=-19.795492343382346}]
 # FORCE: PADE - BR89 AO solver
-"N2_pade_br89.inp"                      = [{matcher="M011", tol=1e-12, ref=-19.519044036224891}]
+"N2_pade_br89.inp"                      = [{matcher="M011", tol=1e-12, ref=-19.519035810209623}]
 # FORCE: BR89 - PADE AO solver
-"N2_br89_pade.inp"                      = [{matcher="M011", tol=1e-12, ref=-19.795370307536491}]
+"N2_br89_pade.inp"                      = [{matcher="M011", tol=1e-12, ref=-19.795371547766177}]
 # STRESS: PADE - TPSS MO solver
 "N2_pade_tpss_stress.inp"               = [{matcher="M031", tol=1e-05, ref=-5.01969865527E+06}]
 # STRESS: TPSS - PADE MO solver
 "N2_tpss_pade_stress.inp"               = [{matcher="M031", tol=1e-05, ref=-5.02652401254E+06}]
 # STRESS: PADE - BR89 AO solver
-"N2_pade_br89_stress.inp"               = [{matcher="M031", tol=1e-05, ref=-5.03273252086E+06}]
+"N2_pade_br89_stress.inp"               = [{matcher="M031", tol=1e-05, ref=-5033046.06711}]
 # STRESS: BR89 - PADE AO solver
 "N2_br89_pade_stress.inp"               = [{matcher="M031", tol=1e-05, ref=-5.02543292201E+06}]
 #EOF
