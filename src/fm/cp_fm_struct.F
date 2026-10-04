@@ -409,7 +409,7 @@ CONTAINS
                (fmstruct1%local_leading_dimension == &
                 fmstruct2%local_leading_dimension)
          DO i = 1, 9
-            res = res .AND. (fmstruct1%descriptor(i) == fmstruct1%descriptor(i))
+            res = res .AND. (fmstruct1%descriptor(i) == fmstruct2%descriptor(i))
          END DO
       END IF
    END FUNCTION cp_fm_struct_equivalent
