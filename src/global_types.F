@@ -80,6 +80,7 @@ MODULE global_types
       INTEGER :: k_elpa = 1 ! optimized kernel for the ELPA diagonalization library
       INTEGER :: k_elpa_c = -1 ! optimized kernel for the ELPA diagonalization library (complex matrices)
       INTEGER :: elpa_neigvec_min = 0 ! Minimum number of eigenvectors for ELPA usage
+      LOGICAL :: fftw_wisdom_file_explicit = .FALSE. ! FFTW wisdom file name was specified in the input
       LOGICAL :: elpa_qr = .TRUE. ! allow ELPA to use QR during diagonalization
       LOGICAL :: elpa_print = .FALSE. ! if additional information about ELPA diagonalization should be printed
       LOGICAL :: elpa_one_stage = .FALSE. ! enable one-stage ELPA solver

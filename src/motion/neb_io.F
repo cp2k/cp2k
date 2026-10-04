@@ -629,11 +629,13 @@ CONTAINS
       CALL section_vals_val_set(root_section, "GLOBAL%OUTPUT_FILE_NAME", &
                                 c_val=TRIM(output_file_path))
       IF (logger%default_global_unit_nr > 0) THEN
-         CALL close_file(logger%default_global_unit_nr)
-         CALL open_file(file_name=output_file_path, file_status="UNKNOWN", &
-                        file_action="WRITE", file_position="APPEND", &
-                        unit_number=logger%default_global_unit_nr, &
-                        skip_get_unit_number=.TRUE.)
+         CALL close_file(unit_number=logger%default_global_unit_nr)
+         CALL open_file(file_name=output_file_path, &
+                        file_status="UNKNOWN", &
+                        file_action="WRITE", &
+                        file_position="APPEND", &
+                        skip_get_unit_number=.TRUE., &
+                        unit_number=logger%default_global_unit_nr)
          WRITE (UNIT=logger%default_global_unit_nr, FMT="(/,(T2,A79))") &
             "*******************************************************************************", &
             "**                 BAND EVALUATION OF ENERGIES AND FORCES                    **", &
@@ -659,12 +661,14 @@ CONTAINS
 
                unit_nr = sub_logger%default_global_unit_nr
                IF (unit_nr > 0) THEN
-                  CALL close_file(unit_nr)
-
+                  CALL close_file(unit_number=unit_nr)
                   output_file_path = replica_proj_name(1:lp)//"-r-"//TRIM(ADJUSTL(cp_to_string(i)))//".out"
-                  CALL open_file(file_name=output_file_path, file_status="UNKNOWN", &
-                                 file_action="WRITE", file_position="APPEND", &
-                                 unit_number=unit_nr, skip_get_unit_number=.TRUE.)
+                  CALL open_file(file_name=output_file_path, &
+                                 file_status="UNKNOWN", &
+                                 file_action="WRITE", &
+                                 file_position="APPEND", &
+                                 skip_get_unit_number=.TRUE., &
+                                 unit_number=unit_nr)
                END IF
             END IF
          END DO

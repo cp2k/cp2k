@@ -77,12 +77,12 @@ CONTAINS
       LOGICAL                                            :: named, opened
 
       link(:, :) = CMPLX(1.0_dp, 2.0_dp, dp)
-      CALL open_file('', unit_number=binary_unit, file_status='SCRATCH', file_access='STREAM', &
+      CALL open_file(unit_number=binary_unit, file_status='SCRATCH', file_access='STREAM', &
                      file_form='UNFORMATTED', file_action='READWRITE')
       INQUIRE (UNIT=binary_unit, NAMED=named, IOSTAT=ios)
       IF (ios /= 0) ERROR STOP 'Cannot inquire scratch link storage'
       IF (named) ERROR STOP 'Link scratch storage must be anonymous'
-      CALL open_file('', unit_number=text_unit, file_status='SCRATCH', file_pad='NO', file_action='READWRITE')
+      CALL open_file(unit_number=text_unit, file_status='SCRATCH', file_pad='NO', file_action='READWRITE')
       IF (binary_unit == text_unit) ERROR STOP 'Scratch streams share a unit'
       INQUIRE (IOLENGTH=record_size) link
       WRITE (binary_unit, IOSTAT=ios) link

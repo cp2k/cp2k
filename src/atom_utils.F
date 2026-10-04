@@ -24,7 +24,6 @@ MODULE atom_utils
         lmat, no_pseudo, sgp_pseudo, upf_pseudo
    USE basis_set_types,                 ONLY: srules
    USE cp_files,                        ONLY: close_file,&
-                                              get_unit_number,&
                                               open_file
    USE input_constants,                 ONLY: do_rhf_atom,&
                                               do_rks_atom,&
@@ -426,7 +425,6 @@ CONTAINS
 
       INTEGER                                            :: extunit, i, k, l, n
 
-      extunit = get_unit_number()
       CALL open_file(file_name=atom%zmp_restart_file, file_status="UNKNOWN", &
                      file_form="FORMATTED", file_action="WRITE", &
                      unit_number=extunit)
@@ -467,7 +465,6 @@ CONTAINS
 
       IF (atom%doread) THEN
          WRITE (iw, fmt="(' ZMP       | Restart file found')")
-         extunit = get_unit_number()
          CALL open_file(file_name=atom%zmp_restart_file, file_status="OLD", &
                         file_form="FORMATTED", file_action="READ", &
                         unit_number=extunit)
@@ -528,7 +525,6 @@ CONTAINS
 
       filename = atom%ext_file
       ldm = atom%dm
-      extunit = get_unit_number()
 
       CALL open_file(file_name=filename, file_status="OLD", &
                      file_form="FORMATTED", file_action="READ", &
@@ -575,7 +571,6 @@ CONTAINS
 
          CALL atom_density(density, pmatread, atom%basis, maxl_occ, typ="RHO")
 
-         extunit = get_unit_number()
          CALL open_file(file_name="rho_target.dat", file_status="UNKNOWN", &
                         file_form="FORMATTED", file_action="WRITE", unit_number=extunit)
 
@@ -615,7 +610,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: rr
 
       filename = atom%ext_vxc_file
-      extunit = get_unit_number()
 
       CALL open_file(file_name=filename, file_status="OLD", &
                      file_form="FORMATTED", file_action="READ", &

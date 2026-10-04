@@ -329,7 +329,9 @@ CONTAINS
                           "Note that wisdom is not transferable between different computer (architectures). "// &
                           "Wisdom can be generated using the fftw-wisdom tool that is part of the fftw installation. "// &
                           "cp2k/tools/cp2k-wisdom is a script that contains some additional info, and can help "// &
-                          "to generate a useful default for /etc/fftw/wisdom or particular values for a given simulation.", &
+                          "to generate a useful default for /etc/fftw/wisdom or particular values for a given simulation. "// &
+                          "The wisdom is read from the file, if it exists. The updated wisdom is written back to "// &
+                          "the file at the end of the run only if this keyword is specified explicitly.", &
                           usage="FFTW_WISDOM_FILE_NAME wisdom.dat", default_lc_val="/etc/fftw/wisdom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

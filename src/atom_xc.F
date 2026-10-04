@@ -23,7 +23,6 @@ MODULE atom_xc
                                               integrate_grid,&
                                               numpot_matrix
    USE cp_files,                        ONLY: close_file,&
-                                              get_unit_number,&
                                               open_file
    USE input_constants,                 ONLY: xc_none
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -115,7 +114,6 @@ CONTAINS
       atom%rho_diff_integral = fourpi*int2
 
       IF (lprint) THEN
-         extunit = get_unit_number()
          CALL open_file(file_name="linear_potentials.dat", file_status="UNKNOWN", &
                         file_form="FORMATTED", file_action="WRITE", &
                         unit_number=extunit)
@@ -163,7 +161,6 @@ CONTAINS
       CALL atom_density(rho(:, 1), atom%orbitals%pmat, atom%basis, atom%state%maxl_occ, typ="RHO")
 
       IF (lprint) THEN
-         extunit = get_unit_number()
          CALL open_file(file_name="linear_potentials.dat", file_status="UNKNOWN", &
                         file_form="FORMATTED", file_action="WRITE", &
                         unit_number=extunit)

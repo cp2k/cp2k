@@ -16,8 +16,7 @@ MODULE input_cp2k_binary_restarts
 
    USE cell_types,                      ONLY: cell_transform_input_cartesian,&
                                               cell_type
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
+   USE cp_files,                        ONLY: open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -80,9 +79,9 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: binary_restart_file_name
       CHARACTER(LEN=default_string_length)               :: string
-      INTEGER                                            :: handle, iatom, ikind, input_unit, istat, &
-                                                            iw, natom, natomkind, ncore, &
-                                                            nmolecule, nmoleculekind, nshell
+      INTEGER                                            :: binary_restart_file_unit, handle, iatom, &
+                                                            ikind, istat, iw, natom, natomkind, &
+                                                            ncore, nmolecule, nmoleculekind, nshell
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ibuf, id_name
       TYPE(atom_info_type), POINTER                      :: atom_info
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -122,14 +121,14 @@ CONTAINS
                         file_form="UNFORMATTED", &
                         file_action="READWRITE", &
                         file_position="REWIND", &
-                        unit_number=input_unit, &
-                        debug=iw)
-         READ (UNIT=input_unit, IOSTAT=istat) &
+                        unit_number=binary_restart_file_unit, &
+                        debug=(iw > 0))
+         READ (UNIT=binary_restart_file_unit, IOSTAT=istat) &
             natomkind, natom, ncore, nshell, nmoleculekind, nmolecule
          IF (istat /= 0) THEN
             CALL stop_read("natomkind,natom,ncore,nshell,nmoleculekind,nmolecule "// &
                            "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")", &
-                           input_unit)
+                           binary_restart_file_unit)
          END IF
          IF (iw > 0) THEN
             WRITE (UNIT=iw, FMT="(T2,A,T71,I10)") &
@@ -153,10 +152,10 @@ CONTAINS
       ! Read atomic kind names
       DO ikind = 1, natomkind
          IF (para_env%is_source()) THEN
-            READ (UNIT=input_unit, IOSTAT=istat) string
+            READ (UNIT=binary_restart_file_unit, IOSTAT=istat) string
             IF (istat /= 0) CALL stop_read("string (IOSTAT = "// &
                                            TRIM(ADJUSTL(cp_to_string(istat)))//")", &
-                                           input_unit)
+                                           binary_restart_file_unit)
          END IF
          CALL para_env%bcast(string)
          id_name(ikind) = str2id(string)
@@ -188,10 +187,10 @@ CONTAINS
 
       ! Read atomic kind number of each atom
       IF (para_env%is_source()) THEN
-         READ (UNIT=input_unit, IOSTAT=istat) ibuf(1:natom)
+         READ (UNIT=binary_restart_file_unit, IOSTAT=istat) ibuf(1:natom)
          IF (istat /= 0) CALL stop_read("ibuf (IOSTAT = "// &
                                         TRIM(ADJUSTL(cp_to_string(istat)))//")", &
-                                        input_unit)
+                                        binary_restart_file_unit)
       END IF
       CALL para_env%bcast(ibuf)
       DO iatom = 1, natom
@@ -203,10 +202,10 @@ CONTAINS
 
       ! Read atomic coordinates
       IF (para_env%is_source()) THEN
-         READ (UNIT=input_unit, IOSTAT=istat) atom_info%r(1:3, 1:natom)
+         READ (UNIT=binary_restart_file_unit, IOSTAT=istat) atom_info%r(1:3, 1:natom)
          IF (istat /= 0) CALL stop_read("atom_info%r(1:3,1:natom) (IOSTAT = "// &
                                         TRIM(ADJUSTL(cp_to_string(istat)))//")", &
-                                        input_unit)
+                                        binary_restart_file_unit)
       END IF
       CALL para_env%bcast(atom_info%r)
       IF (ASSOCIATED(topology%cell_muc)) THEN
@@ -221,20 +220,20 @@ CONTAINS
          ! Read molecule kind names
          DO ikind = 1, nmoleculekind
             IF (para_env%is_source()) THEN
-               READ (UNIT=input_unit, IOSTAT=istat) string
+               READ (UNIT=binary_restart_file_unit, IOSTAT=istat) string
                IF (istat /= 0) CALL stop_read("string (IOSTAT = "// &
                                               TRIM(ADJUSTL(cp_to_string(istat)))//")", &
-                                              input_unit)
+                                              binary_restart_file_unit)
             END IF
             CALL para_env%bcast(string)
             id_name(ikind) = str2id(string)
          END DO
          ! Read molecule kind numbers
          IF (para_env%is_source()) THEN
-            READ (UNIT=input_unit, IOSTAT=istat) ibuf(1:natom)
+            READ (UNIT=binary_restart_file_unit, IOSTAT=istat) ibuf(1:natom)
             IF (istat /= 0) CALL stop_read("ibuf(1:natom) (IOSTAT = "// &
                                            TRIM(ADJUSTL(cp_to_string(istat)))//")", &
-                                           input_unit)
+                                           binary_restart_file_unit)
          END IF
          CALL para_env%bcast(ibuf)
          DO iatom = 1, natom
@@ -244,10 +243,10 @@ CONTAINS
          DEALLOCATE (id_name)
          ! Read molecule index which is used also as residue id
          IF (para_env%is_source()) THEN
-            READ (UNIT=input_unit, IOSTAT=istat) atom_info%resid(1:natom)
+            READ (UNIT=binary_restart_file_unit, IOSTAT=istat) atom_info%resid(1:natom)
             IF (istat /= 0) CALL stop_read("atom_info%resid(1:natom) (IOSTAT = "// &
                                            TRIM(ADJUSTL(cp_to_string(istat)))//")", &
-                                           input_unit)
+                                           binary_restart_file_unit)
          END IF
          CALL para_env%bcast(atom_info%resid)
          DO iatom = 1, natom
@@ -277,8 +276,7 @@ CONTAINS
             TRIM(binary_restart_file_name)
       END IF
 
-      IF (para_env%is_source()) CALL close_file(unit_number=input_unit, &
-                                                keep_preconnection=.TRUE.)
+      ! Keep the file connected: the next reader continues at the current position
 
       binary_file_read = .TRUE.
 
@@ -313,8 +311,8 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: binary_restart_file_name, message
       CHARACTER(LEN=default_string_length)               :: section_label, section_name
-      INTEGER                                            :: handle, input_unit, iparticle, istat, &
-                                                            iw, nbuf, nparticle
+      INTEGER                                            :: binary_restart_file_unit, handle, &
+                                                            iparticle, istat, iw, nbuf, nparticle
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ibuf
       LOGICAL                                            :: exit_routine
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rbuf
@@ -359,14 +357,14 @@ CONTAINS
                         file_form="UNFORMATTED", &
                         file_action="READWRITE", &
                         file_position="ASIS", &
-                        unit_number=input_unit, &
-                        debug=iw)
-         READ (UNIT=input_unit, IOSTAT=istat) section_label, nbuf
+                        unit_number=binary_restart_file_unit, &
+                        debug=(iw > 0))
+         READ (UNIT=binary_restart_file_unit, IOSTAT=istat) section_label, nbuf
          IF (istat /= 0) CALL stop_read("section_label, nbuf -> "//TRIM(section_label)//", "// &
                                         TRIM(ADJUSTL(cp_to_string(nbuf)))// &
                                         " (IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//"). "// &
                                         "Section "//TRIM(ADJUSTL(section_name))//" was expected.", &
-                                        input_unit)
+                                        binary_restart_file_unit)
          IF (TRIM(section_label) == TRIM(section_name)) THEN
             IF (nbuf /= nparticle) THEN
                IF (iw > 0) THEN
@@ -381,18 +379,18 @@ CONTAINS
                IF (nbuf > 0) THEN
                   ! Perform dummy read
                   ALLOCATE (rbuf(3, nbuf))
-                  READ (UNIT=input_unit, IOSTAT=istat) rbuf(1:3, 1:nbuf)
+                  READ (UNIT=binary_restart_file_unit, IOSTAT=istat) rbuf(1:3, 1:nbuf)
                   IF (istat /= 0) CALL stop_read("rbuf(1:3,1:nbuf) -> "//prefix// &
                                                  " coordinates (IOSTAT = "// &
                                                  TRIM(ADJUSTL(cp_to_string(istat)))//")", &
-                                                 input_unit)
+                                                 binary_restart_file_unit)
                   DEALLOCATE (rbuf)
                   ALLOCATE (ibuf(nbuf))
-                  READ (UNIT=input_unit, IOSTAT=istat) ibuf(1:nbuf)
+                  READ (UNIT=binary_restart_file_unit, IOSTAT=istat) ibuf(1:nbuf)
                   IF (istat /= 0) CALL stop_read("ibuf(1:nparticle) -> atomic indices of the "// &
                                                  TRIM(section_name)//" (IOSTAT = "// &
                                                  TRIM(ADJUSTL(cp_to_string(istat)))//")", &
-                                                 input_unit)
+                                                 binary_restart_file_unit)
                   DEALLOCATE (ibuf)
                END IF
                exit_routine = .TRUE.
@@ -414,8 +412,7 @@ CONTAINS
 
       CALL para_env%bcast(exit_routine)
       IF (exit_routine) THEN
-         IF (para_env%is_source()) CALL close_file(unit_number=input_unit, &
-                                                   keep_preconnection=.TRUE.)
+         ! Keep the file connected: the next reader continues at the current position
          CALL timestop(handle)
          RETURN
       END IF
@@ -425,11 +422,11 @@ CONTAINS
       ALLOCATE (rbuf(3, nparticle))
 
       IF (para_env%is_source()) THEN
-         READ (UNIT=input_unit, IOSTAT=istat) rbuf(1:3, 1:nparticle)
+         READ (UNIT=binary_restart_file_unit, IOSTAT=istat) rbuf(1:3, 1:nparticle)
          IF (istat /= 0) CALL stop_read("rbuf(1:3,1:nparticle) -> "//prefix// &
                                         " coordinates (IOSTAT = "// &
                                         TRIM(ADJUSTL(cp_to_string(istat)))//")", &
-                                        input_unit)
+                                        binary_restart_file_unit)
       END IF
       CALL para_env%bcast(rbuf)
 
@@ -445,11 +442,11 @@ CONTAINS
       ALLOCATE (ibuf(nparticle))
 
       IF (para_env%is_source()) THEN
-         READ (UNIT=input_unit, IOSTAT=istat) ibuf(1:nparticle)
+         READ (UNIT=binary_restart_file_unit, IOSTAT=istat) ibuf(1:nparticle)
          IF (istat /= 0) CALL stop_read("ibuf(1:nparticle) -> atomic indices of the "// &
                                         TRIM(section_name)//" (IOSTAT = "// &
                                         TRIM(ADJUSTL(cp_to_string(istat)))//")", &
-                                        input_unit)
+                                        binary_restart_file_unit)
       END IF
 
       CALL para_env%bcast(ibuf)
@@ -477,8 +474,7 @@ CONTAINS
             TRIM(binary_restart_file_name)
       END IF
 
-      IF (para_env%is_source()) CALL close_file(unit_number=input_unit, &
-                                                keep_preconnection=.TRUE.)
+      ! Keep the file connected: the next reader continues at the current position
 
       binary_file_read = .TRUE.
 
@@ -516,8 +512,8 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: binary_restart_file_name, message
       CHARACTER(LEN=default_string_length)               :: section_label, section_name
-      INTEGER                                            :: handle, i, input_unit, iparticle, istat, &
-                                                            iw, nbuf, nparticle
+      INTEGER                                            :: binary_restart_file_unit, handle, i, &
+                                                            iparticle, istat, iw, nbuf, nparticle
       LOGICAL                                            :: have_velocities
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rbuf
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -565,26 +561,26 @@ CONTAINS
                         file_form="UNFORMATTED", &
                         file_action="READWRITE", &
                         file_position="ASIS", &
-                        unit_number=input_unit, &
-                        debug=iw)
+                        unit_number=binary_restart_file_unit, &
+                        debug=(iw > 0))
          DO
-            READ (UNIT=input_unit, IOSTAT=istat) section_label, nbuf
+            READ (UNIT=binary_restart_file_unit, IOSTAT=istat) section_label, nbuf
             IF (istat /= 0) CALL stop_read("section_label, nbuf -> "//TRIM(section_label)//", "// &
                                            TRIM(ADJUSTL(cp_to_string(nbuf)))// &
                                            " (IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//"). "// &
                                            "Section "//TRIM(ADJUSTL(section_name))//" was expected.", &
-                                           input_unit)
+                                           binary_restart_file_unit)
             IF (INDEX(section_label, "THERMOSTAT") > 0) THEN
                IF (nbuf > 0) THEN
                   ! Ignore thermostat information
                   ALLOCATE (rbuf(nbuf, 1))
                   ! Perform dummy read
                   DO i = 1, 4
-                     READ (UNIT=input_unit, IOSTAT=istat) rbuf(1:nbuf, 1)
+                     READ (UNIT=binary_restart_file_unit, IOSTAT=istat) rbuf(1:nbuf, 1)
                      IF (istat /= 0) CALL stop_read("rbuf(1:nbuf,1) -> "// &
                                                     TRIM(ADJUSTL(section_label))// &
                                                     " (IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")", &
-                                                    input_unit)
+                                                    binary_restart_file_unit)
                   END DO
                   DEALLOCATE (rbuf)
                   IF (iw > 0) THEN
@@ -615,11 +611,11 @@ CONTAINS
          ALLOCATE (rbuf(3, nbuf))
 
          IF (para_env%is_source()) THEN
-            READ (UNIT=input_unit, IOSTAT=istat) rbuf(1:3, 1:nbuf)
+            READ (UNIT=binary_restart_file_unit, IOSTAT=istat) rbuf(1:3, 1:nbuf)
             IF (istat /= 0) CALL stop_read("rbuf(1:3,1:nbuf) -> "// &
                                            TRIM(ADJUSTL(section_name))// &
                                            " (IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")", &
-                                           input_unit)
+                                           binary_restart_file_unit)
          END IF
 
          IF (nbuf == nparticle) THEN
@@ -669,8 +665,7 @@ CONTAINS
          binary_file_read = .TRUE.
       END IF
 
-      IF (para_env%is_source()) CALL close_file(unit_number=input_unit, &
-                                                keep_preconnection=.TRUE.)
+      ! Keep the file connected: the next reader continues at the current position
 
       CALL timestop(handle)
 
@@ -701,8 +696,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_thermostats_nose'
 
       CHARACTER(LEN=default_string_length)               :: section_label, section_name
-      INTEGER                                            :: handle, i, idx, input_unit, istat, j, &
-                                                            nhc_size, output_unit
+      INTEGER                                            :: binary_restart_file_unit, handle, i, &
+                                                            idx, istat, j, nhc_size, output_unit
       LOGICAL                                            :: debug
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: rbuf
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -734,11 +729,12 @@ CONTAINS
                         file_form="UNFORMATTED", &
                         file_action="READWRITE", &
                         file_position="ASIS", &
-                        unit_number=input_unit)
-         READ (UNIT=input_unit, IOSTAT=istat) section_label, nhc_size
+                        unit_number=binary_restart_file_unit, &
+                        debug=debug)
+         READ (UNIT=binary_restart_file_unit, IOSTAT=istat) section_label, nhc_size
          IF (istat /= 0) CALL stop_read("nhc_size (IOSTAT = "// &
                                         TRIM(ADJUSTL(cp_to_string(istat)))//")", &
-                                        input_unit)
+                                        binary_restart_file_unit)
          IF (INDEX(section_label, "THERMOSTAT") == 0) THEN
             CALL cp_abort(__LOCATION__, &
                           "Section label <"//TRIM(section_label)//"> read from the "// &
@@ -764,10 +760,10 @@ CONTAINS
 
          ! Read NHC section &COORD
          IF (para_env%is_source()) THEN
-            READ (UNIT=input_unit, IOSTAT=istat) rbuf(1:nhc_size)
+            READ (UNIT=binary_restart_file_unit, IOSTAT=istat) rbuf(1:nhc_size)
             IF (istat /= 0) CALL stop_read("eta -> rbuf (IOSTAT = "// &
                                            TRIM(ADJUSTL(cp_to_string(istat)))//")", &
-                                           input_unit)
+                                           binary_restart_file_unit)
             IF (debug .AND. output_unit > 0) THEN
                WRITE (UNIT=output_unit, FMT="(T2,A,/,(4(1X,ES25.16)))") &
                   "&COORD", rbuf(1:nhc_size)
@@ -784,10 +780,10 @@ CONTAINS
 
          ! Read NHC section &VELOCITY
          IF (para_env%is_source()) THEN
-            READ (UNIT=input_unit, IOSTAT=istat) rbuf(1:nhc_size)
+            READ (UNIT=binary_restart_file_unit, IOSTAT=istat) rbuf(1:nhc_size)
             IF (istat /= 0) CALL stop_read("veta -> rbuf (IOSTAT = "// &
                                            TRIM(ADJUSTL(cp_to_string(istat)))//")", &
-                                           input_unit)
+                                           binary_restart_file_unit)
             IF (debug .AND. output_unit > 0) THEN
                WRITE (UNIT=output_unit, FMT="(T2,A,/,(4(1X,ES25.16)))") &
                   "&VELOCITY", rbuf(1:nhc_size)
@@ -804,10 +800,10 @@ CONTAINS
 
          ! Read NHC section &MASS
          IF (para_env%is_source()) THEN
-            READ (UNIT=input_unit, IOSTAT=istat) rbuf(1:nhc_size)
+            READ (UNIT=binary_restart_file_unit, IOSTAT=istat) rbuf(1:nhc_size)
             IF (istat /= 0) CALL stop_read("mnhc -> rbuf (IOSTAT = "// &
                                            TRIM(ADJUSTL(cp_to_string(istat)))//")", &
-                                           input_unit)
+                                           binary_restart_file_unit)
             IF (debug .AND. output_unit > 0) THEN
                WRITE (UNIT=output_unit, FMT="(T2,A,/,(4(1X,ES25.16)))") &
                   "&MASS:", rbuf(1:nhc_size)
@@ -824,10 +820,10 @@ CONTAINS
 
          ! Read NHC section &FORCE
          IF (para_env%is_source()) THEN
-            READ (UNIT=input_unit, IOSTAT=istat) rbuf(1:nhc_size)
+            READ (UNIT=binary_restart_file_unit, IOSTAT=istat) rbuf(1:nhc_size)
             IF (istat /= 0) CALL stop_read("fnhc -> rbuf (IOSTAT = "// &
                                            TRIM(ADJUSTL(cp_to_string(istat)))//")", &
-                                           input_unit)
+                                           binary_restart_file_unit)
             IF (debug .AND. output_unit > 0) THEN
                WRITE (UNIT=output_unit, FMT="(T2,A,/,(4(1X,ES25.16)))") &
                   "&FORCE", rbuf(1:nhc_size)
@@ -855,8 +851,7 @@ CONTAINS
                " section data read in binary format from file "// &
                TRIM(binary_restart_file_name)
          END IF
-         CALL close_file(unit_number=input_unit, &
-                         keep_preconnection=.TRUE.)
+         ! Keep the file connected: the next reader continues at the current position
       END IF
 
       CALL timestop(handle)

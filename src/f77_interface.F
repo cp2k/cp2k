@@ -31,8 +31,7 @@ MODULE f77_interface
    USE cp_dlaf_utils_api,               ONLY: cp_dlaf_finalize,&
                                               cp_dlaf_free_all_grids
    USE cp_error_handling,               ONLY: cp_error_handling_setup
-   USE cp_files,                        ONLY: init_preconnection_list,&
-                                              open_file
+   USE cp_files,                        ONLY: open_file
    USE cp_log_handling,                 ONLY: &
         cp_add_default_logger, cp_default_logger_stack_size, cp_failure_level, &
         cp_get_default_logger, cp_logger_create, cp_logger_release, cp_logger_retain, &
@@ -243,9 +242,6 @@ CONTAINS
 
          ! install timming handler hooks
          CALL timings_register_hooks()
-
-         ! Initialise preconnection list
-         CALL init_preconnection_list()
 
          ! get runtime information
          CALL get_runtime_info()

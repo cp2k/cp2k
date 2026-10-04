@@ -532,6 +532,13 @@ CONTAINS
          RETURN
       ELSE
          local_logger => cp_get_default_logger()
+         IF (local_logger%ref_count < 1) THEN
+            ! edge case: the default logger is just being released (e.g. a warning issued during
+            ! cp_rm_default_logger). Do not abort, because the error handlers call this function
+            ! themselves, which would result in an infinite recursion.
+            res = -1
+            RETURN
+         END IF
       END IF
 
       res = cp_logger_get_default_unit_nr(local_logger, local=.FALSE., skip_not_ionode=.TRUE.)
