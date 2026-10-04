@@ -88,6 +88,10 @@ PROGRAM xc_semilocal_unittest
    CALL section_vals_val_set(functional, 'TPSS%_SECTION_PARAMETERS_', l_val=.TRUE.)
    CALL check_tpss_zero_gradient()
    CALL section_vals_release(functional)
+   CALL section_vals_create(functional, specification)
+   CALL section_vals_val_set(functional, 'XWPBE%_SECTION_PARAMETERS_', l_val=.TRUE.)
+   CALL check_xwpbe_limits()
+   CALL section_vals_release(functional)
    CALL section_release(specification)
    CALL cp2k_finalize()
 
@@ -99,20 +103,25 @@ CONTAINS
 !> \param energy Energy density.
 !> \param gradient First derivatives, with the accumulation of another functional preserved.
 !> \param hessian Second derivatives in the same independent variables.
+!> \param derivative_order ...
 ! **************************************************************************************************
-   SUBROUTINE evaluate(x, energy, gradient, hessian)
+   SUBROUTINE evaluate(x, energy, gradient, hessian, derivative_order)
       REAL(dp), INTENT(IN)                               :: x(5)
       REAL(dp), INTENT(OUT)                              :: energy, gradient(5), hessian(5, 5)
+      INTEGER, INTENT(IN), OPTIONAL                      :: derivative_order
 
-      INTEGER                                            :: bounds(2, 3), i, j
+      INTEGER                                            :: bounds(2, 3), i, j, order
       REAL(dp), POINTER                                  :: values(:, :, :)
       TYPE(xc_derivative_set_type)                       :: derivatives
       TYPE(xc_derivative_type), POINTER                  :: derivative
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type)                              :: rho_set
 
+      order = 2
+      IF (PRESENT(derivative_order)) order = derivative_order
       bounds = 1
       needs = xc_functionals_get_needs(functional, lsd=.TRUE., calc_potential=.TRUE.)
+      needs%norm_drho = .TRUE.
       CALL xc_rho_set_create(rho_set, bounds, rho_cutoff=1.e-20_dp)
       CALL xc_rho_set_atom_update(rho_set, needs, 2, bounds)
       rho_set%rhoa = x(1)
@@ -135,7 +144,7 @@ CONTAINS
             values = 0.125_dp
          END DO
       END DO
-      CALL xc_functionals_eval(functional, lsd=.TRUE., rho_set=rho_set, deriv_set=derivatives, deriv_order=2)
+      CALL xc_functionals_eval(functional, lsd=.TRUE., rho_set=rho_set, deriv_set=derivatives, deriv_order=order)
       derivative => xc_dset_get_derivative(derivatives, [INTEGER::])
       CALL xc_derivative_get(derivative, deriv_data=values)
       energy = values(1, 1, 1)
@@ -147,6 +156,7 @@ CONTAINS
             derivative => xc_dset_get_derivative(derivatives, [labels(i), labels(j)])
             CALL xc_derivative_get(derivative, deriv_data=values)
             hessian(i, j) = values(1, 1, 1) - 0.125_dp
+            IF (order == 1) hessian(i, j) = 0.0_dp
             hessian(j, i) = hessian(i, j)
          END DO
       END DO
@@ -239,7 +249,61 @@ CONTAINS
    END SUBROUTINE check_tpss_zero_gradient
 
 ! **************************************************************************************************
-!> \brief Evaluate native TPSS in independent density, gradient-norm, and kinetic-density variables.
+!> \brief Check screened exchange limits and gradient scaling against energy differences.
+! **************************************************************************************************
+   SUBROUTINE check_xwpbe_limits()
+      REAL(dp), PARAMETER :: reduced_gradients(3) = [0.0_dp, 0.2_dp, 12.0_dp], step = 1.e-5_dp
+
+      INTEGER                                            :: axis, configuration, range_case
+      REAL(dp)                                           :: energy, error, gr(3), gs(5), &
+                                                            hessian(5, 5), minus, plus, &
+                                                            scratchr(3), scratchs(5), trialr(3), &
+                                                            trials(5), xr(3), xs(5)
+
+      error = 0.0_dp
+      CALL section_vals_val_set(functional, 'XWPBE%SCALE_X', r_val=-0.25_dp)
+      CALL section_vals_val_set(functional, 'XWPBE%SCALE_X0', r_val=1.0_dp)
+      DO range_case = 1, 2
+         CALL section_vals_val_set(functional, 'XWPBE%OMEGA', r_val=0.11_dp*REAL(range_case - 1, dp))
+         DO configuration = 1, SIZE(reduced_gradients)
+            xr = [0.4_dp, 0.0_dp, 0.5_dp]
+            xr(2) = reduced_gradients(configuration)*2.0_dp*(3.0_dp*pi**2)**(1.0_dp/3.0_dp)*xr(1)**(4.0_dp/3.0_dp)
+            CALL evaluate_tpss_point(xr, energy, gr)
+            DO axis = 1, 2
+               IF (axis == 2 .AND. configuration == 1) CYCLE
+               trialr = xr; trialr(axis) = xr(axis) + step
+               CALL evaluate_tpss_point(trialr, plus, scratchr)
+               trialr(axis) = xr(axis) - step
+               CALL evaluate_tpss_point(trialr, minus, scratchr)
+               error = MAX(error, ABS((plus - minus)/(2.0_dp*step) - gr(axis))/(1.0_dp + ABS(gr(axis))))
+            END DO
+            IF (configuration == 1) THEN
+               IF (ABS(gr(2)) > 1.e-13_dp) ERROR STOP 'XWPBE zero-gradient potential is not stationary'
+               trialr = xr; trialr(2) = 1.e-8_dp
+               CALL evaluate_tpss_point(trialr, plus, scratchr)
+               IF (ABS(plus - energy) > 1.e-12_dp) ERROR STOP 'XWPBE zero-gradient energy is discontinuous'
+            END IF
+            xs = [0.3_dp, 0.2_dp, 0.3_dp, 0.0_dp, 0.0_dp]
+            xs(4) = reduced_gradients(configuration)*2.0_dp*(3.0_dp*pi**2)**(1.0_dp/3.0_dp)*(2.0_dp*xs(1))**(4.0_dp/3.0_dp)/2.0_dp
+            xs(5) = reduced_gradients(configuration)*2.0_dp*(3.0_dp*pi**2)**(1.0_dp/3.0_dp)*(2.0_dp*xs(2))**(4.0_dp/3.0_dp)/2.0_dp
+            CALL evaluate(xs, energy, gs, hessian, derivative_order=1)
+            DO axis = 1, 5
+               IF (axis >= 4 .AND. configuration == 1) CYCLE
+               trials = xs; trials(axis) = xs(axis) + step
+               CALL evaluate(trials, plus, scratchs, hessian, derivative_order=1)
+               trials(axis) = xs(axis) - step
+               CALL evaluate(trials, minus, scratchs, hessian, derivative_order=1)
+               error = MAX(error, ABS((plus - minus)/(2.0_dp*step) - gs(axis))/(1.0_dp + ABS(gs(axis))))
+            END DO
+    IF (configuration == 1 .AND. MAXVAL(ABS(gs(4:5))) > 1.e-13_dp) ERROR STOP 'XWPBE spin zero-gradient potential is not stationary'
+         END DO
+      END DO
+      WRITE (*, '(A,ES15.6)') 'XWPBE limiting/large-gradient first-derivative error:', error
+      IF (error > 3.e-8_dp) ERROR STOP 'XWPBE potential is not the derivative of its scaled-gradient energy'
+   END SUBROUTINE check_xwpbe_limits
+
+! **************************************************************************************************
+!> \brief Evaluate an unpolarized semilocal functional in density, gradient-norm and kinetic-density variables.
 !> \param x ...
 !> \param energy ...
 !> \param gradient ...
@@ -259,6 +323,7 @@ CONTAINS
 
       bounds = 1
       needs = xc_functionals_get_needs(functional, lsd=.FALSE., calc_potential=.TRUE.)
+      needs%tau = .TRUE.
       CALL xc_rho_set_create(rho_set, bounds, rho_cutoff=1.e-20_dp, tau_cutoff=1.e-20_dp)
       CALL xc_rho_set_atom_update(rho_set, needs, 1, bounds)
       rho_set%rho = x(1)
