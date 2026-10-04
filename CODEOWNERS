@@ -32,6 +32,7 @@
 /src/dbx/                    @fstein93 @oschuett
 /src/base/                   @fstein93 @oschuett
 /src/start/                  @fstein93 @oschuett
+/src/common/                 @mkrack @oschuett
 /src/f77_interface.F         @fstein93 @oschuett
 /tests/do_regtest.py         @fstein93 @oschuett
 /tests/matcher_classes.py    @fstein93 @oschuett
