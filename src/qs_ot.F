@@ -3188,7 +3188,9 @@ CONTAINS
          N = N + 1
          num_error = num_error*qs_ot_env%largest_eval_upper_bound/REAL((2*N + 1)*(2*N + 2), KIND=dp)
       END DO
-      qs_ot_env%taylor_order = N
+      ! An O(P) matrix-function term can be below eps_taylor while its O(X)
+      ! orbital derivative is still needed near P=X^T*S*X=0.
+      qs_ot_env%taylor_order = MAX(1, N)
       IF (qs_ot_env%taylor_order <= qs_ot_env%settings%max_taylor) THEN
          qs_ot_env%do_taylor = .TRUE.
       END IF
