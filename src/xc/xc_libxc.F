@@ -1845,17 +1845,20 @@ CONTAINS
 !> \param first First derivatives in a and b.
 !> \param second Second derivatives in a and b.
 !> \param active Optional indication that the first argument is not on the identity branch.
+!> \param third Optional third derivatives inside each smooth branch.
 ! **************************************************************************************************
-   PURE SUBROUTINE libxc_c2_maximum(a, b, value, first, second, active)
+   PURE SUBROUTINE libxc_c2_maximum(a, b, value, first, second, active, third)
       REAL(dp), INTENT(IN) :: a, b
       REAL(dp), INTENT(OUT) :: value, first(2), second(2, 2)
       LOGICAL, INTENT(OUT), OPTIONAL :: active
+      REAL(dp), INTENT(OUT), OPTIONAL :: third(2, 2, 2)
       REAL(dp), PARAMETER :: relative_width = 64.0_dp*SQRT(EPSILON(0.0_dp))
-      REAL(dp) :: width, u, polynomial, slope, curvature, ratio
+      REAL(dp) :: width, u, polynomial, slope, curvature, ratio, curvature_derivative
 
       width = relative_width*b
       IF (PRESENT(active)) active = a - b < width
       second = 0.0_dp
+      IF (PRESENT(third)) third = 0.0_dp
       IF (a - b >= width) THEN
          value = a
          first = [1.0_dp, 0.0_dp]
@@ -1874,6 +1877,17 @@ CONTAINS
          second(1, 2) = -ratio*curvature
          second(2, 1) = second(1, 2)
          second(2, 2) = ratio*ratio*curvature
+         IF (PRESENT(third)) THEN
+            curvature_derivative = -1.5_dp*u/width**2
+            third(1, 1, 1) = curvature_derivative
+            third(1, 1, 2) = -curvature/b - ratio*curvature_derivative
+            third(1, 2, 1) = third(1, 1, 2)
+            third(2, 1, 1) = third(1, 1, 2)
+            third(1, 2, 2) = 2.0_dp*ratio*curvature/b + ratio**2*curvature_derivative
+            third(2, 1, 2) = third(1, 2, 2)
+            third(2, 2, 1) = third(1, 2, 2)
+            third(2, 2, 2) = -3.0_dp*ratio**2*curvature/b - ratio**3*curvature_derivative
+         END IF
       END IF
    END SUBROUTINE libxc_c2_maximum
 
@@ -1887,16 +1901,19 @@ CONTAINS
 !> \param first Optional first derivatives.
 !> \param second Optional second derivatives.
 !> \param active Optional projection activity, independent of rounding of the value.
+!> \param third Optional third derivatives inside each smooth branch.
 !> \return Projected kinetic density.
 ! **************************************************************************************************
-   FUNCTION libxc_c2_project_tau(rho, sigma, raw_tau, epsilon_rho, epsilon_tau, first, second, active) RESULT(value)
+   FUNCTION libxc_c2_project_tau(rho, sigma, raw_tau, epsilon_rho, epsilon_tau, first, second, active, third) RESULT(value)
       REAL(dp), INTENT(IN) :: rho, sigma, raw_tau, epsilon_rho, epsilon_tau
-      REAL(dp), INTENT(OUT), OPTIONAL :: first(3), second(3, 3)
+      REAL(dp), INTENT(OUT), OPTIONAL :: first(3), second(3, 3), third(3, 3, 3)
       LOGICAL, INTENT(OUT), OPTIONAL :: active
       LOGICAL :: projection_active
       REAL(dp) :: value, denominator, tau_w, lower, lower_first(2), lower_second(2, 2), &
                   final_first(2), final_second(2, 2), w_first(2), w_second(2, 2), outer(2, 2)
-      INTEGER :: i, j
+      REAL(dp) :: lower_third(2, 2, 2), final_third(2, 2, 2), w_third(2, 2, 2), &
+                  inner_first(2, 3), inner_second(3, 3), inner_third(3, 3, 3)
+      INTEGER :: i, j, k, a, b, c
 
       denominator = MAX(rho, epsilon_rho, TINY(0.0_dp))
       tau_w = sigma/(8.0_dp*denominator)
@@ -1906,9 +1923,10 @@ CONTAINS
       IF (.NOT. projection_active) THEN
          IF (PRESENT(first)) first = [0.0_dp, 0.0_dp, 1.0_dp]
          IF (PRESENT(second)) second = 0.0_dp
+         IF (PRESENT(third)) third = 0.0_dp
          RETURN
       END IF
-      IF (.NOT. PRESENT(first) .AND. .NOT. PRESENT(second)) RETURN
+      IF (.NOT. PRESENT(first) .AND. .NOT. PRESENT(second) .AND. .NOT. PRESENT(third)) RETURN
       w_first = [0.0_dp, 1.0_dp/(8.0_dp*denominator)]
       w_second = 0.0_dp
       IF (rho > epsilon_rho) THEN
@@ -1921,18 +1939,66 @@ CONTAINS
          first(1:2) = final_first(2)*lower_first(1)*w_first
          first(3) = final_first(1)
       END IF
-      IF (PRESENT(second)) THEN
+      IF (PRESENT(second) .OR. PRESENT(third)) THEN
          DO j = 1, 2
             DO i = 1, 2
                outer(i, j) = w_first(i)*w_first(j)
             END DO
          END DO
+      END IF
+      IF (PRESENT(second)) THEN
          second = 0.0_dp
          second(1:2, 1:2) = final_first(2)*(lower_first(1)*w_second + lower_second(1, 1)*outer) + &
                             final_second(2, 2)*lower_first(1)**2*outer
          second(1:2, 3) = final_second(1, 2)*lower_first(1)*w_first
          second(3, 1:2) = second(1:2, 3)
          second(3, 3) = final_second(1, 1)
+      END IF
+      IF (PRESENT(third)) THEN
+         CALL libxc_c2_maximum(tau_w, MAX(epsilon_tau, EPSILON(0.0_dp)), lower, &
+                               lower_first, lower_second, third=lower_third)
+         CALL libxc_c2_maximum(raw_tau, lower, value, final_first, final_second, third=final_third)
+         w_third = 0.0_dp
+         IF (rho > epsilon_rho) THEN
+            w_third(1, 1, 1) = -6.0_dp*tau_w/denominator**3
+            w_third(1, 1, 2) = 2.0_dp*w_first(2)/denominator**2
+            w_third(1, 2, 1) = w_third(1, 1, 2)
+            w_third(2, 1, 1) = w_third(1, 1, 2)
+         END IF
+         inner_first = 0.0_dp
+         inner_first(1, 3) = 1.0_dp
+         inner_first(2, 1:2) = lower_first(1)*w_first
+         inner_second = 0.0_dp
+         inner_second(1:2, 1:2) = lower_first(1)*w_second + lower_second(1, 1)*outer
+         inner_third = 0.0_dp
+         DO k = 1, 2
+            DO j = 1, 2
+               DO i = 1, 2
+                  inner_third(i, j, k) = lower_first(1)*w_third(i, j, k) + &
+                                         lower_second(1, 1)*(w_second(i, j)*w_first(k) + w_second(i, k)*w_first(j) + &
+                                                             w_second(j, k)*w_first(i)) + &
+                                         lower_third(1, 1, 1)*w_first(i)*w_first(j)*w_first(k)
+               END DO
+            END DO
+         END DO
+         DO k = 1, 3
+            DO j = 1, 3
+               DO i = 1, 3
+                  third(i, j, k) = final_first(2)*inner_third(i, j, k)
+                  DO a = 1, 2
+                     third(i, j, k) = third(i, j, k) + final_second(a, 2)* &
+                                      (inner_first(a, i)*inner_second(j, k) + inner_first(a, j)*inner_second(i, k) + &
+                                       inner_first(a, k)*inner_second(i, j))
+                     DO b = 1, 2
+                        DO c = 1, 2
+                           third(i, j, k) = third(i, j, k) + &
+                                            final_third(a, b, c)*inner_first(a, i)*inner_first(b, j)*inner_first(c, k)
+                        END DO
+                     END DO
+                  END DO
+               END DO
+            END DO
+         END DO
       END IF
    END FUNCTION libxc_c2_project_tau
 
@@ -1955,12 +2021,14 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: has_laplace
 
       INTEGER                                            :: channel, i, irho, isigma, itau, nvar
-      REAL(dp)                                           :: projected, tau_first(3), tau_second(3, 3)
-      INTEGER                                            :: indices(3), j
+      REAL(dp)                                           :: projected, tau_first(3), tau_second(3, 3), tau_third(3, 3, 3)
+      INTEGER                                            :: indices(3), j, k
       LOGICAL                                            :: active(2)
       REAL(dp)                                           :: gradient(9), hessian(9, 9), jacobian(9, 9), &
                                                             curvature(9, 9, 2), pulled_gradient(9), &
-                                                            pulled_hessian(9, 9)
+                                                            pulled_hessian(9, 9), third(9, 9, 9), &
+                                                            pulled_third(9, 9, 9), scratch(9, 9, 9), &
+                                                            map_third(9, 9, 9, 2), mixed(9)
 
       IF (grad_deriv < 1) RETURN
       CPASSERT(nspin == 1 .OR. nspin == 2)
@@ -1970,6 +2038,7 @@ CONTAINS
       hessian = 0.0_dp
       jacobian = 0.0_dp
       curvature = 0.0_dp
+      IF (grad_deriv >= 3) map_third = 0.0_dp
       DO i = 1, nvar
          jacobian(i, i) = 1.0_dp
       END DO
@@ -1987,28 +2056,43 @@ CONTAINS
          projected = libxc_c2_project_tau(w%rho(channel, point), w%sigma(isigma - nspin, point), &
                                           raw_tau(channel), epsilon_rho, epsilon_tau, tau_first, tau_second, active(channel))
          IF (.NOT. active(channel)) CYCLE
+         IF (grad_deriv >= 3) THEN
+            projected = libxc_c2_project_tau(w%rho(channel, point), w%sigma(isigma - nspin, point), &
+                                             raw_tau(channel), epsilon_rho, epsilon_tau, third=tau_third)
+         END IF
          jacobian(itau, :) = 0.0_dp
          indices = [irho, isigma, itau]
          DO i = 1, 3
             jacobian(itau, indices(i)) = tau_first(i)
             DO j = 1, 3
                curvature(indices(i), indices(j), channel) = tau_second(i, j)
+               IF (grad_deriv >= 3) THEN
+                  DO k = 1, 3
+                     map_third(indices(i), indices(j), indices(k), channel) = tau_third(i, j, k)
+                  END DO
+               END IF
             END DO
          END DO
       END DO
       IF (.NOT. ANY(active(1:nspin))) RETURN
-      IF (grad_deriv > 2) CPABORT("Libxc meta-GGA tau projection supports derivatives through second order")
+      IF (grad_deriv >= 3) THEN
+         third = 0.0_dp
+         scratch = 0.0_dp
+      END IF
 
       IF (nspin == 1) THEN
-         #:for descs, arr, idx in umgga_deriv_1
-            #:if has_lap((descs, arr, idx))
-            IF (has_laplace) THEN
-               gradient(${umgga_vars.index(descs[0]) + 1}$) = w%${arr}$ (${idx}$, point)
-            END IF
-            #:else
-            gradient(${umgga_vars.index(descs[0]) + 1}$) = w%${arr}$ (${idx}$, point)
-            #:endif
-         #:endfor
+         IF (grad_deriv >= 1) THEN
+            #:for descs, arr, idx in umgga_deriv_1
+               #:set a = umgga_vars.index(descs[0]) + 1
+               #:if has_lap((descs, arr, idx))
+               IF (has_laplace) THEN
+                  gradient(${a}$) = w%${arr}$ (${idx}$, point)
+               END IF
+               #:else
+               gradient(${a}$) = w%${arr}$ (${idx}$, point)
+               #:endif
+            #:endfor
+         END IF
          IF (grad_deriv >= 2) THEN
             #:for descs, arr, idx in umgga_deriv_2
                #:set a, b = [umgga_vars.index(d) + 1 for d in descs]
@@ -2022,16 +2106,34 @@ CONTAINS
                hessian(${b}$, ${a}$) = hessian(${a}$, ${b}$)
             #:endfor
          END IF
+         IF (grad_deriv >= 3) THEN
+            #:for descs, arr, idx in umgga_deriv_3
+               #:set a, b, c = [umgga_vars.index(d) + 1 for d in descs]
+               #:if has_lap((descs, arr, idx))
+               IF (has_laplace) THEN
+                  third(${a}$, ${b}$, ${c}$) = w%${arr}$ (${idx}$, point)
+               END IF
+               #:else
+               third(${a}$, ${b}$, ${c}$) = w%${arr}$ (${idx}$, point)
+               #:endif
+               #:for p, q, r in sorted(set([(a,b,c),(a,c,b),(b,a,c),(b,c,a),(c,a,b),(c,b,a)]) - set([(a,b,c)]))
+                  third(${p}$, ${q}$, ${r}$) = third(${a}$, ${b}$, ${c}$)
+               #:endfor
+            #:endfor
+         END IF
       ELSE
-         #:for descs, arr, idx in mgga_deriv_1
-            #:if has_lap((descs, arr, idx))
-            IF (has_laplace) THEN
-               gradient(${mgga_vars.index(descs[0]) + 1}$) = w%${arr}$ (${idx}$, point)
-            END IF
-            #:else
-            gradient(${mgga_vars.index(descs[0]) + 1}$) = w%${arr}$ (${idx}$, point)
-            #:endif
-         #:endfor
+         IF (grad_deriv >= 1) THEN
+            #:for descs, arr, idx in mgga_deriv_1
+               #:set a = mgga_vars.index(descs[0]) + 1
+               #:if has_lap((descs, arr, idx))
+               IF (has_laplace) THEN
+                  gradient(${a}$) = w%${arr}$ (${idx}$, point)
+               END IF
+               #:else
+               gradient(${a}$) = w%${arr}$ (${idx}$, point)
+               #:endif
+            #:endfor
+         END IF
          IF (grad_deriv >= 2) THEN
             #:for descs, arr, idx in mgga_deriv_2
                #:set a, b = [mgga_vars.index(d) + 1 for d in descs]
@@ -2043,6 +2145,21 @@ CONTAINS
                hessian(${a}$, ${b}$) = w%${arr}$ (${idx}$, point)
                #:endif
                hessian(${b}$, ${a}$) = hessian(${a}$, ${b}$)
+            #:endfor
+         END IF
+         IF (grad_deriv >= 3) THEN
+            #:for descs, arr, idx in mgga_deriv_3
+               #:set a, b, c = [mgga_vars.index(d) + 1 for d in descs]
+               #:if has_lap((descs, arr, idx))
+               IF (has_laplace) THEN
+                  third(${a}$, ${b}$, ${c}$) = w%${arr}$ (${idx}$, point)
+               END IF
+               #:else
+               third(${a}$, ${b}$, ${c}$) = w%${arr}$ (${idx}$, point)
+               #:endif
+               #:for p, q, r in sorted(set([(a,b,c),(a,c,b),(b,a,c),(b,c,a),(c,a,b),(c,b,a)]) - set([(a,b,c)]))
+                  third(${p}$, ${q}$, ${r}$) = third(${a}$, ${b}$, ${c}$)
+               #:endfor
             #:endfor
          END IF
       END IF
@@ -2059,16 +2176,47 @@ CONTAINS
                                              gradient(itau)*curvature(1:nvar, 1:nvar, channel)
          END DO
       END IF
+      IF (grad_deriv >= 3) THEN
+         ! Contract one tensor index at a time, then add the nonlinear map terms.
+         DO k = 1, nvar
+            scratch(1:nvar, 1:nvar, k) = MATMUL(TRANSPOSE(jacobian(1:nvar, 1:nvar)), third(1:nvar, 1:nvar, k))
+         END DO
+         DO i = 1, nvar
+            pulled_third(i, 1:nvar, 1:nvar) = &
+               MATMUL(TRANSPOSE(jacobian(1:nvar, 1:nvar)), scratch(i, 1:nvar, 1:nvar))
+         END DO
+         DO j = 1, nvar
+            scratch(1:nvar, j, 1:nvar) = MATMUL(pulled_third(1:nvar, j, 1:nvar), jacobian(1:nvar, 1:nvar))
+         END DO
+         pulled_third = scratch
+         DO channel = 1, nspin
+            itau = 4
+            IF (nspin == 2) itau = 7 + channel
+            mixed(1:nvar) = MATMUL(hessian(itau, 1:nvar), jacobian(1:nvar, 1:nvar))
+            DO k = 1, nvar
+               DO j = 1, nvar
+                  DO i = 1, nvar
+                     pulled_third(i, j, k) = pulled_third(i, j, k) + &
+                                             curvature(i, j, channel)*mixed(k) + curvature(i, k, channel)*mixed(j) + &
+                                             curvature(j, k, channel)*mixed(i) + gradient(itau)*map_third(i, j, k, channel)
+                  END DO
+               END DO
+            END DO
+         END DO
+      END IF
       IF (nspin == 1) THEN
-         #:for descs, arr, idx in umgga_deriv_1
-            #:if has_lap((descs, arr, idx))
-            IF (has_laplace) THEN
-               w%${arr}$ (${idx}$, point) = pulled_gradient(${umgga_vars.index(descs[0]) + 1}$)
-            END IF
-            #:else
-            w%${arr}$ (${idx}$, point) = pulled_gradient(${umgga_vars.index(descs[0]) + 1}$)
-            #:endif
-         #:endfor
+         IF (grad_deriv >= 1) THEN
+            #:for descs, arr, idx in umgga_deriv_1
+               #:set a = umgga_vars.index(descs[0]) + 1
+               #:if has_lap((descs, arr, idx))
+               IF (has_laplace) THEN
+                  w%${arr}$ (${idx}$, point) = pulled_gradient(${a}$)
+               END IF
+               #:else
+               w%${arr}$ (${idx}$, point) = pulled_gradient(${a}$)
+               #:endif
+            #:endfor
+         END IF
          IF (grad_deriv >= 2) THEN
             #:for descs, arr, idx in umgga_deriv_2
                #:set a, b = [umgga_vars.index(d) + 1 for d in descs]
@@ -2081,16 +2229,31 @@ CONTAINS
                #:endif
             #:endfor
          END IF
+         IF (grad_deriv >= 3) THEN
+            #:for descs, arr, idx in umgga_deriv_3
+               #:set a, b, c = [umgga_vars.index(d) + 1 for d in descs]
+               #:if has_lap((descs, arr, idx))
+               IF (has_laplace) THEN
+                  w%${arr}$ (${idx}$, point) = pulled_third(${a}$, ${b}$, ${c}$)
+               END IF
+               #:else
+               w%${arr}$ (${idx}$, point) = pulled_third(${a}$, ${b}$, ${c}$)
+               #:endif
+            #:endfor
+         END IF
       ELSE
-         #:for descs, arr, idx in mgga_deriv_1
-            #:if has_lap((descs, arr, idx))
-            IF (has_laplace) THEN
-               w%${arr}$ (${idx}$, point) = pulled_gradient(${mgga_vars.index(descs[0]) + 1}$)
-            END IF
-            #:else
-            w%${arr}$ (${idx}$, point) = pulled_gradient(${mgga_vars.index(descs[0]) + 1}$)
-            #:endif
-         #:endfor
+         IF (grad_deriv >= 1) THEN
+            #:for descs, arr, idx in mgga_deriv_1
+               #:set a = mgga_vars.index(descs[0]) + 1
+               #:if has_lap((descs, arr, idx))
+               IF (has_laplace) THEN
+                  w%${arr}$ (${idx}$, point) = pulled_gradient(${a}$)
+               END IF
+               #:else
+               w%${arr}$ (${idx}$, point) = pulled_gradient(${a}$)
+               #:endif
+            #:endfor
+         END IF
          IF (grad_deriv >= 2) THEN
             #:for descs, arr, idx in mgga_deriv_2
                #:set a, b = [mgga_vars.index(d) + 1 for d in descs]
@@ -2100,6 +2263,18 @@ CONTAINS
                END IF
                #:else
                w%${arr}$ (${idx}$, point) = pulled_hessian(${a}$, ${b}$)
+               #:endif
+            #:endfor
+         END IF
+         IF (grad_deriv >= 3) THEN
+            #:for descs, arr, idx in mgga_deriv_3
+               #:set a, b, c = [mgga_vars.index(d) + 1 for d in descs]
+               #:if has_lap((descs, arr, idx))
+               IF (has_laplace) THEN
+                  w%${arr}$ (${idx}$, point) = pulled_third(${a}$, ${b}$, ${c}$)
+               END IF
+               #:else
+               w%${arr}$ (${idx}$, point) = pulled_third(${a}$, ${b}$, ${c}$)
                #:endif
             #:endfor
          END IF

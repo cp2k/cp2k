@@ -42,7 +42,8 @@ PROGRAM xc_semilocal_unittest
                                xc_rho_set_release, &
                                xc_rho_set_type
 #if defined (__LIBXC)
-   USE xc_derivative_desc, ONLY: deriv_tau_a, &
+   USE xc_derivative_desc, ONLY: deriv_gamma, deriv_gamma_aa, deriv_gamma_ab, deriv_gamma_bb, &
+                                 deriv_tau_a, &
                                  deriv_tau_b
    USE xc_libxc, ONLY: libxc_spin_polarized_eval, &
                        libxc_spin_unpolarized_eval
@@ -192,75 +193,89 @@ CONTAINS
    SUBROUTINE check_libxc_c2_window()
       CHARACTER(len=32), PARAMETER :: names(4) = [CHARACTER(len=32):: 'MGGA_X_TPSS', 'MGGA_C_TPSS',&
          'MGGA_X_R2SCAN', 'MGGA_C_R2SCAN']
-      REAL(dp), PARAMETER :: offsets(3) = [-0.6_dp, 0.0_dp, 0.6_dp], &
+      REAL(dp), PARAMETER :: offsets(3) = [-0.6_dp, 0.2_dp, 0.6_dp], &
          relative_width = 64.0_dp*SQRT(EPSILON(0.0_dp))
 
       INTEGER                                            :: axis, configuration, family, nvar, &
                                                             spin_case
       REAL(dp)                                           :: em, emm, energy, ep, epp, first_error, &
-                                                            first_fd, h, second_error, wa, wb, &
-                                                            widtha, widthb
-      REAL(dp), ALLOCATABLE                              :: gm(:), gmm(:), gp(:), gpp(:), &
-                                                            gradient(:), hessian(:, :), &
-                                                            scratch(:, :), trial(:), x(:)
+                                                            first_fd, h, second_error, &
+                                                            third_error, wa, wb, widtha, widthb
+      REAL(dp), ALLOCATABLE :: gm(:), gmm(:), gp(:), gpp(:), gradient(:), hessian(:, :), hm(:, :), &
+         hmm(:, :), hp(:, :), hpp(:, :), third(:, :, :), trial(:), x(:)
+
+! Nonzero offsets keep the third-derivative differences well conditioned.
 
       first_error = 0.0_dp
       second_error = 0.0_dp
+      third_error = 0.0_dp
       DO spin_case = 1, 2
          nvar = 3
          IF (spin_case == 2) nvar = 7
          ALLOCATE (x(nvar), trial(nvar), gradient(nvar), gm(nvar), gp(nvar), &
-                   gmm(nvar), gpp(nvar), hessian(nvar, nvar), scratch(nvar, nvar))
+                   gmm(nvar), gpp(nvar), hessian(nvar, nvar), &
+                   third(nvar, nvar, nvar), hm(nvar, nvar), hp(nvar, nvar), hmm(nvar, nvar), hpp(nvar, nvar))
          DO family = 1, SIZE(names)
             DO configuration = 1, SIZE(offsets)
                IF (spin_case == 1) THEN
-                  x(:) = [0.4_dp, 0.8_dp, 0.3_dp]
-                  wa = x(2)**2/(8.0_dp*x(1))
+                  x(:) = [0.4_dp, 0.64_dp, 0.3_dp]
+                  wa = x(2)/(8.0_dp*x(1))
                   widtha = relative_width*wa
                   x(3) = wa + offsets(configuration)*widtha
                ELSE
-                  x(:) = [0.3_dp, 0.2_dp, 0.6_dp, 0.4_dp, 0.3_dp, 0.12_dp, 0.10_dp]
-                  wa = x(4)**2/(8.0_dp*x(1))
-                  wb = x(5)**2/(8.0_dp*x(2))
+                  x(:) = [0.3_dp, 0.2_dp, 0.055_dp, 0.16_dp, 0.09_dp, 0.12_dp, 0.10_dp]
+                  wa = x(4)/(8.0_dp*x(1))
+                  wb = x(5)/(8.0_dp*x(2))
                   widtha = relative_width*wa
                   widthb = relative_width*wb
                   x(6) = wa + offsets(configuration)*widtha
                   x(7) = wb - offsets(configuration)*widthb
                END IF
-               CALL evaluate_libxc_point(names(family), x, energy, gradient, hessian)
+               ! The installed r2SCAN functions expose only first and second derivatives.
+               IF (family <= 2) THEN
+                  CALL evaluate_libxc_point(names(family), x, energy, gradient, hessian, third_all=third, contractions=.TRUE.)
+               ELSE
+                  CALL evaluate_libxc_point(names(family), x, energy, gradient, hessian, contractions=.TRUE.)
+               END IF
                DO axis = 1, nvar
                   h = 0.01_dp*widtha
                   IF (spin_case == 1) THEN
                      IF (axis == 1) h = 0.01_dp*widtha/(wa/x(1))
-                     IF (axis == 2) h = 0.01_dp*widtha/(2.0_dp*wa/x(2))
+                     IF (axis == 2) h = 0.01_dp*widtha/(wa/x(2))
                   ELSE
                      IF (axis == 1) h = 0.01_dp*widtha/(wa/x(1))
                      IF (axis == 2) h = 0.01_dp*widthb/(wb/x(2))
                      IF (axis == 3) h = 1.e-5_dp
-                     IF (axis == 4) h = 0.01_dp*widtha/(2.0_dp*wa/x(4))
-                     IF (axis == 5) h = 0.01_dp*widthb/(2.0_dp*wb/x(5))
+                     IF (axis == 4) h = 0.01_dp*widtha/(wa/x(4))
+                     IF (axis == 5) h = 0.01_dp*widthb/(wb/x(5))
                      IF (axis == 7) h = 0.01_dp*widthb
                   END IF
                   trial(:) = x(:); trial(axis) = x(axis) + h
-                  CALL evaluate_libxc_point(names(family), trial, ep, gp, scratch)
+                  CALL evaluate_libxc_point(names(family), trial, ep, gp, hp, contractions=.TRUE.)
                   trial(axis) = x(axis) - h
-                  CALL evaluate_libxc_point(names(family), trial, em, gm, scratch)
+                  CALL evaluate_libxc_point(names(family), trial, em, gm, hm, contractions=.TRUE.)
                   trial(axis) = x(axis) + 2.0_dp*h
-                  CALL evaluate_libxc_point(names(family), trial, epp, gpp, scratch)
+                  CALL evaluate_libxc_point(names(family), trial, epp, gpp, hpp, contractions=.TRUE.)
                   trial(axis) = x(axis) - 2.0_dp*h
-                  CALL evaluate_libxc_point(names(family), trial, emm, gmm, scratch)
+                  CALL evaluate_libxc_point(names(family), trial, emm, gmm, hmm, contractions=.TRUE.)
                   first_fd = (8.0_dp*(ep - em) - (epp - emm))/(12.0_dp*h)
                   first_error = MAX(first_error, ABS(first_fd - gradient(axis))/(1.0_dp + ABS(gradient(axis))))
                   second_error = MAX(second_error, &
                       MAXVAL(ABS((8.0_dp*(gp - gm) - (gpp - gmm))/(12.0_dp*h) - hessian(:, axis))/(1.0_dp + ABS(hessian(:, axis)))))
+                  IF (family <= 2) THEN
+                     third_error = MAX(third_error, &
+                                       MAXVAL(ABS((8.0_dp*(hp - hm) - (hpp - hmm))/(12.0_dp*h) - third(:, :, axis))/ &
+                                              (1.0_dp + ABS(third(:, :, axis)))))
+                  END IF
                END DO
             END DO
          END DO
-         DEALLOCATE (x, trial, gradient, gm, gp, gmm, gpp, hessian, scratch)
+         DEALLOCATE (x, trial, gradient, gm, gp, gmm, gpp, hessian, third, hm, hp, hmm, hpp)
       END DO
-      WRITE (*, '(A,2ES15.6)') 'Libxc C2-window first/second derivative errors:', first_error, second_error
+      WRITE (*, '(A,3ES15.6)') 'Libxc C2-window first/second/third derivative errors:', first_error, second_error, third_error
       IF (first_error > 2.e-6_dp) ERROR STOP 'C2-window energy Jacobian failed'
       IF (second_error > 2.e-5_dp) ERROR STOP 'C2-window potential Hessian failed'
+      IF (third_error > 2.e-5_dp) ERROR STOP 'C2-window kernel third derivatives failed'
    END SUBROUTINE check_libxc_c2_window
 
 ! **************************************************************************************************
@@ -383,17 +398,21 @@ CONTAINS
 !> \param hessian Second derivatives in the same independent variables.
 !> \param density_cutoff Optional cutoff for the individual-spin-floor oracle.
 !> \param third_rho Optional third derivatives in the two spin densities.
+!> \param third_all Optional third derivatives in every independent variable.
+!> \param contractions Use Libxc gradient contractions instead of CP2K gradient norms.
 ! **************************************************************************************************
-   SUBROUTINE evaluate_libxc_point(name, x, energy, gradient, hessian, density_cutoff, third_rho)
+   SUBROUTINE evaluate_libxc_point(name, x, energy, gradient, hessian, density_cutoff, third_rho, third_all, contractions)
       CHARACTER(len=*), INTENT(IN)                       :: name
       REAL(dp), INTENT(IN)                               :: x(:)
       REAL(dp), INTENT(OUT)                              :: energy, gradient(SIZE(x)), &
                                                             hessian(SIZE(x), SIZE(x))
       REAL(dp), INTENT(IN), OPTIONAL                     :: density_cutoff
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: third_rho(2, 2, 2)
+      REAL(dp), INTENT(OUT), OPTIONAL :: third_rho(2, 2, 2), third_all(SIZE(x), SIZE(x), SIZE(x))
+      LOGICAL, INTENT(IN), OPTIONAL                      :: contractions
 
       INTEGER                                            :: bounds(2, 3), i, j, k, labels(7), &
                                                             nspins, order
+      LOGICAL                                            :: use_contractions
       REAL(dp)                                           :: cutoff
       REAL(dp), POINTER                                  :: values(:, :, :)
       TYPE(section_vals_type), POINTER                   :: parameters
@@ -403,6 +422,8 @@ CONTAINS
       TYPE(xc_rho_set_type)                              :: rho_set
 
       bounds = 1
+      use_contractions = .FALSE.
+      IF (PRESENT(contractions)) use_contractions = contractions
       labels = 0
       needs%norm_drho = .TRUE.
       IF (SIZE(x) == 3) THEN
@@ -419,6 +440,13 @@ CONTAINS
          needs%tau_spin = .TRUE.
          needs%laplace_rho_spin = .TRUE.
       END IF
+      IF (use_contractions) THEN
+         IF (nspins == 1) THEN
+            labels(2) = deriv_gamma
+         ELSE
+            labels(3:5) = [deriv_gamma_ab, deriv_gamma_aa, deriv_gamma_bb]
+         END IF
+      END IF
       cutoff = 1.e-20_dp
       IF (PRESENT(density_cutoff)) cutoff = density_cutoff
       CALL xc_rho_set_create(rho_set, bounds, rho_cutoff=cutoff, tau_cutoff=1.e-20_dp)
@@ -428,6 +456,7 @@ CONTAINS
          rho_set%norm_drho = x(2)
          rho_set%tau = x(3)
          rho_set%laplace_rho = 0.0_dp
+         IF (use_contractions) rho_set%norm_drho = SQRT(x(2))
       ELSE
          rho_set%rhoa = x(1)
          rho_set%rhob = x(2)
@@ -438,6 +467,11 @@ CONTAINS
          rho_set%tau_b = x(7)
          rho_set%laplace_rhoa = 0.0_dp
          rho_set%laplace_rhob = 0.0_dp
+         IF (use_contractions) THEN
+            rho_set%norm_drho = SQRT(2.0_dp*x(3) + x(4) + x(5))
+            rho_set%norm_drhoa = SQRT(x(4))
+            rho_set%norm_drhob = SQRT(x(5))
+         END IF
       END IF
       rho_set%has = needs
       CALL xc_dset_create(derivatives, local_bounds=bounds)
@@ -452,12 +486,12 @@ CONTAINS
          END DO
       END DO
       order = 2
-      IF (PRESENT(third_rho)) THEN
-         IF (nspins /= 2) ERROR STOP 'Spin third-derivative oracle requires two spins'
+      IF (PRESENT(third_rho) .OR. PRESENT(third_all)) THEN
+         IF (PRESENT(third_rho) .AND. nspins /= 2) ERROR STOP 'Spin third-derivative oracle requires two spins'
          order = 3
-         DO i = 1, 2
-            DO j = 1, 2
-               DO k = 1, 2
+         DO i = 1, SIZE(x)
+            DO j = 1, SIZE(x)
+               DO k = 1, SIZE(x)
                   derivative => xc_dset_get_derivative(derivatives, [labels(i), labels(j), labels(k)], allocate_deriv=.TRUE.)
                   CALL xc_derivative_get(derivative, deriv_data=values)
                   values = 0.125_dp
@@ -495,6 +529,18 @@ CONTAINS
                END DO
             END DO
          END DO
+      END IF
+      IF (PRESENT(third_all)) THEN
+         DO k = 1, SIZE(x)
+            DO j = 1, SIZE(x)
+               DO i = 1, SIZE(x)
+                  derivative => xc_dset_get_derivative(derivatives, [labels(i), labels(j), labels(k)])
+                  CALL xc_derivative_get(derivative, deriv_data=values)
+                  third_all(i, j, k) = values(1, 1, 1) - 0.125_dp
+               END DO
+            END DO
+         END DO
+         IF (.NOT. ALL(ieee_is_finite(third_all))) ERROR STOP 'Nonfinite Libxc third derivatives'
       END IF
       IF (.NOT. ieee_is_finite(energy) .OR. .NOT. ALL(ieee_is_finite(gradient)) .OR. &
           .NOT. ALL(ieee_is_finite(hessian))) ERROR STOP 'Nonfinite Libxc projected-tau result'
