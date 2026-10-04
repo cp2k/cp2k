@@ -93,10 +93,12 @@ CONTAINS
 !> \brief ...
 !> \param wisdom_file ...
 !> \param ionode ...
+!> \param export_wisdom Export the FFTW wisdom to wisdom_file (default: no export)
 ! **************************************************************************************************
-   SUBROUTINE fft_do_cleanup(wisdom_file, ionode)
+   SUBROUTINE fft_do_cleanup(wisdom_file, ionode, export_wisdom)
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
       LOGICAL, INTENT(IN)                                :: ionode
+      LOGICAL, INTENT(IN), OPTIONAL                      :: export_wisdom
 
       SELECT CASE (fft_type)
       CASE DEFAULT
@@ -104,7 +106,7 @@ CONTAINS
       CASE (1)
          CALL fftsg_do_cleanup()
       CASE (3)
-         CALL fftw3_do_cleanup(wisdom_file, ionode)
+         CALL fftw3_do_cleanup(wisdom_file, ionode, export_wisdom)
       END SELECT
 
    END SUBROUTINE fft_do_cleanup

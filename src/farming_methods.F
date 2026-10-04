@@ -7,7 +7,8 @@
 
 ! **************************************************************************************************
 MODULE farming_methods
-   USE cp_files,                        ONLY: get_unit_number
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -124,7 +125,7 @@ CONTAINS
       INTEGER                                            :: i, iunit, n_rep_val, num_minions, &
                                                             output_unit, stat
       INTEGER, DIMENSION(:), POINTER                     :: dependencies, i_vals
-      LOGICAL                                            :: explicit, has_dep
+      LOGICAL                                            :: exists, explicit, has_dep
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: farming_section, jobs_section, print_key
 
@@ -287,24 +288,29 @@ CONTAINS
          WRITE (output_unit, FMT="(T2,A,T78,A3)") "FARMING| Restarting farm:", text
          farming_env%restart_n = 1
          IF (farming_env%restart) THEN
-            iunit = get_unit_number()
-            OPEN (UNIT=iunit, FILE=farming_env%restart_file_name, IOSTAT=stat)
-            IF (stat == 0) THEN
+            ! A missing restart file is not an error: the farm then starts with the first job
+            INQUIRE (FILE=farming_env%restart_file_name, EXIST=exists)
+            IF (exists) THEN
+               CALL open_file(unit_number=iunit, &
+                              file_name=farming_env%restart_file_name)
                READ (UNIT=iunit, FMT=*, IOSTAT=stat) farming_env%restart_n
                IF (stat /= 0) THEN
-                  WRITE (output_unit, "(T2,A)") &
-                     "FARMING| ---- WARNING ---- failed to read from ("//TRIM(farming_env%restart_file_name)//") starting at 1"
+                  farming_env%restart_n = 1
+                  WRITE (UNIT=output_unit, FMT="(T2,A)") &
+                     "FARMING| ---- WARNING ---- failed to read from ("// &
+                     TRIM(farming_env%restart_file_name)//") starting at 1"
                ELSE
-                  WRITE (output_unit, "(T2,A)") &
+                  WRITE (UNIT=output_unit, FMT="(T2,A)") &
                      "FARMING| restarting from ("//TRIM(farming_env%restart_file_name)//")"
-                  WRITE (output_unit, "(T2,A,T71,I10)") &
+                  WRITE (UNIT=output_unit, FMT="(T2,A,T71,I10)") &
                      "FARMING| restarting at ", farming_env%restart_n
                END IF
+               CALL close_file(unit_number=iunit)
             ELSE
-               WRITE (output_unit, "(T2,A)") &
-                  "FARMING| ---- WARNING ---- failed to open ("//TRIM(farming_env%restart_file_name)//"), starting at 1"
+               WRITE (UNIT=output_unit, FMT="(T2,A)") &
+                  "FARMING| ---- WARNING ---- restart file ("// &
+                  TRIM(farming_env%restart_file_name)//") not found, starting at 1"
             END IF
-            CLOSE (iunit)
          END IF
 
          CALL cp_print_key_finished_output(output_unit, logger, farming_section, &

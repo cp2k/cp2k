@@ -201,12 +201,14 @@ CONTAINS
 !> \brief does whatever is needed to finalize the current fft setup
 !> \param para_env ...
 !> \param wisdom_file ...
+!> \param export_wisdom Export the FFTW wisdom to wisdom_file (default: no export)
 !> \par History
 !>      10.2007 created [Joost VandeVondele]
 ! **************************************************************************************************
-   SUBROUTINE finalize_fft(para_env, wisdom_file)
+   SUBROUTINE finalize_fft(para_env, wisdom_file, export_wisdom)
       CLASS(mp_comm_type)                    :: para_env
       CHARACTER(LEN=*), INTENT(IN)           :: wisdom_file
+      LOGICAL, INTENT(IN), OPTIONAL          :: export_wisdom
 
 ! release the FFT scratch pool
 
@@ -214,7 +216,7 @@ CONTAINS
 
       ! finalize fft libs
 
-      CALL fft_do_cleanup(wisdom_file, para_env%is_source())
+      CALL fft_do_cleanup(wisdom_file, para_env%is_source(), export_wisdom)
 
    END SUBROUTINE finalize_fft
 

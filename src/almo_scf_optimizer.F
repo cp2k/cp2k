@@ -5398,7 +5398,7 @@ CONTAINS
       CALL dbcsr_release(matrix_asym)
 
       IF (unit_nr > 0) THEN
-         CALL open_file(filename, unit_number=fiunit, file_status='REPLACE')
+         CALL open_file(filename, unit_number=fiunit, file_status='REPLACE', file_action='WRITE')
          WRITE (Scols, "(I10)") Ncols
          formatstr = "("//TRIM(Scols)//"E27.17)"
          DO jj = 1, Nrows

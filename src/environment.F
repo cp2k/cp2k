@@ -567,7 +567,8 @@ CONTAINS
       CALL section_vals_val_get(global_section, "FFT_POOL_SCRATCH_LIMIT", i_val=globenv%fft_pool_scratch_limit)
       CALL section_vals_val_get(global_section, "FFTW_PLAN_TYPE", i_val=globenv%fftw_plan_type)
       CALL section_vals_val_get(global_section, "PROJECT_NAME", c_val=project_name)
-      CALL section_vals_val_get(global_section, "FFTW_WISDOM_FILE_NAME", c_val=globenv%fftw_wisdom_file_name)
+      CALL section_vals_val_get(global_section, "FFTW_WISDOM_FILE_NAME", c_val=globenv%fftw_wisdom_file_name, &
+                                explicit=globenv%fftw_wisdom_file_explicit)
       CALL section_vals_val_get(global_section, "RUN_TYPE", i_val=globenv%run_type_id)
       CALL cp2k_get_walltime(section=global_section, keyword_name="WALLTIME", &
                              walltime=globenv%cp2k_target_time)
@@ -1325,8 +1326,9 @@ CONTAINS
          CALL diag_finalize()
          ! the LibXC functional objects are kept alive across calculations
          CALL libxc_release_workers()
-         ! finalize the fft (i.e. writes the wisdom if FFTW3 )
-         CALL finalize_fft(para_env, globenv%fftw_wisdom_file_name)
+         ! finalize the fft (i.e. writes the wisdom if FFTW3 and a wisdom file was specified)
+         CALL finalize_fft(para_env, globenv%fftw_wisdom_file_name, &
+                           export_wisdom=globenv%fftw_wisdom_file_explicit)
          CALL finalize_libvori()
       END IF
 

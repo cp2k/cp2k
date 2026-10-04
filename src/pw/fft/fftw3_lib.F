@@ -23,7 +23,6 @@ MODULE fftw3_lib
       C_SIZE_T, C_F_POINTER
    USE mathconstants, ONLY: z_zero
 #endif
-   USE cp_files, ONLY: get_unit_number
    USE fft_kinds, ONLY: dp
    USE fft_plan, ONLY: fft_plan_type
 
@@ -139,35 +138,38 @@ CONTAINS
 !> \brief ...
 !> \param wisdom_file ...
 !> \param ionode ...
+!> \param export_wisdom Export the wisdom to wisdom_file (default: no export). It should only be
+!>                      requested for a wisdom file specified explicitly in the input, since the
+!>                      default wisdom file (/etc/fftw/wisdom) is usually not writable.
 ! **************************************************************************************************
-   SUBROUTINE fftw3_do_cleanup(wisdom_file, ionode)
+   SUBROUTINE fftw3_do_cleanup(wisdom_file, ionode, export_wisdom)
 
       CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
       LOGICAL                                  :: ionode
+      LOGICAL, INTENT(IN), OPTIONAL            :: export_wisdom
 
 #if defined(__FFTW3)
       CHARACTER(LEN=1, KIND=C_CHAR), DIMENSION(:), ALLOCATABLE :: wisdom_file_name_c
-      INTEGER                                  :: file_name_length, i, iunit, istat
+      INTEGER                                  :: file_name_length, i
       INTEGER(KIND=C_INT)                      :: isuccess
-      ! Write out FFTW3 wisdom to file (if we can)
-      ! only the ionode updates the wisdom
-      IF (ionode) THEN
-         iunit = get_unit_number()
-         ! Check whether the file can be opened in the necessary manner
-         OPEN (UNIT=iunit, FILE=wisdom_file, STATUS="UNKNOWN", FORM="FORMATTED", ACTION="WRITE", IOSTAT=istat)
-         IF (istat == 0) THEN
-            CLOSE (iunit)
-            file_name_length = LEN_TRIM(wisdom_file)
-            ALLOCATE (wisdom_file_name_c(file_name_length + 1))
-            DO i = 1, file_name_length
-               wisdom_file_name_c(i) = wisdom_file(i:i)
-            END DO
-            wisdom_file_name_c(file_name_length + 1) = C_NULL_CHAR
-            isuccess = fftw_export_wisdom_to_filename(wisdom_file_name_c)
-            IF (isuccess == 0) THEN
-               CALL cp_warn(__LOCATION__, "Error exporting wisdom to file "//TRIM(wisdom_file)//". "// &
-                            "Wisdom was not exported.")
-            END IF
+      LOGICAL                                  :: my_export_wisdom
+
+      my_export_wisdom = .FALSE.
+      IF (PRESENT(export_wisdom)) my_export_wisdom = export_wisdom
+
+      ! Write out FFTW3 wisdom to file, if requested. Only the ionode updates the wisdom.
+      ! FFTW opens the file itself and reports a failure.
+      IF (ionode .AND. my_export_wisdom) THEN
+         file_name_length = LEN_TRIM(wisdom_file)
+         ALLOCATE (wisdom_file_name_c(file_name_length + 1))
+         DO i = 1, file_name_length
+            wisdom_file_name_c(i) = wisdom_file(i:i)
+         END DO
+         wisdom_file_name_c(file_name_length + 1) = C_NULL_CHAR
+         isuccess = fftw_export_wisdom_to_filename(wisdom_file_name_c)
+         IF (isuccess == 0) THEN
+            CALL cp_warn(__LOCATION__, "Error exporting wisdom to file "//TRIM(wisdom_file)//". "// &
+                         "Wisdom was not exported.")
          END IF
       END IF
 
@@ -175,6 +177,7 @@ CONTAINS
 #else
       MARK_USED(wisdom_file)
       MARK_USED(ionode)
+      MARK_USED(export_wisdom)
 #endif
 
    END SUBROUTINE fftw3_do_cleanup
@@ -190,7 +193,7 @@ CONTAINS
 
 #if defined(__FFTW3)
       CHARACTER(LEN=1, KIND=C_CHAR), DIMENSION(:), ALLOCATABLE :: wisdom_file_name_c
-      INTEGER                                  :: file_name_length, i, istat, iunit
+      INTEGER                                  :: file_name_length, i
       INTEGER(KIND=C_INT)                      :: isuccess
       LOGICAL :: file_exists
 
@@ -199,29 +202,21 @@ CONTAINS
          CPABORT("Error initializing FFTW with threads")
       END IF
 
-      ! Read FFTW wisdom (if available)
-      ! all nodes are opening the file here...
-      INQUIRE (FILE=wisdom_file, exist=file_exists)
+      ! Read FFTW wisdom (if available). All nodes read the file here.
+      ! FFTW opens the file itself and reports a failure.
+      INQUIRE (FILE=wisdom_file, EXIST=file_exists)
       IF (file_exists) THEN
-         iunit = get_unit_number()
          file_name_length = LEN_TRIM(wisdom_file)
-         ! Check whether the file can be opened in the necessary manner
-         OPEN (UNIT=iunit, FILE=wisdom_file, STATUS="OLD", FORM="FORMATTED", POSITION="REWIND", &
-               ACTION="READ", IOSTAT=istat)
-         IF (istat == 0) THEN
-            CLOSE (iunit)
-            file_name_length = LEN_TRIM(wisdom_file)
-            ALLOCATE (wisdom_file_name_c(file_name_length + 1))
-            DO i = 1, file_name_length
-               wisdom_file_name_c(i) = wisdom_file(i:i)
-            END DO
-            wisdom_file_name_c(file_name_length + 1) = C_NULL_CHAR
-            isuccess = fftw_import_wisdom_from_filename(wisdom_file_name_c)
-            IF (isuccess == 0) THEN
-               CALL cp_warn(__LOCATION__, "Error importing wisdom from file "//TRIM(wisdom_file)//". "// &
-                            "Maybe the file was created with a different configuration than CP2K is run with. "// &
-                            "CP2K continues without importing wisdom.")
-            END IF
+         ALLOCATE (wisdom_file_name_c(file_name_length + 1))
+         DO i = 1, file_name_length
+            wisdom_file_name_c(i) = wisdom_file(i:i)
+         END DO
+         wisdom_file_name_c(file_name_length + 1) = C_NULL_CHAR
+         isuccess = fftw_import_wisdom_from_filename(wisdom_file_name_c)
+         IF (isuccess == 0) THEN
+            CALL cp_warn(__LOCATION__, "Error importing wisdom from file "//TRIM(wisdom_file)//". "// &
+                         "Maybe the file was created with a different configuration than CP2K is "// &
+                         "run with. CP2K continues without importing wisdom.")
          END IF
       END IF
 

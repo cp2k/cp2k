@@ -660,7 +660,7 @@ CONTAINS
          openpmd_file_index = cp_openpmd_get_openpmd_file_entry( &
                               openpmd_basename, filename, openpmd_config, logger, my_mpi_io)
 
-         CALL open_file("", unit_number=res, file_status="SCRATCH", file_action="WRITE")
+         CALL open_file(unit_number=res, file_status="SCRATCH", file_action="WRITE")
          BLOCK
             TYPE(cp_openpmd_per_call_value_type) :: output_info
 

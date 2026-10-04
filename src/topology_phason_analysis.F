@@ -148,7 +148,7 @@ CONTAINS
       END IF
       ALLOCATE (raw(rank, rank), link(rank, rank), sewing(rank, rank), u(rank, rank, 4), pqs(rank, rank, dim*(dim - 1)/2))
       ! Anonymous scratch storage avoids persistent, stale link caches.
-      CALL open_file('', unit_number=store, file_status='SCRATCH', file_access='STREAM', &
+      CALL open_file(unit_number=store, file_status='SCRATCH', file_access='STREAM', &
                      file_form='UNFORMATTED', file_action='READWRITE')
       INQUIRE (IOLENGTH=record_size) link
       minimum = HUGE(1.0_dp)

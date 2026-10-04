@@ -14,7 +14,6 @@ MODULE qs_dftb_parameters
                                               get_atomic_kind
    USE cp_control_types,                ONLY: dftb_control_type
    USE cp_files,                        ONLY: close_file,&
-                                              get_unit_number,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -236,7 +235,6 @@ CONTAINS
          eta = 0._dp
          occupation = 0._dp
          IF (para_env%is_source()) THEN
-            runit = get_unit_number()
             CALL open_file(file_name=sk_files(jkind, ikind), unit_number=runit)
             ! grid density and number of grid poin ts
             READ (runit, fmt=*, END=1, err=1) dgrd, ngrd
@@ -447,7 +445,6 @@ CONTAINS
             eta = 0._dp
             occupation = 0._dp
             IF (para_env%is_source()) THEN
-               runit = get_unit_number()
                CALL open_file(file_name=sk_files(ikind, jkind), unit_number=runit)
                ! grid density and number of grid poin ts
                READ (runit, fmt=*, END=1, err=1) dgrd, ngrd
