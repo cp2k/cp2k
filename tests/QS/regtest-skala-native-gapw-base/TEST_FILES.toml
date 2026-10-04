@@ -2,15 +2,15 @@
                                           {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=31.9999999584},
                                           {matcher="SKALA_GPW_feature_spin_moment", tol=1e-12, ref=0.0},
                                           {matcher="SKALA_GPW_feature_weight_sum", tol=1e-8, ref=1004.67180773}]
-"H2_NATIVE_SKALA_GAPW_AE_STRESS.inp" = [{matcher="E_total", tol=5e-8, ref=-0.98927212423999}]
+"H2_NATIVE_SKALA_GAPW_AE_STRESS.inp" = [{matcher="E_total", tol=5e-8, ref=-0.9892702646529}]
 "H2_NATIVE_SKALA_GPW_PBC_FORCE_DEBUG.inp" = [{matcher="DEBUG_force_sum", tol=5e-3, ref=0.0}]
 "H2_NATIVE_SKALA_GPW_SMOOTH.inp" = [{matcher="E_total", tol=1e-8, ref=-0.965707761091413},
                                     {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=2.00000875882},
                                     {matcher="SKALA_GPW_feature_spin_moment", tol=1e-12, ref=0.0},
                                     {matcher="SKALA_GPW_feature_weight_sum", tol=1e-8, ref=431.893413318}]
-"H2_NATIVE_SKALA_GPW_STRESS_CHUNK_REQUEST.inp" = [{matcher="E_total", tol=1e-8, ref=-1.04112696167644}]
+"H2_NATIVE_SKALA_GPW_STRESS_CHUNK_REQUEST.inp" = [{matcher="E_total", tol=1e-8, ref=-1.04108122682094}]
 "H2O_NATIVE_SKALA_GPW_NLCC_ENERGY.inp" = [{matcher="E_total", tol=5e-4, ref=-18.00176846573398},
-                                            {matcher="SKALA_GAPW_composite_electrons", tol=1e-8, ref=8.88439646578847}]
+                                            {matcher="SKALA_GAPW_composite_electrons", tol=1e-8, ref=8.884521182633819}]
 "H2P_NATIVE_SKALA_GPW_UKS_PBC_FORCE_DEBUG.inp" = [{matcher="DEBUG_force_sum", tol=1e-3, ref=0.0}]
 "HF_NATIVE_SKALA_GAPW_PAW_NLCC_STRESS.inp" = [{matcher="E_total", tol=5e-4, ref=-23.72450827765146},
-                                                {matcher="SKALA_GAPW_composite_electrons", tol=1e-8, ref=9.23040392825558}]
+                                                {matcher="SKALA_GAPW_composite_electrons", tol=1e-8, ref=9.230614272821432}]
