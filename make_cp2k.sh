@@ -315,7 +315,7 @@ while [[ $# -gt 0 ]]; do
             # Enable or disable all features
             CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=${ON_OFF}"
             for package in adios2 cosma deepmdkit dla-future dla-future-fortran elpa \
-              gauxc greenx hdf5 libfabric libfci libint libvdwxc libsmeagol libvori \
+              gauxc greenx hdf5 libfabric libfci libint2 libvdwxc libsmeagol libvori \
               libxc libxs libxsmm mimic-mcl openpmd-api pace pexsi plumed py-torch sirius \
               spfft spglib spla tblite trexio; do
               SED_PATTERN_LIST+=" -e '/\s*-\s+\"${package}@/ ${SUBST}"
@@ -854,7 +854,9 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " --gcc_version         : Use the specified GCC version (default: automatically decided by spack)"
   echo " --gpu_model           : Select GPU model (default: none)"
   echo " --install_path        : Define the CP2K installation path (default: ./install)"
-  echo " -j                    : Maximum number of processes used in parallel"
+  echo " -j                    : Maximum number of processes (CPU cores) used in parallel"
+  echo "                         If the variable OMP_NUM_THREADS is set and the -j flag is not supplied, then"
+  echo "                         the maximum number of processes is defined by OMP_NUM_THREADS"
   echo " --mpi_mode            : Set preferred MPI mode (default: \"mpich\")"
   echo " --num_packages        : Maximum number of packages built by spack in parallel (default: 4)"
   echo " -opencl               : Enable the use of the Open Computing Language (OpenCL)"
@@ -881,7 +883,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " - The folder ${CP2K_ROOT}/install is updated after each successful run"
   echo ""
   echo "Packages: all | ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | gauxc | greenx | hdf5 | libfci |"
-  echo "          libgint | libint | libsmeagol | libtorch | libvdwxc | libxs | mimic | openpmd | pexsi | plumed |"
+  echo "          libgint | libint2 | libsmeagol | libtorch | libvdwxc | libxs | mimic | openpmd | pexsi | plumed |"
   echo "          sirius | spfft | spglib | spla | tblite | trexio | vori "
   echo ""
   echo "Features: cray_pm_accel_energy | cusolver_mp | dbm_gpu | elpa_gpu | grid_gpu | libxc_gpu | pw_gpu |"
