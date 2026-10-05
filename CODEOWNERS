@@ -71,6 +71,7 @@
 
 # Post SCF
 /src/qs_scf_post_*           @marci73 @juerghutter
+/src/tb/qs_scf_post_tb.F     @marci73 @juerghutter
 
 # Fedora
 /tools/fedora                @Growl1234
