@@ -59,12 +59,13 @@ list(
   atom_output.F
   atom_pseudo.F
   atom_set_basis.F
-  atom_sgp.F
+  pseudopotentials/atom_sgp.F
   atoms_input.F
   atom_types.F
-  atom_upf.F
-  upf_projector_integrals.F
-  upf_local_integrals.F
+  pseudopotentials/upf_types.F
+  pseudopotentials/atom_upf.F
+  pseudopotentials/upf_projector_integrals.F
+  pseudopotentials/upf_local_integrals.F
   atom_utils.F
   atom_xc.F
   auto_basis.F
@@ -1605,10 +1606,10 @@ set(CP2K_PROGS_F
     common/gemm_square_unittest.F
     common/memory_utilities_unittest.F
     common/parallel_rng_types_unittest.F
-    atom_upf_unittest.F
+    pseudopotentials/atom_upf_unittest.F
     xc/xc_semilocal_unittest.F
-    upf_projector_integrals_unittest.F
-    upf_local_integrals_unittest.F
+    pseudopotentials/upf_projector_integrals_unittest.F
+    pseudopotentials/upf_local_integrals_unittest.F
     gapw_background_unittest.F
     gapw_1c_basis_unittest.F
     kpoint_lattice_fft_unittest.F
@@ -2091,11 +2092,12 @@ add_executable(orbital_transformation_matrices_unittest
 add_executable(gemm_square_unittest common/gemm_square_unittest.F)
 add_executable(memory_utilities_unittest common/memory_utilities_unittest.F)
 add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
-add_executable(atom_upf_unittest atom_upf_unittest.F)
+add_executable(atom_upf_unittest pseudopotentials/atom_upf_unittest.F)
 add_executable(xc_semilocal_unittest xc/xc_semilocal_unittest.F)
 add_executable(upf_projector_integrals_unittest
-               upf_projector_integrals_unittest.F)
-add_executable(upf_local_integrals_unittest upf_local_integrals_unittest.F)
+               pseudopotentials/upf_projector_integrals_unittest.F)
+add_executable(upf_local_integrals_unittest
+               pseudopotentials/upf_local_integrals_unittest.F)
 add_executable(gapw_background_unittest gapw_background_unittest.F)
 add_executable(gapw_1c_basis_unittest gapw_1c_basis_unittest.F)
 add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)

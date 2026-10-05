@@ -58,6 +58,7 @@ PROGRAM atom_upf_unittest
                                               create_grid_atom,&
                                               deallocate_grid_atom,&
                                               grid_atom_type
+   USE upf_types,                       ONLY: upf_has_complete_partial_waves
 
    IMPLICIT NONE
    LOGICAL :: source_root_argument
@@ -79,6 +80,8 @@ PROGRAM atom_upf_unittest
    CALL check_radial_grid_endpoints()
    CALL check_contracted_basis_reader()
    CALL check_basis_optimization_export()
+   CALL check_uspp_import()
+   CALL check_uspp_partial_waves()
 
    ! The same temporary is reused for successive KIND sections in Quickstep.
    ALLOCATE (pot%rho_nlcc(3))
@@ -136,6 +139,178 @@ PROGRAM atom_upf_unittest
    CALL cp2k_finalize()
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
+   SUBROUTINE check_uspp_import()
+      CHARACTER(LEN=*), PARAMETER :: fixture = "uspp-augmentation-test.upf"
+
+      INTEGER                                            :: unit
+      TYPE(atom_upfpot_type)                             :: pot
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      logger => cp_get_default_logger()
+      IF (logger%para_env%is_source()) THEN
+         OPEN (NEWUNIT=unit, FILE=fixture, STATUS='REPLACE', ACTION='WRITE')
+         WRITE (unit, '(A)') &
+            '<UPF version="2.0.1">', &
+            '<PP_HEADER element="Pt" pseudo_type="USPP" is_ultrasoft="true"', &
+            ' z_valence="16" mesh_size="3" number_of_proj="2" l_max="1" />', &
+            '<PP_MESH mesh="3">', &
+            '<PP_R>', &
+            '0.5 1.0 1.5', &
+            '</PP_R>', &
+            '<PP_RAB>', &
+            '0.5 0.5 0.5', &
+            '</PP_RAB>', &
+            '</PP_MESH>', &
+            '<PP_LOCAL type="real" size="3">', &
+            '6 4 2', &
+            '</PP_LOCAL>', &
+            '<PP_NONLOCAL>', &
+            '<PP_BETA.1 type="real" size="3" index="1" angular_momentum="0">', &
+            '1 4 9', &
+            '</PP_BETA.1>', &
+            '<PP_BETA.2 type="real" size="3" index="2" angular_momentum="1">', &
+            '2 -1 3', &
+            '</PP_BETA.2>', &
+            '<PP_DIJ>', &
+            '2 0 0 8', &
+            '</PP_DIJ>', &
+            '<PP_AUGMENTATION q_with_l="T" nqf="0" nqlc="3">', &
+            '<PP_Q>', &
+            '2 0 0 3', &
+            '</PP_Q>', &
+            '<PP_QIJL.2.2.0 first_index="2" second_index="2" composite_index="3" angular_momentum="0">', &
+            '-3 4 5', &
+            '</PP_QIJL.2.2.0>', &
+            '<PP_QIJL.1.1.0 type="real" size="3" first_index="1" second_index="1"', &
+            ' composite_index="1" angular_momentum="0" is_null="false">', &
+            '1 2 3', &
+            '</PP_QIJL.1.1.0>', &
+            '<PP_QIJL.1.2.1 first_index="1" second_index="2" composite_index="2" angular_momentum="1">', &
+            '4 -5 6', &
+            '</PP_QIJL.1.2.1>', &
+            '<PP_QIJL.2.2.2 first_index="2" second_index="2" composite_index="3"', &
+            ' angular_momentum="2" is_null="T" size="0"/>', &
+            '</PP_AUGMENTATION>', &
+            '</PP_NONLOCAL>', &
+            '</UPF>'
+         CLOSE (unit)
+      END IF
+      CALL logger%para_env%sync()
+      CALL atom_read_upf(pot, fixture, read_augmentation=.TRUE.)
+      IF (ANY(pot%econf(0:3) /= [1, 6, 9, 0])) ERROR STOP 'Wrong 62-electron core subtraction'
+      IF (ANY(SHAPE(pot%qijl) /= [3, 3, 3]) .OR. LBOUND(pot%qijl, 3) /= 0) ERROR STOP 'Wrong augmentation shape'
+      IF (MAXVAL(ABS(pot%qij - RESHAPE([2._dp, 0._dp, 0._dp, 3._dp], [2, 2]))) > 1.e-14_dp) THEN
+         ERROR STOP 'PP_Q normalization changed'
+      END IF
+      IF (MAXVAL(ABS(pot%qijl(:, 1, 0) - [1._dp, 2._dp, 3._dp])) > 1.e-14_dp) ERROR STOP 'Wrong s-s augmentation'
+      IF (MAXVAL(ABS(pot%qijl(:, 2, 1) - [4._dp, -5._dp, 6._dp])) > 1.e-14_dp) ERROR STOP 'Wrong s-p augmentation'
+      IF (MAXVAL(ABS(pot%qijl(:, 3, 0) - [-3._dp, 4._dp, 5._dp])) > 1.e-14_dp) ERROR STOP 'Wrong p-p augmentation'
+      IF (ANY(pot%qijl(:, :, 2) /= 0._dp)) ERROR STOP 'Null augmentation was not zero initialized'
+      IF (MAXVAL(ABS(pot%beta(:, 2) - [4._dp, -1._dp, 2._dp])) > 1.e-14_dp) ERROR STOP 'USPP beta normalization changed'
+      IF (ABS(pot%dion(2, 2) - 4._dp) > 1.e-14_dp) ERROR STOP 'USPP D is not in Hartree'
+      CALL atom_release_upf(pot)
+      IF (ALLOCATED(pot%qij) .OR. ALLOCATED(pot%qijl)) ERROR STOP 'Augmentation arrays were not released'
+      CALL logger%para_env%sync()
+      IF (logger%para_env%is_source()) THEN
+         OPEN (NEWUNIT=unit, FILE=fixture, STATUS='OLD')
+         CLOSE (unit, STATUS='DELETE')
+      END IF
+
+   END SUBROUTINE check_uspp_import
+
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
+   SUBROUTINE check_uspp_partial_waves()
+      CHARACTER(LEN=*), PARAMETER :: fixture = 'uspp-partial-waves-test.upf'
+
+      CHARACTER(LEN=5)                                   :: has_wfc
+      INTEGER                                            :: unit, variant
+      TYPE(atom_upfpot_type)                             :: potential
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      logger => cp_get_default_logger()
+      DO variant = 1, 2
+         has_wfc = 'false'
+         IF (variant == 1) has_wfc = 'true'
+         IF (logger%para_env%is_source()) THEN
+            OPEN (NEWUNIT=unit, FILE=fixture, STATUS='REPLACE', ACTION='WRITE')
+            WRITE (unit, '(A)') &
+               '<UPF version="2.0.1">', &
+               '<PP_HEADER element="H" pseudo_type="US" is_ultrasoft="true" is_paw="false"', &
+               ' has_wfc="'//TRIM(has_wfc)//'" z_valence="1" mesh_size="3"', &
+               ' number_of_proj="2" number_of_wfc="1" l_max="1"/>', &
+               '<PP_MESH mesh="3">', &
+               '<PP_R>', '0.5 1 1.5', '</PP_R>', &
+               '<PP_RAB>', '0.5 0.5 0.5', '</PP_RAB>', '</PP_MESH>', &
+               '<PP_LOCAL>', '6 4 2', '</PP_LOCAL>', &
+               '<PP_NONLOCAL>', &
+               '<PP_BETA.1 index="1" angular_momentum="0" size="3">', '1 4 9', '</PP_BETA.1>', &
+               '<PP_BETA.2 index="2" angular_momentum="1" size="3">', '2 -1 3', '</PP_BETA.2>', &
+               '<PP_DIJ>', '2 0 0 8', '</PP_DIJ>', &
+               '<PP_AUGMENTATION q_with_l="T" nqf="0" nqlc="3">', &
+               '<PP_Q>', '2 0 0 3', '</PP_Q>', &
+               '<PP_QIJL.1.1.0 first_index="1" second_index="1" composite_index="1" angular_momentum="0">', &
+               '1 2 3', '</PP_QIJL.1.1.0>', &
+               '<PP_QIJL.1.2.1 first_index="1" second_index="2" composite_index="2" angular_momentum="1">', &
+               '4 -5 6', '</PP_QIJL.1.2.1>', &
+               '<PP_QIJL.2.2.0 first_index="2" second_index="2" composite_index="3" angular_momentum="0">', &
+               '-3 4 5', '</PP_QIJL.2.2.0>', &
+               '<PP_QIJL.2.2.2 first_index="2" second_index="2" composite_index="3" angular_momentum="2">', &
+               '0 0 0', '</PP_QIJL.2.2.2>', '</PP_AUGMENTATION>', '</PP_NONLOCAL>', &
+               '<PP_PSWFC>', '<PP_CHI.1 l="0">', '999 999 999', '</PP_CHI.1>', '</PP_PSWFC>'
+            IF (variant == 1) THEN
+               ! Reordered, deliberately unnormalized waves distinguish every index and side.
+               WRITE (unit, '(A)') &
+                  '<PP_FULL_WFC number_of_wfc="2">', &
+                  '<PP_PSWFC.2 type="real" size="3" l="1">', '2 3 -4', '</PP_PSWFC.2>', &
+                  '<PP_AEWFC.1 index="1" l="0">', '-3 5 -7', '</PP_AEWFC.1>', &
+                  '<PP_AEWFC.2 index="2" l="1">', '5 -7 9', '</PP_AEWFC.2>', &
+                  '<PP_PSWFC.1 l="0">', '1 -2 3', '</PP_PSWFC.1>', '</PP_FULL_WFC>'
+            END IF
+            WRITE (unit, '(A)') '</UPF>'
+            CLOSE (unit)
+         END IF
+         CALL logger%para_env%sync()
+         IF (variant == 1) THEN
+            CALL atom_read_upf(potential, fixture, read_header=.TRUE.)
+            IF (ALLOCATED(potential%partial_waves)) ERROR STOP 'USPP full waves imported without augmentation request'
+            CALL atom_release_upf(potential)
+         END IF
+         CALL atom_read_upf(potential, fixture, read_augmentation=.TRUE.)
+         IF (potential%is_paw) ERROR STOP 'USPP full waves were classified as PAW'
+         IF (variant == 1) THEN
+            IF (.NOT. ALLOCATED(potential%partial_waves)) ERROR STOP 'Missing optional USPP full waves'
+            ASSOCIATE (waves => potential%partial_waves)
+               IF (ANY(SHAPE(waves%ae_wfc) /= [3, 2])) ERROR STOP 'USPP full-wave count differs from beta count'
+               IF (ANY(waves%ae_wfc /= RESHAPE([-3._dp, 5._dp, -7._dp, 5._dp, -7._dp, 9._dp], [3, 2]))) THEN
+                  ERROR STOP 'USPP AE full-wave order or original normalization changed'
+               END IF
+               IF (ANY(waves%ps_wfc /= RESHAPE([1._dp, -2._dp, 3._dp, 2._dp, 3._dp, -4._dp], [3, 2]))) THEN
+                  ERROR STOP 'USPP PS full waves changed or were confused with atomic guesses'
+               END IF
+               IF (ANY(waves%angular_momenta /= [0, 1])) ERROR STOP 'Wrong USPP full-wave angular momenta'
+            END ASSOCIATE
+            IF (.NOT. upf_has_complete_partial_waves(potential)) ERROR STOP 'Complete original full waves not recognized'
+            DEALLOCATE (potential%partial_waves%ps_wfc)
+            IF (upf_has_complete_partial_waves(potential)) ERROR STOP 'Incomplete full-wave pair accepted'
+         ELSE
+            IF (upf_has_complete_partial_waves(potential)) ERROR STOP 'Atomic guess waves accepted as complete full waves'
+            IF (ALLOCATED(potential%partial_waves)) ERROR STOP 'USPP without full waves allocated partial-wave data'
+         END IF
+         CALL atom_release_upf(potential)
+         IF (ALLOCATED(potential%partial_waves)) ERROR STOP 'USPP full-wave data not released'
+         CALL logger%para_env%sync()
+      END DO
+      IF (logger%para_env%is_source()) THEN
+         OPEN (NEWUNIT=unit, FILE=fixture, STATUS='OLD')
+         CLOSE (unit, STATUS='DELETE')
+      END IF
+   END SUBROUTINE check_uspp_partial_waves
 
 ! **************************************************************************************************
 !> \brief Check the repaired radial maps at the size that exposes endpoint cancellation.

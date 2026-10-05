@@ -12,7 +12,6 @@
 !>        Gaussian products, center derivatives and RI integrals share this operator.
 ! **************************************************************************************************
 MODULE upf_local_integrals
-   USE atom_upf,                        ONLY: atom_upfpot_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi,&
                                               pi
@@ -23,7 +22,8 @@ MODULE upf_local_integrals
    USE upf_projector_integrals,         ONLY: upf_projector_init,&
                                               upf_projector_overlap,&
                                               upf_projector_type
-#include "./base/base_uses.f90"
+   USE upf_types,                       ONLY: atom_upfpot_type
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

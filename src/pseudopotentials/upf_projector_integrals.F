@@ -15,7 +15,6 @@
 MODULE upf_projector_integrals
    USE ISO_C_BINDING,                   ONLY: C_DOUBLE,&
                                               C_INT
-   USE atom_upf,                        ONLY: atom_upfpot_type
    USE kinds,                           ONLY: dp
    USE libgrpp,                         ONLY: libgrpp_init
    USE mathconstants,                   ONLY: dfac,&
@@ -28,7 +27,8 @@ MODULE upf_projector_integrals
                                               ncoset
    USE orbital_transformation_matrices, ONLY: init_spherical_harmonics,&
                                               orbtramat
-#include "./base/base_uses.f90"
+   USE upf_types,                       ONLY: atom_upfpot_type
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
@@ -197,7 +197,8 @@ CONTAINS
          radial_power(:), radial_work(:), shift(:, :)
 
       degree = la + nder
-      CPASSERT(la >= 0 .AND. nder >= 0 .AND. degree <= projectors%degree)
+      CPASSERT(la >= 0 .AND. nder >= 0)
+      CPASSERT(degree <= projectors%degree)
       CPASSERT(ALL(zeta > 0.0_dp))
       CPASSERT(SIZE(integrals, 1) == SIZE(zeta)*ncoset(la))
       CPASSERT(SIZE(integrals, 2) == projectors%nproj)
