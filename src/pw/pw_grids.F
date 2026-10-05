@@ -1002,6 +1002,13 @@ CONTAINS
 
             pw_grid%para%ray_distribution = .TRUE.
 
+            ! the mirror tags below only handle lower-skewed or symmetric
+            ! frequency windows (the only ones the grid setup produces today)
+            IF (pw_grid%grid_span == HALFSPACE) THEN
+               CPASSERT(pw_grid%bounds(2, 2) <= -pw_grid%bounds(1, 2))
+               CPASSERT(pw_grid%bounds(2, 3) <= -pw_grid%bounds(1, 3))
+            END IF
+
             pw_grid%para%yzq = -1
             IF (PRESENT(ref_grid)) THEN
                ! tag all vectors from the reference grid
@@ -1357,6 +1364,32 @@ CONTAINS
    END SUBROUTINE pw_vec_length
 
 ! **************************************************************************************************
+!> \brief True for rays that must stay out of the stored half-space: on an
+!>        asymmetric (even) frequency window the -g mirror of a ray on the
+!>        lower extreme plane falls outside the grid, while the ray
+!>        distribution and the negation maps both require the stored
+!>        half-space to be closed under negation (the z = 0 plane cut in
+!>        pw_grid_count and the tally check in pw_grid_remap serve the same
+!>        contract). Symmetric (odd) windows are never affected.
+!> \param grid_span ...
+!> \param m ray frequency in direction 2
+!> \param n ray frequency in direction 3
+!> \param bounds global frequency bounds of the grid
+!> \return whether the -g mirror of the ray falls outside the grid
+! **************************************************************************************************
+   PURE FUNCTION mirror_outside_bounds(grid_span, m, n, bounds) RESULT(outside)
+
+      INTEGER, INTENT(IN)                                :: grid_span, m, n
+      INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds
+      LOGICAL                                            :: outside
+
+      outside = grid_span == HALFSPACE .AND. &
+                ((m == bounds(1, 2) .AND. bounds(2, 2) < -bounds(1, 2)) .OR. &
+                 (n == bounds(1, 3) .AND. bounds(2, 3) < -bounds(1, 3)))
+
+   END FUNCTION mirror_outside_bounds
+
+! **************************************************************************************************
 !> \brief Count total number of g vectors
 !> \param h_inv ...
 !> \param pw_grid ...
@@ -1413,6 +1446,10 @@ CONTAINS
                   IF (pw_grid%grid_span == HALFSPACE .AND. n == 0) THEN
                      IF ((m == 0 .AND. l > 0) .OR. (m > 0)) CYCLE
                   END IF
+                  ! keep the stored half-space closed under negation: the ray
+                  ! distribution and the negation maps rely on it (see also the
+                  ! z = 0 plane cut above and mirror_outside_bounds)
+                  IF (mirror_outside_bounds(pw_grid%grid_span, m, n, bounds)) CYCLE
 
                   CALL pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
 
@@ -1482,6 +1519,8 @@ CONTAINS
                   IF (pw_grid%grid_span == HALFSPACE .AND. n == 0) THEN
                      IF ((m == 0 .AND. l > 0) .OR. (m > 0)) CYCLE
                   END IF
+                  ! keep the stored half-space closed under negation (see pw_grid_count)
+                  IF (mirror_outside_bounds(pw_grid%grid_span, m, n, bounds)) CYCLE
 
                   CALL pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
 
@@ -1510,6 +1549,8 @@ CONTAINS
                n = pw_grid%para%yzp(2, i, ip) + lbz - 1
                m = pw_grid%para%yzp(1, i, ip) + lby - 1
                IF (n > n_upperlimit) CYCLE
+               ! keep the stored half-space closed under negation (see pw_grid_count)
+               IF (mirror_outside_bounds(pw_grid%grid_span, m, n, bounds)) CYCLE
                DO l = bounds(1, 1), bounds(2, 1)
                   IF (pw_grid%grid_span == HALFSPACE .AND. n == 0) THEN
                      IF ((m == 0 .AND. l > 0) .OR. (m > 0)) CYCLE
