@@ -11,7 +11,6 @@ MODULE atom_sgp
    USE atom_types,                      ONLY: &
         atom_basis_gridrep, atom_basis_type, atom_ecppot_type, atom_p_type, atom_type, &
         create_opmat, init_atom_basis_default_pp, opmat_type, release_atom_basis, release_opmat
-   USE atom_upf,                        ONLY: atom_upfpot_type
    USE atom_utils,                      ONLY: integrate_grid,&
                                               numpot_matrix
    USE basis_set_types,                 ONLY: gto_basis_set_type
@@ -32,6 +31,7 @@ MODULE atom_sgp
                                               get_pseudo_inverse_diag
    USE powell,                          ONLY: opt_state_type,&
                                               powell_optimize
+   USE upf_types,                       ONLY: atom_upfpot_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE

@@ -62,6 +62,7 @@ list(
   pseudopotentials/atom_sgp.F
   atoms_input.F
   atom_types.F
+  pseudopotentials/upf_types.F
   pseudopotentials/atom_upf.F
   pseudopotentials/upf_projector_integrals.F
   pseudopotentials/upf_local_integrals.F

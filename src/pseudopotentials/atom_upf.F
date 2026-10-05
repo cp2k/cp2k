@@ -18,75 +18,21 @@ MODULE atom_upf
    USE cp_parser_types,                 ONLY: cp_parser_type,&
                                               parser_create,&
                                               parser_release
-   USE kinds,                           ONLY: default_path_length,&
-                                              default_string_length,&
+   USE ieee_arithmetic,                 ONLY: ieee_is_finite
+   USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE periodic_table,                  ONLY: get_ptable_info,&
                                               ptable
+   USE upf_types,                       ONLY: atom_upfpot_type,&
+                                              upf_partial_waves_type,&
+                                              upf_radial_weights,&
+                                              upf_release
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
 
-   ! use same value as in atom_types!
-   INTEGER, PARAMETER                                :: lmat = 3
-
-   TYPE atom_upfpot_type
-      CHARACTER(LEN=2)                               :: symbol = ""
-      CHARACTER(LEN=default_string_length)           :: pname = ""
-      INTEGER, DIMENSION(0:lmat)                     :: econf = 0
-      REAL(dp)                                       :: zion = 0.0_dp
-      CHARACTER(LEN=default_string_length)           :: version = ""
-      CHARACTER(LEN=default_path_length)             :: filename = ""
-      ! <INFO>
-      INTEGER                                        :: maxinfo = 100
-      CHARACTER(LEN=default_string_length), DIMENSION(100) &
-         :: info = ""
-      ! <HEADER>
-      CHARACTER(LEN=default_string_length)           :: generated = ""
-      CHARACTER(LEN=default_string_length)           :: author = ""
-      CHARACTER(LEN=default_string_length)           :: date = ""
-      CHARACTER(LEN=default_string_length)           :: comment = ""
-      CHARACTER(LEN=4)                               :: pseudo_type = ""
-      CHARACTER(LEN=15)                              :: relativistic = ""
-      CHARACTER(LEN=default_string_length)           :: functional = ""
-      LOGICAL                                        :: is_ultrasoft = .FALSE.
-      LOGICAL                                        :: is_paw = .FALSE.
-      LOGICAL                                        :: is_coulomb = .FALSE.
-      LOGICAL                                        :: has_so = .FALSE.
-      LOGICAL                                        :: has_wfc = .FALSE.
-      LOGICAL                                        :: has_gipaw = .FALSE.
-      LOGICAL                                        :: paw_as_gipaw = .FALSE.
-      LOGICAL                                        :: core_correction = .FALSE.
-      REAL(dp)                                       :: total_psenergy = 0.0_dp
-      REAL(dp)                                       :: wfc_cutoff = 0.0_dp
-      REAL(dp)                                       :: rho_cutoff = 0.0_dp
-      INTEGER                                        :: l_max = -100
-      INTEGER                                        :: l_max_rho = -1
-      INTEGER                                        :: l_local = -1
-      INTEGER                                        :: mesh_size = -1
-      INTEGER                                        :: number_of_wfc = -1
-      INTEGER                                        :: number_of_proj = -1
-      ! <MESH>
-      REAL(dp)                                       :: dx = 0.0_dp
-      REAL(dp)                                       :: xmin = 0.0_dp
-      REAL(dp)                                       :: rmax = 0.0_dp
-      REAL(dp)                                       :: zmesh = 0.0_dp
-      REAL(dp), DIMENSION(:), ALLOCATABLE            :: r, rab
-      ! <NLCC>
-      REAL(dp), DIMENSION(:), ALLOCATABLE            :: rho_nlcc
-      ! <LOCAL>
-      REAL(dp), DIMENSION(:), ALLOCATABLE            :: vlocal
-      ! <NONLOCAL>: keep the tabulated projector amplitude; D includes Ry -> Hartree.
-      ! beta stores beta(r), with the radial prefactor in PP_BETA removed.
-      REAL(dp), DIMENSION(:, :), ALLOCATABLE         :: dion
-      REAL(dp), DIMENSION(:, :), ALLOCATABLE         :: beta
-      INTEGER, DIMENSION(:), ALLOCATABLE             :: lbeta
-      ! <SEMILOCAL>
-      REAL(dp), DIMENSION(:, :), ALLOCATABLE         :: vsemi
-   END TYPE atom_upfpot_type
-
    PRIVATE
-   PUBLIC  :: atom_read_upf, atom_upfpot_type, atom_release_upf
+   PUBLIC  :: atom_read_upf, atom_upfpot_type, atom_release_upf, upf_radial_weights, upf_partial_waves_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_upf'
 
@@ -99,22 +45,26 @@ CONTAINS
 !> \param pot ...
 !> \param upf_filename ...
 !> \param read_header ...
+!> \param read_augmentation Import scalar USPP augmentation and optional full partial waves explicitly.
+!>        This reader option does not enable USPP in a calculation method.
 ! **************************************************************************************************
-   SUBROUTINE atom_read_upf(pot, upf_filename, read_header)
+   SUBROUTINE atom_read_upf(pot, upf_filename, read_header, read_augmentation)
 
       TYPE(atom_upfpot_type)                             :: pot
       CHARACTER(len=*), INTENT(IN)                       :: upf_filename
-      LOGICAL, INTENT(IN), OPTIONAL                      :: read_header
+      LOGICAL, INTENT(IN), OPTIONAL                      :: read_header, read_augmentation
 
       CHARACTER(LEN=2)                                   :: symbol
       INTEGER                                            :: l, ncore, nel
-      LOGICAL                                            :: readall
+      LOGICAL                                            :: readall, readaug
 
       IF (PRESENT(read_header)) THEN
          readall = .NOT. read_header
       ELSE
          readall = .TRUE.
       END IF
+      readaug = .FALSE.
+      IF (PRESENT(read_augmentation)) readaug = read_augmentation
 
       ! filename
       pot%filename = ADJUSTL(TRIM(upf_filename))
@@ -128,7 +78,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL atom_read_upf_v2(pot, upf_filename, readall)
+      CALL atom_read_upf_v2(pot, upf_filename, readall, readaug)
 
       ! set up econf
       IF (SUM(pot%econf) == 0) THEN
@@ -161,6 +111,9 @@ CONTAINS
             pot%econf(0:3) = pot%econf(0:3) - ptable(36)%e_conv(0:3)
             pot%econf(2) = pot%econf(2) - 10
             pot%econf(3) = pot%econf(3) - 14
+         CASE (62)
+            ! [Kr] 4d10 4f14 5s2 core, with 5p semicore in the valence (e.g. Pt).
+            pot%econf(0:3) = pot%econf(0:3) - [10, 18, 20, 14]
          CASE (68)
             pot%econf(0:3) = pot%econf(0:3) - ptable(54)%e_conv(0:3)
             pot%econf(3) = pot%econf(3) - 14
@@ -185,12 +138,13 @@ CONTAINS
 !> \param pot ...
 !> \param upf_filename ...
 !> \param readall ...
+!> \param readaug Read scalar USPP augmentation arrays.
 ! **************************************************************************************************
-   SUBROUTINE atom_read_upf_v2(pot, upf_filename, readall)
+   SUBROUTINE atom_read_upf_v2(pot, upf_filename, readall, readaug)
 
       TYPE(atom_upfpot_type)                             :: pot
       CHARACTER(len=*), INTENT(IN)                       :: upf_filename
-      LOGICAL, INTENT(IN)                                :: readall
+      LOGICAL, INTENT(IN)                                :: readall, readaug
 
       CHARACTER(LEN=default_string_length)               :: nametag
       INTEGER                                            :: ib, ntag
@@ -226,6 +180,10 @@ CONTAINS
                IF (.NOT. (nametag(11:11) == ">")) THEN
                   CALL upf_header_option(parser, pot)
                END IF
+               IF (readaug .AND. pot%is_ultrasoft .AND. .NOT. pot%is_paw .AND. pot%has_wfc) THEN
+                  CPASSERT(.NOT. ALLOCATED(pot%partial_waves))
+                  ALLOCATE (pot%partial_waves)
+               END IF
             ELSE IF (nametag(2:8) == "PP_MESH") THEN
                IF (.NOT. (nametag(9:9) == ">")) THEN
                   CALL upf_mesh_option(parser, pot)
@@ -245,11 +203,15 @@ CONTAINS
                END IF
             ELSE IF (nametag(2:12) == "PP_NONLOCAL") THEN
                CPASSERT(nametag(13:13) == ">")
-               CALL upf_nonlocal_section(parser, pot)
+               CALL upf_nonlocal_section(parser, pot, readaug)
             ELSE IF (nametag(2:13) == "PP_SEMILOCAL") THEN
                CALL upf_semilocal_section(parser, pot)
             ELSE IF (nametag(2:9) == "PP_PSWFC") THEN
                ! skip section for now
+            ELSE IF (nametag(2:12) == "PP_FULL_WFC") THEN
+               IF (ALLOCATED(pot%partial_waves)) THEN
+                  CALL upf_full_wfc_section(parser, pot%partial_waves, nametag, pot%mesh_size, pot%number_of_proj)
+               END IF
             ELSE IF (nametag(2:11) == "PP_RHOATOM") THEN
                ! skip section for now
             ELSE IF (nametag(2:7) == "PP_PAW") THEN
@@ -265,6 +227,7 @@ CONTAINS
 
       ! rescale projectors
       IF (ALLOCATED(pot%beta)) THEN
+         CPASSERT(ALLOCATED(pot%r) .AND. ALLOCATED(pot%rab))
          DO ib = 1, pot%number_of_proj
             IF (pot%r(1) == 0.0_dp) THEN
                pot%beta(2:, ib) = pot%beta(2:, ib)/pot%r(2:)
@@ -276,12 +239,21 @@ CONTAINS
 
       ! test for not supported options
       IF (readall) THEN
-         IF (pot%is_ultrasoft) THEN
+         IF (pot%is_ultrasoft .AND. .NOT. readaug) THEN
             CPABORT("UPF ultrasoft pseudopotential not implemented")
          END IF
          IF (pot%is_paw) THEN
             CPABORT("UPF PAW potential not implemented")
          END IF
+      END IF
+      IF (readaug .AND. pot%is_ultrasoft .AND. .NOT. pot%is_paw) THEN
+         CPASSERT(ALLOCATED(pot%qij) .AND. ALLOCATED(pot%qijl))
+      END IF
+
+      IF (ALLOCATED(pot%partial_waves)) THEN
+         CPASSERT(ALLOCATED(pot%partial_waves%ae_wfc))
+         CPASSERT(ALLOCATED(pot%partial_waves%ps_wfc))
+         CPASSERT(ALL(pot%partial_waves%angular_momenta == pot%lbeta))
       END IF
 
    END SUBROUTINE atom_read_upf_v2
@@ -455,11 +427,11 @@ CONTAINS
          CPASSERT(.NOT. at_end)
          CALL parser_get_object(parser, string, lower_to_upper=.TRUE.)
          SELECT CASE (string)
-         CASE ("<PP_R")
+         CASE ("<PP_R", "<PP_R>")
             m = pot%mesh_size
             ms = pot%mesh_size
             mc = 1
-            IF (string(6:6) /= ">") THEN
+            IF (string /= "<PP_R>") THEN
                ! options
                DO
                   IF (parser_test_next_token(parser) == "EOL") THEN
@@ -494,8 +466,11 @@ CONTAINS
                   icount = icount + 1
                END IF
             END DO
-         CASE ("<PP_RAB")
-            IF (string(6:6) /= ">") THEN
+         CASE ("<PP_RAB", "<PP_RAB>")
+            m = pot%mesh_size
+            ms = pot%mesh_size
+            mc = 1
+            IF (string /= "<PP_RAB>") THEN
                ! options
                DO
                   IF (parser_test_next_token(parser) == "EOL") THEN
@@ -668,10 +643,12 @@ CONTAINS
 !> \brief ...
 !> \param parser ...
 !> \param pot ...
+!> \param readaug Import angular-resolved USPP augmentation data.
 ! **************************************************************************************************
-   SUBROUTINE upf_nonlocal_section(parser, pot)
+   SUBROUTINE upf_nonlocal_section(parser, pot, readaug)
       TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       TYPE(atom_upfpot_type)                             :: pot
+      LOGICAL, INTENT(IN)                                :: readaug
 
       CHARACTER(LEN=default_string_length)               :: line, string
       INTEGER                                            :: i1, i2, ibeta, icount, la, m, mc, ms, &
@@ -746,26 +723,28 @@ CONTAINS
             END DO
          ELSE IF (string(1:7) == "<PP_DIJ") THEN
             ms = nbeta*nbeta
-            DO
-               IF (parser_test_next_token(parser) == "EOL") THEN
-                  CALL parser_get_next_line(parser, 1, at_end)
-                  CPASSERT(.NOT. at_end)
-               END IF
-               CALL parser_get_object(parser, string, lower_to_upper=.TRUE.)
-               IF (string == ">") EXIT
-               SELECT CASE (string)
-               CASE ("TYPE")
-                  CALL parser_get_object(parser, line, lower_to_upper=.TRUE.)
-                  CPASSERT(line == "REAL")
-               CASE ("SIZE")
-                  CALL parser_get_object(parser, ms)
-                  CPASSERT(ms == nbeta*nbeta)
-               CASE ("COLUMNS")
-                  CALL parser_get_object(parser, mc)
-               CASE DEFAULT
-                  CPABORT("Unknown UPF PP_DIJ option <"//TRIM(string)//"> found")
-               END SELECT
-            END DO
+            IF (string /= "<PP_DIJ>") THEN
+               DO
+                  IF (parser_test_next_token(parser) == "EOL") THEN
+                     CALL parser_get_next_line(parser, 1, at_end)
+                     CPASSERT(.NOT. at_end)
+                  END IF
+                  CALL parser_get_object(parser, string, lower_to_upper=.TRUE.)
+                  IF (string == ">") EXIT
+                  SELECT CASE (string)
+                  CASE ("TYPE")
+                     CALL parser_get_object(parser, line, lower_to_upper=.TRUE.)
+                     CPASSERT(line == "REAL")
+                  CASE ("SIZE")
+                     CALL parser_get_object(parser, ms)
+                     CPASSERT(ms == nbeta*nbeta)
+                  CASE ("COLUMNS")
+                     CALL parser_get_object(parser, mc)
+                  CASE DEFAULT
+                     CPABORT("Unknown UPF PP_DIJ option <"//TRIM(string)//"> found")
+                  END SELECT
+               END DO
+            END IF
             icount = 1
             DO WHILE (icount <= ms)
                IF (parser_test_next_token(parser) == "EOL") THEN
@@ -778,8 +757,8 @@ CONTAINS
                   icount = icount + 1
                END IF
             END DO
-         ELSE IF (string(1:7) == "<PP_QIJL") THEN
-            ! skip this option
+         ELSE IF (string(1:16) == "<PP_AUGMENTATION") THEN
+            IF (readaug .AND. .NOT. pot%is_paw) CALL upf_augmentation_section(parser, pot)
          ELSE IF (string(1:14) == "</PP_NONLOCAL>") THEN
             EXIT
          END IF
@@ -794,6 +773,165 @@ CONTAINS
       pot%dion = 0.5_dp*pot%dion
 
    END SUBROUTINE upf_nonlocal_section
+
+! **************************************************************************************************
+!> \brief Read angular-momentum-resolved USPP augmentation in its tabulated convention.
+!>        PP_Q is retained independently of the radial quadrature of PP_QIJL. Those
+!>        quantities need not agree exactly in a finite-precision dataset. No energy
+!>        conversion or projector normalization is applied to either augmentation array.
+!> \param parser UPF token stream, positioned after the PP_AUGMENTATION tag name.
+!> \param pot UPF data with the mesh and all beta angular momenta already read.
+! **************************************************************************************************
+   SUBROUTINE upf_augmentation_section(parser, pot)
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
+      TYPE(atom_upfpot_type), INTENT(INOUT)              :: pot
+
+      CHARACTER(LEN=default_string_length)               :: string, tag, value
+      INTEGER                                            :: i, j, k, l, lmax, m, nb, nc, nqf, nqlc, &
+                                                            pair, size_data, tag_i, tag_j, tag_l
+      LOGICAL                                            :: at_end, is_null, q_with_l, read_q, &
+                                                            self_closing
+      LOGICAL, ALLOCATABLE                               :: present_channel(:, :)
+
+      CPASSERT(.NOT. ALLOCATED(pot%qij) .AND. .NOT. ALLOCATED(pot%qijl))
+      CPASSERT(ALL(pot%lbeta >= 0))
+      nb = pot%number_of_proj
+      m = pot%mesh_size
+      lmax = 2*MAXVAL(pot%lbeta)
+      q_with_l = .FALSE.
+      nqf = -1
+      nqlc = lmax + 1
+      DO
+         IF (parser_test_next_token(parser) == "EOL") THEN
+            CALL parser_get_next_line(parser, 1, at_end)
+            CPASSERT(.NOT. at_end)
+         END IF
+         CALL parser_get_object(parser, string, lower_to_upper=.TRUE.)
+         IF (string == ">") EXIT
+         SELECT CASE (string)
+         CASE ("Q_WITH_L")
+            CALL parser_get_object(parser, q_with_l)
+         CASE ("NQF")
+            CALL parser_get_object(parser, nqf)
+         CASE ("NQLC")
+            CALL parser_get_object(parser, nqlc)
+         CASE DEFAULT
+            CPABORT("Unknown UPF PP_AUGMENTATION option <"//TRIM(string)//"> found")
+         END SELECT
+      END DO
+      IF (.NOT. q_with_l .OR. nqf /= 0) THEN
+         CPABORT("Native USPP import requires angular-resolved PP_QIJL with nqf=0")
+      END IF
+      IF (nqlc == 0) nqlc = lmax + 1
+      CPASSERT(nqlc >= lmax + 1)
+      nc = nb*(nb + 1)/2
+      ALLOCATE (pot%qij(nb, nb), pot%qijl(m, nc, 0:lmax), present_channel(nc, 0:lmax))
+      pot%qij = 0.0_dp
+      pot%qijl = 0.0_dp
+      present_channel = .FALSE.
+      read_q = .FALSE.
+      DO
+         CALL parser_get_next_line(parser, 1, at_end)
+         CPASSERT(.NOT. at_end)
+         CALL parser_get_object(parser, tag, lower_to_upper=.TRUE.)
+         IF (tag == "</PP_AUGMENTATION>") EXIT
+         IF (tag(1:2) == "</") CYCLE
+         CPASSERT(tag(1:8) == "<PP_QIJL" .OR. tag == "<PP_Q" .OR. tag == "<PP_Q>")
+         i = -1
+         j = -1
+         l = -1
+         pair = -1
+         size_data = m
+         IF (tag == "<PP_Q" .OR. tag == "<PP_Q>") size_data = nb*nb
+         is_null = .FALSE.
+         self_closing = .FALSE.
+         IF (tag /= "<PP_Q>") THEN
+            DO
+               IF (parser_test_next_token(parser) == "EOL") THEN
+                  CALL parser_get_next_line(parser, 1, at_end)
+                  CPASSERT(.NOT. at_end)
+               END IF
+               CALL parser_get_object(parser, string, lower_to_upper=.TRUE.)
+               IF (string == ">") EXIT
+               IF (string == "/>") THEN
+                  self_closing = .TRUE.
+                  EXIT
+               END IF
+               SELECT CASE (string)
+               CASE ("TYPE")
+                  CALL parser_get_object(parser, value, lower_to_upper=.TRUE.)
+                  CPASSERT(value == "REAL")
+               CASE ("SIZE")
+                  CALL parser_get_object(parser, size_data)
+               CASE ("COLUMNS")
+                  CALL parser_get_object(parser, value)
+               CASE ("FIRST_INDEX")
+                  CALL parser_get_object(parser, i)
+               CASE ("SECOND_INDEX")
+                  CALL parser_get_object(parser, j)
+               CASE ("COMPOSITE_INDEX")
+                  CALL parser_get_object(parser, pair)
+               CASE ("ANGULAR_MOMENTUM")
+                  CALL parser_get_object(parser, l)
+               CASE ("IS_NULL")
+                  CALL parser_get_object(parser, is_null)
+               CASE DEFAULT
+                  CPABORT("Unknown UPF augmentation array option <"//TRIM(string)//"> found")
+               END SELECT
+            END DO
+         END IF
+         IF (tag(1:8) == "<PP_QIJL") THEN
+            CPASSERT(i >= 1 .AND. i <= j .AND. j <= nb)
+            CPASSERT(pair == j*(j - 1)/2 + i)
+            CPASSERT(l >= ABS(pot%lbeta(i) - pot%lbeta(j)))
+            CPASSERT(l <= pot%lbeta(i) + pot%lbeta(j))
+            CPASSERT(MODULO(pot%lbeta(i) + pot%lbeta(j) - l, 2) == 0)
+            ! Cross-check the tag suffix as well as the explicit attributes.
+            string = tag(10:)
+            DO k = 1, LEN_TRIM(string)
+               IF (string(k:k) == ".") string(k:k) = " "
+            END DO
+            READ (string, *) tag_i, tag_j, tag_l
+            CPASSERT(tag_i == i .AND. tag_j == j .AND. tag_l == l)
+            CPASSERT(.NOT. present_channel(pair, l))
+            present_channel(pair, l) = .TRUE.
+            IF (is_null) THEN
+               CPASSERT(self_closing .AND. size_data == 0)
+               CYCLE
+            END IF
+            CPASSERT(.NOT. self_closing .AND. size_data == m)
+            DO k = 1, m
+               DO WHILE (parser_test_next_token(parser) == "EOL")
+                  CALL parser_get_next_line(parser, 1, at_end)
+                  CPASSERT(.NOT. at_end)
+               END DO
+               CALL parser_get_object(parser, pot%qijl(k, pair, l))
+            END DO
+         ELSE
+            CPASSERT(.NOT. read_q .AND. .NOT. self_closing .AND. .NOT. is_null)
+            CPASSERT(size_data == nb*nb)
+            DO j = 1, nb
+               DO i = 1, nb
+                  DO WHILE (parser_test_next_token(parser) == "EOL")
+                     CALL parser_get_next_line(parser, 1, at_end)
+                     CPASSERT(.NOT. at_end)
+                  END DO
+                  CALL parser_get_object(parser, pot%qij(i, j))
+               END DO
+            END DO
+            read_q = .TRUE.
+         END IF
+      END DO
+      CPASSERT(read_q)
+      DO j = 1, nb
+         DO i = 1, j
+            pair = j*(j - 1)/2 + i
+            DO l = ABS(pot%lbeta(i) - pot%lbeta(j)), pot%lbeta(i) + pot%lbeta(j), 2
+               CPASSERT(present_channel(pair, l))
+            END DO
+         END DO
+      END DO
+   END SUBROUTINE upf_augmentation_section
 
 ! **************************************************************************************************
 !> \brief ...
@@ -869,6 +1007,183 @@ CONTAINS
    END SUBROUTINE upf_semilocal_section
 
 ! **************************************************************************************************
+!> \brief Skip complete XML comment lines before original full-wave data.
+!> \param parser ...
+!> \param at_end ...
+! **************************************************************************************************
+   SUBROUTINE upf_next_line(parser, at_end)
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
+      LOGICAL, INTENT(OUT)                               :: at_end
+
+      CHARACTER(LEN=:), ALLOCATABLE                      :: line
+      LOGICAL                                            :: in_comment
+
+      in_comment = .FALSE.
+      DO
+         CALL parser_get_next_line(parser, 1, at_end)
+         IF (at_end) THEN
+            CPASSERT(.NOT. in_comment)
+            RETURN
+         END IF
+         line = ADJUSTL(parser%buffer%input_lines(parser%buffer%present_line_number))
+         IF (.NOT. in_comment .AND. INDEX(line, '<!--') /= 1) RETURN
+         in_comment = INDEX(line, '-->') == 0
+      END DO
+   END SUBROUTINE upf_next_line
+
+! **************************************************************************************************
+!> \brief Read an original full-wave array without normalization or unit conversion.
+!> \param parser ...
+!> \param tag ...
+!> \param values ...
+!> \param index_value ...
+!> \param angular_momentum ...
+! **************************************************************************************************
+   SUBROUTINE upf_real_array(parser, tag, values, index_value, angular_momentum)
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
+      CHARACTER(LEN=*), INTENT(IN)                       :: tag
+      REAL(dp), INTENT(OUT)                              :: values(:)
+      INTEGER, INTENT(OUT), OPTIONAL                     :: index_value, angular_momentum
+
+      CHARACTER(LEN=default_string_length)               :: name, string, value
+      INTEGER                                            :: i, last, n
+      LOGICAL                                            :: at_end
+
+      n = SIZE(values)
+      last = LEN_TRIM(tag)
+      IF (PRESENT(index_value)) index_value = -1
+      IF (PRESENT(angular_momentum)) angular_momentum = -1
+      IF (tag(last:last) == ">") THEN
+         name = tag(2:last - 1)
+      ELSE
+         name = tag(2:last)
+         DO
+            IF (parser_test_next_token(parser) == "EOL") THEN
+               CALL upf_next_line(parser, at_end)
+               CPASSERT(.NOT. at_end)
+            END IF
+            CALL parser_get_object(parser, string, lower_to_upper=.TRUE.)
+            IF (string == ">") EXIT
+            SELECT CASE (string)
+            CASE ("TYPE")
+               CALL parser_get_object(parser, value, lower_to_upper=.TRUE.)
+               CPASSERT(value == "REAL")
+            CASE ("SIZE")
+               CALL parser_get_object(parser, n)
+               CPASSERT(n == SIZE(values))
+            CASE ("COLUMNS")
+               CALL parser_get_object(parser, value)
+            CASE ("INDEX")
+               CPASSERT(PRESENT(index_value))
+               CALL parser_get_object(parser, index_value)
+            CASE ("L")
+               CPASSERT(PRESENT(angular_momentum))
+               CALL parser_get_object(parser, angular_momentum)
+            CASE ("LABEL")
+               CALL parser_get_object(parser, value, allow_empty=.TRUE.)
+            CASE DEFAULT
+               CPABORT("Unknown UPF "//TRIM(name)//" option <"//TRIM(string)//"> found")
+            END SELECT
+         END DO
+      END IF
+      DO i = 1, n
+         DO WHILE (parser_test_next_token(parser) == "EOL")
+            CALL upf_next_line(parser, at_end)
+            CPASSERT(.NOT. at_end)
+         END DO
+         CALL parser_get_object(parser, values(i))
+      END DO
+      CPASSERT(ALL(ieee_is_finite(values)))
+      CALL upf_next_line(parser, at_end)
+      CPASSERT(.NOT. at_end)
+      CALL parser_get_object(parser, string, lower_to_upper=.TRUE.)
+      CPASSERT(string == "</"//TRIM(name)//">")
+   END SUBROUTINE upf_real_array
+
+! **************************************************************************************************
+!> \brief Import projector-indexed AE and PS partial waves, retaining r*phi(r).
+!> \param parser ...
+!> \param waves ...
+!> \param opening_tag ...
+!> \param mesh_size ...
+!> \param number_of_proj ...
+! **************************************************************************************************
+   SUBROUTINE upf_full_wfc_section(parser, waves, opening_tag, mesh_size, number_of_proj)
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
+
+      CLASS(upf_partial_waves_type), INTENT(INOUT)        :: waves
+      CHARACTER(LEN=*), INTENT(IN)                       :: opening_tag
+      INTEGER, INTENT(IN)                                :: mesh_size, number_of_proj
+
+      CHARACTER(LEN=default_string_length)               :: string, suffix, tag
+      INTEGER                                            :: i, index_value, ios, l, last, m, n, nb, &
+                                                            wave_type
+      LOGICAL                                            :: at_end
+      LOGICAL, ALLOCATABLE                               :: found(:, :)
+      REAL(dp), ALLOCATABLE                              :: values(:)
+
+      nb = number_of_proj
+      m = mesh_size
+      CPASSERT(nb > 0 .AND. m > 0)
+      CPASSERT(.NOT. ALLOCATED(waves%ae_wfc) .AND. .NOT. ALLOCATED(waves%ps_wfc))
+      CPASSERT(.NOT. ALLOCATED(waves%angular_momenta))
+      IF (opening_tag /= "<PP_FULL_WFC>") THEN
+         DO
+            IF (parser_test_next_token(parser) == "EOL") THEN
+               CALL upf_next_line(parser, at_end)
+               CPASSERT(.NOT. at_end)
+            END IF
+            CALL parser_get_object(parser, string, lower_to_upper=.TRUE.)
+            IF (string == ">") EXIT
+            CPASSERT(string == "NUMBER_OF_WFC")
+            CALL parser_get_object(parser, n)
+            CPASSERT(n == nb)
+         END DO
+      END IF
+      ALLOCATE (waves%ae_wfc(m, nb), waves%ps_wfc(m, nb), waves%angular_momenta(nb))
+      ALLOCATE (found(nb, 2), values(m))
+      found = .FALSE.
+      waves%angular_momenta = -1
+      DO
+         CALL upf_next_line(parser, at_end)
+         CPASSERT(.NOT. at_end)
+         CALL parser_get_object(parser, tag, lower_to_upper=.TRUE.)
+         IF (tag == "</PP_FULL_WFC>") EXIT
+         SELECT CASE (tag(1:10))
+         CASE ("<PP_AEWFC.")
+            wave_type = 1
+         CASE ("<PP_PSWFC.")
+            wave_type = 2
+         CASE DEFAULT
+            CPABORT("Unknown UPF full partial-wave tag "//TRIM(tag))
+         END SELECT
+         last = LEN_TRIM(tag)
+         IF (tag(last:last) == ">") last = last - 1
+         suffix = tag(11:last)
+         READ (suffix, *, IOSTAT=ios) i
+         CPASSERT(ios == 0)
+         CPASSERT(i >= 1 .AND. i <= nb)
+         CPASSERT(.NOT. found(i, wave_type))
+         CALL upf_real_array(parser, tag, values, index_value, l)
+         IF (index_value /= -1) THEN
+            CPASSERT(index_value == i)
+         END IF
+         CPASSERT(l >= 0)
+         IF (waves%angular_momenta(i) >= 0) THEN
+            CPASSERT(l == waves%angular_momenta(i))
+         END IF
+         waves%angular_momenta(i) = l
+         IF (wave_type == 1) THEN
+            waves%ae_wfc(:, i) = values
+         ELSE
+            waves%ps_wfc(:, i) = values
+         END IF
+         found(i, wave_type) = .TRUE.
+      END DO
+      CPASSERT(ALL(found))
+   END SUBROUTINE upf_full_wfc_section
+
+! **************************************************************************************************
 !> \brief ...
 !> \param upfpot ...
 ! **************************************************************************************************
@@ -878,7 +1193,7 @@ CONTAINS
 
       ! Intrinsic assignment releases all allocatable components, including NLCC,
       ! and clears metadata before this temporary is reused for another KIND.
-      upfpot = atom_upfpot_type()
+      CALL upf_release(upfpot)
 
    END SUBROUTINE atom_release_upf
 ! **************************************************************************************************

@@ -14,7 +14,6 @@
 MODULE external_potential_types
 
    USE ao_util,                         ONLY: exp_radius
-   USE atom_upf,                        ONLY: atom_upfpot_type
    USE bibliography,                    ONLY: Goedecker1996,&
                                               Hartwigsen1998,&
                                               Krack2000,&
@@ -59,6 +58,7 @@ MODULE external_potential_types
    USE upf_local_integrals,             ONLY: upf_local_type
    USE upf_projector_integrals,         ONLY: upf_projector_init,&
                                               upf_projector_type
+   USE upf_types,                       ONLY: atom_upfpot_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
