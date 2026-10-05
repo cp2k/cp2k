@@ -34,7 +34,7 @@ MODULE tblite_types
                               tblite_solver_gvd
    USE kinds, ONLY: dp
 
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
    IMPLICIT NONE
 
    PRIVATE

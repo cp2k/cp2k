@@ -59,7 +59,7 @@
 
 # Dispersion + tblite
 /src/qs_dispersion_*         @jpoto
-/src/tblite_*                @jpoto
+/src/tb/tblite_*             @jpoto
 
 # NEGF
 /src/negf_*                  @dryndyk

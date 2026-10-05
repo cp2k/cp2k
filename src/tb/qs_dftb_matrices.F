@@ -76,7 +76,7 @@ MODULE qs_dftb_matrices
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -69,7 +69,7 @@ MODULE qmmm_tb_methods
                                               spme_potential
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 
@@ -1082,7 +1082,9 @@ CONTAINS
 
          CALL ewald_env_get(ewald_env, ewald_type=ewald_type, do_multipoles=do_multipoles, do_ipol=do_ipol)
          IF (do_multipoles) CPABORT("No multipole force fields allowed in DFTB QM/MM")
-         IF (do_ipol /= do_fist_pol_none) CPABORT("No polarizable force fields allowed in DFTB QM/MM")
+         IF (do_ipol /= do_fist_pol_none) THEN
+            CPABORT("No polarizable force fields allowed in DFTB QM/MM")
+         END IF
 
          SELECT CASE (ewald_type)
          CASE (do_ewald_pme)

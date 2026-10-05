@@ -116,7 +116,7 @@ MODULE tblite_interface
 !$ USE OMP_LIB, ONLY: omp_destroy_lock, omp_init_lock, omp_set_lock, &
 !$                    omp_unset_lock, omp_lock_kind
 
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
    IMPLICIT NONE
 
    PRIVATE
@@ -2225,7 +2225,9 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, sab_orb=n_list, sab_kp=kp_list, &
                       matrix_s_kp=matrix_s, matrix_ks_kp=ks_matrix, qs_kind_set=qs_kind_set)
       IF (nimg > 1) THEN
-         IF (.NOT. ASSOCIATED(kp_list)) CPABORT("Missing k-point neighbor list for tblite Hamiltonian")
+         IF (.NOT. ASSOCIATED(kp_list)) THEN
+            CPABORT("Missing k-point neighbor list for tblite Hamiltonian")
+         END IF
          n_list => kp_list
       END IF
       nspin = SIZE(ks_matrix, 1)
@@ -2669,7 +2671,9 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       nimg = dft_control%nimages
       IF (nimg > 1) THEN
-         IF (.NOT. ASSOCIATED(sab_kp)) CPABORT("Missing k-point neighbor list for tblite multipoles")
+         IF (.NOT. ASSOCIATED(sab_kp)) THEN
+            CPABORT("Missing k-point neighbor list for tblite multipoles")
+         END IF
          sab_orb => sab_kp
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
       END IF
@@ -3911,7 +3915,9 @@ CONTAINS
             "tblite reference CLI check skipped: CP2K KPOINTS are active."
          WRITE (UNIT=iounit, FMT="(T2,A)") &
             "The native tblite CLI reference path does not reproduce CP2K multi-k-point sampling."
-         IF (ref%stop_on_error) CPABORT("tblite reference CLI cannot check CP2K k-point calculations")
+         IF (ref%stop_on_error) THEN
+            CPABORT("tblite reference CLI cannot check CP2K k-point calculations")
+         END IF
          CALL timestop(handle)
          RETURN
       END IF
@@ -4010,7 +4016,9 @@ CONTAINS
          WRITE (UNIT=iounit, FMT="(T2,A,F8.4,A,F8.4,A)") &
             "The native reference run uses tblite's library default ", tblite_mixer_damping_default, &
             ", while CP2K uses DAMPING ", dft_control%qs_control%xtb_control%tblite_mixer_damping, "."
-         IF (ref%stop_on_error) CPABORT("tblite reference CLI cannot reproduce TBLITE_MIXER/DAMPING")
+         IF (ref%stop_on_error) THEN
+            CPABORT("tblite reference CLI cannot reproduce TBLITE_MIXER/DAMPING")
+         END IF
       END IF
       IF (ABS(dft_control%qs_control%xtb_control%tblite_mixer_omega0 - &
               tblite_mixer_omega0_default) > 10.0_dp*EPSILON(1.0_dp)) THEN

@@ -145,7 +145,7 @@ MODULE qs_scf_post_tb
    USE xtb_qresp,                       ONLY: build_xtb_qresp
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
