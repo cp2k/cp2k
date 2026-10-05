@@ -25,15 +25,15 @@ re_conv = re.compile(
 
 # ======================================================================================
 def process_log_file(fhandle: TextIO) -> None:
-    public_symbols = set()
-    used_symbols = set()
+    short_filename = path.basename(fhandle.name)[:-4]
+    is_unittest = short_filename.endswith("_unittest.F")
 
     def msg(message: str, conv_num: int) -> None:
-        short_filename = path.basename(fhandle.name)[:-4]
         print(f"{short_filename}: {message} https://cp2k.org/conv#c{conv_num:03}")
 
     module_name = None
-
+    used_symbols = set()
+    public_symbols = set()
     cur_sym = cur_proc = cur_derived_type = cur_value = stat_var = stat_stm = None
     skip_until_DT_END = inside_omp_parallel = False
 
@@ -173,14 +173,14 @@ def process_log_file(fhandle: TextIO) -> None:
             msg(f'Found GOTO statement in procedure "{cur_proc}"', 201)
         elif line.startswith("FORALL"):
             msg(f'Found FORALL statement in procedure "{cur_proc}"', 202)
-        elif line.startswith("OPEN"):
+        elif line.startswith("OPEN") and not is_unittest:
             msg(f'Found OPEN statement in procedure "{cur_proc}"', 203)
-        elif line.startswith("CLOSE"):
+        elif line.startswith("CLOSE") and not is_unittest:
             msg(f'Found CLOSE statement in procedure "{cur_proc}"', 204)
         elif line.startswith("STOP"):
             msg(f'Found STOP statement in procedure "{cur_proc}"', 205)
 
-        elif line.startswith("WRITE"):
+        elif line.startswith("WRITE") and not is_unittest:
             unit = tokens[1].split("=")[1]
             if unit.isdigit():
                 msg(f'Found WRITE statement with hardcoded unit in "{cur_proc}"', 12)
