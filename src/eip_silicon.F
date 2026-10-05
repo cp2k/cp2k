@@ -20,6 +20,7 @@ MODULE eip_silicon
                                               get_atomic_kind
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
+   USE cp_files,                        ONLY: open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -935,14 +936,22 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: lay, lstb, num2, num3, numz
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: lsta
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: icell
+      INTEGER, SAVE                                      :: monitor_unit = -1
       REAL(KIND=dp)                                      :: coord2, cut, cut2, ener2, rlc1i, rlc2i, &
                                                             rlc3i, tcoord, tcoord2, tener, tener2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rel, rxyz, s2, s3, sz, txyz
 
+! Logical unit of the monitor file, which stays open for subsequent calls
+
 !        cut=par_a
       cut = 3.1213820e0_dp + 1.e-14_dp
 
-      IF (count == 0) OPEN (unit=10, file='bazant.mon', status='unknown')
+      ! Open the monitor file at the first call
+      IF (monitor_unit < 1) THEN
+         CALL open_file(file_name="bazant.mon", file_status="UNKNOWN", &
+                        file_action="WRITE", file_position="ASIS", &
+                        unit_number=monitor_unit)
+      END IF
       count = count + 1.e0_dp
 
 ! linear scaling calculation of verlet list
@@ -985,7 +994,7 @@ CONTAINS
                ii = ii + 1
                icell(0, l1, l2, l3) = ii
                IF (ii > ncx) THEN
-                  WRITE (10, *) count, 'NCX too small', ncx
+                  WRITE (UNIT=monitor_unit, FMT=*) count, 'NCX too small', ncx
                   DEALLOCATE (icell)
                   ncx = ncx*2
                   CYCLE loop_ncx_s
@@ -1025,7 +1034,7 @@ CONTAINS
                ii = ii + 1
                icell(0, l1, l2, l3) = ii
                IF (ii > ncx) THEN
-                  WRITE (10, *) count, 'NCX too small', ncx
+                  WRITE (UNIT=monitor_unit, FMT=*) count, 'NCX too small', ncx
                   DEALLOCATE (icell)
                   ncx = ncx*2
                   CYCLE loop_ncx_p
@@ -1472,7 +1481,7 @@ CONTAINS
 !$OMP END PARALLEL
 
          IF (indlstx >= myspaceout) THEN
-            WRITE (10, *) count, 'NNBRX too small', nnbrx
+            WRITE (UNIT=monitor_unit, FMT=*) count, 'NNBRX too small', nnbrx
             DEALLOCATE (lstb, rel)
             nnbrx = 3*nnbrx/2
             CYCLE loop_nnbrx
@@ -1557,7 +1566,7 @@ CONTAINS
       END IF
 !$OMP END PARALLEL
 
-      IF (istopg > 0) CPABORT("DIMENSION ERROR (see WARNING above)")
+      IF (istopg > 0) CPABORT("DIMENSION ERROR: max_nbrs is too small")
       ener_var = ener2/nat - (ener/nat)**2
       coord = coord/nat
       coord_var = coord2/nat - coord**2
@@ -1581,7 +1590,7 @@ CONTAINS
 !> \param nnbrx ...
 !> \param ff ...
 !> \param max_nbrs ...
-!> \param istop ...
+!> \param istop 1, if max_nbrs is too small, otherwise 0
 !> \param s2_t0 ...
 !> \param s2_t1 ...
 !> \param s2_t2 ...
@@ -1737,7 +1746,6 @@ CONTAINS
             s2_r(n2) = r
             n2 = n2 + 1
             IF (n2 > max_nbrs) THEN
-               WRITE (*, *) 'WARNING enlarge max_nbrs'
                istop = 1
                RETURN
             END IF
@@ -1769,7 +1777,6 @@ CONTAINS
                s3_r(n3) = r
                n3 = n3 + 1
                IF (n3 > max_nbrs) THEN
-                  WRITE (*, *) 'WARNING enlarge max_nbrs'
                   istop = 1
                   RETURN
                END IF
@@ -1795,7 +1802,6 @@ CONTAINS
                      sz_r(nz) = r
                      nz = nz + 1
                      IF (nz > max_nbrs) THEN
-                        WRITE (*, *) 'WARNING enlarge max_nbrs'
                         istop = 1
                         RETURN
                      END IF
@@ -2088,15 +2094,23 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: lay, lstb
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: lsta
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: icell
+      INTEGER, SAVE                                      :: monitor_unit = -1
       REAL(KIND=dp)                                      :: coord2, cut, cut2, ener2, tcoord, &
                                                             tcoord2, tener, tener2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: f2ij, f3ij, f3ik, rel, rxyz, txyz
+
+! Logical unit of the monitor file, which stays open for subsequent calls
 
 !        tmax_phi= 0.4500000e+01_dp
 !        cut=tmax_phi
       cut = 0.4500000e+01_dp
 
-      IF (count == 0) OPEN (unit=10, file='lenosky.mon', status='unknown')
+      ! Open the monitor file at the first call
+      IF (monitor_unit < 1) THEN
+         CALL open_file(file_name="lenosky.mon", file_status="UNKNOWN", &
+                        file_action="WRITE", file_position="ASIS", &
+                        unit_number=monitor_unit)
+      END IF
       count = count + 1.e0_dp
 
 ! linear scaling calculation of verlet list
@@ -2139,7 +2153,7 @@ CONTAINS
                ii = ii + 1
                icell(0, l1, l2, l3) = ii
                IF (ii > ncx) THEN
-                  WRITE (10, *) count, 'NCX too small', ncx
+                  WRITE (UNIT=monitor_unit, FMT=*) count, 'NCX too small', ncx
                   DEALLOCATE (icell)
                   ncx = ncx*2
                   CYCLE loop_ncx_s
@@ -2178,7 +2192,7 @@ CONTAINS
                ii = ii + 1
                icell(0, l1, l2, l3) = ii
                IF (ii > ncx) THEN
-                  WRITE (10, *) count, 'NCX too small', ncx
+                  WRITE (UNIT=monitor_unit, FMT=*) count, 'NCX too small', ncx
                   DEALLOCATE (icell)
                   ncx = ncx*2
                   CYCLE loop_ncx_p
@@ -2626,7 +2640,7 @@ CONTAINS
 !$OMP END PARALLEL
 
          IF (indlstx >= myspaceout) THEN
-            WRITE (10, *) count, 'NNBRX too  small', nnbrx
+            WRITE (UNIT=monitor_unit, FMT=*) count, 'NNBRX too  small', nnbrx
             DEALLOCATE (lstb, rel)
             nnbrx = 3*nnbrx/2
             CYCLE loop_nnbrx
@@ -2680,7 +2694,7 @@ CONTAINS
          ener2 = ener2 + tener2
          coord = coord + tcoord
          coord2 = coord2 + tcoord2
-         istopg = istopg + istop
+         istopg = MAX(istopg, istop)
          DO iat = 1, nat
             fxyz(1, iat) = fxyz(1, iat) + txyz(1, iat)
             fxyz(2, iat) = fxyz(2, iat) + txyz(2, iat)
@@ -2701,7 +2715,12 @@ CONTAINS
       END IF
 !$OMP END PARALLEL
 
-      IF (istopg > 0) CPABORT("DIMENSION ERROR (see WARNING above)")
+      SELECT CASE (istopg)
+      CASE (1)
+         CPABORT("DIMENSION ERROR: npjx is too small")
+      CASE (2)
+         CPABORT("DIMENSION ERROR: npjkx is too small")
+      END SELECT
       ener_var = ener2/nat - (ener/nat)**2
       coord = coord/nat
       coord_var = coord2/nat - coord**2
@@ -2729,7 +2748,7 @@ CONTAINS
 !> \param f3ij ...
 !> \param npjkx ...
 !> \param f3ik ...
-!> \param istop ...
+!> \param istop 1, if npjx is too small, 2, if npjkx is too small, otherwise 0
 ! **************************************************************************************************
    SUBROUTINE subfeniat_l(iat1, iat2, nat, lsta, lstb, rel, tener, tener2, &
                           tcoord, tcoord2, nnbrx, txyz, f2ij, npjx, f3ij, npjkx, f3ik, istop)
@@ -2838,7 +2857,6 @@ CONTAINS
             jat = lstb(jbr)
             jcnt = jcnt + 1
             IF (jcnt > npjx) THEN
-               WRITE (*, *) 'WARNING: enlarge npjx'
                istop = 1
                RETURN
             END IF
@@ -2887,8 +2905,7 @@ CONTAINS
                IF (kat < jat) THEN
                   jkcnt = jkcnt + 1
                   IF (jkcnt > npjkx) THEN
-                     WRITE (*, *) 'WARNING: enlarge npjkx', npjkx
-                     istop = 1
+                     istop = 2
                      RETURN
                   END IF
 
