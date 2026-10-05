@@ -259,18 +259,22 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: reject_reason, token
       CHARACTER(LEN=LEN(constraint_string))              :: line
-      INTEGER                                            :: axis_index, isep, n_tokens, &
-                                                            nonperiodic_axis, overlap, &
-                                                            required_mask, tok_mask
+      INTEGER                                            :: axis_index, isep, nonperiodic_axis, &
+                                                            overlap, required_mask, tok_mask
       LOGICAL                                            :: accepted
 
       ! The lchar_t tokenizer cuts the value at the first quote character,
       ! so a quoted value arrives as an empty string. Give the value
       ! unquoted. Restart echoes are bare and round-trip correctly.
       line = ADJUSTL(constraint_string)
+      IF (LEN_TRIM(line) == 0) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "CELL_OPT CONSTRAINT requires a value. "// &
+                       "Give the value unquoted: the input tokenizer cuts "// &
+                       "a quoted value at the first quote character.")
+      END IF
 
       mask = 0
-      n_tokens = 0
       DO WHILE (LEN_TRIM(line) > 0)
          isep = SCAN(line, " "//ACHAR(9))
          IF (isep == 0) THEN
@@ -279,11 +283,6 @@ CONTAINS
          ELSE
             token = TRIM(line(:isep - 1))
             line = ADJUSTL(line(isep + 1:))
-         END IF
-         n_tokens = n_tokens + 1
-         IF (n_tokens > 16) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "CELL_OPT CONSTRAINT accepts at most 16 tokens.")
          END IF
          CALL uppercase(token)
          IF (token == "NONE") THEN
@@ -317,12 +316,6 @@ CONTAINS
          END IF
          mask = IOR(mask, tok_mask)
       END DO
-      IF (n_tokens == 0) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "CELL_OPT CONSTRAINT requires a value. "// &
-                       "Give the value unquoted: the input tokenizer cuts "// &
-                       "a quoted value at the first quote character.")
-      END IF
 
       ! For 2D periodicity the non-periodic cell direction must be constrained.
       ! Complete the constraint automatically if the keyword was not given.
