@@ -411,11 +411,6 @@ CONTAINS
                density_guess = safe_density_guess
             ELSE
                DO ispin = 1, nspin
-                  IF (scf_control%level_shift /= 0.0_dp) THEN
-                     CALL get_mo_set(mo_set=mo_array(ispin), mo_coeff=mo_coeff)
-                     CALL cp_fm_to_fm(mo_coeff, ortho)
-                  END IF
-
                   ! make all nmo vectors present orthonormal
                   CALL get_mo_set(mo_set=mo_array(ispin), &
                                   mo_coeff=mo_coeff, nmo=nmo, homo=homo)
@@ -482,11 +477,6 @@ CONTAINS
                                              dft_section=dft_section, out_unit=ounit)
 
                DO ispin = 1, nspin
-                  IF (scf_control%level_shift /= 0.0_dp) THEN
-                     CALL get_mo_set(mo_set=mo_array(ispin), mo_coeff=mo_coeff)
-                     CALL cp_fm_to_fm(mo_coeff, ortho)
-                  END IF
-
                   ! make all nmo vectors present orthonormal
                   CALL get_mo_set(mo_set=mo_array(ispin), mo_coeff=mo_coeff, nmo=nmo, homo=homo)
 

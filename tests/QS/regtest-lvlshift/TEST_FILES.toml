@@ -25,4 +25,13 @@
 "c2h2-gpw-restore.inp"                  = [{matcher="E_total", tol=1.0E-12, ref=-12.47387109223699},
                                            {matcher="E_gap_DFT_2", tol=1.0E-8, ref=0.261219}]
 
+# Restart guesses must preserve the overlap factors used by level shifting.
+"c2h2-gpw-restart-restore.inp"          = [{matcher="E_total", tol=1.0E-12, ref=-12.47387109223699},
+                                           {matcher="E_gap_DFT_2", tol=1.0E-8, ref=0.261219}]
+"c2h2-gpw-restart-reduce.inp"           = [{matcher="E_total", tol=1.0E-12, ref=-12.47387109223699},
+                                           {matcher="E_gap_DFT_2", tol=1.0E-8, ref=0.261219}]
+"c2h2-gpw-restart-inverse.inp"          = [{matcher="E_total", tol=1.0E-12, ref=-12.47387109223699},
+                                           {matcher="E_gap_DFT_2", tol=1.0E-8, ref=0.261219}]
+"c2h2-gpw-history-restart.inp"          = [{matcher="E_total", tol=1.0E-12, ref=-12.47387109223699},
+                                           {matcher="E_gap_DFT_2", tol=1.0E-8, ref=0.261219}]
 #EOF

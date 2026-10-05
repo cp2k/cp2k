@@ -1,0 +1,5 @@
+#CPQA DEPENDS c2h2-gpw-restore.inp
+@SET CHOLESKY reduce
+@SET GUESS restart
+@SET EPS_SCF 1e-7
+@INCLUDE 'c2h2-gpw-restart.inc'

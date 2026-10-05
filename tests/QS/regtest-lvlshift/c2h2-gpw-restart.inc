@@ -1,0 +1,71 @@
+&GLOBAL
+  PRINT_LEVEL low
+  PROJECT c2h2-gpw-restart
+  RUN_TYPE energy
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    MULTIPLICITY 1
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    WFN_RESTART_FILE_NAME c2h2-gpw-restore-RESTART.wfn
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &POISSON
+      PERIODIC none
+      POISSON_SOLVER wavelet
+    &END POISSON
+    &PRINT
+      &MO on
+        EIGENVALUES .true.
+      &END MO
+    &END PRINT
+    &QS
+      # A single saved density is enough to exercise HISTORY_RESTART.
+      EXTRAPOLATION USE_PREV_P
+      METHOD gpw
+    &END QS
+    &SCF
+      CHOLESKY ${CHOLESKY}
+      EPS_SCF ${EPS_SCF}
+      LEVEL_SHIFT 0.2
+      MAX_SCF 10
+      SCF_GUESS ${GUESS}
+      &PRINT
+        &RESTART
+          LOG_PRINT_KEY
+        &END RESTART
+        &RESTART_HISTORY
+          LOG_PRINT_KEY
+        &END RESTART_HISTORY
+      &END PRINT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL pbe
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 8.0 8.0 8.0
+      PERIODIC none
+    &END CELL
+    &COORD
+      C         4.0000007567        4.0000007567        4.6040473631
+      C         4.0000007563        4.0000007563        3.3959518200
+      H         3.9999993927        3.9999993927        5.6739482752
+      H         3.9999993905        3.9999993905        2.3260506143
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-PBE-q1
+    &END KIND
+    &KIND C
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-PBE-q4
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
