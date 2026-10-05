@@ -1613,6 +1613,7 @@ set(CP2K_PROGS_F
     gapw_1c_basis_unittest.F
     kpoint_lattice_fft_unittest.F
     kpoint_smearing_unittest.F
+    motion/cell_opt_utils_unittest.F
     topology_wilson_unittest.F
     spectral_localizer_unittest.F
     quadratic_pseudospectrum_unittest.F
@@ -2042,6 +2043,7 @@ list(
   "orbital_transformation_matrices_unittest"
   "gemm_square_unittest"
   "memory_utilities_unittest"
+  "cell_opt_utils_unittest"
   "parallel_rng_types_unittest"
   "atom_upf_unittest"
   "xc_semilocal_unittest"
@@ -2119,6 +2121,7 @@ add_executable(qs_charge_mixing_unittest qs_charge_mixing_unittest.F)
 add_executable(qs_fod_unittest qs_fod_unittest.F)
 add_executable(qs_ot_complex_ref_unittest qs_ot_complex_ref_unittest.F)
 add_executable(cell_types_unittest subsys/cell_types_unittest.F)
+add_executable(cell_opt_utils_unittest motion/cell_opt_utils_unittest.F)
 add_executable(graph metadyn_tools/graph.F)
 add_executable(dumpdcd motion/dumpdcd.F)
 add_executable(xyz2dcd motion/xyz2dcd.F)

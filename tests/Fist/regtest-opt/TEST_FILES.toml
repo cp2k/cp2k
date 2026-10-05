@@ -46,6 +46,14 @@
 "cell_opt_constraint_none.inp"          = [{matcher="M011", tol=1.0E-10, ref=-1210.562919201514887}]
 "cell_opt_constraint_xy.inp"            = [{matcher="M011", tol=1.0E-10, ref=-1210.460826328278017}]
 "cell_opt_constraint_z.inp"             = [{matcher="M011", tol=1.0E-10, ref=-1210.524637046745283}]
+# Component-wise cell optimisation constraints (C fixes the same components as Z,
+# the reference value is shared with cell_opt_constraint_z on purpose)
+"cell_opt_constraint_c.inp"             = [{matcher="M011", tol=1.0E-10, ref=-1210.524637046745283}]
+"cell_opt_constraint_ab.inp"            = [{matcher="M011", tol=1.0E-8, ref=-261.459538486902431}]
+"cell_opt_constraint_ax_by_cz.inp"      = [{matcher="M011", tol=1.0E-8, ref=-261.430306445227473}]
+"cell_opt_constraint_2d.inp"            = [{matcher="M011", tol=1.0E-8, ref=-0.391897271410234}]
+"cell_opt_constraint_b.inp"             = [{matcher="M011", tol=1.0E-8, ref=-261.473321602204408}]
+"cell_opt_constraint_a_keep_angles.inp" = [{matcher="M011", tol=1.0E-8, ref=-261.473321602206113}]
 # Cell optimisation with fixed volume
 "cell_opt_keep_volume.inp"              = [{matcher="M011", tol=1.0E-10, ref=-16.136339196984437}]
 "cell_opt_keep_volume_symmetry.inp"     = [{matcher="M011", tol=1.0E-10, ref=-16.13633919692934}]
