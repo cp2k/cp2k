@@ -23,7 +23,7 @@ MODULE skala_torch_api
       torch_model_remap_device_constants, torch_model_promote_float32, torch_model_type, &
       torch_tensor_item_double, torch_tensor_release, torch_tensor_type, &
       torch_tensor_weighted_sum
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 
