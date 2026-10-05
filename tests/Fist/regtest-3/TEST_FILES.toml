@@ -28,6 +28,8 @@
 "ace_ala_nme.inp"                       = [{matcher="M007", tol=1.0E-14, ref=-0.1185300854}]
 "ace_ala_nme-ambconn.inp"               = [{matcher="M007", tol=1.0E-14, ref=-0.1185300850}]
 "ace_ala_nme-amber.inp"                 = [{matcher="M007", tol=1.0E-14, ref=-0.1090707150}]
+# AMBER charge-split atom-kind collision
+"amber-kind-collision.inp"              = [{matcher="M011", tol=1.0E-14, ref=-0.110434187552165}]
 #EAM alloys
 "agpt.inp"                              = [{matcher="M002", tol=1.0E-14, ref=-0.292077327941E+01}]
 #BMHFTD

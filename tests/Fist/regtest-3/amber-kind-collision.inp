@@ -1,0 +1,38 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT amber-kind-collision
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      EI_SCALE14 0.8333333333333333
+      PARMTYPE AMBER
+      PARM_FILE_NAME ../../NEB/amber/mol.top
+      SHIFT_CUTOFF .FALSE.
+      VDW_SCALE14 0.5
+      &SPLINE
+        EMAX_SPLINE 1.0E8
+        RCUT_NB [angstrom] 10.0
+      &END SPLINE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 40.0 40.0 40.0
+    &END CELL
+    &TOPOLOGY
+      CONNECTIVITY AMBER
+      CONN_FILE_NAME ../../NEB/amber/mol.top
+      COORD_FILE_FORMAT XYZ
+      COORD_FILE_NAME ../../NEB/amber/MOL.0.xyz
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
