@@ -177,6 +177,7 @@ CONTAINS
       CALL section_vals_val_get(geo_section, "BFGS%METHOD", i_val=matrix_method)
       inverse = matrix_method == bfgs_inverse
       maxiter = gopt_param%max_iter
+      conv = .FALSE.
       rat = 0.0_dp
       wildcard = " BFGS"
 
@@ -966,6 +967,7 @@ CONTAINS
          ln = 0.0_dp
          IF (eigval(iref) < 0.0_dp) ln = eigval(iref) - 0.01_dp
 
+         conv = .FALSE.
          iter = 0
          DO
             iter = iter + 1
@@ -1048,6 +1050,7 @@ CONTAINS
                                           (eigval(iref) > 0.0_dp))) THEN
 
                IF (.NOT. bisec) THEN
+                  conv = .FALSE.
                   CYCLE outer
                END IF
                ln = 0.0_dp
