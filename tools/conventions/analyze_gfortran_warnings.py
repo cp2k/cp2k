@@ -22,7 +22,7 @@ blas_re = re.compile(
 )  # aux
 
 lapack_re = re.compile(
-    r"ILAENV|"
+    r"ILAENV|DLAE2|"
     r"([SDCZ]" + r"(BD|DI|GB|GE|GG|GT|HB|HE|HG|HP|HS|OP"
     r"|OR|PB|PO|PP|PT|SB|SP|ST|SY|TB|TG|TP|TR|TZ|UN|UP)"
     r"(BAK|BAL|BRD|CON|EBZ|EDC|EIN|EQR|EGR|EQU|EQZ|ERF|EVC"
