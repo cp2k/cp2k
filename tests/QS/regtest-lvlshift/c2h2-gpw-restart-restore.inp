@@ -1,0 +1,6 @@
+#CPQA DEPENDS c2h2-gpw-restore.inp
+@SET CHOLESKY restore
+@SET GUESS restart
+# Tighter than the seed calculation, to exercise shifting after step 1.
+@SET EPS_SCF 1e-7
+@INCLUDE 'c2h2-gpw-restart.inc'

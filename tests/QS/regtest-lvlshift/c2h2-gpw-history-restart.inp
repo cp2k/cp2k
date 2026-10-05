@@ -1,0 +1,6 @@
+#CPQA DEPENDS c2h2-gpw-restore.inp
+@SET CHOLESKY restore
+@SET GUESS history_restart
+# HISTORY_RESTART limits the first SCF calculation to one step.
+@SET EPS_SCF 1e-6
+@INCLUDE 'c2h2-gpw-restart.inc'
