@@ -14,6 +14,8 @@
 "N2_gfn2_uks_cp2k_mixer.inp"             = [{matcher="E_total", tol=1.0E-8, ref=-5.7289226128}]
 "N2_gfn2_uks_ls_cp2k_mixer.inp"          = [{matcher="M011", tol=1.0E-8, ref=-5.72892260429441}]
 "CH2O_gfn2_force.inp"                    = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
+"Fe2_gfn2_force.inp"                     = [{matcher="M082", tol=5.0E-6, ref=0.0000000},
+                                             {matcher="NO_TEXT", text="SCF run NOT converged"}]
 "CH2O_gfn2_uks_force.inp"                = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
 "N2_gfn2_uks_force.inp"                  = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
 "N2_gfn2_uks_cp2k_mixer_force.inp"       = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
