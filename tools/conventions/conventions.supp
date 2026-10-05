@@ -8,6 +8,8 @@ base_hooks.F: Found WRITE statement with hardcoded unit in "cp_abort" https://cp
 base_hooks.F: Found WRITE statement with hardcoded unit in "cp_hint" https://cp2k.org/conv#c012
 base_hooks.F: Found WRITE statement with hardcoded unit in "cp_warn" https://cp2k.org/conv#c012
 cg_test.F: Found WRITE statement with hardcoded unit in "clebsch_gordon_test" https://cp2k.org/conv#c012
+cp2k.F: Found OPEN statement in procedure "cp2k" https://cp2k.org/conv#c203
+cp2k.F: Found WRITE statement with hardcoded unit in "cp2k" https://cp2k.org/conv#c012
 cp_dbcsr_operations.F: Found CALL cp_fm_gemm in procedure "cp_dbcsr_plus_fm_fm_t" https://cp2k.org/conv#c101
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "cp_dbcsr_plus_fm_fm_t" https://cp2k.org/conv#c012
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "create_bl_distribution" https://cp2k.org/conv#c012
@@ -46,6 +48,7 @@ eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b" https:
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l" https://cp2k.org/conv#c012
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input" https://cp2k.org/conv#c204
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input" https://cp2k.org/conv#c203
+fde_methods.F: Found CALL EXECUTE_COMMAND_LINE in procedure "fde_spawn" https://cp2k.org/conv#c106
 fftw3_lib.F: Found CLOSE statement in procedure "fftw3_do_cleanup" https://cp2k.org/conv#c204
 fftw3_lib.F: Found CLOSE statement in procedure "fftw3_do_init" https://cp2k.org/conv#c204
 fftw3_lib.F: Found OPEN statement in procedure "fftw3_do_cleanup" https://cp2k.org/conv#c203
@@ -71,7 +74,6 @@ graph_methods.F: Found WRITE statement with hardcoded unit in "fes_path" https:/
 graph_utils.F: Found WRITE statement with hardcoded unit in "get_val_res" https://cp2k.org/conv#c012
 greenx_interface.F: Module "gx_minimax" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 gw_utils_compute_integrals.F: Found type gw_3c_ws_type without initializer https://cp2k.org/conv#c016
-gx_ac_unittest.F: Found WRITE statement with hardcoded unit in "gx_ac_unittest" https://cp2k.org/conv#c012
 hdf5_wrapper.F: Module "hdf5" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 hfx_compression_methods.F: Found READ with unchecked STAT in "hfx_decompress_cache" https://cp2k.org/conv#c001
 hfx_types.F: Found type hfx_type without initializer https://cp2k.org/conv#c016
@@ -103,12 +105,6 @@ machine.F: Found WRITE statement with hardcoded unit in "m_mov" https://cp2k.org
 mc_coordinates.F: Found WRITE statement with hardcoded unit in "generate_cbmc_swap_config" https://cp2k.org/conv#c012
 mcl_api.F: Module "mcl" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 mcl_requests.F: Module "mcl" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
-memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_allocated" https://cp2k.org/conv#c012
-memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_unallocated" https://cp2k.org/conv#c012
-memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank2_allocated" https://cp2k.org/conv#c012
-memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank2_unallocated" https://cp2k.org/conv#c012
-memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_string_rank1_allocated" https://cp2k.org/conv#c012
-memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_string_rank1_unallocated" https://cp2k.org/conv#c012
 message_passing.F: Found STOP statement in procedure "mp_abort" https://cp2k.org/conv#c205
 message_passing.F: Found type mpi_comm without initializer https://cp2k.org/conv#c016
 message_passing.F: Found type mpi_datatype without initializer https://cp2k.org/conv#c016
@@ -137,11 +133,7 @@ mp_perf_test.F: Module "mpi_f08" USEd without ONLY clause or not PRIVATE https:/
 negf_methods.F: Found CALL with NULL() as argument in procedure "converge_density" https://cp2k.org/conv#c007
 negf_methods.F: Found CALL with NULL() as argument in procedure "guess_fermi_level" https://cp2k.org/conv#c007
 negf_methods.F: Found CALL with NULL() as argument in procedure "shift_potential" https://cp2k.org/conv#c007
-nequip_unittest.F: Found WRITE statement with hardcoded unit in "nequip_unittest" https://cp2k.org/conv#c012
 parallel_gemm_api.F: Found CALL cp_fm_gemm in procedure "parallel_gemm_fm" https://cp2k.org/conv#c101
-parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "dump_reload_check" https://cp2k.org/conv#c012
-parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "parallel_rng_types_test" https://cp2k.org/conv#c012
-parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "shuffle_check" https://cp2k.org/conv#c012
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all" https://cp2k.org/conv#c012
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all_ortho" https://cp2k.org/conv#c012
 ps_implicit_methods.F: OMP PARALLEL without DEFAULT(NONE) found in "ps_implicit_prepare_blocks" https://cp2k.org/conv#c006
@@ -159,6 +151,8 @@ qs_linres_current.F: Found WRITE statement with hardcoded unit in "box_atoms_new
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "calculate_jrho_resp" https://cp2k.org/conv#c012
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "collocate_gauge_new" https://cp2k.org/conv#c012
 qs_linres_issc_utils.F: Found WRITE statement with hardcoded unit in "issc_issc" https://cp2k.org/conv#c012
+quadratic_pseudospectrum.F: Found type callback_operator_type without initializer https://cp2k.org/conv#c016
+quadratic_pseudospectrum.F: Found type dense_operator_type without initializer https://cp2k.org/conv#c016
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "aa" https://cp2k.org/conv#c012
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "makeds" https://cp2k.org/conv#c012
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "makes" https://cp2k.org/conv#c012
@@ -181,6 +175,7 @@ smeagol_emtoptions.F: Module "negfmod" USEd without ONLY clause or not PRIVATE h
 smeagol_emtoptions.F: Module "sigma" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 smeagol_interface.F: Module "mnegf_interface" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 smeagol_interface.F: Module "negfmod" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+spectral_localizer.F: Procedure 'dlae2' called with an implicit interface at (1) [-Wimplicit-interface]
 spherical_harmonics.F: Found WRITE statement with hardcoded unit in "cgc" https://cp2k.org/conv#c012
 spherical_harmonics.F: Found WRITE statement with hardcoded unit in "get_factor" https://cp2k.org/conv#c012
 statistical_methods.F: Found WRITE statement with hardcoded unit in "tests" https://cp2k.org/conv#c012
@@ -225,6 +220,7 @@ trexio.F: Found STOP statement in procedure "trexio_assert" https://cp2k.org/con
 trexio.F: Found WRITE statement with hardcoded unit in "trexio_assert" https://cp2k.org/conv#c012
 trexio_utils.F: Module "trexio" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 xc_gauxc_interface.F: Found type cp_gauxc_status_type without initializer https://cp2k.org/conv#c016
+xc_libxc_wrap.F: Found WRITE statement with hardcoded unit in "libxc_worker_check_nan" https://cp2k.org/conv#c012
 xyz2dcd.F: Found CLOSE statement in procedure "xyz2dcd" https://cp2k.org/conv#c204
 xyz2dcd.F: Found OPEN statement in procedure "xyz2dcd" https://cp2k.org/conv#c203
 xyz2dcd.F: Found STOP statement in procedure "abort_program" https://cp2k.org/conv#c205
