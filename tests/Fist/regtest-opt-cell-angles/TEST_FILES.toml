@@ -13,10 +13,10 @@
 # pres_crit_shear_pinned warning domain, yet converges with the pressure
 # criterion met, because the pinned value equals the stress-free one and the
 # remaining symmetry forces the conjugate shear stresses to vanish.
-"cell_opt_constraint_a_keep_angles.inp" = [{matcher="M011", tol=1.0E-10, ref=-19.369006707220770}]
+"cell_opt_constraint_a_keep_angles.inp" = [{matcher="M011", tol=1.0E-10, ref=-19.369006707220770}, {matcher="Cell_length_a", tol=1.0E-9, ref=7.703891}, {matcher="Cell_angle_alpha", tol=1.0E-9, ref=60.000000}]
 # Triclinic + KEEP_ANGLES + Z, anchored after two steps: the full run stops
 # via the optimizer's internal criteria with the pressure criterion unmet
 # (see the setup warning); anchoring an early step keeps the reference
 # independent of those stopping heuristics.
-"cell_opt_constraint_z_keep_angles_smoke.inp" = [{matcher="M011", tol=1.0E-10, ref=-77.466559969627582}]
+"cell_opt_constraint_z_keep_angles_smoke.inp" = [{matcher="M011", tol=1.0E-10, ref=-77.466559969627582}, {matcher="Cell_length_c", tol=1.0E-9, ref=11.000000}, {matcher="Cell_angle_alpha", tol=1.0E-9, ref=89.000000}]
 #EOF
