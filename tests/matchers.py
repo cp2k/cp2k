@@ -463,8 +463,12 @@ registry["Dipole_at_kp_1"] = GenericMatcher(r"  1   1   2", col=4, abs_value=Tru
 # Dipole moment calculated at a specific k-point (-0.375,-0.375, 0.00)
 registry["Dipole_for_CrSBr"] = GenericMatcher(r"  1  31  32", col=4, abs_value=True)
 
+# Berry total dipole moment in trajectory format
+registry["Dipole_berry_traj"] = GenericMatcher(r"MOMENTS|", col=6)
+
 # Berry curvature calculated from dipoles near K point in graphene BZ
 registry["BC_near_K_point"] = GenericMatcher(r"   1    4", col=5)
+
 
 # GEXT extrapolation
 registry["gext"] = GenericMatcher(r"GEXT overlap fitting error:", col=5)
