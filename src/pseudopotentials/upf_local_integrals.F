@@ -23,7 +23,7 @@ MODULE upf_local_integrals
    USE upf_projector_integrals,         ONLY: upf_projector_init,&
                                               upf_projector_overlap,&
                                               upf_projector_type
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
