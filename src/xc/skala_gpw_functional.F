@@ -64,7 +64,7 @@ MODULE skala_gpw_functional
                                               xc_rho_set_update
    USE xc_util,                         ONLY: xc_pw_divergence,&
                                               xc_requires_tmp_g
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 
