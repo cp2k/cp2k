@@ -77,8 +77,8 @@
       &MIXING
         METHOD BROYDEN_MIXING
         ALPHA 0.5
-        # Avoid a long convergence tail without relaxing EPS_SCF.
-        NBUFFER 8
+        # Retain enough history to avoid a long convergence tail at EPS_SCF 1.e-12.
+        NBUFFER 16
       &END MIXING
       @ENDIF
       &PRINT
