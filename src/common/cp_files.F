@@ -173,7 +173,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Opens a file and returns its logical unit number.
 !> \param file_name File name; must be omitted for an anonymous SCRATCH file
-!> \param unit_number Logical unit number of the opened file; input if skip_get_unit_number is true
+!> \param unit_number Logical unit number of the opened file
 !> \param file_status Fortran file status OLD, NEW, REPLACE, UNKNOWN, or SCRATCH for an
 !>                    anonymous temporary file (default: OLD)
 !> \param file_form FORMATTED or UNFORMATTED (default: FORMATTED)
@@ -182,7 +182,6 @@ CONTAINS
 !> \param file_position ASIS, REWIND, or APPEND (default: REWIND)
 !> \param file_pad YES or NO (default: YES); only allowed for FORMATTED files
 !> \param file_access SEQUENTIAL or STREAM (default: SEQUENTIAL); DIRECT is not supported
-!> \param skip_get_unit_number Use the unit number passed in instead of finding a free one
 !> \param debug Print the connection properties to the default output unit
 !> \author Matthias Krack (MK)
 !> \note  - If the file is already open, its unit number is returned and no new connection is
@@ -193,13 +192,13 @@ CONTAINS
 !>        - Any error aborts the program; there is no IOSTAT return.
 ! **************************************************************************************************
    SUBROUTINE open_file(file_name, unit_number, file_status, file_form, file_action, &
-                        file_position, file_pad, file_access, skip_get_unit_number, debug)
+                        file_position, file_pad, file_access, debug)
 
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: file_name
-      INTEGER, INTENT(INOUT)                             :: unit_number
+      INTEGER, INTENT(OUT)                               :: unit_number
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: file_status, file_form, file_action, &
                                                             file_position, file_pad, file_access
-      LOGICAL, INTENT(IN), OPTIONAL                      :: skip_get_unit_number, debug
+      LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'open_file'
 
@@ -207,20 +206,11 @@ CONTAINS
          current_form, form_string, pad_string, position_string, status_string
       CHARACTER(LEN=2*default_path_length)               :: message
       CHARACTER(LEN=default_path_length)                 :: cwd, iomsg_string, real_file_name
-      INTEGER                                            :: inquire_stat, open_stat, &
-                                                            requested_unit_number, unit_stat
-      LOGICAL                                            :: connect, exists, is_named, is_open, &
-                                                            skip_get, unit_in_use
+      INTEGER                                            :: inquire_stat, open_stat
+      LOGICAL                                            :: connect, exists, is_named, is_open
 
       real_file_name = ""
-
-      IF (PRESENT(skip_get_unit_number)) THEN
-         skip_get = skip_get_unit_number
-      ELSE
-         skip_get = .FALSE.
-      END IF
-
-      IF (.NOT. skip_get) unit_number = -1
+      unit_number = -1
 
       IF (PRESENT(file_access)) THEN
          access_string = TRIM(ADJUSTL(file_access))
@@ -321,14 +311,11 @@ CONTAINS
       ! Inquire the file, find a free unit, and connect the file atomically with respect to other
       ! threads. All checks and error messages follow outside the critical region, because
       ! cp_abort and cp_warn may call open_file again via the logger, which would deadlock.
-      requested_unit_number = unit_number
       connect = .FALSE.
       exists = .FALSE.
       is_open = .FALSE.
-      unit_in_use = .FALSE.
       inquire_stat = 0
       open_stat = 0
-      unit_stat = 0
       iomsg_string = ""
 !$OMP CRITICAL(cp_files_connect)
       IF (status_string == "SCRATCH") THEN
@@ -352,17 +339,8 @@ CONTAINS
          END IF
       END IF
       IF (connect) THEN
-         ! Retrieve unit number automatically if not suppressed explicitly. A requested unit must
-         ! not be connected to another file (which OPEN would close silently) except for the
-         ! default output unit, which is redirected on purpose (e.g. by the command line flag -o)
-         IF (skip_get) THEN
-            IF ((unit_number > 0) .AND. (unit_number /= default_output_unit)) THEN
-               INQUIRE (UNIT=unit_number, OPENED=unit_in_use, IOSTAT=unit_stat)
-            END IF
-         ELSE
-            unit_number = get_unit_number()
-         END IF
-         IF ((unit_number > 0) .AND. (.NOT. unit_in_use) .AND. (unit_stat == 0)) THEN
+         unit_number = get_unit_number()
+         IF (unit_number > 0) THEN
             IF (status_string == "SCRATCH") THEN
                IF (form_string == "FORMATTED") THEN
                   OPEN (UNIT=unit_number, &
@@ -417,22 +395,9 @@ CONTAINS
                        "An error occurred inquiring the file <"//TRIM(real_file_name)// &
                        "> (IOSTAT="//TRIM(int_to_string(inquire_stat))//").")
       END IF
-      IF (unit_stat /= 0) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "An error occurred inquiring the requested unit "// &
-                       TRIM(int_to_string(unit_number))//" (IOSTAT="// &
-                       TRIM(int_to_string(unit_stat))//").")
-      END IF
 
       IF (is_open) THEN
          ! The file is already connected: check the connection and reuse it
-         IF (skip_get .AND. (unit_number /= requested_unit_number)) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "The file <"//TRIM(real_file_name)//"> is already connected to "// &
-                          "unit "//TRIM(int_to_string(unit_number))//" and cannot be opened "// &
-                          "on the requested unit "// &
-                          TRIM(int_to_string(requested_unit_number))//".")
-         END IF
          CALL uppercase(current_action)
          IF (TRIM(current_action) /= TRIM(action_string)) THEN
             CALL cp_abort(__LOCATION__, &
@@ -486,11 +451,7 @@ CONTAINS
             END IF
          END SELECT
          IF (unit_number < 1) THEN
-            IF (skip_get) THEN
-               CALL cp_abort(__LOCATION__, &
-                             "Invalid logical unit number "//TRIM(int_to_string(unit_number))// &
-                             " specified with skip_get_unit_number.")
-            ELSE IF (status_string == "SCRATCH") THEN
+            IF (status_string == "SCRATCH") THEN
                CALL cp_abort(__LOCATION__, &
                              "Could not obtain a unit number to open a SCRATCH file.")
             ELSE
@@ -498,11 +459,6 @@ CONTAINS
                              "Cannot open the file <"//TRIM(real_file_name)// &
                              ">, because no unused logical unit number could be obtained.")
             END IF
-         END IF
-         IF (unit_in_use) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "The requested logical unit number "//TRIM(int_to_string(unit_number))// &
-                          " is already connected to another file.")
          END IF
          IF (open_stat /= 0) THEN
             IF (status_string == "SCRATCH") THEN
