@@ -48,7 +48,6 @@ eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b" https:
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l" https://cp2k.org/conv#c012
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input" https://cp2k.org/conv#c204
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input" https://cp2k.org/conv#c203
-fde_methods.F: Found CALL EXECUTE_COMMAND_LINE in procedure "fde_spawn" https://cp2k.org/conv#c106
 fftw3_lib.F: Found CLOSE statement in procedure "fftw3_do_cleanup" https://cp2k.org/conv#c204
 fftw3_lib.F: Found CLOSE statement in procedure "fftw3_do_init" https://cp2k.org/conv#c204
 fftw3_lib.F: Found OPEN statement in procedure "fftw3_do_cleanup" https://cp2k.org/conv#c203
@@ -182,8 +181,6 @@ statistical_methods.F: Found WRITE statement with hardcoded unit in "tests" http
 swarm_mpi.F: Found CLOSE statement in procedure "logger_init_master" https://cp2k.org/conv#c204
 swarm_mpi.F: Found OPEN statement in procedure "logger_finalize" https://cp2k.org/conv#c203
 task_list_methods.F: Found WRITE statement with hardcoded unit in "generate_qs_task_list" https://cp2k.org/conv#c012
-tblite_interface.F: Found CALL EXECUTE_COMMAND_LINE in procedure "tb_reference_cli_compare" https://cp2k.org/conv#c106
-tblite_interface.F: Found CALL EXECUTE_COMMAND_LINE in procedure "tb_reference_cli_execute" https://cp2k.org/conv#c106
 tblite_interface.F: Found CLOSE statement in procedure "tb_add_stress" https://cp2k.org/conv#c204
 tblite_interface.F: Found CLOSE statement in procedure "tb_delete_file" https://cp2k.org/conv#c204
 tblite_interface.F: Found CLOSE statement in procedure "tb_dump_sigma_component" https://cp2k.org/conv#c204
