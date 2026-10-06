@@ -896,7 +896,7 @@ CONTAINS
       ! AAT
       ! moments_throw: x, y, z, xx, xy, xz, yy, yz, zz
       ! moments_der:  (moment, xyz derivative)
-      ! build_local_moments_der_matrix uses adbdr for calculating derivatives of the *primitive*
+      ! build_local_moments_der_matrix differentiates the *primitive* on the ket side
       !  on the right. So the resulting
       !  moments_der(moment, delta) = - < a | moment \partial_\delta | b >
       DO i = 1, 9 ! x, y, z, xx, xy, xz, yy, yz, zz

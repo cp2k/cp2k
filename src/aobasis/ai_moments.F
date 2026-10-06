@@ -29,8 +29,9 @@ MODULE ai_moments
 ! zet{a,b}  : Exponents of the Gaussian-type functions a or b.
 ! zetp      : Reciprocal of the sum of the exponents of orbital a and b.
 
-   USE ai_derivatives,                  ONLY: adbdr,&
-                                              dabdr
+   USE ai_cartesian_operators,          ONLY: apply_cartesian_operator,&
+                                              cartesian_ladder,&
+                                              cartesian_ladder_map
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: coset,&
@@ -170,14 +171,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
          OPTIONAL                                        :: dcosab, dsinab
 
-      INTEGER :: ax, ay, az, bx, by, bz, cda, cdax, cday, cdaz, coa, coamx, coamy, coamz, coapx, &
-         coapy, coapz, cob, da, da_max, dax, day, daz, i, ipgf, j, jpgf, k, la, la_max, la_min, &
-         la_start, lb, lb_start, na, nb
-      REAL(KIND=dp)                                      :: dab, f0, f1, f2, f3, fax, fay, faz, ftz, &
-                                                            fx, fy, fz, k2, kdp, rab2, s, zetp
+      INTEGER                                            :: ax, ay, az, bx, by, bz, i, ipgf, j, &
+                                                            jpgf, k, la, la_max, la_min, la_start, &
+                                                            lb, na, nb
+      INTEGER, ALLOCATABLE                               :: derivative_map(:, :, :)
+      REAL(KIND=dp)                                      :: dab, f0, f1, f2, f3, fx, fy, fz, k2, &
+                                                            kdp, rab2, s, zetp
       REAL(KIND=dp), DIMENSION(3)                        :: rab, rap, rbp
-      REAL(KIND=dp), DIMENSION(ncoset(la_max_set), &
-         ncoset(lb_max), 3)                              :: dscos, dssin
       REAL(KIND=dp), &
          DIMENSION(ncoset(la_max_set+1), ncoset(lb_max)) :: sc, ss
 
@@ -187,23 +187,19 @@ CONTAINS
       k2 = kvec(1)*kvec(1) + kvec(2)*kvec(2) + kvec(3)*kvec(3)
 
       IF (PRESENT(dcosab)) THEN
-         da_max = 1
          la_max = la_max_set + 1
          la_min = MAX(0, la_min_set - 1)
-         dscos = 0.0_dp
-         dssin = 0.0_dp
+         ALLOCATE (derivative_map(4, ncoset(la_max_set), 3))
+         DO k = 1, 3
+            CALL cartesian_ladder_map(la_max_set, 0, k, derivative_map(:, :, k))
+         END DO
       ELSE
-         da_max = 0
          la_max = la_max_set
          la_min = la_min_set
       END IF
 
       ! initialize all matrix elements to zero
-      IF (PRESENT(dcosab)) THEN
-         na = ncoset(la_max - 1)*npgfa
-      ELSE
-         na = ncoset(la_max)*npgfa
-      END IF
+      na = ncoset(la_max_set)*npgfa
       nb = ncoset(lb_max)*npgfb
       cosab(1:na, 1:nb) = 0.0_dp
       sinab(1:na, 1:nb) = 0.0_dp
@@ -712,68 +708,11 @@ CONTAINS
             END DO
 
             IF (PRESENT(dcosab)) THEN
-               la_start = 0
-               lb_start = 0
-            ELSE
-               la_start = la_min
-               lb_start = lb_min
-            END IF
-
-            DO da = 0, da_max - 1
-               ftz = 2.0_dp*zeta(ipgf)
-               DO dax = 0, da
-                  DO day = 0, da - dax
-                     daz = da - dax - day
-                     cda = coset(dax, day, daz) - 1
-                     cdax = coset(dax + 1, day, daz) - 1
-                     cday = coset(dax, day + 1, daz) - 1
-                     cdaz = coset(dax, day, daz + 1) - 1
-                     !*** [da/dAi|O|b] = 2*zeta*[a+1i|O|b] - Ni(a)[a-1i|O|b] ***
-
-                     DO la = la_start, la_max - da - 1
-                        DO ax = 0, la
-                           fax = REAL(ax, dp)
-                           DO ay = 0, la - ax
-                              fay = REAL(ay, dp)
-                              az = la - ax - ay
-                              faz = REAL(az, dp)
-                              coa = coset(ax, ay, az)
-                              coamx = coset(ax - 1, ay, az)
-                              coamy = coset(ax, ay - 1, az)
-                              coamz = coset(ax, ay, az - 1)
-                              coapx = coset(ax + 1, ay, az)
-                              coapy = coset(ax, ay + 1, az)
-                              coapz = coset(ax, ay, az + 1)
-                              DO lb = lb_start, lb_max
-                                 DO bx = 0, lb
-                                    DO by = 0, lb - bx
-                                       bz = lb - bx - by
-                                       cob = coset(bx, by, bz)
-                                       dscos(coa, cob, cdax) = ftz*sc(coapx, cob) - fax*sc(coamx, cob)
-                                       dscos(coa, cob, cday) = ftz*sc(coapy, cob) - fay*sc(coamy, cob)
-                                       dscos(coa, cob, cdaz) = ftz*sc(coapz, cob) - faz*sc(coamz, cob)
-                                       dssin(coa, cob, cdax) = ftz*ss(coapx, cob) - fax*ss(coamx, cob)
-                                       dssin(coa, cob, cday) = ftz*ss(coapy, cob) - fay*ss(coamy, cob)
-                                       dssin(coa, cob, cdaz) = ftz*ss(coapz, cob) - faz*ss(coamz, cob)
-                                    END DO
-                                 END DO
-                              END DO
-                           END DO
-                        END DO
-                     END DO
-
-                  END DO
-               END DO
-            END DO
-
-            IF (PRESENT(dcosab)) THEN
                DO k = 1, 3
-                  DO j = 1, ncoset(lb_max)
-                     DO i = 1, ncoset(la_max_set)
-                        dcosab(na + i, nb + j, k) = dscos(i, j, k)
-                        dsinab(na + i, nb + j, k) = dssin(i, j, k)
-                     END DO
-                  END DO
+                  CALL cartesian_ladder(sc, dcosab(na + 1:na + ncoset(la_max_set), nb + 1:nb + ncoset(lb_max), k), &
+                                        derivative_map(:, :, k), .TRUE., zeta(ipgf), 0.0_dp, .FALSE.)
+                  CALL cartesian_ladder(ss, dsinab(na + 1:na + ncoset(la_max_set), nb + 1:nb + ncoset(lb_max), k), &
+                                        derivative_map(:, :, k), .TRUE., zeta(ipgf), 0.0_dp, .FALSE.)
                END DO
             END IF
 
@@ -1342,7 +1281,7 @@ CONTAINS
 !> \param rac ...
 !> \param rbc ...
 !> \param difmab ...
-!> \param mab_ext ...
+!> \param mab_ext optional precomputed moments with zero screened primitive blocks, including raised shells
 !> \param deltaR optional weights for the left and right primitive derivatives
 !> \param lambda optional atom selector for the factor (iatom == lambda) - (jatom == lambda)
 !> \param iatom atom associated with the left basis function
@@ -1366,13 +1305,8 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: lambda, iatom, jatom
 
       INTEGER                                            :: ider, imom, lda, lda_min, ldb, ldb_min
-      REAL(KIND=dp)                                      :: dab, rab(3), rab2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: difmab_tmp
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: mab
-
-      rab = rbc - rac
-      rab2 = SUM(rab**2)
-      dab = SQRT(rab2)
 
       lda_min = MAX(0, la_min - 1)
       ldb_min = MAX(0, lb_min - 1)
@@ -1393,10 +1327,8 @@ CONTAINS
 
       END IF
       DO imom = 1, ncoset(order) - 1
-         CALL adbdr(la_max, npgfa, rpgfa, la_min, &
-                    lb_max, npgfb, zetb, rpgfb, lb_min, &
-                    dab, mab(:, :, imom), difmab_tmp(:, :, 1), &
-                    difmab_tmp(:, :, 2), difmab_tmp(:, :, 3))
+         CALL apply_cartesian_operator(la_max, 0, npgfa, lb_max, 0, npgfb, mab(:, :, imom), &
+                                       difmab_tmp, right=.TRUE., derivative=.TRUE., exponents=zetb)
          IF (PRESENT(deltaR)) THEN
             CPASSERT(ASSOCIATED(deltaR))
             CPASSERT(PRESENT(iatom) .AND. PRESENT(jatom))
@@ -1405,10 +1337,8 @@ CONTAINS
                   difmab_tmp(1:lda, 1:ldb, ider)*deltaR(ider, jatom)
             END DO
 
-            CALL dabdr(la_max, npgfa, zeta, rpgfa, la_min, &
-                       lb_max, npgfb, rpgfb, lb_min, &
-                       dab, mab(:, :, imom), difmab_tmp(:, :, 1), &
-                       difmab_tmp(:, :, 2), difmab_tmp(:, :, 3))
+            CALL apply_cartesian_operator(la_max, 0, npgfa, lb_max, 0, npgfb, mab(:, :, imom), &
+                                          difmab_tmp, right=.FALSE., derivative=.TRUE., exponents=zeta)
             DO ider = 1, 3
                difmab(1:lda, 1:ldb, imom, ider) = difmab(1:lda, 1:ldb, imom, ider) &
                                                   + difmab_tmp(1:lda, 1:ldb, ider)*deltaR(ider, iatom)
@@ -1478,15 +1408,10 @@ CONTAINS
 
       INTEGER                                            :: i, imom, ipgf, j, jpgf, lda, lda_min, &
                                                             ldb, ldb_min, na, nb
-      REAL(KIND=dp)                                      :: dab, rab(3), rab2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: difmab, mab
 
       CPASSERT(order == 1)
       MARK_USED(order)
-
-      rab = rbc - rac
-      rab2 = SUM(rab**2)
-      dab = SQRT(rab2)
 
       lda_min = MAX(0, la_min - 1)
       ldb_min = MAX(0, lb_min - 1)
@@ -1500,8 +1425,8 @@ CONTAINS
 
       DO imom = 1, 3
          difmab = 0.0_dp
-         CALL adbdr(la_max, npgfa, rpgfa, la_min, lb_max, npgfb, zetb, rpgfb, lb_min, &
-                    dab, mab(:, :, imom), difmab(:, :, 1), difmab(:, :, 2), difmab(:, :, 3))
+         CALL apply_cartesian_operator(la_max, 0, npgfa, lb_max, 0, npgfb, mab(:, :, imom), &
+                                       difmab, right=.TRUE., derivative=.TRUE., exponents=zetb)
          na = 0
          DO ipgf = 1, npgfa
             nb = 0
@@ -1519,8 +1444,8 @@ CONTAINS
          END DO
 
          difmab = 0.0_dp
-         CALL dabdr(la_max, npgfa, zeta, rpgfa, la_min, lb_max, npgfb, rpgfb, lb_min, &
-                    dab, mab(:, :, imom), difmab(:, :, 1), difmab(:, :, 2), difmab(:, :, 3))
+         CALL apply_cartesian_operator(la_max, 0, npgfa, lb_max, 0, npgfb, mab(:, :, imom), &
+                                       difmab, right=.FALSE., derivative=.TRUE., exponents=zeta)
          na = 0
          DO ipgf = 1, npgfa
             nb = 0

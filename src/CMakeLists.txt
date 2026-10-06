@@ -966,11 +966,11 @@ list(
   APPEND
   CP2K_SRCS_F
   aobasis/ai_angmom.F
+  aobasis/ai_cartesian_operators.F
   aobasis/ai_contraction.F
   aobasis/ai_contraction_sphi.F
   aobasis/ai_coulomb.F
   aobasis/ai_coulomb_test.F
-  aobasis/ai_derivatives.F
   aobasis/ai_elec_field.F
   aobasis/ai_eri_debug.F
   aobasis/ai_fermi_contact.F
