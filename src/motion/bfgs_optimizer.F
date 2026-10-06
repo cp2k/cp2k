@@ -1293,15 +1293,16 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: eigval(ndf), work(ndf)
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'set_hes_eig'
-      REAL(KIND=dp), PARAMETER                           :: max_neg = -0.5_dp, max_pos = 5.0_dp, &
-                                                            min_eig = 0.005_dp, one = 1.0_dp
+      REAL(KIND=dp), PARAMETER                           :: max_eig = 1000.0_dp, max_neg = -0.5_dp, &
+                                                            max_pos = 5.0_dp, min_eig = 0.005_dp, &
+                                                            one = 1.0_dp
 
       INTEGER                                            :: handle, indf
 
       CALL timeset(routineN, handle)
 
       DO indf = 1, ndf
-         IF (eigval(indf) > 1000.0_dp) eigval(indf) = 1000.0_dp
+         IF (eigval(indf) > max_eig) eigval(indf) = max_eig
       END DO
       DO indf = 1, ndf
          IF (eigval(indf) < 0.0_dp) THEN
