@@ -1489,7 +1489,7 @@ CONTAINS
          all_occupied(ispin) = ALL(mo_occupied(1:nmo, ispin))
       END DO
       IF (fractional) THEN
-         CPWARN("Berry phase moments for non uniform MOs' occupation numbers not implemented")
+         CPWARN("Berry phase moments for fractional MOs' occupation numbers not implemented")
       END IF
 
       ! reference point
