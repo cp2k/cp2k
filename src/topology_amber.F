@@ -381,7 +381,7 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: input_format, section
       CHARACTER(LEN=default_string_length), &
-         ALLOCATABLE, DIMENSION(:)                       :: isymbl, labres, strtmp_a
+         ALLOCATABLE, DIMENSION(:)                       :: isymbl, labres, raw_isymbl, strtmp_a
       INTEGER :: handle, handle2, i, ifbox, ifcap, ifpert, index_now, info(31), istart, mbona, &
          mbper, mdper, mgper, mphia, mtheta, natom, natom_prev, natyp, nbona, nbond_prev, nbonh, &
          nbper, ndper, ngper, nhparm, nmxrs, nnb, nparm, nphb, nphi_prev, nphia, nphih, nptra, &
@@ -668,6 +668,8 @@ CONTAINS
 
          ! Sort atom names + charges and identify unique types
          CALL sort(isymbl, natom, iwork)
+         ALLOCATE (raw_isymbl(natom))
+         raw_isymbl(:) = isymbl
 
          istart = 1
          DO i = 2, natom
@@ -677,6 +679,8 @@ CONTAINS
             END IF
          END DO
          CALL conform_atom_type_low(isymbl, iwork, i, istart, atom_info%atm_charge(natom_prev + 1:))
+
+         CALL resolve_atom_type_collisions(isymbl, raw_isymbl)
 
          ! Copy back the modified and conformed atom types
          DO i = 1, natom
@@ -696,6 +700,7 @@ CONTAINS
          ! Deallocate when extracting connectivity infos
          DEALLOCATE (iwork)
          DEALLOCATE (isymbl)
+         DEALLOCATE (raw_isymbl)
          DEALLOCATE (labres)
          DEALLOCATE (ipres)
 
@@ -1023,6 +1028,8 @@ CONTAINS
                kend = k - 1
                DO j = kstart, kend
                   gind = lindx(cindx(j))
+                  IF (LEN_TRIM(isymbl(gind)) + LEN_TRIM(ADJUSTL(cp_to_string(counter))) > &
+                      LEN(isymbl(gind))) CPABORT("AMBER charge kind name exceeds string length")
                   isymbl(gind) = TRIM(isymbl(gind))//ADJUSTL(cp_to_string(counter))
                END DO
                counter = counter + 1
@@ -1033,6 +1040,8 @@ CONTAINS
          kend = k - 1
          DO j = kstart, kend
             gind = lindx(cindx(j))
+            IF (LEN_TRIM(isymbl(gind)) + LEN_TRIM(ADJUSTL(cp_to_string(counter))) > &
+                LEN(isymbl(gind))) CPABORT("AMBER charge kind name exceeds string length")
             isymbl(gind) = TRIM(isymbl(gind))//ADJUSTL(cp_to_string(counter))
          END DO
       END IF
@@ -1041,6 +1050,143 @@ CONTAINS
       DEALLOCATE (cindx)
       CALL timestop(handle)
    END SUBROUTINE conform_atom_type_low
+
+! **************************************************************************************************
+!> \brief Resolve ambiguities introduced by the legacy AMBER charge-split
+!>        atom-kind naming scheme while preserving non-colliding names.
+!> \param isymbl Conformed atom-kind names
+!> \param raw_isymbl Original AMBER atom types
+! **************************************************************************************************
+   SUBROUTINE resolve_atom_type_collisions(isymbl, raw_isymbl)
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), INTENT(INOUT)                     :: isymbl
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), INTENT(IN)                        :: raw_isymbl
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'resolve_atom_type_collisions'
+
+      CHARACTER(LEN=default_string_length)               :: base_name, candidate, suffix
+      CHARACTER(LEN=default_string_length), &
+         ALLOCATABLE, DIMENSION(:)                       :: sorted_labels
+      INTEGER                                            :: finish, handle, idx, jdx, keeper, n, &
+                                                            nsep, p, q, raw_len, start
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: order
+      LOGICAL                                            :: collision, seen_type
+
+      CALL timeset(routineN, handle)
+
+      n = SIZE(isymbl)
+      CPASSERT(SIZE(raw_isymbl) == n)
+
+      ALLOCATE (sorted_labels(n))
+      ALLOCATE (order(n))
+
+      ! Sort a copy of the legacy-generated labels.  Equal labels then
+      ! form contiguous groups, while order maps back to isymbl/raw_isymbl.
+      sorted_labels(:) = isymbl
+      CALL sort(sorted_labels, n, order)
+
+      start = 1
+      DO WHILE (start <= n)
+         finish = start
+
+         DO WHILE (finish < n)
+            IF (sorted_labels(finish + 1) /= sorted_labels(start)) EXIT
+            finish = finish + 1
+         END DO
+
+         IF (finish > start) THEN
+            keeper = order(start)
+            collision = .FALSE.
+
+            ! Repeated atoms of the same original AMBER type are normal.
+            ! A collision exists only when one generated label represents
+            ! more than one original AMBER atom type.
+            DO p = start + 1, finish
+               idx = order(p)
+               IF (raw_isymbl(idx) /= raw_isymbl(keeper)) THEN
+                  collision = .TRUE.
+                  EXIT
+               END IF
+            END DO
+
+            IF (collision) THEN
+
+               ! Preserve an unsplit original AMBER atom type when its name
+               ! exactly matches the colliding legacy label.  If no such type
+               ! exists, disambiguate all identities in the collision group.
+               keeper = 0
+               DO p = start, finish
+                  idx = order(p)
+                  IF (raw_isymbl(idx) == sorted_labels(start)) THEN
+                     keeper = idx
+                     EXIT
+                  END IF
+               END DO
+
+               DO p = start, finish
+                  idx = order(p)
+
+                  IF (keeper /= 0) THEN
+                     IF (raw_isymbl(idx) == raw_isymbl(keeper)) CYCLE
+                  END IF
+
+                  ! Handle each conflicting original AMBER type only once.
+                  seen_type = .FALSE.
+                  DO q = start, p - 1
+                     jdx = order(q)
+                     IF (raw_isymbl(jdx) == raw_isymbl(idx)) THEN
+                        seen_type = .TRUE.
+                        EXIT
+                     END IF
+                  END DO
+                  IF (seen_type) CYCLE
+
+                  base_name = TRIM(raw_isymbl(idx))
+                  raw_len = LEN_TRIM(base_name)
+
+                  ! A non-keeper colliding identity must have acquired a
+                  ! numeric charge-class suffix through conform_atom_type_low.
+                  IF (LEN_TRIM(sorted_labels(start)) <= raw_len) THEN
+                     CPABORT("Unable to disambiguate AMBER atom kind name")
+                  END IF
+
+                  suffix = ADJUSTL(sorted_labels(start) (raw_len + 1:))
+                  nsep = 1
+
+                  ! Prefer TYPE_1.  If that name already exists, use
+                  ! TYPE__1, TYPE___1, ... until an unused name is found.
+                  DO
+                     IF (raw_len + nsep + LEN_TRIM(suffix) > LEN(candidate)) THEN
+                        CPABORT("AMBER charge kind name exceeds string length")
+                     END IF
+
+                     candidate = TRIM(base_name)//REPEAT("_", nsep)//TRIM(suffix)
+
+                     IF (.NOT. ANY(isymbl == candidate)) EXIT
+                     nsep = nsep + 1
+                  END DO
+
+                  ! Rename all atoms belonging to this conflicting identity.
+                  DO q = start, finish
+                     jdx = order(q)
+                     IF (raw_isymbl(jdx) == raw_isymbl(idx)) THEN
+                        isymbl(jdx) = candidate
+                     END IF
+                  END DO
+
+               END DO
+            END IF
+         END IF
+
+         start = finish + 1
+      END DO
+
+      DEALLOCATE (sorted_labels)
+      DEALLOCATE (order)
+
+      CALL timestop(handle)
+   END SUBROUTINE resolve_atom_type_collisions
 
 ! **************************************************************************************************
 !> \brief Set of Low level subroutines reading section for parmtop
@@ -1764,7 +1910,11 @@ CONTAINS
       eps(nsize) = my_eps
 
       DO i = 2, natom
-         IF (work_label(i) /= atom_label(nsize)) THEN
+         IF (work_label(i) == atom_label(nsize)) THEN
+            IF (iac(iwork(i)) /= iac(iwork(i - 1))) THEN
+               CPABORT("AMBER kind collision: "//TRIM(work_label(i)))
+            END IF
+         ELSE
             nsize = nsize + 1
             ! In case we need more space ... give it up...
             IF (nsize > SIZE(atom_label)) THEN
