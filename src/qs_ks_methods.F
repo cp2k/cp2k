@@ -139,6 +139,7 @@ MODULE qs_ks_methods
    USE qs_sccs,                         ONLY: sccs,&
                                               sccs_core_fill_coefficients
    USE qs_scf_types,                    ONLY: qs_scf_env_type
+   USE qs_upf_inverse_scf,              ONLY: qs_upf_inverse_scf_active
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE qs_vxc_atom,                     ONLY: calculate_vxc_atom,&
                                               gapw_cdft_one_center
@@ -970,6 +971,9 @@ CONTAINS
                   END IF
                END IF
             ELSE
+               IF (qs_upf_inverse_scf_active(ks_env)) THEN
+                  CPABORT("Inverse USPP GaussXC AO operators are not implemented")
+               END IF
                use_gauxc_matrix = .TRUE.
                CALL apply_gauxc(qs_env, xc_section, calculate_forces)
                IF (gapw_xc .OR. (gapw .AND. gauxc_gapw_has_paw_pseudopotentials(qs_kind_set))) THEN
@@ -1086,6 +1090,9 @@ CONTAINS
       ! *** Add Hartree-Fock contribution if required ***
       hfx_sections => section_vals_get_subs_vals(xc_section, "HF")
       CALL section_vals_get(hfx_sections, explicit=do_hfx)
+      IF (do_hfx .AND. qs_upf_inverse_scf_active(ks_env)) THEN
+         CPABORT("Inverse USPP exact exchange is not implemented")
+      END IF
 
       ace_active = .FALSE.
       ace_rebuild_frequency = 1

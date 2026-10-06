@@ -60,6 +60,9 @@ MODULE qs_energy_init
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
    USE qs_update_s_mstruct,             ONLY: qs_env_update_s_mstruct
+   USE qs_upf_inverse_scf,              ONLY: qs_upf_inverse_scf_initialize,&
+                                              qs_upf_inverse_scf_reset
+   USE qs_uspp_methods,                 ONLY: qs_uspp_init_ao_matrix
    USE ri_environment_methods,          ONLY: build_ri_matrices
    USE se_core_core,                    ONLY: se_core_core_interaction
    USE se_core_matrix,                  ONLY: build_se_core_matrix
@@ -109,7 +112,9 @@ CONTAINS
       ELSE
          molecule_only = .FALSE.
       END IF
+      CALL qs_upf_inverse_scf_reset(ks_env)
       CALL qs_energies_init_hamiltonians(qs_env, calc_forces, molecule_only)
+      CALL qs_upf_inverse_scf_initialize(ks_env)
       CALL get_ks_env(ks_env, complex_ks=ks_is_complex)
       CALL qs_ks_allocate_basics(qs_env, is_complex=ks_is_complex)
 
@@ -127,6 +132,7 @@ CONTAINS
             DO img = 1, nimg
                ALLOCATE (matrix_w(ispin, img)%matrix)
                CALL dbcsr_copy(matrix_w(ispin, img)%matrix, matrix, name="W MATRIX")
+               CALL qs_uspp_init_ao_matrix(ks_env, matrix_w(ispin, img)%matrix)
                CALL dbcsr_set(matrix_w(ispin, img)%matrix, 0.0_dp)
             END DO
          END DO
