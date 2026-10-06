@@ -12,6 +12,7 @@
 ! **************************************************************************************************
 MODULE ai_cartesian_operators
    USE kinds,                           ONLY: dp
+   USE mathlib,                         ONLY: binomial_gen
    USE orbital_pointers,                ONLY: coset,&
                                               indco,&
                                               ncoset
@@ -20,7 +21,8 @@ MODULE ai_cartesian_operators
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC :: cartesian_ladder_map, cartesian_ladder, apply_cartesian_operator, apply_cartesian_1d
+   PUBLIC :: cartesian_ladder_map, cartesian_ladder, apply_cartesian_operator, apply_cartesian_1d, &
+             cartesian_polynomial_1d
 
 CONTAINS
 
@@ -222,5 +224,43 @@ CONTAINS
                                derivative, exponent, origin(axis), right)
       END DO
    END SUBROUTINE apply_cartesian_1d
+
+! **************************************************************************************************
+!> \brief Form requested coordinate powers from separable Cartesian integral tables.
+!>        Only requested powers are stored. With the origin on A, each power is a
+!>        direct shift of the bra degree; other origins use the binomial expansion.
+!> \param source input tables with enough raised bra degrees for the largest power
+!> \param values tables indexed by bra degree, ket degree, requested power and axis
+!> \param la_max highest output degree on A
+!> \param lb_max highest output degree on B
+!> \param powers nonnegative coordinate powers to evaluate
+!> \param origin displacement of A from the coordinate reference point
+! **************************************************************************************************
+   SUBROUTINE cartesian_polynomial_1d(source, values, la_max, lb_max, powers, origin)
+      REAL(KIND=dp), DIMENSION(0:, 0:, :), INTENT(IN)    :: source
+      REAL(KIND=dp), DIMENSION(0:, 0:, 0:, :), &
+         INTENT(OUT)                                     :: values
+      INTEGER, INTENT(IN)                                :: la_max, lb_max, powers(0:)
+      REAL(KIND=dp), INTENT(IN)                          :: origin(3)
+
+      INTEGER                                            :: axis, i, k, p
+      REAL(KIND=dp)                                      :: coefficient
+
+      DO axis = 1, 3
+         DO i = 0, SIZE(powers) - 1
+            p = powers(i)
+            IF (ABS(origin(axis)) <= 0.0_dp) THEN
+               values(:, :, i, axis) = source(p:p + la_max, 0:lb_max, axis)
+            ELSE
+               values(:, :, i, axis) = 0.0_dp
+               DO k = 0, p
+                  coefficient = binomial_gen(REAL(p, dp), k)*origin(axis)**(p - k)
+                  values(:, :, i, axis) = values(:, :, i, axis) + &
+                                          coefficient*source(k:k + la_max, 0:lb_max, axis)
+               END DO
+            END IF
+         END DO
+      END DO
+   END SUBROUTINE cartesian_polynomial_1d
 
 END MODULE ai_cartesian_operators

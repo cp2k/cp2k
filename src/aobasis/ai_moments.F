@@ -31,7 +31,9 @@ MODULE ai_moments
 
    USE ai_cartesian_operators,          ONLY: apply_cartesian_operator,&
                                               cartesian_ladder,&
-                                              cartesian_ladder_map
+                                              cartesian_ladder_map,&
+                                              cartesian_polynomial_1d
+   USE ai_os_rr,                        ONLY: os_rr_ovlp
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: coset,&
@@ -743,9 +745,7 @@ CONTAINS
 !> \param mab ...
 ! **************************************************************************************************
    SUBROUTINE moment(la_max, npgfa, zeta, rpgfa, la_min, &
-                     lb_max, npgfb, zetb, rpgfb, &
-                     lc_max, rac, rbc, mab)
-
+                     lb_max, npgfb, zetb, rpgfb, lc_max, rac, rbc, mab)
       INTEGER, INTENT(IN)                                :: la_max, npgfa
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zeta, rpgfa
       INTEGER, INTENT(IN)                                :: la_min, lb_max, npgfb
@@ -754,507 +754,57 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rac, rbc
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mab
 
-      INTEGER                                            :: ax, ay, az, bx, by, bz, i, ipgf, j, &
-                                                            jpgf, k, l, l1, l2, la, la_start, lb, &
-                                                            lx, lx1, ly, ly1, lz, lz1, na, nb, ni
-      REAL(KIND=dp)                                      :: dab, f0, f1, f2, f2x, f2y, f2z, f3, fx, &
-                                                            fy, fz, rab2, zetp
-      REAL(KIND=dp), DIMENSION(3)                        :: rab, rap, rbp, rpc
-      REAL(KIND=dp), DIMENSION(ncoset(la_max), ncoset(&
-         lb_max), ncoset(lc_max))                        :: s
+      INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, i, ia, &
+                                                            ib, imom, ipgf, jpgf, ldrr, lx, ly, &
+                                                            lz, ma, mb, powers(0:lc_max)
+      REAL(KIND=dp)                                      :: a, b, dab, f0, rab(3), rab2, rap(3), &
+                                                            rbp(3), zet
+      REAL(KIND=dp), ALLOCATABLE                         :: polynomial(:, :, :, :), rr(:, :, :)
 
+      MARK_USED(la_min)
       rab = rbc - rac
-      rab2 = SUM(rab**2)
-      dab = SQRT(rab2)
-
-!   *** Loop over all pairs of primitive Gaussian-type functions ***
-
-      na = 0
-
+      dab = NORM2(rab)
+      rab2 = dab**2
+      ldrr = MAX(la_max + lc_max, lb_max) + 1
+      ALLOCATE (rr(0:ldrr - 1, 0:ldrr - 1, 3), polynomial(0:la_max, 0:lb_max, 0:lc_max, 3))
+      powers = [(i, i=0, lc_max)]
+      mab(:npgfa*ncoset(la_max), :npgfb*ncoset(lb_max), :ncoset(lc_max) - 1) = 0.0_dp
       DO ipgf = 1, npgfa
-
-         nb = 0
-
+         ma = (ipgf - 1)*ncoset(la_max)
          DO jpgf = 1, npgfb
-
-            s = 0.0_dp
-!       *** Screening ***
-
-            IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
-               DO k = 1, ncoset(lc_max) - 1
-                  DO j = nb + 1, nb + ncoset(lb_max)
-                     DO i = na + 1, na + ncoset(la_max)
-                        mab(i, j, k) = 0.0_dp
-                     END DO
-                  END DO
-               END DO
-               nb = nb + ncoset(lb_max)
-               CYCLE
-            END IF
-
-!       *** Calculate some prefactors ***
-
-            zetp = 1.0_dp/(zeta(ipgf) + zetb(jpgf))
-
-            f0 = (pi*zetp)**1.5_dp
-            f1 = zetb(jpgf)*zetp
-            f2 = 0.5_dp*zetp
-
-!       *** Calculate the basic two-center moment integral [s|M|s] ***
-
-            rpc = zetp*(zeta(ipgf)*rac + zetb(jpgf)*rbc)
-            s(1, 1, 1) = f0*EXP(-zeta(ipgf)*f1*rab2)
-            DO l = 2, ncoset(lc_max)
-               lx = indco(1, l)
-               ly = indco(2, l)
-               lz = indco(3, l)
-               l2 = 0
-               IF (lz > 0) THEN
-                  l1 = coset(lx, ly, lz - 1)
-                  IF (lz > 1) l2 = coset(lx, ly, lz - 2)
-                  ni = lz - 1
-                  i = 3
-               ELSE IF (ly > 0) THEN
-                  l1 = coset(lx, ly - 1, lz)
-                  IF (ly > 1) l2 = coset(lx, ly - 2, lz)
-                  ni = ly - 1
-                  i = 2
-               ELSE IF (lx > 0) THEN
-                  l1 = coset(lx - 1, ly, lz)
-                  IF (lx > 1) l2 = coset(lx - 2, ly, lz)
-                  ni = lx - 1
-                  i = 1
-               END IF
-               s(1, 1, l) = rpc(i)*s(1, 1, l1)
-               IF (l2 > 0) s(1, 1, l) = s(1, 1, l) + f2*REAL(ni, dp)*s(1, 1, l2)
-            END DO
-
-!       *** Recurrence steps: [s|M|s] -> [a|M|b] ***
-
-            DO l = 1, ncoset(lc_max)
-
-               lx = indco(1, l)
-               ly = indco(2, l)
-               lz = indco(3, l)
-               IF (lx > 0) THEN
-                  lx1 = coset(lx - 1, ly, lz)
-               ELSE
-                  lx1 = -1
-               END IF
-               IF (ly > 0) THEN
-                  ly1 = coset(lx, ly - 1, lz)
-               ELSE
-                  ly1 = -1
-               END IF
-               IF (lz > 0) THEN
-                  lz1 = coset(lx, ly, lz - 1)
-               ELSE
-                  lz1 = -1
-               END IF
-               f2x = f2*REAL(lx, dp)
-               f2y = f2*REAL(ly, dp)
-               f2z = f2*REAL(lz, dp)
-
-               IF (la_max > 0) THEN
-
-!           *** Vertical recurrence steps: [s|M|s] -> [a|M|s] ***
-
-                  rap(:) = f1*rab(:)
-
-!           *** [p|M|s] = (Pi - Ai)*[s|M|s] + f2*Ni(m-1i)[s|M-1i|s] ***
-
-                  s(2, 1, l) = rap(1)*s(1, 1, l)
-                  s(3, 1, l) = rap(2)*s(1, 1, l)
-                  s(4, 1, l) = rap(3)*s(1, 1, l)
-                  IF (lx1 > 0) s(2, 1, l) = s(2, 1, l) + f2x*s(1, 1, lx1)
-                  IF (ly1 > 0) s(3, 1, l) = s(3, 1, l) + f2y*s(1, 1, ly1)
-                  IF (lz1 > 0) s(4, 1, l) = s(4, 1, l) + f2z*s(1, 1, lz1)
-
-!           *** [a|M|s] = (Pi - Ai)*[a-1i|M|s] + f2*Ni(a-1i)*[a-2i|M|s] ***
-!           ***           + f2*Ni(m-1i)*[a-1i|M-1i|s]                   ***
-
-                  DO la = 2, la_max
-
-!             *** Increase the angular momentum component z of function a ***
-
-                     s(coset(0, 0, la), 1, l) = rap(3)*s(coset(0, 0, la - 1), 1, l) + &
-                                                f2*REAL(la - 1, dp)*s(coset(0, 0, la - 2), 1, l)
-                     IF (lz1 > 0) s(coset(0, 0, la), 1, l) = s(coset(0, 0, la), 1, l) + &
-                                                             f2z*s(coset(0, 0, la - 1), 1, lz1)
-
-!             *** Increase the angular momentum component y of function a ***
-
-                     az = la - 1
-                     s(coset(0, 1, az), 1, l) = rap(2)*s(coset(0, 0, az), 1, l)
-                     IF (ly1 > 0) s(coset(0, 1, az), 1, l) = s(coset(0, 1, az), 1, l) + &
-                                                             f2y*s(coset(0, 0, az), 1, ly1)
-
-                     DO ay = 2, la
-                        az = la - ay
-                        s(coset(0, ay, az), 1, l) = rap(2)*s(coset(0, ay - 1, az), 1, l) + &
-                                                    f2*REAL(ay - 1, dp)*s(coset(0, ay - 2, az), 1, l)
-                        IF (ly1 > 0) s(coset(0, ay, az), 1, l) = s(coset(0, ay, az), 1, l) + &
-                                                                 f2y*s(coset(0, ay - 1, az), 1, ly1)
-                     END DO
-
-!             *** Increase the angular momentum component x of function a ***
-
-                     DO ay = 0, la - 1
-                        az = la - 1 - ay
-                        s(coset(1, ay, az), 1, l) = rap(1)*s(coset(0, ay, az), 1, l)
-                        IF (lx1 > 0) s(coset(1, ay, az), 1, l) = s(coset(1, ay, az), 1, l) + &
-                                                                 f2x*s(coset(0, ay, az), 1, lx1)
-                     END DO
-
-                     DO ax = 2, la
-                        f3 = f2*REAL(ax - 1, dp)
-                        DO ay = 0, la - ax
-                           az = la - ax - ay
-                           s(coset(ax, ay, az), 1, l) = rap(1)*s(coset(ax - 1, ay, az), 1, l) + &
-                                                        f3*s(coset(ax - 2, ay, az), 1, l)
-                           IF (lx1 > 0) s(coset(ax, ay, az), 1, l) = s(coset(ax, ay, az), 1, l) + &
-                                                                     f2x*s(coset(ax - 1, ay, az), 1, lx1)
-                        END DO
-                     END DO
-
-                  END DO
-
-!           *** Recurrence steps: [a|M|s] -> [a|M|b] ***
-
-                  IF (lb_max > 0) THEN
-
-                     DO j = 2, ncoset(lb_max)
-                        DO i = 1, ncoset(la_max)
-                           s(i, j, l) = 0.0_dp
-                        END DO
-                     END DO
-
-!             *** Horizontal recurrence steps ***
-
-                     rbp(:) = rap(:) - rab(:)
-
-!             *** [a|M|p] = [a+1i|M|s] - (Bi - Ai)*[a|M|s] ***
-
-                     IF (lb_max == 1) THEN
-                        la_start = la_min
-                     ELSE
-                        la_start = MAX(0, la_min - 1)
-                     END IF
-
-                     DO la = la_start, la_max - 1
-                        DO ax = 0, la
-                           DO ay = 0, la - ax
-                              az = la - ax - ay
-                              s(coset(ax, ay, az), 2, l) = s(coset(ax + 1, ay, az), 1, l) - &
-                                                           rab(1)*s(coset(ax, ay, az), 1, l)
-                              s(coset(ax, ay, az), 3, l) = s(coset(ax, ay + 1, az), 1, l) - &
-                                                           rab(2)*s(coset(ax, ay, az), 1, l)
-                              s(coset(ax, ay, az), 4, l) = s(coset(ax, ay, az + 1), 1, l) - &
-                                                           rab(3)*s(coset(ax, ay, az), 1, l)
-                           END DO
-                        END DO
-                     END DO
-
-!             *** Vertical recurrence step ***
-
-!             *** [a|M|p] = (Pi - Bi)*[a|M|s] + f2*Ni(a)*[a-1i|M|s] ***
-!             ***           + f2*Ni(m)*[a|M-1i|s]                   ***
-
-                     DO ax = 0, la_max
-                        fx = f2*REAL(ax, dp)
-                        DO ay = 0, la_max - ax
-                           fy = f2*REAL(ay, dp)
-                           az = la_max - ax - ay
-                           fz = f2*REAL(az, dp)
-                           IF (ax == 0) THEN
-                              s(coset(ax, ay, az), 2, l) = rbp(1)*s(coset(ax, ay, az), 1, l)
-                           ELSE
-                              s(coset(ax, ay, az), 2, l) = rbp(1)*s(coset(ax, ay, az), 1, l) + &
-                                                           fx*s(coset(ax - 1, ay, az), 1, l)
-                           END IF
-                           IF (lx1 > 0) s(coset(ax, ay, az), 2, l) = s(coset(ax, ay, az), 2, l) + &
-                                                                     f2x*s(coset(ax, ay, az), 1, lx1)
-                           IF (ay == 0) THEN
-                              s(coset(ax, ay, az), 3, l) = rbp(2)*s(coset(ax, ay, az), 1, l)
-                           ELSE
-                              s(coset(ax, ay, az), 3, l) = rbp(2)*s(coset(ax, ay, az), 1, l) + &
-                                                           fy*s(coset(ax, ay - 1, az), 1, l)
-                           END IF
-                           IF (ly1 > 0) s(coset(ax, ay, az), 3, l) = s(coset(ax, ay, az), 3, l) + &
-                                                                     f2y*s(coset(ax, ay, az), 1, ly1)
-                           IF (az == 0) THEN
-                              s(coset(ax, ay, az), 4, l) = rbp(3)*s(coset(ax, ay, az), 1, l)
-                           ELSE
-                              s(coset(ax, ay, az), 4, l) = rbp(3)*s(coset(ax, ay, az), 1, l) + &
-                                                           fz*s(coset(ax, ay, az - 1), 1, l)
-                           END IF
-                           IF (lz1 > 0) s(coset(ax, ay, az), 4, l) = s(coset(ax, ay, az), 4, l) + &
-                                                                     f2z*s(coset(ax, ay, az), 1, lz1)
-                        END DO
-                     END DO
-
-!             *** Recurrence steps: [a|M|p] -> [a|M|b] ***
-
-                     DO lb = 2, lb_max
-
-!               *** Horizontal recurrence steps ***
-
-!               *** [a|M|b] = [a+1i|M|b-1i] - (Bi - Ai)*[a|M|b-1i] ***
-
-                        IF (lb == lb_max) THEN
-                           la_start = la_min
-                        ELSE
-                           la_start = MAX(0, la_min - 1)
-                        END IF
-
-                        DO la = la_start, la_max - 1
-                           DO ax = 0, la
-                              DO ay = 0, la - ax
-                                 az = la - ax - ay
-
-!                     *** Shift of angular momentum component z from a to b ***
-
-                                 s(coset(ax, ay, az), coset(0, 0, lb), l) = &
-                                    s(coset(ax, ay, az + 1), coset(0, 0, lb - 1), l) - &
-                                    rab(3)*s(coset(ax, ay, az), coset(0, 0, lb - 1), l)
-
-!                     *** Shift of angular momentum component y from a to b ***
-
-                                 DO by = 1, lb
-                                    bz = lb - by
-                                    s(coset(ax, ay, az), coset(0, by, bz), l) = &
-                                       s(coset(ax, ay + 1, az), coset(0, by - 1, bz), l) - &
-                                       rab(2)*s(coset(ax, ay, az), coset(0, by - 1, bz), l)
-                                 END DO
-
-!                     *** Shift of angular momentum component x from a to b ***
-
-                                 DO bx = 1, lb
-                                    DO by = 0, lb - bx
-                                       bz = lb - bx - by
-                                       s(coset(ax, ay, az), coset(bx, by, bz), l) = &
-                                          s(coset(ax + 1, ay, az), coset(bx - 1, by, bz), l) - &
-                                          rab(1)*s(coset(ax, ay, az), coset(bx - 1, by, bz), l)
-                                    END DO
-                                 END DO
-
-                              END DO
-                           END DO
-                        END DO
-
-!               *** Vertical recurrence step ***
-
-!               *** [a|M|b] = (Pi - Bi)*[a|M|b-1i] + f2*Ni(a)*[a-1i|M|b-1i] + ***
-!               ***           f2*Ni(b-1i)*[a|M|b-2i] + f2*Ni(m)[a|M-1i|b-1i]  ***
-
-                        DO ax = 0, la_max
-                           fx = f2*REAL(ax, dp)
-                           DO ay = 0, la_max - ax
-                              fy = f2*REAL(ay, dp)
-                              az = la_max - ax - ay
-                              fz = f2*REAL(az, dp)
-
-!                   *** Shift of angular momentum component z from a to b ***
-
-                              f3 = f2*REAL(lb - 1, dp)
-
-                              IF (az == 0) THEN
-                                 s(coset(ax, ay, az), coset(0, 0, lb), l) = &
-                                    rbp(3)*s(coset(ax, ay, az), coset(0, 0, lb - 1), l) + &
-                                    f3*s(coset(ax, ay, az), coset(0, 0, lb - 2), l)
-                              ELSE
-                                 s(coset(ax, ay, az), coset(0, 0, lb), l) = &
-                                    rbp(3)*s(coset(ax, ay, az), coset(0, 0, lb - 1), l) + &
-                                    fz*s(coset(ax, ay, az - 1), coset(0, 0, lb - 1), l) + &
-                                    f3*s(coset(ax, ay, az), coset(0, 0, lb - 2), l)
-                              END IF
-                              IF (lz1 > 0) s(coset(ax, ay, az), coset(0, 0, lb), l) = &
-                                 s(coset(ax, ay, az), coset(0, 0, lb), l) + &
-                                 f2z*s(coset(ax, ay, az), coset(0, 0, lb - 1), lz1)
-
-!                   *** Shift of angular momentum component y from a to b ***
-
-                              IF (ay == 0) THEN
-                                 bz = lb - 1
-                                 s(coset(ax, ay, az), coset(0, 1, bz), l) = &
-                                    rbp(2)*s(coset(ax, ay, az), coset(0, 0, bz), l)
-                                 IF (ly1 > 0) s(coset(ax, ay, az), coset(0, 1, bz), l) = &
-                                    s(coset(ax, ay, az), coset(0, 1, bz), l) + &
-                                    f2y*s(coset(ax, ay, az), coset(0, 0, bz), ly1)
-                                 DO by = 2, lb
-                                    bz = lb - by
-                                    f3 = f2*REAL(by - 1, dp)
-                                    s(coset(ax, ay, az), coset(0, by, bz), l) = &
-                                       rbp(2)*s(coset(ax, ay, az), coset(0, by - 1, bz), l) + &
-                                       f3*s(coset(ax, ay, az), coset(0, by - 2, bz), l)
-                                    IF (ly1 > 0) s(coset(ax, ay, az), coset(0, by, bz), l) = &
-                                       s(coset(ax, ay, az), coset(0, by, bz), l) + &
-                                       f2y*s(coset(ax, ay, az), coset(0, by - 1, bz), ly1)
-                                 END DO
-                              ELSE
-                                 bz = lb - 1
-                                 s(coset(ax, ay, az), coset(0, 1, bz), l) = &
-                                    rbp(2)*s(coset(ax, ay, az), coset(0, 0, bz), l) + &
-                                    fy*s(coset(ax, ay - 1, az), coset(0, 0, bz), l)
-                                 IF (ly1 > 0) s(coset(ax, ay, az), coset(0, 1, bz), l) = &
-                                    s(coset(ax, ay, az), coset(0, 1, bz), l) + &
-                                    f2y*s(coset(ax, ay, az), coset(0, 0, bz), ly1)
-                                 DO by = 2, lb
-                                    bz = lb - by
-                                    f3 = f2*REAL(by - 1, dp)
-                                    s(coset(ax, ay, az), coset(0, by, bz), l) = &
-                                       rbp(2)*s(coset(ax, ay, az), coset(0, by - 1, bz), l) + &
-                                       fy*s(coset(ax, ay - 1, az), coset(0, by - 1, bz), l) + &
-                                       f3*s(coset(ax, ay, az), coset(0, by - 2, bz), l)
-                                    IF (ly1 > 0) s(coset(ax, ay, az), coset(0, by, bz), l) = &
-                                       s(coset(ax, ay, az), coset(0, by, bz), l) + &
-                                       f2y*s(coset(ax, ay, az), coset(0, by - 1, bz), ly1)
-                                 END DO
-                              END IF
-
-!                   *** Shift of angular momentum component x from a to b ***
-
-                              IF (ax == 0) THEN
-                                 DO by = 0, lb - 1
-                                    bz = lb - 1 - by
-                                    s(coset(ax, ay, az), coset(1, by, bz), l) = &
-                                       rbp(1)*s(coset(ax, ay, az), coset(0, by, bz), l)
-                                    IF (lx1 > 0) s(coset(ax, ay, az), coset(1, by, bz), l) = &
-                                       s(coset(ax, ay, az), coset(1, by, bz), l) + &
-                                       f2x*s(coset(ax, ay, az), coset(0, by, bz), lx1)
-                                 END DO
-                                 DO bx = 2, lb
-                                    f3 = f2*REAL(bx - 1, dp)
-                                    DO by = 0, lb - bx
-                                       bz = lb - bx - by
-                                       s(coset(ax, ay, az), coset(bx, by, bz), l) = &
-                                          rbp(1)*s(coset(ax, ay, az), coset(bx - 1, by, bz), l) + &
-                                          f3*s(coset(ax, ay, az), coset(bx - 2, by, bz), l)
-                                       IF (lx1 > 0) s(coset(ax, ay, az), coset(bx, by, bz), l) = &
-                                          s(coset(ax, ay, az), coset(bx, by, bz), l) + &
-                                          f2x*s(coset(ax, ay, az), coset(bx - 1, by, bz), lx1)
-                                    END DO
-                                 END DO
-                              ELSE
-                                 DO by = 0, lb - 1
-                                    bz = lb - 1 - by
-                                    s(coset(ax, ay, az), coset(1, by, bz), l) = &
-                                       rbp(1)*s(coset(ax, ay, az), coset(0, by, bz), l) + &
-                                       fx*s(coset(ax - 1, ay, az), coset(0, by, bz), l)
-                                    IF (lx1 > 0) s(coset(ax, ay, az), coset(1, by, bz), l) = &
-                                       s(coset(ax, ay, az), coset(1, by, bz), l) + &
-                                       f2x*s(coset(ax, ay, az), coset(0, by, bz), lx1)
-                                 END DO
-                                 DO bx = 2, lb
-                                    f3 = f2*REAL(bx - 1, dp)
-                                    DO by = 0, lb - bx
-                                       bz = lb - bx - by
-                                       s(coset(ax, ay, az), coset(bx, by, bz), l) = &
-                                          rbp(1)*s(coset(ax, ay, az), coset(bx - 1, by, bz), l) + &
-                                          fx*s(coset(ax - 1, ay, az), coset(bx - 1, by, bz), l) + &
-                                          f3*s(coset(ax, ay, az), coset(bx - 2, by, bz), l)
-                                       IF (lx1 > 0) s(coset(ax, ay, az), coset(bx, by, bz), l) = &
-                                          s(coset(ax, ay, az), coset(bx, by, bz), l) + &
-                                          f2x*s(coset(ax, ay, az), coset(bx - 1, by, bz), lx1)
-                                    END DO
-                                 END DO
-                              END IF
-
-                           END DO
-                        END DO
-
-                     END DO
-
-                  END IF
-
-               ELSE
-
-                  IF (lb_max > 0) THEN
-
-!             *** Vertical recurrence steps: [s|M|s] -> [s|M|b] ***
-
-                     rbp(:) = (f1 - 1.0_dp)*rab(:)
-
-!             *** [s|M|p] = (Pi - Bi)*[s|M|s] + f2*Ni(m)*[s|M-1i|s] ***
-
-                     s(1, 2, l) = rbp(1)*s(1, 1, l)
-                     s(1, 3, l) = rbp(2)*s(1, 1, l)
-                     s(1, 4, l) = rbp(3)*s(1, 1, l)
-                     IF (lx1 > 0) s(1, 2, l) = s(1, 2, l) + f2x*s(1, 1, lx1)
-                     IF (ly1 > 0) s(1, 3, l) = s(1, 3, l) + f2y*s(1, 1, ly1)
-                     IF (lz1 > 0) s(1, 4, l) = s(1, 4, l) + f2z*s(1, 1, lz1)
-
-!             *** [s|M|b] = (Pi - Bi)*[s|M|b-1i] + f2*Ni(b-1i)*[s|M|b-2i] ***
-!             ***           + f2*Ni(m)*[s|M-1i|b-1i]                      ***
-
-                     DO lb = 2, lb_max
-
-!               *** Increase the angular momentum component z of function b ***
-
-                        s(1, coset(0, 0, lb), l) = rbp(3)*s(1, coset(0, 0, lb - 1), l) + &
-                                                   f2*REAL(lb - 1, dp)*s(1, coset(0, 0, lb - 2), l)
-                        IF (lz1 > 0) s(1, coset(0, 0, lb), l) = s(1, coset(0, 0, lb), l) + &
-                                                                f2z*s(1, coset(0, 0, lb - 1), lz1)
-
-!               *** Increase the angular momentum component y of function b ***
-
-                        bz = lb - 1
-                        s(1, coset(0, 1, bz), l) = rbp(2)*s(1, coset(0, 0, bz), l)
-                        IF (ly1 > 0) s(1, coset(0, 1, bz), l) = s(1, coset(0, 1, bz), l) + &
-                                                                f2y*s(1, coset(0, 0, bz), ly1)
-
-                        DO by = 2, lb
-                           bz = lb - by
-                           s(1, coset(0, by, bz), l) = rbp(2)*s(1, coset(0, by - 1, bz), l) + &
-                                                       f2*REAL(by - 1, dp)*s(1, coset(0, by - 2, bz), l)
-                           IF (ly1 > 0) s(1, coset(0, by, bz), l) = s(1, coset(0, by, bz), l) + &
-                                                                    f2y*s(1, coset(0, by - 1, bz), ly1)
-                        END DO
-
-!             *** Increase the angular momentum component x of function b ***
-
-                        DO by = 0, lb - 1
-                           bz = lb - 1 - by
-                           s(1, coset(1, by, bz), l) = rbp(1)*s(1, coset(0, by, bz), l)
-                           IF (lx1 > 0) s(1, coset(1, by, bz), l) = s(1, coset(1, by, bz), l) + &
-                                                                    f2x*s(1, coset(0, by, bz), lx1)
-                        END DO
-
-                        DO bx = 2, lb
-                           f3 = f2*REAL(bx - 1, dp)
-                           DO by = 0, lb - bx
-                              bz = lb - bx - by
-                              s(1, coset(bx, by, bz), l) = rbp(1)*s(1, coset(bx - 1, by, bz), l) + &
-                                                           f3*s(1, coset(bx - 2, by, bz), l)
-                              IF (lx1 > 0) s(1, coset(bx, by, bz), l) = s(1, coset(bx, by, bz), l) + &
-                                                                        f2x*s(1, coset(bx - 1, by, bz), lx1)
-                           END DO
-                        END DO
-
-                     END DO
-
-                  END IF
-
-               END IF
-
-            END DO
-
-            DO k = 2, ncoset(lc_max)
-               DO j = 1, ncoset(lb_max)
-                  DO i = 1, ncoset(la_max)
-                     mab(na + i, nb + j, k - 1) = s(i, j, k)
+            IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) CYCLE
+            mb = (jpgf - 1)*ncoset(lb_max)
+            a = zeta(ipgf)
+            b = zetb(jpgf)
+            zet = a + b
+            rap = b*rab/zet
+            rbp = -a*rab/zet
+            f0 = (pi/zet)**1.5_dp*EXP(-a*b*rab2/zet)
+            CALL os_rr_ovlp(rap, la_max + lc_max, rbp, lb_max, zet, ldrr, rr)
+            CALL cartesian_polynomial_1d(rr, polynomial, la_max, lb_max, powers, rac)
+
+            DO cob = 1, ncoset(lb_max)
+               bx = indco(1, cob)
+               by = indco(2, cob)
+               bz = indco(3, cob)
+               ib = mb + cob
+               DO coa = 1, ncoset(la_max)
+                  ax = indco(1, coa)
+                  ay = indco(2, coa)
+                  az = indco(3, coa)
+                  ia = ma + coa
+                  ! Preserve the coset ordering and omission of the zeroth moment.
+                  DO imom = 1, ncoset(lc_max) - 1
+                     lx = indco(1, imom + 1)
+                     ly = indco(2, imom + 1)
+                     lz = indco(3, imom + 1)
+                     mab(ia, ib, imom) = f0*polynomial(ax, bx, lx, 1)* &
+                                         polynomial(ay, by, ly, 2)*polynomial(az, bz, lz, 3)
                   END DO
                END DO
             END DO
-
-            nb = nb + ncoset(lb_max)
-
          END DO
-
-         na = na + ncoset(la_max)
-
       END DO
-
    END SUBROUTINE moment
 
 ! **************************************************************************************************
