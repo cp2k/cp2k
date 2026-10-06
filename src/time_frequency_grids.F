@@ -98,8 +98,8 @@ CONTAINS
       ALLOCATE (samples_even(nstate), samples_odd(nstate))
       values_omega = z_zero
       DO itime = 1, SIZE(samples_tau, 2)
-         samples_even = 0.5_dp*(samples_tau(:, itime, positive_time) + samples_tau(:, itime, negative_time))
-         samples_odd = 0.5_dp*(samples_tau(:, itime, positive_time) - samples_tau(:, itime, negative_time))
+         samples_even(:) = 0.5_dp*(samples_tau(:, itime, positive_time) + samples_tau(:, itime, negative_time))
+         samples_odd(:) = 0.5_dp*(samples_tau(:, itime, positive_time) - samples_tau(:, itime, negative_time))
          DO ifreq = 1, SIZE(values_omega, 2)
             weight_cos = grid%cosine_time_to_frequency(ifreq, itime)
             weight_sin = grid%sine_time_to_frequency(ifreq, itime)
