@@ -62,11 +62,21 @@ case "${with_skala_ftorch}" in
       mkdir -p build_ftorch
       cd build_ftorch
 
+      # Set GPU device option if CUDA is enabled
+      if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
+        ftorch_gpu_option="-DGPU_DEVICE=CUDA"
+        echo "Building FTorch with CUDA support"
+      else
+        ftorch_gpu_option="-DGPU_DEVICE=NONE"
+        echo "Building FTorch without CUDA support"
+      fi
+
       cmake "${BUILDDIR}/FTorch-${ftorch_ver}" \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_BUILD_TYPE=Release \
         -DBUILD_SHARED_LIBS=ON \
+        ${ftorch_gpu_option} \
         > configure.log 2>&1 || tail_excerpt configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       make install > install.log 2>&1 || tail_excerpt install.log
