@@ -1,0 +1,15 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+# compute ground and some excited states of a water molecule at PBE / DZVP level of theory
+# number of active electrons : 8
+# excitation              multiplicity  C2v_irreducible_representation
+# ground state              singlet     A1
+"h2o_pbe_gs1.inp"                       = [{matcher="Dipole_berry_traj", tol=1.0E-05, ref=2.2604176760E+00}]
+# ground state added mos    singlet     A1
+"h2o_pbe_gs2.inp"                       = [{matcher="Dipole_berry_traj", tol=1.0E-05, ref=2.2604176760E+00}]
+# 4 (alpha) -> 5 (alpha)    singlet     B1
+"h2o_pbe_mom_s1.inp"                    = [{matcher="Dipole_berry_traj", tol=1.0E-05, ref=5.5002027723E-01}]

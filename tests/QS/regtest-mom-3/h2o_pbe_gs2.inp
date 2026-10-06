@@ -1,0 +1,54 @@
+&GLOBAL
+  PRINT_LEVEL low
+  PROJECT h2o_pbe_gs
+  RUN_TYPE energy
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    MULTIPLICITY 1
+    POTENTIAL_FILE_NAME POTENTIAL
+    UKS .true.
+    &MGRID
+      CUTOFF 100
+    &END MGRID
+    &PRINT
+      &MOMENTS
+        FORMAT TRAJECTORY
+        PERIODIC .true.
+      &END MOMENTS
+    &END PRINT
+    &SCF
+      ADDED_MOS 5
+      MAX_SCF 50
+      SCF_GUESS atomic
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL pbe
+      &END XC_FUNCTIONAL
+      &XC_GRID
+        XC_DERIV spline2_smooth
+      &END XC_GRID
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+    &END CELL
+    &COORD
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

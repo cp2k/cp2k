@@ -1366,6 +1366,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_number
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_moment_berry_phase'
+      REAL(dp), PARAMETER                                :: eps_occ = 1.0E-6_dp
 
       CHARACTER(LEN=8), ALLOCATABLE, DIMENSION(:)        :: rlab
       CHARACTER(LEN=default_string_length)               :: description
@@ -1373,13 +1374,17 @@ CONTAINS
                                                             zij(3, 3), zijk(3, 3, 3), &
                                                             zijkl(3, 3, 3, 3), zphase(3), zz
       INTEGER                                            :: handle, i, ia, idim, ikind, ispin, ix, &
-                                                            iy, iz, j, k, l, nao, nm, nmo, nmom, &
-                                                            nmotot, tmp_dim
-      LOGICAL                                            :: floating, ghost, uniform
-      REAL(dp)                                           :: charge, ci(3), cij(3, 3), dd, occ, trace
+                                                            iy, iz, j, k, l, nao, nm, nmo, nmo_max, &
+                                                            nmom, tmp_dim
+      LOGICAL                                            :: floating, fractional, ghost
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: all_occupied
+      LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: mo_occupied
+      REAL(dp)                                           :: charge, ci(3), cij(3, 3), dd, nel_det, &
+                                                            occ, trace
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mmom
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rmom
       REAL(dp), DIMENSION(3)                             :: kvec, qq, rcc, ria
+      REAL(dp), DIMENSION(:), POINTER                    :: occupation_numbers
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: eigrmat
@@ -1451,11 +1456,11 @@ CONTAINS
       ALLOCATE (op_fm_set(2, dft_control%nspins))
       ALLOCATE (opvec(dft_control%nspins))
       ALLOCATE (eigrmat(dft_control%nspins))
-      nmotot = 0
+      nmo_max = 0
       DO ispin = 1, dft_control%nspins
          NULLIFY (tmp_fm_struct, mo_coeff)
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=nmo)
-         nmotot = nmotot + nmo
+         nmo_max = MAX(nmo_max, nmo)
          CALL cp_fm_create(opvec(ispin), mo_coeff%matrix_struct)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                   ncol_global=nmo, para_env=para_env, context=mo_coeff%matrix_struct%context)
@@ -1467,12 +1472,25 @@ CONTAINS
       END DO
 
       ! occupation
+      ALLOCATE (mo_occupied(nmo_max, dft_control%nspins), all_occupied(dft_control%nspins))
+      mo_occupied = .FALSE.
+      fractional = .FALSE.
+      nel_det = 0.0_dp
       DO ispin = 1, dft_control%nspins
-         CALL get_mo_set(mo_set=mos(ispin), maxocc=occ, uniform_occupation=uniform)
-         IF (.NOT. uniform) THEN
-            CPWARN("Berry phase moments for non uniform MOs' occupation numbers not implemented")
-         END IF
+         NULLIFY (occupation_numbers)
+         CALL get_mo_set(mo_set=mos(ispin), maxocc=occ, nmo=nmo, occupation_numbers=occupation_numbers)
+         DO i = 1, nmo
+            IF (occupation_numbers(i) > eps_occ) THEN
+               mo_occupied(i, ispin) = .TRUE.
+               nel_det = nel_det + occ
+               IF (ABS(occupation_numbers(i) - occ) > eps_occ) fractional = .TRUE.
+            END IF
+         END DO
+         all_occupied(ispin) = ALL(mo_occupied(1:nmo, ispin))
       END DO
+      IF (fractional) THEN
+         CPWARN("Berry phase moments for fractional MOs' occupation numbers not implemented")
+      END IF
 
       ! reference point
       CALL get_reference_point(rcc, qs_env=qs_env, reference=reference, ref_point=ref_point)
@@ -1581,7 +1599,7 @@ CONTAINS
 
       ! electronic contribution
 
-      ria = twopi*REAL(nmotot, dp)*occ*MATMUL(cell%h_inv, rcc)
+      ria = twopi*nel_det*MATMUL(cell%h_inv, rcc)
       xphase = CMPLX(COS(ria), SIN(ria), dp)
 
       ! charge
@@ -1618,6 +1636,9 @@ CONTAINS
                         CMPLX(op_fm_set(1, ispin)%local_data(:, idim), &
                               -op_fm_set(2, ispin)%local_data(:, idim), dp)
                   END DO
+                  IF (.NOT. all_occupied(ispin)) THEN
+                     CALL berry_phase_remove_unocc(eigrmat(ispin), mo_occupied(:, ispin))
+                  END IF
                   ! CALL cp_cfm_lu_decompose(eigrmat(ispin), zdeta)
                   CALL cp_cfm_det(eigrmat(ispin), zdeta)
                   zdet = zdet*zdeta
@@ -1650,6 +1671,9 @@ CONTAINS
                            CMPLX(op_fm_set(1, ispin)%local_data(:, idim), &
                                  -op_fm_set(2, ispin)%local_data(:, idim), dp)
                      END DO
+                     IF (.NOT. all_occupied(ispin)) THEN
+                        CALL berry_phase_remove_unocc(eigrmat(ispin), mo_occupied(:, ispin))
+                     END IF
                      ! CALL cp_cfm_lu_decompose(eigrmat(ispin), zdeta)
                      CALL cp_cfm_det(eigrmat(ispin), zdeta)
                      zdet = zdet*zdeta
@@ -1741,10 +1765,42 @@ CONTAINS
          CALL cp_cfm_release(eigrmat(ispin))
       END DO
       DEALLOCATE (eigrmat)
+      DEALLOCATE (mo_occupied, all_occupied)
 
       CALL timestop(handle)
 
    END SUBROUTINE qs_moment_berry_phase
+
+! **************************************************************************************************
+!> \brief Removes unoccupied MOs from the Berry phase matrix Z_ij = <psi_i|exp(i k.r)|psi_j> by
+!>        replacing their rows and columns with those of the unit matrix. The determinant of the
+!>        result equals the determinant of Z.
+!> \param zmat        nmo x nmo Berry phase matrix of one spin channel, modified on output
+!> \param mo_occupied .TRUE. for the MOs that are part of the Slater determinant
+! **************************************************************************************************
+   SUBROUTINE berry_phase_remove_unocc(zmat, mo_occupied)
+
+      TYPE(cp_cfm_type), INTENT(IN)                      :: zmat
+      LOGICAL, DIMENSION(:), INTENT(IN)                  :: mo_occupied
+
+      INTEGER                                            :: icol, irow, ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+
+      NULLIFY (col_indices, row_indices)
+      CALL cp_cfm_get_info(zmat, nrow_local=nrow_local, ncol_local=ncol_local, &
+                           row_indices=row_indices, col_indices=col_indices)
+      DO icol = 1, ncol_local
+         DO irow = 1, nrow_local
+            IF (mo_occupied(row_indices(irow)) .AND. mo_occupied(col_indices(icol))) CYCLE
+            IF (row_indices(irow) == col_indices(icol)) THEN
+               zmat%local_data(irow, icol) = z_one
+            ELSE
+               zmat%local_data(irow, icol) = z_zero
+            END IF
+         END DO
+      END DO
+
+   END SUBROUTINE berry_phase_remove_unocc
 
 ! **************************************************************************************************
 !> \brief ...
