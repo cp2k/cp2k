@@ -1229,6 +1229,8 @@ CONTAINS
       CALL section_vals_val_get(qs_section, "EXTRAPOLATION", i_val=qs_control%wf_interpolation_method_nr)
       CALL section_vals_val_get(qs_section, "EXTRAPOLATION_ORDER", i_val=qs_control%wf_extrapolation_order)
 
+      CALL section_vals_val_get(qs_section, "USPP_METHOD", i_val=qs_control%uspp_method)
+
       !Method
       CALL section_vals_val_get(qs_section, "METHOD", i_val=qs_control%method_id)
       qs_control%gapw = .FALSE.

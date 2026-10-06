@@ -286,7 +286,7 @@ CONTAINS
       NULLIFY (energy, ks_env, matrix_ks, matrix_s, rho, mos, dft_control)
 
       CALL get_qs_env(qs_env=qs_env, &
-                      matrix_s=matrix_s, energy=energy, &
+                      matrix_metric=matrix_s, energy=energy, &
                       ks_env=ks_env, &
                       matrix_ks=matrix_ks, rho=rho, mos=mos, &
                       dft_control=dft_control, &
@@ -523,7 +523,7 @@ CONTAINS
                        cp_to_string(scf_env%method))
       CASE (general_diag_method_nr)
          ! Diagonlization in non orthonormal case
-         CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s)
+         CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_metric_kp=matrix_s)
          IF (scf_control%diagonalization%update_method == diag_update_method_adiis) THEN
             CPASSERT(ASSOCIATED(scf_env%scf_subspace_buffer))
             diis_error = scf_env%scf_subspace_buffer%last_old_fock_weight
@@ -573,7 +573,7 @@ CONTAINS
                        "KP code: Scf method not available: "// &
                        cp_to_string(scf_env%method))
       CASE (ot_diag_method_nr)
-         CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s, kinetic_kp=matrix_t)
+         CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_metric_kp=matrix_s, kinetic_kp=matrix_t)
          CALL do_ot_diag_kp(matrix_ks, matrix_s, matrix_t, kpoints, scf_env, scf_control, &
                             diis_step, my_added_mos_auto_grow)
          IF (my_added_mos_auto_grow) THEN
@@ -587,7 +587,7 @@ CONTAINS
                        "KP code: Scf method not available: "// &
                        cp_to_string(scf_env%method))
       CASE (block_davidson_diag_method_nr)
-         CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s)
+         CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_metric_kp=matrix_s)
          CALL do_block_davidson_diag_kp(qs_env, scf_env, matrix_ks, matrix_s, kpoints, &
                                         scf_control, added_mos_auto_grow=my_added_mos_auto_grow)
          IF (my_added_mos_auto_grow) THEN
@@ -597,7 +597,7 @@ CONTAINS
             RETURN
          END IF
       CASE (ot_method_nr)
-         CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s)
+         CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_metric_kp=matrix_s)
          base_state = .NOT. scf_env%qs_ot_env(1)%energy_only .AND. &
                       (scf_env%qs_ot_env(1)%line_search_count == 0 .OR. &
                        scf_env%qs_ot_env(1)%line_search_might_be_done)

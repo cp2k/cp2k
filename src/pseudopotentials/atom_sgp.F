@@ -470,7 +470,7 @@ CONTAINS
       TYPE(atom_basis_type)                              :: gbasis
       TYPE(opt_state_type)                               :: ostate
 
-      IF (upf_pot%is_ultrasoft .OR. upf_pot%is_paw .OR. upf_pot%is_coulomb) THEN
+      IF (upf_pot%is_paw .OR. upf_pot%is_coulomb) THEN
          sgp_pot%has_nonlocal = .FALSE.
          sgp_pot%n_nonlocal = 0
          sgp_pot%has_local = .FALSE.
@@ -554,7 +554,7 @@ CONTAINS
       END IF
 
       ! purely local pseudopotentials
-      IF (upf_pot%l_max < 0) THEN
+      IF (upf_pot%l_max < 0 .OR. upf_pot%is_ultrasoft) THEN
          sgp_pot%n_nonlocal = 0
          sgp_pot%lmax = -1
          sgp_pot%has_nonlocal = .FALSE.

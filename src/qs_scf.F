@@ -1063,7 +1063,7 @@ CONTAINS
                old_occupation_numbers, para_env)
 
       CALL get_qs_env(qs_env=qs_env, blacs_env=blacs_env, dft_control=dft_control, &
-                      kpoints=kpoints, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s, &
+                      kpoints=kpoints, matrix_ks_kp=matrix_ks, matrix_metric_kp=matrix_s, &
                       mo_derivs=mo_derivs, mos=mos, para_env=para_env, &
                       has_unit_metric=has_unit_metric)
 
@@ -1480,7 +1480,7 @@ CONTAINS
             CALL timestop(handle)
             RETURN
          END IF
-         CALL get_qs_env(qs_env, matrix_ks=matrix_ks, matrix_s=matrix_s)
+         CALL get_qs_env(qs_env, matrix_ks=matrix_ks, matrix_metric=matrix_s)
 
          IF (.NOT. scf_env%skip_diis) THEN
             IF (.NOT. ASSOCIATED(scf_env%scf_diis_buffer)) THEN
@@ -1513,7 +1513,7 @@ CONTAINS
       CASE (ot_method_nr)
          IF (do_kpoints) THEN
             IF (.NOT. ASSOCIATED(scf_env%qs_ot_env)) THEN
-               CALL get_qs_env(qs_env, matrix_s_kp=matrix_s_kp, &
+               CALL get_qs_env(qs_env, matrix_metric_kp=matrix_s_kp, &
                                kinetic_kp=matrix_t_kp)
                CPASSERT(ASSOCIATED(matrix_s_kp))
                CALL allocate_qs_ot_envs(scf_env=scf_env, &
@@ -1637,7 +1637,7 @@ CONTAINS
 
          CALL get_qs_env(qs_env, &
                          has_unit_metric=has_unit_metric, &
-                         matrix_s=matrix_s, &
+                         matrix_metric=matrix_s, &
                          matrix_ks=matrix_ks)
 
          ! reortho the wavefunctions if we are having an outer scf and

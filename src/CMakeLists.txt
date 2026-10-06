@@ -63,6 +63,19 @@ list(
   atoms_input.F
   atom_types.F
   pseudopotentials/upf_types.F
+  aobasis/gaussian_basis_fields.F
+  pseudopotentials/upf_inverse.F
+  pseudopotentials/upf_inverse_quadrature.F
+  pseudopotentials/upf_radial_fields.F
+  pseudopotentials/uspp_augmentation.F
+  qs_upf_inverse.F
+  qs_upf_inverse_augmentation.F
+  qs_upf_inverse_forces.F
+  qs_upf_inverse_grid.F
+  qs_upf_inverse_scf.F
+  qs_upf_inverse_types.F
+  qs_uspp_methods.F
+  qs_uspp_types.F
   pseudopotentials/atom_upf.F
   pseudopotentials/upf_projector_integrals.F
   pseudopotentials/upf_local_integrals.F
@@ -1606,6 +1619,7 @@ set(CP2K_PROGS_F
     common/gemm_square_unittest.F
     common/memory_utilities_unittest.F
     common/parallel_rng_types_unittest.F
+    pseudopotentials/upf_inverse_unittest.F
     pseudopotentials/atom_upf_unittest.F
     xc/xc_semilocal_unittest.F
     pseudopotentials/upf_projector_integrals_unittest.F
@@ -2046,6 +2060,7 @@ list(
   "memory_utilities_unittest"
   "cell_opt_utils_unittest"
   "parallel_rng_types_unittest"
+  "upf_inverse_unittest"
   "atom_upf_unittest"
   "xc_semilocal_unittest"
   "upf_projector_integrals_unittest"
@@ -2092,6 +2107,7 @@ add_executable(orbital_transformation_matrices_unittest
 add_executable(gemm_square_unittest common/gemm_square_unittest.F)
 add_executable(memory_utilities_unittest common/memory_utilities_unittest.F)
 add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
+add_executable(upf_inverse_unittest pseudopotentials/upf_inverse_unittest.F)
 add_executable(atom_upf_unittest pseudopotentials/atom_upf_unittest.F)
 add_executable(xc_semilocal_unittest xc/xc_semilocal_unittest.F)
 add_executable(upf_projector_integrals_unittest
