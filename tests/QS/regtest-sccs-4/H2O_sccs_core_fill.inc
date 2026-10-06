@@ -1,7 +1,8 @@
 # SCCS with CORE_FILL for H2O with the O nucleus exactly on a grid point (origin).
 # Without CORE_FILL the nearly vanishing GTH pseudo-valence density at the O nucleus
 # turns that grid point into solvent ("solvent bubble"), which gives a large spurious
-# positive polarisation energy (E_total ~ -15.62 instead of ~ -17.23 Ha).
+# positive polarisation energy. The Andreussi test checks the O-Y force;
+# the Fattebert-Gygi test retains energy regression coverage.
 &GLOBAL
   PRINT_LEVEL low
   PROJECT ${PROJECT}
@@ -15,7 +16,7 @@
     BASIS_SET_FILE_NAME BASIS_MOLOPT
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
-      CUTOFF 240
+      CUTOFF ${CUTOFF}
       NGRIDS 4
       &RS_GRID
         DISTRIBUTION_TYPE distributed
@@ -63,7 +64,7 @@
       MAX_ITER 100
       METHOD ${METHOD}
       CORE_FILL on
-      CORE_FILL_SPREAD [bohr] 0.5
+      CORE_FILL_SPREAD [bohr] ${FILL_SPREAD}
       @IF ${KIND_SPREAD}
       &CORE_FILL_KIND
         H 0.5
@@ -90,7 +91,7 @@
       &END MIXING
       @ENDIF
       @IF ${OT}
-      EPS_SCF 1.0E-4
+      EPS_SCF ${EPS_SCF}
       MAX_SCF 31
       SCF_GUESS atomic
       &OT on
@@ -98,7 +99,7 @@
         PRECONDITIONER FULL_SINGLE_INVERSE
       &END OT
       &OUTER_SCF on
-        EPS_SCF 1.0E-4
+        EPS_SCF ${EPS_SCF}
         MAX_SCF 50
       &END OUTER_SCF
       @ENDIF
@@ -118,7 +119,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 8.0 8.0 8.0
+      ABC ${CELL_SIZE} ${CELL_SIZE} ${CELL_SIZE}
     &END CELL
     &COORD
       O         0.0000000000        0.0000000000        0.0000000000
@@ -126,11 +127,11 @@
       H        -0.7600000000        0.5860000000        0.0000000000
     &END COORD
     &KIND H
-      BASIS_SET DZVP-MOLOPT-SR-GTH
+      BASIS_SET ${BASIS}
       POTENTIAL GTH-PBE-q1
     &END KIND
     &KIND O
-      BASIS_SET DZVP-MOLOPT-SR-GTH
+      BASIS_SET ${BASIS}
       POTENTIAL GTH-PBE-q6
     &END KIND
   &END SUBSYS
