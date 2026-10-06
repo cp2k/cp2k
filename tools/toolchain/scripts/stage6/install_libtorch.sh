@@ -8,7 +8,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 # From https://pytorch.org/get-started/locally/
-libtorch_ver="2.7.1"
+libtorch_ver="2.4.0"
 libtorch_sha256="63d572598c8d532128a335018913e795c1bbb32602ce378896dc8cfbb5590976"
 
 # shellcheck source=/dev/null
@@ -28,12 +28,44 @@ case "${with_libtorch}" in
     echo "==================== Installing libtorch ===================="
     pkg_install_dir="${INSTALLDIR}/libtorch-${libtorch_ver}"
     install_lock_file="${pkg_install_dir}/install_successful"
-    archive_file="libtorch-cxx11-abi-shared-with-deps-${libtorch_ver}+cpu.zip"
+    
+    # Determine CUDA suffix based on ENABLE_CUDA
+    if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
+      # Use CUDA 12.1 for A100/A40/H100, CUDA 11.8 for older GPUs
+      if [ "${GPUVER}" = "A100" ] || [ "${GPUVER}" = "A40" ] || [ "${GPUVER}" = "H100" ]; then
+        cuda_suffix="+cu121"
+        # SHA256 for libtorch-cxx11-abi-shared-with-deps-2.4.0+cu121.zip
+        # From PyTorch official downloads (check for updates)
+        libtorch_sha256="8f1f7063e421bcc627f9e2b0779331eddb8c8417ce657ca8c25c9f8b6b3cf2a0"
+      else
+        cuda_suffix="+cu118"
+        # SHA256 for libtorch-cxx11-abi-shared-with-deps-2.4.0+cu118.zip
+        # From PyTorch official downloads (check for updates)
+        libtorch_sha256="f739db778882e8826b92ab9e140c9c66a05041c621121386aae718c0110679fc"
+      fi
+      archive_file="libtorch-cxx11-abi-shared-with-deps-${libtorch_ver}${cuda_suffix}.zip"
+      echo "Installing CUDA-enabled libtorch (${GPUVER})"
+    else
+      archive_file="libtorch-cxx11-abi-shared-with-deps-${libtorch_ver}+cpu.zip"
+      echo "Installing CPU-only libtorch"
+    fi
 
     if verify_checksums "${install_lock_file}"; then
       echo "libtorch-${libtorch_ver} is already installed, skipping it."
     else
-      retrieve_package "${libtorch_sha256}" "${archive_file}"
+      # Use PyTorch official download URL for CUDA builds
+      if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
+        if [ "${GPUVER}" = "A100" ] || [ "${GPUVER}" = "A40" ] || [ "${GPUVER}" = "H100" ]; then
+          download_url="https://download.pytorch.org/libtorch/cu121/${archive_file}"
+        else
+          download_url="https://download.pytorch.org/libtorch/cu118/${archive_file}"
+        fi
+        echo "Downloading from: ${download_url}"
+        wget --quiet "${download_url}" -O "${archive_file}" || \
+          report_error ${LINENO} "Failed to download ${archive_file} from ${download_url}"
+      else
+        retrieve_package "${libtorch_sha256}" "${archive_file}"
+      fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d libtorch ] && rm -rf libtorch
       [ -d ${pkg_install_dir} ] && rm -rf ${pkg_install_dir}
