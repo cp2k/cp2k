@@ -509,6 +509,8 @@ CONTAINS
 !> \param rhs ...
 !> \param do_rixs ...
 !> \param tb_tblite ...
+!> \param matrix_metric Orbital normalization metric, including USPP augmentation when present.
+!> \param matrix_metric_kp Metric in the image-indexed representation.
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
@@ -541,7 +543,7 @@ CONTAINS
                          WannierCentres, atprop, ls_scf_env, do_transport, transport_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, potential_changed, forces_up_to_date, mscfg_env, almo_scf_env, &
                          gradient_history, variable_history, embed_pot, spin_embed_pot, polar_env, mos_last_converged, &
-                         eeq, rhs, do_rixs, tb_tblite)
+                         eeq, rhs, do_rixs, tb_tblite, matrix_metric, matrix_metric_kp)
 
       TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
@@ -683,6 +685,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eeq, rhs
       LOGICAL, OPTIONAL                                  :: do_rixs
       TYPE(tblite_type), OPTIONAL, POINTER               :: tb_tblite
+      TYPE(dbcsr_p_type), OPTIONAL, POINTER              :: matrix_metric(:), matrix_metric_kp(:, :)
 
       TYPE(rho0_mpole_type), POINTER                     :: rho0_m
 
@@ -826,6 +829,8 @@ CONTAINS
                       matrix_vxc=matrix_vxc, &
                       kinetic=kinetic, &
                       matrix_s=matrix_s, &
+                      matrix_metric=matrix_metric, &
+                      matrix_metric_kp=matrix_metric_kp, &
                       matrix_s_RI_aux=matrix_s_RI_aux, &
                       matrix_ks_im_kp=matrix_ks_im_kp, &
                       matrix_w=matrix_w, &

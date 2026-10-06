@@ -16,3 +16,19 @@
   {matcher="Atomic_force_1_z", tol=1e-6, ref=-0.0124653551},
   {matcher="Atomic_force_2_y", tol=1e-6, ref=0.00415927816},
 ]
+# Matched USPP representations with energy, atomic force and analytical stress.
+"H2_USPP_DIRECT.inp" = [
+  {matcher="M011", tol=1e-10, ref=-0.822903558912302},
+  {matcher="Atomic_force_1_z", tol=1e-7, ref=-1.85385915},
+  {matcher="M031", tol=1e-7, ref=2255125.14882},
+]
+"H2_USPP_INVERSE.inp" = [
+  {matcher="M011", tol=1e-10, ref=0.051683556229153},
+  {matcher="Atomic_force_1_z", tol=1e-7, ref=-1.75236177},
+  {matcher="M031", tol=1e-7, ref=4790258.95592},
+]
+"H2_USPP_INVERSE_1C.inp" = [
+  {matcher="M011", tol=1e-10, ref=-0.791971077789659},
+  {matcher="Atomic_force_1_z", tol=1e-7, ref=-1.85090022},
+  {matcher="M031", tol=1e-7, ref=2406666.13564},
+]
