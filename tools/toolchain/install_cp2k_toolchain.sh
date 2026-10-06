@@ -306,6 +306,9 @@ Specific options of --with-PKG:
   --with-libtorch         Enable libtorch as a machine learning framework.
                           This package is required for NequIP and Allegro, and
                           also for installing DeePMD-kit.
+                          "install" builds a CUDA-enabled libtorch from the
+                          PyTorch sources with only the features needed by CP2K
+                          (this requires CUDA and a CUDA toolkit).
                           Default = no
   --with-plumed           Enable interface to the PLUMED library for enhanced
                           sampling methods.
@@ -1177,6 +1180,19 @@ if [ "${with_skala_ftorch}" = "__INSTALL__" ]; then
   [ "${with_libtorch}" = "__DONTUSE__" ] && with_libtorch="__INSTALL__"
 fi
 
+# libtorch is built from the PyTorch sources. Validate the hard requirements
+# up front (after the automatic enabling above).
+if [ "${with_libtorch}" = "__INSTALL__" ]; then
+  for __tool in git nvcc python3 cmake ninja; do
+    if ! command -v "${__tool}" > /dev/null 2>&1; then
+      report_error ${LINENO} "Building libtorch from source requires '${__tool}', which was not found in PATH."
+    fi
+  done
+  if [ "${enable_cuda}" != "__TRUE__" ]; then
+    report_error ${LINENO} "Building libtorch from source without CUDA (--with-libtorch=install) is not supported. Enable CUDA or provide an existing installation via --with-libtorch=system or --with-libtorch=<path>."
+  fi
+fi
+
 # MKL may provide the FFTW3 interface and ScaLAPACK/BLACS. Resolve these
 # choices here so the package plan, toolchain.conf and summary stay in sync.
 if [ "${MATH_MODE}" = "mkl" ]; then
@@ -1202,9 +1218,9 @@ if [ "${MATH_MODE}" = "mkl" ]; then
   # Block libtorch installation because of compatibility issue
   if [ "${with_libtorch}" = "__INSTALL__" ]; then
     report_error ${LINENO} \
-      "Installing prebuilt libtorch is disabled for oneMKL builds due to known
-conflicts between bundled and externally linked oneMKL libraries. Please provide
-a compatible libtorch installation via --with-libtorch=system or
+      "Building libtorch is disabled for oneMKL builds due to known conflicts
+between bundled and externally linked oneMKL libraries. Please provide a
+compatible libtorch installation via --with-libtorch=system or
 --with-libtorch=<path>."
   fi
 fi
