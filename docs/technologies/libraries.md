@@ -170,7 +170,9 @@ LIBXC is a library that provides wider choice of XC functionals. For more inform
 GauXC can be used to evaluate selected exchange-correlation functionals through an external
 integrator.
 
-- Libtorch is required for Skala support.
+- Libtorch is required for Skala support. See the [Torch section](#torch-pytorch-c-library) for how
+  to provide a matching libtorch; the libtorch installed automatically by the toolchain is a
+  prebuilt package for a specific GPU and CUDA version and is not guaranteed to be optimal.
 - Pass `-DCP2K_USE_GAUXC=ON` to CMake to enable GauXC. An MPI-enabled CP2K build requires a GauXC
   installation built with MPI support.
 - The toolchain marks its pinned GauXC as containing the OneDFT gradient correction from PR #222.
@@ -187,7 +189,10 @@ integrator.
 Skala/FTorch provides the machine learning based density functional Skala.
 
 - Pass `-DCP2K_USE_SKALA_FTORCH=ON` to CMake to enable Skala/FTorch support.
-- Requires FTorch and Skala libraries to be installed and available.
+- Requires FTorch, Skala, and libtorch libraries to be installed and available. See the
+  [Torch section](#torch-pytorch-c-library) for how to provide a matching libtorch; the libtorch
+  installed automatically by the toolchain is a prebuilt package for a specific GPU and CUDA version
+  and is not guaranteed to be optimal.
 
 ## PEXSI (low scaling SCF method)
 
@@ -293,6 +298,12 @@ GauXC Skala models.
 - For GPU acceleration, choose a LibTorch distribution compatible with the available backend and
   hardware, such as CUDA for an NVIDIA GPU or ROCm for a supported AMD GPU. Refer to the PyTorch
   installation page for current platform, driver, and runtime requirements.
+- The toolchain installs a prebuilt libtorch when `--with-libtorch=install` (or simply
+  `--with-libtorch`) is used. This package is selected for a specific platform, and for a specific
+  GPU and CUDA version, so it is highly recommended to provide your own matching libtorch instead:
+  `--with-libtorch=system` searches for an existing libtorch in the system paths (it does **not**
+  install libtorch), while `--with-libtorch=<path-to-libtorch>` uses a libtorch that you installed
+  or built yourself. Otherwise poor performance is expected and the calculation may even fail.
 
 ```{caution}
 Note that currently pre-built libtorch bundle (up to 2.12.1) is not compatible with CP2K's external
