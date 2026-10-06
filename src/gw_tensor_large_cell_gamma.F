@@ -17,10 +17,10 @@ MODULE gw_tensor_large_cell_Gamma
    USE bibliography,                    ONLY: Graml2024,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type,&
-                                              get_cell,&
                                               pbc
    USE constants_operator,              ONLY: operator_coulomb
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add_on_diag,&
+                                              cp_cfm_get_diag,&
                                               cp_cfm_uplo_to_full
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_cholesky_invert
@@ -30,12 +30,13 @@ MODULE gw_tensor_large_cell_Gamma
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
                                               cp_cfm_to_cfm,&
-                                              cp_cfm_to_fm,&
                                               cp_cfm_type
-   USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
+                                              dbcsr_create,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release,&
+                                              dbcsr_set,&
+                                              dbcsr_type
    USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -43,9 +44,14 @@ MODULE gw_tensor_large_cell_Gamma
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_read_unformatted, cp_fm_release, &
-        cp_fm_set_all, cp_fm_to_fm, cp_fm_type, cp_fm_write_unformatted
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_read_unformatted,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type,&
+                                              cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -73,10 +79,8 @@ MODULE gw_tensor_large_cell_Gamma
                                               dp,&
                                               int_8
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
-   USE kpoint_types,                    ONLY: kpoint_type
    USE machine,                         ONLY: m_walltime
-   USE mathconstants,                   ONLY: twopi,&
-                                              z_one,&
+   USE mathconstants,                   ONLY: z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_file_delete
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat,&
@@ -101,12 +105,12 @@ MODULE gw_tensor_large_cell_Gamma
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_tensor_large_cell_Gamma'
 
    PUBLIC :: gw_calc_tensor_large_cell_Gamma, &
-             compute_3c_integrals, G_occ_vir, fm_read, write_matrix, &
+             compute_3c_integrals, G_occ_vir, fm_read, &
              fill_fm_Sigma_c_Gamma_time, delete_unnecessary_files, get_W_MIC, &
              create_fm_W_MIC_time, Fourier_transform_w_to_t, &
              compute_fm_chi_Gamma_freq, compute_QP_energies, fm_write, &
              get_mat_chi_Gamma_tau, get_Sigma_x, create_mat_for_Sigma_c, destroy_mat_Sigma_c, &
-             compute_Sigma_c_occ_vir, fm_Gamma_ao_to_cfm_ikp_mo, print_skipping, &
+             compute_Sigma_c_occ_vir, print_skipping, &
              compute_V_k_by_lattice_sum, compute_MinvVsqrt_Vsqrt, compute_fm_W_MIC_freq_j_from_chi, &
              apply_extrapol_factor
 
@@ -321,8 +325,8 @@ CONTAINS
          CALL local_dbt_to_global_mat(bs_env%t_chi, bs_env%mat_RI_RI_tensor%matrix, &
                                       mat_chi_Gamma_tau(i_t)%matrix, bs_env%para_env)
 
-         CALL write_matrix(mat_chi_Gamma_tau(i_t)%matrix, i_t, bs_env%chi_name, &
-                           bs_env%fm_RI_RI, qs_env)
+         CALL fm_write(bs_env%fm_RI_RI, i_t, bs_env%chi_name, qs_env, &
+                       matrix=mat_chi_Gamma_tau(i_t)%matrix)
 
          CALL destroy_tensors_chi(t_2c_Gocc, t_2c_Gvir, t_3c_for_Gocc, t_3c_for_Gvir, &
                                   t_3c_x_Gocc, t_3c_x_Gvir, t_3c_x_Gocc_2, t_3c_x_Gvir_2)
@@ -463,48 +467,19 @@ CONTAINS
    END SUBROUTINE destroy_tensors_chi
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param matrix_index ...
-!> \param matrix_name ...
-!> \param fm ...
-!> \param qs_env ...
-! **************************************************************************************************
-   SUBROUTINE write_matrix(matrix, matrix_index, matrix_name, fm, qs_env)
-      TYPE(dbcsr_type)                                   :: matrix
-      INTEGER                                            :: matrix_index
-      CHARACTER(LEN=*)                                   :: matrix_name
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_matrix'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_fm_set_all(fm, 0.0_dp)
-
-      CALL copy_dbcsr_to_fm(matrix, fm)
-
-      CALL fm_write(fm, matrix_index, matrix_name, qs_env)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE write_matrix
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm ...
+!> \brief Write a GW restart matrix when requested by the print key.
+!> \param fm Matrix to write, or reusable conversion buffer when matrix is supplied.
 !> \param matrix_index ...
 !> \param matrix_name ...
 !> \param qs_env ...
+!> \param matrix Optional DBCSR source, converted to fm only when output is enabled.
 ! **************************************************************************************************
-   SUBROUTINE fm_write(fm, matrix_index, matrix_name, qs_env)
+   SUBROUTINE fm_write(fm, matrix_index, matrix_name, qs_env, matrix)
       TYPE(cp_fm_type)                                   :: fm
       INTEGER                                            :: matrix_index
       CHARACTER(LEN=*)                                   :: matrix_name
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: matrix
 
       CHARACTER(LEN=*), PARAMETER :: key = 'PROPERTIES%BANDSTRUCTURE%GW%PRINT%RESTART', &
          routineN = 'fm_write'
@@ -521,6 +496,11 @@ CONTAINS
       logger => cp_get_default_logger()
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, key), cp_p_file)) THEN
+
+         IF (PRESENT(matrix)) THEN
+            CALL cp_fm_set_all(fm, 0.0_dp)
+            CALL copy_dbcsr_to_fm(matrix, fm)
+         END IF
 
          IF (matrix_index < 10) THEN
             WRITE (filename, '(3A,I1)') "RESTART_", matrix_name, "_0", matrix_index
@@ -1442,101 +1422,6 @@ CONTAINS
    END SUBROUTINE compute_fm_chi_Gamma_freq
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param mat_ikp_re ...
-!> \param mat_ikp_im ...
-!> \param mat_Gamma ...
-!> \param kpoints ...
-!> \param ikp ...
-!> \param qs_env ...
-! **************************************************************************************************
-   SUBROUTINE mat_ikp_from_mat_Gamma(mat_ikp_re, mat_ikp_im, mat_Gamma, kpoints, ikp, qs_env)
-      TYPE(dbcsr_type)                                   :: mat_ikp_re, mat_ikp_im, mat_Gamma
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      INTEGER                                            :: ikp
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mat_ikp_from_mat_Gamma'
-
-      INTEGER                                            :: col, handle, i_cell, j_cell, num_cells, &
-                                                            row
-      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
-      LOGICAL :: f, i_cell_is_the_minimum_image_cell
-      REAL(KIND=dp)                                      :: abs_rab_cell_i, abs_rab_cell_j, arg
-      REAL(KIND=dp), DIMENSION(3)                        :: cell_vector, cell_vector_j, rab_cell_i, &
-                                                            rab_cell_j
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block_im, block_re, data_block
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(dbcsr_iterator_type)                          :: iter
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-
-      CALL timeset(routineN, handle)
-
-      ! get the same blocks in mat_ikp_re and mat_ikp_im as in mat_Gamma
-      CALL dbcsr_copy(mat_ikp_re, mat_Gamma)
-      CALL dbcsr_copy(mat_ikp_im, mat_Gamma)
-      CALL dbcsr_set(mat_ikp_re, 0.0_dp)
-      CALL dbcsr_set(mat_ikp_im, 0.0_dp)
-
-      NULLIFY (cell, particle_set)
-      CALL get_qs_env(qs_env, cell=cell, particle_set=particle_set)
-      CALL get_cell(cell=cell, h=hmat)
-
-      index_to_cell => kpoints%index_to_cell
-
-      num_cells = SIZE(index_to_cell, 2)
-
-      DO i_cell = 1, num_cells
-
-         CALL dbcsr_iterator_start(iter, mat_Gamma)
-         DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, row, col, data_block)
-
-            cell_vector(1:3) = MATMUL(hmat, REAL(index_to_cell(1:3, i_cell), dp))
-
-            rab_cell_i(1:3) = pbc(particle_set(row)%r(1:3), cell) - &
-                              (pbc(particle_set(col)%r(1:3), cell) + cell_vector(1:3))
-            abs_rab_cell_i = SQRT(rab_cell_i(1)**2 + rab_cell_i(2)**2 + rab_cell_i(3)**2)
-
-            ! minimum image convention
-            i_cell_is_the_minimum_image_cell = .TRUE.
-            DO j_cell = 1, num_cells
-               cell_vector_j(1:3) = MATMUL(hmat, REAL(index_to_cell(1:3, j_cell), dp))
-               rab_cell_j(1:3) = pbc(particle_set(row)%r(1:3), cell) - &
-                                 (pbc(particle_set(col)%r(1:3), cell) + cell_vector_j(1:3))
-               abs_rab_cell_j = SQRT(rab_cell_j(1)**2 + rab_cell_j(2)**2 + rab_cell_j(3)**2)
-
-               IF (abs_rab_cell_i > abs_rab_cell_j + 1.0E-6_dp) THEN
-                  i_cell_is_the_minimum_image_cell = .FALSE.
-               END IF
-            END DO
-
-            IF (i_cell_is_the_minimum_image_cell) THEN
-               NULLIFY (block_re, block_im)
-               CALL dbcsr_get_block_p(matrix=mat_ikp_re, row=row, col=col, block=block_re, found=f)
-               CALL dbcsr_get_block_p(matrix=mat_ikp_im, row=row, col=col, block=block_im, found=f)
-               CPASSERT(ALL(ABS(block_re) < 1.0E-10_dp))
-               CPASSERT(ALL(ABS(block_im) < 1.0E-10_dp))
-
-               arg = REAL(index_to_cell(1, i_cell), dp)*kpoints%xkp(1, ikp) + &
-                     REAL(index_to_cell(2, i_cell), dp)*kpoints%xkp(2, ikp) + &
-                     REAL(index_to_cell(3, i_cell), dp)*kpoints%xkp(3, ikp)
-
-               block_re(:, :) = COS(twopi*arg)*data_block(:, :)
-               block_im(:, :) = SIN(twopi*arg)*data_block(:, :)
-            END IF
-
-         END DO
-         CALL dbcsr_iterator_stop(iter)
-
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE mat_ikp_from_mat_Gamma
-
-! **************************************************************************************************
 !> \brief W^MIC_PQ(iω=0) = sum_j w_j W^MIC_PQ(iτ_j) with the time weights w_j of the grid at zero
 !>        frequency, into bs_env%fm_W_MIC_freq_zero
 !> \param bs_env time grid and its weights; receives fm_W_MIC_freq_zero
@@ -1739,8 +1624,8 @@ CONTAINS
          CALL local_dbt_to_global_mat(t_2c_Sigma_x, bs_env%mat_ao_ao_tensor%matrix, &
                                       mat_Sigma_x_Gamma, bs_env%para_env)
 
-         CALL write_matrix(mat_Sigma_x_Gamma, ispin, bs_env%Sigma_x_name, &
-                           bs_env%fm_work_mo(1), qs_env)
+         CALL fm_write(bs_env%fm_work_mo(1), ispin, bs_env%Sigma_x_name, qs_env, &
+                       matrix=mat_Sigma_x_Gamma)
 
          CALL copy_dbcsr_to_fm(mat_Sigma_x_Gamma, fm_Sigma_x_Gamma(ispin))
 
@@ -1826,10 +1711,10 @@ CONTAINS
                                          mat_Sigma_pos_tau(i_t, ispin)%matrix, &
                                          count_skipped=(i_t == 2))
 
-            CALL write_matrix(mat_Sigma_pos_tau(i_t, ispin)%matrix, read_write_index, &
-                              bs_env%Sigma_p_name, bs_env%fm_work_mo(1), qs_env)
-            CALL write_matrix(mat_Sigma_neg_tau(i_t, ispin)%matrix, read_write_index, &
-                              bs_env%Sigma_n_name, bs_env%fm_work_mo(1), qs_env)
+            CALL fm_write(bs_env%fm_work_mo(1), read_write_index, bs_env%Sigma_p_name, qs_env, &
+                          matrix=mat_Sigma_pos_tau(i_t, ispin)%matrix)
+            CALL fm_write(bs_env%fm_work_mo(1), read_write_index, bs_env%Sigma_n_name, qs_env, &
+                          matrix=mat_Sigma_neg_tau(i_t, ispin)%matrix)
 
             IF (bs_env%unit_nr > 0) THEN
                WRITE (bs_env%unit_nr, '(T2,A,I10,A,I3,A,F10.1,A)') &
@@ -2453,7 +2338,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Sigma_x_ikp_n, V_xc_ikp_n
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Sigma_c_ikp_n_freq, Sigma_c_ikp_n_time
       TYPE(cp_cfm_type)                                  :: cfm_ks_ikp, cfm_mos_ikp, cfm_s_ikp, &
-                                                            cfm_Sigma_x_ikp, cfm_work_ikp
+                                                            cfm_work_ikp
 
       CALL timeset(routineN, handle)
 
@@ -2482,20 +2367,20 @@ CONTAINS
 
             ! 4. V^xc_µν(k=0) -> V^xc_µν(k_i) -> V^xc_nn(k_i)
             CALL to_ikp_and_mo(V_xc_ikp_n, bs_env%fm_V_xc_Gamma(ispin), &
-                               ikp, qs_env, bs_env, cfm_mos_ikp)
+                               ikp, qs_env, bs_env, cfm_mos_ikp, cfm_ks_ikp, cfm_work_ikp)
 
             ! 5. Σ^x_µν(k=0) -> Σ^x_µν(k_i) -> Σ^x_nn(k_i)
             CALL to_ikp_and_mo(Sigma_x_ikp_n, fm_Sigma_x_Gamma(ispin), &
-                               ikp, qs_env, bs_env, cfm_mos_ikp)
+                               ikp, qs_env, bs_env, cfm_mos_ikp, cfm_ks_ikp, cfm_work_ikp)
 
             ! 6. Σ^c_µν(k=0,+/-i|τ_j|) -> Σ^c_µν(k_i,+/-i|τ_j|) -> Σ^c_nn(k_i,+/-i|τ_j|)
             DO j_t = 1, bs_env%num_time_freq_points
                CALL to_ikp_and_mo(Sigma_c_ikp_n_time(:, j_t, 1), &
                                   fm_Sigma_c_Gamma_time(j_t, 1, ispin), &
-                                  ikp, qs_env, bs_env, cfm_mos_ikp)
+                                  ikp, qs_env, bs_env, cfm_mos_ikp, cfm_ks_ikp, cfm_work_ikp)
                CALL to_ikp_and_mo(Sigma_c_ikp_n_time(:, j_t, 2), &
                                   fm_Sigma_c_Gamma_time(j_t, 2, ispin), &
-                                  ikp, qs_env, bs_env, cfm_mos_ikp)
+                                  ikp, qs_env, bs_env, cfm_mos_ikp, cfm_ks_ikp, cfm_work_ikp)
             END DO
 
             ! 7. Σ^c_nn(k_i,iτ) -> Σ^c_nn(k_i,iω)
@@ -2519,88 +2404,52 @@ CONTAINS
       CALL cp_cfm_release(cfm_s_ikp)
       CALL cp_cfm_release(cfm_mos_ikp)
       CALL cp_cfm_release(cfm_work_ikp)
-      CALL cp_cfm_release(cfm_Sigma_x_ikp)
 
       CALL timestop(handle)
 
    END SUBROUTINE compute_QP_energies
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param array_ikp_n ...
-!> \param fm_Gamma ...
-!> \param ikp ...
-!> \param qs_env ...
-!> \param bs_env ...
-!> \param cfm_mos_ikp ...
+!> \brief Reconstruct a k-point Hermitian operator and return its real MO diagonal.
+!> \param array_ikp_n Real diagonal elements in the MO basis.
+!> \param fm_Gamma Real AO operator at the Gamma point.
+!> \param ikp Index of the target k-point.
+!> \param qs_env Quantum simulation environment.
+!> \param bs_env Band-structure environment containing the target k-points.
+!> \param cfm_mos_ikp Complex MO coefficients at the target k-point.
+!> \param cfm_ikp Reusable AO operator buffer; overwritten by its MO projection.
+!> \param workspace Reusable projection scratch matrix with the MO coefficient layout.
 ! **************************************************************************************************
-   SUBROUTINE to_ikp_and_mo(array_ikp_n, fm_Gamma, ikp, qs_env, bs_env, cfm_mos_ikp)
+   SUBROUTINE to_ikp_and_mo(array_ikp_n, fm_Gamma, ikp, qs_env, bs_env, cfm_mos_ikp, cfm_ikp, workspace)
 
-      REAL(KIND=dp), DIMENSION(:)                        :: array_ikp_n
-      TYPE(cp_fm_type)                                   :: fm_Gamma
-      INTEGER                                            :: ikp
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: array_ikp_n
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_Gamma
+      INTEGER, INTENT(IN)                                :: ikp
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(cp_cfm_type)                                  :: cfm_mos_ikp
+      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mos_ikp
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm_ikp, workspace
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'to_ikp_and_mo'
 
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cdiag
       INTEGER                                            :: handle
-      TYPE(cp_fm_type)                                   :: fm_ikp_mo_re
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_create(fm_ikp_mo_re, fm_Gamma%matrix_struct)
+      ! get cfm_µν(k_i) from fm_µν(k=0)
+      CALL cfm_ikp_from_fm_Gamma(cfm_ikp, fm_Gamma, ikp, qs_env, bs_env%kpoints_DOS, "ORB")
 
-      CALL fm_Gamma_ao_to_cfm_ikp_mo(fm_Gamma, fm_ikp_mo_re, ikp, qs_env, bs_env, cfm_mos_ikp)
+      CALL cfm_contract_ABA(cfm_mos_ikp, cfm_ikp, workspace=workspace)
 
-      CALL cp_fm_get_diag(fm_ikp_mo_re, array_ikp_n)
-
-      CALL cp_fm_release(fm_ikp_mo_re)
+      ! Taking the real MO diagonal selects the Hermitian part of the operator.
+      ALLOCATE (cdiag(SIZE(array_ikp_n)))
+      CALL cp_cfm_get_diag(cfm_ikp, cdiag)
+      array_ikp_n = REAL(cdiag, KIND=dp)
 
       CALL timestop(handle)
 
    END SUBROUTINE to_ikp_and_mo
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm_Gamma ...
-!> \param fm_ikp_mo_re ...
-!> \param ikp ...
-!> \param qs_env ...
-!> \param bs_env ...
-!> \param cfm_mos_ikp ...
-! **************************************************************************************************
-   SUBROUTINE fm_Gamma_ao_to_cfm_ikp_mo(fm_Gamma, fm_ikp_mo_re, ikp, qs_env, bs_env, cfm_mos_ikp)
-      TYPE(cp_fm_type)                                   :: fm_Gamma, fm_ikp_mo_re
-      INTEGER                                            :: ikp
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(cp_cfm_type)                                  :: cfm_mos_ikp
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_Gamma_ao_to_cfm_ikp_mo'
-
-      INTEGER                                            :: handle
-      TYPE(cp_cfm_type)                                  :: cfm_ikp_ao, cfm_ikp_mo
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_cfm_create(cfm_ikp_ao, fm_Gamma%matrix_struct)
-      CALL cp_cfm_create(cfm_ikp_mo, fm_Gamma%matrix_struct)
-
-      ! get cfm_µν(k_i) from fm_µν(k=0)
-      CALL cfm_ikp_from_fm_Gamma(cfm_ikp_ao, fm_Gamma, ikp, qs_env, bs_env%kpoints_DOS, "ORB")
-
-      CALL cfm_contract_ABA(cfm_mos_ikp, cfm_ikp_ao, cfm_ikp_mo)
-
-      CALL cp_cfm_to_fm(cfm_ikp_mo, fm_ikp_mo_re)
-
-      CALL cp_cfm_release(cfm_ikp_mo)
-      CALL cp_cfm_release(cfm_ikp_ao)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE fm_Gamma_ao_to_cfm_ikp_mo
 
 ! **************************************************************************************************
 !> \brief Computes bounds (AO or RI) for given atom intervals atoms_1 and atoms_2 from indices_min
