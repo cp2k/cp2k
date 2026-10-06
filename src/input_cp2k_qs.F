@@ -30,8 +30,9 @@ MODULE input_cp2k_qs
         do_method_rm1, do_method_xtb, do_ppl_analytic, do_ppl_grid, do_pwgrid_ns_fullspace, &
         do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, &
         do_spin_density, gapw_1c_large, gapw_1c_medium, gapw_1c_orb, gapw_1c_small, &
-        gapw_1c_very_large, gaussian, numerical, slater, wfi_aspc_nr, wfi_frozen_method_nr, &
-        wfi_gext_proj_nr, wfi_gext_proj_qtr_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
+        gapw_1c_very_large, gaussian, numerical, slater, uspp_method_direct, uspp_method_inverse, &
+        uspp_method_inverse_1c, wfi_aspc_nr, wfi_frozen_method_nr, wfi_gext_proj_nr, &
+        wfi_gext_proj_qtr_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
         wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
         wfi_use_prev_p_method_nr, wfi_use_prev_wf_method_nr
    USE input_cp2k_distribution,         ONLY: create_distribution_section
@@ -494,6 +495,21 @@ CONTAINS
                                      VandeVondele2006, Dewar1977, Dewar1985, Rocha2006, Stewart1989, Thiel1992, &
                                      Repasky2002, Stewart2007, VanVoorhis2015, Schenter2008], &
                           default_i_val=do_method_gpw)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="USPP_METHOD", &
+                          description="Orbital representation for scalar ultrasoft pseudopotentials. "// &
+                          "DIRECT expands soft orbitals without requiring full reference waves. "// &
+                          "INVERSE_1C uses atom-local transformed projectors and native Gaussian kinetic integrals. "// &
+                          "It requires nonoverlapping reconstruction and projector supports. "// &
+                          "INVERSE retains the general coupled inverse as a reference. "// &
+                          "Both retain the original augmentation and finite reconstruction residuals.", &
+                          usage="USPP_METHOD INVERSE_1C", &
+                          enum_c_vals=s2a("DIRECT", "INVERSE", "INVERSE_1C"), &
+                          enum_desc=s2a("Soft Gaussian orbitals", "General coupled inverse", "Nonoverlapping atom-local inverse"), &
+                          enum_i_vals=[uspp_method_direct, uspp_method_inverse, uspp_method_inverse_1c], &
+                          default_i_val=uspp_method_inverse_1c)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
