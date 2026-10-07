@@ -322,8 +322,9 @@ CONTAINS
                                    features%grid_weights_t, features%atomic_grid_weights_t]
          END IF
          IF (nspin == 4) THEN
-            spin_axes = lebedev_grid(angular_grid)%r([3, 1, 2], :)
-            spin_weights = lebedev_grid(angular_grid)%w
+            ALLOCATE (spin_axes(3, lebedev_grid(angular_grid)%n), spin_weights(lebedev_grid(angular_grid)%n))
+            spin_axes(:, :) = lebedev_grid(angular_grid)%r([3, 1, 2], :)
+            spin_weights(:) = lebedev_grid(angular_grid)%w
             CALL torch_tensor_from_array(spin_axes_t, spin_axes)
             CALL torch_tensor_from_array(spin_weights_t, spin_weights)
          ELSE
@@ -341,9 +342,9 @@ CONTAINS
                direction_grad(:, :, 2) = direction_grad(:, :, 1)
                direction_tau(:, 2) = direction_tau(:, 1)
             ELSE
-               direction_rho = response_density
-               direction_grad = response_gradient
-               direction_tau = response_kinetic
+               direction_rho(:, :) = response_density
+               direction_grad(:, :, :) = response_gradient
+               direction_tau(:, :) = response_kinetic
             END IF
             CALL torch_tensor_from_array(directions(1), direction_rho)
             CALL torch_tensor_from_array(directions(2), direction_grad)
@@ -356,10 +357,10 @@ CONTAINS
                direction_energy = 0.0_dp
                direction_descriptor = 0.0_dp
                IF (geometry_response) THEN
-                  direction_points = response_points
-                  direction_centres = response_atom_coords
-                  direction_energy = response_energy_weights
-                  direction_descriptor = response_descriptor_weights
+                  direction_points(:, :) = response_points
+                  direction_centres(:, :) = response_atom_coords
+                  direction_energy(:) = response_energy_weights
+                  direction_descriptor(:) = response_descriptor_weights
                END IF
                CALL torch_tensor_from_array(directions(4), direction_points)
                CALL torch_tensor_from_array(directions(5), direction_centres)

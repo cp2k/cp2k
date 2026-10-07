@@ -154,6 +154,8 @@ semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "rot_2el_2c_first_debug" https://cp2k.org/conv#c012
 semi_empirical_mpole_methods.F: Found WRITE statement with hardcoded unit in "semi_empirical_mpole_p_setup" https://cp2k.org/conv#c012
 sirius_interface.F: Module "sirius" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+# The SIRIUS module symbol is imported with its handler type despite the ONLY clause.
+skala_sirius.F: Module "sirius" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 smeagol_emtoptions.F: Module "global_meshvar" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 smeagol_emtoptions.F: Module "negfcoop" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 smeagol_emtoptions.F: Module "negfmod" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002

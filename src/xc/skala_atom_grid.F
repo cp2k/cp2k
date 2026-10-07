@@ -31,7 +31,7 @@ MODULE skala_atom_grid
    TYPE skala_partition_type
       PRIVATE
       INTEGER :: shell = 1
-      REAL(dp) :: lattice(3, 3), inverse(3, 3)
+      REAL(dp) :: lattice(3, 3) = 0.0_dp, inverse(3, 3) = 0.0_dp
       REAL(dp), ALLOCATABLE :: centres(:, :)
       TYPE(seed_environment_type), ALLOCATABLE :: neighbours(:)
       TYPE(seed_environment_type) :: self_neighbours
@@ -64,8 +64,8 @@ CONTAINS
       partition%shell = shell
       partition%lattice = lattice
       partition%inverse = inv_3x3(lattice)
-      partition%centres = centres
-      ALLOCATE (partition%neighbours(SIZE(centres, 2)))
+      ALLOCATE (partition%centres(3, SIZE(centres, 2)), partition%neighbours(SIZE(centres, 2)))
+      partition%centres(:, :) = centres
       DO a = 1, SIZE(centres, 2)
          CALL build_environment(partition, a, .FALSE., partition%neighbours(a))
       END DO
@@ -123,11 +123,13 @@ CONTAINS
             END DO
          END DO
       END DO
-      environment%displacement = offsets(:, :count)
-      environment%distance = distances(:count)
-      environment%membership = weights(:count)
-      environment%atom = atoms(:count)
-      environment%image = images(:, :count)
+      ALLOCATE (environment%displacement(3, count), environment%distance(count), environment%membership(count))
+      ALLOCATE (environment%atom(count), environment%image(3, count))
+      environment%displacement(:, :) = offsets(:, :count)
+      environment%distance(:) = distances(:count)
+      environment%membership(:) = weights(:count)
+      environment%atom(:) = atoms(:count)
+      environment%image(:, :) = images(:, :count)
    END SUBROUTINE build_environment
 
 ! **************************************************************************************************
@@ -538,8 +540,12 @@ CONTAINS
             radius(i) = scale*t/(1.0_dp - t)
             weights(i) = eigenvectors(1, i)**2*radius(i)**2*scale/(1.0_dp - t)**2
          END DO
-         cached_radius = radius
-         cached_weights = weights
+         IF (n /= cached_n) THEN
+            IF (ALLOCATED(cached_radius)) DEALLOCATE (cached_radius, cached_weights)
+            ALLOCATE (cached_radius(n), cached_weights(n))
+         END IF
+         cached_radius(:) = radius
+         cached_weights(:) = weights
          cached_n = n
          cached_scale = scale
       ELSE
@@ -625,9 +631,10 @@ CONTAINS
          block_sizes(b) = row - start
          IF (block_sizes(b) == 0) CPABORT("Empty Skala atom block. Refine the radial quadrature")
       END DO
-      points = positions(:, :row)
-      energy_weights = energy(:row)
-      descriptor_weights = descriptor(:row)
+      ALLOCATE (points(3, row), energy_weights(row), descriptor_weights(row))
+      points(:, :) = positions(:, :row)
+      energy_weights(:) = energy(:row)
+      descriptor_weights(:) = descriptor(:row)
    END SUBROUTINE skala_atom_grid_build
 
 ! **************************************************************************************************

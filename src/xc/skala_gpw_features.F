@@ -232,11 +232,14 @@ CONTAINS
       features%nflat = npoint
       features%nflat_local = npoint
       features%chunk_feature_count = npoint
-      features%grid_coords = points
-      features%grid_weights = energy_weights
-      features%atomic_grid_weights = descriptor_weights
-      features%atomic_grid_sizes = INT(atom_sizes, int_8)
-      features%coarse_0_atomic_coords = atom_coords
+      ALLOCATE (features%grid_coords(3, npoint), features%grid_weights(npoint), &
+                features%atomic_grid_weights(npoint), features%atomic_grid_sizes(SIZE(atom_sizes)), &
+                features%coarse_0_atomic_coords(3, SIZE(atom_sizes)))
+      features%grid_coords(:, :) = points
+      features%grid_weights(:) = energy_weights
+      features%atomic_grid_weights(:) = descriptor_weights
+      features%atomic_grid_sizes(:) = INT(atom_sizes, int_8)
+      features%coarse_0_atomic_coords(:, :) = atom_coords
       ALLOCATE (features%atomic_grid_size_bound_shape(0, MAXVAL(atom_sizes)))
       ALLOCATE (features%chunk_density(npoint, MAX(2, nspin)), features%chunk_grad(npoint, 3, MAX(2, nspin)), &
                 features%chunk_kin(npoint, MAX(2, nspin)))

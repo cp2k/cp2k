@@ -133,9 +133,9 @@ PROGRAM skala_grid_unittest
             END IF
             IF (mode == 0) THEN
                reference = energy
-               ref_vrho = vrho
-               ref_vgrad = vgrad
-               ref_vtau = vtau
+               ref_vrho(:, :) = vrho
+               ref_vgrad(:, :, :) = vgrad
+               ref_vtau(:, :) = vtau
             ELSE
                error = ABS(energy - reference)
                IF (nr > 0) error = MAX(error, MAXVAL(ABS(vrho - ref_vrho)), &
@@ -327,8 +327,8 @@ CONTAINS
       END DO
       rotation = rotation + SIN(angle)*RESHAPE([0.0_dp, normal(3), -normal(2), &
                                                 -normal(3), 0.0_dp, normal(1), normal(2), -normal(1), 0.0_dp], [3, 3])
-      rotated = y
-      reference_v = v
+      rotated(:, :) = y
+      reference_v(:, :) = v
       rotated(:, 2:4) = MATMUL(y(:, 2:4), TRANSPOSE(rotation))
       reference_v(:, 2:4) = MATMUL(v(:, 2:4), TRANSPOSE(rotation))
       rotated(:, 18:20) = MATMUL(y(:, 18:20), TRANSPOSE(rotation))
@@ -354,11 +354,11 @@ CONTAINS
          CALL spinor_evaluate(y - step_h*tangent, centres - step_h*dc, sizes, angular, &
                               em, minus_v, minus_c)
          IF (ih == 1) THEN
-            fd = -(plus_v - minus_v)/(6.0_dp*step_h)
-            fc = -(plus_c - minus_c)/(6.0_dp*step_h)
+            fd(:, :) = -(plus_v - minus_v)/(6.0_dp*step_h)
+            fc(:, :) = -(plus_c - minus_c)/(6.0_dp*step_h)
          ELSE
-            fd = fd + 2.0_dp*(plus_v - minus_v)/(3.0_dp*step_h)
-            fc = fc + 2.0_dp*(plus_c - minus_c)/(3.0_dp*step_h)
+            fd(:, :) = fd + 2.0_dp*(plus_v - minus_v)/(3.0_dp*step_h)
+            fc(:, :) = fc + 2.0_dp*(plus_c - minus_c)/(3.0_dp*step_h)
             err = ABS((ep - em)/(2.0_dp*step_h) - ad)
             IF (err > tol) ERROR STOP "Spin-projected joint covectors fail energy finite differences"
          END IF
@@ -383,7 +383,7 @@ CONTAINS
       ALLOCATE (col_r(nrow, 2), col_g(nrow, 3, 2), col_t(nrow, 2), &
                 col_vr(nrow, 2), col_vg(nrow, 3, 2), col_vt(nrow, 2))
       DO ih = 1, 2
-         rotated = y
+         rotated(:, :) = y
          rotated(:, 3:4) = 0.0_dp
          rotated(:, 11:16) = 0.0_dp
          rotated(:, 19:20) = 0.0_dp
@@ -704,7 +704,7 @@ CONTAINS
             CALL comm%sum(gathered)
             IF (distribution == 0) THEN
                ref_e = e
-               reference_grad = gathered
+               reference_grad(:, :, :) = gathered
             ELSE
                IF (MAX(ABS(e - ref_e), MAXVAL(ABS(gathered - reference_grad))) > routing_tolerance) THEN
                   ERROR STOP "Redistributing complete atom blocks changed Skala energy or derivatives"

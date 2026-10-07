@@ -333,7 +333,7 @@ PROGRAM skala_sirius_unittest
       centres(:, 1) = atoms(1)%r
    END IF
    weights = cell%deth/REAL(side**3, dp)
-   descriptor_weights = weights
+   descriptor_weights(:) = weights
    IF (nr > 0) weights(1) = 0.0_dp
    kpoint(:, 1) = [0.07_dp, 0.03_dp, 0.02_dp]
 
@@ -596,7 +596,7 @@ PROGRAM skala_sirius_unittest
                IF (comm%mepos == 0) WRITE (*, '(A,2ES19.10)') "XC geometry warmup differences: ", &
                   MAXVAL(ABS(repeat_atom - atom_derivative)), MAXVAL(ABS(repeat_cell - cell_derivative))
                ! TorchScript can specialize its graph on the first geometry-gradient evaluation.
-               atom_derivative = repeat_atom
+               atom_derivative(:, :) = repeat_atom
                cell_derivative = repeat_cell
                CALL sirius_get_xc_geometry_derivatives(gs, natoms, repeat_atom, repeat_cell, error_code=ierr)
                IF (ierr /= 0) ERROR STOP "Third geometry callback failed"

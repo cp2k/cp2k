@@ -151,7 +151,7 @@ CONTAINS
       state%shell = shell
       state%scale = scale
       state%grid_lattice = cell%hmat
-      state%grid_centres = centres
+      CALL MOVE_ALLOC(centres, state%grid_centres)
 #if defined(__SIRIUS_XC_POINT_GEOMETRY) && defined(__LIBTORCH)
       CALL sirius_set_xc_point_geometry_callbacks(context, C_FUNLOC(evaluate_skala_point_geometry), &
                                                   C_FUNLOC(pullback_skala_quadrature), C_LOC(state%token), error)
