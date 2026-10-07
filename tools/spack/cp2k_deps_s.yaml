@@ -34,7 +34,8 @@ spack:
         - "+pic"
         - "~rocm"
         - "~tests"
-        - "build_type=Release"
+        - spec: "build_type=Release"
+          when: "build_system=cmake"
 
     cuda:
       buildable: false
@@ -59,7 +60,6 @@ spack:
       require:
         - "+fortran"
         - "threads=openmp"
-        - "build_system=makefile"
 
     # Libraries needed by CP2K
     dbcsr:

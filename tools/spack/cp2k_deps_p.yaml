@@ -34,7 +34,8 @@ spack:
         - "+pic"
         - "~rocm"
         - "~tests"
-        - "build_type=Release"
+        - spec: "build_type=Release"
+          when: "build_system=cmake"
 
     cuda:
       buildable: false
@@ -72,7 +73,6 @@ spack:
     openblas:
       require:
         - "threads=openmp"
-        - "build_system=makefile"
 
     scalapack:
       require:
@@ -182,11 +182,6 @@ spack:
     ucx:
       require:
         - "@1.21.0"
-
-    # Yasm's CMake recipe has many target-related issues.
-    yasm:
-      require:
-        - "build_system=autotools"
 
   repos:
     builtin:

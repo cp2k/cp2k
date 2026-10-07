@@ -33,7 +33,8 @@ spack:
         - "~rocm"
     #   - "~shared" this does not work because of gettext
         - "+static"
-        - "build_type=Release"
+        - spec: "build_type=Release"
+          when: "build_system=cmake"
 
     # ScaLAPACK, LAPACK, BLAS
     blas:
@@ -53,7 +54,6 @@ spack:
       require:
         - "+fortran"
         - "threads=openmp"
-        - "build_system=makefile"
 
     # Libraries needed by CP2K
     dbcsr:
