@@ -22,35 +22,46 @@ MODULE wannier90_projections
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'wannier90_projections'
    PUBLIC :: wannier90_select_projections, wannier90_projection_rank, wannier90_hybrid_candidates, &
-             wannier90_mix_projections
+             wannier90_window_mask
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Mix neighbouring trial columns by fixed real Givens rotations on the entire mesh.
-!> \param amn Band/trial/k-point projections, rotated in place without changing their column space.
-!> \param angle Rotation angle in radians, identical at every k-point.
+!> \brief Restrict fixed trial selection to the bands admitted by disentanglement windows.
+!> \param eigenvalues Exported eigenvalues in the same units as the windows.
+!> \param num_wann Number of target Wannier functions.
+!> \param windows Outer minimum/maximum and frozen minimum/maximum energies.
+!> \param window_set Whether each bound is explicitly set.
+!> \param allowed Bands used to select the physical trial orbitals.
 ! **************************************************************************************************
-   SUBROUTINE wannier90_mix_projections(amn, angle)
-      COMPLEX(KIND=dp), INTENT(INOUT)                    :: amn(:, :, :)
-      REAL(KIND=dp), INTENT(IN)                          :: angle
+   SUBROUTINE wannier90_window_mask(eigenvalues, num_wann, windows, window_set, allowed)
+      REAL(KIND=dp), INTENT(IN)                          :: eigenvalues(:)
+      INTEGER, INTENT(IN)                                :: num_wann
+      REAL(KIND=dp), INTENT(IN)                          :: windows(4)
+      LOGICAL, INTENT(IN)                                :: window_set(4)
+      LOGICAL, INTENT(OUT)                               :: allowed(:)
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: first(:)
-      INTEGER                                            :: ik, iw
-      REAL(KIND=dp)                                      :: cosine, sine
+      LOGICAL                                            :: frozen(SIZE(eigenvalues))
 
-      cosine = COS(angle)
-      sine = SIN(angle)
-      ALLOCATE (first(SIZE(amn, 1)))
-      DO ik = 1, SIZE(amn, 3)
-         DO iw = 1, SIZE(amn, 2) - 1
-            first(:) = amn(:, iw, ik)
-            amn(:, iw, ik) = cosine*first + sine*amn(:, iw + 1, ik)
-            amn(:, iw + 1, ik) = -sine*first + cosine*amn(:, iw + 1, ik)
-         END DO
-      END DO
-      DEALLOCATE (first)
-   END SUBROUTINE wannier90_mix_projections
+      CPASSERT(SIZE(allowed) == SIZE(eigenvalues))
+      allowed = .TRUE.
+      IF (window_set(1)) allowed = allowed .AND. eigenvalues >= windows(1)
+      IF (window_set(2)) allowed = allowed .AND. eigenvalues <= windows(2)
+      IF (COUNT(allowed) < num_wann) THEN
+         CPABORT('Wannier90 outer window contains too few bands.')
+      END IF
+      IF (window_set(4)) THEN
+         frozen = eigenvalues <= windows(4)
+         IF (window_set(3)) frozen = frozen .AND. eigenvalues >= windows(3)
+         IF (COUNT(frozen) > num_wann) THEN
+            CPABORT('Wannier90 frozen window contains too many bands.')
+         END IF
+         IF (ANY(frozen .AND. .NOT. allowed)) THEN
+            CPABORT('Wannier90 frozen states lie outside the outer window.')
+         END IF
+         IF (COUNT(frozen) == num_wann) allowed = frozen
+      END IF
+   END SUBROUTINE wannier90_window_mask
 
 ! **************************************************************************************************
 !> \brief Form tetrahedral s/p trials from the full AO bank before selecting projections.

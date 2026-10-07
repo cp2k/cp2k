@@ -1,5 +1,0 @@
-@SET seed he_excluded_window
-@SET exclude WINDOW
-@SET projections AUTO
-@SET windows outer.inc
-@INCLUDE he_common.inc

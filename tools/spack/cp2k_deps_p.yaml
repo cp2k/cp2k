@@ -191,10 +191,6 @@ spack:
       require:
         - "@1.21.0"
 
-    wannier90:
-      require:
-        - "+mpi"
-
     # Yasm's CMake recipe has many target-related issues.
     yasm:
       require:
@@ -253,7 +249,6 @@ spack:
     - "spla@1.6.1"
     - "tblite@0.7.0"
     - "trexio@2.6.1"
-    - "wannier90@4.0.2"
 
   view:
     default:

@@ -1,0 +1,9 @@
+# The exports run without a linked Wannier90 library.
+"he2_hexagonal.inp" = [{matcher="WANNIER90_SCF_MO_REUSE"},
+                      {matcher="WANNIER90_REUSE_VALIDATION"},
+                      {matcher="WANNIER90_PROJECTION_MIN_SVALUE", tol=1e-4, ref=0.49884}]
+"he2_hexagonal_diagonalize.inp" = [{matcher="WANNIER90_PROJECTION_MIN_SVALUE", tol=1e-4, ref=0.49884}]
+"he_window.inp" = [{matcher="WANNIER90_PROJECTION_MIN_SVALUE", tol=1e-4, ref=0.99997}]
+"li_both.inp" = [{matcher="WANNIER90_SCF_MO_REUSE"},
+                 {matcher="WANNIER90_PROJECTION_MIN_SVALUE", tol=1e-4, ref=0.99400}]
+#EOF

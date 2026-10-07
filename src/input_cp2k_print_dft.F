@@ -3139,10 +3139,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="USE_BLOCH_PHASES", &
-                          description="Apply the CP2K Bloch-phase gauge to the exported band subspaces. "// &
-                          "Without LIBRARY, write identity .amn projections and require WANNIER_FUNCTIONS "// &
-                          "to match the number of exported bands. With LIBRARY, INITIAL_PROJECTIONS "// &
-                          "determines the projections in the same gauge, including for disentanglement.", &
+                          description="Apply the CP2K Bloch-phase gauge to reused SCF band subspaces. "// &
+                          "INITIAL_PROJECTIONS determines projections in the same gauge. With NONE, "// &
+                          "write identity projections and require equal band and Wannier counts. "// &
+                          "AO_SCDM and AO_HYBRID also support disentanglement.", &
                           usage="USE_BLOCH_PHASES T", default_l_val=.FALSE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -3158,7 +3158,8 @@ CONTAINS
                           description="One-based MO indices removed before the Wannier calculation. "// &
                           "Retained bands are exported in ascending order and renumbered from one; "// &
                           "the original indices are written to SEED_NAME_band_indices.dat. "// &
-                          "Library localization requires complete degenerate subspaces.", &
+                          "Band exclusions must retain or remove complete degenerate subspaces "// &
+                          "inside the outer energy window.", &
                           usage="EXCLUDE_BANDS b1 b2 ...", n_var=-1, repeats=.TRUE., &
                           type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
@@ -3172,115 +3173,40 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      NULLIFY (subsection)
-      CALL section_create(subsection, __LOCATION__, name="LIBRARY", &
-                          description="Run the optional Wannier90 v4 library directly after the SCF calculation.", &
-                          n_keywords=18, n_subsections=0, repeats=.FALSE., &
-                          citations=[Pizzi2020, Marzari1997, Souza2001])
-      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
-                          description="Enable in-process Wannier90 localization.", usage="&LIBRARY ON", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="INITIAL_PROJECTIONS", &
-                          description="Initial trial orbitals for in-process Wannier90 localization. "// &
-                          "AO_SCDM selects fixed AO candidates by pivoted QR on their projections "// &
-                          "over the full k-point mesh. AO_HYBRID instead forms tetrahedral trials from "// &
-                          "every radial s/p shell pair on each atom before this selection; other "// &
-                          "AOs remain available. AUTO independently minimizes the AO start, the full "// &
-                          "hybrid start and mixed AO/hybrid starts for each eligible atomic kind, "// &
-                          "then tests fixed unitary mixtures of the best original start, "// &
-                          "then retains the converged result with the smallest total spread. "// &
-                          "IDENTITY retains the input MO gauge and can "// &
-                          "converge to different local minima for equivalent MO representations.", &
-                          type_of_var=enum_t, enum_c_vals=s2a("IDENTITY", "AO_SCDM", "AO_HYBRID", "AUTO"), &
-                          enum_i_vals=[0, 1, 2, 3], default_i_val=1)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="WRITE_INPUTS", &
-                          description="Also write the Wannier90 input and matrices for an external reference run.", &
-                          default_l_val=.FALSE.)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="WRITE_HR", &
-                          description="Write the native Wannier90 real-space Hamiltonian and Wigner-Seitz vectors "// &
-                          "after convergence. AUTO writes only the winning trial's optimized result.", &
-                          default_l_val=.FALSE.)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="WRITE_U_MATRICES", &
-                          description="Write the native Wannier90 optimized rotation matrices and a band-index map. "// &
-                          "Disentanglement matrices use packed outer-window rows, as in external Wannier90. "// &
-                          "AUTO writes only the winning trial's optimized result.", default_l_val=.FALSE.)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="NUM_ITER", &
-                          description="Maximum number of Wannier90 localization iterations.", default_i_val=1000)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="NUM_CG_STEPS", &
-                          description="Wannier90 conjugate-gradient steps before resetting to steepest descent. "// &
-                          "Zero uses steepest descent throughout. AUTO also tries zero independently "// &
-                          "for every projection family to check for other localization minima. "// &
-                          "Its final mixed-start trials also test a reset interval of at least 20.", default_i_val=5)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="NUM_PRINT_CYCLES", &
-                          description="Print every Nth Wannier90 localization iteration (positive integer). "// &
-                          "Initial and final states and the convergence report are always retained.", default_i_val=10)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="CONV_WINDOW", &
-                          description="Number of consecutive iterations in the Wannier90 convergence test (at least two).", &
-                          default_i_val=5)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="CONV_TOL", &
-                          description="Wannier90 spread-change convergence tolerance in angstrom squared.", &
-                          default_r_val=1.0e-10_dp)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="DIS_NUM_ITER", &
-                          description="Maximum number of Wannier90 disentanglement iterations.", default_i_val=1000)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="DIS_CONV_WINDOW", &
-                          description="Number of consecutive iterations in the disentanglement convergence test (at least two).", &
-                          default_i_val=5)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="DIS_CONV_TOL", &
-                          description="Relative convergence tolerance for the gauge-invariant spread during disentanglement.", &
-                          default_r_val=1.0e-10_dp)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="DIS_MIX_RATIO", &
-                          description="Wannier90 disentanglement mixing ratio, greater than zero and at most one.", &
-                          default_r_val=0.5_dp)
-      CALL section_add_keyword(subsection, keyword)
+                          description="Initial projections written to SEED_NAME.amn for external Wannier90. "// &
+                          "NONE preserves the historical export without projections, except that "// &
+                          "USE_BLOCH_PHASES writes IDENTITY for complete band spaces. AO_SCDM selects "// &
+                          "fixed AO trials by pivoted QR across the entire mesh. This is AO-based, not "// &
+                          "real-space SCDM. AO_HYBRID forms tetrahedral trials from all on-atom radial "// &
+                          "s/p pairs before selection, retaining other AOs. Both use the overlap metric "// &
+                          "and the exported Bloch gauge and allow rectangular projections. "// &
+                          "IDENTITY requires equal band and Wannier counts. AO trials require "// &
+                          "KPOINTS_SOURCE MP_GRID or SCF. Localization is performed by external Wannier90.", &
+                          type_of_var=enum_t, enum_c_vals=s2a("NONE", "IDENTITY", "AO_SCDM", "AO_HYBRID"), &
+                          enum_i_vals=[-1, 0, 1, 2], default_i_val=-1, citations=[Pizzi2020])
+      CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="DIS_WIN_MIN", &
                  description="Lower edge of the disentanglement outer energy window; defaults to the lowest exported eigenvalue.", &
                           type_of_var=real_t, unit_str="eV")
-      CALL section_add_keyword(subsection, keyword)
+      CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="DIS_WIN_MAX", &
                 description="Upper edge of the disentanglement outer energy window; defaults to the highest exported eigenvalue.", &
                           type_of_var=real_t, unit_str="eV")
-      CALL section_add_keyword(subsection, keyword)
+      CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="DIS_FROZ_MIN", &
                           description="Lower edge of the frozen energy window. Requires DIS_FROZ_MAX; "// &
                           "if omitted, the lower spectrum edge is used.", type_of_var=real_t, unit_str="eV")
-      CALL section_add_keyword(subsection, keyword)
+      CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="DIS_FROZ_MAX", &
                           description="Upper edge of the frozen energy window. States inside this window "// &
                           "must be retained in the optimized subspace.", type_of_var=real_t, unit_str="eV")
-      CALL section_add_keyword(subsection, keyword)
+      CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL section_add_subsection(print_key, subsection)
-      CALL section_release(subsection)
 
    END SUBROUTINE create_wannier_section
 

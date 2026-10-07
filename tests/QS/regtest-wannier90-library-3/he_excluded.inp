@@ -1,5 +1,0 @@
-@SET seed he_excluded
-@SET exclude T
-@SET projections AUTO
-@SET windows free.inc
-@INCLUDE he_common.inc

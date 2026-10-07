@@ -1,6 +1,0 @@
-@SET seed li_both
-@SET kpoints T
-@SET source SCF
-@SET reuse T
-@SET spin BOTH
-@INCLUDE li_common.inc

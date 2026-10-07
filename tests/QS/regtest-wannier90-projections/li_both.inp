@@ -1,18 +1,24 @@
+@SET seed li_both
+@SET kpoints T
+@SET source SCF
+@SET reuse T
+@SET spin BOTH
 # Reuse the k-point SCF for the subsequent spin-selection/export variants.
 @SET scf_guess RESTART
 @SET write_restart OFF
 @IF ( ${seed} == li_both )
-  @SET scf_guess ATOMIC
-  @SET write_restart ON
+@SET scf_guess ATOMIC
+@SET write_restart ON
 @ENDIF
 @IF ( ${kpoints} == F )
-  @SET scf_guess ATOMIC
+@SET scf_guess ATOMIC
 @ENDIF
 &GLOBAL
   PRINT_LEVEL LOW
   PROJECT ${seed}
   RUN_TYPE ENERGY
 &END GLOBAL
+
 &FORCE_EVAL
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT_UZH
@@ -22,10 +28,10 @@
     MULTIPLICITY 2
     @IF ( ${kpoints} == T )
     &KPOINTS
-      SCHEME MONKHORST-PACK 2 2 2
-      GAMMA_CENTERED T
       EPS_SYMMETRY 1.e-8
+      GAMMA_CENTERED T
       PARALLEL_GROUP_SIZE 0
+      SCHEME MONKHORST-PACK 2 2 2
       SYMMETRY ON
       SYMMETRY_BACKEND K290
       WAVEFUNCTIONS COMPLEX
@@ -37,24 +43,16 @@
     &END MGRID
     &PRINT
       &WANNIER90 ON
+        INITIAL_PROJECTIONS AO_SCDM
         KPOINTS_SOURCE ${source}
         MP_GRID 2 2 2
         REUSE_SCF_MOS ${reuse}
-        VALIDATE_REUSE_SCF_MOS T
         SEED_NAME ${seed}
         SPIN_CHANNEL ${spin}
+        USE_BLOCH_PHASES T
+        VALIDATE_REUSE_SCF_MOS T
         WANNIER_FUNCTIONS 2
         WANNIER_FUNCTIONS 1
-        USE_BLOCH_PHASES T
-        &LIBRARY ON
-          INITIAL_PROJECTIONS AO_SCDM
-          WRITE_INPUTS T
-          WRITE_HR T
-          WRITE_U_MATRICES T
-          CONV_TOL 1.e-10
-          CONV_WINDOW 5
-          NUM_ITER 1000
-        &END LIBRARY
       &END WANNIER90
     &END PRINT
     &QS
@@ -75,16 +73,16 @@
       SCF_GUESS ${scf_guess}
       @IF ( ${kpoints} == T )
       &MIXING
-        METHOD BROYDEN_MIXING
         ALPHA 0.5
+        METHOD BROYDEN_MIXING
         # Retain enough history to avoid a long convergence tail at EPS_SCF 1.e-12.
         NBUFFER 16
       &END MIXING
       @ENDIF
       &PRINT
         &RESTART ${write_restart}
-          FILENAME =li-RESTART.wfn
           BACKUP_COPIES 0
+          FILENAME =li-RESTART.wfn
         &END RESTART
       &END PRINT
     &END SCF

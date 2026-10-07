@@ -1,4 +1,0 @@
-@SET seed h2_gapw_diagonalize
-@SET source SCF
-@SET reuse F
-@INCLUDE h2_gapw.inc
