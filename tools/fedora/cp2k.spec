@@ -35,7 +35,7 @@ BuildRequires: cmake(libxsmm)
 %endif
 BuildRequires: cmake(libxc)
 BuildRequires: cmake(Spglib)
-BuildRequires: libwignernj-devel >= 0.8
+BuildRequires: cmake(wignernj)
 # Test dependencies
 BuildRequires: python3
 
