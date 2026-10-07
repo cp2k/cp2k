@@ -1,14 +1,8 @@
 &GLOBAL
   PRINT_LEVEL LOW
   PROJECT ftest
-  RUN_TYPE GEO_OPT
+  RUN_TYPE ENERGY_FORCE
 &END GLOBAL
-
-&MOTION
-  &GEO_OPT
-    MAX_ITER 1
-  &END GEO_OPT
-&END MOTION
 
 &FORCE_EVAL
   METHOD Quickstep
@@ -30,7 +24,7 @@
       METHOD GPW
     &END QS
     &SCF
-      EPS_SCF 1.0E-8
+      EPS_SCF 1.0E-12
       MAX_SCF 50
       SCF_GUESS ATOMIC
       &OT
@@ -38,7 +32,7 @@
         PRECONDITIONER FULL_ALL
       &END OT
       &OUTER_SCF
-        EPS_SCF 1.0E-8
+        EPS_SCF 1.0E-12
         MAX_SCF 10
       &END OUTER_SCF
     &END SCF
@@ -56,7 +50,7 @@
   &END PRINT
   &PROPERTIES
     &TDDFPT
-      CONVERGENCE [eV] 1.0e-7
+      CONVERGENCE [eV] 1.0e-9
       KERNEL FULL
       MAX_ITER 50
       NSTATES 1

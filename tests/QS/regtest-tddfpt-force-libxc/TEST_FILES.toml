@@ -7,10 +7,10 @@
 # TDDFPT excited-state forces with 3RD_DERIV_ANALYTICAL, i.e. the analytic
 # third derivative of Exc in xc_calc_3rd_deriv_analytical. The GGA and
 # meta-GGA branches need the reduced-gradient (gamma) derivatives, which only
-# the LibXC path supplies. Most runs take a single excited-state geometry step,
+# the LibXC path supplies. Some runs take a single excited-state geometry step,
 # so the final total energy depends on the excited-state gradient and hence on
-# the third derivative. The restricted TPSS test instead checks individual
-# forces directly, avoiding a second expensive SCF and force evaluation.
+# the third derivative. The TPSS and unrestricted Laplacian tests instead
+# check forces at fixed geometry, avoiding a second SCF and force evaluation.
 # The four functional classes select the four branches of the
 # routine, and each is run closed shell (H2O) and open shell (H2O+):
 #   LDA_X/LDA_C_PW                  no gradient       -> pure-density branch
@@ -37,6 +37,17 @@
 "h2o_mgga_lapl_analytic.inp"            = [{matcher="E_total", tol=1.0E-06, ref=-16.95429414634514}]
 "h2o_lsd_lda_analytic.inp"              = [{matcher="E_total", tol=1.0E-10, ref=-16.66698042191488}]
 "h2o_lsd_gga_analytic.inp"              = [{matcher="E_total", tol=1.0E-10, ref=-16.77629238461370}]
-"h2o_lsd_mgga_tau_analytic.inp"         = [{matcher="E_total", tol=1.0E-10, ref=-16.78482717026715}]
-"h2o_lsd_mgga_lapl_analytic.inp"        = [{matcher="E_total", tol=1.0E-08, ref=-16.54637066540387}]
+# Check spin-polarized TPSS forces without a second excited-state SCF.
+"h2o_lsd_mgga_tau_analytic.inp"         = [{matcher="E_total", tol=1.0E-10, ref=-16.80044630350844},
+                                        {matcher="Atomic_force_1_z", tol=1.0E-06, ref=0.0285695259},
+                                        {matcher="Atomic_force_2_y", tol=1.0E-06, ref=-0.0901424329},
+                                        {matcher="Atomic_force_2_z", tol=1.0E-06, ref=-0.0134296859}]
+# BR89 third-derivative forces are roundoff-sensitive. A geometry step
+# amplifies this into a flaky energy reference. Check the fixed-geometry
+# forces directly, with a tolerance below the change from switching off
+# 3RD_DERIV_ANALYTICAL.
+"h2o_lsd_mgga_lapl_analytic.inp"        = [{matcher="E_total", tol=1.0E-10, ref=-16.54674065414785},
+                                        {matcher="Atomic_force_1_z", tol=1.0E-03, ref=0.160210084},
+                                        {matcher="Atomic_force_2_y", tol=1.0E-03, ref=-0.0921579100},
+                                        {matcher="Atomic_force_2_z", tol=1.0E-03, ref=-0.00832175123}]
 #EOF
