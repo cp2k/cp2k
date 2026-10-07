@@ -144,6 +144,10 @@ highly recommended to provide your own matching libtorch instead: `--with-libtor
 for an existing libtorch in the system paths, while
 `--with-libtorch=<path-to-libtorch>` uses a libtorch that you installed or built yourself. Otherwise
 poor performance is expected and the calculation may even fail.
+
+This only applies to the toolchain-based build. The [Spack-based build via
+`make_cp2k.sh`](#spack-based-build-via-make_cp2ksh) installs a matching libtorch itself, so no
+manual libtorch installation is needed there.
 ```
 
 ```shell

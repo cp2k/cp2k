@@ -304,6 +304,9 @@ GauXC Skala models.
   `--with-libtorch=system` searches for an existing libtorch in the system paths (it does **not**
   install libtorch), while `--with-libtorch=<path-to-libtorch>` uses a libtorch that you installed
   or built yourself. Otherwise poor performance is expected and the calculation may even fail.
+- This only applies to the toolchain-based build. The Spack-based build via `make_cp2k.sh` installs
+  a matching libtorch (with CUDA support when `--gpu_model` is set) itself, so no manual libtorch
+  installation is needed there.
 
 ```{caution}
 Note that currently pre-built libtorch bundle (up to 2.12.1) is not compatible with CP2K's external
