@@ -85,8 +85,8 @@ MODULE gopt_f_methods
    IMPLICIT NONE
    PRIVATE
 
-   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_f_methods'
+   INTEGER(KIND=int_8), PARAMETER, PRIVATE :: bytes_per_mib = 1024*1024
 
    PUBLIC :: cp_eval_at, &
              gopt_f_create_x0, &
@@ -120,12 +120,7 @@ CONTAINS
       CASE (default_minimization_method_id, default_ts_method_id)
          CALL force_env_get(gopt_env%force_env, subsys=subsys)
          ! before starting we handle the case of translating coordinates (QM/MM)
-         IF (gopt_env%force_env%in_use == use_qmmm) THEN
-            CALL apply_qmmm_translate(gopt_env%force_env%qmmm_env)
-         END IF
-         IF (gopt_env%force_env%in_use == use_qmmmx) THEN
-            CALL apply_qmmmx_translate(gopt_env%force_env%qmmmx_env)
-         END IF
+         CALL apply_qmmm_translation(gopt_env)
          nparticle = force_env_get_nparticle(gopt_env%force_env)
          ALLOCATE (x0(3*nparticle))
          CALL pack_subsys_particles(subsys=subsys, r=x0)
@@ -134,12 +129,7 @@ CONTAINS
          ! Store reference cell
          gopt_env%h_ref = cell%hmat
          ! before starting we handle the case of translating coordinates (QM/MM)
-         IF (gopt_env%force_env%in_use == use_qmmm) THEN
-            CALL apply_qmmm_translate(gopt_env%force_env%qmmm_env)
-         END IF
-         IF (gopt_env%force_env%in_use == use_qmmmx) THEN
-            CALL apply_qmmmx_translate(gopt_env%force_env%qmmmx_env)
-         END IF
+         CALL apply_qmmm_translation(gopt_env)
          nparticle = force_env_get_nparticle(gopt_env%force_env)
          ALLOCATE (x0(3*nparticle + 6))
          CALL pack_subsys_particles(subsys=subsys, r=x0)
@@ -157,6 +147,21 @@ CONTAINS
    END SUBROUTINE gopt_f_create_x0
 
 ! **************************************************************************************************
+!> \brief Apply the QM/MM and QM/MM/X coordinate translations before packing x0
+!> \param gopt_env ...
+! **************************************************************************************************
+   SUBROUTINE apply_qmmm_translation(gopt_env)
+      TYPE(gopt_f_type), POINTER                         :: gopt_env
+
+      IF (gopt_env%force_env%in_use == use_qmmm) THEN
+         CALL apply_qmmm_translate(gopt_env%force_env%qmmm_env)
+      END IF
+      IF (gopt_env%force_env%in_use == use_qmmmx) THEN
+         CALL apply_qmmmx_translate(gopt_env%force_env%qmmmx_env)
+      END IF
+   END SUBROUTINE apply_qmmm_translation
+
+! **************************************************************************************************
 !> \brief evaluete the potential energy and its gradients using an array
 !>      with same dimension as the particle_set
 !> \param gopt_env the geometry optimization environment
@@ -164,7 +169,6 @@ CONTAINS
 !> \param f the function value
 !> \param gradient the value of its gradient
 !> \param master ...
-!> \param final_evaluation ...
 !> \param para_env ...
 !> \par History
 !>       CELL OPTIMIZATION:  Teodoro Laino [tlaino] - University of Zurich - 03.2008
@@ -172,14 +176,13 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
 ! **************************************************************************************************
    SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
-                         final_evaluation, para_env)
+                         para_env)
 
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: f
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: gradient
       INTEGER, INTENT(IN)                                :: master
-      LOGICAL, INTENT(IN), OPTIONAL                      :: final_evaluation
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_eval_at'
@@ -195,8 +198,6 @@ CONTAINS
                                                             shell_particles
       TYPE(spgr_type), POINTER                           :: spgr
       TYPE(virial_type), POINTER                         :: virial
-
-      MARK_USED(final_evaluation)
 
       NULLIFY (cell)
       NULLIFY (core_particles)
@@ -544,11 +545,8 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: energy_unit, stress_unit
       INTEGER(KIND=int_8)                                :: max_memory
-      LOGICAL                                            :: conv_dx, conv_g, conv_p, conv_rdx, &
-                                                            conv_rg
-      REAL(KIND=dp)                                      :: max_dr, max_grad, pres_diff, &
-                                                            pres_diff_constr, pres_int, pres_tol, &
-                                                            rms_dr, rms_grad
+      REAL(KIND=dp)                                      :: pres_diff, pres_diff_constr, pres_int, &
+                                                            pres_tol
 
       CALL get_reporting_metadata(gopt_env, force_env, max_memory, energy_unit, stress_unit)
 
@@ -577,11 +575,8 @@ CONTAINS
                CPASSERT(PRESENT(ndf))
                CPASSERT(PRESENT(dx))
                CPASSERT(PRESENT(xi))
-               CALL check_converg(ndf, dx, xi, gopt_param, conv, conv_dx, conv_rdx, conv_g, conv_rg, &
-                                  conv_p, max_dr, rms_dr, max_grad, rms_grad)
-               CALL write_convergence_infos(output_unit, gopt_param, conv, conv_dx, conv_rdx, conv_g, &
-                                            conv_rg, conv_p, max_dr, rms_dr, max_grad, rms_grad, &
-                                            max_memory, stress_unit)
+               CALL check_and_report_convergence(output_unit, gopt_param, ndf, dx, xi, conv, &
+                                                 max_memory, stress_unit)
             END IF
          ELSE
             CALL update_dimer_vec(gopt_env%dimer_env, gopt_env%motion_section)
@@ -622,19 +617,13 @@ CONTAINS
             CPASSERT(PRESENT(dx))
             CPASSERT(PRESENT(xi))
             IF (gopt_env%cell_env%constraint_id == fix_none) THEN
-               CALL check_converg(ndf, dx, xi, gopt_param, conv, conv_dx, conv_rdx, conv_g, conv_rg, &
-                                  conv_p, max_dr, rms_dr, max_grad, rms_grad, pres_diff, pres_tol)
-               CALL write_convergence_infos(output_unit, gopt_param, conv, conv_dx, conv_rdx, conv_g, &
-                                            conv_rg, conv_p, max_dr, rms_dr, max_grad, rms_grad, &
-                                            max_memory, stress_unit, pres_diff, pres_tol)
+               CALL check_and_report_convergence(output_unit, gopt_param, ndf, dx, xi, conv, &
+                                                 max_memory, stress_unit, pres_diff, pres_tol)
             ELSE
                pres_diff_constr = gopt_env%cell_env%pres_constr - gopt_env%cell_env%pres_ext
-               CALL check_converg(ndf, dx, xi, gopt_param, conv, conv_dx, conv_rdx, conv_g, conv_rg, &
-                                  conv_p, max_dr, rms_dr, max_grad, rms_grad, pres_diff, pres_tol, &
-                                  pres_diff_constr)
-               CALL write_convergence_infos(output_unit, gopt_param, conv, conv_dx, conv_rdx, conv_g, &
-                                            conv_rg, conv_p, max_dr, rms_dr, max_grad, rms_grad, &
-                                            max_memory, stress_unit, pres_diff, pres_tol, pres_diff_constr)
+               CALL check_and_report_convergence(output_unit, gopt_param, ndf, dx, xi, conv, &
+                                                 max_memory, stress_unit, pres_diff, pres_tol, &
+                                                 pres_diff_constr)
             END IF
          END IF
       CASE (default_shellcore_method_id)
@@ -657,11 +646,8 @@ CONTAINS
             CPASSERT(PRESENT(ndf))
             CPASSERT(PRESENT(dx))
             CPASSERT(PRESENT(xi))
-            CALL check_converg(ndf, dx, xi, gopt_param, conv, conv_dx, conv_rdx, conv_g, conv_rg, &
-                               conv_p, max_dr, rms_dr, max_grad, rms_grad)
-            CALL write_convergence_infos(output_unit, gopt_param, conv, conv_dx, conv_rdx, conv_g, &
-                                         conv_rg, conv_p, max_dr, rms_dr, max_grad, rms_grad, &
-                                         max_memory, stress_unit)
+            CALL check_and_report_convergence(output_unit, gopt_param, ndf, dx, xi, conv, &
+                                              max_memory, stress_unit)
          END IF
       END SELECT
 
@@ -788,7 +774,7 @@ CONTAINS
             IF (max_memory /= 0) THEN
                WRITE (UNIT=output_unit, FMT="(T2,A,T60,1X,I20)") &
                   tag//"Estimated peak process memory [MiB]", &
-                  (max_memory + (1024*1024) - 1)/(1024*1024)
+                  (max_memory + bytes_per_mib - 1)/bytes_per_mib
             END IF
          END IF
       END IF
@@ -852,7 +838,7 @@ CONTAINS
             IF (max_memory /= 0) THEN
                WRITE (UNIT=output_unit, FMT="(T2,A,T60,1X,I20)") &
                   tag//"Estimated peak process memory [MiB]", &
-                  (max_memory + (1024*1024) - 1)/(1024*1024)
+                  (max_memory + bytes_per_mib - 1)/bytes_per_mib
             END IF
          END IF
       END IF
@@ -938,6 +924,25 @@ CONTAINS
    END SUBROUTINE check_converg
 
 ! **************************************************************************************************
+!> \brief Print one YES/NO convergence flag line
+!> \param output_unit ...
+!> \param tag ...
+!> \param label ...
+!> \param flag ...
+! **************************************************************************************************
+   SUBROUTINE write_conv_flag(output_unit, tag, label, flag)
+      INTEGER, INTENT(IN)                                :: output_unit
+      CHARACTER(LEN=*), INTENT(IN)                       :: tag, label
+      LOGICAL, INTENT(IN)                                :: flag
+
+      IF (flag) THEN
+         WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") tag//label, " YES"
+      ELSE
+         WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") tag//label, "  NO"
+      END IF
+   END SUBROUTINE write_conv_flag
+
+! **************************************************************************************************
 !> \brief Print the per-cycle convergence report (body moved verbatim from check_converg)
 !> \param output_unit ...
 !> \param gopt_param ...
@@ -986,49 +991,29 @@ CONTAINS
          WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
             tag//"Maximum step size", max_dr, &
             tag//"Convergence limit for maximum step size", dxcon
-         IF (conv_dx) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
-               tag//"Maximum step size is converged", " YES"
-         ELSE
-            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
-               tag//"Maximum step size is converged", "  NO"
-         END IF
+         CALL write_conv_flag(output_unit, tag, "Maximum step size is converged", &
+                              conv_dx)
 
          WRITE (UNIT=output_unit, FMT="(T2,A)") TRIM(tag)
          WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
             tag//"RMS step size", rms_dr, &
             tag//"Convergence limit for RMS step size", rmsxcon
-         IF (conv_rdx) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
-               tag//"RMS step size is converged", " YES"
-         ELSE
-            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
-               tag//"RMS step size is converged", "  NO"
-         END IF
+         CALL write_conv_flag(output_unit, tag, "RMS step size is converged", &
+                              conv_rdx)
 
          WRITE (UNIT=output_unit, FMT="(T2,A)") TRIM(tag)
          WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
             tag//"Maximum gradient", max_grad, &
             tag//"Convergence limit for maximum gradient", gcon
-         IF (conv_g) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
-               tag//"Maximum gradient is converged", " YES"
-         ELSE
-            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
-               tag//"Maximum gradient is converged", "  NO"
-         END IF
+         CALL write_conv_flag(output_unit, tag, "Maximum gradient is converged", &
+                              conv_g)
 
          WRITE (UNIT=output_unit, FMT="(T2,A)") TRIM(tag)
          WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
             tag//"RMS gradient", rms_grad, &
             tag//"Convergence limit for RMS gradient", rmsgcon
-         IF (conv_rg) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
-               tag//"RMS gradient is converged", " YES"
-         ELSE
-            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
-               tag//"RMS gradient is converged", "  NO"
-         END IF
+         CALL write_conv_flag(output_unit, tag, "RMS gradient is converged", &
+                              conv_rg)
 
          IF (PRESENT(pres_diff) .AND. PRESENT(pres_tol)) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A)") TRIM(tag)
@@ -1049,13 +1034,7 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
                tag//"Pressure tolerance ["//TRIM(ADJUSTL(stress_unit))//"]", &
                cp_unit_from_cp2k(pres_tol, TRIM(stress_unit))
-            IF (conv_p) THEN
-               WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
-                  tag//"Pressure is converged", " YES"
-            ELSE
-               WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
-                  tag//"Pressure is converged", "  NO"
-            END IF
+            CALL write_conv_flag(output_unit, tag, "Pressure is converged", conv_p)
          END IF
 
          WRITE (UNIT=output_unit, FMT="(T2,A)") tag//REPEAT("*", 74)
@@ -1063,7 +1042,7 @@ CONTAINS
          IF (max_memory /= 0) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A,T60,1X,I20)") &
                tag//"Estimated peak process memory after this step [MiB]", &
-               (max_memory + (1024*1024) - 1)/(1024*1024)
+               (max_memory + bytes_per_mib - 1)/bytes_per_mib
          END IF
 
       END IF
@@ -1076,6 +1055,44 @@ CONTAINS
       END IF
 
    END SUBROUTINE write_convergence_infos
+
+! **************************************************************************************************
+!> \brief Check convergence and print the per-cycle report (gopt_f_io call sites)
+!> \param output_unit ...
+!> \param gopt_param ...
+!> \param ndf ...
+!> \param dr ...
+!> \param g ...
+!> \param conv ...
+!> \param max_memory ...
+!> \param stress_unit ...
+!> \param pres_diff ...
+!> \param pres_tol ...
+!> \param pres_diff_constr ...
+! **************************************************************************************************
+   SUBROUTINE check_and_report_convergence(output_unit, gopt_param, ndf, dr, g, conv, &
+                                           max_memory, stress_unit, pres_diff, pres_tol, pres_diff_constr)
+
+      INTEGER, INTENT(IN)                                :: output_unit
+      TYPE(gopt_param_type), POINTER                     :: gopt_param
+      INTEGER, INTENT(IN)                                :: ndf
+      REAL(KIND=dp), INTENT(IN)                          :: dr(ndf), g(ndf)
+      LOGICAL, INTENT(INOUT)                             :: conv
+      INTEGER(KIND=int_8), INTENT(IN)                    :: max_memory
+      CHARACTER(LEN=default_string_length), INTENT(IN)   :: stress_unit
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pres_diff, pres_tol, pres_diff_constr
+
+      LOGICAL                                            :: conv_dx, conv_g, conv_p, conv_rdx, &
+                                                            conv_rg
+      REAL(KIND=dp)                                      :: max_dr, max_grad, rms_dr, rms_grad
+
+      CALL check_converg(ndf, dr, g, gopt_param, conv, conv_dx, conv_rdx, conv_g, conv_rg, &
+                         conv_p, max_dr, rms_dr, max_grad, rms_grad, pres_diff, pres_tol, &
+                         pres_diff_constr)
+      CALL write_convergence_infos(output_unit, gopt_param, conv, conv_dx, conv_rdx, conv_g, &
+                                   conv_rg, conv_p, max_dr, rms_dr, max_grad, rms_grad, &
+                                   max_memory, stress_unit, pres_diff, pres_tol, pres_diff_constr)
+   END SUBROUTINE check_and_report_convergence
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1102,13 +1119,7 @@ CONTAINS
             tag//"Predicted angle step size", dimer_env%rot%angle1, &
             tag//"Effective angle step size", dimer_env%rot%angle2, &
             tag//"Convergence limit for angle step size", dimer_env%rot%angle_tol
-         IF (conv) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
-               tag//"Angle step size is converged", " YES"
-         ELSE
-            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
-               tag//"Angle step size is converged", "  NO"
-         END IF
+         CALL write_conv_flag(output_unit, tag, "Angle step size is converged", conv)
          WRITE (UNIT=output_unit, FMT="(T2,A)") tag//REPEAT("*", 74)
       END IF
 
@@ -1186,7 +1197,7 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(/,T20,' Reevaluating energy at the minimum')")
          END IF
 
-         CALL cp_eval_at(gopt_env, x0, f=etot, master=master, final_evaluation=.TRUE., &
+         CALL cp_eval_at(gopt_env, x0, f=etot, master=master, &
                          para_env=para_env)
          CALL write_geo_traj(force_env, root_section, it, etot)
          CALL write_simulation_cell(cell, motion_section, it, 0.0_dp)
