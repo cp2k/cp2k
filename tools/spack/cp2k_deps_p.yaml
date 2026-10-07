@@ -151,11 +151,17 @@ spack:
 
     py-torch:
       require:
+        - "~caffe2"
         - "~distributed"
         - "~fbgemm"
         - "~kineto"
         - "~mkldnn"
+        - "~nnpack"
+        - "~numa"
+        - "~numpy"
+        - "~qnnpack"
         - "~rocm"
+        - "~test"
         - "~valgrind"
         - "~xnnpack"
 
