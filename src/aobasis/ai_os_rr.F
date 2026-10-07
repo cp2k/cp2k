@@ -51,59 +51,40 @@ CONTAINS
          INTEGER, INTENT(IN)                                :: ldrr
          ${integral_type}$ (dp), DIMENSION(0:ldrr - 1, 0:ldrr - 1, 3) :: rr
 
-         INTEGER                                            :: la, lam1, lap1, lb, lbm1, lbp1
+         INTEGER                                            :: idir, la, lam1, lap1, lb, lbm1, lbp1
          REAL(dp)                                           :: g
 
          g = 0.5_dp/zet
-         rr(0, 0, 1) = 1.0_dp
-         rr(0, 0, 2) = 1.0_dp
-         rr(0, 0, 3) = 1.0_dp
-         !
-         ! recursion along la for lb=0
-         !
-         IF (la_max > 0) THEN
-            rr(1, 0, 1) = rap(1)
-            rr(1, 0, 2) = rap(2)
-            rr(1, 0, 3) = rap(3)
-            !
-            DO la = 1, la_max - 1
-               lap1 = la + 1
-               lam1 = la - 1
-               rr(lap1, 0, 1) = REAL(la, dp)*g*rr(lam1, 0, 1) + rap(1)*rr(la, 0, 1)
-               rr(lap1, 0, 2) = REAL(la, dp)*g*rr(lam1, 0, 2) + rap(2)*rr(la, 0, 2)
-               rr(lap1, 0, 3) = REAL(la, dp)*g*rr(lam1, 0, 3) + rap(3)*rr(la, 0, 3)
-            END DO
-         END IF
-         !
-         ! recursion along lb for all la
-         !
-         IF (lb_max > 0) THEN
-            rr(0, 1, 1) = rbp(1)
-            rr(0, 1, 2) = rbp(2)
-            rr(0, 1, 3) = rbp(3)
-            !
-            DO la = 1, la_max
-               lam1 = la - 1
-               rr(la, 1, 1) = REAL(la, dp)*g*rr(lam1, 0, 1) + rbp(1)*rr(la, 0, 1)
-               rr(la, 1, 2) = REAL(la, dp)*g*rr(lam1, 0, 2) + rbp(2)*rr(la, 0, 2)
-               rr(la, 1, 3) = REAL(la, dp)*g*rr(lam1, 0, 3) + rbp(3)*rr(la, 0, 3)
-            END DO
-            !
-            DO lb = 1, lb_max - 1
-               lbp1 = lb + 1
-               lbm1 = lb - 1
-               rr(0, lbp1, 1) = REAL(lb, dp)*g*rr(0, lbm1, 1) + rbp(1)*rr(0, lb, 1)
-               rr(0, lbp1, 2) = REAL(lb, dp)*g*rr(0, lbm1, 2) + rbp(2)*rr(0, lb, 2)
-               rr(0, lbp1, 3) = REAL(lb, dp)*g*rr(0, lbm1, 3) + rbp(3)*rr(0, lb, 3)
+         DO idir = 1, 3
+            rr(0, 0, idir) = 1.0_dp
+            ! recursion along la for lb=0
+            IF (la_max > 0) THEN
+               rr(1, 0, idir) = rap(idir)
+               DO la = 1, la_max - 1
+                  lap1 = la + 1
+                  lam1 = la - 1
+                  rr(lap1, 0, idir) = REAL(la, dp)*g*rr(lam1, 0, idir) + rap(idir)*rr(la, 0, idir)
+               END DO
+            END IF
+            ! recursion along lb for all la
+            IF (lb_max > 0) THEN
+               rr(0, 1, idir) = rbp(idir)
                DO la = 1, la_max
                   lam1 = la - 1
-                  rr(la, lbp1, 1) = g*(REAL(la, dp)*rr(lam1, lb, 1) + REAL(lb, dp)*rr(la, lbm1, 1)) + rbp(1)*rr(la, lb, 1)
-                  rr(la, lbp1, 2) = g*(REAL(la, dp)*rr(lam1, lb, 2) + REAL(lb, dp)*rr(la, lbm1, 2)) + rbp(2)*rr(la, lb, 2)
-                  rr(la, lbp1, 3) = g*(REAL(la, dp)*rr(lam1, lb, 3) + REAL(lb, dp)*rr(la, lbm1, 3)) + rbp(3)*rr(la, lb, 3)
+                  rr(la, 1, idir) = REAL(la, dp)*g*rr(lam1, 0, idir) + rbp(idir)*rr(la, 0, idir)
                END DO
-            END DO
-         END IF
-         !
+               DO lb = 1, lb_max - 1
+                  lbp1 = lb + 1
+                  lbm1 = lb - 1
+                  rr(0, lbp1, idir) = REAL(lb, dp)*g*rr(0, lbm1, idir) + rbp(idir)*rr(0, lb, idir)
+                  DO la = 1, la_max
+                     lam1 = la - 1
+                     rr(la, lbp1, idir) = g*(REAL(la, dp)*rr(lam1, lb, idir) + REAL(lb, dp)*rr(la, lbm1, idir)) + &
+                                          rbp(idir)*rr(la, lb, idir)
+                  END DO
+               END DO
+            END IF
+         END DO
       END SUBROUTINE os_rr_ovlp_${suffix}$
    #:endfor
 
