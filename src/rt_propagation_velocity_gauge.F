@@ -10,7 +10,7 @@
 ! **************************************************************************************************
 
 MODULE rt_propagation_velocity_gauge
-   USE ai_moments,                      ONLY: cossin
+   USE ai_moments,                      ONLY: expikr
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
@@ -44,8 +44,7 @@ MODULE rt_propagation_velocity_gauge
                                               kpoint_type
    USE mathconstants,                   ONLY: one,&
                                               zero
-   USE orbital_pointers,                ONLY: coset,&
-                                              init_orbital_pointers,&
+   USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               nco,&
                                               ncoset
    USE particle_types,                  ONLY: particle_type
@@ -61,11 +60,11 @@ MODULE rt_propagation_velocity_gauge
    USE qs_operators_ao,                 ONLY: build_lin_mom_matrix
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE sap_kind_types,                  ONLY: alist_type,&
-                                              clist_type,&
+   USE sap_kind_types,                  ONLY: alist_complex_type,&
+                                              clist_complex_type,&
                                               get_alist,&
                                               release_sap_int,&
-                                              sap_int_type,&
+                                              sap_int_complex_type,&
                                               sap_sort
    USE virial_types,                    ONLY: virial_type
 
@@ -290,7 +289,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routiuneN = "velocity_gauge_nl_term"
 
-      INTEGER                                            :: handle, i, iac, iatom, ibc, icol, ikind, &
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: zblock(:, :)
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: achint, bcint
+      INTEGER                                            :: handle, iac, iatom, ibc, icol, ikind, &
                                                             irow, jatom, jkind, kac, kbc, kkind, &
                                                             maxl, maxlgto, maxlppnl, na, natom, &
                                                             nb, nkind, np, slot
@@ -299,11 +300,7 @@ CONTAINS
       REAL(dp)                                           :: eps_ppnl
       REAL(KIND=dp), DIMENSION(3)                        :: rab
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: imag_block, real_block
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: achint_cos, achint_sin, acint_cos, &
-                                                            acint_sin, bchint_cos, bchint_sin, &
-                                                            bcint_cos, bcint_sin
-      TYPE(alist_type), POINTER                          :: alist_cos_ac, alist_cos_bc, &
-                                                            alist_sin_ac, alist_sin_bc
+      TYPE(alist_complex_type), POINTER                  :: alist_ac, alist_bc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -314,7 +311,7 @@ CONTAINS
          POINTER                                         :: sab_orb, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int_cos, sap_int_sin
+      TYPE(sap_int_complex_type), DIMENSION(:), POINTER  :: sap_int
 
 !$    INTEGER(kind=omp_lock_kind), &
 !$       ALLOCATABLE, DIMENSION(:) :: locks
@@ -352,14 +349,8 @@ CONTAINS
          CALL init_orbital_pointers(maxl + 1)
 
          ! initalize sab_int types to store the integrals
-         NULLIFY (sap_int_cos, sap_int_sin)
-         ALLOCATE (sap_int_cos(nkind*nkind), sap_int_sin(nkind*nkind))
-         DO i = 1, SIZE(sap_int_cos)
-            NULLIFY (sap_int_cos(i)%alist, sap_int_cos(i)%asort, sap_int_cos(i)%aindex)
-            sap_int_cos(i)%nalist = 0
-            NULLIFY (sap_int_sin(i)%alist, sap_int_sin(i)%asort, sap_int_sin(i)%aindex)
-            sap_int_sin(i)%nalist = 0
-         END DO
+         NULLIFY (sap_int)
+         ALLOCATE (sap_int(nkind*nkind))
 
          ! get basis set
          ALLOCATE (basis_set(nkind))
@@ -373,21 +364,20 @@ CONTAINS
          END DO
 
          ! calculate exponential integrals
-         CALL build_sap_exp_ints(sap_int_cos, sap_int_sin, sap_ppnl, qs_kind_set, particle_set, &
+         CALL build_sap_exp_ints(sap_int, sap_ppnl, qs_kind_set, particle_set, &
                                  cell, kvec=vec_pot, basis_set=basis_set, nkind=nkind, &
                                  derivative=.FALSE.)
 
-         CALL sap_sort(sap_int_cos)
-         CALL sap_sort(sap_int_sin)
+         CALL sap_sort(sap_int)
 
          ! assemble the integrals for the gauge term
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
-!$OMP SHARED (basis_set, nl_term, sab_orb, sap_int_cos, sap_int_sin, eps_ppnl, locks, nkind, natom) &
-!$OMP PRIVATE (real_block, imag_block, acint_cos, achint_cos, bcint_cos, bchint_cos, acint_sin,&
-!$OMP          achint_sin, bcint_sin, bchint_sin, slot, ikind, jkind, iatom, jatom, cell_b, rab, irow, icol,&
-!$OMP          found, kkind, iac, ibc, alist_cos_ac, alist_cos_bc, alist_sin_ac, alist_sin_bc, kac, kbc, &
-!$OMP          na, np, nb, iatom8, hash, lock_num)
+!$OMP SHARED (basis_set, nl_term, sab_orb, sap_int, eps_ppnl, locks, nkind, natom) &
+!$OMP PRIVATE (real_block, imag_block, achint, bcint, &
+!$OMP           slot, ikind, jkind, iatom, jatom, cell_b, rab, irow, icol,&
+!$OMP          found, kkind, iac, ibc, alist_ac, alist_bc, kac, kbc, &
+!$OMP          zblock, na, np, nb, iatom8, hash, lock_num)
 
 !$OMP SINGLE
 !$       ALLOCATE (locks(nlock))
@@ -400,8 +390,7 @@ CONTAINS
 !$OMP END DO
 
          NULLIFY (real_block, imag_block)
-         NULLIFY (acint_cos, bcint_cos, achint_cos, bchint_cos)
-         NULLIFY (acint_sin, bcint_sin, achint_sin, bchint_sin)
+         NULLIFY (achint, bcint)
 
          ! loop over atom pairs
 !$OMP DO SCHEDULE(GUIDED)
@@ -432,68 +421,41 @@ CONTAINS
                DO kkind = 1, nkind
                   iac = ikind + nkind*(kkind - 1)
                   ibc = jkind + nkind*(kkind - 1)
-                  IF (.NOT. ASSOCIATED(sap_int_cos(iac)%alist)) CYCLE
-                  IF (.NOT. ASSOCIATED(sap_int_cos(ibc)%alist)) CYCLE
-                  IF (.NOT. ASSOCIATED(sap_int_sin(iac)%alist)) CYCLE
-                  IF (.NOT. ASSOCIATED(sap_int_sin(ibc)%alist)) CYCLE
-                  CALL get_alist(sap_int_cos(iac), alist_cos_ac, iatom)
-                  CALL get_alist(sap_int_cos(ibc), alist_cos_bc, jatom)
-                  CALL get_alist(sap_int_sin(iac), alist_sin_ac, iatom)
-                  CALL get_alist(sap_int_sin(ibc), alist_sin_bc, jatom)
-                  IF (.NOT. ASSOCIATED(alist_cos_ac)) CYCLE
-                  IF (.NOT. ASSOCIATED(alist_cos_bc)) CYCLE
-                  IF (.NOT. ASSOCIATED(alist_sin_ac)) CYCLE
-                  IF (.NOT. ASSOCIATED(alist_sin_bc)) CYCLE
-
-                  ! only use cos for indexing, as cos and sin integrals are constructed by the same routine
-                  ! in the same way
-                  DO kac = 1, alist_cos_ac%nclist
-                     DO kbc = 1, alist_cos_bc%nclist
-                        ! the next two ifs should be the same for sine integrals
-                        IF (alist_cos_ac%clist(kac)%catom /= alist_cos_bc%clist(kbc)%catom) CYCLE
-                        IF (ALL(cell_b + alist_cos_bc%clist(kbc)%cell - alist_cos_ac%clist(kac)%cell == 0)) THEN
+                  IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) CYCLE
+                  IF (.NOT. ASSOCIATED(sap_int(ibc)%alist)) CYCLE
+                  CALL get_alist(sap_int(iac), alist_ac, iatom)
+                  CALL get_alist(sap_int(ibc), alist_bc, jatom)
+                  IF (.NOT. ASSOCIATED(alist_ac)) CYCLE
+                  IF (.NOT. ASSOCIATED(alist_bc)) CYCLE
+                  DO kac = 1, alist_ac%nclist
+                     DO kbc = 1, alist_bc%nclist
+                        IF (alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom) CYCLE
+                        IF (ALL(cell_b + alist_bc%clist(kbc)%cell - alist_ac%clist(kac)%cell == 0)) THEN
                            ! screening
-                           IF (alist_cos_ac%clist(kac)%maxac*alist_cos_bc%clist(kbc)%maxach < eps_ppnl &
-                               .AND. alist_cos_ac%clist(kac)%maxac*alist_sin_bc%clist(kbc)%maxach < eps_ppnl &
-                               .AND. alist_sin_ac%clist(kac)%maxac*alist_cos_bc%clist(kbc)%maxach < eps_ppnl &
-                               .AND. alist_sin_ac%clist(kac)%maxac*alist_sin_bc%clist(kbc)%maxach < eps_ppnl) CYCLE
+                           IF (alist_ac%clist(kac)%maxac*alist_bc%clist(kbc)%maxach < eps_ppnl) CYCLE
 
-                           acint_cos => alist_cos_ac%clist(kac)%acint
-                           bcint_cos => alist_cos_bc%clist(kbc)%acint
-                           achint_cos => alist_cos_ac%clist(kac)%achint
-                           bchint_cos => alist_cos_bc%clist(kbc)%achint
-                           acint_sin => alist_sin_ac%clist(kac)%acint
-                           bcint_sin => alist_sin_bc%clist(kbc)%acint
-                           achint_sin => alist_sin_ac%clist(kac)%achint
-                           bchint_sin => alist_sin_bc%clist(kbc)%achint
+                           ! Orient the projector factors to the stored upper atom block.
+                           IF (iatom <= jatom) THEN
+                              achint => alist_ac%clist(kac)%achint
+                              bcint => alist_bc%clist(kbc)%acint
+                           ELSE
+                              achint => alist_bc%clist(kbc)%achint
+                              bcint => alist_ac%clist(kac)%acint
+                           END IF
 
-                           na = SIZE(acint_cos, 1)
-                           np = SIZE(acint_cos, 2)
-                           nb = SIZE(bcint_cos, 1)
+                           na = SIZE(achint, 1)
+                           np = SIZE(achint, 2)
+                           nb = SIZE(bcint, 1)
+                           ALLOCATE (zblock(na, nb))
 !$                         iatom8 = INT(iatom - 1, int_8)*INT(natom, int_8) + INT(jatom, int_8)
 !$                         hash = INT(MOD(iatom8, INT(nlock, int_8)) + 1)
 !$                         CALL omp_set_lock(locks(hash))
-                           IF (iatom <= jatom) THEN
-                              ! cos*cos + sin*sin
-                              real_block(1:na, 1:nb) = real_block(1:na, 1:nb) + &
-                                 MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1))) + &
-                                 MATMUL(achint_sin(1:na, 1:np, 1), TRANSPOSE(bcint_sin(1:nb, 1:np, 1)))
-                              ! sin * cos - cos * sin
-                              imag_block(1:na, 1:nb) = imag_block(1:na, 1:nb) - &
-                                                       MATMUL(achint_sin(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1))) + &
-                                                       MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_sin(1:nb, 1:np, 1)))
-                           ELSE
-                              ! cos*cos + sin*sin
-                              real_block(1:nb, 1:na) = real_block(1:nb, 1:na) + &
-                                 MATMUL(bchint_cos(1:nb, 1:np, 1), TRANSPOSE(acint_cos(1:na, 1:np, 1))) + &
-                                 MATMUL(bchint_sin(1:nb, 1:np, 1), TRANSPOSE(acint_sin(1:na, 1:np, 1)))
-                              ! sin * cos - cos * sin
-                              imag_block(1:nb, 1:na) = imag_block(1:nb, 1:na) - &
-                                                       MATMUL(bchint_sin(1:nb, 1:np, 1), TRANSPOSE(acint_cos(1:na, 1:np, 1))) + &
-                                                       MATMUL(bchint_cos(1:nb, 1:np, 1), TRANSPOSE(acint_sin(1:na, 1:np, 1)))
-
-                           END IF
+                           ! The gauge-dressed operator uses the conjugated bra phase.
+                           zblock(:, :) = MATMUL(CONJG(achint(1:na, 1:np, 1)), TRANSPOSE(bcint(1:nb, 1:np, 1)))
+                           real_block(1:na, 1:nb) = real_block(1:na, 1:nb) + REAL(zblock, KIND=dp)
+                           imag_block(1:na, 1:nb) = imag_block(1:na, 1:nb) + AIMAG(zblock)
 !$                         CALL omp_unset_lock(locks(hash))
+                           DEALLOCATE (zblock)
                            EXIT
                         END IF
                      END DO
@@ -514,8 +476,7 @@ CONTAINS
 !$OMP END SINGLE NOWAIT
 
 !$OMP END PARALLEL
-         CALL release_sap_int(sap_int_cos)
-         CALL release_sap_int(sap_int_sin)
+         CALL release_sap_int(sap_int)
 
          DEALLOCATE (basis_set)
       END IF
@@ -544,7 +505,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routiuneN = "velocity_gauge_nl_commutator"
 
-      INTEGER                                            :: handle, i, iac, iatom, ibc, icol, idir, &
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: zblock(:, :)
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: achint, bcint
+      INTEGER                                            :: handle, iac, iatom, ibc, icol, idir, &
                                                             ikind, irow, jatom, jkind, kac, kbc, &
                                                             kkind, m, maxl, maxlgto, maxlppnl, na, &
                                                             natom, nb, nkind, np, slot
@@ -553,11 +516,7 @@ CONTAINS
       REAL(dp)                                           :: eps_ppnl
       REAL(KIND=dp), DIMENSION(3)                        :: rab
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: imag_block, real_block
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: achint_cos, achint_sin, acint_cos, &
-                                                            acint_sin, bchint_cos, bchint_sin, &
-                                                            bcint_cos, bcint_sin
-      TYPE(alist_type), POINTER                          :: alist_cos_ac, alist_cos_bc, &
-                                                            alist_sin_ac, alist_sin_bc
+      TYPE(alist_complex_type), POINTER                  :: alist_ac, alist_bc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -568,7 +527,7 @@ CONTAINS
          POINTER                                         :: sab_orb, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int_cos, sap_int_sin
+      TYPE(sap_int_complex_type), DIMENSION(:), POINTER  :: sap_int
 
 !$    INTEGER(kind=omp_lock_kind), &
 !$       ALLOCATABLE, DIMENSION(:) :: locks
@@ -602,20 +561,13 @@ CONTAINS
                               maxlgto=maxlgto, &
                               maxlppnl=maxlppnl)
 
-         ! the moment integrals need one higher angular momentum on the basis side,
-         ! and cossin internally uses one more
+         ! Coordinate moments use one raised basis degree in the recurrence.
          maxl = MAX(maxlppnl, maxlgto)
-         CALL init_orbital_pointers(maxl + 2)
+         CALL init_orbital_pointers(maxl + 1)
 
          ! initalize sab_int types to store the integrals
-         NULLIFY (sap_int_cos, sap_int_sin)
-         ALLOCATE (sap_int_cos(nkind*nkind), sap_int_sin(nkind*nkind))
-         DO i = 1, SIZE(sap_int_cos)
-            NULLIFY (sap_int_cos(i)%alist, sap_int_cos(i)%asort, sap_int_cos(i)%aindex)
-            sap_int_cos(i)%nalist = 0
-            NULLIFY (sap_int_sin(i)%alist, sap_int_sin(i)%asort, sap_int_sin(i)%aindex)
-            sap_int_sin(i)%nalist = 0
-         END DO
+         NULLIFY (sap_int)
+         ALLOCATE (sap_int(nkind*nkind))
 
          ! get basis set
          ALLOCATE (basis_set(nkind))
@@ -629,21 +581,20 @@ CONTAINS
          END DO
 
          ! calculate exponential integrals, plain (slot 1) and moment-weighted (slots 2:4)
-         CALL build_sap_exp_ints(sap_int_cos, sap_int_sin, sap_ppnl, qs_kind_set, particle_set, &
+         CALL build_sap_exp_ints(sap_int, sap_ppnl, qs_kind_set, particle_set, &
                                  cell, kvec=vec_pot, basis_set=basis_set, nkind=nkind, &
                                  derivative=.FALSE., moment=.TRUE.)
 
-         CALL sap_sort(sap_int_cos)
-         CALL sap_sort(sap_int_sin)
+         CALL sap_sort(sap_int)
 
          ! assemble the commutator matrices
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
-!$OMP SHARED (basis_set, matrix_cre, matrix_cim, sab_orb, sap_int_cos, sap_int_sin, eps_ppnl, locks, nkind, natom) &
-!$OMP PRIVATE (real_block, imag_block, acint_cos, achint_cos, bcint_cos, bchint_cos, acint_sin,&
-!$OMP          achint_sin, bcint_sin, bchint_sin, slot, ikind, jkind, iatom, jatom, cell_b, rab, irow, icol,&
-!$OMP          found, kkind, iac, ibc, alist_cos_ac, alist_cos_bc, alist_sin_ac, alist_sin_bc, kac, kbc, &
-!$OMP          na, np, nb, idir, m, iatom8, hash, lock_num)
+!$OMP SHARED (basis_set, matrix_cre, matrix_cim, sab_orb, sap_int, eps_ppnl, locks, nkind, natom) &
+!$OMP PRIVATE (real_block, imag_block, achint, bcint, &
+!$OMP           slot, ikind, jkind, iatom, jatom, cell_b, rab, irow, icol,&
+!$OMP          found, kkind, iac, ibc, alist_ac, alist_bc, kac, kbc, &
+!$OMP          zblock, na, np, nb, idir, m, iatom8, hash, lock_num)
 
 !$OMP SINGLE
 !$       ALLOCATE (locks(nlock))
@@ -656,8 +607,7 @@ CONTAINS
 !$OMP END DO
 
          NULLIFY (real_block, imag_block)
-         NULLIFY (acint_cos, bcint_cos, achint_cos, bchint_cos)
-         NULLIFY (acint_sin, bcint_sin, achint_sin, bchint_sin)
+         NULLIFY (achint, bcint)
 
          ! loop over atom pairs
 !$OMP DO SCHEDULE(GUIDED)
@@ -684,44 +634,32 @@ CONTAINS
             DO kkind = 1, nkind
                iac = ikind + nkind*(kkind - 1)
                ibc = jkind + nkind*(kkind - 1)
-               IF (.NOT. ASSOCIATED(sap_int_cos(iac)%alist)) CYCLE
-               IF (.NOT. ASSOCIATED(sap_int_cos(ibc)%alist)) CYCLE
-               IF (.NOT. ASSOCIATED(sap_int_sin(iac)%alist)) CYCLE
-               IF (.NOT. ASSOCIATED(sap_int_sin(ibc)%alist)) CYCLE
-               CALL get_alist(sap_int_cos(iac), alist_cos_ac, iatom)
-               CALL get_alist(sap_int_cos(ibc), alist_cos_bc, jatom)
-               CALL get_alist(sap_int_sin(iac), alist_sin_ac, iatom)
-               CALL get_alist(sap_int_sin(ibc), alist_sin_bc, jatom)
-               IF (.NOT. ASSOCIATED(alist_cos_ac)) CYCLE
-               IF (.NOT. ASSOCIATED(alist_cos_bc)) CYCLE
-               IF (.NOT. ASSOCIATED(alist_sin_ac)) CYCLE
-               IF (.NOT. ASSOCIATED(alist_sin_bc)) CYCLE
-
-               ! only use cos for indexing, as cos and sin integrals are constructed by the same routine
-               ! in the same way
-               DO kac = 1, alist_cos_ac%nclist
-                  DO kbc = 1, alist_cos_bc%nclist
-                     ! the next two ifs should be the same for sine integrals
-                     IF (alist_cos_ac%clist(kac)%catom /= alist_cos_bc%clist(kbc)%catom) CYCLE
-                     IF (ALL(cell_b + alist_cos_bc%clist(kbc)%cell - alist_cos_ac%clist(kac)%cell == 0)) THEN
+               IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) CYCLE
+               IF (.NOT. ASSOCIATED(sap_int(ibc)%alist)) CYCLE
+               CALL get_alist(sap_int(iac), alist_ac, iatom)
+               CALL get_alist(sap_int(ibc), alist_bc, jatom)
+               IF (.NOT. ASSOCIATED(alist_ac)) CYCLE
+               IF (.NOT. ASSOCIATED(alist_bc)) CYCLE
+               DO kac = 1, alist_ac%nclist
+                  DO kbc = 1, alist_bc%nclist
+                     IF (alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom) CYCLE
+                     IF (ALL(cell_b + alist_bc%clist(kbc)%cell - alist_ac%clist(kac)%cell == 0)) THEN
                         ! screening
-                        IF (alist_cos_ac%clist(kac)%maxac*alist_cos_bc%clist(kbc)%maxach < eps_ppnl &
-                            .AND. alist_cos_ac%clist(kac)%maxac*alist_sin_bc%clist(kbc)%maxach < eps_ppnl &
-                            .AND. alist_sin_ac%clist(kac)%maxac*alist_cos_bc%clist(kbc)%maxach < eps_ppnl &
-                            .AND. alist_sin_ac%clist(kac)%maxac*alist_sin_bc%clist(kbc)%maxach < eps_ppnl) CYCLE
+                        IF (alist_ac%clist(kac)%maxac*alist_bc%clist(kbc)%maxach < eps_ppnl) CYCLE
 
-                        acint_cos => alist_cos_ac%clist(kac)%acint
-                        bcint_cos => alist_cos_bc%clist(kbc)%acint
-                        achint_cos => alist_cos_ac%clist(kac)%achint
-                        bchint_cos => alist_cos_bc%clist(kbc)%achint
-                        acint_sin => alist_sin_ac%clist(kac)%acint
-                        bcint_sin => alist_sin_bc%clist(kbc)%acint
-                        achint_sin => alist_sin_ac%clist(kac)%achint
-                        bchint_sin => alist_sin_bc%clist(kbc)%achint
+                        ! Orient the projector factors to the stored upper atom block.
+                        IF (iatom <= jatom) THEN
+                           achint => alist_ac%clist(kac)%achint
+                           bcint => alist_bc%clist(kbc)%acint
+                        ELSE
+                           achint => alist_bc%clist(kbc)%achint
+                           bcint => alist_ac%clist(kac)%acint
+                        END IF
 
-                        na = SIZE(acint_cos, 1)
-                        np = SIZE(acint_cos, 2)
-                        nb = SIZE(bcint_cos, 1)
+                        na = SIZE(achint, 1)
+                        np = SIZE(achint, 2)
+                        nb = SIZE(bcint, 1)
+                        ALLOCATE (zblock(na, nb))
 !$                      iatom8 = INT(iatom - 1, int_8)*INT(natom, int_8) + INT(jatom, int_8)
 !$                      hash = INT(MOD(iatom8, INT(nlock, int_8)) + 1)
 !$                      CALL omp_set_lock(locks(hash))
@@ -730,33 +668,14 @@ CONTAINS
                            CALL dbcsr_get_block_p(matrix_cre(idir)%matrix, irow, icol, real_block, found)
                            CALL dbcsr_get_block_p(matrix_cim(idir)%matrix, irow, icol, imag_block, found)
                            IF (.NOT. (ASSOCIATED(real_block) .AND. ASSOCIATED(imag_block))) CYCLE
-                           IF (iatom <= jatom) THEN
-                              ! <a|Vnl~ (r_d - R_c)|b> - <a|(r_d - R_c) Vnl~|b>
-                              real_block(1:na, 1:nb) = real_block(1:na, 1:nb) + &
-                                 MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, m))) + &
-                                 MATMUL(achint_sin(1:na, 1:np, 1), TRANSPOSE(bcint_sin(1:nb, 1:np, m))) - &
-                                 MATMUL(achint_cos(1:na, 1:np, m), TRANSPOSE(bcint_cos(1:nb, 1:np, 1))) - &
-                                 MATMUL(achint_sin(1:na, 1:np, m), TRANSPOSE(bcint_sin(1:nb, 1:np, 1)))
-                              imag_block(1:na, 1:nb) = imag_block(1:na, 1:nb) + &
-                                                       MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_sin(1:nb, 1:np, m))) - &
-                                                       MATMUL(achint_sin(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, m))) - &
-                                                       MATMUL(achint_cos(1:na, 1:np, m), TRANSPOSE(bcint_sin(1:nb, 1:np, 1))) + &
-                                                       MATMUL(achint_sin(1:na, 1:np, m), TRANSPOSE(bcint_cos(1:nb, 1:np, 1)))
-                           ELSE
-                              ! stored block is (jatom, iatom): same formulas with the roles of a and b swapped
-                              real_block(1:nb, 1:na) = real_block(1:nb, 1:na) + &
-                                 MATMUL(bchint_cos(1:nb, 1:np, 1), TRANSPOSE(acint_cos(1:na, 1:np, m))) + &
-                                 MATMUL(bchint_sin(1:nb, 1:np, 1), TRANSPOSE(acint_sin(1:na, 1:np, m))) - &
-                                 MATMUL(bchint_cos(1:nb, 1:np, m), TRANSPOSE(acint_cos(1:na, 1:np, 1))) - &
-                                 MATMUL(bchint_sin(1:nb, 1:np, m), TRANSPOSE(acint_sin(1:na, 1:np, 1)))
-                              imag_block(1:nb, 1:na) = imag_block(1:nb, 1:na) + &
-                                                       MATMUL(bchint_cos(1:nb, 1:np, 1), TRANSPOSE(acint_sin(1:na, 1:np, m))) - &
-                                                       MATMUL(bchint_sin(1:nb, 1:np, 1), TRANSPOSE(acint_cos(1:na, 1:np, m))) - &
-                                                       MATMUL(bchint_cos(1:nb, 1:np, m), TRANSPOSE(acint_sin(1:na, 1:np, 1))) + &
-                                                       MATMUL(bchint_sin(1:nb, 1:np, m), TRANSPOSE(acint_cos(1:na, 1:np, 1)))
-                           END IF
+                           ! <a|Vnl~ (r_d - R_c)|b> - <a|(r_d - R_c) Vnl~|b>
+                           zblock(:, :) = MATMUL(CONJG(achint(1:na, 1:np, 1)), TRANSPOSE(bcint(1:nb, 1:np, m))) - &
+                                          MATMUL(CONJG(achint(1:na, 1:np, m)), TRANSPOSE(bcint(1:nb, 1:np, 1)))
+                           real_block(1:na, 1:nb) = real_block(1:na, 1:nb) + REAL(zblock, KIND=dp)
+                           imag_block(1:na, 1:nb) = imag_block(1:na, 1:nb) + AIMAG(zblock)
                         END DO
 !$                      CALL omp_unset_lock(locks(hash))
+                        DEALLOCATE (zblock)
                         EXIT
                      END IF
                   END DO
@@ -776,8 +695,7 @@ CONTAINS
 !$OMP END SINGLE NOWAIT
 
 !$OMP END PARALLEL
-         CALL release_sap_int(sap_int_cos)
-         CALL release_sap_int(sap_int_sin)
+         CALL release_sap_int(sap_int)
 
          DEALLOCATE (basis_set)
       END IF
@@ -787,16 +705,15 @@ CONTAINS
    END SUBROUTINE velocity_gauge_nl_commutator
 
 ! **************************************************************************************************
-!> \brief calculate <a|sin/cos|p> integrals and store in sap_int_type
+!> \brief Calculate complex plane-wave projector integrals in sap_int_complex_type.
 !>        adapted from build_sap_ints
 !>        Do this on each MPI task as the integrals need to be available globally.
 !>        Might be faster than communicating as the integrals are obtained analytically.
-!>        If asked, compute <da/dRa|sin/cos|p>
+!>        If asked, compute basis-center derivatives of the plane-wave integrals.
 !>        If moment is requested, compute the moment-weighted integrals
-!>        <a|sin/cos (r_d - R_c,d)|p> (d=x,y,z) in slots 2:4, with the moment taken
+!>        <a|exp(i k.r) (r_d - R_c,d)|p> (d=x,y,z) in slots 2:4, with the moment taken
 !>        relative to the projector center R_c (the frame origin used here)
-!> \param sap_int_cos ...
-!> \param sap_int_sin ...
+!> \param sap_int complex plane-wave integrals and their derivatives or coordinate moments
 !> \param sap_ppnl ...
 !> \param qs_kind_set ...
 !> \param particle_set ...
@@ -807,10 +724,10 @@ CONTAINS
 !> \param derivative ...
 !> \param moment ...
 ! **************************************************************************************************
-   SUBROUTINE build_sap_exp_ints(sap_int_cos, sap_int_sin, sap_ppnl, qs_kind_set, particle_set, cell, &
+   SUBROUTINE build_sap_exp_ints(sap_int, sap_ppnl, qs_kind_set, particle_set, cell, &
                                  kvec, basis_set, nkind, derivative, moment)
-      TYPE(sap_int_type), DIMENSION(:), INTENT(INOUT), &
-         POINTER                                         :: sap_int_cos, sap_int_sin
+      TYPE(sap_int_complex_type), DIMENSION(:), &
+         INTENT(INOUT), POINTER                          :: sap_int
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          INTENT(IN), POINTER                             :: sap_ppnl
       TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
@@ -827,9 +744,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routiuneN = "build_sap_exp_ints"
 
-      INTEGER :: ax, ay, az, co, cox, coy, coz, handle, i, iac, iatom, idir, ikind, ilist, iob, &
-         ioe, ipgf, iset, jneighbor, katom, kkind, l, la, lc_max, lc_min, ldai, ldax, ldints, &
-         lppnl, maxco, maxl, maxlgto, maxlppnl, maxppnl, maxsgf, na, nb, nco_b, nco_e, ncoa, ncoc, &
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: ai_work_dz(:, :, :), ai_work_z(:, :), &
+                                                            work_dz(:, :, :), work_z(:, :)
+      INTEGER :: handle, i, iac, iatom, idir, ikind, ilist, iset, jneighbor, katom, kkind, l, &
+         lc_max, lc_min, ldints, lppnl, maxco, maxlppnl, maxppnl, maxsgf, na, nb, ncoa, ncoc, &
          nlist, nneighbor, np, nppnl, nprjc, nseta, nsgfa, nsl, prjc, sgfa, slot
       INTEGER, DIMENSION(3)                              :: cell_c
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nprj_ppnl, &
@@ -837,15 +755,11 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: dogth, my_moment
       REAL(KIND=dp)                                      :: dac, ppnl_radius
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ai_work_cos, ai_work_mcos, ai_work_msin, &
-                                                            ai_work_sin, work_cos, work_sin
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ai_work_dcos, ai_work_dsin, work_dcos, &
-                                                            work_dsin
       REAL(KIND=dp), DIMENSION(1)                        :: rprjc, zetc
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rac, raf, rc, rcf
       REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_ppnl, set_radius_a
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj, rpgfa, sphi_a, vprj_ppnl, zeta
-      TYPE(clist_type), POINTER                          :: clist, clist_sin
+      TYPE(clist_complex_type), POINTER                  :: clist
       TYPE(gth_potential_p_type), DIMENSION(:), POINTER  :: gpotential
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(sgp_potential_p_type), DIMENSION(:), POINTER  :: spotential
@@ -864,25 +778,10 @@ CONTAINS
                            maxco=maxco, &
                            maxlppnl=maxlppnl, &
                            maxppnl=maxppnl, &
-                           maxsgf=maxsgf, &
-                           maxlgto=maxlgto)
+                           maxsgf=maxsgf)
 
       ! maximum dimensions for allocations
-      maxl = MAX(maxlppnl, maxlgto)
       ldints = MAX(maxco, ncoset(maxlppnl), maxsgf, maxppnl)
-      ldai = ncoset(maxl + 1)
-
-      ! leading dimension of the la_max+1 integrals needed in moment mode
-      ldax = 0
-      IF (my_moment) THEN
-         DO i = 1, SIZE(basis_set)
-            IF (.NOT. ASSOCIATED(basis_set(i)%gto_basis_set)) CYCLE
-            DO iset = 1, basis_set(i)%gto_basis_set%nset
-               ldax = MAX(ldax, basis_set(i)%gto_basis_set%npgf(iset)* &
-                          ncoset(basis_set(i)%gto_basis_set%lmax(iset) + 1))
-            END DO
-         END DO
-      END IF
 
       !set up direct access to basis and potential
       NULLIFY (gpotential, spotential)
@@ -914,46 +813,23 @@ CONTAINS
          IF (.NOT. ASSOCIATED(basis_set(ikind)%gto_basis_set)) CYCLE
          IF (.NOT. ASSOCIATED(gpotential(kkind)%gth_potential) .AND. &
              .NOT. ASSOCIATED(spotential(kkind)%sgp_potential)) CYCLE
-         IF (.NOT. ASSOCIATED(sap_int_cos(iac)%alist)) THEN
-            sap_int_cos(iac)%a_kind = ikind
-            sap_int_cos(iac)%p_kind = kkind
-            sap_int_cos(iac)%nalist = nlist
-            ALLOCATE (sap_int_cos(iac)%alist(nlist))
+         IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) THEN
+            sap_int(iac)%a_kind = ikind
+            sap_int(iac)%p_kind = kkind
+            sap_int(iac)%nalist = nlist
+            ALLOCATE (sap_int(iac)%alist(nlist))
             DO i = 1, nlist
-               NULLIFY (sap_int_cos(iac)%alist(i)%clist)
-               sap_int_cos(iac)%alist(i)%aatom = 0
-               sap_int_cos(iac)%alist(i)%nclist = 0
+               NULLIFY (sap_int(iac)%alist(i)%clist)
+               sap_int(iac)%alist(i)%aatom = 0
+               sap_int(iac)%alist(i)%nclist = 0
             END DO
          END IF
-         IF (.NOT. ASSOCIATED(sap_int_cos(iac)%alist(ilist)%clist)) THEN
-            sap_int_cos(iac)%alist(ilist)%aatom = iatom
-            sap_int_cos(iac)%alist(ilist)%nclist = nneighbor
-            ALLOCATE (sap_int_cos(iac)%alist(ilist)%clist(nneighbor))
+         IF (.NOT. ASSOCIATED(sap_int(iac)%alist(ilist)%clist)) THEN
+            sap_int(iac)%alist(ilist)%aatom = iatom
+            sap_int(iac)%alist(ilist)%nclist = nneighbor
+            ALLOCATE (sap_int(iac)%alist(ilist)%clist(nneighbor))
             DO i = 1, nneighbor
-               clist => sap_int_cos(iac)%alist(ilist)%clist(i)
-               clist%catom = 0
-               NULLIFY (clist%acint)
-               NULLIFY (clist%achint)
-               NULLIFY (clist%sgf_list)
-            END DO
-         END IF
-         IF (.NOT. ASSOCIATED(sap_int_sin(iac)%alist)) THEN
-            sap_int_sin(iac)%a_kind = ikind
-            sap_int_sin(iac)%p_kind = kkind
-            sap_int_sin(iac)%nalist = nlist
-            ALLOCATE (sap_int_sin(iac)%alist(nlist))
-            DO i = 1, nlist
-               NULLIFY (sap_int_sin(iac)%alist(i)%clist)
-               sap_int_sin(iac)%alist(i)%aatom = 0
-               sap_int_sin(iac)%alist(i)%nclist = 0
-            END DO
-         END IF
-         IF (.NOT. ASSOCIATED(sap_int_sin(iac)%alist(ilist)%clist)) THEN
-            sap_int_sin(iac)%alist(ilist)%aatom = iatom
-            sap_int_sin(iac)%alist(ilist)%nclist = nneighbor
-            ALLOCATE (sap_int_sin(iac)%alist(ilist)%clist(nneighbor))
-            DO i = 1, nneighbor
-               clist => sap_int_sin(iac)%alist(ilist)%clist(i)
+               clist => sap_int(iac)%alist(ilist)%clist(i)
                clist%catom = 0
                NULLIFY (clist%acint)
                NULLIFY (clist%achint)
@@ -962,45 +838,29 @@ CONTAINS
          END IF
       END DO
 
-      ! actual calculation of the integrals <a|cos|p> and <a|sin|p>
+      ! actual calculation of the complex plane-wave projector integrals
       ! allocate temporary storage using maximum dimensions
 
-!$OMP PARALLEL &
-!$OMP DEFAULT (NONE) &
-!$OMP SHARED (basis_set, gpotential, ncoset, coset, sap_ppnl, sap_int_cos, sap_int_sin, nkind, &
-!$OMP         ldints, ldax, maxco, nco, cell, particle_set, kvec, derivative, my_moment, nsl) &
-!$OMP PRIVATE (slot, ikind, kkind, iatom, katom, nlist, ilist, nneighbor, jneighbor, &
-!$OMP          cell_c, rac, dac, iac, first_sgfa, la_max, la_min, npgfa, nseta, nsgfa, nsgf_seta,&
-!$OMP          rpgfa, set_radius_a, sphi_a, zeta, alpha_ppnl, cprj, lppnl, nppnl, nprj_ppnl,&
-!$OMP          ppnl_radius, vprj_ppnl, clist, clist_sin, ra, rc, ncoa, sgfa, prjc, work_cos, work_sin,&
-!$OMP          nprjc, rprjc, lc_max, lc_min, zetc, ncoc, ai_work_sin, ai_work_cos, na, nb, np, dogth, &
-!$OMP          raf, rcf,  work_dcos, work_dsin, ai_work_dcos, ai_work_dsin, idir, &
-!$OMP          ai_work_mcos, ai_work_msin, ipgf, iob, ioe, nco_b, nco_e, la, ax, ay, az, co, cox, coy, coz)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED (basis_set, gpotential, ncoset, sap_ppnl, sap_int, nkind, ldints, maxco, nco, cell, &
+!$OMP         particle_set, kvec, derivative, my_moment, nsl) &
+!$OMP PRIVATE (slot, ikind, kkind, iatom, katom, nlist, ilist, nneighbor, jneighbor, cell_c, rac, dac, &
+!$OMP          iac, first_sgfa, la_max, la_min, npgfa, nseta, nsgfa, nsgf_seta, rpgfa, set_radius_a, &
+!$OMP          sphi_a, zeta, alpha_ppnl, cprj, lppnl, nppnl, nprj_ppnl, ppnl_radius, vprj_ppnl, clist, &
+!$OMP          ra, rc, ncoa, sgfa, prjc, work_z, nprjc, rprjc, lc_max, lc_min, zetc, ncoc, ai_work_z, &
+!$OMP          na, nb, np, dogth, raf, rcf, work_dz, ai_work_dz, idir)
 
-      ALLOCATE (work_cos(ldints, ldints), work_sin(ldints, ldints))
-      ALLOCATE (ai_work_cos(maxco, maxco), ai_work_sin(maxco, maxco))
+      ALLOCATE (work_z(ldints, ldints), ai_work_z(maxco, maxco))
       IF (derivative .OR. my_moment) THEN
-         ALLOCATE (work_dcos(ldints, ldints, 3), work_dsin(ldints, ldints, 3))
-         ALLOCATE (ai_work_dcos(maxco, maxco, 3), ai_work_dsin(maxco, maxco, 3))
+         ALLOCATE (work_dz(ldints, ldints, 3), ai_work_dz(maxco, maxco, 3))
       END IF
-      IF (my_moment) THEN
-         ALLOCATE (ai_work_mcos(ldax, maxco), ai_work_msin(ldax, maxco))
-         ai_work_mcos = 0.0_dp
-         ai_work_msin = 0.0_dp
-      END IF
-      work_cos = 0.0_dp
-      work_sin = 0.0_dp
-      ai_work_cos = 0.0_dp
-      ai_work_sin = 0.0_dp
-      IF (derivative .OR. my_moment) THEN
-         ai_work_dcos = 0.0_dp
-         ai_work_dsin = 0.0_dp
-      END IF
+      work_z = 0.0_dp
+      ai_work_z = 0.0_dp
       dogth = .FALSE.
 
       NULLIFY (first_sgfa, la_max, la_min, npgfa, nsgf_seta, rpgfa, set_radius_a, sphi_a, zeta)
       NULLIFY (alpha_ppnl, cprj, nprj_ppnl, vprj_ppnl)
-      NULLIFY (clist, clist_sin)
+      NULLIFY (clist)
 
 !$OMP DO SCHEDULE(GUIDED)
       DO slot = 1, sap_ppnl(1)%nl_size
@@ -1045,25 +905,16 @@ CONTAINS
             CYCLE
          END IF
 
-         clist => sap_int_cos(iac)%alist(ilist)%clist(jneighbor)
-         clist_sin => sap_int_sin(iac)%alist(ilist)%clist(jneighbor)
+         clist => sap_int(iac)%alist(ilist)%clist(jneighbor)
 
          clist%catom = katom
          clist%cell = cell_c
          clist%rac = rac
-         clist_sin%catom = katom
-         clist_sin%cell = cell_c
-         clist_sin%rac = rac
 
          ALLOCATE (clist%acint(nsgfa, nppnl, nsl), clist%achint(nsgfa, nppnl, nsl))
          clist%acint = 0.0_dp
          clist%achint = 0.0_dp
          clist%nsgf_cnt = 0
-
-         ALLOCATE (clist_sin%acint(nsgfa, nppnl, nsl), clist_sin%achint(nsgfa, nppnl, nsl))
-         clist_sin%acint = 0.0_dp
-         clist_sin%achint = 0.0_dp
-         clist_sin%nsgf_cnt = 0
 
          ! reference point at zero
          ra(:) = pbc(particle_set(iatom)%r(:), cell)
@@ -1078,8 +929,8 @@ CONTAINS
             sgfa = first_sgfa(1, iset)
             IF (dogth) THEN
                prjc = 1
-               work_cos = 0.0_dp
-               work_sin = 0.0_dp
+               work_z = 0.0_dp
+               IF (derivative .OR. my_moment) work_dz = 0.0_dp
                DO l = 0, lppnl
                   nprjc = nprj_ppnl(l)*nco(l)
                   IF (nprjc == 0) CYCLE
@@ -1091,66 +942,27 @@ CONTAINS
                   ncoc = ncoset(lc_max)
 
                   IF (derivative) THEN
-                     CALL cossin(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
-                                 lc_max, 1, zetc, rprjc, lc_min, raf, rcf, kvec, ai_work_cos, ai_work_sin, &
-                                 dcosab=ai_work_dcos, dsinab=ai_work_dsin)
+                     CALL expikr(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
+                                 lc_max, 1, zetc, rprjc, lc_min, raf, rcf, kvec, ai_work_z, dexpab=ai_work_dz)
                   ELSE IF (my_moment) THEN
-                     ! moment-weighted integrals <a|cos/sin (r_d - R_c,d)|p> with the moment relative
-                     ! to the projector center (the frame origin): apply the shift relation
-                     ! (r_d - R_c,d) phi_a = phi_(a+1_d) + raf(d) phi_a
-                     ! to the integrals computed with one higher angular momentum on the basis side
-                     CALL cossin(la_max(iset) + 1, npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
-                                 lc_max, 1, zetc, rprjc, lc_min, raf, rcf, kvec, ai_work_mcos, ai_work_msin)
-                     nco_b = ncoset(la_max(iset))
-                     nco_e = ncoset(la_max(iset) + 1)
-                     DO ipgf = 1, npgfa(iset)
-                        iob = (ipgf - 1)*nco_b
-                        ioe = (ipgf - 1)*nco_e
-                        ai_work_cos(iob + 1:iob + nco_b, 1:ncoc) = ai_work_mcos(ioe + 1:ioe + nco_b, 1:ncoc)
-                        ai_work_sin(iob + 1:iob + nco_b, 1:ncoc) = ai_work_msin(ioe + 1:ioe + nco_b, 1:ncoc)
-                        DO la = 0, la_max(iset)
-                           DO ax = 0, la
-                              DO ay = 0, la - ax
-                                 az = la - ax - ay
-                                 co = coset(ax, ay, az)
-                                 cox = coset(ax + 1, ay, az)
-                                 coy = coset(ax, ay + 1, az)
-                                 coz = coset(ax, ay, az + 1)
-                                 ai_work_dcos(iob + co, 1:ncoc, 1) = ai_work_mcos(ioe + cox, 1:ncoc) + &
-                                                                     raf(1)*ai_work_mcos(ioe + co, 1:ncoc)
-                                 ai_work_dcos(iob + co, 1:ncoc, 2) = ai_work_mcos(ioe + coy, 1:ncoc) + &
-                                                                     raf(2)*ai_work_mcos(ioe + co, 1:ncoc)
-                                 ai_work_dcos(iob + co, 1:ncoc, 3) = ai_work_mcos(ioe + coz, 1:ncoc) + &
-                                                                     raf(3)*ai_work_mcos(ioe + co, 1:ncoc)
-                                 ai_work_dsin(iob + co, 1:ncoc, 1) = ai_work_msin(ioe + cox, 1:ncoc) + &
-                                                                     raf(1)*ai_work_msin(ioe + co, 1:ncoc)
-                                 ai_work_dsin(iob + co, 1:ncoc, 2) = ai_work_msin(ioe + coy, 1:ncoc) + &
-                                                                     raf(2)*ai_work_msin(ioe + co, 1:ncoc)
-                                 ai_work_dsin(iob + co, 1:ncoc, 3) = ai_work_msin(ioe + coz, 1:ncoc) + &
-                                                                     raf(3)*ai_work_msin(ioe + co, 1:ncoc)
-                              END DO
-                           END DO
-                        END DO
-                     END DO
+                     ! Coordinate-weighted integrals relative to the projector center.
+                     CALL expikr(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
+                                 lc_max, 1, zetc, rprjc, lc_min, raf, rcf, kvec, ai_work_z, momentab=ai_work_dz)
                   ELSE
-                     CALL cossin(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
-                                 lc_max, 1, zetc, rprjc, lc_min, raf, rcf, kvec, ai_work_cos, ai_work_sin)
+                     CALL expikr(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
+                                 lc_max, 1, zetc, rprjc, lc_min, raf, rcf, kvec, ai_work_z)
                   END IF
                   ! projector functions: Cartesian -> spherical
                   na = ncoa
                   nb = nprjc
                   np = ncoc
-                  work_cos(1:na, prjc:prjc + nb - 1) = &
-                     MATMUL(ai_work_cos(1:na, 1:np), cprj(1:np, prjc:prjc + nb - 1))
-                  work_sin(1:na, prjc:prjc + nb - 1) = &
-                     MATMUL(ai_work_sin(1:na, 1:np), cprj(1:np, prjc:prjc + nb - 1))
+                  work_z(1:na, prjc:prjc + nb - 1) = &
+                     MATMUL(ai_work_z(1:na, 1:np), cprj(1:np, prjc:prjc + nb - 1))
 
                   IF (derivative .OR. my_moment) THEN
                      DO idir = 1, 3
-                        work_dcos(1:na, prjc:prjc + nb - 1, idir) = &
-                           MATMUL(ai_work_dcos(1:na, 1:np, idir), cprj(1:np, prjc:prjc + nb - 1))
-                        work_dsin(1:na, prjc:prjc + nb - 1, idir) = &
-                           MATMUL(ai_work_dsin(1:na, 1:np, idir), cprj(1:np, prjc:prjc + nb - 1))
+                        work_dz(1:na, prjc:prjc + nb - 1, idir) = &
+                           MATMUL(ai_work_dz(1:na, 1:np, idir), cprj(1:np, prjc:prjc + nb - 1))
                      END DO
                   END IF
 
@@ -1162,43 +974,29 @@ CONTAINS
                nb = nppnl
                np = ncoa
                clist%acint(sgfa:sgfa + na - 1, 1:nb, 1) = &
-                  MATMUL(TRANSPOSE(sphi_a(1:np, sgfa:sgfa + na - 1)), work_cos(1:np, 1:nb))
-               clist_sin%acint(sgfa:sgfa + na - 1, 1:nb, 1) = &
-                  MATMUL(TRANSPOSE(sphi_a(1:np, sgfa:sgfa + na - 1)), work_sin(1:np, 1:nb))
+                  MATMUL(TRANSPOSE(sphi_a(1:np, sgfa:sgfa + na - 1)), work_z(1:np, 1:nb))
                IF (derivative .OR. my_moment) THEN
                   DO idir = 1, 3
                      clist%acint(sgfa:sgfa + na - 1, 1:nb, 1 + idir) = &
-                        MATMUL(TRANSPOSE(sphi_a(1:np, sgfa:sgfa + na - 1)), work_dcos(1:np, 1:nb, idir))
-                     clist_sin%acint(sgfa:sgfa + na - 1, 1:nb, 1 + idir) = &
-                        MATMUL(TRANSPOSE(sphi_a(1:np, sgfa:sgfa + na - 1)), work_dsin(1:np, 1:nb, idir))
+                        MATMUL(TRANSPOSE(sphi_a(1:np, sgfa:sgfa + na - 1)), work_dz(1:np, 1:nb, idir))
                   END DO
                END IF
 
-               ! multiply with interaction matrix h_ij of the nl pp
-               clist%achint(sgfa:sgfa + na - 1, 1:nb, 1) = &
-                  MATMUL(clist%acint(sgfa:sgfa + na - 1, 1:nb, 1), vprj_ppnl(1:nb, 1:nb))
-               clist_sin%achint(sgfa:sgfa + na - 1, 1:nb, 1) = &
-                  MATMUL(clist_sin%acint(sgfa:sgfa + na - 1, 1:nb, 1), vprj_ppnl(1:nb, 1:nb))
-               IF (derivative .OR. my_moment) THEN
-                  DO idir = 1, 3
-                     clist%achint(sgfa:sgfa + na - 1, 1:nb, 1 + idir) = &
-                        MATMUL(clist%acint(sgfa:sgfa + na - 1, 1:nb, 1 + idir), vprj_ppnl(1:nb, 1:nb))
-                     clist_sin%achint(sgfa:sgfa + na - 1, 1:nb, 1 + idir) = &
-                        MATMUL(clist_sin%acint(sgfa:sgfa + na - 1, 1:nb, 1 + idir), vprj_ppnl(1:nb, 1:nb))
-                  END DO
-               END IF
+               ! Apply the real projector interaction to each complex integral slot.
+               DO idir = 1, nsl
+                  clist%achint(sgfa:sgfa + na - 1, 1:nb, idir) = &
+                     MATMUL(clist%acint(sgfa:sgfa + na - 1, 1:nb, idir), vprj_ppnl(1:nb, 1:nb))
+               END DO
             END IF
 
          END DO
-         clist%maxac = MAXVAL(ABS(clist%acint(:, :, 1)))
-         clist%maxach = MAXVAL(ABS(clist%achint(:, :, 1)))
-         clist_sin%maxac = MAXVAL(ABS(clist_sin%acint(:, :, 1)))
-         clist_sin%maxach = MAXVAL(ABS(clist_sin%achint(:, :, 1)))
+         ! Retain the component-wise screening bound used by the split representation.
+         clist%maxac = MAXVAL(MAX(ABS(REAL(clist%acint(:, :, 1), KIND=dp)), ABS(AIMAG(clist%acint(:, :, 1)))))
+         clist%maxach = MAXVAL(MAX(ABS(REAL(clist%achint(:, :, 1), KIND=dp)), ABS(AIMAG(clist%achint(:, :, 1)))))
       END DO
 
-      DEALLOCATE (work_cos, work_sin, ai_work_cos, ai_work_sin)
-      IF (derivative .OR. my_moment) DEALLOCATE (work_dcos, work_dsin, ai_work_dcos, ai_work_dsin)
-      IF (my_moment) DEALLOCATE (ai_work_mcos, ai_work_msin)
+      DEALLOCATE (work_z, ai_work_z)
+      IF (derivative .OR. my_moment) DEALLOCATE (work_dz, ai_work_dz)
 
 !$OMP END PARALLEL
 
@@ -1221,6 +1019,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routiuneN = "velocity_gauge_nl_force"
 
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: zblock(:, :), zblock_b(:, :)
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: achint, acint, bchint, bcint
       INTEGER :: handle, i, iac, iatom, ibc, icol, idir, ikind, irow, jatom, jkind, kac, katom, &
          kbc, kkind, maxl, maxlgto, maxlppnl, na, natom, nb, nkind, np, slot
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
@@ -1237,17 +1037,13 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao, rho_ao_im
       TYPE(cell_type), POINTER                           :: cell
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(alist_type), POINTER                          :: alist_cos_ac, alist_cos_bc, &
-                                                            alist_sin_ac, alist_sin_bc
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: achint_cos, achint_sin, acint_cos, &
-                                                            acint_sin, bchint_cos, bchint_sin, &
-                                                            bcint_cos, bcint_sin
+      TYPE(alist_complex_type), POINTER                  :: alist_ac, alist_bc
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: matrix_p_imag, matrix_p_real
       REAL(KIND=dp), DIMENSION(3, SIZE(particle_set))    :: force_thread
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int_cos, sap_int_sin
+      TYPE(sap_int_complex_type), DIMENSION(:), POINTER  :: sap_int
 
       CALL timeset(routiuneN, handle)
 
@@ -1258,7 +1054,7 @@ CONTAINS
 
       IF (ASSOCIATED(sap_ppnl)) THEN
          NULLIFY (qs_kind_set, cell, dft_control, force, sab_orb, atomic_kind_set, &
-                  sap_int_cos, sap_int_sin)
+                  sap_int)
          ! Load and initialized the required quantities
 
          CALL get_qs_env(qs_env, &
@@ -1282,13 +1078,7 @@ CONTAINS
          CALL init_orbital_pointers(maxl + 1)
 
          ! initalize sab_int types to store the integrals
-         ALLOCATE (sap_int_cos(nkind*nkind), sap_int_sin(nkind*nkind))
-         DO i = 1, SIZE(sap_int_cos)
-            NULLIFY (sap_int_cos(i)%alist, sap_int_cos(i)%asort, sap_int_cos(i)%aindex)
-            sap_int_cos(i)%nalist = 0
-            NULLIFY (sap_int_sin(i)%alist, sap_int_sin(i)%asort, sap_int_sin(i)%aindex)
-            sap_int_sin(i)%nalist = 0
-         END DO
+         ALLOCATE (sap_int(nkind*nkind))
 
          ! get basis set
          ALLOCATE (basis_set(nkind))
@@ -1315,27 +1105,25 @@ CONTAINS
                            alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
          END IF
 
-         ! Compute cosap = <a|cos kr|p>, sindap = <a|sin kr|p>, cosdap = <da/dRA|cos kr|p>, and sindap = <da/dRA|sin kr|p>
-         CALL build_sap_exp_ints(sap_int_cos, sap_int_sin, sap_ppnl, qs_kind_set, particle_set, &
+         ! Compute complex plane-wave projector integrals and their basis-center derivatives.
+         CALL build_sap_exp_ints(sap_int, sap_ppnl, qs_kind_set, particle_set, &
                                  cell, kvec=vec_pot, basis_set=basis_set, nkind=nkind, derivative=.TRUE.)
-         CALL sap_sort(sap_int_cos)
-         CALL sap_sort(sap_int_sin)
+         CALL sap_sort(sap_int)
 
          ! Compute the force, on nuclei A it is given by: Re(P_ab) Re(dV_ab/dRA) - Im(P_ab) Im(dV_ab/dRA)
 
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
-!$OMP SHARED (basis_set, sab_orb, sap_int_cos, sap_int_sin, eps_ppnl, nkind, natom,&
+!$OMP SHARED (basis_set, sab_orb, sap_int, eps_ppnl, nkind, natom,&
 !$OMP         rho_ao, rho_ao_im) &
-!$OMP PRIVATE (matrix_p_real, matrix_p_imag, acint_cos, achint_cos, bcint_cos, bchint_cos, acint_sin,&
-!$OMP          achint_sin, bcint_sin, bchint_sin, slot, ikind, jkind, iatom, jatom,&
+!$OMP PRIVATE (matrix_p_real, matrix_p_imag, acint, achint, bcint, bchint, &
+!$OMP           slot, ikind, jkind, iatom, jatom,&
 !$OMP          cell_b, rab, irow, icol, fa, fb, f0, found_real, found_imag, sign_imag, &
-!$OMP          kkind, iac, ibc, alist_cos_ac, alist_cos_bc, alist_sin_ac, alist_sin_bc, kac, kbc,&
-!$OMP          na, np, nb,  katom) &
+!$OMP          kkind, iac, ibc, alist_ac, alist_bc, kac, kbc,&
+!$OMP          zblock, zblock_b, na, np, nb,  katom) &
 !$OMP REDUCTION (+ : force_thread )
 
-         NULLIFY (acint_cos, bcint_cos, achint_cos, bchint_cos)
-         NULLIFY (acint_sin, bcint_sin, achint_sin, bchint_sin)
+         NULLIFY (acint, bcint, achint, bchint)
 
          ! loop over atom pairs
 !$OMP DO SCHEDULE(GUIDED)
@@ -1378,102 +1166,59 @@ CONTAINS
                DO kkind = 1, nkind
                   iac = ikind + nkind*(kkind - 1)
                   ibc = jkind + nkind*(kkind - 1)
-                  IF (.NOT. ASSOCIATED(sap_int_cos(iac)%alist)) CYCLE
-                  IF (.NOT. ASSOCIATED(sap_int_cos(ibc)%alist)) CYCLE
-                  IF (.NOT. ASSOCIATED(sap_int_sin(iac)%alist)) CYCLE
-                  IF (.NOT. ASSOCIATED(sap_int_sin(ibc)%alist)) CYCLE
-                  CALL get_alist(sap_int_cos(iac), alist_cos_ac, iatom)
-                  CALL get_alist(sap_int_cos(ibc), alist_cos_bc, jatom)
-                  CALL get_alist(sap_int_sin(iac), alist_sin_ac, iatom)
-                  CALL get_alist(sap_int_sin(ibc), alist_sin_bc, jatom)
-                  IF (.NOT. ASSOCIATED(alist_cos_ac)) CYCLE
-                  IF (.NOT. ASSOCIATED(alist_cos_bc)) CYCLE
-                  IF (.NOT. ASSOCIATED(alist_sin_ac)) CYCLE
-                  IF (.NOT. ASSOCIATED(alist_sin_bc)) CYCLE
-
-                  ! only use cos for indexing, as cos and sin integrals are constructed by the same routine
-                  ! in the same way
-                  DO kac = 1, alist_cos_ac%nclist
-                     DO kbc = 1, alist_cos_bc%nclist
-                        ! the next two ifs should be the same for sine integrals
-                        IF (alist_cos_ac%clist(kac)%catom /= alist_cos_bc%clist(kbc)%catom) CYCLE
-                        IF (ALL(cell_b + alist_cos_bc%clist(kbc)%cell - alist_cos_ac%clist(kac)%cell == 0)) THEN
+                  IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) CYCLE
+                  IF (.NOT. ASSOCIATED(sap_int(ibc)%alist)) CYCLE
+                  CALL get_alist(sap_int(iac), alist_ac, iatom)
+                  CALL get_alist(sap_int(ibc), alist_bc, jatom)
+                  IF (.NOT. ASSOCIATED(alist_ac)) CYCLE
+                  IF (.NOT. ASSOCIATED(alist_bc)) CYCLE
+                  DO kac = 1, alist_ac%nclist
+                     DO kbc = 1, alist_bc%nclist
+                        IF (alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom) CYCLE
+                        IF (ALL(cell_b + alist_bc%clist(kbc)%cell - alist_ac%clist(kac)%cell == 0)) THEN
                            ! screening
-                           IF (alist_cos_ac%clist(kac)%maxac*alist_cos_bc%clist(kbc)%maxach < eps_ppnl &
-                               .AND. alist_cos_ac%clist(kac)%maxac*alist_sin_bc%clist(kbc)%maxach < eps_ppnl &
-                               .AND. alist_sin_ac%clist(kac)%maxac*alist_cos_bc%clist(kbc)%maxach < eps_ppnl &
-                               .AND. alist_sin_ac%clist(kac)%maxac*alist_sin_bc%clist(kbc)%maxach < eps_ppnl) CYCLE
+                           IF (alist_ac%clist(kac)%maxac*alist_bc%clist(kbc)%maxach < eps_ppnl) CYCLE
 
-                           acint_cos => alist_cos_ac%clist(kac)%acint
-                           bcint_cos => alist_cos_bc%clist(kbc)%acint
-                           achint_cos => alist_cos_ac%clist(kac)%achint
-                           bchint_cos => alist_cos_bc%clist(kbc)%achint
-                           acint_sin => alist_sin_ac%clist(kac)%acint
-                           bcint_sin => alist_sin_bc%clist(kbc)%acint
-                           achint_sin => alist_sin_ac%clist(kac)%achint
-                           bchint_sin => alist_sin_bc%clist(kbc)%achint
+                           acint => alist_ac%clist(kac)%acint
+                           bcint => alist_bc%clist(kbc)%acint
+                           achint => alist_ac%clist(kac)%achint
+                           bchint => alist_bc%clist(kbc)%achint
 
-                           na = SIZE(acint_cos, 1)
-                           np = SIZE(acint_cos, 2)
-                           nb = SIZE(bcint_cos, 1)
-                           ! Re(dV_ab/dRA) = <da/dRA|cos kr|p><p|cos kr|b> + <db/dRA|cos kr|p><p|cos kr|a>
-                           !                    + <da/dRA|sin kr|p><p|sin kr|b> + <db/dRA|sin kr|p><p|sin|a>
-                           ! Im(dV_ab/dRA) = <da/dRA|sin kr|p><p|cos kr|b> - <db/dRA|sin kr|p><p|cos kr|a>
-                           !                    - <da/dRA|cos kr|p><p|sin kr|b> + <db/dRA|cos kr|p><p|sin|a>
-                           katom = alist_cos_ac%clist(kac)%catom
+                           na = SIZE(acint, 1)
+                           np = SIZE(acint, 2)
+                           nb = SIZE(bcint, 1)
+                           ! Differentiate the complex projector product on each basis center.
+                           katom = alist_ac%clist(kac)%catom
+                           ALLOCATE (zblock(MERGE(na, nb, iatom <= jatom), MERGE(nb, na, iatom <= jatom)))
+                           ALLOCATE (zblock_b(SIZE(zblock, 1), SIZE(zblock, 2)))
                            DO idir = 1, 3
                               IF (iatom <= jatom) THEN
-                                 ! For fa:
-                                 IF (found_real) THEN
-                                    fa(idir) = SUM(matrix_p_real(1:na, 1:nb)* &
-                                                   (+MATMUL(acint_cos(1:na, 1:np, 1 + idir), TRANSPOSE(bchint_cos(1:nb, 1:np, 1))) &
-                                                   + MATMUL(acint_sin(1:na, 1:np, 1 + idir), TRANSPOSE(bchint_sin(1:nb, 1:np, 1)))))
-                                 END IF
-                                 IF (found_imag) THEN
-                                    fa(idir) = fa(idir) - sign_imag*SUM(matrix_p_imag(1:na, 1:nb)* &
-                                                   (+MATMUL(acint_sin(1:na, 1:np, 1 + idir), TRANSPOSE(bchint_cos(1:nb, 1:np, 1))) &
-                                                   - MATMUL(acint_cos(1:na, 1:np, 1 + idir), TRANSPOSE(bchint_sin(1:nb, 1:np, 1)))))
-                                 END IF
-                                 ! For fb:
-                                 IF (found_real) THEN
-                                    fb(idir) = SUM(matrix_p_real(1:na, 1:nb)* &
-                                                   (+MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1 + idir))) &
-                                                   + MATMUL(achint_sin(1:na, 1:np, 1), TRANSPOSE(bcint_sin(1:nb, 1:np, 1 + idir)))))
-                                 END IF
-                                 IF (found_imag) THEN
-                                    fb(idir) = fb(idir) - sign_imag*SUM(matrix_p_imag(1:na, 1:nb)* &
-                                                   (-MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_sin(1:nb, 1:np, 1 + idir))) &
-                                                   + MATMUL(achint_sin(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1 + idir)))))
-                                 END IF
+                                 zblock(:, :) = MATMUL(acint(1:na, 1:np, 1 + idir), &
+                                                       CONJG(TRANSPOSE(bchint(1:nb, 1:np, 1))))
+                                 zblock_b(:, :) = MATMUL(achint(1:na, 1:np, 1), &
+                                                         CONJG(TRANSPOSE(bcint(1:nb, 1:np, 1 + idir))))
                               ELSE
-                                 ! For fa:
-                                 IF (found_real) THEN
-                                    fa(idir) = SUM(matrix_p_real(1:nb, 1:na)* &
-                                                   (+MATMUL(bchint_cos(1:nb, 1:np, 1), TRANSPOSE(acint_cos(1:na, 1:np, 1 + idir))) &
-                                                   + MATMUL(bchint_sin(1:nb, 1:np, 1), TRANSPOSE(acint_sin(1:na, 1:np, 1 + idir)))))
-                                 END IF
-                                 IF (found_imag) THEN
-                                    fa(idir) = fa(idir) - sign_imag*SUM(matrix_p_imag(1:nb, 1:na)* &
-                                                   (+MATMUL(bchint_sin(1:nb, 1:np, 1), TRANSPOSE(acint_cos(1:na, 1:np, 1 + idir))) &
-                                                   - MATMUL(bchint_cos(1:nb, 1:np, 1), TRANSPOSE(acint_sin(1:na, 1:np, 1 + idir)))))
-                                 END IF
-                                 ! For fb
-                                 IF (found_real) THEN
-                                    fb(idir) = SUM(matrix_p_real(1:nb, 1:na)* &
-                                                   (+MATMUL(bcint_cos(1:nb, 1:np, 1 + idir), TRANSPOSE(achint_cos(1:na, 1:np, 1))) &
-                                                   + MATMUL(bcint_sin(1:nb, 1:np, 1 + idir), TRANSPOSE(achint_sin(1:na, 1:np, 1)))))
-                                 END IF
-                                 IF (found_imag) THEN
-                                    fb(idir) = fb(idir) - sign_imag*SUM(matrix_p_imag(1:nb, 1:na)* &
-                                                   (-MATMUL(bcint_cos(1:nb, 1:np, 1 + idir), TRANSPOSE(achint_sin(1:na, 1:np, 1))) &
-                                                   + MATMUL(bcint_sin(1:nb, 1:np, 1 + idir), TRANSPOSE(achint_cos(1:na, 1:np, 1)))))
-                                 END IF
+                                 zblock(:, :) = MATMUL(bchint(1:nb, 1:np, 1), &
+                                                       CONJG(TRANSPOSE(acint(1:na, 1:np, 1 + idir))))
+                                 zblock_b(:, :) = MATMUL(bcint(1:nb, 1:np, 1 + idir), &
+                                                         CONJG(TRANSPOSE(achint(1:na, 1:np, 1))))
+                              END IF
+                              fa(idir) = 0.0_dp
+                              fb(idir) = 0.0_dp
+                              IF (found_real) THEN
+                                 fa(idir) = SUM(matrix_p_real(1:SIZE(zblock, 1), 1:SIZE(zblock, 2))*REAL(zblock, KIND=dp))
+                                 fb(idir) = SUM(matrix_p_real(1:SIZE(zblock_b, 1), 1:SIZE(zblock_b, 2))*REAL(zblock_b, KIND=dp))
+                              END IF
+                              IF (found_imag) THEN
+                              fa(idir) = fa(idir) - sign_imag*SUM(matrix_p_imag(1:SIZE(zblock, 1), 1:SIZE(zblock, 2))*AIMAG(zblock))
+                        fb(idir) = fb(idir) - sign_imag*SUM(matrix_p_imag(1:SIZE(zblock_b, 1), 1:SIZE(zblock_b, 2))*AIMAG(zblock_b))
                               END IF
                               force_thread(idir, iatom) = force_thread(idir, iatom) + f0*fa(idir)
                               force_thread(idir, katom) = force_thread(idir, katom) - f0*fa(idir)
                               force_thread(idir, jatom) = force_thread(idir, jatom) + f0*fb(idir)
                               force_thread(idir, katom) = force_thread(idir, katom) - f0*fb(idir)
                            END DO
+                           DEALLOCATE (zblock, zblock_b)
                            EXIT
                         END IF
                      END DO
@@ -1502,8 +1247,7 @@ CONTAINS
             CALL dbcsr_add(rho_ao_im(1)%matrix, rho_ao_im(2)%matrix, &
                            alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
          END IF
-         CALL release_sap_int(sap_int_cos)
-         CALL release_sap_int(sap_int_sin)
+         CALL release_sap_int(sap_int)
 
          DEALLOCATE (basis_set, atom_of_kind, kind_of)
 

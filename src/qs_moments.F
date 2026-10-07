@@ -13,9 +13,9 @@
 ! **************************************************************************************************
 MODULE qs_moments
    USE ai_angmom, ONLY: angmom
-   USE ai_moments, ONLY: contract_cossin, &
-                         cossin, &
+   USE ai_moments, ONLY: contract_expikr, &
                          diff_momop, &
+                         expikr, &
                          moment
    USE atomic_kind_types, ONLY: atomic_kind_type, &
                                 get_atomic_kind
@@ -1145,13 +1145,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_berry_kpoint_matrix'
 
       CHARACTER                                          :: matrix_symmetry
-      INTEGER :: handle, i, iatom, ic, icol, ikind, inode, irow, iset, jatom, jkind, jset, ldab, &
+      COMPLEX(dp), ALLOCATABLE                           :: expab(:, :)
+      INTEGER :: handle, i, iatom, ic, icol, ikind, inode, irow, iset, jatom, jkind, jset, &
                  ldsa, ldsb, ldwork, natom, ncoa, ncob, nimg, nkind, nseta, nsetb, sgfa, sgfb
       INTEGER, DIMENSION(3)                              :: icell
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: found, full_pairs, use_cell_mapping
-      REAL(dp), DIMENSION(:, :), POINTER                 :: cblock, cosab, sblock, sinab, work
+      REAL(dp), DIMENSION(:, :), POINTER                 :: cblock, sblock, work
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rb
       TYPE(cell_type), POINTER                           :: cell
@@ -1242,9 +1243,7 @@ CONTAINS
       END DO
 
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxco=ldwork)
-      ldab = ldwork
-      ALLOCATE (cosab(ldab, ldab))
-      ALLOCATE (sinab(ldab, ldab))
+      ALLOCATE (expab(ldwork, ldwork))
       ALLOCATE (work(ldwork, ldwork))
 
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
@@ -1324,13 +1323,13 @@ CONTAINS
                   sgfb = first_sgfb(1, jset)
 
                   ! Calculate the primitive integrals
-                  CALL cossin(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
+                  CALL expikr(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
                               lb_max(jset), npgfb(jset), zetb(:, jset), rpgfb(:, jset), lb_min(jset), &
-                              ra, rb, kvec, cosab, sinab)
-                  CALL contract_cossin(cblock, sblock, &
+                              ra, rb, kvec, expab)
+                  CALL contract_expikr(cblock, sblock, &
                                        iatom, ncoa, nsgfa(iset), sgfa, sphi_a, ldsa, &
                                        jatom, ncob, nsgfb(jset), sgfb, sphi_b, ldsb, &
-                                       cosab, sinab, ldab, work, ldwork, ordered=full_pairs)
+                                       expab, work, ldwork, ordered=full_pairs)
 
                END DO
             END DO
@@ -1338,8 +1337,7 @@ CONTAINS
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
 
-      DEALLOCATE (cosab)
-      DEALLOCATE (sinab)
+      DEALLOCATE (expab)
       DEALLOCATE (work)
       DEALLOCATE (basis_set_list)
       DEALLOCATE (row_blk_sizes)
