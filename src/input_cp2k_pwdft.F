@@ -100,6 +100,52 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (subsection)
+      CALL section_create(subsection, __LOCATION__, name="SKALA_GRID", &
+                          description="Experimental periodic atom quadrature for native Skala with SIRIUS. "// &
+                          "Required for joint PAW or FP-LAPW field reconstruction. Uses Gauss-Legendre radial and Lebedev "// &
+                          "angular integration, periodic Becke energy partitions and independent self-image "// &
+                          "descriptor windows. Geometry changes require SIRIUS with the point-quadrature update API. "// &
+                          "CPU and GPU scalar, collinear and noncollinear calculations use host-staged fields. "// &
+                          "Skala CUDA inference is selected independently in XC_FUNCTIONAL/GAUXC. "// &
+                          "PW and PAW forces and stress require the point geometry callbacks. "// &
+                          "FP-LAPW forces and total stress require the joint Hessian and quadrature-direction "// &
+                          "callbacks, with scalar-relativistic full variation for scalar/collinear states and "// &
+                          "NR/ZORA second variation for spinor states, including SOC, or native Dirac full "// &
+                          "variation without a separate SOC operator. Tau-dependent explicit core response "// &
+                          "supports NR, ZORA and Dirac cores. Native Dirac valence requires Dirac cores. "// &
+                          "Converge the quadrature and image shell for the system studied.")
+      CALL keyword_create(keyword, __LOCATION__, name="N_RADIAL", default_i_val=100, &
+                          description="Number of radial nodes with r = RADIAL_SCALE*t/(1-t).")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="N_ANGULAR", default_i_val=434, &
+                          description="Exact number of points of an available positive Lebedev rule (up to 974).")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="N_SPIN_ANGULAR", default_i_val=194, &
+                          description="Number of directions in the noncollinear multicollinear spin projection. "// &
+                          "Use an available positive Lebedev rule (up to 974). Independent of N_ANGULAR, "// &
+                          "which integrates real-space fields. Ignored for scalar and collinear states.")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_RESPONSE", default_r_val=1.0e-6_dp, &
+                          description="Relative residual tolerance of the coupled FP-LAPW field response. "// &
+                          "Also bounds relative band differences at the response reference. "// &
+                          "Independent of the ground-state SCF thresholds.")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="IMAGE_SHELL", default_i_val=1, &
+                          description="Compact periodic seed window is unity through this fractional-cell "// &
+                          "distance and vanishes smoothly one cell farther out in each direction.")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="RADIAL_SCALE", default_r_val=1.0_dp, &
+                          unit_str="bohr", description="Scale of the rational radial mapping.")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL create_sirius_section(subsection, 'control')
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)

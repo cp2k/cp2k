@@ -67,7 +67,7 @@
       He 0.0 0.0 0.0
     &END COORD
     &KIND He
-      POTENTIAL UPF "He.json"
+      SIRIUS_ATOM_FILE He.json
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL

@@ -18,6 +18,7 @@ MODULE pwdft_environment_types
    USE cp_subsys_types, ONLY: cp_subsys_type
    USE input_section_types, ONLY: section_vals_type
    USE kinds, ONLY: dp
+   USE skala_sirius, ONLY: skala_sirius_state_type, skala_sirius_release
    USE qs_subsys_types, ONLY: qs_subsys_get, &
                               qs_subsys_release, &
                               qs_subsys_set, &
@@ -74,6 +75,7 @@ MODULE pwdft_environment_types
       REAL(KIND=dp), DIMENSION(:, :), POINTER          :: forces => NULL()
       REAL(KIND=dp), DIMENSION(3, 3)                   :: stress = 0.0_dp
       LOGICAL                                          :: ignore_convergence_failure = .FALSE.
+      TYPE(skala_sirius_state_type), POINTER            :: skala_state => NULL()
 !     16 different functionals should be enough
       CHARACTER(len=80), DIMENSION(16)                 :: xc_func = ""
 #if defined(__SIRIUS)
@@ -106,6 +108,7 @@ CONTAINS
       CALL sirius_free_handler(pwdft_env%gs_handler)
       CALL sirius_free_handler(pwdft_env%ks_handler)
       CALL sirius_free_handler(pwdft_env%sctx)
+      CALL skala_sirius_release(pwdft_env%skala_state)
 
       IF (ASSOCIATED(pwdft_env%qs_subsys)) THEN
          CALL qs_subsys_release(pwdft_env%qs_subsys)

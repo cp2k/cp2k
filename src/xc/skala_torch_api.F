@@ -19,8 +19,11 @@ MODULE skala_torch_api
    USE string_utilities, ONLY: uppercase
    USE torch_api, ONLY: &
       torch_dict_type, torch_model_disable_parameter_gradients, torch_model_forward_mol_tensor, &
-      torch_model_freeze_preserving_method, torch_model_load_with_metadata, torch_model_release, &
-      torch_model_remap_device_constants, torch_model_promote_float32, torch_model_type, &
+      torch_model_freeze_preserving_method, torch_model_load_with_metadata, &
+      torch_model_release, torch_model_remap_device_constants, torch_model_promote_float32, &
+      torch_model_prepare_higher_derivatives, &
+      torch_model_type, &
+      torch_model_spin_projected_energy, &
       torch_tensor_item_double, torch_tensor_release, torch_tensor_type, &
       torch_tensor_weighted_sum
 #include "../base/base_uses.f90"
@@ -33,6 +36,7 @@ MODULE skala_torch_api
 
    PUBLIC :: skala_torch_model_type, skala_torch_model_load, skala_torch_model_release
    PUBLIC :: skala_torch_model_get_exc, skala_torch_model_get_exc_density
+   PUBLIC :: skala_torch_model_spin_projected_eval
    PUBLIC :: skala_torch_model_needs_feature, skala_torch_model_protocol_version
 
    TYPE skala_torch_model_type
@@ -50,15 +54,16 @@ CONTAINS
 !> \param model ...
 !> \param filename ...
 !> \param fp64 Promote float32 numerical state and casts; default true for differential consistency.
+!> \param higher_derivatives Use FP64 model arithmetic and stable higher input derivatives.
 ! **************************************************************************************************
-   SUBROUTINE skala_torch_model_load(model, filename, fp64)
+   SUBROUTINE skala_torch_model_load(model, filename, fp64, higher_derivatives)
       TYPE(skala_torch_model_type), INTENT(INOUT)        :: model
       CHARACTER(len=*), INTENT(IN)                       :: filename
-      LOGICAL, INTENT(IN), OPTIONAL                      :: fp64
+      LOGICAL, INTENT(IN), OPTIONAL                      :: fp64, higher_derivatives
 
       CHARACTER(:), ALLOCATABLE                          :: features_json, protocol_string
       INTEGER                                            :: ios
-      LOGICAL                                            :: use_fp64
+      LOGICAL                                            :: prepare_derivatives, use_fp64
 
       CALL torch_model_load_with_metadata(model%torch_model, filename, &
                                           "protocol_version", protocol_string, &
@@ -74,7 +79,13 @@ CONTAINS
       CALL parse_feature_list(features_json, model%features)
       use_fp64 = .TRUE.
       IF (PRESENT(fp64)) use_fp64 = fp64
-      IF (use_fp64) CALL torch_model_promote_float32(model%torch_model)
+      prepare_derivatives = .FALSE.
+      IF (PRESENT(higher_derivatives)) prepare_derivatives = higher_derivatives
+      IF (prepare_derivatives) THEN
+         CALL torch_model_prepare_higher_derivatives(model%torch_model)
+      ELSE IF (use_fp64) THEN
+         CALL torch_model_promote_float32(model%torch_model)
+      END IF
       ! Preserve the exported SKALA entry point while folding constant model state.
       CALL torch_model_freeze_preserving_method(model%torch_model, "get_exc_density")
 
@@ -193,6 +204,30 @@ CONTAINS
 #endif
 
    END SUBROUTINE skala_torch_model_get_exc
+
+! **************************************************************************************************
+!> \brief Streaming multicollinear extension of the unchanged collinear Skala model.
+!> \param model Loaded Skala model.
+!> \param inputs Molecular features with scalar/z/x/y primitive fields.
+!> \param axes Unit angular directions in z/x/y order.
+!> \param weights Angular weights summing to one.
+!> \param variables Independent primitive and optional geometry tensors.
+!> \param outputs Complete-energy covectors or their Hessian action.
+!> \param exc Base-state energy.
+!> \param status Zero on success. The caller must check failures collectively.
+!> \param directions Optional joint input direction.
+! **************************************************************************************************
+   SUBROUTINE skala_torch_model_spin_projected_eval(model, inputs, axes, weights, variables, outputs, exc, status, directions)
+      TYPE(skala_torch_model_type), INTENT(INOUT)        :: model
+      TYPE(torch_dict_type), INTENT(IN)                  :: inputs
+      TYPE(torch_tensor_type), INTENT(IN)                :: axes, weights, variables(:)
+      TYPE(torch_tensor_type), INTENT(INOUT)             :: outputs(:)
+      REAL(KIND=dp), INTENT(OUT)                         :: exc
+      INTEGER, INTENT(OUT)                               :: status
+      TYPE(torch_tensor_type), INTENT(IN), OPTIONAL      :: directions(:)
+
+      CALL torch_model_spin_projected_energy(model%torch_model, inputs, axes, weights, variables, outputs, exc, status, directions)
+   END SUBROUTINE skala_torch_model_spin_projected_eval
 
 ! **************************************************************************************************
 !> \brief Parse a TorchScript extra_files JSON list of feature names.

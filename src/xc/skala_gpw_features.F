@@ -16,7 +16,6 @@ MODULE skala_gpw_features
                                               int_8
    USE message_passing,                 ONLY: mp_comm_type
    USE particle_types,                  ONLY: particle_type
-   USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_types,                        ONLY: pw_r3d_rs_type
    USE torch_api,                       ONLY: &
         torch_dict_clone, torch_dict_create, torch_dict_insert, torch_dict_release, &
@@ -50,12 +49,22 @@ MODULE skala_gpw_features
              periodic_atom_image_partition_from_layout, smooth_atom_partition, &
              smooth_partition_atomic_weight_scale, smooth_partition_atomic_weight_scale_derivative
 
+   PUBLIC :: skala_grid_layout_type, skala_grid_feature_build, skala_point_feature_build
+
+   TYPE skala_grid_layout_type
+      INTEGER, DIMENSION(2, 3) :: bounds = 0, bounds_local = 0
+      INTEGER, DIMENSION(3) :: npts = 0
+      INTEGER :: ngpts_local = 0
+      REAL(KIND=dp) :: dvol = 0.0_dp, dh(3, 3) = 0.0_dp
+      CLASS(mp_comm_type), POINTER :: group => NULL()
+   END TYPE skala_grid_layout_type
+
    TYPE skala_gpw_layout_cache_type
       INTEGER                                            :: chunk_atom_begin = 1, chunk_atom_end = 0, &
                                                             chunk_feature_begin = 1, &
                                                             chunk_feature_count = 0, chunk_natom = 0, &
                                                             natom = 0, nflat = 0, nflat_local = 0, &
-                                                            npoint = 0, nproc = 0, &
+                                                            npoint = 0, nproc = 0, comm_handle = -1, rank = -1, &
                                                             atom_partition = skala_gpw_atom_partition_hard
       INTEGER, DIMENSION(2, 3)                           :: bo = 0, bounds = 0
       INTEGER, DIMENSION(3)                              :: npts = 0
@@ -183,6 +192,77 @@ MODULE skala_gpw_features
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief Build owned features for complete atom blocks on an arbitrary point set.
+!> \param features Feature bundle, independent of the regular-grid layout cache.
+!> \param points Cartesian point coordinates, shaped (3,number of points).
+!> \param energy_weights Weights multiplying the model energy density.
+!> \param descriptor_weights Weights defining each atom's nonlocal descriptor domain.
+!> \param atom_sizes Number of consecutive rows in each complete atom block.
+!> \param atom_coords Cartesian centres of the atom blocks.
+!> \param density Total density, two spin channels, or four scalar/z/x/y components.
+!> \param gradient Cartesian gradients, shaped (number of points,3,spin channels).
+!> \param kinetic Positive kinetic-energy density in the same spin convention.
+!> \param requires_geometry_grad Differentiate coordinates and both independent weight sets.
+! **************************************************************************************************
+   SUBROUTINE skala_point_feature_build(features, points, energy_weights, descriptor_weights, &
+                                        atom_sizes, atom_coords, density, gradient, kinetic, requires_geometry_grad)
+      TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
+      REAL(KIND=dp), INTENT(IN)                          :: points(:, :), energy_weights(:), &
+                                                            descriptor_weights(:)
+      INTEGER, INTENT(IN)                                :: atom_sizes(:)
+      REAL(KIND=dp), INTENT(IN)                          :: atom_coords(:, :), density(:, :), &
+                                                            gradient(:, :, :), kinetic(:, :)
+      LOGICAL, INTENT(IN), OPTIONAL                      :: requires_geometry_grad
+
+      INTEGER                                            :: npoint, nspin, s
+
+      CALL skala_gpw_feature_release(features)
+      npoint = SIZE(density, 1)
+      nspin = SIZE(density, 2)
+      CPASSERT(nspin == 1 .OR. nspin == 2 .OR. nspin == 4)
+      CPASSERT(ALL(SHAPE(points) == [3, npoint]))
+      CPASSERT(SIZE(energy_weights) == npoint .AND. SIZE(descriptor_weights) == npoint)
+      CPASSERT(ALL(SHAPE(atom_coords) == [3, SIZE(atom_sizes)]))
+      CPASSERT(ALL(SHAPE(kinetic) == SHAPE(density)))
+      CPASSERT(ALL(SHAPE(gradient) == [npoint, 3, nspin]))
+      CPASSERT(ALL(atom_sizes > 0))
+      CPASSERT(SUM(INT(atom_sizes, int_8)) == INT(npoint, int_8))
+      IF (npoint == 0) RETURN
+
+      features%nflat = npoint
+      features%nflat_local = npoint
+      features%chunk_feature_count = npoint
+      features%grid_coords = points
+      features%grid_weights = energy_weights
+      features%atomic_grid_weights = descriptor_weights
+      features%atomic_grid_sizes = INT(atom_sizes, int_8)
+      features%coarse_0_atomic_coords = atom_coords
+      ALLOCATE (features%atomic_grid_size_bound_shape(0, MAXVAL(atom_sizes)))
+      ALLOCATE (features%chunk_density(npoint, MAX(2, nspin)), features%chunk_grad(npoint, 3, MAX(2, nspin)), &
+                features%chunk_kin(npoint, MAX(2, nspin)))
+      DO s = 1, MAX(2, nspin)
+         IF (nspin == 1) THEN
+            features%chunk_density(:, s) = 0.5_dp*density(:, 1)
+            features%chunk_grad(:, :, s) = 0.5_dp*gradient(:, :, 1)
+            features%chunk_kin(:, s) = 0.5_dp*kinetic(:, 1)
+         ELSE
+            features%chunk_density(:, s) = density(:, s)
+            features%chunk_grad(:, :, s) = gradient(:, :, s)
+            features%chunk_kin(:, s) = kinetic(:, s)
+         END IF
+      END DO
+      features%grid_weight_sum = SUM(energy_weights)
+      features%electron_count = SUM(SUM(features%chunk_density, DIM=2)*energy_weights)
+      features%spin_moment = SUM((features%chunk_density(:, 1) - features%chunk_density(:, 2))*energy_weights)
+      IF (nspin == 4) THEN
+         features%electron_count = SUM(features%chunk_density(:, 1)*energy_weights)
+         features%spin_moment = SUM(features%chunk_density(:, 2)*energy_weights)
+      END IF
+      CALL add_owned_feature_tensors(features, .TRUE., requires_geometry_grad)
+      features%active = .TRUE.
+   END SUBROUTINE skala_point_feature_build
+
+! **************************************************************************************************
 !> \brief Build a flat SKALA molecular feature dictionary from a local GPW grid.
 !> \param features ...
 !> \param rho_set ...
@@ -213,6 +293,79 @@ CONTAINS
                                                             route_atom_chunks
       INTEGER, INTENT(IN), OPTIONAL                      :: atom_partition
 
+      INTEGER                                            :: bo(2, 3), nr, ns, s, x
+      REAL(KIND=dp), ALLOCATABLE                         :: density(:, :), gradient(:, :, :), &
+                                                            kinetic(:, :)
+      REAL(KIND=dp), POINTER                             :: rho(:, :, :), tau(:, :, :)
+      TYPE(cp_3d_r_cp_type)                              :: drho(3)
+      TYPE(skala_grid_layout_type)                       :: grid
+
+      CPASSERT(SIZE(rho_r) == 1 .OR. SIZE(rho_r) == 2)
+      CPASSERT(ASSOCIATED(rho_r(1)%pw_grid))
+      grid%bounds = rho_r(1)%pw_grid%bounds
+      grid%bounds_local = rho_r(1)%pw_grid%bounds_local
+      grid%npts = rho_r(1)%pw_grid%npts
+      grid%ngpts_local = rho_r(1)%pw_grid%ngpts_local
+      grid%dvol = rho_r(1)%pw_grid%dvol
+      grid%dh = rho_r(1)%pw_grid%dh
+      grid%group => rho_r(1)%pw_grid%para%group
+      nr = grid%ngpts_local
+      ns = SIZE(rho_r)
+      bo = grid%bounds_local
+      ALLOCATE (density(nr, ns), gradient(nr, 3, ns), kinetic(nr, ns))
+      DO s = 1, ns
+         IF (ns == 1) THEN
+            CALL xc_rho_set_get(rho_set, rho=rho, drho=drho, tau=tau)
+         ELSE IF (s == 1) THEN
+            CALL xc_rho_set_get(rho_set, rhoa=rho, drhoa=drho, tau_a=tau)
+         ELSE
+            CALL xc_rho_set_get(rho_set, rhob=rho, drhob=drho, tau_b=tau)
+         END IF
+         density(:, s) = RESHAPE(rho(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), [nr])
+         kinetic(:, s) = RESHAPE(tau(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), [nr])
+         DO x = 1, 3
+            gradient(:, x, s) = RESHAPE(drho(x)%array(bo(1, 1):bo(2, 1), &
+                                                      bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), [nr])
+         END DO
+      END DO
+      CALL skala_grid_feature_build(features, grid, density, gradient, kinetic, particle_set, cell, &
+                                    requires_grad, weights, requires_coordinate_grad, requires_stress_grad, &
+                                    use_atom_chunks, route_atom_chunks, atom_partition)
+   END SUBROUTINE skala_gpw_feature_build
+
+! **************************************************************************************************
+!> \brief Build SKALA features from primitive fields on a distributed regular grid.
+!> \param features Model inputs and the reverse point mapping.
+!> \param pw_grid Grid geometry and the communicator partitioning one complete grid.
+!> \param density Total density for one spin channel, or up/down densities for two.
+!> \param gradient Cartesian gradients with shape (local points,3,spin channels).
+!> \param kinetic Positive kinetic-energy density with shape (local points,spin channels).
+!> \param particle_set Atomic coordinates.
+!> \param cell Periodic cell.
+!> \param requires_grad Enable primitive-field derivatives.
+!> \param weights Optional spatial integration weights.
+!> \param requires_coordinate_grad Enable atomic-coordinate derivatives.
+!> \param requires_stress_grad Enable grid-coordinate derivatives.
+!> \param use_atom_chunks Distribute model evaluations over complete atomic blocks.
+!> \param route_atom_chunks Route primitive fields directly to block owners.
+!> \param atom_partition Energy partition convention.
+! **************************************************************************************************
+   SUBROUTINE skala_grid_feature_build(features, pw_grid, density, gradient, kinetic, particle_set, cell, &
+                                       requires_grad, weights, requires_coordinate_grad, requires_stress_grad, &
+                                       use_atom_chunks, route_atom_chunks, atom_partition)
+      TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
+      TYPE(skala_grid_layout_type), INTENT(IN)           :: pw_grid
+      REAL(KIND=dp), INTENT(IN)                          :: density(:, :), gradient(:, :, :), &
+                                                            kinetic(:, :)
+      TYPE(particle_type), POINTER                       :: particle_set(:)
+      TYPE(cell_type), POINTER                           :: cell
+      LOGICAL, INTENT(IN), OPTIONAL                      :: requires_grad
+      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
+      LOGICAL, INTENT(IN), OPTIONAL                      :: requires_coordinate_grad, &
+                                                            requires_stress_grad, use_atom_chunks, &
+                                                            route_atom_chunks
+      INTEGER, INTENT(IN), OPTIONAL                      :: atom_partition
+
       INTEGER :: handle, i, ipt, ispin, j, k, local_row, my_atom_partition, &
          ndynamic_local_per_point, nflat, nflat_local, nspins, phase_handle, real_base, row
       INTEGER, DIMENSION(2, 3)                           :: bo
@@ -220,9 +373,6 @@ CONTAINS
          my_requires_stress_grad, my_route_atom_chunks, my_use_atom_chunks, &
          use_atom_chunk_protocol, use_atom_chunk_routing
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: global_dynamic, local_dynamic
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: rho, rhoa, rhob, tau_a, tau_b, tau_total
-      TYPE(cp_3d_r_cp_type), DIMENSION(3)                :: drho, drhoa, drhob
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
 
       CALL timeset("skala_gpw_feature_build", handle)
 
@@ -246,13 +396,18 @@ CONTAINS
       END IF
       CPASSERT(ASSOCIATED(cell))
       CPASSERT(ASSOCIATED(particle_set))
-      CPASSERT(SIZE(rho_r) == 1 .OR. SIZE(rho_r) == 2)
-      CPASSERT(ASSOCIATED(rho_r(1)%pw_grid))
-      pw_grid => rho_r(1)%pw_grid
-
-      nspins = SIZE(rho_r)
+      nspins = SIZE(density, 2)
+      CPASSERT(nspins == 1 .OR. nspins == 2)
+      CPASSERT(SIZE(density, 1) == pw_grid%ngpts_local)
+      CPASSERT(ALL(SHAPE(kinetic) == SHAPE(density)))
+      CPASSERT(ALL(SHAPE(gradient) == [pw_grid%ngpts_local, 3, nspins]))
+      CPASSERT(ASSOCIATED(pw_grid%group))
+      CPASSERT(pw_grid%dvol > 0.0_dp)
+      CPASSERT(ALL(pw_grid%npts > 0))
+      CPASSERT(ALL(pw_grid%bounds(2, :) - pw_grid%bounds(1, :) + 1 == pw_grid%npts))
       bo = pw_grid%bounds_local
       nflat_local = pw_grid%ngpts_local
+      CPASSERT(PRODUCT(MAX(0, bo(2, :) - bo(1, :) + 1)) == nflat_local)
 
       CALL timeset("skala_gpw_pre_release", phase_handle)
       CALL skala_gpw_feature_release(features)
@@ -273,13 +428,6 @@ CONTAINS
       local_dynamic = 0.0_dp
 
       CALL timeset("skala_gpw_pack_local", phase_handle)
-      IF (nspins == 1) THEN
-         CALL xc_rho_set_get(rho_set, rho=rho, drho=drho, tau=tau_total)
-      ELSE
-         CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob, drhoa=drhoa, drhob=drhob, &
-                             tau_a=tau_a, tau_b=tau_b)
-      END IF
-
       local_row = 0
       DO k = bo(1, 3), bo(2, 3)
          DO j = bo(1, 2), bo(2, 2)
@@ -289,35 +437,27 @@ CONTAINS
 
                IF (nspins == 1) THEN
                   IF (collapse_spin_dynamics) THEN
-                     local_dynamic(real_base + 1) = 0.5_dp*rho(i, j, k)
-                     local_dynamic(real_base + 2) = 0.5_dp*drho(1)%array(i, j, k)
-                     local_dynamic(real_base + 3) = 0.5_dp*drho(2)%array(i, j, k)
-                     local_dynamic(real_base + 4) = 0.5_dp*drho(3)%array(i, j, k)
-                     local_dynamic(real_base + 5) = 0.5_dp*tau_total(i, j, k)
+                     local_dynamic(real_base + 1) = 0.5_dp*density(local_row, 1)
+                     local_dynamic(real_base + 2:real_base + 4) = 0.5_dp*gradient(local_row, :, 1)
+                     local_dynamic(real_base + 5) = 0.5_dp*kinetic(local_row, 1)
                   ELSE
-                     local_dynamic(real_base + 1) = 0.5_dp*rho(i, j, k)
-                     local_dynamic(real_base + 2) = 0.5_dp*rho(i, j, k)
+                     local_dynamic(real_base + 1) = 0.5_dp*density(local_row, 1)
+                     local_dynamic(real_base + 2) = 0.5_dp*density(local_row, 1)
                      DO ispin = 1, 2
                         local_dynamic(real_base + 2 + 3*(ispin - 1) + 1) = &
-                           0.5_dp*drho(1)%array(i, j, k)
+                           0.5_dp*gradient(local_row, 1, 1)
                         local_dynamic(real_base + 2 + 3*(ispin - 1) + 2) = &
-                           0.5_dp*drho(2)%array(i, j, k)
+                           0.5_dp*gradient(local_row, 2, 1)
                         local_dynamic(real_base + 2 + 3*(ispin - 1) + 3) = &
-                           0.5_dp*drho(3)%array(i, j, k)
-                        local_dynamic(real_base + 8 + ispin) = 0.5_dp*tau_total(i, j, k)
+                           0.5_dp*gradient(local_row, 3, 1)
+                        local_dynamic(real_base + 8 + ispin) = 0.5_dp*kinetic(local_row, 1)
                      END DO
                   END IF
                ELSE
-                  local_dynamic(real_base + 1) = rhoa(i, j, k)
-                  local_dynamic(real_base + 2) = rhob(i, j, k)
-                  local_dynamic(real_base + 3) = drhoa(1)%array(i, j, k)
-                  local_dynamic(real_base + 4) = drhoa(2)%array(i, j, k)
-                  local_dynamic(real_base + 5) = drhoa(3)%array(i, j, k)
-                  local_dynamic(real_base + 6) = drhob(1)%array(i, j, k)
-                  local_dynamic(real_base + 7) = drhob(2)%array(i, j, k)
-                  local_dynamic(real_base + 8) = drhob(3)%array(i, j, k)
-                  local_dynamic(real_base + 9) = tau_a(i, j, k)
-                  local_dynamic(real_base + 10) = tau_b(i, j, k)
+                  local_dynamic(real_base + 1:real_base + 2) = density(local_row, :)
+                  local_dynamic(real_base + 3:real_base + 5) = gradient(local_row, :, 1)
+                  local_dynamic(real_base + 6:real_base + 8) = gradient(local_row, :, 2)
+                  local_dynamic(real_base + 9:real_base + 10) = kinetic(local_row, :)
                END IF
             END DO
          END DO
@@ -334,7 +474,7 @@ CONTAINS
 
       IF (use_atom_chunk_routing) THEN
          CALL timeset("skala_gpw_route_dyn", phase_handle)
-         CALL route_atom_chunk_dynamics(features, local_dynamic, pw_grid%para%group, &
+         CALL route_atom_chunk_dynamics(features, local_dynamic, pw_grid%group, &
                                         collapse_spin_dynamics)
          features%uses_atom_chunk_routing = .TRUE.
          features%uses_atom_chunks = .TRUE.
@@ -342,9 +482,9 @@ CONTAINS
       ELSE
          ALLOCATE (global_dynamic(ndynamic_per_point*cached_layout%npoint))
          CALL timeset("skala_gpw_allgatherv", phase_handle)
-         CALL pw_grid%para%group%allgatherv(local_dynamic, global_dynamic, &
-                                            cached_layout%dynamic_counts, &
-                                            cached_layout%dynamic_displs)
+         CALL pw_grid%group%allgatherv(local_dynamic, global_dynamic, &
+                                       cached_layout%dynamic_counts, &
+                                       cached_layout%dynamic_displs)
          CALL timestop(phase_handle)
 
          CALL timeset("skala_gpw_reorder_dyn", phase_handle)
@@ -392,9 +532,9 @@ CONTAINS
                                           cached_layout%chunk_grid_weights)
             END IF
          END IF
-         CALL pw_grid%para%group%sum(features%electron_count)
-         CALL pw_grid%para%group%sum(features%kinetic_integral)
-         CALL pw_grid%para%group%sum(features%spin_moment)
+         CALL pw_grid%group%sum(features%electron_count)
+         CALL pw_grid%group%sum(features%kinetic_integral)
+         CALL pw_grid%group%sum(features%spin_moment)
       ELSE
          features%electron_count = SUM((features%density(:, 1) + features%density(:, 2))* &
                                        features%grid_weights)
@@ -438,7 +578,7 @@ CONTAINS
       DEALLOCATE (local_dynamic)
       CALL timestop(handle)
 
-   END SUBROUTINE skala_gpw_feature_build
+   END SUBROUTINE skala_grid_feature_build
 
 ! **************************************************************************************************
 !> \brief Ensure that static grid-to-atom layout data is cached for the current grid/geometry.
@@ -451,14 +591,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE ensure_layout_cache(pw_grid, particle_set, cell, weights, atom_partition, &
                                   needs_full_static_tensors)
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(skala_grid_layout_type), INTENT(IN)           :: pw_grid
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
       INTEGER, INTENT(IN), OPTIONAL                      :: atom_partition
       LOGICAL, INTENT(IN)                                :: needs_full_static_tensors
 
-      INTEGER                                            :: my_atom_partition, phase_handle
+      INTEGER                                            :: my_atom_partition, phase_handle, rebuild
       LOGICAL                                            :: cache_matches
 
       my_atom_partition = skala_gpw_atom_partition_hard
@@ -475,7 +615,9 @@ CONTAINS
          CALL timestop(phase_handle)
       END IF
 
-      IF (cache_matches) THEN
+      rebuild = MERGE(0, 1, cache_matches)
+      CALL pw_grid%group%max(rebuild)
+      IF (rebuild == 0) THEN
          IF (needs_full_static_tensors .AND. .NOT. cached_layout%static_tensors_active) THEN
             CALL timeset("skala_gpw_layout_tensors", phase_handle)
             CALL build_full_static_layout_tensors(cached_layout)
@@ -507,7 +649,7 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION layout_cache_matches(pw_grid, particle_set, cell, weights, atom_partition) RESULT(matches)
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(skala_grid_layout_type), INTENT(IN)           :: pw_grid
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
@@ -524,7 +666,9 @@ CONTAINS
       IF (cached_layout%atom_partition /= my_atom_partition) RETURN
       IF (cached_layout%natom /= SIZE(particle_set)) RETURN
       IF (cached_layout%nflat_local /= pw_grid%ngpts_local) RETURN
-      IF (cached_layout%nproc /= pw_grid%para%group%num_pe) RETURN
+      IF (cached_layout%nproc /= pw_grid%group%num_pe) RETURN
+      IF (cached_layout%comm_handle /= pw_grid%group%get_handle()) RETURN
+      IF (cached_layout%rank /= pw_grid%group%mepos) RETURN
       IF (ANY(cached_layout%bo /= pw_grid%bounds_local)) RETURN
       IF (ANY(cached_layout%bounds /= pw_grid%bounds)) RETURN
       IF (ANY(cached_layout%npts /= pw_grid%npts)) RETURN
@@ -555,7 +699,7 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION layout_weights_match(pw_grid, weights) RESULT(matches)
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(skala_grid_layout_type), INTENT(IN)           :: pw_grid
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
       LOGICAL                                            :: matches
 
@@ -590,7 +734,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rebuild_layout_cache(pw_grid, particle_set, cell, weights, atom_partition, &
                                    needs_full_static_tensors)
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(skala_grid_layout_type), INTENT(IN)           :: pw_grid
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
@@ -623,8 +767,8 @@ CONTAINS
       natom = SIZE(particle_set)
       bo = pw_grid%bounds_local
       nflat_local = pw_grid%ngpts_local
-      nproc = pw_grid%para%group%num_pe
-      pe_index = pw_grid%para%group%mepos + 1
+      nproc = pw_grid%group%num_pe
+      pe_index = pw_grid%group%mepos + 1
 
       IF (PRESENT(weights)) THEN
          CALL weights_signature(weights, has_weights, weight_sum, weight_sumsq)
@@ -782,10 +926,11 @@ CONTAINS
       ! SKALA groups all grid points by atom. This ordering is static while the
       ! grid, cell, atom positions, and optional integration weights are unchanged.
       CALL timeset("skala_gpw_layout_gather", phase_handle)
-      CALL pw_grid%para%group%allgather(nflat_local, point_counts)
+      CALL pw_grid%group%allgather(nflat_local, point_counts)
       CALL counts_to_displs(point_counts, point_displs)
       npoint = SUM(point_counts)
-      CALL pw_grid%para%group%allgather(nfeature_local, feature_counts)
+      CPASSERT(npoint == PRODUCT(pw_grid%npts))
+      CALL pw_grid%group%allgather(nfeature_local, feature_counts)
       CALL counts_to_displs(feature_counts, feature_displs)
       DO pe = 1, nproc
          static_counts(pe) = nstatic_per_point*feature_counts(pe)
@@ -797,13 +942,13 @@ CONTAINS
       DO feature_local = 1, nfeature_local
          local_source_global(feature_local) = point_displs(pe_index) + local_source_points(feature_local)
       END DO
-      CALL pw_grid%para%group%allgatherv(local_owner(1:nfeature_local), global_owner, feature_counts, &
-                                         feature_displs)
-      CALL pw_grid%para%group%allgatherv(local_source_global, global_source_points, feature_counts, &
-                                         feature_displs)
-      CALL pw_grid%para%group%allgatherv(local_static(1:nstatic_per_point*nfeature_local), &
-                                         global_static, static_counts, &
-                                         static_displs)
+      CALL pw_grid%group%allgatherv(local_owner(1:nfeature_local), global_owner, feature_counts, &
+                                    feature_displs)
+      CALL pw_grid%group%allgatherv(local_source_global, global_source_points, feature_counts, &
+                                    feature_displs)
+      CALL pw_grid%group%allgatherv(local_static(1:nstatic_per_point*nfeature_local), &
+                                    global_static, static_counts, &
+                                    static_displs)
       CALL timestop(phase_handle)
 
       ALLOCATE (cached_layout%chunk_feature_counts(nproc), &
@@ -921,7 +1066,7 @@ CONTAINS
       CALL timestop(phase_handle)
       CALL timeset("skala_gpw_layout_chunk_routes", phase_handle)
       CALL build_atom_chunk_routes(cached_layout, cached_layout%local_feature_rows, &
-                                   pw_grid%para%group)
+                                   pw_grid%group)
       CALL build_atom_chunk_layout(cached_layout)
       CALL timestop(phase_handle)
 
@@ -930,6 +1075,8 @@ CONTAINS
       cached_layout%nflat_local = nflat_local
       cached_layout%npoint = npoint
       cached_layout%nproc = nproc
+      cached_layout%comm_handle = pw_grid%group%get_handle()
+      cached_layout%rank = pw_grid%group%mepos
       cached_layout%atom_partition = my_atom_partition
       cached_layout%bo = bo
       cached_layout%bounds = pw_grid%bounds
@@ -2152,10 +2299,17 @@ CONTAINS
 !> \brief Insert owned subchunk arrays into a Torch dictionary.
 !> \param features ...
 !> \param requires_grad ...
+!> \param requires_geometry_grad ...
 ! **************************************************************************************************
-   SUBROUTINE add_owned_feature_tensors(features, requires_grad)
+   SUBROUTINE add_owned_feature_tensors(features, requires_grad, requires_geometry_grad)
       TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
       LOGICAL, INTENT(IN)                                :: requires_grad
+      LOGICAL, INTENT(IN), OPTIONAL                      :: requires_geometry_grad
+
+      LOGICAL                                            :: geometry_grad
+
+      geometry_grad = .FALSE.
+      IF (PRESENT(requires_geometry_grad)) geometry_grad = requires_geometry_grad
 
       CPASSERT(ALLOCATED(features%chunk_density))
       CPASSERT(ALLOCATED(features%chunk_grad))
@@ -2173,16 +2327,16 @@ CONTAINS
       features%owns_static_tensors = .TRUE.
 
       CALL torch_tensor_from_array(features%grid_coords_t, features%grid_coords)
-      CALL torch_tensor_to_device_leaf(features%grid_coords_t, .FALSE.)
+      CALL torch_tensor_to_device_leaf(features%grid_coords_t, geometry_grad)
       CALL torch_tensor_from_array(features%grid_weights_t, features%grid_weights)
-      CALL torch_tensor_to_device_leaf(features%grid_weights_t, .FALSE.)
+      CALL torch_tensor_to_device_leaf(features%grid_weights_t, geometry_grad)
       CALL torch_tensor_from_array(features%atomic_grid_weights_t, features%atomic_grid_weights)
-      CALL torch_tensor_to_device_leaf(features%atomic_grid_weights_t, .FALSE.)
+      CALL torch_tensor_to_device_leaf(features%atomic_grid_weights_t, geometry_grad)
       CALL torch_tensor_from_array(features%atomic_grid_sizes_t, features%atomic_grid_sizes)
       CALL torch_tensor_to_device_leaf(features%atomic_grid_sizes_t, .FALSE.)
       CALL torch_tensor_from_array(features%coarse_0_atomic_coords_t, &
                                    features%coarse_0_atomic_coords)
-      CALL torch_tensor_to_device_leaf(features%coarse_0_atomic_coords_t, .FALSE.)
+      CALL torch_tensor_to_device_leaf(features%coarse_0_atomic_coords_t, geometry_grad)
       CALL torch_tensor_from_array(features%atomic_grid_size_bound_shape_t, &
                                    features%atomic_grid_size_bound_shape)
       CALL torch_tensor_to_device_leaf(features%atomic_grid_size_bound_shape_t, .FALSE.)
@@ -2404,7 +2558,7 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION grid_coordinate(pw_grid, index) RESULT(coord)
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(skala_grid_layout_type), INTENT(IN)           :: pw_grid
       INTEGER, DIMENSION(3), INTENT(IN)                  :: index
       REAL(KIND=dp), DIMENSION(3)                        :: coord
 

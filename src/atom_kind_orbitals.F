@@ -108,9 +108,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), &
          OPTIONAL, POINTER                               :: ao_coef
 
-      INTEGER                                            :: i, ii, j, k, k1, k2, l, ll, m, mb, mo, &
-                                                            nr, nset, nsgf, projector_index, &
-                                                            valence_n, z
+      INTEGER                                            :: i, ii, ispin, j, k, k1, k2, l, ll, m, &
+                                                            mb, mo, nr, nset, nsgf, nspins, &
+                                                            projector_index, valence_n, z
       INTEGER, DIMENSION(0:lmat)                         :: nbb
       INTEGER, DIMENSION(0:lmat, 10)                     :: ncalc, ncore, nelem
       INTEGER, DIMENSION(0:lmat, 100)                    :: set_index, shell_index
@@ -118,8 +118,9 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, ls
       LOGICAL                                            :: ecp_semi_local, ghost, has_pp, uks
       REAL(KIND=dp)                                      :: ok, qleft, scal, take, zeff
-      REAL(KIND=dp), DIMENSION(0:lmat, 10)               :: occupation_neutral
+      REAL(KIND=dp), DIMENSION(0:lmat, 10)               :: occupation_neutral, orbital_occupation
       REAL(KIND=dp), DIMENSION(0:lmat, 10, 2)            :: edelta
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: orbital_coefficients
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(atom_basis_type), POINTER                     :: basis
       TYPE(atom_integrals), POINTER                      :: integrals
@@ -502,21 +503,40 @@ CONTAINS
          IF (ASSOCIATED(wavefunction)) DEALLOCATE (wavefunction)
          IF (ASSOCIATED(wfninfo)) DEALLOCATE (wfninfo)
          mo = SUM(atom%state%maxn_occ)
+         nspins = 1
+         IF (uks) THEN
+            mo = COUNT(atom%state%occa > 0.0_dp) + COUNT(atom%state%occb > 0.0_dp)
+            nspins = 2
+         END IF
          ALLOCATE (wavefunction(nr, mo), wfninfo(2, mo))
          wavefunction = 0.0_dp
+         wfninfo = 0.0_dp
          IF (.NOT. ghost) THEN
             ii = 0
-            DO l = 0, lmat
-               DO i = 1, atom%state%maxn_occ(l)
-                  IF (atom%state%occupation(l, i) > 0.0_dp) THEN
-                     ii = ii + 1
-                     wfninfo(1, ii) = atom%state%occupation(l, i)
-                     wfninfo(2, ii) = REAL(l, dp)
-                     DO j = 1, atom%basis%nbas(l)
-                        wavefunction(:, ii) = wavefunction(:, ii) + &
-                                              atom%orbitals%wfn(j, i, l)*basis%bf(:, j, l)
-                     END DO
-                  END IF
+            ! UKS solves separate spin orbitals; the restricted wfn array is then empty.
+            DO ispin = 1, nspins
+               IF (.NOT. uks) THEN
+                  orbital_coefficients => atom%orbitals%wfn
+                  orbital_occupation = atom%state%occupation
+               ELSE IF (ispin == 1) THEN
+                  orbital_coefficients => atom%orbitals%wfna
+                  orbital_occupation = atom%state%occa
+               ELSE
+                  orbital_coefficients => atom%orbitals%wfnb
+                  orbital_occupation = atom%state%occb
+               END IF
+               DO l = 0, lmat
+                  DO i = 1, atom%state%maxn_occ(l)
+                     IF (orbital_occupation(l, i) > 0.0_dp) THEN
+                        ii = ii + 1
+                        wfninfo(1, ii) = orbital_occupation(l, i)
+                        wfninfo(2, ii) = REAL(l, dp)
+                        DO j = 1, atom%basis%nbas(l)
+                           wavefunction(:, ii) = wavefunction(:, ii) + &
+                                                 orbital_coefficients(j, i, l)*basis%bf(:, j, l)
+                        END DO
+                     END IF
+                  END DO
                END DO
             END DO
             CPASSERT(mo == ii)

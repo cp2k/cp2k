@@ -1,0 +1,88 @@
+! Fixed-geometry integration check with a separately solved 1s core.
+! Generate Ne-lapw.json with create_sirius_lapw_test_atom.py --element Ne.
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT Ne-lapw-atom-grid
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD SIRIUS
+  STRESS_TENSOR ANALYTICAL
+  &DFT
+    &XC
+      &XC_FUNCTIONAL
+        &GAUXC
+          MODEL SKALA
+          NATIVE_GRID T
+          NATIVE_GRID_USE_CUDA F
+        &END GAUXC
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &PRINT
+    &FORCES ON
+    &END FORCES
+    &STRESS_TENSOR ON
+    &END STRESS_TENSOR
+  &END PRINT
+  &PW_DFT
+    &CONTROL
+      GEN_EVP_SOLVER_NAME lapack
+      PROCESSING_UNIT cpu
+      STD_EVP_SOLVER_NAME lapack
+      VERBOSITY 1
+    &END CONTROL
+    &ITERATIVE_SOLVER
+      MIN_TOLERANCE 1e-11
+      TYPE exact
+    &END ITERATIVE_SOLVER
+    &MIXER
+      BETA 0.2
+      TYPE linear
+      USE_HARTREE F
+    &END MIXER
+    &PARAMETERS
+      AUTO_RMT 0
+      CORE_RELATIVITY none
+      DENSITY_TOL 1e-8
+      ELECTRONIC_STRUCTURE_METHOD full_potential_lapwlo
+      ENERGY_TOL 1e-9
+      GK_CUTOFF 1.5
+      LMAX_APW 3
+      LMAX_POT 6
+      LMAX_RHO 6
+      NGRIDK 1 1 1
+      NUM_BANDS 8
+      NUM_DFT_ITER 300
+      PW_CUTOFF 5.0
+      SHIFTK 1 0 0
+      SMEARING_WIDTH 0.01
+      USE_SYMMETRY F
+      VALENCE_RELATIVITY none
+    &END PARAMETERS
+    &SETTINGS
+      RADIAL_GRID "power, 2.0"
+    &END SETTINGS
+    &SKALA_GRID
+      EPS_RESPONSE 1e-6
+      IMAGE_SHELL 1
+      N_ANGULAR 110
+      N_RADIAL 3200
+      RADIAL_SCALE 1.0
+    &END SKALA_GRID
+  &END PW_DFT
+  &SUBSYS
+    &CELL
+      ABC [bohr] 8.0 9.0 10.0
+    &END CELL
+    &COORD
+      SCALED
+      Ne 0.2 0.3 0.4
+    &END COORD
+    &KIND Ne
+      POTENTIAL ALL
+      SIRIUS_ATOM_FILE Ne-lapw.json
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

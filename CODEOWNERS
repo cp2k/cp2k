@@ -41,6 +41,9 @@
 /src/offload/                @mtaillefumier @oschuett
 /src/grid/                   @mtaillefumier @oschuett
 
+# Skala
+/src/xc/skala_*              @DCM-Uni-Paderborn
+
 # SIRIUS
 /src/sirius_interface.F      @mtaillefumier @RMeli
 /src/*pwdft*                 @mtaillefumier @RMeli

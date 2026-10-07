@@ -1433,8 +1433,10 @@ list(
   xc_adiabatic_methods.F
   xc_adiabatic_utils.F
   xc/cp_linked_list_xc_deriv.F
+  xc/skala_atom_grid.F
   xc/skala_gpw_features.F
   xc/skala_gpw_functional.F
+  xc/skala_sirius.F
   xc/skala_torch_api.F
   xc_pot_saop.F
   xc_write_output.F
@@ -1636,6 +1638,9 @@ set(CP2K_PROGS_F
     motion/dumpdcd.F
     motion/xyz2dcd.F
     nequip_unittest.F
+    xc/skala_atom_grid_unittest.F
+    xc/skala_grid_unittest.F
+    xc/skala_sirius_unittest.F
     gx_ac_unittest.F)
 
 if(CP2K_USE_MPI)
@@ -1984,6 +1989,17 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_LIBGINT}>:__LIBGINT>
     $<$<BOOL:${CP2K_USE_LIBFCI}>:__LIBFCI>
     $<$<BOOL:${CP2K_USE_LIBTORCH}>:__LIBTORCH>
+    $<$<AND:$<BOOL:${CP2K_USE_SIRIUS}>,$<BOOL:${CP2K_SIRIUS_XC_CALLBACK}>>:__SIRIUS_XC_CALLBACK>
+    $<$<AND:$<BOOL:${CP2K_USE_SIRIUS}>,$<BOOL:${CP2K_SIRIUS_XC_POINT_CALLBACK}>>:__SIRIUS_XC_POINT_CALLBACK>
+    $<$<AND:$<BOOL:${CP2K_USE_SIRIUS}>,$<BOOL:${CP2K_SIRIUS_XC_POINT_GEOMETRY}>>:__SIRIUS_XC_POINT_GEOMETRY>
+    $<$<AND:$<BOOL:${CP2K_USE_SIRIUS}>,$<BOOL:${CP2K_SIRIUS_XC_POINT_RESPONSE}>>:__SIRIUS_XC_POINT_RESPONSE>
+    $<$<AND:$<BOOL:${CP2K_USE_SIRIUS}>,$<BOOL:${CP2K_SIRIUS_XC_POINT_HESSIAN}>>:__SIRIUS_XC_POINT_HESSIAN>
+    $<$<AND:$<BOOL:${CP2K_USE_SIRIUS}>,$<BOOL:${CP2K_SIRIUS_XC_SPINOR}>>:__SIRIUS_XC_SPINOR>
+    $<$<AND:$<BOOL:${CP2K_USE_SIRIUS}>,$<BOOL:${CP2K_SIRIUS_XC_POINT_UPDATE}>>:__SIRIUS_XC_POINT_UPDATE>
+    $<$<AND:$<BOOL:${CP2K_USE_SIRIUS}>,$<BOOL:${CP2K_SIRIUS_XC_RESPONSE_TOLERANCE}>>:__SIRIUS_XC_RESPONSE_TOLERANCE>
+    $<$<AND:$<BOOL:${CP2K_USE_SIRIUS}>,$<BOOL:${CP2K_SIRIUS_XC_QUADRATURE_DIRECTION}>>:__SIRIUS_XC_QUADRATURE_DIRECTION>
+    $<$<AND:$<BOOL:${CP2K_USE_SIRIUS}>,$<BOOL:${CP2K_SIRIUS_XC_DERIVATIVE}>>:__SIRIUS_XC_DERIVATIVE>
+    $<$<AND:$<BOOL:${CP2K_USE_SIRIUS}>,$<BOOL:${CP2K_SIRIUS_FINALIZE_NO_FFTW}>>:__SIRIUS_FINALIZE_NO_FFTW>
     $<$<BOOL:${CP2K_USE_LIBTORCH_CUDA}>:__LIBTORCH_CUDA>
     $<$<BOOL:${CP2K_USE_COSMA}>:__COSMA>
     $<$<BOOL:${CP2K_USE_LIBXS}>:__LIBXS>
@@ -2079,6 +2095,18 @@ list(
   "dbt_unittest"
   "dbt_tas_unittest"
   "gx_ac_unittest")
+
+list(APPEND __CP2K_APPS "skala_atom_grid_unittest")
+add_executable(skala_atom_grid_unittest xc/skala_atom_grid_unittest.F)
+
+if(CP2K_USE_LIBTORCH)
+  list(APPEND __CP2K_APPS "skala_grid_unittest")
+  add_executable(skala_grid_unittest xc/skala_grid_unittest.F)
+  if(CP2K_USE_SIRIUS AND CP2K_SIRIUS_XC_POINT_CALLBACK)
+    list(APPEND __CP2K_APPS "skala_sirius_unittest")
+    add_executable(skala_sirius_unittest xc/skala_sirius_unittest.F)
+  endif()
+endif()
 
 if(CP2K_USE_MPI)
   list(APPEND __CP2K_APPS "message_passing_thread_unittest")

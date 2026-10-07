@@ -1,0 +1,86 @@
+! Explicit-core PAW integration test with a fixed spin moment.
+! C-paw-core.json requires matching four-valence-electron UPF and ATOMPAW XML data.
+! Convert with SIRIUS's upf_to_json C.UPF --paw-core-xml C.xml -o C-paw-core.json.
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT C-paw-core
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD SIRIUS
+  STRESS_TENSOR ANALYTICAL
+  &DFT
+    MULTIPLICITY 3
+    UKS T
+    &XC
+      &XC_FUNCTIONAL
+        &GAUXC
+          MODEL SKALA
+          NATIVE_GRID T
+          NATIVE_GRID_USE_CUDA F
+        &END GAUXC
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &PRINT
+    &FORCES ON
+    &END FORCES
+    &STRESS_TENSOR ON
+    &END STRESS_TENSOR
+  &END PRINT
+  &PW_DFT
+    &CONTROL
+      GEN_EVP_SOLVER_NAME lapack
+      PROCESSING_UNIT cpu
+      STD_EVP_SOLVER_NAME lapack
+      VERBOSITY 1
+    &END CONTROL
+    &ITERATIVE_SOLVER
+      ENERGY_TOLERANCE 1e-9
+      MIN_TOLERANCE 1e-11
+      NUM_STEPS 80
+      TYPE exact
+    &END ITERATIVE_SOLVER
+    &MIXER
+      BETA 0.2
+      MAX_HISTORY 8
+      TYPE broyden2
+      USE_HARTREE F
+    &END MIXER
+    &PARAMETERS
+      DENSITY_TOL 2e-6
+      ELECTRONIC_STRUCTURE_METHOD pseudopotential
+      ENERGY_TOL 2e-7
+      FIXED_MAG 2.0
+      GK_CUTOFF 4.0
+      NGRIDK 1 1 1
+      NUM_BANDS 6
+      NUM_DFT_ITER 100
+      NUM_MAG_DIMS 1
+      PW_CUTOFF 12.0
+      SHIFTK 1 0 0
+      SMEARING_WIDTH 0.01
+      USE_SYMMETRY F
+    &END PARAMETERS
+    &SKALA_GRID
+      IMAGE_SHELL 1
+      N_ANGULAR 110
+      N_RADIAL 100
+      RADIAL_SCALE 1.0
+    &END SKALA_GRID
+  &END PW_DFT
+  &SUBSYS
+    &CELL
+      ABC [bohr] 8.0 9.0 10.0
+    &END CELL
+    &COORD
+      SCALED
+      C 0.2 0.3 0.4
+    &END COORD
+    &KIND C
+      MAGNETIZATION 0
+      POTENTIAL UPF C-paw-core.json
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

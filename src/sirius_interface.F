@@ -42,7 +42,8 @@ MODULE sirius_interface
                                               section_vals_get_subs_vals2,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: default_string_length,&
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: fourpi,&
@@ -77,6 +78,12 @@ MODULE sirius_interface
         sirius_option_set, sirius_set_atom_position, sirius_set_atom_type_dion, &
         sirius_set_atom_type_hubbard, sirius_set_atom_type_radial_grid, &
         sirius_set_lattice_vectors, sirius_set_mpi_grid_dims, sirius_update_ground_state
+   USE skala_gpw_functional,            ONLY: ensure_native_skala_grid_scope,&
+                                              xc_section_uses_native_skala_grid
+   USE skala_sirius,                    ONLY: skala_sirius_register,&
+                                              skala_sirius_register_atom_grid,&
+                                              skala_sirius_update
+   USE string_utilities,                ONLY: uppercase
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -123,7 +130,11 @@ CONTAINS
 !> \author JHU
 ! **************************************************************************************************
    SUBROUTINE cp_sirius_finalize()
+#if defined(__SIRIUS_FINALIZE_NO_FFTW)
+      CALL sirius_finalize(.FALSE., .FALSE.)
+#else
       CALL sirius_finalize(.FALSE., .FALSE., .FALSE.)
+#endif
    END SUBROUTINE cp_sirius_finalize
 
 !***************************************************************************************************
@@ -139,19 +150,20 @@ CONTAINS
 #if defined(__SIRIUS)
 
       CHARACTER(len=2)                                   :: element_symbol
-      CHARACTER(len=default_string_length)               :: label
+      CHARACTER(len=default_string_length)               :: label, electronic_structure_method
+      CHARACTER(len=default_path_length)                 :: atom_file
       INTEGER                                            :: i, ii, jj, iatom, ibeta, ifun, ikind, iwf, j, l, &
                                                             n, ns, natom, nbeta, nbs, nkind, nmesh, &
                                                             num_mag_dims, sirius_mpi_comm, vdw_func, nu, lu, output_unit
       INTEGER, DIMENSION(:), POINTER                     :: mpi_grid_dims
       INTEGER(KIND=C_INT), DIMENSION(3)                  :: k_grid, k_shift
       INTEGER, DIMENSION(:), POINTER                     :: kk
-      LOGICAL                                            :: up, use_ref_cell
+      LOGICAL                                            :: up, use_ref_cell, native_skala, atom_quadrature, full_potential
       LOGICAL(4)                                         :: use_so, use_symmetry, dft_plus_u_atom
       REAL(KIND=C_DOUBLE), ALLOCATABLE, DIMENSION(:)     :: fun
       REAL(KIND=C_DOUBLE), ALLOCATABLE, DIMENSION(:, :)  :: dion
       REAL(KIND=C_DOUBLE), DIMENSION(3)                  :: a1, a2, a3, v1, v2
-      REAL(KIND=dp)                                      :: al, angle1, angle2, cval, focc, &
+      REAL(KIND=dp)                                      :: al, cval, focc, &
                                                             magnetization, mass, pf, rl, zeff, alpha_u, beta_u, &
                                                             J0_u, J_u, U_u, occ_u, u_minus_J, vnlp, vnlm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: beta, corden, ef, fe, locpot, rc, rp
@@ -170,7 +182,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: qs_subsys
       TYPE(section_vals_type), POINTER                   :: pwdft_section, pwdft_sub_section, &
-                                                            xc_fun, xc_section
+                                                            xc_fun, xc_section, full_xc_section
       TYPE(sirius_context_handler)                       :: sctx
       TYPE(sirius_ground_state_handler)                  :: gs_handler
       TYPE(sirius_kpoint_set_handler)                    :: ks_handler
@@ -186,13 +198,17 @@ CONTAINS
 !     the "fun" starts.
 
       CALL pwdft_env_get(pwdft_env=pwdft_env, pwdft_input=pwdft_section, xc_input=xc_section)
+      full_xc_section => section_vals_get_subs_vals(pwdft_env%force_env_input, "DFT%XC")
+      native_skala = xc_section_uses_native_skala_grid(full_xc_section)
+      full_potential = .FALSE.
+      IF (native_skala) CALL ensure_native_skala_grid_scope(full_xc_section)
 
       CALL section_vals_val_get(pwdft_section, "ignore_convergence_failure", &
                                 l_val=pwdft_env%ignore_convergence_failure)
       ! cp2k should *have* a function that return all xc_functionals. Doing
       ! manually is prone to errors
 
-      IF (ASSOCIATED(xc_section)) THEN
+      IF (ASSOCIATED(xc_section) .AND. .NOT. native_skala) THEN
          ifun = 0
          DO
             ifun = ifun + 1
@@ -228,6 +244,9 @@ CONTAINS
          CALL section_vals_val_get(pwdft_sub_section, "num_mag_dims", i_val=num_mag_dims)
          CALL section_vals_val_get(pwdft_sub_section, "use_symmetry", l_val=use_symmetry)
          CALL section_vals_val_get(pwdft_sub_section, "so_correction", l_val=use_so)
+         CALL section_vals_val_get(pwdft_sub_section, "electronic_structure_method", c_val=electronic_structure_method)
+         CALL uppercase(electronic_structure_method)
+         full_potential = (TRIM(electronic_structure_method) == "FULL_POTENTIAL_LAPWLO")
 
 ! now check if van der walls corrections are needed
          vdw_func = -1
@@ -318,11 +337,15 @@ CONTAINS
       DO ikind = 1, nkind
          CALL get_atomic_kind(atomic_kind_set(ikind), &
                               name=label, element_symbol=element_symbol, mass=mass)
-         CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
+         CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff, sirius_atom_file=atom_file)
          NULLIFY (upf_pot, gth_potential)
          CALL get_qs_kind(qs_kind_set(ikind), upf_potential=upf_pot, gth_potential=gth_potential)
 
-         IF (ASSOCIATED(upf_pot)) THEN
+         IF (LEN_TRIM(atom_file) > 0) THEN
+            CALL sirius_add_atom_type(sctx, label, fname=TRIM(atom_file), zn=NINT(zeff), &
+                                      symbol=element_symbol, mass=REAL(mass/massunit, KIND=C_DOUBLE))
+
+         ELSE IF (ASSOCIATED(upf_pot)) THEN
             CALL sirius_add_atom_type(sctx, label, fname=upf_pot%filename, &
                                       symbol=element_symbol, &
                                       mass=REAL(mass/massunit, KIND=C_DOUBLE))
@@ -469,7 +492,7 @@ CONTAINS
 ! we can not easily get the principal quantum number
                nu = -1
                IF (up) THEN
-                  fun(1:nmesh) = wavefunction(1:nmesh, iwf)*rp(i)
+                  fun(1:nmesh) = wavefunction(1:nmesh, iwf)*rp(1:nmesh)
                ELSE
                   DO i = 1, nmesh
                      fun(i) = wavefunction(nmesh - i + 1, iwf)*rp(i)
@@ -501,7 +524,7 @@ CONTAINS
 !
          ELSE
             CALL cp_abort(__LOCATION__, &
-                          "CP2K/SIRIUS: atomic kind needs UPF or GTH potential definition")
+                          "CP2K/SIRIUS: atomic kind needs UPF/GTH potential or a full-potential SIRIUS_ATOM_FILE")
          END IF
 
          CALL get_qs_kind(qs_kind_set(ikind), &
@@ -551,17 +574,8 @@ CONTAINS
          atomic_kind => particle_set(iatom)%atomic_kind
          ikind = atomic_kind%kind_number
          CALL get_atomic_kind(atomic_kind, name=label)
-         CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff, magnetization=magnetization)
-! angle of magnetization might come from input Atom x y z mx my mz
-! or as an angle?
-! Answer : SIRIUS only accept the magnetization as mx, my, mz
-         IF (num_mag_dims == 3) THEN
-            angle1 = 0.0_dp
-            angle2 = 0.0_dp
-            v1(1) = magnetization*SIN(angle1)*COS(angle2)
-            v1(2) = magnetization*SIN(angle1)*SIN(angle2)
-            v1(3) = magnetization*COS(angle1)
-         ELSE
+         CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff, magnetization=magnetization, sirius_magnetization_vector=v1)
+         IF (num_mag_dims /= 3) THEN
             v1 = 0._dp
             v1(3) = magnetization
          END IF
@@ -570,6 +584,21 @@ CONTAINS
       END DO
 
       CALL sirius_set_mpi_grid_dims(sctx, 2, mpi_grid_dims)
+      pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "SKALA_GRID")
+      CALL section_vals_get(pwdft_sub_section, explicit=atom_quadrature)
+      IF (atom_quadrature .AND. .NOT. native_skala) CPABORT("PW_DFT/SKALA_GRID requires native Skala")
+      IF (native_skala .AND. full_potential .AND. .NOT. atom_quadrature) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Native Skala with FP-LAPW requires PW_DFT/SKALA_GRID for reconstructed atom and interstitial fields")
+      END IF
+      IF (native_skala) THEN
+         IF (atom_quadrature) THEN
+            CALL skala_sirius_register_atom_grid(sctx, full_xc_section, particle_set, my_cell, &
+                                                 para_env%mp_comm_type, pwdft_sub_section, pwdft_env%skala_state)
+         ELSE
+            CALL skala_sirius_register(sctx, full_xc_section, particle_set, my_cell, pwdft_env%skala_state)
+         END IF
+      END IF
 
 ! initialize global variables/indices/arrays/etc. of the simulation
       CALL sirius_initialize_context(sctx)
@@ -630,6 +659,7 @@ CONTAINS
          v2(1:3) = vs(1:3)
          CALL sirius_set_atom_position(sctx, iatom, v2(1))
       END DO
+      CALL skala_sirius_update(sctx, pwdft_env%skala_state, particle_set, my_cell, pwdft_env%para_env%mp_comm_type)
 
 ! update ground-state class
       CALL sirius_update_ground_state(gs_handler)
@@ -753,7 +783,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces, calculate_stress_tensor
 
       INTEGER                                            :: iw, n1, n2
-      LOGICAL                                            :: do_print, gs_converged
+      LOGICAL                                            :: atom_quadrature, do_print, gs_converged
       REAL(KIND=C_DOUBLE)                                :: etotal
       REAL(KIND=C_DOUBLE), ALLOCATABLE, DIMENSION(:, :)  :: cforces
       REAL(KIND=C_DOUBLE), DIMENSION(3, 3)               :: cstress
@@ -761,7 +791,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: forces
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(pwdft_energy_type), POINTER                   :: energy
-      TYPE(section_vals_type), POINTER                   :: print_section, pwdft_input
+      TYPE(section_vals_type), POINTER                   :: grid_section, print_section, pwdft_input
       TYPE(sirius_ground_state_handler)                  :: gs_handler
 
       CPASSERT(ASSOCIATED(pwdft_env))
@@ -771,6 +801,14 @@ CONTAINS
       iw = cp_logger_get_default_io_unit(logger)
 
       CALL pwdft_env_get(pwdft_env=pwdft_env, gs_handler=gs_handler)
+      IF ((calculate_forces .OR. calculate_stress_tensor) .AND. ASSOCIATED(pwdft_env%skala_state)) THEN
+         CALL pwdft_env_get(pwdft_env=pwdft_env, pwdft_input=pwdft_input)
+         grid_section => section_vals_get_subs_vals(pwdft_input, "SKALA_GRID")
+         CALL section_vals_get(grid_section, explicit=atom_quadrature)
+         IF (.NOT. atom_quadrature) THEN
+            CPABORT("Native Skala forces and stress with SIRIUS require PW_DFT/SKALA_GRID")
+         END IF
+      END IF
       CALL sirius_find_ground_state(gs_handler, converged=gs_converged)
 
       IF (gs_converged) THEN
@@ -793,6 +831,9 @@ CONTAINS
       etotal = 0.0_C_DOUBLE
       CALL sirius_get_energy(gs_handler, 'total', etotal)
       energy%etotal = etotal
+      ! The API returns the SCF correction separately from the total energy.
+      CALL sirius_get_energy(gs_handler, 'descf', etotal)
+      energy%etotal = energy%etotal + etotal
 
       ! extract entropy (TS returned by sirius is always negative, sign
       ! convention in QE)

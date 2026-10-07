@@ -1180,6 +1180,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="SIRIUS_MAGNETIZATION_VECTOR", &
+                          description="Cartesian (x,y,z) magnetization of the SIRIUS atomic initial guess. "// &
+                          "Requires METHOD SIRIUS and PW_DFT/PARAMETERS/NUM_MAG_DIMS 3. "// &
+                          "Overrides MAGNETIZATION for this initial guess. If absent, MAGNETIZATION is along z.", &
+                          usage="SIRIUS_MAGNETIZATION_VECTOR 0.3 -0.2 0.1", type_of_var=real_t, n_var=3)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="ELEMENT", &
                           variants=["ELEMENT_SYMBOL"], &
                           description="The element of the actual kind "// &
@@ -1200,6 +1208,15 @@ CONTAINS
                           description="The name of the file where to find this kinds pseudopotential."// &
                           " Default file is specified in DFT section.", &
                           usage="POTENTIAL_FILE_NAME <PSEUDO-POTENTIAL-FILE-NAME>", default_c_val="-", n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SIRIUS_ATOM_FILE", &
+                          description="SIRIUS full-potential atom JSON file containing the muffin-tin grid, "// &
+                          "core configuration, augmented-wave and local-orbital basis, and free-atom density. "// &
+                          "Requires METHOD SIRIUS and ELECTRONIC_STRUCTURE_METHOD full_potential_lapwlo. "// &
+                          "No Gaussian BASIS_SET or pseudopotential is used. POTENTIAL ALL may be specified.", &
+                          usage="SIRIUS_ATOM_FILE He.json", default_c_val="", n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -1,0 +1,74 @@
+! Fixed-geometry integration check, not a converged physical benchmark.
+! H-paw-no-core.json uses SIRIUS's core-free H PAW setup with an explicit zero
+! paw_data.ae_core_kinetic_density array matching ae_core_charge_density in length.
+! The radial grid includes points below the first PAW radial sample.
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT H-paw-atom-grid
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD SIRIUS
+  &DFT
+    &XC
+      &XC_FUNCTIONAL
+        &GAUXC
+          MODEL SKALA
+          NATIVE_GRID T
+          NATIVE_GRID_USE_CUDA F
+        &END GAUXC
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &PW_DFT
+    &CONTROL
+      GEN_EVP_SOLVER_NAME lapack
+      PROCESSING_UNIT cpu
+      STD_EVP_SOLVER_NAME lapack
+      VERBOSITY 1
+    &END CONTROL
+    &ITERATIVE_SOLVER
+      ENERGY_TOLERANCE 1e-9
+      MIN_TOLERANCE 1e-11
+      NUM_STEPS 80
+      TYPE exact
+    &END ITERATIVE_SOLVER
+    &MIXER
+      BETA 0.2
+      TYPE linear
+      USE_HARTREE F
+    &END MIXER
+    &PARAMETERS
+      DENSITY_TOL 2e-6
+      ELECTRONIC_STRUCTURE_METHOD pseudopotential
+      ENERGY_TOL 2e-7
+      GK_CUTOFF 2.6
+      NGRIDK 1 1 1
+      NUM_BANDS 4
+      NUM_DFT_ITER 150
+      PW_CUTOFF 8.0
+      SHIFTK 1 0 0
+      SMEARING_WIDTH 0.01
+      USE_SYMMETRY F
+    &END PARAMETERS
+    &SKALA_GRID
+      IMAGE_SHELL 1
+      N_ANGULAR 110
+      N_RADIAL 100
+      RADIAL_SCALE 1.0
+    &END SKALA_GRID
+  &END PW_DFT
+  &SUBSYS
+    &CELL
+      ABC [bohr] 8.0 9.0 10.0
+    &END CELL
+    &COORD
+      SCALED
+      H 0.2 0.3 0.4
+    &END COORD
+    &KIND H
+      POTENTIAL UPF H-paw-no-core.json
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

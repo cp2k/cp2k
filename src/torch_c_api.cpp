@@ -14,8 +14,10 @@
 #endif
 #include <c10/core/DeviceGuard.h>
 #include <torch/csrc/api/include/torch/cuda.h>
+#include <torch/csrc/autograd/autograd.h>
 #include <torch/csrc/jit/passes/freeze_module.h>
 #include <torch/csrc/jit/passes/inliner.h>
+#include <torch/csrc/jit/passes/subgraph_rewrite.h>
 #include <torch/script.h>
 
 #include "offload/offload_library.h"
@@ -28,11 +30,14 @@
 
 #include <cfenv>
 #include <climits>
+#include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #if defined(__OPENBLAS)
@@ -584,6 +589,62 @@ void torch_c_tensor_backward_scalar(const torch_c_tensor_t *tensor) {
 }
 
 /*******************************************************************************
+ * \brief Apply a scalar tensor's Hessian to directions of its independent
+ * inputs.
+ ******************************************************************************/
+void torch_c_tensor_hessian_vector(const torch_c_tensor_t *tensor,
+                                   const int count,
+                                   const torch_c_tensor_t *const inputs[],
+                                   const torch_c_tensor_t *const directions[],
+                                   torch_c_tensor_t *responses[]) {
+  TorchFloatingPointMaskGuard fpe_guard;
+  c10::OptionalDeviceGuard guard;
+  get_device_with_guard(guard);
+  TORCH_CHECK(count > 0 && tensor->numel() == 1,
+              "Hessian-vector evaluation requires a scalar and input tensors");
+  std::vector<torch::Tensor> variables;
+  std::vector<torch::Tensor> active_variables;
+  std::vector<torch::Tensor> active_directions;
+  for (int i = 0; i < count; i++) {
+    TORCH_CHECK(inputs[i]->requires_grad() &&
+                    inputs[i]->sizes() == directions[i]->sizes() &&
+                    inputs[i]->device() == directions[i]->device(),
+                "Hessian-vector inputs and directions must have matching "
+                "shapes and devices");
+    variables.push_back(*inputs[i]);
+    if (directions[i]->count_nonzero().item<int64_t>() != 0) {
+      active_variables.push_back(*inputs[i]);
+      active_directions.push_back(directions[i]->detach());
+    }
+  }
+  std::vector<torch::Tensor> first(active_variables.size());
+  if (tensor->requires_grad() && !active_variables.empty()) {
+    first = torch::autograd::grad({*tensor}, active_variables, {}, true, true,
+                                  true);
+  }
+  torch::Tensor contraction;
+  for (size_t i = 0; i < first.size(); i++) {
+    if (first[i].defined() && first[i].requires_grad()) {
+      auto term = (first[i] * active_directions[i]).sum();
+      contraction = contraction.defined() ? contraction + term : term;
+    }
+  }
+  std::vector<torch::Tensor> second(count);
+  if (contraction.defined()) {
+    // Retain all mixed responses, even for inputs with a zero direction.
+    second =
+        torch::autograd::grad({contraction}, variables, {}, false, false, true);
+  }
+  for (int i = 0; i < count; i++) {
+    responses[i] = new torch_c_tensor_t((second[i].defined()
+                                             ? second[i].detach()
+                                             : torch::zeros_like(*inputs[i]))
+                                            .cpu()
+                                            .contiguous());
+  }
+}
+
+/*******************************************************************************
  * \brief Moves a tensor to the active device and makes it an autograd leaf.
  ******************************************************************************/
 void torch_c_tensor_to_device_leaf(torch_c_tensor_t **tensor,
@@ -606,13 +667,18 @@ void torch_c_use_cuda(const bool use_cuda) { use_cuda_if_available = use_cuda; }
  * \author Ole Schuett
  ******************************************************************************/
 void torch_c_tensor_grad(const torch_c_tensor_t *tensor,
-                         torch_c_tensor_t **grad) {
+                         torch_c_tensor_t **grad, const bool allow_unused) {
   c10::OptionalDeviceGuard guard;
   get_device_with_guard(guard);
   const torch::Tensor maybe_grad = tensor->grad();
-  assert(maybe_grad.defined());
-  torch::Tensor host_grad = maybe_grad.detach().cpu().contiguous();
-  if (maybe_grad.is_cpu()) {
+  TORCH_CHECK(tensor->requires_grad(),
+              "Gradient requested for a non-differentiable tensor");
+  TORCH_CHECK(maybe_grad.defined() || allow_unused,
+              "Autograd did not compute the requested tensor gradient");
+  const auto source =
+      maybe_grad.defined() ? maybe_grad : torch::zeros_like(*tensor);
+  torch::Tensor host_grad = source.detach().cpu().contiguous();
+  if (source.is_cpu()) {
     host_grad = host_grad.clone();
   }
   *grad = new torch_c_tensor_t(std::move(host_grad));
@@ -789,6 +855,31 @@ void torch_c_model_disable_parameter_gradients(torch_c_model_t *model) {
 }
 
 /*******************************************************************************
+ * \brief Prepares an unexecuted model for second and third input derivatives.
+ ******************************************************************************/
+void torch_c_model_prepare_higher_derivatives(torch_c_model_t *model) {
+  // Spin projection differentiates the model up to third order. Preserve its
+  // parameter values but avoid fp32 cancellation and saturated SiLU backward.
+  torch_c_model_promote_float32(model);
+  torch::jit::SubgraphRewriter rewriter;
+  rewriter.RegisterRewritePattern(
+      "graph(%x):\n %y = aten::silu(%x)\n return (%y)", R"IR(
+graph(%x):
+  %s = aten::sigmoid(%x)
+  %y = aten::mul(%x, %s)
+  return (%y))IR");
+  std::unordered_set<torch::jit::Graph *> prepared;
+  for (const auto &module : model->modules()) {
+    for (const auto &method : module.get_methods()) {
+      auto graph = method.graph();
+      if (prepared.insert(graph.get()).second) {
+        rewriter.runOnGraph(graph);
+      }
+    }
+  }
+}
+
+/*******************************************************************************
  * \brief Evaluates the given Torch model.
  * \author Ole Schuett
  ******************************************************************************/
@@ -818,6 +909,132 @@ void torch_c_model_forward_mol_tensor(torch_c_model_t *model,
   assert(*output == NULL);
   *output = new torch_c_tensor_t(
       model->get_method(method_name)({*inputs}).toTensor());
+}
+
+/*******************************************************************************
+ * \brief Multicollinear energy and covectors for the molecular field protocol.
+ * Fields have scalar/z/x/y components. Average E_col + dE_col/dlambda with a
+ * common spin-scaling lambda for density, all gradients and positive tau.
+ * See DOI 10.1103/PhysRevResearch.5.013036. Each direction's graph is released
+ * after its covectors or joint Hessian action have been accumulated.
+ ******************************************************************************/
+static void model_spin_projected_energy(
+    torch_c_model_t *model, const torch_c_dict_t *inputs,
+    const torch_c_tensor_t *axes, const torch_c_tensor_t *weights,
+    const int count, const torch_c_tensor_t *const variables[],
+    const torch_c_tensor_t *const directions[], torch_c_tensor_t *outputs[],
+    double *energy) {
+  TorchFloatingPointMaskGuard fpe_guard;
+  c10::OptionalDeviceGuard guard;
+  get_device_with_guard(guard);
+  TORCH_CHECK(count > 0 && axes->dim() == 2 && axes->size(1) == 3 &&
+                  weights->dim() == 1 && axes->size(0) == weights->size(0) &&
+                  axes->size(0) > 0,
+              "Spin projection requires directions and normalized weights");
+  auto a = axes->to(torch::kCPU).to(torch::kFloat64).contiguous();
+  auto w = weights->to(torch::kCPU).to(torch::kFloat64).contiguous();
+  TORCH_CHECK(torch::isfinite(a).all().item<bool>() &&
+                  torch::isfinite(w).all().item<bool>() &&
+                  (w >= 0).all().item<bool>() &&
+                  std::abs(w.sum().item<double>() - 1) < 1e-12 &&
+                  ((a.square().sum(1) - 1).abs() < 1e-12).all().item<bool>(),
+              "Spin-projection quadrature must have unit axes and unit weight");
+  std::vector<torch::Tensor> vars, tangent, sums;
+  for (int i = 0; i < count; i++) {
+    TORCH_CHECK(outputs[i] == nullptr && variables[i]->requires_grad(),
+                "Spin projection requires differentiable input tensors");
+    vars.push_back(*variables[i]);
+    sums.push_back(torch::zeros_like(*variables[i]));
+    if (directions != nullptr) {
+      TORCH_CHECK(directions[i]->sizes() == variables[i]->sizes() &&
+                      directions[i]->device() == variables[i]->device(),
+                  "Spin-projection directions must match input tensors");
+      tangent.push_back(directions[i]->detach());
+    }
+  }
+  for (const auto *key : {"density", "grad", "kin"}) {
+    const auto &field = inputs->at(key);
+    TORCH_CHECK(field.size(0) == 4 && field.scalar_type() == torch::kFloat64,
+                "Spin projection requires fp64 scalar/z/x/y fields");
+  }
+  auto projected_energy = torch::zeros({}, inputs->at("density").options());
+  for (int64_t i = 0; i < a.size(0); i++) {
+    auto lambda = torch::ones({}, inputs->at("density").options())
+                      .set_requires_grad(true);
+    auto axis = a[i].to(lambda.device());
+    auto projected = inputs->copy();
+    for (const auto *key : {"density", "grad", "kin"}) {
+      const auto &field = inputs->at(key);
+      std::vector<int64_t> shape(field.dim(), 1);
+      shape[0] = 3;
+      auto spin = (field.slice(0, 1, 4) * axis.reshape(shape)).sum(0);
+      projected.insert_or_assign(
+          key, torch::stack({(field[0] + lambda * spin) / 2,
+                             (field[0] - lambda * spin) / 2}));
+    }
+    auto e = (model->get_method("get_exc_density")({projected})
+                  .toTensor()
+                  .to(torch::kFloat64) *
+              inputs->at("grid_weights"))
+                 .sum() +
+             0 * lambda;
+    auto spin_scaling =
+        torch::autograd::grad({e}, {lambda}, {}, true, true, true)[0];
+    auto effective = e + spin_scaling;
+    double angular_weight = w[i].item<double>();
+    projected_energy += angular_weight * effective.detach();
+    auto derivative =
+        torch::autograd::grad({effective}, vars, {}, directions != nullptr,
+                              directions != nullptr, true);
+    if (directions != nullptr) {
+      torch::Tensor contraction;
+      for (int j = 0; j < count; j++) {
+        if (derivative[j].defined() && derivative[j].requires_grad()) {
+          auto term = (derivative[j] * tangent[j]).sum();
+          contraction = contraction.defined() ? contraction + term : term;
+        }
+      }
+      derivative = contraction.defined()
+                       ? torch::autograd::grad({contraction}, vars, {}, false,
+                                               false, true)
+                       : std::vector<torch::Tensor>(count);
+    }
+    for (int j = 0; j < count; j++) {
+      if (derivative[j].defined()) {
+        sums[j] += angular_weight * derivative[j].detach();
+      }
+    }
+  }
+  *energy = projected_energy.item<double>();
+  TORCH_CHECK(std::isfinite(*energy), "Nonfinite spin-projected energy");
+  for (int j = 0; j < count; j++) {
+    TORCH_CHECK(torch::isfinite(sums[j]).all().item<bool>(),
+                "Nonfinite spin-projected covectors");
+    outputs[j] = new torch_c_tensor_t(sums[j].cpu().contiguous());
+  }
+}
+
+void torch_c_model_spin_projected_energy(
+    torch_c_model_t *model, const torch_c_dict_t *inputs,
+    const torch_c_tensor_t *axes, const torch_c_tensor_t *weights,
+    const int count, const torch_c_tensor_t *const variables[],
+    const torch_c_tensor_t *const directions[], torch_c_tensor_t *outputs[],
+    double *energy, int *status) {
+  *status = 0;
+  try {
+    model_spin_projected_energy(model, inputs, axes, weights, count, variables,
+                                directions, outputs, energy);
+  } catch (const std::exception &error) {
+    // The Fortran caller must finish its collectives before reporting failure.
+    fprintf(stderr, "Spin-projected Torch evaluation failed: %s\n",
+            error.what());
+    for (int j = 0; j < count; j++) {
+      delete outputs[j];
+      outputs[j] = nullptr;
+    }
+    *energy = 0;
+    *status = 1;
+  }
 }
 
 /*******************************************************************************

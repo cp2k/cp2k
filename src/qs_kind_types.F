@@ -57,6 +57,7 @@ MODULE qs_kind_types
         gth_potential_type, init_potential, local_potential_type, read_potential, &
         set_default_all_potential, set_potential, sgp_potential_type, write_potential
    USE gapw_1c_basis_set,               ONLY: create_1c_basis
+   USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE input_constants,                 ONLY: &
         do_method_am1, do_method_dftb, do_method_mndo, do_method_mndod, do_method_pdg, &
         do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_pw, &
@@ -190,6 +191,7 @@ MODULE qs_kind_types
    TYPE qs_kind_type
       CHARACTER(LEN=default_string_length)   :: name = ""
       CHARACTER(LEN=2)                       :: element_symbol = ""
+      CHARACTER(LEN=default_path_length)     :: sirius_atom_file = ""
       INTEGER                                :: natom = -1
       TYPE(all_potential_type), POINTER      :: all_potential => Null()
       TYPE(local_potential_type), POINTER    :: tnadd_potential => Null()
@@ -221,6 +223,7 @@ MODULE qs_kind_types
       INTEGER                                :: lmax_dftb = -1
       REAL(KIND=dp)                          :: dudq_dftb3 = 0.0_dp
       REAL(KIND=dp)                          :: magnetization = 0.0_dp
+      REAL(KIND=dp)                          :: sirius_magnetization_vector(3) = 0.0_dp
       INTEGER, DIMENSION(:, :), POINTER      :: addel => Null()
       INTEGER, DIMENSION(:, :), POINTER      :: laddel => Null()
       INTEGER, DIMENSION(:, :), POINTER      :: naddel => Null()
@@ -469,6 +472,8 @@ CONTAINS
 !> \param pao_potentials ...
 !> \param pao_descriptors ...
 !> \param nelec ...
+!> \param sirius_atom_file Full-potential SIRIUS atom data file.
+!> \param sirius_magnetization_vector Cartesian initial magnetization for SIRIUS.
 ! **************************************************************************************************
    SUBROUTINE get_qs_kind(qs_kind, &
                           basis_set, basis_type, ncgf, nsgf, &
@@ -487,7 +492,8 @@ CONTAINS
                           max_scf, eps_scf, smear, u_ramping, u_minus_j_target, eps_u_ramping, proj_shell_charge, &
                           lr_atom, do_mtlr, u_j_loop, ao_coef, &
                           init_u_ramping_each_scf, reltmat, ghost, monovalent, floating, name, element_symbol, &
-                          pao_basis_size, pao_model_file, pao_potentials, pao_descriptors, nelec)
+                          pao_basis_size, pao_model_file, pao_potentials, pao_descriptors, nelec, sirius_atom_file, &
+                          sirius_magnetization_vector)
 
       TYPE(qs_kind_type)                                 :: qs_kind
       TYPE(gto_basis_set_type), OPTIONAL, POINTER        :: basis_set
@@ -553,6 +559,8 @@ CONTAINS
       TYPE(pao_descriptor_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: pao_descriptors
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: nelec
+      CHARACTER(len=*), INTENT(OUT), OPTIONAL            :: sirius_atom_file
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: sirius_magnetization_vector(3)
 
       CHARACTER(LEN=default_string_length)               :: my_basis_type
       INTEGER                                            :: l
@@ -607,6 +615,7 @@ CONTAINS
       IF (PRESENT(xtb_parameter)) xtb_parameter => qs_kind%xtb_parameter
       IF (PRESENT(element_symbol)) element_symbol = qs_kind%element_symbol
       IF (PRESENT(name)) name = qs_kind%name
+      IF (PRESENT(sirius_atom_file)) sirius_atom_file = qs_kind%sirius_atom_file
       IF (PRESENT(dftb3_param)) dftb3_param = qs_kind%dudq_dftb3
       IF (PRESENT(elec_conf)) elec_conf => qs_kind%elec_conf
       IF (PRESENT(alpha_core_charge)) THEN
@@ -906,6 +915,7 @@ CONTAINS
       IF (PRESENT(naddel)) naddel => qs_kind%naddel
 
       IF (PRESENT(magnetization)) magnetization = qs_kind%magnetization
+      IF (PRESENT(sirius_magnetization_vector)) sirius_magnetization_vector = qs_kind%sirius_magnetization_vector
 
       IF (PRESENT(no_optimize)) no_optimize = qs_kind%no_optimize
 
@@ -1843,6 +1853,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(6)                        :: error
       REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nl, aloc, anlcc, cloc, cnlcc, nelec, &
                                                             proj_shell_charge, &
+                                                            sirius_magnetization, &
                                                             tmp_perturbation_strength
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_nl
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: c_nl
@@ -2078,6 +2089,11 @@ CONTAINS
             END IF
          END IF
          CALL uppercase(potential_type)
+         CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
+                                   keyword_name="SIRIUS_ATOM_FILE", c_val=qs_kind%sirius_atom_file)
+         IF (LEN_TRIM(qs_kind%sirius_atom_file) > 0 .AND. method_id /= do_method_pw) THEN
+            CPABORT("SIRIUS_ATOM_FILE requires FORCE_EVAL/METHOD SIRIUS")
+         END IF
 
          ! Parse KG POTENTIAL
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
@@ -2152,6 +2168,24 @@ CONTAINS
          ! Magnetization
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="MAGNETIZATION", r_val=qs_kind%magnetization)
+         qs_kind%sirius_magnetization_vector = [0.0_dp, 0.0_dp, qs_kind%magnetization]
+         CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
+                                   keyword_name="SIRIUS_MAGNETIZATION_VECTOR", explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
+                                      keyword_name="SIRIUS_MAGNETIZATION_VECTOR", r_vals=sirius_magnetization)
+            IF (method_id /= do_method_pw) THEN
+               CPABORT("SIRIUS_MAGNETIZATION_VECTOR requires METHOD SIRIUS")
+            END IF
+            CALL section_vals_val_get(force_env_section, "PW_DFT%PARAMETERS%NUM_MAG_DIMS", i_val=nspin)
+            IF (nspin /= 3) THEN
+               CPABORT("SIRIUS_MAGNETIZATION_VECTOR requires NUM_MAG_DIMS 3")
+            END IF
+            IF (.NOT. ALL(ieee_is_finite(sirius_magnetization))) THEN
+               CPABORT("Nonfinite SIRIUS magnetization vector")
+            END IF
+            qs_kind%sirius_magnetization_vector = sirius_magnetization
+         END IF
          ! DFTB3 param
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="DFTB3_PARAM", r_val=qs_kind%dudq_dftb3)
@@ -2640,47 +2674,73 @@ CONTAINS
 
       CASE (do_method_pw)
          ! PW DFT
-         ! Allocate and initialise the potential data set structure
-         IF (potential_name /= '') THEN
-            SELECT CASE (TRIM(potential_type))
-            CASE ("ALL", "ECP", "CNEO")
+         CALL section_vals_val_get(force_env_section, "PW_DFT%PARAMETERS%ELECTRONIC_STRUCTURE_METHOD", c_val=tmp)
+         CALL uppercase(tmp)
+         IF (TRIM(tmp) == "FULL_POTENTIAL_LAPWLO") THEN
+            IF (LEN_TRIM(qs_kind%sirius_atom_file) == 0) THEN
+               CPABORT("SIRIUS FP-LAPW requires SIRIUS_ATOM_FILE for KIND "//TRIM(qs_kind%name))
+            END IF
+            IF ((potential_type /= "" .AND. potential_type /= "ALL") .OR. explicit_potential) THEN
                CALL cp_abort(__LOCATION__, &
-                             "PW DFT calculations only with potential type UPF or GTH possible."// &
-                             " <"//TRIM(potential_type)//"> was specified "// &
-                             "for the atomic kind <"//TRIM(qs_kind%name))
-            CASE ("GTH")
-               CALL allocate_potential(qs_kind%gth_potential)
-               CALL read_potential(qs_kind%element_symbol, potential_name, &
-                                   qs_kind%gth_potential, zeff_correction, para_env, &
-                                   potential_file_names, potential_section, update_input, &
-                                   monovalent=qs_kind%monovalent)
-               CALL set_potential(qs_kind%gth_potential, z=z)
-               CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
-               IF (.NOT. ASSOCIATED(elec_conf)) THEN
-                  CALL get_potential(potential=qs_kind%gth_potential, elec_conf=elec_conf)
-                  CALL set_qs_kind(qs_kind, elec_conf=elec_conf)
-               ELSE
-                  CALL set_potential(potential=qs_kind%gth_potential, elec_conf=elec_conf)
-               END IF
-            CASE ("UPF")
-               ALLOCATE (qs_kind%upf_potential)
-               qs_kind%upf_potential%zion = 0
-               qs_kind%upf_potential%filename = ADJUSTL(TRIM(potential_name))
-               CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
-               IF (.NOT. ASSOCIATED(elec_conf)) THEN
-                  CALL set_qs_kind(qs_kind, elec_conf=qs_kind%upf_potential%econf)
-               END IF
-            CASE DEFAULT
+                             "SIRIUS FP-LAPW uses SIRIUS_ATOM_FILE, not a pseudopotential or POTENTIAL subsection")
+            END IF
+            IF (nb_rep > 0 .OR. explicit_basis) THEN
                CALL cp_abort(__LOCATION__, &
-                             "An invalid potential type <"// &
-                             TRIM(potential_type)//"> was specified "// &
-                             "for the atomic kind <"// &
-                             TRIM(qs_kind%name))
-            END SELECT
+                             "SIRIUS FP-LAPW reads its orbital basis from SIRIUS_ATOM_FILE, not BASIS_SET or BASIS")
+            END IF
+            IF (qs_kind%ghost .OR. qs_kind%floating .OR. ABS(zeff_correction) > 0.0_dp) THEN
+               CPABORT("SIRIUS FP-LAPW requires physical nuclei without KIND charge corrections")
+            END IF
+            CALL allocate_potential(qs_kind%all_potential)
+            CALL set_default_all_potential(qs_kind%all_potential, z, zeff_correction)
+            CALL get_potential(potential=qs_kind%all_potential, elec_conf=elec_conf)
+            CALL set_qs_kind(qs_kind, elec_conf=elec_conf)
          ELSE
-            CALL cp_abort(__LOCATION__, &
-                          "No potential type was defined for the "// &
-                          "atomic kind <"//TRIM(qs_kind%name)//">")
+            IF (LEN_TRIM(qs_kind%sirius_atom_file) > 0) THEN
+               CPABORT("SIRIUS_ATOM_FILE requires ELECTRONIC_STRUCTURE_METHOD full_potential_lapwlo")
+            END IF
+            ! Allocate and initialise the potential data set structure
+            IF (potential_name /= '') THEN
+               SELECT CASE (TRIM(potential_type))
+               CASE ("ALL", "ECP", "CNEO")
+                  CALL cp_abort(__LOCATION__, &
+                                "PW DFT calculations only with potential type UPF or GTH possible."// &
+                                " <"//TRIM(potential_type)//"> was specified "// &
+                                "for the atomic kind <"//TRIM(qs_kind%name))
+               CASE ("GTH")
+                  CALL allocate_potential(qs_kind%gth_potential)
+                  CALL read_potential(qs_kind%element_symbol, potential_name, &
+                                      qs_kind%gth_potential, zeff_correction, para_env, &
+                                      potential_file_names, potential_section, update_input, &
+                                      monovalent=qs_kind%monovalent)
+                  CALL set_potential(qs_kind%gth_potential, z=z)
+                  CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
+                  IF (.NOT. ASSOCIATED(elec_conf)) THEN
+                     CALL get_potential(potential=qs_kind%gth_potential, elec_conf=elec_conf)
+                     CALL set_qs_kind(qs_kind, elec_conf=elec_conf)
+                  ELSE
+                     CALL set_potential(potential=qs_kind%gth_potential, elec_conf=elec_conf)
+                  END IF
+               CASE ("UPF")
+                  ALLOCATE (qs_kind%upf_potential)
+                  qs_kind%upf_potential%zion = 0
+                  qs_kind%upf_potential%filename = ADJUSTL(TRIM(potential_name))
+                  CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
+                  IF (.NOT. ASSOCIATED(elec_conf)) THEN
+                     CALL set_qs_kind(qs_kind, elec_conf=qs_kind%upf_potential%econf)
+                  END IF
+               CASE DEFAULT
+                  CALL cp_abort(__LOCATION__, &
+                                "An invalid potential type <"// &
+                                TRIM(potential_type)//"> was specified "// &
+                                "for the atomic kind <"// &
+                                TRIM(qs_kind%name))
+               END SELECT
+            ELSE
+               CALL cp_abort(__LOCATION__, &
+                             "No potential type was defined for the "// &
+                             "atomic kind <"//TRIM(qs_kind%name)//">")
+            END IF
          END IF
 
       CASE DEFAULT
@@ -3499,7 +3559,13 @@ CONTAINS
                CALL write_orb_basis_set(tmp_basis, output_unit, "GAPW Soft Basis Set")
             END IF
             ! Potentials
-            IF (ASSOCIATED(qs_kind%all_potential)) CALL write_potential(qs_kind%all_potential, output_unit)
+            IF (LEN_TRIM(qs_kind%sirius_atom_file) > 0) THEN
+               WRITE (UNIT=output_unit, FMT="(/,T6,A,/,T8,A)") &
+                  "SIRIUS FP-LAPW atom data (radial basis and core configuration):", &
+                  TRIM(qs_kind%sirius_atom_file)
+            ELSE IF (ASSOCIATED(qs_kind%all_potential)) THEN
+               CALL write_potential(qs_kind%all_potential, output_unit)
+            END IF
             IF (ASSOCIATED(qs_kind%gth_potential)) CALL write_potential(qs_kind%gth_potential, output_unit)
             IF (ASSOCIATED(qs_kind%sgp_potential)) CALL write_potential(qs_kind%sgp_potential, output_unit)
             IF (ASSOCIATED(qs_kind%tnadd_potential)) CALL write_potential(qs_kind%tnadd_potential, output_unit)
