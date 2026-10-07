@@ -28,9 +28,12 @@
 
 MODULE qs_sccs
 
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind
    USE cp_control_types,                ONLY: dft_control_type,&
                                               sccs_control_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_finished_output,&
@@ -59,6 +62,7 @@ MODULE qs_sccs
                                               int_8
    USE mathconstants,                   ONLY: fourpi,&
                                               oorootpi,&
+                                              pi,&
                                               twopi
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_list_types,             ONLY: particle_list_type
@@ -81,9 +85,12 @@ MODULE qs_sccs
                                               pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
+   USE qs_collocate_density,            ONLY: calculate_rho_core
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type
@@ -97,6 +104,7 @@ MODULE qs_sccs
    USE rs_methods,                      ONLY: derive_fdm_cd3,&
                                               derive_fdm_cd5,&
                                               derive_fdm_cd7
+   USE string_utilities,                ONLY: uppercase
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -105,7 +113,7 @@ MODULE qs_sccs
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_sccs'
 
-   PUBLIC :: print_sccs_results, sccs
+   PUBLIC :: print_sccs_results, sccs, sccs_core_fill_coefficients
 
 CONTAINS
 
@@ -292,6 +300,25 @@ CONTAINS
             CALL pw_axpy(rho_pw_r(ispin), rho_elec)
          END DO
          tot_rho_elec = pw_integrate_function(rho_elec)
+
+         ! Optionally fill the low valence density region at the nuclei of pseudopotential
+         ! atoms with normalised Gaussians Z_val/(sqrt(pi)*sigma)**3*exp(-r**2/sigma**2)
+         ! (Environ "full" boundary). The filled density is only used for the definition
+         ! of the dielectric function (cavity)
+         IF (sccs_control%core_fill) THEN
+            BLOCK
+               REAL(KIND=dp)                                      :: tot_rho_fill
+               REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: calpha, ccore
+               TYPE(pw_r3d_rs_type)                               :: rho_fill
+               CALL sccs_core_fill_coefficients(qs_env, calpha, ccore, cp_logger_get_default_io_unit(logger))
+               CALL auxbas_pw_pool%create_pw(rho_fill)
+               ! calculate_rho_core collocates -ccore*exp(-calpha*r**2), i.e. the negated fill
+               CALL calculate_rho_core(rho_fill, tot_rho_fill, qs_env, calpha=calpha, ccore=ccore)
+               CALL pw_axpy(rho_fill, rho_elec, alpha=-1.0_dp)
+               CALL auxbas_pw_pool%give_back_pw(rho_fill)
+               DEALLOCATE (calpha, ccore)
+            END BLOCK
+         END IF
 
          ! Calculate the dielectric (smoothed) function of rho_elec in r-space
          CALL auxbas_pw_pool%create_pw(eps_elec)
@@ -1528,5 +1555,117 @@ CONTAINS
       END IF
 
    END SUBROUTINE print_sccs_results
+
+! **************************************************************************************************
+!> \brief Exponents and coefficients of the SCCS core fill Gaussians per atomic kind, such that
+!>        the fill density of an atom is ccore*exp(-calpha*r**2) = Z_val/(sqrt(pi)*sigma)**3*
+!>        exp(-r**2/sigma**2). A zero coefficient means that the kind is not filled.
+!> \param qs_env ...
+!> \param calpha Gaussian exponents 1/sigma**2 per kind
+!> \param ccore Gaussian coefficients per kind
+!> \param output_unit if > 0, the fill parameters are printed once
+! **************************************************************************************************
+   SUBROUTINE sccs_core_fill_coefficients(qs_env, calpha, ccore, output_unit)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: calpha, ccore
+      INTEGER, INTENT(IN), OPTIONAL                      :: output_unit
+
+      CHARACTER(LEN=default_string_length)               :: kind_name
+      INTEGER                                            :: ikind, iover, nkind, z
+      LOGICAL                                            :: found
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: used
+      REAL(KIND=dp)                                      :: r_thr, rho_thr, sigma, zeff
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(sccs_control_type), POINTER                   :: sccs_control
+
+      NULLIFY (atomic_kind_set, dft_control, qs_kind_set)
+      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
+                      dft_control=dft_control)
+      sccs_control => dft_control%sccs_control
+      nkind = SIZE(atomic_kind_set)
+      ALLOCATE (calpha(nkind), ccore(nkind), used(SIZE(sccs_control%core_fill_kind_label)))
+      used(:) = .FALSE.
+
+      ! Density threshold used only for the diagnostic radius of the fill:
+      ! the onset of the dielectric transition of the chosen method
+      SELECT CASE (sccs_control%method_id)
+      CASE (sccs_andreussi, sccs_saa_andreussi)
+         rho_thr = sccs_control%rho_min
+      CASE (sccs_fattebert_gygi)
+         rho_thr = sccs_control%rho_zero
+      CASE DEFAULT
+         rho_thr = 0.0_dp
+      END SELECT
+
+      IF (PRESENT(output_unit)) THEN
+         IF ((output_unit > 0) .AND. (.NOT. sccs_control%core_fill_printed)) THEN
+            WRITE (UNIT=output_unit, FMT="(/,T3,A,/,T3,A,ES10.3,/,T3,A)") &
+               "SCCS| Core fill: Z_val/(sqrt(pi)*sigma)**3*exp(-r**2/sigma**2) added for the cavity", &
+               "SCCS| r_thr: radius at which the fill density drops to rho_thr =", rho_thr, &
+               "SCCS|   Kind        Z   Z_val   sigma [bohr]   r_thr [Angstrom]"
+         END IF
+      END IF
+
+      DO ikind = 1, nkind
+         CALL get_atomic_kind(atomic_kind_set(ikind), name=kind_name, z=z)
+         CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
+         CALL uppercase(kind_name)
+         ! Default spread. Kinds without removed core electrons (Z_val = Z, e.g. H-q1, He-q2,
+         ! Li-q3, Be-q4) have no core hole in the valence density and are not filled
+         ! (generalises the hydrogen exception of Environ)
+         sigma = sccs_control%core_fill_spread
+         IF (zeff >= REAL(z, KIND=dp) - 0.5_dp) sigma = 0.0_dp
+         found = .FALSE.
+         DO iover = 1, SIZE(sccs_control%core_fill_kind_label)
+            IF (TRIM(sccs_control%core_fill_kind_label(iover)) == TRIM(kind_name)) THEN
+               sigma = sccs_control%core_fill_kind_spread(iover)
+               used(iover) = .TRUE.
+               found = .TRUE.
+            END IF
+         END DO
+         IF ((sigma > 0.0_dp) .AND. (zeff > 0.0_dp)) THEN
+            calpha(ikind) = 1.0_dp/(sigma*sigma)
+            ccore(ikind) = zeff*(calpha(ikind)/pi)**1.5_dp
+         ELSE
+            calpha(ikind) = 0.0_dp
+            ccore(ikind) = 0.0_dp
+         END IF
+         IF (PRESENT(output_unit)) THEN
+            IF ((output_unit > 0) .AND. (.NOT. sccs_control%core_fill_printed)) THEN
+               IF ((ccore(ikind) > 0.0_dp) .AND. (rho_thr > 0.0_dp)) THEN
+                  r_thr = 0.0_dp
+                  IF (ccore(ikind) > rho_thr) THEN
+                     r_thr = SQRT(LOG(ccore(ikind)/rho_thr)/calpha(ikind))
+                  END IF
+                  WRITE (UNIT=output_unit, FMT="(T3,A,T10,A,T18,I3,T24,F6.2,T34,F8.4,T50,F8.4,A)") &
+                     "SCCS|", TRIM(kind_name), z, zeff, sigma, cp_unit_from_cp2k(r_thr, "angstrom"), &
+                     MERGE(" (input)", "        ", found)
+               ELSE IF (ccore(ikind) > 0.0_dp) THEN
+                  WRITE (UNIT=output_unit, FMT="(T3,A,T10,A,T18,I3,T24,F6.2,T34,F8.4,T50,A)") &
+                     "SCCS|", TRIM(kind_name), z, zeff, sigma, "-"//MERGE(" (input)", "        ", found)
+               ELSE
+                  WRITE (UNIT=output_unit, FMT="(T3,A,T10,A,T18,I3,T24,F6.2,T34,A)") &
+                     "SCCS|", TRIM(kind_name), z, zeff, "no fill"//MERGE(" (input)", "        ", found)
+               END IF
+            END IF
+         END IF
+      END DO
+
+      DO iover = 1, SIZE(used)
+         IF (.NOT. used(iover)) THEN
+            CALL cp_abort(__LOCATION__, "SCCS| CORE_FILL_KIND: unknown kind label "// &
+                          TRIM(sccs_control%core_fill_kind_label(iover)))
+         END IF
+      END DO
+      IF (PRESENT(output_unit)) THEN
+         IF (output_unit > 0) sccs_control%core_fill_printed = .TRUE.
+      END IF
+      DEALLOCATE (used)
+
+   END SUBROUTINE sccs_core_fill_coefficients
 
 END MODULE qs_sccs
