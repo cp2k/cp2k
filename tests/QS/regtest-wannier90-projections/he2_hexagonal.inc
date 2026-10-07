@@ -1,5 +1,4 @@
 # Only the diagonalization variant reuses the first test's SCF restart.
-# The SPGLIB variant remains self-contained in its separate test directory.
 @SET scf_guess ATOMIC
 @SET write_restart OFF
 @IF ( ${project} == he2_hexagonal )
@@ -41,10 +40,7 @@
         SEED_NAME ${project}
         USE_BLOCH_PHASES T
         WANNIER_FUNCTIONS 2
-        &LIBRARY ON
-          CONV_TOL 1.e-10
-          NUM_ITER 1000
-        &END LIBRARY
+        INITIAL_PROJECTIONS AO_HYBRID
       &END WANNIER90
     &END PRINT
     &QS

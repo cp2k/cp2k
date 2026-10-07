@@ -21,7 +21,7 @@ PROGRAM wannier90_projections_unittest
                               mp_world_finalize, &
                               mp_world_init
    USE wannier90_projections, ONLY: wannier90_hybrid_candidates, &
-                                    wannier90_mix_projections, &
+                                    wannier90_window_mask, &
                                     wannier90_projection_rank, &
                                     wannier90_select_projections
 #include "./base/base_uses.f90"
@@ -33,7 +33,8 @@ PROGRAM wannier90_projections_unittest
    COMPLEX(KIND=dp) :: quartet(2, 4)
    COMPLEX(KIND=dp) :: amn(2, 2, 2), reference(2, 2, 2), rotation(2, 2, 2)
    COMPLEX(KIND=dp) :: repaired(2, 2, 3)
-   COMPLEX(KIND=dp) :: mixed(4, 3, 2), mixed_reference(4, 3, 2), single(4, 1, 2), gauge(4, 4, 2)
+   COMPLEX(KIND=dp) :: mixed_reference(4, 3, 2)
+   LOGICAL :: allowed(4)
    INTEGER :: anchor, ik, nfail, pivots(2), reference_pivots(2)
    REAL(KIND=dp) :: angle, min_svalue
    TYPE(mp_comm_type) :: comm
@@ -182,10 +183,6 @@ PROGRAM wannier90_projections_unittest
    CALL wannier90_select_projections(candidates, para_env, amn, pivots, min_svalue)
    IF (.NOT. ALL(pivots == [1, 3])) nfail = nfail + 1
    DEALLOCATE (candidates)
-   gauge = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
-   gauge(1:2, 1:2, :) = rotation
-   gauge(3, 3, :) = 1.0_dp
-   gauge(4, 4, :) = 1.0_dp
    DO ik = 1, 2
       DO anchor = 1, 3
          mixed_reference(1, anchor, ik) = CMPLX(0.1_dp*anchor, 0.2_dp*ik, KIND=dp)
@@ -205,23 +202,14 @@ PROGRAM wannier90_projections_unittest
    IF (ANY(actual_halt)) nfail = nfail + 1
    CALL ieee_set_halting_mode(IEEE_ALL, expected_halt)
 #endif
-   mixed = mixed_reference
-   CALL wannier90_mix_projections(mixed, 0.53_dp)
-   IF (ABS(wannier90_projection_rank(mixed) - min_svalue) > 1.0e-14_dp) nfail = nfail + 1
-   DO ik = 1, 2
-      IF (MAXVAL(ABS(MATMUL(mixed(:, :, ik), CONJG(TRANSPOSE(mixed(:, :, ik)))) - &
-                     MATMUL(mixed_reference(:, :, ik), CONJG(TRANSPOSE(mixed_reference(:, :, ik)))))) &
-          > 1.0e-14_dp) nfail = nfail + 1
-      mixed_reference(:, :, ik) = MATMUL(gauge(:, :, ik), mixed_reference(:, :, ik))
-   END DO
-   CALL wannier90_mix_projections(mixed_reference, 0.53_dp)
-   DO ik = 1, 2
-      IF (MAXVAL(ABS(mixed_reference(:, :, ik) - MATMUL(gauge(:, :, ik), mixed(:, :, ik)))) &
-          > 1.0e-14_dp) nfail = nfail + 1
-   END DO
-   single = mixed(:, 1:1, :)
-   CALL wannier90_mix_projections(single, -0.53_dp)
-   IF (MAXVAL(ABS(single - mixed(:, 1:1, :))) /= 0.0_dp) nfail = nfail + 1
+   CALL wannier90_window_mask([-2.0_dp, -1.0_dp, 1.0_dp, 2.0_dp], 2, &
+                              [-1.5_dp, 1.5_dp, 0.0_dp, 0.0_dp], &
+                              [.TRUE., .TRUE., .FALSE., .FALSE.], allowed)
+   IF (ANY(allowed .NEQV. [.FALSE., .TRUE., .TRUE., .FALSE.])) nfail = nfail + 1
+   CALL wannier90_window_mask([-2.0_dp, -1.0_dp, 1.0_dp, 2.0_dp], 2, &
+                              [-3.0_dp, 3.0_dp, 0.0_dp, 0.0_dp], &
+                              [.TRUE., .TRUE., .FALSE., .TRUE.], allowed)
+   IF (ANY(allowed .NEQV. [.TRUE., .TRUE., .FALSE., .FALSE.])) nfail = nfail + 1
 #if defined (__HAS_IEEE_EXCEPTIONS)
    CALL ieee_get_halting_mode(IEEE_ALL, actual_halt)
    IF (ANY(actual_halt .NEQV. expected_halt)) nfail = nfail + 1

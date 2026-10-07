@@ -932,7 +932,6 @@ list(
   topology_snapshot.F
   topology_curvature.F
   topology_phason_analysis.F
-  wannier90_library.F
   wannier90_projections.F
   wannier_states.F
   wannier_states_types.F
@@ -1885,7 +1884,6 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_SIRIUS}>:cp2k::sirius>
     $<$<BOOL:${CP2K_USE_VORI}>:cp2k::VORI::vori>
     $<$<BOOL:${CP2K_USE_SPGLIB}>:Spglib::symspg>
-    $<$<BOOL:${CP2K_USE_WANNIER90}>:Wannier90::wannier90>
     $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:cp2k::libsmeagol::smeagol>
     $<$<BOOL:${CP2K_USE_LIBXC}>:Libxc::xcf03>
     $<$<BOOL:${CP2K_USE_GAUXC}>:gauxc::gauxc>
@@ -1953,7 +1951,6 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_MAXWELL}>:__LIBMAXWELL>
     $<$<BOOL:${CP2K_USE_VORI}>:__LIBVORI>
     $<$<BOOL:${CP2K_USE_SPGLIB}>:__SPGLIB>
-    $<$<BOOL:${CP2K_USE_WANNIER90}>:__WANNIER90>
     $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:__SMEAGOL>
     $<$<BOOL:${CP2K_USE_TBLITE}>:__TBLITE>
     $<$<BOOL:${CP2K_USE_TBLITE}>:__S_DFTD3>

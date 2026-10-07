@@ -95,11 +95,6 @@ spack:
       require:
         - "~shared"
 
-    wannier90:
-      require:
-        - "~mpi"
-        - "~shared"
-
     # Yasm's CMake recipe does not declare its C++ compiler dependency.
     yasm:
       require:
@@ -131,7 +126,6 @@ spack:
     - "pace@2025.12.4.1"
     - "spglib@2.7.0"
     - "tblite@0.7.0"
-    - "wannier90@4.0.2"
 
   view:
     default:

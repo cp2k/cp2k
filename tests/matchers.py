@@ -129,16 +129,6 @@ registry["SKALA_GAPW_composite_electrons"] = GenericMatcher(
 registry["WANNIER90_SCF_MO_REUSE"] = TextPresenceMatcher(
     "WANNIER90| Reused SCF MO coefficients for the Wannier90 full k-point mesh."
 )
-registry["WANNIER90_LIBRARY_SPREAD"] = GenericMatcher("WANNIER90| Total spread", col=5)
-registry["WANNIER90_LIBRARY_ALPHA_SPREAD"] = GenericMatcher(
-    "WANNIER90| Spin 1 total spread", col=7
-)
-registry["WANNIER90_LIBRARY_BETA_SPREAD"] = GenericMatcher(
-    "WANNIER90| Spin 2 total spread", col=7
-)
-registry["WANNIER90_LIBRARY_INVARIANT_SPREAD"] = GenericMatcher(
-    "WANNIER90| Invariant spread", col=5
-)
 registry["WANNIER90_PROJECTION_MIN_SVALUE"] = GenericMatcher(
     "WANNIER90| Minimum projection singular value", col=6
 )
