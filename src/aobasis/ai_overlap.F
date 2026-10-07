@@ -16,12 +16,16 @@
 !> \author Matthias Krack (08.10.1999)
 ! **************************************************************************************************
 MODULE ai_overlap
+   USE ai_cartesian_operators,          ONLY: apply_cartesian_1d,&
+                                              cartesian_ladder,&
+                                              cartesian_ladder_map
    USE ai_os_rr,                        ONLY: os_rr_ovlp
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi,&
                                               twopi,&
                                               z_one
    USE orbital_pointers,                ONLY: coset,&
+                                              indco,&
                                               nco,&
                                               ncoset,&
                                               nso
@@ -80,10 +84,11 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(lds, lds, *), &
          INTENT(INOUT)                                   :: s
 
-      INTEGER :: ax, ay, az, bx, by, bz, cda, cdax, cday, cdaz, coa, coamx, coamy, coamz, coapx, &
-         coapy, coapz, cob, da, da_max, dax, day, daz, i, ipgf, j, jk, jpgf, jstart, k, la, &
-         la_max, la_start, lb, lb_max, lb_start, ldrr, na, nb
-      REAL(KIND=dp)                                      :: f0, fax, fay, faz, ftz, zetp
+      INTEGER :: ax, axis, ay, az, bx, by, bz, cda, cdax, cday, cdaz, coa, cob, da, da_max, dax, &
+         day, daz, first, first_b, i, ipgf, j, jk, jpgf, jstart, k, la_max, la_start, last, &
+         last_b, lb_max, lb_start, ldrr, na, nb
+      INTEGER, ALLOCATABLE                               :: derivative_map(:, :, :)
+      REAL(KIND=dp)                                      :: f0, zetp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rr
       REAL(KIND=dp), DIMENSION(3)                        :: rap, rbp
 
@@ -93,6 +98,12 @@ CONTAINS
       lb_max = lb_max_set
       ldrr = MAX(la_max, lb_max) + 1
       ALLOCATE (rr(0:ldrr - 1, 0:ldrr - 1, 3))
+      IF (da_max > 0) THEN
+         ALLOCATE (derivative_map(4, ncoset(la_max - 1), 3))
+         DO axis = 1, 3
+            CALL cartesian_ladder_map(la_max - 1, 0, axis, derivative_map(:, :, axis))
+         END DO
+      END IF
 
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
 
@@ -135,21 +146,15 @@ CONTAINS
 
             CALL os_rr_ovlp(rap, la_max, rbp, lb_max, 1.0_dp/zetp, ldrr, rr)
 
-            DO lb = 0, lb_max
-               DO bx = 0, lb
-                  DO by = 0, lb - bx
-                     bz = lb - bx - by
-                     cob = coset(bx, by, bz)
-                     DO la = 0, la_max
-                        DO ax = 0, la
-                           DO ay = 0, la - ax
-                              az = la - ax - ay
-                              coa = coset(ax, ay, az)
-                              s(coa, cob, 1) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*rr(az, bz, 3)
-                           END DO
-                        END DO
-                     END DO
-                  END DO
+            DO cob = 1, ncoset(lb_max)
+               bx = indco(1, cob)
+               by = indco(2, cob)
+               bz = indco(3, cob)
+               DO coa = 1, ncoset(la_max)
+                  ax = indco(1, coa)
+                  ay = indco(2, coa)
+                  az = indco(3, coa)
+                  s(coa, cob, 1) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*rr(az, bz, 3)
                END DO
             END DO
 
@@ -172,8 +177,11 @@ CONTAINS
                lb_start = lb_min_set
             END IF
 
+            first = ncoset(la_start - 1) + 1
+            first_b = ncoset(lb_start - 1) + 1
+            last_b = ncoset(lb_max_set)
             DO da = 0, da_max - 1
-               ftz = 2.0_dp*zeta(ipgf)
+               last = ncoset(la_max - da - 1)
                DO dax = 0, da
                   DO day = 0, da - dax
                      daz = da - dax - day
@@ -181,41 +189,12 @@ CONTAINS
                      cdax = coset(dax + 1, day, daz)
                      cday = coset(dax, day + 1, daz)
                      cdaz = coset(dax, day, daz + 1)
-
-!             *** [da/dAi|b] = 2*zeta*[a+1i|b] - Ni(a)[a-1i|b] ***
-
-                     DO la = la_start, la_max - da - 1
-                        DO ax = 0, la
-                           fax = REAL(ax, dp)
-                           DO ay = 0, la - ax
-                              fay = REAL(ay, dp)
-                              az = la - ax - ay
-                              faz = REAL(az, dp)
-                              coa = coset(ax, ay, az)
-                              coamx = coset(ax - 1, ay, az)
-                              coamy = coset(ax, ay - 1, az)
-                              coamz = coset(ax, ay, az - 1)
-                              coapx = coset(ax + 1, ay, az)
-                              coapy = coset(ax, ay + 1, az)
-                              coapz = coset(ax, ay, az + 1)
-                              DO lb = lb_start, lb_max_set
-                                 DO bx = 0, lb
-                                    DO by = 0, lb - bx
-                                       bz = lb - bx - by
-                                       cob = coset(bx, by, bz)
-                                       s(coa, cob, cdax) = ftz*s(coapx, cob, cda) - &
-                                                           fax*s(coamx, cob, cda)
-                                       s(coa, cob, cday) = ftz*s(coapy, cob, cda) - &
-                                                           fay*s(coamy, cob, cda)
-                                       s(coa, cob, cdaz) = ftz*s(coapz, cob, cda) - &
-                                                           faz*s(coamz, cob, cda)
-                                    END DO
-                                 END DO
-                              END DO
-                           END DO
-                        END DO
-                     END DO
-
+                     CALL cartesian_ladder(s(:, first_b:last_b, cda), s(first:last, first_b:last_b, cdax), &
+                                           derivative_map(:, first:last, 1), .TRUE., zeta(ipgf), 0.0_dp, .FALSE.)
+                     CALL cartesian_ladder(s(:, first_b:last_b, cda), s(first:last, first_b:last_b, cday), &
+                                           derivative_map(:, first:last, 2), .TRUE., zeta(ipgf), 0.0_dp, .FALSE.)
+                     CALL cartesian_ladder(s(:, first_b:last_b, cda), s(first:last, first_b:last_b, cdaz), &
+                                           derivative_map(:, first:last, 3), .TRUE., zeta(ipgf), 0.0_dp, .FALSE.)
                   END DO
                END DO
             END DO
@@ -262,7 +241,7 @@ CONTAINS
 !> \param rab        Distance vector A-B
 !> \param sab        Final overlap integrals
 !> \param dab        First derivative overlap integrals
-!> \param ddab       Second derivative overlap integrals
+!> \param ddab       Second derivative overlap integrals ordered xx, xy, xz, yy, yz, zz
 !> \param rr_work    Optional caller-provided one-dimensional overlap recurrence workspace
 !> \date    01.07.2014
 !> \author  JGH
@@ -282,11 +261,15 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), &
          OPTIONAL, TARGET                                :: rr_work
 
-      INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, ia, &
-                                                            ib, ipgf, jpgf, la, lb, ldrr, lma, &
-                                                            lmb, ma, mb, na, nb, ofa, ofb
-      REAL(KIND=dp)                                      :: a, ambm, ambp, apbm, apbp, b, dumx, &
-                                                            dumy, dumz, f0, rab2, tab, xhi, zet
+      INTEGER, PARAMETER :: pairs(2, 6) = RESHAPE([1, 1, 1, 2, 1, 3, 2, 2, 2, 3, 3, 3], [2, 6])
+
+      INTEGER                                            :: avec(3), bvec(3), coa, cob, ia, ib, &
+                                                            icomp, idir, ipgf, jdir, jpgf, kdir, &
+                                                            ldrr, lma, lmb, ma, mb, na, nb, ofa, &
+                                                            ofb
+      REAL(KIND=dp)                                      :: a, b, f0, factor(3), rab2, sval(3), tab, &
+                                                            xhi, zet
+      REAL(KIND=dp), ALLOCATABLE                         :: drr_a(:, :, :), drr_ab(:, :, :)
       REAL(KIND=dp), DIMENSION(3)                        :: rap, rbp
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: rr
 
@@ -319,6 +302,9 @@ CONTAINS
       ELSE
          ALLOCATE (rr(0:ldrr - 1, 0:ldrr - 1, 3))
       END IF
+
+      IF (PRESENT(dab) .OR. PRESENT(ddab)) ALLOCATE (drr_a(0:ldrr - 1, 0:ldrr - 1, 3))
+      IF (PRESENT(ddab)) ALLOCATE (drr_ab(0:ldrr - 1, 0:ldrr - 1, 3))
 
       ! Number of integrals, check size of arrays
       ofa = ncoset(la_min - 1)
@@ -367,165 +353,50 @@ CONTAINS
 
             ! Calculate the recurrence relation
             CALL os_rr_ovlp(rap, lma, rbp, lmb, zet, ldrr, rr)
+            IF (PRESENT(dab) .OR. PRESENT(ddab)) THEN
+               CALL apply_cartesian_1d(rr, drr_a, la_max, lmb, .FALSE., .TRUE., a, [0.0_dp, 0.0_dp, 0.0_dp])
+            END IF
+            IF (PRESENT(ddab)) THEN
+               CALL apply_cartesian_1d(drr_a, drr_ab, la_max, lb_max, .TRUE., .TRUE., b, [0.0_dp, 0.0_dp, 0.0_dp])
+            END IF
 
-            DO lb = lb_min, lb_max
-            DO bx = 0, lb
-            DO by = 0, lb - bx
-               bz = lb - bx - by
-               cob = coset(bx, by, bz) - ofb
-               ib = mb + cob
-               DO la = la_min, la_max
-               DO ax = 0, la
-               DO ay = 0, la - ax
-                  az = la - ax - ay
-                  coa = coset(ax, ay, az) - ofa
-                  ia = ma + coa
+            DO cob = ofb + 1, ncoset(lb_max)
+               bvec = indco(:, cob)
+               ib = mb + cob - ofb
+               DO coa = ofa + 1, ncoset(la_max)
+                  avec = indco(:, coa)
+                  ia = ma + coa - ofa
+                  sval = [(rr(avec(idir), bvec(idir), idir), idir=1, 3)]
                   ! integrals
                   IF (PRESENT(sab)) THEN
-                     sab(ia, ib) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*rr(az, bz, 3)
+                     sab(ia, ib) = f0*sval(1)*sval(2)*sval(3)
                   END IF
                   ! first derivatives
                   IF (PRESENT(dab)) THEN
-                     ! (da|b) = 2*a*(a+1|b) - N(a)*(a-1|b)
-                     ! dx
-                     dumx = 2.0_dp*a*rr(ax + 1, bx, 1)
-                     IF (ax > 0) dumx = dumx - REAL(ax, dp)*rr(ax - 1, bx, 1)
-                     dab(ia, ib, 1) = f0*dumx*rr(ay, by, 2)*rr(az, bz, 3)
-                     ! dy
-                     dumy = 2.0_dp*a*rr(ay + 1, by, 2)
-                     IF (ay > 0) dumy = dumy - REAL(ay, dp)*rr(ay - 1, by, 2)
-                     dab(ia, ib, 2) = f0*rr(ax, bx, 1)*dumy*rr(az, bz, 3)
-                     ! dz
-                     dumz = 2.0_dp*a*rr(az + 1, bz, 3)
-                     IF (az > 0) dumz = dumz - REAL(az, dp)*rr(az - 1, bz, 3)
-                     dab(ia, ib, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*dumz
+                     DO idir = 1, 3
+                        jdir = MOD(idir, 3) + 1
+                        kdir = MOD(idir + 1, 3) + 1
+                        dab(ia, ib, idir) = f0*drr_a(avec(idir), bvec(idir), idir)*sval(jdir)*sval(kdir)
+                     END DO
                   END IF
-                  ! 2nd derivatives
+                  ! Translational invariance gives D_B S = -D_A S and D_A D_A S = -D_A D_B S.
                   IF (PRESENT(ddab)) THEN
-                     ! (dda|b) = -4*a*b*(a+1|b+1) + 2*a*N(b)*(a+1|b-1)
-                     !           + 2*b*N(a)*(a-1|b+1) - N(a)*N(b)*(a-1|b-1)
-                     ! dx dx
-                     apbp = f0*rr(ax + 1, bx + 1, 1)*rr(ay, by, 2)*rr(az, bz, 3)
-                     IF (bx > 0) THEN
-                        apbm = f0*rr(ax + 1, bx - 1, 1)*rr(ay, by, 2)*rr(az, bz, 3)
-                     ELSE
-                        apbm = 0.0_dp
-                     END IF
-                     IF (ax > 0) THEN
-                        ambp = f0*rr(ax - 1, bx + 1, 1)*rr(ay, by, 2)*rr(az, bz, 3)
-                     ELSE
-                        ambp = 0.0_dp
-                     END IF
-                     IF (ax > 0 .AND. bx > 0) THEN
-                        ambm = f0*rr(ax - 1, bx - 1, 1)*rr(ay, by, 2)*rr(az, bz, 3)
-                     ELSE
-                        ambm = 0.0_dp
-                     END IF
-                     ddab(ia, ib, 1) = -4.0_dp*a*b*apbp + 2.0_dp*a*REAL(bx, dp)*apbm &
-                                       + 2.0_dp*b*REAL(ax, dp)*ambp - REAL(ax, dp)*REAL(bx, dp)*ambm
-                     ! dx dy
-                     apbp = f0*rr(ax + 1, bx, 1)*rr(ay, by + 1, 2)*rr(az, bz, 3)
-                     IF (by > 0) THEN
-                        apbm = f0*rr(ax + 1, bx, 1)*rr(ay, by - 1, 2)*rr(az, bz, 3)
-                     ELSE
-                        apbm = 0.0_dp
-                     END IF
-                     IF (ax > 0) THEN
-                        ambp = f0*rr(ax - 1, bx, 1)*rr(ay, by + 1, 2)*rr(az, bz, 3)
-                     ELSE
-                        ambp = 0.0_dp
-                     END IF
-                     IF (ax > 0 .AND. by > 0) THEN
-                        ambm = f0*rr(ax - 1, bx, 1)*rr(ay, by - 1, 2)*rr(az, bz, 3)
-                     ELSE
-                        ambm = 0.0_dp
-                     END IF
-                     ddab(ia, ib, 2) = -4.0_dp*a*b*apbp + 2.0_dp*a*REAL(by, dp)*apbm &
-                                       + 2.0_dp*b*REAL(ax, dp)*ambp - REAL(ax, dp)*REAL(by, dp)*ambm
-                     ! dx dz
-                     apbp = f0*rr(ax + 1, bx, 1)*rr(ay, by, 2)*rr(az, bz + 1, 3)
-                     IF (bz > 0) THEN
-                        apbm = f0*rr(ax + 1, bx, 1)*rr(ay, by, 2)*rr(az, bz - 1, 3)
-                     ELSE
-                        apbm = 0.0_dp
-                     END IF
-                     IF (ax > 0) THEN
-                        ambp = f0*rr(ax - 1, bx, 1)*rr(ay, by, 2)*rr(az, bz + 1, 3)
-                     ELSE
-                        ambp = 0.0_dp
-                     END IF
-                     IF (ax > 0 .AND. bz > 0) THEN
-                        ambm = f0*rr(ax - 1, bx, 1)*rr(ay, by, 2)*rr(az, bz - 1, 3)
-                     ELSE
-                        ambm = 0.0_dp
-                     END IF
-                     ddab(ia, ib, 3) = -4.0_dp*a*b*apbp + 2.0_dp*a*REAL(bz, dp)*apbm &
-                                       + 2.0_dp*b*REAL(ax, dp)*ambp - REAL(ax, dp)*REAL(bz, dp)*ambm
-                     ! dy dy
-                     apbp = f0*rr(ax, bx, 1)*rr(ay + 1, by + 1, 2)*rr(az, bz, 3)
-                     IF (by > 0) THEN
-                        apbm = f0*rr(ax, bx, 1)*rr(ay + 1, by - 1, 2)*rr(az, bz, 3)
-                     ELSE
-                        apbm = 0.0_dp
-                     END IF
-                     IF (ay > 0) THEN
-                        ambp = f0*rr(ax, bx, 1)*rr(ay - 1, by + 1, 2)*rr(az, bz, 3)
-                     ELSE
-                        ambp = 0.0_dp
-                     END IF
-                     IF (ay > 0 .AND. by > 0) THEN
-                        ambm = f0*rr(ax, bx, 1)*rr(ay - 1, by - 1, 2)*rr(az, bz, 3)
-                     ELSE
-                        ambm = 0.0_dp
-                     END IF
-                     ddab(ia, ib, 4) = -4.0_dp*a*b*apbp + 2.0_dp*a*REAL(by, dp)*apbm &
-                                       + 2.0_dp*b*REAL(ay, dp)*ambp - REAL(ay, dp)*REAL(by, dp)*ambm
-                     ! dy dz
-                     apbp = f0*rr(ax, bx, 1)*rr(ay + 1, by, 2)*rr(az, bz + 1, 3)
-                     IF (bz > 0) THEN
-                        apbm = f0*rr(ax, bx, 1)*rr(ay + 1, by, 2)*rr(az, bz - 1, 3)
-                     ELSE
-                        apbm = 0.0_dp
-                     END IF
-                     IF (ay > 0) THEN
-                        ambp = f0*rr(ax, bx, 1)*rr(ay - 1, by, 2)*rr(az, bz + 1, 3)
-                     ELSE
-                        ambp = 0.0_dp
-                     END IF
-                     IF (ay > 0 .AND. bz > 0) THEN
-                        ambm = f0*rr(ax, bx, 1)*rr(ay - 1, by, 2)*rr(az, bz - 1, 3)
-                     ELSE
-                        ambm = 0.0_dp
-                     END IF
-                     ddab(ia, ib, 5) = -4.0_dp*a*b*apbp + 2.0_dp*a*REAL(bz, dp)*apbm &
-                                       + 2.0_dp*b*REAL(ay, dp)*ambp - REAL(ay, dp)*REAL(bz, dp)*ambm
-                     ! dz dz
-                     apbp = f0*rr(ax, bx, 1)*rr(ay, by, 2)*rr(az + 1, bz + 1, 3)
-                     IF (bz > 0) THEN
-                        apbm = f0*rr(ax, bx, 1)*rr(ay, by, 2)*rr(az + 1, bz - 1, 3)
-                     ELSE
-                        apbm = 0.0_dp
-                     END IF
-                     IF (az > 0) THEN
-                        ambp = f0*rr(ax, bx, 1)*rr(ay, by, 2)*rr(az - 1, bz + 1, 3)
-                     ELSE
-                        ambp = 0.0_dp
-                     END IF
-                     IF (az > 0 .AND. bz > 0) THEN
-                        ambm = f0*rr(ax, bx, 1)*rr(ay, by, 2)*rr(az - 1, bz - 1, 3)
-                     ELSE
-                        ambm = 0.0_dp
-                     END IF
-                     ddab(ia, ib, 6) = -4.0_dp*a*b*apbp + 2.0_dp*a*REAL(bz, dp)*apbm &
-                                       + 2.0_dp*b*REAL(az, dp)*ambp - REAL(az, dp)*REAL(bz, dp)*ambm
+                     DO icomp = 1, 6
+                        idir = pairs(1, icomp)
+                        jdir = pairs(2, icomp)
+                        factor = sval
+                        IF (idir == jdir) THEN
+                           factor(idir) = -drr_ab(avec(idir), bvec(idir), idir)
+                        ELSE
+                           factor(idir) = drr_a(avec(idir), bvec(idir), idir)
+                           factor(jdir) = drr_a(avec(jdir), bvec(jdir), jdir)
+                        END IF
+                        ddab(ia, ib, icomp) = f0*factor(1)*factor(2)*factor(3)
+                     END DO
                   END IF
                   !
                END DO
-               END DO
-               END DO !la
             END DO
-            END DO
-            END DO !lb
 
             mb = mb + nb
          END DO
@@ -557,9 +428,9 @@ CONTAINS
 !> \param zetb       Exponents on center B
 !> \param rab        Distance vector A-B
 !> \param saab       Final overlap integrals
-!> \param daab       First derivative overlap integrals
+!> \param daab       First derivatives with respect to the shared center of both A functions
 !> \param saba       Final overlap integrals; different order
-!> \param daba       First derivative overlap integrals; different order
+!> \param daba       Same shared-center derivatives as daab, with A-B-A output ordering
 !> \date    01.07.2014
 !> \author  JGH
 ! **************************************************************************************************
@@ -586,9 +457,9 @@ CONTAINS
       INTEGER :: ax, ax1, ax2, ay, ay1, ay2, az, az1, az2, bx, by, bz, coa1, coa2, cob, i1pgf, &
          i2pgf, ia1, ia2, ib, jpgf, la1, la2, lb, ldrr, lma, lmb, ma1, ma2, mb, na1, na2, nb, &
          ofa1, ofa2, ofb
-      REAL(KIND=dp)                                      :: a, b, dumx, dumy, dumz, f0, rab2, rpgfa, &
-                                                            tab, xhi, zet
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rr
+      REAL(KIND=dp)                                      :: a, b, dum(3), f0, rab2, rpgfa, tab, xhi, &
+                                                            zet
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: drr, rr
       REAL(KIND=dp), DIMENSION(3)                        :: rap, rbp
 
       ! Distance of the centers a and b
@@ -610,6 +481,7 @@ CONTAINS
 
       ! Allocate space for auxiliary integrals
       ALLOCATE (rr(0:ldrr - 1, 0:ldrr - 1, 3))
+      IF (PRESENT(daab) .OR. PRESENT(daba)) ALLOCATE (drr(0:lma - 1, 0:lmb, 3))
 
       ! Number of integrals, check size of arrays
       ofa1 = ncoset(la1_min - 1)
@@ -672,6 +544,10 @@ CONTAINS
 
                ! Calculate the recurrence relation
                CALL os_rr_ovlp(rap, lma, rbp, lmb, zet, ldrr, rr)
+               IF (PRESENT(daab) .OR. PRESENT(daba)) THEN
+                  CALL apply_cartesian_1d(rr, drr, la1_max + la2_max, lmb, .FALSE., .TRUE., a, &
+                                          [0.0_dp, 0.0_dp, 0.0_dp])
+               END IF
 
                DO lb = lb_min, lb_max
                DO bx = 0, lb
@@ -703,29 +579,11 @@ CONTAINS
                            ax = ax1 + ax2
                            ay = ay1 + ay2
                            az = az1 + az2
-                           ! (da|b) = 2*a*(a+1|b) - N(a)*(a-1|b)
-                           ! dx
-                           dumx = 2.0_dp*a*rr(ax + 1, bx, 1)
-                           IF (ax > 0) dumx = dumx - REAL(ax, dp)*rr(ax - 1, bx, 1)
-                           dumx = f0*dumx*rr(ay, by, 2)*rr(az, bz, 3)
-                           ! dy
-                           dumy = 2.0_dp*a*rr(ay + 1, by, 2)
-                           IF (ay > 0) dumy = dumy - REAL(ay, dp)*rr(ay - 1, by, 2)
-                           dumy = f0*rr(ax, bx, 1)*dumy*rr(az, bz, 3)
-                           ! dz
-                           dumz = 2.0_dp*a*rr(az + 1, bz, 3)
-                           IF (az > 0) dumz = dumz - REAL(az, dp)*rr(az - 1, bz, 3)
-                           dumz = f0*rr(ax, bx, 1)*rr(ay, by, 2)*dumz
-                           IF (PRESENT(daab)) THEN
-                              daab(ia1, ia2, ib, 1) = dumx
-                              daab(ia1, ia2, ib, 2) = dumy
-                              daab(ia1, ia2, ib, 3) = dumz
-                           END IF
-                           IF (PRESENT(daba)) THEN
-                              daba(ia1, ib, ia2, 1) = dumx
-                              daba(ia1, ib, ia2, 2) = dumy
-                              daba(ia1, ib, ia2, 3) = dumz
-                           END IF
+                           dum(1) = f0*drr(ax, bx, 1)*rr(ay, by, 2)*rr(az, bz, 3)
+                           dum(2) = f0*rr(ax, bx, 1)*drr(ay, by, 2)*rr(az, bz, 3)
+                           dum(3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*drr(az, bz, 3)
+                           IF (PRESENT(daab)) daab(ia1, ia2, ib, 1:3) = dum
+                           IF (PRESENT(daba)) daba(ia1, ib, ia2, 1:3) = dum
                         END IF
                         !
                      END DO
@@ -769,7 +627,7 @@ CONTAINS
 !> \param zetb2      Exponents on center B (basis 2)
 !> \param rab        Distance vector A-B
 !> \param sabb       Final overlap integrals
-!> \param dabb       First derivative overlap integrals
+!> \param dabb       First derivatives with respect to center A
 !> \date    01.07.2014
 !> \author  JGH
 ! **************************************************************************************************
@@ -792,9 +650,8 @@ CONTAINS
       INTEGER :: ax, ay, az, bx, bx1, bx2, by, by1, by2, bz, bz1, bz2, coa, cob1, cob2, ia, ib1, &
          ib2, ipgf, j1pgf, j2pgf, la, lb1, lb2, ldrr, lma, lmb, ma, mb1, mb2, na, nb1, nb2, ofa, &
          ofb1, ofb2
-      REAL(KIND=dp)                                      :: a, b, dumx, dumy, dumz, f0, rab2, rpgfb, &
-                                                            tab, xhi, zet
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rr
+      REAL(KIND=dp)                                      :: a, b, f0, rab2, rpgfb, tab, xhi, zet
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: drr, rr
       REAL(KIND=dp), DIMENSION(3)                        :: rap, rbp
 
       ! Distance of the centers a and b
@@ -816,6 +673,7 @@ CONTAINS
 
       ! Allocate space for auxiliary integrals
       ALLOCATE (rr(0:ldrr - 1, 0:ldrr - 1, 3))
+      IF (PRESENT(dabb)) ALLOCATE (drr(0:lma - 1, 0:lmb, 3))
 
       ! Number of integrals, check size of arrays
       ofa = ncoset(la_min - 1)
@@ -865,6 +723,10 @@ CONTAINS
 
                ! Calculate the recurrence relation
                CALL os_rr_ovlp(rap, lma, rbp, lmb, zet, ldrr, rr)
+               IF (PRESENT(dabb)) THEN
+                  CALL apply_cartesian_1d(rr, drr, la_max, lmb, .FALSE., .TRUE., a, &
+                                          [0.0_dp, 0.0_dp, 0.0_dp])
+               END IF
 
                DO lb2 = lb2_min, lb2_max
                DO bx2 = 0, lb2
@@ -893,19 +755,9 @@ CONTAINS
                            bx = bx1 + bx2
                            by = by1 + by2
                            bz = bz1 + bz2
-                           ! (da|b) = 2*a*(a+1|b) - N(a)*(a-1|b)
-                           ! dx
-                           dumx = 2.0_dp*a*rr(ax + 1, bx, 1)
-                           IF (ax > 0) dumx = dumx - REAL(ax, dp)*rr(ax - 1, bx, 1)
-                           dabb(ia, ib1, ib2, 1) = f0*dumx*rr(ay, by, 2)*rr(az, bz, 3)
-                           ! dy
-                           dumy = 2.0_dp*a*rr(ay + 1, by, 2)
-                           IF (ay > 0) dumy = dumy - REAL(ay, dp)*rr(ay - 1, by, 2)
-                           dabb(ia, ib1, ib2, 2) = f0*rr(ax, bx, 1)*dumy*rr(az, bz, 3)
-                           ! dz
-                           dumz = 2.0_dp*a*rr(az + 1, bz, 3)
-                           IF (az > 0) dumz = dumz - REAL(az, dp)*rr(az - 1, bz, 3)
-                           dabb(ia, ib1, ib2, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*dumz
+                           dabb(ia, ib1, ib2, 1) = f0*drr(ax, bx, 1)*rr(ay, by, 2)*rr(az, bz, 3)
+                           dabb(ia, ib1, ib2, 2) = f0*rr(ax, bx, 1)*drr(ay, by, 2)*rr(az, bz, 3)
+                           dabb(ia, ib1, ib2, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*drr(az, bz, 3)
                         END IF
                         !
                      END DO

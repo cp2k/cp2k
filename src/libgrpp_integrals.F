@@ -10,8 +10,7 @@
 ! **************************************************************************************************
 
 MODULE libgrpp_integrals
-   USE ai_derivatives,                  ONLY: adbdr,&
-                                              dabdr
+   USE ai_cartesian_operators,          ONLY: apply_cartesian_operator
    USE kinds,                           ONLY: dp
    USE libgrpp,                         ONLY: libgrpp_init,&
                                               libgrpp_type1_integrals,&
@@ -512,7 +511,7 @@ CONTAINS
       REAL(dp)                                           :: expi, expj, normi, normj, prefi, prefj, &
                                                             zeti, zetj
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: tmp
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: tmpx, tmpy, tmpz, vab_f
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: vab_f
       REAL(dp), DIMENSION(3)                             :: ra, rb, rc
 
       CALL libgrpp_init()
@@ -588,38 +587,8 @@ CONTAINS
          END DO !jpgf
       END DO !ipgf
 
-      ALLOCATE (tmpx(npgfa*ncoset(la_max_set), npgfb*ncoset(lb_max_set)))
-      ALLOCATE (tmpy(npgfa*ncoset(la_max_set), npgfb*ncoset(lb_max_set)))
-      ALLOCATE (tmpz(npgfa*ncoset(la_max_set), npgfb*ncoset(lb_max_set)))
-
-      !Derivative wrt to center A
-      tmpx(:, :) = 0.0_dp
-      tmpy(:, :) = 0.0_dp
-      tmpz(:, :) = 0.0_dp
-      CALL dabdr(la_max_set, npgfa, zeta, rpgfa, la_min_set, lb_max_set, npgfb, rpgfb, lb_min_set, &
-                 dab, vab_f, tmpx, tmpy, tmpz)
-      DO j = 1, npgfb*ncoset(lb_max_set)
-         DO i = 1, npgfa*ncoset(la_max_set)
-            force_a(1) = force_a(1) + tmpx(i, j)*pab(i, j)
-            force_a(2) = force_a(2) + tmpy(i, j)*pab(i, j)
-            force_a(3) = force_a(3) + tmpz(i, j)*pab(i, j)
-         END DO
-      END DO
-
-      !Derivative wrt to center B
-      tmpx(:, :) = 0.0_dp
-      tmpy(:, :) = 0.0_dp
-      tmpz(:, :) = 0.0_dp
-      CALL adbdr(la_max_set, npgfa, rpgfa, la_min_set, lb_max_set, npgfb, zetb, rpgfb, lb_min_set, &
-                 dab, vab_f, tmpx, tmpy, tmpz)
-      DO j = 1, npgfb*ncoset(lb_max_set)
-         DO i = 1, npgfa*ncoset(la_max_set)
-            force_b(1) = force_b(1) + tmpx(i, j)*pab(i, j)
-            force_b(2) = force_b(2) + tmpy(i, j)*pab(i, j)
-            force_b(3) = force_b(3) + tmpz(i, j)*pab(i, j)
-         END DO
-      END DO
-      DEALLOCATE (tmpx, tmpy, tmpz)
+      CALL contract_basis_center_forces(la_max_set, npgfa, zeta, lb_max_set, npgfb, zetb, &
+                                        vab_f, pab, force_a, force_b)
    END SUBROUTINE libgrpp_local_forces_ref
 
 ! **************************************************************************************************
@@ -682,7 +651,7 @@ CONTAINS
       REAL(dp)                                           :: expi, expj, normi, normj, prefi, prefj, &
                                                             zeti, zetj
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: tmp
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: tmpx, tmpy, tmpz, vab_f
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: vab_f
       REAL(dp), DIMENSION(3)                             :: ra, rb, rc
 
       CALL libgrpp_init()
@@ -762,38 +731,51 @@ CONTAINS
          END DO !jpgf
       END DO !ipgf
 
-      ALLOCATE (tmpx(npgfa*ncoset(la_max_set), npgfb*ncoset(lb_max_set)))
-      ALLOCATE (tmpy(npgfa*ncoset(la_max_set), npgfb*ncoset(lb_max_set)))
-      ALLOCATE (tmpz(npgfa*ncoset(la_max_set), npgfb*ncoset(lb_max_set)))
-
-      !Derivative wrt to center A
-      tmpx(:, :) = 0.0_dp
-      tmpy(:, :) = 0.0_dp
-      tmpz(:, :) = 0.0_dp
-      CALL dabdr(la_max_set, npgfa, zeta, rpgfa, la_min_set, lb_max_set, npgfb, rpgfb, lb_min_set, &
-                 0.0_dp, vab_f, tmpx, tmpy, tmpz)
-      DO j = 1, npgfb*ncoset(lb_max_set)
-         DO i = 1, npgfa*ncoset(la_max_set)
-            force_a(1) = force_a(1) + tmpx(i, j)*pab(i, j)
-            force_a(2) = force_a(2) + tmpy(i, j)*pab(i, j)
-            force_a(3) = force_a(3) + tmpz(i, j)*pab(i, j)
-         END DO
-      END DO
-
-      !Derivative wrt to center B
-      tmpx(:, :) = 0.0_dp
-      tmpy(:, :) = 0.0_dp
-      tmpz(:, :) = 0.0_dp
-      CALL adbdr(la_max_set, npgfa, rpgfa, la_min_set, lb_max_set, npgfb, zetb, rpgfb, lb_min_set, &
-                 0.0_dp, vab_f, tmpx, tmpy, tmpz)
-      DO j = 1, npgfb*ncoset(lb_max_set)
-         DO i = 1, npgfa*ncoset(la_max_set)
-            force_b(1) = force_b(1) + tmpx(i, j)*pab(i, j)
-            force_b(2) = force_b(2) + tmpy(i, j)*pab(i, j)
-            force_b(3) = force_b(3) + tmpz(i, j)*pab(i, j)
-         END DO
-      END DO
-      DEALLOCATE (tmpx, tmpy, tmpz)
+      CALL contract_basis_center_forces(la_max_set, npgfa, zeta, lb_max_set, npgfb, zetb, &
+                                        vab_f, pab, force_a, force_b)
    END SUBROUTINE libgrpp_semilocal_forces_ref
+
+! **************************************************************************************************
+!> \brief Contract the bra and ket basis-center derivatives of precomputed ECP integrals.
+!> \param la_max highest bra shell
+!> \param npgfa number of bra primitives
+!> \param zeta bra Gaussian exponents
+!> \param lb_max highest ket shell
+!> \param npgfb number of ket primitives
+!> \param zetb ket Gaussian exponents
+!> \param vab primitive integrals including raised shells and zero screened blocks
+!> \param pab primitive density block
+!> \param force_a accumulated bra-center force
+!> \param force_b accumulated ket-center force
+! **************************************************************************************************
+   SUBROUTINE contract_basis_center_forces(la_max, npgfa, zeta, lb_max, npgfb, zetb, &
+                                           vab, pab, force_a, force_b)
+      INTEGER, INTENT(IN)                                :: la_max, npgfa
+      REAL(KIND=dp), INTENT(IN)                          :: zeta(:)
+      INTEGER, INTENT(IN)                                :: lb_max, npgfb
+      REAL(KIND=dp), INTENT(IN)                          :: zetb(:), vab(:, :), pab(:, :)
+      REAL(KIND=dp), INTENT(INOUT)                       :: force_a(3), force_b(3)
+
+      INTEGER                                            :: i, j, na, nb
+      REAL(KIND=dp), ALLOCATABLE                         :: deriv_ab(:, :, :)
+
+      na = npgfa*ncoset(la_max)
+      nb = npgfb*ncoset(lb_max)
+      ALLOCATE (deriv_ab(na, nb, 3))
+      CALL apply_cartesian_operator(la_max, 0, npgfa, lb_max, 0, npgfb, vab, deriv_ab, &
+                                    right=.FALSE., derivative=.TRUE., exponents=zeta)
+      DO j = 1, nb
+         DO i = 1, na
+            force_a = force_a + deriv_ab(i, j, :)*pab(i, j)
+         END DO
+      END DO
+      CALL apply_cartesian_operator(la_max, 0, npgfa, lb_max, 0, npgfb, vab, deriv_ab, &
+                                    right=.TRUE., derivative=.TRUE., exponents=zetb)
+      DO j = 1, nb
+         DO i = 1, na
+            force_b = force_b + deriv_ab(i, j, :)*pab(i, j)
+         END DO
+      END DO
+   END SUBROUTINE contract_basis_center_forces
 
 END MODULE libgrpp_integrals
