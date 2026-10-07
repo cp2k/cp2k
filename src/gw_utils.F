@@ -88,8 +88,6 @@ MODULE gw_utils
    USE libint_wrapper,                  ONLY: cp_libint_static_cleanup,&
                                               cp_libint_static_init
    USE machine,                         ONLY: m_walltime
-   USE mathconstants,                   ONLY: gaussi,&
-                                              z_one
    USE mathlib,                         ONLY: gcd
    USE message_passing,                 ONLY: mp_cart_type,&
                                               mp_mem_avail_per_rank_GB,&
@@ -139,7 +137,7 @@ MODULE gw_utils
    PRIVATE
 
    PUBLIC :: create_and_init_bs_env_for_gw, de_init_bs_env, &
-             compute_xkp, time_to_freq, analyt_conti_and_print, &
+             compute_xkp, analyt_conti_and_print, &
              add_R, is_cell_in_index_to_cell, get_V_tr_R, &
              rtbse_resolve_rirs_flag
 
@@ -3498,67 +3496,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param bs_env ...
-!> \param Sigma_c_n_time ...
-!> \param Sigma_c_n_freq ...
-!> \param ispin ...
-! **************************************************************************************************
-   SUBROUTINE time_to_freq(bs_env, Sigma_c_n_time, Sigma_c_n_freq, ispin)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), DIMENSION(:, :, :)                  :: Sigma_c_n_time, Sigma_c_n_freq
-      INTEGER                                            :: ispin
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'time_to_freq'
-
-      INTEGER                                            :: handle, i_t, j_w, n_occ
-      REAL(KIND=dp)                                      :: freq_j, time_i, w_cos_ij, w_sin_ij
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Sigma_c_n_cos_time, Sigma_c_n_sin_time
-
-      CALL timeset(routineN, handle)
-
-      ALLOCATE (Sigma_c_n_cos_time(bs_env%n_ao, bs_env%num_time_freq_points))
-      ALLOCATE (Sigma_c_n_sin_time(bs_env%n_ao, bs_env%num_time_freq_points))
-
-      Sigma_c_n_cos_time(:, :) = 0.5_dp*(Sigma_c_n_time(:, :, 1) + Sigma_c_n_time(:, :, 2))
-      Sigma_c_n_sin_time(:, :) = 0.5_dp*(Sigma_c_n_time(:, :, 1) - Sigma_c_n_time(:, :, 2))
-
-      Sigma_c_n_freq(:, :, :) = 0.0_dp
-
-      DO i_t = 1, bs_env%num_time_freq_points
-
-         DO j_w = 1, bs_env%num_time_freq_points
-
-            freq_j = bs_env%time_frequency_grid%frequency(j_w)
-            time_i = bs_env%time_frequency_grid%imaginary_time(i_t)
-            ! integration weights for cosine and sine transform
-            w_cos_ij = bs_env%time_frequency_grid%cosine_time_to_frequency_weights(j_w, i_t)*COS(freq_j*time_i)
-            w_sin_ij = bs_env%time_frequency_grid%sine_time_to_frequency_weights(j_w, i_t)*SIN(freq_j*time_i)
-
-            ! 1. Re(Σ^c_nn(k_i,iω)) from cosine transform
-            Sigma_c_n_freq(:, j_w, 1) = Sigma_c_n_freq(:, j_w, 1) + &
-                                        w_cos_ij*Sigma_c_n_cos_time(:, i_t)
-
-            ! 2. Im(Σ^c_nn(k_i,iω)) from sine transform
-            Sigma_c_n_freq(:, j_w, 2) = Sigma_c_n_freq(:, j_w, 2) + &
-                                        w_sin_ij*Sigma_c_n_sin_time(:, i_t)
-
-         END DO
-
-      END DO
-
-      ! for occupied levels, we need the correlation self-energy for negative omega.
-      ! Therefore, weight_sin should be computed with -omega, which results in an
-      ! additional minus for the imaginary part:
-      n_occ = bs_env%n_occ(ispin)
-      Sigma_c_n_freq(1:n_occ, :, 2) = -Sigma_c_n_freq(1:n_occ, :, 2)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE time_to_freq
-
-! **************************************************************************************************
-!> \brief ...
-!> \param bs_env ...
-!> \param Sigma_c_ikp_n_freq ...
+!> \param Sigma_c_ikp_n_freq Complex diagonal self-energy at the signed fit frequencies.
 !> \param Sigma_x_ikp_n ...
 !> \param V_xc_ikp_n ...
 !> \param eigenval_scf ...
@@ -3569,7 +3507,7 @@ CONTAINS
                                      eigenval_scf, ikp, ispin)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), DIMENSION(:, :, :)                  :: Sigma_c_ikp_n_freq
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: Sigma_c_ikp_n_freq
       REAL(KIND=dp), DIMENSION(:)                        :: Sigma_x_ikp_n, V_xc_ikp_n, eigenval_scf
       INTEGER                                            :: ikp, ispin
 
@@ -3607,8 +3545,7 @@ CONTAINS
 
          CALL continuation_pade(Sigma_c_ikp_n_qp, &
                                 bs_env%imag_freq_points_fit, dummy, dummy, &
-                                Sigma_c_ikp_n_freq(:, 1:bs_env%num_freq_points_fit, 1)*z_one + &
-                                Sigma_c_ikp_n_freq(:, 1:bs_env%num_freq_points_fit, 2)*gaussi, &
+                                Sigma_c_ikp_n_freq, &
                                 Sigma_x_ikp_n(:) - V_xc_ikp_n(:), &
                                 eigenval_G(:), eigenval_scf(:), &
                                 bs_env%do_hedin_shift, &

@@ -321,9 +321,9 @@ MODULE mp2_types
                                                             frequency_weights=NULL(), &
                                                             imaginary_time=NULL(), &
                                                             time_weights_at_zero_frequency=NULL(), &
-                                                            cosine_time_to_frequency_weights=NULL(), &
-                                                            cosine_frequency_to_time_weights=NULL(), &
-                                                            sine_time_to_frequency_weights=NULL()), &
+                                                            cosine_time_to_frequency=NULL(), &
+                                                            cosine_frequency_to_time=NULL(), &
+                                                            sine_time_to_frequency=NULL()), &
                                                             Eigenval_Gamma=NULL(), &
                                                             wkp_V=NULL(), &
                                                             starts_array_mc_RI=NULL(), &

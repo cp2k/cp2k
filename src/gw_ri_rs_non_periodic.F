@@ -50,8 +50,7 @@ MODULE gw_ri_rs_non_periodic
                                               fill_fm_Sigma_c_Gamma_time,&
                                               fm_write
    USE gw_utils,                        ONLY: analyt_conti_and_print,&
-                                              de_init_bs_env,&
-                                              time_to_freq
+                                              de_init_bs_env
    USE gw_utils_dbcsr,                  ONLY: hadamard_product
    USE gw_utils_fm,                     ONLY: fm_contract_ABA,&
                                               fm_invert,&
@@ -77,6 +76,9 @@ MODULE gw_ri_rs_non_periodic
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
+   USE time_frequency_grids,            ONLY: negative_time,&
+                                              positive_time,&
+                                              transform_time_to_frequency
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -2610,9 +2612,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_QP_energies'
 
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: Sigma_c_n_freq
       INTEGER                                            :: handle, ispin, j_t
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Sigma_x_n, V_xc_n
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Sigma_c_n_freq, Sigma_c_n_time
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Sigma_c_n_time
       TYPE(cp_fm_type)                                   :: fm_ks, fm_mos, fm_s, fm_work
 
       CALL timeset(routineN, handle)
@@ -2624,7 +2627,7 @@ CONTAINS
 
       ALLOCATE (V_xc_n(bs_env%n_ao), Sigma_x_n(bs_env%n_ao))
       ALLOCATE (Sigma_c_n_time(bs_env%n_ao, bs_env%num_time_freq_points, 2))
-      ALLOCATE (Sigma_c_n_freq(bs_env%n_ao, bs_env%num_time_freq_points, 2))
+      ALLOCATE (Sigma_c_n_freq(bs_env%n_ao, bs_env%num_freq_points_fit))
 
       DO ispin = 1, bs_env%n_spin
 
@@ -2639,14 +2642,15 @@ CONTAINS
 
          ! 3. Σ^c_µν(+/-i|τ_j|) -> Σ^c_nn(+/-i|τ_j|)
          DO j_t = 1, bs_env%num_time_freq_points
-            CALL to_Gamma_and_mo_real(Sigma_c_n_time(:, j_t, 1), &
-                                      fm_Sigma_c_Gamma_time(j_t, 1, ispin), fm_mos)
-            CALL to_Gamma_and_mo_real(Sigma_c_n_time(:, j_t, 2), &
-                                      fm_Sigma_c_Gamma_time(j_t, 2, ispin), fm_mos)
+            CALL to_Gamma_and_mo_real(Sigma_c_n_time(:, j_t, positive_time), &
+                                      fm_Sigma_c_Gamma_time(j_t, positive_time, ispin), fm_mos)
+            CALL to_Gamma_and_mo_real(Sigma_c_n_time(:, j_t, negative_time), &
+                                      fm_Sigma_c_Gamma_time(j_t, negative_time, ispin), fm_mos)
          END DO
 
          ! 4. Σ^c_nn(iτ) -> Σ^c_nn(iω)
-         CALL time_to_freq(bs_env, Sigma_c_n_time, Sigma_c_n_freq, ispin)
+         CALL transform_time_to_frequency(bs_env%time_frequency_grid, Sigma_c_n_time, Sigma_c_n_freq)
+         Sigma_c_n_freq(1:bs_env%n_occ(ispin), :) = CONJG(Sigma_c_n_freq(1:bs_env%n_occ(ispin), :))
 
          ! 5. Analytic continuation Σ^c_nn(iω) -> Σ^c_nn(ϵ) and the QP levels
          CALL analyt_conti_and_print(bs_env, Sigma_c_n_freq, Sigma_x_n, V_xc_n, &
