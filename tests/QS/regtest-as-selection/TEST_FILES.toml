@@ -1,0 +1,36 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+# MANUAL selection uses the SCF orbitals unchanged: same FCIDUMP as CANONICAL for the same MOs.
+# After OT the orbitals are canonicalized once: the FCIDUMP equals the diagonalization reference
+# (the OT tests compare against the checksum of the corresponding diagonalization test), also with
+# virtual active orbitals from the preconditioned eigensolver. The OT derivatives are rotated with
+# the orbitals: forces after OT equal the diagonalization forces. With ON_THE_FLY_LOC the localized
+# orbitals are used as they are (the order of localized orbitals is not reproducible, energy only).
+"h2o_canonical.inp"                     = [{matcher="E_total", tol=1e-11, ref=-16.811508764928625},
+                                           {matcher="M092", tol=1e-8, ref=32.29178404}]
+"h2o_manual.inp"                        = [{matcher="E_total", tol=1e-11, ref=-16.811508764928625},
+                                           {matcher="M092", tol=1e-8, ref=32.29178404}]
+"h2o_manual_noncontiguous.inp"          = [{matcher="E_total", tol=1e-11, ref=-16.811508764928639},
+                                           {matcher="M092", tol=1e-8, ref=23.05506539}]
+"h2o_canonical_occupied.inp"            = [{matcher="E_total", tol=1e-11, ref=-16.811508764928625},
+                                           {matcher="M092", tol=1e-8, ref=17.92355413}]
+"h2o_ot_canonical.inp"                  = [{matcher="E_total", tol=1e-11, ref=-16.811508764928572},
+                                           {matcher="M092", tol=1e-7, ref=17.92355413}]
+"h2o_manual_occupied.inp"               = [{matcher="E_total", tol=1e-11, ref=-16.811508764928625},
+                                           {matcher="M092", tol=1e-8, ref=17.33228483}]
+"h2o_ot_manual.inp"                     = [{matcher="E_total", tol=1e-11, ref=-16.811508764928774},
+                                           {matcher="M092", tol=1e-7, ref=17.33228483}]
+"h2o_ot_canonical_virtual.inp"          = [{matcher="E_total", tol=1e-11, ref=-16.81150876492847},
+                                           {matcher="M092", tol=1e-6, ref=32.29178404}]
+"h2o_ot_manual_virtual.inp"             = [{matcher="E_total", tol=1e-11, ref=-16.81150876492846},
+                                           {matcher="M092", tol=1e-6, ref=32.29178404}]
+"h2o_diag_forces.inp"                   = [{matcher="E_total", tol=1e-11, ref=-16.81150876492863},
+                                           {matcher="Atomic_force_1_z", tol=1e-8, ref=-1.27900509E-02}]
+"h2o_ot_forces.inp"                     = [{matcher="E_total", tol=1e-11, ref=-16.81150876492838},
+                                           {matcher="Atomic_force_1_z", tol=1e-6, ref=-1.27900509E-02}]
+"h2o_otloc_manual.inp"                  = [{matcher="E_total", tol=1e-10, ref=-16.81150876492865}]
+#EOF

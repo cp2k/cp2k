@@ -30,7 +30,7 @@ MODULE qs_active_space_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_active_space_utils'
 
-   PUBLIC :: subspace_matrix_to_array, eri_to_array
+   PUBLIC :: subspace_matrix_to_array, eri_to_array, find_degenerate_splits
 
 CONTAINS
 
@@ -151,5 +151,44 @@ CONTAINS
       CALL mp_group%sum(array)
 
    END SUBROUTINE eri_to_array
+
+! **************************************************************************************************
+!> \brief Finds pairs of degenerate orbitals of which one is active and the other is not, i.e.
+!>        sets of degenerate orbitals that are split by the active space.
+!> \param eigenvalues orbital energies of the available orbitals
+!> \param active indices of the active orbitals; indices outside the available orbitals are skipped
+!> \param eps_degenerate energy difference below which two orbitals count as degenerate
+!> \param npairs number of split pairs
+!> \param first_active active orbital of the first split pair (0 if there is none)
+!> \param first_other non-active orbital of the first split pair (0 if there is none)
+! **************************************************************************************************
+   PURE SUBROUTINE find_degenerate_splits(eigenvalues, active, eps_degenerate, npairs, &
+                                          first_active, first_other)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenvalues
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: active
+      REAL(KIND=dp), INTENT(IN)                          :: eps_degenerate
+      INTEGER, INTENT(OUT)                               :: npairs, first_active, first_other
+
+      INTEGER                                            :: i, k, m
+
+      npairs = 0
+      first_active = 0
+      first_other = 0
+      DO i = 1, SIZE(active)
+         m = active(i)
+         IF (m < 1 .OR. m > SIZE(eigenvalues)) CYCLE
+         DO k = 1, SIZE(eigenvalues)
+            IF (ANY(active == k)) CYCLE
+            IF (ABS(eigenvalues(k) - eigenvalues(m)) < eps_degenerate) THEN
+               npairs = npairs + 1
+               IF (npairs == 1) THEN
+                  first_active = m
+                  first_other = k
+               END IF
+            END IF
+         END DO
+      END DO
+
+   END SUBROUTINE find_degenerate_splits
 
 END MODULE qs_active_space_utils
