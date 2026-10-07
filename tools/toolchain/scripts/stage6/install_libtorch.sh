@@ -27,17 +27,12 @@ case "${with_libtorch}" in
     echo "==================== Installing libtorch ===================="
 
     # Select a broadly available LibTorch/CUDA combination based on GPUVER:
-    #   Pascal/Volta/Turing  2.5.1 + CUDA 11.8
-    #   Ampere/Hopper        2.5.1 + CUDA 12.4
-    #   Blackwell            2.7.1 + CUDA 12.8
+    #   Pascal/Volta/Turing and older/other GPUs  2.5.1 + CUDA 11.8
+    #   Ampere/Hopper                             2.5.1 + CUDA 12.4
+    #   Blackwell                                 2.7.1 + CUDA 12.8
     # CPU builds use the version mirrored on the CP2K download server.
     if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
       case "${GPUVER}" in
-        P100 | V100)
-          libtorch_ver="2.5.1"
-          libtorch_cuda_suffix="cu118"
-          libtorch_sha256="9b524e24c0ea15f191cfe6461594a3f1773d5c866b804bffd99882937a28081b"
-          ;;
         A100 | A40 | H100)
           libtorch_ver="2.5.1"
           libtorch_cuda_suffix="cu124"
@@ -49,7 +44,7 @@ case "${with_libtorch}" in
           libtorch_sha256="ae513b437ae99150744ef1d06b02a4ecbbb9275c9ffe540c88909623e3293041"
           ;;
         *)
-          # Very old (K20X/K40/K80) or otherwise unlisted GPUs.
+          # Pascal/Volta/Turing, very old (K20X/K40/K80), or unlisted GPUs.
           libtorch_ver="2.5.1"
           libtorch_cuda_suffix="cu118"
           libtorch_sha256="9b524e24c0ea15f191cfe6461594a3f1773d5c866b804bffd99882937a28081b"
