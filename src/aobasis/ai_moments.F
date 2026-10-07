@@ -29,14 +29,14 @@ MODULE ai_moments
 ! zet{a,b}  : Exponents of the Gaussian-type functions a or b.
 ! zetp      : Reciprocal of the sum of the exponents of orbital a and b.
 
-   USE ai_cartesian_operators,          ONLY: apply_cartesian_1d,&
-                                              apply_cartesian_operator,&
-                                              cartesian_polynomial_1d
-   USE ai_os_rr,                        ONLY: os_rr_ovlp
-   USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: pi
-   USE orbital_pointers,                ONLY: indco,&
-                                              ncoset
+   USE ai_cartesian_operators, ONLY: apply_cartesian_1d, &
+                                     apply_cartesian_operator, &
+                                     cartesian_polynomial_1d
+   USE ai_os_rr, ONLY: os_rr_ovlp
+   USE kinds, ONLY: dp
+   USE mathconstants, ONLY: pi
+   USE orbital_pointers, ONLY: indco, &
+                               ncoset
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -45,7 +45,7 @@ MODULE ai_moments
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_moments'
 
-   PUBLIC :: cossin, moment, diff_momop, contract_cossin, dipole_force
+   PUBLIC :: cossin, expikr, moment, diff_momop, contract_cossin, dipole_force
 
 CONTAINS
 
@@ -94,68 +94,48 @@ CONTAINS
       direct_block = iatom <= jatom
       IF (PRESENT(ordered)) direct_block = direct_block .OR. ordered
 
-! Calculate cosine
+      #:for component in ['cos', 'sin']
+         CALL dgemm("N", "N", ncoa, nsgfb, ncob, &
+                    1.0_dp, ${component}$ab(1, 1), ldab, &
+                    sphi_b(1, sgfb), ldsb, &
+                    0.0_dp, work(1, 1), ldwork)
 
-      CALL dgemm("N", "N", ncoa, nsgfb, ncob, &
-                 1.0_dp, cosab(1, 1), ldab, &
-                 sphi_b(1, sgfb), ldsb, &
-                 0.0_dp, work(1, 1), ldwork)
-
-      IF (direct_block) THEN
-         CALL dgemm("T", "N", nsgfa, nsgfb, ncoa, &
-                    1.0_dp, sphi_a(1, sgfa), ldsa, &
-                    work(1, 1), ldwork, &
-                    1.0_dp, cos_block(sgfa, sgfb), &
-                    SIZE(cos_block, 1))
-      ELSE
-         CALL dgemm("T", "N", nsgfb, nsgfa, ncoa, &
-                    1.0_dp, work(1, 1), ldwork, &
-                    sphi_a(1, sgfa), ldsa, &
-                    1.0_dp, cos_block(sgfb, sgfa), &
-                    SIZE(cos_block, 1))
-      END IF
-
-      ! Calculate sine
-      CALL dgemm("N", "N", ncoa, nsgfb, ncob, &
-                 1.0_dp, sinab(1, 1), ldab, &
-                 sphi_b(1, sgfb), ldsb, &
-                 0.0_dp, work(1, 1), ldwork)
-
-      IF (direct_block) THEN
-         CALL dgemm("T", "N", nsgfa, nsgfb, ncoa, &
-                    1.0_dp, sphi_a(1, sgfa), ldsa, &
-                    work(1, 1), ldwork, &
-                    1.0_dp, sin_block(sgfa, sgfb), &
-                    SIZE(sin_block, 1))
-      ELSE
-         CALL dgemm("T", "N", nsgfb, nsgfa, ncoa, &
-                    1.0_dp, work(1, 1), ldwork, &
-                    sphi_a(1, sgfa), ldsa, &
-                    1.0_dp, sin_block(sgfb, sgfa), &
-                    SIZE(sin_block, 1))
-      END IF
+         IF (direct_block) THEN
+            CALL dgemm("T", "N", nsgfa, nsgfb, ncoa, &
+                       1.0_dp, sphi_a(1, sgfa), ldsa, &
+                       work(1, 1), ldwork, &
+                       1.0_dp, ${component}$_block(sgfa, sgfb), &
+                       SIZE(${component}$_block, 1))
+         ELSE
+            CALL dgemm("T", "N", nsgfb, nsgfa, ncoa, &
+                       1.0_dp, work(1, 1), ldwork, &
+                       sphi_a(1, sgfa), ldsa, &
+                       1.0_dp, ${component}$_block(sgfb, sgfa), &
+                       SIZE(${component}$_block, 1))
+         END IF
+      #:endfor
 
    END SUBROUTINE contract_cossin
 
 ! **************************************************************************************************
-!> \brief Evaluate cosine and sine integrals through the shared complex overlap recurrence.
-!> \param la_max_set ...
-!> \param npgfa ...
-!> \param zeta ...
-!> \param rpgfa ...
-!> \param la_min_set ...
-!> \param lb_max ...
-!> \param npgfb ...
-!> \param zetb ...
-!> \param rpgfb ...
-!> \param lb_min ...
+!> \brief Compatibility interface returning real and imaginary plane-wave integrals.
+!> \param la_max_set highest bra shell
+!> \param npgfa number of bra primitives
+!> \param zeta bra Gaussian exponents
+!> \param rpgfa bra primitive radii
+!> \param la_min_set lowest bra shell
+!> \param lb_max highest ket shell
+!> \param npgfb number of ket primitives
+!> \param zetb ket Gaussian exponents
+!> \param rpgfb ket primitive radii
+!> \param lb_min lowest ket shell
 !> \param rac bra-center coordinates relative to the phase origin
 !> \param rbc ket-center coordinates relative to the phase origin
 !> \param kvec plane-wave vector
 !> \param cosab real part of the primitive plane-wave integrals
 !> \param sinab imaginary part of the primitive plane-wave integrals
-!> \param dcosab optional bra-center derivatives of cosab, supplied together with dsinab
-!> \param dsinab optional bra-center derivatives of sinab, supplied together with dcosab
+!> \param dcosab optional bra-center derivatives, supplied together with dsinab
+!> \param dsinab optional bra-center derivatives, supplied together with dcosab
 ! **************************************************************************************************
    SUBROUTINE cossin(la_max_set, npgfa, zeta, rpgfa, la_min_set, &
                      lb_max, npgfb, zetb, rpgfb, lb_min, &
@@ -169,40 +149,88 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: cosab(:, :), sinab(:, :)
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: dcosab(:, :, :), dsinab(:, :, :)
 
-      COMPLEX(KIND=dp)                                   :: prefactor, value, zrap(3), zrbp(3)
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: drr(:, :, :), rr(:, :, :)
-      INTEGER                                            :: avec(3), bvec(3), coa, cob, first_a, &
-                                                            first_b, ia, ib, idir, ipgf, jdir, &
-                                                            jpgf, kdir, ldrr, lma, ma, mb, na, nb, &
-                                                            ofa, ofb
-      REAL(KIND=dp)                                      :: dab, f0, f1, f2, k2, kdp, rab(3), rab2, &
-                                                            zet, zetp
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: dexpab(:, :, :), expab(:, :)
+      INTEGER                                            :: na, nb
+
+      na = npgfa*ncoset(la_max_set)
+      nb = npgfb*ncoset(lb_max)
+      ALLOCATE (expab(na, nb))
+      IF (PRESENT(dcosab)) ALLOCATE (dexpab(na, nb, 3))
+      ! An unallocated actual argument is absent at the optional derivative interface.
+      CALL expikr(la_max_set, npgfa, zeta, rpgfa, la_min_set, &
+                  lb_max, npgfb, zetb, rpgfb, lb_min, rac, rbc, kvec, expab, dexpab)
+      cosab(1:na, 1:nb) = REAL(expab, KIND=dp)
+      sinab(1:na, 1:nb) = AIMAG(expab)
+      IF (PRESENT(dcosab)) THEN
+         dcosab(1:na, 1:nb, :) = 0.0_dp
+         dsinab(1:na, 1:nb, :) = 0.0_dp
+         dcosab(1:na, 1:nb, 1:3) = REAL(dexpab, KIND=dp)
+         dsinab(1:na, 1:nb, 1:3) = AIMAG(dexpab)
+      END IF
+   END SUBROUTINE cossin
+
+! **************************************************************************************************
+!> \brief Evaluate primitive exp(i k.r) integrals through the complex overlap recurrence.
+!> \param la_max_set highest bra shell
+!> \param npgfa number of bra primitives
+!> \param zeta bra Gaussian exponents
+!> \param rpgfa bra primitive radii
+!> \param la_min_set lowest bra shell
+!> \param lb_max highest ket shell
+!> \param npgfb number of ket primitives
+!> \param zetb ket Gaussian exponents
+!> \param rpgfb ket primitive radii
+!> \param lb_min lowest ket shell
+!> \param rac bra-center coordinates relative to the phase origin
+!> \param rbc ket-center coordinates relative to the phase origin
+!> \param kvec plane-wave vector
+!> \param expab primitive integrals in the full Cartesian layout, zero below the requested shells
+!> \param dexpab optional bra-center derivatives with the plane-wave operator held fixed
+!> \param dexpba optional ket-center derivatives in the same bra/ket layout
+!> \param momentab optional coordinate-weighted integrals relative to the phase origin
+!>        Derivative and moment outputs cover the full Cartesian range.
+! **************************************************************************************************
+   SUBROUTINE expikr(la_max_set, npgfa, zeta, rpgfa, la_min_set, &
+                     lb_max, npgfb, zetb, rpgfb, lb_min, rac, rbc, kvec, expab, dexpab, dexpba, momentab)
+      INTEGER, INTENT(IN)                                :: la_max_set, npgfa
+      REAL(KIND=dp), INTENT(IN)                          :: zeta(:), rpgfa(:)
+      INTEGER, INTENT(IN)                                :: la_min_set, lb_max, npgfb
+      REAL(KIND=dp), INTENT(IN)                          :: zetb(:), rpgfb(:)
+      INTEGER, INTENT(IN)                                :: lb_min
+      REAL(KIND=dp), INTENT(IN)                          :: rac(3), rbc(3), kvec(3)
+      COMPLEX(KIND=dp), INTENT(INOUT)                    :: expab(:, :)
+      COMPLEX(KIND=dp), INTENT(INOUT), OPTIONAL, TARGET  :: dexpab(:, :, :), dexpba(:, :, :), &
+                                                            momentab(:, :, :)
+
+      COMPLEX(KIND=dp)                                   :: prefactor, zrap(3), zrbp(3)
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: opr_rr(:, :, :), rr(:, :, :)
+      COMPLEX(KIND=dp), POINTER                          :: opr_values(:, :, :)
+      INTEGER                                            :: avec(3), bvec(3), coa, cob, ia, ib, &
+                                                            idir, ipgf, jdir, jpgf, kdir, ldrr, &
+                                                            lma, lmb, ma, mb, na, nb, op
+      LOGICAL                                            :: derivative, right
+      REAL(KIND=dp)                                      :: dab, exponent, f0, f1, f2, k2, kdp, &
+                                                            origin(3), rab(3), zet, zetp
 
       rab = rbc - rac
-      rab2 = SUM(rab**2)
-      dab = SQRT(rab2)
-      k2 = kvec(1)*kvec(1) + kvec(2)*kvec(2) + kvec(3)*kvec(3)
+      dab = NORM2(rab)
+      k2 = SUM(kvec**2)
       lma = la_max_set
-      IF (PRESENT(dcosab)) lma = lma + 1
-      ldrr = MAX(lma, lb_max) + 1
+      lmb = lb_max
+      IF (PRESENT(dexpab) .OR. PRESENT(momentab)) lma = lma + 1
+      IF (PRESENT(dexpba)) lmb = lmb + 1
+      ldrr = MAX(lma, lmb) + 1
       ALLOCATE (rr(0:ldrr - 1, 0:ldrr - 1, 3))
-      IF (PRESENT(dcosab)) ALLOCATE (drr(0:la_max_set, 0:lb_max, 3))
+      IF (PRESENT(dexpab) .OR. PRESENT(dexpba) .OR. PRESENT(momentab)) THEN
+         ALLOCATE (opr_rr(0:la_max_set, 0:lb_max, 3))
+      END IF
 
       na = ncoset(la_max_set)
       nb = ncoset(lb_max)
-      ofa = ncoset(la_min_set - 1)
-      ofb = ncoset(lb_min - 1)
-      first_a = ofa + 1
-      first_b = ofb + 1
-      cosab(1:na*npgfa, 1:nb*npgfb) = 0.0_dp
-      sinab(1:na*npgfa, 1:nb*npgfb) = 0.0_dp
-      IF (PRESENT(dcosab)) THEN
-         dcosab(1:na*npgfa, 1:nb*npgfb, :) = 0.0_dp
-         dsinab(1:na*npgfa, 1:nb*npgfb, :) = 0.0_dp
-         ! Derivative outputs retain the full Cartesian range.
-         first_a = 1
-         first_b = 1
-      END IF
+      expab(1:na*npgfa, 1:nb*npgfb) = 0.0_dp
+      IF (PRESENT(dexpab)) dexpab(1:na*npgfa, 1:nb*npgfb, 1:3) = 0.0_dp
+      IF (PRESENT(dexpba)) dexpba(1:na*npgfa, 1:nb*npgfb, 1:3) = 0.0_dp
+      IF (PRESENT(momentab)) momentab(1:na*npgfa, 1:nb*npgfb, 1:3) = 0.0_dp
 
       DO ipgf = 1, npgfa
          ma = (ipgf - 1)*na
@@ -215,45 +243,60 @@ CONTAINS
             f1 = zetb(jpgf)*zetp
             f2 = 0.5_dp*zetp
             kdp = zetp*DOT_PRODUCT(kvec, zeta(ipgf)*rac + zetb(jpgf)*rbc)
-            prefactor = f0*EXP(-zeta(ipgf)*f1*rab2)*EXP(-0.25_dp*k2*zetp)* &
+            prefactor = f0*EXP(-zeta(ipgf)*f1*SUM(rab**2))*EXP(-0.25_dp*k2*zetp)* &
                         CMPLX(COS(kdp), SIN(kdp), KIND=dp)
 
-            ! The plane wave shifts the product center into the complex plane.
+            ! The normalized 1D tables carry no three-dimensional prefactor.
             zrap = CMPLX(f1*rab, f2*kvec, KIND=dp)
             zrbp = zrap - rab
-            CALL os_rr_ovlp(zrap, lma, zrbp, lb_max, zet, ldrr, rr)
-            IF (PRESENT(dcosab)) THEN
-               CALL apply_cartesian_1d(rr, drr, la_max_set, lb_max, .FALSE., .TRUE., zeta(ipgf), &
-                                       [0.0_dp, 0.0_dp, 0.0_dp])
-            END IF
-
-            DO cob = first_b, nb
+            CALL os_rr_ovlp(zrap, lma, zrbp, lmb, zet, ldrr, rr)
+            DO cob = ncoset(lb_min - 1) + 1, nb
                bvec = indco(:, cob)
-               ib = mb + cob
-               DO coa = first_a, na
+               DO coa = ncoset(la_min_set - 1) + 1, na
                   avec = indco(:, coa)
-                  ia = ma + coa
-                  ! The normalized 1D tables carry no three-dimensional prefactor.
-                  IF (coa > ofa .AND. cob > ofb) THEN
-                     value = prefactor*rr(avec(1), bvec(1), 1)*rr(avec(2), bvec(2), 2)*rr(avec(3), bvec(3), 3)
-                     cosab(ia, ib) = REAL(value, KIND=dp)
-                     sinab(ia, ib) = AIMAG(value)
-                  END IF
-                  IF (PRESENT(dcosab)) THEN
+                  expab(ma + coa, mb + cob) = prefactor*rr(avec(1), bvec(1), 1)* &
+                                              rr(avec(2), bvec(2), 2)*rr(avec(3), bvec(3), 3)
+               END DO
+            END DO
+
+            DO op = 1, 3
+               SELECT CASE (op)
+               CASE (1)
+                  IF (.NOT. PRESENT(dexpab)) CYCLE
+                  opr_values => dexpab
+                  exponent = zeta(ipgf)
+               CASE (2)
+                  IF (.NOT. PRESENT(dexpba)) CYCLE
+                  opr_values => dexpba
+                  exponent = zetb(jpgf)
+               CASE (3)
+                  IF (.NOT. PRESENT(momentab)) CYCLE
+                  opr_values => momentab
+                  exponent = 0.0_dp
+               END SELECT
+               right = op == 2
+               derivative = op /= 3
+               origin = 0.0_dp
+               IF (.NOT. derivative) origin = rac
+               CALL apply_cartesian_1d(rr, opr_rr, la_max_set, lb_max, right, derivative, exponent, origin)
+               DO cob = 1, nb
+                  bvec = indco(:, cob)
+                  ib = mb + cob
+                  DO coa = 1, na
+                     avec = indco(:, coa)
+                     ia = ma + coa
                      DO idir = 1, 3
                         jdir = MOD(idir, 3) + 1
                         kdir = MOD(idir + 1, 3) + 1
-                        value = prefactor*drr(avec(idir), bvec(idir), idir)* &
-                                rr(avec(jdir), bvec(jdir), jdir)*rr(avec(kdir), bvec(kdir), kdir)
-                        dcosab(ia, ib, idir) = REAL(value, KIND=dp)
-                        dsinab(ia, ib, idir) = AIMAG(value)
+                        opr_values(ia, ib, idir) = prefactor*opr_rr(avec(idir), bvec(idir), idir)* &
+                                                   rr(avec(jdir), bvec(jdir), jdir)*rr(avec(kdir), bvec(kdir), kdir)
                      END DO
-                  END IF
+                  END DO
                END DO
             END DO
          END DO
       END DO
-   END SUBROUTINE cossin
+   END SUBROUTINE expikr
 
 ! **************************************************************************************************
 !> \brief ...
