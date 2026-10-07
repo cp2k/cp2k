@@ -100,4 +100,8 @@ QS/regtest-gauxc-gpw-mech/H2P_NATIVE_SKALA_GPW_UKS_PBC_FORCE_DEBUG.inp
 QS/regtest-gauxc-gapw-gth/H2_NATIVE_SKALA_GAPW_GTH_STRESS_DEBUG.inp
 QS/regtest-gauxc-gapw-ecp/H2_NATIVE_SKALA_GAPW_ECP_STRESS_DEBUG.inp
 
+# The restricted TPSS excited-state force test needs CUTOFF 600 for stable SCF.
+# ENERGY_FORCE already avoids a second SCF and force evaluation.
+QS/regtest-tddfpt-force-libxc/h2o_mgga_tau_analytic.inp
+
 #EOF

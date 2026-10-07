@@ -55,7 +55,7 @@
   &END PROPERTIES
   &SUBSYS
     &CELL
-      ABC 5.0 5.0 5.0
+      ABC 4.5 4.5 4.5
       PERIODIC NONE
     &END CELL
     &COORD
