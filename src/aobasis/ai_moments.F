@@ -45,12 +45,12 @@ MODULE ai_moments
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_moments'
 
-   PUBLIC :: cossin, expikr, moment, diff_momop, contract_cossin, dipole_force
+   PUBLIC :: expikr, moment, diff_momop, contract_expikr, dipole_force
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Contract complex primitive integrals into real cosine and sine AO blocks.
 !> \param cos_block ...
 !> \param sin_block ...
 !> \param iatom ...
@@ -65,17 +65,15 @@ CONTAINS
 !> \param sgfb ...
 !> \param sphi_b ...
 !> \param ldsb ...
-!> \param cosab ...
-!> \param sinab ...
-!> \param ldab ...
+!> \param expab complex primitive plane-wave integrals
 !> \param work ...
 !> \param ldwork ...
 !> \param ordered retain the ordered atom pair instead of mapping to an upper block
 ! **************************************************************************************************
-   SUBROUTINE contract_cossin(cos_block, sin_block, &
+   SUBROUTINE contract_expikr(cos_block, sin_block, &
                               iatom, ncoa, nsgfa, sgfa, sphi_a, ldsa, &
                               jatom, ncob, nsgfb, sgfb, sphi_b, ldsb, &
-                              cosab, sinab, ldab, work, ldwork, ordered)
+                              expab, work, ldwork, ordered)
 
       REAL(dp), DIMENSION(:, :), POINTER                 :: cos_block, sin_block
       INTEGER, INTENT(IN)                                :: iatom, ncoa, nsgfa, sgfa
@@ -83,20 +81,26 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ldsa, jatom, ncob, nsgfb, sgfb
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: sphi_b
       INTEGER, INTENT(IN)                                :: ldsb
-      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: cosab, sinab
-      INTEGER, INTENT(IN)                                :: ldab
+      COMPLEX(dp), DIMENSION(:, :), INTENT(IN)           :: expab
       REAL(dp), DIMENSION(:, :)                          :: work
       INTEGER, INTENT(IN)                                :: ldwork
       LOGICAL, INTENT(IN), OPTIONAL                      :: ordered
 
       LOGICAL                                            :: direct_block
+      REAL(dp), ALLOCATABLE                              :: primitive(:, :)
 
       direct_block = iatom <= jatom
       IF (PRESENT(ordered)) direct_block = direct_block .OR. ordered
 
+      ALLOCATE (primitive(ncoa, ncob))
       #:for component in ['cos', 'sin']
+         #:if component == 'cos'
+            primitive(:, :) = REAL(expab(1:ncoa, 1:ncob), KIND=dp)
+         #:else
+            primitive(:, :) = AIMAG(expab(1:ncoa, 1:ncob))
+         #:endif
          CALL dgemm("N", "N", ncoa, nsgfb, ncob, &
-                    1.0_dp, ${component}$ab(1, 1), ldab, &
+                    1.0_dp, primitive(1, 1), ncoa, &
                     sphi_b(1, sgfb), ldsb, &
                     0.0_dp, work(1, 1), ldwork)
 
@@ -115,59 +119,7 @@ CONTAINS
          END IF
       #:endfor
 
-   END SUBROUTINE contract_cossin
-
-! **************************************************************************************************
-!> \brief Compatibility interface returning real and imaginary plane-wave integrals.
-!> \param la_max_set highest bra shell
-!> \param npgfa number of bra primitives
-!> \param zeta bra Gaussian exponents
-!> \param rpgfa bra primitive radii
-!> \param la_min_set lowest bra shell
-!> \param lb_max highest ket shell
-!> \param npgfb number of ket primitives
-!> \param zetb ket Gaussian exponents
-!> \param rpgfb ket primitive radii
-!> \param lb_min lowest ket shell
-!> \param rac bra-center coordinates relative to the phase origin
-!> \param rbc ket-center coordinates relative to the phase origin
-!> \param kvec plane-wave vector
-!> \param cosab real part of the primitive plane-wave integrals
-!> \param sinab imaginary part of the primitive plane-wave integrals
-!> \param dcosab optional bra-center derivatives, supplied together with dsinab
-!> \param dsinab optional bra-center derivatives, supplied together with dcosab
-! **************************************************************************************************
-   SUBROUTINE cossin(la_max_set, npgfa, zeta, rpgfa, la_min_set, &
-                     lb_max, npgfb, zetb, rpgfb, lb_min, &
-                     rac, rbc, kvec, cosab, sinab, dcosab, dsinab)
-      INTEGER, INTENT(IN)                                :: la_max_set, npgfa
-      REAL(KIND=dp), INTENT(IN)                          :: zeta(:), rpgfa(:)
-      INTEGER, INTENT(IN)                                :: la_min_set, lb_max, npgfb
-      REAL(KIND=dp), INTENT(IN)                          :: zetb(:), rpgfb(:)
-      INTEGER, INTENT(IN)                                :: lb_min
-      REAL(KIND=dp), INTENT(IN)                          :: rac(3), rbc(3), kvec(3)
-      REAL(KIND=dp), INTENT(INOUT)                       :: cosab(:, :), sinab(:, :)
-      REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: dcosab(:, :, :), dsinab(:, :, :)
-
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: dexpab(:, :, :), expab(:, :)
-      INTEGER                                            :: na, nb
-
-      na = npgfa*ncoset(la_max_set)
-      nb = npgfb*ncoset(lb_max)
-      ALLOCATE (expab(na, nb))
-      IF (PRESENT(dcosab)) ALLOCATE (dexpab(na, nb, 3))
-      ! An unallocated actual argument is absent at the optional derivative interface.
-      CALL expikr(la_max_set, npgfa, zeta, rpgfa, la_min_set, &
-                  lb_max, npgfb, zetb, rpgfb, lb_min, rac, rbc, kvec, expab, dexpab)
-      cosab(1:na, 1:nb) = REAL(expab, KIND=dp)
-      sinab(1:na, 1:nb) = AIMAG(expab)
-      IF (PRESENT(dcosab)) THEN
-         dcosab(1:na, 1:nb, :) = 0.0_dp
-         dsinab(1:na, 1:nb, :) = 0.0_dp
-         dcosab(1:na, 1:nb, 1:3) = REAL(dexpab, KIND=dp)
-         dsinab(1:na, 1:nb, 1:3) = AIMAG(dexpab)
-      END IF
-   END SUBROUTINE cossin
+   END SUBROUTINE contract_expikr
 
 ! **************************************************************************************************
 !> \brief Evaluate primitive exp(i k.r) integrals through the complex overlap recurrence.
