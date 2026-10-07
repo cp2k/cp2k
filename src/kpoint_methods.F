@@ -2709,6 +2709,13 @@ CONTAINS
          END IF
          RETURN
       END IF
+      IF (.NOT. symmetric) THEN
+         IF (orientation == 1) THEN
+            a = group%inverse(TARGET(1))
+            b = group%inverse(TARGET(2))
+         END IF
+         RETURN
+      END IF
       IF (TARGET(1) > TARGET(2)) RETURN
       i = group%inverse(TARGET(1))
       j = group%inverse(TARGET(2))
@@ -3719,10 +3726,10 @@ CONTAINS
          trans = ip > jp
          IF (trans) THEN
             left_rot => op%kind_rot(op%atom_kind(icol))%rmat
-            right_rot => op%kind_rot(op%atom_kind(irow))%rmat
+            right_rot => op%kind_rot_right(op%atom_kind(irow))%rmat
          ELSE
             left_rot => op%kind_rot(op%atom_kind(irow))%rmat
-            right_rot => op%kind_rot(op%atom_kind(icol))%rmat
+            right_rot => op%kind_rot_right(op%atom_kind(icol))%rmat
          END IF
 
          CALL dbcsr_get_block_p(matrix=srpmat, row=jrow, col=jcol, block=srblock, found=found)

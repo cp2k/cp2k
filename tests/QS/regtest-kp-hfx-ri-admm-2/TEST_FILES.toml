@@ -7,3 +7,11 @@
 "diamond_admms.inp"                     = [{matcher="M011", tol=1.0E-10, ref=-79.738004880335254}]
 "diamond_admmq.inp"                     = [{matcher="M031", tol=1.0E-8, ref=-5.01813876744E+04}]
 "H_debug.inp"                           = []
+"LiH_admm_grad_std_kpsym.inp"           = [{matcher="M011", tol=1.0E-9, ref=-6.915810758815954},
+                                           {matcher="Atomic_force_1_x", tol=1.0E-7, ref=-4.27800733E-02},
+                                           {matcher="Atomic_force_1_y", tol=1.0E-7, ref=2.84754033E-02},
+                                           {matcher="Atomic_force_1_z", tol=1.0E-7, ref=3.13711028E-02}]
+"LiH_admm_grad_ot_kpsym.inp"            = [{matcher="M011", tol=1.0E-9, ref=-6.915806655401491},
+                                           {matcher="Atomic_force_1_x", tol=1.0E-7, ref=-4.27814560E-02},
+                                           {matcher="Atomic_force_1_y", tol=1.0E-7, ref=2.84753979E-02},
+                                           {matcher="Atomic_force_1_z", tol=1.0E-7, ref=3.13717852E-02}]
