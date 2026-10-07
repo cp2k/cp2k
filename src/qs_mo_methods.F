@@ -42,6 +42,7 @@ MODULE qs_mo_methods
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
+                                              cp_fm_get_submatrix,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -63,7 +64,8 @@ MODULE qs_mo_methods
 
    PUBLIC :: make_basis_simple, make_basis_cholesky, make_basis_sv, make_basis_sm, &
              make_basis_lowdin, calculate_subspace_eigenvalues, &
-             calculate_orthonormality, calculate_magnitude, make_mo_eig
+             calculate_orthonormality, calculate_magnitude, make_mo_eig, &
+             calculate_orbital_fock_elements, make_mo_set_canonical
 
    INTERFACE calculate_subspace_eigenvalues
       MODULE PROCEDURE subspace_eigenvalues_ks_fm
@@ -895,5 +897,169 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE make_mo_eig
+
+! **************************************************************************************************
+!> \brief Orbital energies <phi_i|F|phi_i> of a set of orbitals and the largest off-diagonal Fock
+!>        matrix element max_{i/=j} |<phi_i|F|phi_j>| within the set. Unlike
+!>        calculate_subspace_eigenvalues, the orbitals are not rotated and the energies belong to
+!>        the given orbitals. The orbitals are canonical if the off-diagonal elements vanish.
+!> \param orbitals S-orthonormal orbitals (columns)
+!> \param ks_matrix Kohn-Sham or Fock matrix
+!> \param orbital_energies diagonal elements; filled up to MIN(SIZE, number of orbitals)
+!> \param max_offdiag largest off-diagonal element in absolute value
+! **************************************************************************************************
+   SUBROUTINE calculate_orbital_fock_elements(orbitals, ks_matrix, orbital_energies, max_offdiag)
+      TYPE(cp_fm_type), INTENT(IN)                       :: orbitals
+      TYPE(dbcsr_type), POINTER                          :: ks_matrix
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: orbital_energies
+      REAL(KIND=dp), INTENT(OUT)                         :: max_offdiag
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_orbital_fock_elements'
+
+      INTEGER                                            :: handle, i, ncol_global, nrow_global
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: fock
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
+      TYPE(cp_fm_type)                                   :: h_block, weighted_vectors
+
+      CALL timeset(routineN, handle)
+
+      orbital_energies = 0.0_dp
+      max_offdiag = 0.0_dp
+      CALL cp_fm_get_info(matrix=orbitals, ncol_global=ncol_global, nrow_global=nrow_global)
+      IF (ncol_global > 0) THEN
+         NULLIFY (fm_struct_tmp)
+         CALL cp_fm_create(weighted_vectors, orbitals%matrix_struct, "weighted_vectors")
+         CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol_global, ncol_global=ncol_global, &
+                                  para_env=orbitals%matrix_struct%para_env, &
+                                  context=orbitals%matrix_struct%context)
+         CALL cp_fm_create(h_block, fm_struct_tmp, name="h block")
+         CALL cp_fm_struct_release(fm_struct_tmp)
+
+         CALL cp_dbcsr_sm_fm_multiply(ks_matrix, orbitals, weighted_vectors, ncol_global)
+         CALL parallel_gemm('T', 'N', ncol_global, ncol_global, nrow_global, 1.0_dp, &
+                            orbitals, weighted_vectors, 0.0_dp, h_block)
+
+         ALLOCATE (fock(ncol_global, ncol_global))
+         CALL cp_fm_get_submatrix(h_block, fock)
+         DO i = 1, MIN(ncol_global, SIZE(orbital_energies))
+            orbital_energies(i) = fock(i, i)
+         END DO
+         DO i = 1, ncol_global
+            fock(i, i) = 0.0_dp
+         END DO
+         max_offdiag = MAXVAL(ABS(fock))
+         DEALLOCATE (fock)
+
+         CALL cp_fm_release(weighted_vectors)
+         CALL cp_fm_release(h_block)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calculate_orbital_fock_elements
+
+! **************************************************************************************************
+!> \brief Rotates the orbitals of an MO set into canonical orbitals (eigenvectors of the Fock
+!>        matrix in the space of the orbitals), separately within the occupied and within the
+!>        unoccupied orbitals, so that the occupied space (the determinant) is unchanged.
+!>        The orbitals are rotated in place: the eigenvalues, the DBCSR copy of the coefficients
+!>        (if used) and the orbital derivatives (if given) are rotated consistently, C' = C U and
+!>        D' = D U. Nothing is done if the orbitals are already canonical, i.e. if no
+!>        off-diagonal Fock matrix element exceeds eps_canonical; orbitals of a converged
+!>        diagonalization SCF are therefore never changed.
+!>        Requires integer occupations (0 or the maximum occupation); fractionally occupied
+!>        orbitals and ROKS orbitals must not be mixed this way.
+!> \param mo_set the MO set (e.g. the SCF orbitals after an OT optimization)
+!> \param ks_matrix Kohn-Sham or Fock matrix
+!> \param eps_canonical largest off-diagonal Fock matrix element accepted as canonical
+!> \param rotated whether the orbitals were rotated
+!> \param max_offdiag largest off-diagonal Fock matrix element before the rotation
+!> \param mo_derivs derivatives of the energy with respect to the orbitals (OT), rotated as well
+! **************************************************************************************************
+   SUBROUTINE make_mo_set_canonical(mo_set, ks_matrix, eps_canonical, rotated, max_offdiag, mo_derivs)
+      TYPE(mo_set_type), INTENT(INOUT)                   :: mo_set
+      TYPE(dbcsr_type), POINTER                          :: ks_matrix
+      REAL(KIND=dp), INTENT(IN)                          :: eps_canonical
+      LOGICAL, INTENT(OUT)                               :: rotated
+      REAL(KIND=dp), INTENT(OUT)                         :: max_offdiag
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: mo_derivs
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'make_mo_set_canonical'
+      REAL(KIND=dp), PARAMETER                           :: eps_occ = 1.0E-10_dp
+
+      INTEGER                                            :: first, handle, i, iblock, n, nmo, nocc, &
+                                                            nrow_global
+      LOGICAL                                            :: do_derivs
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: energies
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
+      TYPE(cp_fm_type)                                   :: block_coeff, block_derivs, derivs
+
+      CALL timeset(routineN, handle)
+
+      rotated = .FALSE.
+      nmo = mo_set%nmo
+      IF (mo_set%use_mo_coeff_b) CALL copy_dbcsr_to_fm(mo_set%mo_coeff_b, mo_set%mo_coeff)
+      ALLOCATE (energies(nmo))
+      CALL calculate_orbital_fock_elements(mo_set%mo_coeff, ks_matrix, energies, max_offdiag)
+      DEALLOCATE (energies)
+
+      IF (max_offdiag > eps_canonical) THEN
+         DO i = 1, nmo
+            IF (ABS(mo_set%occupation_numbers(i)) > eps_occ .AND. &
+                ABS(mo_set%occupation_numbers(i) - mo_set%maxocc) > eps_occ) THEN
+               CPABORT("Canonicalization of orbitals with fractional occupations is not possible")
+            END IF
+         END DO
+         do_derivs = .FALSE.
+         IF (PRESENT(mo_derivs)) do_derivs = ASSOCIATED(mo_derivs)
+         ! occupied orbitals: those with nonzero occupation, they come first
+         nocc = COUNT(mo_set%occupation_numbers(1:nmo) > eps_occ)
+         CALL cp_fm_get_info(matrix=mo_set%mo_coeff, nrow_global=nrow_global)
+         IF (do_derivs) THEN
+            CALL cp_fm_create(derivs, mo_set%mo_coeff%matrix_struct, name="orbital derivatives")
+            CALL copy_dbcsr_to_fm(mo_derivs, derivs)
+         END IF
+         DO iblock = 1, 2
+            IF (iblock == 1) THEN
+               first = 1
+               n = nocc
+            ELSE
+               first = nocc + 1
+               n = nmo - nocc
+            END IF
+            IF (n <= 0) CYCLE
+            NULLIFY (fm_struct_tmp)
+            CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nrow_global, ncol_global=n, &
+                                     template_fmstruct=mo_set%mo_coeff%matrix_struct)
+            CALL cp_fm_create(block_coeff, fm_struct_tmp, name="canonicalized orbitals")
+            CALL cp_fm_to_fm(mo_set%mo_coeff, block_coeff, n, first, 1)
+            IF (do_derivs) THEN
+               CALL cp_fm_create(block_derivs, fm_struct_tmp, name="rotated orbital derivatives")
+               CALL cp_fm_to_fm(derivs, block_derivs, n, first, 1)
+               CALL calculate_subspace_eigenvalues(block_coeff, ks_matrix, &
+                                                   evals_arg=mo_set%eigenvalues(first:first + n - 1), &
+                                                   do_rotation=.TRUE., co_rotate=block_derivs)
+               CALL cp_fm_to_fm(block_derivs, derivs, n, 1, first)
+               CALL cp_fm_release(block_derivs)
+            ELSE
+               CALL calculate_subspace_eigenvalues(block_coeff, ks_matrix, &
+                                                   evals_arg=mo_set%eigenvalues(first:first + n - 1), &
+                                                   do_rotation=.TRUE.)
+            END IF
+            CALL cp_fm_struct_release(fm_struct_tmp)
+            CALL cp_fm_to_fm(block_coeff, mo_set%mo_coeff, n, 1, first)
+            CALL cp_fm_release(block_coeff)
+         END DO
+         IF (do_derivs) THEN
+            CALL copy_fm_to_dbcsr(derivs, mo_derivs)
+            CALL cp_fm_release(derivs)
+         END IF
+         IF (mo_set%use_mo_coeff_b) CALL copy_fm_to_dbcsr(mo_set%mo_coeff, mo_set%mo_coeff_b)
+         rotated = .TRUE.
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE make_mo_set_canonical
 
 END MODULE qs_mo_methods
