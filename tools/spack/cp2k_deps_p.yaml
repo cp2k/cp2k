@@ -83,6 +83,7 @@ spack:
     adios2:
       require:
         - "~bzip2"
+        - "~xrootd"
 
     cosma:
       require:
