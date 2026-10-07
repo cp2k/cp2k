@@ -105,6 +105,7 @@ spack:
 
     py-torch:
       require:
+        - "~caffe2"
         - "~distributed"
         - "~fbgemm"
         - spec: "~flash_attention"
@@ -114,7 +115,12 @@ spack:
         - spec: "~magma"
           when: "+cuda"
         - "~mkldnn"
+        - "~nnpack"
+        - "~numa"
+        - "~numpy"
+        - "~qnnpack"
         - "~rocm"
+        - "~test"
         - "~valgrind"
         - "~xnnpack"
 
