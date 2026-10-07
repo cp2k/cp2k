@@ -1508,10 +1508,27 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
   export GIT_HTTP_LOW_SPEED_LIMIT=1000
   export GIT_HTTP_LOW_SPEED_TIME=60
 
+  # The CUDA-enabled PyTorch/libtorch build runs many nvcc/CUDA compilation units
+  # in parallel and easily exhausts the memory of the build host (or the Docker
+  # builder) when it has to be built from source. Cap the per-package build
+  # parallelism used by Spack to a memory-friendly value for CUDA builds.
+  # Dependencies that are served from the build cache are unaffected and
+  # non-CUDA builds keep the requested parallelism.
+  SPACK_JOBS="${NUM_PROCS}"
+  if ((CUDA_SM_CODE > 0)); then
+    SPACK_JOBS="${SPACK_BUILD_JOBS:-8}"
+    if ((SPACK_JOBS > NUM_PROCS)); then
+      SPACK_JOBS="${NUM_PROCS}"
+    fi
+    if ((SPACK_JOBS < NUM_PROCS)); then
+      echo -e "\nLimiting the Spack build parallelism to ${SPACK_JOBS} jobs (of ${NUM_PROCS}) to avoid out-of-memory failures while building PyTorch (libtorch)"
+    fi
+  fi
+
   # Install CP2K dependencies via Spack (retry with backoff to bridge transient network
   # issues, whereby already installed packages are skipped)
   for i in 1 2 3; do
-    if spack -e "${CP2K_ENV}" install -j "${NUM_PROCS}" -p "${NUM_PACKAGES}" "${VERBOSE_SPACK}"; then
+    if spack -e "${CP2K_ENV}" install -j "${SPACK_JOBS}" -p "${NUM_PACKAGES}" "${VERBOSE_SPACK}"; then
       break
     fi
     if ((i == 3)); then
