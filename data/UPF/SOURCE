@@ -1,0 +1,64 @@
+Prepared UPF pseudopotential data
+
+This directory currently contains one supplemented H USPP example for use
+through the normal CP2K data lookup, including offline regressions. It is
+derived from SSSP v2.0, not a complete or unchanged SSSP release. Calculation
+support depends on the CP2K build and supported method. The original SSSP
+collections remain separate, optional upstream inputs.
+
+H.us.pbe.z_1.ld1.psl.v1.0.0-high-full-waves.upf
+
+Scalar H USPP with one valence electron, PBE and PSLibrary 1.0.0 high settings.
+The original SSSP v2.0 PBE Precision H potential is supplemented with original
+per-projector all-electron and pseudo partial waves from a compatible replay.
+The original potential, projectors, overlap augmentation, radial mesh and
+quadrature data match that replay. The original numerical arrays are retained.
+Only PP_FULL_WFC and its header flag are added by
+tools/pseudopotentials/add_upf_full_waves.py. The embedded generator input and
+original author information remain in PP_INFO.
+
+Original SSSP filename
+H.us.pbe.z_1.ld1.psl.v1.0.0-high.upf
+Original SHA-256
+4bfc6c7f5321b7d6a75c55a59abdfc82c779744ef376e9103ca2258456eb44e1
+Supplemented SHA-256
+788c20443f21cd4fcd5504886db606e25462c650a79128099af9392b006acb6b
+
+Wave-producing Quantum ESPRESSO qe-6.3 UPF SHA-256
+56deb5401f6463b3b428be5661b4ba6b47b84643a17475870c725899f60f01f2
+Replay the embedded input with lsave_wfc=.true. in &inputp.
+Generator source
+https://github.com/QEF/q-e/releases/tag/qe-6.3
+
+PSLibrary attribution and license
+A. Dal Corso, Computational Materials Science 95, 337 (2014).
+https://doi.org/10.1016/j.commatsci.2014.07.043
+https://github.com/dalcorso/pslibrary
+GNU General Public License version 2 or later. The version 2 license text
+is included in LICENSE at the CP2K repository root.
+
+Original SSSP collection source
+https://github.com/unkcpz/sssp-verify-scripts
+Source revision
+0fb07d89d13407b0f00a0a3b8c21d7e387fb56f9
+Archive URLs and SHA-256 checksums
+tools/pseudopotentials/sssp_v2_archives.json
+
+Download the original collections into a separately chosen writable cache,
+not into this directory. For download and preparation instructions see
+tools/pseudopotentials/README.md. Downloading original USPPs does not recover
+missing full partial waves; an independently verified generator replay is
+required. No files are downloaded when CP2K starts a calculation.
+
+The original cutoff files give upstream plane-wave recommendations, not
+Gaussian basis or Quickstep multigrid settings. Neither a successful import
+nor the small H2 regression establishes production convergence.
+
+Original library attribution and license information
+https://github.com/unkcpz/sssp-verify-scripts/blob/0fb07d89d13407b0f00a0a3b8c21d7e387fb56f9/README.md#acknowledgements
+Individual libraries retain their original licenses and attribution.
+The source repository's MIT license does not replace them.
+
+SSSP reference
+G. Prandini et al., npj Computational Materials 4, 72 (2018).
+https://doi.org/10.1038/s41524-018-0127-2
