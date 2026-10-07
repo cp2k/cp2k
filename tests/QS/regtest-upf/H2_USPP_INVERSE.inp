@@ -49,7 +49,7 @@
     &END COORD
     &KIND H
       BASIS_SET DZVP-MOLOPT-PBE-GTH-q1
-      POTENTIAL UPF SSSP/2.0/H.us.pbe.z_1.ld1.psl.v1.0.0-high-full-waves.upf
+      POTENTIAL UPF UPF/H.us.pbe.z_1.ld1.psl.v1.0.0-high-full-waves.upf
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
