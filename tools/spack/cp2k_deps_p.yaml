@@ -34,7 +34,6 @@ spack:
         - "+pic"
         - "~rocm"
         - "~tests"
-        - "build_system=cmake"
         - "build_type=Release"
 
     cuda:
