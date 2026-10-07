@@ -162,10 +162,11 @@ CONTAINS
                                                             lma, lmb, ma, mb, na, nb, op
       LOGICAL                                            :: derivative, right
       REAL(KIND=dp)                                      :: dab, exponent, f0, f1, f2, k2, kdp, &
-                                                            origin(3), rab(3), zet, zetp
+                                                            origin(3), rab(3), rab2, zet, zetp
 
       rab = rbc - rac
       dab = NORM2(rab)
+      rab2 = SUM(rab**2)
       k2 = SUM(kvec**2)
       lma = la_max_set
       lmb = lb_max
@@ -195,8 +196,7 @@ CONTAINS
             f1 = zetb(jpgf)*zetp
             f2 = 0.5_dp*zetp
             kdp = zetp*DOT_PRODUCT(kvec, zeta(ipgf)*rac + zetb(jpgf)*rbc)
-            prefactor = f0*EXP(-zeta(ipgf)*f1*SUM(rab**2))*EXP(-0.25_dp*k2*zetp)* &
-                        CMPLX(COS(kdp), SIN(kdp), KIND=dp)
+            prefactor = f0*EXP(CMPLX(-zeta(ipgf)*f1*rab2 - 0.25_dp*k2*zetp, kdp, KIND=dp))
 
             ! The normalized 1D tables carry no three-dimensional prefactor.
             zrap = CMPLX(f1*rab, f2*kvec, KIND=dp)
