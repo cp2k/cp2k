@@ -1508,8 +1508,12 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
 
   ((VERBOSE > 0)) && spack find -c
 
-  # Install CP2K dependencies via Spack
-  if ! spack -e "${CP2K_ENV}" install -j "${NUM_PROCS}" -p "${NUM_PACKAGES}" "${VERBOSE_SPACK}"; then
+  # Install CP2K dependencies via Spack. The full build log of a failing
+  # package is printed to stderr (--show-log-on-error) and its stage is kept
+  # on disk (--keep-stage) so that the underlying compiler/pip error is
+  # available in the CI report instead of only Spack's short error context.
+  if ! spack -e "${CP2K_ENV}" install -j "${NUM_PROCS}" -p "${NUM_PACKAGES}" \
+    --show-log-on-error --keep-stage "${VERBOSE_SPACK}"; then
     echo "ERROR: Building the CP2K dependencies with spack failed"
     if [[ "${USE_EXTERNALS}" == "yes" ]]; then
       echo "HINT:  Try to re-run the build without the (-ue | --use_externals) flag which avoids"
