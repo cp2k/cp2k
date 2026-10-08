@@ -70,8 +70,9 @@ async def main() -> None:
     parser.add_argument("--maxerrors", type=int, default=50)
     help = "Template for launching MPI jobs, {N} is replaced by number of processors."
     parser.add_argument("--mpiexec", default="mpiexec -n {N} --bind-to none", help=help)
-    help = "Runs only the first test of each directory."
-    parser.add_argument("--smoketest", dest="smoketest", action="store_true", help=help)
+    parser.add_argument("--workbasedir", type=Path, default=Path.cwd() / "regtesting")
+    parser.add_argument("--cp2kdatadir", type=Path)
+
     help = "Runs tests under Valgrind memcheck. Best used together with --keepalive."
     parser.add_argument("--valgrind", action="store_true", help=help)
     help = "Use a persistent cp2k-shell process to reduce startup time."
@@ -79,12 +80,20 @@ async def main() -> None:
     help = "Flag slow tests and directories in the final summary and status report."
     parser.add_argument("--flagslow", dest="flagslow", action="store_true", help=help)
     parser.add_argument("--debug", action="store_true")
-    parser.add_argument("--restrictdir", action="append")
-    parser.add_argument("--skipdir", action="append")
-    parser.add_argument("--workbasedir", type=Path, default=Path.cwd() / "regtesting")
-    parser.add_argument("--cp2kdatadir", type=Path)
-    parser.add_argument("--skip_unittests", action="store_true")
-    parser.add_argument("--skip_regtests", action="store_true")
+
+    help = "Runs only the first test of each directory."
+    parser.add_argument("--smoketest", dest="smoketest", action="store_true", help=help)
+    help = "Run only directories that match given regex. Can be used multiple times."
+    parser.add_argument("--restrictdir", action="append", help=help)
+    help = "Skip directories that match given regex. Can be used multiple times."
+    parser.add_argument("--skipdir", action="append", help=help)
+    help = "Run only directories listed in given file, i.e overwrite TEST_DIRS."
+    parser.add_argument("--testdirs", type=Path, help=help)
+    help = "Skip all unit tests."
+    parser.add_argument("--skip_unittests", action="store_true", help=help)
+    help = "Skip all regtests."
+    parser.add_argument("--skip_regtests", action="store_true", help=help)
+
     parser.add_argument("binary_dir", type=Path)
     parser.add_argument("version")
     cfg = Config(parser.parse_args())
@@ -132,31 +141,36 @@ async def main() -> None:
     batches: List[Batch] = []
 
     # Read UNIT_TESTS.
-    unit_tests_fn = cfg.cp2k_root / "tests" / "UNIT_TESTS"
-    for line in unit_tests_fn.read_text(encoding="utf8").split("\n"):
-        line = line.split("#", 1)[0].strip()
-        if line:
-            batch = Batch(f"UNIT/{line}", cfg)
-            batch.workdir.mkdir(parents=True)
-            batch.unittests.append(Unittest(line.split()[0], batch.workdir))
-            batches.append(batch)
+    if not cfg.skip_unittests:
+        unit_tests_fn = cfg.cp2k_root / "tests" / "UNIT_TESTS"
+        for line in unit_tests_fn.read_text(encoding="utf8").split("\n"):
+            line = line.split("#", 1)[0].strip()
+            if line:
+                batch = Batch(f"UNIT/{line}", cfg)
+                batch.workdir.mkdir(parents=True)
+                batch.unittests.append(Unittest(line.split()[0], batch.workdir))
+                batches.append(batch)
 
     # Read TEST_DIRS.
-    test_dirs_fn = cfg.cp2k_root / "tests" / "TEST_DIRS"
-    for line in test_dirs_fn.read_text(encoding="utf8").split("\n"):
-        line = line.split("#", 1)[0].strip()
-        if not line:
-            continue
-        batch = Batch(line, cfg)
+    if not cfg.skip_regtests:
+        for line in cfg.test_dirs.read_text(encoding="utf8").split("\n"):
+            line = line.split("#", 1)[0].strip()
+            if not line:
+                continue
+            batch = Batch(line, cfg)
 
-        # Read TEST_FILES.toml
-        test_files_fn = Path(batch.src_dir / "TEST_FILES.toml")
-        test_files_content = test_files_fn.read_text(encoding="utf8")
-        for inp_fn, matcher_specs in tomllib.loads(test_files_content).items():
-            batch.regtests.append(Regtest(inp_fn, matcher_specs, batch.workdir))
-            if cfg.smoketest:
-                break  # run only one test per directory
-        batches.append(batch)
+            # Read TEST_FILES.toml
+            try:
+                test_files_fn = Path(batch.src_dir / "TEST_FILES.toml")
+                test_files = tomllib.loads(test_files_fn.read_text(encoding="utf8"))
+            except Exception as e:
+                print(f"Error: Could not parse {test_files_fn}\n{e}")
+                sys.exit(1)
+            for inp_fn, matcher_specs in test_files.items():
+                batch.regtests.append(Regtest(inp_fn, matcher_specs, batch.workdir))
+                if cfg.smoketest:
+                    break  # run only one test per directory
+            batches.append(batch)
 
     # Check for nested test dirs.
     for batch_a in batches:
@@ -332,6 +346,7 @@ class Config:
         self.skipdirs = args.skipdir if args.skipdir else []
         self.skip_unittests = args.skip_unittests
         self.skip_regtests = args.skip_regtests
+        self.test_dirs = args.testdirs or self.cp2k_root / "tests" / "TEST_DIRS"
         datestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         self.work_base_dir = args.workbasedir.resolve() / f"TEST-{datestamp}"
         self.error_summary = self.work_base_dir / "error_summary"
@@ -593,11 +608,7 @@ async def wait_for_child_process(
 # ======================================================================================
 async def run_batch(batch: Batch, cfg: Config) -> BatchResult:
     async with cfg.workers:
-        results = []
-        if not cfg.skip_unittests:
-            results += await run_unittests(batch, cfg)
-        if not cfg.skip_regtests:
-            results += await run_regtests(batch, cfg)
+        results = (await run_unittests(batch, cfg)) + (await run_regtests(batch, cfg))
         return BatchResult(batch, results)
 
 
