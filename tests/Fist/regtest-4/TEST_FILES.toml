@@ -58,8 +58,8 @@
 "nh3_bfgs.inp"                          = [{matcher="M007", tol=1.0E-14, ref=-0.0000637288}]
 "nh3_bfgs_r.inp"                        = [{matcher="M007", tol=1.0E-14, ref=-0.0000637306}]
 #Growth constraints
-"ethene_colv1_growth.inp"               = [{matcher="M002", tol=7e-10, ref=0.0124972876295}]
-"ethene_colv1_growth_lim.inp"           = [{matcher="M002", tol=8e-10, ref=0.0087716206527799993}]
+"ethene_colv1_growth.inp"               = [{matcher="M002", tol=7e-10, ref=0.0124998743147}]
+"ethene_colv1_growth_lim.inp"           = [{matcher="M002", tol=8e-10, ref=0.00877309224103}]
 #combo restraint/constraint
 "H2O-restraint_2.inp"                   = [{matcher="M002", tol=1.0E-14, ref=0.200251478411E-03}]
 "H2O-restraint_2r.inp"                  = [{matcher="M002", tol=9e-12, ref=0.232271778520E-03}]

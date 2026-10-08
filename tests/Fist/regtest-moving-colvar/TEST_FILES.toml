@@ -1,0 +1,5 @@
+# Coulomb-only NaCl: compare the native SHAKE multiplier with the analytic force.
+"nacl_fixed.inp" = [{matcher="Shake_colvar_multiplier", tol=3e-3, ref=-0.04480442551826555}]
+"nacl_forward.inp" = [{matcher="Shake_colvar_multiplier", tol=3e-3, ref=-0.04444812931368705}]
+"nacl_reverse.inp" = [{matcher="Shake_colvar_multiplier", tol=3e-3, ref=-0.04516502306239572}]
+"nacl_slow_default_tolerance.inp" = [{matcher="Shake_colvar_multiplier", tol=3e-3, ref=-0.04479725767033586}]
