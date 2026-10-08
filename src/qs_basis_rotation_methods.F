@@ -48,13 +48,13 @@ CONTAINS
 !> \param qs_env ...
 !> \param kpoints ...
 !> \param basis_type ...
+!> \param storage_type ...
 ! **************************************************************************************************
    SUBROUTINE qs_basis_rotation(qs_env, kpoints, basis_type, storage_type)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kpoint_type), POINTER                         :: kpoints
-      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
-      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: storage_type
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type, storage_type
 
       CHARACTER(LEN=12)                                  :: my_basis, my_storage
       INTEGER                                            :: ik, ikind, ir, ira, irot, jr, lval, &
@@ -63,8 +63,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis
-      TYPE(kpoint_sym_type), POINTER                     :: kpsym
       TYPE(kind_rotmat_type), DIMENSION(:, :), POINTER   :: rotmat_store
+      TYPE(kpoint_sym_type), POINTER                     :: kpsym
       TYPE(orbrotmat_type), DIMENSION(:), POINTER        :: orbrot
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
