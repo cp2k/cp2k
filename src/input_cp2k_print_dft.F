@@ -2927,7 +2927,6 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: subsection
 
       NULLIFY (keyword)
 
