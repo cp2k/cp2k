@@ -102,7 +102,8 @@ PROGRAM skala_atom_grid_unittest
          nr = 160
          na = 974
       END IF
-      CALL skala_atom_grid_build(comm, lattice, centres, nr, na, 1, 1.0_dp, points, ew, dw, bs, bc)
+      ! Larger image shells are covered by the partition and derivative tests above.
+      CALL skala_atom_grid_build(comm, lattice, centres, nr, na, 0, 1.0_dp, points, ew, dw, bs, bc)
       IF (SUM(bs) /= SIZE(ew) .OR. SIZE(dw) /= SIZE(ew)) ERROR STOP "Incomplete atom blocks"
       blocks = SIZE(bs)
       empty = 0
@@ -123,7 +124,7 @@ PROGRAM skala_atom_grid_unittest
          ERROR STOP "Periodic volume/Fourier quadrature did not converge"
       END IF
       IF (level == 1) THEN
-         CALL skala_atom_grid_build(single, lattice, centres, nr, na, 1, 1.0_dp, points, ew, dw, bs, bc)
+         CALL skala_atom_grid_build(single, lattice, centres, nr, na, 0, 1.0_dp, points, ew, dw, bs, bc)
          serial = integrals(points, ew)
          IF (MAXVAL(ABS(scalar - serial)) > 1.0e-10_dp) ERROR STOP "Distributed atom-grid integrals differ"
       END IF
@@ -420,19 +421,19 @@ CONTAINS
       positions(:, 1) = MATMUL(hmat, [0.3_dp, 0.4_dp, 0.3_dp])
       dr(:, 1) = [0.21_dp, -0.11_dp, 0.09_dp]
       dh = RESHAPE([0.13_dp, 0.09_dp, -0.17_dp, 0.22_dp, -0.19_dp, 0.16_dp, 0.11_dp, -0.21_dp, 0.18_dp], [3, 3])
-      reference = grid_energy(comm, hmat, positions, gr, gh, 100, 110)
+      reference = grid_energy(comm, hmat, positions, gr, gh)
       maximum = 0.0_dp
       DO component = 1, 2
          DO trial = 1, 2
             h = 1.0e-4_dp/REAL(trial, dp)
             IF (component == 1) THEN
                ad = SUM(gr*dr)
-               ep = grid_energy(comm, hmat, positions + h*dr, nradial=100, nangular=110)
-               em = grid_energy(comm, hmat, positions - h*dr, nradial=100, nangular=110)
+               ep = grid_energy(comm, hmat, positions + h*dr)
+               em = grid_energy(comm, hmat, positions - h*dr)
             ELSE
                ad = SUM(gh*dh)
-               ep = grid_energy(comm, hmat + h*dh, positions, nradial=100, nangular=110)
-               em = grid_energy(comm, hmat - h*dh, positions, nradial=100, nangular=110)
+               ep = grid_energy(comm, hmat + h*dh, positions)
+               em = grid_energy(comm, hmat - h*dh, positions)
             END IF
             err = ABS(ad - (ep - em)/(2*h))/MAX(1.0_dp, ABS(ad))
             maximum = MAX(maximum, err)
@@ -452,27 +453,22 @@ CONTAINS
 !> \param positions Cartesian positions, in bohr.
 !> \param gr Atom-coordinate derivative.
 !> \param gh Cell-vector derivative.
-!> \param nradial Number of radial nodes.
-!> \param nangular Lebedev point count.
 !> \return Test integral over the context communicator.
 ! **************************************************************************************************
-   FUNCTION grid_energy(group, hmat, positions, gr, gh, nradial, nangular) RESULT(e)
+   FUNCTION grid_energy(group, hmat, positions, gr, gh) RESULT(e)
       TYPE(mp_comm_type), INTENT(IN)                     :: group
       REAL(dp), INTENT(IN)                               :: hmat(3, 3), positions(:, :)
       REAL(dp), INTENT(OUT), OPTIONAL                    :: gr(:, :), gh(:, :)
-      INTEGER, INTENT(IN), OPTIONAL                      :: nradial, nangular
       REAL(dp)                                           :: e
 
-      INTEGER                                            :: na, nr, row
+      INTEGER, PARAMETER                                 :: na = 14, nr = 12
+
+      INTEGER                                            :: row
       INTEGER, ALLOCATABLE                               :: sizes(:)
       REAL(dp), ALLOCATABLE                              :: blocks(:, :), descriptor_weights(:), &
                                                             energy_weights(:), pd(:), pe(:), &
                                                             px(:, :), xyz(:, :)
 
-      nr = 12
-      na = 14
-      IF (PRESENT(nradial)) nr = nradial
-      IF (PRESENT(nangular)) na = nangular
       CALL skala_atom_grid_build(group, hmat, positions, nr, na, 1, 1.0_dp, &
                                  xyz, energy_weights, descriptor_weights, sizes, blocks)
       ALLOCATE (pe(SIZE(energy_weights)), pd(SIZE(energy_weights)), px(3, SIZE(energy_weights)))
