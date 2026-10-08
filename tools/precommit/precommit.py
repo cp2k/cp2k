@@ -46,6 +46,12 @@ def main() -> None:
         help="allow the tools to modify files",
     )
     parser.add_argument(
+        "-d",
+        "--diff-only",
+        action="store_true",
+        help="if no file specified, try to check only those returned by `git diff --name-only` or `git show --name-only`",
+    )
+    parser.add_argument(
         "-j",
         "--num_workers",
         type=int,
@@ -90,7 +96,19 @@ def main() -> None:
 
         walk_list = []
         try:
-            output = subprocess.check_output(["git", "ls-files"], encoding="utf8")
+            if args.diff_only:
+                common_options = ["--name-only", "--diff-filter=ACMRTUXB"]
+                output1 = subprocess.check_output(
+                    ["git", "diff"] + common_options,
+                    encoding="utf8",
+                )
+                output2 = subprocess.check_output(
+                    ["git", "show"] + common_options + ["--pretty=format:"],
+                    encoding="utf8",
+                )
+                output = output1 + output2
+            if not output:
+                output = subprocess.check_output(["git", "ls-files"], encoding="utf8")
             for line in filter(None, output.split("\n")):
                 dir, file = os.path.split(line)
                 walk_list.append((os.path.join(".", dir), [dir], [file]))
