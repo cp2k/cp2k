@@ -10,7 +10,7 @@
 @SET ngp_c         8
 &GLOBAL
   PRINT_LEVEL low
-  PROJECT cell_opt_constraint_a_keep_angles
+  PROJECT cell_opt_constraint_a_keep_angles_rhombo
   RUN_TYPE cell_opt
 &END GLOBAL
 
