@@ -1456,6 +1456,17 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
     fi
   fi
 
+  # The builtin py-torch recipe forces USE_SYSTEM_FP16=ON. PyTorch's CMake then
+  # hardcodes the source of the fp16 target to "/usr/include/fp16.h"
+  # (cmake/Dependencies.cmake), which does not exist because Spack provides
+  # fp16 in its own prefix. Disable the system FP16 so that the in-tree
+  # third_party/FP16 submodule (checked out by Spack) is used instead.
+  PY_TORCH_PACKAGE_FILE="$(find -L "${SPACK_USER_CACHE_PATH}/package_repos" -path "*/builtin/packages/py_torch/package.py" -print -quit)"
+  if [[ -f "${PY_TORCH_PACKAGE_FILE}" ]] && grep -q 'env.set("USE_SYSTEM_FP16", "ON")' "${PY_TORCH_PACKAGE_FILE}"; then
+    sed -i -e 's/env.set("USE_SYSTEM_FP16", "ON")/env.set("USE_SYSTEM_FP16", "OFF")/' "${PY_TORCH_PACKAGE_FILE}"
+    echo "The builtin spack recipe of py-torch has been patched to use the vendored FP16 headers"
+  fi
+
   # Add the local CP2K development Spack repository when missing
   export CP2K_REPO="cp2k_dev"
   if ! spack repo list | grep -q "${CP2K_REPO}"; then
