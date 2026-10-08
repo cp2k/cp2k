@@ -32,10 +32,10 @@
       PW_GRID_BLOCKED FALSE
     &END QS
     &SCF
+      ADDED_MOS 12
       EPS_SCF 1.0E-5
       MAX_SCF 300
       SCF_GUESS ATOMIC
-      ADDED_MOS 12
       &OT
         ALGORITHM IRAC
         ENERGIES
@@ -44,8 +44,8 @@
         ROTATION
       &END OT
       &SMEAR
-        METHOD FERMI_DIRAC
         ELECTRONIC_TEMPERATURE 300
+        METHOD FERMI_DIRAC
       &END SMEAR
     &END SCF
     &XC

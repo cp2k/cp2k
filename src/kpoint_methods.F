@@ -2226,6 +2226,7 @@ CONTAINS
 !> \param for_aux_fit ...
 !> \param pmat_ext ...
 !> \param overlap_rs ...
+!> \param mixed_aux_orb ...
 ! **************************************************************************************************
    SUBROUTINE kpoint_density_transform(kpoint, denmat, wtype, tempmat, sab_nl, fmwork, for_aux_fit, &
                                        pmat_ext, overlap_rs, mixed_aux_orb)
@@ -2237,11 +2238,12 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN), TARGET :: fmwork
-      LOGICAL, OPTIONAL                                  :: for_aux_fit, mixed_aux_orb
+      LOGICAL, OPTIONAL                                  :: for_aux_fit
       TYPE(cp_fm_type), DIMENSION(:, :, :), INTENT(IN), &
          OPTIONAL, TARGET                                :: pmat_ext
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: overlap_rs
+      LOGICAL, OPTIONAL                                  :: mixed_aux_orb
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform'
 
@@ -2249,7 +2251,8 @@ CONTAINS
                                                             nimg, nkp, nspin
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: aux_fit, do_symmetric, local, &
-                                                            mixed_aux_orb_local, regular_grid_done, &
+                                                            mixed_aux_orb_local, &
+                                                            regular_grid_done, &
                                                             regular_grid_eligible
       TYPE(cp_fm_p_type), ALLOCATABLE, &
          DIMENSION(:, :, :)                              :: source
@@ -2381,6 +2384,8 @@ CONTAINS
 !> \param denmat real-space output matrices
 !> \param template union of the source AO sparsities
 !> \param plan neighbor-list traversal and storage conventions
+!> \param for_aux_fit ...
+!> \param mixed_aux_orb ...
 ! **************************************************************************************************
    SUBROUTINE kpoint_density_transform_batched(kpoint, source, denmat, template, plan, for_aux_fit, &
                                                mixed_aux_orb)
@@ -2556,6 +2561,8 @@ CONTAINS
 !> \param kpoint ...
 !> \param natom number of AO blocks
 !> \param groups operation views and local contribution lists; zero is the identity
+!> \param for_aux_fit ...
+!> \param mixed_aux_orb ...
 ! **************************************************************************************************
    SUBROUTINE kp_density_groups_create(kpoint, natom, groups, for_aux_fit, mixed_aux_orb)
       TYPE(kpoint_type), POINTER                         :: kpoint
@@ -2594,9 +2601,9 @@ CONTAINS
                      DO i = 1, natom
                         groups(slot)%inverse(i) = i
                      END DO
-                      IF (slot > 0) THEN
-                         CALL kp_symmetry_op_init(groups(slot)%op, kpoint, kpsym, is, for_aux_fit, &
-                                                  mixed_aux_orb)
+                     IF (slot > 0) THEN
+                        CALL kp_symmetry_op_init(groups(slot)%op, kpoint, kpsym, is, for_aux_fit, &
+                                                 mixed_aux_orb)
                         groups(slot)%reverse_phase = kpsym%phase_mode(is) == 2
                         DO i = 1, natom
                            groups(slot)%inverse(groups(slot)%op%atom_map(i)) = i
@@ -3600,6 +3607,8 @@ CONTAINS
 !> \param kpoint k-point environment
 !> \param kpsym symmetry data for the representative k-point
 !> \param is index in the existing symmetry contribution list
+!> \param for_aux_fit ...
+!> \param mixed_aux_orb ...
 ! **************************************************************************************************
    SUBROUTINE kp_symmetry_op_init(op, kpoint, kpsym, is, for_aux_fit, mixed_aux_orb)
       TYPE(kp_symmetry_op_type), INTENT(OUT)             :: op
@@ -3609,7 +3618,8 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: for_aux_fit, mixed_aux_orb
 
       INTEGER                                            :: iatom, rot_slot
-      LOGICAL                                            :: aux_fit, has_phase, my_mixed, perm, rotates
+      LOGICAL                                            :: aux_fit, has_phase, my_mixed, perm, &
+                                                            rotates
       REAL(KIND=dp)                                      :: dr
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rot
 
