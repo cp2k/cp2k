@@ -1517,9 +1517,13 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
   export GIT_HTTP_LOW_SPEED_TIME=60
 
   # Install CP2K dependencies via Spack (retry with backoff to bridge transient network
-  # issues, whereby already installed packages are skipped)
+  # issues, whereby already installed packages are skipped). The full build log of a
+  # failing package is printed to stderr (--show-log-on-error) and its stage is kept
+  # on disk (--keep-stage) so that the underlying compiler/pip error is available in
+  # the CI report instead of only Spack's short error context.
   for i in 1 2 3; do
-    if spack -e "${CP2K_ENV}" install -j "${NUM_PROCS}" -p "${NUM_PACKAGES}" "${VERBOSE_SPACK}"; then
+    if spack -e "${CP2K_ENV}" install -j "${NUM_PROCS}" -p "${NUM_PACKAGES}" \
+      --show-log-on-error --keep-stage "${VERBOSE_SPACK}"; then
       break
     fi
     if ((i == 3)); then
