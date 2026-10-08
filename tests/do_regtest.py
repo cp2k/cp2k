@@ -150,9 +150,13 @@ async def main() -> None:
         batch = Batch(line, cfg)
 
         # Read TEST_FILES.toml
-        test_files_fn = Path(batch.src_dir / "TEST_FILES.toml")
-        test_files_content = test_files_fn.read_text(encoding="utf8")
-        for inp_fn, matcher_specs in tomllib.loads(test_files_content).items():
+        try:
+            test_files_fn = Path(batch.src_dir / "TEST_FILES.toml")
+            test_files = tomllib.loads(test_files_fn.read_text(encoding="utf8"))
+        except Exception as e:
+            print(f"Error: Could not parse {test_files_fn}\n{e}")
+            sys.exit(1)
+        for inp_fn, matcher_specs in test_files.items():
             batch.regtests.append(Regtest(inp_fn, matcher_specs, batch.workdir))
             if cfg.smoketest:
                 break  # run only one test per directory
