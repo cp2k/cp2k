@@ -26,7 +26,7 @@ PROGRAM skala_atom_grid_unittest
 
    IMPLICIT NONE
    TYPE(mp_comm_type) :: comm, single
-   TYPE(skala_partition_type) :: partition, translated, displaced
+   TYPE(skala_partition_type), ALLOCATABLE :: partition, translated, displaced
    REAL(dp) :: lattice(3, 3), inverse(3, 3), centres(3, 2), shifted(3, 2), x(3), offset(3), &
                p, d, p2, d2, total, scalar(4), serial(4), coarse_error, error, &
                radius(12), radial_weight(12), t(12), weight(12), moments(24)
@@ -52,6 +52,7 @@ PROGRAM skala_atom_grid_unittest
    inverse = inv_3x3(lattice)
    centres(:, 1) = MATMUL(lattice, [0.13_dp, 0.31_dp, 0.21_dp])
    centres(:, 2) = MATMUL(lattice, [0.68_dp, 0.73_dp, 0.49_dp])
+   ALLOCATE (partition, translated, displaced)
    CALL skala_partition_init(partition, lattice, centres, 1)
    shifted = centres
    shifted(:, 2) = centres(:, 2) + MATMUL(lattice, [2.0_dp, -1.0_dp, 1.0_dp])
@@ -135,6 +136,7 @@ PROGRAM skala_atom_grid_unittest
    CALL comm%sum(descriptor_only)
    IF (descriptor_only == 0) ERROR STOP "Descriptor-only quadrature rows have been discarded"
    IF (comm%mepos == 0) WRITE (*, '(A)') "Periodic Skala atom-grid checks passed"
+   DEALLOCATE (points, ew, dw, bs, bc, partition, translated, displaced)
    CALL cp2k_finalize()
 CONTAINS
 ! **************************************************************************************************
@@ -181,19 +183,21 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: positions(:, :)
 
       INTEGER                                            :: atom, case_id, component, derivative, &
-                                                            iteration, trial
+                                                            iteration, last_atom, trial
       REAL(dp) :: ad, adjoint(2), dh(3, 3), dmw, dpw, dx(3), err, fd, gh(3, 3), gx(3), h, hi, &
          hm(3, 3), hp(3, 3), lo, maximum, mid, pm, pp, shifted_gh(3, 3), shifted_gx(3), xm(3), &
          xp(3), shifted_gr(3, SIZE(positions, 2)), rp(3, SIZE(positions, 2)), &
          rm(3, SIZE(positions, 2)), gr(3, SIZE(positions, 2)), dr(3, SIZE(positions, 2))
-      TYPE(skala_partition_type)                         :: minus_partition, plus_partition, &
+      TYPE(skala_partition_type), ALLOCATABLE            :: minus_partition, plus_partition, &
                                                             reference_partition
 
+      last_atom = SIZE(positions, 2)
       dx = [0.13_dp, -0.17_dp, 0.11_dp]
       DO atom = 1, SIZE(positions, 2)
          dr(:, atom) = 0.2_dp*SIN(REAL(atom + [1, 2, 3], dp))
       END DO
       dh = RESHAPE([0.13_dp, 0.09_dp, -0.17_dp, 0.22_dp, -0.19_dp, 0.16_dp, 0.11_dp, -0.21_dp, 0.18_dp], [3, 3])
+      ALLOCATE (reference_partition, plus_partition, minus_partition)
       CALL skala_partition_init(reference_partition, lattice, positions, 1)
       maximum = 0.0_dp
       DO atom = 1, SIZE(positions, 2)
@@ -233,11 +237,11 @@ CONTAINS
                END IF
                IF (case_id == 1) THEN
                   rp = positions
-                  rp(:, SIZE(positions, 2)) = rp(:, SIZE(positions, 2)) + MATMUL(lattice, [2.0_dp, -1.0_dp, 1.0_dp])
+                  rp(:, last_atom) = rp(:, last_atom) + MATMUL(lattice, [2.0_dp, -1.0_dp, 1.0_dp])
                   CALL skala_partition_init(plus_partition, lattice, rp, 1)
                   CALL skala_partition_pullback(plus_partition, atom, x, adjoint(1), adjoint(2), &
                                                 shifted_gx, shifted_gr, shifted_gh)
-                  shifted_gh = shifted_gh + SPREAD(gr(:, SIZE(positions, 2)), 2, 3)* &
+                  shifted_gh = shifted_gh + SPREAD(gr(:, last_atom), 2, 3)* &
                                SPREAD([2.0_dp, -1.0_dp, 1.0_dp], 1, 3)
                   IF (MAX(MAXVAL(ABS(gx - shifted_gx)), MAXVAL(ABS(gr - shifted_gr)), &
                           MAXVAL(ABS(gh - shifted_gh))) > 1.0e-10_dp) THEN

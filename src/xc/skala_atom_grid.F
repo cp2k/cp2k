@@ -588,10 +588,11 @@ CONTAINS
       REAL(dp), ALLOCATABLE                              :: descriptor(:), energy(:), &
                                                             positions(:, :), radial_weights(:), &
                                                             radii(:)
-      TYPE(skala_partition_type)                         :: partition
+      TYPE(skala_partition_type), ALLOCATABLE            :: partition
 
       CPASSERT(nradial >= 2 .AND. nangular >= 6 .AND. nangular <= 974)
       CPASSERT(shell >= 0 .AND. scale > 0.0_dp .AND. ieee_is_finite(scale))
+      ALLOCATE (partition)
       CALL skala_partition_init(partition, lattice, centres, shell)
       angular_grid = get_number_of_lebedev_grid(n=nangular)
       na = lebedev_grid(angular_grid)%n
@@ -674,7 +675,7 @@ CONTAINS
       REAL(dp)                                           :: base_weight, d, gh(3, 3), gx(3), &
                                                             offset(3), p, radial_weights(nradial), &
                                                             radii(nradial), gr(3, SIZE(centres, 2))
-      TYPE(skala_partition_type)                         :: partition
+      TYPE(skala_partition_type), ALLOCATABLE            :: partition
 
       CPASSERT(nradial >= 2 .AND. nangular >= 6 .AND. nangular <= 974)
       CPASSERT(ALL(SHAPE(atom_direction) == SHAPE(centres)))
@@ -685,6 +686,7 @@ CONTAINS
       CPASSERT(ALL(block_sizes > 0))
       CPASSERT(SIZE(energy_weights) == SUM(block_sizes))
       CPASSERT(SIZE(descriptor_weights) == SUM(block_sizes))
+      ALLOCATE (partition)
       CALL skala_partition_init(partition, lattice, centres, shell)
       angular_grid = get_number_of_lebedev_grid(n=nangular)
       CPASSERT(lebedev_grid(angular_grid)%n == nangular)
@@ -763,7 +765,7 @@ CONTAINS
       REAL(dp)                                           :: base_weight, d, gh(3, 3), gx(3), &
                                                             offset(3), p, radial_weights(nradial), &
                                                             radii(nradial), gr(3, SIZE(centres, 2))
-      TYPE(skala_partition_type)                         :: partition
+      TYPE(skala_partition_type), ALLOCATABLE            :: partition
 
       CPASSERT(nradial >= 2 .AND. nangular >= 6 .AND. nangular <= 974)
       CPASSERT(ALL(SHAPE(dcentres) == SHAPE(centres)))
@@ -776,6 +778,7 @@ CONTAINS
       CPASSERT(ALL(ieee_is_finite(dblock_centres)))
       CPASSERT(ALL(ieee_is_finite(denergy_weights)))
       CPASSERT(ALL(ieee_is_finite(ddescriptor_weights)))
+      ALLOCATE (partition)
       CALL skala_partition_init(partition, lattice, centres, shell)
       angular_grid = get_number_of_lebedev_grid(n=nangular)
       CPASSERT(lebedev_grid(angular_grid)%n == nangular)
