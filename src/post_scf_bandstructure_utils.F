@@ -1055,7 +1055,7 @@ CONTAINS
 
       CALL get_mo_set(mo_set=mos(1), nao=n_ao, homo=homo, nelectron=nelectron, maxocc=maxocc)
       bs_env%n_ao = n_ao
-      bs_env%n_occ_exact(1:2) = NINT(nelectron/maxocc) !fix for moire large-cell Gamma
+      bs_env%n_occ_nosmear(1:2) = NINT(nelectron/maxocc) !fix for moire large-cell Gamma
       bs_env%n_electron(1:2) = nelectron
       ! lowered by the diagonalization below if the canonical orthogonalization removes modes
       bs_env%n_mo_retained = n_ao
@@ -1063,7 +1063,7 @@ CONTAINS
       bs_env%n_vir(1:2) = n_ao - homo
       IF (bs_env%n_spin == 2) THEN
          CALL get_mo_set(mo_set=mos(2), homo=homo, nelectron=nelectron, maxocc=maxocc)
-         bs_env%n_occ_exact(2) = NINT(nelectron/maxocc)
+         bs_env%n_occ_nosmear(2) = NINT(nelectron/maxocc)
          bs_env%n_occ(2) = homo
          bs_env%n_vir(2) = n_ao - homo
          bs_env%n_electron(2) = nelectron
@@ -1093,8 +1093,7 @@ CONTAINS
             END IF
          END SELECT
       END IF
-      bs_env%fixed_mag_mom = scf_control%smear%fixed_mag_mom
-
+      CPASSERT(scf_control%smear%fixed_mag_mom <= 0.0_dp)
       ! get para_env from qs_env (bs_env%para_env is identical to para_env in qs_env)
       CALL get_qs_env(qs_env, para_env=para_env)
       color_sub = 0
@@ -1894,7 +1893,7 @@ CONTAINS
 !> \param bs_env ...
 !> \param qs_env ...
 !> \param ikp ...
-!> \param eigenval_no_SOC ...
+!> \param eigenval_no_SOC non-SOC band energies (n_ao, n_kpoints, n_spin)
 !> \param E_min ...
 !> \param cfm_mos_ikp ...
 !> \param DOS ...
@@ -1920,18 +1919,64 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'SOC_ev'
 
-      INTEGER                                            :: handle, homo_spinor, homo_used, il1, &
-                                                            il2, n_ao, n_E, n_window, &
-                                                            n_window2tot, nkind, nocc, nvirt
+      INTEGER                                            :: handle
       LOGICAL                                            :: do_truncate
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eig_win_sorted, eigenval_spinor_no_SOC
+
+      CALL timeset(routineN, handle)
+
+      !for the window truncation part
+      do_truncate = (bs_env%soc_nbands_occ > 0 .AND. bs_env%soc_nbands_virt > 0)
+
+      IF (do_truncate) THEN
+         CALL SOC_ev_truncate_mos(bs_env, qs_env, ikp, eigenval_no_SOC, cfm_mos_ikp, &
+                                  band_edges, eigenval_spinor, cfm_spinor_wf_ikp)
+      ELSE
+         CALL SOC_ev_all_mos(bs_env, qs_env, ikp, eigenval_no_SOC, E_min, cfm_mos_ikp, &
+                             DOS, PDOS, band_edges, eigenval_spinor, cfm_spinor_wf_ikp)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE SOC_ev
+
+! **************************************************************************************************
+!> \brief SOC second-variational diagonalization over the full 2*n_ao spinor space (no truncation
+!>        window) -- the SOC_NBANDS_OCC/VIRT-truncated path lives in SOC_ev_truncate_mos.
+!> \param bs_env ...
+!> \param qs_env ...
+!> \param ikp ...
+!> \param eigenval_no_SOC non-SOC band energies (n_ao, n_kpoints, n_spin)
+!> \param E_min ...
+!> \param cfm_mos_ikp ...
+!> \param DOS ...
+!> \param PDOS ...
+!> \param band_edges ...
+!> \param eigenval_spinor ...
+!> \param cfm_spinor_wf_ikp ...
+! **************************************************************************************************
+   SUBROUTINE SOC_ev_all_mos(bs_env, qs_env, ikp, eigenval_no_SOC, E_min, cfm_mos_ikp, &
+                             DOS, PDOS, band_edges, eigenval_spinor, cfm_spinor_wf_ikp)
+
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER                                            :: ikp
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: eigenval_no_SOC
+      REAL(KIND=dp)                                      :: E_min
+      TYPE(cp_cfm_type), DIMENSION(2)                    :: cfm_mos_ikp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: DOS
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: PDOS
+      TYPE(band_edges_type)                              :: band_edges
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval_spinor
+      TYPE(cp_cfm_type)                                  :: cfm_spinor_wf_ikp
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'SOC_ev_all_mos'
+
+      INTEGER                                            :: handle, homo_spinor, n_ao, n_E, nkind
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval_spinor_no_SOC
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: proj_mo_on_kind_spinor
       TYPE(cp_cfm_type)                                  :: cfm_eigenvec_ikp_spinor, &
                                                             cfm_ks_ikp_spinor, cfm_mos_ikp_spinor, &
                                                             cfm_SOC_ikp_spinor, cfm_work_ikp_spinor
-      TYPE(cp_fm_struct_type), POINTER                   :: fst_mos, fst_wa, fst_ww
-      TYPE(cp_fm_type)                                   :: fm_src_im, fm_src_re, fm_tgt_im, &
-                                                            fm_tgt_re
 
       CALL timeset(routineN, handle)
 
@@ -1939,46 +1984,11 @@ CONTAINS
       homo_spinor = bs_env%n_occ(1) + bs_env%n_occ(bs_env%n_spin)
       CALL get_qs_env(qs_env, nkind=nkind)
 
-      !for the window truncation part
-      do_truncate = (bs_env%soc_nbands_occ > 0 .AND. bs_env%soc_nbands_virt > 0)
-
-      IF (do_truncate) THEN
-         nocc = bs_env%soc_nbands_occ
-         nvirt = bs_env%soc_nbands_virt
-         CPASSERT(nocc <= bs_env%n_occ_exact(1))
-         CPASSERT(nocc <= bs_env%n_occ_exact(bs_env%n_spin))
-         CPASSERT(nvirt <= n_ao - bs_env%n_occ_exact(1))
-         CPASSERT(nvirt <= n_ao - bs_env%n_occ_exact(bs_env%n_spin))
-         CPASSERT(.NOT. bs_env%do_dos_pdos)
-         il1 = bs_env%n_occ_exact(1) - nocc + 1
-         il2 = bs_env%n_occ_exact(bs_env%n_spin) - nocc + 1
-         n_window = nocc + nvirt
-         n_window2tot = 2*n_window
-         homo_used = 2*nocc
-      ELSE
-         homo_used = homo_spinor
-      END IF
-
-      IF (do_truncate) THEN
-         NULLIFY (fst_ww, fst_wa, fst_mos)
-         CALL cp_fm_struct_create(fst_ww, nrow_global=n_window2tot, ncol_global=n_window2tot, &
-                                  template_fmstruct=bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
-         CALL cp_fm_struct_create(fst_wa, nrow_global=n_window2tot, ncol_global=2*n_ao, &
-                                  template_fmstruct=bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
-         CALL cp_fm_struct_create(fst_mos, nrow_global=2*n_ao, ncol_global=n_window2tot, &
-                                  template_fmstruct=bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
-         CALL cp_cfm_create(cfm_ks_ikp_spinor, fst_ww)
-         CALL cp_cfm_create(cfm_eigenvec_ikp_spinor, fst_ww)
-         CALL cp_cfm_create(cfm_work_ikp_spinor, fst_wa)
-         CALL cp_cfm_create(cfm_SOC_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
-         CALL cp_cfm_create(cfm_mos_ikp_spinor, fst_mos)
-      ELSE
-         CALL cp_cfm_create(cfm_ks_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
-         CALL cp_cfm_create(cfm_SOC_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
-         CALL cp_cfm_create(cfm_mos_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
-         CALL cp_cfm_create(cfm_work_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
-         CALL cp_cfm_create(cfm_eigenvec_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
-      END IF
+      CALL cp_cfm_create(cfm_ks_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
+      CALL cp_cfm_create(cfm_SOC_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
+      CALL cp_cfm_create(cfm_mos_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
+      CALL cp_cfm_create(cfm_work_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
+      CALL cp_cfm_create(cfm_eigenvec_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
 
       ALLOCATE (eigenval_spinor_no_SOC(2*n_ao))
       ALLOCATE (proj_mo_on_kind_spinor(2*n_ao, nkind))
@@ -1986,7 +1996,6 @@ CONTAINS
       proj_mo_on_kind_spinor(:, :) = 0.0_dp
 
       ! 1. get V^SOC_µν,σσ'(k_i)
-
       SELECT CASE (bs_env%gw_implementation)
       CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic, tensor_static_cohsex)
 
@@ -2002,70 +2011,31 @@ CONTAINS
          CALL cp_cfm_to_cfm(bs_env%cfm_SOC_spinor_ao(ikp), cfm_SOC_ikp_spinor)
 
       END SELECT
+
       ! 2. V^SOC_nn',σσ'(k_i) = sum_µν C^*_µn,σ(k_i) V^SOC_µν,σσ'(k_i) C_νn'(k_i),
       !    C_µn,σ(k_i): MO coefficiencts from diagonalizing KS-matrix h^KS_nn',σσ'(k_i)
 
       ! 2.1 build matrix C_µn,σ(k_i)
       CALL cp_cfm_set_all(cfm_mos_ikp_spinor, z_zero)
-      IF (do_truncate) THEN
-         ! get_cfm_submat/add_cfm_submat only copy SQUARE blocks, so the rectangular
-         ! (n_ao x n_window) column windows are copied with cp_fm_to_fm_submat (separate
-         ! nrow/ncol) on the real and imaginary parts separately, then recombined.
-         CALL cp_fm_create(fm_src_re, cfm_mos_ikp(1)%matrix_struct)
-         CALL cp_fm_create(fm_src_im, cfm_mos_ikp(1)%matrix_struct)
-         CALL cp_fm_create(fm_tgt_re, fst_mos)
-         CALL cp_fm_create(fm_tgt_im, fst_mos)
-         CALL cp_fm_set_all(fm_tgt_re, 0.0_dp)
-         CALL cp_fm_set_all(fm_tgt_im, 0.0_dp)
-         ! spin 1: MO columns il1..il1+n_window-1 -> rows 1..n_ao, cols 1..n_window
-         CALL cp_cfm_to_fm(cfm_mos_ikp(1), fm_src_re, fm_src_im)
-         CALL cp_fm_to_fm_submat(msource=fm_src_re, mtarget=fm_tgt_re, nrow=n_ao, ncol=n_window, &
-                                 s_firstrow=1, s_firstcol=il1, t_firstrow=1, t_firstcol=1)
-         CALL cp_fm_to_fm_submat(msource=fm_src_im, mtarget=fm_tgt_im, nrow=n_ao, ncol=n_window, &
-                                 s_firstrow=1, s_firstcol=il1, t_firstrow=1, t_firstcol=1)
+      CALL add_cfm_submat(cfm_mos_ikp_spinor, cfm_mos_ikp(1), 1, 1)
+      CALL add_cfm_submat(cfm_mos_ikp_spinor, cfm_mos_ikp(bs_env%n_spin), n_ao + 1, n_ao + 1)
 
-         ! spin 2: MO columns il2..il2+n_window-1 -> rows n_ao+1..2*n_ao, cols n_window+1..2*n_window
-         CALL cp_cfm_to_fm(cfm_mos_ikp(bs_env%n_spin), fm_src_re, fm_src_im)
-         CALL cp_fm_to_fm_submat(msource=fm_src_re, mtarget=fm_tgt_re, nrow=n_ao, ncol=n_window, &
-                                 s_firstrow=1, s_firstcol=il2, t_firstrow=n_ao + 1, t_firstcol=n_window + 1)
-         CALL cp_fm_to_fm_submat(msource=fm_src_im, mtarget=fm_tgt_im, nrow=n_ao, ncol=n_window, &
-                                 s_firstrow=1, s_firstcol=il2, t_firstrow=n_ao + 1, t_firstcol=n_window + 1)
-
-         CALL cp_fm_to_cfm(fm_tgt_re, fm_tgt_im, cfm_mos_ikp_spinor)
-
-         CALL cp_fm_release(fm_src_re)
-         CALL cp_fm_release(fm_src_im)
-         CALL cp_fm_release(fm_tgt_re)
-         CALL cp_fm_release(fm_tgt_im)
-      ELSE
-         CALL add_cfm_submat(cfm_mos_ikp_spinor, cfm_mos_ikp(1), 1, 1)
-         CALL add_cfm_submat(cfm_mos_ikp_spinor, cfm_mos_ikp(bs_env%n_spin), n_ao + 1, n_ao + 1)
-      END IF
       ! 2.2 work_nν,σσ' = sum_µ C^*_µn,σ(k_i) V^SOC_µν,σσ'(k_i)
+      CALL parallel_gemm('C', 'N', 2*n_ao, 2*n_ao, 2*n_ao, z_one, &
+                         cfm_mos_ikp_spinor, cfm_SOC_ikp_spinor, &
+                         z_zero, cfm_work_ikp_spinor)
 
-      IF (do_truncate) THEN
-         CALL parallel_gemm('C', 'N', n_window2tot, 2*n_ao, 2*n_ao, z_one, &
-                            cfm_mos_ikp_spinor, cfm_SOC_ikp_spinor, &
-                            z_zero, cfm_work_ikp_spinor)
-         ! 2.3 V^SOC_nn',σσ'(k_i) = sum_ν work_nν,σσ' C_νn'(k_i)
-         CALL parallel_gemm('N', 'N', n_window2tot, n_window2tot, 2*n_ao, z_one, &
-                            cfm_work_ikp_spinor, cfm_mos_ikp_spinor, &
-                            z_zero, cfm_ks_ikp_spinor)
-      ELSE
-         CALL parallel_gemm('C', 'N', 2*n_ao, 2*n_ao, 2*n_ao, z_one, &
-                            cfm_mos_ikp_spinor, cfm_SOC_ikp_spinor, &
-                            z_zero, cfm_work_ikp_spinor)
-         ! 2.3 V^SOC_nn',σσ'(k_i) = sum_ν work_nν,σσ' C_νn'(k_i)
-         CALL parallel_gemm('N', 'N', 2*n_ao, 2*n_ao, 2*n_ao, z_one, &
-                            cfm_work_ikp_spinor, cfm_mos_ikp_spinor, &
-                            z_zero, cfm_ks_ikp_spinor)
-      END IF
+      ! 2.3 V^SOC_nn',σσ'(k_i) = sum_ν work_nν,σσ' C_νn'(k_i)
+      CALL parallel_gemm('N', 'N', 2*n_ao, 2*n_ao, 2*n_ao, z_one, &
+                         cfm_work_ikp_spinor, cfm_mos_ikp_spinor, &
+                         z_zero, cfm_ks_ikp_spinor)
+
       ! 3. remove SOC outside of energy window (otherwise, numerical problems arise
       !    because energetically low semicore states and energetically very high
       !    unbound states couple to the states around the Fermi level)
       eigenval_spinor_no_SOC(1:n_ao) = eigenval_no_SOC(1:n_ao, ikp, 1)
       eigenval_spinor_no_SOC(n_ao + 1:) = eigenval_no_SOC(1:n_ao, ikp, bs_env%n_spin)
-      IF ((bs_env%soc_window_occ > 0.0_dp .OR. bs_env%soc_window_virt > 0.0_dp) .AND. .NOT. do_truncate) THEN
+      IF (bs_env%soc_window_occ > 0.0_dp .OR. bs_env%soc_window_virt > 0.0_dp) THEN
          CALL remove_soc_outside_energy_window_mo(cfm_ks_ikp_spinor, &
                                                   bs_env%soc_window_virt, &
                                                   bs_env%soc_window_smearing, &
@@ -2075,57 +2045,29 @@ CONTAINS
       END IF
 
       ! 4. h^G0W0+SOC_nn',σσ'(k_i) = ε_nσ^G0W0(k_i) δ_nn' δ_σσ' + V^SOC_nn',σσ'(k_i)
+      CALL cfm_add_on_diag(cfm_ks_ikp_spinor, eigenval_spinor_no_SOC)
 
-      IF (do_truncate) THEN
-         CALL cfm_add_on_diag(cfm_ks_ikp_spinor, &
-                              [eigenval_no_SOC(il1:il1 + n_window - 1, ikp, 1), &
-                               eigenval_no_SOC(il2:il2 + n_window - 1, ikp, bs_env%n_spin)])
-      ELSE
-         CALL cfm_add_on_diag(cfm_ks_ikp_spinor, eigenval_spinor_no_SOC)
-      END IF
       ! 5. diagonalize h^G0W0+SOC_nn',σσ'(k_i) to get eigenvalues
-      IF (do_truncate) THEN
-         ALLOCATE (eig_win_sorted(n_window2tot))
-         CALL cp_cfm_heevd(cfm_ks_ikp_spinor, cfm_eigenvec_ikp_spinor, eig_win_sorted)
-      ELSE
-         CALL cp_cfm_heevd(cfm_ks_ikp_spinor, cfm_eigenvec_ikp_spinor, eigenval_spinor)
-      END IF
+      CALL cp_cfm_heevd(cfm_ks_ikp_spinor, cfm_eigenvec_ikp_spinor, eigenval_spinor)
 
       ! 6. DOS from spinors, no PDOS
-      !IF (bs_env%do_dos_pdos) THEN
-      IF (bs_env%do_dos_pdos .AND. .NOT. do_truncate) THEN
+      IF (bs_env%do_dos_pdos) THEN
          n_E = SIZE(DOS)
          CALL add_to_DOS_PDOS(DOS, PDOS, eigenval_spinor, &
                               ikp, bs_env, n_E, E_min, proj_mo_on_kind_spinor)
       END IF
 
       ! 7. valence band max. (VBM), conduction band min. (CBM) and direct bandgap (DBG)
-      IF (do_truncate) THEN
-         band_edges%VBM = MAX(band_edges%VBM, eig_win_sorted(homo_used))
-         band_edges%CBM = MIN(band_edges%CBM, eig_win_sorted(homo_used + 1))
-         band_edges%DBG = MIN(band_edges%DBG, eig_win_sorted(homo_used + 1) - eig_win_sorted(homo_used))
+      band_edges%VBM = MAX(band_edges%VBM, eigenval_spinor(homo_spinor))
+      band_edges%CBM = MIN(band_edges%CBM, eigenval_spinor(homo_spinor + 1))
+      band_edges%DBG = MIN(band_edges%DBG, eigenval_spinor(homo_spinor + 1) &
+                           - eigenval_spinor(homo_spinor))
 
-         CALL truncated_eigenval_spinor(eigenval_no_SOC, eig_win_sorted, ikp, bs_env%n_spin, &
-                                        n_ao, il1, il2, n_window, n_window2tot, eigenval_spinor)
-
-      ELSE
-         band_edges%VBM = MAX(band_edges%VBM, eigenval_spinor(homo_spinor))
-         band_edges%CBM = MIN(band_edges%CBM, eigenval_spinor(homo_spinor + 1))
-         band_edges%DBG = MIN(band_edges%DBG, eigenval_spinor(homo_spinor + 1) &
-                              - eigenval_spinor(homo_spinor))
-      END IF
       ! 8. spinor wavefunctions:
       CALL cp_cfm_set_all(cfm_spinor_wf_ikp, z_zero)
-      IF (do_truncate) THEN
-         CPASSERT(.NOT. bs_env%do_ldos)
-         CALL parallel_gemm('N', 'N', 2*n_ao, n_window2tot, n_window2tot, z_one, &
-                            cfm_mos_ikp_spinor, cfm_eigenvec_ikp_spinor, &
-                            z_zero, cfm_spinor_wf_ikp)
-      ELSE
-         CALL parallel_gemm('N', 'N', 2*n_ao, 2*n_ao, 2*n_ao, z_one, &
-                            cfm_mos_ikp_spinor, cfm_eigenvec_ikp_spinor, &
-                            z_zero, cfm_spinor_wf_ikp)
-      END IF
+      CALL parallel_gemm('N', 'N', 2*n_ao, 2*n_ao, 2*n_ao, z_one, &
+                         cfm_mos_ikp_spinor, cfm_eigenvec_ikp_spinor, &
+                         z_zero, cfm_spinor_wf_ikp)
 
       CALL cp_cfm_release(cfm_ks_ikp_spinor)
       CALL cp_cfm_release(cfm_SOC_ikp_spinor)
@@ -2133,16 +2075,193 @@ CONTAINS
       CALL cp_cfm_release(cfm_eigenvec_ikp_spinor)
       CALL cp_cfm_release(cfm_mos_ikp_spinor)
 
-      IF (do_truncate) THEN
-         CALL cp_fm_struct_release(fst_ww)
-         CALL cp_fm_struct_release(fst_wa)
-         CALL cp_fm_struct_release(fst_mos)
-      END IF
+      CALL timestop(handle)
+
+   END SUBROUTINE SOC_ev_all_mos
+
+! **************************************************************************************************
+!> \brief SOC second-variational diagonalization truncated to a window of SOC_NBANDS_OCC occupied
+!>        and SOC_NBANDS_VIRT virtual states around the Fermi level -- the untruncated, full
+!>        2*n_ao spinor-space path lives in SOC_ev_all_mos.
+!> \param bs_env ...
+!> \param qs_env ...
+!> \param ikp ...
+!> \param eigenval_no_SOC non-SOC band energies (n_ao, n_kpoints, n_spin)
+!> \param cfm_mos_ikp ...
+!> \param band_edges ...
+!> \param eigenval_spinor ...
+!> \param cfm_spinor_wf_ikp ...
+! **************************************************************************************************
+   SUBROUTINE SOC_ev_truncate_mos(bs_env, qs_env, ikp, eigenval_no_SOC, cfm_mos_ikp, &
+                                  band_edges, eigenval_spinor, cfm_spinor_wf_ikp)
+
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER                                            :: ikp
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: eigenval_no_SOC
+      TYPE(cp_cfm_type), DIMENSION(2)                    :: cfm_mos_ikp
+      TYPE(band_edges_type)                              :: band_edges
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval_spinor
+      TYPE(cp_cfm_type)                                  :: cfm_spinor_wf_ikp
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'SOC_ev_truncate_mos'
+
+      INTEGER                                            :: handle, homo_spinor, homo_used, &
+                                                            mo_index_start_1, mo_index_start_2, &
+                                                            n_ao, n_window, n_window2tot, nkind, &
+                                                            nocc, nvirt
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eig_win_sorted, eigenval_spinor_no_SOC
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: proj_mo_on_kind_spinor
+      TYPE(cp_cfm_type)                                  :: cfm_eigenvec_ikp_spinor, &
+                                                            cfm_ks_ikp_spinor, cfm_mos_ikp_spinor, &
+                                                            cfm_SOC_ikp_spinor, cfm_work_ikp_spinor
+      TYPE(cp_fm_struct_type), POINTER                   :: fst_mos, fst_wa, fst_ww
+      TYPE(cp_fm_type)                                   :: fm_src_im, fm_src_re, fm_tgt_im, &
+                                                            fm_tgt_re
+
+      CALL timeset(routineN, handle)
+
+      n_ao = bs_env%n_ao
+      homo_spinor = bs_env%n_occ(1) + bs_env%n_occ(bs_env%n_spin)
+      CALL get_qs_env(qs_env, nkind=nkind)
+
+      nocc = bs_env%soc_nbands_occ
+      nvirt = bs_env%soc_nbands_virt
+      CPASSERT(nocc <= bs_env%n_occ_nosmear(1))
+      CPASSERT(nocc <= bs_env%n_occ_nosmear(bs_env%n_spin))
+      CPASSERT(nvirt <= n_ao - bs_env%n_occ_nosmear(1))
+      CPASSERT(nvirt <= n_ao - bs_env%n_occ_nosmear(bs_env%n_spin))
+      CPASSERT(.NOT. bs_env%do_dos_pdos)
+      mo_index_start_1 = bs_env%n_occ_nosmear(1) - nocc + 1
+      mo_index_start_2 = bs_env%n_occ_nosmear(bs_env%n_spin) - nocc + 1
+      n_window = nocc + nvirt
+      n_window2tot = 2*n_window
+      homo_used = 2*nocc
+
+      NULLIFY (fst_ww, fst_wa, fst_mos)
+      CALL cp_fm_struct_create(fst_ww, nrow_global=n_window2tot, ncol_global=n_window2tot, &
+                               template_fmstruct=bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
+      CALL cp_fm_struct_create(fst_wa, nrow_global=n_window2tot, ncol_global=2*n_ao, &
+                               template_fmstruct=bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
+      CALL cp_fm_struct_create(fst_mos, nrow_global=2*n_ao, ncol_global=n_window2tot, &
+                               template_fmstruct=bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
+      CALL cp_cfm_create(cfm_ks_ikp_spinor, fst_ww)
+      CALL cp_cfm_create(cfm_eigenvec_ikp_spinor, fst_ww)
+      CALL cp_cfm_create(cfm_work_ikp_spinor, fst_wa)
+      CALL cp_cfm_create(cfm_SOC_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
+      CALL cp_cfm_create(cfm_mos_ikp_spinor, fst_mos)
+
+      ALLOCATE (eigenval_spinor_no_SOC(2*n_ao))
+      ALLOCATE (proj_mo_on_kind_spinor(2*n_ao, nkind))
+      ! PDOS not yet implemented -> projection is just zero -> PDOS is zero
+      proj_mo_on_kind_spinor(:, :) = 0.0_dp
+
+      ! 1. get V^SOC_µν,σσ'(k_i)
+      SELECT CASE (bs_env%gw_implementation)
+      CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic, tensor_static_cohsex)
+
+         ! 1. get V^SOC_µν,σσ'(k_i) from V^SOC_µν,σσ'(k=0)
+         CALL cfm_ikp_from_cfm_spinor_Gamma(cfm_SOC_ikp_spinor, &
+                                            bs_env%cfm_SOC_spinor_ao(1), &
+                                            bs_env%fm_s_Gamma%matrix_struct, &
+                                            ikp, qs_env, bs_env%kpoints_DOS, "ORB")
+
+      CASE (tensor_small_cell_full_kp)
+
+         ! 1. V^SOC_µν,σσ'(k_i) already there
+         CALL cp_cfm_to_cfm(bs_env%cfm_SOC_spinor_ao(ikp), cfm_SOC_ikp_spinor)
+
+      END SELECT
+
+      ! 2. V^SOC_nn',σσ'(k_i) = sum_µν C^*_µn,σ(k_i) V^SOC_µν,σσ'(k_i) C_νn'(k_i),
+      !    C_µn,σ(k_i): MO coefficiencts from diagonalizing KS-matrix h^KS_nn',σσ'(k_i)
+
+      ! 2.1 build matrix C_µn,σ(k_i)
+      CALL cp_cfm_set_all(cfm_mos_ikp_spinor, z_zero)
+      ! get_cfm_submat/add_cfm_submat only copy SQUARE blocks, so the rectangular
+      ! (n_ao x n_window) column windows are copied with cp_fm_to_fm_submat (separate
+      ! nrow/ncol) on the real and imaginary parts separately, then recombined.
+      CALL cp_fm_create(fm_src_re, cfm_mos_ikp(1)%matrix_struct)
+      CALL cp_fm_create(fm_src_im, cfm_mos_ikp(1)%matrix_struct)
+      CALL cp_fm_create(fm_tgt_re, fst_mos)
+      CALL cp_fm_create(fm_tgt_im, fst_mos)
+      CALL cp_fm_set_all(fm_tgt_re, 0.0_dp)
+      CALL cp_fm_set_all(fm_tgt_im, 0.0_dp)
+      ! spin 1: MO columns mo_index_start_1..mo_index_start_1+n_window-1 -> rows 1..n_ao, cols 1..n_window
+      CALL cp_cfm_to_fm(cfm_mos_ikp(1), fm_src_re, fm_src_im)
+      CALL cp_fm_to_fm_submat(msource=fm_src_re, mtarget=fm_tgt_re, nrow=n_ao, ncol=n_window, &
+                              s_firstrow=1, s_firstcol=mo_index_start_1, t_firstrow=1, t_firstcol=1)
+      CALL cp_fm_to_fm_submat(msource=fm_src_im, mtarget=fm_tgt_im, nrow=n_ao, ncol=n_window, &
+                              s_firstrow=1, s_firstcol=mo_index_start_1, t_firstrow=1, t_firstcol=1)
+
+      ! spin 2: MO columns mo_index_start_2..mo_index_start_2+n_window-1 -> rows n_ao+1..2*n_ao, cols n_window+1..2*n_window
+      CALL cp_cfm_to_fm(cfm_mos_ikp(bs_env%n_spin), fm_src_re, fm_src_im)
+      CALL cp_fm_to_fm_submat(msource=fm_src_re, mtarget=fm_tgt_re, nrow=n_ao, ncol=n_window, &
+                              s_firstrow=1, s_firstcol=mo_index_start_2, t_firstrow=n_ao + 1, t_firstcol=n_window + 1)
+      CALL cp_fm_to_fm_submat(msource=fm_src_im, mtarget=fm_tgt_im, nrow=n_ao, ncol=n_window, &
+                              s_firstrow=1, s_firstcol=mo_index_start_2, t_firstrow=n_ao + 1, t_firstcol=n_window + 1)
+
+      CALL cp_fm_to_cfm(fm_tgt_re, fm_tgt_im, cfm_mos_ikp_spinor)
+
+      CALL cp_fm_release(fm_src_re)
+      CALL cp_fm_release(fm_src_im)
+      CALL cp_fm_release(fm_tgt_re)
+      CALL cp_fm_release(fm_tgt_im)
+
+      ! 2.2 work_nν,σσ' = sum_µ C^*_µn,σ(k_i) V^SOC_µν,σσ'(k_i)
+      CALL parallel_gemm('C', 'N', n_window2tot, 2*n_ao, 2*n_ao, z_one, &
+                         cfm_mos_ikp_spinor, cfm_SOC_ikp_spinor, &
+                         z_zero, cfm_work_ikp_spinor)
+      ! 2.3 V^SOC_nn',σσ'(k_i) = sum_ν work_nν,σσ' C_νn'(k_i)
+      CALL parallel_gemm('N', 'N', n_window2tot, n_window2tot, 2*n_ao, z_one, &
+                         cfm_work_ikp_spinor, cfm_mos_ikp_spinor, &
+                         z_zero, cfm_ks_ikp_spinor)
+
+      ! 3. remove SOC outside of energy window: not applicable here -- the truncation window
+      !    itself already restricts SOC to the states around the Fermi level
+      eigenval_spinor_no_SOC(1:n_ao) = eigenval_no_SOC(1:n_ao, ikp, 1)
+      eigenval_spinor_no_SOC(n_ao + 1:) = eigenval_no_SOC(1:n_ao, ikp, bs_env%n_spin)
+
+      ! 4. h^G0W0+SOC_nn',σσ'(k_i) = ε_nσ^G0W0(k_i) δ_nn' δ_σσ' + V^SOC_nn',σσ'(k_i)
+      CALL cfm_add_on_diag(cfm_ks_ikp_spinor, &
+                           [eigenval_no_SOC(mo_index_start_1:mo_index_start_1 + n_window - 1, ikp, 1), &
+                            eigenval_no_SOC(mo_index_start_2:mo_index_start_2 + n_window - 1, ikp, bs_env%n_spin)])
+
+      ! 5. diagonalize h^G0W0+SOC_nn',σσ'(k_i) to get eigenvalues
+      ALLOCATE (eig_win_sorted(n_window2tot))
+      CALL cp_cfm_heevd(cfm_ks_ikp_spinor, cfm_eigenvec_ikp_spinor, eig_win_sorted)
+
+      ! 6. DOS from spinors: not supported for the truncated window (CPASSERT'd above)
+
+      ! 7. valence band max. (VBM), conduction band min. (CBM) and direct bandgap (DBG)
+      band_edges%VBM = MAX(band_edges%VBM, eig_win_sorted(homo_used))
+      band_edges%CBM = MIN(band_edges%CBM, eig_win_sorted(homo_used + 1))
+      band_edges%DBG = MIN(band_edges%DBG, eig_win_sorted(homo_used + 1) - eig_win_sorted(homo_used))
+
+      CALL fill_truncated_eigenval_spinor(eigenval_no_SOC, eig_win_sorted, ikp, bs_env%n_spin, &
+                                          n_ao, mo_index_start_1, mo_index_start_2, n_window, &
+                                          n_window2tot, eigenval_spinor)
+
+      ! 8. spinor wavefunctions:
+      CALL cp_cfm_set_all(cfm_spinor_wf_ikp, z_zero)
+      CPASSERT(.NOT. bs_env%do_ldos)
+      CALL parallel_gemm('N', 'N', 2*n_ao, n_window2tot, n_window2tot, z_one, &
+                         cfm_mos_ikp_spinor, cfm_eigenvec_ikp_spinor, &
+                         z_zero, cfm_spinor_wf_ikp)
+
+      CALL cp_cfm_release(cfm_ks_ikp_spinor)
+      CALL cp_cfm_release(cfm_SOC_ikp_spinor)
+      CALL cp_cfm_release(cfm_work_ikp_spinor)
+      CALL cp_cfm_release(cfm_eigenvec_ikp_spinor)
+      CALL cp_cfm_release(cfm_mos_ikp_spinor)
+
+      CALL cp_fm_struct_release(fst_ww)
+      CALL cp_fm_struct_release(fst_wa)
+      CALL cp_fm_struct_release(fst_mos)
 
       CALL timestop(handle)
 
-   END SUBROUTINE SOC_ev
-
+   END SUBROUTINE SOC_ev_truncate_mos
 ! **************************************************************************************************
 !> \brief ...
 !> \param eigenval_no_SOC non-SOC band energies (n_ao, n_kpoints, n_spin)
@@ -2156,15 +2275,15 @@ CONTAINS
 !> \param n_window2tot total window size
 !> \param eigenval_spinor output: full repacked spinor spectrum (2*n_ao)
 ! **************************************************************************************************
-   SUBROUTINE truncated_eigenval_spinor(eigenval_no_SOC, eig_win_sorted, ikp, n_spin, n_ao, &
-                                        il1, il2, n_window, n_window2tot, eigenval_spinor)
+   SUBROUTINE fill_truncated_eigenval_spinor(eigenval_no_SOC, eig_win_sorted, ikp, n_spin, n_ao, &
+                                             il1, il2, n_window, n_window2tot, eigenval_spinor)
       REAL(KIND=dp), DIMENSION(:, :, :)                  :: eigenval_no_SOC
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eig_win_sorted
       INTEGER                                            :: ikp, n_spin, n_ao, il1, il2, n_window, &
                                                             n_window2tot
       REAL(KIND=dp), DIMENSION(:)                        :: eigenval_spinor
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'truncated_eigenval_spinor'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_truncated_eigenval_spinor'
 
       INTEGER                                            :: handle, i, ia, ib, n_below1, n_below2
 
@@ -2242,7 +2361,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE truncated_eigenval_spinor
+   END SUBROUTINE fill_truncated_eigenval_spinor
 
 ! **************************************************************************************************
 !> \brief ...
@@ -3611,20 +3730,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: kTS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: f_occ
 
-      IF (bs_env%fixed_mag_mom > 0.0_dp) THEN
-         ! Fixed-spin-population (fixed magnetic moment) SCF semantics are not yet
-         ! supported here -- Smearkp2 always solves for ONE shared chemical
-         ! potential across both spin channels (relaxed-multiplicity semantics),
-         ! which does not match a fixed-moment SCF. Fall back to VBM rather than
-         ! silently applying the wrong physics.
-         IF (bs_env%unit_nr > 0) THEN
-            WRITE (bs_env%unit_nr, '(T2,A)') &
-               'Fixed magnetic moment detected: shared-chemical-potential Fermi '// &
-               'level search not supported for this case, falling back to VBM.'
-         END IF
-         e_fermi = VBM
-      ELSE IF (bs_env%do_smear .AND. .NOT. (CBM > VBM .AND. &
-                                            CBM - VBM > gap_smear_ratio*bs_env%smear_width)) THEN
+      IF (bs_env%do_smear .AND. .NOT. (CBM > VBM .AND. &
+                                       CBM - VBM > gap_smear_ratio*bs_env%smear_width)) THEN
          ALLOCATE (f_occ(SIZE(eigenval, 1), SIZE(eigenval, 2), 2))
          CALL Smearkp2(f_occ, e_fermi, kTS, eigenval, n_el, &
                        bs_env%kpoints_DOS%wkp(1:SIZE(eigenval, 2)), &
@@ -3635,5 +3742,4 @@ CONTAINS
       END IF
 
    END SUBROUTINE get_fermi_level_2c
-
 END MODULE post_scf_bandstructure_utils
