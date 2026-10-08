@@ -1329,8 +1329,16 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
     # Skala). The CUDA-only PyTorch options that CP2K does not use (cuDNN,
     # cuSPARSELt, MAGMA, NCCL, FlashAttention) are disabled to shorten the
     # build.
+    #
+    # The CUDA-enabled PyTorch wheel build spawns many nvcc/CUDA compilation
+    # units in parallel and easily exhausts the memory of the build host (or
+    # the Docker builder) when it has to be built from source. Force PyTorch
+    # to be built serially via the per-package "parallel" attribute, which
+    # makes Spack pass MAX_JOBS=1 to the wheel build without limiting the
+    # parallelism of the other (cache-served) dependencies. This attribute is
+    # excluded from the package hash, so cached binaries still match.
     sed -E \
-      -e "/^[[:space:]]+py-torch:/{n; s/require:/require:\n        - \"+cuda cuda_arch=${CUDA_SM_CODE}\"\n        - \"~cudnn\"\n        - \"~cusparselt\"\n        - \"~magma\"\n        - \"~nccl\"\n        - \"~flash_attention\"/}" \
+      -e "/^[[:space:]]+py-torch:/{n; s/^([[:space:]]+)require:/\1package_attributes:\n\1  parallel: false\n\1require:\n\1  - \"+cuda cuda_arch=${CUDA_SM_CODE}\"\n\1  - \"~cudnn\"\n\1  - \"~cusparselt\"\n\1  - \"~magma\"\n\1  - \"~nccl\"\n\1  - \"~flash_attention\"/}" \
       -e "/^[[:space:]]+gauxc:/{n; s/require:/require:\n        - \"+cuda cuda_arch=${CUDA_SM_CODE}\"/}" \
       -i "${CP2K_CONFIG_FILE}"
     echo -e "PyTorch (libtorch) and GauXC will be built with CUDA support (cuda_arch=${CUDA_SM_CODE})"
@@ -1500,25 +1508,8 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
 
   ((VERBOSE > 0)) && spack find -c
 
-  # The CUDA-enabled PyTorch/libtorch build runs many nvcc/CUDA compilation units
-  # in parallel and easily exhausts the memory of the build host (or the Docker
-  # builder) when it has to be built from source. Cap the per-package build
-  # parallelism used by Spack to a memory-friendly value for CUDA builds.
-  # Dependencies that are served from the build cache are unaffected and
-  # non-CUDA builds keep the requested parallelism.
-  SPACK_JOBS="${NUM_PROCS}"
-  if ((CUDA_SM_CODE > 0)); then
-    SPACK_JOBS="${SPACK_BUILD_JOBS:-8}"
-    if ((SPACK_JOBS > NUM_PROCS)); then
-      SPACK_JOBS="${NUM_PROCS}"
-    fi
-    if ((SPACK_JOBS < NUM_PROCS)); then
-      echo -e "\nLimiting the Spack build parallelism to ${SPACK_JOBS} jobs (of ${NUM_PROCS}) to avoid out-of-memory failures while building PyTorch (libtorch)"
-    fi
-  fi
-
   # Install CP2K dependencies via Spack
-  if ! spack -e "${CP2K_ENV}" install -j "${SPACK_JOBS}" -p "${NUM_PACKAGES}" "${VERBOSE_SPACK}"; then
+  if ! spack -e "${CP2K_ENV}" install -j "${NUM_PROCS}" -p "${NUM_PACKAGES}" "${VERBOSE_SPACK}"; then
     echo "ERROR: Building the CP2K dependencies with spack failed"
     if [[ "${USE_EXTERNALS}" == "yes" ]]; then
       echo "HINT:  Try to re-run the build without the (-ue | --use_externals) flag which avoids"
