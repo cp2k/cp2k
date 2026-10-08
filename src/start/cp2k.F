@@ -339,7 +339,11 @@ PROGRAM cp2k
                WRITE (output_unit, "(T2,A)") cp2k_version, &
                   "Source code revision "//TRIM(compile_revision), &
                   TRIM(cp2k_flags())
-               compiler_options_string = compiler_options()
+               ! The trailing NUL character bounds the in-place prefix replacement of
+               ! package managers like conda to this string, which would otherwise
+               ! shift and corrupt the subsequent string literals in the binary
+               compiler_options_string = compiler_options()//CHAR(0)
+               l = INDEX(compiler_options_string, CHAR(0)) - 1
                WRITE (output_unit, "(T2,A,A)") "compiler: ", compiler_version()
                cpuid = m_cpuid()
                cpuid_static = m_cpuid_static()
@@ -359,9 +363,9 @@ PROGRAM cp2k
                      "to enable them."
                END IF
                WRITE (output_unit, "(T2,A)") "compiler options:"
-               DO i = 0, (LEN(compiler_options_string) - 1)/68
+               DO i = 0, (l - 1)/68
                   WRITE (output_unit, "(T4,A)") &
-                     compiler_options_string(i*68 + 1:MIN(LEN(compiler_options_string), (i + 1)*68))
+                     compiler_options_string(i*68 + 1:MIN(l, (i + 1)*68))
                END DO
                DEALLOCATE (compiler_options_string)
             END IF
