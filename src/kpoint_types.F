@@ -531,6 +531,19 @@ CONTAINS
          NULLIFY (kpoint%kind_rotmat)
       END IF
 
+      IF (ASSOCIATED(kpoint%kind_rotmat_aux)) THEN
+         DO i = 1, SIZE(kpoint%kind_rotmat_aux, 1)
+            DO j = 1, SIZE(kpoint%kind_rotmat_aux, 2)
+               IF (ASSOCIATED(kpoint%kind_rotmat_aux(i, j)%rmat)) THEN
+                  DEALLOCATE (kpoint%kind_rotmat_aux(i, j)%rmat)
+                  NULLIFY (kpoint%kind_rotmat_aux(i, j)%rmat)
+               END IF
+            END DO
+         END DO
+         DEALLOCATE (kpoint%kind_rotmat_aux)
+         NULLIFY (kpoint%kind_rotmat_aux)
+      END IF
+
       IF (ASSOCIATED(kpoint%scf_diis_buffer)) THEN
          CALL qs_diis_b_release_kp(kpoint%scf_diis_buffer)
          DEALLOCATE (kpoint%scf_diis_buffer)
