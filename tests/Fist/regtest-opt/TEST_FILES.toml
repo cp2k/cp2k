@@ -44,16 +44,20 @@
 "cell_sym_triclinic.inp"                = [{matcher="M011", tol=1e-08, ref=-129.28637032103501}]
 # Cell optimisation constraint
 "cell_opt_constraint_none.inp"          = [{matcher="M011", tol=1.0E-10, ref=-1210.562919201514887}]
-"cell_opt_constraint_xy.inp"            = [{matcher="M011", tol=1.0E-10, ref=-1210.460826328278017}]
-"cell_opt_constraint_z.inp"             = [{matcher="M011", tol=1.0E-10, ref=-1210.524637046745283}]
+"cell_opt_constraint_xy.inp"            = [{matcher="M011", tol=1.0E-10, ref=-1210.460826328278017}, {matcher="Cell_length_a", tol=1.0E-9, ref=27.500000}, {matcher="Cell_length_b", tol=1.0E-9, ref=27.500000}]
+"cell_opt_constraint_z.inp"             = [{matcher="M011", tol=1.0E-10, ref=-1210.524637046745283}, {matcher="Cell_length_c", tol=1.0E-9, ref=27.500000}]
 # Component-wise cell optimisation constraints (C fixes the same components as Z,
 # the reference value is shared with cell_opt_constraint_z on purpose)
-"cell_opt_constraint_c.inp"             = [{matcher="M011", tol=1.0E-10, ref=-1210.524637046745283}]
-"cell_opt_constraint_ab.inp"            = [{matcher="M011", tol=1.0E-8, ref=-261.459538486902431}]
-"cell_opt_constraint_ax_by_cz.inp"      = [{matcher="M011", tol=1.0E-8, ref=-261.430306445227473}]
-"cell_opt_constraint_2d.inp"            = [{matcher="M011", tol=1.0E-8, ref=-0.391897271410234}]
-"cell_opt_constraint_b.inp"             = [{matcher="M011", tol=1.0E-8, ref=-261.473321602204408}]
-"cell_opt_constraint_a_keep_angles.inp" = [{matcher="M011", tol=1.0E-8, ref=-261.473321602206113}]
+"cell_opt_constraint_c.inp"             = [{matcher="M011", tol=1.0E-10, ref=-1210.524637046745283}, {matcher="Cell_length_c", tol=1.0E-9, ref=27.500000}]
+"cell_opt_constraint_ab.inp"            = [{matcher="M011", tol=1.0E-8, ref=-261.459538486902431}, {matcher="Cell_length_a", tol=1.0E-9, ref=16.500000}, {matcher="Cell_length_b", tol=1.0E-9, ref=16.500000}]
+"cell_opt_constraint_ax_by_cz.inp"      = [{matcher="M011", tol=1.0E-8, ref=-261.430306445227473}, {matcher="Cell_length_a", tol=1.0E-9, ref=16.500000}, {matcher="Cell_length_b", tol=1.0E-9, ref=16.500000}, {matcher="Cell_length_c", tol=1.0E-9, ref=16.500000}]
+"cell_opt_constraint_2d.inp"            = [{matcher="M011", tol=1.0E-8, ref=-0.391897271410234}, {matcher="Cell_length_c", tol=1.0E-9, ref=15.000000}]
+"cell_opt_constraint_b.inp"             = [{matcher="M011", tol=1.0E-8, ref=-261.473321602204408}, {matcher="Cell_length_b", tol=1.0E-9, ref=16.500000}]
+"cell_opt_constraint_a_keep_angles.inp" = [{matcher="M011", tol=1.0E-8, ref=-261.473321602206113}, {matcher="Cell_length_a", tol=1.0E-9, ref=16.500000}]
+# Non-orthorhombic KEEP_ANGLE variants: the 60-degree rhombohedral cell pins the
+# a length and the kept alpha, the triclinic smoke run anchors an early step.
+"cell_opt_constraint_a_keep_angles_rhombo.inp" = [{matcher="M011", tol=1.0E-10, ref=-19.369006707220770}, {matcher="Cell_length_a", tol=1.0E-9, ref=7.703891}, {matcher="Cell_angle_alpha", tol=1.0E-9, ref=60.000000}]
+"cell_opt_constraint_z_keep_angles_smoke.inp" = [{matcher="M011", tol=1.0E-10, ref=-77.466559969627582}, {matcher="Cell_length_c", tol=1.0E-9, ref=11.000000}, {matcher="Cell_angle_alpha", tol=1.0E-9, ref=89.000000}]
 # Cell optimisation with fixed volume
 "cell_opt_keep_volume.inp"              = [{matcher="M011", tol=1.0E-10, ref=-16.136339196984437}]
 "cell_opt_keep_volume_symmetry.inp"     = [{matcher="M011", tol=1.0E-10, ref=-16.13633919692934}]
