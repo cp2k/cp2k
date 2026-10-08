@@ -57,6 +57,7 @@ PROGRAM cp2k
    USE input_cp2k,                      ONLY: create_cp2k_root_section
    USE input_section_types,             ONLY: section_release,&
                                               section_type
+   USE iso_c_binding,                   ONLY: C_NULL_CHAR
    USE iso_fortran_env,                 ONLY: compiler_options,&
                                               compiler_version
    USE kinds,                           ONLY: default_path_length
@@ -342,8 +343,8 @@ PROGRAM cp2k
                ! The trailing NUL character bounds the in-place prefix replacement of
                ! package managers like conda to this string, which would otherwise
                ! shift and corrupt the subsequent string literals in the binary
-               compiler_options_string = compiler_options()//CHAR(0)
-               l = INDEX(compiler_options_string, CHAR(0)) - 1
+               compiler_options_string = compiler_options()//C_NULL_CHAR
+               l = INDEX(compiler_options_string, C_NULL_CHAR) - 1
                WRITE (output_unit, "(T2,A,A)") "compiler: ", compiler_version()
                cpuid = m_cpuid()
                cpuid_static = m_cpuid_static()
