@@ -1516,16 +1516,41 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
   export GIT_HTTP_LOW_SPEED_LIMIT=1000
   export GIT_HTTP_LOW_SPEED_TIME=60
 
-  # Install CP2K dependencies via Spack (retry with backoff to bridge transient network
-  # issues, whereby already installed packages are skipped). The full build log of a
-  # failing package is printed to stderr (--show-log-on-error) and its stage is kept
-  # on disk (--keep-stage) so that the underlying compiler/pip error is available in
-  # the CI report instead of only Spack's short error context.
+  # Install CP2K dependencies via Spack (retry with backoff to bridge transient
+  # network issues, whereby already installed packages are skipped). The stage is
+  # kept on disk (--keep-stage) because Spack's own "--show-log-on-error" does not
+  # work for environment installs (it aborts with "Expected InstallError to include
+  # the associated package" before dumping anything). Instead, Spack's output is
+  # captured and the build log(s) of the failed package(s) are printed below so
+  # that the underlying compiler or pip error is available in the CI report
+  # instead of only Spack's short error context.
+  SPACK_INSTALL_LOG="${SPACK_BUILD_PATH}/spack-install.log"
   for i in 1 2 3; do
     if spack -e "${CP2K_ENV}" install -j "${NUM_PROCS}" -p "${NUM_PACKAGES}" \
-      --show-log-on-error --keep-stage "${VERBOSE_SPACK}"; then
+      --keep-stage "${VERBOSE_SPACK}" 2>&1 | tee "${SPACK_INSTALL_LOG}"; then
       break
     fi
+    # Extract the build-log paths that Spack reports for the failed packages
+    # (e.g. "py-torch@2.13.0/<hash>: /tmp/.../spack-stage-...log" and the
+    # "[x] <hash> <spec> failed: /tmp/.../spack-stage-...log" status line).
+    mapfile -t FAILED_LOGS < <(
+      grep -oE '/[^[:space:]]*spack-stage-[^[:space:]]*\.log' "${SPACK_INSTALL_LOG}" \
+        2> /dev/null | sort -u
+    )
+    for log in "${FAILED_LOGS[@]}"; do
+      [[ -f "${log}" ]] || continue
+      echo ""
+      echo "===== Build log: ${log} ====="
+      # Stay below the dashboard report size limit by showing at most the
+      # tail of very large logs.
+      if [[ "$(wc -l < "${log}" 2> /dev/null || echo 0)" -gt 4000 ]]; then
+        echo "----- (truncated, showing last 4000 lines) -----"
+        tail -n 4000 "${log}"
+      else
+        cat "${log}"
+      fi
+      echo "===== End of build log: ${log} ====="
+    done
     if ((i == 3)); then
       echo "ERROR: Building the CP2K dependencies with spack failed"
       if [[ "${USE_EXTERNALS}" == "yes" ]]; then
