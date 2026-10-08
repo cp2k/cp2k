@@ -216,9 +216,11 @@ MODULE post_scf_bandstructure_types
       INTEGER, DIMENSION(2)                        :: n_occ = -1, &
                                                       n_vir = -1
       INTEGER, DIMENSION(2)                        :: n_electron = -1
+      INTEGER, DIMENSION(2)                        :: n_occ_exact = -1
       LOGICAL                                      :: do_smear = .FALSE.
       INTEGER                                      :: smear_method = -1
       REAL(KIND=dp)                                :: smear_width = 0.0_dp
+      REAL(KIND=dp)                                :: fixed_mag_mom = -1.0_dp
       REAL(KIND=dp)                                :: spin_degeneracy = -1.0_dp
       REAL(KIND=dp), DIMENSION(2)                  :: e_fermi = -1.0_dp
 
