@@ -1,0 +1,90 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT nacl_forward
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &CONSTRAINT
+    SHAKE_TOLERANCE 1.0E-10
+    &COLLECTIVE
+      COLVAR 1
+      INTERMOLECULAR
+      TARGET [angstrom] 2.50000000
+      TARGET_GROWTH [angstrom*fs^-1] 0.0005
+      TARGET_LIMIT [angstrom] 10.00000000
+    &END COLLECTIVE
+    &LAGRANGE_MULTIPLIERS
+      FILENAME __STD_OUT__
+      &EACH
+        MD 1
+      &END EACH
+    &END LAGRANGE_MULTIPLIERS
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVE
+    STEPS 20
+    TEMPERATURE 0.0
+    TIMESTEP 1.0
+  &END MD
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM Na
+        CHARGE 1.0
+      &END CHARGE
+      &CHARGE
+        ATOM Cl
+        CHARGE -1.0
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS Na Na
+          EPSILON [eV] 0.0
+          RCUT [angstrom] 20.0
+          SIGMA [angstrom] 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS Na Cl
+          EPSILON [eV] 0.0
+          RCUT [angstrom] 20.0
+          SIGMA [angstrom] 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS Cl Cl
+          EPSILON [eV] 0.0
+          RCUT [angstrom] 20.0
+          SIGMA [angstrom] 1.0
+        &END LENNARD-JONES
+      &END NONBONDED
+      &SPLINE
+        RCUT_NB [angstrom] 20.0
+      &END SPLINE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 40.0 40.0 40.0
+      PERIODIC XYZ
+    &END CELL
+    &COLVAR
+      &DISTANCE
+        ATOMS 1 2
+      &END DISTANCE
+    &END COLVAR
+    &TOPOLOGY
+      CONN_FILE_FORMAT OFF
+      COORD_FILE_FORMAT XYZ
+      COORD_FILE_NAME nacl.xyz
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
