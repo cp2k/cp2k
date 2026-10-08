@@ -263,6 +263,7 @@ CONTAINS
                   END BLOCK
                   CALL xc_pw_pool%give_back_pw(fxc_tau_uf(ispin))
                END DO
+               DEALLOCATE (fxc_tau_uf)
             END IF
          END IF
 
@@ -834,6 +835,7 @@ CONTAINS
                END BLOCK
                CALL xc_pw_pool%give_back_pw(fxc_tau_uf(ispin))
             END DO
+            DEALLOCATE (fxc_tau_uf)
          END IF
 
       ELSE
