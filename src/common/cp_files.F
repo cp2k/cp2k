@@ -183,22 +183,27 @@ CONTAINS
 !> \param file_pad YES or NO (default: YES); only allowed for FORMATTED files
 !> \param file_access SEQUENTIAL or STREAM (default: SEQUENTIAL); DIRECT is not supported
 !> \param debug Print the connection properties to the default output unit
+!> \param io_stat Optional I/O status: zero on success, nonzero on failure with unit_number=-1
+!> \param search_data Search the data directory for existing read-only files (default: true)
 !> \author Matthias Krack (MK)
 !> \note  - If the file is already open, its unit number is returned and no new connection is
 !>          made. ACTION, FORM, and ACCESS must match the existing connection; with
 !>          POSITION=REWIND the file is rewound.
 !>        - For STATUS=OLD and ACTION=READ, the file is also looked up in the data directory
 !>          (see discover_file). Files opened for writing are never taken from there.
-!>        - Any error aborts the program; there is no IOSTAT return.
+!>        - I/O errors abort unless io_stat is present. Invalid arguments and incompatible
+!>          existing connections always abort.
 ! **************************************************************************************************
    SUBROUTINE open_file(file_name, unit_number, file_status, file_form, file_action, &
-                        file_position, file_pad, file_access, debug)
+                        file_position, file_pad, file_access, debug, io_stat, search_data)
 
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: file_name
       INTEGER, INTENT(OUT)                               :: unit_number
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: file_status, file_form, file_action, &
                                                             file_position, file_pad, file_access
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
+      INTEGER, INTENT(OUT), OPTIONAL                     :: io_stat
+      LOGICAL, INTENT(IN), OPTIONAL                      :: search_data
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'open_file'
 
@@ -207,10 +212,13 @@ CONTAINS
       CHARACTER(LEN=2*default_path_length)               :: message
       CHARACTER(LEN=default_path_length)                 :: cwd, iomsg_string, real_file_name
       INTEGER                                            :: inquire_stat, open_stat
-      LOGICAL                                            :: connect, exists, is_named, is_open
+      LOGICAL                                            :: connect, discover, exists, is_named, &
+                                                            is_open
 
       real_file_name = ""
       unit_number = -1
+      discover = .TRUE.
+      IF (PRESENT(search_data)) discover = search_data
 
       IF (PRESENT(file_access)) THEN
          access_string = TRIM(ADJUSTL(file_access))
@@ -288,7 +296,7 @@ CONTAINS
          END IF
          ! Resolve the file name. The data directory is only searched for existing files
          ! opened read-only, so that installed data files are never modified.
-         IF ((status_string == "OLD") .AND. (action_string == "READ")) THEN
+         IF ((status_string == "OLD") .AND. (action_string == "READ") .AND. discover) THEN
             real_file_name = discover_file(file_name)
          ELSE
             real_file_name = TRIM(ADJUSTL(file_name))
@@ -325,7 +333,9 @@ CONTAINS
          IF (inquire_stat == 0) THEN
             IF (is_open) THEN
                INQUIRE (FILE=TRIM(real_file_name), NUMBER=unit_number, &
-                        ACTION=current_action, FORM=current_form, ACCESS=current_access)
+                        ACTION=current_action, FORM=current_form, ACCESS=current_access, &
+                        IOSTAT=inquire_stat)
+               IF (inquire_stat /= 0) is_open = .FALSE.
             ELSE
                SELECT CASE (status_string)
                CASE ("NEW")
@@ -390,6 +400,20 @@ CONTAINS
       END IF
 !$OMP END CRITICAL(cp_files_connect)
 
+      IF (PRESENT(io_stat)) THEN
+         io_stat = inquire_stat
+         IF (io_stat == 0) THEN
+            IF (.NOT. is_open) THEN
+               io_stat = open_stat
+               IF ((.NOT. connect) .OR. (unit_number < 1)) io_stat = 1
+            END IF
+         END IF
+         IF (io_stat /= 0) THEN
+            unit_number = -1
+            RETURN
+         END IF
+      END IF
+
       IF (inquire_stat /= 0) THEN
          CALL cp_abort(__LOCATION__, &
                        "An error occurred inquiring the file <"//TRIM(real_file_name)// &
@@ -425,7 +449,17 @@ CONTAINS
                           "Attempt to re-open the existing file <"// &
                           TRIM(real_file_name)//"> with STATUS=NEW.")
          END IF
-         IF (position_string == "REWIND") REWIND (UNIT=unit_number)
+         IF (position_string == "REWIND") THEN
+            IF (PRESENT(io_stat)) THEN
+               REWIND (UNIT=unit_number, IOSTAT=io_stat)
+               IF (io_stat /= 0) THEN
+                  unit_number = -1
+                  RETURN
+               END IF
+            ELSE
+               REWIND (UNIT=unit_number)
+            END IF
+         END IF
       ELSE
          ! Check the outcome of the connection attempt
          SELECT CASE (status_string)
