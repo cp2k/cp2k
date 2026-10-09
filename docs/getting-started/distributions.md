@@ -57,17 +57,27 @@ apt-get install cp2k
 See also [debian.org](https://packages.debian.org/search?keywords=cp2k) and
 [ubuntu.com](https://packages.ubuntu.com/search?keywords=cp2k).
 
-## Docker
+## Docker / Podman
+
+CP2K container images are available from Docker Hub and can be pulled with either
+[Docker](https://www.docker.com/) or [Podman](https://podman.io/). Podman is recommended, because it
+is a daemonless container engine that runs containers rootless by default, i.e. without requiring
+root privileges or membership in a privileged group like the `docker` group, which is effectively
+equivalent to root access on the host. Files written to mounted host directories are owned by the
+invoking user. Its command line interface is compatible with Docker's.
 
 ```shell
-docker pull cp2k/cp2k
+podman pull docker.io/cp2k/cp2k:latest
 ```
 
-```{tip}
-[Podman](#podman) is recommended over Docker, since it runs containers rootless by default.
+or
+
+```shell
+docker pull cp2k/cp2k:latest
 ```
 
-See also [hub.docker.com](https://hub.docker.com/r/cp2k/cp2k) and
+See also [hub.docker.com](https://hub.docker.com/r/cp2k/cp2k),
+[podman.io](https://podman.io/docs/installation), and
 [cp2k-containers](https://github.com/cp2k/cp2k-containers).
 
 ## Easybuild
@@ -117,22 +127,6 @@ docker pull nvcr.io/hpc/cp2k:v2023.2
 ```
 
 See also [ngc.nvidia.com](https://catalog.ngc.nvidia.com/orgs/hpc/containers/cp2k).
-
-## Podman
-
-[Podman](https://podman.io/) is a daemonless container engine that runs containers rootless by
-default, i.e. without requiring root privileges or membership in a privileged group like the
-`docker` group, which is effectively equivalent to root access on the host. Files written to mounted
-host directories are owned by the invoking user. Podman is therefore recommended over Docker,
-especially on shared systems. Its command line interface is compatible with Docker's, and it can
-pull the same images, e.g. from Docker Hub
-
-```shell
-podman pull docker.io/cp2k/cp2k:latest
-```
-
-See also [podman.io](https://podman.io/docs/installation) and
-[cp2k-containers](https://github.com/cp2k/cp2k-containers).
 
 ## Spack
 
