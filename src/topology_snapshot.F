@@ -9,7 +9,7 @@
 !> \brief Reader and physical moving-basis links for version-1 topology snapshots.
 ! **************************************************************************************************
 MODULE topology_snapshot
-   USE ai_moments,                      ONLY: cossin
+   USE ai_moments,                      ONLY: expikr
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
@@ -279,7 +279,7 @@ CONTAINS
    END SUBROUTINE snapshot_overlap
 
 ! **************************************************************************************************
-!> \brief Screened atom-row contribution using CP2K's cossin primitive integral recurrence.
+!> \brief Screened atom-row contribution using CP2K's complex plane-wave primitive integrals.
 !> \param a Left physical state
 !> \param b Right physical state
 !> \param ia Left atom whose AO rows are contracted
@@ -294,11 +294,10 @@ CONTAINS
       COMPLEX(KIND=dp), INTENT(OUT)                      :: atom_link(:, :)
 
       COMPLEX(KIND=dp)                                   :: phase
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: block(:, :), oc(:, :, :)
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: block(:, :), expab(:, :), oc(:, :, :)
       INTEGER                                            :: af, bf, hi(3), i, ib, image(3), j, k, &
                                                             lo(3), nc_a, nc_b, s, sa, sb
       REAL(KIND=dp)                                      :: bounds(3), cutoff, disp(3), q(3), rb(3)
-      REAL(KIND=dp), ALLOCATABLE                         :: cosine(:, :), sine(:, :)
 
       q(:) = 2.0_dp*pi*MATMUL(TRANSPOSE(a%inverse), kb - ka)
       atom_link(:, :) = 0.0_dp
@@ -322,7 +321,7 @@ CONTAINS
                         hi = 0
                      END WHERE
                      nc_b = SIZE(right%contraction, 1)
-                     ALLOCATE (cosine(nc_a, nc_b), sine(nc_a, nc_b), block(left%count, right%count))
+                     ALLOCATE (expab(nc_a, nc_b), block(left%count, right%count))
                      block(:, :) = 0.0_dp
                      DO k = lo(3), hi(3)
                         DO j = lo(2), hi(2)
@@ -330,12 +329,12 @@ CONTAINS
                               image(:) = [i, j, k]
                               rb(:) = right%center + MATMUL(a%cell, REAL(image, dp))
                               IF (NORM2(rb - left%center) > cutoff) CYCLE
-                              CALL cossin(left%lmax, SIZE(left%exponent), left%exponent, left%radii, left%lmin, &
+                              CALL expikr(left%lmax, SIZE(left%exponent), left%exponent, left%radii, left%lmin, &
                                           right%lmax, SIZE(right%exponent), right%exponent, right%radii, right%lmin, &
-                                          left%center, rb, q, cosine, sine)
+                                          left%center, rb, -q, expab)
                               phase = EXP(CMPLX(0.0_dp, 2.0_dp*pi*DOT_PRODUCT(kb, REAL(image, dp)), dp))
                               block(:, :) = block + phase*MATMUL(TRANSPOSE(left%contraction), &
-                                                                 MATMUL(CMPLX(cosine, -sine, dp), right%contraction))
+                                                                 MATMUL(expab, right%contraction))
                            END DO
                         END DO
                      END DO
@@ -343,7 +342,7 @@ CONTAINS
                         bf = right%first + (s - 1)*b%nao
                         oc(:, :, s) = oc(:, :, s) + MATMUL(block, b%coefficients(bf:bf + right%count - 1, :))
                      END DO
-                     DEALLOCATE (cosine, sine, block)
+                     DEALLOCATE (expab, block)
                   END ASSOCIATE
                END DO
             END DO
