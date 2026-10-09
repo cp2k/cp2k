@@ -1027,27 +1027,19 @@ CONTAINS
       DO ispin = 1, nspins
          CALL dbcsr_set(matrix_hz(ispin)%matrix, 0.0_dp)
          CALL pw_scale(v_xc(ispin), v_xc(ispin)%pw_grid%dvol)
+         CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin), &
+                                 hmat=matrix_hz(ispin), gapw=do_onecenter, &
+                                 calculate_forces=.FALSE.)
+         IF (ASSOCIATED(v_xc_tau)) THEN
+            CALL pw_scale(v_xc_tau(ispin), v_xc_tau(ispin)%pw_grid%dvol)
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc_tau(ispin), &
+                                    hmat=matrix_hz(ispin), gapw=do_onecenter, &
+                                    calculate_forces=.FALSE., compute_tau=.TRUE.)
+         END IF
+         CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_hartree_rspace, &
+                                 hmat=matrix_hz(ispin), gapw=gapw, &
+                                 calculate_forces=.FALSE.)
       END DO
-      IF (gapw_xc) THEN
-         DO ispin = 1, nspins
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_hartree_rspace, &
-                                    hmat=matrix_hz(ispin), &
-                                    calculate_forces=.FALSE.)
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin), &
-                                    hmat=matrix_hz(ispin), &
-                                    gapw=gapw_xc, calculate_forces=.FALSE.)
-         END DO
-      ELSE
-         ! vtot = v_xc(ispin) + v_hartree
-         DO ispin = 1, nspins
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin), &
-                                    hmat=matrix_hz(ispin), &
-                                    gapw=gapw, calculate_forces=.FALSE.)
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_hartree_rspace, &
-                                    hmat=matrix_hz(ispin), &
-                                    gapw=gapw, calculate_forces=.FALSE.)
-         END DO
-      END IF
       IF (gapw .OR. gapw_xc) THEN
          mhz(1:nspins, 1:1) => matrix_hz(1:nspins)
          mpe(1:nspins, 1:1) => matrix_pe(1:nspins)

@@ -12,8 +12,8 @@
 ! **************************************************************************************************
 MODULE qs_operators_ao
    USE ai_angmom,                       ONLY: angmom
-   USE ai_moments,                      ONLY: contract_cossin,&
-                                              cossin
+   USE ai_moments,                      ONLY: contract_expikr,&
+                                              expikr
    USE ai_overlap,                      ONLY: overlap_ab
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
@@ -83,6 +83,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_exp_ikr_matrix'
 
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: expab(:, :)
       INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, last_jatom, &
          ldsa, ldsb, ldwork, ncoa, ncob, nkind, nkvec, nseta, nsetb, reim, sgfa, sgfb
       INTEGER, DIMENSION(3)                              :: perd0
@@ -93,8 +94,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rb
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cosab, rpgfa, rpgfb, sinab, sphi_a, &
-                                                            sphi_b, work, zeta, zetb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, work, &
+                                                            zeta, zetb
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:, :)   :: op_cossin
       TYPE(cell_type), POINTER                           :: cell
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
@@ -148,7 +149,7 @@ CONTAINS
 
       nkind = SIZE(qs_kind_set)
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxco=ldwork, basis_type=basis_type)
-      ALLOCATE (cosab(ldwork, ldwork), sinab(ldwork, ldwork), work(ldwork, ldwork))
+      ALLOCATE (expab(ldwork, ldwork), work(ldwork, ldwork))
 
       ALLOCATE (op_cossin(2, nkvec))
 
@@ -241,20 +242,20 @@ CONTAINS
 
                DO i = 1, nkvec
                   IF (.NOT. ASSOCIATED(op_cossin(1, i)%block)) CYCLE
-                  CALL cossin(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), &
+                  CALL expikr(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), &
                               la_min(iset), lb_max(jset), npgfb(jset), zetb(:, jset), &
-                              rpgfb(:, jset), lb_min(jset), ra, rb, kvec(:, i), cosab, sinab)
-                  CALL contract_cossin(op_cossin(1, i)%block, op_cossin(2, i)%block, &
+                              rpgfb(:, jset), lb_min(jset), ra, rb, kvec(:, i), expab)
+                  CALL contract_expikr(op_cossin(1, i)%block, op_cossin(2, i)%block, &
                                        iatom, ncoa, nsgfa(iset), sgfa, sphi_a, ldsa, &
                                        jatom, ncob, nsgfb(jset), sgfb, sphi_b, ldsb, &
-                                       cosab, sinab, ldwork, work, ldwork)
+                                       expab, work, ldwork)
                END DO
             END DO
          END DO
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
 
-      DEALLOCATE (op_cossin, cosab, sinab, work, basis_set_list)
+      DEALLOCATE (op_cossin, expab, work, basis_set_list)
 
       IF (my_force_periodic) cell%perd(:) = perd0(:)
 

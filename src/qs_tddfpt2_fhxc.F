@@ -129,8 +129,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_ia_g, rho_ia_g_aux_fit
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: V_rspace_sub
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_ia_r, rho_ia_r_aux_fit
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_tau, rho_ia_r, rho_ia_r_aux_fit
       TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(task_list_type), POINTER                      :: task_list
@@ -169,6 +168,8 @@ CONTAINS
 
       NULLIFY (weights)
       CALL get_qs_env(qs_env, xcint_weights=weights)
+      CALL pw_env_get(sub_env%pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      NULLIFY (fxc_tau)
 
       DO ivect = 1, nvects
 
@@ -251,10 +252,6 @@ CONTAINS
             IF ((.NOT. dft_control%tddfpt2_control%do_bse_gw_only)) THEN
                ! C_x d^{2}E_{x}^{DFT}[\rho] / d\rho^2
                ! + C_{HF} d^{2}E_{x, ADMM}^{DFT}[\rho] / d\rho^2 in case of ADMM calculation
-               DO ispin = 1, nspins
-                  CALL pw_zero(work_matrices%wpw_rspace_sub(ispin))
-                  IF (ASSOCIATED(work_matrices%wpw_tau_rspace_sub)) CALL pw_zero(work_matrices%wpw_tau_rspace_sub(ispin))
-               END DO
                IF (do_onecenter) THEN
                   rho_atom_set => sub_env%local_rho_set%rho_atom_set
                   rho1_atom_set => work_matrices%local_rho_set%rho_atom_set
@@ -267,7 +264,7 @@ CONTAINS
                      CALL qs_fxc_apply(qs_env, kernel_env%xc_deriv_set, kernel_env%xc_rho_set, &
                                        work_matrices%rho_xc_struct_sub, rho_atom_set, &
                                        kernel_env%xc_section, do_onecenter, work_matrices%wpw_rspace_sub, &
-                                       work_matrices%wpw_tau_rspace_sub, rho1_atom_set, &
+                                       fxc_tau, rho1_atom_set, &
                                        do_scale=do_scale, is_triplet=is_rks_triplets, spinflip=do_noncol, &
                                        pw_env_ext=sub_env%pw_env, para_env_external=sub_env%para_env)
                      DO ispin = 1, nspins
@@ -294,7 +291,7 @@ CONTAINS
                      CALL qs_fxc_apply(qs_env, kernel_env%xc_deriv_set, kernel_env%xc_rho_set, &
                                        work_matrices%rho_orb_struct_sub, rho_atom_set, &
                                        kernel_env%xc_section, do_onecenter, work_matrices%wpw_rspace_sub, &
-                                       work_matrices%wpw_tau_rspace_sub, rho1_atom_set, &
+                                       fxc_tau, rho1_atom_set, &
                                        do_scale=do_scale, is_triplet=is_rks_triplets, spinflip=do_noncol, &
                                        pw_env_ext=sub_env%pw_env, para_env_external=sub_env%para_env)
                      DO ispin = 1, nspins
@@ -308,6 +305,21 @@ CONTAINS
             END IF ! do_bse
             END IF  ! do_bse
          END IF ! spin-flip
+
+         ! Complete the meta-GGA response before the ADMM call reuses the XC work grids.
+         ! compute_tau includes the factor 1/2 in the gradient-product integral.
+         IF (ASSOCIATED(fxc_tau)) THEN
+            task_list => sub_env%task_list_orb
+            IF (do_onecenter) task_list => sub_env%task_list_orb_soft
+            DO ispin = 1, nspins
+               CALL pw_scale(fxc_tau(ispin), kernel_env%alpha*fxc_tau(ispin)%pw_grid%dvol)
+               CALL integrate_v_rspace(v_rspace=fxc_tau(ispin), hmat=work_matrices%A_ia_munu_sub(ispin), &
+                                       qs_env=qs_env, calculate_forces=.FALSE., compute_tau=.TRUE., gapw=do_onecenter, &
+                                       pw_env_external=sub_env%pw_env, task_list_external=task_list)
+               CALL auxbas_pw_pool%give_back_pw(fxc_tau(ispin))
+            END DO
+            DEALLOCATE (fxc_tau)
+         END IF
 
          ! ADMM correction
          IF ((.NOT. dft_control%tddfpt2_control%do_bse) .AND. (.NOT. dft_control%tddfpt2_control%do_bse_w_only) &
@@ -334,13 +346,6 @@ CONTAINS
                      CALL dbcsr_set(A_xc_munu_sub(ispin)%matrix, 0.0_dp)
                   END DO
 
-                  CALL pw_env_get(sub_env%pw_env, auxbas_pw_pool=auxbas_pw_pool)
-                  ALLOCATE (V_rspace_sub(nspins))
-                  DO ispin = 1, nspins
-                     CALL auxbas_pw_pool%create_pw(V_rspace_sub(ispin))
-                     CALL pw_zero(V_rspace_sub(ispin))
-                  END DO
-
                   IF (admm_env%do_gapw) THEN
                      basis_type = "AUX_FIT_SOFT"
                      task_list => sub_env%task_list_aux_fit_soft
@@ -353,28 +358,17 @@ CONTAINS
                      rho_atom_set => sub_env%local_rho_set_admm%rho_atom_set
                      rho1_atom_set => work_matrices%local_rho_set_admm%rho_atom_set
                   END IF
-                  DO ispin = 1, nspins
-                     CALL pw_zero(work_matrices%wpw_rspace_sub(ispin))
-                     IF (ASSOCIATED(work_matrices%wpw_tau_rspace_sub)) THEN
-                        CALL pw_zero(work_matrices%wpw_tau_rspace_sub(ispin))
-                     END IF
-                  END DO
-
                   CALL qs_fxc_apply(qs_env, kernel_env_admm_aux%xc_deriv_set, kernel_env_admm_aux%xc_rho_set, &
                                     work_matrices%rho_aux_fit_struct_sub, rho_atom_set, &
                                     kernel_env_admm_aux%xc_section, admm_env%do_gapw, &
-                                    work_matrices%wpw_rspace_sub, work_matrices%wpw_tau_rspace_sub, rho1_atom_set, &
+                                    work_matrices%wpw_rspace_sub, fxc_tau, rho1_atom_set, &
                                     do_scale=do_scale, is_triplet=is_rks_triplets, spinflip=do_noncol, &
                                     pw_env_ext=sub_env%pw_env, kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
                                     para_env_external=sub_env%para_env)
                   DO ispin = 1, nspins
-                     CALL pw_axpy(work_matrices%wpw_rspace_sub(ispin), V_rspace_sub(ispin), &
-                                  kernel_env_admm_aux%alpha)
-                  END DO
-
-                  DO ispin = 1, nspins
-                     CALL pw_scale(V_rspace_sub(ispin), V_rspace_sub(ispin)%pw_grid%dvol)
-                     CALL integrate_v_rspace(v_rspace=V_rspace_sub(ispin), &
+                     CALL pw_scale(work_matrices%wpw_rspace_sub(ispin), &
+                                   kernel_env_admm_aux%alpha*work_matrices%wpw_rspace_sub(ispin)%pw_grid%dvol)
+                     CALL integrate_v_rspace(v_rspace=work_matrices%wpw_rspace_sub(ispin), &
                                              hmat=A_xc_munu_sub(ispin), &
                                              qs_env=qs_env, calculate_forces=.FALSE., &
                                              pw_env_external=sub_env%pw_env, &
@@ -407,10 +401,6 @@ CONTAINS
                   END DO
                   CALL dbcsr_release(dbwork)
                   DEALLOCATE (dbwork)
-                  DO ispin = 1, nspins
-                     CALL auxbas_pw_pool%give_back_pw(V_rspace_sub(ispin))
-                  END DO
-                  DEALLOCATE (V_rspace_sub)
                   CALL cp_fm_release(work_aux_orb)
                   CALL cp_fm_release(work_orb_orb)
                   DO ispin = 1, nspins
@@ -422,17 +412,10 @@ CONTAINS
                      CPWARN("GAPW/ADMM needs symmetric ADMM kernel")
                      CPABORT("GAPW/ADMM@TDDFT")
                   END IF
-                  DO ispin = 1, nspins
-                     CALL pw_zero(work_matrices%wpw_rspace_sub(ispin))
-                     IF (ASSOCIATED(work_matrices%wpw_tau_rspace_sub)) THEN
-                        CALL pw_zero(work_matrices%wpw_tau_rspace_sub(ispin))
-                     END IF
-                  END DO
-
                   CALL qs_fxc_apply(qs_env, kernel_env_admm_aux%xc_deriv_set, kernel_env_admm_aux%xc_rho_set, &
                                     work_matrices%rho_aux_fit_struct_sub, rho_atom_set, &
                                     kernel_env_admm_aux%xc_section, admm_env%do_gapw, &
-                                    work_matrices%wpw_rspace_sub, work_matrices%wpw_tau_rspace_sub, rho1_atom_set, &
+                                    work_matrices%wpw_rspace_sub, fxc_tau, rho1_atom_set, &
                                     do_scale=do_scale, is_triplet=is_rks_triplets, spinflip=do_noncol, &
                                     pw_env_ext=sub_env%pw_env)
 

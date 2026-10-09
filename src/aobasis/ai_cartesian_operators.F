@@ -11,11 +11,11 @@
 !>        Electronic-coordinate derivatives have the opposite sign.
 ! **************************************************************************************************
 MODULE ai_cartesian_operators
-   USE kinds,                           ONLY: dp
-   USE mathlib,                         ONLY: binomial_gen
-   USE orbital_pointers,                ONLY: coset,&
-                                              indco,&
-                                              ncoset
+   USE kinds, ONLY: dp
+   USE mathlib, ONLY: binomial_gen
+   USE orbital_pointers, ONLY: coset, &
+                               indco, &
+                               ncoset
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -23,6 +23,14 @@ MODULE ai_cartesian_operators
 
    PUBLIC :: cartesian_ladder_map, cartesian_ladder, apply_cartesian_operator, apply_cartesian_1d, &
              cartesian_polynomial_1d
+
+   INTERFACE cartesian_ladder
+      MODULE PROCEDURE cartesian_ladder_real, cartesian_ladder_complex
+   END INTERFACE cartesian_ladder
+
+   INTERFACE apply_cartesian_1d
+      MODULE PROCEDURE apply_cartesian_1d_real, apply_cartesian_1d_complex
+   END INTERFACE apply_cartesian_1d
 
 CONTAINS
 
@@ -63,6 +71,7 @@ CONTAINS
       END IF
    END SUBROUTINE cartesian_ladder_map
 
+   #:for suffix, integral_type in [('real', 'REAL'), ('complex', 'COMPLEX')]
 ! **************************************************************************************************
 !> \brief Apply one coordinate or basis-center derivative ladder to indexed integrals.
 !> \param source integral block including the raised functions
@@ -73,44 +82,45 @@ CONTAINS
 !> \param origin displacement of the Gaussian center from the coordinate reference point
 !> \param right apply the map to columns rather than rows
 ! **************************************************************************************************
-   PURE SUBROUTINE cartesian_ladder(source, values, map, derivative, exponent, origin, right)
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: source
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: values
-      INTEGER, DIMENSION(:, :), INTENT(IN)               :: map
-      LOGICAL, INTENT(IN)                                :: derivative
-      REAL(KIND=dp), INTENT(IN)                          :: exponent, origin
-      LOGICAL, INTENT(IN)                                :: right
+      PURE SUBROUTINE cartesian_ladder_${suffix}$ (source, values, map, derivative, exponent, origin, right)
+         ${integral_type}$ (KIND=dp), DIMENSION(:, :), INTENT(IN)  :: source
+         ${integral_type}$ (KIND=dp), DIMENSION(:, :), INTENT(OUT) :: values
+         INTEGER, DIMENSION(:, :), INTENT(IN)               :: map
+         LOGICAL, INTENT(IN)                                :: derivative
+         REAL(KIND=dp), INTENT(IN)                          :: exponent, origin
+         LOGICAL, INTENT(IN)                                :: right
 
-      INTEGER                                            :: i, j, second_index
-      REAL(KIND=dp)                                      :: scale, second_scale(SIZE(map, 2))
+         INTEGER                                            :: i, j, second_index
+         REAL(KIND=dp)                                      :: scale, second_scale(SIZE(map, 2))
 
-      IF (derivative) THEN
-         scale = 2.0_dp*exponent
-         second_scale = -REAL(map(4, :), dp)
-         second_index = 3
-      ELSE
-         scale = 1.0_dp
-         second_scale = origin
-         second_index = 1
-      END IF
+         IF (derivative) THEN
+            scale = 2.0_dp*exponent
+            second_scale = -REAL(map(4, :), dp)
+            second_index = 3
+         ELSE
+            scale = 1.0_dp
+            second_scale = origin
+            second_index = 1
+         END IF
 
-      ! Keep the first (contiguous) dimension innermost on both sides.
-      IF (right) THEN
-         DO j = 1, SIZE(map, 2)
-            DO i = 1, SIZE(values, 1)
-               values(i, j) = scale*source(i, map(2, j)) + &
-                              second_scale(j)*source(i, map(second_index, j))
+         ! Keep the first (contiguous) dimension innermost on both sides.
+         IF (right) THEN
+            DO j = 1, SIZE(map, 2)
+               DO i = 1, SIZE(values, 1)
+                  values(i, j) = scale*source(i, map(2, j)) + &
+                                 second_scale(j)*source(i, map(second_index, j))
+               END DO
             END DO
-         END DO
-      ELSE
-         DO j = 1, SIZE(values, 2)
-            DO i = 1, SIZE(map, 2)
-               values(i, j) = scale*source(map(2, i), j) + &
-                              second_scale(i)*source(map(second_index, i), j)
+         ELSE
+            DO j = 1, SIZE(values, 2)
+               DO i = 1, SIZE(map, 2)
+                  values(i, j) = scale*source(map(2, i), j) + &
+                                 second_scale(i)*source(map(second_index, i), j)
+               END DO
             END DO
-         END DO
-      END IF
-   END SUBROUTINE cartesian_ladder
+         END IF
+      END SUBROUTINE cartesian_ladder_${suffix}$
+   #:endfor
 
 ! **************************************************************************************************
 !> \brief Apply a Cartesian operator on either side of a primitive integral block.
@@ -198,6 +208,7 @@ CONTAINS
       END DO
    END SUBROUTINE apply_cartesian_operator
 
+   #:for suffix, integral_type in [('real', 'REAL'), ('complex', 'COMPLEX')]
 ! **************************************************************************************************
 !> \brief Apply the common ladder to separable one-dimensional integral tables.
 !> \param source input tables indexed by the degrees on A and B and the Cartesian axis
@@ -209,21 +220,22 @@ CONTAINS
 !> \param exponent Gaussian exponent on the selected side
 !> \param origin displacement of that center from the coordinate reference point
 ! **************************************************************************************************
-   SUBROUTINE apply_cartesian_1d(source, values, la_max, lb_max, right, derivative, exponent, origin)
-      REAL(KIND=dp), DIMENSION(0:, 0:, :), INTENT(IN)    :: source
-      REAL(KIND=dp), DIMENSION(0:, 0:, :), INTENT(INOUT) :: values
-      INTEGER, INTENT(IN)                                :: la_max, lb_max
-      LOGICAL, INTENT(IN)                                :: right, derivative
-      REAL(KIND=dp), INTENT(IN)                          :: exponent, origin(3)
+      SUBROUTINE apply_cartesian_1d_${suffix}$ (source, values, la_max, lb_max, right, derivative, exponent, origin)
+         ${integral_type}$ (KIND=dp), DIMENSION(0:, 0:, :), INTENT(IN)    :: source
+         ${integral_type}$ (KIND=dp), DIMENSION(0:, 0:, :), INTENT(INOUT) :: values
+         INTEGER, INTENT(IN)                                :: la_max, lb_max
+         LOGICAL, INTENT(IN)                                :: right, derivative
+         REAL(KIND=dp), INTENT(IN)                          :: exponent, origin(3)
 
-      INTEGER :: axis, map(4, MERGE(lb_max, la_max, right) + 1)
+         INTEGER :: axis, map(4, MERGE(lb_max, la_max, right) + 1)
 
-      CALL cartesian_ladder_map(MERGE(lb_max, la_max, right), 0, 0, map)
-      DO axis = 1, 3
-         CALL cartesian_ladder(source(:, :, axis), values(0:la_max, 0:lb_max, axis), map, &
-                               derivative, exponent, origin(axis), right)
-      END DO
-   END SUBROUTINE apply_cartesian_1d
+         CALL cartesian_ladder_map(MERGE(lb_max, la_max, right), 0, 0, map)
+         DO axis = 1, 3
+            CALL cartesian_ladder(source(:, :, axis), values(0:la_max, 0:lb_max, axis), map, &
+                                  derivative, exponent, origin(axis), right)
+         END DO
+      END SUBROUTINE apply_cartesian_1d_${suffix}$
+   #:endfor
 
 ! **************************************************************************************************
 !> \brief Form requested coordinate powers from separable Cartesian integral tables.
