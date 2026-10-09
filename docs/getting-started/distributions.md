@@ -29,14 +29,20 @@ It is recommended to select the latest CP2K version and to install it into a new
 environment, e.g. `cp2k_env`, to avoid dependency conflicts.
 
 ```shell
-conda create -n cp2k_env conda-forge::cp2k=2026.2
+conda create -n cp2k_env conda-forge::cp2k
+```
+
+Alternatively, a specific CP2K version can be installed with
+
+```shell
+conda create -n cp2k_env conda-forge::cp2k=2026.2=mpi_openmpi_hea898a9_5
 ```
 
 Activate the new conda environment, and then cp2k can be executed
 
 ```shell
 conda activate cp2k_env
-cp2k -h
+cp2k -h -v
 ```
 
 See also [conda-forge.org](https://conda-forge.org/packages/) and
@@ -51,13 +57,27 @@ apt-get install cp2k
 See also [debian.org](https://packages.debian.org/search?keywords=cp2k) and
 [ubuntu.com](https://packages.ubuntu.com/search?keywords=cp2k).
 
-## Docker
+## Docker / Podman
+
+CP2K container images are available from Docker Hub and can be pulled with either
+[Docker](https://www.docker.com/) or [Podman](https://podman.io/). Podman is recommended, because it
+is a daemonless container engine that runs containers rootless by default, i.e. without requiring
+root privileges or membership in a privileged group like the `docker` group, which is effectively
+equivalent to root access on the host. Files written to mounted host directories are owned by the
+invoking user. Its command line interface is compatible with Docker's.
 
 ```shell
-docker pull cp2k/cp2k
+podman pull docker.io/cp2k/cp2k:latest
 ```
 
-See also [hub.docker.com](https://hub.docker.com/r/cp2k/cp2k) and
+or
+
+```shell
+docker pull cp2k/cp2k:latest
+```
+
+See also [hub.docker.com](https://hub.docker.com/r/cp2k/cp2k),
+[podman.io](https://podman.io/docs/installation), and
 [cp2k-containers](https://github.com/cp2k/cp2k-containers).
 
 ## Easybuild
@@ -115,3 +135,7 @@ spack install cp2k
 ```
 
 See also [spack.io](https://packages.spack.io/package.html?name=cp2k) and [](./build-with-spack).
+
+# Next Steps
+
+Once CP2K is installed, continue with [](./first-calculation).
