@@ -15,75 +15,52 @@ MODULE tblite_interface
 
 #if defined(__TBLITE)
    USE mctc_env, ONLY: error_type
-   USE mctc_io, ONLY: structure_type, new
+   USE mctc_io, ONLY: new
    USE mctc_io_symbols, ONLY: symbol_to_number
-   USE tblite_adjlist, ONLY: adjacency_list, new_adjacency_list
    USE tblite_basis_type, ONLY: get_cutoff
    USE tblite_container, ONLY: container_cache
    USE tblite_container_type, ONLY: container_type
-   USE tblite_cutoff, ONLY: get_lattice_points
    USE tblite_data_spin, ONLY: get_spin_constant
-   USE tblite_integral_multipole, ONLY: multipole_cgto, multipole_grad_cgto, maxl, msao
-   USE tblite_integral_type, ONLY: integral_type, new_integral
+   USE tblite_integral_multipole, ONLY: multipole_cgto, multipole_grad_cgto, msao
    USE tblite_scf, ONLY: get_mixer_dimension
-   USE tblite_scf_info, ONLY: scf_info, atom_resolved, shell_resolved, &
-                              orbital_resolved, not_used
-   USE tblite_scf_potential, ONLY: potential_type, new_potential, add_pot_to_h1
+   USE tblite_scf_info, ONLY: scf_info, atom_resolved, shell_resolved
+   USE tblite_scf_potential, ONLY: new_potential
    USE tblite_spin, ONLY: spin_polarization, new_spin_polarization
-   USE tblite_wavefunction_type, ONLY: wavefunction_type, new_wavefunction
-   USE tblite_xtb_calculator, ONLY: xtb_calculator, new_xtb_calculator
+   USE tblite_wavefunction_type, ONLY: new_wavefunction
+   USE tblite_xtb_calculator, ONLY: new_xtb_calculator
    USE tblite_xtb_gfn1, ONLY: new_gfn1_calculator
    USE tblite_xtb_gfn2, ONLY: new_gfn2_calculator
-   USE tblite_xtb_h0, ONLY: get_selfenergy, get_hamiltonian, get_occupation, &
-                            get_hamiltonian_gradient, tb_hamiltonian
+   USE tblite_xtb_h0, ONLY: get_selfenergy, get_occupation, tb_hamiltonian
    USE tblite_xtb_ipea1, ONLY: new_ipea1_calculator
 #endif
-   USE ai_contraction, ONLY: block_add, &
-                             contraction
+   USE ai_contraction, ONLY: block_add, contraction
    USE ai_overlap, ONLY: overlap_ab
    USE atomic_kind_types, ONLY: atomic_kind_type, get_atomic_kind, get_atomic_kind_set
    USE atprop_types, ONLY: atprop_type
-   USE basis_set_types, ONLY: gto_basis_set_type, gto_basis_set_p_type, &
-                              & allocate_gto_basis_set, write_gto_basis_set, process_gto_basis
+   USE basis_set_types, ONLY: gto_basis_set_type, gto_basis_set_p_type, allocate_gto_basis_set, &
+                              process_gto_basis
    USE block_p_types, ONLY: block_p_type
    USE cell_types, ONLY: cell_type, get_cell
    USE cp_blacs_env, ONLY: cp_blacs_env_type
-   USE cp_control_types, ONLY: dft_control_type, xtb_reference_cli_type
+   USE cp_control_types, ONLY: dft_control_type
    USE cp_dbcsr_api, ONLY: dbcsr_type, dbcsr_p_type, dbcsr_create, dbcsr_add, dbcsr_copy, &
-                           dbcsr_get_block_p, dbcsr_finalize, &
-                           dbcsr_iterator_type, dbcsr_iterator_blocks_left, &
-                           dbcsr_iterator_start, dbcsr_iterator_stop, &
+                           dbcsr_get_block_p, dbcsr_finalize, dbcsr_iterator_type, &
+                           dbcsr_iterator_blocks_left, dbcsr_iterator_start, dbcsr_iterator_stop, &
                            dbcsr_iterator_next_block
-   USE cp_dbcsr_contrib, ONLY: dbcsr_dot, dbcsr_print
+   USE cp_dbcsr_contrib, ONLY: dbcsr_dot
    USE cp_dbcsr_cp2k_link, ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations, ONLY: dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set
-   USE cp_log_handling, ONLY: cp_get_default_logger, &
-                              cp_logger_type, cp_logger_get_default_io_unit
-   USE cp_output_handling, ONLY: cp_print_key_should_output, &
-                                 cp_print_key_unit_nr, cp_print_key_finished_output, &
-                                 debug_print_level, high_print_level, silent_print_level
-   USE cp_units, ONLY: cp_unit_from_cp2k
-   USE input_constants, ONLY: gfn1xtb, gfn2xtb, ipea1xtb, smear_energy_window, &
-                              smear_fermi_dirac, smear_gaussian, smear_list, smear_mp, smear_mv, &
-                              tblite_cli_born_kernel_auto, tblite_cli_born_kernel_p16, &
-                              tblite_cli_born_kernel_still, tblite_cli_solution_state_bar1mol, &
-                              tblite_cli_solution_state_gsolv, tblite_cli_solution_state_reference, &
-                              tblite_cli_solvation_alpb, tblite_cli_solvation_cpcm, &
-                              tblite_cli_solvation_gb, tblite_cli_solvation_gbe, &
-                              tblite_cli_solvation_gbsa, &
-                              tblite_guess_ceh, tblite_guess_eeq, tblite_guess_sad, &
-                              tblite_mixer_damping_default, &
-                              tblite_mixer_max_weight_default, tblite_mixer_min_weight_default, &
-                              tblite_mixer_omega0_default, tblite_mixer_weight_factor_default, &
-                              tblite_scc_mixer_auto, tblite_scc_mixer_cp2k, &
-                              tblite_scc_mixer_none, tblite_scc_mixer_tblite, &
-                              tblite_solver_gvd, tblite_solver_gvr
-   USE input_section_types, ONLY: section_vals_val_get
-   USE kinds, ONLY: default_path_length, default_string_length, dp, int_8
+   USE cp_log_handling, ONLY: cp_get_default_logger, cp_logger_type, cp_logger_get_default_io_unit
+   USE cp_output_handling, ONLY: cp_print_key_should_output, cp_print_key_unit_nr, &
+                                 cp_print_key_finished_output
+   USE input_constants, ONLY: gfn1xtb, gfn2xtb, ipea1xtb, tblite_scc_mixer_auto, tblite_scc_mixer_cp2k, &
+                              tblite_scc_mixer_none, tblite_scc_mixer_tblite, tblite_solver_gvd, &
+                              tblite_solver_gvr
+   USE input_section_types, ONLY: section_vals_val_get, section_vals_get_subs_vals, section_vals_type
+   USE kinds, ONLY: default_path_length, default_string_length, dp
    USE kpoint_types, ONLY: get_kpoint_info, kpoint_type
    USE memory_utilities, ONLY: reallocate
    USE message_passing, ONLY: mp_para_env_type
-   USE mulliken, ONLY: ao_charges
    USE orbital_pointers, ONLY: ncoset
    USE particle_types, ONLY: particle_type
    USE qs_charge_mixing, ONLY: charge_mixing, tblite_scc_error_on_cp2k_scale, tblite_scc_pconv
@@ -91,7 +68,7 @@ MODULE tblite_interface
    USE qs_density_mixing_types, ONLY: modified_broyden_mixing_nr
    USE qs_energy_types, ONLY: qs_energy_type
    USE qs_environment_types, ONLY: get_qs_env, qs_environment_type
-   USE qs_force_types, ONLY: qs_force_type, total_qs_force
+   USE qs_force_types, ONLY: qs_force_type
    USE qs_integral_utils, ONLY: basis_set_list_setup, get_memory_usage
    USE qs_kind_types, ONLY: get_qs_kind, qs_kind_type, get_qs_kind_set
    USE qs_ks_types, ONLY: get_ks_env, qs_ks_env_type, set_ks_env
@@ -99,19 +76,16 @@ MODULE tblite_interface
                                      get_iterator_info, neighbor_list_set_p_type, &
                                      neighbor_list_iterator_p_type, neighbor_list_iterator_release
    USE qs_overlap, ONLY: build_overlap_matrix, create_sab_matrix
-   USE cp_dbcsr_output, ONLY: cp_dbcsr_write_sparse_matrix
    USE qs_rho_types, ONLY: qs_rho_get, qs_rho_type
    USE qs_scf_types, ONLY: qs_scf_env_type
    USE scf_control_types, ONLY: scf_control_type
-   USE input_section_types, ONLY: section_vals_get_subs_vals, section_vals_type
    USE string_utilities, ONLY: integer_to_string
 #if defined(__TBLITE)
    USE tblite_scc_mixer, ONLY: new_cp2k_tblite_mixer
 #endif
-   USE tblite_types, ONLY: tblite_type, deallocate_tblite_type, allocate_tblite_type
+   USE tblite_types, ONLY: tblite_type, allocate_tblite_type
    USE virial_types, ONLY: virial_type
    USE xtb_types, ONLY: get_xtb_atom_param, xtb_atom_type
-   USE xtb_types, ONLY: xtb_atom_type
 
 !$ USE OMP_LIB, ONLY: omp_destroy_lock, omp_init_lock, omp_set_lock, &
 !$                    omp_unset_lock, omp_lock_kind
@@ -134,7 +108,6 @@ MODULE tblite_interface
    PUBLIC :: tb_scf_mixer_error
    PUBLIC :: tb_get_multipole
    PUBLIC :: tb_derive_dH_off
-   PUBLIC :: tb_reference_cli_compare
 
 CONTAINS
 
@@ -166,7 +139,7 @@ CONTAINS
    END FUNCTION tb_spin_project
 
 ! **************************************************************************************************
-!> \brief Store a private copy of the converged density for tblite force derivatives.
+!> \brief Preserve spin-resolved density before force assembly combines spin channels.
 !> \param tb ...
 !> \param matrix_p ...
 ! **************************************************************************************************
@@ -282,7 +255,6 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER                                            :: iatom, natom
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xyz
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
@@ -293,14 +265,10 @@ CONTAINS
 
       !get information about particles
       natom = SIZE(particle_set)
-      ALLOCATE (xyz(3, natom))
       DO iatom = 1, natom
-         xyz(:, iatom) = particle_set(iatom)%r(:)
+         tb%mol%xyz(:, iatom) = particle_set(iatom)%r(:)
       END DO
-      tb%mol%xyz(:, :) = xyz
       tb%mol%lattice(:, :) = cell%hmat
-
-      DEALLOCATE (xyz)
 
       CALL timestop(handle)
 
@@ -394,9 +362,10 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: wll
 
-      INTEGER                                            :: il, ish, izp, jl, jsh
+      INTEGER                                            :: il, ish, izp, jl, jsh, max_shell
 
-      ALLOCATE (wll(tb%calc%bas%nsh, tb%calc%bas%nsh, tb%mol%nid))
+      max_shell = MAXVAL(tb%calc%bas%nsh_id)
+      ALLOCATE (wll(max_shell, max_shell, tb%mol%nid))
       wll = 0.0_dp
       DO izp = 1, tb%mol%nid
          DO ish = 1, tb%calc%bas%nsh_id(izp)
@@ -477,7 +446,6 @@ CONTAINS
 
       tb%calc%max_iter = iterations
       tb%mixer_memory = memory
-      tb%mixer_solver = solver
       tb%mixer_damping = damping
       tb%calc%mixer_input%damping = damping
       tb%mixer_omega0 = omega0
@@ -692,15 +660,14 @@ CONTAINS
          IF (ALLOCATED(tb%calc%ncoord)) THEN
             CALL tb%calc%ncoord%get_cn(tb%mol, tb%cn, tb%dcndr, tb%dcndL)
          END IF
-         CALL get_selfenergy(tb%calc%h0, tb%mol%id, tb%calc%bas%ish_at, &
-         &  tb%calc%bas%nsh_id, cn=tb%cn, selfenergy=tb%selfenergy, dsedcn=tb%dsedcn)
       ELSE
          IF (ALLOCATED(tb%calc%ncoord)) THEN
             CALL tb%calc%ncoord%get_cn(tb%mol, tb%cn)
          END IF
-         CALL get_selfenergy(tb%calc%h0, tb%mol%id, tb%calc%bas%ish_at, &
-         &  tb%calc%bas%nsh_id, cn=tb%cn, selfenergy=tb%selfenergy, dsedcn=tb%dsedcn)
       END IF
+
+      CALL get_selfenergy(tb%calc%h0, tb%mol%id, tb%calc%bas%ish_at, &
+                          tb%calc%bas%nsh_id, cn=tb%cn, selfenergy=tb%selfenergy, dsedcn=tb%dsedcn)
 
 #else
       MARK_USED(qs_env)
@@ -1522,16 +1489,15 @@ CONTAINS
 
 #if defined(__TBLITE)
 
-      INTEGER                                            :: iatom, ikind, is, ns, atom_a, ii, im
+      INTEGER                                            :: iatom, ikind, is, ns, atom_a, im
       INTEGER                                            :: ispin, nspin
-      INTEGER                                            :: nimg, nkind, nsgf, natorb, na, n_mix_cols, mix_offset
+      INTEGER                                            :: nimg, nkind, nsgf, natorb, na
       INTEGER                                            :: n_atom, max_orb, max_shell
       INTEGER                                            :: raw_state_status, raw_state_unit
-      LOGICAL                                            :: advance_native_mixer, discard_mixed_output, do_combined_mixing, &
-                                                            do_dipole, do_quadrupole, native_sign_mixing, &
-                                                            skip_charge_mixing, reuse_native_input, skip_scf_dispersion, &
+      LOGICAL                                            :: advance_native_mixer, do_dipole, do_quadrupole, &
+                                                            reuse_native_input, skip_scf_dispersion, &
                                                             seed_native_from_rho, use_native_mixer, use_no_mixer
-      REAL(KIND=dp)                                      :: native_seed_charge, norm, new_charge, pao
+      REAL(KIND=dp)                                      :: native_seed_charge, norm, pao
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       INTEGER                                            :: debug_status
       CHARACTER(LEN=32)                                  :: debug_value
@@ -1540,8 +1506,8 @@ CONTAINS
       INTEGER, DIMENSION(5)                              :: occ
       INTEGER, DIMENSION(25)                             :: lao
       INTEGER, DIMENSION(25)                             :: nao
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ch_atom, ch_shell, ch_ref, ch_orb, mix_vars
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg, ao_dip, ao_quad
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ch_atom
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: aocg_spin, ao_dip_spin, ao_quad_spin, &
                                                             ch_orb_spin, ch_shell_spin
 
@@ -1651,12 +1617,10 @@ CONTAINS
       aocg = 0.0_dp
       aocg_spin = 0.0_dp
       IF (do_dipole) THEN
-         ALLOCATE (ao_dip(n_atom, dip_n))
          ALLOCATE (ao_dip_spin(n_atom, dip_n, nspin))
          ao_dip_spin = 0.0_dp
       END IF
       IF (do_quadrupole) THEN
-         ALLOCATE (ao_quad(n_atom, quad_n))
          ALLOCATE (ao_quad_spin(n_atom, quad_n, nspin))
          ao_quad_spin = 0.0_dp
       END IF
@@ -1670,15 +1634,11 @@ CONTAINS
       DO is = 1, n_atom
          max_shell = MAX(max_shell, tb%calc%bas%nsh_at(is))
       END DO
-      ALLOCATE (ch_atom(n_atom, nspin), ch_shell(n_atom, max_shell))
-      ALLOCATE (ch_orb(max_orb, n_atom), ch_ref(max_orb, n_atom))
+      ALLOCATE (ch_atom(n_atom, nspin))
       ALLOCATE (ch_orb_spin(max_orb, n_atom, nspin), ch_shell_spin(n_atom, max_shell, nspin))
       ch_atom = 0.0_dp
-      ch_shell = 0.0_dp
-      ch_orb = 0.0_dp
       ch_orb_spin = 0.0_dp
       ch_shell_spin = 0.0_dp
-      ch_ref = 0.0_dp
       IF (nimg > 1) THEN
          DO ispin = 1, nspin
             CALL tb_ao_charges_kp_spin(matrix_p, matrix_s, aocg_spin(:, :, ispin), ispin, para_env)
@@ -1717,8 +1677,6 @@ CONTAINS
       END IF
       IF (nspin == 1) THEN
          aocg(:, :) = aocg_spin(:, :, 1)
-         IF (do_dipole) ao_dip(:, :) = ao_dip_spin(:, :, 1)
-         IF (do_quadrupole) ao_quad(:, :) = ao_quad_spin(:, :, 1)
       ELSE
          aocg(:, :) = aocg_spin(:, :, 1) + aocg_spin(:, :, 2)
          IF (do_dipole) THEN
@@ -1729,7 +1687,6 @@ CONTAINS
                   ao_dip_spin(iatom, im, 2) = pao - ao_dip_spin(iatom, im, 2)
                END DO
             END DO
-            ao_dip(:, :) = ao_dip_spin(:, :, 1)
          END IF
          IF (do_quadrupole) THEN
             DO im = 1, quad_n
@@ -1739,7 +1696,6 @@ CONTAINS
                   ao_quad_spin(iatom, im, 2) = pao - ao_quad_spin(iatom, im, 2)
                END DO
             END DO
-            ao_quad(:, :) = ao_quad_spin(:, :, 1)
          END IF
       END IF
       NULLIFY (xtb_kind)
@@ -1753,12 +1709,9 @@ CONTAINS
                ! Preserve tblite's native shell order, including repeated angular momenta.
                ns = nao(is)
                norm = 2*lao(is) + 1
-               ch_ref(is, atom_a) = tb%calc%h0%refocc(nao(is), ikind)/norm
-               ch_orb(is, atom_a) = aocg(is, atom_a) - ch_ref(is, atom_a)
-               ch_orb_spin(is, atom_a, 1) = ch_orb(is, atom_a)
+               ch_orb_spin(is, atom_a, 1) = aocg(is, atom_a) - tb%calc%h0%refocc(nao(is), ikind)/norm
                IF (nspin == 2) ch_orb_spin(is, atom_a, 2) = &
                   aocg_spin(is, atom_a, 1) - aocg_spin(is, atom_a, 2)
-               ch_shell(atom_a, ns) = ch_orb(is, atom_a) + ch_shell(atom_a, ns)
                DO ispin = 1, nspin
                   ch_shell_spin(atom_a, ns, ispin) = ch_orb_spin(is, atom_a, ispin) + &
                                                      ch_shell_spin(atom_a, ns, ispin)
@@ -1787,24 +1740,26 @@ CONTAINS
          WRITE (raw_state_unit, *) "qsh"
          DO iatom = 1, n_atom
             DO is = 1, tb%calc%bas%nsh_at(iatom)
-               WRITE (raw_state_unit, "(I0,1X,ES24.16)") tb%calc%bas%ish_at(iatom) + is, -ch_shell(iatom, is)
+               WRITE (raw_state_unit, "(I0,1X,ES24.16)") tb%calc%bas%ish_at(iatom) + is, -ch_shell_spin(iatom, is, 1)
             END DO
          END DO
          IF (do_dipole) THEN
             WRITE (raw_state_unit, *) "dpat"
             DO iatom = 1, n_atom
-               WRITE (raw_state_unit, "(I0,3(1X,ES24.16))") iatom, -ao_dip(iatom, :)
+               WRITE (raw_state_unit, "(I0,3(1X,ES24.16))") iatom, -ao_dip_spin(iatom, :, 1)
             END DO
          END IF
          IF (do_quadrupole) THEN
             WRITE (raw_state_unit, *) "qpat"
             DO iatom = 1, n_atom
-               WRITE (raw_state_unit, "(I0,6(1X,ES24.16))") iatom, -ao_quad(iatom, :)
+               WRITE (raw_state_unit, "(I0,6(1X,ES24.16))") iatom, -ao_quad_spin(iatom, :, 1)
             END DO
          END IF
          CLOSE (raw_state_unit)
       END IF
 
+      ! Population arrays use CP2K electron-excess signs. The spin axis already
+      ! contains total charge and magnetization, as required by tblite.
       IF (use_native_mixer) THEN
          IF (.NOT. ALLOCATED(tb%mixer)) CPABORT("tblite mixer not initialized")
          advance_native_mixer = .FALSE.
@@ -1812,106 +1767,40 @@ CONTAINS
             advance_native_mixer = scf_env%iter_count > 1
          END IF
          IF (advance_native_mixer) THEN
+            ! Build the next Hamiltonian from the previous SCC residual.
             CALL tb%mixer%next(error)
-            IF (ALLOCATED(error)) CPABORT("tblite native mixer failed")
+            IF (ALLOCATED(error)) CPABORT("tblite native mixer failed: "//error%message)
             CALL tb%mixer%get(tb%wfn%qsh)
-            tb%wfn%qat(:, :) = 0.0_dp
-            DO iatom = 1, n_atom
-               ii = tb%calc%bas%ish_at(iatom)
-               DO ispin = 1, nspin
-                  tb%wfn%qat(iatom, ispin) = &
-                     SUM(tb%wfn%qsh(ii + 1:ii + tb%calc%bas%nsh_at(iatom), ispin))
-               END DO
-            END DO
-            IF (do_dipole) THEN
-               CALL tb%mixer%get(tb%wfn%dpat)
-               DEALLOCATE (ao_dip)
-            END IF
-            IF (do_quadrupole) THEN
-               CALL tb%mixer%get(tb%wfn%qpat)
-               DEALLOCATE (ao_quad)
+            CALL tb_sum_shell_charges(tb)
+            IF (do_dipole) CALL tb%mixer%get(tb%wfn%dpat)
+            IF (do_quadrupole) CALL tb%mixer%get(tb%wfn%qpat)
+         ELSE IF (use_rho .AND. (.NOT. calculate_forces)) THEN
+            IF (.NOT. reuse_native_input) THEN
+               IF (seed_native_from_rho) THEN
+                  ! SCF_GUESS/RESTART controls the initial SCC state.
+                  CALL tb_set_population(tb, ch_shell_spin, ao_dip_spin, ao_quad_spin)
+               ELSE
+                  tb%wfn%qsh(:, :) = 0.0_dp
+                  tb%wfn%qat(:, :) = 0.0_dp
+                  IF (do_dipole) tb%wfn%dpat(:, :, :) = 0.0_dp
+                  IF (do_quadrupole) tb%wfn%qpat(:, :, :) = 0.0_dp
+               END IF
             END IF
          ELSE
-            IF (use_rho .AND. (.NOT. calculate_forces)) THEN
-               IF (.NOT. reuse_native_input) THEN
-                  IF (seed_native_from_rho) THEN
-                     ! Seed the native tblite mixer from CP2K's current density so SCF_GUESS/RESTART
-                     ! controls the initial SCC state.
-                     DO iatom = 1, n_atom
-                        ii = tb%calc%bas%ish_at(iatom)
-                        DO ispin = 1, nspin
-                           DO is = 1, tb%calc%bas%nsh_at(iatom)
-                              tb%wfn%qsh(ii + is, ispin) = -ch_shell_spin(iatom, is, ispin)
-                           END DO
-                           tb%wfn%qat(iatom, ispin) = &
-                              SUM(tb%wfn%qsh(ii + 1:ii + tb%calc%bas%nsh_at(iatom), ispin))
-                        END DO
-                     END DO
-                     IF (do_dipole) THEN
-                        DO iatom = 1, n_atom
-                           DO ispin = 1, nspin
-                              tb%wfn%dpat(:, iatom, ispin) = -ao_dip_spin(iatom, :, ispin)
-                           END DO
-                        END DO
-                     END IF
-                     IF (do_quadrupole) THEN
-                        DO iatom = 1, n_atom
-                           DO ispin = 1, nspin
-                              tb%wfn%qpat(:, iatom, ispin) = -ao_quad_spin(iatom, :, ispin)
-                           END DO
-                        END DO
-                     END IF
-                  ELSE
-                     tb%wfn%qsh(:, :) = 0.0_dp
-                     tb%wfn%qat(:, :) = 0.0_dp
-                     IF (do_dipole) tb%wfn%dpat(:, :, :) = 0.0_dp
-                     IF (do_quadrupole) tb%wfn%qpat(:, :, :) = 0.0_dp
-                  END IF
-               END IF
-               IF (do_dipole) DEALLOCATE (ao_dip)
-               IF (do_quadrupole) DEALLOCATE (ao_quad)
-            ELSE
-               IF ((.NOT. use_rho) .AND. (.NOT. calculate_forces)) THEN
-                  CALL tb%mixer%set(tb%wfn%qsh)
-                  IF (do_dipole) CALL tb%mixer%set(tb%wfn%dpat)
-                  IF (do_quadrupole) CALL tb%mixer%set(tb%wfn%qpat)
-               END IF
-               DO iatom = 1, n_atom
-                  ii = tb%calc%bas%ish_at(iatom)
-                  DO ispin = 1, nspin
-                     DO is = 1, tb%calc%bas%nsh_at(iatom)
-                        tb%wfn%qsh(ii + is, ispin) = -ch_shell_spin(iatom, is, ispin)
-                     END DO
-                     tb%wfn%qat(iatom, ispin) = &
-                        SUM(tb%wfn%qsh(ii + 1:ii + tb%calc%bas%nsh_at(iatom), ispin))
-                  END DO
-               END DO
-               IF (do_dipole) THEN
-                  DO iatom = 1, n_atom
-                     DO ispin = 1, nspin
-                        tb%wfn%dpat(:, iatom, ispin) = -ao_dip_spin(iatom, :, ispin)
-                     END DO
-                  END DO
-                  DEALLOCATE (ao_dip)
-               END IF
-               IF (do_quadrupole) THEN
-                  DO iatom = 1, n_atom
-                     DO ispin = 1, nspin
-                        tb%wfn%qpat(:, iatom, ispin) = -ao_quad_spin(iatom, :, ispin)
-                     END DO
-                  END DO
-                  DEALLOCATE (ao_quad)
-               END IF
-               IF ((.NOT. use_rho) .AND. (.NOT. calculate_forces)) THEN
-                  CALL tb%mixer%diff(tb%wfn%qsh)
-                  IF (do_dipole) CALL tb%mixer%diff(tb%wfn%dpat)
-                  IF (do_quadrupole) CALL tb%mixer%diff(tb%wfn%qpat)
-               END IF
+            ! Record input/output pairs only after diagonalization, never for forces.
+            IF (.NOT. calculate_forces) THEN
+               CALL tb%mixer%set(tb%wfn%qsh)
+               IF (do_dipole) CALL tb%mixer%set(tb%wfn%dpat)
+               IF (do_quadrupole) CALL tb%mixer%set(tb%wfn%qpat)
+            END IF
+            CALL tb_set_population(tb, ch_shell_spin, ao_dip_spin, ao_quad_spin)
+            IF (.NOT. calculate_forces) THEN
+               CALL tb%mixer%diff(tb%wfn%qsh)
+               IF (do_dipole) CALL tb%mixer%diff(tb%wfn%dpat)
+               IF (do_quadrupole) CALL tb%mixer%diff(tb%wfn%qpat)
             END IF
          END IF
       ELSE
-         ! charge mixing
-         native_sign_mixing = .FALSE.
          IF (.NOT. (dft_control%qs_control%do_ls_scf .OR. scf_control%use_ot)) THEN
             IF (.NOT. ASSOCIATED(scf_env)) CPABORT("CP2K SCC mixer requires a QS SCF environment")
             IF (.NOT. (do_dipole .OR. do_quadrupole) .AND. &
@@ -1919,196 +1808,173 @@ CONTAINS
                CPABORT("MODIFIED_BROYDEN_MIXING with SCC_MIXER CP2K requires GFN2")
             END IF
          END IF
-         IF (dft_control%qs_control%do_ls_scf .OR. scf_control%use_ot) THEN
-            ! LS_SCF and OT optimize the electronic variables directly. Use the
-            ! current shell/multipole response from that density without an
-            ! extra SCC variable mixing step.
-         ELSE IF (nspin > 1) THEN
-            n_mix_cols = nspin*max_shell
-            IF (do_dipole) n_mix_cols = n_mix_cols + nspin*dip_n
-            IF (do_quadrupole) n_mix_cols = n_mix_cols + nspin*quad_n
-            ALLOCATE (mix_vars(n_atom, n_mix_cols))
-            mix_vars = 0.0_dp
-
-            mix_offset = 0
-            DO ispin = 1, nspin
-               mix_vars(:, mix_offset + 1:mix_offset + max_shell) = &
-                  -ch_shell_spin(:, 1:max_shell, ispin)
-               mix_offset = mix_offset + max_shell
-            END DO
-            IF (do_dipole) THEN
-               DO ispin = 1, nspin
-                  mix_vars(:, mix_offset + 1:mix_offset + dip_n) = &
-                     -ao_dip_spin(:, 1:dip_n, ispin)
-                  mix_offset = mix_offset + dip_n
-               END DO
-            END IF
-            IF (do_quadrupole) THEN
-               DO ispin = 1, nspin
-                  mix_vars(:, mix_offset + 1:mix_offset + quad_n) = &
-                     -ao_quad_spin(:, 1:quad_n, ispin)
-                  mix_offset = mix_offset + quad_n
-               END DO
-            END IF
-
-            IF (.NOT. use_no_mixer) THEN
-               CALL charge_mixing(scf_env%mixing_method, scf_env%mixing_store, &
-                                  mix_vars, para_env, scf_env%iter_count)
-            END IF
-
-            mix_offset = 0
-            DO ispin = 1, nspin
-               ch_shell_spin(:, 1:max_shell, ispin) = &
-                  -mix_vars(:, mix_offset + 1:mix_offset + max_shell)
-               mix_offset = mix_offset + max_shell
-            END DO
-            ch_shell(:, 1:max_shell) = ch_shell_spin(:, 1:max_shell, 1)
-            IF (do_dipole) THEN
-               DO ispin = 1, nspin
-                  ao_dip_spin(:, 1:dip_n, ispin) = &
-                     -mix_vars(:, mix_offset + 1:mix_offset + dip_n)
-                  mix_offset = mix_offset + dip_n
-               END DO
-               ao_dip(:, 1:dip_n) = ao_dip_spin(:, 1:dip_n, 1)
-            END IF
-            IF (do_quadrupole) THEN
-               DO ispin = 1, nspin
-                  ao_quad_spin(:, 1:quad_n, ispin) = &
-                     -mix_vars(:, mix_offset + 1:mix_offset + quad_n)
-                  mix_offset = mix_offset + quad_n
-               END DO
-               ao_quad(:, 1:quad_n) = ao_quad_spin(:, 1:quad_n, 1)
-            END IF
-            DEALLOCATE (mix_vars)
-         ELSE
-            do_combined_mixing = do_dipole .OR. do_quadrupole
-            native_sign_mixing = do_dipole .OR. do_quadrupole
-            discard_mixed_output = .FALSE.
-            skip_charge_mixing = use_no_mixer
-            IF (skip_charge_mixing) THEN
-               !
-            ELSE IF (do_combined_mixing) THEN
-               n_mix_cols = max_shell
-               IF (do_dipole) n_mix_cols = n_mix_cols + dip_n
-               IF (do_quadrupole) n_mix_cols = n_mix_cols + quad_n
-               ALLOCATE (mix_vars(n_atom, n_mix_cols))
-               IF (native_sign_mixing) THEN
-                  mix_vars(:, 1:max_shell) = -ch_shell(:, 1:max_shell)
-               ELSE
-                  mix_vars(:, 1:max_shell) = ch_shell(:, 1:max_shell)
-               END IF
-               mix_offset = max_shell
-               IF (do_dipole) THEN
-                  IF (native_sign_mixing) THEN
-                     mix_vars(:, mix_offset + 1:mix_offset + dip_n) = -ao_dip(:, 1:dip_n)
-                  ELSE
-                     mix_vars(:, mix_offset + 1:mix_offset + dip_n) = ao_dip(:, 1:dip_n)
-                  END IF
-                  mix_offset = mix_offset + dip_n
-               END IF
-               IF (do_quadrupole) THEN
-                  IF (native_sign_mixing) THEN
-                     mix_vars(:, mix_offset + 1:mix_offset + quad_n) = -ao_quad(:, 1:quad_n)
-                  ELSE
-                     mix_vars(:, mix_offset + 1:mix_offset + quad_n) = ao_quad(:, 1:quad_n)
-                  END IF
-               END IF
-               CALL charge_mixing(scf_env%mixing_method, scf_env%mixing_store, &
-                                  mix_vars, para_env, scf_env%iter_count)
-               IF (.NOT. discard_mixed_output) THEN
-                  IF (native_sign_mixing) THEN
-                     ch_shell(:, 1:max_shell) = -mix_vars(:, 1:max_shell)
-                  ELSE
-                     ch_shell(:, 1:max_shell) = mix_vars(:, 1:max_shell)
-                  END IF
-                  mix_offset = max_shell
-                  IF (do_dipole) THEN
-                     IF (native_sign_mixing) THEN
-                        ao_dip(:, 1:dip_n) = -mix_vars(:, mix_offset + 1:mix_offset + dip_n)
-                     ELSE
-                        ao_dip(:, 1:dip_n) = mix_vars(:, mix_offset + 1:mix_offset + dip_n)
-                     END IF
-                     mix_offset = mix_offset + dip_n
-                  END IF
-                  IF (do_quadrupole) THEN
-                     IF (native_sign_mixing) THEN
-                        ao_quad(:, 1:quad_n) = -mix_vars(:, mix_offset + 1:mix_offset + quad_n)
-                     ELSE
-                        ao_quad(:, 1:quad_n) = mix_vars(:, mix_offset + 1:mix_offset + quad_n)
-                     END IF
-                  END IF
-               END IF
-               DEALLOCATE (mix_vars)
-            ELSE
-               CALL charge_mixing(scf_env%mixing_method, scf_env%mixing_store, &
-                                  ch_shell, para_env, scf_env%iter_count)
-            END IF
+         IF (.NOT. use_no_mixer) THEN
+            CALL tb_mix_population(scf_env, para_env, ch_shell_spin, ao_dip_spin, ao_quad_spin)
          END IF
-
-         !setting new wave function
-         CALL tb%pot%reset
-         tb%e_es = 0.0_dp
-         tb%e_scd = 0.0_dp
-         IF (nspin > 1) THEN
-            DO iatom = 1, n_atom
-               ii = tb%calc%bas%ish_at(iatom)
-               DO ispin = 1, nspin
-                  DO is = 1, tb%calc%bas%nsh_at(iatom)
-                     tb%wfn%qsh(ii + is, ispin) = -ch_shell_spin(iatom, is, ispin)
-                  END DO
-                  tb%wfn%qat(iatom, ispin) = &
-                     SUM(tb%wfn%qsh(ii + 1:ii + tb%calc%bas%nsh_at(iatom), ispin))
-               END DO
-            END DO
-            IF (do_dipole) THEN
-               DO iatom = 1, n_atom
-                  DO ispin = 1, nspin
-                     tb%wfn%dpat(:, iatom, ispin) = -ao_dip_spin(iatom, :, ispin)
-                  END DO
-               END DO
-               DEALLOCATE (ao_dip)
-            END IF
-            IF (do_quadrupole) THEN
-               DO iatom = 1, n_atom
-                  DO ispin = 1, nspin
-                     tb%wfn%qpat(:, iatom, ispin) = -ao_quad_spin(iatom, :, ispin)
-                  END DO
-               END DO
-               DEALLOCATE (ao_quad)
-            END IF
-         ELSE
-            DO iatom = 1, n_atom
-               ii = tb%calc%bas%ish_at(iatom)
-               DO is = 1, tb%calc%bas%nsh_at(iatom)
-                  new_charge = -ch_shell(iatom, is)
-                  tb%wfn%qsh(ii + is, 1) = new_charge
-               END DO
-               IF (native_sign_mixing) THEN
-                  tb%wfn%qat(iatom, 1) = SUM(tb%wfn%qsh(ii + 1:ii + tb%calc%bas%nsh_at(iatom), 1))
-               ELSE
-                  tb%wfn%qat(iatom, 1) = -ch_atom(iatom, 1)
-               END IF
-            END DO
-
-            IF (do_dipole) THEN
-               DO iatom = 1, n_atom
-                  DO im = 1, dip_n
-                     tb%wfn%dpat(im, iatom, 1) = -ao_dip(iatom, im)
-                  END DO
-               END DO
-               DEALLOCATE (ao_dip)
-            END IF
-            IF (do_quadrupole) THEN
-               DO iatom = 1, n_atom
-                  DO im = 1, quad_n
-                     tb%wfn%qpat(im, iatom, 1) = -ao_quad(iatom, im)
-                  END DO
-               END DO
-               DEALLOCATE (ao_quad)
+         CALL tb_set_population(tb, ch_shell_spin, ao_dip_spin, ao_quad_spin)
+         IF (nspin == 1) THEN
+            IF (.NOT. (do_dipole .OR. do_quadrupole) .OR. &
+                dft_control%qs_control%do_ls_scf .OR. scf_control%use_ot) THEN
+               ! Preserve the existing atom-charge convention for shell-only mixing
+               ! and direct density optimization: qat comes from the unmixed density.
+               tb%wfn%qat(:, 1) = -ch_atom(:, 1)
             END IF
          END IF
       END IF
 
+      CALL tb_update_scf_potential(qs_env, tb, para_env, calculate_forces, skip_scf_dispersion)
+
+      IF (ALLOCATED(ao_dip_spin)) DEALLOCATE (ao_dip_spin)
+      IF (ALLOCATED(ao_quad_spin)) DEALLOCATE (ao_quad_spin)
+      DEALLOCATE (ch_atom, ch_orb_spin, ch_shell_spin)
+
+#else
+      MARK_USED(qs_env)
+      MARK_USED(tb)
+      MARK_USED(dft_control)
+      MARK_USED(calculate_forces)
+      MARK_USED(use_rho)
+      CPABORT("Built without TBLITE")
+#endif
+
+   END SUBROUTINE tb_update_charges
+
+#if defined(__TBLITE)
+! **************************************************************************************************
+!> \brief Convert CP2K shell/multipole populations to tblite charge/magnetization state.
+!> \param tb ...
+!> \param shell Electron excess per atom, shell and spin channel.
+!> \param dipole Electron dipoles, allocated only when required.
+!> \param quadrupole Electron quadrupoles, allocated only when required.
+! **************************************************************************************************
+   SUBROUTINE tb_set_population(tb, shell, dipole, quadrupole)
+      TYPE(tblite_type), INTENT(INOUT)                   :: tb
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: shell
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(IN)                                      :: dipole, quadrupole
+
+      INTEGER                                            :: iatom, ii, is, ispin
+
+      DO iatom = 1, tb%mol%nat
+         ii = tb%calc%bas%ish_at(iatom)
+         DO ispin = 1, tb%wfn%nspin
+            DO is = 1, tb%calc%bas%nsh_at(iatom)
+               tb%wfn%qsh(ii + is, ispin) = -shell(iatom, is, ispin)
+            END DO
+            IF (ALLOCATED(dipole)) tb%wfn%dpat(:, iatom, ispin) = -dipole(iatom, :, ispin)
+            IF (ALLOCATED(quadrupole)) tb%wfn%qpat(:, iatom, ispin) = -quadrupole(iatom, :, ispin)
+         END DO
+      END DO
+      CALL tb_sum_shell_charges(tb)
+
+   END SUBROUTINE tb_set_population
+
+! **************************************************************************************************
+!> \brief Reconstruct tblite atomic charges from its current shell charges.
+!> \param tb ...
+! **************************************************************************************************
+   SUBROUTINE tb_sum_shell_charges(tb)
+      TYPE(tblite_type), INTENT(INOUT)                   :: tb
+
+      INTEGER                                            :: iatom, ii, ispin
+
+      DO iatom = 1, tb%mol%nat
+         ii = tb%calc%bas%ish_at(iatom)
+         DO ispin = 1, tb%wfn%nspin
+            tb%wfn%qat(iatom, ispin) = SUM(tb%wfn%qsh(ii + 1:ii + tb%calc%bas%nsh_at(iatom), ispin))
+         END DO
+      END DO
+
+   END SUBROUTINE tb_sum_shell_charges
+
+! **************************************************************************************************
+!> \brief Apply the CP2K mixer to shell and multipole populations for all spin channels.
+!> \param scf_env ...
+!> \param para_env ...
+!> \param shell ...
+!> \param dipole ...
+!> \param quadrupole ...
+! **************************************************************************************************
+   SUBROUTINE tb_mix_population(scf_env, para_env, shell, dipole, quadrupole)
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: shell
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: dipole, quadrupole
+
+      INTEGER                                            :: ispin, ncols, nsh, nspin, offset
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mix_vars
+
+      nspin = SIZE(shell, 3)
+      IF (nspin == 1 .AND. .NOT. ALLOCATED(dipole) .AND. .NOT. ALLOCATED(quadrupole)) THEN
+         ! Retain CP2K's electron-excess convention for single-spin shell-only mixing.
+         CALL charge_mixing(scf_env%mixing_method, scf_env%mixing_store, &
+                            shell(:, :, 1), para_env, scf_env%iter_count)
+         RETURN
+      END IF
+
+      nsh = SIZE(shell, 2)
+      ncols = nspin*nsh
+      IF (ALLOCATED(dipole)) ncols = ncols + nspin*dip_n
+      IF (ALLOCATED(quadrupole)) ncols = ncols + nspin*quad_n
+      ALLOCATE (mix_vars(SIZE(shell, 1), ncols))
+
+      ! Preserve the mixer history layout: all shell channels, then dipoles, then quadrupoles.
+      offset = 0
+      DO ispin = 1, nspin
+         mix_vars(:, offset + 1:offset + nsh) = -shell(:, :, ispin)
+         offset = offset + nsh
+      END DO
+      IF (ALLOCATED(dipole)) THEN
+         DO ispin = 1, nspin
+            mix_vars(:, offset + 1:offset + dip_n) = -dipole(:, :, ispin)
+            offset = offset + dip_n
+         END DO
+      END IF
+      IF (ALLOCATED(quadrupole)) THEN
+         DO ispin = 1, nspin
+            mix_vars(:, offset + 1:offset + quad_n) = -quadrupole(:, :, ispin)
+            offset = offset + quad_n
+         END DO
+      END IF
+      CALL charge_mixing(scf_env%mixing_method, scf_env%mixing_store, &
+                         mix_vars, para_env, scf_env%iter_count)
+      offset = 0
+      DO ispin = 1, nspin
+         shell(:, :, ispin) = -mix_vars(:, offset + 1:offset + nsh)
+         offset = offset + nsh
+      END DO
+      IF (ALLOCATED(dipole)) THEN
+         DO ispin = 1, nspin
+            dipole(:, :, ispin) = -mix_vars(:, offset + 1:offset + dip_n)
+            offset = offset + dip_n
+         END DO
+      END IF
+      IF (ALLOCATED(quadrupole)) THEN
+         DO ispin = 1, nspin
+            quadrupole(:, :, ispin) = -mix_vars(:, offset + 1:offset + quad_n)
+            offset = offset + quad_n
+         END DO
+      END IF
+
+   END SUBROUTINE tb_mix_population
+
+! **************************************************************************************************
+!> \brief Evaluate SCC potentials, energies and optional gradients for the current tblite state.
+!> \param qs_env ...
+!> \param tb ...
+!> \param para_env ...
+!> \param calculate_forces ...
+!> \param skip_scf_dispersion ...
+! **************************************************************************************************
+   SUBROUTINE tb_update_scf_potential(qs_env, tb, para_env, calculate_forces, skip_scf_dispersion)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(tblite_type), POINTER                         :: tb
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(IN)                                :: calculate_forces, skip_scf_dispersion
+
+      ! These library results are replicated across MPI ranks. The force conversion
+      ! retains the existing normalization before CP2K's global force reduction.
       CALL tb%pot%reset
       tb%e_es = 0.0_dp
       tb%e_scd = 0.0_dp
@@ -2151,20 +2017,8 @@ CONTAINS
          END IF
       END IF
 
-      IF (ALLOCATED(ao_dip_spin)) DEALLOCATE (ao_dip_spin)
-      IF (ALLOCATED(ao_quad_spin)) DEALLOCATE (ao_quad_spin)
-      DEALLOCATE (ch_atom, ch_shell, ch_orb, ch_ref, ch_orb_spin, ch_shell_spin)
-
-#else
-      MARK_USED(qs_env)
-      MARK_USED(tb)
-      MARK_USED(dft_control)
-      MARK_USED(calculate_forces)
-      MARK_USED(use_rho)
-      CPABORT("Built without TBLITE")
+   END SUBROUTINE tb_update_scf_potential
 #endif
-
-   END SUBROUTINE tb_update_charges
 
 ! **************************************************************************************************
 !> \brief ...
@@ -3153,114 +3007,6 @@ CONTAINS
    END SUBROUTINE tb_contract_dens_kp_spin
 
 ! **************************************************************************************************
-!> \brief compute the mulliken properties (AO resolved)
-!> \param p_matrix ...
-!> \param bra_mat ...
-!> \param ket_mat ...
-!> \param output ...
-!> \param para_env ...
-!> \par History
-!>      adapted from ao_charges_2
-!> \note
-! **************************************************************************************************
-   SUBROUTINE contract_dens(p_matrix, bra_mat, ket_mat, output, para_env)
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix
-      TYPE(dbcsr_type), POINTER                          :: bra_mat, ket_mat
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: output
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'contract_dens'
-
-      INTEGER                                            :: handle, i, iblock_col, iblock_row, &
-                                                            ispin, j, nspin
-      LOGICAL                                            :: found
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: bra, ket, p_block
-      TYPE(dbcsr_iterator_type)                          :: iter
-
-      CALL timeset(routineN, handle)
-
-      nspin = SIZE(p_matrix)
-      output = 0.0_dp
-      DO ispin = 1, nspin
-         CALL dbcsr_iterator_start(iter, bra_mat)
-         DO WHILE (dbcsr_iterator_blocks_left(iter))
-            NULLIFY (p_block, bra, ket)
-
-            CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, bra)
-            CALL dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix, &
-                                   row=iblock_row, col=iblock_col, BLOCK=p_block, found=found)
-            IF (.NOT. found) CYCLE
-            CALL dbcsr_get_block_p(matrix=ket_mat, &
-                                   row=iblock_row, col=iblock_col, BLOCK=ket, found=found)
-            IF (.NOT. found) CPABORT("missing block")
-
-            IF (.NOT. (ASSOCIATED(bra) .AND. ASSOCIATED(p_block))) CYCLE
-            IF (iblock_col == iblock_row) THEN
-               DO j = 1, SIZE(p_block, 1)
-                  DO i = 1, SIZE(p_block, 2)
-                     output(iblock_row) = output(iblock_row) + p_block(j, i)*bra(j, i)
-                  END DO
-               END DO
-            ELSE
-               DO j = 1, SIZE(p_block, 1)
-                  DO i = 1, SIZE(p_block, 2)
-                     output(iblock_row) = output(iblock_row) + p_block(j, i)*ket(j, i)
-                  END DO
-               END DO
-               DO j = 1, SIZE(p_block, 1)
-                  DO i = 1, SIZE(p_block, 2)
-                     output(iblock_col) = output(iblock_col) + p_block(j, i)*bra(j, i)
-                  END DO
-               END DO
-            END IF
-         END DO
-         CALL dbcsr_iterator_stop(iter)
-      END DO
-
-      CALL para_env%sum(output)
-      CALL timestop(handle)
-
-   END SUBROUTINE contract_dens
-
-! **************************************************************************************************
-!> \brief compute the AO-resolved density contraction for real-space k-point image matrices
-!> \param p_matrix ...
-!> \param bra_mat ...
-!> \param ket_mat ...
-!> \param iop ...
-!> \param nops ...
-!> \param output ...
-!> \param para_env ...
-! **************************************************************************************************
-   SUBROUTINE contract_dens_kp(p_matrix, bra_mat, ket_mat, iop, nops, output, para_env)
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: p_matrix
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: bra_mat, ket_mat
-      INTEGER, INTENT(IN)                                :: iop, nops
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: output
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-
-      INTEGER                                            :: ic, idx, nimg
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: image_output
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_image
-
-      nimg = SIZE(p_matrix, 2)
-      output = 0.0_dp
-      ALLOCATE (image_output(SIZE(output)))
-      DO ic = 1, nimg
-         idx = iop + nops*(ic - 1)
-         CPASSERT(idx <= SIZE(bra_mat))
-         CPASSERT(idx <= SIZE(ket_mat))
-         NULLIFY (p_image)
-         p_image => p_matrix(:, ic)
-         image_output = 0.0_dp
-         CALL contract_dens(p_image, bra_mat(idx)%matrix, ket_mat(idx)%matrix, image_output, para_env)
-         output = output + image_output
-      END DO
-      DEALLOCATE (image_output)
-
-   END SUBROUTINE contract_dens_kp
-
-! **************************************************************************************************
 !> \brief save gradient to force
 !> \param qs_env ...
 !> \param tb ...
@@ -3814,988 +3560,6 @@ CONTAINS
    END SUBROUTINE tb_derive_dH_off
 
 ! **************************************************************************************************
-!> \brief Run native tblite CLI and compare against CP2K/tblite.
-!> \param qs_env ...
-! **************************************************************************************************
-   SUBROUTINE tb_reference_cli_compare(qs_env)
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tb_reference_cli_compare'
-
-      CHARACTER(LEN=16)                                  :: solvation_model_name
-      CHARACTER(LEN=32) :: acc_str, charge_str, efield_x_str, efield_y_str, efield_z_str, &
-         etemp_guess_val_str, etemp_str, iter_str, spin_str, spinpol_str
-      CHARACTER(LEN=4*default_path_length+16) :: efield_str, etemp_guess_str, param_str, &
-         post_processing_output_str, post_processing_str, restart_str, solvation_str, verbosity_str
-      CHARACTER(LEN=8)                                   :: guess, method, solver
-      CHARACTER(LEN=8*default_path_length)               :: command
-      CHARACTER(LEN=default_path_length)                 :: file_base, gen_file, grad_file, &
-                                                            json_file, log_file, &
-                                                            post_processing_output_file
-      INTEGER                                            :: cmdstat, exitstat, handle, iounit, &
-                                                            n_periodic, natom, nkp, &
-                                                            reference_iterations, spin
-      INTEGER, DIMENSION(3)                              :: periodic
-      LOGICAL                                            :: do_kpoints, have_energy, have_gradient, &
-                                                            have_virial, too_large, &
-                                                            unsupported_kpoints
-      REAL(KIND=dp)                                      :: cli_energy, cp_energy, ediff, etemp, &
-                                                            etemp_guess, fmax, fsum, vmax, vsum
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cli_gradient, cli_virial, cp_gradient
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(virial_type), POINTER                         :: virial
-      TYPE(xtb_reference_cli_type)                       :: ref
-
-      CALL timeset(routineN, handle)
-
-      NULLIFY (atomic_kind_set, cell, dft_control, energy, force, kpoints, logger, para_env, particle_set, &
-               scf_control, virial, xkp)
-      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
-                      dft_control=dft_control, energy=energy, force=force, &
-                      para_env=para_env, particle_set=particle_set, scf_control=scf_control, &
-                      virial=virial, do_kpoints=do_kpoints, kpoints=kpoints)
-
-      ref = dft_control%qs_control%xtb_control%reference_cli
-      IF (.NOT. ref%enabled) THEN
-         CALL timestop(handle)
-         RETURN
-      END IF
-      IF (.NOT. para_env%is_source()) THEN
-         CALL timestop(handle)
-         RETURN
-      END IF
-
-      logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_io_unit(logger)
-      verbosity_str = ""
-      IF (logger%iter_info%print_level == silent_print_level) THEN
-         verbosity_str = " --silent"
-      ELSE IF (logger%iter_info%print_level == high_print_level .OR. &
-               logger%iter_info%print_level == debug_print_level) THEN
-         verbosity_str = " --verbose"
-      END IF
-      IF (ref%solvation_active) THEN
-         periodic = 0
-         IF (ASSOCIATED(cell)) CALL get_cell(cell=cell, periodic=periodic)
-         n_periodic = COUNT(periodic == 1)
-         IF (n_periodic == 3) THEN
-            WRITE (UNIT=iounit, FMT="(/,T2,A)") &
-               "tblite reference CLI implicit solvation is not supported for PERIODIC XYZ."
-            WRITE (UNIT=iounit, FMT="(T2,A)") &
-               "Use PERIODIC NONE for molecular solvation diagnostics, or remove IMPLICIT_SOLVATION."
-            CPABORT("REFERENCE_CLI implicit solvation is incompatible with PERIODIC XYZ")
-         ELSE IF (n_periodic > 0) THEN
-            WRITE (UNIT=iounit, FMT="(/,T2,A)") &
-               "WARNING: tblite reference CLI implicit solvation with finite periodicity is diagnostic only."
-            WRITE (UNIT=iounit, FMT="(T2,A,I0,A)") &
-               "The generated native tblite reference geometry has ", n_periodic, &
-               " periodic direction(s); continuum-solvation conventions are primarily molecular."
-         END IF
-      END IF
-      unsupported_kpoints = .FALSE.
-      IF (do_kpoints .AND. ASSOCIATED(kpoints)) THEN
-         nkp = 0
-         CALL get_kpoint_info(kpoint=kpoints, nkp=nkp, xkp=xkp)
-         unsupported_kpoints = nkp > 1
-         IF (nkp == 1 .AND. ASSOCIATED(xkp)) unsupported_kpoints = ANY(ABS(xkp(:, 1)) > 1.0E-12_dp)
-      END IF
-      IF (unsupported_kpoints) THEN
-         WRITE (UNIT=iounit, FMT="(/,T2,A)") &
-            "tblite reference CLI check skipped: CP2K KPOINTS are active."
-         WRITE (UNIT=iounit, FMT="(T2,A)") &
-            "The native tblite CLI reference path does not reproduce CP2K multi-k-point sampling."
-         IF (ref%stop_on_error) THEN
-            CPABORT("tblite reference CLI cannot check CP2K k-point calculations")
-         END IF
-         CALL timestop(handle)
-         RETURN
-      END IF
-      IF (dft_control%qs_control%xtb_control%tblite_scc_mixer == tblite_scc_mixer_cp2k) THEN
-         WRITE (UNIT=iounit, FMT="(/,T2,A)") &
-            "WARNING: tblite reference CLI cannot reproduce XTB/SCC_MIXER CP2K."
-         WRITE (UNIT=iounit, FMT="(T2,A)") &
-            "The external native tblite run uses tblite's own SCC mixer; only the converged result is compared."
-         IF (ref%stop_on_error) CPABORT("tblite reference CLI cannot reproduce SCC_MIXER CP2K")
-      END IF
-      natom = SIZE(particle_set)
-      method = tb_reference_method_name(dft_control%qs_control%xtb_control%tblite_method)
-      guess = tb_reference_guess_name(ref%guess)
-      solver = tb_reference_solver_name(dft_control%qs_control%xtb_control%tblite_mixer_solver)
-      file_base = tb_join_path(ref%work_directory, ref%prefix)
-      gen_file = TRIM(file_base)//".gen"
-      grad_file = TRIM(file_base)//".grad"
-      json_file = TRIM(file_base)//".json"
-      log_file = TRIM(file_base)//".log"
-      post_processing_output_file = ""
-      IF (LEN_TRIM(ref%grad_file) > 0) grad_file = ref%grad_file
-      IF (LEN_TRIM(ref%json_file) > 0) json_file = ref%json_file
-      IF (LEN_TRIM(ref%post_processing_output_file) > 0) THEN
-         post_processing_output_file = ref%post_processing_output_file
-      END IF
-
-      WRITE (charge_str, "(I0)") dft_control%charge
-      spin = MAX(0, dft_control%multiplicity - 1)
-      WRITE (spin_str, "(I0)") spin
-      WRITE (acc_str, "(ES16.8)") dft_control%qs_control%xtb_control%tblite_accuracy
-      reference_iterations = dft_control%qs_control%xtb_control%tblite_mixer_iterations
-      WRITE (iter_str, "(I0)") reference_iterations
-      efield_str = ""
-      IF (ref%efield_active) THEN
-         WRITE (efield_x_str, "(ES16.8)") ref%efield(1)
-         WRITE (efield_y_str, "(ES16.8)") ref%efield(2)
-         WRITE (efield_z_str, "(ES16.8)") ref%efield(3)
-         efield_str = " --efield "//TRIM(ADJUSTL(efield_x_str))//","// &
-                      TRIM(ADJUSTL(efield_y_str))//","//TRIM(ADJUSTL(efield_z_str))
-      END IF
-      solvation_str = ""
-      solvation_model_name = ""
-      IF (ref%solvation_active) THEN
-         SELECT CASE (ref%solvation_model)
-         CASE (tblite_cli_solvation_alpb)
-            solvation_model_name = "ALPB"
-            solvation_str = " --alpb "
-         CASE (tblite_cli_solvation_gbsa)
-            solvation_model_name = "GBSA"
-            solvation_str = " --gbsa "
-         CASE (tblite_cli_solvation_gbe)
-            solvation_model_name = "GBE"
-            solvation_str = " --gbe "
-         CASE (tblite_cli_solvation_gb)
-            solvation_model_name = "GB"
-            solvation_str = " --gb "
-         CASE (tblite_cli_solvation_cpcm)
-            solvation_model_name = "CPCM"
-            solvation_str = " --cpcm "
-         CASE DEFAULT
-            CPABORT("Unknown tblite reference CLI implicit-solvation model")
-         END SELECT
-         solvation_str = TRIM(solvation_str)//" "//TRIM(tb_shell_quote(ref%solvation_solvent))
-         SELECT CASE (ref%solvation_born_kernel)
-         CASE (tblite_cli_born_kernel_auto)
-         CASE (tblite_cli_born_kernel_p16)
-            solvation_str = TRIM(solvation_str)//" --born-kernel p16"
-         CASE (tblite_cli_born_kernel_still)
-            solvation_str = TRIM(solvation_str)//" --born-kernel still"
-         CASE DEFAULT
-            CPABORT("Unknown tblite reference CLI Born kernel")
-         END SELECT
-         SELECT CASE (ref%solvation_state)
-         CASE (tblite_cli_solution_state_gsolv)
-         CASE (tblite_cli_solution_state_bar1mol)
-            solvation_str = TRIM(solvation_str)//" --solv-state bar1mol"
-         CASE (tblite_cli_solution_state_reference)
-            solvation_str = TRIM(solvation_str)//" --solv-state reference"
-         CASE DEFAULT
-            CPABORT("Unknown tblite reference CLI solution state")
-         END SELECT
-      END IF
-      IF (dft_control%qs_control%xtb_control%tblite_mixer_memory /= reference_iterations) THEN
-         WRITE (UNIT=iounit, FMT="(/,T2,A)") &
-            "WARNING: tblite reference CLI cannot reproduce XTB/TBLITE_MIXER/MEMORY."
-         WRITE (UNIT=iounit, FMT="(T2,A,I0,A,I0,A)") &
-            "The native reference run uses tblite's internal mixer memory tied to --iterations (", &
-            reference_iterations, "), while CP2K uses MEMORY ", &
-            dft_control%qs_control%xtb_control%tblite_mixer_memory, "."
-         IF (ref%stop_on_error) CPABORT("tblite reference CLI cannot reproduce TBLITE_MIXER/MEMORY")
-      END IF
-      IF (ABS(dft_control%qs_control%xtb_control%tblite_mixer_damping - &
-              tblite_mixer_damping_default) > 10.0_dp*EPSILON(1.0_dp)) THEN
-         WRITE (UNIT=iounit, FMT="(/,T2,A)") &
-            "WARNING: tblite reference CLI cannot reproduce XTB/TBLITE_MIXER/DAMPING."
-         WRITE (UNIT=iounit, FMT="(T2,A,F8.4,A,F8.4,A)") &
-            "The native reference run uses tblite's library default ", tblite_mixer_damping_default, &
-            ", while CP2K uses DAMPING ", dft_control%qs_control%xtb_control%tblite_mixer_damping, "."
-         IF (ref%stop_on_error) THEN
-            CPABORT("tblite reference CLI cannot reproduce TBLITE_MIXER/DAMPING")
-         END IF
-      END IF
-      IF (ABS(dft_control%qs_control%xtb_control%tblite_mixer_omega0 - &
-              tblite_mixer_omega0_default) > 10.0_dp*EPSILON(1.0_dp)) THEN
-         WRITE (UNIT=iounit, FMT="(/,T2,A)") &
-            "WARNING: tblite reference CLI cannot reproduce XTB/TBLITE_MIXER/OMEGA0."
-         WRITE (UNIT=iounit, FMT="(T2,A,ES12.4,A,ES12.4,A)") &
-            "The native reference run uses tblite's library default ", tblite_mixer_omega0_default, &
-            ", while CP2K uses OMEGA0 ", dft_control%qs_control%xtb_control%tblite_mixer_omega0, "."
-         IF (ref%stop_on_error) CPABORT("tblite reference CLI cannot reproduce TBLITE_MIXER/OMEGA0")
-      END IF
-      IF (ABS(dft_control%qs_control%xtb_control%tblite_mixer_min_weight - &
-              tblite_mixer_min_weight_default) > 10.0_dp*EPSILON(1.0_dp)) THEN
-         WRITE (UNIT=iounit, FMT="(/,T2,A)") &
-            "WARNING: tblite reference CLI cannot reproduce XTB/TBLITE_MIXER/MIN_WEIGHT."
-         WRITE (UNIT=iounit, FMT="(T2,A,ES12.4,A,ES12.4,A)") &
-            "The native reference run uses tblite's library default ", tblite_mixer_min_weight_default, &
-            ", while CP2K uses MIN_WEIGHT ", dft_control%qs_control%xtb_control%tblite_mixer_min_weight, "."
-         IF (ref%stop_on_error) THEN
-            CPABORT("tblite reference CLI cannot reproduce TBLITE_MIXER/MIN_WEIGHT")
-         END IF
-      END IF
-      IF (ABS(dft_control%qs_control%xtb_control%tblite_mixer_max_weight - &
-              tblite_mixer_max_weight_default) > 10.0_dp*EPSILON(1.0_dp)) THEN
-         WRITE (UNIT=iounit, FMT="(/,T2,A)") &
-            "WARNING: tblite reference CLI cannot reproduce XTB/TBLITE_MIXER/MAX_WEIGHT."
-         WRITE (UNIT=iounit, FMT="(T2,A,ES12.4,A,ES12.4,A)") &
-            "The native reference run uses tblite's library default ", tblite_mixer_max_weight_default, &
-            ", while CP2K uses MAX_WEIGHT ", dft_control%qs_control%xtb_control%tblite_mixer_max_weight, "."
-         IF (ref%stop_on_error) THEN
-            CPABORT("tblite reference CLI cannot reproduce TBLITE_MIXER/MAX_WEIGHT")
-         END IF
-      END IF
-      IF (ABS(dft_control%qs_control%xtb_control%tblite_mixer_weight_factor - &
-              tblite_mixer_weight_factor_default) > 10.0_dp*EPSILON(1.0_dp)) THEN
-         WRITE (UNIT=iounit, FMT="(/,T2,A)") &
-            "WARNING: tblite reference CLI cannot reproduce XTB/TBLITE_MIXER/WEIGHT_FACTOR."
-         WRITE (UNIT=iounit, FMT="(T2,A,ES12.4,A,ES12.4,A)") &
-            "The native reference run uses tblite's library default ", tblite_mixer_weight_factor_default, &
-            ", while CP2K uses WEIGHT_FACTOR ", &
-            dft_control%qs_control%xtb_control%tblite_mixer_weight_factor, "."
-         IF (ref%stop_on_error) THEN
-            CPABORT("tblite reference CLI cannot reproduce TBLITE_MIXER/WEIGHT_FACTOR")
-         END IF
-      END IF
-      etemp = 300.0_dp
-      IF (ASSOCIATED(scf_control)) THEN
-         IF (ASSOCIATED(scf_control%smear)) THEN
-            IF (scf_control%smear%do_smear) THEN
-               etemp = cp_unit_from_cp2k(scf_control%smear%electronic_temperature, "K")
-               IF (scf_control%smear%method /= smear_fermi_dirac) THEN
-                  WRITE (UNIT=iounit, FMT="(/,T2,A,A,A)") &
-                     "WARNING: tblite reference CLI cannot reproduce CP2K smearing method ", &
-                     TRIM(tb_reference_smear_method_name(scf_control%smear%method)), "."
-                  WRITE (UNIT=iounit, FMT="(T2,A,F12.3,A)") &
-                     "The native reference run uses Fermi-Dirac electronic temperature ", etemp, " K instead."
-               END IF
-            END IF
-         END IF
-      END IF
-      WRITE (etemp_str, "(ES16.8)") etemp
-      etemp_guess = 0.0_dp
-      etemp_guess_str = ""
-      IF (ref%electronic_temperature_guess > 0.0_dp) THEN
-         etemp_guess = cp_unit_from_cp2k(ref%electronic_temperature_guess, "K")
-         WRITE (etemp_guess_val_str, "(ES16.8)") etemp_guess
-         etemp_guess_str = " --etemp-guess "//TRIM(ADJUSTL(etemp_guess_val_str))
-      END IF
-      param_str = ""
-      IF (LEN_TRIM(dft_control%qs_control%xtb_control%tblite_param_file) > 0) THEN
-         param_str = " --param "//TRIM(tb_shell_quote(dft_control%qs_control%xtb_control%tblite_param_file))
-      END IF
-      spinpol_str = ""
-      IF (dft_control%lsd) spinpol_str = " --spin-polarized"
-      post_processing_str = ""
-      IF (LEN_TRIM(ref%post_processing) > 0) THEN
-         post_processing_str = " --post-processing "//TRIM(tb_shell_quote(ref%post_processing))
-      END IF
-      post_processing_output_str = ""
-      IF (LEN_TRIM(post_processing_output_file) > 0) THEN
-         WRITE (UNIT=iounit, FMT="(/,T2,A)") &
-            "WARNING: tblite reference CLI POST_PROCESSING_OUTPUT was requested explicitly."
-         WRITE (UNIT=iounit, FMT="(T2,A)") &
-            "Some tblite 0.5.0 command-line builds document --post-processing-output but do not parse it."
-         post_processing_output_str = " --post-processing-output "// &
-                                      TRIM(tb_shell_quote(post_processing_output_file))
-      END IF
-      restart_str = " --no-restart"
-      IF (LEN_TRIM(ref%restart_file) > 0) THEN
-         restart_str = " --restart "//TRIM(tb_shell_quote(ref%restart_file))
-      END IF
-
-      CALL tb_write_reference_gen(qs_env, TRIM(gen_file))
-
-      command = TRIM(tb_shell_quote(ref%program_name))//" run --method "//TRIM(method)// &
-                TRIM(param_str)// &
-                TRIM(spinpol_str)// &
-                " --charge "//TRIM(ADJUSTL(charge_str))// &
-                " --spin "//TRIM(ADJUSTL(spin_str))// &
-                " --acc "//TRIM(ADJUSTL(acc_str))// &
-                " --guess "//TRIM(guess)// &
-                " --solver "//TRIM(solver)// &
-                " --iterations "//TRIM(ADJUSTL(iter_str))// &
-                " --etemp "//TRIM(ADJUSTL(etemp_str))// &
-                TRIM(etemp_guess_str)// &
-                TRIM(efield_str)// &
-                TRIM(solvation_str)// &
-                TRIM(post_processing_str)// &
-                TRIM(post_processing_output_str)// &
-                TRIM(restart_str)// &
-                TRIM(verbosity_str)//" --input "//TRIM(tb_shell_quote(ref%input_format))// &
-                " --grad "//TRIM(tb_shell_quote(grad_file))// &
-                " --json "//TRIM(tb_shell_quote(json_file))//" "//TRIM(tb_shell_quote(gen_file))// &
-                " > "//TRIM(tb_shell_quote(log_file))//" 2>&1"
-
-      cmdstat = 0
-      exitstat = 0
-      CALL execute_command_line(TRIM(command), exitstat=exitstat, cmdstat=cmdstat)
-      IF (cmdstat /= 0 .OR. exitstat /= 0) THEN
-         WRITE (UNIT=iounit, FMT="(/,T2,A)") "tblite reference CLI check failed to run."
-         WRITE (UNIT=iounit, FMT="(T2,A,A)") "Command: ", TRIM(command)
-         WRITE (UNIT=iounit, FMT="(T2,A,I0,T32,A,I0)") "cmdstat:", cmdstat, "exitstat:", exitstat
-         IF (ref%stop_on_error) CPABORT("tblite reference CLI command failed")
-         CALL tb_reference_cleanup(ref, gen_file, grad_file, json_file, log_file, post_processing_output_file)
-         CALL timestop(handle)
-         RETURN
-      END IF
-
-      ALLOCATE (cli_gradient(3, natom), cli_virial(3, 3))
-      CALL tb_read_reference_grad(TRIM(grad_file), natom, cli_energy, cli_gradient, cli_virial, &
-                                  have_energy, have_gradient, have_virial)
-
-      WRITE (UNIT=iounit, FMT="(/,T2,A)") "tblite reference CLI check"
-      WRITE (UNIT=iounit, FMT="(T2,A,A)") "Executable: ", TRIM(ref%program_name)
-      WRITE (UNIT=iounit, FMT="(T2,A,A)") "Method:     ", TRIM(method)
-      WRITE (UNIT=iounit, FMT="(T2,A,A)") "Guess:      ", TRIM(guess)
-      WRITE (UNIT=iounit, FMT="(T2,A,A)") "Solver:     ", TRIM(solver)
-      WRITE (UNIT=iounit, FMT="(T2,A,L1)") "Spin-pol.:  ", dft_control%lsd
-      IF (ref%efield_active) THEN
-         WRITE (UNIT=iounit, FMT="(T2,A,3ES16.8,A)") "Efield:     ", ref%efield, " V/Angstrom"
-      END IF
-      IF (ref%solvation_active) THEN
-         WRITE (UNIT=iounit, FMT="(T2,A,A,1X,A)") "Solvation:  ", TRIM(solvation_model_name), &
-            TRIM(ref%solvation_solvent)
-      END IF
-      IF (LEN_TRIM(ref%post_processing) > 0) THEN
-         WRITE (UNIT=iounit, FMT="(T2,A,A)") "Post proc.: ", TRIM(ref%post_processing)
-      END IF
-      IF (LEN_TRIM(post_processing_output_file) > 0) THEN
-         WRITE (UNIT=iounit, FMT="(T2,A,A)") "PP output:  ", TRIM(post_processing_output_file)
-      END IF
-      IF (ref%electronic_temperature_guess > 0.0_dp) THEN
-         WRITE (UNIT=iounit, FMT="(T2,A,F12.3,A)") "Guess etemp:", etemp_guess, " K"
-      END IF
-      WRITE (UNIT=iounit, FMT="(T2,A,A)") "Grad file:  ", TRIM(grad_file)
-      WRITE (UNIT=iounit, FMT="(T2,A,A)") "JSON file:  ", TRIM(json_file)
-      WRITE (UNIT=iounit, FMT="(T2,A,A)") "Log file:   ", TRIM(log_file)
-
-      too_large = .FALSE.
-      IF (ref%check_energy) THEN
-         IF (have_energy) THEN
-            cp_energy = energy%total
-            ediff = ABS(cp_energy - cli_energy)
-            WRITE (UNIT=iounit, FMT="(T2,A,3ES22.12)") &
-               "Energy CP2K/CLI/absdiff:", cp_energy, cli_energy, ediff
-            too_large = too_large .OR. ediff > ref%error_limit
-         ELSE
-            WRITE (UNIT=iounit, FMT="(T2,A)") "Energy check skipped: no CLI energy found."
-         END IF
-      END IF
-
-      IF (ref%check_forces) THEN
-         IF (have_gradient .AND. ASSOCIATED(force)) THEN
-            ALLOCATE (cp_gradient(3, natom))
-            CALL total_qs_force(cp_gradient, force, atomic_kind_set)
-            fsum = SUM(ABS(cp_gradient - cli_gradient))
-            fmax = MAXVAL(ABS(cp_gradient - cli_gradient))
-            WRITE (UNIT=iounit, FMT="(T2,A,2ES22.12)") "Gradient diff sum/max:", fsum, fmax
-            too_large = too_large .OR. fmax > ref%error_limit
-            DEALLOCATE (cp_gradient)
-         ELSE
-            WRITE (UNIT=iounit, FMT="(T2,A)") "Gradient check skipped: no CLI gradient or CP2K force found."
-         END IF
-      END IF
-
-      IF (ref%check_virial) THEN
-         IF (have_virial .AND. ASSOCIATED(virial)) THEN
-            ! Native tblite prints the positive cell derivative; CP2K stores the PV virial
-            ! with the opposite sign.
-            vsum = SUM(ABS(-virial%pv_virial - cli_virial))
-            vmax = MAXVAL(ABS(-virial%pv_virial - cli_virial))
-            WRITE (UNIT=iounit, FMT="(T2,A,2ES22.12)") "Virial diff sum/max:", vsum, vmax
-            too_large = too_large .OR. vmax > ref%error_limit
-         ELSE
-            WRITE (UNIT=iounit, FMT="(T2,A)") "Virial check skipped: no CLI virial or CP2K virial found."
-         END IF
-      END IF
-
-      IF (too_large) THEN
-         WRITE (UNIT=iounit, FMT="(T2,A,ES12.4)") &
-            "tblite reference CLI deviation exceeded ERROR_LIMIT = ", ref%error_limit
-         IF (ref%stop_on_error) CPABORT("tblite reference CLI deviation exceeded ERROR_LIMIT")
-      END IF
-
-      CALL tb_reference_cli_aux_commands(ref, dft_control, gen_file, file_base, verbosity_str, iounit)
-
-      CALL tb_reference_cleanup(ref, gen_file, grad_file, json_file, log_file, post_processing_output_file)
-      DEALLOCATE (cli_gradient, cli_virial)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE tb_reference_cli_compare
-
-! **************************************************************************************************
-!> \brief Map CP2K tblite method id to native tblite CLI method name.
-!> \param method_id ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION tb_reference_method_name(method_id) RESULT(method)
-      INTEGER, INTENT(IN)                                :: method_id
-      CHARACTER(LEN=8)                                   :: method
-
-      SELECT CASE (method_id)
-      CASE (gfn1xtb)
-         method = "gfn1"
-      CASE (gfn2xtb)
-         method = "gfn2"
-      CASE (ipea1xtb)
-         method = "ipea1"
-      CASE DEFAULT
-         CPABORT("Unknown tblite reference CLI method")
-      END SELECT
-
-   END FUNCTION tb_reference_method_name
-
-! **************************************************************************************************
-!> \brief Map CP2K tblite reference CLI guess id to native tblite CLI guess name.
-!> \param guess_id ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION tb_reference_guess_name(guess_id) RESULT(guess)
-      INTEGER, INTENT(IN)                                :: guess_id
-      CHARACTER(LEN=8)                                   :: guess
-
-      SELECT CASE (guess_id)
-      CASE (tblite_guess_sad)
-         guess = "sad"
-      CASE (tblite_guess_eeq)
-         guess = "eeq"
-      CASE (tblite_guess_ceh)
-         guess = "ceh"
-      CASE DEFAULT
-         CPABORT("Unknown tblite reference CLI guess")
-      END SELECT
-
-   END FUNCTION tb_reference_guess_name
-
-! **************************************************************************************************
-!> \brief Map CP2K tblite solver id to native tblite CLI solver name.
-!> \param solver_id ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION tb_reference_solver_name(solver_id) RESULT(solver)
-      INTEGER, INTENT(IN)                                :: solver_id
-      CHARACTER(LEN=8)                                   :: solver
-
-      SELECT CASE (solver_id)
-      CASE (tblite_solver_gvd)
-         solver = "gvd"
-      CASE (tblite_solver_gvr)
-         solver = "gvr"
-      CASE DEFAULT
-         CPABORT("Unknown tblite reference CLI solver")
-      END SELECT
-
-   END FUNCTION tb_reference_solver_name
-
-! **************************************************************************************************
-!> \brief Map CP2K smearing method id to a diagnostic label.
-!> \param method_id ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION tb_reference_smear_method_name(method_id) RESULT(method)
-      INTEGER, INTENT(IN)                                :: method_id
-      CHARACTER(LEN=24)                                  :: method
-
-      SELECT CASE (method_id)
-      CASE (smear_fermi_dirac)
-         method = "FERMI_DIRAC"
-      CASE (smear_energy_window)
-         method = "ENERGY_WINDOW"
-      CASE (smear_list)
-         method = "LIST"
-      CASE (smear_gaussian)
-         method = "GAUSSIAN"
-      CASE (smear_mp)
-         method = "METHFESSEL_PAXTON"
-      CASE (smear_mv)
-         method = "MARZARI_VANDERBILT"
-      CASE DEFAULT
-         method = "UNKNOWN"
-      END SELECT
-
-   END FUNCTION tb_reference_smear_method_name
-
-! **************************************************************************************************
-!> \brief Run optional native tblite auxiliary subcommands.
-!> \param ref ...
-!> \param dft_control ...
-!> \param gen_file ...
-!> \param file_base ...
-!> \param verbosity_str ...
-!> \param iounit ...
-! **************************************************************************************************
-   SUBROUTINE tb_reference_cli_aux_commands(ref, dft_control, gen_file, file_base, verbosity_str, iounit)
-
-      TYPE(xtb_reference_cli_type), INTENT(IN)           :: ref
-      TYPE(dft_control_type), INTENT(IN)                 :: dft_control
-      CHARACTER(LEN=*), INTENT(IN)                       :: gen_file, file_base, verbosity_str
-      INTEGER, INTENT(IN)                                :: iounit
-
-      CHARACTER(LEN=32)                                  :: charge_str, efield_x_str, efield_y_str, &
-                                                            efield_z_str, etemp_guess_val_str, &
-                                                            spin_str
-      CHARACTER(LEN=4*default_path_length+16)            :: copy_str, dry_run_str, efield_str, &
-                                                            etemp_guess_str, grad_str, json_str, &
-                                                            method_str, output_str
-      CHARACTER(LEN=8*default_path_length)               :: command
-      CHARACTER(LEN=default_path_length)                 :: guess_input, log_file
-      INTEGER                                            :: spin
-      REAL(KIND=dp)                                      :: etemp_guess
-
-      WRITE (charge_str, "(I0)") dft_control%charge
-      spin = MAX(0, dft_control%multiplicity - 1)
-      WRITE (spin_str, "(I0)") spin
-
-      IF (ref%guess_cli%enabled) THEN
-         guess_input = ref%guess_cli%input_file
-         IF (LEN_TRIM(guess_input) == 0) guess_input = gen_file
-         etemp_guess_str = ""
-         IF (ref%guess_cli%electronic_temperature_guess > 0.0_dp) THEN
-            etemp_guess = cp_unit_from_cp2k(ref%guess_cli%electronic_temperature_guess, "K")
-            WRITE (etemp_guess_val_str, "(ES16.8)") etemp_guess
-            etemp_guess_str = " --etemp-guess "//TRIM(ADJUSTL(etemp_guess_val_str))
-         END IF
-         efield_str = ""
-         IF (ref%guess_cli%efield_active) THEN
-            WRITE (efield_x_str, "(ES16.8)") ref%guess_cli%efield(1)
-            WRITE (efield_y_str, "(ES16.8)") ref%guess_cli%efield(2)
-            WRITE (efield_z_str, "(ES16.8)") ref%guess_cli%efield(3)
-            efield_str = " --efield "//TRIM(ADJUSTL(efield_x_str))//","// &
-                         TRIM(ADJUSTL(efield_y_str))//","//TRIM(ADJUSTL(efield_z_str))
-         END IF
-         grad_str = ""
-         IF (ref%guess_cli%grad) grad_str = " --grad"
-         json_str = ""
-         IF (LEN_TRIM(ref%guess_cli%json_file) > 0) THEN
-            json_str = " --json "//TRIM(tb_shell_quote(ref%guess_cli%json_file))
-         END IF
-         log_file = TRIM(file_base)//".guess.log"
-         command = TRIM(tb_shell_quote(ref%program_name))// &
-                   " guess --charge "//TRIM(ADJUSTL(charge_str))// &
-                   " --spin "//TRIM(ADJUSTL(spin_str))// &
-                   " --method "//TRIM(tb_reference_guess_name(ref%guess_cli%method))// &
-                   " --solver "//TRIM(tb_reference_solver_name(ref%guess_cli%solver))// &
-                   TRIM(etemp_guess_str)// &
-                   TRIM(efield_str)// &
-                   TRIM(grad_str)// &
-                   TRIM(json_str)// &
-                   TRIM(verbosity_str)//" --input "//TRIM(tb_shell_quote(ref%guess_cli%input_format))// &
-                   " "//TRIM(tb_shell_quote(guess_input))// &
-                   " > "//TRIM(tb_shell_quote(log_file))//" 2>&1"
-         CALL tb_reference_cli_execute(ref, "guess", command, log_file, iounit)
-         IF (.NOT. ref%keep_files .AND. LEN_TRIM(ref%guess_cli%json_file) > 0) THEN
-            CALL tb_delete_file(ref%guess_cli%json_file)
-         END IF
-      END IF
-
-      IF (ref%param_cli%enabled) THEN
-         method_str = ""
-         IF (ref%param_cli%method_explicit .OR. LEN_TRIM(ref%param_cli%input_file) == 0) THEN
-            method_str = " --method "// &
-                         TRIM(tb_reference_method_name(MERGE(ref%param_cli%method, &
-                                                             dft_control%qs_control%xtb_control%tblite_method, &
-                                                             ref%param_cli%method_explicit)))
-         END IF
-         output_str = ""
-         IF (LEN_TRIM(ref%param_cli%output_file) > 0) THEN
-            output_str = " --output "//TRIM(tb_shell_quote(ref%param_cli%output_file))
-         END IF
-         log_file = TRIM(file_base)//".param.log"
-         command = TRIM(tb_shell_quote(ref%program_name))//" param"// &
-                   TRIM(method_str)// &
-                   TRIM(output_str)
-         IF (LEN_TRIM(ref%param_cli%input_file) > 0) THEN
-            command = TRIM(command)//" "//TRIM(tb_shell_quote(ref%param_cli%input_file))
-         END IF
-         command = TRIM(command)//" > "//TRIM(tb_shell_quote(log_file))//" 2>&1"
-         CALL tb_reference_cli_execute(ref, "param", command, log_file, iounit)
-         IF (.NOT. ref%keep_files .AND. LEN_TRIM(ref%param_cli%output_file) > 0) THEN
-            CALL tb_delete_file(ref%param_cli%output_file)
-         END IF
-      END IF
-
-      IF (ref%fit_cli%enabled) THEN
-         dry_run_str = ""
-         IF (ref%fit_cli%dry_run) dry_run_str = " --dry-run"
-         copy_str = ""
-         IF (LEN_TRIM(ref%fit_cli%copy_file) > 0) THEN
-            copy_str = " --copy "//TRIM(tb_shell_quote(ref%fit_cli%copy_file))
-         END IF
-         log_file = TRIM(file_base)//".fit.log"
-         command = TRIM(tb_shell_quote(ref%program_name))//" fit"// &
-                   TRIM(dry_run_str)// &
-                   TRIM(copy_str)// &
-                   TRIM(verbosity_str)//" "//TRIM(tb_shell_quote(ref%fit_cli%param_file))// &
-                   " "//TRIM(tb_shell_quote(ref%fit_cli%input_file))// &
-                   " > "//TRIM(tb_shell_quote(log_file))//" 2>&1"
-         CALL tb_reference_cli_execute(ref, "fit", command, log_file, iounit)
-         IF (.NOT. ref%keep_files .AND. LEN_TRIM(ref%fit_cli%copy_file) > 0) THEN
-            CALL tb_delete_file(ref%fit_cli%copy_file)
-         END IF
-      END IF
-
-      IF (ref%tagdiff_cli%enabled) THEN
-         method_str = ""
-         IF (ref%tagdiff_cli%fit) method_str = " --fit"
-         log_file = TRIM(file_base)//".tagdiff.log"
-         command = TRIM(tb_shell_quote(ref%program_name))//" tagdiff"// &
-                   TRIM(method_str)//" "//TRIM(tb_shell_quote(ref%tagdiff_cli%actual_file))// &
-                   " "//TRIM(tb_shell_quote(ref%tagdiff_cli%reference_file))// &
-                   " > "//TRIM(tb_shell_quote(log_file))//" 2>&1"
-         CALL tb_reference_cli_execute(ref, "tagdiff", command, log_file, iounit)
-      END IF
-
-   END SUBROUTINE tb_reference_cli_aux_commands
-
-! **************************************************************************************************
-!> \brief Execute one native tblite REFERENCE_CLI auxiliary command.
-!> \param ref ...
-!> \param label ...
-!> \param command ...
-!> \param log_file ...
-!> \param iounit ...
-! **************************************************************************************************
-   SUBROUTINE tb_reference_cli_execute(ref, label, command, log_file, iounit)
-
-      TYPE(xtb_reference_cli_type), INTENT(IN)           :: ref
-      CHARACTER(LEN=*), INTENT(IN)                       :: label, command, log_file
-      INTEGER, INTENT(IN)                                :: iounit
-
-      INTEGER                                            :: cmdstat, exitstat
-
-      cmdstat = 0
-      exitstat = 0
-      CALL execute_command_line(TRIM(command), exitstat=exitstat, cmdstat=cmdstat)
-      IF (cmdstat /= 0 .OR. exitstat /= 0) THEN
-         WRITE (UNIT=iounit, FMT="(/,T2,A,A)") "tblite reference CLI auxiliary command failed: ", &
-            TRIM(label)
-         WRITE (UNIT=iounit, FMT="(T2,A,A)") "Command: ", TRIM(command)
-         WRITE (UNIT=iounit, FMT="(T2,A,I0,T32,A,I0)") "cmdstat:", cmdstat, "exitstat:", exitstat
-         IF (ref%stop_on_error) CPABORT("tblite reference CLI auxiliary command failed")
-      ELSE
-         WRITE (UNIT=iounit, FMT="(/,T2,A,A)") "tblite reference CLI auxiliary command completed: ", &
-            TRIM(label)
-         WRITE (UNIT=iounit, FMT="(T2,A,A)") "Log file: ", TRIM(log_file)
-      END IF
-      IF (.NOT. ref%keep_files) CALL tb_delete_file(log_file)
-
-   END SUBROUTINE tb_reference_cli_execute
-
-! **************************************************************************************************
-!> \brief Join directory and filename.
-!> \param directory ...
-!> \param filename ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION tb_join_path(directory, filename) RESULT(path)
-      CHARACTER(LEN=*), INTENT(IN)                       :: directory, filename
-      CHARACTER(LEN=default_path_length)                 :: path
-
-      IF (LEN_TRIM(directory) == 0 .OR. TRIM(directory) == ".") THEN
-         path = TRIM(filename)
-      ELSE IF (directory(LEN_TRIM(directory):LEN_TRIM(directory)) == "/") THEN
-         path = TRIM(directory)//TRIM(filename)
-      ELSE
-         path = TRIM(directory)//"/"//TRIM(filename)
-      END IF
-
-   END FUNCTION tb_join_path
-
-! **************************************************************************************************
-!> \brief Shell-quote a filename or executable path.
-!> \param text ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION tb_shell_quote(text) RESULT(quoted)
-      CHARACTER(LEN=*), INTENT(IN)                       :: text
-      CHARACTER(LEN=4*default_path_length)               :: quoted
-
-      INTEGER                                            :: i
-
-      quoted = "'"
-      DO i = 1, LEN_TRIM(text)
-         IF (text(i:i) == "'") THEN
-            quoted = TRIM(quoted)//"'\\''"
-         ELSE
-            quoted = TRIM(quoted)//text(i:i)
-         END IF
-      END DO
-      quoted = TRIM(quoted)//"'"
-
-   END FUNCTION tb_shell_quote
-
-! **************************************************************************************************
-!> \brief Write current CP2K geometry as DFTB+ gen format for native tblite.
-!> \param qs_env ...
-!> \param filename ...
-! **************************************************************************************************
-   SUBROUTINE tb_write_reference_gen(qs_env, filename)
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      CHARACTER(LEN=*), INTENT(IN)                       :: filename
-
-      CHARACTER(LEN=2), ALLOCATABLE, DIMENSION(:)        :: symbols, unique_symbols
-      INTEGER                                            :: iatom, ikind, ios, natom, nuniq, unit_nr
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: species
-      INTEGER, DIMENSION(3)                              :: periodic
-      LOGICAL                                            :: found
-      REAL(KIND=dp)                                      :: to_angstrom
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-
-      NULLIFY (cell, particle_set)
-      CALL get_qs_env(qs_env=qs_env, cell=cell, particle_set=particle_set)
-
-      natom = SIZE(particle_set)
-      to_angstrom = cp_unit_from_cp2k(1.0_dp, "angstrom")
-      ALLOCATE (symbols(natom), unique_symbols(natom), species(natom))
-      nuniq = 0
-      DO iatom = 1, natom
-         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, element_symbol=symbols(iatom))
-         found = .FALSE.
-         DO ikind = 1, nuniq
-            IF (TRIM(unique_symbols(ikind)) == TRIM(symbols(iatom))) THEN
-               found = .TRUE.
-               EXIT
-            END IF
-         END DO
-         IF (.NOT. found) THEN
-            nuniq = nuniq + 1
-            unique_symbols(nuniq) = symbols(iatom)
-            ikind = nuniq
-         END IF
-         species(iatom) = ikind
-      END DO
-
-      OPEN (NEWUNIT=unit_nr, FILE=TRIM(filename), STATUS="REPLACE", ACTION="WRITE", &
-            FORM="FORMATTED", IOSTAT=ios)
-      IF (ios /= 0) CPABORT("Could not open tblite reference CLI geometry file")
-
-      CALL get_cell(cell=cell, periodic=periodic)
-      IF (ANY(periodic == 1)) THEN
-         WRITE (UNIT=unit_nr, FMT="(I0,1X,A)") natom, "S"
-      ELSE
-         WRITE (UNIT=unit_nr, FMT="(I0,1X,A)") natom, "C"
-      END IF
-      WRITE (UNIT=unit_nr, FMT="(*(A,1X))") (TRIM(unique_symbols(ikind)), ikind=1, nuniq)
-      DO iatom = 1, natom
-         WRITE (UNIT=unit_nr, FMT="(I0,1X,I0,3(1X,ES24.16))") &
-            iatom, species(iatom), particle_set(iatom)%r(:)*to_angstrom
-      END DO
-      IF (ANY(periodic == 1)) THEN
-         WRITE (UNIT=unit_nr, FMT="(3(1X,ES24.16))") 0.0_dp, 0.0_dp, 0.0_dp
-         DO ikind = 1, 3
-            WRITE (UNIT=unit_nr, FMT="(3(1X,ES24.16))") cell%hmat(:, ikind)*to_angstrom
-         END DO
-      END IF
-      CLOSE (unit_nr)
-
-      DEALLOCATE (symbols, unique_symbols, species)
-
-   END SUBROUTINE tb_write_reference_gen
-
-! **************************************************************************************************
-!> \brief Read native tblite gradient file.
-!> \param filename ...
-!> \param natom ...
-!> \param energy ...
-!> \param gradient ...
-!> \param virial ...
-!> \param have_energy ...
-!> \param have_gradient ...
-!> \param have_virial ...
-! **************************************************************************************************
-   SUBROUTINE tb_read_reference_grad(filename, natom, energy, gradient, virial, &
-                                     have_energy, have_gradient, have_virial)
-
-      CHARACTER(LEN=*), INTENT(IN)                       :: filename
-      INTEGER, INTENT(IN)                                :: natom
-      REAL(KIND=dp), INTENT(OUT)                         :: energy
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: gradient, virial
-      LOGICAL, INTENT(OUT)                               :: have_energy, have_gradient, have_virial
-
-      CHARACTER(LEN=1024)                                :: line
-      INTEGER                                            :: ios, nread, unit_nr
-      LOGICAL                                            :: exists
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: values
-
-      have_energy = .FALSE.
-      have_gradient = .FALSE.
-      have_virial = .FALSE.
-      energy = 0.0_dp
-      gradient = 0.0_dp
-      virial = 0.0_dp
-
-      INQUIRE (FILE=TRIM(filename), EXIST=exists)
-      IF (.NOT. exists) RETURN
-
-      OPEN (NEWUNIT=unit_nr, FILE=TRIM(filename), STATUS="OLD", ACTION="READ", &
-            FORM="FORMATTED", IOSTAT=ios)
-      IF (ios /= 0) RETURN
-
-      DO
-         READ (UNIT=unit_nr, FMT="(A)", IOSTAT=ios) line
-         IF (ios /= 0) EXIT
-         IF (INDEX(line, "energy             :real:0:") > 0) THEN
-            READ (UNIT=unit_nr, FMT="(A)", IOSTAT=ios) line
-            IF (ios == 0) THEN
-               READ (line, *, IOSTAT=ios) energy
-               have_energy = ios == 0
-            END IF
-         ELSE IF (INDEX(line, "gradient           :real:2:3,") > 0) THEN
-            ALLOCATE (values(3*natom))
-            CALL tb_read_real_values(unit_nr, values, nread)
-            IF (nread == 3*natom) THEN
-               CALL tb_values_to_matrix(values, gradient)
-               have_gradient = .TRUE.
-            END IF
-            DEALLOCATE (values)
-         ELSE IF (INDEX(line, "virial             :real:2:3,3") > 0) THEN
-            ALLOCATE (values(9))
-            CALL tb_read_real_values(unit_nr, values, nread)
-            IF (nread == 9) THEN
-               CALL tb_values_to_matrix(values, virial)
-               have_virial = .TRUE.
-            END IF
-            DEALLOCATE (values)
-         END IF
-      END DO
-      CLOSE (unit_nr)
-
-   END SUBROUTINE tb_read_reference_grad
-
-! **************************************************************************************************
-!> \brief Read a fixed number of real values from following lines.
-!> \param unit_nr ...
-!> \param values ...
-!> \param nread ...
-! **************************************************************************************************
-   SUBROUTINE tb_read_real_values(unit_nr, values, nread)
-
-      INTEGER, INTENT(IN)                                :: unit_nr
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: values
-      INTEGER, INTENT(OUT)                               :: nread
-
-      CHARACTER(LEN=1024)                                :: line
-      INTEGER                                            :: ios
-
-      nread = 0
-      DO WHILE (nread < SIZE(values))
-         READ (UNIT=unit_nr, FMT="(A)", IOSTAT=ios) line
-         IF (ios /= 0) EXIT
-         CALL tb_parse_real_line(line, values, nread)
-      END DO
-
-   END SUBROUTINE tb_read_real_values
-
-! **************************************************************************************************
-!> \brief Parse real values from one text line.
-!> \param line ...
-!> \param values ...
-!> \param nread ...
-! **************************************************************************************************
-   SUBROUTINE tb_parse_real_line(line, values, nread)
-
-      CHARACTER(LEN=*), INTENT(IN)                       :: line
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: values
-      INTEGER, INTENT(INOUT)                             :: nread
-
-      CHARACTER(LEN=128)                                 :: token
-      INTEGER                                            :: first, ios, last, pos
-
-      pos = 1
-      DO WHILE (pos <= LEN_TRIM(line) .AND. nread < SIZE(values))
-         DO WHILE (pos <= LEN_TRIM(line) .AND. INDEX(" ,[]", line(pos:pos)) > 0)
-            pos = pos + 1
-         END DO
-         IF (pos > LEN_TRIM(line)) EXIT
-         first = pos
-         DO WHILE (pos <= LEN_TRIM(line) .AND. INDEX(" ,[]", line(pos:pos)) == 0)
-            pos = pos + 1
-         END DO
-         last = pos - 1
-         token = line(first:last)
-         READ (token, *, IOSTAT=ios) values(nread + 1)
-         IF (ios == 0) nread = nread + 1
-      END DO
-
-   END SUBROUTINE tb_parse_real_line
-
-! **************************************************************************************************
-!> \brief Convert flat native tblite values to CP2K atom-major matrix layout.
-!> \param values ...
-!> \param matrix ...
-! **************************************************************************************************
-   SUBROUTINE tb_values_to_matrix(values, matrix)
-
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: values
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: matrix
-
-      INTEGER                                            :: i, j, n
-
-      n = 0
-      DO j = 1, SIZE(matrix, 2)
-         DO i = 1, SIZE(matrix, 1)
-            n = n + 1
-            matrix(i, j) = values(n)
-         END DO
-      END DO
-
-   END SUBROUTINE tb_values_to_matrix
-
-! **************************************************************************************************
-!> \brief Delete temporary files unless requested otherwise.
-!> \param ref ...
-!> \param gen_file ...
-!> \param grad_file ...
-!> \param json_file ...
-!> \param log_file ...
-!> \param post_processing_output_file ...
-! **************************************************************************************************
-   SUBROUTINE tb_reference_cleanup(ref, gen_file, grad_file, json_file, log_file, post_processing_output_file)
-
-      TYPE(xtb_reference_cli_type), INTENT(IN)           :: ref
-      CHARACTER(LEN=*), INTENT(IN)                       :: gen_file, grad_file, json_file, &
-                                                            log_file, post_processing_output_file
-
-      IF (ref%keep_files) RETURN
-      CALL tb_delete_file(gen_file)
-      CALL tb_delete_file(grad_file)
-      CALL tb_delete_file(json_file)
-      CALL tb_delete_file(log_file)
-      IF (LEN_TRIM(post_processing_output_file) > 0) THEN
-         CALL tb_delete_file(post_processing_output_file)
-      END IF
-
-   END SUBROUTINE tb_reference_cleanup
-
-! **************************************************************************************************
-!> \brief Delete a file if it exists.
-!> \param filename ...
-! **************************************************************************************************
-   SUBROUTINE tb_delete_file(filename)
-
-      CHARACTER(LEN=*), INTENT(IN)                       :: filename
-
-      INTEGER                                            :: ios, unit_nr
-      LOGICAL                                            :: exists
-
-      INQUIRE (FILE=TRIM(filename), EXIST=exists)
-      IF (.NOT. exists) RETURN
-      OPEN (NEWUNIT=unit_nr, FILE=TRIM(filename), STATUS="OLD", IOSTAT=ios)
-      IF (ios == 0) CLOSE (unit_nr, STATUS="DELETE")
-
-   END SUBROUTINE tb_delete_file
-
-! **************************************************************************************************
 !> \brief Dump cumulative tblite virial pieces for local debugging.
 !> \param label ...
 !> \param sigma ...
@@ -4896,29 +3660,5 @@ CONTAINS
       END DO
 
    END SUBROUTINE tb_add_grad
-
-! **************************************************************************************************
-!> \brief add contrib. to sigma
-!> \param sig ...
-!> \param deriv ...
-!> \param dE ...
-!> \param natom ...
-! **************************************************************************************************
-   SUBROUTINE tb_add_sig(sig, deriv, dE, natom)
-
-      REAL(KIND=dp), DIMENSION(:, :)                     :: sig
-      REAL(KIND=dp), DIMENSION(:, :, :)                  :: deriv
-      REAL(KIND=dp), DIMENSION(:)                        :: dE
-      INTEGER                                            :: natom
-
-      INTEGER                                            :: i, j
-
-      DO i = 1, 3
-         DO j = 1, natom
-            sig(:, i) = sig(:, i) + deriv(:, i, j)*dE(j)
-         END DO
-      END DO
-
-   END SUBROUTINE tb_add_sig
 
 END MODULE tblite_interface

@@ -1391,6 +1391,7 @@ list(
   tb/qs_scf_post_tb.F
   tb/tblite_interface.F
   tb/tblite_ks_matrix.F
+  tb/tblite_reference_cli.F
   tb/tblite_scc_mixer.F
   tb/tblite_types.F
   tb/xtb_coulomb.F

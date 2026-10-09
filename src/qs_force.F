@@ -79,8 +79,8 @@ MODULE qs_force
                                               velocity_gauge_nl_force
    USE se_core_core,                    ONLY: se_core_core_interaction
    USE se_core_matrix,                  ONLY: build_se_core_matrix
-   USE tblite_interface,                ONLY: build_tblite_matrices,&
-                                              tb_reference_cli_compare
+   USE tblite_interface,                ONLY: build_tblite_matrices
+   USE tblite_reference_cli,            ONLY: tb_reference_cli_compare
    USE virial_types,                    ONLY: project_virial_to_periodic_subspace,&
                                               symmetrize_virial,&
                                               virial_type

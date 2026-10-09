@@ -203,13 +203,13 @@ CONTAINS
       REAL(wp), DIMENSION(memory, memory), INTENT(INOUT) :: a
       INTEGER, INTENT(OUT)                               :: info
 
-      INTEGER                                            :: i, it1, itn, j
+      INTEGER                                            :: first, i, ih, it1, itn, j, jh, nhist
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: hist
       REAL(wp)                                           :: inv
       REAL(wp), ALLOCATABLE, DIMENSION(:, :)             :: beta, c
 
       info = 0
       itn = iter - 1
-      it1 = MOD(itn - 1, memory) + 1
 
       IF (iter == 1) THEN
          dqlast(:) = dq
@@ -218,7 +218,14 @@ CONTAINS
          RETURN
       END IF
 
-      ALLOCATE (beta(MIN(memory, itn), MIN(memory, itn)), c(MIN(memory, itn), 1))
+      it1 = MOD(itn - 1, memory) + 1
+      nhist = MIN(memory, itn)
+      first = MAX(1, itn - memory + 1)
+      ALLOCATE (hist(nhist), beta(nhist, nhist), c(nhist, 1))
+      ! Keep the linear system in chronological order when the ring buffer wraps.
+      DO ih = 1, nhist
+         hist(ih) = MOD(first + ih - 2, memory) + 1
+      END DO
 
       omega(it1) = NORM2(dq)
       IF (omega(it1) > (wfac/maxw)) THEN
@@ -233,17 +240,20 @@ CONTAINS
       inv = 1.0_wp/inv
       df(:, it1) = inv*df(:, it1)
 
-      DO j = MAX(1, itn - memory + 1), itn
-         i = MOD(j - 1, memory) + 1
+      DO ih = 1, nhist
+         i = hist(ih)
          a(i, it1) = DOT_PRODUCT(df(:, i), df(:, it1))
          a(it1, i) = a(i, it1)
-         c(i, 1) = omega(i)*DOT_PRODUCT(df(:, i), dq)
+         c(ih, 1) = omega(i)*DOT_PRODUCT(df(:, i), dq)
       END DO
 
-      DO j = MAX(1, itn - memory + 1), itn
-         i = MOD(j - 1, memory) + 1
-         beta(:it1, i) = omega(:it1)*omega(i)*a(:it1, i)
-         beta(i, i) = beta(i, i) + omega0*omega0
+      DO ih = 1, nhist
+         i = hist(ih)
+         DO jh = 1, nhist
+            j = hist(jh)
+            beta(ih, jh) = omega(i)*omega(j)*a(i, j)
+         END DO
+         beta(ih, ih) = beta(ih, ih) + omega0*omega0
       END DO
 
       CALL cp2k_tblite_lineq(beta, c, info)
@@ -254,9 +264,9 @@ CONTAINS
       qlast(:) = q
       q(:) = q + alpha*dq
 
-      DO j = MAX(1, itn - memory + 1), itn
-         i = MOD(j - 1, memory) + 1
-         q(:) = q - omega(i)*c(i, 1)*u(:, i)
+      DO ih = 1, nhist
+         i = hist(ih)
+         q(:) = q - omega(i)*c(ih, 1)*u(:, i)
       END DO
 
    END SUBROUTINE cp2k_tblite_broyden
