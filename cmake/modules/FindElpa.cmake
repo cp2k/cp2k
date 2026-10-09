@@ -38,10 +38,18 @@ if(CP2K_ELPA_FOUND)
     cp2k::ELPA::elpa PROPERTIES INTERFACE_LINK_LIBRARIES
                                 "${CP2K_ELPA_LINK_LIBRARIES}")
   if(CP2K_ELPA_INCLUDE_DIRS)
+    # Add the modules subdirectory of each include directory only if it exists
+    # and is not already listed (e.g. by the Cflags of the pkg-config file)
+    set(CP2K_ELPA_ALL_INCLUDE_DIRS ${CP2K_ELPA_INCLUDE_DIRS})
+    foreach(_dir IN LISTS CP2K_ELPA_INCLUDE_DIRS)
+      if(IS_DIRECTORY "${_dir}/modules")
+        list(APPEND CP2K_ELPA_ALL_INCLUDE_DIRS "${_dir}/modules")
+      endif()
+    endforeach()
+    list(REMOVE_DUPLICATES CP2K_ELPA_ALL_INCLUDE_DIRS)
     set_target_properties(
-      cp2k::ELPA::elpa
-      PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
-                 "${CP2K_ELPA_INCLUDE_DIRS};${CP2K_ELPA_INCLUDE_DIRS}/modules")
+      cp2k::ELPA::elpa PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+                                  "${CP2K_ELPA_ALL_INCLUDE_DIRS}")
   endif()
 endif()
 
