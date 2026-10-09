@@ -634,6 +634,13 @@ CONTAINS
             CALL integrate_v_rspace(qs_env=qs_env, v_rspace=fxc_rho(ispin), &
                                     pmat=matrix_px1(ispin), hmat=matrix_fx(ispin), &
                                     gapw=(gapw .OR. gapw_xc), calculate_forces=.TRUE.)
+            IF (ASSOCIATED(fxc_tau)) THEN
+               ! The grid backend includes the factor 1/2 in the tau gradient-product integral.
+               CALL pw_scale(fxc_tau(ispin), fxc_tau(ispin)%pw_grid%dvol)
+               CALL integrate_v_rspace(qs_env=qs_env, v_rspace=fxc_tau(ispin), &
+                                       pmat=matrix_px1(ispin), hmat=matrix_fx(ispin), &
+                                       gapw=(gapw .OR. gapw_xc), calculate_forces=.TRUE., compute_tau=.TRUE.)
+            END IF
          END DO
          IF (debug_forces) THEN
             fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
@@ -651,11 +658,16 @@ CONTAINS
             CALL dbcsr_create(matrix_gx(ispin)%matrix, template=matrix_s(1)%matrix)
             CALL dbcsr_copy(matrix_gx(ispin)%matrix, matrix_s(1)%matrix)
             CALL dbcsr_set(matrix_gx(ispin)%matrix, 0.0_dp)
-            CALL pw_scale(gxc_rho(ispin), gxc_rho(ispin)%pw_grid%dvol)
-            CALL pw_scale(gxc_rho(ispin), 0.5_dp)
+            CALL pw_scale(gxc_rho(ispin), 0.5_dp*gxc_rho(ispin)%pw_grid%dvol)
             CALL integrate_v_rspace(qs_env=qs_env, v_rspace=gxc_rho(ispin), &
                                     pmat=matrix_p(ispin), hmat=matrix_gx(ispin), &
                                     gapw=(gapw .OR. gapw_xc), calculate_forces=.TRUE.)
+            IF (ASSOCIATED(gxc_tau)) THEN
+               CALL pw_scale(gxc_tau(ispin), 0.5_dp*gxc_tau(ispin)%pw_grid%dvol)
+               CALL integrate_v_rspace(qs_env=qs_env, v_rspace=gxc_tau(ispin), &
+                                       pmat=matrix_p(ispin), hmat=matrix_gx(ispin), &
+                                       gapw=(gapw .OR. gapw_xc), calculate_forces=.TRUE., compute_tau=.TRUE.)
+            END IF
             CALL dbcsr_scale(matrix_gx(ispin)%matrix, 2.0_dp)
          END DO
          IF (debug_forces) THEN

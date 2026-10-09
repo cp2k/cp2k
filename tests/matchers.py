@@ -67,6 +67,11 @@ registry["Cell_vector_a_y"] = GenericMatcher(r"CELL| Vector a [angstrom]:", col=
 registry["Cell_angle_alpha"] = GenericMatcher(
     r"CELL| Angle (b,c), alpha [degree]:", col=6
 )
+# The "|a| =  ..." column of the cell-vector lines: the vector length,
+# as printed by write_cell_low (last occurrence = the final cell).
+registry["Cell_length_a"] = GenericMatcher(r"CELL| Vector a [angstrom]:", col=10)
+registry["Cell_length_b"] = GenericMatcher(r"CELL| Vector b [angstrom]:", col=10)
+registry["Cell_length_c"] = GenericMatcher(r"CELL| Vector c [angstrom]:", col=10)
 
 registry["Vib_freq"] = GenericMatcher(r"VIB|Frequency", col=3)  # M008
 registry["Vib_frc_const"] = GenericMatcher(r"VIB|Frc consts", col=4)  # M128

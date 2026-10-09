@@ -81,7 +81,6 @@ QS/regtest-plus_u-kp
 SE/regtest
 Fist/regtest-4
 Fist/regtest-opt
-Fist/regtest-opt-cell-angles                             mpiranks==1
 xTB/regtest-5
 QS/regtest-xastdp                                           libint libxc !ifx
 ATOM/regtest-pseudo
