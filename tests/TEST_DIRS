@@ -149,6 +149,7 @@ QS/regtest-almo-2
 QS/regtest-xc
 QS/regtest-dft-vdw-corr-2                                   libxc libint !ifx
 QS/regtest-as-dft                                           libint libxc !ifx
+QS/regtest-as-selection                                     libint !ifx
 QS/regtest-kp-hfx-ri-2                                      libint libxc !ifx
 QS/regtest-rpa-cubic-scaling-2                              libint libxc !ifx
 QS/regtest-tddfpt-gapw                                      libint !ifx
