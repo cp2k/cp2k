@@ -50,7 +50,6 @@ MODULE tblite_interface
    USE cp_dbcsr_contrib, ONLY: dbcsr_dot
    USE cp_dbcsr_cp2k_link, ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations, ONLY: dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set
-   USE cp_files, ONLY: close_file, open_file
    USE cp_log_handling, ONLY: cp_get_default_logger, cp_logger_type, cp_logger_get_default_io_unit
    USE cp_output_handling, ONLY: cp_print_key_should_output, cp_print_key_unit_nr, &
                                  cp_print_key_finished_output
@@ -58,7 +57,7 @@ MODULE tblite_interface
                               tblite_scc_mixer_none, tblite_scc_mixer_tblite, tblite_solver_gvd, &
                               tblite_solver_gvr
    USE input_section_types, ONLY: section_vals_val_get, section_vals_get_subs_vals, section_vals_type
-   USE kinds, ONLY: default_path_length, default_string_length, dp, int_8
+   USE kinds, ONLY: default_string_length, dp, int_8
    USE kpoint_types, ONLY: get_kpoint_info, kpoint_type
    USE memory_utilities, ONLY: reallocate
    USE message_passing, ONLY: mp_para_env_type
@@ -613,7 +612,6 @@ CONTAINS
             tb%grad = 0.0_dp
             CALL tb%calc%halogen%get_engrad(tb%mol, hcache, tb%e_hal, &
             & tb%grad, tb%sigma)
-            CALL tb_dump_sigma_component("after_halogen", tb%sigma, para_env)
             CALL tb_grad2force(qs_env, tb, para_env, 0)
          ELSE
             CALL tb%calc%halogen%get_engrad(tb%mol, hcache, tb%e_hal)
@@ -626,7 +624,6 @@ CONTAINS
             tb%grad = 0.0_dp
             CALL tb%calc%repulsion%get_engrad(tb%mol, rcache, tb%e_rep, &
             & tb%grad, tb%sigma)
-            CALL tb_dump_sigma_component("after_repulsion", tb%sigma, para_env)
             CALL tb_grad2force(qs_env, tb, para_env, 1)
          ELSE
             CALL tb%calc%repulsion%get_engrad(tb%mol, rcache, tb%e_rep)
@@ -639,7 +636,6 @@ CONTAINS
             tb%grad = 0.0_dp
             CALL tb%calc%dispersion%get_engrad(tb%mol, tb%dcache, tb%e_disp, &
             & tb%grad, tb%sigma)
-            CALL tb_dump_sigma_component("after_dispersion_static", tb%sigma, para_env)
             CALL tb_grad2force(qs_env, tb, para_env, 2)
          ELSE
             CALL tb%calc%dispersion%get_engrad(tb%mol, tb%dcache, tb%e_disp)
@@ -1502,16 +1498,10 @@ CONTAINS
       INTEGER                                            :: ispin, nspin
       INTEGER                                            :: nkind, nsgf, natorb, na
       INTEGER                                            :: n_atom, max_orb, max_shell
-      INTEGER                                            :: raw_state_status, raw_state_unit
       LOGICAL                                            :: advance_native_mixer, do_dipole, do_quadrupole, &
-                                                            reuse_native_input, skip_scf_dispersion, &
-                                                            seed_native_from_rho, use_native_mixer, use_no_mixer
+                                                            reuse_native_input, seed_native_from_rho, &
+                                                            use_native_mixer, use_no_mixer
       REAL(KIND=dp)                                      :: native_seed_charge, norm, pao
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      INTEGER                                            :: debug_status
-      CHARACTER(LEN=32)                                  :: debug_value
-#endif
-      CHARACTER(LEN=default_path_length)                 :: raw_state_file
       INTEGER, DIMENSION(5)                              :: occ
       INTEGER, DIMENSION(25)                             :: lao
       INTEGER, DIMENSION(25)                             :: nao
@@ -1540,14 +1530,6 @@ CONTAINS
       ! also compute multipoles needed by GFN2
       do_dipole = .FALSE.
       do_quadrupole = .FALSE.
-      skip_scf_dispersion = .FALSE.
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DEBUG_SKIP_SCF_DISPERSION", debug_value, STATUS=debug_status)
-      IF (debug_status == 0) THEN
-         READ (debug_value, *, IOSTAT=debug_status) skip_scf_dispersion
-         IF (debug_status /= 0) skip_scf_dispersion = .FALSE.
-      END IF
-#endif
       IF (dft_control%qs_control%do_ls_scf .OR. scf_control%use_ot) THEN
          use_native_mixer = .FALSE.
          use_no_mixer = .TRUE.
@@ -1694,38 +1676,6 @@ CONTAINS
                              ABS(native_seed_charge - REAL(dft_control%charge, dp)) < 1.0E-5_dp
       DEALLOCATE (aocg, aocg_spin)
 
-      raw_state_status = 1
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_RAW_STATE_DUMP", raw_state_file, STATUS=raw_state_status)
-#endif
-      IF (raw_state_status == 0 .AND. para_env%is_source()) THEN
-         CALL open_file(file_name=raw_state_file, unit_number=raw_state_unit, &
-                        file_status="REPLACE", file_action="WRITE")
-         WRITE (raw_state_unit, *) "qat"
-         DO iatom = 1, n_atom
-            WRITE (raw_state_unit, "(I0,1X,ES24.16)") iatom, -ch_atom(iatom, 1)
-         END DO
-         WRITE (raw_state_unit, *) "qsh"
-         DO iatom = 1, n_atom
-            DO is = 1, tb%calc%bas%nsh_at(iatom)
-               WRITE (raw_state_unit, "(I0,1X,ES24.16)") tb%calc%bas%ish_at(iatom) + is, -ch_shell_spin(iatom, is, 1)
-            END DO
-         END DO
-         IF (do_dipole) THEN
-            WRITE (raw_state_unit, *) "dpat"
-            DO iatom = 1, n_atom
-               WRITE (raw_state_unit, "(I0,3(1X,ES24.16))") iatom, -ao_dip_spin(iatom, :, 1)
-            END DO
-         END IF
-         IF (do_quadrupole) THEN
-            WRITE (raw_state_unit, *) "qpat"
-            DO iatom = 1, n_atom
-               WRITE (raw_state_unit, "(I0,6(1X,ES24.16))") iatom, -ao_quad_spin(iatom, :, 1)
-            END DO
-         END IF
-         CALL close_file(raw_state_unit)
-      END IF
-
       ! Population arrays use CP2K electron-excess signs. The spin axis already
       ! contains total charge and magnetization, as required by tblite.
       IF (use_native_mixer) THEN
@@ -1790,7 +1740,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL tb_update_scf_potential(qs_env, tb, para_env, calculate_forces, skip_scf_dispersion)
+      CALL tb_update_scf_potential(qs_env, tb, para_env, calculate_forces)
 
       IF (ALLOCATED(ao_dip_spin)) DEALLOCATE (ao_dip_spin)
       IF (ALLOCATED(ao_quad_spin)) DEALLOCATE (ao_quad_spin)
@@ -1933,13 +1883,12 @@ CONTAINS
 !> \param tb ...
 !> \param para_env ...
 !> \param calculate_forces ...
-!> \param skip_scf_dispersion ...
 ! **************************************************************************************************
-   SUBROUTINE tb_update_scf_potential(qs_env, tb, para_env, calculate_forces, skip_scf_dispersion)
+   SUBROUTINE tb_update_scf_potential(qs_env, tb, para_env, calculate_forces)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tblite_type), POINTER                         :: tb
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      LOGICAL, INTENT(IN)                                :: calculate_forces, skip_scf_dispersion
+      LOGICAL, INTENT(IN)                                :: calculate_forces
 
       ! These library results are replicated across MPI ranks. The force conversion
       ! retains the existing normalization before CP2K's global force reduction.
@@ -1952,10 +1901,8 @@ CONTAINS
          CALL tb%calc%coulomb%get_energy(tb%mol, tb%cache, tb%wfn, tb%e_es)
       END IF
       IF (ALLOCATED(tb%calc%dispersion)) THEN
-         IF (.NOT. skip_scf_dispersion) THEN
-            CALL tb%calc%dispersion%get_potential(tb%mol, tb%dcache, tb%wfn, tb%pot)
-            CALL tb%calc%dispersion%get_energy(tb%mol, tb%dcache, tb%wfn, tb%e_scd)
-         END IF
+         CALL tb%calc%dispersion%get_potential(tb%mol, tb%dcache, tb%wfn, tb%pot)
+         CALL tb%calc%dispersion%get_energy(tb%mol, tb%dcache, tb%wfn, tb%e_scd)
       END IF
       IF (ALLOCATED(tb%calc%interactions)) THEN
          CALL tb%calc%interactions%get_potential(tb%mol, tb%icache, tb%wfn, tb%pot)
@@ -1966,21 +1913,18 @@ CONTAINS
          IF (ALLOCATED(tb%calc%coulomb)) THEN
             tb%grad = 0.0_dp
             CALL tb%calc%coulomb%get_gradient(tb%mol, tb%cache, tb%wfn, tb%grad, tb%sigma)
-            CALL tb_dump_sigma_component("after_coulomb", tb%sigma, para_env)
             CALL tb_grad2force(qs_env, tb, para_env, 3)
          END IF
 
-         IF (ALLOCATED(tb%calc%dispersion) .AND. .NOT. skip_scf_dispersion) THEN
+         IF (ALLOCATED(tb%calc%dispersion)) THEN
             tb%grad = 0.0_dp
             CALL tb%calc%dispersion%get_gradient(tb%mol, tb%dcache, tb%wfn, tb%grad, tb%sigma)
-            CALL tb_dump_sigma_component("after_dispersion_scf", tb%sigma, para_env)
             CALL tb_grad2force(qs_env, tb, para_env, 2)
          END IF
 
          IF (ALLOCATED(tb%calc%interactions)) THEN
             tb%grad = 0.0_dp
             CALL tb%calc%interactions%get_gradient(tb%mol, tb%icache, tb%wfn, tb%grad, tb%sigma)
-            CALL tb_dump_sigma_component("after_interactions_scf", tb%sigma, para_env)
             CALL tb_grad2force(qs_env, tb, para_env, 3)
          END IF
       END IF
@@ -2536,9 +2480,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'tb_grad2force'
 
-      CHARACTER(LEN=default_path_length)                 :: dump_file
-      INTEGER                                            :: atoma, dump_status, dump_unit, handle, &
-                                                            iatom, ikind, natom
+      INTEGER                                            :: atoma, handle, iatom, ikind, natom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -2553,21 +2495,6 @@ CONTAINS
                                atom_of_kind=atom_of_kind, kind_of=kind_of)
 
       natom = SIZE(particle_set)
-
-      dump_status = 1
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_FORCE_DUMP", dump_file, STATUS=dump_status)
-#endif
-      IF (dump_status == 0 .AND. para_env%is_source()) THEN
-         CALL open_file(file_name=dump_file, unit_number=dump_unit, file_status="UNKNOWN", &
-                        file_position="APPEND", file_action="WRITE")
-         ! Report the source rank's contribution to the subsequent MPI sum.
-         WRITE (dump_unit, "(A,1X,I0)") "component", ityp
-         DO iatom = 1, natom
-            WRITE (dump_unit, "(I0,3(1X,ES24.16))") iatom, tb%grad(:, iatom)/para_env%num_pe
-         END DO
-         CALL close_file(dump_unit)
-      END IF
 
       SELECT CASE (ityp)
       CASE DEFAULT
@@ -3105,38 +3032,6 @@ CONTAINS
    END SUBROUTINE tb_derive_dH_off
 
 ! **************************************************************************************************
-!> \brief Dump cumulative tblite virial pieces for local debugging.
-!> \param label ...
-!> \param sigma ...
-!> \param para_env ...
-! **************************************************************************************************
-   SUBROUTINE tb_dump_sigma_component(label, sigma, para_env)
-
-      CHARACTER(LEN=*), INTENT(IN)                       :: label
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sigma
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-
-      CHARACTER(LEN=default_path_length)                 :: dump_file
-      INTEGER                                            :: dump_status, dump_unit, i
-
-      dump_status = 1
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_SIGMA_COMPONENT_DUMP", dump_file, STATUS=dump_status)
-#endif
-      IF (dump_status /= 0 .OR. .NOT. para_env%is_source()) RETURN
-
-      CALL open_file(file_name=dump_file, unit_number=dump_unit, file_status="UNKNOWN", &
-                     file_position="APPEND", file_action="WRITE")
-      ! Report the source rank's contribution to the subsequent MPI sum.
-      WRITE (dump_unit, "(A)") TRIM(label)
-      DO i = 1, 3
-         WRITE (dump_unit, "(3(1X,ES24.16))") sigma(i, :)/para_env%num_pe
-      END DO
-      CALL close_file(dump_unit)
-
-   END SUBROUTINE tb_dump_sigma_component
-
-! **************************************************************************************************
 !> \brief save stress tensor
 !> \param qs_env ...
 !> \param tb ...
@@ -3148,8 +3043,6 @@ CONTAINS
       TYPE(tblite_type)                                  :: tb
       TYPE(mp_para_env_type)                             :: para_env
 
-      CHARACTER(LEN=default_path_length)                 :: dump_file
-      INTEGER                                            :: dump_status, dump_unit, i
       INTEGER, DIMENSION(3)                              :: periodic
       TYPE(cell_type), POINTER                           :: cell
       TYPE(virial_type), POINTER                         :: virial
@@ -3163,21 +3056,6 @@ CONTAINS
                       "tblite stress tensor requested for an isolated system. "// &
                       "The reported virial is useful for finite-difference checks, "// &
                       "but it is not a physically meaningful bulk stress for an isolated molecule.")
-      END IF
-
-      dump_status = 1
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_VIRIAL_DUMP", dump_file, STATUS=dump_status)
-#endif
-      IF (dump_status == 0 .AND. para_env%is_source()) THEN
-         CALL open_file(file_name=dump_file, unit_number=dump_unit, file_status="UNKNOWN", &
-                        file_position="APPEND", file_action="WRITE")
-         ! Report the source rank's contribution to the subsequent MPI sum.
-         WRITE (dump_unit, "(A)") "sigma"
-         DO i = 1, 3
-            WRITE (dump_unit, "(3(1X,ES24.16))") tb%sigma(i, :)/para_env%num_pe
-         END DO
-         CALL close_file(dump_unit)
       END IF
 
       virial%pv_virial = virial%pv_virial - tb%sigma/para_env%num_pe

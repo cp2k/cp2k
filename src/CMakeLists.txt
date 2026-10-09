@@ -1960,7 +1960,6 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:__SMEAGOL>
     $<$<BOOL:${CP2K_USE_TBLITE}>:__TBLITE>
     $<$<BOOL:${CP2K_USE_TBLITE}>:__S_DFTD3>
-    # Developer-only manual flag: __TBLITE_DEBUG_DIAGNOSTICS
     $<$<BOOL:${CP2K_USE_TBLITE}>:__DFTD4>
     $<$<BOOL:${CP2K_USE_DFTD4}>:__DFTD4>
     $<$<BOOL:${CP2K_USE_DEEPMD}>:__DEEPMD>
