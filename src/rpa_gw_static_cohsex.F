@@ -422,11 +422,11 @@ CONTAINS
             END DO
             IF (no > 0 .AND. nv > 0) THEN
                WRITE (unit_nr, "(/,T3,A,T66,F15.3)") TRIM(cohsex_label)//" HOMO, diagonal (eV)", &
-                  e_diag(no)*evolt
+                  MAXVAL(e_diag(1:no))*evolt
                WRITE (unit_nr, "(T3,A,T66,F15.3)") TRIM(cohsex_label)//" LUMO, diagonal (eV)", &
-                  e_diag(no + 1)*evolt
+                  MINVAL(e_diag(no + 1:))*evolt
                WRITE (unit_nr, "(T3,A,T66,F15.3)") TRIM(cohsex_label)//" HOMO-LUMO gap, diagonal (eV)", &
-                  (e_diag(no + 1) - e_diag(no))*evolt
+                  (MINVAL(e_diag(no + 1:)) - MAXVAL(e_diag(1:no)))*evolt
                IF (qp_update) THEN
                   WRITE (unit_nr, "(T3,A,T66,F15.3)") TRIM(cohsex_label)//" HOMO, canonical (eV)", &
                      MAXVAL(e_can(1:no))*evolt
