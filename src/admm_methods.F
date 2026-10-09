@@ -578,7 +578,7 @@ CONTAINS
       CALL kpoint_density_transform(kpoints, rho_ao_aux, .FALSE., &
                                     matrix_s_aux_fit(1, 1)%matrix, sab_aux_fit, &
                                     admm_env%scf_work_aux_fit, for_aux_fit=.TRUE., &
-                                    overlap_rs=matrix_s)
+                                    overlap_rs=matrix_s_aux_fit)
 
       !ADMMQ, ADMMP, ADMMS
       IF (admm_env%do_admmq .OR. admm_env%do_admmp .OR. admm_env%do_admms) THEN

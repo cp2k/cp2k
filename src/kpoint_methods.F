@@ -2298,7 +2298,8 @@ CONTAINS
 
       CALL get_kpoint_info(kpoint, nkp=nkp, cell_to_index=cell_to_index)
       IF (PRESENT(overlap_rs)) THEN
-         CALL calibrate_symmetry_phases(kpoint, overlap_rs, tempmat, sab_nl, cell_to_index)
+         CALL calibrate_symmetry_phases(kpoint, overlap_rs, tempmat, sab_nl, cell_to_index, &
+                                        for_aux_fit=aux_fit, mixed_aux_orb=mixed_aux_orb_local)
       END IF
       ! initialize real space density matrices
       IF (aux_fit) THEN
@@ -3435,7 +3436,8 @@ CONTAINS
 !> \param sab_nl ...
 !> \param cell_to_index ...
 ! **************************************************************************************************
-   SUBROUTINE calibrate_symmetry_phases(kpoint, overlap_rs, tempmat, sab_nl, cell_to_index)
+   SUBROUTINE calibrate_symmetry_phases(kpoint, overlap_rs, tempmat, sab_nl, cell_to_index, &
+                                        for_aux_fit, mixed_aux_orb)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: overlap_rs
@@ -3443,6 +3445,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL, INTENT(IN), OPTIONAL                      :: for_aux_fit, mixed_aux_orb
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calibrate_symmetry_phases'
 
@@ -3450,7 +3453,8 @@ CONTAINS
       INTEGER                                            :: best_mode, handle, iatom, ik, is, key, &
                                                             mode, nrot, rot_slot
       INTEGER, ALLOCATABLE                               :: best_ik(:), best_is(:), mode_by_op(:)
-      LOGICAL                                            :: needs_calibration, reverse
+      LOGICAL                                            :: aux_fit, mixed_aux_orb_local, &
+                                                            needs_calibration, reverse
       REAL(KIND=dp)                                      :: arg, best_residual, candidate_norm, &
                                                             direct_norm, overlap_dot, phase_score, &
                                                             phase_tolerance, relative_residual
@@ -3459,6 +3463,11 @@ CONTAINS
                                                             sym_c, sym_r
       TYPE(kp_symmetry_op_type)                          :: op
       TYPE(kpoint_sym_type), POINTER                     :: kpsym
+
+      aux_fit = .FALSE.
+      IF (PRESENT(for_aux_fit)) aux_fit = for_aux_fit
+      mixed_aux_orb_local = .FALSE.
+      IF (PRESENT(mixed_aux_orb)) mixed_aux_orb_local = mixed_aux_orb
 
       needs_calibration = .FALSE.
       DO ik = 1, kpoint%nkp
@@ -3556,7 +3565,8 @@ CONTAINS
          CALL dbcsr_dot(direct_c, direct_c, candidate_norm)
          direct_norm = direct_norm + candidate_norm
 
-         CALL kp_symmetry_op_init(op, kpoint, kpsym, is)
+         CALL kp_symmetry_op_init(op, kpoint, kpsym, is, for_aux_fit=aux_fit, &
+                                  mixed_aux_orb=mixed_aux_orb_local)
          best_mode = 0
          best_residual = HUGE(1.0_dp)
          DO mode = 1, 2
