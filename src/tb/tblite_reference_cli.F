@@ -18,6 +18,8 @@ MODULE tblite_reference_cli
                                               get_cell
    USE cp_control_types,                ONLY: dft_control_type,&
                                               xtb_reference_cli_type
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -40,6 +42,7 @@ MODULE tblite_reference_cli
                                               dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
+   USE machine,                         ONLY: m_unlink
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -812,7 +815,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: filename
 
       CHARACTER(LEN=2), ALLOCATABLE, DIMENSION(:)        :: symbols, unique_symbols
-      INTEGER                                            :: iatom, ikind, ios, natom, nuniq, unit_nr
+      INTEGER                                            :: iatom, ikind, natom, nuniq, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: species
       INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: found
@@ -844,9 +847,8 @@ CONTAINS
          species(iatom) = ikind
       END DO
 
-      OPEN (NEWUNIT=unit_nr, FILE=TRIM(filename), STATUS="REPLACE", ACTION="WRITE", &
-            FORM="FORMATTED", IOSTAT=ios)
-      IF (ios /= 0) CPABORT("Could not open tblite reference CLI geometry file")
+      CALL open_file(file_name=filename, unit_number=unit_nr, file_status="REPLACE", &
+                     file_action="WRITE")
 
       CALL get_cell(cell=cell, periodic=periodic)
       IF (ANY(periodic == 1)) THEN
@@ -865,7 +867,7 @@ CONTAINS
             WRITE (UNIT=unit_nr, FMT="(3(1X,ES24.16))") cell%hmat(:, ikind)*to_angstrom
          END DO
       END IF
-      CLOSE (unit_nr)
+      CALL close_file(unit_nr)
 
       DEALLOCATE (symbols, unique_symbols, species)
 
@@ -893,7 +895,6 @@ CONTAINS
 
       CHARACTER(LEN=1024)                                :: line
       INTEGER                                            :: ios, nread, unit_nr
-      LOGICAL                                            :: exists
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: values
 
       have_energy = .FALSE.
@@ -903,9 +904,7 @@ CONTAINS
       gradient = 0.0_dp
       virial = 0.0_dp
 
-      INQUIRE (FILE=TRIM(filename), EXIST=exists)
-      IF (.NOT. exists) RETURN
-
+      ! Keep this diagnostic read nonfatal and confined to the requested output path.
       OPEN (NEWUNIT=unit_nr, FILE=TRIM(filename), STATUS="OLD", ACTION="READ", &
             FORM="FORMATTED", IOSTAT=ios)
       IF (ios /= 0) RETURN
@@ -937,7 +936,7 @@ CONTAINS
             DEALLOCATE (values)
          END IF
       END DO
-      CLOSE (unit_nr)
+      CALL close_file(unit_nr)
 
    END SUBROUTINE tb_read_reference_grad
 
@@ -1054,13 +1053,11 @@ CONTAINS
 
       CHARACTER(LEN=*), INTENT(IN)                       :: filename
 
-      INTEGER                                            :: ios, unit_nr
-      LOGICAL                                            :: exists
+      INTEGER                                            :: istat
 
-      INQUIRE (FILE=TRIM(filename), EXIST=exists)
-      IF (.NOT. exists) RETURN
-      OPEN (NEWUNIT=unit_nr, FILE=TRIM(filename), STATUS="OLD", IOSTAT=ios)
-      IF (ios == 0) CLOSE (unit_nr, STATUS="DELETE")
+      ! Cleanup is best effort, including files the reference CLI did not create.
+      istat = m_unlink(filename)
+      IF (istat /= 0) RETURN
 
    END SUBROUTINE tb_delete_file
 

@@ -18,7 +18,7 @@ MODULE tblite_interface
    USE mctc_io, ONLY: new
    USE mctc_io_symbols, ONLY: symbol_to_number
    USE tblite_basis_type, ONLY: get_cutoff
-   USE tblite_container, ONLY: container_cache
+   USE tblite_container_cache, ONLY: container_cache
    USE tblite_container_type, ONLY: container_type
    USE tblite_data_spin, ONLY: get_spin_constant
    USE tblite_integral_multipole, ONLY: multipole_cgto, multipole_grad_cgto, msao
@@ -50,6 +50,7 @@ MODULE tblite_interface
    USE cp_dbcsr_contrib, ONLY: dbcsr_dot
    USE cp_dbcsr_cp2k_link, ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations, ONLY: dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set
+   USE cp_files, ONLY: close_file, open_file
    USE cp_log_handling, ONLY: cp_get_default_logger, cp_logger_type, cp_logger_get_default_io_unit
    USE cp_output_handling, ONLY: cp_print_key_should_output, cp_print_key_unit_nr, &
                                  cp_print_key_finished_output
@@ -1697,8 +1698,9 @@ CONTAINS
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_RAW_STATE_DUMP", raw_state_file, STATUS=raw_state_status)
 #endif
-      IF (raw_state_status == 0) THEN
-         OPEN (NEWUNIT=raw_state_unit, FILE=TRIM(raw_state_file), STATUS="REPLACE", ACTION="WRITE")
+      IF (raw_state_status == 0 .AND. para_env%is_source()) THEN
+         CALL open_file(file_name=raw_state_file, unit_number=raw_state_unit, &
+                        file_status="REPLACE", file_action="WRITE")
          WRITE (raw_state_unit, *) "qat"
          DO iatom = 1, n_atom
             WRITE (raw_state_unit, "(I0,1X,ES24.16)") iatom, -ch_atom(iatom, 1)
@@ -1721,7 +1723,7 @@ CONTAINS
                WRITE (raw_state_unit, "(I0,6(1X,ES24.16))") iatom, -ao_quad_spin(iatom, :, 1)
             END DO
          END IF
-         CLOSE (raw_state_unit)
+         CALL close_file(raw_state_unit)
       END IF
 
       ! Population arrays use CP2K electron-excess signs. The spin axis already
@@ -2556,14 +2558,15 @@ CONTAINS
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_FORCE_DUMP", dump_file, STATUS=dump_status)
 #endif
-      IF (dump_status == 0) THEN
-         OPEN (NEWUNIT=dump_unit, FILE=TRIM(dump_file), STATUS="UNKNOWN", &
-               POSITION="APPEND", ACTION="WRITE")
+      IF (dump_status == 0 .AND. para_env%is_source()) THEN
+         CALL open_file(file_name=dump_file, unit_number=dump_unit, file_status="UNKNOWN", &
+                        file_position="APPEND", file_action="WRITE")
+         ! Report the source rank's contribution to the subsequent MPI sum.
          WRITE (dump_unit, "(A,1X,I0)") "component", ityp
          DO iatom = 1, natom
             WRITE (dump_unit, "(I0,3(1X,ES24.16))") iatom, tb%grad(:, iatom)/para_env%num_pe
          END DO
-         CLOSE (dump_unit)
+         CALL close_file(dump_unit)
       END IF
 
       SELECT CASE (ityp)
@@ -3120,15 +3123,16 @@ CONTAINS
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_SIGMA_COMPONENT_DUMP", dump_file, STATUS=dump_status)
 #endif
-      IF (dump_status /= 0) RETURN
+      IF (dump_status /= 0 .OR. .NOT. para_env%is_source()) RETURN
 
-      OPEN (NEWUNIT=dump_unit, FILE=TRIM(dump_file), STATUS="UNKNOWN", &
-            POSITION="APPEND", ACTION="WRITE")
+      CALL open_file(file_name=dump_file, unit_number=dump_unit, file_status="UNKNOWN", &
+                     file_position="APPEND", file_action="WRITE")
+      ! Report the source rank's contribution to the subsequent MPI sum.
       WRITE (dump_unit, "(A)") TRIM(label)
       DO i = 1, 3
          WRITE (dump_unit, "(3(1X,ES24.16))") sigma(i, :)/para_env%num_pe
       END DO
-      CLOSE (dump_unit)
+      CALL close_file(dump_unit)
 
    END SUBROUTINE tb_dump_sigma_component
 
@@ -3165,14 +3169,15 @@ CONTAINS
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_VIRIAL_DUMP", dump_file, STATUS=dump_status)
 #endif
-      IF (dump_status == 0) THEN
-         OPEN (NEWUNIT=dump_unit, FILE=TRIM(dump_file), STATUS="UNKNOWN", &
-               POSITION="APPEND", ACTION="WRITE")
+      IF (dump_status == 0 .AND. para_env%is_source()) THEN
+         CALL open_file(file_name=dump_file, unit_number=dump_unit, file_status="UNKNOWN", &
+                        file_position="APPEND", file_action="WRITE")
+         ! Report the source rank's contribution to the subsequent MPI sum.
          WRITE (dump_unit, "(A)") "sigma"
          DO i = 1, 3
             WRITE (dump_unit, "(3(1X,ES24.16))") tb%sigma(i, :)/para_env%num_pe
          END DO
-         CLOSE (dump_unit)
+         CALL close_file(dump_unit)
       END IF
 
       virial%pv_virial = virial%pv_virial - tb%sigma/para_env%num_pe

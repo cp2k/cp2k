@@ -16,7 +16,7 @@ MODULE tblite_types
 #if defined(__TBLITE)
    USE mctc_io, ONLY: structure_type
    USE tblite_xtb_calculator, ONLY: xtb_calculator
-   USE tblite_container, ONLY: container_cache
+   USE tblite_container_cache, ONLY: container_cache
    USE tblite_scf_mixer, ONLY: mixer_type
    USE tblite_wavefunction_type, ONLY: wavefunction_type
    USE tblite_scf_potential, ONLY: potential_type
