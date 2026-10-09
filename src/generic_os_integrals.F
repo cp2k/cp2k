@@ -16,10 +16,10 @@
 !> \author Dorothea Golze
 ! **************************************************************************************************
 MODULE generic_os_integrals
+   USE ai_cartesian_operators,          ONLY: apply_cartesian_operator
    USE ai_contraction_sphi,             ONLY: ab_contract,&
                                               abc_contract,&
                                               abcd_contract
-   USE ai_derivatives,                  ONLY: dabdr_noscreen
    USE ai_operator_ra2m,                ONLY: operator_ra2m
    USE ai_operators_r12,                ONLY: ab_sint_os,&
                                               cps_coulomb2,&
@@ -228,8 +228,8 @@ CONTAINS
                CALL operator2(cps_operator2, la_max(iset) + 1, npgfa(iset), zeta(:, iset), la_min(iset), &
                               lb_max(jset) + 1, npgfb(jset), zetb(:, jset), lb_min(jset), &
                               omega, r_cutoff, rab, rab2, vac, vwork, maxder=1, vac_plus=vac_plus)
-               CALL dabdr_noscreen(la_max(iset), npgfa(iset), zeta(:, iset), lb_max(jset), npgfb(jset), &
-                                   vac_plus, devab(:, :, 1), devab(:, :, 2), devab(:, :, 3))
+               CALL apply_cartesian_operator(la_max(iset), 0, npgfa(iset), lb_max(jset), 0, npgfb(jset), &
+                                             vac_plus, devab, right=.FALSE., derivative=.TRUE., exponents=zeta(:, iset))
                DO i = 1, 3
                   CALL ab_contract(dvab(sgfa:m1, sgfb:m2, i), devab(:, :, i), sphi_a(:, sgfa:), &
                                    sphi_b(:, sgfb:), ncoa, ncob, nsgfa(iset), nsgfb(jset))

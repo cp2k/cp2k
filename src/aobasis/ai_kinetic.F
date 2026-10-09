@@ -18,10 +18,11 @@
 !> \author Matthias Krack (31.07.2000)
 ! **************************************************************************************************
 MODULE ai_kinetic
+   USE ai_cartesian_operators,          ONLY: apply_cartesian_1d
    USE ai_os_rr,                        ONLY: os_rr_ovlp
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
-   USE orbital_pointers,                ONLY: coset,&
+   USE orbital_pointers,                ONLY: indco,&
                                               ncoset
 #include "../base/base_uses.f90"
 
@@ -69,13 +70,11 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
          OPTIONAL                                        :: dab
 
-      INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, ia, &
-                                                            ib, idx, idy, idz, ipgf, jpgf, la, lb, &
-                                                            ldrr, lma, lmb, ma, mb, na, nb, ofa, &
-                                                            ofb
-      REAL(KIND=dp)                                      :: a, b, dsx, dsy, dsz, dtx, dty, dtz, f0, &
-                                                            rab2, tab, xhi, zet
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rr, tt
+      INTEGER                                            :: avec(3), bvec(3), coa, cob, ia, ib, &
+                                                            idir, ipgf, jdir, jpgf, kdir, ldrr, &
+                                                            lma, lmb, ma, mb, na, nb, ofa, ofb
+      REAL(KIND=dp)                                      :: a, b, f0, rab2, tab, xhi, zet
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: drr, dtt, rr, tt
       REAL(KIND=dp), DIMENSION(3)                        :: rap, rbp
 
       CPASSERT(PRESENT(kab) .OR. PRESENT(dab))
@@ -93,14 +92,13 @@ CONTAINS
       IF (PRESENT(dab)) THEN
          lma = la_max + 2
          lmb = lb_max + 1
-         idx = coset(1, 0, 0) - coset(0, 0, 0)
-         idy = coset(0, 1, 0) - coset(0, 0, 0)
-         idz = coset(0, 0, 1) - coset(0, 0, 0)
       END IF
       ldrr = MAX(lma, lmb) + 1
 
       ! Allocate space for auxiliary integrals
-      ALLOCATE (rr(0:ldrr - 1, 0:ldrr - 1, 3), tt(0:ldrr - 1, 0:ldrr - 1, 3))
+      ALLOCATE (rr(0:ldrr - 1, 0:ldrr - 1, 3), tt(0:ldrr - 1, 0:ldrr - 1, 3), &
+                drr(0:ldrr - 1, 0:ldrr - 1, 3))
+      IF (PRESENT(dab)) ALLOCATE (dtt(0:ldrr - 1, 0:ldrr - 1, 3))
 
       ! Number of integrals, check size of arrays
       ofa = ncoset(la_min - 1)
@@ -144,81 +142,39 @@ CONTAINS
             ! Calculate the recurrence relation, overlap
             CALL os_rr_ovlp(rap, lma, rbp, lmb, zet, ldrr, rr)
 
-            ! kinetic energy auxiliary integrals, overlap of [da/dx|db/dx]
-            DO la = 0, lma - 1
-               DO lb = 0, lmb - 1
-                  tt(la, lb, 1) = 4.0_dp*a*b*rr(la + 1, lb + 1, 1)
-                  tt(la, lb, 2) = 4.0_dp*a*b*rr(la + 1, lb + 1, 2)
-                  tt(la, lb, 3) = 4.0_dp*a*b*rr(la + 1, lb + 1, 3)
-                  IF (la > 0 .AND. lb > 0) THEN
-                     tt(la, lb, 1) = tt(la, lb, 1) + REAL(la*lb, dp)*rr(la - 1, lb - 1, 1)
-                     tt(la, lb, 2) = tt(la, lb, 2) + REAL(la*lb, dp)*rr(la - 1, lb - 1, 2)
-                     tt(la, lb, 3) = tt(la, lb, 3) + REAL(la*lb, dp)*rr(la - 1, lb - 1, 3)
-                  END IF
-                  IF (la > 0) THEN
-                     tt(la, lb, 1) = tt(la, lb, 1) - 2.0_dp*REAL(la, dp)*b*rr(la - 1, lb + 1, 1)
-                     tt(la, lb, 2) = tt(la, lb, 2) - 2.0_dp*REAL(la, dp)*b*rr(la - 1, lb + 1, 2)
-                     tt(la, lb, 3) = tt(la, lb, 3) - 2.0_dp*REAL(la, dp)*b*rr(la - 1, lb + 1, 3)
-                  END IF
-                  IF (lb > 0) THEN
-                     tt(la, lb, 1) = tt(la, lb, 1) - 2.0_dp*REAL(lb, dp)*a*rr(la + 1, lb - 1, 1)
-                     tt(la, lb, 2) = tt(la, lb, 2) - 2.0_dp*REAL(lb, dp)*a*rr(la + 1, lb - 1, 2)
-                     tt(la, lb, 3) = tt(la, lb, 3) - 2.0_dp*REAL(lb, dp)*a*rr(la + 1, lb - 1, 3)
-                  END IF
-               END DO
-            END DO
+            ! Mixed center derivatives give the overlap of the two electronic gradients.
+            CALL apply_cartesian_1d(rr, drr, lma - 1, lmb, .FALSE., .TRUE., a, [0.0_dp, 0.0_dp, 0.0_dp])
+            CALL apply_cartesian_1d(drr, tt, lma - 1, lmb - 1, .TRUE., .TRUE., b, [0.0_dp, 0.0_dp, 0.0_dp])
+            IF (PRESENT(dab)) THEN
+               CALL apply_cartesian_1d(tt, dtt, la_max, lb_max, .FALSE., .TRUE., a, [0.0_dp, 0.0_dp, 0.0_dp])
+            END IF
 
-            DO lb = lb_min, lb_max
-            DO bx = 0, lb
-            DO by = 0, lb - bx
-               bz = lb - bx - by
-               cob = coset(bx, by, bz) - ofb
-               ib = mb + cob
-               DO la = la_min, la_max
-               DO ax = 0, la
-               DO ay = 0, la - ax
-                  az = la - ax - ay
-                  coa = coset(ax, ay, az) - ofa
-                  ia = ma + coa
-                  ! integrals
-                  IF (PRESENT(kab)) THEN
-                     kab(ia, ib) = f0*(tt(ax, bx, 1)*rr(ay, by, 2)*rr(az, bz, 3) + &
-                                       rr(ax, bx, 1)*tt(ay, by, 2)*rr(az, bz, 3) + &
-                                       rr(ax, bx, 1)*rr(ay, by, 2)*tt(az, bz, 3))
-                  END IF
-                  ! first derivatives
-                  IF (PRESENT(dab)) THEN
-                     ! dx
-                     dsx = 2.0_dp*a*rr(ax + 1, bx, 1)
-                     IF (ax > 0) dsx = dsx - REAL(ax, dp)*rr(ax - 1, bx, 1)
-                     dtx = 2.0_dp*a*tt(ax + 1, bx, 1)
-                     IF (ax > 0) dtx = dtx - REAL(ax, dp)*tt(ax - 1, bx, 1)
-                     dab(ia, ib, idx) = dtx*rr(ay, by, 2)*rr(az, bz, 3) + &
-                                        dsx*(tt(ay, by, 2)*rr(az, bz, 3) + rr(ay, by, 2)*tt(az, bz, 3))
-                     ! dy
-                     dsy = 2.0_dp*a*rr(ay + 1, by, 2)
-                     IF (ay > 0) dsy = dsy - REAL(ay, dp)*rr(ay - 1, by, 2)
-                     dty = 2.0_dp*a*tt(ay + 1, by, 2)
-                     IF (ay > 0) dty = dty - REAL(ay, dp)*tt(ay - 1, by, 2)
-                     dab(ia, ib, idy) = dty*rr(ax, bx, 1)*rr(az, bz, 3) + &
-                                        dsy*(tt(ax, bx, 1)*rr(az, bz, 3) + rr(ax, bx, 1)*tt(az, bz, 3))
-                     ! dz
-                     dsz = 2.0_dp*a*rr(az + 1, bz, 3)
-                     IF (az > 0) dsz = dsz - REAL(az, dp)*rr(az - 1, bz, 3)
-                     dtz = 2.0_dp*a*tt(az + 1, bz, 3)
-                     IF (az > 0) dtz = dtz - REAL(az, dp)*tt(az - 1, bz, 3)
-                     dab(ia, ib, idz) = dtz*rr(ax, bx, 1)*rr(ay, by, 2) + &
-                                        dsz*(tt(ax, bx, 1)*rr(ay, by, 2) + rr(ax, bx, 1)*tt(ay, by, 2))
-                     ! scale
-                     dab(ia, ib, 1:3) = f0*dab(ia, ib, 1:3)
-                  END IF
-                  !
+            DO cob = ofb + 1, ncoset(lb_max)
+               bvec = indco(:, cob)
+               ib = mb + cob - ofb
+               DO coa = ofa + 1, ncoset(la_max)
+                  avec = indco(:, coa)
+                  ia = ma + coa - ofa
+                  IF (PRESENT(kab)) kab(ia, ib) = 0.0_dp
+                  DO idir = 1, 3
+                     jdir = MOD(idir, 3) + 1
+                     kdir = MOD(idir + 1, 3) + 1
+                     IF (PRESENT(kab)) THEN
+                        kab(ia, ib) = kab(ia, ib) + tt(avec(idir), bvec(idir), idir)* &
+                                      rr(avec(jdir), bvec(jdir), jdir)*rr(avec(kdir), bvec(kdir), kdir)
+                     END IF
+                     IF (PRESENT(dab)) THEN
+                        dab(ia, ib, idir) = dtt(avec(idir), bvec(idir), idir)* &
+                                            rr(avec(jdir), bvec(jdir), jdir)*rr(avec(kdir), bvec(kdir), kdir) + &
+                                            drr(avec(idir), bvec(idir), idir)* &
+                                            (tt(avec(jdir), bvec(jdir), jdir)*rr(avec(kdir), bvec(kdir), kdir) + &
+                                             rr(avec(jdir), bvec(jdir), jdir)*tt(avec(kdir), bvec(kdir), kdir))
+                     END IF
+                  END DO
+                  IF (PRESENT(kab)) kab(ia, ib) = f0*kab(ia, ib)
+                  IF (PRESENT(dab)) dab(ia, ib, 1:3) = f0*dab(ia, ib, 1:3)
                END DO
-               END DO
-               END DO !la
             END DO
-            END DO
-            END DO !lb
 
             mb = mb + nb
          END DO

@@ -761,8 +761,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_from_RI_index
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
-      REAL(KIND=dp)                                      :: contribution, omega, tau, weight, &
-                                                            weight_im, weight_re
+      REAL(KIND=dp)                                      :: contribution, weight, weight_im, &
+                                                            weight_re
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
@@ -853,9 +853,7 @@ CONTAINS
 
          DO iquad = 1, num_integ_points
 
-            omega = grid%frequency(jquad)
-            tau = grid%imaginary_time(iquad)
-            weight = grid%cosine_frequency_to_time_weights(iquad, jquad)*COS(tau*omega)
+            weight = grid%cosine_frequency_to_time(iquad, jquad)
 
             IF (jquad == 1 .AND. ikp == 1) THEN
                CALL cp_fm_set_all(matrix=fm_mat_W_tau(iquad), alpha=0.0_dp)
@@ -881,9 +879,7 @@ CONTAINS
 
             DO iquad = 1, num_integ_points
 
-               omega = grid%frequency(jquad)
-               tau = grid%imaginary_time(iquad)
-               weight = grid%cosine_frequency_to_time_weights(iquad, jquad)*COS(tau*omega)
+               weight = grid%cosine_frequency_to_time(iquad, jquad)
 
                IF (jquad == 1 .AND. jkp == 1) THEN
                   CALL cp_fm_set_all(matrix=fm_mat_W_tau(iquad), alpha=0.0_dp)

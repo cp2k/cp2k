@@ -2407,8 +2407,8 @@ CONTAINS
                           name="SCCS", &
                           description="Define the parameters for self-consistent continuum solvation (SCCS) model", &
                           citations=[Fattebert2002, Andreussi2012, Yin2017], &
-                          n_keywords=8, &
-                          n_subsections=3, &
+                          n_keywords=10, &
+                          n_subsections=4, &
                           repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -2566,7 +2566,56 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="CORE_FILL", &
+                          description="Add a normalised Gaussian fill density $Z_{val}/(\sqrt{\pi}\sigma)^3 "// &
+                          "\exp(-r^2/\sigma^2)$ on each atom to the electronic density used for the "// &
+                          "definition of the dielectric function. This fills the low valence density "// &
+                          "region at the nuclei of pseudopotential atoms, which otherwise may be treated "// &
+                          "as solvent if a grid point is close to a nucleus (similar to the solvent_mode "// &
+                          "'full' of the Environ library). Kinds without removed core electrons (Z_val = Z, "// &
+                          "e.g. H, He-q2, Li-q3, Be-q4) are not filled by default. "// &
+                          "The resulting ionic forces are included.", &
+                          usage="CORE_FILL", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="CORE_FILL_SPREAD", &
+                          description="Default spread $\sigma$ of the Gaussian fill density used with CORE_FILL "// &
+                          "(Environ default 0.5 bohr). Can be overwritten per kind in the CORE_FILL_KIND section.", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          unit_str="bohr", &
+                          default_r_val=0.5_dp, &
+                          usage="CORE_FILL_SPREAD [bohr] 0.5")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       NULLIFY (subsection)
+
+      CALL section_create(subsection, __LOCATION__, &
+                          name="CORE_FILL_KIND", &
+                          description="Per-kind spread of the CORE_FILL Gaussian fill density. "// &
+                          "Each line contains a kind label (as defined in &KIND) and the spread in bohr. "// &
+                          "A spread <= 0 disables the fill for that kind. Kinds not listed use "// &
+                          "CORE_FILL_SPREAD, except kinds without removed core electrons (Z_val = Z) which are "// &
+                          "not filled.", &
+                          n_keywords=1, &
+                          n_subsections=0, &
+                          repeats=.FALSE.)
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
+                          description="Kind label and spread in bohr", &
+                          repeats=.TRUE., &
+                          usage="{kind label} {spread in bohr}", &
+                          type_of_var=lchar_t)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
       CALL section_create(subsection, __LOCATION__, &
                           name="ANDREUSSI", &

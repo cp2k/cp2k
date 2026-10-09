@@ -5,6 +5,8 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 MODULE qs_vcd_ao
+
+   USE ai_cartesian_operators,          ONLY: apply_cartesian_operator
    USE ai_contraction,                  ONLY: block_add,&
                                               contraction
    USE ai_kinetic,                      ONLY: kinetic
@@ -36,8 +38,7 @@ MODULE qs_vcd_ao
                                               int_8
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_comm_type
-   USE orbital_pointers,                ONLY: coset,&
-                                              init_orbital_pointers,&
+   USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               ncoset
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -552,9 +553,9 @@ CONTAINS
                             rab, tkab)
                ! Ordered products T*r and r*T
                DO i = 1, 2
-                  CALL ab_opr(la_max(iset), npgfa(iset), rpgfa(:, iset), la_min(iset), &
-                              lb_max(jset), npgfb(jset), rpgfb(:, jset), lb_min(jset), &
-                              tab, tkab, kab, rac, rbc, direction_Or=(i == 1))
+                  CALL apply_cartesian_operator(la_max(iset), la_min(iset), npgfa(iset), &
+                                                lb_max(jset), lb_min(jset), npgfb(jset), tkab, kab, &
+                                                right=(i == 1), derivative=.FALSE., origin=MERGE(rbc, rac, i == 1))
                   DO ir = 1, 3
                      CALL contraction(kab(:, :, ir), qab, ca=scon_a(:, sgfa:), na=ncoa, ma=nsgfa(iset), &
                                       cb=scon_b(:, sgfb:), nb=ncob, mb=nsgfb(jset), trans=trans)
@@ -629,7 +630,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: hab, qab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ppl_work, rhab, work
       REAL(KIND=dp), DIMENSION(1:10)                     :: aloc, bloc
-      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rac, raf, rb, rbc, rbf
+      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rac, raf, rb, rbc
       REAL(KIND=dp), DIMENSION(4, nexp_max)              :: cval_ppl
       REAL(KIND=dp), DIMENSION(:), POINTER               :: a_local, alpha_lpot, c_local, cexp_ppl, &
                                                             set_radius_a, set_radius_b
@@ -742,7 +743,7 @@ CONTAINS
 !$OMP PRIVATE (first_sgfa, la_max, la_min, npgfa, nsgfa, rpgfa, set_radius_a, sphi_a, zeta, scon_a) &
 !$OMP PRIVATE (first_sgfb, lb_max, lb_min, npgfb, nsgfb, rpgfb, set_radius_b, sphi_b, zetb, scon_b) &
 !$OMP PRIVATE (nloc, nrloc, aloc, bloc, n_local, a_local, c_local, ldai) &
-!$OMP PRIVATE (ra, rb, qab, raf, rbf, do_upf)
+!$OMP PRIVATE (ra, rb, qab, raf, do_upf)
 
       mepos = 0
 !$    mepos = omp_get_thread_num()
@@ -812,7 +813,6 @@ CONTAINS
          rb(:) = ra(:) + rab(:)
 
          raf = pbc(rf, ra, cell)
-         rbf = raf + rab
 
          ! loop over all kinds for pseudopotential atoms
          DO kkind = 1, nkind
@@ -912,10 +912,8 @@ CONTAINS
                      END IF
 
                      ! product with r
-                     CALL ab_opr(la_max(iset), npgfa(iset), rpgfa(:, iset), 0, &
-                                 lb_max(jset), npgfb(jset), rpgfb(:, jset), 0, &
-                                 dab, hab(:, :), rhab(:, :, :), raf, rbf, &
-                                 direction_Or=.FALSE.)
+                     CALL apply_cartesian_operator(la_max(iset), 0, npgfa(iset), lb_max(jset), 0, npgfb(jset), &
+                                                   hab, rhab, right=.FALSE., derivative=.FALSE., origin=raf)
 
                      DO idir = 1, 3
                         CALL dgemm("N", "N", ncoa, nsgfb(jset), ncob, &
@@ -1084,12 +1082,11 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, found, has_threads, &
          my_compute_tau, my_gapw, new_set_pair_coming
-      REAL(KIND=dp)                                      :: dab, eps_rho_rspace, f, prefactor, &
-                                                            radius, zetp
+      REAL(KIND=dp)                                      :: eps_rho_rspace, f, prefactor, radius, &
+                                                            zetp
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rab_inv, rac, rb, rbc, rp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hab, rpgfa, rpgfb, sphi_a, sphi_b, work, &
-                                                            zeta, zetb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hab, sphi_a, sphi_b, work, zeta, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: habt, rhab, workt
       TYPE(atom_pair_type), DIMENSION(:), POINTER        :: atom_pair_recv, atom_pair_send
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1263,7 +1260,6 @@ CONTAINS
                                          npgf=npgfa, &
                                          nset=nseta, &
                                          nsgf_set=nsgfa, &
-                                         pgf_radius=rpgfa, &
                                          set_radius=set_radius_a, &
                                          sphi=sphi_a, &
                                          zet=zeta)
@@ -1279,7 +1275,6 @@ CONTAINS
                                          npgf=npgfb, &
                                          nset=nsetb, &
                                          nsgf_set=nsgfb, &
-                                         pgf_radius=rpgfb, &
                                          set_radius=set_radius_b, &
                                          sphi=sphi_b, &
                                          zet=zetb)
@@ -1325,7 +1320,6 @@ CONTAINS
             END IF
 
             rab = tasks(itask)%rab
-            dab = norm2(rab)
             ! With and without MIC, rab(:) is the vector giving us the coordinates of rb.
             ra = pbc(particle_set(iatom)%r(:), cell)
             rb(:) = ra(:) + rab(:)
@@ -1390,16 +1384,12 @@ CONTAINS
             IF (new_set_pair_coming) THEN
                ! Increase lx, ly, lz by one to account for the | r * b >
                IF (iatom <= jatom) THEN
-                  ! direction_Or = .false. so that we use rac
-                  CALL ab_opr(la_max(iset), npgfa(iset), rpgfa(:, iset), 0, &
-                              lb_max(jset), npgfb(jset), rpgfb(:, jset), 0, &
-                              dab, hab(:, :), rhab(:, :, :), rac, rbc, direction_Or=.FALSE.)
+                  CALL apply_cartesian_operator(la_max(iset), 0, npgfa(iset), lb_max(jset), 0, npgfb(jset), &
+                                                hab, rhab, right=.FALSE., derivative=.FALSE., origin=rac)
 
                ELSE
-                  ! direction_Or = .true. so that we use rac
-                  CALL ab_opr(lb_max(jset), npgfb(jset), rpgfb(:, jset), 0, &
-                              la_max(iset), npgfa(iset), rpgfa(:, iset), 0, &
-                              dab, hab(:, :), rhab(:, :, :), rbc, rac, direction_Or=.TRUE.)
+                  CALL apply_cartesian_operator(lb_max(jset), 0, npgfb(jset), la_max(iset), 0, npgfa(iset), &
+                                                hab, rhab, right=.TRUE., derivative=.FALSE., origin=rac)
                END IF
 
                ! contract the block into h if we're done with the current set pair
@@ -2147,124 +2137,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE build_dcom_rpnl
-
-! **************************************************************************************************
-!> \brief   Calculate the product O*r or r*O from the integrals [a|O|b].
-!>          We assume that on input all integrals [a+1|O|b+1] are available.
-!> \param la_max ...
-!> \param npgfa ...
-!> \param rpgfa ...
-!> \param la_min ...
-!> \param lb_max ...
-!> \param npgfb ...
-!> \param rpgfb ...
-!> \param lb_min ...
-!> \param dab ...
-!> \param ab ...
-!> \param comabr ...
-!>
-!> \param ra ...
-!> \param rb ...
-!> \param direction_Or ...
-!> \par Literature
-!>          S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
-!> \par Parameters
-!>      - ax,ay,az  : Angular momentum index numbers of orbital a.
-!>      - bx,by,bz  : Angular momentum index numbers of orbital b.
-!>      - coset     : Cartesian orbital set pointer.
-!>      - l{a,b}    : Angular momentum quantum number of shell a or b.
-!>      - l{a,b}_max: Maximum angular momentum quantum number of shell a or b.
-!>      - l{a,b}_min: Minimum angular momentum quantum number of shell a or b.
-!>      - ncoset    : Number of orbitals in a Cartesian orbital set.
-!>      - npgf{a,b} : Degree of contraction of shell a or b.
-!>      - rab       : Distance vector between the atomic centers a and b.
-!>      - rab2      : Square of the distance between the atomic centers a and b.
-!>      - rac       : Distance vector between the atomic centers a and c.
-!>      - rac2      : Square of the distance between the atomic centers a and c.
-!>      - rbc       : Distance vector between the atomic centers b and c.
-!>      - rbc2      : Square of the distance between the atomic centers b and c.
-!>      - rpgf{a,b} : Radius of the primitive Gaussian-type function a or b.
-!>      - zet{a,b}  : Exponents of the Gaussian-type functions a or b.
-!>      - zetp      : Reciprocal of the sum of the exponents of orbital a and b.
-!>
-!> \author  Tomas Zimmermann
-! **************************************************************************************************
-   SUBROUTINE ab_opr(la_max, npgfa, rpgfa, la_min, lb_max, npgfb, rpgfb, lb_min, &
-                     dab, ab, comabr, ra, rb, direction_Or)
-      INTEGER, INTENT(IN)                                :: la_max, npgfa
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rpgfa
-      INTEGER, INTENT(IN)                                :: la_min, lb_max, npgfb
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rpgfb
-      INTEGER, INTENT(IN)                                :: lb_min
-      REAL(KIND=dp), INTENT(IN)                          :: dab
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ab
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: comabr
-      REAL(KIND=dp), DIMENSION(1:3), INTENT(IN)          :: ra, rb
-      LOGICAL                                            :: direction_Or
-
-      INTEGER                                            :: ax, ay, az, bx, by, bz, coa, coap, &
-                                                            coapx, coapy, coapz, cob, cobp, cobpx, &
-                                                            cobpy, cobpz, ipgf, jpgf, la, lb, na, &
-                                                            nap, nb, nbp, ofa, ofb
-
-      comabr = 0.0_dp
-
-      ofa = ncoset(la_min - 1)
-      ofb = ncoset(lb_min - 1)
-
-      na = 0
-      nap = 0
-      DO ipgf = 1, npgfa
-         nb = 0
-         nbp = 0
-         DO jpgf = 1, npgfb
-            IF (rpgfa(ipgf) + rpgfb(jpgf) > dab) THEN
-               DO la = la_min, la_max
-                  DO ax = 0, la
-                     DO ay = 0, la - ax
-                        az = la - ax - ay
-                        coa = na + coset(ax, ay, az) - ofa
-                        coap = nap + coset(ax, ay, az) - ofa
-                        coapx = nap + coset(ax + 1, ay, az) - ofa
-                        coapy = nap + coset(ax, ay + 1, az) - ofa
-                        coapz = nap + coset(ax, ay, az + 1) - ofa
-                        DO lb = lb_min, lb_max
-                           DO bx = 0, lb
-                              DO by = 0, lb - bx
-                                 bz = lb - bx - by
-                                 cob = nb + coset(bx, by, bz) - ofb
-                                 cobp = nbp + coset(bx, by, bz) - ofb
-                                 cobpx = nbp + coset(bx + 1, by, bz) - ofb
-                                 cobpy = nbp + coset(bx, by + 1, bz) - ofb
-                                 cobpz = nbp + coset(bx, by, bz + 1) - ofb
-                                 IF (direction_Or) THEN
-                                    ! [a|O * x|b] = [a|O|b(x+1)] + [a|O|b] * X_b
-                                    !             = [a|O * (x - X_b)|b] + [a|O|b] * X_b
-                                    ! So the second term makes sure that we actually calculate
-                                    !  <O*r> and not <O*(r-R)>
-                                    comabr(coa, cob, 1) = ab(coap, cobpx) + ab(coap, cobp)*rb(1)
-                                    comabr(coa, cob, 2) = ab(coap, cobpy) + ab(coap, cobp)*rb(2)
-                                    comabr(coa, cob, 3) = ab(coap, cobpz) + ab(coap, cobp)*rb(3)
-                                 ELSE
-                                    comabr(coa, cob, 1) = ab(coapx, cobp) + ab(coap, cobp)*ra(1)
-                                    comabr(coa, cob, 2) = ab(coapy, cobp) + ab(coap, cobp)*ra(2)
-                                    comabr(coa, cob, 3) = ab(coapz, cobp) + ab(coap, cobp)*ra(3)
-                                 END IF
-                              END DO
-                           END DO
-                        END DO
-                     END DO
-                  END DO
-               END DO
-            END IF
-            nb = nb + ncoset(lb_max) - ofb
-            nbp = nbp + ncoset(lb_max + 1) - ofb
-         END DO
-         na = na + ncoset(la_max) - ofa
-         nap = nap + ncoset(la_max + 1) - ofa
-      END DO
-
-   END SUBROUTINE ab_opr
 
 ! **************************************************************************************************
 !> \brief Apply the operator \delta_\mu^\lambda to zero out all elements of the matrix

@@ -1,0 +1,7 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+# O-Y finite-difference check, and energy coverage with per-kind spreads.
+"H2O_sccs_core_fill.inp"                = [{matcher="DEBUG_force_sum", tol=1.0E-4, ref=0.0}]
+"H2O_sccs_core_fill_fg.inp"             = [{matcher="E_total", tol=1.0E-10, ref=-17.23600438186110}]
+#EOF

@@ -230,8 +230,8 @@ CONTAINS
             fxc_tau_lo => fxc_tau_uf
          ELSE
             IF (ASSOCIATED(fxc_rho_uf)) THEN
-               ALLOCATE (fxc_rho_lo(nspins))
-               DO ispin = 1, nspins
+               ALLOCATE (fxc_rho_lo(SIZE(fxc_rho_uf)))
+               DO ispin = 1, SIZE(fxc_rho_uf)
                   CALL auxbas_pw_pool%create_pw(fxc_rho_lo(ispin))
                   BLOCK
                      TYPE(pw_c1d_gs_type) :: fxc_g, fxc_g_uf
@@ -248,8 +248,8 @@ CONTAINS
                DEALLOCATE (fxc_rho_uf)
             END IF
             IF (ASSOCIATED(fxc_tau_uf)) THEN
-               ALLOCATE (fxc_tau_lo(nspins))
-               DO ispin = 1, nspins
+               ALLOCATE (fxc_tau_lo(SIZE(fxc_tau_uf)))
+               DO ispin = 1, SIZE(fxc_tau_uf)
                   CALL auxbas_pw_pool%create_pw(fxc_tau_lo(ispin))
                   BLOCK
                      TYPE(pw_c1d_gs_type) :: fxc_g, fxc_g_uf
@@ -263,6 +263,7 @@ CONTAINS
                   END BLOCK
                   CALL xc_pw_pool%give_back_pw(fxc_tau_uf(ispin))
                END DO
+               DEALLOCATE (fxc_tau_uf)
             END IF
          END IF
 
@@ -801,8 +802,8 @@ CONTAINS
             DEALLOCATE (weights_uf)
          END IF
          IF (ASSOCIATED(fxc_rho_uf)) THEN
-            ALLOCATE (fxc_rho_lo(nspins))
-            DO ispin = 1, nspins
+            ALLOCATE (fxc_rho_lo(SIZE(fxc_rho_uf)))
+            DO ispin = 1, SIZE(fxc_rho_uf)
                CALL auxbas_pw_pool%create_pw(fxc_rho_lo(ispin))
                BLOCK
                   TYPE(pw_c1d_gs_type) :: fxc_g, fxc_g_uf
@@ -819,8 +820,8 @@ CONTAINS
             DEALLOCATE (fxc_rho_uf)
          END IF
          IF (ASSOCIATED(fxc_tau_uf)) THEN
-            ALLOCATE (fxc_tau_lo(nspins))
-            DO ispin = 1, nspins
+            ALLOCATE (fxc_tau_lo(SIZE(fxc_tau_uf)))
+            DO ispin = 1, SIZE(fxc_tau_uf)
                CALL auxbas_pw_pool%create_pw(fxc_tau_lo(ispin))
                BLOCK
                   TYPE(pw_c1d_gs_type) :: fxc_g, fxc_g_uf
@@ -834,6 +835,7 @@ CONTAINS
                END BLOCK
                CALL xc_pw_pool%give_back_pw(fxc_tau_uf(ispin))
             END DO
+            DEALLOCATE (fxc_tau_uf)
          END IF
 
       ELSE

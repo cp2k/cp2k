@@ -76,9 +76,10 @@ test cp2k daint:
   needs: ["build cp2k daint"]
   timeout: 6h
   script:
-    - podman run --shm-size=1g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} mpiexec -bind-to socket -genv OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK} -n ${SLURM_NTASKS} cp2k /opt/cp2k/benchmarks/CI/H2O-32_md.inp
-    - podman run --shm-size=1g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} mpiexec -bind-to socket -genv OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK} -n ${SLURM_NTASKS} cp2k /opt/cp2k/benchmarks/CI/H2O-32_md_elpa.inp
+    - podman run --env HDF5_DO_MPI_FILE_SYNC --shm-size=1g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} mpiexec -bind-to socket -genv OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK} -n ${SLURM_NTASKS} cp2k /opt/cp2k/benchmarks/CI/H2O-32_md.inp
+    - podman run --env HDF5_DO_MPI_FILE_SYNC --shm-size=1g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} mpiexec -bind-to socket -genv OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK} -n ${SLURM_NTASKS} cp2k /opt/cp2k/benchmarks/CI/H2O-32_md_elpa.inp
   variables:
+    HDF5_DO_MPI_FILE_SYNC: 0
     SLURM_CPUS_PER_TASK: 4
     SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
@@ -95,8 +96,9 @@ regression test cp2k daint:
   timeout: 6h
   script:
     - git --no-pager log -1 --pretty="%nCommitSHA:%x20%H%nCommitTime:%x20%ci%nCommitAuthor:%x20%an%nCommitSubject:%x20%s%n"
-    - podman run --shm-size=8g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --cp2kdatadir /opt/cp2k/install/share/cp2k/data --maxtasks ${SLURM_NTASKS} --timeout 400 --mpiexec "mpiexec -bind-to none" --keepalive /opt/cp2k/install/bin ${VERSION} 2>&1 || true
+    - podman run --env HDF5_DO_MPI_FILE_SYNC --shm-size=8g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --cp2kdatadir /opt/cp2k/install/share/cp2k/data --maxtasks ${SLURM_NTASKS} --timeout 400 --mpiexec "mpiexec -bind-to none" --keepalive /opt/cp2k/install/bin ${VERSION} 2>&1 || true
   variables:
+    HDF5_DO_MPI_FILE_SYNC: 0
     SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
@@ -112,6 +114,7 @@ benchmark cp2k 1 daint node:
   image: ${CSCS_IMAGE_NAME}
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
+    - export HDF5_DO_MPI_FILE_SYNC=0
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
@@ -134,6 +137,7 @@ benchmark cp2k 1 daint node elpa:
   image: ${CSCS_IMAGE_NAME}
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
+    - export HDF5_DO_MPI_FILE_SYNC=0
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md_elpa.inp
@@ -156,6 +160,7 @@ benchmark cp2k 2 daint nodes:
   image: ${CSCS_IMAGE_NAME}
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
+    - export HDF5_DO_MPI_FILE_SYNC=0
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
@@ -178,6 +183,7 @@ benchmark cp2k 2 daint nodes elpa:
   image: ${CSCS_IMAGE_NAME}
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
+    - export HDF5_DO_MPI_FILE_SYNC=0
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md_elpa.inp

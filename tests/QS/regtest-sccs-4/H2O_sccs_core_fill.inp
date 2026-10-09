@@ -1,0 +1,28 @@
+@SET SCCS on
+@SET DM cd5
+@SET OT 1
+@SET TD 0
+@SET RUN debug
+@SET PROJECT H2O_sccs_core_fill
+@SET METHOD Andreussi
+@SET KIND_SPREAD 0
+@SET EPS_SCF 1.0E-7
+@SET EPS_SCCS 1.0E-7
+# Compact cell and minimal basis keep the three force-check evaluations cheap.
+@SET CUTOFF 200
+@SET CELL_SIZE 6.0
+@SET FILL_SPREAD 1.2
+@SET BASIS SZV-MOLOPT-SR-GTH
+# A wider fill overlaps the dielectric transition, making its force measurable.
+# With the fill force omitted, the O-Y error exceeds the 1.0E-4 matcher tolerance.
+# X and Z vanish by symmetry.
+&DEBUG
+  CHECK_ATOM_FORCE 1 Y
+  DEBUG_FORCES yes
+  DEBUG_STRESS_TENSOR no
+  DX 0.002
+  EPS_NO_ERROR_CHECK 1.0E-5
+  STOP_ON_MISMATCH off
+&END DEBUG
+
+@INCLUDE H2O_sccs_core_fill.inc

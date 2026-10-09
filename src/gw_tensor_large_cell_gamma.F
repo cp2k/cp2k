@@ -65,8 +65,7 @@ MODULE gw_tensor_large_cell_Gamma
                                               dbt_filter,&
                                               dbt_type
    USE gw_utils,                        ONLY: analyt_conti_and_print,&
-                                              de_init_bs_env,&
-                                              time_to_freq
+                                              de_init_bs_env
    USE gw_utils_communication,          ONLY: fm_to_local_tensor,&
                                               local_dbt_to_global_mat
    USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
@@ -96,6 +95,9 @@ MODULE gw_tensor_large_cell_Gamma
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_tensors,                      ONLY: build_3c_integrals
    USE rpa_gw_kpoints_util,             ONLY: cfm_screened_interaction_from_eps_cholesky
+   USE time_frequency_grids,            ONLY: negative_time,&
+                                              positive_time,&
+                                              transform_time_to_frequency
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1396,22 +1398,19 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_fm_chi_Gamma_freq'
 
       INTEGER                                            :: handle, i_t
-      REAL(KIND=dp)                                      :: freq_j, time_i, weight_ij
+      REAL(KIND=dp)                                      :: weight_ij
 
       CALL timeset(routineN, handle)
 
       CALL dbcsr_set(bs_env%mat_RI_RI%matrix, 0.0_dp)
 
-      freq_j = bs_env%time_frequency_grid%frequency(j_w)
-
       DO i_t = 1, bs_env%num_time_freq_points
 
-         time_i = bs_env%time_frequency_grid%imaginary_time(i_t)
-         weight_ij = bs_env%time_frequency_grid%cosine_time_to_frequency_weights(j_w, i_t)
+         weight_ij = bs_env%time_frequency_grid%cosine_time_to_frequency(j_w, i_t)
 
          ! Fourier transform
          CALL dbcsr_add(bs_env%mat_RI_RI%matrix, mat_chi_Gamma_tau(i_t)%matrix, &
-                        1.0_dp, COS(time_i*freq_j)*weight_ij)
+                        1.0_dp, weight_ij)
 
       END DO
 
@@ -1497,20 +1496,17 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'Fourier_transform_w_to_t'
 
       INTEGER                                            :: handle, i_t
-      REAL(KIND=dp)                                      :: freq_j, time_i, weight_ij
+      REAL(KIND=dp)                                      :: weight_ij
 
       CALL timeset(routineN, handle)
 
-      freq_j = bs_env%time_frequency_grid%frequency(j_w)
-
       DO i_t = 1, bs_env%num_time_freq_points
 
-         time_i = bs_env%time_frequency_grid%imaginary_time(i_t)
-         weight_ij = bs_env%time_frequency_grid%cosine_frequency_to_time_weights(i_t, j_w)
+         weight_ij = bs_env%time_frequency_grid%cosine_frequency_to_time(i_t, j_w)
 
          ! actual Fourier transform
          CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_W_MIC_time(i_t), &
-                                  beta=weight_ij*COS(time_i*freq_j), matrix_b=fm_W_MIC_freq_j)
+                                  beta=weight_ij, matrix_b=fm_W_MIC_freq_j)
 
       END DO
 
@@ -2334,9 +2330,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_QP_energies'
 
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: Sigma_c_ikp_n_freq
       INTEGER                                            :: handle, ikp, ispin, j_t
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Sigma_x_ikp_n, V_xc_ikp_n
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Sigma_c_ikp_n_freq, Sigma_c_ikp_n_time
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Sigma_c_ikp_n_time
       TYPE(cp_cfm_type)                                  :: cfm_ks_ikp, cfm_mos_ikp, cfm_s_ikp, &
                                                             cfm_work_ikp
 
@@ -2347,7 +2344,7 @@ CONTAINS
       ! JW TODO: fully distribute these arrays at given time; also eigenvalues in bs_env
       ALLOCATE (V_xc_ikp_n(bs_env%n_ao), Sigma_x_ikp_n(bs_env%n_ao))
       ALLOCATE (Sigma_c_ikp_n_time(bs_env%n_ao, bs_env%num_time_freq_points, 2))
-      ALLOCATE (Sigma_c_ikp_n_freq(bs_env%n_ao, bs_env%num_time_freq_points, 2))
+      ALLOCATE (Sigma_c_ikp_n_freq(bs_env%n_ao, bs_env%num_freq_points_fit))
 
       DO ispin = 1, bs_env%n_spin
 
@@ -2375,16 +2372,17 @@ CONTAINS
 
             ! 6. Σ^c_µν(k=0,+/-i|τ_j|) -> Σ^c_µν(k_i,+/-i|τ_j|) -> Σ^c_nn(k_i,+/-i|τ_j|)
             DO j_t = 1, bs_env%num_time_freq_points
-               CALL to_ikp_and_mo(Sigma_c_ikp_n_time(:, j_t, 1), &
-                                  fm_Sigma_c_Gamma_time(j_t, 1, ispin), &
+               CALL to_ikp_and_mo(Sigma_c_ikp_n_time(:, j_t, positive_time), &
+                                  fm_Sigma_c_Gamma_time(j_t, positive_time, ispin), &
                                   ikp, qs_env, bs_env, cfm_mos_ikp, cfm_ks_ikp, cfm_work_ikp)
-               CALL to_ikp_and_mo(Sigma_c_ikp_n_time(:, j_t, 2), &
-                                  fm_Sigma_c_Gamma_time(j_t, 2, ispin), &
+               CALL to_ikp_and_mo(Sigma_c_ikp_n_time(:, j_t, negative_time), &
+                                  fm_Sigma_c_Gamma_time(j_t, negative_time, ispin), &
                                   ikp, qs_env, bs_env, cfm_mos_ikp, cfm_ks_ikp, cfm_work_ikp)
             END DO
 
             ! 7. Σ^c_nn(k_i,iτ) -> Σ^c_nn(k_i,iω)
-            CALL time_to_freq(bs_env, Sigma_c_ikp_n_time, Sigma_c_ikp_n_freq, ispin)
+            CALL transform_time_to_frequency(bs_env%time_frequency_grid, Sigma_c_ikp_n_time, Sigma_c_ikp_n_freq)
+            Sigma_c_ikp_n_freq(1:bs_env%n_occ(ispin), :) = CONJG(Sigma_c_ikp_n_freq(1:bs_env%n_occ(ispin), :))
 
             ! 8. Analytic continuation Σ^c_nn(k_i,iω) -> Σ^c_nn(k_i,ϵ) and
             !    ϵ_nk_i^GW = ϵ_nk_i^DFT + Σ^c_nn(k_i,ϵ) + Σ^x_nn(k_i) - v^xc_nn(k_i)

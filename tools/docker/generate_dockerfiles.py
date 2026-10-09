@@ -882,7 +882,7 @@ RUN mkdir -p ./tools/docker/scripts
 COPY ./tools/docker/scripts/plot_performance.py ./tools/docker/scripts/
 
 # Run CP2K performance test
-RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_benchmarks {benchmark_profile} || echo "ERROR: Performance test run failed"
+RUN ( /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_benchmarks {benchmark_profile} || printf "\nSummary: Performance test run failed\nStatus: FAILED\n" ) 2>&1 | tee report.log
 """
         else:
             sys.exit(
@@ -891,7 +891,7 @@ RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_benchmarks {benchmark
     elif test_type == "regression":
         output += rf"""
 # Run CP2K regression test
-RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests {testopts} || echo "ERROR: Regression test run failed"
+RUN ( /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests {testopts} || printf "\nSummary: Regression test run failed\nStatus: FAILED\n" ) 2>&1 | tee report.log
 """
     elif test_type == "ase":
         output += rf"""

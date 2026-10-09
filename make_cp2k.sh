@@ -1702,7 +1702,7 @@ if [[ "${IN_CONTAINER}" == "yes" ]]; then
   if ! cat "${CMAKE_BUILD_PATH}"/cmake.log \
     "${CMAKE_BUILD_PATH}"/ninja.log \
     "${CMAKE_BUILD_PATH}"/install.log |
-    gzip > "${CP2K_ROOT}"/install/build_cp2k.log.gz; then
+    gzip > "${CP2K_ROOT}"/build_cp2k.log.gz; then
     echo -e "\nERROR: The compressed log file generation failed"
     ${EXIT_CMD} 1
   fi

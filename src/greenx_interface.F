@@ -44,7 +44,7 @@ MODULE greenx_interface
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Get a minimax grid from GreenX when it is available.
+!> \brief Get a minimax grid with complete transform matrices from GreenX when it is available.
 !> \param unit_nr Output unit for diagnostics.
 !> \param num_integ_points Number of minimax points.
 !> \param emin Lower energy bound.
@@ -54,24 +54,24 @@ CONTAINS
 !> \param time_weights_at_zero_frequency Imaginary-time weights.
 !> \param frequency Frequency grid points.
 !> \param frequency_weights Frequency weights.
-!> \param cosine_time_to_frequency_weights Cosine time-to-frequency weights.
-!> \param cosine_frequency_to_time_weights Cosine frequency-to-time weights.
-!> \param sine_time_to_frequency_weights Sine time-to-frequency weights.
+!> \param cosine_time_to_frequency Cosine time-to-frequency matrix, including cosine factors.
+!> \param cosine_frequency_to_time Cosine frequency-to-time matrix, including cosine factors.
+!> \param sine_time_to_frequency Sine time-to-frequency matrix, including sine factors.
 !> \param ierr Zero if GreenX supplied a grid, nonzero otherwise.
 ! **************************************************************************************************
    SUBROUTINE greenx_get_minimax_grid(unit_nr, num_integ_points, emin, emax, regularization_minimax, &
                                       imaginary_time, time_weights_at_zero_frequency, frequency, &
-                                      frequency_weights, cosine_time_to_frequency_weights, &
-                                      cosine_frequency_to_time_weights, sine_time_to_frequency_weights, ierr)
+                                      frequency_weights, cosine_time_to_frequency, &
+                                      cosine_frequency_to_time, sine_time_to_frequency, ierr)
 
       INTEGER, INTENT(IN)                                :: unit_nr, num_integ_points
       REAL(KIND=dp), INTENT(IN)                           :: emin, emax, regularization_minimax
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(OUT) :: imaginary_time, &
                                                                time_weights_at_zero_frequency, &
                                                                frequency, frequency_weights
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: cosine_time_to_frequency_weights, &
-                                                                  cosine_frequency_to_time_weights, &
-                                                                  sine_time_to_frequency_weights
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: cosine_time_to_frequency, &
+                                                                  cosine_frequency_to_time, &
+                                                                  sine_time_to_frequency
       INTEGER, INTENT(OUT)                                :: ierr
 
 #if defined (__GREENX)
@@ -81,9 +81,9 @@ CONTAINS
 
       CALL gx_minimax_grid(num_integ_points, emin, emax, imaginary_time, &
                            time_weights_at_zero_frequency, frequency, frequency_weights, &
-                           cosine_time_to_frequency_weights, cosine_frequency_to_time_weights, &
-                           sine_time_to_frequency_weights, max_errors_greenx, cosft_duality_error_greenx, ierr, &
-                           bare_cos_sin_weights=.TRUE., regularization=regularization_minimax)
+                           cosine_time_to_frequency, cosine_frequency_to_time, &
+                           sine_time_to_frequency, max_errors_greenx, cosft_duality_error_greenx, ierr, &
+                           bare_cos_sin_weights=.FALSE., regularization=regularization_minimax)
       IF (ierr == 0) THEN
          ! Factor 4 is hard-coded in the RPA weights in the internal CP2K minimax routines
          frequency_weights(:) = frequency_weights(:)*4.0_dp
@@ -127,9 +127,9 @@ CONTAINS
       MARK_USED(time_weights_at_zero_frequency)
       MARK_USED(frequency)
       MARK_USED(frequency_weights)
-      MARK_USED(cosine_time_to_frequency_weights)
-      MARK_USED(cosine_frequency_to_time_weights)
-      MARK_USED(sine_time_to_frequency_weights)
+      MARK_USED(cosine_time_to_frequency)
+      MARK_USED(cosine_frequency_to_time)
+      MARK_USED(sine_time_to_frequency)
 #endif
 
    END SUBROUTINE greenx_get_minimax_grid

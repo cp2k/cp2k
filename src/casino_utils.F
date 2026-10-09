@@ -42,7 +42,10 @@ MODULE casino_utils
    USE external_potential_types,        ONLY: get_potential,&
                                               gth_potential_type,&
                                               sgp_potential_type
-   USE input_section_types,             ONLY: section_vals_type,&
+   USE input_constants,                 ONLY: xc_none
+   USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_get_subs_vals,&
+                                              section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -104,18 +107,20 @@ CONTAINS
       INTEGER :: ao_num, col_offset, handle, iao, iatom, ikind, ikp, ikp_loc, ikp_out, imo, ipgf, &
          iset, ishell, ishell_loc, ispin, iw, k, l, mo_num, nao_shell, natoms, nel_tot, &
          ngth_pseudo, nkp, nkp_mo, nkp_out, nmo, npseudo_atoms, nreal_k, nset, nsgf, nsgp_pseudo, &
-         nspins, output_unit, periodicity, prim_num, shell_num, zatom
+         nspins, output_unit, periodicity, prim_num, shell_num, xc_shortcut, zatom
       INTEGER, ALLOCATABLE, DIMENSION(:) :: agauge, ao_to_atom, atomic_number, cp2k_to_casino_ao, &
          first_shell, kp_order, prim_per_shell, shell_ang_mom, shell_type
       INTEGER, DIMENSION(2)                              :: kp_range, nmo_spin
       INTEGER, DIMENSION(:), POINTER                     :: npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l_shell_set
-      LOGICAL                                            :: casino_kpoints_created, do_kpoints, &
-                                                            ionode, periodic, use_real_wfn, &
+      LOGICAL                                            :: casino_kpoints_created, do_hf, &
+                                                            do_kpoints, ghost_kind, ionode, &
+                                                            periodic, pure_hf, use_real_wfn, &
                                                             write_pseudos
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: kp_real
-      REAL(KIND=dp)                                      :: cval, e_nn, eps_kpoint_real, kdotg, &
-                                                            pseudo_tol, sval, zeff
+      REAL(KIND=dp)                                      :: cval, e_nn, eps_kpoint_real, &
+                                                            hf_fraction, kdotg, pseudo_tol, sval, &
+                                                            zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coefficients, exponents, mo_scale, &
                                                             valence_charge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coord, kvec, mo_energy, mos_sgf, &
@@ -138,6 +143,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_inter_kp
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set
+      TYPE(section_vals_type), POINTER                   :: hf_section, input, xc_section
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       CALL timeset(routineN, handle)
@@ -169,6 +175,16 @@ CONTAINS
       nspins = dft_control%nspins
       IF (nspins > 2) CPABORT("CASINO gwfn.data supports at most two spin channels.")
 
+      ! label the reference method in the header: pure Hartree-Fock or DFT
+      CALL get_qs_env(qs_env, input=input)
+      xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+      hf_section => section_vals_get_subs_vals(xc_section, "HF")
+      CALL section_vals_get(hf_section, explicit=do_hf)
+      hf_fraction = 0.0_dp
+      IF (do_hf) CALL section_vals_val_get(hf_section, "FRACTION", r_val=hf_fraction)
+      CALL section_vals_val_get(xc_section, "XC_FUNCTIONAL%_SECTION_PARAMETERS_", i_val=xc_shortcut)
+      pure_hf = do_hf .AND. ABS(hf_fraction - 1.0_dp) < 1.0E-12_dp .AND. xc_shortcut == xc_none
+
       periodicity = COUNT(cell%perd /= 0)
       periodic = periodicity > 0
       pseudo_tol = 1.0E-8_dp
@@ -180,8 +196,14 @@ CONTAINS
       DO iatom = 1, natoms
          coord(:, iatom) = particle_set(iatom)%r(1:3)
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-         CALL get_qs_kind(kind_set(ikind), zatom=zatom, zeff=zeff, &
+         CALL get_qs_kind(kind_set(ikind), zatom=zatom, zeff=zeff, ghost=ghost_kind, &
                           gth_potential=gth_potential, sgp_potential=sgp_potential)
+         IF (ghost_kind) THEN
+            ! CASINO convention for floating Gaussians: a "ghost nucleus" with charge zero
+            atomic_number(iatom) = 0
+            valence_charge(iatom) = 0.0_dp
+            CYCLE
+         END IF
          IF (ABS(zeff) < pseudo_tol) zeff = REAL(zatom, KIND=dp)
          atomic_number(iatom) = zatom
          IF (ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) THEN
@@ -245,6 +267,10 @@ CONTAINS
                l = l_shell_set(ishell_loc, iset)
                IF (l > max_casino_l) THEN
                   CPABORT("CASINO writer currently supports harmonic Gaussian shells up to g.")
+               END IF
+               ! CASINO's periodic Gaussian evaluator handles s, sp, p, d and f shells only
+               IF (periodic .AND. l > 3) THEN
+                  CPABORT("CASINO cannot evaluate g shells in periodic Gaussian calculations.")
                END IF
                shell_ang_mom(ishell) = l
                shell_type(ishell) = casino_shell_type(l)
@@ -378,7 +404,7 @@ CONTAINS
          WRITE (output_unit, "((T2,A,A))") 'CASINO| Writing gwfn.data file ', TRIM(filename)
          CALL open_file(file_name=filename, file_status="REPLACE", file_action="WRITE", &
                         file_form="FORMATTED", unit_number=iw)
-         CALL write_casino_header(iw, periodicity, nspins, e_nn, nel_tot, natoms, coord, &
+         CALL write_casino_header(iw, pure_hf, periodicity, nspins, e_nn, nel_tot, natoms, coord, &
                                   atomic_number, valence_charge, cell, periodic, nkp_out, nreal_k, &
                                   kvec, shell_num, ao_num, prim_num, shell_ang_mom, shell_type, &
                                   prim_per_shell, first_shell, exponents, coefficients, shell_position)
@@ -1002,6 +1028,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Write all non-orbital CASINO gwfn.data sections.
 !> \param iw ...
+!> \param pure_hf reference is Hartree-Fock (no XC functional, HF fraction 1)
 !> \param periodicity ...
 !> \param nspins ...
 !> \param e_nn ...
@@ -1026,11 +1053,13 @@ CONTAINS
 !> \param coefficients ...
 !> \param shell_position ...
 ! **************************************************************************************************
-   SUBROUTINE write_casino_header(iw, periodicity, nspins, e_nn, nel_tot, natoms, coord, &
+   SUBROUTINE write_casino_header(iw, pure_hf, periodicity, nspins, e_nn, nel_tot, natoms, coord, &
                                   atomic_number, valence_charge, cell, periodic, nkp, nreal_k, kvec, &
                                   shell_num, ao_num, prim_num, shell_ang_mom, shell_type, prim_per_shell, &
                                   first_shell, exponents, coefficients, shell_position)
-      INTEGER, INTENT(IN)                                :: iw, periodicity, nspins
+      INTEGER, INTENT(IN)                                :: iw
+      LOGICAL, INTENT(IN)                                :: pure_hf
+      INTEGER, INTENT(IN)                                :: periodicity, nspins
       REAL(KIND=dp), INTENT(IN)                          :: e_nn
       INTEGER, INTENT(IN)                                :: nel_tot, natoms
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: coord
@@ -1057,9 +1086,9 @@ CONTAINS
       WRITE (iw, '(A)') "Generated by:"
       WRITE (iw, '(1X,A)') TRIM(cp2k_version)
       WRITE (iw, '(A)') "Method:"
-      WRITE (iw, '(A)') " DFT"
+      WRITE (iw, '(A)') MERGE(" HF ", " DFT", pure_hf)
       WRITE (iw, '(A)') "DFT functional:"
-      WRITE (iw, '(A)') " CP2K"
+      WRITE (iw, '(A)') MERGE(" none", " CP2K", pure_hf)
       WRITE (iw, '(A)') "Periodicity:"
       WRITE (iw, '(1X,I0)') periodicity
       WRITE (iw, '(A)') "Spin unrestricted:"
