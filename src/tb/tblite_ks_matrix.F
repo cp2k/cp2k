@@ -33,7 +33,7 @@ MODULE tblite_ks_matrix
    USE tblite_interface,                ONLY: tb_derive_dH_off,&
                                               tb_ham_add_coulomb,&
                                               tb_update_charges
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 

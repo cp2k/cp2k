@@ -32,7 +32,7 @@ MODULE xtb_parameters
                                               evolt
    USE string_utilities,                ONLY: uppercase
    USE xtb_types,                       ONLY: xtb_atom_type
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 

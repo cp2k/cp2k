@@ -51,7 +51,7 @@ MODULE localization_tb
                                               mo_set_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

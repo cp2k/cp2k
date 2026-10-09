@@ -50,7 +50,7 @@ MODULE xtb_spinpol
    USE virial_types,                    ONLY: virial_type
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 

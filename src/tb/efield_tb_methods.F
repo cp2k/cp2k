@@ -50,7 +50,7 @@ MODULE efield_tb_methods
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
    USE xtb_coulomb,                     ONLY: xtb_dsint_list
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 
@@ -609,7 +609,8 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dfield_tb_berry'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dfield_tb_berry', smoothness_warning = &
+         "Large change of e-field energy detected. Correct for non-smooth energy surface"
 
       COMPLEX(KIND=dp)                                   :: zdeta
       COMPLEX(KIND=dp), DIMENSION(3)                     :: zi
@@ -724,7 +725,7 @@ CONTAINS
          ener_field = SUM(ci)
          ! check for smoothness of energy surface
          IF (ABS(efield%field_energy - ener_field) > pi*ABS(SUM(hmat))) THEN
-            CPWARN("Large change of e-field energy detected. Correct for non-smooth energy surface")
+            CPWARN(smoothness_warning)
          END IF
          efield%field_energy = ener_field
          efield%polarisation(:) = cqi(:)/omega
