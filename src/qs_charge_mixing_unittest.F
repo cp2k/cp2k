@@ -6,15 +6,20 @@
 !--------------------------------------------------------------------------------------------------!
 
 PROGRAM qs_charge_mixing_unittest
-   USE ieee_arithmetic,                 ONLY: ieee_is_finite
-   USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type,&
-                                              mp_world_finalize,&
-                                              mp_world_init
-   USE qs_charge_mixing,                ONLY: charge_mixing
-   USE qs_density_mixing_types,         ONLY: broyden_mixing_nr,&
-                                              mixing_storage_release,&
-                                              mixing_storage_type
+   USE ieee_arithmetic, ONLY: ieee_is_finite
+   USE kinds, ONLY: dp
+   USE message_passing, ONLY: mp_para_env_type, &
+                              mp_world_finalize, &
+                              mp_world_init
+   USE qs_charge_mixing, ONLY: charge_mixing
+   USE qs_density_mixing_types, ONLY: broyden_mixing_nr, &
+                                      mixing_storage_release, &
+                                      mixing_storage_type
+#if defined(__TBLITE)
+   USE mctc_env, ONLY: error_type
+   USE tblite_scf_mixer_type, ONLY: mixer_type
+   USE tblite_scc_mixer, ONLY: new_cp2k_tblite_mixer
+#endif
 
    IMPLICIT NONE
 
@@ -64,8 +69,78 @@ PROGRAM qs_charge_mixing_unittest
 
    CALL mixing_storage_release(mixing_store)
    DEALLOCATE (mixing_store)
+#if defined(__TBLITE)
+   CALL test_tblite_history()
+#endif
    DEALLOCATE (para_env)
    CALL mp_world_finalize()
+
+#if defined(__TBLITE)
+CONTAINS
+
+! **************************************************************************************************
+!> \brief A wrapped Broyden history must match a fresh replay of the retained input/output pairs.
+! **************************************************************************************************
+   SUBROUTINE test_tblite_history()
+      INTEGER, PARAMETER                                 :: nstep = 16, nvar = 4
+
+      INTEGER                                            :: config, i, j, memory, step
+      REAL(KIND=dp)                                      :: damping, max_weight, min_weight, omega0, &
+                                                            weight_factor
+      REAL(KIND=dp), DIMENSION(nvar)                     :: actual, expected
+      REAL(KIND=dp), DIMENSION(nvar, nstep)              :: qin, qout
+
+      CLASS(mixer_type), ALLOCATABLE                    :: mixer, replay
+      TYPE(error_type), ALLOCATABLE                      :: error
+
+      DO step = 1, nstep
+         DO i = 1, nvar
+            qin(i, step) = SIN(0.37_dp*REAL(i*step, dp))
+            qout(i, step) = qin(i, step) + 0.05_dp*COS(0.21_dp*REAL(i + 2*step, dp))
+         END DO
+      END DO
+      DO config = 1, 2
+         damping = 0.4_dp
+         omega0 = 0.01_dp
+         min_weight = 1.0_dp
+         max_weight = 100000.0_dp
+         weight_factor = 0.01_dp
+         IF (config == 2) THEN
+            damping = 0.25_dp
+            omega0 = 0.1_dp
+            min_weight = 0.5_dp
+            max_weight = 3.0_dp
+            weight_factor = 0.2_dp
+         END IF
+         DO memory = 1, 4
+            CALL new_cp2k_tblite_mixer(mixer, memory, nvar, damping, omega0, min_weight, max_weight, weight_factor)
+            DO step = 1, nstep
+               CALL mixer%set(qin(:, step))
+               CALL mixer%diff(qout(:, step))
+               CALL mixer%next(error)
+               IF (ALLOCATED(error)) ERROR STOP "Wrapped tblite mixer failed"
+               CALL mixer%get(actual)
+
+               ! Replay at most memory + 1 pairs: this builds exactly the retained
+               ! secant directions without ever overwriting a history slot.
+               CALL new_cp2k_tblite_mixer(replay, memory, nvar, damping, omega0, min_weight, max_weight, weight_factor)
+               DO j = MAX(1, step - memory), step
+                  CALL replay%set(qin(:, j))
+                  CALL replay%diff(qout(:, j))
+                  CALL replay%next(error)
+                  IF (ALLOCATED(error)) ERROR STOP "Replayed tblite mixer failed"
+               END DO
+               CALL replay%get(expected)
+               IF (.NOT. ALL(ieee_is_finite(actual))) ERROR STOP "Non-finite wrapped tblite history"
+               IF (MAXVAL(ABS(actual - expected)) > 1.0E-10_dp) THEN
+                  ERROR STOP "Wrapped tblite history differs from an unwrapped replay"
+               END IF
+            END DO
+         END DO
+      END DO
+
+   END SUBROUTINE test_tblite_history
+#endif
 
 END PROGRAM qs_charge_mixing_unittest
 ! vim: set ts=3 sw=3 tw=132 :

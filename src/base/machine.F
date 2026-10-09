@@ -78,7 +78,7 @@ MODULE machine
 
    PUBLIC :: m_walltime, m_timestamp, m_hostnm, m_flush, &
              m_getcwd, m_getlog, m_getpid, m_procrun, m_abort, &
-             m_chdir, m_mov, m_memory, m_memory_details, m_energy, &
+             m_chdir, m_mov, m_unlink, m_memory, m_memory_details, m_energy, &
              m_cpuinfo, m_cpuid_static, m_cpuid, m_cpuid_name, &
              m_cpuid_vlen, m_omp_get_stacksize, m_omp_trace_issues
 
