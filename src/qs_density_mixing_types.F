@@ -477,10 +477,10 @@ CONTAINS
    END SUBROUTINE mixing_storage_release
 
 ! **************************************************************************************************
-!> \brief      Create CP2K input section for the mixing of the density matrix to
-!>             be used only with diagonalization methods, i.e. not with OT
+!> \brief      Create CP2K input section for SCF or active-space density mixing
 !> \param section ...
 !> \param ls_scf ...
+!> \param active_space Customize descriptions and deprecations for active-space mixing
 !> \date       20.02.2009
 !> \par History
 !>      02.2015 moved here from input_cp2k_dft.F, modified for use in LS SCF
@@ -488,14 +488,15 @@ CONTAINS
 !> \author     MI
 !> \version    1.0
 ! **************************************************************************************************
-   SUBROUTINE create_mixing_section(section, ls_scf)
+   SUBROUTINE create_mixing_section(section, ls_scf, active_space)
 
       TYPE(section_type), POINTER                        :: section
-      LOGICAL, INTENT(IN), OPTIONAL                      :: ls_scf
+      LOGICAL, INTENT(IN), OPTIONAL                      :: ls_scf, active_space
 
+      CHARACTER(LEN=:), ALLOCATABLE                      :: description
       CHARACTER(LEN=default_string_length)               :: section_name
       INTEGER                                            :: default_mix
-      LOGICAL                                            :: ls
+      LOGICAL                                            :: as, ls
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -510,20 +511,33 @@ CONTAINS
          ls = .FALSE.
       END IF
 
+      as = .FALSE.
+      IF (PRESENT(active_space)) as = active_space
+      CPASSERT(.NOT. (ls .AND. as))
+
       IF (ls) THEN
          section_name = "RHO_MIXING"
       ELSE
          section_name = "MIXING"
       END IF
 
+      IF (as) THEN
+         description = "Define type and parameters for mixing the active-space density matrix "// &
+                       "during self-consistent embedding. This mixing is independent of the SCF "// &
+                       "method used for the reference calculation, including OT. NBUFFER controls "// &
+                       "the mixing history; N_SIMPLE_MIX controls the initial direct-mixing steps."
+      ELSE
+         description = "Define type and parameters for mixing "// &
+                       "procedures to be applied to the density matrix. Normally, "// &
+                       "only one type of mixing method should be accepted. The mixing "// &
+                       "procedures activated by this section are only active for diagonalization "// &
+                       "methods and linear scaling SCF, i.e. not with minimization methods based "// &
+                       "on OT."
+      END IF
+
       CALL section_create(section, __LOCATION__, &
                           name=section_name, &
-                          description="Define type and parameters for mixing "// &
-                          "procedures to be applied to the density matrix. Normally, "// &
-                          "only one type of mixing method should be accepted. The mixing "// &
-                          "procedures activated by this section are only active for diagonalization "// &
-                          "methods and linear scaling SCF, i.e. not with minimization methods based "// &
-                          "on OT.", &
+                          description=description, &
                           n_keywords=16, &
                           n_subsections=0, &
                           repeats=.FALSE.)
@@ -697,10 +711,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="NMIXING", &
-                          description="Minimal number of density mixing (should be greater than 0), "// &
-                          "before starting DIIS", &
-                          usage="NMIXING 1", default_i_val=2)
+      IF (as) THEN
+         CALL keyword_create(keyword, __LOCATION__, name="NMIXING", &
+                             description="Legacy SCF DIIS keyword with no effect on active-space mixing", &
+                             deprecation_notice="NMIXING has no effect in ACTIVE_SPACE%MIXING. "// &
+                             "Use NBUFFER for the history length or N_SIMPLE_MIX for initial "// &
+                             "direct-mixing steps; these have different meanings.", &
+                             usage="NMIXING 1", default_i_val=2)
+      ELSE
+         CALL keyword_create(keyword, __LOCATION__, name="NMIXING", &
+                             description="Minimal number of density mixing (should be greater than 0), "// &
+                             "before starting DIIS", &
+                             usage="NMIXING 1", default_i_val=2)
+      END IF
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -800,9 +823,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      IF (as) THEN
+         description = "Number of initial direct-mixing iterations after NSKIP before starting "// &
+                       "the selected mixing procedure"
+      ELSE
+         description = "Number of kerker damping iterations before starting other mixing procedures"
+      END IF
       CALL keyword_create(keyword, __LOCATION__, name="N_SIMPLE_MIX", &
                           variants=["NSIMPLEMIX"], &
-                          description="Number of kerker damping iterations before starting other mixing procedures", &
+                          description=description, &
                           usage="NSIMPLEMIX", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
