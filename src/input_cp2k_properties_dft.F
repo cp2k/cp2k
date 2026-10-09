@@ -2978,6 +2978,24 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="SOC_NBANDS_OCC", &
+                          description="Truncate the second-variational SOC diagonalization to this "// &
+                          "many occupied bands below the Fermi level (per spin). Must be used "// &
+                          "together with SOC_NBANDS_VIRT. Default -1 = off. ", &
+                          usage="SOC_NBANDS_OCC 2000", &
+                          default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SOC_NBANDS_VIRT", &
+                          description="Truncate the second-variational SOC diagonalization to this "// &
+                          "many virtual bands above the Fermi level (per spin). See SOC_NBANDS_OCC. "// &
+                          "Default -1 = off.", &
+                          usage="SOC_NBANDS_VIRT 2000", &
+                          default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_soc_section
 
 ! **************************************************************************************************

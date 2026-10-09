@@ -62,7 +62,8 @@ MODULE post_scf_bandstructure_types
       REAL(KIND=dp)                                   :: VBM = -1.0_dp, &
                                                          CBM = -1.0_dp, &
                                                          DBG = -1.0_dp, &
-                                                         IDBG = -1.0_dp
+                                                         IDBG = -1.0_dp, &
+                                                         E_fermi = -1.0_dp
    END TYPE band_edges_type
 
    ! data types for GW RI-RS code
@@ -214,6 +215,15 @@ MODULE post_scf_bandstructure_types
                                                        max_AO_idx_from_RI_AO_atom
       INTEGER, DIMENSION(2)                        :: n_occ = -1, &
                                                       n_vir = -1
+      INTEGER, DIMENSION(2)                        :: n_electron = -1
+      ! n_occ above is the HOMO index: under smearing,
+      ! not the true T=0 electron count. n_occ_nosmear is the smearing-independent
+      ! NINT(nelectron/maxocc) count, used only to center the SOC truncation window.
+      INTEGER, DIMENSION(2)                        :: n_occ_nosmear = -1
+      LOGICAL                                      :: do_smear = .FALSE.
+      INTEGER                                      :: smear_method = -1
+      REAL(KIND=dp)                                :: smear_width = 0.0_dp
+      REAL(KIND=dp)                                :: fixed_mag_mom = -1.0_dp
       REAL(KIND=dp)                                :: spin_degeneracy = -1.0_dp
       REAL(KIND=dp), DIMENSION(2)                  :: e_fermi = -1.0_dp
 
@@ -380,6 +390,9 @@ MODULE post_scf_bandstructure_types
       REAL(KIND=dp)                                :: soc_window_occ = -1.0_dp
       REAL(KIND=dp)                                :: soc_window_virt = -1.0_dp
       REAL(KIND=dp)                                :: soc_window_smearing = 1.0_dp/evolt
+      INTEGER                                      :: soc_nbands_occ = -1.0_dp
+      INTEGER                                      :: soc_nbands_virt = -1.0_dp
+
       ! sizes: mat_V_SOC_xyz: xyz, img
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: mat_V_SOC_xyz => NULL()
       ! small-cell GW: dimension = number of kpoints; large-cell GW: Gamma-point, dimension = 1
