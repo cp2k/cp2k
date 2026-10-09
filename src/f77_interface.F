@@ -155,6 +155,7 @@ MODULE f77_interface
                                               gauxc_check_status,&
                                               gauxc_finalize,&
                                               gauxc_init
+   USE xc_libxc,                        ONLY: libxc_release_workers
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -376,6 +377,10 @@ CONTAINS
 #if defined(__LIBINT)
          CALL cp_libint_static_cleanup()
 #endif
+
+         ! Release the cached LibXC workers, because their device buffers are
+         ! owned by the offload memory pool which is cleared below
+         CALL libxc_release_workers()
 
          ! Finalize libraries (Offload)
          CALL dbm_library_finalize()
