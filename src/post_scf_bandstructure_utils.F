@@ -2269,56 +2269,60 @@ CONTAINS
 !> \param ikp k-point index into eigenval_no_SOC
 !> \param n_spin number of spin channels
 !> \param n_ao number of AO basis functions (per spin)
-!> \param il1 first retained state index for spin 1
-!> \param il2 first retained state index for spin n_spin
+!> \param mo_index_start_1 first retained state index for spin 1
+!> \param mo_index_start_2 first retained state index for spin n_spin
 !> \param n_window per-spin window size
 !> \param n_window2tot total window size
 !> \param eigenval_spinor output: full repacked spinor spectrum (2*n_ao)
 ! **************************************************************************************************
    SUBROUTINE fill_truncated_eigenval_spinor(eigenval_no_SOC, eig_win_sorted, ikp, n_spin, n_ao, &
-                                             il1, il2, n_window, n_window2tot, eigenval_spinor)
+                                             mo_index_start_1, mo_index_start_2, n_window, &
+                                             n_window2tot, eigenval_spinor)
       REAL(KIND=dp), DIMENSION(:, :, :)                  :: eigenval_no_SOC
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eig_win_sorted
-      INTEGER                                            :: ikp, n_spin, n_ao, il1, il2, n_window, &
+      INTEGER                                            :: ikp, n_spin, n_ao, mo_index_start_1, &
+                                                            mo_index_start_2, n_window, &
                                                             n_window2tot
       REAL(KIND=dp), DIMENSION(:)                        :: eigenval_spinor
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_truncated_eigenval_spinor'
 
-      INTEGER                                            :: handle, i, ia, ib, n_below1, n_below2
+      INTEGER                                            :: handle, i, ia, ib, idx_end, idx_start, &
+                                                            mo_index_start_1_m1, &
+                                                            mo_index_start_2_m1
 
       CALL timeset(routineN, handle)
 
       ! verify the window was wide enough that SOC did not push a retained boundary state
       ! past an excluded neighbor on either side -- this would invalidate the merge below
-      IF (il1 > 1) THEN
-         IF (eig_win_sorted(1) < eigenval_no_SOC(il1 - 1, ikp, 1)) THEN
+      IF (mo_index_start_1 > 1) THEN
+         IF (eig_win_sorted(1) < eigenval_no_SOC(mo_index_start_1 - 1, ikp, 1)) THEN
             CPABORT("SOC_NBANDS_OCC too small.")
          END IF
       END IF
-      IF (il2 > 1) THEN
-         IF (eig_win_sorted(1) < eigenval_no_SOC(il2 - 1, ikp, n_spin)) THEN
+      IF (mo_index_start_2 > 1) THEN
+         IF (eig_win_sorted(1) < eigenval_no_SOC(mo_index_start_2 - 1, ikp, n_spin)) THEN
             CPABORT("SOC_NBANDS_OCC too small.")
          END IF
       END IF
-      IF (il1 + n_window <= n_ao) THEN
-         IF (eig_win_sorted(n_window2tot) > eigenval_no_SOC(il1 + n_window, ikp, 1)) THEN
+      IF (mo_index_start_1 + n_window <= n_ao) THEN
+         IF (eig_win_sorted(n_window2tot) > eigenval_no_SOC(mo_index_start_1 + n_window, ikp, 1)) THEN
             CPABORT("SOC_NBANDS_VIRT too small.")
          END IF
       END IF
-      IF (il2 + n_window <= n_ao) THEN
-         IF (eig_win_sorted(n_window2tot) > eigenval_no_SOC(il2 + n_window, ikp, n_spin)) THEN
+      IF (mo_index_start_2 + n_window <= n_ao) THEN
+         IF (eig_win_sorted(n_window2tot) > eigenval_no_SOC(mo_index_start_2 + n_window, ikp, n_spin)) THEN
             CPABORT("SOC_NBANDS_VIRT too small.")
          END IF
       END IF
 
-      n_below1 = il1 - 1
-      n_below2 = il2 - 1
+      mo_index_start_1_m1 = mo_index_start_1 - 1
+      mo_index_start_2_m1 = mo_index_start_2 - 1
 
       ia = 1
       ib = 1
-      DO i = 1, n_below1 + n_below2
-         IF (ia <= n_below1 .AND. ib <= n_below2) THEN
+      DO i = 1, mo_index_start_1_m1 + mo_index_start_2_m1
+         IF (ia <= mo_index_start_1_m1 .AND. ib <= mo_index_start_2_m1) THEN
             IF (eigenval_no_SOC(ia, ikp, 1) <= eigenval_no_SOC(ib, ikp, n_spin)) THEN
                eigenval_spinor(i) = eigenval_no_SOC(ia, ikp, 1)
                ia = ia + 1
@@ -2326,7 +2330,7 @@ CONTAINS
                eigenval_spinor(i) = eigenval_no_SOC(ib, ikp, n_spin)
                ib = ib + 1
             END IF
-         ELSE IF (ia <= n_below1) THEN
+         ELSE IF (ia <= mo_index_start_1_m1) THEN
             eigenval_spinor(i) = eigenval_no_SOC(ia, ikp, 1)
             ia = ia + 1
          ELSE
@@ -2335,11 +2339,14 @@ CONTAINS
          END IF
       END DO
 
-      eigenval_spinor(n_below1 + n_below2 + 1:n_below1 + n_below2 + n_window2tot) = eig_win_sorted(:)
+      idx_start = mo_index_start_1_m1 + mo_index_start_2_m1 + 1
+      idx_end = mo_index_start_1_m1 + mo_index_start_2_m1 + n_window2tot
 
-      ia = il1 + n_window
-      ib = il2 + n_window
-      DO i = n_below1 + n_below2 + n_window2tot + 1, 2*n_ao
+      eigenval_spinor(idx_start:idx_end) = eig_win_sorted(:)
+
+      ia = mo_index_start_1 + n_window
+      ib = mo_index_start_2 + n_window
+      DO i = mo_index_start_1_m1 + mo_index_start_2_m1 + n_window2tot + 1, 2*n_ao
          IF (ia <= n_ao .AND. ib <= n_ao) THEN
             IF (eigenval_no_SOC(ia, ikp, 1) <= eigenval_no_SOC(ib, ikp, n_spin)) THEN
                eigenval_spinor(i) = eigenval_no_SOC(ia, ikp, 1)
@@ -2362,7 +2369,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE fill_truncated_eigenval_spinor
-
 ! **************************************************************************************************
 !> \brief ...
 !> \param DOS ...
