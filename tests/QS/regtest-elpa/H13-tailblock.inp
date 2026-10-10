@@ -1,0 +1,58 @@
+# Crafted ELPA width-1 tail block corner: 13 H x 5 spherical basis functions
+# = nao 65 = nbw + 1 (nbw = 64). With an unfixed ELPA (cp2k#3297, cp2k#4484) the
+# serial tridiag_band flush underflows its Householder-vector slot accounting for
+# such matrix orders and smashes the heap - this crashes already at one rank, at
+# the very first diagonalization. At two ranks this input passes with unfixed
+# ELPA as well; the np2 deadlock corner of the same bug family is covered by
+# tailblock_hang.inp. Single SCF step: the matcher checks the energy of the one
+# ELPA diagonalization, no iterative amplification of rounding differences.
+&GLOBAL
+  PREFERRED_DIAG_LIBRARY ELPA
+  PRINT_LEVEL LOW
+  PROJECT H13-tailblock
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    CHARGE +1
+    POTENTIAL_FILE_NAME POTENTIAL
+    &SCF
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 1
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      A 10.0 0.0 0.0
+      B 0.0 10.0 0.0
+      C 0.0 0.0 10.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      H 5.000000 5.000000 5.000000
+      H 3.797448 6.155648 5.271473
+      H 4.777392 6.674116 4.925509
+      H 5.228785 4.196111 3.374263
+      H 4.758039 4.665234 3.561049
+      H 4.076643 5.192930 3.709559
+      H 5.995970 5.617533 6.225215
+      H 3.715393 2.529142 6.241812
+      H 2.222153 4.617737 5.793007
+      H 6.913129 6.921863 5.929592
+      H 7.097115 6.833777 6.042256
+      H 7.459249 4.014086 6.132501
+      H 5.598309 2.987267 6.867141
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-MOLOPT-SR-GTH-q1
+      POTENTIAL GTH-PBE
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

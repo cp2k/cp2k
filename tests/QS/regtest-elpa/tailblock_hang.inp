@@ -1,0 +1,158 @@
+# Smoke test for the ELPA width-1 tail block bug family (cp2k issue #4484).
+#
+# With an unfixed ELPA (<= 2026.02.002 without the bugfix_elpa2_65_65_64 patch),
+# this input deadlocks in the first OT FULL_ALL preconditioner:
+#   1. the MO subspace diagonalization has na = nocc = 129 = 2*nbw+1 (258 valence
+#      electrons, nbw=64), so tridiag_band's width-1 tail block emits an orphan
+#      one-vector Isend (tag 10+2) that no MPI_irecv ever matches,
+#   2. the following T-matrix diagonalization (na = nao = 746) posts an irecv with
+#      the same tag, which consumes the orphan; its real 94 KB chunk is then left
+#      unmatched and the two ranks deadlock (ELPA issue #83, cross-call tag reuse).
+#
+# Requirements met by construction: nocc == 1 (mod nbw), nocc >= 2*nbw+1,
+# nao >= 5*nbw. Triggers at 2 MPI ranks (the do_regtest default); the deadlock
+# happens before the first OT step, so convergence settings are irrelevant.
+# No matcher: on a fixed ELPA the run simply completes (a few seconds); on a
+# broken one it hangs and gets killed by the test timeout.
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT tailblock_hang
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    POTENTIAL_FILE_NAME POTENTIAL
+    &SCF
+      # Smoke test: the deadlock (if any) happens before the first OT step.
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 3
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_ALL
+      &END OT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      A 15.0 0.0 0.0
+      B 0.0 15.0 0.0
+      C 0.0 0.0 15.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      H 2.845110 0.701321 5.609701
+      H 2.492648 0.625335 3.851516
+      O 2.390131 0.853920 4.778252
+      H 2.404075 1.126963 10.817552
+      H 2.986300 1.081558 10.674129
+      O 2.916089 1.145949 11.629390
+      H 2.140099 4.708401 3.735686
+      H 1.377757 6.132957 3.636747
+      O 1.652490 5.329214 3.189400
+      H 2.630801 6.262654 10.250297
+      H 1.037311 6.078254 10.834234
+      O 1.678805 6.219886 10.134216
+      H 2.216963 9.673143 4.076056
+      H 1.799504 9.301650 4.016619
+      O 1.584203 9.847031 4.776754
+      H 0.849478 8.630962 10.303198
+      H 0.531237 8.321439 11.903448
+      O 0.717105 8.947482 11.199798
+      H 2.628576 13.290655 3.848779
+      H 2.096159 13.003895 2.280148
+      O 2.134143 13.550913 3.068138
+      H 1.686726 12.031055 11.443457
+      H 3.441706 12.433100 10.840889
+      O 2.547800 12.367532 11.184739
+      H 5.297752 2.825518 5.203934
+      H 4.374363 2.989773 5.086693
+      O 4.781373 2.241888 4.643284
+      H 5.594656 1.408960 10.979719
+      H 5.057456 0.619930 12.530608
+      O 5.090336 1.205979 11.770959
+      H 5.031583 6.587964 2.147430
+      H 5.012913 6.564514 4.060858
+      O 5.040189 6.652070 3.105248
+      H 7.078757 6.763080 10.533032
+      H 6.486620 7.036558 10.695484
+      O 6.358118 6.251462 10.158164
+      H 6.721757 10.089569 3.552166
+      H 6.829026 9.973088 1.645309
+      O 6.725186 10.092497 2.592176
+      H 6.420703 8.701769 11.257603
+      H 5.949067 8.177606 11.570759
+      O 5.944771 8.175750 10.610771
+      H 7.054155 13.519407 2.787809
+      H 6.256206 12.534928 3.188055
+      O 6.708191 13.250048 3.641832
+      H 5.736994 12.132335 10.007523
+      H 5.351652 12.915520 10.348798
+      O 5.973154 12.424284 10.891036
+      H 9.502653 2.008507 4.248966
+      H 9.487855 0.878115 3.327164
+      O 9.186043 1.103044 4.210293
+      H 9.868934 3.188273 12.342367
+      H 10.220120 2.621812 12.329249
+      O 9.325258 2.466475 12.018295
+      H 9.278979 4.175524 4.382572
+      H 9.427238 3.540277 3.445300
+      O 9.271271 4.487070 3.474563
+      H 9.576074 5.860858 10.263341
+      H 9.159470 7.217176 10.501568
+      O 8.777673 6.336367 10.504271
+      H 10.639806 8.180846 5.218668
+      H 10.715821 8.511919 4.682381
+      O 9.807251 8.207599 4.741451
+      H 9.248552 8.719581 10.158016
+      H 9.354469 8.965953 10.076088
+      O 9.102362 9.211751 10.969187
+      H 9.917550 11.863671 4.235814
+      H 9.187049 12.379072 5.420014
+      O 9.246523 12.508778 4.470678
+      H 7.514875 14.354561 11.799834
+      H 7.532678 14.075761 10.957307
+      O 8.216948 13.750627 11.546935
+      H 12.220673 1.269989 3.252217
+      H 11.955953 0.865367 3.353694
+      O 12.182431 1.233778 4.210771
+      H 14.228299 2.080401 11.065344
+      H 14.301708 2.798149 9.983126
+      O 14.020984 1.894775 10.146560
+      H 14.000116 6.775783 4.585349
+      H 14.302840 6.210461 4.841795
+      O 14.271432 6.180483 3.882778
+      H 13.643656 5.785403 11.338804
+      H 13.794907 4.651362 10.814745
+      O 13.907297 5.532642 10.450995
+      H 12.848493 9.184165 4.259082
+      H 13.249952 8.100146 3.896119
+      O 13.720109 8.795282 4.362315
+      H 13.084437 8.241859 12.428727
+      H 13.213640 9.006390 11.483490
+      O 13.821766 8.812750 12.200628
+      H 12.610398 13.570119 3.194778
+      H 13.702260 12.431474 2.179466
+      O 13.318424 13.117021 2.731095
+      H 12.011433 14.049732 12.723136
+      H 13.306902 14.215071 11.350100
+      O 12.581540 14.029716 11.951011
+      H 0.7 0.7 0.7
+      H 14.3 14.3 14.3
+    &END COORD
+    &KIND O
+      BASIS_SET DZVP-MOLOPT-SR-GTH-q6
+      POTENTIAL GTH-PBE
+    &END KIND
+    &KIND H
+      BASIS_SET DZVP-MOLOPT-SR-GTH-q1
+      POTENTIAL GTH-PBE
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

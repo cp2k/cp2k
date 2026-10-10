@@ -53,6 +53,11 @@ case "${with_elpa}" in
       patch -l -p1 < "${SCRIPT_DIR}/stage5/elpa-${elpa_ver}-library-only.patch" \
         > elpa_library_only.patch.log 2>&1 || tail_excerpt elpa_library_only.patch.log
 
+      # Backport the width-1 tail block fixes from ELPA branch bugfix_elpa2_65_65_64.
+      patch -l -p1 < "${SCRIPT_DIR}/stage5/elpa-${elpa_ver}-nx1-tail-block.patch" \
+        > elpa_nx1_tail_block.patch.log 2>&1 ||
+        tail_excerpt elpa_nx1_tail_block.patch.log
+
       # Ensure a successful installation of nVidia version built with "-std=c++14" flag
       sed -i 's/creal(/__real__(/g' src/GPU/CUDA/cudaFunctions_template.h
       sed -i 's/cimag(/__imag__(/g' src/GPU/CUDA/cudaFunctions_template.h
@@ -123,7 +128,8 @@ case "${with_elpa}" in
       done
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage5/$(basename ${SCRIPT_NAME})" \
-        "${SCRIPT_DIR}/stage5/elpa-${elpa_ver}-library-only.patch"
+        "${SCRIPT_DIR}/stage5/elpa-${elpa_ver}-library-only.patch" \
+        "${SCRIPT_DIR}/stage5/elpa-${elpa_ver}-nx1-tail-block.patch"
     fi
     ;;
   __SYSTEM__)
