@@ -914,6 +914,7 @@ list(
   topology_snapshot.F
   topology_curvature.F
   topology_phason_analysis.F
+  wannier90_projections.F
   wannier_states.F
   wannier_states_types.F
   xas_control.F
@@ -1638,6 +1639,7 @@ set(CP2K_PROGS_F
     qs_charge_mixing_unittest.F
     qs_fod_unittest.F
     qs_ot_complex_ref_unittest.F
+    wannier90_projections_unittest.F
     subsys/cell_types_unittest.F
     metadyn_tools/graph.F
     motion/dumpdcd.F
@@ -2077,6 +2079,7 @@ list(
   "qs_charge_mixing_unittest"
   "qs_fod_unittest"
   "qs_ot_complex_ref_unittest"
+  "wannier90_projections_unittest"
   "cell_types_unittest"
   "graph"
   "dumpdcd"
@@ -2129,6 +2132,7 @@ add_executable(ot_covariant_preconditioner_unittest
 add_executable(qs_charge_mixing_unittest qs_charge_mixing_unittest.F)
 add_executable(qs_fod_unittest qs_fod_unittest.F)
 add_executable(qs_ot_complex_ref_unittest qs_ot_complex_ref_unittest.F)
+add_executable(wannier90_projections_unittest wannier90_projections_unittest.F)
 add_executable(cell_types_unittest subsys/cell_types_unittest.F)
 add_executable(cell_opt_utils_unittest motion/cell_opt_utils_unittest.F)
 add_executable(graph metadyn_tools/graph.F)

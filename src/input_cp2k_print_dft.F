@@ -24,7 +24,8 @@ MODULE input_cp2k_print_dft
       Lippert1999, Lu2004, Merlot2014, Perdew1981, Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, &
       Shigeta2001, Stewart1982, Stewart1989, Stewart2007, Thiel1992, VanVoorhis2015, &
       VandeVondele2003, VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, &
-      Yin2017, Pracht2019, Caldeweyher2019, Caldeweyher2020, Gresch2017, Soluyanov2011
+      Yin2017, Pracht2019, Caldeweyher2019, Caldeweyher2020, Gresch2017, Soluyanov2011, &
+      Pizzi2020, Marzari1997, Souza2001
    USE cp_output_handling, ONLY: add_last_numeric, &
                                  cp_print_key_section_create, &
                                  debug_print_level, &
@@ -2940,6 +2941,17 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="SPIN_CHANNEL", &
+                          description="Collinear spin channel to export or localize. "// &
+                          "Spin-polarized calculations use separate SEED_NAME_up and SEED_NAME_down files. "// &
+                          "BOTH runs the channels independently with their respective MO band counts. "// &
+                          "The numeric values 1 and 2 remain aliases for ALPHA and BETA. "// &
+                          "With SOC, use the restricted channel ALPHA (1).", &
+                          usage="SPIN_CHANNEL BOTH", default_i_val=0, n_var=1, type_of_var=enum_t, &
+                          enum_c_vals=s2a("BOTH", "ALPHA", "BETA", "1", "2"), enum_i_vals=[0, 1, 2, 1, 2])
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="MP_GRID", &
                           description="The dimensions of the Monkhorst-Pack k-point grid. ", &
                           usage="MP_GRID 6 6 6", n_var=-1, default_i_vals=[10, 10, 10], type_of_var=integer_t)
@@ -2975,13 +2987,6 @@ CONTAINS
                           "in the file are unsupported; use EXCLUDE_BANDS in CP2K instead.", &
                           usage="NNKP_FILE loop.nnkp", default_c_val="wannier90.nnkp", &
                           n_var=1, type_of_var=char_t)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="SPIN_CHANNEL", &
-                          description="Collinear spin channel exported to the Wannier90 files (1 or 2). "// &
-                          "Each scalar export contains one channel. With SOC, use the restricted channel 1.", &
-                          usage="SPIN_CHANNEL 1", default_i_val=1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -3133,10 +3138,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="USE_BLOCH_PHASES", &
-                          description="Apply the CP2K Bloch-phase gauge to complete exported band subspaces "// &
-                          "and write an explicit identity .amn projection file for Wannier90. It is only "// &
-                          "valid when WANNIER_FUNCTIONS matches the number of exported bands; disentangled "// &
-                          "Wannier90 calculations still need explicit projections.", &
+                          description="Apply the CP2K Bloch-phase gauge to reused SCF band subspaces. "// &
+                          "INITIAL_PROJECTIONS determines projections in the same gauge. With NONE, "// &
+                          "write identity projections and require equal band and Wannier counts. "// &
+                          "AO_SCDM and AO_HYBRID also support disentanglement.", &
                           usage="USE_BLOCH_PHASES T", default_l_val=.FALSE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -3149,16 +3154,56 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EXCLUDE_BANDS", &
-                          description="List of Bands excluded in the Wannier calculation.", &
+                          description="One-based MO indices removed before the Wannier calculation. "// &
+                          "Retained bands are exported in ascending order and renumbered from one; "// &
+                          "the original indices are written to SEED_NAME_band_indices.dat. "// &
+                          "Band exclusions must retain or remove complete degenerate subspaces "// &
+                          "inside the outer energy window.", &
                           usage="EXCLUDE_BANDS b1 b2 ...", n_var=-1, repeats=.TRUE., &
                           type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="WANNIER_FUNCTIONS", &
-                          description="Number of Wannier functions to be calculated. ", &
+                          description="Number of Wannier functions to be calculated. "// &
+                          "Specify once for all spin channels, or twice for separate alpha and beta counts.", &
                           usage="WANNIER_FUNCTIONS 6", n_var=1, default_i_val=0, &
                           repeats=.TRUE., type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="INITIAL_PROJECTIONS", &
+                          description="Initial projections written to SEED_NAME.amn for external Wannier90. "// &
+                          "NONE preserves the historical export without projections, except that "// &
+                          "USE_BLOCH_PHASES writes IDENTITY for complete band spaces. AO_SCDM selects "// &
+                          "fixed AO trials by pivoted QR across the entire mesh. This is AO-based, not "// &
+                          "real-space SCDM. AO_HYBRID forms tetrahedral trials from all on-atom radial "// &
+                          "s/p pairs before selection, retaining other AOs. Both use the overlap metric "// &
+                          "and the exported Bloch gauge and allow rectangular projections. "// &
+                          "IDENTITY requires equal band and Wannier counts. AO trials require "// &
+                          "KPOINTS_SOURCE MP_GRID or SCF. Localization is performed by external Wannier90.", &
+                          type_of_var=enum_t, enum_c_vals=s2a("NONE", "IDENTITY", "AO_SCDM", "AO_HYBRID"), &
+                          enum_i_vals=[-1, 0, 1, 2], default_i_val=-1, citations=[Pizzi2020])
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="DIS_WIN_MIN", &
+                 description="Lower edge of the disentanglement outer energy window; defaults to the lowest exported eigenvalue.", &
+                          type_of_var=real_t, unit_str="eV")
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="DIS_WIN_MAX", &
+                description="Upper edge of the disentanglement outer energy window; defaults to the highest exported eigenvalue.", &
+                          type_of_var=real_t, unit_str="eV")
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="DIS_FROZ_MIN", &
+                          description="Lower edge of the frozen energy window. Requires DIS_FROZ_MAX; "// &
+                          "if omitted, the lower spectrum edge is used.", type_of_var=real_t, unit_str="eV")
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="DIS_FROZ_MAX", &
+                          description="Upper edge of the frozen energy window. States inside this window "// &
+                          "must be retained in the optimized subspace.", type_of_var=real_t, unit_str="eV")
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 

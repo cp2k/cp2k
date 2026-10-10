@@ -46,18 +46,105 @@ additional bands for the export, and
 from it. Choose the exported band window and the subsequent Wannier90 settings for the particular
 material and target property.
 
+`EXCLUDE_BANDS` refers to the original, one-based MO indices, including the additional bands. CP2K
+removes these states consistently from the eigenvalues, overlap matrices, and AO projections before
+passing data to Wannier90. The retained bands are renumbered from one in ascending original order.
+Repeated indices are ignored, and out-of-range indices are rejected. A companion
+`SEED_NAME_band_indices.dat` file lists the exported band index and its original MO index. The
+generated files are already filtered: do not add the same exclusion list to the `.win` file. The
+export rejects an exclusion that cuts a degenerate band group inside the outer energy window
+(adjacent eigenvalues within `1.e-8` hartree), since selecting individual states there would depend
+on the arbitrary MO gauge. Retain or remove the entire group instead.
+
+## Initial projections
+
+[INITIAL_PROJECTIONS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90.INITIAL_PROJECTIONS) makes physical
+trial orbitals available to external Wannier90 without linking a Wannier90 library.
+
+```text
+&WANNIER90 ON
+  KPOINTS_SOURCE SCF
+  WANNIER_FUNCTIONS 4
+  INITIAL_PROJECTIONS AO_HYBRID
+  USE_BLOCH_PHASES T
+&END WANNIER90
+```
+
+`AO_SCDM` forms the complex metric projections `C(k)^H S(k)` onto the AO basis and selects one fixed
+trial set across the full mesh using pivoted QR. This is AO-based and SCDM-inspired, not real-space
+density-matrix sampling. Rank checks at every k-point trigger alternative QR anchors and column
+exchanges when needed. An unresolved rank defect stops the export rather than silently changing the
+band space. Numerically tied columns are selected in their original candidate order.
+
+`AO_HYBRID` first forms tetrahedral s/p trials from every on-atom radial s-shell and p-shell pair.
+Other AOs, including d and higher angular momenta, remain available. Both choices support
+rectangular projection matrices and use the same Bloch gauge as the exported overlaps. They are
+alternative initial orbitals, not a guarantee of the global spread minimum. Compare converged
+Wannier90 spreads and centres when the initial gauge affects a degenerate band space.
+
+The default `NONE` preserves the historical export without an `.amn` file. With
+`USE_BLOCH_PHASES T`, it instead writes identity projections for a complete band space. Explicit
+`IDENTITY` also requires equal band and Wannier counts and retains the arbitrary MO gauge. Use AO
+trials to supply gauge-covariant projections for disentanglement. CP2K does not minimize spreads or
+automatically select a winner between independently localized projection families.
+
+### Spin-polarized calculations
+
+[SPIN_CHANNEL](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90.SPIN_CHANNEL) selects `BOTH` (the
+default), `ALPHA`, or `BETA`. For two-spin calculations, CP2K writes independent files with the seed
+suffixes `_up` and `_down`. Each channel uses its own eigenvalues, MO coefficients and projections.
+The exporter does not concatenate the two spin channels into a single `.eig` or `.mmn` file. With
+one spin channel, the original seed name is unchanged, and selecting `BETA` is an input error. The
+previous numeric settings `1` and `2` remain aliases for `ALPHA` and `BETA`.
+
+Specify `WANNIER_FUNCTIONS` once to use the same count in both channels, or twice to select the
+alpha and beta counts in that order. The order is independent of `SPIN_CHANNEL`, so the following
+exports only the beta channel with three Wannier functions:
+
+```text
+&WANNIER90 ON
+  SEED_NAME magnetic_crystal
+  KPOINTS_SOURCE SCF
+  SPIN_CHANNEL BETA
+  WANNIER_FUNCTIONS 5
+  WANNIER_FUNCTIONS 3
+  INITIAL_PROJECTIONS AO_SCDM
+&END WANNIER90
+```
+
+Band exclusions and energy windows apply to every selected spin channel and must be valid for each
+independently. This is collinear spin support, not spinor or spin-orbit-coupled Wannierization.
+
+### Disentanglement
+
+When there are more exported bands than `WANNIER_FUNCTIONS`, external Wannier90 performs
+disentanglement before localization. Set `ADDED_MOS` to export sufficient bands. The optional
+`DIS_WIN_MIN`, `DIS_WIN_MAX`, `DIS_FROZ_MIN` and `DIS_FROZ_MAX` keywords are written to `.win` and
+restrict AO trial selection consistently. Energies are in eV unless an explicit CP2K unit is
+supplied and refer to the exported eigenvalues without a Fermi-energy shift. Every outer window must
+contain at least the target number of states. Frozen states must lie inside it and cannot exceed
+that count. If they fill the entire target space, only frozen states enter the projection selection.
+All band-space overlaps and eigenvalues are still exported.
+
+Set localization and disentanglement convergence options in `.win` after CP2K finishes, then run
+`wannier90.x SEED_NAME`. Wannier90 can write its Hamiltonian, rotation matrices, checkpoints and
+postprocessing results through its ordinary standalone options. None of these operations requires a
+Wannier90 library linked into CP2K. The standalone workflow has been tested with Wannier90 4.0.3.
+
 ## Generated files
 
-With `SEED_NAME silicon`, CP2K writes the following Wannier90 files:
+In the ordinary file-export mode, `SEED_NAME silicon` produces the following Wannier90 files:
 
 - `silicon.win`: a starting Wannier90 input file containing the cell, atomic positions, exported
   band count, and k-point mesh;
 - `silicon.mmn`: overlap matrices between neighbouring k-points;
-- `silicon.eig`: eigenvalues for the exported bands; and
-- `silicon.amn`: an identity projection matrix, only when `USE_BLOCH_PHASES T` is used.
+- `silicon.eig`: eigenvalues for the exported bands;
+- `silicon.amn`: selected AO, hybrid or identity projections when requested; and
+- `silicon_band_indices.dat`: the mapping from exported bands to original MO indices, including the
+  identity mapping when no bands are excluded.
 
-CP2K regenerates these files when the calculation is run. Preserve a separate copy of a completed
-Wannier90 input file, or add project-specific settings after the CP2K export has finished.
+CP2K regenerates the enabled files when the calculation is run. Preserve a separate copy of a
+completed Wannier90 input file, or add project-specific settings after the CP2K export has finished.
 
 ## Selecting the k-point source
 
@@ -95,9 +182,10 @@ irreducible subset.
 
 ### Use a separate Monkhorst--Pack mesh
 
-`KPOINTS_SOURCE MP_GRID` is the historical default. It builds a full Monkhorst--Pack mesh from
+`KPOINTS_SOURCE MP_GRID` is the historical default. It builds a full Gamma-centred uniform mesh from
 [MP_GRID](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90.MP_GRID), independently of the SCF k-point
-setup:
+setup. For a like-for-like comparison with `KPOINTS_SOURCE SCF`, use the same dimensions and
+`GAMMA_CENTERED T` in `&DFT%KPOINTS`:
 
 ```text
 &PRINT
@@ -136,9 +224,11 @@ The SCF mesh is independent of these overlap loops and must be converged separat
 `M(k,b) = C(k)^dagger O(k,b) C(k+b)`.
 
 Plain Euclidean overlaps of AO coefficient vectors are not suitable. Directed cross-k overlaps use
-ordered, nonsymmetric AO pair matrices. `SPIN_CHANNEL` selects a single collinear channel; UKS
-channels are never concatenated in one `.mmn` file. In SOC mode, `EXCLUDE_BANDS` selects spinor
-bands instead.
+ordered, nonsymmetric AO pair matrices. `SPIN_CHANNEL ALPHA` or `BETA` selects a single collinear
+channel; `BOTH` processes the channels separately with `_up` and `_down` seed suffixes. UKS channels
+are never concatenated in one `.mmn` file. In SOC mode, `EXCLUDE_BANDS` selects spinor bands
+instead, and the SCF must be restricted. Duplicate `EXCLUDE_BANDS` indices are rejected for explicit
+loops.
 
 The NNKP/MMN file interface can be used by an external
 [Z2Pack overlap-system adapter](https://z2pack.greschd.ch/en/latest/reference/other_systems.html).
@@ -295,12 +385,22 @@ well-defined exported subspace.
 full-mesh reference and compares it with the reconstructed orbitals. It is expensive and intended
 for development and diagnostic use, not routine production calculations.
 
+The atom/AO transformation uses the same lattice-periodic Bloch gauge as the SCF matrices. Atom cell
+shifts contribute phases; folding a k-point by a reciprocal lattice vector does not add an extra
+atom-position phase to the SCF coefficients. This is distinct from the optional export gauge
+described below.
+
+A finite integration grid can weakly break crystal symmetry even when the AO overlap metric is
+preserved. The reference validation can then reject the reconstructed eigenvalues and select
+full-mesh diagonalization. Converge both `CUTOFF` and `REL_CUTOFF` as well as the SCF threshold when
+testing quantitative reconstruction; SCF convergence alone does not remove grid errors.
+
 ## Bloch phases and projections
 
 [USE_BLOCH_PHASES](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90.USE_BLOCH_PHASES) applies the CP2K
-Bloch-phase gauge and writes an identity `.amn` projection file. It is valid only when
-`WANNIER_FUNCTIONS` equals the number of exported bands. Disentanglement calculations, or any case
-with fewer Wannier functions than exported bands, still require explicit Wannier90 projections.
+Bloch-phase gauge to reused SCF coefficients. Projections and overlaps use the same gauge. AO and
+hybrid trials permit rectangular projection matrices. The equal-count restriction applies only to
+identity projections, including the historical `NONE` setting with Bloch phases enabled.
 
 ## Limitations
 

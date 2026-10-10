@@ -214,4 +214,8 @@ cp_output_handling_openpmd.F: Found type cp_openpmd_per_call_value_type without 
 fde_methods.F: Found CALL EXECUTE_COMMAND_LINE in procedure "fde_spawn" https://cp2k.org/conv#c106
 tblite_reference_cli.F: Found CALL EXECUTE_COMMAND_LINE in procedure "tb_reference_cli_execute" https://cp2k.org/conv#c106
 
+# GFortran imports the W90 module symbol with USE-ONLY but without PRIVATE in
+# the AST, despite the wrapper's ONLY clause and default PRIVATE accessibility.
+# Explicit PRIVATE :: w90_library is rejected because the symbol is a module.
+
 # EOF

@@ -10,6 +10,7 @@ PROGRAM gapw_1c_basis_unittest
                                               create_primitive_basis_set,&
                                               deallocate_gto_basis_set,&
                                               gto_basis_set_type
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE gapw_1c_basis_set,               ONLY: create_1c_basis
    USE kinds,                           ONLY: dp
    USE libcp2k,                         ONLY: cp2k_finalize,&
@@ -18,13 +19,14 @@ PROGRAM gapw_1c_basis_unittest
    USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
 
    IMPLICIT NONE
-   INTEGER :: level
+   INTEGER :: level, io_unit
    INTEGER, PARAMETER :: expected(4) = [3, 4, 5, 7]
    REAL(KIND=dp) :: ratio, diffuse
    REAL(KIND=dp), PARAMETER :: spacing(4) = [2.5_dp, 2.0_dp, 1.75_dp, 1.5_dp]
    TYPE(gto_basis_set_type), POINTER :: seed => NULL(), orbitals => NULL(), extended => NULL()
 
    CALL cp2k_init()
+   io_unit = cp_logger_get_default_io_unit()
    CALL init_orbital_pointers(5)
    CALL init_spherical_harmonics(5, 0)
    DO level = 1, 4
@@ -44,7 +46,8 @@ PROGRAM gapw_1c_basis_unittest
       orbitals%set_radius = 0.0_dp
       CALL create_1c_basis(orbitals, orbitals, extended, level)
       diffuse = 1.0_dp/(ratio*SQRT(ratio))
-      PRINT '(A,I2,A,I3)', 'GAPW extension level ', level, ': added s primitives ', extended%npgf(2)
+      IF (io_unit > 0) WRITE (io_unit, '(A,I2,A,I3)') &
+         'GAPW extension level ', level, ': added s primitives ', extended%npgf(2)
       IF (extended%npgf(2) /= expected(level)) ERROR STOP 'GAPW extension lost admissible diffuse exponents'
       IF (MINVAL(ABS(extended%zet(:extended%npgf(2), 2) - diffuse)) > 1.e-12_dp) THEN
          ERROR STOP 'GAPW extension is missing the first admissible diffuse exponent'
