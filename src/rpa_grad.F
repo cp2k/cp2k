@@ -14,6 +14,7 @@ MODULE rpa_grad
    USE cp_array_utils,                  ONLY: cp_1d_r_cp_type,&
                                               cp_3d_r_cp_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_dbcsr_redistribution,         ONLY: cp_array_to_dbcsr_slices
    USE cp_fm_basic_linalg,              ONLY: cp_fm_add_on_diag,&
                                               cp_fm_geadd,&
                                               cp_fm_scale_and_add
@@ -57,7 +58,6 @@ MODULE rpa_grad
                                               mp_waitall,&
                                               mp_waitany
    USE mp2_laplace,                     ONLY: calc_fm_mat_s_laplace
-   USE mp2_ri_grad_util,                ONLY: create_dbcsr_gamma
    USE mp2_types,                       ONLY: mp2_type,&
                                               one_dim_int_array,&
                                               two_dim_int_array,&
@@ -2173,9 +2173,10 @@ CONTAINS
          CALL cp_fm_to_array(Gamma_2D, my_ia_start, my_ia_end, my_group_L_start, my_group_L_end, fm_G_P_ia)
 
          ! create the Gamma_ia_P in DBCSR style
-         CALL create_dbcsr_gamma(Gamma_2D, homo(ispin), virtual(ispin), dimen_ia, para_env_sub, &
-                                 my_ia_start, my_ia_end, my_group_L_size, gd_ia, &
-                                 mp2_env%ri_grad%G_P_ia(:, ispin), mp2_env%ri_grad%mo_coeff_o(ispin)%matrix)
+         CALL cp_array_to_dbcsr_slices(Gamma_2D, homo(ispin), virtual(ispin), para_env_sub, my_ia_start, &
+                                       my_ia_end, my_group_L_size, gd_ia, &
+                                       mp2_env%ri_grad%mo_coeff_o(ispin)%matrix, &
+                                       matrix_ptrs=mp2_env%ri_grad%G_P_ia(:, ispin))
 
          CALL release_group_dist(gd_ia)
 
