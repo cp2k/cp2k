@@ -30,6 +30,7 @@ MODULE bse_bs_env_link
         dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_info, dbcsr_get_stored_coordinates, &
         dbcsr_put_block, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_dbcsr_redistribution,         ONLY: cp_dbcsr_from_subgroups
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
    USE cp_fm_diag,                      ONLY: cp_fm_power
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -50,8 +51,7 @@ MODULE bse_bs_env_link
         dbt_iterator_blocks_left, dbt_iterator_next_block, dbt_iterator_start, dbt_iterator_stop, &
         dbt_iterator_type, dbt_pgrid_create, dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
    USE gw_tensor_large_cell_Gamma,      ONLY: compute_3c_integrals
-   USE gw_utils_communication,          ONLY: fm_to_local_tensor,&
-                                              local_matrix_to_global_matrix
+   USE gw_utils_communication,          ONLY: fm_to_local_tensor
    USE gw_utils_fm,                     ONLY: fm_contract_ABA
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp,&
@@ -809,7 +809,7 @@ CONTAINS
 
       DO i_pair = 1, 3
          CALL dbcsr_finalize(mat_group(i_pair))
-         CALL local_matrix_to_global_matrix(mat_group(i_pair), mat_global(i_pair), bs_env%para_env)
+         CALL cp_dbcsr_from_subgroups(mat_group(i_pair), mat_global(i_pair), bs_env%para_env)
          CALL cp_fm_struct_create(struct_batch, para_env=bs_env%para_env, context=blacs_env, &
                                   nrow_global=n_RI_batch, ncol_global=n_cols_pair(i_pair))
          CALL cp_fm_create(fm_batch, struct_batch)

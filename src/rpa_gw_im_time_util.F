@@ -18,17 +18,15 @@ MODULE rpa_gw_im_time_util
                                               pbc
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
-        dbcsr_distribution_type, dbcsr_filter, dbcsr_get_info, dbcsr_get_stored_coordinates, &
-        dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_readonly_start, dbcsr_iterator_start, dbcsr_iterator_stop, &
-        dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_release_p, &
-        dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_distribution_type, dbcsr_filter, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_release_p, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag,&
                                               dbcsr_get_diag,&
                                               dbcsr_reserve_all_blocks,&
                                               dbcsr_set_diag
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_row_template
+   USE cp_dbcsr_redistribution,         ONLY: cp_dbcsr_from_subgroups
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_set_element,&
@@ -43,8 +41,6 @@ MODULE rpa_gw_im_time_util
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE mathconstants,                   ONLY: twopi
-   USE matrix_communication,            ONLY: exchange_matrix_buffers,&
-                                              integ_mat_buffer_type => matrix_buffer_type
    USE message_passing,                 ONLY: mp_dims_create,&
                                               mp_para_env_type
    USE particle_methods,                ONLY: get_particle_set
@@ -457,21 +453,15 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'reflect_mat_row'
 
-      INTEGER :: block, block_size, col, col_rec, col_size, handle, i_atom, i_block, imepos, &
-         j_atom, natom, nblkcols_total, nblkrows_total, offset, row, row_rec, row_reflected, &
-         row_size
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: block_counter, entry_counter, image_atom, &
-         num_blocks_rec, num_blocks_send, num_entries_rec, num_entries_send, sizes_rec, sizes_send
+      INTEGER                                            :: handle, i_atom, j_atom, natom, &
+                                                            nblkcols_total, nblkrows_total
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: image_atom
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
       LOGICAL                                            :: found_image_atom
       REAL(KIND=dp)                                      :: avg_z_dist, delta, eps_dist2, &
                                                             min_z_dist, ra(3), rb(3), sum_z, &
                                                             z_reflection
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(dbcsr_iterator_type)                          :: iter
-      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: buffer_rec, buffer_send
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
@@ -570,158 +560,7 @@ CONTAINS
 
       END DO
 
-      ALLOCATE (buffer_rec(0:para_env%num_pe - 1))
-      ALLOCATE (buffer_send(0:para_env%num_pe - 1))
-
-      ALLOCATE (num_entries_rec(0:para_env%num_pe - 1), SOURCE=0)
-      ALLOCATE (num_blocks_rec(0:para_env%num_pe - 1), SOURCE=0)
-      ALLOCATE (num_entries_send(0:para_env%num_pe - 1), SOURCE=0)
-      ALLOCATE (num_blocks_send(0:para_env%num_pe - 1), SOURCE=0)
-
-      CALL dbcsr_iterator_readonly_start(iter, mat_orig)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-
-         CALL dbcsr_iterator_next_block(iter, row, col, row_size=row_size, col_size=col_size)
-
-         row_reflected = image_atom(row)
-
-         CALL dbcsr_get_stored_coordinates(mat_reflected, row_reflected, col, imepos)
-
-         num_entries_send(imepos) = num_entries_send(imepos) + row_size*col_size
-         num_blocks_send(imepos) = num_blocks_send(imepos) + 1
-
-      END DO
-
-      CALL dbcsr_iterator_stop(iter)
-
-      IF (para_env%num_pe > 1) THEN
-
-         ALLOCATE (sizes_rec(0:2*para_env%num_pe - 1))
-         ALLOCATE (sizes_send(0:2*para_env%num_pe - 1))
-
-         DO imepos = 0, para_env%num_pe - 1
-
-            sizes_send(2*imepos) = num_entries_send(imepos)
-            sizes_send(2*imepos + 1) = num_blocks_send(imepos)
-
-         END DO
-
-         CALL para_env%alltoall(sizes_send, sizes_rec, 2)
-
-         DO imepos = 0, para_env%num_pe - 1
-            num_entries_rec(imepos) = sizes_rec(2*imepos)
-            num_blocks_rec(imepos) = sizes_rec(2*imepos + 1)
-         END DO
-
-         DEALLOCATE (sizes_rec, sizes_send)
-
-      ELSE
-
-         num_entries_rec(0) = num_entries_send(0)
-         num_blocks_rec(0) = num_blocks_send(0)
-
-      END IF
-
-      ! allocate data message and corresponding indices
-      DO imepos = 0, para_env%num_pe - 1
-
-         ALLOCATE (buffer_rec(imepos)%msg(num_entries_rec(imepos)))
-         buffer_rec(imepos)%msg = 0.0_dp
-
-         ALLOCATE (buffer_send(imepos)%msg(num_entries_send(imepos)))
-         buffer_send(imepos)%msg = 0.0_dp
-
-         ALLOCATE (buffer_rec(imepos)%indx(num_blocks_rec(imepos), 3))
-         buffer_rec(imepos)%indx = 0
-
-         ALLOCATE (buffer_send(imepos)%indx(num_blocks_send(imepos), 3))
-         buffer_send(imepos)%indx = 0
-
-      END DO
-
-      ALLOCATE (block_counter(0:para_env%num_pe - 1))
-      block_counter(:) = 0
-
-      ALLOCATE (entry_counter(0:para_env%num_pe - 1))
-      entry_counter(:) = 0
-
-      CALL dbcsr_iterator_readonly_start(iter, mat_orig)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-
-         CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
-                                        row_size=row_size, col_size=col_size)
-
-         row_reflected = image_atom(row)
-
-         CALL dbcsr_get_stored_coordinates(mat_reflected, row_reflected, col, imepos)
-
-         block_size = row_size*col_size
-
-         offset = entry_counter(imepos)
-
-         buffer_send(imepos)%msg(offset + 1:offset + block_size) = &
-            RESHAPE(data_block(1:row_size, 1:col_size), [block_size])
-
-         block = block_counter(imepos) + 1
-
-         buffer_send(imepos)%indx(block, 1) = row_reflected
-         buffer_send(imepos)%indx(block, 2) = col
-         buffer_send(imepos)%indx(block, 3) = offset
-
-         entry_counter(imepos) = entry_counter(imepos) + block_size
-
-         block_counter(imepos) = block_counter(imepos) + 1
-
-      END DO
-
-      CALL dbcsr_iterator_stop(iter)
-
-      CALL exchange_matrix_buffers(para_env, num_entries_rec, num_entries_send, buffer_rec, buffer_send)
-
-      ! fill the reflected matrix
-      DO imepos = 0, para_env%num_pe - 1
-
-         DO i_block = 1, num_blocks_rec(imepos)
-
-            row_rec = buffer_rec(imepos)%indx(i_block, 1)
-            col_rec = buffer_rec(imepos)%indx(i_block, 2)
-
-            CALL dbcsr_iterator_start(iter, mat_reflected)
-            DO WHILE (dbcsr_iterator_blocks_left(iter))
-
-               CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
-                                              row_size=row_size, col_size=col_size)
-
-               IF (row_rec == row .AND. col_rec == col) THEN
-
-                  offset = buffer_rec(imepos)%indx(i_block, 3)
-
-                  data_block(:, :) = RESHAPE(buffer_rec(imepos)%msg(offset + 1:offset + row_size*col_size), &
-                                             [row_size, col_size])
-
-               END IF
-
-            END DO
-
-            CALL dbcsr_iterator_stop(iter)
-
-         END DO
-
-      END DO
-
-      DO imepos = 0, para_env%num_pe - 1
-         DEALLOCATE (buffer_rec(imepos)%msg)
-         DEALLOCATE (buffer_rec(imepos)%indx)
-         DEALLOCATE (buffer_send(imepos)%msg)
-         DEALLOCATE (buffer_send(imepos)%indx)
-      END DO
-
-      DEALLOCATE (buffer_rec, buffer_send)
-      DEALLOCATE (block_counter, entry_counter)
-      DEALLOCATE (num_entries_rec)
-      DEALLOCATE (num_blocks_rec)
-      DEALLOCATE (num_entries_send)
-      DEALLOCATE (num_blocks_send)
+      CALL cp_dbcsr_from_subgroups(mat_orig, mat_reflected, para_env, row_mapping=image_atom, copy_only=.TRUE.)
 
       CALL timestop(handle)
 
