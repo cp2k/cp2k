@@ -12,7 +12,7 @@
 ! **************************************************************************************************
 MODULE gw_utils_communication
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_finalize, dbcsr_get_info, &
+        dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_finalize, &
         dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
         dbcsr_release, dbcsr_reserve_blocks, dbcsr_set, dbcsr_type
@@ -147,13 +147,12 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'global_matrix_to_local_matrix'
 
       INTEGER :: block_counter, block_offset, block_size, col, col_from_buffer, col_offset, &
-         col_size, handle, handle1, i_block, i_entry, i_mepos, igroup, imep, imep_sub, msg_offset, &
-         nblkrows_total, ngroup, nmo, num_blocks, offset, row, row_from_buffer, row_offset, &
+         col_size, handle, handle1, i_block, i_mepos, igroup, imep, imep_sub, msg_offset, &
+         ngroup, num_blocks, offset, row, row_from_buffer, row_offset, &
          row_size, total_num_entries
       INTEGER, ALLOCATABLE, DIMENSION(:) :: blk_counter, cols_to_alloc, entry_counter, &
-         num_entries_blocks_rec, num_entries_blocks_send, row_block_from_index, rows_to_alloc, &
+         num_entries_blocks_rec, num_entries_blocks_send, rows_to_alloc, &
          sizes_rec, sizes_send
-      INTEGER, DIMENSION(:), POINTER                     :: row_blk_offset, row_blk_size
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(buffer_type), ALLOCATABLE, DIMENSION(:)       :: buffer_rec, buffer_send
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -297,31 +296,6 @@ CONTAINS
       END DO
 
       CALL communicate_buffer(para_env, sizes_rec, sizes_send, buffer_rec, buffer_send)
-
-      CALL timestop(handle1)
-
-      CALL timeset("row_block_from_index", handle1)
-
-      CALL dbcsr_get_info(mat_local, &
-                          nblkrows_total=nblkrows_total, &
-                          row_blk_offset=row_blk_offset, &
-                          row_blk_size=row_blk_size)
-
-      ALLOCATE (row_block_from_index(nmo))
-      row_block_from_index = 0
-
-      DO i_entry = 1, nmo
-         DO i_block = 1, nblkrows_total
-
-            IF (i_entry >= row_blk_offset(i_block) .AND. &
-                i_entry <= row_blk_offset(i_block) + row_blk_size(i_block) - 1) THEN
-
-               row_block_from_index(i_entry) = i_block
-
-            END IF
-
-         END DO
-      END DO
 
       CALL timestop(handle1)
 
