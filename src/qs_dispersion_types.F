@@ -58,6 +58,7 @@ MODULE qs_dispersion_types
       REAL(KIND=dp)                          :: k1 = -1.0_dp, k2 = -1.0_dp, k3 = -1.0_dp !ad hoc parameters
       REAL(KIND=dp)                          :: alp = -1.0_dp !ad hoc parameters
       REAL(KIND=dp)                          :: s6 = -1.0_dp, s8 = -1.0_dp, sr6 = -1.0_dp !scaling parameters
+      REAL(KIND=dp)                          :: sr8 = 1.0_dp !D3(0) C8 damping parameter
       REAL(KIND=dp)                          :: a1 = -1.0_dp, a2 = -1.0_dp !BJ scaling parameters
       REAL(KIND=dp)                          :: eps_cn = -1.0_dp
       LOGICAL                                :: d4_reference_code = .FALSE. !Use D4 calculation from ext. library

@@ -184,7 +184,7 @@ CONTAINS
       s8 = dispersion_env%s8
       s9 = dispersion_env%s6
       rs6 = dispersion_env%sr6
-      rs8 = 1._dp
+      rs8 = dispersion_env%sr8
       a1 = dispersion_env%a1
       a2 = dispersion_env%a2
       eps_cn = dispersion_env%eps_cn

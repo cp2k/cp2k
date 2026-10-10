@@ -51,7 +51,7 @@ MODULE bibliography
                             Hunt2003, Guidon2008, Elber1987, Jonsson1998, Jonsson2000_1, &
                             Jonsson2000_2, Wales2004, Stewart1982, E2002, Laino2008, &
                             Blochl1995, Tao2003, VandeVondele2006, VanVoorhis2015, Hu2007, Hu2010, Grimme2006, &
-                            Branduardi2007, Schenter2008, BeckeRoussel1989, Proynov2007, &
+                            Chai2008, Branduardi2007, Schenter2008, BeckeRoussel1989, Proynov2007, &
                             VandenCic2006, Becke1997, Foiles1986, Ricci2003, Kolafa2004, &
                             Kuhne2007, Kunert2003, Ceriotti2009, ceriotti2009b, Guidon2009, &
                             BarducBus2008, Grimme2010, Guidon2010, Marques2012, Jones2011, &
@@ -756,6 +756,13 @@ CONTAINS
                          "a long-range dispersion correction", &
                          source="J. Comput. Chem.", volume="27", pages="1787-1799", &
                          year=2006, doi="10.1002/jcc.20495")
+
+      CALL add_reference(key=Chai2008, &
+                         authors=s2a("J.-D. Chai", "M. Head-Gordon"), &
+                         title="Long-range corrected hybrid density functionals with "// &
+                         "damped atom-atom dispersion corrections", &
+                         source="Phys. Chem. Chem. Phys.", volume="10", pages="6615-6620", &
+                         year=2008, doi="10.1039/B810189B")
 
       CALL add_reference(key=Grimme2010, &
                          authors=s2a("S. Grimme", "J. Antony", "S. Ehrlich", "H. Krieg"), &
