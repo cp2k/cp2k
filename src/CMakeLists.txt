@@ -433,6 +433,7 @@ list(
   mp2_ri_gpw.F
   mp2_ri_grad.F
   mp2_ri_grad_util.F
+  matrix_communication.F
   mp2_ri_libint.F
   mp2_setup.F
   mp2_types.F

@@ -85,13 +85,13 @@ MODULE mp2_ri_2c
    USE mathconstants,                   ONLY: gaussi,&
                                               z_one,&
                                               z_zero
+   USE matrix_communication,            ONLY: exchange_matrix_buffers,&
+                                              integ_mat_buffer_type => matrix_buffer_type
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_para_env_release,&
-                                              mp_para_env_type,&
-                                              mp_request_type
+                                              mp_para_env_type
    USE mp2_eri,                         ONLY: mp2_eri_2c_integrate
    USE mp2_eri_gpw,                     ONLY: mp2_eri_2c_integrate_gpw
-   USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
@@ -107,7 +107,6 @@ MODULE mp2_ri_2c
                                               release_neighbor_list_sets
    USE qs_tensors,                      ONLY: build_2c_integrals,&
                                               build_2c_neighbor_lists
-   USE rpa_communication,               ONLY: communicate_buffer
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
@@ -1358,7 +1357,6 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
-      TYPE(mp_request_type), DIMENSION(:, :), POINTER    :: req_array
 
       CALL timeset(routineN, handle)
 
@@ -1482,15 +1480,13 @@ CONTAINS
 
       END DO
 
-      ALLOCATE (req_array(1:para_env%num_pe, 4))
-
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_8", handle2)
 
       ! communicate the buffer
-      CALL communicate_buffer(para_env, num_entries_rec, num_entries_send, buffer_rec, &
-                              buffer_send, req_array)
+      CALL exchange_matrix_buffers(para_env, num_entries_rec, num_entries_send, buffer_rec, &
+                                   buffer_send)
 
       fm_matrix_L%local_data = 0.0_dp
 
@@ -1525,7 +1521,6 @@ CONTAINS
       END DO
 
       DEALLOCATE (buffer_rec, buffer_send)
-      DEALLOCATE (req_array)
       DEALLOCATE (entry_counter)
       DEALLOCATE (num_entries_rec, num_entries_send)
 

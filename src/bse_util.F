@@ -43,12 +43,12 @@ MODULE bse_util
    USE kinds,                           ONLY: default_path_length,&
                                               dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_para_env_type,&
-                                              mp_request_type
+   USE matrix_communication,            ONLY: exchange_matrix_buffers,&
+                                              integ_mat_buffer_type => matrix_buffer_type
+   USE message_passing,                 ONLY: mp_para_env_type
    USE mo_window,                       ONLY: combine_mo_windows,&
                                               determine_mo_window,&
                                               mo_window_type
-   USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
@@ -65,7 +65,6 @@ MODULE bse_util
                                               mo_set_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
-   USE rpa_communication,               ONLY: communicate_buffer
    USE util,                            ONLY: sort,&
                                               sort_unique
 #include "./base/base_uses.f90"
@@ -219,7 +218,6 @@ CONTAINS
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
       TYPE(mp_para_env_type), POINTER                    :: para_env_out
-      TYPE(mp_request_type), DIMENSION(:, :), POINTER    :: req_array
 
 ! Offsets place the reshuffled block into a sub-block of fm_out (open-shell joint matrix);
 ! both default 0, recovering the closed-shell single-block placement bit-identically.
@@ -385,8 +383,6 @@ CONTAINS
          END DO
       END DO
 
-      ALLOCATE (req_array(1:para_env_out%num_pe, 4))
-
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_5_comm_buffer", handle2)
@@ -395,8 +391,8 @@ CONTAINS
       END IF
 
       ! communicate the buffer
-      CALL communicate_buffer(para_env_out, num_entries_rec, num_entries_send, buffer_rec, &
-                              buffer_send, req_array)
+      CALL exchange_matrix_buffers(para_env_out, num_entries_rec, num_entries_send, buffer_rec, &
+                                   buffer_send)
 
       CALL timestop(handle2)
 
@@ -436,7 +432,6 @@ CONTAINS
          DEALLOCATE (buffer_send(iproc)%indx)
       END DO
       DEALLOCATE (buffer_rec, buffer_send)
-      DEALLOCATE (req_array)
       DEALLOCATE (entry_counter)
       DEALLOCATE (num_entries_rec, num_entries_send)
 
@@ -484,7 +479,6 @@ CONTAINS
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
       TYPE(mp_para_env_type), POINTER                    :: para_env_out
-      TYPE(mp_request_type), DIMENSION(:, :), POINTER    :: req_array
 
       CALL timeset(routineN, handle)
       CALL timeset(routineN//"_1_setup", handle2)
@@ -683,8 +677,6 @@ CONTAINS
          END DO
       END DO
 
-      ALLOCATE (req_array(1:para_env_out%num_pe, 4))
-
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_5_comm_buffer", handle2)
@@ -693,8 +685,8 @@ CONTAINS
       END IF
 
       ! communicate the buffer
-      CALL communicate_buffer(para_env_out, num_entries_rec, num_entries_send, buffer_rec, &
-                              buffer_send, req_array)
+      CALL exchange_matrix_buffers(para_env_out, num_entries_rec, num_entries_send, buffer_rec, &
+                                   buffer_send)
 
       CALL timestop(handle2)
 
@@ -734,7 +726,6 @@ CONTAINS
          DEALLOCATE (buffer_send(iproc)%indx)
       END DO
       DEALLOCATE (buffer_rec, buffer_send)
-      DEALLOCATE (req_array)
       DEALLOCATE (entry_counter)
       DEALLOCATE (num_entries_rec, num_entries_send)
 

@@ -52,8 +52,7 @@ MODULE rpa_communication
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_communication'
 
-   PUBLIC :: gamma_fm_to_dbcsr, &
-             communicate_buffer
+   PUBLIC :: gamma_fm_to_dbcsr
 
 CONTAINS
 
@@ -417,88 +416,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE gamma_fm_to_dbcsr
-
-! **************************************************************************************************
-!> \brief ...
-!> \param para_env ...
-!> \param num_entries_rec ...
-!> \param num_entries_send ...
-!> \param buffer_rec ...
-!> \param buffer_send ...
-!> \param req_array ...
-!> \param do_indx ...
-!> \param do_msg ...
-! **************************************************************************************************
-   SUBROUTINE communicate_buffer(para_env, num_entries_rec, num_entries_send, buffer_rec, buffer_send, &
-                                 req_array, do_indx, do_msg)
-
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: num_entries_rec, num_entries_send
-      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:), INTENT(INOUT)                     :: buffer_rec, buffer_send
-      TYPE(mp_request_type), DIMENSION(:, :), POINTER    :: req_array
-      LOGICAL, INTENT(IN), OPTIONAL                      :: do_indx, do_msg
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'communicate_buffer'
-
-      INTEGER                                            :: handle, imepos, rec_counter, send_counter
-      LOGICAL                                            :: my_do_indx, my_do_msg
-
-      CALL timeset(routineN, handle)
-
-      my_do_indx = .TRUE.
-      IF (PRESENT(do_indx)) my_do_indx = do_indx
-      my_do_msg = .TRUE.
-      IF (PRESENT(do_msg)) my_do_msg = do_msg
-
-      IF (para_env%num_pe > 1) THEN
-
-         send_counter = 0
-         rec_counter = 0
-
-         DO imepos = 0, para_env%num_pe - 1
-            IF (num_entries_rec(imepos) > 0) THEN
-               rec_counter = rec_counter + 1
-               IF (my_do_indx) THEN
-                  CALL para_env%irecv(buffer_rec(imepos)%indx, imepos, req_array(rec_counter, 3), tag=4)
-               END IF
-               IF (my_do_msg) THEN
-                  CALL para_env%irecv(buffer_rec(imepos)%msg, imepos, req_array(rec_counter, 4), tag=7)
-               END IF
-            END IF
-         END DO
-
-         DO imepos = 0, para_env%num_pe - 1
-            IF (num_entries_send(imepos) > 0) THEN
-               send_counter = send_counter + 1
-               IF (my_do_indx) THEN
-                  CALL para_env%isend(buffer_send(imepos)%indx, imepos, req_array(send_counter, 1), tag=4)
-               END IF
-               IF (my_do_msg) THEN
-                  CALL para_env%isend(buffer_send(imepos)%msg, imepos, req_array(send_counter, 2), tag=7)
-               END IF
-            END IF
-         END DO
-
-         IF (my_do_indx) THEN
-            CALL mp_waitall(req_array(1:send_counter, 1))
-            CALL mp_waitall(req_array(1:rec_counter, 3))
-         END IF
-
-         IF (my_do_msg) THEN
-            CALL mp_waitall(req_array(1:send_counter, 2))
-            CALL mp_waitall(req_array(1:rec_counter, 4))
-         END IF
-
-      ELSE
-
-         buffer_rec(0)%indx(:, :) = buffer_send(0)%indx
-         buffer_rec(0)%msg(:) = buffer_send(0)%msg
-
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE communicate_buffer
 
 END MODULE rpa_communication

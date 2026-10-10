@@ -12,10 +12,10 @@
 ! **************************************************************************************************
 MODULE gw_utils_communication
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_finalize, &
-        dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
-        dbcsr_release, dbcsr_reserve_blocks, dbcsr_set, dbcsr_type
+        dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_finalize, dbcsr_get_stored_coordinates, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_release, &
+        dbcsr_reserve_blocks, dbcsr_set, dbcsr_type
    USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
@@ -29,9 +29,9 @@ MODULE gw_utils_communication
                                               dbt_destroy,&
                                               dbt_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type,&
-                                              mp_request_type,&
-                                              mp_waitall
+   USE matrix_communication,            ONLY: buffer_type => matrix_buffer_type,&
+                                              exchange_matrix_buffers
+   USE message_passing,                 ONLY: mp_para_env_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
 #include "./base/base_uses.f90"
 
@@ -44,14 +44,6 @@ MODULE gw_utils_communication
    PUBLIC :: local_dbt_to_global_mat, fm_to_local_tensor, fm_to_local_array, local_array_to_fm, &
              local_matrix_to_global_matrix, &
              local_dbt_to_global_fm
-
-   TYPE buffer_type
-      REAL(KIND=dp), DIMENSION(:), POINTER  :: msg => NULL()
-      INTEGER, DIMENSION(:), POINTER  :: sizes => NULL()
-      INTEGER, DIMENSION(:, :), POINTER  :: indx => NULL()
-      INTEGER :: proc = -1
-      INTEGER :: msg_req = -1
-   END TYPE buffer_type
 
 CONTAINS
 
@@ -147,12 +139,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'global_matrix_to_local_matrix'
 
       INTEGER :: block_counter, block_offset, block_size, col, col_from_buffer, col_offset, &
-         col_size, handle, handle1, i_block, i_mepos, igroup, imep, imep_sub, msg_offset, &
-         ngroup, num_blocks, offset, row, row_from_buffer, row_offset, &
-         row_size, total_num_entries
+         col_size, handle, handle1, i_block, i_mepos, igroup, imep, imep_sub, msg_offset, ngroup, &
+         num_blocks, offset, row, row_from_buffer, row_offset, row_size, total_num_entries
       INTEGER, ALLOCATABLE, DIMENSION(:) :: blk_counter, cols_to_alloc, entry_counter, &
-         num_entries_blocks_rec, num_entries_blocks_send, rows_to_alloc, &
-         sizes_rec, sizes_send
+         num_entries_blocks_rec, num_entries_blocks_send, rows_to_alloc, sizes_rec, sizes_send
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(buffer_type), ALLOCATABLE, DIMENSION(:)       :: buffer_rec, buffer_send
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -295,7 +285,7 @@ CONTAINS
          sizes_rec(imep) = num_entries_blocks_rec(2*imep)
       END DO
 
-      CALL communicate_buffer(para_env, sizes_rec, sizes_send, buffer_rec, buffer_send)
+      CALL exchange_matrix_buffers(para_env, sizes_rec, sizes_send, buffer_rec, buffer_send)
 
       CALL timestop(handle1)
 
@@ -385,92 +375,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param para_env ...
-!> \param num_entries_rec ...
-!> \param num_entries_send ...
-!> \param buffer_rec ...
-!> \param buffer_send ...
-!> \param do_indx ...
-!> \param do_msg ...
-! **************************************************************************************************
-   SUBROUTINE communicate_buffer(para_env, num_entries_rec, num_entries_send, &
-                                 buffer_rec, buffer_send, do_indx, do_msg)
-
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_entries_rec, num_entries_send
-      TYPE(buffer_type), ALLOCATABLE, DIMENSION(:)       :: buffer_rec, buffer_send
-      LOGICAL, OPTIONAL                                  :: do_indx, do_msg
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'communicate_buffer'
-
-      INTEGER                                            :: handle, imep, rec_counter, send_counter
-      LOGICAL                                            :: my_do_indx, my_do_msg
-      TYPE(mp_request_type), DIMENSION(:, :), POINTER    :: req
-
-      CALL timeset(routineN, handle)
-
-      NULLIFY (req)
-      ALLOCATE (req(1:para_env%num_pe, 4))
-
-      my_do_indx = .TRUE.
-      IF (PRESENT(do_indx)) my_do_indx = do_indx
-      my_do_msg = .TRUE.
-      IF (PRESENT(do_msg)) my_do_msg = do_msg
-
-      IF (para_env%num_pe > 1) THEN
-
-         send_counter = 0
-         rec_counter = 0
-
-         DO imep = 0, para_env%num_pe - 1
-            IF (num_entries_rec(imep) > 0) THEN
-               rec_counter = rec_counter + 1
-               IF (my_do_indx) THEN
-                  CALL para_env%irecv(buffer_rec(imep)%indx, imep, req(rec_counter, 3), tag=4)
-               END IF
-               IF (my_do_msg) THEN
-                  CALL para_env%irecv(buffer_rec(imep)%msg, imep, req(rec_counter, 4), tag=7)
-               END IF
-            END IF
-         END DO
-
-         DO imep = 0, para_env%num_pe - 1
-            IF (num_entries_send(imep) > 0) THEN
-               send_counter = send_counter + 1
-               IF (my_do_indx) THEN
-                  CALL para_env%isend(buffer_send(imep)%indx, imep, req(send_counter, 1), tag=4)
-               END IF
-               IF (my_do_msg) THEN
-                  CALL para_env%isend(buffer_send(imep)%msg, imep, req(send_counter, 2), tag=7)
-               END IF
-            END IF
-         END DO
-
-         IF (my_do_indx) THEN
-            CALL mp_waitall(req(1:send_counter, 1))
-            CALL mp_waitall(req(1:rec_counter, 3))
-         END IF
-
-         IF (my_do_msg) THEN
-            CALL mp_waitall(req(1:send_counter, 2))
-            CALL mp_waitall(req(1:rec_counter, 4))
-         END IF
-
-      ELSE
-
-         buffer_rec(0)%indx = buffer_send(0)%indx
-         buffer_rec(0)%msg = buffer_send(0)%msg
-
-      END IF
-
-      DEALLOCATE (req)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE communicate_buffer
-
-! **************************************************************************************************
-!> \brief ...
 !> \param mat_local ...
 !> \param mat_global ...
 !> \param para_env ...
@@ -484,15 +388,13 @@ CONTAINS
 
       INTEGER                                            :: block_size, c, col, col_size, handle, &
                                                             handle1, i_block, imep, o, offset, r, &
-                                                            rec_counter, row, row_size, &
-                                                            send_counter
+                                                            row, row_size
       INTEGER, ALLOCATABLE, DIMENSION(:) :: block_counter, entry_counter, num_blocks_rec, &
          num_blocks_send, num_entries_rec, num_entries_send, sizes_rec, sizes_send
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(buffer_type), ALLOCATABLE, DIMENSION(:)       :: buffer_rec, buffer_send
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type)                                   :: mat_global_copy
-      TYPE(mp_request_type), DIMENSION(:, :), POINTER    :: req
 
       CALL timeset(routineN, handle)
 
@@ -624,43 +526,7 @@ CONTAINS
 
       CALL timeset("comm_data", handle1)
 
-      NULLIFY (req)
-      ALLOCATE (req(1:para_env%num_pe, 4))
-
-      IF (para_env%num_pe > 1) THEN
-
-         send_counter = 0
-         rec_counter = 0
-
-         DO imep = 0, para_env%num_pe - 1
-            IF (num_entries_rec(imep) > 0) THEN
-               rec_counter = rec_counter + 1
-               CALL para_env%irecv(buffer_rec(imep)%indx, imep, req(rec_counter, 3), tag=4)
-            END IF
-            IF (num_entries_rec(imep) > 0) THEN
-               CALL para_env%irecv(buffer_rec(imep)%msg, imep, req(rec_counter, 4), tag=7)
-            END IF
-         END DO
-
-         DO imep = 0, para_env%num_pe - 1
-            IF (num_entries_send(imep) > 0) THEN
-               send_counter = send_counter + 1
-               CALL para_env%isend(buffer_send(imep)%indx, imep, req(send_counter, 1), tag=4)
-            END IF
-            IF (num_entries_send(imep) > 0) THEN
-               CALL para_env%isend(buffer_send(imep)%msg, imep, req(send_counter, 2), tag=7)
-            END IF
-         END DO
-
-         CALL mp_waitall(req(1:send_counter, 1:2))
-         CALL mp_waitall(req(1:rec_counter, 3:4))
-
-      ELSE
-
-         buffer_rec(0)%indx = buffer_send(0)%indx
-         buffer_rec(0)%msg = buffer_send(0)%msg
-
-      END IF
+      CALL exchange_matrix_buffers(para_env, num_entries_rec, num_entries_send, buffer_rec, buffer_send)
 
       CALL timestop(handle1)
 
@@ -716,8 +582,6 @@ CONTAINS
       DEALLOCATE (buffer_rec, buffer_send)
 
       DEALLOCATE (block_counter, entry_counter)
-
-      DEALLOCATE (req)
 
       CALL dbcsr_set(mat_local, 0.0_dp)
       CALL dbcsr_filter(mat_local, 1.0_dp)

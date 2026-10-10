@@ -43,10 +43,10 @@ MODULE rpa_gw_im_time_util
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE mathconstants,                   ONLY: twopi
+   USE matrix_communication,            ONLY: exchange_matrix_buffers,&
+                                              integ_mat_buffer_type => matrix_buffer_type
    USE message_passing,                 ONLY: mp_dims_create,&
-                                              mp_para_env_type,&
-                                              mp_request_type
-   USE mp2_types,                       ONLY: integ_mat_buffer_type
+                                              mp_para_env_type
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -60,7 +60,6 @@ MODULE rpa_gw_im_time_util
                                               create_3c_tensor,&
                                               pgf_block_sizes,&
                                               split_block_sizes
-   USE rpa_communication,               ONLY: communicate_buffer
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -473,7 +472,6 @@ CONTAINS
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
-      TYPE(mp_request_type), DIMENSION(:, :), POINTER    :: req_array
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
@@ -678,11 +676,7 @@ CONTAINS
 
       CALL dbcsr_iterator_stop(iter)
 
-      ALLOCATE (req_array(1:para_env%num_pe, 4))
-
-      CALL communicate_buffer(para_env, num_entries_rec, num_entries_send, buffer_rec, buffer_send, req_array)
-
-      DEALLOCATE (req_array)
+      CALL exchange_matrix_buffers(para_env, num_entries_rec, num_entries_send, buffer_rec, buffer_send)
 
       ! fill the reflected matrix
       DO imepos = 0, para_env%num_pe - 1
