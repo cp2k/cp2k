@@ -15,7 +15,8 @@ MODULE cp_fm_redistribution
                                               cp_fm_release,&
                                               cp_fm_type
    USE kinds,                           ONLY: dp
-   USE matrix_communication,            ONLY: exchange_matrix_buffers,&
+   USE matrix_communication,            ONLY: allocate_matrix_buffers,&
+                                              exchange_matrix_buffers,&
                                               matrix_buffer_type
    USE message_passing,                 ONLY: mp_para_env_type
 #include "../base/base_uses.f90"
@@ -66,8 +67,7 @@ CONTAINS
                                                             num_entries_send
       INTEGER, DIMENSION(4)                              :: first, indices, last, mapped
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      TYPE(matrix_buffer_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: buffer_rec, buffer_send
+      TYPE(matrix_buffer_type)                           :: buffer_rec, buffer_send
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
@@ -93,14 +93,8 @@ CONTAINS
       DO pass = 1, 2
          IF (pass == 2) THEN
             CALL para_env%alltoall(num_entries_send, num_entries_rec, 1)
-            ALLOCATE (buffer_send(0:nprocs - 1), buffer_rec(0:nprocs - 1))
-            DO iproc = 0, nprocs - 1
-               ALLOCATE (buffer_send(iproc)%msg(num_entries_send(iproc)), &
-                         buffer_send(iproc)%indx(num_entries_send(iproc), 2), &
-                         buffer_rec(iproc)%msg(num_entries_rec(iproc)), &
-                         buffer_rec(iproc)%indx(num_entries_rec(iproc), 2))
-            END DO
-            entry_counter = 0
+            CALL allocate_matrix_buffers(num_entries_send, num_entries_rec, 2, buffer_send, buffer_rec)
+            entry_counter(:) = buffer_send%msg_offset(:nprocs - 1)
          END IF
 
          DO i = 1, nrow_local
@@ -122,24 +116,22 @@ CONTAINS
                ELSE
                   entry_counter(iproc) = entry_counter(iproc) + 1
                   ientry = entry_counter(iproc)
-                  buffer_send(iproc)%msg(ientry) = fm_in%local_data(i, j)
-                  buffer_send(iproc)%indx(ientry, :) = [idx_row, idx_col]
+                  buffer_send%msg(ientry) = fm_in%local_data(i, j)
+                  buffer_send%indx(:, ientry) = [idx_row, idx_col]
                END IF
             END DO
          END DO
       END DO
 
-      CALL exchange_matrix_buffers(para_env, num_entries_rec, num_entries_send, buffer_rec, buffer_send)
+      CALL exchange_matrix_buffers(para_env, buffer_rec, buffer_send)
 
 !$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP SHARED(fm_out, nprocs, num_entries_rec, buffer_rec, beta) &
-!$OMP PRIVATE(iproc, ientry, ii, jj)
-      DO iproc = 0, nprocs - 1
-         DO ientry = 1, num_entries_rec(iproc)
-            ii = fm_out%matrix_struct%g2l_row(buffer_rec(iproc)%indx(ientry, 1))
-            jj = fm_out%matrix_struct%g2l_col(buffer_rec(iproc)%indx(ientry, 2))
-            fm_out%local_data(ii, jj) = fm_out%local_data(ii, jj) + beta*buffer_rec(iproc)%msg(ientry)
-         END DO
+!$OMP SHARED(fm_out, buffer_rec, beta) &
+!$OMP PRIVATE(ientry, ii, jj)
+      DO ientry = 1, SIZE(buffer_rec%msg)
+         ii = fm_out%matrix_struct%g2l_row(buffer_rec%indx(1, ientry))
+         jj = fm_out%matrix_struct%g2l_col(buffer_rec%indx(2, ientry))
+         fm_out%local_data(ii, jj) = fm_out%local_data(ii, jj) + beta*buffer_rec%msg(ientry)
       END DO
 !$OMP END PARALLEL DO
       CALL timestop(handle)
@@ -171,7 +163,7 @@ CONTAINS
       INTEGER                                            :: handle, i, ientry, j, pass, peer
       INTEGER, ALLOCATABLE                               :: cursor(:), recv_count(:), send_count(:)
       LOGICAL                                            :: release_mat
-      TYPE(matrix_buffer_type), ALLOCATABLE              :: buffer_rec(:), buffer_send(:)
+      TYPE(matrix_buffer_type)                           :: buffer_rec, buffer_send
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
@@ -186,12 +178,8 @@ CONTAINS
       DO pass = 1, 2
          IF (pass == 2) THEN
             CALL para_env%alltoall(send_count, recv_count, 1)
-            ALLOCATE (buffer_send(0:para_env%num_pe - 1), buffer_rec(0:para_env%num_pe - 1))
-            DO peer = 0, para_env%num_pe - 1
-               ALLOCATE (buffer_send(peer)%msg(send_count(peer)), buffer_send(peer)%indx(send_count(peer), 2), &
-                         buffer_rec(peer)%msg(recv_count(peer)), buffer_rec(peer)%indx(recv_count(peer), 2))
-            END DO
-            cursor = 0
+            CALL allocate_matrix_buffers(send_count, recv_count, 2, buffer_send, buffer_rec)
+            cursor(:) = buffer_send%msg_offset(:para_env%num_pe - 1)
          END IF
          DO j = my_start_col, my_end_col
             DO i = my_start_row, my_end_row
@@ -201,20 +189,18 @@ CONTAINS
                ELSE
                   cursor(peer) = cursor(peer) + 1
                   ientry = cursor(peer)
-                  buffer_send(peer)%indx(ientry, :) = [i, j]
-                  buffer_send(peer)%msg(ientry) = mat2D(i - my_start_row + 1, j - my_start_col + 1)
+                  buffer_send%indx(:, ientry) = [i, j]
+                  buffer_send%msg(ientry) = mat2D(i - my_start_row + 1, j - my_start_col + 1)
                END IF
             END DO
          END DO
       END DO
       IF (release_mat) DEALLOCATE (mat2D)
-      CALL exchange_matrix_buffers(para_env, recv_count, send_count, buffer_rec, buffer_send)
-      DO peer = 0, para_env%num_pe - 1
-         DO ientry = 1, recv_count(peer)
-            i = fm_struct%g2l_row(buffer_rec(peer)%indx(ientry, 1))
-            j = fm_struct%g2l_col(buffer_rec(peer)%indx(ientry, 2))
-            fm_mat%local_data(i, j) = buffer_rec(peer)%msg(ientry)
-         END DO
+      CALL exchange_matrix_buffers(para_env, buffer_rec, buffer_send)
+      DO ientry = 1, SIZE(buffer_rec%msg)
+         i = fm_struct%g2l_row(buffer_rec%indx(1, ientry))
+         j = fm_struct%g2l_col(buffer_rec%indx(2, ientry))
+         fm_mat%local_data(i, j) = buffer_rec%msg(ientry)
       END DO
       CALL timestop(handle)
    END SUBROUTINE cp_array_to_fm
@@ -241,7 +227,7 @@ CONTAINS
       INTEGER, ALLOCATABLE                               :: bounds(:, :), recv_count(:), &
                                                             send_count(:)
       INTEGER, POINTER                                   :: col_indices(:), row_indices(:)
-      TYPE(matrix_buffer_type), ALLOCATABLE              :: buffer_rec(:), buffer_send(:)
+      TYPE(matrix_buffer_type)                           :: buffer_rec, buffer_send
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
@@ -263,27 +249,23 @@ CONTAINS
                             MAX(0, bounds(4, peer) - bounds(3, peer) + 1)
       END DO
       CALL para_env%alltoall(send_count, recv_count, 1)
-      ALLOCATE (buffer_send(0:para_env%num_pe - 1), buffer_rec(0:para_env%num_pe - 1))
+      CALL allocate_matrix_buffers(send_count, recv_count, 2, buffer_send, buffer_rec)
       DO peer = 0, para_env%num_pe - 1
-         ALLOCATE (buffer_send(peer)%msg(send_count(peer)), buffer_send(peer)%indx(send_count(peer), 2), &
-                   buffer_rec(peer)%msg(recv_count(peer)), buffer_rec(peer)%indx(recv_count(peer), 2))
          IF (send_count(peer) == 0) CYCLE
-         ientry = 0
+         ientry = buffer_send%msg_offset(peer)
          DO j = bounds(3, peer), bounds(4, peer)
             DO i = bounds(1, peer), bounds(2, peer)
                ientry = ientry + 1
-               buffer_send(peer)%indx(ientry, :) = [row_indices(i), col_indices(j)]
-               buffer_send(peer)%msg(ientry) = fm_mat%local_data(i, j)
+               buffer_send%indx(:, ientry) = [row_indices(i), col_indices(j)]
+               buffer_send%msg(ientry) = fm_mat%local_data(i, j)
             END DO
          END DO
       END DO
-      CALL exchange_matrix_buffers(para_env, recv_count, send_count, buffer_rec, buffer_send)
-      DO peer = 0, para_env%num_pe - 1
-         DO ientry = 1, recv_count(peer)
-            i = buffer_rec(peer)%indx(ientry, 1) - my_start_row + 1
-            j = buffer_rec(peer)%indx(ientry, 2) - my_start_col + 1
-            mat2D(i, j) = buffer_rec(peer)%msg(ientry)
-         END DO
+      CALL exchange_matrix_buffers(para_env, buffer_rec, buffer_send)
+      DO ientry = 1, SIZE(buffer_rec%msg)
+         i = buffer_rec%indx(1, ientry) - my_start_row + 1
+         j = buffer_rec%indx(2, ientry) - my_start_col + 1
+         mat2D(i, j) = buffer_rec%msg(ientry)
       END DO
       CALL cp_fm_release(fm_mat)
       CALL timestop(handle)
@@ -365,16 +347,15 @@ CONTAINS
    END SUBROUTINE cp_fm_to_replicated_array
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param array ...
-!> \param para_env ...
-!> \param first_col ...
-!> \param last_col ...
-!> \param nrows ...
+!> \brief Redistribute a column-distributed array into an existing full matrix.
+!> \param matrix destination; cleared before filling the received entries
+!> \param array local columns, with global rows and a one-based local column index
+!> \param para_env communicator covering all source and destination ranks
+!> \param first_col first global column held locally
+!> \param last_col last global column held locally
+!> \param nrows number of source rows to copy
 ! **************************************************************************************************
-   SUBROUTINE cp_array_columns_to_fm(matrix, array, para_env, first_col, &
-                                     last_col, nrows)
+   SUBROUTINE cp_array_columns_to_fm(matrix, array, para_env, first_col, last_col, nrows)
       TYPE(cp_fm_type), INTENT(IN)                       :: matrix
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: array
@@ -383,169 +364,44 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_array_columns_to_fm'
 
-      INTEGER :: dummy_proc, handle, handle2, i_entry_rec, i_row, iproc, j_col, LLL, MMM, &
-         ncol_local, nrow_local, proc_send, send_pcol, send_prow
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: entry_counter, num_entries_rec, &
-                                                            num_entries_send
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      TYPE(matrix_buffer_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: buffer_rec, buffer_send
+      INTEGER                                            :: handle, i, ientry, j, nprocs, pass, peer
+      INTEGER, ALLOCATABLE                               :: counter(:), recv_count(:), send_count(:)
+      TYPE(matrix_buffer_type)                           :: buffer_rec, buffer_send
 
       CALL timeset(routineN, handle)
-
-      CALL timeset(routineN//"_1", handle2)
-
-      ! get info for the dest
-      CALL cp_fm_get_info(matrix=matrix, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices)
-
-      ALLOCATE (num_entries_rec(0:para_env%num_pe - 1))
-      ALLOCATE (num_entries_send(0:para_env%num_pe - 1))
-
-      num_entries_rec(:) = 0
-      num_entries_send(:) = 0
-
-      dummy_proc = 0
-
-      ! get the process, where the elements from array have to be sent
-      DO LLL = 1, nrows
-
-         send_prow = matrix%matrix_struct%g2p_row(LLL)
-
-         DO MMM = first_col, last_col
-
-            send_pcol = matrix%matrix_struct%g2p_col(MMM)
-
-            proc_send = matrix%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
-
-            num_entries_send(proc_send) = num_entries_send(proc_send) + 1
-
-         END DO
-
-      END DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_2", handle2)
-
-      CALL para_env%alltoall(num_entries_send, num_entries_rec, 1)
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_3", handle2)
-
-      ! allocate buffers to send the entries and the information of the entries
-      ALLOCATE (buffer_rec(0:para_env%num_pe - 1))
-      ALLOCATE (buffer_send(0:para_env%num_pe - 1))
-
-      ! allocate data message and corresponding indices
-      DO iproc = 0, para_env%num_pe - 1
-
-         ALLOCATE (buffer_rec(iproc)%msg(num_entries_rec(iproc)))
-         buffer_rec(iproc)%msg = 0.0_dp
-
-      END DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_4", handle2)
-
-      DO iproc = 0, para_env%num_pe - 1
-
-         ALLOCATE (buffer_send(iproc)%msg(num_entries_send(iproc)))
-         buffer_send(iproc)%msg = 0.0_dp
-
-      END DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_5", handle2)
-
-      DO iproc = 0, para_env%num_pe - 1
-
-         ALLOCATE (buffer_rec(iproc)%indx(num_entries_rec(iproc), 2))
-         buffer_rec(iproc)%indx = 0
-
-      END DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_6", handle2)
-
-      DO iproc = 0, para_env%num_pe - 1
-
-         ALLOCATE (buffer_send(iproc)%indx(num_entries_send(iproc), 2))
-         buffer_send(iproc)%indx = 0
-
-      END DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_7", handle2)
-
-      ALLOCATE (entry_counter(0:para_env%num_pe - 1))
-      entry_counter(:) = 0
-
-      ! get the process, where the elements from array have to be sent and
-      ! write the data and the info to buffer_send
-      DO MMM = first_col, last_col
-
-         send_pcol = matrix%matrix_struct%g2p_col(MMM)
-
-         DO LLL = 1, nrows
-
-            send_prow = matrix%matrix_struct%g2p_row(LLL)
-
-            proc_send = matrix%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
-
-            entry_counter(proc_send) = entry_counter(proc_send) + 1
-
-            buffer_send(proc_send)%msg(entry_counter(proc_send)) = &
-               array(LLL, MMM - first_col + 1)
-
-            buffer_send(proc_send)%indx(entry_counter(proc_send), 1) = LLL
-            buffer_send(proc_send)%indx(entry_counter(proc_send), 2) = MMM
-
-         END DO
-
-      END DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_8", handle2)
-
-      ! communicate the buffer
-      CALL exchange_matrix_buffers(para_env, num_entries_rec, num_entries_send, buffer_rec, &
-                                   buffer_send)
-
-      matrix%local_data = 0.0_dp
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_9", handle2)
-
-      ! fill matrix with the entries from buffer_rec
-      DO iproc = 0, para_env%num_pe - 1
-         DO i_entry_rec = 1, num_entries_rec(iproc)
-            DO j_col = 1, ncol_local
-               IF (col_indices(j_col) == buffer_rec(iproc)%indx(i_entry_rec, 2)) THEN
-                  DO i_row = 1, nrow_local
-                     IF (row_indices(i_row) == buffer_rec(iproc)%indx(i_entry_rec, 1)) THEN
-                        matrix%local_data(i_row, j_col) = buffer_rec(iproc)%msg(i_entry_rec)
-                     END IF
-                  END DO
+      nprocs = para_env%num_pe
+      ALLOCATE (send_count(0:nprocs - 1), recv_count(0:nprocs - 1), counter(0:nprocs - 1))
+      send_count = 0
+      DO pass = 1, 2
+         IF (pass == 2) THEN
+            CALL para_env%alltoall(send_count, recv_count, 1)
+            CALL allocate_matrix_buffers(send_count, recv_count, 2, buffer_send, buffer_rec)
+            counter(:) = buffer_send%msg_offset(:nprocs - 1)
+         END IF
+         DO j = first_col, last_col
+            DO i = 1, nrows
+               peer = matrix%matrix_struct%context%blacs2mpi( &
+                      matrix%matrix_struct%g2p_row(i), matrix%matrix_struct%g2p_col(j))
+               IF (pass == 1) THEN
+                  send_count(peer) = send_count(peer) + 1
+               ELSE
+                  counter(peer) = counter(peer) + 1
+                  ientry = counter(peer)
+                  buffer_send%msg(ientry) = array(i, j - first_col + 1)
+                  buffer_send%indx(:, ientry) = [i, j]
                END IF
             END DO
          END DO
       END DO
 
-      CALL timestop(handle2)
-
+      CALL exchange_matrix_buffers(para_env, buffer_rec, buffer_send)
+      matrix%local_data = 0.0_dp
+      DO ientry = 1, SIZE(buffer_rec%msg)
+         i = matrix%matrix_struct%g2l_row(buffer_rec%indx(1, ientry))
+         j = matrix%matrix_struct%g2l_col(buffer_rec%indx(2, ientry))
+         matrix%local_data(i, j) = buffer_rec%msg(ientry)
+      END DO
       CALL timestop(handle)
-
    END SUBROUTINE cp_array_columns_to_fm
 
 END MODULE cp_fm_redistribution

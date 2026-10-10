@@ -239,7 +239,7 @@ CONTAINS
 
       ! create the Gamma_ia_P in DBCSR style
       CALL cp_array_to_dbcsr_slices(Gamma_2D, homo, virtual, para_env_sub, my_ia_start, my_ia_end, &
-                                    my_group_L_size, gd_ia, mp2_env%ri_grad%mo_coeff_o(1)%matrix, &
+                                    mp2_env%ri_grad%mo_coeff_o(1)%matrix, &
                                     matrix_ptrs=mp2_env%ri_grad%G_P_ia(:, kspin))
 
       CALL release_group_dist(gd_ia)

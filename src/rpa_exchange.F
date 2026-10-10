@@ -745,7 +745,6 @@ CONTAINS
             CALL cp_fm_to_array(slices, first_row, last_row, my_aux_start, my_aux_end, fm_mat_Gamma_3)
             ALLOCATE (dbcsr_Gamma_3(ispin)%matrix_set(my_aux_size))
             CALL cp_array_to_dbcsr_slices(slices, hom, virt, exchange_work%para_env_sub, first_row, last_row, &
-                                          my_aux_size, row_distribution, &
                                           exchange_work%exchange_env%mo_coeff_o(ispin), &
                                           matrices=dbcsr_Gamma_3(ispin)%matrix_set)
             CALL release_group_dist(row_distribution)

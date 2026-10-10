@@ -67,13 +67,7 @@ CONTAINS
       CALL dbt_clear(tensor)
       CALL copy_fm_to_dbcsr(fm_global, mat_global, keep_sparsity=.FALSE.)
       CALL dbcsr_filter(mat_global, eps_filter)
-      IF (PRESENT(block_row_ranges)) THEN
-         CALL cp_dbcsr_to_subgroups(mat_global, mat_local, para_env, &
-                                    num_pe_sub, block_row_ranges)
-      ELSE
-         CALL cp_dbcsr_to_subgroups(mat_global, mat_local, para_env, &
-                                    num_pe_sub)
-      END IF
+      CALL cp_dbcsr_to_subgroups(mat_global, mat_local, para_env, num_pe_sub, block_row_ranges)
       CALL dbt_create(mat_local, tensor_tmp)
       CALL dbt_copy_matrix_to_tensor(mat_local, tensor_tmp)
       CALL dbt_copy(tensor_tmp, tensor, move_data=.TRUE.)
@@ -140,7 +134,6 @@ CONTAINS
       CPASSERT(n_images == SIZE(fm_R))
 
       DO i_cell = 1, n_images
-         CALL dbcsr_set(mat_global%matrix, 0.0_dp)
          CALL cp_dbt_to_dbcsr(t_R(i_cell), mat_local%matrix, mat_global%matrix, &
                               para_env)
          CALL copy_dbcsr_to_fm(mat_global%matrix, fm_R(i_cell))
