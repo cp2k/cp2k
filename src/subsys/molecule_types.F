@@ -133,6 +133,7 @@ MODULE molecule_types
 
    TYPE global_constraint_type
       TYPE(colvar_counters)                              :: ncolv = colvar_counters()
+      LOGICAL                                            :: joint_colvar_checks = .FALSE.
       INTEGER                                            :: ntot = 0, &
                                                             nrestraint = 0, &
                                                             ng3x3 = 0, &

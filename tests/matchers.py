@@ -57,6 +57,10 @@ registry["Cube_O_effective_charge"] = GenericMatcher(
     r"^\s*8\s+([-+0-9.EeDd]+)\s+", col=1, regex=True, first=True
 )
 
+registry["Shake_colvar_multiplier"] = GenericMatcher(
+    r"Shake  Lagrangian Multipliers:", col=4
+)
+
 registry["M002"] = GenericMatcher(r"MD| Potential energy", col=5)
 registry["M003"] = GenericMatcher(r"Total energy [eV]:", col=4)
 registry["M004"] = GenericMatcher(r"Ideal and single determinant", col=8)

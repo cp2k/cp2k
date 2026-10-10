@@ -79,6 +79,7 @@ QS/regtest-plus_u
 QS/regtest-plus_u-kp
 SE/regtest
 Fist/regtest-4
+Fist/regtest-moving-colvar
 Fist/regtest-opt
 xTB/regtest-5
 QS/regtest-xastdp                                           libint libxc !ifx

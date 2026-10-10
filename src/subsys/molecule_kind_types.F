@@ -115,6 +115,7 @@ MODULE molecule_kind_types
       LOGICAL                        :: use_points = .FALSE.
       REAL(KIND=dp)                  :: expected_value = 0.0_dp
       REAL(KIND=dp)                  :: expected_value_growth_speed = 0.0_dp
+      REAL(KIND=dp)                  :: target_velocity = 0.0_dp
       INTEGER, POINTER, DIMENSION(:) :: i_atoms => NULL()
       TYPE(restraint_type)           :: restraint = restraint_type()
    END TYPE colvar_constraint_type
