@@ -20,9 +20,7 @@ MODULE qs_tddfpt2_smearing_methods
    USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
                                               cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_get_submatrix,&
                                               cp_fm_release,&
-                                              cp_fm_set_submatrix,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -127,10 +125,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_fermia'
 
-      INTEGER                                            :: handle, iocc, ispin, nspins
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nocc
+      INTEGER                                            :: handle, iocc, ispin, nocc, nspins
       REAL(kind=dp)                                      :: maxvalue, mu
-      REAL(kind=dp), DIMENSION(:), POINTER               :: fermia, mo_evals, occup
+      REAL(kind=dp), DIMENSION(:), POINTER               :: fermia, mo_evals
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(scf_control_type), POINTER                    :: scf_control
@@ -157,16 +154,12 @@ CONTAINS
          WRITE (log_unit, '(A,F14.5)') "Smearing temperature", smear%electronic_temperature
       END IF
 
-      NULLIFY (mo_evals, occup)
-      ALLOCATE (nocc(nspins))
+      NULLIFY (mo_evals)
       DO ispin = 1, nspins
-         CALL get_mo_set(mos(ispin), eigenvalues=mo_evals, occupation_numbers=occup, mu=mu)
-         CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, ncol_global=nocc(ispin))
-      END DO
-
-      DO ispin = 1, nspins
+         CALL get_mo_set(mos(ispin), eigenvalues=mo_evals, mu=mu)
+         CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, ncol_global=nocc)
          fermia => tddfpt_control%smeared_occup(ispin)%fermia
-         DO iocc = 1, nocc(ispin)
+         DO iocc = 1, nocc
             maxvalue = mu + 3.0_dp*smear%electronic_temperature - mo_evals(iocc)
 
             fermia(iocc) = MAX(0.0_dp, maxvalue)
@@ -265,9 +258,10 @@ CONTAINS
 
       INTEGER                                            :: handle, iocc, iounit, ispin, jocc, &
                                                             nactive, nspins
-      REAL(KIND=dp)                                      :: dummykTS, nelec
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: interocc, occup_im
-      REAL(kind=dp), DIMENSION(:), POINTER               :: fermia, mo_evals, occup, occuptmp
+      REAL(KIND=dp)                                      :: dummykTS, interocc, nelec
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: occuptmp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: occup_im
+      REAL(kind=dp), DIMENSION(:), POINTER               :: fermia, mo_evals, occup
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fermib
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -309,16 +303,9 @@ CONTAINS
          CALL get_mo_set(mos(ispin), eigenvalues=mo_evals, occupation_numbers=occup)
          CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, ncol_global=nactive)
 
-         IF (smear%fixed_mag_mom == -1.0_dp) THEN
-            nelec = REAL(mos(ispin)%nelectron, dp)
-         ELSE
-            nelec = mos(ispin)%n_el_f
-         END IF
-
          ! compute theta_im
-         NULLIFY (occuptmp)
-         CALL get_mo_set(mos(ispin), occupation_numbers=occuptmp)
-         ALLOCATE (occup_im(nactive, nactive), interocc(nactive, nactive))
+         ! SmearOcc writes its output; keep the ground-state occupations unchanged.
+         ALLOCATE (occuptmp(SIZE(mo_evals)), occup_im(nactive, nactive))
 
          DO iocc = 1, nactive
             IF (smear%method == smear_fermi_dirac) THEN
@@ -328,18 +315,16 @@ CONTAINS
             ELSE
                CPABORT("TDDFT with smearing only works with Fermi-Dirac distribution.")
             END IF
-            DO jocc = 1, nactive
-               occup_im(iocc, jocc) = occuptmp(jocc)
-            END DO
+            occup_im(iocc, :) = occuptmp(:nactive)
          END DO
 
          ! compute fermib
          DO iocc = 1, nactive
             DO jocc = 1, nactive
-               interocc(iocc, jocc) = (occup(iocc) - occup(jocc))/(mo_evals(iocc) - mo_evals(jocc) - evals)
+               interocc = (occup(iocc) - occup(jocc))/(mo_evals(iocc) - mo_evals(jocc) - evals)
                fermib(iocc, jocc) = fermib(iocc, jocc) + occup(iocc)*occup_im(iocc, jocc) &
                                     + occup(jocc)*occup_im(jocc, iocc) &
-                                    + fermia(jocc)*interocc(iocc, jocc)*occup_im(jocc, iocc)
+                                    + fermia(jocc)*interocc*occup_im(jocc, iocc)
             END DO
          END DO
 
@@ -351,8 +336,7 @@ CONTAINS
             END DO
          END IF
 
-         DEALLOCATE (occup_im)
-         DEALLOCATE (interocc)
+         DEALLOCATE (occuptmp, occup_im)
 
       END DO  ! ispin
 
@@ -434,18 +418,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'orthogonalize_smeared_occupation'
 
-      INTEGER                                            :: handle, iocc, iounit, ispin, nactive, &
-                                                            nao, nspins
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: bscale
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: evortholocal, subevects, subevectsresult
+      INTEGER                                            :: handle, iocc, ispin, nactive, nao, nspins
       REAL(kind=dp), DIMENSION(:), POINTER               :: occup
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fermib
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type)                                   :: betaSCC, Cvec, evortho, subevectsfm, &
-                                                            subevectsresultfm
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_fm_type)                                   :: betaSCC, Cvec, evortho
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -453,19 +431,13 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (logger)
-      logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_io_unit(logger)
-
       NULLIFY (mos)
       CALL get_qs_env(qs_env, mos=mos)
       NULLIFY (dft_control, tddfpt_control)
       CALL get_qs_env(qs_env, dft_control=dft_control)
       tddfpt_control => dft_control%tddfpt2_control
 
-      CALL cp_fm_get_info(matrix=evects(1), matrix_struct=matrix_struct, &
-                          nrow_global=nao, ncol_global=nactive)
-      CALL cp_fm_create(evortho, matrix_struct)
+      CALL cp_fm_get_info(matrix=evects(1), nrow_global=nao)
 
       nspins = SIZE(evects)
       NULLIFY (para_env)
@@ -476,16 +448,15 @@ CONTAINS
       CALL cp_fm_create(betaSCC, matrix_struct)
       CALL cp_fm_struct_release(fmstruct=matrix_struct)
 
-      ALLOCATE (evortholocal(nao, nactive))
-      ALLOCATE (bscale(nactive))
-
       DO ispin = 1, nspins
+         CALL cp_fm_get_info(matrix=evects(ispin), matrix_struct=matrix_struct, ncol_global=nactive)
+         CALL cp_fm_create(evortho, matrix_struct)
          NULLIFY (matrix_struct)
          CALL cp_fm_get_info(matrix=mos_occ(ispin), matrix_struct=matrix_struct)
          CALL cp_fm_create(Cvec, matrix_struct)
 
          NULLIFY (occup)
-         CALL get_mo_set(mos(ispin), occupation_numbers=occup, mo_coeff=mo_coeff)
+         CALL get_mo_set(mos(ispin), occupation_numbers=occup)
 
          NULLIFY (fermib)
          IF (.NOT. ASSOCIATED(dft_control%tddfpt2_control%smeared_occup)) THEN
@@ -495,48 +466,21 @@ CONTAINS
 
          DO iocc = 1, nactive
             CALL cp_fm_copy_general(mos_occ(ispin), Cvec, para_env)
-            bscale(:) = fermib(iocc, :)
-            CALL cp_fm_column_scale(Cvec, bscale)
+            CALL cp_fm_column_scale(Cvec, fermib(iocc, :))
 
             CALL parallel_gemm('N', 'T', nao, nao, nactive, 1.0_dp, Cvec, S_C0(ispin), 0.0_dp, betaSCC)
 
-            ! get ith column of X
-            NULLIFY (matrix_struct)
-            CALL cp_fm_struct_create(matrix_struct, nrow_global=nao, ncol_global=1, context=blacs_env_global)
-            CALL cp_fm_create(subevectsfm, matrix_struct)
-            CALL cp_fm_create(subevectsresultfm, matrix_struct)
-            CALL cp_fm_struct_release(fmstruct=matrix_struct)
-
-            ALLOCATE (subevects(nao, 1))
-            ALLOCATE (subevectsresult(nao, 1))
-            CALL cp_fm_get_submatrix(fm=evects(1), target_m=subevects, &
-                                     start_row=1, start_col=iocc, n_rows=nao, n_cols=1)
-            CALL cp_fm_set_submatrix(subevectsfm, subevects, &
-                                     start_row=1, start_col=1, n_rows=nao, n_cols=1)
-
+            ! Apply the occupied-space correction directly to column iocc.
             CALL parallel_gemm('N', 'N', nao, 1, nao, 1.0_dp, betaSCC, &
-                               subevectsfm, 0.0_dp, subevectsresultfm)
-
-            CALL cp_fm_get_submatrix(fm=subevectsresultfm, target_m=subevectsresult, &
-                                     start_row=1, start_col=1, n_rows=nao, n_cols=1)
-            CALL cp_fm_set_submatrix(evortho, subevectsresult, &
-                                     start_row=1, start_col=iocc, n_rows=nao, n_cols=1)
-            DEALLOCATE (subevects, subevectsresult)
-            CALL cp_fm_release(subevectsfm)
-            CALL cp_fm_release(subevectsresultfm)
+                               evects(ispin), 0.0_dp, evortho, b_first_col=iocc, c_first_col=iocc)
          END DO ! iocc
+         CALL cp_fm_column_scale(evects(ispin), occup)
+         CALL cp_fm_scale_and_add(1.0_dp, evects(ispin), -1.0_dp, evortho)
+         CALL cp_fm_release(Cvec)
+         CALL cp_fm_release(evortho)
       END DO ! nspins
 
-      CALL cp_fm_column_scale(evects(1), occup)
-      CALL cp_fm_scale_and_add(1.0_dp, evects(1), -1.0_dp, evortho)
-
-      DEALLOCATE (bscale)
-      DEALLOCATE (evortholocal)
-
       CALL cp_fm_release(betaSCC)
-      CALL cp_fm_release(Cvec)
-
-      CALL cp_fm_release(evortho)
 
       CALL timestop(handle)
    END SUBROUTINE orthogonalize_smeared_occupation
