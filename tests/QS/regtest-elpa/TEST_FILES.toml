@@ -10,4 +10,8 @@
 # ELPA it hangs in the first OT FULL_ALL preconditioner and gets killed by the timeout,
 # on a fixed ELPA it completes in a few seconds.
 "tailblock_hang.inp"                   = []
+# Crafted crash corner (cp2k#3297): 13 H x 5 spherical functions = nao 65 = nbw+1.
+# Crashes at one rank with unfixed ELPA (heap corruption in tridiag_band's width-1
+# tail block accounting) at the very first diagonalization; passes at two ranks.
+"H13-tailblock.inp"                    = [{matcher="E_total", tol=1e-9, ref=-4.603864759135386}]
 #EOF
