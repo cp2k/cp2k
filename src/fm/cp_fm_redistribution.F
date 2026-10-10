@@ -23,9 +23,8 @@ MODULE cp_fm_redistribution
    IMPLICIT NONE
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_redistribution'
-   PUBLIC :: cp_array_to_fm, &
-             cp_fm_to_array, &
-             cp_fm_permute
+   PUBLIC :: cp_array_to_fm, cp_fm_to_array, cp_array_columns_to_fm, &
+             cp_fm_permute, cp_fm_to_replicated_array
 
 CONTAINS
 
@@ -289,5 +288,264 @@ CONTAINS
       CALL cp_fm_release(fm_mat)
       CALL timestop(handle)
    END SUBROUTINE cp_fm_to_array
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_S ...
+!> \param array_S ...
+!> \param weight ...
+!> \param add ...
+! **************************************************************************************************
+   SUBROUTINE cp_fm_to_replicated_array(fm_S, array_S, weight, add)
+
+      TYPE(cp_fm_type), DIMENSION(:)                     :: fm_S
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: array_S
+      REAL(KIND=dp), OPTIONAL                            :: weight
+      LOGICAL, OPTIONAL                                  :: add
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_to_replicated_array'
+
+      INTEGER                                            :: handle, i, i_row_local, img, j, &
+                                                            j_col_local, n_basis, ncol_local, &
+                                                            nimages, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: my_add
+      REAL(KIND=dp)                                      :: my_weight
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: array_tmp
+
+      CALL timeset(routineN, handle)
+
+      my_weight = 1.0_dp
+      IF (PRESENT(weight)) my_weight = weight
+
+      my_add = .FALSE.
+      IF (PRESENT(add)) my_add = add
+
+      n_basis = SIZE(array_S, 1)
+      nimages = SIZE(array_S, 3)
+
+      ! checks
+      CPASSERT(SIZE(array_S, 2) == n_basis)
+      CPASSERT(SIZE(fm_S) == nimages)
+      CPASSERT(LBOUND(array_S, 1) == 1)
+      CPASSERT(LBOUND(array_S, 2) == 1)
+      CPASSERT(LBOUND(array_S, 3) == 1)
+
+      CALL cp_fm_get_info(matrix=fm_S(1), &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices)
+
+      IF (.NOT. my_add) array_S(:, :, :) = 0.0_dp
+      ALLOCATE (array_tmp(SIZE(array_S, 1), SIZE(array_S, 2), SIZE(array_S, 3)))
+      array_tmp(:, :, :) = 0.0_dp
+
+      DO img = 1, nimages
+         DO i_row_local = 1, nrow_local
+
+            i = row_indices(i_row_local)
+
+            DO j_col_local = 1, ncol_local
+
+               j = col_indices(j_col_local)
+
+               array_tmp(i, j, img) = fm_S(img)%local_data(i_row_local, j_col_local)
+
+            END DO ! j_col_local
+         END DO ! i_row_local
+      END DO ! img
+
+      CALL fm_S(1)%matrix_struct%para_env%sum(array_tmp)
+
+      array_S(:, :, :) = array_S(:, :, :) + my_weight*array_tmp(:, :, :)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_fm_to_replicated_array
+
+! **************************************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param array ...
+!> \param para_env ...
+!> \param first_col ...
+!> \param last_col ...
+!> \param nrows ...
+! **************************************************************************************************
+   SUBROUTINE cp_array_columns_to_fm(matrix, array, para_env, first_col, &
+                                     last_col, nrows)
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(IN)                                      :: array
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      INTEGER, INTENT(IN)                                :: first_col, last_col, nrows
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_array_columns_to_fm'
+
+      INTEGER :: dummy_proc, handle, handle2, i_entry_rec, i_row, iproc, j_col, LLL, MMM, &
+         ncol_local, nrow_local, proc_send, send_pcol, send_prow
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: entry_counter, num_entries_rec, &
+                                                            num_entries_send
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      TYPE(matrix_buffer_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: buffer_rec, buffer_send
+
+      CALL timeset(routineN, handle)
+
+      CALL timeset(routineN//"_1", handle2)
+
+      ! get info for the dest
+      CALL cp_fm_get_info(matrix=matrix, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices)
+
+      ALLOCATE (num_entries_rec(0:para_env%num_pe - 1))
+      ALLOCATE (num_entries_send(0:para_env%num_pe - 1))
+
+      num_entries_rec(:) = 0
+      num_entries_send(:) = 0
+
+      dummy_proc = 0
+
+      ! get the process, where the elements from array have to be sent
+      DO LLL = 1, nrows
+
+         send_prow = matrix%matrix_struct%g2p_row(LLL)
+
+         DO MMM = first_col, last_col
+
+            send_pcol = matrix%matrix_struct%g2p_col(MMM)
+
+            proc_send = matrix%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
+
+            num_entries_send(proc_send) = num_entries_send(proc_send) + 1
+
+         END DO
+
+      END DO
+
+      CALL timestop(handle2)
+
+      CALL timeset(routineN//"_2", handle2)
+
+      CALL para_env%alltoall(num_entries_send, num_entries_rec, 1)
+
+      CALL timestop(handle2)
+
+      CALL timeset(routineN//"_3", handle2)
+
+      ! allocate buffers to send the entries and the information of the entries
+      ALLOCATE (buffer_rec(0:para_env%num_pe - 1))
+      ALLOCATE (buffer_send(0:para_env%num_pe - 1))
+
+      ! allocate data message and corresponding indices
+      DO iproc = 0, para_env%num_pe - 1
+
+         ALLOCATE (buffer_rec(iproc)%msg(num_entries_rec(iproc)))
+         buffer_rec(iproc)%msg = 0.0_dp
+
+      END DO
+
+      CALL timestop(handle2)
+
+      CALL timeset(routineN//"_4", handle2)
+
+      DO iproc = 0, para_env%num_pe - 1
+
+         ALLOCATE (buffer_send(iproc)%msg(num_entries_send(iproc)))
+         buffer_send(iproc)%msg = 0.0_dp
+
+      END DO
+
+      CALL timestop(handle2)
+
+      CALL timeset(routineN//"_5", handle2)
+
+      DO iproc = 0, para_env%num_pe - 1
+
+         ALLOCATE (buffer_rec(iproc)%indx(num_entries_rec(iproc), 2))
+         buffer_rec(iproc)%indx = 0
+
+      END DO
+
+      CALL timestop(handle2)
+
+      CALL timeset(routineN//"_6", handle2)
+
+      DO iproc = 0, para_env%num_pe - 1
+
+         ALLOCATE (buffer_send(iproc)%indx(num_entries_send(iproc), 2))
+         buffer_send(iproc)%indx = 0
+
+      END DO
+
+      CALL timestop(handle2)
+
+      CALL timeset(routineN//"_7", handle2)
+
+      ALLOCATE (entry_counter(0:para_env%num_pe - 1))
+      entry_counter(:) = 0
+
+      ! get the process, where the elements from array have to be sent and
+      ! write the data and the info to buffer_send
+      DO MMM = first_col, last_col
+
+         send_pcol = matrix%matrix_struct%g2p_col(MMM)
+
+         DO LLL = 1, nrows
+
+            send_prow = matrix%matrix_struct%g2p_row(LLL)
+
+            proc_send = matrix%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
+
+            entry_counter(proc_send) = entry_counter(proc_send) + 1
+
+            buffer_send(proc_send)%msg(entry_counter(proc_send)) = &
+               array(LLL, MMM - first_col + 1)
+
+            buffer_send(proc_send)%indx(entry_counter(proc_send), 1) = LLL
+            buffer_send(proc_send)%indx(entry_counter(proc_send), 2) = MMM
+
+         END DO
+
+      END DO
+
+      CALL timestop(handle2)
+
+      CALL timeset(routineN//"_8", handle2)
+
+      ! communicate the buffer
+      CALL exchange_matrix_buffers(para_env, num_entries_rec, num_entries_send, buffer_rec, &
+                                   buffer_send)
+
+      matrix%local_data = 0.0_dp
+
+      CALL timestop(handle2)
+
+      CALL timeset(routineN//"_9", handle2)
+
+      ! fill matrix with the entries from buffer_rec
+      DO iproc = 0, para_env%num_pe - 1
+         DO i_entry_rec = 1, num_entries_rec(iproc)
+            DO j_col = 1, ncol_local
+               IF (col_indices(j_col) == buffer_rec(iproc)%indx(i_entry_rec, 2)) THEN
+                  DO i_row = 1, nrow_local
+                     IF (row_indices(i_row) == buffer_rec(iproc)%indx(i_entry_rec, 1)) THEN
+                        matrix%local_data(i_row, j_col) = buffer_rec(iproc)%msg(i_entry_rec)
+                     END IF
+                  END DO
+               END IF
+            END DO
+         END DO
+      END DO
+
+      CALL timestop(handle2)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_array_columns_to_fm
 
 END MODULE cp_fm_redistribution
