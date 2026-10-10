@@ -13,9 +13,10 @@
 ! **************************************************************************************************
 MODULE input_cp2k_xc
    USE bibliography,                    ONLY: &
-        Becke1988, Becke1997, BeckeRoussel1989, Caldeweyher2020, Goedecker1996, Grimme2006, &
-        Grimme2010, Grimme2011, Heyd2004, Kruse2012, Lee1988, Ortiz1994, Perdew1981, Perdew1996, &
-        Perdew2008, Proynov2007, Tao2003, Tran2013, Vosko1980, Wellendorff2012, Zhang1998
+        Becke1988, Becke1997, BeckeRoussel1989, Caldeweyher2020, Chai2008, Goedecker1996, &
+        Grimme2006, Grimme2010, Grimme2011, Heyd2004, Kruse2012, Lee1988, Ortiz1994, Perdew1981, &
+        Perdew1996, Perdew2008, Proynov2007, Tao2003, Tran2013, Vosko1980, Wellendorff2012, &
+        Zhang1998
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               high_print_level
@@ -23,11 +24,12 @@ MODULE input_cp2k_xc
    USE input_constants,                 ONLY: &
         do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, do_libxc_cpu, do_libxc_gpu, &
         fxc_funct_gga, fxc_funct_lda, fxc_funct_pade, fxc_none, gaussian, slater, vdw_nl_drsll, &
-        vdw_nl_lmkll, vdw_nl_rvv10, vdw_pairpot_dftd2, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, &
-        vdw_pairpot_dftd4, xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, &
-        xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, &
-        xc_funct_pbe0, xc_funct_tpss, xc_none, xc_pot_energy_none, xc_pot_energy_sum_eigenvalues, &
-        xc_pot_energy_xc_functional, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+        vdw_nl_lmkll, vdw_nl_rvv10, vdw_pairpot_dftd2, vdw_pairpot_dftd2chg, vdw_pairpot_dftd3, &
+        vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, &
+        xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, &
+        xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, xc_none, xc_pot_energy_none, &
+        xc_pot_energy_sum_eigenvalues, xc_pot_energy_xc_functional, xc_vdw_fun_none, &
+        xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
    USE input_cp2k_mp2,                  ONLY: create_mp2_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -996,12 +998,13 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
                           description="Type of potential", &
-                          citations=[grimme2006, grimme2010, grimme2011, Caldeweyher2020], &
-                          usage="TYPE (DFTD2|DFTD3|DFTD3(BJ)|DFTD4)", &
-                          enum_c_vals=s2a("DFTD2", "DFTD3", "DFTD3(BJ)", "DFTD4"), &
-                          enum_i_vals=[vdw_pairpot_dftd2, vdw_pairpot_dftd3, &
+                          citations=[grimme2006, Chai2008, grimme2010, grimme2011, Caldeweyher2020], &
+                          usage="TYPE (DFTD2|DFTD2(CHG)|DFTD3|DFTD3(BJ)|DFTD4)", &
+                          enum_c_vals=s2a("DFTD2", "DFTD2(CHG)", "DFTD3", "DFTD3(BJ)", "DFTD4"), &
+                          enum_i_vals=[vdw_pairpot_dftd2, vdw_pairpot_dftd2chg, vdw_pairpot_dftd3, &
                                        vdw_pairpot_dftd3bj, vdw_pairpot_dftd4], &
                           enum_desc=s2a("Grimme D2 method", &
+                                        "D2 with Chai-Head-Gordon damping (wB97X-D, a=6, alpha=12)", &
                                         "Grimme D3 method (zero damping)", &
                                         "Grimme D3 method (Becke-Johnson damping)", &
                                         "Grimme D4 method"), &
@@ -1016,6 +1019,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_FUNCTIONAL", &
                           description="Use parameters for this specific density functional. "// &
+                          "For DFTD2(CHG), use WB97X-D. "// &
                           "For available DFT-D4 functionals and parameters see: "// &
                           "<https://github.com/dftd4/dftd4/blob/main/src/dftd4/param.f90>. "// &
                           "For available D3 and D3(BJ) parameters see: "// &
@@ -1058,7 +1062,8 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="D2_EXP_PRE", &
                           variants=["EXP_PRE"], &
-                          description="Prefactor in exponential damping factor (DFT-D2 potential)", &
+                          description="Prefactor in exponential damping factor (DFT-D2 potential). "// &
+                          "Not applicable to DFTD2(CHG).", &
                           usage="D2_EXP_PRE 20.", default_r_val=20._dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)

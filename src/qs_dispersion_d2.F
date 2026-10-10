@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Calculation of D2 dispersion
+!> \brief Calculation of D2 dispersion with Grimme or Chai-Head-Gordon damping
 !> \author JGH
 ! **************************************************************************************************
 MODULE qs_dispersion_d2
@@ -17,6 +17,7 @@ MODULE qs_dispersion_d2
    USE atprop_types,                    ONLY: atprop_array_init,&
                                               atprop_type
    USE cell_types,                      ONLY: cell_type
+   USE input_constants,                 ONLY: vdw_pairpot_dftd2chg
    USE kinds,                           ONLY: dp
    USE physcon,                         ONLY: bohr,&
                                               kjmol
@@ -71,8 +72,8 @@ CONTAINS
                                                             jatom, jkind, mepos, natom, nkind, &
                                                             num_pe, za, zb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomnumber, kind_of
-      LOGICAL                                            :: atenergy, atex, floating_a, ghost_a, &
-                                                            use_virial
+      LOGICAL                                            :: atenergy, atex, chg_damping, floating_a, &
+                                                            ghost_a, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: dodisp, floating, ghost
       REAL(KIND=dp)                                      :: c6, dd, devdw, dfdmp, dr, er, fac, fdmp, &
                                                             rcc, rcut, s6, xp
@@ -134,6 +135,7 @@ CONTAINS
       rcut = 2._dp*dispersion_env%rc_disp
       s6 = dispersion_env%scaling
       dd = dispersion_env%exp_pre
+      chg_damping = dispersion_env%pp_type == vdw_pairpot_dftd2chg
 
       sab_vdw => dispersion_env%sab_vdw
       num_pe = 1
@@ -157,12 +159,21 @@ CONTAINS
             IF (dr > 0.001_dp) THEN
                c6 = SQRT(c6d2(ikind)*c6d2(jkind))
                rcc = radd2(ikind) + radd2(jkind)
-               er = EXP(-dd*(dr/rcc - 1._dp))
+               IF (chg_damping) THEN
+                  ! Chai-Head-Gordon damping, using the same radii as Grimme D2.
+                  er = 6._dp*(rcc/dr)**12
+               ELSE
+                  er = EXP(-dd*(dr/rcc - 1._dp))
+               END IF
                fdmp = 1._dp/(1._dp + er)
                xp = s6*c6/dr**6
                evdw = evdw - xp*fdmp*fac
                IF (calculate_forces) THEN
-                  dfdmp = dd/rcc*er*fdmp*fdmp
+                  IF (chg_damping) THEN
+                     dfdmp = 12._dp/dr*er*fdmp*fdmp
+                  ELSE
+                     dfdmp = dd/rcc*er*fdmp*fdmp
+                  END IF
                   devdw = -xp*(-6._dp*fdmp/dr + dfdmp)
                   fdij(:) = devdw*rij(:)/dr*fac
                   atom_a = atom_of_kind(iatom)

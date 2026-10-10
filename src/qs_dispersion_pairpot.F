@@ -17,7 +17,7 @@ MODULE qs_dispersion_pairpot
    USE atprop_types,                    ONLY: atprop_array_init,&
                                               atprop_type
    USE bibliography,                    ONLY: &
-        Caldeweyher2017, Caldeweyher2019, Caldeweyher2020, Goerigk2017, Wittmann2024, &
+        Caldeweyher2017, Caldeweyher2019, Caldeweyher2020, Chai2008, Goerigk2017, Wittmann2024, &
         cite_reference, grimme2006, grimme2010, grimme2011
    USE cell_types,                      ONLY: cell_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -32,6 +32,7 @@ MODULE qs_dispersion_pairpot
                                               parser_release
    USE eeq_input,                       ONLY: read_eeq_param
    USE input_constants,                 ONLY: vdw_pairpot_dftd2,&
+                                              vdw_pairpot_dftd2chg,&
                                               vdw_pairpot_dftd3,&
                                               vdw_pairpot_dftd3bj,&
                                               vdw_pairpot_dftd4,&
@@ -128,8 +129,9 @@ CONTAINS
          SELECT CASE (dispersion_env%pp_type)
          CASE DEFAULT
             ! do nothing
-         CASE (vdw_pairpot_dftd2)
+         CASE (vdw_pairpot_dftd2, vdw_pairpot_dftd2chg)
             CALL cite_reference(Grimme2006)
+            IF (dispersion_env%pp_type == vdw_pairpot_dftd2chg) CALL cite_reference(Chai2008)
             DO ikind = 1, nkind
                CALL get_atomic_kind(atomic_kind_set(ikind), element_symbol=symbol, z=elem)
                ALLOCATE (disp)
@@ -221,7 +223,8 @@ CONTAINS
                                              dispersion_env%pp_type, dispersion_env%ref_functional, &
                                              dispersion_env%s6, dispersion_env%s8, &
                                              dispersion_env%a1, dispersion_env%a2, &
-                                             dispersion_env%sr6, para_env, error=error_msg, &
+                                             dispersion_env%sr6, dispersion_env%sr8, &
+                                             para_env, error=error_msg, &
                                              calc_scaling=.NOT. dispersion_env%d3_scaling_explicit)
                IF (error_msg /= "") THEN
                   CALL cp_abort(__LOCATION__, error_msg)
@@ -456,6 +459,10 @@ CONTAINS
             WRITE (unit_nr, *) " Dispersion potential type: DFT-D2"
             WRITE (unit_nr, *) " Scaling parameter (s6) ", dispersion_env%scaling
             WRITE (unit_nr, *) " Exponential prefactor  ", dispersion_env%exp_pre
+         ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd2chg) THEN
+            WRITE (unit_nr, *) " Dispersion potential type: DFT-D2(CHG)"
+            WRITE (unit_nr, *) " Scaling parameter (s6) ", dispersion_env%scaling
+            WRITE (unit_nr, *) " CHG damping: a=6, alpha=12"
          ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
             WRITE (unit_nr, *) " Dispersion potential type: DFT-D3"
          ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
@@ -479,7 +486,8 @@ CONTAINS
 
       CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
 
-      IF (dispersion_env%pp_type == vdw_pairpot_dftd2) THEN
+      IF (dispersion_env%pp_type == vdw_pairpot_dftd2 .OR. &
+          dispersion_env%pp_type == vdw_pairpot_dftd2chg) THEN
          CALL calculate_dispersion_d2_pairpot(qs_env, dispersion_env, evdw, calculate_forces, atevdw)
       ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
                dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
