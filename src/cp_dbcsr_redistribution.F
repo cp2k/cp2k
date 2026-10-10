@@ -44,9 +44,7 @@ MODULE cp_dbcsr_redistribution
    IMPLICIT NONE
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_redistribution'
-   PUBLIC :: cp_dbcsr_to_subgroups, &
-             cp_dbcsr_from_subgroups, &
-             cp_array_to_dbcsr_slices
+   PUBLIC :: cp_dbcsr_to_subgroups, cp_dbcsr_from_subgroups, cp_array_to_dbcsr_slices
 
    TYPE index_map
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: map

@@ -29,13 +29,13 @@ MODULE gw_tensor_small_cell_full_kp
                                               dbt_create,&
                                               dbt_destroy,&
                                               dbt_type
+   USE dbt_matrix_redistribution,       ONLY: cp_dbt_to_fm,&
+                                              cp_fm_to_dbt
    USE gw_utils,                        ONLY: add_R,&
                                               analyt_conti_and_print,&
                                               de_init_bs_env,&
                                               get_V_tr_R,&
                                               is_cell_in_index_to_cell
-   USE gw_utils_communication,          ONLY: fm_to_local_tensor,&
-                                              local_dbt_to_global_fm
    USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
                                               local_add_on_diag,&
                                               local_complex_power
@@ -196,8 +196,8 @@ CONTAINS
 
          CALL bs_env%para_env%sync()
 
-         CALL local_dbt_to_global_fm(t_chi_R, bs_env%fm_chi_R_t(:, i_t), bs_env%mat_RI_RI, &
-                                     bs_env%mat_RI_RI_tensor, bs_env)
+         CALL cp_dbt_to_fm(t_chi_R, bs_env%fm_chi_R_t(:, i_t), bs_env%mat_RI_RI, bs_env%mat_RI_RI_tensor, &
+                           bs_env%para_env)
 
          CALL destroy_t_1d(Gocc_S)
          CALL destroy_t_1d(Gvir_S)
@@ -455,8 +455,9 @@ CONTAINS
 
       ! replicate to tensor from local tensor group
       DO i_cell_S = 1, bs_env%nimages_scf_desymm
-         CALL fm_to_local_tensor(bs_env%fm_G_S(i_cell_S), bs_env%mat_ao_ao%matrix, &
-                                 bs_env%mat_ao_ao_tensor%matrix, G_S(i_cell_S), bs_env)
+         CALL cp_fm_to_dbt(bs_env%fm_G_S(i_cell_S), bs_env%mat_ao_ao%matrix, bs_env%mat_ao_ao_tensor%matrix, &
+                           G_S(i_cell_S), bs_env%para_env, bs_env%para_env_tensor%num_pe, &
+                           bs_env%eps_filter)
       END DO
 
       CALL timestop(handle)
@@ -879,8 +880,8 @@ CONTAINS
 
          CALL bs_env%para_env%sync()
 
-         CALL local_dbt_to_global_fm(Sigma_x_R, bs_env%fm_Sigma_x_R, bs_env%mat_ao_ao, &
-                                     bs_env%mat_ao_ao_tensor, bs_env)
+         CALL cp_dbt_to_fm(Sigma_x_R, bs_env%fm_Sigma_x_R, bs_env%mat_ao_ao, bs_env%mat_ao_ao_tensor, &
+                           bs_env%para_env)
 
       END DO ! ispin
 
@@ -966,13 +967,11 @@ CONTAINS
 
             CALL bs_env%para_env%sync()
 
-            CALL local_dbt_to_global_fm(Sigma_c_R_pos_tau, &
-                                        bs_env%fm_Sigma_c_R_pos_tau(:, i_t, ispin), &
-                                        bs_env%mat_ao_ao, bs_env%mat_ao_ao_tensor, bs_env)
+            CALL cp_dbt_to_fm(Sigma_c_R_pos_tau, bs_env%fm_Sigma_c_R_pos_tau(:, i_t, ispin), bs_env%mat_ao_ao, &
+                              bs_env%mat_ao_ao_tensor, bs_env%para_env)
 
-            CALL local_dbt_to_global_fm(Sigma_c_R_neg_tau, &
-                                        bs_env%fm_Sigma_c_R_neg_tau(:, i_t, ispin), &
-                                        bs_env%mat_ao_ao, bs_env%mat_ao_ao_tensor, bs_env)
+            CALL cp_dbt_to_fm(Sigma_c_R_neg_tau, bs_env%fm_Sigma_c_R_neg_tau(:, i_t, ispin), bs_env%mat_ao_ao, &
+                              bs_env%mat_ao_ao_tensor, bs_env%para_env)
 
             IF (bs_env%unit_nr > 0) THEN
                WRITE (bs_env%unit_nr, '(T2,A,I10,A,I3,A,F7.1,A)') &
@@ -1052,8 +1051,9 @@ CONTAINS
 
       ! communicate Mi_Vtr_Mi_R to tensor format; full replication in tensor group
       DO i_cell_R = 1, nimages_scf
-         CALL fm_to_local_tensor(bs_env%fm_chi_R_t(i_cell_R, 1), bs_env%mat_RI_RI%matrix, &
-                                 bs_env%mat_RI_RI_tensor%matrix, Mi_Vtr_Mi_R(i_cell_R), bs_env)
+         CALL cp_fm_to_dbt(bs_env%fm_chi_R_t(i_cell_R, 1), bs_env%mat_RI_RI%matrix, &
+                           bs_env%mat_RI_RI_tensor%matrix, Mi_Vtr_Mi_R(i_cell_R), bs_env%para_env, &
+                           bs_env%para_env_tensor%num_pe, bs_env%eps_filter)
       END DO
 
       CALL timestop(handle)
@@ -1374,8 +1374,9 @@ CONTAINS
 
       ! communicate fm_W_R to tensor W_R; full replication in tensor group
       DO i_cell_R = 1, bs_env%nimages_scf_desymm
-         CALL fm_to_local_tensor(fm_W_R(i_cell_R), bs_env%mat_RI_RI%matrix, &
-                                 bs_env%mat_RI_RI_tensor%matrix, W_R(i_cell_R), bs_env)
+         CALL cp_fm_to_dbt(fm_W_R(i_cell_R), bs_env%mat_RI_RI%matrix, bs_env%mat_RI_RI_tensor%matrix, &
+                           W_R(i_cell_R), bs_env%para_env, bs_env%para_env_tensor%num_pe, &
+                           bs_env%eps_filter)
       END DO
 
       CALL timestop(handle)

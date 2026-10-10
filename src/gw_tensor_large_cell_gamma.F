@@ -64,10 +64,10 @@ MODULE gw_tensor_large_cell_Gamma
                                               dbt_destroy,&
                                               dbt_filter,&
                                               dbt_type
+   USE dbt_matrix_redistribution,       ONLY: cp_dbt_to_dbcsr,&
+                                              cp_fm_to_dbt
    USE gw_utils,                        ONLY: analyt_conti_and_print,&
                                               de_init_bs_env
-   USE gw_utils_communication,          ONLY: fm_to_local_tensor,&
-                                              local_dbt_to_global_mat
    USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
                                               fm_contract_ABA
    USE input_constants,                 ONLY: G0W0,&
@@ -228,12 +228,12 @@ CONTAINS
             CALL G_occ_vir(bs_env, tau, bs_env%fm_Gocc, ispin, occ=.TRUE., vir=.FALSE.)
             CALL G_occ_vir(bs_env, tau, bs_env%fm_Gvir, ispin, occ=.FALSE., vir=.TRUE.)
 
-            CALL fm_to_local_tensor(bs_env%fm_Gocc, bs_env%mat_ao_ao%matrix, &
-                                    bs_env%mat_ao_ao_tensor%matrix, t_2c_Gocc, bs_env, &
-                                    bs_env%atoms_j_t_group)
-            CALL fm_to_local_tensor(bs_env%fm_Gvir, bs_env%mat_ao_ao%matrix, &
-                                    bs_env%mat_ao_ao_tensor%matrix, t_2c_Gvir, bs_env, &
-                                    bs_env%atoms_i_t_group)
+            CALL cp_fm_to_dbt(bs_env%fm_Gocc, bs_env%mat_ao_ao%matrix, bs_env%mat_ao_ao_tensor%matrix, t_2c_Gocc, &
+                              bs_env%para_env, bs_env%para_env_tensor%num_pe, bs_env%eps_filter, &
+                              bs_env%atoms_j_t_group)
+            CALL cp_fm_to_dbt(bs_env%fm_Gvir, bs_env%mat_ao_ao%matrix, bs_env%mat_ao_ao_tensor%matrix, t_2c_Gvir, &
+                              bs_env%para_env, bs_env%para_env_tensor%num_pe, bs_env%eps_filter, &
+                              bs_env%atoms_i_t_group)
 
             ! every group has its own range of i_atoms and j_atoms; only deal with a
             ! limited number of i_atom-j_atom pairs simultaneously in a group to save memory
@@ -324,8 +324,8 @@ CONTAINS
          ! 8. communicate data of χ_PQ(iτ,k=0) in tensor bs_env%t_chi (which local in the
          !    subgroup) to the global dbcsr matrix mat_chi_Gamma_tau (which stores
          !    χ_PQ(iτ,k=0) for all time points)
-         CALL local_dbt_to_global_mat(bs_env%t_chi, bs_env%mat_RI_RI_tensor%matrix, &
-                                      mat_chi_Gamma_tau(i_t)%matrix, bs_env%para_env)
+         CALL cp_dbt_to_dbcsr(bs_env%t_chi, bs_env%mat_RI_RI_tensor%matrix, &
+                              mat_chi_Gamma_tau(i_t)%matrix, bs_env%para_env)
 
          CALL fm_write(bs_env%fm_RI_RI, i_t, bs_env%chi_name, qs_env, &
                        matrix=mat_chi_Gamma_tau(i_t)%matrix)
@@ -1590,13 +1590,13 @@ CONTAINS
          ! 3. Compute density matrix D_µν
          CALL G_occ_vir(bs_env, 0.0_dp, bs_env%fm_work_mo(2), ispin, occ=.TRUE., vir=.FALSE.)
 
-         CALL fm_to_local_tensor(bs_env%fm_work_mo(2), bs_env%mat_ao_ao%matrix, &
-                                 bs_env%mat_ao_ao_tensor%matrix, t_2c_D, bs_env, &
-                                 bs_env%atoms_i_t_group)
+         CALL cp_fm_to_dbt(bs_env%fm_work_mo(2), bs_env%mat_ao_ao%matrix, bs_env%mat_ao_ao_tensor%matrix, t_2c_D, &
+                           bs_env%para_env, bs_env%para_env_tensor%num_pe, bs_env%eps_filter, &
+                           bs_env%atoms_i_t_group)
 
-         CALL fm_to_local_tensor(fm_Vtr_Gamma(1, 1), bs_env%mat_RI_RI%matrix, &
-                                 bs_env%mat_RI_RI_tensor%matrix, t_2c_V, bs_env, &
-                                 bs_env%atoms_j_t_group)
+         CALL cp_fm_to_dbt(fm_Vtr_Gamma(1, 1), bs_env%mat_RI_RI%matrix, bs_env%mat_RI_RI_tensor%matrix, t_2c_V, &
+                           bs_env%para_env, bs_env%para_env_tensor%num_pe, bs_env%eps_filter, &
+                           bs_env%atoms_j_t_group)
 
          ! every group has its own range of i_atoms and j_atoms; only deal with a
          ! limited number of i_atom-j_atom pairs simultaneously in a group to save memory
@@ -1617,8 +1617,8 @@ CONTAINS
             END DO ! j_atoms
          END DO ! i_atoms
 
-         CALL local_dbt_to_global_mat(t_2c_Sigma_x, bs_env%mat_ao_ao_tensor%matrix, &
-                                      mat_Sigma_x_Gamma, bs_env%para_env)
+         CALL cp_dbt_to_dbcsr(t_2c_Sigma_x, bs_env%mat_ao_ao_tensor%matrix, &
+                              mat_Sigma_x_Gamma, bs_env%para_env)
 
          CALL fm_write(bs_env%fm_work_mo(1), ispin, bs_env%Sigma_x_name, qs_env, &
                        matrix=mat_Sigma_x_Gamma)
@@ -1785,15 +1785,15 @@ CONTAINS
       CALL G_occ_vir(bs_env, tau, bs_env%fm_Gvir, ispin, occ=.FALSE., vir=.TRUE.)
 
       ! fm G^occ, G^vir and W to local tensor
-      CALL fm_to_local_tensor(bs_env%fm_Gocc, bs_env%mat_ao_ao%matrix, &
-                              bs_env%mat_ao_ao_tensor%matrix, t_2c_Gocc, bs_env, &
-                              bs_env%atoms_i_t_group)
-      CALL fm_to_local_tensor(bs_env%fm_Gvir, bs_env%mat_ao_ao%matrix, &
-                              bs_env%mat_ao_ao_tensor%matrix, t_2c_Gvir, bs_env, &
-                              bs_env%atoms_i_t_group)
-      CALL fm_to_local_tensor(fm_W, bs_env%mat_RI_RI%matrix, &
-                              bs_env%mat_RI_RI_tensor%matrix, t_2c_W, bs_env, &
-                              bs_env%atoms_j_t_group)
+      CALL cp_fm_to_dbt(bs_env%fm_Gocc, bs_env%mat_ao_ao%matrix, bs_env%mat_ao_ao_tensor%matrix, t_2c_Gocc, &
+                        bs_env%para_env, bs_env%para_env_tensor%num_pe, bs_env%eps_filter, &
+                        bs_env%atoms_i_t_group)
+      CALL cp_fm_to_dbt(bs_env%fm_Gvir, bs_env%mat_ao_ao%matrix, bs_env%mat_ao_ao_tensor%matrix, t_2c_Gvir, &
+                        bs_env%para_env, bs_env%para_env_tensor%num_pe, bs_env%eps_filter, &
+                        bs_env%atoms_i_t_group)
+      CALL cp_fm_to_dbt(fm_W, bs_env%mat_RI_RI%matrix, bs_env%mat_RI_RI_tensor%matrix, t_2c_W, &
+                        bs_env%para_env, bs_env%para_env_tensor%num_pe, bs_env%eps_filter, &
+                        bs_env%atoms_j_t_group)
 
       ! every group has its own range of i_atoms and j_atoms; only deal with a
       ! limited number of i_atom-j_atom pairs simultaneously in a group to save memory
@@ -1832,10 +1832,10 @@ CONTAINS
 
       ! 4. communicate data tensor t_2c_Sigma (which is local in the subgroup)
       !    to the global dbcsr matrix mat_Sigma_pos/neg_tau (which stores Σ for all iτ)
-      CALL local_dbt_to_global_mat(t_2c_Sigma_neg, bs_env%mat_ao_ao_tensor%matrix, &
-                                   mat_Sigma_neg, bs_env%para_env)
-      CALL local_dbt_to_global_mat(t_2c_Sigma_pos, bs_env%mat_ao_ao_tensor%matrix, &
-                                   mat_Sigma_pos, bs_env%para_env)
+      CALL cp_dbt_to_dbcsr(t_2c_Sigma_neg, bs_env%mat_ao_ao_tensor%matrix, &
+                           mat_Sigma_neg, bs_env%para_env)
+      CALL cp_dbt_to_dbcsr(t_2c_Sigma_pos, bs_env%mat_ao_ao_tensor%matrix, &
+                           mat_Sigma_pos, bs_env%para_env)
 
       CALL timestop(handle)
 

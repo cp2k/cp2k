@@ -237,7 +237,6 @@ list(
   gw_auto_ri_types.F
   gw_utils_dbcsr.F
   gw_utils_fm.F
-  gw_utils_communication.F
   gw.F
   gw_tensor_large_cell_gamma.F
   gw_tensor_large_cell_gamma_static_cohsex.F
@@ -812,7 +811,6 @@ list(
   rixs_types.F
   rmsd.F
   rpa_exchange.F
-  rpa_communication.F
   rpa_grad.F
   rpa_gw.F
   rpa_gw_ic.F
@@ -1059,6 +1057,7 @@ list(
   CP2K_SRCS_F
   dbt/dbt_allocate_wrap.F
   dbt/dbt_api.F
+  dbt/dbt_matrix_redistribution.F
   dbt/dbt_array_list_methods.F
   dbt/dbt_block.F
   dbt/dbt_index.F

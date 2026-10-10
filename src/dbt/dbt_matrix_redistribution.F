@@ -6,19 +6,17 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief
-!> \author Jan Wilhelm
-!> \date 08.2023
+!> \brief Redistribute matrices between full-matrix and tensor process layouts.
 ! **************************************************************************************************
-MODULE gw_utils_communication
+MODULE dbt_matrix_redistribution
    USE cp_dbcsr_api,                    ONLY: dbcsr_filter,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
-   USE cp_dbcsr_redistribution,         ONLY: cp_dbcsr_to_subgroups,&
-                                              cp_dbcsr_from_subgroups
+   USE cp_dbcsr_redistribution,         ONLY: cp_dbcsr_from_subgroups,&
+                                              cp_dbcsr_to_subgroups
    USE cp_fm_types,                     ONLY: cp_fm_type
    USE dbt_api,                         ONLY: dbt_clear,&
                                               dbt_copy,&
@@ -27,17 +25,14 @@ MODULE gw_utils_communication
                                               dbt_create,&
                                               dbt_destroy,&
                                               dbt_type
+   USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
-   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
-
    PRIVATE
-
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_utils_communication'
-
-   PUBLIC :: local_dbt_to_global_mat, fm_to_local_tensor, local_dbt_to_global_fm
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbt_matrix_redistribution'
+   PUBLIC :: cp_fm_to_dbt, cp_dbt_to_dbcsr, cp_dbt_to_fm
 
 CONTAINS
 
@@ -47,18 +42,22 @@ CONTAINS
 !> \param mat_global ...
 !> \param mat_local ...
 !> \param tensor ...
-!> \param bs_env Band-structure environment containing GW parameters.
-!> \param atom_ranges ...
+!> \param para_env communicator covering the full matrix and all subgroups
+!> \param num_pe_sub number of ranks per subgroup
+!> \param eps_filter DBCSR filtering threshold before subgroup distribution
+!> \param block_row_ranges ...
 ! **************************************************************************************************
-   SUBROUTINE fm_to_local_tensor(fm_global, mat_global, mat_local, tensor, bs_env, atom_ranges)
+   SUBROUTINE cp_fm_to_dbt(fm_global, mat_global, mat_local, tensor, para_env, num_pe_sub, eps_filter, block_row_ranges)
 
       TYPE(cp_fm_type)                                   :: fm_global
       TYPE(dbcsr_type)                                   :: mat_global, mat_local
       TYPE(dbt_type)                                     :: tensor
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER, DIMENSION(:, :), OPTIONAL                 :: atom_ranges
+      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
+      INTEGER, INTENT(IN)                                :: num_pe_sub
+      REAL(KIND=dp), INTENT(IN)                          :: eps_filter
+      INTEGER, DIMENSION(:, :), OPTIONAL                 :: block_row_ranges
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_to_local_tensor'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cp_fm_to_dbt'
 
       INTEGER                                            :: handle
       TYPE(dbt_type)                                     :: tensor_tmp
@@ -67,13 +66,13 @@ CONTAINS
 
       CALL dbt_clear(tensor)
       CALL copy_fm_to_dbcsr(fm_global, mat_global, keep_sparsity=.FALSE.)
-      CALL dbcsr_filter(mat_global, bs_env%eps_filter)
-      IF (PRESENT(atom_ranges)) THEN
-         CALL cp_dbcsr_to_subgroups(mat_global, mat_local, bs_env%para_env, &
-                                            bs_env%para_env_tensor%num_pe, atom_ranges)
+      CALL dbcsr_filter(mat_global, eps_filter)
+      IF (PRESENT(block_row_ranges)) THEN
+         CALL cp_dbcsr_to_subgroups(mat_global, mat_local, para_env, &
+                                    num_pe_sub, block_row_ranges)
       ELSE
-         CALL cp_dbcsr_to_subgroups(mat_global, mat_local, bs_env%para_env, &
-                                            bs_env%para_env_tensor%num_pe)
+         CALL cp_dbcsr_to_subgroups(mat_global, mat_local, para_env, &
+                                    num_pe_sub)
       END IF
       CALL dbt_create(mat_local, tensor_tmp)
       CALL dbt_copy_matrix_to_tensor(mat_local, tensor_tmp)
@@ -84,7 +83,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE fm_to_local_tensor
+   END SUBROUTINE cp_fm_to_dbt
 
 ! **************************************************************************************************
 !> \brief ...
@@ -93,13 +92,13 @@ CONTAINS
 !> \param mat_global ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE local_dbt_to_global_mat(tensor, mat_tensor, mat_global, para_env)
+   SUBROUTINE cp_dbt_to_dbcsr(tensor, mat_tensor, mat_global, para_env)
 
       TYPE(dbt_type)                                     :: tensor
       TYPE(dbcsr_type)                                   :: mat_tensor, mat_global
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'local_dbt_to_global_mat'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cp_dbt_to_dbcsr'
 
       INTEGER                                            :: handle
 
@@ -114,11 +113,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE local_dbt_to_global_mat
-
-
-
-
+   END SUBROUTINE cp_dbt_to_dbcsr
 
 ! **************************************************************************************************
 !> \brief ...
@@ -126,15 +121,15 @@ CONTAINS
 !> \param fm_R ...
 !> \param mat_global ...
 !> \param mat_local ...
-!> \param bs_env ...
+!> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE local_dbt_to_global_fm(t_R, fm_R, mat_global, mat_local, bs_env)
+   SUBROUTINE cp_dbt_to_fm(t_R, fm_R, mat_global, mat_local, para_env)
       TYPE(dbt_type), DIMENSION(:)                       :: t_R
       TYPE(cp_fm_type), DIMENSION(:)                     :: fm_R
       TYPE(dbcsr_p_type)                                 :: mat_global, mat_local
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'local_dbt_to_global_fm'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cp_dbt_to_fm'
 
       INTEGER                                            :: handle, i_cell, n_images
 
@@ -146,14 +141,13 @@ CONTAINS
 
       DO i_cell = 1, n_images
          CALL dbcsr_set(mat_global%matrix, 0.0_dp)
-         CALL dbcsr_set(mat_local%matrix, 0.0_dp)
-         CALL local_dbt_to_global_mat(t_R(i_cell), mat_local%matrix, mat_global%matrix, &
-                                      bs_env%para_env)
+         CALL cp_dbt_to_dbcsr(t_R(i_cell), mat_local%matrix, mat_global%matrix, &
+                              para_env)
          CALL copy_dbcsr_to_fm(mat_global%matrix, fm_R(i_cell))
       END DO
 
       CALL timestop(handle)
 
-   END SUBROUTINE local_dbt_to_global_fm
+   END SUBROUTINE cp_dbt_to_fm
 
-END MODULE gw_utils_communication
+END MODULE dbt_matrix_redistribution

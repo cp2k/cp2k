@@ -25,8 +25,10 @@ MODULE rpa_exchange
         dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_contrib,                ONLY: dbcsr_trace
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
+   USE cp_dbcsr_redistribution,         ONLY: cp_array_to_dbcsr_slices
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
+   USE cp_fm_redistribution,            ONLY: cp_fm_to_array
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_p_type,&
                                               cp_fm_struct_release
@@ -66,7 +68,6 @@ MODULE rpa_exchange
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
-   USE rpa_communication,               ONLY: gamma_fm_to_dbcsr
    USE rpa_util,                        ONLY: calc_fm_mat_S_rpa,&
                                               remove_scaling_factor_rpa
    USE scf_control_types,               ONLY: scf_control_type
@@ -734,10 +735,21 @@ CONTAINS
          CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), hom, omega)
 
          ! Copy Gamma_ia_P^3 to dbcsr matrix set
-         CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3(ispin)%matrix_set, para_env, &
-                                exchange_work%para_env_sub, hom, virt, &
-                                exchange_work%exchange_env%mo_coeff_o(ispin), my_aux_start, my_aux_end, &
-                                my_aux_size)
+         BLOCK
+            INTEGER :: first_row, last_row, nlocal
+            REAL(KIND=dp), ALLOCATABLE :: slices(:, :)
+            TYPE(group_dist_d1_type) :: row_distribution
+
+            CALL create_group_dist(row_distribution, exchange_work%para_env_sub%num_pe, dimen_ia)
+            CALL get_group_dist(row_distribution, exchange_work%para_env_sub%mepos, first_row, last_row, nlocal)
+            CALL cp_fm_to_array(slices, first_row, last_row, my_aux_start, my_aux_end, fm_mat_Gamma_3)
+            ALLOCATE (dbcsr_Gamma_3(ispin)%matrix_set(my_aux_size))
+            CALL cp_array_to_dbcsr_slices(slices, hom, virt, exchange_work%para_env_sub, first_row, last_row, &
+                                          my_aux_size, row_distribution, &
+                                          exchange_work%exchange_env%mo_coeff_o(ispin), &
+                                          matrices=dbcsr_Gamma_3(ispin)%matrix_set)
+            CALL release_group_dist(row_distribution)
+         END BLOCK
       END DO
 
       DO L_counter = 1, my_aux_size

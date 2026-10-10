@@ -50,8 +50,8 @@ MODULE bse_bs_env_link
         dbt_create, dbt_destroy, dbt_get_block, dbt_get_stored_coordinates, &
         dbt_iterator_blocks_left, dbt_iterator_next_block, dbt_iterator_start, dbt_iterator_stop, &
         dbt_iterator_type, dbt_pgrid_create, dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
+   USE dbt_matrix_redistribution,       ONLY: cp_fm_to_dbt
    USE gw_tensor_large_cell_Gamma,      ONLY: compute_3c_integrals
-   USE gw_utils_communication,          ONLY: fm_to_local_tensor
    USE gw_utils_fm,                     ONLY: fm_contract_ABA
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp,&
@@ -304,7 +304,7 @@ CONTAINS
 !>        tensor (AO atom | MO block) on the tensor group's grid, the MO blocking the caller's.
 !>        The coefficients are a full matrix on all ranks, the tensor lives on the ranks of one
 !>        tensor group, and no copy between the two exists. The routine takes the route of the GW's
-!>        own matrices (fm_to_local_tensor: full matrix, DBCSR matrix on all ranks, DBCSR matrix on
+!>        own matrices (cp_fm_to_dbt: full matrix, DBCSR matrix on all ranks, DBCSR matrix on
 !>        the group, tensor) and creates the two DBCSR matrices of that route in the
 !>        (AO atom | MO block) blocking, for which the GW holds no template. A small object,
 !>        n_ao x n_window: the steps are there for the change of communicator, not for memory
@@ -346,7 +346,7 @@ CONTAINS
       DEALLOCATE (dist_1, dist_2)
       CALL dbt_pgrid_destroy(pgrid_2d)
 
-      ! the window columns as a full matrix, then the route of the GW's own matrices (fm_to_local_tensor):
+      ! the window columns as a full matrix, then the route of the GW's own matrices (cp_fm_to_dbt):
       ! global DBCSR, group DBCSR, tensor; the coefficients are never replicated
       NULLIFY (struct_C_window)
       CALL cp_fm_struct_create(struct_C_window, template_fmstruct=bs_env%fm_mo_coeff_Gamma(ispin)%matrix_struct, &
@@ -358,7 +358,8 @@ CONTAINS
       ! the group matrix on the grid of the GW's AO matrices of the tensor group
       CALL dbcsr_get_info(bs_env%mat_ao_ao_tensor%matrix, distribution=dist_tmpl)
       CALL link_matrix_round_robin(dist_tmpl, bs_env%sizes_AO, sizes_mo, "C window, group", dist_group, mat_group)
-      CALL fm_to_local_tensor(fm_C_window, mat_global, mat_group, t_C, bs_env)
+      CALL cp_fm_to_dbt(fm_C_window, mat_global, mat_group, t_C, bs_env%para_env, &
+                        bs_env%para_env_tensor%num_pe, bs_env%eps_filter)
 
       CALL cp_fm_release(fm_C_window)
       CALL dbcsr_release(mat_global)
