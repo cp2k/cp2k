@@ -18,6 +18,8 @@ MODULE rpa_grad
                                               cp_fm_geadd,&
                                               cp_fm_scale_and_add
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_invert
+   USE cp_fm_redistribution,            ONLY: cp_array_to_fm,&
+                                              prepare_subgroup_redistribution
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_get,&
                                               cp_fm_struct_release,&
@@ -55,10 +57,8 @@ MODULE rpa_grad
                                               mp_waitall,&
                                               mp_waitany
    USE mp2_laplace,                     ONLY: calc_fm_mat_s_laplace
-   USE mp2_ri_grad_util,                ONLY: array2fm,&
-                                              create_dbcsr_gamma,&
-                                              fm2array,&
-                                              prepare_redistribution
+   USE mp2_ri_grad_util,                ONLY: create_dbcsr_gamma,&
+                                              fm2array
    USE mp2_types,                       ONLY: mp2_type,&
                                               one_dim_int_array,&
                                               two_dim_int_array,&
@@ -2085,8 +2085,8 @@ CONTAINS
 
       ngroup = para_env%num_pe/para_env_sub%num_pe
 
-      CALL prepare_redistribution(para_env, para_env_sub, ngroup, &
-                                  group_grid_2_mepos, mepos_2_grid_group, pos_info=pos_info)
+      CALL prepare_subgroup_redistribution(para_env, para_env_sub, ngroup, &
+                                           group_grid_2_mepos, mepos_2_grid_group, pos_info=pos_info)
 
       ! Create fm_PQ_half
       CALL create_group_dist(gd_P, para_env_sub%num_pe, dimen_RI)
@@ -2110,19 +2110,12 @@ CONTAINS
       DEALLOCATE (pos_info)
       CALL release_group_dist(gd_P)
 
-      CALL array2fm(mp2_env%ri_grad%PQ_half, fm_PQ%matrix_struct, &
-                    my_P_start, my_P_end, &
-                    my_group_L_start, my_group_L_end, &
-                    gd_P_new, gd_array_new, &
-                    group_grid_2_mepos, para_env_sub%num_pe, ngroup, &
-                    fm_PQ_half)
+      CALL cp_array_to_fm(mp2_env%ri_grad%PQ_half, fm_PQ%matrix_struct, my_P_start, my_P_end, &
+                          my_group_L_start, my_group_L_end, fm_PQ_half)
 
       IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
-         CALL array2fm(mp2_env%ri_grad%operator_half, fm_PQ%matrix_struct, my_P_start, my_P_end, &
-                       my_group_L_start, my_group_L_end, &
-                       gd_P_new, gd_array_new, &
-                       group_grid_2_mepos, para_env_sub%num_pe, ngroup, &
-                       operator_half)
+         CALL cp_array_to_fm(mp2_env%ri_grad%operator_half, fm_PQ%matrix_struct, my_P_start, my_P_end, &
+                             my_group_L_start, my_group_L_end, operator_half)
       END IF
 
       ! deallocate the info array

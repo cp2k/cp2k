@@ -19,6 +19,7 @@ MODULE rpa_communication
                                               dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_template
+   USE cp_fm_redistribution,            ONLY: prepare_subgroup_redistribution
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -36,8 +37,7 @@ MODULE rpa_communication
                                               mp_request_null,&
                                               mp_request_type,&
                                               mp_waitall
-   USE mp2_ri_grad_util,                ONLY: fm2array,&
-                                              prepare_redistribution
+   USE mp2_ri_grad_util,                ONLY: fm2array
    USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
@@ -117,7 +117,7 @@ CONTAINS
 
       ! Make a 2D array intermediate
 
-      CALL prepare_redistribution(para_env_RPA, para_env_sub, ngroup, &
+      CALL prepare_subgroup_redistribution(para_env_RPA, para_env_sub, ngroup, &
                                   group_grid_2_mepos, mepos_2_grid_group)
 
       ! fm_mat_Gamma_3 is released here
