@@ -734,10 +734,10 @@ CONTAINS
          CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), hom, omega)
 
          ! Copy Gamma_ia_P^3 to dbcsr matrix set
-         CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3(ispin)%matrix_set, &
-                                para_env, exchange_work%para_env_sub, hom, virt, &
-                                exchange_work%exchange_env%mo_coeff_o(ispin), &
-                                exchange_work%ngroup, my_aux_start, my_aux_end, my_aux_size)
+         CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3(ispin)%matrix_set, para_env, &
+                                exchange_work%para_env_sub, hom, virt, &
+                                exchange_work%exchange_env%mo_coeff_o(ispin), my_aux_start, my_aux_end, &
+                                my_aux_size)
       END DO
 
       DO L_counter = 1, my_aux_size

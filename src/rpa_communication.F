@@ -19,7 +19,7 @@ MODULE rpa_communication
                                               dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_template
-   USE cp_fm_redistribution,            ONLY: prepare_subgroup_redistribution
+   USE cp_fm_redistribution,            ONLY: cp_fm_to_array
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -37,7 +37,6 @@ MODULE rpa_communication
                                               mp_request_null,&
                                               mp_request_type,&
                                               mp_waitall
-   USE mp2_ri_grad_util,                ONLY: fm2array
    USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
@@ -65,14 +64,13 @@ CONTAINS
 !> \param homo ...
 !> \param virtual ...
 !> \param mo_coeff_o ...   dbcsr on a subgroup
-!> \param ngroup ...
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
 !> \param my_group_L_size ...
 !> \author Vladimir Rybkin, 07/2016
 ! **************************************************************************************************
    SUBROUTINE gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3, para_env_RPA, para_env_sub, &
-                                homo, virtual, mo_coeff_o, ngroup, my_group_L_start, my_group_L_end, &
+                                homo, virtual, mo_coeff_o, my_group_L_start, my_group_L_end, &
                                 my_group_L_size)
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Gamma_3
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: dbcsr_Gamma_3
@@ -80,8 +78,8 @@ CONTAINS
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
       INTEGER, INTENT(IN)                                :: homo, virtual
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mo_coeff_o
-      INTEGER, INTENT(IN)                                :: ngroup, my_group_L_start, &
-                                                            my_group_L_end, my_group_L_size
+      INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, &
+                                                            my_group_L_size
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gamma_fm_to_dbcsr'
 
@@ -93,8 +91,7 @@ CONTAINS
          size_rec_buffer, size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, map_rec_size, map_send_size
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: grid_2_mepos, grid_ref_2_send_pos, &
-                                                            group_grid_2_mepos, indices_map_my, &
-                                                            mepos_2_grid, mepos_2_grid_group
+                                                            indices_map_my, mepos_2_grid
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: part_ia
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Gamma_2D
@@ -117,15 +114,8 @@ CONTAINS
 
       ! Make a 2D array intermediate
 
-      CALL prepare_subgroup_redistribution(para_env_RPA, para_env_sub, ngroup, &
-                                  group_grid_2_mepos, mepos_2_grid_group)
-
       ! fm_mat_Gamma_3 is released here
-      CALL fm2array(Gamma_2D, my_ia_start, my_ia_end, &
-                    my_group_L_start, my_group_L_end, &
-                    group_grid_2_mepos, mepos_2_grid_group, &
-                    para_env_sub%num_pe, ngroup, &
-                    fm_mat_Gamma_3)
+      CALL cp_fm_to_array(Gamma_2D, my_ia_start, my_ia_end, my_group_L_start, my_group_L_end, fm_mat_Gamma_3)
 
       ! create sub blacs env
       NULLIFY (blacs_env)

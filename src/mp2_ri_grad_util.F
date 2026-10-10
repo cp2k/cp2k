@@ -22,7 +22,7 @@ MODULE mp2_ri_grad_util
                                               cp_dbcsr_m_by_n_from_template
    USE cp_fm_basic_linalg,              ONLY: cp_fm_geadd
    USE cp_fm_redistribution,            ONLY: cp_array_to_fm,&
-                                              prepare_subgroup_redistribution
+                                              cp_fm_to_array
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -54,7 +54,7 @@ MODULE mp2_ri_grad_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_grad_util'
 
-   PUBLIC :: complete_gamma, fm2array, create_dbcsr_gamma
+   PUBLIC :: complete_gamma, create_dbcsr_gamma
 
    TYPE index_map
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: map
@@ -71,45 +71,40 @@ CONTAINS
 !> \param virtual ...
 !> \param para_env ...
 !> \param para_env_sub ...
-!> \param ngroup ...
 !> \param my_group_L_size ...
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
 !> \param my_B_size ...
 !> \param my_B_virtual_start ...
-!> \param gd_array ...
 !> \param gd_B_virtual ...
 !> \param kspin ...
 !> \author Mauro Del Ben
 ! **************************************************************************************************
-   SUBROUTINE complete_gamma(mp2_env, B_ia_Q, dimen_RI, homo, virtual, para_env, para_env_sub, ngroup, &
-                             my_group_L_size, my_group_L_start, my_group_L_end, &
-                             my_B_size, my_B_virtual_start, gd_array, gd_B_virtual, kspin)
+   SUBROUTINE complete_gamma(mp2_env, B_ia_Q, dimen_RI, homo, virtual, para_env, para_env_sub, my_group_L_size, &
+                             my_group_L_start, my_group_L_end, my_B_size, my_B_virtual_start, gd_B_virtual, kspin)
 
       TYPE(mp2_type)                                     :: mp2_env
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: B_ia_Q
       INTEGER, INTENT(IN)                                :: dimen_RI, homo, virtual
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env, para_env_sub
-      INTEGER, INTENT(IN)                                :: ngroup, my_group_L_size, &
-                                                            my_group_L_start, my_group_L_end, &
-                                                            my_B_size, my_B_virtual_start
-      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array, gd_B_virtual
+      INTEGER, INTENT(IN)                                :: my_group_L_size, my_group_L_start, &
+                                                            my_group_L_end, my_B_size, &
+                                                            my_B_virtual_start
+      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_B_virtual
       INTEGER, INTENT(IN)                                :: kspin
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'complete_gamma'
 
-      INTEGER :: dimen_ia, handle, i, ispin, kkB, my_ia_end, my_ia_size, my_ia_start, my_P_end, &
-         my_P_size, my_P_start, nspins, pos_group, pos_sub
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pos_info
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: group_grid_2_mepos, mepos_2_grid_group
+      INTEGER                                            :: dimen_ia, handle, ispin, kkB, my_ia_end, &
+                                                            my_ia_size, my_ia_start, my_P_end, &
+                                                            my_P_size, my_P_start, nspins
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D, Gamma_2D, Gamma_PQ
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_ia, fm_struct_RI
       TYPE(cp_fm_type) :: fm_Gamma, fm_Gamma_PQ, fm_Gamma_PQ_2, fm_Gamma_PQ_temp, &
          fm_Gamma_PQ_temp_2, fm_ia_P, fm_Y, operator_half, PQ_half
-      TYPE(group_dist_d1_type)                           :: gd_array_new, gd_ia, gd_ia_new, gd_P, &
-                                                            gd_P_new
+      TYPE(group_dist_d1_type)                           :: gd_ia, gd_P
 
       CALL timeset(routineN, handle)
 
@@ -126,27 +121,8 @@ CONTAINS
       CALL mat_3d_to_2d_gamma(mp2_env%ri_grad%Gamma_P_ia(kspin)%array, Gamma_2D, homo, my_B_size, virtual, my_B_virtual_start, &
                               my_ia_start, my_ia_end, my_ia_size, my_group_L_size, para_env_sub, gd_B_virtual)
 
-      ! create the processor map and size arrays
-      CALL create_group_dist(gd_ia_new, para_env%num_pe)
-      CALL create_group_dist(gd_array_new, para_env%num_pe)
       CALL create_group_dist(gd_P, para_env_sub%num_pe, dimen_RI)
-      CALL create_group_dist(gd_P_new, para_env%num_pe)
-
       CALL get_group_dist(gd_P, para_env_sub%mepos, my_P_start, my_P_end, my_P_size)
-
-      CALL prepare_subgroup_redistribution(para_env, para_env_sub, ngroup, &
-                                           group_grid_2_mepos, mepos_2_grid_group, pos_info=pos_info)
-
-      DO i = 0, para_env%num_pe - 1
-         ! calculate position of the group
-         pos_group = i/para_env_sub%num_pe
-         ! calculate position in the subgroup
-         pos_sub = pos_info(i)
-         ! 1 -> rows, 2 -> cols
-         CALL get_group_dist(gd_ia, pos_sub, gd_ia_new, i)
-         CALL get_group_dist(gd_array, pos_group, gd_array_new, i)
-         CALL get_group_dist(gd_P, pos_sub, gd_P_new, i)
-      END DO
 
       ! create the blacs env
       NULLIFY (blacs_env)
@@ -175,10 +151,6 @@ CONTAINS
          CALL cp_array_to_fm(mp2_env%ri_grad%operator_half, fm_struct_RI, my_P_start, my_P_end, &
                              my_group_L_start, my_group_L_end, operator_half, do_release_mat=.FALSE.)
       END IF
-
-      CALL release_group_dist(gd_P_new)
-      CALL release_group_dist(gd_ia_new)
-      CALL release_group_dist(gd_array_new)
 
       ! complete the gamma matrix Gamma_ia^P = sum_Q (Y_ia^Q * (Q|P)^(-1/2))
       IF (compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
@@ -249,18 +221,9 @@ CONTAINS
 
       ! now redistribute the data, in this case we go back
       ! to the original way the integrals were distributed
-      CALL fm2array(Gamma_2D, my_ia_start, my_ia_end, &
-                    my_group_L_start, my_group_L_end, &
-                    group_grid_2_mepos, mepos_2_grid_group, &
-                    para_env_sub%num_pe, ngroup, &
-                    fm_Gamma)
+      CALL cp_fm_to_array(Gamma_2D, my_ia_start, my_ia_end, my_group_L_start, my_group_L_end, fm_Gamma)
 
-      ALLOCATE (Gamma_PQ(my_P_size, my_group_L_size))
-      CALL fm2array(Gamma_PQ, my_P_start, my_P_end, &
-                    my_group_L_start, my_group_L_end, &
-                    group_grid_2_mepos, mepos_2_grid_group, &
-                    para_env_sub%num_pe, ngroup, &
-                    fm_Gamma_PQ)
+      CALL cp_fm_to_array(Gamma_PQ, my_P_start, my_P_end, my_group_L_start, my_group_L_end, fm_Gamma_PQ)
       IF (.NOT. ALLOCATED(mp2_env%ri_grad%Gamma_PQ)) THEN
          CALL MOVE_ALLOC(Gamma_PQ, mp2_env%ri_grad%Gamma_PQ)
       ELSE
@@ -269,12 +232,7 @@ CONTAINS
       END IF
 
       IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
-         ALLOCATE (Gamma_PQ(my_P_size, my_group_L_size))
-         CALL fm2array(Gamma_PQ, my_P_start, my_P_end, &
-                       my_group_L_start, my_group_L_end, &
-                       group_grid_2_mepos, mepos_2_grid_group, &
-                       para_env_sub%num_pe, ngroup, &
-                       fm_Gamma_PQ_2)
+         CALL cp_fm_to_array(Gamma_PQ, my_P_start, my_P_end, my_group_L_start, my_group_L_end, fm_Gamma_PQ_2)
          IF (.NOT. ALLOCATED(mp2_env%ri_grad%Gamma_PQ_2)) THEN
             CALL MOVE_ALLOC(Gamma_PQ, mp2_env%ri_grad%Gamma_PQ_2)
          ELSE
@@ -299,8 +257,6 @@ CONTAINS
                               my_ia_start, my_ia_end, my_group_L_size, gd_ia, &
                               mp2_env%ri_grad%G_P_ia(:, kspin), mp2_env%ri_grad%mo_coeff_o(1)%matrix)
 
-      DEALLOCATE (pos_info)
-      DEALLOCATE (group_grid_2_mepos, mepos_2_grid_group)
       CALL release_group_dist(gd_ia)
       CALL release_group_dist(gd_P)
 
@@ -460,357 +416,6 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE mat_3d_to_2d_gamma
-
-! **************************************************************************************************
-!> \brief redistribute fm to local part of array
-!> \param mat2D ...
-!> \param my_start_row ...
-!> \param my_end_row ...
-!> \param my_start_col ...
-!> \param my_end_col ...
-!> \param group_grid_2_mepos ...
-!> \param mepos_2_grid_group ...
-!> \param ngroup_row ...
-!> \param ngroup_col ...
-!> \param fm_mat ...
-! **************************************************************************************************
-   SUBROUTINE fm2array(mat2D, my_start_row, my_end_row, &
-                       my_start_col, my_end_col, &
-                       group_grid_2_mepos, mepos_2_grid_group, &
-                       ngroup_row, ngroup_col, &
-                       fm_mat)
-
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(OUT)                                     :: mat2D
-      INTEGER, INTENT(IN)                                :: my_start_row, my_end_row, my_start_col, &
-                                                            my_end_col
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: group_grid_2_mepos, mepos_2_grid_group
-      INTEGER, INTENT(IN)                                :: ngroup_row, ngroup_col
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm2array'
-
-      INTEGER :: dummy_proc, handle, handle2, i_global, iiB, iii, itmp(2), j_global, jjB, my_cols, &
-         my_rows, mypcol, myprow, ncol_local, npcol, nprow, nrow_local, num_cols, num_rec_rows, &
-         num_rows, number_of_rec, number_of_send, proc_receive, proc_send, proc_shift, &
-         rec_col_size, rec_counter, rec_pcol, rec_prow, rec_row_size, ref_send_pcol, &
-         ref_send_prow, send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, index_row_rec, map_rec_size, &
-                                                            map_send_size
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: grid_2_mepos, grid_ref_2_send_pos, &
-                                                            mepos_2_grid, sizes
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: part_col, part_row
-      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: buffer_rec, buffer_send
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: req_send
-
-      CALL timeset(routineN, handle)
-
-      ! number of elements in each dimension
-      my_rows = my_end_row - my_start_row + 1
-      my_cols = my_end_col - my_start_col + 1
-
-      ! allocate the array
-      ALLOCATE (mat2D(my_rows, my_cols))
-      mat2D = 0.0_dp
-
-      ! start procedure
-      ! get information of from the full matrix
-      CALL cp_fm_get_info(matrix=fm_mat, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices, &
-                          nrow_global=num_rows, &
-                          ncol_global=num_cols, &
-                          para_env=para_env)
-      myprow = fm_mat%matrix_struct%context%mepos(1)
-      mypcol = fm_mat%matrix_struct%context%mepos(2)
-      nprow = fm_mat%matrix_struct%context%num_pe(1)
-      npcol = fm_mat%matrix_struct%context%num_pe(2)
-
-      ! start the communication part
-      ! 0) create array containing the processes position
-      !    and supporting infos
-      CALL timeset(routineN//"_info", handle2)
-      ALLOCATE (grid_2_mepos(0:nprow - 1, 0:npcol - 1))
-      grid_2_mepos = 0
-      ALLOCATE (mepos_2_grid(2, 0:para_env%num_pe - 1))
-
-      ! fill the info array
-      grid_2_mepos(myprow, mypcol) = para_env%mepos
-
-      ! sum infos
-      CALL para_env%sum(grid_2_mepos)
-      CALL para_env%allgather([myprow, mypcol], mepos_2_grid)
-
-      ! 1) loop over my local data and define a map for the proc to send data
-      ALLOCATE (map_send_size(0:para_env%num_pe - 1))
-      map_send_size = 0
-      part_row = REAL(num_rows, KIND=dp)/REAL(ngroup_row, KIND=dp)
-      part_col = REAL(num_cols, KIND=dp)/REAL(ngroup_col, KIND=dp)
-
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         ! check the group holding this element
-         ! dirty way, if someone has a better idea ...
-         send_pcol = INT(REAL(j_global - 1, KIND=dp)/part_col)
-         send_pcol = MAX(0, send_pcol)
-         send_pcol = MIN(send_pcol, ngroup_col - 1)
-         DO
-            itmp = get_limit(num_cols, ngroup_col, send_pcol)
-            IF (j_global >= itmp(1) .AND. j_global <= itmp(2)) EXIT
-            IF (j_global < itmp(1)) send_pcol = send_pcol - 1
-            IF (j_global > itmp(2)) send_pcol = send_pcol + 1
-         END DO
-
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            ! check the process in the group holding this element
-            send_prow = INT(REAL(i_global - 1, KIND=dp)/part_row)
-            send_prow = MAX(0, send_prow)
-            send_prow = MIN(send_prow, ngroup_row - 1)
-            DO
-               itmp = get_limit(num_rows, ngroup_row, send_prow)
-               IF (i_global >= itmp(1) .AND. i_global <= itmp(2)) EXIT
-               IF (i_global < itmp(1)) send_prow = send_prow - 1
-               IF (i_global > itmp(2)) send_prow = send_prow + 1
-            END DO
-
-            proc_send = group_grid_2_mepos(send_prow, send_pcol)
-
-            map_send_size(proc_send) = map_send_size(proc_send) + 1
-
-         END DO ! i_global
-      END DO ! j_global
-
-      ! 2) loop over my local data of the array and define a map for the proc from which rec data
-      ALLOCATE (map_rec_size(0:para_env%num_pe - 1))
-      map_rec_size = 0
-      dummy_proc = 0
-      DO jjB = my_start_col, my_end_col
-         rec_pcol = fm_mat%matrix_struct%g2p_col(jjB)
-         DO iiB = my_start_row, my_end_row
-            rec_prow = fm_mat%matrix_struct%g2p_row(iiB)
-            proc_receive = grid_2_mepos(rec_prow, rec_pcol)
-            map_rec_size(proc_receive) = map_rec_size(proc_receive) + 1
-         END DO
-      END DO
-
-      ! 3) check if the local data in the fm_mat has to be stored in the new array
-      IF (map_rec_size(para_env%mepos) > 0) THEN
-         DO jjB = 1, ncol_local
-            j_global = col_indices(jjB)
-            IF (j_global >= my_start_col .AND. j_global <= my_end_col) THEN
-               DO iiB = 1, nrow_local
-                  i_global = row_indices(iiB)
-                  IF (i_global >= my_start_row .AND. i_global <= my_end_row) THEN
-                     mat2D(i_global - my_start_row + 1, j_global - my_start_col + 1) = fm_mat%local_data(iiB, jjB)
-                  END IF
-               END DO
-            END IF
-         END DO
-      END IF
-      CALL timestop(handle2)
-
-      ! 4) reorder data in the send_buffer
-      CALL timeset(routineN//"_buffer_send", handle2)
-      ! count the number of messages to send
-      number_of_send = 0
-      DO proc_shift = 1, para_env%num_pe - 1
-         proc_send = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
-         IF (map_send_size(proc_send) > 0) THEN
-            number_of_send = number_of_send + 1
-         END IF
-      END DO
-      ! allocate the structure that will hold the messages to be sent
-      ALLOCATE (buffer_send(number_of_send))
-      ! grid_ref_2_send_pos is an array (map) that given a pair
-      ! (ref_send_prow,ref_send_pcol) returns
-      ! the position in the buffer_send associated to that process
-
-      ALLOCATE (grid_ref_2_send_pos(0:ngroup_row - 1, 0:ngroup_col - 1))
-      grid_ref_2_send_pos = 0
-
-      ! finalize the allocation of buffer_send with the actual size
-      ! of each message (actual size is size_send_buffer)
-      send_counter = 0
-      DO proc_shift = 1, para_env%num_pe - 1
-         proc_send = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
-         size_send_buffer = map_send_size(proc_send)
-         IF (map_send_size(proc_send) > 0) THEN
-            send_counter = send_counter + 1
-            ! allocate the sending buffer (msg)
-            ALLOCATE (buffer_send(send_counter)%msg(size_send_buffer))
-            buffer_send(send_counter)%msg = 0.0_dp
-            buffer_send(send_counter)%proc = proc_send
-            ! get the pointer to prow, pcol of the process that has
-            ! to receive this message
-            ref_send_prow = mepos_2_grid_group(1, proc_send)
-            ref_send_pcol = mepos_2_grid_group(2, proc_send)
-            ! save the rank of the process that has to receive this message
-            grid_ref_2_send_pos(ref_send_prow, ref_send_pcol) = send_counter
-         END IF
-      END DO
-
-      ! loop over the locally held data and fill the buffer_send
-      ! for doing that we need an array that keep track if the
-      ! sequential increase of the index for each message
-      ALLOCATE (iii_vet(number_of_send))
-      iii_vet = 0
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         ! check the group holding this element
-         ! dirty way, if someone has a better idea ...
-         send_pcol = INT(REAL(j_global - 1, KIND=dp)/part_col)
-         send_pcol = MAX(0, send_pcol)
-         send_pcol = MIN(send_pcol, ngroup_col - 1)
-         DO
-            itmp = get_limit(num_cols, ngroup_col, send_pcol)
-            IF (j_global >= itmp(1) .AND. j_global <= itmp(2)) EXIT
-            IF (j_global < itmp(1)) send_pcol = send_pcol - 1
-            IF (j_global > itmp(2)) send_pcol = send_pcol + 1
-         END DO
-
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            ! check the process in the group holding this element
-            send_prow = INT(REAL(i_global - 1, KIND=dp)/part_row)
-            send_prow = MAX(0, send_prow)
-            send_prow = MIN(send_prow, ngroup_row - 1)
-            DO
-               itmp = get_limit(num_rows, ngroup_row, send_prow)
-               IF (i_global >= itmp(1) .AND. i_global <= itmp(2)) EXIT
-               IF (i_global < itmp(1)) send_prow = send_prow - 1
-               IF (i_global > itmp(2)) send_prow = send_prow + 1
-            END DO
-            ! we don't need to send to ourselves
-            IF (group_grid_2_mepos(send_prow, send_pcol) == para_env%mepos) CYCLE
-
-            send_counter = grid_ref_2_send_pos(send_prow, send_pcol)
-            iii_vet(send_counter) = iii_vet(send_counter) + 1
-            iii = iii_vet(send_counter)
-            buffer_send(send_counter)%msg(iii) = fm_mat%local_data(iiB, jjB)
-         END DO
-      END DO
-
-      DEALLOCATE (iii_vet)
-      DEALLOCATE (grid_ref_2_send_pos)
-      CALL timestop(handle2)
-
-      ! 5) similarly to what done for the buffer_send
-      !    create the buffer for receive, post the message with irecv
-      !    and send the messages with non-blocking
-      CALL timeset(routineN//"_isendrecv", handle2)
-      ! count the number of messages to be received
-      number_of_rec = 0
-      DO proc_shift = 1, para_env%num_pe - 1
-         proc_receive = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
-         IF (map_rec_size(proc_receive) > 0) THEN
-            number_of_rec = number_of_rec + 1
-         END IF
-      END DO
-
-      ALLOCATE (buffer_rec(number_of_rec))
-
-      rec_counter = 0
-      DO proc_shift = 1, para_env%num_pe - 1
-         proc_receive = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
-         size_rec_buffer = map_rec_size(proc_receive)
-         IF (map_rec_size(proc_receive) > 0) THEN
-            rec_counter = rec_counter + 1
-            ! prepare the buffer for receive
-            ALLOCATE (buffer_rec(rec_counter)%msg(size_rec_buffer))
-            buffer_rec(rec_counter)%msg = 0.0_dp
-            buffer_rec(rec_counter)%proc = proc_receive
-            ! post the message to be received
-            CALL para_env%irecv(buffer_rec(rec_counter)%msg, proc_receive, &
-                                buffer_rec(rec_counter)%msg_req)
-         END IF
-      END DO
-
-      ! send messages
-      ALLOCATE (req_send(number_of_send))
-      send_counter = 0
-      DO proc_shift = 1, para_env%num_pe - 1
-         proc_send = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
-         IF (map_send_size(proc_send) > 0) THEN
-            send_counter = send_counter + 1
-            CALL para_env%isend(buffer_send(send_counter)%msg, proc_send, &
-                                buffer_send(send_counter)%msg_req)
-            req_send(send_counter) = buffer_send(send_counter)%msg_req
-         END IF
-      END DO
-      CALL timestop(handle2)
-
-      ! 6) fill the fm_mat matrix with the messages received from the
-      !    other processes
-      CALL timeset(routineN//"_fill", handle2)
-      CALL cp_fm_get_info(matrix=fm_mat, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local)
-      ALLOCATE (sizes(2, 0:para_env%num_pe - 1))
-      CALL para_env%allgather([nrow_local, ncol_local], sizes)
-      iiB = MAXVAL(sizes(1, :))
-      ALLOCATE (index_row_rec(iiB))
-      index_row_rec = 0
-      rec_counter = 0
-      DO proc_shift = 1, para_env%num_pe - 1
-         proc_receive = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
-         size_rec_buffer = map_rec_size(proc_receive)
-
-         IF (map_rec_size(proc_receive) > 0) THEN
-            rec_counter = rec_counter + 1
-
-            rec_col_size = sizes(2, proc_receive)
-            rec_row_size = sizes(1, proc_receive)
-
-            ! precompute the indeces of the rows
-            num_rec_rows = 0
-            DO iiB = 1, rec_row_size
-               i_global = fm_mat%matrix_struct%l2g_row(iiB, mepos_2_grid(1, proc_receive))
-               IF (i_global >= my_start_row .AND. i_global <= my_end_row) THEN
-                  num_rec_rows = num_rec_rows + 1
-                  index_row_rec(num_rec_rows) = i_global
-               END IF
-            END DO
-
-            CALL buffer_rec(rec_counter)%msg_req%wait()
-
-            iii = 0
-            DO jjB = 1, rec_col_size
-               j_global = fm_mat%matrix_struct%l2g_col(jjB, mepos_2_grid(2, proc_receive))
-               IF (j_global >= my_start_col .AND. j_global <= my_end_col) THEN
-                  DO iiB = 1, num_rec_rows
-                     i_global = index_row_rec(iiB)
-                     iii = iii + 1
-                     mat2D(i_global - my_start_row + 1, j_global - my_start_col + 1) = buffer_rec(rec_counter)%msg(iii)
-                  END DO
-               END IF
-            END DO
-
-            DEALLOCATE (buffer_rec(rec_counter)%msg)
-         END IF
-      END DO
-      DEALLOCATE (buffer_rec)
-      DEALLOCATE (index_row_rec)
-      CALL cp_fm_release(fm_mat)
-      CALL timestop(handle2)
-
-      ! 7) Finally wait for all messeges to be sent
-      CALL timeset(routineN//"_waitall", handle2)
-      CALL mp_waitall(req_send(:))
-      DO send_counter = 1, number_of_send
-         DEALLOCATE (buffer_send(send_counter)%msg)
-      END DO
-      DEALLOCATE (buffer_send)
-      CALL timestop(handle2)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE fm2array
 
 ! **************************************************************************************************
 !> \brief redistribute 2D representation of 3d tensor to a set of dbcsr matrices
