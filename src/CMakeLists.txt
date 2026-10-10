@@ -111,6 +111,7 @@ list(
   cp_dbcsr_cp2k_link.F
   cp_dbcsr_diag.F
   cp_dbcsr_operations.F
+  cp_dbcsr_redistribution.F
   cp_dbcsr_output.F
   cp_ddapc.F
   cp_ddapc_forces.F
