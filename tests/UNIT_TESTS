@@ -38,4 +38,6 @@ spectral_localizer_unittest
 quadratic_pseudospectrum_unittest
 pw_unittest
 
+kubo_unittest
+
 #EOF

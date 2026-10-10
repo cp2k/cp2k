@@ -33,6 +33,7 @@ MODULE bibliography
    PUBLIC :: add_all_references ! f77_interface only
 
    ! all reference keys
+   INTEGER, PUBLIC, SAVE :: BiancoResta2011, BauMarrazzo2024, EsteveParedes2023
    INTEGER, PUBLIC, SAVE :: Richters2018, VandeVondele2005a, VandeVondele2003, &
                             Laino2005, Laino2006, Goedecker1996, Hartwigsen1998, Krack2005, &
                             Lippert1997, Lippert1999, Krack2000, Krack2002, Iannuzzi2005, &
@@ -2368,6 +2369,25 @@ CONTAINS
                          title="Topological indices for periodic gapped Hamiltonians and fuzzy tori", &
                          source="Math. Phys. Anal. Geom.", volume="28", pages="13", &
                          year=2025, doi="10.1007/s11040-025-09508-0")
+
+      CALL add_reference(key=EsteveParedes2023, &
+                         authors=s2a("J. J. Esteve-Paredes", "J. J. Palacios"), &
+                         title="A comprehensive study of the velocity, momentum and position matrix elements "// &
+                         "for Bloch states using a local orbital basis", &
+                         source="SciPost Phys. Core", volume="6", pages="002", &
+                         year=2023, doi="10.21468/SciPostPhysCore.6.1.002")
+
+      CALL add_reference(key=BiancoResta2011, &
+                         authors=s2a("R. Bianco", "R. Resta"), &
+                         title="Mapping topological order in coordinate space", &
+                         source="Phys. Rev. B", volume="84", pages="241106(R)", &
+                         year=2011, doi="10.1103/PhysRevB.84.241106")
+
+      CALL add_reference(key=BauMarrazzo2024, &
+                         authors=s2a("N. Bau", "A. Marrazzo"), &
+                         title="Local Chern marker for periodic systems", &
+                         source="Phys. Rev. B", volume="109", pages="014206", &
+                         year=2024, doi="10.1103/PhysRevB.109.014206")
 
       CALL add_reference(key=Cerjan2023, &
                          authors=s2a("A. Cerjan", "T. A. Loring", "F. Vides"), &

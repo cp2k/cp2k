@@ -524,3 +524,4 @@ QS/regtest-spectral-localizer-3d
 QS/regtest-quadratic-pseudospectrum
 QS/regtest-gamma-frozen-density
 QS/regtest-mom-3
+QS/regtest-kubo-transport-spglib                            spglib

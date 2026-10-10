@@ -15,7 +15,118 @@ MODULE topology_symmetry
    IMPLICIT NONE
    PRIVATE
    PUBLIC :: character_multiplicities, inversion_representation
+   PUBLIC :: spin_rotation, transform_spinor_frame
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Lift a Cartesian orthogonal operation to the physical spin-1/2 representation.
+!> \param rotation Cartesian polar-vector operation, including improper operations
+!> \param spin SU(2) lift of det(rotation)*rotation; inversion acts trivially on spin
+!> \param tolerance Orthogonality tolerance
+!> \param status Zero on success, negative for invalid geometry
+!> \note The quaternion sign fixes one representative, not a single-valued SO(3) representation.
+!>       Products must retain the resulting double-group factor system. Orbital parity is separate.
+! **************************************************************************************************
+   SUBROUTINE spin_rotation(rotation, spin, tolerance, status)
+      REAL(dp), INTENT(IN)                               :: rotation(3, 3)
+      COMPLEX(dp), INTENT(OUT)                           :: spin(2, 2)
+      REAL(dp), INTENT(IN)                               :: tolerance
+      INTEGER, INTENT(OUT)                               :: status
+
+      INTEGER                                            :: branch, i, j, k
+      REAL(dp)                                           :: candidates(0:3), det, q(0:3), r(3, 3), &
+                                                            scale, work(3, 3)
+
+      spin = 0.0_dp
+      status = -1
+      IF (.NOT. ALL(ieee_is_finite(rotation)) .OR. .NOT. ieee_is_finite(tolerance)) RETURN
+      IF (tolerance <= 0.0_dp .OR. tolerance >= 1.0_dp) RETURN
+      work = MATMUL(TRANSPOSE(rotation), rotation)
+      DO i = 1, 3
+         work(i, i) = work(i, i) - 1.0_dp
+      END DO
+      IF (MAXVAL(ABS(work)) > tolerance) RETURN
+      det = rotation(1, 1)*(rotation(2, 2)*rotation(3, 3) - rotation(2, 3)*rotation(3, 2)) &
+            - rotation(1, 2)*(rotation(2, 1)*rotation(3, 3) - rotation(2, 3)*rotation(3, 1)) &
+            + rotation(1, 3)*(rotation(2, 1)*rotation(3, 2) - rotation(2, 2)*rotation(3, 1))
+      IF (ABS(ABS(det) - 1.0_dp) > 3*tolerance) RETURN
+      r = SIGN(1.0_dp, det)*rotation
+      candidates(0) = 1.0_dp + r(1, 1) + r(2, 2) + r(3, 3)
+      DO i = 1, 3
+         candidates(i) = 2.0_dp*(1.0_dp + r(i, i)) - candidates(0)
+      END DO
+      branch = MAXLOC(candidates, DIM=1) - 1
+      scale = 2.0_dp*SQRT(MAX(0.0_dp, candidates(branch)))
+      q(branch) = 0.25_dp*scale
+      IF (branch == 0) THEN
+         q(1) = (r(3, 2) - r(2, 3))/scale
+         q(2) = (r(1, 3) - r(3, 1))/scale
+         q(3) = (r(2, 1) - r(1, 2))/scale
+      ELSE
+         i = branch
+         j = MODULO(i, 3) + 1
+         k = MODULO(i + 1, 3) + 1
+         q(0) = (r(k, j) - r(j, k))/scale
+         q(j) = (r(j, i) + r(i, j))/scale
+         q(k) = (r(k, i) + r(i, k))/scale
+      END IF
+      q = q/SQRT(SUM(q**2))
+      spin(1, 1) = CMPLX(q(0), -q(3), dp)
+      spin(2, 2) = CONJG(spin(1, 1))
+      spin(1, 2) = CMPLX(-q(2), -q(1), dp)
+      spin(2, 1) = -CONJG(spin(1, 2))
+      status = 0
+   END SUBROUTINE spin_rotation
+
+! **************************************************************************************************
+!> \brief Compose orbital, Bloch, physical-spin and optional time-reversal transformations.
+!> \param orbital Scalar AO action from the source to the target k, including all lattice phases
+!> \param spin Unitary spin matrix from spin_rotation
+!> \param source Source spin-major frame
+!> \param antiunitary Apply physical Theta=i*sigma_y*K before the spatial operation
+!> \param image Transformed spin-major frame in the target AO basis
+!> \param tolerance Spin unitarity tolerance
+!> \param status Zero on success, negative for malformed data
+!> \note Orbital metric/Hamiltonian covariance and k mapping must be checked by the caller.
+! **************************************************************************************************
+   SUBROUTINE transform_spinor_frame(orbital, spin, source, antiunitary, image, tolerance, status)
+      COMPLEX(dp), INTENT(IN)                            :: orbital(:, :), spin(2, 2), source(:, :)
+      LOGICAL, INTENT(IN)                                :: antiunitary
+      COMPLEX(dp), INTENT(OUT)                           :: image(:, :)
+      REAL(dp), INTENT(IN)                               :: tolerance
+      INTEGER, INTENT(OUT)                               :: status
+
+      COMPLEX(dp)                                        :: gram(2, 2)
+      COMPLEX(dp), ALLOCATABLE                           :: down(:, :), up(:, :)
+      INTEGER                                            :: m, n
+
+      status = -1
+      image = 0.0_dp
+      n = SIZE(orbital, 2)
+      m = SIZE(orbital, 1)
+      IF (n < 1 .OR. m < 1 .OR. SIZE(source, 1) /= 2*n) RETURN
+      IF (ANY(SHAPE(image) /= [2*m, SIZE(source, 2)])) RETURN
+      IF (.NOT. ieee_is_finite(tolerance) .OR. tolerance <= 0.0_dp .OR. tolerance >= 1.0_dp) RETURN
+      IF (.NOT. ALL(ieee_is_finite(REAL(orbital, dp))) .OR. .NOT. ALL(ieee_is_finite(AIMAG(orbital)))) RETURN
+      IF (.NOT. ALL(ieee_is_finite(REAL(source, dp))) .OR. .NOT. ALL(ieee_is_finite(AIMAG(source)))) RETURN
+      IF (.NOT. ALL(ieee_is_finite(REAL(spin, dp))) .OR. .NOT. ALL(ieee_is_finite(AIMAG(spin)))) RETURN
+      gram = MATMUL(CONJG(TRANSPOSE(spin)), spin)
+      gram(1, 1) = gram(1, 1) - 1.0_dp
+      gram(2, 2) = gram(2, 2) - 1.0_dp
+      IF (MAXVAL(ABS(gram)) > tolerance) RETURN
+      ALLOCATE (up(m, SIZE(source, 2)), down(m, SIZE(source, 2)))
+      IF (antiunitary) THEN
+         up(:, :) = MATMUL(orbital, CONJG(source(n + 1:, :)))
+         down(:, :) = -MATMUL(orbital, CONJG(source(:n, :)))
+      ELSE
+         up(:, :) = MATMUL(orbital, source(:n, :))
+         down(:, :) = MATMUL(orbital, source(n + 1:, :))
+      END IF
+      image(:m, :) = spin(1, 1)*up + spin(1, 2)*down
+      image(m + 1:, :) = spin(2, 1)*up + spin(2, 2)*down
+      IF (.NOT. ALL(ieee_is_finite(REAL(image, dp))) .OR. .NOT. ALL(ieee_is_finite(AIMAG(image)))) RETURN
+      status = 0
+   END SUBROUTINE transform_spinor_frame
 
 ! **************************************************************************************************
 !> \brief Decompose a character against a complete unitary character table.
