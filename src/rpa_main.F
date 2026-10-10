@@ -1888,15 +1888,15 @@ CONTAINS
                END IF
                CALL rotate_bse_slab(fm_mat_S_ia_bse(ispin), dimen_RI_red, homo(ispin), virtual(ispin), &
                                     static_cohsex_u(1:homo(ispin), 1:homo(ispin), ispin), &
-                                    static_cohsex_u(homo(ispin) + 1:nmo, homo(ispin) + 1:nmo, ispin), mp2_env)
+                                    static_cohsex_u(homo(ispin) + 1:nmo, homo(ispin) + 1:nmo, ispin))
                CALL rotate_bse_slab(fm_mat_S_ij_bse(ispin), dimen_RI_red, homo(ispin), homo(ispin), &
                                     static_cohsex_u(1:homo(ispin), 1:homo(ispin), ispin), &
-                                    static_cohsex_u(1:homo(ispin), 1:homo(ispin), ispin), mp2_env)
+                                    static_cohsex_u(1:homo(ispin), 1:homo(ispin), ispin))
                CALL rotate_bse_slab(fm_mat_S_ab_bse(ispin), dimen_RI_red, bse_lev_virt(ispin), bse_lev_virt(ispin), &
                                     static_cohsex_u(homo(ispin) + 1:homo(ispin) + bse_lev_virt(ispin), &
                                                     homo(ispin) + 1:homo(ispin) + bse_lev_virt(ispin), ispin), &
                                     static_cohsex_u(homo(ispin) + 1:homo(ispin) + bse_lev_virt(ispin), &
-                                                    homo(ispin) + 1:homo(ispin) + bse_lev_virt(ispin), ispin), mp2_env)
+                                                    homo(ispin) + 1:homo(ispin) + bse_lev_virt(ispin), ispin))
                ! transition dipoles, NTOs and exciton descriptors with C^QP
                CALL get_static_cohsex_mo_coeff(mo_coeff(ispin), static_cohsex_u(:, :, ispin), mo_coeff_bse(ispin))
             END DO

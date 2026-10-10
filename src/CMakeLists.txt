@@ -1116,6 +1116,7 @@ list(
   fm/cp_fm_elpa.F
   fm/cp_fm_pool_types.F
   fm/cp_fm_types.F
+  fm/cp_fm_redistribution.F
   fm/cp_fm_struct.F
   fm/cp_linked_list_fm.F)
 

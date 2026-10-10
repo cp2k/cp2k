@@ -19,6 +19,7 @@ MODULE bse_util
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_trace
+   USE cp_fm_redistribution,            ONLY: cp_fm_permute
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -43,8 +44,6 @@ MODULE bse_util
    USE kinds,                           ONLY: default_path_length,&
                                               dp,&
                                               int_8
-   USE matrix_communication,            ONLY: exchange_matrix_buffers,&
-                                              integ_mat_buffer_type => matrix_buffer_type
    USE message_passing,                 ONLY: mp_para_env_type
    USE mo_window,                       ONLY: combine_mo_windows,&
                                               determine_mo_window,&
@@ -75,7 +74,7 @@ MODULE bse_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_util'
 
-   PUBLIC :: screen_slabs, bse_window_from_dft, bse_window_from_mos, fm_general_add_bse, truncate_fm, &
+   PUBLIC :: screen_slabs, bse_window_from_dft, bse_window_from_mos, &
              comp_eigvec_coeff_BSE, sort_excitations, &
              estimate_BSE_resources, fulldiag_memory_estimate_GB, filter_eigvec_contrib, truncate_BSE_matrices, &
              adapt_BSE_input_params, get_multipoles_mo, &
@@ -173,566 +172,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE screen_slabs
-
-! **************************************************************************************************
-!> \brief Adds and reorders full matrices with a combined index structure, e.g. adding W_ij,ab
-!> to A_ia, jb which needs MPI communication.
-!> \param fm_out ...
-!> \param fm_in ...
-!> \param beta ...
-!> \param nrow_secidx_in ...
-!> \param ncol_secidx_in ...
-!> \param nrow_secidx_out ...
-!> \param ncol_secidx_out ...
-!> \param unit_nr ...
-!> \param reordering ...
-!> \param bse_env the BSE environment (settings)
-!> \param row_offset ...
-!> \param col_offset ...
-! **************************************************************************************************
-   SUBROUTINE fm_general_add_bse(fm_out, fm_in, beta, nrow_secidx_in, ncol_secidx_in, &
-                                 nrow_secidx_out, ncol_secidx_out, unit_nr, reordering, bse_env, &
-                                 row_offset, col_offset)
-
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_out
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_in
-      REAL(kind=dp)                                      :: beta
-      INTEGER, INTENT(IN)                                :: nrow_secidx_in, ncol_secidx_in, &
-                                                            nrow_secidx_out, ncol_secidx_out
-      INTEGER                                            :: unit_nr
-      INTEGER, DIMENSION(4)                              :: reordering
-      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
-      INTEGER, INTENT(IN), OPTIONAL                      :: row_offset, col_offset
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_general_add_bse'
-
-      INTEGER :: col_idx_loc, dummy, handle, handle2, i_entry_rec, idx_col_out, idx_row_out, ii, &
-         iproc, jj, my_col_offset, my_row_offset, ncol_block_in, ncol_block_out, ncol_local_in, &
-         ncol_local_out, nprocs, nrow_block_in, nrow_block_out, nrow_local_in, nrow_local_out, &
-         proc_send, row_idx_loc, send_pcol, send_prow
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: entry_counter, num_entries_rec, &
-                                                            num_entries_send
-      INTEGER, DIMENSION(4)                              :: indices_in
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices_in, col_indices_out, &
-                                                            row_indices_in, row_indices_out
-      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: buffer_rec, buffer_send
-      TYPE(mp_para_env_type), POINTER                    :: para_env_out
-
-! Offsets place the reshuffled block into a sub-block of fm_out (open-shell joint matrix);
-! both default 0, recovering the closed-shell single-block placement bit-identically.
-
-      my_row_offset = 0
-      my_col_offset = 0
-      IF (PRESENT(row_offset)) my_row_offset = row_offset
-      IF (PRESENT(col_offset)) my_col_offset = col_offset
-
-      CALL timeset(routineN, handle)
-      CALL timeset(routineN//"_1_setup", handle2)
-
-      para_env_out => fm_out%matrix_struct%para_env
-      ! A_iajb
-      ! We start by moving data from local parts of W_ijab to the full matrix A_iajb using buffers
-      CALL cp_fm_get_info(matrix=fm_out, &
-                          nrow_local=nrow_local_out, &
-                          ncol_local=ncol_local_out, &
-                          row_indices=row_indices_out, &
-                          col_indices=col_indices_out, &
-                          nrow_block=nrow_block_out, &
-                          ncol_block=ncol_block_out)
-
-      ALLOCATE (num_entries_rec(0:para_env_out%num_pe - 1))
-      ALLOCATE (num_entries_send(0:para_env_out%num_pe - 1))
-
-      num_entries_rec(:) = 0
-      num_entries_send(:) = 0
-
-      dummy = 0
-
-      CALL cp_fm_get_info(matrix=fm_in, &
-                          nrow_local=nrow_local_in, &
-                          ncol_local=ncol_local_in, &
-                          row_indices=row_indices_in, &
-                          col_indices=col_indices_in, &
-                          nrow_block=nrow_block_in, &
-                          ncol_block=ncol_block_in)
-
-      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_out%name, &
-            fm_out%matrix_struct%nrow_global
-         WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_out%name, &
-            fm_out%matrix_struct%ncol_global
-
-         WRITE (unit_nr, '(T2,A10,T13,A18,A10,T71,I10)') 'BSE|DEBUG|', 'Row block size of ', fm_out%name, nrow_block_out
-         WRITE (unit_nr, '(T2,A10,T13,A21,A10,T71,I10)') 'BSE|DEBUG|', 'Column block size of ', fm_out%name, ncol_block_out
-
-         WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_in%name, &
-            fm_in%matrix_struct%nrow_global
-         WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_in%name, &
-            fm_in%matrix_struct%ncol_global
-
-         WRITE (unit_nr, '(T2,A10,T13,A18,A10,T71,I10)') 'BSE|DEBUG|', 'Row block size of ', fm_in%name, nrow_block_in
-         WRITE (unit_nr, '(T2,A10,T13,A21,A10,T71,I10)') 'BSE|DEBUG|', 'Column block size of ', fm_in%name, ncol_block_in
-      END IF
-
-      ! Use scalapack wrapper to find process index in fm_out
-      ! To that end, we obtain the global index in fm_out from the level indices
-      indices_in(:) = 0
-      DO row_idx_loc = 1, nrow_local_in
-         indices_in(1) = (row_indices_in(row_idx_loc) - 1)/nrow_secidx_in + 1
-         indices_in(2) = MOD(row_indices_in(row_idx_loc) - 1, nrow_secidx_in) + 1
-         DO col_idx_loc = 1, ncol_local_in
-            indices_in(3) = (col_indices_in(col_idx_loc) - 1)/ncol_secidx_in + 1
-            indices_in(4) = MOD(col_indices_in(col_idx_loc) - 1, ncol_secidx_in) + 1
-
-            idx_row_out = my_row_offset + indices_in(reordering(2)) + (indices_in(reordering(1)) - 1)*nrow_secidx_out
-            idx_col_out = my_col_offset + indices_in(reordering(4)) + (indices_in(reordering(3)) - 1)*ncol_secidx_out
-
-            send_prow = fm_out%matrix_struct%g2p_row(idx_row_out)
-            send_pcol = fm_out%matrix_struct%g2p_col(idx_col_out)
-
-            proc_send = fm_out%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
-
-            num_entries_send(proc_send) = num_entries_send(proc_send) + 1
-
-         END DO
-      END DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_2_comm_entry_nums", handle2)
-      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A27)') 'BSE|DEBUG|', 'Communicating entry numbers'
-      END IF
-
-      CALL para_env_out%alltoall(num_entries_send, num_entries_rec, 1)
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_3_alloc_buffer", handle2)
-      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A18)') 'BSE|DEBUG|', 'Allocating buffers'
-      END IF
-
-      ! Buffers for entries and their indices
-      ALLOCATE (buffer_rec(0:para_env_out%num_pe - 1))
-      ALLOCATE (buffer_send(0:para_env_out%num_pe - 1))
-
-      ! allocate data message and corresponding indices
-      DO iproc = 0, para_env_out%num_pe - 1
-
-         ALLOCATE (buffer_rec(iproc)%msg(num_entries_rec(iproc)))
-         buffer_rec(iproc)%msg = 0.0_dp
-
-      END DO
-
-      DO iproc = 0, para_env_out%num_pe - 1
-
-         ALLOCATE (buffer_send(iproc)%msg(num_entries_send(iproc)))
-         buffer_send(iproc)%msg = 0.0_dp
-
-      END DO
-
-      DO iproc = 0, para_env_out%num_pe - 1
-
-         ALLOCATE (buffer_rec(iproc)%indx(num_entries_rec(iproc), 2))
-         buffer_rec(iproc)%indx = 0
-
-      END DO
-
-      DO iproc = 0, para_env_out%num_pe - 1
-
-         ALLOCATE (buffer_send(iproc)%indx(num_entries_send(iproc), 2))
-         buffer_send(iproc)%indx = 0
-
-      END DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_4_buf_from_fmin_"//fm_out%name, handle2)
-      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A18,A10,A13)') 'BSE|DEBUG|', 'Writing data from ', fm_in%name, ' into buffers'
-      END IF
-
-      ALLOCATE (entry_counter(0:para_env_out%num_pe - 1))
-      entry_counter(:) = 0
-
-      ! Now we can write the actual data and indices to the send-buffer
-      DO row_idx_loc = 1, nrow_local_in
-         indices_in(1) = (row_indices_in(row_idx_loc) - 1)/nrow_secidx_in + 1
-         indices_in(2) = MOD(row_indices_in(row_idx_loc) - 1, nrow_secidx_in) + 1
-         DO col_idx_loc = 1, ncol_local_in
-            indices_in(3) = (col_indices_in(col_idx_loc) - 1)/ncol_secidx_in + 1
-            indices_in(4) = MOD(col_indices_in(col_idx_loc) - 1, ncol_secidx_in) + 1
-
-            idx_row_out = my_row_offset + indices_in(reordering(2)) + (indices_in(reordering(1)) - 1)*nrow_secidx_out
-            idx_col_out = my_col_offset + indices_in(reordering(4)) + (indices_in(reordering(3)) - 1)*ncol_secidx_out
-
-            send_prow = fm_out%matrix_struct%g2p_row(idx_row_out)
-            send_pcol = fm_out%matrix_struct%g2p_col(idx_col_out)
-
-            proc_send = fm_out%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
-            entry_counter(proc_send) = entry_counter(proc_send) + 1
-
-            buffer_send(proc_send)%msg(entry_counter(proc_send)) = &
-               fm_in%local_data(row_idx_loc, col_idx_loc)
-
-            buffer_send(proc_send)%indx(entry_counter(proc_send), 1) = idx_row_out
-            buffer_send(proc_send)%indx(entry_counter(proc_send), 2) = idx_col_out
-
-         END DO
-      END DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_5_comm_buffer", handle2)
-      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A21)') 'BSE|DEBUG|', 'Communicating buffers'
-      END IF
-
-      ! communicate the buffer
-      CALL exchange_matrix_buffers(para_env_out, num_entries_rec, num_entries_send, buffer_rec, &
-                                   buffer_send)
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_6_buffer_to_fmout"//fm_out%name, handle2)
-      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A24,A10)') 'BSE|DEBUG|', 'Writing from buffers to ', fm_out%name
-      END IF
-
-      ! fill fm_out with the entries from buffer_rec, i.e. buffer_rec are parts of fm_in
-      nprocs = para_env_out%num_pe
-
-!$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP SHARED(fm_out, nprocs, num_entries_rec, buffer_rec, beta) &
-!$OMP PRIVATE(iproc, i_entry_rec, ii, jj)
-      DO iproc = 0, nprocs - 1
-         DO i_entry_rec = 1, num_entries_rec(iproc)
-            ii = fm_out%matrix_struct%g2l_row(buffer_rec(iproc)%indx(i_entry_rec, 1))
-            jj = fm_out%matrix_struct%g2l_col(buffer_rec(iproc)%indx(i_entry_rec, 2))
-
-            fm_out%local_data(ii, jj) = fm_out%local_data(ii, jj) + beta*buffer_rec(iproc)%msg(i_entry_rec)
-         END DO
-      END DO
-!$OMP END PARALLEL DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_7_cleanup", handle2)
-      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A41)') 'BSE|DEBUG|', 'Starting cleanup of communication buffers'
-      END IF
-
-      !Clean up all the arrays from the communication process
-      DO iproc = 0, para_env_out%num_pe - 1
-         DEALLOCATE (buffer_rec(iproc)%msg)
-         DEALLOCATE (buffer_rec(iproc)%indx)
-         DEALLOCATE (buffer_send(iproc)%msg)
-         DEALLOCATE (buffer_send(iproc)%indx)
-      END DO
-      DEALLOCATE (buffer_rec, buffer_send)
-      DEALLOCATE (entry_counter)
-      DEALLOCATE (num_entries_rec, num_entries_send)
-
-      CALL timestop(handle2)
-      CALL timestop(handle)
-
-   END SUBROUTINE fm_general_add_bse
-
-! **************************************************************************************************
-!> \brief Routine for truncating a full matrix as given by the energy cutoffs in the input file.
-!>  Logic: Matrices have some dimension dimen_RI x nrow_in*ncol_in  for the incoming (untruncated) matrix
-!>  and dimen_RI x nrow_out*ncol_out for the truncated matrix. The truncation is done by resorting the indices
-!>  via parallel communication.
-!> \param fm_out ...
-!> \param fm_in ...
-!> \param ncol_in ...
-!> \param nrow_out ...
-!> \param ncol_out ...
-!> \param unit_nr ...
-!> \param debug_print BSE_DEBUG_PRINT
-!> \param nrow_offset ...
-!> \param ncol_offset ...
-! **************************************************************************************************
-   SUBROUTINE truncate_fm(fm_out, fm_in, ncol_in, &
-                          nrow_out, ncol_out, unit_nr, debug_print, &
-                          nrow_offset, ncol_offset)
-
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_out
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_in
-      INTEGER                                            :: ncol_in, nrow_out, ncol_out, unit_nr
-      LOGICAL, INTENT(IN)                                :: debug_print
-      INTEGER, INTENT(IN), OPTIONAL                      :: nrow_offset, ncol_offset
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'truncate_fm'
-
-      INTEGER :: col_idx_loc, dummy, handle, handle2, i_entry_rec, idx_col_first, idx_col_in, &
-         idx_col_out, idx_col_sec, idx_row_in, ii, iproc, jj, ncol_block_in, ncol_block_out, &
-         ncol_local_in, ncol_local_out, nprocs, nrow_block_in, nrow_block_out, nrow_local_in, &
-         nrow_local_out, proc_send, row_idx_loc, send_pcol, send_prow
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: entry_counter, num_entries_rec, &
-                                                            num_entries_send
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices_in, col_indices_out, &
-                                                            row_indices_in, row_indices_out
-      LOGICAL                                            :: correct_ncol, correct_nrow
-      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: buffer_rec, buffer_send
-      TYPE(mp_para_env_type), POINTER                    :: para_env_out
-
-      CALL timeset(routineN, handle)
-      CALL timeset(routineN//"_1_setup", handle2)
-
-      correct_nrow = .FALSE.
-      correct_ncol = .FALSE.
-      !In case of truncation in the occupied space, we need to correct the interval of indices
-      IF (PRESENT(nrow_offset)) THEN
-         correct_nrow = .TRUE.
-      END IF
-      IF (PRESENT(ncol_offset)) THEN
-         correct_ncol = .TRUE.
-      END IF
-
-      para_env_out => fm_out%matrix_struct%para_env
-
-      CALL cp_fm_get_info(matrix=fm_out, &
-                          nrow_local=nrow_local_out, &
-                          ncol_local=ncol_local_out, &
-                          row_indices=row_indices_out, &
-                          col_indices=col_indices_out, &
-                          nrow_block=nrow_block_out, &
-                          ncol_block=ncol_block_out)
-
-      ALLOCATE (num_entries_rec(0:para_env_out%num_pe - 1))
-      ALLOCATE (num_entries_send(0:para_env_out%num_pe - 1))
-
-      num_entries_rec(:) = 0
-      num_entries_send(:) = 0
-
-      dummy = 0
-
-      CALL cp_fm_get_info(matrix=fm_in, &
-                          nrow_local=nrow_local_in, &
-                          ncol_local=ncol_local_in, &
-                          row_indices=row_indices_in, &
-                          col_indices=col_indices_in, &
-                          nrow_block=nrow_block_in, &
-                          ncol_block=ncol_block_in)
-
-      IF (unit_nr > 0 .AND. debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_out%name, &
-            fm_out%matrix_struct%nrow_global
-         WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_out%name, &
-            fm_out%matrix_struct%ncol_global
-
-         WRITE (unit_nr, '(T2,A10,T13,A18,A10,T71,I10)') 'BSE|DEBUG|', 'Row block size of ', fm_out%name, nrow_block_out
-         WRITE (unit_nr, '(T2,A10,T13,A21,A10,T71,I10)') 'BSE|DEBUG|', 'Column block size of ', fm_out%name, ncol_block_out
-
-         WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_in%name, &
-            fm_in%matrix_struct%nrow_global
-         WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_in%name, &
-            fm_in%matrix_struct%ncol_global
-
-         WRITE (unit_nr, '(T2,A10,T13,A18,A10,T71,I10)') 'BSE|DEBUG|', 'Row block size of ', fm_in%name, nrow_block_in
-         WRITE (unit_nr, '(T2,A10,T13,A21,A10,T71,I10)') 'BSE|DEBUG|', 'Column block size of ', fm_in%name, ncol_block_in
-      END IF
-
-      ! We find global indices in S with nrow_in and ncol_in for truncation
-      DO col_idx_loc = 1, ncol_local_in
-         idx_col_in = col_indices_in(col_idx_loc)
-
-         idx_col_first = (idx_col_in - 1)/ncol_in + 1
-         idx_col_sec = MOD(idx_col_in - 1, ncol_in) + 1
-
-         ! If occupied orbitals are included, these have to be handled differently
-         ! due to their reversed indexing
-         IF (correct_nrow) THEN
-            idx_col_first = idx_col_first - nrow_offset + 1
-            IF (idx_col_first <= 0) CYCLE
-         ELSE
-            IF (idx_col_first > nrow_out) EXIT
-         END IF
-         IF (correct_ncol) THEN
-            idx_col_sec = idx_col_sec - ncol_offset + 1
-            IF (idx_col_sec <= 0) CYCLE
-         ELSE
-            IF (idx_col_sec > ncol_out) CYCLE
-         END IF
-
-         idx_col_out = idx_col_sec + (idx_col_first - 1)*ncol_out
-
-         DO row_idx_loc = 1, nrow_local_in
-            idx_row_in = row_indices_in(row_idx_loc)
-
-            send_prow = fm_out%matrix_struct%g2p_row(idx_row_in)
-            send_pcol = fm_out%matrix_struct%g2p_col(idx_col_out)
-
-            proc_send = fm_out%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
-
-            num_entries_send(proc_send) = num_entries_send(proc_send) + 1
-
-         END DO
-      END DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_2_comm_entry_nums", handle2)
-      IF (unit_nr > 0 .AND. debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A27)') 'BSE|DEBUG|', 'Communicating entry numbers'
-      END IF
-
-      CALL para_env_out%alltoall(num_entries_send, num_entries_rec, 1)
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_3_alloc_buffer", handle2)
-      IF (unit_nr > 0 .AND. debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A18)') 'BSE|DEBUG|', 'Allocating buffers'
-      END IF
-
-      ! Buffers for entries and their indices
-      ALLOCATE (buffer_rec(0:para_env_out%num_pe - 1))
-      ALLOCATE (buffer_send(0:para_env_out%num_pe - 1))
-
-      ! allocate data message and corresponding indices
-      DO iproc = 0, para_env_out%num_pe - 1
-
-         ALLOCATE (buffer_rec(iproc)%msg(num_entries_rec(iproc)))
-         buffer_rec(iproc)%msg = 0.0_dp
-
-      END DO
-
-      DO iproc = 0, para_env_out%num_pe - 1
-
-         ALLOCATE (buffer_send(iproc)%msg(num_entries_send(iproc)))
-         buffer_send(iproc)%msg = 0.0_dp
-
-      END DO
-
-      DO iproc = 0, para_env_out%num_pe - 1
-
-         ALLOCATE (buffer_rec(iproc)%indx(num_entries_rec(iproc), 2))
-         buffer_rec(iproc)%indx = 0
-
-      END DO
-
-      DO iproc = 0, para_env_out%num_pe - 1
-
-         ALLOCATE (buffer_send(iproc)%indx(num_entries_send(iproc), 2))
-         buffer_send(iproc)%indx = 0
-
-      END DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_4_buf_from_fmin_"//fm_out%name, handle2)
-      IF (unit_nr > 0 .AND. debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A18,A10,A13)') 'BSE|DEBUG|', 'Writing data from ', fm_in%name, ' into buffers'
-      END IF
-
-      ALLOCATE (entry_counter(0:para_env_out%num_pe - 1))
-      entry_counter(:) = 0
-
-      ! Now we can write the actual data and indices to the send-buffer
-      DO col_idx_loc = 1, ncol_local_in
-         idx_col_in = col_indices_in(col_idx_loc)
-
-         idx_col_first = (idx_col_in - 1)/ncol_in + 1
-         idx_col_sec = MOD(idx_col_in - 1, ncol_in) + 1
-
-         ! If occupied orbitals are included, these have to be handled differently
-         ! due to their reversed indexing
-         IF (correct_nrow) THEN
-            idx_col_first = idx_col_first - nrow_offset + 1
-            IF (idx_col_first <= 0) CYCLE
-         ELSE
-            IF (idx_col_first > nrow_out) EXIT
-         END IF
-         IF (correct_ncol) THEN
-            idx_col_sec = idx_col_sec - ncol_offset + 1
-            IF (idx_col_sec <= 0) CYCLE
-         ELSE
-            IF (idx_col_sec > ncol_out) CYCLE
-         END IF
-
-         idx_col_out = idx_col_sec + (idx_col_first - 1)*ncol_out
-
-         DO row_idx_loc = 1, nrow_local_in
-            idx_row_in = row_indices_in(row_idx_loc)
-
-            send_prow = fm_out%matrix_struct%g2p_row(idx_row_in)
-
-            send_pcol = fm_out%matrix_struct%g2p_col(idx_col_out)
-
-            proc_send = fm_out%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
-            entry_counter(proc_send) = entry_counter(proc_send) + 1
-
-            buffer_send(proc_send)%msg(entry_counter(proc_send)) = &
-               fm_in%local_data(row_idx_loc, col_idx_loc)
-            !No need to create row_out, since it is identical to incoming
-            !We dont change the RI index for any fm_mat_XX_BSE
-            buffer_send(proc_send)%indx(entry_counter(proc_send), 1) = idx_row_in
-            buffer_send(proc_send)%indx(entry_counter(proc_send), 2) = idx_col_out
-
-         END DO
-      END DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_5_comm_buffer", handle2)
-      IF (unit_nr > 0 .AND. debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A21)') 'BSE|DEBUG|', 'Communicating buffers'
-      END IF
-
-      ! communicate the buffer
-      CALL exchange_matrix_buffers(para_env_out, num_entries_rec, num_entries_send, buffer_rec, &
-                                   buffer_send)
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_6_buffer_to_fmout"//fm_out%name, handle2)
-      IF (unit_nr > 0 .AND. debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A24,A10)') 'BSE|DEBUG|', 'Writing from buffers to ', fm_out%name
-      END IF
-
-      ! fill fm_out with the entries from buffer_rec, i.e. buffer_rec are parts of fm_in
-      nprocs = para_env_out%num_pe
-
-!$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP SHARED(fm_out, nprocs, num_entries_rec, buffer_rec) &
-!$OMP PRIVATE(iproc, i_entry_rec, ii, jj)
-      DO iproc = 0, nprocs - 1
-         DO i_entry_rec = 1, num_entries_rec(iproc)
-            ii = fm_out%matrix_struct%g2l_row(buffer_rec(iproc)%indx(i_entry_rec, 1))
-            jj = fm_out%matrix_struct%g2l_col(buffer_rec(iproc)%indx(i_entry_rec, 2))
-
-            fm_out%local_data(ii, jj) = fm_out%local_data(ii, jj) + buffer_rec(iproc)%msg(i_entry_rec)
-         END DO
-      END DO
-!$OMP END PARALLEL DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_7_cleanup", handle2)
-      IF (unit_nr > 0 .AND. debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A41)') 'BSE|DEBUG|', 'Starting cleanup of communication buffers'
-      END IF
-
-      !Clean up all the arrays from the communication process
-      DO iproc = 0, para_env_out%num_pe - 1
-         DEALLOCATE (buffer_rec(iproc)%msg)
-         DEALLOCATE (buffer_rec(iproc)%indx)
-         DEALLOCATE (buffer_send(iproc)%msg)
-         DEALLOCATE (buffer_send(iproc)%indx)
-      END DO
-      DEALLOCATE (buffer_rec, buffer_send)
-      DEALLOCATE (entry_counter)
-      DEALLOCATE (num_entries_rec, num_entries_send)
-
-      CALL timestop(handle2)
-      CALL timestop(handle)
-
-   END SUBROUTINE truncate_fm
 
 ! **************************************************************************************************
 !> \brief Routine for computing the coefficients of the eigenvectors of the BSE matrix from a
@@ -1299,14 +738,15 @@ CONTAINS
          Eigenval_reduced_scf(:) = Eigenval_scf(homo_incl:homo + virt_incl)
          Eigenval_reduced_qp(:) = Eigenval(homo_incl:homo + virt_incl)
 
-         CALL truncate_fm(bse_env%fm_S_ia(ispin), fm_S_ia_full, virtual, &
-                          homo_red, virt_red, unit_nr, bse_env%bse_debug_print, &
-                          nrow_offset=homo_incl)
-         CALL truncate_fm(bse_env%fm_S_ij(ispin), fm_S_ij_full, homo, &
-                          homo_red, homo_red, unit_nr, bse_env%bse_debug_print, &
-                          homo_incl, homo_incl)
-         CALL truncate_fm(bse_env%fm_S_ab(ispin), fm_S_ab_full, bse_env%gw_corr_lev_virt(ispin), &
-                          virt_red, virt_red, unit_nr, bse_env%bse_debug_print)
+         CALL cp_fm_permute(bse_env%fm_S_ia(ispin), fm_S_ia_full, 1.0_dp, 1, virtual, 1, virt_red, [1, 2, 3, 4], &
+                            first_index=[1, 1, homo_incl, 1], &
+                            last_index=[dimen_RI, 1, (homo_incl) + homo_red - 1, virt_red])
+         CALL cp_fm_permute(bse_env%fm_S_ij(ispin), fm_S_ij_full, 1.0_dp, 1, homo, 1, homo_red, [1, 2, 3, 4], &
+                            first_index=[1, 1, homo_incl, homo_incl], &
+                            last_index=[dimen_RI, 1, (homo_incl) + homo_red - 1, (homo_incl) + homo_red - 1])
+         CALL cp_fm_permute(bse_env%fm_S_ab(ispin), fm_S_ab_full, 1.0_dp, 1, bse_env%gw_corr_lev_virt(ispin), 1, &
+                            virt_red, [1, 2, 3, 4], first_index=[1, 1, 1, 1], &
+                            last_index=[dimen_RI, 1, virt_red, virt_red])
 
       ELSE
          IF (unit_nr > 0) THEN
@@ -1346,18 +786,13 @@ CONTAINS
 !> \param virtual ...
 !> \param n_exc ...
 !> \param do_transpose ...
-!> \param unit_nr ...
-!> \param bse_env the BSE environment (settings)
 ! **************************************************************************************************
-   SUBROUTINE reshuffle_eigvec(fm_eigvec, fm_eigvec_reshuffled, homo, virtual, n_exc, do_transpose, &
-                               unit_nr, bse_env)
+   SUBROUTINE reshuffle_eigvec(fm_eigvec, fm_eigvec_reshuffled, homo, virtual, n_exc, do_transpose)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_eigvec_reshuffled
       INTEGER, INTENT(IN)                                :: homo, virtual, n_exc
       LOGICAL, INTENT(IN)                                :: do_transpose
-      INTEGER, INTENT(IN)                                :: unit_nr
-      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'reshuffle_eigvec'
 
@@ -1400,10 +835,7 @@ CONTAINS
                               1, n_exc, &
                               1, 1)
       ! Reshuffle
-      CALL fm_general_add_bse(fm_eigvec_reshuffled, fm_eigvec_col, 1.0_dp, &
-                              virtual, 1, &
-                              1, 1, &
-                              unit_nr, reordering, bse_env)
+      CALL cp_fm_permute(fm_eigvec_reshuffled, fm_eigvec_col, 1.0_dp, virtual, 1, 1, 1, reordering)
 
       CALL cp_fm_release(fm_eigvec_col)
       CALL cp_fm_struct_release(fm_struct_eigvec_col)
