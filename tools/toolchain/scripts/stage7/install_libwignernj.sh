@@ -27,19 +27,13 @@ case "${with_libwignernj:=__INSTALL__}" in
     if verify_checksums "${install_lock_file}"; then
       echo "libwignernj-${libwignernj_ver} is already installed, skipping it."
     else
-      archive="libwignernj-${libwignernj_ver}.tar.gz"
-      if ! [ -f "${archive}" ] || ! checksum "${libwignernj_sha256}" "${archive}"; then
-        download_pkg_from_urlpath "${libwignernj_sha256}" "v${libwignernj_ver}.tar.gz" \
-          "https://github.com/susilehtola/libwignernj/archive/refs/tags" "${archive}"
-      fi
+      retrieve_package "${libwignernj_sha256}" "libwignernj-${libwignernj_ver}.tar.gz"
       echo "Installing from scratch into ${pkg_install_dir}"
-      rm -rf "libwignernj-${libwignernj_ver}"
-      tar -xzf "${archive}"
-      mkdir "libwignernj-${libwignernj_ver}/build"
-      cd "libwignernj-${libwignernj_ver}/build"
-      cmake \
+      [ -d "libwignernj-${libwignernj_ver}" ] && rm -rf "libwignernj-${libwignernj_ver}"
+      tar -xzf "libwignernj-${libwignernj_ver}.tar.gz"
+      cd libwignernj-${libwignernj_ver}
+      cmake -B build \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_C_COMPILER="${CC}" \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
@@ -48,9 +42,9 @@ case "${with_libwignernj:=__INSTALL__}" in
         -DWIGNERNJ_BUILD_TESTS=OFF \
         -DWIGNERNJ_BUILD_CXX_TESTS=OFF \
         -DWIGNERNJ_BUILD_EXAMPLES=OFF \
-        -DWIGNERNJ_BUILD_LTO=OFF \
-        .. > cmake.log 2>&1 || tail_excerpt cmake.log
-      make -j "$(get_nprocs)" install > make.log 2>&1 || tail_excerpt make.log
+        > cmake.log 2>&1 || tail_excerpt cmake.log
+      cmake --build build --target install -j "$(get_nprocs)" \
+        > build.log 2>&1 || tail_excerpt build.log
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/install_libwignernj.sh"
     fi
     LIBWIGNERNJ_LIBDIR="${pkg_install_dir}/lib"
