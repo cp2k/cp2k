@@ -33,6 +33,8 @@
 # colvar dist xyz component test
 "water_3_dist_xyz.inp"                  = [{matcher="M002", tol=1.0E-14, ref=0.367836190353E-03}]
 "argon_ext.inp"                         = [{matcher="M002", tol=1.0E-14, ref=0.184419373617E-01}]
+# nve thermal region temperature function
+"argon_tfunc.inp"                       = [{matcher="M002", tol=1.0E-14, ref=-0.220132511592E+00}]
 #external potential on a selected list of atoms
 "extern_pot-test-01.inp"                = [{matcher="M002", tol=1.0E-14, ref=-0.237349831229E+01}]
 "extern_pot-test-02.inp"                = [{matcher="M002", tol=1.0E-14, ref=-0.237349831229E+01}]
