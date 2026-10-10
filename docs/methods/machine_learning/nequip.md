@@ -64,6 +64,20 @@ the toolchain script:
 
 ```
 
+```{warning}
+The libtorch installed automatically by the toolchain (`--with-libtorch=install`) is a prebuilt
+package selected for a specific platform, and for a specific GPU and CUDA version. It is highly
+recommended to provide your own matching libtorch instead:
+
+- `--with-libtorch=system` searches for an existing libtorch in the system paths.
+- `--with-libtorch=<path-to-libtorch>` uses a libtorch that you installed or built yourself.
+
+Otherwise poor performance is expected and the calculation may even fail.
+
+This only applies to the toolchain-based build. The Spack-based build via `make_cp2k.sh` installs a
+matching libtorch itself, so no manual libtorch installation is needed there.
+```
+
 ## Validation & Reproducibility
 
 - **Comparison with LAMMPS:** We have verified that this implementation numerically reproduces the

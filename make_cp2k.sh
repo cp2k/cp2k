@@ -1324,6 +1324,16 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
     # sed -E -e 's/"~cuda\s+~gdrcopy"/"\+cuda \+gdrcopy"/' -i "${CP2K_CONFIG_FILE}"
     sed -E -e 's/"~cuda\s+~gdrcopy"/"\~cuda"/' -i "${CP2K_CONFIG_FILE}"
     echo -e "\nLibxc will be built with CUDA support (cuda_arch=${CUDA_SM_CODE})"
+    # Enable CUDA for PyTorch (libtorch) and GauXC; the global preference is
+    # not enough for the packages that depend on them (NequIP/Allegro, GauXC,
+    # Skala). The CUDA-only PyTorch options that CP2K does not use (cuDNN,
+    # cuSPARSELt, MAGMA, NCCL, FlashAttention) are disabled to shorten the
+    # build.
+    sed -E \
+      -e "/^[[:space:]]+py-torch:/{n; s/require:/require:\n        - \"+cuda cuda_arch=${CUDA_SM_CODE}\"\n        - \"~cudnn\"\n        - \"~cusparselt\"\n        - \"~magma\"\n        - \"~nccl\"\n        - \"~flash_attention\"/}" \
+      -e "/^[[:space:]]+gauxc:/{n; s/require:/require:\n        - \"+cuda cuda_arch=${CUDA_SM_CODE}\"/}" \
+      -i "${CP2K_CONFIG_FILE}"
+    echo -e "PyTorch (libtorch) and GauXC will be built with CUDA support (cuda_arch=${CUDA_SM_CODE})"
     if [[ -n "${CUDA_VERSION:-}" ]]; then
       # Set CUDA SM code
       sed -E -e "s/spec:\s+cuda@[.0-9]*/spec: cuda@${CUDA_VERSION}/" -i "${CP2K_CONFIG_FILE}"
@@ -1438,6 +1448,17 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
     fi
   fi
 
+  # The builtin py-torch recipe forces USE_SYSTEM_FP16=ON. PyTorch's CMake then
+  # hardcodes the source of the fp16 target to "/usr/include/fp16.h"
+  # (cmake/Dependencies.cmake), which does not exist because Spack provides
+  # fp16 in its own prefix. Disable the system FP16 so that the in-tree
+  # third_party/FP16 submodule (checked out by Spack) is used instead.
+  PY_TORCH_PACKAGE_FILE="$(find -L "${SPACK_USER_CACHE_PATH}/package_repos" -path "*/builtin/packages/py_torch/package.py" -print -quit)"
+  if [[ -f "${PY_TORCH_PACKAGE_FILE}" ]] && grep -q 'env.set("USE_SYSTEM_FP16", "ON")' "${PY_TORCH_PACKAGE_FILE}"; then
+    sed -i -e 's/env.set("USE_SYSTEM_FP16", "ON")/env.set("USE_SYSTEM_FP16", "OFF")/' "${PY_TORCH_PACKAGE_FILE}"
+    echo "The builtin spack recipe of py-torch has been patched to use the vendored FP16 headers"
+  fi
+
   # Add the local CP2K development Spack repository when missing
   export CP2K_REPO="cp2k_dev"
   if ! spack repo list | grep -q "${CP2K_REPO}"; then
@@ -1490,9 +1511,38 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
 
   ((VERBOSE > 0)) && spack find -c
 
-  # Install CP2K dependencies via Spack
-  if ! spack -e "${CP2K_ENV}" install -j "${NUM_PROCS}" -p "${NUM_PACKAGES}" "${VERBOSE_SPACK}"; then
+  # Install CP2K dependencies via Spack. The stage is kept on disk
+  # (--keep-stage) because Spack's own "--show-log-on-error" does not work for
+  # environment installs (it aborts with "Expected InstallError to include the
+  # associated package" before dumping anything). Instead, Spack's output is
+  # captured and the build log(s) of the failed package(s) are printed below so
+  # that the underlying compiler or pip error is available in the CI report
+  # instead of only Spack's short error context.
+  SPACK_INSTALL_LOG="${SPACK_BUILD_PATH}/spack-install.log"
+  if ! spack -e "${CP2K_ENV}" install -j "${NUM_PROCS}" -p "${NUM_PACKAGES}" \
+    --keep-stage "${VERBOSE_SPACK}" 2>&1 | tee "${SPACK_INSTALL_LOG}"; then
     echo "ERROR: Building the CP2K dependencies with spack failed"
+    # Extract the build-log paths that Spack reports for the failed packages
+    # (e.g. "py-torch@2.13.0/<hash>: /tmp/.../spack-stage-...log" and the
+    # "[x] <hash> <spec> failed: /tmp/.../spack-stage-...log" status line).
+    mapfile -t FAILED_LOGS < <(
+      grep -oE '/[^[:space:]]*spack-stage-[^[:space:]]*\.log' "${SPACK_INSTALL_LOG}" \
+        2> /dev/null | sort -u
+    )
+    for log in "${FAILED_LOGS[@]}"; do
+      [[ -f "${log}" ]] || continue
+      echo ""
+      echo "===== Build log: ${log} ====="
+      # Stay below the dashboard report size limit by showing at most the
+      # tail of very large logs.
+      if [[ "$(wc -l < "${log}" 2> /dev/null || echo 0)" -gt 4000 ]]; then
+        echo "----- (truncated, showing last 4000 lines) -----"
+        tail -n 4000 "${log}"
+      else
+        cat "${log}"
+      fi
+      echo "===== End of build log: ${log} ====="
+    done
     if [[ "${USE_EXTERNALS}" == "yes" ]]; then
       echo "HINT:  Try to re-run the build without the (-ue | --use_externals) flag which avoids"
       echo "       errors or conflicts caused by externals from the host system"
