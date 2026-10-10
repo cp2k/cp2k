@@ -76,6 +76,12 @@ CONTAINS
             IF (ASSOCIATED(thermal_regions%thermal_region(ireg)%part_index)) THEN
                DEALLOCATE (thermal_regions%thermal_region(ireg)%part_index)
             END IF
+            IF (ASSOCIATED(thermal_regions%thermal_region(ireg)%temperature_function_parameters)) THEN
+               DEALLOCATE (thermal_regions%thermal_region(ireg)%temperature_function_parameters)
+            END IF
+            IF (ASSOCIATED(thermal_regions%thermal_region(ireg)%temperature_function_values)) THEN
+               DEALLOCATE (thermal_regions%thermal_region(ireg)%temperature_function_values)
+            END IF
          END DO
          DEALLOCATE (thermal_regions%thermal_region)
       END IF

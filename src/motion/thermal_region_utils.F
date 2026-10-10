@@ -33,7 +33,6 @@ MODULE thermal_region_utils
                                               cp_unit_to_cp2k
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
-   USE force_fields_util,               ONLY: get_generic_info
    USE fparser,                         ONLY: EvalErrType,&
                                               evalf,&
                                               finalizef,&
@@ -45,6 +44,7 @@ MODULE thermal_region_utils
                                               npt_i_ensemble,&
                                               npt_ia_ensemble,&
                                               nvt_ensemble
+   USE input_cp2k_function,             ONLY: parse_function_section
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -235,11 +235,11 @@ CONTAINS
                tfunc_section => section_vals_get_subs_vals(region_sections, "TFUNC", i_rep_section=ireg)
                CALL section_vals_get(tfunc_section, explicit=use_tfunc)
                IF (use_tfunc) THEN
-                  CALL get_generic_info(tfunc_section, "FUNCTION", &
-                                        t_region%temperature_function, &
-                                        t_region%temperature_function_parameters, &
-                                        t_region%temperature_function_values, &
-                                        input_variables=["S", "T"], i_rep_sec=1)
+                  CALL parse_function_section(tfunc_section, "FUNCTION", &
+                                              t_region%temperature_function, &
+                                              t_region%temperature_function_parameters, &
+                                              t_region%temperature_function_values, &
+                                              input_variables=["S", "T"], i_rep_sec=1)
                END IF
 
                ! Set up t_region%temp_expected

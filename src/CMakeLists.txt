@@ -301,6 +301,7 @@ list(
   input_cp2k_field.F
   input_cp2k_force_eval.F
   input_cp2k_free_energy.F
+  input_cp2k_function.F
   input_cp2k_global.F
   input_cp2k_hfx.F
   input_cp2k_kpoints.F

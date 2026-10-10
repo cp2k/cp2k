@@ -22,13 +22,13 @@ MODULE input_cp2k_md
                                               low_print_level,&
                                               medium_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
-   USE fparser,                         ONLY: docf
    USE input_constants,                 ONLY: &
         do_constr_atomic, do_constr_molec, do_constr_none, isokin_ensemble, langevin_ensemble, &
         md_init_default, md_init_vib, npe_f_ensemble, npe_i_ensemble, nph_ensemble, &
         nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, &
         npt_ia_ensemble, nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, reftraj_ensemble
    USE input_cp2k_barostats,            ONLY: create_barostat_section
+   USE input_cp2k_function,             ONLY: create_function_section
    USE input_cp2k_thermostats,          ONLY: create_region_section,&
                                               create_thermo_fast_section,&
                                               create_thermo_slow_section,&
@@ -1116,55 +1116,31 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! Define temperature function start
-      CALL section_create(tfunc_section, __LOCATION__, name="TFUNC", &
-                          description="This section specifies the target temperature by using "// &
-                          "the time step and the temperature of the last step, allowing for "// &
-                          "simple region-wise simulated annealing (heating/cooling) controls. "// &
-                          "When the absolute difference between target and actual temperature "// &
-                          "is larger than TEMP_TOL value, the atomic velocities in this region "// &
-                          "are rescaled to match the target temperature. However, note that "// &
-                          "the actual temperature is subject to thermostat coupling as well "// &
-                          "and a small restrictive TEMP_TOL together with a rapidly varying "// &
-                          "target temperature function leaves little time for the system to "// &
-                          "adjust itself, possibly showing unphysical relaxation behaviors. "// &
-                          newline//newline//"Further notes about temperature. "//docf(), &
-                          n_keywords=4, n_subsections=0, repeats=.FALSE.)
-
-      NULLIFY (keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="FUNCTION", &
-                          description="Specifies the functional form of the temperature "// &
-                          "in Kelvin in mathematical notation. Two variables are available "// &
-                          "with one denoted S for the integer time step and another denoted "// &
-                          "T for the temperature of the last step in Kelvin respectively. When "// &
-                          "DEFINE_REGION%TEMPERATURE is not explicitly set, the function "// &
-                          "will be evaluated at S set in MD%STEP_START_VAL and T = 0.0 "// &
-                          "to initialize the velocities of atoms in the region.", &
-                          usage="FUNCTION  A*T+(1-A)*B*(2/(1+EXP(-0.001*S))-1)", &
-                          type_of_var=lchar_t, n_var=1)
-      CALL section_add_keyword(tfunc_section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="PARAMETERS", &
-                          description="Defines the parameters of the functional form", &
-                          usage="PARAMETERS A B", type_of_var=char_t, &
-                          n_var=-1, repeats=.TRUE.)
-      CALL section_add_keyword(tfunc_section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="UNITS", &
-                          description="Optionally, allows to define valid CP2K unit strings for each parameter value. "// &
-                          "It is assumed that the corresponding parameter value is specified in this unit.", &
-                          usage="UNITS ", type_of_var=char_t, &
-                          n_var=-1, repeats=.TRUE.)
-      CALL section_add_keyword(tfunc_section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="VALUES", &
-                          description="Defines the values of the parameter of the functional form", &
-                          usage="VALUES 0.75 3.00E+2", type_of_var=real_t, &
-                          n_var=-1, repeats=.TRUE., unit_str="internal_cp2k")
-      CALL section_add_keyword(tfunc_section, keyword)
-      CALL keyword_release(keyword)
+      CALL create_function_section(tfunc_section, section_name="TFUNC", func_name="FUNCTION", &
+                                   description="This section specifies the target temperature by "// &
+                                   "using the time step `S` and the temperature of the last step "// &
+                                   "in Kelvin `T` in a functional form, thus allowing for a simple "// &
+                                   "region-wise annealing (heating/cooling) controls in the absence "// &
+                                   "of a thermostat. Specifically, if the absolute difference between "// &
+                                   "target and actual temperature is larger than the TEMP_TOL value "// &
+                                   "on each step, the atomic velocities will be rescaled to match "// &
+                                   "the target temperature. However, note that a small restrictive "// &
+                                   "TEMP_TOL together with a rapidly varying target temperature "// &
+                                   "function and a large timestep leaves little time for the system to "// &
+                                   "adjust itself, possibly leading to unphysical relaxation behaviors "// &
+                                   "and structural artifacts."//newline//newline// &
+                                   "When DEFINE_REGION%TEMPERATURE is not set for this region explicitly, "// &
+                                   "the function will be evaluated at `S` set in MD%STEP_START_VAL and "// &
+                                   "`T = 0.00` to obtain the initial temperature (assumed positive) for "// &
+                                   "initialization of the atomic velocities in the region; if the result "// &
+                                   "of function evaluation is not positive, the MD%TEMPERATURE will be "// &
+                                   "used as a fallback."//newline//newline// &
+                                   "The function is interpreted directly as in Kelvin, with no need to "// &
+                                   "specify the UNITS keyword for the parameters. For instance, defining "// &
+                                   "`FUNCTION (ABS(S/N+M)-ABS(S/N-M))/2`, `PARAMETERS N M` and "// &
+                                   "`VALUES 50/3 300.0`, the target temperature will rise linearly and "// &
+                                   "reach 300.0 K at step `S = 5000`.", &
+                                   repeats=.FALSE., input_variables=["S", "T"])
 
       CALL section_add_subsection(region_section, tfunc_section)
       CALL section_release(tfunc_section)
