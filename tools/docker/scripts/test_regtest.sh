@@ -22,7 +22,7 @@ fi
 # Load Spack or Toolchain environment.
 if [[ "${PROFILE}" =~ ^spack ]]; then
   eval "$(spack env activate myenv --sh)"
-elif [[ "${PROFILE}" =~ ^toolchain ]]; then
+elif [[ "${PROFILE}" =~ ^(toolchain|ubuntu|minimal) ]]; then
   # shellcheck disable=SC1091
   source /opt/cp2k-toolchain/install/setup
 fi
