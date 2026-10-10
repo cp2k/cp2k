@@ -166,6 +166,7 @@ MODULE qs_scf_diagonalization
                                               scf_env_density_mixing
    USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                               subspace_env_type
+   USE qs_uspp_methods,                 ONLY: qs_uspp_init_ao_matrix
    USE scf_control_types,               ONLY: scf_control_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, &
@@ -1731,6 +1732,7 @@ CONTAINS
                               name="DENSITY_STORE", matrix_type=dbcsr_type_symmetric)
             CALL cp_dbcsr_alloc_block_from_nbl(subspace_env%p_matrix_store(i)%matrix, &
                                                sab_orb)
+            CALL qs_uspp_init_ao_matrix(qs_env%ks_env, subspace_env%p_matrix_store(i)%matrix)
             CALL dbcsr_set(subspace_env%p_matrix_store(i)%matrix, 0.0_dp)
          END DO
 

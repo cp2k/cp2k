@@ -97,6 +97,20 @@ GAPW method:
 &END KIND
 ```
 
+## Prepared UPF Data
+
+`data/UPF/` contains a supplemented PBE H USPP example derived from SSSP v2.0 PBE Precision, not a
+complete or unchanged SSSP collection. Its `SOURCE` file records the original data, verified
+generator replay, added AE/PS partial waves and licensing. The native inverse-USPP implementation is
+required to use this example; installing data alone does not enable a missing method. The small H2
+regression does not establish production basis or grid convergence.
+
+Original complete SSSP collections can be downloaded separately with the checksum-pinned tools under
+`tools/pseudopotentials/`. Choose a writable external destination; downloads do not run
+automatically, and missing USPP partial waves require a separate verified generator replay. See the
+[download and preparation instructions](https://github.com/cp2k/cp2k/blob/master/tools/pseudopotentials/README.md).
+SSSP plane-wave cutoffs are not Gaussian-basis or Quickstep multigrid recommendations.
+
 ## Consistency Checks
 
 Useful checks when setting up a calculation are:

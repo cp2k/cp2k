@@ -86,6 +86,8 @@ CONTAINS
 !> \param ext_kpoints ...
 !> \param   eps_filter Filter final matrix (optional)
 !> \param   nderivative The number of calculated derivatives
+!> \param force_response Optional local native kinetic energy gradients, without updating force owners.
+!> \param virial_response Optional local native kinetic virial, without updating virial owners.
 !> \date    11.10.2010
 !> \par     History
 !>          Ported from qs_overlap, replaces code in build_core_hamiltonian
@@ -98,7 +100,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE build_kinetic_matrix(ks_env, matrix_t, matrixkp_t, matrix_name, &
                                    basis_type, sab_nl, calculate_forces, matrix_p, matrixkp_p, &
-                                   ext_kpoints, eps_filter, nderivative)
+                                   ext_kpoints, eps_filter, nderivative, force_response, virial_response)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
@@ -116,6 +118,8 @@ CONTAINS
       TYPE(kpoint_type), OPTIONAL, POINTER               :: ext_kpoints
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_filter
       INTEGER, INTENT(IN), OPTIONAL                      :: nderivative
+      REAL(dp), INTENT(OUT), OPTIONAL                    :: force_response(:, :), &
+                                                            virial_response(3, 3)
 
       INTEGER                                            :: natom
 
@@ -123,7 +127,7 @@ CONTAINS
 
       CALL build_kinetic_matrix_low(ks_env, matrix_t, matrixkp_t, matrix_name, basis_type, &
                                     sab_nl, calculate_forces, matrix_p, matrixkp_p, &
-                                    ext_kpoints, eps_filter, natom, nderivative)
+                                    ext_kpoints, eps_filter, natom, nderivative, force_response, virial_response)
 
    END SUBROUTINE build_kinetic_matrix
 
@@ -143,10 +147,12 @@ CONTAINS
 !> \param eps_filter ...
 !> \param natom ...
 !> \param nderivative ...
+!> \param force_response ...
+!> \param virial_response ...
 ! **************************************************************************************************
    SUBROUTINE build_kinetic_matrix_low(ks_env, matrix_t, matrixkp_t, matrix_name, basis_type, &
                                        sab_nl, calculate_forces, matrix_p, matrixkp_p, &
-                                       ext_kpoints, eps_filter, natom, nderivative)
+                                       ext_kpoints, eps_filter, natom, nderivative, force_response, virial_response)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
@@ -165,6 +171,8 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_filter
       INTEGER, INTENT(IN)                                :: natom
       INTEGER, INTENT(IN), OPTIONAL                      :: nderivative
+      REAL(dp), INTENT(OUT), OPTIONAL                    :: force_response(:, :), &
+                                                            virial_response(3, 3)
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_kinetic_matrix_low'
 
@@ -245,6 +253,12 @@ CONTAINS
 
       do_forces = .FALSE.
       IF (PRESENT(calculate_forces)) do_forces = calculate_forces
+      IF (PRESENT(force_response) .OR. PRESENT(virial_response)) THEN
+         CPASSERT(do_forces)
+      END IF
+      IF (PRESENT(force_response)) THEN
+         CPASSERT(ALL(SHAPE(force_response) == [3, natom]))
+      END IF
 
       nder = 0
       IF (PRESENT(nderivative)) nder = nderivative
@@ -272,7 +286,7 @@ CONTAINS
       IF (do_forces) THEN
          ! if forces -> maybe virial too
          CALL get_ks_env(ks_env=ks_env, force=force, virial=virial)
-         use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+         use_virial = PRESENT(virial_response) .OR. (virial%pv_availability .AND. (.NOT. virial%pv_numer))
          ! we need density matrix for forces
          IF (dokp) THEN
             CPASSERT(PRESENT(matrixkp_p))
@@ -491,7 +505,9 @@ CONTAINS
 
 !$OMP END PARALLEL
 
-      IF (do_forces) THEN
+      IF (PRESENT(force_response)) THEN
+         force_response(:, :) = force_thread
+      ELSE IF (do_forces) THEN
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind, &
                                   kind_of=kind_of)
 
@@ -503,7 +519,9 @@ CONTAINS
          END DO
 !$OMP END DO
       END IF
-      IF (do_forces .AND. use_virial) THEN
+      IF (PRESENT(virial_response)) THEN
+         virial_response(:, :) = pv_thread
+      ELSE IF (do_forces .AND. use_virial) THEN
          virial%pv_ekinetic = virial%pv_ekinetic + pv_thread
          virial%pv_virial = virial%pv_virial + pv_thread
       END IF
@@ -529,4 +547,3 @@ CONTAINS
    END SUBROUTINE build_kinetic_matrix_low
 
 END MODULE qs_kinetic
-

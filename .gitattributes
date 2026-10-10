@@ -1,5 +1,7 @@
 *.F linguist-language=Fortran-Free-Form
 *.inc linguist-language=Text
+# Preserve the imported H generator text and its recorded checksum.
+data/UPF/H.us.pbe.z_1.ld1.psl.v1.0.0-high-full-waves.upf whitespace=-blank-at-eol
 CODEOWNERS export-ignore
 .gitattributes export-ignore
 .git-blame-ignore-revs export-ignore

@@ -117,6 +117,9 @@ MODULE qs_ks_utils
                                               mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE qs_upf_inverse_forces,           ONLY: qs_upf_inverse_force
+   USE qs_upf_inverse_scf,              ONLY: qs_upf_inverse_scf_active,&
+                                              qs_upf_inverse_scf_integrate
    USE skala_gpw_functional,            ONLY: native_skala_gapw_composite_direct_ao,&
                                               native_skala_gapw_composite_reference
    USE task_list_types,                 ONLY: task_list_type
@@ -1439,9 +1442,8 @@ CONTAINS
       INTEGER                                            :: handle, igroup, ikind, img, ispin, &
                                                             nkind, nspins
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: do_ppl, gapw, gapw_composite_direct_ao, &
-                                                            gapw_composite_reference, gapw_xc, &
-                                                            lrigpw, rigpw, use_work_v_rspace
+      LOGICAL :: do_ppl, gapw, gapw_composite_direct_ao, gapw_composite_reference, gapw_xc, &
+         inverse_scf, lrigpw, rigpw, use_work_v_rspace
       REAL(KIND=dp)                                      :: csign, dvol, fadm
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1458,6 +1460,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_r3d_rs_type), ALLOCATABLE                  :: inverse_potential(:)
       TYPE(pw_r3d_rs_type), POINTER                      :: v_rspace, v_rspace_used, vee
       TYPE(pw_r3d_rs_type), TARGET                       :: v_rspace_work
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1477,8 +1480,9 @@ CONTAINS
                       input=input, &
                       pw_env=pw_env, &
                       v_hartree_rspace=v_rspace, &
-                      vee=vee)
+                      ks_env=ks_env, vee=vee)
 
+      inverse_scf = qs_upf_inverse_scf_active(ks_env)
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
       CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
       gapw = dft_control%qs_control%gapw
@@ -1500,6 +1504,7 @@ CONTAINS
       END IF
 
       nspins = dft_control%nspins
+      IF (inverse_scf .AND. calculate_forces) ALLOCATE (inverse_potential(nspins))
 
       ! sum up potentials and integrate
       IF (ASSOCIATED(v_rspace_new)) THEN
@@ -1645,6 +1650,12 @@ CONTAINS
                DO ikind = 1, nkind
                   CALL para_env%sum(lri_v_int(ikind)%v_int)
                END DO
+            ELSE IF (inverse_scf) THEN
+               IF (calculate_forces) THEN
+                  CALL inverse_potential(ispin)%create(v_rspace_new(ispin)%pw_grid)
+                  CALL pw_copy(v_rspace_new(ispin), inverse_potential(ispin))
+               END IF
+               CALL qs_upf_inverse_scf_integrate(ks_env, v_rspace_new(ispin), ks_matrix(ispin, 1)%matrix, weighted=.TRUE.)
             ELSE
                rho_ao => my_rho(ispin, :)
                ksmat => ks_matrix(ispin, :)
@@ -1749,6 +1760,12 @@ CONTAINS
                DO ikind = 1, nkind
                   CALL para_env%sum(lri_v_int(ikind)%v_int)
                END DO
+            ELSE IF (inverse_scf) THEN
+               IF (calculate_forces) THEN
+                  CALL inverse_potential(ispin)%create(v_rspace_used%pw_grid)
+                  CALL pw_copy(v_rspace_used, inverse_potential(ispin))
+               END IF
+               CALL qs_upf_inverse_scf_integrate(ks_env, v_rspace_used, ks_matrix(ispin, 1)%matrix, weighted=.TRUE.)
             ELSE
                rho_ao => my_rho(ispin, :)
                ksmat => ks_matrix(ispin, :)
@@ -1762,6 +1779,13 @@ CONTAINS
             IF (use_work_v_rspace) CALL auxbas_pw_pool%give_back_pw(v_rspace_work)
          END DO
       END IF ! ASSOCIATED(v_rspace_new)
+
+      IF (ALLOCATED(inverse_potential)) THEN
+         CALL qs_upf_inverse_force(qs_env, inverse_potential)
+         DO ispin = 1, nspins
+            CALL inverse_potential(ispin)%release()
+         END DO
+      END IF
 
       ! **** LRIGPW: KS matrix from integrated potential
       IF (lrigpw) THEN

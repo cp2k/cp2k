@@ -134,6 +134,7 @@ MODULE qs_scf_initialization
         filter_matrix_diag_method_nr, general_diag_method_nr, krylov_space_create, &
         ot_diag_method_nr, ot_method_nr, qs_scf_env_type, scf_env_create, smeagol_method_nr, &
         special_diag_method_nr
+   USE qs_uspp_methods,                 ONLY: qs_uspp_init_ao_matrix
    USE qs_wf_history_methods,           ONLY: reorthogonalize_vectors,&
                                               wfi_extrapolate,&
                                               wfi_get_method_label,&
@@ -463,6 +464,7 @@ CONTAINS
             CALL dbcsr_create(matrix=candidate(ispin, ic)%matrix, template=refmatrix, &
                               name="SCF DENSITY", matrix_type=dbcsr_type_symmetric)
             CALL cp_dbcsr_alloc_block_from_nbl(candidate(ispin, ic)%matrix, sab_orb)
+            CALL qs_uspp_init_ao_matrix(qs_env%ks_env, candidate(ispin, ic)%matrix)
             CALL dbcsr_set(candidate(ispin, ic)%matrix, 0.0_dp)
          END DO
       END DO
@@ -1090,7 +1092,7 @@ CONTAINS
       ! Calculate ortho matrix
       ndep = 0
       IF (scf_env%needs_ortho) THEN
-         CALL get_qs_env(qs_env, matrix_s=matrix_s)
+         CALL get_qs_env(qs_env, matrix_metric=matrix_s)
          CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, scf_env%ortho)
          IF (scf_env%cholesky_method > cholesky_off) THEN
             CALL cp_fm_cholesky_decompose(scf_env%ortho)
@@ -1232,7 +1234,7 @@ CONTAINS
                   CALL cp_abort(__LOCATION__, &
                                 "Lowdin DFT+U with k-points requires STANDARD diagonalization or OT")
                END IF
-               CALL get_qs_env(qs_env, kpoints=kpoints, matrix_s_kp=matrix_s_kp, matrix_w_kp=matrix_w_kp)
+               CALL get_qs_env(qs_env, kpoints=kpoints, matrix_metric_kp=matrix_s_kp, matrix_w_kp=matrix_w_kp)
                IF (scf_control%use_ot) THEN
                   IF (kpoints%use_real_wfn .OR. dft_control%restricted) THEN
                      CALL cp_abort(__LOCATION__, &
@@ -1242,7 +1244,7 @@ CONTAINS
                CALL diag_kp_smat(matrix_s_kp, kpoints, scf_env%scf_work1, lowdin_forces=ASSOCIATED(matrix_w_kp))
                CALL lowdin_kp_init(qs_env)
             ELSE
-               CALL get_qs_env(qs_env, matrix_s=matrix_s)
+               CALL get_qs_env(qs_env, matrix_metric=matrix_s)
                IF (s_minus_half_available) THEN
                   CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, scf_env%ortho, &
                                                scf_env%s_half, nao)
