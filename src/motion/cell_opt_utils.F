@@ -37,7 +37,8 @@ MODULE cell_opt_utils
              keep_symmetry_coupled_set, keep_symmetry_conflict, &
              pres_crit_shear_pinned, parse_token, &
              read_external_press_tensor, &
-             apply_cell_constraints, cell_opt_constraint_label, parse_cell_constraint, &
+             apply_cell_constraints, cell_opt_constraint_label, &
+             parse_cell_constraint, &
              rescale_new_cell_volume, slot_is_fixed
 
    ! Masks of the six independent cell variables in the canonical frame
@@ -132,49 +133,37 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Parses the tokens of the CONSTRAINT keyword into a cell component mask
-!> \param constraint_string value line of the CONSTRAINT keyword (lchar_t string)
+!> \param constraint_tokens value tokens of the CONSTRAINT keyword (char_t list)
 !> \param cell simulation cell (only the periodicity is used)
 !> \param explicit whether the CONSTRAINT keyword was given explicitly
 !> \param mask union of the fixed cell components (comp_* and mask_* bits)
 ! **************************************************************************************************
-   SUBROUTINE parse_cell_constraint(constraint_string, cell, explicit, mask)
-      CHARACTER(LEN=*), INTENT(IN)                       :: constraint_string
+   SUBROUTINE parse_cell_constraint(constraint_tokens, cell, explicit, mask)
+      CHARACTER(LEN=*), DIMENSION(:), INTENT(IN)         :: constraint_tokens
       TYPE(cell_type), POINTER                           :: cell
       LOGICAL, INTENT(IN)                                :: explicit
       INTEGER, INTENT(OUT)                               :: mask
 
       CHARACTER(LEN=default_string_length)               :: reject_reason, token
-      CHARACTER(LEN=LEN(constraint_string))              :: line
-      INTEGER                                            :: axis_index, isep, nonperiodic_axis, &
-                                                            overlap, required_mask, tok_mask
+      INTEGER                                            :: axis_index, nonperiodic_axis, overlap, &
+                                                            required_mask, tok_index, tok_mask
       LOGICAL                                            :: accepted
 
-      ! The lchar_t tokenizer cuts the value at the first quote character,
-      ! so a quoted value arrives as an empty string. Give the value
-      ! unquoted. Restart echoes are bare and round-trip correctly.
-      line = ADJUSTL(constraint_string)
-      IF (LEN_TRIM(line) == 0) THEN
+      ! The input tokenizer delivers a bare keyword as one blank token.
+      IF (SIZE(constraint_tokens) == 0 .OR. &
+          (SIZE(constraint_tokens) == 1 .AND. LEN_TRIM(constraint_tokens(1)) == 0)) THEN
          CALL cp_abort(__LOCATION__, &
-                       "CELL_OPT CONSTRAINT requires a value. "// &
-                       "Give the value unquoted: the input tokenizer cuts "// &
-                       "a quoted value at the first quote character.")
+                       "CELL_OPT CONSTRAINT requires a value.")
       END IF
 
       mask = 0
-      DO WHILE (LEN_TRIM(line) > 0)
-         isep = SCAN(line, " "//ACHAR(9))
-         IF (isep == 0) THEN
-            token = TRIM(line)
-            line = ""
-         ELSE
-            token = TRIM(line(:isep - 1))
-            line = ADJUSTL(line(isep + 1:))
-         END IF
+      DO tok_index = 1, SIZE(constraint_tokens)
+         token = ADJUSTL(constraint_tokens(tok_index))
          CALL uppercase(token)
          IF (token == "NONE") THEN
             ! NONE must be the first and only token: leftover tokens on the
             ! line or an already-accumulated mask mean it is being combined.
-            IF (LEN_TRIM(line) > 0 .OR. mask /= 0) THEN
+            IF (tok_index < SIZE(constraint_tokens) .OR. mask /= 0) THEN
                CALL cp_abort(__LOCATION__, &
                              "CELL_OPT CONSTRAINT NONE cannot be combined "// &
                              "with other tokens.")
