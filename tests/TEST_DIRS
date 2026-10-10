@@ -3,9 +3,6 @@
 # Directories have been reordered according the execution time needed for a gfortran pdbg run using 2 MPI tasks
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
-QS/regtest-sccs-4
-QS/regtest-cohsex                                           libint !ifx
-QS/regtest-tddfpt-force-libxc                               libxc !ifx
 QMMM/QS/regtest-mpi                                         parallel mpiranks>2
 QS/regtest-libgint                                          libGint libint offload_cuda !ifx
 MIMIC/regtest-qmmm                                          mimic mpiranks==4
@@ -18,509 +15,507 @@ QS/regtest-gauxc-cuda                                       gauxc_cuda
 QS/regtest-pexsi                                            pexsi
 Fist/regtest-deepmd                                         deepmd !lsan
 Fist/regtest-quip                                           quip
+QS/regtest-skala-cuda                                       skala offload_cuda
 ATOM/regtest-1
-QS/regtest-pao-2
-QS/regtest-kp-3
-QS/regtest-kp-4
-QS/regtest-kp-5
-QS/regtest-kp-6
 QS/regtest-gpw-4
-QS/regtest-kp-2                                             libint !ifx
-QS/regtest-ec                                               libint libvori !ifx
-QS/regtest-tddfpt-force-3                                   libint !ifx
-QS/regtest-debug-5                                          libint !ifx
-QS/regtest-kp-1                                             libint !ifx
-xTB/regtest-gfn0-m1                                         libdftd4
-Fist/regtest-7-1
-QS/regtest-acc-2                                            libint libxc !ifx
-QS/regtest-gpw-3
-QS/regtest-p-efield
-xTB/regtest-gfn0-m4                                         libdftd4
-xTB/regtest-gfn0-m3                                         libdftd4
-QS/regtest-debug-7                                          libint !ifx
-QS/regtest-tddfpt-4                                         libint libxc !ifx
-QS/regtest-rtp-5
-xTB/regtest-gfn0-m2                                         libdftd4
-QS/regtest-debug-6                                          libint !ifx
-Fist/regtest-7-2
-QS/regtest-nlcc-1                                           libint libxc !ifx
-QS/regtest-nlcc-2                                           libint libxc !ifx
-QS/regtest-skala-native-gpw-mol                              skala
-QS/regtest-skala-native-gpw-mech                             skala
-QS/regtest-skala-native-gpw-coords                           skala
-QS/regtest-skala-native-gapw-base                            skala
-QS/regtest-skala-native-gapw-gth                             skala
-QS/regtest-skala-native-gapw-ecp                             skala
-QS/regtest-skala-native-gapw-ae-kp                            skala
-QS/regtest-skala-cuda                                         skala offload_cuda
+QS/regtest-pao-2
 QS/regtest-ot-2
-QS/regtest-ot
+Fist/regtest-7-1
+QS/regtest-ec                                               libint libvori !ifx
+xTB/regtest-gfn0-m1                                         libdftd4
+QS/regtest-acc-2                                            libint libxc !ifx
+QS/regtest-debug-5                                          libint !ifx
+QS/regtest-tddfpt-force-3                                   libint !ifx
+QS/regtest-p-efield
+xTB/regtest-gfn0-m3                                         libdftd4
+xTB/regtest-gfn0-m4                                         libdftd4
+QS/regtest-kp-2                                             libint !ifx
+QS/regtest-gpw-3
+QS/regtest-rtp-5
+QS/regtest-debug-7                                          libint !ifx
+QS/regtest-bse                                              libint !ifx
+QS/regtest-tddfpt-4                                         libint libxc !ifx
+xTB/regtest-gfn0-m2                                         libdftd4
+Fist/regtest-7-2
+QS/regtest-plus_u-kp
+Fist/regtest-opt
 QS/regtest-gpw-1                                            libint libvori !ifx
-QS/regtest-gpw-8
-QS/regtest-hfx                                              libint !ifx
-QS/regtest-sym-4
+QS/regtest-ot
 QS/regtest-sym-3
+QS/regtest-sym-4
 QS/regtest-sym-5
 QS/regtest-sym-2
 Fist/regtest-excl-R
 Fist/regtest-excl-G
+QS/regtest-debug-6                                          libint !ifx
+QS/regtest-hfx                                              libint !ifx
 QS/regtest-kg                                               libxc
-QS/regtest-bse                                              libint !ifx
-QS/regtest-admm-gapw                                        libint !ifx
-QS/regtest-gapw_xc                                          libint !ifx
+QS/regtest-gpw-8
 Fist/regtest-12
-QS/regtest-scalable-gw                                      libint !ifx
-QS/regtest-ls-rtp
+QS/regtest-mtlr
+QS/regtest-gapw_xc                                          libint !ifx
 QS/regtest-sym-1
+QS/regtest-admm-gapw                                        libint !ifx
+QS/regtest-scalable-gw                                      libint !ifx
+Fist/regtest-4
+QS/regtest-kp-1                                             libint !ifx
 QS/regtest-tddfpt-force                                     libint !ifx
 QS/regtest-embed                                            libint !ifx
 QS/regtest-acc-4                                            libint libxc !ifx
-QS/regtest-plus_u
-QS/regtest-plus_u-kp
 SE/regtest
-Fist/regtest-4
-Fist/regtest-opt
-xTB/regtest-5
+QS/regtest-ls-rtp
+QS/regtest-ot-3-1
 QS/regtest-xastdp                                           libint libxc !ifx
-ATOM/regtest-pseudo
-QS/regtest-ot-1
 SIRIUS/regtest-1                                            sirius
-QS/regtest-kp-hfx-ri-admm-2                                 libint !ifx
-Fist/regtest-6
-SE/regtest-2-2
+QS/regtest-plus_u
 QS/regtest-gpw-5
-xTB/regtest-gfn0                                            libdftd4 spglib
-QS/regtest-rtp-3
-SE/regtest-2-1
+QS/regtest-ot-1
+QS/regtest-nlcc-1                                           libint libxc !ifx
+QS/regtest-kp-3
+ATOM/regtest-pseudo
 xTB/regtest-tblite-gfn2-1                                   tblite
-QS/regtest-pao-1
+Fist/regtest-6
 QMMM/QS/regtest-1
-QS/regtest-tddfpt-force-2                                   libint !ifx
+QS/regtest-tddfpt-force-libxc                               libxc !ifx
+QS/regtest-rtp-3
 QS/regtest-ed                                               libint !ifx
+SE/regtest-2-2
+SE/regtest-2-1
+QS/regtest-tddfpt-force-2                                   libint !ifx
 QS/regtest-ec-force                                         libint !ifx
-QS/regtest-gw-cubic                                         libint !ifx
-DFTB/regtest-scc-2                                          spglib
-QS/regtest-acc-3                                            libint !ifx
-QS/regtest-hfx-ri                                           libint !ifx
-QS/regtest-hfx-wfn-fitting                                  libint libxc !ifx
+xTB/regtest-gfn0                                            libdftd4 spglib
 QS/regtest-dcdft-force                                      libint libxc !ifx
+QS/regtest-pao-1
+xTB/regtest-5
+QS/regtest-gw-cubic                                         libint !ifx
+QS/regtest-acc-3                                            libint !ifx
+QS/regtest-kp-hfx-ri-admm-2                                 libint !ifx
 QS/regtest-almo-1
-QS/regtest-rtbse-linearized-restart                         libint !ifx
-QS/regtest-nmr-6
-QS/regtest-kp-1-spglib                                      libint spglib !ifx
 QS/regtest-cdft-diag
 ATOM/regtest-2
-Fist/regtest-1-4
+QS/regtest-kp-1-spglib                                      libint spglib !ifx
 QS/regtest-gpw-2-3
-QS/regtest-rel
+QS/regtest-nmr-6
+QS/regtest-hfx-ri                                           libint !ifx
+QS/regtest-hfx-wfn-fitting                                  libint libxc !ifx
+Fist/regtest-1-4
 QS/regtest-gapw                                             libvori
-QS/regtest-dcdft-stress                                     libint libxc !ifx
-QS/regtest-hfx-ri-2                                         libint libxc !ifx
-QS/regtest-LnPP2
-QS/regtest-ot-3-1
-QS/regtest-rVV10                                             libxc
-QMMM/SE/regtest
+QS/regtest-rtbse-linearized-restart                         libint !ifx
 QS/regtest-harris-kp
-QS/regtest-rtbse-linearized-rirs                            libint !ifx
-QS/regtest-ot-3-5
-QS/regtest-kp-1-spg                                         libint spglib !ifx
+QS/regtest-hfx-ri-2                                         libint libxc !ifx
+QS/regtest-gw-realspace                                     libint !ifx
+QS/regtest-dcdft-stress                                     libint libxc !ifx
 QS/regtest-gapw-1
+Fist/regtest-3
+QMMM/SE/regtest
 QS/regtest-dcdft-gapw                                       libint libxc !ifx
 QS/regtest-ec-stress                                        libint libxc !ifx
-QS/regtest-dm-ls-scf-4
-QS/regtest-rtbse-linearized                                 libint !ifx
-Fist/regtest-3
-xTB/regtest-tblite-gfn1-grad                                tblite spglib
 Fist/regtest-1-2
-QS/regtest-ot-3-4
+QS/regtest-rel
+QS/regtest-LnPP2
+QS/regtest-gw                                               libint !ifx
 QS/regtest-debug-4                                          libint !ifx
-Fist/regtest-5
+QS/regtest-kp-1-spg                                         libint spglib !ifx
 QS/regtest-acc-5-4                                          libint !ifx
-QS/regtest-nmr-uks-1
-QS/regtest-gw-realspace                                     libint !ifx
+Fist/regtest-5
 QS/regtest-dft-vdw-corr-3                                   libxc
-QS/regtest-admm-1                                           libint !ifx
+QS/regtest-rVV10                                            libxc
+QS/regtest-acc-1-5
 xTB/regtest-1
 QS/regtest-stda-force                                       libint !ifx
-QS/regtest-acc-5-1
-QS/regtest-acc-1-5
-
-QS/regtest-almo-2
-QS/regtest-xc
-QS/regtest-dft-vdw-corr-2                                   libxc libint !ifx
-QS/regtest-as-dft                                           libint libxc !ifx
-QS/regtest-kp-hfx-ri-2                                      libint libxc !ifx
+QS/regtest-ot-3-4
+QS/regtest-dcdr                                             libxc
+QS/regtest-admm-1                                           libint !ifx
+QS/regtest-rtbse-linearized-rirs                            libint !ifx
+QS/regtest-dm-ls-scf-4
 QS/regtest-rpa-cubic-scaling-2                              libint libxc !ifx
-QS/regtest-tddfpt-gapw                                      libint !ifx
-SE/regtest-3-2
-QS/regtest-pod
-xTB/regtest-tblite-gfn2-3                                   tblite spglib
+QS/regtest-almo-2
+QS/regtest-dft-vdw-corr-2                                   libxc libint !ifx
+QS/regtest-rtbse-linearized                                 libint !ifx
+QS/regtest-xc
+QS/regtest-skala-native-gapw-gth                            skala
+QS/regtest-nmr-uks-1
+DFTB/regtest-scc-2                                          spglib
 QS/regtest-md-extrap
+QS/regtest-skala-native-gapw-base                           skala
+QS/regtest-as-dft                                           libint libxc !ifx
+QS/regtest-tddfpt-gapw                                      libint !ifx
+QS/regtest-gapw-4                                           libint !ifx
+QS/regtest-tddfpt-stda                                      libint !ifx
+QS/regtest-acc-1-2                                          libint !ifx
+DFTB/regtest-nonscc
+QS/regtest-kp-4
+Fist/regtest-pol
+QS/regtest-acc-5-1
 QS/regtest-gw-kpoints                                       libint greenx !ifx
 QS/regtest-tddfpt                                           libint !ifx
-DFTB/regtest-nonscc
-QS/regtest-gapw-4                                           libint !ifx
+Fist/regtest-1-3
+QS/regtest-slab
+SE/regtest-3-2
 QS/regtest-ecp
 QS/regtest-as-1                                             libint !ifx
-QS/regtest-tddfpt-stda                                      libint !ifx
-Fist/regtest-pol
-QS/regtest-dcdr                                             libxc
-MC/regtest
-QS/regtest-slab
-QS/regtest-acc-1-2                                          libint !ifx
-QS/regtest-dft-vdw-corr-4                                   libdftd4
-QS/regtest-acc-1-1
-QS/regtest-debug-1
-Fist/regtest-1-3
-xTB/regtest-stda-force
-QS/regtest-dm-ls-scf-3
-QS/regtest-rixs                                             libint libxc !ifx
-QS/regtest-rtp-2
-xTB/regtest-gfn1-d                                          spglib
-QS/regtest-ps-implicit-2-1
 Fist/regtest-2
-QS/regtest-nmr-1
-QS/regtest-gw                                               libint !ifx
+QS/regtest-rtp-2
+MC/regtest
+QS/regtest-debug-1
+QS/regtest-rixs                                             libint libxc !ifx
+QS/regtest-dm-ls-scf-3
 QMMM/SE/regtest-force-mixing
-Fist/regtest-15
-QS/regtest-nmr-4
+QS/regtest-pod
+Fist/regtest-5-vib                                          mpiranks==1||mpiranks%2==0
+QS/regtest-kp-hfx-ri-2                                      libint libxc !ifx
 QS/regtest-ri-rpa                                           libint !ifx
 QS/regtest-hfx-periodic                                     libint !ifx
-QS/regtest-mp2-grad-1                                       libint libvori !ifx
-QS/regtest-pao-4
-QS/regtest-rtbse                                            libint !ifx
-QS/regtest-rpa-cubic-scaling                                libint !ifx
 QS/regtest-acc-1-3                                          libint !ifx
-QS/regtest-gauxc-cdft                                       gauxc
+QS/regtest-nmr-4
+QS/regtest-ps-implicit-2-1
+xTB/regtest-stda-force
+QS/regtest-pao-4
+QS/regtest-mp2-grad-1                                       libint libvori !ifx
 QS/regtest-stress-analytical-2d
+xTB/regtest-tblite-gfn1-grad                                tblite spglib
 QMMM/QS/regtest-3
-xTB/regtest-3
-xTB/regtest-tblite-gfn2-2                                   tblite spglib
+QS/regtest-acc-1-1
 Pimd/regtest-1
-QS/regtest-admm-4                                           libint !ifx
-
-xTB/regtest-2
-QS/regtest-hole-funct
-Pimd/regtest-2
-QS/regtest-ps-implicit-1-3                                  fftw3
-QS/regtest-stda-force-3                                     libint !ifx
+xTB/regtest-3
+QS/regtest-kp-5
 QS/regtest-grid
-QS/regtest-gauxc-gapw-ecp                                   gauxc
-QS/regtest-gauxc-gapw-gth                                   gauxc
-QS/regtest-kp-hfx-ri-admm                                   libint !ifx
-QS/regtest-ot-refine-2
-Fist/regtest-1-1
-xTB/regtest-spinpol
-xTB/regtest-tblite-gfn1                                     tblite
-QS/regtest-dft-d3-auto-ref                                  libint !ifx
-QS/regtest-hybrid-4                                         libint libxc !ifx
-QS/regtest-almo-md
-QS/regtest-dm-ls-scf-1
-QS/regtest-acc-5-5                                          libint libxc !ifx
-QS/regtest-rtbse-linearized-open-shell                      libint !ifx
-QMMM/DFTB/regtest
-QS/regtest-gw2x                                             libint libxc !ifx
-QS/regtest-adiis
-QS/regtest-acc-1-4
-QS/regtest-hfx-block                                        libint !ifx
-QS/regtest-gpw-2-2
-xTB/regtest-tblite-gfn2-5                                   tblite spglib
-QS/regtest-ps-implicit-1-1                                  fftw3
-SE/regtest-3-4
-QS/regtest-tddfpt-force-gapw-3                              libint !ifx
-QS/regtest-tddfpt-force-gapw-4                              libint !ifx
-QS/regtest-cdft-3                                           parallel mpiranks%2==0
-Fist/regtest-gauss
-QS/regtest-libxc                                            libxc libint !ifx
-QS/regtest-lrigpw
-QS/regtest-tddfpt-2                                         libint !ifx
-QS/regtest-ot-3-3
-QS/regtest-ps-implicit-2-2
-Fist/regtest-5-vib                                          mpiranks==1||mpiranks%2==0
-Fist/regtest-14
-QS/regtest-kind
-QS/regtest-upf
-QS/regtest-ri-laplace-mp2-cubic-2                           libint libxc !ifx
-QS/regtest-lsroks                                           libint !ifx
-QMMM/QS/regtest-cdft                                        parallel mpiranks%2==0
-SE/regtest-4
-QS/regtest-gpw-9                                            libxc
-QS/regtest-mp2-block                                        libint parallel mpiranks%2==0 !ifx
-QS/regtest-lrigpw-2
-QS/regtest-mp2-grad-2                                       libint !ifx
+Fist/regtest-15
+QS/regtest-dft-vdw-corr-4                                   libdftd4
+Pimd/regtest-2
+QS/regtest-rpa-cubic-scaling                                libint !ifx
 QS/regtest-dft-d4-auto-ref                                  libdftd4 libint libxc !ifx
+QS/regtest-ot-refine-2
+QS/regtest-libxc                                            libxc libint !ifx
+QS/regtest-stda-force-3                                     libint !ifx
+QS/regtest-spectral-localizer
+Fist/regtest-1-1
+QS/regtest-dm-ls-scf-1
+QS/regtest-skala-native-gpw-coords                          skala
+QS/regtest-hole-funct
+QS/regtest-rtbse                                            libint !ifx
+QS/regtest-admm-4                                           libint !ifx
+QMMM/QS/regtest-cdft                                        parallel mpiranks%2==0
+xTB/regtest-2
+QS/regtest-almo-md
+QS/regtest-kp-6
+QS/regtest-gw2x                                             libint libxc !ifx
 QS/regtest-harris
-QS/regtest-almo-trustr
-QS/regtest-ri-rpa-grad                                      libint !ifx
-QMMM/xTB/regtest
-xTB/regtest-3-spglib                                        spglib tblite
-QS/regtest-tddfpt-force-gapw-2                              libint !ifx
-DFTB/regtest-scc-1-2
+Fist/regtest-gauss
+QS/regtest-tddfpt-sf-force                                  libint !ifx
+QS/regtest-hybrid-4                                         libint libxc !ifx
+QMMM/DFTB/regtest
+QS/regtest-acc-5-5                                          libint libxc !ifx
+QS/regtest-hfx-block                                        libint !ifx
+QS/regtest-cdft-3                                           parallel mpiranks%2==0
+QS/regtest-tddfpt-force-gapw-4                              libint !ifx
+xTB/regtest-gfn1-d                                          spglib
+QS/regtest-dft-d3-auto-ref                                  libint !ifx
+QS/regtest-nmr-1
+QS/regtest-kp-hfx-ri-admm                                   libint !ifx
+SE/regtest-3-4
+QS/regtest-rtbse-linearized-open-shell                      libint !ifx
+Fist/regtest-14
+QS/regtest-ot-3-5
+QS/regtest-gpw-2-2
+QS/regtest-acc-1-4
+QS/regtest-skala-native-gpw-mol                             skala
+QS/regtest-quadratic-pseudospectrum
+QS/regtest-ri-laplace-mp2-cubic-2                           libint libxc !ifx
+QS/regtest-tddfpt-2                                         libint !ifx
+QS/regtest-tddfpt-force-gapw-3                              libint !ifx
+QS/regtest-lvlshift
+QS/regtest-mp2-block                                        libint parallel mpiranks%2==0 !ifx
+QS/regtest-lsroks                                           libint !ifx
+QS/regtest-gpw-9                                            libxc
+SE/regtest-4
+QS/regtest-ps-implicit-2-2
+QS/regtest-gauxc-cdft                                       gauxc
 LIBTEST/misc
-QS/regtest-debug-2                                          libint libxc !ifx
-QS/regtest-ot-3-2
-QS/regtest-admm-2                                           libint !ifx
-DFTB/regtest-scc-1-1
-QS/regtest-hirshfeld
-DFTB/regtest-scc-1-5                                        spglib
-Fist/regtest-10
-DFTB/regtest-scc-1-4                                        tblite
-DFTB/regtest-scc-1-3
-QS/regtest-admm-dm                                          libint !ifx
-QS/regtest-admm-qps-2                                       libint !ifx
-QS/regtest-tddfpt-os
-QS/regtest-mp2-grad-solvers                                 libint !ifx
-QS/regtest-dft-d3-lib-ref                                   libint s_dftd3 !ifx
-QS/regtest-admm-3                                           libint !ifx
-QS/regtest-bs
-QS/regtest-cdft-gapw
+QS/regtest-mp2-grad-2                                       libint !ifx
+QS/regtest-ot-3-3
+QS/regtest-dft-d3bj-s-ref                                   s_dftd3 libxc
 QS/regtest-stress
-xTB/regtest-tblite-gfn2-4                                   tblite spglib
+QS/regtest-lrigpw
+QS/regtest-hirshfeld
+DFTB/regtest-scc-1-2
+QS/regtest-ri-rpa-grad                                      libint !ifx
+QS/regtest-tddfpt-force-gapw-2                              libint !ifx
+QS/regtest-tddfpt-os
+xTB/regtest-tblite-gfn1                                     tblite
+QS/regtest-admm-2                                           libint !ifx
+QS/regtest-ps-implicit-1-3                                  fftw3
+QS/regtest-kind
+Fist/regtest-10
+QS/regtest-ot-3-2
+QS/regtest-bs
+xTB/regtest-spinpol
+QMMM/xTB/regtest
+DFTB/regtest-scc-1-1
+QS/regtest-debug-2                                          libint libxc !ifx
+QS/regtest-admm-dm                                          libint !ifx
+QS/regtest-mp2-grad-solvers                                 libint !ifx
+QS/regtest-ps-implicit-1-1                                  fftw3
+QS/regtest-almo-trustr
+QS/regtest-admm-qps-2                                       libint !ifx
+DFTB/regtest-scc-1-4                                        tblite
 QS/regtest-tddfpt-force-gapw-5                              libint libxc !ifx
-QS/regtest-acc-5-3                                          libint !ifx
+QS/regtest-dft-d3-lib-ref                                   libint s_dftd3 !ifx
+QS/regtest-gpw-7
+QS/regtest-admm-3                                           libint !ifx
+QS/regtest-cdft-gapw
+QS/regtest-ec-meta                                          libxc
+xTB/regtest-tblite-gfn2-3                                   tblite spglib
+DFTB/regtest-scc-1-3
+QS/regtest-lrigpw-2
+QMMM/QS/regtest-2-swave
+xTB/regtest-tblite-gfn1-periodic                            tblite spglib
+QS/regtest-skala-native-gapw-ecp                            skala
 QS/regtest-dcdft-hfx                                        libint libxc !ifx
 QS/regtest-tddfpt-3                                         libint !ifx
-QS/regtest-stda-force-2                                     libint !ifx
-QS/regtest-epr-1
 QMMM/QS/regtest-2-erf
-QS/regtest-tddfpt-sf-force                                  libint !ifx
+QS/regtest-stda-force-2                                     libint !ifx
 NNP/regtest-1
-QMMM/QS/regtest-2-swave
-QS/regtest-acc-5-2                                          libint !ifx
-QS/regtest-lvlshift
-QS/regtest-tddfpt-lri                                       libint !ifx
-QS/regtest-admm-libxc                                       libint libxc !ifx
-QS/regtest-dft-d3-bj-auto-ref                               libint !ifx
-xTB/regtest-4
-QS/regtest-dft-d2-auto-ref                                  libint !ifx
-QS/regtest-gpw-6-2
-QS/regtest-ps-implicit-1-2                                  fftw3
-QS/regtest-gpw-2-1
-QS/regtest-dft-d3bj-lib-ref                                 libint s_dftd3 !ifx
-QS/regtest-mom-2                                            libint !ifx
-QS/regtest-nonortho
+QS/regtest-acc-5-3                                          libint !ifx
+xTB/regtest-tblite-gfn2-5                                   tblite spglib
+QS/regtest-epr-1
 Fist/regtest-13
-xTB/regtest-debug
-QS/regtest-gpw-7
-QS/regtest-mtlr
-QS/regtest-polar
-QS/regtest-ecp-2
-QS/regtest-gapw-3
-QS/regtest-poisson
-LIBTEST/dbcsr
-QS/regtest-ec-meta                                          libxc
-QS/regtest-tddfpt-force-gapw-1                              !ifx
-QS/regtest-iao
-QS/regtest-smeagol-2                                        libsmeagol
-QS/regtest-dft-d3bj-s-ref                                   s_dftd3 libxc
-QS/regtest-hybrid-3                                         libint !ifx
-QS/regtest-tddfpt-soc                                       libint !ifx
-QS/regtest-nmr-5
-QS/regtest-tddfpt-sf                                        libint !ifx
-QS/regtest-dft-vdw-corr-1
-QS/regtest-tdwf
+QS/regtest-tddfpt-lri                                       libint !ifx
+QS/regtest-gpw-6-2
+xTB/regtest-4
+QS/regtest-gpw-2-1
+QS/regtest-gamma-frozen-density
+QS/regtest-admm-libxc                                       libint libxc !ifx
+QS/regtest-acc-5-2                                          libint !ifx
+QS/regtest-nonortho
+xTB/regtest-3-spglib                                        spglib tblite
 QS/regtest-cdft-2
+QS/regtest-mom-2                                            libint !ifx
+QS/regtest-dft-d3-bj-auto-ref                               libint !ifx
+xTB/regtest-debug
+LIBTEST/dbcsr
+QS/regtest-gapw-3
+QS/regtest-dft-d2-auto-ref                                  libint !ifx
+xTB/regtest-tblite-gfn2-2                                   tblite spglib
+QS/regtest-polar
+QS/regtest-dft-d3bj-lib-ref                                 libint s_dftd3 !ifx
+QS/regtest-tddfpt-force-gapw-1                              !ifx
+QS/regtest-ps-implicit-1-2                                  fftw3
+QS/regtest-adiis
+QS/regtest-smeagol-2                                        libsmeagol
+QS/regtest-tddfpt-soc                                       libint !ifx
+QS/regtest-hybrid-3                                         libint !ifx
 QS/regtest-ri-mp2                                           libint !ifx
-QS/regtest-kp-hfx-ri                                        libint libxc !ifx
-QS/regtest-cdft-5
 QS/regtest-spgr-id                                          spglib
-QS/regtest-gpw-6-4
-QS/regtest-mp2-admm-grad                                    libint !ifx
+QS/regtest-tddfpt-sf                                        libint !ifx
+QS/regtest-cdft-5
+QS/regtest-ecp-2
 TMC/regtest                                                 parallel mpiranks>1
-QS/regtest-optbas
-QS/regtest-rtp-6                                            libint !ifx
-QS/regtest-ot-refine
-QS/regtest-as-2                                             libint !ifx
+QS/regtest-topology
+QS/regtest-gpw-6-4
+QS/regtest-kp-hfx-ri                                        libint libxc !ifx
 QS/regtest-ot-refine-3
-QS/regtest-cdft-4-3
-QS/regtest-moments-kpoints
-QS/regtest-fod
+QS/regtest-nmr-5
+QS/regtest-dft-vdw-corr-1
+QS/regtest-optbas
+QS/regtest-tdwf
+QS/regtest-mp2-admm-grad                                    libint !ifx
+QS/regtest-ot-refine
+QS/regtest-dft-d3-s-ref                                     s_dftd3 libxc
 Fist/regtest-9
-QS/regtest-gauxc-gpw-nlcc                                   gauxc
+QS/regtest-rtp-6                                            libint !ifx
+QS/regtest-cdft-4-3
+Fist/regtest-11
+QS/regtest-sccs-4
+QS/regtest-cdft-1
 QS/regtest-debug-3                                          libint libxc !ifx
-QS/regtest-tddfpt-admm                                      libint !ifx
+QS/regtest-all-electron
+QS/regtest-as-2                                             libint !ifx
+QS/regtest-dft-filtermat
+QS/regtest-cdft-4-2
+QS/regtest-dm-ls-scf-2
+QS/regtest-ot-1-vib                                         mpiranks==1||mpiranks%2==0
 QMMM/SE/regtest_2
 QS/regtest-sparsity                                         libint !ifx
-xTB/regtest-tblite-gfn1-periodic                            tblite spglib
-QS/regtest-cdft-4-2
-Fist/regtest-11
-QS/regtest-ot-1-vib                                         mpiranks==1||mpiranks%2==0
-QMMM/QS/regtest-image
-QS/regtest-all-electron
+QS/regtest-iao
 QS/regtest-mp2-lr-grad                                      libint !ifx
-QS/regtest-cdft-1
-QS/regtest-dm-ls-scf-2
-QS/regtest-gauxc-api                                        gauxc
-SE/regtest-3-3
+QS/regtest-moments-kpoints
 QS/regtest-rma                                              libint !ifx
-QS/regtest-sos-mp2-grad                                     libint !ifx
-QS/regtest-dft-filtermat
-QS/regtest-hfx-stress                                       libint !ifx
+QS/regtest-tddfpt-admm                                      libint !ifx
+QS/regtest-poisson
+SE/regtest-3-3
 QS/regtest-ps-implicit-2-3
-QS/regtest-tddfpt-rse-1                                     libint libxc !ifx
+DFTB/regtest-scc-1-5                                        spglib
 QS/regtest-hybrid-2                                         libint !ifx
-QS/regtest-mp2-stress                                       libint !ifx
-QMMM/QS/regtest-gapw                                        libint !ifx
-QS/regtest-loc_powf
+QS/regtest-sos-mp2-grad                                     libint !ifx
 QS/regtest-almo-strong
-QS/regtest-mp2-admm-stress                                  libint !ifx
-QS/regtest-rpa-sigma                                        libint greenx !ifx
-QS/regtest-mp2-lr-stress                                    libint !ifx
+QS/regtest-tddfpt-rse-1                                     libint libxc !ifx
+QS/regtest-mp2-stress                                       libint !ifx
+QS/regtest-double-hybrid-grad-numer-meta                    libxc !ifx
+QS/regtest-skala-native-gpw-mech                            skala
+QS/regtest-hfx-stress                                       libint !ifx
+QMMM/QS/regtest-gapw                                        libint !ifx
+QS/regtest-gauxc-api                                        gauxc
+QS/regtest-gauxc-gradients                                  gauxc_onedft_gradients
+QS/regtest-cohsex                                           libint !ifx
 QS/regtest-admm-qps                                         libint !ifx
-xTB/regtest-tblite-ipea1                                    tblite
-QS/regtest-rpa-lr                                           libint !ifx
+QS/regtest-mp2-admm-stress                                  libint !ifx
+QS/regtest-mp2-lr-stress                                    libint !ifx
+QS/regtest-rpa-sigma                                        libint greenx !ifx
 QS/regtest-rtp-1
-QS/regtest-dft-d3-s-ref                                     s_dftd3 libxc
-Fist/regtest-8
+QS/regtest-rpa-lr                                           libint !ifx
 FARMING/regtest-1
+QS/regtest-upf
+xTB/regtest-tblite-gfn2-4                                   tblite spglib
+QMMM/QS/regtest-image
 QS/regtest-gpw-6-3
+QS/regtest-elpa-qr                                          elpa mpiranks==1||mpiranks%2==0
+Fist/regtest-8
+QS/regtest-gapw-ext
 QS/regtest-md-lgvregion
 QMMM/QS/regtest-4
-QS/regtest-elpa-qr                                          elpa mpiranks==1||mpiranks%2==0
-QS/regtest-gapw-ext
-LIBTEST/libvori                                             libvori
-
-QS/regtest-ri-rpa-rse                                       libint !ifx
-QS/regtest-chi-1
+QS/regtest-loc_powf
+xTB/regtest-tblite-ipea1                                    tblite
 NEB/regtest-4
-QS/regtest-smeagol-1
+QS/regtest-ri-rpa-rse                                       libint !ifx
 QS/regtest-rma-3D                                           libint !ifx
-QS/regtest-sccs-1
-QS/regtest-sccs-3
 QS/regtest-cdft-4-1
-QS/regtest-ri-mp2-opt                                       libint !ifx
-LIBTEST/libbqb                                              libbqb
 QS/regtest-pao-5                                            libtorch
-QS/regtest-gauxc-gapw-base                                  gauxc
-QS/regtest-tddfpt-bse                                       libint libxc !ifx
 QS/regtest-cdft-hirshfeld-2                                 parallel mpiranks>1
-QS/regtest-epr-2
-QS/regtest-mp2-admm-stress-numer                            libint !ifx
-QS/regtest-mp2-admm-grad-numer                              libint !ifx
+QS/regtest-ri-mp2-opt                                       libint !ifx
+QS/regtest-smeagol-1
+LIBTEST/libvori                                             libvori
 QS/regtest-mp2-lr                                           libint !ifx
-QS/regtest-double-hybrid-grad-numer-meta                    libxc !ifx
-QS/regtest-nlmo
+LIBTEST/libbqb                                              libbqb
+QS/regtest-mp2-admm-grad-numer                              libint !ifx
+QS/regtest-sccs-1
 QS/regtest-ri-laplace-mp2                                   libint !ifx
+QS/regtest-tddfpt-bse                                       libint libxc !ifx
+QS/regtest-sccs-3
+QS/regtest-mp2-admm-stress-numer                            libint !ifx
 QS/regtest-libint-backend                                   libint !ifx
-QS/regtest-as-fci                                           libfci libint libxc !ifx
-QS/regtest-negf-xtb-1                                       fftw3
 QS/regtest-mom-1
+QS/regtest-epr-2
+QS/regtest-nlmo
+QS/regtest-as-fci                                           libfci libint libxc !ifx
+QS/regtest-double-hybrid-grad-meta                          libxc
+QS/regtest-gapw-2
 QS/regtest-cdft-hirshfeld
 QS/regtest-rtp-4
-QS/regtest-gapw-2
+TMC/regtest_ana_post_proc                                   parallel mpiranks>1
+QS/regtest-double-hybrid-grad-laplace                       libxc
+QS/regtest-negf-xtb-1                                       fftw3
 Fist/regtest-water
 QS/regtest-meta
-TMC/regtest_ana_post_proc                                   parallel mpiranks>1
-xTB/regtest-gfn0-d                                          libdftd4
-QS/regtest-double-hybrid-grad-laplace                       libxc
-QS/regtest-ri-rpa-exchange                                  libint !ifx
 QS/regtest-admm-type                                        libint !ifx
-QS/regtest-double-hybrid-grad-meta                          libxc
+xTB/regtest-gfn0-d                                          libdftd4
+QS/regtest-spin-spin-1
 QMMM/QS/regtest-shell-pol
+QS/regtest-ri-rpa-exchange                                  libint !ifx
+QS/regtest-hfx-2                                            libint !ifx
+QS/regtest-nlcc-2                                           libint libxc !ifx
+NEB/regtest-2
+QS/regtest-skala-native-gapw-ae-kp                          skala
 QS/regtest-trexio                                           trexio
 QS/regtest-tddfpt-prop
-QS/regtest-spin-spin-1
-NEB/regtest-2
-QS/regtest-mp2-2                                            libint !ifx
-QS/regtest-hfx-2                                            libint !ifx
-QS/regtest-mp2-4                                            libint !ifx
-QS/regtest-double-hybrid-grad-numer                         !ifx
-QS/regtest-corr_dipm
-
 xTB/regtest-stda                                            tblite
+QS/regtest-casino
 LIBTEST/dbm
+QS/regtest-double-hybrid-grad-numer                         !ifx
+QS/regtest-mp2-2                                            libint !ifx
 QS/regtest-rs-dhft                                          libint libxc !ifx
-QS/regtest-gauxc-api-debug                                  gauxc
-QS/regtest-gauxc-gradients                                  gauxc_onedft_gradients
-QS/regtest-double-hybrid-grad
+QS/regtest-mp2-4                                            libint !ifx
+QS/regtest-as-qcschema                                      hdf5 libint !ifx
 QS/regtest-pao-3
-QS/regtest-mp2-3                                            libint !ifx
+QS/regtest-gauxc-gapw-gth                                   gauxc
+QS/regtest-corr_dipm
+QS/regtest-double-hybrid-grad
 FE/regtest-1
-QS/regtest-stda                                             libint !ifx
-QS/regtest-floquet
-QS/regtest-stda-force-4                                     libint !ifx
-QS/regtest-hybrid-1                                         libint !ifx
+QS/regtest-mp2-3                                            libint !ifx
+QS/regtest-gauxc-gapw-ecp                                   gauxc
 QS/regtest-kubo-transport
+QS/regtest-hybrid-1                                         libint !ifx
+QS/regtest-stda                                             libint !ifx
+QS/regtest-gauxc-api-debug                                  gauxc
 QS/regtest-negf-1                                           fftw3
-Fist/regtest-ace                                            ace
+QS/regtest-floquet
+QS/regtest-properties/resp
+QS/regtest-stda-force-4                                     libint !ifx
 QS/regtest-sos-mp2-lr                                       libint !ifx
 QS/regtest-cdft-3-1
-QS/regtest-acc-1-libxc                                      libint libxc !ifx
-QS/regtest-properties/resp
+Fist/regtest-ace                                            ace
+QS/regtest-spectral-localizer-3d
 QS/regtest-hybrid-ace-gs                                    libint !ifx
-QS/regtest-casino
-QS/regtest-mp2-1                                            libint !ifx
-QS/regtest-double-hybrid-3                                  libint !ifx
 QS/regtest-sasccs
-QS/regtest-as-3                                             libint mpiranks%2==0 !ifx
-QS/regtest-gauxc-skala                                      gauxc
+QS/regtest-mp2-1                                            libint !ifx
 QS/regtest-nmr-3
-QS/regtest-almo-eda
+QS/regtest-double-hybrid-3                                  libint !ifx
+QS/regtest-double-hybrid-stress-numer-laplace               libxc !ifx
+QS/regtest-as-3                                             libint mpiranks%2==0 !ifx
+QS/regtest-elpa                                             elpa mpiranks==1||mpiranks%2==0
+QS/regtest-acc-1-libxc                                      libint libxc !ifx
 QS/regtest-spgr                                             spglib
+QS/regtest-almo-eda
 SE/regtest-3-1
 NEB/regtest-1
-QS/regtest-double-hybrid-1                                  libint !ifx
-QS/regtest-elpa                                             elpa mpiranks==1||mpiranks%2==0
 QS/regtest-cneo
-QS/regtest-as                                               libint !ifx
 QS/regtest-scalapack-generalized                            parallel scalapack
-QS/regtest-as-qcschema                                      hdf5 libint !ifx
+QS/regtest-double-hybrid-1                                  libint !ifx
+QS/regtest-double-hybrid-stress-numer-meta                  libxc !ifx
 QS/regtest-ri-laplace-mp2-cubic                             libint !ifx
-QS/regtest-double-hybrid-stress-numer-laplace               libxc !ifx
+QS/regtest-gauxc-gapw-base                                  gauxc
+QS/regtest-gauxc-skala                                      gauxc
+QS/regtest-double-hybrid-stress-meta                        libxc
+QS/regtest-chi-1
 QS/regtest-negf-2                                           fftw3
-QS/regtest-rtbse-gxac                                       libint greenx !ifx
-Fist/regtest-nequip                                         libtorch
-QS/regtest-monovalent
+QS/regtest-double-hybrid-stress-laplace                     libint libxc !ifx
+optimize_input/regtest-1
 DFTB/regtest-vdw
 DFTB/regtest-debug
-QS/regtest-sccs-2
-optimize_input/regtest-1
-QS/regtest-double-hybrid-stress-meta                        libxc
-QS/regtest-double-hybrid-stress-laplace                     libint libxc !ifx
+Fist/regtest-nequip                                         libtorch
+QS/regtest-as                                               libint !ifx
+QS/regtest-monovalent
 Fist/regtest-16
-QS/regtest-double-hybrid-stress-numer-meta                  libxc !ifx
 QS/regtest-gcscf
-QS/regtest-double-hybrid-2                                  libint !ifx
-QS/regtest-double-hybrid-stress-numer                       !ifx
 QS/regtest-nmr-2
+Fist/regtest-field
+QS/regtest-double-hybrid-2                                  libint !ifx
+QS/regtest-sccs-2
+QS/regtest-fod
+QS/regtest-rtbse-gxac                                       libint greenx !ifx
+QS/regtest-double-hybrid-stress-numer                       !ifx
 QS/regtest-linearscaling
 QS/regtest-double-hybrid-stress
-SWARM/regtest-glbopt-1
+Fist/regtest-spgr                                           spglib
 FE/regtest-3
 Fist/regtest-allegro                                        libtorch
-QS/regtest-kp-spglib                                        libint spglib !ifx
-Fist/regtest-spgr                                           spglib
-Fist/regtest-field
+QS/regtest-gauxc-gpw-nlcc                                   gauxc
+QS/regtest-mom-3
+SWARM/regtest-glbopt-1
 DFTB/regtest-nonscc-spglib                                  spglib
 HP-DFT
 QS/regtest-cdft-hirshfeld-3
 QS/regtest-hf-3c                                            libint !ifx
 Fist/regtest-mace                                           libtorch
 QS/regtest-trexio-2                                         trexio
+QS/regtest-fftw                                             fftw3
 TAMC/regtest
-DFTB/regtest-scc-spglib                                     spglib
 NEB/regtest-3
+QS/regtest-kp-spglib                                        libint spglib !ifx
 QS/regtest-new-pulay-mixing
-QS/regtest-gw-ic-model                                      libint !ifx
+DFTB/regtest-scc-spglib                                     spglib
 QS/regtest-sto
-QS/regtest-elpa-2                                           elpa
-QMMM/xTB/regtest-tblite                                     tblite
 QS/regtest-fftw-wisdom                                      fftw3
+QS/regtest-elpa-2                                           elpa
 QS/regtest-eht-guess                                        libdftd4
+QS/regtest-gw-ic-model                                      libint !ifx
 ATOM/regtest-libxc                                          libxc
-QS/regtest-pcc
-FE/regtest-2
+QMMM/xTB/regtest-tblite                                     tblite
 QS/regtest-tddfpt-static                                    libint !ifx
+FE/regtest-2
+QS/regtest-pcc
 FARMING/regtest-2
 QMMM/QS/regtest-lrigpw
-QS/regtest-fftw                                             fftw3
+QS/regtest-fde
 QS/regtest-wfn-restart
 Fist/regtest-plumed2                                        plumed2
-QS/regtest-topology
-QS/regtest-fde
-
-QS/regtest-spectral-localizer
-QS/regtest-spectral-localizer-3d
-QS/regtest-quadratic-pseudospectrum
-QS/regtest-gamma-frozen-density
-QS/regtest-mom-3
