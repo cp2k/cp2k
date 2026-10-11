@@ -43,6 +43,11 @@ spack:
         - spec: cuda@12.9
           prefix: /usr/local/cuda
 
+    # Build tools
+    cmake:
+      prefer:
+        - "@4"
+
     # ScaLAPACK, LAPACK, BLAS
     blas:
       require:

@@ -35,6 +35,11 @@ spack:
         - "+static"
         - "build_type=Release"
 
+    # Build tools
+    cmake:
+      prefer:
+        - "@4"
+
     # ScaLAPACK, LAPACK, BLAS
     blas:
       require:
