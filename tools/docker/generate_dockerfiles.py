@@ -1006,6 +1006,8 @@ RUN dnf -y install dnf-plugins-core && \
     libtool \
     openssl-devel \
     patch \
+    perl \
+    procps-ng \
     python3 \
     python3-devel \
     python3-pip \
