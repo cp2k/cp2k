@@ -44,6 +44,10 @@ spack:
           prefix: /usr/local/cuda
 
     # Build tools
+    cmake:
+      prefer:
+        - "@4"
+
     mpi:
       require:
         - mpich
