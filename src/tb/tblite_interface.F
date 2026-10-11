@@ -21,7 +21,8 @@ MODULE tblite_interface
    USE tblite_container_cache, ONLY: container_cache
    USE tblite_container_type, ONLY: container_type
    USE tblite_data_spin, ONLY: get_spin_constant
-   USE tblite_integral_multipole, ONLY: multipole_cgto, multipole_grad_cgto, msao
+   USE tblite_integral_native_integrals, ONLY: multipole_cgto, multipole_grad_cgto, msao
+   USE tblite_partition, ONLY: work_partition, new_work_partition
    USE tblite_scf, ONLY: get_mixer_dimension
    USE tblite_scf_info, ONLY: scf_info, atom_resolved, shell_resolved
    USE tblite_scf_potential, ONLY: new_potential
@@ -595,6 +596,13 @@ CONTAINS
 #if defined(__TBLITE)
 
       TYPE(container_cache)                              :: hcache, rcache
+      TYPE(error_type), ALLOCATABLE                      :: error
+      TYPE(work_partition)                               :: partition
+
+      ! Containers return local contributions on the QS communicator.
+      CALL new_work_partition(error, partition, para_env%mepos, para_env%num_pe)
+      IF (ALLOCATED(error)) CPABORT(error%message)
+      CALL tb%calc%set_partition(partition)
 
       tb%e_hal = 0.0_dp
       tb%e_rep = 0.0_dp
@@ -612,7 +620,7 @@ CONTAINS
             tb%grad = 0.0_dp
             CALL tb%calc%halogen%get_engrad(tb%mol, hcache, tb%e_hal, &
             & tb%grad, tb%sigma)
-            CALL tb_grad2force(qs_env, tb, para_env, 0)
+            CALL tb_grad2force(qs_env, tb, para_env, 0, replicated=.FALSE.)
          ELSE
             CALL tb%calc%halogen%get_engrad(tb%mol, hcache, tb%e_hal)
          END IF
@@ -624,7 +632,7 @@ CONTAINS
             tb%grad = 0.0_dp
             CALL tb%calc%repulsion%get_engrad(tb%mol, rcache, tb%e_rep, &
             & tb%grad, tb%sigma)
-            CALL tb_grad2force(qs_env, tb, para_env, 1)
+            CALL tb_grad2force(qs_env, tb, para_env, 1, replicated=.FALSE.)
          ELSE
             CALL tb%calc%repulsion%get_engrad(tb%mol, rcache, tb%e_rep)
          END IF
@@ -636,7 +644,7 @@ CONTAINS
             tb%grad = 0.0_dp
             CALL tb%calc%dispersion%get_engrad(tb%mol, tb%dcache, tb%e_disp, &
             & tb%grad, tb%sigma)
-            CALL tb_grad2force(qs_env, tb, para_env, 2)
+            CALL tb_grad2force(qs_env, tb, para_env, 2, replicated=.FALSE.)
          ELSE
             CALL tb%calc%dispersion%get_engrad(tb%mol, tb%dcache, tb%e_disp)
          END IF
@@ -689,20 +697,27 @@ CONTAINS
 
       INTEGER                                            :: iounit
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: scf_section
       REAL(KIND=dp)                                      :: xtb_inter
+      REAL(KIND=dp), DIMENSION(6)                        :: contributions
       NULLIFY (scf_section, logger)
 
       logger => cp_get_default_logger()
       iounit = cp_logger_get_default_io_unit(logger)
       scf_section => section_vals_get_subs_vals(qs_env%input, "DFT%SCF")
 
-      energy%repulsive = SUM(tb%e_rep)
-      energy%el_stat = SUM(tb%e_es)
-      energy%dispersion = SUM(tb%e_disp)
-      energy%dispersion_sc = SUM(tb%e_scd)
-      energy%xtb_xb_inter = SUM(tb%e_hal)
-      xtb_inter = SUM(tb%e_int)
+      ! Keep the atom-resolved container arrays local between SCC evaluations.
+      CALL get_qs_env(qs_env=qs_env, para_env=para_env)
+      contributions = [SUM(tb%e_rep), SUM(tb%e_es), SUM(tb%e_disp), &
+                       SUM(tb%e_scd), SUM(tb%e_hal), SUM(tb%e_int)]
+      CALL para_env%sum(contributions)
+      energy%repulsive = contributions(1)
+      energy%el_stat = contributions(2)
+      energy%dispersion = contributions(3)
+      energy%dispersion_sc = contributions(4)
+      energy%xtb_xb_inter = contributions(5)
+      xtb_inter = contributions(6)
 
       energy%total = energy%core + energy%repulsive + energy%el_stat + energy%dispersion &
                      + energy%dispersion_sc + energy%xtb_xb_inter + xtb_inter &
@@ -1411,7 +1426,7 @@ CONTAINS
          CALL para_env%sum(native_cn_deriv_sum)
          tb%grad = 0.0_dp
          CALL tb_add_grad(tb%grad, tb%dcndr, native_cn_deriv_sum, tb%mol%nat)
-         CALL tb_grad2force(qs_env, tb, para_env, 4)
+         CALL tb_grad2force(qs_env, tb, para_env, 4, replicated=.TRUE.)
          DO iatom = 1, SIZE(atom_of_kind)
             ikind = kind_of(iatom)
             force(ikind)%overlap(:, atom_of_kind(iatom)) = &
@@ -1890,8 +1905,6 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      ! These library results are replicated across MPI ranks. The force conversion
-      ! retains the existing normalization before CP2K's global force reduction.
       CALL tb%pot%reset
       tb%e_es = 0.0_dp
       tb%e_scd = 0.0_dp
@@ -1909,23 +1922,29 @@ CONTAINS
          CALL tb%calc%interactions%get_energy(tb%mol, tb%icache, tb%wfn, tb%e_int)
       END IF
 
+      ! The Hamiltonian needs the complete potential in every spin channel.
+      CALL para_env%sum(tb%pot%vat)
+      CALL para_env%sum(tb%pot%vsh)
+      CALL para_env%sum(tb%pot%vdp)
+      CALL para_env%sum(tb%pot%vqp)
+
       IF (calculate_forces) THEN
          IF (ALLOCATED(tb%calc%coulomb)) THEN
             tb%grad = 0.0_dp
             CALL tb%calc%coulomb%get_gradient(tb%mol, tb%cache, tb%wfn, tb%grad, tb%sigma)
-            CALL tb_grad2force(qs_env, tb, para_env, 3)
+            CALL tb_grad2force(qs_env, tb, para_env, 3, replicated=.FALSE.)
          END IF
 
          IF (ALLOCATED(tb%calc%dispersion)) THEN
             tb%grad = 0.0_dp
             CALL tb%calc%dispersion%get_gradient(tb%mol, tb%dcache, tb%wfn, tb%grad, tb%sigma)
-            CALL tb_grad2force(qs_env, tb, para_env, 2)
+            CALL tb_grad2force(qs_env, tb, para_env, 2, replicated=.FALSE.)
          END IF
 
          IF (ALLOCATED(tb%calc%interactions)) THEN
             tb%grad = 0.0_dp
             CALL tb%calc%interactions%get_gradient(tb%mol, tb%icache, tb%wfn, tb%grad, tb%sigma)
-            CALL tb_grad2force(qs_env, tb, para_env, 3)
+            CALL tb_grad2force(qs_env, tb, para_env, 3, replicated=.FALSE.)
          END IF
       END IF
 
@@ -2469,19 +2488,21 @@ CONTAINS
 !> \param tb ...
 !> \param para_env ...
 !> \param ityp ...
-!> \note
+!> \param replicated Whether the gradient has already been summed over the QS communicator.
 ! **************************************************************************************************
-   SUBROUTINE tb_grad2force(qs_env, tb, para_env, ityp)
+   SUBROUTINE tb_grad2force(qs_env, tb, para_env, ityp, replicated)
 
       TYPE(qs_environment_type)                          :: qs_env
       TYPE(tblite_type)                                  :: tb
       TYPE(mp_para_env_type)                             :: para_env
       INTEGER                                            :: ityp
+      LOGICAL, INTENT(IN)                                :: replicated
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'tb_grad2force'
 
       INTEGER                                            :: atoma, handle, iatom, ikind, natom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
+      REAL(KIND=dp)                                      :: scale
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -2496,6 +2517,10 @@ CONTAINS
 
       natom = SIZE(particle_set)
 
+      ! CP2K sums the force components after all local contributions are assembled.
+      scale = 1.0_dp
+      IF (replicated) scale = 1.0_dp/para_env%num_pe
+
       SELECT CASE (ityp)
       CASE DEFAULT
          CPABORT("unknown force type")
@@ -2504,42 +2529,42 @@ CONTAINS
             ikind = kind_of(iatom)
             atoma = atom_of_kind(iatom)
             force(ikind)%all_potential(:, atoma) = &
-               force(ikind)%all_potential(:, atoma) + tb%grad(:, iatom)/para_env%num_pe
+               force(ikind)%all_potential(:, atoma) + scale*tb%grad(:, iatom)
          END DO
       CASE (1)
          DO iatom = 1, natom
             ikind = kind_of(iatom)
             atoma = atom_of_kind(iatom)
             force(ikind)%repulsive(:, atoma) = &
-               force(ikind)%repulsive(:, atoma) + tb%grad(:, iatom)/para_env%num_pe
+               force(ikind)%repulsive(:, atoma) + scale*tb%grad(:, iatom)
          END DO
       CASE (2)
          DO iatom = 1, natom
             ikind = kind_of(iatom)
             atoma = atom_of_kind(iatom)
             force(ikind)%dispersion(:, atoma) = &
-               force(ikind)%dispersion(:, atoma) + tb%grad(:, iatom)/para_env%num_pe
+               force(ikind)%dispersion(:, atoma) + scale*tb%grad(:, iatom)
          END DO
       CASE (3)
          DO iatom = 1, natom
             ikind = kind_of(iatom)
             atoma = atom_of_kind(iatom)
             force(ikind)%rho_elec(:, atoma) = &
-               force(ikind)%rho_elec(:, atoma) + tb%grad(:, iatom)/para_env%num_pe
+               force(ikind)%rho_elec(:, atoma) + scale*tb%grad(:, iatom)
          END DO
       CASE (4)
          DO iatom = 1, natom
             ikind = kind_of(iatom)
             atoma = atom_of_kind(iatom)
             force(ikind)%overlap(:, atoma) = &
-               force(ikind)%overlap(:, atoma) + tb%grad(:, iatom)/para_env%num_pe
+               force(ikind)%overlap(:, atoma) + scale*tb%grad(:, iatom)
          END DO
       CASE (5)
          DO iatom = 1, natom
             ikind = kind_of(iatom)
             atoma = atom_of_kind(iatom)
             force(ikind)%efield(:, atoma) = &
-               force(ikind)%efield(:, atoma) + tb%grad(:, iatom)/para_env%num_pe
+               force(ikind)%efield(:, atoma) + scale*tb%grad(:, iatom)
          END DO
       END SELECT
 
@@ -3008,18 +3033,15 @@ CONTAINS
          CALL para_env%sum(hsigma)
       END IF
       CALL para_env%sum(tb%grad)
-      CALL tb_grad2force(qs_env, tb, para_env, 4)
-
-      IF (.NOT. use_matrix_scc_stress) tb%sigma = tb%sigma + hsigma
+      CALL tb_grad2force(qs_env, tb, para_env, 4, replicated=.TRUE.)
 
       DEALLOCATE (basis_set_list)
 
       IF (tb%use_virial) THEN
-         CALL tb_add_stress(qs_env, tb, para_env)
-         IF (use_matrix_scc_stress) THEN
-            CALL get_qs_env(qs_env=qs_env, virial=virial)
-            virial%pv_virial = virial%pv_virial - hsigma/para_env%num_pe
-         END IF
+         CALL tb_add_stress(qs_env, tb)
+         CALL get_qs_env(qs_env=qs_env, virial=virial)
+         ! Both the DBCSR contraction and the explicit sum above return a complete tensor.
+         virial%pv_virial = virial%pv_virial - hsigma/para_env%num_pe
       END IF
 
 #else
@@ -3032,16 +3054,14 @@ CONTAINS
    END SUBROUTINE tb_derive_dH_off
 
 ! **************************************************************************************************
-!> \brief save stress tensor
+!> \brief Add the local container virial before CP2K's global reduction.
 !> \param qs_env ...
 !> \param tb ...
-!> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE tb_add_stress(qs_env, tb, para_env)
+   SUBROUTINE tb_add_stress(qs_env, tb)
 
       TYPE(qs_environment_type)                          :: qs_env
       TYPE(tblite_type)                                  :: tb
-      TYPE(mp_para_env_type)                             :: para_env
 
       INTEGER, DIMENSION(3)                              :: periodic
       TYPE(cell_type), POINTER                           :: cell
@@ -3058,7 +3078,7 @@ CONTAINS
                       "but it is not a physically meaningful bulk stress for an isolated molecule.")
       END IF
 
-      virial%pv_virial = virial%pv_virial - tb%sigma/para_env%num_pe
+      virial%pv_virial = virial%pv_virial - tb%sigma
 
    END SUBROUTINE tb_add_stress
 
