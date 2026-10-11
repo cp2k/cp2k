@@ -342,8 +342,8 @@ class Config:
         self.version = args.version
         self.debug = args.debug
         self.max_errors = args.maxerrors
-        self.restrictdirs = args.restrictdir if args.restrictdir else [".*"]
-        self.skipdirs = args.skipdir if args.skipdir else []
+        self.restrictdirs = [d.rstrip("/") for d in args.restrictdir or [".*"]]
+        self.skipdirs = [d.rstrip("/") for d in args.skipdir or []]
         self.skip_unittests = args.skip_unittests
         self.skip_regtests = args.skip_regtests
         self.test_dirs = args.testdirs or self.cp2k_root / "tests" / "TEST_DIRS"
