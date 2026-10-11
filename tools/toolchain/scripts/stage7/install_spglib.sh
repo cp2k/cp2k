@@ -5,8 +5,8 @@
 
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
-spglib_ver="2.7.0"
-spglib_sha256="b22fc9abae9716c574fbc6d55cfc53ed654a714fccc5657a26ff5d18114bd8bd"
+spglib_ver="2.8.0"
+spglib_sha256="161562fa082da85a8ecda0339ddaac3714470434de60eb67978a960872cacf78"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
