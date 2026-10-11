@@ -42,7 +42,7 @@
         &END INTERACTION_POTENTIAL
         &MEMORY
           EPS_STORAGE_SCALING 0.1
-          MAX_MEMORY 1000
+          MAX_MEMORY 300
         &END MEMORY
         &SCREENING
           EPS_SCHWARZ 1.0E-6
