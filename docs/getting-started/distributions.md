@@ -135,7 +135,3 @@ spack install cp2k
 ```
 
 See also [spack.io](https://packages.spack.io/package.html?name=cp2k) and [](./build-with-spack).
-
-# Next Steps
-
-Once CP2K is installed, continue with [](./first-calculation).
