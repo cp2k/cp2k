@@ -50,8 +50,10 @@ MODULE qs_dispersion_d4
                                               get_rational_damping, &
                                               new, &
                                               new_d4_model, &
+                                              new_work_partition, &
                                               realspace_cutoff, &
                                               structure_type, &
+                                              work_partition, &
                                               rational_damping_param, &
                                               get_coordination_number, &
                                               get_lattice_points
@@ -126,6 +128,7 @@ CONTAINS
       TYPE(d4_model)                                     :: disp
       TYPE(structure_type)                               :: mol
       TYPE(realspace_cutoff)                             :: cutoff
+      TYPE(work_partition)                               :: partition
 
       TYPE(error_type), ALLOCATABLE                      :: error
 
@@ -256,6 +259,11 @@ CONTAINS
          use_virial = .FALSE.
       END IF
 
+      IF (dispersion_env%d4_reference_code .OR. debug) THEN
+         CALL new_work_partition(error, partition, para_env%mepos, para_env%num_pe)
+         IF (ALLOCATED(error)) CPABORT(error%message)
+      END IF
+
       IF (dispersion_env%d4_reference_code) THEN
 
          !> Wrapper to handle the evaluation of dispersion energy and derivatives
@@ -264,25 +272,27 @@ CONTAINS
          END IF
          IF (grad) THEN
             ALLOCATE (gradient(3, natom))
-            CALL get_dispersion(mol, disp, param, cutoff, evdw, gradient, stress)
+            CALL get_dispersion(mol, disp, param, cutoff, evdw, gradient, stress, &
+                                partition=partition, error=error)
+            IF (ALLOCATED(error)) CPABORT(error%message)
             IF (calculate_forces) THEN
                IF (use_virial) THEN
-                  virial%pv_virial = virial%pv_virial - stress/para_env%num_pe
+                  virial%pv_virial = virial%pv_virial - stress
                END IF
                DO iatom = 1, natom
                   ifull = atom_map_back(iatom)
                   ikind = kind_of(ifull)
                   atoma = atom_of_kind(ifull)
                   force(ikind)%dispersion(:, atoma) = &
-                     force(ikind)%dispersion(:, atoma) + gradient(:, iatom)/para_env%num_pe
+                     force(ikind)%dispersion(:, atoma) + gradient(:, iatom)
                END DO
             END IF
             DEALLOCATE (gradient)
          ELSE
-            CALL get_dispersion(mol, disp, param, cutoff, evdw)
+            CALL get_dispersion(mol, disp, param, cutoff, evdw, partition=partition, error=error)
+            IF (ALLOCATED(error)) CPABORT(error%message)
          END IF
-         !dispersion energy is computed by every MPI process
-         evdw = evdw/para_env%num_pe
+         ! Energy, forces and virial remain local until CP2K's existing reductions.
          IF (dispersion_env%ext_charges) dispersion_env%dcharges = 0.0_dp
          IF (PRESENT(atomic_energy)) THEN
             CPWARN("Atomic energies not available for D4 reference code")
@@ -308,12 +318,22 @@ CONTAINS
          END IF
 
          td = 0.0_dp
-         IF (debug .AND. iw > 0) THEN
+         IF (debug) THEN
             ts = m_walltime()
-            CALL refd4_debug(param, disp, mol, cutoff, grad, dispersion_env%doabc, &
+            CALL refd4_debug(param, disp, mol, cutoff, partition, grad, dispersion_env%doabc, &
                              enerd2, enerd3, cnd, qd, Edcn, Edq, gdeb, sdeb)
+            ! Compare complete results; CN and charges are already replicated.
+            CALL para_env%sum(enerd2)
+            IF (dispersion_env%doabc) CALL para_env%sum(enerd3)
+            IF (grad) THEN
+               CALL para_env%sum(Edcn)
+               CALL para_env%sum(Edq)
+               CALL para_env%sum(gdeb)
+               CALL para_env%sum(sdeb)
+            END IF
             te = m_walltime()
             td = te - ts
+            CALL para_env%max(td)
          END IF
 
          tc = 0.0_dp
@@ -505,6 +525,7 @@ CONTAINS
          tc = tc + te - ts
 
          IF (debug) THEN
+            CALL para_env%max(tc)
             ta = SUM(energies)
             CALL para_env%sum(ta)
             IF (iw > 0) THEN
@@ -570,6 +591,7 @@ CONTAINS
 !> \param disp ...
 !> \param mol ...
 !> \param cutoff ...
+!> \param partition ...
 !> \param grad ...
 !> \param doabc ...
 !> \param enerd2 ...
@@ -581,12 +603,13 @@ CONTAINS
 !> \param gradient ...
 !> \param stress ...
 ! **************************************************************************************************
-   SUBROUTINE refd4_debug(param, disp, mol, cutoff, grad, doabc, &
+   SUBROUTINE refd4_debug(param, disp, mol, cutoff, partition, grad, doabc, &
                           enerd2, enerd3, cnd, qd, dEdcn, dEdq, gradient, stress)
       CLASS(damping_param)                               :: param
       TYPE(d4_model)                                     :: disp
       TYPE(structure_type)                               :: mol
       TYPE(realspace_cutoff)                             :: cutoff
+      TYPE(work_partition), INTENT(IN)                   :: partition
       TYPE(error_type), ALLOCATABLE                      :: error
       LOGICAL, INTENT(IN)                                :: grad, doabc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: enerd2, enerd3, cnd, qd, dEdcn, dEdq
@@ -636,15 +659,17 @@ CONTAINS
          ALLOCATE (dEdcn(natom), dEdq(natom))
          dEdcn(:) = 0.0_dp; dEdq(:) = 0.0_dp
       END IF
-      CALL param%get_dispersion2(mol, lattr, cutoff%disp2, cutoff%width2, disp%r4r2, c6, &
-                                 dc6dcn, dc6dq, enerd2, dEdcn, dEdq, gradient(:, :, 1), &
-                                 stress(:, :, 1))
-      !
       IF (grad) THEN
+         CALL param%get_dispersion2(mol, lattr, cutoff%disp2, cutoff%width2, disp%r4r2, c6, &
+                                    dc6dcn, dc6dq, enerd2, dEdcn, dEdq, gradient(:, :, 1), &
+                                    stress(:, :, 1), partition=partition)
          DO i = 1, 3
             gradient(i, :, 2) = MATMUL(qdr(i, :, :), dEdq(:))
             stress(i, :, 2) = MATMUL(qdL(i, :, :), dEdq(:))
          END DO
+      ELSE
+         CALL param%get_dispersion2(mol, lattr, cutoff%disp2, cutoff%width2, disp%r4r2, c6, &
+                                    energy=enerd2, partition=partition)
       END IF
       !
       IF (doabc) THEN
@@ -655,9 +680,14 @@ CONTAINS
          CALL disp%weight_references(mol, cnd, q, gwvec, gwdcn, gwdq)
          CALL disp%get_atomic_c6(mol, gwvec, gwdcn, gwdq, c6, dc6dcn, dc6dq)
          CALL get_lattice_points(mol%periodic, mol%lattice, cutoff%disp3, lattr)
-         CALL param%get_dispersion3(mol, lattr, cutoff%disp3, cutoff%width3, disp%r4r2, c6, &
-                                    dc6dcn, dc6dq, enerd3, dEdcn, qq, gradient(:, :, 3), &
-                                    stress(:, :, 3))
+         IF (grad) THEN
+            CALL param%get_dispersion3(mol, lattr, cutoff%disp3, cutoff%width3, disp%r4r2, c6, &
+                                       dc6dcn, dc6dq, enerd3, dEdcn, qq, gradient(:, :, 3), &
+                                       stress(:, :, 3), partition=partition)
+         ELSE
+            CALL param%get_dispersion3(mol, lattr, cutoff%disp3, cutoff%width3, disp%r4r2, c6, &
+                                       energy=enerd3, partition=partition)
+         END IF
       END IF
       IF (grad) THEN
          DO i = 1, 3

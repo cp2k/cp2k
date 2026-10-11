@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-dftd4_ver="4.2.0"
-dftd4_sha256="467e024071510ad82b862c66c383c2ebc164fc1140e15dfc79f48d2f999fd184"
+dftd4_ver="4.3.1"
+dftd4_sha256="32c0b498a7b07b1552e727333d9c83ab627d1bdf4ff46b7b8b31af9159fb2928"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -35,16 +35,12 @@ case "$with_dftd4" in
       [ -d dftd4-${dftd4_ver} ] && rm -rf dftd4-${dftd4_ver}
       tar -xJf dftd4-${dftd4_ver}.tar.xz
       cd dftd4-${dftd4_ver}
-
-      mkdir build && cd build
-      cmake \
+      cmake -B build \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
-        .. \
         > cmake.log 2>&1 || tail_excerpt cmake.log
-      make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
-      cd ..
+      cmake --build build -t install -j $(get_nprocs) > build.log 2>&1 || tail_excerpt build.log
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
     fi
     ;;

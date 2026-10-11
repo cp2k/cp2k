@@ -48,9 +48,9 @@ MODULE tblite_types
       INTEGER, ALLOCATABLE                               :: el_num(:)
 
       REAL(KIND=dp)                                      :: accuracy = 1.0_dp
+      ! Local container virial; CP2K assembles and reduces the total virial.
       REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma = -1.0_dp
-      ! tblite contributions are currently replicated on every MPI rank.
-      ! Force/virial assembly accounts for CP2K's subsequent MPI reductions.
+      ! Local atom-resolved container energies, reduced only by tb_get_energy.
       REAL(KIND=dp), ALLOCATABLE                         :: e_hal(:)
       REAL(KIND=dp), ALLOCATABLE                         :: e_rep(:)
       REAL(KIND=dp), ALLOCATABLE                         :: e_disp(:)

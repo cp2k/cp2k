@@ -249,7 +249,7 @@ spack:
     - "spfft@1.1.1"
     - "spglib@2.8.0"
     - "spla@1.6.1"
-    - "tblite@0.7.0"
+    - "tblite@0.8.0"
     - "trexio@2.6.1"
 
   view:
