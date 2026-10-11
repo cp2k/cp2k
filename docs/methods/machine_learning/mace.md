@@ -6,10 +6,9 @@ et al. (2022).
 
 **Note:** Running MACE requires a CP2K build with LibTorch support
 
-Like the [NequIP/Allegro](https://manual.cp2k.org/trunk/methods/machine_learning/nequip.html)
-interface, CP2K runs MACE models through the generic LibTorch interface: a trained MACE model is
-exported once to a self-contained TorchScript file (`.pth`), which CP2K then loads and evaluates at
-runtime. No Python interpreter is involved during the simulation.
+Like the [NequIP/Allegro](./nequip) interface, CP2K runs MACE models through the generic LibTorch
+interface: a trained MACE model is exported once to a self-contained TorchScript file (`.pth`) that
+CP2K then loads and evaluates at runtime. No Python interpreter is involved during the simulation.
 
 ## Exporting a MACE model for CP2K
 

@@ -378,7 +378,7 @@ def render_keyword(
     if lone_keyword_value:
         metadata += [f"**Lone keyword:** {escape_markdown(lone_keyword_value)}"]
     if usage:
-        metadata += [f"**Usage:** _{escape_markdown(usage)}_"]
+        metadata += [f"**Usage:** `{escape_markdown(usage)}`"]
     output += ["  \n".join(metadata), ""]
     if description:
         output += [f"**Description:** {escape_markdown(description)}"]

@@ -1,8 +1,8 @@
 # Quadratic pseudospectrum
 
-`FORCE_EVAL / PROPERTIES / QUADRATIC_PSEUDOSPECTRUM` finds states approximately localized in both
-position and energy from a converged GPW/GAPW calculation. It reports no topological index and
-requires no additional library.
+[FORCE_EVAL/PROPERTIES/QUADRATIC_PSEUDOSPECTRUM](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.QUADRATIC_PSEUDOSPECTRUM)
+finds states approximately localized in both position and energy from a converged GPW/GAPW
+calculation. It reports no topological index and requires no additional library.
 
 For Hermitian covariant AO observables $A_j$, queries $\lambda_j$, positive weights $w_j$ and
 overlap $S$, the generalized eigenproblem is

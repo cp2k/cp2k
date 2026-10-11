@@ -1,8 +1,8 @@
 # Spectral localizers
 
-`FORCE_EVAL / PROPERTIES / SPECTRAL_LOCALIZER` evaluates a local topological index and protection
-gap from the converged GPW/GAPW Hamiltonian and AO overlap. It is independent of Wannier90 and Kubo
-transport. No additional library is required.
+[FORCE_EVAL/PROPERTIES/SPECTRAL_LOCALIZER](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.SPECTRAL_LOCALIZER)
+evaluates a local topological index and protection gap from the converged GPW/GAPW Hamiltonian and
+AO overlap. It is independent of Wannier90 and Kubo transport. No additional library is required.
 
 ## Finite systems
 

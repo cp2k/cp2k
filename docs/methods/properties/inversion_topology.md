@@ -12,7 +12,8 @@ are not used to classify the bands.
 
 ## Input
 
-After a converged complex-k-point GPW calculation, request:
+After a converged complex-k-point GPW calculation, request the section
+[DFT/PRINT/WANNIER90](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90):
 
 ```text
 &WANNIER90
