@@ -159,6 +159,7 @@ spack:
         - "~distributed"
         - "~fbgemm"
         - "~kineto"
+        - "~magma"
         - "~mkldnn"
         - "~rocm"
         - "~valgrind"
