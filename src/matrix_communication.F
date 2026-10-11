@@ -10,7 +10,7 @@
 ! **************************************************************************************************
 MODULE matrix_communication
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type,&
+   USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_request_type,&
                                               mp_waitall
 #include "./base/base_uses.f90"
@@ -75,14 +75,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Synchronously exchange flat matrix buffers with nonempty peers.
-!> \param para_env communicator covering all sending and receiving ranks
+!> \param comm communicator covering all sending and receiving ranks
 !> \param buffer_rec preallocated receive buffer
 !> \param buffer_send populated send buffer
 !> \param do_indx whether to exchange integer metadata (default: true)
 !> \param do_msg whether to exchange numerical payloads (default: true)
 ! **************************************************************************************************
-   SUBROUTINE exchange_matrix_buffers(para_env, buffer_rec, buffer_send, do_indx, do_msg)
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+   SUBROUTINE exchange_matrix_buffers(comm, buffer_rec, buffer_send, do_indx, do_msg)
+      CLASS(mp_comm_type), INTENT(IN)                    :: comm
       TYPE(matrix_buffer_type), INTENT(INOUT)            :: buffer_rec, buffer_send
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_indx, do_msg
 
@@ -93,14 +93,14 @@ CONTAINS
       TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: requests
 
       CALL timeset(routineN, handle)
-      nprocs = para_env%num_pe
+      nprocs = comm%num_pe
       my_do_indx = .TRUE.
       IF (PRESENT(do_indx)) my_do_indx = do_indx
       my_do_msg = .TRUE.
       IF (PRESENT(do_msg)) my_do_msg = do_msg
 
       ! Copy the self segment directly, including the single-rank case.
-      peer = para_env%mepos
+      peer = comm%mepos
       IF (my_do_indx) THEN
          buffer_rec%indx(:, buffer_rec%indx_offset(peer) + 1:buffer_rec%indx_offset(peer + 1)) = &
             buffer_send%indx(:, buffer_send%indx_offset(peer) + 1:buffer_send%indx_offset(peer + 1))
@@ -125,38 +125,38 @@ CONTAINS
 
          ! Post both channels before waiting so metadata and payload can overlap.
          DO peer = 0, nprocs - 1
-            IF (peer == para_env%mepos) CYCLE
+            IF (peer == comm%mepos) CYCLE
             IF (my_do_indx) THEN
                first = buffer_rec%indx_offset(peer) + 1
                last = buffer_rec%indx_offset(peer + 1)
                IF (last >= first) THEN
                   nreq = nreq + 1
-                  CALL para_env%irecv(buffer_rec%indx(:, first:last), peer, requests(nreq), tag=4)
+                  CALL comm%irecv(buffer_rec%indx(:, first:last), peer, requests(nreq), tag=4)
                END IF
             END IF
             IF (my_do_msg .AND. buffer_rec%msg_offset(peer + 1) > buffer_rec%msg_offset(peer)) THEN
                first = buffer_rec%msg_offset(peer) + 1
                last = buffer_rec%msg_offset(peer + 1)
                nreq = nreq + 1
-               CALL para_env%irecv(buffer_rec%msg(first:last), peer, requests(nreq), tag=7)
+               CALL comm%irecv(buffer_rec%msg(first:last), peer, requests(nreq), tag=7)
             END IF
          END DO
 
          DO peer = 0, nprocs - 1
-            IF (peer == para_env%mepos) CYCLE
+            IF (peer == comm%mepos) CYCLE
             IF (my_do_indx) THEN
                first = buffer_send%indx_offset(peer) + 1
                last = buffer_send%indx_offset(peer + 1)
                IF (last >= first) THEN
                   nreq = nreq + 1
-                  CALL para_env%isend(buffer_send%indx(:, first:last), peer, requests(nreq), tag=4)
+                  CALL comm%isend(buffer_send%indx(:, first:last), peer, requests(nreq), tag=4)
                END IF
             END IF
             IF (my_do_msg .AND. buffer_send%msg_offset(peer + 1) > buffer_send%msg_offset(peer)) THEN
                first = buffer_send%msg_offset(peer) + 1
                last = buffer_send%msg_offset(peer + 1)
                nreq = nreq + 1
-               CALL para_env%isend(buffer_send%msg(first:last), peer, requests(nreq), tag=7)
+               CALL comm%isend(buffer_send%msg(first:last), peer, requests(nreq), tag=7)
             END IF
          END DO
          IF (nreq > 0) CALL mp_waitall(requests(:nreq))
