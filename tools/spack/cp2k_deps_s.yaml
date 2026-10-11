@@ -108,11 +108,12 @@ spack:
         - "~distributed"
         - "~fbgemm"
         - "~kineto"
-        - "~magma"
         - "~mkldnn"
         - "~rocm"
         - "~valgrind"
         - "~xnnpack"
+        - spec: "~magma"
+          when: "+cuda"
 
     trexio:
       require:
