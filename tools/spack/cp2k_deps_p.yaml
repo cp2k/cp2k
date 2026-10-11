@@ -163,6 +163,8 @@ spack:
         - "~rocm"
         - "~valgrind"
         - "~xnnpack"
+        - spec: "~magma"
+          when: "+cuda"
 
     sirius:
       require:

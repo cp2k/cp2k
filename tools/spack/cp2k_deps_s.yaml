@@ -112,6 +112,8 @@ spack:
         - "~rocm"
         - "~valgrind"
         - "~xnnpack"
+        - spec: "~magma"
+          when: "+cuda"
 
     trexio:
       require:
