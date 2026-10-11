@@ -44,7 +44,8 @@ MODULE generic_os_integrals
    USE debug_os_integrals,              ONLY: overlap_aabb_test,&
                                               overlap_ab_test,&
                                               overlap_abc_test
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE orbital_pointers,                ONLY: ncoset
 #include "./base/base_uses.f90"
 
@@ -831,20 +832,18 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_aabb_os'
 
       INTEGER :: handle, iset, isgfa1, jset, jsgfa2, kset, ksgfb1, lset, lsgfb2, m1, m2, m3, m4, &
-         maxco, maxcoa, maxcob, ncoa1, ncoa2, ncob1, ncob2, nseta, nsetb, sgfa1, sgfa2, sgfb1, &
-         sgfb2
+         maxcoa, maxcob, ncoa1, ncoa2, ncob1, ncob2, nseta, nsetb, sgfa1, sgfa2, sgfb1, sgfb2
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL                                            :: asets_equal, bsets_equal
       REAL(KIND=dp)                                      :: dab, ra(3), rb(3)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: sint
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
+      REAL(KIND=dp), ALLOCATABLE, TARGET                 :: buffer(:)
+      REAL(KIND=dp), CONTIGUOUS, POINTER                 :: sint(:, :, :, :)
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
 
       CALL timeset(routineN, handle)
       NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, &
-               first_sgfa, first_sgfb, set_radius_a, set_radius_b, rpgfa, rpgfb, &
+               first_sgfa, first_sgfb, rpgfa, rpgfb, &
                sphi_a, sphi_b, zeta, zetb)
 
       ! basis ikind
@@ -855,7 +854,6 @@ CONTAINS
       nseta = oba%nset
       nsgfa => oba%nsgf_set
       rpgfa => oba%pgf_radius
-      set_radius_a => oba%set_radius
       sphi_a => oba%sphi
       zeta => oba%zet
       ! basis jkind
@@ -866,15 +864,13 @@ CONTAINS
       nsetb = obb%nset
       nsgfb => obb%nsgf_set
       rpgfb => obb%pgf_radius
-      set_radius_b => obb%set_radius
       sphi_b => obb%sphi
       zetb => obb%zet
 
+      ! Reserve the largest quartet once; each view uses its own contiguous layout.
       CALL get_gto_basis_set(oba, maxco=maxcoa)
       CALL get_gto_basis_set(obb, maxco=maxcob)
-      maxco = MAX(maxcoa, maxcob)
-      ALLOCATE (sint(maxco, maxco, maxco, maxco))
-      sint = 0._dp
+      ALLOCATE (buffer(INT(maxcoa, int_8)**2*INT(maxcob, int_8)**2))
 
       dab = SQRT(SUM(rab**2))
 
@@ -902,17 +898,14 @@ CONTAINS
                   sgfb2 = first_sgfb(1, lset)
                   m4 = sgfb2 + nsgfb(lset) - 1
 
-                  ! check if sets are identical to spare some integral evaluation
-                  asets_equal = .FALSE.
-                  IF (iset == jset) asets_equal = .TRUE.
-                  bsets_equal = .FALSE.
-                  IF (kset == lset) bsets_equal = .TRUE.
+                  sint(1:ncoa1, 1:ncoa2, 1:ncob1, 1:ncob2) => &
+                     buffer(1:INT(ncoa1, int_8)*ncoa2*ncob1*ncob2)
                   ! calculate integrals
                   CALL overlap_aabb(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
                                     la_max(jset), la_min(jset), npgfa(jset), rpgfa(:, jset), zeta(:, jset), &
                                     lb_max(kset), lb_min(kset), npgfb(kset), rpgfb(:, kset), zetb(:, kset), &
                                     lb_max(lset), lb_min(lset), npgfb(lset), rpgfb(:, lset), zetb(:, lset), &
-                                    asets_equal, bsets_equal, rab, dab, sint)
+                                    iset == jset, kset == lset, rab, dab, sint)
                   ! debug if requested
                   IF (debug) THEN
                      ra = 0.0_dp
@@ -946,8 +939,7 @@ CONTAINS
          END DO
       END DO
 
-      DEALLOCATE (sint)
-
+      DEALLOCATE (buffer)
       CALL timestop(handle)
 
    END SUBROUTINE int_overlap_aabb_os
