@@ -481,12 +481,11 @@ excited-states:
 ```
 
 In this case, all the time-dependent MO are involved in the projection and stored separately. This
-time, the reference wave function is obtained from an XAS_TDP calculation, see the
-[RESTART_WFN](https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/DFT/XAS_TDP/PRINT/RESTART_WFN.html)
-option of the XAS_TDP module in the CP2K input reference. When requesting to print an excited state
-wavefunction, the resulting .wfn file is that of the groundstate wavefunction except that the
-initial orbital from which the electron is excited is replaced by the final orbital where the
-electron is excited to. Therefore, please be aware that the ordering of the orbitals will affect
+time, the reference wave function is obtained from an XAS_TDP calculation with the section
+[RESTART_WFN](#CP2K_INPUT.FORCE_EVAL.DFT.XAS_TDP.PRINT.RESTART_WFN). When requesting to print an
+excited state wavefunction, the resulting .wfn file is that of the groundstate wavefunction except
+that the initial orbital from which the electron is excited is replaced by the final orbital where
+the electron is excited to. Therefore, please be aware that the ordering of the orbitals will affect
 which file the excited orbital is written to. This is especially important to look out for if the
 initial orbital is not of the lowest energy.
 

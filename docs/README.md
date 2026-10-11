@@ -112,6 +112,9 @@ support. The following gives a quick overview of the syntax.
 ```
 # A first-level heading
 
+Each page should have exactly one first-level heading on the first line, which determines how the
+name of the link to the page is displayed on the sidebar.
+
 ## A second-level heading
 
 ### A third-level heading

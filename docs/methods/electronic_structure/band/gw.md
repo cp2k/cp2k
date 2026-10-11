@@ -91,16 +91,17 @@ CP2K contains three different *GW* implementations:
 - *GW* for molecules \[[](#Wilhelm2016)\] (Sec. 3)
 - *GW* for computing the band structure of a solid with small unit cell with *k*-point sampling in
   DFT (publication in preparation TODO: insert reference, Sec. 4)
-- *GW* for computing the band structure of a large cell in a Γ-only approach \[[](#Graml2024)\]
-  (Sec. 5)
+- *GW* for computing the band structure of a large cell in a $\Gamma$-only approach
+  \[[](#Graml2024)\] (Sec. 5)
 
 In the following, we will discuss details and usage of these *GW* implementations.
 
 ## 3. *GW* for molecules
 
 For starting a *G*<sub>0</sub>*W*<sub>0</sub>, ev*GW*<sub>0</sub> or ev*GW* calculation for a
-molecule, one needs to set the [RUN_TYPE](#CP2K_INPUT.GLOBAL.RUN_TYPE) to `ENERGY` and one needs to
-put the following section:
+molecule, one needs to set the [RUN_TYPE](#CP2K_INPUT.GLOBAL.RUN_TYPE) to `ENERGY`. The section
+[DFT/XC/WF_CORRELATION/RI_RPA/GW](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW) should be
+defined:
 
 ```
 &XC
@@ -137,7 +138,7 @@ implementation in CP2K, we recommend starting by reproducing the HOMO and LUMO
 GW100 test set. The reference values are $\varepsilon_\text{HOMO}^{G_0W_0\text{@PBE}}$ = -11.97 eV
 and $\varepsilon_\text{LUMO}^{G_0W_0\text{@PBE}}$ = 2.37 eV; CP2K input and output files for the
 *G*<sub>0</sub>*W*<sub>0</sub>@PBE calculation of the H<sub>2</sub>O molecule are available
-<a href="https://github.com/cp2k/cp2k-examples/tree/master/gw/1_H2O_GW100" target="_blank">here</a>.
+[here](https://github.com/cp2k/cp2k-examples/tree/master/gw/1_H2O_GW100).
 
 The following settings from DFT will also have an influence on *GW* quasiparticle energies:
 
@@ -150,14 +151,13 @@ The following settings from DFT will also have an influence on *GW* quasiparticl
 - [BASIS_SET](#CP2K_INPUT.FORCE_EVAL.SUBSYS.KIND.BASIS_SET): The basis set is of Gaussian type and
   can have strong influence on the quasiparticle energies. For computing quasiparticle energies, a
   basis set extrapolation is necessary, see Fig. 2a in \[[](#Wilhelm2016)\] and we recommend
-  all-electron GAPW calculations with correlation-consistent basis sets from the
-  <a href="https://www.basissetexchange.org/" target="_blank">EMSL database</a>. For computing the
-  HOMO-LUMO gap from *GW*, we recommend augmented basis sets, for example
-  <a href="https://www.basissetexchange.org/basis/aug-cc-pvdz/format/cp2k/?version=1&elements=1,6,8" target="_blank">`aug-cc-pVDZ`</a>
+  all-electron GAPW calculations with correlation-consistent basis sets from the Basis Set Exchange
+  Library. For computing the HOMO-LUMO gap from *GW*, we recommend augmented basis sets, for example
+  [`aug-cc-pVDZ`](https://www.basissetexchange.org/basis/aug-cc-pvdz/format/cp2k/?version=1&elements=1,6,8)
   and
-  <a href="https://www.basissetexchange.org/basis/aug-cc-pvtz/format/cp2k/?version=1&elements=1,6,8" target="_blank">`aug-cc-pVTZ`</a>.
-  As `RI_AUX` basis set, we recommend the RIFIT basis sets from the EMSL database, for example
-  <a href="https://www.basissetexchange.org/basis/aug-cc-pvdz-rifit/format/cp2k/?version=1&elements=1,6,8" target="_blank">`aug-cc-pVDZ-RIFIT`</a>.
+  [`aug-cc-pVTZ`](https://www.basissetexchange.org/basis/aug-cc-pvtz/format/cp2k/?version=1&elements=1,6,8).
+  As for `RI_AUX` basis set, we recommend the corresponding RIFIT basis sets, for example
+  [`aug-cc-pVDZ-RIFIT`](https://www.basissetexchange.org/basis/aug-cc-pvdz-rifit/format/cp2k/?version=1&elements=1,6,8).
 
 The computational effort of the *GW* calculation increases with *N*<sup>4</sup> in system size *N*.
 The memory requirement increases with *N*<sup>3</sup>. For running large-scale calculations, we
@@ -174,12 +174,13 @@ larger molecules can then be estimated using the *N*<sup>4</sup> scaling for com
 When facing out-of-memory, please increase the number of nodes of your calculation.
 
 Input and output of a large-scale *GW* calculation on a nanographene with 200 atoms is available
-<a href="https://github.com/cp2k/cp2k-examples/tree/master/gw/2_Nanographene_206_atoms_N^4_scaling" target="_blank">here</a>.
+[here](https://github.com/cp2k/cp2k-examples/tree/master/gw/2_Nanographene_206_atoms_N%5E4_scaling).
 
 ## 4. *GW* for small unit cells with *k*-point sampling
 
-For a periodic *GW* calculation, *k*-point sampling is required. *k*-point sampling is included in
-the DFT section, see below a *k*-point section for a 2D-periodic cell:
+For a periodic *GW* calculation, *k*-point sampling is required. *k*-point sampling is defined in
+the [DFT/KPOINTS](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS) section, see below a *k*-point section for a
+2D-periodic cell:
 
 ```
 &DFT
@@ -194,28 +195,29 @@ the DFT section, see below a *k*-point section for a 2D-periodic cell:
 The *k*-point mesh size is a convergence parameter, 32x32 for a 2D material is expected to reach
 convergence of the *GW* bandgap within 10 meV.
 
-The periodic *GW* calculation is activated via the bandstructure section:
+The periodic *GW* calculation is activated via the
+[PROPERTIES/BANDSTRUCTURE/GW](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW) section:
 
 ```
- &PROPERTIES
-    &BANDSTRUCTURE
-      &GW
-        NUM_TIME_FREQ_POINTS         30
-        MEMORY_PER_PROC              10
-        EPS_FILTER              1.0E-11
-        REGULARIZATION_RI        1.0E-2
-        CUTOFF_RADIUS_RI            7.0
-      &END GW
-      &SOC
-      &END SOC
-      &BANDSTRUCTURE_PATH
-        NPOINTS 19
-        SPECIAL_POINT K     0.33 0.33 0.00
-        SPECIAL_POINT GAMMA 0.00 0.00 0.00
-        SPECIAL_POINT M     0.00 0.50 0.00
-      &END
-    &END BANDSTRUCTURE
-  &END PROPERTIES
+&PROPERTIES
+  &BANDSTRUCTURE
+    &GW
+      NUM_TIME_FREQ_POINTS         30
+      MEMORY_PER_PROC              10
+      EPS_FILTER              1.0E-11
+      REGULARIZATION_RI        1.0E-2
+      CUTOFF_RADIUS_RI            7.0
+    &END GW
+    &SOC
+    &END SOC
+    &BANDSTRUCTURE_PATH
+      NPOINTS 19
+      SPECIAL_POINT K     0.33 0.33 0.00
+      SPECIAL_POINT GAMMA 0.00 0.00 0.00
+      SPECIAL_POINT M     0.00 0.50 0.00
+    &END BANDSTRUCTURE_PATH
+  &END BANDSTRUCTURE
+&END PROPERTIES
 ```
 
 All parameters from above have been chosen to converge the *GW* bandgap within 10 meV, see also
@@ -253,30 +255,30 @@ The *GW* band structure is written to the files `bandstructure_SCF_and_G0W0` and
 output file. When facing an out-of-memory crash, please increase `MEMORY_PER_PROC`. An input and
 output for a *G*<sub>0</sub>*W*<sub>0</sub>@PBE band structure calculation of the 2d material
 WSe<sub>2</sub> can be found
-\[<a href="https://github.com/cp2k/cp2k-examples/tree/master/gw/3_3-atom_unit_cell_2d_WSe2_loose_parameters" target="_blank">here</a>\]
+[here](https://github.com/cp2k/cp2k-examples/tree/master/gw/3_3-atom_unit_cell_2d_WSe2_loose_parameters)
 using loose parameters (*G*<sub>0</sub>*W*<sub>0</sub>@PBE band gap: 2.30 eV, computation time: 3
 hours on 3 large-memory nodes) and
-\[<a href="https://github.com/cp2k/cp2k-examples/tree/master/gw/4_3-atom_unit_cell_2d_WSe2_tight_parameters" target="_blank">here</a>\]
+[here](https://github.com/cp2k/cp2k-examples/tree/master/gw/4_3-atom_unit_cell_2d_WSe2_tight_parameters)
 using tight parameters (*G*<sub>0</sub>*W*<sub>0</sub>@PBE band gap: 2.30 eV, computation time: 12
 hours on 20 large-memory nodes).
 
-## 5. *GW* for large cells in Γ-only approach
+## 5. *GW* for large cells in $\Gamma$-only approach
 
-For a large unit cell, a Γ-only *GW* algorithm is available in CP2K \[[](#Graml2024)\]. The
+For a large unit cell, a $\Gamma$-only *GW* algorithm is available in CP2K \[[](#Graml2024)\]. The
 requirement on the cell is that elements of the density matrix decay by several orders of magnitude
 when the two basis functions of the matrix element have a distance similar to the cell size. As rule
-of thumb, for a 2d material, a 9x9 unit cell is large enough for the Γ-only algorithm, see Fig. 1 in
-\[[](#Graml2024)\].
+of thumb, for a 2d material, a 9x9 unit cell is large enough for the $\Gamma$-only algorithm, see
+Fig. 1 in \[[](#Graml2024)\].
 
-The input file for a Γ-only *GW* calculation is identical as for *GW* for small cells with *k*-point
-sampling except that the `&KPOINTS` section in DFT needs to be removed. An exemplary input and
-output is available
-\[<a href="https://github.com/cp2k/cp2k-examples/tree/master/gw/5_9x9_supercell_2d_MoS2" target="_blank">here</a>\].
-Running the input file requires access to a large computer (the calculation took 2.5 hours on 32
-nodes on Noctua2 cluster in Paderborn). The computational parameters from this input file reach
-numerical convergence of the band gap within ~ 50 meV (TZVP basis set, 10 time and frequency
-points). Detailed convergence tests are available in the SI, Table S1 of \[[](#Graml2024)\] We
-recommend the numerical parameters from the input file for large-scale *GW* calculations. The code
-prints restart files with ending .matrix that can be used to restart a crashed calculation.
+The input file for a $\Gamma$-only *GW* calculation is identical as for *GW* for small cells with
+*k*-point sampling except that the `&KPOINTS` section in DFT needs to be removed. An exemplary input
+and output is available
+[here](https://github.com/cp2k/cp2k-examples/tree/master/gw/5_9x9_supercell_2d_MoS2). Running the
+input file requires access to a large computer (the calculation took 2.5 hours on 32 nodes on
+Noctua2 cluster in Paderborn). The computational parameters from this input file reach numerical
+convergence of the band gap within ~ 50 meV (TZVP basis set, 10 time and frequency points). Detailed
+convergence tests are available in the SI, Table S1 of \[[](#Graml2024)\] We recommend the numerical
+parameters from the input file for large-scale *GW* calculations. The code prints restart files with
+ending .matrix that can be used to restart a crashed calculation.
 
 In case anything does not work, please feel free to contact jan.wilhelm (at) ur.de.

@@ -11,9 +11,10 @@ format (`input.nn`, `scaling.data`, `weights.<element>.data`).
 
 ## Input
 
-The NNP method is selected with `METHOD NNP` inside `FORCE_EVAL`. The network files and one or more
-model definitions are configured under `&NNP`. The complete option list is generated from the source
-and is linked from the input reference manual.
+The NNP method is selected by setting [FORCE_EVAL/METHOD](#CP2K_INPUT.FORCE_EVAL.METHOD) to `NNP`
+and specifying the [FORCE_EVAL/NNP](#CP2K_INPUT.FORCE_EVAL.NNP) section. The network files and one
+or more model definitions are configured under `&NNP`. The complete option list is generated from
+the source and is linked from the input reference manual.
 
 A minimal committee-NNP MD input looks like
 

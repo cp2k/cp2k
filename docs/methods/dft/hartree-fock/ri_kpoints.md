@@ -81,7 +81,7 @@ more workable CSV file.
 
 Note that in this input file, we select a value of $1.0\times 10^{-6}$ for
 [EPS_PGF_ORB](#CP2K_INPUT.FORCE_EVAL.DFT.XC.HF.RI.EPS_PGF_ORB). This parameter controls the range of
-AOs, and threfore the extent of the local atom-specific RI basis sets. This value leads to
+AOs, and therefore the extent of the local atom-specific RI basis sets. This value leads to
 particularly high accuracy. The default of $1.0\times 10^{-5}$ is typically enough.
 
 The HFX potential was selected as the Truncated Coulomb operator with a cutoff radius of $R_C = 5.0$

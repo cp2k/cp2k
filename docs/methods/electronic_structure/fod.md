@@ -21,9 +21,13 @@ chemical potential both expressions give half the maximum occupation. The report
 `N_FOD (orbital sum)` is the sum of these weights, with no real-space quadrature error. The SCF
 wavefunction and density are not changed by the analysis.
 
-Enable `FORCE_EVAL/DFT/PRINT/FOD` explicitly. This initial implementation supports GPW at the Gamma
-point, with positive-temperature `SCF/SMEAR/METHOD FERMI_DIRAC`. Other smearing schemes, GAPW and
-explicit k-point calculations are rejected rather than producing a different quantity.
+To perform a FOD analysis, the [FORCE_EVAL/DFT/PRINT/FOD](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.FOD) and
+[FORCE_EVAL/DFT/SCF/SMEAR](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.SMEAR) sections should be enabled
+explicitly. [ELECTRONIC_TEMPERATURE](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.SMEAR.ELECTRONIC_TEMPERATURE)
+should be positive and [METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.SMEAR.METHOD) should be `FERMI_DIRAC`
+under the `SMEAR` section. This initial implementation supports GPW at the $\Gamma$ point; other
+smearing schemes, GAPW and explicit k-point calculations are rejected rather than producing a
+different quantity.
 
 ```text
 &SCF
@@ -43,7 +47,7 @@ explicit k-point calculations are rejected rather than producing a different qua
 &END
 ```
 
-This is an input fragment, not a complete calculation. Choose `ADDED_MOS` for the system and check
+Choose a value of [ADDED_MOS](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.ADDED_MOS) for the system and check
 convergence of `N_FOD` with the number of available orbitals. A still-occupied last orbital produces
 a warning. The reference molecular protocol uses TPSS/def2-TZVP and 5000 K. Changing the functional,
 temperature, basis or pseudopotential changes the diagnostic; a PBE/MOLOPT calculation is not a
