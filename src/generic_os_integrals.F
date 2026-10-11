@@ -830,15 +830,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_aabb_os'
 
-      INTEGER :: handle, iset, isgfa1, jset, jsgfa2, kset, ksgfb1, lds, lset, lsgfb2, m1, m2, m3, &
-         m4, maxco, maxcoa, maxcob, maxl, maxla, maxlb, ncoa1, ncoa2, ncob1, ncob2, nseta, nsetb, &
-         sgfa1, sgfa2, sgfb1, sgfb2
+      INTEGER :: handle, iset, isgfa1, jset, jsgfa2, kset, ksgfb1, lset, lsgfb2, m1, m2, m3, m4, &
+         maxco, maxcoa, maxcob, ncoa1, ncoa2, ncob1, ncob2, nseta, nsetb, sgfa1, sgfa2, sgfb1, &
+         sgfb2
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: asets_equal, bsets_equal
       REAL(KIND=dp)                                      :: dab, ra(3), rb(3)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: swork
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: sint
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
@@ -871,17 +870,11 @@ CONTAINS
       sphi_b => obb%sphi
       zetb => obb%zet
 
-      CALL get_gto_basis_set(oba, maxco=maxcoa, maxl=maxla)
-      CALL get_gto_basis_set(obb, maxco=maxcob, maxl=maxlb)
+      CALL get_gto_basis_set(oba, maxco=maxcoa)
+      CALL get_gto_basis_set(obb, maxco=maxcob)
       maxco = MAX(maxcoa, maxcob)
-      maxla = 2*maxla
-      maxlb = 2*maxlb
-      maxl = MAX(maxla, maxlb)
-      lds = ncoset(maxl)
       ALLOCATE (sint(maxco, maxco, maxco, maxco))
-      ALLOCATE (swork(lds, lds))
       sint = 0._dp
-      swork = 0._dp
 
       dab = SQRT(SUM(rab**2))
 
@@ -919,7 +912,7 @@ CONTAINS
                                     la_max(jset), la_min(jset), npgfa(jset), rpgfa(:, jset), zeta(:, jset), &
                                     lb_max(kset), lb_min(kset), npgfb(kset), rpgfb(:, kset), zetb(:, kset), &
                                     lb_max(lset), lb_min(lset), npgfb(lset), rpgfb(:, lset), zetb(:, lset), &
-                                    asets_equal, bsets_equal, rab, dab, sint, swork, lds)
+                                    asets_equal, bsets_equal, rab, dab, sint)
                   ! debug if requested
                   IF (debug) THEN
                      ra = 0.0_dp
@@ -953,7 +946,7 @@ CONTAINS
          END DO
       END DO
 
-      DEALLOCATE (sint, swork)
+      DEALLOCATE (sint)
 
       CALL timestop(handle)
 

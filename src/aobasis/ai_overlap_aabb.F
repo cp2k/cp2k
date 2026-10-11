@@ -72,9 +72,7 @@ CONTAINS
 !> \param bsets_equal ...
 !> \param rab ...
 !> \param dab ...
-!> \param saabb ...
-!> \param s ...
-!> \param lds ...
+!> \param saabb primitive integrals, including zero screened blocks and lower-shell padding
 !> \date    06.2014
 !> \author  Dorothea Golze
 ! **************************************************************************************************
@@ -82,7 +80,7 @@ CONTAINS
                            la_max_set2, la_min_set2, npgfa2, rpgfa2, zeta2, &
                            lb_max_set1, lb_min_set1, npgfb1, rpgfb1, zetb1, &
                            lb_max_set2, lb_min_set2, npgfb2, rpgfb2, zetb2, &
-                           asets_equal, bsets_equal, rab, dab, saabb, s, lds)
+                           asets_equal, bsets_equal, rab, dab, saabb)
 
       INTEGER, INTENT(IN)                                :: la_max_set1, la_min_set1, npgfa1
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rpgfa1, zeta1
@@ -95,93 +93,71 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: asets_equal, bsets_equal
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       REAL(KIND=dp), INTENT(IN)                          :: dab
-      REAL(KIND=dp), DIMENSION(:, :, :, :), &
-         INTENT(INOUT)                                   :: saabb
-      INTEGER, INTENT(IN)                                :: lds
-      REAL(KIND=dp), DIMENSION(lds, lds), INTENT(INOUT)  :: s
+      REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(OUT)  :: saabb
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'overlap_aabb'
 
-      INTEGER :: ax, ay, az, bx, by, bz, coa, cob, handle, i, ia, ib, ipgf, j, ja, jb, jpgf, &
-         jpgf_start, kpgf, la, la_max, la_min, lb, lb_max, lb_min, ldrr, lpgf, lpgf_start, ncoa1, &
-         ncoa2, ncob1, ncob2
-      INTEGER, DIMENSION(3)                              :: na, naa, nb, nbb, nia, nib, nja, njb
+      INTEGER :: coa, cob, handle, ia, ib, ipgf, ja, jb, jpgf, jpgf_start, kpgf, la_max, la_min, &
+         lb_max, lb_min, ldrr, lpgf, lpgf_start, ncoa1, ncoa2, ncob1, ncob2
+      INTEGER, ALLOCATABLE                               :: map_a(:, :), map_b(:, :)
+      INTEGER, DIMENSION(3)                              :: na, nb
       REAL(KIND=dp)                                      :: f0, zeta, zetb, zetp
+      REAL(KIND=dp), ALLOCATABLE                         :: s(:, :)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rr
       REAL(KIND=dp), DIMENSION(3)                        :: rap, rbp
 
       CALL timeset(routineN, handle)
-      ldrr = MAX(la_max_set1 + la_max_set2, lb_max_set1 + lb_max_set2) + 1
+      saabb = 0.0_dp
+      la_max = la_max_set1 + la_max_set2
+      la_min = la_min_set1 + la_min_set2
+      lb_max = lb_max_set1 + lb_max_set2
+      lb_min = lb_min_set1 + lb_min_set2
+      ldrr = MAX(la_max, lb_max) + 1
       ALLOCATE (rr(0:ldrr - 1, 0:ldrr - 1, 3))
+      ALLOCATE (s(ncoset(la_min - 1) + 1:ncoset(la_max), ncoset(lb_min - 1) + 1:ncoset(lb_max)))
+      ALLOCATE (map_a(ncoset(la_min_set1 - 1) + 1:ncoset(la_max_set1), &
+                      ncoset(la_min_set2 - 1) + 1:ncoset(la_max_set2)), &
+                map_b(ncoset(lb_min_set1 - 1) + 1:ncoset(lb_max_set1), &
+                      ncoset(lb_min_set2 - 1) + 1:ncoset(lb_max_set2)))
+
+      ! Same-center products add Cartesian degrees; the maps are shared by all primitives.
+      DO ja = LBOUND(map_a, 2), UBOUND(map_a, 2)
+         DO ia = LBOUND(map_a, 1), UBOUND(map_a, 1)
+            na = indco(:, ia) + indco(:, ja)
+            map_a(ia, ja) = coset(na(1), na(2), na(3))
+         END DO
+      END DO
+      DO jb = LBOUND(map_b, 2), UBOUND(map_b, 2)
+         DO ib = LBOUND(map_b, 1), UBOUND(map_b, 1)
+            nb = indco(:, ib) + indco(:, jb)
+            map_b(ib, jb) = coset(nb(1), nb(2), nb(3))
+         END DO
+      END DO
 
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
 
-      ncoa1 = 0
-      ncoa2 = 0
-      ncob1 = 0
-      ncob2 = 0
-
       DO ipgf = 1, npgfa1
-
-         ncoa2 = 0
-
-         IF (asets_equal) THEN
-            jpgf_start = ipgf
-            DO i = 1, jpgf_start - 1
-               ncoa2 = ncoa2 + ncoset(la_max_set2)
-            END DO
-         ELSE
-            jpgf_start = 1
-         END IF
+         ncoa1 = (ipgf - 1)*ncoset(la_max_set1)
+         jpgf_start = MERGE(ipgf, 1, asets_equal)
 
          DO jpgf = jpgf_start, npgfa2
 
-            ncob1 = 0
+            ncoa2 = (jpgf - 1)*ncoset(la_max_set2)
             zeta = zeta1(ipgf) + zeta2(jpgf)
-            la_max = la_max_set1 + la_max_set2
-            la_min = la_min_set1 + la_min_set2
 
             DO kpgf = 1, npgfb1
 
-               ncob2 = 0
-
-               IF (bsets_equal) THEN
-                  lpgf_start = kpgf
-                  DO i = 1, lpgf_start - 1
-                     ncob2 = ncob2 + ncoset(lb_max_set2)
-                  END DO
-               ELSE
-                  lpgf_start = 1
-               END IF
+               ncob1 = (kpgf - 1)*ncoset(lb_max_set1)
+               lpgf_start = MERGE(kpgf, 1, bsets_equal)
 
                DO lpgf = lpgf_start, npgfb2
+                  ncob2 = (lpgf - 1)*ncoset(lb_max_set2)
 
                   ! *** Screening ***
-                  IF ((rpgfa1(ipgf) + rpgfb1(kpgf) < dab) .OR. &
-                      (rpgfa2(jpgf) + rpgfb1(kpgf) < dab) .OR. &
-                      (rpgfa1(ipgf) + rpgfb2(lpgf) < dab) .OR. &
-                      (rpgfa2(jpgf) + rpgfb2(lpgf) < dab)) THEN
-                     DO jb = ncoset(lb_min_set2 - 1) + 1, ncoset(lb_max_set2)
-                        DO ib = ncoset(lb_min_set1 - 1) + 1, ncoset(lb_max_set1)
-                           DO ja = ncoset(la_min_set2 - 1) + 1, ncoset(la_max_set2)
-                              DO ia = ncoset(la_min_set1 - 1) + 1, ncoset(la_max_set1)
-                                 saabb(ncoa1 + ia, ncoa2 + ja, ncob1 + ib, ncob2 + jb) = 0._dp
-                                 IF (asets_equal) saabb(ncoa2 + ja, ncoa1 + ia, ncob1 + ib, ncob2 + jb) = 0._dp
-                                 IF (bsets_equal) saabb(ncoa1 + ia, ncoa2 + ja, ncob2 + jb, ncob1 + ib) = 0._dp
-                                 IF (asets_equal .AND. bsets_equal) THEN
-                                    saabb(ncoa2 + ja, ncoa1 + ia, ncob2 + jb, ncob1 + ib) = 0._dp
-                                 END IF
-                              END DO
-                           END DO
-                        END DO
-                     END DO
-                     ncob2 = ncob2 + ncoset(lb_max_set2)
-                     CYCLE
-                  END IF
+                  IF (MIN(rpgfa1(ipgf), rpgfa2(jpgf)) + &
+                      MIN(rpgfb1(kpgf), rpgfb2(lpgf)) < dab) CYCLE
 
                   zetb = zetb1(kpgf) + zetb2(lpgf)
-                  lb_max = lb_max_set1 + lb_max_set2
-                  lb_min = lb_min_set1 + lb_min_set2
 
 !           *** Calculate some prefactors ***
 
@@ -193,72 +169,38 @@ CONTAINS
 
                   CALL os_rr_ovlp(rap, la_max, rbp, lb_max, 1.0_dp/zetp, ldrr, rr)
 
-                  DO lb = 0, lb_max
-                     DO bx = 0, lb
-                        DO by = 0, lb - bx
-                           bz = lb - bx - by
-                           cob = coset(bx, by, bz)
-                           DO la = 0, la_max
-                              DO ax = 0, la
-                                 DO ay = 0, la - ax
-                                    az = la - ax - ay
-                                    coa = coset(ax, ay, az)
-                                    s(coa, cob) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*rr(az, bz, 3)
-                                 END DO
-                              END DO
-                           END DO
-                        END DO
+                  DO cob = ncoset(lb_min - 1) + 1, ncoset(lb_max)
+                     nb = indco(:, cob)
+                     DO coa = ncoset(la_min - 1) + 1, ncoset(la_max)
+                        na = indco(:, coa)
+                        s(coa, cob) = f0*rr(na(1), nb(1), 1)*rr(na(2), nb(2), 2)*rr(na(3), nb(3), 3)
                      END DO
                   END DO
 
 !           *** Store the primitive overlap integrals ***
                   DO jb = ncoset(lb_min_set2 - 1) + 1, ncoset(lb_max_set2)
-                     njb(1:3) = indco(1:3, jb)
                      DO ib = ncoset(lb_min_set1 - 1) + 1, ncoset(lb_max_set1)
-                        nib(1:3) = indco(1:3, ib)
-                        nbb(1:3) = nib + njb
+                        cob = map_b(ib, jb)
                         DO ja = ncoset(la_min_set2 - 1) + 1, ncoset(la_max_set2)
-                           nja(1:3) = indco(1:3, ja)
                            DO ia = ncoset(la_min_set1 - 1) + 1, ncoset(la_max_set1)
-                              nia(1:3) = indco(1:3, ia)
-                              naa(1:3) = nia + nja
-                              ! now loop over all elements of s
-                              DO j = ncoset(lb_min - 1) + 1, ncoset(lb_max)
-                                 nb(1:3) = indco(1:3, j)
-                                 DO i = ncoset(la_min - 1) + 1, ncoset(la_max)
-                                    na(1:3) = indco(1:3, i)
-                                    IF (ALL(na == naa) .AND. ALL(nb == nbb)) THEN
-                                       saabb(ncoa1 + ia, ncoa2 + ja, ncob1 + ib, ncob2 + jb) = s(i, j)
-                                       IF (asets_equal) saabb(ncoa2 + ja, ncoa1 + ia, ncob1 + ib, ncob2 + jb) = s(i, j)
-                                       IF (bsets_equal) saabb(ncoa1 + ia, ncoa2 + ja, ncob2 + jb, ncob1 + ib) = s(i, j)
-                                       IF (asets_equal .AND. bsets_equal) THEN
-                                          saabb(ncoa2 + ja, ncoa1 + ia, ncob2 + jb, ncob1 + ib) = s(i, j)
-                                       END IF
-                                    END IF
-                                 END DO
-                              END DO
+                              coa = map_a(ia, ja)
+                              saabb(ncoa1 + ia, ncoa2 + ja, ncob1 + ib, ncob2 + jb) = s(coa, cob)
+                              IF (asets_equal) saabb(ncoa2 + ja, ncoa1 + ia, ncob1 + ib, ncob2 + jb) = s(coa, cob)
+                              IF (bsets_equal) saabb(ncoa1 + ia, ncoa2 + ja, ncob2 + jb, ncob1 + ib) = s(coa, cob)
+                              IF (asets_equal .AND. bsets_equal) THEN
+                                 saabb(ncoa2 + ja, ncoa1 + ia, ncob2 + jb, ncob1 + ib) = s(coa, cob)
+                              END IF
                            END DO
                         END DO
                      END DO
                   END DO
 
-                  ncob2 = ncob2 + ncoset(lb_max_set2)
-
                END DO
-
-               ncob1 = ncob1 + ncoset(lb_max_set1)
-
             END DO
-
-            ncoa2 = ncoa2 + ncoset(la_max_set2)
-
          END DO
-
-         ncoa1 = ncoa1 + ncoset(la_max_set1)
-
       END DO
 
-      DEALLOCATE (rr)
+      DEALLOCATE (rr, s, map_a, map_b)
       CALL timestop(handle)
 
    END SUBROUTINE overlap_aabb
