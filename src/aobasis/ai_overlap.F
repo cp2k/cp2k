@@ -454,11 +454,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :, :), &
          INTENT(INOUT), OPTIONAL                         :: daba
 
-      INTEGER :: ax, ax1, ax2, ay, ay1, ay2, az, az1, az2, bx, by, bz, coa1, coa2, cob, i1pgf, &
-         i2pgf, ia1, ia2, ib, jpgf, la1, la2, lb, ldrr, lma, lmb, ma1, ma2, mb, na1, na2, nb, &
-         ofa1, ofa2, ofb
-      REAL(KIND=dp)                                      :: a, b, dum(3), f0, rab2, rpgfa, tab, xhi, &
-                                                            zet
+      INTEGER                                            :: coa1, coa2, cob, i1pgf, i2pgf, ia1, ia2, &
+                                                            ib, jpgf, ldrr, lma, lmb, ma1, ma2, &
+                                                            mb, na1, na2, nb, ofa1, ofa2, ofb
+      INTEGER, DIMENSION(3)                              :: a2vec, avec, bvec
+      REAL(KIND=dp)                                      :: a, b, dum(3), f0, rab2, rpgfa, tab, &
+                                                            value, xhi, zet
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: drr, rr
       REAL(KIND=dp), DIMENSION(3)                        :: rap, rbp
 
@@ -549,52 +550,32 @@ CONTAINS
                                           [0.0_dp, 0.0_dp, 0.0_dp])
                END IF
 
-               DO lb = lb_min, lb_max
-               DO bx = 0, lb
-               DO by = 0, lb - bx
-                  bz = lb - bx - by
-                  cob = coset(bx, by, bz) - ofb
-                  ib = mb + cob
-                  DO la2 = la2_min, la2_max
-                  DO ax2 = 0, la2
-                  DO ay2 = 0, la2 - ax2
-                     az2 = la2 - ax2 - ay2
-                     coa2 = coset(ax2, ay2, az2) - ofa2
-                     ia2 = ma2 + coa2
-                     DO la1 = la1_min, la1_max
-                     DO ax1 = 0, la1
-                     DO ay1 = 0, la1 - ax1
-                        az1 = la1 - ax1 - ay1
-                        coa1 = coset(ax1, ay1, az1) - ofa1
-                        ia1 = ma1 + coa1
+               DO cob = ofb + 1, ncoset(lb_max)
+                  bvec = indco(:, cob)
+                  ib = mb + cob - ofb
+                  DO coa2 = ofa2 + 1, ncoset(la2_max)
+                     a2vec = indco(:, coa2)
+                     ia2 = ma2 + coa2 - ofa2
+                     DO coa1 = ofa1 + 1, ncoset(la1_max)
+                        avec = indco(:, coa1) + a2vec
+                        ia1 = ma1 + coa1 - ofa1
                         ! integrals
-                        IF (PRESENT(saab)) THEN
-                           saab(ia1, ia2, ib) = f0*rr(ax1 + ax2, bx, 1)*rr(ay1 + ay2, by, 2)*rr(az1 + az2, bz, 3)
-                        END IF
-                        IF (PRESENT(saba)) THEN
-                           saba(ia1, ib, ia2) = f0*rr(ax1 + ax2, bx, 1)*rr(ay1 + ay2, by, 2)*rr(az1 + az2, bz, 3)
+                        IF (PRESENT(saab) .OR. PRESENT(saba)) THEN
+                           value = f0*rr(avec(1), bvec(1), 1)*rr(avec(2), bvec(2), 2)*rr(avec(3), bvec(3), 3)
+                           IF (PRESENT(saab)) saab(ia1, ia2, ib) = value
+                           IF (PRESENT(saba)) saba(ia1, ib, ia2) = value
                         END IF
                         ! first derivatives
                         IF (PRESENT(daab) .OR. PRESENT(daba)) THEN
-                           ax = ax1 + ax2
-                           ay = ay1 + ay2
-                           az = az1 + az2
-                           dum(1) = f0*drr(ax, bx, 1)*rr(ay, by, 2)*rr(az, bz, 3)
-                           dum(2) = f0*rr(ax, bx, 1)*drr(ay, by, 2)*rr(az, bz, 3)
-                           dum(3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*drr(az, bz, 3)
+                           dum(1) = f0*drr(avec(1), bvec(1), 1)*rr(avec(2), bvec(2), 2)*rr(avec(3), bvec(3), 3)
+                           dum(2) = f0*rr(avec(1), bvec(1), 1)*drr(avec(2), bvec(2), 2)*rr(avec(3), bvec(3), 3)
+                           dum(3) = f0*rr(avec(1), bvec(1), 1)*rr(avec(2), bvec(2), 2)*drr(avec(3), bvec(3), 3)
                            IF (PRESENT(daab)) daab(ia1, ia2, ib, 1:3) = dum
                            IF (PRESENT(daba)) daba(ia1, ib, ia2, 1:3) = dum
                         END IF
-                        !
                      END DO
-                     END DO
-                     END DO !la1
                   END DO
-                  END DO
-                  END DO !la2
                END DO
-               END DO
-               END DO !lb
 
                mb = mb + nb
             END DO
@@ -647,9 +628,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :, :), &
          INTENT(INOUT), OPTIONAL                         :: dabb
 
-      INTEGER :: ax, ay, az, bx, bx1, bx2, by, by1, by2, bz, bz1, bz2, coa, cob1, cob2, ia, ib1, &
-         ib2, ipgf, j1pgf, j2pgf, la, lb1, lb2, ldrr, lma, lmb, ma, mb1, mb2, na, nb1, nb2, ofa, &
-         ofb1, ofb2
+      INTEGER                                            :: coa, cob1, cob2, ia, ib1, ib2, ipgf, &
+                                                            j1pgf, j2pgf, ldrr, lma, lmb, ma, mb1, &
+                                                            mb2, na, nb1, nb2, ofa, ofb1, ofb2
+      INTEGER, DIMENSION(3)                              :: avec, b2vec, bvec
       REAL(KIND=dp)                                      :: a, b, f0, rab2, rpgfb, tab, xhi, zet
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: drr, rr
       REAL(KIND=dp), DIMENSION(3)                        :: rap, rbp
@@ -728,47 +710,28 @@ CONTAINS
                                           [0.0_dp, 0.0_dp, 0.0_dp])
                END IF
 
-               DO lb2 = lb2_min, lb2_max
-               DO bx2 = 0, lb2
-               DO by2 = 0, lb2 - bx2
-                  bz2 = lb2 - bx2 - by2
-                  cob2 = coset(bx2, by2, bz2) - ofb2
-                  ib2 = mb2 + cob2
-                  DO lb1 = lb1_min, lb1_max
-                  DO bx1 = 0, lb1
-                  DO by1 = 0, lb1 - bx1
-                     bz1 = lb1 - bx1 - by1
-                     cob1 = coset(bx1, by1, bz1) - ofb1
-                     ib1 = mb1 + cob1
-                     DO la = la_min, la_max
-                     DO ax = 0, la
-                     DO ay = 0, la - ax
-                        az = la - ax - ay
-                        coa = coset(ax, ay, az) - ofa
-                        ia = ma + coa
+               DO cob2 = ofb2 + 1, ncoset(lb2_max)
+                  b2vec = indco(:, cob2)
+                  ib2 = mb2 + cob2 - ofb2
+                  DO cob1 = ofb1 + 1, ncoset(lb1_max)
+                     bvec = indco(:, cob1) + b2vec
+                     ib1 = mb1 + cob1 - ofb1
+                     DO coa = ofa + 1, ncoset(la_max)
+                        avec = indco(:, coa)
+                        ia = ma + coa - ofa
                         ! integrals
                         IF (PRESENT(sabb)) THEN
-                           sabb(ia, ib1, ib2) = f0*rr(ax, bx1 + bx2, 1)*rr(ay, by1 + by2, 2)*rr(az, bz1 + bz2, 3)
+                           sabb(ia, ib1, ib2) = f0*rr(avec(1), bvec(1), 1)*rr(avec(2), bvec(2), 2)*rr(avec(3), bvec(3), 3)
                         END IF
                         ! first derivatives
                         IF (PRESENT(dabb)) THEN
-                           bx = bx1 + bx2
-                           by = by1 + by2
-                           bz = bz1 + bz2
-                           dabb(ia, ib1, ib2, 1) = f0*drr(ax, bx, 1)*rr(ay, by, 2)*rr(az, bz, 3)
-                           dabb(ia, ib1, ib2, 2) = f0*rr(ax, bx, 1)*drr(ay, by, 2)*rr(az, bz, 3)
-                           dabb(ia, ib1, ib2, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*drr(az, bz, 3)
+                           dabb(ia, ib1, ib2, 1) = f0*drr(avec(1), bvec(1), 1)*rr(avec(2), bvec(2), 2)*rr(avec(3), bvec(3), 3)
+                           dabb(ia, ib1, ib2, 2) = f0*rr(avec(1), bvec(1), 1)*drr(avec(2), bvec(2), 2)*rr(avec(3), bvec(3), 3)
+                           dabb(ia, ib1, ib2, 3) = f0*rr(avec(1), bvec(1), 1)*rr(avec(2), bvec(2), 2)*drr(avec(3), bvec(3), 3)
                         END IF
-                        !
                      END DO
-                     END DO
-                     END DO !la
                   END DO
-                  END DO
-                  END DO !lb1
                END DO
-               END DO
-               END DO !lb2
 
                mb2 = mb2 + nb2
             END DO

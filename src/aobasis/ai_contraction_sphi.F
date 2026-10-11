@@ -171,9 +171,9 @@ CONTAINS
 
       INTEGER                                            :: handle, isgfc, isgfd, m1, m2, m3, m4, &
                                                             msphia, msphib, msphic, msphid
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: temp_cccc, work_cpcc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: temp_cpcc, work_cppc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: cpcc, cppc, cppp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: temp_cccc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: cpcc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: cppc, cppp
 
       CALL timeset(routineN, handle)
 
@@ -188,15 +188,7 @@ CONTAINS
       m4 = SIZE(sabcd, 4)
 
       ALLOCATE (cppp(nsgfa, m2, m3, m4), cppc(nsgfa, m2, m3, nsgfd), &
-                cpcc(nsgfa, m2, nsgfc, nsgfd))
-
-      ALLOCATE (work_cppc(nsgfa, m2, m3), temp_cpcc(nsgfa, m2, nsgfc))
-      work_cppc = 0._dp
-      temp_cpcc = 0._dp
-
-      ALLOCATE (work_cpcc(nsgfa, m2), temp_cccc(nsgfa, nsgfb))
-      work_cpcc = 0._dp
-      temp_cccc = 0._dp
+                cpcc(nsgfa, m2, nsgfc), temp_cccc(nsgfa, nsgfb))
 
       CALL dgemm("T", "N", nsgfa, m2*m3*m4, ncoa, 1._dp, sphi_a, msphia, sabcd, m1, &
                  0.0_dp, cppp, nsgfa)
@@ -204,20 +196,18 @@ CONTAINS
                  sphi_d, msphid, 0.0_dp, cppc, nsgfa*m2*m3)
 
       DO isgfd = 1, nsgfd
-         work_cppc(:, :, :) = cppc(:, :, :, isgfd)
-         CALL dgemm("N", "N", nsgfa*m2, nsgfc, ncoc, 1._dp, work_cppc, nsgfa*m2, &
-                    sphi_c, msphic, 0.0_dp, temp_cpcc, nsgfa*m2)
-         cpcc(:, :, :, isgfd) = temp_cpcc(:, :, :)
+         ! Full leading-dimension slices are contiguous; reuse cpcc for each spherical d.
+         CALL dgemm("N", "N", nsgfa*m2, nsgfc, ncoc, 1._dp, cppc(:, :, :, isgfd), nsgfa*m2, &
+                    sphi_c, msphic, 0.0_dp, cpcc, nsgfa*m2)
          DO isgfc = 1, nsgfc
-            work_cpcc(:, :) = cpcc(:, :, isgfc, isgfd)
-            CALL dgemm("N", "N", nsgfa, nsgfb, ncob, 1._dp, work_cpcc, nsgfa, sphi_b, &
+            CALL dgemm("N", "N", nsgfa, nsgfb, ncob, 1._dp, cpcc(:, :, isgfc), nsgfa, sphi_b, &
                        msphib, 0.0_dp, temp_cccc, nsgfa)
+            ! The caller's output block can be strided, so scatter from a contiguous buffer.
             abcdint(:, :, isgfc, isgfd) = temp_cccc(:, :)
          END DO
       END DO
 
-      DEALLOCATE (cpcc, cppc, cppp)
-      DEALLOCATE (work_cpcc, work_cppc, temp_cpcc, temp_cccc)
+      DEALLOCATE (cpcc, cppc, cppp, temp_cccc)
 
       CALL timestop(handle)
 
