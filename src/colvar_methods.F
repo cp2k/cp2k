@@ -4517,7 +4517,7 @@ CONTAINS
             CALL compress(def_error, .TRUE.)
             CALL cp_warn(__LOCATION__, &
                          'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)// &
-                         ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'// &
+                         ' Error '//TRIM(this_error)//' in computing numerical derivatives larger than'// &
                          TRIM(def_error)//' . ')
          END IF
       END DO

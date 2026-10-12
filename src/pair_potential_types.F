@@ -232,11 +232,11 @@ MODULE pair_potential_types
 ! **************************************************************************************************
    TYPE gp_pot_type
       INTEGER                                   :: myid = 0
-      CHARACTER(LEN=default_path_length)       :: potential = ""
+      CHARACTER(LEN=default_path_length)        :: potential = ""
       CHARACTER(LEN=default_string_length), &
-         POINTER, DIMENSION(:)                   :: parameters => NULL(), units => NULL()
-      CHARACTER(LEN=default_string_length)     :: variables = ""
-      REAL(KIND=dp), DIMENSION(:), POINTER      :: values => NULL()
+         ALLOCATABLE, DIMENSION(:)              :: parameters
+      CHARACTER(LEN=default_string_length)      :: variables = ""
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE  :: values
    END TYPE gp_pot_type
 
 ! **************************************************************************************************
@@ -569,7 +569,26 @@ CONTAINS
                 (pot1%set(i)%gal21%express .EQV. &
                  pot2%set(i)%gal21%express) .AND. &
                 (pot1%set(i)%gal21%rcutsq == pot2%set(i)%gal21%rcutsq)) mycompare = .TRUE.
-
+         CASE (gp_type)
+            ! The original logic in get_nonbond_storage of pair_potential.F checks
+            ! only the parameters and values and returns true unless some different
+            ! value is found; in fact the potential and variables should also be
+            ! checked for matching strings
+            mycompare = .TRUE.
+            IF (ALLOCATED(pot1%set(i)%gp%parameters) .AND. ALLOCATED(pot2%set(i)%gp%parameters)) THEN
+               IF (SIZE(pot1%set(i)%gp%parameters) == SIZE(pot2%set(i)%gp%parameters)) THEN
+                  IF (ANY(pot1%set(i)%gp%parameters /= pot2%set(i)%gp%parameters)) THEN
+                     mycompare = .FALSE.
+                  END IF
+               END IF
+            END IF
+            IF (ALLOCATED(pot1%set(i)%gp%values) .AND. ALLOCATED(pot2%set(i)%gp%values)) THEN
+               IF (SIZE(pot1%set(i)%gp%values) == SIZE(pot2%set(i)%gp%values)) THEN
+                  IF (ANY(pot1%set(i)%gp%values /= pot2%set(i)%gp%values)) THEN
+                     mycompare = .FALSE.
+                  END IF
+               END IF
+            END IF
          END SELECT
          mycompare = mycompare .AND. &
                      (pot1%set(i)%rmin == pot2%set(i)%rmin) .AND. (pot1%set(i)%rmax == pot2%set(i)%rmax)
@@ -1337,8 +1356,6 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(gp))
       ALLOCATE (gp)
-      NULLIFY (gp%parameters)
-      NULLIFY (gp%values)
       CALL pair_potential_gp_clean(gp)
    END SUBROUTINE pair_potential_gp_create
 
@@ -1359,15 +1376,15 @@ CONTAINS
       gp_dest%myid = gp_source%myid
       gp_dest%potential = gp_source%potential
       gp_dest%variables = gp_source%variables
-      IF (ASSOCIATED(gp_source%parameters)) THEN
+      IF (ALLOCATED(gp_source%parameters)) THEN
          idim = SIZE(gp_source%parameters)
          ALLOCATE (gp_dest%parameters(idim))
-         gp_dest%parameters = gp_source%parameters
+         gp_dest%parameters(:) = gp_source%parameters
       END IF
-      IF (ASSOCIATED(gp_source%values)) THEN
+      IF (ALLOCATED(gp_source%values)) THEN
          idim = SIZE(gp_source%values)
          ALLOCATE (gp_dest%values(idim))
-         gp_dest%values = gp_source%values
+         gp_dest%values(:) = gp_source%values
       END IF
    END SUBROUTINE pair_potential_gp_copy
 
@@ -1383,10 +1400,10 @@ CONTAINS
       gp%myid = 0
       gp%potential = ""
       gp%variables = ""
-      IF (ASSOCIATED(gp%values)) THEN
+      IF (ALLOCATED(gp%values)) THEN
          DEALLOCATE (gp%values)
       END IF
-      IF (ASSOCIATED(gp%parameters)) THEN
+      IF (ALLOCATED(gp%parameters)) THEN
          DEALLOCATE (gp%parameters)
       END IF
    END SUBROUTINE pair_potential_gp_clean
@@ -1400,10 +1417,10 @@ CONTAINS
       TYPE(gp_pot_type), POINTER                         :: gp
 
       IF (ASSOCIATED(gp)) THEN
-         IF (ASSOCIATED(gp%parameters)) THEN
+         IF (ALLOCATED(gp%parameters)) THEN
             DEALLOCATE (gp%parameters)
          END IF
-         IF (ASSOCIATED(gp%values)) THEN
+         IF (ALLOCATED(gp%values)) THEN
             DEALLOCATE (gp%values)
          END IF
          DEALLOCATE (gp)
