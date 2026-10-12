@@ -67,15 +67,15 @@ MODULE mixed_environment_types
       TYPE(mp_para_env_type), POINTER                  :: para_env => NULL()
       TYPE(cp_subsys_type), POINTER                    :: subsys => NULL()
       TYPE(section_vals_type), POINTER                 :: input => NULL()
-      REAL(KIND=dp), DIMENSION(:), POINTER             :: energies => NULL()
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE         :: energies
       ! Parallelization of multiple force_eval
       INTEGER                                          :: ngroups = -1
       INTEGER, DIMENSION(:), POINTER                   :: group_distribution => NULL()
       TYPE(mp_para_env_p_type), DIMENSION(:), POINTER  :: sub_para_env => NULL()
       TYPE(cp_logger_p_type), DIMENSION(:), POINTER    :: sub_logger => NULL()
-      REAL(KIND=dp), POINTER, DIMENSION(:)             :: val => NULL()
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE         :: val
       CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER                         :: par => NULL()
+         DIMENSION(:), ALLOCATABLE                     :: par
       REAL(KIND=dp)                                    :: dx = 0.0_dp, lerr = 0.0_dp
       CHARACTER(default_path_length)                   :: coupling_function = ""
       ! Mixed CDFT control parameters
@@ -306,11 +306,13 @@ CONTAINS
       END DO
       DEALLOCATE (mixed_env%sub_para_env)
       DEALLOCATE (mixed_env%sub_logger)
-      DEALLOCATE (mixed_env%energies)
-      IF (ASSOCIATED(mixed_env%par)) THEN
+      IF (ALLOCATED(mixed_env%energies)) THEN
+         DEALLOCATE (mixed_env%energies)
+      END IF
+      IF (ALLOCATED(mixed_env%par)) THEN
          DEALLOCATE (mixed_env%par)
       END IF
-      IF (ASSOCIATED(mixed_env%val)) THEN
+      IF (ALLOCATED(mixed_env%val)) THEN
          DEALLOCATE (mixed_env%val)
       END IF
       CALL cell_release(mixed_env%cell_ref)
