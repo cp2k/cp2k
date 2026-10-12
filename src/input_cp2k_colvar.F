@@ -27,6 +27,7 @@ MODULE input_cp2k_colvar
                                               rmsd_all,&
                                               rmsd_list,&
                                               rmsd_weightlist
+   USE input_cp2k_function,             ONLY: create_function_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -961,7 +962,6 @@ CONTAINS
    SUBROUTINE create_colvar_u_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -969,63 +969,13 @@ CONTAINS
                           description="Section to define the energy as a generalized collective variable.", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
 
-      NULLIFY (subsection, keyword)
-      CALL section_create(subsection, __LOCATION__, name="MIXED", &
-                          description="This section allows to use any function of the energy subsystems"// &
-                          " in a mixed_env calculation as a collective variable.", &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
-
-      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_FUNCTION", &
-                          description="Specifies the functional form of the collective variable in mathematical notation.", &
-                          usage="ENERGY_FUNCTION (E1+E2-LOG(E1/E2))", type_of_var=lchar_t, &
-                          n_var=1)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="VARIABLES", &
-                          description="Defines the variables of the functional form. To allow an efficient"// &
-                          " mapping the order of the energy variables will be considered identical to the"// &
-                          " order of the force_eval in the force_eval_order list.", &
-                          usage="VARIABLES x", type_of_var=char_t, &
-                          n_var=-1)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="PARAMETERS", &
-                          description="Defines the parameters of the functional form", &
-                          usage="PARAMETERS a b D", type_of_var=char_t, &
-                          n_var=-1, repeats=.TRUE.)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="VALUES", &
-                          description="Defines the values of parameter of the functional form", &
-                          usage="VALUES ", type_of_var=real_t, &
-                          n_var=-1, repeats=.TRUE., unit_str="internal_cp2k")
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="UNITS", &
-                          description="Optionally, allows to define valid CP2K unit strings for each parameter value. "// &
-                          "It is assumed that the corresponding parameter value is specified in this unit.", &
-                          usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K", type_of_var=char_t, &
-                          n_var=-1, repeats=.TRUE.)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="DX", &
-                          description="Parameter used for computing the derivative with the Ridders' method.", &
-                          usage="DX <REAL>", default_r_val=0.1_dp, unit_str="bohr")
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="ERROR_LIMIT", &
-                          description="Checks that the error in computing the derivative is not larger than "// &
-                          "the value set; in case error is larger a warning message is printed.", &
-                          usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
+      NULLIFY (subsection)
+      CALL create_function_section(subsection, "MIXED", "ENERGY_FUNCTION", &
+                                   description="This section allows to use any function of the energy subsystems "// &
+                                   "in a mixed_env calculation as a collective variable. Same as the section "// &
+                                   "FORCE_EVAL/MIXED/GENERIC, to allow an efficient mapping the order of the "// &
+                                   "energy variables will be considered identical to the order of the force_eval "// &
+                                   "in the force_eval_order list.", do_deriv=.TRUE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
