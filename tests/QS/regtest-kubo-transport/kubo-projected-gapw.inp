@@ -1,0 +1,3 @@
+@SET PROJECTED_QS GAPW
+@SET PROJECTED_UKS F
+@INCLUDE kubo-projected-common.inc
