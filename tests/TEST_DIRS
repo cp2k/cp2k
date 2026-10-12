@@ -139,6 +139,7 @@ DFTB/regtest-scc-2                                          spglib
 QS/regtest-md-extrap
 QS/regtest-skala-native-gapw-base                           skala
 QS/regtest-as-dft                                           libint libxc !ifx
+QS/regtest-as-selection                                     libint !ifx
 QS/regtest-tddfpt-gapw                                      libint !ifx
 QS/regtest-gapw-4                                           libint !ifx
 QS/regtest-tddfpt-stda                                      libint !ifx
