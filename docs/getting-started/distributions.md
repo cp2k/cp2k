@@ -76,6 +76,8 @@ or
 docker pull cp2k/cp2k:latest
 ```
 
+On macOS with Apple Silicon, see [](./macos) for a step-by-step guide.
+
 See also [hub.docker.com](https://hub.docker.com/r/cp2k/cp2k),
 [podman.io](https://podman.io/docs/installation), and
 [cp2k-containers](https://github.com/cp2k/cp2k-containers).
