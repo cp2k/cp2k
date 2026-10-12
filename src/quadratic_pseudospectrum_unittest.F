@@ -5,10 +5,12 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 PROGRAM quadratic_pseudospectrum_unittest
+   USE cp_log_handling, ONLY: cp_logger_get_default_io_unit
 #if defined(__HAS_IEEE_EXCEPTIONS)
    USE ieee_exceptions, ONLY: IEEE_ALL, ieee_get_halting_mode, ieee_set_halting_mode
 #endif
    USE kinds, ONLY: dp
+   USE libcp2k, ONLY: cp2k_init, cp2k_finalize
    USE quadratic_pseudospectrum, ONLY: quadratic_dense, &
                                        quadratic_result_type
 
@@ -17,8 +19,10 @@ PROGRAM quadratic_pseudospectrum_unittest
    COMPLEX(dp), ALLOCATABLE :: defect(:, :, :), overlap(:, :), projected(:, :)
    REAL(dp) :: shift(4), weights(4), expected, center
    TYPE(quadratic_result_type) :: dense, iterative, transformed
-   INTEGER :: status, i, n
+   INTEGER :: status, i, n, io_unit
 
+   CALL cp2k_init()
+   io_unit = cp_logger_get_default_io_unit()
    s = CMPLX(0.0_dp, 0.0_dp, dp)
    s(1, 1) = 1.0_dp
    s(2, 2) = 1.0_dp
@@ -107,6 +111,7 @@ PROGRAM quadratic_pseudospectrum_unittest
    CALL translation_tests()
    CALL folded_translation_tests()
    CALL compressed_translation_tests()
+   CALL cp2k_finalize()
 CONTAINS
 ! **************************************************************************************************
 !> \brief Compression of a three-state unitary to two AOs retains the missing normal Gram exactly.
@@ -162,7 +167,7 @@ CONTAINS
       CALL quadratic_dense(op, metric, query, weights, 2, .FALSE., 2, 100, 1.e-11_dp, 1.e-10_dp, &
                            rotated, status, unitary=[.FALSE., .TRUE.])
       IF (status /= -4) ERROR STOP 'Invalid expanding unitary compression accepted'
-      PRINT '(A,ES15.6)', 'Compressed unitary full-normal analytic error: ', err
+      IF (io_unit > 0) WRITE (io_unit, '(A,ES15.6)') 'Compressed unitary full-normal analytic error: ', err
    END SUBROUTINE compressed_translation_tests
 
 ! **************************************************************************************************
@@ -231,7 +236,7 @@ CONTAINS
          END DO
       END DO
       IF (maximum_error > 1.e-11_dp) ERROR STOP 'Full/Bloch trimerized quadratic spectra differ'
-      PRINT '(A,I0,A,ES15.6)', 'Trimerized full/Bloch spectra: ', 13*SIZE(energy)*n, &
+      IF (io_unit > 0) WRITE (io_unit, '(A,I0,A,ES15.6)') 'Trimerized full/Bloch spectra: ', 13*SIZE(energy)*n, &
          ' eigenvalues; maximum error ', maximum_error
    END SUBROUTINE folded_translation_tests
 
@@ -336,7 +341,7 @@ CONTAINS
             ERROR STOP 'Complex expectation origin covariance failed'
          END IF
       END DO
-      PRINT '(A,4ES15.6)', 'Translation Gram/metric/complex-mean/split-error: ', &
+      IF (io_unit > 0) WRITE (io_unit, '(A,4ES15.6)') 'Translation Gram/metric/complex-mean/split-error: ', &
          gap_error, covariance_error, mean_error, nonnormal_error
       changed(:, :, 1) = MATMUL(CONJG(TRANSPOSE(transform)), MATMUL(operators(:, :, 1), transform))
       changed(:, :, 2) = metric
@@ -500,6 +505,6 @@ CONTAINS
       CALL quadratic_dense(operators(:, :, :0), identity, shift(:0), weights(:0), 1, .FALSE., n, 100, &
                            1.e-10_dp, 1.e-10_dp, altered, status)
       IF (status /= -1) ERROR STOP 'Empty observable tuple accepted'
-      PRINT *, 'Periodic quadratic tuple, metric, iteration and origin checks passed.'
+      IF (io_unit > 0) WRITE (io_unit, *) 'Periodic quadratic tuple, metric, iteration and origin checks passed.'
    END SUBROUTINE periodic_tests
 END PROGRAM quadratic_pseudospectrum_unittest
