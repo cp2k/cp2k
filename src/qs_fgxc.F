@@ -232,52 +232,56 @@ CONTAINS
          IF (uf_grid) THEN
             ! rho
             IF (has_rho) THEN
-               ALLOCATE (fxc_rho(nspins), gxc_rho(nspins))
-               DO ispin = 1, nspins
-                  CALL auxbas_pw_pool%create_pw(fxc_rho(ispin))
-                  CALL auxbas_pw_pool%create_pw(gxc_rho(ispin))
-                  BLOCK
-                     TYPE(pw_c1d_gs_type) :: xc_g, xc_g_uf
-                     CALL auxbas_pw_pool%create_pw(xc_g)
-                     CALL xc_pw_pool%create_pw(xc_g_uf)
+               ALLOCATE (fxc_rho(SIZE(fxc_rho_uf)), gxc_rho(SIZE(gxc_rho_uf)))
+               BLOCK
+                  TYPE(pw_c1d_gs_type) :: xc_g, xc_g_uf
+                  CALL auxbas_pw_pool%create_pw(xc_g)
+                  CALL xc_pw_pool%create_pw(xc_g_uf)
+                  DO ispin = 1, SIZE(fxc_rho)
+                     CALL auxbas_pw_pool%create_pw(fxc_rho(ispin))
                      CALL pw_transfer(fxc_rho_uf(ispin), xc_g_uf)
                      CALL pw_transfer(xc_g_uf, xc_g)
                      CALL pw_transfer(xc_g, fxc_rho(ispin))
+                     CALL xc_pw_pool%give_back_pw(fxc_rho_uf(ispin))
+                  END DO
+                  DO ispin = 1, SIZE(gxc_rho)
+                     CALL auxbas_pw_pool%create_pw(gxc_rho(ispin))
                      CALL pw_transfer(gxc_rho_uf(ispin), xc_g_uf)
                      CALL pw_transfer(xc_g_uf, xc_g)
                      CALL pw_transfer(xc_g, gxc_rho(ispin))
-                     CALL xc_pw_pool%give_back_pw(xc_g_uf)
-                     CALL auxbas_pw_pool%give_back_pw(xc_g)
-                  END BLOCK
-                  CALL xc_pw_pool%give_back_pw(fxc_rho_uf(ispin))
-                  CALL xc_pw_pool%give_back_pw(gxc_rho_uf(ispin))
-               END DO
+                     CALL xc_pw_pool%give_back_pw(gxc_rho_uf(ispin))
+                  END DO
+                  CALL xc_pw_pool%give_back_pw(xc_g_uf)
+                  CALL auxbas_pw_pool%give_back_pw(xc_g)
+               END BLOCK
                DEALLOCATE (fxc_rho_uf, gxc_rho_uf)
             ELSE
                NULLIFY (fxc_rho, gxc_rho)
             END IF
             ! tau
             IF (has_tau) THEN
-               ALLOCATE (fxc_tau(nspins), gxc_tau(nspins))
-               DO ispin = 1, nspins
-                  CALL auxbas_pw_pool%create_pw(fxc_tau(ispin))
-                  CALL auxbas_pw_pool%create_pw(gxc_tau(ispin))
-                  BLOCK
-                     TYPE(pw_c1d_gs_type) :: xc_g, xc_g_uf
-                     CALL auxbas_pw_pool%create_pw(xc_g)
-                     CALL xc_pw_pool%create_pw(xc_g_uf)
+               ALLOCATE (fxc_tau(SIZE(fxc_tau_uf)), gxc_tau(SIZE(gxc_tau_uf)))
+               BLOCK
+                  TYPE(pw_c1d_gs_type) :: xc_g, xc_g_uf
+                  CALL auxbas_pw_pool%create_pw(xc_g)
+                  CALL xc_pw_pool%create_pw(xc_g_uf)
+                  DO ispin = 1, SIZE(fxc_tau)
+                     CALL auxbas_pw_pool%create_pw(fxc_tau(ispin))
                      CALL pw_transfer(fxc_tau_uf(ispin), xc_g_uf)
                      CALL pw_transfer(xc_g_uf, xc_g)
                      CALL pw_transfer(xc_g, fxc_tau(ispin))
+                     CALL xc_pw_pool%give_back_pw(fxc_tau_uf(ispin))
+                  END DO
+                  DO ispin = 1, SIZE(gxc_tau)
+                     CALL auxbas_pw_pool%create_pw(gxc_tau(ispin))
                      CALL pw_transfer(gxc_tau_uf(ispin), xc_g_uf)
                      CALL pw_transfer(xc_g_uf, xc_g)
                      CALL pw_transfer(xc_g, gxc_tau(ispin))
-                     CALL xc_pw_pool%give_back_pw(xc_g_uf)
-                     CALL auxbas_pw_pool%give_back_pw(xc_g)
-                  END BLOCK
-                  CALL xc_pw_pool%give_back_pw(fxc_tau_uf(ispin))
-                  CALL xc_pw_pool%give_back_pw(gxc_tau_uf(ispin))
-               END DO
+                     CALL xc_pw_pool%give_back_pw(gxc_tau_uf(ispin))
+                  END DO
+                  CALL xc_pw_pool%give_back_pw(xc_g_uf)
+                  CALL auxbas_pw_pool%give_back_pw(xc_g)
+               END BLOCK
                DEALLOCATE (fxc_tau_uf, gxc_tau_uf)
             ELSE
                NULLIFY (fxc_tau, gxc_tau)
@@ -539,7 +543,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_tau_rspace, vxc00, vxc00b
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_tau_rspace, v_tau_rspaceb, vxc00, &
+                                                            vxc00b
       TYPE(qs_rho_type), POINTER                         :: rhoin
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho0_atom_set, rho1_atom_set
 
@@ -591,7 +596,7 @@ CONTAINS
             NULLIFY (rhoin)
             ALLOCATE (rhoin)
             CALL qs_rho_create(rhoin)
-            NULLIFY (vxc00, vxc00b, v_tau_rspace)
+            NULLIFY (vxc00, vxc00b, v_tau_rspace, v_tau_rspaceb)
             CALL qs_rho_copy(rho0_struct, rhoin, auxbas_pw_pool, nspins)
             CALL qs_rho_scale_and_add(rhoin, rho1_struct, alpha, beta)
             IF (do_sf) THEN
@@ -603,7 +608,7 @@ CONTAINS
                CALL qs_rho_copy(rho0_struct, rhoin, auxbas_pw_pool, nspins)
                CALL qs_rho_scale_and_add_b(rhoin, rho1_struct, alpha, beta)
                CALL qs_fxc_create(qs_env, rhoin, rho1_struct, rho0_atom_set, xc_section, &
-                                  .FALSE., vxc00b, v_tau_rspace, rho1_atom_set, &
+                                  .FALSE., vxc00b, v_tau_rspaceb, rho1_atom_set, &
                                   is_triplet=is_triplet, spinflip=do_sf)
             ELSE
                CALL qs_fxc_fdiff(qs_env, rhoin, rho1_struct, xc_section, accuracy, &
@@ -626,14 +631,6 @@ CONTAINS
                   CALL pw_axpy(vxc00(ispin), gxc_rho(ispin), ak(istep))
                END DO
             END IF
-            DO ispin = 1, SIZE(vxc00)
-               CALL auxbas_pw_pool%give_back_pw(vxc00(ispin))
-            END DO
-            DEALLOCATE (vxc00)
-            IF (ASSOCIATED(vxc00b)) THEN
-               CALL auxbas_pw_pool%give_back_pw(vxc00b(1))
-               DEALLOCATE (vxc00b)
-            END IF
             IF (ASSOCIATED(v_tau_rspace)) THEN
                IF (.NOT. ASSOCIATED(gxc_tau)) THEN
                   ALLOCATE (gxc_tau(nspins))
@@ -642,14 +639,16 @@ CONTAINS
                      CALL pw_zero(gxc_tau(ispin))
                   END DO
                END IF
-               DO ispin = 1, nspins
-                  CALL pw_axpy(v_tau_rspace(ispin), gxc_tau(ispin), ak(istep))
-               END DO
-               DO ispin = 1, SIZE(v_tau_rspace)
-                  CALL auxbas_pw_pool%give_back_pw(v_tau_rspace(ispin))
-               END DO
-               DEALLOCATE (v_tau_rspace)
+               IF (do_sf) THEN
+                  CALL pw_axpy(v_tau_rspace(1), gxc_tau(1), ak(istep))
+                  CALL pw_axpy(v_tau_rspaceb(1), gxc_tau(2), ak(istep))
+               ELSE
+                  DO ispin = 1, nspins
+                     CALL pw_axpy(v_tau_rspace(ispin), gxc_tau(ispin), ak(istep))
+                  END DO
+               END IF
             END IF
+            CALL qs_fgxc_release(vxc00, v_tau_rspace, vxc00b, v_tau_rspaceb, auxbas_pw_pool)
          END IF
 
       END DO
