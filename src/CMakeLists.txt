@@ -1618,8 +1618,7 @@ set(CP2K_PROGS_F
     xc/xc_semilocal_unittest.F
     pseudopotentials/upf_projector_integrals_unittest.F
     pseudopotentials/upf_local_integrals_unittest.F
-    gapw_background_unittest.F
-    gapw_1c_basis_unittest.F
+    gapw_unittest.F
     kpoint_lattice_fft_unittest.F
     kpoint_smearing_unittest.F
     motion/cell_opt_utils_unittest.F
@@ -2058,8 +2057,7 @@ list(
   "xc_semilocal_unittest"
   "upf_projector_integrals_unittest"
   "upf_local_integrals_unittest"
-  "gapw_background_unittest"
-  "gapw_1c_basis_unittest"
+  "gapw_unittest"
   "kpoint_lattice_fft_unittest"
   "kpoint_smearing_unittest"
   "topology_wilson_unittest"
@@ -2106,8 +2104,7 @@ add_executable(upf_projector_integrals_unittest
                pseudopotentials/upf_projector_integrals_unittest.F)
 add_executable(upf_local_integrals_unittest
                pseudopotentials/upf_local_integrals_unittest.F)
-add_executable(gapw_background_unittest gapw_background_unittest.F)
-add_executable(gapw_1c_basis_unittest gapw_1c_basis_unittest.F)
+add_executable(gapw_unittest gapw_unittest.F)
 add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)
 add_executable(kpoint_smearing_unittest kpoint_smearing_unittest.F)
 add_executable(topology_wilson_unittest topology_wilson_unittest.F)

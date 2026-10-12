@@ -28,8 +28,7 @@ atom_upf_unittest
 xc_semilocal_unittest
 upf_projector_integrals_unittest
 upf_local_integrals_unittest
-gapw_background_unittest
-gapw_1c_basis_unittest
+gapw_unittest
 qs_fod_unittest
 qs_ot_complex_ref_unittest
 gx_ac_unittest                                           greenx
