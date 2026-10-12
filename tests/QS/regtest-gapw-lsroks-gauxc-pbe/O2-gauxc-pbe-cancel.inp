@@ -1,55 +1,56 @@
 ! Three OT steps deliberately test energy and orbital-derivative updates.
 ! This is a regression trajectory, not a converged molecular reference.
 &GLOBAL
+  PRINT_LEVEL LOW
   PROJECT O2-gauxc-pbe-cancel
   RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    MULTIPLICITY 3
     POTENTIAL_FILE_NAME POTENTIAL
     ROKS
-    MULTIPLICITY 3
     &LOW_SPIN_ROKS
       ENERGY_SCALING -1 1
       SPIN_CONFIGURATION 1 2
       SPIN_CONFIGURATION 1 2
     &END LOW_SPIN_ROKS
+    &MGRID
+      CUTOFF 200
+    &END MGRID
     &POISSON
       PERIODIC NONE
       POISSON_SOLVER MT
     &END POISSON
     &QS
-      METHOD GAPW
-      EPS_DEFAULT 1E-10
       EPSFIT 1E-4
+      EPS_DEFAULT 1E-10
+      METHOD GAPW
     &END QS
-    &MGRID
-      CUTOFF 200
-    &END MGRID
     &SCF
-      SCF_GUESS ATOMIC
       EPS_SCF 1E-8
-      MAX_SCF 3
       IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 3
+      SCF_GUESS ATOMIC
       &OT
-        ROTATION
         MINIMIZER CG
         PRECONDITIONER FULL_SINGLE_INVERSE
+        ROTATION
       &END OT
     &END SCF
     &XC
       &XC_FUNCTIONAL
         &GAUXC
           FUNCTIONAL PBE
-          MODEL NONE
           GRID FINE
-          PRUNING_SCHEME UNPRUNED
           INT_EXECUTION_SPACE HOST
-          SKALA_RUNTIME SELF
+          MODEL NONE
           MODEL_ATOM_CHUNK_SIZE 1
+          PRUNING_SCHEME UNPRUNED
+          SKALA_RUNTIME SELF
         &END GAUXC
       &END XC_FUNCTIONAL
     &END XC
@@ -65,9 +66,9 @@
     &END COORD
     &KIND O
       BASIS_SET 6-31G*
+      LEBEDEV_GRID 110
       POTENTIAL ALL
       RADIAL_GRID 60
-      LEBEDEV_GRID 110
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
