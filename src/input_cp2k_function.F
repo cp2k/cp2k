@@ -221,9 +221,11 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: func_name
       CHARACTER(LEN=default_path_length), INTENT(OUT)    :: xfunction
       CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER                           :: parameters
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: values
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: var_values
+         ALLOCATABLE, DIMENSION(:), INTENT(OUT)          :: parameters
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: values
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN), OPTIONAL                            :: var_values
       INTEGER, INTENT(IN), OPTIONAL                      :: i_rep_sec
       CHARACTER(LEN=*), DIMENSION(:), OPTIONAL           :: input_variables
 
@@ -238,12 +240,6 @@ CONTAINS
       NULLIFY (my_var, my_par, my_val, my_par_tmp, my_val_tmp)
       NULLIFY (my_units)
       NULLIFY (my_units_tmp)
-      IF (ASSOCIATED(parameters)) THEN
-         DEALLOCATE (parameters)
-      END IF
-      IF (ASSOCIATED(values)) THEN
-         DEALLOCATE (values)
-      END IF
       irep = 1
       IF (PRESENT(i_rep_sec)) irep = i_rep_sec
       mydim = 0

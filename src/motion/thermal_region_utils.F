@@ -165,7 +165,6 @@ CONTAINS
                CALL integer_to_string(ireg, my_region)
                t_region => thermal_regions%thermal_region(ireg)
                t_region%region_index = ireg
-               NULLIFY (t_region%part_index)
 
                ! Set up thermal region mapping to particles
                CALL section_vals_val_get(region_sections, "LIST", &
