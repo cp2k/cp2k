@@ -25,7 +25,7 @@
 !>            ! Add extra keywords here if needed
 !>            ! NULLIFY (keyword)
 !>            ! CALL keyword_create(keyword, __LOCATION__, ...)
-!>            ! CALL section_add_keyword(print_key, keyword)
+!>            ! CALL section_add_keyword(subsection, keyword)
 !>            ! CALL keyword_release(keyword)
 !>            ! ...
 !>            ! Done adding extra keywords
