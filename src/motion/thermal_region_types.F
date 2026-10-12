@@ -39,11 +39,11 @@ MODULE thermal_region_types
 
    TYPE thermal_region_type
       CHARACTER(len=default_path_length) :: temperature_function = ""
-      CHARACTER(len=default_string_length), POINTER, DIMENSION(:) :: temperature_function_parameters => NULL()
+      CHARACTER(len=default_string_length), DIMENSION(:), ALLOCATABLE :: temperature_function_parameters
       INTEGER :: region_index = 0, npart = 0
-      INTEGER, DIMENSION(:), POINTER :: part_index => NULL()
+      INTEGER, DIMENSION(:), ALLOCATABLE :: part_index
       REAL(KIND=dp) :: ekin = 0.0_dp, noisy_gamma_region = 0.0_dp, temperature = 0.0_dp, temp_expected = 0.0_dp, temp_tol = 0.0_dp
-      REAL(KIND=dp), DIMENSION(:), POINTER :: temperature_function_values => NULL()
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: temperature_function_values
    END TYPE thermal_region_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermal_region_types'
@@ -73,13 +73,13 @@ CONTAINS
 
       IF (ASSOCIATED(thermal_regions%thermal_region)) THEN
          DO ireg = 1, SIZE(thermal_regions%thermal_region)
-            IF (ASSOCIATED(thermal_regions%thermal_region(ireg)%part_index)) THEN
+            IF (ALLOCATED(thermal_regions%thermal_region(ireg)%part_index)) THEN
                DEALLOCATE (thermal_regions%thermal_region(ireg)%part_index)
             END IF
-            IF (ASSOCIATED(thermal_regions%thermal_region(ireg)%temperature_function_parameters)) THEN
+            IF (ALLOCATED(thermal_regions%thermal_region(ireg)%temperature_function_parameters)) THEN
                DEALLOCATE (thermal_regions%thermal_region(ireg)%temperature_function_parameters)
             END IF
-            IF (ASSOCIATED(thermal_regions%thermal_region(ireg)%temperature_function_values)) THEN
+            IF (ALLOCATED(thermal_regions%thermal_region(ireg)%temperature_function_values)) THEN
                DEALLOCATE (thermal_regions%thermal_region(ireg)%temperature_function_values)
             END IF
          END DO
