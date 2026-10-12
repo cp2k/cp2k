@@ -33,7 +33,6 @@ MODULE bibliography
    PUBLIC :: add_all_references ! f77_interface only
 
    ! all reference keys
-   INTEGER, PUBLIC, SAVE :: EsteveParedes2023
    INTEGER, PUBLIC, SAVE :: Richters2018, VandeVondele2005a, VandeVondele2003, &
                             Laino2005, Laino2006, Goedecker1996, Hartwigsen1998, Krack2005, &
                             Lippert1997, Lippert1999, Krack2000, Krack2002, Iannuzzi2005, &
@@ -101,7 +100,7 @@ MODULE bibliography
                             Shiga2022, Lindh1995, Chai2024a, Rullan2026, Sundararaman2017, Andreussi2019, &
                             Chai2025a, Neugebauer2023, Chai2024b, Moynihan2017, Cococcioni2005, &
                             Cances2000, Herbst2022, Zhang2025, Gresch2017, Soluyanov2011, Dixon2023, Doll2025, &
-                            Wong2026, Loring2015, Cerjan2023, Bairnsfather2026, Davidson1975, &
+                            Wong2026, Loring2015, EsteveParedes2023, Cerjan2023, Bairnsfather2026, Davidson1975, &
                             Olsen1988, Stratmann1998, Vecharynski2017, Stathopoulos1998, Bai2012, &
                             Fukaya2014, Schreder2024_3, Pizzi2020, Marzari1997, Souza2001
 
