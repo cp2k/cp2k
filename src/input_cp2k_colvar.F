@@ -21,7 +21,6 @@ MODULE input_cp2k_colvar
                                               high_print_level,&
                                               low_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
-   USE fparser,                         ONLY: docf
    USE input_constants,                 ONLY: gaussian,&
                                               numerical,&
                                               rmsd_all,&
@@ -2021,71 +2020,22 @@ CONTAINS
    SUBROUTINE create_colvar_comb_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="COMBINE_COLVAR", &
-                          description="Allows the possibility to combine several COLVARs into one COLVAR "// &
-                          "with a generic function. "//docf(), &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
-      NULLIFY (keyword, subsection)
+      CALL create_function_section(section, "COMBINE_COLVAR", "FUNCTION", &
+                                   description="Defines a COLVAR as a combination of several other "// &
+                                   "COLVARs with a generic function. To allow an efficient mapping "// &
+                                   "the order of the COLVARs will be considered identical to the "// &
+                                   "order of definition in the input file, and no extraneous COLVAR "// &
+                                   "that is not involved in the generic function should be present.", &
+                                   do_deriv=.TRUE.)
+
+      NULLIFY (subsection)
       CALL create_colvar_section(subsection, skip_recursive_colvar=.TRUE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
-
-      CALL keyword_create(keyword, __LOCATION__, name="FUNCTION", &
-                          description="Specifies the function used to combine different COLVARs into one.", &
-                          ! **************************************************************************************************
-                          !> \brief ...
-                          !> \param CV1^2 ...
-                          !> \param CV2^2 ...
-                          !> \param " ...
-                          !> \param type_of_var=lchar_t ...
-                          !> \param n_var=1 ...
-                          !> \param error=error ...
-                          ! **************************************************************************************************
-                          usage="FUNCTION SQRT(CV1^2+CV2^2)", type_of_var=lchar_t, &
-                          n_var=1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="VARIABLES", &
-                          description="Specifies the name of the variable that parametrises the FUNCTION "// &
-                          "defining how COLVARS should be combined. The matching follows the same order of the "// &
-                          "COLVARS definition in the input file.", &
-                          usage="VARIABLES CV1 CV2 CV3", type_of_var=char_t, n_var=-1, repeats=.FALSE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="PARAMETERS", &
-                          description="Defines the parameters of the functional form", &
-                          usage="PARAMETERS a b D", type_of_var=char_t, &
-                          n_var=-1, repeats=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="VALUES", &
-                          description="Defines the values of  parameter of the functional form", &
-                          usage="VALUES ", type_of_var=real_t, &
-                          n_var=-1, repeats=.TRUE., unit_str="internal_cp2k")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="DX", &
-                          description="Parameter used for computing the derivative of the combination "// &
-                          "of COLVARs with the Ridders' method.", &
-                          usage="DX <REAL>", default_r_val=0.1_dp, unit_str="bohr")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="ERROR_LIMIT", &
-                          description="Checks that the error in computing the derivative is not larger than "// &
-                          "the value set; in case error is larger a warning message is printed.", &
-                          usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
 
    END SUBROUTINE create_colvar_comb_section
 
