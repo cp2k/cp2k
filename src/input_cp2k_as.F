@@ -266,7 +266,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_mixing_section(subsection)
+      CALL create_mixing_section(subsection, active_space=.TRUE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

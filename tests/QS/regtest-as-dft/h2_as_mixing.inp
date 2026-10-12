@@ -30,6 +30,8 @@
         BROY_WREF 0.01
         METHOD MODIFIED_BROYDEN_MIXING
         NBUFFER 4
+        # Check backwards-compatible parsing of this deprecated, ignored keyword.
+        NMIXING 5
         N_SIMPLE_MIX 1
       &END MIXING
     &END ACTIVE_SPACE
