@@ -1,0 +1,94 @@
+@SET XYZFILE HeH.xyz
+&GLOBAL
+  PREFERRED_DIAG_LIBRARY SL
+  PRINT_LEVEL MEDIUM
+  PROJECT HeH-cdft-broyden-bt2-two
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    CHARGE 1
+    LSD
+    POTENTIAL_FILE_NAME POTENTIAL
+    WFN_RESTART_FILE_NAME HeH-noconstraint-1_0.wfn
+    &MGRID
+      CUTOFF 100
+      NGRIDS 5
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-12
+      METHOD GPW
+      &CDFT
+        STRENGTH 0.0 0.0
+        TARGET 0.2 1.0
+        TYPE_OF_CONSTRAINT BECKE
+        &ATOM_GROUP
+          ATOMS 1
+          COEFF 1
+          CONSTRAINT_TYPE MAGNETIZATION
+        &END ATOM_GROUP
+        &ATOM_GROUP
+          ATOMS 1..2
+          COEFF 1 -1
+          CONSTRAINT_TYPE CHARGE
+        &END ATOM_GROUP
+        &BECKE_CONSTRAINT
+          ADJUST_SIZE TRUE
+          ATOMIC_RADII 0.460 0.320
+          CAVITY_CONFINE TRUE
+          CAVITY_SHAPE VDW
+          CUTOFF_TYPE GLOBAL
+          EPS_CAVITY 1.0E-6
+          GLOBAL_CUTOFF 2.0
+          IN_MEMORY TRUE
+          SHOULD_SKIP TRUE
+        &END BECKE_CONSTRAINT
+        &OUTER_SCF ON
+          EPS_SCF 1.0E-2
+          EXTRAPOLATION_ORDER 2
+          MAX_SCF 4
+          OPTIMIZER BROYDEN
+          STEP_SIZE -1.0
+          TYPE CDFT_CONSTRAINT
+          &CDFT_OPT
+            BROYDEN_TYPE BT2
+            JACOBIAN_FREQ 10 1
+            JACOBIAN_STEP 1.0E-4
+            JACOBIAN_TYPE FD1
+          &END CDFT_OPT
+        &END OUTER_SCF
+      &END CDFT
+    &END QS
+    &SCF
+      CHOLESKY INVERSE_DBCSR
+      EPS_SCF 1.0E-5
+      MAX_SCF 20
+      SCF_GUESS RESTART
+      &OT ON
+        ALGORITHM IRAC
+        MINIMIZER CG
+        PRECONDITIONER FULL_ALL
+      &END OT
+      &OUTER_SCF ON
+        EPS_SCF 1.0E-5
+        MAX_SCF 2
+      &END OUTER_SCF
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+      &XC_GRID
+        XC_DERIV SPLINE2
+        XC_SMOOTH_RHO NONE
+      &END XC_GRID
+    &END XC
+  &END DFT
+  @INCLUDE subsys.inc
+&END FORCE_EVAL

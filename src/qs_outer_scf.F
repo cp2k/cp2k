@@ -345,7 +345,7 @@ CONTAINS
                      scale = SUM(MATMUL(TRANSPOSE(f), f))
                      scale = 1.0_dp/scale
                      IF (scale < 1.0E-12_dp) scale = 1.0E-12_dp
-                     inv_jacobian = inv_jacobian + scale*MATMUL((x - MATMUL(inv_jacobian, f)), TRANSPOSE(inv_jacobian))
+                     inv_jacobian = inv_jacobian + scale*MATMUL((x - MATMUL(inv_jacobian, f)), TRANSPOSE(f))
                   CASE DEFAULT
                      CALL cp_abort(__LOCATION__, &
                                    "Unknown Broyden type: "// &

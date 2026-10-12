@@ -6,7 +6,10 @@
 # These tests use different optimizers for the CDFT constraint
 "HeH-cdft-secant.inp"                   = [{matcher="E_total", tol=1e-09, ref=-2.43380161368197}]
 # Broyden optimizers
+# In one dimension, BT1 and BT2 give the same secant update.
 "HeH-cdft-broyden-bt1.inp"              = [{matcher="E_total", tol=1e-09, ref=-2.43247404297694}]
-"HeH-cdft-broyden-bt2.inp"              = [{matcher="E_total", tol=1e-09, ref=-2.43226496742776}]
+"HeH-cdft-broyden-bt2.inp"              = [{matcher="E_total", tol=1e-09, ref=-2.43247404297694}]
+# Exercise the BT2 matrix update with independent spin and charge constraints.
+"HeH-cdft-broyden-bt2-two.inp"          = [{matcher="E_total", tol=1e-09, ref=-2.93179777430584}]
 "HeH-cdft-broyden-bt1explicit.inp"      = [{matcher="E_total", tol=5e-06, ref=-2.43270552319648}]
 #EOF
