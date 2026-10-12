@@ -1563,7 +1563,11 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="LOW_SPIN_ROKS", &
                           description="Specify the details of the low spin ROKS method. "// &
                           "In particular, one can specify various terms added to the energy of the high spin roks configuration"// &
-                          " with a energy scaling factor, and a prescription of the spin state.", &
+                          " with an energy scaling factor, and a prescription of the spin state. "// &
+                          "With METHOD GAPW, energies and orbital derivatives are supported for LDA/GGA, "// &
+                          "full-AO hybrids without ADMM, tau-dependent meta-GGAs, and molecular GauXC/Skala. "// &
+                          "Nuclear forces, analytical stress, and native-grid Skala are not supported with GAPW. "// &
+                          "The GauXC path requires isolated all-electron calculations with HOST execution.", &
                           n_keywords=6, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)

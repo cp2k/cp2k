@@ -1,0 +1,3 @@
+# Three OT steps exercise full-AO PBE0 singlet and cancellation.
+"O2-pbe0-cancel.inp" = [{matcher="E_total", tol=1e-10, ref=-145.142864847602112}]
+"O2-pbe0.inp" = [{matcher="E_total", tol=1e-10, ref=-145.125877316454336}]

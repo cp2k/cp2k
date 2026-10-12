@@ -1,0 +1,5 @@
+# Two OT steps exercise Skala orbital updates and spin exchange.
+# GM3/ROBUST keeps Skala fast; this is not a quadrature-accuracy test.
+# Float32 model, one-atom chunks; CPU only.
+"O2-skala-singlet.inp" = [{matcher="E_total", tol=2e-08, ref=-144.380163332309735}]
+"O2-skala-spinflip.inp" = [{matcher="E_total", tol=2e-08, ref=-144.380163330095684}]

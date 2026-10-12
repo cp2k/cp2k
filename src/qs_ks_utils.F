@@ -22,7 +22,8 @@
 MODULE qs_ks_utils
    USE admm_types,                      ONLY: admm_type,&
                                               get_admm_env
-   USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
@@ -108,21 +109,35 @@ MODULE qs_ks_utils
    USE qs_integrate_potential,          ONLY: integrate_v_rspace,&
                                               integrate_v_rspace_diagonal,&
                                               integrate_v_rspace_one_center
-   USE qs_kind_types,                   ONLY: get_qs_kind_set,&
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              get_qs_kind_set,&
                                               qs_kind_type
+   USE qs_ks_atom,                      ONLY: update_ks_atom
    USE qs_ks_qmmm_methods,              ONLY: qmmm_modify_hartree_pot
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_oce_types,                    ONLY: oce_matrix_type
+   USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals,&
+                                              calculate_rho_atom,&
+                                              calculate_rho_atom_coeff
+   USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set,&
+                                              rho_atom_type,&
+                                              zero_rho_atom_integrals
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
    USE skala_gpw_functional,            ONLY: native_skala_gapw_composite_direct_ao,&
                                               native_skala_gapw_composite_reference
    USE task_list_types,                 ONLY: task_list_type
    USE virial_types,                    ONLY: virial_type
    USE xc,                              ONLY: xc_exc_calc,&
                                               xc_vxc_pw_create
+   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
+   USE xc_gauxc_functional,             ONLY: apply_gauxc
+   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -163,9 +178,9 @@ CONTAINS
                                                             k_beta, n_rep, Nelectron, Nspin, Nterms
       INTEGER, DIMENSION(:), POINTER                     :: ivec
       INTEGER, DIMENSION(:, :, :), POINTER               :: occupations
-      LOGICAL                                            :: compute_virial, in_range, &
-                                                            uniform_occupation
-      REAL(KIND=dp)                                      :: ehfx, exc
+      LOGICAL                                            :: compute_tau, compute_virial, gapw, &
+                                                            in_range, uniform_occupation, use_gauxc
+      REAL(KIND=dp)                                      :: ehfx, exc, exc1
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc_tmp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: energy_scaling, rvec, scaling
       TYPE(cell_type), POINTER                           :: cell
@@ -177,7 +192,7 @@ CONTAINS
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g, tau_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: xc_pw_pool
       TYPE(pw_r3d_rs_type)                               :: work_v_rspace
@@ -185,19 +200,24 @@ CONTAINS
       TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       TYPE(section_vals_type), POINTER                   :: hfx_section, input, &
                                                             low_spin_roks_section, xc_section
       TYPE(virial_type), POINTER                         :: virial
+      TYPE(xc_rho_cflags_type)                           :: needs
 
       IF (.NOT. dft_control%low_spin_roks) RETURN
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (ks_env, rho_ao)
+      NULLIFY (ks_env, rho_ao, rho_atom_set)
+      gapw = dft_control%qs_control%gapw
+      use_gauxc = gapw .AND. dft_control%use_gauxc
+      compute_tau = .FALSE.
 
       ! Test for not compatible options
-      IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
-         CALL cp_abort(__LOCATION__, "GAPW/GAPW_XC are not compatible with low spin ROKS method.")
+      IF (dft_control%qs_control%gapw_xc) THEN
+         CALL cp_abort(__LOCATION__, "GAPW_XC is not compatible with low spin ROKS method.")
       END IF
       IF (dft_control%do_admm) THEN
          CALL cp_abort(__LOCATION__, "ADMM not compatible with low spin ROKS method.")
@@ -230,7 +250,17 @@ CONTAINS
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       hfx_section => section_vals_get_subs_vals(input, "DFT%XC%HF")
 
-      ! No accurate integration possible (as there is no GAPW)
+      IF (gapw) THEN
+         IF (compute_virial) CPABORT("GAPW low spin ROKS stress is not implemented.")
+         IF (calculate_forces) CPABORT("GAPW low spin ROKS forces are not implemented.")
+         IF (.NOT. use_gauxc) THEN
+            needs = xc_functionals_get_needs(section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL"), &
+                                             lsd=.TRUE., calc_potential=.TRUE.)
+            compute_tau = needs%tau .OR. needs%tau_spin
+         END IF
+      END IF
+
+      ! The configuration corrections currently use unweighted grid integration.
       IF (ASSOCIATED(weights)) THEN
          CALL cp_abort(__LOCATION__, "No accurate xc integration possible.")
       END IF
@@ -296,13 +326,15 @@ CONTAINS
       END DO
 
       NULLIFY (matrix_h)
-      CALL dbcsr_allocate_matrix_set(matrix_h, Nspin)
-      DO ispin = 1, Nspin
-         ALLOCATE (matrix_h(ispin)%matrix)
-         CALL dbcsr_copy(matrix_h(ispin)%matrix, rho_ao(1)%matrix, &
-                         name="KS matrix low spin roks")
-         CALL dbcsr_set(matrix_h(ispin)%matrix, 0.0_dp)
-      END DO
+      IF (.NOT. use_gauxc) THEN
+         CALL dbcsr_allocate_matrix_set(matrix_h, Nspin)
+         DO ispin = 1, Nspin
+            ALLOCATE (matrix_h(ispin)%matrix)
+            CALL dbcsr_copy(matrix_h(ispin)%matrix, rho_ao(1)%matrix, &
+                            name="KS matrix low spin roks")
+            CALL dbcsr_set(matrix_h(ispin)%matrix, 0.0_dp)
+         END DO
+      END IF
 
       IF (do_hfx) THEN
          NULLIFY (matrix_hfx)
@@ -315,17 +347,24 @@ CONTAINS
       END IF
 
       ! grids in real and g space for rho and vxc
-      ! tau functionals are not supported
-      NULLIFY (tau, vxc_tau, vxc)
+      ! GAPW meta-GGAs need the kinetic-energy density of each configuration.
+      NULLIFY (rho_r, rho_g, tau, tau_g, vxc_tau, vxc)
       CALL pw_env_get(pw_env, xc_pw_pool=xc_pw_pool)
 
-      ALLOCATE (rho_r(Nspin))
-      ALLOCATE (rho_g(Nspin))
-      DO ispin = 1, Nspin
-         CALL auxbas_pw_pool%create_pw(rho_r(ispin))
-         CALL auxbas_pw_pool%create_pw(rho_g(ispin))
-      END DO
-      CALL auxbas_pw_pool%create_pw(work_v_rspace)
+      IF (.NOT. use_gauxc) THEN
+         ALLOCATE (rho_r(Nspin))
+         ALLOCATE (rho_g(Nspin))
+         IF (compute_tau) ALLOCATE (tau(Nspin), tau_g(Nspin))
+         DO ispin = 1, Nspin
+            CALL auxbas_pw_pool%create_pw(rho_r(ispin))
+            CALL auxbas_pw_pool%create_pw(rho_g(ispin))
+            IF (compute_tau) THEN
+               CALL auxbas_pw_pool%create_pw(tau(ispin))
+               CALL auxbas_pw_pool%create_pw(tau_g(ispin))
+            END IF
+         END DO
+         CALL auxbas_pw_pool%create_pw(work_v_rspace)
+      END IF
 
       ! get mo matrices needed to construct the density matrices
       ! we will base all on the alpha spin matrix, obviously possible in ROKS
@@ -350,14 +389,32 @@ CONTAINS
             CALL dbcsr_scale_by_vector(fm_scaled, scaling, side='right')
             CALL dbcsr_multiply('n', 't', 1.0_dp, mo_coeff, fm_scaled, &
                                 0.0_dp, matrix_p(ispin)%matrix, retain_sparsity=.TRUE.)
-            ! compute the densities on the grid
-            CALL calculate_rho_elec(matrix_p=matrix_p(ispin)%matrix, &
-                                    rho=rho_r(ispin), rho_gspace=rho_g(ispin), &
-                                    ks_env=ks_env)
+            IF (.NOT. use_gauxc) THEN
+               ! compute the densities on the grid
+               CALL calculate_rho_elec(matrix_p=matrix_p(ispin)%matrix, &
+                                       rho=rho_r(ispin), rho_gspace=rho_g(ispin), &
+                                       ks_env=ks_env, soft_valid=gapw)
+               IF (compute_tau) THEN
+                  CALL calculate_rho_elec(matrix_p=matrix_p(ispin)%matrix, &
+                                          rho=tau(ispin), rho_gspace=tau_g(ispin), &
+                                          ks_env=ks_env, soft_valid=gapw, compute_tau=.TRUE.)
+               END IF
+            END IF
          END DO
 
-         ! compute the exchange energies / potential if needed
-         IF (just_energy) THEN
+         IF (gapw .AND. .NOT. use_gauxc) THEN
+            CALL low_spin_roks_gapw_xc(qs_env, matrix_p, rho_atom_set, xc_section, just_energy, exc1)
+            energy%exc1 = energy%exc1 + energy_scaling(iterm)*exc1
+         END IF
+
+         ! GauXC evaluates each configuration on the complete molecular AO density.
+         ! Its matrix already contains all rho/gradient/tau/model-chain derivatives.
+         IF (use_gauxc) THEN
+            IF (ASSOCIATED(matrix_h)) CALL dbcsr_deallocate_matrix_set(matrix_h)
+            matrix_p2(1:Nspin, 1:1) => matrix_p(1:Nspin)
+            CALL apply_gauxc(qs_env, xc_section, .FALSE., rho_ao_external=matrix_p2, &
+                             exc_external=exc, matrix_vxc_external=matrix_h)
+         ELSE IF (just_energy) THEN
             exc = xc_exc_calc(rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section, &
                               weights=weights, pw_pool=xc_pw_pool)
          ELSE
@@ -383,16 +440,35 @@ CONTAINS
 
          ! add the corresponding derivatives to the MO derivatives
          IF (.NOT. just_energy) THEN
-            ! get the potential in matrix form
-            DO ispin = 1, Nspin
-               CALL dbcsr_set(matrix_h(ispin)%matrix, 0.0_dp)
-               ! use a work_v_rspace
-               CALL pw_axpy(vxc(ispin), work_v_rspace, energy_scaling(iterm)*vxc(ispin)%pw_grid%dvol, 0.0_dp)
-               CALL integrate_v_rspace(v_rspace=work_v_rspace, pmat=matrix_p(ispin), hmat=matrix_h(ispin), &
-                                       qs_env=qs_env, calculate_forces=calculate_forces)
-               CALL auxbas_pw_pool%give_back_pw(vxc(ispin))
-            END DO
-            DEALLOCATE (vxc)
+            IF (use_gauxc) THEN
+               DO ispin = 1, Nspin
+                  CALL dbcsr_scale(matrix_h(ispin)%matrix, energy_scaling(iterm))
+               END DO
+            ELSE
+               ! get the potential in matrix form
+               DO ispin = 1, Nspin
+                  CALL dbcsr_set(matrix_h(ispin)%matrix, 0.0_dp)
+                  ! use a work_v_rspace
+                  CALL pw_axpy(vxc(ispin), work_v_rspace, energy_scaling(iterm)*vxc(ispin)%pw_grid%dvol, 0.0_dp)
+                  CALL integrate_v_rspace(v_rspace=work_v_rspace, pmat=matrix_p(ispin), hmat=matrix_h(ispin), &
+                                          qs_env=qs_env, calculate_forces=calculate_forces, gapw=gapw)
+                  CALL auxbas_pw_pool%give_back_pw(vxc(ispin))
+                  IF (ASSOCIATED(vxc_tau)) THEN
+                     CALL pw_axpy(vxc_tau(ispin), work_v_rspace, &
+                                  energy_scaling(iterm)*vxc_tau(ispin)%pw_grid%dvol, 0.0_dp)
+                     CALL integrate_v_rspace(v_rspace=work_v_rspace, pmat=matrix_p(ispin), hmat=matrix_h(ispin), &
+                                             qs_env=qs_env, calculate_forces=.FALSE., gapw=gapw, compute_tau=.TRUE.)
+                     CALL auxbas_pw_pool%give_back_pw(vxc_tau(ispin))
+                  END IF
+               END DO
+               DEALLOCATE (vxc)
+               IF (ASSOCIATED(vxc_tau)) DEALLOCATE (vxc_tau)
+
+               IF (gapw) THEN
+                  CALL update_ks_atom(qs_env, matrix_h, matrix_p, .FALSE., &
+                                      rho_atom_external=rho_atom_set, kscale=energy_scaling(iterm))
+               END IF
+            END IF
 
             IF (do_hfx) THEN
                ! add HFX contribution
@@ -436,18 +512,24 @@ CONTAINS
       END DO
 
       ! release allocated memory
-      DO ispin = 1, Nspin
-         CALL auxbas_pw_pool%give_back_pw(rho_r(ispin))
-         CALL auxbas_pw_pool%give_back_pw(rho_g(ispin))
-      END DO
-      DEALLOCATE (rho_r, rho_g)
+      IF (.NOT. use_gauxc) THEN
+         DO ispin = 1, Nspin
+            CALL auxbas_pw_pool%give_back_pw(rho_r(ispin))
+            CALL auxbas_pw_pool%give_back_pw(rho_g(ispin))
+            IF (compute_tau) THEN
+               CALL auxbas_pw_pool%give_back_pw(tau(ispin))
+               CALL auxbas_pw_pool%give_back_pw(tau_g(ispin))
+            END IF
+         END DO
+         DEALLOCATE (rho_r, rho_g)
+         IF (compute_tau) DEALLOCATE (tau, tau_g)
+         CALL auxbas_pw_pool%give_back_pw(work_v_rspace)
+      END IF
       CALL dbcsr_deallocate_matrix_set(matrix_p)
-      CALL dbcsr_deallocate_matrix_set(matrix_h)
+      IF (ASSOCIATED(matrix_h)) CALL dbcsr_deallocate_matrix_set(matrix_h)
       IF (do_hfx) THEN
          CALL dbcsr_deallocate_matrix_set(matrix_hfx)
       END IF
-
-      CALL auxbas_pw_pool%give_back_pw(work_v_rspace)
 
       CALL dbcsr_release_p(fm_deriv)
       CALL dbcsr_release_p(fm_scaled)
@@ -458,9 +540,78 @@ CONTAINS
 
       CALL dbcsr_release_p(dbcsr_deriv)
 
+      IF (ASSOCIATED(rho_atom_set)) CALL deallocate_rho_atom_set(rho_atom_set)
+
       CALL timestop(handle)
 
    END SUBROUTINE low_spin_roks
+
+! **************************************************************************************************
+!> \brief Evaluate the atomic XC correction for one low-spin ROKS configuration.
+!>        Keep atomic densities and potential integrals separate from the reference
+!>        state. All configurations share the total density, so no electrostatic
+!>        correction or compensation-charge update is needed here.
+!> \param qs_env Quickstep environment
+!> \param matrix_p Spin density matrices of the configuration
+!> \param rho_atom_set Scratch atomic densities and XC potential integrals
+!> \param xc_section Exchange-correlation input
+!> \param just_energy Skip potential integrals when only the energy is requested
+!> \param exc1 Atomic hard-minus-soft XC energy
+! **************************************************************************************************
+   SUBROUTINE low_spin_roks_gapw_xc(qs_env, matrix_p, rho_atom_set, xc_section, just_energy, exc1)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
+      TYPE(section_vals_type), POINTER                   :: xc_section
+      LOGICAL, INTENT(IN)                                :: just_energy
+      REAL(KIND=dp), INTENT(OUT)                         :: exc1
+
+      INTEGER                                            :: ikind, natom
+      INTEGER, DIMENSION(:), POINTER                     :: atom_list
+      LOGICAL                                            :: paw_atom
+      REAL(KIND=dp)                                      :: hard_abs_spin, hard_spin, soft_abs_spin, &
+                                                            soft_spin
+      REAL(KIND=dp), DIMENSION(2)                        :: hard_total, soft_total
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p2
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab
+      TYPE(oce_matrix_type), POINTER                     :: oce
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
+                      dft_control=dft_control, para_env=para_env, oce=oce, sab_orb=sab)
+      CPASSERT(dft_control%nspins == 2)
+      CPASSERT(dft_control%nimages == 1)
+      IF (.NOT. ASSOCIATED(rho_atom_set)) THEN
+         CALL allocate_rho_atom_internals(rho_atom_set, atomic_kind_set, qs_kind_set, dft_control, para_env)
+      END IF
+      matrix_p2(1:2, 1:1) => matrix_p
+      CALL calculate_rho_atom_coeff(qs_env, matrix_p2, rho_atom_set, qs_kind_set, oce, sab, para_env)
+
+      ! Only local diagnostics: do not overwrite the reference charge summaries.
+      hard_total = 0.0_dp
+      soft_total = 0.0_dp
+      hard_spin = 0.0_dp
+      soft_spin = 0.0_dp
+      hard_abs_spin = 0.0_dp
+      soft_abs_spin = 0.0_dp
+      DO ikind = 1, SIZE(atomic_kind_set)
+         CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom)
+         CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
+         IF (paw_atom) THEN
+            CALL calculate_rho_atom(para_env, rho_atom_set, qs_kind_set(ikind), atom_list, natom, 2, &
+                                    hard_total, soft_total, hard_spin, soft_spin, hard_abs_spin, soft_abs_spin)
+         END IF
+      END DO
+      CALL zero_rho_atom_integrals(rho_atom_set)
+      exc1 = 0.0_dp
+      CALL calculate_vxc_atom(qs_env, just_energy, exc1, rho_atom_set_external=rho_atom_set, &
+                              xc_section_external=xc_section, calculate_forces=.FALSE.)
+   END SUBROUTINE low_spin_roks_gapw_xc
+
 ! **************************************************************************************************
 !> \brief do sic calculations on explicit orbitals
 !> \param energy ...

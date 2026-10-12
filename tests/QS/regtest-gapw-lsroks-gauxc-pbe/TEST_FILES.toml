@@ -1,0 +1,3 @@
+# Three OT steps exercise molecular GauXC PBE singlet and cancellation.
+"O2-gauxc-pbe-cancel.inp" = [{matcher="E_total", tol=1e-10, ref=-144.777394881410032}]
+"O2-gauxc-pbe-singlet.inp" = [{matcher="E_total", tol=1e-10, ref=-144.760606027240783}]

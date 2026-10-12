@@ -1,0 +1,5 @@
+# Three OT steps exercise tau-dependent XC and r2SCAN cancellation.
+# These are regression trajectories, not converged molecular references.
+"O2-r2scan-cancel.inp" = [{matcher="E_total", tol=1e-10, ref=-145.369716479581797}]
+"O2-r2scan.inp" = [{matcher="E_total", tol=1e-10, ref=-145.359761558148364}]
+"O2-tpss.inp" = [{matcher="E_total", tol=1e-10, ref=-145.314138478156934}]

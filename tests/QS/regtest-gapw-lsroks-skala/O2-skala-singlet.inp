@@ -1,0 +1,74 @@
+! Two OT steps deliberately test energy and orbital-derivative updates.
+! The small GM3/ROBUST grid tests the code path, not quadrature accuracy.
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT O2-skala-singlet
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    MULTIPLICITY 3
+    POTENTIAL_FILE_NAME POTENTIAL
+    ROKS
+    &LOW_SPIN_ROKS
+      ENERGY_SCALING -2 2
+      SPIN_CONFIGURATION 1 1
+      SPIN_CONFIGURATION 1 2
+    &END LOW_SPIN_ROKS
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+    &END POISSON
+    &QS
+      EPSFIT 1E-4
+      EPS_DEFAULT 1E-10
+      METHOD GAPW
+    &END QS
+    &SCF
+      EPS_SCF 1E-8
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 2
+      SCF_GUESS ATOMIC
+      &OT
+        MINIMIZER CG
+        PRECONDITIONER FULL_SINGLE_INVERSE
+        ROTATION
+      &END OT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL
+        &GAUXC
+          FUNCTIONAL PBE
+          GRID GM3
+          INT_EXECUTION_SPACE HOST
+          MODEL SKALA
+          MODEL_ATOM_CHUNK_SIZE 1
+          PRUNING_SCHEME ROBUST
+          SKALA_RUNTIME SELF
+        &END GAUXC
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 4 4 6
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O 2 2 2.392
+      O 2 2 3.608
+    &END COORD
+    &KIND O
+      BASIS_SET 6-31G*
+      LEBEDEV_GRID 110
+      POTENTIAL ALL
+      RADIAL_GRID 60
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

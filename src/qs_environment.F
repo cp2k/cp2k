@@ -88,18 +88,19 @@ MODULE qs_environment
    USE hfx_types,                       ONLY: compare_hfx_sections,&
                                               hfx_create
    USE input_constants,                 ONLY: &
-        atomic_guess, debug_run, diag_ot, dispersion_d2, dispersion_d3, dispersion_d3bj, &
-        do_et_ddapc, do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, &
-        do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, do_method_ofgpw, &
-        do_method_pdg, do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, &
-        do_method_rigpw, do_method_rm1, do_method_xtb, do_qmmm_gauss, do_qmmm_swave, general_roks, &
-        gfn1xtb, hden_atomic, kg_tnadd_embed_ri, linear_response_run, mtlr_atomic_perturbations, &
-        mtlr_reference_from_atomic, mtlr_reference_from_restart, rel_none, rel_trans_atom, &
-        restart_guess, smear_fermi_dirac, tblite_scc_mixer_tblite, tddfpt_kernel_none, &
-        vdw_pairpot_dftd2, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, &
-        wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_use_guess_method_nr, &
-        wfi_use_prev_wf_method_nr, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot, &
-        xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
+        atomic_guess, cdft_charge_constraint, debug_run, diag_ot, dispersion_d2, dispersion_d3, &
+        dispersion_d3bj, do_et_ddapc, do_method_am1, do_method_dftb, do_method_gapw, &
+        do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
+        do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, do_method_pm6fm, &
+        do_method_pnnl, do_method_rigpw, do_method_rm1, do_method_xtb, do_qmmm_gauss, &
+        do_qmmm_swave, do_spin_density, general_roks, gfn1xtb, hden_atomic, kg_tnadd_embed_ri, &
+        linear_response_run, mtlr_atomic_perturbations, mtlr_reference_from_atomic, &
+        mtlr_reference_from_restart, rel_none, rel_trans_atom, restart_guess, sic_none, &
+        smear_fermi_dirac, tblite_scc_mixer_tblite, tddfpt_kernel_none, vdw_pairpot_dftd2, &
+        vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, wfi_linear_ps_method_nr, &
+        wfi_linear_wf_method_nr, wfi_use_guess_method_nr, wfi_use_prev_wf_method_nr, &
+        xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot, xtb_vdw_type_d3, xtb_vdw_type_d4, &
+        xtb_vdw_type_none
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_vals_get,&
@@ -211,11 +212,14 @@ MODULE qs_environment
    USE semi_empirical_types,            ONLY: se_taper_create,&
                                               se_taper_type
    USE semi_empirical_utils,            ONLY: se_cutoff_compatible
+   USE skala_gpw_functional,            ONLY: xc_section_uses_native_skala_evaluator
    USE tblite_interface,                ONLY: tb_get_basis,&
                                               tb_init_geometry,&
                                               tb_init_wf,&
                                               tb_set_calculator
    USE transport,                       ONLY: transport_env_create
+   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
+   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
    USE xtb_parameters,                  ONLY: init_xtb_basis,&
                                               xtb_parameters_init,&
                                               xtb_parameters_set,&
@@ -239,6 +243,100 @@ MODULE qs_environment
    PUBLIC :: qs_init
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Reject unsupported GAPW low-spin ROKS inputs before basis, grid and HFX setup.
+!> \param dft_control DFT and Quickstep controls read from input
+!> \param dft_section DFT input section
+!> \param subsys_section Subsystem input section, including all atomic kinds
+! **************************************************************************************************
+   SUBROUTINE check_gapw_low_spin_roks(dft_control, dft_section, subsys_section)
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(section_vals_type), POINTER                   :: dft_section, subsys_section
+
+      INTEGER                                            :: irep, nrep, option
+      LOGICAL                                            :: active, explicit
+      TYPE(section_vals_type), POINTER                   :: section, subsection, xc_section
+      TYPE(xc_rho_cflags_type)                           :: needs
+
+      IF (.NOT. dft_control%low_spin_roks) RETURN
+      IF (dft_control%qs_control%gapw_xc) THEN
+         CALL cp_abort(__LOCATION__, "GAPW_XC is not compatible with low spin ROKS method.")
+      END IF
+      IF (.NOT. dft_control%qs_control%gapw) RETURN
+
+      IF (dft_control%qs_control%gapw_control%accurate_xcint) THEN
+         CALL cp_abort(__LOCATION__, "GAPW low spin ROKS does not support GAPW_ACCURATE_XCINT.")
+      END IF
+      IF (dft_control%do_admm) THEN
+         CALL cp_abort(__LOCATION__, "ADMM not compatible with low spin ROKS method.")
+      END IF
+
+      ! Only XC and full-AO exchange are reevaluated for the spin configurations.
+      ! Other spin-dependent corrections would retain the high-spin contribution.
+      IF (dft_control%sic_method_id /= sic_none) THEN
+         CALL cp_abort(__LOCATION__, "GAPW low spin ROKS does not support SIC.")
+      END IF
+      IF (dft_control%qs_control%s2_restraint) THEN
+         CALL cp_abort(__LOCATION__, "GAPW low spin ROKS does not support S2 restraints.")
+      END IF
+      section => section_vals_get_subs_vals(subsys_section, "KIND")
+      CALL section_vals_get(section, n_repetition=nrep)
+      DO irep = 1, nrep
+         subsection => section_vals_get_subs_vals(section, "DFT_PLUS_U", i_rep_section=irep)
+         CALL section_vals_val_get(subsection, "_SECTION_PARAMETERS_", l_val=active)
+         IF (active) CALL cp_abort(__LOCATION__, "GAPW low spin ROKS does not support DFT+U.")
+      END DO
+      section => section_vals_get_subs_vals(dft_section, "QS%DDAPC_RESTRAINT")
+      CALL section_vals_get(section, explicit=explicit, n_repetition=nrep)
+      IF (explicit) THEN
+         DO irep = 1, nrep
+            CALL section_vals_val_get(section, "TYPE_OF_DENSITY", i_rep_section=irep, i_val=option)
+            IF (option == do_spin_density) THEN
+               CALL cp_abort(__LOCATION__, "GAPW low spin ROKS does not support spin DDAPC restraints.")
+            END IF
+         END DO
+      END IF
+      section => section_vals_get_subs_vals(dft_section, "QS%CDFT%ATOM_GROUP")
+      CALL section_vals_get(section, explicit=explicit, n_repetition=nrep)
+      IF (explicit) THEN
+         DO irep = 1, nrep
+            CALL section_vals_val_get(section, "CONSTRAINT_TYPE", i_rep_section=irep, i_val=option)
+            IF (option /= cdft_charge_constraint) THEN
+               CALL cp_abort(__LOCATION__, "GAPW low spin ROKS does not support spin CDFT constraints.")
+            END IF
+         END DO
+      END IF
+
+      xc_section => section_vals_get_subs_vals(dft_section, "XC")
+      section => section_vals_get_subs_vals(xc_section, "HF")
+      CALL section_vals_get(section, explicit=explicit, n_repetition=nrep)
+      IF (explicit) THEN
+         IF (nrep /= 1) CALL cp_abort(__LOCATION__, "GAPW low spin ROKS requires a single HF section.")
+         CALL section_vals_val_get(section, "RI%_SECTION_PARAMETERS_", l_val=active)
+         IF (active) CALL cp_abort(__LOCATION__, "GAPW low spin ROKS does not support RI-HFX.")
+         CALL section_vals_val_get(section, "ACE%ACTIVE", l_val=active)
+         IF (active) CALL cp_abort(__LOCATION__, "GAPW low spin ROKS does not support ACE-HFX.")
+         CALL section_vals_val_get(section, "SCREENING%SCREEN_ON_INITIAL_P", l_val=active)
+         IF (active) CALL cp_abort(__LOCATION__, "GAPW low spin ROKS does not support SCREEN_ON_INITIAL_P.")
+      END IF
+      CALL section_vals_val_get(xc_section, "VDW_POTENTIAL%POTENTIAL_TYPE", i_val=option)
+      IF (option == xc_vdw_fun_nonloc) THEN
+         CALL cp_abort(__LOCATION__, "GAPW low spin ROKS does not support nonlocal vdW functionals.")
+      END IF
+      IF (dft_control%use_gauxc) THEN
+         IF (xc_section_uses_native_skala_evaluator(xc_section)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "GAPW low spin ROKS requires the molecular GauXC grid, not native Skala grids.")
+         END IF
+      ELSE
+         section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+         needs = xc_functionals_get_needs(section, lsd=.TRUE., calc_potential=.TRUE.)
+         IF (needs%laplace_rho .OR. needs%laplace_rho_spin) THEN
+            CALL cp_abort(__LOCATION__, "GAPW low spin ROKS does not support density-Laplacian functionals.")
+         END IF
+      END IF
+   END SUBROUTINE check_gapw_low_spin_roks
 
 ! **************************************************************************************************
 !> \brief Read the input and the database files for the setup of the
@@ -1110,6 +1208,8 @@ CONTAINS
 
       ! Read the input section with the Quickstep control parameters
       CALL read_qs_section(dft_control%qs_control, qs_section, cell)
+
+      CALL check_gapw_low_spin_roks(dft_control, dft_section, subsys_section)
 
       ! Print the Quickstep program banner (copyright and version number)
       IF (.NOT. be_silent) THEN
