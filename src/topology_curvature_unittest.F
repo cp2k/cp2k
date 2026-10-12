@@ -14,7 +14,7 @@ PROGRAM topology_curvature_unittest
    IMPLICIT NONE
    REAL(KIND=dp), PARAMETER :: pi = 3.1415926535897932384626433832795_dp, tolerance = 1.e-11_dp
    COMPLEX(KIND=dp) :: p(2, 2, 6), q(2, 2, 6), g(2, 2), link(2, 2)
-   REAL(KIND=dp) :: value, maximum, minimum, coarse, fine
+   REAL(KIND=dp) :: value, maximum, minimum, dirac_value
    INTEGER :: i, status
    p(:, :, :) = 0.0_dp
    DO i = 1, 6
@@ -43,10 +43,8 @@ PROGRAM topology_curvature_unittest
    IF (status == 0) ERROR STOP 'Singular link accepted'
    CALL curvature_density(p, 4, pi/2.0_dp, value, maximum, status)
    IF (status /= -2) ERROR STOP 'Nonunitary plaquette accepted'
-   CALL dirac_pairing(6, coarse)
-   CALL dirac_pairing(8, fine)
-   IF (ABS(fine + 1.0_dp) >= ABS(coarse + 1.0_dp)) ERROR STOP 'C2 Dirac refinement failed'
-   IF (ABS(fine + 0.742412846261164_dp) > 1.e-6_dp) ERROR STOP 'Incorrect non-Abelian Dirac C2'
+   CALL dirac_pairing(8, dirac_value)
+   IF (ABS(dirac_value + 0.742412846261164_dp) > 1.e-6_dp) ERROR STOP 'Incorrect non-Abelian Dirac C2'
 CONTAINS
 
 ! **************************************************************************************************

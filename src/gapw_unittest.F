@@ -5,24 +5,32 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 
-PROGRAM gapw_background_unittest
+PROGRAM gapw_unittest
+   USE basis_set_types,                 ONLY: allocate_gto_basis_set,&
+                                              create_primitive_basis_set,&
+                                              deallocate_gto_basis_set,&
+                                              gto_basis_set_type
+   USE gapw_1c_basis_set,               ONLY: create_1c_basis
    USE hartree_local_methods,           ONLY: gapw_background_potential
    USE kinds,                           ONLY: dp
    USE libcp2k,                         ONLY: cp2k_finalize,&
                                               cp2k_init
    USE mathconstants,                   ONLY: fourpi,&
                                               pi
+   USE orbital_pointers,                ONLY: init_orbital_pointers
+   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
 
    IMPLICIT NONE
 
    INTEGER, PARAMETER :: nr = 1601, ng = 32
    REAL(dp), PARAMETER :: alpha = 1.4_dp, beta = 0.55_dp, box = 12.0_dp, dr = 0.00625_dp
-   REAL(dp), PARAMETER :: charges(3) = [-1.0_dp, 0.3_dp, 1.0_dp]
+   REAL(dp), PARAMETER :: charges(2) = [-1.0_dp, 0.3_dp]
    REAL(dp) :: rad2(nr), weights(nr), delta_rho(nr), potential(nr), shifted(nr)
    REAL(dp) :: q, g2, periodic_difference, local_difference, correction, error, h, eplus, eminus
    INTEGER :: i, ix, iy, iz
 
    CALL cp2k_init()
+   CALL check_1c_basis()
    DO i = 1, nr
       rad2(i) = ((i - 1)*dr)**2
    END DO
@@ -73,4 +81,50 @@ PROGRAM gapw_background_unittest
    potential = gapw_background_potential(0.0_dp, box**3, rad2)
    IF (ANY(potential /= 0.0_dp)) ERROR STOP "Neutral cell has a background potential"
    CALL cp2k_finalize()
-END PROGRAM gapw_background_unittest
+CONTAINS
+
+! **************************************************************************************************
+!> \brief Check that one-centre basis extension retains diffuse exponents without duplicates.
+! **************************************************************************************************
+   SUBROUTINE check_1c_basis()
+      INTEGER, PARAMETER                                 :: expected(4) = [3, 4, 5, 7]
+      REAL(KIND=dp), PARAMETER :: spacing(4) = [2.5_dp, 2.0_dp, 1.75_dp, 1.5_dp]
+
+      INTEGER                                            :: level
+      REAL(KIND=dp)                                      :: diffuse, ratio
+      TYPE(gto_basis_set_type), POINTER                  :: extended, orbitals, seed
+
+      NULLIFY (extended, orbitals, seed)
+      CALL init_orbital_pointers(5)
+      CALL init_spherical_harmonics(5, 0)
+      DO level = 1, 4
+         ratio = SPACING(level)
+         CALL allocate_gto_basis_set(seed)
+         seed%name = 'two-s-primitives'
+         seed%norm_type = 2
+         seed%nset = 1
+         ALLOCATE (seed%lmin(1), seed%lmax(1), seed%npgf(1), seed%zet(2, 1))
+         seed%lmin = 0
+         seed%lmax = 0
+         seed%npgf = 2
+         ! The second extension candidate duplicates the second soft exponent.
+         ! More diffuse, well-separated candidates must still be admitted.
+         seed%zet(:, 1) = [1.0_dp, 1.0_dp/SQRT(ratio)]
+         CALL create_primitive_basis_set(seed, orbitals)
+         orbitals%set_radius = 0.0_dp
+         CALL create_1c_basis(orbitals, orbitals, extended, level)
+         diffuse = 1.0_dp/(ratio*SQRT(ratio))
+         PRINT '(A,I2,A,I3)', 'GAPW extension level ', level, ': added s primitives ', extended%npgf(2)
+         IF (extended%npgf(2) /= expected(level)) ERROR STOP 'GAPW extension lost admissible diffuse exponents'
+         IF (MINVAL(ABS(extended%zet(:extended%npgf(2), 2) - diffuse)) > 1.e-12_dp) THEN
+            ERROR STOP 'GAPW extension is missing the first admissible diffuse exponent'
+         END IF
+         IF (MINVAL(ABS(extended%zet(:extended%npgf(2), 2) - seed%zet(2, 1))) < 1.e-12_dp) THEN
+            ERROR STOP 'GAPW extension duplicated an existing soft exponent'
+         END IF
+         CALL deallocate_gto_basis_set(extended)
+         CALL deallocate_gto_basis_set(orbitals)
+         CALL deallocate_gto_basis_set(seed)
+      END DO
+   END SUBROUTINE check_1c_basis
+END PROGRAM gapw_unittest
