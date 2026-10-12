@@ -1028,16 +1028,17 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="D4_REFERENCE_CODE", &
                           description="Calculate D4 energy using external library entirely. "// &
                           "Not recommended if you are using an MPI version of CP2K, because "// &
-                          "DFT-D4 package does not support MPI parallelization. However, "// &
-                          "if D4_DEBUG is triggered, you will need to switch this on. Note "// &
-                          "that the external library is always needed no matter if this "// &
-                          "option is triggered or not.", &
+                          "DFT-D4 package does not support MPI parallelization. Note that "// &
+                          "the external library is always needed no matter if this option "// &
+                          "is triggered or not.", &
                           usage="D4_REFERENCE_CODE", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="D4_DEBUG", &
-                          description="Debug output for D4 method using reference code.", &
+                          description="Debug output for D4 method using reference code; "// &
+                          "requires D4_REFERENCE_CODE F to work and VERBOSE_OUTPUT T to "// &
+                          "show the debugging result.", &
                           usage="D4_DEBUG", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
