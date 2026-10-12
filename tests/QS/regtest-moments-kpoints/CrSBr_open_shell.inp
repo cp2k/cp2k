@@ -25,6 +25,7 @@
     &PRINT
       &MOMENTS
         MAX_NMO 2
+        UNIT au_dip
         &KPOINT_SET
           NPOINTS 1
           SPECIAL_POINT -0.375 -0.375 0.000

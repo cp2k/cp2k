@@ -21,6 +21,7 @@
     &END POISSON
     &PRINT
       &MOMENTS
+        UNIT au_dip
       &END MOMENTS
     &END PRINT
     &QS

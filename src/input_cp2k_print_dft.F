@@ -1259,6 +1259,20 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create( &
          keyword, __LOCATION__, &
+         name="UNIT", &
+         description="Unit of the printed electric multipole moments. Multipoles of order L are "// &
+         "printed in UNIT*length^(L-1), where length is angstrom for debye and e_angstrom, bohr for "// &
+         "au_dip and m for C_m. For k-point calculations the dipole matrix elements are printed in UNIT "// &
+         "and the Berry curvature in length^2. The FORMAT TRAJECTORY output is always in Debye.", &
+         usage="UNIT {debye|e_angstrom|au_dip|C_m}", &
+         repeats=.FALSE., &
+         n_var=1, &
+         type_of_var=char_t, &
+         default_c_val="debye")
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
          name="FORMAT", &
          description="Format of the moments output. DETAILED prints the traditional multi-line report. "// &
          "TRAJECTORY prints one machine-readable electric-dipole record per iteration. For periodic "// &

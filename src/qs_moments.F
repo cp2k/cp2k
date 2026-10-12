@@ -64,6 +64,16 @@ MODULE qs_moments
    USE cp_result_methods, ONLY: cp_results_erase, &
                                 put_results
    USE cp_result_types, ONLY: cp_result_type
+   USE cp_units, ONLY: cp_ukind_dipole, &
+                       cp_unit_create, &
+                       cp_unit_from_cp2k, &
+                       cp_unit_from_cp2k1, &
+                       cp_unit_release, &
+                       cp_unit_type, &
+                       cp_units_au, &
+                       cp_units_c_m, &
+                       cp_units_debye, &
+                       cp_units_e_angstrom
    USE distribution_1d_types, ONLY: distribution_1d_type
    USE input_constants, ONLY: use_mom_ref_coac
    USE kinds, ONLY: default_string_length, &
@@ -94,9 +104,7 @@ MODULE qs_moments
                                ncoset
    USE particle_methods, ONLY: get_particle_set
    USE particle_types, ONLY: particle_type
-   USE physcon, ONLY: bohr, &
-                      debye, &
-                      angstrom
+   USE physcon, ONLY: angstrom
    USE qs_environment_types, ONLY: get_qs_env, &
                                    qs_environment_type
    USE qs_kind_types, ONLY: get_qs_kind, &
@@ -142,7 +150,7 @@ MODULE qs_moments
    PUBLIC :: build_berry_kpoint_matrix, build_local_magmom_matrix
    PUBLIC :: qs_moment_berry_phase, qs_moment_locop
    PUBLIC :: qs_moment_kpoints, build_local_moment_matrix_rs_img
-   PUBLIC :: qs_moment_kpoints_deep
+   PUBLIC :: qs_moment_kpoints_deep, qs_moment_kpoints_deep_soc
    PUBLIC :: qs_moment_kpoints_scf_mos
    PUBLIC :: build_local_moments_der_matrix
    PUBLIC :: calculate_commutator_nl_terms, op_orbbas, op_orbbas_rtp, &
@@ -1365,14 +1373,16 @@ CONTAINS
 !> \param reference ...
 !> \param ref_point ...
 !> \param unit_number ...
+!> \param unit_str unit of the printed moments (dipole unit of cp_units), default debye
 ! **************************************************************************************************
-   SUBROUTINE qs_moment_berry_phase(qs_env, magnetic, nmoments, reference, ref_point, unit_number)
+   SUBROUTINE qs_moment_berry_phase(qs_env, magnetic, nmoments, reference, ref_point, unit_number, unit_str)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: magnetic
       INTEGER, INTENT(IN)                                :: nmoments, reference
       REAL(dp), DIMENSION(:), POINTER                    :: ref_point
       INTEGER, INTENT(IN)                                :: unit_number
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: unit_str
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_moment_berry_phase'
       REAL(dp), PARAMETER                                :: eps_occ = 1.0E-6_dp
@@ -1754,9 +1764,10 @@ CONTAINS
       CALL put_results(results=results, description=description, &
                        values=rmom(2:4, 3))
       IF (magnetic) THEN
-         CALL print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic=.TRUE., mmom=mmom)
+         CALL print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic=.TRUE., mmom=mmom, &
+                            unit_str=unit_str)
       ELSE
-         CALL print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic=.TRUE.)
+         CALL print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic=.TRUE., unit_str=unit_str)
       END IF
 
       DEALLOCATE (rmom)
@@ -1940,8 +1951,10 @@ CONTAINS
 !> \param unit_number ...
 !> \param vel_reprs ...
 !> \param com_nl ...
+!> \param unit_str unit of the printed moments (dipole unit of cp_units), default debye
 ! **************************************************************************************************
-   SUBROUTINE qs_moment_locop(qs_env, magnetic, nmoments, reference, ref_point, unit_number, vel_reprs, com_nl)
+   SUBROUTINE qs_moment_locop(qs_env, magnetic, nmoments, reference, ref_point, unit_number, vel_reprs, com_nl, &
+                              unit_str)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: magnetic
@@ -1949,6 +1962,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(IN), POINTER        :: ref_point
       INTEGER, INTENT(IN)                                :: unit_number
       LOGICAL, INTENT(IN), OPTIONAL                      :: vel_reprs, com_nl
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: unit_str
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_moment_locop'
 
@@ -2287,13 +2301,16 @@ CONTAINS
       END IF
 
       IF (magnetic .AND. my_velreprs) THEN
-         CALL print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic=.FALSE., mmom=mmom, rmom_vel=rmom_vel)
+         CALL print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic=.FALSE., mmom=mmom, rmom_vel=rmom_vel, &
+                            unit_str=unit_str)
       ELSE IF (magnetic .AND. .NOT. my_velreprs) THEN
-         CALL print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic=.FALSE., mmom=mmom)
+         CALL print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic=.FALSE., mmom=mmom, &
+                            unit_str=unit_str)
       ELSE IF (my_velreprs .AND. .NOT. magnetic) THEN
-         CALL print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic=.FALSE., rmom_vel=rmom_vel)
+         CALL print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic=.FALSE., rmom_vel=rmom_vel, &
+                            unit_str=unit_str)
       ELSE
-         CALL print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic=.FALSE.)
+         CALL print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic=.FALSE., unit_str=unit_str)
       END IF
 
       IF (my_com_nl) THEN
@@ -2380,8 +2397,9 @@ CONTAINS
 !> \param periodic ...
 !> \param mmom ...
 !> \param rmom_vel ...
+!> \param unit_str unit of the printed electric moments (a dipole unit of cp_units), default debye
 ! **************************************************************************************************
-   SUBROUTINE print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic, mmom, rmom_vel)
+   SUBROUTINE print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic, mmom, rmom_vel, unit_str)
       INTEGER, INTENT(IN)                                :: unit_number, nmom
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: rmom
       CHARACTER(LEN=8), DIMENSION(:)                     :: rlab
@@ -2389,11 +2407,26 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       LOGICAL                                            :: periodic
       REAL(dp), DIMENSION(:), INTENT(IN), OPTIONAL       :: mmom, rmom_vel
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: unit_str
 
+      CHARACTER(LEN=16)                                  :: dip_label, fnum, ftot, len_label
       INTEGER                                            :: i, i0, i1, j, l
-      REAL(dp)                                           :: dd
+      LOGICAL                                            :: use_sci
+      REAL(dp)                                           :: dd, dip_fac, len_fac
 
       IF (unit_number > 0) THEN
+         IF (PRESENT(unit_str)) THEN
+            CALL get_moment_print_units(unit_str, dip_fac, len_fac, dip_label, len_label, use_sci)
+         ELSE
+            CALL get_moment_print_units("debye", dip_fac, len_fac, dip_label, len_label, use_sci)
+         END IF
+         ! fixed-point fields would print SI values (~1e-30) as zero
+         fnum = "F14.8"
+         ftot = "F13.7"
+         IF (use_sci) THEN
+            fnum = "ES14.6"
+            ftot = "ES13.5"
+         END IF
          DO l = 0, nmom
             SELECT CASE (l)
             CASE (0)
@@ -2404,49 +2437,53 @@ CONTAINS
             CASE (1)
                IF (periodic) THEN
                   WRITE (unit_number, "(T3,A)") "Dipole vectors are based on the periodic (Berry phase) operator."
-                  WRITE (unit_number, "(T3,A)") "They are defined modulo integer multiples of the cell matrix [Debye]."
-                  WRITE (unit_number, "(T3,A,3(F14.8,1X),A)") "[X] [", cell%hmat(1, :)*debye, "] [i]"
-                  WRITE (unit_number, "(T3,A,3(F14.8,1X),A)") "[Y]=[", cell%hmat(2, :)*debye, "]*[j]"
-                  WRITE (unit_number, "(T3,A,3(F14.8,1X),A)") "[Z] [", cell%hmat(3, :)*debye, "] [k]"
+                  WRITE (unit_number, "(T3,A)") "They are defined modulo integer multiples of the cell matrix ["// &
+                     TRIM(dip_label)//"]."
+                  WRITE (unit_number, "(T3,A,3("//TRIM(fnum)//",1X),A)") "[X] [", cell%hmat(1, :)*dip_fac, "] [i]"
+                  WRITE (unit_number, "(T3,A,3("//TRIM(fnum)//",1X),A)") "[Y]=[", cell%hmat(2, :)*dip_fac, "]*[j]"
+                  WRITE (unit_number, "(T3,A,3("//TRIM(fnum)//",1X),A)") "[Z] [", cell%hmat(3, :)*dip_fac, "] [k]"
                ELSE
                   WRITE (unit_number, "(T3,A)") "Dipoles are based on the traditional operator."
                END IF
-               dd = SQRT(SUM(rmom(2:4, 3)**2))*debye
-               WRITE (unit_number, "(T3,A)") "Dipole moment [Debye]"
-               WRITE (unit_number, "(T5,3(A,A,E15.7,1X),T60,A,T68,F13.7)") &
-                  (TRIM(rlab(i)), "=", rmom(i, 3)*debye, i=2, 4), "Total=", dd
+               dd = SQRT(SUM(rmom(2:4, 3)**2))*dip_fac
+               WRITE (unit_number, "(T3,A)") "Dipole moment ["//TRIM(dip_label)//"]"
+               WRITE (unit_number, "(T5,3(A,A,E15.7,1X),T60,A,T68,"//TRIM(ftot)//")") &
+                  (TRIM(rlab(i)), "=", rmom(i, 3)*dip_fac, i=2, 4), "Total=", dd
             CASE (2)
-               WRITE (unit_number, "(T3,A)") "Quadrupole moment [Debye*Angstrom]"
+               dd = dip_fac*len_fac
+               WRITE (unit_number, "(T3,A)") "Quadrupole moment ["//TRIM(dip_label)//"*"//TRIM(len_label)//"]"
                WRITE (unit_number, "(T17,3(A,A,E16.8,9X))") &
-                  (TRIM(rlab(i)), "=", rmom(i, 3)*debye/bohr, i=5, 7)
+                  (TRIM(rlab(i)), "=", rmom(i, 3)*dd, i=5, 7)
                WRITE (unit_number, "(T17,3(A,A,E16.8,9X))") &
-                  (TRIM(rlab(i)), "=", rmom(i, 3)*debye/bohr, i=8, 10)
+                  (TRIM(rlab(i)), "=", rmom(i, 3)*dd, i=8, 10)
             CASE (3)
-               WRITE (unit_number, "(T3,A)") "Octapole moment [Debye*Angstrom**2]"
-               WRITE (unit_number, "(T7,4(A,A,F14.8,3X))") &
-                  (TRIM(rlab(i)), "=", rmom(i, 3)*debye/bohr/bohr, i=11, 14)
-               WRITE (unit_number, "(T7,4(A,A,F14.8,3X))") &
-                  (TRIM(rlab(i)), "=", rmom(i, 3)*debye/bohr/bohr, i=15, 18)
-               WRITE (unit_number, "(T7,4(A,A,F14.8,3X))") &
-                  (TRIM(rlab(i)), "=", rmom(i, 3)*debye/bohr/bohr, i=19, 20)
+               dd = dip_fac*len_fac**2
+               WRITE (unit_number, "(T3,A)") "Octapole moment ["//TRIM(dip_label)//"*"//TRIM(len_label)//"**2]"
+               WRITE (unit_number, "(T7,4(A,A,"//TRIM(fnum)//",3X))") &
+                  (TRIM(rlab(i)), "=", rmom(i, 3)*dd, i=11, 14)
+               WRITE (unit_number, "(T7,4(A,A,"//TRIM(fnum)//",3X))") &
+                  (TRIM(rlab(i)), "=", rmom(i, 3)*dd, i=15, 18)
+               WRITE (unit_number, "(T7,4(A,A,"//TRIM(fnum)//",3X))") &
+                  (TRIM(rlab(i)), "=", rmom(i, 3)*dd, i=19, 20)
             CASE (4)
-               WRITE (unit_number, "(T3,A)") "Hexadecapole moment [Debye*Angstrom**3]"
-               WRITE (unit_number, "(T6,4(A,A,F14.8,2X))") &
-                  (TRIM(rlab(i)), "=", rmom(i, 3)*debye/bohr/bohr/bohr, i=21, 24)
-               WRITE (unit_number, "(T6,4(A,A,F14.8,2X))") &
-                  (TRIM(rlab(i)), "=", rmom(i, 3)*debye/bohr/bohr/bohr, i=25, 28)
-               WRITE (unit_number, "(T6,4(A,A,F14.8,2X))") &
-                  (TRIM(rlab(i)), "=", rmom(i, 3)*debye/bohr/bohr/bohr, i=29, 32)
-               WRITE (unit_number, "(T6,4(A,A,F14.8,2X))") &
-                  (TRIM(rlab(i)), "=", rmom(i, 3)*debye/bohr/bohr/bohr, i=32, 35)
+               dd = dip_fac*len_fac**3
+               WRITE (unit_number, "(T3,A)") "Hexadecapole moment ["//TRIM(dip_label)//"*"//TRIM(len_label)//"**3]"
+               WRITE (unit_number, "(T6,4(A,A,"//TRIM(fnum)//",2X))") &
+                  (TRIM(rlab(i)), "=", rmom(i, 3)*dd, i=21, 24)
+               WRITE (unit_number, "(T6,4(A,A,"//TRIM(fnum)//",2X))") &
+                  (TRIM(rlab(i)), "=", rmom(i, 3)*dd, i=25, 28)
+               WRITE (unit_number, "(T6,4(A,A,"//TRIM(fnum)//",2X))") &
+                  (TRIM(rlab(i)), "=", rmom(i, 3)*dd, i=29, 32)
+               WRITE (unit_number, "(T6,4(A,A,"//TRIM(fnum)//",2X))") &
+                  (TRIM(rlab(i)), "=", rmom(i, 3)*dd, i=32, 35)
             CASE DEFAULT
-               WRITE (unit_number, "(T3,A,A,I2)") "Higher moment [Debye*Angstrom**(L-1)]", &
-                  "  L=", l
+               WRITE (unit_number, "(T3,A,A,I2)") "Higher moment ["//TRIM(dip_label)//"*"//TRIM(len_label)// &
+                  "**(L-1)]", "  L=", l
                i0 = (6 + 11*(l - 1) + 6*(l - 1)**2 + (l - 1)**3)/6
                i1 = (6 + 11*l + 6*l**2 + l**3)/6 - 1
-               dd = debye/(bohr)**(l - 1)
+               dd = dip_fac*len_fac**(l - 1)
                DO i = i0, i1, 3
-                  WRITE (unit_number, "(T18,3(A,A,F14.8,4X))") &
+                  WRITE (unit_number, "(T18,3(A,A,"//TRIM(fnum)//",4X))") &
                      (TRIM(rlab(j + 1)), "=", rmom(j + 1, 3)*dd, j=i, MIN(i1, i + 2))
                END DO
             END SELECT
@@ -2480,6 +2517,60 @@ CONTAINS
       END IF
 
    END SUBROUTINE print_moments
+
+! **************************************************************************************************
+!> \brief Conversion factors and labels for printing electric moments in a chosen dipole unit.
+!>        Multipoles of order L are printed in (dipole unit)*(length unit)^(L-1), where the length
+!>        unit is paired with the dipole unit (debye, e_angstrom -> angstrom; au_dip -> bohr;
+!>        C_m -> m).
+!> \param unit_str dipole unit understood by cp_units (debye, e_angstrom, au_dip, C_m)
+!> \param dip_fac factor converting a dipole from a.u. (e*bohr) to unit_str
+!> \param len_fac factor converting a length from bohr to the paired length unit
+!> \param dip_label label of the dipole unit for the output headers
+!> \param len_label label of the paired length unit for the output headers
+!> \param use_sci .TRUE. if the values are too small for fixed-point output (SI units)
+! **************************************************************************************************
+   SUBROUTINE get_moment_print_units(unit_str, dip_fac, len_fac, dip_label, len_label, use_sci)
+      CHARACTER(LEN=*), INTENT(IN)                       :: unit_str
+      REAL(dp), INTENT(OUT)                              :: dip_fac, len_fac
+      CHARACTER(LEN=*), INTENT(OUT)                      :: dip_label, len_label
+      LOGICAL, INTENT(OUT)                               :: use_sci
+
+      CHARACTER(LEN=16)                                  :: len_unit
+      TYPE(cp_unit_type)                                 :: unit
+
+      CALL cp_unit_create(unit, unit_str)
+      IF (unit%n_kinds /= 1 .OR. unit%kind_id(1) /= cp_ukind_dipole .OR. unit%power(1) /= 1) THEN
+         CALL cp_abort(__LOCATION__, "MOMENTS%UNIT must be a dipole moment unit "// &
+                       "(debye, e_angstrom, au_dip or C_m), got: "//TRIM(unit_str))
+      END IF
+      use_sci = .FALSE.
+      SELECT CASE (unit%unit_id(1))
+      CASE (cp_units_debye)
+         dip_label = "Debye"
+         len_label = "Angstrom"
+         len_unit = "angstrom"
+      CASE (cp_units_e_angstrom)
+         dip_label = "e*Angstrom"
+         len_label = "Angstrom"
+         len_unit = "angstrom"
+      CASE (cp_units_au)
+         dip_label = "a.u."
+         len_label = "Bohr"
+         len_unit = "bohr"
+      CASE (cp_units_c_m)
+         dip_label = "C*m"
+         len_label = "m"
+         len_unit = "m"
+         use_sci = .TRUE.
+      CASE DEFAULT
+         CALL cp_abort(__LOCATION__, "MOMENTS%UNIT: dipole unit not fully specified: "//TRIM(unit_str))
+      END SELECT
+      dip_fac = cp_unit_from_cp2k1(1.0_dp, unit)
+      len_fac = cp_unit_from_cp2k(1.0_dp, TRIM(len_unit))
+      CALL cp_unit_release(unit)
+
+   END SUBROUTINE get_moment_print_units
 
 ! **************************************************************************************************
 !> \brief ...
@@ -3108,7 +3199,7 @@ CONTAINS
 !> \param xkp list of kpoints
 !> \param dipole ...
 !> \param rcc coordinates about which to calculate the dipole
-!> \param berry_c berry curvature calculated using Ω^γ_n = Σ_m 2*Im[d^α_nm (d^β_mn)*]
+!> \param berry_c berry curvature calculated using Ω^γ_n = -Σ_{m≠n} 2*Im[d^α_nm d^β_mn]
 !> \param momentum ...
 !> \param energy ...
 !> \param do_parallel option to distribute the result in dipole across
@@ -3256,6 +3347,11 @@ CONTAINS
                C_k(:, n) = C_k(:, n)/phase
             END DO
 
+            ! reset per k-point/spin: degenerate pairs are skipped below and must not keep
+            ! values from a previous iteration
+            IF (calc_dipole .OR. calc_bc) dip = z_zero
+            IF (calc_momentum) mom = z_zero
+
             DO i_dir = 1, 3 ! d^x, d^y, d^z
 
                IF (periodic(i_dir) == 0) CYCLE
@@ -3302,7 +3398,7 @@ CONTAINS
                END DO
             END DO
             ! Compute the Berry curvature from the dipoles
-            ! Ω^γ_n = Σ_m 2*Im[d^α_nm d^β_mn], where, α, β, γ belong to {x, y, z}
+            ! Ω^γ_n = -Σ_{m≠n} 2*Im[d^α_nm d^β_mn], where (α, β, γ) are cyclic in {x, y, z}
             IF (calc_bc) THEN
                bc = 0.0_dp
                DO i_dir = 1, 3
@@ -3310,7 +3406,7 @@ CONTAINS
                      DO m = 1, nao
                         IF (n == m) CYCLE
                         bc(i_dir, n) = bc(i_dir, n) &
-                                       + 2*AIMAG(dip(1 + MOD(i_dir, 3), n, m)*dip(1 + MOD(i_dir + 1, 3), m, n))
+                                       - 2*AIMAG(dip(1 + MOD(i_dir, 3), n, m)*dip(1 + MOD(i_dir + 1, 3), m, n))
                      END DO
                   END DO
                END DO
@@ -3603,9 +3699,10 @@ CONTAINS
             CALL gemm_square(W, 'C', D2, 'N', W, 'N', WD2W)
 
             ! d_nm(k) = -i/(E_n-E_m)[W^H grad H W]_nm + i E_n/(E_n-E_m)[W^H grad S W]_nm + [W^H D W]_nm
-            ! Degenerate spinor pairs (e.g. Kramers) are skipped: the length-gauge sum rule needs
-            ! degenerate perturbation theory there (same treatment as qs_moment_kpoints_scf_mos).
-            ! and the momentum (grad H includes grad V^SOC, i.e. the SOC part of the velocity)
+            ! Degenerate spinor pairs (|E_n-E_m| < eps_degenerate, e.g. Kramers) are skipped for the
+            ! dipole (and hence the Berry curvature): the length-gauge sum rule needs degenerate
+            ! perturbation theory there. The momentum below is well defined and is still computed.
+            ! Momentum (grad H includes grad V^SOC, i.e. the SOC part of the velocity):
             !    p_nm = i d_nm (E_n - E_m) + grad_k E_n delta_nm
             !         = [W^H grad H W]_nm - E_n [W^H grad S W]_nm + i (E_n - E_m) [W^H D W]_nm
             DO n = 1, nao2
@@ -3631,7 +3728,7 @@ CONTAINS
             END DO
          END DO
 
-         ! Berry curvature Omega^gamma_n = Sum_m 2*Im[d^alpha_nm d^beta_mn], (alpha,beta,gamma) cyclic
+         ! Berry curvature Omega^gamma_n = -Sum_{m/=n} 2*Im[d^alpha_nm d^beta_mn], (alpha,beta,gamma) cyclic
          IF (calc_bc) THEN
             bc = 0.0_dp
             DO i_dir = 1, 3
@@ -3639,7 +3736,7 @@ CONTAINS
                   DO m = 1, nao2
                      IF (n == m) CYCLE
                      bc(i_dir, n) = bc(i_dir, n) &
-                                    + 2*AIMAG(dip(1 + MOD(i_dir, 3), n, m)*dip(1 + MOD(i_dir + 1, 3), m, n))
+                                    - 2*AIMAG(dip(1 + MOD(i_dir, 3), n, m)*dip(1 + MOD(i_dir + 1, 3), m, n))
                   END DO
                END DO
             END DO
@@ -3897,15 +3994,22 @@ CONTAINS
 !> \param max_nmo ...
 !> \param unit_number ...
 !> \param do_soc include spin-orbit coupling (spinor sum-rule; requires an explicit KPOINT set)
+!> \param unit_str unit of the printed dipoles (dipole unit of cp_units), default debye; the Berry
+!>        curvature is printed in the paired length unit squared
 !> \author Shridhar Shanbhag
 ! **************************************************************************************************
-   SUBROUTINE qs_moment_kpoints(qs_env, nmoments, reference, ref_point, max_nmo, unit_number, do_soc)
+   SUBROUTINE qs_moment_kpoints(qs_env, nmoments, reference, ref_point, max_nmo, unit_number, do_soc, &
+                                unit_str)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: nmoments, reference, max_nmo
       REAL(dp), DIMENSION(:), INTENT(IN), POINTER        :: ref_point
       INTEGER, INTENT(IN)                                :: unit_number
       LOGICAL, INTENT(IN)                                :: do_soc
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: unit_str
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_moment_kpoints'
+      CHARACTER(LEN=16)                                  :: dip_label, len_label
+      LOGICAL                                            :: use_sci
+      REAL(KIND=dp)                                      :: dip_fac, len_fac
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp
       COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: dipole_to_print
       COMPLEX(KIND=dp), DIMENSION(:, :, :, :, :), &
@@ -3952,9 +4056,18 @@ CONTAINS
                        "KPOINTS section (the interband sum-rule / deep path).")
       END IF
 
+      ! output units: d_nm in the dipole unit, Berry curvature in the paired length unit squared
+      IF (PRESENT(unit_str)) THEN
+         CALL get_moment_print_units(unit_str, dip_fac, len_fac, dip_label, len_label, use_sci)
+      ELSE
+         CALL get_moment_print_units("debye", dip_fac, len_fac, dip_label, len_label, use_sci)
+      END IF
+      MARK_USED(use_sci)
+
       IF (unit_number > 0) WRITE (unit_number, FMT="(/,T2,A)") &
          '!-----------------------------------------------------------------------------!'
-      IF (unit_number > 0) WRITE (unit_number, "(T22,A)") "Periodic Dipole Matrix Elements"
+      IF (unit_number > 0) WRITE (unit_number, "(T22,A)") "Periodic Dipole Matrix Elements ["// &
+         TRIM(dip_label)//"]"
       IF (unit_number > 0 .AND. do_soc) WRITE (unit_number, "(T20,A)") &
          "with Spin-Orbit Coupling (spinor bands)"
 
@@ -4047,14 +4160,14 @@ CONTAINS
                DO n = nmin, nmax
                   DO m = nmin, nmax
                      IF (n == m) CYCLE
-                     WRITE (unit_number, "(2X,I4,2I4,6(G11.3))") ikp, n, m, dipole_to_print(1:3, n, m)
+                     WRITE (unit_number, "(2X,I4,2I4,6(G11.3))") ikp, n, m, dipole_to_print(1:3, n, m)*dip_fac
                   END DO
                END DO
-               WRITE (unit_number, "(/,1X,A)") "Berry Curvature"
+               WRITE (unit_number, "(/,1X,A)") "Berry Curvature ["//TRIM(len_label)//"^2]"
                WRITE (unit_number, "(2X,A)") "   kp    n      YZ          ZX          XY"
                DO n = nmin, nmax
                   WRITE (unit_number, "(2X,2I5,3(1X,G11.3))") &
-                     ikp, n, bc_to_print(1, n), bc_to_print(2, n), bc_to_print(3, n)
+                     ikp, n, bc_to_print(1:3, n)*len_fac**2
                END DO
             END IF
          END DO
