@@ -3391,44 +3391,51 @@ CONTAINS
    END SUBROUTINE add_VSOC_to_spinor
 
 ! **************************************************************************************************
-!> \brief Calculate interband k-point dipoles d_ab(k) with spin-orbit coupling (SOC) in the
-!>        2*nao spinor basis, via the length-gauge sum rule. SOC enters both the Hamiltonian and
-!>        the velocity operator (the k-derivative of V^SOC is included). Mirrors
-!>        qs_moment_kpoints_deep but promoted to spinor space; the two spin channels are merged
-!>        into 2*nao spinor bands (returned with spin dimension 1).
+!> \brief Calculate interband k-point dipoles d_ab(k), Berry curvature, momentum and band energies
+!>        with spin-orbit coupling (SOC) in the 2*nao spinor basis, via the length-gauge sum rule.
+!>        SOC enters both the Hamiltonian and the velocity operator (the k-derivative of V^SOC is
+!>        included). Mirrors qs_moment_kpoints_deep but promoted to spinor space; the two spin
+!>        channels are merged into 2*nao spinor bands (returned with spin dimension 1).
 !> \param qs_env ...
 !> \param xkp k-points at which the dipoles are evaluated
-!> \param dipole output dipoles, dim (1, k copy, 3, 2*nao, 2*nao)
+!> \param dipole optional output dipoles, dim (1, k copy, 3, 2*nao, 2*nao)
 !> \param rcc reference point for the local dipole operator (interband dipoles are origin-independent)
 !> \param berry_c optional SOC Berry curvature, dim (1, k copy, 3, 2*nao)
+!> \param momentum optional SOC momentum matrix elements p_nm, dim (1, k copy, 3, 2*nao, 2*nao)
+!> \param energy optional spinor band energies, dim (1, k copy, 2*nao)
 !> \param do_parallel distribute k-points over MPI ranks
 !> \author Shridhar Shanbhag
 ! **************************************************************************************************
-   SUBROUTINE qs_moment_kpoints_deep_soc(qs_env, xkp, dipole, rcc, berry_c, do_parallel)
+   SUBROUTINE qs_moment_kpoints_deep_soc(qs_env, xkp, dipole, rcc, berry_c, momentum, energy, do_parallel)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: xkp
       COMPLEX(KIND=dp), DIMENSION(:, :, :, :, :), &
-         ALLOCATABLE                                     :: dipole
+         ALLOCATABLE, OPTIONAL                           :: dipole
       REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: rcc
       REAL(KIND=dp), DIMENSION(:, :, :, :), &
          ALLOCATABLE, OPTIONAL                           :: berry_c
+      COMPLEX(KIND=dp), DIMENSION(:, :, :, :, :), &
+         ALLOCATABLE, OPTIONAL                           :: momentum
+      REAL(KIND=dp), DIMENSION(:, :, :), &
+         ALLOCATABLE, OPTIONAL                           :: energy
       LOGICAL, OPTIONAL                                  :: do_parallel
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_moment_kpoints_deep_soc'
-      !REAL(KIND=dp), PARAMETER                           :: eps_degenerate = 1.0E-10_dp
+      REAL(KIND=dp), PARAMETER                           :: eps_degenerate = 1.0E-10_dp
 
       COMPLEX(KIND=dp)                                   :: phase, tmp_max
       COMPLEX(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: D_k, dHd_k, dHu_k, dS_k, Hd_k, Hu_k, &
                                                             S_k, D2, dH2, dS2, H2, S2, W, WD2W, &
                                                             WdH2W, WdS2W
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: dip
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: dip, mom
       INTEGER                                            :: handle, i_dir, ikp, mepos, mu, m, n, &
                                                             n_img_all, nao, nao2, nimg, nkp, &
                                                             nspin, num_copy, num_pe, s
       INTEGER, DIMENSION(3)                              :: periodic
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_all
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index_all
-      LOGICAL                                            :: calc_bc, my_do_parallel
+      LOGICAL                                            :: calc_bc, calc_dipole, calc_energy, &
+                                                            calc_momentum, my_do_parallel
       REAL(KIND=dp), DIMENSION(3)                        :: my_rcc
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: eigenvals
@@ -3445,7 +3452,10 @@ CONTAINS
          POINTER                                         :: sab_all
 
       CALL timeset(routineN, handle)
+      calc_dipole = PRESENT(dipole)
       calc_bc = PRESENT(berry_c)
+      calc_momentum = PRESENT(momentum)
+      calc_energy = PRESENT(energy)
       my_do_parallel = .FALSE.
       my_rcc = 0.0_dp
       IF (PRESENT(do_parallel)) my_do_parallel = do_parallel
@@ -3506,22 +3516,26 @@ CONTAINS
          num_copy = CEILING(REAL(nkp)/num_pe)
       END IF
 
-      ALLOCATE (dipole(1, num_copy, 3, nao2, nao2), source=z_zero)
+      IF (calc_dipole) ALLOCATE (dipole(1, num_copy, 3, nao2, nao2), source=z_zero)
       IF (calc_bc) ALLOCATE (berry_c(1, num_copy, 3, nao2), source=0.0_dp)
+      IF (calc_momentum) ALLOCATE (momentum(1, num_copy, 3, nao2, nao2), source=z_zero)
+      IF (calc_energy) ALLOCATE (energy(1, num_copy, nao2), source=0.0_dp)
 
 !$OMP PARALLEL DEFAULT(NONE) PRIVATE(ikp, i_dir, n, m, mu, tmp_max, phase, eigenvals, &
 !$OMP S_k, Hu_k, Hd_k, D_k, dS_k, dHu_k, dHd_k, S2, H2, D2, dS2, dH2, W, &
-!$OMP WdH2W, WdS2W, WD2W, dip, bc) &
-!$OMP SHARED(num_pe, mepos, dipole, berry_c, nao, nao2, s, nspin, periodic, &
-!$OMP nkp, xkp, S_rs, H_rs, D_rs, VSOC_rs, index_to_cell_all, hmat, calc_bc)
+!$OMP WdH2W, WdS2W, WD2W, dip, bc, mom) &
+!$OMP SHARED(num_pe, mepos, dipole, berry_c, momentum, energy, nao, nao2, s, nspin, periodic, &
+!$OMP nkp, xkp, S_rs, H_rs, D_rs, VSOC_rs, index_to_cell_all, hmat, calc_dipole, calc_bc, &
+!$OMP calc_momentum, calc_energy)
       ALLOCATE (S_k(nao, nao), Hu_k(nao, nao), Hd_k(nao, nao), D_k(nao, nao), source=z_zero)
       ALLOCATE (dS_k(nao, nao), dHu_k(nao, nao), dHd_k(nao, nao), source=z_zero)
       ALLOCATE (S2(nao2, nao2), H2(nao2, nao2), D2(nao2, nao2), dS2(nao2, nao2), &
                 dH2(nao2, nao2), W(nao2, nao2), source=z_zero)
       ALLOCATE (WdH2W(nao2, nao2), WdS2W(nao2, nao2), WD2W(nao2, nao2), source=z_zero)
-      ALLOCATE (dip(3, nao2, nao2), source=z_zero)
       ALLOCATE (eigenvals(nao2), source=0.0_dp)
+      IF (calc_dipole .OR. calc_bc) ALLOCATE (dip(3, nao2, nao2), source=z_zero)
       IF (calc_bc) ALLOCATE (bc(3, nao2), source=0.0_dp)
+      IF (calc_momentum) ALLOCATE (mom(3, nao2, nao2), source=z_zero)
 !$OMP DO
       DO ikp = 1, nkp
          IF (MOD(ikp - 1, num_pe) /= mepos) CYCLE
@@ -3557,7 +3571,8 @@ CONTAINS
             W(:, n) = W(:, n)/phase
          END DO
 
-         dip = z_zero
+         IF (calc_dipole .OR. calc_bc) dip = z_zero
+         IF (calc_momentum) mom = z_zero
          DO i_dir = 1, 3 ! d^x, d^y, d^z
 
             IF (periodic(i_dir) == 0) CYCLE
@@ -3590,13 +3605,28 @@ CONTAINS
             ! d_nm(k) = -i/(E_n-E_m)[W^H grad H W]_nm + i E_n/(E_n-E_m)[W^H grad S W]_nm + [W^H D W]_nm
             ! Degenerate spinor pairs (e.g. Kramers) are skipped: the length-gauge sum rule needs
             ! degenerate perturbation theory there (same treatment as qs_moment_kpoints_scf_mos).
+            ! and the momentum (grad H includes grad V^SOC, i.e. the SOC part of the velocity)
+            !    p_nm = i d_nm (E_n - E_m) + grad_k E_n delta_nm
+            !         = [W^H grad H W]_nm - E_n [W^H grad S W]_nm + i (E_n - E_m) [W^H D W]_nm
             DO n = 1, nao2
                DO m = 1, nao2
-                  IF (n == m) CYCLE
-                  !IF (ABS(eigenvals(n) - eigenvals(m)) <= eps_degenerate) CYCLE
-                  dip(i_dir, n, m) = -gaussi*WdH2W(n, m)/(eigenvals(n) - eigenvals(m)) &
-                                     + gaussi*eigenvals(n)*WdS2W(n, m)/(eigenvals(n) - eigenvals(m)) &
-                                     + WD2W(n, m)
+                  IF (n == m) THEN
+                     ! diagonal elements of the dipole would need to be computed from
+                     ! a numerical k-derivative which is not implemented
+                     IF (calc_momentum) THEN
+                        mom(i_dir, n, n) = DBLE(WdH2W(n, n)) - DBLE(eigenvals(n)*WdS2W(n, n))
+                     END IF
+                  ELSE
+                     IF ((calc_dipole .OR. calc_bc) .AND. (ABS(eigenvals(n) - eigenvals(m)) >= eps_degenerate)) THEN
+                        dip(i_dir, n, m) = -gaussi*WdH2W(n, m)/(eigenvals(n) - eigenvals(m)) &
+                                           + gaussi*eigenvals(n)*WdS2W(n, m)/(eigenvals(n) - eigenvals(m)) &
+                                           + WD2W(n, m)
+                     END IF
+                     IF (calc_momentum) THEN
+                        mom(i_dir, n, m) = WdH2W(n, m) - eigenvals(n)*WdS2W(n, m) &
+                                           + gaussi*WD2W(n, m)*(eigenvals(n) - eigenvals(m))
+                     END IF
+                  END IF
                END DO
             END DO
          END DO
@@ -3615,13 +3645,18 @@ CONTAINS
             END DO
          END IF
 
-         dipole(1, CEILING(REAL(ikp)/num_pe), :, :, :) = dip(:, :, :)
+         ! Store the dipoles, momentum, berry curvature and energies for each MPI rank
+         IF (calc_dipole) dipole(1, CEILING(REAL(ikp)/num_pe), :, :, :) = dip(:, :, :)
+         IF (calc_momentum) momentum(1, CEILING(REAL(ikp)/num_pe), :, :, :) = mom(:, :, :)
          IF (calc_bc) berry_c(1, CEILING(REAL(ikp)/num_pe), :, :) = bc(:, :)
+         IF (calc_energy) energy(1, CEILING(REAL(ikp)/num_pe), :) = eigenvals(:)
       END DO
 !$OMP END DO
       DEALLOCATE (S_k, Hu_k, Hd_k, D_k, dS_k, dHu_k, dHd_k, S2, H2, D2, dS2, dH2, W, &
-                  WdH2W, WdS2W, WD2W, dip, eigenvals)
+                  WdH2W, WdS2W, WD2W, eigenvals)
+      IF (calc_dipole .OR. calc_bc) DEALLOCATE (dip)
       IF (calc_bc) DEALLOCATE (bc)
+      IF (calc_momentum) DEALLOCATE (mom)
 !$OMP END PARALLEL
       DEALLOCATE (S_rs, H_rs, D_rs, VSOC_rs)
       CALL dbcsr_deallocate_matrix_set(moments_rs_img)

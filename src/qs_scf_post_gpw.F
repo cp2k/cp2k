@@ -1796,7 +1796,7 @@ CONTAINS
             IF (moments_format /= moments_format_trajectory) moments_unit_nr = unit_nr
             IF (do_kpoints) THEN
                CALL qs_moment_kpoints(qs_env, maxmom, reference, ref_point, max_nmo, moments_unit_nr, &
-                                   do_soc)
+                                      do_soc)
             ELSE
                IF (periodic) THEN
                   CALL qs_moment_berry_phase(qs_env, magnetic, maxmom, reference, ref_point, moments_unit_nr)
