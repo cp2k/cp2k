@@ -43,9 +43,12 @@ CONTAINS
       INTEGER                                            :: axis, axis2, first, ico, ipgf, ipoint, &
                                                             irow, iset, isgf, ishell, l, last, &
                                                             ncart, powers(3), reduced(3)
-      REAL(dp)                                           :: alpha, exponential, pg, ph, polynomial, &
-                                                            polynomial_gradient(3), &
-                                                            polynomial_hessian(3, 3), r(3), weight
+      REAL(dp) :: alpha, exponential, polynomial, polynomial_gradient(3), &
+         polynomial_hessian(3, 3), primitive_gradient(3), primitive_hessian(3, 3), r(3), &
+         r_squared, weight, coordinate_power(3, 0:MAXVAL(basis%lmax)), &
+         cartesian_value(ncoset(MAXVAL(basis%lmax))), &
+         cartesian_hessian(3, 3, ncoset(MAXVAL(basis%lmax))), &
+         cartesian_gradient(3, ncoset(MAXVAL(basis%lmax)))
 
       CPASSERT(basis%nset > 0 .AND. basis%nsgf > 0)
       CPASSERT(ASSOCIATED(basis%sphi) .AND. ASSOCIATED(basis%zet))
@@ -65,54 +68,84 @@ CONTAINS
       !$OMP SHARED(basis, displacements, value, gradient, hessian, cutoff_squared, ncoset, indco) &
       !$OMP PRIVATE(ipoint, r, iset, ncart, ishell, l, first, last, ipgf, alpha, exponential, &
       !$OMP         isgf, ico, irow, weight, powers, reduced, polynomial, polynomial_gradient, &
-      !$OMP         polynomial_hessian, axis, axis2, pg, ph)
+      !$OMP         polynomial_hessian, primitive_gradient, primitive_hessian, cartesian_value, &
+      !$OMP         cartesian_gradient, cartesian_hessian, coordinate_power, r_squared, axis, axis2)
       DO ipoint = 1, SIZE(displacements, 2)
          r = displacements(:, ipoint)
+         r_squared = SUM(r**2)
          IF (PRESENT(cutoff_squared)) THEN
-            IF (SUM(r**2) > cutoff_squared) CYCLE
+            IF (r_squared > cutoff_squared) CYCLE
          END IF
+         coordinate_power(:, 0) = 1.0_dp
+         DO l = 1, UBOUND(coordinate_power, 2)
+            coordinate_power(:, l) = coordinate_power(:, l - 1)*r
+         END DO
+         ! Cartesian monomials and their derivatives do not depend on the primitive or contraction.
+         DO ico = 1, SIZE(cartesian_value)
+            powers = indco(:, ico)
+            cartesian_value(ico) = coordinate_power(1, powers(1))*coordinate_power(2, powers(2))* &
+                                   coordinate_power(3, powers(3))
+            IF (.NOT. PRESENT(gradient) .AND. .NOT. PRESENT(hessian)) CYCLE
+            cartesian_gradient(:, ico) = 0.0_dp
+            cartesian_hessian(:, :, ico) = 0.0_dp
+            DO axis = 1, 3
+               IF (powers(axis) == 0) CYCLE
+               reduced = powers
+               reduced(axis) = reduced(axis) - 1
+               cartesian_gradient(axis, ico) = REAL(powers(axis), dp)*coordinate_power(1, reduced(1))* &
+                                               coordinate_power(2, reduced(2))*coordinate_power(3, reduced(3))
+               IF (.NOT. PRESENT(hessian)) CYCLE
+               DO axis2 = 1, 3
+                  IF (reduced(axis2) == 0) CYCLE
+                  reduced(axis2) = reduced(axis2) - 1
+                  cartesian_hessian(axis, axis2, ico) = REAL(powers(axis)*(reduced(axis2) + 1), dp)* &
+                                                        coordinate_power(1, reduced(1))*coordinate_power(2, reduced(2))* &
+                                                        coordinate_power(3, reduced(3))
+                  reduced(axis2) = reduced(axis2) + 1
+               END DO
+            END DO
+         END DO
          DO iset = 1, basis%nset
             ncart = ncoset(basis%lmax(iset))
-            DO ishell = 1, basis%nshell(iset)
-               l = basis%l(ishell, iset)
-               first = basis%first_sgf(ishell, iset)
-               last = basis%last_sgf(ishell, iset)
-               DO ipgf = 1, basis%npgf(iset)
-                  alpha = basis%zet(ipgf, iset)
-                  exponential = EXP(-alpha*SUM(r**2))
-                  DO isgf = first, last
-                     DO ico = ncoset(l - 1) + 1, ncoset(l)
-                        irow = (ipgf - 1)*ncart + ico
-                        weight = basis%sphi(irow, isgf)*exponential
-                        powers = indco(:, ico)
-                        polynomial = PRODUCT(r**powers)
-                        value(ipoint, isgf) = value(ipoint, isgf) + weight*polynomial
-                        IF (.NOT. PRESENT(gradient) .AND. .NOT. PRESENT(hessian)) CYCLE
-                        polynomial_gradient = 0.0_dp
-                        polynomial_hessian = 0.0_dp
+            DO ipgf = 1, basis%npgf(iset)
+               alpha = basis%zet(ipgf, iset)
+               exponential = EXP(-alpha*r_squared)
+               DO ishell = 1, basis%nshell(iset)
+                  l = basis%l(ishell, iset)
+                  first = basis%first_sgf(ishell, iset)
+                  last = basis%last_sgf(ishell, iset)
+                  ! Primitive Cartesian derivatives are shared by every spherical contraction.
+                  DO ico = ncoset(l - 1) + 1, ncoset(l)
+                     irow = (ipgf - 1)*ncart + ico
+                     polynomial = cartesian_value(ico)
+                     IF (PRESENT(gradient) .OR. PRESENT(hessian)) THEN
+                        polynomial_gradient = cartesian_gradient(:, ico)
+                        polynomial_hessian = cartesian_hessian(:, :, ico)
                         DO axis = 1, 3
-                           IF (powers(axis) == 0) CYCLE
-                           reduced = powers
-                           reduced(axis) = reduced(axis) - 1
-                           polynomial_gradient(axis) = REAL(powers(axis), dp)*PRODUCT(r**reduced)
+                           primitive_gradient(axis) = polynomial_gradient(axis) - 2.0_dp*alpha*r(axis)*polynomial
                            IF (.NOT. PRESENT(hessian)) CYCLE
                            DO axis2 = 1, 3
-                              IF (reduced(axis2) == 0) CYCLE
-                              reduced(axis2) = reduced(axis2) - 1
-                              polynomial_hessian(axis, axis2) = REAL(powers(axis)*(reduced(axis2) + 1), dp)*PRODUCT(r**reduced)
-                              reduced(axis2) = reduced(axis2) + 1
+                              primitive_hessian(axis, axis2) = polynomial_hessian(axis, axis2) - 2.0_dp*alpha*( &
+                                                        r(axis)*polynomial_gradient(axis2) + r(axis2)*polynomial_gradient(axis)) + &
+                                                               4.0_dp*alpha**2*r(axis)*r(axis2)*polynomial
+                              IF (axis == axis2) THEN
+                                 primitive_hessian(axis, axis2) = primitive_hessian(axis, axis2) - 2.0_dp*alpha*polynomial
+                              END IF
                            END DO
                         END DO
+                     END IF
+                     DO isgf = first, last
+                        weight = basis%sphi(irow, isgf)*exponential
+                        value(ipoint, isgf) = value(ipoint, isgf) + weight*polynomial
+                        IF (.NOT. PRESENT(gradient) .AND. .NOT. PRESENT(hessian)) CYCLE
                         DO axis = 1, 3
-                           pg = polynomial_gradient(axis) - 2.0_dp*alpha*r(axis)*polynomial
-                           IF (PRESENT(gradient)) gradient(ipoint, isgf, axis) = gradient(ipoint, isgf, axis) + weight*pg
+                           IF (PRESENT(gradient)) THEN
+                              gradient(ipoint, isgf, axis) = gradient(ipoint, isgf, axis) + weight*primitive_gradient(axis)
+                           END IF
                            IF (.NOT. PRESENT(hessian)) CYCLE
                            DO axis2 = 1, 3
-                              ph = polynomial_hessian(axis, axis2) - 2.0_dp*alpha*( &
-                                   r(axis)*polynomial_gradient(axis2) + r(axis2)*polynomial_gradient(axis)) + &
-                                   4.0_dp*alpha**2*r(axis)*r(axis2)*polynomial
-                              IF (axis == axis2) ph = ph - 2.0_dp*alpha*polynomial
-                              hessian(ipoint, isgf, axis, axis2) = hessian(ipoint, isgf, axis, axis2) + weight*ph
+                              hessian(ipoint, isgf, axis, axis2) = hessian(ipoint, isgf, axis, axis2) + &
+                                                                   weight*primitive_hessian(axis, axis2)
                            END DO
                         END DO
                      END DO
