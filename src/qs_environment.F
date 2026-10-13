@@ -96,11 +96,11 @@ MODULE qs_environment
         do_qmmm_swave, do_spin_density, general_roks, gfn1xtb, hden_atomic, kg_tnadd_embed_ri, &
         linear_response_run, mtlr_atomic_perturbations, mtlr_reference_from_atomic, &
         mtlr_reference_from_restart, rel_none, rel_trans_atom, restart_guess, sic_none, &
-        smear_fermi_dirac, tblite_scc_mixer_tblite, tddfpt_kernel_none, vdw_pairpot_dftd2, &
-        vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, wfi_linear_ps_method_nr, &
-        wfi_linear_wf_method_nr, wfi_use_guess_method_nr, wfi_use_prev_wf_method_nr, &
-        xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot, xtb_vdw_type_d3, xtb_vdw_type_d4, &
-        xtb_vdw_type_none
+        smear_energy_window, smear_fermi_dirac, smear_list, tblite_scc_mixer_tblite, &
+        tddfpt_kernel_none, vdw_pairpot_dftd2, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, &
+        vdw_pairpot_dftd4, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
+        wfi_use_guess_method_nr, wfi_use_prev_wf_method_nr, xc_vdw_fun_none, xc_vdw_fun_nonloc, &
+        xc_vdw_fun_pairpot, xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_vals_get,&
@@ -1744,8 +1744,11 @@ CONTAINS
          IF (.NOT. scf_control%smear%do_smear) THEN
             CPABORT("Grand canonical SCF requires smearing.")
          END IF
-         IF (scf_control%smear%method /= smear_fermi_dirac) THEN
-            CPABORT("Grand canonical SCF is only implemented for Fermi-Dirac way of smearing.")
+         IF (scf_control%smear%method == smear_energy_window .OR. &
+             scf_control%smear%method == smear_list) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "Grand canonical SCF requires Fermi-Dirac, Gaussian, "// &
+                          "Methfessel-Paxton or Marzari-Vanderbilt smearing.")
          END IF
          IF (scf_control%use_ot .OR. .NOT. scf_control%use_diag .OR. &
              scf_control%diagonalization%method == diag_ot) THEN

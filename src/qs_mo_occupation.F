@@ -198,14 +198,14 @@ CONTAINS
       END DO
       homo_a = lfomo_a - 1
       DO i = nmo_a, lfomo_a, -1
-         IF (occ_a(i) > smear%eps_fermi_dirac) THEN
+         IF (ABS(occ_a(i)) > smear%eps_fermi_dirac) THEN
             homo_a = i
             EXIT
          END IF
       END DO
       homo_b = lfomo_b - 1
       DO i = nmo_b, lfomo_b, -1
-         IF (occ_b(i) > smear%eps_fermi_dirac) THEN
+         IF (ABS(occ_b(i)) > smear%eps_fermi_dirac) THEN
             homo_b = i
             EXIT
          END IF
@@ -484,10 +484,8 @@ CONTAINS
                                                             nomo, xas_estate
       LOGICAL                                            :: do_gce, equal_size, is_large, &
                                                             my_emit_warnings
-      REAL(KIND=dp)                                      :: delectron, e1, e2, edelta, edist, &
-                                                            el_count, gce_mu, my_nelec, nelec, &
-                                                            occ_estate, total_zeff_corr, &
-                                                            xas_nelectron
+      REAL(KIND=dp) :: delectron, e1, e2, edelta, edist, el_count, gce_mu, my_nelec, nelec, &
+         occ_estate, smear_width, total_zeff_corr, xas_nelectron
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tmp_v
 
       CALL timeset(routineN, handle)
@@ -528,27 +526,26 @@ CONTAINS
          END IF
          ! GCE workfunction (Fermi energy) mixing
          IF (do_gce) THEN
-            IF (smear%method /= smear_fermi_dirac) THEN
-               CPABORT("Grand canonical ensemble DFT SCF now only support Fermi Dirac smearing.")
-            END IF
+            smear_width = smear%smearing_width
+            IF (smear%method == smear_fermi_dirac) smear_width = smear%electronic_temperature
             IF (gce%prev_workfunction < -1000.0_dp) THEN
                my_nelec = REAL(mo_set%nelectron, dp)
                CALL SmearFixed(mo_set%occupation_numbers, mo_set%mu, mo_set%kTS, mo_set%eigenvalues, my_nelec, &
-                               smear%electronic_temperature, mo_set%maxocc, smear_fermi_dirac)
+                               smear_width, mo_set%maxocc, smear%method)
                gce%prev_workfunction = -501.0_dp
             ELSE IF (gce%prev_workfunction < -500.0_dp) THEN
                my_nelec = REAL(mo_set%nelectron, dp)
                CALL SmearFixed(mo_set%occupation_numbers, mo_set%mu, mo_set%kTS, mo_set%eigenvalues, my_nelec, &
-                               smear%electronic_temperature, mo_set%maxocc, smear_fermi_dirac)
+                               smear_width, mo_set%maxocc, smear%method)
                gce%prev_workfunction = gce%ref_esp - mo_set%mu
             ELSE
                gce_mu = gce%ref_esp - ((1.0_dp - gce%mixing_coef)*gce%prev_workfunction &
                                        + gce%mixing_coef*gce%target_workfunction)
                CALL SmearOcc(mo_set%occupation_numbers, my_nelec, mo_set%kTS, mo_set%eigenvalues, gce_mu, &
-                             smear%electronic_temperature, mo_set%maxocc, smear_fermi_dirac)
+                             smear_width, mo_set%maxocc, smear%method)
                mo_set%mu = gce_mu
                gce%prev_workfunction = gce%ref_esp - mo_set%mu
-               is_large = ABS(MAXVAL(mo_set%occupation_numbers) - mo_set%maxocc) > smear%eps_fermi_dirac
+               is_large = ABS(mo_set%occupation_numbers(1) - mo_set%maxocc) > smear%eps_fermi_dirac
                CPWARN_IF(is_large .AND. my_emit_warnings, "Fermi-Dirac smearing includes the first MO")
             END IF
             DO i = 1, SIZE(mo_set%occupation_numbers)
@@ -558,7 +555,7 @@ CONTAINS
                END IF
             END DO
             DO i = SIZE(mo_set%occupation_numbers), 1, -1
-               IF (mo_set%occupation_numbers(i) > smear%eps_fermi_dirac) THEN
+               IF (ABS(mo_set%occupation_numbers(i)) > smear%eps_fermi_dirac) THEN
                   mo_set%homo = i
                   EXIT
                END IF

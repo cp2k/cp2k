@@ -924,18 +924,6 @@ CONTAINS
                   e_extrapolated = energy%total - 0.5_dp*energy%kTS
                   WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &
                      "Total energy (extrapolated to T->0):           ", e_extrapolated
-                  IF (scf_control%gce%do_gce) THEN
-                     WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
-                        "GCE work function [eV]: ", scf_control%gce%prev_workfunction*evolt
-                     WRITE (UNIT=output_unit, FMT="((T3,A,T56,ES25.10))") &
-                        "GCE WF-TWF [eV]: ", (scf_control%gce%prev_workfunction - &
-                                              scf_control%gce%target_workfunction)*evolt
-                     WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &
-                        "GCE charge [e]: ", dft_control%pcc_control%charge
-                     WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &
-                        "GCE free energy: ", (dft_control%pcc_control%charge + dft_control%charge) &
-                        *scf_control%gce%prev_workfunction*evolt
-                  END IF
                CASE (smear_gaussian)
                   e_extrapolated = energy%total - 0.5_dp*energy%kTS
                   WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &
@@ -943,6 +931,18 @@ CONTAINS
                CASE (smear_mp, smear_mv)
                   ! Sigma->0 extrapolation does not apply to MP or MV method.
                END SELECT
+               IF (scf_control%gce%do_gce) THEN
+                  WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
+                     "GCE work function [eV]: ", scf_control%gce%prev_workfunction*evolt
+                  WRITE (UNIT=output_unit, FMT="((T3,A,T56,ES25.10))") &
+                     "GCE WF-TWF [eV]: ", (scf_control%gce%prev_workfunction - &
+                                           scf_control%gce%target_workfunction)*evolt
+                  WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &
+                     "GCE charge [e]: ", dft_control%pcc_control%charge
+                  WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &
+                     "GCE free energy: ", (dft_control%pcc_control%charge + dft_control%charge) &
+                     *scf_control%gce%prev_workfunction*evolt
+               END IF
             END IF
          END IF
          IF (qmmm) THEN
