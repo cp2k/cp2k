@@ -359,7 +359,7 @@ CONTAINS
                                                   mypcol, myprow, n, &
                                                   n_rows, n_cols, &
                                                   nblk, neig, io_unit, &
-                                                  success
+                                                  success, debug_value
       LOGICAL                                  :: use_qr, check_eigenvalues
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: eval, eval_noqr
       TYPE(cp_blacs_env_type), POINTER         :: context
@@ -532,6 +532,20 @@ CONTAINS
          CALL elpa_obj%set("intel-gpu", 1, success)
          CPASSERT(success == ELPA_OK)
       END SELECT
+
+      ! Finalize GPU setup when a GPU kernel is used. Ensure ELPA does not flood output with
+      ! debug messages by temporarily turning debug off
+      CALL elpa_obj%get("debug", debug_value, success)
+      CPASSERT(success == ELPA_OK)
+
+      CALL elpa_obj%set("debug", 0, success)
+      CPASSERT(success == ELPA_OK)
+
+      success = elpa_obj%setup_gpu()
+      CPASSERT(success == ELPA_OK)
+
+      CALL elpa_obj%set("debug", debug_value, success)
+      CPASSERT(success == ELPA_OK)
 
       IF (.NOT. elpa_one_stage) THEN
          ! Keep ELPA's configured default in case the requested kernel is unavailable.
