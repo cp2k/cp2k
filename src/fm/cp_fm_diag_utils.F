@@ -134,8 +134,6 @@ CONTAINS
          DEALLOCATE (work_redistribute%group_distribution)
          DEALLOCATE (work_redistribute%group_partition)
       END IF
-      ! Return work to its initial state
-      work_redistribute = cp_fm_redistribute_type()
 
    END SUBROUTINE cp_fm_redistribute_work_finalize
 
@@ -160,8 +158,6 @@ CONTAINS
       work_redistribute%x = x
       work_redistribute%should_print = should_print
       work_redistribute%elpa_force_redistribute = elpa_force_redistribute
-      ! Init work
-      work_redistribute = cp_fm_redistribute_type()
 
    END SUBROUTINE cp_fm_redistribute_init
 
