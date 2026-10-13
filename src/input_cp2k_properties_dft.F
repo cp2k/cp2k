@@ -17,6 +17,8 @@ MODULE input_cp2k_properties_dft
                            Hybertsen1986, &
                            Tyagi2024, &
                            Tyagi2026, &
+                           Ditler2021, &
+                           Ditler2022, &
                            Hanasaki2025, &
                            Hernandez2025, &
                            Iannuzzi2005, &
@@ -436,7 +438,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="linres", &
                           description=desc, n_keywords=5, n_subsections=2, repeats=.FALSE., &
-                          citations=[Putrino2000])
+                          citations=[Putrino2000, Hanasaki2025])
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS", &
                           description="target accuracy for the convergence of the conjugate gradient.", &
@@ -603,7 +605,7 @@ CONTAINS
       IF (.NOT. failure) THEN
          CALL section_create(section, __LOCATION__, name="DCDR", &
                              description="Compute analytical gradients the dipole moments.", &
-                             n_keywords=50, n_subsections=1, repeats=.FALSE.)
+                             n_keywords=50, n_subsections=1, repeats=.FALSE., citations=[Ditler2021])
 
          CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                              description="Controls the activation of the APT calculation. "// &
@@ -748,7 +750,8 @@ CONTAINS
 
       CALL section_create(section, __LOCATION__, name="VCD", &
                           description="Carry out a VCD calculation.", &
-                          n_keywords=50, n_subsections=1, repeats=.FALSE.)
+                          n_keywords=50, n_subsections=1, repeats=.FALSE., &
+                          citations=[Ditler2022])
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="controls the activation of the APT/AAT calculation", &
@@ -1452,7 +1455,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="POLAR", &
                           description="Compute polarizabilities.", &
                           n_keywords=5, n_subsections=1, repeats=.FALSE., &
-                          citations=[Putrino2002])
+                          citations=[Putrino2002, Luber2014])
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="controls the activation of the polarizability calculation", &
@@ -1465,7 +1468,6 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="DO_RAMAN", &
                           description="Compute the electric-dipole--electric-dipole polarizability", &
                           usage="DO_RAMAN F", &
-                          citations=[Luber2014], &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
