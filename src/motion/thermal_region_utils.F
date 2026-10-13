@@ -262,7 +262,7 @@ CONTAINS
                      CALL parsef(1, TRIM(t_region%temperature_function), &
                                  t_region%temperature_function_parameters)
                      CALL section_vals_val_get(md_section, "STEP_START_VAL", i_val=itimes)
-                     t_region%temperature_function_values(1) = itimes*1.0_dp
+                     t_region%temperature_function_values(1) = REAL(itimes, KIND=dp)
                      t_region%temperature_function_values(2) = 0.0_dp
                      temp = cp_unit_to_cp2k(evalf(1, t_region%temperature_function_values), "K")
                      CPASSERT(EvalErrType <= 0)
