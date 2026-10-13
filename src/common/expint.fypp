@@ -76,7 +76,9 @@
                END IF
                IF (ABS(a2*b1 - a1*b2) < eps*ABS(a2*b1) .OR. i == maxit) THEN
                   #:if int(impure)
-                     IF (ABS(a2*b1 - a1*b2) >= eps*ABS(a2*b1)) CPABORT("continued fraction failed in expint")
+                     IF (ABS(a2*b1 - a1*b2) >= eps*ABS(a2*b1)) THEN
+                        CPABORT("continued fraction failed in expint")
+                     END IF
                   #:endif
                   expint = (a2/b2)*my_exp_mx
                   RETURN
