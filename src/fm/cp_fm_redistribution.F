@@ -325,15 +325,10 @@ CONTAINS
 
       DO img = 1, nimages
          DO i_row_local = 1, nrow_local
-
             i = row_indices(i_row_local)
-
             DO j_col_local = 1, ncol_local
-
                j = col_indices(j_col_local)
-
                array_tmp(i, j, img) = fm_S(img)%local_data(i_row_local, j_col_local)
-
             END DO ! j_col_local
          END DO ! i_row_local
       END DO ! img

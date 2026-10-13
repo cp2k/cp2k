@@ -58,7 +58,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_to_subgroups'
 
-      INTEGER :: block_offset, block_size, col, col_size, handle, handle1, i_block, igroup, imep, &
+      INTEGER :: block_offset, block_size, col, col_size, handle, handle2, i_block, igroup, imep, &
          imep_sub, msg_offset, ngroup, offset, row, row_size
       INTEGER, ALLOCATABLE                               :: counts_rec(:, :), counts_send(:, :)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: blk_counter, entry_counter
@@ -69,7 +69,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL timeset("get_sizes", handle1)
+      CALL timeset(routineN//"_count", handle2)
 
       NULLIFY (data_block)
 
@@ -102,9 +102,9 @@ CONTAINS
 
       CALL dbcsr_iterator_stop(iter)
 
-      CALL timestop(handle1)
+      CALL timestop(handle2)
 
-      CALL timeset("send_sizes_2", handle1)
+      CALL timeset(routineN//"_exchange_counts", handle2)
 
       IF (para_env%num_pe > 1) THEN
          CALL para_env%alltoall(counts_send, counts_rec, 2)
@@ -112,9 +112,9 @@ CONTAINS
          counts_rec(:, :) = counts_send
       END IF
 
-      CALL timestop(handle1)
+      CALL timestop(handle2)
 
-      CALL timeset("get_data", handle1)
+      CALL timeset(routineN//"_pack", handle2)
 
       CALL allocate_matrix_buffers(counts_send(1, :), counts_rec(1, :), 3, buffer_send, buffer_rec, &
                                    counts_send(2, :), counts_rec(2, :))
@@ -163,15 +163,15 @@ CONTAINS
 
       CALL dbcsr_iterator_stop(iter)
 
-      CALL timestop(handle1)
+      CALL timestop(handle2)
 
-      CALL timeset("send_data", handle1)
+      CALL timeset(routineN//"_exchange_data", handle2)
 
       CALL exchange_matrix_buffers(para_env, buffer_rec, buffer_send)
 
-      CALL timestop(handle1)
+      CALL timestop(handle2)
 
-      CALL timeset("reserve_blocks", handle1)
+      CALL timeset(routineN//"_reserve", handle2)
 
       CALL dbcsr_set(mat_local, 0.0_dp)
       CALL dbcsr_filter(mat_local, 1.0_dp)
@@ -179,9 +179,9 @@ CONTAINS
       CALL dbcsr_finalize(mat_local)
       CALL dbcsr_set(mat_local, 0.0_dp)
 
-      CALL timestop(handle1)
+      CALL timestop(handle2)
 
-      CALL timeset("fill_mat_local", handle1)
+      CALL timeset(routineN//"_unpack", handle2)
 
       DO imep = 0, para_env%num_pe - 1
          DO i_block = buffer_rec%indx_offset(imep) + 1, buffer_rec%indx_offset(imep + 1)
@@ -196,7 +196,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL timestop(handle1)
+      CALL timestop(handle2)
 
       CALL timestop(handle)
 
@@ -220,7 +220,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_from_subgroups'
 
       INTEGER                                            :: block_size, col, col_size, handle, &
-                                                            handle1, i_block, imep, mapped_row, &
+                                                            handle2, i_block, imep, mapped_row, &
                                                             offset, row, row_size
       INTEGER, ALLOCATABLE                               :: counts_rec(:, :), counts_send(:, :)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: block_counter, entry_counter
@@ -233,7 +233,7 @@ CONTAINS
       my_copy_only = .FALSE.
       IF (PRESENT(copy_only)) my_copy_only = copy_only
 
-      CALL timeset("get_coord", handle1)
+      CALL timeset(routineN//"_prepare", handle2)
 
       IF (.NOT. my_copy_only) THEN
          CALL dbcsr_clear(mat_global)
@@ -260,9 +260,9 @@ CONTAINS
 
       CALL dbcsr_iterator_stop(iter)
 
-      CALL timestop(handle1)
+      CALL timestop(handle2)
 
-      CALL timeset("comm_size", handle1)
+      CALL timeset(routineN//"_exchange_counts", handle2)
 
       IF (para_env%num_pe > 1) THEN
          CALL para_env%alltoall(counts_send, counts_rec, 2)
@@ -270,9 +270,9 @@ CONTAINS
          counts_rec(:, :) = counts_send
       END IF
 
-      CALL timestop(handle1)
+      CALL timestop(handle2)
 
-      CALL timeset("fill_buffer", handle1)
+      CALL timeset(routineN//"_pack", handle2)
 
       CALL allocate_matrix_buffers(counts_send(1, :), counts_rec(1, :), 3, buffer_send, buffer_rec, &
                                    counts_send(2, :), counts_rec(2, :))
@@ -314,15 +314,15 @@ CONTAINS
 
       CALL dbcsr_iterator_stop(iter)
 
-      CALL timestop(handle1)
+      CALL timestop(handle2)
 
-      CALL timeset("comm_data", handle1)
+      CALL timeset(routineN//"_exchange_data", handle2)
 
       CALL exchange_matrix_buffers(para_env, buffer_rec, buffer_send)
 
-      CALL timestop(handle1)
+      CALL timestop(handle2)
 
-      CALL timeset("set_blocks", handle1)
+      CALL timeset(routineN//"_unpack", handle2)
 
       ! Keep the rank and receive-buffer order of the block-wise accumulation.
       DO imep = 0, para_env%num_pe - 1
@@ -354,7 +354,7 @@ CONTAINS
          CALL dbcsr_filter(mat_local, 1.0_dp)
       END IF
 
-      CALL timestop(handle1)
+      CALL timestop(handle2)
 
       CALL timestop(handle)
 
