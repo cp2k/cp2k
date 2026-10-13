@@ -31,4 +31,9 @@
                                            {matcher="Cube_Si_effective_charge", file="si8_stress-local_energy-1_0.cube", tol=0.0, ref=4.0},
                                            {matcher="Cube_Si_effective_charge", file="si8_stress-local_stress-1_0.cube", tol=0.0, ref=4.0}]
 "H2-spline3.inp"                        = [{matcher="E_total", tol=1e-12, ref=-1.064646119848720}]
+# The slab-normal dipole is independent of the reference point, including with smearing.
+"h2o_dip_slab.inp"                      = [
+  {matcher="Dipole_z_first", tol=1.0E-6, ref=1.657946},
+  {matcher="Dipole_z", tol=1.0E-6, ref=1.657946},
+]
 #EOF
