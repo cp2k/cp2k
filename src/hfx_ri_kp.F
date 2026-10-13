@@ -671,6 +671,7 @@ CONTAINS
       t1 = m_walltime()
       ri_data%kp_cost(:, :, :) = 0.0_dp
       DO b_img = 1, nimg
+         CALL get_iapc_pairs(iapc_pairs, b_img, ri_data, qs_env)
          IF (print_progress) CALL print_progress_bar(b_img, nimg, iprint, ri_data)
          CALL dbt_batched_contract_init(ks_t_split(1))
          CALL dbt_batched_contract_init(ks_t_split(2))
@@ -693,7 +694,6 @@ CONTAINS
                CALL timestop(handle2)
 
                CALL dbt_batched_contract_init(t_2c_work(2))
-               CALL get_iapc_pairs(iapc_pairs, b_img, ri_data, qs_env)
                CALL timeset(routineN//"_3c", handle2)
 
                !Stack the (S^b|Q^b)^-1 * (Q^b| nu^b lambda^a+c) integrals over a+c and multiply by (R_i^0|S_j^b)
@@ -1039,6 +1039,7 @@ CONTAINS
       !We use the SCF cost model for the first loop, while we calculate the cost of the upcoming loop
       DO i_loop = 1, 2
          DO b_img = 1, nimg
+            CALL get_iapc_pairs(iapc_pairs, b_img, ri_data, qs_env, i_images) !i = a+c-b
             DO jatom = 1, natom
                DO iatom = 1, natom
 
@@ -1069,7 +1070,6 @@ CONTAINS
                      CALL dbt_batched_contract_init(rho_ao_t_sub(i_spin, b_img))
                   END DO
 
-                  CALL get_iapc_pairs(iapc_pairs, b_img, ri_data, qs_env, i_images) !i = a+c-b
                   DO i_batch = 1, n_batch
 
                      !Stack the 3c derivatives to take the trace later on
@@ -4647,12 +4647,12 @@ CONTAINS
          CALL dbt_iterator_start(iter, t_3c_in(i_img))
          DO WHILE (dbt_iterator_blocks_left(iter))
             CALL dbt_iterator_next_block(iter, ind)
-            CALL dbt_get_block(t_3c_in(i_img), ind, blk, found)
-            IF (.NOT. found) CYCLE
-
             IF (do_filter) THEN
                IF (.NOT. idx_to_at(ind(filter_dim)) == filter_at) CYCLE
             END IF
+
+            CALL dbt_get_block(t_3c_in(i_img), ind, blk, found)
+            IF (.NOT. found) CYCLE
 
             IF (stack_dim == 1) THEN
                dest = [(idx - offset - 1)*nblks + ind(1), ind(2), ind(3)]

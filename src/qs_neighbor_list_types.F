@@ -425,8 +425,9 @@ CONTAINS
          CALL get_neighbor_node(neighbor_node=iterator%neighbor_node, neighbor=iterator%jatom)
       END IF
 
-      ! mark the last iterator updated
-      iterator_set(:)%last = me
+      ! Only slot zero owns the shared queue cursor. Avoid touching every
+      ! worker's descriptor on each pair, especially at large thread counts.
+      iterator_set(0)%last = me
 !$OMP END CRITICAL(neighbour_list_iterate_critical)
 
    END FUNCTION neighbor_list_iterate
@@ -508,23 +509,23 @@ CONTAINS
       iterator => iter_sub(me)%neighbor_list_iterator
       kind_sub = iterator%jkind
 
-      CALL get_iterator_info(iter_ref, jatom=atom_ref, jkind=kind_ref)
+      CALL get_iterator_info(iter_ref, jatom=atom_ref, jkind=kind_ref, mepos=me)
 
       IF (iterator%inode == 0) THEN
-         CALL nl_set_sub_iterator(iter_sub, kind_ref, MAX(kind_sub, 1), atom_ref)
+         CALL nl_set_sub_iterator(iter_sub, kind_ref, MAX(kind_sub, 1), atom_ref, mepos=me)
       END IF
-      iter_stat = nl_sub_iterate(iter_sub)
+      iter_stat = nl_sub_iterate(iter_sub, mepos=me)
       IF (iter_stat == 0) RETURN
 
       nkind = iterator%nkind
 
       IF (kind_sub == nkind) THEN
-         CALL nl_set_sub_iterator(iter_sub, kind_ref, 1, atom_ref)
+         CALL nl_set_sub_iterator(iter_sub, kind_ref, 1, atom_ref, mepos=me)
          RETURN
       ELSE
          kind_sub = kind_sub + 1
-         CALL nl_set_sub_iterator(iter_sub, kind_ref, kind_sub, atom_ref)
-         iter_stat = nl_sub_iterate_ref(iter_sub, iter_ref)
+         CALL nl_set_sub_iterator(iter_sub, kind_ref, kind_sub, atom_ref, mepos=me)
+         iter_stat = nl_sub_iterate_ref(iter_sub, iter_ref, mepos=me)
       END IF
 
    END FUNCTION nl_sub_iterate_ref

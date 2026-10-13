@@ -46,6 +46,7 @@ MODULE hfx_types
         dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
    USE hfx_helpers,                     ONLY: count_cells_perd,&
                                               next_image_cell_perd
+   USE hfx_ri_compression,              ONLY: hfx_ri_compression_type
    USE input_constants,                 ONLY: &
         do_hfx_auto_shells, do_potential_coulomb, do_potential_gaussian, do_potential_id, &
         do_potential_long, do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, &
@@ -472,7 +473,7 @@ MODULE hfx_types
       INTEGER(int_8) :: dbcsr_nflop = 0_int_8
       REAL(dp)       :: dbcsr_time = 0.0_dp
       INTEGER        :: num_pe = 0
-      TYPE(hfx_compression_type), DIMENSION(:, :), ALLOCATABLE :: store_3c
+      TYPE(hfx_ri_compression_type), DIMENSION(:, :), ALLOCATABLE :: store_3c
 
    END TYPE hfx_ri_type
 
@@ -1277,8 +1278,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ri_init'
 
-      INTEGER                                            :: handle, i_mem, j_mem, MO_dim, natom, &
-                                                            nkind, nproc
+      INTEGER                                            :: handle, MO_dim, natom, nkind, nproc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bsizes_AO_store, bsizes_RI_store, dist1, &
                                                             dist2, dist3, dist_AO_1, dist_AO_2, &
                                                             dist_RI
@@ -1397,11 +1397,6 @@ CONTAINS
 
          ALLOCATE (ri_data%blk_indices(ri_data%n_mem, ri_data%n_mem_RI))
          ALLOCATE (ri_data%store_3c(ri_data%n_mem, ri_data%n_mem_RI))
-         DO i_mem = 1, ri_data%n_mem
-         DO j_mem = 1, ri_data%n_mem_RI
-            CALL alloc_containers(ri_data%store_3c(i_mem, j_mem), 1)
-         END DO
-         END DO
 
          ALLOCATE (ri_data%t_3c_int_ctr_2(1, 1))
          CALL create_3c_tensor(ri_data%t_3c_int_ctr_2(1, 1), dist1, dist2, dist3, &
@@ -1531,7 +1526,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ri_release'
 
-      INTEGER                                            :: handle, i, i_mem, ispin, j, j_mem, unused
+      INTEGER                                            :: handle, i, ispin, j
       LOGICAL                                            :: my_write_stats
 
       CALL timeset(routineN, handle)
@@ -1571,12 +1566,6 @@ CONTAINS
       DEALLOCATE (ri_data%bsizes_RI_fit)
 
       IF (ri_data%flavor == ri_pmat) THEN
-         DO i_mem = 1, ri_data%n_mem
-         DO j_mem = 1, ri_data%n_mem_RI
-            CALL dealloc_containers(ri_data%store_3c(i_mem, j_mem), unused)
-         END DO
-         END DO
-
          DO j = 1, SIZE(ri_data%t_3c_int_ctr_1, 2)
             DO i = 1, SIZE(ri_data%t_3c_int_ctr_1, 1)
                CALL dbt_destroy(ri_data%t_3c_int_ctr_1(i, j))

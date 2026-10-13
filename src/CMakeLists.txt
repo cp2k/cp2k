@@ -269,6 +269,7 @@ list(
   hfx_pair_list_methods.F
   hfx_pw_methods.F
   hfx_ri.F
+  hfx_ri_compression.F
   hfx_ri_kp.F
   hfx_screening_methods.F
   hfx_types.F

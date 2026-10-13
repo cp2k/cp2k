@@ -98,9 +98,9 @@ MODULE qs_tensors
         symmetrik_ik
    USE t_c_g0,                          ONLY: get_lmax_init,&
                                               init
-   USE util,                            ONLY: get_limit
 
-!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
+!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_lock_kind, &
+!$                    omp_init_lock, omp_destroy_lock, omp_set_lock, omp_unset_lock
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -393,10 +393,12 @@ CONTAINS
 !> \brief Create a 3-center neighborlist iterator
 !> \param iterator ...
 !> \param ijk_nl ...
+!> \param nthread Number of iterator slots sharing the pair queue and search tables.
 ! **************************************************************************************************
-   SUBROUTINE neighbor_list_3c_iterator_create(iterator, ijk_nl)
+   SUBROUTINE neighbor_list_3c_iterator_create(iterator, ijk_nl, nthread)
       TYPE(neighbor_list_3c_iterator_type), INTENT(OUT)  :: iterator
       TYPE(neighbor_list_3c_type), INTENT(IN)            :: ijk_nl
+      INTEGER, INTENT(IN), OPTIONAL                      :: nthread
 
       CHARACTER(len=*), PARAMETER :: routineN = 'neighbor_list_3c_iterator_create'
 
@@ -404,8 +406,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL neighbor_list_iterator_create(iterator%iter_ij, ijk_nl%ij_list)
-      CALL neighbor_list_iterator_create(iterator%iter_jk, ijk_nl%jk_list, search=.TRUE.)
+      CALL neighbor_list_iterator_create(iterator%iter_ij, ijk_nl%ij_list, nthread=nthread)
+      CALL neighbor_list_iterator_create(iterator%iter_jk, ijk_nl%jk_list, search=.TRUE., nthread=nthread)
 
       iterator%iter_level = 0
       iterator%ijk_nl = ijk_nl
@@ -459,84 +461,83 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Iterate 3c-nl iterator
 !> \param iterator ...
+!> \param mepos Thread-local iterator slot.
 !> \return 0 if successful; 1 if end was reached
 ! **************************************************************************************************
-   RECURSIVE FUNCTION neighbor_list_3c_iterate(iterator) RESULT(iter_stat)
+   FUNCTION neighbor_list_3c_iterate(iterator, mepos) RESULT(iter_stat)
       TYPE(neighbor_list_3c_iterator_type), &
          INTENT(INOUT)                                   :: iterator
+      INTEGER, INTENT(IN), OPTIONAL                      :: mepos
       INTEGER                                            :: iter_stat
 
-      INTEGER                                            :: iatom, iter_level, jatom, jatom_1, &
-                                                            jatom_2, katom
+      INTEGER                                            :: iatom, jatom, jatom_1, jatom_2, katom
       LOGICAL                                            :: skip_this
 
-      iter_level = iterator%iter_level
+      DO
+         IF (iterator%iter_level == 0) THEN
+            iter_stat = neighbor_list_iterate(iterator%iter_ij, mepos=mepos)
 
-      IF (iter_level == 0) THEN
-         iter_stat = neighbor_list_iterate(iterator%iter_ij)
+            IF (iter_stat /= 0) THEN
+               RETURN
+            END IF
 
-         IF (iter_stat /= 0) THEN
-            RETURN
+            CALL get_iterator_info(iterator%iter_ij, iatom=iatom, jatom=jatom, mepos=mepos)
+            skip_this = .FALSE.
+            IF ((iterator%bounds_i(1) > 0 .AND. iatom < iterator%bounds_i(1)) &
+                .OR. (iterator%bounds_i(2) > 0 .AND. iatom > iterator%bounds_i(2))) skip_this = .TRUE.
+            IF ((iterator%bounds_j(1) > 0 .AND. jatom < iterator%bounds_j(1)) &
+                .OR. (iterator%bounds_j(2) > 0 .AND. jatom > iterator%bounds_j(2))) skip_this = .TRUE.
+
+            IF (skip_this) THEN
+               CYCLE
+            END IF
          END IF
 
-         CALL get_iterator_info(iterator%iter_ij, iatom=iatom, jatom=jatom)
+         iter_stat = nl_sub_iterate(iterator%iter_jk, iterator%iter_ij, mepos=mepos)
+         IF (iter_stat /= 0) THEN
+            iterator%iter_level = 0
+            CYCLE
+         ELSE
+            iterator%iter_level = 1
+         END IF
+
+         CPASSERT(iter_stat == 0)
+         CPASSERT(iterator%iter_level == 1)
+         CALL get_iterator_info(iterator%iter_ij, iatom=iatom, jatom=jatom_1, mepos=mepos)
+         CALL get_iterator_info(iterator%iter_jk, iatom=jatom_2, jatom=katom, mepos=mepos)
+
+         CPASSERT(jatom_1 == jatom_2)
+         jatom = jatom_1
+
          skip_this = .FALSE.
-         IF ((iterator%bounds_i(1) > 0 .AND. iatom < iterator%bounds_i(1)) &
-             .OR. (iterator%bounds_i(2) > 0 .AND. iatom > iterator%bounds_i(2))) skip_this = .TRUE.
-         IF ((iterator%bounds_j(1) > 0 .AND. jatom < iterator%bounds_j(1)) &
-             .OR. (iterator%bounds_j(2) > 0 .AND. jatom > iterator%bounds_j(2))) skip_this = .TRUE.
+         IF ((iterator%bounds_k(1) > 0 .AND. katom < iterator%bounds_k(1)) &
+             .OR. (iterator%bounds_k(2) > 0 .AND. katom > iterator%bounds_k(2))) skip_this = .TRUE.
 
          IF (skip_this) THEN
-            iter_stat = neighbor_list_3c_iterate(iterator)
-            RETURN
+            CYCLE
          END IF
-      END IF
 
-      iter_stat = nl_sub_iterate(iterator%iter_jk, iterator%iter_ij)
-      IF (iter_stat /= 0) THEN
-         iterator%iter_level = 0
-         iter_stat = neighbor_list_3c_iterate(iterator)
-         RETURN
-      ELSE
-         iterator%iter_level = 1
-      END IF
+         SELECT CASE (iterator%ijk_nl%sym)
+         CASE (symmetric_none)
+            skip_this = .FALSE.
+         CASE (symmetric_ij)
+            skip_this = .NOT. include_symmetric(iatom, jatom)
+         CASE (symmetric_jk)
+            skip_this = .NOT. include_symmetric(jatom, katom)
+         CASE (symmetrik_ik)
+            skip_this = .NOT. include_symmetric(iatom, katom)
+         CASE (symmetric_ijk)
+            skip_this = .NOT. include_symmetric(iatom, jatom) .OR. .NOT. include_symmetric(jatom, katom)
+         CASE DEFAULT
+            CPABORT("should not happen")
+         END SELECT
 
-      CPASSERT(iter_stat == 0)
-      CPASSERT(iterator%iter_level == 1)
-      CALL get_iterator_info(iterator%iter_ij, iatom=iatom, jatom=jatom_1)
-      CALL get_iterator_info(iterator%iter_jk, iatom=jatom_2, jatom=katom)
+         IF (skip_this) THEN
+            CYCLE
+         END IF
 
-      CPASSERT(jatom_1 == jatom_2)
-      jatom = jatom_1
-
-      skip_this = .FALSE.
-      IF ((iterator%bounds_k(1) > 0 .AND. katom < iterator%bounds_k(1)) &
-          .OR. (iterator%bounds_k(2) > 0 .AND. katom > iterator%bounds_k(2))) skip_this = .TRUE.
-
-      IF (skip_this) THEN
-         iter_stat = neighbor_list_3c_iterate(iterator)
-         RETURN
-      END IF
-
-      SELECT CASE (iterator%ijk_nl%sym)
-      CASE (symmetric_none)
-         skip_this = .FALSE.
-      CASE (symmetric_ij)
-         skip_this = .NOT. include_symmetric(iatom, jatom)
-      CASE (symmetric_jk)
-         skip_this = .NOT. include_symmetric(jatom, katom)
-      CASE (symmetrik_ik)
-         skip_this = .NOT. include_symmetric(iatom, katom)
-      CASE (symmetric_ijk)
-         skip_this = .NOT. include_symmetric(iatom, jatom) .OR. .NOT. include_symmetric(jatom, katom)
-      CASE DEFAULT
-         CPABORT("should not happen")
-      END SELECT
-
-      IF (skip_this) THEN
-         iter_stat = neighbor_list_3c_iterate(iterator)
-         RETURN
-      END IF
+         EXIT
+      END DO
 
    END FUNCTION neighbor_list_3c_iterate
 
@@ -555,16 +556,18 @@ CONTAINS
 !> \param rik ...
 !> \param cell_j ...
 !> \param cell_k ...
+!> \param mepos Thread-local iterator slot.
 !> \return ...
 ! **************************************************************************************************
    SUBROUTINE get_3c_iterator_info(iterator, ikind, jkind, kkind, nkind, iatom, jatom, katom, &
-                                   rij, rjk, rik, cell_j, cell_k)
+                                   rij, rjk, rik, cell_j, cell_k, mepos)
       TYPE(neighbor_list_3c_iterator_type), &
          INTENT(INOUT)                                   :: iterator
       INTEGER, INTENT(OUT), OPTIONAL                     :: ikind, jkind, kkind, nkind, iatom, &
                                                             jatom, katom
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT), OPTIONAL :: rij, rjk, rik
       INTEGER, DIMENSION(3), INTENT(OUT), OPTIONAL       :: cell_j, cell_k
+      INTEGER, INTENT(IN), OPTIONAL                      :: mepos
 
       INTEGER, DIMENSION(2)                              :: atoms_1, atoms_2, kinds_1, kinds_2
       INTEGER, DIMENSION(3)                              :: cell_1, cell_2
@@ -575,12 +578,12 @@ CONTAINS
       CALL get_iterator_info(iterator%iter_ij, &
                              ikind=kinds_1(1), jkind=kinds_1(2), nkind=nkind, &
                              iatom=atoms_1(1), jatom=atoms_1(2), r=r_1, &
-                             cell=cell_1)
+                             cell=cell_1, mepos=mepos)
 
       CALL get_iterator_info(iterator%iter_jk, &
                              ikind=kinds_2(1), jkind=kinds_2(2), &
                              iatom=atoms_2(1), jatom=atoms_2(2), r=r_2, &
-                             cell=cell_2)
+                             cell=cell_2, mepos=mepos)
 
       IF (PRESENT(ikind)) ikind = kinds_1(1)
       IF (PRESENT(jkind)) jkind = kinds_1(2)
@@ -946,7 +949,6 @@ CONTAINS
          ncok, nimg, nseti, nsetj, nsetk, nthread, op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, &
          unit_id
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: img_to_RI_cell_prv
-      INTEGER, DIMENSION(2)                              :: bo
       INTEGER, DIMENSION(3)                              :: blk_idx, blk_size, cell_j, cell_k, &
                                                             kp_index_lbounds, kp_index_ubounds, sp
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmax_k, lmin_i, lmin_j, &
@@ -954,8 +956,7 @@ CONTAINS
                                                             nsgfj, nsgfk
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf_i, first_sgf_j, first_sgf_k
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: do_hfx_kpoints_prv, do_kpoints_prv, &
-                                                            found, skip
+      LOGICAL                                            :: do_hfx_kpoints_prv, do_kpoints_prv, found
       LOGICAL, DIMENSION(3)                              :: block_j_not_zero, block_k_not_zero, &
                                                             der_j_zero, der_k_zero
       REAL(dp), DIMENSION(3)                             :: der_ext_i, der_ext_j, der_ext_k
@@ -1206,12 +1207,15 @@ CONTAINS
       nthread = 1
 !$    nthread = omp_get_max_threads()
 
-!$OMP PARALLEL DEFAULT(NONE) &
+      CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c, nthread=nthread)
+      CALL nl_3c_iter_set_bounds(nl_3c_iter, bounds_i, bounds_j, bounds_k)
+
+!$OMP PARALLEL DEFAULT(NONE) FIRSTPRIVATE(nl_3c_iter) &
 !$OMP SHARED (nthread,do_kpoints_prv,kp_index_lbounds,kp_index_ubounds,maxli,maxlk,maxlj,bounds_i,&
 !$OMP         bounds_j,bounds_k,nimg,basis_i,basis_j,basis_k,dr_ij,dr_jk,dr_ik,ncoset,op_pos_prv,&
 !$OMP         potential_parameter,der_eps,tspj,spi,spk,cell_to_index,RI_range,natom,nl_3c,&
 !$OMP         t3c_der_i,t3c_der_k,t3c_der_j,ncell_RI,img_to_RI_cell_prv,do_hfx_kpoints_prv) &
-!$OMP PRIVATE (lib,nl_3c_iter,ikind,jkind,kkind,iatom,jatom,katom,rij,rjk,rik,cell_j,cell_k,&
+!$OMP PRIVATE (lib,ikind,jkind,kkind,iatom,jatom,katom,rij,rjk,rik,cell_j,cell_k,&
 !$OMP          prefac,jcell,kcell,first_sgf_i,lmax_i,lmin_i,npgfi,nseti,nsgfi,rpgf_i,set_radius_i,&
 !$OMP          sphi_i,zeti,kind_radius_i,first_sgf_j,lmax_j,lmin_j,npgfj,nsetj,nsgfj,rpgf_j,&
 !$OMP          set_radius_j,sphi_j,zetj,kind_radius_j,first_sgf_k,lmax_k,lmin_k,npgfk,nsetk,nsgfk,&
@@ -1219,42 +1223,19 @@ CONTAINS
 !$OMP          sgfk,dijk_j,dijk_k,ri,rj,rk,max_contraction_i,max_contraction_j,blk_idx,&
 !$OMP          max_contraction_k,iset,jset,kset,block_t_i,blk_size,dijk_contr,cpp_buffer,ccp_buffer,&
 !$OMP          block_start_j,block_end_j,block_start_k,block_end_k,block_start_i,block_end_i,found,&
-!$OMP          dummy_block_t,sp,handle2,mepos,bo,block_t_k,der_ext_i,der_ext_j,der_ext_k,tmp_ijk_i,&
-!$OMP          block_k_not_zero,der_k_zero,skip,der_j_zero,block_t_j,block_j_not_zero,tmp_ijk_j,i)
+!$OMP          dummy_block_t,sp,handle2,mepos,block_t_k,der_ext_i,der_ext_j,der_ext_k,tmp_ijk_i,&
+!$OMP          block_k_not_zero,der_k_zero,der_j_zero,block_t_j,block_j_not_zero,tmp_ijk_j,i)
 
       mepos = 0
 !$    mepos = omp_get_thread_num()
 
       CALL cp_libint_init_3eri1(lib, MAX(maxli, maxlj, maxlk))
       CALL cp_libint_set_contrdepth(lib, 1)
-      CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c)
 
-      !We split the provided bounds among the threads such that each threads works on a different set of atoms
-      IF (PRESENT(bounds_i)) THEN
-         bo = get_limit(bounds_i(2) - bounds_i(1) + 1, nthread, mepos)
-         bo(:) = bo(:) + bounds_i(1) - 1
-         CALL nl_3c_iter_set_bounds(nl_3c_iter, bo, bounds_j, bounds_k)
-      ELSE IF (PRESENT(bounds_j)) THEN
-         bo = get_limit(bounds_j(2) - bounds_j(1) + 1, nthread, mepos)
-         bo(:) = bo(:) + bounds_j(1) - 1
-         CALL nl_3c_iter_set_bounds(nl_3c_iter, bounds_i, bo, bounds_k)
-      ELSE IF (PRESENT(bounds_k)) THEN
-         bo = get_limit(bounds_k(2) - bounds_k(1) + 1, nthread, mepos)
-         bo(:) = bo(:) + bounds_k(1) - 1
-         CALL nl_3c_iter_set_bounds(nl_3c_iter, bounds_i, bounds_j, bo)
-      ELSE
-         bo = get_limit(natom, nthread, mepos)
-         CALL nl_3c_iter_set_bounds(nl_3c_iter, bo, bounds_j, bounds_k)
-      END IF
-
-      skip = .FALSE.
-      IF (bo(1) > bo(2)) skip = .TRUE.
-
-      DO WHILE (neighbor_list_3c_iterate(nl_3c_iter) == 0)
+      DO WHILE (neighbor_list_3c_iterate(nl_3c_iter, mepos=mepos) == 0)
          CALL get_3c_iterator_info(nl_3c_iter, ikind=ikind, jkind=jkind, kkind=kkind, &
                                    iatom=iatom, jatom=jatom, katom=katom, &
-                                   rij=rij, rjk=rjk, rik=rik, cell_j=cell_j, cell_k=cell_k)
-         IF (skip) EXIT
+                                   rij=rij, rjk=rjk, rik=rik, cell_j=cell_j, cell_k=cell_k, mepos=mepos)
 
          djk = NORM2(rjk)
          dij = NORM2(rij)
@@ -1484,7 +1465,6 @@ CONTAINS
          END DO
 
          CALL timeset(routineN//"_put_dbcsr", handle2)
-!$OMP CRITICAL(qs_tensors_t3c_der_i)
          sp = SHAPE(block_t_i(:, :, :, 1))
          sp([2, 3, 1]) = sp
 
@@ -1507,19 +1487,16 @@ CONTAINS
                                RESHAPE(block_t_k(:, :, :, i_xyz), SHAPE=sp, ORDER=[2, 3, 1]), &
                                summation=.TRUE.)
          END DO
-!$OMP END CRITICAL(qs_tensors_t3c_der_i)
 
          IF (nl_3c%sym == symmetric_jk) THEN
             sp = SHAPE(block_t_j(:, :, :, 1))
             sp([2, 3, 1]) = sp
-!$OMP CRITICAL(qs_tensors_t3c_der_j)
             DO i_xyz = 1, 3
                IF (.NOT. block_j_not_zero(i_xyz)) CYCLE
                CALL dbt_put_block(t3c_der_j(jcell, kcell, i_xyz), blk_idx, sp, &
                                   RESHAPE(block_t_j(:, :, :, i_xyz), SHAPE=sp, ORDER=[2, 3, 1]), &
                                   summation=.TRUE.)
             END DO
-!$OMP END CRITICAL(qs_tensors_t3c_der_j)
          END IF
 
          CALL timestop(handle2)
@@ -1534,8 +1511,8 @@ CONTAINS
       IF (ALLOCATED(cpp_buffer)) DEALLOCATE (cpp_buffer)
 
       CALL cp_libint_cleanup_3eri1(lib)
-      CALL neighbor_list_3c_iterator_destroy(nl_3c_iter)
 !$OMP END PARALLEL
+      CALL neighbor_list_3c_iterator_destroy(nl_3c_iter)
 
       IF (do_kpoints_prv .AND. .NOT. do_hfx_kpoints_prv) THEN
          DO i_xyz = 1, 3
@@ -1641,13 +1618,12 @@ CONTAINS
          jatom, jkind, jset, katom, kkind, kset, m_max, max_ncoj, max_nset, max_nsgfi, maxli, &
          maxlj, maxlk, mepos, natom, nbasis, ncoi, ncoj, ncok, nseti, nsetj, nsetk, nthread, &
          op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, unit_id
-      INTEGER, DIMENSION(2)                              :: bo
       INTEGER, DIMENSION(3)                              :: blk_size, sp
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmax_k, lmin_i, lmin_j, &
                                                             lmin_k, npgfi, npgfj, npgfk, nsgfi, &
                                                             nsgfj, nsgfk
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf_i, first_sgf_j, first_sgf_k
-      LOGICAL                                            :: found, skip
+      LOGICAL                                            :: found
       LOGICAL, DIMENSION(3)                              :: block_j_not_zero, block_k_not_zero, &
                                                             der_j_zero, der_k_zero
       REAL(dp)                                           :: force
@@ -1816,17 +1792,19 @@ CONTAINS
       nthread = 1
 !$    nthread = omp_get_max_threads()
 
-!$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED (nthread,maxli,maxlk,maxlj,work_virial,pref,basis_i,basis_j,basis_k,dr_ij,dr_jk,dr_ik,&
+      CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c, nthread=nthread)
+
+!$OMP PARALLEL DEFAULT(NONE) FIRSTPRIVATE(nl_3c_iter) REDUCTION(+:work_virial) &
+!$OMP SHARED (nthread,maxli,maxlk,maxlj,pref,basis_i,basis_j,basis_k,dr_ij,dr_jk,dr_ik,&
 !$OMP         ncoset,potential_parameter,der_eps,tspj,spi,spk,natom,nl_3c,t3c_trace,cell,particle_set) &
-!$OMP PRIVATE (lib,nl_3c_iter,ikind,jkind,kkind,iatom,jatom,katom,rij,rjk,rik,i_xyz,j_xyz,first_sgf_i,&
+!$OMP PRIVATE (lib,ikind,jkind,kkind,iatom,jatom,katom,rij,rjk,rik,i_xyz,j_xyz,first_sgf_i,&
 !$OMP          lmax_i,lmin_i,npgfi,nseti,nsgfi,rpgf_i,set_radius_i,sphi_i,zeti,kind_radius_i,first_sgf_j,&
 !$OMP          lmax_j,lmin_j,npgfj,nsetj,nsgfj,rpgf_j,set_radius_j,sphi_j,zetj,kind_radius_j,first_sgf_k,&
 !$OMP          lmax_k,lmin_k,npgfk,nsetk,nsgfk,rpgf_k,set_radius_k,sphi_k,zetk,kind_radius_k,djk,dij,dik,&
 !$OMP          ncoi,ncoj,ncok,sgfi,sgfj,sgfk,dijk_j,dijk_k,ri,rj,rk,max_contraction_i,max_contraction_j,&
 !$OMP          tmp_block,max_contraction_k,iset,jset,kset,block_t_i,blk_size,dijk_contr,found,sp,mepos,&
 !$OMP          block_start_j,block_end_j,block_start_k,block_end_k,block_start_i,block_end_i,block_t_k,&
-!$OMP          bo,der_ext_i,der_ext_j,der_ext_k,ablock,force,scoord,skip,cpp_buffer,ccp_buffer,&
+!$OMP          der_ext_i,der_ext_j,der_ext_k,ablock,force,scoord,cpp_buffer,ccp_buffer,&
 !$OMP          block_k_not_zero,der_k_zero,der_j_zero,block_t_j,block_j_not_zero,i)
 
       mepos = 0
@@ -1834,21 +1812,11 @@ CONTAINS
 
       CALL cp_libint_init_3eri1(lib, MAX(maxli, maxlj, maxlk))
       CALL cp_libint_set_contrdepth(lib, 1)
-      CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c)
 
-      !We split the provided bounds among the threads such that each threads works on a different set of atoms
-
-      bo = get_limit(natom, nthread, mepos)
-      CALL nl_3c_iter_set_bounds(nl_3c_iter, bounds_i=bo)
-
-      skip = .FALSE.
-      IF (bo(1) > bo(2)) skip = .TRUE.
-
-      DO WHILE (neighbor_list_3c_iterate(nl_3c_iter) == 0)
+      DO WHILE (neighbor_list_3c_iterate(nl_3c_iter, mepos=mepos) == 0)
          CALL get_3c_iterator_info(nl_3c_iter, ikind=ikind, jkind=jkind, kkind=kkind, &
                                    iatom=iatom, jatom=jatom, katom=katom, &
-                                   rij=rij, rjk=rjk, rik=rik)
-         IF (skip) EXIT
+                                   rij=rij, rjk=rjk, rik=rik, mepos=mepos)
 
          CALL dbt_get_block(t3c_trace, [iatom, jatom, katom], tmp_block, found)
          IF (.NOT. found) CYCLE
@@ -2034,7 +2002,6 @@ CONTAINS
             force = pref*SUM(ablock(:, :, :)*block_t_i(:, :, :, i_xyz))
             CALL real_to_scaled(scoord, particle_set(iatom)%r, cell)
             DO j_xyz = 1, 3
-!$OMP ATOMIC
                work_virial(i_xyz, j_xyz) = work_virial(i_xyz, j_xyz) + force*scoord(j_xyz)
             END DO
          END DO
@@ -2044,7 +2011,6 @@ CONTAINS
             force = pref*SUM(ablock(:, :, :)*block_t_j(:, :, :, i_xyz))
             CALL real_to_scaled(scoord, particle_set(iatom)%r + rij, cell)
             DO j_xyz = 1, 3
-!$OMP ATOMIC
                work_virial(i_xyz, j_xyz) = work_virial(i_xyz, j_xyz) + force*scoord(j_xyz)
             END DO
          END DO
@@ -2054,7 +2020,6 @@ CONTAINS
             force = pref*SUM(ablock(:, :, :)*block_t_k(:, :, :, i_xyz))
             CALL real_to_scaled(scoord, particle_set(iatom)%r + rik, cell)
             DO j_xyz = 1, 3
-!$OMP ATOMIC
                work_virial(i_xyz, j_xyz) = work_virial(i_xyz, j_xyz) + force*scoord(j_xyz)
             END DO
          END DO
@@ -2069,8 +2034,8 @@ CONTAINS
       IF (ALLOCATED(cpp_buffer)) DEALLOCATE (cpp_buffer)
 
       CALL cp_libint_cleanup_3eri1(lib)
-      CALL neighbor_list_3c_iterator_destroy(nl_3c_iter)
 !$OMP END PARALLEL
+      CALL neighbor_list_3c_iterator_destroy(nl_3c_iter)
 
       DO iset = 1, max_nset
          DO ibasis = 1, nbasis
@@ -2143,7 +2108,6 @@ CONTAINS
          maxli, maxlj, maxlk, mepos, natom, nbasis, ncell_RI, ncoi, ncoj, ncok, nimg, nseti, &
          nsetj, nsetk, nthread, op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, unit_id
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: img_to_RI_cell_prv
-      INTEGER, DIMENSION(2)                              :: bo
       INTEGER, DIMENSION(3)                              :: blk_idx, blk_size, cell_j, cell_k, &
                                                             kp_index_lbounds, kp_index_ubounds, sp
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmax_k, lmin_i, lmin_j, &
@@ -2151,18 +2115,16 @@ CONTAINS
                                                             nsgfj, nsgfk
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf_i, first_sgf_j, first_sgf_k
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: block_not_zero, cell_sym_prv, debug, &
+      LOGICAL                                            :: block_not_zero, cell_sym_prv, &
                                                             desymmetrize_prv, do_hfx_kpoints_prv, &
-                                                            do_kpoints_prv, found, skip
+                                                            do_kpoints_prv
       REAL(KIND=dp)                                      :: dij, dik, djk, dr_ij, dr_ik, dr_jk, &
                                                             kind_radius_i, kind_radius_j, &
                                                             kind_radius_k, max_contraction_i, &
                                                             prefac, sijk_ext
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ccp_buffer, cpp_buffer, &
                                                             max_contraction_j, max_contraction_k
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: block_t, dummy_block_t, sijk, &
-                                                            sijk_contr, tmp_ijk
-      REAL(KIND=dp), DIMENSION(1, 1, 1)                  :: counter
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: block_t, sijk, sijk_contr, tmp_ijk
       REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rik, rj, rjk, rk
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_i, set_radius_j, set_radius_k
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgf_i, rpgf_j, rpgf_k, sphi_i, sphi_j, &
@@ -2180,8 +2142,6 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
-
-      debug = .FALSE.
 
       IF (PRESENT(do_kpoints)) THEN
          do_kpoints_prv = do_kpoints
@@ -2386,61 +2346,38 @@ CONTAINS
          kp_index_ubounds = UBOUND(cell_to_index)
       END IF
 
-      counter = 1.0_dp
-
       nthread = 1
 !$    nthread = omp_get_max_threads()
 
-!$OMP PARALLEL DEFAULT(NONE) &
+      CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c, nthread=nthread)
+      CALL nl_3c_iter_set_bounds(nl_3c_iter, bounds_i, bounds_j, bounds_k)
+
+!$OMP PARALLEL DEFAULT(NONE) FIRSTPRIVATE(nl_3c_iter) &
 !$OMP SHARED (nthread,do_kpoints_prv,kp_index_lbounds,kp_index_ubounds,maxli,maxlk,maxlj,bounds_i,&
 !$OMP         bounds_j,bounds_k,nimg,basis_i,basis_j,basis_k,dr_ij,dr_jk,dr_ik,ncoset,&
-!$OMP         potential_parameter,int_eps,t3c,tspj,spi,spk,debug,cell_to_index,&
+!$OMP         potential_parameter,int_eps,t3c,tspj,spi,spk,cell_to_index,&
 !$OMP         natom,nl_3c,cell,op_pos_prv,do_hfx_kpoints_prv,RI_range,ncell_RI, &
 !$OMP         img_to_RI_cell_prv, cell_sym_prv) &
-!$OMP PRIVATE (lib,nl_3c_iter,ikind,jkind,kkind,iatom,jatom,katom,rij,rjk,rik,cell_j,cell_k,&
+!$OMP PRIVATE (lib,ikind,jkind,kkind,iatom,jatom,katom,rij,rjk,rik,cell_j,cell_k,&
 !$OMP          prefac,jcell,kcell,first_sgf_i,lmax_i,lmin_i,npgfi,nseti,nsgfi,rpgf_i,set_radius_i,&
 !$OMP          sphi_i,zeti,kind_radius_i,first_sgf_j,lmax_j,lmin_j,npgfj,nsetj,nsgfj,rpgf_j,&
 !$OMP          set_radius_j,sphi_j,zetj,kind_radius_j,first_sgf_k,lmax_k,lmin_k,npgfk,nsetk,nsgfk,&
 !$OMP          rpgf_k,set_radius_k,sphi_k,zetk,kind_radius_k,djk,dij,dik,ncoi,ncoj,ncok,sgfi,sgfj,&
 !$OMP          sgfk,sijk,ri,rj,rk,sijk_ext,block_not_zero,max_contraction_i,max_contraction_j,&
 !$OMP          max_contraction_k,iset,jset,kset,block_t,blk_size,sijk_contr,cpp_buffer,ccp_buffer,&
-!$OMP          block_start_j,block_end_j,block_start_k,block_end_k,block_start_i,block_end_i,found,&
-!$OMP          dummy_block_t,sp,handle2,mepos,bo,skip,tmp_ijk,i,blk_idx)
+!$OMP          block_start_j,block_end_j,block_start_k,block_end_k,block_start_i,block_end_i,&
+!$OMP          sp,handle2,mepos,tmp_ijk,i,blk_idx)
 
       mepos = 0
 !$    mepos = omp_get_thread_num()
 
       CALL cp_libint_init_3eri(lib, MAX(maxli, maxlj, maxlk))
       CALL cp_libint_set_contrdepth(lib, 1)
-      CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c)
 
-      !We split the provided bounds among the threads such that each threads works on a different set of atoms
-      IF (PRESENT(bounds_i)) THEN
-         bo = get_limit(bounds_i(2) - bounds_i(1) + 1, nthread, mepos)
-         bo(:) = bo(:) + bounds_i(1) - 1
-         CALL nl_3c_iter_set_bounds(nl_3c_iter, bo, bounds_j, bounds_k)
-      ELSE IF (PRESENT(bounds_j)) THEN
-
-         bo = get_limit(bounds_j(2) - bounds_j(1) + 1, nthread, mepos)
-         bo(:) = bo(:) + bounds_j(1) - 1
-         CALL nl_3c_iter_set_bounds(nl_3c_iter, bounds_i, bo, bounds_k)
-      ELSE IF (PRESENT(bounds_k)) THEN
-         bo = get_limit(bounds_k(2) - bounds_k(1) + 1, nthread, mepos)
-         bo(:) = bo(:) + bounds_k(1) - 1
-         CALL nl_3c_iter_set_bounds(nl_3c_iter, bounds_i, bounds_j, bo)
-      ELSE
-         bo = get_limit(natom, nthread, mepos)
-         CALL nl_3c_iter_set_bounds(nl_3c_iter, bo, bounds_j, bounds_k)
-      END IF
-
-      skip = .FALSE.
-      IF (bo(1) > bo(2)) skip = .TRUE.
-
-      DO WHILE (neighbor_list_3c_iterate(nl_3c_iter) == 0)
+      DO WHILE (neighbor_list_3c_iterate(nl_3c_iter, mepos=mepos) == 0)
          CALL get_3c_iterator_info(nl_3c_iter, ikind=ikind, jkind=jkind, kkind=kkind, &
                                    iatom=iatom, jatom=jatom, katom=katom, &
-                                   rij=rij, rjk=rjk, rik=rik, cell_j=cell_j, cell_k=cell_k)
-         IF (skip) EXIT
+                                   rij=rij, rjk=rjk, rik=rik, cell_j=cell_j, cell_k=cell_k, mepos=mepos)
 
          djk = NORM2(rjk)
          dij = NORM2(rij)
@@ -2622,12 +2559,7 @@ CONTAINS
          END DO
 
          IF (block_not_zero) THEN
-!$OMP CRITICAL(qs_tensors_t3c)
             CALL timeset(routineN//"_put_dbcsr", handle2)
-            IF (debug) THEN
-               CALL dbt_get_block(t3c(jcell, kcell), blk_idx, dummy_block_t, found=found)
-               CPASSERT(found)
-            END IF
 
             sp = SHAPE(block_t)
             sp([2, 3, 1]) = sp ! sp = sp([2, 3, 1]) performs worse
@@ -2636,7 +2568,6 @@ CONTAINS
                                RESHAPE(block_t, SHAPE=sp, ORDER=[2, 3, 1]), summation=.TRUE.)
 
             CALL timestop(handle2)
-!$OMP END CRITICAL(qs_tensors_t3c)
          END IF
 
          DEALLOCATE (block_t)
@@ -2649,8 +2580,8 @@ CONTAINS
       IF (ALLOCATED(cpp_buffer)) DEALLOCATE (cpp_buffer)
 
       CALL cp_libint_cleanup_3eri(lib)
-      CALL neighbor_list_3c_iterator_destroy(nl_3c_iter)
 !$OMP END PARALLEL
+      CALL neighbor_list_3c_iterator_destroy(nl_3c_iter)
 
       !TODO: deal with hfx_kpoints, because should not filter by 1/2
       IF (nl_3c%sym == symmetric_jk .OR. do_kpoints_prv) THEN
@@ -2744,9 +2675,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_2c_derivatives'
 
+      INTEGER                                            :: mepos, nthread
+
+!$    INTEGER                                            :: i_lock
+!$    INTEGER(omp_lock_kind), ALLOCATABLE                :: row_locks(:)
       INTEGER :: handle, i_xyz, iatom, ibasis, icol, ikind, imax, img, irow, iset, jatom, jkind, &
-         jset, m_max, maxli, maxlj, natom, ncoi, ncoj, nimg, nseti, nsetj, op_prv, sgfi, sgfj, &
-         unit_id
+                 jset, m_max, maxli, maxlj, natom, ncoi, ncoj, nimg, nseti, nsetj, op_prv, sgfi, sgfj, &
+                 unit_id
       INTEGER, DIMENSION(3)                              :: cell_j, kp_index_lbounds, &
                                                             kp_index_ubounds
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmin_i, lmin_j, npgfi, &
@@ -2851,14 +2786,33 @@ CONTAINS
 
       CALL init_md_ftable(nmax=m_max)
 
+      nthread = 1
+!$    nthread = omp_get_max_threads()
+      CALL neighbor_list_iterator_create(nl_iterator, nl_2c, nthread=nthread)
+      ! Periodic images can contribute to the same preallocated matrix block.
+      ! Lock only the row's accumulation; integral evaluation remains independent.
+!$    ALLOCATE (row_locks(natom))
+!$    DO i_lock = 1, natom
+!$       CALL omp_init_lock(row_locks(i_lock))
+!$    END DO
+
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(maxli,maxlj,nl_iterator,basis_i,basis_j,ncoset,potential_parameter,&
+!$OMP do_kpoints_prv,kp_index_lbounds,kp_index_ubounds,cell_to_index,nimg,do_symmetric,row_locks,t2c_der) &
+!$OMP PRIVATE(lib,mepos,ikind,jkind,iatom,jatom,rij,first_sgf_i,first_sgf_j,lmax_i,lmax_j,&
+!$OMP lmin_i,lmin_j,npgfi,npgfj,nseti,nsetj,nsgfi,nsgfj,rpgf_i,rpgf_j,set_radius_i,set_radius_j,&
+!$OMP sphi_i,sphi_j,zeti,zetj,dab,iset,jset,ncoi,ncoj,sgfi,sgfj,ri,rj,&
+!$OMP cell_j,img,irow,icol,block_t,found,trans,dij,dij_contr,dij_rs,i_xyz)
+      mepos = 0
+!$    mepos = omp_get_thread_num()
+
       CALL cp_libint_init_2eri1(lib, MAX(maxli, maxlj))
       CALL cp_libint_set_contrdepth(lib, 1)
 
-      CALL neighbor_list_iterator_create(nl_iterator, nl_2c)
-      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+      DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
 
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                iatom=iatom, jatom=jatom, r=rij, cell=cell_j)
+                                iatom=iatom, jatom=jatom, r=rij, cell=cell_j, mepos=mepos)
          IF (do_kpoints_prv) THEN
             IF (ANY([cell_j(1), cell_j(2), cell_j(3)] < kp_index_lbounds) .OR. &
                 ANY([cell_j(1), cell_j(2), cell_j(3)] > kp_index_ubounds)) CYCLE
@@ -2935,9 +2889,11 @@ CONTAINS
                         dij_rs(:, :) = dij_contr
                      END IF
 
+!$                   CALL omp_set_lock(row_locks(irow))
                      CALL block_add("IN", dij_rs, &
                                     nsgfi(iset), nsgfj(jset), block_t(i_xyz)%block, &
                                     sgfi, sgfj, trans=trans)
+!$                   CALL omp_unset_lock(row_locks(irow))
                      DEALLOCATE (dij_rs)
                   END DO
 
@@ -2948,7 +2904,12 @@ CONTAINS
       END DO
 
       CALL cp_libint_cleanup_2eri1(lib)
+!$OMP END PARALLEL
       CALL neighbor_list_iterator_release(nl_iterator)
+!$    DO i_lock = 1, natom
+!$       CALL omp_destroy_lock(row_locks(i_lock))
+!$    END DO
+!$    DEALLOCATE (row_locks)
 
       DO img = 1, nimg
          DO i_xyz = 1, 3
@@ -2986,7 +2947,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calc_2c_virial'
 
       INTEGER :: handle, i_xyz, iatom, ibasis, ikind, imax, iset, j_xyz, jatom, jkind, jset, &
-         m_max, maxli, maxlj, natom, ncoi, ncoj, nseti, nsetj, op_prv, sgfi, sgfj, unit_id
+         m_max, maxli, maxlj, mepos, natom, ncoi, ncoj, nseti, nsetj, nthread, op_prv, sgfi, sgfj, &
+         unit_id
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmin_i, lmin_j, npgfi, &
                                                             npgfj, nsgfi, nsgfj
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf_i, first_sgf_j
@@ -3055,14 +3017,25 @@ CONTAINS
 
       CALL init_md_ftable(nmax=m_max)
 
+      nthread = 1
+!$    nthread = omp_get_max_threads()
+      CALL neighbor_list_iterator_create(nl_iterator, nl_2c, nthread=nthread)
+
+!$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:work_virial) &
+!$OMP SHARED(maxli,maxlj,nl_iterator,basis_i,basis_j,ncoset,potential_parameter,t2c_trace,pref,cell,particle_set) &
+!$OMP PRIVATE(lib,mepos,ikind,jkind,iatom,jatom,rij,first_sgf_i,first_sgf_j,lmax_i,lmax_j,&
+!$OMP lmin_i,lmin_j,npgfi,npgfj,nseti,nsetj,nsgfi,nsgfj,rpgf_i,rpgf_j,set_radius_i,set_radius_j,&
+!$OMP sphi_i,sphi_j,zeti,zetj,dab,iset,jset,ncoi,ncoj,sgfi,sgfj,ri,rj,dij,dij_contr,pblock,found,force,scoord,i_xyz,j_xyz)
+      mepos = 0
+!$    mepos = omp_get_thread_num()
+
       CALL cp_libint_init_2eri1(lib, MAX(maxli, maxlj))
       CALL cp_libint_set_contrdepth(lib, 1)
 
-      CALL neighbor_list_iterator_create(nl_iterator, nl_2c)
-      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+      DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
 
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                iatom=iatom, jatom=jatom, r=rij)
+                                iatom=iatom, jatom=jatom, r=rij, mepos=mepos)
 
          CALL get_gto_basis_set(basis_i(ikind)%gto_basis_set, first_sgf=first_sgf_i, lmax=lmax_i, lmin=lmin_i, &
                                 npgf=npgfi, nset=nseti, nsgf_set=nsgfi, pgf_radius=rpgf_i, set_radius=set_radius_i, &
@@ -3127,8 +3100,9 @@ CONTAINS
          END DO
       END DO
 
-      CALL neighbor_list_iterator_release(nl_iterator)
       CALL cp_libint_cleanup_2eri1(lib)
+!$OMP END PARALLEL
+      CALL neighbor_list_iterator_release(nl_iterator)
 
       CALL timestop(handle)
 
@@ -3167,9 +3141,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_2c_integrals'
 
+      INTEGER                                            :: mepos, nthread
+
+!$    INTEGER                                            :: i_lock
+!$    INTEGER(omp_lock_kind), ALLOCATABLE                :: row_locks(:)
       INTEGER :: handle, i_diag, iatom, ibasis, icol, ikind, imax, img, irow, iset, jatom, jkind, &
-         jset, m_max, maxli, maxlj, natom, ncoi, ncoj, nimg, nseti, nsetj, op_prv, sgfi, sgfj, &
-         unit_id
+                 jset, m_max, maxli, maxlj, natom, ncoi, ncoj, nimg, nseti, nsetj, op_prv, sgfi, sgfj, &
+                 unit_id
       INTEGER, DIMENSION(3)                              :: cell_j, kp_index_lbounds, &
                                                             kp_index_ubounds
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmin_i, lmin_j, npgfi, &
@@ -3278,14 +3256,34 @@ CONTAINS
 
       CALL init_md_ftable(nmax=m_max)
 
+      nthread = 1
+!$    nthread = omp_get_max_threads()
+      CALL neighbor_list_iterator_create(nl_iterator, nl_2c, nthread=nthread)
+      ! Periodic images can contribute to the same preallocated matrix block.
+      ! Lock only the row's accumulation; integral evaluation remains independent.
+!$    ALLOCATE (row_locks(natom))
+!$    DO i_lock = 1, natom
+!$       CALL omp_init_lock(row_locks(i_lock))
+!$    END DO
+
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(maxli,maxlj,nl_iterator,basis_i,basis_j,ncoset,potential_parameter,&
+!$OMP do_kpoints_prv,kp_index_lbounds,kp_index_ubounds,cell_to_index,nimg,do_symmetric,row_locks,&
+!$OMP t2c,do_hfx_kpoints_prv,regularization_RI) &
+!$OMP PRIVATE(lib,mepos,ikind,jkind,iatom,jatom,rij,first_sgf_i,first_sgf_j,lmax_i,lmax_j,&
+!$OMP lmin_i,lmin_j,npgfi,npgfj,nseti,nsetj,nsgfi,nsgfj,rpgf_i,rpgf_j,set_radius_i,set_radius_j,&
+!$OMP sphi_i,sphi_j,zeti,zetj,dab,iset,jset,ncoi,ncoj,sgfi,sgfj,ri,rj,&
+!$OMP cell_j,img,irow,icol,block_t,found,trans,sij,sij_contr,sij_rs,i_diag,min_zet)
+      mepos = 0
+!$    mepos = omp_get_thread_num()
+
       CALL cp_libint_init_2eri(lib, MAX(maxli, maxlj))
       CALL cp_libint_set_contrdepth(lib, 1)
 
-      CALL neighbor_list_iterator_create(nl_iterator, nl_2c)
-      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+      DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
 
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                iatom=iatom, jatom=jatom, r=rij, cell=cell_j)
+                                iatom=iatom, jatom=jatom, r=rij, cell=cell_j, mepos=mepos)
          IF (do_kpoints_prv) THEN
             IF (ANY([cell_j(1), cell_j(2), cell_j(3)] < kp_index_lbounds) .OR. &
                 ANY([cell_j(1), cell_j(2), cell_j(3)] > kp_index_ubounds)) CYCLE
@@ -3371,9 +3369,11 @@ CONTAINS
                      END DO
                   END IF
 
+!$                CALL omp_set_lock(row_locks(irow))
                   CALL block_add("IN", sij_rs, &
                                  nsgfi(iset), nsgfj(jset), block_t%block, &
                                  sgfi, sgfj, trans=trans)
+!$                CALL omp_unset_lock(row_locks(irow))
                   DEALLOCATE (sij_rs)
 
                END IF
@@ -3382,8 +3382,13 @@ CONTAINS
       END DO
 
       CALL cp_libint_cleanup_2eri(lib)
-
+!$OMP END PARALLEL
       CALL neighbor_list_iterator_release(nl_iterator)
+!$    DO i_lock = 1, natom
+!$       CALL omp_destroy_lock(row_locks(i_lock))
+!$    END DO
+!$    DEALLOCATE (row_locks)
+
       DO img = 1, nimg
          CALL dbcsr_finalize(t2c(img))
          CALL dbcsr_filter(t2c(img), filter_eps)

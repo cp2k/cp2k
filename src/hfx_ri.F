@@ -62,10 +62,11 @@ MODULE hfx_ri
         dbt_iterator_type, dbt_mp_environ_pgrid, dbt_nd_mp_comm, dbt_pgrid_create, &
         dbt_pgrid_destroy, dbt_pgrid_type, dbt_put_block, dbt_reserve_blocks, dbt_scale, dbt_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
-   USE hfx_types,                       ONLY: alloc_containers,&
-                                              block_ind_type,&
-                                              dealloc_containers,&
-                                              hfx_compression_type,&
+   USE hfx_ri_compression,              ONLY: clear_ri_compressed_tensor,&
+                                              compress_tensor => compress_ri_tensor,&
+                                              decompress_tensor => decompress_ri_tensor,&
+                                              hfx_ri_compression_type
+   USE hfx_types,                       ONLY: block_ind_type,&
                                               hfx_ri_init,&
                                               hfx_ri_release,&
                                               hfx_ri_type
@@ -105,7 +106,7 @@ MODULE hfx_ri
    USE qs_tensors,                      ONLY: &
         build_2c_derivatives, build_2c_integrals, build_2c_neighbor_lists, build_3c_derivatives, &
         build_3c_integrals, build_3c_neighbor_lists, calc_2c_virial, calc_3c_virial, &
-        compress_tensor, decompress_tensor, get_tensor_occupancy, neighbor_list_3c_destroy
+        get_tensor_occupancy, neighbor_list_3c_destroy
    USE qs_tensors_types,                ONLY: create_2c_tensor,&
                                               create_3c_tensor,&
                                               create_tensor_batches,&
@@ -128,6 +129,21 @@ MODULE hfx_ri
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_ri'
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Release dead block capacity while retaining an empty tensor with the same layout.
+!> \param tensor Must not have an active batched contraction.
+! **************************************************************************************************
+   SUBROUTINE release_ri_tensor_storage(tensor)
+      TYPE(dbt_type), INTENT(INOUT)                      :: tensor
+
+      TYPE(dbt_type)                                     :: empty
+
+      ! dbt_clear retains DBM capacity; destroy releases it for reuse by other tensors.
+      CALL dbt_create(tensor, empty)
+      CALL dbt_destroy(tensor)
+      tensor = empty
+   END SUBROUTINE release_ri_tensor_storage
 
 ! **************************************************************************************************
 !> \brief Switches the RI_FLAVOR from MO to RHO or vice-versa
@@ -802,6 +818,18 @@ CONTAINS
 
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
 
+      ! Geometry-dependent values from the previous step are no longer needed.
+      CALL release_ri_tensor_storage(ri_data%t_3c_int_ctr_1(1, 1))
+      CALL release_ri_tensor_storage(ri_data%t_3c_int_ctr_2(1, 1))
+      DO i_mem = 1, ri_data%n_mem_RI
+         DO j_mem = 1, ri_data%n_mem
+            CALL clear_ri_compressed_tensor(ri_data%store_3c(j_mem, i_mem))
+            IF (ALLOCATED(ri_data%blk_indices(j_mem, i_mem)%ind)) THEN
+               DEALLOCATE (ri_data%blk_indices(j_mem, i_mem)%ind)
+            END IF
+         END DO
+      END DO
+
       CALL timeset(routineN//"_int", handle2)
 
       ALLOCATE (t_2c_int(1), t_2c_work(1), t_3c_int_1(1, 1))
@@ -935,7 +963,7 @@ CONTAINS
       CALL dbt_batched_contract_finalize(ri_data%t_3c_int_ctr_3(1, 1))
 
       CALL para_env%sum(memory_3c)
-      compression_factor = REAL(nze_O, dp)*1.0E-06_dp*8.0_dp/memory_3c
+      compression_factor = REAL(nze_O, dp)*8.0_dp/(1024.0_dp**2*MAX(memory_3c, TINY(memory_3c)))
 
       IF (unit_nr > 0) THEN
          WRITE (UNIT=unit_nr, FMT="((T3,A,T66,F11.2,A4))") &
@@ -945,10 +973,11 @@ CONTAINS
             "MEMORY_INFO| Compression factor:                  ", compression_factor
       END IF
 
-      CALL dbt_clear(ri_data%t_2c_int(1, 1))
+      CALL release_ri_tensor_storage(ri_data%t_2c_int(1, 1))
       CALL dbt_destroy(t_3c_2)
 
       CALL dbt_copy(ri_data%t_3c_int_ctr_3(1, 1), ri_data%t_3c_int_ctr_2(1, 1), order=[2, 1, 3], move_data=.TRUE.)
+      CALL release_ri_tensor_storage(ri_data%t_3c_int_ctr_3(1, 1))
 
       CALL timestop(handle)
    END SUBROUTINE hfx_ri_pre_scf_Pmat
@@ -1550,8 +1579,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_update_ks_Pmat'
 
-      INTEGER                                            :: handle, handle2, i_mem, ispin, j_mem, &
-                                                            n_mem, n_mem_RI, unit_nr, unit_nr_dbcsr
+      INTEGER                                            :: distribution_changed, handle, handle2, &
+                                                            i_mem, ispin, j_mem, n_mem, n_mem_RI, &
+                                                            unit_nr, unit_nr_dbcsr
       INTEGER(int_8)                                     :: flops_ks_max, flops_p_max, nblks, nflop, &
                                                             nze, nze_3c, nze_3c_1, nze_3c_2, &
                                                             nze_ks, nze_rho
@@ -1718,19 +1748,29 @@ CONTAINS
          CALL dbt_batched_contract_finalize(ri_data%t_3c_int_ctr_1(1, 1))
          CALL dbt_batched_contract_finalize(t_3c_3)
 
-         DO j_mem = 1, n_mem_RI
-            DO i_mem = 1, n_mem
-               ASSOCIATE (blk_indices => ri_data%blk_indices(i_mem, j_mem), t_3c => ri_data%t_3c_int_ctr_1(1, 1))
-                  CALL decompress_tensor(tensor_old, blk_indices%ind, &
-                                         ri_data%store_3c(i_mem, j_mem), ri_data%filter_eps_storage)
-                  CALL dbt_copy(tensor_old, t_3c, move_data=.TRUE.)
+         ! A template shares its immutable layout metadata with its source. DBT
+         ! replaces that metadata when optimizing the process grid. Refresh the
+         ! compressed storage only after such a change, collectively on all ranks.
+         distribution_changed = 0
+         IF (.NOT. ASSOCIATED(tensor_old%refcount, ri_data%t_3c_int_ctr_1(1, 1)%refcount)) THEN
+            distribution_changed = 1
+         END IF
+         CALL para_env%max(distribution_changed)
+         IF (distribution_changed /= 0) THEN
+            DO j_mem = 1, n_mem_RI
+               DO i_mem = 1, n_mem
+                  ASSOCIATE (blk_indices => ri_data%blk_indices(i_mem, j_mem), t_3c => ri_data%t_3c_int_ctr_1(1, 1))
+                     CALL decompress_tensor(tensor_old, blk_indices%ind, &
+                                            ri_data%store_3c(i_mem, j_mem), ri_data%filter_eps_storage)
+                     CALL dbt_copy(tensor_old, t_3c, move_data=.TRUE.)
 
-                  unused = 0
-                  CALL compress_tensor(t_3c, blk_indices%ind, ri_data%store_3c(i_mem, j_mem), &
-                                       ri_data%filter_eps_storage, unused)
-               END ASSOCIATE
+                     unused = 0
+                     CALL compress_tensor(t_3c, blk_indices%ind, ri_data%store_3c(i_mem, j_mem), &
+                                          ri_data%filter_eps_storage, unused)
+                  END ASSOCIATE
+               END DO
             END DO
-         END DO
+         END IF
 
          CALL dbt_destroy(tensor_old)
 
@@ -1797,7 +1837,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ri_forces_mo'
 
-      INTEGER :: dummy_int, handle, i_mem, i_xyz, ibasis, ispin, j_mem, k_mem, n_mem, n_mem_input, &
+      INTEGER :: handle, i_mem, i_xyz, ibasis, ispin, j_mem, k_mem, n_mem, n_mem_input, &
          n_mem_input_RI, n_mem_RI, n_mem_RI_fit, n_mos, natom, nkind, unit_nr_dbcsr
       INTEGER(int_8)                                     :: nflop
       INTEGER, ALLOCATABLE, DIMENSION(:) :: atom_of_kind, batch_blk_end, batch_blk_start, &
@@ -1825,7 +1865,7 @@ CONTAINS
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: basis_set_AO, basis_set_RI
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
-      TYPE(hfx_compression_type), ALLOCATABLE, &
+      TYPE(hfx_ri_compression_type), ALLOCATABLE, &
          DIMENSION(:, :)                                 :: t_3c_der_AO_comp, t_3c_der_RI_comp
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1909,20 +1949,16 @@ CONTAINS
             CALL decompress_tensor(t_3c_ri_ao_ao, t_3c_der_RI_ind(i_mem, i_xyz)%ind, &
                                    t_3c_der_RI_comp(i_mem, i_xyz), ri_data%filter_eps_storage)
             CALL dbt_copy(t_3c_ri_ao_ao, t_3c_der_RI(i_xyz), order=[2, 1, 3], move_data=.TRUE., summation=.TRUE.)
+            CALL clear_ri_compressed_tensor(t_3c_der_RI_comp(i_mem, i_xyz))
 
             CALL decompress_tensor(t_3c_ri_ao_ao, t_3c_der_AO_ind(i_mem, i_xyz)%ind, &
                                    t_3c_der_AO_comp(i_mem, i_xyz), ri_data%filter_eps_storage)
             CALL dbt_copy(t_3c_ri_ao_ao, t_3c_der_AO(i_xyz), order=[2, 1, 3], move_data=.TRUE., summation=.TRUE.)
+            CALL clear_ri_compressed_tensor(t_3c_der_AO_comp(i_mem, i_xyz))
          END DO
       END DO
 
-      DO i_xyz = 1, 3
-         DO i_mem = 1, n_mem
-            CALL dealloc_containers(t_3c_der_AO_comp(i_mem, i_xyz), dummy_int)
-            CALL dealloc_containers(t_3c_der_RI_comp(i_mem, i_xyz), dummy_int)
-         END DO
-      END DO
-      DEALLOCATE (t_3c_der_AO_ind, t_3c_der_RI_ind)
+      DEALLOCATE (t_3c_der_AO_comp, t_3c_der_RI_comp, t_3c_der_AO_ind, t_3c_der_RI_ind)
 
       ! Get the 3c integrals (desymmetrized)
       CALL dbt_create(t_3c_ao_ri_ao, t_3c_desymm)
@@ -2491,10 +2527,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_forces_Pmat'
 
-      INTEGER                                            :: dummy_int, handle, i_mem, i_spin, i_xyz, &
-                                                            ibasis, j_mem, j_xyz, k_mem, k_xyz, &
-                                                            n_mem, n_mem_RI, natom, nkind, &
-                                                            unit_nr_dbcsr
+      INTEGER                                            :: handle, i_mem, i_spin, i_xyz, ibasis, &
+                                                            j_mem, j_xyz, k_mem, k_xyz, n_mem, &
+                                                            n_mem_RI, natom, nkind, unit_nr_dbcsr
       INTEGER(int_8)                                     :: nflop
       INTEGER, ALLOCATABLE, DIMENSION(:) :: atom_of_kind, batch_end, batch_end_RI, batch_ranges, &
          batch_ranges_RI, batch_start, batch_start_RI, dist1, dist2, dist3, idx_to_at_AO, &
@@ -2520,7 +2555,7 @@ CONTAINS
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: basis_set_AO, basis_set_RI
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
-      TYPE(hfx_compression_type), ALLOCATABLE, &
+      TYPE(hfx_ri_compression_type), ALLOCATABLE, &
          DIMENSION(:, :)                                 :: t_3c_der_AO_comp, t_3c_der_RI_comp
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_3c_type)                        :: nl_3c
@@ -2613,11 +2648,11 @@ CONTAINS
       DO i_xyz = 1, 3
          DO i_mem = 1, SIZE(t_3c_der_RI_comp, 1)
             CALL decompress_tensor(t_3c_ri_ao_ao, t_3c_der_RI_ind(i_mem, i_xyz)%ind, &
-                                   t_3c_der_RI_comp(i_mem, i_xyz), ri_data%filter_eps_storage)
+                                   t_3c_der_RI_comp(i_mem, i_xyz), ri_data%filter_eps_storage, sparsity_only=.TRUE.)
             CALL dbt_copy(t_3c_ri_ao_ao, t_3c_sparse, summation=.TRUE., move_data=.TRUE.)
 
             CALL decompress_tensor(t_3c_ri_ao_ao, t_3c_der_AO_ind(i_mem, i_xyz)%ind, &
-                                   t_3c_der_AO_comp(i_mem, i_xyz), ri_data%filter_eps_storage)
+                                   t_3c_der_AO_comp(i_mem, i_xyz), ri_data%filter_eps_storage, sparsity_only=.TRUE.)
             CALL dbt_copy(t_3c_ri_ao_ao, t_3c_sparse, summation=.TRUE.)
             CALL dbt_copy(t_3c_ri_ao_ao, t_3c_sparse, order=[1, 3, 2], summation=.TRUE., move_data=.TRUE.)
          END DO
@@ -3000,13 +3035,7 @@ CONTAINS
          IF (.NOT. ri_data%same_op) CALL dbt_destroy(t_2c_der_metric(i_xyz))
       END DO
 
-      DO i_xyz = 1, 3
-         DO i_mem = 1, SIZE(t_3c_der_AO_comp, 1)
-            CALL dealloc_containers(t_3c_der_AO_comp(i_mem, i_xyz), dummy_int)
-            CALL dealloc_containers(t_3c_der_RI_comp(i_mem, i_xyz), dummy_int)
-         END DO
-      END DO
-      DEALLOCATE (t_3c_der_AO_ind, t_3c_der_RI_ind)
+      DEALLOCATE (t_3c_der_AO_comp, t_3c_der_RI_comp, t_3c_der_AO_ind, t_3c_der_RI_ind)
 
       DO ibasis = 1, SIZE(basis_set_AO)
          orb_basis => basis_set_AO(ibasis)%gto_basis_set
@@ -3120,7 +3149,7 @@ CONTAINS
                                   basis_set_AO, basis_set_RI, ri_data, qs_env, &
                                   nl_2c_pot, nl_2c_met, nl_3c_out, t_3c_virial)
 
-      TYPE(hfx_compression_type), ALLOCATABLE, &
+      TYPE(hfx_ri_compression_type), ALLOCATABLE, &
          DIMENSION(:, :), INTENT(INOUT)                  :: t_3c_der_RI_comp, t_3c_der_AO_comp
       TYPE(block_ind_type), ALLOCATABLE, DIMENSION(:, :) :: t_3c_der_RI_ind, t_3c_der_AO_ind
       TYPE(dbt_type), DIMENSION(3), INTENT(OUT)          :: t_2c_der_RI, t_2c_der_metric
@@ -3232,7 +3261,6 @@ CONTAINS
             CALL get_tensor_occupancy(ri_ao_ao_template, nze, occ)
             nze_tot = nze_tot + nze
 
-            CALL alloc_containers(t_3c_der_RI_comp(i_mem, i_xyz), 1)
             CALL compress_tensor(ri_ao_ao_template, t_3c_der_RI_ind(i_mem, i_xyz)%ind, &
                                  t_3c_der_RI_comp(i_mem, i_xyz), ri_data%filter_eps_storage, memory)
             CALL dbt_clear(ri_ao_ao_template)
@@ -3243,7 +3271,6 @@ CONTAINS
             CALL get_tensor_occupancy(ri_ao_ao_template, nze, occ)
             nze_tot = nze_tot + nze
 
-            CALL alloc_containers(t_3c_der_AO_comp(i_mem, i_xyz), 1)
             CALL compress_tensor(ri_ao_ao_template, t_3c_der_AO_ind(i_mem, i_xyz)%ind, &
                                  t_3c_der_AO_comp(i_mem, i_xyz), ri_data%filter_eps_storage, memory)
             CALL dbt_clear(ri_ao_ao_template)
@@ -3257,7 +3284,7 @@ CONTAINS
       END DO
 
       CALL para_env%sum(memory)
-      compression_factor = REAL(nze_tot, dp)*1.0E-06_dp*8.0_dp/memory
+      compression_factor = REAL(nze_tot, dp)*8.0_dp/(1024.0_dp**2*MAX(memory, TINY(memory)))
       IF (ri_data%unit_nr > 0) THEN
          WRITE (UNIT=ri_data%unit_nr, FMT="((T3,A,T66,F11.2,A4))") &
             "MEMORY_INFO| Memory for 3-center HFX derivatives (compressed):", memory, ' MiB'
