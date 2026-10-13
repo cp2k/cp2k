@@ -419,17 +419,14 @@ CONTAINS
       CALL pw_grid_setup_internal(cell_hmat, cell_h_inv, cell_deth, pw_grid, mp_comm, bounds_local=bounds_local, &
                                   blocked=blocked, ref_grid=ref_grid, rs_dims=rs_dims, iounit=iounit)
 
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
       CALL pw_grid_create_ghatmap(pw_grid)
-#endif
 
       CALL timestop(handle)
 
    END SUBROUTINE pw_grid_create_extended
 
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
 ! **************************************************************************************************
-!> \brief sets up a combined index for CUDA gather and scatter
+!> \brief sets up a combined index for gather and scatter
 !> \param pw_grid ...
 !> \author Gloess Andreas (xx-Dec-2012)
 ! **************************************************************************************************
@@ -453,9 +450,10 @@ CONTAINS
                  nmapm => pw_grid%mapm%neg, nmapn => pw_grid%mapn%neg, ngpts => SIZE(pw_grid%gsq), &
                  npts => pw_grid%npts, yzq => pw_grid%para%yzq)
          ! initialize map array to minus one, to guarantee memory
-         ! range checking errors in CUDA part (just to be sure)
+         ! range checking errors (just to be sure)
          g_hatmap(:, :) = -1
          IF (pw_grid%para%mode /= PW_MODE_DISTRIBUTED) THEN
+            CPASSERT(PRODUCT(INT(npts, KIND=int_8)) <= INT(HUGE(0), KIND=int_8))
             DO gpt = 1, ngpts
                l = pmapl(g_hat(1, gpt))
                m = pmapm(g_hat(2, gpt))
@@ -501,7 +499,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE pw_grid_create_ghatmap
-#endif
 
 ! **************************************************************************************************
 !> \brief sets up a pw_grid, needs valid bounds as input, it is up to you to
@@ -1760,7 +1757,7 @@ CONTAINS
       CPASSERT(stat == 0)
       CALL c_f_pointer(cptr_g_hatmap, pw_grid%g_hatmap, [MAX(ng, 1), MAX(nmaps, 1)])
 #else
-      ALLOCATE (pw_grid%g_hatmap(1, 1))
+      ALLOCATE (pw_grid%g_hatmap(MAX(ng, 1), MAX(nmaps, 1)))
 #endif
 
       IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
