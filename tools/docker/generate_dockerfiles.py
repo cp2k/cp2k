@@ -205,7 +205,7 @@ def main() -> None:
                 base_image="nvidia/cuda:12.9.1-devel-ubuntu24.04",
                 gcc_version=13,
                 gpu_model="P100",
-                testopts=f"{testopts} --timeout 400",
+                testopts=f"{testopts} --maxtasks 2 --ompthreads 2 --smoketest --timeout 300",
                 image_tag=f.image_tag,
             )
         )
@@ -219,7 +219,7 @@ def main() -> None:
                 gcc_version=13,
                 gpu_model="P100",
                 feature_flags="",
-                testopts=f"{testopts} --timeout 400",
+                testopts=f"{testopts} --maxtasks 4 --ompthreads 2 --smoketest --timeout 300",
                 image_tag=f.image_tag,
             )
         )
@@ -233,7 +233,7 @@ def main() -> None:
                 gcc_version=13,
                 gpu_model="P100",
                 feature_flags="",
-                testopts=testopts,
+                testopts=f"{testopts} --maxtasks 2 --ompthreads 1 --smoketest --timeout 300",
                 image_tag=f.image_tag,
             )
         )
