@@ -412,12 +412,13 @@ CONTAINS
          SUBROUTINE pw_gather_p_${kind}$ (pw, c, scale)
 
             TYPE(pw_${kind}$_gs_type), INTENT(INOUT)                       :: pw
-            COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, INTENT(IN)      :: c
+            COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, INTENT(IN), TARGET :: c
             REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
 
             CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gather_p'
 
-            INTEGER                                            :: gpt, handle, l, m, mn, n
+            INTEGER                                            :: gpt, handle
+            COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:), POINTER :: c_1d
 
             CALL timeset(routineN, handle)
 
@@ -425,31 +426,24 @@ CONTAINS
                CPABORT("This grid type is not distributed")
             END IF
 
-            ASSOCIATE (mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
-                       ngpts => SIZE(pw%pw_grid%gsq), ghat => pw%pw_grid%g_hat, yzq => pw%pw_grid%para%yzq)
+            ! Rank-1 pointer remap of contiguous c for flat g_hatmap indexing
+            c_1d(1:SIZE(c)) => c
+            ASSOCIATE (ngpts => SIZE(pw%pw_grid%gsq), g_hatmap => pw%pw_grid%g_hatmap)
 
                IF (PRESENT(scale)) THEN
 !$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP             PRIVATE(l, m, mn, n) &
-!$OMP             SHARED(c, pw, scale)
+!$OMP             PRIVATE(gpt) &
+!$OMP             SHARED(c_1d, pw, scale)
                   DO gpt = 1, ngpts
-                     l = mapl(ghat(1, gpt)) + 1
-                     m = mapm(ghat(2, gpt)) + 1
-                     n = mapn(ghat(3, gpt)) + 1
-                     mn = yzq(m, n)
-                     pw%array(gpt) = scale*${type2type("c(l, mn)", "c3d", kind)}$
+                     pw%array(gpt) = scale*${type2type("c_1d(g_hatmap(gpt, 1) + 1)", "c3d", kind)}$
                   END DO
 !$OMP END PARALLEL DO
                ELSE
 !$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP             PRIVATE(l, m, mn, n) &
-!$OMP             SHARED(c, pw)
+!$OMP             PRIVATE(gpt) &
+!$OMP             SHARED(c_1d, pw)
                   DO gpt = 1, ngpts
-                     l = mapl(ghat(1, gpt)) + 1
-                     m = mapm(ghat(2, gpt)) + 1
-                     n = mapn(ghat(3, gpt)) + 1
-                     mn = yzq(m, n)
-                     pw%array(gpt) = ${type2type("c(l, mn)", "c3d", kind)}$
+                     pw%array(gpt) = ${type2type("c_1d(g_hatmap(gpt, 1) + 1)", "c3d", kind)}$
                   END DO
 !$OMP END PARALLEL DO
                END IF
@@ -468,12 +462,13 @@ CONTAINS
 ! **************************************************************************************************
          SUBROUTINE pw_scatter_p_${kind}$ (pw, c, scale)
             TYPE(pw_${kind}$_gs_type), INTENT(IN)                          :: pw
-            COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, INTENT(INOUT)   :: c
+            COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, INTENT(INOUT), TARGET :: c
             REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
 
             CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_scatter_p'
 
-            INTEGER                                            :: gpt, handle, l, m, mn, n
+            INTEGER                                            :: gpt, handle
+            COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:), POINTER :: c_1d
 
             CALL timeset(routineN, handle)
 
@@ -481,71 +476,52 @@ CONTAINS
                CPABORT("This grid type is not distributed")
             END IF
 
-            ASSOCIATE (mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
-                       ghat => pw%pw_grid%g_hat, yzq => pw%pw_grid%para%yzq, ngpts => SIZE(pw%pw_grid%gsq))
+            ! Rank-1 pointer remap of contiguous c for flat g_hatmap indexing
+            c_1d(1:SIZE(c)) => c
+            ASSOCIATE (g_hatmap => pw%pw_grid%g_hatmap, ngpts => SIZE(pw%pw_grid%gsq))
 
                IF (.NOT. PRESENT(scale)) c = z_zero
 
                IF (PRESENT(scale)) THEN
 !$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP             PRIVATE(l, m, mn, n) &
-!$OMP             SHARED(c, pw, scale)
+!$OMP             PRIVATE(gpt) &
+!$OMP             SHARED(c_1d, pw, scale)
                   DO gpt = 1, ngpts
-                     l = mapl(ghat(1, gpt)) + 1
-                     m = mapm(ghat(2, gpt)) + 1
-                     n = mapn(ghat(3, gpt)) + 1
-                     mn = yzq(m, n)
-                     c(l, mn) = ${type2type("scale*pw%array(gpt)", kind, "c3d")}$
+                     c_1d(g_hatmap(gpt, 1) + 1) = ${type2type("scale*pw%array(gpt)", kind, "c3d")}$
                   END DO
 !$OMP END PARALLEL DO
                ELSE
 !$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP             PRIVATE(l, m, mn, n) &
-!$OMP             SHARED(c, pw)
+!$OMP             PRIVATE(gpt) &
+!$OMP             SHARED(c_1d, pw)
                   DO gpt = 1, ngpts
-                     l = mapl(ghat(1, gpt)) + 1
-                     m = mapm(ghat(2, gpt)) + 1
-                     n = mapn(ghat(3, gpt)) + 1
-                     mn = yzq(m, n)
-                     c(l, mn) = ${type2type("pw%array(gpt)", kind, "c3d")}$
+                     c_1d(g_hatmap(gpt, 1) + 1) = ${type2type("pw%array(gpt)", kind, "c3d")}$
                   END DO
 !$OMP END PARALLEL DO
                END IF
 
-            END ASSOCIATE
-
-            IF (pw%pw_grid%grid_span == HALFSPACE) THEN
-
-               ASSOCIATE (mapm => pw%pw_grid%mapm%neg, mapn => pw%pw_grid%mapn%neg, mapl => pw%pw_grid%mapl%neg, &
-                          ghat => pw%pw_grid%g_hat, ngpts => SIZE(pw%pw_grid%gsq), yzq => pw%pw_grid%para%yzq)
+               IF (pw%pw_grid%grid_span == HALFSPACE) THEN
 
                   IF (PRESENT(scale)) THEN
 !$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP             PRIVATE(l, m, mn, n) &
-!$OMP             SHARED(c, pw, scale)
+!$OMP             PRIVATE(gpt) &
+!$OMP             SHARED(c_1d, pw, scale)
                      DO gpt = 1, ngpts
-                        l = mapl(ghat(1, gpt)) + 1
-                        m = mapm(ghat(2, gpt)) + 1
-                        n = mapn(ghat(3, gpt)) + 1
-                        mn = yzq(m, n)
-                        c(l, mn) = scale*#{if kind[0]=="c"}#CONJG#{endif}#(${type2type("pw%array(gpt)", kind, "c3d")}$)
+                        c_1d(g_hatmap(gpt, 2) + 1) = scale*#{if kind[0]=="c"}#CONJG#{endif}#(${type2type("pw%array(gpt)", kind, "c3d")}$)
                      END DO
 !$OMP END PARALLEL DO
                   ELSE
 !$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP             PRIVATE(l, m, mn, n) &
-!$OMP             SHARED(c, pw)
+!$OMP             PRIVATE(gpt) &
+!$OMP             SHARED(c_1d, pw)
                      DO gpt = 1, ngpts
-                        l = mapl(ghat(1, gpt)) + 1
-                        m = mapm(ghat(2, gpt)) + 1
-                        n = mapn(ghat(3, gpt)) + 1
-                        mn = yzq(m, n)
-                        c(l, mn) = #{if kind[0]=="c"}#CONJG#{endif}#(${type2type("pw%array(gpt)", kind, "c3d")}$)
+                        c_1d(g_hatmap(gpt, 2) + 1) = #{if kind[0]=="c"}#CONJG#{endif}#(${type2type("pw%array(gpt)", kind, "c3d")}$)
                      END DO
 !$OMP END PARALLEL DO
                   END IF
-               END ASSOCIATE
-            END IF
+               END IF
+
+            END ASSOCIATE
 
             CALL timestop(handle)
 
@@ -1524,34 +1500,34 @@ CONTAINS
                         SUBROUTINE pw_gather_s_${kind}$_${kind2}$ (pw, c, scale)
 
                            TYPE(pw_${kind}$_gs_type), INTENT(INOUT)                       :: pw
-                           ${type2}$, CONTIGUOUS, INTENT(IN)   :: c
-                           REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
+                           ${type2}$, CONTIGUOUS, INTENT(IN), TARGET                      :: c
+                           REAL(KIND=dp), INTENT(IN), OPTIONAL                            :: scale
 
-                           CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gather_s'
+                           CHARACTER(len=*), PARAMETER                                    :: routineN = 'pw_gather_s'
 
-                           INTEGER                                            :: gpt, handle, l, m, n
+                           INTEGER                                                        :: gpt, handle
+                           #:if kind2[0] == "c"
+                              COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:), POINTER         :: c_1d
+                           #:else
+                              REAL(KIND=dp), CONTIGUOUS, DIMENSION(:), POINTER            :: c_1d
+                           #:endif
 
                            CALL timeset(routineN, handle)
 
-                           ASSOCIATE (mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
-                                      ngpts => SIZE(pw%pw_grid%gsq), ghat => pw%pw_grid%g_hat)
+                           ! Rank-1 pointer remap of contiguous c for flat g_hatmap indexing
+                           c_1d(1:SIZE(c)) => c
+                           ASSOCIATE (ngpts => SIZE(pw%pw_grid%gsq), g_hatmap => pw%pw_grid%g_hatmap)
 
                               IF (PRESENT(scale)) THEN
-!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw, scale)
+!$OMP PARALLEL DO PRIVATE(gpt) DEFAULT(NONE) SHARED(c_1d, pw, scale)
                                  DO gpt = 1, ngpts
-                                    l = mapl(ghat(1, gpt)) + 1
-                                    m = mapm(ghat(2, gpt)) + 1
-                                    n = mapn(ghat(3, gpt)) + 1
-                                    pw%array(gpt) = scale*${type2type("c(l, m, n)", kind2, kind)}$
+                                    pw%array(gpt) = scale*${type2type("c_1d(g_hatmap(gpt, 1) + 1)", kind2, kind)}$
                                  END DO
 !$OMP END PARALLEL DO
                               ELSE
-!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw)
+!$OMP PARALLEL DO PRIVATE(gpt) DEFAULT(NONE) SHARED(c_1d, pw)
                                  DO gpt = 1, ngpts
-                                    l = mapl(ghat(1, gpt)) + 1
-                                    m = mapm(ghat(2, gpt)) + 1
-                                    n = mapn(ghat(3, gpt)) + 1
-                                    pw%array(gpt) = ${type2type("c(l, m, n)", kind2, kind)}$
+                                    pw%array(gpt) = ${type2type("c_1d(g_hatmap(gpt, 1) + 1)", kind2, kind)}$
                                  END DO
 !$OMP END PARALLEL DO
                               END IF
@@ -1592,72 +1568,61 @@ CONTAINS
 ! **************************************************************************************************
                         SUBROUTINE pw_scatter_s_${kind}$_${kind2}$ (pw, c, scale)
 
-                           TYPE(pw_${kind}$_gs_type), INTENT(IN)                 :: pw
-                           ${type2}$, CONTIGUOUS, INTENT(INOUT)               :: c
-                           REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
+                           TYPE(pw_${kind}$_gs_type), INTENT(IN)                          :: pw
+                           ${type2}$, CONTIGUOUS, INTENT(INOUT), TARGET                   :: c
+                           REAL(KIND=dp), INTENT(IN), OPTIONAL                            :: scale
 
-                           CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_scatter_s'
+                           CHARACTER(len=*), PARAMETER                                    :: routineN = 'pw_scatter_s'
 
-                           INTEGER                                            :: gpt, handle, l, m, n
+                           INTEGER                                                        :: gpt, handle
+                           #:if kind2[0] == "c"
+                              COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:), POINTER         :: c_1d
+                           #:else
+                              REAL(KIND=dp), CONTIGUOUS, DIMENSION(:), POINTER            :: c_1d
+                           #:endif
 
                            CALL timeset(routineN, handle)
 
-                           ASSOCIATE (mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
-                                      ghat => pw%pw_grid%g_hat, ngpts => SIZE(pw%pw_grid%gsq))
+                           ! Rank-1 pointer remap of contiguous c for flat g_hatmap indexing
+                           c_1d(1:SIZE(c)) => c
+                           ASSOCIATE (g_hatmap => pw%pw_grid%g_hatmap, ngpts => SIZE(pw%pw_grid%gsq))
 
                               ! should only zero the unused bits (but the zero is needed)
                               IF (.NOT. PRESENT(scale)) c = 0.0_dp
 
                               IF (PRESENT(scale)) THEN
-!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw, scale)
+!$OMP PARALLEL DO PRIVATE(gpt) DEFAULT(NONE) SHARED(c_1d, pw, scale)
                                  DO gpt = 1, ngpts
-                                    l = mapl(ghat(1, gpt)) + 1
-                                    m = mapm(ghat(2, gpt)) + 1
-                                    n = mapn(ghat(3, gpt)) + 1
-                                    c(l, m, n) = scale*${type2type("pw%array(gpt)", kind, kind2)}$
+                                    c_1d(g_hatmap(gpt, 1) + 1) = scale*${type2type("pw%array(gpt)", kind, kind2)}$
                                  END DO
 !$OMP END PARALLEL DO
                               ELSE
-!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw)
+!$OMP PARALLEL DO PRIVATE(gpt) DEFAULT(NONE) SHARED(c_1d, pw)
                                  DO gpt = 1, ngpts
-                                    l = mapl(ghat(1, gpt)) + 1
-                                    m = mapm(ghat(2, gpt)) + 1
-                                    n = mapn(ghat(3, gpt)) + 1
-                                    c(l, m, n) = ${type2type("pw%array(gpt)", kind, kind2)}$
+                                    c_1d(g_hatmap(gpt, 1) + 1) = ${type2type("pw%array(gpt)", kind, kind2)}$
                                  END DO
 !$OMP END PARALLEL DO
                               END IF
 
-                           END ASSOCIATE
-
-                           IF (pw%pw_grid%grid_span == HALFSPACE) THEN
-
-                              ASSOCIATE (mapl => pw%pw_grid%mapl%neg, mapm => pw%pw_grid%mapm%neg, mapn => pw%pw_grid%mapn%neg, &
-                                         ghat => pw%pw_grid%g_hat, ngpts => SIZE(pw%pw_grid%gsq))
+                              IF (pw%pw_grid%grid_span == HALFSPACE) THEN
 
                                  IF (PRESENT(scale)) THEN
-!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw, scale)
+!$OMP PARALLEL DO PRIVATE(gpt) DEFAULT(NONE) SHARED(c_1d, pw, scale)
                                     DO gpt = 1, ngpts
-                                       l = mapl(ghat(1, gpt)) + 1
-                                       m = mapm(ghat(2, gpt)) + 1
-                                       n = mapn(ghat(3, gpt)) + 1
-                                       c(l, m, n) = scale*#{if kind[0]=="c" and kind2[0]=="c"}#CONJG#{endif}#(${type2type("pw%array(gpt)", kind, kind2)}$)
+                                       c_1d(g_hatmap(gpt, 2) + 1) = scale*#{if kind[0]=="c" and kind2[0]=="c"}#CONJG#{endif}#(${type2type("pw%array(gpt)", kind, kind2)}$)
                                     END DO
 !$OMP END PARALLEL DO
                                  ELSE
-!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw)
+!$OMP PARALLEL DO PRIVATE(gpt) DEFAULT(NONE) SHARED(c_1d, pw)
                                     DO gpt = 1, ngpts
-                                       l = mapl(ghat(1, gpt)) + 1
-                                       m = mapm(ghat(2, gpt)) + 1
-                                       n = mapn(ghat(3, gpt)) + 1
-                                       c(l, m, n) = #{if kind[0]=="c" and kind2[0]=="c"}#CONJG#{endif}#(${type2type("pw%array(gpt)", kind, kind2)}$)
+                                       c_1d(g_hatmap(gpt, 2) + 1) = #{if kind[0]=="c" and kind2[0]=="c"}#CONJG#{endif}#(${type2type("pw%array(gpt)", kind, kind2)}$)
                                     END DO
 !$OMP END PARALLEL DO
                                  END IF
 
-                              END ASSOCIATE
+                              END IF
 
-                           END IF
+                           END ASSOCIATE
 
                            CALL timestop(handle)
 
