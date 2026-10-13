@@ -254,11 +254,11 @@ CONTAINS
                                                             output_unit
       LOGICAL                                            :: eigenvectors_discarded, my_roks
       REAL(KIND=dp)                                      :: maxocc, tmp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ev, occ
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ev, occ, traces
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occa, occb
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a, b
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type), POINTER                          :: c, new_errors, old_errors, parameters
+      TYPE(cp_fm_type), POINTER                          :: c, new_errors, parameters
       TYPE(cp_logger_type), POINTER                      :: logger
 
 ! -------------------------------------------------------------------------
@@ -278,7 +278,7 @@ CONTAINS
       my_nmixing = 2
       IF (PRESENT(nmixing)) my_nmixing = nmixing
 
-      NULLIFY (c, new_errors, old_errors, parameters, matrix_struct, a, b, occa, occb)
+      NULLIFY (c, new_errors, parameters, matrix_struct, a, b, occa, occb)
       logger => cp_get_default_logger()
 
       ! Quick return, if no DIIS is requested
@@ -410,14 +410,20 @@ CONTAINS
 
          b => diis_buffer%b_matrix
 
+         ALLOCATE (traces(nb))
+         b(1:nb, ib) = 0.0_dp
+         ! Batch history traces, but avoid starting OpenMP for a single entry.
+         DO ispin = 1, nspin
+            IF (nb == 1) THEN
+               CALL cp_fm_trace(diis_buffer%error(1, ispin), diis_buffer%error(ib, ispin), traces(1))
+            ELSE
+               CALL cp_fm_trace(diis_buffer%error(1:nb, ispin), diis_buffer%error(ib, ispin), traces)
+            END IF
+            b(1:nb, ib) = b(1:nb, ib) + traces(:)
+         END DO
+         DEALLOCATE (traces)
+
          DO jb = 1, nb
-            b(jb, ib) = 0.0_dp
-            DO ispin = 1, nspin
-               old_errors => diis_buffer%error(jb, ispin)
-               new_errors => diis_buffer%error(ib, ispin)
-               CALL cp_fm_trace(old_errors, new_errors, tmp)
-               b(jb, ib) = b(jb, ib) + tmp
-            END DO
             b(ib, jb) = b(jb, ib)
          END DO
 
