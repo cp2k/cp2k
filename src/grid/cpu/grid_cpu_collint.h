@@ -924,7 +924,8 @@ general_cxyz_to_cijk(const int lp, const double dh[3][3],
   // sum_{lip,ljp,lkp} P_{lip,ljp,lkp} (i-i_p)**lip (j-j_p)**ljp (k-k_p)**lkp
 
   // transform using multinomials
-  double hmatgridp[lp + 1][3][3];
+  const int lp1 = lp + 1;
+  double hmatgridp[lp1][3][3];
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       hmatgridp[0][j][i] = 1.0;
@@ -934,37 +935,47 @@ general_cxyz_to_cijk(const int lp, const double dh[3][3],
     }
   }
 
+  double trinom[3][lp1][lp1][lp1];
+  for (int d = 0; d < 3; d++) {
+    for (int kl = 0; kl <= lp; kl++) {
+      for (int jl = 0; jl <= lp - kl; jl++) {
+        for (int il = 0; il <= lp - kl - jl; il++) {
+          const int l = il + jl + kl;
+          trinom[d][kl][jl][il] = hmatgridp[il][0][d] * hmatgridp[jl][1][d] *
+                                  hmatgridp[kl][2][d] * fac(l) /
+                                  (fac(il) * fac(jl) * fac(kl));
+        }
+      }
+    }
+  }
+
   const int lpx = lp;
   for (int klx = 0; klx <= lpx; klx++) {
     for (int jlx = 0; jlx <= lpx - klx; jlx++) {
       for (int ilx = 0; ilx <= lpx - klx - jlx; ilx++) {
         const int lx = ilx + jlx + klx;
+        const double px = trinom[0][klx][jlx][ilx];
         const int lpy = lp - lx;
         for (int kly = 0; kly <= lpy; kly++) {
           for (int jly = 0; jly <= lpy - kly; jly++) {
             for (int ily = 0; ily <= lpy - kly - jly; ily++) {
               const int ly = ily + jly + kly;
+              const double pxy = px * trinom[1][kly][jly][ily];
+              const int il_xy = ilx + ily;
+              const int jl_xy = jlx + jly;
+              const int kl_xy = klx + kly;
               const int lpz = lp - lx - ly;
+              const int cxyz_base = ly * lp1 + lx;
               for (int klz = 0; klz <= lpz; klz++) {
+                const int kl_base = (kl_xy + klz) * lp1 * lp1;
                 for (int jlz = 0; jlz <= lpz - klz; jlz++) {
+                  const int cijk_base = kl_base + (jl_xy + jlz) * lp1 + il_xy;
                   for (int ilz = 0; ilz <= lpz - klz - jlz; ilz++) {
                     const int lz = ilz + jlz + klz;
-                    const int il = ilx + ily + ilz;
-                    const int jl = jlx + jly + jlz;
-                    const int kl = klx + kly + klz;
-                    const int lp1 = lp + 1;
-                    const int cijk_index =
-                        kl * lp1 * lp1 + jl * lp1 + il; // [kl,jl,il]
+                    const int cijk_index = cijk_base + ilz; // [kl,jl,il]
                     const int cxyz_index =
-                        lz * lp1 * lp1 + ly * lp1 + lx; // [lz,ly,lx]
-                    const double p =
-                        hmatgridp[ilx][0][0] * hmatgridp[jlx][1][0] *
-                        hmatgridp[klx][2][0] * hmatgridp[ily][0][1] *
-                        hmatgridp[jly][1][1] * hmatgridp[kly][2][1] *
-                        hmatgridp[ilz][0][2] * hmatgridp[jlz][1][2] *
-                        hmatgridp[klz][2][2] * fac(lx) * fac(ly) * fac(lz) /
-                        (fac(ilx) * fac(ily) * fac(ilz) * fac(jlx) * fac(jly) *
-                         fac(jlz) * fac(klx) * fac(kly) * fac(klz));
+                        lz * lp1 * lp1 + cxyz_base; // [lz,ly,lx]
+                    const double p = pxy * trinom[2][klz][jlz][ilz];
 #if (GRID_DO_COLLOCATE)
                     cijk[cijk_index] += cxyz[cxyz_index] * p; // collocate
 #else
@@ -1054,28 +1065,30 @@ static inline void cab_to_cxyz(const int la_max, const int la_min,
   // Computes the polynomial expansion coefficients:
   //     (x-a)**lxa (x-b)**lxb -> sum_{ls} alpha(ls,lxa,lxb,1)*(x-p)**ls
   const int lp = la_max + lb_max;
+  const int lp1 = lp + 1;
   double alpha[3][lb_max + 1][la_max + 1][lp + 1];
-  memset(alpha, 0, 3 * (lb_max + 1) * (la_max + 1) * (lp + 1) * sizeof(double));
 
   for (int i = 0; i < 3; i++) {
     const double drpa = rp[i] - ra[i];
     const double drpb = rp[i] - rb[i];
-    for (int lxa = 0; lxa <= la_max; lxa++) {
-      for (int lxb = 0; lxb <= lb_max; lxb++) {
-        double binomial_k_lxa = 1.0;
-        double a = 1.0;
-        for (int k = 0; k <= lxa; k++) {
-          double binomial_l_lxb = 1.0;
-          double b = 1.0;
-          for (int l = 0; l <= lxb; l++) {
-            alpha[i][lxb][lxa][lxa - l + lxb - k] +=
-                binomial_k_lxa * binomial_l_lxb * a * b;
-            binomial_l_lxb *= ((double)(lxb - l)) / ((double)(l + 1));
-            b *= drpb;
-          }
-          binomial_k_lxa *= ((double)(lxa - k)) / ((double)(k + 1));
-          a *= drpa;
+    alpha[i][0][0][0] = 1.0;
+    for (int lxa = 1; lxa <= la_max; lxa++) {
+      alpha[i][0][lxa][0] = drpa * alpha[i][0][lxa - 1][0];
+      for (int k = 1; k < lxa; k++) {
+        alpha[i][0][lxa][k] =
+            alpha[i][0][lxa - 1][k - 1] + drpa * alpha[i][0][lxa - 1][k];
+      }
+      alpha[i][0][lxa][lxa] = 1.0;
+    }
+    for (int lxb = 1; lxb <= lb_max; lxb++) {
+      for (int lxa = 0; lxa <= la_max; lxa++) {
+        const int n = lxa + lxb;
+        alpha[i][lxb][lxa][0] = drpb * alpha[i][lxb - 1][lxa][0];
+        for (int k = 1; k < n; k++) {
+          alpha[i][lxb][lxa][k] =
+              alpha[i][lxb - 1][lxa][k - 1] + drpb * alpha[i][lxb - 1][lxa][k];
         }
+        alpha[i][lxb][lxa][n] = 1.0;
       }
     }
   }
@@ -1093,41 +1106,110 @@ static inline void cab_to_cxyz(const int la_max, const int la_min,
   // where p is center of the product gaussian, and lp = la_max + lb_max
   // (current implementation is l**7)
   //
+  // Factor the 3D transformation (lxa,lya,lza,lxb,lyb,lzb) <-> (lxp,lyp,lzp)
+  // into three separable 1D steps along x, y, z.
+  const int ncoset_a = ncoset(la_max);
+  double txy[lp1 * lp1];
+  double tx[lp1];
 
+#if (GRID_DO_COLLOCATE)
   for (int lzb = 0; lzb <= lb_max; lzb++) {
     for (int lza = 0; lza <= la_max; lza++) {
+      const int lz_max = lza + lzb;
+      const int lyp_max = lp - lz_max;
+      memset(txy, 0, (lyp_max + 1) * lp1 * sizeof(double));
       for (int lyb = 0; lyb <= lb_max - lzb; lyb++) {
         for (int lya = 0; lya <= la_max - lza; lya++) {
+          const int ly_max = lya + lyb;
           const int lxb_min = imax(lb_min - lzb - lyb, 0);
           const int lxa_min = imax(la_min - lza - lya, 0);
-          for (int lxb = lxb_min; lxb <= lb_max - lzb - lyb; lxb++) {
-            for (int lxa = lxa_min; lxa <= la_max - lza - lya; lxa++) {
+          const int lxb_max = lb_max - lzb - lyb;
+          const int lxa_max = la_max - lza - lya;
+          const int lxp_max = lxa_max + lxb_max;
+          memset(tx, 0, (lxp_max + 1) * sizeof(double));
+          for (int lxb = lxb_min; lxb <= lxb_max; lxb++) {
+            const int jco = coset(lxb, lyb, lzb);
+            for (int lxa = lxa_min; lxa <= lxa_max; lxa++) {
               const int ico = coset(lxa, lya, lza);
-              const int jco = coset(lxb, lyb, lzb);
-              const int cab_index = jco * ncoset(la_max) + ico; // [jco, ico]
-              for (int lzp = 0; lzp <= lza + lzb; lzp++) {
-                for (int lyp = 0; lyp <= lp - lza - lzb; lyp++) {
-                  for (int lxp = 0; lxp <= lp - lza - lzb - lyp; lxp++) {
-                    const double p = alpha[0][lxb][lxa][lxp] *
-                                     alpha[1][lyb][lya][lyp] *
-                                     alpha[2][lzb][lza][lzp] * prefactor;
-                    const int lp1 = lp + 1;
-                    const int cxyz_index =
-                        lzp * lp1 * lp1 + lyp * lp1 + lxp; // [lzp, lyp, lxp]
-#if (GRID_DO_COLLOCATE)
-                    cxyz[cxyz_index] += cab[cab_index] * p; // collocate
-#else
-                    cab[cab_index] += cxyz[cxyz_index] * p; // integrate
-#endif
-                  }
-                }
+              const int cab_index = jco * ncoset_a + ico; // [jco, ico]
+              const double cab_val = cab[cab_index] * prefactor;
+              for (int lxp = 0; lxp <= lxa + lxb; lxp++) {
+                tx[lxp] += cab_val * alpha[0][lxb][lxa][lxp];
               }
+            }
+          }
+          for (int lyp = 0; lyp <= ly_max; lyp++) {
+            const double ay = alpha[1][lyb][lya][lyp];
+            double *txy_row = &txy[lyp * lp1];
+            for (int lxp = 0; lxp <= lxp_max; lxp++) {
+              txy_row[lxp] += tx[lxp] * ay;
+            }
+          }
+        }
+      }
+      for (int lzp = 0; lzp <= lz_max; lzp++) {
+        const double az = alpha[2][lzb][lza][lzp];
+        double *cxyz_z = &cxyz[lzp * lp1 * lp1];
+        for (int lyp = 0; lyp <= lyp_max; lyp++) {
+          const double *txy_row = &txy[lyp * lp1];
+          double *cxyz_zy = &cxyz_z[lyp * lp1];
+          for (int lxp = 0; lxp <= lyp_max - lyp; lxp++) {
+            cxyz_zy[lxp] += txy_row[lxp] * az;
+          }
+        }
+      }
+    }
+  }
+#else
+  for (int lzb = 0; lzb <= lb_max; lzb++) {
+    for (int lza = 0; lza <= la_max; lza++) {
+      const int lz_max = lza + lzb;
+      const int lyp_max = lp - lz_max;
+      memset(txy, 0, (lyp_max + 1) * lp1 * sizeof(double));
+      for (int lzp = 0; lzp <= lz_max; lzp++) {
+        const double az = alpha[2][lzb][lza][lzp] * prefactor;
+        const double *cxyz_z = &cxyz[lzp * lp1 * lp1];
+        for (int lyp = 0; lyp <= lyp_max; lyp++) {
+          double *txy_row = &txy[lyp * lp1];
+          const double *cxyz_zy = &cxyz_z[lyp * lp1];
+          for (int lxp = 0; lxp <= lyp_max - lyp; lxp++) {
+            txy_row[lxp] += cxyz_zy[lxp] * az;
+          }
+        }
+      }
+      for (int lyb = 0; lyb <= lb_max - lzb; lyb++) {
+        for (int lya = 0; lya <= la_max - lza; lya++) {
+          const int ly_max = lya + lyb;
+          const int lxb_min = imax(lb_min - lzb - lyb, 0);
+          const int lxa_min = imax(la_min - lza - lya, 0);
+          const int lxb_max = lb_max - lzb - lyb;
+          const int lxa_max = la_max - lza - lya;
+          const int lxp_max = lxa_max + lxb_max;
+          memset(tx, 0, (lxp_max + 1) * sizeof(double));
+          for (int lyp = 0; lyp <= ly_max; lyp++) {
+            const double ay = alpha[1][lyb][lya][lyp];
+            const double *txy_row = &txy[lyp * lp1];
+            for (int lxp = 0; lxp <= lxp_max; lxp++) {
+              tx[lxp] += txy_row[lxp] * ay;
+            }
+          }
+          for (int lxb = lxb_min; lxb <= lxb_max; lxb++) {
+            const int jco = coset(lxb, lyb, lzb);
+            for (int lxa = lxa_min; lxa <= lxa_max; lxa++) {
+              const int ico = coset(lxa, lya, lza);
+              const int cab_index = jco * ncoset_a + ico; // [jco, ico]
+              double sum_x = 0.0;
+              for (int lxp = 0; lxp <= lxa + lxb; lxp++) {
+                sum_x += tx[lxp] * alpha[0][lxb][lxa][lxp];
+              }
+              cab[cab_index] += sum_x;
             }
           }
         }
       }
     }
   }
+#endif
 }
 
 /*******************************************************************************
