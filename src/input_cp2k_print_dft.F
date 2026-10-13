@@ -1378,6 +1378,30 @@ CONTAINS
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="KPOINT_DIPOLE_FILE", &
+                          description="Also write the k-point dipole matrix elements to this file "// &
+                          "(appended on each print). Without a value the file kpoint_dipoles.dat is used. "// &
+                          "The MOMENTS output itself is unchanged. Only used for KPOINT calculations.", &
+                          usage="KPOINT_DIPOLE_FILE {filename}", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=char_t, &
+                          default_c_val="", &
+                          lone_keyword_c_val="kpoint_dipoles.dat")
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="BERRY_CURVATURE_FILE", &
+                          description="Also write the k-point Berry curvature to this file "// &
+                          "(appended on each print). Without a value the file berry_curvature.dat is used. "// &
+                          "The MOMENTS output itself is unchanged. Only used for KPOINT calculations.", &
+                          usage="BERRY_CURVATURE_FILE {filename}", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=char_t, &
+                          default_c_val="", &
+                          lone_keyword_c_val="berry_curvature.dat")
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL create_kpoint_set_section(subsection)
       CALL section_add_subsection(print_key, subsection)
       CALL section_release(subsection)

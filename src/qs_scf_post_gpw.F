@@ -1680,7 +1680,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_moments'
 
-      CHARACTER(LEN=default_path_length)                 :: filename
+      CHARACTER(LEN=default_path_length)                 :: bc_file, dip_file, filename
       CHARACTER(LEN=default_string_length)               :: moment_unit
       INTEGER                                            :: handle, max_nmo, maxmom, moments_format, &
                                                             moments_unit_nr, reference, unit_nr
@@ -1721,6 +1721,9 @@ CONTAINS
                                    keyword_name="DFT%PRINT%MOMENTS%SOC")
 
          CALL section_vals_val_get(input, "DFT%PRINT%MOMENTS%UNIT", c_val=moment_unit)
+         ! optional extra files for the k-point dipoles / Berry curvature ("" = no file)
+         CALL section_vals_val_get(input, "DFT%PRINT%MOMENTS%KPOINT_DIPOLE_FILE", c_val=dip_file)
+         CALL section_vals_val_get(input, "DFT%PRINT%MOMENTS%BERRY_CURVATURE_FILE", c_val=bc_file)
 
          NULLIFY (ref_point)
          CALL section_vals_val_get(input, "DFT%PRINT%MOMENTS%REF_POINT", r_vals=ref_point)
@@ -1757,7 +1760,7 @@ CONTAINS
 
          IF (do_kpoints) THEN
             CALL qs_moment_kpoints(qs_env, maxmom, reference, ref_point, max_nmo, moments_unit_nr, &
-                                   do_soc, unit_str=moment_unit)
+                                   do_soc, unit_str=moment_unit, dip_file=dip_file, bc_file=bc_file)
          ELSE
             IF (periodic) THEN
                CALL qs_moment_berry_phase(qs_env, magnetic, maxmom, reference, ref_point, moments_unit_nr, &
@@ -1802,7 +1805,7 @@ CONTAINS
             IF (moments_format /= moments_format_trajectory) moments_unit_nr = unit_nr
             IF (do_kpoints) THEN
                CALL qs_moment_kpoints(qs_env, maxmom, reference, ref_point, max_nmo, moments_unit_nr, &
-                                      do_soc, unit_str=moment_unit)
+                                      do_soc, unit_str=moment_unit, dip_file=dip_file, bc_file=bc_file)
             ELSE
                IF (periodic) THEN
                   CALL qs_moment_berry_phase(qs_env, magnetic, maxmom, reference, ref_point, moments_unit_nr, &

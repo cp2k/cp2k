@@ -51,6 +51,8 @@ MODULE qs_moments
                                   cp_dbcsr_sm_fm_multiply, &
                                   dbcsr_allocate_matrix_set, &
                                   dbcsr_deallocate_matrix_set
+   USE cp_files, ONLY: close_file, &
+                       open_file
    USE cp_fm_struct, ONLY: cp_fm_struct_create, &
                            cp_fm_struct_double, &
                            cp_fm_struct_release, &
@@ -3996,19 +3998,24 @@ CONTAINS
 !> \param do_soc include spin-orbit coupling (spinor sum-rule; requires an explicit KPOINT set)
 !> \param unit_str unit of the printed dipoles (dipole unit of cp_units), default debye; the Berry
 !>        curvature is printed in the paired length unit squared
+!> \param dip_file if present and non-empty, the dipole matrix elements are also appended to this file
+!> \param bc_file if present and non-empty, the Berry curvature is also appended to this file
 !> \author Shridhar Shanbhag
 ! **************************************************************************************************
    SUBROUTINE qs_moment_kpoints(qs_env, nmoments, reference, ref_point, max_nmo, unit_number, do_soc, &
-                                unit_str)
+                                unit_str, dip_file, bc_file)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: nmoments, reference, max_nmo
       REAL(dp), DIMENSION(:), INTENT(IN), POINTER        :: ref_point
       INTEGER, INTENT(IN)                                :: unit_number
       LOGICAL, INTENT(IN)                                :: do_soc
-      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: unit_str
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: unit_str, dip_file, bc_file
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_moment_kpoints'
       CHARACTER(LEN=16)                                  :: dip_label, len_label
+      INTEGER                                            :: bc_unit, dip_unit, iu
+      INTEGER, DIMENSION(3)                              :: out_units
       LOGICAL                                            :: use_sci
+      LOGICAL, DIMENSION(3)                              :: print_bc, print_dip
       REAL(KIND=dp)                                      :: dip_fac, len_fac
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp
       COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: dipole_to_print
@@ -4070,6 +4077,36 @@ CONTAINS
          TRIM(dip_label)//"]"
       IF (unit_number > 0 .AND. do_soc) WRITE (unit_number, "(T20,A)") &
          "with Spin-Orbit Coupling (spinor bands)"
+
+      ! optional extra files (appended), written by the I/O rank only
+      dip_unit = -1
+      bc_unit = -1
+      IF (para_env%is_source()) THEN
+         IF (PRESENT(dip_file)) THEN
+            IF (LEN_TRIM(dip_file) > 0) THEN
+               CALL open_file(file_name=TRIM(dip_file), file_status="UNKNOWN", file_action="WRITE", &
+                              file_position="APPEND", unit_number=dip_unit)
+               WRITE (dip_unit, FMT="(/,T2,A)") &
+                  '!-----------------------------------------------------------------------------!'
+               WRITE (dip_unit, "(T22,A)") "Periodic Dipole Matrix Elements ["//TRIM(dip_label)//"]"
+               IF (do_soc) WRITE (dip_unit, "(T20,A)") "with Spin-Orbit Coupling (spinor bands)"
+            END IF
+         END IF
+         IF (PRESENT(bc_file)) THEN
+            IF (LEN_TRIM(bc_file) > 0) THEN
+               CALL open_file(file_name=TRIM(bc_file), file_status="UNKNOWN", file_action="WRITE", &
+                              file_position="APPEND", unit_number=bc_unit)
+               WRITE (bc_unit, FMT="(/,T2,A)") &
+                  '!-----------------------------------------------------------------------------!'
+               WRITE (bc_unit, "(T22,A)") "Berry Curvature ["//TRIM(len_label)//"^2]"
+               IF (do_soc) WRITE (bc_unit, "(T20,A)") "with Spin-Orbit Coupling (spinor bands)"
+            END IF
+         END IF
+      END IF
+      ! output targets: main MOMENTS output (dipoles + Berry curvature), dipole file, Berry curvature file
+      out_units = [unit_number, dip_unit, bc_unit]
+      print_dip = [.TRUE., .TRUE., .FALSE.]
+      print_bc = [.TRUE., .FALSE., .TRUE.]
 
       nspin_dip = nspin
       IF (do_soc) THEN
@@ -4148,30 +4185,37 @@ CONTAINS
                CALL para_env%sum(dipole_to_print)
                CALL para_env%sum(bc_to_print)
             END IF
-            IF (unit_number > 0) THEN
-               IF (special_pnts(ikp) /= "") WRITE (unit_number, "(/,2X,A,A)") &
+            DO iu = 1, SIZE(out_units)
+               IF (out_units(iu) <= 0) CYCLE
+               IF (special_pnts(ikp) /= "") WRITE (out_units(iu), "(/,2X,A,A)") &
                   "Special point: ", ADJUSTL(TRIM(special_pnts(ikp)))
-               WRITE (unit_number, "(/,1X,A,I3,1X,3(A,1F12.6))") &
+               WRITE (out_units(iu), "(/,1X,A,I3,1X,3(A,1F12.6))") &
                   "Kpoint:", ikp, ", kx:", xkp(1, ikp), ", ky:", xkp(2, ikp), ", kz:", xkp(3, ikp)
-               IF (nspin > 1 .AND. .NOT. do_soc) WRITE (unit_number, "(/,2X,A,I2)") &
+               IF (nspin > 1 .AND. .NOT. do_soc) WRITE (out_units(iu), "(/,2X,A,I2)") &
                   "Open Shell System. Spin:", ispin
-               WRITE (unit_number, "(2X,A)") "  kp   n   m  Re(dx_nm)  Im(dx_nm) &
-               & Re(dy_nm)  Im(dy_nm)  Re(dz_nm)  Im(dz_nm)"
-               DO n = nmin, nmax
-                  DO m = nmin, nmax
-                     IF (n == m) CYCLE
-                     WRITE (unit_number, "(2X,I4,2I4,6(G11.3))") ikp, n, m, dipole_to_print(1:3, n, m)*dip_fac
+               IF (print_dip(iu)) THEN
+                  WRITE (out_units(iu), "(2X,A)") "  kp   n   m  Re(dx_nm)  Im(dx_nm) &
+                  & Re(dy_nm)  Im(dy_nm)  Re(dz_nm)  Im(dz_nm)"
+                  DO n = nmin, nmax
+                     DO m = nmin, nmax
+                        IF (n == m) CYCLE
+                        WRITE (out_units(iu), "(2X,I4,2I4,6(G11.3))") ikp, n, m, dipole_to_print(1:3, n, m)*dip_fac
+                     END DO
                   END DO
-               END DO
-               WRITE (unit_number, "(/,1X,A)") "Berry Curvature ["//TRIM(len_label)//"^2]"
-               WRITE (unit_number, "(2X,A)") "   kp    n      YZ          ZX          XY"
-               DO n = nmin, nmax
-                  WRITE (unit_number, "(2X,2I5,3(1X,G11.3))") &
-                     ikp, n, bc_to_print(1:3, n)*len_fac**2
-               END DO
-            END IF
+               END IF
+               IF (print_bc(iu)) THEN
+                  WRITE (out_units(iu), "(/,1X,A)") "Berry Curvature ["//TRIM(len_label)//"^2]"
+                  WRITE (out_units(iu), "(2X,A)") "   kp    n      YZ          ZX          XY"
+                  DO n = nmin, nmax
+                     WRITE (out_units(iu), "(2X,2I5,3(1X,G11.3))") &
+                        ikp, n, bc_to_print(1:3, n)*len_fac**2
+                  END DO
+               END IF
+            END DO
          END DO
       END DO
+      IF (dip_unit > 0) CALL close_file(unit_number=dip_unit)
+      IF (bc_unit > 0) CALL close_file(unit_number=bc_unit)
       DEALLOCATE (dipole_to_print, bc_to_print, berry_c, dipole)
       IF (ALLOCATED(nmo_spin_scf)) DEALLOCATE (nmo_spin_scf)
       DEALLOCATE (special_pnts, xkp)
