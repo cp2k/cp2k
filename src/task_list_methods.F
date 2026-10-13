@@ -68,7 +68,7 @@ MODULE task_list_methods
    USE util, ONLY: sort
 
 !$ USE OMP_LIB, ONLY: omp_destroy_lock, omp_get_num_threads, omp_init_lock, &
-!$                    omp_lock_kind, omp_set_lock, omp_unset_lock, omp_get_max_threads
+!$                    omp_lock_kind, omp_set_lock, omp_unset_lock
 #include "./base/base_uses.f90"
 
    #:include './common/array_sort.fypp'
@@ -322,6 +322,13 @@ CONTAINS
                            rank_offsets=task_list%rank_offsets_recv, &
                            rank_sizes=task_list%rank_sizes_recv, &
                            buffer_size=task_list%buffer_size_recv)
+      IF (ASSOCIATED(task_list%atom_pair_send)) THEN
+         CALL rs_group_atom_pairs(task_list%atom_pair_send, &
+                                  task_list%unpack_block_starts, task_list%unpack_pair_indices)
+      ELSE
+         CALL rs_group_atom_pairs(task_list%atom_pair_recv, &
+                                  task_list%unpack_block_starts, task_list%unpack_pair_indices)
+      END IF
       DEALLOCATE (basis_set_list, nsgf)
 
       ! If the rank order has changed, reallocate any of the distributed rs_grids
@@ -2484,6 +2491,42 @@ CONTAINS
    END SUBROUTINE rs_calc_offsets
 
 ! **************************************************************************************************
+!> \brief Group contributions to each matrix block without changing the communication order.
+!>        Rebuilt with the task list; contains indices only, independent of matrices and threads.
+!> \param pairs atom pairs in communication order
+!> \param block_starts first position of each block in pair_indices, plus an end sentinel
+!> \param pair_indices original pair indices grouped by destination block
+! **************************************************************************************************
+   SUBROUTINE rs_group_atom_pairs(pairs, block_starts, pair_indices)
+      TYPE(atom_pair_type), DIMENSION(:), INTENT(IN)     :: pairs
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)   :: block_starts, pair_indices
+
+      INTEGER                                            :: i, nblocks, npairs
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: starts
+      TYPE(atom_pair_type), ALLOCATABLE, DIMENSION(:)    :: sorted_pairs
+
+      npairs = SIZE(pairs)
+      ALLOCATE (sorted_pairs(npairs), pair_indices(npairs), starts(npairs + 1))
+      sorted_pairs(:) = pairs(:)
+      ! Ignore source rank for grouping. The stable sort preserves contribution order within each block.
+      sorted_pairs(:)%rank = 0
+      CALL atom_pair_sort(sorted_pairs, npairs, pair_indices)
+
+      nblocks = 0
+      DO i = 1, npairs
+         IF (i > 1) THEN
+            IF (.NOT. atom_pair_less_than(sorted_pairs(i - 1), sorted_pairs(i))) CYCLE
+         END IF
+         nblocks = nblocks + 1
+         starts(nblocks) = i
+      END DO
+      starts(nblocks + 1) = npairs + 1
+      ALLOCATE (block_starts(nblocks + 1))
+      block_starts(:) = starts(:nblocks + 1)
+
+   END SUBROUTINE rs_group_atom_pairs
+
+! **************************************************************************************************
 !> \brief Scatters dbcsr matrix blocks and receives them into a buffer as needed before collocation.
 !> \author Ole Schuett
 ! **************************************************************************************************
@@ -2547,7 +2590,9 @@ CONTAINS
       CALL rs_unpack_buffer(src_buffer=buffer_send, &
                             dest_matrices=dest_matrices, &
                             atom_pair=task_list%atom_pair_send, &
-                            pair_offsets=task_list%pair_offsets_send)
+                            pair_offsets=task_list%pair_offsets_send, &
+                            block_starts=task_list%unpack_block_starts, &
+                            pair_indices=task_list%unpack_pair_indices)
 
       DEALLOCATE (buffer_send)
       CALL timestop(handle)
@@ -2582,7 +2627,9 @@ CONTAINS
       CALL rs_unpack_buffer(src_buffer=src_buffer%host_buffer, &
                             dest_matrices=dest_matrices, &
                             atom_pair=task_list%atom_pair_recv, &
-                            pair_offsets=task_list%pair_offsets_recv)
+                            pair_offsets=task_list%pair_offsets_recv, &
+                            block_starts=task_list%unpack_block_starts, &
+                            pair_indices=task_list%unpack_pair_indices)
 
    END SUBROUTINE rs_copy_to_matrices
 
@@ -2624,52 +2671,44 @@ CONTAINS
 !> \brief Helper routine for rs_gather_matrix and rs_copy_to_matrices.
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE rs_unpack_buffer(src_buffer, dest_matrices, atom_pair, pair_offsets)
+   SUBROUTINE rs_unpack_buffer(src_buffer, dest_matrices, atom_pair, pair_offsets, block_starts, pair_indices)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: src_buffer
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: dest_matrices
       TYPE(atom_pair_type), DIMENSION(:), INTENT(IN)     :: atom_pair
       INTEGER, DIMENSION(:), INTENT(IN)                  :: pair_offsets
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: block_starts, pair_indices
 
-      INTEGER                                            :: acol, arow, img, i, offset, &
-                                                            nrows, ncols, lock_num
+      INTEGER                                            :: acol, arow, i, iblock, img, ipair, &
+                                                            j, ncols, nrows, offset, pair
       LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
-      INTEGER(kind=omp_lock_kind), ALLOCATABLE, DIMENSION(:) :: locks
 
-      ! initialize locks
-      ALLOCATE (locks(10*omp_get_max_threads()))
-      DO i = 1, SIZE(locks)
-         CALL omp_init_lock(locks(i))
-      END DO
-
+      ! One thread owns each destination block and accumulates all ranks' contributions.
 !$OMP PARALLEL DEFAULT(NONE), &
-!$OMP          SHARED(src_buffer,atom_pair,pair_offsets,dest_matrices,locks), &
-!$OMP          PRIVATE(acol,arow,img,i,offset,nrows,ncols,lock_num,found,block)
+!$OMP          SHARED(src_buffer,atom_pair,pair_offsets,dest_matrices,block_starts,pair_indices), &
+!$OMP          PRIVATE(acol,arow,i,iblock,img,ipair,j,ncols,nrows,offset,pair,found,block)
 !$OMP DO schedule(guided)
-      DO i = 1, SIZE(atom_pair)
-         arow = atom_pair(i)%row
-         acol = atom_pair(i)%col
-         img = atom_pair(i)%image
+      DO iblock = 1, SIZE(block_starts) - 1
+         pair = pair_indices(block_starts(iblock))
+         arow = atom_pair(pair)%row
+         acol = atom_pair(pair)%col
+         img = atom_pair(pair)%image
          CALL dbcsr_get_block_p(matrix=dest_matrices(img)%matrix, row=arow, col=acol, &
                                 block=block, found=found)
          CPASSERT(found)
          nrows = SIZE(block, 1)
          ncols = SIZE(block, 2)
-         offset = pair_offsets(i)
-         lock_num = MODULO(arow, SIZE(locks)) + 1  ! map matrix rows round-robin to available locks
-
-         CALL omp_set_lock(locks(lock_num))
-         block = block + RESHAPE(src_buffer(offset + 1:offset + nrows*ncols), shape=[nrows, ncols])
-         CALL omp_unset_lock(locks(lock_num))
+         DO ipair = block_starts(iblock), block_starts(iblock + 1) - 1
+            offset = pair_offsets(pair_indices(ipair))
+            DO j = 1, ncols
+               DO i = 1, nrows
+                  block(i, j) = block(i, j) + src_buffer(offset + i + (j - 1)*nrows)
+               END DO
+            END DO
+         END DO
       END DO
 !$OMP END DO
 !$OMP END PARALLEL
-
-      ! destroy locks
-      DO i = 1, SIZE(locks)
-         CALL omp_destroy_lock(locks(i))
-      END DO
-      DEALLOCATE (locks)
 
    END SUBROUTINE rs_unpack_buffer
 

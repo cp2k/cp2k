@@ -568,6 +568,9 @@ CONTAINS
       CALL timeset(routineN, handle)
       delta = 0.0_dp
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(m1, m2, m3, p_mix) &
+!$OMP PRIVATE(iter, iblock_row, iblock_col, p_new_block, p_old_block, p_delta_block, found, i, j) &
+!$OMP REDUCTION(MAX:delta)
       CALL dbcsr_iterator_start(iter, m1)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_new_block)
@@ -596,6 +599,7 @@ CONTAINS
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL para_env%max(delta)
 

@@ -73,6 +73,9 @@ MODULE task_list_types
       INTEGER, DIMENSION(:), POINTER                :: rank_sizes_recv => Null()
       INTEGER                                       :: buffer_size_recv = 0
 
+      ! Owner-side contributions grouped by destination block for matrix unpacking.
+      INTEGER, ALLOCATABLE                          :: unpack_block_starts(:), unpack_pair_indices(:)
+
       TYPE(grid_basis_set_type), DIMENSION(:), POINTER :: grid_basis_sets => Null()
       TYPE(grid_task_list_type)                     :: grid_task_list = grid_task_list_type()
       TYPE(offload_buffer_type)                     :: pab_buffer = offload_buffer_type()

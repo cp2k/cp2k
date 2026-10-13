@@ -105,12 +105,14 @@ CONTAINS
       CPASSERT(omp_get_num_threads() == 1)
 
       norm = 0.0_dp
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix) PRIVATE(iter, block) REDUCTION(MAX:norm)
       CALL dbcsr_iterator_readonly_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, block=block)
          norm = MAX(norm, MAXVAL(ABS(block)))
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL dbcsr_get_info(matrix, group=group)
       CALL group%max(norm)
@@ -140,6 +142,8 @@ CONTAINS
 
       has_symmetry = dbcsr_has_symmetry(matrix)
       norm = 0.0_dp
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix, has_symmetry) &
+!$OMP PRIVATE(iter, row, col, block) REDUCTION(+:norm)
       CALL dbcsr_iterator_readonly_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, block)
@@ -150,6 +154,7 @@ CONTAINS
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL dbcsr_get_info(matrix, group=group)
       CALL group%sum(norm)
@@ -382,6 +387,8 @@ CONTAINS
       has_symmetry = dbcsr_has_symmetry(matrix_a)
 
       trace = 0.0_dp
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_a, matrix_b, has_symmetry) &
+!$OMP PRIVATE(iter, row, col, block_a, block_b, found_b) REDUCTION(+:trace)
       CALL dbcsr_iterator_readonly_start(iter, matrix_a)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, block_a)
@@ -396,6 +403,7 @@ CONTAINS
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL dbcsr_get_info(matrix_a, group=group)
       CALL group%sum(trace)
@@ -515,6 +523,8 @@ CONTAINS
          CPASSERT(nfullrows_total == SIZE(alpha))
       END IF
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix, alpha, right) &
+!$OMP PRIVATE(iter, block, row_size, col_size, row_offset, col_offset, i)
       CALL dbcsr_iterator_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, block=block, row_size=row_size, col_size=col_size, &
@@ -531,6 +541,7 @@ CONTAINS
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL timestop(handle)
    END SUBROUTINE dbcsr_scale_by_vector

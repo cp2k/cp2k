@@ -57,10 +57,10 @@ MODULE cp_dbcsr_operations
 
    INTEGER, SAVE, PUBLIC :: max_elements_per_block = 32
 
-   ! A plan belongs to a fixed S/A workspace and FM distribution. Only values may
-   ! change during its lifetime. Its owner must release it before the workspace or
-   ! FM distribution changes. All owned storage is allocatable. No matrix data
-   ! pointers or MPI requests are retained. Calls using one plan must be serialized.
+   ! A plan caches S/A routing for a source block layout and FM distribution.
+   ! Use check_plan for sources whose layout can change. The owner must release
+   ! the plan before releasing the FM structure. All owned storage is allocatable;
+   ! no matrix data pointers or MPI requests are retained. Calls must be serialized.
    TYPE dbcsr_fm_thread_plan_type
       INTEGER, ALLOCATABLE :: blocks(:, :), slots(:)
    END TYPE dbcsr_fm_thread_plan_type
@@ -225,14 +225,16 @@ CONTAINS
 !> \brief Copy a DBCSR matrix to a BLACS matrix
 !> \param[in] matrix          DBCSR matrix
 !> \param[out] fm             full matrix
-!> \param plan optional S/A routing plan; source block layout, FM structure and
-!>        OpenMP thread distribution must stay fixed. Discard it before they change.
+!> \param plan optional S/A routing plan; discard before releasing the FM structure
+!> \param check_plan check for layout changes and collectively rebuild the plan;
+!>        defaults to false for callers that guarantee fixed layouts and threads
 ! **************************************************************************************************
-   SUBROUTINE copy_dbcsr_to_fm(matrix, fm, plan)
+   SUBROUTINE copy_dbcsr_to_fm(matrix, fm, plan, check_plan)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm
       TYPE(dbcsr_fm_copy_plan_type), INTENT(INOUT), &
          OPTIONAL                                        :: plan
+      LOGICAL, INTENT(IN), OPTIONAL                      :: check_plan
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'copy_dbcsr_to_fm'
 
@@ -242,11 +244,14 @@ CONTAINS
                                                             nrow_block
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
+      LOGICAL                                            :: validate_plan
       TYPE(dbcsr_distribution_type)                      :: bc_dist, dist
       TYPE(dbcsr_fm_copy_plan_type)                      :: local_plan
       TYPE(dbcsr_type)                                   :: bc_mat, matrix_nosym
 
       CALL timeset(routineN, handle)
+      validate_plan = .FALSE.
+      IF (PRESENT(check_plan)) validate_plan = check_plan
 
       ! check compatibility
       CALL dbcsr_get_info(matrix, &
@@ -261,16 +266,16 @@ CONTAINS
       SELECT CASE (dbcsr_get_matrix_type(matrix))
       CASE (dbcsr_type_symmetric, dbcsr_type_antisymmetric)
          IF (PRESENT(plan)) THEN
-            CALL copy_dbcsr_to_fm_sym(matrix, fm, plan)
+            CALL copy_dbcsr_to_fm_sym(matrix, fm, plan, validate_plan)
          ELSE
-            CALL copy_dbcsr_to_fm_sym(matrix, fm, local_plan)
+            CALL copy_dbcsr_to_fm_sym(matrix, fm, local_plan, .FALSE.)
          END IF
          CALL timestop(handle)
          RETURN
       END SELECT
 
-      ! Reusable plans are only defined for the S/A direct-copy path.
-      CPASSERT(.NOT. PRESENT(plan))
+      ! Other matrix types use the uncached redistribution path.
+      IF (PRESENT(plan)) plan = dbcsr_fm_copy_plan_type()
 
       ! info about the full matrix
       nrow_block = fm%matrix_struct%nrow_block
@@ -306,72 +311,89 @@ CONTAINS
    END SUBROUTINE copy_dbcsr_to_fm
 
 ! **************************************************************************************************
-!> \brief Send S/A values using a fixed routing plan, built on first use.
-!>        Validate the block sequence while packing, without adding a collective
-!>        for cache validation. Structural changes require a fresh caller-owned plan.
+!> \brief Send S/A values using a routing plan, checking the block sequence while packing.
+!>        Mutable sources require a collective check before using the cached routing.
 !> \param matrix symmetric or antisymmetric DBCSR workspace
 !> \param fm full matrix on the source communicator
 !> \param plan reusable routing and buffers; no outstanding communication on return
+!> \param check_plan rebuild collectively if the source layout, FM structure or threads change
 ! **************************************************************************************************
-   SUBROUTINE copy_dbcsr_to_fm_sym(matrix, fm, plan)
+   SUBROUTINE copy_dbcsr_to_fm_sym(matrix, fm, plan, check_plan)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm
       TYPE(dbcsr_fm_copy_plan_type), INTENT(INOUT)       :: plan
+      LOGICAL, INTENT(IN)                                :: check_plan
 
-      INTEGER                                            :: col, col_offset, i, iblock, j, k, &
-                                                            mirror, ncol, nrecv, nrow, pos, row, &
+      INTEGER                                            :: attempt, col, col_offset, i, iblock, j, &
+                                                            k, mirror, ncol, nrecv, nrow, &
+                                                            nthreads, pos, rebuild, row, &
                                                             row_offset, thread
-      LOGICAL                                            :: block_matches, transposed
+      LOGICAL                                            :: block_matches, layout_matches, transposed
       REAL(KIND=dp)                                      :: symmetry_sign, value
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       IF (.NOT. ALLOCATED(plan%thread)) CALL dbcsr_to_fm_plan_create(matrix, fm, plan)
-      CPASSERT(ASSOCIATED(plan%matrix_struct, fm%matrix_struct))
-      CPASSERT(plan%matrix_type == dbcsr_get_matrix_type(matrix))
-      para_env => plan%matrix_struct%context%para_env
+      para_env => fm%matrix_struct%context%para_env
       symmetry_sign = 1.0_dp
-      IF (plan%matrix_type == dbcsr_type_antisymmetric) symmetry_sign = -1.0_dp
+      IF (dbcsr_get_matrix_type(matrix) == dbcsr_type_antisymmetric) symmetry_sign = -1.0_dp
 
-!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix, plan, symmetry_sign) &
+      DO attempt = 1, 2
+         layout_matches = ASSOCIATED(plan%matrix_struct, fm%matrix_struct) .AND. &
+                          plan%matrix_type == dbcsr_get_matrix_type(matrix)
+         rebuild = 0
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix, plan, symmetry_sign, layout_matches) &
 !$OMP PRIVATE(iter, row, col, block, transposed, row_offset, col_offset, nrow, ncol, &
-!$OMP thread, iblock, pos, mirror, i, j, k, value, block_matches)
-      thread = 0
-!$    thread = omp_get_thread_num()
-!$    CPASSERT(omp_get_num_threads() == SIZE(plan%thread))
-      iblock = 0
-      pos = 0
-      CALL dbcsr_iterator_readonly_start(iter, matrix, dynamic=.FALSE.)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, row, col, block, transposed=transposed, &
-                                        row_size=nrow, col_size=ncol, row_offset=row_offset, col_offset=col_offset)
-         iblock = iblock + 1
-         CPASSERT(iblock <= SIZE(plan%thread(thread)%blocks, 2))
-         block_matches = ALL(plan%thread(thread)%blocks(:, iblock) == &
-                             [row, col, nrow, ncol, row_offset, col_offset])
-         CPASSERT(block_matches)
-         DO j = 1, ncol
-            DO i = 1, nrow
-               IF (transposed) THEN
-                  value = symmetry_sign*block(j, i)
-               ELSE
-                  value = block(i, j)
+!$OMP thread, nthreads, iblock, pos, mirror, i, j, k, value, block_matches) REDUCTION(MAX:rebuild)
+         thread = 0
+         nthreads = 1
+!$       thread = omp_get_thread_num()
+!$       nthreads = omp_get_num_threads()
+         IF (.NOT. layout_matches .OR. nthreads /= SIZE(plan%thread)) THEN
+            rebuild = 1
+         ELSE
+            iblock = 0
+            pos = 0
+            CALL dbcsr_iterator_readonly_start(iter, matrix, dynamic=.FALSE.)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_next_block(iter, row, col, block, transposed=transposed, &
+                                              row_size=nrow, col_size=ncol, row_offset=row_offset, col_offset=col_offset)
+               iblock = iblock + 1
+               block_matches = iblock <= SIZE(plan%thread(thread)%blocks, 2)
+               IF (block_matches) block_matches = ALL(plan%thread(thread)%blocks(:, iblock) == &
+                                                      [row, col, nrow, ncol, row_offset, col_offset])
+               IF (.NOT. block_matches) THEN
+                  rebuild = 1
+                  EXIT
                END IF
-               DO mirror = 1, 2
-                  IF (mirror == 2 .AND. row == col) CYCLE
-                  pos = pos + 1
-                  k = plan%thread(thread)%slots(pos)
-                  plan%send_values(k) = value
-                  value = symmetry_sign*value
+               DO j = 1, ncol
+                  DO i = 1, nrow
+                     IF (transposed) THEN
+                        value = symmetry_sign*block(j, i)
+                     ELSE
+                        value = block(i, j)
+                     END IF
+                     DO mirror = 1, 2
+                        IF (mirror == 2 .AND. row == col) CYCLE
+                        pos = pos + 1
+                        k = plan%thread(thread)%slots(pos)
+                        plan%send_values(k) = value
+                        value = symmetry_sign*value
+                     END DO
+                  END DO
                END DO
             END DO
-         END DO
-      END DO
-      CALL dbcsr_iterator_stop(iter)
-      CPASSERT(iblock == SIZE(plan%thread(thread)%blocks, 2))
-      CPASSERT(pos == SIZE(plan%thread(thread)%slots))
+            CALL dbcsr_iterator_stop(iter)
+            IF (iblock /= SIZE(plan%thread(thread)%blocks, 2) .OR. &
+                pos /= SIZE(plan%thread(thread)%slots)) rebuild = 1
+         END IF
 !$OMP END PARALLEL
+         IF (check_plan) CALL para_env%max(rebuild)
+         IF (rebuild == 0) EXIT
+         CPASSERT(check_plan .AND. attempt == 1)
+         CALL dbcsr_to_fm_plan_create(matrix, fm, plan)
+      END DO
 
       ! Counts and destination indices were exchanged once when the plan was built.
       CALL para_env%alltoall(plan%send_values, plan%send_count, plan%send_disp, &
@@ -406,9 +428,11 @@ CONTAINS
                                                             nrow, nthreads, pass, pos, row, &
                                                             row_offset, thread, x, y
       INTEGER(KIND=int_8)                                :: count, offset
+      INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: local_pos
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)  :: thread_pos
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nblocks
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: send_index
+      LOGICAL                                            :: transposed
       TYPE(cp_fm_struct_type), POINTER                   :: fms
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -431,9 +455,11 @@ CONTAINS
 !$OMP SHARED(matrix, fms, nproc, nthreads, &
 !$OMP thread_pos, nblocks, send_index, plan) &
 !$OMP PRIVATE(iter, row, col, row_offset, col_offset, nrow, ncol, &
-!$OMP thread, iblock, pos, pass, mirror, i, j, x, y, dest, k, offset, count)
+!$OMP thread, iblock, pos, pass, mirror, i, j, x, y, dest, k, offset, count, local_pos, transposed)
       thread = 0
 !$    thread = omp_get_thread_num()
+      ALLOCATE (local_pos(0:nproc - 1))
+      local_pos(:) = 0
       DO pass = 1, 2
          iblock = 0
          pos = 0
@@ -461,15 +487,14 @@ CONTAINS
             send_index(:, :) = 0
             plan%send_values(:) = 0.0_dp
 !$OMP END SINGLE
+            local_pos(:) = thread_pos(:, thread)
          END IF
          CALL dbcsr_iterator_readonly_start(iter, matrix, dynamic=.FALSE.)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             CALL dbcsr_iterator_next_block(iter, row, col, row_size=nrow, col_size=ncol, &
-                                           row_offset=row_offset, col_offset=col_offset)
+                                           row_offset=row_offset, col_offset=col_offset, transposed=transposed)
             iblock = iblock + 1
-            IF (pass == 1) THEN
-               nblocks(thread) = iblock
-            ELSE
+            IF (pass == 2) THEN
                plan%thread(thread)%blocks(:, iblock) = [row, col, nrow, ncol, row_offset, col_offset]
             END IF
             DO j = 1, ncol
@@ -483,9 +508,9 @@ CONTAINS
                         y = row_offset + i - 1
                      END IF
                      dest = fms%context%blacs2mpi(fms%g2p_row(x), fms%g2p_col(y))
-                     thread_pos(dest, thread) = thread_pos(dest, thread) + 1
+                     local_pos(dest) = local_pos(dest) + 1
                      IF (pass == 1) CYCLE
-                     k = INT(thread_pos(dest, thread))
+                     k = INT(local_pos(dest))
                      send_index(:, k) = [fms%g2l_row(x), fms%g2l_col(y)]
                      pos = pos + 1
                      plan%thread(thread)%slots(pos) = k
@@ -494,8 +519,13 @@ CONTAINS
             END DO
          END DO
          CALL dbcsr_iterator_stop(iter)
+         IF (pass == 1) THEN
+            thread_pos(:, thread) = local_pos(:)
+            nblocks(thread) = iblock
+         END IF
 !$OMP BARRIER
       END DO
+      DEALLOCATE (local_pos)
 !$OMP END PARALLEL
       DEALLOCATE (thread_pos, nblocks)
 

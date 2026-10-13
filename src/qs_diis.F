@@ -254,11 +254,11 @@ CONTAINS
                                                             output_unit
       LOGICAL                                            :: eigenvectors_discarded, my_roks
       REAL(KIND=dp)                                      :: maxocc, tmp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ev, occ
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ev, occ, traces
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occa, occb
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a, b
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type), POINTER                          :: c, new_errors, old_errors, parameters
+      TYPE(cp_fm_type), POINTER                          :: c, new_errors, parameters
       TYPE(cp_logger_type), POINTER                      :: logger
 
 ! -------------------------------------------------------------------------
@@ -278,7 +278,7 @@ CONTAINS
       my_nmixing = 2
       IF (PRESENT(nmixing)) my_nmixing = nmixing
 
-      NULLIFY (c, new_errors, old_errors, parameters, matrix_struct, a, b, occa, occb)
+      NULLIFY (c, new_errors, parameters, matrix_struct, a, b, occa, occb)
       logger => cp_get_default_logger()
 
       ! Quick return, if no DIIS is requested
@@ -300,6 +300,10 @@ CONTAINS
       ib = MODULO(diis_buffer%ncall, diis_buffer%nbuffer) + 1
       diis_buffer%ncall = diis_buffer%ncall + 1
       nb = MIN(diis_buffer%ncall, diis_buffer%nbuffer)
+
+      IF (PRESENT(s_matrix)) THEN
+         IF (.NOT. ALLOCATED(diis_buffer%overlap_copy_plan)) ALLOCATE (diis_buffer%overlap_copy_plan)
+      END IF
 
       DO ispin = 1, nspin
 
@@ -336,7 +340,7 @@ CONTAINS
             CALL cp_fm_symm("L", "U", nao, homo, 1.0_dp, parameters, sc, 0.0_dp, kc(ispin))
 
             IF (PRESENT(s_matrix)) THEN
-               CALL copy_dbcsr_to_fm(s_matrix(1)%matrix, new_errors)
+               CALL copy_dbcsr_to_fm(s_matrix(1)%matrix, new_errors, diis_buffer%overlap_copy_plan, check_plan=.TRUE.)
                ! SC <- S*C
                CALL cp_fm_symm("L", "U", nao, homo, 1.0_dp, new_errors, c, 0.0_dp, sc)
                CALL cp_fm_column_scale(sc, occ(1:homo))
@@ -357,7 +361,7 @@ CONTAINS
 
             IF (PRESENT(s_matrix)) THEN
                ! I guess that this copy can be avoided for LSD
-               CALL copy_dbcsr_to_fm(s_matrix(1)%matrix, new_errors)
+               CALL copy_dbcsr_to_fm(s_matrix(1)%matrix, new_errors, diis_buffer%overlap_copy_plan, check_plan=.TRUE.)
                ! sc <- S*C
                CALL cp_fm_symm("L", "U", nao, homo, 2.0_dp, new_errors, c, 0.0_dp, sc)
                ! new_errors <- KC*(SC)^T - (SC)*(KC)^T = K*P*S - S*P*K
@@ -410,14 +414,20 @@ CONTAINS
 
          b => diis_buffer%b_matrix
 
+         ALLOCATE (traces(nb))
+         b(1:nb, ib) = 0.0_dp
+         ! Batch history traces, but avoid starting OpenMP for a single entry.
+         DO ispin = 1, nspin
+            IF (nb == 1) THEN
+               CALL cp_fm_trace(diis_buffer%error(1, ispin), diis_buffer%error(ib, ispin), traces(1))
+            ELSE
+               CALL cp_fm_trace(diis_buffer%error(1:nb, ispin), diis_buffer%error(ib, ispin), traces)
+            END IF
+            b(1:nb, ib) = b(1:nb, ib) + traces(:)
+         END DO
+         DEALLOCATE (traces)
+
          DO jb = 1, nb
-            b(jb, ib) = 0.0_dp
-            DO ispin = 1, nspin
-               old_errors => diis_buffer%error(jb, ispin)
-               new_errors => diis_buffer%error(ib, ispin)
-               CALL cp_fm_trace(old_errors, new_errors, tmp)
-               b(jb, ib) = b(jb, ib) + tmp
-            END DO
             b(ib, jb) = b(jb, ib)
          END DO
 

@@ -684,15 +684,14 @@ CONTAINS
       COMPLEX(dp)                                        :: cc_mix
       COMPLEX(dp), ALLOCATABLE, DIMENSION(:)             :: res_rho
       INTEGER                                            :: handle, i, iatom, ib, ig, ispin, j, jb, &
-                                                            kb, n1, n2, natom, nb, nbuffer, ng, &
-                                                            nspin
+                                                            n1, n2, natom, nb, nbuffer, ng, nspin
       LOGICAL                                            :: gapw, only_kerker
       REAL(dp)                                           :: alpha, alpha_eff, dcpc_h_res, &
                                                             dcpc_s_res, delta_norm, f_mix, &
-                                                            inv_err, res_norm, rho_norm, valh, &
-                                                            vals, w0
+                                                            inv_err, res_norm, valh, vals, w0
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: c, g
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a, b
+      REAL(dp), DIMENSION(2)                             :: norms
       REAL(dp), DIMENSION(:), POINTER                    :: kerker_eff
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
@@ -741,19 +740,18 @@ CONTAINS
             alpha_eff = mixing_store%alpha
             kerker_eff => mixing_store%kerker_factor
          END IF
-         res_rho = z_zero
-         DO ig = 1, ng
-            res_rho(ig) = density(ispin)%cc(ig) - mixing_store%rhoin(ispin)%cc(ig)
-         END DO
-
          IF (only_kerker) THEN
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(ig, f_mix) &
+!$OMP SHARED(ng, ispin, mixing_store, density, res_rho, alpha_eff, kerker_eff)
             DO ig = 1, ng
+               res_rho(ig) = density(ispin)%cc(ig) - mixing_store%rhoin(ispin)%cc(ig)
                mixing_store%last_res(ispin)%cc(ig) = res_rho(ig)
                f_mix = alpha_eff*kerker_eff(ig)
                density(ispin)%cc(ig) = mixing_store%rhoin(ispin)%cc(ig) + f_mix*res_rho(ig)
                mixing_store%rhoin_old(ispin)%cc(ig) = mixing_store%rhoin(ispin)%cc(ig)
                mixing_store%rhoin(ispin)%cc(ig) = density(ispin)%cc(ig)
             END DO
+!$OMP END PARALLEL DO
 
             IF (mixing_store%gmix_p) THEN
                IF (gapw) THEN
@@ -790,8 +788,10 @@ CONTAINS
 
             delta_norm = 0.0_dp
             res_norm = 0.0_dp
-            rho_norm = 0.0_dp
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(ig) &
+!$OMP SHARED(ng, ib, ispin, mixing_store, density, res_rho) REDUCTION(+:delta_norm, res_norm)
             DO ig = 1, ng
+               res_rho(ig) = density(ispin)%cc(ig) - mixing_store%rhoin(ispin)%cc(ig)
                mixing_store%res_buffer(ib, ispin)%cc(ig) = res_rho(ig) - mixing_store%last_res(ispin)%cc(ig)
                mixing_store%last_res(ispin)%cc(ig) = res_rho(ig)
                res_norm = res_norm + &
@@ -802,25 +802,28 @@ CONTAINS
                             REAL(mixing_store%res_buffer(ib, ispin)%cc(ig), dp) + &
                             AIMAG(mixing_store%res_buffer(ib, ispin)%cc(ig))* &
                             AIMAG(mixing_store%res_buffer(ib, ispin)%cc(ig))
-               rho_norm = rho_norm + &
-                          REAL(density(ispin)%cc(ig), dp)*REAL(density(ispin)%cc(ig), dp) + &
-                          AIMAG(density(ispin)%cc(ig))*AIMAG(density(ispin)%cc(ig))
-            END DO
-            DO ig = 1, ng
                mixing_store%drho_buffer(ib, ispin)%cc(ig) = &
                   mixing_store%rhoin(ispin)%cc(ig) - &
                   mixing_store%rhoin_old(ispin)%cc(ig)
             END DO
-            CALL para_env%sum(delta_norm)
-            delta_norm = SQRT(delta_norm)
-            CALL para_env%sum(res_norm)
-            res_norm = SQRT(res_norm)
-            CALL para_env%sum(rho_norm)
-            rho_norm = SQRT(rho_norm)
+!$OMP END PARALLEL DO
+            norms(:) = [delta_norm, res_norm]
+            CALL para_env%sum(norms)
+            delta_norm = SQRT(norms(1))
+            res_norm = SQRT(norms(2))
 
             IF (res_norm > 1.E-14_dp) THEN
-               mixing_store%res_buffer(ib, ispin)%cc(:) = mixing_store%res_buffer(ib, ispin)%cc(:)/delta_norm
-               mixing_store%drho_buffer(ib, ispin)%cc(:) = mixing_store%drho_buffer(ib, ispin)%cc(:)/delta_norm
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(ig, f_mix) &
+!$OMP SHARED(ng, ib, ispin, mixing_store, delta_norm, alpha_eff, kerker_eff)
+               DO ig = 1, ng
+                  mixing_store%res_buffer(ib, ispin)%cc(ig) = mixing_store%res_buffer(ib, ispin)%cc(ig)/delta_norm
+                  mixing_store%drho_buffer(ib, ispin)%cc(ig) = mixing_store%drho_buffer(ib, ispin)%cc(ig)/delta_norm
+                  f_mix = alpha_eff*kerker_eff(ig)
+                  mixing_store%drho_buffer(ib, ispin)%cc(ig) = &
+                     f_mix*mixing_store%res_buffer(ib, ispin)%cc(ig) + &
+                     mixing_store%drho_buffer(ib, ispin)%cc(ig)
+               END DO
+!$OMP END PARALLEL DO
 
                IF (mixing_store%gmix_p .AND. gapw) THEN
                   DO iatom = 1, natom
@@ -859,37 +862,13 @@ CONTAINS
                   END DO
                END IF
 
-               a(:, :) = 0.0_dp
-               DO ig = 1, ng
-                  f_mix = alpha_eff*kerker_eff(ig)
-                  mixing_store%drho_buffer(ib, ispin)%cc(ig) = &
-                     f_mix*mixing_store%res_buffer(ib, ispin)%cc(ig) + &
-                     mixing_store%drho_buffer(ib, ispin)%cc(ig)
-               END DO
-               DO jb = 1, nb
-                  DO kb = jb, nb
-                     DO ig = 1, mixing_store%ig_max !ng
-                        a(kb, jb) = a(kb, jb) + mixing_store%p_metric(ig)*( &
-                                    REAL(mixing_store%res_buffer(jb, ispin)%cc(ig), dp)* &
-                                    REAL(mixing_store%res_buffer(kb, ispin)%cc(ig), dp) + &
-                                    AIMAG(mixing_store%res_buffer(jb, ispin)%cc(ig))* &
-                                    AIMAG(mixing_store%res_buffer(kb, ispin)%cc(ig)))
-                     END DO
-                     a(jb, kb) = a(kb, jb)
-                  END DO
-               END DO
+               CALL broyden_history_products(mixing_store%res_buffer(1:nb, ispin), res_rho, &
+                                             mixing_store%p_metric, mixing_store%ig_max, a, c)
                CALL para_env%sum(a)
-
-               C = 0.0_dp
+               CALL para_env%sum(c)
                DO jb = 1, nb
                   a(jb, jb) = w0 + a(jb, jb)
-                  DO ig = 1, mixing_store%ig_max !ng
-                     c(jb) = c(jb) + mixing_store%p_metric(ig)*( &
-                             REAL(mixing_store%res_buffer(jb, ispin)%cc(ig), dp)*REAL(res_rho(ig), dp) + &
-                             AIMAG(mixing_store%res_buffer(jb, ispin)%cc(ig))*AIMAG(res_rho(ig)))
-                  END DO
                END DO
-               CALL para_env%sum(c)
                CALL invert_matrix(a, b, inv_err)
 
                CALL dgemv('T', nb, nb, 1.0_dp, B, nb, C, 1, 0.0_dp, G, 1)
@@ -897,6 +876,8 @@ CONTAINS
                G = 0.0_dp
             END IF
 
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(ig, jb, cc_mix, f_mix) &
+!$OMP SHARED(ng, nb, ispin, mixing_store, density, res_rho, res_norm, g, alpha_eff, kerker_eff)
             DO ig = 1, ng
                cc_mix = z_zero
                DO jb = 1, nb
@@ -909,6 +890,7 @@ CONTAINS
                mixing_store%rhoin_old(ispin)%cc(ig) = mixing_store%rhoin(ispin)%cc(ig)
                mixing_store%rhoin(ispin)%cc(ig) = density(ispin)%cc(ig)
             END DO
+!$OMP END PARALLEL DO
 
             IF (mixing_store%gmix_p) THEN
                IF (gapw) THEN
@@ -980,9 +962,10 @@ CONTAINS
                                                             nspin
       LOGICAL                                            :: can_update, gapw, only_kerker
       REAL(dp) :: alpha_eff, broy_w0, broy_wmax, broy_wmin, broy_wref, dcpc_h_res, dcpc_s_res, &
-         delta_norm, f_mix, inv_err, res_norm, rho_norm, valh, vals
+         delta_norm, f_mix, inv_err, res_norm, valh, vals
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: c, g
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a, b
+      REAL(dp), DIMENSION(2)                             :: norms
       REAL(dp), DIMENSION(:), POINTER                    :: kerker_eff
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
@@ -1033,19 +1016,18 @@ CONTAINS
             alpha_eff = mixing_store%alpha
             kerker_eff => mixing_store%kerker_factor
          END IF
-         res_rho = z_zero
-         DO ig = 1, ng
-            res_rho(ig) = density(ispin)%cc(ig) - mixing_store%rhoin(ispin)%cc(ig)
-         END DO
-
          IF (only_kerker) THEN
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(ig, f_mix) &
+!$OMP SHARED(ng, ispin, mixing_store, density, res_rho, alpha_eff, kerker_eff)
             DO ig = 1, ng
+               res_rho(ig) = density(ispin)%cc(ig) - mixing_store%rhoin(ispin)%cc(ig)
                mixing_store%last_res(ispin)%cc(ig) = res_rho(ig)
                f_mix = alpha_eff*kerker_eff(ig)
                density(ispin)%cc(ig) = mixing_store%rhoin(ispin)%cc(ig) + f_mix*res_rho(ig)
                mixing_store%rhoin_old(ispin)%cc(ig) = mixing_store%rhoin(ispin)%cc(ig)
                mixing_store%rhoin(ispin)%cc(ig) = density(ispin)%cc(ig)
             END DO
+!$OMP END PARALLEL DO
 
             IF (mixing_store%gmix_p) THEN
                IF (gapw) THEN
@@ -1082,8 +1064,10 @@ CONTAINS
 
             delta_norm = 0.0_dp
             res_norm = 0.0_dp
-            rho_norm = 0.0_dp
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(ig) &
+!$OMP SHARED(ng, ib, ispin, mixing_store, density, res_rho) REDUCTION(+:delta_norm, res_norm)
             DO ig = 1, ng
+               res_rho(ig) = density(ispin)%cc(ig) - mixing_store%rhoin(ispin)%cc(ig)
                mixing_store%res_buffer(ib, ispin)%cc(ig) = res_rho(ig) - mixing_store%last_res(ispin)%cc(ig)
                mixing_store%last_res(ispin)%cc(ig) = res_rho(ig)
                res_norm = res_norm + &
@@ -1094,21 +1078,15 @@ CONTAINS
                             REAL(mixing_store%res_buffer(ib, ispin)%cc(ig), dp) + &
                             AIMAG(mixing_store%res_buffer(ib, ispin)%cc(ig))* &
                             AIMAG(mixing_store%res_buffer(ib, ispin)%cc(ig))
-               rho_norm = rho_norm + &
-                          REAL(density(ispin)%cc(ig), dp)*REAL(density(ispin)%cc(ig), dp) + &
-                          AIMAG(density(ispin)%cc(ig))*AIMAG(density(ispin)%cc(ig))
-            END DO
-            DO ig = 1, ng
                mixing_store%drho_buffer(ib, ispin)%cc(ig) = &
                   mixing_store%rhoin(ispin)%cc(ig) - &
                   mixing_store%rhoin_old(ispin)%cc(ig)
             END DO
-            CALL para_env%sum(delta_norm)
-            delta_norm = SQRT(delta_norm)
-            CALL para_env%sum(res_norm)
-            res_norm = SQRT(res_norm)
-            CALL para_env%sum(rho_norm)
-            rho_norm = SQRT(rho_norm)
+!$OMP END PARALLEL DO
+            norms(:) = [delta_norm, res_norm]
+            CALL para_env%sum(norms)
+            delta_norm = SQRT(norms(1))
+            res_norm = SQRT(norms(2))
 
             IF (res_norm > (broy_wref/broy_wmax)) THEN
                mixing_store%weight(ib, ispin) = broy_wref/res_norm
@@ -1119,8 +1097,17 @@ CONTAINS
             can_update = res_norm > 1.E-14_dp .AND. delta_norm > 1.E-14_dp
 
             IF (can_update) THEN
-               mixing_store%res_buffer(ib, ispin)%cc(:) = mixing_store%res_buffer(ib, ispin)%cc(:)/delta_norm
-               mixing_store%drho_buffer(ib, ispin)%cc(:) = mixing_store%drho_buffer(ib, ispin)%cc(:)/delta_norm
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(ig, f_mix) &
+!$OMP SHARED(ng, ib, ispin, mixing_store, delta_norm, alpha_eff, kerker_eff)
+               DO ig = 1, ng
+                  mixing_store%res_buffer(ib, ispin)%cc(ig) = mixing_store%res_buffer(ib, ispin)%cc(ig)/delta_norm
+                  mixing_store%drho_buffer(ib, ispin)%cc(ig) = mixing_store%drho_buffer(ib, ispin)%cc(ig)/delta_norm
+                  f_mix = alpha_eff*kerker_eff(ig)
+                  mixing_store%drho_buffer(ib, ispin)%cc(ig) = &
+                     f_mix*mixing_store%res_buffer(ib, ispin)%cc(ig) + &
+                     mixing_store%drho_buffer(ib, ispin)%cc(ig)
+               END DO
+!$OMP END PARALLEL DO
 
                IF (mixing_store%gmix_p .AND. gapw) THEN
                   DO iatom = 1, natom
@@ -1159,35 +1146,9 @@ CONTAINS
                   END DO
                END IF
 
-               a(:, :) = 0.0_dp
-               DO ig = 1, ng
-                  f_mix = alpha_eff*kerker_eff(ig)
-                  mixing_store%drho_buffer(ib, ispin)%cc(ig) = &
-                     f_mix*mixing_store%res_buffer(ib, ispin)%cc(ig) + &
-                     mixing_store%drho_buffer(ib, ispin)%cc(ig)
-               END DO
-               DO jb = 1, nb
-                  DO kb = jb, nb
-                     DO ig = 1, mixing_store%ig_max
-                        a(kb, jb) = a(kb, jb) + mixing_store%p_metric(ig)*( &
-                                    REAL(mixing_store%res_buffer(jb, ispin)%cc(ig), dp)* &
-                                    REAL(mixing_store%res_buffer(kb, ispin)%cc(ig), dp) + &
-                                    AIMAG(mixing_store%res_buffer(jb, ispin)%cc(ig))* &
-                                    AIMAG(mixing_store%res_buffer(kb, ispin)%cc(ig)))
-                     END DO
-                     a(jb, kb) = a(kb, jb)
-                  END DO
-               END DO
+               CALL broyden_history_products(mixing_store%res_buffer(1:nb, ispin), res_rho, &
+                                             mixing_store%p_metric, mixing_store%ig_max, a, c)
                CALL para_env%sum(a)
-
-               C = 0.0_dp
-               DO jb = 1, nb
-                  DO ig = 1, mixing_store%ig_max
-                     c(jb) = c(jb) + mixing_store%p_metric(ig)*( &
-                             REAL(mixing_store%res_buffer(jb, ispin)%cc(ig), dp)*REAL(res_rho(ig), dp) + &
-                             AIMAG(mixing_store%res_buffer(jb, ispin)%cc(ig))*AIMAG(res_rho(ig)))
-                  END DO
-               END DO
                CALL para_env%sum(c)
 
                DO jb = 1, nb
@@ -1202,10 +1163,16 @@ CONTAINS
                CALL dgemv('T', nb, nb, 1.0_dp, B, nb, C, 1, 0.0_dp, G, 1)
             ELSE
                g = 0.0_dp
-               mixing_store%res_buffer(ib, ispin)%cc = z_zero
-               mixing_store%drho_buffer(ib, ispin)%cc = z_zero
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(ig) SHARED(ng, ib, ispin, mixing_store)
+               DO ig = 1, ng
+                  mixing_store%res_buffer(ib, ispin)%cc(ig) = z_zero
+                  mixing_store%drho_buffer(ib, ispin)%cc(ig) = z_zero
+               END DO
+!$OMP END PARALLEL DO
             END IF
 
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(ig, jb, cc_mix, f_mix) &
+!$OMP SHARED(ng, nb, ispin, mixing_store, density, res_rho, res_norm, g, alpha_eff, kerker_eff)
             DO ig = 1, ng
                cc_mix = z_zero
                DO jb = 1, nb
@@ -1218,6 +1185,7 @@ CONTAINS
                mixing_store%rhoin_old(ispin)%cc(ig) = mixing_store%rhoin(ispin)%cc(ig)
                mixing_store%rhoin(ispin)%cc(ig) = density(ispin)%cc(ig)
             END DO
+!$OMP END PARALLEL DO
 
             IF (mixing_store%gmix_p) THEN
                IF (gapw) THEN
@@ -1265,6 +1233,61 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE modified_broyden_mixing
+
+! **************************************************************************************************
+!> \brief Local metric products for Broyden history vectors and the current residual.
+!> \param history Normalized residual differences.
+!> \param residual Current residual.
+!> \param metric Mixing metric.
+!> \param ng Number of local entries included in the metric.
+!> \param a Symmetric history overlap matrix.
+!> \param c History projections of the current residual.
+! **************************************************************************************************
+   SUBROUTINE broyden_history_products(history, residual, metric, ng, a, c)
+      TYPE(cp_1d_z_p_type), INTENT(IN)                   :: history(:)
+      COMPLEX(dp), INTENT(IN)                            :: residual(:)
+      REAL(dp), INTENT(IN)                               :: metric(:)
+      INTEGER, INTENT(IN)                                :: ng
+      REAL(dp), INTENT(OUT)                              :: a(:, :), c(:)
+
+      INTEGER                                            :: ig, jb, kb, nb
+      REAL(dp)                                           :: prod
+
+      nb = SIZE(history)
+      a(:, :) = 0.0_dp
+      c(:) = 0.0_dp
+      ! Partition the long vectors; each thread accumulates private small arrays.
+!$OMP PARALLEL DEFAULT(NONE) SHARED(history, residual, metric, ng, nb) &
+!$OMP PRIVATE(ig, jb, kb, prod) REDUCTION(+:A, c)
+      DO jb = 1, nb
+         DO kb = jb, nb
+            prod = 0.0_dp
+!$OMP DO SCHEDULE(STATIC)
+            DO ig = 1, ng
+               prod = prod + metric(ig)*( &
+                      REAL(history(jb)%cc(ig), dp)*REAL(history(kb)%cc(ig), dp) + &
+                      AIMAG(history(jb)%cc(ig))*AIMAG(history(kb)%cc(ig)))
+            END DO
+!$OMP END DO NOWAIT
+            a(kb, jb) = prod
+         END DO
+         prod = 0.0_dp
+!$OMP DO SCHEDULE(STATIC)
+         DO ig = 1, ng
+            prod = prod + metric(ig)*( &
+                   REAL(history(jb)%cc(ig), dp)*REAL(residual(ig), dp) + &
+                   AIMAG(history(jb)%cc(ig))*AIMAG(residual(ig)))
+         END DO
+!$OMP END DO NOWAIT
+         c(jb) = prod
+      END DO
+!$OMP END PARALLEL
+      DO jb = 1, nb
+         DO kb = jb + 1, nb
+            a(jb, kb) = a(kb, jb)
+         END DO
+      END DO
+   END SUBROUTINE broyden_history_products
 
 ! **************************************************************************************************
 !> \brief Multisecant scheme to perform charge density Mixing

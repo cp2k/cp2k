@@ -16,6 +16,7 @@ MODULE qs_diis_types
                                               cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_release
+   USE cp_dbcsr_operations,             ONLY: dbcsr_fm_copy_plan_type
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE kinds,                           ONLY: dp
@@ -46,6 +47,7 @@ MODULE qs_diis_types
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER       :: error => NULL()
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER       :: param => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER          :: b_matrix => NULL()
+      TYPE(dbcsr_fm_copy_plan_type), ALLOCATABLE        :: overlap_copy_plan
    END TYPE qs_diis_buffer_type
 
 ! **************************************************************************************************
@@ -110,6 +112,7 @@ CONTAINS
    SUBROUTINE qs_diis_b_release(diis_buffer)
       TYPE(qs_diis_buffer_type), INTENT(INOUT)           :: diis_buffer
 
+      IF (ALLOCATED(diis_buffer%overlap_copy_plan)) DEALLOCATE (diis_buffer%overlap_copy_plan)
       IF (ASSOCIATED(diis_buffer%b_matrix)) THEN
          DEALLOCATE (diis_buffer%b_matrix)
       END IF
