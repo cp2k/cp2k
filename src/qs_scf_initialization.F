@@ -618,6 +618,12 @@ CONTAINS
          END IF
       END IF
 
+      IF (.NOT. do_kpoints .AND. ASSOCIATED(scf_env%scf_work1)) THEN
+         IF (.NOT. ALLOCATED(scf_env%fm_copy_plan)) THEN
+            ALLOCATE (scf_env%fm_copy_plan(0:SIZE(scf_env%scf_work1)))
+         END IF
+      END IF
+
       CALL cp_fm_struct_release(ao_ao_fmstruct)
 
       CALL timestop(handle)

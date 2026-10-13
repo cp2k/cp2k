@@ -301,6 +301,10 @@ CONTAINS
       diis_buffer%ncall = diis_buffer%ncall + 1
       nb = MIN(diis_buffer%ncall, diis_buffer%nbuffer)
 
+      IF (PRESENT(s_matrix)) THEN
+         IF (.NOT. ALLOCATED(diis_buffer%overlap_copy_plan)) ALLOCATE (diis_buffer%overlap_copy_plan)
+      END IF
+
       DO ispin = 1, nspin
 
          CALL get_mo_set(mo_set=mo_array(ispin), &
@@ -336,7 +340,7 @@ CONTAINS
             CALL cp_fm_symm("L", "U", nao, homo, 1.0_dp, parameters, sc, 0.0_dp, kc(ispin))
 
             IF (PRESENT(s_matrix)) THEN
-               CALL copy_dbcsr_to_fm(s_matrix(1)%matrix, new_errors)
+               CALL copy_dbcsr_to_fm(s_matrix(1)%matrix, new_errors, diis_buffer%overlap_copy_plan, check_plan=.TRUE.)
                ! SC <- S*C
                CALL cp_fm_symm("L", "U", nao, homo, 1.0_dp, new_errors, c, 0.0_dp, sc)
                CALL cp_fm_column_scale(sc, occ(1:homo))
@@ -357,7 +361,7 @@ CONTAINS
 
             IF (PRESENT(s_matrix)) THEN
                ! I guess that this copy can be avoided for LSD
-               CALL copy_dbcsr_to_fm(s_matrix(1)%matrix, new_errors)
+               CALL copy_dbcsr_to_fm(s_matrix(1)%matrix, new_errors, diis_buffer%overlap_copy_plan, check_plan=.TRUE.)
                ! sc <- S*C
                CALL cp_fm_symm("L", "U", nao, homo, 2.0_dp, new_errors, c, 0.0_dp, sc)
                ! new_errors <- KC*(SC)^T - (SC)*(KC)^T = K*P*S - S*P*K

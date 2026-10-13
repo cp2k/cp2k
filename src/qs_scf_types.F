@@ -15,7 +15,8 @@ MODULE qs_scf_types
    USE cp_dbcsr_api,                    ONLY: dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&
                                               dbcsr_type
-   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set,&
+                                              dbcsr_fm_copy_plan_type
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -112,6 +113,8 @@ MODULE qs_scf_types
                  raw_map_delta_valid = .FALSE.
       TYPE(mixing_storage_type), POINTER :: mixing_store => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER :: scf_work1 => NULL(), scf_work1_red => NULL()
+      ! Gamma copy plans: overlap at index 0, KS matrices at the spin indices.
+      TYPE(dbcsr_fm_copy_plan_type), ALLOCATABLE :: fm_copy_plan(:)
       TYPE(cp_fm_type), POINTER  :: scf_work2 => NULL(), ortho => NULL(), ortho_m1 => NULL(), &
                                     s_half => NULL(), s_minus_one => NULL(), &
                                     scf_work2_red => NULL(), ortho_red => NULL(), ortho_m1_red => NULL()
@@ -227,6 +230,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      IF (ALLOCATED(scf_env%fm_copy_plan)) DEALLOCATE (scf_env%fm_copy_plan)
       IF (ASSOCIATED(scf_env%p_mix_new)) THEN
          CALL dbcsr_deallocate_matrix_set(scf_env%p_mix_new)
       END IF
@@ -260,6 +264,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      IF (ALLOCATED(scf_env%fm_copy_plan)) DEALLOCATE (scf_env%fm_copy_plan)
       CALL cp_fm_release(scf_env%scf_work1)
       IF (ASSOCIATED(scf_env%scf_work1_red)) THEN
          CALL cp_fm_release(scf_env%scf_work1_red)
