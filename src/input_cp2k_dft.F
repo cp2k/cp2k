@@ -17,7 +17,7 @@ MODULE input_cp2k_dft
    USE bibliography,                    ONLY: &
         Andermatt2016, Andreussi2012, Andreussi2019, Avezac2005, Bengtsson1999, Blochl1995, &
         Brelaz1979, Chai2024a, Chai2025a, Fattebert2002, Guidon2010, Iannuzzi2006, Kunert2003, &
-        Marek2025, Merlot2014, Perdew1981, VandeVondele2005b, Yin2017
+        Marek2025, Mattiat2022, Merlot2014, Perdew1981, VandeVondele2005b, Yin2017
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               high_print_level,&
