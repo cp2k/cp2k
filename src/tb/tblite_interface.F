@@ -21,7 +21,7 @@ MODULE tblite_interface
    USE tblite_container_cache, ONLY: container_cache
    USE tblite_container_type, ONLY: container_type
    USE tblite_data_spin, ONLY: get_spin_constant
-   USE tblite_integral_native_integrals, ONLY: multipole_cgto, multipole_grad_cgto, msao
+   USE tblite_integral_native_integrals, ONLY: multipole_cgto, multipole_grad_cgto, overlap_grad_cgto, msao
    USE tblite_partition, ONLY: work_partition, new_work_partition
    USE tblite_scf, ONLY: get_mixer_dimension
    USE tblite_scf_info, ONLY: scf_info, atom_resolved, shell_resolved
@@ -74,7 +74,7 @@ MODULE tblite_interface
    USE qs_kind_types, ONLY: get_qs_kind, qs_kind_type, get_qs_kind_set
    USE qs_ks_types, ONLY: get_ks_env, qs_ks_env_type, set_ks_env
    USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
-   USE qs_overlap, ONLY: build_overlap_matrix, create_sab_matrix
+   USE qs_overlap, ONLY: create_sab_matrix
    USE qs_rho_types, ONLY: qs_rho_get, qs_rho_type
    USE qs_scf_types, ONLY: qs_scf_env_type
    USE scf_control_types, ONLY: scf_control_type
@@ -83,6 +83,7 @@ MODULE tblite_interface
    USE tblite_scc_mixer, ONLY: new_cp2k_tblite_mixer
 #endif
    USE tblite_types, ONLY: tblite_type, allocate_tblite_type
+   USE virial_methods, ONLY: virial_pair_force
    USE virial_types, ONLY: virial_type
    USE xtb_types, ONLY: get_xtb_atom_param, xtb_atom_type
 
@@ -101,7 +102,7 @@ MODULE tblite_interface
    REAL(KIND=dp), PARAMETER                           :: same_atom = 0.00001_dp
 
    PUBLIC :: tb_set_calculator, tb_init_geometry, tb_init_wf
-   PUBLIC :: tb_get_basis, build_tblite_matrices
+   PUBLIC :: tb_get_basis, tb_init_ham, build_tblite_matrices
    PUBLIC :: tb_get_energy, tb_update_charges, tb_ham_add_coulomb
    PUBLIC :: tb_native_scc_mixer_active
    PUBLIC :: tb_scf_mixer_error
@@ -582,22 +583,41 @@ CONTAINS
    END SUBROUTINE tb_set_calculator
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Prepare geometry-dependent data once, before SCF, including requested core forces.
 !> \param qs_env ...
-!> \param tb ...
-!> \param para_env ...
+!> \param calculate_forces ...
 ! **************************************************************************************************
-   SUBROUTINE tb_init_ham(qs_env, tb, para_env)
+   SUBROUTINE tb_init_ham(qs_env, calculate_forces)
 
-      TYPE(qs_environment_type)                          :: qs_env
-      TYPE(tblite_type)                                  :: tb
-      TYPE(mp_para_env_type)                             :: para_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: calculate_forces
 
 #if defined(__TBLITE)
 
       TYPE(container_cache)                              :: hcache, rcache
       TYPE(error_type), ALLOCATABLE                      :: error
       TYPE(work_partition)                               :: partition
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(tblite_type), POINTER                         :: tb
+      INTEGER                                            :: handle
+
+      CALL timeset("tb_init_ham", handle)
+      CALL get_qs_env(qs_env=qs_env, tb_tblite=tb, para_env=para_env)
+      CALL tb_update_geometry(qs_env, tb)
+
+      IF (calculate_forces) THEN
+         IF (.NOT. ALLOCATED(tb%grad)) ALLOCATE (tb%grad(3, tb%mol%nat))
+         IF (.NOT. ALLOCATED(tb%dsedcn)) ALLOCATE (tb%dsedcn(tb%calc%bas%nsh))
+         IF (ALLOCATED(tb%calc%ncoord)) THEN
+            IF (.NOT. ALLOCATED(tb%dcndr)) ALLOCATE (tb%dcndr(3, tb%mol%nat, tb%mol%nat))
+            IF (.NOT. ALLOCATED(tb%dcndL)) ALLOCATE (tb%dcndL(3, 3, tb%mol%nat))
+         END IF
+      ELSE
+         IF (ALLOCATED(tb%grad)) DEALLOCATE (tb%grad)
+         IF (ALLOCATED(tb%dsedcn)) DEALLOCATE (tb%dsedcn)
+         IF (ALLOCATED(tb%dcndr)) DEALLOCATE (tb%dcndr)
+         IF (ALLOCATED(tb%dcndL)) DEALLOCATE (tb%dcndL)
+      END IF
 
       ! Containers return local contributions on the QS communicator.
       CALL new_work_partition(error, partition, para_env%mepos, para_env%num_pe)
@@ -608,10 +628,6 @@ CONTAINS
       tb%e_rep = 0.0_dp
       tb%e_disp = 0.0_dp
       tb%e_int = 0.0_dp
-      IF (ALLOCATED(tb%grad)) THEN
-         tb%grad = 0.0_dp
-         CALL tb_zero_force(qs_env)
-      END IF
       tb%sigma = 0.0_dp
 
       IF (ALLOCATED(tb%calc%halogen)) THEN
@@ -654,7 +670,6 @@ CONTAINS
          CALL tb%calc%interactions%update(tb%mol, tb%icache)
       END IF
 
-      CALL new_potential(tb%pot, tb%mol, tb%calc%bas, tb%wfn%nspin)
       IF (ALLOCATED(tb%calc%coulomb)) THEN
          CALL tb%calc%coulomb%update(tb%mol, tb%cache)
       END IF
@@ -672,10 +687,11 @@ CONTAINS
       CALL get_selfenergy(tb%calc%h0, tb%mol%id, tb%calc%bas%ish_at, &
                           tb%calc%bas%nsh_id, cn=tb%cn, selfenergy=tb%selfenergy, dsedcn=tb%dsedcn)
 
+      CALL timestop(handle)
+
 #else
       MARK_USED(qs_env)
-      MARK_USED(tb)
-      MARK_USED(para_env)
+      MARK_USED(calculate_forces)
       CPABORT("Built without TBLITE")
 #endif
 
@@ -906,7 +922,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: hij, shpoly
       REAL(KIND=dp), DIMENSION(2)                        :: condnum
       REAL(KIND=dp), DIMENSION(3)                        :: native_h0_overlap_force, native_radial_force, raw_rij, rij
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: native_radial_dot
+      REAL(KIND=dp), DIMENSION(3)                        :: pulay_force
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: native_radial_dot, pulay_virial
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(:, :, :), POINTER                :: cell_to_index
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: owork
@@ -919,7 +936,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, zeta, zetb, scon_a, scon_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fblock, pblock, sblock
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fblock, pblock, sblock, wblock
       TYPE(block_p_type), DIMENSION(3, 3)                 :: radial_blocks
 !$    INTEGER                                            :: hash, hash1, lock_num
 !$    INTEGER(KIND=int_8)                                :: iatom8
@@ -930,8 +947,7 @@ CONTAINS
       TYPE(atprop_type), POINTER                            :: atprop
       TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
       TYPE(cp_logger_type), POINTER                         :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER          :: matrix_dh_native, matrix_h, matrix_p, &
-                                                               matrix_q_native, matrix_s, matrix_s_native, matrix_w
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER          :: matrix_dh_native, matrix_h, matrix_p, matrix_s, matrix_w
       TYPE(dft_control_type), POINTER                       :: dft_control
       TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
       TYPE(gto_basis_set_type), POINTER                     :: basis_set_a, basis_set_b
@@ -951,7 +967,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (ks_env, energy, atomic_kind_set, qs_kind_set)
-      NULLIFY (matrix_dh_native, matrix_h, matrix_q_native, matrix_s, matrix_s_native, atprop, dft_control)
+      NULLIFY (matrix_dh_native, matrix_h, matrix_s, matrix_w, atprop, dft_control)
       NULLIFY (sab_orb, sab_kp, rho, tb, kpoints, cell_to_index)
 
       CALL get_qs_env(qs_env=qs_env, &
@@ -968,28 +984,8 @@ CONTAINS
                       rho=rho, tb_tblite=tb)
       h0 => tb%calc%h0
 
-      !update geometry (required for debug / geometry optimization)
-      CALL tb_update_geometry(qs_env, tb)
-
       nkind = SIZE(atomic_kind_set)
-      nderivatives = 0
-      IF (calculate_forces) THEN
-         nderivatives = 1
-         IF (ALLOCATED(tb%grad)) DEALLOCATE (tb%grad)
-         ALLOCATE (tb%grad(3, tb%mol%nat))
-         IF (ALLOCATED(tb%dsedcn)) DEALLOCATE (tb%dsedcn)
-         ALLOCATE (tb%dsedcn(tb%calc%bas%nsh))
-         IF (ALLOCATED(tb%calc%ncoord)) THEN
-            IF (ALLOCATED(tb%dcndr)) DEALLOCATE (tb%dcndr)
-            ALLOCATE (tb%dcndr(3, tb%mol%nat, tb%mol%nat))
-            IF (ALLOCATED(tb%dcndL)) DEALLOCATE (tb%dcndL)
-            ALLOCATE (tb%dcndL(3, 3, tb%mol%nat))
-         END IF
-      ELSE
-         IF (ALLOCATED(tb%grad)) DEALLOCATE (tb%grad)
-         IF (ALLOCATED(tb%dcndr)) DEALLOCATE (tb%dcndr)
-         IF (ALLOCATED(tb%dcndL)) DEALLOCATE (tb%dcndL)
-      END IF
+      nderivatives = MERGE(1, 0, calculate_forces)
       maxder = ncoset(nderivatives)
       nimg = dft_control%nimages
       IF (nimg > 1) THEN
@@ -998,9 +994,6 @@ CONTAINS
          CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
       END IF
-
-      !intialise hamiltonian
-      CALL tb_init_ham(qs_env, tb, para_env)
 
       ! get density matrtix
       CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
@@ -1025,15 +1018,6 @@ CONTAINS
          tb%use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       END IF
 
-      IF (calculate_forces) THEN
-         CALL dbcsr_allocate_matrix_set(matrix_q_native, 1, nimg)
-         DO img = 1, nimg
-            ALLOCATE (matrix_q_native(1, img)%matrix)
-            CALL dbcsr_copy(matrix_q_native(1, img)%matrix, matrix_w(1, img)%matrix, &
-                            name="TBLITE NATIVE OVERLAP FORCE MATRIX")
-         END DO
-      END IF
-
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
       IF (calculate_forces) THEN
          ALLOCATE (native_radial_force_sum(3, SIZE(atom_of_kind)))
@@ -1046,21 +1030,22 @@ CONTAINS
       ALLOCATE (basis_set_list(nkind))
       CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set)
 
-      ! allocate overlap matrix
-      CALL dbcsr_allocate_matrix_set(matrix_s, 1, nimg)
-      CALL create_sab_matrix(ks_env, matrix_s, "OVERLAP MATRIX", basis_set_list, basis_set_list, &
-                             sab_orb, .TRUE.)
-      CALL set_ks_env(ks_env, matrix_s_kp=matrix_s)
+      ! S and H0 are unchanged between SCF and the force calculation.
+      IF (.NOT. calculate_forces) THEN
+         CALL dbcsr_allocate_matrix_set(matrix_s, 1, nimg)
+         CALL create_sab_matrix(ks_env, matrix_s, "OVERLAP MATRIX", basis_set_list, basis_set_list, &
+                                sab_orb, .TRUE.)
+         CALL set_ks_env(ks_env, matrix_s_kp=matrix_s)
 
-      ! initialize H matrix
-      CALL dbcsr_allocate_matrix_set(matrix_h, 1, nimg)
-      DO img = 1, nimg
-         ALLOCATE (matrix_h(1, img)%matrix)
-         CALL dbcsr_create(matrix_h(1, img)%matrix, template=matrix_s(1, img)%matrix, &
-                           name="HAMILTONIAN MATRIX")
-         CALL cp_dbcsr_alloc_block_from_nbl(matrix_h(1, img)%matrix, sab_orb)
-      END DO
-      CALL set_ks_env(ks_env, matrix_h_kp=matrix_h)
+         CALL dbcsr_allocate_matrix_set(matrix_h, 1, nimg)
+         DO img = 1, nimg
+            ALLOCATE (matrix_h(1, img)%matrix)
+            CALL dbcsr_create(matrix_h(1, img)%matrix, template=matrix_s(1, img)%matrix, &
+                              name="HAMILTONIAN MATRIX")
+            CALL cp_dbcsr_alloc_block_from_nbl(matrix_h(1, img)%matrix, sab_orb)
+         END DO
+         CALL set_ks_env(ks_env, matrix_h_kp=matrix_h)
+      END IF
       IF (calculate_forces .AND. nimg > 1) THEN
          CALL dbcsr_allocate_matrix_set(matrix_dh_native, 9, nimg)
          DO img = 1, nimg
@@ -1076,23 +1061,24 @@ CONTAINS
       ldsab = get_memory_usage(qs_kind_set, "ORB", "ORB")
 
       native_radial_dot = 0.0_dp
+      pulay_virial = 0.0_dp
 
       ! loop over all atom pairs with a non-zero overlap (sab_orb)
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED (calculate_forces, basis_set_list, sab_orb, matrix_dh_native, matrix_s, matrix_h, matrix_p, &
+!$OMP SHARED (calculate_forces, basis_set_list, sab_orb, matrix_dh_native, matrix_s, matrix_h, matrix_p, matrix_w, &
 !$OMP        cell_to_index, nimg, atom_of_kind, qs_kind_set, tb, h0, ldsab, maxder, maxsgf, locks, &
 !$OMP        native_cn_deriv_sum, native_radial_force_sum, ncoset) &
 !$OMP PRIVATE (slot, hash, hash1, iatom8, lock_num, ikind, jkind, iatom, jatom, cell, rij, ic, irow, &
 !$OMP        icol, dr, dshpoly, ff, hij_base, r2, raw_iatom, raw_jatom, &
 !$OMP        raw_rij, native_cn_icol, native_cn_irow, native_dot_weight, native_h0_overlap_force, &
-!$OMP        native_radial_force, local_cn_deriv, local_radial_force, &
+!$OMP        native_radial_force, local_cn_deriv, local_radial_force, pulay_force, &
 !$OMP        n1, n2, ia, ib, i, idim, jdim, iset, jset, sgfa, sgfb, &
 !$OMP        nseta, nsetb, natorb_a, &
 !$OMP        natorb_b, found, zeta, first_sgfa, la_max, la_min, npgfa, nsgfa, rpgfa, set_radius_a, &
 !$OMP        scon_a, first_sgfb, lb_max, lb_min, npgfb, nsgfb, rpgfb, set_radius_b, scon_b, zetb, rr, hij, shpoly, &
 !$OMP        owork, oint, sint, hint, radial_hint, basis_set_a, basis_set_b, sblock, fblock, &
-!$OMP        pblock, radial_blocks) &
-!$OMP REDUCTION (+ : native_radial_dot)
+!$OMP        pblock, wblock, radial_blocks) &
+!$OMP REDUCTION (+ : native_radial_dot, pulay_virial)
 
 !$OMP SINGLE
 !$    ALLOCATE (locks(nlock))
@@ -1104,7 +1090,8 @@ CONTAINS
 !$OMP END DO
 
       ALLOCATE (oint(ldsab, ldsab, maxder), owork(ldsab, ldsab))
-      ALLOCATE (sint(maxsgf, maxsgf, maxder), hint(maxsgf, maxsgf, 1))
+      ALLOCATE (sint(maxsgf, maxsgf, maxder))
+      IF (.NOT. calculate_forces) ALLOCATE (hint(maxsgf, maxsgf, 1))
       IF (calculate_forces) THEN
          ALLOCATE (local_cn_deriv(SIZE(atom_of_kind)), local_radial_force(3, SIZE(atom_of_kind)))
          local_cn_deriv = 0.0_dp
@@ -1149,18 +1136,14 @@ CONTAINS
             CPASSERT(ic > 0)
          END IF
 
-         NULLIFY (sblock)
-         CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
-                                row=irow, col=icol, BLOCK=sblock, found=found)
-         CPASSERT(found)
-         NULLIFY (fblock)
-         CALL dbcsr_get_block_p(matrix=matrix_h(1, ic)%matrix, &
-                                row=irow, col=icol, BLOCK=fblock, found=found)
-         CPASSERT(found)
          IF (calculate_forces) THEN
             NULLIFY (pblock)
             CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
                                    row=irow, col=icol, BLOCK=pblock, found=found)
+            CPASSERT(found)
+            NULLIFY (wblock)
+            CALL dbcsr_get_block_p(matrix=matrix_w(1, ic)%matrix, &
+                                   row=irow, col=icol, BLOCK=wblock, found=found)
             CPASSERT(found)
             IF (nimg > 1) THEN
                DO jdim = 1, 3
@@ -1213,7 +1196,7 @@ CONTAINS
             natorb_b = natorb_b + (2*basis_set_b%l(1, iset) + 1)
          END DO
          sint(1:natorb_a, 1:natorb_b, :) = 0.0_dp
-         hint(1:natorb_a, 1:natorb_b, :) = 0.0_dp
+         IF (.NOT. calculate_forces) hint(1:natorb_a, 1:natorb_b, :) = 0.0_dp
          IF (calculate_forces .AND. nimg > 1) THEN
             radial_hint(1:natorb_a, 1:natorb_b, :, :) = 0.0_dp
          END IF
@@ -1252,14 +1235,18 @@ CONTAINS
 !$       iatom8 = INT(irow - 1, int_8)*INT(SIZE(atom_of_kind), int_8) + INT(icol, int_8)
 !$       hash1 = INT(MOD(iatom8, INT(nlock, int_8)) + 1)
          ! update S matrix
-!$       hash = hash1
-!$       CALL omp_set_lock(locks(hash))
-         IF (icol <= irow) THEN
-            sblock(:, :) = sblock(:, :) + sint(1:natorb_a, 1:natorb_b, 1)
-         ELSE
-            sblock(:, :) = sblock(:, :) + TRANSPOSE(sint(1:natorb_a, 1:natorb_b, 1))
+         IF (.NOT. calculate_forces) THEN
+            CALL dbcsr_get_block_p(matrix_s(1, ic)%matrix, irow, icol, BLOCK=sblock, found=found)
+            CPASSERT(found)
+!$          hash = hash1
+!$          CALL omp_set_lock(locks(hash))
+            IF (icol <= irow) THEN
+               sblock(:, :) = sblock(:, :) + sint(1:natorb_a, 1:natorb_b, 1)
+            ELSE
+               sblock(:, :) = sblock(:, :) + TRANSPOSE(sint(1:natorb_a, 1:natorb_b, 1))
+            END IF
+!$          CALL omp_unset_lock(locks(hash))
          END IF
-!$       CALL omp_unset_lock(locks(hash))
 
          ! --------- Hamiltonian
          IF (icol == irow .AND. dr < same_atom) THEN
@@ -1269,7 +1256,7 @@ CONTAINS
                sgfa = first_sgfa(1, iset)
                hij = tb%selfenergy(n1 + iset)
                DO ia = sgfa, sgfa + nsgfa(iset) - 1
-                  hint(ia, ia, 1) = hij
+                  IF (.NOT. calculate_forces) hint(ia, ia, 1) = hij
                   IF (calculate_forces) THEN
                      native_cn_icol = native_cn_icol + tb%dsedcn(n1 + iset)*pblock(ia, ia)
                      DO jdim = 1, 3
@@ -1305,7 +1292,7 @@ CONTAINS
                   hij = hij_base*shpoly
                   DO ia = sgfa, sgfa + nsgfa(iset) - 1
                      DO ib = sgfb, sgfb + nsgfb(jset) - 1
-                        hint(ia, ib, 1) = hij*sint(ia, ib, 1)
+                        IF (.NOT. calculate_forces) hint(ia, ib, 1) = hij*sint(ia, ib, 1)
                         IF (calculate_forces) THEN
                            native_dot_weight = 2.0_dp
                            IF (icol == irow) native_dot_weight = 1.0_dp
@@ -1347,9 +1334,14 @@ CONTAINS
          END IF
 
          ! update F matrix
+!$       hash = hash1
 !$       CALL omp_set_lock(locks(hash))
+         IF (.NOT. calculate_forces) THEN
+            CALL dbcsr_get_block_p(matrix_h(1, ic)%matrix, irow, icol, BLOCK=fblock, found=found)
+            CPASSERT(found)
+         END IF
          IF (icol <= irow) THEN
-            fblock(:, :) = fblock(:, :) + hint(1:natorb_a, 1:natorb_b, 1)
+            IF (.NOT. calculate_forces) fblock(:, :) = fblock(:, :) + hint(1:natorb_a, 1:natorb_b, 1)
             IF (calculate_forces .AND. nimg > 1) THEN
                DO jdim = 1, 3
                   DO idim = 1, 3
@@ -1359,7 +1351,7 @@ CONTAINS
                END DO
             END IF
          ELSE
-            fblock(:, :) = fblock(:, :) + TRANSPOSE(hint(1:natorb_a, 1:natorb_b, 1))
+            IF (.NOT. calculate_forces) fblock(:, :) = fblock(:, :) + TRANSPOSE(hint(1:natorb_a, 1:natorb_b, 1))
             IF (calculate_forces .AND. nimg > 1) THEN
                DO jdim = 1, 3
                   DO idim = 1, 3
@@ -1372,6 +1364,22 @@ CONTAINS
 !$       CALL omp_unset_lock(locks(hash))
 
          IF (calculate_forces) THEN
+            ! Match the block orientation used to assemble S. Same-atom image
+            ! blocks need not be symmetric at nonzero lattice translations.
+            DO idim = 1, 3
+               IF (icol == irow) THEN
+                  pulay_force(idim) = SUM(wblock*sint(1:natorb_a, 1:natorb_b, idim + 1))
+               ELSE
+                  pulay_force(idim) = SUM(TRANSPOSE(wblock)*sint(1:natorb_a, 1:natorb_b, idim + 1))
+               END IF
+            END DO
+            local_radial_force(:, icol) = local_radial_force(:, icol) - 2.0_dp*pulay_force
+            local_radial_force(:, irow) = local_radial_force(:, irow) + 2.0_dp*pulay_force
+            IF (tb%use_virial) THEN
+               native_dot_weight = 2.0_dp
+               IF (icol == irow) native_dot_weight = 1.0_dp
+               CALL virial_pair_force(pulay_virial, -native_dot_weight, pulay_force, rij)
+            END IF
             ff = 2.0_dp
             local_radial_force(:, raw_iatom) = &
                local_radial_force(:, raw_iatom) - ff*native_radial_force
@@ -1394,7 +1402,8 @@ CONTAINS
 !$OMP END CRITICAL(tblite_native_radial_force)
          DEALLOCATE (local_radial_force, local_cn_deriv)
       END IF
-      DEALLOCATE (oint, owork, sint, hint)
+      DEALLOCATE (oint, owork, sint)
+      IF (ALLOCATED(hint)) DEALLOCATE (hint)
       IF (ALLOCATED(radial_hint)) DEALLOCATE (radial_hint)
 !$OMP DO
 !$    DO lock_num = 1, nlock
@@ -1433,32 +1442,19 @@ CONTAINS
                force(ikind)%overlap(:, atom_of_kind(iatom)) + native_radial_force_sum(:, iatom)
          END DO
          IF (tb%use_virial) THEN
-            virial%pv_overlap = virial%pv_overlap - native_radial_dot/para_env%num_pe
-            virial%pv_virial = virial%pv_virial - native_radial_dot/para_env%num_pe
+            virial%pv_overlap = virial%pv_overlap - native_radial_dot/para_env%num_pe + pulay_virial
+            virial%pv_virial = virial%pv_virial - native_radial_dot/para_env%num_pe + pulay_virial
          END IF
       END IF
 
-      DO img = 1, nimg
-         DO i = 1, SIZE(matrix_s, 1)
-            CALL dbcsr_finalize(matrix_s(i, img)%matrix)
+      IF (.NOT. calculate_forces) THEN
+         DO img = 1, nimg
+            CALL dbcsr_finalize(matrix_s(1, img)%matrix)
+            CALL dbcsr_finalize(matrix_h(1, img)%matrix)
          END DO
-         DO i = 1, SIZE(matrix_h, 1)
-            CALL dbcsr_finalize(matrix_h(i, img)%matrix)
-         END DO
-      END DO
-
-      IF (calculate_forces) THEN
-         CALL build_overlap_matrix(ks_env, matrixkp_s=matrix_s_native, &
-                                   matrix_name="OVERLAP MATRIX", nderivative=nderivatives, &
-                                   basis_type_a="ORB", basis_type_b="ORB", sab_nl=sab_orb, &
-                                   calculate_forces=.TRUE., matrixkp_p=matrix_q_native)
-         CALL dbcsr_deallocate_matrix_set(matrix_s_native)
-         CALL dbcsr_deallocate_matrix_set(matrix_q_native)
-      END IF
-
-      !compute multipole moments for gfn2
-      IF (dft_control%qs_control%xtb_control%tblite_method == gfn2xtb) THEN
-         CALL tb_get_multipole(qs_env, tb)
+         IF (dft_control%qs_control%xtb_control%tblite_method == gfn2xtb) THEN
+            CALL tb_get_multipole(qs_env, tb)
+         END IF
       END IF
 
       ! output overlap information
@@ -2573,41 +2569,6 @@ CONTAINS
    END SUBROUTINE tb_grad2force
 
 ! **************************************************************************************************
-!> \brief set gradient to zero
-!> \param qs_env ...
-!> \note
-! **************************************************************************************************
-   SUBROUTINE tb_zero_force(qs_env)
-
-      TYPE(qs_environment_type)                          :: qs_env
-
-      INTEGER                                            :: iatom, ikind, natom
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-
-      NULLIFY (force, atomic_kind_set)
-      CALL get_qs_env(qs_env=qs_env, force=force, particle_set=particle_set, &
-                      atomic_kind_set=atomic_kind_set)
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-                               kind_of=kind_of)
-
-      natom = SIZE(particle_set)
-
-      DO iatom = 1, natom
-         ikind = kind_of(iatom)
-         force(ikind)%all_potential = 0.0_dp
-         force(ikind)%repulsive = 0.0_dp
-         force(ikind)%dispersion = 0.0_dp
-         force(ikind)%rho_elec = 0.0_dp
-         force(ikind)%overlap = 0.0_dp
-         force(ikind)%efield = 0.0_dp
-      END DO
-
-   END SUBROUTINE tb_zero_force
-
-! **************************************************************************************************
 !> \brief Add SCC-overlap and direct multipole Hamiltonian derivatives.
 !> \param qs_env ...
 !> \param use_rho ...
@@ -2904,9 +2865,14 @@ CONTAINS
                IF (SIZE(tb%pot%vsh, 2) > 1) jshift_mag = j_a_shift_mag + tb%pot%vsh(nj + jset, 2)
 
                !get integrals and derivatives
-               CALL multipole_grad_cgto(tb%calc%bas%cgto(iset, ityp), tb%calc%bas%cgto(jset, jtyp), &
-                  & r2, rij, tb%calc%bas%intcut, t_ov, t_dip, t_quad, t_d_ov, t_i_dip, t_i_quad, &
-                  & t_j_dip, t_j_quad)
+               IF (has_multipole_response) THEN
+                  CALL multipole_grad_cgto(tb%calc%bas%cgto(iset, ityp), tb%calc%bas%cgto(jset, jtyp), &
+                     & r2, rij, tb%calc%bas%intcut, t_ov, t_dip, t_quad, t_d_ov, t_i_dip, t_i_quad, &
+                     & t_j_dip, t_j_quad)
+               ELSE
+                  CALL overlap_grad_cgto(tb%calc%bas%cgto(iset, ityp), tb%calc%bas%cgto(jset, jtyp), &
+                                         r2, rij, tb%calc%bas%intcut, t_ov, t_d_ov)
+               END IF
 
                dgrad = 0.0_dp
                DO inda = 1, nsgfa(iset)
@@ -2922,14 +2888,20 @@ CONTAINS
                         pij_charge = pij_charge + pblock_beta(ib, ia)
                         pij_magnet = pblock(ib, ia) - pblock_beta(ib, ia)
                      END IF
-                     mpgrad_charge = MATMUL(t_i_dip(:, :, ij), idip) &
-                                     + MATMUL(t_j_dip(:, :, ij), jdip) &
-                                     + MATMUL(t_i_quad(:, :, ij), iquad) &
-                                     + MATMUL(t_j_quad(:, :, ij), jquad)
-                     mpgrad_magnet = MATMUL(t_i_dip(:, :, ij), idip_mag) &
-                                     + MATMUL(t_j_dip(:, :, ij), jdip_mag) &
-                                     + MATMUL(t_i_quad(:, :, ij), iquad_mag) &
-                                     + MATMUL(t_j_quad(:, :, ij), jquad_mag)
+                     mpgrad_charge = 0.0_dp
+                     mpgrad_magnet = 0.0_dp
+                     IF (has_multipole_response) THEN
+                        mpgrad_charge = MATMUL(t_i_dip(:, :, ij), idip) &
+                                        + MATMUL(t_j_dip(:, :, ij), jdip) &
+                                        + MATMUL(t_i_quad(:, :, ij), iquad) &
+                                        + MATMUL(t_j_quad(:, :, ij), jquad)
+                        IF (nspin > 1) THEN
+                           mpgrad_magnet = MATMUL(t_i_dip(:, :, ij), idip_mag) &
+                                           + MATMUL(t_j_dip(:, :, ij), jdip_mag) &
+                                           + MATMUL(t_i_quad(:, :, ij), iquad_mag) &
+                                           + MATMUL(t_j_quad(:, :, ij), jquad_mag)
+                        END IF
+                     END IF
                      dhgrad_charge = -(ishift + jshift)*t_d_ov(:, ij) - mp_pair_scale*mpgrad_charge
                      dhgrad_magnet = -(ishift_mag + jshift_mag)*t_d_ov(:, ij) - mp_pair_scale*mpgrad_magnet
                      dgrad(:) = dgrad(:) - &
