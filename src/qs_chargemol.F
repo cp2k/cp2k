@@ -14,6 +14,8 @@
 !> \author Hossam Elgabarty
 ! **************************************************************************************************
 MODULE qs_chargemol
+   USE admm_types,                      ONLY: admm_type
+   USE admm_utils,                      ONLY: admm_correct_for_eigenvalues
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
@@ -22,15 +24,29 @@ MODULE qs_chargemol
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
+                                              dbcsr_init_p,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release_p,&
+                                              dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-   USE cp_files,                        ONLY: open_file
-   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                              cp_fm_get_submatrix
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_get_submatrix,&
+                                              cp_fm_release,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_generate_filename
+   USE input_constants,                 ONLY: do_admm_purify_cauchy_subspace,&
+                                              do_admm_purify_mo_diag
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -53,6 +69,7 @@ MODULE qs_chargemol
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
+   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
    USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE qs_subsys_types,                 ONLY: qs_subsys_type
@@ -96,7 +113,9 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: l
       LOGICAL                                            :: do_kpoints, newl, periodic, unrestricted
       REAL(KIND=dp)                                      :: zeta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atoms_cart, cmatrix, smatrix
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atoms_cart, cmatrix, smatrix, &
+                                                            wfx_eigenvalues
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: wfx_coeff
       REAL(KIND=dp), DIMENSION(:), POINTER               :: core_charges
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zet
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
@@ -142,14 +161,12 @@ CONTAINS
 
       nkpoint = kpoint_env%nkp
 
-      IF (scf_control%use_ot) THEN
-         CPABORT("OT is incompatible with .wfx output. Switch off OT.")
-      END IF
-
       IF (dft_control%roks) THEN
          CALL cp_abort(__LOCATION__, "The output of chargemol .wfx files is currently "// &
                        "implemented only for (un)restricted HF and Kohn-Sham-like methods.")
       END IF
+
+      CALL prepare_wfx_orbitals(qs_env, wfx_coeff, wfx_eigenvalues)
 
       IF (dft_control%lsd) THEN
          unrestricted = .TRUE.
@@ -168,9 +185,11 @@ CONTAINS
       filename = cp_print_key_generate_filename(logger, chargemol_section, &
                                                 extension=".wfx", my_local=.FALSE.)
 
-      CALL open_file(filename, file_status="UNKNOWN", &
-                     file_action="WRITE", &
-                     unit_number=iwfx)
+      iwfx = -1
+      IF (logger%para_env%is_source()) THEN
+         CALL open_file(filename, file_status="REPLACE", &
+                        file_action="WRITE", unit_number=iwfx)
+      END IF
 
     !!---------------------------------------------------------------------------------!
 
@@ -591,7 +610,7 @@ CONTAINS
          WRITE (iwfx, "(A)") "<Molecular Orbital Energies>"
          DO ispin = 1, nspins
             DO imo = 1, mos(ispin)%homo
-               WRITE (iwfx, "(ES20.10)") mos(ispin)%eigenvalues(imo)
+               WRITE (iwfx, "(ES20.10)") wfx_eigenvalues(imo, ispin)
             END DO
          END DO
          WRITE (iwfx, "(A,/)") "</Molecular Orbital Energies>"
@@ -638,23 +657,15 @@ CONTAINS
          NULLIFY (orb_basis_set)
          NULLIFY (gcc)
 
-         IF (mos(1)%use_mo_coeff_b) THEN
-            DO ispin = 1, SIZE(mos)
-               CPASSERT(ASSOCIATED(mos(ispin)%mo_coeff_b))
-               CALL copy_dbcsr_to_fm(mos(ispin)%mo_coeff_b, &
-                                     mos(ispin)%mo_coeff)
-            END DO
-         END IF
-
          DO ispin = 1, nspins
-            CALL cp_fm_get_info(mos(ispin)%mo_coeff, &
-                                nrow_global=nrow_global, &
-                                ncol_global=ncol_global)
+            nrow_global = SIZE(wfx_coeff, 1)
+            ncol_global = mos(ispin)%nmo
+            IF (ncol_global == 0) CYCLE
 
             ALLOCATE (smatrix(nrow_global, ncol_global))
             smatrix = 0.0_dp
 
-            CALL cp_fm_get_submatrix(mos(ispin)%mo_coeff, smatrix)
+            smatrix(:, :) = wfx_coeff(:, 1:ncol_global, ispin)
 
             CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
 
@@ -844,6 +855,7 @@ CONTAINS
          DEALLOCATE (atom_symbols)
          DEALLOCATE (atomic_numbers)
          DEALLOCATE (core_charges)
+         CALL close_file(unit_number=iwfx)
 
       ELSE  ! no output unit
          iwfx = -1
@@ -854,9 +866,111 @@ CONTAINS
             '!--------------------------- Chargemol wfx written ---------------------------!'
       END IF
 
+      DEALLOCATE (wfx_coeff, wfx_eigenvalues)
+
       CALL timestop(handle)
 
    END SUBROUTINE write_wfx
+
+! **************************************************************************************************
+!> \brief Prepare private canonical orbitals for WFX output without changing the SCF state.
+!> \param qs_env ...
+!> \param coefficients ...
+!> \param eigenvalues ...
+! **************************************************************************************************
+   SUBROUTINE prepare_wfx_orbitals(qs_env, coefficients, eigenvalues)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: coefficients
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: eigenvalues
+
+      INTEGER                                            :: homo, ispin, nao, nmo
+      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(cp_fm_struct_type), POINTER                   :: occupied_struct
+      TYPE(cp_fm_type)                                   :: export_coeff, occupied_coeff
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
+      TYPE(dbcsr_type), POINTER                          :: ks_copy
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(scf_control_type), POINTER                    :: scf_control
+
+      CALL get_qs_env(qs_env, mos=mos, matrix_ks=matrix_ks, admm_env=admm_env, &
+                      dft_control=dft_control, scf_control=scf_control)
+      CALL cp_fm_get_info(mos(1)%mo_coeff, nrow_global=nao)
+      ALLOCATE (coefficients(nao, MAXVAL(mos%nmo), SIZE(mos)), &
+                eigenvalues(MAXVAL(mos%nmo), SIZE(mos)))
+      coefficients = 0.0_dp
+      eigenvalues = 0.0_dp
+      DO ispin = 1, SIZE(mos)
+         nmo = mos(ispin)%nmo
+         homo = mos(ispin)%homo
+         CALL cp_fm_create(export_coeff, mos(ispin)%mo_coeff%matrix_struct, "WFX orbitals")
+         IF (mos(ispin)%use_mo_coeff_b) THEN
+            CALL copy_dbcsr_to_fm(mos(ispin)%mo_coeff_b, export_coeff)
+         ELSE
+            CALL cp_fm_to_fm(mos(ispin)%mo_coeff, export_coeff)
+         END IF
+         eigenvalues(1:nmo, ispin) = mos(ispin)%eigenvalues(1:nmo)
+         IF (scf_control%use_ot .AND. homo > 0) THEN
+
+            ! A unitary rotation preserves the density only within equally occupied orbitals.
+            IF (MAXVAL(ABS(mos(ispin)%occupation_numbers(1:homo) - &
+                           mos(ispin)%occupation_numbers(1))) > 1.0E-12_dp) THEN
+               CPABORT("OT WFX output requires uniformly occupied orbitals.")
+            END IF
+            NULLIFY (occupied_struct, ks_copy)
+            CALL cp_fm_struct_create(occupied_struct, template_fmstruct=export_coeff%matrix_struct, &
+                                     ncol_global=homo)
+            CALL cp_fm_create(occupied_coeff, occupied_struct, "WFX occupied orbitals")
+            CALL cp_fm_struct_release(occupied_struct)
+            CALL cp_fm_to_fm(export_coeff, occupied_coeff, homo)
+            CALL dbcsr_init_p(ks_copy)
+            CALL dbcsr_copy(ks_copy, matrix_ks(ispin)%matrix, name="WFX Kohn-Sham matrix")
+            IF (dft_control%do_admm) CALL correct_wfx_ks(ispin, admm_env, ks_copy)
+            CALL calculate_subspace_eigenvalues(occupied_coeff, ks_copy, eigenvalues(1:homo, ispin))
+            CALL cp_fm_to_fm(occupied_coeff, export_coeff, homo)
+            CALL dbcsr_release_p(ks_copy)
+            CALL cp_fm_release(occupied_coeff)
+         END IF
+         ! Gather collectively before only the I/O rank writes the WFX file.
+         CALL cp_fm_get_submatrix(export_coeff, coefficients(:, 1:nmo, ispin))
+         CALL cp_fm_release(export_coeff)
+      END DO
+   END SUBROUTINE prepare_wfx_orbitals
+
+! **************************************************************************************************
+!> \brief Apply the ADMM eigenvalue correction using private scratch matrices.
+!> \param ispin ...
+!> \param admm_env ...
+!> \param ks_copy ...
+! **************************************************************************************************
+   SUBROUTINE correct_wfx_ks(ispin, admm_env, ks_copy)
+      INTEGER, INTENT(IN)                                :: ispin
+      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(dbcsr_type), POINTER                          :: ks_copy
+
+      TYPE(admm_type), POINTER                           :: export_admm
+      TYPE(admm_type), TARGET                            :: admm_copy
+      TYPE(cp_fm_type), TARGET                           :: work_aux_orb
+
+      IF (admm_env%block_dm) RETURN
+      SELECT CASE (admm_env%purification_method)
+      CASE (do_admm_purify_cauchy_subspace, do_admm_purify_mo_diag)
+         ! The correction reads the physical ADMM state, but overwrites these two work matrices.
+         admm_copy = admm_env
+         NULLIFY (admm_copy%H_corr)
+         ALLOCATE (admm_copy%H_corr(SIZE(admm_env%H_corr)))
+         CALL cp_fm_create(admm_copy%H_corr(ispin), admm_env%H_corr(ispin)%matrix_struct, "WFX ADMM correction")
+         CALL cp_fm_create(work_aux_orb, admm_env%work_aux_orb%matrix_struct, "WFX ADMM work")
+         admm_copy%work_aux_orb => work_aux_orb
+         export_admm => admm_copy
+         CALL admm_correct_for_eigenvalues(ispin, export_admm, ks_copy)
+         CALL cp_fm_release(work_aux_orb)
+         CALL cp_fm_release(admm_copy%H_corr(ispin))
+         DEALLOCATE (admm_copy%H_corr)
+      END SELECT
+   END SUBROUTINE correct_wfx_ks
 
 ! **************************************************************************************************
 !> \brief ...
