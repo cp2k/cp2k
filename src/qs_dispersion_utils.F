@@ -18,9 +18,9 @@ MODULE qs_dispersion_utils
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE input_constants,                 ONLY: &
-        vdw_nl_DRSLL, vdw_nl_LMKLL, vdw_nl_RVV10, vdw_pairpot_dftd2, vdw_pairpot_dftd3, &
-        vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, xc_funct_b3lyp, xc_funct_blyp, xc_funct_bp, &
-        xc_funct_no_shortcut, xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, xc_none, &
+        vdw_nl_DRSLL, vdw_nl_LMKLL, vdw_nl_RVV10, vdw_pairpot_dftd2, vdw_pairpot_dftd2chg, &
+        vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, xc_funct_b3lyp, xc_funct_blyp, &
+        xc_funct_bp, xc_funct_no_shortcut, xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, xc_none, &
         xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -175,7 +175,7 @@ CONTAINS
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(section_vals_type), POINTER                   :: xc_section
 
-      CHARACTER(len=60)                                  :: xc_functional_name
+      CHARACTER(len=default_string_length)               :: xc_functional_name
       INTEGER                                            :: xc_functional_id
       LOGICAL                                            :: exfun, explicit
       REAL(dp), POINTER                                  :: params(:), scal(:)
@@ -212,9 +212,14 @@ CONTAINS
          pp_section => section_vals_get_subs_vals(vdw_section, "PAIR_POTENTIAL")
          CALL section_vals_val_get(pp_section, "VERBOSE_OUTPUT", l_val=dispersion_env%verbose)
          CALL section_vals_val_get(pp_section, "TYPE", i_val=dispersion_env%pp_type)
-         IF (dispersion_env%pp_type == vdw_pairpot_dftd2) THEN
-            ! functional parameters for Grimme D2 type
-            CALL section_vals_val_get(pp_section, "EXP_PRE", r_val=dispersion_env%exp_pre)
+         IF (dispersion_env%pp_type == vdw_pairpot_dftd2 .OR. &
+             dispersion_env%pp_type == vdw_pairpot_dftd2chg) THEN
+            ! functional parameters for D2 with Grimme or Chai-Head-Gordon damping
+            CALL section_vals_val_get(pp_section, "EXP_PRE", r_val=dispersion_env%exp_pre, explicit=explicit)
+            IF (dispersion_env%pp_type == vdw_pairpot_dftd2chg) THEN
+               IF (explicit) CPABORT("D2_EXP_PRE is not applicable to DFTD2(CHG)")
+               dispersion_env%exp_pre = 0._dp
+            END IF
             CALL section_vals_val_get(pp_section, "SCALING", explicit=explicit)
             IF (.NOT. explicit) THEN
                CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL", explicit=exfun)
@@ -232,7 +237,19 @@ CONTAINS
                                             "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", &
                                             c_val=dispersion_env%ref_functional)
                END IF
-               CALL qs_scaling_dftd2(dispersion_env%scaling, dispersion_env%ref_functional)
+               IF (dispersion_env%pp_type == vdw_pairpot_dftd2chg) THEN
+                  xc_functional_name = dispersion_env%ref_functional
+                  CALL uppercase(xc_functional_name)
+                  SELECT CASE (TRIM(xc_functional_name))
+                  CASE ("WB97X-D", "WB97XD")
+                     dispersion_env%scaling = 1._dp
+                  CASE DEFAULT
+                     CALL cp_abort(__LOCATION__, &
+                                   "DFTD2(CHG): set REFERENCE_FUNCTIONAL WB97X-D or D2_SCALING explicitly")
+                  END SELECT
+               ELSE
+                  CALL qs_scaling_dftd2(dispersion_env%scaling, dispersion_env%ref_functional)
+               END IF
             ELSE
                CALL section_vals_val_get(pp_section, "SCALING", r_val=dispersion_env%scaling)
             END IF
@@ -279,7 +296,7 @@ CONTAINS
                IF (.NOT. dispersion_env%d3_reference_code) THEN
                   IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
                      CALL qs_scaling_dftd3(dispersion_env%s6, dispersion_env%sr6, dispersion_env%s8, &
-                                           dispersion_env%ref_functional)
+                                           dispersion_env%sr8, dispersion_env%ref_functional)
                   ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
                      CALL qs_scaling_dftd3bj(dispersion_env%s6, dispersion_env%a1, dispersion_env%s8, &
                                              dispersion_env%a2, dispersion_env%ref_functional)
@@ -303,7 +320,7 @@ CONTAINS
                IF (.NOT. dispersion_env%d3_reference_code) THEN
                   IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
                      CALL qs_scaling_dftd3(dispersion_env%s6, dispersion_env%sr6, dispersion_env%s8, &
-                                           dispersion_env%ref_functional)
+                                           dispersion_env%sr8, dispersion_env%ref_functional)
                   ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
                      CALL qs_scaling_dftd3bj(dispersion_env%s6, dispersion_env%a1, dispersion_env%s8, &
                                              dispersion_env%a2, dispersion_env%ref_functional)
@@ -433,12 +450,22 @@ CONTAINS
          IF (dispersion_env%type == xc_vdw_fun_pairpot) THEN
             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T67,'Pair Potential')")
             ! Pair potentials
-            IF (dispersion_env%pp_type == vdw_pairpot_dftd2) THEN
-               WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'DFT-D2')")
-               WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Potential Form: S. Grimme, JCC 27: 1787 (2006)')")
+            IF (dispersion_env%pp_type == vdw_pairpot_dftd2 .OR. &
+                dispersion_env%pp_type == vdw_pairpot_dftd2chg) THEN
+               IF (dispersion_env%pp_type == vdw_pairpot_dftd2chg) THEN
+                  WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'DFT-D2(CHG)')")
+                  WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Chai-Head-Gordon, PCCP 10: 6615 (2008)')")
+                  WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'CHG Damping: a=6, alpha=12')")
+               ELSE
+                  WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'DFT-D2')")
+                  WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Potential Form: S. Grimme, JCC 27: 1787 (2006)')")
+               END IF
                WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Cutoff Radius [Bohr]:',T73,F8.2)") dispersion_env%rc_disp
                WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Scaling Factor:',T73,F8.4)") dispersion_env%scaling
-               WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Exp Prefactor for Damping:',T73,F8.1)") dispersion_env%exp_pre
+               IF (dispersion_env%pp_type == vdw_pairpot_dftd2) THEN
+                  WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Exp Prefactor for Damping:',T73,F8.1)") &
+                     dispersion_env%exp_pre
+               END IF
                CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set)
                nkind = SIZE(atomic_kind_set)
                DO ikind = 1, nkind
@@ -576,17 +603,19 @@ CONTAINS
 !> \param s6 ...
 !> \param sr6 ...
 !> \param s8 ...
+!> \param sr8 ...
 !> \param ref_functional ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scaling_dftd3(s6, sr6, s8, ref_functional)
+   SUBROUTINE qs_scaling_dftd3(s6, sr6, s8, sr8, ref_functional)
 
-      REAL(KIND=dp), INTENT(inout)                       :: s6, sr6, s8
+      REAL(KIND=dp), INTENT(inout)                       :: s6, sr6, s8, sr8
       CHARACTER(LEN=default_string_length), INTENT(in)   :: ref_functional
 
       CHARACTER(LEN=default_string_length)               :: functional
 
       functional = ref_functional
       CALL uppercase(functional)
+      sr8 = 1.0_dp
       ! values for different functionals from:
       ! https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3/zero_damping
       ! L. Goerigk et al. PCCP 2017, 32147-32744, SI
@@ -933,6 +962,12 @@ CONTAINS
          s6 = 1.000_dp
          sr6 = 0.932_dp
          s8 = 0.5662_dp
+      CASE ("WB97X")
+         ! wB97X-D3 (doi:10.1021/ct300715s)
+         s6 = 1.000_dp
+         sr6 = 1.281_dp
+         s8 = 1.000_dp
+         sr8 = 1.094_dp
       CASE ("XLYP")
          s6 = 1.0000_dp
          sr6 = 0.9384_dp
@@ -1385,6 +1420,11 @@ CONTAINS
          a1 = 0.0000_dp
          s8 = 0.9585_dp
          a2 = 6.2303_dp
+      CASE ("WB97X")
+         s6 = 1.0000_dp
+         a1 = 0.0000_dp
+         s8 = 0.2641_dp
+         a2 = 5.4959_dp
       CASE ("XLYP")
          s6 = 1.0000_dp
          a1 = 0.0809_dp

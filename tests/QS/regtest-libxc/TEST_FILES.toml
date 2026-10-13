@@ -12,6 +12,12 @@
 "diamond_br89_libxc.inp"                = [{matcher="E_total", tol=7e-14, ref=-11.06581139033952}]
 # tpss new input
 "H2O-tpss_lsd.inp"                      = [{matcher="E_total", tol=3e-13, ref=-34.34060245978554}]
+# wb97X family
+"H2O-hybrid-wb97x-d-libxc.inp"          = [{matcher="E_total", tol=1e-12, ref=-76.39613636676559}]
+"H2O-hybrid-wb97x-d3-libxc.inp"         = [{matcher="E_total", tol=1e-12, ref=-76.39704136358591}]
+"H2O-hybrid-wb97x-d3bj-libxc.inp"       = [{matcher="E_total", tol=1e-12, ref=-76.43173835538695}]
+"H2O-hybrid-wb97x-d4-libxc.inp"         = [{matcher="E_total", tol=1e-12, ref=-76.43149284639928}]
+"H2O-hybrid-wb97x-d4rev-libxc.inp"      = [{matcher="E_total", tol=1e-12, ref=-76.43153739819012}]
 # wb97X2 functional parametrizations
 "H2O-hybrid-wb97x2lp-libxc.inp"         = [{matcher="E_total", tol=3e-8, ref=-16.89949370057707}]
 "H2O-hybrid-wb97x2tqz-libxc.inp"        = [{matcher="E_total", tol=4e-8, ref=-16.91942374633053}]

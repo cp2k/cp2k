@@ -7,6 +7,8 @@
 
 MODULE qs_dispersion_s_dftd3
 
+   USE input_constants, ONLY: vdw_pairpot_dftd3, &
+                              vdw_pairpot_dftd3bj
    USE kinds, ONLY: default_string_length, &
                     dp
    USE message_passing, ONLY: mp_para_env_type
@@ -61,9 +63,9 @@ CONTAINS
       found = .TRUE.
 
       SELECT CASE (pp_type)
-      CASE (2)
+      CASE (vdw_pairpot_dftd3)
          CALL get_zero_damping(d3params, func_name, lib_error)
-      CASE (3)
+      CASE (vdw_pairpot_dftd3bj)
          CALL get_rational_damping(d3params, func_name, lib_error)
       CASE DEFAULT
          d3params = d3_param()
@@ -93,13 +95,14 @@ CONTAINS
 !> \param a1 ...
 !> \param a2 ...
 !> \param sr6 ...
+!> \param sr8 ...
 !> \param para_env ...
 !> \param error ...
 !> \param calc_scaling ...
 ! **************************************************************************************************
    SUBROUTINE dftd3_param_from_library(c6ab, maxci, r0ab, rcov, r2r4, &
                                        pp_type, ref_functional, &
-                                       s6, s8, a1, a2, sr6, &
+                                       s6, s8, a1, a2, sr6, sr8, &
                                        para_env, error, calc_scaling)
 
       REAL(KIND=dp), DIMENSION(:, :, :, :, :), &
@@ -109,7 +112,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: rcov, r2r4
       INTEGER, INTENT(IN)                                :: pp_type
       CHARACTER(LEN=*), INTENT(IN)                       :: ref_functional
-      REAL(KIND=dp), INTENT(INOUT)                       :: s6, s8, a1, a2, sr6
+      REAL(KIND=dp), INTENT(INOUT)                       :: s6, s8, a1, a2, sr6, sr8
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: error
       LOGICAL, INTENT(IN), OPTIONAL                      :: calc_scaling
@@ -199,9 +202,9 @@ CONTAINS
 
       IF (para_env%is_source()) THEN
          SELECT CASE (pp_type)
-         CASE (2)
+         CASE (vdw_pairpot_dftd3)
             CALL get_zero_damping(d3params, func_name, lib_error)
-         CASE (3)
+         CASE (vdw_pairpot_dftd3bj)
             CALL get_rational_damping(d3params, func_name, lib_error)
          CASE DEFAULT
             d3params = d3_param()
@@ -220,12 +223,14 @@ CONTAINS
       CALL para_env%bcast(d3params%a1)
       CALL para_env%bcast(d3params%a2)
       CALL para_env%bcast(d3params%rs6)
+      CALL para_env%bcast(d3params%rs8)
 
       IF (PRESENT(error)) error = ""
 
       do_calc_scaling = .TRUE.
       IF (PRESENT(calc_scaling)) do_calc_scaling = calc_scaling
 
+      sr8 = d3params%rs8
       IF (do_calc_scaling) THEN
          s6 = d3params%s6
          s8 = d3params%s8
@@ -249,6 +254,7 @@ CONTAINS
       MARK_USED(a1)
       MARK_USED(a2)
       MARK_USED(sr6)
+      MARK_USED(sr8)
       MARK_USED(para_env)
       MARK_USED(error)
       MARK_USED(calc_scaling)

@@ -186,7 +186,7 @@ Pimd/regtest-2
 QS/regtest-rpa-cubic-scaling                                libint !ifx
 QS/regtest-dft-d4-auto-ref                                  libdftd4 libint libxc !ifx
 QS/regtest-ot-refine-2
-QS/regtest-libxc                                            libxc libint !ifx
+QS/regtest-libxc                                            libxc libint libdftd4 !ifx
 QS/regtest-stda-force-3                                     libint !ifx
 QS/regtest-spectral-localizer
 Fist/regtest-1-1
