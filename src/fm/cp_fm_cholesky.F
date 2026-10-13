@@ -325,12 +325,15 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_cholesky_restore'
       REAL(KIND=dp), DIMENSION(:, :), POINTER   :: a, b, outm
       REAL(KIND=dp)                             :: alpha
-      INTEGER                                   :: handle, mdim, n
+      INTEGER                                   :: handle, n
       CHARACTER                                 :: chol_pos, chol_transa
-#if defined(__parallel)
+#if defined(__parallel) || !defined(__MKL) || (2025 > __INTEL_MKL__)
       INTEGER                                   :: i
+#endif
+#if defined(__parallel)
       INTEGER, DIMENSION(9)                     :: desca, descb, descout
-#elif defined(__MKL) && (2025 <= __INTEL_MKL__)
+#endif
+#if defined(__MKL) && (2025 <= __INTEL_MKL__)
       REAL(KIND=dp)                             :: beta
 #endif
 
@@ -351,34 +354,44 @@ CONTAINS
       b => fm_matrixb%local_data
       outm => fm_matrixout%local_data
       n = fm_matrix%matrix_struct%nrow_global
-      mdim = MERGE(1, 2, 'L' == chol_pos)
       alpha = 1.0_dp
 
 #if defined(__parallel)
-      desca(:) = fm_matrix%matrix_struct%descriptor(:)
-      descb(:) = fm_matrixb%matrix_struct%descriptor(:)
-      descout(:) = fm_matrixout%matrix_struct%descriptor(:)
-      DO i = 1, neig
-         CALL pdcopy(n, a(1, 1), 1, i, desca, 1, outm(1, 1), 1, i, descout, 1)
-      END DO
-      IF (op == "SOLVE") THEN
-         CALL pdtrsm(chol_pos, 'U', chol_transa, 'N', n, neig, alpha, b(1, 1), 1, 1, descb, outm(1, 1), 1, 1, descout)
-      ELSE
-         CALL pdtrmm(chol_pos, 'U', chol_transa, 'N', n, neig, alpha, b(1, 1), 1, 1, descb, outm(1, 1), 1, 1, descout)
+      IF (fm_matrix%matrix_struct%para_env%num_pe > 1) THEN
+         desca(:) = fm_matrix%matrix_struct%descriptor(:)
+         descb(:) = fm_matrixb%matrix_struct%descriptor(:)
+         descout(:) = fm_matrixout%matrix_struct%descriptor(:)
+         DO i = 1, neig
+            CALL pdcopy(n, a(1, 1), 1, i, desca, 1, outm(1, 1), 1, i, descout, 1)
+         END DO
+         IF (op == "SOLVE") THEN
+            CALL pdtrsm(chol_pos, 'U', chol_transa, 'N', n, neig, alpha, b(1, 1), 1, 1, descb, outm(1, 1), 1, 1, descout)
+         ELSE
+            CALL pdtrmm(chol_pos, 'U', chol_transa, 'N', n, neig, alpha, b(1, 1), 1, 1, descb, outm(1, 1), 1, 1, descout)
+         END IF
+         CALL timestop(handle)
+         RETURN
       END IF
-#elif defined(__MKL) && (2025 <= __INTEL_MKL__)
+#endif
+
+      ! A single rank owns the full matrices, including in MPI-enabled builds.
+#if defined(__MKL) && (2025 <= __INTEL_MKL__)
       beta = 0.0_dp
       IF (op == "SOLVE") THEN
-         CALL dtrsm_oop(chol_pos, 'U', chol_transa, 'N', n, neig, alpha, b(1, 1), SIZE(b, mdim), a(1, 1), n, beta, outm(1, 1), n)
+         CALL dtrsm_oop(chol_pos, 'U', chol_transa, 'N', n, neig, alpha, b(1, 1), SIZE(b, 1), &
+                        a(1, 1), SIZE(a, 1), beta, outm(1, 1), SIZE(outm, 1))
       ELSE
-         CALL dtrmm_oop(chol_pos, 'U', chol_transa, 'N', n, neig, alpha, b(1, 1), SIZE(b, mdim), a(1, 1), n, beta, outm(1, 1), n)
+         CALL dtrmm_oop(chol_pos, 'U', chol_transa, 'N', n, neig, alpha, b(1, 1), SIZE(b, 1), &
+                        a(1, 1), SIZE(a, 1), beta, outm(1, 1), SIZE(outm, 1))
       END IF
 #else
-      CALL dcopy(neig*n, a(1, 1), 1, outm(1, 1), 1)
+      DO i = 1, neig
+         CALL dcopy(n, a(1, i), 1, outm(1, i), 1)
+      END DO
       IF (op == "SOLVE") THEN
-         CALL dtrsm(chol_pos, 'U', chol_transa, 'N', n, neig, alpha, b(1, 1), SIZE(b, mdim), outm(1, 1), n)
+         CALL dtrsm(chol_pos, 'U', chol_transa, 'N', n, neig, alpha, b(1, 1), SIZE(b, 1), outm(1, 1), SIZE(outm, 1))
       ELSE
-         CALL dtrmm(chol_pos, 'U', chol_transa, 'N', n, neig, alpha, b(1, 1), SIZE(b, mdim), outm(1, 1), n)
+         CALL dtrmm(chol_pos, 'U', chol_transa, 'N', n, neig, alpha, b(1, 1), SIZE(b, 1), outm(1, 1), SIZE(outm, 1))
       END IF
 #endif
 
