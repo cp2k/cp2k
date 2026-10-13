@@ -525,3 +525,4 @@ QMMM/QS/regtest-lrigpw
 QS/regtest-fde
 QS/regtest-wfn-restart
 Fist/regtest-plumed2                                        plumed2
+QS/regtest-kubo-transport-spglib                            spglib

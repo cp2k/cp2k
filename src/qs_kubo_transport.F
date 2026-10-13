@@ -9,7 +9,8 @@
 !> \brief Finite-volume Kubo-Greenwood transport from converged Quickstep matrices.
 ! **************************************************************************************************
 MODULE qs_kubo_transport
-   USE bibliography,                    ONLY: KuhneHeskeProdan2020,&
+   USE bibliography,                    ONLY: EsteveParedes2023,&
+                                              KuhneHeskeProdan2020,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
@@ -17,7 +18,8 @@ MODULE qs_kubo_transport
    USE cp_dbcsr_api,                    ONLY: dbcsr_get_info,&
                                               dbcsr_p_type,&
                                               dbcsr_type
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -28,10 +30,14 @@ MODULE qs_kubo_transport
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
+   USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE kubo_bloch,                      ONLY: fermi_slope
+   USE kubo_hall,                       ONLY: hall_response
+   USE kubo_projected,                  ONLY: projected_current
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
@@ -43,8 +49,15 @@ MODULE qs_kubo_transport
                                               kelvin
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_finite_ao,                    ONLY: finite_ao_positions,&
+                                              finite_ao_soc
+   USE qs_kubo_bloch,                   ONLY: setup_bloch_transport
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
+   USE spectral_localizer_dbcsr,        ONLY: localizer_ao_operators,&
+                                              localizer_dbcsr_dense,&
+                                              localizer_dbcsr_release,&
+                                              localizer_matrix_type
    USE string_utilities,                ONLY: uppercase
 #include "./base/base_uses.f90"
 
@@ -59,6 +72,62 @@ MODULE qs_kubo_transport
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief Share full finite AO/SOC operators with the localizer, retaining complex matrix elements.
+!> \param qs_env Converged finite Quickstep environment
+!> \param spin Scalar spin channel, one for SOC
+!> \param do_soc Include GTH SOC
+!> \param energies Complete scalar/spinor eigenvalues
+!> \param current Three projected commutators in the eigenbasis
+! **************************************************************************************************
+   SUBROUTINE setup_projected_transport(qs_env, spin, do_soc, energies, current)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: spin
+      LOGICAL, INTENT(IN)                                :: do_soc
+      REAL(dp), INTENT(OUT)                              :: energies(:)
+      COMPLEX(dp), INTENT(OUT)                           :: current(:, :, :)
+
+      COMPLEX(dp), ALLOCATABLE                           :: component(:, :), hd(:, :), sd(:, :), &
+                                                            xd(:, :, :)
+      INTEGER                                            :: axis, n, status
+      TYPE(dbcsr_p_type), POINTER                        :: h(:), positions(:), s(:), soc(:, :)
+      TYPE(localizer_matrix_type)                        :: metric, operators(4)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      NULLIFY (positions, soc)
+      CALL get_qs_env(qs_env, matrix_ks=h, matrix_s=s, para_env=para_env)
+      CALL finite_ao_positions(qs_env, positions)
+      IF (do_soc) THEN
+         CALL finite_ao_soc(qs_env, soc)
+         CALL localizer_ao_operators(h(spin)%matrix, s(1)%matrix, positions, operators, metric, soc)
+      ELSE
+         CALL localizer_ao_operators(h(spin)%matrix, s(1)%matrix, positions, operators, metric)
+      END IF
+      CALL localizer_dbcsr_dense(operators(1), para_env, hd)
+      CALL localizer_dbcsr_dense(metric, para_env, sd)
+      n = SIZE(hd, 1)
+      ALLOCATE (xd(n, n, 3))
+      DO axis = 1, 3
+         CALL localizer_dbcsr_dense(operators(axis + 1), para_env, component)
+         xd(:, :, axis) = component
+         DEALLOCATE (component)
+      END DO
+      status = 0
+      IF (para_env%is_source()) CALL projected_current(hd, sd, xd, energies, current, status)
+      CALL para_env%bcast(status, para_env%source)
+      IF (status /= 0) THEN
+         CPABORT("Kubo projected AO matrices or eigensystem invalid.")
+      END IF
+      CALL para_env%bcast(energies, para_env%source)
+      CALL para_env%bcast(current, para_env%source)
+      CALL dbcsr_deallocate_matrix_set(positions)
+      IF (do_soc) CALL dbcsr_deallocate_matrix_set(soc)
+      DO axis = 1, 4
+         CALL localizer_dbcsr_release(operators(axis))
+      END DO
+      CALL localizer_dbcsr_release(metric)
+   END SUBROUTINE setup_projected_transport
+
+! **************************************************************************************************
 !> \brief Compute and print the finite-volume Kubo-Greenwood conductivity tensor.
 !> \param qs_env Quickstep environment
 ! **************************************************************************************************
@@ -71,26 +140,33 @@ CONTAINS
                                                             periodic_label, sigma_iso_unit, &
                                                             sigma_tensor_unit
       CHARACTER(LEN=512)                                 :: header
-      INTEGER                                            :: handle, imu, ispin, nao, natom, &
-                                                            nelectron_total, neutral_grid, nmu, &
-                                                            nperiodic, nspins, output_unit, &
-                                                            transport_ndim
+      COMPLEX(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :)                           :: dHH
+      INTEGER :: axis, current_operator, hall_status, handle, imu, ispin, max_ao, max_memory_mb, &
+         nao, natom, nelectron_total, neutral_grid, nk, nmu, nperiodic, nspins, nstate, &
+         output_unit, symmetry_backend, transport_ndim
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_atom
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
-      LOGICAL                                            :: allow_mo_reuse, do_kpoints, kubo_active, &
-                                                            neutral_mu_explicit, ot_active
+      INTEGER, POINTER                                   :: grid(:)
+      LOGICAL                                            :: allow_mo_reuse, do_hall, do_kpoints, &
+                                                            do_soc, kubo_active, &
+                                                            neutral_mu_explicit, ot_active, &
+                                                            property_symmetry
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: reused_mos
-      REAL(KIND=dp) :: density_factor, dissipation, emax, emin, iso_factor, measure, measure_m, &
-         mu, mu0, mu_step, ne, nh, sigma_iso, temperature, tensor_factor
+      REAL(dp), ALLOCATABLE                              :: scalar_current(:, :, :)
+      REAL(KIND=dp) :: density_factor, dissipation, emax, emin, eps_operators, eps_symmetry, &
+         iso_factor, measure, measure_m, mu, mu0, mu_step, ne, nh, sigma_iso, temperature, &
+         tensor_factor
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: maxocc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eig, s_dense
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dHH
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: projection, sigma, sigma_out
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hall, hall_part, projection, sigma, &
+                                                            sigma_out
       REAL(KIND=dp), DIMENSION(:), POINTER               :: energy_range
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
+      TYPE(dbcsr_p_type), POINTER                        :: images(:, :)
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -123,11 +199,32 @@ CONTAINS
       CALL section_vals_val_get(ot_section, "_SECTION_PARAMETERS_", l_val=ot_active)
       allow_mo_reuse = .NOT. ot_active
 
-      CALL get_qs_env(qs_env, blacs_env=blacs_env, cell=cell, do_kpoints=do_kpoints, &
-                      matrix_ks=matrix_ks, matrix_s=matrix_s, mos=mos, natom=natom, &
+      CALL section_vals_val_get(kubo_section, "CURRENT_OPERATOR", i_val=current_operator)
+      CALL section_vals_val_get(kubo_section, "SOC", l_val=do_soc)
+      CALL section_vals_val_get(kubo_section, "HALL_RESPONSE", l_val=do_hall)
+      IF (do_hall .AND. current_operator == 0) THEN
+         CPABORT("Kubo HALL_RESPONSE requires CURRENT_OPERATOR PROJECTED_AO or BLOCH.")
+      END IF
+      CALL section_vals_val_get(kubo_section, "SYMMETRY", l_val=property_symmetry)
+      IF (property_symmetry .AND. current_operator /= 2) THEN
+         CPABORT('Kubo property SYMMETRY requires BLOCH.')
+      END IF
+      CALL get_qs_env(qs_env, do_kpoints=do_kpoints, cell=cell)
+      IF (do_kpoints .AND. current_operator /= 2) THEN
+         CPABORT("Kubo explicit k-points require CURRENT_OPERATOR BLOCH.")
+      END IF
+      IF (do_soc .AND. current_operator == 0) THEN
+         CPABORT("Kubo SOC requires CURRENT_OPERATOR PROJECTED_AO or BLOCH.")
+      END IF
+      IF (current_operator == 1 .AND. ANY(cell%perd /= 0)) THEN
+         CPABORT("Kubo PROJECTED_AO requires PERIODIC NONE.")
+      END IF
+      CALL get_qs_env(qs_env, blacs_env=blacs_env, cell=cell, mos=mos, natom=natom, &
                       nelectron_total=nelectron_total, para_env=para_env, particle_set=particle_set)
-
-      IF (do_kpoints) CPABORT("KUBO_TRANSPORT currently expects a finite Gamma-point supercell.")
+      CALL get_qs_env(qs_env, matrix_ks_kp=images)
+      matrix_ks => images(:, 1)
+      CALL get_qs_env(qs_env, matrix_s_kp=images)
+      matrix_s => images(:, 1)
       CPASSERT(ASSOCIATED(matrix_s))
       CPASSERT(ASSOCIATED(matrix_ks))
       CPASSERT(ASSOCIATED(cell))
@@ -148,20 +245,65 @@ CONTAINS
 
       nspins = SIZE(matrix_ks)
       CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=nao, row_blk_size=row_blk_sizes)
+      nstate = nao
+      IF (current_operator /= 0) THEN
+         CALL section_vals_val_get(kubo_section, "MAX_AO", i_val=max_ao)
+         IF (max_ao < 1 .OR. nao > max_ao) CPABORT("Kubo AO current exceeds MAX_AO.")
+         IF (.NOT. qs_env%scf_convergence_available .OR. .NOT. qs_env%scf_converged) THEN
+            CPABORT("Kubo AO current requires a converged SCF.")
+         END IF
+      END IF
+      IF (do_soc) THEN
+         IF (nspins /= 1) CPABORT("Kubo SOC requires a restricted SCF.")
+         nstate = 2*nao
+      END IF
       CALL build_ao_atom_map(row_blk_sizes, natom, ao_atom)
-      CALL dbcsr_to_dense(matrix_s(1)%matrix, blacs_env, para_env, s_dense)
+      IF (current_operator == 0) CALL dbcsr_to_dense(matrix_s(1)%matrix, blacs_env, para_env, s_dense)
       CALL setup_transport_geometry(cell, transport_ndim, nperiodic, periodic_label, projection, &
                                     measure, measure_unit)
       CALL transport_unit_labels(transport_ndim, density_unit, sigma_iso_unit, sigma_tensor_unit)
 
-      ALLOCATE (eig(nao, nspins), dHH(nao, nao, 3, nspins), maxocc(nspins), reused_mos(nspins))
-
-      DO ispin = 1, nspins
-         maxocc(ispin) = mos(ispin)%maxocc
-         CALL setup_spin_transport(matrix_ks(ispin)%matrix, s_dense, blacs_env, para_env, &
-                                   particle_set, cell, projection, ao_atom, mos(ispin), allow_mo_reuse, &
-                                   eig(:, ispin), dHH(:, :, :, ispin), reused_mos(ispin))
-      END DO
+      IF (current_operator == 2) THEN
+         CALL cite_reference(EsteveParedes2023)
+         CALL section_vals_val_get(kubo_section, "MP_GRID", i_vals=grid)
+         CALL section_vals_val_get(kubo_section, "MAX_MEMORY_MB", i_val=max_memory_mb)
+         CALL section_vals_val_get(kubo_section, "SYMMETRY_BACKEND", i_val=symmetry_backend)
+         CALL section_vals_val_get(kubo_section, "EPS_SYMMETRY", r_val=eps_symmetry)
+         CALL section_vals_val_get(kubo_section, "EPS_SYMMETRY_OPERATORS", r_val=eps_operators)
+         IF (.NOT. ieee_is_finite(eps_symmetry) .OR. eps_symmetry <= 0.0_dp .OR. eps_symmetry >= 1.0_dp) THEN
+            CPABORT('Invalid Kubo EPS_SYMMETRY.')
+         END IF
+         IF (.NOT. ieee_is_finite(eps_operators) .OR. eps_operators <= 0.0_dp .OR. eps_operators >= 1.0_dp) THEN
+            CPABORT('Invalid Kubo EPS_SYMMETRY_OPERATORS.')
+         END IF
+         IF (COUNT(cell%perd /= 0) == 0) CPABORT("Kubo BLOCH requires a periodic cell.")
+         IF (ANY(grid < 1) .OR. ANY(grid /= 1 .AND. cell%perd == 0)) CPABORT("Invalid Kubo MP_GRID.")
+         nk = 1
+         DO axis = 1, 3
+            IF (grid(axis) > 1000000/nk) CPABORT("Kubo MP_GRID exceeds one million points.")
+            nk = nk*grid(axis)
+         END DO
+         CALL setup_bloch_transport(qs_env, grid, do_soc, projection, max_memory_mb, eig, dHH, maxocc, &
+                                    property_symmetry, symmetry_backend, eps_symmetry, eps_operators)
+         ALLOCATE (reused_mos(SIZE(eig, 2)), SOURCE=.FALSE.)
+      ELSE
+         ALLOCATE (eig(nstate, nspins), dHH(nstate, nstate, 3, nspins), maxocc(nspins), reused_mos(nspins))
+         DO ispin = 1, nspins
+            maxocc(ispin) = mos(ispin)%maxocc
+            IF (do_soc) maxocc(ispin) = 1.0_dp
+            IF (current_operator == 1) THEN
+               CALL setup_projected_transport(qs_env, ispin, do_soc, eig(:, ispin), dHH(:, :, :, ispin))
+               reused_mos(ispin) = .FALSE.
+            ELSE
+               ALLOCATE (scalar_current(nao, nao, 3))
+               CALL setup_spin_transport(matrix_ks(ispin)%matrix, s_dense, blacs_env, para_env, &
+                                         particle_set, cell, projection, ao_atom, mos(ispin), allow_mo_reuse, &
+                                         eig(:, ispin), scalar_current, reused_mos(ispin))
+               dHH(:, :, :, ispin) = CMPLX(scalar_current, 0.0_dp, dp)
+               DEALLOCATE (scalar_current)
+            END IF
+         END DO
+      END IF
 
       emin = MINVAL(eig)
       emax = MAXVAL(eig)
@@ -185,6 +327,22 @@ CONTAINS
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(/,T2,A)') "Kubo-Greenwood finite-volume transport"
          WRITE (output_unit, '(T3,A,T38,A)') "Method:", TRIM(method)
+         IF (current_operator == 1) THEN
+            WRITE (output_unit, '(T3,A)') "Current: metric-aware projected AO commutator, not continuum velocity."
+            WRITE (output_unit, '(T3,A,L1)') "GTH SOC in the complete AO spinor space: ", do_soc
+         ELSE IF (current_operator == 2) THEN
+            WRITE (output_unit, '(T3,A)') "Current: Bloch H/S derivatives and analytic AO connection."
+            WRITE (output_unit, '(T3,A,3I6)') "Full property mesh: ", grid
+            WRITE (output_unit, '(T3,A,L1)') "GTH SOC in the complete AO spinor space: ", do_soc
+         END IF
+         IF (current_operator /= 0) THEN
+            IF (do_hall) THEN
+               WRITE (output_unit, '(T3,A)') "Dissipative and antisymmetric DC charge response; scalar relaxation rate."
+               WRITE (output_unit, '(T3,A)') "Tensor convention: first index current, second index electric field."
+            ELSE
+               WRITE (output_unit, '(T3,A)') "Dissipative symmetric conductivity only; no Hall response."
+            END IF
+         END IF
          WRITE (output_unit, '(T3,A,T38,A)') "Cell periodicity:", TRIM(periodic_label)
          IF (nperiodic == 0) THEN
             WRITE (output_unit, '(T3,A,T38,A)') "Transport normalization:", "3D finite box"
@@ -227,7 +385,20 @@ CONTAINS
          mu = emin + REAL(imu - 1, KIND=dp)*mu_step
          CALL electron_hole_density(eig, maxocc, mu, mu0, temperature, ne, nh)
          CALL conductivity_at_mu(eig, dHH, maxocc, mu, temperature, dissipation, measure, &
-                                 transport_ndim, sigma)
+                                 transport_ndim, sigma, current_operator == 2 .OR. do_hall)
+         IF (do_hall) THEN
+            hall = 0.0_dp
+            DO ispin = 1, SIZE(eig, 2)
+               CALL hall_response(eig(:, ispin), dHH(:, :, :, ispin), mu, temperature, dissipation, &
+                                  hall_part, hall_status)
+               IF (hall_status /= 0) THEN
+                  CPABORT("Invalid Kubo Hall current, spectrum, or relaxation parameters.")
+               END IF
+               hall = hall + maxocc(ispin)*hall_part
+            END DO
+            hall = (e_charge**2/h_bar)*hall*angstrom**(2 - transport_ndim)/measure
+            sigma = sigma + hall
+         END IF
          IF (output_unit > 0) THEN
             sigma_iso = (sigma(1, 1) + sigma(2, 2) + sigma(3, 3))/ &
                         REAL(transport_ndim, KIND=dp)*iso_factor
@@ -246,10 +417,18 @@ CONTAINS
             CASE DEFAULT
                WRITE (output_unit, '(T3,A,1X,ES17.8)') "KUBO_TRANSPORT| sigma_iso[S/cm]", sigma_iso
             END SELECT
+            IF (do_hall) THEN
+               WRITE (output_unit, '(T3,A,1X,A,3ES17.8)') "KUBO_TRANSPORT| hall_xy_yz_zx", &
+                  "["//TRIM(sigma_tensor_unit)//"]", &
+                  tensor_factor*hall(1, 2), tensor_factor*hall(2, 3), tensor_factor*hall(3, 1)
+               WRITE (output_unit, '(T3,A,1X,ES17.8)') "KUBO_TRANSPORT| hall_max", &
+                  tensor_factor*MAXVAL(ABS(hall))
+            END IF
          END IF
       END DO
 
-      DEALLOCATE (ao_atom, dHH, eig, maxocc, reused_mos, s_dense)
+      DEALLOCATE (ao_atom, dHH, eig, maxocc, reused_mos)
+      IF (ALLOCATED(s_dense)) DEALLOCATE (s_dense)
 
       CALL timestop(handle)
 
@@ -842,14 +1021,17 @@ CONTAINS
 !> \param measure ...
 !> \param transport_ndim ...
 !> \param sigma ...
+!> \param bloch Use the stable Fermi limit for Bloch currents or the complete DC tensor
 ! **************************************************************************************************
-   SUBROUTINE conductivity_at_mu(eig, dHH, maxocc, mu, kT, dissipation, measure, transport_ndim, sigma)
+   SUBROUTINE conductivity_at_mu(eig, dHH, maxocc, mu, kT, dissipation, measure, transport_ndim, sigma, bloch)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eig
-      REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: dHH
+      COMPLEX(KIND=dp), DIMENSION(:, :, :, :), &
+         INTENT(IN)                                      :: dHH
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: maxocc
       REAL(KIND=dp), INTENT(IN)                          :: mu, kT, dissipation, measure
       INTEGER, INTENT(IN)                                :: transport_ndim
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: sigma
+      LOGICAL, INTENT(IN)                                :: bloch
 
       INTEGER                                            :: idir, ispin, jdir, m, n, nao
       REAL(KIND=dp)                                      :: delta, eps, factor, g0
@@ -872,9 +1054,14 @@ CONTAINS
                DO n = 1, nao
                   DO m = 1, nao
                      delta = eig(n, ispin) - eig(m, ispin)
-                     factor = (occ(n) - occ(m))/(delta + eps)*dissipation/(dissipation**2 + delta**2)
+                     IF (bloch) THEN
+                        factor = maxocc(ispin)*fermi_slope(eig(n, ispin), eig(m, ispin), mu, kT)* &
+                                 dissipation/(dissipation**2 + delta**2)
+                     ELSE
+                        factor = (occ(n) - occ(m))/(delta + eps)*dissipation/(dissipation**2 + delta**2)
+                     END IF
                      sigma(jdir, idir) = sigma(jdir, idir) + &
-                                         dHH(m, n, jdir, ispin)*dHH(n, m, idir, ispin)*factor
+                                         REAL(dHH(m, n, jdir, ispin)*dHH(n, m, idir, ispin), dp)*factor
                   END DO
                END DO
             END DO

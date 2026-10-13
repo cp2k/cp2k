@@ -22,6 +22,7 @@ MODULE kpoint_k_r_trafo_simple
                                               dbcsr_get_readonly_block_p,&
                                               dbcsr_p_type,&
                                               dbcsr_type,&
+                                              dbcsr_type_antisymmetric,&
                                               dbcsr_type_no_symmetry
    USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
@@ -109,7 +110,8 @@ CONTAINS
                                        rs_array_out(ispin, :, :, :), cell_to_index_out)
             ELSE
                CALL write_block_symmetric(iatom, jatom, cell, rs_dbcsr_in(ispin, src_index)%matrix, &
-                                          rs_array_out(ispin, :, :, :), cell_to_index_out)
+                                          rs_array_out(ispin, :, :, :), cell_to_index_out, &
+                                          MERGE(-1.0_dp, 1.0_dp, matrix_sym == dbcsr_type_antisymmetric))
             END IF
          END DO
          CALL neighbor_list_iterator_release(iterator)
@@ -125,25 +127,30 @@ CONTAINS
 !> \param matrix_in DBCSR matrix input, symmetric assumed (A_(mu nu)^(R) = A_(nu mu)^(-R))
 !> \param array_out Multidimensional array - dim 1 : rows, dim 2 : cols, dim 3 : rs_index
 !> \param cell_to_index_out Mapping of cell coords to rs_indices
+!> \param transpose_sign -1 for antisymmetric SOC image matrices, +1 otherwise
 !> \date 11.2025
 !> \author Stepan Marek
 ! **************************************************************************************************
-   SUBROUTINE write_block_symmetric(iatom, jatom, cell, matrix_in, array_out, cell_to_index_out)
+   SUBROUTINE write_block_symmetric(iatom, jatom, cell, matrix_in, array_out, cell_to_index_out, transpose_sign)
       INTEGER, INTENT(IN)                                :: iatom, jatom
       INTEGER, DIMENSION(3), INTENT(IN)                  :: cell
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_in
       REAL(kind=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: array_out
       INTEGER, DIMENSION(:, :, :), INTENT(IN), POINTER   :: cell_to_index_out
+      REAL(dp), INTENT(IN)                               :: transpose_sign
 
       INTEGER                                            :: col_offset, col_size, dest_index, &
                                                             dest_index_t, i, i_g, j, j_g, &
                                                             row_offset, row_size
       INTEGER, DIMENSION(:), POINTER                     :: col_offsets, row_offsets
       LOGICAL                                            :: found
+      REAL(dp)                                           :: direct_sign
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: block
 
       CALL dbcsr_get_info(matrix_in, row_blk_offset=row_offsets, col_blk_offset=col_offsets)
+      direct_sign = 1.0_dp
       IF (iatom > jatom) THEN
+         direct_sign = transpose_sign
          CALL dbcsr_get_readonly_block_p(matrix_in, row=jatom, col=iatom, block=block, &
                                          row_size=row_size, col_size=col_size, found=found)
          IF (.NOT. found) RETURN
@@ -169,13 +176,13 @@ CONTAINS
       ! Do the write
       !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,i_g,j_g) &
       !$OMP SHARED(row_size, col_size, row_offset, col_offset, array_out, &
-      !$OMP dest_index, dest_index_t, block, iatom, jatom)
+      !$OMP dest_index, dest_index_t, block, iatom, jatom, direct_sign, transpose_sign)
       DO i = 1, row_size
          i_g = i + row_offset - 1
          DO j = 1, col_size
             j_g = j + col_offset - 1
-            array_out(i_g, j_g, dest_index) = block(i, j)
-            IF (iatom /= jatom) array_out(j_g, i_g, dest_index_t) = block(i, j)
+            array_out(i_g, j_g, dest_index) = direct_sign*block(i, j)
+            IF (iatom /= jatom) array_out(j_g, i_g, dest_index_t) = direct_sign*transpose_sign*block(i, j)
          END DO
       END DO
       !$OMP END PARALLEL DO
