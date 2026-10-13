@@ -152,6 +152,9 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_virial
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_load_balance'
+      ! Cap per-thread cost cache at ~16 MB (16 MB * n_threads per rank);
+      ! larger systems recompute estimate_block_cost on the second pass.
+      INTEGER(int_8), PARAMETER                          :: max_cached_quartet_costs = 2000000_int_8
 
       CHARACTER(LEN=512)                                 :: error_msg
       INTEGER :: block_size, current_block_id, data_from, dest, handle, handle_inner, &
@@ -161,10 +164,11 @@ CONTAINS
                  new_iatom_end, new_iatom_start, new_jatom_end, new_jatom_start, non_empty_blocks, &
                  objective_block_size, objective_nblocks, source, total_blocks
       TYPE(mp_request_type), DIMENSION(2) :: req
-      INTEGER(int_8) :: atom_block, cost_per_bin, cost_per_core, current_cost, &
+      INTEGER(int_8) :: atom_block, block_cost_val, cost_per_bin, cost_per_core, current_cost, &
                         distribution_counter_end, distribution_counter_start, global_quartet_counter, &
-                        local_quartet_counter, self_cost_per_block, tmp_block, total_block_self_cost
-      INTEGER(int_8), ALLOCATABLE, DIMENSION(:)          :: buffer_in, buffer_out
+                        local_quartet_counter, n_my_quartets, q_idx, &
+                        self_cost_per_block, tmp_block, total_block_self_cost
+      INTEGER(int_8), ALLOCATABLE, DIMENSION(:)          :: buffer_in, buffer_out, cached_block_cost
       INTEGER(int_8), DIMENSION(:), POINTER              :: local_cost_matrix, recbuffer, &
                                                             sendbuffer, swapbuffer
       INTEGER(int_8), DIMENSION(:), POINTER, SAVE        :: cost_matrix
@@ -464,6 +468,24 @@ CONTAINS
          cost_per_core = 0_int_8
          my_process_id = para_env%mepos*n_threads + i_thread
          nblocks = load_balance_parameter%nblocks
+         n_my_quartets = 0_int_8
+         DO atom_block = my_process_id, INT(nblocks, KIND=int_8)**4 - 1_int_8, n_processes
+            latom_block = INT(MODULO(atom_block, INT(nblocks, KIND=int_8))) + 1
+            tmp_block = atom_block/nblocks
+            katom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8))) + 1
+            IF (latom_block < katom_block) CYCLE
+            tmp_block = tmp_block/nblocks
+            jatom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8))) + 1
+            tmp_block = tmp_block/nblocks
+            iatom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8))) + 1
+            IF (jatom_block < iatom_block) CYCLE
+            n_my_quartets = n_my_quartets + 1_int_8
+            IF (n_my_quartets == max_cached_quartet_costs) EXIT
+         END DO
+         IF (n_my_quartets > 0_int_8) THEN
+            ALLOCATE (cached_block_cost(n_my_quartets))
+         END IF
+         q_idx = 0_int_8
 
          DO atom_block = my_process_id, INT(nblocks, KIND=int_8)**4 - 1, n_processes
 
@@ -476,6 +498,8 @@ CONTAINS
             tmp_block = tmp_block/nblocks
             iatom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8))) + 1
             IF (jatom_block < iatom_block) CYCLE
+
+            q_idx = q_idx + 1_int_8
 
             iatom_start = x_data%blocks(iatom_block)%istart
             iatom_end = x_data%blocks(iatom_block)%iend
@@ -499,19 +523,23 @@ CONTAINS
                                  pmax_block(katom_block, jatom_block))
             END SELECT
 
-            IF (2.0_dp*coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz) CYCLE
+            IF (2.0_dp*coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz) THEN
+               IF (q_idx <= n_my_quartets) cached_block_cost(q_idx) = -1_int_8
+               CYCLE
+            END IF
 
-            cost_per_core = cost_per_core &
-                            + estimate_block_cost(natom, nkind, list_ij, list_kl, set_list_ij, set_list_kl, &
-                                                  iatom_start, iatom_end, jatom_start, jatom_end, &
-                                                  katom_start, katom_end, latom_start, latom_end, &
-                                                  particle_set, &
-                                                  coeffs_set, coeffs_kind, &
-                                                  is_assoc_atomic_block_global, do_periodic, &
-                                                  kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
-                                                  cell, &
-                                                  do_p_screening, map_atom_to_kind_atom, eval_type, &
-                                                  log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
+            block_cost_val = estimate_block_cost(natom, nkind, list_ij, list_kl, set_list_ij, set_list_kl, &
+                                                 iatom_start, iatom_end, jatom_start, jatom_end, &
+                                                 katom_start, katom_end, latom_start, latom_end, &
+                                                 particle_set, &
+                                                 coeffs_set, coeffs_kind, &
+                                                 is_assoc_atomic_block_global, do_periodic, &
+                                                 kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
+                                                 cell, &
+                                                 do_p_screening, map_atom_to_kind_atom, eval_type, &
+                                                 log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
+            IF (q_idx <= n_my_quartets) cached_block_cost(q_idx) = block_cost_val
+            cost_per_core = cost_per_core + block_cost_val
 
          END DO ! atom_block
 
@@ -577,41 +605,47 @@ CONTAINS
 
             IF (binned_dist(ibin)%istart == -1_int_8) binned_dist(ibin)%istart = atom_block
 
-            iatom_start = x_data%blocks(iatom_block)%istart
-            iatom_end = x_data%blocks(iatom_block)%iend
-            jatom_start = x_data%blocks(jatom_block)%istart
-            jatom_end = x_data%blocks(jatom_block)%iend
-            katom_start = x_data%blocks(katom_block)%istart
-            katom_end = x_data%blocks(katom_block)%iend
-            latom_start = x_data%blocks(latom_block)%istart
-            latom_end = x_data%blocks(latom_block)%iend
+            IF (distribution_counter_end <= n_my_quartets) THEN
+               block_cost_val = cached_block_cost(distribution_counter_end)
+               IF (block_cost_val < 0_int_8) CYCLE
+               current_cost = current_cost + block_cost_val
+            ELSE
+               iatom_start = x_data%blocks(iatom_block)%istart
+               iatom_end = x_data%blocks(iatom_block)%iend
+               jatom_start = x_data%blocks(jatom_block)%istart
+               jatom_end = x_data%blocks(jatom_block)%iend
+               katom_start = x_data%blocks(katom_block)%istart
+               katom_end = x_data%blocks(katom_block)%iend
+               latom_start = x_data%blocks(latom_block)%istart
+               latom_end = x_data%blocks(latom_block)%iend
 
-            SELECT CASE (eval_type)
-            CASE (hfx_do_eval_energy)
-               pmax_blocks = MAX(pmax_block(katom_block, iatom_block), &
-                                 pmax_block(latom_block, jatom_block), &
-                                 pmax_block(latom_block, iatom_block), &
-                                 pmax_block(katom_block, jatom_block))
-            CASE (hfx_do_eval_forces)
-               pmax_blocks = MAX(pmax_block(katom_block, iatom_block) + &
-                                 pmax_block(latom_block, jatom_block), &
-                                 pmax_block(latom_block, iatom_block) + &
-                                 pmax_block(katom_block, jatom_block))
-            END SELECT
+               SELECT CASE (eval_type)
+               CASE (hfx_do_eval_energy)
+                  pmax_blocks = MAX(pmax_block(katom_block, iatom_block), &
+                                    pmax_block(latom_block, jatom_block), &
+                                    pmax_block(latom_block, iatom_block), &
+                                    pmax_block(katom_block, jatom_block))
+               CASE (hfx_do_eval_forces)
+                  pmax_blocks = MAX(pmax_block(katom_block, iatom_block) + &
+                                    pmax_block(latom_block, jatom_block), &
+                                    pmax_block(latom_block, iatom_block) + &
+                                    pmax_block(katom_block, jatom_block))
+               END SELECT
 
-            IF (2.0_dp*coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz) CYCLE
+               IF (2.0_dp*coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz) CYCLE
 
-            current_cost = current_cost &
-                           + estimate_block_cost(natom, nkind, list_ij, list_kl, set_list_ij, set_list_kl, &
-                                                 iatom_start, iatom_end, jatom_start, jatom_end, &
-                                                 katom_start, katom_end, latom_start, latom_end, &
-                                                 particle_set, &
-                                                 coeffs_set, coeffs_kind, &
-                                                 is_assoc_atomic_block_global, do_periodic, &
-                                                 kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
-                                                 cell, &
-                                                 do_p_screening, map_atom_to_kind_atom, eval_type, &
-                                                 log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
+               current_cost = current_cost &
+                              + estimate_block_cost(natom, nkind, list_ij, list_kl, set_list_ij, set_list_kl, &
+                                                    iatom_start, iatom_end, jatom_start, jatom_end, &
+                                                    katom_start, katom_end, latom_start, latom_end, &
+                                                    particle_set, &
+                                                    coeffs_set, coeffs_kind, &
+                                                    is_assoc_atomic_block_global, do_periodic, &
+                                                    kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
+                                                    cell, &
+                                                    do_p_screening, map_atom_to_kind_atom, eval_type, &
+                                                    log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
+            END IF
 
             IF (current_cost >= cost_per_bin) THEN
                IF (ibin == nbins) THEN
@@ -627,6 +661,7 @@ CONTAINS
                last_bin_needs_to_be_filled = .FALSE.
             END IF
          END DO
+         IF (ALLOCATED(cached_block_cost)) DEALLOCATE (cached_block_cost)
 
 !$OMP BARRIER
 !$OMP MASTER
