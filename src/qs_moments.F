@@ -159,7 +159,7 @@ CONTAINS
 !> \param basis_type ...
 !> \param all_images accumulate all neighbor images belonging to one atom pair
 !> \param minimum_image apply the half-cell image filter
-!> \param neighbor_image use the neighbor-list image vector for one atom-pair representative
+!> \param neighbor_image preserve the neighbor-list image geometry
 !> \param first_component first Cartesian moment component to write
 ! **************************************************************************************************
    SUBROUTINE build_local_moment_matrix(qs_env, moments, nmoments, ref_point, ref_points, basis_type, &
@@ -208,7 +208,6 @@ CONTAINS
       IF (PRESENT(minimum_image)) my_minimum_image = minimum_image
       my_neighbor_image = .FALSE.
       IF (PRESENT(neighbor_image)) my_neighbor_image = neighbor_image
-      CPASSERT(.NOT. (my_all_images .AND. my_neighbor_image))
 
       nm = (6 + 11*nmoments + 6*nmoments**2 + nmoments**3)/6 - 1
       CPASSERT(SIZE(moments) >= nm)
@@ -331,7 +330,11 @@ CONTAINS
                ra(:) = pbc(particle_set(iatom)%r(:), cell)
                rb(:) = ra(:) + rab(:)
                rac(:) = pbc(rc, ra, cell)
-               rbc(:) = pbc(rc, rb, cell)
+               IF (my_neighbor_image) THEN
+                  rbc(:) = rac(:) + rab(:)
+               ELSE
+                  rbc(:) = pbc(rc, rb, cell)
+               END IF
                dab = NORM2(rab)
             ELSE IF (my_neighbor_image) THEN
                ! Keep the neighbor-list image while selecting one atom-pair representative.
@@ -1953,7 +1956,7 @@ CONTAINS
       INTEGER                                            :: akind, handle, i, ia, iatom, idir, &
                                                             ikind, ispin, ix, iy, iz, l, nm, nmom, &
                                                             order
-      LOGICAL                                            :: my_com_nl, my_velreprs
+      LOGICAL                                            :: my_com_nl, my_velreprs, use_periodic_images
       REAL(dp)                                           :: charge, dd, strace, trace
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mmom, nlcom_rrv, nlcom_rrv_vrr, &
                                                             nlcom_rv, nlcom_rvr, nlcom_rxrv, &
@@ -2055,7 +2058,10 @@ CONTAINS
          END DO
          CALL build_local_moments_der_matrix(qs_env, moments_der, 1, 2, ref_point=rcc, moments=moments)
       ELSE
-         CALL build_local_moment_matrix(qs_env, moments, nmom, ref_point=rcc)
+         ! In non-periodic directions the moment must include the same images as the overlap.
+         use_periodic_images = ANY(cell%perd /= 0) .AND. ANY(cell%perd == 0)
+         CALL build_local_moment_matrix(qs_env, moments, nmom, ref_point=rcc, &
+                                        all_images=use_periodic_images, neighbor_image=use_periodic_images)
       END IF
 
       CALL qs_rho_get(rho, rho_ao=rho_ao)
@@ -2273,6 +2279,11 @@ CONTAINS
       CALL cp_results_erase(results=results, description=description)
       CALL put_results(results=results, description=description, &
                        values=rmom(2:4, 3))
+
+      IF (unit_number > 0 .AND. ANY(cell%perd /= 0) .AND. ANY(cell%perd == 0)) THEN
+         WRITE (unit_number, "(T3,A)") &
+            "Only dipole components perpendicular to the periodic lattice vectors are well-defined."
+      END IF
 
       IF (magnetic .AND. my_velreprs) THEN
          CALL print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic=.FALSE., mmom=mmom, rmom_vel=rmom_vel)

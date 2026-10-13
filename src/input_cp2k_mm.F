@@ -2930,7 +2930,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, &
                           name="PERIODIC", &
                           description="Use Berry phase formula (PERIODIC=T) or simple operator (PERIODIC=F). "// &
-                          "The latter normally requires that the CELL is periodic NONE.", &
+                          "For the simple dipole operator, only components perpendicular to the periodic "// &
+                          "lattice vectors are well-defined. All components are well-defined for CELL PERIODIC NONE.", &
                           usage="PERIODIC {logical}", &
                           repeats=.FALSE., &
                           n_var=1, &
