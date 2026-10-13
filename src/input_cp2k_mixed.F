@@ -359,6 +359,8 @@ CONTAINS
       ! Multiple force_eval
       CALL create_function_section(subsection, "GENERIC", "MIXING_FUNCTION", &
                                    description="User driven coupling between two or more force_eval. "// &
+                                   "This is also required if a free energy calculation with the alchemical "// &
+                                   "change method is requested with MOTION/FREE_ENERGY/ALCHEMICAL_CHANGE. "// &
                                    "To allow an efficient mapping the order of the energy variables "// &
                                    "will be considered identical to the order of the force_eval in "// &
                                    "the force_eval_order list.", do_deriv=.TRUE.)

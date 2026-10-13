@@ -90,7 +90,7 @@ CONTAINS
             IF (LEN_TRIM(t_region%temperature_function) > 0) THEN
                CALL initf(1)
                CALL parsef(1, TRIM(t_region%temperature_function), t_region%temperature_function_parameters)
-               t_region%temperature_function_values(1) = itimes*1.0_dp
+               t_region%temperature_function_values(1) = REAL(itimes, KIND=dp)
                t_region%temperature_function_values(2) = t_region%temperature
                t_region%temp_expected = cp_unit_to_cp2k(evalf(1, t_region%temperature_function_values), "K")
                CPASSERT(EvalErrType <= 0)

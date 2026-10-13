@@ -15,7 +15,8 @@
 !> \author Roland Schmehl <Roland.Schmehl@mach.uni-karlsruhe.de>
 ! **************************************************************************************************
 MODULE fparser
-   USE kinds,                           ONLY: default_string_length,&
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               rn => dp
 #include "../base/base_uses.f90"
 
@@ -1153,11 +1154,14 @@ CONTAINS
       !----- -------- --------- --------- --------- --------- --------- --------- -------
       CHARACTER(LEN=:), ALLOCATABLE                      :: doc
 
+      CHARACTER(LEN=default_string_length)               :: length
       INTEGER                                            :: i
 
 !----- -------- --------- --------- --------- --------- --------- --------- -------
 
-      doc = "A functional form is specified. Mathematical Operators recognized are "
+      WRITE (UNIT=length, FMT="(I8)") default_path_length
+      doc = "Specifies a functional form. The maximum length is "//TRIM(ADJUSTL(length))//" characters."
+      doc = doc//"Mathematical Operators recognized are "
       DO i = cAdd, cPow
          IF (i > cAdd) doc = doc//", "
          doc = doc//Ops(i)

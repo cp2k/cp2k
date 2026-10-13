@@ -1872,7 +1872,7 @@ CONTAINS
    END SUBROUTINE create_colvar_dpath_section
 
 ! **************************************************************************************************
-!> \brief Section describinf keywords for both reaction path and distance from reaction path
+!> \brief Section describing keywords for both reaction path and distance from reaction path
 !> \param section the section to be created
 !> \author 01.2010
 ! **************************************************************************************************
