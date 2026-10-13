@@ -33,6 +33,7 @@ MODULE mp2_types
    USE kpoint_types,                    ONLY: kpoint_type
    USE libint_2c_3c,                    ONLY: libint_potential_type
    USE local_gemm_api,                  ONLY: local_gemm_ctxt_type
+   USE matrix_communication,            ONLY: integ_mat_buffer_type => matrix_buffer_type
    USE message_passing,                 ONLY: mp_request_type
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
@@ -384,14 +385,6 @@ MODULE mp2_types
                                                             e_range = 0.0_dp
       LOGICAL                                            :: ri_aux_auto_generated = .FALSE.
    END TYPE mp2_type
-
-   TYPE integ_mat_buffer_type
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: msg
-      INTEGER, DIMENSION(:), ALLOCATABLE                 :: sizes
-      INTEGER, DIMENSION(:, :), ALLOCATABLE              :: indx
-      INTEGER                                            :: proc = -1
-      TYPE(mp_request_type)                              :: msg_req = mp_request_type()
-   END TYPE integ_mat_buffer_type
 
    TYPE integ_mat_buffer_type_2D
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: msg

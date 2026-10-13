@@ -14,10 +14,13 @@ MODULE rpa_grad
    USE cp_array_utils,                  ONLY: cp_1d_r_cp_type,&
                                               cp_3d_r_cp_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_dbcsr_redistribution,         ONLY: cp_array_to_dbcsr_slices
    USE cp_fm_basic_linalg,              ONLY: cp_fm_add_on_diag,&
                                               cp_fm_geadd,&
                                               cp_fm_scale_and_add
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_invert
+   USE cp_fm_redistribution,            ONLY: cp_array_to_fm,&
+                                              cp_fm_to_array
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_get,&
                                               cp_fm_struct_release,&
@@ -55,10 +58,6 @@ MODULE rpa_grad
                                               mp_waitall,&
                                               mp_waitany
    USE mp2_laplace,                     ONLY: calc_fm_mat_s_laplace
-   USE mp2_ri_grad_util,                ONLY: array2fm,&
-                                              create_dbcsr_gamma,&
-                                              fm2array,&
-                                              prepare_redistribution
    USE mp2_types,                       ONLY: mp2_type,&
                                               one_dim_int_array,&
                                               two_dim_int_array,&
@@ -2031,9 +2030,7 @@ CONTAINS
 
       INTEGER :: dimen_ia, dimen_RI, handle, iiB, ispin, my_group_L_end, my_group_L_size, &
          my_group_L_start, my_ia_end, my_ia_size, my_ia_start, my_P_end, my_P_size, my_P_start, &
-         ngroup, nspins, pos_group, pos_sub, proc
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pos_info
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: group_grid_2_mepos, mepos_2_grid_group
+         nspins
       REAL(KIND=dp)                                      :: my_scale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Gamma_2D
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -2041,7 +2038,7 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: fm_G_P_ia, fm_PQ, fm_PQ_2, fm_PQ_half, &
                                                             fm_work_PQ, fm_work_PQ_2, fm_Y, &
                                                             operator_half
-      TYPE(group_dist_d1_type)                           :: gd_array_new, gd_ia, gd_P, gd_P_new
+      TYPE(group_dist_d1_type)                           :: gd_ia, gd_P
 
       CALL timeset(routineN, handle)
 
@@ -2083,51 +2080,21 @@ CONTAINS
       ! We still have to left- and right multiply it with PQhalf
       CALL dereplicate_and_sum_fm(rpa_grad%fm_Gamma_PQ, fm_PQ)
 
-      ngroup = para_env%num_pe/para_env_sub%num_pe
-
-      CALL prepare_redistribution(para_env, para_env_sub, ngroup, &
-                                  group_grid_2_mepos, mepos_2_grid_group, pos_info=pos_info)
-
       ! Create fm_PQ_half
       CALL create_group_dist(gd_P, para_env_sub%num_pe, dimen_RI)
       CALL get_group_dist(gd_P, para_env_sub%mepos, my_P_start, my_P_end, my_P_size)
 
       CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
 
-      CALL create_group_dist(gd_P_new, para_env%num_pe)
-      CALL create_group_dist(gd_array_new, para_env%num_pe)
-
-      DO proc = 0, para_env%num_pe - 1
-         ! calculate position of the group
-         pos_group = proc/para_env_sub%num_pe
-         ! calculate position in the subgroup
-         pos_sub = pos_info(proc)
-         ! 1 -> rows, 2 -> cols
-         CALL get_group_dist(gd_array, pos_group, gd_array_new, proc)
-         CALL get_group_dist(gd_P, pos_sub, gd_P_new, proc)
-      END DO
-
-      DEALLOCATE (pos_info)
       CALL release_group_dist(gd_P)
 
-      CALL array2fm(mp2_env%ri_grad%PQ_half, fm_PQ%matrix_struct, &
-                    my_P_start, my_P_end, &
-                    my_group_L_start, my_group_L_end, &
-                    gd_P_new, gd_array_new, &
-                    group_grid_2_mepos, para_env_sub%num_pe, ngroup, &
-                    fm_PQ_half)
+      CALL cp_array_to_fm(mp2_env%ri_grad%PQ_half, fm_PQ%matrix_struct, my_P_start, my_P_end, &
+                          my_group_L_start, my_group_L_end, fm_PQ_half)
 
       IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
-         CALL array2fm(mp2_env%ri_grad%operator_half, fm_PQ%matrix_struct, my_P_start, my_P_end, &
-                       my_group_L_start, my_group_L_end, &
-                       gd_P_new, gd_array_new, &
-                       group_grid_2_mepos, para_env_sub%num_pe, ngroup, &
-                       operator_half)
+         CALL cp_array_to_fm(mp2_env%ri_grad%operator_half, fm_PQ%matrix_struct, my_P_start, my_P_end, &
+                             my_group_L_start, my_group_L_end, operator_half)
       END IF
-
-      ! deallocate the info array
-      CALL release_group_dist(gd_P_new)
-      CALL release_group_dist(gd_array_new)
 
       IF (compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
 ! Finish Gamma_PQ
@@ -2160,21 +2127,12 @@ CONTAINS
          CALL cp_fm_release(fm_work_PQ)
       END IF
 
-      ALLOCATE (mp2_env%ri_grad%Gamma_PQ(my_P_size, my_group_L_size))
-      CALL fm2array(mp2_env%ri_grad%Gamma_PQ, &
-                    my_P_start, my_P_end, &
-                    my_group_L_start, my_group_L_end, &
-                    group_grid_2_mepos, mepos_2_grid_group, &
-                    para_env_sub%num_pe, ngroup, &
-                    fm_PQ)
+      CALL cp_fm_to_array(mp2_env%ri_grad%Gamma_PQ, my_P_start, my_P_end, my_group_L_start, my_group_L_end, &
+                          fm_PQ)
 
       IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
-         ALLOCATE (mp2_env%ri_grad%Gamma_PQ_2(my_P_size, my_group_L_size))
-         CALL fm2array(mp2_env%ri_grad%Gamma_PQ_2, my_P_start, my_P_end, &
-                       my_group_L_start, my_group_L_end, &
-                       group_grid_2_mepos, mepos_2_grid_group, &
-                       para_env_sub%num_pe, ngroup, &
-                       fm_PQ_2)
+         CALL cp_fm_to_array(mp2_env%ri_grad%Gamma_PQ_2, my_P_start, my_P_end, my_group_L_start, &
+                             my_group_L_end, fm_PQ_2)
       END IF
 
 ! Now, Gamma_Pia
@@ -2212,16 +2170,13 @@ CONTAINS
          CALL create_group_dist(gd_ia, para_env_sub%num_pe, dimen_ia)
          CALL get_group_dist(gd_ia, para_env_sub%mepos, my_ia_start, my_ia_end, my_ia_size)
 
-         CALL fm2array(Gamma_2D, my_ia_start, my_ia_end, &
-                       my_group_L_start, my_group_L_end, &
-                       group_grid_2_mepos, mepos_2_grid_group, &
-                       para_env_sub%num_pe, ngroup, &
-                       fm_G_P_ia)
+         CALL cp_fm_to_array(Gamma_2D, my_ia_start, my_ia_end, my_group_L_start, my_group_L_end, fm_G_P_ia)
 
          ! create the Gamma_ia_P in DBCSR style
-         CALL create_dbcsr_gamma(Gamma_2D, homo(ispin), virtual(ispin), dimen_ia, para_env_sub, &
-                                 my_ia_start, my_ia_end, my_group_L_size, gd_ia, &
-                                 mp2_env%ri_grad%G_P_ia(:, ispin), mp2_env%ri_grad%mo_coeff_o(ispin)%matrix)
+         CALL cp_array_to_dbcsr_slices(Gamma_2D, homo(ispin), virtual(ispin), para_env_sub, my_ia_start, &
+                                       my_ia_end, &
+                                       mp2_env%ri_grad%mo_coeff_o(ispin)%matrix, &
+                                       matrix_ptrs=mp2_env%ri_grad%G_P_ia(:, ispin))
 
          CALL release_group_dist(gd_ia)
 

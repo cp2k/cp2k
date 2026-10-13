@@ -12,8 +12,7 @@
 ! **************************************************************************************************
 MODULE bse_properties
    USE bse_types,                       ONLY: bse_env_type
-   USE bse_util,                        ONLY: fm_general_add_bse,&
-                                              print_bse_nto_cubes,&
+   USE bse_util,                        ONLY: print_bse_nto_cubes,&
                                               reshuffle_eigvec,&
                                               trace_exciton_descr
    USE cp_files,                        ONLY: close_file,&
@@ -21,6 +20,7 @@ MODULE bse_properties
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                               cp_fm_trace
    USE cp_fm_diag,                      ONLY: cp_fm_svd
+   USE cp_fm_redistribution,            ONLY: cp_fm_permute
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -92,16 +92,13 @@ CONTAINS
 !> \param oscill_str Oscillator strength per excitation level
 !> \param polarizability_residues Residues of polarizability ("tensorial oscillator strength")
 !>          per excitation level
-!> \param bse_env the BSE environment (settings)
 !> \param homo_red ...
 !> \param virtual_red ...
-!> \param unit_nr ...
 !> \param fm_eigvec_Y ...
 ! **************************************************************************************************
    SUBROUTINE get_oscillator_strengths(fm_eigvec_X, Exc_ens, fm_dipole_ai_trunc, &
                                        trans_mom_bse, oscill_str, polarizability_residues, &
-                                       bse_env, homo_red, virtual_red, unit_nr, &
-                                       fm_eigvec_Y)
+                                       homo_red, virtual_red, fm_eigvec_Y)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec_X
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -113,8 +110,7 @@ CONTAINS
          INTENT(OUT)                                     :: oscill_str
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: polarizability_residues
-      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
-      INTEGER, INTENT(IN)                                :: homo_red, virtual_red, unit_nr
+      INTEGER, INTENT(IN)                                :: homo_red, virtual_red
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_eigvec_Y
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_oscillator_strengths'
@@ -144,10 +140,8 @@ CONTAINS
          CALL cp_fm_create(fm_dipole_MO_trunc_reordered(idir), matrix_struct=fm_struct_dipole_MO_trunc_reordered, &
                            name="dipoles_mo_reordered")
          CALL cp_fm_set_all(fm_dipole_MO_trunc_reordered(idir), 0.0_dp)
-         CALL fm_general_add_bse(fm_dipole_MO_trunc_reordered(idir), fm_dipole_ai_trunc(idir), 1.0_dp, &
-                                 1, 1, &
-                                 1, virtual_red, &
-                                 unit_nr, [2, 4, 3, 1], bse_env)
+         CALL cp_fm_permute(fm_dipole_MO_trunc_reordered(idir), fm_dipole_ai_trunc(idir), 1.0_dp, 1, 1, 1, &
+                            virtual_red, [2, 4, 3, 1])
          CALL cp_fm_release(fm_dipole_per_dir(idir))
       END DO
 
@@ -579,8 +573,7 @@ CONTAINS
          CALL cp_fm_set_all(fm_nto_coeff_particles, 0.0_dp)
 
          ! Reshuffle from X_ia,n_exc to X_i,a
-         CALL reshuffle_eigvec(fm_X, fm_X_ia, homo, virtual, n_exc, &
-                               .FALSE., unit_nr, bse_env)
+         CALL reshuffle_eigvec(fm_X, fm_X_ia, homo, virtual, n_exc, .FALSE.)
 
          ! Copy X to upper block in M, i.e. starting from column homo+1
          CALL cp_fm_to_fm_submat(fm_X_ia, fm_m, &
@@ -591,8 +584,7 @@ CONTAINS
          ! Copy Y if present
          IF (PRESENT(fm_Y)) THEN
             ! Reshuffle from Y_ia,n_exc to Y_a,i
-            CALL reshuffle_eigvec(fm_Y, fm_Y_ai, homo, virtual, n_exc, &
-                                  .TRUE., unit_nr, bse_env)
+            CALL reshuffle_eigvec(fm_Y, fm_Y_ai, homo, virtual, n_exc, .TRUE.)
 
             ! Copy Y^T to lower block in M, i.e. starting from row homo+1
             CALL cp_fm_to_fm_submat(fm_Y_ai, fm_m, &

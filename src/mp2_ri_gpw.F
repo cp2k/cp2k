@@ -644,12 +644,9 @@ CONTAINS
 
          ! B_ia_Q(ispin)%array will be deallocated inside of complete_gamma
          DO ispin = 1, nspins
-            CALL complete_gamma(mp2_env, B_ia_Q(ispin)%array, dimen_RI, homo(ispin), &
-                                virtual(ispin), para_env, para_env_sub, ngroup, &
-                                my_group_L_size, my_group_L_start, my_group_L_end, &
-                                my_B_size(ispin), my_B_virtual_start(ispin), &
-                                gd_array, gd_B_virtual(ispin), &
-                                ispin)
+            CALL complete_gamma(mp2_env, B_ia_Q(ispin)%array, dimen_RI, homo(ispin), virtual(ispin), &
+                                para_env, para_env_sub, my_group_L_size, my_group_L_start, my_group_L_end, &
+                                my_B_size(ispin), my_B_virtual_start(ispin), gd_B_virtual(ispin), ispin)
          END DO
          DEALLOCATE (B_ia_Q)
 

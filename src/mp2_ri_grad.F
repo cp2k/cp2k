@@ -684,7 +684,7 @@ CONTAINS
       TYPE(integ_mat_buffer_type_2D), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_cyclic
       TYPE(mp_para_env_type), POINTER                    :: para_env_exchange
-      TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: req_send
+      TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: req_rec, req_send
 
       CALL timeset(routineN, handle)
 
@@ -872,7 +872,6 @@ CONTAINS
             ! allocate the sending buffer (msg)
             ALLOCATE (buffer_send(send_counter)%msg(size_send_buffer))
             buffer_send(send_counter)%msg = 0.0_dp
-            buffer_send(send_counter)%proc = proc_send
             proc_2_send_pos(proc_send) = send_counter
          END IF
       END DO
@@ -924,7 +923,8 @@ CONTAINS
             number_of_rec = number_of_rec + 1
          END IF
       END DO
-      ALLOCATE (buffer_rec(number_of_rec))
+      ALLOCATE (buffer_rec(number_of_rec), req_rec(number_of_rec))
+      req_rec = mp_request_null
       rec_counter = 0
       DO proc_shift = 0, para_env_sub%num_pe - 1
          proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
@@ -934,11 +934,10 @@ CONTAINS
             ! prepare the buffer for receive
             ALLOCATE (buffer_rec(rec_counter)%msg(size_rec_buffer))
             buffer_rec(rec_counter)%msg = 0.0_dp
-            buffer_rec(rec_counter)%proc = proc_receive
             ! post the message to be received (not need to send to myself)
             IF (proc_receive /= para_env_sub%mepos) THEN
                CALL para_env_sub%irecv(buffer_rec(rec_counter)%msg, proc_receive, &
-                                       buffer_rec(rec_counter)%msg_req)
+                                       req_rec(rec_counter))
             END IF
          END IF
       END DO
@@ -954,8 +953,7 @@ CONTAINS
                buffer_rec(send_counter)%msg(:) = buffer_send(send_counter)%msg
             ELSE
                CALL para_env_sub%isend(buffer_send(send_counter)%msg, proc_send, &
-                                       buffer_send(send_counter)%msg_req)
-               req_send(send_counter) = buffer_send(send_counter)%msg_req
+                                       req_send(send_counter))
             END IF
          END IF
       END DO
@@ -985,7 +983,7 @@ CONTAINS
             rec_counter = rec_counter + 1
 
             ! wait for the message
-            IF (proc_receive /= para_env_sub%mepos) CALL buffer_rec(rec_counter)%msg_req%wait()
+            IF (proc_receive /= para_env_sub%mepos) CALL req_rec(rec_counter)%wait()
 
             CALL timeset(routineN//"_fill", handle3)
             iii = 0
@@ -1028,7 +1026,7 @@ CONTAINS
       DEALLOCATE (col_indeces_info_1i)
       DEALLOCATE (row_indeces_info_2a)
       DEALLOCATE (col_indeces_info_2a)
-      DEALLOCATE (buffer_rec)
+      DEALLOCATE (buffer_rec, req_rec)
       DEALLOCATE (map_rec_size)
       CALL timestop(handle2)
 

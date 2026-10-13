@@ -47,7 +47,6 @@ MODULE rpa_gw_static_cohsex
                                               Tyagi2024,&
                                               Tyagi2026,&
                                               cite_reference
-   USE bse_util,                        ONLY: fm_general_add_bse
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_release_p,&
@@ -57,6 +56,7 @@ MODULE rpa_gw_static_cohsex
                                               cp_fm_column_scale
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
+   USE cp_fm_redistribution,            ONLY: cp_fm_permute
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -158,7 +158,7 @@ CONTAINS
       CHARACTER(LEN=3)                                   :: occ_vir
       CHARACTER(LEN=40)                                  :: cohsex_label
       INTEGER                                            :: handle, ispin, m, n, n_mo_win, no, &
-                                                            nspins, nv, p, unit_debug, win_start
+                                                            nspins, nv, p, win_start
       LOGICAL                                            :: qp_update
       REAL(KIND=dp)                                      :: shift_occ, shift_virt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_can, e_diag, e_qp, scale_vec
@@ -194,8 +194,6 @@ CONTAINS
       CALL cp_fm_release(fm_work)
       CALL cp_fm_add_on_diag(fm_mat_Q, -1.0_dp, n_active=dimen_RI)
 
-      unit_debug = unit_nr
-
       DO ispin = 1, nspins
 
          no = gw_corr_lev_occ(ispin)
@@ -229,7 +227,7 @@ CONTAINS
          !      B'_(p,P),m      = B^P_mp
          !      (W^c B)'_(p,P),m = (W^c B)^P_mp
          !    row index (p-1)*dimen_RI + P, P fast: the occupied p (p <= homo) are the
-         !    first homo*dimen_RI rows. fm_general_add_bse maps the input indices
+         !    first homo*dimen_RI rows. cp_fm_permute maps the input indices
          !    (P,1 ; m,p) with reordering [4,1,3,2] to (p,P ; m,1).
          ! ==============================================================================
          NULLIFY (fm_struct_B_re)
@@ -238,10 +236,8 @@ CONTAINS
          CALL cp_fm_create(fm_B_re, fm_struct_B_re, name="static_cohsex_B_reordered", set_zero=.TRUE.)
          CALL cp_fm_create(fm_WB_re, fm_struct_B_re, name="static_cohsex_WB_reordered", set_zero=.TRUE.)
          CALL cp_fm_struct_release(fm_struct_B_re)
-         CALL fm_general_add_bse(fm_B_re, fm_mat_S_gw(ispin), 1.0_dp, 1, nmo, dimen_RI, 1, &
-                                 unit_debug, [4, 1, 3, 2], mp2_env%bse)
-         CALL fm_general_add_bse(fm_WB_re, fm_mat_S_gw_work(ispin), 1.0_dp, 1, nmo, dimen_RI, 1, &
-                                 unit_debug, [4, 1, 3, 2], mp2_env%bse)
+         CALL cp_fm_permute(fm_B_re, fm_mat_S_gw(ispin), 1.0_dp, 1, nmo, dimen_RI, 1, [4, 1, 3, 2])
+         CALL cp_fm_permute(fm_WB_re, fm_mat_S_gw_work(ispin), 1.0_dp, 1, nmo, dimen_RI, 1, [4, 1, 3, 2])
 
          NULLIFY (fm_struct_win)
          CALL cp_fm_struct_create(fm_struct_win, template_fmstruct=fm_mat_S_gw(ispin)%matrix_struct, &
@@ -694,28 +690,24 @@ CONTAINS
 !> \param n_inner ...
 !> \param u_outer ...
 !> \param u_inner ...
-!> \param mp2_env ...
 ! **************************************************************************************************
-   SUBROUTINE rotate_bse_slab(fm_slab, dimen_RI, n_outer, n_inner, u_outer, u_inner, mp2_env)
+   SUBROUTINE rotate_bse_slab(fm_slab, dimen_RI, n_outer, n_inner, u_outer, u_inner)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_slab
       INTEGER, INTENT(IN)                                :: dimen_RI, n_outer, n_inner
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: u_outer, u_inner
-      TYPE(mp2_type)                                     :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rotate_bse_slab'
 
-      INTEGER                                            :: handle, unit_debug
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
-      unit_debug = -1
-
       ! (a) inner index: (P ; o,i) -> (P,o ; i), P fast, reordering [3,1,2,4] and back [3,2,1,4]
       CALL rotate_one_index(fm_slab, dimen_RI, n_outer, n_inner, u_inner, [3, 1, 2, 4], [3, 2, 1, 4], &
-                            n_inner, unit_debug, mp2_env)
+                            n_inner)
       ! (b) outer index: (P ; o,i) -> (P,i ; o), P fast, reordering [4,1,2,3] and back [3,2,4,1]
       CALL rotate_one_index(fm_slab, dimen_RI, n_inner, n_outer, u_outer, [4, 1, 2, 3], [3, 2, 4, 1], &
-                            n_inner, unit_debug, mp2_env)
+                            n_inner)
 
       CALL timestop(handle)
 
@@ -731,18 +723,14 @@ CONTAINS
 !> \param reord_to ...
 !> \param reord_back ...
 !> \param n_inner size ...
-!> \param unit_debug ...
-!> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE rotate_one_index(fm_slab, dimen_RI, n_spect, n_rot, u_rot, reord_to, reord_back, &
-                               n_inner, unit_debug, mp2_env)
+                               n_inner)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_slab
       INTEGER, INTENT(IN)                                :: dimen_RI, n_spect, n_rot
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: u_rot
       INTEGER, DIMENSION(4)                              :: reord_to, reord_back
       INTEGER, INTENT(IN)                                :: n_inner
-      INTEGER                                            :: unit_debug
-      TYPE(mp2_type)                                     :: mp2_env
 
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_slab_out, fm_t, fm_t_rot, fm_u
@@ -753,8 +741,7 @@ CONTAINS
       CALL cp_fm_create(fm_t, fm_struct, name="static_cohsex_slab_reordered", set_zero=.TRUE.)
       CALL cp_fm_create(fm_t_rot, fm_struct, name="static_cohsex_slab_rotated", set_zero=.TRUE.)
       CALL cp_fm_struct_release(fm_struct)
-      CALL fm_general_add_bse(fm_t, fm_slab, 1.0_dp, 1, n_inner, dimen_RI, n_rot, &
-                              unit_debug, reord_to, mp2_env%bse)
+      CALL cp_fm_permute(fm_t, fm_slab, 1.0_dp, 1, n_inner, dimen_RI, n_rot, reord_to)
 
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, template_fmstruct=fm_slab%matrix_struct, &
@@ -768,8 +755,7 @@ CONTAINS
       CALL cp_fm_release(fm_t)
 
       CALL cp_fm_create(fm_slab_out, fm_slab%matrix_struct, name="static_cohsex_slab_back", set_zero=.TRUE.)
-      CALL fm_general_add_bse(fm_slab_out, fm_t_rot, 1.0_dp, dimen_RI, n_rot, 1, n_inner, &
-                              unit_debug, reord_back, mp2_env%bse)
+      CALL cp_fm_permute(fm_slab_out, fm_t_rot, 1.0_dp, dimen_RI, n_rot, 1, n_inner, reord_back)
       CALL cp_fm_to_fm(fm_slab_out, fm_slab)
       CALL cp_fm_release(fm_slab_out)
       CALL cp_fm_release(fm_t_rot)

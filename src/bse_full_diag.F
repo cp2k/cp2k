@@ -25,7 +25,6 @@ MODULE bse_full_diag
    USE bse_types,                       ONLY: bse_env_type
    USE bse_util,                        ONLY: assemble_joint_ov_slab,&
                                               comp_eigvec_coeff_BSE,&
-                                              fm_general_add_bse,&
                                               get_bse_spin_block_layout,&
                                               get_multipoles_mo,&
                                               occ_of_ia,&
@@ -39,6 +38,7 @@ MODULE bse_full_diag
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
                                               cp_fm_power
+   USE cp_fm_redistribution,            ONLY: cp_fm_permute
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -225,12 +225,10 @@ CONTAINS
                                matrix_a=fm_S_bar_ij(isp), matrix_b=fm_S_ab(isp), &
                                beta=0.0_dp, matrix_c=fm_W)
             reordering = [1, 3, 2, 4]
-            CALL fm_general_add_bse(fm_A, fm_W, -1.0_dp, homo(isp), virtual(isp), &
-                                    virtual(isp), virtual(isp), unit_nr, reordering, bse_env, &
-                                    row_offset=offsets(isp), col_offset=offsets(isp))
+            CALL cp_fm_permute(fm_A, fm_W, -1.0_dp, homo(isp), virtual(isp), virtual(isp), virtual(isp), reordering, &
+                               row_offset=offsets(isp), col_offset=offsets(isp))
             IF (nspins == 1 .AND. tddfpt_control%do_bse_w_only) THEN
-               CALL fm_general_add_bse(fm_A_copy, fm_W, -1.0_dp, homo(1), virtual(1), &
-                                       virtual(1), virtual(1), unit_nr, reordering, bse_env)
+               CALL cp_fm_permute(fm_A_copy, fm_W, -1.0_dp, homo(1), virtual(1), virtual(1), virtual(1), reordering)
             END IF
             ! W and A stash for TDDFPT path (closed-shell only; open-shell deferred)
             IF (nspins == 1) THEN
@@ -422,9 +420,8 @@ CONTAINS
                                matrix_a=fm_S_bar_ia(isp), matrix_b=fm_S_ia(isp), &
                                beta=0.0_dp, matrix_c=fm_W)
             reordering = [1, 4, 3, 2]
-            CALL fm_general_add_bse(fm_B, fm_W, -1.0_dp, virtual(isp), virtual(isp), &
-                                    virtual(isp), virtual(isp), unit_nr, reordering, bse_env, &
-                                    row_offset=offsets(isp), col_offset=offsets(isp))
+            CALL cp_fm_permute(fm_B, fm_W, -1.0_dp, virtual(isp), virtual(isp), virtual(isp), virtual(isp), &
+                               reordering, row_offset=offsets(isp), col_offset=offsets(isp))
             CALL cp_fm_release(fm_W)
             CALL cp_fm_struct_release(fm_struct_W)
          END DO
@@ -908,8 +905,7 @@ CONTAINS
          DO idir = 1, 3
             CALL cp_fm_create(fm_dip_reord_sp, fm_struct_dip_reord, name="bse_dip_reord")
             CALL cp_fm_set_all(fm_dip_reord_sp, 0.0_dp)
-            CALL fm_general_add_bse(fm_dip_reord_sp, fm_dip_ai_sp(idir), 1.0_dp, &
-                                    1, 1, 1, virtual(isp), unit_nr, [2, 4, 3, 1], bse_env)
+            CALL cp_fm_permute(fm_dip_reord_sp, fm_dip_ai_sp(idir), 1.0_dp, 1, 1, 1, virtual(isp), [2, 4, 3, 1])
             CALL parallel_gemm('N', 'N', 1, n_ov_joint, n_ov_sp(isp), 1.0_dp, &
                                fm_dip_reord_sp, fm_eigvec_sp, 1.0_dp, fm_trans_mom_joint(idir))
             CALL cp_fm_release(fm_dip_reord_sp)
@@ -1035,11 +1031,9 @@ CONTAINS
          ! Iterate over excitation index outside of routine to make it compatible with tddft module
          ALLOCATE (exc_descr(bse_env%num_print_exc_descr))
          DO i_exc = 1, bse_env%num_print_exc_descr
-            CALL reshuffle_eigvec(fm_eigvec_X, fm_X_ia, homo, virtual, i_exc, &
-                                  .FALSE., unit_nr, bse_env)
+            CALL reshuffle_eigvec(fm_eigvec_X, fm_X_ia, homo, virtual, i_exc, .FALSE.)
             IF (.NOT. flag_TDA) THEN
-               CALL reshuffle_eigvec(fm_eigvec_Y, fm_Y_ia, homo, virtual, i_exc, &
-                                     .FALSE., unit_nr, bse_env)
+               CALL reshuffle_eigvec(fm_eigvec_Y, fm_Y_ia, homo, virtual, i_exc, .FALSE.)
 
                CALL get_exciton_descriptors(exc_descr, fm_X_ia, &
                                             fm_quadpole_ij_trunc, fm_quadpole_ab_trunc, &
@@ -1062,8 +1056,7 @@ CONTAINS
       IF (bse_env%bse_spin_config == 0) THEN
          CALL get_oscillator_strengths(fm_eigvec_X, Exc_ens, fm_dipole_ai_trunc, &
                                        trans_mom_bse, oscill_str, polarizability_residues, &
-                                       bse_env, homo, virtual, unit_nr, &
-                                       fm_eigvec_Y)
+                                       homo, virtual, fm_eigvec_Y)
       END IF
 
       ! the iterative driver prints the header before its solver runs

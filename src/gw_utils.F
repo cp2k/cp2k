@@ -42,6 +42,7 @@ MODULE gw_utils
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
+   USE cp_fm_redistribution,            ONLY: cp_fm_to_replicated_array
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -61,7 +62,6 @@ MODULE gw_utils
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE gw_auto_ri_generate_RI_basis,    ONLY: generate_auto_ri_basis
    USE gw_auto_ri_types,                ONLY: auto_ri_type
-   USE gw_utils_communication,          ONLY: fm_to_local_array
    USE gw_utils_compute_integrals,      ONLY: build_3c_integral_block
    USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
                                               fm_invert,&
@@ -3298,7 +3298,7 @@ CONTAINS
          ALLOCATE (V_tr_R(bs_env%n_RI, bs_env%n_RI, nimages_scf_desymm))
       END IF
 
-      CALL fm_to_local_array(fm_V_tr_R, V_tr_R)
+      CALL cp_fm_to_replicated_array(fm_V_tr_R, V_tr_R)
 
       CALL cp_fm_release(fm_V_tr_R)
       CALL dbcsr_distribution_release(dbcsr_dist)

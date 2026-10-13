@@ -51,6 +51,7 @@ MODULE mp2_ri_2c
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
                                               cp_fm_power,&
                                               cp_fm_syevx
+   USE cp_fm_redistribution,            ONLY: cp_array_columns_to_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -87,11 +88,9 @@ MODULE mp2_ri_2c
                                               z_zero
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_para_env_release,&
-                                              mp_para_env_type,&
-                                              mp_request_type
+                                              mp_para_env_type
    USE mp2_eri,                         ONLY: mp2_eri_2c_integrate
    USE mp2_eri_gpw,                     ONLY: mp2_eri_2c_integrate_gpw
-   USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
@@ -107,7 +106,6 @@ MODULE mp2_ri_2c
                                               release_neighbor_list_sets
    USE qs_tensors,                      ONLY: build_2c_integrals,&
                                               build_2c_neighbor_lists
-   USE rpa_communication,               ONLY: communicate_buffer
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
@@ -1094,9 +1092,9 @@ CONTAINS
 
       IF (my_do_im_time .AND. para_env%num_pe > 1) THEN
 
-         CALL fill_fm_L_from_L_loc_non_blocking(fm_matrix_L, L_local_col, para_env, &
-                                                my_group_L_start, my_group_L_end, &
-                                                dimen_RI)
+         CALL cp_array_columns_to_fm(fm_matrix_L, L_local_col, para_env, &
+                                     my_group_L_start, my_group_L_end, &
+                                     dimen_RI)
 
       ELSE
          BLOCK
@@ -1330,210 +1328,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE reset_size_matrix
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm_matrix_L ...
-!> \param L_local_col ...
-!> \param para_env ...
-!> \param my_group_L_start ...
-!> \param my_group_L_end ...
-!> \param dimen_RI ...
-! **************************************************************************************************
-   SUBROUTINE fill_fm_L_from_L_loc_non_blocking(fm_matrix_L, L_local_col, para_env, my_group_L_start, &
-                                                my_group_L_end, dimen_RI)
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_L
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(IN)                                      :: L_local_col
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-      INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, &
-                                                            dimen_RI
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_fm_L_from_L_loc_non_blocking'
-
-      INTEGER :: dummy_proc, handle, handle2, i_entry_rec, i_row, iproc, j_col, LLL, MMM, &
-         ncol_local, nrow_local, proc_send, send_pcol, send_prow
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: entry_counter, num_entries_rec, &
-                                                            num_entries_send
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: buffer_rec, buffer_send
-      TYPE(mp_request_type), DIMENSION(:, :), POINTER    :: req_array
-
-      CALL timeset(routineN, handle)
-
-      CALL timeset(routineN//"_1", handle2)
-
-      ! get info for the dest
-      CALL cp_fm_get_info(matrix=fm_matrix_L, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices)
-
-      ALLOCATE (num_entries_rec(0:para_env%num_pe - 1))
-      ALLOCATE (num_entries_send(0:para_env%num_pe - 1))
-
-      num_entries_rec(:) = 0
-      num_entries_send(:) = 0
-
-      dummy_proc = 0
-
-      ! get the process, where the elements from L_local_col have to be sent
-      DO LLL = 1, dimen_RI
-
-         send_prow = fm_matrix_L%matrix_struct%g2p_row(LLL)
-
-         DO MMM = my_group_L_start, my_group_L_end
-
-            send_pcol = fm_matrix_L%matrix_struct%g2p_col(MMM)
-
-            proc_send = fm_matrix_L%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
-
-            num_entries_send(proc_send) = num_entries_send(proc_send) + 1
-
-         END DO
-
-      END DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_2", handle2)
-
-      CALL para_env%alltoall(num_entries_send, num_entries_rec, 1)
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_3", handle2)
-
-      ! allocate buffers to send the entries and the information of the entries
-      ALLOCATE (buffer_rec(0:para_env%num_pe - 1))
-      ALLOCATE (buffer_send(0:para_env%num_pe - 1))
-
-      ! allocate data message and corresponding indices
-      DO iproc = 0, para_env%num_pe - 1
-
-         ALLOCATE (buffer_rec(iproc)%msg(num_entries_rec(iproc)))
-         buffer_rec(iproc)%msg = 0.0_dp
-
-      END DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_4", handle2)
-
-      DO iproc = 0, para_env%num_pe - 1
-
-         ALLOCATE (buffer_send(iproc)%msg(num_entries_send(iproc)))
-         buffer_send(iproc)%msg = 0.0_dp
-
-      END DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_5", handle2)
-
-      DO iproc = 0, para_env%num_pe - 1
-
-         ALLOCATE (buffer_rec(iproc)%indx(num_entries_rec(iproc), 2))
-         buffer_rec(iproc)%indx = 0
-
-      END DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_6", handle2)
-
-      DO iproc = 0, para_env%num_pe - 1
-
-         ALLOCATE (buffer_send(iproc)%indx(num_entries_send(iproc), 2))
-         buffer_send(iproc)%indx = 0
-
-      END DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_7", handle2)
-
-      ALLOCATE (entry_counter(0:para_env%num_pe - 1))
-      entry_counter(:) = 0
-
-      ! get the process, where the elements from L_local_col have to be sent and
-      ! write the data and the info to buffer_send
-      DO MMM = my_group_L_start, my_group_L_end
-
-         send_pcol = fm_matrix_L%matrix_struct%g2p_col(MMM)
-
-         DO LLL = 1, dimen_RI
-
-            send_prow = fm_matrix_L%matrix_struct%g2p_row(LLL)
-
-            proc_send = fm_matrix_L%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
-
-            entry_counter(proc_send) = entry_counter(proc_send) + 1
-
-            buffer_send(proc_send)%msg(entry_counter(proc_send)) = &
-               L_local_col(LLL, MMM - my_group_L_start + 1)
-
-            buffer_send(proc_send)%indx(entry_counter(proc_send), 1) = LLL
-            buffer_send(proc_send)%indx(entry_counter(proc_send), 2) = MMM
-
-         END DO
-
-      END DO
-
-      ALLOCATE (req_array(1:para_env%num_pe, 4))
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_8", handle2)
-
-      ! communicate the buffer
-      CALL communicate_buffer(para_env, num_entries_rec, num_entries_send, buffer_rec, &
-                              buffer_send, req_array)
-
-      fm_matrix_L%local_data = 0.0_dp
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_9", handle2)
-
-      ! fill fm_matrix_L with the entries from buffer_rec
-      DO iproc = 0, para_env%num_pe - 1
-         DO i_entry_rec = 1, num_entries_rec(iproc)
-            DO j_col = 1, ncol_local
-               IF (col_indices(j_col) == buffer_rec(iproc)%indx(i_entry_rec, 2)) THEN
-                  DO i_row = 1, nrow_local
-                     IF (row_indices(i_row) == buffer_rec(iproc)%indx(i_entry_rec, 1)) THEN
-                        fm_matrix_L%local_data(i_row, j_col) = buffer_rec(iproc)%msg(i_entry_rec)
-                     END IF
-                  END DO
-               END IF
-            END DO
-         END DO
-      END DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_10", handle2)
-
-      DO iproc = 0, para_env%num_pe - 1
-         DEALLOCATE (buffer_rec(iproc)%msg)
-         DEALLOCATE (buffer_rec(iproc)%indx)
-         DEALLOCATE (buffer_send(iproc)%msg)
-         DEALLOCATE (buffer_send(iproc)%indx)
-      END DO
-
-      DEALLOCATE (buffer_rec, buffer_send)
-      DEALLOCATE (req_array)
-      DEALLOCATE (entry_counter)
-      DEALLOCATE (num_entries_rec, num_entries_send)
-
-      CALL timestop(handle2)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE fill_fm_L_from_L_loc_non_blocking
 
 ! **************************************************************************************************
 !> \brief ...
