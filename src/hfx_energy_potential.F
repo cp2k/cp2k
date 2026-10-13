@@ -2480,18 +2480,21 @@ CONTAINS
                  nsob, nsoc, nsod, s_offset_a, s_offset_b, s_offset_c, s_offset_d
       REAL(dp)                                           :: EtaInv, tmp_max, ZetaInv
 
-      CALL build_pair_list_pgf(npgfa, npgfb, pgf_list_ij, zeta, zetb, screen1, screen2, &
-                               pgf1, R1_pgf, log10_pmax, log10_eps_schwarz, ra, rb, &
-                               nelements_ij, &
-                               neighbor_cells, nimages, do_periodic)
-      CALL build_pair_list_pgf(npgfc, npgfd, pgf_list_kl, zetc, zetd, screen2, screen1, &
-                               pgf2, R2_pgf, log10_pmax, log10_eps_schwarz, rc, rd, &
-                               nelements_kl, &
-                               neighbor_cells, nimages, do_periodic)
-
       cart_estimate = 0.0_dp
       neris_tmp = 0
       primitive_integrals = 0.0_dp
+
+      CALL build_pair_list_pgf(npgfa, npgfb, pgf_list_ij, zeta, zetb, screen1, screen2, &
+                               pgf1, R1_pgf, log10_pmax, log10_eps_schwarz, ra, rb, &
+                               nelements_ij, &
+                               neighbor_cells, nimages, do_periodic, cell)
+      IF (nelements_ij == 0) RETURN
+      CALL build_pair_list_pgf(npgfc, npgfd, pgf_list_kl, zetc, zetd, screen2, screen1, &
+                               pgf2, R2_pgf, log10_pmax, log10_eps_schwarz, rc, rd, &
+                               nelements_kl, &
+                               neighbor_cells, nimages, do_periodic, cell)
+      IF (nelements_kl == 0) RETURN
+
       max_l = la_max + lb_max + lc_max + ld_max
 
       DO list_ij = 1, nelements_ij
@@ -2507,6 +2510,7 @@ CONTAINS
             CALL build_pgf_product_list(pgf_list_ij(list_ij), pgf_list_kl(list_kl), pgf_product_list, &
                                         nproducts, log10_pmax, log10_eps_schwarz, neighbor_cells, cell, &
                                         potential_parameter, max_l, do_periodic)
+            IF (nproducts == 0) CYCLE
 
             s_offset_a = 0
             DO la = la_min, la_max
