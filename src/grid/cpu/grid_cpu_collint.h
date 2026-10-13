@@ -720,21 +720,28 @@ static inline void general_cijk_to_cij(const int lp, const double dk,
 
 /*******************************************************************************
  * \brief Precompute mapping of grid indices and its homogeneous sections.
+ *        Returns false if no index in [index_min, index_max] maps into bounds.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void
+static inline bool
 general_precompute_mapping(const int index_min, const int index_max,
                            const int shift_local, const int npts_global,
                            const int bounds[2], int map[], int sections[]) {
 
   // Precompute mapping from continous grid indices to pbc wraped.
+  bool has_valid = false;
   for (int k = index_min; k <= index_max; k++) {
     const int kg = modulo(k - shift_local, npts_global);
     if (bounds[0] <= kg && kg <= bounds[1]) {
       map[k - index_min] = kg;
+      has_valid = true;
     } else {
       map[k - index_min] = INT_MIN; // out of bounds - not mapped
     }
+  }
+
+  if (!has_valid) {
+    return false;
   }
 
   // Precompute length of sections with homogeneous cube to grid mapping.
@@ -746,6 +753,7 @@ general_precompute_mapping(const int index_min, const int index_max,
       sections[kg] = sections[kg + 1] + 1;
     }
   }
+  return true;
 }
 
 /*******************************************************************************
@@ -828,6 +836,11 @@ general_cijk_to_grid(const int border_mask, const int lp, const double zetp,
   if (border_mask & (1 << 5))
     bounds_k[1] -= border_width[2];
 
+  if (bounds_i[0] > bounds_i[1] || bounds_j[0] > bounds_j[1] ||
+      bounds_k[0] > bounds_k[1]) {
+    return;
+  }
+
   // center in grid coords
   // gp = MATMUL(dh_inv, rp)
   double gp[3] = {0.0, 0.0, 0.0};
@@ -837,41 +850,46 @@ general_cijk_to_grid(const int border_mask, const int lp, const double zetp,
     }
   }
 
-  // Get the min max indices that contain at least the cube that contains a
-  // sphere around rp of radius radius if the cell is very non-orthogonal this
-  // implies that many useless points are included this estimate can be improved
-  // (i.e. not box but sphere should be used)
-  int index_min[3] = {INT_MAX, INT_MAX, INT_MAX};
-  int index_max[3] = {INT_MIN, INT_MIN, INT_MIN};
-  for (int i = -1; i <= 1; i++) {
-    for (int j = -1; j <= 1; j++) {
-      for (int k = -1; k <= 1; k++) {
-        const double x = rp[0] + i * radius;
-        const double y = rp[1] + j * radius;
-        const double z = rp[2] + k * radius;
-        for (int idir = 0; idir < 3; idir++) {
-          const double resc =
-              dh_inv[0][idir] * x + dh_inv[1][idir] * y + dh_inv[2][idir] * z;
-          index_min[idir] = imin(index_min[idir], (int)floor(resc));
-          index_max[idir] = imax(index_max[idir], (int)ceil(resc));
-        }
-      }
-    }
+  // Get the min max indices that contain the sphere around rp of radius radius.
+  // Project the sphere onto each grid axis via the reciprocal-lattice vector
+  // norms ||dh_inv[:,idir]||_2 so non-orthogonal cells avoid excess box
+  // corners.
+  // Guard against floating-point rounding in sqrt/norm when gp +/- rad_idx hits
+  // an int.
+  const double sphere_bound_eps = 1.0 + 1e-12;
+  int index_min[3];
+  int index_max[3];
+  for (int idir = 0; idir < 3; idir++) {
+    const double norm = sqrt(dh_inv[0][idir] * dh_inv[0][idir] +
+                             dh_inv[1][idir] * dh_inv[1][idir] +
+                             dh_inv[2][idir] * dh_inv[2][idir]);
+    const double rad_idx = radius * norm * sphere_bound_eps;
+    index_min[idir] = (int)floor(gp[idir] - rad_idx);
+    index_max[idir] = (int)ceil(gp[idir] + rad_idx);
   }
 
   // Precompute mappings
   const int range_i = index_max[0] - index_min[0] + 1;
   int map_i[range_i], sections_i[range_i];
-  general_precompute_mapping(index_min[0], index_max[0], shift_local[0],
-                             npts_global[0], bounds_i, map_i, sections_i);
+  if (!general_precompute_mapping(index_min[0], index_max[0], shift_local[0],
+                                  npts_global[0], bounds_i, map_i,
+                                  sections_i)) {
+    return;
+  }
   const int range_j = index_max[1] - index_min[1] + 1;
   int map_j[range_j], sections_j[range_j];
-  general_precompute_mapping(index_min[1], index_max[1], shift_local[1],
-                             npts_global[1], bounds_j, map_j, sections_j);
+  if (!general_precompute_mapping(index_min[1], index_max[1], shift_local[1],
+                                  npts_global[1], bounds_j, map_j,
+                                  sections_j)) {
+    return;
+  }
   const int range_k = index_max[2] - index_min[2] + 1;
   int map_k[range_k], sections_k[range_k];
-  general_precompute_mapping(index_min[2], index_max[2], shift_local[2],
-                             npts_global[2], bounds_k, map_k, sections_k);
+  if (!general_precompute_mapping(index_min[2], index_max[2], shift_local[2],
+                                  npts_global[2], bounds_k, map_k,
+                                  sections_k)) {
+    return;
+  }
 
   // Precompute exponentials
   double exp_ij[range_i * range_j];
