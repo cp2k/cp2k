@@ -1478,8 +1478,8 @@ CONTAINS
       REAL(dp), DIMENSION(ncob, nsob*nl_b), INTENT(IN)   :: sphi_b
       REAL(dp), DIMENSION(ncoc, nsoc*nl_c), INTENT(IN)   :: sphi_c
       REAL(dp), DIMENSION(ncod, nsod*nl_d), INTENT(IN)   :: sphi_d
-      REAL(dp)                                           :: work(ncoa*ncob*ncoc*ncod), &
-                                                            work2(ncoa, ncob, ncoc, ncod)
+      REAL(dp), TARGET                                   :: work(ncoa*ncob*ncoc*ncod)
+      REAL(dp)                                           :: work2(ncoa, ncob, ncoc, ncod)
       REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod)           :: buffer1, buffer2
       REAL(dp), DIMENSION(nsoa*nl_a, nsob*nl_b, nsoc*&
          nl_c, nsod*nl_d)                                :: primitives_tmp
@@ -1490,14 +1490,17 @@ CONTAINS
       REAL(dp)                                           :: A(3), AB(3), B(3), C(3), CD(3), D(3), &
                                                             P(3), Q(3), Rho, RhoInv, W(3), &
                                                             ZetapEtaInv
+      REAL(dp), DIMENSION(:), POINTER                    :: eri_src
       REAL(KIND=dp), DIMENSION(prim_data_f_size)         :: F
+
+      IF (nproducts == 0) RETURN
 
       m_max = n_a + n_b + n_c + n_d
       mysize = ncoa*ncob*ncoc*ncod
       a_mysize = mysize
 
-      work = 0.0_dp
       IF (m_max /= 0) THEN
+         IF (nproducts > 1) work(1:mysize) = 0.0_dp
          perm_case = 1
          IF (n_a < n_b) THEN
             perm_case = perm_case + 1
@@ -1528,11 +1531,16 @@ CONTAINS
                CALL build_quartet_data(libint, A, B, C, D, ZetaInv, EtaInv, ZetapEtaInv, Rho, &
                                        P, Q, W, m_max, F)
                CALL cp_libint_get_eris(n_d, n_c, n_b, n_a, libint, p_work, a_mysize)
-               work(1:mysize) = work(1:mysize) + p_work(1:mysize)
+               IF (nproducts > 1) work(1:mysize) = work(1:mysize) + p_work(1:mysize)
                neris = neris + mysize
             END DO
+            IF (nproducts == 1) THEN
+               eri_src => p_work
+            ELSE
+               eri_src => work
+            END IF
             DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(work(i)))
+               tmp_max = MAX(tmp_max, ABS(eri_src(i)))
             END DO
             tmp_max = tmp_max*max_contraction
             IF (tmp_max < eps_schwarz) THEN
@@ -1547,7 +1555,7 @@ CONTAINS
                      p3 = (p2 + k - 1)*ncod
                      DO l = 1, ncod
                         p4 = p3 + l
-                        work2(i, j, k, l) = work(p4)
+                        work2(i, j, k, l) = eri_src(p4)
                      END DO
                   END DO
                END DO
@@ -1573,11 +1581,16 @@ CONTAINS
                                        P, Q, W, m_max, F)
 
                CALL cp_libint_get_eris(n_d, n_c, n_a, n_b, libint, p_work, a_mysize)
-               work(1:mysize) = work(1:mysize) + p_work(1:mysize)
+               IF (nproducts > 1) work(1:mysize) = work(1:mysize) + p_work(1:mysize)
                neris = neris + mysize
             END DO
+            IF (nproducts == 1) THEN
+               eri_src => p_work
+            ELSE
+               eri_src => work
+            END IF
             DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(work(i)))
+               tmp_max = MAX(tmp_max, ABS(eri_src(i)))
             END DO
             tmp_max = tmp_max*max_contraction
             IF (tmp_max < eps_schwarz) THEN
@@ -1592,7 +1605,7 @@ CONTAINS
                      p3 = (p2 + k - 1)*ncod
                      DO l = 1, ncod
                         p4 = p3 + l
-                        work2(i, j, k, l) = work(p4)
+                        work2(i, j, k, l) = eri_src(p4)
                      END DO
                   END DO
                END DO
@@ -1618,11 +1631,16 @@ CONTAINS
                                        P, Q, W, m_max, F)
 
                CALL cp_libint_get_eris(n_c, n_d, n_b, n_a, libint, p_work, a_mysize)
-               work(1:mysize) = work(1:mysize) + p_work(1:mysize)
+               IF (nproducts > 1) work(1:mysize) = work(1:mysize) + p_work(1:mysize)
                neris = neris + mysize
             END DO
+            IF (nproducts == 1) THEN
+               eri_src => p_work
+            ELSE
+               eri_src => work
+            END IF
             DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(work(i)))
+               tmp_max = MAX(tmp_max, ABS(eri_src(i)))
             END DO
             tmp_max = tmp_max*max_contraction
             IF (tmp_max < eps_schwarz) THEN
@@ -1637,7 +1655,7 @@ CONTAINS
                      p3 = (p2 + l - 1)*ncoc
                      DO k = 1, ncoc
                         p4 = p3 + k
-                        work2(i, j, k, l) = work(p4)
+                        work2(i, j, k, l) = eri_src(p4)
                      END DO
                   END DO
                END DO
@@ -1663,11 +1681,16 @@ CONTAINS
                                        P, Q, W, m_max, F)
 
                CALL cp_libint_get_eris(n_c, n_d, n_a, n_b, libint, p_work, a_mysize)
-               work(1:mysize) = work(1:mysize) + p_work(1:mysize)
+               IF (nproducts > 1) work(1:mysize) = work(1:mysize) + p_work(1:mysize)
                neris = neris + mysize
             END DO
+            IF (nproducts == 1) THEN
+               eri_src => p_work
+            ELSE
+               eri_src => work
+            END IF
             DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(work(i)))
+               tmp_max = MAX(tmp_max, ABS(eri_src(i)))
             END DO
             tmp_max = tmp_max*max_contraction
             IF (tmp_max < eps_schwarz) THEN
@@ -1682,7 +1705,7 @@ CONTAINS
                      p3 = (p2 + l - 1)*ncoc
                      DO k = 1, ncoc
                         p4 = p3 + k
-                        work2(i, j, k, l) = work(p4)
+                        work2(i, j, k, l) = eri_src(p4)
                      END DO
                   END DO
                END DO
@@ -1708,11 +1731,16 @@ CONTAINS
                                        Q, P, W, m_max, F)
 
                CALL cp_libint_get_eris(n_b, n_a, n_d, n_c, libint, p_work, a_mysize)
-               work(1:mysize) = work(1:mysize) + p_work(1:mysize)
+               IF (nproducts > 1) work(1:mysize) = work(1:mysize) + p_work(1:mysize)
                neris = neris + mysize
             END DO
+            IF (nproducts == 1) THEN
+               eri_src => p_work
+            ELSE
+               eri_src => work
+            END IF
             DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(work(i)))
+               tmp_max = MAX(tmp_max, ABS(eri_src(i)))
             END DO
             tmp_max = tmp_max*max_contraction
             IF (tmp_max < eps_schwarz) THEN
@@ -1727,7 +1755,7 @@ CONTAINS
                      p3 = (p2 + i - 1)*ncob
                      DO j = 1, ncob
                         p4 = p3 + j
-                        work2(i, j, k, l) = work(p4)
+                        work2(i, j, k, l) = eri_src(p4)
                      END DO
                   END DO
                END DO
@@ -1753,11 +1781,16 @@ CONTAINS
                                        Q, P, W, m_max, F)
 
                CALL cp_libint_get_eris(n_a, n_b, n_d, n_c, libint, p_work, a_mysize)
-               work(1:mysize) = work(1:mysize) + p_work(1:mysize)
+               IF (nproducts > 1) work(1:mysize) = work(1:mysize) + p_work(1:mysize)
                neris = neris + mysize
             END DO
+            IF (nproducts == 1) THEN
+               eri_src => p_work
+            ELSE
+               eri_src => work
+            END IF
             DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(work(i)))
+               tmp_max = MAX(tmp_max, ABS(eri_src(i)))
             END DO
             tmp_max = tmp_max*max_contraction
             IF (tmp_max < eps_schwarz) THEN
@@ -1772,7 +1805,7 @@ CONTAINS
                      p3 = (p2 + j - 1)*ncoa
                      DO i = 1, ncoa
                         p4 = p3 + i
-                        work2(i, j, k, l) = work(p4)
+                        work2(i, j, k, l) = eri_src(p4)
                      END DO
                   END DO
                END DO
@@ -1798,11 +1831,16 @@ CONTAINS
                                        Q, P, W, m_max, F)
 
                CALL cp_libint_get_eris(n_b, n_a, n_c, n_d, libint, p_work, a_mysize)
-               work(1:mysize) = work(1:mysize) + p_work(1:mysize)
+               IF (nproducts > 1) work(1:mysize) = work(1:mysize) + p_work(1:mysize)
                neris = neris + mysize
             END DO
+            IF (nproducts == 1) THEN
+               eri_src => p_work
+            ELSE
+               eri_src => work
+            END IF
             DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(work(i)))
+               tmp_max = MAX(tmp_max, ABS(eri_src(i)))
             END DO
             tmp_max = tmp_max*max_contraction
             IF (tmp_max < eps_schwarz) THEN
@@ -1817,7 +1855,7 @@ CONTAINS
                      p3 = (p2 + i - 1)*ncob
                      DO j = 1, ncob
                         p4 = p3 + j
-                        work2(i, j, k, l) = work(p4)
+                        work2(i, j, k, l) = eri_src(p4)
                      END DO
                   END DO
                END DO
@@ -1843,11 +1881,16 @@ CONTAINS
                                        Q, P, W, m_max, F)
 
                CALL cp_libint_get_eris(n_a, n_b, n_c, n_d, libint, p_work, a_mysize)
-               work(1:mysize) = work(1:mysize) + p_work(1:mysize)
+               IF (nproducts > 1) work(1:mysize) = work(1:mysize) + p_work(1:mysize)
                neris = neris + mysize
             END DO
+            IF (nproducts == 1) THEN
+               eri_src => p_work
+            ELSE
+               eri_src => work
+            END IF
             DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(work(i)))
+               tmp_max = MAX(tmp_max, ABS(eri_src(i)))
             END DO
             tmp_max = tmp_max*max_contraction
             IF (tmp_max < eps_schwarz) THEN
@@ -1862,13 +1905,14 @@ CONTAINS
                      p3 = (p2 + j - 1)*ncoa
                      DO i = 1, ncoa
                         p4 = p3 + i
-                        work2(i, j, k, l) = work(p4)
+                        work2(i, j, k, l) = eri_src(p4)
                      END DO
                   END DO
                END DO
             END DO
          END SELECT
       ELSE
+         work(1) = 0.0_dp
          DO i = 1, nproducts
             A = pgf_product_list(i)%ra
             B = pgf_product_list(i)%rb

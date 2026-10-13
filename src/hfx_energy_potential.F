@@ -1507,8 +1507,6 @@ CONTAINS
 
                      IF (max_val1 + screen_kind_kl + pmax_atom < log10_eps_schwarz) CYCLE
 
-                     sphi_a_ext_set => sphi_a_ext(:, :, :, iset)
-                     sphi_b_ext_set => sphi_b_ext(:, :, :, jset)
                      DO i_set_list_kl = i_set_list_kl_start, i_set_list_kl_stop
                         kset = set_list_kl(i_set_list_kl)%pair(1)
                         lset = set_list_kl(i_set_list_kl)%pair(2)
@@ -1519,8 +1517,6 @@ CONTAINS
 
                         !! Near field screening
                         IF (max_val2 + pmax_atom < log10_eps_schwarz) CYCLE
-                        sphi_c_ext_set => sphi_c_ext(:, :, :, kset)
-                        sphi_d_ext_set => sphi_d_ext(:, :, :, lset)
                         !! get max_vals if we screen on initial density
                         IF (do_p_screening) THEN
                            CALL get_pmax_val(ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, &
@@ -1626,6 +1622,10 @@ CONTAINS
                            END IF
                            !! Calculate integrals if we run out of buffer or the geometry did change
                            IF (my_geo_change .OR. buffer_overflow) THEN
+                              sphi_a_ext_set => sphi_a_ext(:, :, :, iset)
+                              sphi_b_ext_set => sphi_b_ext(:, :, :, jset)
+                              sphi_c_ext_set => sphi_c_ext(:, :, :, kset)
+                              sphi_d_ext_set => sphi_d_ext(:, :, :, lset)
 
                               max_contraction_val = max_contraction(iset, iatom)* &
                                                     max_contraction(jset, jatom)* &
