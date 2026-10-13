@@ -1340,12 +1340,14 @@ CONTAINS
 
                            !! Compress the array for storage
                            spherical_estimate = 0.0_dp
-                           DO i = 1, nints
-                              spherical_estimate = MAX(spherical_estimate, ABS(primitive_forces(i)))
-                           END DO
+                           IF (cartesian_estimate /= 0.0_dp) THEN
+                              DO i = 1, nints
+                                 spherical_estimate = MAX(spherical_estimate, ABS(primitive_forces(i)))
+                              END DO
+                           END IF
 
                            spherical_estimate_virial = 0.0_dp
-                           IF (use_virial) THEN
+                           IF (use_virial .AND. cartesian_estimate_virial /= 0.0_dp) THEN
                               DO i = 1, 3*nints
                                  spherical_estimate_virial = MAX(spherical_estimate_virial, ABS(primitive_forces_virial(i)))
                               END DO
@@ -1386,7 +1388,7 @@ CONTAINS
                            ELSE
                               !! In order to be consistent with in-core part, round all the eris wrt. eps_schwarz
                               !! but only if we treat forces in-core
-                              IF (treat_forces_in_core) THEN
+                              IF (treat_forces_in_core .AND. cartesian_estimate /= 0.0_dp) THEN
                                  DO i = 1, nints
                                     primitive_forces(i) = primitive_forces(i)*pmax_entry
                                     IF (ABS(primitive_forces(i)) > eps_storage) THEN
@@ -1397,6 +1399,8 @@ CONTAINS
                                  END DO
                               END IF
                            END IF
+                           IF (cartesian_estimate == 0.0_dp .AND. &
+                               (.NOT. use_virial .OR. cartesian_estimate_virial == 0.0_dp)) CYCLE
                         END IF
                         IF (with_resp_density) THEN
                            CALL prefetch_density_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &

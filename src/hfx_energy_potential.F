@@ -1669,9 +1669,13 @@ CONTAINS
 
                               !! Compress the array for storage
                               spherical_estimate = 0.0_dp
-                              DO i = 1, nints
-                                 spherical_estimate = MAX(spherical_estimate, ABS(primitive_integrals(i)))
-                              END DO
+                              IF (cartesian_estimate /= 0.0_dp) THEN
+                                 DO i = 1, nints
+                                    spherical_estimate = MAX(spherical_estimate, ABS(primitive_integrals(i)))
+                                 END DO
+                              ELSE IF (buffer_overflow) THEN
+                                 CYCLE
+                              END IF
 
                               IF (spherical_estimate == 0.0_dp) spherical_estimate = TINY(spherical_estimate)
                               estimate_to_store_int = EXPONENT(spherical_estimate)
@@ -1761,6 +1765,7 @@ CONTAINS
                                     END IF
                                  END DO
                               END IF
+                              IF (cartesian_estimate == 0.0_dp) CYCLE
                            END IF
                            !!!  DEBUG, print out primitive integrals and indices. Only works serial no OMP  !!!
                            IF (.FALSE.) THEN
