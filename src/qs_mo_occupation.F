@@ -198,14 +198,14 @@ CONTAINS
       END DO
       homo_a = lfomo_a - 1
       DO i = nmo_a, lfomo_a, -1
-         IF (occ_a(i) > smear%eps_fermi_dirac) THEN
+         IF (ABS(occ_a(i)) > smear%eps_fermi_dirac) THEN
             homo_a = i
             EXIT
          END IF
       END DO
       homo_b = lfomo_b - 1
       DO i = nmo_b, lfomo_b, -1
-         IF (occ_b(i) > smear%eps_fermi_dirac) THEN
+         IF (ABS(occ_b(i)) > smear%eps_fermi_dirac) THEN
             homo_b = i
             EXIT
          END IF
@@ -555,7 +555,7 @@ CONTAINS
                END IF
             END DO
             DO i = SIZE(mo_set%occupation_numbers), 1, -1
-               IF (mo_set%occupation_numbers(i) > smear%eps_fermi_dirac) THEN
+               IF (ABS(mo_set%occupation_numbers(i)) > smear%eps_fermi_dirac) THEN
                   mo_set%homo = i
                   EXIT
                END IF
