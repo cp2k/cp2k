@@ -1648,6 +1648,7 @@ set(CP2K_PROGS_F
     qs_ot_complex_ref_unittest.F
     wannier90_projections_unittest.F
     subsys/cell_types_unittest.F
+    hfx_pair_list_methods_unittest.F
     metadyn_tools/graph.F
     motion/dumpdcd.F
     motion/xyz2dcd.F
@@ -2089,6 +2090,7 @@ list(
   "qs_ot_complex_ref_unittest"
   "wannier90_projections_unittest"
   "cell_types_unittest"
+  "hfx_pair_list_methods_unittest"
   "graph"
   "dumpdcd"
   "xyz2dcd"
@@ -2143,6 +2145,7 @@ add_executable(qs_active_space_utils_unittest qs_active_space_utils_unittest.F)
 add_executable(qs_ot_complex_ref_unittest qs_ot_complex_ref_unittest.F)
 add_executable(wannier90_projections_unittest wannier90_projections_unittest.F)
 add_executable(cell_types_unittest subsys/cell_types_unittest.F)
+add_executable(hfx_pair_list_methods_unittest hfx_pair_list_methods_unittest.F)
 add_executable(cell_opt_utils_unittest motion/cell_opt_utils_unittest.F)
 add_executable(graph metadyn_tools/graph.F)
 add_executable(dumpdcd motion/dumpdcd.F)

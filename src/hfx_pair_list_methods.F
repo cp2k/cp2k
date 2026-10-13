@@ -42,7 +42,7 @@ MODULE hfx_pair_list_methods
              build_atomic_pair_list, &
              pgf_product_list_size, &
              build_pair_list_pbc_pgf, &
-             bra_t, allocate_bra
+             bra_t, allocate_bra, min_image_gap_sq
 
    ! an initial estimate for the size of the product list
    INTEGER, SAVE :: pgf_product_list_size = 128
@@ -205,12 +205,16 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: m_max
       LOGICAL, INTENT(IN)                                :: do_periodic
 
-      INTEGER                                            :: i, j, k, l, nimages1, nimages2, tmp_i4
-      LOGICAL                                            :: use_gamma
-      REAL(dp) :: C11(3), den, Eta, EtaInv, factor, Fm(prim_data_f_size), G(3), num, omega2, &
-         omega_corr, omega_corr2, P(3), pgf_max_1, pgf_max_2, PQ(3), Q(3), R, R1, R2, ra(3), &
-         rb(3), rc(3), rd(3), Rho, RhoInv, rpq2, S1234, S1234a, S1234b, shift(3), ssss, T, &
-         temp(3), temp_CC(3), temp_DD(3), tmp, tmp_D(3), W(3), Zeta1, Zeta_C, Zeta_D, ZetapEtaInv
+      REAL(dp), PARAMETER                                :: r_cutoff_eps = 1.0E-12_dp
+
+      INTEGER                                            :: i, j, k, k_max, l, nimages1, nimages2, &
+                                                            tmp_i4
+      LOGICAL                                            :: has_r_cutoff, use_gamma
+      REAL(dp) :: C11(3), den, Eta, EtaInv, factor, Fm(prim_data_f_size), G(3), min_img_delta, &
+         num, omega2, omega_corr, omega_corr2, P(3), pgf_max_1, pgf_max_2, PQ(3), pq2, Q(3), R, &
+         R1, R2, r_cutoff_sq, r_cutoff_sq_guard, ra(3), rb(3), rc(3), rcut_eff, rd(3), Rho, &
+         RhoInv, rpq2, S1234, S1234a, S1234b, shift(3), ssss, T, temp(3), temp_CC(3), temp_DD(3), &
+         tmp, tmp_D(3), W(3), Zeta1, Zeta_C, Zeta_D, ZetapEtaInv
       TYPE(hfx_pgf_product_list), ALLOCATABLE, &
          DIMENSION(:)                                    :: tmp_product_list
 
@@ -224,6 +228,19 @@ CONTAINS
       Zeta_D = list2%zetb
       temp_CC = 0.0_dp
       temp_DD = 0.0_dp
+      r_cutoff_sq = 0.0_dp
+      r_cutoff_sq_guard = 0.0_dp
+      SELECT CASE (potential_parameter%potential_type)
+      CASE (do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
+         has_r_cutoff = .TRUE.
+         rcut_eff = potential_parameter%cutoff_radius
+      CASE (do_potential_TShPSC)
+         has_r_cutoff = .TRUE.
+         rcut_eff = potential_parameter%cutoff_radius*2.0_dp
+      CASE DEFAULT
+         has_r_cutoff = .FALSE.
+         rcut_eff = 0.0_dp
+      END SELECT
       DO i = 1, nimages1
          P = list1%image_list(i)%P
          R1 = list1%image_list(i)%R
@@ -240,21 +257,40 @@ CONTAINS
             rc = list2%image_list(j)%ra
             rd = list2%image_list(j)%rb
 
-            ZetapEtaInv = Zeta1 + Eta
-            ZetapEtaInv = 1.0_dp/ZetapEtaInv
-            Rho = Zeta1*Eta*ZetapEtaInv
-            RhoInv = 1.0_dp/Rho
-            S1234 = EXP(S1234a + S1234b)
+            IF (has_r_cutoff) THEN
+               r_cutoff_sq = (R1 + R2 + rcut_eff)**2
+               r_cutoff_sq_guard = r_cutoff_sq*(1.0_dp + r_cutoff_eps)
+            END IF
+            k_max = SIZE(neighbor_cells)
             IF (do_periodic) THEN
                temp = P - Q
                PQ = pbc(temp, cell)
+               IF (has_r_cutoff .AND. cell%orthorhombic .AND. ALL(cell%perd == 1) .AND. k_max >= 1) THEN
+                  IF (ALL(neighbor_cells(1)%cell_r == 0.0_dp)) THEN
+                     pq2 = PQ(1)**2 + PQ(2)**2 + PQ(3)**2
+                     IF (pq2 > r_cutoff_sq_guard) CYCLE
+                     min_img_delta = min_image_gap_sq(PQ, cell%hmat)
+                     IF (min_img_delta >= 0.0_dp .AND. pq2 + min_img_delta > r_cutoff_sq_guard) k_max = 1
+                  END IF
+               END IF
                shift = -PQ + temp
                temp_CC = rc + shift
                temp_DD = rd + shift
             END IF
 
-            DO k = 1, SIZE(neighbor_cells)
+            ZetapEtaInv = Zeta1 + Eta
+            ZetapEtaInv = 1.0_dp/ZetapEtaInv
+            Rho = Zeta1*Eta*ZetapEtaInv
+            RhoInv = 1.0_dp/Rho
+            S1234 = EXP(S1234a + S1234b)
+
+            DO k = 1, k_max
                IF (do_periodic) THEN
+                  IF (has_r_cutoff .AND. k_max > 1) THEN
+                     IF ((PQ(1) - neighbor_cells(k)%cell_r(1))**2 + &
+                         (PQ(2) - neighbor_cells(k)%cell_r(2))**2 + &
+                         (PQ(3) - neighbor_cells(k)%cell_r(3))**2 > r_cutoff_sq_guard) CYCLE
+                  END IF
                   C11 = temp_CC + neighbor_cells(k)%cell_r(:)
                   tmp_D = temp_DD + neighbor_cells(k)%cell_r(:)
                ELSE
@@ -263,13 +299,8 @@ CONTAINS
                END IF
                Q = (Zeta_C*C11 + Zeta_D*tmp_D)*EtaInv
                rpq2 = (P(1) - Q(1))**2 + (P(2) - Q(2))**2 + (P(3) - Q(3))**2
-               IF (potential_parameter%potential_type == do_potential_truncated .OR. &
-                   potential_parameter%potential_type == do_potential_short .OR. &
-                   potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
-                  IF (rpq2 > (R1 + R2 + potential_parameter%cutoff_radius)**2) CYCLE
-               END IF
-               IF (potential_parameter%potential_type == do_potential_TShPSC) THEN
-                  IF (rpq2 > (R1 + R2 + potential_parameter%cutoff_radius*2.0_dp)**2) CYCLE
+               IF (has_r_cutoff) THEN
+                  IF (rpq2 > r_cutoff_sq) CYCLE
                END IF
                nproducts = nproducts + 1
 
@@ -465,10 +496,11 @@ CONTAINS
 !> \param neighbor_cells ...
 !> \param nimages ...
 !> \param do_periodic ...
+!> \param cell ...
 ! **************************************************************************************************
    SUBROUTINE build_pair_list_pgf(npgfa, npgfb, list, zeta, zetb, screen1, screen2, pgf, R_pgf, &
                                   log10_pmax, log10_eps_schwarz, ra, rb, nelements, &
-                                  neighbor_cells, nimages, do_periodic)
+                                  neighbor_cells, nimages, do_periodic, cell)
       INTEGER, INTENT(IN)                                :: npgfa, npgfb
       TYPE(hfx_pgf_list), DIMENSION(npgfa*npgfb)         :: list
       REAL(dp), DIMENSION(1:npgfa), INTENT(IN)           :: zeta
@@ -482,15 +514,38 @@ CONTAINS
       TYPE(hfx_cell_type), DIMENSION(:), POINTER         :: neighbor_cells
       INTEGER                                            :: nimages(npgfa*npgfb)
       LOGICAL, INTENT(IN)                                :: do_periodic
+      TYPE(cell_type), POINTER                           :: cell
 
-      INTEGER                                            :: element_counter, i, ipgf, j, jpgf
-      REAL(dp)                                           :: AB(3), im_B(3), pgf_max, rab2, Zeta1, &
-                                                            Zeta_A, Zeta_B, ZetaInv
+      REAL(dp), PARAMETER                                :: min_img_eps = 1.0E-12_dp
 
+      INTEGER                                            :: element_counter, i, i_max, ipgf, j, jpgf
+      REAL(dp)                                           :: AB(3), im_B(3), min_img_delta, pgf_max, &
+                                                            rab2, Zeta1, Zeta_A, Zeta_B, ZetaInv
+
+      i_max = SIZE(neighbor_cells)
+      IF (do_periodic) THEN
+         IF (cell%orthorhombic .AND. screen1(1) <= 0.0_dp .AND. i_max > 1) THEN
+            IF (ALL(cell%perd == 1) .AND. ALL(neighbor_cells(1)%cell_r == 0.0_dp)) THEN
+               AB = ra - rb
+               rab2 = AB(1)**2 + AB(2)**2 + AB(3)**2
+               min_img_delta = min_image_gap_sq(AB, cell%hmat)
+               IF (min_img_delta >= 0.0_dp) THEN
+                  IF (screen1(1)*rab2 + screen1(2) + screen2(2) + log10_pmax < log10_eps_schwarz) THEN
+                     nelements = 0
+                     RETURN
+                  END IF
+                  IF (screen1(1)*(rab2 + min_img_delta)*(1.0_dp - min_img_eps) + &
+                      screen1(2) + screen2(2) + log10_pmax < log10_eps_schwarz) i_max = 1
+               END IF
+            END IF
+         END IF
+      ELSE
+         i_max = MIN(i_max, 1)
+      END IF
       nimages = 0
       ! ** inner loop may never be reached
       nelements = npgfa*npgfb
-      DO i = 1, SIZE(neighbor_cells)
+      DO i = 1, i_max
          IF (do_periodic) THEN
             im_B = rb + neighbor_cells(i)%cell_r(:)
          ELSE
@@ -851,5 +906,25 @@ CONTAINS
       list%n_element = n_element
 
    END SUBROUTINE build_pair_list_mp2
+
+! **************************************************************************************************
+!> \brief Smallest increase of |r|**2 when r is moved to any other periodic image of an
+!>        orthorhombic, fully periodic cell, i.e. min over n /= 0 of |r - hmat*n|**2 - |r|**2.
+!>        Exact if r is a minimum-image vector (|r(i)| <= |hmat(i,i)|/2); negative otherwise.
+!> \param r displacement vector
+!> \param hmat cell matrix; its diagonal entries are signed cell-vector components
+!> \return the squared-distance gap to the nearest other periodic image
+! **************************************************************************************************
+   PURE FUNCTION min_image_gap_sq(r, hmat) RESULT(gap)
+      REAL(dp), DIMENSION(3), INTENT(IN)                 :: r
+      REAL(dp), DIMENSION(3, 3), INTENT(IN)              :: hmat
+      REAL(dp)                                           :: gap
+
+      REAL(dp), DIMENSION(3)                             :: cell_len
+
+      cell_len = [ABS(hmat(1, 1)), ABS(hmat(2, 2)), ABS(hmat(3, 3))]
+      gap = MINVAL(cell_len*(cell_len - 2.0_dp*ABS(r)))
+
+   END FUNCTION min_image_gap_sq
 
 END MODULE hfx_pair_list_methods
