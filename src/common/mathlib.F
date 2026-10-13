@@ -14,14 +14,15 @@
 ! **************************************************************************************************
 MODULE mathlib
 
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
-   USE mathconstants,                   ONLY: euler,&
-                                              fac,&
-                                              oorootpi,&
-                                              z_one,&
-                                              z_zero
+   USE kinds, ONLY: default_string_length, &
+                    dp
+   USE mathconstants, ONLY: euler, &
+                            fac, &
+                            oorootpi, &
+                            z_one, &
+                            z_zero
 #include "../base/base_uses.f90"
+   #:include 'expint.fypp'
 
    IMPLICIT NONE
    PRIVATE
@@ -1403,14 +1404,14 @@ CONTAINS
       REAL(dp)                                           :: fn_val
 
       REAL(dp), PARAMETER :: dx0 = 1.461632144968362341262659542325721325e0_dp, p1(7) = [ &
-         .895385022981970e-02_dp, .477762828042627e+01_dp, .142441585084029e+03_dp, &
-         .118645200713425e+04_dp, .363351846806499e+04_dp, .413810161269013e+04_dp, &
-         .130560269827897e+04_dp], p2(4) = [-.212940445131011e+01_dp, -.701677227766759e+01_dp, &
-         -.448616543918019e+01_dp, -.648157123766197e+00_dp], piov4 = .785398163397448e0_dp, q1(6) &
-         = [.448452573429826e+02_dp, .520752771467162e+03_dp, .221000799247830e+04_dp, &
-         .364127349079381e+04_dp, .190831076596300e+04_dp, .691091682714533e-05_dp]
+                             .895385022981970e-02_dp, .477762828042627e+01_dp, .142441585084029e+03_dp, &
+                             .118645200713425e+04_dp, .363351846806499e+04_dp, .413810161269013e+04_dp, &
+                             .130560269827897e+04_dp], p2(4) = [-.212940445131011e+01_dp, -.701677227766759e+01_dp, &
+                                         -.448616543918019e+01_dp, -.648157123766197e+00_dp], piov4 = .785398163397448e0_dp, q1(6) &
+                             = [.448452573429826e+02_dp, .520752771467162e+03_dp, .221000799247830e+04_dp, &
+                                .364127349079381e+04_dp, .190831076596300e+04_dp, .691091682714533e-05_dp]
       REAL(dp), PARAMETER :: q2(4) = [.322703493791143e+02_dp, .892920700481861e+02_dp, &
-         .546117738103215e+02_dp, .777788548522962e+01_dp]
+                                      .546117738103215e+02_dp, .777788548522962e+01_dp]
 
       INTEGER                                            :: i, m, n, nq
       REAL(dp)                                           :: aug, den, sgn, upper, w, x, xmax1, xmx0, &
@@ -1515,80 +1516,7 @@ CONTAINS
 
    END FUNCTION digamma
 
-! **************************************************************************************************
-!> \brief computes the exponential integral
-!>      En(x) = Int(exp(-x*t)/t^n,t=1..infinity)  x>0, n=0,1,..
-!>      Note: Ei(-x) = -E1(x)
-!> \param n ...
-!> \param x ...
-!> \return ...
-!> \par History
-!>      05.2007 Created
-!> \author Manuel Guidon (adapted from Numerical recipies)
-! **************************************************************************************************
-   ELEMENTAL IMPURE FUNCTION expint(n, x)
-      INTEGER, INTENT(IN)                                :: n
-      REAL(dp), INTENT(IN)                               :: x
-      REAL(dp)                                           :: expint
-
-      INTEGER, PARAMETER                                 :: maxit = 100
-      REAL(dp), PARAMETER :: eps = 6.e-14_dp, euler = 0.5772156649015328606065120_dp, &
-         fpmin = TINY(0.0_dp)
-
-      INTEGER                                            :: i, ii, nm1
-      REAL(dp)                                           :: a, b, c, d, del, fact, h, psi
-
-      nm1 = n - 1
-
-      IF (n < 0 .OR. x < 0.0_dp .OR. (x == 0.0_dp .AND. (n == 0 .OR. n == 1))) THEN
-         CPABORT("Invalid argument")
-      ELSE IF (n == 0) THEN !Special case.
-         expint = EXP(-x)/x
-      ELSE IF (x == 0.0_dp) THEN !Another special case.
-         expint = 1.0_dp/nm1
-      ELSE IF (x > 1.0_dp) THEN !Lentz's algorithm (5.2).
-         b = x + n
-         c = 1.0_dp/FPMIN
-         d = 1.0_dp/b
-         h = d
-         DO i = 1, MAXIT
-            a = -i*(nm1 + i)
-            b = b + 2.0_dp
-            d = 1.0_dp/(a*d + b)
-            c = b + a/c
-            del = c*d
-            h = h*del
-            IF (ABS(del - 1.0_dp) < EPS) THEN
-               expint = h*EXP(-x)
-               RETURN
-            END IF
-         END DO
-         CPABORT("continued fraction failed in expint")
-      ELSE !Evaluate series.
-         IF (nm1 /= 0) THEN !Set first term.
-            expint = 1.0_dp/nm1
-         ELSE
-            expint = -LOG(x) - euler
-         END IF
-         fact = 1.0_dp
-         DO i = 1, MAXIT
-            fact = -fact*x/i
-            IF (i /= nm1) THEN
-               del = -fact/(i - nm1)
-            ELSE
-               psi = -euler !Compute I(n).
-               DO ii = 1, nm1
-                  psi = psi + 1.0_dp/ii
-               END DO
-               del = fact*(-LOG(x) + psi)
-            END IF
-            expint = expint + del
-            IF (ABS(del) < ABS(expint)*EPS) RETURN
-         END DO
-         CPABORT("series failed in expint")
-      END IF
-
-   END FUNCTION expint
+   @:define_expint(impure=1)
 
 ! **************************************************************************************************
 !> \brief  Jacobi matrix diagonalization. The eigenvalues are returned in
@@ -1860,10 +1788,10 @@ CONTAINS
 !> \param df ...
 ! **************************************************************************************************
       ELEMENTAL SUBROUTINE eval_transc_func(r, eps, omega, fn, df)
-      REAL(dp), INTENT(in)                               :: r, eps, omega
-      REAL(dp), INTENT(out)                              :: fn, df
+         REAL(dp), INTENT(in)                               :: r, eps, omega
+         REAL(dp), INTENT(out)                              :: fn, df
 
-      REAL(dp)                                           :: qr
+         REAL(dp)                                           :: qr
 
          qr = omega*r
          fn = ERFC(qr) - r*eps
@@ -2181,7 +2109,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'geeig_right'
       COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
-         czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+                                     czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cevals
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:, :)     :: A, B, work
