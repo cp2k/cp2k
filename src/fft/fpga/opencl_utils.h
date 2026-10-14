@@ -2,7 +2,7 @@
 /*  CP2K: A general program to perform molecular dynamics simulations         */
 /*  Copyright 2000-2026 CP2K developers group <https://cp2k.org>              */
 /*                                                                            */
-/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
+/*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
 /*******************************************************************************
@@ -12,7 +12,7 @@
 #ifndef OPENCL_UTILS_H
 #define OPENCL_UTILS_H
 
-#if defined(__PW_FPGA)
+#if defined(__FFT_FPGA)
 
 extern void queue_cleanup();
 extern void cleanup();

@@ -23,7 +23,7 @@
 !>                            can be added easily.
 !> \author Benjamin G. Levine
 ! **************************************************************************************************
-MODULE pw_gpu
+MODULE fft_gpu
    USE ISO_C_BINDING,                   ONLY: C_DOUBLE,&
                                               C_INT,&
                                               C_LOC,&
@@ -43,54 +43,15 @@ MODULE pw_gpu
 
    PRIVATE
 
-   PUBLIC :: pw_gpu_r3dc1d_3d
-   PUBLIC :: pw_gpu_c1dr3d_3d
-   PUBLIC :: pw_gpu_r3dc1d_3d_ps
-   PUBLIC :: pw_gpu_c1dr3d_3d_ps
-   PUBLIC :: pw_gpu_init, pw_gpu_finalize
+   PUBLIC :: fft_gpu_r3dc1d_3d
+   PUBLIC :: fft_gpu_c1dr3d_3d
+   PUBLIC :: fft_gpu_r3dc1d_3d_ps
+   PUBLIC :: fft_gpu_c1dr3d_3d_ps
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_gpu'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fft_gpu'
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief Allocates resources on the gpu device for gpu fft acceleration
-!> \author Ole Schuett
-! **************************************************************************************************
-   SUBROUTINE pw_gpu_init()
-      INTEGER                                            :: dummy
-      INTERFACE
-         SUBROUTINE pw_gpu_init_c() BIND(C, name="pw_gpu_init")
-         END SUBROUTINE pw_gpu_init_c
-      END INTERFACE
-
-      MARK_USED(dummy) ! TODO: fix fpretty
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-      CALL pw_gpu_init_c()
-#else
-      ! Nothing to do.
-#endif
-   END SUBROUTINE pw_gpu_init
-
-! **************************************************************************************************
-!> \brief Releases resources on the gpu device for gpu fft acceleration
-!> \author Ole Schuett
-! **************************************************************************************************
-   SUBROUTINE pw_gpu_finalize()
-      INTEGER                                            :: dummy
-      INTERFACE
-         SUBROUTINE pw_gpu_finalize_c() BIND(C, name="pw_gpu_finalize")
-         END SUBROUTINE pw_gpu_finalize_c
-      END INTERFACE
-
-      MARK_USED(dummy) ! TODO: fix fpretty
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-      CALL pw_gpu_finalize_c()
-#else
-      ! Nothing to do.
-#endif
-   END SUBROUTINE pw_gpu_finalize
 
 ! **************************************************************************************************
 !> \brief perform an fft followed by a gather on the gpu
@@ -98,11 +59,11 @@ CONTAINS
 !> \param pw2 ...
 !> \author Benjamin G Levine
 ! **************************************************************************************************
-   SUBROUTINE pw_gpu_r3dc1d_3d(pw1, pw2)
+   SUBROUTINE fft_gpu_r3dc1d_3d(pw1, pw2)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw1
       TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: pw2
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_r3dc1d_3d'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_gpu_r3dc1d_3d'
 
       COMPLEX(KIND=dp), POINTER                          :: ptr_pwout
       INTEGER                                            :: handle, l1, l2, l3, ngpts
@@ -111,7 +72,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: scale
       REAL(KIND=dp), POINTER                             :: ptr_pwin
       INTERFACE
-         SUBROUTINE pw_gpu_cfffg_c(din, zout, ghatmap, npts, ngpts, scale) BIND(C, name="pw_gpu_cfffg")
+         SUBROUTINE fft_gpu_cfffg_c(din, zout, ghatmap, npts, ngpts, scale) BIND(C, name="fft_gpu_cfffg")
             IMPORT
             TYPE(C_PTR), INTENT(IN), VALUE               :: din
             TYPE(C_PTR), VALUE                           :: zout
@@ -120,7 +81,7 @@ CONTAINS
             INTEGER(KIND=C_INT), INTENT(IN), VALUE       :: ngpts
             REAL(KIND=C_DOUBLE), INTENT(IN), VALUE       :: scale
 
-         END SUBROUTINE pw_gpu_cfffg_c
+         END SUBROUTINE fft_gpu_cfffg_c
       END INTERFACE
 
       CALL timeset(routineN, handle)
@@ -141,14 +102,14 @@ CONTAINS
       ptr_ghatmap => pw2%pw_grid%g_hatmap(1, 1)
 
       ! invoke the combined transformation
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-      CALL pw_gpu_cfffg_c(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, ngpts, scale)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+      CALL fft_gpu_cfffg_c(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, ngpts, scale)
 #else
       CPABORT("Compiled without pw offloading.")
 #endif
 
       CALL timestop(handle)
-   END SUBROUTINE pw_gpu_r3dc1d_3d
+   END SUBROUTINE fft_gpu_r3dc1d_3d
 
 ! **************************************************************************************************
 !> \brief perform an scatter followed by a fft on the gpu
@@ -156,11 +117,11 @@ CONTAINS
 !> \param pw2 ...
 !> \author Benjamin G Levine
 ! **************************************************************************************************
-   SUBROUTINE pw_gpu_c1dr3d_3d(pw1, pw2)
+   SUBROUTINE fft_gpu_c1dr3d_3d(pw1, pw2)
       TYPE(pw_c1d_gs_type), INTENT(IN)                   :: pw1
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw2
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_c1dr3d_3d'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_gpu_c1dr3d_3d'
 
       COMPLEX(KIND=dp), POINTER                          :: ptr_pwin
       INTEGER                                            :: handle, l1, l2, l3, ngpts, nmaps
@@ -169,7 +130,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: scale
       REAL(KIND=dp), POINTER                             :: ptr_pwout
       INTERFACE
-         SUBROUTINE pw_gpu_sfffc_c(zin, dout, ghatmap, npts, ngpts, nmaps, scale) BIND(C, name="pw_gpu_sfffc")
+         SUBROUTINE fft_gpu_sfffc_c(zin, dout, ghatmap, npts, ngpts, nmaps, scale) BIND(C, name="fft_gpu_sfffc")
             IMPORT
             TYPE(C_PTR), INTENT(IN), VALUE               :: zin
             TYPE(C_PTR), VALUE                           :: dout
@@ -177,7 +138,7 @@ CONTAINS
             INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN):: npts
             INTEGER(KIND=C_INT), INTENT(IN), VALUE       :: ngpts, nmaps
             REAL(KIND=C_DOUBLE), INTENT(IN), VALUE       :: scale
-         END SUBROUTINE pw_gpu_sfffc_c
+         END SUBROUTINE fft_gpu_sfffc_c
       END INTERFACE
 
       CALL timeset(routineN, handle)
@@ -199,14 +160,14 @@ CONTAINS
       ptr_ghatmap => pw1%pw_grid%g_hatmap(1, 1)
 
       ! invoke the combined transformation
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-      CALL pw_gpu_sfffc_c(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, ngpts, nmaps, scale)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+      CALL fft_gpu_sfffc_c(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, ngpts, nmaps, scale)
 #else
       CPABORT("Compiled without pw offloading")
 #endif
 
       CALL timestop(handle)
-   END SUBROUTINE pw_gpu_c1dr3d_3d
+   END SUBROUTINE fft_gpu_c1dr3d_3d
 
 ! **************************************************************************************************
 !> \brief perform an parallel fft followed by a gather on the gpu
@@ -214,11 +175,11 @@ CONTAINS
 !> \param pw2 ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_gpu_r3dc1d_3d_ps(pw1, pw2)
+   SUBROUTINE fft_gpu_r3dc1d_3d_ps(pw1, pw2)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw1
       TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: pw2
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_gpu_r3dc1d_3d_ps'
+      CHARACTER(len=*), PARAMETER :: routineN = 'fft_gpu_r3dc1d_3d_ps'
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
@@ -314,7 +275,7 @@ CONTAINS
             sbuf => fft_scratch%p5buf
 
             ! FFT along z
-            CALL pw_gpu_cf(pw1, qbuf)
+            CALL fft_gpu_cf(pw1, qbuf)
 
             ! Exchange data ( transpose of matrix )
             CALL cube_transpose_2(qbuf, bo(:, :, :, 1), bo(:, :, :, 2), rbuf, fft_scratch)
@@ -323,14 +284,14 @@ CONTAINS
             ! use the inbuild fft-lib
             ! CALL fft_1d(fft_scratch%fft_plan(2), rbuf, pbuf, 1.0_dp, stat)
             ! or cufft (works faster, but is only faster if plans are stored)
-            CALL pw_gpu_f(rbuf, pbuf, +1, n(2), mx2*mz2)
+            CALL fft_gpu_f(rbuf, pbuf, +1, n(2), mx2*mz2)
 
             ! Exchange data ( transpose of matrix ) and sort
             CALL xz_to_yz(pbuf, rs_group, r_dim, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
                           bo(:, :, :, 2), sbuf, fft_scratch)
 
             ! FFT along x
-            CALL pw_gpu_fg(sbuf, pw2, scale)
+            CALL fft_gpu_fg(sbuf, pw2, scale)
 
             CALL release_fft_scratch(fft_scratch)
 
@@ -348,14 +309,14 @@ CONTAINS
             sbuf => fft_scratch%r1buf
 
             ! FFT along y and z
-            CALL pw_gpu_cff(pw1, tbuf)
+            CALL fft_gpu_cff(pw1, tbuf)
 
             ! Exchange data ( transpose of matrix ) and sort
             CALL yz_to_x(tbuf, rs_group, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
                          bo(:, :, :, 2), sbuf, fft_scratch)
 
             ! FFT along x
-            CALL pw_gpu_fg(sbuf, pw2, scale)
+            CALL fft_gpu_fg(sbuf, pw2, scale)
 
             CALL release_fft_scratch(fft_scratch)
 
@@ -365,11 +326,11 @@ CONTAINS
 
 !--------------------------------------------------------------------------
       ELSE
-         CPABORT("Not implemented (no ray_distr.) in: pw_gpu_r3dc1d_3d_ps.")
+         CPABORT("Not implemented (no ray_distr.) in: fft_gpu_r3dc1d_3d_ps.")
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE pw_gpu_r3dc1d_3d_ps
+   END SUBROUTINE fft_gpu_r3dc1d_3d_ps
 
 ! **************************************************************************************************
 !> \brief perform an parallel scatter followed by a fft on the gpu
@@ -377,11 +338,11 @@ CONTAINS
 !> \param pw2 ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_gpu_c1dr3d_3d_ps(pw1, pw2)
+   SUBROUTINE fft_gpu_c1dr3d_3d_ps(pw1, pw2)
       TYPE(pw_c1d_gs_type), INTENT(IN)                   :: pw1
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw2
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_gpu_c1dr3d_3d_ps'
+      CHARACTER(len=*), PARAMETER :: routineN = 'fft_gpu_c1dr3d_3d_ps'
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
@@ -477,7 +438,7 @@ CONTAINS
             sbuf => fft_scratch%p2buf
 
             ! FFT along x
-            CALL pw_gpu_sf(pw1, pbuf, scale)
+            CALL fft_gpu_sf(pw1, pbuf, scale)
 
             ! Exchange data ( transpose of matrix ) and sort
             IF (pw1%pw_grid%grid_span /= FULLSPACE) qbuf = z_zero
@@ -488,7 +449,7 @@ CONTAINS
             ! use the inbuild fft-lib
             ! CALL fft_1d(fft_scratch%fft_plan(5), qbuf, rbuf, 1.0_dp, stat)
             ! or cufft (works faster, but is only faster if plans are stored)
-            CALL pw_gpu_f(qbuf, rbuf, -1, n(2), mx2*mz2)
+            CALL fft_gpu_f(qbuf, rbuf, -1, n(2), mx2*mz2)
 
             ! Exchange data ( transpose of matrix )
             IF (pw1%pw_grid%grid_span /= FULLSPACE) sbuf = z_zero
@@ -496,7 +457,7 @@ CONTAINS
             CALL cube_transpose_1(rbuf, bo(:, :, :, 2), bo(:, :, :, 1), sbuf, fft_scratch)
 
             ! FFT along z
-            CALL pw_gpu_fc(sbuf, pw2)
+            CALL fft_gpu_fc(sbuf, pw2)
 
             CALL release_fft_scratch(fft_scratch)
 
@@ -514,7 +475,7 @@ CONTAINS
             tbuf => fft_scratch%tbuf
 
             ! FFT along x
-            CALL pw_gpu_sf(pw1, sbuf, scale)
+            CALL fft_gpu_sf(pw1, sbuf, scale)
 
             ! Exchange data ( transpose of matrix ) and sort
             IF (pw1%pw_grid%grid_span /= FULLSPACE) tbuf = z_zero
@@ -522,7 +483,7 @@ CONTAINS
                          bo(:, :, :, 2), tbuf, fft_scratch)
 
             ! FFT along y and z
-            CALL pw_gpu_ffc(tbuf, pw2)
+            CALL fft_gpu_ffc(tbuf, pw2)
 
             CALL release_fft_scratch(fft_scratch)
 
@@ -532,11 +493,11 @@ CONTAINS
 
 !--------------------------------------------------------------------------
       ELSE
-         CPABORT("Not implemented (no ray_distr.) in: pw_gpu_c1dr3d_3d_ps.")
+         CPABORT("Not implemented (no ray_distr.) in: fft_gpu_c1dr3d_3d_ps.")
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE pw_gpu_c1dr3d_3d_ps
+   END SUBROUTINE fft_gpu_c1dr3d_3d_ps
 
 ! **************************************************************************************************
 !> \brief perform a parallel real_to_complex copy followed by a 2D-FFT on the gpu
@@ -544,24 +505,24 @@ CONTAINS
 !> \param pwbuf ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_gpu_cff(pw1, pwbuf)
+   SUBROUTINE fft_gpu_cff(pw1, pwbuf)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw1
       COMPLEX(KIND=dp), DIMENSION(:, :, :), &
          INTENT(INOUT), TARGET                           :: pwbuf
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_cff'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_gpu_cff'
 
       COMPLEX(KIND=dp), POINTER                          :: ptr_pwout
       INTEGER                                            :: handle, l1, l2, l3
       INTEGER, DIMENSION(:), POINTER                     :: npts
       REAL(KIND=dp), POINTER                             :: ptr_pwin
       INTERFACE
-         SUBROUTINE pw_gpu_cff_c(din, zout, npts) BIND(C, name="pw_gpu_cff")
+         SUBROUTINE fft_gpu_cff_c(din, zout, npts) BIND(C, name="fft_gpu_cff")
             IMPORT
             TYPE(C_PTR), INTENT(IN), VALUE               :: din
             TYPE(C_PTR), VALUE                           :: zout
             INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN):: npts
-         END SUBROUTINE pw_gpu_cff_c
+         END SUBROUTINE fft_gpu_cff_c
       END INTERFACE
 
       CALL timeset(routineN, handle)
@@ -577,14 +538,14 @@ CONTAINS
       ptr_pwout => pwbuf(1, 1, 1)
 
       ! invoke the combined transformation
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-      CALL pw_gpu_cff_c(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+      CALL fft_gpu_cff_c(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
 #else
       CPABORT("Compiled without pw offloading")
 #endif
 
       CALL timestop(handle)
-   END SUBROUTINE pw_gpu_cff
+   END SUBROUTINE fft_gpu_cff
 
 ! **************************************************************************************************
 !> \brief perform a parallel 2D-FFT followed by a complex_to_real copy on the gpu
@@ -592,24 +553,24 @@ CONTAINS
 !> \param pw2 ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_gpu_ffc(pwbuf, pw2)
+   SUBROUTINE fft_gpu_ffc(pwbuf, pw2)
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
          TARGET                                          :: pwbuf
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw2
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_ffc'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_gpu_ffc'
 
       COMPLEX(KIND=dp), POINTER                          :: ptr_pwin
       INTEGER                                            :: handle, l1, l2, l3
       INTEGER, DIMENSION(:), POINTER                     :: npts
       REAL(KIND=dp), POINTER                             :: ptr_pwout
       INTERFACE
-         SUBROUTINE pw_gpu_ffc_c(zin, dout, npts) BIND(C, name="pw_gpu_ffc")
+         SUBROUTINE fft_gpu_ffc_c(zin, dout, npts) BIND(C, name="fft_gpu_ffc")
             IMPORT
             TYPE(C_PTR), INTENT(IN), VALUE               :: zin
             TYPE(C_PTR), VALUE                           :: dout
             INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN):: npts
-         END SUBROUTINE pw_gpu_ffc_c
+         END SUBROUTINE fft_gpu_ffc_c
       END INTERFACE
 
       CALL timeset(routineN, handle)
@@ -625,14 +586,14 @@ CONTAINS
       ptr_pwout => pw2%array(l1, l2, l3)
 
       ! invoke the combined transformation
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-      CALL pw_gpu_ffc_c(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+      CALL fft_gpu_ffc_c(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
 #else
       CPABORT("Compiled without pw offloading")
 #endif
 
       CALL timestop(handle)
-   END SUBROUTINE pw_gpu_ffc
+   END SUBROUTINE fft_gpu_ffc
 
 ! **************************************************************************************************
 !> \brief perform a parallel real_to_complex copy followed by a 1D-FFT on the gpu
@@ -640,24 +601,24 @@ CONTAINS
 !> \param pwbuf ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_gpu_cf(pw1, pwbuf)
+   SUBROUTINE fft_gpu_cf(pw1, pwbuf)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw1
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          TARGET                                          :: pwbuf
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_cf'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_gpu_cf'
 
       COMPLEX(KIND=dp), POINTER                          :: ptr_pwout
       INTEGER                                            :: handle, l1, l2, l3
       INTEGER, DIMENSION(:), POINTER                     :: npts
       REAL(KIND=dp), POINTER                             :: ptr_pwin
       INTERFACE
-         SUBROUTINE pw_gpu_cf_c(din, zout, npts) BIND(C, name="pw_gpu_cf")
+         SUBROUTINE fft_gpu_cf_c(din, zout, npts) BIND(C, name="fft_gpu_cf")
             IMPORT
             TYPE(C_PTR), INTENT(IN), VALUE               :: din
             TYPE(C_PTR), VALUE                           :: zout
             INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN):: npts
-         END SUBROUTINE pw_gpu_cf_c
+         END SUBROUTINE fft_gpu_cf_c
       END INTERFACE
 
       CALL timeset(routineN, handle)
@@ -673,13 +634,13 @@ CONTAINS
       ptr_pwout => pwbuf(1, 1)
 
       ! invoke the combined transformation
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-      CALL pw_gpu_cf_c(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+      CALL fft_gpu_cf_c(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
 #else
       CPABORT("Compiled without pw offloading")
 #endif
       CALL timestop(handle)
-   END SUBROUTINE pw_gpu_cf
+   END SUBROUTINE fft_gpu_cf
 
 ! **************************************************************************************************
 !> \brief perform a parallel 1D-FFT followed by a complex_to_real copy on the gpu
@@ -687,24 +648,24 @@ CONTAINS
 !> \param pw2 ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_gpu_fc(pwbuf, pw2)
+   SUBROUTINE fft_gpu_fc(pwbuf, pw2)
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          TARGET                                          :: pwbuf
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw2
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_fc'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_gpu_fc'
 
       COMPLEX(KIND=dp), POINTER                          :: ptr_pwin
       INTEGER                                            :: handle, l1, l2, l3
       INTEGER, DIMENSION(:), POINTER                     :: npts
       REAL(KIND=dp), POINTER                             :: ptr_pwout
       INTERFACE
-         SUBROUTINE pw_gpu_fc_c(zin, dout, npts) BIND(C, name="pw_gpu_fc")
+         SUBROUTINE fft_gpu_fc_c(zin, dout, npts) BIND(C, name="fft_gpu_fc")
             IMPORT
             TYPE(C_PTR), INTENT(IN), VALUE               :: zin
             TYPE(C_PTR), VALUE                           :: dout
             INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN):: npts
-         END SUBROUTINE pw_gpu_fc_c
+         END SUBROUTINE fft_gpu_fc_c
       END INTERFACE
 
       CALL timeset(routineN, handle)
@@ -719,14 +680,14 @@ CONTAINS
       ptr_pwout => pw2%array(l1, l2, l3)
 
       ! invoke the combined transformation
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-      CALL pw_gpu_fc_c(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+      CALL fft_gpu_fc_c(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
 #else
       CPABORT("Compiled without pw offloading")
 #endif
 
       CALL timestop(handle)
-   END SUBROUTINE pw_gpu_fc
+   END SUBROUTINE fft_gpu_fc
 
 ! **************************************************************************************************
 !> \brief perform a parallel 1D-FFT on the gpu
@@ -737,24 +698,24 @@ CONTAINS
 !> \param m ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_gpu_f(pwbuf1, pwbuf2, dir, n, m)
+   SUBROUTINE fft_gpu_f(pwbuf1, pwbuf2, dir, n, m)
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          TARGET                                          :: pwbuf1
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          TARGET                                          :: pwbuf2
       INTEGER, INTENT(IN)                                :: dir, n, m
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_f'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_gpu_f'
 
       COMPLEX(KIND=dp), POINTER                          :: ptr_pwin, ptr_pwout
       INTEGER                                            :: handle
       INTERFACE
-         SUBROUTINE pw_gpu_f_c(zin, zout, dir, n, m) BIND(C, name="pw_gpu_f")
+         SUBROUTINE fft_gpu_f_c(zin, zout, dir, n, m) BIND(C, name="fft_gpu_f")
             IMPORT
             TYPE(C_PTR), INTENT(IN), VALUE               :: zin
             TYPE(C_PTR), VALUE                           :: zout
             INTEGER(KIND=C_INT), INTENT(IN), VALUE       :: dir, n, m
-         END SUBROUTINE pw_gpu_f_c
+         END SUBROUTINE fft_gpu_f_c
       END INTERFACE
 
       CALL timeset(routineN, handle)
@@ -765,8 +726,8 @@ CONTAINS
          ptr_pwout => pwbuf2(1, 1)
 
          ! invoke the combined transformation
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-         CALL pw_gpu_f_c(c_loc(ptr_pwin), c_loc(ptr_pwout), dir, n, m)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+         CALL fft_gpu_f_c(c_loc(ptr_pwin), c_loc(ptr_pwout), dir, n, m)
 #else
          MARK_USED(dir)
          CPABORT("Compiled without pw offloading")
@@ -774,7 +735,7 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE pw_gpu_f
+   END SUBROUTINE fft_gpu_f
 ! **************************************************************************************************
 !> \brief perform a parallel 1D-FFT followed by a gather on the gpu
 !> \param pwbuf ...
@@ -782,20 +743,20 @@ CONTAINS
 !> \param scale ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_gpu_fg(pwbuf, pw2, scale)
+   SUBROUTINE fft_gpu_fg(pwbuf, pw2, scale)
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          TARGET                                          :: pwbuf
       TYPE(pw_c1d_gs_type), INTENT(IN)                   :: pw2
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_fg'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_gpu_fg'
 
       COMPLEX(KIND=dp), POINTER                          :: ptr_pwin, ptr_pwout
       INTEGER                                            :: handle, mg, mmax, ngpts
       INTEGER, DIMENSION(:), POINTER                     :: npts
       INTEGER, POINTER                                   :: ptr_ghatmap
       INTERFACE
-         SUBROUTINE pw_gpu_fg_c(zin, zout, ghatmap, npts, mmax, ngpts, scale) BIND(C, name="pw_gpu_fg")
+         SUBROUTINE fft_gpu_fg_c(zin, zout, ghatmap, npts, mmax, ngpts, scale) BIND(C, name="fft_gpu_fg")
             IMPORT
             TYPE(C_PTR), INTENT(IN), VALUE               :: zin
             TYPE(C_PTR), VALUE                           :: zout
@@ -804,7 +765,7 @@ CONTAINS
             INTEGER(KIND=C_INT), INTENT(IN), VALUE       :: mmax, ngpts
             REAL(KIND=C_DOUBLE), INTENT(IN), VALUE       :: scale
 
-         END SUBROUTINE pw_gpu_fg_c
+         END SUBROUTINE fft_gpu_fg_c
       END INTERFACE
 
       CALL timeset(routineN, handle)
@@ -824,8 +785,8 @@ CONTAINS
          ptr_ghatmap => pw2%pw_grid%g_hatmap(1, 1)
 
          ! invoke the combined transformation
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-         CALL pw_gpu_fg_c(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, scale)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+         CALL fft_gpu_fg_c(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, scale)
 #else
          MARK_USED(scale)
          CPABORT("Compiled without pw offloading")
@@ -833,7 +794,7 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE pw_gpu_fg
+   END SUBROUTINE fft_gpu_fg
 
 ! **************************************************************************************************
 !> \brief perform a parallel scatter followed by a 1D-FFT on the gpu
@@ -842,20 +803,20 @@ CONTAINS
 !> \param scale ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_gpu_sf(pw1, pwbuf, scale)
+   SUBROUTINE fft_gpu_sf(pw1, pwbuf, scale)
       TYPE(pw_c1d_gs_type), INTENT(IN)                   :: pw1
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          TARGET                                          :: pwbuf
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_sf'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_gpu_sf'
 
       COMPLEX(KIND=dp), POINTER                          :: ptr_pwin, ptr_pwout
       INTEGER                                            :: handle, mg, mmax, ngpts, nmaps
       INTEGER, DIMENSION(:), POINTER                     :: npts
       INTEGER, POINTER                                   :: ptr_ghatmap
       INTERFACE
-         SUBROUTINE pw_gpu_sf_c(zin, zout, ghatmap, npts, mmax, ngpts, nmaps, scale) BIND(C, name="pw_gpu_sf")
+         SUBROUTINE fft_gpu_sf_c(zin, zout, ghatmap, npts, mmax, ngpts, nmaps, scale) BIND(C, name="fft_gpu_sf")
             IMPORT
             TYPE(C_PTR), INTENT(IN), VALUE               :: zin
             TYPE(C_PTR), VALUE                           :: zout
@@ -864,7 +825,7 @@ CONTAINS
             INTEGER(KIND=C_INT), INTENT(IN), VALUE       :: mmax, ngpts, nmaps
             REAL(KIND=C_DOUBLE), INTENT(IN), VALUE       :: scale
 
-         END SUBROUTINE pw_gpu_sf_c
+         END SUBROUTINE fft_gpu_sf_c
       END INTERFACE
 
       CALL timeset(routineN, handle)
@@ -885,8 +846,8 @@ CONTAINS
          ptr_ghatmap => pw1%pw_grid%g_hatmap(1, 1)
 
          ! invoke the combined transformation
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-         CALL pw_gpu_sf_c(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, nmaps, scale)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+         CALL fft_gpu_sf_c(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, nmaps, scale)
 #else
          MARK_USED(scale)
          CPABORT("Compiled without pw offloading")
@@ -894,7 +855,6 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE pw_gpu_sf
+   END SUBROUTINE fft_gpu_sf
 
-END MODULE pw_gpu
-
+END MODULE fft_gpu

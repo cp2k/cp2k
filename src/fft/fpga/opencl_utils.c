@@ -2,14 +2,14 @@
 /*  CP2K: A general program to perform molecular dynamics simulations         */
 /*  Copyright 2000-2026 CP2K developers group <https://cp2k.org>              */
 /*                                                                            */
-/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
+/*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
 /*******************************************************************************
  * /author Arjun Ramaswami
  ******************************************************************************/
 
-#if defined(__PW_FPGA)
+#if defined(__FFT_FPGA)
 
 // global dependencies
 #include <math.h>
@@ -155,7 +155,7 @@ cl_program getProgramWithBinary(cl_context context, const cl_device_id *devices,
   size_t bin_size;
   cl_int bin_status, status;
 
-#ifdef __PW_FPGA_SP
+#ifdef __FFT_FPGA_SP
   const char *subpath = "/../fpgabitstream/fft3d/synthesis_sp/";
 #else
   const char *subpath = "/../fpgabitstream/fft3d/synthesis_dp/";

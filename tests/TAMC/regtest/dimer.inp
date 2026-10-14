@@ -22,7 +22,7 @@
 @SET Temp 25 ! physical system temperature
 &GLOBAL
   ECHO_INPUT yes
-  PREFERRED_FFT_LIBRARY FFTSG
+  PREFERRED_FFT_LIBRARY FFTW3
   !   Run_type MD
   !  Run_type GEOMETRY_OPTIMIZATION
   PRINT_LEVEL low

@@ -127,8 +127,7 @@ CONTAINS
       CHARACTER(default_string_length), &
          DIMENSION(:, :), POINTER                        :: atom_names
       CHARACTER(LEN=20)                                  :: ensemble
-      CHARACTER(LEN=40)                                  :: cbox, cstep, fft_lib, move_type, &
-                                                            move_type_avbmc
+      CHARACTER(LEN=40)                                  :: cbox, cstep, move_type, move_type_avbmc
       INTEGER, DIMENSION(:, :), POINTER                  :: nchains
       INTEGER, DIMENSION(:), POINTER                     :: avbmc_atom, mol_type, nchains_box, &
                                                             nunits, nunits_tot
@@ -218,7 +217,7 @@ CONTAINS
                       pmtraion=pmtraion, pmtrans=pmtrans, pmcltrans=pmcltrans, iuptrans=iuptrans, &
                       iupvolume=iupvolume, ldiscrete=ldiscrete, pmtraion_mol=pmtraion_mol, &
                       lbias=lbias, iprint=iprint, pmavbmc_mol=pmavbmc_mol, &
-                      discrete_step=discrete_step, fft_lib=fft_lib, avbmc_atom=avbmc_atom, &
+                      discrete_step=discrete_step, avbmc_atom=avbmc_atom, &
                       pmavbmc=pmavbmc, pbias=pbias, mc_molecule_info=mc_molecule_info, &
                       pmrot_mol=pmrot_mol, pmtrans_mol=pmtrans_mol, pmvol_box=pmvol_box(1), &
                       pmclus_box=pmclus_box(1), ensemble=ensemble, pmhmc_box=pmhmc_box(1), lhmc=lhmc)

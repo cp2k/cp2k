@@ -1066,6 +1066,12 @@ CONTAINS
       USE cp_dbcsr_api, ONLY: &
          dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
          dbcsr_finalize, dbcsr_finalize_lib, dbcsr_init_lib, dbcsr_put_block, dbcsr_type_no_symmetry
+      USE cp_log_handling, ONLY: cp_add_default_logger, &
+                                 cp_logger_create, &
+                                 cp_logger_release, &
+                                 cp_logger_type, &
+                                 cp_rm_default_logger
+      USE fft_api, ONLY: FFT_LIBRARY_BACKEND_DEFAULT, FFT_LIBRARY_FFTW_MODE_ESTIMATE
       USE fft_tools, ONLY: finalize_fft, &
                            init_fft
       USE ieee_arithmetic, ONLY: ieee_quiet_nan, &
@@ -1095,7 +1101,9 @@ CONTAINS
 
       io = cp_logger_get_default_io_unit()
       CALL dbcsr_init_lib(para_env%get_handle(), io)
-      CALL init_fft('FFTSG', alltoall=.FALSE., pool_limit=4, wisdom_file='', plan_style=1)
+      CALL init_fft(FFT_LIBRARY_BACKEND_DEFAULT, alltoall=.FALSE., pool_limit=4, wisdom_file='', &
+                    plan_style=FFT_LIBRARY_FFTW_MODE_ESTIMATE, status=status)
+      IF (status /= 0) CPABORT("FFT initalization step failed")
       nr = para_env%num_pe
       nc = 1
       DO i = 1, command_argument_count()
