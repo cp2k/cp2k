@@ -21,6 +21,7 @@ MODULE input_cp2k_colvar
                                               high_print_level,&
                                               low_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
+   USE fparser,                         ONLY: docf
    USE input_constants,                 ONLY: gaussian,&
                                               numerical,&
                                               rmsd_all,&
@@ -40,7 +41,8 @@ MODULE input_cp2k_colvar
                                               lchar_t,&
                                               real_t
    USE kinds,                           ONLY: dp
-   USE string_utilities,                ONLY: s2a
+   USE string_utilities,                ONLY: newline,&
+                                              s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1843,7 +1845,13 @@ CONTAINS
                           description="Section defining a one dimensional reaction path in an Q-dimensional space of colvars. "// &
                           "Constraining this colvar, allows to sample the space orthogonal to the reaction path, "// &
                           "both in the Q-dimensional colvar and 3N-Q remaining coordinates. "// &
-                          "For the details of the function see cited literature.", &
+                          "For the details of the function see cited literature."//newline//newline// &
+                          "The default is to use the colvars defined in the COLVAR subsections, which "// &
+                          "requires FUNCTION, VARIABLE, RANGE, STEP_SIZE keywords and optionally "// &
+                          "the MAP print key. Switching on either RMSD or DISTANCES_RMSD (which are "// &
+                          "mutually exclusive) instead requires the SUBSET_TYPE, ALIGN_FRAMES (and "// &
+                          "optionally ATOMS) keywords and the FRAME subsections. The LAMBDA keyword "// &
+                          "is always required for each of the three possibilities.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
                           citations=[Branduardi2007])
 
@@ -1864,7 +1872,13 @@ CONTAINS
                           "path in an Q-dimensional space of colvars. "// &
                           "Constraining this colvar, allows to sample the space equidistant to the reaction path, "// &
                           "both in the Q-dimensional colvar and 3N-Q remaining coordinates. "// &
-                          "For the details of the function see cited literature.", &
+                          "For the details of the function see cited literature."//newline//newline// &
+                          "The default is to use the colvars defined in the COLVAR subsections, which "// &
+                          "requires FUNCTION, VARIABLE, RANGE, STEP_SIZE keywords and optionally "// &
+                          "the MAP print key. Switching on either RMSD or DISTANCES_RMSD (which are "// &
+                          "mutually exclusive) instead requires the SUBSET_TYPE, ALIGN_FRAMES (and "// &
+                          "optionally ATOMS) keywords and the FRAME subsections. The LAMBDA keyword "// &
+                          "is always required for each of the three possibilities.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
                           citations=[Branduardi2007])
 
@@ -1889,14 +1903,14 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="DISTANCES_RMSD", &
-                          description=" ", &
+                          description="Whether to use distances RMSD instead of COLVARs.", &
                           usage="DISTANCES_RMSD T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="RMSD", &
-                          description=" ", &
+                          description="Whether to use RMSD instead of COLVARs.", &
                           usage="RMSD T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -1944,9 +1958,11 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="FUNCTION", &
-                          description="Specifies the ith element of the vector valued function that defines the reaction path. "// &
-                          "This keyword needs to repeat exactly Q times, and the order must match the order of the colvars. "// &
-                          "The VARIABLE (e.g. T) which parametrises the curve can be used as the target of a constraint.", &
+                          description="Specifies the ith element of the vector valued function that "// &
+                          "defines the reaction path. This keyword needs to repeat exactly Q times, "// &
+                          "and the order must match the order of the colvars defined in the COLVAR "// &
+                          "subsections. The VARIABLE (e.g. T) which parametrises the curve can be "// &
+                          "used as the target of a constraint. "//docf(), &
                           usage="FUNCTION (sin(T+2)+2*T)", type_of_var=lchar_t, &
                           n_var=1, default_lc_val="0", repeats=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -1954,7 +1970,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="VARIABLE", &
                           description="Specifies the name of the variable that parametrises the FUNCTION "// &
-                          "defining the reaction path.", &
+                          "defining the reaction path. All Q functions must use this variable.", &
                           usage="VARIABLE T", type_of_var=char_t, &
                           n_var=1, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)

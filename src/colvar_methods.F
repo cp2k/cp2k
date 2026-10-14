@@ -142,7 +142,7 @@ CONTAINS
                                                             nr_frame, v_count
       INTEGER, DIMENSION(:), POINTER                     :: iatms
       INTEGER, DIMENSION(:, :), POINTER                  :: p_bounds
-      LOGICAL                                            :: check, use_mixed_energy
+      LOGICAL                                            :: use_mixed_energy
       LOGICAL, DIMENSION(27)                             :: my_subsection
       REAL(dp), DIMENSION(:), POINTER                    :: s1, wei, weights
       REAL(dp), DIMENSION(:, :), POINTER                 :: p_range, s1v
@@ -539,8 +539,14 @@ CONTAINS
             ALLOCATE (colvar%reaction_path_param%f_vals(ncol, istart:iend))
             CALL section_vals_val_get(path_section, "VARIABLE", c_vals=my_par, i_rep_val=1)
             CALL section_vals_val_get(path_section, "FUNCTION", n_rep_val=ncol)
-            check = (ncol == SIZE(colvar%reaction_path_param%colvar_p))
-            CPASSERT(check)
+            ! Check that the number of COLVAR provided is equal to the number of functions..
+            IF (SIZE(colvar%reaction_path_param%colvar_p) /= ncol) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "Number of defined COLVAR for REACTION_PATH or DISTANCE_FROM_PATH "// &
+                             "is different from the number of functions! It is not possible "// &
+                             "to define COLVARs in a REACTION_PATH or DISTANCE_FROM_PATH type "// &
+                             "COLVAR and omit the corresponding functions!")
+            END IF
             CALL initf(ncol)
             DO i = 1, ncol
                CALL section_vals_val_get(path_section, "FUNCTION", c_val=path_function, i_rep_val=i)
@@ -625,7 +631,7 @@ CONTAINS
             CALL cp_abort(__LOCATION__, &
                           "Number of defined COLVAR for COMBINE_COLVAR is different from the "// &
                           "number of variables! It is not possible to define COLVARs in a COMBINE_COLVAR "// &
-                          "and avoid their usage in the combininig function!")
+                          "and avoid their usage in the combining function!")
          END IF
          ! Parameters
          ALLOCATE (colvar%combine_cvs_param%c_parameters(0))

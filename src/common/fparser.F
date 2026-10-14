@@ -15,8 +15,7 @@
 !> \author Roland Schmehl <Roland.Schmehl@mach.uni-karlsruhe.de>
 ! **************************************************************************************************
 MODULE fparser
-   USE kinds,                           ONLY: default_path_length,&
-                                              default_string_length,&
+   USE kinds,                           ONLY: default_string_length,&
                                               rn => dp
 #include "../base/base_uses.f90"
 
@@ -1154,23 +1153,20 @@ CONTAINS
       !----- -------- --------- --------- --------- --------- --------- --------- -------
       CHARACTER(LEN=:), ALLOCATABLE                      :: doc
 
-      CHARACTER(LEN=default_string_length)               :: length
       INTEGER                                            :: i
 
 !----- -------- --------- --------- --------- --------- --------- --------- -------
 
-      WRITE (UNIT=length, FMT="(I8)") default_path_length
-      doc = "Specifies a functional form. The maximum length is "//TRIM(ADJUSTL(length))//" characters."
-      doc = doc//"Mathematical Operators recognized are "
+      doc = "Mathematical Operators recognized are "
       DO i = cAdd, cPow
          IF (i > cAdd) doc = doc//", "
-         doc = doc//Ops(i)
+         doc = doc//"`"//Ops(i)//"`"
       END DO
-      doc = doc//" or alternatively **, whereas symbols for brackets must be (). The function"// &
+      doc = doc//" or alternatively `**`, whereas symbols for brackets must be `()`. The function"// &
             " parser recognizes the Fortran 90 intrinsic functions "
       DO i = cAbs, cErfc
          IF (i > cAbs) doc = doc//", "
-         doc = doc//TRIM(Funcs(i))
+         doc = doc//"`"//TRIM(Funcs(i))//"`"
       END DO
       doc = doc//". Parsing for intrinsic functions is not case sensitive."
    END FUNCTION docf
