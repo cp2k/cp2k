@@ -121,6 +121,63 @@ which prints the CP2K help message and the version information, including `CP2K 
 Other CP2K versions are available from [hub.docker.com](https://hub.docker.com/r/cp2k/cp2k/tags).
 Select only tags containing `aarch64`.
 
+### Build the container image locally
+
+Alternatively, a CP2K container image can be built locally from the CP2K source code, e.g. to run
+the current development version of CP2K. Clone the CP2K repository from GitHub and change to the
+`tools/docker` directory
+
+```shell
+git clone https://github.com/cp2k/cp2k.git
+cd cp2k/tools/docker
+```
+
+The Dockerfile
+[Dockerfile.test_spack_psmp-gcc15](https://github.com/cp2k/cp2k/blob/master/tools/docker/Dockerfile.test_spack_psmp-gcc15)
+builds CP2K (`psmp`) with GCC 15 and MPICH, and all its dependencies with
+[Spack](https://spack.readthedocs.io) using `make_cp2k.sh` (see
+[](./build-from-source.md#spack-based-build-via-make_cp2ksh)). The Spack packages built are stored
+in a local Spack cache, which is provided by a [MinIO](https://min.io/) server running in a separate
+container. Start this Spack cache container first with
+
+```shell
+./spack_cache_start.sh
+```
+
+and then build the CP2K container image with
+
+```shell
+podman build --shm-size=1g -t spack_psmp-gcc15 -f ./Dockerfile.test_spack_psmp-gcc15 ../../
+```
+
+The last argument `../../` passes the root directory of the CP2K source code as build context.
+Building all dependencies from scratch takes a while (up to a few hours, depending on the number of
+CPU cores of the Podman machine). Subsequent builds, e.g. after a `git pull`, are much faster, since
+the Spack packages are taken from the Spack cache, if they have not changed. As a final build step,
+the CP2K regression tests are run. Their summary can be checked with
+
+```shell
+podman run --rm spack_psmp-gcc15 tail -n 20 /opt/cp2k/report.log
+```
+
+The resulting image `localhost/spack_psmp-gcc15` can be used like the image downloaded from Docker
+Hub, i.e. just replace `docker.io/cp2k/cp2k:2026.2_mpich_aarch64_psmp` with `spack_psmp-gcc15` in
+the `podman` commands below, e.g.
+
+```shell
+podman run --rm spack_psmp-gcc15
+```
+
+The Spack cache container can be stopped with `./spack_cache_stop.sh` and its content listed with
+`./spack_cache_list.sh`. The script `./spack_cache_remove.sh` removes the stopped Spack cache
+container including all cached Spack packages.
+
+```{note}
+Without a running Spack cache container, the build stops with an error message. The Spack cache can
+be disabled by adding the option `--build-arg SPACK_CACHE=""` to the `podman build` command. In
+that case, all dependencies are rebuilt from scratch for each new build.
+```
+
 ## Run CP2K
 
 Podman shares the `/Users` directory of the Mac with the Podman machine. Therefore, the input files
@@ -196,7 +253,7 @@ brew uninstall podman
 
 ## Troubleshooting
 
-- **`Cannot connect to Podman`**: the Podman machine is not running. Start it with
+- **Cannot connect to Podman**: the Podman machine is not running. Start it with
   `podman machine start`, and check its state with `podman machine list`.
 - **Input file not found**: the current directory is not below `/Users`, e.g. it is in `/Volumes` on
   an external disk, which is not shared with the Podman machine by default. Move the input files to
