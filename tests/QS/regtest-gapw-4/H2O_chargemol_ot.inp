@@ -1,3 +1,4 @@
+# Small grids test WFX export and ADMM forces, not grid convergence.
 &GLOBAL
   PROJECT H2O_chargemol_ot
   RUN_TYPE ENERGY_FORCE
@@ -14,8 +15,8 @@
       EXCH_CORRECTION_FUNC PBEX
     &END AUXILIARY_DENSITY_MATRIX_METHOD
     &MGRID
-      CUTOFF 400
-      REL_CUTOFF 60
+      CUTOFF 150
+      REL_CUTOFF 40
     &END MGRID
     &POISSON
       PERIODIC NONE
@@ -34,7 +35,7 @@
       EPS_SCF 1.0E-8
       MAX_SCF 100
       &OT
-        MINIMIZER CG
+        MINIMIZER DIIS
         PRECONDITIONER FULL_ALL
       &END OT
     &END SCF
@@ -59,27 +60,27 @@
   &END PRINT
   &SUBSYS
     &CELL
-      ABC 10 10 10
+      ABC 6 6 6
       PERIODIC NONE
     &END CELL
     &COORD
-      O 5.0 5.0 5.0
-      H 5.7586 5.0 5.5043
-      H 4.2414 5.0 5.5043
+      O 3.0 3.0 3.0
+      H 3.7586 3.0 3.5043
+      H 2.2414 3.0 3.5043
     &END COORD
     &KIND O
       BASIS_SET 6-31G*
       BASIS_SET AUX_FIT admm-2
-      LEBEDEV_GRID 110
+      LEBEDEV_GRID 50
       POTENTIAL ALL
-      RADIAL_GRID 100
+      RADIAL_GRID 40
     &END KIND
     &KIND H
       BASIS_SET 6-31G*
       BASIS_SET AUX_FIT admm-2
-      LEBEDEV_GRID 110
+      LEBEDEV_GRID 50
       POTENTIAL ALL
-      RADIAL_GRID 100
+      RADIAL_GRID 40
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
