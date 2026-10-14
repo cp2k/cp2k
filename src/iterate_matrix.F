@@ -1397,7 +1397,7 @@ CONTAINS
       CALL dissection%init(matrix)
       CALL dissection%get_sm_ids_for_rank(myrank, my_sms)
 
-      !$OMP PARALLEL DEFAULT(OMP_DEFAULT_NONE_WITH_OOP) &
+      !$OMP PARALLEL DEFAULT(NONE) &
       !$OMP          PRIVATE(sm, sm_sign, sm_size) &
       !$OMP          SHARED(dissection, myrank, my_sms, order, submatrix_sign_method, threshold, unit_nr)
       !$OMP DO SCHEDULE(GUIDED)
@@ -1479,7 +1479,7 @@ CONTAINS
 
       trace = 0.0_dp
 
-      !$OMP PARALLEL DEFAULT(OMP_DEFAULT_NONE_WITH_OOP) &
+      !$OMP PARALLEL DEFAULT(NONE) &
       !$OMP          PRIVATE(sm, sm_sign, sm_size, sm_firstcol, sm_lastcol, j, tmp) &
       !$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, threshold, variant) &
       !$OMP          REDUCTION(+:trace)
@@ -1540,7 +1540,7 @@ CONTAINS
          END IF
 
          trace = 0
-         !$OMP PARALLEL DEFAULT(OMP_DEFAULT_NONE_WITH_OOP) &
+         !$OMP PARALLEL DEFAULT(NONE) &
          !$OMP          PRIVATE(i, sm_sign, tmp, sm_size, sm_firstcol, sm_lastcol) &
          !$OMP          SHARED(dissection, my_sms, unit_nr, eigbufs, mu, new_mu, nelectron) &
          !$OMP          REDUCTION(+:trace)
@@ -1556,7 +1556,7 @@ CONTAINS
 
       ! Finalize sign matrix from eigendecompositions if we kept all eigenvectors
       IF (variant == ls_scf_submatrix_sign_direct_muadj) THEN
-         !$OMP PARALLEL DEFAULT(OMP_DEFAULT_NONE_WITH_OOP) &
+         !$OMP PARALLEL DEFAULT(NONE) &
          !$OMP          PRIVATE(sm, sm_sign, sm_size, sm_firstcol, sm_lastcol, j) &
          !$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, mu, new_mu)
          !$OMP DO SCHEDULE(GUIDED)
@@ -1576,7 +1576,7 @@ CONTAINS
 
       ! If we only stored parts of the eigenvectors and mu has changed, we need to recompute sm_sign
       IF ((variant == ls_scf_submatrix_sign_direct_muadj_lowmem) .AND. (mu /= new_mu)) THEN
-         !$OMP PARALLEL DEFAULT(OMP_DEFAULT_NONE_WITH_OOP) &
+         !$OMP PARALLEL DEFAULT(NONE) &
          !$OMP          PRIVATE(sm, sm_sign, sm_size, sm_firstcol, sm_lastcol, j) &
          !$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, mu, new_mu)
          !$OMP DO SCHEDULE(GUIDED)
