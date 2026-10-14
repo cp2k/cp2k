@@ -3195,6 +3195,67 @@ CONTAINS
    END SUBROUTINE build_local_moment_matrix_rs_img
 
 ! **************************************************************************************************
+!> \brief Image-cell index covering the images of two kpoint environments and their mirrors -R.
+!>        Needed when the SCF neighbor list reaches further than sab_all (e.g. with HFX), so
+!>        that real-space matrices of both kinds can be replicated into one set of arrays.
+!> \param kp_a first kpoint environment (cell index initialised)
+!> \param kp_b second kpoint environment (cell index initialised)
+!> \param index_to_cell union image list, dim (3, n_images); allocated here, caller deallocates
+!> \param cell_to_index mapping of cell coordinates to the union image index (0 = not present);
+!>        allocated here, caller deallocates
+!> \author Shridhar Shanbhag
+! **************************************************************************************************
+   SUBROUTINE get_cell_index_union(kp_a, kp_b, index_to_cell, cell_to_index)
+      TYPE(kpoint_type), POINTER                         :: kp_a, kp_b
+      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+
+      INTEGER                                            :: i, ic, isgn, n
+      INTEGER, DIMENSION(3)                              :: cell, itm
+      INTEGER, DIMENSION(:, :), ALLOCATABLE              :: list
+      INTEGER, DIMENSION(:, :), POINTER                  :: itc_a, itc_b
+
+      NULLIFY (itc_a, itc_b)
+      CALL get_kpoint_info(kp_a, index_to_cell=itc_a)
+      CALL get_kpoint_info(kp_b, index_to_cell=itc_b)
+      CPASSERT(ASSOCIATED(itc_a))
+      CPASSERT(ASSOCIATED(itc_b))
+
+      DO i = 1, 3
+         itm(i) = MAX(MAXVAL(ABS(itc_a(i, :))), MAXVAL(ABS(itc_b(i, :))))
+      END DO
+      ALLOCATE (cell_to_index(-itm(1):itm(1), -itm(2):itm(2), -itm(3):itm(3)))
+      cell_to_index(:, :, :) = 0
+      ALLOCATE (list(3, 2*(SIZE(itc_a, 2) + SIZE(itc_b, 2))))
+
+      ! the images of kp_a keep their order, so index i of kp_a is index i of the union
+      n = 0
+      DO isgn = 1, -1, -2
+         DO ic = 1, SIZE(itc_a, 2)
+            cell(:) = isgn*itc_a(:, ic)
+            IF (cell_to_index(cell(1), cell(2), cell(3)) /= 0) CYCLE
+            n = n + 1
+            cell_to_index(cell(1), cell(2), cell(3)) = n
+            list(:, n) = cell(:)
+         END DO
+      END DO
+      DO isgn = 1, -1, -2
+         DO ic = 1, SIZE(itc_b, 2)
+            cell(:) = isgn*itc_b(:, ic)
+            IF (cell_to_index(cell(1), cell(2), cell(3)) /= 0) CYCLE
+            n = n + 1
+            cell_to_index(cell(1), cell(2), cell(3)) = n
+            list(:, n) = cell(:)
+         END DO
+      END DO
+
+      ALLOCATE (index_to_cell(3, n))
+      index_to_cell(:, :) = list(:, 1:n)
+      DEALLOCATE (list)
+
+   END SUBROUTINE get_cell_index_union
+
+! **************************************************************************************************
 !> \brief Calculates the dipole moments, berry curvature, momentum and band energy for periodic
 !>  systems for kpoints
 !> \param qs_env ...
@@ -3221,11 +3282,11 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :, :, :, :), &
          ALLOCATABLE, OPTIONAL                           :: dipole, momentum
       INTEGER                                            :: handle, i_dir, ikp, nkp, &
-                                                            n_img_scf, n_img_all, nao, &
+                                                            n_img_scf, n_img_all, n_img_mom, nao, &
                                                             num_pe, num_copy, mepos, n, m, mu, &
                                                             ispin, nspin
       INTEGER, DIMENSION(3)                              :: periodic
-      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_all
+      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_all, index_to_cell_mom
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index_all
       REAL(KIND=dp), PARAMETER                           :: eps_degenerate = 1.0E-10_dp
       REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: rcc
@@ -3274,18 +3335,21 @@ CONTAINS
       nspin = SIZE(matrix_ks_kp, 1)
       nkp = SIZE(xkp, 2)
 
-      ! create kpoint environment kpoints_all which contains all neighbor cells R
-      ! without considering any lattice symmetry
-      NULLIFY (kpoints_all)
+      ! create kpoint environment kpoints_all which contains all neighbor cells R of sab_all
+      ! (the images of the dipole operator) without considering any lattice symmetry
+      NULLIFY (kpoints_all, index_to_cell_mom)
       CALL kpoint_create(kpoints_all)
       CALL kpoint_init_cell_index(kpoints_all, sab_all, para_env, n_img_scf)
+      CALL get_kpoint_info(kpoints_all, index_to_cell=index_to_cell_mom)
+      n_img_mom = SIZE(index_to_cell_mom, 2)
 
-      CALL get_kpoint_info(kpoints_all, cell_to_index=cell_to_index_all, &
-                           index_to_cell=index_to_cell_all)
+      ! The SCF neighbor list (e.g. extended for HFX) can contain images not in sab_all, so the
+      ! arrays S_rs, H_rs, D_rs are indexed by the union of both image sets (incl. mirrors -R)
+      CALL get_cell_index_union(kpoints_all, kpoints_scf, index_to_cell_all, cell_to_index_all)
       n_img_all = SIZE(index_to_cell_all, 2)
 
       NULLIFY (moments_rs_img)
-      CALL dbcsr_allocate_matrix_set(moments_rs_img, 3, n_img_all)
+      CALL dbcsr_allocate_matrix_set(moments_rs_img, 3, n_img_mom)
       ! D_μ,ν = <φ_μ|r|φ_ν>
       CALL build_local_moment_matrix_rs_img(qs_env, moments_rs_img, rcc=my_rcc)
 
@@ -3427,6 +3491,7 @@ CONTAINS
       IF (calc_momentum) DEALLOCATE (mom)
 !$OMP END PARALLEL
       DEALLOCATE (S_rs, H_rs, D_rs)
+      DEALLOCATE (index_to_cell_all, cell_to_index_all)
       CALL dbcsr_deallocate_matrix_set(moments_rs_img)
       CALL kpoint_release(kpoints_all)
       CALL timestop(handle)
@@ -3527,10 +3592,10 @@ CONTAINS
                                                             WdH2W, WdS2W
       COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: dip, mom
       INTEGER                                            :: handle, i_dir, ikp, mepos, mu, m, n, &
-                                                            n_img_all, nao, nao2, nimg, nkp, &
+                                                            n_img_all, n_img_mom, nao, nao2, nimg, nkp, &
                                                             nspin, num_copy, num_pe, s
       INTEGER, DIMENSION(3)                              :: periodic
-      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_all
+      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_all, index_to_cell_mom
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index_all
       LOGICAL                                            :: calc_bc, calc_dipole, calc_energy, &
                                                             calc_momentum, my_do_parallel
@@ -3559,7 +3624,7 @@ CONTAINS
       IF (PRESENT(do_parallel)) my_do_parallel = do_parallel
       IF (PRESENT(rcc)) my_rcc = rcc
 
-      NULLIFY (cell, cell_to_index_all, dft_control, index_to_cell_all, kpoints_all, &
+      NULLIFY (cell, cell_to_index_all, dft_control, index_to_cell_all, index_to_cell_mom, kpoints_all, &
                kpoints_scf, mat_V_SOC_xyz, matrix_ks_kp, matrix_s_kp, moments_rs_img, mos, &
                para_env, sab_all)
 
@@ -3580,15 +3645,20 @@ CONTAINS
       nao2 = 2*nao
       s = nao + 1
 
-      ! create kpoint environment kpoints_all which contains all neighbor cells R
+      ! create kpoint environment kpoints_all which contains all neighbor cells R of sab_all
+      ! (the images of the dipole operator)
       CALL kpoint_create(kpoints_all)
       CALL kpoint_init_cell_index(kpoints_all, sab_all, para_env, nimg)
-      CALL get_kpoint_info(kpoints_all, cell_to_index=cell_to_index_all, &
-                           index_to_cell=index_to_cell_all)
+      CALL get_kpoint_info(kpoints_all, index_to_cell=index_to_cell_mom)
+      n_img_mom = SIZE(index_to_cell_mom, 2)
+
+      ! The SCF neighbor list (e.g. extended for HFX) can contain images not in sab_all, so the
+      ! arrays S_rs, H_rs, D_rs, VSOC_rs are indexed by the union of both image sets (incl. -R)
+      CALL get_cell_index_union(kpoints_all, kpoints_scf, index_to_cell_all, cell_to_index_all)
       n_img_all = SIZE(index_to_cell_all, 2)
 
       NULLIFY (moments_rs_img)
-      CALL dbcsr_allocate_matrix_set(moments_rs_img, 3, n_img_all)
+      CALL dbcsr_allocate_matrix_set(moments_rs_img, 3, n_img_mom)
       ! D_mu,nu = <phi_mu|r|phi_nu>
       CALL build_local_moment_matrix_rs_img(qs_env, moments_rs_img, rcc=my_rcc)
 
@@ -3758,6 +3828,7 @@ CONTAINS
       IF (calc_momentum) DEALLOCATE (mom)
 !$OMP END PARALLEL
       DEALLOCATE (S_rs, H_rs, D_rs, VSOC_rs)
+      DEALLOCATE (index_to_cell_all, cell_to_index_all)
       CALL dbcsr_deallocate_matrix_set(moments_rs_img)
       CALL dbcsr_deallocate_matrix_set(mat_V_SOC_xyz)
       CALL kpoint_release(kpoints_all)
