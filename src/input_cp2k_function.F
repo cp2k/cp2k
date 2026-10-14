@@ -136,7 +136,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: default_values_unit_str = "internal_cp2k"
 
       CHARACTER(LEN=:), ALLOCATABLE                      :: input_variables_info, my_description
-      CHARACTER(LEN=default_string_length)               :: my_size_default, my_size_var
+      CHARACTER(LEN=default_string_length)               :: length, my_size_default, my_size_var
       INTEGER                                            :: i, mydim
       LOGICAL                                            :: has_kw_variables, my_do_deriv, my_repeats
       TYPE(keyword_type), POINTER                        :: keyword
@@ -149,6 +149,7 @@ CONTAINS
       my_description = TRIM(description)
       mydim = 0
       CALL integer_to_string(default_string_length, my_size_default)
+      CALL integer_to_string(default_path_length, length)
 
       IF (PRESENT(input_variables)) THEN
          has_kw_variables = .TRUE.
@@ -176,7 +177,8 @@ CONTAINS
                           n_keywords=0, n_subsections=0, repeats=my_repeats)
 
       CALL keyword_create(keyword, __LOCATION__, name=TRIM(func_name), &
-                          description=docf(), &
+                          description="Specifies a functional form. The maximum length "// &
+                          "is "//TRIM(ADJUSTL(length))//" characters. "//docf(), &
                           usage=TRIM(func_name)//" A*X+B*(2/(1+EXP(-0.001*Y))-1)", &
                           type_of_var=lchar_t, n_var=1)
       CALL section_add_keyword(gen_section, keyword)
