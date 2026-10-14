@@ -4155,8 +4155,8 @@ CONTAINS
       IF (para_env%is_source()) THEN
          IF (PRESENT(dip_file)) THEN
             IF (LEN_TRIM(dip_file) > 0) THEN
-               CALL open_file(file_name=TRIM(dip_file), file_status="UNKNOWN", file_action="WRITE", &
-                              file_position="APPEND", unit_number=dip_unit)
+               CALL open_file(file_name=TRIM(dip_file), file_status="REPLACE", file_action="WRITE", &
+                              unit_number=dip_unit)
                WRITE (dip_unit, FMT="(/,T2,A)") &
                   '!-----------------------------------------------------------------------------!'
                WRITE (dip_unit, "(T22,A)") "Periodic Dipole Matrix Elements ["//TRIM(dip_label)//"]"
@@ -4165,8 +4165,8 @@ CONTAINS
          END IF
          IF (PRESENT(bc_file)) THEN
             IF (LEN_TRIM(bc_file) > 0) THEN
-               CALL open_file(file_name=TRIM(bc_file), file_status="UNKNOWN", file_action="WRITE", &
-                              file_position="APPEND", unit_number=bc_unit)
+               CALL open_file(file_name=TRIM(bc_file), file_status="REPLACE", file_action="WRITE", &
+                              unit_number=bc_unit)
                WRITE (bc_unit, FMT="(/,T2,A)") &
                   '!-----------------------------------------------------------------------------!'
                WRITE (bc_unit, "(T22,A)") "Berry Curvature ["//TRIM(len_label)//"^2]"

@@ -489,6 +489,11 @@ registry["Dipole_berry_traj"] = GenericMatcher(r"MOMENTS|", col=6)
 # Berry curvature calculated from dipoles near K point in graphene BZ
 registry["BC_near_K_point"] = GenericMatcher(r"   1    4", col=5)
 
+# SOC k-point dipole (spinor HOMO->LUMO pair) read from the KPOINT_DIPOLE_FILE
+registry["Dipole_SOC_file"] = GenericMatcher(r"     1  10  11", col=4, abs_value=True)
+
+# SOC Berry curvature Omega_z (XY) of the spinor HOMO read from the BERRY_CURVATURE_FILE
+registry["BC_SOC_file"] = GenericMatcher(r"      1   10", col=5)
 
 # GEXT extrapolation
 registry["gext"] = GenericMatcher(r"GEXT overlap fitting error:", col=5)
