@@ -1,0 +1,119 @@
+#!-------------------------------------------------------------------------------------------------!
+#!   CP2K: A general program to perform molecular dynamics simulations                             !
+#!   Copyright 2000-2026 CP2K developers group <https://cp2k.org>                                  !
+#!                                                                                                 !
+#!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
+#!-------------------------------------------------------------------------------------------------!
+#:mute
+
+   #:def define_expint(impure=0)
+! **************************************************************************************************
+!> \brief computes the exponential integral
+!>      En(x) = Int(exp(-x*t)/t^n,t=1..infinity)  x>0, n=0,1,..
+!>      Note: Ei(-x) = -E1(x)
+!> \param n ...
+!> \param x ...
+!> \param exp_mx optional precomputed EXP(-x)
+!> \return ...
+!> \par History
+!>      05.2007 Created
+!> \author Manuel Guidon (adapted from Numerical recipies)
+! **************************************************************************************************
+      ELEMENTAL ${"IMPURE " if int(impure) else ""}$FUNCTION expint(n, x, exp_mx)
+         INTEGER, INTENT(IN)                                :: n
+         REAL(dp), INTENT(IN)                               :: x
+         REAL(dp), INTENT(IN), OPTIONAL                     :: exp_mx
+         REAL(dp)                                           :: expint
+
+         INTEGER, PARAMETER                                 :: maxit = 100
+         REAL(dp), PARAMETER :: cf_rescale_inv = 1.0e-100_dp, cf_rescale_max = 1.0e100_dp, &
+                                eps = 6.e-14_dp, euler = 0.5772156649015328606065120_dp
+
+         INTEGER                                            :: i, ii, nm1
+         REAL(dp)                                           :: a, a0, a1, a2, b, b0, b1, b2, del, fact, &
+                                                               my_exp_mx, psi
+
+         nm1 = n - 1
+
+         IF (n < 0 .OR. x < 0.0_dp .OR. (x == 0.0_dp .AND. (n == 0 .OR. n == 1))) THEN
+            #:if int(impure)
+               CPABORT("Invalid argument")
+            #:else
+               expint = HUGE(1.0_dp)
+            #:endif
+         ELSE IF (n == 0) THEN !Special case.
+            IF (PRESENT(exp_mx)) THEN
+               expint = exp_mx/x
+            ELSE
+               expint = EXP(-x)/x
+            END IF
+         ELSE IF (x == 0.0_dp) THEN !Another special case.
+            expint = 1.0_dp/nm1
+         ELSE IF (x > 750.0_dp) THEN !E_n(x) <= exp(-x)/x underflows to zero in IEEE-754 dp.
+            expint = 0.0_dp
+         ELSE IF (x > 1.0_dp) THEN !3-term continued-fraction recurrence.
+            IF (PRESENT(exp_mx)) THEN
+               my_exp_mx = exp_mx
+            ELSE
+               my_exp_mx = EXP(-x)
+            END IF
+            b = x + n
+            a0 = 0.0_dp
+            b0 = 1.0_dp
+            a1 = 1.0_dp
+            b1 = b
+            DO i = 1, maxit
+               a = -i*(nm1 + i)
+               b = b + 2.0_dp
+               a2 = b*a1 + a*a0
+               b2 = b*b1 + a*b0
+               ! Rescale 3-term continued-fraction coefficients to prevent overflow
+               IF (ABS(b2) > cf_rescale_max) THEN
+                  a2 = a2*cf_rescale_inv
+                  b2 = b2*cf_rescale_inv
+                  a1 = a1*cf_rescale_inv
+                  b1 = b1*cf_rescale_inv
+               END IF
+               IF (ABS(a2*b1 - a1*b2) < eps*ABS(a2*b1) .OR. i == maxit) THEN
+                  #:if int(impure)
+                     IF (ABS(a2*b1 - a1*b2) >= eps*ABS(a2*b1)) THEN
+                        CPABORT("continued fraction failed in expint")
+                     END IF
+                  #:endif
+                  expint = (a2/b2)*my_exp_mx
+                  RETURN
+               END IF
+               a0 = a1
+               b0 = b1
+               a1 = a2
+               b1 = b2
+            END DO
+         ELSE !Evaluate series.
+            IF (nm1 /= 0) THEN !Set first term.
+               expint = 1.0_dp/nm1
+            ELSE
+               expint = -LOG(x) - euler
+            END IF
+            fact = 1.0_dp
+            DO i = 1, maxit
+               fact = -fact*x/i
+               IF (i /= nm1) THEN
+                  del = -fact/(i - nm1)
+               ELSE
+                  psi = -euler !Compute I(n).
+                  DO ii = 1, nm1
+                     psi = psi + 1.0_dp/ii
+                  END DO
+                  del = fact*(-LOG(x) + psi)
+               END IF
+               expint = expint + del
+               IF (ABS(del) < ABS(expint)*eps) RETURN
+            END DO
+            #:if int(impure)
+               CPABORT("series failed in expint")
+            #:endif
+         END IF
+      END FUNCTION expint
+   #:enddef
+
+#:endmute
