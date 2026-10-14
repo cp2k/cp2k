@@ -241,6 +241,7 @@ CONTAINS
          IF (mixing_method >= gspace_mixing_nr) THEN
             nbuffer = mixing_store%nbuffer
             mixing_store%ncall = 0
+            mixing_store%ncall_p = 0
             IF (.NOT. ASSOCIATED(mixing_store%rhoin)) THEN
                ALLOCATE (mixing_store%rhoin(nspins))
                DO ispin = 1, nspins
