@@ -57,6 +57,7 @@ QS/regtest-sym-1
 QS/regtest-admm-gapw                                        libint !ifx
 QS/regtest-scalable-gw                                      libint !ifx
 Fist/regtest-4
+Fist/regtest-moving-colvar
 QS/regtest-kp-1                                             libint !ifx
 QS/regtest-tddfpt-force                                     libint !ifx
 QS/regtest-embed                                            libint !ifx
