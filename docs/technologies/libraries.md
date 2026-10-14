@@ -26,7 +26,7 @@ On the Mac, BLAS and LAPACK can be provided by either OpenBLAS or Apple's Accele
 
 ## FFTW (required, FFT implementation)
 
-FFTW is required for performing FFT. The current version of CP2K works with FFTW 3.X. It can be
+FFTW is required for performing FFTs. The current version of CP2K works with FFTW 3.X. It can be
 downloaded from <http://www.fftw.org>.
 
 FFTW is also provided by MKL. If you have MKL but still want to use standalone FFTW3, pass

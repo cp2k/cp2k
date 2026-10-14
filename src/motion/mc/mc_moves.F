@@ -973,7 +973,6 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mc_volume_move'
 
-      CHARACTER(LEN=200)                                 :: fft_lib
       CHARACTER(LEN=40)                                  :: dat_file
       INTEGER :: cl, end_atom, end_mol, handle, iatom, idim, imolecule, iside, iside_change, &
          iunit, jbox, nunits_mol, output_unit, print_level, source, start_atom, start_mol
@@ -1004,7 +1003,7 @@ CONTAINS
                       BETA=BETA, exp_max_val=exp_max_val, &
                       exp_min_val=exp_min_val, source=source, group=group, &
                       dat_file=dat_file, rmvolume=rmvolume, pressure=pressure, cl=cl, &
-                      fft_lib=fft_lib, discrete_step=discrete_step, &
+                      discrete_step=discrete_step, &
                       ldiscrete=ldiscrete, mc_molecule_info=mc_molecule_info)
       CALL get_mc_molecule_info(mc_molecule_info, nchains=nchains, &
                                 nunits=nunits, nunits_tot=nunits_tot, mol_type=mol_type, &

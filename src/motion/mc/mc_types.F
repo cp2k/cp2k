@@ -114,7 +114,6 @@ MODULE mc_types
       CHARACTER(LEN=default_path_length) :: dat_file = ""
       CHARACTER(LEN=default_path_length) :: data_file = ""
       CHARACTER(LEN=default_path_length) :: box2_file = ""
-      CHARACTER(LEN=200) :: fft_lib = ""
       CHARACTER(LEN=50) :: PROGRAM = ""
       REAL(dp), DIMENSION(:), POINTER :: pmtraion_mol => NULL(), pmtrans_mol => NULL(), &
                                          pmrot_mol => NULL(), pmswap_mol => NULL(), &
@@ -358,7 +357,6 @@ CONTAINS
 !> \param dat_file ...
 !> \param data_file ...
 !> \param box2_file ...
-!> \param fft_lib ...
 !> \param iprint ...
 !> \param rcut ...
 !> \param ldiscrete ...
@@ -397,7 +395,7 @@ CONTAINS
                          rmrot, rmtrans, temperature, pressure, rclus, BETA, pmswap, pmvolume, pmtraion, pmtrans, &
                          pmcltrans, ensemble, PROGRAM, restart_file_name, molecules_file, moves_file, coords_file, &
                          energy_file, displacement_file, cell_file, dat_file, data_file, box2_file, &
-                         fft_lib, iprint, rcut, ldiscrete, discrete_step, &
+                         iprint, rcut, ldiscrete, discrete_step, &
                          pmavbmc, pbias, avbmc_atom, avbmc_rmin, avbmc_rmax, rmdihedral, &
                          input_file, mc_molecule_info, pmswap_mol, pmavbmc_mol, pmtrans_mol, pmrot_mol, &
                          pmtraion_mol, mc_input_file, mc_bias_file, pmvol_box, pmclus_box, virial_temps, &
@@ -422,7 +420,7 @@ CONTAINS
                                                             pmcltrans
       CHARACTER(LEN=*), INTENT(OUT), OPTIONAL :: ensemble, PROGRAM, restart_file_name, &
          molecules_file, moves_file, coords_file, energy_file, displacement_file, cell_file, &
-         dat_file, data_file, box2_file, fft_lib
+         dat_file, data_file, box2_file
       INTEGER, INTENT(OUT), OPTIONAL                     :: iprint
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: rcut
       LOGICAL, INTENT(OUT), OPTIONAL                     :: ldiscrete
@@ -521,7 +519,6 @@ CONTAINS
       IF (PRESENT(dat_file)) dat_file = mc_par%dat_file
       IF (PRESENT(data_file)) data_file = mc_par%data_file
       IF (PRESENT(box2_file)) box2_file = mc_par%box2_file
-      IF (PRESENT(fft_lib)) fft_lib = mc_par%fft_lib
 
       IF (PRESENT(input_file)) input_file => mc_par%input_file
       IF (PRESENT(mc_molecule_info)) mc_molecule_info => mc_par%mc_molecule_info
@@ -1290,10 +1287,6 @@ CONTAINS
                                 c_val=mc_par%molecules_file)
       CALL section_vals_val_set(mc_section, "ENERGY_FILE_NAME", &
                                 c_val=mc_par%energy_file)
-
-! grab the FFT library name and print level...this is used for writing the dat file
-! and hopefully will be changed
-      mc_par%fft_lib = globenv%default_fft_library
 
 ! get all the move probabilities first...if we are not doing certain types of moves, we don't care
 ! if the values for those move parameters are strange

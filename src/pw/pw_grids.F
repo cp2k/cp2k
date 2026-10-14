@@ -1733,7 +1733,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_allocate'
 
       INTEGER                                    :: nmaps
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
       INTEGER(KIND=C_SIZE_T)                     :: length
       TYPE(C_PTR)                                :: cptr_g_hatmap
       INTEGER                                    :: stat
@@ -1749,7 +1749,7 @@ CONTAINS
 
       nmaps = 1
       IF (pw_grid%grid_span == HALFSPACE) nmaps = 2
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
       CALL offload_activate_chosen_device()
 
       length = INT(int_size*MAX(ng, 1)*MAX(nmaps, 1), KIND=C_SIZE_T)
@@ -2201,7 +2201,7 @@ CONTAINS
 
       TYPE(pw_grid_type), POINTER              :: pw_grid
 
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
       INTEGER, POINTER :: dummy_ptr
       INTEGER          :: stat
 #endif
@@ -2223,7 +2223,7 @@ CONTAINS
                DEALLOCATE (pw_grid%g_hat)
             END IF
             IF (ASSOCIATED(pw_grid%g_hatmap)) THEN
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
                dummy_ptr => pw_grid%g_hatmap(1, 1)
                stat = offload_free_pinned_mem(c_loc(dummy_ptr))
                CPASSERT(stat == 0)

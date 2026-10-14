@@ -2,13 +2,13 @@
 /*  CP2K: A general program to perform molecular dynamics simulations         */
 /*  Copyright 2000-2026 CP2K developers group <https://cp2k.org>              */
 /*                                                                            */
-/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
+/*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
 #include "../../offload/offload_runtime.h"
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
 
-#include "pw_gpu_kernels.h"
+#include "fft_gpu_kernels.h"
 
 #if defined(_OMP_H)
 #error "OpenMP should not be used in .cu files to accommodate HIP."
@@ -37,8 +37,8 @@ __global__ void pw_real_to_complex(const double *din, double *zout,
  * \brief Launcher for pw_real_to_complex kernel.
  * \author Ole Schuett
  ******************************************************************************/
-void pw_gpu_launch_real_to_complex(const double *din, double *zout,
-                                   const int ngpts, offloadStream_t stream) {
+void fft_gpu_launch_real_to_complex(const double *din, double *zout,
+                                    const int ngpts, offloadStream_t stream) {
   const int threadsPerBlock = 1024;
   const int numBlocks = (ngpts + threadsPerBlock - 1) / threadsPerBlock;
   pw_real_to_complex<<<numBlocks, threadsPerBlock, 0, stream>>>(din, zout,
@@ -67,8 +67,8 @@ __global__ void pw_complex_to_real(const double *zin, double *dout,
  * \brief Launcher for pw_complex_to_real kernel.
  * \author Ole Schuett
  ******************************************************************************/
-void pw_gpu_launch_complex_to_real(const double *zin, double *dout,
-                                   const int ngpts, offloadStream_t stream) {
+void fft_gpu_launch_complex_to_real(const double *zin, double *dout,
+                                    const int ngpts, offloadStream_t stream) {
   const int threadsPerBlock = 1024;
   const int numBlocks = (ngpts + threadsPerBlock - 1) / threadsPerBlock;
   pw_complex_to_real<<<numBlocks, threadsPerBlock, 0, stream>>>(zin, dout,
@@ -92,9 +92,9 @@ __global__ void pw_gather(double *pwcc, const double *c, const double scale,
  * \brief Launcher for pw_gather kernel.
  * \author Ole Schuett
  ******************************************************************************/
-void pw_gpu_launch_gather(double *pwcc, const double *c, const double scale,
-                          const int ngpts, const int *ghatmap,
-                          offloadStream_t stream) {
+void fft_gpu_launch_gather(double *pwcc, const double *c, const double scale,
+                           const int ngpts, const int *ghatmap,
+                           offloadStream_t stream) {
   const int threadsPerBlock = 32;
   const int numBlocks = (ngpts + threadsPerBlock - 1) / threadsPerBlock;
   pw_gather<<<numBlocks, threadsPerBlock, 0, stream>>>(pwcc, c, scale, ngpts,
@@ -123,15 +123,15 @@ __global__ void pw_scatter(double *c, const double *pwcc, const double scale,
  * \brief Launcher for pw_scatter kernel.
  * \author Ole Schuett
  ******************************************************************************/
-void pw_gpu_launch_scatter(double *c, const double *pwcc, const double scale,
-                           const int ngpts, const int nmaps, const int *ghatmap,
-                           offloadStream_t stream) {
+void fft_gpu_launch_scatter(double *c, const double *pwcc, const double scale,
+                            const int ngpts, const int nmaps,
+                            const int *ghatmap, offloadStream_t stream) {
   const int threadsPerBlock = 32;
   const int numBlocks = (ngpts + threadsPerBlock - 1) / threadsPerBlock;
   pw_scatter<<<numBlocks, threadsPerBlock, 0, stream>>>(c, pwcc, scale, ngpts,
                                                         nmaps, ghatmap);
 }
 
-#endif // defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#endif // defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
 
 // EOF

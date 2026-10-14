@@ -5,6 +5,8 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 PROGRAM kpoint_lattice_fft_unittest
+   USE fft_api,                         ONLY: FFT_LIBRARY_BACKEND_DEFAULT,&
+                                              FFT_LIBRARY_FFTW_MODE_ESTIMATE
    USE fft_tools,                       ONLY: finalize_fft,&
                                               init_fft
    USE kinds,                           ONLY: dp
@@ -35,7 +37,7 @@ PROGRAM kpoint_lattice_fft_unittest
    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :) :: state_inverse_k
    COMPLEX(KIND=dp), DIMENSION(2, 3, nkp)              :: direct, transformed
    COMPLEX(KIND=dp), DIMENSION(2, 3, nselected)         :: selected_transformed
-   INTEGER                                             :: d, i, icell, info, j, jcell, ik, ix, iy, iz
+   INTEGER                                             :: d, i, icell, info, j, jcell, ik, ix, iy, iz, status
    INTEGER, ALLOCATABLE, DIMENSION(:)                  :: correction_indices
    INTEGER, DIMENSION(3)                               :: base_dims, delta
    INTEGER, DIMENSION(3, base_cell)                    :: base_index
@@ -61,8 +63,9 @@ PROGRAM kpoint_lattice_fft_unittest
 
    CALL mp_world_init(mp_comm)
    CALL check_image_reconstruction(mp_comm)
-   CALL init_fft("FFTSG", alltoall=.FALSE., pool_limit=4, &
-                 wisdom_file="", plan_style=1)
+   CALL init_fft(FFT_LIBRARY_BACKEND_DEFAULT, alltoall=.FALSE., pool_limit=4, &
+                 wisdom_file="", plan_style=FFT_LIBRARY_FFTW_MODE_ESTIMATE, status=status)
+   IF (status /= 0) ERROR STOP "FFT library initalization step failed"
 
    nkp_grid = [4, 4, 4]
    hmat = RESHAPE([4.0_dp, 0.1_dp, 0.2_dp, &

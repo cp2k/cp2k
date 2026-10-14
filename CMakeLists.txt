@@ -198,7 +198,7 @@ cmake_dependent_option(
   "CP2K_USE_ACCEL" OFF)
 
 cmake_dependent_option(
-  CP2K_ENABLE_PW_GPU "Enable the ffts accelerated backend (mostly GPU)." ON
+  CP2K_ENABLE_FFT_GPU "Enable the FFTs accelerated backend (mostly GPU)." ON
   "CP2K_USE_ACCEL MATCHES \"HIP|CUDA\"" OFF)
 
 cmake_dependent_option(CP2K_ENABLE_LIBXC_GPU "Enable the GPU backend of libxc."
@@ -1094,9 +1094,14 @@ if(CP2K_USE_ACCEL MATCHES "CUDA" OR CP2K_USE_ACCEL MATCHES "HIP")
     "      - ELPA: ${CP2K_ENABLE_ELPA_GPU}\n"
     "      - GRID: ${CP2K_ENABLE_GRID_GPU}\n"
     "      - DBM: ${CP2K_ENABLE_DBM_GPU}\n"
+<<<<<<< HEAD
     "      - PW: ${CP2K_ENABLE_PW_GPU}\n"
     "      - LIBXC: ${CP2K_ENABLE_LIBXC_GPU}\n"
     "      - NNP: ${CP2K_ENABLE_NNP_GPU}\n")
+=======
+    "      - FFT: ${CP2K_ENABLE_FFT_GPU}\n"
+    "      - LIBXC: ${CP2K_ENABLE_LIBXC_GPU}\n")
+>>>>>>> c7ec833756 (Add the new local FFT backend)
 endif()
 
 if(CP2K_USE_ACCEL MATCHES "OPENCL")

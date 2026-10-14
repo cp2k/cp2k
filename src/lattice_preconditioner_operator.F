@@ -9,12 +9,12 @@
 !> \brief Block-circulant inverse operators for replicated-cell OT preconditioners.
 ! **************************************************************************************************
 MODULE lattice_preconditioner_operator
+   USE fft_api,                         ONLY: fft_1d_local,&
+                                              fft_allocate,&
+                                              fft_deallocate
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_NEXT,&
                                               FWFFT,&
-                                              fft_1d_many,&
-                                              fft_alloc,&
-                                              fft_dealloc,&
                                               fft_radix_operations
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE kinds,                           ONLY: dp
@@ -632,7 +632,7 @@ CONTAINS
 !> \brief Transform a complete replicated-cell batch with three batched one-dimensional FFTs.
 !> \param values_in matrices on the complete direct or reciprocal lattice
 !> \param lattice_dims logical lattice dimensions
-!> \param fsign transform direction, BWFFT for cell-to-k and FWFFT for k-to-cell
+!> \param fsign transform direction, .FALSE. for cell-to-k and .TRUE. for k-to-cell
 !> \param values_out transformed matrices on the complete lattice
 !> \param used_fft reports whether the batched FFT path succeeded
 ! **************************************************************************************************
@@ -640,14 +640,14 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: values_in
       INTEGER, DIMENSION(3), INTENT(IN)                  :: lattice_dims
-      INTEGER, INTENT(IN)                                :: fsign
+      LOGICAL, INTENT(IN)                                :: fsign
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)  :: values_out
       LOGICAL, INTENT(OUT)                               :: used_fft
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :)                           :: grid
       INTEGER                                            :: attempt, batch_index, d, i, icell, ix, &
-                                                            iy, iz, j, radix_length, stat
+                                                            iy, iz, j, radix_length
       INTEGER, DIMENSION(3)                              :: input_stride, nfft, output_stride, stride
       LOGICAL                                            :: compatible
       REAL(KIND=dp)                                      :: normalization
@@ -655,9 +655,6 @@ CONTAINS
       IF (ANY(lattice_dims <= 0) .OR. SIZE(values_in, 3) /= PRODUCT(lattice_dims) .OR. &
           ANY(SHAPE(values_out) /= SHAPE(values_in))) THEN
          CPABORT("Invalid shape in batched lattice FFT")
-      END IF
-      IF (fsign /= FWFFT .AND. fsign /= BWFFT) THEN
-         CPABORT("Invalid direction in batched lattice FFT")
       END IF
       nfft = lattice_dims
       compatible = .TRUE.
@@ -684,8 +681,8 @@ CONTAINS
       stride = nfft/lattice_dims
       input_stride = 1
       output_stride = 1
-      IF (fsign == BWFFT) input_stride = stride
-      IF (fsign == FWFFT) output_stride = stride
+      IF (.NOT. fsign) input_stride = stride
+      IF (fsign) output_stride = stride
       ALLOCATE (grid(SIZE(values_in, 1)*SIZE(values_in, 2), nfft(1), nfft(2), nfft(3)))
       grid = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
       icell = 0
@@ -704,20 +701,12 @@ CONTAINS
          END DO
       END DO
 
-      stat = 0
       DO d = 1, 3
-         CALL transform_grid_dimension(grid, d, fsign, stat)
-         IF (stat /= 0) EXIT
+         CALL transform_grid_dimension(grid, d, fsign)
       END DO
-      IF (stat /= 0) THEN
-         values_out = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
-         used_fft = .FALSE.
-         DEALLOCATE (grid)
-         RETURN
-      END IF
 
       normalization = 1.0_dp
-      IF (fsign == FWFFT) THEN
+      IF (fsign) THEN
          normalization = REAL(PRODUCT(nfft), KIND=dp)/REAL(PRODUCT(lattice_dims), KIND=dp)
       END IF
       icell = 0
@@ -746,14 +735,13 @@ CONTAINS
 !> \param grid batched three-dimensional grid
 !> \param direction grid dimension to transform
 !> \param fsign transform direction
-!> \param stat zero on success
 ! **************************************************************************************************
-   SUBROUTINE transform_grid_dimension(grid, direction, fsign, stat)
+   SUBROUTINE transform_grid_dimension(grid, direction, fsign)
 
       COMPLEX(KIND=dp), DIMENSION(:, :, :, :), &
          INTENT(INOUT)                                   :: grid
-      INTEGER, INTENT(IN)                                :: direction, fsign
-      INTEGER, INTENT(OUT)                               :: stat
+      INTEGER, INTENT(IN)                                :: direction
+      LOGICAL, INTENT(IN)                                :: fsign
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: line_in, line_out
@@ -762,8 +750,8 @@ CONTAINS
 
       n = SIZE(grid, direction + 1)
       m = SIZE(grid)/n
-      CALL fft_alloc(line_in, [n, m])
-      CALL fft_alloc(line_out, [n, m])
+      CALL fft_allocate(line_in, [n, m])
+      CALL fft_allocate(line_out, [n, m])
       iline = 0
       SELECT CASE (direction)
       CASE (1)
@@ -798,43 +786,41 @@ CONTAINS
       END SELECT
 
       scale = 1.0_dp
-      IF (fsign == FWFFT) scale = 1.0_dp/REAL(n, KIND=dp)
-      CALL fft_1d_many(fsign, n, m, .FALSE., .FALSE., n, n, &
-                       line_in, line_out, scale, stat)
-      IF (stat == 0) THEN
-         iline = 0
-         SELECT CASE (direction)
-         CASE (1)
-            DO iz = 1, SIZE(grid, 4)
-               DO iy = 1, SIZE(grid, 3)
-                  DO ibatch = 1, SIZE(grid, 1)
-                     iline = iline + 1
-                     grid(ibatch, :, iy, iz) = line_out(:, iline)
-                  END DO
-               END DO
-            END DO
-         CASE (2)
-            DO iz = 1, SIZE(grid, 4)
-               DO ix = 1, SIZE(grid, 2)
-                  DO ibatch = 1, SIZE(grid, 1)
-                     iline = iline + 1
-                     grid(ibatch, ix, :, iz) = line_out(:, iline)
-                  END DO
-               END DO
-            END DO
-         CASE (3)
+      IF (fsign) scale = 1.0_dp/REAL(n, KIND=dp)
+      CALL fft_1d_local(fsign, n, m, .FALSE., .FALSE., n, n, line_in, line_out)
+      line_out = line_out*scale
+      iline = 0
+      SELECT CASE (direction)
+      CASE (1)
+         DO iz = 1, SIZE(grid, 4)
             DO iy = 1, SIZE(grid, 3)
-               DO ix = 1, SIZE(grid, 2)
-                  DO ibatch = 1, SIZE(grid, 1)
-                     iline = iline + 1
-                     grid(ibatch, ix, iy, :) = line_out(:, iline)
-                  END DO
+               DO ibatch = 1, SIZE(grid, 1)
+                  iline = iline + 1
+                  grid(ibatch, :, iy, iz) = line_out(:, iline)
                END DO
             END DO
-         END SELECT
-      END IF
-      CALL fft_dealloc(line_in)
-      CALL fft_dealloc(line_out)
+         END DO
+      CASE (2)
+         DO iz = 1, SIZE(grid, 4)
+            DO ix = 1, SIZE(grid, 2)
+               DO ibatch = 1, SIZE(grid, 1)
+                  iline = iline + 1
+                  grid(ibatch, ix, :, iz) = line_out(:, iline)
+               END DO
+            END DO
+         END DO
+      CASE (3)
+         DO iy = 1, SIZE(grid, 3)
+            DO ix = 1, SIZE(grid, 2)
+               DO ibatch = 1, SIZE(grid, 1)
+                  iline = iline + 1
+                  grid(ibatch, ix, iy, :) = line_out(:, iline)
+               END DO
+            END DO
+         END DO
+      END SELECT
+      CALL fft_deallocate(line_in)
+      CALL fft_deallocate(line_out)
 
    END SUBROUTINE transform_grid_dimension
 

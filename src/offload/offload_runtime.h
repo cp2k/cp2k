@@ -17,8 +17,8 @@
 #if !defined(__NO_OFFLOAD_GRID)
 #define __NO_OFFLOAD_GRID
 #endif
-#if !defined(__NO_OFFLOAD_PW)
-#define __NO_OFFLOAD_PW
+#if !defined(__NO_OFFLOAD_FFT)
+#define __NO_OFFLOAD_FFT
 #endif
 #endif
 
