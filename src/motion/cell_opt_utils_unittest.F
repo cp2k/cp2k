@@ -111,14 +111,45 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: expected_mask
       TYPE(cell_type), POINTER                           :: cell
 
-      INTEGER                                            :: parsed_mask
+      CHARACTER(LEN=default_string_length)               :: tokens(16)
+      INTEGER                                            :: ntok, parsed_mask
 
-      CALL parse_cell_constraint(token_string, cell, .TRUE., parsed_mask)
+      CALL split_tokens(token_string, tokens, ntok)
+      CALL parse_cell_constraint(tokens(:ntok), cell, .TRUE., parsed_mask)
       IF (parsed_mask /= expected_mask) THEN
          PRINT *, "check_parse_tokens: unexpected mask for token "//TRIM(token_string)
          ERROR STOP 1
       END IF
    END SUBROUTINE parse_and_check
+
+! **************************************************************************************************
+!> \brief Splits a blank-separated string into tokens, mimicking how the input
+!>        tokenizer delivers the value of a char_t list keyword
+!> \param string ...
+!> \param tokens ...
+!> \param ntok ...
+! **************************************************************************************************
+   SUBROUTINE split_tokens(string, tokens, ntok)
+      CHARACTER(LEN=*), INTENT(IN)                       :: string
+      CHARACTER(LEN=default_string_length), INTENT(OUT)  :: tokens(:)
+      INTEGER, INTENT(OUT)                               :: ntok
+
+      CHARACTER(LEN=LEN(string))                         :: rest
+      INTEGER                                            :: isep
+
+      rest = ADJUSTL(string)
+      ntok = 0
+      DO WHILE (LEN_TRIM(rest) > 0)
+         isep = INDEX(rest, " ")
+         ntok = ntok + 1
+         IF (isep == 0) THEN
+            tokens(ntok) = TRIM(rest)
+            EXIT
+         END IF
+         tokens(ntok) = rest(:isep - 1)
+         rest = ADJUSTL(rest(isep + 1:))
+      END DO
+   END SUBROUTINE split_tokens
 
 ! **************************************************************************************************
 !> \brief For 2D periodicity, an unset constraint auto-fixes the non-periodic
@@ -131,19 +162,19 @@ CONTAINS
       CALL make_cell2d(cell)
       ! The keyword is unset. The parser must complete the mask so that the
       ! non-periodic z direction is fixed, and warn.
-      CALL parse_cell_constraint("NONE", cell, .FALSE., parsed_mask)
+      CALL parse_cell_constraint(["NONE"], cell, .FALSE., parsed_mask)
       IF (parsed_mask /= mask_z) THEN
          PRINT *, "check_parse_2d_completion: auto-set did not fix the non-periodic z"
          ERROR STOP 1
       END IF
       ! The keyword is set and covers z. The parser must keep the mask as
       ! given; YZ covers z through the C vector.
-      CALL parse_cell_constraint("Z", cell, .TRUE., parsed_mask)
+      CALL parse_cell_constraint(["Z"], cell, .TRUE., parsed_mask)
       IF (parsed_mask /= mask_z) THEN
          PRINT *, "check_parse_2d_completion: explicit Z changed"
          ERROR STOP 1
       END IF
-      CALL parse_cell_constraint("YZ", cell, .TRUE., parsed_mask)
+      CALL parse_cell_constraint(["YZ"], cell, .TRUE., parsed_mask)
       IF (parsed_mask /= mask_yz) THEN
          PRINT *, "check_parse_2d_completion: explicit YZ changed"
          ERROR STOP 1
@@ -225,7 +256,8 @@ CONTAINS
 !>        spelling of the grammar to its semantics in both directions.
 ! **************************************************************************************************
    SUBROUTINE check_label_parse_roundtrip()
-      INTEGER                                            :: mask_value, parsed_mask
+      CHARACTER(LEN=default_string_length)               :: tokens(16)
+      INTEGER                                            :: mask_value, ntok, parsed_mask
       TYPE(cell_type), POINTER                           :: cell
 
       CALL make_cell3d(cell)
@@ -233,7 +265,8 @@ CONTAINS
       ! token string back to a mask. Requiring the composition to be the
       ! identity for all 64 masks proves both directions at once.
       DO mask_value = 0, 63
-         CALL parse_cell_constraint(cell_opt_constraint_label(mask_value), cell, .TRUE., parsed_mask)
+         CALL split_tokens(cell_opt_constraint_label(mask_value), tokens, ntok)
+         CALL parse_cell_constraint(tokens(:ntok), cell, .TRUE., parsed_mask)
          IF (parsed_mask /= mask_value) THEN
             PRINT *, "check_label_parse_roundtrip: parse(label(m)) /= m"
             ERROR STOP 1
