@@ -1,0 +1,59 @@
+# Small isolated cell for OT WFX export with an empty beta channel.
+&GLOBAL
+  PROJECT H_chargemol_uks_ot
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    MULTIPLICITY 2
+    POTENTIAL_FILE_NAME POTENTIAL
+    UKS T
+    &MGRID
+      CUTOFF 150
+      REL_CUTOFF 40
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      PSOLVER MT
+    &END POISSON
+    &PRINT
+      &CHARGEMOL ON
+        FILENAME =H_chargemol_uks_ot.wfx
+      &END CHARGEMOL
+    &END PRINT
+    &QS
+      EPS_DEFAULT 1.0E-12
+      METHOD GAPW
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-8
+      MAX_SCF 100
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_ALL
+      &END OT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6 6 6
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      H 3.0 3.0 3.0
+    &END COORD
+    &KIND H
+      BASIS_SET 6-31G*
+      LEBEDEV_GRID 110
+      POTENTIAL ALL
+      RADIAL_GRID 100
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

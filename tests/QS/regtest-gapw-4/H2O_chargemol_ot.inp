@@ -1,0 +1,86 @@
+# Small grids test WFX export and ADMM forces, not grid convergence.
+&GLOBAL
+  PROJECT H2O_chargemol_ot
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    BASIS_SET_FILE_NAME BASIS_ADMM_ae
+    POTENTIAL_FILE_NAME POTENTIAL
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      ADMM_PURIFICATION_METHOD MO_DIAG
+      EXCH_CORRECTION_FUNC PBEX
+    &END AUXILIARY_DENSITY_MATRIX_METHOD
+    &MGRID
+      CUTOFF 150
+      REL_CUTOFF 40
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      PSOLVER MT
+    &END POISSON
+    &PRINT
+      &CHARGEMOL ON
+        FILENAME =H2O_chargemol_ot.wfx
+      &END CHARGEMOL
+    &END PRINT
+    &QS
+      EPS_DEFAULT 1.0E-12
+      METHOD GAPW
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-8
+      MAX_SCF 100
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_ALL
+      &END OT
+    &END SCF
+    &XC
+      &HF
+        FRACTION 0.25
+        &SCREENING
+          EPS_SCHWARZ 1.0E-10
+        &END SCREENING
+      &END HF
+      &XC_FUNCTIONAL
+        &PBE
+          SCALE_X 0.75
+        &END PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &PRINT
+    &FORCES ON
+      FILENAME __STD_OUT__
+    &END FORCES
+  &END PRINT
+  &SUBSYS
+    &CELL
+      ABC 6 6 6
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O 3.0 3.0 3.0
+      H 3.7586 3.0 3.5043
+      H 2.2414 3.0 3.5043
+    &END COORD
+    &KIND O
+      BASIS_SET 6-31G*
+      BASIS_SET AUX_FIT admm-2
+      LEBEDEV_GRID 50
+      POTENTIAL ALL
+      RADIAL_GRID 40
+    &END KIND
+    &KIND H
+      BASIS_SET 6-31G*
+      BASIS_SET AUX_FIT admm-2
+      LEBEDEV_GRID 50
+      POTENTIAL ALL
+      RADIAL_GRID 40
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

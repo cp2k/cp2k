@@ -905,7 +905,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NGAUSS", &
-                          description="Number of Gaussian functions used in the expansion of atomic (core) density", &
+                          description="Number of Gaussian functions used in the expansion of atomic (core) density "// &
+                          "for XRD_INTERFACE. Does not select a valence-only density.", &
                           usage="NGAUSS 10", n_var=1, default_i_val=12, type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -2315,7 +2316,11 @@ CONTAINS
 
       CALL cp_print_key_section_create( &
          print_key, __LOCATION__, name="CHARGEMOL", &
-         description="Write .wfx input file for Chargemol", &
+         description="Write a Gaussian-orbital .wfx file for external Chargemol analysis. "// &
+         "For all-electron calculations, the file includes core and valence electrons. "// &
+         "OT output requires uniform occupied-orbital occupations within each spin channel. "// &
+         "It uses private canonical occupied orbitals and leaves the SCF state unchanged. "// &
+         "Only Gamma-point (un)restricted HF and Kohn-Sham wavefunctions are supported.", &
          print_level=debug_print_level + 1, &
          filename="CHARGEMOL", &
          add_last=add_last_numeric)
@@ -2676,7 +2681,10 @@ CONTAINS
                           "If the TOTAL_DENSITY keyword is used the hard density will be computed more accurately "// &
                           "but may introduce non-physical features. The SOFT_DENSITY keyword will lead to only the "// &
                           "soft density being printed. In GPW these options have no effect and the cube file will "// &
-                          "only contain the valence electron density.", &
+                          "only contain the valence electron density. In all-electron GAPW, hard+soft contains "// &
+                          "all electrons. The soft part is not a valence-only density and need not integrate "// &
+                          "to the chemical valence electron count. Use CHARGEMOL for a Gaussian-orbital export "// &
+                          "that avoids representing core peaks on a regular grid.", &
                           usage="DENSITY_INCLUDE TOTAL_HARD_APPROX", &
                           enum_c_vals=s2a("TOTAL_HARD_APPROX", "TOTAL_DENSITY", "SOFT_DENSITY"), &
                           enum_desc=s2a("Print (hard+soft) density where the hard components shape is approximated", &

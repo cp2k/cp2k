@@ -28,4 +28,7 @@
 "H2O_uniform_efield_GAPW.inp"           = [{matcher="E_total", tol=2e-13, ref=-17.15696477358598}]
 #XAS with for beta channel
 "O2_xas_beta_spin.inp"                  = [{matcher="M084", tol=2e-14, ref=-20.79715367676563}]
+# WFX export with OT, including ADMM MO_DIAG and an empty UKS beta channel
+"H2O_chargemol_ot.inp"                  = [{matcher="E_total", tol=1e-10, ref=-76.327471931320304}, {matcher="Atomic_force_1_z", tol=1e-7, ref=-8.63891391e-2}]
+"H_chargemol_uks_ot.inp"                = [{matcher="E_total", tol=1e-10, ref=-0.497623300454523}]
 #EOF
