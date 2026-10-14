@@ -32,10 +32,10 @@ MODULE fft_tools
                                               C_PTR,&
                                               C_SIZE_T
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE fft_lib,                         ONLY: &
-        fft_1d, fft_3d, fft_alloc, fft_create_plan_1d, fft_create_plan_3d, fft_dealloc, &
-        fft_destroy_plan, fft_do_cleanup, fft_do_init, fft_get_lengths
-   USE fft_plan,                        ONLY: fft_plan_type
+   USE fft_api,                         ONLY: &
+        fft_1d_local, fft_2d_local, fft_3d_local, fft_3d_local_inplace, fft_allocate, &
+        fft_deallocate, fft_library_finalize, fft_library_init, fft_register_1d_local, &
+        fft_register_2d_local, fft_register_3d_local, fft_register_3d_local_inplace
    USE kinds,                           ONLY: dp,&
                                               dp_size,&
                                               sp
@@ -55,6 +55,14 @@ MODULE fft_tools
    IMPLICIT NONE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fft_tools'
+
+   TYPE fft_plan_type
+      LOGICAL                             :: fsign = .TRUE.
+      LOGICAL                             :: trans_in = .FALSE., trans_out = .FALSE., fft_in_place = .FALSE., &
+                                             valid = .FALSE., separated_plans = .FALSE.
+      INTEGER                             :: n = -1, m = -1, ldx_in = -1, ldy_in = -1, ldx_out = -1, ldy_out = -1
+      INTEGER, DIMENSION(3)               :: n_3d = -1
+   END TYPE fft_plan_type
 
    ! Types for the pool of scratch data needed in FFT routines
    ! keep the subroutine "is_equal" up-to-date
@@ -135,15 +143,16 @@ MODULE fft_tools
    ! END of types for the pool of scratch data needed in FFT routines
 
    PRIVATE
-   PUBLIC :: init_fft, fft3d, finalize_fft
-   PUBLIC :: fft_alloc, fft_dealloc
+   PUBLIC :: init_fft, fft3d, finalize_fft, fft_1d, fft_3d, fft_create_plan_1d, fft_create_plan_3d
+   PUBLIC :: fft_allocate, fft_deallocate
    PUBLIC :: init_fft_scratch_pool
-   PUBLIC :: fft_radix_operations, fft_1d_many
+   PUBLIC :: fft_radix_operations
    PUBLIC :: FWFFT, BWFFT
    PUBLIC :: FFT_RADIX_CLOSEST, FFT_RADIX_NEXT
    PUBLIC :: FFT_RADIX_NEXT_ODD
+   PUBLIC :: fft_plan_type, fft_destroy_plan
 
-   INTEGER, PARAMETER :: FWFFT = +1, BWFFT = -1
+   LOGICAL, PARAMETER :: FWFFT = .TRUE., BWFFT = .FALSE.
    INTEGER, PARAMETER :: FFT_RADIX_CLOSEST = 493, FFT_RADIX_NEXT = 494
    INTEGER, PARAMETER :: FFT_RADIX_ALLOWED = 495, FFT_RADIX_DISALLOWED = 496
    INTEGER, PARAMETER :: FFT_RADIX_NEXT_ODD = 497
@@ -174,23 +183,25 @@ CONTAINS
 !> \param pool_limit ...
 !> \param wisdom_file ...
 !> \param plan_style ...
+!> \param status ...
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE init_fft(fftlib, alltoall, pool_limit, wisdom_file, &
-                       plan_style)
+                       plan_style, status)
 
-      CHARACTER(LEN=*), INTENT(IN)                       :: fftlib
+      INTEGER, INTENT(IN)                                :: fftlib
       LOGICAL, INTENT(IN)                                :: alltoall
       INTEGER, INTENT(IN)                                :: pool_limit
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
       INTEGER, INTENT(IN)                                :: plan_style
+      INTEGER, INTENT(OUT)                               :: status
 
       alltoall_sgl = alltoall
       fft_pool_scratch_limit = pool_limit
 
       CALL release_fft_scratch_pool()
 
-      CALL fft_do_init(fftlib, plan_style, wisdom_file)
+      CALL fft_library_init(fftlib, plan_style, .TRUE., wisdom_file, status)
 
       ! setup the FFT scratch pool, if one is associated, clear first
       CALL init_fft_scratch_pool()
@@ -216,9 +227,219 @@ CONTAINS
 
       ! finalize fft libs
 
-      CALL fft_do_cleanup(wisdom_file, para_env%is_source(), export_wisdom)
+      CALL fft_library_finalize(wisdom_file)
 
    END SUBROUTINE finalize_fft
+
+! **************************************************************************************************
+!> \brief ...
+!> \param DATA ...
+!> \param max_length ...
+!> \par History
+!>      JGH 23-Jan-2006 : initial version
+!>      Adapted for new interface
+!>      IAB 09-Jan-2009 : Modified to cache plans in fft_plan_type
+!>                        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
+!>      IAB 09-Oct-2009 : Added OpenMP directives to 1D FFT, and planning routines
+!>                        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
+!>      IAB 11-Sep-2012 : OpenMP parallel 3D FFT (Ruyman Reyes, PRACE)
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE fft_get_lengths(DATA, max_length)
+
+      INTEGER, DIMENSION(:), INTENT(INOUT)               :: DATA
+      INTEGER, INTENT(INOUT)                             :: max_length
+
+      INTEGER                                            :: h, i, j, k, m, maxn, maxn_elevens, &
+                                                            maxn_fives, maxn_sevens, &
+                                                            maxn_thirteens, maxn_threes, &
+                                                            maxn_twos, ndata, nmax, number
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dlocal, idx
+
+!------------------------------------------------------------------------------
+! compute ndata
+!! FFTW can do arbitrary(?) lengths, maybe you want to limit them to some
+!!    powers of small prime numbers though...
+
+      maxn_twos = 15
+      maxn_threes = 3
+      maxn_fives = 2
+      maxn_sevens = 1
+      maxn_elevens = 1
+      maxn_thirteens = 0
+      maxn = 37748736
+
+      ndata = 0
+      DO h = 0, maxn_twos
+         nmax = HUGE(0)/2**h
+         DO i = 0, maxn_threes
+            DO j = 0, maxn_fives
+               DO k = 0, maxn_sevens
+                  DO m = 0, maxn_elevens
+                     number = (3**i)*(5**j)*(7**k)*(11**m)
+
+                     IF (number > nmax) CYCLE
+
+                     number = number*2**h
+                     IF (number >= maxn) CYCLE
+
+                     ndata = ndata + 1
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
+
+      ALLOCATE (dlocal(ndata), idx(ndata))
+
+      ndata = 0
+      dlocal(:) = 0
+      DO h = 0, maxn_twos
+         nmax = HUGE(0)/2**h
+         DO i = 0, maxn_threes
+            DO j = 0, maxn_fives
+               DO k = 0, maxn_sevens
+                  DO m = 0, maxn_elevens
+                     number = (3**i)*(5**j)*(7**k)*(11**m)
+
+                     IF (number > nmax) CYCLE
+
+                     number = number*2**h
+                     IF (number >= maxn) CYCLE
+
+                     ndata = ndata + 1
+                     dlocal(ndata) = number
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
+
+      CALL sortint(dlocal, ndata, idx)
+      ndata = MIN(ndata, max_length)
+      DATA(1:ndata) = dlocal(1:ndata)
+      max_length = ndata
+
+      DEALLOCATE (dlocal, idx)
+
+   END SUBROUTINE fft_get_lengths
+
+! **************************************************************************************************
+!> \brief ...
+!> \param iarr ...
+!> \param n ...
+!> \param index ...
+! **************************************************************************************************
+   SUBROUTINE sortint(iarr, n, index)
+
+      INTEGER, INTENT(IN)                                :: n
+      INTEGER, INTENT(INOUT)                             :: iarr(1:n)
+      INTEGER, INTENT(OUT)                               :: INDEX(1:n)
+
+      INTEGER, PARAMETER                                 :: m = 7, nstack = 50
+
+      INTEGER                                            :: a, i, ib, ir, istack(1:nstack), itemp, &
+                                                            j, jstack, k, l, temp
+
+!------------------------------------------------------------------------------
+
+      DO i = 1, n
+         INDEX(i) = i
+      END DO
+      jstack = 0
+      l = 1
+      ir = n
+      DO WHILE (.TRUE.)
+      IF (ir - l < m) THEN
+         DO j = l + 1, ir
+            a = iarr(j)
+            ib = INDEX(j)
+            DO i = j - 1, 0, -1
+               IF (i == 0) EXIT
+               IF (iarr(i) <= a) EXIT
+               iarr(i + 1) = iarr(i)
+               INDEX(i + 1) = INDEX(i)
+            END DO
+            iarr(i + 1) = a
+            INDEX(i + 1) = ib
+         END DO
+         IF (jstack == 0) RETURN
+         ir = istack(jstack)
+         l = istack(jstack - 1)
+         jstack = jstack - 2
+      ELSE
+         k = (l + ir)/2
+         temp = iarr(k)
+         iarr(k) = iarr(l + 1)
+         iarr(l + 1) = temp
+         itemp = INDEX(k)
+         INDEX(k) = INDEX(l + 1)
+         INDEX(l + 1) = itemp
+         IF (iarr(l + 1) > iarr(ir)) THEN
+            temp = iarr(l + 1)
+            iarr(l + 1) = iarr(ir)
+            iarr(ir) = temp
+            itemp = INDEX(l + 1)
+            INDEX(l + 1) = INDEX(ir)
+            INDEX(ir) = itemp
+         END IF
+         IF (iarr(l) > iarr(ir)) THEN
+            temp = iarr(l)
+            iarr(l) = iarr(ir)
+            iarr(ir) = temp
+            itemp = INDEX(l)
+            INDEX(l) = INDEX(ir)
+            INDEX(ir) = itemp
+         END IF
+         IF (iarr(l + 1) > iarr(l)) THEN
+            temp = iarr(l + 1)
+            iarr(l + 1) = iarr(l)
+            iarr(l) = temp
+            itemp = INDEX(l + 1)
+            INDEX(l + 1) = INDEX(l)
+            INDEX(l) = itemp
+         END IF
+         i = l + 1
+         j = ir
+         a = iarr(l)
+         ib = INDEX(l)
+         DO WHILE (.TRUE.)
+            i = i + 1
+            DO WHILE (iarr(i) < a)
+               i = i + 1
+            END DO
+            j = j - 1
+            DO WHILE (iarr(j) > a)
+               j = j - 1
+            END DO
+            IF (j < i) EXIT
+            temp = iarr(i)
+            iarr(i) = iarr(j)
+            iarr(j) = temp
+            itemp = INDEX(i)
+            INDEX(i) = INDEX(j)
+            INDEX(j) = itemp
+         END DO
+         iarr(l) = iarr(j)
+         iarr(j) = a
+         INDEX(l) = INDEX(j)
+         INDEX(j) = ib
+         jstack = jstack + 2
+         IF (jstack > nstack) CPABORT("Nstack too small in sortint")
+         IF (ir - i + 1 >= j - l) THEN
+            istack(jstack) = ir
+            istack(jstack - 1) = i
+            ir = j - 1
+         ELSE
+            istack(jstack) = j - 1
+            istack(jstack - 1) = l
+            l = i
+         END IF
+      END IF
+
+      END DO
+
+   END SUBROUTINE sortint
 
 ! **************************************************************************************************
 !> \brief Determine the allowed lengths of FFT's   '''
@@ -335,53 +556,247 @@ CONTAINS
    END SUBROUTINE fft_radix_operations
 
 ! **************************************************************************************************
-!> \brief Performs m 1-D forward FFT-s of size n.
-!> \param sign ...
-!> \param n      size of the FFT
-!> \param m      number of FFT-s
-!> \param trans_in transposition state of the input array
-!> \param trans_out transposition state of the output array
+!> \brief ...
+!> \param plan ...
+!> \param fsign ...
+!> \param trans_in ...
+!> \param trans_out ...
 !> \param ldx_in ...
 !> \param ldx_out ...
-!> \param zin    input array
-!> \param zout   output array
-!> \param scale  scaling factor
-!> \param stat   status of the operation, non-zero code indicates an error
+!> \param n ...
+!> \param m ...
+!> \param zin ...
+!> \param zout ...
 ! **************************************************************************************************
-   SUBROUTINE fft_1d_many(sign, n, m, trans_in, trans_out, ldx_in, ldx_out, zin, zout, scale, stat)
-      INTEGER, INTENT(in)                                :: sign, n, m
-      LOGICAL, INTENT(in)                                :: trans_in, trans_out
-      INTEGER, INTENT(in)                                :: ldx_in, ldx_out
-      COMPLEX(kind=dp), DIMENSION(*), INTENT(inout)      :: zin, zout
-      REAL(kind=dp), INTENT(in)                          :: scale
-      INTEGER, INTENT(out)                               :: stat
+   SUBROUTINE fft_create_plan_1d(plan, fsign, trans_in, trans_out, ldx_in, ldx_out, n, m, zin, zout)
+      TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
+      LOGICAL, INTENT(IN)                                :: fsign, trans_in, trans_out
+      INTEGER, INTENT(IN)                                :: ldx_in, ldx_out, n, m
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
+         TARGET                                          :: zin, zout
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_1d_many'
-
-      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:), &
-         POINTER                                         :: ztmp
-      INTEGER                                            :: handle
-      TYPE(fft_plan_type)                                :: fft_plan
-
-      CALL timeset(routineN, handle)
-
-      IF (sign /= FWFFT .AND. sign /= BWFFT) THEN
-         CPABORT("Unknown FFT-direction!")
-      END IF
-
-      NULLIFY (ztmp)
-      IF (trans_in) THEN
-         CALL fft_alloc(ztmp, [ldx_in*n])
+      plan%fsign = fsign
+      plan%trans_in = trans_in
+      plan%trans_out = trans_out
+      IF (plan%trans_in) THEN
+         plan%ldx_in = ldx_in
+         plan%ldy_in = n
       ELSE
-         CALL fft_alloc(ztmp, [ldx_in*m])
+         plan%ldx_in = ldx_in
+         plan%ldy_in = m
       END IF
-      CALL fft_create_plan_1d(fft_plan, sign, trans_in, trans_out, ldx_in, ldx_out, n, m, ztmp, zout)
-      CALL fft_dealloc(ztmp)
-      CALL fft_1d(fft_plan, zin, zout, scale, stat)
-      CALL fft_destroy_plan(fft_plan)
+      IF (plan%trans_out) THEN
+         plan%ldx_out = ldx_out
+         plan%ldy_out = n
+      ELSE
+         plan%ldx_out = ldx_out
+         plan%ldy_out = m
+      END IF
 
-      CALL timestop(handle)
-   END SUBROUTINE fft_1d_many
+      plan%n = n
+      plan%m = m
+
+      IF (n*m /= 0) THEN
+         CALL fft_register_1d_local(fsign, n, m, trans_in, trans_out, ldx_in, ldx_out, zin, zout)
+         plan%valid = .TRUE.
+      ELSE
+         plan%valid = .FALSE.
+      END IF
+
+   END SUBROUTINE fft_create_plan_1d
+
+! **************************************************************************************************
+!> \brief ...
+!> \param plan ...
+!> \param fsign ...
+!> \param trans_in ...
+!> \param trans_out ...
+!> \param n ...
+!> \param m ...
+!> \param zin ...
+!> \param zout ...
+! **************************************************************************************************
+   SUBROUTINE fft_create_plan_2d(plan, fsign, trans_in, trans_out, n, m, zin, zout)
+      TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
+      LOGICAL, INTENT(IN)                                :: fsign, trans_in, trans_out
+      INTEGER, INTENT(IN)                                :: n(2), m
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
+         TARGET                                          :: zin, zout
+
+      plan%fsign = fsign
+      plan%trans_in = trans_in
+      plan%trans_out = trans_out
+      IF (plan%trans_in) THEN
+         plan%ldx_in = m
+         plan%ldy_in = n(1)*n(2)
+      ELSE
+         plan%ldx_in = n(1)*n(2)
+         plan%ldy_in = m
+      END IF
+      IF (plan%trans_out) THEN
+         plan%ldx_out = m
+         plan%ldy_out = n(1)*n(2)
+      ELSE
+         plan%ldx_out = n(1)*n(2)
+         plan%ldy_out = m
+      END IF
+
+      plan%n_3d(1:2) = n
+      plan%n_3d(3) = 0
+      plan%m = m
+
+      IF (n(1) > 0 .AND. n(2) > 0 .AND. m > 0) THEN
+         CALL fft_register_2d_local(fsign, n, m, trans_in, trans_out, zin, zout)
+         plan%valid = .TRUE.
+      ELSE
+         plan%valid = .FALSE.
+      END IF
+
+   END SUBROUTINE fft_create_plan_2d
+
+! **************************************************************************************************
+!> \brief ...
+!> \param plan ...
+!> \param fsign ...
+!> \param n ...
+!> \param zin ...
+!> \param zout ...
+! **************************************************************************************************
+   SUBROUTINE fft_create_plan_3d(plan, fsign, n, zin, zout)
+
+      TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
+      LOGICAL, INTENT(IN)                                :: fsign
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: n
+      COMPLEX(KIND=dp), DIMENSION(PRODUCT(n)), &
+         INTENT(INOUT), TARGET                           :: zin, zout
+
+      plan%fsign = fsign
+      plan%fft_in_place = .FALSE.
+      plan%n_3d = n
+
+      CALL fft_register_3d_local(fsign, n, zin, zout)
+      plan%valid = .TRUE.
+
+   END SUBROUTINE fft_create_plan_3d
+
+! **************************************************************************************************
+!> \brief ...
+!> \param plan ...
+!> \param fsign ...
+!> \param n ...
+!> \param zinout ...
+! **************************************************************************************************
+   SUBROUTINE fft_create_plan_3d_inplace(plan, fsign, n, zinout)
+
+      TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
+      LOGICAL, INTENT(IN)                                :: fsign
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: n
+      COMPLEX(KIND=dp), DIMENSION(PRODUCT(n)), &
+         INTENT(INOUT), TARGET                           :: zinout
+
+      plan%fsign = fsign
+      plan%fft_in_place = .TRUE.
+      plan%n_3d = n
+
+      CALL fft_register_3d_local_inplace(fsign, n, zinout)
+      plan%valid = .TRUE.
+
+   END SUBROUTINE fft_create_plan_3d_inplace
+
+! **************************************************************************************************
+!> \brief ...
+!> \param plan ...
+!> \param scale ...
+!> \param zin ...
+!> \param zout ...
+! **************************************************************************************************
+   SUBROUTINE fft_3d(plan, scale, zin, zout)
+      TYPE(fft_plan_type), INTENT(IN)                    :: plan
+      REAL(KIND=dp), INTENT(IN)                          :: scale
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
+         TARGET                                          :: zin, zout
+
+      CPASSERT(.NOT. plan%fft_in_place)
+
+      IF (ALL(plan%n_3d > 0)) THEN
+         CALL fft_3d_local(plan%fsign, plan%n_3d, zin, zout)
+      END IF
+      zout(1:PRODUCT(plan%n_3d)) = zout(1:PRODUCT(plan%n_3d))*scale
+
+   END SUBROUTINE fft_3d
+
+! **************************************************************************************************
+!> \brief ...
+!> \param plan ...
+!> \param scale ...
+!> \param zinout ...
+! **************************************************************************************************
+   SUBROUTINE fft_3d_inplace(plan, scale, zinout)
+      TYPE(fft_plan_type), INTENT(IN)                    :: plan
+      REAL(KIND=dp), INTENT(IN)                          :: scale
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
+         TARGET                                          :: zinout
+
+      CPASSERT(plan%fft_in_place)
+
+      IF (ALL(plan%n_3d > 0)) THEN
+         CALL fft_3d_local_inplace(plan%fsign, plan%n_3d, zinout)
+      END IF
+      zinout(1:PRODUCT(plan%n_3d)) = zinout(1:PRODUCT(plan%n_3d))*scale
+
+   END SUBROUTINE fft_3d_inplace
+
+! **************************************************************************************************
+!> \brief ...
+!> \param plan ...
+! **************************************************************************************************
+   SUBROUTINE fft_destroy_plan(plan)
+      TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
+
+      plan%valid = .FALSE.
+
+   END SUBROUTINE fft_destroy_plan
+
+! **************************************************************************************************
+!> \brief ...
+!> \param plan ...
+!> \param zin ...
+!> \param zout ...
+!> \param scale ...
+! **************************************************************************************************
+   SUBROUTINE fft_1d(plan, zin, zout, scale)
+      TYPE(fft_plan_type), INTENT(IN)                    :: plan
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
+         TARGET                                          :: zin, zout
+      REAL(KIND=dp), INTENT(IN)                          :: scale
+
+      IF (plan%n*plan%m > 0) THEN
+         CALL fft_1d_local(plan%fsign, plan%n, plan%m, plan%trans_in, plan%trans_out, plan%ldx_in, plan%ldx_out, zin, zout)
+         IF (scale /= 1.0_dp) zout(1:plan%n*plan%m) = zout(1:plan%n*plan%m)*scale
+      END IF
+
+   END SUBROUTINE fft_1d
+
+! **************************************************************************************************
+!> \brief ...
+!> \param plan ...
+!> \param zin ...
+!> \param zout ...
+!> \param scale ...
+! **************************************************************************************************
+   SUBROUTINE fft_2d(plan, zin, zout, scale)
+      TYPE(fft_plan_type), INTENT(IN)                    :: plan
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
+         TARGET                                          :: zin, zout
+      REAL(KIND=dp), INTENT(IN)                          :: scale
+
+      IF (plan%n_3d(1) > 0 .AND. plan%n_3d(2) > 0 .AND. plan%m > 0) THEN
+         CALL fft_2d_local(plan%fsign, plan%n_3d(1:2), plan%m, plan%trans_in, plan%trans_out, zin, zout)
+         IF (scale /= 1.0_dp) zout(1:plan%n_3d(1)*plan%n_3d(2)*plan%m) = &
+            zout(1:plan%n_3d(1)*plan%n_3d(2)*plan%m)*scale
+      END IF
+
+   END SUBROUTINE fft_2d
 
 ! **************************************************************************************************
 !> \brief Calls the 3D-FFT function from the initialized library
@@ -389,30 +804,24 @@ CONTAINS
 !> \param n ...
 !> \param zin ...
 !> \param zout ...
-!> \param status ...
 !> \param debug ...
 !> \par History
 !>      none
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE fft3d_s(fsign, n, zin, zout, status, debug)
+   SUBROUTINE fft3d_s(fsign, n, zin, zout, debug)
 
-      INTEGER, INTENT(IN)                                :: fsign
+      LOGICAL, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: n
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
-         INTENT(INOUT)                                   :: zin
+         INTENT(INOUT), TARGET                           :: zin
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(INOUT), OPTIONAL, TARGET                 :: zout
-      INTEGER, INTENT(OUT), OPTIONAL                     :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'fft3d_s'
 
-      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
-         POINTER                                         :: zoptr
-      COMPLEX(KIND=dp), DIMENSION(1, 1, 1), TARGET       :: zdum
-      INTEGER                                            :: handle, ld(3), lo(3), output_unit, sign, &
-                                                            stat
+      INTEGER                                            :: handle, ld(3), lo(3), output_unit
       LOGICAL                                            :: fft_in_place, test
       REAL(KIND=dp)                                      :: in_sum, norm, out_sum
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
@@ -420,12 +829,10 @@ CONTAINS
       CALL timeset(routineN, handle)
       output_unit = cp_logger_get_default_io_unit()
 
-      IF (fsign == FWFFT) THEN
+      IF (fsign) THEN
          norm = 1.0_dp/REAL(PRODUCT(n), KIND=dp)
-      ELSE IF (fsign == BWFFT) THEN
-         norm = 1.0_dp
       ELSE
-         CPABORT("Unknown FFT direction!")
+         norm = 1.0_dp
       END IF
 
       IF (PRESENT(debug)) THEN
@@ -452,21 +859,19 @@ CONTAINS
          CPABORT("Size and dimension (zin) have to be the same.")
       END IF
 
-      sign = fsign
       CALL get_fft_scratch(fft_scratch, tf_type=400, n=n)
 
       IF (fft_in_place) THEN
-         zoptr => zdum
-         IF (fsign == FWFFT) THEN
-            CALL fft_3d(fft_scratch%fft_plan(1), norm, zin, zoptr, stat)
+         IF (fsign) THEN
+            CALL fft_3d_inplace(fft_scratch%fft_plan(1), norm, zin)
          ELSE
-            CALL fft_3d(fft_scratch%fft_plan(2), norm, zin, zoptr, stat)
+            CALL fft_3d_inplace(fft_scratch%fft_plan(2), norm, zin)
          END IF
       ELSE
-         IF (fsign == FWFFT) THEN
-            CALL fft_3d(fft_scratch%fft_plan(3), norm, zin, zout, stat)
+         IF (fsign) THEN
+            CALL fft_3d(fft_scratch%fft_plan(3), norm, zin, zout)
          ELSE
-            CALL fft_3d(fft_scratch%fft_plan(4), norm, zin, zout, stat)
+            CALL fft_3d(fft_scratch%fft_plan(4), norm, zin, zout)
          END IF
       END IF
 
@@ -479,10 +884,6 @@ CONTAINS
          IF (n(1) /= lo(1) .OR. n(2) /= lo(2) .OR. n(3) /= lo(3)) THEN
             CPABORT("Size and dimension (zout) have to be the same.")
          END IF
-      END IF
-
-      IF (PRESENT(status)) THEN
-         status = stat
       END IF
 
       IF (test .AND. output_unit > 0) THEN
@@ -518,13 +919,12 @@ CONTAINS
 !> \param yzp ...
 !> \param nyzray ...
 !> \param bo ...
-!> \param status ...
 !> \param debug ...
 ! **************************************************************************************************
    SUBROUTINE fft3d_ps(fsign, n, cin, gin, rs_group, yzp, nyzray, &
-                       bo, status, debug)
+                       bo, debug)
 
-      INTEGER, INTENT(IN)                                :: fsign
+      LOGICAL, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(:), INTENT(IN)                  :: n
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: cin
@@ -536,7 +936,6 @@ CONTAINS
       INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: nyzray
       INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:, :), &
          INTENT(IN)                                      :: bo
-      INTEGER, INTENT(OUT), OPTIONAL                     :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'fft3d_ps'
@@ -546,7 +945,7 @@ CONTAINS
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: tbuf
       INTEGER :: g_pos, handle, lg, lmax, mcx2, mcz1, mcz2, mg, mmax, mx1, mx2, my1, mz2, n1, n2, &
-         nmax, numtask, nx, ny, nz, output_unit, r_dim(2), r_pos(2), rp, sign, stat
+         nmax, numtask, nx, ny, nz, output_unit, r_dim(2), r_pos(2), rp
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
@@ -567,15 +966,11 @@ CONTAINS
       r_dim = rs_group%num_pe_cart
       r_pos = rs_group%mepos_cart
 
-      IF (fsign == FWFFT) THEN
+      IF (fsign) THEN
          norm = 1.0_dp/REAL(PRODUCT(n), KIND=dp)
-      ELSE IF (fsign == BWFFT) THEN
-         norm = 1.0_dp
       ELSE
-         CPABORT("Unknown FFT direction!")
+         norm = 1.0_dp
       END IF
-
-      sign = fsign
 
       lg = SIZE(gin, 1)
       mg = SIZE(gin, 2)
@@ -657,7 +1052,7 @@ CONTAINS
          END IF
          CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, fft_sizes=fft_scratch_size)
 
-         IF (sign == FWFFT) THEN
+         IF (fsign) THEN
             ! cin -> gin
 
             IF (test) THEN
@@ -676,7 +1071,7 @@ CONTAINS
             qbuf => fft_scratch%p2buf
 
             ! FFT along z
-            CALL fft_1d(fft_scratch%fft_plan(1), cin, qbuf, norm, stat)
+            CALL fft_1d(fft_scratch%fft_plan(1), cin, qbuf, norm)
 
             rbuf => fft_scratch%p3buf
 
@@ -702,7 +1097,7 @@ CONTAINS
             pbuf => fft_scratch%p4buf
 
             ! FFT along y
-            CALL fft_1d(fft_scratch%fft_plan(2), rbuf, pbuf, 1.0_dp, stat)
+            CALL fft_1d(fft_scratch%fft_plan(2), rbuf, pbuf, 1.0_dp)
 
             qbuf => fft_scratch%p5buf
 
@@ -727,7 +1122,7 @@ CONTAINS
             END IF
 
             ! FFT along x
-            CALL fft_1d(fft_scratch%fft_plan(3), qbuf, gin, 1.0_dp, stat)
+            CALL fft_1d(fft_scratch%fft_plan(3), qbuf, gin, 1.0_dp)
 
             IF (test) THEN
                sum_data = ABS(SUM(gin))
@@ -737,7 +1132,7 @@ CONTAINS
                END IF
             END IF
 
-         ELSE IF (sign == BWFFT) THEN
+         ELSE
             ! gin -> cin
 
             IF (test) THEN
@@ -755,7 +1150,7 @@ CONTAINS
             pbuf => fft_scratch%p7buf
 
             ! FFT along x
-            CALL fft_1d(fft_scratch%fft_plan(4), gin, pbuf, norm, stat)
+            CALL fft_1d(fft_scratch%fft_plan(4), gin, pbuf, norm)
 
             qbuf => fft_scratch%p4buf
 
@@ -782,7 +1177,7 @@ CONTAINS
             rbuf => fft_scratch%p3buf
 
             ! FFT along y
-            CALL fft_1d(fft_scratch%fft_plan(5), qbuf, rbuf, 1.0_dp, stat)
+            CALL fft_1d(fft_scratch%fft_plan(5), qbuf, rbuf, 1.0_dp)
 
             pbuf => fft_scratch%p2buf
 
@@ -808,7 +1203,7 @@ CONTAINS
             qbuf => fft_scratch%p1buf
 
             ! FFT along z
-            CALL fft_1d(fft_scratch%fft_plan(6), pbuf, cin, 1.0_dp, stat)
+            CALL fft_1d(fft_scratch%fft_plan(6), pbuf, cin, 1.0_dp)
 
             IF (test) THEN
                sum_data = ABS(SUM(cin))
@@ -817,11 +1212,6 @@ CONTAINS
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(6) ", sum_data
                END IF
             END IF
-
-         ELSE
-
-            CPABORT("Illegal fsign parameter.")
-
          END IF
 
          CALL release_fft_scratch(fft_scratch)
@@ -842,7 +1232,7 @@ CONTAINS
          sbuf = z_zero
          tbuf = z_zero
 
-         IF (sign == FWFFT) THEN
+         IF (fsign) THEN
             ! cin -> gin
 
             IF (test) THEN
@@ -857,8 +1247,8 @@ CONTAINS
             END IF
 
             ! FFT along y and z
-            CALL fft_1d(fft_scratch%fft_plan(1), cin, sbuf, 1._dp, stat)
-            CALL fft_1d(fft_scratch%fft_plan(2), sbuf, tbuf, 1._dp, stat)
+            CALL fft_1d(fft_scratch%fft_plan(1), cin, sbuf, 1._dp)
+            CALL fft_1d(fft_scratch%fft_plan(2), sbuf, tbuf, 1._dp)
 
             IF (test) THEN
                sum_data = ABS(SUM(tbuf))
@@ -880,7 +1270,7 @@ CONTAINS
                END IF
             END IF
             ! FFT along x
-            CALL fft_1d(fft_scratch%fft_plan(3), sbuf, gin, norm, stat)
+            CALL fft_1d(fft_scratch%fft_plan(3), sbuf, gin, norm)
 
             IF (test) THEN
                sum_data = ABS(SUM(gin))
@@ -890,7 +1280,7 @@ CONTAINS
                END IF
             END IF
 
-         ELSE IF (sign == BWFFT) THEN
+         ELSE
             ! gin -> cin
 
             IF (test) THEN
@@ -905,7 +1295,7 @@ CONTAINS
             END IF
 
             ! FFT along x
-            CALL fft_1d(fft_scratch%fft_plan(4), gin, sbuf, norm, stat)
+            CALL fft_1d(fft_scratch%fft_plan(4), gin, sbuf, norm)
 
             IF (test) THEN
                sum_data = ABS(SUM(sbuf))
@@ -928,8 +1318,8 @@ CONTAINS
             END IF
 
             ! FFT along y and z
-            CALL fft_1d(fft_scratch%fft_plan(5), tbuf, sbuf, 1._dp, stat)
-            CALL fft_1d(fft_scratch%fft_plan(6), sbuf, cin, 1._dp, stat)
+            CALL fft_1d(fft_scratch%fft_plan(5), tbuf, sbuf, 1._dp)
+            CALL fft_1d(fft_scratch%fft_plan(6), sbuf, cin, 1._dp)
 
             IF (test) THEN
                sum_data = ABS(SUM(cin))
@@ -938,8 +1328,6 @@ CONTAINS
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(4) ", sum_data
                END IF
             END IF
-         ELSE
-            CPABORT("Illegal fsign parameter.")
          END IF
 
          CALL release_fft_scratch(fft_scratch)
@@ -948,9 +1336,6 @@ CONTAINS
 
       DEALLOCATE (p2p)
 
-      IF (PRESENT(status)) THEN
-         status = stat
-      END IF
       CALL timestop(handle)
 
    END SUBROUTINE fft3d_ps
@@ -963,12 +1348,11 @@ CONTAINS
 !> \param gin ...
 !> \param group ...
 !> \param bo ...
-!> \param status ...
 !> \param debug ...
 ! **************************************************************************************************
-   SUBROUTINE fft3d_pb(fsign, n, zin, gin, group, bo, status, debug)
+   SUBROUTINE fft3d_pb(fsign, n, zin, gin, group, bo, debug)
 
-      INTEGER, INTENT(IN)                                :: fsign
+      LOGICAL, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: zin
@@ -977,7 +1361,6 @@ CONTAINS
       TYPE(mp_cart_type), INTENT(IN)                     :: group
       INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:, :), &
          INTENT(IN)                                      :: bo
-      INTEGER, INTENT(OUT), OPTIONAL                     :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'fft3d_pb'
@@ -986,8 +1369,7 @@ CONTAINS
          POINTER                                         :: abuf, bbuf
       INTEGER                                            :: handle, lg(2), lz(3), mcx2, mcy3, mcz1, &
                                                             mcz2, mx1, mx2, mx3, my1, my2, my3, &
-                                                            my_pos, mz1, mz2, mz3, output_unit, &
-                                                            sign, stat
+                                                            my_pos, mz1, mz2, mz3, output_unit
       INTEGER, DIMENSION(2)                              :: dim
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
@@ -1026,15 +1408,11 @@ CONTAINS
          test = .FALSE.
       END IF
 
-      IF (fsign == FWFFT) THEN
+      IF (fsign) THEN
          norm = 1.0_dp/REAL(PRODUCT(n), KIND=dp)
-      ELSE IF (fsign == BWFFT) THEN
-         norm = 1.0_dp
       ELSE
-         CPABORT("Unknown FFT direction!")
+         norm = 1.0_dp
       END IF
-
-      sign = fsign
 
       IF (test) THEN
          lg(1) = SIZE(gin, 1)
@@ -1088,7 +1466,7 @@ CONTAINS
 
          CALL get_fft_scratch(fft_scratch, tf_type=100, n=n, fft_sizes=fft_scratch_size)
 
-         IF (sign == FWFFT) THEN
+         IF (fsign) THEN
             ! Stage 1 -> 3
 
             bbuf => fft_scratch%a2buf
@@ -1104,7 +1482,7 @@ CONTAINS
             END IF
 
             ! FFT along z
-            CALL fft_1d(fft_scratch%fft_plan(1), zin, bbuf, norm, stat)
+            CALL fft_1d(fft_scratch%fft_plan(1), zin, bbuf, norm)
 
             abuf => fft_scratch%a3buf
 
@@ -1130,7 +1508,7 @@ CONTAINS
             END IF
 
             ! FFT along y
-            CALL fft_1d(fft_scratch%fft_plan(2), abuf, bbuf, 1.0_dp, stat)
+            CALL fft_1d(fft_scratch%fft_plan(2), abuf, bbuf, 1.0_dp)
 
             abuf => fft_scratch%a5buf
 
@@ -1154,7 +1532,7 @@ CONTAINS
             END IF
 
             ! FFT along x
-            CALL fft_1d(fft_scratch%fft_plan(3), abuf, gin, 1.0_dp, stat)
+            CALL fft_1d(fft_scratch%fft_plan(3), abuf, gin, 1.0_dp)
 
             IF (test) THEN
                sum_data = ABS(SUM(gin))
@@ -1164,7 +1542,7 @@ CONTAINS
                END IF
             END IF
 
-         ELSE IF (sign == BWFFT) THEN
+         ELSE
             ! Stage 3 -> 1
 
             bbuf => fft_scratch%a5buf
@@ -1180,7 +1558,7 @@ CONTAINS
             END IF
 
             ! FFT along x
-            CALL fft_1d(fft_scratch%fft_plan(4), gin, bbuf, 1.0_dp, stat)
+            CALL fft_1d(fft_scratch%fft_plan(4), gin, bbuf, 1.0_dp)
 
             abuf => fft_scratch%a4buf
 
@@ -1206,7 +1584,7 @@ CONTAINS
             END IF
 
             ! FFT along y
-            CALL fft_1d(fft_scratch%fft_plan(5), abuf, bbuf, 1.0_dp, stat)
+            CALL fft_1d(fft_scratch%fft_plan(5), abuf, bbuf, 1.0_dp)
 
             abuf => fft_scratch%a2buf
 
@@ -1230,7 +1608,7 @@ CONTAINS
             END IF
 
             ! FFT along z
-            CALL fft_1d(fft_scratch%fft_plan(6), abuf, zin, norm, stat)
+            CALL fft_1d(fft_scratch%fft_plan(6), abuf, zin, norm)
 
             IF (test) THEN
                sum_data = ABS(SUM(zin))
@@ -1239,9 +1617,6 @@ CONTAINS
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(6) ", sum_data
                END IF
             END IF
-
-         ELSE
-            CPABORT("Illegal fsign parameter.")
          END IF
 
          CALL release_fft_scratch(fft_scratch)
@@ -1254,7 +1629,7 @@ CONTAINS
 
          CALL get_fft_scratch(fft_scratch, tf_type=101, n=n, fft_sizes=fft_scratch_size)
 
-         IF (sign == FWFFT) THEN
+         IF (fsign) THEN
             ! Stage 1 -> 3
 
             IF (test) THEN
@@ -1268,11 +1643,11 @@ CONTAINS
                END IF
             END IF
 
-            abuf => fft_scratch%a3buf
+            abuf => fft_scratch%a2buf
             bbuf => fft_scratch%a4buf
             ! FFT along z and y
-            CALL fft_1d(fft_scratch%fft_plan(1), zin, abuf, norm, stat)
-            CALL fft_1d(fft_scratch%fft_plan(2), abuf, bbuf, 1.0_dp, stat)
+            CALL fft_1d(fft_scratch%fft_plan(1), zin, abuf, norm)
+            CALL fft_1d(fft_scratch%fft_plan(2), abuf, bbuf, 1.0_dp)
 
             abuf => fft_scratch%a5buf
 
@@ -1296,7 +1671,7 @@ CONTAINS
             END IF
 
             ! FFT along x
-            CALL fft_1d(fft_scratch%fft_plan(3), abuf, gin, 1.0_dp, stat)
+            CALL fft_1d(fft_scratch%fft_plan(3), abuf, gin, 1.0_dp)
 
             IF (test) THEN
                sum_data = ABS(SUM(gin))
@@ -1306,7 +1681,7 @@ CONTAINS
                END IF
             END IF
 
-         ELSE IF (sign == BWFFT) THEN
+         ELSE
             ! Stage 3 -> 1
 
             IF (test) THEN
@@ -1322,7 +1697,7 @@ CONTAINS
             bbuf => fft_scratch%a5buf
 
             ! FFT along x
-            CALL fft_1d(fft_scratch%fft_plan(4), gin, bbuf, 1.0_dp, stat)
+            CALL fft_1d(fft_scratch%fft_plan(4), gin, bbuf, 1.0_dp)
 
             abuf => fft_scratch%a4buf
 
@@ -1336,8 +1711,6 @@ CONTAINS
 
             CALL cube_transpose_5(bbuf, group, bo(:, :, :, 3), bo(:, :, :, 1), abuf, fft_scratch)
 
-            bbuf => fft_scratch%a3buf
-
             IF (test) THEN
                sum_data = ABS(SUM(abuf))
                CALL group%sum(sum_data)
@@ -1348,11 +1721,13 @@ CONTAINS
                END IF
             END IF
 
+            bbuf => fft_scratch%a2buf
+
             ! FFT along y
-            CALL fft_1d(fft_scratch%fft_plan(5), abuf, bbuf, 1.0_dp, stat)
+            CALL fft_1d(fft_scratch%fft_plan(5), abuf, bbuf, 1.0_dp)
 
             ! FFT along z
-            CALL fft_1d(fft_scratch%fft_plan(6), bbuf, zin, norm, stat)
+            CALL fft_1d(fft_scratch%fft_plan(6), bbuf, zin, norm)
 
             IF (test) THEN
                sum_data = ABS(SUM(zin))
@@ -1361,9 +1736,6 @@ CONTAINS
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(4) ", sum_data
                END IF
             END IF
-
-         ELSE
-            CPABORT("Illegal fsign parameter.")
          END IF
 
          CALL release_fft_scratch(fft_scratch)
@@ -1372,10 +1744,6 @@ CONTAINS
 
          CPABORT("Partition not implemented.")
 
-      END IF
-
-      IF (PRESENT(status)) THEN
-         status = stat
       END IF
 
       CALL timestop(handle)
@@ -2621,100 +2989,100 @@ CONTAINS
    SUBROUTINE deallocate_fft_scratch_type(fft_scratch)
       TYPE(fft_scratch_type), INTENT(INOUT)    :: fft_scratch
 
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
       INTEGER                   :: ierr
       COMPLEX(KIND=dp), POINTER :: dummy_ptr_z
 #endif
 
       ! deallocate structures
       IF (ASSOCIATED(fft_scratch%ziptr)) THEN
-         CALL fft_dealloc(fft_scratch%ziptr)
+         CALL fft_deallocate(fft_scratch%ziptr)
       END IF
       IF (ASSOCIATED(fft_scratch%zoptr)) THEN
-         CALL fft_dealloc(fft_scratch%zoptr)
+         CALL fft_deallocate(fft_scratch%zoptr)
       END IF
       IF (ASSOCIATED(fft_scratch%p1buf)) THEN
-         CALL fft_dealloc(fft_scratch%p1buf)
+         CALL fft_deallocate(fft_scratch%p1buf)
       END IF
       IF (ASSOCIATED(fft_scratch%p2buf)) THEN
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
          dummy_ptr_z => fft_scratch%p2buf(1, 1)
          ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
-         CALL fft_dealloc(fft_scratch%p2buf)
+         CALL fft_deallocate(fft_scratch%p2buf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%p3buf)) THEN
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
          dummy_ptr_z => fft_scratch%p3buf(1, 1)
          ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
-         CALL fft_dealloc(fft_scratch%p3buf)
+         CALL fft_deallocate(fft_scratch%p3buf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%p4buf)) THEN
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
          dummy_ptr_z => fft_scratch%p4buf(1, 1)
          ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
-         CALL fft_dealloc(fft_scratch%p4buf)
+         CALL fft_deallocate(fft_scratch%p4buf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%p5buf)) THEN
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
          dummy_ptr_z => fft_scratch%p5buf(1, 1)
          ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
-         CALL fft_dealloc(fft_scratch%p5buf)
+         CALL fft_deallocate(fft_scratch%p5buf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%p6buf)) THEN
-         CALL fft_dealloc(fft_scratch%p6buf)
+         CALL fft_deallocate(fft_scratch%p6buf)
       END IF
       IF (ASSOCIATED(fft_scratch%p7buf)) THEN
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
          dummy_ptr_z => fft_scratch%p7buf(1, 1)
          ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
-         CALL fft_dealloc(fft_scratch%p7buf)
+         CALL fft_deallocate(fft_scratch%p7buf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%r1buf)) THEN
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
          dummy_ptr_z => fft_scratch%r1buf(1, 1)
          ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
-         CALL fft_dealloc(fft_scratch%r1buf)
+         CALL fft_deallocate(fft_scratch%r1buf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%r2buf)) THEN
-         CALL fft_dealloc(fft_scratch%r2buf)
+         CALL fft_deallocate(fft_scratch%r2buf)
       END IF
       IF (ASSOCIATED(fft_scratch%tbuf)) THEN
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
          dummy_ptr_z => fft_scratch%tbuf(1, 1, 1)
          ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
-         CALL fft_dealloc(fft_scratch%tbuf)
+         CALL fft_deallocate(fft_scratch%tbuf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%a1buf)) THEN
-         CALL fft_dealloc(fft_scratch%a1buf)
+         CALL fft_deallocate(fft_scratch%a1buf)
       END IF
       IF (ASSOCIATED(fft_scratch%a2buf)) THEN
-         CALL fft_dealloc(fft_scratch%a2buf)
+         CALL fft_deallocate(fft_scratch%a2buf)
       END IF
       IF (ASSOCIATED(fft_scratch%a3buf)) THEN
-         CALL fft_dealloc(fft_scratch%a3buf)
+         CALL fft_deallocate(fft_scratch%a3buf)
       END IF
       IF (ASSOCIATED(fft_scratch%a4buf)) THEN
-         CALL fft_dealloc(fft_scratch%a4buf)
+         CALL fft_deallocate(fft_scratch%a4buf)
       END IF
       IF (ASSOCIATED(fft_scratch%a5buf)) THEN
-         CALL fft_dealloc(fft_scratch%a5buf)
+         CALL fft_deallocate(fft_scratch%a5buf)
       END IF
       IF (ASSOCIATED(fft_scratch%a6buf)) THEN
-         CALL fft_dealloc(fft_scratch%a6buf)
+         CALL fft_deallocate(fft_scratch%a6buf)
       END IF
       IF (ASSOCIATED(fft_scratch%scount)) THEN
          DEALLOCATE (fft_scratch%scount, fft_scratch%rcount, &
@@ -2912,7 +3280,7 @@ CONTAINS
       TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current, &
                                                   fft_scratch_last, &
                                                   fft_scratch_new
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
       INTEGER                   :: ierr
       INTEGER(KIND=C_SIZE_T)    :: length
       TYPE(C_PTR)               :: cptr_r1buf, cptr_tbuf, &
@@ -2987,12 +3355,12 @@ CONTAINS
                mz2 = fft_sizes%mz2
                my3 = fft_sizes%my3
                mz3 = fft_sizes%mz3
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a1buf, [mx1*my1, n(3)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a2buf, [n(3), mx1*my1])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a3buf, [mx2*mz2, n(2)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a4buf, [n(2), mx2*mz2])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a5buf, [my3*mz3, n(1)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a6buf, [n(1), my3*mz3])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a1buf, [mx1*my1, n(3)])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a2buf, [n(3), mx1*my1])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a3buf, [mx2*mz2, n(2)])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a4buf, [n(2), mx2*mz2])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a5buf, [my3*mz3, n(1)])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a6buf, [n(1), my3*mz3])
                fft_scratch_new%fft_scratch%group = fft_sizes%rs_group
 
                dim = fft_sizes%rs_group%num_pe_cart
@@ -3051,13 +3419,12 @@ CONTAINS
                mz1 = fft_sizes%mz1
                my3 = fft_sizes%my3
                mz3 = fft_sizes%mz3
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a1buf, [mx1*my1, n(3)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a2buf, [n(3), mx1*my1])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a1buf, [mx1*my1, n(3)])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a2buf, [n(3), mx1*my1])
                fft_scratch_new%fft_scratch%group = fft_sizes%rs_group
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a3buf, [mx1*mz1, n(2)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a4buf, [n(2), mx1*mz1])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a5buf, [my3*mz3, n(1)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a6buf, [n(1), my3*mz3])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a4buf, [n(2), mx1*mz1])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a5buf, [my3*mz3, n(1)])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a6buf, [n(1), my3*mz3])
 
                dim = fft_sizes%rs_group%num_pe_cart
                pos = fft_sizes%rs_group%mepos_cart
@@ -3071,10 +3438,10 @@ CONTAINS
                !set up fft plans
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(1), FWFFT, .TRUE., .FALSE., &
                                        mx1*my1, n(3), n(3), mx1*my1, &
-                                       fft_scratch_new%fft_scratch%a1buf, fft_scratch_new%fft_scratch%a3buf)
+                                       fft_scratch_new%fft_scratch%a1buf, fft_scratch_new%fft_scratch%a2buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(2), FWFFT, .TRUE., .FALSE., &
                                        mx1*mz1, n(2), n(2), mx1*mz1, &
-                                       fft_scratch_new%fft_scratch%a3buf, fft_scratch_new%fft_scratch%a4buf)
+                                       fft_scratch_new%fft_scratch%a2buf, fft_scratch_new%fft_scratch%a4buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(3), FWFFT, .TRUE., .FALSE., &
                                        my3*mz3, n(1), n(1), my3*mz3, &
                                        fft_scratch_new%fft_scratch%a5buf, fft_scratch_new%fft_scratch%a6buf)
@@ -3083,10 +3450,10 @@ CONTAINS
                                        fft_scratch_new%fft_scratch%a6buf, fft_scratch_new%fft_scratch%a5buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(5), BWFFT, .FALSE., .TRUE., &
                                        n(2), mx1*mz1, n(2), mx1*mz1, &
-                                       fft_scratch_new%fft_scratch%a4buf, fft_scratch_new%fft_scratch%a3buf)
+                                       fft_scratch_new%fft_scratch%a4buf, fft_scratch_new%fft_scratch%a2buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(6), BWFFT, .FALSE., .TRUE., &
                                        n(3), mx1*my1, n(3), mx1*my1, &
-                                       fft_scratch_new%fft_scratch%a3buf, fft_scratch_new%fft_scratch%a1buf)
+                                       fft_scratch_new%fft_scratch%a2buf, fft_scratch_new%fft_scratch%a1buf)
 
             CASE (200) ! fft3d_ps: plane distribution
                CPASSERT(PRESENT(fft_sizes))
@@ -3101,7 +3468,7 @@ CONTAINS
                np = fft_sizes%numtask
                nmray = fft_sizes%nmray
                nyzray = fft_sizes%nyzray
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
                length = INT(2*dp_size*MAX(mmax, 1)*MAX(lmax, 1), KIND=C_SIZE_T)
                ierr = offload_malloc_pinned_mem(cptr_r1buf, length)
                CPASSERT(ierr == 0)
@@ -3111,11 +3478,11 @@ CONTAINS
                CPASSERT(ierr == 0)
                CALL c_f_pointer(cptr_tbuf, fft_scratch_new%fft_scratch%tbuf, [MAX(ny, 1), MAX(nz, 1), MAX(nx, 1)])
 #else
-               CALL fft_alloc(fft_scratch_new%fft_scratch%r1buf, [mmax, lmax])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%tbuf, [ny, nz, nx])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%r1buf, [mmax, lmax])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%tbuf, [ny, nz, nx])
 #endif
                fft_scratch_new%fft_scratch%group = fft_sizes%rs_group
-               CALL fft_alloc(fft_scratch_new%fft_scratch%r2buf, [lg, mg])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%r2buf, [lg, mg])
                nm = nmray*mx2
                IF (alltoall_sgl) THEN
                   ALLOCATE (fft_scratch_new%fft_scratch%ss(mmax, lmax))
@@ -3160,9 +3527,9 @@ CONTAINS
                m2 = fft_sizes%r_dim(2)
                nbx = fft_sizes%nbx
                nbz = fft_sizes%nbz
-               CALL fft_alloc(fft_scratch_new%fft_scratch%p1buf, [mx1*my1, n(3)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%p6buf, [lg, mg])
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+               CALL fft_allocate(fft_scratch_new%fft_scratch%p1buf, [mx1*my1, n(3)])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%p6buf, [lg, mg])
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
                length = INT(2*dp_size*MAX(n(3), 1)*MAX(mx1*my1, 1), KIND=C_SIZE_T)
                ierr = offload_malloc_pinned_mem(cptr_p2buf, length)
                CPASSERT(ierr == 0)
@@ -3184,11 +3551,11 @@ CONTAINS
                CPASSERT(ierr == 0)
                CALL c_f_pointer(cptr_p7buf, fft_scratch_new%fft_scratch%p7buf, [MAX(mg, 1), MAX(lg, 1)])
 #else
-               CALL fft_alloc(fft_scratch_new%fft_scratch%p2buf, [n(3), mx1*my1])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%p3buf, [mx2*mz2, n(2)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%p4buf, [n(2), mx2*mz2])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%p5buf, [nyzray, n(1)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%p7buf, [mg, lg])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%p2buf, [n(3), mx1*my1])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%p3buf, [mx2*mz2, n(2)])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%p4buf, [n(2), mx2*mz2])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%p5buf, [nyzray, n(1)])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%p7buf, [mg, lg])
 #endif
                IF (alltoall_sgl) THEN
                   ALLOCATE (fft_scratch_new%fft_scratch%yzbuf_sgl(mg*lg))
@@ -3272,18 +3639,18 @@ CONTAINS
 
             CASE (400) ! serial FFT
                np = 0
-               CALL fft_alloc(fft_scratch_new%fft_scratch%ziptr, n)
-               CALL fft_alloc(fft_scratch_new%fft_scratch%zoptr, n)
+               CALL fft_allocate(fft_scratch_new%fft_scratch%ziptr, n)
+               CALL fft_allocate(fft_scratch_new%fft_scratch%zoptr, n)
 
                !in place plans
-               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(1), .TRUE., FWFFT, n, &
-                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%ziptr)
-               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(2), .TRUE., BWFFT, n, &
-                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%ziptr)
+               CALL fft_create_plan_3d_inplace(fft_scratch_new%fft_scratch%fft_plan(1), FWFFT, n, &
+                                               fft_scratch_new%fft_scratch%ziptr)
+               CALL fft_create_plan_3d_inplace(fft_scratch_new%fft_scratch%fft_plan(2), BWFFT, n, &
+                                               fft_scratch_new%fft_scratch%ziptr)
                ! out of place plans
-               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(3), .FALSE., FWFFT, n, &
+               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(3), FWFFT, n, &
                                        fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%zoptr)
-               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(4), .FALSE., BWFFT, n, &
+               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(4), BWFFT, n, &
                                        fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%zoptr)
 
             END SELECT

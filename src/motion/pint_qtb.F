@@ -18,10 +18,9 @@ MODULE pint_qtb
                                               cp_logger_type
    USE cp_output_handling,              ONLY: debug_print_level,&
                                               silent_print_level
-   USE fft_tools,                       ONLY: FWFFT,&
-                                              fft_1d_many,&
-                                              fft_alloc,&
-                                              fft_dealloc
+   USE fft_api,                         ONLY: fft_1d_local,&
+                                              fft_allocate,&
+                                              fft_deallocate
    USE input_constants,                 ONLY: propagator_rpmd
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -295,8 +294,8 @@ CONTAINS
          kT = pint_env%kT*pint_env%propagator%temp_sim2phys
 
          ALLOCATE (fp(nf/2))
-         CALL fft_alloc(filter_in, [nf])
-         CALL fft_alloc(filter_out, [nf])
+         CALL fft_allocate(filter_in, [nf])
+         CALL fft_allocate(filter_out, [nf])
 
          IF (print_level == debug_print_level) THEN
             !create log file if print_level is debug
@@ -359,7 +358,8 @@ CONTAINS
             END DO
 
             !compute the filter in time space - FFT
-            CALL pint_qtb_fft(filter_in, filter_out, nf)
+            CALL fft_1d_local(.TRUE., nf, 1, .FALSE., .FALSE., nf, nf, filter_in, filter_out)
+
             !reordering + normalisation
             !normalisation : 1/nf comes from the DFT, 1/sqrt(step) is to
             !take into account the effective timestep h = step*dt and
@@ -376,8 +376,8 @@ CONTAINS
             END DO
          END DO
 
-         CALL fft_dealloc(filter_in)
-         CALL fft_dealloc(filter_out)
+         CALL fft_deallocate(filter_in)
+         CALL fft_deallocate(filter_out)
          DEALLOCATE (fp)
          IF (p > 1) DEALLOCATE (fp1)
       END IF
@@ -942,21 +942,5 @@ CONTAINS
       END IF
 
    END SUBROUTINE pint_qtb_linreg
-
-! **************************************************************************************************
-!> \brief ...
-!> \param z_in ...
-!> \param z_out ...
-!> \param n ...
-! **************************************************************************************************
-   SUBROUTINE pint_qtb_fft(z_in, z_out, n)
-
-      INTEGER                                            :: n
-      COMPLEX(KIND=dp), DIMENSION(n)                     :: z_out, z_in
-
-      INTEGER                                            :: stat
-
-      CALL fft_1d_many(FWFFT, n, 1, .FALSE., .FALSE., n, n, z_in, z_out, 1.0_dp, stat)
-   END SUBROUTINE pint_qtb_fft
 
 END MODULE pint_qtb

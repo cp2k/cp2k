@@ -2,10 +2,10 @@
 /*  CP2K: A general program to perform molecular dynamics simulations         */
 /*  Copyright 2000-2026 CP2K developers group <https://cp2k.org>              */
 /*                                                                            */
-/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
+/*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#if defined(__PW_FPGA)
+#if defined(__FFT_FPGA)
 
 // global dependencies
 #include <stdio.h>
@@ -31,9 +31,9 @@ static void fftfpga_run_3d(int inverse, int N[3], cmplx *c_in);
 
 // --- CODE -------------------------------------------------------------------
 
-int pw_fpga_initialize_() { return init(); }
+int fft_fpga_initialize_() { return init(); }
 
-void pw_fpga_final_() { cleanup(); }
+void fft_fpga_final_() { cleanup(); }
 
 /*******************************************************************************
  * \brief  check whether FFT3d can be computed on the FPGA or not. This depends
@@ -44,7 +44,7 @@ void pw_fpga_final_() { cleanup(); }
  * \param  N - integer pointer to the size of the FFT3d
  * \retval true if fft3d size supported
  ******************************************************************************/
-int pw_fpga_check_bitstream_(char *data_path, int N[3]) {
+int fft_fpga_check_bitstream_(char *data_path, int N[3]) {
   static int fft_size[3] = {0, 0, 0};
 
   // check the supported sizes
@@ -86,7 +86,7 @@ int pw_fpga_check_bitstream_(char *data_path, int N[3]) {
  * \param   N   : integer pointer to size of FFT3d
  * \param   din : complex input/output single precision data pointer
  ******************************************************************************/
-void pw_fpga_fft3d_sp_(int direction, int N[3], cmplx *din) {
+void fft_fpga_fft3d_sp_(int direction, int N[3], cmplx *din) {
   // setup device specific constructs
   if (direction == 1) {
     fftfpga_run_3d(0, N, din);
@@ -101,7 +101,7 @@ void pw_fpga_fft3d_sp_(int direction, int N[3], cmplx *din) {
  * \param   N   : integer pointer to size of FFT3d
  * \param   din : complex input/output single precision data pointer
  ******************************************************************************/
-void pw_fpga_fft3d_dp_(int direction, int N[3], cmplx *din) {
+void fft_fpga_fft3d_dp_(int direction, int N[3], cmplx *din) {
   // setup device specific constructs
   if (direction == 1) {
     fftfpga_run_3d(0, N, din);

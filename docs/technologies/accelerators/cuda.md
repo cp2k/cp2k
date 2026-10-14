@@ -9,7 +9,7 @@
 - Link to a BLAS/ScaLAPACK library that accelerates large DGEMMs (e.g., libsci_acc)
 - Use `-DCP2K_ENABLE_GRID_GPU=OFF` to disable the GPU backend of the grid library.
 - Use `-DCP2K_ENABLE_DBM_GPU=OFF` to disable the GPU backend of the sparse tensor library.
-- Use `-DCP2K_ENABLE_PW_GPU=OFF` to disable the GPU backend of FFTs and associated gather/scatter
+- Use `-DCP2K_ENABLE_FFT_GPU=OFF` to disable the GPU backend of FFTs and associated gather/scatter
   operations.
 - Use `-DCP2K_ENABLE_LIBXC_GPU=OFF` to build without the LibXC device/GPU path (by default the
   device path is compiled in when building with `-DCP2K_USE_ACCEL=CUDA` and a CUDA-capable libxc).

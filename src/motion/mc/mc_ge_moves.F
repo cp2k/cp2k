@@ -448,7 +448,6 @@ CONTAINS
          DIMENSION(:)                                    :: atom_names_insert, atom_names_remove
       CHARACTER(default_string_length), &
          DIMENSION(:, :), POINTER                        :: atom_names
-      CHARACTER(LEN=200)                                 :: fft_lib
       CHARACTER(LEN=40), DIMENSION(1:2)                  :: dat_file
       INTEGER :: end_mol, handle, iatom, ibox, idim, iiatom, imolecule, ins_atoms, insert_box, &
          ipart, itype, jbox, molecule_type, nmol_types, nswapmoves, print_level, rem_atoms, &
@@ -493,7 +492,7 @@ CONTAINS
       CALL get_mc_par(mc_par(1)%mc_par, ionode=ionode, BETA=BETA, &
                       max_val=max_val, min_val=min_val, exp_max_val=exp_max_val, &
                       exp_min_val=exp_min_val, nswapmoves=nswapmoves, group=group, source=source, &
-                      lbias=lbias, dat_file=dat_file(1), fft_lib=fft_lib, &
+                      lbias=lbias, dat_file=dat_file(1), &
                       mc_molecule_info=mc_molecule_info, pmswap_mol=pmswap_mol)
       CALL get_mc_molecule_info(mc_molecule_info, nchains=nchains, &
                                 nunits=nunits, nunits_tot=nunits_tot, nmol_types=nmol_types, &
@@ -1147,7 +1146,6 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mc_ge_volume_move'
 
-      CHARACTER(LEN=200)                                 :: fft_lib
       CHARACTER(LEN=40), DIMENSION(1:2)                  :: dat_file
       INTEGER :: cl, end_atom, end_mol, handle, iatom, ibox, imolecule, iside, j, jatom, jbox, &
          max_atoms, molecule_index, molecule_type, print_level, source, start_atom, start_mol
@@ -1181,7 +1179,7 @@ CONTAINS
 ! get some data from mc_par
       CALL get_mc_par(mc_par(1)%mc_par, ionode=ionode, source=source, &
                       group=group, dat_file=dat_file(1), rmvolume=rmvolume, &
-                      BETA=BETA, cl=cl, fft_lib=fft_lib, &
+                      BETA=BETA, cl=cl, &
                       mc_molecule_info=mc_molecule_info)
       CALL get_mc_molecule_info(mc_molecule_info, nunits_tot=nunits_tot, &
                                 mass=mass, nchains=nchains, nunits=nunits, mol_type=mol_type)

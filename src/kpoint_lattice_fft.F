@@ -22,8 +22,8 @@ MODULE kpoint_lattice_fft
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_NEXT,&
                                               FWFFT,&
-                                              fft_alloc,&
-                                              fft_dealloc,&
+                                              fft_allocate,&
+                                              fft_deallocate,&
                                               fft_radix_operations
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -453,13 +453,13 @@ CONTAINS
                ! Reuse capacity while also allowing a smaller caller budget.
                IF (SIZE(plan%fft_in, KIND=int_8) < needed .OR. &
                    32_int_8*SIZE(plan%fft_in, KIND=int_8) + 16_int_8*needed > budget) THEN
-                  CALL fft_dealloc(plan%fft_in)
-                  CALL fft_dealloc(plan%fft_out)
+                  CALL fft_deallocate(plan%fft_in)
+                  CALL fft_deallocate(plan%fft_out)
                END IF
             END IF
             IF (.NOT. ASSOCIATED(plan%fft_in)) THEN
-               CALL fft_alloc(plan%fft_in, [INT(needed)])
-               CALL fft_alloc(plan%fft_out, [INT(needed)])
+               CALL fft_allocate(plan%fft_in, [INT(needed)])
+               CALL fft_allocate(plan%fft_out, [INT(needed)])
             END IF
             IF (PRESENT(profile)) THEN
                profile%pair_major = .TRUE.
@@ -628,8 +628,8 @@ CONTAINS
    SUBROUTINE cell_to_k_grid_release(work)
       TYPE(cell_to_k_grid_work_type), INTENT(INOUT)      :: work
 
-      IF (ASSOCIATED(work%fft_in)) CALL fft_dealloc(work%fft_in)
-      IF (ASSOCIATED(work%fft_out)) CALL fft_dealloc(work%fft_out)
+      IF (ASSOCIATED(work%fft_in)) CALL fft_deallocate(work%fft_in)
+      IF (ASSOCIATED(work%fft_out)) CALL fft_deallocate(work%fft_out)
       IF (ALLOCATED(work%k_slot)) DEALLOCATE (work%k_slot)
       IF (ALLOCATED(work%cell_slot)) DEALLOCATE (work%cell_slot, work%cell_factor)
       work%regular = .FALSE.
@@ -851,13 +851,13 @@ CONTAINS
                 32_int_8*SIZE(work%fft_in, KIND=int_8) + 16_int_8*ngrid*fft_width > budget) THEN
                CALL fft_pair_major_plan_destroy(work%fft_plan(1))
                CALL fft_pair_major_plan_destroy(work%fft_plan(2))
-               CALL fft_dealloc(work%fft_in)
-               CALL fft_dealloc(work%fft_out)
+               CALL fft_deallocate(work%fft_in)
+               CALL fft_deallocate(work%fft_out)
             END IF
          END IF
          IF (.NOT. ASSOCIATED(work%fft_in)) THEN
-            CALL fft_alloc(work%fft_in, [INT(ngrid)*fft_width])
-            CALL fft_alloc(work%fft_out, [INT(ngrid)*fft_width])
+            CALL fft_allocate(work%fft_in, [INT(ngrid)*fft_width])
+            CALL fft_allocate(work%fft_out, [INT(ngrid)*fft_width])
          END IF
          IF (PRESENT(profile)) profile%seconds(3) = profile%seconds(3) + m_walltime() - started
          ! Flatten both matrix dimensions so each FFT batch spans whole columns.
@@ -1110,8 +1110,8 @@ CONTAINS
 
       CALL fft_pair_major_plan_destroy(work%fft_plan(1))
       CALL fft_pair_major_plan_destroy(work%fft_plan(2))
-      IF (ASSOCIATED(work%fft_in)) CALL fft_dealloc(work%fft_in)
-      IF (ASSOCIATED(work%fft_out)) CALL fft_dealloc(work%fft_out)
+      IF (ASSOCIATED(work%fft_in)) CALL fft_deallocate(work%fft_in)
+      IF (ASSOCIATED(work%fft_out)) CALL fft_deallocate(work%fft_out)
       IF (ALLOCATED(work%xkp)) DEALLOCATE (work%xkp, work%cells, work%weight)
       IF (ALLOCATED(work%k_slot)) DEALLOCATE (work%k_slot)
       IF (ALLOCATED(work%k_partner)) DEALLOCATE (work%k_partner)

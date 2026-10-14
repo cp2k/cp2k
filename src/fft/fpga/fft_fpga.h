@@ -2,7 +2,7 @@
 /*  CP2K: A general program to perform molecular dynamics simulations         */
 /*  Copyright 2000-2026 CP2K developers group <https://cp2k.org>              */
 /*                                                                            */
-/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
+/*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
 #ifndef FFT_FPGA_H
@@ -10,7 +10,7 @@
 /*******************************************************************************
  * \author Arjun Ramaswami
  ******************************************************************************/
-#if defined(__PW_FPGA)
+#if defined(__FFT_FPGA)
 
 typedef struct {
   double x;
@@ -22,26 +22,26 @@ typedef struct {
   float y;
 } float2;
 
-#ifdef __PW_FPGA_SP
+#ifdef __FFT_FPGA_SP
 typedef float2 cmplx;
 #else
 typedef double2 cmplx;
 #endif
 
 // Initialize FPGA
-int pw_fpga_initialize_();
+int fft_fpga_initialize_();
 
 // Finalize FPGA
-void pw_fpga_final_();
+void fft_fpga_final_();
 
 // Single precision FFT3d procedure
-void pw_fpga_fft3d_sp_(int direction, int N[3], cmplx *din);
+void fft_fpga_fft3d_sp_(int direction, int N[3], cmplx *din);
 
 // Double precision FFT3d procedure
-void pw_fpga_fft3d_dp_(int direction, int N[3], cmplx *din);
+void fft_fpga_fft3d_dp_(int direction, int N[3], cmplx *din);
 
 // Check fpga bitstream present in directory
-int pw_fpga_check_bitstream_(char *data_path, int N[3]);
+int fft_fpga_check_bitstream_(char *data_path, int N[3]);
 
 // host variables
 static cl_platform_id platform = NULL;
