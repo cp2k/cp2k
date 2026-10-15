@@ -8,7 +8,7 @@
 /cmake/                      @mkrack @mtaillefumier @RMeli
 /CMakeLists.txt              @mkrack @mtaillefumier @RMeli
 /CMakePresets.json           @mkrack @mtaillefumier @RMeli
-
+/src/CMakeLists.txt          @mkrack @mtaillefumier @RMeli
 # Spack
 /tools/spack/                @mkrack @mtaillefumier @RMeli
 /make_cp2k.sh                @mkrack @mtaillefumier @RMeli
