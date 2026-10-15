@@ -67,15 +67,6 @@
 #define FTN_NO_DEFAULT_INIT
 #endif
 
-! gfortran before 8.3 complains about internal symbols not being specified in
-! any data clause when using DEFAULT(NONE) and OOP procedures are called from
-! within the parallel region.
-#if CPVERSION_CHECK(8, 3, >, __GNUC__, __GNUC_MINOR__)
-#define OMP_DEFAULT_NONE_WITH_OOP SHARED
-#else
-#define OMP_DEFAULT_NONE_WITH_OOP NONE
-#endif
-
 #if defined (__MKL)
 ! Preprocessing is enabled by default, and below header is not language specific
 ! Defines __INTEL_MKL__ (2025), __INTEL_MKL_MINOR__ (0), __INTEL_MKL_UPDATE__ (2),

@@ -323,7 +323,7 @@ CONTAINS
       ! Figure out which blocks we need to receive. Blocks are identified here as indices into our COO representation.
       ! TODO: This currently shows limited parallel efficiency. Investigate further.
 
-      !$OMP PARALLEL DEFAULT(OMP_DEFAULT_NONE_WITH_OOP) &
+      !$OMP PARALLEL DEFAULT(NONE) &
       !$OMP          NUM_THREADS(numthreads) &
       !$OMP          PRIVATE(i,j,k,l,m,l_limit_left,l_limit_right,cur_col,cur_row,mytid) &
       !$OMP          SHARED(result_blocks_from_rank_t,result_blocks_for_rank_t,blocks_from_rank_t,this,numthreads,nonzero_rows_t)

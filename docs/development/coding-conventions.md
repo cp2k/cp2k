@@ -133,6 +133,8 @@ central redirections, i.e. avoid to use direct calls to external libraries in CP
   or `error_unit` from `ISO_FORTRAN_ENV`. Beware that the respective output is not written to the
   standard output file opened by CP2K.
 - Use [CP2K's error-handling](error-handling), instead of the `STOP` statement.
+- Use the `CP_VERSION_CHECK`-macro from `base_uses.f90` if code should only (or not) be compiled
+  with certain compiler versions.
 
 ## C-code and interfacing C-code in Fortran
 
@@ -176,6 +178,46 @@ in case of CUDA-code.
       WRITE (output_unit, FMT="(100A)", ADVANCE="NO") msg(1:msglen)
    END SUBROUTINE print_func
 ```
+
+## OpenMP-parallelization
+
+- OpenMP is a widely used and standardized parallelization paradigm on shared memory systems.
+- CP2K employs OpenMP to distribute the workload within a compute node or, more specifically, of a
+  MPI rank.
+- OpenMP is directive-based approach adding hints to the compiler.
+- The variety of compilers to support (especially GCC and Intel) and the different languages
+  (Fortran and C) require developers to obey certain rules which are the result of experience.
+- Breaking these rules does not mean that OpenMP-accelerated code does not conform the OpenMP
+  standard but may break compiler support because of poorly supported features, especially on the
+  Fortran-side.
+- We require developers to adhere to OpenMP standard 3.x.
+- General hints are:
+  - Most C-internal and Fortran-internal functions can be safely used in `OMP`-regions.
+  - CP2K's `timeset` and `timestop` functions are thread-safe.
+  - Calls to routines of `BLAS` and `Lapack` are thread-safe.
+  - CP2K requires MPI-libraries to be thread-safe (thread-level `MPI_THREAD_MULTIPLE`).
+  - Do not employ OpenMP's offloading (`OMP TARGET`) features as this may increase the already
+    complicated CP2K's dependency stack. Convert the code to C+CUDA/HIP instead.
+  - Each `!$OMP PARALLEL` (Fortran) or `#pragma omp parallel` should declare `DEFAULT(NONE)` and set
+    data scoping clauses for all variables explicitly.
+  - Each `CRITICAL` section should receive a unique name: `OMP CRITICAL(my_critical_section)`.
+  - Prefer `ATOMIC` over `CRITICAL` if possible for better performance.
+  - Use `BARRIER` only where necessary. Beware that some constructs have implied barriers.
+  - Use `NOWAIT` to ignore barriers where safely (!) possible.
+  - `OMP DO` (Fortran) and `OMP FOR` regions should receive a `SCHEDULE`-clause.
+  - Use `REDUCTION` instead of implementing them yourself.
+  - It is recommended to set the scheduling strategy explicitly (`SCHEDULE`).
+  - Use of the `MASKED`-construct is currently discouraged and, if absolutely necessary, need to be
+    guarded against compilation with GCC 11 earlier.
+  - Beware of false sharing and cache locality.
+- In addition, we require for Fortran-code:
+  - Simple array operations can be parallelized using the `WORKSHARE` construct instead of expanding
+    loops explicitly and parallelizing them with `OMP DO`.
+  - Do not use the `ASSOCIATE` construct within `OMP`-regions. This may raise compiler bugs.
+  - Make sure to write standard-compliant code. Beware of subtleties of the standard and be more
+    wordy if you are unsure.
+  - Sometimes, the Intel-compiler may OpenMP-parallelize non-OpenMP-parallelized automatically. You
+    can prevent this with `OMP PARALLEL DO IF(.FALSE.)`.
 
 ## Remove dead code
 
