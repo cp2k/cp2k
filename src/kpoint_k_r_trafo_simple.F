@@ -79,7 +79,6 @@ CONTAINS
       INTEGER                                            :: handle, iatom, ispin, jatom, n_spin, &
                                                             src_index
       INTEGER, DIMENSION(3)                              :: cell
-      REAL(KIND=dp)                                      :: mirror_factor
       TYPE(mp_comm_type)                                 :: group
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: iterator
