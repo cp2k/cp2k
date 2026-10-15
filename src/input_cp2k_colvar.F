@@ -22,12 +22,12 @@ MODULE input_cp2k_colvar
                                               low_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE fparser,                         ONLY: docf
+   USE generic_function_input,          ONLY: create_function_section
    USE input_constants,                 ONLY: gaussian,&
                                               numerical,&
                                               rmsd_all,&
                                               rmsd_list,&
                                               rmsd_weightlist
-   USE input_cp2k_function,             ONLY: create_function_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -976,7 +976,7 @@ CONTAINS
                                    "in a mixed_env calculation as a collective variable. Same as the section "// &
                                    "FORCE_EVAL/MIXED/GENERIC, to allow an efficient mapping the order of the "// &
                                    "energy variables will be considered identical to the order of the force_eval "// &
-                                   "in the force_eval_order list.", do_deriv=.TRUE.)
+                                   "in the MULTIPLE_FORCE_EVALS/FORCE_EVAL_ORDER list.", do_deriv=.TRUE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

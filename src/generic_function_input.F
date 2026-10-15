@@ -73,7 +73,7 @@
 !>      10.2026 created
 !> \author Zilong He
 ! **************************************************************************************************
-MODULE input_cp2k_function
+MODULE generic_function_input
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE fparser,                         ONLY: docf
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -100,7 +100,7 @@ MODULE input_cp2k_function
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_function'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'generic_function_input'
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: name_kw_dx = "DX", &
                                            name_kw_error = "ERROR_LIMIT", &
@@ -391,4 +391,4 @@ CONTAINS
       END IF
    END SUBROUTINE parse_function_section
 
-END MODULE input_cp2k_function
+END MODULE generic_function_input

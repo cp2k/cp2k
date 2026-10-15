@@ -84,6 +84,7 @@ MODULE force_env_methods
                                               finalizef,&
                                               initf,&
                                               parsef
+   USE generic_function_input,          ONLY: parse_function_section
    USE global_types,                    ONLY: global_environment_type,&
                                               globenv_retain
    USE grrm_utils,                      ONLY: write_grrm
@@ -93,7 +94,6 @@ MODULE force_env_methods
         mix_cdft, mix_coupled, mix_generic, mix_linear_combination, mix_minimum, mix_restrained, &
         mixed_cdft_serial, mol_dyn_run, use_bazant_eip, use_lenosky_eip, use_stillinger_weber_eip, &
         use_tersoff_eip
-   USE input_cp2k_function,             ONLY: parse_function_section
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_retain,&
                                               section_vals_type,&

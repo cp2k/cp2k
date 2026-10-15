@@ -38,13 +38,13 @@ MODULE thermal_region_utils
                                               finalizef,&
                                               initf,&
                                               parsef
+   USE generic_function_input,          ONLY: parse_function_section
    USE input_constants,                 ONLY: do_region_thermal,&
                                               langevin_ensemble,&
                                               npt_f_ensemble,&
                                               npt_i_ensemble,&
                                               npt_ia_ensemble,&
                                               nvt_ensemble
-   USE input_cp2k_function,             ONLY: parse_function_section
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&

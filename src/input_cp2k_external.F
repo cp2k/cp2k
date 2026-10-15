@@ -16,10 +16,10 @@
 MODULE input_cp2k_external
    USE bibliography,                    ONLY: Tozer1996,&
                                               Zhao1994
+   USE generic_function_input,          ONLY: create_function_section
    USE input_constants,                 ONLY: use_coulomb,&
                                               use_diff,&
                                               use_no
-   USE input_cp2k_function,             ONLY: create_function_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
