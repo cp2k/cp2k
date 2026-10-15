@@ -73,6 +73,7 @@ PROGRAM kpoint_lattice_fft_unittest
    COMPLEX(KIND=dp), DIMENSION(2, 3, ncell)            :: weighted_reference, weighted_result
 
    CALL mp_world_init(mp_comm)
+   CALL check_image_reconstruction(mp_comm)
    CALL init_fft("FFTSG", alltoall=.FALSE., pool_limit=4, &
                  wisdom_file="", plan_style=1)
 
@@ -373,6 +374,146 @@ PROGRAM kpoint_lattice_fft_unittest
    CALL mp_world_finalize()
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Check triangular image storage against rskp_transform for both neighbor orientations.
+!> \param comm MPI communicator
+! **************************************************************************************************
+   SUBROUTINE check_image_reconstruction(comm)
+      USE cp_dbcsr_api, ONLY: &
+         dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
+         dbcsr_finalize, dbcsr_finalize_lib, dbcsr_get_block_p, dbcsr_init_lib, dbcsr_p_type, &
+         dbcsr_put_block, dbcsr_release, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_symmetric
+      USE cp_log_handling, ONLY: cp_add_default_logger, cp_logger_create, cp_logger_release, &
+                                 cp_logger_type, cp_rm_default_logger
+      USE kpoint_k_r_trafo_simple, ONLY: replicate_rs_matrices, rs_to_kp
+      USE kpoint_methods, ONLY: rskp_transform
+      USE kpoint_types, ONLY: kpoint_type
+      USE machine, ONLY: default_output_unit
+      USE message_passing, ONLY: mp_para_env_release, mp_para_env_type
+      USE qs_neighbor_list_types, ONLY: add_neighbor_list, add_neighbor_node, &
+                                        allocate_neighbor_list_set, deallocate_neighbor_list_set, neighbor_list_p_type
+      TYPE(mp_comm_type), INTENT(IN)                     :: comm
+
+      CHARACTER                                          :: matrix_type, mirror_type
+      COMPLEX(dp)                                        :: expected(5, 5), phase, RESULT(5, 5)
+      INTEGER                                            :: atom, ik, image(3), img, io, mode, &
+                                                            neighbor, orientation, owner
+      INTEGER, POINTER                                   :: col_dist(:), images(:, :), &
+                                                            process_grid(:, :), row_dist(:), &
+                                                            sizes(:)
+      LOGICAL                                            :: found
+      REAL(dp)                                           :: expanded(1, 5, 5, 3), point(3), sign, &
+                                                            values(2, 3)
+      REAL(dp), POINTER                                  :: cosine(:, :), sine(:, :)
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_distribution_type)                      :: distribution
+      TYPE(dbcsr_p_type), POINTER                        :: source(:, :)
+      TYPE(dbcsr_type)                                   :: cosine_matrix, sine_matrix
+      TYPE(kpoint_type), POINTER                         :: points
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_p_type)                         :: neighbors
+
+      ALLOCATE (para_env)
+      CALL para_env%from_dup(comm)
+      io = -1
+      IF (comm%mepos == 0) io = default_output_unit
+      NULLIFY (logger)
+      CALL cp_logger_create(logger, para_env=para_env, default_global_unit_nr=io, &
+                            close_global_unit_on_dealloc=.FALSE.)
+      CALL cp_add_default_logger(logger)
+      CALL dbcsr_init_lib(comm%get_handle(), io)
+      ALLOCATE (process_grid(0:comm%num_pe - 1, 0:0), row_dist(2), col_dist(2), sizes(2))
+      process_grid(:, 0) = [(img, img=0, comm%num_pe - 1)]
+      col_dist = 0
+      sizes = [2, 3]
+      ALLOCATE (points, source(1, 3), images(3, 3))
+      ALLOCATE (points%cell_to_index(-1:1, 0:0, 0:0), points%sab_nl(1))
+      DO img = 1, 3
+         points%cell_to_index(img - 2, 0, 0) = img
+         images(:, img) = [img - 2, 0, 0]
+         ALLOCATE (source(1, img)%matrix)
+      END DO
+      values = RESHAPE([0.3_dp, -0.2_dp, 0.7_dp, 0.1_dp, -0.4_dp, 0.6_dp], [2, 3])
+      DO mode = 1, 2
+         matrix_type = MERGE(dbcsr_type_symmetric, dbcsr_type_antisymmetric, mode == 1)
+         mirror_type = MERGE(dbcsr_type_antisymmetric, dbcsr_type_symmetric, mode == 1)
+         sign = MERGE(1.0_dp, -1.0_dp, mode == 1)
+         DO orientation = 1, 2
+            owner = MODULO(orientation - 1, comm%num_pe)
+            row_dist = [owner, MODULO(owner + 1, comm%num_pe)]
+            CALL dbcsr_distribution_new(distribution, group=comm%get_handle(), pgrid=process_grid, &
+                                        row_dist=row_dist, col_dist=col_dist)
+            atom = orientation
+            neighbor = 3 - orientation
+            image = [3 - 2*orientation, 0, 0]
+            CALL allocate_neighbor_list_set(points%sab_nl(1)%neighbor_list_set, symmetric=.TRUE.)
+            CALL add_neighbor_list(points%sab_nl(1)%neighbor_list_set, atom, neighbors%neighbor_list)
+            CALL add_neighbor_node(neighbors%neighbor_list, neighbor, image, REAL(image, dp))
+            DO img = 1, 3
+               CALL dbcsr_create(source(1, img)%matrix, name="Image reconstruction", dist=distribution, &
+                                 matrix_type=matrix_type, row_blk_size=sizes, col_blk_size=sizes)
+               IF (comm%mepos == owner .AND. img == image(1) + 2) THEN
+                  CALL dbcsr_put_block(source(1, img)%matrix, 1, 2, values)
+               END IF
+               CALL dbcsr_finalize(source(1, img)%matrix)
+            END DO
+            CALL dbcsr_create(cosine_matrix, name="Image cosine", dist=distribution, matrix_type=matrix_type, &
+                              row_blk_size=sizes, col_blk_size=sizes)
+            CALL dbcsr_create(sine_matrix, name="Image sine", dist=distribution, matrix_type=mirror_type, &
+                              row_blk_size=sizes, col_blk_size=sizes)
+            IF (comm%mepos == owner) THEN
+               CALL dbcsr_put_block(cosine_matrix, 1, 2, 0.0_dp*values)
+               CALL dbcsr_put_block(sine_matrix, 1, 2, 0.0_dp*values)
+            END IF
+            CALL dbcsr_finalize(cosine_matrix)
+            CALL dbcsr_finalize(sine_matrix)
+            expanded = 0.0_dp
+            CALL replicate_rs_matrices(source, points, expanded, points%cell_to_index)
+            DO ik = 1, 2
+               point = [0.137_dp, 0.217_dp, 0.089_dp]*REAL(ik - 1, dp)
+               CALL rs_to_kp(expanded(1, :, :, :), RESULT, images, point)
+               phase = EXP(gaussi*twopi*point(1))
+               expected = z_zero
+               expected(1:2, 3:5) = phase*values
+               expected(3:5, 1:2) = sign*CONJG(TRANSPOSE(expected(1:2, 3:5)))
+               IF (MAXVAL(ABS(RESULT - expected)) > 1.e-12_dp) THEN
+                  ERROR STOP "Image reconstruction depends on neighbor orientation"
+               END IF
+               CALL rskp_transform(cosine_matrix, sine_matrix, source, 1, point, &
+                                   points%cell_to_index, points%sab_nl)
+               CALL dbcsr_get_block_p(cosine_matrix, 1, 2, cosine, found)
+               IF (comm%mepos == owner .AND. .NOT. found) ERROR STOP "Missing image cosine block"
+               IF (found) THEN
+                  CALL dbcsr_get_block_p(sine_matrix, 1, 2, sine, found)
+                  IF (.NOT. found) ERROR STOP "Missing image sine block"
+                  IF (MAXVAL(ABS(RESULT(1:2, 3:5) - CMPLX(cosine, sine, KIND=dp))) > 1.e-12_dp) THEN
+                     ERROR STOP "Image reconstruction differs from rskp_transform"
+                  END IF
+                  cosine = 0.0_dp
+                  sine = 0.0_dp
+               END IF
+            END DO
+            CALL dbcsr_release(cosine_matrix)
+            CALL dbcsr_release(sine_matrix)
+            DO img = 1, 3
+               CALL dbcsr_release(source(1, img)%matrix)
+            END DO
+            CALL dbcsr_distribution_release(distribution)
+            CALL deallocate_neighbor_list_set(points%sab_nl(1)%neighbor_list_set)
+         END DO
+      END DO
+      DO img = 1, 3
+         DEALLOCATE (source(1, img)%matrix)
+      END DO
+      DEALLOCATE (points%cell_to_index, points%sab_nl)
+      DEALLOCATE (points, source, images)
+      DEALLOCATE (process_grid, row_dist, col_dist, sizes)
+      CALL dbcsr_finalize_lib()
+      CALL cp_rm_default_logger()
+      CALL cp_logger_release(logger)
+      CALL mp_para_env_release(para_env)
+   END SUBROUTINE check_image_reconstruction
 
 ! **************************************************************************************************
 !> \brief Apply the balanced two-level inverse used by the production local correction.
