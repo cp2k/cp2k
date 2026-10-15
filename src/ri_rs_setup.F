@@ -98,7 +98,7 @@ CONTAINS
    SUBROUTINE compute_Z_lP(qs_env, bs_env, ri_rs_grid_points, mat_phi_mu_l, mat_Z_lP)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT)          :: ri_rs_grid_points(:, :)
+      REAL(KIND=dp), INTENT(IN)                          :: ri_rs_grid_points(:, :)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_phi_mu_l
       TYPE(dbcsr_type), INTENT(OUT)                      :: mat_Z_lP
 
@@ -146,7 +146,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT)          :: ri_rs_grid_points(:, :)
+      REAL(KIND=dp), INTENT(IN)                          :: ri_rs_grid_points(:, :)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_phi_mu_l
       TYPE(dbcsr_type), INTENT(OUT)                      :: mat_Z_lP
 
@@ -463,7 +463,6 @@ CONTAINS
       DEALLOCATE (row_offset, ri_blk_sizes, col_dist_ri)
       CALL dbcsr_distribution_release(dist_Z)
 
-      DEALLOCATE (ri_rs_grid_points)
 
       CALL timestop(handle)
 
