@@ -346,7 +346,7 @@ CONTAINS
          print_level=low_print_level, common_iter_levels=0, &
          each_iter_names=s2a("__ROOT__", "MD", "GEO_OPT", "ROT_OPT", "NEB", "METADYNAMICS", "QS_SCF"), &
          each_iter_values=[500, 500, 500, 500, 500, 500, 500], &
-         filename="RESTART")
+         filename="RESTART", do_backup=.TRUE.)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
