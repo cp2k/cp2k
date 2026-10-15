@@ -8,7 +8,7 @@
 ! **************************************************************************************************
 !> \brief Common setup operations used by the periodic and non-periodic GW RI-RS implementations.
 ! **************************************************************************************************
-MODULE gw_ri_rs_utils
+MODULE ri_rs_utils
    USE atomic_kind_types,               ONLY: get_atomic_kind_set
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
@@ -29,7 +29,7 @@ MODULE gw_ri_rs_utils
    PUBLIC :: evaluate_ao_basis_on_points, evaluate_ao_on_points, filter_grid_to_voronoi, &
              get_rirs_cluster_atoms, precompute_ri_rs_radii
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ri_rs_utils'
 
 CONTAINS
 
@@ -355,4 +355,4 @@ CONTAINS
       !$OMP END PARALLEL DO
    END SUBROUTINE evaluate_ao_basis_on_points
 
-END MODULE gw_ri_rs_utils
+END MODULE ri_rs_utils

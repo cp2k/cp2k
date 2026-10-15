@@ -10,7 +10,7 @@
 !> \par History
 !>      09.2026 created Jan Wilhelm
 ! **************************************************************************************************
-MODULE gw_ri_rs_compute_Z_lP_utils
+MODULE ri_rs_fitting
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_put_block,&
                                               dbcsr_type
@@ -32,7 +32,7 @@ MODULE gw_ri_rs_compute_Z_lP_utils
    IMPLICIT NONE
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_compute_Z_lP_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ri_rs_fitting'
    REAL(KIND=dp), PARAMETER, PRIVATE :: jacobi_floor = 1.0E-16_dp
 
    PUBLIC :: build_gram_jacobi_blas, &
@@ -379,4 +379,4 @@ CONTAINS
 
    END SUBROUTINE solve_D_lp_distributed
 
-END MODULE gw_ri_rs_compute_Z_lP_utils
+END MODULE ri_rs_fitting

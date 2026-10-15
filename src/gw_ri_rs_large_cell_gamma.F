@@ -32,11 +32,11 @@ MODULE gw_ri_rs_large_cell_Gamma
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
-   USE gw_ri_rs_compute_Z_lP_utils,     ONLY: build_gram_jacobi_blas,&
+   USE ri_rs_fitting,     ONLY: build_gram_jacobi_blas,&
                                               scale_rows_by_diag,&
                                               store_Z_lP_columns
-   USE gw_ri_rs_grid_setup_main,        ONLY: setup_ri_rs_grid
-   USE gw_ri_rs_utils,                  ONLY: precompute_ri_rs_radii
+   USE ri_rs_grid_setup,        ONLY: setup_ri_rs_grid
+   USE ri_rs_utils,                  ONLY: precompute_ri_rs_radii
    USE gw_tensor_large_cell_Gamma,      ONLY: G_occ_vir,&
                                               compute_QP_energies,&
                                               delete_unnecessary_files,&

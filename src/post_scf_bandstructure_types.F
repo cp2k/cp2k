@@ -11,14 +11,11 @@
 !> \date 07.2023
 ! **************************************************************************************************
 MODULE post_scf_bandstructure_types
-   USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: gto_basis_set_p_type
-   USE cell_types,                      ONLY: cell_type
    USE cp_cfm_types,                    ONLY: cp_cfm_release,&
                                               cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
-                                              dbcsr_release,&
-                                              dbcsr_type
+                                              dbcsr_release
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
@@ -39,10 +36,10 @@ MODULE post_scf_bandstructure_types
    USE libint_2c_3c,                    ONLY: libint_potential_type
    USE message_passing,                 ONLY: mp_para_env_release,&
                                               mp_para_env_type
-   USE particle_types,                  ONLY: particle_type
-   USE physcon,                         ONLY: angstrom,&
-                                              evolt
+   USE physcon,                         ONLY: evolt
    USE qs_tensors_types,                ONLY: neighbor_list_3c_type
+   USE ri_rs_types,                     ONLY: ri_rs_env,&
+                                              ri_rs_release
    USE time_frequency_grids,            ONLY: time_frequency_grid_release,&
                                               time_frequency_grid_type
 #include "./base/base_uses.f90"
@@ -53,8 +50,7 @@ MODULE post_scf_bandstructure_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'post_scf_bandstructure_types'
 
-   PUBLIC :: post_scf_bandstructure_type, ri_rs_env, &
-             rirs_grid_type, ri_rs_grid_opt_type, band_edges_type, bs_env_release
+   PUBLIC :: post_scf_bandstructure_type, band_edges_type, bs_env_release
 
    ! valence band maximum (VBM), conduction band minimum (CBM), direct band gap (DBG),
    ! indirect band gap (IDBG)
@@ -65,85 +61,6 @@ MODULE post_scf_bandstructure_types
                                                          IDBG = -1.0_dp, &
                                                          E_fermi = -1.0_dp
    END TYPE band_edges_type
-
-   ! data types for GW RI-RS code
-   TYPE rirs_grid_type
-      INTEGER                    :: npts = 0
-      REAL(KIND=dp), ALLOCATABLE :: raw_points(:, :)
-   END TYPE rirs_grid_type
-
-   ! User input for the in-memory GW RI-RS grid optimization.
-   TYPE ri_rs_grid_opt_type
-      LOGICAL                                          :: enabled = .FALSE.
-      REAL(KIND=dp)                                    :: cutoff_atomic_cluster = 3.0_dp/angstrom
-      REAL(KIND=dp)                                    :: rs_ao_ratio = 5.0_dp
-      INTEGER                                          :: max_iter = 300
-   END TYPE ri_rs_grid_opt_type
-
-   TYPE ri_rs_env
-
-      ! Input parameters for RI-RS
-      INTEGER                                          :: grid_select = 1
-      REAL(KIND=dp)                                    :: tikhonov = 1.0E-08_dp
-      REAL(KIND=dp)                                    :: cutoff_radius_ri_ao = -1.0_dp
-      REAL(KIND=dp)                                    :: cutoff_radius_v_w = -1.0_dp
-      TYPE(ri_rs_grid_opt_type)                        :: grid_opt
-
-      ! Geometry references used by RI-RS grid setup and optimization.
-      ! They remain owned by qs_env and must never be deallocated here.
-      TYPE(cell_type), POINTER                         :: cell => NULL()
-      TYPE(particle_type), DIMENSION(:), POINTER       :: particle_set => NULL()
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER    :: atomic_kind_set => NULL()
-
-      ! Eigenvalue self-consistency (evGW0): G is rebuilt from the quasiparticle energies of
-      ! the previous cycle while W stays frozen at the RPA@DFT level.
-      INTEGER                                          :: evgw0_iter = 20
-      REAL(KIND=dp)                                    :: evgw0_eps_iter = 5.0E-5_dp
-      ! index of the running evGW0 cycle
-      INTEGER                                          :: evgw0_i_iter = 0
-
-      ! Data types for cutoffs based DBCSR matrices
-      REAL(KIND=dp), ALLOCATABLE                       :: chunk_centroids(:, :)
-      INTEGER, ALLOCATABLE                             :: grid_atom_boundaries(:)
-      INTEGER, ALLOCATABLE                             :: pan_first(:), pan_last(:)
-
-      ! Atom-specific grids used directly by the GW grid assembler
-      TYPE(rirs_grid_type), ALLOCATABLE                :: atomic_grids(:)
-
-      ! Data types for storing RI-RS matrices
-      INTEGER                                          :: n_grid_points = 0
-      TYPE(dbcsr_type)                                 :: mat_phi_mu_l
-      TYPE(dbcsr_type)                                 :: mat_Z_lP
-      REAL(KIND=dp), ALLOCATABLE                       :: grid_points(:, :)
-      LOGICAL                                          :: Z_lP_exists = .FALSE.
-
-      ! Spatial extent of most diffuse Gaussian primitive of AO/RI basis for each atom
-      REAL(KIND=dp), ALLOCATABLE                       :: radius_ao_per_atom(:)
-      REAL(KIND=dp), ALLOCATABLE                       :: radius_ri_per_atom(:)
-
-      ! Precomputed grid-basis kernels for RT-BSE
-      ! mat_V_aux_rtbse(P, Q) = truncated-Coulomb V_PQ with M^-1 sandwich (RI x RI);
-      ! the Hartree grid kernel Z V Z^T is applied factorized, never materialized
-      ! mat_W0_grid_rtbse(l, l') = sum_PQ  Z_lP W^{w=0}_PQ Z_l'Q
-      TYPE(dbcsr_type)                                 :: mat_V_aux_rtbse
-      TYPE(dbcsr_type)                                 :: mat_W0_grid_rtbse
-
-      ! RTBSE%EPS_FILTER_RHO: cuts Delta-rho_AO in compute_sigma_ri_rs, also cuts SEX and Hartree
-      REAL(KIND=dp)                                    :: eps_filter_rho = -1.0_dp
-
-      ! RTBSE%CUTOFF_RADIUS_W0 (bohr): drops grid block pairs of W0 beyond this distance.
-      ! BSE-only: the GW quasiparticle energies use their own &GW CUTOFF_RADIUS_* family.
-      REAL(KIND=dp)                                    :: cutoff_radius_w0 = -1.0_dp
-
-      ! Set TRUE once mat_phi_mu_l and mat_Z_lP have been populated in memory (by GW RI-RS
-      ! or on-demand by the RT-BSE RI-RS kernel path).
-      LOGICAL                                          :: grid_built = .FALSE.
-
-      ! Independent toggles for V_grid / W0_grid availability
-      LOGICAL                                          :: V_grid_built = .FALSE.
-      LOGICAL                                          :: W0_grid_built = .FALSE.
-
-   END TYPE ri_rs_env
 
    TYPE post_scf_bandstructure_type
 
@@ -185,6 +102,10 @@ MODULE post_scf_bandstructure_types
 
       ! parameters for RI-RS implementation of GW
       TYPE(ri_rs_env)                                 :: ri_rs
+      ! Eigenvalue self-consistency settings and current GW iteration.
+      INTEGER                                         :: evgw0_iter = 20
+      REAL(KIND=dp)                                   :: evgw0_eps_iter = 5.0E-5_dp
+      INTEGER                                         :: evgw0_i_iter = 0
 
       ! Parameters for automatic RI basis set optimization.
       TYPE(auto_ri_type)                              :: auto_ri = auto_ri_type()
@@ -581,6 +502,7 @@ CONTAINS
       CALL safe_cfm_destroy_2d(bs_env%cfm_ks_kp)
       CALL safe_cfm_destroy_2d(bs_env%cfm_mo_coeff_kp)
 
+      CALL ri_rs_release(bs_env%ri_rs)
       CALL mp_para_env_release(bs_env%para_env)
       IF (ASSOCIATED(bs_env%para_env_tensor)) CALL mp_para_env_release(bs_env%para_env_tensor)
 
@@ -597,20 +519,6 @@ CONTAINS
       CALL safe_dbcsr_deallocate_matrix_set_2d(bs_env%mat_V_SOC_xyz)
       CALL safe_cfm_destroy_1d(bs_env%cfm_SOC_spinor_ao)
 
-      ! Deallocate RI-RS matrices
-      IF (bs_env%ri_rs%grid_built) CALL dbcsr_release(bs_env%ri_rs%mat_phi_mu_l)
-      IF (bs_env%ri_rs%grid_built) CALL dbcsr_release(bs_env%ri_rs%mat_Z_lP)
-      IF (bs_env%ri_rs%V_grid_built) CALL dbcsr_release(bs_env%ri_rs%mat_V_aux_rtbse)
-      IF (bs_env%ri_rs%W0_grid_built) CALL dbcsr_release(bs_env%ri_rs%mat_W0_grid_rtbse)
-      IF (ALLOCATED(bs_env%ri_rs%grid_points)) DEALLOCATE (bs_env%ri_rs%grid_points)
-      IF (ALLOCATED(bs_env%ri_rs%atomic_grids)) DEALLOCATE (bs_env%ri_rs%atomic_grids)
-      IF (ALLOCATED(bs_env%ri_rs%radius_ao_per_atom)) DEALLOCATE (bs_env%ri_rs%radius_ao_per_atom)
-      IF (ALLOCATED(bs_env%ri_rs%radius_ri_per_atom)) DEALLOCATE (bs_env%ri_rs%radius_ri_per_atom)
-      IF (ALLOCATED(bs_env%ri_rs%chunk_centroids)) DEALLOCATE (bs_env%ri_rs%chunk_centroids)
-      IF (ALLOCATED(bs_env%ri_rs%grid_atom_boundaries)) DEALLOCATE (bs_env%ri_rs%grid_atom_boundaries)
-      NULLIFY (bs_env%ri_rs%atomic_kind_set, bs_env%ri_rs%cell, bs_env%ri_rs%particle_set)
-      IF (ALLOCATED(bs_env%ri_rs%pan_first)) DEALLOCATE (bs_env%ri_rs%pan_first)
-      IF (ALLOCATED(bs_env%ri_rs%pan_last)) DEALLOCATE (bs_env%ri_rs%pan_last)
       CALL auto_ri_release(bs_env%auto_ri)
 
       DEALLOCATE (bs_env)

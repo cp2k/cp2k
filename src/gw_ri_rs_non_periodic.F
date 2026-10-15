@@ -38,9 +38,9 @@ MODULE gw_ri_rs_non_periodic
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE gw_ri_rs_compute_Z_lP,           ONLY: compute_Z_lP
-   USE gw_ri_rs_grid_setup_main,        ONLY: setup_ri_rs_grid
-   USE gw_ri_rs_utils,                  ONLY: evaluate_ao_basis_on_points,&
+   USE ri_rs_setup,           ONLY: compute_Z_lP
+   USE ri_rs_grid_setup,        ONLY: setup_ri_rs_grid
+   USE ri_rs_utils,                  ONLY: evaluate_ao_basis_on_points,&
                                               precompute_ri_rs_radii
    USE gw_tensor_large_cell_Gamma,      ONLY: Fourier_transform_w_to_t,&
                                               G_occ_vir,&
@@ -246,7 +246,7 @@ CONTAINS
       ! evGW0 self-consistency loop; for G0W0, loop is terminated after one iteration
       DO i_iter = 1, n_iter
 
-         bs_env%ri_rs%evgw0_i_iter = i_iter
+         bs_env%evgw0_i_iter = i_iter
 
          ! W_ll'(iτ)   =  Σ_PQ Z_lP W^MIC_PQ(iτ) Z_l'Q
          ! Σ^c_ll'(iτ) = -G^occ_ll'(i|τ|) ∘ W_ll'(iτ),  τ < 0
@@ -312,7 +312,7 @@ CONTAINS
       e_fermi_dft(:) = 0.0_dp
 
       IF (bs_env%gw_flavour == evGW0) THEN
-         n_iter = bs_env%ri_rs%evgw0_iter
+         n_iter = bs_env%evgw0_iter
 
          ! eigenvalues currently in G; the first cycle starts is a plain G0W0 step
          bs_env%eigenval_evGW0(:, :, :) = bs_env%eigenval_scf(:, :, :)
@@ -451,7 +451,7 @@ CONTAINS
       END DO
 
       IF (i_iter > 1) THEN
-         converged = (max_delta < bs_env%ri_rs%evgw0_eps_iter)
+         converged = (max_delta < bs_env%evgw0_eps_iter)
          IF (u > 0) WRITE (u, '(T2,A,T61,F20.6)') 'Max. change to previous cycle (eV)', &
             max_delta*evolt
       END IF

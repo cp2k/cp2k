@@ -10,13 +10,13 @@
 !> \par History
 !>      09.2026 created
 ! **************************************************************************************************
-MODULE gw_ri_rs_grid_setup_main
-   USE gw_ri_rs_grid_from_file,         ONLY: read_ri_rs_grid_from_file
-   USE gw_ri_rs_grid_optimization,      ONLY: optimize_ri_rs_grid
+MODULE ri_rs_grid_setup
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE particle_types,                  ONLY: particle_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
+   USE ri_rs_grid_from_file,            ONLY: read_ri_rs_grid_from_file
+   USE ri_rs_grid_optimization,         ONLY: optimize_ri_rs_grid
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
@@ -25,14 +25,14 @@ MODULE gw_ri_rs_grid_setup_main
 
    PUBLIC :: setup_ri_rs_grid
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_grid_setup_main'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ri_rs_grid_setup'
 
 CONTAINS
 
 ! **************************************************************************************************
 !> \brief Get RI-RS grid points {r_l}, either by on-the-fly optimization or
 !>        reading pretabulated atomic grids
-!> \param bs_env Band-structure environment containing GW RI-RS parameters.
+!> \param bs_env shared geometry, basis, grid settings and owned RI-RS data
 !> \param grid_points x,y,z RI-RS grid coordinates, size (3, ngrid)
 ! **************************************************************************************************
    SUBROUTINE setup_ri_rs_grid(bs_env, grid_points)
@@ -231,4 +231,4 @@ CONTAINS
                             INT(z'1249249249249249', int_8))
    END SUBROUTINE morton_split3
 
-END MODULE gw_ri_rs_grid_setup_main
+END MODULE ri_rs_grid_setup

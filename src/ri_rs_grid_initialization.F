@@ -8,28 +8,28 @@
 ! **************************************************************************************************
 !> \brief Initialize atom-owned RI-RS grids by Cholesky selection from Lebedev grids.
 ! **************************************************************************************************
-MODULE gw_ri_rs_grid_initialization
+MODULE ri_rs_grid_initialization
    USE basis_set_types,                 ONLY: gto_basis_set_type
-   USE gw_ri_rs_utils,                  ONLY: evaluate_ao_basis_on_points,&
-                                              filter_grid_to_voronoi,&
-                                              get_rirs_cluster_atoms
    USE input_constants,                 ONLY: do_gapw_log
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE lebedev,                         ONLY: get_number_of_lebedev_grid,&
                                               lebedev_grid
-   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type,&
-                                              rirs_grid_type
+   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_grid_atom,                    ONLY: allocate_grid_atom,&
                                               create_grid_atom,&
                                               deallocate_grid_atom,&
                                               grid_atom_type
+   USE ri_rs_types,                     ONLY: rirs_grid_type
+   USE ri_rs_utils,                     ONLY: evaluate_ao_basis_on_points,&
+                                              filter_grid_to_voronoi,&
+                                              get_rirs_cluster_atoms
    USE util,                            ONLY: locate
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_grid_initialization'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ri_rs_grid_initialization'
 
    PUBLIC :: initialize_ri_rs_grid
 
@@ -566,4 +566,4 @@ CONTAINS
       END DO
    END SUBROUTINE broadcast_ri_rs_grids
 
-END MODULE gw_ri_rs_grid_initialization
+END MODULE ri_rs_grid_initialization

@@ -12,7 +12,7 @@
 !>      09.2026 moved code by Ritaj Tyagi from gw_ri_rs_non_periodic.F
 !>      09.2026 added routine to compute Z_lP for automatic RI optimization
 ! **************************************************************************************************
-MODULE gw_ri_rs_compute_Z_lP
+MODULE ri_rs_setup
    USE ai_contraction_sphi,             ONLY: abc_contract_xsmm
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: get_gto_basis_set
@@ -34,12 +34,12 @@ MODULE gw_ri_rs_compute_Z_lP
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
    USE gw_auto_ri_types,                ONLY: auto_ri_type
-   USE gw_ri_rs_compute_Z_lP_utils,     ONLY: build_gram_jacobi_blas,&
+   USE ri_rs_fitting,     ONLY: build_gram_jacobi_blas,&
                                               build_jacobi_diag_from_phi,&
                                               scale_rows_by_diag,&
                                               solve_D_lp_distributed,&
                                               store_Z_lP_columns
-   USE gw_ri_rs_utils,                  ONLY: evaluate_ao_on_points
+   USE ri_rs_utils,                  ONLY: evaluate_ao_on_points
    USE gw_utils_compute_integrals,      ONLY: build_3c_integral_block_ctx,&
                                               gw_3c_ctx_create,&
                                               gw_3c_ctx_release,&
@@ -67,7 +67,7 @@ MODULE gw_ri_rs_compute_Z_lP
    IMPLICIT NONE
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_compute_Z_lP'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ri_rs_setup'
 
    PUBLIC :: compute_Z_lP
 
@@ -2927,4 +2927,4 @@ CONTAINS
 
    END FUNCTION get_ref_RI_size
 
-END MODULE gw_ri_rs_compute_Z_lP
+END MODULE ri_rs_setup
