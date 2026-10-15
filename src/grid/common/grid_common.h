@@ -9,8 +9,9 @@
 
 #define GRID_STRINGIFY(SYMBOL) #SYMBOL
 
-// GCC added the simd pragma with version 6.
-#if defined(__GNUC__) && !defined(__INTEL_COMPILER) &&                         \
+// GCC added the simd pragma with version 6. Clang defines __GNUC__ as 4 for
+// compatibility, so it has to be excluded explicitly here and below.
+#if defined(__GNUC__) && !defined(__clang__) && !defined(__INTEL_COMPILER) &&  \
     !defined(__INTEL_LLVM_COMPILER) && __GNUC__ < 6
 #define GRID_PRAGMA_SIMD(OBJS, N)
 #define GRID_PRAGMA_SIMD_LOOP
@@ -28,13 +29,13 @@
 #define GRID_OMP_MIN_ITERATIONS 1024
 
 // GCC added the unroll pragma with version 8 and...
-#if defined(__GNUC__) && !defined(__INTEL_COMPILER) &&                         \
+#if defined(__GNUC__) && !defined(__clang__) && !defined(__INTEL_COMPILER) &&  \
     !defined(__INTEL_LLVM_COMPILER) && __GNUC__ < 8
 #define GRID_PRAGMA_UNROLL(N)
 #define GRID_PRAGMA_UNROLL_UP_TO(N)
-// ...chose a custom syntax.
+// ...chose a custom syntax, which Clang also accepts.
 #elif defined(__GNUC__) && !defined(__INTEL_COMPILER) &&                       \
-    !defined(__INTEL_LLVM_COMPILER) && __GNUC__ >= 8
+    !defined(__INTEL_LLVM_COMPILER) && (__GNUC__ >= 8 || defined(__clang__))
 #define GRID_PRAGMA_UNROLL(N) _Pragma(GRID_STRINGIFY(GCC unroll N))
 #define GRID_PRAGMA_UNROLL_UP_TO(N) _Pragma(GRID_STRINGIFY(GCC unroll N))
 // Most other compilers support a common syntax.
