@@ -151,6 +151,16 @@ and it is recommended to use the default options here.
 
 ## Input section for tblite
 
+For three-dimensional periodic GFN calculations, use the patched tblite provided by the toolchain or
+CP2K's Spack repository, or an upstream version containing
+[tblite#395](https://github.com/tblite/tblite/pull/395). This replaces the cell-dependent
+Wigner-Seitz approximation to isotropic electrostatics with the generalized Klopman-Ohno Ewald sum.
+An unpatched tblite 0.7.0 installation does not contain this correction. Energies, stresses and
+equilibrium cells obtained with the older approximation can change. Existing installations must
+rebuild tblite and relink CP2K. For Spack, reconcretize the environment with the updated CP2K
+repository so that the tblite spec includes the patch. External tblite installations and other Spack
+repositories are not modified automatically.
+
 Available methods in the [METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.METHOD) keyword are
 
 - GFN1: for GFN1-xTB method

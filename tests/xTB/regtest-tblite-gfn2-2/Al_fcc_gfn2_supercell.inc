@@ -1,0 +1,61 @@
+&GLOBAL
+  PROJECT Al_fcc_gfn2_supercell
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+&FORCE_EVAL
+  STRESS_TENSOR ANALYTICAL
+  &DFT
+    &QS
+      METHOD XTB
+      &XTB
+        GFN_TYPE TBLITE
+        &TBLITE
+          METHOD GFN2
+          ACCURACY 0.1
+        &END TBLITE
+      &END XTB
+    &END QS
+    &SCF
+      ADDED_MOS -1
+      EPS_SCF 1.0E-9
+      MAX_SCF 200
+      SCF_GUESS MOPAC
+      &SMEAR
+        METHOD FERMI_DIRAC
+        ELECTRONIC_TEMPERATURE 300
+      &END SMEAR
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &KPOINTS
+      SCHEME MONKHORST-PACK ${NKX} 2 2
+      GAMMA_CENTERED T
+      FULL_GRID T
+      SYMMETRY F
+    &END KPOINTS
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 4.05 4.05 4.05
+      PERIODIC XYZ
+      MULTIPLE_UNIT_CELL ${NX} 1 1
+    &END CELL
+    &COORD
+      SCALED T
+      Al 0.0 0.0 0.0
+      Al 0.0 0.5 0.5
+      Al 0.5 0.0 0.5
+      Al 0.5 0.5 0.0
+    &END COORD
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL ${NX} 1 1
+    &END TOPOLOGY
+  &END SUBSYS
+  &PRINT
+    &STRESS_TENSOR
+      STRESS_UNIT GPa
+    &END STRESS_TENSOR
+  &END PRINT
+&END FORCE_EVAL

@@ -1,0 +1,3 @@
+@SET NX 1
+@SET NKX 2
+@INCLUDE Al_fcc_gfn2_supercell.inc
