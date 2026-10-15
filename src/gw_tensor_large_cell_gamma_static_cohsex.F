@@ -51,11 +51,19 @@ MODULE gw_tensor_large_cell_Gamma_static_cohsex
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbt_api,                         ONLY: dbt_type
-   USE gw_tensor_large_cell_gamma,      ONLY: &
-        apply_extrapol_factor, compute_MinvVsqrt_Vsqrt, compute_Sigma_c_occ_vir, &
-        compute_V_k_by_lattice_sum, compute_fm_W_MIC_freq_j_from_chi, create_mat_for_Sigma_c, &
-        delete_unnecessary_files, destroy_mat_Sigma_c, fm_read, fm_write, get_Sigma_x, &
-        get_mat_chi_Gamma_tau, print_skipping
+   USE gw_compute_V_and_W,              ONLY: apply_extrapol_factor,&
+                                              compute_MinvVsqrt_Vsqrt,&
+                                              compute_V_k_by_lattice_sum,&
+                                              compute_fm_W_MIC_freq_j_from_chi,&
+                                              fm_read,&
+                                              fm_write
+   USE gw_tensor_large_cell_Gamma,      ONLY: compute_Sigma_c_occ_vir,&
+                                              create_mat_for_Sigma_c,&
+                                              delete_unnecessary_files,&
+                                              destroy_mat_Sigma_c,&
+                                              get_Sigma_x,&
+                                              get_mat_chi_Gamma_tau,&
+                                              print_skipping
    USE gw_utils,                        ONLY: de_init_bs_env
    USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
                                               fm_contract_ABA
