@@ -40,11 +40,6 @@ MODULE rt_bse_ri_rs
                                               cp_fm_type
    USE ri_rs_setup,           ONLY: compute_Z_lP
    USE ri_rs_grid_setup,        ONLY: setup_ri_rs_grid
-   USE gw_ri_rs_large_cell_Gamma,       ONLY: release_dbcsr_topology_and_matrices,&
-                                              setup_square_topology
-   USE gw_ri_rs_non_periodic,           ONLY: atomic_basis_at_grid_point,&
-                                              reserve_blocks_within_radius
-   USE ri_rs_utils,                  ONLY: precompute_ri_rs_radii
    USE gw_utils_dbcsr,                  ONLY: dbcsr_contract_ABA,&
                                               hadamard_product_inplace
    USE gw_utils_fm,                     ONLY: fm_contract_ABA
@@ -55,6 +50,11 @@ MODULE rt_bse_ri_rs
    USE physcon,                         ONLY: angstrom
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: qs_environment_type
+   USE ri_rs_matrices,                  ONLY: atomic_basis_at_grid_point,&
+                                              release_dbcsr_topology_and_matrices,&
+                                              reserve_blocks_within_radius,&
+                                              setup_square_topology
+   USE ri_rs_utils,                     ONLY: precompute_ri_rs_radii
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -106,10 +106,12 @@ CONTAINS
       ! Per-atom AO/RI screening radii required by the screened grid-fill and d_lP routines; the
       ! GW RI-RS driver populates these, but the standalone RT-BSE grid build must do so itself.
       IF (.NOT. ALLOCATED(bs_env%ri_rs%radius_ao_per_atom)) THEN
-         CALL precompute_ri_rs_radii(bs_env)
+         CALL precompute_ri_rs_radii(bs_env%ri_rs, bs_env%basis_set_AO, bs_env%basis_set_RI, &
+                                     bs_env%eps_filter, bs_env%unit_nr)
       END IF
-      CALL atomic_basis_at_grid_point(bs_env, bs_env%ri_rs%grid_points, &
-                                      bs_env%ri_rs%mat_phi_mu_l)
+      CALL atomic_basis_at_grid_point(bs_env%ri_rs, bs_env%basis_set_AO, &
+                                      bs_env%mat_ao_ao%matrix, bs_env%para_env, bs_env%eps_filter, &
+                                      bs_env%dbcsr_msg_elem_limit, bs_env%unit_nr, periodic_images=.FALSE.)
       CALL compute_Z_lP(qs_env, bs_env, bs_env%ri_rs%grid_points, &
                         bs_env%ri_rs%mat_phi_mu_l, bs_env%ri_rs%mat_Z_lP)
 
