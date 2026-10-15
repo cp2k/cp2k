@@ -36,6 +36,7 @@ MODULE gw_ri_rs_non_periodic
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
+   USE ri_rs_setup,           ONLY: ensure_ri_rs_representation
    USE gw_tensor_large_cell_Gamma,      ONLY: Fourier_transform_w_to_t,&
                                               G_occ_vir,&
                                               compute_fm_chi_Gamma_freq,&
@@ -70,13 +71,9 @@ MODULE gw_ri_rs_non_periodic
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
-   USE ri_rs_grid_setup,                ONLY: setup_ri_rs_grid
-   USE ri_rs_matrices,                  ONLY: atomic_basis_at_grid_point,&
-                                              print_matrix_occupation,&
+   USE ri_rs_matrices,                  ONLY: print_matrix_occupation,&
                                               release_dbcsr_topology_and_matrices,&
                                               setup_square_topology
-   USE ri_rs_setup,                     ONLY: compute_Z_lP
-   USE ri_rs_utils,                     ONLY: precompute_ri_rs_radii
    USE time_frequency_grids,            ONLY: negative_time,&
                                               positive_time,&
                                               transform_time_to_frequency
@@ -109,57 +106,10 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! ==============================================================================
-      ! 0. Precompute AO and RI radii
-      !    Per-atom cutoff radii from the most diffuse Gaussian primitives of
-      !    the AO ("ORB") and RI auxiliary ("RI_AUX") basis sets:
-      !      α_min,ao = min { ζ_ao | ζ_ao > 10⁻³ },  α_min,ri analogous
-      !      r_ao = sqrt( -ln(ε) / α_min,ao )   (radius_ao_per_atom)
-      !      r_ri = sqrt( -ln(ε) / α_min,ri )   (radius_ri_per_atom)
-      ! ==============================================================================
-      CALL precompute_ri_rs_radii(bs_env%ri_rs, bs_env%basis_set_AO, bs_env%basis_set_RI, &
-                                  bs_env%eps_filter, bs_env%unit_nr)
-
-      ! ==============================================================================
-      ! 1. Grid generation for RI-RS
-      !    Modified Lebedev atomic grids (Duchemin & Blase), one per atom,
-      !    concatenated into a flat global list:  r_l = R_A + r_l^(A)
-      ! ==============================================================================
-      CALL setup_ri_rs_grid(bs_env, bs_env%ri_rs%grid_points)
-
-      ! ==============================================================================
-      ! 2a. Atomic basis evaluation on the grid (grid x AO matrix)
-      !     ϕ_μl = ϕ_μ(r_l)   (mat_phi_mu_l)
-      ! ==============================================================================
-      CALL atomic_basis_at_grid_point(bs_env%ri_rs, bs_env%basis_set_AO, &
-                                      bs_env%mat_ao_ao%matrix, bs_env%para_env, bs_env%eps_filter, &
-                                      bs_env%dbcsr_msg_elem_limit, bs_env%unit_nr, periodic_images=.FALSE.)
+      ! Build the common grid, phi and Z representation with the system's boundary conditions.
+      CALL ensure_ri_rs_representation(qs_env, bs_env)
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
-      CALL print_matrix_occupation(bs_env%ri_rs%mat_phi_mu_l, 'ϕ_μ(r_l)', bs_env%para_env, bs_env%unit_nr, &
-                                   bs_env%dbcsr_msg_elem_limit)
-
-      ! ==============================================================================
-      ! 2b. Print the memory estimate for the RI-RS calculation
-      ! ==============================================================================
       CALL print_ri_rs_memory_estimate(bs_env)
-
-      ! ==============================================================================
-      ! 3. RI-RS fitting coefficients Z_lP (grid x RI matrix)
-      !    Per-atom regularized solve, restricted to grid points r_l within a
-      !    cutoff distance of atom P:
-      !      a. D_ll' = [ Σ_μ ϕ_μ(r_l) ϕ_μ(r_l') ]²
-      !      b. D_lP  = Σ_μν ϕ_μ(r_l) ϕ_ν(r_l) (μν|P)
-      !      c. Jacobi conditioning with d_l = 1/sqrt(D_ll):
-      !         D'_ll' = d_l D_ll' d_l' + λδ_ll' ,  D'_lP = d_l D_lP
-      !      d. Solve Σ_l' D'_ll' Z'_l'P = D'_lP
-      !      e. Rescale Z_lP = d_l Z'_lP                        (mat_Z_lP)
-      ! ==============================================================================
-      CALL compute_Z_lP(qs_env, bs_env, bs_env%ri_rs%grid_points, &
-                        bs_env%ri_rs%mat_phi_mu_l, bs_env%ri_rs%mat_Z_lP)
-
-      ! flag the RI-RS grid as built so a subsequent RT-BSE run reuses Z_lP
-      ! instead of rebuilding it
-      bs_env%ri_rs%grid_built = .TRUE.
 
       CALL mp_print_mem_per_rank(bs_env%para_env, bs_env%unit_nr, &
                                  label='Memory per MPI process after computing Z_lP:')

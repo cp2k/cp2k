@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Computes the RI-RS fitting matrix Z_lP.
+!> \brief Builds the shared RI-RS grid, AO collocation and fitting representation.
 !> \par History
 !>      09.2026 created Jan Wilhelm
 !>      09.2026 moved code by Ritaj Tyagi from gw_ri_rs_non_periodic.F
@@ -32,6 +32,7 @@ MODULE ri_rs_setup
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
    USE gw_auto_ri_types,                ONLY: auto_ri_type
+   USE ri_rs_grid_setup,        ONLY: setup_ri_rs_grid
    USE gw_utils_compute_integrals,      ONLY: build_3c_integral_block_ctx,&
                                               gw_3c_ctx_create,&
                                               gw_3c_ctx_release,&
@@ -53,11 +54,12 @@ MODULE ri_rs_setup
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
-   USE ri_rs_fitting, ONLY: solve_ri_rs_fit, store_Z_lP_columns
-   USE ri_rs_grid_setup,                ONLY: setup_ri_rs_grid
+   USE ri_rs_fitting,                   ONLY: solve_ri_rs_fit,&
+                                              store_Z_lP_columns
    USE ri_rs_matrices,                  ONLY: atomic_basis_at_grid_point,&
                                               print_matrix_occupation
-   USE ri_rs_utils,                     ONLY: evaluate_ao_on_points,&
+   USE ri_rs_utils,                     ONLY: evaluate_ao_basis_on_points,&
+                                              evaluate_ao_on_points,&
                                               precompute_ri_rs_radii
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
@@ -73,6 +75,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Populate the RI-RS grid, AO collocation and auxiliary fitting coefficients once.
+!>        Periodic systems use the same neighbouring-image convention for phi and Z.
 !> \param qs_env electronic-structure environment
 !> \param bs_env geometry, RI-RS settings and owned output matrices
 ! **************************************************************************************************
@@ -90,19 +93,24 @@ CONTAINS
          build_start = m_walltime()
          CALL get_qs_env(qs_env, atomic_kind_set=bs_env%ri_rs%atomic_kind_set, &
                          cell=bs_env%ri_rs%cell, particle_set=bs_env%ri_rs%particle_set)
+         ! AO/RI support radii determine which atoms and grid points enter each local fit.
          IF (.NOT. ALLOCATED(bs_env%ri_rs%radius_ao_per_atom)) THEN
             CALL precompute_ri_rs_radii(bs_env%ri_rs, bs_env%basis_set_AO, bs_env%basis_set_RI, &
                                         bs_env%eps_filter, bs_env%unit_nr)
          END IF
+         ! Place atom-centered RI-RS grids at r_l = R_A + r_l^(A), then flatten them into one grid.
          CALL setup_ri_rs_grid(bs_env, bs_env%ri_rs%grid_points)
+         ! Collocation matrix ϕ_μl = ϕ_μ(r_l), including neighbouring AO images for Gamma.
          CALL atomic_basis_at_grid_point(bs_env%ri_rs, bs_env%basis_set_AO, &
                                          bs_env%mat_ao_ao%matrix, bs_env%para_env, bs_env%eps_filter, &
                                          bs_env%dbcsr_msg_elem_limit, bs_env%unit_nr, &
-                                         periodic_images=.FALSE.)
+                                         periodic_images=bs_env%do_periodic)
          CALL print_matrix_occupation(bs_env%ri_rs%mat_phi_mu_l, 'ϕ_μ(r_l)', &
                                       bs_env%para_env, bs_env%unit_nr, bs_env%dbcsr_msg_elem_limit)
+         ! Fit Z_lP using the integration domains and RI basis described in compute_Z_lP below.
          CALL compute_Z_lP(qs_env, bs_env, bs_env%ri_rs%grid_points, &
-                           bs_env%ri_rs%mat_phi_mu_l, bs_env%ri_rs%mat_Z_lP)
+                           bs_env%ri_rs%mat_phi_mu_l, bs_env%ri_rs%mat_Z_lP, &
+                           periodic_images=bs_env%do_periodic)
          bs_env%ri_rs%grid_built = .TRUE.
          IF (bs_env%unit_nr > 0) THEN
             WRITE (bs_env%unit_nr, '(T2,A,T58,A,F7.1,A)') &
@@ -134,24 +142,29 @@ CONTAINS
 !> \param ri_rs_grid_points ...
 !> \param mat_phi_mu_l ...
 !> \param mat_Z_lP ...
+!> \param periodic_images use Gamma image sums and minimum-image integration spheres
 ! **************************************************************************************************
-   SUBROUTINE compute_Z_lP(qs_env, bs_env, ri_rs_grid_points, mat_phi_mu_l, mat_Z_lP)
+   SUBROUTINE compute_Z_lP(qs_env, bs_env, ri_rs_grid_points, mat_phi_mu_l, mat_Z_lP, periodic_images)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), INTENT(IN)                          :: ri_rs_grid_points(:, :)
+      REAL(KIND=dp), INTENT(IN) :: ri_rs_grid_points(:, :)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_phi_mu_l
       TYPE(dbcsr_type), INTENT(OUT)                      :: mat_Z_lP
+      LOGICAL, INTENT(IN), OPTIONAL                      :: periodic_images
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_Z_lP'
 
       INTEGER                                            :: handle
+      LOGICAL                                            :: sum_images
 
       CALL timeset(routineN, handle)
+      sum_images = .FALSE.
+      IF (PRESENT(periodic_images)) sum_images = periodic_images
 
       IF (bs_env%auto_ri%enabled) THEN
          CALL compute_Z_lP_auto_ri(qs_env, bs_env, ri_rs_grid_points, mat_phi_mu_l, mat_Z_lP)
       ELSE
-         CALL compute_Z_lP_standard(qs_env, bs_env, ri_rs_grid_points, mat_phi_mu_l, mat_Z_lP)
+         CALL compute_Z_lP_standard(qs_env, bs_env, ri_rs_grid_points, mat_phi_mu_l, mat_Z_lP, sum_images)
       END IF
 
       CALL timestop(handle)
@@ -164,11 +177,17 @@ CONTAINS
 !>        grid points r_l inside P's integration sphere |r_l - R_P| <= cutoff_ri(P):
 !>
 !>        1.  D_ll'  = [ Σ_μ ϕ_μ(r_l) ϕ_μ(r_l') ]²
-!>        2.  d_l    = 1 / sqrt(D_ll)                   (Jacobi conditioning vector)
+!>        2.  d_l    = 1 / sqrt(max(D_ll, jacobi_floor)) (Jacobi conditioning vector)
 !>        3.  D'_ll' = d_l D_ll' d_l' + λ δ_ll'         (λ = TIKHONOV regularization)
 !>        4.  d_lP   = Σ_μν ϕ_μ(r_l) ϕ_ν(r_l) (μν|P)
 !>        5.  Σ_l' D'_ll' Z'_l'P = d_l d_lP             (solve linear system for Z'_lP)
-!>        6.  Z_lP   = d_l Z'_l'P                       (undo the conditioning)
+!>        6.  Z_lP   = d_l Z'_lP                        (undo the conditioning)
+!>
+!>        See Duchemin and Blase, arXiv:1902.00066, Sec. II.3 for the least-squares construction
+!>        and balancing, and solve_ri_rs_fit for the common floor and regularization convention.
+!>
+!>        The Gamma path uses image-summed AO values and three-center integrals, with RI
+!>        atom P fixed in the reference cell. Molecular and Gamma sphere cutoffs are retained.
 !>
 !>        Work is distributed over atoms in two phases (planned by classify_z_lp_atoms and
 !>        lpt_assign_atoms): Phase A solves "small" atoms with single-rank LAPACK
@@ -181,14 +200,16 @@ CONTAINS
 !> \param ri_rs_grid_points ...
 !> \param mat_phi_mu_l ...
 !> \param mat_Z_lP ...
+!> \param periodic_images use Gamma image sums and minimum-image integration spheres
 ! **************************************************************************************************
-   SUBROUTINE compute_Z_lP_standard(qs_env, bs_env, ri_rs_grid_points, mat_phi_mu_l, mat_Z_lP)
+   SUBROUTINE compute_Z_lP_standard(qs_env, bs_env, ri_rs_grid_points, mat_phi_mu_l, mat_Z_lP, periodic_images)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), INTENT(IN)                          :: ri_rs_grid_points(:, :)
+      REAL(KIND=dp), INTENT(IN) :: ri_rs_grid_points(:, :)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_phi_mu_l
       TYPE(dbcsr_type), INTENT(OUT)                      :: mat_Z_lP
+      LOGICAL, INTENT(IN)                                :: periodic_images
 
       CHARACTER(LEN=*), PARAMETER :: key = 'PROPERTIES%BANDSTRUCTURE%GW%PRINT%RESTART', &
          routineN = 'compute_Z_lP_standard'
@@ -288,15 +309,17 @@ CONTAINS
                               bs_env%i_ao_start_from_atom(j) + 1)
          END DO
 
-         ! Per-atom RI-RS integration sphere:
-         !   cutoff_ri(P) = r_c + r_RI(P)
-         ! where r_c is the truncated-Coulomb cutoff of the RI metric and r_RI the radius of
-         ! the most diffuse RI auxiliary Gaussian on P.
+         ! Keep each path's integration domain: r_c + r_RI(P) for molecules,
+         ! r_c + r_AO(P) for the Gamma image-summed approximation.
          ALLOCATE (cutoff_ri_per_atom(natom))
 
          r_c = bs_env%ri_metric%cutoff_radius
          DO iatom = 1, natom
-            cutoff_ri_per_atom(iatom) = r_c + bs_env%ri_rs%radius_ri_per_atom(iatom)
+            IF (periodic_images) THEN
+               cutoff_ri_per_atom(iatom) = r_c + bs_env%ri_rs%radius_ao_per_atom(iatom)
+            ELSE
+               cutoff_ri_per_atom(iatom) = r_c + bs_env%ri_rs%radius_ri_per_atom(iatom)
+            END IF
          END DO
 
          CALL print_sphere_cutoff_table(bs_env, cutoff_ri_per_atom)
@@ -308,7 +331,7 @@ CONTAINS
          !    each atom's estimated solve peak memory against the measured budget.
          ! =========================================================================
          CALL classify_z_lp_atoms(bs_env, ri_rs_grid_points, cutoff_ri_per_atom, ri_blk_sizes, &
-                                  n_local_grid_atom, small_list, n_small, big_list, n_big, G)
+                                  n_local_grid_atom, small_list, n_small, big_list, n_big, G, periodic_images)
 
          ! LPT scheduling: sort the atoms of each phase by estimated solve cost
          ! (n_local_grid^3, Cholesky-dominated) and greedily assign to the least-loaded
@@ -375,22 +398,22 @@ CONTAINS
 
                ! ---------------------------------------------------------------------
                ! A. Sphere-local AO matrix ϕ_μ(r_l): select the grid points with
-               !    |r_l - R_P| <= cutoff_ri(P), evaluate every AO on them, and drop
-               !    points whose largest AO amplitude is below EPS_FILTER.
+               !    |r_l - R_P| <= cutoff_ri(P), using minimum-image distances for Gamma.
+               !    The molecular path drops rows below EPS_FILTER; Gamma keeps all sphere rows.
                ! ---------------------------------------------------------------------
                CALL build_phi_on_sphere(bs_env, qs_kind_set, &
                                         ri_rs_grid_points, atom_P, cutoff_ri, n_ao_total, &
                                         local_grid_idx, n_local_grid, phi_local, &
-                                        ao_col_map)
+                                        ao_col_map, periodic_images=periodic_images)
 
                ! ---------------------------------------------------------------------
-               ! B. Right-hand side  D_lP = Σ_μν ϕ_μ(r_l) ϕ_ν(r_l) (μν|P)
+               ! B. Right-hand side  d_lP = Σ_μν ϕ_μ(r_l) ϕ_ν(r_l) (μν|P)
                ! ---------------------------------------------------------------------
                ALLOCATE (d_lp_local(n_local_grid, n_loc_ri))
                d_lp_local = 0.0_dp
 
                CALL compute_d_lp(bs_env, ctx_3c, phi_local, ao_col_map, d_lp_local, n_local_grid, &
-                                 n_loc_ri, atom_P, max_ao_size, atom_j_mepos, atom_j_stride)
+                                 n_loc_ri, atom_P, max_ao_size, atom_j_mepos, atom_j_stride, periodic_images)
 
                ! Reduce per-subgroup-rank partials into the replicated d_lp_local.
                ! Skipped for BLAS path: each rank has the full sum locally.
@@ -458,6 +481,7 @@ CONTAINS
 
       DEALLOCATE (row_offset, ri_blk_sizes, col_dist_ri)
       CALL dbcsr_distribution_release(dist_Z)
+
 
       CALL timestop(handle)
 
@@ -585,9 +609,9 @@ CONTAINS
 !>
 !>          d_lP = Σ_μν ϕ_μ(r_l) ϕ_ν(r_l) (μν|P).
 !>
-!>        RI atom P, OMP-threaded over (atom_j, atom_k) AO-pair blocks: per thread, build the 3c
-!>        block, then contract grid-chunked pair densities into a private d_lp partial; partials
-!>        are reduced into d_lp at the end.
+!>        OMP-threaded over unordered AO-atom pairs: build (mu nu|P) in the reference cell,
+!>        or sum (mu_R nu_S|P_0) over nearest images for Gamma. Contract grid-chunked pair
+!>        densities into a thread-private d_lp partial, then reduce the partials into d_lp.
 !>        Pair screening is handled inside build_3c_integral_block_ctx via the `screened` output.
 !> \param bs_env ...
 !> \param ctx ...
@@ -600,9 +624,10 @@ CONTAINS
 !> \param max_ao_size ...
 !> \param atom_j_mepos ...
 !> \param atom_j_stride ...
+!> \param periodic_images sum nearest AO images with RI atom P fixed in the reference cell
 ! **************************************************************************************************
    SUBROUTINE compute_d_lp(bs_env, ctx, phi_val, ao_col_map, d_lp, n_grid_total, n_loc_ri, atom_P, &
-                           max_ao_size, atom_j_mepos, atom_j_stride)
+                           max_ao_size, atom_j_mepos, atom_j_stride, periodic_images)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(gw_3c_ctx_type), INTENT(IN)                   :: ctx
@@ -612,30 +637,33 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: d_lp(n_grid_total, n_loc_ri)
       INTEGER, INTENT(IN)                                :: atom_P, max_ao_size, atom_j_mepos, &
                                                             atom_j_stride
+      LOGICAL, INTENT(IN)                                :: periodic_images
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_d_lp'
       INTEGER, PARAMETER                                 :: grid_chunk = 1024
 
-      INTEGER                                            :: atom_j, atom_k, c, handle, handle_dgemm, &
-                                                            j, jk_idx, jsize, jstart, k, ksize, &
-                                                            kstart, l, l0, n_grid_pair, point, ri
+      INTEGER :: atom_j, atom_k, c, cell_R_vec(3), cell_S_vec(3), handle, handle2, &
+         image_extent(3), ix_R, ix_S, iy_R, iy_S, iz_R, iz_S, j, jk_idx, jsize, jstart, k, ksize, &
+         kstart, l, l0, n_grid_pair, point, ri
       INTEGER, ALLOCATABLE                               :: grid_index(:)
-      LOGICAL                                            :: screened
+      LOGICAL                                            :: any_kept, screened
       LOGICAL, ALLOCATABLE                               :: skip_grid_point(:, :)
       REAL(KIND=dp)                                      :: pair_factor
-      REAL(KIND=dp), ALLOCATABLE                         :: grid_result(:, :)
+      REAL(KIND=dp), ALLOCATABLE                         :: grid_result(:, :), int_3c_prv(:, :, :)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: d_lp_prv, int_2d_prv, rho_chunk
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: int_3c_prv
       TYPE(gw_3c_ws_type)                                :: ws
 
       CALL timeset(routineN, handle)
+      image_extent = 0
+      IF (periodic_images) image_extent = bs_env%ri_rs%cell%perd
 
       !$OMP PARALLEL DEFAULT(NONE) &
       !$OMP SHARED(skip_grid_point, bs_env, ctx, phi_val, ao_col_map, d_lp, n_grid_total, n_loc_ri, atom_P, max_ao_size, &
-      !$OMP        atom_j_mepos, atom_j_stride) &
+      !$OMP        atom_j_mepos, atom_j_stride, image_extent) &
       !$OMP PRIVATE(grid_index, grid_result, n_grid_pair, point, pair_factor, &
-      !$OMP         atom_j, atom_k, c, handle_dgemm, j, jk_idx, jsize, jstart, k, ksize, kstart, &
-      !$OMP         l, l0, ri, screened, d_lp_prv, int_2d_prv, rho_chunk, int_3c_prv, ws)
+      !$OMP         atom_j, atom_k, c, handle2, j, jk_idx, jsize, jstart, k, ksize, kstart, &
+      !$OMP         l, l0, ri, screened, d_lp_prv, int_2d_prv, rho_chunk, int_3c_prv, ws, &
+      !$OMP         any_kept, ix_R, iy_R, iz_R, ix_S, iy_S, iz_S, cell_R_vec, cell_S_vec)
 
       CALL gw_3c_ws_create(ws, ctx)
       ALLOCATE (int_3c_prv(max_ao_size, max_ao_size, n_loc_ri))
@@ -672,15 +700,32 @@ CONTAINS
             pair_factor = 1.0_dp
             IF (atom_j /= atom_k) pair_factor = 2.0_dp
 
+            ! For Gamma, sum (mu_R nu_S|P_0); the molecular path has only R=S=0.
+            ! AO exchange symmetry applies to the complete image sum, so the same
+            ! unordered atom pairs and pair_factor are used in both paths.
+            ! The integral builder accumulates in place, including across image triples.
             int_3c_prv(1:jsize, 1:ksize, 1:n_loc_ri) = 0.0_dp
-
-            ! Compute B_{μν,P} = (μν|P); ctx-internal triangle-inequality screening on
-            ! kind_radius sets `screened=.TRUE.` for negligible triples.
-            CALL build_3c_integral_block_ctx(int_3c_prv(1:jsize, 1:ksize, 1:n_loc_ri), &
-                                             ctx, ws, atom_j=atom_j, atom_k=atom_k, atom_i=atom_P, &
-                                             screened=screened)
-
-            IF (screened) CYCLE
+            any_kept = .FALSE.
+            DO ix_R = -image_extent(1), image_extent(1)
+            DO iy_R = -image_extent(2), image_extent(2)
+            DO iz_R = -image_extent(3), image_extent(3)
+               cell_R_vec = [ix_R, iy_R, iz_R]
+               DO ix_S = -image_extent(1), image_extent(1)
+               DO iy_S = -image_extent(2), image_extent(2)
+               DO iz_S = -image_extent(3), image_extent(3)
+                  cell_S_vec = [ix_S, iy_S, iz_S]
+                  CALL build_3c_integral_block_ctx(int_3c_prv(1:jsize, 1:ksize, 1:n_loc_ri), &
+                                                   ctx, ws, atom_j=atom_j, atom_k=atom_k, atom_i=atom_P, &
+                                                   cell_j=cell_R_vec, cell_k=cell_S_vec, screened=screened)
+                  IF (screened) CYCLE
+                  any_kept = .TRUE.
+               END DO
+               END DO
+               END DO
+            END DO
+            END DO
+            END DO
+            IF (.NOT. any_kept) CYCLE
 
             ! Flatten 3D B_{μν, P} tensor to 2D B_{(μν), P} matrix for BLAS
             DO ri = 1, n_loc_ri
@@ -706,7 +751,7 @@ CONTAINS
                      END DO
                   END DO
                END DO
-               CALL timeset(routineN//"_dgemm", handle_dgemm)
+               CALL timeset(routineN//"_dgemm", handle2)
                CALL dgemm("N", "N", c, n_loc_ri, jsize*ksize, &
                           pair_factor, rho_chunk, grid_chunk, &
                           int_2d_prv, max_ao_size*max_ao_size, &
@@ -717,7 +762,7 @@ CONTAINS
                      d_lp_prv(point, ri) = d_lp_prv(point, ri) + grid_result(l, ri)
                   END DO
                END DO
-               CALL timestop(handle_dgemm)
+               CALL timestop(handle2)
             END DO
          END DO
       END DO
@@ -2408,9 +2453,10 @@ CONTAINS
 !> \param big_list ...
 !> \param n_big ...
 !> \param G ...
+!> \param periodic_images use minimum-image distances for the Gamma integration domain
 ! **************************************************************************************************
    SUBROUTINE classify_z_lp_atoms(bs_env, ri_rs_grid_points, cutoff_ri_per_atom, ri_blk_sizes, &
-                                  n_local_grid_atom, small_list, n_small, big_list, n_big, G)
+                                  n_local_grid_atom, small_list, n_small, big_list, n_big, G, periodic_images)
 
 !$    USE OMP_LIB, ONLY: omp_get_max_threads
 
@@ -2421,6 +2467,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ri_blk_sizes
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: n_local_grid_atom, small_list, big_list
       INTEGER, INTENT(OUT)                               :: n_small, n_big, G
+      LOGICAL, INTENT(IN), OPTIONAL :: periodic_images
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'classify_z_lp_atoms'
 
       INTEGER                                            :: handle
@@ -2438,11 +2485,14 @@ CONTAINS
       REAL(KIND=dp)                                      :: budget_bytes, cutoff_ri, dlp_bytes, &
                                                             mem_avail_GB, ng, nri, peak_bytes, &
                                                             phi_bytes
-      REAL(KIND=dp), DIMENSION(3)                        :: pos_P
+      REAL(KIND=dp), DIMENSION(3)                        :: pos_P, displacement
+      LOGICAL :: sum_images
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
+      sum_images = .FALSE.
+      IF (PRESENT(periodic_images)) sum_images = periodic_images
 
       para_env => bs_env%para_env
       particle_set => bs_env%ri_rs%particle_set
@@ -2459,7 +2509,9 @@ CONTAINS
          cutoff_ri = cutoff_ri_per_atom(P_loop_atom)
          n_local_grid = 0
          DO l = 1, n_grid_total
-            IF (SUM((ri_rs_grid_points(1:3, l) - pos_P(1:3))**2) <= cutoff_ri**2) THEN
+            displacement = ri_rs_grid_points(:, l) - pos_P
+            IF (sum_images) displacement = pbc(ri_rs_grid_points(:, l), pos_P, bs_env%ri_rs%cell)
+            IF (NORM2(displacement) <= cutoff_ri) THEN
                n_local_grid = n_local_grid + 1
             END IF
          END DO
@@ -2491,7 +2543,7 @@ CONTAINS
             ng = REAL(n_local_grid_atom(P_loop_atom), dp)
             nri = REAL(ri_blk_sizes(P_loop_atom), dp)
             CALL get_n_ao_in_sphere(bs_env, P_loop_atom, &
-                                    cutoff_ri_per_atom(P_loop_atom), n_ao_used_atom)
+                                    cutoff_ri_per_atom(P_loop_atom), n_ao_used_atom, sum_images)
             phi_bytes = 8.0_dp*ng*REAL(n_ao_used_atom, dp)
             dlp_bytes = 8.0_dp*ng*nri*REAL(1 + nthreads_cls, dp)
             peak_bytes = 8.0_dp*ng*ng + phi_bytes + dlp_bytes
@@ -2531,17 +2583,20 @@ CONTAINS
 !> \param atom_P ...
 !> \param cutoff_ri ...
 !> \param n_ao_used ...
+!> \param periodic_images use minimum-image distances to the Gamma integration sphere
 ! **************************************************************************************************
-   SUBROUTINE get_n_ao_in_sphere(bs_env, atom_P, cutoff_ri, n_ao_used)
+   SUBROUTINE get_n_ao_in_sphere(bs_env, atom_P, cutoff_ri, n_ao_used, periodic_images)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       INTEGER, INTENT(IN)                                :: atom_P
       REAL(KIND=dp), INTENT(IN)                          :: cutoff_ri
       INTEGER, INTENT(OUT)                               :: n_ao_used
+      LOGICAL, INTENT(IN)                                :: periodic_images
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_n_ao_in_sphere'
 
       INTEGER                                            :: handle, ri_atom
+      REAL(KIND=dp)                                      :: displacement(3)
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
@@ -2549,7 +2604,9 @@ CONTAINS
       particle_set => bs_env%ri_rs%particle_set
       n_ao_used = 0
       DO ri_atom = 1, bs_env%n_atom
-         IF (NORM2(particle_set(ri_atom)%r(:) - particle_set(atom_P)%r(:)) > &
+         displacement = particle_set(ri_atom)%r - particle_set(atom_P)%r
+         IF (periodic_images) displacement = pbc(particle_set(ri_atom)%r, particle_set(atom_P)%r, bs_env%ri_rs%cell)
+         IF (NORM2(displacement) > &
              bs_env%ri_rs%radius_ao_per_atom(ri_atom) + cutoff_ri) CYCLE
          n_ao_used = n_ao_used + bs_env%i_ao_end_from_atom(ri_atom) - &
                      bs_env%i_ao_start_from_atom(ri_atom) + 1
@@ -2572,10 +2629,11 @@ CONTAINS
 !> \param phi_local ...
 !> \param ao_col_map ...
 !> \param center ...
+!> \param periodic_images select Gamma image-summed AO values and minimum-image sphere distances
 ! **************************************************************************************************
    SUBROUTINE build_phi_on_sphere(bs_env, qs_kind_set, ri_rs_grid_points, &
                                   atom_P, cutoff_ri, n_ao_total, local_grid_idx, n_local_grid, &
-                                  phi_local, ao_col_map, center)
+                                  phi_local, ao_col_map, center, periodic_images)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -2589,20 +2647,24 @@ CONTAINS
          INTENT(OUT)                                     :: phi_local
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: ao_col_map
       REAL(KIND=dp), DIMENSION(3), INTENT(IN), OPTIONAL  :: center
+      LOGICAL, INTENT(IN), OPTIONAL                      :: periodic_images
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_phi_on_sphere'
 
       INTEGER                                            :: col_end, col_start, handle, j, k, l, &
                                                             loc_idx, n_ao_used, n_grid_total, &
                                                             n_keep, ri_atom
+      LOGICAL                                            :: sum_images
       REAL(KIND=dp)                                      :: d_sP, dist, r2_threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: w_pt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: phi_keep, sphere_grid
-      REAL(KIND=dp), DIMENSION(3)                        :: pos_P
+      REAL(KIND=dp), DIMENSION(3)                        :: displacement, pos_P
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
+      sum_images = .FALSE.
+      IF (PRESENT(periodic_images)) sum_images = periodic_images
 
       cell => bs_env%ri_rs%cell
       particle_set => bs_env%ri_rs%particle_set
@@ -2616,7 +2678,9 @@ CONTAINS
 
       n_local_grid = 0
       DO l = 1, n_grid_total
-         dist = NORM2(ri_rs_grid_points(1:3, l) - pos_P(1:3))
+         displacement = ri_rs_grid_points(:, l) - pos_P
+         IF (sum_images) displacement = pbc(ri_rs_grid_points(:, l), pos_P, cell)
+         dist = NORM2(displacement)
          IF (dist <= cutoff_ri) n_local_grid = n_local_grid + 1
       END DO
 
@@ -2624,7 +2688,9 @@ CONTAINS
 
       n_local_grid = 0
       DO l = 1, n_grid_total
-         dist = NORM2(ri_rs_grid_points(1:3, l) - pos_P(1:3))
+         displacement = ri_rs_grid_points(:, l) - pos_P
+         IF (sum_images) displacement = pbc(ri_rs_grid_points(:, l), pos_P, cell)
+         dist = NORM2(displacement)
          IF (dist <= cutoff_ri) THEN
             n_local_grid = n_local_grid + 1
             local_grid_idx(n_local_grid) = l
@@ -2641,7 +2707,9 @@ CONTAINS
       ao_col_map(:) = 0
       n_ao_used = 0
       DO ri_atom = 1, bs_env%n_atom
-         d_sP = NORM2(particle_set(ri_atom)%r(:) - pos_P(:))
+         displacement = particle_set(ri_atom)%r - pos_P
+         IF (sum_images) displacement = pbc(particle_set(ri_atom)%r, pos_P, cell)
+         d_sP = NORM2(displacement)
          IF (d_sP > bs_env%ri_rs%radius_ao_per_atom(ri_atom) + cutoff_ri) CYCLE
 
          DO j = bs_env%i_ao_start_from_atom(ri_atom), bs_env%i_ao_end_from_atom(ri_atom)
@@ -2654,27 +2722,37 @@ CONTAINS
       phi_local = 0.0_dp
 
       DO ri_atom = 1, bs_env%n_atom
-         d_sP = NORM2(particle_set(ri_atom)%r(:) - pos_P(:))
+         displacement = particle_set(ri_atom)%r - pos_P
+         IF (sum_images) displacement = pbc(particle_set(ri_atom)%r, pos_P, cell)
+         d_sP = NORM2(displacement)
          IF (d_sP > bs_env%ri_rs%radius_ao_per_atom(ri_atom) + cutoff_ri) CYCLE
 
          col_start = ao_col_map(bs_env%i_ao_start_from_atom(ri_atom))
          col_end = ao_col_map(bs_env%i_ao_end_from_atom(ri_atom))
          ! A positive CUTOFF_RADIUS_RI_AO overrides the per-atom Gaussian radius
          ! with a user-defined hard cutoff.
-         IF (bs_env%ri_rs%cutoff_radius_ri_ao > 0.0_dp) THEN
+         IF (.NOT. sum_images .AND. bs_env%ri_rs%cutoff_radius_ri_ao > 0.0_dp) THEN
             r2_threshold = bs_env%ri_rs%cutoff_radius_ri_ao**2
          ELSE
             r2_threshold = bs_env%ri_rs%radius_ao_per_atom(ri_atom)**2
          END IF
 
-         CALL evaluate_ao_on_points(phi_local(:, col_start:col_end), sphere_grid, &
-                                    ri_atom, particle_set, qs_kind_set, cell, &
-                                    cutoff_squared=r2_threshold)
+         IF (sum_images) THEN
+            CALL evaluate_ao_basis_on_points(phi_local(:, col_start:col_end), sphere_grid, &
+                                             bs_env%basis_set_AO( &
+                                             particle_set(ri_atom)%atomic_kind%kind_number)%gto_basis_set, &
+                                             particle_set(ri_atom)%r, cell, &
+                                             cutoff_squared=r2_threshold, periodic_images=.TRUE.)
+         ELSE
+            CALL evaluate_ao_on_points(phi_local(:, col_start:col_end), sphere_grid, &
+                                       ri_atom, particle_set, qs_kind_set, cell, &
+                                       cutoff_squared=r2_threshold)
+         END IF
       END DO
 
       DEALLOCATE (sphere_grid)
 
-      IF (n_local_grid > 0) THEN
+      IF (.NOT. sum_images .AND. n_local_grid > 0) THEN
          ALLOCATE (w_pt(n_local_grid))
          !$OMP PARALLEL DO DEFAULT(NONE) &
          !$OMP SHARED(n_local_grid, n_ao_used, phi_local, w_pt) &
