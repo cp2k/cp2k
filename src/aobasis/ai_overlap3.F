@@ -44,6 +44,8 @@ MODULE ai_overlap3
 
 ! **************************************************************************************************
 
+   USE ai_cartesian_operators,          ONLY: cartesian_ladder,&
+                                              cartesian_ladder_map
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: coset,&
@@ -125,20 +127,21 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'overlap3'
 
-      INTEGER :: ax, ay, az, bx, by, bz, coa, coax, coay, coaz, coc, cocx, cocy, cocz, cx, cy, cz, &
-         handle, i, ipgf, j, jpgf, k, kpgf, l, la, la_max, la_min, la_start, lai, lb, lb_max, &
-         lb_min, lc, lc_max, lc_min, lci, na, nb, nc, nda, ndc
+      INTEGER :: a_first, a_last, ax, axis, ay, az, b_first, b_last, bx, by, bz, c_first, c_last, &
+         coa, coax, coay, coaz, cob, coc, cocx, cocy, cocz, cx, cy, cz, handle, i, ipgf, j, jpgf, &
+         k, kpgf, la, la_max, la_min, la_start, lai, lb, lb_max, lb_min, lc, lc_max, lc_min, lci, &
+         na, nb, nc
+      INTEGER, ALLOCATABLE                               :: map_a(:, :, :), map_c(:, :, :)
       REAL(KIND=dp)                                      :: f0, f1, f2, f3, fcx, fcy, fcz, fx, fy, &
                                                             fz, rcp2, zetg, zetp
       REAL(KIND=dp), DIMENSION(3)                        :: rag, rbg, rcg, rcp
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: s
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: sda, sdc
 
 !   ---------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (s, sda, sdc)
+      NULLIFY (s)
 
       lai = 0
       lci = 0
@@ -153,15 +156,29 @@ CONTAINS
       lc_max = lc_max_set + lci
       lc_min = MAX(0, lc_min_set - lci)
 
+      a_first = ncoset(la_min_set - 1) + 1
+      a_last = ncoset(la_max_set)
+      b_first = ncoset(lb_min_set - 1) + 1
+      b_last = ncoset(lb_max_set)
+      c_first = ncoset(lc_min_set - 1) + 1
+      c_last = ncoset(lc_max_set)
+
       ALLOCATE (s(ncoset(la_max), ncoset(lb_max), ncoset(lc_max)))
       s = 0._dp
+      ! Clear the requested derivative extents, including screened blocks and lower-shell padding.
       IF (PRESENT(sdabc)) THEN
-         ALLOCATE (sda(ncoset(la_max), ncoset(lb_max), ncoset(lc_max), 3))
-         sda = 0._dp
+         sdabc(1:npgfa*a_last, 1:npgfb*b_last, 1:npgfc*c_last, 1:3) = 0.0_dp
+         ALLOCATE (map_a(4, a_last - a_first + 1, 3))
+         DO axis = 1, 3
+            CALL cartesian_ladder_map(la_max_set, la_min_set, axis, map_a(:, :, axis), source_lmin=0)
+         END DO
       END IF
       IF (PRESENT(sabdc)) THEN
-         ALLOCATE (sdc(ncoset(la_max), ncoset(lb_max), ncoset(lc_max), 3))
-         sdc = 0._dp
+         sabdc(1:npgfa*a_last, 1:npgfb*b_last, 1:npgfc*c_last, 1:3) = 0.0_dp
+         ALLOCATE (map_c(4, c_last - c_first + 1, 3))
+         DO axis = 1, 3
+            CALL cartesian_ladder_map(lc_max_set, lc_min_set, axis, map_c(:, :, axis), source_lmin=0)
+         END DO
       END IF
       IF (PRESENT(int_abc_ext)) THEN
          int_abc_ext = 0.0_dp
@@ -170,7 +187,6 @@ CONTAINS
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
 
       na = 0
-      nda = 0
       DO ipgf = 1, npgfa
 
          nb = 0
@@ -180,20 +196,11 @@ CONTAINS
             IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
                sabc(na + 1:na + ncoset(la_max_set), nb + 1:nb + ncoset(lb_max_set), &
                     1:npgfc*ncoset(lc_max_set)) = 0.0_dp
-               IF (PRESENT(sdabc)) THEN
-                  sdabc(nda + 1:nda + ncoset(la_max_set), nb + 1:nb + ncoset(lb_max_set), &
-                        1:npgfc*ncoset(lc_max_set), 1:3) = 0.0_dp
-               END IF
-               IF (PRESENT(sabdc)) THEN
-                  sabdc(na + 1:na + ncoset(la_max_set), nb + 1:nb + ncoset(lb_max_set), &
-                        1:npgfc*ncoset(lc_max_set), 1:3) = 0.0_dp
-               END IF
                nb = nb + ncoset(lb_max_set)
                CYCLE
             END IF
 
             nc = 0
-            ndc = 0
             DO kpgf = 1, npgfc
 
                ! *** Screening ***
@@ -201,16 +208,7 @@ CONTAINS
                    (rpgfa(ipgf) + rpgfc(kpgf) < dac)) THEN
                   sabc(na + 1:na + ncoset(la_max_set), nb + 1:nb + ncoset(lb_max_set), &
                        nc + 1:nc + ncoset(lc_max_set)) = 0.0_dp
-                  IF (PRESENT(sdabc)) THEN
-                     sdabc(nda + 1:nda + ncoset(la_max_set), nb + 1:nb + ncoset(lb_max_set), &
-                           nc + 1:nc + ncoset(lc_max_set), 1:3) = 0.0_dp
-                  END IF
-                  IF (PRESENT(sabdc)) THEN
-                     sabdc(na + 1:na + ncoset(la_max_set), nb + 1:nb + ncoset(lb_max_set), &
-                           ndc + 1:ndc + ncoset(lc_max_set), 1:3) = 0.0_dp
-                  END IF
                   nc = nc + ncoset(lc_max_set)
-                  ndc = ndc + ncoset(lc_max_set)
                   CYCLE
                END IF
 
@@ -1031,167 +1029,40 @@ CONTAINS
 !         *** Calculate the requested derivatives with respect to  ***
 !         *** the nuclear coordinates of the atomic center a and c ***
 
-               IF (PRESENT(sdabc) .OR. PRESENT(sabdc)) THEN
-                  CALL derivatives_overlap3(la_max_set, la_min_set, lb_max_set, lb_min_set, &
-                                            lc_max_set, lc_min_set, zeta(ipgf), zetc(kpgf), &
-                                            s, sda, sdc)
-               END IF
-
-!         *** Store the first derivatives of the primitive overlap integrals ***
-
                IF (PRESENT(sdabc)) THEN
-                  DO k = 1, 3
-                     DO l = 1, ncoset(lc_max_set)
-                        DO j = 1, ncoset(lb_max_set)
-                           DO i = 1, ncoset(la_max_set)
-                              sdabc(nda + i, nb + j, nc + l, k) = sda(i, j, l, k)
-                           END DO
-                        END DO
+                  DO axis = 1, 3
+                     DO coc = c_first, c_last
+                        CALL cartesian_ladder(s(:, b_first:b_last, coc), &
+                                              sdabc(na + a_first:na + a_last, nb + b_first:nb + b_last, nc + coc, axis), &
+                                              map_a(:, :, axis), &
+                                              .TRUE., zeta(ipgf), 0.0_dp, .FALSE.)
                      END DO
                   END DO
                END IF
-
                IF (PRESENT(sabdc)) THEN
-                  DO k = 1, 3
-                     DO l = 1, ncoset(lc_max_set)
-                        DO j = 1, ncoset(lb_max_set)
-                           DO i = 1, ncoset(la_max_set)
-                              sabdc(na + i, nb + j, ndc + l, k) = sdc(i, j, l, k)
-                           END DO
-                        END DO
+                  DO axis = 1, 3
+                     DO cob = b_first, b_last
+                        CALL cartesian_ladder(s(a_first:a_last, cob, :), &
+                                              sabdc(na + a_first:na + a_last, nb + cob, nc + c_first:nc + c_last, axis), &
+                                              map_c(:, :, axis), &
+                                              .TRUE., zetc(kpgf), 0.0_dp, .TRUE.)
                      END DO
                   END DO
                END IF
 
                nc = nc + ncoset(lc_max_set)
-               ndc = ndc + ncoset(lc_max_set)
             END DO
 
             nb = nb + ncoset(lb_max)
          END DO
 
          na = na + ncoset(la_max_set)
-         nda = nda + ncoset(la_max_set)
       END DO
 
       DEALLOCATE (s)
-      IF (PRESENT(sdabc)) THEN
-         DEALLOCATE (sda)
-      END IF
-      IF (PRESENT(sabdc)) THEN
-         DEALLOCATE (sdc)
-      END IF
 
       CALL timestop(handle)
 
    END SUBROUTINE overlap3
-
-! **************************************************************************************************
-!> \brief Calculates the derivatives of the three-center overlap integral [a|b|c]
-!>        with respect to the nuclear coordinates of the atomic center a and c
-!> \param la_max_set ...
-!> \param la_min_set ...
-!> \param lb_max_set ...
-!> \param lb_min_set ...
-!> \param lc_max_set ...
-!> \param lc_min_set ...
-!> \param zeta ...
-!> \param zetc ...
-!> \param s integrals [a|b|c]
-!> \param sda derivative [da/dAi|b|c]
-!> \param sdc derivative [a|b|dc/dCi]
-! **************************************************************************************************
-   SUBROUTINE derivatives_overlap3(la_max_set, la_min_set, lb_max_set, lb_min_set, &
-                                   lc_max_set, lc_min_set, zeta, zetc, s, sda, sdc)
-
-      INTEGER, INTENT(IN)                                :: la_max_set, la_min_set, lb_max_set, &
-                                                            lb_min_set, lc_max_set, lc_min_set
-      REAL(KIND=dp), INTENT(IN)                          :: zeta, zetc
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: s
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: sda, sdc
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'derivatives_overlap3'
-
-      INTEGER :: ax, ay, az, bx, by, bz, coa, coamx, coamy, coamz, coapx, coapy, coapz, cob, coc, &
-         cocmx, cocmy, cocmz, cocpx, cocpy, cocpz, cx, cy, cz, devx, devy, devz, handle, la, lb, lc
-      REAL(KIND=dp)                                      :: fax, fay, faz, fcx, fcy, fcz, fexpa, &
-                                                            fexpc
-
-      CALL timeset(routineN, handle)
-
-      fexpa = 2.0_dp*zeta
-      fexpc = 2.0_dp*zetc
-
-!   derivative with respec to x,y,z
-
-      devx = 1
-      devy = 2
-      devz = 3
-
-!   *** [da/dAi|b|c] = 2*zeta*[a+1i|b|c] - Ni(a)[a-1i|b|c] ***
-!   *** [a|b|dc/dCi] = 2*zetc*[a|b|c+1i] - Ni(c)[a|b|c-1i] ***
-
-      DO la = la_min_set, la_max_set
-         DO ax = 0, la
-            fax = REAL(ax, dp)
-            DO ay = 0, la - ax
-               fay = REAL(ay, dp)
-               az = la - ax - ay
-               faz = REAL(az, dp)
-               coa = coset(ax, ay, az)
-               coamx = coset(ax - 1, ay, az)
-               coamy = coset(ax, ay - 1, az)
-               coamz = coset(ax, ay, az - 1)
-               coapx = coset(ax + 1, ay, az)
-               coapy = coset(ax, ay + 1, az)
-               coapz = coset(ax, ay, az + 1)
-               DO lb = lb_min_set, lb_max_set
-                  DO bx = 0, lb
-                     DO by = 0, lb - bx
-                        bz = lb - bx - by
-                        cob = coset(bx, by, bz)
-                        DO lc = lc_min_set, lc_max_set
-                           DO cx = 0, lc
-                              fcx = REAL(cx, dp)
-                              DO cy = 0, lc - cx
-                                 fcy = REAL(cy, dp)
-                                 cz = lc - cx - cy
-                                 fcz = REAL(cz, dp)
-                                 coc = coset(cx, cy, cz)
-                                 cocmx = coset(cx - 1, cy, cz)
-                                 cocmy = coset(cx, cy - 1, cz)
-                                 cocmz = coset(cx, cy, cz - 1)
-                                 cocpx = coset(cx + 1, cy, cz)
-                                 cocpy = coset(cx, cy + 1, cz)
-                                 cocpz = coset(cx, cy, cz + 1)
-                                 IF (ASSOCIATED(sda)) THEN
-                                    sda(coa, cob, coc, devx) = fexpa*s(coapx, cob, coc) - &
-                                                               fax*s(coamx, cob, coc)
-                                    sda(coa, cob, coc, devy) = fexpa*s(coapy, cob, coc) - &
-                                                               fay*s(coamy, cob, coc)
-                                    sda(coa, cob, coc, devz) = fexpa*s(coapz, cob, coc) - &
-                                                               faz*s(coamz, cob, coc)
-                                 END IF
-                                 IF (ASSOCIATED(sdc)) THEN
-                                    sdc(coa, cob, coc, devx) = fexpc*s(coa, cob, cocpx) - &
-                                                               fcx*s(coa, cob, cocmx)
-                                    sdc(coa, cob, coc, devy) = fexpc*s(coa, cob, cocpy) - &
-                                                               fcy*s(coa, cob, cocmy)
-                                    sdc(coa, cob, coc, devz) = fexpc*s(coa, cob, cocpz) - &
-                                                               fcz*s(coa, cob, cocmz)
-                                 END IF
-                              END DO
-                           END DO
-                        END DO
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END DO
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE derivatives_overlap3
 
 END MODULE ai_overlap3

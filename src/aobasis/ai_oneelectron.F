@@ -33,6 +33,8 @@
 ! **************************************************************************************************
 MODULE ai_oneelectron
 
+   USE ai_cartesian_operators,          ONLY: cartesian_ladder,&
+                                              cartesian_ladder_map
    USE kinds,                           ONLY: dp
    USE orbital_pointers,                ONLY: coset,&
                                               ncoset
@@ -116,16 +118,14 @@ CONTAINS
          OPTIONAL                                        :: deltaR
       INTEGER, INTENT(IN), OPTIONAL                      :: iatom, jatom, katom
 
-      INTEGER :: ax, ay, az, bx, by, bz, cda, cdax, cday, cdaz, cdb, cdbx, cdby, cdbz, coa, coamx, &
-         coamy, coamz, coapx, coapy, coapz, cob, cobmx, cobmy, cobmz, cobpx, cobpy, cobpz, da, &
-         da_max, dax, day, daz, db, db_max, dbx, dby, dbz, i, ia, iap, iax, iay, iaz, ib, ibm, &
-         ibx, iby, ibz, idir, ii(3), iim(3), ij, ipgf, ir, ir1, ir2, irm(3), irr(3), irx, iry, &
-         irz, ix, ixx(1), j, jj(3), jjp(3), jpgf, la, la_max, la_min, lb, lb_max, lb_min, llr, m, &
-         ma, mb, mmax, na, nb
+      INTEGER :: a_first, a_last, b_first, b_last, da_max, db_max, i, ia, iap, iax, iay, iaz, ib, &
+         ibm, ibx, iby, ibz, idir, ii(3), iim(3), ij, ipgf, ir, ir1, ir2, irm(3), irr(3), irx, &
+         iry, irz, ix, ixx(1), j, jj(3), jjp(3), jpgf, la_max, la_min, lb_max, lb_min, llr, m, ma, &
+         mb, mmax, na, nb
+      INTEGER, ALLOCATABLE                               :: map_a(:, :, :), map_b(:, :, :)
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: iiap
       LOGICAL                                            :: calculate_force_a, calculate_force_b
-      REAL(KIND=dp)                                      :: aai, abx, fax, fay, faz, fbx, fby, fbz, &
-                                                            ftz, orho, rho, s1, s2
+      REAL(KIND=dp)                                      :: aai, abx, orho, rho, s1, s2
       REAL(KIND=dp), DIMENSION(3)                        :: pai, pbi, pci
 
       IF (PRESENT(pab)) THEN
@@ -171,6 +171,23 @@ CONTAINS
       lb_min = MAX(0, lb_min_set - db_max)
 
       mmax = la_max + lb_max
+
+      a_first = ncoset(la_min_set - 1) + 1
+      a_last = ncoset(la_max_set)
+      b_first = ncoset(lb_min_set - 1) + 1
+      b_last = ncoset(lb_max_set)
+      IF (da_max == 1) THEN
+         ALLOCATE (map_a(4, a_last - a_first + 1, 3))
+         DO idir = 1, 3
+            CALL cartesian_ladder_map(la_max_set, la_min_set, idir, map_a(:, :, idir), source_lmin=0)
+         END DO
+      END IF
+      IF (db_max == 1) THEN
+         ALLOCATE (map_b(4, b_last - b_first + 1, 3))
+         DO idir = 1, 3
+            CALL cartesian_ladder_map(lb_max_set, lb_min_set, idir, map_b(:, :, idir), source_lmin=0)
+         END DO
+      END IF
 
       ! precalculate indices for horizontal recursion
       ALLOCATE (iiap(ncoset(mmax), 3))
@@ -433,44 +450,12 @@ CONTAINS
 !       *** Calculate the requested derivatives with respect  ***
 !       *** to the nuclear coordinates of the atomic center a ***
 
-            DO da = 0, da_max - 1
-               ftz = 2.0_dp*zeta(ipgf)
-               DO dax = 0, da
-                  DO day = 0, da - dax
-                     daz = da - dax - day
-                     cda = coset(dax, day, daz)
-                     cdax = coset(dax + 1, day, daz)
-                     cday = coset(dax, day + 1, daz)
-                     cdaz = coset(dax, day, daz + 1)
-
-!             *** [da/dAi|c|b] = 2*zeta*[a+1i|c|b] - Ni(a)[a-1i|c|b] ***
-
-                     DO la = la_min_set, la_max - da - 1
-                        DO ax = 0, la
-                           fax = REAL(ax, dp)
-                           DO ay = 0, la - ax
-                              fay = REAL(ay, dp)
-                              az = la - ax - ay
-                              faz = REAL(az, dp)
-                              coa = coset(ax, ay, az)
-                              coamx = coset(ax - 1, ay, az)
-                              coamy = coset(ax, ay - 1, az)
-                              coamz = coset(ax, ay, az - 1)
-                              coapx = coset(ax + 1, ay, az)
-                              coapy = coset(ax, ay + 1, az)
-                              coapz = coset(ax, ay, az + 1)
-                              DO cob = ncoset(lb_min_set - 1) + 1, ncoset(lb_max_set)
-                                 fs(coa, cob, cdax) = ftz*s(coapx, cob, cda) - fax*s(coamx, cob, cda)
-                                 fs(coa, cob, cday) = ftz*s(coapy, cob, cda) - fay*s(coamy, cob, cda)
-                                 fs(coa, cob, cdaz) = ftz*s(coapz, cob, cda) - faz*s(coamz, cob, cda)
-                              END DO
-                           END DO
-                        END DO
-                     END DO
-                  END DO
-
+            IF (da_max == 1) THEN
+               DO idir = 1, 3
+                  CALL cartesian_ladder(s(:, b_first:b_last, 1), fs(a_first:a_last, b_first:b_last, idir + 1), &
+                                        map_a(:, :, idir), .TRUE., zeta(ipgf), 0.0_dp, .FALSE.)
                END DO
-            END DO
+            END IF
 
             ! DFPT for APTs
             IF (PRESENT(vab2_work)) THEN
@@ -498,44 +483,12 @@ CONTAINS
 !       *** Calculate the requested derivatives with respect  ***
 !       *** to the nuclear coordinates of the atomic center b ***
 
-            DO db = 0, db_max - 1
-               ftz = 2.0_dp*zetb(jpgf)
-               DO dbx = 0, db
-                  DO dby = 0, db - dbx
-                     dbz = db - dbx - dby
-                     cdb = coset(dbx, dby, dbz)
-                     cdbx = coset(dbx + 1, dby, dbz)
-                     cdby = coset(dbx, dby + 1, dbz)
-                     cdbz = coset(dbx, dby, dbz + 1)
-
-!             *** [a|c|db/dBi] = 2*zetb*[a|c|b+1i] - Ni(b)[a|c|b-1i] ***
-
-                     DO lb = lb_min_set, lb_max - db - 1
-                        DO bx = 0, lb
-                           fbx = REAL(bx, dp)
-                           DO by = 0, lb - bx
-                              fby = REAL(by, dp)
-                              bz = lb - bx - by
-                              fbz = REAL(bz, dp)
-                              cob = coset(bx, by, bz)
-                              cobmx = coset(bx - 1, by, bz)
-                              cobmy = coset(bx, by - 1, bz)
-                              cobmz = coset(bx, by, bz - 1)
-                              cobpx = coset(bx + 1, by, bz)
-                              cobpy = coset(bx, by + 1, bz)
-                              cobpz = coset(bx, by, bz + 1)
-                              DO coa = ncoset(la_min_set - 1) + 1, ncoset(la_max_set)
-                                 fs(coa, cob, cdbx) = ftz*s(coa, cobpx, cdb) - fbx*s(coa, cobmx, cdb)
-                                 fs(coa, cob, cdby) = ftz*s(coa, cobpy, cdb) - fby*s(coa, cobmy, cdb)
-                                 fs(coa, cob, cdbz) = ftz*s(coa, cobpz, cdb) - fbz*s(coa, cobmz, cdb)
-                              END DO
-                           END DO
-                        END DO
-                     END DO
-
-                  END DO
+            IF (db_max == 1) THEN
+               DO idir = 1, 3
+                  CALL cartesian_ladder(s(a_first:a_last, :, 1), fs(a_first:a_last, b_first:b_last, idir + 1), &
+                                        map_b(:, :, idir), .TRUE., zetb(jpgf), 0.0_dp, .TRUE.)
                END DO
-            END DO
+            END IF
 
             ! DFPT for APTs
             IF (PRESENT(vab2_work)) THEN
@@ -616,10 +569,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          OPTIONAL                                        :: dva
 
-      INTEGER :: ax, ay, az, coa, coamx, coamy, coamz, coapx, coapy, coapz, da_max, i, ipgf, ir, &
-         ir1, ir2, irm(3), irr(3), irx, iry, irz, ix, ixx(1), la, la_max, la_min, llr, m, mmax, na
-      REAL(KIND=dp)                                      :: aai, fax, fay, faz, ftz, orho, s1
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: s
+      INTEGER                                            :: a_first, a_last, da_max, i, idir, ipgf, &
+                                                            ir, ir1, ir2, irm(3), irr(3), irx, &
+                                                            iry, irz, ix, ixx(1), la_max, llr, m, &
+                                                            mmax, na
+      INTEGER, ALLOCATABLE                               :: map_a(:, :, :)
+      REAL(KIND=dp)                                      :: aai, orho, s1
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: derivative, s
 
       IF (PRESENT(dva)) THEN
          da_max = 1
@@ -628,11 +584,18 @@ CONTAINS
       END IF
 
       la_max = la_max_set + da_max
-      la_min = MAX(0, la_min_set - da_max)
 
       mmax = la_max
 
       ALLOCATE (s(ncoset(mmax), mmax + 1))
+      a_first = ncoset(la_min_set - 1) + 1
+      a_last = ncoset(la_max_set)
+      IF (PRESENT(dva)) THEN
+         ALLOCATE (map_a(4, a_last - a_first + 1, 3), derivative(a_last - a_first + 1, 1))
+         DO idir = 1, 3
+            CALL cartesian_ladder_map(la_max_set, la_min_set, idir, map_a(:, :, idir), source_lmin=0)
+         END DO
+      END IF
       na = 0
       DO ipgf = 1, npgfa
          IF (rpgfa(ipgf) + rpgfc < dac) THEN
@@ -731,26 +694,9 @@ CONTAINS
          ! to the nuclear coordinates of the atomic center a ***
          ! [da/dAi|c] = 2*zeta*[a+1i|c] - Ni(a)[a-1i|c] ***
          IF (PRESENT(dva)) THEN
-            ftz = 2.0_dp*zeta(ipgf)
-            DO la = la_min_set, la_max_set
-               DO ax = 0, la
-                  fax = REAL(ax, dp)
-                  DO ay = 0, la - ax
-                     fay = REAL(ay, dp)
-                     az = la - ax - ay
-                     faz = REAL(az, dp)
-                     coa = coset(ax, ay, az)
-                     coamx = coset(ax - 1, ay, az)
-                     coamy = coset(ax, ay - 1, az)
-                     coamz = coset(ax, ay, az - 1)
-                     coapx = coset(ax + 1, ay, az)
-                     coapy = coset(ax, ay + 1, az)
-                     coapz = coset(ax, ay, az + 1)
-                     dva(na + coa, 1) = dva(na + coa, 1) + ftz*s(coapx, 1) - fax*s(coamx, 1)
-                     dva(na + coa, 2) = dva(na + coa, 2) + ftz*s(coapy, 1) - fay*s(coamy, 1)
-                     dva(na + coa, 3) = dva(na + coa, 3) + ftz*s(coapz, 1) - faz*s(coamz, 1)
-                  END DO
-               END DO
+            DO idir = 1, 3
+               CALL cartesian_ladder(s(:, 1:1), derivative, map_a(:, :, idir), .TRUE., zeta(ipgf), 0.0_dp, .FALSE.)
+               dva(na + a_first:na + a_last, idir) = dva(na + a_first:na + a_last, idir) + derivative(:, 1)
             END DO
          END IF
 
