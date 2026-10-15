@@ -54,8 +54,7 @@ MODULE gw_ri_rs_large_cell_Gamma
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE ri_rs_fitting,                   ONLY: build_gram_jacobi_blas,&
-                                              scale_rows_by_diag,&
+   USE ri_rs_fitting,                   ONLY: solve_ri_rs_fit,&
                                               store_Z_lP_columns
    USE ri_rs_grid_setup,                ONLY: setup_ri_rs_grid
    USE ri_rs_matrices,                  ONLY: atomic_basis_at_grid_point,&
@@ -215,18 +214,16 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: key = 'PROPERTIES%BANDSTRUCTURE%GW%PRINT%RESTART', &
          routineN = 'compute_Z_lP'
 
-      INTEGER :: atom_P, col_end, col_start, group_handle, handle, handle_dpotrf, handle_dpotrs, &
-         i_blk, ikind, info, j, l, loc_idx, max_ao_size, max_loc_ri, n_ao_total, n_grid_total, &
-         n_loc_ri, n_local_grid, natom, nkind, npcol_phi, num_grid_chunks, P_loop_atom, ri_atom
+      INTEGER :: atom_P, col_end, col_start, group_handle, handle, i_blk, ikind, j, l, loc_idx, &
+         max_ao_size, max_loc_ri, n_ao_total, n_grid_total, n_loc_ri, n_local_grid, natom, nkind, &
+         npcol_phi, num_grid_chunks, P_loop_atom, ri_atom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: local_grid_idx, row_offset
       INTEGER, DIMENSION(:), POINTER                     :: col_dist_ri, r_blk_sizes, ri_blk_sizes, &
                                                             row_dist_grid
       REAL(KIND=dp)                                      :: cutoff_ri, cutoff_ri_2, d_sP, dist2_min, &
                                                             r2_threshold, r_c, t1, t2, t3
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cutoff_ri_per_atom, cutoff_ri_per_kind, &
-                                                            d_vec_local
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: D_local, d_lp_local, phi_local, &
-                                                            sphere_grid
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cutoff_ri_per_atom, cutoff_ri_per_kind
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: d_lp_local, phi_local, sphere_grid
       REAL(KIND=dp), DIMENSION(3)                        :: dist_vec_raw, pos_P
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -401,8 +398,7 @@ CONTAINS
             DEALLOCATE (sphere_grid)
 
             ! ---------------------------------------------------------------------
-            ! C. Build Local RHS Matrix (d_lp_local). compute_d_lp does not depend
-            !    on D_local or d_vec_local.
+            ! C. Build the local RHS matrix d_lp_local.
             ! ---------------------------------------------------------------------
             ALLOCATE (d_lp_local(n_local_grid, n_loc_ri))
             d_lp_local = 0.0_dp
@@ -415,39 +411,12 @@ CONTAINS
             t3 = m_walltime()
 
             ! ---------------------------------------------------------------------
-            ! D. Build d_vec_local (Jacobi diagonal) + LHS
+            ! D. Solve the Jacobi-scaled, regularized fit.
             ! ---------------------------------------------------------------------
-            ALLOCATE (d_vec_local(n_local_grid))
-
-            CALL build_gram_jacobi_blas(phi_local, n_local_grid, n_ao_total, &
-                                        bs_env%ri_rs%tikhonov, D_local, d_vec_local)
+            CALL solve_ri_rs_fit(phi_local, d_lp_local, bs_env%ri_rs%tikhonov)
 
             ! ---------------------------------------------------------------------
-            ! E. Pre-scale d_lp by d_vec
-            ! ---------------------------------------------------------------------
-            CALL scale_rows_by_diag(d_lp_local, d_vec_local, n_local_grid, n_loc_ri)
-
-            ! ---------------------------------------------------------------------
-            ! F. Solve — LAPACK dpotrf/dpotrs
-            ! ---------------------------------------------------------------------
-            CALL timeset(routineN//"_dpotrf", handle_dpotrf)
-            CALL dpotrf('L', n_local_grid, D_local, n_local_grid, info)
-            CALL timestop(handle_dpotrf)
-            IF (info /= 0) CPABORT("RI-RS Cholesky factorization failed")
-            CALL timeset(routineN//"_dpotrs", handle_dpotrs)
-            CALL dpotrs('L', n_local_grid, n_loc_ri, D_local, n_local_grid, &
-                        d_lp_local, n_local_grid, info)
-            CALL timestop(handle_dpotrs)
-            IF (info /= 0) CPABORT("RI-RS Cholesky solve failed")
-            DEALLOCATE (D_local)
-
-            ! ---------------------------------------------------------------------
-            ! G. Post-scale solution by d_vec
-            ! ---------------------------------------------------------------------
-            CALL scale_rows_by_diag(d_lp_local, d_vec_local, n_local_grid, n_loc_ri)
-
-            ! ---------------------------------------------------------------------
-            ! H. Scatter Local Solution Back to Global DBCSR Matrix.
+            ! E. Scatter Local Solution Back to Global DBCSR Matrix.
             !    DBCSR routes blocks to their global owner on finalize.
             !    local_grid_idx is ascending (built by the ordered scan above), so
             !    a single walking pointer over chunks works.
@@ -456,7 +425,7 @@ CONTAINS
                                     n_loc_ri, atom_P, r_blk_sizes, row_offset, &
                                     bs_env%eps_filter)
 
-            DEALLOCATE (d_vec_local, d_lp_local)
+            DEALLOCATE (d_lp_local)
             DEALLOCATE (local_grid_idx, phi_local)
 
          END DO

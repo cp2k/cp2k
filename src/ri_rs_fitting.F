@@ -35,143 +35,141 @@ MODULE ri_rs_fitting
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ri_rs_fitting'
    REAL(KIND=dp), PARAMETER, PRIVATE :: jacobi_floor = 1.0E-16_dp
 
-   PUBLIC :: build_gram_jacobi_blas, &
-             build_jacobi_diag_from_phi, &
-             scale_rows_by_diag, &
-             solve_D_lp_distributed, &
+   PUBLIC :: solve_ri_rs_fit, &
              store_Z_lP_columns
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Forms the conditioned dense RI-RS matrix
+!> \brief Computes the regularized RI-RS fit from an AO collocation matrix and a replicated RHS.
 !>
-!>          D_ll'  = [Σ_μ ϕ_μ(r_l) ϕ_μ(r_l')]²,
-!>          d_l    = 1/sqrt(D_ll),
-!>          D'_ll' = d_l D_ll' d_l' + λ δ_ll'.
+!>          D_ll' = [Σ_μ ϕ_μ(r_l) ϕ_μ(r_l')]²,
+!>          d_l = 1/sqrt(max(D_ll, jacobi_floor)),
+!>          D'_ll' = d_l D_ll' d_l' + λ δ_ll',
+!>          Σ_l' D'_ll' Z'_l'P = d_l d_lP,
+!>          Z_lP = d_l Z'_lP.
 !>
-!>        Only the dense single-rank solve needs the complete matrix D'.
-!> \param phi_local ...
-!> \param n_local_grid ...
-!> \param n_ao_used ...
-!> \param tikhonov ...
-!> \param D_local ...
-!> \param d_vec_local ...
+!>        The RI-RS least-squares construction and balancing are described by Duchemin and
+!>        Blase, arXiv:1902.00066, Sec. II.3. Here jacobi_floor bounds D_ll from below in
+!>        both the LAPACK and ScaLAPACK paths. The regularization λ is added after Jacobi
+!>        scaling; in the unscaled system its diagonal contribution is λ/d_l².
+!> \param phi_local AO values on the fitting grid, replicated within the solve subgroup
+!> \param d_lp replicated RHS d_lP on entry and fitted coefficients Z_lP on return
+!> \param tikhonov regularization parameter λ in the Jacobi-scaled space
+!> \param para_env_sub optional subgroup communicator for the distributed solve
+!> \param blacs_env_sub optional BLACS context, supplied together with para_env_sub
 ! **************************************************************************************************
-   SUBROUTINE build_gram_jacobi_blas(phi_local, n_local_grid, n_ao_used, tikhonov, D_local, &
-                                     d_vec_local)
-
+   SUBROUTINE solve_ri_rs_fit(phi_local, d_lp, tikhonov, para_env_sub, blacs_env_sub)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: phi_local
-      INTEGER, INTENT(IN)                                :: n_local_grid, n_ao_used
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: d_lp
       REAL(KIND=dp), INTENT(IN)                          :: tikhonov
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(OUT)                                     :: D_local
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: d_vec_local
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_sub
+      TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env_sub
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_gram_jacobi_blas'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_ri_rs_fit'
 
-      INTEGER                                            :: handle, handle_dsyrk, i, j
+      INTEGER                                            :: handle, handle2, i, info, j, n_ao, &
+                                                            n_grid, n_rhs
+      REAL(KIND=dp), ALLOCATABLE                         :: gram(:, :), jacobi_scale(:)
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (D_local(n_local_grid, n_local_grid))
-      D_local = 0.0_dp
+      n_grid = SIZE(phi_local, 1)
+      n_ao = SIZE(phi_local, 2)
+      n_rhs = SIZE(d_lp, 2)
+      CPASSERT(SIZE(d_lp, 1) == n_grid)
+      CPASSERT(PRESENT(para_env_sub) .EQV. PRESENT(blacs_env_sub))
+      ALLOCATE (jacobi_scale(n_grid))
 
-      CALL timeset(routineN//'_dsyrk', handle_dsyrk)
-      CALL dsyrk("L", "N", n_local_grid, n_ao_used, 1.0_dp, phi_local, &
-                 n_local_grid, 0.0_dp, D_local, n_local_grid)
-      CALL timestop(handle_dsyrk)
+      IF (PRESENT(para_env_sub)) THEN
+         ! Only the row norms are replicated; the distributed solve builds its own Gram tiles.
+         !$OMP PARALLEL DO DEFAULT(NONE) &
+         !$OMP SHARED(n_grid, phi_local, jacobi_scale) &
+         !$OMP PRIVATE(i) SCHEDULE(STATIC)
+         DO i = 1, n_grid
+            jacobi_scale(i) = DOT_PRODUCT(phi_local(i, :), phi_local(i, :))
+         END DO
+         !$OMP END PARALLEL DO
+      ELSE
+         ALLOCATE (gram(n_grid, n_grid))
+         ! First form the lower triangle of Σ_μ ϕ_μ(r_l) ϕ_μ(r_l'); square it below to obtain D_ll'.
+         CALL timeset(routineN//'_dsyrk', handle2)
+         CALL dsyrk('L', 'N', n_grid, n_ao, 1.0_dp, phi_local, n_grid, &
+                    0.0_dp, gram, n_grid)
+         CALL timestop(handle2)
+         DO i = 1, n_grid
+            jacobi_scale(i) = gram(i, i)
+         END DO
+      END IF
 
+      ! D_ll = [Σ_μ ϕ_μ(r_l)²]², so d_l = 1/max(Σ_μ ϕ_μ(r_l)², sqrt(jacobi_floor)).
       !$OMP PARALLEL DO DEFAULT(NONE) &
-      !$OMP SHARED(n_local_grid, D_local, d_vec_local, tikhonov) &
+      !$OMP SHARED(n_grid, jacobi_scale) &
       !$OMP PRIVATE(i) &
       !$OMP SCHEDULE(STATIC)
-      DO i = 1, n_local_grid
-         D_local(i, i) = D_local(i, i)**2
-         d_vec_local(i) = 1.0_dp/SQRT(MAX(D_local(i, i), jacobi_floor))
-         D_local(i, i) = (D_local(i, i)*d_vec_local(i)**2) + tikhonov
+      DO i = 1, n_grid
+         jacobi_scale(i) = 1.0_dp/MAX(jacobi_scale(i), SQRT(jacobi_floor))
       END DO
       !$OMP END PARALLEL DO
 
-      !$OMP PARALLEL DO DEFAULT(NONE) &
-      !$OMP SHARED(n_local_grid, D_local, d_vec_local) &
-      !$OMP PRIVATE(j, i) &
-      !$OMP SCHEDULE(DYNAMIC)
-      DO j = 1, n_local_grid
-         DO i = j + 1, n_local_grid
-            D_local(i, j) = D_local(i, j)**2
-            D_local(i, j) = D_local(i, j)*d_vec_local(i)*d_vec_local(j)
-            D_local(j, i) = D_local(i, j)
+      ! Pre-scale the right-hand side: d_lP <- d_l d_lP.
+      CALL scale_rows_by_diag(d_lp, jacobi_scale)
+      IF (PRESENT(para_env_sub)) THEN
+         CALL solve_D_lp_distributed(phi_local, jacobi_scale, d_lp, tikhonov, &
+                                     para_env_sub, blacs_env_sub)
+      ELSE
+         ! Build D'_ll' = d_l D_ll' d_l' + λ δ_ll'; DPOTRF/DPOTRS use only its lower triangle.
+         !$OMP PARALLEL DO DEFAULT(NONE) &
+         !$OMP SHARED(n_grid, gram, jacobi_scale, tikhonov) &
+         !$OMP PRIVATE(j, i) SCHEDULE(DYNAMIC)
+         DO j = 1, n_grid
+            DO i = j, n_grid
+               gram(i, j) = gram(i, j)**2*jacobi_scale(i)*jacobi_scale(j)
+            END DO
+            gram(j, j) = gram(j, j) + tikhonov
          END DO
-      END DO
-      !$OMP END PARALLEL DO
+         !$OMP END PARALLEL DO
+         CALL timeset(routineN//'_dpotrf', handle2)
+         CALL dpotrf('L', n_grid, gram, n_grid, info)
+         CALL timestop(handle2)
+         IF (info /= 0) CPABORT('RI-RS Cholesky factorization failed')
+         ! Solve Σ_l' D'_ll' Z'_l'P = d_l d_lP, overwriting d_lp with Z'_lP.
+         CALL timeset(routineN//'_dpotrs', handle2)
+         CALL dpotrs('L', n_grid, n_rhs, gram, n_grid, d_lp, n_grid, info)
+         CALL timestop(handle2)
+         IF (info /= 0) CPABORT('RI-RS Cholesky solve failed')
+      END IF
+      ! Undo the conditioning on the solution: Z_lP = d_l Z'_lP.
+      CALL scale_rows_by_diag(d_lp, jacobi_scale)
 
       CALL timestop(handle)
 
-   END SUBROUTINE build_gram_jacobi_blas
-
-! **************************************************************************************************
-!> \brief Computes d_l = 1/sqrt(D_ll) = 1/Σ_μ ϕ_μ(r_l)² without forming D.
-!> \param phi_local ...
-!> \param n_local_grid ...
-!> \param n_ao_used ...
-!> \param d_vec_local ...
-! **************************************************************************************************
-   SUBROUTINE build_jacobi_diag_from_phi(phi_local, n_local_grid, n_ao_used, d_vec_local)
-
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: phi_local
-      INTEGER, INTENT(IN)                                :: n_local_grid, n_ao_used
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: d_vec_local
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_jacobi_diag_from_phi'
-
-      INTEGER                                            :: handle, i, j
-
-      CALL timeset(routineN, handle)
-
-      !$OMP PARALLEL DO DEFAULT(NONE) &
-      !$OMP SHARED(n_local_grid, n_ao_used, phi_local, d_vec_local) &
-      !$OMP PRIVATE(i, j) &
-      !$OMP SCHEDULE(STATIC)
-      DO i = 1, n_local_grid
-         d_vec_local(i) = 0.0_dp
-         DO j = 1, n_ao_used
-            d_vec_local(i) = d_vec_local(i) + phi_local(i, j)*phi_local(i, j)
-         END DO
-         d_vec_local(i) = 1.0_dp/MAX(d_vec_local(i), jacobi_floor)
-      END DO
-      !$OMP END PARALLEL DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE build_jacobi_diag_from_phi
+   END SUBROUTINE solve_ri_rs_fit
 
 ! **************************************************************************************************
 !> \brief Multiplies every matrix row by the corresponding diagonal entry:
 !>        A(l, :) <- d_l A(l, :).
 !> \param matrix ...
 !> \param diagonal ...
-!> \param nrow ...
-!> \param ncol ...
 ! **************************************************************************************************
-   SUBROUTINE scale_rows_by_diag(matrix, diagonal, nrow, ncol)
+   SUBROUTINE scale_rows_by_diag(matrix, diagonal)
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: matrix
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: diagonal
-      INTEGER, INTENT(IN)                                :: nrow, ncol
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_rows_by_diag'
 
       INTEGER                                            :: handle, i, j
 
       CALL timeset(routineN, handle)
+      CPASSERT(SIZE(diagonal) == SIZE(matrix, 1))
 
       !$OMP PARALLEL DO DEFAULT(NONE) &
-      !$OMP SHARED(ncol, nrow, matrix, diagonal) &
+      !$OMP SHARED(matrix, diagonal) &
       !$OMP PRIVATE(j, i) &
       !$OMP SCHEDULE(STATIC)
-      DO j = 1, ncol
-         DO i = 1, nrow
+      DO j = 1, SIZE(matrix, 2)
+         DO i = 1, SIZE(matrix, 1)
             matrix(i, j) = matrix(i, j)*diagonal(i)
          END DO
       END DO
@@ -212,6 +210,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ALLOCATE (Z_blk(MAXVAL(r_blk_sizes), n_loc_ri))
+      ! local_grid_idx is ascending, so one walking pointer maps sphere rows to global grid blocks.
       loc_ptr = 1
 
       DO i_blk = 1, SIZE(r_blk_sizes)
@@ -227,6 +226,7 @@ CONTAINS
             loc_ptr = loc_ptr + 1
          END DO
 
+         ! DBCSR routes each retained block to its global owner when the caller finalizes mat_Z_lP.
          IF (MAXVAL(ABS(Z_blk(1:current_chunk_size, 1:n_loc_ri))) > eps_filter) THEN
             CALL dbcsr_put_block(mat_Z_lP, row=i_blk, col=atom_P, &
                                  block=Z_blk(1:current_chunk_size, 1:n_loc_ri))
@@ -240,53 +240,45 @@ CONTAINS
    END SUBROUTINE store_Z_lP_columns
 
 ! **************************************************************************************************
-!> \brief Solves D Z = d with ScaLAPACK for one RI atom and replicated inputs.
+!> \brief Solves the Jacobi-scaled, regularized RI-RS system with ScaLAPACK.
 !>
 !>        Each rank builds its block-cyclic part of
 !>
 !>          D'_ll' = d_l [Σ_μ ϕ_μ(r_l) ϕ_μ(r_l')]² d_l' + λ δ_ll'.
 !>
-!>        The Cholesky solution is gathered into the replicated right-hand side.
-!> \param phi_local ...
-!> \param d_vec ...
-!> \param d_lp ...
-!> \param n_loc ...
-!> \param n_ao ...
-!> \param n_rhs ...
+!>        The Cholesky solution Z'_lP is gathered into the replicated right-hand side.
+!>        The caller then restores Z_lP = d_l Z'_lP.
+!> \param phi_local replicated AO values on the fitting grid
+!> \param d_vec Jacobi scaling vector d_l, with the same floor as in the dense solve
+!> \param d_lp replicated scaled RHS d_l d_lP on entry, intermediate solution Z'_lP on return
 !> \param tikhonov ...
 !> \param para_env_sub ...
 !> \param blacs_env_sub ...
-!> \param fm_struct_D ...
-!> \param fm_struct_b ...
-!> \param fm_D ...
-!> \param fm_b ...
-!> \param info ...
 ! **************************************************************************************************
-   SUBROUTINE solve_D_lp_distributed(phi_local, d_vec, d_lp, n_loc, n_ao, n_rhs, &
-                                     tikhonov, para_env_sub, blacs_env_sub, &
-                                     fm_struct_D, fm_struct_b, fm_D, fm_b, info)
+   SUBROUTINE solve_D_lp_distributed(phi_local, d_vec, d_lp, tikhonov, para_env_sub, blacs_env_sub)
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: phi_local
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: d_vec
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: d_lp
-      INTEGER, INTENT(IN)                                :: n_loc, n_ao, n_rhs
       REAL(KIND=dp), INTENT(IN)                          :: tikhonov
       TYPE(mp_para_env_type), POINTER                    :: para_env_sub
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_D, fm_struct_b
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_D, fm_b
-      INTEGER, INTENT(OUT)                               :: info
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_D_lp_distributed'
 
-      INTEGER                                            :: handle, i_loc, ig, j_loc, jg, &
-                                                            ncol_local, nrow_local
+      INTEGER                                            :: handle, i_loc, ig, info, j_loc, jg, &
+                                                            n_ao, n_loc, n_rhs, ncol_local, &
+                                                            nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_b, fm_struct_D
+      TYPE(cp_fm_type)                                   :: fm_b, fm_D
 
       CALL timeset(routineN, handle)
-      info = 0
+      n_loc = SIZE(phi_local, 1)
+      n_ao = SIZE(phi_local, 2)
+      n_rhs = SIZE(d_lp, 2)
 
       NULLIFY (fm_struct_D, fm_struct_b)
       CALL cp_fm_struct_create(fm_struct_D, para_env=para_env_sub, &
@@ -302,12 +294,14 @@ CONTAINS
                           row_indices=row_indices, col_indices=col_indices, &
                           local_data=local_data)
 
+      ! Build only the rank-owned Gram tiles, avoiding a replicated n_grid × n_grid matrix.
       IF (nrow_local > 0 .AND. ncol_local > 0) THEN
          BLOCK
             INTEGER, PARAMETER :: ntile = 1024
             INTEGER :: ib, ie, jb, je, mb, kb, ti, tj, handle_dgemm
             REAL(KIND=dp), ALLOCATABLE :: gram_t(:, :), phi_cols_t(:, :), phi_rows_t(:, :)
             ALLOCATE (phi_rows_t(ntile, n_ao), phi_cols_t(n_ao, ntile), gram_t(ntile, ntile))
+            ! Pack AO values for the grid rows/columns selected by the block-cyclic FM layout.
             DO ib = 1, nrow_local, ntile
                ie = MIN(ib + ntile - 1, nrow_local)
                mb = ie - ib + 1
@@ -337,6 +331,7 @@ CONTAINS
                              1.0_dp, phi_rows_t, ntile, phi_cols_t, n_ao, &
                              0.0_dp, gram_t, ntile)
                   CALL timestop(handle_dgemm)
+                  ! Square the AO Gram entries, apply d_l d_l', and add λ on the global diagonal.
                   !$OMP PARALLEL DO DEFAULT(NONE) &
                   !$OMP SHARED(mb, kb, gram_t, d_vec, row_indices, col_indices, ib, jb) &
                   !$OMP SHARED(local_data, tikhonov) &
@@ -360,6 +355,7 @@ CONTAINS
          END BLOCK
       END IF
 
+      ! Distribute the pre-scaled RHS and solve for Z'_lP within the BLACS subgroup.
       CALL cp_fm_set_submatrix(fm_b, d_lp)
 
       CALL cp_fm_cholesky_decompose(fm_D, n=n_loc, info_out=info)
@@ -368,6 +364,7 @@ CONTAINS
       CALL cp_fm_cholesky_solve(fm_D, fm_b, n=n_loc, info_out=info)
       IF (info /= 0) CPABORT("pdpotrs failed in solve_D_lp_distributed")
 
+      ! Replicate Z'_lP within the subgroup; the caller applies the final Jacobi rescaling.
       CALL cp_fm_get_submatrix(fm_b, d_lp)
 
       CALL cp_fm_release(fm_D)
