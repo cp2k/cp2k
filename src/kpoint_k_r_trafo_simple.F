@@ -120,11 +120,11 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE replicate_rs_matrices
 ! **************************************************************************************************
-!> \brief Write a single block from the dbcsr matrix to correct place, with assumed symmetric dbcsr
+!> \brief Expand a triangular image block and its symmetric or antisymmetric mirror.
 !> \param iatom first atom index
 !> \param jatom second atom index
 !> \param cell Current cell (of second atom)
-!> \param matrix_in DBCSR matrix input, symmetric assumed (A_(mu nu)^(R) = A_(nu mu)^(-R))
+!> \param matrix_in Input DBCSR matrix in canonical atom order
 !> \param array_out Multidimensional array - dim 1 : rows, dim 2 : cols, dim 3 : rs_index
 !> \param cell_to_index_out Mapping of cell coords to rs_indices
 !> \param transpose_sign -1 for antisymmetric SOC image matrices, +1 otherwise
@@ -144,13 +144,10 @@ CONTAINS
                                                             row_offset, row_size
       INTEGER, DIMENSION(:), POINTER                     :: col_offsets, row_offsets
       LOGICAL                                            :: found
-      REAL(dp)                                           :: direct_sign
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: block
 
       CALL dbcsr_get_info(matrix_in, row_blk_offset=row_offsets, col_blk_offset=col_offsets)
-      direct_sign = 1.0_dp
       IF (iatom > jatom) THEN
-         direct_sign = transpose_sign
          CALL dbcsr_get_readonly_block_p(matrix_in, row=jatom, col=iatom, block=block, &
                                          row_size=row_size, col_size=col_size, found=found)
          IF (.NOT. found) RETURN
@@ -173,16 +170,16 @@ CONTAINS
          row_offset = row_offsets(iatom)
          col_offset = col_offsets(jatom)
       END IF
-      ! Do the write
+      ! The stored block is already in canonical atom order. Only the mirror changes sign.
       !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,i_g,j_g) &
       !$OMP SHARED(row_size, col_size, row_offset, col_offset, array_out, &
-      !$OMP dest_index, dest_index_t, block, iatom, jatom, direct_sign, transpose_sign)
+      !$OMP dest_index, dest_index_t, block, iatom, jatom, transpose_sign)
       DO i = 1, row_size
          i_g = i + row_offset - 1
          DO j = 1, col_size
             j_g = j + col_offset - 1
-            array_out(i_g, j_g, dest_index) = direct_sign*block(i, j)
-            IF (iatom /= jatom) array_out(j_g, i_g, dest_index_t) = direct_sign*transpose_sign*block(i, j)
+            array_out(i_g, j_g, dest_index) = block(i, j)
+            IF (iatom /= jatom) array_out(j_g, i_g, dest_index_t) = transpose_sign*block(i, j)
          END DO
       END DO
       !$OMP END PARALLEL DO
