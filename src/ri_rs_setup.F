@@ -58,6 +58,7 @@ MODULE ri_rs_setup
    USE ri_rs_grid_setup,                ONLY: setup_ri_rs_grid
    USE ri_rs_matrices,                  ONLY: atomic_basis_at_grid_point,&
                                               print_matrix_occupation
+   USE ri_rs_types,                     ONLY: ri_rs_env
    USE ri_rs_utils,                     ONLY: evaluate_ao_basis_on_points,&
                                               evaluate_ao_on_points,&
                                               precompute_ri_rs_radii
@@ -148,7 +149,7 @@ CONTAINS
    SUBROUTINE compute_Z_lP(qs_env, bs_env, ri_rs_grid_points, mat_phi_mu_l, mat_Z_lP, periodic_images)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), INTENT(IN) :: ri_rs_grid_points(:, :)
+      REAL(KIND=dp), INTENT(IN)                          :: ri_rs_grid_points(:, :)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_phi_mu_l
       TYPE(dbcsr_type), INTENT(OUT)                      :: mat_Z_lP
       LOGICAL, INTENT(IN), OPTIONAL                      :: periodic_images
@@ -157,13 +158,21 @@ CONTAINS
 
       INTEGER                                            :: handle
       LOGICAL                                            :: sum_images
+      REAL(KIND=dp)                                      :: fitting_stats(2)
 
       CALL timeset(routineN, handle)
       sum_images = .FALSE.
       IF (PRESENT(periodic_images)) sum_images = periodic_images
 
+      bs_env%ri_rs%fit_max_grid = 0
+      bs_env%ri_rs%fit_peak_bytes = 0.0_dp
       IF (bs_env%auto_ri%enabled) THEN
          CALL compute_Z_lP_auto_ri(qs_env, bs_env, ri_rs_grid_points, mat_phi_mu_l, mat_Z_lP)
+         ! Localized AUTO-RI fits can be owned by different process columns.
+         fitting_stats = [REAL(bs_env%ri_rs%fit_max_grid, dp), bs_env%ri_rs%fit_peak_bytes]
+         CALL bs_env%para_env%max(fitting_stats)
+         bs_env%ri_rs%fit_max_grid = NINT(fitting_stats(1))
+         bs_env%ri_rs%fit_peak_bytes = fitting_stats(2)
       ELSE
          CALL compute_Z_lP_standard(qs_env, bs_env, ri_rs_grid_points, mat_phi_mu_l, mat_Z_lP, sum_images)
       END IF
@@ -207,7 +216,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), INTENT(IN) :: ri_rs_grid_points(:, :)
+      REAL(KIND=dp), INTENT(IN)                          :: ri_rs_grid_points(:, :)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_phi_mu_l
       TYPE(dbcsr_type), INTENT(OUT)                      :: mat_Z_lP
       LOGICAL, INTENT(IN)                                :: periodic_images
@@ -224,8 +233,7 @@ CONTAINS
                                                             row_dist_grid
       LOGICAL                                            :: do_scatter, use_dist
       LOGICAL, ALLOCATABLE                               :: ao_nonzero(:, :)
-      REAL(KIND=dp)                                      :: balance_A, balance_B, cutoff_ri, &
-                                                            item_start_time, r_c, t1
+      REAL(KIND=dp)                                      :: cutoff_ri, item_start_time, r_c, t1
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cutoff_ri_per_atom
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: d_lp_local, phi_local
       TYPE(cell_type), POINTER                           :: cell
@@ -336,15 +344,14 @@ CONTAINS
          ! (n_local_grid^3, Cholesky-dominated) and greedily assign to the least-loaded
          ! rank (Phase A) / subgroup (Phase B).
          CALL lpt_assign_atoms(small_list, n_small, n_local_grid_atom, para_env%num_pe, &
-                               para_env%mepos, my_atoms_A, balance_A)
+                               para_env%mepos, my_atoms_A)
          IF (n_big > 0) THEN
             n_groups = para_env%num_pe/G
             my_group = MIN(para_env%mepos/G, n_groups - 1)
             CALL lpt_assign_atoms(big_list, n_big, n_local_grid_atom, n_groups, my_group, &
-                                  my_atoms_B, balance_B)
+                                  my_atoms_B)
          ELSE
             ALLOCATE (my_atoms_B(0))
-            balance_B = 1.0_dp
          END IF
 
          ! Atoms this rank will process across both phases for rank-0 progress
@@ -549,17 +556,15 @@ CONTAINS
 !> \param n_workers ...
 !> \param my_worker ...
 !> \param my_atoms ...
-!> \param max_over_mean ...
 ! **************************************************************************************************
    SUBROUTINE lpt_assign_atoms(atom_list, n_atoms, n_local_grid_atom, n_workers, my_worker, &
-                               my_atoms, max_over_mean)
+                               my_atoms)
 
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_list
       INTEGER, INTENT(IN)                                :: n_atoms
       INTEGER, DIMENSION(:), INTENT(IN)                  :: n_local_grid_atom
       INTEGER, INTENT(IN)                                :: n_workers, my_worker
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: my_atoms
-      REAL(KIND=dp), INTENT(OUT)                         :: max_over_mean
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'lpt_assign_atoms'
 
@@ -569,7 +574,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      max_over_mean = 1.0_dp
       IF (n_atoms <= 0) THEN
          ALLOCATE (my_atoms(0))
          CALL timestop(handle)
@@ -598,7 +602,6 @@ CONTAINS
 
       ALLOCATE (my_atoms(n_mine))
       my_atoms(:) = mine_tmp(1:n_mine)
-      IF (SUM(load) > 0.0_dp) max_over_mean = MAXVAL(load)*REAL(n_workers, dp)/SUM(load)
 
       CALL timestop(handle)
 
@@ -887,6 +890,7 @@ CONTAINS
                                          max_ao_size, para_env%mepos, para_env%num_pe)
          DEALLOCATE (ao_atoms, ao_col_start, ao_nonzero)
          CALL para_env%sum(d_lp_all)
+         CALL record_fit_memory(bs_env%ri_rs, ngrid, SIZE(phi_local, 2), nri)
          CALL solve_ri_rs_fit(phi_local, d_lp_all, bs_env%ri_rs%tikhonov)
 
          DO AB_block = 1, bs_env%auto_ri%AB_block_count
@@ -1049,6 +1053,7 @@ CONTAINS
                                          para_env_col%mepos, para_env_col%num_pe)
                DEALLOCATE (ao_atoms, ao_col_start, ao_nonzero)
                CALL para_env_col%sum(d_lp_local)
+               CALL record_fit_memory(bs_env%ri_rs, ngrid, SIZE(phi_local, 2), ncol)
                CALL solve_ri_rs_fit(phi_local, d_lp_local, bs_env%ri_rs%tikhonov)
                CALL add_Z_lP_columns(mat_Z_lP, d_lp_local, local_grid_idx, ngrid, fit_atom, 1, &
                                      ri_blk_sizes(fit_atom), row_size_grid, row_offset, &
@@ -2356,50 +2361,39 @@ CONTAINS
       n_big = 0
       G = 1
       G_atom = 1              ! max G a big atom needs (memory + ScaLAPACK int32 floor)
-      IF (mem_avail_GB <= 0.0_dp) THEN
-         ! No /proc/meminfo => cannot size by memory.
-         IF (bs_env%unit_nr > 0) THEN
-            CPWARN("RI-RS Z_lP: no meminfo; single-rank solve for all atoms")
-         END IF
-         DO P_loop_atom = 1, natom
+      IF (mem_avail_GB <= 0.0_dp .AND. bs_env%unit_nr > 0) THEN
+         CPWARN("RI-RS Z_lP: no meminfo; single-rank solve for all atoms")
+      END IF
+      DO P_loop_atom = 1, natom
+         ng = REAL(n_local_grid_atom(P_loop_atom), dp)
+         nri = REAL(ri_blk_sizes(P_loop_atom), dp)
+         CALL get_n_ao_in_sphere(bs_env, P_loop_atom, &
+                                 cutoff_ri_per_atom(P_loop_atom), n_ao_used_atom, sum_images)
+         CALL record_fit_memory(bs_env%ri_rs, n_local_grid_atom(P_loop_atom), &
+                                n_ao_used_atom, ri_blk_sizes(P_loop_atom), peak_bytes)
+         IF (mem_avail_GB <= 0.0_dp .OR. peak_bytes <= budget_bytes) THEN
             n_small = n_small + 1
             small_list(n_small) = P_loop_atom
-         END DO
-      ELSE
-         ! Classify by memory: peak (Gram matrix + phi_local + d_lp) vs budget. Small -> BLAS,
-         ! big -> distributed.
-         DO P_loop_atom = 1, natom
-            ng = REAL(n_local_grid_atom(P_loop_atom), dp)
-            nri = REAL(ri_blk_sizes(P_loop_atom), dp)
-            CALL get_n_ao_in_sphere(bs_env, P_loop_atom, &
-                                    cutoff_ri_per_atom(P_loop_atom), n_ao_used_atom, sum_images)
+         ELSE
+            n_big = n_big + 1
+            big_list(n_big) = P_loop_atom
             phi_bytes = 8.0_dp*ng*REAL(n_ao_used_atom, dp)
             dlp_bytes = 8.0_dp*ng*nri*REAL(1 + nthreads_cls, dp)
-            peak_bytes = 8.0_dp*ng*ng + phi_bytes + dlp_bytes
-            IF (peak_bytes <= budget_bytes) THEN
-               n_small = n_small + 1
-               small_list(n_small) = P_loop_atom
-            ELSE
-               n_big = n_big + 1
-               big_list(n_big) = P_loop_atom
-               ! G must satisfy BOTH: (a) memory — the distributed Gram matrix slice fits next to the
-               ! replicated phi_local + d_lp; (b) ScaLAPACK — local ~ng^2/G below the int32 limit.
-               G_int32 = CEILING(ng*ng/scalapack_loc_limit)
-               G_atom = MAX(G_atom, G_int32, &
-                            CEILING(8.0_dp*ng*ng/MAX(budget_bytes - phi_bytes - dlp_bytes, 1.0_dp)))
-            END IF
-         END DO
-         IF (n_big > 0) THEN
-            ! Auto-size G from the most demanding big atom.
-            IF (G_atom > para_env%num_pe) THEN
-               CALL cp_abort(__LOCATION__, &
-                             "RI-RS Z_lP: an atom is too large to fit even when "// &
-                             "distributed over all ranks. Add nodes, use fewer MPI ranks "// &
-                             "per node, lower CUTOFF_RADIUS_RI, or raise EPS_FILTER "// &
-                             "for more grid screening.")
-            END IF
-            G = MIN(MAX(G_atom, 2), para_env%num_pe)
+            ! Bound both memory and ScaLAPACK's 32-bit local indexing.
+            G_int32 = CEILING(ng*ng/scalapack_loc_limit)
+            G_atom = MAX(G_atom, G_int32, &
+                         CEILING(8.0_dp*ng*ng/MAX(budget_bytes - phi_bytes - dlp_bytes, 1.0_dp)))
          END IF
+      END DO
+      IF (n_big > 0) THEN
+         IF (G_atom > para_env%num_pe) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "RI-RS Z_lP: an atom is too large to fit even when "// &
+                          "distributed over all ranks. Add nodes, use fewer MPI ranks "// &
+                          "per node, lower CUTOFF_RADIUS_RI, or raise EPS_FILTER "// &
+                          "for more grid screening.")
+         END IF
+         G = MIN(MAX(G_atom, 2), para_env%num_pe)
       END IF
 
       CALL timestop(handle)
@@ -2798,5 +2792,33 @@ CONTAINS
       n = bs_env%basis_set_RI(ikind)%gto_basis_set%nsgf
 
    END FUNCTION get_ref_RI_size
+
+! **************************************************************************************************
+!> \brief Record the dense Gram, phi and threaded RHS memory model for an RI-RS fit.
+!>        The single-rank estimate is an upper bound for a distributed Gram solve.
+!> \param ri_rs owned fitting statistics, reset with the representation
+!> \param n_grid number of fitting grid rows, before screening when obtained by classification
+!> \param n_ao number of AO columns
+!> \param n_ri number of RHS columns
+!> \param peak_bytes optional single-rank estimate used by solver classification
+! **************************************************************************************************
+   SUBROUTINE record_fit_memory(ri_rs, n_grid, n_ao, n_ri, peak_bytes)
+!$    USE OMP_LIB, ONLY: omp_get_max_threads
+      TYPE(ri_rs_env), INTENT(INOUT)                     :: ri_rs
+      INTEGER, INTENT(IN)                                :: n_grid, n_ao, n_ri
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: peak_bytes
+
+      INTEGER                                            :: nthreads
+      REAL(KIND=dp)                                      :: ng, peak
+
+      nthreads = 1
+!$    nthreads = omp_get_max_threads()
+      ng = REAL(n_grid, dp)
+      peak = 8.0_dp*ng*ng + 8.0_dp*ng*REAL(n_ao, dp) + &
+             8.0_dp*ng*REAL(n_ri, dp)*REAL(1 + nthreads, dp)
+      ri_rs%fit_max_grid = MAX(ri_rs%fit_max_grid, n_grid)
+      ri_rs%fit_peak_bytes = MAX(ri_rs%fit_peak_bytes, peak)
+      IF (PRESENT(peak_bytes)) peak_bytes = peak
+   END SUBROUTINE record_fit_memory
 
 END MODULE ri_rs_setup

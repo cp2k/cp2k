@@ -21,7 +21,6 @@ MODULE gw_ri_rs_large_cell_Gamma
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE ri_rs_setup,           ONLY: ensure_ri_rs_representation
    USE gw_tensor_large_cell_Gamma,      ONLY: G_occ_vir,&
                                               compute_QP_energies,&
                                               delete_unnecessary_files,&
@@ -38,6 +37,7 @@ MODULE gw_ri_rs_large_cell_Gamma
    USE qs_environment_types,            ONLY: qs_environment_type
    USE ri_rs_matrices,                  ONLY: release_dbcsr_topology_and_matrices,&
                                               setup_square_topology
+   USE ri_rs_setup,                     ONLY: ensure_ri_rs_representation
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
