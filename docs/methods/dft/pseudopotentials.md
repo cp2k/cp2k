@@ -105,9 +105,13 @@ generator replay, added AE/PS partial waves and licensing. The native inverse-US
 required to use this example; installing data alone does not enable a missing method. The small H2
 regression does not establish production basis or grid convergence.
 
-Original complete SSSP collections can be downloaded separately with the checksum-pinned tools under
-`tools/pseudopotentials/`. Choose a writable external destination; downloads do not run
-automatically, and missing USPP partial waves require a separate verified generator replay. See the
+The optional installer under `tools/pseudopotentials/` combines original SSSP NC/PAW files with
+prepared USPPs from a checksum-pinned external release. The original UPF hash identifies the
+matching USPP, preserving the SSSP selection. A selection index records the installed file
+locations. Additional non-SSSP USPPs and complete original collections remain separately selectable.
+The external catalog distinguishes compatible generator replays from auxiliary reconstructions and
+records their atomic checks. Calculation support still depends on the method and Gaussian basis.
+Choose a writable external destination. Downloads do not run automatically. See the
 [download and preparation instructions](https://github.com/cp2k/cp2k/blob/master/tools/pseudopotentials/README.md).
 SSSP plane-wave cutoffs are not Gaussian-basis or Quickstep multigrid recommendations.
 
