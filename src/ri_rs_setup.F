@@ -32,7 +32,6 @@ MODULE ri_rs_setup
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
    USE gw_auto_ri_types,                ONLY: auto_ri_type
-   USE ri_rs_grid_setup,        ONLY: setup_ri_rs_grid
    USE gw_utils_compute_integrals,      ONLY: build_3c_integral_block_ctx,&
                                               gw_3c_ctx_create,&
                                               gw_3c_ctx_release,&
@@ -56,12 +55,14 @@ MODULE ri_rs_setup
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE ri_rs_fitting,                   ONLY: solve_ri_rs_fit,&
                                               store_Z_lP_columns
+   USE ri_rs_grid_setup,                ONLY: setup_ri_rs_grid
    USE ri_rs_matrices,                  ONLY: atomic_basis_at_grid_point,&
                                               print_matrix_occupation
    USE ri_rs_utils,                     ONLY: evaluate_ao_basis_on_points,&
                                               evaluate_ao_on_points,&
                                               precompute_ri_rs_radii
-   USE util,                            ONLY: sort
+   USE util,                            ONLY: locate,&
+                                              sort
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -215,15 +216,14 @@ CONTAINS
          routineN = 'compute_Z_lP_standard'
 
       INTEGER :: atom_j_mepos, atom_j_stride, atom_P, G, handle, i_blk, iatom, idx, iphase, j, &
-         max_ao_size, my_group, n_ao_total, n_big, n_done, n_groups, n_loc_ri, n_local_grid, &
-         n_my_atoms, n_small, natom, npcol_phi, num_grid_chunks, phase_hi
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_col_map, big_list, local_grid_idx, &
-                                                            my_atoms_A, my_atoms_B, &
-                                                            n_local_grid_atom, row_offset, &
-                                                            small_list
+         max_ao_size, my_group, n_big, n_done, n_groups, n_loc_ri, n_local_grid, n_my_atoms, &
+         n_small, natom, npcol_phi, num_grid_chunks, phase_hi
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: ao_atoms, ao_col_start, big_list, local_grid_idx, &
+         my_atoms_A, my_atoms_B, n_local_grid_atom, row_offset, small_list
       INTEGER, DIMENSION(:), POINTER                     :: col_dist_ri, r_blk_sizes, ri_blk_sizes, &
                                                             row_dist_grid
       LOGICAL                                            :: do_scatter, use_dist
+      LOGICAL, ALLOCATABLE                               :: ao_nonzero(:, :)
       REAL(KIND=dp)                                      :: balance_A, balance_B, cutoff_ri, &
                                                             item_start_time, r_c, t1
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cutoff_ri_per_atom
@@ -248,7 +248,6 @@ CONTAINS
       NULLIFY (para_env_sub, blacs_env_sub)
 
       natom = bs_env%n_atom
-      n_ao_total = bs_env%i_ao_end_from_atom(natom)
 
       ! =========================================================================
       ! 1. SETUP DBCSR TOPOLOGY & EXACT OFFSETS
@@ -402,9 +401,9 @@ CONTAINS
                !    The molecular path drops rows below EPS_FILTER; Gamma keeps all sphere rows.
                ! ---------------------------------------------------------------------
                CALL build_phi_on_sphere(bs_env, qs_kind_set, &
-                                        ri_rs_grid_points, atom_P, cutoff_ri, n_ao_total, &
+                                        ri_rs_grid_points, atom_P, cutoff_ri, &
                                         local_grid_idx, n_local_grid, phi_local, &
-                                        ao_col_map, periodic_images=periodic_images)
+                                        ao_atoms, ao_col_start, periodic_images=periodic_images, ao_nonzero=ao_nonzero)
 
                ! ---------------------------------------------------------------------
                ! B. Right-hand side  d_lP = Σ_μν ϕ_μ(r_l) ϕ_ν(r_l) (μν|P)
@@ -412,8 +411,10 @@ CONTAINS
                ALLOCATE (d_lp_local(n_local_grid, n_loc_ri))
                d_lp_local = 0.0_dp
 
-               CALL compute_d_lp(bs_env, ctx_3c, phi_local, ao_col_map, d_lp_local, n_local_grid, &
+               CALL compute_d_lp(bs_env, ctx_3c, phi_local, ao_atoms, ao_col_start, ao_nonzero, d_lp_local, n_local_grid, &
                                  n_loc_ri, atom_P, max_ao_size, atom_j_mepos, atom_j_stride, periodic_images)
+
+               DEALLOCATE (ao_atoms, ao_col_start, ao_nonzero)
 
                ! Reduce per-subgroup-rank partials into the replicated d_lp_local.
                ! Skipped for BLAS path: each rank has the full sum locally.
@@ -443,7 +444,7 @@ CONTAINS
                END IF
 
                DEALLOCATE (d_lp_local)
-               DEALLOCATE (local_grid_idx, phi_local, ao_col_map)
+               DEALLOCATE (local_grid_idx, phi_local)
 
                ! Report each atom completed by the printing rank. No inter-rank communication is
                ! needed; the final message below is printed only after the global synchronization.
@@ -481,7 +482,6 @@ CONTAINS
 
       DEALLOCATE (row_offset, ri_blk_sizes, col_dist_ri)
       CALL dbcsr_distribution_release(dist_Z)
-
 
       CALL timestop(handle)
 
@@ -612,27 +612,32 @@ CONTAINS
 !>        OMP-threaded over unordered AO-atom pairs: build (mu nu|P) in the reference cell,
 !>        or sum (mu_R nu_S|P_0) over nearest images for Gamma. Contract grid-chunked pair
 !>        densities into a thread-private d_lp partial, then reduce the partials into d_lp.
-!>        Pair screening is handled inside build_3c_integral_block_ctx via the `screened` output.
+!>        The shared integral context caches Libint/spherical-transform tables; each thread
+!>        owns its integral workspace. The kind-radius triangle screen in
+!>        build_3c_integral_block_ctx skips negligible image triples via the screened output.
 !> \param bs_env ...
-!> \param ctx ...
-!> \param phi_val ...
-!> \param ao_col_map ...
-!> \param d_lp ...
-!> \param n_grid_total ...
-!> \param n_loc_ri ...
-!> \param atom_P ...
+!> \param ctx shared three-center integral context
+!> \param phi_val AO values on local-sphere grid rows and compact active-AO columns
+!> \param ao_atoms global indices of the active AO atoms
+!> \param ao_col_start local phi column starts, including the terminal column offset
+!> \param ao_nonzero exact nonzero AO support on the retained grid rows
+!> \param d_lp RHS (n_grid_total × n_loc_ri), zeroed by the caller and accumulated here
+!> \param n_grid_total number of retained local-sphere grid rows
+!> \param n_loc_ri number of RI functions on atom_P
+!> \param atom_P RI atom fixed in the reference cell (0,0,0)
 !> \param max_ao_size ...
 !> \param atom_j_mepos ...
 !> \param atom_j_stride ...
 !> \param periodic_images sum nearest AO images with RI atom P fixed in the reference cell
 ! **************************************************************************************************
-   SUBROUTINE compute_d_lp(bs_env, ctx, phi_val, ao_col_map, d_lp, n_grid_total, n_loc_ri, atom_P, &
+   SUBROUTINE compute_d_lp(bs_env, ctx, phi_val, ao_atoms, ao_col_start, ao_nonzero, d_lp, n_grid_total, n_loc_ri, atom_P, &
                            max_ao_size, atom_j_mepos, atom_j_stride, periodic_images)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(gw_3c_ctx_type), INTENT(IN)                   :: ctx
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: phi_val
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: ao_col_map
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: ao_atoms, ao_col_start
+      LOGICAL, DIMENSION(:, :), INTENT(IN)               :: ao_nonzero
       INTEGER, INTENT(IN)                                :: n_grid_total, n_loc_ri
       REAL(KIND=dp), INTENT(INOUT)                       :: d_lp(n_grid_total, n_loc_ri)
       INTEGER, INTENT(IN)                                :: atom_P, max_ao_size, atom_j_mepos, &
@@ -643,11 +648,10 @@ CONTAINS
       INTEGER, PARAMETER                                 :: grid_chunk = 1024
 
       INTEGER :: atom_j, atom_k, c, cell_R_vec(3), cell_S_vec(3), handle, handle2, &
-         image_extent(3), ix_R, ix_S, iy_R, iy_S, iz_R, iz_S, j, jk_idx, jsize, jstart, k, ksize, &
-         kstart, l, l0, n_grid_pair, point, ri
+         image_extent(3), ix_R, ix_S, iy_R, iy_S, iz_R, iz_S, j, jj, jk_idx, jsize, jstart, k, kk, &
+         ksize, kstart, l, l0, n_grid_pair, point, ri
       INTEGER, ALLOCATABLE                               :: grid_index(:)
       LOGICAL                                            :: any_kept, screened
-      LOGICAL, ALLOCATABLE                               :: skip_grid_point(:, :)
       REAL(KIND=dp)                                      :: pair_factor
       REAL(KIND=dp), ALLOCATABLE                         :: grid_result(:, :), int_3c_prv(:, :, :)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: d_lp_prv, int_2d_prv, rho_chunk
@@ -658,13 +662,15 @@ CONTAINS
       IF (periodic_images) image_extent = bs_env%ri_rs%cell%perd
 
       !$OMP PARALLEL DEFAULT(NONE) &
-      !$OMP SHARED(skip_grid_point, bs_env, ctx, phi_val, ao_col_map, d_lp, n_grid_total, n_loc_ri, atom_P, max_ao_size, &
+      !$OMP SHARED(bs_env, ctx, phi_val, ao_atoms, ao_col_start, ao_nonzero, d_lp, &
+      !$OMP        n_grid_total, n_loc_ri, atom_P, max_ao_size, &
       !$OMP        atom_j_mepos, atom_j_stride, image_extent) &
       !$OMP PRIVATE(grid_index, grid_result, n_grid_pair, point, pair_factor, &
-      !$OMP         atom_j, atom_k, c, handle2, j, jk_idx, jsize, jstart, k, ksize, kstart, &
+      !$OMP         jj, kk, atom_j, atom_k, c, handle2, j, jk_idx, jsize, jstart, k, ksize, kstart, &
       !$OMP         l, l0, ri, screened, d_lp_prv, int_2d_prv, rho_chunk, int_3c_prv, ws, &
       !$OMP         any_kept, ix_R, iy_R, iz_R, ix_S, iy_S, iz_S, cell_R_vec, cell_S_vec)
 
+      ! The integral context is shared; all scratch arrays and the accumulating RHS are thread-private.
       CALL gw_3c_ws_create(ws, ctx)
       ALLOCATE (int_3c_prv(max_ao_size, max_ao_size, n_loc_ri))
       ALLOCATE (int_2d_prv(max_ao_size*max_ao_size, n_loc_ri))
@@ -673,25 +679,22 @@ CONTAINS
       ALLOCATE (grid_index(n_grid_total), grid_result(grid_chunk, n_loc_ri))
       d_lp_prv(:, :) = 0.0_dp
 
-      !$OMP SINGLE
-      ALLOCATE (skip_grid_point(n_grid_total, bs_env%n_atom))
-      CALL compute_skip_grid_point(bs_env, phi_val, ao_col_map, skip_grid_point)
-      !$OMP END SINGLE
-
       ! MPI assigns each unordered pair through its first atom; OpenMP divides those atoms.
       ! Skip only exact-zero pair-grid support, without a new screening threshold.
       !$OMP DO SCHEDULE(DYNAMIC)
-      DO atom_j = atom_j_mepos + 1, bs_env%n_atom, atom_j_stride
-         DO atom_k = atom_j, bs_env%n_atom
-            jstart = ao_col_map(bs_env%i_ao_start_from_atom(atom_j))
-            kstart = ao_col_map(bs_env%i_ao_start_from_atom(atom_k))
-            IF (jstart == 0 .OR. kstart == 0) CYCLE
-            jsize = bs_env%i_ao_end_from_atom(atom_j) - bs_env%i_ao_start_from_atom(atom_j) + 1
-            ksize = bs_env%i_ao_end_from_atom(atom_k) - bs_env%i_ao_start_from_atom(atom_k) + 1
+      DO jj = 1, SIZE(ao_atoms)
+         atom_j = ao_atoms(jj)
+         IF (MOD(atom_j - 1, atom_j_stride) /= atom_j_mepos) CYCLE
+         DO kk = jj, SIZE(ao_atoms)
+            atom_k = ao_atoms(kk)
+            jstart = ao_col_start(jj)
+            kstart = ao_col_start(kk)
+            jsize = ao_col_start(jj + 1) - jstart
+            ksize = ao_col_start(kk + 1) - kstart
 
             n_grid_pair = 0
             DO point = 1, n_grid_total
-               IF (skip_grid_point(point, atom_j) .OR. skip_grid_point(point, atom_k)) CYCLE
+               IF (.NOT. (ao_nonzero(point, jj) .AND. ao_nonzero(point, kk))) CYCLE
                n_grid_pair = n_grid_pair + 1
                grid_index(n_grid_pair) = point
             END DO
@@ -704,6 +707,7 @@ CONTAINS
             ! AO exchange symmetry applies to the complete image sum, so the same
             ! unordered atom pairs and pair_factor are used in both paths.
             ! The integral builder accumulates in place, including across image triples.
+            ! Its kind-radius triangle screen rejects image triples beyond the integral cutoff.
             int_3c_prv(1:jsize, 1:ksize, 1:n_loc_ri) = 0.0_dp
             any_kept = .FALSE.
             DO ix_R = -image_extent(1), image_extent(1)
@@ -727,7 +731,7 @@ CONTAINS
             END DO
             IF (.NOT. any_kept) CYCLE
 
-            ! Flatten 3D B_{μν, P} tensor to 2D B_{(μν), P} matrix for BLAS
+            ! Flatten (μν|P) to a matrix with combined AO index (ν-1)*jsize + μ for BLAS.
             DO ri = 1, n_loc_ri
                DO k = 1, ksize
                   DO j = 1, jsize
@@ -738,7 +742,7 @@ CONTAINS
             END DO
 
             ! Pair density ρ(l, μν) = ϕ_μ(r_l) ϕ_ν(r_l) in grid chunks, contracted on the fly:
-            ! d_{l,P} += ρ(l, μν) B_{(μν),P}  (dgemm runs serially inside the parallel region)
+            ! d_lP += Σ_μν ρ(l, μν) (μν|P), with the atom-pair multiplicity included in pair_factor.
             DO l0 = 1, n_grid_pair, grid_chunk
                c = MIN(grid_chunk, n_grid_pair - l0 + 1)
                DO k = 1, ksize
@@ -768,6 +772,7 @@ CONTAINS
       END DO
       !$OMP END DO
 
+      ! Reduce once per thread; distributed fits subsequently sum the rank partials in the subgroup.
       !$OMP CRITICAL (compute_d_lp_reduce)
       d_lp(1:n_grid_total, 1:n_loc_ri) = d_lp(1:n_grid_total, 1:n_loc_ri) + &
                                          d_lp_prv(1:n_grid_total, 1:n_loc_ri)
@@ -776,41 +781,11 @@ CONTAINS
       DEALLOCATE (int_3c_prv, int_2d_prv, rho_chunk, d_lp_prv, grid_index, grid_result)
       CALL gw_3c_ws_release(ws)
 
-      !$OMP SINGLE
-      DEALLOCATE (skip_grid_point)
-      !$OMP END SINGLE
-
       !$OMP END PARALLEL
 
       CALL timestop(handle)
 
    END SUBROUTINE compute_d_lp
-
-! **************************************************************************************************
-!> \brief Marks grid points where all stored AO values of an atom are exactly zero.
-!> \param bs_env ...
-!> \param phi_val ...
-!> \param ao_col_map ...
-!> \param skip_grid_point ...
-! **************************************************************************************************
-   SUBROUTINE compute_skip_grid_point(bs_env, phi_val, ao_col_map, skip_grid_point)
-
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: phi_val
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: ao_col_map
-      LOGICAL, DIMENSION(:, :), INTENT(OUT)              :: skip_grid_point
-
-      INTEGER                                            :: atom, first_ao, number_of_aos
-
-      skip_grid_point(:, :) = .TRUE.
-      DO atom = 1, bs_env%n_atom
-         first_ao = ao_col_map(bs_env%i_ao_start_from_atom(atom))
-         IF (first_ao == 0) CYCLE
-         number_of_aos = bs_env%i_ao_end_from_atom(atom) - bs_env%i_ao_start_from_atom(atom) + 1
-         skip_grid_point(:, atom) = ALL(phi_val(:, first_ao:first_ao + number_of_aos - 1) == 0.0_dp, DIM=2)
-      END DO
-
-   END SUBROUTINE compute_skip_grid_point
 
 ! **************************************************************************************************
 !> \brief Computes the RI-RS matrix Z_lP for an automatically optimized RI basis.
@@ -847,18 +822,21 @@ CONTAINS
          routineN = 'compute_Z_lP_auto_ri'
 
       INTEGER :: AB_block, atom_A, atom_B, block_size_b, column_first, first_p_AB, fit_atom, &
-         handle, max_ao_size, max_nRI_ref, mypcol, myprow, n_ao_total, n_done, n_my_atoms, n_to_a, &
-         natom, ncol, ngrid, nri, nRI_ref_A, nRI_ref_B, output_offset, ri_atom
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_col_map, local_grid_idx, row_offset
+         handle, last_atom, max_ao_size, max_nRI_ref, mypcol, myprow, n_active, n_candidate, &
+         n_done, n_my_atoms, n_to_a, natom, ncol, ngrid, nri, nRI_ref_A, nRI_ref_B, output_offset, &
+         ri_atom, slot
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_atoms, ao_col_start, candidate_order, &
+                                                            candidates, local_grid_idx, ri_atoms, &
+                                                            row_offset
       INTEGER, DIMENSION(:), POINTER                     :: col_dist_ri, ri_blk_sizes, &
                                                             row_dist_grid, row_size_grid
       LOGICAL                                            :: AB_block_local, common_grid_available, &
                                                             have_fitted_columns, &
                                                             reuse_atomic_integrals
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: active_atom
+      LOGICAL, ALLOCATABLE                               :: ao_nonzero(:, :)
       REAL(KIND=dp)                                      :: cutoff_ri, item_start_time, r_c, t1
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: d_lp_all, d_lp_local, phi_local, U_Pp_AB
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: U_Pp_by_atom
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: U_active
       REAL(KIND=dp), DIMENSION(3)                        :: center
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -882,7 +860,6 @@ CONTAINS
       NULLIFY (para_env_col)
 
       natom = bs_env%n_atom
-      n_ao_total = bs_env%i_ao_end_from_atom(natom)
       CPASSERT(bs_env%auto_ri%AB_block_count > 0)
       CPASSERT(SIZE(particle_set) == natom)
 
@@ -901,13 +878,14 @@ CONTAINS
       IF (common_grid_available .AND. have_fitted_columns) THEN
          ! Evaluate ϕ_μ(r_l) once on the common grid.
          CALL build_phi_on_complete_grid(bs_env, qs_kind_set, &
-                                         ri_rs_grid_points, n_ao_total, local_grid_idx, ngrid, &
-                                         phi_local, ao_col_map)
+                                         ri_rs_grid_points, local_grid_idx, ngrid, &
+                                         phi_local, ao_atoms, ao_col_start, ao_nonzero)
          nri = SUM(ri_blk_sizes)
          ALLOCATE (d_lp_all(ngrid, nri), source=0.0_dp)
          ! d_lp = Σ_A Σ_{P∈A} d_lP U_Pp for every optimized RI function q.
-         CALL compute_d_lp_auto_ri_batch(bs_env, ctx_3c, phi_local, ao_col_map, d_lp_all, ngrid, &
+         CALL compute_d_lp_auto_ri_batch(bs_env, ctx_3c, phi_local, ao_atoms, ao_col_start, ao_nonzero, d_lp_all, ngrid, &
                                          max_ao_size, para_env%mepos, para_env%num_pe)
+         DEALLOCATE (ao_atoms, ao_col_start, ao_nonzero)
          CALL para_env%sum(d_lp_all)
          CALL solve_ri_rs_fit(phi_local, d_lp_all, bs_env%ri_rs%tikhonov)
 
@@ -946,7 +924,7 @@ CONTAINS
                END IF
             END IF
          END DO
-         DEALLOCATE (d_lp_all, local_grid_idx, phi_local, ao_col_map)
+         DEALLOCATE (d_lp_all, local_grid_idx, phi_local)
       ELSE
          reuse_atomic_integrals = &
             bs_env%ri_rs%cutoff_radius_ri_ao <= 0.0_dp .OR. &
@@ -974,17 +952,45 @@ CONTAINS
                n_my_atoms = n_my_atoms + 1
             END DO
             n_done = 0
-            max_nRI_ref = 0
-            DO ri_atom = 1, natom
-               max_nRI_ref = MAX(max_nRI_ref, get_ref_RI_size(bs_env, ri_atom))
-            END DO
+            ALLOCATE (candidates(2*bs_env%auto_ri%AB_block_count), &
+                      candidate_order(2*bs_env%auto_ri%AB_block_count))
             DO fit_atom = 1, natom
                IF (col_dist_ri(fit_atom) /= mypcol) CYCLE
                ncol = ri_blk_sizes(fit_atom)
                IF (ncol == 0) CYCLE
                item_start_time = m_walltime()
-               ALLOCATE (U_Pp_by_atom(max_nRI_ref, ncol, natom), source=0.0_dp)
-               ALLOCATE (active_atom(natom), source=.FALSE.)
+               ! Only reference RI atoms contributing to this fitted column block are stored.
+               n_candidate = 0
+               DO AB_block = 1, bs_env%auto_ri%AB_block_count
+                  atom_A = bs_env%auto_ri%AB_atom_A(AB_block)
+                  atom_B = bs_env%auto_ri%AB_atom_B(AB_block)
+                  n_to_a = bs_env%auto_ri%AB_size_opt_RI_to_A(AB_block)
+                  IF (.NOT. ((fit_atom == atom_A .AND. n_to_a > 0) .OR. &
+                             (fit_atom == atom_B .AND. &
+                              n_to_a < bs_env%auto_ri%AB_size_opt_RI(AB_block)))) CYCLE
+                  n_candidate = n_candidate + 1
+                  candidates(n_candidate) = atom_A
+                  IF (atom_B == atom_A) CYCLE
+                  n_candidate = n_candidate + 1
+                  candidates(n_candidate) = atom_B
+               END DO
+               CPASSERT(n_candidate > 0)
+               CALL sort(candidates, n_candidate, candidate_order)
+               n_active = 0
+               last_atom = 0
+               DO slot = 1, n_candidate
+                  ri_atom = candidates(slot)
+                  IF (ri_atom == last_atom) CYCLE
+                  n_active = n_active + 1
+                  candidates(n_active) = ri_atom
+                  last_atom = ri_atom
+               END DO
+               ALLOCATE (ri_atoms(n_active), source=candidates(:n_active))
+               max_nRI_ref = 0
+               DO slot = 1, n_active
+                  max_nRI_ref = MAX(max_nRI_ref, get_ref_RI_size(bs_env, ri_atoms(slot)))
+               END DO
+               ALLOCATE (U_active(max_nRI_ref, ncol, n_active), source=0.0_dp)
 
                DO AB_block = 1, bs_env%auto_ri%AB_block_count
                   atom_A = bs_env%auto_ri%AB_atom_A(AB_block)
@@ -1004,20 +1010,20 @@ CONTAINS
                   END IF
                   CALL get_U_Pp_AB(bs_env%auto_ri, AB_block, U_Pp_AB)
 
+                  slot = locate(ri_atoms, atom_A)
                   nRI_ref_A = get_ref_RI_size(bs_env, atom_A)
-                  U_Pp_by_atom(1:nRI_ref_A, &
-                               column_first:column_first + ncol - 1, atom_A) = &
+                  U_active(1:nRI_ref_A, &
+                           column_first:column_first + ncol - 1, slot) = &
                      U_Pp_AB( &
                      1:nRI_ref_A, first_p_AB:first_p_AB + ncol - 1)
-                  active_atom(atom_A) = .TRUE.
                   IF (atom_B /= atom_A) THEN
+                     slot = locate(ri_atoms, atom_B)
                      nRI_ref_B = get_ref_RI_size(bs_env, atom_B)
-                     U_Pp_by_atom(1:nRI_ref_B, &
-                                  column_first:column_first + ncol - 1, atom_B) = &
+                     U_active(1:nRI_ref_B, &
+                              column_first:column_first + ncol - 1, slot) = &
                         U_Pp_AB( &
                         nRI_ref_A + 1:nRI_ref_A + nRI_ref_B, &
                         first_p_AB:first_p_AB + ncol - 1)
-                     active_atom(atom_B) = .TRUE.
                   END IF
                   DEALLOCATE (U_Pp_AB)
                END DO
@@ -1025,35 +1031,36 @@ CONTAINS
                center = particle_set(fit_atom)%r
                r_c = bs_env%ri_metric%cutoff_radius
                cutoff_ri = 0.0_dp
-               DO ri_atom = 1, natom
-                  IF (.NOT. active_atom(ri_atom)) CYCLE
+               DO slot = 1, n_active
+                  ri_atom = ri_atoms(slot)
                   cutoff_ri = MAX(cutoff_ri, &
                                   r_c + bs_env%ri_rs%radius_ri_per_atom(ri_atom) + &
                                   NORM2(center - particle_set(ri_atom)%r))
                END DO
                CALL build_phi_on_sphere(bs_env, qs_kind_set, &
-                                        ri_rs_grid_points, fit_atom, cutoff_ri, n_ao_total, &
-                                        local_grid_idx, ngrid, phi_local, ao_col_map, &
-                                        center=center)
+                                        ri_rs_grid_points, fit_atom, cutoff_ri, &
+                                        local_grid_idx, ngrid, phi_local, ao_atoms, ao_col_start, &
+                                        center=center, ao_nonzero=ao_nonzero)
                ncol = ri_blk_sizes(fit_atom)
                ALLOCATE (d_lp_local(ngrid, ncol), source=0.0_dp)
                ! d_lp = Σ_A Σ_{P∈A} d_lP U_Pp on the grid of this atomic column block.
-               CALL compute_d_lp_auto_ri_atoms(bs_env, ctx_3c, phi_local, ao_col_map, &
-                                               d_lp_local, ngrid, U_Pp_by_atom, &
-                                               active_atom, max_ao_size, &
-                                               para_env_col%mepos, para_env_col%num_pe)
+               CALL compute_d_lp_auto_ri(bs_env, ctx_3c, phi_local, ao_atoms, ao_col_start, ao_nonzero, &
+                                         d_lp_local, ri_atoms, U_active, max_ao_size, &
+                                         para_env_col%mepos, para_env_col%num_pe)
+               DEALLOCATE (ao_atoms, ao_col_start, ao_nonzero)
                CALL para_env_col%sum(d_lp_local)
                CALL solve_ri_rs_fit(phi_local, d_lp_local, bs_env%ri_rs%tikhonov)
                CALL add_Z_lP_columns(mat_Z_lP, d_lp_local, local_grid_idx, ngrid, fit_atom, 1, &
                                      ri_blk_sizes(fit_atom), row_size_grid, row_offset, &
                                      row_dist_grid, &
                                      myprow, bs_env%eps_filter)
-               DEALLOCATE (d_lp_local, local_grid_idx, phi_local, ao_col_map)
-               DEALLOCATE (U_Pp_by_atom, active_atom)
+               DEALLOCATE (d_lp_local, local_grid_idx, phi_local)
+               DEALLOCATE (U_active, ri_atoms)
                n_done = n_done + 1
                CALL print_Z_lP_progress(bs_env, n_done, n_my_atoms, &
                                         m_walltime() - item_start_time)
             END DO
+            DEALLOCATE (candidates, candidate_order)
             CALL para_env_col%free()
             DEALLOCATE (para_env_col)
          END IF
@@ -1283,24 +1290,25 @@ CONTAINS
 !> \param bs_env ...
 !> \param qs_kind_set ...
 !> \param ri_rs_grid_points ...
-!> \param n_ao_total ...
 !> \param local_grid_idx ...
 !> \param ngrid ...
 !> \param phi_local ...
-!> \param ao_col_map ...
+!> \param ao_atoms global indices of the active AO atoms
+!> \param ao_col_start local phi column starts, including the terminal column offset
+!> \param ao_nonzero exact nonzero AO support on the retained grid rows
 ! **************************************************************************************************
    SUBROUTINE build_phi_on_complete_grid(bs_env, qs_kind_set, &
-                                         ri_rs_grid_points, n_ao_total, local_grid_idx, ngrid, &
-                                         phi_local, ao_col_map)
+                                         ri_rs_grid_points, local_grid_idx, ngrid, &
+                                         phi_local, ao_atoms, ao_col_start, ao_nonzero)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ri_rs_grid_points
-      INTEGER, INTENT(IN)                                :: n_ao_total
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: local_grid_idx
       INTEGER, INTENT(OUT)                               :: ngrid
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: phi_local
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: ao_col_map
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: ao_atoms, ao_col_start
+      LOGICAL, ALLOCATABLE, INTENT(OUT)                  :: ao_nonzero(:, :)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_phi_on_complete_grid'
 
@@ -1324,9 +1332,9 @@ CONTAINS
       cutoff_ri = cutoff_ri + 1.0_dp
 
       CALL build_phi_on_sphere(bs_env, qs_kind_set, &
-                               ri_rs_grid_points, reference_atom, cutoff_ri, n_ao_total, &
-                               local_grid_idx, ngrid, phi_local, ao_col_map, &
-                               center=center)
+                               ri_rs_grid_points, reference_atom, cutoff_ri, &
+                               local_grid_idx, ngrid, phi_local, ao_atoms, ao_col_start, &
+                               center=center, ao_nonzero=ao_nonzero)
 
       CALL timestop(handle)
 
@@ -1403,300 +1411,101 @@ CONTAINS
    END SUBROUTINE add_Z_lP_columns
 
 ! **************************************************************************************************
-!> \brief Computes m_l^A = OR_{μ∈A}[ϕ_μ(r_l) /= 0]. The product
-!>
-!>          ϕ_μ(r_l) ϕ_ν(r_l),  μ∈A, ν∈B,
-!>
-!>        is evaluated only where m_l^A AND m_l^B is true. This avoids products and contractions
-!>        whenever either atom has no nonzero AO on r_l; no additional numerical threshold is used.
-!> \param bs_env ...
-!> \param phi_val ...
-!> \param ao_col_map ...
-!> \param nonzero_ao ...
-! **************************************************************************************************
-   SUBROUTINE compute_nonzero_AO_grid_mask(bs_env, phi_val, ao_col_map, nonzero_ao)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: phi_val
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: ao_col_map
-      LOGICAL, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: nonzero_ao
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_nonzero_AO_grid_mask'
-
-      INTEGER                                            :: col, first, handle, iatom, last, natom, &
-                                                            ngrid, point
-
-      CALL timeset(routineN, handle)
-
-      ngrid = SIZE(phi_val, 1)
-      natom = bs_env%n_atom
-      ALLOCATE (nonzero_ao(ngrid, natom), source=.FALSE.)
-      !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-      !$OMP SHARED(bs_env, phi_val, ao_col_map, nonzero_ao, ngrid, natom) &
-      !$OMP PRIVATE(iatom, first, last, col, point)
-      DO iatom = 1, natom
-         first = ao_col_map(bs_env%i_ao_start_from_atom(iatom))
-         IF (first == 0) CYCLE
-         last = ao_col_map(bs_env%i_ao_end_from_atom(iatom))
-         DO col = first, last
-            DO point = 1, ngrid
-               nonzero_ao(point, iatom) = &
-                  nonzero_ao(point, iatom) .OR. phi_val(point, col) /= 0.0_dp
-            END DO
-         END DO
-      END DO
-      !$OMP END PARALLEL DO
-
-      CALL timestop(handle)
-   END SUBROUTINE compute_nonzero_AO_grid_mask
-
-! **************************************************************************************************
-!> \brief Computes d_lp = Σ_{μνP} ϕ_μ(r_l)ϕ_ν(r_l)(μν|P)U_Pp for all optimized
-!>        columns p that contain reference RI functions P on atom I.
-!> \param bs_env ...
-!> \param ctx ...
-!> \param phi_val ...
-!> \param ao_col_map ...
-!> \param d_lp ...
-!> \param n_grid ...
-!> \param iatom ...
-!> \param U_Pp ...
-!> \param max_ao_size ...
-! **************************************************************************************************
-   SUBROUTINE compute_d_lp_auto_ri_atom(bs_env, ctx, phi_val, ao_col_map, d_lp, n_grid, iatom, &
-                                        U_Pp, max_ao_size)
-!$    USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(gw_3c_ctx_type), INTENT(IN)                   :: ctx
-      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         INTENT(IN)                                      :: phi_val
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: ao_col_map
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: d_lp
-      INTEGER, INTENT(IN)                                :: n_grid, iatom
-      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         INTENT(IN)                                      :: U_Pp
-      INTEGER, INTENT(IN)                                :: max_ao_size
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_d_lp_auto_ri_atom'
-      INTEGER, PARAMETER                                 :: grid_chunk = 1024
-
-      INTEGER :: jatom, katom, c, handle, i_thread, j, jk_idx, jsize, jstart, k, ksize, &
-                 kstart, l, l0, ncol, nRI_ref, nthreads, ri, thread_id
-      LOGICAL                                            :: screened
-      REAL(KIND=dp)                                      :: pair_factor
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: int_2d_prv, rho_chunk
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: d_lp_threads, int_3c_prv
-      TYPE(gw_3c_ws_type)                                :: ws
-
-      LOGICAL, ALLOCATABLE, DIMENSION(:, :) :: nonzero_ao
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: grid_index
-      INTEGER :: n_grid_pair, grid_l, point
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: grid_result
-
-      CALL timeset(routineN, handle)
-      ncol = SIZE(U_Pp, 2)
-      nRI_ref = get_ref_RI_size(bs_env, iatom)
-      nthreads = 1
-!$    nthreads = omp_get_max_threads()
-      CPASSERT(SIZE(d_lp, 1) == n_grid)
-      CPASSERT(SIZE(d_lp, 2) == ncol)
-      CPASSERT(SIZE(U_Pp, 1) == nRI_ref)
-      ALLOCATE (d_lp_threads(n_grid, ncol, nthreads), source=0.0_dp)
-
-      CALL compute_nonzero_AO_grid_mask(bs_env, phi_val, ao_col_map, nonzero_ao)
-
-      !$OMP PARALLEL DEFAULT(NONE) &
-      !$OMP SHARED(nonzero_ao, bs_env, ctx, phi_val, ao_col_map, d_lp, n_grid, iatom, &
-      !$OMP        U_Pp, &
-      !$OMP        max_ao_size, ncol, nRI_ref, d_lp_threads, nthreads) &
-      !$OMP PRIVATE(grid_index, n_grid_pair, grid_l, point, grid_result, &
-      !$OMP         jatom, katom, c, &
-      !$OMP         i_thread, j, jk_idx, jsize, jstart, k, ksize, &
-      !$OMP         kstart, l, l0, ri, screened, pair_factor, int_2d_prv, rho_chunk, &
-      !$OMP         int_3c_prv, ws, thread_id)
-
-      thread_id = 1
-!$    thread_id = omp_get_thread_num() + 1
-
-      CALL gw_3c_ws_create(ws, ctx)
-      ALLOCATE (int_3c_prv(max_ao_size, max_ao_size, ncol))
-      ALLOCATE (int_2d_prv(max_ao_size*max_ao_size, ncol))
-      ALLOCATE (rho_chunk(grid_chunk, max_ao_size*max_ao_size))
-      ALLOCATE (grid_index(n_grid), grid_result(grid_chunk, ncol))
-
-      !$OMP DO SCHEDULE(DYNAMIC)
-      DO jatom = 1, bs_env%n_atom
-         DO katom = jatom, bs_env%n_atom
-            jstart = ao_col_map(bs_env%i_ao_start_from_atom(jatom))
-            kstart = ao_col_map(bs_env%i_ao_start_from_atom(katom))
-            IF (jstart == 0 .OR. kstart == 0) CYCLE
-            jsize = bs_env%i_ao_end_from_atom(jatom) - bs_env%i_ao_start_from_atom(jatom) + 1
-            ksize = bs_env%i_ao_end_from_atom(katom) - bs_env%i_ao_start_from_atom(katom) + 1
-            n_grid_pair = 0
-            DO grid_l = 1, n_grid
-               IF (.NOT. (nonzero_ao(grid_l, jatom) .AND. nonzero_ao(grid_l, katom))) CYCLE
-               n_grid_pair = n_grid_pair + 1
-               grid_index(n_grid_pair) = grid_l
-            END DO
-            IF (n_grid_pair == 0) CYCLE
-            int_3c_prv(1:jsize, 1:ksize, 1:ncol) = 0.0_dp
-            CALL build_3c_integral_block_auto_ri_ctx( &
-               int_3c_prv(1:jsize, 1:ksize, 1:ncol), ctx, ws, &
-               atom_j=jatom, atom_k=katom, atom_i=iatom, &
-               transform=U_Pp, transform_row=1, screened=screened)
-            IF (screened) CYCLE
-            DO ri = 1, ncol
-               DO k = 1, ksize
-                  DO j = 1, jsize
-                     jk_idx = (k - 1)*jsize + j
-                     int_2d_prv(jk_idx, ri) = int_3c_prv(j, k, ri)
-                  END DO
-               END DO
-            END DO
-            pair_factor = 1.0_dp
-            IF (jatom /= katom) pair_factor = 2.0_dp
-            DO l0 = 1, n_grid_pair, grid_chunk
-               c = MIN(grid_chunk, n_grid_pair - l0 + 1)
-               DO k = 1, ksize
-                  DO j = 1, jsize
-                     jk_idx = (k - 1)*jsize + j
-                     DO l = 1, c
-                        point = grid_index(l0 + l - 1)
-                        rho_chunk(l, jk_idx) = phi_val(point, jstart + j - 1)* &
-                                               phi_val(point, kstart + k - 1)
-                     END DO
-                  END DO
-               END DO
-               CALL dgemm('N', 'N', c, ncol, jsize*ksize, pair_factor, rho_chunk, grid_chunk, &
-                          int_2d_prv, max_ao_size*max_ao_size, 0.0_dp, &
-                          grid_result, grid_chunk)
-               DO ri = 1, ncol
-                  DO l = 1, c
-                     point = grid_index(l0 + l - 1)
-                     d_lp_threads(point, ri, thread_id) = &
-                        d_lp_threads(point, ri, thread_id) + grid_result(l, ri)
-                  END DO
-               END DO
-            END DO
-         END DO
-      END DO
-      !$OMP END DO
-
-      !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
-      DO ri = 1, ncol
-         DO l = 1, n_grid
-            DO i_thread = 1, nthreads
-               d_lp(l, ri) = d_lp(l, ri) + d_lp_threads(l, ri, i_thread)
-            END DO
-         END DO
-      END DO
-      !$OMP END DO
-      DEALLOCATE (int_3c_prv, int_2d_prv, rho_chunk)
-      DEALLOCATE (grid_index, grid_result)
-      CALL gw_3c_ws_release(ws)
-      !$OMP END PARALLEL
-
-      DEALLOCATE (d_lp_threads)
-
-      DEALLOCATE (nonzero_ao)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE compute_d_lp_auto_ri_atom
-
-! **************************************************************************************************
 !> \brief Computes d_lp = Σ_{μνP} ϕ_μ(r_l)ϕ_ν(r_l)(μν|P)U_Pp for all AA and AB
 !>        columns p of one RI-RS matrix block. P can belong to either atom of an AB contraction.
 !> \param bs_env ...
 !> \param ctx ...
 !> \param phi_val ...
-!> \param ao_col_map ...
+!> \param ao_atoms global indices of the active AO atoms
+!> \param ao_col_start local phi column starts, including the terminal column offset
+!> \param ao_nonzero exact nonzero AO support on the retained grid rows
 !> \param d_lp ...
-!> \param n_grid ...
+!> \param ri_atoms global indices of contributing RI atoms in ascending order
 !> \param ri_coefficients ...
-!> \param active_atom ...
 !> \param max_ao_size ...
 !> \param atom_j_mepos ...
 !> \param atom_j_stride ...
 ! **************************************************************************************************
-   SUBROUTINE compute_d_lp_auto_ri_atoms(bs_env, ctx, phi_val, ao_col_map, d_lp, n_grid, &
-                                         ri_coefficients, active_atom, max_ao_size, atom_j_mepos, &
-                                         atom_j_stride)
+   SUBROUTINE compute_d_lp_auto_ri(bs_env, ctx, phi_val, ao_atoms, ao_col_start, ao_nonzero, d_lp, &
+                                   ri_atoms, ri_coefficients, max_ao_size, atom_j_mepos, &
+                                   atom_j_stride)
 !$    USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(gw_3c_ctx_type), INTENT(IN)                   :: ctx
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(IN)                                      :: phi_val
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: ao_col_map
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: ao_atoms, ao_col_start
+      LOGICAL, DIMENSION(:, :), INTENT(IN)               :: ao_nonzero
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: d_lp
-      INTEGER, INTENT(IN)                                :: n_grid
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: ri_coefficients
-      LOGICAL, DIMENSION(:), INTENT(IN)                  :: active_atom
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), INTENT(IN) :: ri_coefficients
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: ri_atoms
       INTEGER, INTENT(IN)                                :: max_ao_size, atom_j_mepos, atom_j_stride
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_d_lp_auto_ri_atoms'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_d_lp_auto_ri'
       INTEGER, PARAMETER                                 :: grid_chunk = 1024
 
-      INTEGER :: active_column, iatom, jatom, katom, c, handle, i_thread, j, jk_idx, jsize, &
+      INTEGER :: jj, kk, active_column, iatom, jatom, katom, c, handle, i_thread, j, jk_idx, jsize, &
                  jstart, k, ksize, kstart, l, l0, &
-                 max_active, nactive, ncol, nRI_ref, nthreads, ri, thread_id
+                 max_active, nactive, ncol, n_grid, nRI_ref, nthreads, ri, slot, thread_id
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_ncol
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: atom_column
-      LOGICAL                                            :: any_integral, screened
+      LOGICAL                                            :: any_integral, screened, single_atom
       REAL(KIND=dp)                                      :: pair_factor
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: int_2d_prv, rho_chunk
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: coefficient_compact, d_lp_threads, &
                                                             int_3c_prv, int_3c_atom
       TYPE(gw_3c_ws_type)                                :: ws
 
-      LOGICAL, ALLOCATABLE, DIMENSION(:, :) :: nonzero_ao
       INTEGER, ALLOCATABLE, DIMENSION(:) :: grid_index
       INTEGER :: n_grid_pair, grid_l, point
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: grid_result
 
       CALL timeset(routineN, handle)
+      n_grid = SIZE(d_lp, 1)
       ncol = SIZE(d_lp, 2)
+      single_atom = SIZE(ri_atoms) == 1
       nthreads = 1
 !$    nthreads = omp_get_max_threads()
-      CPASSERT(SIZE(d_lp, 1) == n_grid)
       CPASSERT(SIZE(ri_coefficients, 2) == ncol)
-      CPASSERT(SIZE(ri_coefficients, 3) == SIZE(active_atom))
-      ALLOCATE (atom_ncol(SIZE(active_atom)), atom_column(ncol, SIZE(active_atom)))
-      atom_ncol = 0
-      atom_column = 0
-      DO iatom = 1, SIZE(active_atom)
-         IF (.NOT. active_atom(iatom)) CYCLE
-         nRI_ref = get_ref_RI_size(bs_env, iatom)
-         DO ri = 1, ncol
-            IF (.NOT. ANY(ri_coefficients(1:nRI_ref, ri, iatom) /= 0.0_dp)) CYCLE
-            atom_ncol(iatom) = atom_ncol(iatom) + 1
-            atom_column(atom_ncol(iatom), iatom) = ri
+      CPASSERT(SIZE(ri_coefficients, 3) == SIZE(ri_atoms))
+      CPASSERT(SIZE(ri_atoms) > 0)
+      max_active = 0
+      IF (.NOT. single_atom) THEN
+         ALLOCATE (atom_ncol(SIZE(ri_atoms)), atom_column(ncol, SIZE(ri_atoms)))
+         atom_ncol = 0
+         atom_column = 0
+         DO slot = 1, SIZE(ri_atoms)
+            nRI_ref = get_ref_RI_size(bs_env, ri_atoms(slot))
+            DO ri = 1, ncol
+               IF (.NOT. ANY(ri_coefficients(1:nRI_ref, ri, slot) /= 0.0_dp)) CYCLE
+               atom_ncol(slot) = atom_ncol(slot) + 1
+               atom_column(atom_ncol(slot), slot) = ri
+            END DO
          END DO
-      END DO
-      max_active = MAXVAL(atom_ncol)
-      CPASSERT(max_active > 0)
-      ALLOCATE (coefficient_compact(SIZE(ri_coefficients, 1), max_active, &
-                                    SIZE(active_atom)), source=0.0_dp)
-      DO iatom = 1, SIZE(active_atom)
-         nRI_ref = get_ref_RI_size(bs_env, iatom)
-         DO active_column = 1, atom_ncol(iatom)
-            ri = atom_column(active_column, iatom)
-            coefficient_compact(1:nRI_ref, active_column, iatom) = &
-               ri_coefficients(1:nRI_ref, ri, iatom)
+         max_active = MAXVAL(atom_ncol)
+         CPASSERT(max_active > 0)
+         ALLOCATE (coefficient_compact(SIZE(ri_coefficients, 1), max_active, &
+                                       SIZE(ri_atoms)), source=0.0_dp)
+         DO slot = 1, SIZE(ri_atoms)
+            nRI_ref = get_ref_RI_size(bs_env, ri_atoms(slot))
+            DO active_column = 1, atom_ncol(slot)
+               ri = atom_column(active_column, slot)
+               coefficient_compact(1:nRI_ref, active_column, slot) = &
+                  ri_coefficients(1:nRI_ref, ri, slot)
+            END DO
          END DO
-      END DO
+      END IF
       ALLOCATE (d_lp_threads(n_grid, ncol, nthreads), source=0.0_dp)
 
-      CALL compute_nonzero_AO_grid_mask(bs_env, phi_val, ao_col_map, nonzero_ao)
-
       !$OMP PARALLEL DEFAULT(NONE) &
-      !$OMP SHARED(nonzero_ao, bs_env, ctx, phi_val, ao_col_map, d_lp, n_grid, ri_coefficients, &
-      !$OMP        active_atom, max_ao_size, atom_j_mepos, atom_j_stride, ncol, &
+      !$OMP SHARED(bs_env, ctx, phi_val, ao_atoms, ao_col_start, ao_nonzero, d_lp, n_grid, ri_coefficients, &
+      !$OMP        ri_atoms, single_atom, max_ao_size, atom_j_mepos, atom_j_stride, ncol, &
       !$OMP        d_lp_threads, nthreads, atom_ncol, &
       !$OMP        atom_column, coefficient_compact, max_active) &
       !$OMP PRIVATE(grid_index, n_grid_pair, grid_l, point, grid_result, &
-      !$OMP         active_column, iatom, jatom, katom, c, i_thread, j, jk_idx, jsize, jstart, &
+      !$OMP         jj, kk, active_column, iatom, jatom, katom, c, i_thread, j, jk_idx, jsize, jstart, &
       !$OMP         k, ksize, kstart, l, l0, &
-      !$OMP         nactive, nRI_ref, ri, any_integral, screened, pair_factor, &
+      !$OMP         nactive, nRI_ref, ri, slot, any_integral, screened, pair_factor, &
       !$OMP         int_2d_prv, rho_chunk, &
       !$OMP         int_3c_prv, int_3c_atom, ws, thread_id)
 
@@ -1705,49 +1514,62 @@ CONTAINS
 
       CALL gw_3c_ws_create(ws, ctx)
       ALLOCATE (int_3c_prv(max_ao_size, max_ao_size, ncol))
-      ALLOCATE (int_3c_atom(max_ao_size, max_ao_size, max_active))
+      IF (.NOT. single_atom) ALLOCATE (int_3c_atom(max_ao_size, max_ao_size, max_active))
       ALLOCATE (int_2d_prv(max_ao_size*max_ao_size, ncol))
       ALLOCATE (rho_chunk(grid_chunk, max_ao_size*max_ao_size))
       ALLOCATE (grid_index(n_grid), grid_result(grid_chunk, ncol))
 
       !$OMP DO SCHEDULE(DYNAMIC)
-      DO jatom = atom_j_mepos + 1, bs_env%n_atom, atom_j_stride
-         DO katom = jatom, bs_env%n_atom
-            jstart = ao_col_map(bs_env%i_ao_start_from_atom(jatom))
-            kstart = ao_col_map(bs_env%i_ao_start_from_atom(katom))
-            IF (jstart == 0 .OR. kstart == 0) CYCLE
-            jsize = bs_env%i_ao_end_from_atom(jatom) - bs_env%i_ao_start_from_atom(jatom) + 1
-            ksize = bs_env%i_ao_end_from_atom(katom) - bs_env%i_ao_start_from_atom(katom) + 1
+      DO jj = 1, SIZE(ao_atoms)
+         jatom = ao_atoms(jj)
+         IF (MOD(jatom - 1, atom_j_stride) /= atom_j_mepos) CYCLE
+         DO kk = jj, SIZE(ao_atoms)
+            katom = ao_atoms(kk)
+            jstart = ao_col_start(jj)
+            kstart = ao_col_start(kk)
+            jsize = ao_col_start(jj + 1) - jstart
+            ksize = ao_col_start(kk + 1) - kstart
+
             n_grid_pair = 0
             DO grid_l = 1, n_grid
-               IF (.NOT. (nonzero_ao(grid_l, jatom) .AND. nonzero_ao(grid_l, katom))) CYCLE
+               IF (.NOT. (ao_nonzero(grid_l, jj) .AND. ao_nonzero(grid_l, kk))) CYCLE
                n_grid_pair = n_grid_pair + 1
                grid_index(n_grid_pair) = grid_l
             END DO
             IF (n_grid_pair == 0) CYCLE
             int_3c_prv(1:jsize, 1:ksize, 1:ncol) = 0.0_dp
-            any_integral = .FALSE.
-            DO iatom = 1, SIZE(active_atom)
-               IF (.NOT. active_atom(iatom)) CYCLE
-               nRI_ref = get_ref_RI_size(bs_env, iatom)
-               nactive = atom_ncol(iatom)
-               int_3c_atom(1:jsize, 1:ksize, 1:nactive) = 0.0_dp
+            IF (single_atom) THEN
+               ! A single contributor writes the transformed block without packing or scattering.
                CALL build_3c_integral_block_auto_ri_ctx( &
-                  int_3c_atom(1:jsize, 1:ksize, 1:nactive), ctx, ws, &
-                  atom_j=jatom, atom_k=katom, atom_i=iatom, &
-                  transform=coefficient_compact(1:nRI_ref, 1:nactive, iatom), &
-                  transform_row=1, screened=screened)
-               IF (.NOT. screened) THEN
-                  any_integral = .TRUE.
-                  DO active_column = 1, nactive
-                     ri = atom_column(active_column, iatom)
-                     int_3c_prv(1:jsize, 1:ksize, ri) = &
-                        int_3c_prv(1:jsize, 1:ksize, ri) + &
-                        int_3c_atom(1:jsize, 1:ksize, active_column)
-                  END DO
-               END IF
-            END DO
-            IF (.NOT. any_integral) CYCLE
+                  int_3c_prv(1:jsize, 1:ksize, 1:ncol), ctx, ws, &
+                  atom_j=jatom, atom_k=katom, atom_i=ri_atoms(1), &
+                  transform=ri_coefficients(:, :, 1), transform_row=1, screened=screened)
+               IF (screened) CYCLE
+            ELSE
+               any_integral = .FALSE.
+               DO slot = 1, SIZE(ri_atoms)
+                  iatom = ri_atoms(slot)
+                  nactive = atom_ncol(slot)
+                  IF (nactive == 0) CYCLE
+                  nRI_ref = get_ref_RI_size(bs_env, iatom)
+                  int_3c_atom(1:jsize, 1:ksize, 1:nactive) = 0.0_dp
+                  CALL build_3c_integral_block_auto_ri_ctx( &
+                     int_3c_atom(1:jsize, 1:ksize, 1:nactive), ctx, ws, &
+                     atom_j=jatom, atom_k=katom, atom_i=iatom, &
+                     transform=coefficient_compact(1:nRI_ref, 1:nactive, slot), &
+                     transform_row=1, screened=screened)
+                  IF (.NOT. screened) THEN
+                     any_integral = .TRUE.
+                     DO active_column = 1, nactive
+                        ri = atom_column(active_column, slot)
+                        int_3c_prv(1:jsize, 1:ksize, ri) = &
+                           int_3c_prv(1:jsize, 1:ksize, ri) + &
+                           int_3c_atom(1:jsize, 1:ksize, active_column)
+                     END DO
+                  END IF
+               END DO
+               IF (.NOT. any_integral) CYCLE
+            END IF
 
             DO ri = 1, ncol
                DO k = 1, ksize
@@ -1796,38 +1618,41 @@ CONTAINS
          END DO
       END DO
       !$OMP END DO
-      DEALLOCATE (int_3c_prv, int_3c_atom, int_2d_prv, rho_chunk)
+      IF (.NOT. single_atom) DEALLOCATE (int_3c_atom)
+      DEALLOCATE (int_3c_prv, int_2d_prv, rho_chunk)
       DEALLOCATE (grid_index, grid_result)
       CALL gw_3c_ws_release(ws)
       !$OMP END PARALLEL
 
-      DEALLOCATE (coefficient_compact, d_lp_threads, atom_column, atom_ncol)
-
-      DEALLOCATE (nonzero_ao)
+      IF (.NOT. single_atom) DEALLOCATE (coefficient_compact, atom_column, atom_ncol)
+      DEALLOCATE (d_lp_threads)
 
       CALL timestop(handle)
 
-   END SUBROUTINE compute_d_lp_auto_ri_atoms
+   END SUBROUTINE compute_d_lp_auto_ri
 
 ! **************************************************************************************************
 !> \brief Computes d_lp = Σ_A Σ_{P∈A} d_lP U_Pp in rank-sized batches on a common grid.
 !> \param bs_env ...
 !> \param ctx ...
 !> \param phi_val ...
-!> \param ao_col_map ...
+!> \param ao_atoms global indices of the active AO atoms
+!> \param ao_col_start local phi column starts, including the terminal column offset
+!> \param ao_nonzero exact nonzero AO support on the retained grid rows
 !> \param d_lp ...
 !> \param n_grid ...
 !> \param max_ao_size ...
 !> \param mepos ...
 !> \param num_pe ...
 ! **************************************************************************************************
-   SUBROUTINE compute_d_lp_auto_ri_batch(bs_env, ctx, phi_val, ao_col_map, d_lp, n_grid, &
+   SUBROUTINE compute_d_lp_auto_ri_batch(bs_env, ctx, phi_val, ao_atoms, ao_col_start, ao_nonzero, d_lp, n_grid, &
                                          max_ao_size, mepos, num_pe)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(gw_3c_ctx_type), INTENT(IN)                   :: ctx
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(IN)                                      :: phi_val
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: ao_col_map
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: ao_atoms, ao_col_start
+      LOGICAL, DIMENSION(:, :), INTENT(IN)               :: ao_nonzero
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: d_lp
       INTEGER, INTENT(IN)                                :: n_grid, max_ao_size, mepos, num_pe
 
@@ -1837,7 +1662,8 @@ CONTAINS
                                                             ncol_batch
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: global_map
       REAL(KIND=dp)                                      :: item_start_time
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: d_lp_batch, U_Pp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: d_lp_batch
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: U_Pp
 
       CALL timeset(routineN, handle)
 
@@ -1860,8 +1686,8 @@ CONTAINS
          END IF
 
          ALLOCATE (d_lp_batch(n_grid, ncol_batch), source=0.0_dp)
-         CALL compute_d_lp_auto_ri_atom(bs_env, ctx, phi_val, ao_col_map, d_lp_batch, &
-                                        n_grid, iatom, U_Pp, max_ao_size)
+         CALL compute_d_lp_auto_ri(bs_env, ctx, phi_val, ao_atoms, ao_col_start, ao_nonzero, d_lp_batch, &
+                                   [iatom], U_Pp, max_ao_size, 0, 1)
          DO column = 1, ncol_batch
             d_lp(:, global_map(column)) = d_lp(:, global_map(column)) + d_lp_batch(:, column)
          END DO
@@ -1888,7 +1714,7 @@ CONTAINS
    SUBROUTINE collect_auto_ri_columns_for_atom(bs_env, iatom, U_Pp, global_map)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       INTEGER, INTENT(IN)                                :: iatom
-      REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: U_Pp(:, :)
+      REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: U_Pp(:, :, :)
       INTEGER, ALLOCATABLE, INTENT(OUT)                  :: global_map(:)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'collect_auto_ri_columns_for_atom'
@@ -1909,7 +1735,7 @@ CONTAINS
       END DO
 
       nRI_ref = get_ref_RI_size(bs_env, iatom)
-      ALLOCATE (U_Pp(nRI_ref, ncol_batch), source=0.0_dp)
+      ALLOCATE (U_Pp(nRI_ref, ncol_batch, 1), source=0.0_dp)
       ALLOCATE (global_map(ncol_batch))
       column = 0
       DO AB_block = 1, bs_env%auto_ri%AB_block_count
@@ -1923,7 +1749,7 @@ CONTAINS
             nRI_ref_A = get_ref_RI_size(bs_env, atom_A)
             row_first = 1 + nRI_ref_A
          END IF
-         U_Pp(:, column + 1:column + ncol) = &
+         U_Pp(:, column + 1:column + ncol, 1) = &
             U_Pp_AB( &
             row_first:row_first + nRI_ref - 1, 1:ncol)
 
@@ -2048,15 +1874,17 @@ CONTAINS
       INTEGER :: AB_block, atom_A, atom_B, first, fit_atom, handle, handle_project, handle_rhs, l, &
          last, n_done, n_first_p_ABs, n_to_a, n_total, n_union, natom, ncol, ngrid, npcol, nprow, &
          ri_atom
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_map, global_map, local_index, &
-                                                            row_offset, union_index
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_atoms, ao_col_start, global_map, &
+                                                            local_index, row_offset, union_index
       INTEGER, DIMENSION(:), POINTER                     :: AB_row_dist, col_dist, &
                                                             first_p_ABs_per_atom, retained_size, &
                                                             row_dist, row_size
+      LOGICAL, ALLOCATABLE                               :: ao_nonzero(:, :)
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: needed_fit_atom, union_mask
       REAL(KIND=dp)                                      :: item_start_time, radius
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: fit_radius
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: column_map, phi, rhs, U_Pp, union_grid
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: column_map, phi, rhs, union_grid
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: U_Pp
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_distribution_type)                      :: dist_AB, dist_phi, dist_t
       TYPE(dbcsr_type)                                   :: AB_d_lp, transform
@@ -2152,8 +1980,8 @@ CONTAINS
             union_grid(:, n_union) = grid(:, l)
          END DO
          CALL build_phi_on_sphere(bs_env, qs_kind_set, union_grid, ri_atom, &
-                                  radius + 1.0_dp, bs_env%i_ao_end_from_atom(natom), local_index, &
-                                  ngrid, phi, ao_map)
+                                  radius + 1.0_dp, local_index, ngrid, phi, ao_atoms, ao_col_start, &
+                                  ao_nonzero=ao_nonzero)
          local_index(1:ngrid) = union_index(local_index(1:ngrid))
          n_first_p_ABs = first_p_ABs_per_atom(ri_atom)
          CALL collect_auto_ri_columns_for_atom(bs_env, ri_atom, U_Pp, global_map)
@@ -2174,11 +2002,12 @@ CONTAINS
             first = last + 1
          END DO
          ALLOCATE (rhs(ngrid, n_first_p_ABs), source=0.0_dp)
-         CALL compute_d_lp_auto_ri_atom(bs_env, ctx, phi, ao_map, rhs, ngrid, &
-                                        ri_atom, U_Pp, max_ao_size)
+         CALL compute_d_lp_auto_ri(bs_env, ctx, phi, ao_atoms, ao_col_start, ao_nonzero, rhs, &
+                                   [ri_atom], U_Pp, max_ao_size, 0, 1)
+         DEALLOCATE (ao_atoms, ao_col_start, ao_nonzero)
          CALL store_Z_lP_columns(AB_d_lp, rhs, local_index, ngrid, n_first_p_ABs, ri_atom, &
                                  row_size, row_offset, 0.0_dp)
-         DEALLOCATE (rhs, U_Pp, global_map, phi, ao_map, local_index, &
+         DEALLOCATE (rhs, U_Pp, global_map, phi, local_index, &
                      union_grid, union_index)
          n_done = n_done + 1
          CALL print_Z_lP_progress(bs_env, n_done, n_total, &
@@ -2261,9 +2090,8 @@ CONTAINS
                                                             handle_gather, i, mypcol, n_big, &
                                                             n_small, natom, ncol, ngrid, npcol, &
                                                             slot
-      INTEGER, ALLOCATABLE                               :: all_index(:), ao_map(:), big_list(:), &
-                                                            grid_size(:), local_index(:), &
-                                                            row_offset(:), small_list(:)
+      INTEGER, ALLOCATABLE :: all_index(:), ao_atoms(:), ao_col_start(:), big_list(:), &
+         grid_size(:), local_index(:), row_offset(:), small_list(:)
       INTEGER, POINTER                                   :: row_size(:)
       LOGICAL, ALLOCATABLE                               :: single_rank(:)
       REAL(KIND=dp), ALLOCATABLE                         :: atom_rhs(:, :), buffer(:, :), &
@@ -2317,8 +2145,8 @@ CONTAINS
          ncol = bs_env%auto_ri%sizes_opt_RI(atom_index)
          IF (ncol == 0) CYCLE
          CALL build_phi_on_sphere(bs_env, qs_kinds, grid, atom_index, &
-                                  radius(atom_index), bs_env%i_ao_end_from_atom(natom), &
-                                  local_index, ngrid, phi, ao_map)
+                                  radius(atom_index), local_index, ngrid, phi, ao_atoms, ao_col_start)
+         DEALLOCATE (ao_atoms, ao_col_start)
          ALLOCATE (local_rhs(ngrid, ncol))
          DO i = 1, ngrid
             local_rhs(i, :) = atom_rhs(local_index(i), :)
@@ -2327,7 +2155,7 @@ CONTAINS
          CALL solve_ri_rs_fit(phi, local_rhs, bs_env%ri_rs%tikhonov)
          CALL store_Z_lP_columns(mat_z, local_rhs, local_index, ngrid, ncol, atom_index, &
                                  row_size, row_offset, 0.0_dp)
-         DEALLOCATE (local_rhs, phi, ao_map, local_index)
+         DEALLOCATE (local_rhs, phi, local_index)
       END DO
       IF (n_big > 0) THEN
          CALL fit_distributed_auto_ri_z_lp(qs_env, bs_env, grid, mat_rhs, mat_z, radius, &
@@ -2372,7 +2200,8 @@ CONTAINS
 
       INTEGER                                            :: atom_index, base, handle, i, my_group, &
                                                             ncol, ngrid, ngroups, root, slot
-      INTEGER, ALLOCATABLE                               :: ao_map(:), local_index(:)
+      INTEGER, ALLOCATABLE                               :: ao_atoms(:), ao_col_start(:), &
+                                                            local_index(:)
       REAL(KIND=dp), ALLOCATABLE                         :: atom_rhs(:, :), buffer(:, :), &
                                                             local_rhs(:, :), phi(:, :)
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -2410,8 +2239,8 @@ CONTAINS
          IF (group_env%mepos /= 0) ALLOCATE (atom_rhs(SIZE(grid, 2), ncol))
          CALL group_env%bcast(atom_rhs, 0)
          CALL build_phi_on_sphere(bs_env, qs_kinds, grid, atom_index, &
-                                  radius(atom_index), bs_env%i_ao_end_from_atom(bs_env%n_atom), &
-                                  local_index, ngrid, phi, ao_map)
+                                  radius(atom_index), local_index, ngrid, phi, ao_atoms, ao_col_start)
+         DEALLOCATE (ao_atoms, ao_col_start)
          ALLOCATE (local_rhs(ngrid, ncol))
          DO i = 1, ngrid
             local_rhs(i, :) = atom_rhs(local_index(i), :)
@@ -2422,7 +2251,7 @@ CONTAINS
             CALL store_Z_lP_columns(mat_z, local_rhs, local_index, ngrid, ncol, atom_index, &
                                     row_size, row_offset, 0.0_dp)
          END IF
-         DEALLOCATE (local_rhs, phi, ao_map, local_index)
+         DEALLOCATE (local_rhs, phi, local_index)
       END DO
       CALL cp_blacs_env_release(blacs_env)
       CALL group_env%free()
@@ -2623,37 +2452,39 @@ CONTAINS
 !> \param ri_rs_grid_points ...
 !> \param atom_P ...
 !> \param cutoff_ri ...
-!> \param n_ao_total ...
 !> \param local_grid_idx ...
 !> \param n_local_grid ...
 !> \param phi_local ...
-!> \param ao_col_map ...
+!> \param ao_atoms global indices of the active AO atoms
+!> \param ao_col_start local phi column starts, including the terminal column offset
 !> \param center ...
 !> \param periodic_images select Gamma image-summed AO values and minimum-image sphere distances
+!> \param ao_nonzero exact nonzero AO support on the retained grid rows
 ! **************************************************************************************************
    SUBROUTINE build_phi_on_sphere(bs_env, qs_kind_set, ri_rs_grid_points, &
-                                  atom_P, cutoff_ri, n_ao_total, local_grid_idx, n_local_grid, &
-                                  phi_local, ao_col_map, center, periodic_images)
+                                  atom_P, cutoff_ri, local_grid_idx, n_local_grid, &
+                                  phi_local, ao_atoms, ao_col_start, center, periodic_images, ao_nonzero)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ri_rs_grid_points
       INTEGER, INTENT(IN)                                :: atom_P
       REAL(KIND=dp), INTENT(IN)                          :: cutoff_ri
-      INTEGER, INTENT(IN)                                :: n_ao_total
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: local_grid_idx
       INTEGER, INTENT(OUT)                               :: n_local_grid
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: phi_local
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: ao_col_map
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: ao_atoms, ao_col_start
       REAL(KIND=dp), DIMENSION(3), INTENT(IN), OPTIONAL  :: center
       LOGICAL, INTENT(IN), OPTIONAL                      :: periodic_images
+      LOGICAL, ALLOCATABLE, INTENT(OUT), OPTIONAL        :: ao_nonzero(:, :)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_phi_on_sphere'
 
-      INTEGER                                            :: col_end, col_start, handle, j, k, l, &
-                                                            loc_idx, n_ao_used, n_grid_total, &
-                                                            n_keep, ri_atom
+      INTEGER                                            :: col_end, col_start, handle, iactive, j, &
+                                                            k, l, loc_idx, n_active, n_ao_used, &
+                                                            n_grid_total, n_keep, ri_atom
+      INTEGER, ALLOCATABLE                               :: atom_candidates(:)
       LOGICAL                                            :: sum_images
       REAL(KIND=dp)                                      :: d_sP, dist, r2_threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: w_pt
@@ -2702,33 +2533,34 @@ CONTAINS
          sphere_grid(:, loc_idx) = ri_rs_grid_points(:, local_grid_idx(loc_idx))
       END DO
 
-      ! Only AOs on atoms that reach into the sphere can be non-zero here
-      ALLOCATE (ao_col_map(n_ao_total))
-      ao_col_map(:) = 0
-      n_ao_used = 0
+      ! Keep atoms in global order; phi columns are contiguous within each active atom.
+      ALLOCATE (atom_candidates(bs_env%n_atom))
+      n_active = 0
       DO ri_atom = 1, bs_env%n_atom
          displacement = particle_set(ri_atom)%r - pos_P
          IF (sum_images) displacement = pbc(particle_set(ri_atom)%r, pos_P, cell)
          d_sP = NORM2(displacement)
          IF (d_sP > bs_env%ri_rs%radius_ao_per_atom(ri_atom) + cutoff_ri) CYCLE
-
-         DO j = bs_env%i_ao_start_from_atom(ri_atom), bs_env%i_ao_end_from_atom(ri_atom)
-            n_ao_used = n_ao_used + 1
-            ao_col_map(j) = n_ao_used
-         END DO
+         IF (bs_env%i_ao_end_from_atom(ri_atom) < bs_env%i_ao_start_from_atom(ri_atom)) CYCLE
+         n_active = n_active + 1
+         atom_candidates(n_active) = ri_atom
       END DO
+      ALLOCATE (ao_atoms(n_active), SOURCE=atom_candidates(:n_active))
+      DEALLOCATE (atom_candidates)
+      ALLOCATE (ao_col_start(n_active + 1))
+      ao_col_start(1) = 1
+      DO iactive = 1, n_active
+         ri_atom = ao_atoms(iactive)
+         ao_col_start(iactive + 1) = ao_col_start(iactive) + &
+                                     bs_env%i_ao_end_from_atom(ri_atom) - bs_env%i_ao_start_from_atom(ri_atom) + 1
+      END DO
+      n_ao_used = ao_col_start(n_active + 1) - 1
+      ALLOCATE (phi_local(n_local_grid, n_ao_used), SOURCE=0.0_dp)
 
-      ALLOCATE (phi_local(n_local_grid, n_ao_used))
-      phi_local = 0.0_dp
-
-      DO ri_atom = 1, bs_env%n_atom
-         displacement = particle_set(ri_atom)%r - pos_P
-         IF (sum_images) displacement = pbc(particle_set(ri_atom)%r, pos_P, cell)
-         d_sP = NORM2(displacement)
-         IF (d_sP > bs_env%ri_rs%radius_ao_per_atom(ri_atom) + cutoff_ri) CYCLE
-
-         col_start = ao_col_map(bs_env%i_ao_start_from_atom(ri_atom))
-         col_end = ao_col_map(bs_env%i_ao_end_from_atom(ri_atom))
+      DO iactive = 1, n_active
+         ri_atom = ao_atoms(iactive)
+         col_start = ao_col_start(iactive)
+         col_end = ao_col_start(iactive + 1) - 1
          ! A positive CUTOFF_RADIUS_RI_AO overrides the per-atom Gaussian radius
          ! with a user-defined hard cutoff.
          IF (.NOT. sum_images .AND. bs_env%ri_rs%cutoff_radius_ri_ao > 0.0_dp) THEN
@@ -2779,6 +2611,22 @@ CONTAINS
             n_local_grid = n_keep
          END IF
          DEALLOCATE (w_pt)
+      END IF
+
+      IF (PRESENT(ao_nonzero)) THEN
+         ! Build support on the final retained rows, once for all RHS contractions using phi.
+         ALLOCATE (ao_nonzero(n_local_grid, n_active), SOURCE=.FALSE.)
+         !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+         !$OMP SHARED(n_active, n_local_grid, ao_col_start, phi_local, ao_nonzero) &
+         !$OMP PRIVATE(iactive, j, l)
+         DO iactive = 1, n_active
+            DO j = ao_col_start(iactive), ao_col_start(iactive + 1) - 1
+               DO l = 1, n_local_grid
+                  ao_nonzero(l, iactive) = ao_nonzero(l, iactive) .OR. phi_local(l, j) /= 0.0_dp
+               END DO
+            END DO
+         END DO
+         !$OMP END PARALLEL DO
       END IF
 
       CALL timestop(handle)
