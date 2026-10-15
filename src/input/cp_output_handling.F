@@ -54,6 +54,7 @@ MODULE cp_output_handling
                                               mp_file_get_amode,&
                                               mp_file_type
    USE string_utilities,                ONLY: compress,&
+                                              newline,&
                                               s2a
 #include "../base/base_uses.f90"
 
@@ -166,11 +167,12 @@ CONTAINS
 !> \param unit_str specifies an unit of measure for output quantity. If not
 !>        provided the control is totally left to how the output was coded
 !>        (i.e. USERS have no possibility to change it)
+!> \param do_backup if the BACKUP_COPIES keyword should be added to allow for backup
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE cp_print_key_section_create(print_key_section, location, name, description, &
                                           print_level, each_iter_names, each_iter_values, add_last, filename, &
-                                          common_iter_levels, citations, unit_str)
+                                          common_iter_levels, citations, unit_str, do_backup)
       TYPE(section_type), POINTER                        :: print_key_section
       CHARACTER(len=*), INTENT(IN)                       :: location, name, description
       INTEGER, INTENT(IN), OPTIONAL                      :: print_level
@@ -182,18 +184,21 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: common_iter_levels
       INTEGER, DIMENSION(:), OPTIONAL                    :: citations
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: unit_str
+      LOGICAL, OPTIONAL                                  :: do_backup
 
       CHARACTER(len=default_path_length)                 :: my_filename
       INTEGER                                            :: i_each, i_iter, my_add_last, &
                                                             my_comm_iter_levels, my_print_level, &
                                                             my_value
-      LOGICAL                                            :: check, ext_each
+      LOGICAL                                            :: check, ext_each, my_do_backup
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(print_key_section))
       my_print_level = debug_print_level
       IF (PRESENT(print_level)) my_print_level = print_level
+      my_do_backup = .FALSE.
+      IF (PRESENT(do_backup)) my_do_backup = do_backup
 
       CALL section_create(print_key_section, location=location, name=name, description=description, &
                           n_keywords=2, n_subsections=0, repeats=.FALSE., &
@@ -290,16 +295,15 @@ CONTAINS
       my_filename = ""
       IF (PRESENT(filename)) my_filename = filename
       CALL keyword_create(keyword, __LOCATION__, name="FILENAME", &
-                          description=' Controls part of the filename for output. '// &
-                          ' Use __STD_OUT__ (exactly as written here) for the screen or standard logger. '// &
-                          ' Use filename to obtain projectname-filename. '// &
-                          ' Use ./filename to get filename.'// &
-                          ' A middle name (if present), iteration numbers'// &
-                          ' and extension are always added to the filename.'// &
-                          ' If you want to avoid it use =filename, in this'// &
-                          ' case the filename is always exactly as typed.'// &
-                          ' Please note that this can lead to clashes of'// &
-                          ' filenames.', &
+                          description="Controls part of the filename for output."//newline//newline// &
+                          "* Use `__STD_OUT__` (exactly as written here) for the screen or "// &
+                          "standard logger (stdout)."//newline// &
+                          "* Use `filename` to obtain `projectname-filename` with "// &
+                          "`projectname` defined by &GLOBAL/PROJECT_NAME."//newline// &
+                          "* Use `./filename` to get a filename with a middle name (if present), "// &
+                          "iteration numbers and extension always added to the filename."//newline// &
+                          "* Use `=filename` to get `filename` always exactly as typed, but "// &
+                          "please note that this can lead to clashes of filenames.", &
                           usage="FILENAME ./filename ", &
                           default_lc_val=my_filename)
       CALL section_add_keyword(print_key_section, keyword)
@@ -317,6 +321,20 @@ CONTAINS
                              description='Specify the unit of measurement for the quantity in output. '// &
                              "All available CP2K units can be used.", &
                              usage="UNIT angstrom", default_c_val=TRIM(unit_str))
+         CALL section_add_keyword(print_key_section, keyword)
+         CALL keyword_release(keyword)
+      END IF
+
+      IF (my_do_backup) THEN
+         CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
+                             description="Specifies the maximum number of backup copies preserved "// &
+                             "when iterations will repeatedly print to the same filename. If set to "// &
+                             "N > 0, the files will be automatically rotated by appending a suffix: "// &
+                             "the most recent print is `{filename}` (defined by FILENAME keyword), "// &
+                             "the last one is moved to `{filename}.bak-1`, the second to last moved "// &
+                             "to `{filename}.bak-2`, ..., up to `{filename}.bak-N`. Set to 0 to "// &
+                             "disable backup preservation and rewrite always the same `{filename}`.", &
+                             usage="BACKUP_COPIES {int}", default_i_val=1)
          CALL section_add_keyword(print_key_section, keyword)
          CALL keyword_release(keyword)
       END IF

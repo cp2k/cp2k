@@ -212,26 +212,14 @@ CONTAINS
                                        "in the main vibrational analysis output", &
                                        print_level=low_print_level, &
                                        add_last=add_last_numeric, &
-                                       filename="VIBRATIONS")
-      CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
-                          description="Specifies the maximum number of backup copies.", &
-                          usage="BACKUP_COPIES {int}", &
-                          default_i_val=1)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
+                                       filename="VIBRATIONS", do_backup=.TRUE.)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="NAMD_PRINT", &
                                        description="Adjust cartesian eigenvalues / vectors to NewtonX format.", &
                                        print_level=debug_print_level + 1, add_last=add_last_numeric, &
-                                       filename="FullNormalizedCartesian")
-      CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
-                          description="Specifies the maximum number of backup copies.", &
-                          usage="BACKUP_COPIES {int}", &
-                          default_i_val=1)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
+                                       filename="FullNormalizedCartesian", do_backup=.TRUE.)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 

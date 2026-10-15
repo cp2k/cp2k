@@ -2955,13 +2955,7 @@ CONTAINS
                                        "(Gaussian cube file format)", &
                                        each_iter_names=s2a("PINT"), each_iter_values=[100], &
                                        print_level=medium_print_level, common_iter_levels=1, &
-                                       add_last=add_last_numeric)
-      CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
-                          description="Specifies the maximum number of backup copies.", &
-                          usage="BACKUP_COPIES {int}", &
-                          default_i_val=1)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
+                                       add_last=add_last_numeric, do_backup=.TRUE.)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
       !
