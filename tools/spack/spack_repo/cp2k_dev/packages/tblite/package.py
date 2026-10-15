@@ -26,6 +26,9 @@ class Tblite(CMakePackage):
     version("0.4.0", sha256="5c2249b568bfd3b987d3b28f2cbfddd5c37f675b646e17c1e750428380af464b")
     version("0.3.0", sha256="46d77c120501ac55ed6a64dea8778d6593b26fb0653c591f8e8c985e35884f0a")
 
+    # Same upstream #395 backport as the CP2K toolchain.
+    patch("tblite-ko-ewald.patch", when="@0.7.0")
+
     variant("shared", default=True, description="Build shared libraries")
     variant("openmp", default=True, description="Use OpenMP parallelisation")
     variant("trexio", default=False, description="Enable TREXIO support", when="@0.7.0:")
