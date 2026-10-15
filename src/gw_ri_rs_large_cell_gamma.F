@@ -29,10 +29,6 @@ MODULE gw_ri_rs_large_cell_Gamma
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
-   USE ri_rs_fitting,     ONLY: build_gram_jacobi_blas,&
-                                              scale_rows_by_diag,&
-                                              store_Z_lP_columns
-   USE ri_rs_grid_setup,        ONLY: setup_ri_rs_grid
    USE gw_tensor_large_cell_Gamma,      ONLY: G_occ_vir,&
                                               compute_QP_energies,&
                                               delete_unnecessary_files,&
@@ -58,6 +54,10 @@ MODULE gw_ri_rs_large_cell_Gamma
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE ri_rs_fitting,                   ONLY: build_gram_jacobi_blas,&
+                                              scale_rows_by_diag,&
+                                              store_Z_lP_columns
+   USE ri_rs_grid_setup,                ONLY: setup_ri_rs_grid
    USE ri_rs_matrices,                  ONLY: atomic_basis_at_grid_point,&
                                               release_dbcsr_topology_and_matrices,&
                                               setup_square_topology

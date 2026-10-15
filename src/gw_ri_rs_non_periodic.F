@@ -36,8 +36,6 @@ MODULE gw_ri_rs_non_periodic
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE ri_rs_setup,           ONLY: compute_Z_lP
-   USE ri_rs_grid_setup,        ONLY: setup_ri_rs_grid
    USE gw_tensor_large_cell_Gamma,      ONLY: Fourier_transform_w_to_t,&
                                               G_occ_vir,&
                                               compute_fm_chi_Gamma_freq,&
@@ -72,9 +70,11 @@ MODULE gw_ri_rs_non_periodic
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
+   USE ri_rs_grid_setup,                ONLY: setup_ri_rs_grid
    USE ri_rs_matrices,                  ONLY: atomic_basis_at_grid_point,&
                                               release_dbcsr_topology_and_matrices,&
                                               setup_square_topology
+   USE ri_rs_setup,                     ONLY: compute_Z_lP
    USE ri_rs_utils,                     ONLY: precompute_ri_rs_radii
    USE time_frequency_grids,            ONLY: negative_time,&
                                               positive_time,&
