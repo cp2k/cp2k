@@ -51,7 +51,7 @@ MODULE force_fields_input
                                               legendre_data_type
    USE force_field_types,               ONLY: force_field_type,&
                                               input_info_type
-   USE input_cp2k_function,             ONLY: parse_function_section
+   USE generic_function_input,          ONLY: parse_function_section
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_list_get,&

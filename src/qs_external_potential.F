@@ -22,7 +22,7 @@ MODULE qs_external_potential
                                               finalizef,&
                                               initf,&
                                               parsef
-   USE input_cp2k_function,             ONLY: parse_function_section
+   USE generic_function_input,          ONLY: parse_function_section
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: default_path_length,&

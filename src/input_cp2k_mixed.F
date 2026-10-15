@@ -20,13 +20,13 @@ MODULE input_cp2k_mixed
                                               cp_print_key_section_create,&
                                               low_print_level,&
                                               medium_print_level
+   USE generic_function_input,          ONLY: create_function_section
    USE input_constants,                 ONLY: mix_cdft,&
                                               mix_coupled,&
                                               mix_generic,&
                                               mix_linear_combination,&
                                               mix_minimum,&
                                               mix_restrained
-   USE input_cp2k_function,             ONLY: create_function_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -67,7 +67,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="MIXED", &
                           description="This section contains all information to run with a hamiltonian "// &
-                          "defined by a mixing of force_evals", &
+                          "defined by a mixing of force_evals. See also the MULTIPLE_FORCE_EVALS section.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
 
@@ -363,7 +363,7 @@ CONTAINS
                                    "change method is requested with MOTION/FREE_ENERGY/ALCHEMICAL_CHANGE. "// &
                                    "To allow an efficient mapping the order of the energy variables "// &
                                    "will be considered identical to the order of the force_eval in "// &
-                                   "the force_eval_order list.", do_deriv=.TRUE.)
+                                   "the MULTIPLE_FORCE_EVALS/FORCE_EVAL_ORDER list.", do_deriv=.TRUE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

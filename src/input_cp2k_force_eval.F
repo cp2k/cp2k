@@ -19,6 +19,7 @@ MODULE input_cp2k_force_eval
                                               low_print_level,&
                                               medium_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
+   USE generic_function_input,          ONLY: create_function_section
    USE input_constants,                 ONLY: &
         do_eip, do_embed, do_fist, do_ipi, do_mixed, do_nnp, do_qmmm, do_qs, do_sirius, &
         do_stress_analytical, do_stress_diagonal_anal, do_stress_diagonal_numer, do_stress_none, &
@@ -27,7 +28,6 @@ MODULE input_cp2k_force_eval
                                               create_dft_section
    USE input_cp2k_eip,                  ONLY: create_eip_section
    USE input_cp2k_embed,                ONLY: create_embed_section
-   USE input_cp2k_function,             ONLY: create_function_section
    USE input_cp2k_mixed,                ONLY: create_mix_section
    USE input_cp2k_mm,                   ONLY: create_mm_section
    USE input_cp2k_nnp,                  ONLY: create_nnp_section

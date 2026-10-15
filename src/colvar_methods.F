@@ -54,12 +54,12 @@ MODULE colvar_methods
                                               finalizef,&
                                               initf,&
                                               parsef
+   USE generic_function_input,          ONLY: parse_function_section
    USE input_constants,                 ONLY: rmsd_all,&
                                               rmsd_list,&
                                               rmsd_weightlist
    USE input_cp2k_colvar,               ONLY: create_colvar_xyz_d_section,&
                                               create_colvar_xyz_od_section
-   USE input_cp2k_function,             ONLY: parse_function_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
    USE input_keyword_types,             ONLY: keyword_get,&
