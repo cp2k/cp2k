@@ -3256,8 +3256,8 @@ CONTAINS
    END SUBROUTINE get_cell_index_union
 
 ! **************************************************************************************************
-!> \brief Calculates the dipole moments, berry curvature, momentum and band energy for periodic
-!>  systems for kpoints
+!> \brief Calculate interband k-point dipole moments d_nm(k) = i<u_n|∇_k|u_m>, Berry curvature,
+!>        momentum and band energies for a periodic system for k-points
 !> \param qs_env ...
 !> \param xkp list of kpoints
 !> \param dipole ...
@@ -3265,8 +3265,7 @@ CONTAINS
 !> \param berry_c berry curvature calculated using Ω^γ_n = -Σ_{m≠n} 2*Im[d^α_nm d^β_mn]
 !> \param momentum ...
 !> \param energy ...
-!> \param do_parallel option to distribute the result in dipole across
-!>        different MPI ranks
+!> \param do_parallel option to distribute the result in dipole across different MPI ranks
 !> \author Shridhar Shanbhag
 ! **************************************************************************************************
    SUBROUTINE qs_moment_kpoints_deep(qs_env, xkp, dipole, rcc, berry_c, momentum, energy, do_parallel)
@@ -3554,8 +3553,9 @@ CONTAINS
    END SUBROUTINE add_VSOC_to_spinor
 
 ! **************************************************************************************************
-!> \brief Calculate interband k-point dipoles d_ab(k), Berry curvature, momentum and band energies
-!>        with spin-orbit coupling (SOC) in the 2*nao spinor basis, via the length-gauge sum rule.
+!> \brief Calculate interband k-point dipole moments d_nm(k) = i<u_n|∇_k|u_m>, Berry curvature,
+!>        momentum and band energies for a periodic system for k-points with spin-orbit coupling
+!>        (SOC) in the 2*nao spinor basis, via the length-gauge sum rule.
 !>        SOC enters both the Hamiltonian and the velocity operator (the k-derivative of V^SOC is
 !>        included). Mirrors qs_moment_kpoints_deep but promoted to spinor space; the two spin
 !>        channels are merged into 2*nao spinor bands (returned with spin dimension 1).
@@ -3727,8 +3727,9 @@ CONTAINS
          ! Diagonalize H2 W = S2 W E  ->  spinor bands and AO-spinor eigenvectors
          CALL geeig_right(H2, S2, eigenvals, W)
 
-         ! Force the largest |C_mu,n| to be real for a smooth complex phase of W(k) vs k, so that
-         ! the interband dipole d_ab(k) (and Berry curvature) are continuous in k.
+         ! To have a smooth complex phase of C(k) as function of k, for every n, we force
+         ! the largest C_μ,n(k) to be real.
+         ! This is important to have a continuous dipole moment d_nm(k) as a function of k
          DO n = 1, nao2
             tmp_max = W(1, n)
             DO mu = 1, nao2
@@ -4059,7 +4060,8 @@ CONTAINS
    END SUBROUTINE qs_moment_kpoints_scf_mos
 
 ! **************************************************************************************************
-!> \brief Calculate and print dipole moment elements d_nm(k) for k-point calculations
+!> \brief Calculate and print dipole moment elements d_nm(k) = i<u_n|∇_k|u_m> for k-point
+!>        calculations
 !> \param qs_env ...
 !> \param nmoments ...
 !> \param reference ...
