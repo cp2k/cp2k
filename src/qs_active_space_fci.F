@@ -120,7 +120,8 @@ CONTAINS
       c_error(:) = C_NULL_CHAR
       ms2 = active_space_env%multiplicity - 1
       max_iter = 2048
-      threshold = 1.0E-8_dp
+      ! LibFCI tests the squared residual norm, not the energy error.
+      threshold = active_space_env%eps_fci
 
       IF (ionode) THEN
          status = libfci_solve(INT(nspins, C_INT), INT(nmo_active, C_INT), &
