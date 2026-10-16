@@ -271,6 +271,9 @@ while [[ $# -gt 0 ]]; do
               sdbg | ssmp | ssmp-static)
                 MPI_MODE="no"
                 CMAKE_FEATURE_FLAG_MPI="-DCP2K_USE_MPI=OFF"
+                # LibGint requires MPI
+                CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_LIBGINT=OFF"
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"libgint@/ s/^ /#/'"
                 ;;
             esac
             # Apply specific package selection for statically linked binaries
@@ -280,7 +283,7 @@ while [[ $# -gt 0 ]]; do
                 for package in libfci libint2 libxc libxs spglib vori tblite; do
                   CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${package^^}=ON"
                 done
-                for package in ace deepmd gauxc greenx hdf5 libgint libtorch pexsi trexio; do
+                for package in ace deepmd gauxc greenx hdf5 libtorch pexsi trexio; do
                   CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${package^^}=OFF"
                 done
                 ;;
@@ -1039,7 +1042,7 @@ fi
 # Check if CP2K_VERSION and the selected features are compatible
 case "${CP2K_VERSION}" in
   ssmp | ssmp-static)
-    for package in cosma dlaf elpa libfabric libsmeagol mimic openpmd pexsi plumed sirius spla; do
+    for package in cosma dlaf elpa libfabric libgint libsmeagol mimic openpmd pexsi plumed sirius spla; do
       if [[ "${CMAKE_FEATURE_FLAGS}" == *" -DCP2K_USE_${package^^}=ON"* ]]; then
         echo -e "ERROR: The feature ${package^^} is not available for building serial CP2K binaries (${CP2K_VERSION})\n"
         ${EXIT_CMD} 1
@@ -1047,7 +1050,7 @@ case "${CP2K_VERSION}" in
     done
     # Further exclusions are needed for statically linked serial CP2K binaries
     if [[ "${CP2K_VERSION}" == "ssmp-static" ]]; then
-      for package in ace deepmd greenx hdf5 libgint libtorch trexio; do
+      for package in ace deepmd greenx hdf5 libtorch trexio; do
         if [[ "${CMAKE_FEATURE_FLAGS}" == *" -DCP2K_USE_${package^^}=ON"* ]]; then
           echo -e "ERROR: The feature ${package^^} is not available for building statically linked serial CP2K binaries (${CP2K_VERSION})\n"
           ${EXIT_CMD} 1
