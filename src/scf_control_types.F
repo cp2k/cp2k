@@ -49,6 +49,7 @@ MODULE scf_control_types
                                               dp
    USE outer_scf_control_types,         ONLY: outer_scf_control_type,&
                                               outer_scf_read_parameters
+   USE physcon,                         ONLY: evolt
    USE qs_cdft_opt_types,               ONLY: cdft_opt_type_release
    USE qs_ot_types,                     ONLY: ot_readwrite_input,&
                                               qs_ot_settings_init,&
@@ -793,9 +794,9 @@ CONTAINS
             END IF
 
             IF (scf_control%gce%do_gce) THEN
-               WRITE (UNIT=output_unit, FMT="(T25,A,/,T25,A,T61,F20.1)") &
+               WRITE (UNIT=output_unit, FMT="(T25,A,/,T25,A,T61,F20.6)") &
                   REPEAT("-", 56), &
-                  "Target workfunction [eV]:", scf_control%gce%target_workfunction
+                  "Target workfunction [eV]:", scf_control%gce%target_workfunction*evolt
                WRITE (UNIT=output_unit, FMT="(T25,A,T61,F20.1)") "Mixing coefficient:", scf_control%gce%mixing_coef
                WRITE (UNIT=output_unit, FMT="(T25,A)") "Grand canonical SCF is activated."
             END IF
