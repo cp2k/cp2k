@@ -2068,26 +2068,12 @@ if [[ -n "${GROMACS_VERSION}" ]]; then
   fi
   echo "GROMACS major version: ${GROMACS_VERSION_MAJOR}"
 
-  # CMake options for GROMACS
-  GROMACS_CMAKE_OPTIONS=(
-    -DBUILD_SHARED_LIBS="OFF"
-    -DCMAKE_BUILD_TYPE="${CP2K_BUILD_TYPE}"
-    -DCMAKE_INSTALL_LIBDIR="lib"
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"
-    -DCP2K_DIR="${INSTALL_PREFIX}"/lib
-    -DGMX_BUILD_OWN_FFTW="ON"
-    -DGMX_CP2K="ON"
-    -DGMX_DOUBLE="OFF"
-    -DGMX_INSTALL_NBLIB_API="OFF"
-    -DGMX_MPI="${USE_MPI}"
-    -DGMXAPI="OFF"
-  )
-
   # CP2K requires MPI_THREAD_MULTIPLE when attaching to an already-initialized MPI environment.
-  # GROMACS >= 2027 provides the CMake flag GMX_USE_MPI_THREAD_MULTIPLE for this purpose,
-  # whereas older versions always request MPI_THREAD_FUNNELED and have to be patched
+  # GROMACS >= 2027 requests MPI_THREAD_MULTIPLE if the environment variable
+  # GMX_USE_MPI_THREAD_MULTIPLE is set, whereas older versions always request
+  # MPI_THREAD_FUNNELED and have to be patched
   if ((GROMACS_VERSION_MAJOR >= 2027)); then
-    GROMACS_CMAKE_OPTIONS+=(-DGMX_USE_MPI_THREAD_MULTIPLE="ON")
+    sed -i '/^exec "\$@"$/i export GMX_USE_MPI_THREAD_MULTIPLE=1' "${LAUNCH_SCRIPT}"
   else
     sed -E -e 's/MPI_Init_thread\(argc, argv, MPI_THREAD_FUNNELED,/MPI_Init_thread(argc, argv, MPI_THREAD_MULTIPLE,/' \
       -i src/gromacs/utility/init.cpp
@@ -2098,7 +2084,17 @@ if [[ -n "${GROMACS_VERSION}" ]]; then
   mkdir -p "${GROMACS_BUILD_PATH}"
   echo -e "\n*** Performing CMake configuration for GROMACS ${GROMACS_VERSION} ***\n"
   cmake -S "${GROMACS_ROOT}" -B "${GROMACS_BUILD_PATH}" \
-    "${GROMACS_CMAKE_OPTIONS[@]}" \
+    -DBUILD_SHARED_LIBS="OFF" \
+    -DCMAKE_BUILD_TYPE="${CP2K_BUILD_TYPE}" \
+    -DCMAKE_INSTALL_LIBDIR="lib" \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCP2K_DIR="${INSTALL_PREFIX}"/lib \
+    -DGMX_BUILD_OWN_FFTW="ON" \
+    -DGMX_CP2K="ON" \
+    -DGMX_DOUBLE="OFF" \
+    -DGMX_INSTALL_NBLIB_API="OFF" \
+    -DGMX_MPI="${USE_MPI}" \
+    -DGMXAPI="OFF" \
     -Werror=dev \
     &> "${GROMACS_BUILD_PATH}/cmake.log"
   EXIT_CODE=$?
