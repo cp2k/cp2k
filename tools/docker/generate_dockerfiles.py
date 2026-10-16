@@ -287,7 +287,7 @@ def main() -> None:
             install_cp2k_spack(
                 version="psmp",
                 mpi_mode="mpich",
-                feature_flags="--test_gromacs",
+                feature_flags="--test_gromacs -gromacs main",
                 image_tag=f.image_tag,
                 test_type="gromacs",
             )

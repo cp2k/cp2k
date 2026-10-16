@@ -2059,28 +2059,46 @@ if [[ -n "${GROMACS_VERSION}" ]]; then
   cd "${GROMACS_ROOT}" || ${EXIT_CMD} 1
   GROMACS_REVISION="$(git rev-parse --short HEAD)"
 
-  # GROMACS always requests MPI_THREAD_FUNNELED regardless of GMX_MPI/GMX_THREAD_MPI,
-  # but CP2K now requires MPI_THREAD_MULTIPLE when attaching to an already-initialized
-  # MPI environment
-  sed -E -e 's/MPI_Init_thread\(argc, argv, MPI_THREAD_FUNNELED,/MPI_Init_thread(argc, argv, MPI_THREAD_MULTIPLE,/' \
-    -i src/gromacs/utility/init.cpp
+  # Retrieve the GROMACS major version from the source tree, since GROMACS_VERSION
+  # is a branch or tag name (e.g. v2026.3, release-2026, main)
+  GROMACS_VERSION_MAJOR=$(sed -n -E 's/^ *project\( *Gromacs +VERSION +([0-9]+).*/\1/p' CMakeLists.txt)
+  if [[ ! ${GROMACS_VERSION_MAJOR} =~ ^[0-9]+$ ]]; then
+    echo "ERROR: Could not determine the GROMACS major version from CMakeLists.txt"
+    ${EXIT_CMD} 1
+  fi
+  echo "GROMACS major version: ${GROMACS_VERSION_MAJOR}"
+
+  # CMake options for GROMACS
+  GROMACS_CMAKE_OPTIONS=(
+    -DBUILD_SHARED_LIBS="OFF"
+    -DCMAKE_BUILD_TYPE="${CP2K_BUILD_TYPE}"
+    -DCMAKE_INSTALL_LIBDIR="lib"
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"
+    -DCP2K_DIR="${INSTALL_PREFIX}"/lib
+    -DGMX_BUILD_OWN_FFTW="ON"
+    -DGMX_CP2K="ON"
+    -DGMX_DOUBLE="OFF"
+    -DGMX_INSTALL_NBLIB_API="OFF"
+    -DGMX_MPI="${USE_MPI}"
+    -DGMXAPI="OFF"
+  )
+
+  # CP2K requires MPI_THREAD_MULTIPLE when attaching to an already-initialized MPI environment.
+  # GROMACS >= 2027 provides the CMake flag GMX_USE_MPI_THREAD_MULTIPLE for this purpose,
+  # whereas older versions always request MPI_THREAD_FUNNELED and have to be patched
+  if ((GROMACS_VERSION_MAJOR >= 2027)); then
+    GROMACS_CMAKE_OPTIONS+=(-DGMX_USE_MPI_THREAD_MULTIPLE="ON")
+  else
+    sed -E -e 's/MPI_Init_thread\(argc, argv, MPI_THREAD_FUNNELED,/MPI_Init_thread(argc, argv, MPI_THREAD_MULTIPLE,/' \
+      -i src/gromacs/utility/init.cpp
+  fi
 
   # CMake configuration step for GROMACS
   GROMACS_BUILD_PATH="${GROMACS_ROOT}"/build
   mkdir -p "${GROMACS_BUILD_PATH}"
   echo -e "\n*** Performing CMake configuration for GROMACS ${GROMACS_VERSION} ***\n"
   cmake -S "${GROMACS_ROOT}" -B "${GROMACS_BUILD_PATH}" \
-    -DBUILD_SHARED_LIBS="OFF" \
-    -DCMAKE_BUILD_TYPE="${CP2K_BUILD_TYPE}" \
-    -DCMAKE_INSTALL_LIBDIR="lib" \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_DIR="${INSTALL_PREFIX}"/lib \
-    -DGMX_BUILD_OWN_FFTW="ON" \
-    -DGMX_CP2K="ON" \
-    -DGMX_DOUBLE="OFF" \
-    -DGMX_INSTALL_NBLIB_API="OFF" \
-    -DGMX_MPI="${USE_MPI}" \
-    -DGMXAPI="OFF" \
+    "${GROMACS_CMAKE_OPTIONS[@]}" \
     -Werror=dev \
     &> "${GROMACS_BUILD_PATH}/cmake.log"
   EXIT_CODE=$?
