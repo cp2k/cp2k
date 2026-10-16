@@ -1192,11 +1192,6 @@ CONTAINS
          IF (do_static_cohsex) THEN
             IF (do_im_time) CPABORT("COHSEX is only implemented in the O(N^4) GW code.")
             IF (do_periodic) CPABORT("COHSEX with PERIODIC_CORRECTION is not implemented.")
-            ! BSE after static COHSEX: W = v + α W^c(0) with one α for both A and B
-            IF (do_bse .AND. mp2_env%ri_g0w0%cohsex_scale_occ /= mp2_env%ri_g0w0%cohsex_scale_virt) THEN
-               CALL cp_abort(__LOCATION__, "BSE after COHSEX requires COHSEX_SCALE_OCC = COHSEX_SCALE_VIRT "// &
-                             "(the scaling of W^c in the BSE).")
-            END IF
             IF (do_ri_sos_laplace_mp2) CPABORT("COHSEX with SOS-MP2 is not implemented.")
             ! static COHSEX is one-shot @DFT: Σ^COHSEX is static, no quasiparticle self-consistency
             iter_evGW = 1
@@ -1474,8 +1469,6 @@ CONTAINS
                   Eigenval(:, 1, :) = static_cohsex_eigenval_dg(:, :)
                   DEALLOCATE (static_cohsex_eigenval_dg)
                END IF
-               ! direct terms of the BSE with W = v + α W^c(0), α = COHSEX_SCALE_OCC (= COHSEX_SCALE_VIRT)
-               mp2_env%bse%wc_scaling = mp2_env%ri_g0w0%cohsex_scale_occ
             ELSE
                CALL static_cohsex_qp_energies(fm_mat_Q(1), fm_mat_S_gw, fm_mat_S_gw_work, dimen_RI_red, nmo, homo, &
                                               gw_corr_lev_occ, gw_corr_lev_virt, Eigenval(:, 1, :), mo_coeff, &

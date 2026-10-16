@@ -768,8 +768,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="COHSEX_SCALE_OCC", &
                           description="Scaling factor of the static COHSEX correlation self-energy in the "// &
-                          "occupied-occupied block of $H^\text{QP}$. With a subsequent BSE, it also scales "// &
-                          "$W^\text{c}(\omega=0)$ in the kernel and must equal COHSEX_SCALE_VIRT.", &
+                          "occupied-occupied block of $H^\text{QP}$.", &
                           usage="COHSEX_SCALE_OCC 0.6", &
                           citations=[Tyagi2026], &
                           default_r_val=1.0_dp)
