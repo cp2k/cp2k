@@ -16,25 +16,26 @@ python3 tools/pseudopotentials/fetch_sssp.py \
 
 This installs unchanged NC and PAW files from SSSP. Each selected USPP is replaced by its
 supplemented counterpart from the fixed
-[inverse-uspp v0.1.0 prerelease](https://github.com/DCM-Uni-Paderborn/inverse-uspp/releases/tag/v0.1.0).
+[inverse-uspp v0.2.0 prerelease](https://github.com/DCM-Uni-Paderborn/inverse-uspp/releases/tag/v0.2.0).
 `inverse_uspp_release.json` pins its catalog and archive checksums. Matching the original UPF hash
 preserves the SSSP functional, valence partition and Efficiency/Precision selection.
 
 Original NC/PAW files and unchanged SSSP cutoff metadata reside under
 `DIRECTORY/{pbe,pbesol}/{efficiency,precision}/`. Prepared USPPs are stored once under
-`DIRECTORY/prepared-uspp/v0.1.0/`, together with their catalog, source information and license. Each
+`DIRECTORY/prepared-uspp/v0.2.0/`, together with their catalog, source information and license. Each
 selection directory contains `selection.json`, which maps the original filenames to actual file
 locations relative to that directory. Use these explicit locations in CP2K input. The index does not
 automatically select a potential or basis in a calculation.
 
-Add `--additional-uspp` to install the non-SSSP PSLibrary USPPs for the selected functionals. They
-reside in the prepared collection's `data/{pbe,pbesol}/additional/` directories and do not replace
-the SSSP selection.
+The prepared collection stores the SSSP selection under `data/{pbe,pbesol}/sssp/`. Add
+`--additional-uspp` to install non-SSSP PSLibrary and GBRV USPPs for the selected functionals. They
+reside under `data/{pbe,pbesol}/additional/{pslibrary,gbrv}/` and do not replace the SSSP selection.
+Other functionals in the external release are outside this SSSP installer's scope.
 
 The prerelease distinguishes compatible generator replays (route 3) from explicitly auxiliary
 reconstructions (route 4). Original potential, projector, augmentation and core fields are retained.
-All 194 files passed development-reader and atomic inverse checks. This does not establish all
-system calculations or the reduced one-center identities. Auxiliary reconstructions require the
+All 860 release files passed development-reader and atomic inverse checks. This does not establish
+all system calculations or the reduced one-center identities. Auxiliary reconstructions require the
 original functional's density, metric, kinetic-energy and geometry corrections. Missing NLCC
 model-core kinetic densities are not supplied.
 
@@ -56,10 +57,10 @@ all four.
 
 Use `--install --uspp-source original` to install all unchanged original UPFs under
 `DIRECTORY/{pbe,pbesol}/{efficiency,precision}/`, together with the original cutoff metadata and a
-selection index. Use a separate destination when changing the installed source mode. Installation
-removes newly downloaded archives and temporary files. Existing files with different contents are
-rejected. The prepared mode still downloads complete source archives before selecting their NC/PAW
-files, so filtering the installation does not reduce that archive transfer.
+selection index. Use a separate destination when changing the source mode or prepared release.
+Installation removes newly downloaded archives and temporary files. Existing files with different
+contents are rejected. The prepared mode still downloads complete source archives before selecting
+their NC/PAW files, so filtering the installation does not reduce that archive transfer.
 
 Neither mode runs automatically during a calculation, configuration, build or installation. Do not
 redirect `CP2K_DATA_DIR` to a cache containing only UPFs: the standard basis and potential files

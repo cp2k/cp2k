@@ -4,7 +4,7 @@
 Without --install, retain and extract the complete original SSSP archives.
 With --install, use original NC/PAW files and prepared USPPs by default.
 --uspp-source original installs all original SSSP files instead. Additional
-PSLibrary USPPs are available with --additional-uspp. All destinations are
+PSLibrary and GBRV USPPs are available with --additional-uspp. All destinations are
 chosen explicitly. Downloads do not enable unsupported calculation methods.
 """
 
@@ -222,7 +222,7 @@ def main():
     parser.add_argument(
         "--additional-uspp",
         action="store_true",
-        help="Also install non-SSSP PSLibrary USPPs for the selected functionals",
+        help="Also install non-SSSP PSLibrary and GBRV USPPs for the selected functionals",
     )
     parser.add_argument(
         "--library",
