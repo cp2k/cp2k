@@ -2527,18 +2527,19 @@ CONTAINS
 
       END DO ! i_t
 
-      ! Sparsity report of Σ^c_μν(±iτ) for the last time point
+      ! Sparsity report of Σ^c_μν(±iτ) for the first time point
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
-      WRITE (suffix, '(A,I0)') ' for time point ', bs_env%num_time_freq_points
+      suffix = ' for time point 1'
       DO ispin = 1, bs_env%n_spin
          sigma_label = 'Σ^c'
          IF (bs_env%n_spin == 2 .AND. ispin == 1) sigma_label = 'Σ^c_α'
          IF (bs_env%n_spin == 2 .AND. ispin == 2) sigma_label = 'Σ^c_β'
-         CALL print_matrix_occupation(mat_Sigma_pos_tau(bs_env%num_time_freq_points, ispin)%matrix, &
+         CALL print_matrix_occupation(mat_Sigma_pos_tau(1, ispin)%matrix, &
                                       TRIM(sigma_label)//'(iτ)', bs_env, suffix=TRIM(suffix))
-         CALL print_matrix_occupation(mat_Sigma_neg_tau(bs_env%num_time_freq_points, ispin)%matrix, &
+         CALL print_matrix_occupation(mat_Sigma_neg_tau(1, ispin)%matrix, &
                                       TRIM(sigma_label)//'(-iτ)', bs_env, suffix=TRIM(suffix))
       END DO
+      IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
 
       ! -------------------------------------------------------------------------
       ! 3. FINALIZE AND CLEANUP
