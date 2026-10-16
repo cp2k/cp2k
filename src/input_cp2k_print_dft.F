@@ -1262,8 +1262,9 @@ CONTAINS
          name="UNIT", &
          description="Unit of the printed electric multipole moments. Multipoles of order L are "// &
          "printed in UNIT*length^(L-1), where length is angstrom for debye and e_angstrom, bohr for "// &
-         "au_dip and m for C_m. For k-point calculations the dipole matrix elements are printed in UNIT "// &
-         "and the Berry curvature in length^2. The FORMAT TRAJECTORY output is always in Debye.", &
+         "au_dip (atomic orbital units) and m for C_m (Coulomb meter). For k-point calculations the "// &
+         "dipole matrix elements are printed in UNIT and the Berry curvature in length^2. The FORMAT "// &
+         "TRAJECTORY output is always in Debye.", &
          usage="UNIT {debye|e_angstrom|au_dip|C_m}", &
          repeats=.FALSE., &
          n_var=1, &
@@ -1369,8 +1370,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="SOC", &
                           description="Compute the k-point dipole matrix elements and Berry "// &
                           "curvature with spin-orbit coupling (SOC) included, in the 2*n_ao "// &
-                          "spinor basis. Requires pseudopotential SOC parameters and an explicit "// &
-                          "KPOINT_SET/KPOINTS (the interband sum-rule / deep path).", &
+                          "spinor basis.", &
                           usage="SOC .TRUE.", &
                           repeats=.FALSE., &
                           n_var=1, &
@@ -1379,9 +1379,9 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="KPOINT_DIPOLE_FILE", &
-                          description="Also write the k-point dipole matrix elements to this file "// &
-                          "(appended on each print). Without a value the file kpoint_dipoles.dat is used. "// &
-                          "The MOMENTS output itself is unchanged. Only used for KPOINT calculations.", &
+                          description="Write the k-point dipole matrix elements to this file "// &
+                          "instead of the MOMENTS output. Without a value the file kpoint_dipoles.dat "// &
+                          "is used. Only used for KPOINT calculations.", &
                           usage="KPOINT_DIPOLE_FILE {filename}", &
                           repeats=.FALSE., &
                           n_var=1, &
@@ -1391,9 +1391,9 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="BERRY_CURVATURE_FILE", &
-                          description="Also write the k-point Berry curvature to this file "// &
-                          "(appended on each print). Without a value the file berry_curvature.dat is used. "// &
-                          "The MOMENTS output itself is unchanged. Only used for KPOINT calculations.", &
+                          description="Write the k-point Berry curvature to this file "// &
+                          "instead of the MOMENTS output. Without a value the file berry_curvature.dat "// &
+                          "is used. Only used for KPOINT calculations.", &
                           usage="BERRY_CURVATURE_FILE {filename}", &
                           repeats=.FALSE., &
                           n_var=1, &

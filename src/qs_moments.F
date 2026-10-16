@@ -4069,8 +4069,10 @@ CONTAINS
 !> \param do_soc include spin-orbit coupling (spinor sum-rule; requires an explicit KPOINT set)
 !> \param unit_str unit of the printed dipoles (dipole unit of cp_units), default debye; the Berry
 !>        curvature is printed in the paired length unit squared
-!> \param dip_file if present and non-empty, the dipole matrix elements are also appended to this file
-!> \param bc_file if present and non-empty, the Berry curvature is also appended to this file
+!> \param dip_file if present and non-empty, the dipole matrix elements are written to this file
+!>        instead of being printed to unit_number
+!> \param bc_file if present and non-empty, the Berry curvature is written to this file instead of
+!>        being printed to unit_number
 !> \author Shridhar Shanbhag
 ! **************************************************************************************************
    SUBROUTINE qs_moment_kpoints(qs_env, nmoments, reference, ref_point, max_nmo, unit_number, do_soc, &
@@ -4086,6 +4088,7 @@ CONTAINS
       INTEGER                                            :: bc_unit, dip_unit, iu
       INTEGER, DIMENSION(3)                              :: out_units
       LOGICAL                                            :: use_sci
+      LOGICAL                                            :: to_bc_file, to_dip_file
       LOGICAL, DIMENSION(3)                              :: print_bc, print_dip
       REAL(KIND=dp)                                      :: dip_fac, len_fac
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp
@@ -4149,35 +4152,42 @@ CONTAINS
       IF (unit_number > 0 .AND. do_soc) WRITE (unit_number, "(T20,A)") &
          "with Spin-Orbit Coupling (spinor bands)"
 
-      ! optional extra files (appended), written by the I/O rank only
+      ! optional separate files, written by the I/O rank only; data written to a file is not
+      ! repeated in the main MOMENTS output
+      to_dip_file = .FALSE.
+      to_bc_file = .FALSE.
+      IF (PRESENT(dip_file)) to_dip_file = (LEN_TRIM(dip_file) > 0)
+      IF (PRESENT(bc_file)) to_bc_file = (LEN_TRIM(bc_file) > 0)
+      IF (unit_number > 0 .AND. to_dip_file) WRITE (unit_number, "(/,T3,A)") &
+         "Dipole matrix elements written to file: "//TRIM(dip_file)
+      IF (unit_number > 0 .AND. to_bc_file) WRITE (unit_number, "(/,T3,A)") &
+         "Berry curvature written to file: "//TRIM(bc_file)
       dip_unit = -1
       bc_unit = -1
       IF (para_env%is_source()) THEN
-         IF (PRESENT(dip_file)) THEN
-            IF (LEN_TRIM(dip_file) > 0) THEN
-               CALL open_file(file_name=TRIM(dip_file), file_status="REPLACE", file_action="WRITE", &
-                              unit_number=dip_unit)
-               WRITE (dip_unit, FMT="(/,T2,A)") &
-                  '!-----------------------------------------------------------------------------!'
-               WRITE (dip_unit, "(T22,A)") "Periodic Dipole Matrix Elements ["//TRIM(dip_label)//"]"
-               IF (do_soc) WRITE (dip_unit, "(T20,A)") "with Spin-Orbit Coupling (spinor bands)"
-            END IF
+         IF (to_dip_file) THEN
+            CALL open_file(file_name=TRIM(dip_file), file_status="REPLACE", file_action="WRITE", &
+                           unit_number=dip_unit)
+            WRITE (dip_unit, FMT="(/,T2,A)") &
+               '!-----------------------------------------------------------------------------!'
+            WRITE (dip_unit, "(T22,A)") "Periodic Dipole Matrix Elements ["//TRIM(dip_label)//"]"
+            IF (do_soc) WRITE (dip_unit, "(T20,A)") "with Spin-Orbit Coupling (spinor bands)"
          END IF
-         IF (PRESENT(bc_file)) THEN
-            IF (LEN_TRIM(bc_file) > 0) THEN
-               CALL open_file(file_name=TRIM(bc_file), file_status="REPLACE", file_action="WRITE", &
-                              unit_number=bc_unit)
-               WRITE (bc_unit, FMT="(/,T2,A)") &
-                  '!-----------------------------------------------------------------------------!'
-               WRITE (bc_unit, "(T22,A)") "Berry Curvature ["//TRIM(len_label)//"^2]"
-               IF (do_soc) WRITE (bc_unit, "(T20,A)") "with Spin-Orbit Coupling (spinor bands)"
-            END IF
+         IF (to_bc_file) THEN
+            CALL open_file(file_name=TRIM(bc_file), file_status="REPLACE", file_action="WRITE", &
+                           unit_number=bc_unit)
+            WRITE (bc_unit, FMT="(/,T2,A)") &
+               '!-----------------------------------------------------------------------------!'
+            WRITE (bc_unit, "(T22,A)") "Berry Curvature ["//TRIM(len_label)//"^2]"
+            IF (do_soc) WRITE (bc_unit, "(T20,A)") "with Spin-Orbit Coupling (spinor bands)"
          END IF
       END IF
-      ! output targets: main MOMENTS output (dipoles + Berry curvature), dipole file, Berry curvature file
+      ! output targets: main output, dipole file, Berry curvature file; each table goes
+      ! to its file if one is given, otherwise to the main output
       out_units = [unit_number, dip_unit, bc_unit]
-      print_dip = [.TRUE., .TRUE., .FALSE.]
-      print_bc = [.TRUE., .FALSE., .TRUE.]
+      print_dip = [.NOT. to_dip_file, to_dip_file, .FALSE.]
+      print_bc = [.NOT. to_bc_file, .FALSE., to_bc_file]
+      IF (to_dip_file .AND. to_bc_file) out_units(1) = -1
 
       nspin_dip = nspin
       IF (do_soc) THEN
