@@ -228,6 +228,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_FCI", &
+                          description="Squared residual norm (energy variance) threshold, in hartree squared, "// &
+                          "for AS_SOLVER FCI. This controls the inner FCI solver, not the embedding iterations. "// &
+                          "Loose values can give inaccurate one-particle density matrices.", &
+                          usage="EPS_FCI 1.0E-20", type_of_var=real_t, default_r_val=1.0E-20_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="EPS_ITER", &
                           description="Energy convergence threshold of the DFT embedding scheme.", &
                           usage="EPS_ITER 1.0E-6 ", type_of_var=real_t, &

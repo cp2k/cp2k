@@ -355,6 +355,11 @@ CONTAINS
 
       ! input options
 
+      CALL section_vals_val_get(as_input, "EPS_FCI", r_val=active_space_env%eps_fci)
+      IF (.NOT. (active_space_env%eps_fci > 0.0_dp)) THEN
+         CPABORT("ACTIVE_SPACE%EPS_FCI must be positive.")
+      END IF
+
       ! figure out what needs to be printed/stored
       IF (BTEST(cp_print_key_should_output(logger%iter_info, as_input, "FCIDUMP"), cp_p_file)) THEN
          active_space_env%fcidump = .TRUE.

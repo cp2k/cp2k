@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT h2_as_fci
+  PROJECT h4_as_fci
   RUN_TYPE ENERGY
 &END GLOBAL
 
@@ -8,9 +8,9 @@
   METHOD QS
   &DFT
     &ACTIVE_SPACE
-      ACTIVE_ELECTRONS 2
-      ACTIVE_ORBITALS 2
-      ACTIVE_ORBITAL_INDICES 1 2
+      ACTIVE_ELECTRONS 4
+      ACTIVE_ORBITALS 6
+      ACTIVE_ORBITAL_INDICES 1 2 3 4 5 6
       AS_SOLVER FCI
       MAX_ITER 1
       ORBITAL_SELECTION MANUAL
@@ -25,6 +25,8 @@
       &ERI_GPW
         CUTOFF 250
       &END ERI_GPW
+      &FCIDUMP ON
+      &END FCIDUMP
     &END ACTIVE_SPACE
     &MGRID
       CUTOFF 300
@@ -37,11 +39,11 @@
       METHOD GAPW
     &END QS
     &SCF
-      ADDED_MOS 3
+      ADDED_MOS 4
       EPS_DIIS 1E-003
       EPS_EIGVAL 1E-009
-      EPS_SCF 1E-009
-      MAX_SCF 20
+      EPS_SCF 1E-011
+      MAX_SCF 100
       &PRINT
         &RESTART OFF
         &END RESTART
@@ -71,12 +73,14 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 6.0 6.0 6.0
+      ABC 8.0 8.0 8.0
       PERIODIC NONE
     &END CELL
     &COORD
-      H 0.0 0.0  0.356
-      H 0.0 0.0 -0.356
+      H 0.0 0.0 -2.25
+      H 0.0 0.0 -0.75
+      H 0.0 0.0  0.75
+      H 0.0 0.0  2.25
     &END COORD
     &KIND H
       BASIS_SET 6-31G*
