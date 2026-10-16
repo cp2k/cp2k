@@ -351,7 +351,7 @@ CONTAINS
             'RI-RS grid optimization completed, execution time:', m_walltime() - start_time, ' s'
          WRITE (unit_nr, '(T2,A,T72,ES9.1)') 'Normalized 3C error:', normalized_error
          WRITE (unit_nr, '(T2,A,T72,ES9.1)') 'Maximum absolute 3C error:', max_abs_error
-         WRITE (unit_nr, '(T2,A,T69,I12,A,I0)') &
+         WRITE (unit_nr, '(T2,A,T60,I9,A,I9)') &
             'Optimized points outside molecular Voronoi cells:', molecular_outside, ' / ', npoints
          FLUSH (unit_nr)
       END IF

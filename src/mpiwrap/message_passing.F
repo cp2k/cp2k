@@ -2650,9 +2650,9 @@ CONTAINS
 
          IF (unit_nr > 0) THEN
             IF (PRESENT(label)) WRITE (unit_nr, '(T2,A)') TRIM(label)
-            WRITE (unit_nr, '(T2,A,F35.1,A)') 'Available memory per MPI process', &
+            WRITE (unit_nr, '(T2,A,T68,F10.1,A)') 'Available memory per MPI process', &
                mem_avail_GB, ' GB'
-            WRITE (unit_nr, '(T2,A,F40.1,A)') 'Used memory per MPI process', &
+            WRITE (unit_nr, '(T2,A,T68,F10.1,A)') 'Used memory per MPI process', &
                mem_used_GB, ' GB'
          END IF
 

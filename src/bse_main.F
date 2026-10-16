@@ -34,8 +34,7 @@ MODULE bse_main
                                               screen_slabs,&
                                               truncate_BSE_matrices
    USE cp_control_types,                ONLY: tddfpt2_control_type
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_add_on_diag,&
-                                              cp_fm_scale
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_add_on_diag
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
    USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -49,7 +48,6 @@ MODULE bse_main
                                               bse_both,&
                                               bse_fulldiag,&
                                               bse_iterdiag,&
-                                              bse_screening_w0,&
                                               bse_tda
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
@@ -158,17 +156,6 @@ CONTAINS
       END DO
 
       CALL invert_static_screening(fm_Q, dimen_RI_red, bse_env%fm_eps_inv)
-
-      IF (bse_env%wc_scaling /= 1.0_dp) THEN
-         IF (bse_env%screening_method /= bse_screening_w0 .OR. bse_env%screening_factor > 0.0_dp) THEN
-            CPABORT("SCREENING_IN_W other than W_0 cannot be combined with a scaled W^c (static COHSEX).")
-         END IF
-         CALL scale_static_screening(bse_env%fm_eps_inv, dimen_RI_red, bse_env%wc_scaling)
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T2,A10,T13,A,T71,F10.4)') 'BSE|', &
-               'Direct term W = v + alpha W^c(0), alpha =', bse_env%wc_scaling
-         END IF
-      END IF
 
       CALL finish_bse_env(bse_env, qs_env, fm_S_ia_full(1)%matrix_struct%para_env)
 
@@ -359,40 +346,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE finish_bse_env
-
-! **************************************************************************************************
-!> \brief Scale the correlation part of the static screened Coulomb interaction in the RI kernel
-!>
-!>        The direct terms of the BSE use (pq|W|rs) = Σ_PQ B^P_pq K_PQ B^Q_rs with the RI kernel
-!>        K = ε^(-1)(0). With W = v + α W^c(0), W^c(0) = (ε^(-1)(0) - 1) v, the kernel becomes
-!>          K_PQ = δ_PQ + α (ε^(-1)_PQ(0) - δ_PQ) = α ε^(-1)_PQ(0) + (1 - α) δ_PQ
-!>        such that
-!>          A_ia,jb = (ϵ_a - ϵ_i) δ_ij δ_ab + 2 (ia|jb) - (ij|ab) - α (ij|W^c|ab)
-!>          B_ia,jb = 2 (ia|jb) - (ib|ja) - α (ib|W^c|ja)
-!>        α = 1: standard BSE@W0, α = 0: unscreened (TDHF-like) kernel.
-!> \param fm_eps_inv ...
-!> \param dimen_RI_red ...
-!> \param alpha ...
-! **************************************************************************************************
-   SUBROUTINE scale_static_screening(fm_eps_inv, dimen_RI_red, alpha)
-
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_eps_inv
-      INTEGER, INTENT(IN)                                :: dimen_RI_red
-      REAL(KIND=dp), INTENT(IN)                          :: alpha
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_static_screening'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      ! K_PQ = α ε^(-1)_PQ + (1 - α) δ_PQ on the leading dimen_RI_red block
-      CALL cp_fm_scale(alpha, fm_eps_inv)
-      CALL cp_fm_add_on_diag(fm_eps_inv, 1.0_dp - alpha, dimen_RI_red)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE scale_static_screening
 
 ! **************************************************************************************************
 !> \brief The inverse dielectric matrix in the RI basis, [1+Q(0)]^-1_PQ on the leading dimen_RI_red
