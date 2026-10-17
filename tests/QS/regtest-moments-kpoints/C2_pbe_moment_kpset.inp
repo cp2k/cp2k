@@ -19,6 +19,7 @@
     &END POISSON
     &PRINT
       &MOMENTS
+        UNIT au_dip
         &KPOINT_SET
           NPOINTS 1
           SPECIAL_POINT K 1/3 2/3 0.0

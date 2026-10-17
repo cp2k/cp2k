@@ -533,11 +533,13 @@ CONTAINS
 !> \param magnetic ...
 !> \param vel_reprs ...
 !> \param com_nl ...
+!> \param unit_str unit of the printed moments (dipole unit of cp_units), default debye
 ! **************************************************************************************************
-   SUBROUTINE calculate_kg_moments(qs_env, unit_nr, max_moment, magnetic, vel_reprs, com_nl)
+   SUBROUTINE calculate_kg_moments(qs_env, unit_nr, max_moment, magnetic, vel_reprs, com_nl, unit_str)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: unit_nr, max_moment
       LOGICAL, INTENT(IN)                                :: magnetic, vel_reprs, com_nl
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: unit_str
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_kg_moments'
 
@@ -812,15 +814,16 @@ CONTAINS
                "# Molecule:", imol, TRIM(mol_name)
             IF (magnetic .AND. vel_reprs) THEN
                CALL print_moments(unit_nr, nmom, rmom, rlab, rcc, cell, periodic=.FALSE., &
-                                  mmom=mmom, rmom_vel=rmom_vel)
+                                  mmom=mmom, rmom_vel=rmom_vel, unit_str=unit_str)
             ELSE IF (magnetic) THEN
                CALL print_moments(unit_nr, nmom, rmom, rlab, rcc, cell, periodic=.FALSE., &
-                                  mmom=mmom)
+                                  mmom=mmom, unit_str=unit_str)
             ELSE IF (vel_reprs) THEN
                CALL print_moments(unit_nr, nmom, rmom, rlab, rcc, cell, periodic=.FALSE., &
-                                  rmom_vel=rmom_vel)
+                                  rmom_vel=rmom_vel, unit_str=unit_str)
             ELSE
-               CALL print_moments(unit_nr, nmom, rmom, rlab, rcc, cell, periodic=.FALSE.)
+               CALL print_moments(unit_nr, nmom, rmom, rlab, rcc, cell, periodic=.FALSE., &
+                                  unit_str=unit_str)
             END IF
 
             IF (com_nl) THEN
