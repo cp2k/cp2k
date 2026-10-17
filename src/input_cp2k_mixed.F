@@ -20,6 +20,7 @@ MODULE input_cp2k_mixed
                                               cp_print_key_section_create,&
                                               low_print_level,&
                                               medium_print_level
+   USE generic_function_input,          ONLY: create_function_section
    USE input_constants,                 ONLY: mix_cdft,&
                                               mix_coupled,&
                                               mix_generic,&
@@ -34,8 +35,7 @@ MODULE input_cp2k_mixed
                                               section_create,&
                                               section_release,&
                                               section_type
-   USE input_val_types,                 ONLY: char_t,&
-                                              integer_t,&
+   USE input_val_types,                 ONLY: integer_t,&
                                               lchar_t,&
                                               logical_t,&
                                               real_t
@@ -67,7 +67,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="MIXED", &
                           description="This section contains all information to run with a hamiltonian "// &
-                          "defined by a mixing of force_evals", &
+                          "defined by a mixing of force_evals. See also the MULTIPLE_FORCE_EVALS section.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
 
@@ -357,59 +357,13 @@ CONTAINS
       CALL section_release(subsection)
 
       ! Multiple force_eval
-      CALL section_create(subsection, __LOCATION__, name="GENERIC", &
-                          description="User driven coupling between two or more force_eval.", &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
-      CALL keyword_create(keyword, __LOCATION__, name="MIXING_FUNCTION", &
-                          description="Specifies the mixing functional form in mathematical notation.", &
-                          usage="MIXING_FUNCTION (E1+E2-LOG(E1/E2))", type_of_var=lchar_t, &
-                          n_var=1)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="VARIABLES", &
-                          description="Defines the variables of the functional form. To allow an efficient"// &
-                          " mapping the order of the energy variables will be considered identical to the"// &
-                          " order of the force_eval in the force_eval_order list.", &
-                          usage="VARIABLES x", type_of_var=char_t, &
-                          n_var=-1)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="PARAMETERS", &
-                          description="Defines the parameters of the functional form", &
-                          usage="PARAMETERS a b D", type_of_var=char_t, &
-                          n_var=-1, repeats=.TRUE.)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="VALUES", &
-                          description="Defines the values of parameter of the functional form", &
-                          usage="VALUES ", type_of_var=real_t, &
-                          n_var=-1, repeats=.TRUE., unit_str="internal_cp2k")
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="UNITS", &
-                          description="Optionally, allows to define valid CP2K unit strings for each parameter value. "// &
-                          "It is assumed that the corresponding parameter value is specified in this unit.", &
-                          usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K", type_of_var=char_t, &
-                          n_var=-1, repeats=.TRUE.)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="DX", &
-                          description="Parameter used for computing the derivative with the Ridders' method.", &
-                          usage="DX <REAL>", default_r_val=0.1_dp, unit_str="bohr")
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="ERROR_LIMIT", &
-                          description="Checks that the error in computing the derivative is not larger than "// &
-                          "the value set; in case error is larger a warning message is printed.", &
-                          usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
+      CALL create_function_section(subsection, "GENERIC", "MIXING_FUNCTION", &
+                                   description="User driven coupling between two or more force_eval. "// &
+                                   "This is also required if a free energy calculation with the alchemical "// &
+                                   "change method is requested with MOTION/FREE_ENERGY/ALCHEMICAL_CHANGE. "// &
+                                   "To allow an efficient mapping the order of the energy variables "// &
+                                   "will be considered identical to the order of the force_eval in "// &
+                                   "the MULTIPLE_FORCE_EVALS/FORCE_EVAL_ORDER list.", do_deriv=.TRUE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

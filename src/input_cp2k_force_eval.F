@@ -19,6 +19,7 @@ MODULE input_cp2k_force_eval
                                               low_print_level,&
                                               medium_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
+   USE generic_function_input,          ONLY: create_function_section
    USE input_constants,                 ONLY: &
         do_eip, do_embed, do_fist, do_ipi, do_mixed, do_nnp, do_qmmm, do_qs, do_sirius, &
         do_stress_analytical, do_stress_diagonal_anal, do_stress_diagonal_numer, do_stress_none, &
@@ -42,10 +43,7 @@ MODULE input_cp2k_force_eval
                                               section_create,&
                                               section_release,&
                                               section_type
-   USE input_val_types,                 ONLY: char_t,&
-                                              integer_t,&
-                                              lchar_t,&
-                                              real_t
+   USE input_val_types,                 ONLY: integer_t
    USE kinds,                           ONLY: dp
    USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
@@ -125,7 +123,23 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL create_ext_pot_section(subsection)
+      ! Create FORCE_EVAL/EXTERNAL_POTENTIAL section, corresponding to add_external_potential in
+      ! external_potential_methods.F and applicable to any force method. A private subroutine
+      ! create_ext_pot_section was previously used for this purpose, which has been dropped to
+      ! avoid confusion with the similarly named one in input_cp2k_external.F for
+      ! FORCE_EVAL/DFT/EXTERNAL_POTENTIAL and applicable to Quickstep DFT only.
+      CALL create_function_section(subsection, "EXTERNAL_POTENTIAL", "FUNCTION", &
+                                   description="Section controlling the presence of an external "// &
+                                   "potential dependent on the atomic positions (X,Y,Z). Not to "// &
+                                   "be confused with the Quickstep DFT-specific settings under "// &
+                                   "FORCE_EVAL/DFT/EXTERNAL_POTENTIAL.", &
+                                   repeats=.TRUE., do_deriv=.TRUE., input_variables=["X", "Y", "Z"])
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS_LIST", &
+                          description="Specifies the atoms on which the external potential will act", &
+                          usage="ATOMS_LIST {INT} {INT} ..", repeats=.TRUE., &
+                          n_var=-1, type_of_var=integer_t)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -182,75 +196,6 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE create_force_eval_section
-
-! **************************************************************************************************
-!> \brief Creates the section for applying an external potential
-!> \param section ...
-!> \date 03.2008
-!> \author teo
-! **************************************************************************************************
-   SUBROUTINE create_ext_pot_section(section)
-      TYPE(section_type), POINTER                        :: section
-
-      TYPE(keyword_type), POINTER                        :: keyword
-
-      CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="EXTERNAL_POTENTIAL", &
-                          description="Section controlling the presence of an external potential dependent "// &
-                          "on the atomic positions (X,Y,Z)", &
-                          n_keywords=7, n_subsections=0, repeats=.TRUE.)
-      NULLIFY (keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="ATOMS_LIST", &
-                          description="Specifies the atoms on which the external potential will act", &
-                          usage="ATOMS_LIST {INT} {INT} ..", repeats=.TRUE., &
-                          n_var=-1, type_of_var=integer_t)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="FUNCTION", &
-                          description="Specifies the functional form in mathematical notation. Variables must be the atomic "// &
-                          "coordinates (X,Y,Z).", usage="FUNCTION  X^2+Y^2+Z^2+LOG(ABS(X+Y))", &
-                          type_of_var=lchar_t, n_var=1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="PARAMETERS", &
-                          description="Defines the parameters of the functional form", &
-                          usage="PARAMETERS a b D", type_of_var=char_t, &
-                          n_var=-1, repeats=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="VALUES", &
-                          description="Defines the values of  parameter of the functional form", &
-                          usage="VALUES ", type_of_var=real_t, &
-                          n_var=-1, repeats=.TRUE., unit_str="internal_cp2k")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="UNITS", &
-                          description="Optionally, allows to define valid CP2K unit strings for each parameter value. "// &
-                          "It is assumed that the corresponding parameter value is specified in this unit.", &
-                          usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K", type_of_var=char_t, &
-                          n_var=-1, repeats=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="DX", &
-                          description="Parameter used for computing the derivative with the Ridders' method.", &
-                          usage="DX <REAL>", default_r_val=0.1_dp, unit_str="bohr")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="ERROR_LIMIT", &
-                          description="Checks that the error in computing the derivative is not larger than "// &
-                          "the value set; in case error is larger a warning message is printed.", &
-                          usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-   END SUBROUTINE create_ext_pot_section
 
 ! **************************************************************************************************
 !> \brief Creates the section controlling the rescaling of forces

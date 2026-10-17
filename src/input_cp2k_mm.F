@@ -29,7 +29,7 @@ MODULE input_cp2k_mm
         do_ff_amber, do_ff_charmm, do_ff_cubic, do_ff_fues, do_ff_g87, do_ff_g96, do_ff_harmonic, &
         do_ff_legendre, do_ff_mixed_bend_stretch, do_ff_mm2, do_ff_mm3, do_ff_mm4, do_ff_morse, &
         do_ff_opls, do_ff_quartic, do_ff_undef
-   USE fparser,                         ONLY: docf
+   USE generic_function_input,          ONLY: create_function_section
    USE input_constants,                 ONLY: use_mom_ref_coac,&
                                               use_mom_ref_com,&
                                               use_mom_ref_user,&
@@ -1299,58 +1299,24 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="GENPOT", &
-                          description="This section specifies the input parameters for a generic potential type. "// &
-                          docf(), &
-                          n_keywords=1, n_subsections=0, repeats=.TRUE.)
+
+      CALL create_function_section(section, "GENPOT", "FUNCTION", &
+                                   description="This section specifies a generic potential function "// &
+                                   "between two kinds of atoms (identical or distinct). The VARIABLES "// &
+                                   "keyword should define exactly one symbol as the variable in the "// &
+                                   "generic function.", &
+                                   repeats=.TRUE.)
 
       NULLIFY (keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
-                          description="Defines the atomic kind involved in the generic potential", &
-                          usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
-                          n_var=2)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="FUNCTION", &
-                          description="Specifies the functional form in mathematical notation.", &
-                          usage="FUNCTION a\*EXP(-b\*x^2)/x+D\*log10(x)", type_of_var=lchar_t, &
-                          n_var=1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="VARIABLES", &
-                          description="Defines the variable of the functional form.", &
-                          usage="VARIABLES x", type_of_var=char_t, &
-                          n_var=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="PARAMETERS", &
-                          description="Defines the parameters of the functional form", &
-                          usage="PARAMETERS a b D", type_of_var=char_t, &
-                          n_var=-1, repeats=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="VALUES", &
-                          description="Defines the values of parameter of the functional form", &
-                          usage="VALUES ", type_of_var=real_t, &
-                          n_var=-1, repeats=.TRUE., unit_str="internal_cp2k")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="UNITS", &
-                          description="Optionally, allows to define valid CP2K unit strings for each parameter value. "// &
-                          "It is assumed that the corresponding parameter value is specified in this unit.", &
-                          usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K", type_of_var=char_t, &
-                          n_var=-1, repeats=.TRUE.)
+                          description="Defines the two atomic kinds involved in the generic "// &
+                          "potential function. The kind names are not case sensitive.", &
+                          usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
-                          description="Defines the cutoff parameter of the generic potential", &
+                          description="Defines the cutoff parameter of the generic potential.", &
                           usage="RCUT {real}", default_r_val=cp_unit_to_cp2k(value=10.0_dp, &
                                                                              unit_str="angstrom"), &
                           unit_str="angstrom")
@@ -1358,15 +1324,15 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="RMIN", &
-                          description="Defines the lower bound of the potential. If not set the range is the"// &
-                          " full range generate by the spline", usage="RMIN {real}", &
+                          description="Defines the lower bound of the potential. If not set the "// &
+                          "range is the full range generated by the spline.", usage="RMIN {real}", &
                           type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="RMAX", &
-                          description="Defines the upper bound of the potential. If not set the range is the"// &
-                          " full range generate by the spline", usage="RMAX {real}", &
+                          description="Defines the upper bound of the potential. If not set the "// &
+                          "range is the full range generated by the spline.", usage="RMAX {real}", &
                           type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

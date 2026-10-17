@@ -48,13 +48,13 @@ MODULE colvar_methods
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type,&
                                               use_mixed_force
-   USE force_fields_util,               ONLY: get_generic_info
    USE fparser,                         ONLY: EvalErrType,&
                                               evalf,&
                                               evalfd,&
                                               finalizef,&
                                               initf,&
                                               parsef
+   USE generic_function_input,          ONLY: parse_function_section
    USE input_constants,                 ONLY: rmsd_all,&
                                               rmsd_list,&
                                               rmsd_weightlist
@@ -142,7 +142,7 @@ CONTAINS
                                                             nr_frame, v_count
       INTEGER, DIMENSION(:), POINTER                     :: iatms
       INTEGER, DIMENSION(:, :), POINTER                  :: p_bounds
-      LOGICAL                                            :: check, use_mixed_energy
+      LOGICAL                                            :: use_mixed_energy
       LOGICAL, DIMENSION(27)                             :: my_subsection
       REAL(dp), DIMENSION(:), POINTER                    :: s1, wei, weights
       REAL(dp), DIMENSION(:, :), POINTER                 :: p_range, s1v
@@ -539,8 +539,14 @@ CONTAINS
             ALLOCATE (colvar%reaction_path_param%f_vals(ncol, istart:iend))
             CALL section_vals_val_get(path_section, "VARIABLE", c_vals=my_par, i_rep_val=1)
             CALL section_vals_val_get(path_section, "FUNCTION", n_rep_val=ncol)
-            check = (ncol == SIZE(colvar%reaction_path_param%colvar_p))
-            CPASSERT(check)
+            ! Check that the number of COLVAR provided is equal to the number of functions..
+            IF (SIZE(colvar%reaction_path_param%colvar_p) /= ncol) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "Number of defined COLVAR for REACTION_PATH or DISTANCE_FROM_PATH "// &
+                             "is different from the number of functions! It is not possible "// &
+                             "to define COLVARs in a REACTION_PATH or DISTANCE_FROM_PATH type "// &
+                             "COLVAR and omit the corresponding functions!")
+            END IF
             CALL initf(ncol)
             DO i = 1, ncol
                CALL section_vals_val_get(path_section, "FUNCTION", c_val=path_function, i_rep_val=i)
@@ -625,7 +631,7 @@ CONTAINS
             CALL cp_abort(__LOCATION__, &
                           "Number of defined COLVAR for COMBINE_COLVAR is different from the "// &
                           "number of variables! It is not possible to define COLVARs in a COMBINE_COLVAR "// &
-                          "and avoid their usage in the combininig function!")
+                          "and avoid their usage in the combining function!")
          END IF
          ! Parameters
          ALLOCATE (colvar%combine_cvs_param%c_parameters(0))
@@ -2165,19 +2171,19 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE u_colvar(colvar, force_env)
       TYPE(colvar_type), POINTER                         :: colvar
-      TYPE(force_env_type), OPTIONAL, POINTER            :: force_env
+      TYPE(force_env_type), POINTER                      :: force_env
 
       CHARACTER(LEN=default_path_length)                 :: coupling_function
       CHARACTER(LEN=default_string_length)               :: def_error, this_error
       CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER                           :: parameters
+         ALLOCATABLE, DIMENSION(:)                       :: parameters
       INTEGER                                            :: iatom, iforce_eval, iparticle, &
                                                             jparticle, natom, natom_iforce, &
                                                             nforce_eval
       INTEGER, DIMENSION(:), POINTER                     :: glob_natoms, map_index
       REAL(dp)                                           :: dedf, dx, err, fi(3), lerr, &
                                                             potential_energy
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: values
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: values
       TYPE(cp_subsys_p_type), DIMENSION(:), POINTER      :: subsystems
       TYPE(cp_subsys_type), POINTER                      :: subsys_main
       TYPE(mixed_force_type), DIMENSION(:), POINTER      :: global_forces
@@ -2186,139 +2192,135 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section, mapping_section, &
                                                             wrk_section
 
-      IF (PRESENT(force_env)) THEN
-         NULLIFY (particles_main, subsys_main)
-         CALL force_env_get(force_env=force_env, subsys=subsys_main)
-         CALL cp_subsys_get(subsys=subsys_main, particles=particles_main)
-         natom = SIZE(particles_main%els)
-         colvar%n_atom_s = natom
-         colvar%u_param%natom = natom
-         CALL reallocate(colvar%i_atom, 1, natom)
-         CALL reallocate(colvar%dsdr, 1, 3, 1, natom)
+      NULLIFY (particles_main, subsys_main)
+      CALL force_env_get(force_env=force_env, subsys=subsys_main)
+      CALL cp_subsys_get(subsys=subsys_main, particles=particles_main)
+      natom = SIZE(particles_main%els)
+      colvar%n_atom_s = natom
+      colvar%u_param%natom = natom
+      CALL reallocate(colvar%i_atom, 1, natom)
+      CALL reallocate(colvar%dsdr, 1, 3, 1, natom)
+      DO iatom = 1, natom
+         colvar%i_atom(iatom) = iatom
+      END DO
+
+      IF (.NOT. ASSOCIATED(colvar%u_param%mixed_energy_section)) THEN
+         CALL force_env_get(force_env, potential_energy=potential_energy)
+         colvar%ss = potential_energy
+
          DO iatom = 1, natom
-            colvar%i_atom(iatom) = iatom
+            ! store derivative
+            fi(:) = -particles_main%els(iatom)%f
+            CALL put_derivative(colvar, iatom, fi)
+         END DO
+      ELSE
+         IF (force_env%in_use /= use_mixed_force) THEN
+            CALL cp_abort(__LOCATION__, &
+                          'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)// &
+                          ' A combination of mixed force_eval energies has been requested as '// &
+                          ' collective variable, but the MIXED env is not in use! Aborting.')
+         END IF
+         CALL force_env_get(force_env, force_env_section=force_env_section)
+         mapping_section => section_vals_get_subs_vals(force_env_section, "MIXED%MAPPING")
+         NULLIFY (subsystems, particles, global_forces, map_index, glob_natoms)
+         nforce_eval = SIZE(force_env%sub_force_env)
+         ALLOCATE (glob_natoms(nforce_eval))
+         ALLOCATE (subsystems(nforce_eval))
+         ALLOCATE (particles(nforce_eval))
+         ! Local Info to sync
+         ALLOCATE (global_forces(nforce_eval))
+
+         glob_natoms = 0
+         DO iforce_eval = 1, nforce_eval
+            NULLIFY (subsystems(iforce_eval)%subsys, particles(iforce_eval)%list)
+            IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
+            ! Get all available subsys
+            CALL force_env_get(force_env=force_env%sub_force_env(iforce_eval)%force_env, &
+                               subsys=subsystems(iforce_eval)%subsys)
+            ! Get available particles
+            CALL cp_subsys_get(subsys=subsystems(iforce_eval)%subsys, &
+                               particles=particles(iforce_eval)%list)
+
+            ! Get Mapping index array
+            natom_iforce = SIZE(particles(iforce_eval)%list%els)
+
+            ! Only the rank 0 process collect info for each computation
+            IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%is_source()) THEN
+               glob_natoms(iforce_eval) = natom_iforce
+            END IF
          END DO
 
-         IF (.NOT. ASSOCIATED(colvar%u_param%mixed_energy_section)) THEN
-            CALL force_env_get(force_env, potential_energy=potential_energy)
-            colvar%ss = potential_energy
+         ! Handling Parallel execution
+         CALL force_env%para_env%sync()
+         CALL force_env%para_env%sum(glob_natoms)
 
-            DO iatom = 1, natom
-               ! store derivative
-               fi(:) = -particles_main%els(iatom)%f
-               CALL put_derivative(colvar, iatom, fi)
-            END DO
-         ELSE
-            IF (force_env%in_use /= use_mixed_force) THEN
-               CALL cp_abort(__LOCATION__, &
-                             'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)// &
-                             ' A combination of mixed force_eval energies has been requested as '// &
-                             ' collective variable, but the MIXED env is not in use! Aborting.')
-            END IF
-            CALL force_env_get(force_env, force_env_section=force_env_section)
-            mapping_section => section_vals_get_subs_vals(force_env_section, "MIXED%MAPPING")
-            NULLIFY (values, parameters, subsystems, particles, global_forces, map_index, glob_natoms)
-            nforce_eval = SIZE(force_env%sub_force_env)
-            ALLOCATE (glob_natoms(nforce_eval))
-            ALLOCATE (subsystems(nforce_eval))
-            ALLOCATE (particles(nforce_eval))
-            ! Local Info to sync
-            ALLOCATE (global_forces(nforce_eval))
-
-            glob_natoms = 0
-            DO iforce_eval = 1, nforce_eval
-               NULLIFY (subsystems(iforce_eval)%subsys, particles(iforce_eval)%list)
-               IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
-               ! Get all available subsys
-               CALL force_env_get(force_env=force_env%sub_force_env(iforce_eval)%force_env, &
-                                  subsys=subsystems(iforce_eval)%subsys)
-               ! Get available particles
-               CALL cp_subsys_get(subsys=subsystems(iforce_eval)%subsys, &
-                                  particles=particles(iforce_eval)%list)
-
-               ! Get Mapping index array
-               natom_iforce = SIZE(particles(iforce_eval)%list%els)
-
-               ! Only the rank 0 process collect info for each computation
+         ! Transfer forces
+         DO iforce_eval = 1, nforce_eval
+            ALLOCATE (global_forces(iforce_eval)%forces(3, glob_natoms(iforce_eval)))
+            global_forces(iforce_eval)%forces = 0.0_dp
+            IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
                IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%is_source()) THEN
-                  glob_natoms(iforce_eval) = natom_iforce
+                  ! Forces
+                  DO iparticle = 1, glob_natoms(iforce_eval)
+                     global_forces(iforce_eval)%forces(:, iparticle) = &
+                        particles(iforce_eval)%list%els(iparticle)%f
+                  END DO
                END IF
+            END IF
+            CALL force_env%para_env%sum(global_forces(iforce_eval)%forces)
+         END DO
+
+         wrk_section => colvar%u_param%mixed_energy_section
+         ! Support any number of force_eval sections
+         CALL parse_function_section(wrk_section, "ENERGY_FUNCTION", coupling_function, &
+                                     parameters, values, var_values=force_env%mixed_env%energies, &
+                                     dx=dx, error_limit=lerr)
+         CALL initf(1)
+         CALL parsef(1, TRIM(coupling_function), parameters)
+         ! Store the value of the COLVAR
+         colvar%ss = evalf(1, values)
+         CPASSERT(EvalErrType <= 0)
+
+         DO iforce_eval = 1, nforce_eval
+            dedf = evalfd(1, iforce_eval, values, dx, err)
+            IF (ABS(err) > lerr) THEN
+               WRITE (this_error, "(A,G12.6,A)") "(", err, ")"
+               WRITE (def_error, "(A,G12.6,A)") "(", lerr, ")"
+               CALL compress(this_error, .TRUE.)
+               CALL compress(def_error, .TRUE.)
+               CALL cp_warn(__LOCATION__, &
+                            'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)// &
+                            ' Error '//TRIM(this_error)//' in computing numerical derivatives larger than'// &
+                            TRIM(def_error)//' .')
+            END IF
+            ! General Mapping of forces...
+            ! First: Get Mapping index array
+            CALL get_subsys_map_index(mapping_section, glob_natoms(iforce_eval), iforce_eval, &
+                                      nforce_eval, map_index)
+
+            ! Second: store derivatives
+            DO iparticle = 1, glob_natoms(iforce_eval)
+               jparticle = map_index(iparticle)
+               fi = -dedf*global_forces(iforce_eval)%forces(:, iparticle)
+               CALL put_derivative(colvar, jparticle, fi)
             END DO
-
-            ! Handling Parallel execution
-            CALL force_env%para_env%sync()
-            CALL force_env%para_env%sum(glob_natoms)
-
-            ! Transfer forces
-            DO iforce_eval = 1, nforce_eval
-               ALLOCATE (global_forces(iforce_eval)%forces(3, glob_natoms(iforce_eval)))
-               global_forces(iforce_eval)%forces = 0.0_dp
-               IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
-                  IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%is_source()) THEN
-                     ! Forces
-                     DO iparticle = 1, glob_natoms(iforce_eval)
-                        global_forces(iforce_eval)%forces(:, iparticle) = &
-                           particles(iforce_eval)%list%els(iparticle)%f
-                     END DO
-                  END IF
-               END IF
-               CALL force_env%para_env%sum(global_forces(iforce_eval)%forces)
-            END DO
-
-            wrk_section => colvar%u_param%mixed_energy_section
-            ! Support any number of force_eval sections
-            CALL get_generic_info(wrk_section, "ENERGY_FUNCTION", coupling_function, parameters, &
-                                  values, force_env%mixed_env%energies)
-            CALL initf(1)
-            CALL parsef(1, TRIM(coupling_function), parameters)
-            ! Store the value of the COLVAR
-            colvar%ss = evalf(1, values)
-            CPASSERT(EvalErrType <= 0)
-
-            DO iforce_eval = 1, nforce_eval
-               CALL section_vals_val_get(wrk_section, "DX", r_val=dx)
-               CALL section_vals_val_get(wrk_section, "ERROR_LIMIT", r_val=lerr)
-               dedf = evalfd(1, iforce_eval, values, dx, err)
-               IF (ABS(err) > lerr) THEN
-                  WRITE (this_error, "(A,G12.6,A)") "(", err, ")"
-                  WRITE (def_error, "(A,G12.6,A)") "(", lerr, ")"
-                  CALL compress(this_error, .TRUE.)
-                  CALL compress(def_error, .TRUE.)
-                  CALL cp_warn(__LOCATION__, &
-                               'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)// &
-                               ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'// &
-                               TRIM(def_error)//' .')
-               END IF
-               ! General Mapping of forces...
-               ! First: Get Mapping index array
-               CALL get_subsys_map_index(mapping_section, glob_natoms(iforce_eval), iforce_eval, &
-                                         nforce_eval, map_index)
-
-               ! Second: store derivatives
-               DO iparticle = 1, glob_natoms(iforce_eval)
-                  jparticle = map_index(iparticle)
-                  fi = -dedf*global_forces(iforce_eval)%forces(:, iparticle)
-                  CALL put_derivative(colvar, jparticle, fi)
-               END DO
-               ! Deallocate map_index array
-               IF (ASSOCIATED(map_index)) THEN
-                  DEALLOCATE (map_index)
-               END IF
-            END DO
-            CALL finalizef()
-            DO iforce_eval = 1, nforce_eval
-               DEALLOCATE (global_forces(iforce_eval)%forces)
-            END DO
-            DEALLOCATE (glob_natoms)
-            DEALLOCATE (values)
-            DEALLOCATE (parameters)
-            DEALLOCATE (global_forces)
-            DEALLOCATE (subsystems)
-            DEALLOCATE (particles)
-         END IF
-      ELSE
-         CPABORT("need force_env!")
+            ! Deallocate map_index array
+            IF (ASSOCIATED(map_index)) THEN
+               DEALLOCATE (map_index)
+            END IF
+         END DO
+         CALL finalizef()
+         DO iforce_eval = 1, nforce_eval
+            DEALLOCATE (global_forces(iforce_eval)%forces)
+         END DO
+         DEALLOCATE (glob_natoms)
+         DEALLOCATE (values)
+         DEALLOCATE (parameters)
+         DEALLOCATE (global_forces)
+         DEALLOCATE (subsystems)
+         DEALLOCATE (particles)
       END IF
+
    END SUBROUTINE u_colvar
 
 ! **************************************************************************************************
@@ -4521,7 +4523,7 @@ CONTAINS
             CALL compress(def_error, .TRUE.)
             CALL cp_warn(__LOCATION__, &
                          'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)// &
-                         ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'// &
+                         ' Error '//TRIM(this_error)//' in computing numerical derivatives larger than'// &
                          TRIM(def_error)//' . ')
          END IF
       END DO

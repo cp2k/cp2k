@@ -885,29 +885,11 @@ CONTAINS
                locij = my_index(j)
                CALL get_indexes(locij, ntype, tmpij)
                SELECT CASE (pot_target)
-               CASE (ea_type, ip_type)
+               CASE (ea_type, ip_type, gp_type)
                   ! check the array components
                   CALL compare_pot(potparm%pot(tmpij(1), tmpij(2))%pot, &
                                    potparm%pot(tmpij0(1), tmpij0(2))%pot, &
                                    check)
-               CASE (gp_type)
-                  check = .TRUE.
-                  IF (ASSOCIATED(potparm%pot(tmpij(1), tmpij(2))%pot%set(1)%gp%parameters) .AND. &
-                      ASSOCIATED(potparm%pot(tmpij0(1), tmpij0(2))%pot%set(1)%gp%parameters)) THEN
-                     IF (SIZE(potparm%pot(tmpij(1), tmpij(2))%pot%set(1)%gp%parameters) == &
-                         SIZE(potparm%pot(tmpij0(1), tmpij0(2))%pot%set(1)%gp%parameters)) THEN
-                        IF (ANY(potparm%pot(tmpij(1), tmpij(2))%pot%set(1)%gp%parameters /= &
-                                potparm%pot(tmpij0(1), tmpij0(2))%pot%set(1)%gp%parameters)) check = .FALSE.
-                     END IF
-                  END IF
-                  IF (ASSOCIATED(potparm%pot(tmpij(1), tmpij(2))%pot%set(1)%gp%values) .AND. &
-                      ASSOCIATED(potparm%pot(tmpij0(1), tmpij0(2))%pot%set(1)%gp%values)) THEN
-                     IF (SIZE(potparm%pot(tmpij(1), tmpij(2))%pot%set(1)%gp%values) == &
-                         SIZE(potparm%pot(tmpij0(1), tmpij0(2))%pot%set(1)%gp%values)) THEN
-                        IF (ANY(potparm%pot(tmpij(1), tmpij(2))%pot%set(1)%gp%values /= &
-                                potparm%pot(tmpij0(1), tmpij0(2))%pot%set(1)%gp%values)) check = .FALSE.
-                     END IF
-                  END IF
                CASE default
                   check = .TRUE.
                END SELECT

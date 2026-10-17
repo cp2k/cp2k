@@ -10,40 +10,49 @@
 !> \note
 !>      This module handles the input definition and retrieval, while the task of actually parsing
 !>      and evaluating a function is handled by common/fparser module. The general workflow is:
+!>
 !>      1. In the module that creates input sections, use the subroutine to add the subsection
 !>         &GENERIC_FUNCTION with keywords FUNCTION, PARAMETERS, UNITS, VALUES and (optionally)
 !>         VARIABLES. If a list of symbols has been specified (like input_variables=["X", "Y", "Z"])
 !>         then they will be reserved as the variables and the VARIABLES keyword will not appear.
 !>         If no such list is given then the VARIABLES keyword requesting input of symbol(s) for
 !>         the variable(s) will appear, with no restriction on the number of symbols.
+!>         If in addition to the function itself, the numerical derivatives are also needed, set
+!>         do_deriv=.TRUE. which will create two additional keywords, DX and ERROR_LIMIT.
 !>            NULLIFY(subsection)
 !>            CALL create_function_section(subsection, "GENERIC_FUNCTION", "FUNCTION", &
 !>                                         "This subsection defines a generic function.")
 !>            ! Add extra keywords here if needed
 !>            ! NULLIFY (keyword)
 !>            ! CALL keyword_create(keyword, __LOCATION__, ...)
-!>            ! CALL section_add_keyword(print_key, keyword)
+!>            ! CALL section_add_keyword(subsection, keyword)
 !>            ! CALL keyword_release(keyword)
 !>            ! ...
 !>            ! Done adding extra keywords
 !>            CALL section_add_subsection(section, subsection)
 !>            CALL section_release(subsection)
+!>
 !>      2. Define a type that stores information about the function.
 !>            TYPE my_func_type
 !>               CHARACTER(LEN=default_path_length) :: function = ""
-!>               CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: parameters => NULL()
-!>               REAL(KIND=dp), DIMENSION(:), POINTER :: values => NULL()
+!>               CHARACTER(LEN=default_string_length), DIMENSION(:), ALLOCATABLE :: parameters
+!>               REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: values
+!>               ! To evaluate numerical derivatives also store DX and ERROR_LIMIT
+!>               REAL(KIND=dp) :: dx = 0.0_dp, lerr = 0.0_dp
 !>            END TYPE my_func_type
+!>
 !>      3. In the module that parses input, use the subroutine to get and save the definitions. The
 !>         usage of input_variables should be consistent with above. Note that the variables and the
 !>         parameters are all saved in my_func%parameters and my_func%values; with n_var variables
 !>         and n_par parameters, both my_func%parameters and my_func%values will have a dimension of
-!>         (n_var + n_par), variables first.
+!>         (n_var + n_par), variables first. To evaluate numerical derivatives, also pass
+!>         dx=my_func%dx and error_limit=my_func%lerr.
 !>            TYPE(my_func_type), POINTER :: my_func
 !>            NULLIFY (my_func)
 !>            CALL parse_function_section(gen_section, "FUNCTION", my_func%function, &
 !>                                        my_func%parameters, my_func%values)
-!>      4. Use the subroutines from the fparser module to evaluate the function.
+!>
+!>      4. Use the subroutines from the fparser module to evaluate the function or its derivative.
 !>            CALL initf(1)
 !>            CALL parsef(1, TRIM(my_func%function), my_func%parameters)
 !>            ! Substitute new values for the variables if needed
@@ -51,12 +60,20 @@
 !>            ! Done substituting
 !>            result = evalf(1, my_func%values)
 !>            CPASSERT(EvalErrType <= 0)
+!>            ! To evaluate numerical derivative with respect to the k-th element of my_func%values:
+!>            ! derivative = evalfd(1, k, my_func%values, my_func%dx, err)
+!>            ! IF (ABS(err) > my_func%lerr) THEN
+!>            !    CALL cp_warn(__LOCATION__, &
+!>            !                 "Error in computing numerical derivatives larger than allowed")
+!>            ! END IF
+!>            ! Done evaluating derivative
 !>            CALL finalizef()
+!>
 !> \par History
 !>      10.2026 created
 !> \author Zilong He
 ! **************************************************************************************************
-MODULE input_cp2k_function
+MODULE generic_function_input
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE fparser,                         ONLY: docf
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -83,9 +100,11 @@ MODULE input_cp2k_function
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_function'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'generic_function_input'
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: name_kw_parameters = "PARAMETERS", &
+   CHARACTER(len=*), PARAMETER, PRIVATE :: name_kw_dx = "DX", &
+                                           name_kw_error = "ERROR_LIMIT", &
+                                           name_kw_parameters = "PARAMETERS", &
                                            name_kw_units = "UNITS", &
                                            name_kw_values = "VALUES", &
                                            name_kw_variables = "VARIABLES"
@@ -101,31 +120,36 @@ CONTAINS
 !> \param func_name the name of the keyword for the function
 !> \param description a custom description for the subsection
 !> \param repeats whether the section can be repeated
+!> \param do_deriv whether keywords for evaluating numerical derivative are needed
 !> \param input_variables a list of symbols that will be parsed as variables
 !> \par History
 !>      10.2026 created from scratch matching argument names with parse_function_section
 ! **************************************************************************************************
    SUBROUTINE create_function_section(gen_section, section_name, func_name, description, &
-                                      repeats, input_variables)
+                                      repeats, do_deriv, input_variables)
       TYPE(section_type), POINTER                        :: gen_section
       CHARACTER(LEN=*), INTENT(IN)                       :: section_name, func_name, description
-      LOGICAL, INTENT(IN), OPTIONAL                      :: repeats
-      CHARACTER(LEN=*), DIMENSION(:), OPTIONAL           :: input_variables
+      LOGICAL, INTENT(IN), OPTIONAL                      :: repeats, do_deriv
+      CHARACTER(LEN=*), DIMENSION(:), INTENT(IN), &
+         OPTIONAL                                        :: input_variables
 
       CHARACTER(LEN=*), PARAMETER :: default_values_unit_str = "internal_cp2k"
 
       CHARACTER(LEN=:), ALLOCATABLE                      :: input_variables_info, my_description
-      CHARACTER(LEN=default_string_length)               :: my_size_default, my_size_var
+      CHARACTER(LEN=default_string_length)               :: length, my_size_default, my_size_var
       INTEGER                                            :: i, mydim
-      LOGICAL                                            :: has_kw_variables, my_repeats
+      LOGICAL                                            :: has_kw_variables, my_do_deriv, my_repeats
       TYPE(keyword_type), POINTER                        :: keyword
 
       my_repeats = .FALSE.
       IF (PRESENT(repeats)) my_repeats = repeats
+      my_do_deriv = .FALSE.
+      IF (PRESENT(do_deriv)) my_do_deriv = do_deriv
       has_kw_variables = .FALSE.
       my_description = TRIM(description)
       mydim = 0
       CALL integer_to_string(default_string_length, my_size_default)
+      CALL integer_to_string(default_path_length, length)
 
       IF (PRESENT(input_variables)) THEN
          has_kw_variables = .TRUE.
@@ -153,7 +177,8 @@ CONTAINS
                           n_keywords=0, n_subsections=0, repeats=my_repeats)
 
       CALL keyword_create(keyword, __LOCATION__, name=TRIM(func_name), &
-                          description=docf(), &
+                          description="Specifies a functional form. The maximum length "// &
+                          "is "//TRIM(ADJUSTL(length))//" characters. "//docf(), &
                           usage=TRIM(func_name)//" A*X+B*(2/(1+EXP(-0.001*Y))-1)", &
                           type_of_var=lchar_t, n_var=1)
       CALL section_add_keyword(gen_section, keyword)
@@ -200,32 +225,52 @@ CONTAINS
          CALL keyword_release(keyword)
       END IF
 
+      IF (my_do_deriv) THEN
+         CALL keyword_create(keyword, __LOCATION__, name=name_kw_dx, &
+                             description="Parameter used for computing the derivative with the Ridders' method.", &
+                             usage=name_kw_dx//" <REAL>", default_r_val=0.1_dp, unit_str="bohr")
+         CALL section_add_keyword(gen_section, keyword)
+         CALL keyword_release(keyword)
+
+         CALL keyword_create(keyword, __LOCATION__, name=name_kw_error, &
+                             description="Checks that the error in computing the derivative is not larger than "// &
+                             "the value set; in case error is larger a warning message is printed.", &
+                             usage=name_kw_error//" <REAL>", default_r_val=1.0E-12_dp)
+         CALL section_add_keyword(gen_section, keyword)
+         CALL keyword_release(keyword)
+      END IF
+
    END SUBROUTINE create_function_section
 
 ! **************************************************************************************************
 !> \brief Reads from the input structure all information for generic functions
-!> \param gen_section ...
-!> \param func_name ...
-!> \param xfunction ...
-!> \param parameters ...
-!> \param values ...
-!> \param var_values ...
-!> \param i_rep_sec ...
-!> \param input_variables ...
+!> \param gen_section the name of the section for the generic function
+!> \param func_name the name of the keyword for the function
+!> \param xfunction the function
+!> \param parameters the list of symbols for the parameters in the function
+!> \param values the list of values for the parameters in the function
+!> \param var_values the values of the variables in the function
+!> \param i_rep_sec the index of the section if it may be repeated
+!> \param input_variables the list of symbols for the variables in the function
+!> \param dx the dx for evaluating numerical derivatives of the function
+!> \param error_limit the error limit for evaluating numerical derivatives of the function
 !> \par History
 !>      10.2026 created by migrating the get_generic_info in force_fields_util.F to here
 ! **************************************************************************************************
    SUBROUTINE parse_function_section(gen_section, func_name, xfunction, parameters, values, &
-                                     var_values, i_rep_sec, input_variables)
+                                     var_values, i_rep_sec, input_variables, dx, error_limit)
       TYPE(section_vals_type), POINTER                   :: gen_section
       CHARACTER(LEN=*), INTENT(IN)                       :: func_name
       CHARACTER(LEN=default_path_length), INTENT(OUT)    :: xfunction
       CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER                           :: parameters
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: values
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: var_values
+         ALLOCATABLE, DIMENSION(:), INTENT(OUT)          :: parameters
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: values
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: var_values
       INTEGER, INTENT(IN), OPTIONAL                      :: i_rep_sec
-      CHARACTER(LEN=*), DIMENSION(:), OPTIONAL           :: input_variables
+      CHARACTER(LEN=*), DIMENSION(:), INTENT(IN), &
+         OPTIONAL                                        :: input_variables
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: dx, error_limit
 
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: my_par, my_par_tmp, my_units, &
@@ -238,17 +283,17 @@ CONTAINS
       NULLIFY (my_var, my_par, my_val, my_par_tmp, my_val_tmp)
       NULLIFY (my_units)
       NULLIFY (my_units_tmp)
-      IF (ASSOCIATED(parameters)) THEN
-         DEALLOCATE (parameters)
-      END IF
-      IF (ASSOCIATED(values)) THEN
-         DEALLOCATE (values)
-      END IF
       irep = 1
       IF (PRESENT(i_rep_sec)) irep = i_rep_sec
       mydim = 0
       CALL section_vals_val_get(gen_section, TRIM(func_name), i_rep_section=irep, c_val=xfunction)
       CALL compress(xfunction, full=.TRUE.)
+      IF (PRESENT(dx)) THEN
+         CALL section_vals_val_get(gen_section, name_kw_dx, i_rep_section=irep, r_val=dx)
+      END IF
+      IF (PRESENT(error_limit)) THEN
+         CALL section_vals_val_get(gen_section, name_kw_error, i_rep_section=irep, r_val=error_limit)
+      END IF
       IF (PRESENT(input_variables)) THEN
          ALLOCATE (my_var(SIZE(input_variables)))
          my_var = input_variables
@@ -346,4 +391,4 @@ CONTAINS
       END IF
    END SUBROUTINE parse_function_section
 
-END MODULE input_cp2k_function
+END MODULE generic_function_input

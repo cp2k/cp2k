@@ -71,14 +71,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'free_energy_evaluate'
 
-      CHARACTER(LEN=default_path_length)                 :: coupling_function
-      CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER                           :: my_par
       INTEGER                                            :: handle, ic, icolvar, nforce_eval, &
                                                             output_unit, stat_sign_points
       INTEGER, POINTER                                   :: istep
-      REAL(KIND=dp)                                      :: beta, dx, lerr
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: my_val
+      REAL(KIND=dp)                                      :: beta
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(force_env_type), POINTER                      :: force_env
@@ -134,24 +130,19 @@ CONTAINS
                CALL cp_print_key_finished_output(output_unit, logger, fe_section, "FREE_ENERGY_INFO")
             END IF
          CASE (do_fe_ac)
-            CALL initf(2)
             ! Alchemical Changes
             IF (.NOT. ASSOCIATED(force_env%mixed_env)) THEN
                CALL cp_abort(__LOCATION__, &
-                             'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)// &
-                             ' Free Energy calculations require the definition of a mixed env!')
+                             "Free Energy calculations with the alchemical method require the "// &
+                             "definition of a mixed force env with the FORCE_EVAL/MIXED/GENERIC "// &
+                             "section, but none is found!")
             END IF
-            my_par => force_env%mixed_env%par
-            my_val => force_env%mixed_env%val
-            dx = force_env%mixed_env%dx
-            lerr = force_env%mixed_env%lerr
-            coupling_function = force_env%mixed_env%coupling_function
-            beta = 1/simpar%temp_ext
-            CALL parsef(1, TRIM(coupling_function), my_par)
+            beta = 1.0_dp/simpar%temp_ext
             nforce_eval = SIZE(force_env%sub_force_env)
-            CALL dump_ac_info(my_val, my_par, dx, lerr, fe_section, nforce_eval, &
-                              fe_env%covmx, istep, beta)
-            CALL finalizef()
+            CALL dump_ac_info(force_env%mixed_env%val, force_env%mixed_env%par, &
+                              force_env%mixed_env%coupling_function, &
+                              force_env%mixed_env%dx, force_env%mixed_env%lerr, &
+                              fe_section, nforce_eval, fe_env%covmx, istep, beta)
          CASE DEFAULT
             ! Do Nothing
          END SELECT
@@ -766,6 +757,7 @@ CONTAINS
 !> \brief Dumps information when performing an alchemical change run
 !> \param my_val ...
 !> \param my_par ...
+!> \param coupling_function ...
 !> \param dx ...
 !> \param lerr ...
 !> \param fe_section ...
@@ -775,11 +767,13 @@ CONTAINS
 !> \param beta ...
 !> \author Teodoro Laino - University of Zurich [tlaino] - 05.2007
 ! **************************************************************************************************
-   SUBROUTINE dump_ac_info(my_val, my_par, dx, lerr, fe_section, nforce_eval, cum_res, &
-                           istep, beta)
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: my_val
+   SUBROUTINE dump_ac_info(my_val, my_par, coupling_function, dx, lerr, fe_section, &
+                           nforce_eval, cum_res, istep, beta)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: my_val
       CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER                           :: my_par
+         ALLOCATABLE, DIMENSION(:), INTENT(IN)           :: my_par
+      CHARACTER(LEN=default_path_length), INTENT(IN)     :: coupling_function
       REAL(KIND=dp), INTENT(IN)                          :: dx, lerr
       TYPE(section_vals_type), POINTER                   :: fe_section
       INTEGER, INTENT(IN)                                :: nforce_eval
@@ -787,7 +781,7 @@ CONTAINS
       INTEGER, POINTER                                   :: istep
       REAL(KIND=dp), INTENT(IN)                          :: beta
 
-      CHARACTER(LEN=default_path_length)                 :: coupling_function
+      CHARACTER(LEN=default_path_length)                 :: weighting_function
       CHARACTER(LEN=default_string_length)               :: def_error, par, this_error
       INTEGER                                            :: i, iforce_eval, ipar, isize, iw, j, &
                                                             NEquilStep
@@ -805,6 +799,16 @@ CONTAINS
       END DO
       CPASSERT(i <= SIZE(my_par))
       ipar = i
+
+      ! Two functions should be defined in separate input sections:
+      ! 1 for the FORCE_EVAL/MIXED/GENERIC/MIXING_FUNCTION
+      ! 2 for the MOTION/FREE_ENERGY/ALCHEMICAL_CHANGE/WEIGHTING_FUNCTION
+      ! The definitions for parameters, variables, dx and error_limit all
+      ! follow from 1, with which 2 is assumed consistent.
+      ! MOTION/FREE_ENERGY/ALCHEMICAL_CHANGE/PARAMETER should be one of the
+      ! symbols defined in FORCE_EVAL/MIXED/GENERIC/PARAMETERS.
+      CALL initf(2)
+      CALL parsef(1, TRIM(coupling_function), my_par)
       dedf = evalfd(1, ipar, my_val, dx, err)
       IF (ABS(err) > lerr) THEN
          WRITE (this_error, "(A,G12.6,A)") "(", err, ")"
@@ -813,16 +817,16 @@ CONTAINS
          CALL compress(def_error, .TRUE.)
          CALL cp_warn(__LOCATION__, &
                       'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)// &
-                      ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'// &
+                      ' Error '//TRIM(this_error)//' in computing numerical derivatives larger than'// &
                       TRIM(def_error)//' .')
       END IF
 
       ! We must print now the energy of the biased system, the weigthing energy
       ! and the derivative w.r.t.the coupling parameter of the biased energy
       ! Retrieve the expression of the weighting function:
-      CALL section_vals_val_get(alch_section, "WEIGHTING_FUNCTION", c_val=coupling_function)
-      CALL compress(coupling_function, full=.TRUE.)
-      CALL parsef(2, TRIM(coupling_function), my_par)
+      CALL section_vals_val_get(alch_section, "WEIGHTING_FUNCTION", c_val=weighting_function)
+      CALL compress(weighting_function, full=.TRUE.)
+      CALL parsef(2, TRIM(weighting_function), my_par)
       ene_w = evalf(2, my_val)
       d_ene_w = evalfd(2, ipar, my_val, dx, err)
       IF (ABS(err) > lerr) THEN
@@ -832,9 +836,11 @@ CONTAINS
          CALL compress(def_error, .TRUE.)
          CALL cp_warn(__LOCATION__, &
                       'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)// &
-                      ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'// &
+                      ' Error '//TRIM(this_error)//' in computing numerical derivatives larger than'// &
                       TRIM(def_error)//' .')
       END IF
+      CALL finalizef()
+
       CALL section_vals_val_get(alch_section, "NEQUIL_STEPS", i_val=NEquilStep)
       ! Store results
       IF (istep > NEquilStep) THEN

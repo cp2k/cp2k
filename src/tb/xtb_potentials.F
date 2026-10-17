@@ -677,7 +677,7 @@ CONTAINS
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
                                 iatom=iatom, jatom=jatom, r=rij, cell=cell)
          pot => potparm%pot(ikind, jkind)%pot
-         dr = SQRT(rij(1)**2 + rij(2)**2 + rij(3)**2)
+         dr = NORM2(rij)
          rcut = SQRT(pot%rcutsq)
          IF (dr <= rcut .AND. dr > 1.E-3_dp) THEN
             fval = 1.0_dp
@@ -694,8 +694,9 @@ CONTAINS
 
             kk = SIZE(pot%type)
             IF (kk /= 1) THEN
-               CALL cp_warn(__LOCATION__, "Generic potential with type > 1 not implemented.")
-               CPABORT("pot type")
+               CALL cp_abort(__LOCATION__, &
+                             "Generic potential with type > 1 not yet "// &
+                             "implemented for xTB nonbonded correction.")
             END IF
             ! rmin and rmax and rcut
             IF ((pot%set(kk)%rmin /= not_initialized) .AND. (dr < pot%set(kk)%rmin)) CYCLE
@@ -717,7 +718,7 @@ CONTAINS
                   CALL compress(def_error, .TRUE.)
                   CALL cp_warn(__LOCATION__, &
                                'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)// &
-                               ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'// &
+                               ' Error '//TRIM(this_error)//' in computing numerical derivatives larger than'// &
                                TRIM(def_error)//' .')
                END IF
 

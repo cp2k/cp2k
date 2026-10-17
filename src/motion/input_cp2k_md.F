@@ -22,13 +22,13 @@ MODULE input_cp2k_md
                                               low_print_level,&
                                               medium_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
+   USE generic_function_input,          ONLY: create_function_section
    USE input_constants,                 ONLY: &
         do_constr_atomic, do_constr_molec, do_constr_none, isokin_ensemble, langevin_ensemble, &
         md_init_default, md_init_vib, npe_f_ensemble, npe_i_ensemble, nph_ensemble, &
         nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, &
         npt_ia_ensemble, nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, reftraj_ensemble
    USE input_cp2k_barostats,            ONLY: create_barostat_section
-   USE input_cp2k_function,             ONLY: create_function_section
    USE input_cp2k_thermostats,          ONLY: create_region_section,&
                                               create_thermo_fast_section,&
                                               create_thermo_slow_section,&
