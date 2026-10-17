@@ -369,6 +369,8 @@ CONTAINS
                IF (nprjc == 0) CYCLE
                do_upf = ALLOCATED(spotential(kkind)%sgp_potential%upf_data)
                IF (do_upf) THEN
+                  ! USPP D0 is assembled with the full projector-mediated AO pattern.
+                  IF (spotential(kkind)%sgp_potential%upf_data%is_ultrasoft) CYCLE
                   upf => spotential(kkind)%sgp_potential%upf_projectors
                   nppnl = upf%nproj
                ELSE
@@ -537,7 +539,7 @@ CONTAINS
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED  (do_kp, basis_set, matrix_h, matrix_l, cell_to_index,&
-!$OMP          sab_orb, matrix_p, sap_int, nkind, eps_ppnl, force, &
+!$OMP          sab_orb, matrix_p, sap_int, nkind, eps_ppnl, force, spotential, &
 !$OMP          doat, do_dR, deltaR, maxder, nder, &
 !$OMP          locks, virial, use_virial, calculate_forces, do_soc, natom) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, rab, &
@@ -622,6 +624,11 @@ CONTAINS
 !$             hash = INT(MOD(iatom8, INT(nlock, int_8)) + 1)
 
                DO kkind = 1, nkind
+                  IF (ASSOCIATED(spotential(kkind)%sgp_potential)) THEN
+                     IF (ALLOCATED(spotential(kkind)%sgp_potential%upf_data)) THEN
+                        IF (spotential(kkind)%sgp_potential%upf_data%is_ultrasoft) CYCLE
+                     END IF
+                  END IF
                   iac = ikind + nkind*(kkind - 1)
                   ibc = jkind + nkind*(kkind - 1)
                   IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) CYCLE

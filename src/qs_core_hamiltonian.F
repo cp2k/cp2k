@@ -128,6 +128,9 @@ MODULE qs_core_hamiltonian
    USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE qs_upf_inverse_scf,              ONLY: qs_upf_inverse_scf_active,&
+                                              qs_upf_inverse_scf_core
+   USE qs_uspp_methods,                 ONLY: qs_uspp_init_ao_matrix
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
@@ -266,6 +269,12 @@ CONTAINS
       !
       NULLIFY (ks_env)
       CALL get_qs_env(qs_env=qs_env, ks_env=ks_env)
+      IF (qs_upf_inverse_scf_active(ks_env)) THEN
+         CALL qs_upf_inverse_scf_core(ks_env)
+         CALL timestop(handle)
+         RETURN
+      END IF
+
       NULLIFY (matrix_s, matrix_t)
       CALL get_qs_env(qs_env=qs_env, kinetic_kp=matrix_t, matrix_s_kp=matrix_s)
       NULLIFY (sab_orb)
@@ -568,6 +577,7 @@ CONTAINS
          ALLOCATE (matrix_h(1, img)%matrix)
          CALL dbcsr_create(matrix_h(1, img)%matrix, name=TRIM(headline), template=template)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_h(1, img)%matrix, sab_orb)
+         CALL qs_uspp_init_ao_matrix(ks_env, matrix_h(1, img)%matrix)
          CALL dbcsr_set(matrix_h(1, img)%matrix, 0.0_dp)
       END DO
       CALL set_ks_env(ks_env, matrix_h_kp=matrix_h)
