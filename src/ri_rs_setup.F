@@ -61,7 +61,8 @@ MODULE ri_rs_setup
                                               solve_D_lp_distributed,&
                                               store_Z_lP_columns
    USE ri_rs_grid_setup,                ONLY: setup_ri_rs_grid
-   USE ri_rs_matrices,                  ONLY: atomic_basis_at_grid_point
+   USE ri_rs_matrices,                  ONLY: atomic_basis_at_grid_point,&
+                                              print_matrix_occupation
    USE ri_rs_utils,                     ONLY: evaluate_ao_on_points,&
                                               precompute_ri_rs_radii
    USE util,                            ONLY: sort
@@ -88,9 +89,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ensure_ri_rs_representation'
 
       INTEGER                                            :: handle
+      REAL(KIND=dp)                                      :: build_start
 
       CALL timeset(routineN, handle)
       IF (.NOT. bs_env%ri_rs%grid_built) THEN
+         build_start = m_walltime()
          CALL get_qs_env(qs_env, atomic_kind_set=bs_env%ri_rs%atomic_kind_set, &
                          cell=bs_env%ri_rs%cell, particle_set=bs_env%ri_rs%particle_set)
          IF (.NOT. ALLOCATED(bs_env%ri_rs%radius_ao_per_atom)) THEN
@@ -102,9 +105,16 @@ CONTAINS
                                          bs_env%mat_ao_ao%matrix, bs_env%para_env, bs_env%eps_filter, &
                                          bs_env%dbcsr_msg_elem_limit, bs_env%unit_nr, &
                                          periodic_images=.FALSE.)
+         CALL print_matrix_occupation(bs_env%ri_rs%mat_phi_mu_l, 'ϕ_μ(r_l)', &
+                                      bs_env%para_env, bs_env%unit_nr, bs_env%dbcsr_msg_elem_limit)
          CALL compute_Z_lP(qs_env, bs_env, bs_env%ri_rs%grid_points, &
                            bs_env%ri_rs%mat_phi_mu_l, bs_env%ri_rs%mat_Z_lP)
          bs_env%ri_rs%grid_built = .TRUE.
+         IF (bs_env%unit_nr > 0) THEN
+            WRITE (bs_env%unit_nr, '(T2,A,T58,A,F7.1,A)') &
+               'Built RI-RS representation,', ' Execution time', m_walltime() - build_start, ' s'
+            WRITE (bs_env%unit_nr, '(A)') ' '
+         END IF
       END IF
       CALL timestop(handle)
    END SUBROUTINE ensure_ri_rs_representation

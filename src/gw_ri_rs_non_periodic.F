@@ -18,10 +18,10 @@ MODULE gw_ri_rs_non_periodic
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_get, &
         dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_filter, &
-        dbcsr_finalize, dbcsr_get_data_size, dbcsr_get_info, dbcsr_get_occupation, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_put_block, &
-        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_finalize, dbcsr_get_info, dbcsr_get_occupation, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_scale, dbcsr_set, &
+        dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -72,6 +72,7 @@ MODULE gw_ri_rs_non_periodic
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE ri_rs_grid_setup,                ONLY: setup_ri_rs_grid
    USE ri_rs_matrices,                  ONLY: atomic_basis_at_grid_point,&
+                                              print_matrix_occupation,&
                                               release_dbcsr_topology_and_matrices,&
                                               setup_square_topology
    USE ri_rs_setup,                     ONLY: compute_Z_lP
@@ -134,7 +135,8 @@ CONTAINS
                                       bs_env%mat_ao_ao%matrix, bs_env%para_env, bs_env%eps_filter, &
                                       bs_env%dbcsr_msg_elem_limit, bs_env%unit_nr, periodic_images=.FALSE.)
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
-      CALL print_matrix_occupation(bs_env%ri_rs%mat_phi_mu_l, 'ϕ_μ(r_l)', bs_env)
+      CALL print_matrix_occupation(bs_env%ri_rs%mat_phi_mu_l, 'ϕ_μ(r_l)', bs_env%para_env, bs_env%unit_nr, &
+                                   bs_env%dbcsr_msg_elem_limit)
 
       ! ==============================================================================
       ! 2b. Print the memory estimate for the RI-RS calculation
@@ -549,14 +551,16 @@ CONTAINS
 
          ! Sparsity reports
          IF (i_t == 1) THEN
-            CALL print_matrix_occupation(mat_Z_lP, 'Z_lP', bs_env)
+            CALL print_matrix_occupation(mat_Z_lP, 'Z_lP', bs_env%para_env, bs_env%unit_nr, &
+                                         bs_env%dbcsr_msg_elem_limit)
             IF (bs_env%unit_nr > 0) THEN
                WRITE (bs_env%unit_nr, '(T2,A,T73,F7.2,A)') &
                   'Percentage of non-zero matrix elements in G_ll'', χ_ll'', W_ll''', &
                   grid_occ*100.0_dp, ' %'
                CALL m_flush(bs_env%unit_nr)
             END IF
-            CALL print_matrix_occupation(mat_chi_Gamma_tau(i_t)%matrix, 'χ_PQ', bs_env, &
+            CALL print_matrix_occupation(mat_chi_Gamma_tau(i_t)%matrix, 'χ_PQ', bs_env%para_env, bs_env%unit_nr, &
+                                         bs_env%dbcsr_msg_elem_limit, &
                                          suffix=' for time point 1')
             IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
          END IF
@@ -2295,9 +2299,11 @@ CONTAINS
          IF (bs_env%n_spin == 2 .AND. ispin == 1) sigma_label = 'Σ^c_α'
          IF (bs_env%n_spin == 2 .AND. ispin == 2) sigma_label = 'Σ^c_β'
          CALL print_matrix_occupation(mat_Sigma_pos_tau(1, ispin)%matrix, &
-                                      TRIM(sigma_label)//'(iτ)', bs_env, suffix=TRIM(suffix))
+                                      TRIM(sigma_label)//'(iτ)', bs_env%para_env, bs_env%unit_nr, &
+                                      bs_env%dbcsr_msg_elem_limit, suffix=TRIM(suffix))
          CALL print_matrix_occupation(mat_Sigma_neg_tau(1, ispin)%matrix, &
-                                      TRIM(sigma_label)//'(-iτ)', bs_env, suffix=TRIM(suffix))
+                                      TRIM(sigma_label)//'(-iτ)', bs_env%para_env, bs_env%unit_nr, &
+                                      bs_env%dbcsr_msg_elem_limit, suffix=TRIM(suffix))
       END DO
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
 
@@ -2456,59 +2462,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE get_n_ao_in_sphere
-
-! **************************************************************************************************
-!> \brief Prints the percentage of non-zero elements in a distributed RI-RS matrix.
-!> \param matrix Distributed matrix whose occupation is reported
-!> \param label Mathematical matrix label used in the output
-!> \param bs_env ...
-!> \param suffix Optional text appended to the matrix label
-! **************************************************************************************************
-   SUBROUTINE print_matrix_occupation(matrix, label, bs_env, suffix)
-
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      CHARACTER(LEN=*), INTENT(IN)                       :: label
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: suffix
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_matrix_occupation'
-
-      CHARACTER(LEN=32)                                  :: output_format
-      CHARACTER(LEN=max_line_length)                     :: msg, output_label
-      INTEGER                                            :: handle, i, unicode_shift
-      REAL(KIND=dp)                                      :: frac_2p31, max_loc, occ
-
-      CALL timeset(routineN, handle)
-
-      occ = dbcsr_get_occupation(matrix)
-      max_loc = REAL(dbcsr_get_data_size(matrix), dp)
-      CALL bs_env%para_env%max(max_loc)
-
-      IF (bs_env%unit_nr > 0) THEN
-         frac_2p31 = max_loc/REAL(bs_env%dbcsr_msg_elem_limit, dp)
-         output_label = 'Percentage of non-zero matrix elements in '//TRIM(label)
-         IF (PRESENT(suffix)) output_label = TRIM(output_label)//TRIM(suffix)
-         ! Fortran counts UTF-8 bytes, whereas the terminal displays each Greek letter in one
-         ! column. Shift the absolute output tab once for every continuation byte.
-         unicode_shift = 0
-         DO i = 1, LEN_TRIM(output_label)
-            IF (IAND(IACHAR(output_label(i:i)), 192) == 128) unicode_shift = unicode_shift + 1
-         END DO
-         WRITE (output_format, '(A,I0,A)') '(T2,A,T', 72 + unicode_shift, ',F7.2,A)'
-         WRITE (bs_env%unit_nr, output_format) TRIM(output_label), occ*100.0_dp, ' %'
-         IF (frac_2p31 > 0.5_dp) THEN
-            WRITE (msg, '(3A,F0.2,A)') &
-               "The largest per-rank message of ", TRIM(label), " reaches ", frac_2p31, &
-               " of the 32-bit limit that DBCSR uses for its message length. Beyond it the "// &
-               "length overflows and multiply_cannon fails. Reduce the per-rank block size, "// &
-               "for instance with more MPI ranks."
-            CPWARN(TRIM(msg))
-         END IF
-         CALL m_flush(bs_env%unit_nr)
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE print_matrix_occupation
 
 END MODULE gw_ri_rs_non_periodic

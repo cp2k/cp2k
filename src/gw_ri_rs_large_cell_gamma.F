@@ -59,6 +59,7 @@ MODULE gw_ri_rs_large_cell_Gamma
                                               store_Z_lP_columns
    USE ri_rs_grid_setup,                ONLY: setup_ri_rs_grid
    USE ri_rs_matrices,                  ONLY: atomic_basis_at_grid_point,&
+                                              print_matrix_occupation,&
                                               release_dbcsr_topology_and_matrices,&
                                               setup_square_topology
    USE ri_rs_utils,                     ONLY: evaluate_ao_basis_on_points,&
@@ -121,6 +122,8 @@ CONTAINS
                                       bs_env%mat_ao_ao%matrix, bs_env%para_env, bs_env%eps_filter, &
                                       bs_env%dbcsr_msg_elem_limit, bs_env%unit_nr, periodic_images=.TRUE.)
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, *) 'Done with evaluation of phi'
+      CALL print_matrix_occupation(bs_env%ri_rs%mat_phi_mu_l, 'ϕ_μ(r_l)', &
+                                   bs_env%para_env, bs_env%unit_nr, bs_env%dbcsr_msg_elem_limit)
 
        !!========================================================================
        !! 3. Compute RI-RS Coefficients (Z_lp)

@@ -13,11 +13,13 @@ MODULE ri_rs_matrices
                                               gto_basis_set_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
-        dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_info, dbcsr_put_block, dbcsr_release, &
-        dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_data_size, dbcsr_get_info, &
+        dbcsr_get_occupation, dbcsr_put_block, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: max_elements_per_block
    USE kinds,                           ONLY: dp,&
-                                              int_8
+                                              int_8,&
+                                              max_line_length
+   USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_para_env_type
    USE ri_rs_types,                     ONLY: ri_rs_env
    USE ri_rs_utils,                     ONLY: evaluate_ao_basis_on_points
@@ -26,7 +28,7 @@ MODULE ri_rs_matrices
    IMPLICIT NONE
    PRIVATE
    PUBLIC :: atomic_basis_at_grid_point, setup_square_topology, &
-             release_dbcsr_topology_and_matrices, reserve_blocks_within_radius
+             release_dbcsr_topology_and_matrices, reserve_blocks_within_radius, print_matrix_occupation
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ri_rs_matrices'
 
@@ -324,5 +326,63 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE reserve_blocks_within_radius
+
+! **************************************************************************************************
+!> \brief Prints the percentage of non-zero elements in a distributed RI-RS matrix.
+!> \param matrix Distributed matrix whose occupation is reported
+!> \param label Mathematical matrix label used in the output
+!> \param para_env communicator shared by all matrix ranks
+!> \param unit_nr output unit; nonpositive values suppress printing
+!> \param msg_elem_limit maximum number of elements per DBCSR message
+!> \param suffix Optional text appended to the matrix label
+! **************************************************************************************************
+   SUBROUTINE print_matrix_occupation(matrix, label, para_env, unit_nr, msg_elem_limit, suffix)
+
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
+      CHARACTER(LEN=*), INTENT(IN)                       :: label
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+      INTEGER(KIND=int_8), INTENT(IN)                    :: msg_elem_limit
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: suffix
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_matrix_occupation'
+
+      CHARACTER(LEN=32)                                  :: output_format
+      CHARACTER(LEN=max_line_length)                     :: msg, output_label
+      INTEGER                                            :: handle, i, unicode_shift
+      REAL(KIND=dp)                                      :: frac_2p31, max_loc, occ
+
+      CALL timeset(routineN, handle)
+
+      occ = dbcsr_get_occupation(matrix)
+      max_loc = REAL(dbcsr_get_data_size(matrix), dp)
+      CALL para_env%max(max_loc)
+
+      IF (unit_nr > 0) THEN
+         frac_2p31 = max_loc/REAL(msg_elem_limit, dp)
+         output_label = 'Percentage of non-zero matrix elements in '//TRIM(label)
+         IF (PRESENT(suffix)) output_label = TRIM(output_label)//TRIM(suffix)
+         ! Fortran counts UTF-8 bytes, whereas the terminal displays each Greek letter in one
+         ! column. Shift the absolute output tab once for every continuation byte.
+         unicode_shift = 0
+         DO i = 1, LEN_TRIM(output_label)
+            IF (IAND(IACHAR(output_label(i:i)), 192) == 128) unicode_shift = unicode_shift + 1
+         END DO
+         WRITE (output_format, '(A,I0,A)') '(T2,A,T', 72 + unicode_shift, ',F7.2,A)'
+         WRITE (unit_nr, output_format) TRIM(output_label), occ*100.0_dp, ' %'
+         IF (frac_2p31 > 0.5_dp) THEN
+            WRITE (msg, '(3A,F0.2,A)') &
+               "The largest per-rank message of ", TRIM(label), " reaches ", frac_2p31, &
+               " of the 32-bit limit that DBCSR uses for its message length. Beyond it the "// &
+               "length overflows and multiply_cannon fails. Reduce the per-rank block size, "// &
+               "for instance with more MPI ranks."
+            CPWARN(TRIM(msg))
+         END IF
+         CALL m_flush(unit_nr)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE print_matrix_occupation
 
 END MODULE ri_rs_matrices
