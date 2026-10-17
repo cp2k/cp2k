@@ -85,8 +85,7 @@ CONTAINS
 
       bs_eff = max_elements_per_block
       IF (.NOT. periodic_images) THEN
-         safe_max = INT(0.5_dp*REAL(msg_elem_limit, dp)*REAL(MAX(MIN(nprow, npcol), 1), dp)/ &
-                        REAL(n_grid, dp))
+         safe_max = INT(msg_elem_limit*MAX(MIN(nprow, npcol), 1)/n_grid/2)
          bs_eff = MAX(1, MIN(bs_eff, MAX(1, safe_max)))
       END IF
       IF (periodic_images) THEN

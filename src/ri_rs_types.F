@@ -45,7 +45,7 @@ MODULE ri_rs_types
       REAL(KIND=dp)                                    :: tikhonov = 1.0E-08_dp
       REAL(KIND=dp)                                    :: cutoff_radius_ri_ao = -1.0_dp
       REAL(KIND=dp)                                    :: cutoff_radius_v_w = -1.0_dp
-      TYPE(ri_rs_grid_opt_type)                        :: grid_opt
+      TYPE(ri_rs_grid_opt_type)                        :: grid_opt = ri_rs_grid_opt_type()
 
       ! Geometry references used by RI-RS grid setup and optimization.
       ! They remain owned by qs_env and must never be deallocated here.
@@ -63,8 +63,8 @@ MODULE ri_rs_types
 
       ! Data types for storing RI-RS matrices
       INTEGER                                          :: n_grid_points = 0
-      TYPE(dbcsr_type)                                 :: mat_phi_mu_l
-      TYPE(dbcsr_type)                                 :: mat_Z_lP
+      TYPE(dbcsr_type)                                 :: mat_phi_mu_l = dbcsr_type()
+      TYPE(dbcsr_type)                                 :: mat_Z_lP = dbcsr_type()
       REAL(KIND=dp), ALLOCATABLE                       :: grid_points(:, :)
       LOGICAL                                          :: Z_lP_exists = .FALSE.
 
@@ -76,8 +76,8 @@ MODULE ri_rs_types
       ! mat_V_aux_rtbse(P, Q) = truncated-Coulomb V_PQ with M^-1 sandwich (RI x RI);
       ! the Hartree grid kernel Z V Z^T is applied factorized, never materialized
       ! mat_W0_grid_rtbse(l, l') = sum_PQ  Z_lP W^{w=0}_PQ Z_l'Q
-      TYPE(dbcsr_type)                                 :: mat_V_aux_rtbse
-      TYPE(dbcsr_type)                                 :: mat_W0_grid_rtbse
+      TYPE(dbcsr_type)                                 :: mat_V_aux_rtbse = dbcsr_type()
+      TYPE(dbcsr_type)                                 :: mat_W0_grid_rtbse = dbcsr_type()
 
       ! RTBSE%EPS_FILTER_RHO: cuts Delta-rho_AO in compute_sigma_ri_rs, also cuts SEX and Hartree
       REAL(KIND=dp)                                    :: eps_filter_rho = -1.0_dp

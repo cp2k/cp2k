@@ -64,6 +64,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(ri_rs%atomic_kind_set))
       CPASSERT(ASSOCIATED(ri_rs%particle_set))
+      CPASSERT(0.0_dp < eps .AND. eps < 1.0_dp)
       nkind = SIZE(ri_rs%atomic_kind_set)
       natom = SIZE(ri_rs%particle_set)
 
