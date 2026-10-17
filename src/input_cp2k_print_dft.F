@@ -1262,7 +1262,7 @@ CONTAINS
          name="UNIT", &
          description="Unit of the printed electric multipole moments. Multipoles of order L are "// &
          "printed in UNIT*length^(L-1), where length is angstrom for debye and e_angstrom, bohr for "// &
-         "au_dip (atomic orbital units) and m for C_m (Coulomb meter). For k-point calculations the "// &
+         "au_dip (atomic unit of the dipole) and m for C_m (Coulomb meter). For k-point calculations the "// &
          "dipole matrix elements are printed in UNIT and the Berry curvature in length^2. The FORMAT "// &
          "TRAJECTORY output is always in Debye.", &
          usage="UNIT {debye|e_angstrom|au_dip|C_m}", &
@@ -1379,8 +1379,8 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="KPOINT_DIPOLE_FILE", &
-                          description="Write the k-point dipole matrix elements to this file "// &
-                          "instead of the MOMENTS output. Without a value the file kpoint_dipoles.dat "// &
+                          description="Write the k-point dipole matrix elements to this file. "// &
+                          "Without a value, the file kpoint_dipoles.dat "// &
                           "is used. Only used for KPOINT calculations.", &
                           usage="KPOINT_DIPOLE_FILE {filename}", &
                           repeats=.FALSE., &
@@ -1391,8 +1391,8 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="BERRY_CURVATURE_FILE", &
-                          description="Write the k-point Berry curvature to this file "// &
-                          "instead of the MOMENTS output. Without a value the file berry_curvature.dat "// &
+                          description="Write the k-point Berry curvature to this file. "// &
+                          "Without a value, the file berry_curvature.dat "// &
                           "is used. Only used for KPOINT calculations.", &
                           usage="BERRY_CURVATURE_FILE {filename}", &
                           repeats=.FALSE., &
