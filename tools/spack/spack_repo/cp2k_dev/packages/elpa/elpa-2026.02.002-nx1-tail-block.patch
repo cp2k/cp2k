@@ -1,0 +1,30 @@
+# Backports the width-1 tail block fixes from ELPA branch bugfix_elpa2_65_65_64.
+# Reported as cp2k/cp2k#4484 (heap corruption with 1 MPI rank, na == 1 mod bandwidth)
+# and validated with its original input (SCF converges, energy matches ScaLAPACK).
+--- a/src/elpa2/elpa2_tridiag_band_template.F90
++++ b/src/elpa2/elpa2_tridiag_band_template.F90
+@@ -384 +384,2 @@
+-    call determine_workload(obj, na-(iblk+block_limits(my_pe)-1)*nb, nb, np_rows, snd_limits(:,iblk))
++    nx = na-(iblk+block_limits(my_pe)-1)*nb
++    call determine_workload(obj, nx, nb, np_rows, snd_limits(:,iblk))
+@@ -1152,0 +1154,4 @@
++      nx = na-(iblk+block_limits(my_pe)-1)*nb ! For nx=1, the last block has width 1:
++      if (nx <= 1) exit                       ! its only HH vector is 0 and is neither stored in hh_trans
++                                              ! nor received (mpi_irecv only for nx>1 above), so mustn't be sent
++
+--- a/src/elpa2/elpa2_trans_ev_tridi_to_band_template.F90
++++ b/src/elpa2/elpa2_trans_ev_tridi_to_band_template.F90
+@@ -2009 +2009,3 @@
+-    if (current_local_n > 1) then
++    ! A HH vector chunk is stored in hh_trans if the sweep has global width current_n > 1
++    ! (cf. nx>1 in tridiag_band); locally we may still own just 1 row of it (current_local_n == 1)
++    if (current_n > 1 .and. current_local_n > 0) then
+@@ -2167 +2169 @@
+-    else ! (current_local_n > 1) then
++    else ! (current_n > 1 .and. current_local_n > 0)
+@@ -2169 +2171 @@
+-      ! for current_local_n == 1 the one and only HH Vector is 0 and not stored in hh_trans_real/complex
++      ! for current_n == 1 the one and only HH Vector is 0 and not stored in hh_trans_real/complex
+@@ -2205 +2207 @@
+-    endif ! (current_local_n > 1) then
++    endif ! (current_n > 1 .and. current_local_n > 0)
