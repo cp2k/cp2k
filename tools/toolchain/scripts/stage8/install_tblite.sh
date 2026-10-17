@@ -34,6 +34,9 @@ case "$with_tblite" in
       [ -d tblite-${tblite_ver} ] && rm -rf tblite-${tblite_ver}
       tar -xJf tblite-${tblite_ver}.tar.xz
       cd tblite-${tblite_ver}
+      # Periodic Klopman-Ohno electrostatics, upstream tblite/tblite#395.
+      patch --batch -p1 < "${SCRIPT_DIR}/stage8/tblite-ko-ewald.patch" \
+        > patch.log 2>&1 || tail_excerpt patch.log
       mkdir -p build && cd build
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
@@ -44,7 +47,8 @@ case "$with_tblite" in
         .. \
         > cmake.log 2>&1 || tail_excerpt cmake.log
       make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
-      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
+      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})" \
+        "${SCRIPT_DIR}/stage8/tblite-ko-ewald.patch"
       cd ..
     fi
     ;;

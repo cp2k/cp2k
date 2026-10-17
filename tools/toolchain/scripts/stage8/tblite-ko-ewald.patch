@@ -1,0 +1,438 @@
+Backport tblite/tblite#395 (c701d0201b749975bd70ff56225abb074a4f6372).
+The upstream Klopman-Ohno generalized Ewald implementation is unchanged except
+for removing optional MPI work-partition arguments, absent in tblite 0.7.0.
+
+--- a/src/tblite/coulomb/charge/effective.f90
++++ b/src/tblite/coulomb/charge/effective.f90
+@@ -68,0 +69,4 @@
++   real(wp), parameter :: ko_cutoff = 40.0_wp
++   real(wp), parameter :: euler_gamma = 0.57721566490153286061_wp
++   real(wp), parameter :: s3_constant = 0.5_wp*(log(pi) - 2.0_wp + euler_gamma &
++      & + 2.0_wp*log(2.0_wp))
+@@ -311,0 +316,5 @@
++   if (abs(gexp - 2.0_wp) < eps) then
++      call get_amat_ko_3d(mol, nshell, offset, hubbard, alpha, amat)
++      return
++   end if
++
+@@ -596,0 +606,6 @@
++   if (abs(gexp - 2.0_wp) < eps) then
++      call get_damat_ko_3d(mol, nshell, offset, hubbard, alpha, qvec, dadr, &
++         & dadL, atrace)
++      return
++   end if
++
+@@ -780,0 +796,320 @@
++
++
++subroutine get_amat_ko_3d(mol, nshell, offset, hubbard, alpha, amat)
++   type(structure_type), intent(in) :: mol
++   integer, intent(in) :: nshell(:), offset(:)
++   real(wp), intent(in) :: hubbard(:, :, :, :), alpha
++   real(wp), intent(inout) :: amat(:, :)
++
++   integer :: iat, jat, izp, jzp, ii, jj, ish, jsh
++   real(wp) :: vec(3), gam, val, vol, s1, s3, sr
++   real(wp), allocatable :: dtrans(:, :), rtrans(:, :), strans(:, :)
++   real(wp), allocatable :: r2(:)
++
++   vol = abs(matdet_3x3(mol%lattice))
++   call get_dir_trans(mol%lattice, alpha, conv, dtrans)
++   call get_rec_trans(mol%lattice, alpha, vol, conv, rtrans)
++   call get_lattice_points([.true.], mol%lattice, ko_cutoff, strans)
++
++   !$omp parallel default(none) shared(amat) &
++   !$omp shared(mol, nshell, offset, hubbard, alpha, vol, dtrans, rtrans, strans) &
++   !$omp private(iat, izp, ii, ish, jat, jzp, jj, jsh, gam, vec, val, s1, s3, sr, r2)
++   allocate(r2(size(strans, 2)))
++   !$omp do schedule(runtime)
++   do iat = 1, mol%nat
++      izp = mol%id(iat)
++      ii = offset(iat)
++      do jat = 1, iat-1
++         jzp = mol%id(jat)
++         jj = offset(jat)
++         vec = mol%xyz(:, iat) - mol%xyz(:, jat)
++         call get_ko_distances(vec, strans, r2)
++         call get_amat_ko_ewald_3d(vec, alpha, vol, dtrans, rtrans, strans, &
++            & .false., s1, s3)
++         do ish = 1, nshell(iat)
++            do jsh = 1, nshell(jat)
++               gam = hubbard(jsh, ish, jzp, izp)
++               call get_amat_ko_short_3d(gam, r2, sr)
++               val = s1 + sr - 0.5_wp*s3/(gam*gam)
++               amat(jj+jsh, ii+ish) = amat(jj+jsh, ii+ish) + val
++               amat(ii+ish, jj+jsh) = amat(ii+ish, jj+jsh) + val
++            end do
++         end do
++      end do
++
++      vec = 0.0_wp
++      call get_ko_distances(vec, strans, r2)
++      call get_amat_ko_ewald_3d(vec, alpha, vol, dtrans, rtrans, strans, &
++         & .true., s1, s3)
++      do ish = 1, nshell(iat)
++         do jsh = 1, ish-1
++            gam = hubbard(jsh, ish, izp, izp)
++            call get_amat_ko_short_3d(gam, r2, sr)
++            val = s1 + sr - 0.5_wp*s3/(gam*gam) + gam
++            amat(ii+jsh, ii+ish) = amat(ii+jsh, ii+ish) + val
++            amat(ii+ish, ii+jsh) = amat(ii+ish, ii+jsh) + val
++         end do
++         gam = hubbard(ish, ish, izp, izp)
++         call get_amat_ko_short_3d(gam, r2, sr)
++         val = s1 + sr - 0.5_wp*s3/(gam*gam) + gam
++         amat(ii+ish, ii+ish) = amat(ii+ish, ii+ish) + val
++      end do
++   end do
++   !$omp end do
++   deallocate(r2)
++   !$omp end parallel
++end subroutine get_amat_ko_3d
++
++
++subroutine get_amat_ko_ewald_3d(rij, alpha, vol, dtrans, rtrans, strans, &
++      & onsite, s1, s3)
++   real(wp), intent(in) :: rij(3), alpha, vol
++   real(wp), intent(in) :: dtrans(:, :), rtrans(:, :), strans(:, :)
++   logical, intent(in) :: onsite
++   real(wp), intent(out) :: s1, s3
++
++   integer :: itr
++   real(wp) :: vec(3), r1, r2, x, k, tmp
++
++   call get_amat_dir_3d(rij, alpha, dtrans, s1)
++   call get_amat_rec_3d(rij, vol, alpha, rtrans, tmp)
++   s1 = s1 + tmp
++   if (onsite) s1 = s1 - 2.0_wp*alpha/sqrtpi
++
++   s3 = 0.0_wp
++   do itr = 1, size(strans, 2)
++      vec = rij + strans(:, itr)
++      r1 = norm2(vec)
++      if (r1 < eps) cycle
++      r2 = r1*r1
++      s3 = s3 + erfc(alpha*r1)/(r2*r1) &
++         & + 2.0_wp*alpha*exp(-alpha*alpha*r2)/(sqrtpi*r2)
++   end do
++
++   do itr = 1, size(rtrans, 2)
++      vec = rtrans(:, itr)
++      x = dot_product(vec, vec)/(4.0_wp*alpha*alpha)
++      s3 = s3 + 2.0_wp*pi/vol*expint_e1(x)*cos(dot_product(rij, vec))
++   end do
++   k = alpha/sqrtpi
++   s3 = s3 + 4.0_wp*pi/vol*(log(k) + s3_constant)
++   if (onsite) s3 = s3 - 4.0_wp*pi/3.0_wp*k**3
++end subroutine get_amat_ko_ewald_3d
++
++
++subroutine get_ko_distances(rij, trans, r2)
++   real(wp), intent(in) :: rij(3), trans(:, :)
++   real(wp), intent(out) :: r2(:)
++
++   integer :: itr
++   real(wp) :: vec(3)
++
++   do itr = 1, size(trans, 2)
++      vec = rij + trans(:, itr)
++      r2(itr) = dot_product(vec, vec)
++   end do
++end subroutine get_ko_distances
++
++
++subroutine get_amat_ko_short_3d(gam, r2, val)
++   real(wp), intent(in) :: gam, r2(:)
++   real(wp), intent(out) :: val
++
++   integer :: itr
++   real(wp) :: r1
++
++   val = 0.0_wp
++   do itr = 1, size(r2)
++      r1 = sqrt(r2(itr))
++      if (r1 < eps) cycle
++      val = val + 1.0_wp/sqrt(r2(itr) + 1.0_wp/(gam*gam)) - 1.0_wp/r1 &
++         & + 0.5_wp/(gam*gam*r2(itr)*r1)
++   end do
++end subroutine get_amat_ko_short_3d
++
++
++pure function expint_e1(x) result(e1)
++   real(wp), intent(in) :: x
++   real(wp) :: e1
++
++   integer :: iter
++   real(wp) :: term, sum, a, b, c, d, delta, h
++   real(wp), parameter :: fpmin = 10.0_wp*tiny(1.0_wp)
++
++   if (x <= 1.0_wp) then
++      term = 1.0_wp
++      sum = 0.0_wp
++      do iter = 1, 100
++         term = -term*x/real(iter, wp)
++         sum = sum + term/real(iter, wp)
++         if (abs(term) < epsilon(1.0_wp)*abs(sum)) exit
++      end do
++      e1 = -euler_gamma - log(x) - sum
++   else
++      b = x + 1.0_wp
++      c = 1.0_wp/fpmin
++      d = 1.0_wp/b
++      h = d
++      do iter = 1, 100
++         a = -real(iter*iter, wp)
++         b = b + 2.0_wp
++         d = 1.0_wp/max(abs(a*d + b), fpmin)*sign(1.0_wp, a*d + b)
++         c = b + a/c
++         if (abs(c) < fpmin) c = fpmin
++         delta = c*d
++         h = h*delta
++         if (abs(delta - 1.0_wp) < epsilon(1.0_wp)) exit
++      end do
++      e1 = exp(-x)*h
++   end if
++end function expint_e1
++
++
++subroutine get_damat_ko_3d(mol, nshell, offset, hubbard, alpha, qvec, dadr, &
++      & dadL, atrace)
++   type(structure_type), intent(in) :: mol
++   integer, intent(in) :: nshell(:), offset(:)
++   real(wp), intent(in) :: hubbard(:, :, :, :), alpha, qvec(:)
++   real(wp), intent(out) :: dadr(:, :, :), dadL(:, :, :), atrace(:, :)
++
++   integer :: iat, jat, izp, jzp, ii, jj, ish, jsh
++   real(wp) :: vol, gam, vec(3), dG(3), dS(3, 3)
++   real(wp) :: dG1(3), dS1(3, 3), dG3(3), dS3(3, 3), dGsr(3), dSsr(3, 3)
++   real(wp), allocatable :: itrace(:, :), didr(:, :, :), didL(:, :, :)
++   real(wp), allocatable :: dtrans(:, :), rtrans(:, :), strans(:, :)
++
++   atrace = 0.0_wp
++   dadr = 0.0_wp
++   dadL = 0.0_wp
++   vol = abs(matdet_3x3(mol%lattice))
++   call get_dir_trans(mol%lattice, alpha, conv, dtrans)
++   call get_rec_trans(mol%lattice, alpha, vol, conv, rtrans)
++   call get_lattice_points([.true.], mol%lattice, ko_cutoff, strans)
++
++   !$omp parallel default(none) shared(atrace, dadr, dadL) &
++   !$omp shared(mol, nshell, offset, hubbard, alpha, vol, qvec, dtrans, rtrans, strans) &
++   !$omp private(iat, izp, ii, ish, jat, jzp, jj, jsh, gam, vec, dG, dS) &
++   !$omp private(dG1, dS1, dG3, dS3, dGsr, dSsr, itrace, didr, didL)
++   allocate(itrace, source=atrace)
++   allocate(didr, source=dadr)
++   allocate(didL, source=dadL)
++   !$omp do schedule(runtime)
++   do iat = 1, mol%nat
++      izp = mol%id(iat)
++      ii = offset(iat)
++      do jat = 1, iat-1
++         jzp = mol%id(jat)
++         jj = offset(jat)
++         vec = mol%xyz(:, iat) - mol%xyz(:, jat)
++         call get_damat_ko_ewald_3d(vec, alpha, vol, dtrans, rtrans, strans, &
++            & dG1, dS1, dG3, dS3)
++         do ish = 1, nshell(iat)
++            do jsh = 1, nshell(jat)
++               gam = hubbard(jsh, ish, jzp, izp)
++               call get_damat_ko_short_3d(vec, gam, strans, dGsr, dSsr)
++               dG = dG1 + dGsr - 0.5_wp*dG3/(gam*gam)
++               dS = dS1 + dSsr - 0.5_wp*dS3/(gam*gam)
++               itrace(:, ii+ish) = +dG*qvec(jj+jsh) + itrace(:, ii+ish)
++               itrace(:, jj+jsh) = -dG*qvec(ii+ish) + itrace(:, jj+jsh)
++               didr(:, iat, jj+jsh) = +dG*qvec(ii+ish) + didr(:, iat, jj+jsh)
++               didr(:, jat, ii+ish) = -dG*qvec(jj+jsh) + didr(:, jat, ii+ish)
++               didL(:, :, jj+jsh) = +dS*qvec(ii+ish) + didL(:, :, jj+jsh)
++               didL(:, :, ii+ish) = +dS*qvec(jj+jsh) + didL(:, :, ii+ish)
++            end do
++         end do
++      end do
++
++      vec = 0.0_wp
++      call get_damat_ko_ewald_3d(vec, alpha, vol, dtrans, rtrans, strans, &
++         & dG1, dS1, dG3, dS3)
++      do ish = 1, nshell(iat)
++         do jsh = 1, ish-1
++            gam = hubbard(jsh, ish, izp, izp)
++            call get_damat_ko_short_3d(vec, gam, strans, dGsr, dSsr)
++            dS = dS1 + dSsr - 0.5_wp*dS3/(gam*gam)
++            didL(:, :, ii+jsh) = +dS*qvec(ii+ish) + didL(:, :, ii+jsh)
++            didL(:, :, ii+ish) = +dS*qvec(ii+jsh) + didL(:, :, ii+ish)
++         end do
++         gam = hubbard(ish, ish, izp, izp)
++         call get_damat_ko_short_3d(vec, gam, strans, dGsr, dSsr)
++         dS = dS1 + dSsr - 0.5_wp*dS3/(gam*gam)
++         didL(:, :, ii+ish) = +dS*qvec(ii+ish) + didL(:, :, ii+ish)
++      end do
++   end do
++   !$omp critical (get_damat_ko_3d_)
++   atrace = atrace + itrace
++   dadr = dadr + didr
++   dadL = dadL + didL
++   !$omp end critical (get_damat_ko_3d_)
++   deallocate(didL, didr, itrace)
++   !$omp end parallel
++end subroutine get_damat_ko_3d
++
++
++subroutine get_damat_ko_ewald_3d(rij, alpha, vol, dtrans, rtrans, strans, &
++      & dg1, ds1, dg3, ds3)
++   real(wp), intent(in) :: rij(3), alpha, vol
++   real(wp), intent(in) :: dtrans(:, :), rtrans(:, :), strans(:, :)
++   real(wp), intent(out) :: dg1(3), ds1(3, 3), dg3(3), ds3(3, 3)
++
++   integer :: itr
++   real(wp) :: vec(3), r1, r2, g2, x, phase, fac, dtmp, e1, k0
++   real(wp) :: dgtmp(3), dstmp(3, 3)
++   real(wp), parameter :: unity(3, 3) = reshape(&
++      & [1, 0, 0, 0, 1, 0, 0, 0, 1], shape(unity))
++
++   call get_damat_dir_3d(rij, alpha, dtrans, dg1, ds1)
++   call get_damat_rec_3d(rij, vol, alpha, rtrans, dgtmp, dstmp)
++   dg1 = dg1 + dgtmp
++   ds1 = ds1 + dstmp
++
++   dg3 = 0.0_wp
++   ds3 = 0.0_wp
++   do itr = 1, size(strans, 2)
++      vec = rij + strans(:, itr)
++      r1 = norm2(vec)
++      if (r1 < eps) cycle
++      r2 = r1*r1
++      dtmp = -3.0_wp*erfc(alpha*r1)/(r2*r2*r1) &
++         & - 6.0_wp*alpha*exp(-alpha*alpha*r2)/(sqrtpi*r2*r2) &
++         & - 4.0_wp*alpha**3*exp(-alpha*alpha*r2)/(sqrtpi*r2)
++      dg3 = dg3 + dtmp*vec
++      ds3 = ds3 + dtmp*spread(vec, 1, 3)*spread(vec, 2, 3)
++   end do
++
++   fac = 2.0_wp*pi/vol
++   do itr = 1, size(rtrans, 2)
++      vec = rtrans(:, itr)
++      g2 = dot_product(vec, vec)
++      x = g2/(4.0_wp*alpha*alpha)
++      phase = dot_product(rij, vec)
++      e1 = expint_e1(x)
++      dg3 = dg3 - fac*e1*sin(phase)*vec
++      ds3 = ds3 + fac*cos(phase) &
++         & *(2.0_wp*exp(-x)/g2*spread(vec, 1, 3)*spread(vec, 2, 3) - e1*unity)
++   end do
++   k0 = 4.0_wp*pi/vol*(log(alpha/sqrtpi) + s3_constant)
++   ds3 = ds3 - k0*unity
++end subroutine get_damat_ko_ewald_3d
++
++
++subroutine get_damat_ko_short_3d(rij, gam, trans, dg, ds)
++   real(wp), intent(in) :: rij(3), gam, trans(:, :)
++   real(wp), intent(out) :: dg(3), ds(3, 3)
++
++   integer :: itr
++   real(wp) :: vec(3), r1, r2, dtmp
++
++   dg = 0.0_wp
++   ds = 0.0_wp
++   do itr = 1, size(trans, 2)
++      vec = rij + trans(:, itr)
++      r1 = norm2(vec)
++      if (r1 < eps) cycle
++      r2 = r1*r1
++      dtmp = -(r2 + 1.0_wp/(gam*gam))**(-1.5_wp) + 1.0_wp/(r2*r1) &
++         & - 1.5_wp/(gam*gam*r2*r2*r1)
++      dg = dg + dtmp*vec
++      ds = ds + dtmp*spread(vec, 1, 3)*spread(vec, 2, 3)
++   end do
++end subroutine get_damat_ko_short_3d
+--- a/test/unit/test_coulomb_charge.f90
++++ b/test/unit/test_coulomb_charge.f90
+@@ -77,2 +77,2 @@
+-
+-      ! new_unittest("energy-atom-sc-e2", test_e_effective_oxacb_sc), & ! perfect scaling can currently not be expected
++      new_unittest("energy-atom-sc-e2", test_e_effective_oxacb_sc), &
++      new_unittest("energy-atom-pbc-e2-alpha", test_e_effective_alpha), &
+@@ -946 +946 @@
+-      & 0.10273708044741356_wp, thr2)
++      & 0.094385739059833038_wp, thr2)
+@@ -954,23 +954,59 @@
+-! subroutine test_e_effective_oxacb_sc(error)
+-!
+-!    !> Error handling
+-!    type(error_type), allocatable, intent(out) :: error
+-!
+-!    type(structure_type) :: mol
+-!    real(wp), parameter :: qat1(*) = [&
+-!       & 3.41731844312030E-1_wp, 3.41716020106239E-1_wp, 3.41730526585671E-1_wp,&
+-!       & 3.41714427217954E-1_wp, 3.80996046757999E-1_wp, 3.80989821246195E-1_wp,&
+-!       & 3.81000747720282E-1_wp, 3.80990494183703E-1_wp,-3.70406587264474E-1_wp,&
+-!       &-3.70407565207006E-1_wp,-3.70417590212352E-1_wp,-3.70399716470705E-1_wp,&
+-!       &-3.52322260586075E-1_wp,-3.52304269439196E-1_wp,-3.52313440903261E-1_wp,&
+-!       &-3.52298498047004E-1_wp]
+-!    integer, parameter :: supercell(*) = [2, 2, 2]
+-!    real(wp), parameter :: qat(*) = [spread(qat1, 2, product(supercell))]
+-!    real(wp), allocatable :: qsh(:)
+-!
+-!    call get_structure(mol, "X23", "oxacb")
+-!    call make_supercell(mol, supercell)
+-!    call test_generic(error, mol, qat, qsh, make_coulomb_e2, &
+-!       & 0.10361965109930950_wp * real(product(supercell), wp), thr2)
+-!
+-! end subroutine test_e_effective_oxacb_sc
++subroutine test_e_effective_oxacb_sc(error)
++
++   !> Error handling
++   type(error_type), allocatable, intent(out) :: error
++
++   type(structure_type) :: mol
++   real(wp), parameter :: qat1(*) = [&
++      & 3.41731844312030E-1_wp, 3.41716020106239E-1_wp, 3.41730526585671E-1_wp,&
++      & 3.41714427217954E-1_wp, 3.80996046757999E-1_wp, 3.80989821246195E-1_wp,&
++      & 3.81000747720282E-1_wp, 3.80990494183703E-1_wp,-3.70406587264474E-1_wp,&
++      &-3.70407565207006E-1_wp,-3.70417590212352E-1_wp,-3.70399716470705E-1_wp,&
++      &-3.52322260586075E-1_wp,-3.52304269439196E-1_wp,-3.52313440903261E-1_wp,&
++      &-3.52298498047004E-1_wp]
++   integer, parameter :: supercell(*) = [2, 2, 2]
++   real(wp), parameter :: qat(*) = [spread(qat1, 2, product(supercell))]
++   real(wp), allocatable :: qsh(:)
++
++   call get_structure(mol, "X23", "oxacb")
++   call make_supercell(mol, supercell)
++   call test_generic(error, mol, qat, qsh, make_coulomb_e2, &
++      & 0.094385739059833038_wp * real(product(supercell), wp), 1.0e-6_wp)
++
++end subroutine test_e_effective_oxacb_sc
++
++
++subroutine test_e_effective_alpha(error)
++   type(error_type), allocatable, intent(out) :: error
++
++   type(structure_type) :: mol
++   type(container_cache) :: cache
++   class(coulomb_charge_type), allocatable :: coulomb
++   type(wavefunction_type) :: wfn
++   real(wp) :: energy1(16), energy2(16)
++   real(wp), parameter :: qat(*) = [&
++      & 3.41731844312030E-1_wp, 3.41716020106239E-1_wp, 3.41730526585671E-1_wp,&
++      & 3.41714427217954E-1_wp, 3.80996046757999E-1_wp, 3.80989821246195E-1_wp,&
++      & 3.81000747720282E-1_wp, 3.80990494183703E-1_wp,-3.70406587264474E-1_wp,&
++      &-3.70407565207006E-1_wp,-3.70417590212352E-1_wp,-3.70399716470705E-1_wp,&
++      &-3.52322260586075E-1_wp,-3.52304269439196E-1_wp,-3.52313440903261E-1_wp,&
++      &-3.52298498047004E-1_wp]
++
++   call get_structure(mol, "X23", "oxacb")
++   call make_coulomb_e2(coulomb, mol, .false.)
++   wfn%qat = reshape(qat, [size(qat), 1])
++   wfn%qsh = wfn%qat
++   call coulomb%update(mol, cache)
++   energy1 = 0.0_wp
++   call coulomb%get_energy(mol, cache, wfn, energy1)
++
++   select type(ptr => cache%raw)
++   type is(coulomb_cache)
++      ptr%alpha = 0.8_wp*ptr%alpha
++      call coulomb%get_coulomb_matrix(mol, ptr, ptr%amat)
++   end select
++   energy2 = 0.0_wp
++   call coulomb%get_energy(mol, cache, wfn, energy2)
++
++   call check(error, sum(energy2), sum(energy1), thr=1.0e-8_wp)
++end subroutine test_e_effective_alpha

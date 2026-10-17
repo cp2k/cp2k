@@ -9,7 +9,8 @@
   &DFT
     &KPOINTS
       FULL_GRID OFF
-      SCHEME MONKHORST-PACK 3 3 3
+      ! Keep two distinct complex k-points while reducing the debug-test cost.
+      SCHEME MONKHORST-PACK 2 2 3
       SYMMETRY ON
       VERBOSE T
     &END KPOINTS
