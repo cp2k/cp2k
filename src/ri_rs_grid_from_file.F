@@ -10,15 +10,15 @@
 !> \par History
 !>      09.2026 created
 ! **************************************************************************************************
-MODULE gw_ri_rs_grid_from_file
+MODULE ri_rs_grid_from_file
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
    USE particle_types,                  ONLY: particle_type
-   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type,&
-                                              rirs_grid_type
+   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
+   USE ri_rs_types,                     ONLY: rirs_grid_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -26,7 +26,7 @@ MODULE gw_ri_rs_grid_from_file
 
    PUBLIC :: read_ri_rs_grid_from_file
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_grid_from_file'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ri_rs_grid_from_file'
 
 CONTAINS
 
@@ -178,4 +178,4 @@ CONTAINS
       END IF
    END SUBROUTINE read_ri_rs_grid_header
 
-END MODULE gw_ri_rs_grid_from_file
+END MODULE ri_rs_grid_from_file

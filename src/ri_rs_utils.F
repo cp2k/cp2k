@@ -6,21 +6,23 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Common setup operations used by the periodic and non-periodic GW RI-RS implementations.
+!> \brief Geometry and AO evaluation for real-space resolution of the identity.
 ! **************************************************************************************************
-MODULE gw_ri_rs_utils
+MODULE ri_rs_utils
    USE atomic_kind_types,               ONLY: get_atomic_kind_set
-   USE basis_set_types,                 ONLY: gto_basis_set_type
+   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
+                                              gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
+                                              get_cell,&
                                               pbc
    USE kinds,                           ONLY: dp
    USE orbital_pointers,                ONLY: indco,&
                                               ncoset
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom
-   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
+   USE ri_rs_types,                     ONLY: ri_rs_env
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -29,44 +31,50 @@ MODULE gw_ri_rs_utils
    PUBLIC :: evaluate_ao_basis_on_points, evaluate_ao_on_points, filter_grid_to_voronoi, &
              get_rirs_cluster_atoms, precompute_ri_rs_radii
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ri_rs_utils'
 
 CONTAINS
 
 ! **************************************************************************************************
 !> \brief Compute per-atom AO and RI basis radii from the most diffuse Gaussian
 !>        primitive in the AO ("ORB") and RI auxiliary ("RI_AUX") basis sets.
-!>        Stores results in bs_env%ri_rs%radius_ao_per_atom(:) and
-!>        bs_env%ri_rs%radius_ri_per_atom(:) and prints a per-atom table.
+!>        Stores per-atom screening radii in ri_rs and prints a per-kind table.
 !>        Radius: r_kind = sqrt(-log(eps)/alpha_min_kind), with eps = eps_filter.
-!> \param bs_env Band-structure environment containing GW parameters.
+!> \param ri_rs RI-RS geometry references and screening radii
+!> \param basis_set_AO AO basis sets, one per atomic kind
+!> \param basis_set_RI auxiliary basis sets, one per atomic kind
+!> \param eps screening threshold
+!> \param unit_nr output unit
 ! **************************************************************************************************
-   SUBROUTINE precompute_ri_rs_radii(bs_env)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+   SUBROUTINE precompute_ri_rs_radii(ri_rs, basis_set_AO, basis_set_RI, eps, unit_nr)
+      TYPE(ri_rs_env), INTENT(INOUT)                     :: ri_rs
+      TYPE(gto_basis_set_p_type), INTENT(IN)             :: basis_set_AO(:), basis_set_RI(:)
+      REAL(KIND=dp), INTENT(IN)                          :: eps
+      INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'precompute_ri_rs_radii'
       REAL(KIND=dp), PARAMETER :: min_exponent_for_radius = 1.0E-3_dp
 
       INTEGER                                            :: handle, i, iatom, ikind, j, natom, nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
-      REAL(KIND=dp)                                      :: eps
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: alpha_min_ao_kind, alpha_min_ri_kind
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zet_ao, zet_ri
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(bs_env%ri_rs%atomic_kind_set))
-      nkind = SIZE(bs_env%ri_rs%atomic_kind_set)
-      natom = bs_env%n_atom
-      eps = bs_env%eps_filter
+      CPASSERT(ASSOCIATED(ri_rs%atomic_kind_set))
+      CPASSERT(ASSOCIATED(ri_rs%particle_set))
+      CPASSERT(0.0_dp < eps .AND. eps < 1.0_dp)
+      nkind = SIZE(ri_rs%atomic_kind_set)
+      natom = SIZE(ri_rs%particle_set)
 
       ALLOCATE (alpha_min_ao_kind(nkind), alpha_min_ri_kind(nkind))
       alpha_min_ao_kind = HUGE(1.0_dp)
       alpha_min_ri_kind = HUGE(1.0_dp)
 
       DO ikind = 1, nkind
-         zet_ao => bs_env%basis_set_AO(ikind)%gto_basis_set%zet
-         zet_ri => bs_env%basis_set_RI(ikind)%gto_basis_set%zet
+         zet_ao => basis_set_AO(ikind)%gto_basis_set%zet
+         zet_ri => basis_set_RI(ikind)%gto_basis_set%zet
          DO i = 1, SIZE(zet_ao, 1)
             DO j = 1, SIZE(zet_ao, 2)
                IF (zet_ao(i, j) > min_exponent_for_radius) THEN
@@ -83,27 +91,27 @@ CONTAINS
          END DO
       END DO
 
-      CALL get_atomic_kind_set(atomic_kind_set=bs_env%ri_rs%atomic_kind_set, kind_of=kind_of)
+      CALL get_atomic_kind_set(atomic_kind_set=ri_rs%atomic_kind_set, kind_of=kind_of)
 
-      ALLOCATE (bs_env%ri_rs%radius_ao_per_atom(natom))
-      ALLOCATE (bs_env%ri_rs%radius_ri_per_atom(natom))
+      ALLOCATE (ri_rs%radius_ao_per_atom(natom))
+      ALLOCATE (ri_rs%radius_ri_per_atom(natom))
       DO iatom = 1, natom
          ikind = kind_of(iatom)
-         bs_env%ri_rs%radius_ao_per_atom(iatom) = SQRT(-LOG(eps)/alpha_min_ao_kind(ikind))
-         bs_env%ri_rs%radius_ri_per_atom(iatom) = SQRT(-LOG(eps)/alpha_min_ri_kind(ikind))
+         ri_rs%radius_ao_per_atom(iatom) = SQRT(-LOG(eps)/alpha_min_ao_kind(ikind))
+         ri_rs%radius_ri_per_atom(iatom) = SQRT(-LOG(eps)/alpha_min_ri_kind(ikind))
       END DO
 
-      IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A)') 'RI-RS basis radii (Å):'
-         WRITE (bs_env%unit_nr, '(T4,A6,2X,A4,2A14)') 'Kind', 'Elem', 'r_AO (Å)', 'r_RI (Å)'
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A)') 'RI-RS basis radii (Å):'
+         WRITE (unit_nr, '(T4,A6,2X,A4,2A14)') 'Kind', 'Elem', 'r_AO (Å)', 'r_RI (Å)'
          DO ikind = 1, nkind
-            WRITE (bs_env%unit_nr, '(T4,I6,2X,A4,2F14.4)') &
+            WRITE (unit_nr, '(T4,I6,2X,A4,2F14.4)') &
                ikind, &
-               bs_env%ri_rs%atomic_kind_set(ikind)%element_symbol, &
+               ri_rs%atomic_kind_set(ikind)%element_symbol, &
                SQRT(-LOG(eps)/alpha_min_ao_kind(ikind))*angstrom, &
                SQRT(-LOG(eps)/alpha_min_ri_kind(ikind))*angstrom
          END DO
-         WRITE (bs_env%unit_nr, '(A)') ' '
+         WRITE (unit_nr, '(A)') ' '
       END IF
 
       DEALLOCATE (alpha_min_ao_kind, alpha_min_ri_kind, kind_of)
@@ -267,12 +275,13 @@ CONTAINS
 !> \param grid_points Cartesian grid points, indexed (alpha,l).
 !> \param basis Contracted Gaussian basis to evaluate.
 !> \param source_position Centre of the basis.
-!> \param cell Simulation cell used for the minimum-image displacement.
+!> \param cell Simulation cell defining minimum-image or image-summed displacements.
 !> \param dphi Optional AO derivatives, accumulated into dphi(alpha,l,mu).
 !> \param cutoff_squared Optional squared AO cutoff radius.
+!> \param periodic_images Sum images -1:1 along periodic axes and only image 0 along other axes.
 ! **************************************************************************************************
    SUBROUTINE evaluate_ao_basis_on_points(phi, grid_points, basis, source_position, cell, &
-                                          dphi, cutoff_squared)
+                                          dphi, cutoff_squared, periodic_images)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: phi
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: grid_points
       TYPE(gto_basis_set_type), POINTER                  :: basis
@@ -281,14 +290,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
          OPTIONAL                                        :: dphi
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: cutoff_squared
+      LOGICAL, INTENT(IN), OPTIONAL                      :: periodic_images
 
-      INTEGER                                            :: first_sgf, ialpha, ico, iend_co, ipgf, &
-                                                            ipoint, irow, iset, isgf, ishell, &
-                                                            istart_co, l, last_sgf, lx, ly, lz, &
-                                                            n_cart_total
-      REAL(KIND=dp)                                      :: exponent, exponential, polynomial, &
-                                                            polynomial_derivative(3), radius2, &
-                                                            relative(3), weight
+      INTEGER :: first_sgf, ialpha, ico, iend_co, image_extent(3), ipgf, ipoint, irow, iset, isgf, &
+         ishell, istart_co, ix, iy, iz, l, last_sgf, lx, ly, lz, n_cart_total
+      LOGICAL                                            :: sum_images
+      REAL(KIND=dp) :: exponent, exponential, hmat(3, 3), polynomial, polynomial_derivative(3), &
+         radius2, relative(3), relative_raw(3), weight
 
       CPASSERT(ASSOCIATED(basis))
       CPASSERT(SIZE(grid_points, 1) == 3)
@@ -299,60 +307,80 @@ CONTAINS
          CPASSERT(SIZE(dphi, 3) == SIZE(phi, 2))
       END IF
 
+      sum_images = .FALSE.
+      IF (PRESENT(periodic_images)) sum_images = periodic_images
+      image_extent = 0
+      hmat = 0.0_dp
+      IF (sum_images) THEN
+         image_extent = cell%perd
+         CALL get_cell(cell, h=hmat)
+      END IF
+
       !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
       !$OMP SHARED(phi, dphi, grid_points, cell, basis, source_position, cutoff_squared, ncoset, indco) &
+      !$OMP SHARED(sum_images, image_extent, hmat) &
       !$OMP PRIVATE(ipoint, relative, radius2, iset, n_cart_total, ishell, l, istart_co, &
       !$OMP         iend_co, first_sgf, last_sgf, ipgf, exponent, exponential, isgf, ico, &
-      !$OMP         irow, weight, lx, ly, lz, polynomial, polynomial_derivative, ialpha)
+      !$OMP         irow, weight, lx, ly, lz, polynomial, polynomial_derivative, ialpha, &
+      !$OMP         relative_raw, ix, iy, iz)
       DO ipoint = 1, SIZE(grid_points, 2)
-         relative = pbc(grid_points(:, ipoint) - source_position, cell)
-         radius2 = DOT_PRODUCT(relative, relative)
-         IF (PRESENT(cutoff_squared)) THEN
-            IF (radius2 > cutoff_squared) CYCLE
-         END IF
+         relative_raw = grid_points(:, ipoint) - source_position
+         IF (.NOT. sum_images) relative_raw = pbc(relative_raw, cell)
+         DO ix = -image_extent(1), image_extent(1)
+         DO iy = -image_extent(2), image_extent(2)
+         DO iz = -image_extent(3), image_extent(3)
+            relative = relative_raw
+            IF (sum_images) relative = relative_raw - MATMUL(hmat, REAL([ix, iy, iz], dp))
+            radius2 = DOT_PRODUCT(relative, relative)
+            IF (PRESENT(cutoff_squared)) THEN
+               IF (radius2 > cutoff_squared) CYCLE
+            END IF
 
-         DO iset = 1, basis%nset
-            n_cart_total = ncoset(basis%lmax(iset))
-            DO ishell = 1, basis%nshell(iset)
-               l = basis%l(ishell, iset)
-               istart_co = ncoset(l - 1) + 1
-               iend_co = ncoset(l)
-               first_sgf = basis%first_sgf(ishell, iset)
-               last_sgf = basis%last_sgf(ishell, iset)
-               DO ipgf = 1, basis%npgf(iset)
-                  exponent = basis%zet(ipgf, iset)
-                  exponential = EXP(-exponent*radius2)
-                  DO isgf = first_sgf, last_sgf
-                     DO ico = istart_co, iend_co
-                        irow = (ipgf - 1)*n_cart_total + ico
-                        weight = basis%sphi(irow, isgf)
-                        lx = indco(1, ico)
-                        ly = indco(2, ico)
-                        lz = indco(3, ico)
-                        polynomial = relative(1)**lx*relative(2)**ly*relative(3)**lz
-                        phi(ipoint, isgf) = phi(ipoint, isgf) + weight*polynomial*exponential
+            DO iset = 1, basis%nset
+               n_cart_total = ncoset(basis%lmax(iset))
+               DO ishell = 1, basis%nshell(iset)
+                  l = basis%l(ishell, iset)
+                  istart_co = ncoset(l - 1) + 1
+                  iend_co = ncoset(l)
+                  first_sgf = basis%first_sgf(ishell, iset)
+                  last_sgf = basis%last_sgf(ishell, iset)
+                  DO ipgf = 1, basis%npgf(iset)
+                     exponent = basis%zet(ipgf, iset)
+                     exponential = EXP(-exponent*radius2)
+                     DO isgf = first_sgf, last_sgf
+                        DO ico = istart_co, iend_co
+                           irow = (ipgf - 1)*n_cart_total + ico
+                           weight = basis%sphi(irow, isgf)
+                           lx = indco(1, ico)
+                           ly = indco(2, ico)
+                           lz = indco(3, ico)
+                           polynomial = relative(1)**lx*relative(2)**ly*relative(3)**lz
+                           phi(ipoint, isgf) = phi(ipoint, isgf) + weight*polynomial*exponential
 
-                        IF (PRESENT(dphi)) THEN
-                           polynomial_derivative = 0.0_dp
-                           IF (lx > 0) polynomial_derivative(1) = REAL(lx, dp)*relative(1)**(lx - 1)* &
-                                                                  relative(2)**ly*relative(3)**lz
-                           IF (ly > 0) polynomial_derivative(2) = REAL(ly, dp)*relative(1)**lx* &
-                                                                  relative(2)**(ly - 1)*relative(3)**lz
-                           IF (lz > 0) polynomial_derivative(3) = REAL(lz, dp)*relative(1)**lx* &
-                                                                  relative(2)**ly*relative(3)**(lz - 1)
-                           DO ialpha = 1, 3
-                              dphi(ialpha, ipoint, isgf) = dphi(ialpha, ipoint, isgf) + weight*exponential* &
-                                                           (polynomial_derivative(ialpha) - &
-                                                            2.0_dp*exponent*relative(ialpha)*polynomial)
-                           END DO
-                        END IF
+                           IF (PRESENT(dphi)) THEN
+                              polynomial_derivative = 0.0_dp
+                              IF (lx > 0) polynomial_derivative(1) = REAL(lx, dp)*relative(1)**(lx - 1)* &
+                                                                     relative(2)**ly*relative(3)**lz
+                              IF (ly > 0) polynomial_derivative(2) = REAL(ly, dp)*relative(1)**lx* &
+                                                                     relative(2)**(ly - 1)*relative(3)**lz
+                              IF (lz > 0) polynomial_derivative(3) = REAL(lz, dp)*relative(1)**lx* &
+                                                                     relative(2)**ly*relative(3)**(lz - 1)
+                              DO ialpha = 1, 3
+                                 dphi(ialpha, ipoint, isgf) = dphi(ialpha, ipoint, isgf) + weight*exponential* &
+                                                              (polynomial_derivative(ialpha) - &
+                                                               2.0_dp*exponent*relative(ialpha)*polynomial)
+                              END DO
+                           END IF
+                        END DO
                      END DO
                   END DO
                END DO
             END DO
          END DO
+         END DO
+         END DO
       END DO
       !$OMP END PARALLEL DO
    END SUBROUTINE evaluate_ao_basis_on_points
 
-END MODULE gw_ri_rs_utils
+END MODULE ri_rs_utils
