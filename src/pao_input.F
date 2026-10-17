@@ -532,14 +532,8 @@ CONTAINS
 
       CALL cp_print_key_section_create(printkey, __LOCATION__, "RESTART", &
                                        description="Restart file of PAO basis", &
-                                       print_level=high_print_level, add_last=add_last_numeric, filename="")
-
-      CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
-                          description="Specifies the maximum number of backup copies.", &
-                          usage="BACKUP_COPIES {int}", &
-                          default_i_val=1)
-      CALL section_add_keyword(printkey, keyword)
-      CALL keyword_release(keyword)
+                                       print_level=high_print_level, add_last=add_last_numeric, &
+                                       filename="", do_backup=.TRUE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="WRITE_CYCLES", &
                           description="Maximum number of PAO line search cycles until a restart is written.", &

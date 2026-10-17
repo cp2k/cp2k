@@ -2323,13 +2323,7 @@ CONTAINS
          "Only Gamma-point (un)restricted HF and Kohn-Sham wavefunctions are supported.", &
          print_level=debug_print_level + 1, &
          filename="CHARGEMOL", &
-         add_last=add_last_numeric)
-      CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
-                          description="Specifies the maximum number of backup copies.", &
-                          usage="BACKUP_COPIES {int}", &
-                          default_i_val=1)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
+         add_last=add_last_numeric, do_backup=.TRUE.)
       CALL keyword_create(keyword, __LOCATION__, name="PERIODIC", &
                           description="Write information about cell periodicity.", &
                           usage="PERIODIC {LOGICAL}", &

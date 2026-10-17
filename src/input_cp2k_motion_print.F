@@ -247,18 +247,15 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
-                                       description="Controls the dumping of the restart file during runs. "// &
-                                       "By default keeps a short history of three restarts. See also RESTART_HISTORY", &
+                                       description="Controls the dumping of the latest motion restart file "// &
+                                       "during runs. The file suffix will be .restart by default, which is "// &
+                                       "ASCII plain-text in the same format as an input file, unless the "// &
+                                       "SPLIT_RESTART_FILE keyword is specified. A plain-text file can be "// &
+                                       "used directly or parsed by the EXT_RESTART section for fine controls "// &
+                                       "over the reuse of different information. See also RESTART_HISTORY.", &
                                        each_iter_names=s2a("MD"), each_iter_values=[20], &
                                        print_level=silent_print_level, common_iter_levels=1, &
-                                       add_last=add_last_numeric, filename="")
-
-      CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
-                          description="Specifies the maximum number of backup copies.", &
-                          usage="BACKUP_COPIES {int}", &
-                          default_i_val=1)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
+                                       add_last=add_last_numeric, filename="", do_backup=.TRUE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="SPLIT_RESTART_FILE", &
                           description="If specified selected input sections, which are growing with the "// &
@@ -277,8 +274,9 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART_HISTORY", &
-                                       description="Dumps unique restart files during the run keeping all of them. "// &
-                                       "Most useful if recovery is needed at a later point.", &
+                                       description="Dumps unique motion restart files during the run, "// &
+                                       "keeping all of them. Most useful if recovery is needed at a "// &
+                                       "later point. For the latest motion restart file, see RESTART.", &
                                        print_level=low_print_level, common_iter_levels=0, &
                                        each_iter_names=s2a("MD", "GEO_OPT", "ROT_OPT"), each_iter_values=[500, 500, 500], &
                                        filename="")

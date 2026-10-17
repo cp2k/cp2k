@@ -241,17 +241,10 @@ CONTAINS
 
       ! RESTART subsection
       CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
-                                       description="Controls the dumping of the restart files during NEGF SCF."// &
-                                       " By default keeps a short history of three restarts.", &
+                                       description="Controls the dumping of the restart files during NEGF SCF.", &
                                        print_level=low_print_level, common_iter_levels=3, &
                                        each_iter_names=s2a("NEGF_SCF"), each_iter_values=[1], &
-                                       add_last=add_last_numeric, filename="RESTART")
-      CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
-                          description="Specifies the maximum number of backup copies.", &
-                          usage="BACKUP_COPIES {int}", &
-                          default_i_val=3)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
+                                       add_last=add_last_numeric, filename="RESTART", do_backup=.TRUE.)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
