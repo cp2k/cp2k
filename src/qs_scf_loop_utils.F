@@ -1817,7 +1817,8 @@ CONTAINS
                DO test_mode = 1, nmode
                   projected_hxc(test_mode, response_mode) = &
                      projected_hxc(test_mode, response_mode) + REAL(SUM( &
-                                                   CONJG(channel_density_modes(:, :, test_mode, local_channel))*projected), KIND=dp)
+                                                                    CONJG(channel_density_modes(:, :, test_mode, &
+                                                                                                local_channel))*projected), KIND=dp)
                END DO
                CALL cp_fm_release(projected_re)
                CALL cp_fm_release(projected_im)

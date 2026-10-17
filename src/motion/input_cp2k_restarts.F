@@ -1114,7 +1114,9 @@ CONTAINS
          ALLOCATE (real_msg_gather(msglen*helium_env(1)%helium%num_env))
          real_msg(:) = 0.0_dp
          DO i = 1, SIZE(helium_env)
-      real_msg((offset+i-1)*msglen+1:(offset+i)*msglen) = PACK(helium_env(i)%helium%pos(:, :, 1:helium_env(i)%helium%beads), .TRUE.)
+            real_msg((offset + i - 1)*msglen + 1:(offset + i)*msglen) = PACK(helium_env(i)%helium%pos(:, :, &
+                                                                                                    1:helium_env(i)%helium%beads), &
+                                                                             .TRUE.)
          END DO
 
          ! pass the message from all processors to logger%para_env%source

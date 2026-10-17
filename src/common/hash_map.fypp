@@ -58,7 +58,7 @@
          ${value_type}$      :: value ${value_default_init}$
       END TYPE ${prefix}$_item_type
 
-      CONTAINS
+   CONTAINS
 
       #:set key_assign = "=>" if 'POINTER' in key_type.upper() else "="
       #:set value_assign = "=>" if 'POINTER' in value_type.upper() else "="

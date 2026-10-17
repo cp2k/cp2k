@@ -228,7 +228,8 @@ CONTAINS
 
          fscalar = k*(theta - theta0)*(1.0_dp + (theta - theta0)* &
                                        (-0.021_dp + (theta - theta0)*(1.12E-4_dp + &
-                                                                   (theta - theta0)*(-1.75E-6_dp + (theta - theta0)*2.7E-9_dp))))/ &
+                                                                      (theta - theta0)*(-1.75E-6_dp + (theta - &
+                                                                                                       theta0)*2.7E-9_dp))))/ &
                    SIN(theta)
 
          denom = id12*id12*id32*id32

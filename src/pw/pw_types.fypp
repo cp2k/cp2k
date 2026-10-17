@@ -6,7 +6,7 @@
 #!-------------------------------------------------------------------------------------------------!
 #:mute
    #:set pw_kinds = ["r1d", "r3d", "c1d", "c3d"]
-   #:set pw_types = ["REAL(KIND=dp), DIMENSION(:)", "REAL(KIND=dp), DIMENSION(:, :, :)", "COMPLEX(KIND=dp), DIMENSION(:)", "COMPLEX(KIND=dp), DIMENSION(:, :, :)"]
+#:set pw_types = ["REAL(KIND=dp), DIMENSION(:)", "REAL(KIND=dp), DIMENSION(:, :, :)", "COMPLEX(KIND=dp), DIMENSION(:)", "COMPLEX(KIND=dp), DIMENSION(:, :, :)"]
    #:set pw_spaces = ["rs", "gs"]
    #:set pw_list = [a for a in zip(pw_kinds, pw_types)]
    #:set pw_kinds2 = [(kind1, kind2) for kind1 in pw_kinds for kind2 in pw_kinds]

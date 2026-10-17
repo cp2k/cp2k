@@ -3130,7 +3130,8 @@ CONTAINS
 !> \author fuhl
 ! **************************************************************************************************
    REAL(KIND=dp) FUNCTION worm_path_action_worm_corrected(helium, pos, &
-                                   startatom, startbead, endatom, endbead, xtrapos, worm_atom_idx, worm_bead_idx) RESULT(partaction)
+                                                          startatom, startbead, endatom, endbead, xtrapos, worm_atom_idx, &
+                                                          worm_bead_idx) RESULT(partaction)
 
       TYPE(helium_solvent_type), INTENT(INOUT)           :: helium
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
@@ -3265,7 +3266,8 @@ CONTAINS
                      work(:, ibead + 1 - startbead) = pos(:, iatom, ibead) - pos(:, startatom, ibead)
                   END DO
                   ! wrapping bond
-             work(:, helium%beads - startbead + 2) = pos(:, helium%permutation(iatom), 1) - pos(:, helium%permutation(startatom), 1)
+                  work(:, helium%beads - startbead + 2) = pos(:, helium%permutation(iatom), 1) - pos(:, &
+                                                                                                   helium%permutation(startatom), 1)
                   partaction = partaction + helium_eval_chain(helium, work, helium%beads - startbead + 2, work2, work3)
                END DO
 
@@ -3437,7 +3439,8 @@ CONTAINS
 !> \author fuhl
 ! **************************************************************************************************
    REAL(KIND=dp) FUNCTION worm_path_inter_action_head(pint_env, helium, pos, &
-                                                     startatom, startbead, xtrapos, worm_atom_idx, worm_bead_idx) RESULT(partaction)
+                                                      startatom, startbead, xtrapos, worm_atom_idx, worm_bead_idx) &
+      RESULT(partaction)
 
       TYPE(pint_env_type), INTENT(IN)                    :: pint_env
       TYPE(helium_solvent_type), INTENT(IN)              :: helium

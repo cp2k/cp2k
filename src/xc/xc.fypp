@@ -13,10 +13,10 @@
    #! element 4: name of variable nameof the contribution to the response potential
    #! elements 5+6: first and last indices of the potential arrays corresponding to the required spin channels
 
-   #:set arguments_openshell = [("rhoa", "a", "rho1a", "v_xc", 1, 1), ("rhob", "b", "rho1b", "v_xc", 2, 2), ("norm_drho", "", "dr1dr", "v_drho", 1, 2), ("norm_drhoa", "a", "dra1dra", "v_drhoa", 1, 1), ("norm_drhob", "b", "drb1drb", "v_drhob", 2, 2), ("tau_a", "a", "tau1a", "v_xc_tau", 1, 1), ("tau_b", "b", "tau1b", "v_xc_tau", 2, 2), ("laplace_rhoa", "a", "laplace1a", "v_laplace", 1, 1), ("laplace_rhob", "b", "laplace1b", "v_laplace", 2, 2)]
-   #:set arguments_triplet_outer = [("rhoa", "a", "rho1a", "v_xc", 1, 1), ("norm_drho", "", "dr1dr", "v_drho", 1, 1), ("norm_drhoa", "a", "dra1dra", "v_drhoa", 1, 1), ("tau_a", "a", "tau1a", "v_xc_tau", 1, 1), ("laplace_rhoa", "a", "laplace1a", "v_laplace", 2, 2)]
-   #:set arguments_triplet_inner = arguments_triplet_outer + [("rhob", "b", "rho1b", "v_xc", 2, 2), ("norm_drhob", "b", "drb1drb", "v_drhob", 2, 2), ("tau_b", "b", "tau1b", "v_xc_tau", 2, 2), ("laplace_rhob", "b", "laplace1b", "v_laplace", 2, 2)]
-   #:set arguments_closedshell = [("rho", "", "rho1", "v_xc", 1, 1), ("norm_drho", "", "dr1dr", "v_drho", 1, 1), ("tau", "", "tau1", "v_xc_tau", 1, 1), ("laplace_rho", "", "laplace1", "v_laplace", 1, 1)]
+#:set arguments_openshell = [("rhoa", "a", "rho1a", "v_xc", 1, 1), ("rhob", "b", "rho1b", "v_xc", 2, 2), ("norm_drho", "", "dr1dr", "v_drho", 1, 2), ("norm_drhoa", "a", "dra1dra", "v_drhoa", 1, 1), ("norm_drhob", "b", "drb1drb", "v_drhob", 2, 2), ("tau_a", "a", "tau1a", "v_xc_tau", 1, 1), ("tau_b", "b", "tau1b", "v_xc_tau", 2, 2), ("laplace_rhoa", "a", "laplace1a", "v_laplace", 1, 1), ("laplace_rhob", "b", "laplace1b", "v_laplace", 2, 2)]
+#:set arguments_triplet_outer = [("rhoa", "a", "rho1a", "v_xc", 1, 1), ("norm_drho", "", "dr1dr", "v_drho", 1, 1), ("norm_drhoa", "a", "dra1dra", "v_drhoa", 1, 1), ("tau_a", "a", "tau1a", "v_xc_tau", 1, 1), ("laplace_rhoa", "a", "laplace1a", "v_laplace", 2, 2)]
+#:set arguments_triplet_inner = arguments_triplet_outer + [("rhob", "b", "rho1b", "v_xc", 2, 2), ("norm_drhob", "b", "drb1drb", "v_drhob", 2, 2), ("tau_b", "b", "tau1b", "v_xc_tau", 2, 2), ("laplace_rhob", "b", "laplace1b", "v_laplace", 2, 2)]
+#:set arguments_closedshell = [("rho", "", "rho1", "v_xc", 1, 1), ("norm_drho", "", "dr1dr", "v_drho", 1, 1), ("tau", "", "tau1", "v_xc_tau", 1, 1), ("laplace_rho", "", "laplace1", "v_laplace", 1, 1)]
 
    #:def add_2nd_derivative_terms(outer_arguments, inner_arguments=[])
       #:set my_inner_arguments = outer_arguments if inner_arguments==[] else inner_arguments
@@ -32,8 +32,9 @@
                   DO j = bo(1, 2), bo(2, 2)
                      DO i = bo(1, 1), bo(2, 1)
                         #:for i in range(start1, end1+1)
-                           ${v_arg1}$ (${i}$)%array(i, j, k) = ${v_arg1}$ (${i}$)%array(i, j, k) #{if arg1.startswith("norm")}#-#{else}#+#{endif}# &
-                           #{if ((outer_arguments!=my_inner_arguments) and (arg2[-1]=="b"))}#fac*#{endif}#deriv_data(i, j, k)*${darg2}$ (i, j, k)
+                           ${v_arg1}$ (${i}$)%array(i, j, k) = ${v_arg1}$ (${i}$)%array(i, j, k) &
+                                                               #{if arg1.startswith("norm")}#-#{else}#+#{endif}# &
+              #{if ((outer_arguments!=my_inner_arguments) and (arg2[-1]=="b"))}#fac*#{endif}#deriv_data(i, j, k)*${darg2}$ (i, j, k)
                         #:endfor
                      END DO
                   END DO
@@ -57,7 +58,8 @@
 !$OMP       PARALLEL WORKSHARE DEFAULT(NONE) SHARED(${darg1}$,gradient_cut,${arg1}$,${v_arg1}$,deriv_data)
                #:for i in range(start1, end1+1)
                   ${v_arg1}$ (${i}$)%array(:, :, :) = ${v_arg1}$ (${i}$)%array(:, :, :) + &
-                                                    deriv_data(:, :, :)*${darg1}$ (:, :, :)/MAX(gradient_cut, ${arg1}$ (:, :, :))**2
+                                                      deriv_data(:, :, :)*${darg1}$ (:, :, :)/MAX(gradient_cut, ${arg1}$ &
+                                                                                                  (:, :, :))**2
                #:endfor
 !$OMP       END PARALLEL WORKSHARE
             END IF

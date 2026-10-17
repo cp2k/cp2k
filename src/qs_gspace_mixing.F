@@ -839,7 +839,8 @@ CONTAINS
                                              mixing_store%cpc_h_in(iatom, ispin)%r_coef(j, i)) - &
                                             mixing_store%cpc_h_lastres(iatom, ispin)%r_coef(j, i))/delta_norm
                               mixing_store%cpc_h_lastres(iatom, ispin)%r_coef(j, i) = rho_atom(iatom)%cpc_h(ispin)%r_coef(j, i) - &
-                                                                                    mixing_store%cpc_h_in(iatom, ispin)%r_coef(j, i)
+                                                                                      mixing_store%cpc_h_in(iatom, &
+                                                                                                            ispin)%r_coef(j, i)
 
                               mixing_store%dcpc_s_in(ib, iatom, ispin)%r_coef(j, i) = &
                                  (mixing_store%cpc_s_in(iatom, ispin)%r_coef(j, i) - &
@@ -848,7 +849,8 @@ CONTAINS
                                              mixing_store%cpc_s_in(iatom, ispin)%r_coef(j, i)) - &
                                             mixing_store%cpc_s_lastres(iatom, ispin)%r_coef(j, i))/delta_norm
                               mixing_store%cpc_s_lastres(iatom, ispin)%r_coef(j, i) = rho_atom(iatom)%cpc_s(ispin)%r_coef(j, i) - &
-                                                                                    mixing_store%cpc_s_in(iatom, ispin)%r_coef(j, i)
+                                                                                      mixing_store%cpc_s_in(iatom, &
+                                                                                                            ispin)%r_coef(j, i)
 
                               mixing_store%dcpc_h_in(ib, iatom, ispin)%r_coef(j, i) = &
                                  alpha_eff*dcpc_h_res + &
@@ -1123,7 +1125,8 @@ CONTAINS
                                              mixing_store%cpc_h_in(iatom, ispin)%r_coef(j, i)) - &
                                             mixing_store%cpc_h_lastres(iatom, ispin)%r_coef(j, i))/delta_norm
                               mixing_store%cpc_h_lastres(iatom, ispin)%r_coef(j, i) = rho_atom(iatom)%cpc_h(ispin)%r_coef(j, i) - &
-                                                                                    mixing_store%cpc_h_in(iatom, ispin)%r_coef(j, i)
+                                                                                      mixing_store%cpc_h_in(iatom, &
+                                                                                                            ispin)%r_coef(j, i)
 
                               mixing_store%dcpc_s_in(ib, iatom, ispin)%r_coef(j, i) = &
                                  (mixing_store%cpc_s_in(iatom, ispin)%r_coef(j, i) - &
@@ -1132,7 +1135,8 @@ CONTAINS
                                              mixing_store%cpc_s_in(iatom, ispin)%r_coef(j, i)) - &
                                             mixing_store%cpc_s_lastres(iatom, ispin)%r_coef(j, i))/delta_norm
                               mixing_store%cpc_s_lastres(iatom, ispin)%r_coef(j, i) = rho_atom(iatom)%cpc_s(ispin)%r_coef(j, i) - &
-                                                                                    mixing_store%cpc_s_in(iatom, ispin)%r_coef(j, i)
+                                                                                      mixing_store%cpc_s_in(iatom, &
+                                                                                                            ispin)%r_coef(j, i)
 
                               mixing_store%dcpc_h_in(ib, iatom, ispin)%r_coef(j, i) = &
                                  alpha_eff*dcpc_h_res + &

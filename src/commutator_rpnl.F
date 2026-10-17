@@ -72,7 +72,8 @@ CONTAINS
 !> \param ref_point ...
 ! **************************************************************************************************
    SUBROUTINE build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, particle_set, cell, matrix_rv, matrix_rxrv, &
-                    matrix_rrv, matrix_rvr, matrix_rrv_vrr, matrix_r_rxvr, matrix_rxvr_r, matrix_r_doublecom, pseudoatom, ref_point)
+                               matrix_rrv, matrix_rvr, matrix_rrv_vrr, matrix_r_rxvr, matrix_rxvr_r, matrix_r_doublecom, &
+                               pseudoatom, ref_point)
 
       TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: qs_kind_set
@@ -1321,36 +1322,72 @@ CONTAINS
                         ! assemble integrals
                         IF (iatom <= jatom) THEN
                            blocks_mag(1)%block(1:na, 1:nb) = blocks_mag(1)%block(1:na, 1:nb) + &
-                                              (r_ps(2) - r_b(2))*(MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 4))) - &
-                                                 MATMUL(achint(1:na, 1:np, 4), TRANSPOSE(bcint(1:nb, 1:np, 1)))) & !   R_y [V_nl, z]
-                                            - (r_ps(3) - r_b(3))*(MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 3))) - &
-                                                 MATMUL(achint(1:na, 1:np, 3), TRANSPOSE(bcint(1:nb, 1:np, 1))))   ! - R_z [V_nl, y]
+                                                             (r_ps(2) - r_b(2))*(MATMUL(achint(1:na, 1:np, 1), &
+                                                                                        TRANSPOSE(bcint(1:nb, 1:np, 4))) - &
+                                                                                 MATMUL(achint(1:na, 1:np, 4), &
+                                                                                        TRANSPOSE(bcint(1:nb, 1:np, 1)))) &
+                                                             !   R_y [V_nl, z]
+                                                             - (r_ps(3) - r_b(3))*(MATMUL(achint(1:na, 1:np, 1), &
+                                                                                          TRANSPOSE(bcint(1:nb, 1:np, 3))) - &
+                                                                                   MATMUL(achint(1:na, 1:np, 3), &
+                                                                                          TRANSPOSE(bcint(1:nb, 1:np, 1))))
+                           ! - R_z [V_nl, y]
                            blocks_mag(2)%block(1:na, 1:nb) = blocks_mag(2)%block(1:na, 1:nb) + &
-                                              (r_ps(3) - r_b(3))*(MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 2))) - &
-                                                 MATMUL(achint(1:na, 1:np, 2), TRANSPOSE(bcint(1:nb, 1:np, 1)))) & !   R_z [V_nl, x]
-                                            - (r_ps(1) - r_b(1))*(MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 4))) - &
-                                                 MATMUL(achint(1:na, 1:np, 4), TRANSPOSE(bcint(1:nb, 1:np, 1))))   ! - R_x [V_nl, z]
+                                                             (r_ps(3) - r_b(3))*(MATMUL(achint(1:na, 1:np, 1), &
+                                                                                        TRANSPOSE(bcint(1:nb, 1:np, 2))) - &
+                                                                                 MATMUL(achint(1:na, 1:np, 2), &
+                                                                                        TRANSPOSE(bcint(1:nb, 1:np, 1)))) &
+                                                             !   R_z [V_nl, x]
+                                                             - (r_ps(1) - r_b(1))*(MATMUL(achint(1:na, 1:np, 1), &
+                                                                                          TRANSPOSE(bcint(1:nb, 1:np, 4))) - &
+                                                                                   MATMUL(achint(1:na, 1:np, 4), &
+                                                                                          TRANSPOSE(bcint(1:nb, 1:np, 1))))
+                           ! - R_x [V_nl, z]
                            blocks_mag(3)%block(1:na, 1:nb) = blocks_mag(3)%block(1:na, 1:nb) + &
-                                              (r_ps(1) - r_b(1))*(MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 3))) - &
-                                                MATMUL(achint(1:na, 1:np, 3), TRANSPOSE(bcint(1:nb, 1:np, 1)))) &  !   R_x [V_nl, y]
-                                            - (r_ps(2) - r_b(2))*(MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 2))) - &
-                                                MATMUL(achint(1:na, 1:np, 2), TRANSPOSE(bcint(1:nb, 1:np, 1))))    ! - R_y [V_nl, x]
+                                                             (r_ps(1) - r_b(1))*(MATMUL(achint(1:na, 1:np, 1), &
+                                                                                        TRANSPOSE(bcint(1:nb, 1:np, 3))) - &
+                                                                                 MATMUL(achint(1:na, 1:np, 3), &
+                                                                                        TRANSPOSE(bcint(1:nb, 1:np, 1)))) &
+                                                             !   R_x [V_nl, y]
+                                                             - (r_ps(2) - r_b(2))*(MATMUL(achint(1:na, 1:np, 1), &
+                                                                                          TRANSPOSE(bcint(1:nb, 1:np, 2))) - &
+                                                                                   MATMUL(achint(1:na, 1:np, 2), &
+                                                                                          TRANSPOSE(bcint(1:nb, 1:np, 1))))
+                           ! - R_y [V_nl, x]
                         ELSE
                            blocks_mag(1)%block(1:nb, 1:na) = blocks_mag(1)%block(1:nb, 1:na) + &
-                                              (r_ps(2) - r_b(2))*(MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 4))) - &
-                                                 MATMUL(bchint(1:nb, 1:np, 4), TRANSPOSE(acint(1:na, 1:np, 1)))) & !   R_y [V_nl, z]
-                                            - (r_ps(3) - r_b(3))*(MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 3))) - &
-                                                 MATMUL(bchint(1:nb, 1:np, 3), TRANSPOSE(acint(1:na, 1:np, 1))))   ! - R_z [V_nl, y]
+                                                             (r_ps(2) - r_b(2))*(MATMUL(bchint(1:nb, 1:np, 1), &
+                                                                                        TRANSPOSE(acint(1:na, 1:np, 4))) - &
+                                                                                 MATMUL(bchint(1:nb, 1:np, 4), &
+                                                                                        TRANSPOSE(acint(1:na, 1:np, 1)))) &
+                                                             !   R_y [V_nl, z]
+                                                             - (r_ps(3) - r_b(3))*(MATMUL(bchint(1:nb, 1:np, 1), &
+                                                                                          TRANSPOSE(acint(1:na, 1:np, 3))) - &
+                                                                                   MATMUL(bchint(1:nb, 1:np, 3), &
+                                                                                          TRANSPOSE(acint(1:na, 1:np, 1))))
+                           ! - R_z [V_nl, y]
                            blocks_mag(2)%block(1:nb, 1:na) = blocks_mag(2)%block(1:nb, 1:na) + &
-                                              (r_ps(3) - r_b(3))*(MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 2))) - &
-                                                 MATMUL(bchint(1:nb, 1:np, 2), TRANSPOSE(acint(1:na, 1:np, 1)))) & !   R_z [V_nl, x]
-                                            - (r_ps(1) - r_b(1))*(MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 4))) - &
-                                                 MATMUL(bchint(1:nb, 1:np, 4), TRANSPOSE(acint(1:na, 1:np, 1))))   ! - R_x [V_nl, z]
+                                                             (r_ps(3) - r_b(3))*(MATMUL(bchint(1:nb, 1:np, 1), &
+                                                                                        TRANSPOSE(acint(1:na, 1:np, 2))) - &
+                                                                                 MATMUL(bchint(1:nb, 1:np, 2), &
+                                                                                        TRANSPOSE(acint(1:na, 1:np, 1)))) &
+                                                             !   R_z [V_nl, x]
+                                                             - (r_ps(1) - r_b(1))*(MATMUL(bchint(1:nb, 1:np, 1), &
+                                                                                          TRANSPOSE(acint(1:na, 1:np, 4))) - &
+                                                                                   MATMUL(bchint(1:nb, 1:np, 4), &
+                                                                                          TRANSPOSE(acint(1:na, 1:np, 1))))
+                           ! - R_x [V_nl, z]
                            blocks_mag(3)%block(1:nb, 1:na) = blocks_mag(3)%block(1:nb, 1:na) + &
-                                              (r_ps(1) - r_b(1))*(MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 3))) - &
-                                                MATMUL(bchint(1:nb, 1:np, 3), TRANSPOSE(acint(1:na, 1:np, 1)))) &  !   R_x [V_nl, y]
-                                            - (r_ps(2) - r_b(2))*(MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 2))) - &
-                                                MATMUL(bchint(1:nb, 1:np, 2), TRANSPOSE(acint(1:na, 1:np, 1))))    ! - R_y [V_nl, x]
+                                                             (r_ps(1) - r_b(1))*(MATMUL(bchint(1:nb, 1:np, 1), &
+                                                                                        TRANSPOSE(acint(1:na, 1:np, 3))) - &
+                                                                                 MATMUL(bchint(1:nb, 1:np, 3), &
+                                                                                        TRANSPOSE(acint(1:na, 1:np, 1)))) &
+                                                             !   R_x [V_nl, y]
+                                                             - (r_ps(2) - r_b(2))*(MATMUL(bchint(1:nb, 1:np, 1), &
+                                                                                          TRANSPOSE(acint(1:na, 1:np, 2))) - &
+                                                                                   MATMUL(bchint(1:nb, 1:np, 2), &
+                                                                                          TRANSPOSE(acint(1:na, 1:np, 1))))
+                           ! - R_y [V_nl, x]
                         END IF
 !$                      CALL omp_unset_lock(locks(hash))
                         EXIT ! We have found a match and there can be only one single match

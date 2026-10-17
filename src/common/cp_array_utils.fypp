@@ -18,7 +18,9 @@
    #:enddef
 
    #:def lessQcomplex(el1, el2)
-REAL(${el1}$) < REAL(${el2}$) .OR. (ABS(REAL(${el1}$)-REAL(${el2}$)) < epsilon(MAX(ABS(REAL(${el1}$)), ABS(REAL(${el2}$)))) .and. AIMAG(${el1}$) <  AIMAG(${el2}$))
+      REAL(${el1}$) < REAL(${el2}$) .OR. (ABS(REAL(${el1}$) - REAL(${el2}$)) < epsilon(MAX(ABS(REAL(${el1}$)), &
+                                                                                           ABS(REAL(${el2}$)))) &
+                                          .and. AIMAG(${el1}$) < AIMAG(${el2}$))
    #:enddef
 
    #:def lessQlog(el1, el2)

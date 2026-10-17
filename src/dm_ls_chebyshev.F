@@ -228,7 +228,8 @@ CONTAINS
             DO icheb = 1, ncheb
                CALL chebyshev_poly(initial, E_inte(1, iwindow), icheb)
                CALL chebyshev_poly(final, E_inte(1, iwindow), icheb)
-          summa = (sev2(iwindow) - sev1(iwindow))/(2.0_dp*ninte)*(initial/sqrt_vec(1, iwindow) + final/sqrt_vec(ninte + 1, iwindow))
+               summa = (sev2(iwindow) - sev1(iwindow))/(2.0_dp*ninte)*(initial/sqrt_vec(1, iwindow) + final/sqrt_vec(ninte + &
+                                                                                                                     1, iwindow))
                DO iinte = 2, ninte
                   CALL chebyshev_poly(chev_T, E_inte(iinte, iwindow), icheb)
                   summa = summa + ((sev2(iwindow) - sev1(iwindow))/ninte)*(chev_T/sqrt_vec(iinte, iwindow))

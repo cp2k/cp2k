@@ -374,7 +374,8 @@ CONTAINS
       END IF
       CALL cp_fm_release(fm_matrix_L_work)
       IF (calc_forces .AND. .NOT. (do_im_time .OR. compare_potential_types(qs_env%mp2_env%ri_metric, &
-                                                               qs_env%mp2_env%potential_parameter))) CALL cp_fm_release(fm_matrix_V)
+                                                                           qs_env%mp2_env%potential_parameter))) CALL &
+         cp_fm_release(fm_matrix_V)
       CALL mp_para_env_release(para_env_L)
 
       CALL timestop(handle)

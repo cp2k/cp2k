@@ -770,7 +770,8 @@ CONTAINS
                   DO jjB = 1, rec_B_size
                      ia_global = (iiB - 1)*virtual + rec_B_virtual_start + jjB - 1
                      IF (ia_global >= my_ia_start .AND. ia_global <= my_ia_end) THEN
-                     BIb_C_2D(1:my_group_L_size, ia_global - my_ia_start + 1) = BIb_C_rec(1:my_group_L_size, jjB, iiB - occ_low + 1)
+                        BIb_C_2D(1:my_group_L_size, ia_global - my_ia_start + 1) = BIb_C_rec(1:my_group_L_size, jjB, iiB - &
+                                                                                             occ_low + 1)
                      END IF
                   END DO
                END DO

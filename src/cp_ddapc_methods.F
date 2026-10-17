@@ -420,7 +420,8 @@ CONTAINS
                iparticle1 = iparticle0 + ipp - 1
                DO ig = s_dim, igmax
                   lhs((ipp - 1)*Nr + 1:(ipp - 1)*Nr + Nr, ig - s_dim + 1) = w(ig)*rho_tot_g%pw_grid%g(icomp, ig)* &
-                                                                          gfunc(ig, 1:Nr)*g_dot_rvec_cos(ig - s_dim + 1, iparticle1)
+                                                                            gfunc(ig, 1:Nr)*g_dot_rvec_cos(ig - s_dim + 1, &
+                                                                                                           iparticle1)
                END DO
             END DO ! ipp
             ! do main multiply

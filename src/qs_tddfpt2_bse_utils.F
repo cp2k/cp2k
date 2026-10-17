@@ -314,7 +314,8 @@ CONTAINS
                      mu_col_global = (a_virt_col - 1)*nvirt + c_virt_col
 
                      WXvirtao%local_data(i_row_global, j_col_global) = WXvirtao%local_data(i_row_global, j_col_global) + &
-                                    bse_w_matrix_MO%local_data(i_row_global, mu_col_global)*CSvirt%local_data(c_virt_col, b_nao_col)
+                                                                       bse_w_matrix_MO%local_data(i_row_global, &
+                                                                             mu_col_global)*CSvirt%local_data(c_virt_col, b_nao_col)
 
                   END DO
                END DO
@@ -340,7 +341,8 @@ CONTAINS
                      mu_col_global = (k_occ_col - 1)*nao + a_nao_col
 
                      WXaoao%local_data(i_row_global, j_col_global) = WXaoao%local_data(i_row_global, j_col_global) + &
-                                            WXvirtao%local_data(i_row_global, mu_col_global)*CSvirt%local_data(k_occ_col, b_nao_col)
+                                                                     WXvirtao%local_data(i_row_global, &
+                                                                              mu_col_global)*CSvirt%local_data(k_occ_col, b_nao_col)
 
                   END DO
                END DO
@@ -366,7 +368,8 @@ CONTAINS
                   b_nao_col = MOD(j_col_global - 1, nao) + 1
 
                   WXmat2%local_data(a_nao_col, i_occ_row) = WXmat2%local_data(a_nao_col, i_occ_row) + &
-                                 WXaoao%local_data(i_row_global, j_col_global)*evects(ispin, ivect)%local_data(b_nao_col, j_occ_row)
+                                                            WXaoao%local_data(i_row_global, j_col_global)*evects(ispin, &
+                                                                                             ivect)%local_data(b_nao_col, j_occ_row)
                END DO
             END DO
 

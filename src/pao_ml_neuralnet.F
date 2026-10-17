@@ -103,7 +103,8 @@ CONTAINS
       DO ilayer = nlayers, 1, -1
       DO i = 1, width
       DO j = 1, width
-  backward(ilayer - 1, j) = backward(ilayer - 1, j) + backward(ilayer, i)*A(ilayer, i, j)*(1.0_dp - TANH(forward(ilayer - 1, j))**2)
+         backward(ilayer - 1, j) = backward(ilayer - 1, j) + backward(ilayer, i)*A(ilayer, i, j)*(1.0_dp - TANH(forward(ilayer &
+                                                                                                                        - 1, j))**2)
       END DO
       END DO
       END DO
@@ -321,7 +322,8 @@ CONTAINS
       DO i = 1, width
       DO j = 1, width
          gradient(ilayer, i, j) = gradient(ilayer, i, j) + 2.0_dp*backward(ilayer, i)*TANH(forward(ilayer - 1, j))
-  backward(ilayer - 1, j) = backward(ilayer - 1, j) + backward(ilayer, i)*A(ilayer, i, j)*(1.0_dp - TANH(forward(ilayer - 1, j))**2)
+         backward(ilayer - 1, j) = backward(ilayer - 1, j) + backward(ilayer, i)*A(ilayer, i, j)*(1.0_dp - TANH(forward(ilayer &
+                                                                                                                        - 1, j))**2)
       END DO
       END DO
       END DO

@@ -1210,8 +1210,10 @@ CONTAINS
                                  fb(idir) = SUM(matrix_p_real(1:SIZE(zblock_b, 1), 1:SIZE(zblock_b, 2))*REAL(zblock_b, KIND=dp))
                               END IF
                               IF (found_imag) THEN
-                              fa(idir) = fa(idir) - sign_imag*SUM(matrix_p_imag(1:SIZE(zblock, 1), 1:SIZE(zblock, 2))*AIMAG(zblock))
-                        fb(idir) = fb(idir) - sign_imag*SUM(matrix_p_imag(1:SIZE(zblock_b, 1), 1:SIZE(zblock_b, 2))*AIMAG(zblock_b))
+                                 fa(idir) = fa(idir) - sign_imag*SUM(matrix_p_imag(1:SIZE(zblock, 1), 1:SIZE(zblock, &
+                                                                                                             2))*AIMAG(zblock))
+                                 fb(idir) = fb(idir) - sign_imag*SUM(matrix_p_imag(1:SIZE(zblock_b, 1), 1:SIZE(zblock_b, &
+                                                                                                               2))*AIMAG(zblock_b))
                               END IF
                               force_thread(idir, iatom) = force_thread(idir, iatom) + f0*fa(idir)
                               force_thread(idir, katom) = force_thread(idir, katom) - f0*fa(idir)

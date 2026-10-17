@@ -333,7 +333,8 @@ CONTAINS
       ALLOCATE (x_values(num_x_nodes), y_values(num_x_nodes), mat_A(num_x_nodes, num_integ_points), &
                 weight_work(num_integ_points), sing_values(num_integ_points), mat_U(num_x_nodes, num_x_nodes), &
                 mat_SinvVSinvT(num_x_nodes, num_integ_points), work(8*num_integ_points*num_integ_points + &
-                                                                  12*num_integ_points + 2*num_x_nodes), iwork(8*num_integ_points), &
+                                                                    12*num_integ_points + 2*num_x_nodes), &
+                iwork(8*num_integ_points), &
                 mat_SinvVSinvSigma(num_integ_points, num_x_nodes), vec_UTy(num_x_nodes))
       mat_SinvVSinvSigma = 0.0_dp
 

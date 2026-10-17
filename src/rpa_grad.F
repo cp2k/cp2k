@@ -913,7 +913,8 @@ CONTAINS
             avirt = col_global - (iocc - 1)*virtual
 
             IF (iocc == my_i) trace = trace + &
-                                     ddot(nrow_local, fm_mat_S%local_data(:, col_local), 1, fm_work_iaP%local_data(:, col_local), 1)
+                                      ddot(nrow_local, fm_mat_S%local_data(:, col_local), 1, fm_work_iaP%local_data(:, &
+                                                                                                                    col_local), 1)
          END DO
 
          sos_mp2_work_occ%P(my_i) = sos_mp2_work_occ%P(my_i) - trace*omega*weight
@@ -934,7 +935,8 @@ CONTAINS
             avirt = col_global - (iocc - 1)*virtual
 
             IF (avirt == my_a) trace = trace + &
-                                     ddot(nrow_local, fm_mat_S%local_data(:, col_local), 1, fm_work_iaP%local_data(:, col_local), 1)
+                                       ddot(nrow_local, fm_mat_S%local_data(:, col_local), 1, fm_work_iaP%local_data(:, &
+                                                                                                                     col_local), 1)
          END DO
 
          sos_mp2_work_virt%P(my_a) = sos_mp2_work_virt%P(my_a) + trace*omega*weight
@@ -1507,7 +1509,8 @@ CONTAINS
       DO my_b = 1, SIZE(buffer_compens, 2)
          DO my_a = 1, SIZE(buffer_compens, 1)
             buffer_compens(my_a, my_b) = buffer_unscaled(my_a, my_b) &
-                                    *(1.0_dp - omega**2/((my_eval_virt(my_a) - my_eval_occ)*(recv_eval_virt(my_b) - my_eval_occ))) &
+                                         *(1.0_dp - omega**2/((my_eval_virt(my_a) - my_eval_occ)*(recv_eval_virt(my_b) - &
+                                                                                                  my_eval_occ))) &
                                          - buffer_compens(my_a, my_b)
          END DO
       END DO
@@ -1545,7 +1548,8 @@ CONTAINS
       DO my_j = 1, SIZE(buffer_compens, 2)
          DO my_i = 1, SIZE(buffer_compens, 1)
             buffer_compens(my_i, my_j) = buffer_unscaled(my_i, my_j) &
-                                    *(1.0_dp - omega**2/((my_eval_virt - my_eval_occ(my_i))*(my_eval_virt - recv_eval_occ(my_j)))) &
+                                         *(1.0_dp - omega**2/((my_eval_virt - my_eval_occ(my_i))*(my_eval_virt - &
+                                                                                                  recv_eval_occ(my_j)))) &
                                          - buffer_compens(my_i, my_j)
          END DO
       END DO
@@ -2674,7 +2678,8 @@ CONTAINS
             CALL timeset(routineN//"_pack", handle2)
             ! Loop over local data and pack the buffer
             ! Transpose the matrix already
-          send_buffer(1:elements2send_row, 1:elements2send_col) => send_buffer_1D(1:INT(elements2send_row, int_8)*elements2send_col)
+            send_buffer(1:elements2send_row, 1:elements2send_col) => send_buffer_1D(1:INT(elements2send_row, &
+                                                                                          int_8)*elements2send_col)
 !$OMP    PARALLEL DO DEFAULT(NONE) PRIVATE(row_local,col_local) &
 !$OMP                SHARED(elements2send_col,elements2send_row,send_buffer,fm_sub,&
 !$OMP                       index2send_col,index2send_row,pcol_send,prow_send)
@@ -2694,7 +2699,8 @@ CONTAINS
             elements2recv_row = data2recv_row(prow_recv)
 
             ! Send data
-          recv_buffer(1:elements2recv_col, 1:elements2recv_row) => recv_buffer_1D(1:INT(elements2recv_row, int_8)*elements2recv_col)
+            recv_buffer(1:elements2recv_col, 1:elements2recv_row) => recv_buffer_1D(1:INT(elements2recv_row, &
+                                                                                          int_8)*elements2recv_col)
             IF (SIZE(recv_buffer) > 0_int_8) THEN
             IF (SIZE(send_buffer) > 0_int_8) THEN
                CALL para_env_sub%sendrecv(send_buffer, proc_send, recv_buffer, proc_recv, tag)

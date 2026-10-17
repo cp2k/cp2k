@@ -417,7 +417,8 @@ CONTAINS
 
                      output_unit = cp_logger_get_default_io_unit(logger)
                      unit_nr = cp_print_key_unit_nr(logger, dft_section, &
-                                                  "REAL_TIME_PROPAGATION%PRINT%CURRENT_INT", extension=".dat", is_new_file=new_file)
+                                                    "REAL_TIME_PROPAGATION%PRINT%CURRENT_INT", extension=".dat", &
+                                                    is_new_file=new_file)
 
                      IF (output_unit > 0) THEN
                         WRITE (UNIT=output_unit, FMT="(T2,A,E24.16)") &

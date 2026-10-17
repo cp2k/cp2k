@@ -1398,8 +1398,8 @@ CONTAINS
             ! If the block is not found, then the density matrix here has below threshold values
             IF (.NOT. found) CYCLE
             ! With the block retrieved, add its contributions to the Q-vector
-            !$OMP PARALLEL DO DEFAULT(none) PRIVATE(i,j,k) &
-            !$OMP SHARED(n_RI, row_size, col_size, Qvector, int_3c, j_offset, k_offset, block_matrix)
+!$OMP PARALLEL DO DEFAULT(none) PRIVATE(i,j,k) &
+!$OMP SHARED(n_RI, row_size, col_size, Qvector, int_3c, j_offset, k_offset, block_matrix)
             DO i = 1, n_RI
                DO j = 1, row_size
                   DO k = 1, col_size
@@ -1407,7 +1407,7 @@ CONTAINS
                   END DO
                END DO
             END DO
-            !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
             ! Increment k-offset - setup for the next block
             k_offset = k_offset + col_size
          END DO
@@ -1429,14 +1429,14 @@ CONTAINS
          j_n_AO = sizes_RI(ind_1)
          k_n_AO = sizes_RI(ind_2)
          ! The allocations are as follows
-         !$OMP PARALLEL DO DEFAULT(none) PRIVATE(j,k) &
-         !$OMP SHARED(block_matrix, Pvector, Qvector,j_n_AO,k_n_AO,row_offset,col_offset)
+!$OMP PARALLEL DO DEFAULT(none) PRIVATE(j,k) &
+!$OMP SHARED(block_matrix, Pvector, Qvector,j_n_AO,k_n_AO,row_offset,col_offset)
          DO j = 1, j_n_AO
             DO k = 1, k_n_AO
                Pvector(j + row_offset - 1) = Pvector(j + row_offset - 1) + block_matrix(j, k)*Qvector(k + col_offset - 1)
             END DO
          END DO
-         !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
       END DO
       CALL dbcsr_iterator_stop(iterator_matrix)
       ! Again, make sure that the P vector is present on all ranks
@@ -1461,8 +1461,8 @@ CONTAINS
                                       block=block_matrix, found=found, row_size=row_size, col_size=col_size)
             END IF
             ! With the block retrieved, contract with the P vector
-            !$OMP PARALLEL DO DEFAULT(none) PRIVATE(i,j,k) &
-            !$OMP SHARED(row_size, col_size, n_RI, block_matrix, Pvector, int_3c, j_offset, k_offset)
+!$OMP PARALLEL DO DEFAULT(none) PRIVATE(i,j,k) &
+!$OMP SHARED(row_size, col_size, n_RI, block_matrix, Pvector, int_3c, j_offset, k_offset)
             DO j = 1, row_size
                DO k = 1, col_size
                   block_matrix(j, k) = 0.0_dp
@@ -1471,7 +1471,7 @@ CONTAINS
                   END DO
                END DO
             END DO
-            !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
             ! Increment k-offset - setup for the next block
             k_offset = k_offset + col_size
          END DO

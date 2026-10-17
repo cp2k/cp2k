@@ -174,7 +174,8 @@ CONTAINS
          CALL dbcsr_create(matrix_ia_jnu(ispin), template=mo_coeff_o(ispin)%matrix)
 
          ! Allocate Sparse matrices: (ia|jb)
-    CALL cp_dbcsr_m_by_n_from_template(matrix_ia_jb(ispin), template=mo_coeff_o(ispin)%matrix, m=homo(ispin), n=nmo - homo(ispin), &
+         CALL cp_dbcsr_m_by_n_from_template(matrix_ia_jb(ispin), template=mo_coeff_o(ispin)%matrix, m=homo(ispin), n=nmo - &
+                                            homo(ispin), &
                                             sym=dbcsr_type_no_symmetry)
 
          ! set all to zero in such a way that the memory is actually allocated
@@ -423,7 +424,8 @@ CONTAINS
                DO j = 1, row_size
                   ! Compute the coulomb MP2 energy
                   Emp2_Cou = Emp2_Cou - 2.0_dp*data_block(j, b)**2/ &
-                     (Eigenval(a, 1) + Eigenval(homo(1) + col_offset + b - 1, 1) - Eigenval(i, 1) - Eigenval(row_offset + j - 1, 1))
+                             (Eigenval(a, 1) + Eigenval(homo(1) + col_offset + b - 1, 1) - Eigenval(i, 1) - Eigenval(row_offset &
+                                                                                                                     + j - 1, 1))
                END DO
                END DO
             END DO
@@ -439,7 +441,8 @@ CONTAINS
                   DO j = 1, row_size
                      ! Compute the coulomb MP2 energy alpha beta case
                      Emp2_AB = Emp2_AB - data_block(j, b)**2/ &
-                     (Eigenval(a, 1) + Eigenval(homo(2) + col_offset + b - 1, 2) - Eigenval(i, 1) - Eigenval(row_offset + j - 1, 2))
+                               (Eigenval(a, 1) + Eigenval(homo(2) + col_offset + b - 1, 2) - Eigenval(i, 1) - Eigenval(row_offset &
+                                                                                                                       + j - 1, 2))
                   END DO
                   END DO
                END DO
@@ -469,7 +472,8 @@ CONTAINS
                      DO b = 1, my_B_size
                         b_global = b - 1 + my_B_virtual_start
                         Emp2_EX = Emp2_EX + BIb_C(b, j, i)*BIb_C(b, i + my_I_occupied_start - 1, j - my_I_occupied_start + 1) &
-                     /(Eigenval(a, 1) + Eigenval(homo(1) + b_global, 1) - Eigenval(i + my_I_occupied_start - 1, 1) - Eigenval(j, 1))
+                                  /(Eigenval(a, 1) + Eigenval(homo(1) + b_global, 1) - Eigenval(i + my_I_occupied_start - 1, 1) - &
+                                    Eigenval(j, 1))
                      END DO
                   END DO
                END DO

@@ -592,9 +592,11 @@ CONTAINS
 !> \param admm_dm ...
 ! **************************************************************************************************
    SUBROUTINE get_admm_env(admm_env, mo_derivs_aux_fit, mos_aux_fit, sab_aux_fit, sab_aux_fit_asymm, &
-                   sab_aux_fit_vs_orb, matrix_s_aux_fit, matrix_s_aux_fit_kp, matrix_s_aux_fit_vs_orb, matrix_s_aux_fit_vs_orb_kp, &
+                           sab_aux_fit_vs_orb, matrix_s_aux_fit, matrix_s_aux_fit_kp, matrix_s_aux_fit_vs_orb, &
+                           matrix_s_aux_fit_vs_orb_kp, &
                            task_list_aux_fit, matrix_ks_aux_fit, matrix_ks_aux_fit_kp, matrix_ks_aux_fit_im, &
-                    matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, matrix_ks_aux_fit_dft_kp, matrix_ks_aux_fit_hfx_kp, rho_aux_fit, &
+                           matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, matrix_ks_aux_fit_dft_kp, matrix_ks_aux_fit_hfx_kp, &
+                           rho_aux_fit, &
                            rho_aux_fit_buffer, admm_dm)
 
       TYPE(admm_type), INTENT(IN), POINTER               :: admm_env
@@ -676,9 +678,11 @@ CONTAINS
 !> \param admm_dm ...
 ! **************************************************************************************************
    SUBROUTINE set_admm_env(admm_env, mo_derivs_aux_fit, mos_aux_fit, sab_aux_fit, sab_aux_fit_asymm, &
-                   sab_aux_fit_vs_orb, matrix_s_aux_fit, matrix_s_aux_fit_kp, matrix_s_aux_fit_vs_orb, matrix_s_aux_fit_vs_orb_kp, &
+                           sab_aux_fit_vs_orb, matrix_s_aux_fit, matrix_s_aux_fit_kp, matrix_s_aux_fit_vs_orb, &
+                           matrix_s_aux_fit_vs_orb_kp, &
                            task_list_aux_fit, matrix_ks_aux_fit, matrix_ks_aux_fit_kp, matrix_ks_aux_fit_im, &
-                    matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, matrix_ks_aux_fit_dft_kp, matrix_ks_aux_fit_hfx_kp, rho_aux_fit, &
+                           matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, matrix_ks_aux_fit_dft_kp, matrix_ks_aux_fit_hfx_kp, &
+                           rho_aux_fit, &
                            rho_aux_fit_buffer, admm_dm)
 
       TYPE(admm_type), INTENT(INOUT), POINTER            :: admm_env

@@ -64,9 +64,12 @@ MODULE qs_vcd
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_vcd'
 
    REAL(dp), DIMENSION(3, 3, 3), PARAMETER  :: Levi_Civita = RESHAPE([ &
-                                                          0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, -1.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, &
-                                                          0.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, -1.0_dp, 0.0_dp, 0.0_dp, &
-                                                         0.0_dp, -1.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp], &
+                                                                     0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, -1.0_dp, 0.0_dp, &
+                                                                     1.0_dp, 0.0_dp, &
+                                                                     0.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, -1.0_dp, &
+                                                                     0.0_dp, 0.0_dp, &
+                                                                     0.0_dp, -1.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, &
+                                                                     0.0_dp, 0.0_dp], &
                                                                      [3, 3, 3])
    INTEGER, DIMENSION(3, 3), PARAMETER :: multipole_2d_to_1d = RESHAPE([4, 5, 6, 5, 7, 8, 6, 8, 9], [3, 3])
 CONTAINS
@@ -245,7 +248,8 @@ CONTAINS
          !  (E):  + P^0 * ε_{alpha gamma delta} * < mu | r_gamma [V, r_delta] r_beta | nu > * (nu == lambda)
          !    This is in vcd_env%matrix_rxvr_r
          DO alpha = 1, 3
-           CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, vcd_env%matrix_rxvr_r(alpha, vcd_env%dcdr_env%beta)%matrix)
+            CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, vcd_env%matrix_rxvr_r(alpha, &
+                                                                                                vcd_env%dcdr_env%beta)%matrix)
             CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
                                      sab_all, direction_Or=.TRUE., lambda=vcd_env%dcdr_env%lambda)
 

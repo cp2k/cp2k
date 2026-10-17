@@ -1467,7 +1467,8 @@ CONTAINS
       IF (count1 == nrep) THEN
          DO j = 1, count1
             DO i = 1, ms_vib%mat_size
-            residuum(:, j) = residuum(:, j) + approx_H(i, map1(j, 1))*(ms_vib%s_mat(:, i) - eigenval(map1(j, 1))*ms_vib%b_mat(:, i))
+               residuum(:, j) = residuum(:, j) + approx_H(i, map1(j, 1))*(ms_vib%s_mat(:, i) - eigenval(map1(j, &
+                                                                                                             1))*ms_vib%b_mat(:, i))
                ind(j) = map1(j, 1)
             END DO
          END DO

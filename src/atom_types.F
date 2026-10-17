@@ -619,7 +619,8 @@ CONTAINS
                      basis%dbf(k, j, l) = basis%dbf(k, j, l) &
                                           + (REAL(l, dp)*rk**(l - 1) - 2._dp*al*rk**(l + 1))*ear*basis%cm(i, j, l)
                      basis%ddbf(k, j, l) = basis%ddbf(k, j, l) + &
-                                 (REAL(l*(l - 1), dp)*rk**(l - 2) - 2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al**2*rk**(l + 2))* &
+                                           (REAL(l*(l - 1), dp)*rk**(l - 2) - 2._dp*al*REAL(2*l + 1, dp)*rk**(l) + &
+                                            4._dp*al**2*rk**(l + 2))* &
                                            ear*basis%cm(i, j, l)
                   END DO
                END DO
@@ -895,7 +896,8 @@ CONTAINS
                      gbasis%dbf(k, j, l) = gbasis%dbf(k, j, l) &
                                            + (REAL(l, dp)*rk**MAX(0, l - 1) - 2._dp*al*rk**(l + 1))*ear*gbasis%cm(i, j, l)
                      gbasis%ddbf(k, j, l) = gbasis%ddbf(k, j, l) + &
-                           (REAL(l*(l - 1), dp)*rk**MAX(0, l - 2) - 2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al**2*rk**(l + 2))* &
+                                            (REAL(l*(l - 1), dp)*rk**MAX(0, l - 2) - 2._dp*al*REAL(2*l + 1, dp)*rk**(l) + &
+                                             4._dp*al**2*rk**(l + 2))* &
                                             ear*gbasis%cm(i, j, l)
                   END DO
                END DO

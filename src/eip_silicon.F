@@ -4908,7 +4908,8 @@ CONTAINS
       F = 0.0_dp
       Uatot = 0.0_dp
       DO_I: DO i = 1, Nmol
-      CALL tersoff_subeniat_l(i, Nmol, Npmax, Kinds, X, R1, R2, Cr, Ca, alr, ala, XYZRrefdf, UadUrdf, Urtot, lsta, lstb, nnbrx, rel)
+         CALL tersoff_subeniat_l(i, Nmol, Npmax, Kinds, X, R1, R2, Cr, Ca, alr, ala, XYZRrefdf, UadUrdf, Urtot, lsta, lstb, &
+                                 nnbrx, rel)
       END DO DO_I
 
       Urtot = 0.5_dp*Urtot
@@ -4917,7 +4918,8 @@ CONTAINS
       Uatot = 0.0_dp
 
       DO_If: DO i = 1, Nmol
-         CALL tersoff_subfiat_l(i,Nmol,Npmax,NNmax,Kinds,Pn,Co_bcd,bcsq,dsq,h,XYZRrefdf,UadUrdf,F,Uatot,dkEij,lsta,lstb,nnbrx)
+         CALL tersoff_subfiat_l(i, Nmol, Npmax, NNmax, Kinds, Pn, Co_bcd, bcsq, dsq, h, XYZRrefdf, UadUrdf, F, Uatot, dkEij, lsta, &
+                                lstb, nnbrx)
       END DO DO_If
 
       F = 0.5_dp*F
@@ -5013,7 +5015,8 @@ CONTAINS
 !> \param nnbrx ...
 !> \param rel ...
 ! **************************************************************************************************
-SUBROUTINE tersoff_subeniat_l(i, Nmol, Npmax, Kinds, X, R1, R2, Cr, Ca, alr, ala, XYZRrefdf, UadUrdf, Urtot, lsta, lstb, nnbrx, rel)
+   SUBROUTINE tersoff_subeniat_l(i, Nmol, Npmax, Kinds, X, R1, R2, Cr, Ca, alr, ala, XYZRrefdf, UadUrdf, Urtot, lsta, lstb, &
+                                 nnbrx, rel)
       INTEGER                                            :: i
       INTEGER, INTENT(in)                                :: Nmol, Npmax
       INTEGER, DIMENSION(1:Nmol), INTENT(in)             :: Kinds
@@ -5103,7 +5106,8 @@ SUBROUTINE tersoff_subeniat_l(i, Nmol, Npmax, Kinds, X, R1, R2, Cr, Ca, alr, ala
 !> \param lstb ...
 !> \param nnbrx ...
 ! **************************************************************************************************
-   SUBROUTINE tersoff_subfiat_l(i,Nmol,Npmax,NNmax,Kinds,Pn,Co_bcd,bcsq,dsq,h,XYZRrefdf,UadUrdf,F,Uatot,dkEij,lsta,lstb,nnbrx)
+   SUBROUTINE tersoff_subfiat_l(i, Nmol, Npmax, NNmax, Kinds, Pn, Co_bcd, bcsq, dsq, h, XYZRrefdf, UadUrdf, F, Uatot, dkEij, lsta, &
+                                lstb, nnbrx)
       INTEGER                                            :: i
       INTEGER, INTENT(in)                                :: Nmol, Npmax, NNmax
       INTEGER, DIMENSION(1:Nmol), INTENT(in)             :: Kinds

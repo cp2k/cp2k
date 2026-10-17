@@ -397,7 +397,8 @@ CONTAINS
                                                              p_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1))
                      ELSE
                         work(1:ncoa, 1:nsgfb(jset)) = MATMUL(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1), &
-                                                       TRANSPOSE(p_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1)))
+                                                             TRANSPOSE(p_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + &
+                                                                               nsgfa(iset) - 1)))
                      END IF
 
                      pab(1:ncoa, 1:ncob, iset, jset) = MATMUL(work(1:ncoa, 1:nsgfb(jset)), &

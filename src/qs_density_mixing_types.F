@@ -63,7 +63,8 @@ MODULE qs_density_mixing_types
       ! Replicated density coordinates are appended on world rank zero only.
       INTEGER                                           :: naux = 0
       COMPLEX(KIND=dp), ALLOCATABLE                     :: aux_buffer(:, :)
-   INTEGER                                           :: ig_max = -1, ncall = -1, ncall_p(2) = -1, nbuffer = -1, n_simple_mix = -1, &
+      INTEGER                                           :: ig_max = -1, ncall = -1, ncall_p(2) = -1, nbuffer = -1, &
+                                                           n_simple_mix = -1, &
                                                            nskip_mixing = -1, p_metric_method = -1
       INTEGER, POINTER, DIMENSION(:)                    :: ig_global_index => NULL()
       LOGICAL                                           :: gmix_p = .FALSE.

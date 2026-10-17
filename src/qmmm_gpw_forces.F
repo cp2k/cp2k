@@ -541,9 +541,11 @@ CONTAINS
          CALL qmmm_force_with_gaussian_low(grids, qmmm_env%added_charges%added_particles, &
                                            qmmm_env%added_charges%mm_atom_chrg, &
                                            qmmm_env%added_charges%mm_atom_index, qmmm_env%added_charges%num_mm_atoms, &
-                                       cube_info, para_env, eps_mm_rspace, auxbas_grid, coarser_grid, qmmm_env%added_charges%pgfs, &
+                                           cube_info, para_env, eps_mm_rspace, auxbas_grid, coarser_grid, &
+                                           qmmm_env%added_charges%pgfs, &
                                            qmmm_env%added_charges%potentials, Forces_added_charges, aug_pools, mm_cell, &
-                              qmmm_env%dOmmOqm, qmmm_env%periodic, qmmm_env%added_charges%per_potentials, iw, qmmm_env%par_scheme, &
+                                           qmmm_env%dOmmOqm, qmmm_env%periodic, qmmm_env%added_charges%per_potentials, iw, &
+                                           qmmm_env%par_scheme, &
                                            qmmm_env%spherical_cutoff, shells)
       END IF
 
@@ -552,9 +554,11 @@ CONTAINS
          CALL qmmm_force_with_gaussian_low(grids, qmmm_env%added_shells%added_particles, &
                                            qmmm_env%added_shells%mm_core_chrg, &
                                            qmmm_env%added_shells%mm_core_index, qmmm_env%added_shells%num_mm_atoms, &
-                                        cube_info, para_env, eps_mm_rspace, auxbas_grid, coarser_grid, qmmm_env%added_shells%pgfs, &
+                                           cube_info, para_env, eps_mm_rspace, auxbas_grid, coarser_grid, &
+                                           qmmm_env%added_shells%pgfs, &
                                            qmmm_env%added_shells%potentials, Forces_added_shells, aug_pools, mm_cell, &
-                               qmmm_env%dOmmOqm, qmmm_env%periodic, qmmm_env%added_shells%per_potentials, iw, qmmm_env%par_scheme, &
+                                           qmmm_env%dOmmOqm, qmmm_env%periodic, qmmm_env%added_shells%per_potentials, iw, &
+                                           qmmm_env%par_scheme, &
                                            qmmm_env%spherical_cutoff, shells)
       END IF
 
@@ -655,13 +659,13 @@ CONTAINS
             ALLOCATE (xdat(2, bo(1, 1):bo(2, 1)))
             ALLOCATE (ydat(2, bo(1, 2):bo(2, 2)))
             ALLOCATE (zdat(2, bo(1, 3):bo(2, 3)))
-            !$OMP PARALLEL DO DEFAULT(NONE) &
-            !$OMP SHARED(pot, par_scheme, dvol, alpha, para_env, mm_atom_index, shells) &
-            !$OMP SHARED(mm_particles, dOmmOqm, mm_cell, height, mm_charges, qmmm_spherical_cutoff) &
-            !$OMP SHARED(grids, cube_info, bo, n_rep_real, eps_mm_rspace, Forces, ilevel) &
-            !$OMP SHARED(IGauss, pgf, IRadTyp, iw, aug_pools, auxbas_grid) &
-            !$OMP PRIVATE(xdat, ydat, zdat) &
-            !$OMP PRIVATE(Imm, LIndMM, IndMM, ra, W, force, sph_chrg_factor, myind)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(pot, par_scheme, dvol, alpha, para_env, mm_atom_index, shells) &
+!$OMP SHARED(mm_particles, dOmmOqm, mm_cell, height, mm_charges, qmmm_spherical_cutoff) &
+!$OMP SHARED(grids, cube_info, bo, n_rep_real, eps_mm_rspace, Forces, ilevel) &
+!$OMP SHARED(IGauss, pgf, IRadTyp, iw, aug_pools, auxbas_grid) &
+!$OMP PRIVATE(xdat, ydat, zdat) &
+!$OMP PRIVATE(Imm, LIndMM, IndMM, ra, W, force, sph_chrg_factor, myind)
             Atoms: DO Imm = 1, SIZE(pot%mm_atom_index)
                IF (par_scheme == do_par_atom) THEN
                   myind = Imm + (IGauss - 1)*SIZE(pot%mm_atom_index) + (IRadTyp - 1)*pgf%Number_of_Gaussians
@@ -717,7 +721,7 @@ CONTAINS
                                                        iw=iw)
                END IF
             END DO Atoms
-            !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
             DEALLOCATE (xdat)
             DEALLOCATE (ydat)
             DEALLOCATE (zdat)
@@ -852,20 +856,20 @@ CONTAINS
          dr2i = 1.0_dp/dr2
          dr3i = 1.0_dp/dr3
 
-         !$OMP PARALLEL DO DEFAULT(NONE) &
-         !$OMP SHARED(bo, grid, grid2, pw, npts, gbo, per_pot, mm_atom_index) &
-         !$OMP SHARED(dr1, dr2, dr3, dr1i, dr2i, dr3i, dr1c, dr2c, dr3c, par_scheme, mm_charges) &
-         !$OMP SHARED(mm_cell, dOmmOqm, dvol, shells, para_env, IRadTyp) &
-         !$OMP SHARED(qmmm_spherical_cutoff, mm_particles, Forces, LForces) &
-         !$OMP PRIVATE(qt, Imm, LIndMM, IndMM, sph_chrg_factor, ra, myind) &
-         !$OMP PRIVATE(rt1, rt2, rt3, ft1, ft2, ft3, my_k, my_j, my_i, xs3, xs2, xs1) &
-         !$OMP PRIVATE(rv3, rv2, rv1, vec, ivec, ik1, ik2, ik3, ik4, xd3, xd2, xd1) &
-         !$OMP PRIVATE(p1, p2, p3, q1, q2, q3, r1, r2, r3, u1, u2, u3, v1o, v2o, v3o, v4o) &
-         !$OMP PRIVATE(v1d, v2d, v3d, v4d, ij1, ij2, ij3, ij4, e1, e2, e3, f1, f2, f3) &
-         !$OMP PRIVATE(g1, g2, g3, h1, h2, h3, s1o, s2o, s3o, s4o, s1d, s2d, s3d, s4d) &
-         !$OMP PRIVATE(ii1, ii2, ii3, ii4, a1, a2, a3, b1, b2, b3, c1, c2, c3, d1, d2, d3) &
-         !$OMP PRIVATE(t1o, t2o, t3o, t4o, t1d, t2d, t3d, t4d, t1, t2, t3, t4, s1, s2, s3, s4) &
-         !$OMP PRIVATE(v1, v2, v3, v4, abc_x, abc_x_y, val, fac)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(bo, grid, grid2, pw, npts, gbo, per_pot, mm_atom_index) &
+!$OMP SHARED(dr1, dr2, dr3, dr1i, dr2i, dr3i, dr1c, dr2c, dr3c, par_scheme, mm_charges) &
+!$OMP SHARED(mm_cell, dOmmOqm, dvol, shells, para_env, IRadTyp) &
+!$OMP SHARED(qmmm_spherical_cutoff, mm_particles, Forces, LForces) &
+!$OMP PRIVATE(qt, Imm, LIndMM, IndMM, sph_chrg_factor, ra, myind) &
+!$OMP PRIVATE(rt1, rt2, rt3, ft1, ft2, ft3, my_k, my_j, my_i, xs3, xs2, xs1) &
+!$OMP PRIVATE(rv3, rv2, rv1, vec, ivec, ik1, ik2, ik3, ik4, xd3, xd2, xd1) &
+!$OMP PRIVATE(p1, p2, p3, q1, q2, q3, r1, r2, r3, u1, u2, u3, v1o, v2o, v3o, v4o) &
+!$OMP PRIVATE(v1d, v2d, v3d, v4d, ij1, ij2, ij3, ij4, e1, e2, e3, f1, f2, f3) &
+!$OMP PRIVATE(g1, g2, g3, h1, h2, h3, s1o, s2o, s3o, s4o, s1d, s2d, s3d, s4d) &
+!$OMP PRIVATE(ii1, ii2, ii3, ii4, a1, a2, a3, b1, b2, b3, c1, c2, c3, d1, d2, d3) &
+!$OMP PRIVATE(t1o, t2o, t3o, t4o, t1d, t2d, t3d, t4d, t1, t2, t3, t4, s1, s2, s3, s4) &
+!$OMP PRIVATE(v1, v2, v3, v4, abc_x, abc_x_y, val, fac)
          Atoms: DO Imm = 1, SIZE(per_pot%mm_atom_index)
             IF (par_scheme == do_par_atom) THEN
                myind = Imm + (IRadTyp - 1)*SIZE(per_pot%mm_atom_index)
@@ -998,28 +1002,44 @@ CONTAINS
                      v3 = v3o
                      v4 = v4o
 
-                 abc_X(1, 1) = grid2(ii1, ij1, ik1)*v1 + grid2(ii1, ij1, ik2)*v2 + grid2(ii1, ij1, ik3)*v3 + grid2(ii1, ij1, ik4)*v4
-                 abc_X(2, 1) = grid2(ii2, ij1, ik1)*v1 + grid2(ii2, ij1, ik2)*v2 + grid2(ii2, ij1, ik3)*v3 + grid2(ii2, ij1, ik4)*v4
-                 abc_X(3, 1) = grid2(ii3, ij1, ik1)*v1 + grid2(ii3, ij1, ik2)*v2 + grid2(ii3, ij1, ik3)*v3 + grid2(ii3, ij1, ik4)*v4
-                 abc_X(4, 1) = grid2(ii4, ij1, ik1)*v1 + grid2(ii4, ij1, ik2)*v2 + grid2(ii4, ij1, ik3)*v3 + grid2(ii4, ij1, ik4)*v4
+                     abc_X(1, 1) = grid2(ii1, ij1, ik1)*v1 + grid2(ii1, ij1, ik2)*v2 + grid2(ii1, ij1, ik3)*v3 + grid2(ii1, &
+                                                                                                                       ij1, ik4)*v4
+                     abc_X(2, 1) = grid2(ii2, ij1, ik1)*v1 + grid2(ii2, ij1, ik2)*v2 + grid2(ii2, ij1, ik3)*v3 + grid2(ii2, &
+                                                                                                                       ij1, ik4)*v4
+                     abc_X(3, 1) = grid2(ii3, ij1, ik1)*v1 + grid2(ii3, ij1, ik2)*v2 + grid2(ii3, ij1, ik3)*v3 + grid2(ii3, &
+                                                                                                                       ij1, ik4)*v4
+                     abc_X(4, 1) = grid2(ii4, ij1, ik1)*v1 + grid2(ii4, ij1, ik2)*v2 + grid2(ii4, ij1, ik3)*v3 + grid2(ii4, &
+                                                                                                                       ij1, ik4)*v4
                      abc_X_Y(1) = abc_X(1, 1)*t1 + abc_X(2, 1)*t2 + abc_X(3, 1)*t3 + abc_X(4, 1)*t4
 
-                 abc_X(1, 2) = grid2(ii1, ij2, ik1)*v1 + grid2(ii1, ij2, ik2)*v2 + grid2(ii1, ij2, ik3)*v3 + grid2(ii1, ij2, ik4)*v4
-                 abc_X(2, 2) = grid2(ii2, ij2, ik1)*v1 + grid2(ii2, ij2, ik2)*v2 + grid2(ii2, ij2, ik3)*v3 + grid2(ii2, ij2, ik4)*v4
-                 abc_X(3, 2) = grid2(ii3, ij2, ik1)*v1 + grid2(ii3, ij2, ik2)*v2 + grid2(ii3, ij2, ik3)*v3 + grid2(ii3, ij2, ik4)*v4
-                 abc_X(4, 2) = grid2(ii4, ij2, ik1)*v1 + grid2(ii4, ij2, ik2)*v2 + grid2(ii4, ij2, ik3)*v3 + grid2(ii4, ij2, ik4)*v4
+                     abc_X(1, 2) = grid2(ii1, ij2, ik1)*v1 + grid2(ii1, ij2, ik2)*v2 + grid2(ii1, ij2, ik3)*v3 + grid2(ii1, &
+                                                                                                                       ij2, ik4)*v4
+                     abc_X(2, 2) = grid2(ii2, ij2, ik1)*v1 + grid2(ii2, ij2, ik2)*v2 + grid2(ii2, ij2, ik3)*v3 + grid2(ii2, &
+                                                                                                                       ij2, ik4)*v4
+                     abc_X(3, 2) = grid2(ii3, ij2, ik1)*v1 + grid2(ii3, ij2, ik2)*v2 + grid2(ii3, ij2, ik3)*v3 + grid2(ii3, &
+                                                                                                                       ij2, ik4)*v4
+                     abc_X(4, 2) = grid2(ii4, ij2, ik1)*v1 + grid2(ii4, ij2, ik2)*v2 + grid2(ii4, ij2, ik3)*v3 + grid2(ii4, &
+                                                                                                                       ij2, ik4)*v4
                      abc_X_Y(2) = abc_X(1, 2)*t1 + abc_X(2, 2)*t2 + abc_X(3, 2)*t3 + abc_X(4, 2)*t4
 
-                 abc_X(1, 3) = grid2(ii1, ij3, ik1)*v1 + grid2(ii1, ij3, ik2)*v2 + grid2(ii1, ij3, ik3)*v3 + grid2(ii1, ij3, ik4)*v4
-                 abc_X(2, 3) = grid2(ii2, ij3, ik1)*v1 + grid2(ii2, ij3, ik2)*v2 + grid2(ii2, ij3, ik3)*v3 + grid2(ii2, ij3, ik4)*v4
-                 abc_X(3, 3) = grid2(ii3, ij3, ik1)*v1 + grid2(ii3, ij3, ik2)*v2 + grid2(ii3, ij3, ik3)*v3 + grid2(ii3, ij3, ik4)*v4
-                 abc_X(4, 3) = grid2(ii4, ij3, ik1)*v1 + grid2(ii4, ij3, ik2)*v2 + grid2(ii4, ij3, ik3)*v3 + grid2(ii4, ij3, ik4)*v4
+                     abc_X(1, 3) = grid2(ii1, ij3, ik1)*v1 + grid2(ii1, ij3, ik2)*v2 + grid2(ii1, ij3, ik3)*v3 + grid2(ii1, &
+                                                                                                                       ij3, ik4)*v4
+                     abc_X(2, 3) = grid2(ii2, ij3, ik1)*v1 + grid2(ii2, ij3, ik2)*v2 + grid2(ii2, ij3, ik3)*v3 + grid2(ii2, &
+                                                                                                                       ij3, ik4)*v4
+                     abc_X(3, 3) = grid2(ii3, ij3, ik1)*v1 + grid2(ii3, ij3, ik2)*v2 + grid2(ii3, ij3, ik3)*v3 + grid2(ii3, &
+                                                                                                                       ij3, ik4)*v4
+                     abc_X(4, 3) = grid2(ii4, ij3, ik1)*v1 + grid2(ii4, ij3, ik2)*v2 + grid2(ii4, ij3, ik3)*v3 + grid2(ii4, &
+                                                                                                                       ij3, ik4)*v4
                      abc_X_Y(3) = abc_X(1, 3)*t1 + abc_X(2, 3)*t2 + abc_X(3, 3)*t3 + abc_X(4, 3)*t4
 
-                 abc_X(1, 4) = grid2(ii1, ij4, ik1)*v1 + grid2(ii1, ij4, ik2)*v2 + grid2(ii1, ij4, ik3)*v3 + grid2(ii1, ij4, ik4)*v4
-                 abc_X(2, 4) = grid2(ii2, ij4, ik1)*v1 + grid2(ii2, ij4, ik2)*v2 + grid2(ii2, ij4, ik3)*v3 + grid2(ii2, ij4, ik4)*v4
-                 abc_X(3, 4) = grid2(ii3, ij4, ik1)*v1 + grid2(ii3, ij4, ik2)*v2 + grid2(ii3, ij4, ik3)*v3 + grid2(ii3, ij4, ik4)*v4
-                 abc_X(4, 4) = grid2(ii4, ij4, ik1)*v1 + grid2(ii4, ij4, ik2)*v2 + grid2(ii4, ij4, ik3)*v3 + grid2(ii4, ij4, ik4)*v4
+                     abc_X(1, 4) = grid2(ii1, ij4, ik1)*v1 + grid2(ii1, ij4, ik2)*v2 + grid2(ii1, ij4, ik3)*v3 + grid2(ii1, &
+                                                                                                                       ij4, ik4)*v4
+                     abc_X(2, 4) = grid2(ii2, ij4, ik1)*v1 + grid2(ii2, ij4, ik2)*v2 + grid2(ii2, ij4, ik3)*v3 + grid2(ii2, &
+                                                                                                                       ij4, ik4)*v4
+                     abc_X(3, 4) = grid2(ii3, ij4, ik1)*v1 + grid2(ii3, ij4, ik2)*v2 + grid2(ii3, ij4, ik3)*v3 + grid2(ii3, &
+                                                                                                                       ij4, ik4)*v4
+                     abc_X(4, 4) = grid2(ii4, ij4, ik1)*v1 + grid2(ii4, ij4, ik2)*v2 + grid2(ii4, ij4, ik3)*v3 + grid2(ii4, &
+                                                                                                                       ij4, ik4)*v4
                      abc_X_Y(4) = abc_X(1, 4)*t1 + abc_X(2, 4)*t2 + abc_X(3, 4)*t3 + abc_X(4, 4)*t4
 
                      val(1) = abc_X_Y(1)*s1 + abc_X_Y(2)*s2 + abc_X_Y(3)*s3 + abc_X_Y(4)*s4
@@ -1053,25 +1073,41 @@ CONTAINS
                      v3 = v3d*dr3i
                      v4 = v4d*dr3i
 
-                 abc_X(1, 1) = grid2(ii1, ij1, ik1)*v1 + grid2(ii1, ij1, ik2)*v2 + grid2(ii1, ij1, ik3)*v3 + grid2(ii1, ij1, ik4)*v4
-                 abc_X(2, 1) = grid2(ii2, ij1, ik1)*v1 + grid2(ii2, ij1, ik2)*v2 + grid2(ii2, ij1, ik3)*v3 + grid2(ii2, ij1, ik4)*v4
-                 abc_X(3, 1) = grid2(ii3, ij1, ik1)*v1 + grid2(ii3, ij1, ik2)*v2 + grid2(ii3, ij1, ik3)*v3 + grid2(ii3, ij1, ik4)*v4
-                 abc_X(4, 1) = grid2(ii4, ij1, ik1)*v1 + grid2(ii4, ij1, ik2)*v2 + grid2(ii4, ij1, ik3)*v3 + grid2(ii4, ij1, ik4)*v4
+                     abc_X(1, 1) = grid2(ii1, ij1, ik1)*v1 + grid2(ii1, ij1, ik2)*v2 + grid2(ii1, ij1, ik3)*v3 + grid2(ii1, &
+                                                                                                                       ij1, ik4)*v4
+                     abc_X(2, 1) = grid2(ii2, ij1, ik1)*v1 + grid2(ii2, ij1, ik2)*v2 + grid2(ii2, ij1, ik3)*v3 + grid2(ii2, &
+                                                                                                                       ij1, ik4)*v4
+                     abc_X(3, 1) = grid2(ii3, ij1, ik1)*v1 + grid2(ii3, ij1, ik2)*v2 + grid2(ii3, ij1, ik3)*v3 + grid2(ii3, &
+                                                                                                                       ij1, ik4)*v4
+                     abc_X(4, 1) = grid2(ii4, ij1, ik1)*v1 + grid2(ii4, ij1, ik2)*v2 + grid2(ii4, ij1, ik3)*v3 + grid2(ii4, &
+                                                                                                                       ij1, ik4)*v4
                      abc_X_Y(1) = abc_X(1, 1)*t1 + abc_X(2, 1)*t2 + abc_X(3, 1)*t3 + abc_X(4, 1)*t4
-                 abc_X(1, 2) = grid2(ii1, ij2, ik1)*v1 + grid2(ii1, ij2, ik2)*v2 + grid2(ii1, ij2, ik3)*v3 + grid2(ii1, ij2, ik4)*v4
-                 abc_X(2, 2) = grid2(ii2, ij2, ik1)*v1 + grid2(ii2, ij2, ik2)*v2 + grid2(ii2, ij2, ik3)*v3 + grid2(ii2, ij2, ik4)*v4
-                 abc_X(3, 2) = grid2(ii3, ij2, ik1)*v1 + grid2(ii3, ij2, ik2)*v2 + grid2(ii3, ij2, ik3)*v3 + grid2(ii3, ij2, ik4)*v4
-                 abc_X(4, 2) = grid2(ii4, ij2, ik1)*v1 + grid2(ii4, ij2, ik2)*v2 + grid2(ii4, ij2, ik3)*v3 + grid2(ii4, ij2, ik4)*v4
+                     abc_X(1, 2) = grid2(ii1, ij2, ik1)*v1 + grid2(ii1, ij2, ik2)*v2 + grid2(ii1, ij2, ik3)*v3 + grid2(ii1, &
+                                                                                                                       ij2, ik4)*v4
+                     abc_X(2, 2) = grid2(ii2, ij2, ik1)*v1 + grid2(ii2, ij2, ik2)*v2 + grid2(ii2, ij2, ik3)*v3 + grid2(ii2, &
+                                                                                                                       ij2, ik4)*v4
+                     abc_X(3, 2) = grid2(ii3, ij2, ik1)*v1 + grid2(ii3, ij2, ik2)*v2 + grid2(ii3, ij2, ik3)*v3 + grid2(ii3, &
+                                                                                                                       ij2, ik4)*v4
+                     abc_X(4, 2) = grid2(ii4, ij2, ik1)*v1 + grid2(ii4, ij2, ik2)*v2 + grid2(ii4, ij2, ik3)*v3 + grid2(ii4, &
+                                                                                                                       ij2, ik4)*v4
                      abc_X_Y(2) = abc_X(1, 2)*t1 + abc_X(2, 2)*t2 + abc_X(3, 2)*t3 + abc_X(4, 2)*t4
-                 abc_X(1, 3) = grid2(ii1, ij3, ik1)*v1 + grid2(ii1, ij3, ik2)*v2 + grid2(ii1, ij3, ik3)*v3 + grid2(ii1, ij3, ik4)*v4
-                 abc_X(2, 3) = grid2(ii2, ij3, ik1)*v1 + grid2(ii2, ij3, ik2)*v2 + grid2(ii2, ij3, ik3)*v3 + grid2(ii2, ij3, ik4)*v4
-                 abc_X(3, 3) = grid2(ii3, ij3, ik1)*v1 + grid2(ii3, ij3, ik2)*v2 + grid2(ii3, ij3, ik3)*v3 + grid2(ii3, ij3, ik4)*v4
-                 abc_X(4, 3) = grid2(ii4, ij3, ik1)*v1 + grid2(ii4, ij3, ik2)*v2 + grid2(ii4, ij3, ik3)*v3 + grid2(ii4, ij3, ik4)*v4
+                     abc_X(1, 3) = grid2(ii1, ij3, ik1)*v1 + grid2(ii1, ij3, ik2)*v2 + grid2(ii1, ij3, ik3)*v3 + grid2(ii1, &
+                                                                                                                       ij3, ik4)*v4
+                     abc_X(2, 3) = grid2(ii2, ij3, ik1)*v1 + grid2(ii2, ij3, ik2)*v2 + grid2(ii2, ij3, ik3)*v3 + grid2(ii2, &
+                                                                                                                       ij3, ik4)*v4
+                     abc_X(3, 3) = grid2(ii3, ij3, ik1)*v1 + grid2(ii3, ij3, ik2)*v2 + grid2(ii3, ij3, ik3)*v3 + grid2(ii3, &
+                                                                                                                       ij3, ik4)*v4
+                     abc_X(4, 3) = grid2(ii4, ij3, ik1)*v1 + grid2(ii4, ij3, ik2)*v2 + grid2(ii4, ij3, ik3)*v3 + grid2(ii4, &
+                                                                                                                       ij3, ik4)*v4
                      abc_X_Y(3) = abc_X(1, 3)*t1 + abc_X(2, 3)*t2 + abc_X(3, 3)*t3 + abc_X(4, 3)*t4
-                 abc_X(1, 4) = grid2(ii1, ij4, ik1)*v1 + grid2(ii1, ij4, ik2)*v2 + grid2(ii1, ij4, ik3)*v3 + grid2(ii1, ij4, ik4)*v4
-                 abc_X(2, 4) = grid2(ii2, ij4, ik1)*v1 + grid2(ii2, ij4, ik2)*v2 + grid2(ii2, ij4, ik3)*v3 + grid2(ii2, ij4, ik4)*v4
-                 abc_X(3, 4) = grid2(ii3, ij4, ik1)*v1 + grid2(ii3, ij4, ik2)*v2 + grid2(ii3, ij4, ik3)*v3 + grid2(ii3, ij4, ik4)*v4
-                 abc_X(4, 4) = grid2(ii4, ij4, ik1)*v1 + grid2(ii4, ij4, ik2)*v2 + grid2(ii4, ij4, ik3)*v3 + grid2(ii4, ij4, ik4)*v4
+                     abc_X(1, 4) = grid2(ii1, ij4, ik1)*v1 + grid2(ii1, ij4, ik2)*v2 + grid2(ii1, ij4, ik3)*v3 + grid2(ii1, &
+                                                                                                                       ij4, ik4)*v4
+                     abc_X(2, 4) = grid2(ii2, ij4, ik1)*v1 + grid2(ii2, ij4, ik2)*v2 + grid2(ii2, ij4, ik3)*v3 + grid2(ii2, &
+                                                                                                                       ij4, ik4)*v4
+                     abc_X(3, 4) = grid2(ii3, ij4, ik1)*v1 + grid2(ii3, ij4, ik2)*v2 + grid2(ii3, ij4, ik3)*v3 + grid2(ii3, &
+                                                                                                                       ij4, ik4)*v4
+                     abc_X(4, 4) = grid2(ii4, ij4, ik1)*v1 + grid2(ii4, ij4, ik2)*v2 + grid2(ii4, ij4, ik3)*v3 + grid2(ii4, &
+                                                                                                                       ij4, ik4)*v4
                      abc_X_Y(4) = abc_X(1, 4)*t1 + abc_X(2, 4)*t2 + abc_X(3, 4)*t3 + abc_X(4, 4)*t4
 
                      val(3) = abc_X_Y(1)*s1 + abc_X_Y(2)*s2 + abc_X_Y(3)*s3 + abc_X_Y(4)*s4
@@ -1094,7 +1130,7 @@ CONTAINS
             Forces(2, LIndMM) = Forces(2, LIndMM) + LForces(2, LindMM)
             Forces(3, LIndMM) = Forces(3, LIndMM) + LForces(3, LindMM)
          END DO Atoms
-         !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
       END DO Radius
       !
       ! Debug Statement
@@ -1201,13 +1237,13 @@ CONTAINS
          pot => potentials(IRadTyp)%pot
          dx = Pot%dx
          pot0_2 => Pot%pot0_2
-         !$OMP PARALLEL DO DEFAULT(NONE) &
-         !$OMP SHARED(pot, par_scheme,  para_env, dvol, mm_atom_index, mm_particles, dOmmOqm) &
-         !$OMP SHARED(mm_cell, mm_charges, dx, LForces, Forces, qmmm_spherical_cutoff, shells, dr1, dr2, dr3, gbo, bo) &
-         !$OMP SHARED(IRadTyp, pot0_2, grid) &
-         !$OMP PRIVATE(Imm, myind, ra, LIndMM, IndMM, qt, rt1, rt2, rt3, ft1, ft2, ft3, i, j, k, sph_chrg_factor) &
-         !$OMP PRIVATE(my_k, my_j, my_i, xs3, xs2, xs1, rv1, rv2, rv3, r, ix, rx, rx2, r2, Term, fac) &
-         !$OMP PRIVATE(rd1, rd2, rd3)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(pot, par_scheme,  para_env, dvol, mm_atom_index, mm_particles, dOmmOqm) &
+!$OMP SHARED(mm_cell, mm_charges, dx, LForces, Forces, qmmm_spherical_cutoff, shells, dr1, dr2, dr3, gbo, bo) &
+!$OMP SHARED(IRadTyp, pot0_2, grid) &
+!$OMP PRIVATE(Imm, myind, ra, LIndMM, IndMM, qt, rt1, rt2, rt3, ft1, ft2, ft3, i, j, k, sph_chrg_factor) &
+!$OMP PRIVATE(my_k, my_j, my_i, xs3, xs2, xs1, rv1, rv2, rv3, r, ix, rx, rx2, r2, Term, fac) &
+!$OMP PRIVATE(rd1, rd2, rd3)
          Atoms: DO Imm = 1, SIZE(pot%mm_atom_index)
             IF (par_scheme == do_par_atom) THEN
                myind = Imm + (IRadTyp - 1)*SIZE(pot%mm_atom_index)
@@ -1280,7 +1316,7 @@ CONTAINS
             Forces(2, LIndMM) = Forces(2, LIndMM) + LForces(2, LindMM)
             Forces(3, LIndMM) = Forces(3, LIndMM) + LForces(3, LindMM)
          END DO Atoms
-         !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
       END DO Radius
       !
       ! Debug Statement
@@ -1587,7 +1623,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE debug_qmmm_forces_with_gauss_LG(pgfs, aug_pools, rho, mm_charges, mm_atom_index, &
                                               mm_particles, num_mm_atoms, coarser_grid_level, per_potentials, &
-                                             debug_force, para_env, mm_cell, dOmmOqm, iw, par_scheme, qmmm_spherical_cutoff, shells)
+                                              debug_force, para_env, mm_cell, dOmmOqm, iw, par_scheme, &
+                                              qmmm_spherical_cutoff, shells)
 
       TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER  :: pgfs
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: aug_pools
@@ -1703,7 +1740,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE debug_qmmm_forces_with_gauss_LR(pgfs, aug_pools, rho, mm_charges, mm_atom_index, &
                                               mm_particles, num_mm_atoms, coarser_grid_level, potentials, &
-                                             debug_force, para_env, mm_cell, dOmmOqm, iw, par_scheme, qmmm_spherical_cutoff, shells)
+                                              debug_force, para_env, mm_cell, dOmmOqm, iw, par_scheme, &
+                                              qmmm_spherical_cutoff, shells)
 
       TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER  :: pgfs
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: aug_pools

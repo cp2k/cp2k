@@ -544,9 +544,11 @@ CONTAINS
                                                             mpi_io
 
       IF (self%grid_output == grid_output_cubes) THEN
-     CALL cp_print_key_finished_output(unit_nr, logger, basis_section, print_key_path, local, ignore_should_output, on_file, mpi_io)
+         CALL cp_print_key_finished_output(unit_nr, logger, basis_section, print_key_path, local, ignore_should_output, &
+                                           on_file, mpi_io)
       ELSE
-      CALL cp_openpmd_print_key_finished_output(unit_nr, logger, basis_section, print_key_path, local, ignore_should_output, mpi_io)
+         CALL cp_openpmd_print_key_finished_output(unit_nr, logger, basis_section, print_key_path, local, &
+                                                   ignore_should_output, mpi_io)
       END IF
    END SUBROUTINE cp_forward_print_key_finished_output
 
@@ -1031,7 +1033,8 @@ CONTAINS
                   ! Prints the cube files of UNOCCUPIED ORBITALS
                   CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
                   CALL qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env, &
-                                          mo_coeff, wf_g, wf_r, particles, nlumo, homo, ispin, lumo=homo + 1, mo_section=mo_section)
+                                               mo_coeff, wf_g, wf_r, particles, nlumo, homo, ispin, lumo=homo + 1, &
+                                               mo_section=mo_section)
                END IF
             END DO
 
@@ -1061,7 +1064,8 @@ CONTAINS
                   IF (p_loc_lumo .AND. nlumo /= -1) nlumos = MIN(nlumo, nlumos)
                   ! Prints the cube files of UNOCCUPIED ORBITALS
                   CALL qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env, &
-                                          unoccupied_orbs(ispin), wf_g, wf_r, particles, nlumos, homo, ispin, mo_section=mo_section)
+                                               unoccupied_orbs(ispin), wf_g, wf_r, particles, nlumos, homo, ispin, &
+                                               mo_section=mo_section)
                END IF
             END DO
 
@@ -1476,7 +1480,8 @@ CONTAINS
       NULLIFY (list_index)
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, mo_section%relative_section_key) &
- , cp_p_file) .AND. section_get_lval(dft_section, mo_section%concat_to_relative(section_key_do_write(mo_section%grid_output)))) THEN
+                , cp_p_file) .AND. section_get_lval(dft_section, &
+                                                  mo_section%concat_to_relative(section_key_do_write(mo_section%grid_output)))) THEN
          CALL get_effective_core_charges(qs_env, zcharge)
          nhomo = section_get_ival(dft_section, mo_section%concat_to_relative("%NHOMO"))
          ! For openPMD, refer to access modes instead of APPEND key
@@ -2950,7 +2955,9 @@ CONTAINS
             END IF
             CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "TOTAL ELECTRON DENSITY", &
                                             particles=particles, zeff=zcharge, &
-                              stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
+                                            stride=section_get_ivals(dft_section, &
+                                                                     e_density_section%concat_to_relative("%STRIDE")), &
+                                            mpi_io=mpi_io)
             CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                              e_density_section%absolute_section_key, mpi_io=mpi_io)
             ! Print total spin density for spin-polarized systems
@@ -3005,7 +3012,9 @@ CONTAINS
                END IF
                CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "TOTAL SPIN DENSITY", &
                                                particles=particles, zeff=zcharge, &
-                              stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
+                                               stride=section_get_ivals(dft_section, &
+                                                                        e_density_section%concat_to_relative("%STRIDE")), &
+                                               mpi_io=mpi_io)
                CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                                 e_density_section%absolute_section_key, mpi_io=mpi_io)
             END IF
@@ -3048,7 +3057,8 @@ CONTAINS
                                                     e_density_section, filename)
                END IF
                CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "SUM OF ALPHA AND BETA DENSITY", &
-        particles=particles, zeff=zcharge, stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), &
+                                               particles=particles, zeff=zcharge, stride=section_get_ivals(dft_section, &
+                                                                                 e_density_section%concat_to_relative("%STRIDE")), &
                                                mpi_io=mpi_io)
                CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                                 e_density_section%absolute_section_key, mpi_io=mpi_io)
@@ -3081,7 +3091,9 @@ CONTAINS
                END IF
                CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "SPIN DENSITY", &
                                                particles=particles, zeff=zcharge, &
-                              stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
+                                               stride=section_get_ivals(dft_section, &
+                                                                        e_density_section%concat_to_relative("%STRIDE")), &
+                                               mpi_io=mpi_io)
                CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                                 e_density_section%absolute_section_key, mpi_io=mpi_io)
                CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)
@@ -3113,7 +3125,9 @@ CONTAINS
                END IF
                CALL e_density_section%write_pw(rho_r(1), unit_nr, "ELECTRON DENSITY", &
                                                particles=particles, zeff=zcharge, &
-                              stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
+                                               stride=section_get_ivals(dft_section, &
+                                                                        e_density_section%concat_to_relative("%STRIDE")), &
+                                               mpi_io=mpi_io)
                CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                                 e_density_section%absolute_section_key, mpi_io=mpi_io)
             END IF ! nspins
@@ -3177,7 +3191,8 @@ CONTAINS
                   "Total electronic charge (R-space):", rho_total_rspace
             END IF
             CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "ELECTRON DENSITY", &
-        particles=particles, zeff=zcharge, stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), &
+                                            particles=particles, zeff=zcharge, stride=section_get_ivals(dft_section, &
+                                                                                 e_density_section%concat_to_relative("%STRIDE")), &
                                             mpi_io=mpi_io)
             CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                              e_density_section%absolute_section_key, mpi_io=mpi_io)
@@ -3229,7 +3244,9 @@ CONTAINS
             END IF
             CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "SPIN DENSITY", &
                                             particles=particles, zeff=zcharge, &
-                              stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
+                                            stride=section_get_ivals(dft_section, &
+                                                                     e_density_section%concat_to_relative("%STRIDE")), &
+                                            mpi_io=mpi_io)
             CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                              e_density_section%absolute_section_key, mpi_io=mpi_io)
             END IF ! nspins
@@ -4074,7 +4091,8 @@ CONTAINS
 
          CALL cp_pw_to_cube(aux_r, unit_nr, "DIELECTRIC CONSTANT", particles=particles, zeff=zcharge, &
                             stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE%STRIDE"), &
-                        max_file_size_mb=section_get_rval(dft_section, "PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE%MAX_FILE_SIZE_MB"), &
+                            max_file_size_mb=section_get_rval(dft_section, &
+                                                              "PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE%MAX_FILE_SIZE_MB"), &
                             mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                            "DFT%PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE", mpi_io=mpi_io)
@@ -4124,7 +4142,8 @@ CONTAINS
 
          CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET CONSTRAINT CHARGE", particles=particles, zeff=zcharge, &
                             stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE%STRIDE"), &
-             max_file_size_mb=section_get_rval(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE%MAX_FILE_SIZE_MB"), &
+                            max_file_size_mb=section_get_rval(dft_section, &
+                                                            "PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE%MAX_FILE_SIZE_MB"), &
                             mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                            "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE", mpi_io=mpi_io)
@@ -4173,7 +4192,8 @@ CONTAINS
 
                   CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, zeff=zcharge, &
                                      stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%STRIDE"), &
-                      max_file_size_mb=section_get_rval(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%MAX_FILE_SIZE_MB"), &
+                                     max_file_size_mb=section_get_rval(dft_section, &
+                                                                     "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%MAX_FILE_SIZE_MB"), &
                                      mpi_io=mpi_io)
                   CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                                     "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE", mpi_io=mpi_io)
@@ -4201,7 +4221,8 @@ CONTAINS
 
             CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, zeff=zcharge, &
                                stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%STRIDE"), &
-                      max_file_size_mb=section_get_rval(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%MAX_FILE_SIZE_MB"), &
+                               max_file_size_mb=section_get_rval(dft_section, &
+                                                                 "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%MAX_FILE_SIZE_MB"), &
                                mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                               "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE", mpi_io=mpi_io)

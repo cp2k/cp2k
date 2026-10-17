@@ -629,7 +629,8 @@ CONTAINS
                      max_result = MAXVAL(results_no)
                      min_result = MINVAL(results_no)
                      IF (nresults > 0) max_error = MAX(max_error, &
-                                                    (max_result - min_result)/(0.5_dp*(ABS(max_result) + ABS(min_result)) + 1.0_dp))
+                                                       (max_result - min_result)/(0.5_dp*(ABS(max_result) + &
+                                                                                          ABS(min_result)) + 1.0_dp))
                   END DO
                END DO
             END DO

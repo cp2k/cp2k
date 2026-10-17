@@ -654,7 +654,8 @@ CONTAINS
                               prefac = swork_cont(laa + lbj - j + 1, il, ishella, jshellb, kshella)
                               stemp = stemp + prefac*Waux_mat(j + 1, nla + maa, nlb + mbj)
                            END DO
-                       saba(ia + mai, jb + mbj, ka + mak) = saba(ia + mai, jb + mbj, ka + mak) + cg_coeff(isoa1, isoa2, isoaa)*stemp
+                           saba(ia + mai, jb + mbj, ka + mak) = saba(ia + mai, jb + mbj, ka + mak) + cg_coeff(isoa1, isoa2, &
+                                                                                                              isoaa)*stemp
                         END DO
                      END DO
                   END DO
@@ -836,7 +837,8 @@ CONTAINS
                               prefac = swork_cont(lai + lbb - j + 1, il, ishella, jshellb, kshellb)
                               stemp = stemp + prefac*Waux_mat(j + 1, nlb + mbb, nla + mai)
                            END DO
-                 sabb(ia + mai, jb + mbj, kb + mbk) = sabb(ia + mai, jb + mbj, kb + mbk) + tsign*cg_coeff(isob1, isob2, isobb)*stemp
+                           sabb(ia + mai, jb + mbj, kb + mbk) = sabb(ia + mai, jb + mbj, kb + mbk) + tsign*cg_coeff(isob1, isob2, &
+                                                                                                                    isobb)*stemp
                         END DO
                      END DO
                   END DO

@@ -177,10 +177,10 @@ CONTAINS
       ! my_force_t/my_cstress_t. SCHEDULE(STATIC) hands out contiguous atom
       ! blocks in thread order, so the ordered sum over threads after the
       ! region reproduces the serial summation order exactly.
-      !$OMP PARALLEL DEFAULT(NONE) &
-      !$OMP          SHARED(calc_forces, calc_stress, istart, max_input_nodes, mecalc, &
-      !$OMP                 my_cstress_t, my_force_t, nnp) &
-      !$OMP          PRIVATE(i, i_com, ind, ie, il, j, n_input_nodes, tid, my_arc, denergydsym, stress)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP          SHARED(calc_forces, calc_stress, istart, max_input_nodes, mecalc, &
+!$OMP                 my_cstress_t, my_force_t, nnp) &
+!$OMP          PRIVATE(i, i_com, ind, ie, il, j, n_input_nodes, tid, my_arc, denergydsym, stress)
 
       tid = 1
 !$    tid = omp_get_thread_num() + 1
@@ -224,7 +224,7 @@ CONTAINS
       END IF
 
       ! calc atomic contribution to energy and force
-      !$OMP DO SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
       DO i = istart, istart + mecalc - 1
 
          ! determine index of atom type and offset
@@ -275,7 +275,7 @@ CONTAINS
          END DO
 
       END DO ! loop over num_atoms
-      !$OMP END DO
+!$OMP END DO
 
       IF (calc_forces) THEN
          DEALLOCATE (denergydsym)
@@ -299,7 +299,7 @@ CONTAINS
          DEALLOCATE (my_arc(ie)%layer)
       END DO
       DEALLOCATE (my_arc)
-      !$OMP END PARALLEL
+!$OMP END PARALLEL
 
       ! Sum the per-thread slabs in ascending thread order. Together with the
       ! static schedule above this keeps the summation order of the serial

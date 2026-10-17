@@ -8,7 +8,7 @@
    #:set valuetype = ['timerenv', 'routinestat', 'routinereport', 'callstackentry']
    #:set usetimings = ['timer_env_type']
    #:set usetimingsbase = ['routine_stat_type', 'routine_report_type', 'callstack_entry_type']
-   #:set valuetype_in = ['TYPE(timer_env_type), POINTER', 'TYPE(routine_stat_type), POINTER', 'TYPE(routine_report_type), POINTER', 'TYPE(callstack_entry_type)']
+#:set valuetype_in = ['TYPE(timer_env_type), POINTER', 'TYPE(routine_stat_type), POINTER', 'TYPE(routine_report_type), POINTER', 'TYPE(callstack_entry_type)']
    #:set valuetype_out = valuetype_in
    #:set value_assign = ['=>','=>','=>','=']
 
@@ -36,7 +36,8 @@
 !this is an internal type
       TYPE private_item_type_${valuetype}$
          PRIVATE
-         ${valuetype_out}$                   :: value #{if valuetype_out.endswith("POINTER")}#=> NULL()#{else}#= ${valuetype_out[5:-1]}$()#{endif}#
+         ${valuetype_out}$                   :: value &
+            #{if valuetype_out.endswith("POINTER")}#=> NULL()#{else}#= ${valuetype_out[5:-1]}$()#{endif}#
       END TYPE private_item_type_${valuetype}$
 
 !this is an internal type
@@ -52,7 +53,7 @@
          INTEGER                                       :: size = -1
       END TYPE list_${valuetype}$_type
 
-      CONTAINS
+   CONTAINS
 
 ! **************************************************************************************************
 !> \brief Test if the given list has been initialized.
