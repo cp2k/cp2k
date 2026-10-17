@@ -31,10 +31,10 @@ MODULE gw_tensor_small_cell_full_kp
                                               dbt_type
    USE dbt_matrix_redistribution,       ONLY: cp_dbt_to_fm,&
                                               cp_fm_to_dbt
+   USE gw_compute_V_and_W,              ONLY: get_V_tr_R
    USE gw_utils,                        ONLY: add_R,&
                                               analyt_conti_and_print,&
                                               de_init_bs_env,&
-                                              get_V_tr_R,&
                                               is_cell_in_index_to_cell
    USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
                                               local_add_on_diag,&

@@ -32,6 +32,7 @@ MODULE gw_ri_rs_large_cell_Gamma
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
+   USE gw_compute_V_and_W,              ONLY: get_W_MIC
    USE gw_ri_rs_compute_Z_lP_utils,     ONLY: build_gram_jacobi_blas,&
                                               scale_rows_by_diag,&
                                               store_Z_lP_columns
@@ -40,8 +41,7 @@ MODULE gw_ri_rs_large_cell_Gamma
    USE gw_tensor_large_cell_Gamma,      ONLY: G_occ_vir,&
                                               compute_QP_energies,&
                                               delete_unnecessary_files,&
-                                              fill_fm_Sigma_c_Gamma_time,&
-                                              get_W_MIC
+                                              fill_fm_Sigma_c_Gamma_time
    USE gw_utils,                        ONLY: de_init_bs_env
    USE gw_utils_compute_integrals,      ONLY: build_3c_integral_block_ctx,&
                                               gw_3c_ctx_create,&

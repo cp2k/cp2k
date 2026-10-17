@@ -235,6 +235,7 @@ list(
   gw_ri_rs_compute_Z_lP_utils.F
   gw_auto_ri_generate_RI_basis.F
   gw_auto_ri_types.F
+  gw_compute_V_and_W.F
   gw_utils_dbcsr.F
   gw_utils_fm.F
   gw.F
