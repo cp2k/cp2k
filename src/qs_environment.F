@@ -2395,13 +2395,12 @@ CONTAINS
 
       IF (dft_control%nspins == 2) THEN
          ! Check and set number of added (unoccupied) orbitals for beta spin
-         IF (scf_control%added_mos(2) < 0) THEN
-            n_mo_add = n_ao - n_mo(2)  ! use all available MOs
-         ELSE IF (scf_control%added_mos(2) > 0) THEN
-            n_mo_add = scf_control%added_mos(2)
-         ELSE
+         IF (scf_control%added_mos(2) == 0) THEN
             n_mo_add = scf_control%added_mos(1)
+         ELSE
+            n_mo_add = scf_control%added_mos(2)
          END IF
+         IF (n_mo_add < 0) n_mo_add = n_ao - n_mo(2)  ! use all available MOs
          IF (n_mo_add > n_ao - n_mo(2)) THEN
             CPWARN("More ADDED_MOs requested for beta spin than available.")
          END IF
