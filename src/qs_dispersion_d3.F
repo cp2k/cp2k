@@ -793,9 +793,13 @@ CONTAINS
             END DO
          END DO
          IF (use_virial) THEN
+            ! The pair sum is truncated at rcut, so the missing pressure is the virial of the pairs beyond rcut,
+            ! -(2pi/3V^2) sum_ab Na Nb int_rcut^inf r^3 u'(r) dr = (n/3) E_lrc,n / V, i.e. 2*E6/V and 8/3*E8/V
+            ! (as pair_modify tail in LAMMPS or DispCorr in GROMACS), not -dE_lrc/dV = E_lrc/V.
+            ! The three-body term (2*elrc9) is unchanged and has not been checked yet.
             IF (para_env%is_source()) THEN
                DO i = 1, 3
-                  virial%pv_virial(i, i) = virial%pv_virial(i, i) + (elrc6 + elrc8 + 2._dp*elrc9)
+                  virial%pv_virial(i, i) = virial%pv_virial(i, i) + (2._dp*elrc6 + 8._dp/3._dp*elrc8 + 2._dp*elrc9)
                END DO
             END IF
          END IF
