@@ -333,7 +333,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sab, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ai_work
       REAL(KIND=dp), DIMENSION(1)                        :: rprjc, zetc
-      REAL(KIND=dp), DIMENSION(3)                        :: ra, rac, raf, rc, rcf, rf
+      REAL(KIND=dp), DIMENSION(3)                        :: rac, raf, rcf, rf
       REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nl, alpha_ppnl, hprj, set_radius_a
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj, h_nl, rpgfa, sphi_a, vprj_ppnl, &
                                                             zeta
@@ -462,7 +462,7 @@ CONTAINS
 !$OMP          clist, iset, ncoa, sgfa, prjc, work, sab, ai_work, nprjc,  ppnl_radius, &
 !$OMP          ncoc, rpgfa, first_col, vprj_ppnl, i, j, l, dogth, &
 !$OMP          set_radius_a, rprjc, dac, lc_max, lc_min, zetc, alpha_ppnl, &
-!$OMP          na, nb, np, nnl, is_nonlocal, a_nl, h_nl, c_nl, radp, raf, rcf, ra, rc)
+!$OMP          na, nb, np, nnl, is_nonlocal, a_nl, h_nl, c_nl, radp, raf, rcf)
 
       ! allocate work storage
       ALLOCATE (sab(ldsab, ldsab*maxder), work(ldsab, ldsab*maxder))
@@ -543,14 +543,12 @@ CONTAINS
          END IF
 
          IF (my_ref) THEN
-            ra(:) = pbc(particle_set(iatom)%r(:) - rf, cell) + rf
-            rc(:) = pbc(particle_set(katom)%r(:) - rf, cell) + rf
-            raf(:) = ra(:) - rf(:)
-            rcf(:) = rc(:) - rf(:)
+            raf(:) = pbc(particle_set(iatom)%r(:) - rf, cell)
          ELSE
             raf(:) = -rac
-            rcf(:) = [0._dp, 0._dp, 0._dp]
          END IF
+         ! Keep both moment centers on the image used by the projector neighbor list.
+         rcf(:) = raf + rac
 
          dac = NORM2(rac)
          clist => sap_int(iac)%alist(ilist)%clist(jneighbor)
