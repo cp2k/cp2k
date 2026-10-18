@@ -43,4 +43,9 @@
   {matcher="QS_number_of_molecular_orbitals", tol=0.0, ref=4.0},
   {matcher="E_total", tol=1e-9, ref=-2.092002995440717},
 ]
+"Al-kpoint-mermin-uks-fractional-moment.inp" = [
+  {matcher="E_total", tol=1e-9, ref=-2.085110851347407},
+  {matcher="Integrated_spin_density", tol=1e-6, ref=0.5},
+  {matcher="Electronic_entropic_energy", tol=1e-5, ref=-0.00356162312810},
+]
 #EOF
