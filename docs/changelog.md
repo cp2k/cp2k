@@ -4,48 +4,91 @@
 
 ### New Features
 
+- Improved NNP CPU scaling ([#5295](https://github.com/cp2k/cp2k/pull/5295),
+  [#5747](https://github.com/cp2k/cp2k/pull/5747))
 - MACE potentials interface ([#5580](https://github.com/cp2k/cp2k/pull/5580))
+- VoronoiIPZ collective variable for proton tracking
+  ([#5592](https://github.com/cp2k/cp2k/pull/5592))
 - Native spin polarization for GFN1/2-xTB ([#5611](https://github.com/cp2k/cp2k/pull/5611))
-- Improved non-periodic RI-RS GW scaling ([#5621](https://github.com/cp2k/cp2k/pull/5621))
+- RI-RS GW scaling ([#5621](https://github.com/cp2k/cp2k/pull/5621),
+  [#5780](https://github.com/cp2k/cp2k/pull/5780), [#5918](https://github.com/cp2k/cp2k/pull/5918),
+  [#5989](https://github.com/cp2k/cp2k/pull/5989), [#6003](https://github.com/cp2k/cp2k/pull/6003),
+  [#6036](https://github.com/cp2k/cp2k/pull/6036))
 - Linearized RT-BSE and open-shell BSE ([#5627](https://github.com/cp2k/cp2k/pull/5627))
-- Tensorial DFT+U+J and self-consistent minimum-tracking linear-response calculations of U and J
+- Tensorial DFT+U+J and self-consistent minimum-tracking linear response
   ([#5631](https://github.com/cp2k/cp2k/pull/5631))
-- Improved NNP CPU scaling ([#5295](https://github.com/cp2k/cp2k/pull/5295))
 - Parallelize and extend Floquet-Bloch calculations
-  ([#5642](https://github.com/cp2k/cp2k/pull/5642))
+  ([#5642](https://github.com/cp2k/cp2k/pull/5642), [#6130](https://github.com/cp2k/cp2k/pull/6130))
 - Electric-moment trajectory output ([#5650](https://github.com/cp2k/cp2k/pull/5650))
 - Meta-GGA DCDR APTs ([#5658](https://github.com/cp2k/cp2k/pull/5658))
-- Gaussian QM/MM for DFTB/xTB ([#5731](https://github.com/cp2k/cp2k/pull/5731))
+- Flexible Gaussian expansions for native xTB ([#5663](https://github.com/cp2k/cp2k/pull/5663))
+- Nested reaction-path COLVAR postprocessing ([#5688](https://github.com/cp2k/cp2k/pull/5688))
 - Enable GAPW constrained DFT ([#5730](https://github.com/cp2k/cp2k/pull/5730))
-- 2PT/3D-2PT and anharmonic analysis ([#5772](https://github.com/cp2k/cp2k/pull/5772))
-- Spatial distribution analysis ([#5771](https://github.com/cp2k/cp2k/pull/5771))
+- Gaussian QM/MM for DFTB/xTB ([#5731](https://github.com/cp2k/cp2k/pull/5731))
 - Nonlocal pseudopotential contribution to integrated electronic current
   ([#5769](https://github.com/cp2k/cp2k/pull/5769))
+- Spatial distribution analysis ([#5771](https://github.com/cp2k/cp2k/pull/5771))
+- 2PT/3D-2PT and anharmonic analysis ([#5772](https://github.com/cp2k/cp2k/pull/5772))
+- Modified Broyden mixing for DFTB and GFN2-xTB ([#5799](https://github.com/cp2k/cp2k/pull/5799))
+- Chebyshev OT preconditioner solver ([#5824](https://github.com/cp2k/cp2k/pull/5824))
 - L-BFGS OT minimizer ([#5832](https://github.com/cp2k/cp2k/pull/5832))
 - ADIIS algorithm for diagonalization ([#5844](https://github.com/cp2k/cp2k/pull/5844),
-  [#5852](https://github.com/cp2k/cp2k/pull/5852), [#5866](https://github.com/cp2k/cp2k/pull/5866))
+  [#5866](https://github.com/cp2k/cp2k/pull/5866))
+- Basis optimization for HOMO-LUMO gaps ([#5870](https://github.com/cp2k/cp2k/pull/5870))
 - Extend OT to k-points and fractional occupations ([#5874](https://github.com/cp2k/cp2k/pull/5874),
-  [#5887](https://github.com/cp2k/cp2k/pull/5887))
+  [#5887](https://github.com/cp2k/cp2k/pull/5887), [#5916](https://github.com/cp2k/cp2k/pull/5916))
+- Blocked Davidson diagonalization for k-points ([#5934](https://github.com/cp2k/cp2k/pull/5934))
+- External cube densities for Harris calculations and SCF initialization
+  ([#5920](https://github.com/cp2k/cp2k/pull/5920), [#5921](https://github.com/cp2k/cp2k/pull/5921),
+  [#5941](https://github.com/cp2k/cp2k/pull/5941), [#5959](https://github.com/cp2k/cp2k/pull/5959))
+- Analytical third XC derivatives ([#5951](https://github.com/cp2k/cp2k/pull/5951))
+- Single-constraint Blue Moon postprocessing ([#5981](https://github.com/cp2k/cp2k/pull/5981))
+- Improved standalone Wannier90 export ([#5983](https://github.com/cp2k/cp2k/pull/5983))
+- Inverse-Hessian BFGS updates ([#6017](https://github.com/cp2k/cp2k/pull/6017))
+- Freeze-and-thaw embedding with external subsystem solvers
+  ([#6037](https://github.com/cp2k/cp2k/pull/6037))
+- Native Wilson-loop, Chern/Z2, inversion and phason analysis
+  ([#6038](https://github.com/cp2k/cp2k/pull/6038), [#6046](https://github.com/cp2k/cp2k/pull/6046),
+  [#6052](https://github.com/cp2k/cp2k/pull/6052), [#6054](https://github.com/cp2k/cp2k/pull/6054))
+- Fractional occupation density analysis ([#6056](https://github.com/cp2k/cp2k/pull/6056))
+- Direct Python interface to libcp2k ([#6060](https://github.com/cp2k/cp2k/pull/6060),
+  [#6107](https://github.com/cp2k/cp2k/pull/6107))
+- Block-Davidson BSE eigensolver for TDA and ABBA ([#6095](https://github.com/cp2k/cp2k/pull/6095))
+- Lowdin DFT+U with k-points ([#6109](https://github.com/cp2k/cp2k/pull/6109))
+- Static COHSEX in conventional and tensor GW ([#6116](https://github.com/cp2k/cp2k/pull/6116),
+  [#6133](https://github.com/cp2k/cp2k/pull/6133))
+- Improved CELL_OPT constraints ([#6123](https://github.com/cp2k/cp2k/pull/6123))
+- Native norm-conserving UPF pseudopotentials ([#6143](https://github.com/cp2k/cp2k/pull/6143))
+- Spectral-localizer and quadratic-pseudospectrum analysis
+  ([#6150](https://github.com/cp2k/cp2k/pull/6150))
+- Kubo transport with spin-orbit coupling and Hall response
+  ([#6157](https://github.com/cp2k/cp2k/pull/6157))
+- Band-structure Fermi levels and second-variational SOC windows
+  ([#6205](https://github.com/cp2k/cp2k/pull/6205))
+- Extended dispersion support for the wB97X family ([#6236](https://github.com/cp2k/cp2k/pull/6236))
+- Low-spin ROKS energies and orbital derivatives with GAPW
+  ([#6257](https://github.com/cp2k/cp2k/pull/6257))
+- Chargemol WFX export with OT ([#6276](https://github.com/cp2k/cp2k/pull/6276))
 - **TODO**
 
 ### New Libraries
 
-- Use libwignernj for the exact evaluation of the Wigner symbols and the Gaunt coefficients,
-  replacing the in-tree Clebsch-Gordan coefficient tables
+- Skala/FTorch interface ([#5703](https://github.com/cp2k/cp2k/pull/5703))
+- Use libwignernj for exact Wigner symbols and Gaunt coefficients
   ([#5961](https://github.com/cp2k/cp2k/pull/5961))
+- **TODO**
 
 ### Breaking Changes
 
-- Require an external libwignernj installation (version 0.8 or newer)
-  ([#5961](https://github.com/cp2k/cp2k/pull/5961))
-- Rename the RI-RS GW keyword `CUTOFF_RADIUS_RI_RS` to `CUTOFF_RADIUS_RL_RI`
-  ([#5621](https://github.com/cp2k/cp2k/pull/5621))
 - Drop old DFT-D4 API compatibility ([#5641](https://github.com/cp2k/cp2k/pull/5641))
 - Remove deprecated `USE_PREV_RHO_R` wfn-extrapolation alias
   ([#5666](https://github.com/cp2k/cp2k/pull/5666))
 - Remove the SPLINE3_NOPBC multigrid interpolator ([#5719](https://github.com/cp2k/cp2k/pull/5719))
 - Require `MPI_THREAD_MULTIPLE` for all MPI builds ([#5811](https://github.com/cp2k/cp2k/pull/5811),
   [#5817](https://github.com/cp2k/cp2k/pull/5817))
+- Require an external libwignernj installation (version 0.8 or newer)
+  ([#5961](https://github.com/cp2k/cp2k/pull/5961))
+- Require FFTW3 as hard dependency ([#6119](https://github.com/cp2k/cp2k/pull/6119))
 - **TODO**
 
 ### Fixes
@@ -61,6 +104,33 @@
 - Fix PAO TorchScript CUDA handling ([#5726](https://github.com/cp2k/cp2k/pull/5726))
 - Fix GauXC RKS density normalization ([#5740](https://github.com/cp2k/cp2k/pull/5740))
 - Fix DDAPC forces on empty MPI ranks ([#5776](https://github.com/cp2k/cp2k/pull/5776))
+- Fix distributed FFT scratch-buffer indexing ([#5973](https://github.com/cp2k/cp2k/pull/5973))
+- Correct mixed-CDFT targets and energies ([#6055](https://github.com/cp2k/cp2k/pull/6055))
+- Fix FIST dipoles and periodic electric-field signs
+  ([#6064](https://github.com/cp2k/cp2k/pull/6064))
+- Fix PLUMED bias energy, virial and restart coupling
+  ([#6106](https://github.com/cp2k/cp2k/pull/6106))
+- NLCC and non-local vdW ([#6127](https://github.com/cp2k/cp2k/pull/6127))
+- Fix spin-conserving RIXS coefficient indexing ([#6153](https://github.com/cp2k/cp2k/pull/6153))
+- Correct ATOM input, XC derivatives and limits, and Coulomb kernels
+  ([#6161](https://github.com/cp2k/cp2k/pull/6161), [#6171](https://github.com/cp2k/cp2k/pull/6171))
+- Fix spurious SCCS cavities with optional core filling
+  ([#6162](https://github.com/cp2k/cp2k/pull/6162))
+- Fix wavefunction restarts with level shifting ([#6178](https://github.com/cp2k/cp2k/pull/6178))
+- Prevent AMBER charge-split atom-kind collisions ([#6191](https://github.com/cp2k/cp2k/pull/6191))
+- Berry-phase dipoles with unoccupied orbitals ([#6194](https://github.com/cp2k/cp2k/pull/6194))
+- Correct CANONICAL/MANUAL active-space orbital selection
+  ([#6207](https://github.com/cp2k/cp2k/pull/6207))
+- Correct CASINO ghost-atom and periodic basis export
+  ([#6208](https://github.com/cp2k/cp2k/pull/6208))
+- Fix moving-COLVAR velocity constraints ([#6210](https://github.com/cp2k/cp2k/pull/6210))
+- Correct TDDFPT kernels, occupations and excited-state forces
+  ([#6212](https://github.com/cp2k/cp2k/pull/6212), [#6217](https://github.com/cp2k/cp2k/pull/6217),
+  [#6238](https://github.com/cp2k/cp2k/pull/6238))
+- Correct the outer-SCF BT2 inverse-Jacobian update
+  ([#6253](https://github.com/cp2k/cp2k/pull/6253))
+- Fix slab-normal dipoles with partial periodicity ([#6274](https://github.com/cp2k/cp2k/pull/6274))
+- Reset Pulay history between SCF runs ([#6279](https://github.com/cp2k/cp2k/pull/6279))
 - **TODO**
 
 ______________________________________________________________________
