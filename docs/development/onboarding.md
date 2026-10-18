@@ -93,6 +93,44 @@ usually takes less than one hour:
   breaks. Submit a new PR to fix a bug found revealed by the dashboard caused by your PR. Ask the
   admin team for help if necessary.
 
+## AI-assisted contributions
+
+AI-assisted coding has become increasingly popular and has significantly accelerated CP2K
+development. We welcome its use. However, AI-generated code often introduces unnecessary complexity,
+which, if left unchecked, can seriously undermine code maintainability and the long-term
+sustainability of the project.
+
+**Remember that the author of a pull request is you, not the AI.** Contributors are responsible for
+understanding and maintaining the code they submit, regardless of how it was written.
+
+When contributing AI-assisted code, please follow these guidelines:
+
+- **Keep changes focused and maintainable.** Follow existing CP2K conventions, reuse existing
+  infrastructure where appropriate, and avoid introducing unrelated changes. For larger changes,
+  consider splitting the work into smaller PRs, with dependencies between them where appropriate.
+- **Disclose your AI use, especially for large PRs.** This helps us to review and maintain it
+  appropriately.
+- **Do not let AI agents submit PRs automatically.** We consider meaningful human-to-human
+  interaction an essential part of community contributions; it's unlikely that we can be able to
+  deal with agentic PRs without human in the middle.
+- **Review your code carefully.** Always review AI-generated changes yourself before submitting a
+  PR, and explicitly confirm that you have done so. For larger changes, take the time to simplify
+  the change and remove unnecessary duplication and complexity.
+- **Keep PR descriptions concise and clear.** Avoid lengthy AI-generated explanations. You can
+  consider using a dedicated skill or instruction if you write PR descriptions with AI, but the best
+  approach is to avoid using AI-generated description and write it on your own, which also indicates
+  that you understand and are able to explain the code you submit (as well as the existing related
+  code).
+- **Avoid unverified claims.** Do not blindly trust AI-generated statements about correctness,
+  performance improvements, or bug fixes. Any substantial claims should be backed by actual tests,
+  benchmarks, or reproducible demonstrations.
+- **Provide concrete examples.** For substantial feature additions, bug fixes, or refactoring,
+  please consider including a representative test case or a before-and-after comparison that
+  demonstrates the problem and the effect of your changes.
+- **Test your changes.** Run the relevant tests and report what you have actually verified.
+  AI-generated tests should also be reviewed to ensure they meaningfully validate the intended
+  behavior.
+
 ## Join our team
 
 After your very first PR gets accepted and merged, you will receive an invitation to join the
