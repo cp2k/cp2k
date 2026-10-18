@@ -18,7 +18,9 @@
 !> \author Matthias Krack (31.07.2000)
 ! **************************************************************************************************
 MODULE ai_kinetic
-   USE ai_cartesian_operators,          ONLY: apply_cartesian_1d
+   USE ai_cartesian_operators,          ONLY: apply_cartesian_1d,&
+                                              apply_cartesian_operator_pair,&
+                                              cartesian_ladder_map
    USE ai_os_rr,                        ONLY: os_rr_ovlp
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
@@ -70,9 +72,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
          OPTIONAL                                        :: dab
 
+      INTEGER, PARAMETER :: component(2, 1) = RESHAPE([1, 1], [2, 1])
+
       INTEGER                                            :: avec(3), bvec(3), coa, cob, ia, ib, &
                                                             idir, ipgf, jdir, jpgf, kdir, ldrr, &
                                                             lma, lmb, ma, mb, na, nb, ofa, ofb
+      INTEGER, ALLOCATABLE                               :: map_a(:, :, :), map_b(:, :, :)
       REAL(KIND=dp)                                      :: a, b, f0, rab2, tab, xhi, zet
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: drr, dtt, rr, tt
       REAL(KIND=dp), DIMENSION(3)                        :: rap, rbp
@@ -99,6 +104,9 @@ CONTAINS
       ALLOCATE (rr(0:ldrr - 1, 0:ldrr - 1, 3), tt(0:ldrr - 1, 0:ldrr - 1, 3), &
                 drr(0:ldrr - 1, 0:ldrr - 1, 3))
       IF (PRESENT(dab)) ALLOCATE (dtt(0:ldrr - 1, 0:ldrr - 1, 3))
+      ALLOCATE (map_a(4, lma, 1), map_b(4, lmb, 1))
+      CALL cartesian_ladder_map(lma - 1, 0, 0, map_a(:, :, 1))
+      CALL cartesian_ladder_map(lmb - 1, 0, 0, map_b(:, :, 1))
 
       ! Number of integrals, check size of arrays
       ofa = ncoset(la_min - 1)
@@ -143,8 +151,11 @@ CONTAINS
             CALL os_rr_ovlp(rap, lma, rbp, lmb, zet, ldrr, rr)
 
             ! Mixed center derivatives give the overlap of the two electronic gradients.
-            CALL apply_cartesian_1d(rr, drr, lma - 1, lmb, .FALSE., .TRUE., a, [0.0_dp, 0.0_dp, 0.0_dp])
-            CALL apply_cartesian_1d(drr, tt, lma - 1, lmb - 1, .TRUE., .TRUE., b, [0.0_dp, 0.0_dp, 0.0_dp])
+            DO idir = 1, 3
+               CALL apply_cartesian_operator_pair(rr(:, :, idir), tt(0:lma - 1, 0:lmb - 1, idir:idir), &
+                                                  map_a, map_b, component, [.TRUE., .TRUE.], [a, b], &
+                                                  [.FALSE., .TRUE.], drr(0:lma - 1, 0:lmb, idir))
+            END DO
             IF (PRESENT(dab)) THEN
                CALL apply_cartesian_1d(tt, dtt, la_max, lb_max, .FALSE., .TRUE., a, [0.0_dp, 0.0_dp, 0.0_dp])
             END IF

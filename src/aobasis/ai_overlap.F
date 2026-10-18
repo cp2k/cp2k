@@ -17,6 +17,7 @@
 ! **************************************************************************************************
 MODULE ai_overlap
    USE ai_cartesian_operators,          ONLY: apply_cartesian_1d,&
+                                              apply_cartesian_operator_pair,&
                                               cartesian_ladder,&
                                               cartesian_ladder_map
    USE ai_os_rr,                        ONLY: os_rr_ovlp
@@ -261,12 +262,11 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), &
          OPTIONAL, TARGET                                :: rr_work
 
-      INTEGER, PARAMETER :: pairs(2, 6) = RESHAPE([1, 1, 1, 2, 1, 3, 2, 2, 2, 3, 3, 3], [2, 6])
+      INTEGER, PARAMETER :: component(2, 1) = RESHAPE([1, 1], [2, 1]), &
+         pairs(2, 6) = RESHAPE([1, 1, 1, 2, 1, 3, 2, 2, 2, 3, 3, 3], [2, 6])
 
-      INTEGER                                            :: avec(3), bvec(3), coa, cob, ia, ib, &
-                                                            icomp, idir, ipgf, jdir, jpgf, kdir, &
-                                                            ldrr, lma, lmb, ma, mb, na, nb, ofa, &
-                                                            ofb
+      INTEGER :: avec(3), bvec(3), coa, cob, ia, ib, icomp, idir, ipgf, jdir, jpgf, kdir, ldrr, &
+         lma, lmb, ma, mb, na, nb, ofa, ofb, map_b(4, lb_max + 1, 1), map_a(4, la_max + 1, 1)
       REAL(KIND=dp)                                      :: a, b, f0, factor(3), rab2, sval(3), tab, &
                                                             xhi, zet
       REAL(KIND=dp), ALLOCATABLE                         :: drr_a(:, :, :), drr_ab(:, :, :)
@@ -304,7 +304,11 @@ CONTAINS
       END IF
 
       IF (PRESENT(dab) .OR. PRESENT(ddab)) ALLOCATE (drr_a(0:ldrr - 1, 0:ldrr - 1, 3))
-      IF (PRESENT(ddab)) ALLOCATE (drr_ab(0:ldrr - 1, 0:ldrr - 1, 3))
+      IF (PRESENT(ddab)) THEN
+         ALLOCATE (drr_ab(0:ldrr - 1, 0:ldrr - 1, 3))
+         CALL cartesian_ladder_map(la_max, 0, 0, map_a(:, :, 1))
+         CALL cartesian_ladder_map(lb_max, 0, 0, map_b(:, :, 1))
+      END IF
 
       ! Number of integrals, check size of arrays
       ofa = ncoset(la_min - 1)
@@ -353,11 +357,14 @@ CONTAINS
 
             ! Calculate the recurrence relation
             CALL os_rr_ovlp(rap, lma, rbp, lmb, zet, ldrr, rr)
-            IF (PRESENT(dab) .OR. PRESENT(ddab)) THEN
-               CALL apply_cartesian_1d(rr, drr_a, la_max, lmb, .FALSE., .TRUE., a, [0.0_dp, 0.0_dp, 0.0_dp])
-            END IF
             IF (PRESENT(ddab)) THEN
-               CALL apply_cartesian_1d(drr_a, drr_ab, la_max, lb_max, .TRUE., .TRUE., b, [0.0_dp, 0.0_dp, 0.0_dp])
+               DO idir = 1, 3
+                  CALL apply_cartesian_operator_pair(rr(:, :, idir), drr_ab(0:la_max, 0:lb_max, idir:idir), &
+                                                     map_a, map_b, component, [.TRUE., .TRUE.], [a, b], &
+                                                     [.FALSE., .TRUE.], drr_a(0:la_max, 0:lmb, idir))
+               END DO
+            ELSE IF (PRESENT(dab)) THEN
+               CALL apply_cartesian_1d(rr, drr_a, la_max, lmb, .FALSE., .TRUE., a, [0.0_dp, 0.0_dp, 0.0_dp])
             END IF
 
             DO cob = ofb + 1, ncoset(lb_max)
