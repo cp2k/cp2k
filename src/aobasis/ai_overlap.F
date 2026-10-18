@@ -85,9 +85,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(lds, lds, *), &
          INTENT(INOUT)                                   :: s
 
-      INTEGER :: ax, axis, ay, az, bx, by, bz, cda, cdax, cday, cdaz, coa, cob, da, da_max, dax, &
-         day, daz, first, first_b, i, ipgf, j, jk, jpgf, jstart, k, la_max, la_start, last, &
-         last_b, lb_max, lb_start, ldrr, na, nb
+      INTEGER :: ax, axis, ay, az, bx, by, bz, cda, coa, cob, da, da_max, first, first_b, i, ipgf, &
+         j, jk, jpgf, jstart, k, la_max, la_start, last, last_b, lb_max, lb_start, ldrr, na, nb, &
+         parent, power(3)
       INTEGER, ALLOCATABLE                               :: derivative_map(:, :, :)
       REAL(KIND=dp)                                      :: f0, zetp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rr
@@ -178,25 +178,21 @@ CONTAINS
                lb_start = lb_min_set
             END IF
 
-            first = ncoset(la_start - 1) + 1
             first_b = ncoset(lb_start - 1) + 1
             last_b = ncoset(lb_max_set)
-            DO da = 0, da_max - 1
-               last = ncoset(la_max - da - 1)
-               DO dax = 0, da
-                  DO day = 0, da - dax
-                     daz = da - dax - day
-                     cda = coset(dax, day, daz)
-                     cdax = coset(dax + 1, day, daz)
-                     cday = coset(dax, day + 1, daz)
-                     cdaz = coset(dax, day, daz + 1)
-                     CALL cartesian_ladder(s(:, first_b:last_b, cda), s(first:last, first_b:last_b, cdax), &
-                                           derivative_map(:, first:last, 1), .TRUE., zeta(ipgf), 0.0_dp, .FALSE.)
-                     CALL cartesian_ladder(s(:, first_b:last_b, cda), s(first:last, first_b:last_b, cday), &
-                                           derivative_map(:, first:last, 2), .TRUE., zeta(ipgf), 0.0_dp, .FALSE.)
-                     CALL cartesian_ladder(s(:, first_b:last_b, cda), s(first:last, first_b:last_b, cdaz), &
-                                           derivative_map(:, first:last, 3), .TRUE., zeta(ipgf), 0.0_dp, .FALSE.)
-                  END DO
+            DO da = 1, da_max
+               ! Intermediate shells must cover lowering in the remaining derivative steps.
+               first = ncoset(MAX(0, la_start - da_max + da) - 1) + 1
+               last = ncoset(la_max - da)
+               DO cda = ncoset(da - 1) + 1, ncoset(da)
+                  power = indco(:, cda)
+                  axis = 3
+                  IF (power(3) == 0) axis = 2
+                  IF (power(axis) == 0) axis = 1
+                  power(axis) = power(axis) - 1
+                  parent = coset(power(1), power(2), power(3))
+                  CALL cartesian_ladder(s(:, first_b:last_b, parent), s(first:last, first_b:last_b, cda), &
+                                        derivative_map(:, first:last, axis), .TRUE., zeta(ipgf), 0.0_dp, .FALSE.)
                END DO
             END DO
 
