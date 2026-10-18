@@ -333,7 +333,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sab, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ai_work
       REAL(KIND=dp), DIMENSION(1)                        :: rprjc, zetc
-      REAL(KIND=dp), DIMENSION(3)                        :: ra, rac, raf, rc, rcf, rf
+      REAL(KIND=dp), DIMENSION(3)                        :: rac, raf, rcf, rf
       REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nl, alpha_ppnl, hprj, set_radius_a
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj, h_nl, rpgfa, sphi_a, vprj_ppnl, &
                                                             zeta
@@ -462,7 +462,7 @@ CONTAINS
 !$OMP          clist, iset, ncoa, sgfa, prjc, work, sab, ai_work, nprjc,  ppnl_radius, &
 !$OMP          ncoc, rpgfa, first_col, vprj_ppnl, i, j, l, dogth, &
 !$OMP          set_radius_a, rprjc, dac, lc_max, lc_min, zetc, alpha_ppnl, &
-!$OMP          na, nb, np, nnl, is_nonlocal, a_nl, h_nl, c_nl, radp, raf, rcf, ra, rc)
+!$OMP          na, nb, np, nnl, is_nonlocal, a_nl, h_nl, c_nl, radp, raf, rcf)
 
       ! allocate work storage
       ALLOCATE (sab(ldsab, ldsab*maxder), work(ldsab, ldsab*maxder))
@@ -543,14 +543,12 @@ CONTAINS
          END IF
 
          IF (my_ref) THEN
-            ra(:) = pbc(particle_set(iatom)%r(:) - rf, cell) + rf
-            rc(:) = pbc(particle_set(katom)%r(:) - rf, cell) + rf
-            raf(:) = ra(:) - rf(:)
-            rcf(:) = rc(:) - rf(:)
+            raf(:) = pbc(particle_set(iatom)%r(:) - rf, cell)
          ELSE
             raf(:) = -rac
-            rcf(:) = [0._dp, 0._dp, 0._dp]
          END IF
+         ! Keep both moment centers on the image used by the projector neighbor list.
+         rcf(:) = raf + rac
 
          dac = NORM2(rac)
          clist => sap_int(iac)%alist(ilist)%clist(jneighbor)
@@ -592,15 +590,8 @@ CONTAINS
 
                   ! *** Calculate the primitive overlap integrals ***
                   IF (my_momentmode) THEN
-                     CALL overlap(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
-                                  lc_max, lc_min, 1, rprjc, zetc, rac, dac, sab, 0, .FALSE., ai_work, ldai)
-                  ELSE
-                     CALL overlap(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
-                                  lc_max, lc_min, 1, rprjc, zetc, rac, dac, sab, nder, .TRUE., ai_work, ldai)
-                  END IF
-                  IF (my_momentmode .AND. nder >= 1) THEN
                      CALL moment(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
-                                 lc_max, 1, zetc, rprjc, nder, raf, rcf, ai_work)
+                                 lc_max, 1, zetc, rprjc, nder, raf, rcf, ai_work, overlap=sab)
                      ! reduce ai_work to sab
                      na = ncoa
                      np = ncoc
@@ -608,6 +599,9 @@ CONTAINS
                         first_col = i*ldsab
                         sab(1:na, first_col + 1:first_col + np) = ai_work(1:na, 1:np, i)
                      END DO
+                  ELSE
+                     CALL overlap(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                                  lc_max, lc_min, 1, rprjc, zetc, rac, dac, sab, nder, .TRUE., ai_work, ldai)
                   END IF
 
                   ! *** Transformation step projector functions (cartesian->spherical) ***
@@ -659,21 +653,17 @@ CONTAINS
                ! SGP potential
                ! *** Calculate the primitive overlap integrals ***
                IF (my_momentmode) THEN
-                  CALL overlap(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
-                               lppnl, 0, nnl, radp, a_nl, rac, dac, sab, 0, .FALSE., ai_work, ldai)
-               ELSE
-                  CALL overlap(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
-                               lppnl, 0, nnl, radp, a_nl, rac, dac, sab, nder, .TRUE., ai_work, ldai)
-               END IF
-               IF (my_momentmode .AND. nder >= 1) THEN
                   CALL moment(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
-                              lppnl, nnl, a_nl, radp, nder, raf, rcf, ai_work)
+                              lppnl, nnl, a_nl, radp, nder, raf, rcf, ai_work, overlap=sab)
                   ! reduce ai_work to sab
                   na = ncoa
                   DO i = 1, maxder - 1
-                     first_col = i*ldsab
+                     first_col = i*ldsab + 1
                      sab(1:na, first_col:first_col + nprjc - 1) = ai_work(1:na, 1:nprjc, i)
                   END DO
+               ELSE
+                  CALL overlap(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                               lppnl, 0, nnl, radp, a_nl, rac, dac, sab, nder, .TRUE., ai_work, ldai)
                END IF
 
                na = nsgf_seta(iset)
