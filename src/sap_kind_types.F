@@ -669,7 +669,7 @@ CONTAINS
                   ! reduce ai_work to sab
                   na = ncoa
                   DO i = 1, maxder - 1
-                     first_col = i*ldsab
+                     first_col = i*ldsab + 1
                      sab(1:na, first_col:first_col + nprjc - 1) = ai_work(1:na, 1:nprjc, i)
                   END DO
                END IF
