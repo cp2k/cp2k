@@ -265,9 +265,11 @@ CONTAINS
 !> \param rac ...
 !> \param rbc ...
 !> \param mab ...
+!> \param overlap optional zeroth moment in primitive-major cumulative Cartesian order;
+!>        entries outside the requested row and column ranges are untouched
 ! **************************************************************************************************
    SUBROUTINE moment(la_max, npgfa, zeta, rpgfa, la_min, &
-                     lb_max, npgfb, zetb, rpgfb, lc_max, rac, rbc, mab)
+                     lb_max, npgfb, zetb, rpgfb, lc_max, rac, rbc, mab, overlap)
       INTEGER, INTENT(IN)                                :: la_max, npgfa
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zeta, rpgfa
       INTEGER, INTENT(IN)                                :: la_min, lb_max, npgfb
@@ -275,6 +277,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: lc_max
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rac, rbc
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mab
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), OPTIONAL :: overlap
 
       INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, i, ia, &
                                                             ib, imom, ipgf, jpgf, ldrr, lx, ly, &
@@ -291,6 +294,7 @@ CONTAINS
       ALLOCATE (rr(0:ldrr - 1, 0:ldrr - 1, 3), polynomial(0:la_max, 0:lb_max, 0:lc_max, 3))
       powers = [(i, i=0, lc_max)]
       mab(:npgfa*ncoset(la_max), :npgfb*ncoset(lb_max), :ncoset(lc_max) - 1) = 0.0_dp
+      IF (PRESENT(overlap)) overlap(:npgfa*ncoset(la_max), :npgfb*ncoset(lb_max)) = 0.0_dp
       DO ipgf = 1, npgfa
          ma = (ipgf - 1)*ncoset(la_max)
          DO jpgf = 1, npgfb
@@ -315,6 +319,10 @@ CONTAINS
                   ay = indco(2, coa)
                   az = indco(3, coa)
                   ia = ma + coa
+                  IF (PRESENT(overlap)) THEN
+                     overlap(ia, ib) = f0*polynomial(ax, bx, 0, 1)* &
+                                       polynomial(ay, by, 0, 2)*polynomial(az, bz, 0, 3)
+                  END IF
                   ! Preserve the coset ordering and omission of the zeroth moment.
                   DO imom = 1, ncoset(lc_max) - 1
                      lx = indco(1, imom + 1)
