@@ -10,14 +10,10 @@
 !> \par History
 !>      09.2026 created [Jan Wilhelm]
 ! **************************************************************************************************
-MODULE gw_ri_rs_grid_optimization
+MODULE ri_rs_grid_optimization
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type
    USE cp_lbfgs,                        ONLY: setulb
-   USE gw_ri_rs_grid_initialization,    ONLY: initialize_ri_rs_grid
-   USE gw_ri_rs_utils,                  ONLY: evaluate_ao_basis_on_points,&
-                                              filter_grid_to_voronoi,&
-                                              get_rirs_cluster_atoms
    USE gw_utils_compute_integrals,      ONLY: build_3c_integral_block_ctx,&
                                               gw_3c_ctx_create,&
                                               gw_3c_ctx_release,&
@@ -30,8 +26,12 @@ MODULE gw_ri_rs_grid_optimization
                                               m_walltime
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
-   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type,&
-                                              rirs_grid_type
+   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
+   USE ri_rs_grid_initialization,       ONLY: initialize_ri_rs_grid
+   USE ri_rs_types,                     ONLY: rirs_grid_type
+   USE ri_rs_utils,                     ONLY: evaluate_ao_basis_on_points,&
+                                              filter_grid_to_voronoi,&
+                                              get_rirs_cluster_atoms
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -39,7 +39,7 @@ MODULE gw_ri_rs_grid_optimization
 
    PUBLIC :: optimize_ri_rs_grid
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_grid_optimization'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ri_rs_grid_optimization'
 
    TYPE, PRIVATE :: local_cluster_3c_integrals_type
       INTEGER, ALLOCATABLE                 :: atom_indices(:)
@@ -822,4 +822,4 @@ CONTAINS
       END DO
    END SUBROUTINE unpack_lbfgs_grid_coordinates
 
-END MODULE gw_ri_rs_grid_optimization
+END MODULE ri_rs_grid_optimization

@@ -231,8 +231,6 @@ list(
   group_dist_types.F
   grrm_utils.F
   gapw_1c_basis_set.F
-  gw_ri_rs_compute_Z_lP.F
-  gw_ri_rs_compute_Z_lP_utils.F
   gw_auto_ri_generate_RI_basis.F
   gw_auto_ri_types.F
   gw_utils_dbcsr.F
@@ -243,11 +241,15 @@ list(
   gw_tensor_small_cell_full_kp.F
   gw_ri_rs_non_periodic.F
   gw_ri_rs_large_cell_gamma.F
-  gw_ri_rs_grid_from_file.F
-  gw_ri_rs_grid_initialization.F
-  gw_ri_rs_grid_optimization.F
-  gw_ri_rs_grid_setup_main.F
-  gw_ri_rs_utils.F
+  ri_rs_grid_from_file.F
+  ri_rs_grid_initialization.F
+  ri_rs_grid_optimization.F
+  ri_rs_grid_setup.F
+  ri_rs_setup.F
+  ri_rs_types.F
+  ri_rs_utils.F
+  ri_rs_fitting.F
+  ri_rs_matrices.F
   post_scf_bandstructure_types.F
   post_scf_bandstructure_utils.F
   gw_utils.F

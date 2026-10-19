@@ -12,7 +12,7 @@
 !>      09.2026 moved code by Ritaj Tyagi from gw_ri_rs_non_periodic.F
 !>      09.2026 added routine to compute Z_lP for automatic RI optimization
 ! **************************************************************************************************
-MODULE gw_ri_rs_compute_Z_lP
+MODULE ri_rs_setup
    USE ai_contraction_sphi,             ONLY: abc_contract_xsmm
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: get_gto_basis_set
@@ -34,12 +34,6 @@ MODULE gw_ri_rs_compute_Z_lP
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
    USE gw_auto_ri_types,                ONLY: auto_ri_type
-   USE gw_ri_rs_compute_Z_lP_utils,     ONLY: build_gram_jacobi_blas,&
-                                              build_jacobi_diag_from_phi,&
-                                              scale_rows_by_diag,&
-                                              solve_D_lp_distributed,&
-                                              store_Z_lP_columns
-   USE gw_ri_rs_utils,                  ONLY: evaluate_ao_on_points
    USE gw_utils_compute_integrals,      ONLY: build_3c_integral_block_ctx,&
                                               gw_3c_ctx_create,&
                                               gw_3c_ctx_release,&
@@ -61,17 +55,69 @@ MODULE gw_ri_rs_compute_Z_lP
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
+   USE ri_rs_fitting,                   ONLY: build_gram_jacobi_blas,&
+                                              build_jacobi_diag_from_phi,&
+                                              scale_rows_by_diag,&
+                                              solve_D_lp_distributed,&
+                                              store_Z_lP_columns
+   USE ri_rs_grid_setup,                ONLY: setup_ri_rs_grid
+   USE ri_rs_matrices,                  ONLY: atomic_basis_at_grid_point,&
+                                              print_matrix_occupation
+   USE ri_rs_utils,                     ONLY: evaluate_ao_on_points,&
+                                              precompute_ri_rs_radii
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_compute_Z_lP'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ri_rs_setup'
 
-   PUBLIC :: compute_Z_lP
+   PUBLIC :: compute_Z_lP, ensure_ri_rs_representation
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Populate the RI-RS grid, AO collocation and auxiliary fitting coefficients once.
+!> \param qs_env electronic-structure environment
+!> \param bs_env geometry, RI-RS settings and owned output matrices
+! **************************************************************************************************
+   SUBROUTINE ensure_ri_rs_representation(qs_env, bs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ensure_ri_rs_representation'
+
+      INTEGER                                            :: handle
+      REAL(KIND=dp)                                      :: build_start
+
+      CALL timeset(routineN, handle)
+      IF (.NOT. bs_env%ri_rs%grid_built) THEN
+         build_start = m_walltime()
+         CALL get_qs_env(qs_env, atomic_kind_set=bs_env%ri_rs%atomic_kind_set, &
+                         cell=bs_env%ri_rs%cell, particle_set=bs_env%ri_rs%particle_set)
+         IF (.NOT. ALLOCATED(bs_env%ri_rs%radius_ao_per_atom)) THEN
+            CALL precompute_ri_rs_radii(bs_env%ri_rs, bs_env%basis_set_AO, bs_env%basis_set_RI, &
+                                        bs_env%eps_filter, bs_env%unit_nr)
+         END IF
+         CALL setup_ri_rs_grid(bs_env, bs_env%ri_rs%grid_points)
+         CALL atomic_basis_at_grid_point(bs_env%ri_rs, bs_env%basis_set_AO, &
+                                         bs_env%mat_ao_ao%matrix, bs_env%para_env, bs_env%eps_filter, &
+                                         bs_env%dbcsr_msg_elem_limit, bs_env%unit_nr, &
+                                         periodic_images=.FALSE.)
+         CALL print_matrix_occupation(bs_env%ri_rs%mat_phi_mu_l, 'ϕ_μ(r_l)', &
+                                      bs_env%para_env, bs_env%unit_nr, bs_env%dbcsr_msg_elem_limit)
+         CALL compute_Z_lP(qs_env, bs_env, bs_env%ri_rs%grid_points, &
+                           bs_env%ri_rs%mat_phi_mu_l, bs_env%ri_rs%mat_Z_lP)
+         bs_env%ri_rs%grid_built = .TRUE.
+         IF (bs_env%unit_nr > 0) THEN
+            WRITE (bs_env%unit_nr, '(T2,A,T58,A,F7.1,A)') &
+               'Built RI-RS representation,', ' Execution time', m_walltime() - build_start, ' s'
+            WRITE (bs_env%unit_nr, '(A)') ' '
+         END IF
+      END IF
+      CALL timestop(handle)
+   END SUBROUTINE ensure_ri_rs_representation
 
 ! **************************************************************************************************
 !> \brief Computes Z_lP for (1) a tabulated RI basis set or (2) an on-the-fly generated RI basis set.
@@ -98,7 +144,7 @@ CONTAINS
    SUBROUTINE compute_Z_lP(qs_env, bs_env, ri_rs_grid_points, mat_phi_mu_l, mat_Z_lP)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT)          :: ri_rs_grid_points(:, :)
+      REAL(KIND=dp), INTENT(IN)                          :: ri_rs_grid_points(:, :)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_phi_mu_l
       TYPE(dbcsr_type), INTENT(OUT)                      :: mat_Z_lP
 
@@ -146,7 +192,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT)          :: ri_rs_grid_points(:, :)
+      REAL(KIND=dp), INTENT(IN)                          :: ri_rs_grid_points(:, :)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_phi_mu_l
       TYPE(dbcsr_type), INTENT(OUT)                      :: mat_Z_lP
 
@@ -462,8 +508,6 @@ CONTAINS
 
       DEALLOCATE (row_offset, ri_blk_sizes, col_dist_ri)
       CALL dbcsr_distribution_release(dist_Z)
-
-      DEALLOCATE (ri_rs_grid_points)
 
       CALL timestop(handle)
 
@@ -2927,4 +2971,4 @@ CONTAINS
 
    END FUNCTION get_ref_RI_size
 
-END MODULE gw_ri_rs_compute_Z_lP
+END MODULE ri_rs_setup

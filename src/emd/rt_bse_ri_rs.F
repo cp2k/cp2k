@@ -38,13 +38,6 @@ MODULE rt_bse_ri_rs
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE gw_ri_rs_compute_Z_lP,           ONLY: compute_Z_lP
-   USE gw_ri_rs_grid_setup_main,        ONLY: setup_ri_rs_grid
-   USE gw_ri_rs_large_cell_Gamma,       ONLY: release_dbcsr_topology_and_matrices,&
-                                              setup_square_topology
-   USE gw_ri_rs_non_periodic,           ONLY: atomic_basis_at_grid_point,&
-                                              reserve_blocks_within_radius
-   USE gw_ri_rs_utils,                  ONLY: precompute_ri_rs_radii
    USE gw_utils_dbcsr,                  ONLY: dbcsr_contract_ABA,&
                                               hadamard_product_inplace
    USE gw_utils_fm,                     ONLY: fm_contract_ABA
@@ -55,6 +48,10 @@ MODULE rt_bse_ri_rs
    USE physcon,                         ONLY: angstrom
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: qs_environment_type
+   USE ri_rs_matrices,                  ONLY: release_dbcsr_topology_and_matrices,&
+                                              reserve_blocks_within_radius,&
+                                              setup_square_topology
+   USE ri_rs_setup,                     ONLY: ensure_ri_rs_representation
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -63,8 +60,7 @@ MODULE rt_bse_ri_rs
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_bse_ri_rs'
 
-   PUBLIC :: rt_bse_ri_rs_ensure_grid, &
-             rt_bse_ri_rs_ensure_V_grid, &
+   PUBLIC :: rt_bse_ri_rs_ensure_V_grid, &
              rt_bse_ri_rs_ensure_W0_grid, &
              compute_sigma_ri_rs, &
              compute_sigma_ri_rs_complex, &
@@ -74,57 +70,6 @@ MODULE rt_bse_ri_rs
              hartree_potential_from_diag_ri_rs
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief Make sure the AO collocation φ_µ(r_l) (mat_phi_mu_l) and the RI fit coefficients
-!>        Z_lP (mat_Z_lP) are populated in memory.
-!>        If GW was run with RI-RS the grid is already built; otherwise build it here so the
-!>        AO-RI GW + RI-RS RT-BSE combination is possible.
-!> \param bs_env ...
-!> \param qs_env ...
-! **************************************************************************************************
-   SUBROUTINE rt_bse_ri_rs_ensure_grid(bs_env, qs_env)
-
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_bse_ri_rs_ensure_grid'
-
-      INTEGER                                            :: handle
-      REAL(KIND=dp)                                      :: t1
-
-      CALL timeset(routineN, handle)
-
-      IF (bs_env%ri_rs%grid_built) THEN
-         CALL timestop(handle)
-         RETURN
-      END IF
-
-      t1 = m_walltime()
-
-      CALL setup_ri_rs_grid(bs_env, bs_env%ri_rs%grid_points)
-      ! Per-atom AO/RI screening radii required by the screened grid-fill and d_lP routines; the
-      ! GW RI-RS driver populates these, but the standalone RT-BSE grid build must do so itself.
-      IF (.NOT. ALLOCATED(bs_env%ri_rs%radius_ao_per_atom)) THEN
-         CALL precompute_ri_rs_radii(bs_env)
-      END IF
-      CALL atomic_basis_at_grid_point(bs_env, bs_env%ri_rs%grid_points, &
-                                      bs_env%ri_rs%mat_phi_mu_l)
-      CALL compute_Z_lP(qs_env, bs_env, bs_env%ri_rs%grid_points, &
-                        bs_env%ri_rs%mat_phi_mu_l, bs_env%ri_rs%mat_Z_lP)
-
-      bs_env%ri_rs%grid_built = .TRUE.
-
-      IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A,T58,A,F7.1,A)') &
-            'Built RI-RS grid for RT-BSE (no GW_RI_RS used),', ' Execution time', &
-            m_walltime() - t1, ' s'
-         WRITE (bs_env%unit_nr, '(A)') ' '
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE rt_bse_ri_rs_ensure_grid
 
 ! **************************************************************************************************
 !> \brief Build V^aux_PQ = [M^-1 V^tr M^-1]_PQ (truncated Coulomb in the RI basis, M^-1-sandwiched
@@ -155,7 +100,7 @@ CONTAINS
          RETURN
       END IF
 
-      CALL rt_bse_ri_rs_ensure_grid(bs_env, qs_env)
+      CALL ensure_ri_rs_representation(qs_env, bs_env)
       t1 = m_walltime()
 
       CALL setup_square_topology(bs_env%ri_rs%mat_Z_lP, 'COL', dist_aux_aux, blk_aux, dist_row_aux)
@@ -231,7 +176,7 @@ CONTAINS
                        "'&RTBSE RTBSE', not '&RTBSE TDDFT'.")
       END IF
 
-      CALL rt_bse_ri_rs_ensure_grid(bs_env, qs_env)
+      CALL ensure_ri_rs_representation(qs_env, bs_env)
       t1 = m_walltime()
 
       CALL setup_square_topology(bs_env%ri_rs%mat_phi_mu_l, 'ROW', dist_grid_grid, blk_grid, &

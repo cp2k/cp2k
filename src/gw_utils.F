@@ -100,9 +100,7 @@ MODULE gw_utils
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
                                               evolt
-   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type,&
-                                              ri_rs_env,&
-                                              ri_rs_grid_opt_type
+   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE post_scf_bandstructure_utils,    ONLY: allocate_GW_eigenvalues,&
                                               gw_flavour_label,&
                                               rsmat_to_kp
@@ -128,6 +126,8 @@ MODULE gw_utils
                                               distribution_3d_create,&
                                               distribution_3d_type,&
                                               neighbor_list_3c_type
+   USE ri_rs_types,                     ONLY: ri_rs_env,&
+                                              ri_rs_grid_opt_type
    USE rpa_gw,                          ONLY: continuation_pade
    USE time_frequency_grids,            ONLY: build_minimax_time_frequency_grid
 #include "base/base_uses.f90"
@@ -298,7 +298,7 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "COHSEX_SCALE_VIRT", r_val=bs_env%cohsex_scale_virt)
       CALL read_rirs_input(bs_env%ri_rs, ri_rs_sec)
       CALL read_rirs_grid_opt(bs_env%ri_rs, grid_opt_sec)
-      CALL read_evgw0_input(bs_env%ri_rs, evgw0_sec, do_evgw0)
+      CALL read_evgw0_input(bs_env, evgw0_sec, do_evgw0)
       CALL read_auto_ri_input(bs_env%auto_ri, auto_ri_sec)
       CALL check_gw_input(bs_env, do_evgw0)
 
@@ -365,12 +365,12 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Reads the eigenvalue-self-consistent GW input.
-!> \param ri_rs RI-RS parameters receiving the evGW0 convergence settings
+!> \param bs_env GW environment receiving the evGW0 convergence settings
 !> \param evgw0_sec EVGW0 input section
 !> \param do_evgw0 whether the EVGW0 section is activated
 ! **************************************************************************************************
-   SUBROUTINE read_evgw0_input(ri_rs, evgw0_sec, do_evgw0)
-      TYPE(ri_rs_env), INTENT(INOUT)                     :: ri_rs
+   SUBROUTINE read_evgw0_input(bs_env, evgw0_sec, do_evgw0)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(section_vals_type), POINTER                   :: evgw0_sec
       LOGICAL, INTENT(OUT)                               :: do_evgw0
 
@@ -381,8 +381,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL section_vals_val_get(evgw0_sec, "_SECTION_PARAMETERS_", l_val=do_evgw0)
-      CALL section_vals_val_get(evgw0_sec, "MAX_ITER", i_val=ri_rs%evgw0_iter)
-      CALL section_vals_val_get(evgw0_sec, "EPS_ITER", r_val=ri_rs%evgw0_eps_iter)
+      CALL section_vals_val_get(evgw0_sec, "MAX_ITER", i_val=bs_env%evgw0_iter)
+      CALL section_vals_val_get(evgw0_sec, "EPS_ITER", r_val=bs_env%evgw0_eps_iter)
 
       CALL timestop(handle)
 
@@ -643,9 +643,9 @@ CONTAINS
 
       IF (bs_env%gw_flavour == evGW0) THEN
          WRITE (unit_nr, '(T2,A,I42)') 'Input: Maximum number of evGW0 cycles', &
-            bs_env%ri_rs%evgw0_iter
+            bs_env%evgw0_iter
          WRITE (unit_nr, '(T2,A,F42.5,A)') 'Input: evGW0 convergence threshold', &
-            bs_env%ri_rs%evgw0_eps_iter*evolt, ' eV'
+            bs_env%evgw0_eps_iter*evolt, ' eV'
       END IF
       WRITE (unit_nr, '(A)') ' '
 
@@ -3564,7 +3564,7 @@ CONTAINS
                                           Sigma_x_ikp_n(:) - &
                                           V_xc_ikp_n(:)
 
-      IF (ALLOCATED(bs_env%eigenval_G0W0) .AND. bs_env%ri_rs%evgw0_i_iter <= 1) THEN
+      IF (ALLOCATED(bs_env%eigenval_G0W0) .AND. bs_env%evgw0_i_iter <= 1) THEN
          bs_env%eigenval_G0W0(:, ikp, ispin) = bs_env%eigenval_GW(:, ikp, ispin)
       END IF
 
@@ -3590,7 +3590,7 @@ CONTAINS
 
          ! in an evGW0 run the spectrum of every cycle is appended, so only the very first
          ! cycle replaces the file
-         IF (ikp_for_print == 1 .AND. ispin == 1 .AND. bs_env%ri_rs%evgw0_i_iter <= 1) THEN
+         IF (ikp_for_print == 1 .AND. ispin == 1 .AND. bs_env%evgw0_i_iter <= 1) THEN
             CALL open_file(TRIM(fname), unit_number=iunit, file_status="REPLACE", &
                            file_action="WRITE")
          ELSE
@@ -3600,7 +3600,7 @@ CONTAINS
 
          IF (bs_env%gw_flavour == evGW0 .AND. ikp_for_print == 1 .AND. ispin == 1) THEN
             WRITE (iunit, "(A)") " "
-            WRITE (iunit, "(A,I0)") "evGW0 cycle: ", bs_env%ri_rs%evgw0_i_iter
+            WRITE (iunit, "(A,I0)") "evGW0 cycle: ", bs_env%evgw0_i_iter
          END IF
 
          WRITE (iunit, "(A)") " "

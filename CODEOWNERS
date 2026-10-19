@@ -74,6 +74,7 @@
 /src/mp2_*                   @JWilhelm @fstein93
 /src/rpa_*                   @JWilhelm @fstein93
 /src/gw_*                    @JWilhelm @fstein93
+/src/ri_rs_*                 @JWilhelm @fstein93
 
 # Post SCF
 /src/qs_scf_post_*           @marci73 @juerghutter
