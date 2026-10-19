@@ -326,34 +326,27 @@ CONTAINS
                           description="Printing of information during the SCF.", repeats=.FALSE.)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
-                                       description="Controls the dumping of the MO restart file during SCF. "// &
-                                       "By default keeps a short history of three restarts. "// &
-                                       "See also RESTART_HISTORY", &
+                                       description="Controls the dumping of the latest wavefunction restart "// &
+                                       "file during SCF. The file suffix will be `.wfn` for a Gamma-only "// &
+                                       "calculation and `.kp` for a k-point sampling calculation by default; "// &
+                                       "both are unformatted binary files and are not interchangeable for "// &
+                                       "restarting purposes. The FORCE_EVAL/DFT/WFN_RESTART_FILE_NAME "// &
+                                       "keyword can be used to read a restart file generated here for "// &
+                                       "MO information. See also RESTART_HISTORY.", &
                                        print_level=low_print_level, common_iter_levels=3, &
                                        each_iter_names=s2a("QS_SCF"), each_iter_values=[20], &
-                                       add_last=add_last_numeric, filename="RESTART")
-      CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
-                          description="Specifies the maximum number of backup copies.", &
-                          usage="BACKUP_COPIES {int}", &
-                          default_i_val=1)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
+                                       add_last=add_last_numeric, filename="RESTART", do_backup=.TRUE.)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create( &
          print_key, __LOCATION__, "RESTART_HISTORY", &
-         description="Dumps unique MO restart files during the run keeping all of them.", &
+         description="Dumps unique wavefunction restart files during the run, keeping all of them. "// &
+         "For the latest wavefunction restart file, see RESTART, which shares the same file formats.", &
          print_level=low_print_level, common_iter_levels=0, &
          each_iter_names=s2a("__ROOT__", "MD", "GEO_OPT", "ROT_OPT", "NEB", "METADYNAMICS", "QS_SCF"), &
          each_iter_values=[500, 500, 500, 500, 500, 500, 500], &
-         filename="RESTART")
-      CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
-                          description="Specifies the maximum number of backup copies.", &
-                          usage="BACKUP_COPIES {int}", &
-                          default_i_val=1)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
+         filename="RESTART", do_backup=.TRUE.)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 

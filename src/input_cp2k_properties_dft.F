@@ -2108,17 +2108,11 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="RESTART", &
-                                       description="Controls the dumping of the MO restart file during TDDFPT. "// &
-                                       "By default keeps a short history of three restarts.", &
+                                       description="Controls the dumping of the latest wavefunction "// &
+                                       "restart file during TDDFPT.", &
                                        print_level=low_print_level, common_iter_levels=3, &
                                        each_iter_names=s2a("TDDFT_SCF"), each_iter_values=[10], &
-                                       add_last=add_last_numeric, filename="RESTART")
-      CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
-                          description="Specifies the maximum number of backup copies.", &
-                          usage="BACKUP_COPIES {int}", &
-                          default_i_val=1)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
+                                       add_last=add_last_numeric, filename="RESTART", do_backup=.TRUE.)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
