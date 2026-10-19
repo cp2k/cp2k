@@ -186,22 +186,30 @@ __global__ static void process_batch_kernel(const double alpha,
 }
 
 /*******************************************************************************
- * \brief Internal routine for launching the GPU kernel.
- *        All arguments are assumed to be device pointers.
+ * \brief Internal routine for launching the GPU kernel. The batch is on the
+ *        host (for its shape), all other pointers are device pointers.
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_multiply_gpu_launch_kernel(offloadStream_t stream, double alpha,
-                                    int ntasks, const dbm_task_t *tasks_host,
+                                    const dbm_batch_t *batch,
                                     const dbm_task_t *tasks,
                                     const double *pack_a_data,
                                     const double *pack_b_data,
                                     double *shard_c_data) {
-  const int nblocks = ntasks; // TODO tune launch parameters.
+  const int nblocks = batch->ntasks; // TODO tune launch parameters.
   const int threads_per_block = NUM_THREADS;
   const size_t smem_per_block = 0;
-  (void)tasks_host; // mark used
   process_batch_kernel<<<nblocks, threads_per_block, smem_per_block, stream>>>(
       alpha, tasks, pack_a_data, pack_b_data, shard_c_data);
+}
+
+/*******************************************************************************
+ * \brief Internal routine returning the order in which the backend wants the
+ *        tasks of a batch (enum dbm_multiply_task_order).
+ * \author Hans Pabst
+ ******************************************************************************/
+int dbm_multiply_gpu_task_order(void) {
+  return 0; // DBM_TASK_ORDER_NONE: tasks as generated
 }
 
 #endif // defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
