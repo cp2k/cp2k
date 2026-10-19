@@ -455,8 +455,9 @@ def sanitize_name(name: str) -> str:
 
 # ======================================================================================
 def escape_markdown(text: str) -> str:
-    # Underscores are very common in our docs. Luckily asterisks also work for emphasis.
-    text = text.replace(r"__", r"\_\_")
+    # Escape some characters that may be rendered as markdown formatting syntax
+    # regardless of the context. This can be disruptive for inline code blocks
+    # wrapped in backticks.
 
     # Headings mess up the page structure. Please use paragraphs and bold text instead.
     text = text.replace(r"#", r"\#")
