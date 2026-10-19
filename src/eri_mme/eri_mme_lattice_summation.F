@@ -768,7 +768,8 @@ CONTAINS
                            #:for prop_exp in range(0,2)
                               IF (prop_exp == ${prop_exp}$) THEN
                                  CALL pgf_sum_3c_rspace_1d_${l_max}$_${m_max}$_${n_max}$_exp_${prop_exp}$ (S_G, RA, RB, RC, &
-                                                                                           zeta, zetb, zetc, a_mm, lgth, R_bounds_3)
+                                                                                                           zeta, zetb, zetc, a_mm, &
+                                                                                                           lgth, R_bounds_3)
                                  RETURN
                               END IF
                            #:endfor
@@ -1010,7 +1011,8 @@ CONTAINS
                   #:for l in range(0, l_tot_max)
                      #:for k in range(0, l+2)
                         #:if k<l or k>0
-                           h_to_c_${k}$_${l+1}$ = #{if k<l}#-${k+1}$*h_to_c_${k+1}$_${l}$#{endif}##{if k > 0}#+2*alpha*h_to_c_${k-1}$_${l}$#{endif}#
+                           h_to_c_${k}$_${l+1}$ = &
+                              #{if k<l}#-${k+1}$*h_to_c_${k+1}$_${l}$#{endif}##{if k > 0}#+2*alpha*h_to_c_${k-1}$_${l}$#{endif}#
                         #:else
                            h_to_c_${k}$_${l+1}$ = 0.0_dp
                         #:endif
@@ -1107,7 +1109,9 @@ CONTAINS
                         #:for m in range(0, m_max+1)
                            #:for l in range(0, l_max+1)
                               #:for t in range(0, l+m+1)
-              S_R(${l}$, ${m}$, ${n}$) = S_R(${l}$, ${m}$, ${n}$) + E_${t}$_${l}$_${m}$*(${(-1)**n}$)*S_R_t2_${t+n}$ ! cost: 5 flops
+                                 S_R(${l}$, ${m}$, ${n}$) = S_R(${l}$, ${m}$, ${n}$) + &
+                                                            E_${t}$_${l}$_${m}$*(${(-1)**n}$)*S_R_t2_${t+n}$
+                                 ! cost: 5 flops
                               #:endfor
                            #:endfor
                         #:endfor

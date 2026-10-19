@@ -246,81 +246,81 @@ CONTAINS
             IF (ndim == ${ndim}$) THEN
                #:for idim in range(ndim,0,-1)
                   DO i_${idim}$ = 1, blk_size(${idim}$)
-                     #:endfor
-                     IF (write_int_prv) THEN
-                        WRITE (unit_nr, '(T7,A,T16,A,${ndim}$I3,1X,A,1X,I3,A,1X,A,${ndim}$I3,1X,A,1X,I20)') &
-                           TRIM(name), "(", blk_index, ") @", proc, ':', &
-                           "(", ${varlist("i", nmax=ndim)}$, ")", &
-                           INT(blk_values_${ndim}$ (${varlist("i", nmax=ndim)}$), KIND=int_8)
-                     ELSE
-                        WRITE (unit_nr, '(T7,A,T16,A,${ndim}$I3,1X,A,1X,I3,A,1X,A,${ndim}$I3,1X,A,1X,F10.5)') &
-                           TRIM(name), "(", blk_index, ") @", proc, ':', &
-                           "(", ${varlist("i", nmax=ndim)}$, ")", &
-                           blk_values_${ndim}$ (${varlist("i", nmax=ndim)}$)
-                     END IF
-                     #:for idim in range(ndim,0,-1)
-                        END DO
-                     #:endfor
+                  #:endfor
+                  IF (write_int_prv) THEN
+                     WRITE (unit_nr, '(T7,A,T16,A,${ndim}$I3,1X,A,1X,I3,A,1X,A,${ndim}$I3,1X,A,1X,I20)') &
+                        TRIM(name), "(", blk_index, ") @", proc, ':', &
+                        "(", ${varlist("i", nmax=ndim)}$, ")", &
+                        INT(blk_values_${ndim}$ (${varlist("i", nmax=ndim)}$), KIND=int_8)
+                  ELSE
+                     WRITE (unit_nr, '(T7,A,T16,A,${ndim}$I3,1X,A,1X,I3,A,1X,A,${ndim}$I3,1X,A,1X,F10.5)') &
+                        TRIM(name), "(", blk_index, ") @", proc, ':', &
+                        "(", ${varlist("i", nmax=ndim)}$, ")", &
+                        blk_values_${ndim}$ (${varlist("i", nmax=ndim)}$)
                   END IF
+                  #:for idim in range(ndim,0,-1)
+                  END DO
                #:endfor
             END IF
-         END SUBROUTINE dbt_write_block
+         #:endfor
+      END IF
+   END SUBROUTINE dbt_write_block
 
 ! **************************************************************************************************
 !> \author Patrick Seewald
 ! **************************************************************************************************
-         SUBROUTINE dbt_write_block_indices(tensor, io_unit_master, io_unit_all)
-            TYPE(dbt_type), INTENT(INOUT)                  :: tensor
-            INTEGER, INTENT(IN)                                :: io_unit_master, io_unit_all
-            TYPE(dbt_iterator_type)                        :: iterator
-            INTEGER, DIMENSION(ndims_tensor(tensor))          :: blk_index, blk_size
-            INTEGER                                            :: mynode, proc
+   SUBROUTINE dbt_write_block_indices(tensor, io_unit_master, io_unit_all)
+      TYPE(dbt_type), INTENT(INOUT)                  :: tensor
+      INTEGER, INTENT(IN)                                :: io_unit_master, io_unit_all
+      TYPE(dbt_iterator_type)                        :: iterator
+      INTEGER, DIMENSION(ndims_tensor(tensor))          :: blk_index, blk_size
+      INTEGER                                            :: mynode, proc
 
-            IF (io_unit_master > 0) THEN
-               WRITE (io_unit_master, '(T7,A)') "(block index) @ process: size"
+      IF (io_unit_master > 0) THEN
+         WRITE (io_unit_master, '(T7,A)') "(block index) @ process: size"
+      END IF
+
+      CALL dbt_iterator_start(iterator, tensor)
+      DO WHILE (dbt_iterator_blocks_left(iterator))
+         CALL dbt_iterator_next_block(iterator, blk_index, blk_size=blk_size)
+         CALL dbt_get_stored_coordinates(tensor, blk_index, proc)
+         mynode = tensor%pgrid%mp_comm_2d%mepos
+         CPASSERT(proc == mynode)
+         #:for ndim in ndims
+            IF (ndims_tensor(tensor) == ${ndim}$) THEN
+               WRITE (io_unit_all, '(T7,A,T16,A,${ndim}$I3,1X,A,1X,I3,A2,${ndim}$I3)') &
+                  TRIM(tensor%name), "blk index (", blk_index, ") @", proc, ":", blk_size
             END IF
-
-            CALL dbt_iterator_start(iterator, tensor)
-            DO WHILE (dbt_iterator_blocks_left(iterator))
-               CALL dbt_iterator_next_block(iterator, blk_index, blk_size=blk_size)
-               CALL dbt_get_stored_coordinates(tensor, blk_index, proc)
-               mynode = tensor%pgrid%mp_comm_2d%mepos
-               CPASSERT(proc == mynode)
-               #:for ndim in ndims
-                  IF (ndims_tensor(tensor) == ${ndim}$) THEN
-                     WRITE (io_unit_all, '(T7,A,T16,A,${ndim}$I3,1X,A,1X,I3,A2,${ndim}$I3)') &
-                        TRIM(tensor%name), "blk index (", blk_index, ") @", proc, ":", blk_size
-                  END IF
-               #:endfor
-            END DO
-            CALL dbt_iterator_stop(iterator)
-         END SUBROUTINE dbt_write_block_indices
+         #:endfor
+      END DO
+      CALL dbt_iterator_stop(iterator)
+   END SUBROUTINE dbt_write_block_indices
 
 ! **************************************************************************************************
 !> \author Patrick Seewald
 ! **************************************************************************************************
-         SUBROUTINE dbt_write_split_info(pgrid, unit_nr)
-            TYPE(dbt_pgrid_type), INTENT(IN) :: pgrid
-            INTEGER, INTENT(IN) :: unit_nr
+   SUBROUTINE dbt_write_split_info(pgrid, unit_nr)
+      TYPE(dbt_pgrid_type), INTENT(IN) :: pgrid
+      INTEGER, INTENT(IN) :: unit_nr
 
-            IF (ALLOCATED(pgrid%tas_split_info)) THEN
-               CALL dbt_tas_write_split_info(pgrid%tas_split_info, unit_nr)
-            END IF
-         END SUBROUTINE dbt_write_split_info
+      IF (ALLOCATED(pgrid%tas_split_info)) THEN
+         CALL dbt_tas_write_split_info(pgrid%tas_split_info, unit_nr)
+      END IF
+   END SUBROUTINE dbt_write_split_info
 
 ! **************************************************************************************************
 !> \author Patrick Seewald
 ! **************************************************************************************************
-         FUNCTION prep_output_unit(unit_nr) RESULT(unit_nr_out)
-            INTEGER, INTENT(IN), OPTIONAL :: unit_nr
-            INTEGER                       :: unit_nr_out
+   FUNCTION prep_output_unit(unit_nr) RESULT(unit_nr_out)
+      INTEGER, INTENT(IN), OPTIONAL :: unit_nr
+      INTEGER                       :: unit_nr_out
 
-            IF (PRESENT(unit_nr)) THEN
-               unit_nr_out = unit_nr
-            ELSE
-               unit_nr_out = 0
-            END IF
+      IF (PRESENT(unit_nr)) THEN
+         unit_nr_out = unit_nr
+      ELSE
+         unit_nr_out = 0
+      END IF
 
-         END FUNCTION prep_output_unit
+   END FUNCTION prep_output_unit
 
-      END MODULE dbt_io
+END MODULE dbt_io

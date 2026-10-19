@@ -262,7 +262,8 @@ CONTAINS
             t65 = t14*t15*t63
 
             e_0(ii) = e_0(ii) + 0.20e1_dp*lambda*(-a*my_rho*t7 - t10*t29) + t34*(a*t17 &
-                                                                      *t38 + t40*t43 + t40*t47 + 0.13888888888888888889e-1_dp*t51* &
+                                                                                 *t38 + t40*t43 + t40*t47 + &
+                                                                                 0.13888888888888888889e-1_dp*t51* &
                                                                                  t65)
 
             IF (grad_deriv >= 1) THEN
@@ -576,7 +577,8 @@ CONTAINS
                t200 = t199 + t196
                t202 = my_rhob*t58 + t25*(0.33864555775321588795e2_dp*Cf*t28*my_rhoa &
                                          + t174 - t179 - t183 - 0.1111111111e0_dp*t51*t188) - t194 + (-0.6666666667e0_dp &
-                                                                                                     *my_rhoa + t196)*t48 + t200*t47
+                                                                                                      *my_rhoa + &
+                                                                                                      t196)*t48 + t200*t47
                t212 = 0.5333333333e1_dp*t74*t135*d
                t216 = 0.1e1_dp/t77/t9
                t220 = 0.26666666666666666667e1_dp*t74/t21/t19*t216*t103
@@ -642,7 +644,8 @@ CONTAINS
                t421 = REAL(2*t25*t41*my_ndrho, dp) - 0.1333333333e1_dp*REAL(t19, dp)*REAL(my_ndrho, dp)
 
                e_ndr(ii) = e_ndr(ii) - 0.20e1_dp*t351*t94*t23*t421 + t73*(t83*t86*t10*t421 &
-                                                                       + t18*t90*t421*d - REAL(2*t95*t96*my_rhob*t108*my_ndrho, dp))
+                                                                          + t18*t90*t421*d - &
+                                                                          REAL(2*t95*t96*my_rhob*t108*my_ndrho, dp))
 
             END IF
          END IF

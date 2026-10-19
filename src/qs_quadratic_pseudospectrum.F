@@ -394,7 +394,8 @@ CONTAINS
                         DO i = 2, nobs
                            WRITE (output_unit, '(T2,A,I0,A,3ES23.14)') 'QUADRATIC_PSEUDOSPECTRUM| Translation residual ', i - 1, &
                               ' full/projected/leakage: ', result%errors(i, j), result%projected_errors(i, j), result%leakage(i, j)
-                          WRITE (output_unit, '(T2,A,I0,A,2ES23.14)') 'QUADRATIC_PSEUDOSPECTRUM| Translation expectation ', i - 1, &
+                           WRITE (output_unit, '(T2,A,I0,A,2ES23.14)') &
+                              'QUADRATIC_PSEUDOSPECTRUM| Translation expectation ', i - 1, &
                               ' real/imag: ', result%complex_means(i, j)
                         END DO
                      ELSE IF (periodic_analysis) THEN

@@ -492,7 +492,8 @@ CONTAINS
       END DO
       CALL quadratic_dense(changed, identity, shift, weights, 3, .FALSE., n, 100, 1.e-10_dp, 1.e-10_dp, altered, status)
       IF (status /= 0) ERROR STOP 'Shifted periodic coordinates failed'
-  IF (MAXVAL(ABS(original%eigenvalues - altered%eigenvalues)) > 1.e-12_dp) ERROR STOP 'Periodic coordinate-origin covariance failed'
+      IF (MAXVAL(ABS(original%eigenvalues - altered%eigenvalues)) > 1.e-12_dp) ERROR STOP &
+         'Periodic coordinate-origin covariance failed'
       DO j = 1, 3
          value = theta(j) + 2*ACOS(-1.0_dp)*(j - 2)
          shift(2*j:2*j + 1) = [COS(value), SIN(value)]

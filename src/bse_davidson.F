@@ -2958,7 +2958,8 @@ CONTAINS
          ! DGESVD wants lwork >= MAX(3 n + m, 5 n) for the m x n overlap with n <= m; 5 m + 10 covers both
          lwork = 5*(mult_last - mult_first + 1) + 10
          ALLOCATE (work(lwork))
- CALL DGESVD('N', 'N', mult_last - mult_first + 1, mult_last_dav - mult_first + 1, overlap, mult_last - mult_first + 1, sing_vals, &
+         CALL DGESVD('N', 'N', mult_last - mult_first + 1, mult_last_dav - mult_first + 1, overlap, mult_last - mult_first + 1, &
+                     sing_vals, &
                      dummy, 1, dummy, 1, work, lwork, info)
          IF (info /= 0) CPABORT("SVD failed in the BSE Davidson check")
          min_overlap = MIN(min_overlap, MINVAL(sing_vals))

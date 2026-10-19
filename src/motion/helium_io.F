@@ -1303,7 +1303,8 @@ CONTAINS
 
                   ! last bead of atom <ia> connects to the first bead
                   ! of the next atom in the permutation cycle
-                 r1(:) = helium_env(1)%helium%work(:, ia, helium_env(1)%helium%beads) - helium_env(1)%helium%work(:, my_perm(ia), 1)
+                  r1(:) = helium_env(1)%helium%work(:, ia, helium_env(1)%helium%beads) - helium_env(1)%helium%work(:, &
+                                                                                                                   my_perm(ia), 1)
                   r2(:) = r1(:)
                   CALL helium_pbc(helium_env(1)%helium, r2)
                   are_connected = .TRUE.

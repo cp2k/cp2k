@@ -1841,17 +1841,17 @@ CONTAINS
          ! barrier needed after allocate  full_ks_alpha(beta)_from_gpu before libGint get K
          ! to feed libgint a valid position for full_ks_alpha(beta)_from_gpu
          ALLOCATE (full_ks_alpha_from_gpu, Mold=full_ks_alpha)
-         !$OMP BARRIER
+!$OMP BARRIER
          IF (use_only_alpha_spin) THEN
             call libGint_get_fock_matrix(full_ks_alpha_from_gpu)
          ELSE
             ALLOCATE (full_ks_beta_from_gpu, Mold=full_ks_beta)
-            !$OMP BARRIER
+!$OMP BARRIER
             CALL libGint_get_fock_matrix(full_ks_alpha_from_gpu, full_ks_beta_from_gpu)
          END IF
 
-         !$OMP BARRIER
-         !$omp single
+!$OMP BARRIER
+!$omp single
          max_abs_delta_KS = 0.0_dp
          DO i = 1, SIZE(full_ks_alpha)
             max_abs_delta_KS = MAX(max_abs_delta_ks, ABS(full_ks_alpha(i, 1) - full_ks_alpha_from_gpu(i, 1)))
@@ -1899,7 +1899,7 @@ CONTAINS
                END IF
             END IF
          END IF
-         !$omp end single
+!$omp end single
       END IF
 
       ! Copy the KS matrix from device to host.

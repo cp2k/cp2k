@@ -1022,7 +1022,7 @@ CONTAINS
          ! no function calls, no transcendentals.
          ASSOCIATE (spy_i => grp%spline_y(:, i), spy_i1 => grp%spline_y(:, i + 1), &
                     spdy_i => grp%spline_dy(:, i), spdy_i1 => grp%spline_dy(:, i + 1))
-            !$OMP SIMD PRIVATE(yi, yi1, dyi, dyi1, dsymdr_full)
+!$OMP SIMD PRIVATE(yi, yi1, dyi, dyi1, dsymdr_full)
             DO sf = 1, n_symf
                yi = spy_i(sf)
                yi1 = spy_i1(sf)
@@ -1038,7 +1038,7 @@ CONTAINS
       ELSE
          ASSOCIATE (spy_i => grp%spline_y(:, i), spy_i1 => grp%spline_y(:, i + 1), &
                     spdy_i => grp%spline_dy(:, i), spdy_i1 => grp%spline_dy(:, i + 1))
-            !$OMP SIMD
+!$OMP SIMD
             DO sf = 1, n_symf
                sym(sf) = h00*spy_i(sf) + h10_dx*spdy_i(sf) + &
                          h01*spy_i1(sf) + h11_dx*spdy_i1(sf)
@@ -1282,13 +1282,13 @@ CONTAINS
       ! AVX2, _ZGVeN8v_exp on AVX-512), hiding EXP latency across 4-8 SFs
       ! per iter -- ~10 cycles/element vs ~30 for scalar EXP, which beats
       ! any eta-dedup pre-pass.
-      !$OMP SIMD
+!$OMP SIMD
       DO sf = 1, n_symf
          symtmp_arr(sf) = EXP(-grp%pack_eta(sf)*r2sum)
       END DO
 
       ! ---- Pass 3: sym scatter (vectorizable) ----
-      !$OMP SIMD
+!$OMP SIMD
       DO sf = 1, n_symf
          sym(sf) = grp%pack_prefzeta(sf)*angular_arr(sf)*symtmp_arr(sf)*ftot
       END DO

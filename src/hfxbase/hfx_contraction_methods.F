@@ -103505,7 +103505,8 @@ CONTAINS
                      DO j = 1, jmax
                         DO i = 1, imax
                            DO k = 1, kmax
-                           buffer1(i + imax*(j - 1)) = buffer1(i + imax*(j - 1)) + work(k + (i - 1)*kmax)*sphi_a(k, j + s_offset_a1)
+                              buffer1(i + imax*(j - 1)) = buffer1(i + imax*(j - 1)) + work(k + (i - 1)*kmax)*sphi_a(k, j + &
+                                                                                                                    s_offset_a1)
                            END DO
                         END DO
                      END DO
@@ -103553,7 +103554,8 @@ CONTAINS
                         buffer2(i + imax*(4 - 1)) = buffer2(i + imax*(4 - 1)) + buffer1(8 + (i - 1)*kmax)*sphi_b(8, 4 + s_offset_b1)
                         buffer2(i + imax*(6 - 1)) = buffer2(i + imax*(6 - 1)) + buffer1(8 + (i - 1)*kmax)*sphi_b(8, 6 + s_offset_b1)
                         buffer2(i + imax*(3 - 1)) = buffer2(i + imax*(3 - 1)) + buffer1(9 + (i - 1)*kmax)*sphi_b(9, 3 + s_offset_b1)
-                      buffer2(i + imax*(4 - 1)) = buffer2(i + imax*(4 - 1)) + buffer1(10 + (i - 1)*kmax)*sphi_b(10, 4 + s_offset_b1)
+                        buffer2(i + imax*(4 - 1)) = buffer2(i + imax*(4 - 1)) + buffer1(10 + (i - 1)*kmax)*sphi_b(10, 4 + &
+                                                                                                                  s_offset_b1)
                      END DO
                   CASE (15)
                      DO i = 1, imax
@@ -103575,22 +103577,33 @@ CONTAINS
                         buffer2(i + imax*(6 - 1)) = buffer2(i + imax*(6 - 1)) + buffer1(8 + (i - 1)*kmax)*sphi_b(8, 6 + s_offset_b1)
                         buffer2(i + imax*(8 - 1)) = buffer2(i + imax*(8 - 1)) + buffer1(8 + (i - 1)*kmax)*sphi_b(8, 8 + s_offset_b1)
                         buffer2(i + imax*(3 - 1)) = buffer2(i + imax*(3 - 1)) + buffer1(9 + (i - 1)*kmax)*sphi_b(9, 3 + s_offset_b1)
-                      buffer2(i + imax*(6 - 1)) = buffer2(i + imax*(6 - 1)) + buffer1(10 + (i - 1)*kmax)*sphi_b(10, 6 + s_offset_b1)
-                      buffer2(i + imax*(5 - 1)) = buffer2(i + imax*(5 - 1)) + buffer1(11 + (i - 1)*kmax)*sphi_b(11, 5 + s_offset_b1)
-                      buffer2(i + imax*(7 - 1)) = buffer2(i + imax*(7 - 1)) + buffer1(11 + (i - 1)*kmax)*sphi_b(11, 7 + s_offset_b1)
-                      buffer2(i + imax*(9 - 1)) = buffer2(i + imax*(9 - 1)) + buffer1(11 + (i - 1)*kmax)*sphi_b(11, 9 + s_offset_b1)
-                      buffer2(i + imax*(2 - 1)) = buffer2(i + imax*(2 - 1)) + buffer1(12 + (i - 1)*kmax)*sphi_b(12, 2 + s_offset_b1)
-                      buffer2(i + imax*(4 - 1)) = buffer2(i + imax*(4 - 1)) + buffer1(12 + (i - 1)*kmax)*sphi_b(12, 4 + s_offset_b1)
-                      buffer2(i + imax*(5 - 1)) = buffer2(i + imax*(5 - 1)) + buffer1(13 + (i - 1)*kmax)*sphi_b(13, 5 + s_offset_b1)
-                      buffer2(i + imax*(7 - 1)) = buffer2(i + imax*(7 - 1)) + buffer1(13 + (i - 1)*kmax)*sphi_b(13, 7 + s_offset_b1)
-                      buffer2(i + imax*(4 - 1)) = buffer2(i + imax*(4 - 1)) + buffer1(14 + (i - 1)*kmax)*sphi_b(14, 4 + s_offset_b1)
-                      buffer2(i + imax*(5 - 1)) = buffer2(i + imax*(5 - 1)) + buffer1(15 + (i - 1)*kmax)*sphi_b(15, 5 + s_offset_b1)
+                        buffer2(i + imax*(6 - 1)) = buffer2(i + imax*(6 - 1)) + buffer1(10 + (i - 1)*kmax)*sphi_b(10, 6 + &
+                                                                                                                  s_offset_b1)
+                        buffer2(i + imax*(5 - 1)) = buffer2(i + imax*(5 - 1)) + buffer1(11 + (i - 1)*kmax)*sphi_b(11, 5 + &
+                                                                                                                  s_offset_b1)
+                        buffer2(i + imax*(7 - 1)) = buffer2(i + imax*(7 - 1)) + buffer1(11 + (i - 1)*kmax)*sphi_b(11, 7 + &
+                                                                                                                  s_offset_b1)
+                        buffer2(i + imax*(9 - 1)) = buffer2(i + imax*(9 - 1)) + buffer1(11 + (i - 1)*kmax)*sphi_b(11, 9 + &
+                                                                                                                  s_offset_b1)
+                        buffer2(i + imax*(2 - 1)) = buffer2(i + imax*(2 - 1)) + buffer1(12 + (i - 1)*kmax)*sphi_b(12, 2 + &
+                                                                                                                  s_offset_b1)
+                        buffer2(i + imax*(4 - 1)) = buffer2(i + imax*(4 - 1)) + buffer1(12 + (i - 1)*kmax)*sphi_b(12, 4 + &
+                                                                                                                  s_offset_b1)
+                        buffer2(i + imax*(5 - 1)) = buffer2(i + imax*(5 - 1)) + buffer1(13 + (i - 1)*kmax)*sphi_b(13, 5 + &
+                                                                                                                  s_offset_b1)
+                        buffer2(i + imax*(7 - 1)) = buffer2(i + imax*(7 - 1)) + buffer1(13 + (i - 1)*kmax)*sphi_b(13, 7 + &
+                                                                                                                  s_offset_b1)
+                        buffer2(i + imax*(4 - 1)) = buffer2(i + imax*(4 - 1)) + buffer1(14 + (i - 1)*kmax)*sphi_b(14, 4 + &
+                                                                                                                  s_offset_b1)
+                        buffer2(i + imax*(5 - 1)) = buffer2(i + imax*(5 - 1)) + buffer1(15 + (i - 1)*kmax)*sphi_b(15, 5 + &
+                                                                                                                  s_offset_b1)
                      END DO
                   CASE DEFAULT
                      DO j = 1, jmax
                         DO i = 1, imax
                            DO k = 1, kmax
-                        buffer2(i + imax*(j - 1)) = buffer2(i + imax*(j - 1)) + buffer1(k + (i - 1)*kmax)*sphi_b(k, j + s_offset_b1)
+                              buffer2(i + imax*(j - 1)) = buffer2(i + imax*(j - 1)) + buffer1(k + (i - 1)*kmax)*sphi_b(k, j + &
+                                                                                                                       s_offset_b1)
                            END DO
                         END DO
                      END DO
@@ -103638,7 +103651,8 @@ CONTAINS
                         buffer1(i + imax*(4 - 1)) = buffer1(i + imax*(4 - 1)) + buffer2(8 + (i - 1)*kmax)*sphi_c(8, 4 + s_offset_c1)
                         buffer1(i + imax*(6 - 1)) = buffer1(i + imax*(6 - 1)) + buffer2(8 + (i - 1)*kmax)*sphi_c(8, 6 + s_offset_c1)
                         buffer1(i + imax*(3 - 1)) = buffer1(i + imax*(3 - 1)) + buffer2(9 + (i - 1)*kmax)*sphi_c(9, 3 + s_offset_c1)
-                      buffer1(i + imax*(4 - 1)) = buffer1(i + imax*(4 - 1)) + buffer2(10 + (i - 1)*kmax)*sphi_c(10, 4 + s_offset_c1)
+                        buffer1(i + imax*(4 - 1)) = buffer1(i + imax*(4 - 1)) + buffer2(10 + (i - 1)*kmax)*sphi_c(10, 4 + &
+                                                                                                                  s_offset_c1)
                      END DO
                   CASE (15)
                      DO i = 1, imax
@@ -103660,16 +103674,26 @@ CONTAINS
                         buffer1(i + imax*(6 - 1)) = buffer1(i + imax*(6 - 1)) + buffer2(8 + (i - 1)*kmax)*sphi_c(8, 6 + s_offset_c1)
                         buffer1(i + imax*(8 - 1)) = buffer1(i + imax*(8 - 1)) + buffer2(8 + (i - 1)*kmax)*sphi_c(8, 8 + s_offset_c1)
                         buffer1(i + imax*(3 - 1)) = buffer1(i + imax*(3 - 1)) + buffer2(9 + (i - 1)*kmax)*sphi_c(9, 3 + s_offset_c1)
-                      buffer1(i + imax*(6 - 1)) = buffer1(i + imax*(6 - 1)) + buffer2(10 + (i - 1)*kmax)*sphi_c(10, 6 + s_offset_c1)
-                      buffer1(i + imax*(5 - 1)) = buffer1(i + imax*(5 - 1)) + buffer2(11 + (i - 1)*kmax)*sphi_c(11, 5 + s_offset_c1)
-                      buffer1(i + imax*(7 - 1)) = buffer1(i + imax*(7 - 1)) + buffer2(11 + (i - 1)*kmax)*sphi_c(11, 7 + s_offset_c1)
-                      buffer1(i + imax*(9 - 1)) = buffer1(i + imax*(9 - 1)) + buffer2(11 + (i - 1)*kmax)*sphi_c(11, 9 + s_offset_c1)
-                      buffer1(i + imax*(2 - 1)) = buffer1(i + imax*(2 - 1)) + buffer2(12 + (i - 1)*kmax)*sphi_c(12, 2 + s_offset_c1)
-                      buffer1(i + imax*(4 - 1)) = buffer1(i + imax*(4 - 1)) + buffer2(12 + (i - 1)*kmax)*sphi_c(12, 4 + s_offset_c1)
-                      buffer1(i + imax*(5 - 1)) = buffer1(i + imax*(5 - 1)) + buffer2(13 + (i - 1)*kmax)*sphi_c(13, 5 + s_offset_c1)
-                      buffer1(i + imax*(7 - 1)) = buffer1(i + imax*(7 - 1)) + buffer2(13 + (i - 1)*kmax)*sphi_c(13, 7 + s_offset_c1)
-                      buffer1(i + imax*(4 - 1)) = buffer1(i + imax*(4 - 1)) + buffer2(14 + (i - 1)*kmax)*sphi_c(14, 4 + s_offset_c1)
-                      buffer1(i + imax*(5 - 1)) = buffer1(i + imax*(5 - 1)) + buffer2(15 + (i - 1)*kmax)*sphi_c(15, 5 + s_offset_c1)
+                        buffer1(i + imax*(6 - 1)) = buffer1(i + imax*(6 - 1)) + buffer2(10 + (i - 1)*kmax)*sphi_c(10, 6 + &
+                                                                                                                  s_offset_c1)
+                        buffer1(i + imax*(5 - 1)) = buffer1(i + imax*(5 - 1)) + buffer2(11 + (i - 1)*kmax)*sphi_c(11, 5 + &
+                                                                                                                  s_offset_c1)
+                        buffer1(i + imax*(7 - 1)) = buffer1(i + imax*(7 - 1)) + buffer2(11 + (i - 1)*kmax)*sphi_c(11, 7 + &
+                                                                                                                  s_offset_c1)
+                        buffer1(i + imax*(9 - 1)) = buffer1(i + imax*(9 - 1)) + buffer2(11 + (i - 1)*kmax)*sphi_c(11, 9 + &
+                                                                                                                  s_offset_c1)
+                        buffer1(i + imax*(2 - 1)) = buffer1(i + imax*(2 - 1)) + buffer2(12 + (i - 1)*kmax)*sphi_c(12, 2 + &
+                                                                                                                  s_offset_c1)
+                        buffer1(i + imax*(4 - 1)) = buffer1(i + imax*(4 - 1)) + buffer2(12 + (i - 1)*kmax)*sphi_c(12, 4 + &
+                                                                                                                  s_offset_c1)
+                        buffer1(i + imax*(5 - 1)) = buffer1(i + imax*(5 - 1)) + buffer2(13 + (i - 1)*kmax)*sphi_c(13, 5 + &
+                                                                                                                  s_offset_c1)
+                        buffer1(i + imax*(7 - 1)) = buffer1(i + imax*(7 - 1)) + buffer2(13 + (i - 1)*kmax)*sphi_c(13, 7 + &
+                                                                                                                  s_offset_c1)
+                        buffer1(i + imax*(4 - 1)) = buffer1(i + imax*(4 - 1)) + buffer2(14 + (i - 1)*kmax)*sphi_c(14, 4 + &
+                                                                                                                  s_offset_c1)
+                        buffer1(i + imax*(5 - 1)) = buffer1(i + imax*(5 - 1)) + buffer2(15 + (i - 1)*kmax)*sphi_c(15, 5 + &
+                                                                                                                  s_offset_c1)
                      END DO
                   CASE DEFAULT
                      DO j = 1, jmax

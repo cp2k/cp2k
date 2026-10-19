@@ -171,9 +171,9 @@ CONTAINS
          col_offset = col_offsets(jatom)
       END IF
       ! The stored block is already in canonical atom order. Only the mirror changes sign.
-      !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,i_g,j_g) &
-      !$OMP SHARED(row_size, col_size, row_offset, col_offset, array_out, &
-      !$OMP dest_index, dest_index_t, block, iatom, jatom, transpose_sign)
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,i_g,j_g) &
+!$OMP SHARED(row_size, col_size, row_offset, col_offset, array_out, &
+!$OMP dest_index, dest_index_t, block, iatom, jatom, transpose_sign)
       DO i = 1, row_size
          i_g = i + row_offset - 1
          DO j = 1, col_size
@@ -182,7 +182,7 @@ CONTAINS
             IF (iatom /= jatom) array_out(j_g, i_g, dest_index_t) = transpose_sign*block(i, j)
          END DO
       END DO
-      !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
    END SUBROUTINE write_block_symmetric
 ! **************************************************************************************************
 !> \brief Write a single block from the dbcsr matrix to correct place, assuming no symmetry dbcsr
@@ -215,8 +215,8 @@ CONTAINS
       col_offset = col_offsets(jatom)
       CALL dbcsr_get_readonly_block_p(matrix_in, row=iatom, col=jatom, block=block, found=found, &
                                       row_size=row_size, col_size=col_size)
-      !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i, j, i_g, j_g) &
-      !$OMP SHARED(row_size, col_size, row_offset, col_offset, dest_index, block, array_out)
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i, j, i_g, j_g) &
+!$OMP SHARED(row_size, col_size, row_offset, col_offset, dest_index, block, array_out)
       DO i = 1, row_size
          i_g = i + row_offset - 1
          DO j = 1, col_size
@@ -224,7 +224,7 @@ CONTAINS
             array_out(i_g, j_g, dest_index) = block(i, j)
          END DO
       END DO
-      !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
    END SUBROUTINE write_block_no_sym
 ! **************************************************************************************************
 !> \brief Integrate RS matrices (stored as Fortran array) into a kpoint matrix at given kp

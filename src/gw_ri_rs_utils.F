@@ -299,11 +299,11 @@ CONTAINS
          CPASSERT(SIZE(dphi, 3) == SIZE(phi, 2))
       END IF
 
-      !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-      !$OMP SHARED(phi, dphi, grid_points, cell, basis, source_position, cutoff_squared, ncoset, indco) &
-      !$OMP PRIVATE(ipoint, relative, radius2, iset, n_cart_total, ishell, l, istart_co, &
-      !$OMP         iend_co, first_sgf, last_sgf, ipgf, exponent, exponential, isgf, ico, &
-      !$OMP         irow, weight, lx, ly, lz, polynomial, polynomial_derivative, ialpha)
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP SHARED(phi, dphi, grid_points, cell, basis, source_position, cutoff_squared, ncoset, indco) &
+!$OMP PRIVATE(ipoint, relative, radius2, iset, n_cart_total, ishell, l, istart_co, &
+!$OMP         iend_co, first_sgf, last_sgf, ipgf, exponent, exponential, isgf, ico, &
+!$OMP         irow, weight, lx, ly, lz, polynomial, polynomial_derivative, ialpha)
       DO ipoint = 1, SIZE(grid_points, 2)
          relative = pbc(grid_points(:, ipoint) - source_position, cell)
          radius2 = DOT_PRODUCT(relative, relative)
@@ -352,7 +352,7 @@ CONTAINS
             END DO
          END DO
       END DO
-      !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
    END SUBROUTINE evaluate_ao_basis_on_points
 
 END MODULE gw_ri_rs_utils

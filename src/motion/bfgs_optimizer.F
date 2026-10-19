@@ -601,7 +601,7 @@ CONTAINS
 
       CALL cp_fm_get_info(hess_mat, row_indices=rows, col_indices=cols, &
                           local_data=DATA, nrow_local=nr, ncol_local=nc)
-      !$OMP PARALLEL DO DEFAULT(NONE) SHARED(nc,nr,rows,cols,data,coeff,rho,secant,work) PRIVATE(i,j,ig,jg)
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(nc,nr,rows,cols,data,coeff,rho,secant,work) PRIVATE(i,j,ig,jg)
       DO j = 1, nc
          jg = cols(j)
          DO i = 1, nr
@@ -610,7 +610,7 @@ CONTAINS
                          rho*(secant(ig)*work(jg) + work(ig)*secant(jg))
          END DO
       END DO
-      !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
       invalid = 0
       IF (.NOT. ALL(ieee_is_finite(DATA(1:nr, 1:nc)))) invalid = 1
       CALL hess_mat%matrix_struct%para_env%max(invalid)

@@ -43,7 +43,8 @@ PROGRAM xyz2dcd
    REAL(KIND=dp), PARAMETER :: degree = 180.0_dp/pi                   ! [rad]  -> [degree]
 
    ! Variables
-  CHARACTER(LEN=default_string_length)               :: arg, cell_file_name, dcd_file_name, message, remark1, remark2, remark_xyz, &
+   CHARACTER(LEN=default_string_length)               :: arg, cell_file_name, dcd_file_name, message, remark1, remark2, &
+                                                         remark_xyz, &
                                                          string, xyz_file_name
    CHARACTER(LEN=5), DIMENSION(:), ALLOCATABLE        :: atomic_label
    CHARACTER(LEN=80), DIMENSION(2)                    :: remark_dcd

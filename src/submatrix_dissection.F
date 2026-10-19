@@ -323,10 +323,10 @@ CONTAINS
       ! Figure out which blocks we need to receive. Blocks are identified here as indices into our COO representation.
       ! TODO: This currently shows limited parallel efficiency. Investigate further.
 
-      !$OMP PARALLEL DEFAULT(NONE) &
-      !$OMP          NUM_THREADS(numthreads) &
-      !$OMP          PRIVATE(i,j,k,l,m,l_limit_left,l_limit_right,cur_col,cur_row,mytid) &
-      !$OMP          SHARED(result_blocks_from_rank_t,result_blocks_for_rank_t,blocks_from_rank_t,this,numthreads,nonzero_rows_t)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP          NUM_THREADS(numthreads) &
+!$OMP          PRIVATE(i,j,k,l,m,l_limit_left,l_limit_right,cur_col,cur_row,mytid) &
+!$OMP          SHARED(result_blocks_from_rank_t,result_blocks_for_rank_t,blocks_from_rank_t,this,numthreads,nonzero_rows_t)
       mytid = 0
 !$    mytid = omp_get_thread_num()
 
@@ -335,7 +335,7 @@ CONTAINS
                 result_blocks_for_rank_t(mytid)%sets(0:this%numnodes - 1), &
                 blocks_from_rank_t(mytid)%sets(0:this%numnodes - 1))
 
-      !$OMP DO schedule(guided)
+!$OMP DO schedule(guided)
       DO i = 1, this%number_of_submatrices
          CALL nonzero_rows_t(mytid)%sets(1)%reset
          DO j = (i - 1)*this%cols_per_sm + 1, i*this%cols_per_sm            ! all colums that determine submatrix i
@@ -380,8 +380,8 @@ CONTAINS
             END DO
          END DO
       END DO
-      !$OMP END DO
-      !$OMP END PARALLEL
+!$OMP END DO
+!$OMP END PARALLEL
 
       ! Merge partial results from threads
       DO i = 0, this%numnodes - 1

@@ -3914,7 +3914,8 @@ CONTAINS
                               ! use f0, f1, g0
                               step_size_quadratic_approx = -(gfun0*step_size*step_size)/(2.0_dp*(fun1 - fun0 - gfun0*step_size))
                               ! use f0, f1, g1
-                             step_size_quadratic_approx2 = -(fun1 - fun0 - step_size*gfun1/2.0_dp)/(gfun1 - (fun1 - fun0)/step_size)
+                              step_size_quadratic_approx2 = -(fun1 - fun0 - step_size*gfun1/2.0_dp)/(gfun1 - (fun1 - &
+                                                                                                              fun0)/step_size)
 
                               IF ((step_size_quadratic_approx < 0.0_dp) .AND. &
                                   (step_size_quadratic_approx2 < 0.0_dp)) THEN

@@ -439,8 +439,10 @@ CONTAINS
                   WRITE (UNIT=io_unit, FMT="(T16,A,T71,F10.3)") "3rd Order constant", xgamma
                   WRITE (UNIT=io_unit, FMT="(T16,A,T61,2F10.3)") "Repulsion potential [Z,alpha]", zneff, alpha
                   IF (have_sp) THEN
-                    WRITE (UNIT=io_unit, FMT="(T16,A,T51,3F10.4)") "Spin Polarisation Wss sp pp", wall(1, 1), wall(1, 2), wall(2, 2)
-                    WRITE (UNIT=io_unit, FMT="(T16,A,T51,3F10.4)") "                  Wsd pd dd", wall(1, 3), wall(2, 3), wall(3, 3)
+                     WRITE (UNIT=io_unit, FMT="(T16,A,T51,3F10.4)") "Spin Polarisation Wss sp pp", wall(1, 1), wall(1, &
+                                                                                                                    2), wall(2, 2)
+                     WRITE (UNIT=io_unit, FMT="(T16,A,T51,3F10.4)") "                  Wsd pd dd", wall(1, 3), wall(2, &
+                                                                                                                    3), wall(3, 3)
                   END IF
                ELSE
                   WRITE (UNIT=io_unit, FMT="(T55,A)") "Parameters are not defined"

@@ -4079,7 +4079,8 @@ CONTAINS
 
                END DO
 
-              delta = (Eigenval_scf(n_level_gw_ref) + vec_Sigma_x_minus_vxc_gw(n_level_gw_ref) + REAL(func_val) - level_energ_GW)/ &
+               delta = (Eigenval_scf(n_level_gw_ref) + vec_Sigma_x_minus_vxc_gw(n_level_gw_ref) + REAL(func_val) - &
+                        level_energ_GW)/ &
                        deriv_val_real
 
                level_energ_GW = level_energ_GW - delta

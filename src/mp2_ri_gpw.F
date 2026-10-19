@@ -340,7 +340,8 @@ CONTAINS
                            CALL dgemm_counter_start(dgemm_counter)
                            CALL mp2_env%local_gemm_ctx%gemm('T', 'N', my_B_size(ispin), my_B_size(jspin), dimen_RI, 1.0_dp, &
                                                             my_local_i_aL, dimen_RI, my_local_j_aL, dimen_RI, &
-                                                           0.0_dp, local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), &
+                                                            0.0_dp, &
+                                                            local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), &
                                                             my_B_size(ispin))
                            ! Additional integrals only for alpha_beta case and forces
                            IF (my_alpha_beta_case .AND. calc_forces) THEN
@@ -380,7 +381,8 @@ CONTAINS
 
                                  CALL mp2_env%local_gemm_ctx%gemm('T', 'N', rec_B_size, my_B_size(ispin), dimen_RI, 1.0_dp, &
                                                                   external_i_aL, dimen_RI, my_local_i_aL, dimen_RI, &
-                                            0.0_dp, local_ba(rec_B_virtual_start:rec_B_virtual_end, 1:my_B_size(ispin)), rec_B_size)
+                                                                  0.0_dp, local_ba(rec_B_virtual_start:rec_B_virtual_end, &
+                                                                                   1:my_B_size(ispin)), rec_B_size)
                               END IF
                            END DO
                            IF (my_alpha_beta_case .AND. calc_forces) THEN
@@ -418,10 +420,12 @@ CONTAINS
                                  DO a = 1, my_B_size(ispin)
                                     a_global = a + my_B_virtual_start(ispin) - 1
                                     my_Emp2_Ex = my_Emp2_Ex + sym_fac*local_ab(a_global, b)*local_ab(b_global, a)/ &
-                                              (Eigenval(homo(ispin) + a_global, ispin) + Eigenval(homo(ispin) + b_global, ispin) - &
+                                                 (Eigenval(homo(ispin) + a_global, ispin) + Eigenval(homo(ispin) + &
+                                                                                                     b_global, ispin) - &
                                                   Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
                                     IF (calc_forces .AND. (.NOT. my_alpha_beta_case)) THEN
-                                     t_ab(a_global, b) = -(amp_fac*local_ab(a_global, b) - mp2_env%scale_T*local_ab(b_global, a))/ &
+                                       t_ab(a_global, b) = -(amp_fac*local_ab(a_global, b) - &
+                                                             mp2_env%scale_T*local_ab(b_global, a))/ &
                                                            (Eigenval(homo(ispin) + a_global, ispin) + &
                                                             Eigenval(homo(ispin) + b_global, ispin) - &
                                                             Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
@@ -442,7 +446,8 @@ CONTAINS
                                     buffer_1D(1:INT(rec_B_size, int_8)*my_B_size(ispin))
                                  external_ab = 0.0_dp
 
-                      CALL para_env_sub%sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size(ispin)), proc_send, &
+                                 CALL para_env_sub%sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size(ispin)), &
+                                                            proc_send, &
                                                             external_ab(1:my_B_size(ispin), 1:rec_B_size), proc_receive, tag)
 
                                  DO b = 1, my_B_size(ispin)
@@ -450,10 +455,12 @@ CONTAINS
                                     DO a = 1, rec_B_size
                                        a_global = a + rec_B_virtual_start - 1
                                        my_Emp2_Ex = my_Emp2_Ex + sym_fac*local_ab(a_global, b)*external_ab(b, a)/ &
-                                              (Eigenval(homo(ispin) + a_global, ispin) + Eigenval(homo(ispin) + b_global, ispin) - &
+                                                    (Eigenval(homo(ispin) + a_global, ispin) + Eigenval(homo(ispin) + &
+                                                                                                        b_global, ispin) - &
                                                      Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
                                        IF (calc_forces .AND. (.NOT. my_alpha_beta_case)) THEN
-                                         t_ab(a_global, b) = -(amp_fac*local_ab(a_global, b) - mp2_env%scale_T*external_ab(b, a))/ &
+                                          t_ab(a_global, b) = -(amp_fac*local_ab(a_global, b) - &
+                                                                mp2_env%scale_T*external_ab(b, a))/ &
                                                               (Eigenval(homo(ispin) + a_global, ispin) + &
                                                                Eigenval(homo(ispin) + b_global, ispin) - &
                                                                Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
@@ -1677,14 +1684,16 @@ CONTAINS
       ELSE
          CALL mp2_env%local_gemm_ctx%gemm('T', 'N', my_B_size(ispin), my_B_size(ispin), virtual(jspin), mp2_env%scale_S, &
                                           local_ba, virtual(jspin), local_ba, virtual(jspin), 1.0_dp, &
-                          mp2_env%ri_grad%P_ab(ispin)%array(:, my_B_virtual_start(ispin):my_B_virtual_end(ispin)), my_B_size(ispin))
+                                          mp2_env%ri_grad%P_ab(ispin)%array(:, my_B_virtual_start(ispin):my_B_virtual_end(ispin)), &
+                                          my_B_size(ispin))
 
          mp2_env%ri_grad%P_ij(ispin)%array(my_i + iiB - 1, my_i + iiB - 1) = &
             mp2_env%ri_grad%P_ij(ispin)%array(my_i + iiB - 1, my_i + iiB - 1) + P_ij_diag
 
          CALL mp2_env%local_gemm_ctx%gemm('T', 'N', my_B_size(jspin), my_B_size(jspin), virtual(ispin), mp2_env%scale_S, &
                                           local_ab, virtual(ispin), local_ab, virtual(ispin), 1.0_dp, &
-                          mp2_env%ri_grad%P_ab(jspin)%array(:, my_B_virtual_start(jspin):my_B_virtual_end(jspin)), my_B_size(jspin))
+                                          mp2_env%ri_grad%P_ab(jspin)%array(:, my_B_virtual_start(jspin):my_B_virtual_end(jspin)), &
+                                          my_B_size(jspin))
 
          mp2_env%ri_grad%P_ij(jspin)%array(my_j + jjB - 1, my_j + jjB - 1) = &
             mp2_env%ri_grad%P_ij(jspin)%array(my_j + jjB - 1, my_j + jjB - 1) + P_ij_diag
@@ -1718,7 +1727,8 @@ CONTAINS
          IF (.NOT. (alpha_beta)) THEN
             CALL mp2_env%local_gemm_ctx%gemm('T', 'N', my_B_size(ispin), rec_B_size, virtual(ispin), 1.0_dp, &
                                              t_ab, virtual(ispin), external_ab, virtual(ispin), &
-                              1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size(ispin))
+                                             1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array(:, rec_B_virtual_start:rec_B_virtual_end), &
+                                             my_B_size(ispin))
          ELSE
             CALL mp2_env%local_gemm_ctx%gemm('T', 'N', my_B_size(jspin), rec_B_size, virtual(ispin), mp2_env%scale_S, &
                                              local_ab, virtual(ispin), external_ab, virtual(ispin), &
@@ -1735,7 +1745,8 @@ CONTAINS
                                        external_ab, proc_receive)
             CALL mp2_env%local_gemm_ctx%gemm('T', 'N', my_B_size(ispin), rec_B_size, virtual(jspin), mp2_env%scale_S, &
                                              local_ba, virtual(jspin), external_ab, virtual(jspin), &
-                              1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size(ispin))
+                                             1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array(:, rec_B_virtual_start:rec_B_virtual_end), &
+                                             my_B_size(ispin))
          END IF
 
          IF ((my_i /= my_j) .AND. (.NOT. alpha_beta)) THEN
@@ -2331,7 +2342,8 @@ CONTAINS
                   local_ab = 0.0_dp
                   CALL mp2_env%local_gemm_ctx%gemm('T', 'N', size_B_i, size_B_k, dimen_RI, 1.0_dp, &
                                                    local_aL_i, dimen_RI, local_aL_k(:, :, kkB), dimen_RI, &
-                                          0.0_dp, local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), 1:size_B_k), size_B_i)
+                                                   0.0_dp, local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), &
+                                                                    1:size_B_k), size_B_i)
                   DO proc_shift = 1, para_env_sub%num_pe - 1
                      proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
                      proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
@@ -2345,7 +2357,8 @@ CONTAINS
 
                      CALL mp2_env%local_gemm_ctx%gemm('T', 'N', rec_B_size, size_B_k, dimen_RI, 1.0_dp, &
                                                       external_aL, dimen_RI, local_aL_k(:, :, kkB), dimen_RI, &
-                                                    0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:size_B_k), rec_B_size)
+                                                      0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:size_B_k), &
+                                                      rec_B_size)
                   END DO
                   CALL dgemm_counter_stop(dgemm_counter, my_virtual, size_B_k, dimen_RI)
                   CALL timestop(handle2)
@@ -2406,7 +2419,8 @@ CONTAINS
                   CALL dgemm_counter_start(dgemm_counter)
                   CALL mp2_env%local_gemm_ctx%gemm('T', 'N', size_B_i, size_B_k, dimen_RI, 1.0_dp, &
                                                    local_aL_j, dimen_RI, local_aL_k(:, :, kkB), dimen_RI, &
-                                          0.0_dp, local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), 1:size_B_k), size_B_i)
+                                                   0.0_dp, local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), &
+                                                                    1:size_B_k), size_B_i)
                   DO proc_shift = 1, para_env_sub%num_pe - 1
                      proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
                      proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
@@ -2419,7 +2433,8 @@ CONTAINS
                                                  external_aL, proc_receive, tag)
                      CALL mp2_env%local_gemm_ctx%gemm('T', 'N', rec_B_size, size_B_k, dimen_RI, 1.0_dp, &
                                                       external_aL, dimen_RI, local_aL_k(:, :, kkB), dimen_RI, &
-                                                    0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:size_B_k), rec_B_size)
+                                                      0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:size_B_k), &
+                                                      rec_B_size)
                   END DO
                   CALL dgemm_counter_stop(dgemm_counter, my_virtual, size_B_k, dimen_RI)
                   CALL timestop(handle2)
@@ -2431,7 +2446,8 @@ CONTAINS
                         a_global = a + my_B_virtual_start(ispin) - 1
                         local_ab(a_global, b) = &
                            local_ab(a_global, b)/(Eigenval(my_j, ispin) + Eigenval(my_k + kkB - 1, kspin) &
-                                                - Eigenval(homo(ispin) + a_global, ispin) - Eigenval(homo(kspin) + b_global, kspin))
+                                                  - Eigenval(homo(ispin) + a_global, ispin) - Eigenval(homo(kspin) + &
+                                                                                                       b_global, kspin))
                      END DO
                   END DO
                   !

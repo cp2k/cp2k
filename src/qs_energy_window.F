@@ -230,7 +230,8 @@ CONTAINS
          CALL choose_eigv_solver(P_window_fm, window_eigenvectors, window_eigenvalues)
          DO i = 1, nao
             IF (unit_nr > 0) THEN
-              WRITE (unit_nr, *) i, "H:", eigenvalues(i), "P:", P_eigenvalues(nao - i + 1), "Pnew:", window_eigenvalues(nao - i + 1)
+               WRITE (unit_nr, *) i, "H:", eigenvalues(i), "P:", P_eigenvalues(nao - i + 1), "Pnew:", &
+                  window_eigenvalues(nao - i + 1)
             END IF
          END DO
          DEALLOCATE (P_eigenvalues)

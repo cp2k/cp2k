@@ -473,7 +473,8 @@ CONTAINS
                           description="Specifies the electronic structure method that should be employed", &
                           usage="METHOD GAPW", &
                           enum_c_vals=s2a("GAPW", "GAPW_XC", "GPW", "LRIGPW", "RIGPW", &
-                                    "MNDO", "MNDOD", "AM1", "PM3", "PM6", "PM6-FM", "PDG", "RM1", "PNNL", "DFTB", "xTB", "OFGPW"), &
+                                          "MNDO", "MNDOD", "AM1", "PM3", "PM6", "PM6-FM", "PDG", "RM1", "PNNL", "DFTB", "xTB", &
+                                          "OFGPW"), &
                           enum_desc=s2a("Gaussian and augmented plane waves method", &
                                         "Gaussian and augmented plane waves method only for XC", &
                                         "Gaussian and plane waves method", &

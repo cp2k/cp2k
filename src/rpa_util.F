@@ -714,8 +714,8 @@ CONTAINS
       IF (first_cycle) THEN
          ! In this case just update the matrix (symmetric form) with
          ! SQRT((epsi_a-epsi_i)/((epsi_a-epsi_i)**2+omega**2))
-         !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(iiB,iocc,avirt,eigen_diff,i_global) &
-         !$OMP             SHARED(ncol_local,col_indices,Eigenval,fm_mat_S,virtual,homo,omega)
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(iiB,iocc,avirt,eigen_diff,i_global) &
+!$OMP             SHARED(ncol_local,col_indices,Eigenval,fm_mat_S,virtual,homo,omega)
          DO iiB = 1, ncol_local
             i_global = col_indices(iiB)
 
@@ -730,8 +730,8 @@ CONTAINS
       ELSE
          ! In this case the update has to remove the old omega component thus
          ! SQRT(((epsi_a-epsi_i)**2+omega_old**2)/((epsi_a-epsi_i)**2+omega**2))
-         !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(iiB,iocc,avirt,eigen_diff,i_global) &
-         !$OMP             SHARED(ncol_local,col_indices,Eigenval,fm_mat_S,virtual,homo,omega,omega_old)
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(iiB,iocc,avirt,eigen_diff,i_global) &
+!$OMP             SHARED(ncol_local,col_indices,Eigenval,fm_mat_S,virtual,homo,omega,omega_old)
          DO iiB = 1, ncol_local
             i_global = col_indices(iiB)
 

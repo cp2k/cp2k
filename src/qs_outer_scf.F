@@ -247,7 +247,8 @@ CONTAINS
                ! e.g. the ddpac_constraint, one maximizes the function, so the stepsize might have
                ! to be negative
                scf_env%outer_scf%variables(:, ihistory + 1) = scf_env%outer_scf%variables(:, ihistory) - &
-                                                             scf_control%outer_scf%step_size*scf_env%outer_scf%gradient(:, ihistory)
+                                                              scf_control%outer_scf%step_size*scf_env%outer_scf%gradient(:, &
+                                                                                                                         ihistory)
             CASE (outer_scf_optimizer_diis)
                CPASSERT(scf_control%outer_scf%diis_buffer_length > 0)
                ! set up DIIS matrix

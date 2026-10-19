@@ -118,10 +118,10 @@ CONTAINS
       END IF
 
       ALLOCATE (ri_rs_grid_points(3, bs_env%ri_rs%n_grid_points))
-      !$OMP PARALLEL DO DEFAULT(NONE) &
-      !$OMP SHARED(ri_rs_grid_points, atom_grid_offsets, bs_env, natom) &
-      !$OMP PRIVATE(iatom, atom_center, atom_grid_start, atom_grid_end) &
-      !$OMP SCHEDULE(DYNAMIC, 1)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(ri_rs_grid_points, atom_grid_offsets, bs_env, natom) &
+!$OMP PRIVATE(iatom, atom_center, atom_grid_start, atom_grid_end) &
+!$OMP SCHEDULE(DYNAMIC, 1)
       DO iatom = 1, natom
          atom_center(:) = bs_env%ri_rs%particle_set(iatom)%r(:)
          atom_grid_start = atom_grid_offsets(iatom)
@@ -134,7 +134,7 @@ CONTAINS
          ri_rs_grid_points(3, atom_grid_start:atom_grid_end) = &
             bs_env%ri_rs%atomic_grids(iatom)%raw_points(3, :) + atom_center(3)
       END DO
-      !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
    END SUBROUTINE assemble_ri_rs_grid_points
 
 ! **************************************************************************************************

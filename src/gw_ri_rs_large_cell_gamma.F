@@ -376,14 +376,14 @@ CONTAINS
 
       r_atom = particle_set(iatom)%r
 
-      !$OMP PARALLEL DO DEFAULT(NONE) &
-      !$OMP SHARED(phi_val, ri_rs_grid, npts, orb_basis_set, r_atom, hmat, &
-      !$OMP        ncoset, indco, cell, ix_min, ix_max, &
-      !$OMP        iy_min, iy_max, iz_min, iz_max, r2_threshold) &
-      !$OMP PRIVATE(i_pt, dist_vec_raw, ix, iy, iz, cell_vector, dist_vec, r2, iset, &
-      !$OMP         n_cart_total, ishell, l, istart_co, iend_co, first_sgf, last_sgf, &
-      !$OMP         ipgf, alpha, exp_val, isgf, ico, row_idx, weight, lx, ly, lz, poly) &
-      !$OMP SCHEDULE(DYNAMIC)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(phi_val, ri_rs_grid, npts, orb_basis_set, r_atom, hmat, &
+!$OMP        ncoset, indco, cell, ix_min, ix_max, &
+!$OMP        iy_min, iy_max, iz_min, iz_max, r2_threshold) &
+!$OMP PRIVATE(i_pt, dist_vec_raw, ix, iy, iz, cell_vector, dist_vec, r2, iset, &
+!$OMP         n_cart_total, ishell, l, istart_co, iend_co, first_sgf, last_sgf, &
+!$OMP         ipgf, alpha, exp_val, isgf, ico, row_idx, weight, lx, ly, lz, poly) &
+!$OMP SCHEDULE(DYNAMIC)
 
       DO i_pt = 1, npts
 
@@ -436,7 +436,7 @@ CONTAINS
          END DO
          END DO
       END DO
-      !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
 
       CALL timestop(handle)
 
@@ -785,12 +785,12 @@ CONTAINS
       IF (bs_env%ri_rs%cell%perd(3) == 1) THEN; iz_min = -1; iz_max = 1; ELSE; iz_min = 0; iz_max = 0
       END IF
 
-      !$OMP PARALLEL DEFAULT(NONE) &
-      !$OMP SHARED(bs_env, ctx, phi_val, d_lp, n_grid_total, n_loc_ri, atom_P, max_ao_size, &
-      !$OMP        natom, ix_min, ix_max, iy_min, iy_max, iz_min, iz_max) &
-      !$OMP PRIVATE(any_kept, atom_j, atom_k, c, handle_dgemm, j, jk_idx, jsize, jstart, k, &
-      !$OMP         ksize, kstart, l, l0, ri, ix_R, iy_R, iz_R, ix_S, iy_S, iz_S, cell_R_vec, &
-      !$OMP         cell_S_vec, screened, d_lp_prv, int_2d_prv, rho_chunk, int_3c_prv, int_3c_sum, ws)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(bs_env, ctx, phi_val, d_lp, n_grid_total, n_loc_ri, atom_P, max_ao_size, &
+!$OMP        natom, ix_min, ix_max, iy_min, iy_max, iz_min, iz_max) &
+!$OMP PRIVATE(any_kept, atom_j, atom_k, c, handle_dgemm, j, jk_idx, jsize, jstart, k, &
+!$OMP         ksize, kstart, l, l0, ri, ix_R, iy_R, iz_R, ix_S, iy_S, iz_S, cell_R_vec, &
+!$OMP         cell_S_vec, screened, d_lp_prv, int_2d_prv, rho_chunk, int_3c_prv, int_3c_sum, ws)
 
       CALL gw_3c_ws_create(ws, ctx)
       ALLOCATE (int_3c_prv(max_ao_size, max_ao_size, n_loc_ri))
@@ -805,7 +805,7 @@ CONTAINS
       ! image triples (one or both AO atoms beyond the truncated-Coulomb reach of atom_P),
       ! so the 27 × 27 = 729 candidate cells collapse to "adjacent cells" in practice.
       ! The inner atom_k loop carries enough work for DYNAMIC.
-      !$OMP DO SCHEDULE(DYNAMIC)
+!$OMP DO SCHEDULE(DYNAMIC)
       DO atom_j = 1, natom
          DO atom_k = 1, natom
             jstart = bs_env%i_ao_start_from_atom(atom_j)
@@ -879,17 +879,17 @@ CONTAINS
             END DO
          END DO
       END DO
-      !$OMP END DO
+!$OMP END DO
 
-      !$OMP CRITICAL (compute_d_lp_reduce)
+!$OMP CRITICAL (compute_d_lp_reduce)
       d_lp(1:n_grid_total, 1:n_loc_ri) = d_lp(1:n_grid_total, 1:n_loc_ri) + &
                                          d_lp_prv(1:n_grid_total, 1:n_loc_ri)
-      !$OMP END CRITICAL (compute_d_lp_reduce)
+!$OMP END CRITICAL (compute_d_lp_reduce)
 
       DEALLOCATE (int_3c_prv, int_3c_sum, int_2d_prv, rho_chunk, d_lp_prv)
       CALL gw_3c_ws_release(ws)
 
-      !$OMP END PARALLEL
+!$OMP END PARALLEL
 
       CALL timestop(handle)
 

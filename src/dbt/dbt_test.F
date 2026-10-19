@@ -500,308 +500,308 @@ CONTAINS
          IF (ndim == ${ndim}$) THEN
             #:for idim in range(ndim,0,-1)
                DO i_${idim}$ = 1, blk_size(${idim}$)
-                  #:endfor
-                  arr_ind(:) = [${varlist("i", nmax=ndim)}$]
-                  tens_ind(:) = arr_ind(:) + blk_offset(:) - 1
-                  blk_${ndim}$ (${arrlist("arr_ind", nmax=ndim)}$) = combine_tensor_index(tens_ind, tensor_size)
-                  #:for idim in range(ndim,0,-1)
-                     END DO
-                  #:endfor
-               END IF
+               #:endfor
+               arr_ind(:) = [${varlist("i", nmax=ndim)}$]
+               tens_ind(:) = arr_ind(:) + blk_offset(:) - 1
+               blk_${ndim}$ (${arrlist("arr_ind", nmax=ndim)}$) = combine_tensor_index(tens_ind, tensor_size)
+               #:for idim in range(ndim,0,-1)
+               END DO
             #:endfor
+         END IF
+      #:endfor
 
-         END SUBROUTINE enumerate_block_elements
+   END SUBROUTINE enumerate_block_elements
 
-         #:for ndim in ndims
+   #:for ndim in ndims
 ! **************************************************************************************************
 !> \brief Transform a distributed sparse tensor to a replicated dense array. This is only useful for
 !>        testing tensor contraction by matrix multiplication of dense arrays.
 !> \author Patrick Seewald
 ! **************************************************************************************************
-            SUBROUTINE dist_sparse_tensor_to_repl_dense_${ndim}$d_array(tensor, array)
+      SUBROUTINE dist_sparse_tensor_to_repl_dense_${ndim}$d_array(tensor, array)
 
-               TYPE(dbt_type), INTENT(INOUT)                          :: tensor
-               REAL(dp), ALLOCATABLE, DIMENSION(${shape_colon(ndim)}$), &
-                  INTENT(OUT)                                             :: array
-               REAL(dp), ALLOCATABLE, DIMENSION(${shape_colon(ndim)}$)   :: block
-               INTEGER, DIMENSION(ndims_tensor(tensor))                  :: dims_nd, ind_nd, blk_size, blk_offset
-               TYPE(dbt_iterator_type)                                     :: iterator
-               INTEGER                                                    :: idim
-               INTEGER, DIMENSION(ndims_tensor(tensor))                   :: blk_start, blk_end
-               LOGICAL                                                    :: found
+         TYPE(dbt_type), INTENT(INOUT)                          :: tensor
+         REAL(dp), ALLOCATABLE, DIMENSION(${shape_colon(ndim)}$), &
+            INTENT(OUT)                                             :: array
+         REAL(dp), ALLOCATABLE, DIMENSION(${shape_colon(ndim)}$)   :: block
+         INTEGER, DIMENSION(ndims_tensor(tensor))                  :: dims_nd, ind_nd, blk_size, blk_offset
+         TYPE(dbt_iterator_type)                                     :: iterator
+         INTEGER                                                    :: idim
+         INTEGER, DIMENSION(ndims_tensor(tensor))                   :: blk_start, blk_end
+         LOGICAL                                                    :: found
 
-               CPASSERT(ndims_tensor(tensor) == ${ndim}$)
-               CALL dbt_get_info(tensor, nfull_total=dims_nd)
-               CALL allocate_any(array, shape_spec=dims_nd)
-               array(${shape_colon(ndim)}$) = 0.0_dp
+         CPASSERT(ndims_tensor(tensor) == ${ndim}$)
+         CALL dbt_get_info(tensor, nfull_total=dims_nd)
+         CALL allocate_any(array, shape_spec=dims_nd)
+         array(${shape_colon(ndim)}$) = 0.0_dp
 
 !$OMP PARALLEL DEFAULT(NONE) SHARED(tensor,array) &
 !$OMP PRIVATE(iterator,ind_nd,blk_size,blk_offset,block,found,idim,blk_start,blk_end)
-               CALL dbt_iterator_start(iterator, tensor)
-               DO WHILE (dbt_iterator_blocks_left(iterator))
-                  CALL dbt_iterator_next_block(iterator, ind_nd, blk_size=blk_size, blk_offset=blk_offset)
-                  CALL dbt_get_block(tensor, ind_nd, block, found)
-                  CPASSERT(found)
+         CALL dbt_iterator_start(iterator, tensor)
+         DO WHILE (dbt_iterator_blocks_left(iterator))
+            CALL dbt_iterator_next_block(iterator, ind_nd, blk_size=blk_size, blk_offset=blk_offset)
+            CALL dbt_get_block(tensor, ind_nd, block, found)
+            CPASSERT(found)
 
-                  DO idim = 1, ndims_tensor(tensor)
-                     blk_start(idim) = blk_offset(idim)
-                     blk_end(idim) = blk_offset(idim) + blk_size(idim) - 1
-                  END DO
-                  array(${", ".join(["blk_start("+str(idim)+"):blk_end("+str(idim)+")" for idim in range(1, ndim + 1)])}$) = &
-                     block(${shape_colon(ndim)}$)
+            DO idim = 1, ndims_tensor(tensor)
+               blk_start(idim) = blk_offset(idim)
+               blk_end(idim) = blk_offset(idim) + blk_size(idim) - 1
+            END DO
+            array(${", ".join(["blk_start("+str(idim)+"):blk_end("+str(idim)+")" for idim in range(1, ndim + 1)])}$) = &
+               block(${shape_colon(ndim)}$)
 
-                  DEALLOCATE (block)
-               END DO
-               CALL dbt_iterator_stop(iterator)
+            DEALLOCATE (block)
+         END DO
+         CALL dbt_iterator_stop(iterator)
 !$OMP END PARALLEL
-               CALL tensor%pgrid%mp_comm_2d%sum(array)
+         CALL tensor%pgrid%mp_comm_2d%sum(array)
 
-            END SUBROUTINE dist_sparse_tensor_to_repl_dense_${ndim}$d_array
-         #:endfor
+      END SUBROUTINE dist_sparse_tensor_to_repl_dense_${ndim}$d_array
+   #:endfor
 
 ! **************************************************************************************************
 !> \brief test tensor contraction
 !> \note for testing/debugging, simply replace a call to dbt_contract with a call to this routine
 !> \author Patrick Seewald
 ! **************************************************************************************************
-         SUBROUTINE dbt_contract_test(alpha, tensor_1, tensor_2, beta, tensor_3, &
-                                      contract_1, notcontract_1, &
-                                      contract_2, notcontract_2, &
-                                      map_1, map_2, &
-                                      unit_nr, &
-                                      bounds_1, bounds_2, bounds_3, &
-                                      log_verbose, write_int)
+   SUBROUTINE dbt_contract_test(alpha, tensor_1, tensor_2, beta, tensor_3, &
+                                contract_1, notcontract_1, &
+                                contract_2, notcontract_2, &
+                                map_1, map_2, &
+                                unit_nr, &
+                                bounds_1, bounds_2, bounds_3, &
+                                log_verbose, write_int)
 
-            REAL(dp), INTENT(IN) :: alpha
-            TYPE(dbt_type), INTENT(INOUT)    :: tensor_1, tensor_2, tensor_3
-            REAL(dp), INTENT(IN) :: beta
-            INTEGER, DIMENSION(:), INTENT(IN)    :: contract_1, contract_2, &
-                                                    notcontract_1, notcontract_2, &
-                                                    map_1, map_2
-            INTEGER, INTENT(IN)                  :: unit_nr
-            INTEGER, DIMENSION(2, SIZE(contract_1)), &
-               OPTIONAL                          :: bounds_1
-            INTEGER, DIMENSION(2, SIZE(notcontract_1)), &
-               OPTIONAL                          :: bounds_2
-            INTEGER, DIMENSION(2, SIZE(notcontract_2)), &
-               OPTIONAL                          :: bounds_3
-            LOGICAL, INTENT(IN), OPTIONAL        :: log_verbose
-            LOGICAL, INTENT(IN), OPTIONAL        :: write_int
-            INTEGER                              :: io_unit, mynode
-            TYPE(mp_comm_type) :: mp_comm
-            INTEGER, DIMENSION(:), ALLOCATABLE   :: size_1, size_2, size_3, &
-                                                    order_t1, order_t2, order_t3
-            INTEGER, DIMENSION(2, ndims_tensor(tensor_1)) :: bounds_t1
-            INTEGER, DIMENSION(2, ndims_tensor(tensor_2)) :: bounds_t2
+      REAL(dp), INTENT(IN) :: alpha
+      TYPE(dbt_type), INTENT(INOUT)    :: tensor_1, tensor_2, tensor_3
+      REAL(dp), INTENT(IN) :: beta
+      INTEGER, DIMENSION(:), INTENT(IN)    :: contract_1, contract_2, &
+                                              notcontract_1, notcontract_2, &
+                                              map_1, map_2
+      INTEGER, INTENT(IN)                  :: unit_nr
+      INTEGER, DIMENSION(2, SIZE(contract_1)), &
+         OPTIONAL                          :: bounds_1
+      INTEGER, DIMENSION(2, SIZE(notcontract_1)), &
+         OPTIONAL                          :: bounds_2
+      INTEGER, DIMENSION(2, SIZE(notcontract_2)), &
+         OPTIONAL                          :: bounds_3
+      LOGICAL, INTENT(IN), OPTIONAL        :: log_verbose
+      LOGICAL, INTENT(IN), OPTIONAL        :: write_int
+      INTEGER                              :: io_unit, mynode
+      TYPE(mp_comm_type) :: mp_comm
+      INTEGER, DIMENSION(:), ALLOCATABLE   :: size_1, size_2, size_3, &
+                                              order_t1, order_t2, order_t3
+      INTEGER, DIMENSION(2, ndims_tensor(tensor_1)) :: bounds_t1
+      INTEGER, DIMENSION(2, ndims_tensor(tensor_2)) :: bounds_t2
 
+      #:for ndim in ndims
+         REAL(KIND=dp), ALLOCATABLE, &
+            DIMENSION(${shape_colon(ndim)}$) :: array_1_${ndim}$d, &
+                                                array_2_${ndim}$d, &
+                                                array_3_${ndim}$d, &
+                                                array_1_${ndim}$d_full, &
+                                                array_2_${ndim}$d_full, &
+                                                array_3_0_${ndim}$d, &
+                                                array_1_rs${ndim}$d, &
+                                                array_2_rs${ndim}$d, &
+                                                array_3_rs${ndim}$d, &
+                                                array_3_0_rs${ndim}$d
+      #:endfor
+      REAL(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :)                   :: array_1_mm, &
+                                              array_2_mm, &
+                                              array_3_mm, &
+                                              array_3_test_mm
+      LOGICAL                             :: eql, notzero
+      LOGICAL, PARAMETER                  :: debug = .FALSE.
+      REAL(KIND=dp)                   :: cs_1, cs_2, cs_3, eql_diff
+      LOGICAL                             :: do_crop_1, do_crop_2
+
+      mp_comm = tensor_1%pgrid%mp_comm_2d
+      mynode = mp_comm%mepos
+      io_unit = -1
+      IF (mynode == 0) io_unit = unit_nr
+
+      cs_1 = dbt_checksum(tensor_1)
+      cs_2 = dbt_checksum(tensor_2)
+      cs_3 = dbt_checksum(tensor_3)
+
+      IF (io_unit > 0) THEN
+         WRITE (io_unit, *)
+         WRITE (io_unit, '(A)') repeat("-", 80)
+         WRITE (io_unit, '(A,1X,A,1X,A,1X,A,1X,A,1X,A)') "Testing tensor contraction", &
+            TRIM(tensor_1%name), "x", TRIM(tensor_2%name), "=", TRIM(tensor_3%name)
+         WRITE (io_unit, '(A)') repeat("-", 80)
+      END IF
+
+      IF (debug) THEN
+         IF (io_unit > 0) THEN
+            WRITE (io_unit, "(A, E9.2)") "checksum ", TRIM(tensor_1%name), cs_1
+            WRITE (io_unit, "(A, E9.2)") "checksum ", TRIM(tensor_2%name), cs_2
+            WRITE (io_unit, "(A, E9.2)") "checksum ", TRIM(tensor_3%name), cs_3
+         END IF
+      END IF
+
+      IF (debug) THEN
+         CALL dbt_write_block_indices(tensor_1, io_unit, unit_nr)
+         CALL dbt_write_blocks(tensor_1, io_unit, unit_nr, write_int)
+      END IF
+
+      SELECT CASE (ndims_tensor(tensor_3))
+         #:for ndim in ndims
+         CASE (${ndim}$)
+            CALL dist_sparse_tensor_to_repl_dense_array(tensor_3, array_3_0_${ndim}$d)
+         #:endfor
+      END SELECT
+
+      CALL dbt_contract(alpha, tensor_1, tensor_2, beta, tensor_3, &
+                        contract_1, notcontract_1, &
+                        contract_2, notcontract_2, &
+                        map_1, map_2, &
+                        bounds_1=bounds_1, bounds_2=bounds_2, bounds_3=bounds_3, &
+                        filter_eps=1.0E-12_dp, &
+                        unit_nr=io_unit, log_verbose=log_verbose)
+
+      cs_3 = dbt_checksum(tensor_3)
+
+      IF (debug) THEN
+         IF (io_unit > 0) THEN
+            WRITE (io_unit, "(A, E9.2)") "checksum ", TRIM(tensor_3%name), cs_3
+         END IF
+      END IF
+
+      do_crop_1 = .FALSE.; do_crop_2 = .FALSE.!; do_crop_3 = .FALSE.
+
+      ! crop tensor as first step
+      bounds_t1(1, :) = 1
+      CALL dbt_get_info(tensor_1, nfull_total=bounds_t1(2, :))
+
+      bounds_t2(1, :) = 1
+      CALL dbt_get_info(tensor_2, nfull_total=bounds_t2(2, :))
+
+      IF (PRESENT(bounds_1)) THEN
+         bounds_t1(:, contract_1) = bounds_1
+         do_crop_1 = .TRUE.
+         bounds_t2(:, contract_2) = bounds_1
+         do_crop_2 = .TRUE.
+      END IF
+
+      IF (PRESENT(bounds_2)) THEN
+         bounds_t1(:, notcontract_1) = bounds_2
+         do_crop_1 = .TRUE.
+      END IF
+
+      IF (PRESENT(bounds_3)) THEN
+         bounds_t2(:, notcontract_2) = bounds_3
+         do_crop_2 = .TRUE.
+      END IF
+
+      ! Convert tensors to simple multidimensional arrays
+      #:for i in range(1,4)
+         SELECT CASE (ndims_tensor(tensor_${i}$))
             #:for ndim in ndims
-               REAL(KIND=dp), ALLOCATABLE, &
-                  DIMENSION(${shape_colon(ndim)}$) :: array_1_${ndim}$d, &
-                                                      array_2_${ndim}$d, &
-                                                      array_3_${ndim}$d, &
-                                                      array_1_${ndim}$d_full, &
-                                                      array_2_${ndim}$d_full, &
-                                                      array_3_0_${ndim}$d, &
-                                                      array_1_rs${ndim}$d, &
-                                                      array_2_rs${ndim}$d, &
-                                                      array_3_rs${ndim}$d, &
-                                                      array_3_0_rs${ndim}$d
-            #:endfor
-            REAL(KIND=dp), ALLOCATABLE, &
-               DIMENSION(:, :)                   :: array_1_mm, &
-                                                    array_2_mm, &
-                                                    array_3_mm, &
-                                                    array_3_test_mm
-            LOGICAL                             :: eql, notzero
-            LOGICAL, PARAMETER                  :: debug = .FALSE.
-            REAL(KIND=dp)                   :: cs_1, cs_2, cs_3, eql_diff
-            LOGICAL                             :: do_crop_1, do_crop_2
-
-            mp_comm = tensor_1%pgrid%mp_comm_2d
-            mynode = mp_comm%mepos
-            io_unit = -1
-            IF (mynode == 0) io_unit = unit_nr
-
-            cs_1 = dbt_checksum(tensor_1)
-            cs_2 = dbt_checksum(tensor_2)
-            cs_3 = dbt_checksum(tensor_3)
-
-            IF (io_unit > 0) THEN
-               WRITE (io_unit, *)
-               WRITE (io_unit, '(A)') repeat("-", 80)
-               WRITE (io_unit, '(A,1X,A,1X,A,1X,A,1X,A,1X,A)') "Testing tensor contraction", &
-                  TRIM(tensor_1%name), "x", TRIM(tensor_2%name), "=", TRIM(tensor_3%name)
-               WRITE (io_unit, '(A)') repeat("-", 80)
-            END IF
-
-            IF (debug) THEN
-               IF (io_unit > 0) THEN
-                  WRITE (io_unit, "(A, E9.2)") "checksum ", TRIM(tensor_1%name), cs_1
-                  WRITE (io_unit, "(A, E9.2)") "checksum ", TRIM(tensor_2%name), cs_2
-                  WRITE (io_unit, "(A, E9.2)") "checksum ", TRIM(tensor_3%name), cs_3
-               END IF
-            END IF
-
-            IF (debug) THEN
-               CALL dbt_write_block_indices(tensor_1, io_unit, unit_nr)
-               CALL dbt_write_blocks(tensor_1, io_unit, unit_nr, write_int)
-            END IF
-
-            SELECT CASE (ndims_tensor(tensor_3))
-               #:for ndim in ndims
-                  CASE (${ndim}$)
-                  CALL dist_sparse_tensor_to_repl_dense_array(tensor_3, array_3_0_${ndim}$d)
-               #:endfor
-            END SELECT
-
-            CALL dbt_contract(alpha, tensor_1, tensor_2, beta, tensor_3, &
-                              contract_1, notcontract_1, &
-                              contract_2, notcontract_2, &
-                              map_1, map_2, &
-                              bounds_1=bounds_1, bounds_2=bounds_2, bounds_3=bounds_3, &
-                              filter_eps=1.0E-12_dp, &
-                              unit_nr=io_unit, log_verbose=log_verbose)
-
-            cs_3 = dbt_checksum(tensor_3)
-
-            IF (debug) THEN
-               IF (io_unit > 0) THEN
-                  WRITE (io_unit, "(A, E9.2)") "checksum ", TRIM(tensor_3%name), cs_3
-               END IF
-            END IF
-
-            do_crop_1 = .FALSE.; do_crop_2 = .FALSE.!; do_crop_3 = .FALSE.
-
-            ! crop tensor as first step
-            bounds_t1(1, :) = 1
-            CALL dbt_get_info(tensor_1, nfull_total=bounds_t1(2, :))
-
-            bounds_t2(1, :) = 1
-            CALL dbt_get_info(tensor_2, nfull_total=bounds_t2(2, :))
-
-            IF (PRESENT(bounds_1)) THEN
-               bounds_t1(:, contract_1) = bounds_1
-               do_crop_1 = .TRUE.
-               bounds_t2(:, contract_2) = bounds_1
-               do_crop_2 = .TRUE.
-            END IF
-
-            IF (PRESENT(bounds_2)) THEN
-               bounds_t1(:, notcontract_1) = bounds_2
-               do_crop_1 = .TRUE.
-            END IF
-
-            IF (PRESENT(bounds_3)) THEN
-               bounds_t2(:, notcontract_2) = bounds_3
-               do_crop_2 = .TRUE.
-            END IF
-
-            ! Convert tensors to simple multidimensional arrays
-            #:for i in range(1,4)
-               SELECT CASE (ndims_tensor(tensor_${i}$))
-                  #:for ndim in ndims
-                     CASE (${ndim}$)
-                     #:if i < 3
-                        CALL dist_sparse_tensor_to_repl_dense_array(tensor_${i}$, array_${i}$_${ndim}$d_full)
-                        CALL allocate_any(array_${i}$_${ndim}$d, shape_spec=SHAPE(array_${i}$_${ndim}$d_full))
-                        array_${i}$_${ndim}$d = 0.0_dp
+            CASE (${ndim}$)
+               #:if i < 3
+                  CALL dist_sparse_tensor_to_repl_dense_array(tensor_${i}$, array_${i}$_${ndim}$d_full)
+                  CALL allocate_any(array_${i}$_${ndim}$d, shape_spec=SHAPE(array_${i}$_${ndim}$d_full))
+                  array_${i}$_${ndim}$d = 0.0_dp
          array_${i}$_${ndim}$d(${", ".join(["bounds_t" + str(i) + "(1, " + str(idim) + "):bounds_t" + str(i) + "(2, " + str(idim) + ")" for idim in range(1, ndim+1)])}$) = &
          array_${i}$_${ndim}$d_full(${", ".join(["bounds_t" + str(i) + "(1, " + str(idim) + "):bounds_t" + str(i) + "(2, " + str(idim) + ")" for idim in range(1, ndim+1)])}$)
-                     #:else
-                        CALL dist_sparse_tensor_to_repl_dense_array(tensor_${i}$, array_${i}$_${ndim}$d)
-                     #:endif
+               #:else
+                  CALL dist_sparse_tensor_to_repl_dense_array(tensor_${i}$, array_${i}$_${ndim}$d)
+               #:endif
 
-                  #:endfor
-               END SELECT
             #:endfor
+         END SELECT
+      #:endfor
 
-            ! Get array sizes
+      ! Get array sizes
 
-            #:for i in range(1,4)
-               SELECT CASE (ndims_tensor(tensor_${i}$))
-                  #:for ndim in ndims
-                     CASE (${ndim}$)
-                     ALLOCATE (size_${i}$, source=SHAPE(array_${i}$_${ndim}$d))
+      #:for i in range(1,4)
+         SELECT CASE (ndims_tensor(tensor_${i}$))
+            #:for ndim in ndims
+            CASE (${ndim}$)
+               ALLOCATE (size_${i}$, source=SHAPE(array_${i}$_${ndim}$d))
 
-                  #:endfor
-               END SELECT
             #:endfor
+         END SELECT
+      #:endfor
 
-            #:for i in range(1,4)
-               ALLOCATE (order_t${i}$ (ndims_tensor(tensor_${i}$)))
-            #:endfor
+      #:for i in range(1,4)
+         ALLOCATE (order_t${i}$ (ndims_tensor(tensor_${i}$)))
+      #:endfor
 
-            ASSOCIATE (map_t1_1 => notcontract_1, map_t1_2 => contract_1, &
-                       map_t2_1 => notcontract_2, map_t2_2 => contract_2, &
-                       map_t3_1 => map_1, map_t3_2 => map_2)
+      ASSOCIATE (map_t1_1 => notcontract_1, map_t1_2 => contract_1, &
+                 map_t2_1 => notcontract_2, map_t2_2 => contract_2, &
+                 map_t3_1 => map_1, map_t3_2 => map_2)
 
-               #:for i in range(1,4)
-                  order_t${i}$ (:) = dbt_inverse_order([map_t${i}$_1, map_t${i}$_2])
+         #:for i in range(1,4)
+            order_t${i}$ (:) = dbt_inverse_order([map_t${i}$_1, map_t${i}$_2])
 
-                  SELECT CASE (ndims_tensor(tensor_${i}$))
-                     #:for ndim in ndims
-                        CASE (${ndim}$)
-                        CALL allocate_any(array_${i}$_rs${ndim}$d, source=array_${i}$_${ndim}$d, order=order_t${i}$)
-                        CALL allocate_any(array_${i}$_mm, sizes_2d(size_${i}$, map_t${i}$_1, map_t${i}$_2))
-                        array_${i}$_mm(:, :) = RESHAPE(array_${i}$_rs${ndim}$d, SHAPE(array_${i}$_mm))
-                     #:endfor
-                  END SELECT
+            SELECT CASE (ndims_tensor(tensor_${i}$))
+               #:for ndim in ndims
+               CASE (${ndim}$)
+                  CALL allocate_any(array_${i}$_rs${ndim}$d, source=array_${i}$_${ndim}$d, order=order_t${i}$)
+                  CALL allocate_any(array_${i}$_mm, sizes_2d(size_${i}$, map_t${i}$_1, map_t${i}$_2))
+                  array_${i}$_mm(:, :) = RESHAPE(array_${i}$_rs${ndim}$d, SHAPE(array_${i}$_mm))
                #:endfor
+            END SELECT
+         #:endfor
 
-               SELECT CASE (ndims_tensor(tensor_3))
-                  #:for ndim in ndims
-                     CASE (${ndim}$)
-                     CALL allocate_any(array_3_0_rs${ndim}$d, source=array_3_0_${ndim}$d, order=order_t3)
-                     CALL allocate_any(array_3_test_mm, sizes_2d(size_3, map_t3_1, map_t3_2))
-                     array_3_test_mm(:, :) = RESHAPE(array_3_0_rs${ndim}$d, SHAPE(array_3_mm))
-                  #:endfor
-               END SELECT
+         SELECT CASE (ndims_tensor(tensor_3))
+            #:for ndim in ndims
+            CASE (${ndim}$)
+               CALL allocate_any(array_3_0_rs${ndim}$d, source=array_3_0_${ndim}$d, order=order_t3)
+               CALL allocate_any(array_3_test_mm, sizes_2d(size_3, map_t3_1, map_t3_2))
+               array_3_test_mm(:, :) = RESHAPE(array_3_0_rs${ndim}$d, SHAPE(array_3_mm))
+            #:endfor
+         END SELECT
 
-               array_3_test_mm(:, :) = beta*array_3_test_mm(:, :) + alpha*MATMUL(array_1_mm, transpose(array_2_mm))
+         array_3_test_mm(:, :) = beta*array_3_test_mm(:, :) + alpha*MATMUL(array_1_mm, transpose(array_2_mm))
 
-            END ASSOCIATE
+      END ASSOCIATE
 
-            eql_diff = MAXVAL(ABS(array_3_test_mm(:, :) - array_3_mm(:, :)))
-            notzero = MAXVAL(ABS(array_3_test_mm(:, :))) > 1.0E-12_dp
+      eql_diff = MAXVAL(ABS(array_3_test_mm(:, :) - array_3_mm(:, :)))
+      notzero = MAXVAL(ABS(array_3_test_mm(:, :))) > 1.0E-12_dp
 
-            eql = eql_diff < 1.0E-11_dp
+      eql = eql_diff < 1.0E-11_dp
 
-            IF (.NOT. eql .OR. .NOT. notzero) THEN
-               IF (io_unit > 0) WRITE (io_unit, *) 'Test failed!', eql_diff
-               CPABORT("array_3_test_mm is not non-zero or not equal to array_3_mm")
-            ELSE
-               IF (io_unit > 0) WRITE (io_unit, *) 'Test passed!', eql_diff
-            END IF
+      IF (.NOT. eql .OR. .NOT. notzero) THEN
+         IF (io_unit > 0) WRITE (io_unit, *) 'Test failed!', eql_diff
+         CPABORT("array_3_test_mm is not non-zero or not equal to array_3_mm")
+      ELSE
+         IF (io_unit > 0) WRITE (io_unit, *) 'Test passed!', eql_diff
+      END IF
 
-         END SUBROUTINE dbt_contract_test
+   END SUBROUTINE dbt_contract_test
 
 ! **************************************************************************************************
 !> \brief mapped sizes in 2d
 !> \author Patrick Seewald
 ! **************************************************************************************************
-         FUNCTION sizes_2d(nd_sizes, map1, map2)
-            INTEGER, DIMENSION(:), INTENT(IN) :: nd_sizes, map1, map2
-            INTEGER, DIMENSION(2)             :: sizes_2d
-            sizes_2d(1) = PRODUCT(nd_sizes(map1))
-            sizes_2d(2) = PRODUCT(nd_sizes(map2))
-         END FUNCTION sizes_2d
+   FUNCTION sizes_2d(nd_sizes, map1, map2)
+      INTEGER, DIMENSION(:), INTENT(IN) :: nd_sizes, map1, map2
+      INTEGER, DIMENSION(2)             :: sizes_2d
+      sizes_2d(1) = PRODUCT(nd_sizes(map1))
+      sizes_2d(2) = PRODUCT(nd_sizes(map2))
+   END FUNCTION sizes_2d
 
 ! **************************************************************************************************
 !> \brief checksum of a tensor consistent with block_checksum
 !> \author Patrick Seewald
 ! **************************************************************************************************
-         FUNCTION dbt_checksum(tensor)
-            TYPE(dbt_type), INTENT(IN) :: tensor
-            REAL(KIND=dp) :: dbt_checksum
-            dbt_checksum = dbt_tas_checksum(tensor%matrix_rep)
-         END FUNCTION dbt_checksum
+   FUNCTION dbt_checksum(tensor)
+      TYPE(dbt_type), INTENT(IN) :: tensor
+      REAL(KIND=dp) :: dbt_checksum
+      dbt_checksum = dbt_tas_checksum(tensor%matrix_rep)
+   END FUNCTION dbt_checksum
 
 ! **************************************************************************************************
 !> \brief Reset the seed used for generating random matrices to default value
 !> \author Patrick Seewald
 ! **************************************************************************************************
-         SUBROUTINE dbt_reset_randmat_seed()
-            randmat_counter = rand_seed_init
-         END SUBROUTINE dbt_reset_randmat_seed
+   SUBROUTINE dbt_reset_randmat_seed()
+      randmat_counter = rand_seed_init
+   END SUBROUTINE dbt_reset_randmat_seed
 
-      END MODULE dbt_test
+END MODULE dbt_test

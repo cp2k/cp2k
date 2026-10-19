@@ -2709,7 +2709,8 @@ CONTAINS
                      DO jstate = 1, nstate
                         DO i = 1, n1
                            xyz_mix_ns(idim)%c_array(jstate, istate) = xyz_mix_ns(idim)%c_array(jstate, istate) + &
-                                                                 c_array_me(jstate, i, idim)*rmat_loc(il1 + i - 1, il1 + istate - 1)
+                                                                      c_array_me(jstate, i, idim)*rmat_loc(il1 + i - 1, il1 + &
+                                                                                                           istate - 1)
                         END DO
                      END DO
                   END DO

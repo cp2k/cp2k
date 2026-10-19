@@ -904,7 +904,8 @@ CONTAINS
       TYPE(section_vals_type), POINTER         :: no_params
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER :: dummy, e_0, e_laplace_rho, &
                                                                 e_laplace_rho_laplace_rho, e_laplace_rho_tau, e_ndrho, &
-                                                              e_ndrho_laplace_rho, e_ndrho_ndrho, e_ndrho_rho, e_ndrho_tau, e_rho, &
+                                                                e_ndrho_laplace_rho, e_ndrho_ndrho, e_ndrho_rho, &
+                                                                e_ndrho_tau, e_rho, &
                                                                 e_rho_laplace_rho, e_rho_rho, e_rho_rho_rho, e_rho_tau, e_tau, &
                                                                 e_tau_tau, laplace_rho, norm_drho, rho, tau
       ! derivatives w.r.t. the reduced gradient gamma = |grad rho|^2
@@ -1250,18 +1251,23 @@ CONTAINS
                                                                 e_laplace_rhoa_tau_a, e_laplace_rhoa_tau_b, e_laplace_rhob, &
                                                                 e_laplace_rhob_laplace_rhob, e_laplace_rhob_tau_a, &
                                                                 e_laplace_rhob_tau_b, e_ndrho, e_ndrho_laplace_rhoa, &
-                                                              e_ndrho_laplace_rhob, e_ndrho_ndrho, e_ndrho_ndrhoa, e_ndrho_ndrhob, &
-                                                               e_ndrho_rhoa, e_ndrho_rhob, e_ndrho_tau_a, e_ndrho_tau_b, e_ndrhoa, &
+                                                                e_ndrho_laplace_rhob, e_ndrho_ndrho, e_ndrho_ndrhoa, &
+                                                                e_ndrho_ndrhob, &
+                                                                e_ndrho_rhoa, e_ndrho_rhob, e_ndrho_tau_a, e_ndrho_tau_b, &
+                                                                e_ndrhoa, &
                                                                 e_ndrhoa_laplace_rhoa, e_ndrhoa_laplace_rhob, e_ndrhoa_ndrhoa, &
                                                                 e_ndrhoa_ndrhob, e_ndrhoa_rhoa, e_ndrhoa_rhob, e_ndrhoa_tau_a, &
                                                                 e_ndrhoa_tau_b, e_ndrhob
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER :: e_ndrhob_laplace_rhoa, &
-                                                             e_ndrhob_laplace_rhob, e_ndrhob_ndrhob, e_ndrhob_rhoa, e_ndrhob_rhob, &
+                                                                e_ndrhob_laplace_rhob, e_ndrhob_ndrhob, e_ndrhob_rhoa, &
+                                                                e_ndrhob_rhob, &
                                                                 e_ndrhob_tau_a, e_ndrhob_tau_b, e_rhoa, e_rhoa_laplace_rhoa, &
-                                                             e_rhoa_laplace_rhob, e_rhoa_rhoa, e_rhoa_rhoa_rhoa, e_rhoa_rhoa_rhob, &
+                                                                e_rhoa_laplace_rhob, e_rhoa_rhoa, e_rhoa_rhoa_rhoa, &
+                                                                e_rhoa_rhoa_rhob, &
                                                                 e_rhoa_rhob, e_rhoa_rhob_rhob, e_rhoa_tau_a, e_rhoa_tau_b, e_rhob, &
                                                                 e_rhob_laplace_rhoa, e_rhob_laplace_rhob, e_rhob_rhob, &
-                                                             e_rhob_rhob_rhob, e_rhob_tau_a, e_rhob_tau_b, e_tau_a, e_tau_a_tau_a, &
+                                                                e_rhob_rhob_rhob, e_rhob_tau_a, e_rhob_tau_b, e_tau_a, &
+                                                                e_tau_a_tau_a, &
                                                                 e_tau_a_tau_b, e_tau_b, e_tau_b_tau_b, laplace_rhoa, laplace_rhob, &
                                                                 norm_drho, norm_drhoa, norm_drhob, rhoa, rhob, tau_a, tau_b
       ! derivatives w.r.t. the reduced gradients gamma_ij = grad rho_i . grad rho_j
@@ -2348,7 +2354,8 @@ CONTAINS
                                       dn(${b}$)*dm(${a}$)*dm(${c}$) + dn(${c}$)*dm(${a}$)*dm(${b}$)) - &
                               6.0_dp*ratio*dm(${a}$)*dm(${b}$)*dm(${c}$))/m**3
                w%${arr}$ (${idx}$, point) = ratio*diagonal(${a}$)*diagonal(${b}$)*diagonal(${c}$)* &
-                           w%${arr}$ (${idx}$, point) + first_ratio(${a}$)*diagonal(${b}$)*diagonal(${c}$)*hessian(${b}$, ${c}$) + &
+                                            w%${arr}$ (${idx}$, point) + &
+                                            first_ratio(${a}$)*diagonal(${b}$)*diagonal(${c}$)*hessian(${b}$, ${c}$) + &
                                             first_ratio(${b}$)*diagonal(${a}$)*diagonal(${c}$)*hessian(${a}$, ${c}$) + &
                                             first_ratio(${c}$)*diagonal(${a}$)*diagonal(${b}$)*hessian(${a}$, ${b}$) + &
                                             second_ratio(${a}$, ${b}$)*diagonal(${c}$)*gradient(${c}$) + &
@@ -2452,7 +2459,8 @@ CONTAINS
 
    REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rho, norm_drho, laplace_rho, tau
    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT) :: e_0, e_rho, e_ndrho, e_laplace_rho, e_tau, &
-                                         e_rho_rho, e_ndrho_rho, e_ndrho_ndrho, e_rho_laplace_rho, e_rho_tau, e_ndrho_laplace_rho, &
+                                                 e_rho_rho, e_ndrho_rho, e_ndrho_ndrho, e_rho_laplace_rho, e_rho_tau, &
+                                                 e_ndrho_laplace_rho, &
                                                  e_ndrho_tau, e_laplace_rho_laplace_rho, e_laplace_rho_tau, e_tau_tau, e_rho_rho_rho
    ! Derivatives with respect to the reduced gradient gamma = |grad rho|^2.
    ! These are LibXC's own sigma derivatives, copied through unchanged: unlike
@@ -2496,7 +2504,7 @@ CONTAINS
    ASSOCIATE (w => workers%worker(ithread + 1), has_laplace => workers%has_laplace, &
               no_exc => workers%no_exc, eps_rho => workers%epsilon_rho, &
               eps_tau => workers%epsilon_tau)
-      !$OMP    DO
+!$OMP    DO
       DO ib = 1, nblocks
          IF (libxc_is_gpu()) CALL libxc_worker_resize_cuda(w, workers%family, workers%nspin, npoints)
          i0 = (ib - 1)*bsize
@@ -2749,17 +2757,21 @@ REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rhoa, rhob, norm_drho, nor
                                                       norm_drhob, laplace_rhoa, &
                                                       laplace_rhob, tau_a, tau_b
 REAL(KIND=dp), DIMENSION(*), INTENT(INOUT) :: e_0, e_rhoa, e_rhob, e_ndrho, e_ndrhoa, &
-                                             e_ndrhob, e_laplace_rhoa, e_laplace_rhob, e_tau_a, e_tau_b, e_rhoa_rhoa, e_rhoa_rhob, &
-                                             e_rhob_rhob, e_ndrho_rhoa, e_ndrho_rhob, e_ndrhoa_rhoa, e_ndrhoa_rhob, e_ndrhob_rhoa, &
+                                              e_ndrhob, e_laplace_rhoa, e_laplace_rhob, e_tau_a, e_tau_b, e_rhoa_rhoa, &
+                                              e_rhoa_rhob, &
+                                              e_rhob_rhob, e_ndrho_rhoa, e_ndrho_rhob, e_ndrhoa_rhoa, e_ndrhoa_rhob, &
+                                              e_ndrhob_rhoa, &
                                               e_ndrhob_rhob, e_ndrho_ndrho, e_ndrho_ndrhoa, e_ndrho_ndrhob, e_ndrhoa_ndrhoa, &
                                               e_ndrhoa_ndrhob, e_ndrhob_ndrhob, e_rhoa_laplace_rhoa, e_rhoa_laplace_rhob, &
                                               e_rhob_laplace_rhoa, e_rhob_laplace_rhob, e_rhoa_tau_a, e_rhoa_tau_b, e_rhob_tau_a, &
                                               e_rhob_tau_b, e_ndrho_laplace_rhoa, e_ndrho_laplace_rhob, e_ndrhoa_laplace_rhoa
 REAL(KIND=dp), DIMENSION(*), INTENT(INOUT) :: e_ndrhoa_laplace_rhob, e_ndrhob_laplace_rhoa, &
                                               e_ndrhob_laplace_rhob, e_ndrho_tau_a, e_ndrho_tau_b, e_ndrhoa_tau_a, e_ndrhoa_tau_b, &
-                                         e_ndrhob_tau_a, e_ndrhob_tau_b, e_laplace_rhoa_laplace_rhoa, e_laplace_rhoa_laplace_rhob, &
+                                              e_ndrhob_tau_a, e_ndrhob_tau_b, e_laplace_rhoa_laplace_rhoa, &
+                                              e_laplace_rhoa_laplace_rhob, &
                                               e_laplace_rhob_laplace_rhob, e_laplace_rhoa_tau_a, e_laplace_rhoa_tau_b, &
-                                          e_laplace_rhob_tau_a, e_laplace_rhob_tau_b, e_tau_a_tau_a, e_tau_a_tau_b, e_tau_b_tau_b, &
+                                              e_laplace_rhob_tau_a, e_laplace_rhob_tau_b, e_tau_a_tau_a, e_tau_a_tau_b, &
+                                              e_tau_b_tau_b, &
                                               e_rhoa_rhoa_rhoa, e_rhoa_rhoa_rhob, e_rhoa_rhob_rhob, e_rhob_rhob_rhob
 #:for descs, arr, idx in mgga_all
    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)         :: e_${'_'.join(descs)}$

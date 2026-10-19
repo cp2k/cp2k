@@ -490,7 +490,7 @@ CONTAINS
                   END IF
                   IF (radius > 0.0_dp) THEN
                      beta = sqrthalf/radius
-                     $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_GAUSS", damping=False, store_energy=True, store_forces=True)
+                    $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_GAUSS", damping=False, store_energy=True, store_forces=True)
                   ELSE
                      $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERFC", damping=True, store_energy=True, store_forces=True )
                   END IF
@@ -1607,7 +1607,8 @@ CONTAINS
                               DO l = 1, SIZE(multipoles(atom_b)%charge_typ)
                                  DO l1 = 1, SIZE(multipoles(atom_b)%charge_typ(l)%charge)
 
-                                rm = rab + multipoles(atom_b)%charge_typ(l)%pos(:, l1) - multipoles(atom_a)%charge_typ(k)%pos(:, k1)
+                                    rm = rab + multipoles(atom_b)%charge_typ(l)%pos(:, l1) - &
+                                         multipoles(atom_a)%charge_typ(k)%pos(:, k1)
                                     r = NORM2(rm)
                                     q = multipoles(atom_b)%charge_typ(l)%charge(l1)*multipoles(atom_a)%charge_typ(k)%charge(k1)
                                     energy = energy + q/r*fac_ij
@@ -1646,7 +1647,8 @@ CONTAINS
                            DO l = 1, SIZE(multipoles(atom_b)%charge_typ)
                               DO l1 = 1, SIZE(multipoles(atom_b)%charge_typ(l)%charge)
 
-                                rm = rab + multipoles(atom_b)%charge_typ(l)%pos(:, l1) - multipoles(atom_a)%charge_typ(k)%pos(:, k1)
+                                 rm = rab + multipoles(atom_b)%charge_typ(l)%pos(:, l1) - &
+                                      multipoles(atom_a)%charge_typ(k)%pos(:, k1)
                                  r = NORM2(rm)
                                  q = multipoles(atom_b)%charge_typ(l)%charge(l1)*multipoles(atom_a)%charge_typ(k)%charge(k1)
                                  energy = energy + q/r*fac_ij
@@ -1772,7 +1774,8 @@ CONTAINS
                         quadrupoles(m, l, i) = quadrupoles(m, l, i) + 3.0_dp*0.5_dp*multipoles(i)%charge_typ(isize)%charge(k)* &
                                                multipoles(i)%charge_typ(isize)%pos(l, k)* &
                                                multipoles(i)%charge_typ(isize)%pos(m, k)
-                       IF (m == l) quadrupoles(m, l, i) = quadrupoles(m, l, i) - 0.5_dp*multipoles(i)%charge_typ(isize)%charge(k)*r2
+                        IF (m == l) quadrupoles(m, l, i) = quadrupoles(m, l, i) - &
+                                                           0.5_dp*multipoles(i)%charge_typ(isize)%charge(k)*r2
                      END DO
                   END DO
                END DO

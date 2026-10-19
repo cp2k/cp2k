@@ -623,13 +623,15 @@ CONTAINS
          DO p = 1, mv_env%n_ri_loc
             DO l = 1, n_sub
                DO k = 1, n_sub
-                A_sub(k, l) = A_sub(k, l) - mv_env%w_fac*mv_env%B_bar_ij(i_occ(l), i_occ(k), p)*mv_env%B_ab(a_virt(l), a_virt(k), p)
+                  A_sub(k, l) = A_sub(k, l) - mv_env%w_fac*mv_env%B_bar_ij(i_occ(l), i_occ(k), p)*mv_env%B_ab(a_virt(l), &
+                                                                                                              a_virt(k), p)
                END DO
             END DO
             IF (PRESENT(B_sub)) THEN
                DO l = 1, n_sub
                   DO k = 1, n_sub
-                B_sub(k, l) = B_sub(k, l) - mv_env%w_fac*mv_env%B_ia(a_virt(k), i_occ(l), p)*mv_env%B_bar_ia(a_virt(l), i_occ(k), p)
+                     B_sub(k, l) = B_sub(k, l) - mv_env%w_fac*mv_env%B_ia(a_virt(k), i_occ(l), p)*mv_env%B_bar_ia(a_virt(l), &
+                                                                                                                  i_occ(k), p)
                   END DO
                END DO
             END IF

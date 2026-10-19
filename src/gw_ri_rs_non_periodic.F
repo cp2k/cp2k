@@ -845,8 +845,8 @@ CONTAINS
 
       cutoff2 = cutoff**2
       nze_tmpl = 0_int_8
-      !$OMP PARALLEL DO DEFAULT(NONE) SHARED(blk0, blk1, n_used, used_idx, centroids, cutoff2, &
-      !$OMP r_blk_sizes) PRIVATE(ib, c) REDUCTION(+:nze_tmpl)
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(blk0, blk1, n_used, used_idx, centroids, cutoff2, &
+!$OMP r_blk_sizes) PRIVATE(ib, c) REDUCTION(+:nze_tmpl)
       DO ib = blk0, blk1
          DO c = 1, n_used
             IF (SUM((centroids(:, ib) - centroids(:, used_idx(c)))**2) <= cutoff2) THEN
@@ -854,7 +854,7 @@ CONTAINS
             END IF
          END DO
       END DO
-      !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
 
       CALL timestop(handle)
 

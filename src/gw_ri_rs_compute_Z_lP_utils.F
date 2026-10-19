@@ -82,21 +82,21 @@ CONTAINS
                  n_local_grid, 0.0_dp, D_local, n_local_grid)
       CALL timestop(handle_dsyrk)
 
-      !$OMP PARALLEL DO DEFAULT(NONE) &
-      !$OMP SHARED(n_local_grid, D_local, d_vec_local, tikhonov) &
-      !$OMP PRIVATE(i) &
-      !$OMP SCHEDULE(STATIC)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(n_local_grid, D_local, d_vec_local, tikhonov) &
+!$OMP PRIVATE(i) &
+!$OMP SCHEDULE(STATIC)
       DO i = 1, n_local_grid
          D_local(i, i) = D_local(i, i)**2
          d_vec_local(i) = 1.0_dp/SQRT(MAX(D_local(i, i), jacobi_floor))
          D_local(i, i) = (D_local(i, i)*d_vec_local(i)**2) + tikhonov
       END DO
-      !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
 
-      !$OMP PARALLEL DO DEFAULT(NONE) &
-      !$OMP SHARED(n_local_grid, D_local, d_vec_local) &
-      !$OMP PRIVATE(j, i) &
-      !$OMP SCHEDULE(DYNAMIC)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(n_local_grid, D_local, d_vec_local) &
+!$OMP PRIVATE(j, i) &
+!$OMP SCHEDULE(DYNAMIC)
       DO j = 1, n_local_grid
          DO i = j + 1, n_local_grid
             D_local(i, j) = D_local(i, j)**2
@@ -104,7 +104,7 @@ CONTAINS
             D_local(j, i) = D_local(i, j)
          END DO
       END DO
-      !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
 
       CALL timestop(handle)
 
@@ -129,10 +129,10 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      !$OMP PARALLEL DO DEFAULT(NONE) &
-      !$OMP SHARED(n_local_grid, n_ao_used, phi_local, d_vec_local) &
-      !$OMP PRIVATE(i, j) &
-      !$OMP SCHEDULE(STATIC)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(n_local_grid, n_ao_used, phi_local, d_vec_local) &
+!$OMP PRIVATE(i, j) &
+!$OMP SCHEDULE(STATIC)
       DO i = 1, n_local_grid
          d_vec_local(i) = 0.0_dp
          DO j = 1, n_ao_used
@@ -140,7 +140,7 @@ CONTAINS
          END DO
          d_vec_local(i) = 1.0_dp/MAX(d_vec_local(i), jacobi_floor)
       END DO
-      !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
 
       CALL timestop(handle)
 
@@ -166,16 +166,16 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      !$OMP PARALLEL DO DEFAULT(NONE) &
-      !$OMP SHARED(ncol, nrow, matrix, diagonal) &
-      !$OMP PRIVATE(j, i) &
-      !$OMP SCHEDULE(STATIC)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(ncol, nrow, matrix, diagonal) &
+!$OMP PRIVATE(j, i) &
+!$OMP SCHEDULE(STATIC)
       DO j = 1, ncol
          DO i = 1, nrow
             matrix(i, j) = matrix(i, j)*diagonal(i)
          END DO
       END DO
-      !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
 
       CALL timestop(handle)
 
@@ -311,36 +311,36 @@ CONTAINS
             DO ib = 1, nrow_local, ntile
                ie = MIN(ib + ntile - 1, nrow_local)
                mb = ie - ib + 1
-               !$OMP PARALLEL DO DEFAULT(NONE) &
-               !$OMP SHARED(mb, n_ao, phi_rows_t, phi_local, row_indices, ib) &
-               !$OMP PRIVATE(ti, j_loc) SCHEDULE(STATIC)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(mb, n_ao, phi_rows_t, phi_local, row_indices, ib) &
+!$OMP PRIVATE(ti, j_loc) SCHEDULE(STATIC)
                DO j_loc = 1, n_ao
                   DO ti = 1, mb
                      phi_rows_t(ti, j_loc) = phi_local(row_indices(ib + ti - 1), j_loc)
                   END DO
                END DO
-               !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
                DO jb = 1, ncol_local, ntile
                   je = MIN(jb + ntile - 1, ncol_local)
                   kb = je - jb + 1
-                  !$OMP PARALLEL DO DEFAULT(NONE) &
-                  !$OMP SHARED(kb, n_ao, phi_cols_t, phi_local, col_indices, jb) &
-                  !$OMP PRIVATE(tj, i_loc) SCHEDULE(STATIC)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(kb, n_ao, phi_cols_t, phi_local, col_indices, jb) &
+!$OMP PRIVATE(tj, i_loc) SCHEDULE(STATIC)
                   DO tj = 1, kb
                      DO i_loc = 1, n_ao
                         phi_cols_t(i_loc, tj) = phi_local(col_indices(jb + tj - 1), i_loc)
                      END DO
                   END DO
-                  !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
                   CALL timeset(routineN//'_dgemm', handle_dgemm)
                   CALL dgemm('N', 'N', mb, kb, n_ao, &
                              1.0_dp, phi_rows_t, ntile, phi_cols_t, n_ao, &
                              0.0_dp, gram_t, ntile)
                   CALL timestop(handle_dgemm)
-                  !$OMP PARALLEL DO DEFAULT(NONE) &
-                  !$OMP SHARED(mb, kb, gram_t, d_vec, row_indices, col_indices, ib, jb) &
-                  !$OMP SHARED(local_data, tikhonov) &
-                  !$OMP PRIVATE(ti, tj, ig, jg) SCHEDULE(STATIC)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(mb, kb, gram_t, d_vec, row_indices, col_indices, ib, jb) &
+!$OMP SHARED(local_data, tikhonov) &
+!$OMP PRIVATE(ti, tj, ig, jg) SCHEDULE(STATIC)
                   DO tj = 1, kb
                      jg = col_indices(jb + tj - 1)
                      DO ti = 1, mb
@@ -353,7 +353,7 @@ CONTAINS
                         END IF
                      END DO
                   END DO
-                  !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
                END DO
             END DO
             DEALLOCATE (phi_rows_t, phi_cols_t, gram_t)

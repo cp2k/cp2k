@@ -57,13 +57,15 @@ MODULE xc_b97
    PUBLIC :: b97_lda_info, b97_lsd_info, b97_lda_eval, b97_lsd_eval
 
    REAL(dp), DIMENSION(10) :: params_b97_orig = [0.8094_dp, 0.5073_dp, 0.7481_dp, &
-                                             0.9454_dp, 0.7471_dp, -4.5961_dp, 0.1737_dp, 2.3487_dp, -2.4868_dp, 1.0_dp - 0.1943_dp]
+                                                 0.9454_dp, 0.7471_dp, -4.5961_dp, 0.1737_dp, 2.3487_dp, -2.4868_dp, 1.0_dp &
+                                                 - 0.1943_dp]
    REAL(dp), DIMENSION(10) :: params_b97_grimme = [1.08662_dp, -0.52127_dp, 3.25429_dp, &
                                                    0.69041_dp, 6.30270_dp, -14.9712_dp, 0.22340_dp, -1.56208_dp, 1.94293_dp, 1.0_dp]
    REAL(dp), DIMENSION(10) :: params_b97_mardirossian = [0.833_dp, 0.603_dp, 1.194_dp, &
                                                          1.219_dp, -1.850_dp, 0.00_dp, 0.556_dp, -0.257_dp, 0.00_dp, 1.0_dp]
    REAL(dp), DIMENSION(10) :: params_b97_3c = [1.076616_dp, -0.469912_dp, 3.322442_dp, &
-                                            0.635047_dp, 5.532103_dp, -15.301575_dp, 0.543788_dp, -1.444420_dp, 1.637436_dp, 1.0_dp]
+                                               0.635047_dp, 5.532103_dp, -15.301575_dp, 0.543788_dp, -1.444420_dp, &
+                                               1.637436_dp, 1.0_dp]
 
 CONTAINS
 
@@ -1066,10 +1068,14 @@ CONTAINS
                      t663 = 0.1e1_dp/t662
                      e_c_u_0rhoarhoa = -0.2e1_dp*t216*rsrhoarhoa*t56 + 0.2e1_dp* &
                                        t619*t621 - 0.2e1_dp*t626*t627*t236 + t222*(-t632*t633 &
-                                                                      /0.4e1_dp + t224*rsrhoarhoa/0.2e1_dp + beta_2_1*rsrhoarhoa + &
-                                                                             0.3e1_dp/0.4e1_dp*t639*t633 + 0.3e1_dp/0.2e1_dp*t228* &
-                                                                             rsrhoarhoa + t50*t644*t633*t647 + t50*t48*rsrhoarhoa* &
-                                                                              t232 - t50*t48*t633*t647)*t236 + t661*t627*t663*t42/ &
+                                                                                   /0.4e1_dp + t224*rsrhoarhoa/0.2e1_dp + &
+                                                                                   beta_2_1*rsrhoarhoa + &
+                                                                                   0.3e1_dp/0.4e1_dp*t639*t633 + &
+                                                                                   0.3e1_dp/0.2e1_dp*t228* &
+                                                                                   rsrhoarhoa + t50*t644*t633*t647 + &
+                                                                                   t50*t48*rsrhoarhoa* &
+                                                                                   t232 - t50*t48*t633*t647)*t236 + &
+                                       t661*t627*t663*t42/ &
                                        0.2e1_dp
                      e_c_u_01rhoa = e_c_u_0rhoa
                      t671 = alpha_1_2*rsrhoa
@@ -1113,7 +1119,8 @@ CONTAINS
                      t830 = -0.4e1_dp*t105*t290*chirhoarhoa + (-0.2e1_dp*t239* &
                                                                rsrhoarhoa*t74 + 0.2e1_dp*t671*t673 - 0.2e1_dp*t678*t679 &
                                                                *t257 + t245*(-t683*t633/0.4e1_dp + t246*rsrhoarhoa/ &
-                                                                      0.2e1_dp + beta_2_2*rsrhoarhoa + 0.3e1_dp/0.4e1_dp*t689*t633 &
+                                                                             0.2e1_dp + beta_2_2*rsrhoarhoa + &
+                                                                             0.3e1_dp/0.4e1_dp*t689*t633 &
                                                                              + 0.3e1_dp/0.2e1_dp*t250*rsrhoarhoa + t68*t694*t633* &
                                                                              t647 + t68*t66*rsrhoarhoa*t232 - t68*t66*t633*t647)* &
                                                                t257 + t709*t679*t711*t62/0.2e1_dp - e_c_u_0rhoarhoa)*f* &
@@ -1140,10 +1147,13 @@ CONTAINS
                      e_lsda_c_arhoarhoa = (-0.2e1_dp*t239*rs_arhoarhoa*t134 + &
                                            0.2e1_dp*alpha_1_2*rs_arhoa*t313*t327*t328 - 0.2e1_dp* &
                                            t120/t312/t129*t858*t328 + t314*(-beta_1_2/t125*t864/ &
-                                                                     0.4e1_dp + t316*rs_arhoarhoa/0.2e1_dp + beta_2_2*rs_arhoarhoa &
+                                                                            0.4e1_dp + t316*rs_arhoarhoa/0.2e1_dp + &
+                                                                            beta_2_2*rs_arhoarhoa &
                                                                             + 0.3e1_dp/0.4e1_dp*beta_3_2*t315*t864 + 0.3e1_dp/ &
-                                                                          0.2e1_dp*t320*rs_arhoarhoa + t128*t694*t864*t877 + t128* &
-                                                                           t66*rs_arhoarhoa*t324 - t128*t66*t864*t877)*t328 + t120 &
+                                                                            0.2e1_dp*t320*rs_arhoarhoa + &
+                                                                            t128*t694*t864*t877 + t128* &
+                                                                            t66*rs_arhoarhoa*t324 - &
+                                                                            t128*t66*t864*t877)*t328 + t120 &
                                            /t889*t858/t892*t62/0.2e1_dp)*my_rhoa + epsilon_c_unif_arhoa &
                                           + epsilon_c_unif_a1rhoa
                      e_lsda_c_a1rhoa = epsilon_c_unif_a1rhoa*my_rhoa + epsilon_c_unif_a
@@ -1170,8 +1180,10 @@ CONTAINS
                      exc_rhoa_rhoa = scale_x*(-t4*t6/t555*gx_a/0.6e1_dp &
                                               + e_lsda_x_arhoa*(u_x_a1rhoa*t18 + u_x_a*u_x_a1rhoa*c_x_2) &
                                               + e_lsda_x_arhoa*gx_arhoa + e_lsda_x_a*(u_x_arhoarhoa*t18 + &
-                                                                        0.2e1_dp*u_x_arhoa*u_x_a1rhoa*c_x_2 + u_x_a*u_x_arhoarhoa* &
-                                                                            c_x_2)) + scale_c*(((e_c_u_0rhoarhoa + (0.2e1_dp*t260* &
+                                                                                      0.2e1_dp*u_x_arhoa*u_x_a1rhoa*c_x_2 + &
+                                                                                      u_x_a*u_x_arhoarhoa* &
+                                                                                      c_x_2)) + scale_c*(((e_c_u_0rhoarhoa + &
+                                                                                                           (0.2e1_dp*t260* &
                                                                          rsrhoarhoa*t92 - 0.2e1_dp*t719*t721 + 0.2e1_dp*t726*t727* &
                                                                                t278 - t266*(-t731*t633/0.4e1_dp + t267*rsrhoarhoa/ &
                                                                       0.2e1_dp + beta_2_3*rsrhoarhoa + 0.3e1_dp/0.4e1_dp*t737*t633 &
@@ -1180,11 +1192,15 @@ CONTAINS
                                                                           t278 - t757*t727*t759*t80/0.2e1_dp)*f*t110 + alpha_crhoa &
                                                                            *f1rhoa*t110 - 0.4e1_dp*t285*t291 + alpha_c1rhoa*frhoa* &
                                                                               t110 + alpha_c*frhoarhoa*t110 - 0.4e1_dp*t287*t291 - &
-                                                                         0.4e1_dp*t790*t291 - 0.4e1_dp*t793*t291 - 0.12e2_dp*t105* &
+                                                                                                           0.4e1_dp*t790*t291 - &
+                                                                                                           0.4e1_dp*t793*t291 - &
+                                                                                                           0.12e2_dp*t105* &
                                                                                       t796*t766 + t830)*rho + epsilon_c_unifrhoa + &
                                                                  epsilon_c_unif1rhoa - e_lsda_c_arhoarhoa)*gc_ab + e_lsda_c_abrhoa &
                                                                               *(u_c_ab1rhoa*t170 + u_c_ab*u_c_ab1rhoa*c_cab_2) + ( &
-                                                                      epsilon_c_unif1rhoa*rho + epsilon_c_unif - e_lsda_c_a1rhoa)* &
+                                                                                                         epsilon_c_unif1rhoa*rho + &
+                                                                                                         epsilon_c_unif - &
+                                                                                                         e_lsda_c_a1rhoa)* &
                                                                           gc_abrhoa + e_lsda_c_ab*(u_c_abrhoarhoa*t170 + 0.2e1_dp* &
                                                                            u_c_abrhoa*u_c_ab1rhoa*c_cab_2 + u_c_ab*u_c_abrhoarhoa* &
                                                                    c_cab_2) + e_lsda_c_arhoarhoa*gc_a + e_lsda_c_arhoa*(u_c_a1rhoa &
@@ -1201,10 +1217,14 @@ CONTAINS
                      t993 = rsrhob*t647*rsrhoa
                      e_c_u_0rhoarhob = -0.2e1_dp*t216*rsrhoarhob*t56 + t619* &
                                        t974 + t976*t621 - 0.2e1_dp*t626*t237*t396 + t222*(-t632* &
-                                                                              t981/0.4e1_dp + t224*rsrhoarhob/0.2e1_dp + beta_2_1* &
-                                                                      rsrhoarhob + 0.3e1_dp/0.4e1_dp*t639*t981 + 0.3e1_dp/0.2e1_dp &
-                                                                            *t228*rsrhoarhob + t50*t644*t993 + t50*t48*rsrhoarhob* &
-                                                                              t232 - t50*t48*t993)*t236 + t661*t235*t663*t42*t396/ &
+                                                                                          t981/0.4e1_dp + t224*rsrhoarhob/0.2e1_dp &
+                                                                                          + beta_2_1* &
+                                                                                          rsrhoarhob + 0.3e1_dp/0.4e1_dp*t639*t981 &
+                                                                                          + 0.3e1_dp/0.2e1_dp &
+                                                                                          *t228*rsrhoarhob + t50*t644*t993 + &
+                                                                                          t50*t48*rsrhoarhob* &
+                                                                                          t232 - t50*t48*t993)*t236 + &
+                                       t661*t235*t663*t42*t396/ &
                                        0.2e1_dp
                      t1012 = t244*t410*t257
                      t1014 = alpha_1_2*rsrhob
@@ -1218,9 +1238,12 @@ CONTAINS
                      t1136 = -0.4e1_dp*t105*t290*chirhoarhob + (-0.2e1_dp*t239 &
                                                                 *rsrhoarhob*t74 + t671*t1012 + t1014*t673 - 0.2e1_dp*t678* &
                                                                 t258*t410 + t245*(-t683*t981/0.4e1_dp + t246*rsrhoarhob/ &
-                                                                          0.2e1_dp + beta_2_2*rsrhoarhob + 0.3e1_dp/0.4e1_dp*t689* &
-                                                                        t981 + 0.3e1_dp/0.2e1_dp*t250*rsrhoarhob + t68*t694*t993 + &
-                                                                              t68*t66*rsrhoarhob*t232 - t68*t66*t993)*t257 + t709* &
+                                                                                  0.2e1_dp + beta_2_2*rsrhoarhob + &
+                                                                                  0.3e1_dp/0.4e1_dp*t689* &
+                                                                                  t981 + 0.3e1_dp/0.2e1_dp*t250*rsrhoarhob + &
+                                                                                  t68*t694*t993 + &
+                                                                                  t68*t66*rsrhoarhob*t232 - &
+                                                                                  t68*t66*t993)*t257 + t709* &
                                                                 t256*t711*t62*t410/0.2e1_dp - e_c_u_0rhoarhob)*f*t108 + &
                              t294*frhob*t108 + 0.4e1_dp*t295*t443 + t438*frhoa*t108 + &
                              t112*frhoarhob*t108 + 0.4e1_dp*t297*t443 + 0.4e1_dp*t439 &
@@ -1232,9 +1255,12 @@ CONTAINS
                      exc_rhoa_rhob = scale_c*(((e_c_u_0rhoarhob + (0.2e1_dp*t260* &
                                                                    rsrhoarhob*t92 - t719*t1047 - t1049*t721 + 0.2e1_dp*t726* &
                                                                    t279*t424 - t266*(-t731*t981/0.4e1_dp + t267*rsrhoarhob/ &
-                                                                      0.2e1_dp + beta_2_3*rsrhoarhob + 0.3e1_dp/0.4e1_dp*t737*t981 &
-                                                                         + 0.3e1_dp/0.2e1_dp*t271*rsrhoarhob + t86*t742*t993 + t86 &
-                                                                             *t84*rsrhoarhob*t232 - t86*t84*t993)*t278 - t757*t277 &
+                                                                                     0.2e1_dp + beta_2_3*rsrhoarhob + &
+                                                                                     0.3e1_dp/0.4e1_dp*t737*t981 &
+                                                                                     + 0.3e1_dp/0.2e1_dp*t271*rsrhoarhob + &
+                                                                                     t86*t742*t993 + t86 &
+                                                                                     *t84*rsrhoarhob*t232 - t86*t84*t993)*t278 - &
+                                                                   t757*t277 &
                                                                    *t759*t80*t424/0.2e1_dp)*f*t110 + alpha_crhoa*frhob* &
                                                 t110 - 0.4e1_dp*t285*t435 + alpha_crhob*frhoa*t110 + alpha_c &
                                                 *frhoarhob*t110 - 0.4e1_dp*t287*t435 - 0.4e1_dp*t431* &
@@ -1264,10 +1290,14 @@ CONTAINS
                      t1205 = rsrhob**2
                      e_c_u_0rhobrhob = -0.2e1_dp*t216*rsrhobrhob*t56 + 0.2e1_dp* &
                                        t976*t974 - 0.2e1_dp*t626*t1201*t236 + t222*(-t632* &
-                                                                             t1205/0.4e1_dp + t224*rsrhobrhob/0.2e1_dp + beta_2_1* &
-                                                                             rsrhobrhob + 0.3e1_dp/0.4e1_dp*t639*t1205 + 0.3e1_dp/ &
-                                                                          0.2e1_dp*t228*rsrhobrhob + t50*t644*t1205*t647 + t50*t48 &
-                                                                               *rsrhobrhob*t232 - t50*t48*t1205*t647)*t236 + t661* &
+                                                                                    t1205/0.4e1_dp + t224*rsrhobrhob/0.2e1_dp + &
+                                                                                    beta_2_1* &
+                                                                                    rsrhobrhob + 0.3e1_dp/0.4e1_dp*t639*t1205 + &
+                                                                                    0.3e1_dp/ &
+                                                                                    0.2e1_dp*t228*rsrhobrhob + t50*t644*t1205*t647 &
+                                                                                    + t50*t48 &
+                                                                                    *rsrhobrhob*t232 - &
+                                                                                    t50*t48*t1205*t647)*t236 + t661* &
                                        t1201*t663*t42/0.2e1_dp
                      e_c_u_01rhob = e_c_u_0rhob
                      t1236 = t410**2
@@ -1286,9 +1316,12 @@ CONTAINS
                      t1360 = -0.4e1_dp*t105*t290*chirhobrhob + (-0.2e1_dp*t239 &
                                                                 *rsrhobrhob*t74 + 0.2e1_dp*t1014*t1012 - 0.2e1_dp*t678* &
                                                                 t1236*t257 + t245*(-t683*t1205/0.4e1_dp + t246*rsrhobrhob &
-                                                                         /0.2e1_dp + beta_2_2*rsrhobrhob + 0.3e1_dp/0.4e1_dp*t689* &
-                                                                        t1205 + 0.3e1_dp/0.2e1_dp*t250*rsrhobrhob + t68*t694*t1205 &
-                                                                             *t647 + t68*t66*rsrhobrhob*t232 - t68*t66*t1205*t647) &
+                                                                                   /0.2e1_dp + beta_2_2*rsrhobrhob + &
+                                                                                   0.3e1_dp/0.4e1_dp*t689* &
+                                                                                   t1205 + 0.3e1_dp/0.2e1_dp*t250*rsrhobrhob + &
+                                                                                   t68*t694*t1205 &
+                                                                                   *t647 + t68*t66*rsrhobrhob*t232 - &
+                                                                                   t68*t66*t1205*t647) &
                                                                 *t257 + t709*t1236*t711*t62/0.2e1_dp - e_c_u_0rhobrhob)*f &
                              *t108 + t438*f1rhob*t108 + 0.4e1_dp*t439*t443 + t1341* &
                              frhob*t108 + t112*frhobrhob*t108 + 0.4e1_dp*t441*t443 + &
@@ -1314,8 +1347,10 @@ CONTAINS
                                            0.2e1_dp*alpha_1_2*rs_brhob*t457*t471*t472 - 0.2e1_dp* &
                                            t142/t456/t151*t1388*t472 + t458*(-beta_1_2/t147*t1394 &
                                                                              /0.4e1_dp + t460*rs_brhobrhob/0.2e1_dp + beta_2_2* &
-                                                                            rs_brhobrhob + 0.3e1_dp/0.4e1_dp*beta_3_2*t459*t1394 + &
-                                                                            0.3e1_dp/0.2e1_dp*t464*rs_brhobrhob + t150*t694*t1394* &
+                                                                             rs_brhobrhob + &
+                                                                             0.3e1_dp/0.4e1_dp*beta_3_2*t459*t1394 + &
+                                                                             0.3e1_dp/0.2e1_dp*t464*rs_brhobrhob + &
+                                                                             t150*t694*t1394* &
                                                                              t1407 + t150*t66*rs_brhobrhob*t468 - t150*t66*t1394* &
                                                                              t1407)*t472 + t142/t1419*t1388/t1422*t62/0.2e1_dp)* &
                                           my_rhob + epsilon_c_unif_brhob + epsilon_c_unif_b1rhob
@@ -1339,29 +1374,39 @@ CONTAINS
 
                      exc_rhob_rhob = scale_x*(-t4*t6/t1152*gx_b/ &
                                               0.6e1_dp + e_lsda_x_brhob*(u_x_b1rhob*t31 + u_x_b*u_x_b1rhob* &
-                                                                     c_x_2) + e_lsda_x_brhob*gx_brhob + e_lsda_x_b*(u_x_brhobrhob* &
-                                                                                t31 + 0.2e1_dp*u_x_brhob*u_x_b1rhob*c_x_2 + u_x_b* &
-                                                                   u_x_brhobrhob*c_x_2)) + scale_c*(((e_c_u_0rhobrhob + (0.2e1_dp* &
+                                                                         c_x_2) + e_lsda_x_brhob*gx_brhob + &
+                                              e_lsda_x_b*(u_x_brhobrhob* &
+                                                          t31 + 0.2e1_dp*u_x_brhob*u_x_b1rhob*c_x_2 + u_x_b* &
+                                                          u_x_brhobrhob*c_x_2)) + scale_c*(((e_c_u_0rhobrhob + (0.2e1_dp* &
                                                                             t260*rsrhobrhob*t92 - 0.2e1_dp*t1049*t1047 + 0.2e1_dp* &
                                                                               t726*t1270*t278 - t266*(-t731*t1205/0.4e1_dp + t267* &
                                                                      rsrhobrhob/0.2e1_dp + beta_2_3*rsrhobrhob + 0.3e1_dp/0.4e1_dp &
                                                                             *t737*t1205 + 0.3e1_dp/0.2e1_dp*t271*rsrhobrhob + t86* &
                                                                               t742*t1205*t647 + t86*t84*rsrhobrhob*t232 - t86*t84* &
                                                                                t1205*t647)*t278 - t757*t1270*t759*t80/0.2e1_dp)*f* &
-                                                                             t110 + alpha_crhob*f1rhob*t110 - 0.4e1_dp*t431*t435 + &
-                                                                       alpha_c1rhob*frhob*t110 + alpha_c*frhobrhob*t110 - 0.4e1_dp &
-                                                                          *t433*t435 - 0.4e1_dp*t1321*t435 - 0.4e1_dp*t1324*t435 - &
-                                                                       0.12e2_dp*t105*t796*t1299 + t1360)*rho + epsilon_c_unifrhob &
-                                                                               + epsilon_c_unif1rhob - e_lsda_c_brhobrhob)*gc_ab + &
-                                                                           e_lsda_c_abrhob*(u_c_ab1rhob*t170 + u_c_ab*u_c_ab1rhob* &
+                                                                                             t110 + alpha_crhob*f1rhob*t110 - &
+                                                                                             0.4e1_dp*t431*t435 + &
+                                                                                             alpha_c1rhob*frhob*t110 + &
+                                                                                             alpha_c*frhobrhob*t110 &
+                                                                                             - 0.4e1_dp &
+                                                                                             *t433*t435 - 0.4e1_dp*t1321*t435 - &
+                                                                                             0.4e1_dp*t1324*t435 - &
+                                                                                             0.12e2_dp*t105*t796*t1299 + &
+                                                                                             t1360)*rho + epsilon_c_unifrhob &
+                                                                                            + epsilon_c_unif1rhob - &
+                                                                                            e_lsda_c_brhobrhob)*gc_ab + &
+                                                                                           e_lsda_c_abrhob*(u_c_ab1rhob*t170 + &
+                                                                                                            u_c_ab*u_c_ab1rhob* &
                                                                             c_cab_2) + (epsilon_c_unif1rhob*rho + epsilon_c_unif - &
                                                                      e_lsda_c_b1rhob)*gc_abrhob + e_lsda_c_ab*(u_c_abrhobrhob*t170 &
                                                                                + 0.2e1_dp*u_c_abrhob*u_c_ab1rhob*c_cab_2 + u_c_ab* &
                                                                                u_c_abrhobrhob*c_cab_2) + e_lsda_c_brhobrhob*gc_b + &
-                                                                       e_lsda_c_brhob*(u_c_b1rhob*t176 + u_c_b*u_c_b1rhob*c_css_2) &
-                                                                     + e_lsda_c_b1rhob*gc_brhob + e_lsda_c_b*(u_c_brhobrhob*t176 + &
+                                                                                           e_lsda_c_brhob*(u_c_b1rhob*t176 + &
+                                                                                                         u_c_b*u_c_b1rhob*c_css_2) &
+                                                                                           + e_lsda_c_b1rhob*gc_brhob + &
+                                                                                           e_lsda_c_b*(u_c_brhobrhob*t176 + &
                                                                        0.2e1_dp*u_c_brhob*u_c_b1rhob*c_css_2 + u_c_b*u_c_brhobrhob &
-                                                                                                                          *c_css_2))
+                                                                                                       *c_css_2))
                      e_rb_rb(ii) = e_rb_rb(ii) + exc_rhob_rhob
 
                      s_arhoanorm_drhoa = -0.4e1_dp/0.3e1_dp*t188
@@ -1424,10 +1469,12 @@ CONTAINS
                                                  c_x_2 + u_x_a*u_x_anorm_drhoanorm_drhoa*c_x_2) + scale_c*( &
                                                  e_lsda_c_ab*(u_c_abnorm_drhoanorm_drhoa*t170 + 0.2e1_dp* &
                                                               u_c_abnorm_drhoa*(gamma_c_ab*s_avg_21norm_drhoa*t162 - t337* &
-                                                                     t1590)*c_cab_2 + u_c_ab*u_c_abnorm_drhoanorm_drhoa*c_cab_2) + &
+                                                                                t1590)*c_cab_2 + &
+                                                              u_c_ab*u_c_abnorm_drhoanorm_drhoa*c_cab_2) + &
                                                  e_lsda_c_a*(u_c_anorm_drhoanorm_drhoa*t173 + 0.2e1_dp* &
                                                              u_c_anorm_drhoa*(gamma_c_ss*s_a_21norm_drhoa*t165 - t345* &
-                                                                          t1605)*c_css_2 + u_c_a*u_c_anorm_drhoanorm_drhoa*c_css_2))
+                                                                              t1605)*c_css_2 + &
+                                                             u_c_a*u_c_anorm_drhoanorm_drhoa*c_css_2))
                      e_ndra_ndra(ii) = e_ndra_ndra(ii) + exc_norm_drhoa_norm_drhoa
 
                      u_c_abrhoanorm_drhob = -0.2e1_dp*t906*t539 + 0.2e1_dp*t911* &
@@ -1498,10 +1545,12 @@ CONTAINS
                                                  c_x_2 + u_x_b*u_x_bnorm_drhobnorm_drhob*c_x_2) + scale_c*( &
                                                  e_lsda_c_ab*(u_c_abnorm_drhobnorm_drhob*t170 + 0.2e1_dp* &
                                                               u_c_abnorm_drhob*(gamma_c_ab*s_avg_21norm_drhob*t162 - t337* &
-                                                                     t1738)*c_cab_2 + u_c_ab*u_c_abnorm_drhobnorm_drhob*c_cab_2) + &
+                                                                                t1738)*c_cab_2 + &
+                                                              u_c_ab*u_c_abnorm_drhobnorm_drhob*c_cab_2) + &
                                                  e_lsda_c_b*(u_c_bnorm_drhobnorm_drhob*t176 + 0.2e1_dp* &
                                                              u_c_bnorm_drhob*(gamma_c_ss*s_b_21norm_drhob*t168 - t484* &
-                                                                          t1753)*c_css_2 + u_c_b*u_c_bnorm_drhobnorm_drhob*c_css_2))
+                                                                              t1753)*c_css_2 + &
+                                                             u_c_b*u_c_bnorm_drhobnorm_drhob*c_css_2))
                      e_ndrb_ndrb(ii) = e_ndrb_ndrb(ii) + exc_norm_drhob_norm_drhob
                   END IF ! <1 || >1
                END IF ! /=0
@@ -2052,10 +2101,14 @@ CONTAINS
                      t663 = 0.1e1_dp/t662
                      e_c_u_0rhoarhoa = -0.2e1_dp*t216*rsrhoarhoa*t56 + 0.2e1_dp* &
                                        t619*t621 - 0.2e1_dp*t626*t627*t236 + t222*(-t632*t633 &
-                                                                      /0.4e1_dp + t224*rsrhoarhoa/0.2e1_dp + beta_2_1*rsrhoarhoa + &
-                                                                             0.3e1_dp/0.4e1_dp*t639*t633 + 0.3e1_dp/0.2e1_dp*t228* &
-                                                                             rsrhoarhoa + t50*t644*t633*t647 + t50*t48*rsrhoarhoa* &
-                                                                              t232 - t50*t48*t633*t647)*t236 + t661*t627*t663*t42/ &
+                                                                                   /0.4e1_dp + t224*rsrhoarhoa/0.2e1_dp + &
+                                                                                   beta_2_1*rsrhoarhoa + &
+                                                                                   0.3e1_dp/0.4e1_dp*t639*t633 + &
+                                                                                   0.3e1_dp/0.2e1_dp*t228* &
+                                                                                   rsrhoarhoa + t50*t644*t633*t647 + &
+                                                                                   t50*t48*rsrhoarhoa* &
+                                                                                   t232 - t50*t48*t633*t647)*t236 + &
+                                       t661*t627*t663*t42/ &
                                        0.2e1_dp
                      e_c_u_01rhoa = e_c_u_0rhoa
                      t671 = alpha_1_2*rsrhoa
@@ -2099,7 +2152,8 @@ CONTAINS
                      t830 = -0.4e1_dp*t105*t290*chirhoarhoa + (-0.2e1_dp*t239* &
                                                                rsrhoarhoa*t74 + 0.2e1_dp*t671*t673 - 0.2e1_dp*t678*t679 &
                                                                *t257 + t245*(-t683*t633/0.4e1_dp + t246*rsrhoarhoa/ &
-                                                                      0.2e1_dp + beta_2_2*rsrhoarhoa + 0.3e1_dp/0.4e1_dp*t689*t633 &
+                                                                             0.2e1_dp + beta_2_2*rsrhoarhoa + &
+                                                                             0.3e1_dp/0.4e1_dp*t689*t633 &
                                                                              + 0.3e1_dp/0.2e1_dp*t250*rsrhoarhoa + t68*t694*t633* &
                                                                              t647 + t68*t66*rsrhoarhoa*t232 - t68*t66*t633*t647)* &
                                                                t257 + t709*t679*t711*t62/0.2e1_dp - e_c_u_0rhoarhoa)*f* &
@@ -2126,10 +2180,13 @@ CONTAINS
                      e_lsda_c_arhoarhoa = (-0.2e1_dp*t239*rs_arhoarhoa*t134 + &
                                            0.2e1_dp*alpha_1_2*rs_arhoa*t313*t327*t328 - 0.2e1_dp* &
                                            t120/t312/t129*t858*t328 + t314*(-beta_1_2/t125*t864/ &
-                                                                     0.4e1_dp + t316*rs_arhoarhoa/0.2e1_dp + beta_2_2*rs_arhoarhoa &
+                                                                            0.4e1_dp + t316*rs_arhoarhoa/0.2e1_dp + &
+                                                                            beta_2_2*rs_arhoarhoa &
                                                                             + 0.3e1_dp/0.4e1_dp*beta_3_2*t315*t864 + 0.3e1_dp/ &
-                                                                          0.2e1_dp*t320*rs_arhoarhoa + t128*t694*t864*t877 + t128* &
-                                                                           t66*rs_arhoarhoa*t324 - t128*t66*t864*t877)*t328 + t120 &
+                                                                            0.2e1_dp*t320*rs_arhoarhoa + &
+                                                                            t128*t694*t864*t877 + t128* &
+                                                                            t66*rs_arhoarhoa*t324 - &
+                                                                            t128*t66*t864*t877)*t328 + t120 &
                                            /t889*t858/t892*t62/0.2e1_dp)*my_rhoa + epsilon_c_unif_arhoa &
                                           + epsilon_c_unif_a1rhoa
                      e_lsda_c_a1rhoa = epsilon_c_unif_a1rhoa*my_rhoa + epsilon_c_unif_a
@@ -2156,8 +2213,10 @@ CONTAINS
                      exc_rhoa_rhoa = scale_x*(-t4*t6/t555*gx_a/0.6e1_dp &
                                               + e_lsda_x_arhoa*(u_x_a1rhoa*t18 + u_x_a*u_x_a1rhoa*c_x_2) &
                                               + e_lsda_x_arhoa*gx_arhoa + e_lsda_x_a*(u_x_arhoarhoa*t18 + &
-                                                                        0.2e1_dp*u_x_arhoa*u_x_a1rhoa*c_x_2 + u_x_a*u_x_arhoarhoa* &
-                                                                            c_x_2)) + scale_c*(((e_c_u_0rhoarhoa + (0.2e1_dp*t260* &
+                                                                                      0.2e1_dp*u_x_arhoa*u_x_a1rhoa*c_x_2 + &
+                                                                                      u_x_a*u_x_arhoarhoa* &
+                                                                                      c_x_2)) + scale_c*(((e_c_u_0rhoarhoa + &
+                                                                                                           (0.2e1_dp*t260* &
                                                                          rsrhoarhoa*t92 - 0.2e1_dp*t719*t721 + 0.2e1_dp*t726*t727* &
                                                                                t278 - t266*(-t731*t633/0.4e1_dp + t267*rsrhoarhoa/ &
                                                                       0.2e1_dp + beta_2_3*rsrhoarhoa + 0.3e1_dp/0.4e1_dp*t737*t633 &
@@ -2166,11 +2225,15 @@ CONTAINS
                                                                           t278 - t757*t727*t759*t80/0.2e1_dp)*f*t110 + alpha_crhoa &
                                                                            *f1rhoa*t110 - 0.4e1_dp*t285*t291 + alpha_c1rhoa*frhoa* &
                                                                               t110 + alpha_c*frhoarhoa*t110 - 0.4e1_dp*t287*t291 - &
-                                                                         0.4e1_dp*t790*t291 - 0.4e1_dp*t793*t291 - 0.12e2_dp*t105* &
+                                                                                                           0.4e1_dp*t790*t291 - &
+                                                                                                           0.4e1_dp*t793*t291 - &
+                                                                                                           0.12e2_dp*t105* &
                                                                                       t796*t766 + t830)*rho + epsilon_c_unifrhoa + &
                                                                  epsilon_c_unif1rhoa - e_lsda_c_arhoarhoa)*gc_ab + e_lsda_c_abrhoa &
                                                                               *(u_c_ab1rhoa*t170 + u_c_ab*u_c_ab1rhoa*c_cab_2) + ( &
-                                                                      epsilon_c_unif1rhoa*rho + epsilon_c_unif - e_lsda_c_a1rhoa)* &
+                                                                                                         epsilon_c_unif1rhoa*rho + &
+                                                                                                         epsilon_c_unif - &
+                                                                                                         e_lsda_c_a1rhoa)* &
                                                                           gc_abrhoa + e_lsda_c_ab*(u_c_abrhoarhoa*t170 + 0.2e1_dp* &
                                                                            u_c_abrhoa*u_c_ab1rhoa*c_cab_2 + u_c_ab*u_c_abrhoarhoa* &
                                                                    c_cab_2) + e_lsda_c_arhoarhoa*gc_a + e_lsda_c_arhoa*(u_c_a1rhoa &
@@ -2187,10 +2250,14 @@ CONTAINS
                      t993 = rsrhob*t647*rsrhoa
                      e_c_u_0rhoarhob = -0.2e1_dp*t216*rsrhoarhob*t56 + t619* &
                                        t974 + t976*t621 - 0.2e1_dp*t626*t237*t396 + t222*(-t632* &
-                                                                              t981/0.4e1_dp + t224*rsrhoarhob/0.2e1_dp + beta_2_1* &
-                                                                      rsrhoarhob + 0.3e1_dp/0.4e1_dp*t639*t981 + 0.3e1_dp/0.2e1_dp &
-                                                                            *t228*rsrhoarhob + t50*t644*t993 + t50*t48*rsrhoarhob* &
-                                                                              t232 - t50*t48*t993)*t236 + t661*t235*t663*t42*t396/ &
+                                                                                          t981/0.4e1_dp + t224*rsrhoarhob/0.2e1_dp &
+                                                                                          + beta_2_1* &
+                                                                                          rsrhoarhob + 0.3e1_dp/0.4e1_dp*t639*t981 &
+                                                                                          + 0.3e1_dp/0.2e1_dp &
+                                                                                          *t228*rsrhoarhob + t50*t644*t993 + &
+                                                                                          t50*t48*rsrhoarhob* &
+                                                                                          t232 - t50*t48*t993)*t236 + &
+                                       t661*t235*t663*t42*t396/ &
                                        0.2e1_dp
                      t1012 = t244*t410*t257
                      t1014 = alpha_1_2*rsrhob
@@ -2204,9 +2271,12 @@ CONTAINS
                      t1136 = -0.4e1_dp*t105*t290*chirhoarhob + (-0.2e1_dp*t239 &
                                                                 *rsrhoarhob*t74 + t671*t1012 + t1014*t673 - 0.2e1_dp*t678* &
                                                                 t258*t410 + t245*(-t683*t981/0.4e1_dp + t246*rsrhoarhob/ &
-                                                                          0.2e1_dp + beta_2_2*rsrhoarhob + 0.3e1_dp/0.4e1_dp*t689* &
-                                                                        t981 + 0.3e1_dp/0.2e1_dp*t250*rsrhoarhob + t68*t694*t993 + &
-                                                                              t68*t66*rsrhoarhob*t232 - t68*t66*t993)*t257 + t709* &
+                                                                                  0.2e1_dp + beta_2_2*rsrhoarhob + &
+                                                                                  0.3e1_dp/0.4e1_dp*t689* &
+                                                                                  t981 + 0.3e1_dp/0.2e1_dp*t250*rsrhoarhob + &
+                                                                                  t68*t694*t993 + &
+                                                                                  t68*t66*rsrhoarhob*t232 - &
+                                                                                  t68*t66*t993)*t257 + t709* &
                                                                 t256*t711*t62*t410/0.2e1_dp - e_c_u_0rhoarhob)*f*t108 + &
                              t294*frhob*t108 + 0.4e1_dp*t295*t443 + t438*frhoa*t108 + &
                              t112*frhoarhob*t108 + 0.4e1_dp*t297*t443 + 0.4e1_dp*t439 &
@@ -2218,9 +2288,12 @@ CONTAINS
                      exc_rhoa_rhob = scale_c*(((e_c_u_0rhoarhob + (0.2e1_dp*t260* &
                                                                    rsrhoarhob*t92 - t719*t1047 - t1049*t721 + 0.2e1_dp*t726* &
                                                                    t279*t424 - t266*(-t731*t981/0.4e1_dp + t267*rsrhoarhob/ &
-                                                                      0.2e1_dp + beta_2_3*rsrhoarhob + 0.3e1_dp/0.4e1_dp*t737*t981 &
-                                                                         + 0.3e1_dp/0.2e1_dp*t271*rsrhoarhob + t86*t742*t993 + t86 &
-                                                                             *t84*rsrhoarhob*t232 - t86*t84*t993)*t278 - t757*t277 &
+                                                                                     0.2e1_dp + beta_2_3*rsrhoarhob + &
+                                                                                     0.3e1_dp/0.4e1_dp*t737*t981 &
+                                                                                     + 0.3e1_dp/0.2e1_dp*t271*rsrhoarhob + &
+                                                                                     t86*t742*t993 + t86 &
+                                                                                     *t84*rsrhoarhob*t232 - t86*t84*t993)*t278 - &
+                                                                   t757*t277 &
                                                                    *t759*t80*t424/0.2e1_dp)*f*t110 + alpha_crhoa*frhob* &
                                                 t110 - 0.4e1_dp*t285*t435 + alpha_crhob*frhoa*t110 + alpha_c &
                                                 *frhoarhob*t110 - 0.4e1_dp*t287*t435 - 0.4e1_dp*t431* &
@@ -2250,10 +2323,14 @@ CONTAINS
                      t1205 = rsrhob**2
                      e_c_u_0rhobrhob = -0.2e1_dp*t216*rsrhobrhob*t56 + 0.2e1_dp* &
                                        t976*t974 - 0.2e1_dp*t626*t1201*t236 + t222*(-t632* &
-                                                                             t1205/0.4e1_dp + t224*rsrhobrhob/0.2e1_dp + beta_2_1* &
-                                                                             rsrhobrhob + 0.3e1_dp/0.4e1_dp*t639*t1205 + 0.3e1_dp/ &
-                                                                          0.2e1_dp*t228*rsrhobrhob + t50*t644*t1205*t647 + t50*t48 &
-                                                                               *rsrhobrhob*t232 - t50*t48*t1205*t647)*t236 + t661* &
+                                                                                    t1205/0.4e1_dp + t224*rsrhobrhob/0.2e1_dp + &
+                                                                                    beta_2_1* &
+                                                                                    rsrhobrhob + 0.3e1_dp/0.4e1_dp*t639*t1205 + &
+                                                                                    0.3e1_dp/ &
+                                                                                    0.2e1_dp*t228*rsrhobrhob + t50*t644*t1205*t647 &
+                                                                                    + t50*t48 &
+                                                                                    *rsrhobrhob*t232 - &
+                                                                                    t50*t48*t1205*t647)*t236 + t661* &
                                        t1201*t663*t42/0.2e1_dp
                      e_c_u_01rhob = e_c_u_0rhob
                      t1236 = t410**2
@@ -2272,9 +2349,12 @@ CONTAINS
                      t1360 = -0.4e1_dp*t105*t290*chirhobrhob + (-0.2e1_dp*t239 &
                                                                 *rsrhobrhob*t74 + 0.2e1_dp*t1014*t1012 - 0.2e1_dp*t678* &
                                                                 t1236*t257 + t245*(-t683*t1205/0.4e1_dp + t246*rsrhobrhob &
-                                                                         /0.2e1_dp + beta_2_2*rsrhobrhob + 0.3e1_dp/0.4e1_dp*t689* &
-                                                                        t1205 + 0.3e1_dp/0.2e1_dp*t250*rsrhobrhob + t68*t694*t1205 &
-                                                                             *t647 + t68*t66*rsrhobrhob*t232 - t68*t66*t1205*t647) &
+                                                                                   /0.2e1_dp + beta_2_2*rsrhobrhob + &
+                                                                                   0.3e1_dp/0.4e1_dp*t689* &
+                                                                                   t1205 + 0.3e1_dp/0.2e1_dp*t250*rsrhobrhob + &
+                                                                                   t68*t694*t1205 &
+                                                                                   *t647 + t68*t66*rsrhobrhob*t232 - &
+                                                                                   t68*t66*t1205*t647) &
                                                                 *t257 + t709*t1236*t711*t62/0.2e1_dp - e_c_u_0rhobrhob)*f &
                              *t108 + t438*f1rhob*t108 + 0.4e1_dp*t439*t443 + t1341* &
                              frhob*t108 + t112*frhobrhob*t108 + 0.4e1_dp*t441*t443 + &
@@ -2300,8 +2380,10 @@ CONTAINS
                                            0.2e1_dp*alpha_1_2*rs_brhob*t457*t471*t472 - 0.2e1_dp* &
                                            t142/t456/t151*t1388*t472 + t458*(-beta_1_2/t147*t1394 &
                                                                              /0.4e1_dp + t460*rs_brhobrhob/0.2e1_dp + beta_2_2* &
-                                                                            rs_brhobrhob + 0.3e1_dp/0.4e1_dp*beta_3_2*t459*t1394 + &
-                                                                            0.3e1_dp/0.2e1_dp*t464*rs_brhobrhob + t150*t694*t1394* &
+                                                                             rs_brhobrhob + &
+                                                                             0.3e1_dp/0.4e1_dp*beta_3_2*t459*t1394 + &
+                                                                             0.3e1_dp/0.2e1_dp*t464*rs_brhobrhob + &
+                                                                             t150*t694*t1394* &
                                                                              t1407 + t150*t66*rs_brhobrhob*t468 - t150*t66*t1394* &
                                                                              t1407)*t472 + t142/t1419*t1388/t1422*t62/0.2e1_dp)* &
                                           my_rhob + epsilon_c_unif_brhob + epsilon_c_unif_b1rhob
@@ -2325,29 +2407,39 @@ CONTAINS
 
                      exc_rhob_rhob = scale_x*(-t4*t6/t1152*gx_b/ &
                                               0.6e1_dp + e_lsda_x_brhob*(u_x_b1rhob*t31 + u_x_b*u_x_b1rhob* &
-                                                                     c_x_2) + e_lsda_x_brhob*gx_brhob + e_lsda_x_b*(u_x_brhobrhob* &
-                                                                                t31 + 0.2e1_dp*u_x_brhob*u_x_b1rhob*c_x_2 + u_x_b* &
-                                                                   u_x_brhobrhob*c_x_2)) + scale_c*(((e_c_u_0rhobrhob + (0.2e1_dp* &
+                                                                         c_x_2) + e_lsda_x_brhob*gx_brhob + &
+                                              e_lsda_x_b*(u_x_brhobrhob* &
+                                                          t31 + 0.2e1_dp*u_x_brhob*u_x_b1rhob*c_x_2 + u_x_b* &
+                                                          u_x_brhobrhob*c_x_2)) + scale_c*(((e_c_u_0rhobrhob + (0.2e1_dp* &
                                                                             t260*rsrhobrhob*t92 - 0.2e1_dp*t1049*t1047 + 0.2e1_dp* &
                                                                               t726*t1270*t278 - t266*(-t731*t1205/0.4e1_dp + t267* &
                                                                      rsrhobrhob/0.2e1_dp + beta_2_3*rsrhobrhob + 0.3e1_dp/0.4e1_dp &
                                                                             *t737*t1205 + 0.3e1_dp/0.2e1_dp*t271*rsrhobrhob + t86* &
                                                                               t742*t1205*t647 + t86*t84*rsrhobrhob*t232 - t86*t84* &
                                                                                t1205*t647)*t278 - t757*t1270*t759*t80/0.2e1_dp)*f* &
-                                                                             t110 + alpha_crhob*f1rhob*t110 - 0.4e1_dp*t431*t435 + &
-                                                                       alpha_c1rhob*frhob*t110 + alpha_c*frhobrhob*t110 - 0.4e1_dp &
-                                                                          *t433*t435 - 0.4e1_dp*t1321*t435 - 0.4e1_dp*t1324*t435 - &
-                                                                       0.12e2_dp*t105*t796*t1299 + t1360)*rho + epsilon_c_unifrhob &
-                                                                               + epsilon_c_unif1rhob - e_lsda_c_brhobrhob)*gc_ab + &
-                                                                           e_lsda_c_abrhob*(u_c_ab1rhob*t170 + u_c_ab*u_c_ab1rhob* &
+                                                                                             t110 + alpha_crhob*f1rhob*t110 - &
+                                                                                             0.4e1_dp*t431*t435 + &
+                                                                                             alpha_c1rhob*frhob*t110 + &
+                                                                                             alpha_c*frhobrhob*t110 &
+                                                                                             - 0.4e1_dp &
+                                                                                             *t433*t435 - 0.4e1_dp*t1321*t435 - &
+                                                                                             0.4e1_dp*t1324*t435 - &
+                                                                                             0.12e2_dp*t105*t796*t1299 + &
+                                                                                             t1360)*rho + epsilon_c_unifrhob &
+                                                                                            + epsilon_c_unif1rhob - &
+                                                                                            e_lsda_c_brhobrhob)*gc_ab + &
+                                                                                           e_lsda_c_abrhob*(u_c_ab1rhob*t170 + &
+                                                                                                            u_c_ab*u_c_ab1rhob* &
                                                                             c_cab_2) + (epsilon_c_unif1rhob*rho + epsilon_c_unif - &
                                                                      e_lsda_c_b1rhob)*gc_abrhob + e_lsda_c_ab*(u_c_abrhobrhob*t170 &
                                                                                + 0.2e1_dp*u_c_abrhob*u_c_ab1rhob*c_cab_2 + u_c_ab* &
                                                                                u_c_abrhobrhob*c_cab_2) + e_lsda_c_brhobrhob*gc_b + &
-                                                                       e_lsda_c_brhob*(u_c_b1rhob*t176 + u_c_b*u_c_b1rhob*c_css_2) &
-                                                                     + e_lsda_c_b1rhob*gc_brhob + e_lsda_c_b*(u_c_brhobrhob*t176 + &
+                                                                                           e_lsda_c_brhob*(u_c_b1rhob*t176 + &
+                                                                                                         u_c_b*u_c_b1rhob*c_css_2) &
+                                                                                           + e_lsda_c_b1rhob*gc_brhob + &
+                                                                                           e_lsda_c_b*(u_c_brhobrhob*t176 + &
                                                                        0.2e1_dp*u_c_brhob*u_c_b1rhob*c_css_2 + u_c_b*u_c_brhobrhob &
-                                                                                                                          *c_css_2))
+                                                                                                       *c_css_2))
                      e_r_r(ii) = e_r_r(ii) + 0.5_dp*0.5_dp*exc_rhob_rhob
 
                      s_arhoanorm_drhoa = -0.4e1_dp/0.3e1_dp*t188
@@ -2410,10 +2502,12 @@ CONTAINS
                                                  c_x_2 + u_x_a*u_x_anorm_drhoanorm_drhoa*c_x_2) + scale_c*( &
                                                  e_lsda_c_ab*(u_c_abnorm_drhoanorm_drhoa*t170 + 0.2e1_dp* &
                                                               u_c_abnorm_drhoa*(gamma_c_ab*s_avg_21norm_drhoa*t162 - t337* &
-                                                                     t1590)*c_cab_2 + u_c_ab*u_c_abnorm_drhoanorm_drhoa*c_cab_2) + &
+                                                                                t1590)*c_cab_2 + &
+                                                              u_c_ab*u_c_abnorm_drhoanorm_drhoa*c_cab_2) + &
                                                  e_lsda_c_a*(u_c_anorm_drhoanorm_drhoa*t173 + 0.2e1_dp* &
                                                              u_c_anorm_drhoa*(gamma_c_ss*s_a_21norm_drhoa*t165 - t345* &
-                                                                          t1605)*c_css_2 + u_c_a*u_c_anorm_drhoanorm_drhoa*c_css_2))
+                                                                              t1605)*c_css_2 + &
+                                                             u_c_a*u_c_anorm_drhoanorm_drhoa*c_css_2))
                      e_ndr_ndr(ii) = e_ndr_ndr(ii) + 0.5_dp*0.5_dp*exc_norm_drhoa_norm_drhoa
 
                      u_c_abrhoanorm_drhob = -0.2e1_dp*t906*t539 + 0.2e1_dp*t911* &
@@ -2484,10 +2578,12 @@ CONTAINS
                                                  c_x_2 + u_x_b*u_x_bnorm_drhobnorm_drhob*c_x_2) + scale_c*( &
                                                  e_lsda_c_ab*(u_c_abnorm_drhobnorm_drhob*t170 + 0.2e1_dp* &
                                                               u_c_abnorm_drhob*(gamma_c_ab*s_avg_21norm_drhob*t162 - t337* &
-                                                                     t1738)*c_cab_2 + u_c_ab*u_c_abnorm_drhobnorm_drhob*c_cab_2) + &
+                                                                                t1738)*c_cab_2 + &
+                                                              u_c_ab*u_c_abnorm_drhobnorm_drhob*c_cab_2) + &
                                                  e_lsda_c_b*(u_c_bnorm_drhobnorm_drhob*t176 + 0.2e1_dp* &
                                                              u_c_bnorm_drhob*(gamma_c_ss*s_b_21norm_drhob*t168 - t484* &
-                                                                          t1753)*c_css_2 + u_c_b*u_c_bnorm_drhobnorm_drhob*c_css_2))
+                                                                              t1753)*c_css_2 + &
+                                                             u_c_b*u_c_bnorm_drhobnorm_drhob*c_css_2))
                      e_ndr_ndr(ii) = e_ndr_ndr(ii) + 0.5_dp*0.5_dp*exc_norm_drhob_norm_drhob
                   END IF ! <1 || >1
                END IF ! /=0

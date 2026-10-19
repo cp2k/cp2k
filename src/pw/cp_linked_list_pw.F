@@ -25,7 +25,7 @@ MODULE cp_linked_list_pw
 
       #:set eq = ['=>','=>','=>','=>','=>']
       #:set arrayeq = eq
-      #:set type1arrayEl = ['type(cp_3d_r_cp_type)','type(cp_3d_c_cp_type)','type(cp_1d_r_cp_type)','type(cp_1d_c_cp_type)','type(realspace_grid_p_type)']
+#:set type1arrayEl = ['type(cp_3d_r_cp_type)','type(cp_3d_c_cp_type)','type(cp_1d_r_cp_type)','type(cp_1d_c_cp_type)','type(realspace_grid_p_type)']
 
       #:set arrayEl = ['%array','%array','%array','%array','%rs_grid']
 

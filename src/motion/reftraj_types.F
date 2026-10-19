@@ -55,10 +55,12 @@ MODULE reftraj_types
 
 ! **************************************************************************************************
    TYPE reftraj_msd_type
-   LOGICAL                                  :: disp_atom = .FALSE., msd_kind = .FALSE., msd_molecule = .FALSE., msd_region = .FALSE.
+      LOGICAL                                  :: disp_atom = .FALSE., msd_kind = .FALSE., msd_molecule = .FALSE., &
+                                                  msd_region = .FALSE.
       INTEGER                                  :: num_disp_atom = 0, ref0_unit = 0
       INTEGER, POINTER, DIMENSION(:)           :: disp_atom_index => NULL()
-    REAL(KIND=dp)                            :: disp_atom_tol = 0.0_dp, drcom(3) = 0.0_dp, ref0_com(3) = 0.0_dp, total_mass = 0.0_dp
+      REAL(KIND=dp)                            :: disp_atom_tol = 0.0_dp, drcom(3) = 0.0_dp, ref0_com(3) = 0.0_dp, &
+                                                  total_mass = 0.0_dp
       REAL(KIND=dp), POINTER, DIMENSION(:, :)   :: disp_atom_dr => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:, :)   :: ref0_pos => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:, :)   :: ref0_com_molecule => NULL()

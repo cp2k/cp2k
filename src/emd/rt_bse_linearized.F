@@ -1314,7 +1314,8 @@ CONTAINS
          DO i_loc = 1, nrl
             i_global = r_idx(i_loc)
             ham_effective%local_data(i_loc, j_loc) = ham_effective%local_data(i_loc, j_loc) &
-                                            + CMPLX(rtbse_env%eps_active(i_global, ispin) - rtbse_env%eps_active(j_global, ispin), &
+                                                     + CMPLX(rtbse_env%eps_active(i_global, ispin) - &
+                                                             rtbse_env%eps_active(j_global, ispin), &
                                                              0.0_dp, kind=dp)*rho%local_data(i_loc, j_loc)
          END DO
       END DO

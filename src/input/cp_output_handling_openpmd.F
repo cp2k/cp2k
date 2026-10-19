@@ -195,7 +195,7 @@ CONTAINS
    #:set map_counters = ['cp_num_openpmd_per_call', 'cp_num_openpmd_per_callsite']
    #:set map_capacities = ['cp_capacity_openpmd_per_call', 'cp_capacity_openpmd_per_callsite']
 
-   #:for name_suffix, key_type, value_type, map_storage, map_counter, map_capacity in zip(name_suffixes, key_types, value_types, map_storages, map_counters, map_capacities)
+#:for name_suffix, key_type, value_type, map_storage, map_counter, map_capacity in zip(name_suffixes, key_types, value_types, map_storages, map_counters, map_capacities)
 
       ! TODO No reallocation support for now, change cp_allocation_size if larger sizes needed.
 

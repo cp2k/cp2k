@@ -74,9 +74,12 @@ MODULE qs_mfp
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mfp'
 
    REAL(dp), DIMENSION(3, 3, 3), PARAMETER  :: Levi_Civita = RESHAPE([ &
-                                                          0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, -1.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, &
-                                                          0.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, -1.0_dp, 0.0_dp, 0.0_dp, &
-                                                         0.0_dp, -1.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp], &
+                                                                     0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, -1.0_dp, 0.0_dp, &
+                                                                     1.0_dp, 0.0_dp, &
+                                                                     0.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, -1.0_dp, &
+                                                                     0.0_dp, 0.0_dp, &
+                                                                     0.0_dp, -1.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, &
+                                                                     0.0_dp, 0.0_dp], &
                                                                      [3, 3, 3])
 CONTAINS
 
@@ -1370,23 +1373,23 @@ CONTAINS
 
          IF (PRESENT(gauge_origin)) THEN
             IF (basis_function_nu) THEN
-               !$OMP CRITICAL(blockadd)
+!$OMP CRITICAL(blockadd)
                matrix_block(:, :) = matrix_block(:, :)*(particle_set(jatom)%r(direction) - gauge_origin(direction))
-               !$OMP END CRITICAL(blockadd)
+!$OMP END CRITICAL(blockadd)
             ELSE
-               !$OMP CRITICAL(blockadd)
+!$OMP CRITICAL(blockadd)
                matrix_block(:, :) = matrix_block(:, :)*(particle_set(iatom)%r(direction) - gauge_origin(direction))
-               !$OMP END CRITICAL(blockadd)
+!$OMP END CRITICAL(blockadd)
             END IF
          ELSE IF (.NOT. PRESENT(gauge_origin)) THEN
             IF (basis_function_nu) THEN
-               !$OMP CRITICAL(blockadd)
+!$OMP CRITICAL(blockadd)
                matrix_block(:, :) = matrix_block(:, :)*particle_set(jatom)%r(direction)
-               !$OMP END CRITICAL(blockadd)
+!$OMP END CRITICAL(blockadd)
             ELSE
-               !$OMP CRITICAL(blockadd)
+!$OMP CRITICAL(blockadd)
                matrix_block(:, :) = matrix_block(:, :)*particle_set(iatom)%r(direction)
-               !$OMP END CRITICAL(blockadd)
+!$OMP END CRITICAL(blockadd)
             END IF
          END IF
       END DO

@@ -636,12 +636,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      !$OMP PARALLEL DEFAULT(NONE) &
-      !$OMP SHARED(skip_grid_point, bs_env, ctx, phi_val, ao_col_map, d_lp, n_grid_total, n_loc_ri, atom_P, max_ao_size, &
-      !$OMP        atom_j_mepos, atom_j_stride) &
-      !$OMP PRIVATE(grid_index, grid_result, n_grid_pair, point, pair_factor, &
-      !$OMP         atom_j, atom_k, c, handle_dgemm, j, jk_idx, jsize, jstart, k, ksize, kstart, &
-      !$OMP         l, l0, ri, screened, d_lp_prv, int_2d_prv, rho_chunk, int_3c_prv, ws)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(skip_grid_point, bs_env, ctx, phi_val, ao_col_map, d_lp, n_grid_total, n_loc_ri, atom_P, max_ao_size, &
+!$OMP        atom_j_mepos, atom_j_stride) &
+!$OMP PRIVATE(grid_index, grid_result, n_grid_pair, point, pair_factor, &
+!$OMP         atom_j, atom_k, c, handle_dgemm, j, jk_idx, jsize, jstart, k, ksize, kstart, &
+!$OMP         l, l0, ri, screened, d_lp_prv, int_2d_prv, rho_chunk, int_3c_prv, ws)
 
       CALL gw_3c_ws_create(ws, ctx)
       ALLOCATE (int_3c_prv(max_ao_size, max_ao_size, n_loc_ri))
@@ -651,14 +651,14 @@ CONTAINS
       ALLOCATE (grid_index(n_grid_total), grid_result(grid_chunk, n_loc_ri))
       d_lp_prv(:, :) = 0.0_dp
 
-      !$OMP SINGLE
+!$OMP SINGLE
       ALLOCATE (skip_grid_point(n_grid_total, bs_env%n_atom))
       CALL compute_skip_grid_point(bs_env, phi_val, ao_col_map, skip_grid_point)
-      !$OMP END SINGLE
+!$OMP END SINGLE
 
       ! MPI assigns each unordered pair through its first atom; OpenMP divides those atoms.
       ! Skip only exact-zero pair-grid support, without a new screening threshold.
-      !$OMP DO SCHEDULE(DYNAMIC)
+!$OMP DO SCHEDULE(DYNAMIC)
       DO atom_j = atom_j_mepos + 1, bs_env%n_atom, atom_j_stride
          DO atom_k = atom_j, bs_env%n_atom
             jstart = ao_col_map(bs_env%i_ao_start_from_atom(atom_j))
@@ -727,21 +727,21 @@ CONTAINS
             END DO
          END DO
       END DO
-      !$OMP END DO
+!$OMP END DO
 
-      !$OMP CRITICAL (compute_d_lp_reduce)
+!$OMP CRITICAL (compute_d_lp_reduce)
       d_lp(1:n_grid_total, 1:n_loc_ri) = d_lp(1:n_grid_total, 1:n_loc_ri) + &
                                          d_lp_prv(1:n_grid_total, 1:n_loc_ri)
-      !$OMP END CRITICAL (compute_d_lp_reduce)
+!$OMP END CRITICAL (compute_d_lp_reduce)
 
       DEALLOCATE (int_3c_prv, int_2d_prv, rho_chunk, d_lp_prv, grid_index, grid_result)
       CALL gw_3c_ws_release(ws)
 
-      !$OMP SINGLE
+!$OMP SINGLE
       DEALLOCATE (skip_grid_point)
-      !$OMP END SINGLE
+!$OMP END SINGLE
 
-      !$OMP END PARALLEL
+!$OMP END PARALLEL
 
       CALL timestop(handle)
 
@@ -1422,9 +1422,9 @@ CONTAINS
       ngrid = SIZE(phi_val, 1)
       natom = bs_env%n_atom
       ALLOCATE (nonzero_ao(ngrid, natom), source=.FALSE.)
-      !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-      !$OMP SHARED(bs_env, phi_val, ao_col_map, nonzero_ao, ngrid, natom) &
-      !$OMP PRIVATE(iatom, first, last, col, point)
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP SHARED(bs_env, phi_val, ao_col_map, nonzero_ao, ngrid, natom) &
+!$OMP PRIVATE(iatom, first, last, col, point)
       DO iatom = 1, natom
          first = ao_col_map(bs_env%i_ao_start_from_atom(iatom))
          IF (first == 0) CYCLE
@@ -1436,7 +1436,7 @@ CONTAINS
             END DO
          END DO
       END DO
-      !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
 
       CALL timestop(handle)
    END SUBROUTINE compute_nonzero_AO_grid_mask
@@ -1496,15 +1496,15 @@ CONTAINS
 
       CALL compute_nonzero_AO_grid_mask(bs_env, phi_val, ao_col_map, nonzero_ao)
 
-      !$OMP PARALLEL DEFAULT(NONE) &
-      !$OMP SHARED(nonzero_ao, bs_env, ctx, phi_val, ao_col_map, d_lp, n_grid, iatom, &
-      !$OMP        U_Pp, &
-      !$OMP        max_ao_size, ncol, nRI_ref, d_lp_threads, nthreads) &
-      !$OMP PRIVATE(grid_index, n_grid_pair, grid_l, point, grid_result, &
-      !$OMP         jatom, katom, c, &
-      !$OMP         i_thread, j, jk_idx, jsize, jstart, k, ksize, &
-      !$OMP         kstart, l, l0, ri, screened, pair_factor, int_2d_prv, rho_chunk, &
-      !$OMP         int_3c_prv, ws, thread_id)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(nonzero_ao, bs_env, ctx, phi_val, ao_col_map, d_lp, n_grid, iatom, &
+!$OMP        U_Pp, &
+!$OMP        max_ao_size, ncol, nRI_ref, d_lp_threads, nthreads) &
+!$OMP PRIVATE(grid_index, n_grid_pair, grid_l, point, grid_result, &
+!$OMP         jatom, katom, c, &
+!$OMP         i_thread, j, jk_idx, jsize, jstart, k, ksize, &
+!$OMP         kstart, l, l0, ri, screened, pair_factor, int_2d_prv, rho_chunk, &
+!$OMP         int_3c_prv, ws, thread_id)
 
       thread_id = 1
 !$    thread_id = omp_get_thread_num() + 1
@@ -1515,7 +1515,7 @@ CONTAINS
       ALLOCATE (rho_chunk(grid_chunk, max_ao_size*max_ao_size))
       ALLOCATE (grid_index(n_grid), grid_result(grid_chunk, ncol))
 
-      !$OMP DO SCHEDULE(DYNAMIC)
+!$OMP DO SCHEDULE(DYNAMIC)
       DO jatom = 1, bs_env%n_atom
          DO katom = jatom, bs_env%n_atom
             jstart = ao_col_map(bs_env%i_ao_start_from_atom(jatom))
@@ -1571,9 +1571,9 @@ CONTAINS
             END DO
          END DO
       END DO
-      !$OMP END DO
+!$OMP END DO
 
-      !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
+!$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
       DO ri = 1, ncol
          DO l = 1, n_grid
             DO i_thread = 1, nthreads
@@ -1581,11 +1581,11 @@ CONTAINS
             END DO
          END DO
       END DO
-      !$OMP END DO
+!$OMP END DO
       DEALLOCATE (int_3c_prv, int_2d_prv, rho_chunk)
       DEALLOCATE (grid_index, grid_result)
       CALL gw_3c_ws_release(ws)
-      !$OMP END PARALLEL
+!$OMP END PARALLEL
 
       DEALLOCATE (d_lp_threads)
 
@@ -1680,17 +1680,17 @@ CONTAINS
 
       CALL compute_nonzero_AO_grid_mask(bs_env, phi_val, ao_col_map, nonzero_ao)
 
-      !$OMP PARALLEL DEFAULT(NONE) &
-      !$OMP SHARED(nonzero_ao, bs_env, ctx, phi_val, ao_col_map, d_lp, n_grid, ri_coefficients, &
-      !$OMP        active_atom, max_ao_size, atom_j_mepos, atom_j_stride, ncol, &
-      !$OMP        d_lp_threads, nthreads, atom_ncol, &
-      !$OMP        atom_column, coefficient_compact, max_active) &
-      !$OMP PRIVATE(grid_index, n_grid_pair, grid_l, point, grid_result, &
-      !$OMP         active_column, iatom, jatom, katom, c, i_thread, j, jk_idx, jsize, jstart, &
-      !$OMP         k, ksize, kstart, l, l0, &
-      !$OMP         nactive, nRI_ref, ri, any_integral, screened, pair_factor, &
-      !$OMP         int_2d_prv, rho_chunk, &
-      !$OMP         int_3c_prv, int_3c_atom, ws, thread_id)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(nonzero_ao, bs_env, ctx, phi_val, ao_col_map, d_lp, n_grid, ri_coefficients, &
+!$OMP        active_atom, max_ao_size, atom_j_mepos, atom_j_stride, ncol, &
+!$OMP        d_lp_threads, nthreads, atom_ncol, &
+!$OMP        atom_column, coefficient_compact, max_active) &
+!$OMP PRIVATE(grid_index, n_grid_pair, grid_l, point, grid_result, &
+!$OMP         active_column, iatom, jatom, katom, c, i_thread, j, jk_idx, jsize, jstart, &
+!$OMP         k, ksize, kstart, l, l0, &
+!$OMP         nactive, nRI_ref, ri, any_integral, screened, pair_factor, &
+!$OMP         int_2d_prv, rho_chunk, &
+!$OMP         int_3c_prv, int_3c_atom, ws, thread_id)
 
       thread_id = 1
 !$    thread_id = omp_get_thread_num() + 1
@@ -1702,7 +1702,7 @@ CONTAINS
       ALLOCATE (rho_chunk(grid_chunk, max_ao_size*max_ao_size))
       ALLOCATE (grid_index(n_grid), grid_result(grid_chunk, ncol))
 
-      !$OMP DO SCHEDULE(DYNAMIC)
+!$OMP DO SCHEDULE(DYNAMIC)
       DO jatom = atom_j_mepos + 1, bs_env%n_atom, atom_j_stride
          DO katom = jatom, bs_env%n_atom
             jstart = ao_col_map(bs_env%i_ao_start_from_atom(jatom))
@@ -1777,9 +1777,9 @@ CONTAINS
             END DO
          END DO
       END DO
-      !$OMP END DO
+!$OMP END DO
 
-      !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
+!$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
       DO ri = 1, ncol
          DO l = 1, n_grid
             DO i_thread = 1, nthreads
@@ -1787,11 +1787,11 @@ CONTAINS
             END DO
          END DO
       END DO
-      !$OMP END DO
+!$OMP END DO
       DEALLOCATE (int_3c_prv, int_3c_atom, int_2d_prv, rho_chunk)
       DEALLOCATE (grid_index, grid_result)
       CALL gw_3c_ws_release(ws)
-      !$OMP END PARALLEL
+!$OMP END PARALLEL
 
       DEALLOCATE (coefficient_compact, d_lp_threads, atom_column, atom_ncol)
 
@@ -2730,16 +2730,16 @@ CONTAINS
 
       IF (n_local_grid > 0) THEN
          ALLOCATE (w_pt(n_local_grid))
-         !$OMP PARALLEL DO DEFAULT(NONE) &
-         !$OMP SHARED(n_local_grid, n_ao_used, phi_local, w_pt) &
-         !$OMP PRIVATE(l, j) SCHEDULE(STATIC)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(n_local_grid, n_ao_used, phi_local, w_pt) &
+!$OMP PRIVATE(l, j) SCHEDULE(STATIC)
          DO l = 1, n_local_grid
             w_pt(l) = 0.0_dp
             DO j = 1, n_ao_used
                w_pt(l) = MAX(w_pt(l), ABS(phi_local(l, j)))
             END DO
          END DO
-         !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
          n_keep = COUNT(w_pt > bs_env%eps_filter)
          IF (n_keep < n_local_grid) THEN
             ALLOCATE (phi_keep(n_keep, n_ao_used))
