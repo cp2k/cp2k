@@ -31,8 +31,11 @@ MODULE ai_moments
 
    USE ai_cartesian_operators, ONLY: apply_cartesian_1d, &
                                      apply_cartesian_operator, &
+                                     apply_cartesian_operator_pair, &
+                                     cartesian_ladder_map, &
                                      cartesian_polynomial_1d
    USE ai_os_rr, ONLY: os_rr_ovlp
+   USE ai_overlap, ONLY: overlap_ab
    USE kinds, ONLY: dp
    USE mathconstants, ONLY: pi
    USE orbital_pointers, ONLY: indco, &
@@ -484,66 +487,62 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: lb_min, order
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rac, rbc
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: pab
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: forcea, forceb
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), TARGET :: forcea, forceb
 
-      INTEGER                                            :: i, imom, ipgf, j, jpgf, lda, lda_min, &
-                                                            ldb, ldb_min, na, nb
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: difmab, mab
+      INTEGER, PARAMETER :: components(2, 9) = RESHAPE([1, 1, 2, 1, 3, 1, 1, 2, 2, 2, 3, 2, 1, 3, 2, 3, 3, 3], [2, 9])
+      INTEGER :: axis, first_a, first_b, icomp, ipgf, jpgf, ma, mb, nrow, ncol, side
+      INTEGER :: map_a(4, ncoset(la_max) - ncoset(la_min - 1), 3), &
+                 map_b(4, ncoset(lb_max) - ncoset(lb_min - 1), 3)
+      REAL(KIND=dp) :: origin(3, 2), rab(3), distance, rr_work(3*(MAX(la_max, lb_max) + 2)**2)
+      REAL(KIND=dp), ALLOCATABLE :: source(:, :), work(:, :), derivatives(:, :, :)
+      REAL(KIND=dp), POINTER :: forces(:, :)
 
       CPASSERT(order == 1)
       MARK_USED(order)
-
-      lda_min = MAX(0, la_min - 1)
-      ldb_min = MAX(0, lb_min - 1)
-      lda = ncoset(la_max)*npgfa
-      ldb = ncoset(lb_max)*npgfb
-      ALLOCATE (difmab(lda, ldb, 3))
-      ALLOCATE (mab(npgfa*ncoset(la_max + 1), npgfb*ncoset(lb_max + 1), 3))
-      mab = 0.0_dp
-      CALL moment(la_max + 1, npgfa, zeta, rpgfa, lda_min, &
-                  lb_max + 1, npgfb, zetb, rpgfb, 1, rac, rbc, mab)
-
-      DO imom = 1, 3
-         difmab = 0.0_dp
-         CALL apply_cartesian_operator(la_max, 0, npgfa, lb_max, 0, npgfb, mab(:, :, imom), &
-                                       difmab, right=.TRUE., derivative=.TRUE., exponents=zetb)
-         na = 0
-         DO ipgf = 1, npgfa
-            nb = 0
-            DO jpgf = 1, npgfb
-               DO j = nb + ncoset(lb_min - 1) + 1, nb + ncoset(lb_max)
-                  DO i = na + ncoset(la_min - 1) + 1, na + ncoset(la_max)
-                     forceb(imom, 1) = forceb(imom, 1) + pab(i, j)*difmab(i, j, 1)
-                     forceb(imom, 2) = forceb(imom, 2) + pab(i, j)*difmab(i, j, 2)
-                     forceb(imom, 3) = forceb(imom, 3) + pab(i, j)*difmab(i, j, 3)
-                  END DO
+      first_a = ncoset(la_min - 1) + 1
+      first_b = ncoset(lb_min - 1) + 1
+      nrow = ncoset(la_max) - first_a + 1
+      ncol = ncoset(lb_max) - first_b + 1
+      ALLOCATE (source(ncoset(la_max + 1), ncoset(lb_max + 1)), work(ncoset(la_max + 1), ncoset(lb_max + 1)), &
+                derivatives(nrow, ncol, 9))
+      DO axis = 1, 3
+         CALL cartesian_ladder_map(la_max, la_min, axis, map_a(:, :, axis), source_lmin=0)
+         CALL cartesian_ladder_map(lb_max, lb_min, axis, map_b(:, :, axis), source_lmin=0)
+      END DO
+      origin = 0.0_dp
+      rab = rbc - rac
+      distance = NORM2(rab)
+      DO ipgf = 1, npgfa
+         ma = (ipgf - 1)*ncoset(la_max)
+         DO jpgf = 1, npgfb
+            IF (rpgfa(ipgf) + rpgfb(jpgf) < distance) CYCLE
+            mb = (jpgf - 1)*ncoset(lb_max)
+            CALL overlap_ab(la_max + 1, 0, 1, rpgfa(ipgf:ipgf), zeta(ipgf:ipgf), &
+                            lb_max + 1, 0, 1, rpgfb(jpgf:jpgf), zetb(jpgf:jpgf), rab, &
+                            sab=source, rr_work=rr_work)
+            ! Multiply by the coordinate on the side opposite the differentiated Gaussian.
+            DO side = 1, 2
+               IF (side == 1) THEN
+                  forces => forcea
+                  origin(:, 1) = rbc
+                  CALL apply_cartesian_operator_pair(source, derivatives, map_b, map_a, components, &
+                                                     [.FALSE., .TRUE.], [0.0_dp, zeta(ipgf)], &
+                                                     [.TRUE., .FALSE.], work(:, 1:ncol), origin)
+               ELSE
+                  forces => forceb
+                  origin(:, 1) = rac
+                  CALL apply_cartesian_operator_pair(source, derivatives, map_a, map_b, components, &
+                                                     [.FALSE., .TRUE.], [0.0_dp, zetb(jpgf)], &
+                                                     [.FALSE., .TRUE.], work(1:nrow, :), origin)
+               END IF
+               DO icomp = 1, 9
+                  forces(components(1, icomp), components(2, icomp)) = &
+                     forces(components(1, icomp), components(2, icomp)) + &
+                     SUM(pab(ma + first_a:ma + ncoset(la_max), mb + first_b:mb + ncoset(lb_max))*derivatives(:, :, icomp))
                END DO
-               nb = nb + ncoset(lb_max)
             END DO
-            na = na + ncoset(la_max)
-         END DO
-
-         difmab = 0.0_dp
-         CALL apply_cartesian_operator(la_max, 0, npgfa, lb_max, 0, npgfb, mab(:, :, imom), &
-                                       difmab, right=.FALSE., derivative=.TRUE., exponents=zeta)
-         na = 0
-         DO ipgf = 1, npgfa
-            nb = 0
-            DO jpgf = 1, npgfb
-               DO j = nb + ncoset(lb_min - 1) + 1, nb + ncoset(lb_max)
-                  DO i = na + ncoset(la_min - 1) + 1, na + ncoset(la_max)
-                     forcea(imom, 1) = forcea(imom, 1) + pab(i, j)*difmab(i, j, 1)
-                     forcea(imom, 2) = forcea(imom, 2) + pab(i, j)*difmab(i, j, 2)
-                     forcea(imom, 3) = forcea(imom, 3) + pab(i, j)*difmab(i, j, 3)
-                  END DO
-               END DO
-               nb = nb + ncoset(lb_max)
-            END DO
-            na = na + ncoset(la_max)
          END DO
       END DO
-
-      DEALLOCATE (mab, difmab)
 
    END SUBROUTINE dipole_force
 

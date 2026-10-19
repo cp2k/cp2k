@@ -58,22 +58,6 @@
 !>      -  zet{a,b}  : Exponents of the Gaussian-type functions a or b.
 !>      -  zetp      : Reciprocal of the sum of the exponents of orbital a and b.
 !>      -  zetw        : Reciprocal of the sum of the exponents of orbital a, b and c.
-!> Indices for pVp matrices
-!>      -  ax,ay,az                : Angular momentum index numbers of orbital a.
-!>      -  n{x1,y1,z1}{x2,y2,z2}   : indices for the pVp matrix elements
-!>                                   <p_{x1,y1,z1}a|V|p_{x2,y2,z2}>
-!>      -  co{a,b}{m,p}{x,y,z}     : coefficients of the pVp matrix elements: co == coset(lx,ly,lz)
-!>                                   m == li - 1; p == li +1; li= x,y,z (which l quantum number is modified); l = a,b
-!>                                   coset ( ... -1 ...) = 1  , should be zero, lmi = 1.0 for li >=1 and lmi = 0.0 for li = 0
-!>                                  guarantees this as a prefactor
-!>      -  f{a,b}{x,y,z},ft{a,b},z : f(t)li: prefactors as a result of derivations of l with respect to i
-!>      -  pVpout                  : pVp matrix elements
-!>      -  pVp                     : local pVp matrix elements
-!>      -  lamin,lbmin             : minimal angular quantum number used in pVp matrices
-!>      _  vnucp                   : potential of the nuclei
-!>      -  vnuc                    : potential of the electrons
-!>      _  pVpa, pVpb              : pVpl=coset(lx,ly,lz)
-!>      -  na_pgf,nb_pgf           : indices for primitive gaussian functions
 !> \par History
 !>      10.2008 added pVp matrix elements (jens)
 !> \author Matthias Krack (04.10.2000)
@@ -81,12 +65,13 @@
 
 MODULE ai_verfc
 
+   USE ai_cartesian_operators,          ONLY: apply_cartesian_operator_pair,&
+                                              cartesian_ladder_map
    USE ai_os_rr,                        ONLY: os_rr_radial
    USE gamma,                           ONLY: fgamma => fgamma_0
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
-   USE orbital_pointers,                ONLY: coset,&
-                                              ncoset
+   USE orbital_pointers,                ONLY: ncoset
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -156,13 +141,17 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: vabc_plus, vnabc, pVp_sum, pVp
       LOGICAL, OPTIONAL                                  :: dkh_erfc
 
-      INTEGER :: ax, ay, az, bx, by, bz, coamx, coamy, coamz, coapx, coapy, coapz, cobmx, cobmy, &
-         cobmz, cobpx, cobpy, cobpz, i, ipgf, j, jpgf, la, la_max, lb, lb_max, maxder_local, n, &
-         na, nap, nb, nmax, nxx, nxy, nxz, nyx, nyy, nyz, nzx, nzy, nzz, pVpa, pVpb
+      INTEGER, DIMENSION(2, 3), PARAMETER :: components = RESHAPE([1, 1, 2, 2, 3, 3], [2, 3])
+
+      INTEGER                                            :: axis, i, ipgf, j, jpgf, la_max, lb_max, &
+                                                            maxder_local, n, na, nap, nb, &
+                                                            ncol_pvp, nmax, nrow_pvp
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: map_a, map_b
       LOGICAL                                            :: do_dkh
-      REAL(KIND=dp)                                      :: dab, dac, dbc, f0, f1, f4, fax, fay, &
-                                                            faz, fbx, fby, fbz, ferf, fnuc, ftaz, &
-                                                            ftbz, rcp2, t, zetp, zetq, zetw
+      REAL(KIND=dp)                                      :: dab, dac, dbc, f0, f1, f4, ferf, fnuc, &
+                                                            rcp2, t, zetp, zetq, zetw
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: potential, work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: derivatives
       REAL(KIND=dp), DIMENSION(3)                        :: rap, rbp, rcp, rpw
 
 !   ---------------------------------------------------------------------------
@@ -199,6 +188,20 @@ CONTAINS
 
       maxder_local = 0
       IF (PRESENT(maxder)) maxder_local = maxder
+
+      IF (do_dkh) THEN
+         ! With maxder > 0, la_max1 includes the extra shells for vabc_plus.
+         ! The pVp output ends at la_max1-maxder_local; its ladder needs one more shell.
+         nrow_pvp = ncoset(la_max1 - maxder_local)
+         ncol_pvp = ncoset(lb_max1)
+         ALLOCATE (map_a(4, nrow_pvp, 3), map_b(4, ncol_pvp, 3))
+         ALLOCATE (potential(ncoset(la_max1 - maxder_local + 1), ncoset(lb_max1 + 1)), &
+                   work(nrow_pvp, ncoset(lb_max1 + 1)), derivatives(nrow_pvp, ncol_pvp, 3))
+         DO axis = 1, 3
+            CALL cartesian_ladder_map(la_max1 - maxder_local, 0, axis, map_a(:, :, axis), source_lmin=0)
+            CALL cartesian_ladder_map(lb_max1, 0, axis, map_b(:, :, axis), source_lmin=0)
+         END DO
+      END IF
 
 !   *** Calculate the distances of the centers a, b and c ***
 
@@ -334,84 +337,14 @@ CONTAINS
             END IF
 !JTs
             IF (do_dkh) THEN
-               ! *********** Calculate pVp matrix **************
-               ! [pa|V|pb]=4*zeta*zetb*[a+i|V|b+i]-2*zetb*Ni(a)*[a-i|V|b+i]-2*zeta*Ni(b)*[a+i|V|b-i]+Ni(a)*Ni(b)*[a-i|V|b-i]
-               ! Every integral has been calculated before (except [-1|V|-1],[a|V|-1] and [-1|V|b],
-               ! which do not contribute, because their prefactor Ni(a) or Ni(b) is zero)
-               ! and is given by verf/vnuc(coset(ax,ay,az),coset(bx,by,bz),1)
-               ! ***********************************************
-               ftaz = 2.0_dp*zeta(ipgf)
-               ftbz = 2.0_dp*zetb(jpgf)
-               nxx = 1
-               nyy = 2
-               nzz = 3
-               nxy = 4
-               nxz = 5
-               nyx = 6
-               nyz = 7
-               nzx = 8
-               nzy = 9
-               DO la = 0, la_max1
-                  DO ax = 0, la
-                     fax = REAL(ax, dp)
-                     DO ay = 0, la - ax
-                        fay = REAL(ay, dp)
-                        az = la - ax - ay
-                        faz = REAL(az, dp)
-                        pVpa = coset(ax, ay, az)
-                        coamx = coset(ax - 1, ay, az)
-                        coamy = coset(ax, ay - 1, az)
-                        coamz = coset(ax, ay, az - 1)
-                        coapx = coset(ax + 1, ay, az)
-                        coapy = coset(ax, ay + 1, az)
-                        coapz = coset(ax, ay, az + 1)
-                        DO lb = 0, lb_max1
-                           DO bx = 0, lb
-                              fbx = REAL(bx, dp)
-                              DO by = 0, lb - bx
-                                 fby = REAL(by, dp)
-                                 bz = lb - bx - by
-                                 fbz = REAL(bz, dp)
-                                 pVpb = coset(bx, by, bz)
-                                 cobmx = coset(bx - 1, by, bz)
-                                 cobmy = coset(bx, by - 1, bz)
-                                 cobmz = coset(bx, by, bz - 1)
-                                 cobpx = coset(bx + 1, by, bz)
-                                 cobpy = coset(bx, by + 1, bz)
-                                 cobpz = coset(bx, by, bz + 1)
-                                 IF (dkh_erfc) THEN
-                                    pVp(pVpa, pVpb) = ftaz*ftbz*(-zc*vnuc(coapx, cobpx, 1) + cerf*verf(coapx, cobpx, 1)) - &
-                                                      ftaz*fbx*(-zc*vnuc(coapx, cobmx, 1) + cerf*verf(coapx, cobmx, 1)) - &
-                                                      ftbz*fax*(-zc*vnuc(coamx, cobpx, 1) + cerf*verf(coamx, cobpx, 1)) + &
-                                                      fax*fbx*(-zc*vnuc(coamx, cobmx, 1) + cerf*verf(coamx, cobmx, 1)) + &
-                                                      ftaz*ftbz*(-zc*vnuc(coapy, cobpy, 1) + cerf*verf(coapy, cobpy, 1)) - &
-                                                      ftaz*fby*(-zc*vnuc(coapy, cobmy, 1) + cerf*verf(coapy, cobmy, 1)) - &
-                                                      ftbz*fay*(-zc*vnuc(coamy, cobpy, 1) + cerf*verf(coamy, cobpy, 1)) + &
-                                                      fay*fby*(-zc*vnuc(coamy, cobmy, 1) + cerf*verf(coamy, cobmy, 1)) + &
-                                                      ftaz*ftbz*(-zc*vnuc(coapz, cobpz, 1) + cerf*verf(coapz, cobpz, 1)) - &
-                                                      ftaz*fbz*(-zc*vnuc(coapz, cobmz, 1) + cerf*verf(coapz, cobmz, 1)) - &
-                                                      ftbz*faz*(-zc*vnuc(coamz, cobpz, 1) + cerf*verf(coamz, cobpz, 1)) + &
-                                                      faz*fbz*(-zc*vnuc(coamz, cobmz, 1) + cerf*verf(coamz, cobmz, 1))
-                                 ELSE
-                                    pVp(pVpa, pVpb) = ftaz*ftbz*(-zc*vnuc(coapx, cobpx, 1)) - &
-                                                      ftaz*fbx*(-zc*vnuc(coapx, cobmx, 1)) - &
-                                                      ftbz*fax*(-zc*vnuc(coamx, cobpx, 1)) + &
-                                                      fax*fbx*(-zc*vnuc(coamx, cobmx, 1)) + &
-                                                      ftaz*ftbz*(-zc*vnuc(coapy, cobpy, 1)) - &
-                                                      ftaz*fby*(-zc*vnuc(coapy, cobmy, 1)) - &
-                                                      ftbz*fay*(-zc*vnuc(coamy, cobpy, 1)) + &
-                                                      fay*fby*(-zc*vnuc(coamy, cobmy, 1)) + &
-                                                      ftaz*ftbz*(-zc*vnuc(coapz, cobpz, 1)) - &
-                                                      ftaz*fbz*(-zc*vnuc(coapz, cobmz, 1)) - &
-                                                      ftbz*faz*(-zc*vnuc(coamz, cobpz, 1)) + &
-                                                      faz*fbz*(-zc*vnuc(coamz, cobmz, 1))
-                                 END IF
-                              END DO
-                           END DO
-                        END DO
-                     END DO
-                  END DO
-               END DO
+               ! pVp = sum_i D_Ai D_Bi V; both electronic derivatives change sign.
+               potential(:, :) = -zc*vnuc(1:SIZE(potential, 1), 1:SIZE(potential, 2), 1)
+               IF (dkh_erfc) THEN
+                  potential(:, :) = potential + cerf*verf(1:SIZE(potential, 1), 1:SIZE(potential, 2), 1)
+               END IF
+               CALL apply_cartesian_operator_pair(potential, derivatives, map_a, map_b, components, &
+                                                  [.TRUE., .TRUE.], [zeta(ipgf), zetb(jpgf)], [.FALSE., .TRUE.], work)
+               pVp(1:nrow_pvp, 1:ncol_pvp) = SUM(derivatives, DIM=3)
 
                DO j = 1, ncoset(lb_max1)
                   DO i = ncoset(la_min1 - 1) + 1, ncoset(la_max1 - maxder_local)

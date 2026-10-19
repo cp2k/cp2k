@@ -35,11 +35,12 @@
 !> \author VW
 ! **************************************************************************************************
 MODULE ai_spin_orbit
+   USE ai_cartesian_operators,          ONLY: apply_cartesian_operator_pair,&
+                                              cartesian_ladder_map
    USE ai_os_rr,                        ONLY: os_rr_coul
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
-   USE orbital_pointers,                ONLY: coset,&
-                                              ncoset
+   USE orbital_pointers,                ONLY: ncoset
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -88,11 +89,27 @@ CONTAINS
       REAL(dp), DIMENSION(0:ldrr1-1, ldrr2, *), &
          INTENT(INOUT)                                   :: rr
 
-      INTEGER :: ax, ay, az, bx, by, bz, coa, coam1x, coam1y, coam1z, coap1x, coap1y, coap1z, cob, &
-         cobm1x, cobm1y, cobm1z, cobp1x, cobp1y, cobp1z, i, ipgf, j, jpgf, la, lb, ma, mb, na, nb
-      REAL(dp)                                           :: dab, dum1, dum2, f0, rab2, xhi, zet, &
-                                                            zetab
+      INTEGER, DIMENSION(2, 6), PARAMETER :: &
+         components = RESHAPE([2, 3, 3, 2, 3, 1, 1, 3, 1, 2, 2, 1], [2, 6])
+
+      INTEGER                                            :: axis, first_a, first_b, i, ipgf, j, &
+                                                            jpgf, na, nb, ncol, nrow
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: map_a, map_b
+      REAL(dp)                                           :: dab, f0, rab2, xhi, zet, zetab
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: work
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: derivatives
       REAL(dp), DIMENSION(3)                             :: rap, rbp, rcp
+
+      first_a = ncoset(la_min - 1) + 1
+      first_b = ncoset(lb_min - 1) + 1
+      nrow = ncoset(la_max) - first_a + 1
+      ncol = ncoset(lb_max) - first_b + 1
+      ALLOCATE (map_a(4, nrow, 3), map_b(4, ncol, 3))
+      ALLOCATE (work(nrow, ncoset(lb_max + 1)), derivatives(nrow, ncol, 6))
+      DO axis = 1, 3
+         CALL cartesian_ladder_map(la_max, la_min, axis, map_a(:, :, axis), source_lmin=0)
+         CALL cartesian_ladder_map(lb_max, lb_min, axis, map_b(:, :, axis), source_lmin=0)
+      END DO
 
 ! *** Calculate the distance of the centers a and c ***
 
@@ -138,94 +155,14 @@ CONTAINS
 
             CALL os_rr_coul(rap, la_max + 1, rbp, lb_max + 1, rcp, zet, ldrr1, ldrr2, rr)
 
-            ! *** Calculate the primitive Fermi contact integrals ***
-
-            DO lb = lb_min, lb_max
-            DO bx = 0, lb
-            DO by = 0, lb - bx
-               bz = lb - bx - by
-               cob = coset(bx, by, bz)
-               cobm1x = coset(MAX(bx - 1, 0), by, bz)
-               cobm1y = coset(bx, MAX(by - 1, 0), bz)
-               cobm1z = coset(bx, by, MAX(bz - 1, 0))
-               cobp1x = coset(bx + 1, by, bz)
-               cobp1y = coset(bx, by + 1, bz)
-               cobp1z = coset(bx, by, bz + 1)
-               mb = nb + cob
-               DO la = la_min, la_max
-               DO ax = 0, la
-               DO ay = 0, la - ax
-                  az = la - ax - ay
-                  coa = coset(ax, ay, az)
-                  coam1x = coset(MAX(ax - 1, 0), ay, az)
-                  coam1y = coset(ax, MAX(ay - 1, 0), az)
-                  coam1z = coset(ax, ay, MAX(az - 1, 0))
-                  coap1x = coset(ax + 1, ay, az)
-                  coap1y = coset(ax, ay + 1, az)
-                  coap1z = coset(ax, ay, az + 1)
-                  ma = na + coa
-                  !
-                  !
-                  ! (a|pso_x|b) = (4*zeta*zetb*(a+y||b+z)
-                  !               -2*zeta*Nz(b)*(a+y||b-z)-2*zetb*Ny(a)*(a-y||b+z)
-                  !               +Ny(a)*Nz(b)*(a-y||b-z))
-                  !              -(4*zeta*zetb*(a+z||b+y)
-                  !               -2*zeta*Ny(b)*(a+z||b-y)-2*zetb*Nz(a)*(a-z||b+y)
-                  !               +Nz(a)*Ny(b)*(a-z||b-y))
-                  dum1 = 4.0_dp*zeta(ipgf)*zetb(jpgf)*rr(0, coap1y, cobp1z)
-                  IF (bz > 0) dum1 = dum1 - 2.0_dp*zeta(ipgf)*REAL(bz, dp)*rr(0, coap1y, cobm1z)
-                  IF (ay > 0) dum1 = dum1 - 2.0_dp*zetb(jpgf)*REAL(ay, dp)*rr(0, coam1y, cobp1z)
-                  IF (ay > 0 .AND. bz > 0) dum1 = dum1 + REAL(ay, dp)*REAL(bz, dp)*rr(0, coam1y, cobm1z)
-                  !
-                  dum2 = 4.0_dp*zeta(ipgf)*zetb(jpgf)*rr(0, coap1z, cobp1y)
-                  IF (by > 0) dum2 = dum2 - 2.0_dp*zeta(ipgf)*REAL(by, dp)*rr(0, coap1z, cobm1y)
-                  IF (az > 0) dum2 = dum2 - 2.0_dp*zetb(jpgf)*REAL(az, dp)*rr(0, coam1z, cobp1y)
-                  IF (az > 0 .AND. by > 0) dum2 = dum2 + REAL(az, dp)*REAL(by, dp)*rr(0, coam1z, cobm1y)
-                  vab(ma, mb, 1) = f0*(dum1 - dum2)
-                  !
-                  !
-                  ! (a|pso_y|b) = (4*zeta*zetb*(a+z||b+x)
-                  !               -2*zeta*Nx(b)*(a+z||b-x)-2*zetb*Nz(a)*(a-z||b+x)
-                  !               +Nz(a)*Nx(b)*(a-z||b-x))
-                  !              -(4*zeta*zetb*(a+x||b+z)
-                  !               -2*zeta*Nz(b)*(a+x||b-z)-2*zetb*Nx(a)*(a-x||b+z)
-                  !               +Nx(a)*Nz(b)*(a-x||b-z))
-                  dum1 = 4.0_dp*zeta(ipgf)*zetb(jpgf)*rr(0, coap1z, cobp1x)
-                  IF (bx > 0) dum1 = dum1 - 2.0_dp*zeta(ipgf)*REAL(bx, dp)*rr(0, coap1z, cobm1x)
-                  IF (az > 0) dum1 = dum1 - 2.0_dp*zetb(jpgf)*REAL(az, dp)*rr(0, coam1z, cobp1x)
-                  IF (az > 0 .AND. bx > 0) dum1 = dum1 + REAL(az, dp)*REAL(bx, dp)*rr(0, coam1z, cobm1x)
-                  !
-                  dum2 = 4.0_dp*zeta(ipgf)*zetb(jpgf)*rr(0, coap1x, cobp1z)
-                  IF (bz > 0) dum2 = dum2 - 2.0_dp*zeta(ipgf)*REAL(bz, dp)*rr(0, coap1x, cobm1z)
-                  IF (ax > 0) dum2 = dum2 - 2.0_dp*zetb(jpgf)*REAL(ax, dp)*rr(0, coam1x, cobp1z)
-                  IF (ax > 0 .AND. bz > 0) dum2 = dum2 + REAL(ax, dp)*REAL(bz, dp)*rr(0, coam1x, cobm1z)
-                  vab(ma, mb, 2) = f0*(dum1 - dum2)
-                  !
-                  !
-                  ! (a|pso_z|b) = (4*zeta*zetb*(a+x||b+y)
-                  !               -2*zeta*Ny(b)*(a+x||b-y)-2*zetb*Nx(a)*(a-x||b+y)
-                  !               +Nx(a)*Ny(b)*(a-x||b-y))
-                  !              -(4*zeta*zetb*(a+y||b+x)
-                  !               -2*zeta*Nx(b)*(a+y||b-x)-2*zetb*Ny(a)*(a-y||b+x)
-                  !               +Ny(a)*Nx(b)*(a-y||b-x))
-                  dum1 = 4.0_dp*zeta(ipgf)*zetb(jpgf)*rr(0, coap1x, cobp1y)
-                  IF (by > 0) dum1 = dum1 - 2.0_dp*zeta(ipgf)*REAL(by, dp)*rr(0, coap1x, cobm1y)
-                  IF (ax > 0) dum1 = dum1 - 2.0_dp*zetb(jpgf)*REAL(ax, dp)*rr(0, coam1x, cobp1y)
-                  IF (ax > 0 .AND. by > 0) dum1 = dum1 + REAL(ax, dp)*REAL(by, dp)*rr(0, coam1x, cobm1y)
-                  !
-                  dum2 = 4.0_dp*zeta(ipgf)*zetb(jpgf)*rr(0, coap1y, cobp1x)
-                  IF (bx > 0) dum2 = dum2 - 2.0_dp*zeta(ipgf)*REAL(bx, dp)*rr(0, coap1y, cobm1x)
-                  IF (ay > 0) dum2 = dum2 - 2.0_dp*zetb(jpgf)*REAL(ay, dp)*rr(0, coam1y, cobp1x)
-                  IF (ay > 0 .AND. bx > 0) dum2 = dum2 + REAL(ay, dp)*REAL(bx, dp)*rr(0, coam1y, cobm1x)
-                  vab(ma, mb, 3) = f0*(dum1 - dum2)
-                  !
-               END DO
-               END DO
-               END DO !la
-
+            ! pso = (T_yz-T_zy, T_zx-T_xz, T_xy-T_yx), T_ij = D_Ai D_Bj V.
+            CALL apply_cartesian_operator_pair(rr(0, 1:ncoset(la_max + 1), 1:ncoset(lb_max + 1)), &
+                                               derivatives, map_a, map_b, components, &
+                                               [.TRUE., .TRUE.], [zeta(ipgf), zetb(jpgf)], [.FALSE., .TRUE.], work)
+            DO axis = 1, 3
+               vab(na + first_a:na + ncoset(la_max), nb + first_b:nb + ncoset(lb_max), axis) = &
+                  f0*(derivatives(:, :, 2*axis - 1) - derivatives(:, :, 2*axis))
             END DO
-            END DO
-            END DO !lb
 
             nb = nb + ncoset(lb_max)
 

@@ -21,12 +21,16 @@ MODULE ai_cartesian_operators
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC :: cartesian_ladder_map, cartesian_ladder, apply_cartesian_operator, apply_cartesian_1d, &
+   PUBLIC :: cartesian_ladder_map, cartesian_ladder, apply_cartesian_operator_pair, apply_cartesian_operator, apply_cartesian_1d, &
              cartesian_polynomial_1d
 
    INTERFACE cartesian_ladder
       MODULE PROCEDURE cartesian_ladder_real, cartesian_ladder_complex
    END INTERFACE cartesian_ladder
+
+   INTERFACE apply_cartesian_operator_pair
+      MODULE PROCEDURE apply_cartesian_operator_pair_real, apply_cartesian_operator_pair_complex
+   END INTERFACE apply_cartesian_operator_pair
 
    INTERFACE apply_cartesian_1d
       MODULE PROCEDURE apply_cartesian_1d_real, apply_cartesian_1d_complex
@@ -120,6 +124,54 @@ CONTAINS
             END DO
          END IF
       END SUBROUTINE cartesian_ladder_${suffix}$
+
+! **************************************************************************************************
+!> \brief Apply an ordered pair of coordinate or derivative ladders to integral blocks.
+!>        Maps describe source-to-work and work-to-output transformations. The first result
+!>        is reused for all requested second axes. On the same basis function the resulting
+!>        operator product is O_first O_second: the second operator acts on the Gaussian first.
+!>        A derivative represents minus the electronic gradient, equal to a basis-center
+!>        derivative on an unmodified Gaussian. Exponents and supplied origins are fixed
+!>        coefficients; total center derivatives of coordinate prefactors require their
+!>        parameter dependence to be accounted for by the caller.
+!> \param source integral block including all required raised and lowered functions
+!> \param values transformed components in the order specified by components
+!> \param map_first first maps, indexed by map entry, output function and axis
+!> \param map_second second maps into work, with the same axis convention
+!> \param components first and second map-axis indices; use a single map axis for a 1D table
+!> \param derivative select a derivative instead of coordinate multiplication for each step
+!> \param exponents Gaussian exponents for the two steps, unused for coordinate multiplication
+!> \param right select columns instead of rows for each step
+!> \param work intermediate block, retained after the last requested first axis
+!> \param origin optional center-to-reference displacements indexed by map axis and step; defaults to zero
+! **************************************************************************************************
+      PURE SUBROUTINE apply_cartesian_operator_pair_${suffix}$ (source, values, map_first, map_second, &
+                                                                components, derivative, exponents, right, work, origin)
+         ${integral_type}$ (KIND=dp), DIMENSION(:, :), INTENT(IN)       :: source
+         ${integral_type}$ (KIND=dp), DIMENSION(:, :, :), INTENT(OUT)   :: values
+         INTEGER, DIMENSION(:, :, :), INTENT(IN)                     :: map_first, map_second
+         INTEGER, DIMENSION(:, :), INTENT(IN)                        :: components
+         REAL(KIND=dp), DIMENSION(2), INTENT(IN)                       :: exponents
+         LOGICAL, DIMENSION(2), INTENT(IN)                             :: derivative, right
+         ${integral_type}$ (KIND=dp), DIMENSION(:, :), INTENT(INOUT)    :: work
+         REAL(KIND=dp), DIMENSION(3, 2), INTENT(IN), OPTIONAL          :: origin
+
+         INTEGER :: axis, icomp
+         REAL(KIND=dp) :: center(3, 2)
+
+         center = 0.0_dp
+         IF (PRESENT(origin)) center = origin
+         DO axis = 1, SIZE(map_first, 3)
+            IF (.NOT. ANY(components(1, :) == axis)) CYCLE
+            CALL cartesian_ladder(source, work, map_first(:, :, axis), &
+                                  derivative(1), exponents(1), center(axis, 1), right(1))
+            DO icomp = 1, SIZE(components, 2)
+               IF (components(1, icomp) /= axis) CYCLE
+               CALL cartesian_ladder(work, values(:, :, icomp), map_second(:, :, components(2, icomp)), &
+                                     derivative(2), exponents(2), center(components(2, icomp), 2), right(2))
+            END DO
+         END DO
+      END SUBROUTINE apply_cartesian_operator_pair_${suffix}$
    #:endfor
 
 ! **************************************************************************************************

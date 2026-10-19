@@ -17,6 +17,7 @@
 ! **************************************************************************************************
 MODULE ai_overlap
    USE ai_cartesian_operators,          ONLY: apply_cartesian_1d,&
+                                              apply_cartesian_operator_pair,&
                                               cartesian_ladder,&
                                               cartesian_ladder_map
    USE ai_os_rr,                        ONLY: os_rr_ovlp
@@ -84,9 +85,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(lds, lds, *), &
          INTENT(INOUT)                                   :: s
 
-      INTEGER :: ax, axis, ay, az, bx, by, bz, cda, cdax, cday, cdaz, coa, cob, da, da_max, dax, &
-         day, daz, first, first_b, i, ipgf, j, jk, jpgf, jstart, k, la_max, la_start, last, &
-         last_b, lb_max, lb_start, ldrr, na, nb
+      INTEGER :: ax, axis, ay, az, bx, by, bz, cda, coa, cob, da, da_max, first, first_b, i, ipgf, &
+         j, jk, jpgf, jstart, k, la_max, la_start, last, last_b, lb_max, lb_start, ldrr, na, nb, &
+         parent, power(3)
       INTEGER, ALLOCATABLE                               :: derivative_map(:, :, :)
       REAL(KIND=dp)                                      :: f0, zetp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rr
@@ -177,25 +178,21 @@ CONTAINS
                lb_start = lb_min_set
             END IF
 
-            first = ncoset(la_start - 1) + 1
             first_b = ncoset(lb_start - 1) + 1
             last_b = ncoset(lb_max_set)
-            DO da = 0, da_max - 1
-               last = ncoset(la_max - da - 1)
-               DO dax = 0, da
-                  DO day = 0, da - dax
-                     daz = da - dax - day
-                     cda = coset(dax, day, daz)
-                     cdax = coset(dax + 1, day, daz)
-                     cday = coset(dax, day + 1, daz)
-                     cdaz = coset(dax, day, daz + 1)
-                     CALL cartesian_ladder(s(:, first_b:last_b, cda), s(first:last, first_b:last_b, cdax), &
-                                           derivative_map(:, first:last, 1), .TRUE., zeta(ipgf), 0.0_dp, .FALSE.)
-                     CALL cartesian_ladder(s(:, first_b:last_b, cda), s(first:last, first_b:last_b, cday), &
-                                           derivative_map(:, first:last, 2), .TRUE., zeta(ipgf), 0.0_dp, .FALSE.)
-                     CALL cartesian_ladder(s(:, first_b:last_b, cda), s(first:last, first_b:last_b, cdaz), &
-                                           derivative_map(:, first:last, 3), .TRUE., zeta(ipgf), 0.0_dp, .FALSE.)
-                  END DO
+            DO da = 1, da_max
+               ! Intermediate shells must cover lowering in the remaining derivative steps.
+               first = ncoset(MAX(0, la_start - da_max + da) - 1) + 1
+               last = ncoset(la_max - da)
+               DO cda = ncoset(da - 1) + 1, ncoset(da)
+                  power = indco(:, cda)
+                  axis = 3
+                  IF (power(3) == 0) axis = 2
+                  IF (power(axis) == 0) axis = 1
+                  power(axis) = power(axis) - 1
+                  parent = coset(power(1), power(2), power(3))
+                  CALL cartesian_ladder(s(:, first_b:last_b, parent), s(first:last, first_b:last_b, cda), &
+                                        derivative_map(:, first:last, axis), .TRUE., zeta(ipgf), 0.0_dp, .FALSE.)
                END DO
             END DO
 
@@ -261,12 +258,11 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), &
          OPTIONAL, TARGET                                :: rr_work
 
-      INTEGER, PARAMETER :: pairs(2, 6) = RESHAPE([1, 1, 1, 2, 1, 3, 2, 2, 2, 3, 3, 3], [2, 6])
+      INTEGER, PARAMETER :: component(2, 1) = RESHAPE([1, 1], [2, 1]), &
+         pairs(2, 6) = RESHAPE([1, 1, 1, 2, 1, 3, 2, 2, 2, 3, 3, 3], [2, 6])
 
-      INTEGER                                            :: avec(3), bvec(3), coa, cob, ia, ib, &
-                                                            icomp, idir, ipgf, jdir, jpgf, kdir, &
-                                                            ldrr, lma, lmb, ma, mb, na, nb, ofa, &
-                                                            ofb
+      INTEGER :: avec(3), bvec(3), coa, cob, ia, ib, icomp, idir, ipgf, jdir, jpgf, kdir, ldrr, &
+         lma, lmb, ma, mb, na, nb, ofa, ofb, map_b(4, lb_max + 1, 1), map_a(4, la_max + 1, 1)
       REAL(KIND=dp)                                      :: a, b, f0, factor(3), rab2, sval(3), tab, &
                                                             xhi, zet
       REAL(KIND=dp), ALLOCATABLE                         :: drr_a(:, :, :), drr_ab(:, :, :)
@@ -304,7 +300,11 @@ CONTAINS
       END IF
 
       IF (PRESENT(dab) .OR. PRESENT(ddab)) ALLOCATE (drr_a(0:ldrr - 1, 0:ldrr - 1, 3))
-      IF (PRESENT(ddab)) ALLOCATE (drr_ab(0:ldrr - 1, 0:ldrr - 1, 3))
+      IF (PRESENT(ddab)) THEN
+         ALLOCATE (drr_ab(0:ldrr - 1, 0:ldrr - 1, 3))
+         CALL cartesian_ladder_map(la_max, 0, 0, map_a(:, :, 1))
+         CALL cartesian_ladder_map(lb_max, 0, 0, map_b(:, :, 1))
+      END IF
 
       ! Number of integrals, check size of arrays
       ofa = ncoset(la_min - 1)
@@ -353,11 +353,14 @@ CONTAINS
 
             ! Calculate the recurrence relation
             CALL os_rr_ovlp(rap, lma, rbp, lmb, zet, ldrr, rr)
-            IF (PRESENT(dab) .OR. PRESENT(ddab)) THEN
-               CALL apply_cartesian_1d(rr, drr_a, la_max, lmb, .FALSE., .TRUE., a, [0.0_dp, 0.0_dp, 0.0_dp])
-            END IF
             IF (PRESENT(ddab)) THEN
-               CALL apply_cartesian_1d(drr_a, drr_ab, la_max, lb_max, .TRUE., .TRUE., b, [0.0_dp, 0.0_dp, 0.0_dp])
+               DO idir = 1, 3
+                  CALL apply_cartesian_operator_pair(rr(:, :, idir), drr_ab(0:la_max, 0:lb_max, idir:idir), &
+                                                     map_a, map_b, component, [.TRUE., .TRUE.], [a, b], &
+                                                     [.FALSE., .TRUE.], drr_a(0:la_max, 0:lmb, idir))
+               END DO
+            ELSE IF (PRESENT(dab)) THEN
+               CALL apply_cartesian_1d(rr, drr_a, la_max, lmb, .FALSE., .TRUE., a, [0.0_dp, 0.0_dp, 0.0_dp])
             END IF
 
             DO cob = ofb + 1, ncoset(lb_max)
