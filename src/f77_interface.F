@@ -47,6 +47,8 @@ MODULE f77_interface
                                               unpack_subsys_particles
    USE dbm_api,                         ONLY: dbm_library_finalize,&
                                               dbm_library_init
+   USE dbt_api,                         ONLY: dbt_library_finalize,&
+                                              dbt_library_init
    USE eip_environment,                 ONLY: eip_init
    USE eip_environment_types,           ONLY: eip_env_create,&
                                               eip_environment_type
@@ -311,6 +313,7 @@ CONTAINS
          CALL pw_gpu_init()
          CALL grid_library_init()
          CALL dbm_library_init()
+         CALL dbt_library_init()
 #if defined(__LIBINT)
          CALL cp_libint_static_init()
 #endif
@@ -383,6 +386,7 @@ CONTAINS
          CALL libxc_release_workers()
 
          ! Finalize libraries (Offload)
+         CALL dbt_library_finalize()
          CALL dbm_library_finalize()
          CALL grid_library_finalize()
          CALL pw_gpu_finalize()

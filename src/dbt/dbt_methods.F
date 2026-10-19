@@ -51,7 +51,7 @@ MODULE dbt_methods
       dbt_clear, dbt_finalize, dbt_get_num_blocks, dbt_scale, &
       dbt_get_num_blocks_total, dbt_get_info, ndims_matrix_row, ndims_matrix_column, &
       dbt_max_nblks_local, dbt_default_distvec, dbt_contraction_storage, dbt_nblks_total, &
-      dbt_distribution_new, dbt_copy_contraction_storage, dbt_pgrid_destroy
+      dbt_distribution_new, dbt_copy_contraction_storage, dbt_pgrid_destroy, dbt_get_nze
    USE kinds, ONLY: &
       dp, default_string_length, int_8, dp
    USE message_passing, ONLY: &
@@ -59,7 +59,7 @@ MODULE dbt_methods
    USE util, ONLY: &
       sort
    USE dbt_reshape_ops, ONLY: &
-      dbt_reshape
+      dbt_reshape, dbt_reshape_release
    USE dbt_tas_split, ONLY: &
       dbt_tas_mp_comm, rowsplit, colsplit, dbt_tas_info_hold, dbt_tas_release_info, default_nsplit_accept_ratio, &
       default_pdims_accept_ratio, dbt_tas_create_split
@@ -91,9 +91,132 @@ MODULE dbt_methods
       dbt_copy_matrix_to_tensor, &
       dbt_copy_tensor_to_matrix, &
       dbt_batched_contract_init, &
-      dbt_batched_contract_finalize
+      dbt_batched_contract_finalize, &
+      dbt_library_init, &
+      dbt_library_finalize, &
+      dbt_library_print_stats, &
+      dbt_clear_mempools
+
+   ! Per contraction (tensor names): remapped and cropped tensors, i.e., data copied
+   ! before the multiplication (local to the rank)
+   TYPE contract_stats_type
+      CHARACTER(LEN=3*default_string_length + 6)  :: names = ""
+      INTEGER(KIND=int_8)                         :: ncalls = 0, nempty = 0, flop = 0
+      INTEGER(KIND=int_8), DIMENSION(3)           :: nremap = 0, nzremap = 0
+      INTEGER(KIND=int_8), DIMENSION(2)           :: ncrop = 0, nzcrop = 0, ncrop_remap = 0
+   END TYPE contract_stats_type
+
+   TYPE(contract_stats_type), DIMENSION(:), ALLOCATABLE, SAVE :: contract_stats
+   INTEGER, SAVE                                               :: ncontract_stats = 0
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Initialize the DBT library (after dbm_library_init).
+!> \author Hans Pabst
+! **************************************************************************************************
+   SUBROUTINE dbt_library_init()
+   END SUBROUTINE dbt_library_init
+
+! **************************************************************************************************
+!> \brief Finalize the DBT library (before dbm_library_finalize), which releases its buffers.
+!> \author Hans Pabst
+! **************************************************************************************************
+   SUBROUTINE dbt_library_finalize()
+      CALL dbt_clear_mempools()
+      IF (ALLOCATED(contract_stats)) DEALLOCATE (contract_stats)
+      ncontract_stats = 0
+   END SUBROUTINE dbt_library_finalize
+
+! **************************************************************************************************
+!> \brief Release the buffers that persist across calls (as dbcsr_clear_mempools), e.g., once a
+!>        phase with large tensor operations ends. They are allocated again when needed.
+!> \author Hans Pabst
+! **************************************************************************************************
+   SUBROUTINE dbt_clear_mempools()
+      CALL dbt_reshape_release()
+   END SUBROUTINE dbt_clear_mempools
+
+! **************************************************************************************************
+!> \brief Print per-contraction statistics (rank-local table, totals over all ranks).
+!> \param mpi_comm communicator of all ranks calling this routine
+!> \param output_unit unit to write to (rank-local table is written if positive)
+!> \author Hans Pabst
+! **************************************************************************************************
+   SUBROUTINE dbt_library_print_stats(mpi_comm, output_unit)
+      TYPE(mp_comm_type), INTENT(IN)                     :: mpi_comm
+      INTEGER, INTENT(IN)                                :: output_unit
+
+      INTEGER                                            :: i, j, k
+      INTEGER(KIND=int_8)                                :: ncalls, nzcopied
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: order
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: copied
+
+      ncalls = 0
+      nzcopied = 0
+      DO i = 1, ncontract_stats
+         ncalls = ncalls + contract_stats(i)%ncalls
+         nzcopied = nzcopied + SUM(contract_stats(i)%nzremap) + SUM(contract_stats(i)%nzcrop)
+      END DO
+      CALL mpi_comm%sum(ncalls)
+      CALL mpi_comm%sum(nzcopied)
+
+      IF (output_unit > 0 .AND. 0 < ncalls) THEN
+         ALLOCATE (order(ncontract_stats), copied(ncontract_stats))
+         DO i = 1, ncontract_stats
+            order(i) = i
+            copied(i) = -REAL(SUM(contract_stats(i)%nzremap) + SUM(contract_stats(i)%nzcrop), dp)
+         END DO
+         CALL sort(copied, ncontract_stats, order) ! ascending: most copied data first
+         WRITE (output_unit, '(/,T2,A)') REPEAT("-", 79)
+         WRITE (output_unit, '(T2,A,T70,A)') "DBT CONTRACTION STATISTICS (rank-local)", "copied [MB]"
+         WRITE (output_unit, '(T2,A,T47,A,T55,A,T62,A,T68,A,T75,A)') &
+            "A x B = C", "calls", "remap", "crop", "both", "total"
+         DO k = 1, ncontract_stats
+            i = order(k)
+            ASSOCIATE (s => contract_stats(i))
+               WRITE (output_unit, '(T2,A,T44,I8,T52,3I3,T61,2I3,T67,2I3,T73,F8.1)') &
+                  s%names(1:MIN(LEN_TRIM(s%names), 41)), s%ncalls, &
+                  (MIN(s%nremap(j), 99_int_8), j=1, 3), (MIN(s%ncrop(j), 99_int_8), j=1, 2), &
+                  (MIN(s%ncrop_remap(j), 99_int_8), j=1, 2), &
+                  8.0_dp*REAL(SUM(s%nzremap) + SUM(s%nzcrop), dp)/1.0E6_dp
+            END ASSOCIATE
+         END DO
+         WRITE (output_unit, '(T2,A,T44,I8,T73,F8.1)') "all ranks", ncalls, 8.0_dp*REAL(nzcopied, dp)/1.0E6_dp
+         WRITE (output_unit, '(T2,A)') REPEAT("-", 79)
+      END IF
+   END SUBROUTINE dbt_library_print_stats
+
+! **************************************************************************************************
+!> \brief Index of the statistics entry for the given tensor names (created if missing).
+!> \author Hans Pabst
+! **************************************************************************************************
+   FUNCTION contract_stats_index(name_1, name_2, name_3) RESULT(idx)
+      CHARACTER(LEN=*), INTENT(IN)                       :: name_1, name_2, name_3
+      INTEGER                                            :: idx
+
+      CHARACTER(LEN=3*default_string_length + 6)         :: names
+      INTEGER                                            :: i
+      TYPE(contract_stats_type), DIMENSION(:), ALLOCATABLE :: grown
+
+      names = TRIM(name_1)//" x "//TRIM(name_2)//" = "//TRIM(name_3)
+      idx = 0
+      DO i = 1, ncontract_stats
+         IF (contract_stats(i)%names == names) idx = i
+         IF (0 < idx) EXIT
+      END DO
+      IF (0 == idx) THEN
+         IF (.NOT. ALLOCATED(contract_stats)) ALLOCATE (contract_stats(16))
+         IF (SIZE(contract_stats) <= ncontract_stats) THEN
+            ALLOCATE (grown(2*SIZE(contract_stats)))
+            grown(1:ncontract_stats) = contract_stats(1:ncontract_stats)
+            CALL MOVE_ALLOC(grown, contract_stats)
+         END IF
+         ncontract_stats = ncontract_stats + 1
+         idx = ncontract_stats
+         contract_stats(idx)%names = names
+      END IF
+   END FUNCTION contract_stats_index
 
 ! **************************************************************************************************
 !> \brief Copy tensor data.
@@ -156,7 +279,7 @@ CONTAINS
       LOGICAL                                        :: dist_compatible_tas, dist_compatible_tensor, &
                                                         summation_prv, new_in_1, new_in_2, &
                                                         new_in_3, new_out_1, block_compatible, &
-                                                        move_prv
+                                                        move_prv, crop_reshape
       TYPE(array_list)                               :: blk_sizes_in
 
       CALL timeset(routineN, handle)
@@ -185,7 +308,10 @@ CONTAINS
          summation_prv = .FALSE.
       END IF
 
-      IF (PRESENT(bounds)) THEN
+      ! crop while reshaping (single copy) if that is the copy anyway
+      crop_reshape = .FALSE.
+      IF (PRESENT(bounds) .AND. .NOT. PRESENT(order)) crop_reshape = copy_reshapes(tensor_in, tensor_out)
+      IF (PRESENT(bounds) .AND. .NOT. crop_reshape) THEN
          ALLOCATE (in_tmp_1)
          CALL dbt_crop(tensor_in, in_tmp_1, bounds=bounds, move_data=move_prv)
          new_in_1 = .TRUE.
@@ -242,6 +368,8 @@ CONTAINS
       ELSE IF (dist_compatible_tensor) THEN
          CALL dbt_copy_nocomm(in_tmp_3, out_tmp_1, summation)
          IF (move_prv) CALL dbt_clear(in_tmp_3)
+      ELSE IF (crop_reshape) THEN
+         CALL dbt_reshape(in_tmp_3, out_tmp_1, summation, move_data=move_prv, bounds=bounds)
       ELSE
          CALL dbt_reshape(in_tmp_3, out_tmp_1, summation, move_data=move_prv)
       END IF
@@ -273,6 +401,30 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE dbt_copy_expert
+
+! **************************************************************************************************
+!> \brief Whether dbt_copy_expert (without order) copies by dbt_reshape: compatible blocks, but
+!>        neither the matrix layout nor the distribution allow a copy without communication.
+!> \author Hans Pabst
+! **************************************************************************************************
+   FUNCTION copy_reshapes(tensor_in, tensor_out)
+      TYPE(dbt_type), INTENT(INOUT)                      :: tensor_in, tensor_out
+      LOGICAL                                            :: copy_reshapes
+
+      INTEGER, DIMENSION(ndims_matrix_row(tensor_in))    :: map1_in_1
+      INTEGER, DIMENSION(ndims_matrix_column(tensor_in)) :: map1_in_2
+      INTEGER, DIMENSION(ndims_matrix_row(tensor_out))   :: map2_in_1
+      INTEGER, DIMENSION(ndims_matrix_column(tensor_out)) :: map2_in_2
+
+      copy_reshapes = check_equal(tensor_in%blk_sizes, tensor_out%blk_sizes)
+      IF (copy_reshapes) THEN
+         CALL dbt_get_mapping_info(tensor_in%nd_index, map1_2d=map1_in_1, map2_2d=map1_in_2)
+         CALL dbt_get_mapping_info(tensor_out%nd_index, map1_2d=map2_in_1, map2_2d=map2_in_2)
+         IF (array_eq_i([map1_in_1, map1_in_2], [map2_in_1, map2_in_2])) THEN
+            copy_reshapes = .NOT. check_equal(tensor_in%nd_dist, tensor_out%nd_dist)
+         END IF
+      END IF
+   END FUNCTION copy_reshapes
 
 ! **************************************************************************************************
 !> \brief copy without communication, requires that both tensors have same process grid and distribution
@@ -617,7 +769,7 @@ CONTAINS
       LOGICAL                                        :: trans_1, trans_2, trans_3
       LOGICAL                                        :: new_1, new_2, new_3, move_data_1, move_data_2
       INTEGER                                        :: ndims1, ndims2, ndims3
-      INTEGER                                        :: occ_1, occ_2
+      INTEGER, DIMENSION(2)                          :: occ_1, occ_2 ! blocks in bounds, sticking out
       INTEGER, DIMENSION(:), ALLOCATABLE             :: dims1, dims2, dims3
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_contract'
@@ -632,6 +784,12 @@ CONTAINS
       TYPE(dbt_tas_split_info)                     :: split_opt, split, split_opt_avg
       INTEGER, DIMENSION(2) :: pdims_2d_opt, pdims_sub, pdims_sub_opt
       REAL(dp) :: pdim_ratio, pdim_ratio_opt
+      INTEGER :: istat
+      INTEGER(KIND=int_8) :: flop_prv
+      INTEGER, DIMENSION(ndims_tensor(tensor_1)) :: order_1
+      INTEGER, DIMENSION(ndims_tensor(tensor_2)) :: order_2
+      INTEGER, DIMENSION(:, :), ALLOCATABLE :: bounds_a1, bounds_a2 ! unallocated means absent
+      LOGICAL :: cropped_1, cropped_2
 
       NULLIFY (tensor_contr_1, tensor_contr_2, tensor_contr_3, tensor_crop_1, tensor_crop_2, &
                tensor_small)
@@ -685,46 +843,53 @@ CONTAINS
                                      bounds_1=bounds_1, bounds_2=bounds_2, bounds_3=bounds_3, &
                                      do_crop_1=do_crop_1, do_crop_2=do_crop_2)
 
-      IF (do_crop_1) THEN
-         ALLOCATE (tensor_crop_1)
-         CALL dbt_crop(tensor_1, tensor_crop_1, bounds_t1, move_data=move_data_1)
-         move_data_1 = .TRUE.
-      ELSE
-         tensor_crop_1 => tensor_1
-      END IF
+      ! cropping is deferred: a tensor that is remapped is cropped while copied (single copy)
+      tensor_crop_1 => tensor_1
+      tensor_crop_2 => tensor_2
+      cropped_1 = .FALSE.
+      cropped_2 = .FALSE.
 
-      IF (do_crop_2) THEN
-         ALLOCATE (tensor_crop_2)
-         CALL dbt_crop(tensor_2, tensor_crop_2, bounds_t2, move_data=move_data_2)
-         move_data_2 = .TRUE.
-      ELSE
-         tensor_crop_2 => tensor_2
-      END IF
+      istat = contract_stats_index(tensor_1%name, tensor_2%name, tensor_3%name)
+      ASSOCIATE (s => contract_stats(istat))
+         s%ncalls = s%ncalls + 1
+      END ASSOCIATE
 
       ! shortcut for empty tensors
       ! this is needed to avoid unnecessary work in case user contracts different portions of a
       ! tensor consecutively to save memory
       ASSOCIATE (mp_comm => tensor_crop_1%pgrid%mp_comm_2d)
-         occ_1 = dbt_get_num_blocks(tensor_crop_1)
+         IF (do_crop_1) THEN
+            occ_1 = num_blocks_in_bounds(tensor_1, bounds_t1)
+         ELSE
+            occ_1 = [dbt_get_num_blocks(tensor_1), 0]
+         END IF
          CALL mp_comm%max(occ_1)
-         occ_2 = dbt_get_num_blocks(tensor_crop_2)
+         IF (do_crop_2) THEN
+            occ_2 = num_blocks_in_bounds(tensor_2, bounds_t2)
+         ELSE
+            occ_2 = [dbt_get_num_blocks(tensor_2), 0]
+         END IF
          CALL mp_comm%max(occ_2)
       END ASSOCIATE
 
-      IF (occ_1 == 0 .OR. occ_2 == 0) THEN
+      IF (occ_1(1) == 0 .OR. occ_2(1) == 0) THEN
+         contract_stats(istat)%nempty = contract_stats(istat)%nempty + 1
          CALL dbt_scale(tensor_3, beta)
-         IF (do_crop_1) THEN
-            CALL dbt_destroy(tensor_crop_1)
-            DEALLOCATE (tensor_crop_1)
-         END IF
-         IF (do_crop_2) THEN
-            CALL dbt_destroy(tensor_crop_2)
-            DEALLOCATE (tensor_crop_2)
-         END IF
+         ! as if cropped with move_data (tensor data was transferred into the crop)
+         IF (do_crop_1 .AND. move_data_1) CALL dbt_clear(tensor_1)
+         IF (do_crop_2 .AND. move_data_2) CALL dbt_clear(tensor_2)
 
          CALL timestop(handle)
          RETURN
       END IF
+
+      ! no block sticks out on any rank: a crop would copy the tensor as is
+      do_crop_1 = do_crop_1 .AND. occ_1(2) > 0
+      do_crop_2 = do_crop_2 .AND. occ_2(2) > 0
+      ASSOCIATE (s => contract_stats(istat))
+         IF (do_crop_1) s%ncrop(1) = s%ncrop(1) + 1
+         IF (do_crop_2) s%ncrop(2) = s%ncrop(2) + 1
+      END ASSOCIATE
 
       IF (unit_nr_prv /= 0) THEN
          IF (unit_nr_prv > 0) THEN
@@ -763,10 +928,20 @@ CONTAINS
       END IF
 
       CALL align_tensor(tensor_crop_1, contract_1, notcontract_1, &
-                        tensor_algn_1, contract_1_mod, notcontract_1_mod, indchar1, indchar1_mod)
+                        tensor_algn_1, contract_1_mod, notcontract_1_mod, indchar1, indchar1_mod, order_1)
 
       CALL align_tensor(tensor_crop_2, contract_2, notcontract_2, &
-                        tensor_algn_2, contract_2_mod, notcontract_2_mod, indchar2, indchar2_mod)
+                        tensor_algn_2, contract_2_mod, notcontract_2_mod, indchar2, indchar2_mod, order_2)
+
+      ! bounds in the aligned index order (index i of tensor_X is index order_X(i) of tensor_algn_X)
+      IF (do_crop_1) THEN
+         ALLOCATE (bounds_a1(2, ndims_tensor(tensor_1)))
+         bounds_a1(:, order_1) = bounds_t1(:, :)
+      END IF
+      IF (do_crop_2) THEN
+         ALLOCATE (bounds_a2(2, ndims_tensor(tensor_2)))
+         bounds_a2(:, order_2) = bounds_t2(:, :)
+      END IF
 
       CALL align_tensor(tensor_3, map_1, map_2, &
                         tensor_algn_3, map_1_mod, map_2_mod, indchar3, indchar3_mod)
@@ -809,10 +984,12 @@ CONTAINS
          CALL reshape_mm_compatible(tensor_algn_1, tensor_algn_3, tensor_contr_1, tensor_contr_3, &
                                     contract_1_mod, notcontract_1_mod, map_2_mod, map_1_mod, &
                                     trans_1, trans_3, new_1, new_3, ref_tensor, nodata2=nodata_3, optimize_dist=optimize_dist, &
-                                    move_data_1=move_data_1, unit_nr=unit_nr_prv)
+                                    move_data_1=move_data_1, unit_nr=unit_nr_prv, &
+                                    bounds1=bounds_a1, crop1=cropped_1)
 
          CALL reshape_mm_small(tensor_algn_2, contract_2_mod, notcontract_2_mod, tensor_contr_2, trans_2, &
-                               new_2, move_data=move_data_2, unit_nr=unit_nr_prv)
+                               new_2, move_data=move_data_2, unit_nr=unit_nr_prv, &
+                               bounds=bounds_a2, crop=cropped_2)
 
          SELECT CASE (ref_tensor)
          CASE (1)
@@ -842,7 +1019,8 @@ CONTAINS
          CALL reshape_mm_compatible(tensor_algn_1, tensor_algn_2, tensor_contr_1, tensor_contr_2, &
                                     notcontract_1_mod, contract_1_mod, notcontract_2_mod, contract_2_mod, &
                                     trans_1, trans_2, new_1, new_2, ref_tensor, optimize_dist=optimize_dist, &
-                                    move_data_1=move_data_1, move_data_2=move_data_2, unit_nr=unit_nr_prv)
+                                    move_data_1=move_data_1, move_data_2=move_data_2, unit_nr=unit_nr_prv, &
+                                    bounds1=bounds_a1, bounds2=bounds_a2, crop1=cropped_1, crop2=cropped_2)
          trans_1 = .NOT. trans_1
 
          CALL reshape_mm_small(tensor_algn_3, map_1_mod, map_2_mod, tensor_contr_3, trans_3, &
@@ -875,13 +1053,15 @@ CONTAINS
          CALL reshape_mm_compatible(tensor_algn_2, tensor_algn_3, tensor_contr_2, tensor_contr_3, &
                                     contract_2_mod, notcontract_2_mod, map_1_mod, map_2_mod, &
                                     trans_2, trans_3, new_2, new_3, ref_tensor, nodata2=nodata_3, optimize_dist=optimize_dist, &
-                                    move_data_1=move_data_2, unit_nr=unit_nr_prv)
+                                    move_data_1=move_data_2, unit_nr=unit_nr_prv, &
+                                    bounds1=bounds_a2, crop1=cropped_2)
 
          trans_2 = .NOT. trans_2
          trans_3 = .NOT. trans_3
 
          CALL reshape_mm_small(tensor_algn_1, notcontract_1_mod, contract_1_mod, tensor_contr_1, &
-                               trans_1, new_1, move_data=move_data_1, unit_nr=unit_nr_prv)
+                               trans_1, new_1, move_data=move_data_1, unit_nr=unit_nr_prv, &
+                               bounds=bounds_a1, crop=cropped_1)
 
          SELECT CASE (ref_tensor)
          CASE (1)
@@ -903,13 +1083,36 @@ CONTAINS
          IF (new_2) CALL dbt_write_tensor_dist(tensor_contr_2, unit_nr_prv)
       END IF
 
+      ASSOCIATE (s => contract_stats(istat))
+         IF (do_crop_1) s%nzcrop(1) = s%nzcrop(1) + dbt_get_nze(tensor_contr_1)
+         IF (do_crop_2) s%nzcrop(2) = s%nzcrop(2) + dbt_get_nze(tensor_contr_2)
+         IF (new_1) THEN
+            s%nremap(1) = s%nremap(1) + 1
+            s%nzremap(1) = s%nzremap(1) + dbt_get_nze(tensor_contr_1)
+            IF (do_crop_1) s%ncrop_remap(1) = s%ncrop_remap(1) + 1
+         END IF
+         IF (new_2) THEN
+            s%nremap(2) = s%nremap(2) + 1
+            s%nzremap(2) = s%nzremap(2) + dbt_get_nze(tensor_contr_2)
+            IF (do_crop_2) s%ncrop_remap(2) = s%ncrop_remap(2) + 1
+         END IF
+      END ASSOCIATE
+
       CALL dbt_tas_multiply(trans_1, trans_2, trans_3, alpha, &
                             tensor_contr_1%matrix_rep, tensor_contr_2%matrix_rep, &
                             beta, &
-                            tensor_contr_3%matrix_rep, filter_eps=filter_eps, flop=flop, &
+                            tensor_contr_3%matrix_rep, filter_eps=filter_eps, flop=flop_prv, &
                             unit_nr=unit_nr_prv, log_verbose=log_verbose, &
                             split_opt=split_opt, &
                             move_data_a=move_data_1, move_data_b=move_data_2, retain_sparsity=retain_sparsity)
+      IF (PRESENT(flop)) flop = flop_prv
+      ASSOCIATE (s => contract_stats(istat))
+         s%flop = s%flop + flop_prv
+         IF (new_3) THEN ! result is copied back into tensor_3
+            s%nremap(3) = s%nremap(3) + 1
+            s%nzremap(3) = s%nzremap(3) + dbt_get_nze(tensor_contr_3)
+         END IF
+      END ASSOCIATE
 
       IF (PRESENT(pgrid_opt_1)) THEN
          IF (.NOT. new_1) THEN
@@ -1008,21 +1211,11 @@ CONTAINS
       CALL dbt_destroy(tensor_algn_2)
       CALL dbt_destroy(tensor_algn_3)
 
-      IF (do_crop_1) THEN
-         CALL dbt_destroy(tensor_crop_1)
-         DEALLOCATE (tensor_crop_1)
-      END IF
-
-      IF (do_crop_2) THEN
-         CALL dbt_destroy(tensor_crop_2)
-         DEALLOCATE (tensor_crop_2)
-      END IF
-
-      IF (new_1) THEN
+      IF (new_1 .OR. cropped_1) THEN
          CALL dbt_destroy(tensor_contr_1)
          DEALLOCATE (tensor_contr_1)
       END IF
-      IF (new_2) THEN
+      IF (new_2 .OR. cropped_2) THEN
          CALL dbt_destroy(tensor_contr_2)
          DEALLOCATE (tensor_contr_2)
       END IF
@@ -1125,7 +1318,7 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
    SUBROUTINE align_tensor(tensor_in, contract_in, notcontract_in, &
-                           tensor_out, contract_out, notcontract_out, indp_in, indp_out)
+                           tensor_out, contract_out, notcontract_out, indp_in, indp_out, order)
       TYPE(dbt_type), INTENT(INOUT)               :: tensor_in
       INTEGER, DIMENSION(:), INTENT(IN)            :: contract_in, notcontract_in
       TYPE(dbt_type), INTENT(OUT)              :: tensor_out
@@ -1135,9 +1328,11 @@ CONTAINS
          INTENT(OUT)                               :: notcontract_out
       CHARACTER(LEN=1), DIMENSION(ndims_tensor(tensor_in)), INTENT(IN) :: indp_in
       CHARACTER(LEN=1), DIMENSION(ndims_tensor(tensor_in)), INTENT(OUT) :: indp_out
+      INTEGER, DIMENSION(ndims_tensor(tensor_in)), INTENT(OUT), OPTIONAL :: order
       INTEGER, DIMENSION(ndims_tensor(tensor_in)) :: align
 
       CALL dbt_align_index(tensor_in, tensor_out, order=align)
+      IF (PRESENT(order)) order = align
       contract_out = align(contract_in)
       notcontract_out = align(notcontract_in)
       indp_out(align) = indp_in
@@ -1166,7 +1361,7 @@ CONTAINS
    SUBROUTINE reshape_mm_compatible(tensor1, tensor2, tensor1_out, tensor2_out, ind1_free, ind1_linked, &
                                     ind2_free, ind2_linked, trans1, trans2, new1, new2, ref_tensor, &
                                     nodata1, nodata2, move_data_1, &
-                                    move_data_2, optimize_dist, unit_nr)
+                                    move_data_2, optimize_dist, unit_nr, bounds1, bounds2, crop1, crop2)
       TYPE(dbt_type), TARGET, INTENT(INOUT)   :: tensor1
       TYPE(dbt_type), TARGET, INTENT(INOUT)   :: tensor2
       TYPE(dbt_type), POINTER, INTENT(OUT)    :: tensor1_out, tensor2_out
@@ -1179,6 +1374,10 @@ CONTAINS
       LOGICAL, INTENT(INOUT), OPTIONAL            :: move_data_1, move_data_2
       LOGICAL, INTENT(IN), OPTIONAL               :: optimize_dist
       INTEGER, INTENT(IN), OPTIONAL               :: unit_nr
+      INTEGER, DIMENSION(2, ndims_tensor(tensor1)), INTENT(IN), OPTIONAL :: bounds1
+      INTEGER, DIMENSION(2, ndims_tensor(tensor2)), INTENT(IN), OPTIONAL :: bounds2
+      LOGICAL, INTENT(OUT), OPTIONAL              :: crop1, crop2
+      LOGICAL                                     :: crop1_prv, crop2_prv
       INTEGER                                     :: compat1, compat1_old, compat2, compat2_old, &
                                                      unit_nr_prv
       TYPE(mp_cart_type)                          :: comm_2d
@@ -1237,6 +1436,8 @@ CONTAINS
 
       new1 = .FALSE.
       new2 = .FALSE.
+      crop1_prv = .FALSE.
+      crop2_prv = .FALSE.
 
       IF (compat1 == 0 .OR. optimize_dist_prv) THEN
          new1 = .TRUE.
@@ -1254,12 +1455,13 @@ CONTAINS
             comm_2d = dbt_tas_mp_comm(tensor1%pgrid%mp_comm_2d, nblkrows, nblkcols)
             ALLOCATE (tensor1_out)
             CALL dbt_remap(tensor1, ind1_linked, ind1_free, tensor1_out, comm_2d=comm_2d, &
-                           nodata=nodata1, move_data=move_data_1)
+                           nodata=nodata1, move_data=move_data_1, &
+                           bounds=bounds1)
             CALL comm_2d%free()
             compat1 = 1
          ELSE
             IF (unit_nr_prv > 0) WRITE (unit_nr_prv, '(T2,A,1X,A)') "No redistribution of", TRIM(tensor1%name)
-            tensor1_out => tensor1
+            CALL crop_or_point(tensor1, tensor1_out, crop1_prv, bounds1, move_data_1)
          END IF
          IF (compat2 == 0 .OR. optimize_dist_prv) THEN ! tensor 2 is not contraction compatible --> reshape
             IF (unit_nr_prv > 0) WRITE (unit_nr_prv, '(T2,A,1X,A,1X,A,1X,A)') "Redistribution of", &
@@ -1273,7 +1475,8 @@ CONTAINS
                CALL dbt_get_mapping_info(dist_in%pgrid%nd_index_grid, dims1_2d=mp_dims)
                ALLOCATE (tensor2_out)
                CALL dbt_remap(tensor2, ind2_linked, ind2_free, tensor2_out, comm_2d=dist_in%pgrid%mp_comm_2d, &
-                              dist1=dist_list, mp_dims_1=mp_dims, nodata=nodata2, move_data=move_data_2)
+                              dist1=dist_list, mp_dims_1=mp_dims, nodata=nodata2, move_data=move_data_2, &
+                              bounds=bounds2)
             ELSE IF (compat1 == 2) THEN ! linked index is second 2d dimension
                ! get distribution of linked index, tensor 2 must adopt this distribution
                ! get grid dimensions of linked index
@@ -1281,14 +1484,15 @@ CONTAINS
                CALL dbt_get_mapping_info(dist_in%pgrid%nd_index_grid, dims2_2d=mp_dims)
                ALLOCATE (tensor2_out)
                CALL dbt_remap(tensor2, ind2_free, ind2_linked, tensor2_out, comm_2d=dist_in%pgrid%mp_comm_2d, &
-                              dist2=dist_list, mp_dims_2=mp_dims, nodata=nodata2, move_data=move_data_2)
+                              dist2=dist_list, mp_dims_2=mp_dims, nodata=nodata2, move_data=move_data_2, &
+                              bounds=bounds2)
             ELSE
                CPABORT("should not happen")
             END IF
             compat2 = compat1
          ELSE
             IF (unit_nr_prv > 0) WRITE (unit_nr_prv, '(T2,A,1X,A)') "No redistribution of", TRIM(tensor2%name)
-            tensor2_out => tensor2
+            CALL crop_or_point(tensor2, tensor2_out, crop2_prv, bounds2, move_data_2)
          END IF
       ELSE ! tensor 2 is reference and tensor 1 is reshaped compatible with tensor 2
          IF (compat2 == 0 .OR. optimize_dist_prv) THEN ! tensor 2 is not contraction compatible --> reshape
@@ -1297,12 +1501,13 @@ CONTAINS
             nblkcols = PRODUCT(INT(dims2(ind2_free), KIND=int_8))
             comm_2d = dbt_tas_mp_comm(tensor2%pgrid%mp_comm_2d, nblkrows, nblkcols)
             ALLOCATE (tensor2_out)
-            CALL dbt_remap(tensor2, ind2_linked, ind2_free, tensor2_out, nodata=nodata2, move_data=move_data_2)
+            CALL dbt_remap(tensor2, ind2_linked, ind2_free, tensor2_out, nodata=nodata2, move_data=move_data_2, &
+                           bounds=bounds2)
             CALL comm_2d%free()
             compat2 = 1
          ELSE
             IF (unit_nr_prv > 0) WRITE (unit_nr_prv, '(T2,A,1X,A)') "No redistribution of", TRIM(tensor2%name)
-            tensor2_out => tensor2
+            CALL crop_or_point(tensor2, tensor2_out, crop2_prv, bounds2, move_data_2)
          END IF
          IF (compat1 == 0 .OR. optimize_dist_prv) THEN ! tensor 1 is not contraction compatible --> reshape
             IF (unit_nr_prv > 0) WRITE (unit_nr_prv, '(T2,A,1X,A,1X,A,1X,A)') "Redistribution of", TRIM(tensor1%name), &
@@ -1314,20 +1519,22 @@ CONTAINS
                CALL dbt_get_mapping_info(dist_in%pgrid%nd_index_grid, dims1_2d=mp_dims)
                ALLOCATE (tensor1_out)
                CALL dbt_remap(tensor1, ind1_linked, ind1_free, tensor1_out, comm_2d=dist_in%pgrid%mp_comm_2d, &
-                              dist1=dist_list, mp_dims_1=mp_dims, nodata=nodata1, move_data=move_data_1)
+                              dist1=dist_list, mp_dims_1=mp_dims, nodata=nodata1, move_data=move_data_1, &
+                              bounds=bounds1)
             ELSE IF (compat2 == 2) THEN
                ALLOCATE (mp_dims(ndims_mapping_column(dist_in%pgrid%nd_index_grid)))
                CALL dbt_get_mapping_info(dist_in%pgrid%nd_index_grid, dims2_2d=mp_dims)
                ALLOCATE (tensor1_out)
                CALL dbt_remap(tensor1, ind1_free, ind1_linked, tensor1_out, comm_2d=dist_in%pgrid%mp_comm_2d, &
-                              dist2=dist_list, mp_dims_2=mp_dims, nodata=nodata1, move_data=move_data_1)
+                              dist2=dist_list, mp_dims_2=mp_dims, nodata=nodata1, move_data=move_data_1, &
+                              bounds=bounds1)
             ELSE
                CPABORT("should not happen")
             END IF
             compat1 = compat2
          ELSE
             IF (unit_nr_prv > 0) WRITE (unit_nr_prv, '(T2,A,1X,A)') "No redistribution of", TRIM(tensor1%name)
-            tensor1_out => tensor1
+            CALL crop_or_point(tensor1, tensor1_out, crop1_prv, bounds1, move_data_1)
          END IF
       END IF
 
@@ -1377,6 +1584,9 @@ CONTAINS
       IF (new1 .AND. PRESENT(move_data_1)) move_data_1 = .TRUE.
       IF (new2 .AND. PRESENT(move_data_2)) move_data_2 = .TRUE.
 
+      IF (PRESENT(crop1)) crop1 = crop1_prv
+      IF (PRESENT(crop2)) crop2 = crop2_prv
+
    END SUBROUTINE reshape_mm_compatible
 
 ! **************************************************************************************************
@@ -1391,14 +1601,19 @@ CONTAINS
 !> \param unit_nr output unit
 !> \author Patrick Seewald
 ! **************************************************************************************************
-   SUBROUTINE reshape_mm_small(tensor_in, ind1, ind2, tensor_out, trans, new, nodata, move_data, unit_nr)
+   SUBROUTINE reshape_mm_small(tensor_in, ind1, ind2, tensor_out, trans, new, nodata, move_data, unit_nr, &
+                               bounds, crop)
       TYPE(dbt_type), TARGET, INTENT(INOUT)   :: tensor_in
       INTEGER, DIMENSION(:), INTENT(IN)           :: ind1, ind2
       TYPE(dbt_type), POINTER, INTENT(OUT)    :: tensor_out
       LOGICAL, INTENT(OUT)                        :: trans
       LOGICAL, INTENT(OUT)                        :: new
-      LOGICAL, INTENT(IN), OPTIONAL               :: nodata, move_data
+      LOGICAL, INTENT(IN), OPTIONAL               :: nodata
+      LOGICAL, INTENT(INOUT), OPTIONAL            :: move_data
       INTEGER, INTENT(IN), OPTIONAL               :: unit_nr
+      INTEGER, DIMENSION(2, ndims_tensor(tensor_in)), INTENT(IN), OPTIONAL :: bounds
+      LOGICAL, INTENT(OUT), OPTIONAL              :: crop
+      LOGICAL                                     :: crop_prv
       INTEGER                                     :: compat1, compat2, compat1_old, compat2_old, unit_nr_prv
       LOGICAL                                     :: nodata_prv
 
@@ -1412,6 +1627,7 @@ CONTAINS
       unit_nr_prv = prep_output_unit(unit_nr)
 
       new = .FALSE.
+      crop_prv = .FALSE.
       compat1 = compat_map(tensor_in%nd_index, ind1)
       compat2 = compat_map(tensor_in%nd_index, ind2)
       compat1_old = compat1; compat2_old = compat2
@@ -1430,14 +1646,14 @@ CONTAINS
          IF (unit_nr_prv > 0) WRITE (unit_nr_prv, '(T2,A,1X,A)') "Redistribution of", TRIM(tensor_in%name)
 
          ALLOCATE (tensor_out)
-         CALL dbt_remap(tensor_in, ind1, ind2, tensor_out, nodata=nodata, move_data=move_data)
+         CALL dbt_remap(tensor_in, ind1, ind2, tensor_out, nodata=nodata, move_data=move_data, bounds=bounds)
          CALL dbt_copy_contraction_storage(tensor_in, tensor_out)
          compat1 = 1
          compat2 = 2
          new = .TRUE.
       ELSE
          IF (unit_nr_prv > 0) WRITE (unit_nr_prv, '(T2,A,1X,A)') "No redistribution of", TRIM(tensor_in%name)
-         tensor_out => tensor_in
+         CALL crop_or_point(tensor_in, tensor_out, crop_prv, bounds, move_data)
       END IF
 
       IF (compat1 == 1 .AND. compat2 == 2) THEN
@@ -1461,7 +1677,65 @@ CONTAINS
          END IF
       END IF
 
+      IF (PRESENT(crop)) crop = crop_prv
+
    END SUBROUTINE reshape_mm_small
+
+! **************************************************************************************************
+!> \brief Crop tensor_in into a new tensor_out if bounds are present, otherwise point to tensor_in.
+!> \param cropped whether tensor_out is a new tensor
+!> \param move_data memory optimization: transfer data s.t. tensor_in may be empty on return
+!> \author Hans Pabst
+! **************************************************************************************************
+   SUBROUTINE crop_or_point(tensor_in, tensor_out, cropped, bounds, move_data)
+      TYPE(dbt_type), TARGET, INTENT(INOUT)   :: tensor_in
+      TYPE(dbt_type), POINTER, INTENT(OUT)    :: tensor_out
+      LOGICAL, INTENT(OUT)                        :: cropped
+      INTEGER, DIMENSION(2, ndims_tensor(tensor_in)), INTENT(IN), OPTIONAL :: bounds
+      LOGICAL, INTENT(INOUT), OPTIONAL            :: move_data
+
+      cropped = PRESENT(bounds)
+      IF (cropped) THEN
+         ALLOCATE (tensor_out)
+         CALL dbt_crop(tensor_in, tensor_out, bounds, move_data=move_data)
+         IF (PRESENT(move_data)) move_data = .TRUE. ! tensor_out is temporary
+      ELSE
+         tensor_out => tensor_in
+      END IF
+   END SUBROUTINE crop_or_point
+
+! **************************************************************************************************
+!> \brief Number of local blocks overlapping the bounds (blocks dbt_crop would keep), and number
+!>        of local blocks not entirely within the bounds (none: dbt_crop would copy as is).
+!> \author Hans Pabst
+! **************************************************************************************************
+   FUNCTION num_blocks_in_bounds(tensor, bounds) RESULT(nblocks)
+      TYPE(dbt_type), INTENT(INOUT)                      :: tensor
+      INTEGER, DIMENSION(2, ndims_tensor(tensor)), INTENT(IN) :: bounds
+      INTEGER, DIMENSION(2)                              :: nblocks
+
+      TYPE(dbt_iterator_type)                            :: iter
+      INTEGER, DIMENSION(ndims_tensor(tensor))           :: blk_index, blk_offset, blk_size
+      INTEGER                                            :: nin, nout
+
+      nin = 0
+      nout = 0
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor,bounds) PRIVATE(iter,blk_index,blk_size,blk_offset) &
+!$OMP REDUCTION(+:nin,nout)
+      CALL dbt_iterator_start(iter, tensor)
+      DO WHILE (dbt_iterator_blocks_left(iter))
+         CALL dbt_iterator_next_block(iter, blk_index, blk_size=blk_size, blk_offset=blk_offset)
+         IF (ALL(blk_offset <= bounds(2, :) .AND. bounds(1, :) <= blk_offset + blk_size - 1)) THEN
+            nin = nin + 1
+         END IF
+         IF (ANY(blk_offset < bounds(1, :) .OR. bounds(2, :) < blk_offset + blk_size - 1)) THEN
+            nout = nout + 1
+         END IF
+      END DO
+      CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
+      nblocks = [nin, nout]
+   END FUNCTION num_blocks_in_bounds
 
 ! **************************************************************************************************
 !> \brief update contraction storage that keeps track of process grids during a batched contraction
@@ -1572,8 +1846,9 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
    SUBROUTINE dbt_remap(tensor_in, map1_2d, map2_2d, tensor_out, comm_2d, dist1, dist2, &
-                        mp_dims_1, mp_dims_2, name, nodata, move_data)
+                        mp_dims_1, mp_dims_2, name, nodata, move_data, bounds)
       TYPE(dbt_type), INTENT(INOUT)      :: tensor_in
+      INTEGER, DIMENSION(2, ndims_tensor(tensor_in)), INTENT(IN), OPTIONAL :: bounds
       INTEGER, DIMENSION(:), INTENT(IN)      :: map1_2d, map2_2d
       TYPE(dbt_type), INTENT(OUT)        :: tensor_out
       CHARACTER(len=*), INTENT(IN), OPTIONAL :: name
@@ -1663,7 +1938,7 @@ CONTAINS
          nodata_prv = .FALSE.
       END IF
 
-      IF (.NOT. nodata_prv) CALL dbt_copy_expert(tensor_in, tensor_out, move_data=move_data)
+      IF (.NOT. nodata_prv) CALL dbt_copy_expert(tensor_in, tensor_out, move_data=move_data, bounds=bounds)
       CALL dbt_distribution_destroy(dist)
 
       CALL timestop(handle)

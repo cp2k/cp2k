@@ -40,7 +40,8 @@ MODULE mp2_gpw
         cp_add_default_logger, cp_get_default_logger, cp_logger_create, &
         cp_logger_get_default_unit_nr, cp_logger_release, cp_logger_set, cp_logger_type, &
         cp_rm_default_logger, cp_to_string
-   USE dbt_api,                         ONLY: dbt_type
+   USE dbt_api,                         ONLY: dbt_clear_mempools,&
+                                              dbt_type
    USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                               distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
@@ -473,6 +474,7 @@ CONTAINS
       ! Free possibly large buffers allocated by dbcsr on the GPU,
       ! large hybrid dgemm/pdgemm's coming later will need the space.
       CALL dbcsr_clear_mempools()
+      CALL dbt_clear_mempools()
 
       IF (calc_forces .AND. .NOT. do_im_time) THEN
          ! make a copy of mo_coeff_o and mo_coeff_v
@@ -655,6 +657,9 @@ CONTAINS
       END IF
 
       DEALLOCATE (Eigenval, mo_coeff)
+
+      ! buffers of the tensor operations (e.g., low-scaling RPA/GW) are not kept beyond this point
+      CALL dbt_clear_mempools()
 
       CALL timestop(handle)
 
