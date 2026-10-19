@@ -1678,22 +1678,14 @@ if(CP2K_USE_CUDA
   if(CP2K_ENABLE_DBM_GPU)
     list(APPEND CP2K_DBM_SRCS_C dbm/dbm_multiply_gpu.c)
     if(CP2K_USE_OPENCL)
-      set(CP2K_DBM_OPENCL_KERNEL dbm/dbm_multiply_opencl.cl)
-      set(CP2K_DBM_OPENCL_GENHDR
-          "${CMAKE_CURRENT_BINARY_DIR}/${CP2K_DBM_OPENCL_KERNEL}.h")
-      # cmake-lint: disable=E1126
-      add_custom_command(
-        COMMAND
-          ${CP2K_OPENCL_SCRIPT} -b 6 -p \"\" -I "${CP2K_OPENCL_BACKEND}"
-          ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_OPENCL_KERNEL}
-          "${CP2K_DBM_OPENCL_GENHDR}"
-        DEPENDS ${CP2K_OPENCL_SCRIPT} ${CP2K_OPENCL_COMMON}
-                ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_OPENCL_KERNEL}
-        OUTPUT "${CP2K_DBM_OPENCL_GENHDR}"
-        COMMENT "Generating OpenCL kernel for DBM")
-      add_custom_target(cp2k_dbm_opencl_kernel
-                        DEPENDS "${CP2K_DBM_OPENCL_GENHDR}")
-      include_directories(${CMAKE_CURRENT_BINARY_DIR}/dbm)
+      # The OpenCL backend is maintained in LIBXSTREAM (samples/dbm), which
+      # enumerates its files and generates the kernel header per target.
+      if(NOT COMMAND libxstream_add_dbm)
+        message(
+          FATAL_ERROR
+            "LIBXSTREAM does not provide the DBM backend (libxstream_add_dbm).")
+      endif()
+      set(CP2K_DBM_OPENCL ON)
       include_directories(${CP2K_OPENCL_BACKEND})
       if(CP2K_OPENCL_SAMPLES)
         include_directories(${CP2K_OPENCL_SAMPLES})
@@ -1844,8 +1836,8 @@ endif()
 target_compile_features(cp2k PUBLIC cuda_std_11)
 target_include_directories(cp2k PUBLIC $<INSTALL_INTERFACE:include/cp2k>)
 
-if(TARGET cp2k_dbm_opencl_kernel)
-  add_dependencies(cp2k cp2k_dbm_opencl_kernel)
+if(CP2K_DBM_OPENCL)
+  libxstream_add_dbm(cp2k)
 endif()
 
 set_target_properties(
@@ -2215,8 +2207,8 @@ endforeach()
 add_executable(
   dbm_miniapp dbm/dbm_miniapp.c ${CP2K_DBM_SRCS_C} ${CP2K_MPIWRAP_SRCS_C}
               ${CP2K_DBM_SRCS_GPU} ${CP2K_OFFLOAD_SRCS_C})
-if(TARGET cp2k_dbm_opencl_kernel)
-  add_dependencies(dbm_miniapp cp2k_dbm_opencl_kernel)
+if(CP2K_DBM_OPENCL)
+  libxstream_add_dbm(dbm_miniapp)
 endif()
 target_compile_definitions(
   dbm_miniapp

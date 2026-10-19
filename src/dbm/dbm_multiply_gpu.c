@@ -111,6 +111,7 @@ bool dbm_multiply_gpu_upload_packs(const dbm_pack_t *pack_a,
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
+                                    const dbm_batch_shape_t *shape,
                                     const double alpha, dbm_shard_t *shard_c,
                                     const int kshard, const bool finish,
                                     dbm_multiply_gpu_context_t *ctx) {
@@ -152,7 +153,7 @@ void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
     assert(0 != shard_g->data_size);
 
     // Launch kernel.
-    dbm_multiply_gpu_launch_kernel(shard_g->stream, alpha, ntasks, batch,
+    dbm_multiply_gpu_launch_kernel(shard_g->stream, alpha, ntasks, shape, batch,
                                    batch_dev, ctx->pack_a_dev.data,
                                    ctx->pack_b_dev.data, shard_g->data);
     OFFLOAD_CHECK(offloadGetLastError());
