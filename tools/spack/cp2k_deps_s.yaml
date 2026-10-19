@@ -121,7 +121,7 @@ spack:
 
   repos:
     builtin:
-      commit: dc7929641af94e9f219e0cb5ea00274480701c87 # 2026-10-16
+      commit: a12bbd69e94b8fce1969a412755959bb37ecab3d # 2026-10-19
 
   specs:
     # Build tools
@@ -132,7 +132,7 @@ spack:
     - "python@3.11:"
     # CP2K
     - "dbcsr@2.10.0"
-    - "deepmdkit@3.1.3"
+    - "deepmdkit@3.2.0"
 #   - "dftd4@4.2.0"
     - "fftw@3.3.11"
     - "gauxc@dev20260717"
