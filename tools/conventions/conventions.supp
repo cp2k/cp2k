@@ -72,11 +72,6 @@ library_tests.F: Found CALL RANDOM_NUMBER in procedure "copy_test" https://cp2k.
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test" https://cp2k.org/conv#c104
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test" https://cp2k.org/conv#c104
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "rs_pw_transfer_test" https://cp2k.org/conv#c104
-libxs_jit.F: Found type libxs_cpuid_t without initializer https://cp2k.org/conv#c016
-libxs_jit.F: Found type libxs_fprint_t without initializer https://cp2k.org/conv#c016
-libxs_jit.F: Found type libxs_matdiff_t without initializer https://cp2k.org/conv#c016
-libxs_jit.F: Found type libxs_registry_info_t without initializer https://cp2k.org/conv#c016
-libxs_jit.F: Found type libxs_timer_info_t without initializer https://cp2k.org/conv#c016
 machine.F: Found CALL m_abort in procedure "m_getcwd" https://cp2k.org/conv#c102
 machine.F: Found CALL m_abort in procedure "m_hostnm" https://cp2k.org/conv#c102
 machine.F: Found CALL m_abort in procedure "m_mov" https://cp2k.org/conv#c102
