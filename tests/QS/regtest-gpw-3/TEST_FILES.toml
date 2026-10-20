@@ -18,7 +18,7 @@
 "H2O-bloechl-nonortho.inp"              = []
 "H2O-bloechl-restraint.inp"             = [{matcher="E_total", tol=3e-12, ref=-17.14839328266115}]
 # S**2
-"CN.inp"                                = [{matcher="M004", tol=1.0E-14, ref=0.751382},
+"CN.inp"                                = [{matcher="S2_estimate", tol=1.0E-14, ref=0.751382},
                                            {matcher="M041", tol=1.0E-14, ref=1.000000}]
 # testing of distributed rs grids
 "rsgrid-dist-1.inp"                     = [{matcher="E_total", tol=3e-11, ref=-1.71460241038275}]
