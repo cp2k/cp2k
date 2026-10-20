@@ -323,6 +323,7 @@ CONTAINS
       END DO
 
       j_atom_old = 0
+      phase = CMPLX(1.0_dp, 0.0_dp, dp)
       DO j_col = 1, ncol_local
          j_atom = atom_from_bf(col_indices(j_col))
          IF (j_atom /= j_atom_old) THEN
