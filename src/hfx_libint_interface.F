@@ -16,14 +16,13 @@ MODULE hfx_libint_interface
 
    USE cell_types,                      ONLY: cell_type,&
                                               real_to_scaled
-   USE gamma,                           ONLY: fgamma => fgamma_0
    USE hfx_contraction_methods,         ONLY: contract
    USE hfx_types,                       ONLY: hfx_pgf_product_list,&
                                               hfx_potential_type
-   USE input_constants,                 ONLY: &
-        do_potential_coulomb, do_potential_gaussian, do_potential_id, do_potential_long, &
-        do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, do_potential_short, &
-        do_potential_truncated
+   USE input_constants,                 ONLY: do_potential_id,&
+                                              do_potential_mix_cl_trunc,&
+                                              do_potential_short,&
+                                              do_potential_truncated
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE libint_wrapper,                  ONLY: cp_libint_get_derivs,&
@@ -36,7 +35,7 @@ MODULE hfx_libint_interface
                                               prim_data_f_size
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: nco
-   USE t_c_g0,                          ONLY: t_c_g0_n
+   USE r12_fundamentals,                ONLY: compute_r12_fundamentals
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -149,11 +148,10 @@ CONTAINS
       REAL(dp)                                           :: R11, R22
 
       INTEGER                                            :: i
-      LOGICAL                                            :: use_gamma
-      REAL(KIND=dp) :: AB(3), AB2, CD(3), CD2, den, Eta, EtaInv, factor, G(3), num, omega2, &
-         omega_corr, omega_corr2, P(3), PQ(3), PQ2, Q(3), R, R1, R2, Rho, RhoInv, S1234, ssss, T, &
-         tmp, W(3), Zeta, ZetaInv, ZetapEtaInv
-      REAL(KIND=dp), DIMENSION(prim_data_f_size)         :: F, Fm
+      REAL(dp)                                           :: normalization
+      REAL(KIND=dp) :: AB(3), AB2, CD(3), CD2, den, Eta, EtaInv, G(3), num, P(3), PQ(3), PQ2, &
+         prefactor, Q(3), Rho, S1234, ssss, T, W(3), Zeta, ZetaInv, ZetapEtaInv
+      REAL(KIND=dp), DIMENSION(prim_data_f_size)         :: F, fundamentals_work
 
       Zeta = Zeta_A + Zeta_B
       ZetaInv = 1.0_dp/Zeta
@@ -162,7 +160,6 @@ CONTAINS
       ZetapEtaInv = Zeta + Eta
       ZetapEtaInv = 1.0_dp/ZetapEtaInv
       Rho = Zeta*Eta*ZetapEtaInv
-      RhoInv = 1.0_dp/Rho
 
       DO i = 1, 3
          P(i) = (Zeta_A*A(i) + Zeta_B*B(i))*ZetaInv
@@ -181,125 +178,10 @@ CONTAINS
       T = Rho*PQ2
 
       SELECT CASE (potential_parameter%potential_type)
-      CASE (do_potential_truncated)
-         R = potential_parameter%cutoff_radius*SQRT(rho)
-         R1 = R11
-         R2 = R22
-         IF (PQ2 > (R1 + R2 + potential_parameter%cutoff_radius)**2) THEN
-            RETURN
-         END IF
-         CALL t_c_g0_n(F(1), use_gamma, R, T, m_max)
-         IF (use_gamma) CALL fgamma(m_max, T, F(1))
-         factor = 2.0_dp*Pi*RhoInv
-      CASE (do_potential_coulomb)
-         CALL fgamma(m_max, T, F(1))
-         factor = 2.0_dp*Pi*RhoInv
-      CASE (do_potential_short)
-         R = potential_parameter%cutoff_radius*SQRT(rho)
-         R1 = R11
-         R2 = R22
-         IF (PQ2 > (R1 + R2 + potential_parameter%cutoff_radius)**2) THEN
-            RETURN
-         END IF
-         CALL fgamma(m_max, T, F(1))
-         omega2 = potential_parameter%omega**2
-         omega_corr2 = omega2/(omega2 + Rho)
-         omega_corr = SQRT(omega_corr2)
-         T = T*omega_corr2
-         CALL fgamma(m_max, T, Fm)
-         tmp = -omega_corr
-         DO i = 1, m_max + 1
-            F(i) = F(i) + Fm(i)*tmp
-            tmp = tmp*omega_corr2
-         END DO
-         factor = 2.0_dp*Pi*RhoInv
-      CASE (do_potential_long)
-         omega2 = potential_parameter%omega**2
-         omega_corr2 = omega2/(omega2 + Rho)
-         omega_corr = SQRT(omega_corr2)
-         T = T*omega_corr2
-         CALL fgamma(m_max, T, F(1))
-         tmp = omega_corr
-         DO i = 1, m_max + 1
-            F(i) = F(i)*tmp
-            tmp = tmp*omega_corr2
-         END DO
-         factor = 2.0_dp*Pi*RhoInv
-      CASE (do_potential_mix_cl)
-         CALL fgamma(m_max, T, F(1))
-         omega2 = potential_parameter%omega**2
-         omega_corr2 = omega2/(omega2 + Rho)
-         omega_corr = SQRT(omega_corr2)
-         T = T*omega_corr2
-         CALL fgamma(m_max, T, Fm)
-         tmp = omega_corr
-         DO i = 1, m_max + 1
-            F(i) = F(i)*potential_parameter%scale_coulomb + Fm(i)*tmp*potential_parameter%scale_longrange
-            tmp = tmp*omega_corr2
-         END DO
-         factor = 2.0_dp*Pi*RhoInv
-      CASE (do_potential_mix_cl_trunc)
-
-         ! truncated
-         R = potential_parameter%cutoff_radius*SQRT(rho)
-         R1 = R11
-         R2 = R22
-         IF (PQ2 > (R1 + R2 + potential_parameter%cutoff_radius)**2) THEN
-            RETURN
-         END IF
-         CALL t_c_g0_n(F(1), use_gamma, R, T, m_max)
-         IF (use_gamma) CALL fgamma(m_max, T, F(1))
-
-         ! Coulomb
-         CALL fgamma(m_max, T, Fm)
-
-         DO i = 1, m_max + 1
-            F(i) = F(i)*(potential_parameter%scale_coulomb + potential_parameter%scale_longrange) - &
-                   Fm(i)*potential_parameter%scale_longrange
-         END DO
-
-         ! longrange
-         omega2 = potential_parameter%omega**2
-         omega_corr2 = omega2/(omega2 + Rho)
-         omega_corr = SQRT(omega_corr2)
-         T = T*omega_corr2
-         CALL fgamma(m_max, T, Fm)
-         tmp = omega_corr
-         DO i = 1, m_max + 1
-            F(i) = F(i) + Fm(i)*tmp*potential_parameter%scale_longrange
-            tmp = tmp*omega_corr2
-         END DO
-         factor = 2.0_dp*Pi*RhoInv
-
-      CASE (do_potential_gaussian)
-         omega2 = potential_parameter%omega**2
-         T = -omega2*T/(Rho + omega2)
-         tmp = 1.0_dp
-         DO i = 1, m_max + 1
-            F(i) = EXP(T)*tmp
-            tmp = tmp*omega2/(Rho + omega2)
-         END DO
-         factor = (Pi/(Rho + omega2))**(1.5_dp)
-      CASE (do_potential_mix_lg)
-         omega2 = potential_parameter%omega**2
-         omega_corr2 = omega2/(omega2 + Rho)
-         omega_corr = SQRT(omega_corr2)
-         T = T*omega_corr2
-         CALL fgamma(m_max, T, Fm)
-         tmp = omega_corr*2.0_dp*Pi*RhoInv*potential_parameter%scale_longrange
-         DO i = 1, m_max + 1
-            Fm(i) = Fm(i)*tmp
-            tmp = tmp*omega_corr2
-         END DO
-         T = Rho*PQ2
-         T = -omega2*T/(Rho + omega2)
-         tmp = (Pi/(Rho + omega2))**(1.5_dp)*potential_parameter%scale_gaussian
-         DO i = 1, m_max + 1
-            F(i) = EXP(T)*tmp + Fm(i)
-            tmp = tmp*omega2/(Rho + omega2)
-         END DO
-         factor = 1.0_dp
-      CASE (do_potential_id)
+      CASE (do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
+         IF (PQ2 > (R11 + R22 + potential_parameter%cutoff_radius)**2) RETURN
+      END SELECT
+      IF (potential_parameter%potential_type == do_potential_id) THEN
          ssss = -Zeta_A*Zeta_B*ZetaInv*AB2
 
          num = (Zeta_A + Zeta_B)*Zeta_C
@@ -312,15 +194,22 @@ CONTAINS
          ssss = ssss - num/den*SUM((G - D)**2)
 
          F(:) = EXP(ssss)
-         factor = 1.0_dp
-         IF (S1234 > EPSILON(0.0_dp)) factor = 1.0_dp/S1234
-      END SELECT
+         ! The ID seed already contains the four-Gaussian attenuation.
+         normalization = 1.0_dp
+         IF (S1234 > EPSILON(0.0_dp)) normalization = 1.0_dp/S1234
+      ELSE
+         CALL compute_r12_fundamentals(F, normalization, m_max, potential_parameter%potential_type, Rho, T, fundamentals_work, &
+                                       omega=potential_parameter%omega, &
+                                       cutoff_radius=potential_parameter%cutoff_radius, &
+                                       scale_coulomb=potential_parameter%scale_coulomb, &
+                                       scale_longrange=potential_parameter%scale_longrange, &
+                                       scale_gaussian=potential_parameter%scale_gaussian)
+      END IF
 
-      tmp = (Pi*ZetapEtaInv)**3
-      factor = factor*S1234*SQRT(tmp)
+      prefactor = normalization*S1234*SQRT((Pi*ZetapEtaInv)**3)
 
       DO i = 1, m_max + 1
-         F(i) = F(i)*factor
+         F(i) = F(i)*prefactor
       END DO
 
       CALL cp_libint_set_params_eri_screen(libint, A, B, C, D, P, Q, W, ZetaInv, EtaInv, ZetapEtaInv, Rho, m_max, F)
