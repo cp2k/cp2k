@@ -5,9 +5,12 @@
 #      for details see cp2k/tools/do_regtest
 # General and legacy k-point regression tests
 "bn1.inp"                               = [{matcher="M094", tol=1.0E-14, ref=27}]
-"ch1.inp"                               = [{matcher="E_total", tol=1.0E-12, ref=-12.18193777586973}]
-"ch2.inp"                               = [{matcher="E_total", tol=1.0E-12, ref=-12.18193777586973}]
-"ch3.inp"                               = [{matcher="E_total", tol=1.0E-12, ref=-12.18193777586973}]
+"ch1.inp"                               = [{matcher="E_total", tol=1.0E-12, ref=-12.18193777586973},
+                                           {matcher="S2_estimate", tol=2.0E-06, ref=0.787459}]
+"ch2.inp"                               = [{matcher="E_total", tol=1.0E-12, ref=-12.18193777586973},
+                                           {matcher="S2_estimate", tol=2.0E-06, ref=0.539058}]
+"ch3.inp"                               = [{matcher="E_total", tol=1.0E-12, ref=-12.18193777586973},
+                                           {matcher="S2_estimate", tol=2.0E-06, ref=0.437608}]
 "cc1.inp"                               = [{matcher="M011", tol=5.0E-12, ref=-45.389916659345360}]
 "cc2.inp"                               = [{matcher="M011", tol=5.0E-10, ref=-45.389916849143461}]
 "cc3.inp"                               = [{matcher="M011", tol=5.0E-10, ref=-45.389916564497383}]
@@ -21,3 +24,4 @@
 "cc9.inp"                               = [{matcher="M011", tol=5.0E-10, ref=-45.270016601865670}]
 "he_kpoint_symmetry_openmp.inp"         = [{matcher="E_total", tol=1e-10, ref=-11.23084551534152}]
 #EOF
+
