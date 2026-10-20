@@ -336,7 +336,7 @@ CONTAINS
                CALL calc_rho_angular(grid_atom, harmonics, nspins, gradient_functional, &
                                      ir, r_h, r_s, rho_h, rho_s, dr_h, dr_s, r_h_d, r_s_d, &
                                      drho_h, drho_s)
-               IF (donlcc) THEN
+               IF (donlcc .AND. ASSOCIATED(rho_nlcc)) THEN
                   CALL calc_rho_nlcc(grid_atom, nspins, gradient_functional, &
                                      ir, rho_nlcc(:, 1), rho_h, rho_s, rho_nlcc(:, 2), drho_h, drho_s)
                END IF

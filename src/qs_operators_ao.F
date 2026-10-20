@@ -142,6 +142,7 @@ CONTAINS
 
       my_force_periodic = .FALSE.
       IF (PRESENT(force_periodic)) my_force_periodic = force_periodic
+      perd0(:) = -1
       IF (my_force_periodic) THEN
          perd0(:) = cell%perd(:)
          cell%perd(:) = 1
