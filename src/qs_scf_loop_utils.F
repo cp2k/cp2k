@@ -606,7 +606,8 @@ CONTAINS
          residual = MAX(scf_env%iter_delta, scf_env%qs_ot_env(1)%delta)
          refresh = (allow_refresh .OR. allow_exit_refresh) .AND. &
                    scf_env%qs_ot_env(1)%settings%do_ener .AND. &
-                   scf_env%qs_ot_env(1)%settings%occupation_preconditioner .AND. &
+                   (scf_env%qs_ot_env(1)%settings%occupation_preconditioner .OR. &
+                    scf_control%smear%method == smear_fermi_dirac) .AND. &
                    (dft_control%smear .OR. scf_control%smear%do_smear) .AND. &
                    qs_scf_kp_ref_refresh_ready(accepted_searches, residual, &
                                                scf_control%eps_scf, base_state, allow_exit_refresh)
