@@ -110,7 +110,9 @@ MODULE kpoint_methods
                                               neighbor_list_set_p_type
    USE scf_control_types,               ONLY: smear_type
    USE smearing_utils,                  ONLY: Smearkp,&
-                                              Smearkp2
+                                              Smearkp2,&
+                                              smearing_separate_spin,&
+                                              smearing_spin_targets
    USE util,                            ONLY: get_limit,&
                                               sort
 
@@ -1515,6 +1517,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: smatrix
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: weig, wocc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: icoeff, rcoeff
+      REAL(KIND=dp), DIMENSION(2)                        :: spin_targets
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation, wkp
       TYPE(cp_cfm_type), POINTER                         :: cmo_coeff
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -1531,17 +1534,19 @@ CONTAINS
       CALL get_kpoint_info(kpoint, nkp=nkp)
       kp => kpoint%kp_env(1)%kpoint_env
       nspin = SIZE(kp%mos)
-      my_separate_spin_occupations = smear%fixed_mag_mom > 0.0_dp
+      my_separate_spin_occupations = smearing_separate_spin(smear%fixed_mag_mom)
       IF (PRESENT(separate_spin_occupations)) THEN
          my_separate_spin_occupations = my_separate_spin_occupations .OR. separate_spin_occupations
       END IF
       mo_set => kp%mos(1)
       CALL get_mo_set(mo_set, nmo=nmo, nao=nao, nelectron=nelectron)
       ne_a = nelectron
+      ne_b = 0
       IF (nspin == 2) THEN
          CALL get_mo_set(kp%mos(2), nmo=nb, nelectron=ne_b)
          CPASSERT(nmo == nb)
       END IF
+      spin_targets(:) = smearing_spin_targets([ne_a, ne_b], smear%fixed_mag_mom)
       ALLOCATE (weig(nmo, nkp, nspin), wocc(nmo, nkp, nspin))
       weig = 0.0_dp
       wocc = 0.0_dp
@@ -1635,11 +1640,11 @@ CONTAINS
                                smear%electronic_temperature, 2.0_dp, smear_fermi_dirac)
                   kTS_spin(1) = kTS
                ELSE IF (my_separate_spin_occupations) THEN
-                  nel = REAL(ne_a, KIND=dp)
+                  nel = spin_targets(1)
                   CALL Smearkp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
                                smear%electronic_temperature, 1.0_dp, smear_fermi_dirac)
                   kTS_spin(1) = kTS
-                  nel = REAL(ne_b, KIND=dp)
+                  nel = spin_targets(2)
                   CALL Smearkp(wocc(:, :, 2), mus(2), kTS, weig(:, :, 2), nel, wkp, &
                                smear%electronic_temperature, 1.0_dp, smear_fermi_dirac)
                   kTS_spin(2) = kTS
@@ -1658,11 +1663,11 @@ CONTAINS
                                smear%smearing_width, 2.0_dp, smear%method)
                   kTS_spin(1) = kTS
                ELSE IF (my_separate_spin_occupations) THEN
-                  nel = REAL(ne_a, KIND=dp)
+                  nel = spin_targets(1)
                   CALL Smearkp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
                                smear%smearing_width, 1.0_dp, smear%method)
                   kTS_spin(1) = kTS
-                  nel = REAL(ne_b, KIND=dp)
+                  nel = spin_targets(2)
                   CALL Smearkp(wocc(:, :, 2), mus(2), kTS, weig(:, :, 2), nel, wkp, &
                                smear%smearing_width, 1.0_dp, smear%method)
                   kTS_spin(2) = kTS

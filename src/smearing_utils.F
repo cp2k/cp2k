@@ -48,6 +48,7 @@ MODULE smearing_utils
    PUBLIC :: SmearOcc, SmearFixed, SmearFixedDeriv, SmearFixedDerivMV
    PUBLIC :: Smearkp, Smearkp2
    PUBLIC :: smearing_response_weight
+   PUBLIC :: smearing_separate_spin, smearing_spin_targets
    PRIVATE :: cite_smearing
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'smearing_utils'
@@ -57,6 +58,38 @@ MODULE smearing_utils
    REAL(KIND=dp), PARAMETER, PRIVATE                     :: MPMV_MAX_NEWTON_STEP = 2.0_dp
 
 CONTAINS
+! **************************************************************************************************
+!> \brief Whether a smearing constraint fixes the separate spin populations.
+!> \param fixed_mag_mom Requested spin difference, or a negative constraint selector.
+!> \return True for a prescribed moment or the integer-population selector -1.
+! **************************************************************************************************
+   PURE LOGICAL FUNCTION smearing_separate_spin(fixed_mag_mom)
+      REAL(KIND=dp), INTENT(IN)                          :: fixed_mag_mom
+
+      smearing_separate_spin = fixed_mag_mom >= 0.0_dp .OR. fixed_mag_mom == -1.0_dp
+   END FUNCTION smearing_separate_spin
+
+! **************************************************************************************************
+!> \brief Resolve real-valued spin targets without rounding a prescribed moment.
+!> \param nelectron Initial integer spin populations.
+!> \param fixed_mag_mom Prescribed difference, or a negative constraint selector.
+!> \return Target populations. Negative selectors preserve the initial populations.
+! **************************************************************************************************
+   PURE FUNCTION smearing_spin_targets(nelectron, fixed_mag_mom) RESULT(targets)
+      INTEGER, DIMENSION(2), INTENT(IN)                  :: nelectron
+      REAL(KIND=dp), INTENT(IN)                          :: fixed_mag_mom
+      REAL(KIND=dp), DIMENSION(2)                        :: targets
+
+      REAL(KIND=dp)                                      :: total
+
+      targets(:) = REAL(nelectron, dp)
+      IF (fixed_mag_mom >= 0.0_dp) THEN
+         total = SUM(targets)
+         targets(1) = 0.5_dp*(total + fixed_mag_mom)
+         targets(2) = 0.5_dp*(total - fixed_mag_mom)
+      END IF
+   END FUNCTION smearing_spin_targets
+
 ! **************************************************************************************************
 !> \brief   Citation of Smearing methods
 !> \param method ...

@@ -17,7 +17,9 @@ PROGRAM kpoint_smearing_unittest
    USE reference_manager,               ONLY: remove_all_references
    USE scf_control_types,               ONLY: smear_type
    USE smearing_utils,                  ONLY: Smearkp,&
-                                              smearing_response_weight
+                                              smearing_response_weight,&
+                                              smearing_separate_spin,&
+                                              smearing_spin_targets
 
    IMPLICIT NONE
 
@@ -73,9 +75,32 @@ PROGRAM kpoint_smearing_unittest
    END IF
 
    CALL test_fixed_n_smearing_response()
+   CALL test_fixed_spin_populations()
    CALL remove_all_references()
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Check fractional, zero, integer-preserving, and unconstrained spin targets.
+! **************************************************************************************************
+   SUBROUTINE test_fixed_spin_populations()
+      REAL(KIND=dp), DIMENSION(2)                        :: targets
+
+      IF (smearing_separate_spin(-100.0_dp)) ERROR STOP "Unconstrained spin was fixed"
+      IF (.NOT. smearing_separate_spin(-1.0_dp)) ERROR STOP "Integer spin populations were released"
+      IF (.NOT. smearing_separate_spin(0.0_dp)) ERROR STOP "Zero magnetization was not constrained"
+      IF (.NOT. smearing_separate_spin(0.5_dp)) ERROR STOP "Fractional magnetization was not constrained"
+      targets(:) = smearing_spin_targets([3, 1], -1.0_dp)
+      IF (MAXVAL(ABS(targets - [3.0_dp, 1.0_dp])) > 1.0E-14_dp) THEN
+         ERROR STOP "Integer spin targets changed"
+      END IF
+      targets(:) = smearing_spin_targets([3, 1], 0.0_dp)
+      IF (MAXVAL(ABS(targets - 2.0_dp)) > 1.0E-14_dp) ERROR STOP "Zero-moment targets are wrong"
+      targets(:) = smearing_spin_targets([3, 1], 0.5_dp)
+      IF (MAXVAL(ABS(targets - [2.25_dp, 1.75_dp])) > 1.0E-14_dp) THEN
+         ERROR STOP "Fractional spin targets were rounded"
+      END IF
+   END SUBROUTINE test_fixed_spin_populations
 
 ! **************************************************************************************************
 !> \brief Check the fixed-N occupation response for every supported K-point smearing method.
