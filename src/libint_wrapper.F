@@ -547,6 +547,13 @@ CONTAINS
             work_forces(i, k) = p_work(i)
          END DO
       END DO
+      ! Libint omits the canonical second-center derivatives; recover them by translation invariance.
+      DO k = 4, 6
+         DO i = 1, a_mysize(1)
+            work_forces(i, k) = -1.0_dp*(work_forces(i, k - 3) + &
+                                         work_forces(i, k + 3) + work_forces(i, k + 6))
+         END DO
+      END DO
 #else
       MARK_USED(n_d)
       MARK_USED(n_c)
