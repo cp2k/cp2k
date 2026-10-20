@@ -47,6 +47,7 @@ MODULE cp_cfm_basic_linalg
              cp_cfm_scale_and_add, &
              cp_cfm_scale_and_add_fm, &
              cp_cfm_schur_product, &
+             cp_cfm_schur_product_cc, &
              cp_cfm_solve, &
              cp_cfm_trace, &
              cp_cfm_transpose, &

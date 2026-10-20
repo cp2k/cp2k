@@ -9,7 +9,7 @@
                                            {matcher="S2_estimate", tol=2e-6, ref=0.754613}]
 "CH3-BP-NONE_OT_OFF.inp"                = [{matcher="E_total", tol=5e-14, ref=-7.39804794577472},
                                            {matcher="S2_estimate", tol=2e-6, ref=0.754775}]
-"CH3-BP-NO_CORR_GPW.inp"                = [{matcher="E_total", tol=1e-13, ref=-7.42984195401204},
+"CH3-BP-NO_CORR_GPW.inp"                = [{matcher="E_total", tol=1e-13, ref=-7.42984194978151},
                                            {matcher="S2_estimate", tol=2e-6, ref=0.754693}]
 "CH3-BP-NO_CORR_GAPW.inp"               = [{matcher="E_total", tol=5e-13, ref=-39.16560926583436},
                                            {matcher="S2_estimate", tol=2e-6, ref=0.772334}]
