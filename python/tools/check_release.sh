@@ -12,7 +12,7 @@ PACKAGE_DIR=$(cd "$(dirname "$0")/.." && pwd)
 PYTHON=${PYTHON:-python3}
 mkdir "$1" # Refuse to overwrite any previous release evidence.
 OUTPUT_DIR=$(cd "$1" && pwd)
-WORK_DIR=$(mktemp -d "${TMPDIR:-/tmp}/cp2k-python-release.XXXXXX")
+WORK_DIR=$(mktemp -d "$OUTPUT_DIR/.release-check.XXXXXX")
 trap 'rm -rf "$WORK_DIR"' EXIT
 unset PYTHONPATH
 export PYTHONNOUSERSITE=1
@@ -44,7 +44,7 @@ import sys
 import cp2k
 import cp2k.library
 
-assert cp2k.__version__ == importlib.metadata.version("cp2k-python")
+assert cp2k.__version__ == importlib.metadata.version("pycp2k")
 assert cp2k.library._runtime is None
 assert "mpi4py.MPI" not in sys.modules
 manifest = {
@@ -59,8 +59,9 @@ manifest = {
 }
 Path("manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
 PY
+# Append the test directory for shared fixtures, without adding the src tree.
 "$WORK_DIR/test/bin/python" -I -m pytest "$PACKAGE_DIR/tests" \
-  --import-mode=importlib -m 'not integration' -q -ra \
+  --import-mode=append -m 'not integration' -q -ra \
   --basetemp="$OUTPUT_DIR/tests" --junitxml="$OUTPUT_DIR/unit-tests.xml"
 echo "Release artifacts and checks: $OUTPUT_DIR"
 echo "Nothing was uploaded. Native integration and release approval are still required."

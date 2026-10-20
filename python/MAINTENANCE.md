@@ -7,9 +7,12 @@ does not choose protocols, validate the full input schema or parse calculation o
 ## Ownership
 
 Before the first public package release, the CP2K maintainers and package contributors must agree
-who owns releases and reviews changes to the Python/native contract. No named maintainer, PyPI
-project ownership or publication commitment is implied by this document. Record the agreed
-maintainers and release procedure here before advertising a published installation command.
+who owns releases and reviews changes to the Python/native contract. No release-maintainer
+assignment or publication commitment is implied by this document. Ole Schuett already owns the
+`pycp2k` PyPI project and has confirmed agreement with Lauri Himanen to reuse its name in
+[#6168](https://github.com/cp2k/cp2k/issues/6168). This does not assign release or backup duties to
+either contributor. Record the agreed primary and backup release maintainers here before the first
+upload. Publishing configuration must be approved by the PyPI and repository owners.
 
 Keep the C API fixes and compatibility tests in CP2K. Coordinate higher-level calculator and
 workflow contributions with their existing projects. In particular, the proposed AiiDA helper uses
@@ -65,7 +68,7 @@ implementation or assuming that they have accepted ownership.
 The wheel contains the Python wrapper, not libcp2k, MPI or numerical libraries. Packaging those
 native dependencies would be a separate distribution effort with its own compatibility testing.
 
-The proposed name/version policy, native compatibility requirements and upload-free validation
-workflow are described in [release preparation](RELEASING.md). Publication and project ownership
-remain subject to explicit agreement; the preparation script neither requests credentials nor
-uploads to PyPI or TestPyPI.
+The name/version policy, native compatibility requirements and upload-free validation workflow are
+described in [release preparation](RELEASING.md). Publication and project ownership remain subject
+to explicit agreement; the preparation script neither requests credentials nor uploads to PyPI or
+TestPyPI.

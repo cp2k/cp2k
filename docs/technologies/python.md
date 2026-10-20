@@ -12,7 +12,31 @@ implementations. The default `CP2K` class remains fully in-process.
 The optional AiiDA workflow helper described below is a separate job-management layer: it uses the
 existing AiiDA CP2K executable plugin, not the in-process calculator.
 
+## Migrating from the original pycp2k
+
+Starting with version `0.3.0`, the PyPI distribution `pycp2k` provides these direct bindings,
+maintained in CP2K's `python/` directory. The import is `cp2k`, for example `from cp2k import CP2K`.
+This is an **incompatible API change**, not a drop-in update of Lauri Himanen's original
+input-building and executable-based package. Reuse of the distribution name was
+[agreed with its maintainer](https://github.com/SINGROUP/pycp2k/issues/30).
+
+Existing scripts using the original `pycp2k` API need to be adapted to the examples below. The new
+`input_to_string` helper serializes explicit mappings but does not reproduce the old generated input
+classes or choose calculation settings. Calculations use a separately installed shared `libcp2k`,
+rather than launching a CP2K executable. There is no compatibility alias for the old API.
+
+To keep using the original API, pin `pycp2k==0.2.2` in a separate, compatible environment. Its
+[source and documentation](https://github.com/SINGROUP/pycp2k) and historical PyPI releases remain
+available. Do not install both implementations in the same environment. If switching from a source
+installation named `cp2k-python`, replace that distribution too, since it exports the same `cp2k`
+import. The new binding uses `GPL-2.0-or-later`, not the original package's Apache license.
+
 ## Installation
+
+After publication of `0.3.0`, install the Python package from PyPI with
+`python -m pip install 'pycp2k[ase,mpi]==0.3.0'`. This does not install the native CP2K library or
+its data. While the release is being prepared, install the candidate from a source checkout as shown
+below.
 
 From a CP2K source checkout:
 
@@ -34,9 +58,9 @@ matching Fortran compiler or compiler-generated `.mod` files. An incompatible sh
 produces a load/missing-symbol error. MPI support with a caller-owned communicator requires
 `cp2k_init_without_mpi_comm`.
 
-No package is downloaded or published by importing `cp2k`. The distribution is named `cp2k-python`,
-its import is `cp2k`. Do not install it alongside the obsolete Cython package providing the same
-import name.
+No package is downloaded or published by importing `cp2k`. The distribution is named `pycp2k`, its
+import is `cp2k`. Do not install it alongside the obsolete Cython package providing the same import
+name.
 
 The wrapper can be built as a pure-Python wheel (`py3-none-any`); it does not link to libcp2k at
 wheel-build time. Such a wheel can be distributed through PyPI without bundling CP2K. This is
@@ -258,7 +282,7 @@ Create a secret token file accessible only to you (at least 32 random characters
 server from its own working directory with the CP2K-side Python and MPI installation:
 
 ```sh
-mpiexec -n 4 /path/to/cp2k-python -m cp2k.server --mpi \
+mpiexec -n 4 /path/to/python -m cp2k.server --mpi \
   --input /path/to/argon.inp --output cp2k-server.out \
   --library /path/to/libcp2k.so --token-file /path/to/cp2k-server.token --port 8765
 ```
