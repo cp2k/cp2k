@@ -59,6 +59,75 @@ MODULE hfx_libint_interface
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief Return the canonical quartet order required by the Libint ERI kernels.
+!> \param la angular momentum of the original first center
+!> \param lb angular momentum of the original second center
+!> \param lc angular momentum of the original third center
+!> \param ld angular momentum of the original fourth center
+!> \param permutation original center index for each canonical center
+! **************************************************************************************************
+   PURE SUBROUTINE get_eri_permutation(la, lb, lc, ld, permutation)
+      INTEGER, INTENT(IN)                                :: la, lb, lc, ld
+      INTEGER, INTENT(OUT)                               :: permutation(4)
+
+      permutation = [1, 2, 3, 4]
+      IF (la < lb) permutation(1:2) = [2, 1]
+      IF (lc < ld) permutation(3:4) = [4, 3]
+      IF (la + lb > lc + ld) permutation = permutation([3, 4, 1, 2])
+   END SUBROUTINE get_eri_permutation
+
+! **************************************************************************************************
+!> \brief Restore original Cartesian axes and center labels from a canonical ERI block.
+!> \param source canonical block, with the fourth Cartesian index varying fastest
+!> \param destination original block, with the first Cartesian index varying fastest
+!> \param ncart Cartesian shell sizes in original center order
+!> \param permutation original center index for each canonical center
+!> \param ncomponents one integral component or twelve center-derivative components
+!> \param nplanes independent planes, one for integrals/forces or three for virial
+! **************************************************************************************************
+   PURE SUBROUTINE reorder_eri_block(source, destination, ncart, permutation, ncomponents, nplanes)
+      INTEGER, INTENT(IN)                                :: ncart(4), permutation(4), ncomponents, &
+                                                            nplanes
+      REAL(dp), INTENT(OUT) :: destination(PRODUCT(ncart), ncomponents, nplanes)
+      REAL(dp), INTENT(IN) :: source(PRODUCT(ncart), ncomponents, nplanes)
+
+      INTEGER                                            :: component, extent(4), i, isource, j, k, &
+                                                            l, output_component, p1, p2, p3, p4, &
+                                                            plane, stride(4)
+
+      stride = [1, ncart(1), ncart(1)*ncart(2), ncart(1)*ncart(2)*ncart(3)]
+      stride = stride(permutation)
+      extent = ncart(permutation)
+      DO plane = 1, nplanes
+         DO component = 1, ncomponents
+            output_component = component
+            IF (ncomponents == 12) THEN
+               output_component = 3*(permutation((component - 1)/3 + 1) - 1) + MOD(component - 1, 3) + 1
+            END IF
+            isource = 0
+            p1 = 1
+            DO i = 1, extent(1)
+               p2 = p1
+               DO j = 1, extent(2)
+                  p3 = p2
+                  DO k = 1, extent(3)
+                     p4 = p3
+                     DO l = 1, extent(4)
+                        isource = isource + 1
+                        destination(p4, output_component, plane) = source(isource, component, plane)
+                        p4 = p4 + stride(4)
+                     END DO
+                     p3 = p3 + stride(3)
+                  END DO
+                  p2 = p2 + stride(2)
+               END DO
+               p1 = p1 + stride(1)
+            END DO
+         END DO
+      END DO
+   END SUBROUTINE reorder_eri_block
+
+! **************************************************************************************************
 !> \brief Fill data structure used in libint
 !> \param A ...
 !> \param B ...
@@ -1341,90 +1410,33 @@ CONTAINS
       REAL(dp)                                           :: R1, R2
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
 
-      INTEGER                                            :: a_mysize(1), i, m_max, mysize, perm_case
+      INTEGER                                            :: a_mysize(1), angular_momenta(4), i, &
+                                                            m_max, mysize, permutation(4)
+      REAL(dp)                                           :: centers(3, 4), exponents(4)
 
       m_max = n_a + n_b + n_c + n_d
       mysize = nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d)
       a_mysize = mysize
 
       IF (m_max /= 0) THEN
-         perm_case = 1
-         IF (n_a < n_b) THEN
-            perm_case = perm_case + 1
-         END IF
-         IF (n_c < n_d) THEN
-            perm_case = perm_case + 2
-         END IF
-         IF (n_a + n_b > n_c + n_d) THEN
-            perm_case = perm_case + 4
-         END IF
-
-         SELECT CASE (perm_case)
-         CASE (1)
-            CALL build_quartet_data_screen(A, B, C, D, Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
-                                           potential_parameter, libint, R1, R2)
-
-            CALL cp_libint_get_eris(n_d, n_c, n_b, n_a, libint, p_work, a_mysize)
-            DO i = 1, mysize
-               max_val = MAX(max_val, ABS(p_work(i)))
-            END DO
-         CASE (2)
-            CALL build_quartet_data_screen(B, A, C, D, Zeta_B, Zeta_A, Zeta_C, Zeta_D, m_max, &
-                                           potential_parameter, libint, R1, R2)
-
-            CALL cp_libint_get_eris(n_d, n_c, n_a, n_b, libint, p_work, a_mysize)
-            DO i = 1, mysize
-               max_val = MAX(max_val, ABS(p_work(i)))
-            END DO
-         CASE (3)
-            CALL build_quartet_data_screen(A, B, D, C, Zeta_A, Zeta_B, Zeta_D, Zeta_C, m_max, &
-                                           potential_parameter, libint, R1, R2)
-
-            CALL cp_libint_get_eris(n_c, n_d, n_b, n_a, libint, p_work, a_mysize)
-            DO i = 1, mysize
-               max_val = MAX(max_val, ABS(p_work(i)))
-            END DO
-         CASE (4)
-            CALL build_quartet_data_screen(B, A, D, C, Zeta_B, Zeta_A, Zeta_D, Zeta_C, m_max, &
-                                           potential_parameter, libint, R1, R2)
-
-            CALL cp_libint_get_eris(n_c, n_d, n_a, n_b, libint, p_work, a_mysize)
-            DO i = 1, mysize
-               max_val = MAX(max_val, ABS(p_work(i)))
-            END DO
-         CASE (5)
-            CALL build_quartet_data_screen(C, D, A, B, Zeta_C, Zeta_D, Zeta_A, Zeta_B, m_max, &
-                                           potential_parameter, libint, R1, R2)
-
-            CALL cp_libint_get_eris(n_b, n_a, n_d, n_c, libint, p_work, a_mysize)
-            DO i = 1, mysize
-               max_val = MAX(max_val, ABS(p_work(i)))
-            END DO
-         CASE (6)
-            CALL build_quartet_data_screen(C, D, B, A, Zeta_C, Zeta_D, Zeta_B, Zeta_A, m_max, &
-                                           potential_parameter, libint, R1, R2)
-
-            CALL cp_libint_get_eris(n_a, n_b, n_d, n_c, libint, p_work, a_mysize)
-            DO i = 1, mysize
-               max_val = MAX(max_val, ABS(p_work(i)))
-            END DO
-         CASE (7)
-            CALL build_quartet_data_screen(D, C, A, B, Zeta_D, Zeta_C, Zeta_A, Zeta_B, m_max, &
-                                           potential_parameter, libint, R1, R2)
-
-            CALL cp_libint_get_eris(n_b, n_a, n_c, n_d, libint, p_work, a_mysize)
-            DO i = 1, mysize
-               max_val = MAX(max_val, ABS(p_work(i)))
-            END DO
-         CASE (8)
-            CALL build_quartet_data_screen(D, C, B, A, Zeta_D, Zeta_C, Zeta_B, Zeta_A, m_max, &
-                                           potential_parameter, libint, R1, R2)
-
-            CALL cp_libint_get_eris(n_a, n_b, n_c, n_d, libint, p_work, a_mysize)
-            DO i = 1, mysize
-               max_val = MAX(max_val, ABS(p_work(i)))
-            END DO
-         END SELECT
+         CALL get_eri_permutation(n_a, n_b, n_c, n_d, permutation)
+         angular_momenta = [n_a, n_b, n_c, n_d]
+         angular_momenta = angular_momenta(permutation)
+         centers(:, 1) = A
+         centers(:, 2) = B
+         centers(:, 3) = C
+         centers(:, 4) = D
+         exponents = [Zeta_A, Zeta_B, Zeta_C, Zeta_D]
+         exponents = exponents(permutation)
+         CALL build_quartet_data_screen(centers(:, permutation(1)), centers(:, permutation(2)), &
+                                        centers(:, permutation(3)), centers(:, permutation(4)), &
+                                        exponents(1), exponents(2), exponents(3), exponents(4), m_max, &
+                                        potential_parameter, libint, R1, R2)
+         CALL cp_libint_get_eris(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
+                                 angular_momenta(1), libint, p_work, a_mysize)
+         DO i = 1, mysize
+            max_val = MAX(max_val, ABS(p_work(i)))
+         END DO
       ELSE
          CALL build_quartet_data_screen(A, B, C, D, Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
                                         potential_parameter, libint, R1, R2)
@@ -1519,12 +1531,12 @@ CONTAINS
          nl_c, nsod*nl_d)                                :: primitives_tmp
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
 
-      INTEGER                                            :: a_mysize(1), i, j, k, l, m_max, mysize, &
-                                                            p1, p2, p3, p4, perm_case
+      INTEGER                                            :: a_mysize(1), angular_momenta(4), i, &
+                                                            m_max, mysize, pair_order(2), &
+                                                            permutation(4)
       LOGICAL                                            :: direct_contract
-      REAL(dp)                                           :: A(3), AB(3), B(3), C(3), CD(3), D(3), &
-                                                            P(3), Q(3), Rho, RhoInv, W(3), &
-                                                            ZetapEtaInv
+      REAL(dp) :: A(3), B(3), C(3), centers(3, 4), D(3), inverse_exponents(2), P(3), &
+         product_centers(3, 2), Q(3), Rho, RhoInv, W(3), ZetapEtaInv
       REAL(dp), DIMENSION(:), POINTER                    :: eri_src
       REAL(KIND=dp), DIMENSION(prim_data_f_size)         :: F
 
@@ -1536,416 +1548,42 @@ CONTAINS
 
       IF (m_max /= 0) THEN
          IF (nproducts > 1) work(1:mysize) = 0.0_dp
-         perm_case = 1
-         IF (n_a < n_b) THEN
-            perm_case = perm_case + 1
+         CALL get_eri_permutation(n_a, n_b, n_c, n_d, permutation)
+         angular_momenta = [n_a, n_b, n_c, n_d]
+         angular_momenta = angular_momenta(permutation)
+         pair_order = [1, 2]
+         IF (permutation(1) > 2) pair_order = [2, 1]
+         inverse_exponents = [ZetaInv, EtaInv]
+         inverse_exponents = inverse_exponents(pair_order)
+         DO i = 1, nproducts
+            centers(:, 1) = pgf_product_list(i)%ra
+            centers(:, 2) = pgf_product_list(i)%rb
+            centers(:, 3) = pgf_product_list(i)%rc
+            centers(:, 4) = pgf_product_list(i)%rd
+            product_centers(:, 1) = pgf_product_list(i)%P
+            product_centers(:, 2) = pgf_product_list(i)%Q
+            F(1:m_max + 1) = pgf_product_list(i)%Fm(1:m_max + 1)
+            CALL build_quartet_data(libint, centers(:, permutation(1)), centers(:, permutation(2)), &
+                                    centers(:, permutation(3)), centers(:, permutation(4)), &
+                                    inverse_exponents(1), inverse_exponents(2), pgf_product_list(i)%ZetapEtaInv, &
+                                    pgf_product_list(i)%Rho, product_centers(:, pair_order(1)), &
+                                    product_centers(:, pair_order(2)), pgf_product_list(i)%W, m_max, F)
+            CALL cp_libint_get_eris(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
+                                    angular_momenta(1), libint, p_work, a_mysize)
+            IF (nproducts > 1) work(1:mysize) = work(1:mysize) + p_work(1:mysize)
+            neris = neris + mysize
+         END DO
+         IF (nproducts == 1) THEN
+            eri_src => p_work
+         ELSE
+            eri_src => work
          END IF
-         IF (n_c < n_d) THEN
-            perm_case = perm_case + 2
-         END IF
-         IF (n_a + n_b > n_c + n_d) THEN
-            perm_case = perm_case + 4
-         END IF
-         SELECT CASE (perm_case)
-         CASE (1)
-            DO i = 1, nproducts
-               A = pgf_product_list(i)%ra
-               B = pgf_product_list(i)%rb
-               C = pgf_product_list(i)%rc
-               D = pgf_product_list(i)%rd
-               Rho = pgf_product_list(i)%Rho
-               RhoInv = pgf_product_list(i)%RhoInv
-               P = pgf_product_list(i)%P
-               Q = pgf_product_list(i)%Q
-               W = pgf_product_list(i)%W
-               AB = pgf_product_list(i)%AB
-               CD = pgf_product_list(i)%CD
-               ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-               F(1:m_max + 1) = pgf_product_list(i)%Fm(1:m_max + 1)
-
-               CALL build_quartet_data(libint, A, B, C, D, ZetaInv, EtaInv, ZetapEtaInv, Rho, &
-                                       P, Q, W, m_max, F)
-               CALL cp_libint_get_eris(n_d, n_c, n_b, n_a, libint, p_work, a_mysize)
-               IF (nproducts > 1) work(1:mysize) = work(1:mysize) + p_work(1:mysize)
-               neris = neris + mysize
-            END DO
-            IF (nproducts == 1) THEN
-               eri_src => p_work
-            ELSE
-               eri_src => work
-            END IF
-            DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(eri_src(i)))
-            END DO
-            tmp_max = tmp_max*max_contraction
-            IF (tmp_max < eps_schwarz) THEN
-               RETURN
-            END IF
-
-            DO i = 1, ncoa
-               p1 = (i - 1)*ncob
-               DO j = 1, ncob
-                  p2 = (p1 + j - 1)*ncoc
-                  DO k = 1, ncoc
-                     p3 = (p2 + k - 1)*ncod
-                     DO l = 1, ncod
-                        p4 = p3 + l
-                        work2(i, j, k, l) = eri_src(p4)
-                     END DO
-                  END DO
-               END DO
-            END DO
-         CASE (2)
-            DO i = 1, nproducts
-               A = pgf_product_list(i)%ra
-               B = pgf_product_list(i)%rb
-               C = pgf_product_list(i)%rc
-               D = pgf_product_list(i)%rd
-               Rho = pgf_product_list(i)%Rho
-               RhoInv = pgf_product_list(i)%RhoInv
-               P = pgf_product_list(i)%P
-               Q = pgf_product_list(i)%Q
-               W = pgf_product_list(i)%W
-               AB = pgf_product_list(i)%AB
-               CD = pgf_product_list(i)%CD
-               ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-               F(1:m_max + 1) = pgf_product_list(i)%Fm(1:m_max + 1)
-
-               CALL build_quartet_data(libint, B, A, C, D, &
-                                       ZetaInv, EtaInv, ZetapEtaInv, Rho, &
-                                       P, Q, W, m_max, F)
-
-               CALL cp_libint_get_eris(n_d, n_c, n_a, n_b, libint, p_work, a_mysize)
-               IF (nproducts > 1) work(1:mysize) = work(1:mysize) + p_work(1:mysize)
-               neris = neris + mysize
-            END DO
-            IF (nproducts == 1) THEN
-               eri_src => p_work
-            ELSE
-               eri_src => work
-            END IF
-            DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(eri_src(i)))
-            END DO
-            tmp_max = tmp_max*max_contraction
-            IF (tmp_max < eps_schwarz) THEN
-               RETURN
-            END IF
-
-            DO j = 1, ncob
-               p1 = (j - 1)*ncoa
-               DO i = 1, ncoa
-                  p2 = (p1 + i - 1)*ncoc
-                  DO k = 1, ncoc
-                     p3 = (p2 + k - 1)*ncod
-                     DO l = 1, ncod
-                        p4 = p3 + l
-                        work2(i, j, k, l) = eri_src(p4)
-                     END DO
-                  END DO
-               END DO
-            END DO
-         CASE (3)
-            DO i = 1, nproducts
-               A = pgf_product_list(i)%ra
-               B = pgf_product_list(i)%rb
-               C = pgf_product_list(i)%rc
-               D = pgf_product_list(i)%rd
-               Rho = pgf_product_list(i)%Rho
-               RhoInv = pgf_product_list(i)%RhoInv
-               P = pgf_product_list(i)%P
-               Q = pgf_product_list(i)%Q
-               W = pgf_product_list(i)%W
-               AB = pgf_product_list(i)%AB
-               CD = pgf_product_list(i)%CD
-               ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-               F(1:m_max + 1) = pgf_product_list(i)%Fm(1:m_max + 1)
-
-               CALL build_quartet_data(libint, A, B, D, C, &
-                                       ZetaInv, EtaInv, ZetapEtaInv, Rho, &
-                                       P, Q, W, m_max, F)
-
-               CALL cp_libint_get_eris(n_c, n_d, n_b, n_a, libint, p_work, a_mysize)
-               IF (nproducts > 1) work(1:mysize) = work(1:mysize) + p_work(1:mysize)
-               neris = neris + mysize
-            END DO
-            IF (nproducts == 1) THEN
-               eri_src => p_work
-            ELSE
-               eri_src => work
-            END IF
-            DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(eri_src(i)))
-            END DO
-            tmp_max = tmp_max*max_contraction
-            IF (tmp_max < eps_schwarz) THEN
-               RETURN
-            END IF
-
-            DO i = 1, ncoa
-               p1 = (i - 1)*ncob
-               DO j = 1, ncob
-                  p2 = (p1 + j - 1)*ncod
-                  DO l = 1, ncod
-                     p3 = (p2 + l - 1)*ncoc
-                     DO k = 1, ncoc
-                        p4 = p3 + k
-                        work2(i, j, k, l) = eri_src(p4)
-                     END DO
-                  END DO
-               END DO
-            END DO
-         CASE (4)
-            DO i = 1, nproducts
-               A = pgf_product_list(i)%ra
-               B = pgf_product_list(i)%rb
-               C = pgf_product_list(i)%rc
-               D = pgf_product_list(i)%rd
-               Rho = pgf_product_list(i)%Rho
-               RhoInv = pgf_product_list(i)%RhoInv
-               P = pgf_product_list(i)%P
-               Q = pgf_product_list(i)%Q
-               W = pgf_product_list(i)%W
-               AB = pgf_product_list(i)%AB
-               CD = pgf_product_list(i)%CD
-               ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-               F(1:m_max + 1) = pgf_product_list(i)%Fm(1:m_max + 1)
-
-               CALL build_quartet_data(libint, B, A, D, C, &
-                                       ZetaInv, EtaInv, ZetapEtaInv, Rho, &
-                                       P, Q, W, m_max, F)
-
-               CALL cp_libint_get_eris(n_c, n_d, n_a, n_b, libint, p_work, a_mysize)
-               IF (nproducts > 1) work(1:mysize) = work(1:mysize) + p_work(1:mysize)
-               neris = neris + mysize
-            END DO
-            IF (nproducts == 1) THEN
-               eri_src => p_work
-            ELSE
-               eri_src => work
-            END IF
-            DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(eri_src(i)))
-            END DO
-            tmp_max = tmp_max*max_contraction
-            IF (tmp_max < eps_schwarz) THEN
-               RETURN
-            END IF
-
-            DO j = 1, ncob
-               p1 = (j - 1)*ncoa
-               DO i = 1, ncoa
-                  p2 = (p1 + i - 1)*ncod
-                  DO l = 1, ncod
-                     p3 = (p2 + l - 1)*ncoc
-                     DO k = 1, ncoc
-                        p4 = p3 + k
-                        work2(i, j, k, l) = eri_src(p4)
-                     END DO
-                  END DO
-               END DO
-            END DO
-         CASE (5)
-            DO i = 1, nproducts
-               A = pgf_product_list(i)%ra
-               B = pgf_product_list(i)%rb
-               C = pgf_product_list(i)%rc
-               D = pgf_product_list(i)%rd
-               Rho = pgf_product_list(i)%Rho
-               RhoInv = pgf_product_list(i)%RhoInv
-               P = pgf_product_list(i)%P
-               Q = pgf_product_list(i)%Q
-               W = pgf_product_list(i)%W
-               AB = pgf_product_list(i)%AB
-               CD = pgf_product_list(i)%CD
-               ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-               F(1:m_max + 1) = pgf_product_list(i)%Fm(1:m_max + 1)
-
-               CALL build_quartet_data(libint, C, D, A, B, &
-                                       EtaInv, ZetaInv, ZetapEtaInv, Rho, &
-                                       Q, P, W, m_max, F)
-
-               CALL cp_libint_get_eris(n_b, n_a, n_d, n_c, libint, p_work, a_mysize)
-               IF (nproducts > 1) work(1:mysize) = work(1:mysize) + p_work(1:mysize)
-               neris = neris + mysize
-            END DO
-            IF (nproducts == 1) THEN
-               eri_src => p_work
-            ELSE
-               eri_src => work
-            END IF
-            DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(eri_src(i)))
-            END DO
-            tmp_max = tmp_max*max_contraction
-            IF (tmp_max < eps_schwarz) THEN
-               RETURN
-            END IF
-
-            DO k = 1, ncoc
-               p1 = (k - 1)*ncod
-               DO l = 1, ncod
-                  p2 = (p1 + l - 1)*ncoa
-                  DO i = 1, ncoa
-                     p3 = (p2 + i - 1)*ncob
-                     DO j = 1, ncob
-                        p4 = p3 + j
-                        work2(i, j, k, l) = eri_src(p4)
-                     END DO
-                  END DO
-               END DO
-            END DO
-         CASE (6)
-            DO i = 1, nproducts
-               A = pgf_product_list(i)%ra
-               B = pgf_product_list(i)%rb
-               C = pgf_product_list(i)%rc
-               D = pgf_product_list(i)%rd
-               Rho = pgf_product_list(i)%Rho
-               RhoInv = pgf_product_list(i)%RhoInv
-               P = pgf_product_list(i)%P
-               Q = pgf_product_list(i)%Q
-               W = pgf_product_list(i)%W
-               AB = pgf_product_list(i)%AB
-               CD = pgf_product_list(i)%CD
-               ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-               F(1:m_max + 1) = pgf_product_list(i)%Fm(1:m_max + 1)
-
-               CALL build_quartet_data(libint, C, D, B, A, &
-                                       EtaInv, ZetaInv, ZetapEtaInv, Rho, &
-                                       Q, P, W, m_max, F)
-
-               CALL cp_libint_get_eris(n_a, n_b, n_d, n_c, libint, p_work, a_mysize)
-               IF (nproducts > 1) work(1:mysize) = work(1:mysize) + p_work(1:mysize)
-               neris = neris + mysize
-            END DO
-            IF (nproducts == 1) THEN
-               eri_src => p_work
-            ELSE
-               eri_src => work
-            END IF
-            DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(eri_src(i)))
-            END DO
-            tmp_max = tmp_max*max_contraction
-            IF (tmp_max < eps_schwarz) THEN
-               RETURN
-            END IF
-
-            DO k = 1, ncoc
-               p1 = (k - 1)*ncod
-               DO l = 1, ncod
-                  p2 = (p1 + l - 1)*ncob
-                  DO j = 1, ncob
-                     p3 = (p2 + j - 1)*ncoa
-                     DO i = 1, ncoa
-                        p4 = p3 + i
-                        work2(i, j, k, l) = eri_src(p4)
-                     END DO
-                  END DO
-               END DO
-            END DO
-         CASE (7)
-            DO i = 1, nproducts
-               A = pgf_product_list(i)%ra
-               B = pgf_product_list(i)%rb
-               C = pgf_product_list(i)%rc
-               D = pgf_product_list(i)%rd
-               Rho = pgf_product_list(i)%Rho
-               RhoInv = pgf_product_list(i)%RhoInv
-               P = pgf_product_list(i)%P
-               Q = pgf_product_list(i)%Q
-               W = pgf_product_list(i)%W
-               AB = pgf_product_list(i)%AB
-               CD = pgf_product_list(i)%CD
-               ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-               F(1:m_max + 1) = pgf_product_list(i)%Fm(1:m_max + 1)
-
-               CALL build_quartet_data(libint, D, C, A, B, &
-                                       EtaInv, ZetaInv, ZetapEtaInv, Rho, &
-                                       Q, P, W, m_max, F)
-
-               CALL cp_libint_get_eris(n_b, n_a, n_c, n_d, libint, p_work, a_mysize)
-               IF (nproducts > 1) work(1:mysize) = work(1:mysize) + p_work(1:mysize)
-               neris = neris + mysize
-            END DO
-            IF (nproducts == 1) THEN
-               eri_src => p_work
-            ELSE
-               eri_src => work
-            END IF
-            DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(eri_src(i)))
-            END DO
-            tmp_max = tmp_max*max_contraction
-            IF (tmp_max < eps_schwarz) THEN
-               RETURN
-            END IF
-
-            DO l = 1, ncod
-               p1 = (l - 1)*ncoc
-               DO k = 1, ncoc
-                  p2 = (p1 + k - 1)*ncoa
-                  DO i = 1, ncoa
-                     p3 = (p2 + i - 1)*ncob
-                     DO j = 1, ncob
-                        p4 = p3 + j
-                        work2(i, j, k, l) = eri_src(p4)
-                     END DO
-                  END DO
-               END DO
-            END DO
-         CASE (8)
-            DO i = 1, nproducts
-               A = pgf_product_list(i)%ra
-               B = pgf_product_list(i)%rb
-               C = pgf_product_list(i)%rc
-               D = pgf_product_list(i)%rd
-               Rho = pgf_product_list(i)%Rho
-               RhoInv = pgf_product_list(i)%RhoInv
-               P = pgf_product_list(i)%P
-               Q = pgf_product_list(i)%Q
-               W = pgf_product_list(i)%W
-               AB = pgf_product_list(i)%AB
-               CD = pgf_product_list(i)%CD
-               ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-               F(1:m_max + 1) = pgf_product_list(i)%Fm(1:m_max + 1)
-
-               CALL build_quartet_data(libint, D, C, B, A, &
-                                       EtaInv, ZetaInv, ZetapEtaInv, Rho, &
-                                       Q, P, W, m_max, F)
-
-               CALL cp_libint_get_eris(n_a, n_b, n_c, n_d, libint, p_work, a_mysize)
-               IF (nproducts > 1) work(1:mysize) = work(1:mysize) + p_work(1:mysize)
-               neris = neris + mysize
-            END DO
-            IF (nproducts == 1) THEN
-               eri_src => p_work
-            ELSE
-               eri_src => work
-            END IF
-            DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(eri_src(i)))
-            END DO
-            tmp_max = tmp_max*max_contraction
-            IF (tmp_max < eps_schwarz) THEN
-               RETURN
-            END IF
-
-            DO l = 1, ncod
-               p1 = (l - 1)*ncoc
-               DO k = 1, ncoc
-                  p2 = (p1 + k - 1)*ncob
-                  DO j = 1, ncob
-                     p3 = (p2 + j - 1)*ncoa
-                     DO i = 1, ncoa
-                        p4 = p3 + i
-                        work2(i, j, k, l) = eri_src(p4)
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END SELECT
+         DO i = 1, mysize
+            tmp_max = MAX(tmp_max, ABS(eri_src(i)))
+         END DO
+         tmp_max = tmp_max*max_contraction
+         IF (tmp_max < eps_schwarz) RETURN
+         CALL reorder_eri_block(eri_src, work2, [ncoa, ncob, ncoc, ncod], permutation, 1, 1)
       ELSE
          work(1) = 0.0_dp
          DO i = 1, nproducts
