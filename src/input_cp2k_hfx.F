@@ -263,7 +263,7 @@ CONTAINS
                        "Mix Gaussian and longrange potential: "// &
                        "$\frac{\mathrm{erf}(\omega \cdot r)}{r} + \exp{(-\omega^2 \cdot r^2)}$", &
                        "Overlap", &
-                       "Truncated coulomb potential: if (r &lt; R_c) 1/r else 0", &
+                       "Truncated coulomb potential: $1/r \text{ if } (r \lt R_c) \text{ else } 0$", &
                        "Truncated Mix coulomb and longrange potential, assumes/requires that the erf has fully decayed at R_c"), &
          default_i_val=do_potential_coulomb)
       CALL section_add_keyword(section, keyword)

@@ -13,36 +13,36 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE input_cp2k_as
-   USE cp_output_handling,              ONLY: cp_print_key_section_create,&
-                                              debug_print_level,&
-                                              high_print_level,&
-                                              low_print_level,&
-                                              medium_print_level,&
-                                              silent_print_level
-   USE input_constants,                 ONLY: &
-        casci_canonical, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
-        eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_lr_trunc, &
-        eri_operator_trunc, eri_operator_yukawa, fci_solver, gaussian, gto_cartesian, &
-        gto_spherical, manual_selection, mao_projection, no_solver, qiskit_solver, &
-        wannier_projection
-   USE input_cp2k_loc,                  ONLY: create_localize_section
-   USE input_cp2k_xc,                   ONLY: create_xc_section
-   USE input_keyword_types,             ONLY: keyword_create,&
-                                              keyword_release,&
-                                              keyword_type
-   USE input_section_types,             ONLY: section_add_keyword,&
-                                              section_add_subsection,&
-                                              section_create,&
-                                              section_release,&
-                                              section_type
-   USE input_val_types,                 ONLY: char_t,&
-                                              integer_t,&
-                                              lchar_t,&
-                                              logical_t,&
-                                              real_t
-   USE kinds,                           ONLY: dp
-   USE qs_density_mixing_types,         ONLY: create_mixing_section
-   USE string_utilities,                ONLY: s2a
+   USE cp_output_handling, ONLY: cp_print_key_section_create, &
+                                 debug_print_level, &
+                                 high_print_level, &
+                                 low_print_level, &
+                                 medium_print_level, &
+                                 silent_print_level
+   USE input_constants, ONLY: &
+      casci_canonical, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
+      eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_lr_trunc, &
+      eri_operator_trunc, eri_operator_yukawa, fci_solver, gaussian, gto_cartesian, &
+      gto_spherical, manual_selection, mao_projection, no_solver, qiskit_solver, &
+      wannier_projection
+   USE input_cp2k_loc, ONLY: create_localize_section
+   USE input_cp2k_xc, ONLY: create_xc_section
+   USE input_keyword_types, ONLY: keyword_create, &
+                                  keyword_release, &
+                                  keyword_type
+   USE input_section_types, ONLY: section_add_keyword, &
+                                  section_add_subsection, &
+                                  section_create, &
+                                  section_release, &
+                                  section_type
+   USE input_val_types, ONLY: char_t, &
+                              integer_t, &
+                              lchar_t, &
+                              logical_t, &
+                              real_t
+   USE kinds, ONLY: dp
+   USE qs_density_mixing_types, ONLY: create_mixing_section
+   USE string_utilities, ONLY: s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -413,13 +413,14 @@ CONTAINS
                           enum_i_vals=[eri_operator_coulomb, eri_operator_yukawa, &
                                        eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, &
                                        eri_operator_trunc, eri_operator_lr_trunc], &
-                          enum_desc=s2a("Coulomb operator: 1/r", &
-                                        "Yukawa operator: exp(-omega*R)/R", &
-                                        "Longrange operator: erf(omega*R)/R", &
-                                        "Shortrange operator: erfc(omega*R)/R", &
+                          enum_desc=s2a("Coulomb operator: $\frac{1}{r}$", &
+                                        "Yukawa operator: $\frac{\exp{(-\omega \cdot r)}}{r}$", &
+                                        "Longrange operator: $\frac{\mathrm{erf}(\omega \cdot r)}{r}$", &
+                                        "Shortrange operator: $\frac{\mathrm{erfc}(\omega \cdot r)}{r}$", &
                                         "Gaussian operator: exp(-omega*R2)/R", &
-                                        "Truncated Coulomb operator: if (R < R_c) 1/R else 0)", &
-                                        "Truncated longrange operator: if (R < R_c) erf(omega*R)/R else 0"), &
+                                        "Truncated Coulomb operator: $\frac{1}{r} \text{ if } (r \lt R_c) \text{ else } 0$", &
+                                        "Truncated longrange operator: "// &
+                                        "$\frac{\mathrm{erf}(\omega \cdot r)}{r} \text{ if } (r \lt R_c) \text{ else } 0$"), &
                           default_i_val=eri_operator_coulomb)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -432,15 +433,15 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="OMEGA", &
-                          description="Range-separation parameter for ERI operator.", &
+                          description="Range-separation parameter $\omega$ for ERI operator.", &
                           usage="OMEGA 0.25", type_of_var=real_t, &
                           default_r_val=0.4_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS", &
-                          description="Cutoff radius (in Angstroms) for the truncated 1/r and "// &
-                          "longrange potentials. "// &
+                          description="Cutoff radius (in Angstroms) $R_c$ for the truncated "// &
+                          "$\frac{1}{r}$ and longrange potentials. "// &
                           "Only valid when doing truncated calculations.", &
                           usage="CUTOFF_RADIUS 10.0", type_of_var=real_t, &
                           unit_str="angstrom", default_r_val=0.0_dp)

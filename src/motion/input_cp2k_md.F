@@ -1511,13 +1511,13 @@ CONTAINS
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="PHASE", &
                           description="Controls the initial ratio of potential and kinetic "// &
-                          "contribution to the total energy. The contribution is determined by "// &
-                          "COS**2(2*pi*PHASE) for potential energy, and SIN**2(2*pi*PHASE) "// &
-                          "for kinetic energy. If PHASE is negative, then for each vibration "// &
-                          "mode the phase is determined randomly. Otherwise, PHASE must be "// &
-                          "between 0.0 and 1.0 and will be the same for all vibration modes. "// &
-                          "If value > 1.0 it will just be treated as 1.0. "// &
-                          "For example, setting PHASE = 0.25 would set all modes to "// &
+                          "contribution to the total energy. Denote the input value as $p$; "// &
+                          "the contribution is determined by $\cos^2(2\pi p)$ for potential "// &
+                          "energy and $\sin^2(2\pi p)$ for kinetic energy. A negative $p$ "// &
+                          "means that for each vibration mode the phase is determined randomly. "// &
+                          "A value of $0.0 \lt p \lt 1.0$ will be the same for all vibration "// &
+                          "modes; a value of $p \gt 1.0$ will just be treated as 1.0. "// &
+                          "For example, setting $p = 0.25$ would set all modes to "// &
                           "begin with entirely kinetic energy --- in other words, the initial "// &
                           "atomic positions will remain at their optimised location", &
                           default_r_val=-1.0_dp, &

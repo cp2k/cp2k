@@ -88,7 +88,7 @@ MODULE bibliography
                             Bussy2023, Bussy2024, Wang2018, Zeng2023, Graml2024, Solca2024, &
                             Caldeweyher2017, Caldeweyher2019, Caldeweyher2020, Wittmann2024, Freeman1977, &
                             Gruneis2009, Blaha2010, KresseFurthmueller1996, &
-                            Stein2022, Stein2024, Pracht2019, &
+                            Stein2022, Stein2024, Pracht2019, Duchemin2019, Duchemin2021, &
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
                             Schambeck2024, Mewes2018, Sertcan2024, Drautz2019, Lysogorskiy2021, Bochkarev2024, &
@@ -1989,11 +1989,25 @@ CONTAINS
                          source="Chem. Soc. Rev.", volume="47", pages="1022-1043", &
                          year=2018, doi="10.1039/c7cs00049a")
 
+      CALL add_reference(key=Duchemin2019, &
+                         authors=s2a("I. Duchemin", "X. Blase"), &
+                         title="Separable resolution-of-the-identity with all-electron "// &
+                         "Gaussian bases: Application to cubic-scaling RPA", &
+                         source="J. Chem. Phys.", volume="150", pages="174120", &
+                         year=2019, doi="10.1063/1.5090605")
+
       CALL add_reference(key=Blase2020, &
                          authors=s2a("X. Blase", "I. Duchemin", "D. Jacquemin", "P. Loos"), &
                          title="The Bethe–Salpeter Equation Formalism: From Physics to Chemistry", &
                          source="J. Phys. Chem. Lett", volume="11", pages="7371-7382", &
                          year=2020, doi="10.1021/acs.jpclett.0c01875")
+
+      CALL add_reference(key=Duchemin2021, &
+                         authors=s2a("I. Duchemin", "X. Blase"), &
+                         title="Cubic-Scaling All-Electron GW Calculations with a "// &
+                         "Separable Density-Fitting Space–Time Approach", &
+                         source="J. Chem. Theory Comput.", volume="17", pages="2383–2393", &
+                         year=2021, doi="10.1021/acs.jctc.1c00101")
 
       CALL add_reference(key=Bruneval2015, &
                          authors=s2a("F. Bruneval", "S. M. Hamed", "J. B. Neaton"), &

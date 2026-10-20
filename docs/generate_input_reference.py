@@ -367,6 +367,10 @@ def render_keyword(
     metadata = [f"**Type:** {escape_markdown(data_type + n_var_brackets)}"]
     if default_value or default_unit:
         default = default_value
+        # Print keys may use __STD_OUT__ as the default
+        # filename; escape underscores to avoid bolding
+        if default_value == "__STD_OUT__":
+            default = default_value.replace("_", r"\_")
         if default_unit:
             default += f" [{default_unit}]"
         metadata += [f"**Default:** {escape_markdown(default.strip())}"]
@@ -455,8 +459,9 @@ def sanitize_name(name: str) -> str:
 
 # ======================================================================================
 def escape_markdown(text: str) -> str:
-    # Underscores are very common in our docs. Luckily asterisks also work for emphasis.
-    text = text.replace(r"__", r"\_\_")
+    # Escape some characters that may be rendered as markdown formatting syntax
+    # regardless of the context. This can be disruptive for inline code blocks
+    # wrapped in backticks.
 
     # Headings mess up the page structure. Please use paragraphs and bold text instead.
     text = text.replace(r"#", r"\#")
