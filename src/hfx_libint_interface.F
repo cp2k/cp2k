@@ -45,15 +45,6 @@ MODULE hfx_libint_interface
              evaluate_deriv_eri, &
              evaluate_eri_screen
 
-   INTEGER, DIMENSION(12), PARAMETER :: full_perm1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-   INTEGER, DIMENSION(12), PARAMETER :: full_perm2 = [4, 5, 6, 1, 2, 3, 7, 8, 9, 10, 11, 12]
-   INTEGER, DIMENSION(12), PARAMETER :: full_perm3 = [1, 2, 3, 4, 5, 6, 10, 11, 12, 7, 8, 9]
-   INTEGER, DIMENSION(12), PARAMETER :: full_perm4 = [4, 5, 6, 1, 2, 3, 10, 11, 12, 7, 8, 9]
-   INTEGER, DIMENSION(12), PARAMETER :: full_perm5 = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6]
-   INTEGER, DIMENSION(12), PARAMETER :: full_perm6 = [7, 8, 9, 10, 11, 12, 4, 5, 6, 1, 2, 3]
-   INTEGER, DIMENSION(12), PARAMETER :: full_perm7 = [10, 11, 12, 7, 8, 9, 1, 2, 3, 4, 5, 6]
-   INTEGER, DIMENSION(12), PARAMETER :: full_perm8 = [10, 11, 12, 7, 8, 9, 4, 5, 6, 1, 2, 3]
-
 !***
 
 CONTAINS
@@ -491,13 +482,12 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       REAL(dp)                                           :: tmp_max_all_virial
 
-      INTEGER                                            :: a_mysize(1), i, j, k, l, m, m_max, &
-                                                            mysize, n, p1, p2, p3, p4, perm_case
+      INTEGER                                            :: a_mysize(1), angular_momenta(4), i, j, &
+                                                            k, m, m_max, mysize, n, pair_order(2), &
+                                                            permutation(4)
       LOGICAL                                            :: direct_contract
-      REAL(dp)                                           :: A(3), AB(3), B(3), C(3), CD(3), D(3), &
-                                                            P(3), Q(3), Rho, RhoInv, scoord(12), &
-                                                            tmp_max, tmp_max_virial, W(3), &
-                                                            ZetapEtaInv
+      REAL(dp) :: centers(3, 4), exponents(4), inverse_exponents(2), product_centers(3, 2), &
+         scoord(12), tmp_max, tmp_max_virial
 
       m_max = n_a + n_b + n_c + n_d
       m_max = m_max + 1
@@ -512,777 +502,72 @@ CONTAINS
          work2_virial = 0.0_dp
       END IF
 
-      perm_case = 1
-      IF (n_a < n_b) THEN
-         perm_case = perm_case + 1
+      CALL get_eri_permutation(n_a, n_b, n_c, n_d, permutation)
+      angular_momenta = [n_a, n_b, n_c, n_d]
+      angular_momenta = angular_momenta(permutation)
+      exponents = [Zeta_A, Zeta_B, Zeta_C, Zeta_D]
+      exponents = exponents(permutation)
+      pair_order = [1, 2]
+      IF (permutation(1) > 2) pair_order = [2, 1]
+      inverse_exponents = [ZetaInv, EtaInv]
+      inverse_exponents = inverse_exponents(pair_order)
+      DO i = 1, nproducts
+         centers(:, 1) = pgf_product_list(i)%ra
+         centers(:, 2) = pgf_product_list(i)%rb
+         centers(:, 3) = pgf_product_list(i)%rc
+         centers(:, 4) = pgf_product_list(i)%rd
+         product_centers(:, 1) = pgf_product_list(i)%P
+         product_centers(:, 2) = pgf_product_list(i)%Q
+         CALL build_deriv_data(deriv, centers(:, permutation(1)), centers(:, permutation(2)), &
+                               centers(:, permutation(3)), centers(:, permutation(4)), &
+                               exponents(1), exponents(2), exponents(3), exponents(4), &
+                               inverse_exponents(1), inverse_exponents(2), pgf_product_list(i)%ZetapEtaInv, &
+                               pgf_product_list(i)%Rho, pgf_product_list(i)%RhoInv, &
+                               product_centers(:, pair_order(1)), product_centers(:, pair_order(2)), &
+                               pgf_product_list(i)%W, m_max, pgf_product_list(i)%Fm)
+         CALL cp_libint_get_derivs(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
+                                   angular_momenta(1), deriv, work_forces, a_mysize)
+         DO k = 1, 12
+            DO j = 1, mysize
+               work(j, k) = work(j, k) + work_forces(j, k)
+            END DO
+         END DO
+         neris = neris + 12*mysize
+         IF (use_virial) THEN
+            DO j = 1, 4
+               CALL real_to_scaled(scoord(3*j - 2:3*j), centers(:, permutation(j)), cell)
+            END DO
+            DO k = 1, 12
+               DO j = 1, mysize
+                  DO m = 1, 3
+                     work_virial(j, k, m) = work_virial(j, k, m) + work_forces(j, k)*scoord(INT((k - 1)/3)*3 + m)
+                  END DO
+               END DO
+            END DO
+         END IF
+      END DO
+
+      DO n = 1, 12
+         tmp_max = 0.0_dp
+         DO i = 1, mysize
+            tmp_max = MAX(tmp_max, ABS(work(i, n)))
+         END DO
+         tmp_max = tmp_max*max_contraction
+         tmp_max_all = MAX(tmp_max_all, tmp_max)
+      END DO
+      CALL reorder_eri_block(work, work2, [ncoa, ncob, ncoc, ncod], permutation, 12, 1)
+      IF (use_virial) THEN
+         DO n = 1, 12
+            tmp_max_virial = 0.0_dp
+            DO i = 1, mysize
+               tmp_max_virial = MAX(tmp_max_virial, &
+                                    ABS(work_virial(i, n, 1)), ABS(work_virial(i, n, 2)), ABS(work_virial(i, n, 3)))
+            END DO
+            tmp_max_virial = tmp_max_virial*max_contraction
+            tmp_max_all_virial = MAX(tmp_max_all_virial, tmp_max_virial)
+         END DO
+         CALL reorder_eri_block(work_virial, work2_virial, [ncoa, ncob, ncoc, ncod], permutation, 12, 3)
       END IF
-      IF (n_c < n_d) THEN
-         perm_case = perm_case + 2
-      END IF
-      IF (n_a + n_b > n_c + n_d) THEN
-         perm_case = perm_case + 4
-      END IF
-
-      SELECT CASE (perm_case)
-      CASE (1)
-         DO i = 1, nproducts
-            A = pgf_product_list(i)%ra
-            B = pgf_product_list(i)%rb
-            C = pgf_product_list(i)%rc
-            D = pgf_product_list(i)%rd
-            Rho = pgf_product_list(i)%Rho
-            RhoInv = pgf_product_list(i)%RhoInv
-            P = pgf_product_list(i)%P
-            Q = pgf_product_list(i)%Q
-            W = pgf_product_list(i)%W
-            AB = pgf_product_list(i)%AB
-            CD = pgf_product_list(i)%CD
-            ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-
-            CALL build_deriv_data(deriv, A, B, C, D, &
-                                  Zeta_A, Zeta_B, Zeta_C, Zeta_D, &
-                                  ZetaInv, EtaInv, ZetapEtaInv, Rho, RhoInv, &
-                                  P, Q, W, m_max, pgf_product_list(i)%Fm)
-            CALL cp_libint_get_derivs(n_d, n_c, n_b, n_a, deriv, work_forces, a_mysize)
-            DO k = 4, 6
-               DO j = 1, mysize
-                  work_forces(j, k) = -1.0_dp*(work_forces(j, k - 3) + &
-                                               work_forces(j, k + 3) + &
-                                               work_forces(j, k + 6))
-               END DO
-            END DO
-            DO k = 1, 12
-               DO j = 1, mysize
-                  work(j, k) = work(j, k) + work_forces(j, k)
-               END DO
-            END DO
-            neris = neris + 12*mysize
-            IF (use_virial) THEN
-               CALL real_to_scaled(scoord(1:3), A, cell)
-               CALL real_to_scaled(scoord(4:6), B, cell)
-               CALL real_to_scaled(scoord(7:9), C, cell)
-               CALL real_to_scaled(scoord(10:12), D, cell)
-               DO k = 1, 12
-                  DO j = 1, mysize
-                     DO m = 1, 3
-                        work_virial(j, k, m) = work_virial(j, k, m) + work_forces(j, k)*scoord(INT((k - 1)/3)*3 + m)
-                     END DO
-                  END DO
-               END DO
-            END IF
-         END DO
-
-         DO n = 1, 12
-            tmp_max = 0.0_dp
-            DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(work(i, n)))
-            END DO
-            tmp_max = tmp_max*max_contraction
-            tmp_max_all = MAX(tmp_max_all, tmp_max)
-
-            DO i = 1, ncoa
-               p1 = (i - 1)*ncob
-               DO j = 1, ncob
-                  p2 = (p1 + j - 1)*ncoc
-                  DO k = 1, ncoc
-                     p3 = (p2 + k - 1)*ncod
-                     DO l = 1, ncod
-                        p4 = p3 + l
-                        work2(i, j, k, l, full_perm1(n)) = work(p4, n)
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END DO
-         IF (use_virial) THEN
-            DO n = 1, 12
-               tmp_max_virial = 0.0_dp
-               DO i = 1, mysize
-                  tmp_max_virial = MAX(tmp_max_virial, &
-                                       ABS(work_virial(i, n, 1)), ABS(work_virial(i, n, 2)), ABS(work_virial(i, n, 3)))
-               END DO
-               tmp_max_virial = tmp_max_virial*max_contraction
-               tmp_max_all_virial = MAX(tmp_max_all_virial, tmp_max_virial)
-
-               DO i = 1, ncoa
-                  p1 = (i - 1)*ncob
-                  DO j = 1, ncob
-                     p2 = (p1 + j - 1)*ncoc
-                     DO k = 1, ncoc
-                        p3 = (p2 + k - 1)*ncod
-                        DO l = 1, ncod
-                           p4 = p3 + l
-                           work2_virial(i, j, k, l, full_perm1(n), 1:3) = work_virial(p4, n, 1:3)
-                        END DO
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END IF
-      CASE (2)
-         DO i = 1, nproducts
-            A = pgf_product_list(i)%ra
-            B = pgf_product_list(i)%rb
-            C = pgf_product_list(i)%rc
-            D = pgf_product_list(i)%rd
-            Rho = pgf_product_list(i)%Rho
-            RhoInv = pgf_product_list(i)%RhoInv
-            P = pgf_product_list(i)%P
-            Q = pgf_product_list(i)%Q
-            W = pgf_product_list(i)%W
-            AB = pgf_product_list(i)%AB
-            CD = pgf_product_list(i)%CD
-            ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-
-            CALL build_deriv_data(deriv, B, A, C, D, &
-                                  Zeta_B, Zeta_A, Zeta_C, Zeta_D, &
-                                  ZetaInv, EtaInv, ZetapEtaInv, Rho, RhoInv, &
-                                  P, Q, W, m_max, pgf_product_list(i)%Fm)
-            CALL cp_libint_get_derivs(n_d, n_c, n_a, n_b, deriv, work_forces, a_mysize)
-            DO k = 4, 6
-               DO j = 1, mysize
-                  work_forces(j, k) = -1.0_dp*(work_forces(j, k - 3) + &
-                                               work_forces(j, k + 3) + &
-                                               work_forces(j, k + 6))
-               END DO
-            END DO
-            DO k = 1, 12
-               DO j = 1, mysize
-                  work(j, k) = work(j, k) + work_forces(j, k)
-               END DO
-            END DO
-            neris = neris + 12*mysize
-            IF (use_virial) THEN
-               CALL real_to_scaled(scoord(1:3), B, cell)
-               CALL real_to_scaled(scoord(4:6), A, cell)
-               CALL real_to_scaled(scoord(7:9), C, cell)
-               CALL real_to_scaled(scoord(10:12), D, cell)
-               DO k = 1, 12
-                  DO j = 1, mysize
-                     DO m = 1, 3
-                        work_virial(j, k, m) = work_virial(j, k, m) + work_forces(j, k)*scoord(INT((k - 1)/3)*3 + m)
-                     END DO
-                  END DO
-               END DO
-            END IF
-
-         END DO
-         DO n = 1, 12
-            tmp_max = 0.0_dp
-            DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(work(i, n)))
-            END DO
-            tmp_max = tmp_max*max_contraction
-            tmp_max_all = MAX(tmp_max_all, tmp_max)
-
-            DO j = 1, ncob
-               p1 = (j - 1)*ncoa
-               DO i = 1, ncoa
-                  p2 = (p1 + i - 1)*ncoc
-                  DO k = 1, ncoc
-                     p3 = (p2 + k - 1)*ncod
-                     DO l = 1, ncod
-                        p4 = p3 + l
-                        work2(i, j, k, l, full_perm2(n)) = work(p4, n)
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END DO
-         IF (use_virial) THEN
-            DO n = 1, 12
-               tmp_max_virial = 0.0_dp
-               DO i = 1, mysize
-                  tmp_max_virial = MAX(tmp_max_virial, &
-                                       ABS(work_virial(i, n, 1)), ABS(work_virial(i, n, 2)), ABS(work_virial(i, n, 3)))
-               END DO
-               tmp_max_virial = tmp_max_virial*max_contraction
-               tmp_max_all_virial = MAX(tmp_max_all_virial, tmp_max_virial)
-
-               DO j = 1, ncob
-                  p1 = (j - 1)*ncoa
-                  DO i = 1, ncoa
-                     p2 = (p1 + i - 1)*ncoc
-                     DO k = 1, ncoc
-                        p3 = (p2 + k - 1)*ncod
-                        DO l = 1, ncod
-                           p4 = p3 + l
-                           work2_virial(i, j, k, l, full_perm2(n), 1:3) = work_virial(p4, n, 1:3)
-                        END DO
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END IF
-      CASE (3)
-         DO i = 1, nproducts
-            A = pgf_product_list(i)%ra
-            B = pgf_product_list(i)%rb
-            C = pgf_product_list(i)%rc
-            D = pgf_product_list(i)%rd
-            Rho = pgf_product_list(i)%Rho
-            RhoInv = pgf_product_list(i)%RhoInv
-            P = pgf_product_list(i)%P
-            Q = pgf_product_list(i)%Q
-            W = pgf_product_list(i)%W
-            AB = pgf_product_list(i)%AB
-            CD = pgf_product_list(i)%CD
-            ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-
-            CALL build_deriv_data(deriv, A, B, D, C, &
-                                  Zeta_A, Zeta_B, Zeta_D, Zeta_C, &
-                                  ZetaInv, EtaInv, ZetapEtaInv, Rho, RhoInv, &
-                                  P, Q, W, m_max, pgf_product_list(i)%Fm)
-            CALL cp_libint_get_derivs(n_c, n_d, n_b, n_a, deriv, work_forces, a_mysize)
-            DO k = 4, 6
-               DO j = 1, mysize
-                  work_forces(j, k) = -1.0_dp*(work_forces(j, k - 3) + &
-                                               work_forces(j, k + 3) + &
-                                               work_forces(j, k + 6))
-               END DO
-            END DO
-            DO k = 1, 12
-               DO j = 1, mysize
-                  work(j, k) = work(j, k) + work_forces(j, k)
-               END DO
-            END DO
-            neris = neris + 12*mysize
-            IF (use_virial) THEN
-               CALL real_to_scaled(scoord(1:3), A, cell)
-               CALL real_to_scaled(scoord(4:6), B, cell)
-               CALL real_to_scaled(scoord(7:9), D, cell)
-               CALL real_to_scaled(scoord(10:12), C, cell)
-               DO k = 1, 12
-                  DO j = 1, mysize
-                     DO m = 1, 3
-                        work_virial(j, k, m) = work_virial(j, k, m) + work_forces(j, k)*scoord(INT((k - 1)/3)*3 + m)
-                     END DO
-                  END DO
-               END DO
-            END IF
-
-         END DO
-         DO n = 1, 12
-            tmp_max = 0.0_dp
-            DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(work(i, n)))
-            END DO
-            tmp_max = tmp_max*max_contraction
-            tmp_max_all = MAX(tmp_max_all, tmp_max)
-
-            DO i = 1, ncoa
-               p1 = (i - 1)*ncob
-               DO j = 1, ncob
-                  p2 = (p1 + j - 1)*ncod
-                  DO l = 1, ncod
-                     p3 = (p2 + l - 1)*ncoc
-                     DO k = 1, ncoc
-                        p4 = p3 + k
-                        work2(i, j, k, l, full_perm3(n)) = work(p4, n)
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END DO
-         IF (use_virial) THEN
-            DO n = 1, 12
-               tmp_max_virial = 0.0_dp
-               DO i = 1, mysize
-                  tmp_max_virial = MAX(tmp_max_virial, &
-                                       ABS(work_virial(i, n, 1)), ABS(work_virial(i, n, 2)), ABS(work_virial(i, n, 3)))
-               END DO
-               tmp_max_virial = tmp_max_virial*max_contraction
-               tmp_max_all_virial = MAX(tmp_max_all_virial, tmp_max_virial)
-
-               DO i = 1, ncoa
-                  p1 = (i - 1)*ncob
-                  DO j = 1, ncob
-                     p2 = (p1 + j - 1)*ncod
-                     DO l = 1, ncod
-                        p3 = (p2 + l - 1)*ncoc
-                        DO k = 1, ncoc
-                           p4 = p3 + k
-                           work2_virial(i, j, k, l, full_perm3(n), 1:3) = work_virial(p4, n, 1:3)
-                        END DO
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END IF
-      CASE (4)
-         DO i = 1, nproducts
-            A = pgf_product_list(i)%ra
-            B = pgf_product_list(i)%rb
-            C = pgf_product_list(i)%rc
-            D = pgf_product_list(i)%rd
-            Rho = pgf_product_list(i)%Rho
-            RhoInv = pgf_product_list(i)%RhoInv
-            P = pgf_product_list(i)%P
-            Q = pgf_product_list(i)%Q
-            W = pgf_product_list(i)%W
-            AB = pgf_product_list(i)%AB
-            CD = pgf_product_list(i)%CD
-            ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-            CALL build_deriv_data(deriv, B, A, D, C, &
-                                  Zeta_B, Zeta_A, Zeta_D, Zeta_C, &
-                                  ZetaInv, EtaInv, ZetapEtaInv, Rho, RhoInv, &
-                                  P, Q, W, m_max, pgf_product_list(i)%Fm)
-            CALL cp_libint_get_derivs(n_c, n_d, n_a, n_b, deriv, work_forces, a_mysize)
-            DO k = 4, 6
-               DO j = 1, mysize
-                  work_forces(j, k) = -1.0_dp*(work_forces(j, k - 3) + &
-                                               work_forces(j, k + 3) + &
-                                               work_forces(j, k + 6))
-               END DO
-            END DO
-            DO k = 1, 12
-               DO j = 1, mysize
-                  work(j, k) = work(j, k) + work_forces(j, k)
-               END DO
-            END DO
-            neris = neris + 12*mysize
-            IF (use_virial) THEN
-               CALL real_to_scaled(scoord(1:3), B, cell)
-               CALL real_to_scaled(scoord(4:6), A, cell)
-               CALL real_to_scaled(scoord(7:9), D, cell)
-               CALL real_to_scaled(scoord(10:12), C, cell)
-               DO k = 1, 12
-                  DO j = 1, mysize
-                     DO m = 1, 3
-                        work_virial(j, k, m) = work_virial(j, k, m) + work_forces(j, k)*scoord(INT((k - 1)/3)*3 + m)
-                     END DO
-                  END DO
-               END DO
-            END IF
-
-         END DO
-         DO n = 1, 12
-            tmp_max = 0.0_dp
-            DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(work(i, n)))
-            END DO
-            tmp_max = tmp_max*max_contraction
-            tmp_max_all = MAX(tmp_max_all, tmp_max)
-
-            DO j = 1, ncob
-               p1 = (j - 1)*ncoa
-               DO i = 1, ncoa
-                  p2 = (p1 + i - 1)*ncod
-                  DO l = 1, ncod
-                     p3 = (p2 + l - 1)*ncoc
-                     DO k = 1, ncoc
-                        p4 = p3 + k
-                        work2(i, j, k, l, full_perm4(n)) = work(p4, n)
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END DO
-         IF (use_virial) THEN
-            DO n = 1, 12
-               tmp_max_virial = 0.0_dp
-               DO i = 1, mysize
-                  tmp_max_virial = MAX(tmp_max_virial, &
-                                       ABS(work_virial(i, n, 1)), ABS(work_virial(i, n, 2)), ABS(work_virial(i, n, 3)))
-               END DO
-               tmp_max_virial = tmp_max_virial*max_contraction
-               tmp_max_all_virial = MAX(tmp_max_all_virial, tmp_max_virial)
-
-               DO j = 1, ncob
-                  p1 = (j - 1)*ncoa
-                  DO i = 1, ncoa
-                     p2 = (p1 + i - 1)*ncod
-                     DO l = 1, ncod
-                        p3 = (p2 + l - 1)*ncoc
-                        DO k = 1, ncoc
-                           p4 = p3 + k
-                           work2_virial(i, j, k, l, full_perm4(n), 1:3) = work_virial(p4, n, 1:3)
-                        END DO
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END IF
-      CASE (5)
-         DO i = 1, nproducts
-            A = pgf_product_list(i)%ra
-            B = pgf_product_list(i)%rb
-            C = pgf_product_list(i)%rc
-            D = pgf_product_list(i)%rd
-            Rho = pgf_product_list(i)%Rho
-            RhoInv = pgf_product_list(i)%RhoInv
-            P = pgf_product_list(i)%P
-            Q = pgf_product_list(i)%Q
-            W = pgf_product_list(i)%W
-            AB = pgf_product_list(i)%AB
-            CD = pgf_product_list(i)%CD
-            ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-            CALL build_deriv_data(deriv, C, D, A, B, &
-                                  Zeta_C, Zeta_D, Zeta_A, Zeta_B, &
-                                  EtaInv, ZetaInv, ZetapEtaInv, Rho, RhoInv, &
-                                  Q, P, W, m_max, pgf_product_list(i)%Fm)
-            CALL cp_libint_get_derivs(n_b, n_a, n_d, n_c, deriv, work_forces, a_mysize)
-            DO k = 4, 6
-               DO j = 1, mysize
-                  work_forces(j, k) = -1.0_dp*(work_forces(j, k - 3) + &
-                                               work_forces(j, k + 3) + &
-                                               work_forces(j, k + 6))
-               END DO
-            END DO
-            DO k = 1, 12
-               DO j = 1, mysize
-                  work(j, k) = work(j, k) + work_forces(j, k)
-               END DO
-            END DO
-            neris = neris + 12*mysize
-            IF (use_virial) THEN
-               CALL real_to_scaled(scoord(1:3), C, cell)
-               CALL real_to_scaled(scoord(4:6), D, cell)
-               CALL real_to_scaled(scoord(7:9), A, cell)
-               CALL real_to_scaled(scoord(10:12), B, cell)
-               DO k = 1, 12
-                  DO j = 1, mysize
-                     DO m = 1, 3
-                        work_virial(j, k, m) = work_virial(j, k, m) + work_forces(j, k)*scoord(INT((k - 1)/3)*3 + m)
-                     END DO
-                  END DO
-               END DO
-            END IF
-
-         END DO
-         DO n = 1, 12
-            tmp_max = 0.0_dp
-            DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(work(i, n)))
-            END DO
-            tmp_max = tmp_max*max_contraction
-            tmp_max_all = MAX(tmp_max_all, tmp_max)
-
-            DO k = 1, ncoc
-               p1 = (k - 1)*ncod
-               DO l = 1, ncod
-                  p2 = (p1 + l - 1)*ncoa
-                  DO i = 1, ncoa
-                     p3 = (p2 + i - 1)*ncob
-                     DO j = 1, ncob
-                        p4 = p3 + j
-                        work2(i, j, k, l, full_perm5(n)) = work(p4, n)
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END DO
-         IF (use_virial) THEN
-            DO n = 1, 12
-               tmp_max_virial = 0.0_dp
-               DO i = 1, mysize
-                  tmp_max_virial = MAX(tmp_max_virial, &
-                                       ABS(work_virial(i, n, 1)), ABS(work_virial(i, n, 2)), ABS(work_virial(i, n, 3)))
-               END DO
-               tmp_max_virial = tmp_max_virial*max_contraction
-               tmp_max_all_virial = MAX(tmp_max_all_virial, tmp_max_virial)
-
-               DO k = 1, ncoc
-                  p1 = (k - 1)*ncod
-                  DO l = 1, ncod
-                     p2 = (p1 + l - 1)*ncoa
-                     DO i = 1, ncoa
-                        p3 = (p2 + i - 1)*ncob
-                        DO j = 1, ncob
-                           p4 = p3 + j
-                           work2_virial(i, j, k, l, full_perm5(n), 1:3) = work_virial(p4, n, 1:3)
-                        END DO
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END IF
-      CASE (6)
-         DO i = 1, nproducts
-            A = pgf_product_list(i)%ra
-            B = pgf_product_list(i)%rb
-            C = pgf_product_list(i)%rc
-            D = pgf_product_list(i)%rd
-            Rho = pgf_product_list(i)%Rho
-            RhoInv = pgf_product_list(i)%RhoInv
-            P = pgf_product_list(i)%P
-            Q = pgf_product_list(i)%Q
-            W = pgf_product_list(i)%W
-            AB = pgf_product_list(i)%AB
-            CD = pgf_product_list(i)%CD
-            ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-
-            CALL build_deriv_data(deriv, C, D, B, A, &
-                                  Zeta_C, Zeta_D, Zeta_B, Zeta_A, &
-                                  EtaInv, ZetaInv, ZetapEtaInv, Rho, RhoInv, &
-                                  Q, P, W, m_max, pgf_product_list(i)%Fm)
-            CALL cp_libint_get_derivs(n_a, n_b, n_d, n_c, deriv, work_forces, a_mysize)
-            DO k = 4, 6
-               DO j = 1, mysize
-                  work_forces(j, k) = -1.0_dp*(work_forces(j, k - 3) + &
-                                               work_forces(j, k + 3) + &
-                                               work_forces(j, k + 6))
-               END DO
-            END DO
-            DO k = 1, 12
-               DO j = 1, mysize
-                  work(j, k) = work(j, k) + work_forces(j, k)
-               END DO
-            END DO
-            neris = neris + 12*mysize
-            IF (use_virial) THEN
-               CALL real_to_scaled(scoord(1:3), C, cell)
-               CALL real_to_scaled(scoord(4:6), D, cell)
-               CALL real_to_scaled(scoord(7:9), B, cell)
-               CALL real_to_scaled(scoord(10:12), A, cell)
-               DO k = 1, 12
-                  DO j = 1, mysize
-                     DO m = 1, 3
-                        work_virial(j, k, m) = work_virial(j, k, m) + work_forces(j, k)*scoord(INT((k - 1)/3)*3 + m)
-                     END DO
-                  END DO
-               END DO
-            END IF
-
-         END DO
-         DO n = 1, 12
-            tmp_max = 0.0_dp
-            DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(work(i, n)))
-            END DO
-            tmp_max = tmp_max*max_contraction
-            tmp_max_all = MAX(tmp_max_all, tmp_max)
-
-            DO k = 1, ncoc
-               p1 = (k - 1)*ncod
-               DO l = 1, ncod
-                  p2 = (p1 + l - 1)*ncob
-                  DO j = 1, ncob
-                     p3 = (p2 + j - 1)*ncoa
-                     DO i = 1, ncoa
-                        p4 = p3 + i
-                        work2(i, j, k, l, full_perm6(n)) = work(p4, n)
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END DO
-         IF (use_virial) THEN
-            DO n = 1, 12
-               tmp_max_virial = 0.0_dp
-               DO i = 1, mysize
-                  tmp_max_virial = MAX(tmp_max_virial, &
-                                       ABS(work_virial(i, n, 1)), ABS(work_virial(i, n, 2)), ABS(work_virial(i, n, 3)))
-               END DO
-               tmp_max_virial = tmp_max_virial*max_contraction
-               tmp_max_all_virial = MAX(tmp_max_all_virial, tmp_max_virial)
-
-               DO k = 1, ncoc
-                  p1 = (k - 1)*ncod
-                  DO l = 1, ncod
-                     p2 = (p1 + l - 1)*ncob
-                     DO j = 1, ncob
-                        p3 = (p2 + j - 1)*ncoa
-                        DO i = 1, ncoa
-                           p4 = p3 + i
-                           work2_virial(i, j, k, l, full_perm6(n), 1:3) = work_virial(p4, n, 1:3)
-                        END DO
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END IF
-      CASE (7)
-         DO i = 1, nproducts
-            A = pgf_product_list(i)%ra
-            B = pgf_product_list(i)%rb
-            C = pgf_product_list(i)%rc
-            D = pgf_product_list(i)%rd
-            Rho = pgf_product_list(i)%Rho
-            RhoInv = pgf_product_list(i)%RhoInv
-            P = pgf_product_list(i)%P
-            Q = pgf_product_list(i)%Q
-            W = pgf_product_list(i)%W
-            AB = pgf_product_list(i)%AB
-            CD = pgf_product_list(i)%CD
-            ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-
-            CALL build_deriv_data(deriv, D, C, A, B, &
-                                  Zeta_D, Zeta_C, Zeta_A, Zeta_B, &
-                                  EtaInv, ZetaInv, ZetapEtaInv, Rho, RhoInv, &
-                                  Q, P, W, m_max, pgf_product_list(i)%Fm)
-            CALL cp_libint_get_derivs(n_b, n_a, n_c, n_d, deriv, work_forces, a_mysize)
-            DO k = 4, 6
-               DO j = 1, mysize
-                  work_forces(j, k) = -1.0_dp*(work_forces(j, k - 3) + &
-                                               work_forces(j, k + 3) + &
-                                               work_forces(j, k + 6))
-               END DO
-            END DO
-            DO k = 1, 12
-               DO j = 1, mysize
-                  work(j, k) = work(j, k) + work_forces(j, k)
-               END DO
-            END DO
-            neris = neris + 12*mysize
-            IF (use_virial) THEN
-               CALL real_to_scaled(scoord(1:3), D, cell)
-               CALL real_to_scaled(scoord(4:6), C, cell)
-               CALL real_to_scaled(scoord(7:9), A, cell)
-               CALL real_to_scaled(scoord(10:12), B, cell)
-               DO k = 1, 12
-                  DO j = 1, mysize
-                     DO m = 1, 3
-                        work_virial(j, k, m) = work_virial(j, k, m) + work_forces(j, k)*scoord(INT((k - 1)/3)*3 + m)
-                     END DO
-                  END DO
-               END DO
-            END IF
-
-         END DO
-         DO n = 1, 12
-            tmp_max = 0.0_dp
-            DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(work(i, n)))
-            END DO
-            tmp_max = tmp_max*max_contraction
-            tmp_max_all = MAX(tmp_max_all, tmp_max)
-
-            DO l = 1, ncod
-               p1 = (l - 1)*ncoc
-               DO k = 1, ncoc
-                  p2 = (p1 + k - 1)*ncoa
-                  DO i = 1, ncoa
-                     p3 = (p2 + i - 1)*ncob
-                     DO j = 1, ncob
-                        p4 = p3 + j
-                        work2(i, j, k, l, full_perm7(n)) = work(p4, n)
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END DO
-         IF (use_virial) THEN
-            DO n = 1, 12
-               tmp_max_virial = 0.0_dp
-               DO i = 1, mysize
-                  tmp_max_virial = MAX(tmp_max_virial, &
-                                       ABS(work_virial(i, n, 1)), ABS(work_virial(i, n, 2)), ABS(work_virial(i, n, 3)))
-               END DO
-               tmp_max_virial = tmp_max_virial*max_contraction
-               tmp_max_all_virial = MAX(tmp_max_all_virial, tmp_max_virial)
-
-               DO l = 1, ncod
-                  p1 = (l - 1)*ncoc
-                  DO k = 1, ncoc
-                     p2 = (p1 + k - 1)*ncoa
-                     DO i = 1, ncoa
-                        p3 = (p2 + i - 1)*ncob
-                        DO j = 1, ncob
-                           p4 = p3 + j
-                           work2_virial(i, j, k, l, full_perm7(n), 1:3) = work_virial(p4, n, 1:3)
-                        END DO
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END IF
-      CASE (8)
-         DO i = 1, nproducts
-            A = pgf_product_list(i)%ra
-            B = pgf_product_list(i)%rb
-            C = pgf_product_list(i)%rc
-            D = pgf_product_list(i)%rd
-            Rho = pgf_product_list(i)%Rho
-            RhoInv = pgf_product_list(i)%RhoInv
-            P = pgf_product_list(i)%P
-            Q = pgf_product_list(i)%Q
-            W = pgf_product_list(i)%W
-            AB = pgf_product_list(i)%AB
-            CD = pgf_product_list(i)%CD
-            ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-
-            CALL build_deriv_data(deriv, D, C, B, A, &
-                                  Zeta_D, Zeta_C, Zeta_B, Zeta_A, &
-                                  EtaInv, ZetaInv, ZetapEtaInv, Rho, RhoInv, &
-                                  Q, P, W, m_max, pgf_product_list(i)%Fm)
-            CALL cp_libint_get_derivs(n_a, n_b, n_c, n_d, deriv, work_forces, a_mysize)
-            DO k = 4, 6
-               DO j = 1, mysize
-                  work_forces(j, k) = -1.0_dp*(work_forces(j, k - 3) + &
-                                               work_forces(j, k + 3) + &
-                                               work_forces(j, k + 6))
-               END DO
-            END DO
-            DO k = 1, 12
-               DO j = 1, mysize
-                  work(j, k) = work(j, k) + work_forces(j, k)
-               END DO
-            END DO
-            neris = neris + 12*mysize
-            IF (use_virial) THEN
-               CALL real_to_scaled(scoord(1:3), D, cell)
-               CALL real_to_scaled(scoord(4:6), C, cell)
-               CALL real_to_scaled(scoord(7:9), B, cell)
-               CALL real_to_scaled(scoord(10:12), A, cell)
-               DO k = 1, 12
-                  DO j = 1, mysize
-                     DO m = 1, 3
-                        work_virial(j, k, m) = work_virial(j, k, m) + work_forces(j, k)*scoord(INT((k - 1)/3)*3 + m)
-                     END DO
-                  END DO
-               END DO
-            END IF
-
-         END DO
-         DO n = 1, 12
-            tmp_max = 0.0_dp
-            DO i = 1, mysize
-               tmp_max = MAX(tmp_max, ABS(work(i, n)))
-            END DO
-            tmp_max = tmp_max*max_contraction
-            tmp_max_all = MAX(tmp_max_all, tmp_max)
-
-            DO l = 1, ncod
-               p1 = (l - 1)*ncoc
-               DO k = 1, ncoc
-                  p2 = (p1 + k - 1)*ncob
-                  DO j = 1, ncob
-                     p3 = (p2 + j - 1)*ncoa
-                     DO i = 1, ncoa
-                        p4 = p3 + i
-                        work2(i, j, k, l, full_perm8(n)) = work(p4, n)
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END DO
-         IF (use_virial) THEN
-            DO n = 1, 12
-               tmp_max_virial = 0.0_dp
-               DO i = 1, mysize
-                  tmp_max_virial = MAX(tmp_max_virial, &
-                                       ABS(work_virial(i, n, 1)), ABS(work_virial(i, n, 2)), ABS(work_virial(i, n, 3)))
-               END DO
-               tmp_max_virial = tmp_max_virial*max_contraction
-               tmp_max_all_virial = MAX(tmp_max_all_virial, tmp_max_virial)
-
-               DO l = 1, ncod
-                  p1 = (l - 1)*ncoc
-                  DO k = 1, ncoc
-                     p2 = (p1 + k - 1)*ncob
-                     DO j = 1, ncob
-                        p3 = (p2 + j - 1)*ncoa
-                        DO i = 1, ncoa
-                           p4 = p3 + i
-                           work2_virial(i, j, k, l, full_perm8(n), 1:3) = work_virial(p4, n, 1:3)
-                        END DO
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END IF
-      END SELECT
 
       IF (.NOT. use_virial) THEN
          IF (tmp_max_all < eps_schwarz) RETURN
