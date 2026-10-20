@@ -1,5 +1,0 @@
-
-            buffer1 = 0.0_dp
-            imax=nsoa*nsob*ncod
-            jmax=nsoc
-            kmax=ncoc
