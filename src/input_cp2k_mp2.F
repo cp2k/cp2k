@@ -14,8 +14,8 @@
 MODULE input_cp2k_mp2
    USE bibliography, ONLY: &
       Bates2013, DelBen2012, DelBen2013, DelBen2015, DelBen2015b, Rybkin2016, Wilhelm2016a, &
-      Wilhelm2016b, Wilhelm2017, Wilhelm2018, Stein2022, Stein2024, Bussy2023, Hedin1965, &
-      Hybertsen1986, Tyagi2024, Tyagi2026
+      Wilhelm2016b, Wilhelm2017, Wilhelm2018, Wilhelm2021, Stein2022, Stein2024, Bussy2023, Hedin1965, &
+      Hybertsen1986, Tyagi2024, Tyagi2026, Graml2026
    USE cp_eri_mme_interface, ONLY: create_eri_mme_section
    USE cp_output_handling, ONLY: add_last_numeric, &
                                  cp_print_key_section_create, &
@@ -1350,22 +1350,21 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       IF (run_bse_from_band_structure_section) THEN
-         where_from = " This section runs the BSE on the quasiparticle energies, the static screened "// &
+         where_from = "This section runs the BSE on the quasiparticle energies, the static screened "// &
                       "interaction and the RI integrals of the low-scaling GW of PROPERTIES%BANDSTRUCTURE%GW "// &
-                      "(three-center RI integrals in the atomic-orbital basis; "// &
-                      "<https://doi.org/10.1021/acs.jctc.0c01282>), which must be present in the same "// &
-                      "input and must not use RI_RS; its CUTOFF_RADIUS_RI and RI basis set are convergence "// &
-                      "parameters of PROPERTIES%BSE as well. The same section under XC%WF_CORRELATION%RI_RPA%GW "// &
+                      "(three-center RI integrals in the atomic-orbital basis; \[Wilhelm2021\]), which must be "// &
+                      "present in the same input and must not use RI_RS; its CUTOFF_RADIUS_RI and RI basis set "// &
+                      "are convergence parameters of PROPERTIES%BSE as well. "// &
+                      "The same section under XC%WF_CORRELATION%RI_RPA%GW "// &
                       "runs the BSE on the $O(N^4)$-scaling GW of RI_RPA%GW (molecular-orbital basis; "// &
-                      "<https://doi.org/10.1021/acs.jctc.6b00380>) instead. Both sections treat "// &
-                      "non-periodic systems only."
+                      "\[Wilhelm2016a\]) instead. Both sections treat non-periodic systems only."
       ELSE
-         where_from = " This section runs the BSE on the $O(N^4)$-scaling GW of RI_RPA%GW (molecular-orbital "// &
-                      "basis; <https://doi.org/10.1021/acs.jctc.6b00380>), which provides the quasiparticle "// &
-                      "energies and the screening. The same section under PROPERTIES runs the BSE on the "// &
+         where_from = "This section runs the BSE on the $O(N^4)$-scaling GW of RI_RPA%GW (molecular-orbital "// &
+                      "basis; \[Wilhelm2016a\]), which provides the quasiparticle energies and the screening. "// &
+                      "The same section under PROPERTIES runs the BSE on the "// &
                       "low-scaling GW of PROPERTIES%BANDSTRUCTURE%GW (three-center RI integrals in the "// &
-                      "atomic-orbital basis; <https://doi.org/10.1021/acs.jctc.0c01282>) instead. Both "// &
-                      "sections treat non-periodic systems only."
+                      "atomic-orbital basis; \[Wilhelm2021\]) instead. Both sections treat non-periodic "// &
+                      "systems only."
       END IF
       CALL section_create(section, __LOCATION__, name="BSE", &
                           description="Parameters for a calculation solving the Bethe-Salpeter equation "// &
@@ -1378,8 +1377,8 @@ CONTAINS
                           "as well as optical properties. The BSE can be solved by diagonalizing "// &
                           "the full ABBA-matrix or by setting B=0, i.e. within the Tamm-Dancoff approximation (TDA). "// &
                           "Reference: Eq. (8) (the full BSE), Eq. (10) (the matrix elements A and B with the "// &
-                          "singlet and triplet prefactors) and Eq. (18) (TDA) in PRB 113, 205152 (2026); "// &
-                          "https://doi.org/10.1103/38k2-d55h"//where_from, &
+                          "singlet and triplet prefactors) and Eq. (18) (TDA) in \[Graml2026\]."// &
+                          newline//newline//where_from, citations=[Wilhelm2016a, Wilhelm2021, Graml2026], &
                           n_keywords=9, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (keyword)

@@ -15,6 +15,7 @@ MODULE input_cp2k_properties_dft
    USE bibliography, ONLY: Dixon2023, Doll2025, Wong2026, Loring2015, Cerjan2023, Futera2017, &
                            Hedin1965, &
                            Hybertsen1986, &
+                           Hartwigsen1998, &
                            Tyagi2024, &
                            Tyagi2026, &
                            Ditler2021, &
@@ -29,7 +30,11 @@ MODULE input_cp2k_properties_dft
                            Putrino2002, &
                            Sebastiani2001, &
                            Weber2009, &
-                           VazdaCruz2021
+                           VazdaCruz2021, &
+                           Wilhelm2021, &
+                           Graml2024, &
+                           Duchemin2019, &
+                           Duchemin2021
    USE cp_output_handling, ONLY: add_last_numeric, &
                                  cp_print_key_section_create, &
                                  debug_print_level, &
@@ -2485,9 +2490,9 @@ CONTAINS
                           "$\varepsilon_{n\mathbf{k}}^{G_0W_0}=  "// &
                           "\varepsilon_{n\mathbf{k}}^\text{DFT}+\Sigma_{n\mathbf{k}} "// &
                           "-v^\text{xc}_{n\mathbf{k}}$. "// &
-                          "For the GW algorithm for molecules, see "// &
-                          "<https://doi.org/10.1021/acs.jctc.0c01282>. "// &
-                          "For 2D materials, see <https://doi.org/10.1021/acs.jctc.3c01230>.", &
+                          "For the GW algorithm for molecules, see \[Wilhelm2021\]. "// &
+                          "For 2D materials, see \[Graml2024\].", &
+                          citations=[Wilhelm2021, Graml2024], &
                           n_keywords=1, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -2506,7 +2511,7 @@ CONTAINS
                           "for 0.1 eV precision of band structures and molecular energy "// &
                           "levels, 20 points for 0.03 eV precision, "// &
                           "and 30 points for 0.01 eV precision, see Table I in "// &
-                          "<https://doi.org/10.1021/acs.jctc.0c01282>. GW computation time "// &
+                          "\[Wilhelm2021\]. GW computation time "// &
                           "increases linearly with `NUM_TIME_FREQ_POINTS`.", &
                           usage="NUM_TIME_FREQ_POINTS 30", &
                           default_i_val=30)
@@ -2798,7 +2803,8 @@ CONTAINS
                           "(currently controlled through EPS_FILTER). "// &
                           "This locality approximation yields a sparse representation of the "// &
                           "3-center integrals and enables reduced computational cost. "// &
-                          "See details in https://doi.org/10.1063/1.5090605.", &
+                          "See details in \[Duchemin2019\].", &
+                          citations=[Duchemin2019, Duchemin2021], &
                           n_keywords=11, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -2817,7 +2823,7 @@ CONTAINS
                           description="Regularization parameter $\alpha$ used to stabilize "// &
                           "the inversion of the grid-overlap matrix "// &
                           "$D$ in the RI-RS method. "// &
-                          "See Equation (9) in https://doi.org/10.1063/1.5090605.", &
+                          "See Equation (9) in \[Duchemin2019\].", &
                           usage="TIKHONOV 1.0E-8", &
                           default_r_val=1.0E-08_dp)
       CALL section_add_keyword(section, keyword)
@@ -2827,9 +2833,9 @@ CONTAINS
                           description="Selection of the atom-centered grid type used "// &
                           "in RI-RS optimized by Duchemin and Blase. "// &
                           "(1) def2-TZVPP: Available for elements up to the fourth row "// &
-                          "of the periodic table (see https://doi.org/10.1021/acs.jctc.1c00101). "// &
+                          "of the periodic table (see \[Duchemin2021\]). "// &
                           "(2) cc-pVTZ: Available for H, C, N, and O atoms "// &
-                          "(see https://doi.org/10.1063/1.5090605). "// &
+                          "(see \[Duchemin2019\]). "// &
                           "(3) User-provided grids: per-element grid files supplied by the "// &
                           "user, read as ri_rs_grid/<Element><suffix> in the same format as "// &
                           "the built-in sets, with the suffix _rirs.ion.", &
@@ -2994,12 +3000,12 @@ CONTAINS
                           description="Switch on or off spin-orbit coupling. Use SOC "// &
                           "parameters from non-local pseudopotentials as given in "// &
                           "Hartwigsen, Goedecker, Hutter, Eq.(18), (19), "// &
-                          "<https://doi.org/10.1103/PhysRevB.58.3641>, "// &
+                          "\[Hartwigsen1998\], with "// &
                           "$V_{\mu\nu}^{\mathrm{SOC}, (\alpha)} = "// &
                           "(\hbar/2) \langle \phi_\mu | \sum_l \Delta "// &
                           "V_l^\mathrm{SO}(\mathbf{r},\mathbf{r}') "// &
                           "L^{(\alpha)} | \phi_\nu \rangle, "// &
-                          "\alpha = x, y, z$.", &
+                          "\alpha = x, y, z$.", citations=[Hartwigsen1998], &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword)
