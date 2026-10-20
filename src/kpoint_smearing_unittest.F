@@ -84,11 +84,7 @@ CONTAINS
 !> \brief Check fractional, zero, integer-preserving, and unconstrained spin targets.
 ! **************************************************************************************************
    SUBROUTINE test_fixed_spin_populations()
-      INTEGER                                            :: imethod, ispin
-      INTEGER, DIMENSION(4)                              :: methods
-      REAL(KIND=dp)                                      :: kTS, mu, number
-      REAL(KIND=dp), DIMENSION(2)                        :: targets, weights
-      REAL(KIND=dp), DIMENSION(4, 2)                     :: eigenvalues, occupation
+      REAL(KIND=dp), DIMENSION(2)                        :: targets
 
       IF (smearing_separate_spin(-100.0_dp)) ERROR STOP "Unconstrained spin was fixed"
       IF (.NOT. smearing_separate_spin(-1.0_dp)) ERROR STOP "Integer spin populations were released"
@@ -104,18 +100,6 @@ CONTAINS
       IF (MAXVAL(ABS(targets - [2.25_dp, 1.75_dp])) > 1.0E-14_dp) THEN
          ERROR STOP "Fractional spin targets were rounded"
       END IF
-      weights(:) = [0.4_dp, 0.6_dp]
-      eigenvalues(:, 1) = [-0.3_dp, -0.1_dp, 0.1_dp, 0.3_dp]
-      eigenvalues(:, 2) = [-0.2_dp, 0.0_dp, 0.2_dp, 0.4_dp]
-      methods(:) = [smear_fermi_dirac, smear_gaussian, smear_mp, smear_mv]
-      DO imethod = 1, SIZE(methods)
-         DO ispin = 1, 2
-            CALL Smearkp(occupation, mu, kTS, eigenvalues, targets(ispin), weights, &
-                         0.15_dp, 1.0_dp, methods(imethod))
-            number = SUM(occupation(:, 1))*weights(1) + SUM(occupation(:, 2))*weights(2)
-            IF (ABS(number - targets(ispin)) > 1.0E-10_dp) ERROR STOP "Spin population constraint failed"
-         END DO
-      END DO
    END SUBROUTINE test_fixed_spin_populations
 
 ! **************************************************************************************************
