@@ -144,6 +144,9 @@ class Gauxc(CMakePackage, CudaPackage, ROCmPackage):
             self.define_from_variant("GAUXC_ENABLE_CUTLASS", "cutlass"),
             self.define_from_variant("CMAKE_POSITION_INDEPENDENT_CODE", "pic"),
         ]
+        # The PyTorch headers require C++20 starting with version 2.14
+        if spec.satisfies("+skala ^py-torch@2.14:"):
+            args.append(self.define("CMAKE_CXX_STANDARD", "20"))
         if spec.satisfies("+cuda"):
             archs = spec.variants["cuda_arch"].value
             if "none" not in archs:
