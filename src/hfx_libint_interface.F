@@ -89,6 +89,7 @@ CONTAINS
       stride = [1, ncart(1), ncart(1)*ncart(2), ncart(1)*ncart(2)*ncart(3)]
       stride = stride(permutation)
       extent = ncart(permutation)
+      ! Read the Libint block contiguously and restore the original Fortran layout with strides.
       DO plane = 1, nplanes
          DO component = 1, ncomponents
             output_component = component
@@ -327,53 +328,6 @@ CONTAINS
    END SUBROUTINE build_quartet_data_screen
 
 ! **************************************************************************************************
-!> \brief Fill data structure used in libderiv
-!> \param libint ...
-!> \param A ...
-!> \param B ...
-!> \param C ...
-!> \param D ...
-!> \param Zeta_A ...
-!> \param Zeta_B ...
-!> \param Zeta_C ...
-!> \param Zeta_D ...
-!> \param ZetaInv ...
-!> \param EtaInv ...
-!> \param ZetapEtaInv ...
-!> \param Rho ...
-!> \param RhoInv ...
-!> \param P ...
-!> \param Q ...
-!> \param W ...
-!> \param m_max ...
-!> \param F ...
-!> \par History
-!>      03.2007 created [Manuel Guidon]
-!> \author Manuel Guidon
-! **************************************************************************************************
-   SUBROUTINE build_deriv_data(libint, A, B, C, D, &
-                               Zeta_A, Zeta_B, Zeta_C, Zeta_D, &
-                               ZetaInv, EtaInv, ZetapEtaInv, Rho, RhoInv, &
-                               P, Q, W, m_max, F)
-
-      TYPE(cp_libint_t)                                  :: libint
-      REAL(KIND=dp), INTENT(IN)                          :: A(3), B(3), C(3), D(3)
-      REAL(dp), INTENT(IN)                               :: Zeta_A, Zeta_B, Zeta_C, Zeta_D, ZetaInv, &
-                                                            EtaInv, ZetapEtaInv, Rho, RhoInv, &
-                                                            P(3), Q(3), W(3)
-      INTEGER, INTENT(IN)                                :: m_max
-      REAL(KIND=dp), DIMENSION(:)                        :: F
-
-      MARK_USED(D) ! todo: fix
-      MARK_USED(Zeta_C)
-      MARK_USED(RhoInv)
-
-      CALL cp_libint_set_params_eri_deriv(libint, A, B, C, D, P, Q, W, zeta_A, zeta_B, zeta_C, zeta_D, &
-                                          ZetaInv, EtaInv, ZetapEtaInv, Rho, m_max, F)
-
-   END SUBROUTINE build_deriv_data
-
-! **************************************************************************************************
 !> \brief Evaluates derivatives of electron repulsion integrals for a primitive quartet
 !> \param deriv ...
 !> \param nproducts ...
@@ -495,11 +449,9 @@ CONTAINS
       a_mysize = mysize
 
       work = 0.0_dp
-      work2 = 0.0_dp
 
       IF (use_virial) THEN
          work_virial = 0.0_dp
-         work2_virial = 0.0_dp
       END IF
 
       CALL get_eri_permutation(n_a, n_b, n_c, n_d, permutation)
@@ -518,13 +470,12 @@ CONTAINS
          centers(:, 4) = pgf_product_list(i)%rd
          product_centers(:, 1) = pgf_product_list(i)%P
          product_centers(:, 2) = pgf_product_list(i)%Q
-         CALL build_deriv_data(deriv, centers(:, permutation(1)), centers(:, permutation(2)), &
-                               centers(:, permutation(3)), centers(:, permutation(4)), &
-                               exponents(1), exponents(2), exponents(3), exponents(4), &
-                               inverse_exponents(1), inverse_exponents(2), pgf_product_list(i)%ZetapEtaInv, &
-                               pgf_product_list(i)%Rho, pgf_product_list(i)%RhoInv, &
-                               product_centers(:, pair_order(1)), product_centers(:, pair_order(2)), &
-                               pgf_product_list(i)%W, m_max, pgf_product_list(i)%Fm)
+         CALL cp_libint_set_params_eri_deriv(deriv, centers(:, permutation(1)), centers(:, permutation(2)), &
+                                             centers(:, permutation(3)), centers(:, permutation(4)), &
+                                             product_centers(:, pair_order(1)), product_centers(:, pair_order(2)), &
+                                             pgf_product_list(i)%W, exponents(1), exponents(2), exponents(3), exponents(4), &
+                                             inverse_exponents(1), inverse_exponents(2), pgf_product_list(i)%ZetapEtaInv, &
+                                             pgf_product_list(i)%Rho, m_max, pgf_product_list(i)%Fm)
          CALL cp_libint_get_derivs(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
                                    angular_momenta(1), deriv, work_forces, a_mysize)
          DO k = 1, 12
@@ -820,10 +771,9 @@ CONTAINS
                                                             m_max, mysize, pair_order(2), &
                                                             permutation(4)
       LOGICAL                                            :: direct_contract
-      REAL(dp) :: A(3), B(3), C(3), centers(3, 4), D(3), inverse_exponents(2), P(3), &
-         product_centers(3, 2), Q(3), Rho, RhoInv, W(3), ZetapEtaInv
+      REAL(dp)                                           :: centers(3, 4), inverse_exponents(2), &
+                                                            product_centers(3, 2)
       REAL(dp), DIMENSION(:), POINTER                    :: eri_src
-      REAL(KIND=dp), DIMENSION(prim_data_f_size)         :: F
 
       IF (nproducts == 0) RETURN
 
@@ -847,12 +797,11 @@ CONTAINS
             centers(:, 4) = pgf_product_list(i)%rd
             product_centers(:, 1) = pgf_product_list(i)%P
             product_centers(:, 2) = pgf_product_list(i)%Q
-            F(1:m_max + 1) = pgf_product_list(i)%Fm(1:m_max + 1)
-            CALL build_quartet_data(libint, centers(:, permutation(1)), centers(:, permutation(2)), &
-                                    centers(:, permutation(3)), centers(:, permutation(4)), &
-                                    inverse_exponents(1), inverse_exponents(2), pgf_product_list(i)%ZetapEtaInv, &
-                                    pgf_product_list(i)%Rho, product_centers(:, pair_order(1)), &
-                                    product_centers(:, pair_order(2)), pgf_product_list(i)%W, m_max, F)
+            CALL cp_libint_set_params_eri(libint, centers(:, permutation(1)), centers(:, permutation(2)), &
+                                          centers(:, permutation(3)), centers(:, permutation(4)), &
+                                          inverse_exponents(1), inverse_exponents(2), pgf_product_list(i)%ZetapEtaInv, &
+                                          pgf_product_list(i)%Rho, product_centers(:, pair_order(1)), &
+                                          product_centers(:, pair_order(2)), pgf_product_list(i)%W, m_max, pgf_product_list(i)%Fm)
             CALL cp_libint_get_eris(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
                                     angular_momenta(1), libint, p_work, a_mysize)
             IF (nproducts > 1) work(1:mysize) = work(1:mysize) + p_work(1:mysize)
@@ -872,22 +821,7 @@ CONTAINS
       ELSE
          work(1) = 0.0_dp
          DO i = 1, nproducts
-            A = pgf_product_list(i)%ra
-            B = pgf_product_list(i)%rb
-            C = pgf_product_list(i)%rc
-            D = pgf_product_list(i)%rd
-            Rho = pgf_product_list(i)%Rho
-            RhoInv = pgf_product_list(i)%RhoInv
-            P = pgf_product_list(i)%P
-            Q = pgf_product_list(i)%Q
-            W = pgf_product_list(i)%W
-            ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-            F(1:m_max + 1) = pgf_product_list(i)%Fm(1:m_max + 1)
-
-            CALL build_quartet_data(libint, A, B, C, D, & !todo: check
-                                    ZetaInv, EtaInv, ZetapEtaInv, Rho, &
-                                    P, Q, W, m_max, F)
-            work(1) = work(1) + F(1)
+            work(1) = work(1) + pgf_product_list(i)%Fm(1)
             neris = neris + mysize
          END DO
          work2(1, 1, 1, 1) = work(1)
@@ -895,7 +829,6 @@ CONTAINS
          IF (tmp_max < eps_schwarz) RETURN
       END IF
 
-      IF (tmp_max < eps_schwarz) RETURN
       direct_contract = (s_offset_a == 0 .AND. s_offset_b == 0 .AND. &
                          s_offset_c == 0 .AND. s_offset_d == 0 .AND. &
                          nsgfa == nsoa*nl_a .AND. nsgfb == nsob*nl_b .AND. &
@@ -932,39 +865,5 @@ CONTAINS
       END IF
 
    END SUBROUTINE evaluate_eri
-
-! **************************************************************************************************
-!> \brief Fill data structure used in libint
-!> \param libint ...
-!> \param A ...
-!> \param B ...
-!> \param C ...
-!> \param D ...
-!> \param ZetaInv ...
-!> \param EtaInv ...
-!> \param ZetapEtaInv ...
-!> \param Rho ...
-!> \param P ...
-!> \param Q ...
-!> \param W ...
-!> \param m_max ...
-!> \param F ...
-!> \par History
-!>      03.2007 created [Manuel Guidon]
-!> \author Manuel Guidon
-! **************************************************************************************************
-   SUBROUTINE build_quartet_data(libint, A, B, C, D, &
-                                 ZetaInv, EtaInv, ZetapEtaInv, Rho, &
-                                 P, Q, W, m_max, F)
-
-      TYPE(cp_libint_t)                                  :: libint
-      REAL(KIND=dp), INTENT(IN)                          :: A(3), B(3), C(3), D(3)
-      REAL(dp), INTENT(IN)                               :: ZetaInv, EtaInv, ZetapEtaInv, Rho, P(3), &
-                                                            Q(3), W(3)
-      INTEGER, INTENT(IN)                                :: m_max
-      REAL(KIND=dp), DIMENSION(:)                        :: F
-
-      CALL cp_libint_set_params_eri(libint, A, B, C, D, ZetaInv, EtaInv, ZetapEtaInv, Rho, P, Q, W, m_max, F)
-   END SUBROUTINE build_quartet_data
 
 END MODULE hfx_libint_interface
