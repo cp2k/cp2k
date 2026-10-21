@@ -39,7 +39,6 @@ MODULE xas_tdp_types
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE libint_2c_3c,                    ONLY: libint_potential_type
-   USE libint_wrapper,                  ONLY: cp_libint_static_cleanup
    USE mathlib,                         ONLY: erfc_cutoff
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
@@ -1374,9 +1373,6 @@ CONTAINS
          END DO
          DEALLOCATE (xas_atom_env%orb_sphi_so)
       END IF
-
-      !Clean-up libint
-      CALL cp_libint_static_cleanup()
 
       DEALLOCATE (xas_atom_env)
 

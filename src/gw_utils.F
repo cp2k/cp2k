@@ -89,8 +89,6 @@ MODULE gw_utils
    USE kpoint_types,                    ONLY: kpoint_create,&
                                               kpoint_release,&
                                               kpoint_type
-   USE libint_wrapper,                  ONLY: cp_libint_static_cleanup,&
-                                              cp_libint_static_init
    USE machine,                         ONLY: m_walltime
    USE mathlib,                         ONLY: erfc_cutoff,&
                                               gcd
@@ -187,8 +185,6 @@ CONTAINS
       CALL setup_AO_and_RI_basis_set(qs_env, bs_env)
 
       CALL set_heuristic_parameters(bs_env, qs_env)
-
-      CALL cp_libint_static_init()
 
       IF (bs_env%auto_ri%enabled) CALL generate_auto_ri_basis(qs_env, bs_env)
 
@@ -3542,8 +3538,6 @@ CONTAINS
       ELSE
          CALL neighbor_list_3c_destroy(bs_env%nl_3c)
       END IF
-
-      CALL cp_libint_static_cleanup()
 
       CALL timestop(handle)
 
