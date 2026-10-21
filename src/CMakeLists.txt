@@ -808,6 +808,7 @@ list(
   qs_wannier90.F
   qs_wf_history_methods.F
   qs_wf_history_types.F
+  r12_fundamentals.F
   rel_control_types.F
   replica_methods.F
   replica_types.F

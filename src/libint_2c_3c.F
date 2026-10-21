@@ -12,7 +12,6 @@
 ! **************************************************************************************************
 
 MODULE libint_2c_3c
-   USE gamma,                           ONLY: fgamma => fgamma_0
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_id,&
                                               do_potential_long,&
@@ -33,8 +32,8 @@ MODULE libint_2c_3c
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: nco,&
                                               ncoset
-   USE t_c_g0,                          ONLY: get_lmax_init,&
-                                              t_c_g0_n
+   USE r12_fundamentals,                ONLY: compute_r12_fundamentals
+   USE t_c_g0,                          ONLY: get_lmax_init
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -303,11 +302,7 @@ CONTAINS
       TYPE(coulomb_operator_type), INTENT(IN), OPTIONAL  :: potential_parameter
       TYPE(params_3c), OPTIONAL, POINTER                 :: params_in, params_out
 
-      INTEGER                                            :: l
-      LOGICAL                                            :: use_gamma
-      REAL(dp)                                           :: gammaq, omega2, omega_corr, omega_corr2, &
-                                                            prefac, R, S1234, T, tmp
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: Fm
+      REAL(dp) :: fundamentals_work(prim_data_f_size), gammaq, normalization, prefac, S1234, T
       TYPE(params_3c), POINTER                           :: params
 
       !Assume that one of params_in or params_out is present, and that in the latter case, all
@@ -339,74 +334,21 @@ CONTAINS
 
          params%Fm = 0.0_dp
          SELECT CASE (potential_parameter%potential_type)
-         CASE (do_potential_coulomb)
+         CASE (do_potential_coulomb, do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
+            IF (potential_parameter%potential_type == do_potential_truncated .OR. &
+                potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
+               CPASSERT(get_lmax_init() >= params%m_max)
+            END IF
             T = params%Rho*SUM((params%Q - rk)**2)
             S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
-            prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)*S1234
-
-            CALL fgamma(params%m_max, T, params%Fm)
-            params%Fm = prefac*params%Fm
-         CASE (do_potential_truncated)
-            R = potential_parameter%cutoff_radius*SQRT(params%Rho)
-            T = params%Rho*SUM((params%Q - rk)**2)
-            S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
-            prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)*S1234
-
-            CPASSERT(get_lmax_init() >= params%m_max) !check if truncated coulomb init correctly
-            CALL t_c_g0_n(params%Fm, use_gamma, R, T, params%m_max)
-            IF (use_gamma) CALL fgamma(params%m_max, T, params%Fm)
-            params%Fm = prefac*params%Fm
-         CASE (do_potential_short)
-            T = params%Rho*SUM((params%Q - rk)**2)
-            S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
-            prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)*S1234
-
-            CALL fgamma(params%m_max, T, params%Fm)
-
-            omega2 = potential_parameter%omega**2
-            omega_corr2 = omega2/(omega2 + params%Rho)
-            omega_corr = SQRT(omega_corr2)
-            T = T*omega_corr2
-            ALLOCATE (Fm(prim_data_f_size))
-
-            CALL fgamma(params%m_max, T, Fm)
-            tmp = -omega_corr
-            DO l = 1, params%m_max + 1
-               params%Fm(l) = params%Fm(l) + Fm(l)*tmp
-               tmp = tmp*omega_corr2
-            END DO
-            params%Fm = prefac*params%Fm
-         CASE (do_potential_mix_cl_trunc)
-            R = potential_parameter%cutoff_radius*SQRT(params%Rho)
-            T = params%Rho*SUM((params%Q - rk)**2)
-            S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
-            prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)*S1234
-
-            CPASSERT(get_lmax_init() >= params%m_max) !check if truncated coulomb init correctly
-            CALL t_c_g0_n(params%Fm, use_gamma, R, T, params%m_max)
-            IF (use_gamma) CALL fgamma(params%m_max, T, params%Fm)
-
-            ALLOCATE (Fm(prim_data_f_size))
-            CALL fgamma(params%m_max, T, Fm)
-            DO l = 1, params%m_max + 1
-               params%Fm(l) = params%Fm(l) &
-                              *(potential_parameter%scale_coulomb + potential_parameter%scale_longrange) &
-                              - Fm(l)*potential_parameter%scale_longrange
-            END DO
-            DEALLOCATE (Fm)
-
-            omega2 = potential_parameter%omega**2
-            omega_corr2 = omega2/(omega2 + params%Rho)
-            omega_corr = SQRT(omega_corr2)
-            T = T*omega_corr2
-
-            ALLOCATE (Fm(prim_data_f_size))
-            CALL fgamma(params%m_max, T, Fm)
-            tmp = omega_corr
-            DO l = 1, params%m_max + 1
-               params%Fm(l) = params%Fm(l) + Fm(l)*tmp*potential_parameter%scale_longrange
-               tmp = tmp*omega_corr2
-            END DO
+            CALL compute_r12_fundamentals(params%Fm, normalization, params%m_max, potential_parameter%potential_type, &
+                                          params%Rho, T, fundamentals_work, &
+                                          omega=potential_parameter%omega, &
+                                          cutoff_radius=potential_parameter%cutoff_radius, &
+                                          scale_coulomb=potential_parameter%scale_coulomb, &
+                                          scale_longrange=potential_parameter%scale_longrange, &
+                                          scale_gaussian=0.0_dp)
+            prefac = normalization*SQRT((pi*params%ZetapEtaInv)**3)*S1234
             params%Fm = prefac*params%Fm
          CASE (do_potential_id)
             S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2) &
@@ -715,11 +657,7 @@ CONTAINS
       TYPE(coulomb_operator_type), INTENT(IN), OPTIONAL  :: potential_parameter
       TYPE(params_3c), OPTIONAL, POINTER                 :: params_in, params_out
 
-      INTEGER                                            :: l
-      LOGICAL                                            :: use_gamma
-      REAL(dp)                                           :: gammaq, omega2, omega_corr, omega_corr2, &
-                                                            prefac, R, S1234, T, tmp
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: Fm
+      REAL(dp) :: fundamentals_work(prim_data_f_size), gammaq, normalization, prefac, S1234, T
       TYPE(params_3c), POINTER                           :: params
 
       IF (PRESENT(params_in)) THEN
@@ -739,74 +677,21 @@ CONTAINS
 
          params%Fm = 0.0_dp
          SELECT CASE (potential_parameter%potential_type)
-         CASE (do_potential_coulomb)
+         CASE (do_potential_coulomb, do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
+            IF (potential_parameter%potential_type == do_potential_truncated .OR. &
+                potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
+               CPASSERT(get_lmax_init() >= params%m_max)
+            END IF
             T = params%Rho*SUM((params%Q - rk)**2)
             S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
-            prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)*S1234
-
-            CALL fgamma(params%m_max, T, params%Fm)
-            params%Fm = prefac*params%Fm
-         CASE (do_potential_truncated)
-            R = potential_parameter%cutoff_radius*SQRT(params%Rho)
-            T = params%Rho*SUM((params%Q - rk)**2)
-            S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
-            prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)*S1234
-
-            CPASSERT(get_lmax_init() >= params%m_max) !check if truncated coulomb init correctly
-            CALL t_c_g0_n(params%Fm, use_gamma, R, T, params%m_max)
-            IF (use_gamma) CALL fgamma(params%m_max, T, params%Fm)
-            params%Fm = prefac*params%Fm
-         CASE (do_potential_short)
-            T = params%Rho*SUM((params%Q - rk)**2)
-            S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
-            prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)*S1234
-
-            CALL fgamma(params%m_max, T, params%Fm)
-
-            omega2 = potential_parameter%omega**2
-            omega_corr2 = omega2/(omega2 + params%Rho)
-            omega_corr = SQRT(omega_corr2)
-            T = T*omega_corr2
-            ALLOCATE (Fm(prim_data_f_size))
-
-            CALL fgamma(params%m_max, T, Fm)
-            tmp = -omega_corr
-            DO l = 1, params%m_max + 1
-               params%Fm(l) = params%Fm(l) + Fm(l)*tmp
-               tmp = tmp*omega_corr2
-            END DO
-            params%Fm = prefac*params%Fm
-         CASE (do_potential_mix_cl_trunc)
-            R = potential_parameter%cutoff_radius*SQRT(params%Rho)
-            T = params%Rho*SUM((params%Q - rk)**2)
-            S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
-            prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)*S1234
-
-            CPASSERT(get_lmax_init() >= params%m_max) !check if truncated coulomb init correctly
-            CALL t_c_g0_n(params%Fm, use_gamma, R, T, params%m_max)
-            IF (use_gamma) CALL fgamma(params%m_max, T, params%Fm)
-
-            ALLOCATE (Fm(prim_data_f_size))
-            CALL fgamma(params%m_max, T, Fm)
-            DO l = 1, params%m_max + 1
-               params%Fm(l) = params%Fm(l) &
-                              *(potential_parameter%scale_coulomb + potential_parameter%scale_longrange) &
-                              - Fm(l)*potential_parameter%scale_longrange
-            END DO
-            DEALLOCATE (Fm)
-
-            omega2 = potential_parameter%omega**2
-            omega_corr2 = omega2/(omega2 + params%Rho)
-            omega_corr = SQRT(omega_corr2)
-            T = T*omega_corr2
-
-            ALLOCATE (Fm(prim_data_f_size))
-            CALL fgamma(params%m_max, T, Fm)
-            tmp = omega_corr
-            DO l = 1, params%m_max + 1
-               params%Fm(l) = params%Fm(l) + Fm(l)*tmp*potential_parameter%scale_longrange
-               tmp = tmp*omega_corr2
-            END DO
+            CALL compute_r12_fundamentals(params%Fm, normalization, params%m_max, potential_parameter%potential_type, &
+                                          params%Rho, T, fundamentals_work, &
+                                          omega=potential_parameter%omega, &
+                                          cutoff_radius=potential_parameter%cutoff_radius, &
+                                          scale_coulomb=potential_parameter%scale_coulomb, &
+                                          scale_longrange=potential_parameter%scale_longrange, &
+                                          scale_gaussian=0.0_dp)
+            prefac = normalization*SQRT((pi*params%ZetapEtaInv)**3)*S1234
             params%Fm = prefac*params%Fm
          CASE (do_potential_id)
             S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2) &
@@ -941,11 +826,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: lj_max, lk_max
       TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
 
-      INTEGER                                            :: l, op
-      LOGICAL                                            :: use_gamma
-      REAL(dp)                                           :: omega2, omega_corr, omega_corr2, prefac, &
-                                                            R, T, tmp
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: Fm
+      REAL(dp) :: fundamentals_work(prim_data_f_size), normalization, prefac, T
       TYPE(params_2c)                                    :: params
 
       !The internal structure of libint2 is based on 4-center integrals
@@ -957,7 +838,6 @@ CONTAINS
       !      P -> rk, gammap -> zetk
       !      Q -> rj, gammaq -> zetj
 
-      op = potential_parameter%potential_type
       params%m_max = lj_max + lk_max
       params%ZetaInv = 1._dp/zetk; params%EtaInv = 1._dp/zetj
       params%ZetapEtaInv = 1._dp/(zetk + zetj)
@@ -966,70 +846,21 @@ CONTAINS
       params%Rho = zetk*zetj/(zetk + zetj)
 
       params%Fm = 0.0_dp
-      SELECT CASE (op)
-      CASE (do_potential_coulomb)
+      SELECT CASE (potential_parameter%potential_type)
+      CASE (do_potential_coulomb, do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
+         IF (potential_parameter%potential_type == do_potential_truncated .OR. &
+             potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
+            CPASSERT(get_lmax_init() >= params%m_max)
+         END IF
          T = params%Rho*SUM((rj - rk)**2)
-         prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)
-         CALL fgamma(params%m_max, T, params%Fm)
-         params%Fm = prefac*params%Fm
-      CASE (do_potential_truncated)
-         R = potential_parameter%cutoff_radius*SQRT(params%Rho)
-         T = params%Rho*SUM((rj - rk)**2)
-         prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)
-
-         CPASSERT(get_lmax_init() >= params%m_max) !check if truncated coulomb init correctly
-         CALL t_c_g0_n(params%Fm, use_gamma, R, T, params%m_max)
-         IF (use_gamma) CALL fgamma(params%m_max, T, params%Fm)
-         params%Fm = prefac*params%Fm
-      CASE (do_potential_short)
-         T = params%Rho*SUM((rj - rk)**2)
-         prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)
-
-         CALL fgamma(params%m_max, T, params%Fm)
-
-         omega2 = potential_parameter%omega**2
-         omega_corr2 = omega2/(omega2 + params%Rho)
-         omega_corr = SQRT(omega_corr2)
-         T = T*omega_corr2
-         ALLOCATE (Fm(prim_data_f_size))
-
-         CALL fgamma(params%m_max, T, Fm)
-         tmp = -omega_corr
-         DO l = 1, params%m_max + 1
-            params%Fm(l) = params%Fm(l) + Fm(l)*tmp
-            tmp = tmp*omega_corr2
-         END DO
-         params%Fm = prefac*params%Fm
-      CASE (do_potential_mix_cl_trunc)
-         R = potential_parameter%cutoff_radius*SQRT(params%Rho)
-         T = params%Rho*SUM((rj - rk)**2)
-         prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)
-
-         CPASSERT(get_lmax_init() >= params%m_max) !check if truncated coulomb init correctly
-         CALL t_c_g0_n(params%Fm, use_gamma, R, T, params%m_max)
-         IF (use_gamma) CALL fgamma(params%m_max, T, params%Fm)
-
-         ALLOCATE (Fm(prim_data_f_size))
-         CALL fgamma(params%m_max, T, Fm)
-         DO l = 1, params%m_max + 1
-            params%Fm(l) = params%Fm(l) &
-                           *(potential_parameter%scale_coulomb + potential_parameter%scale_longrange) &
-                           - Fm(l)*potential_parameter%scale_longrange
-         END DO
-         DEALLOCATE (Fm)
-
-         omega2 = potential_parameter%omega**2
-         omega_corr2 = omega2/(omega2 + params%Rho)
-         omega_corr = SQRT(omega_corr2)
-         T = T*omega_corr2
-
-         ALLOCATE (Fm(prim_data_f_size))
-         CALL fgamma(params%m_max, T, Fm)
-         tmp = omega_corr
-         DO l = 1, params%m_max + 1
-            params%Fm(l) = params%Fm(l) + Fm(l)*tmp*potential_parameter%scale_longrange
-            tmp = tmp*omega_corr2
-         END DO
+         CALL compute_r12_fundamentals(params%Fm, normalization, params%m_max, potential_parameter%potential_type, &
+                                       params%Rho, T, fundamentals_work, &
+                                       omega=potential_parameter%omega, &
+                                       cutoff_radius=potential_parameter%cutoff_radius, &
+                                       scale_coulomb=potential_parameter%scale_coulomb, &
+                                       scale_longrange=potential_parameter%scale_longrange, &
+                                       scale_gaussian=0.0_dp)
+         prefac = normalization*SQRT((pi*params%ZetapEtaInv)**3)
          params%Fm = prefac*params%Fm
       CASE (do_potential_id)
 
@@ -1194,11 +1025,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: lj_max, lk_max
       TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
 
-      INTEGER                                            :: l, op
-      LOGICAL                                            :: use_gamma
-      REAL(dp)                                           :: omega2, omega_corr, omega_corr2, prefac, &
-                                                            R, T, tmp
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: Fm
+      REAL(dp) :: fundamentals_work(prim_data_f_size), normalization, prefac, T
       TYPE(params_2c)                                    :: params
 
       !The internal structure of libint2 is based on 4-center integrals
@@ -1210,7 +1037,6 @@ CONTAINS
       !      P -> rk, gammap -> zetk
       !      Q -> rj, gammaq -> zetj
 
-      op = potential_parameter%potential_type
       params%m_max = lj_max + lk_max + 1
       params%ZetaInv = 1._dp/zetk; params%EtaInv = 1._dp/zetj
       params%ZetapEtaInv = 1._dp/(zetk + zetj)
@@ -1219,70 +1045,21 @@ CONTAINS
       params%Rho = zetk*zetj/(zetk + zetj)
 
       params%Fm = 0.0_dp
-      SELECT CASE (op)
-      CASE (do_potential_coulomb)
+      SELECT CASE (potential_parameter%potential_type)
+      CASE (do_potential_coulomb, do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
+         IF (potential_parameter%potential_type == do_potential_truncated .OR. &
+             potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
+            CPASSERT(get_lmax_init() >= params%m_max)
+         END IF
          T = params%Rho*SUM((rj - rk)**2)
-         prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)
-         CALL fgamma(params%m_max, T, params%Fm)
-         params%Fm = prefac*params%Fm
-      CASE (do_potential_truncated)
-         R = potential_parameter%cutoff_radius*SQRT(params%Rho)
-         T = params%Rho*SUM((rj - rk)**2)
-         prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)
-
-         CPASSERT(get_lmax_init() >= params%m_max) !check if truncated coulomb init correctly
-         CALL t_c_g0_n(params%Fm, use_gamma, R, T, params%m_max)
-         IF (use_gamma) CALL fgamma(params%m_max, T, params%Fm)
-         params%Fm = prefac*params%Fm
-      CASE (do_potential_short)
-         T = params%Rho*SUM((rj - rk)**2)
-         prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)
-
-         CALL fgamma(params%m_max, T, params%Fm)
-
-         omega2 = potential_parameter%omega**2
-         omega_corr2 = omega2/(omega2 + params%Rho)
-         omega_corr = SQRT(omega_corr2)
-         T = T*omega_corr2
-         ALLOCATE (Fm(prim_data_f_size))
-
-         CALL fgamma(params%m_max, T, Fm)
-         tmp = -omega_corr
-         DO l = 1, params%m_max + 1
-            params%Fm(l) = params%Fm(l) + Fm(l)*tmp
-            tmp = tmp*omega_corr2
-         END DO
-         params%Fm = prefac*params%Fm
-      CASE (do_potential_mix_cl_trunc)
-         R = potential_parameter%cutoff_radius*SQRT(params%Rho)
-         T = params%Rho*SUM((rj - rk)**2)
-         prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)
-
-         CPASSERT(get_lmax_init() >= params%m_max) !check if truncated coulomb init correctly
-         CALL t_c_g0_n(params%Fm, use_gamma, R, T, params%m_max)
-         IF (use_gamma) CALL fgamma(params%m_max, T, params%Fm)
-
-         ALLOCATE (Fm(prim_data_f_size))
-         CALL fgamma(params%m_max, T, Fm)
-         DO l = 1, params%m_max + 1
-            params%Fm(l) = params%Fm(l) &
-                           *(potential_parameter%scale_coulomb + potential_parameter%scale_longrange) &
-                           - Fm(l)*potential_parameter%scale_longrange
-         END DO
-         DEALLOCATE (Fm)
-
-         omega2 = potential_parameter%omega**2
-         omega_corr2 = omega2/(omega2 + params%Rho)
-         omega_corr = SQRT(omega_corr2)
-         T = T*omega_corr2
-
-         ALLOCATE (Fm(prim_data_f_size))
-         CALL fgamma(params%m_max, T, Fm)
-         tmp = omega_corr
-         DO l = 1, params%m_max + 1
-            params%Fm(l) = params%Fm(l) + Fm(l)*tmp*potential_parameter%scale_longrange
-            tmp = tmp*omega_corr2
-         END DO
+         CALL compute_r12_fundamentals(params%Fm, normalization, params%m_max, potential_parameter%potential_type, &
+                                       params%Rho, T, fundamentals_work, &
+                                       omega=potential_parameter%omega, &
+                                       cutoff_radius=potential_parameter%cutoff_radius, &
+                                       scale_coulomb=potential_parameter%scale_coulomb, &
+                                       scale_longrange=potential_parameter%scale_longrange, &
+                                       scale_gaussian=0.0_dp)
+         prefac = normalization*SQRT((pi*params%ZetapEtaInv)**3)
          params%Fm = prefac*params%Fm
       CASE (do_potential_id)
 
