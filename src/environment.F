@@ -25,6 +25,7 @@ MODULE environment
    USE cp_cfm_elpa,                     ONLY: check_elpa_c_kernel_correctness
    USE cp_error_handling,               ONLY: warning_counter
    USE cp_files,                        ONLY: close_file,&
+                                              get_compile_dir,&
                                               get_data_dir,&
                                               open_file
    USE cp_fm_cholesky,                  ONLY: FM_CHOLESKY_TYPE_DLAF,&
@@ -87,7 +88,7 @@ MODULE environment
    USE local_gemm_api,                  ONLY: local_gemm_set_library
    USE machine,                         ONLY: &
         flush_should_flush, m_cpuid, m_cpuid_name, m_cpuid_static, m_cpuid_vlen, m_cpuinfo, &
-        m_energy, m_memory_details, m_omp_get_stacksize, m_omp_trace_issues, m_procrun
+        m_energy, m_getexe, m_memory_details, m_omp_get_stacksize, m_omp_trace_issues, m_procrun
    USE message_passing,                 ONLY: mp_collect_timings,&
                                               mp_para_env_type
    USE mp_perf_env,                     ONLY: add_mp_perf_env,&
@@ -156,6 +157,7 @@ CONTAINS
       CHARACTER(LEN=*), OPTIONAL                         :: wdir
 
       CHARACTER(LEN=10*default_string_length)            :: cp_flags
+      CHARACTER(LEN=default_path_length)                 :: path
       INTEGER                                            :: i, ilen, my_output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -231,12 +233,30 @@ CONTAINS
          WRITE (UNIT=my_output_unit, FMT="(T2,A,T31,A50)") &
             "CP2K| Program compiled for", &
             ADJUSTR(compile_arch(1:MIN(50, LEN(compile_arch))))
+         path = get_compile_dir()
          WRITE (UNIT=my_output_unit, FMT="(T2,A,T31,A50)") &
-            "CP2K| Data directory path", &
-            ADJUSTR(TRIM(get_data_dir()))
+            "CP2K| Program compiled in", ADJUSTR(path(1:50))
+         DO i = 51, LEN_TRIM(path), 50
+            WRITE (UNIT=my_output_unit, FMT="(T2,A,T31,A)") "CP2K|", path(i:MIN(LEN_TRIM(path), i + 49))
+         END DO
+         CALL m_getexe(path)
          WRITE (UNIT=my_output_unit, FMT="(T2,A,T31,A50)") &
-            "CP2K| Input file name", &
-            ADJUSTR(TRIM(input_file_name))
+            "CP2K| Program executable", ADJUSTR(path(1:50))
+         DO i = 51, LEN_TRIM(path), 50
+            WRITE (UNIT=my_output_unit, FMT="(T2,A,T31,A)") "CP2K|", path(i:MIN(LEN_TRIM(path), i + 49))
+         END DO
+         path = get_data_dir()
+         WRITE (UNIT=my_output_unit, FMT="(T2,A,T31,A50)") &
+            "CP2K| Data directory path", ADJUSTR(path(1:50))
+         DO i = 51, LEN_TRIM(path), 50
+            WRITE (UNIT=my_output_unit, FMT="(T2,A,T31,A)") "CP2K|", path(i:MIN(LEN_TRIM(path), i + 49))
+         END DO
+         path = input_file_name
+         WRITE (UNIT=my_output_unit, FMT="(T2,A,T31,A50)") &
+            "CP2K| Input file name", ADJUSTR(path(1:50))
+         DO i = 51, LEN_TRIM(path), 50
+            WRITE (UNIT=my_output_unit, FMT="(T2,A,T31,A)") "CP2K|", path(i:MIN(LEN_TRIM(path), i + 49))
+         END DO
          FLUSH (my_output_unit) ! ignore &GLOBAL / FLUSH_SHOULD_FLUSH
       END IF
 

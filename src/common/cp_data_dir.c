@@ -10,6 +10,7 @@
 // Since __DATA_DIR can be arbitrarily long we must not let the preprocessor
 // expand that macro in Fortran code as it could exceed the line length limit.
 static const char *data_dir = __DATA_DIR;
+static const char *compile_dir = __COMPILE_DIR;
 
 /*******************************************************************************
  * \brief Returns path of data directory if set, otherwise an empty string.
@@ -22,5 +23,10 @@ const char *get_data_dir() {
   }
   return data_dir;
 }
+
+/*******************************************************************************
+ * \brief Returns the build directory.
+ ******************************************************************************/
+const char *get_compile_dir() { return compile_dir; }
 
 // EOF
