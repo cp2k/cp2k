@@ -14,6 +14,7 @@
 !>        log(Rc) from a sparse subset of the Braess-Hackbusch minimax data. The
 !>        sparse representation is generated and certified against the tabulated
 !>        minimax-error envelope by tools/minimax_tools/minimax_to_fortran_source.py.
+!>        The same continuous backend supplies the extended ranges used by GW grids.
 !> \par History
 !>      02.2016 created [Patrick Seewald]
 ! **************************************************************************************************
@@ -21,15 +22,8 @@
 MODULE minimax_exp
    USE cp_log_handling,                 ONLY: cp_to_string
    USE kinds,                           ONLY: dp
-   USE minimax_exp_data,                ONLY: R_max,&
-                                              R_mm,&
-                                              R_ref,&
-                                              err_ref,&
-                                              get_minimax_coeff_low,&
-                                              interp_degree,&
-                                              k_max,&
-                                              k_p,&
-                                              ref_p
+   USE minimax_exp_data,                ONLY: &
+        R_max, R_mm, R_ref, err_ref, get_minimax_coeff_low, interp_degree, k_max, k_p, ref_p
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -38,8 +32,8 @@ MODULE minimax_exp
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'minimax_exp'
 
-
-   PUBLIC :: get_exp_minimax_coeff, validate_exp_minimax, check_exp_minimax_range
+   PUBLIC :: get_exp_minimax_coeff, get_exp_minimax_coeff_gw, validate_exp_minimax, &
+             check_exp_minimax_range
 
    ! Sparse coefficient and reference-error data are provided by minimax_exp_data.
 
@@ -77,6 +71,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: numerr
 
       INTEGER, PARAMETER                                 :: npoints = 100
+
       INTEGER                                            :: j, k, np
       REAL(KIND=dp)                                      :: mm, x
 
@@ -228,6 +223,66 @@ CONTAINS
 
    END SUBROUTINE get_reference_index
 
+! **************************************************************************************************
+!> \brief Get exponential-minimax coefficients for GW time/frequency grids.
+!>        Above the historical lower cutoff, evaluate the continuous minimax
+!>        interpolation directly at E_range. Below it, preserve the legacy GW
+!>        rescaling policy.
+!> \param k Number of exponential terms; supported values are 26, 28, 30, 32, 34.
+!> \param E_range Energy range represented by the grid.
+!> \param aw Exponents followed by weights.
+! **************************************************************************************************
+   SUBROUTINE get_exp_minimax_coeff_gw(k, E_range, aw)
+      INTEGER, INTENT(IN)                                :: k
+      REAL(KIND=dp), INTENT(IN)                          :: E_range
+      REAL(KIND=dp), DIMENSION(2*k), INTENT(OUT)         :: aw
+
+      REAL(KIND=dp)                                      :: E_ratio, R_min, Rc
+
+      SELECT CASE (k)
+      CASE (26)
+         R_min = 799.0_dp
+      CASE (28)
+         R_min = 1545.0_dp
+      CASE (30)
+         R_min = 2906.0_dp
+      CASE (32)
+         R_min = 4862.0_dp
+      CASE (34)
+         R_min = 9649.0_dp
+      CASE DEFAULT
+         CPABORT("The grid size you choose is not available.")
+      END SELECT
+
+      E_ratio = 1.0_dp
+      Rc = E_range
+      IF (E_range < R_min) THEN
+         E_ratio = R_min/E_range
+         Rc = R_min
+      END IF
+
+      CALL get_minimax_coeff_data(k, Rc, aw)
+      CALL rescale_grid(aw, E_ratio)
+
+   END SUBROUTINE get_exp_minimax_coeff_gw
+
+! **************************************************************************************************
+!> \brief Preserve the historical low-range scaling used by GW minimax grids.
+!> \param aw Exponents followed by weights.
+!> \param E_ratio Ratio between the minimum supported range and requested range.
+! **************************************************************************************************
+   PURE SUBROUTINE rescale_grid(aw, E_ratio)
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: aw
+      REAL(KIND=dp), INTENT(INOUT)                       :: E_ratio
+
+      IF (E_ratio > 1.5_dp) THEN
+         E_ratio = E_ratio/1.5_dp
+      ELSE
+         E_ratio = 1.0_dp
+      END IF
+      aw(:) = aw(:)*E_ratio
+
+   END SUBROUTINE rescale_grid
 ! **************************************************************************************************
 !> \brief Unit test checking exponential-minimax errors against the tabulated reference envelope.
 !> \param n_R Number of arbitrary Rc values to be tested.

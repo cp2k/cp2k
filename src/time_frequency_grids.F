@@ -15,8 +15,8 @@ MODULE time_frequency_grids
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi,&
                                               z_zero
-   USE minimax_exp,                     ONLY: get_exp_minimax_coeff
-   USE minimax_exp_gw,                  ONLY: get_exp_minimax_coeff_gw
+   USE minimax_exp,                     ONLY: get_exp_minimax_coeff,&
+                                              get_exp_minimax_coeff_gw
    USE minimax_rpa,                     ONLY: get_rpa_minimax_coeff,&
                                               get_rpa_minimax_coeff_larger_grid
 #include "./base/base_uses.f90"

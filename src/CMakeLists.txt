@@ -1161,13 +1161,8 @@ list(
 list(APPEND CP2K_SRCS_F mimic/mimic_communicator.F mimic/mimic_loop.F
      mimic/mcl_wrapper/mcl_api.F mimic/mcl_wrapper/mcl_requests.F)
 
-list(
-  APPEND
-  CP2K_SRCS_F
-  minimax/minimax_exp.F
-  minimax/minimax_exp_gw.F
-  minimax/minimax_exp_data.F
-  minimax/minimax_rpa.F)
+list(APPEND CP2K_SRCS_F minimax/minimax_exp.F minimax/minimax_exp_data.F
+     minimax/minimax_rpa.F)
 
 list(
   APPEND

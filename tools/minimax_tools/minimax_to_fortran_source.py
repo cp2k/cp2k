@@ -59,7 +59,7 @@ def main() -> None:
     assert input_path.exists()
 
     raw = parse_data_set(input_path)
-    source = filter_orig(raw)
+    source = select_source_data(raw)
     by_k = group_by_k(source)
     sparse = fit_sparse_data(by_k)
     certify_sparse_data(by_k, sparse)
@@ -237,6 +237,19 @@ def filter_orig(approx_in: List[Approximation]) -> List[Approximation]:
             if Rc_min <= a.Rc <= Rc_max:
                 approx_out.append(a)
     return approx_out
+
+
+# ======================================================================================
+def select_source_data(raw: List[Approximation]) -> List[Approximation]:
+    """Select source ranges used by the unified exponential-minimax backend."""
+
+    source = filter_orig(raw)
+    # The historical GW grids use much wider low/intermediate-Rc ranges for
+    # these five k values. Keep all published source points so the same
+    # continuous interpolation backend can serve both the general and GW APIs.
+    source = [a for a in source if a.k not in GW_K]
+    source.extend(a for a in raw if a.k in GW_K)
+    return source
 
 
 # ======================================================================================
