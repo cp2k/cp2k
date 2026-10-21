@@ -44,6 +44,10 @@ MODULE hfx_types
         dbt_create, dbt_default_distvec, dbt_destroy, dbt_distribution_destroy, &
         dbt_distribution_new, dbt_distribution_type, dbt_mp_dims_create, dbt_pgrid_create, &
         dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
+   USE four_center_integral_types,      ONLY: hfx_cell_type => eri4_cell_type,&
+                                              hfx_pgf_list => eri4_pgf_pair_type,&
+                                              hfx_pgf_product_list => eri4_pgf_product_type,&
+                                              hfx_screen_coeff_type => eri4_screen_coeff_type
    USE hfx_helpers,                     ONLY: count_cells_perd,&
                                               next_image_cell_perd
    USE input_constants,                 ONLY: &
@@ -63,10 +67,14 @@ MODULE hfx_types
                                               default_string_length,&
                                               dp,&
                                               int_8
-   USE libint_wrapper,                  ONLY: &
-        cp_libint_cleanup_eri, cp_libint_cleanup_eri1, cp_libint_init_eri, cp_libint_init_eri1, &
-        cp_libint_set_contrdepth, cp_libint_static_cleanup, cp_libint_static_init, cp_libint_t, &
-        prim_data_f_size
+   USE libint_wrapper,                  ONLY: cp_libint_cleanup_eri,&
+                                              cp_libint_cleanup_eri1,&
+                                              cp_libint_init_eri,&
+                                              cp_libint_init_eri1,&
+                                              cp_libint_set_contrdepth,&
+                                              cp_libint_static_cleanup,&
+                                              cp_libint_static_init,&
+                                              cp_libint_t
    USE machine,                         ONLY: m_chdir,&
                                               m_getcwd
    USE mathlib,                         ONLY: erfc_cutoff
@@ -195,12 +203,6 @@ MODULE hfx_types
    END TYPE hfx_general_type
 
 ! **************************************************************************************************
-   TYPE hfx_cell_type
-      REAL(dp)                                 :: cell(3) = 0.0_dp
-      REAL(dp)                                 :: cell_r(3) = 0.0_dp
-   END TYPE hfx_cell_type
-
-! **************************************************************************************************
    TYPE hfx_distribution
       INTEGER(int_8)                           :: istart = 0_int_8
       INTEGER(int_8)                           :: number_of_atom_quartets = 0_int_8
@@ -283,11 +285,6 @@ MODULE hfx_types
    END TYPE hfx_basis_info_type
 
 ! **************************************************************************************************
-   TYPE hfx_screen_coeff_type
-      REAL(dp)                                 :: x(2) = 0.0_dp
-   END TYPE hfx_screen_coeff_type
-
-! **************************************************************************************************
    TYPE hfx_p_kind
       REAL(dp), DIMENSION(:, :, :, :), POINTER    :: p_kind => NULL()
    END TYPE hfx_p_kind
@@ -297,38 +294,6 @@ MODULE hfx_types
       INTEGER, DIMENSION(:), POINTER           :: iatom_list => NULL()
       INTEGER, DIMENSION(:), POINTER           :: jatom_list => NULL()
    END TYPE hfx_2D_map
-
-! **************************************************************************************************
-   TYPE hfx_pgf_image
-      REAL(dp)                                 :: ra(3) = 0.0_dp, rb(3) = 0.0_dp
-      REAL(dp)                                 :: rab2 = 0.0_dp
-      REAL(dp)                                 :: S1234 = 0.0_dp
-      REAL(dp)                                 :: P(3) = 0.0_dp
-      REAL(dp)                                 :: R = 0.0_dp
-      REAL(dp)                                 :: pgf_max = 0.0_dp
-      REAL(dp), DIMENSION(3)                   :: bcell = 0.0_dp
-   END TYPE hfx_pgf_image
-
-! **************************************************************************************************
-   TYPE hfx_pgf_list
-      TYPE(hfx_pgf_image), DIMENSION(:), POINTER &
-         :: image_list => NULL()
-      INTEGER                                  :: nimages = 0
-      REAL(dp)                                 :: zetapzetb = 0.0_dp
-      REAL(dp)                                 :: ZetaInv = 0.0_dp
-      REAL(dp)                                 :: zeta = 0.0_dp, zetb = 0.0_dp
-      INTEGER                                  :: ipgf = 0, jpgf = 0
-   END TYPE hfx_pgf_list
-
-! **************************************************************************************************
-   TYPE hfx_pgf_product_list
-      REAL(dp)                                 :: ra(3) = 0.0_dp, rb(3) = 0.0_dp, rc(3) = 0.0_dp, rd(3) = 0.0_dp
-      REAL(dp)                                 :: ZetapEtaInv = 0.0_dp
-      REAL(dp)                                 :: Rho = 0.0_dp, RhoInv = 0.0_dp
-      REAL(dp)                                 :: P(3) = 0.0_dp, Q(3) = 0.0_dp, W(3) = 0.0_dp
-      REAL(dp)                                 :: AB(3) = 0.0_dp, CD(3) = 0.0_dp
-      REAL(dp)                                 :: Fm(prim_data_f_size) = 0.0_dp
-   END TYPE hfx_pgf_product_list
 
 ! **************************************************************************************************
    TYPE hfx_block_range_type
