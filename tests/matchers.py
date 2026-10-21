@@ -629,3 +629,5 @@ registry["Kubo_symmetry_current_error"] = GenericMatcher(
 registry["Kubo_symmetry_points"] = GenericMatcher(
     r"KUBO_TRANSPORT| Property symmetry representatives:", col=5
 )
+
+registry["TACO_writer_header"] = TextPresenceMatcher('"software":"CP2K"')

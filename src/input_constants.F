@@ -398,7 +398,8 @@ MODULE input_constants
                                                dump_dcd = 3, &
                                                dump_pdb = 4, &
                                                dump_dcd_aligned_cell = 5, &
-                                               dump_extxyz = 6
+                                               dump_extxyz = 6, &
+                                               dump_taco = 7
 
    INTEGER, PARAMETER, PUBLIC               :: fmt_id_xyz = 1, &
                                                fmt_id_pdb = 2
