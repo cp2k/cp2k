@@ -852,17 +852,15 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_ri_rs_memory_estimate'
 
       CHARACTER(LEN=max_line_length)                     :: msg
-      INTEGER                                            :: handle, ipan, max_n_local_grid, &
-                                                            n_grid_total, n_procs, n_RI, pan_rows, &
-                                                            pan_width
+      INTEGER                                            :: handle, ipan, n_grid_total, n_procs, &
+                                                            n_RI, pan_rows, pan_width
       INTEGER(KIND=int_8)                                :: nze_tmpl
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pan_first, pan_last
       INTEGER, DIMENSION(:), POINTER                     :: r_blk_sizes
       LOGICAL                                            :: use_cutoff
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: grid_used
-      REAL(KIND=dp)                                      :: mem_avail_GB, mem_gram_GB, mem_pan_GB, &
-                                                            mem_panels_GB, mem_Z_lP_GB, &
-                                                            mem_Zlp_peak_GB
+      REAL(KIND=dp)                                      :: mem_avail_GB, mem_pan_GB, mem_panels_GB, &
+                                                            mem_Z_lP_GB
 
       CALL timeset(routineN, handle)
 
@@ -909,13 +907,6 @@ CONTAINS
       mem_panels_GB = mem_panels_GB + &
                       REAL(n_RI, dp)*REAL(n_RI, dp)*8.0_dp/REAL(n_procs, dp)*1.0E-9_dp
 
-      ! Fitting setup records the same Gram + phi + threaded RHS model used for
-      ! solver selection. AUTO-RI records its own common-grid or localized dimensions.
-      ! A restart read has no fitting peak and needs no diagnostic geometry scan.
-      max_n_local_grid = bs_env%ri_rs%fit_max_grid
-      mem_gram_GB = 8.0_dp*REAL(max_n_local_grid, dp)**2*1.0E-9_dp
-      mem_Zlp_peak_GB = bs_env%ri_rs%fit_peak_bytes*1.0E-9_dp
-
       ! Available memory per process = node MemLikelyFree / ranks-per-node, min across ranks
       ! (0 on non-Linux => warnings suppressed below).
       CALL mp_mem_avail_per_rank_GB(bs_env%para_env, mem_avail_GB)
@@ -931,13 +922,6 @@ CONTAINS
             'Required for χ, W, Σ panels (peak per panel step)', mem_panels_GB, ' GB'
          IF (bs_env%ri_rs%Z_lP_exists .AND. .NOT. bs_env%auto_ri%enabled) THEN
             WRITE (bs_env%unit_nr, '(T4,A)') 'Z_lP fitting skipped (matrix read from restart)'
-         ELSE
-            WRITE (bs_env%unit_nr, '(T4,A,F17.2,A)') &
-               'Required for Z_lP fit (Gram+phi+RHS, single-rank bound)', mem_Zlp_peak_GB, ' GB'
-            WRITE (bs_env%unit_nr, '(T4,A,T69,I12)') &
-               'Largest fitting-grid number of grid points:', max_n_local_grid
-            WRITE (bs_env%unit_nr, '(T4,A,T69,F9.2,A)') &
-               'Largest dense Gram matrix:', mem_gram_GB, ' GB'
          END IF
 
       END IF
@@ -956,17 +940,6 @@ CONTAINS
             " GB per process, exceeds the available ", mem_avail_GB, " GB. Panel memory "// &
             "scales roughly as 3*panel_size*n_grid/n_procs, so add nodes, use fewer MPI ranks "// &
             "per node."
-         CPWARN(TRIM(msg))
-      END IF
-
-      IF (mem_avail_GB > 0.0_dp .AND. mem_Zlp_peak_GB > mem_avail_GB) THEN
-         WRITE (msg, '(A,F0.2,A,F0.2,A)') &
-            "The estimated peak memory of the Z_lP solve, ", mem_Zlp_peak_GB, &
-            " GB per process, exceeds the available ", mem_avail_GB, &
-            " GB. The dense Gram matrix scales as n_local_grid^2; "// &
-            "the estimate assumes a single-rank solve. Localized fits may distribute the Gram "// &
-            "matrix over a ScaLAPACK subgroup. Use fewer MPI ranks per node if more memory "// &
-            "per rank is needed."
          CPWARN(TRIM(msg))
       END IF
 

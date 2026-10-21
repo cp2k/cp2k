@@ -40,7 +40,8 @@ MODULE ri_rs_setup
                                               gw_3c_ws_release,&
                                               gw_3c_ws_type
    USE input_section_types,             ONLY: section_vals_type
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              max_line_length
    USE libint_2c_3c,                    ONLY: eri_3center
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
@@ -837,7 +838,9 @@ CONTAINS
                                                             have_fitted_columns, &
                                                             reuse_atomic_integrals
       LOGICAL, ALLOCATABLE                               :: ao_nonzero(:, :)
-      REAL(KIND=dp)                                      :: cutoff_ri, item_start_time, r_c, t1
+      REAL(KIND=dp)                                      :: cutoff_ri, item_start_time, &
+                                                            mem_avail_GB, previous_fit_peak, r_c, &
+                                                            t1
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: d_lp_all, d_lp_local, phi_local, U_Pp_AB
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: U_active
       REAL(KIND=dp), DIMENSION(3)                        :: center
@@ -879,18 +882,20 @@ CONTAINS
                                       common_grid_available, have_fitted_columns)
 
       IF (common_grid_available .AND. have_fitted_columns) THEN
+         CALL mp_mem_avail_per_rank_GB(para_env, mem_avail_GB)
          ! Evaluate ϕ_μ(r_l) once on the common grid.
          CALL build_phi_on_complete_grid(bs_env, qs_kind_set, &
                                          ri_rs_grid_points, local_grid_idx, ngrid, &
                                          phi_local, ao_atoms, ao_col_start, ao_nonzero)
          nri = SUM(ri_blk_sizes)
+         CALL record_fit_memory(bs_env%ri_rs, ngrid, SIZE(phi_local, 2), nri)
+         CALL print_fit_memory_estimate(bs_env, mem_avail_GB)
          ALLOCATE (d_lp_all(ngrid, nri), source=0.0_dp)
          ! d_lp = Σ_A Σ_{P∈A} d_lP U_Pp for every optimized RI function q.
          CALL compute_d_lp_auto_ri_batch(bs_env, ctx_3c, phi_local, ao_atoms, ao_col_start, ao_nonzero, d_lp_all, ngrid, &
                                          max_ao_size, para_env%mepos, para_env%num_pe)
          DEALLOCATE (ao_atoms, ao_col_start, ao_nonzero)
          CALL para_env%sum(d_lp_all)
-         CALL record_fit_memory(bs_env%ri_rs, ngrid, SIZE(phi_local, 2), nri)
          CALL solve_ri_rs_fit(phi_local, d_lp_all, bs_env%ri_rs%tikhonov)
 
          DO AB_block = 1, bs_env%auto_ri%AB_block_count
@@ -947,6 +952,8 @@ CONTAINS
             CALL fit_auto_ri_z_lp(qs_env, bs_env, ri_rs_grid_points, mat_rhs, mat_Z_lP)
             CALL dbcsr_release(mat_rhs)
          ELSE
+            ! All ranks query memory before process columns enter independent fitting loops.
+            CALL mp_mem_avail_per_rank_GB(para_env, mem_avail_GB)
             ALLOCATE (para_env_col)
             CALL para_env_col%from_split(para_env, mypcol)
             n_my_atoms = 0
@@ -1046,6 +1053,11 @@ CONTAINS
                                         local_grid_idx, ngrid, phi_local, ao_atoms, ao_col_start, &
                                         center=center, ao_nonzero=ao_nonzero)
                ncol = ri_blk_sizes(fit_atom)
+               previous_fit_peak = bs_env%ri_rs%fit_peak_bytes
+               CALL record_fit_memory(bs_env%ri_rs, ngrid, SIZE(phi_local, 2), ncol)
+               IF (bs_env%ri_rs%fit_peak_bytes > previous_fit_peak) THEN
+                  CALL print_fit_memory_estimate(bs_env, mem_avail_GB)
+               END IF
                ALLOCATE (d_lp_local(ngrid, ncol), source=0.0_dp)
                ! d_lp = Σ_A Σ_{P∈A} d_lP U_Pp on the grid of this atomic column block.
                CALL compute_d_lp_auto_ri(bs_env, ctx_3c, phi_local, ao_atoms, ao_col_start, ao_nonzero, &
@@ -1053,7 +1065,6 @@ CONTAINS
                                          para_env_col%mepos, para_env_col%num_pe)
                DEALLOCATE (ao_atoms, ao_col_start, ao_nonzero)
                CALL para_env_col%sum(d_lp_local)
-               CALL record_fit_memory(bs_env%ri_rs, ngrid, SIZE(phi_local, 2), ncol)
                CALL solve_ri_rs_fit(phi_local, d_lp_local, bs_env%ri_rs%tikhonov)
                CALL add_Z_lP_columns(mat_Z_lP, d_lp_local, local_grid_idx, ngrid, fit_atom, 1, &
                                      ri_blk_sizes(fit_atom), row_size_grid, row_offset, &
@@ -2277,6 +2288,7 @@ CONTAINS
 !>        fits alongside the replicated phi_local + d_lp. G is floored by the ScaLAPACK 32-bit
 !>        index limit (a local block-cyclic slice of ~n_local_grid^2/G elements must stay below
 !>        2^31 or pdpotrf segfaults).
+!>        Records and reports the memory estimates before the standard or AUTO_RI solves.
 !> \param bs_env ...
 !> \param ri_rs_grid_points ...
 !> \param cutoff_ri_per_atom ...
@@ -2385,6 +2397,7 @@ CONTAINS
                          CEILING(8.0_dp*ng*ng/MAX(budget_bytes - phi_bytes - dlp_bytes, 1.0_dp)))
          END IF
       END DO
+      CALL print_fit_memory_estimate(bs_env, mem_avail_GB)
       IF (n_big > 0) THEN
          IF (G_atom > para_env%num_pe) THEN
             CALL cp_abort(__LOCATION__, &
@@ -2820,5 +2833,44 @@ CONTAINS
       ri_rs%fit_peak_bytes = MAX(ri_rs%fit_peak_bytes, peak)
       IF (PRESENT(peak_bytes)) peak_bytes = peak
    END SUBROUTINE record_fit_memory
+
+! **************************************************************************************************
+!> \brief Prints the fitting memory bound before allocating the local fitting RHS and Gram matrix.
+!> \param bs_env recorded fitting sizes and output unit
+!> \param mem_avail_GB available memory per rank, measured collectively by the caller
+! **************************************************************************************************
+   SUBROUTINE print_fit_memory_estimate(bs_env, mem_avail_GB)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      REAL(KIND=dp), INTENT(IN)                          :: mem_avail_GB
+
+      CHARACTER(LEN=max_line_length)                     :: msg
+      REAL(KIND=dp)                                      :: mem_gram_GB, mem_Zlp_peak_GB
+
+      mem_gram_GB = 8.0_dp*REAL(bs_env%ri_rs%fit_max_grid, dp)**2*1.0E-9_dp
+      mem_Zlp_peak_GB = bs_env%ri_rs%fit_peak_bytes*1.0E-9_dp
+      IF (bs_env%unit_nr > 0) THEN
+         WRITE (bs_env%unit_nr, '(T2,A)') 'RI-RS fitting memory estimate per MPI process:'
+         WRITE (bs_env%unit_nr, '(T4,A,F37.2,A)') &
+            'Available memory per process (system)', mem_avail_GB, ' GB'
+         WRITE (bs_env%unit_nr, '(T4,A,F17.2,A)') &
+            'Required for Z_lP fit (Gram+phi+RHS, single-rank bound)', mem_Zlp_peak_GB, ' GB'
+         WRITE (bs_env%unit_nr, '(T4,A,T69,I12)') &
+            'Largest fitting-grid number of grid points:', bs_env%ri_rs%fit_max_grid
+         WRITE (bs_env%unit_nr, '(T4,A,T69,F9.2,A)') &
+            'Largest dense Gram matrix:', mem_gram_GB, ' GB'
+         CALL m_flush(bs_env%unit_nr)
+      END IF
+
+      IF (mem_avail_GB > 0.0_dp .AND. mem_Zlp_peak_GB > mem_avail_GB) THEN
+         WRITE (msg, '(A,F0.2,A,F0.2,A)') &
+            "The estimated peak memory of the Z_lP solve, ", mem_Zlp_peak_GB, &
+            " GB per process, exceeds the available ", mem_avail_GB, &
+            " GB. The dense Gram matrix scales as n_local_grid^2; "// &
+            "the estimate assumes a single-rank solve. Localized fits may distribute the Gram "// &
+            "matrix over a ScaLAPACK subgroup. Use fewer MPI ranks per node if more memory "// &
+            "per rank is needed."
+         CPWARN(TRIM(msg))
+      END IF
+   END SUBROUTINE print_fit_memory_estimate
 
 END MODULE ri_rs_setup
