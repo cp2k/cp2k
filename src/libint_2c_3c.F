@@ -21,14 +21,10 @@ MODULE libint_2c_3c
                                               coulomb_operator_type,&
                                               libint_potential_type => coulomb_operator_type
    USE kinds,                           ONLY: dp
-   USE libint_wrapper,                  ONLY: cp_libint_get_2eri_derivs,&
-                                              cp_libint_get_2eris,&
-                                              cp_libint_get_3eri_derivs,&
-                                              cp_libint_get_3eris,&
-                                              cp_libint_set_params_eri,&
-                                              cp_libint_set_params_eri_deriv,&
-                                              cp_libint_t,&
-                                              prim_data_f_size
+   USE libint_wrapper,                  ONLY: &
+        cp_libint_get_2eri_derivs, cp_libint_get_2eris, cp_libint_get_3eri_derivs, &
+        cp_libint_get_3eris, cp_libint_set_params_eri, cp_libint_set_params_eri_deriv, &
+        cp_libint_t, eri_primitive_data_type, prim_data_f_size
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: nco,&
                                               ncoset
@@ -47,13 +43,6 @@ MODULE libint_2c_3c
    ! For screening of integrals with a truncated potential, it is important to use a slightly larger
    ! cutoff radius due to the discontinuity of the truncated Coulomb potential at the cutoff radius.
    REAL(KIND=dp), PARAMETER :: cutoff_screen_factor = 1.0001_dp
-
-   TYPE :: libint_primitive_params_type
-      INTEGER :: m_max = 0
-      REAL(dp) :: ZetaInv = 0.0_dp, EtaInv = 0.0_dp, ZetapEtaInv = 0.0_dp, Rho = 0.0_dp
-      REAL(dp) :: Q(3) = 0.0_dp, W(3) = 0.0_dp
-      REAL(dp) :: Fm(prim_data_f_size) = 0.0_dp
-   END TYPE libint_primitive_params_type
 
 CONTAINS
 
@@ -114,7 +103,7 @@ CONTAINS
          jpgf, k, kpgf, li, lj, lk, ncoa, ncob, ncoc, op, p1, p2, p3
       REAL(dp)                                           :: dr_ab, dr_ac, dr_bc, zeti, zetj, zetk
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
-      TYPE(libint_primitive_params_type)                 :: params
+      TYPE(eri_primitive_data_type)                      :: params
 
       NULLIFY (p_work)
 
@@ -166,9 +155,7 @@ CONTAINS
                !start with all the (c|ba) integrals (standard order) and keep to lb >= la
                CALL prepare_3c_primitive(ra, rb, rc, zeti, zetj, zetk, &
                                          la_max + lb_max + lc_max, potential_parameter, params)
-               CALL cp_libint_set_params_eri(lib, rc, rc, rb, ra, params%ZetaInv, params%EtaInv, &
-                                             params%ZetapEtaInv, params%Rho, rc, params%Q, params%W, &
-                                             params%m_max, params%Fm)
+               CALL cp_libint_set_params_eri(lib, params, [1, 2, 3, 4], params%prepared_max_order)
 
                DO li = la_min, la_max
                   a_offset = a_start + ncoset(li - 1)
@@ -213,9 +200,7 @@ CONTAINS
                END DO !li
 
                !swap centers 3 and 4 to compute (c|ab) with lb < la
-               CALL cp_libint_set_params_eri(lib, rc, rc, ra, rb, params%ZetaInv, params%EtaInv, &
-                                             params%ZetapEtaInv, params%Rho, rc, params%Q, params%W, &
-                                             params%m_max, params%Fm)
+               CALL cp_libint_set_params_eri(lib, params, [1, 2, 4, 3], params%prepared_max_order)
 
                DO lj = lb_min, lb_max
                   b_offset = b_start + ncoset(lj - 1)
@@ -281,13 +266,21 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: ri(3), rj(3), rk(3), zeti, zetj, zetk
       INTEGER, INTENT(IN)                                :: m_max
       TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
-      TYPE(libint_primitive_params_type), INTENT(INOUT)  :: params
+      TYPE(eri_primitive_data_type), INTENT(INOUT)       :: params
 
       REAL(dp) :: fundamentals_work(prim_data_f_size), gammaq, normalization, prefac, S1234, T
 
       CPASSERT(m_max < prim_data_f_size)
 
-      params%m_max = m_max
+      ! Libint layout: (k, dummy k | j, i).
+      params%centers(:, 1) = rk
+      params%centers(:, 2) = rk
+      params%centers(:, 3) = rj
+      params%centers(:, 4) = ri
+      params%exponents = [zetk, 0.0_dp, zetj, zeti]
+      params%P = rk
+
+      params%prepared_max_order = m_max
       gammaq = zeti + zetj
       params%ZetaInv = 1._dp/zetk; params%EtaInv = 1._dp/gammaq
       params%ZetapEtaInv = 1._dp/(zetk + gammaq)
@@ -301,11 +294,11 @@ CONTAINS
       CASE (do_potential_coulomb, do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
          IF (potential_parameter%potential_type == do_potential_truncated .OR. &
              potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
-            CPASSERT(get_lmax_init() >= params%m_max)
+            CPASSERT(get_lmax_init() >= params%prepared_max_order)
          END IF
          T = params%Rho*SUM((params%Q - rk)**2)
          S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
-         CALL compute_r12_fundamentals(params%Fm, normalization, params%m_max, potential_parameter%potential_type, &
+         CALL compute_r12_fundamentals(params%Fm, normalization, params%prepared_max_order, potential_parameter%potential_type, &
                                        params%Rho, T, fundamentals_work, &
                                        omega=potential_parameter%omega, &
                                        cutoff_radius=potential_parameter%cutoff_radius, &
@@ -389,7 +382,7 @@ CONTAINS
       REAL(dp)                                           :: dr_ab, dr_ac, dr_bc, zeti, zetj, zetk
       REAL(dp), DIMENSION(3)                             :: der_abc_1_ext_prv, der_abc_2_ext_prv
       REAL(dp), DIMENSION(:, :), POINTER                 :: p_deriv
-      TYPE(libint_primitive_params_type)                 :: params
+      TYPE(eri_primitive_data_type)                      :: params
 
       NULLIFY (p_deriv)
 
@@ -445,9 +438,7 @@ CONTAINS
                !start with all the (c|ba) integrals (standard order) and keep to lb >= la
                CALL prepare_3c_primitive(ra, rb, rc, zeti, zetj, zetk, &
                                          la_max + lb_max + lc_max + 1, potential_parameter, params)
-               CALL cp_libint_set_params_eri_deriv(lib, rc, rc, rb, ra, rc, &
-                                                   params%Q, params%W, zetk, 0.0_dp, zetj, zeti, params%ZetaInv, &
-                                                   params%EtaInv, params%ZetapEtaInv, params%Rho, params%m_max, params%Fm)
+               CALL cp_libint_set_params_eri_deriv(lib, params, [1, 2, 3, 4], params%prepared_max_order)
 
                DO li = la_min, la_max
                   a_offset = a_start + ncoset(li - 1)
@@ -512,9 +503,7 @@ CONTAINS
                END DO !li
 
                !swap centers 3 and 4 to compute (c|ab) with lb < la
-               CALL cp_libint_set_params_eri_deriv(lib, rc, rc, ra, rb, rc, &
-                                                   params%Q, params%W, zetk, 0.0_dp, zeti, zetj, params%ZetaInv, &
-                                                   params%EtaInv, params%ZetapEtaInv, params%Rho, params%m_max, params%Fm)
+               CALL cp_libint_set_params_eri_deriv(lib, params, [1, 2, 4, 3], params%prepared_max_order)
 
                DO lj = lb_min, lb_max
                   b_offset = b_start + ncoset(lj - 1)
@@ -630,7 +619,7 @@ CONTAINS
                                                             li, lj, ncoa, ncob, p1, p2
       REAL(dp)                                           :: dr_ab, zeti, zetj
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
-      TYPE(libint_primitive_params_type)                 :: params
+      TYPE(eri_primitive_data_type)                      :: params
 
       NULLIFY (p_work)
 
@@ -658,9 +647,7 @@ CONTAINS
 
             CALL prepare_2c_primitive(ra, rb, zeti, zetj, la_max + lb_max, &
                                       potential_parameter, params)
-            CALL cp_libint_set_params_eri(lib, rb, rb, ra, ra, params%ZetaInv, params%EtaInv, &
-                                          params%ZetapEtaInv, params%Rho, rb, ra, params%W, &
-                                          params%m_max, params%Fm)
+            CALL cp_libint_set_params_eri(lib, params, [1, 2, 3, 4], params%prepared_max_order)
 
             DO li = la_min, la_max
                a_offset = a_start + ncoset(li - 1)
@@ -702,13 +689,22 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: rj(3), rk(3), zetj, zetk
       INTEGER, INTENT(IN)                                :: m_max
       TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
-      TYPE(libint_primitive_params_type), INTENT(INOUT)  :: params
+      TYPE(eri_primitive_data_type), INTENT(INOUT)       :: params
 
       REAL(dp) :: fundamentals_work(prim_data_f_size), normalization, prefac, T
 
       CPASSERT(m_max < prim_data_f_size)
 
-      params%m_max = m_max
+      ! Libint layout: (k, dummy k | j, dummy j).
+      params%centers(:, 1) = rk
+      params%centers(:, 2) = rk
+      params%centers(:, 3) = rj
+      params%centers(:, 4) = rj
+      params%exponents = [zetk, 0.0_dp, zetj, 0.0_dp]
+      params%P = rk
+      params%Q = rj
+
+      params%prepared_max_order = m_max
       params%ZetaInv = 1._dp/zetk; params%EtaInv = 1._dp/zetj
       params%ZetapEtaInv = 1._dp/(zetk + zetj)
 
@@ -720,10 +716,10 @@ CONTAINS
       CASE (do_potential_coulomb, do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
          IF (potential_parameter%potential_type == do_potential_truncated .OR. &
              potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
-            CPASSERT(get_lmax_init() >= params%m_max)
+            CPASSERT(get_lmax_init() >= params%prepared_max_order)
          END IF
          T = params%Rho*SUM((rj - rk)**2)
-         CALL compute_r12_fundamentals(params%Fm, normalization, params%m_max, potential_parameter%potential_type, &
+         CALL compute_r12_fundamentals(params%Fm, normalization, params%prepared_max_order, potential_parameter%potential_type, &
                                        params%Rho, T, fundamentals_work, &
                                        omega=potential_parameter%omega, &
                                        cutoff_radius=potential_parameter%cutoff_radius, &
@@ -784,7 +780,7 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: permute
       REAL(dp)                                           :: dr_ab, zeti, zetj
       REAL(dp), DIMENSION(:, :), POINTER                 :: p_deriv
-      TYPE(libint_primitive_params_type)                 :: params
+      TYPE(eri_primitive_data_type)                      :: params
 
       NULLIFY (p_deriv)
 
@@ -814,10 +810,7 @@ CONTAINS
 
             CALL prepare_2c_primitive(ra, rb, zeti, zetj, la_max + lb_max + 1, &
                                       potential_parameter, params)
-            CALL cp_libint_set_params_eri_deriv(lib, rb, rb, ra, ra, rb, ra, params%W, zetj, 0.0_dp, &
-                                                zeti, 0.0_dp, params%ZetaInv, params%EtaInv, &
-                                                params%ZetapEtaInv, params%Rho, &
-                                                params%m_max, params%Fm)
+            CALL cp_libint_set_params_eri_deriv(lib, params, [1, 2, 3, 4], params%prepared_max_order)
 
             DO li = la_min, la_max
                a_offset = a_start + ncoset(li - 1)

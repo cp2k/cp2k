@@ -80,7 +80,7 @@ CONTAINS
       REAL(dp) :: C11(3), den, Eta, EtaInv, fundamentals_work(eri4_fundamentals_size), G(3), &
          min_img_delta, normalization, num, P(3), pgf_max_1, pgf_max_2, PQ(3), pq2, prefactor, &
          Q(3), R1, R2, r_cutoff_sq, r_cutoff_sq_guard, ra(3), rb(3), rc(3), rcut_eff, rd(3), Rho, &
-         RhoInv, rpq2, S1234, S1234a, S1234b, shift(3), ssss, T, temp(3), temp_CC(3), temp_DD(3), &
+         rpq2, S1234, S1234a, S1234b, shift(3), ssss, T, temp(3), temp_CC(3), temp_DD(3), &
          tmp_D(3), W(3), Zeta1, Zeta_C, Zeta_D, ZetapEtaInv
       TYPE(eri4_pgf_product_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: tmp_product_list
@@ -150,7 +150,6 @@ CONTAINS
             ZetapEtaInv = Zeta1 + Eta
             ZetapEtaInv = 1.0_dp/ZetapEtaInv
             Rho = Zeta1*Eta*ZetapEtaInv
-            RhoInv = 1.0_dp/Rho
             S1234 = EXP(S1234a + S1234b)
 
             DO k = 1, k_max
@@ -225,18 +224,19 @@ CONTAINS
                END DO
 
                W = (Zeta1*P + Eta*Q)*ZetapEtaInv
-               product_list(nproducts)%ra = ra
-               product_list(nproducts)%rb = rb
-               product_list(nproducts)%rc = C11
-               product_list(nproducts)%rd = tmp_D
+               product_list(nproducts)%centers(:, 1) = ra
+               product_list(nproducts)%centers(:, 2) = rb
+               product_list(nproducts)%centers(:, 3) = C11
+               product_list(nproducts)%centers(:, 4) = tmp_D
+               product_list(nproducts)%prepared_max_order = m_max
+               product_list(nproducts)%exponents = [list1%zeta, list1%zetb, Zeta_C, Zeta_D]
+               product_list(nproducts)%ZetaInv = list1%ZetaInv
+               product_list(nproducts)%EtaInv = EtaInv
                product_list(nproducts)%ZetapEtaInv = ZetapEtaInv
                product_list(nproducts)%Rho = Rho
-               product_list(nproducts)%RhoInv = RhoInv
                product_list(nproducts)%P = P
                product_list(nproducts)%Q = Q
                product_list(nproducts)%W = W
-               product_list(nproducts)%AB = ra - rb
-               product_list(nproducts)%CD = C11 - tmp_D
             END DO
          END DO
       END DO
@@ -541,7 +541,7 @@ CONTAINS
       INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, list_ij, list_kl, lpgf, max_l, ncoa, ncob, &
          ncoc, ncod, nelements_ij, nelements_kl, nproducts, nsgfla, nsgflb, nsgflc, nsgfld, nsoa, &
          nsob, nsoc, nsod, s_offset_a, s_offset_b, s_offset_c, s_offset_d
-      REAL(dp)                                           :: EtaInv, tmp_max, ZetaInv
+      REAL(dp)                                           :: tmp_max
 
       cart_estimate = 0.0_dp
       neris_tmp = 0
@@ -561,12 +561,10 @@ CONTAINS
       max_l = la_max + lb_max + lc_max + ld_max
 
       DO list_ij = 1, nelements_ij
-         ZetaInv = pgf_list_ij(list_ij)%ZetaInv
          ipgf = pgf_list_ij(list_ij)%ipgf
          jpgf = pgf_list_ij(list_ij)%jpgf
 
          DO list_kl = 1, nelements_kl
-            EtaInv = pgf_list_kl(list_kl)%ZetaInv
             kpgf = pgf_list_kl(list_kl)%ipgf
             lpgf = pgf_list_kl(list_kl)%jpgf
 
@@ -606,7 +604,7 @@ CONTAINS
                                           nsgfa, nsgfb, nsgfc, nsgfd, &
                                           primitive_integrals, &
                                           max_contraction_val, tmp_max, eps_schwarz, &
-                                          neris_tmp, ZetaInv, EtaInv, &
+                                          neris_tmp, &
                                           s_offset_a, s_offset_b, s_offset_c, s_offset_d, &
                                           nsgfla, nsgflb, nsgflc, nsgfld, nsoa, nsob, nsoc, nsod, &
                                           sphi_a_ext(1, la + 1, ipgf), &
@@ -776,8 +774,7 @@ CONTAINS
       INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, list_ij, list_kl, lpgf, max_l, ncoa, ncob, &
          ncoc, ncod, nelements_ij, nelements_kl, nproducts, nsgfla, nsgflb, nsgflc, nsgfld, nsoa, &
          nsob, nsoc, nsod, s_offset_a, s_offset_b, s_offset_c, s_offset_d
-      REAL(dp)                                           :: EtaInv, tmp_max, tmp_max_virial, Zeta_A, &
-                                                            Zeta_B, Zeta_C, Zeta_D, ZetaInv
+      REAL(dp)                                           :: tmp_max, tmp_max_virial
 
       cart_estimate = 0.0_dp
       primitive_integrals = 0.0_dp
@@ -800,16 +797,10 @@ CONTAINS
 
       max_l = la_max + lb_max + lc_max + ld_max + 1
       DO list_ij = 1, nelements_ij
-         Zeta_A = pgf_list_ij(list_ij)%zeta
-         Zeta_B = pgf_list_ij(list_ij)%zetb
-         ZetaInv = pgf_list_ij(list_ij)%ZetaInv
          ipgf = pgf_list_ij(list_ij)%ipgf
          jpgf = pgf_list_ij(list_ij)%jpgf
 
          DO list_kl = 1, nelements_kl
-            Zeta_C = pgf_list_kl(list_kl)%zeta
-            Zeta_D = pgf_list_kl(list_kl)%zetb
-            EtaInv = pgf_list_kl(list_kl)%ZetaInv
             kpgf = pgf_list_kl(list_kl)%ipgf
             lpgf = pgf_list_kl(list_kl)%jpgf
 
@@ -848,7 +839,6 @@ CONTAINS
                                                 nsgfa, nsgfb, nsgfc, nsgfd, &
                                                 primitive_integrals, &
                                                 max_contraction_val, tmp_max, eps_schwarz, neris_tmp, &
-                                                Zeta_A, Zeta_B, Zeta_C, Zeta_D, ZetaInv, EtaInv, &
                                                 s_offset_a, s_offset_b, s_offset_c, s_offset_d, &
                                                 nsgfla, nsgflb, nsgflc, nsgfld, nsoa, nsob, nsoc, nsod, &
                                                 sphi_a_ext(1, la + 1, ipgf), &

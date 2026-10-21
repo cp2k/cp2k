@@ -179,59 +179,66 @@ CONTAINS
       REAL(dp)                                           :: R11, R22
 
       INTEGER                                            :: i
-      REAL(dp)                                           :: normalization
-      REAL(KIND=dp) :: AB(3), AB2, CD(3), CD2, den, Eta, EtaInv, G(3), num, P(3), PQ(3), PQ2, &
-         prefactor, Q(3), Rho, S1234, ssss, T, W(3), Zeta, ZetaInv, ZetapEtaInv
-      REAL(KIND=dp), DIMENSION(eri4_fundamentals_size)   :: F, fundamentals_work
+      REAL(dp) :: AB(3), AB2, CD(3), CD2, den, Eta, fundamentals_work(eri4_fundamentals_size), &
+         G(3), normalization, num, PQ(3), PQ2, prefactor, S1234, ssss, T, Zeta
+      TYPE(eri4_pgf_product_type)                        :: params
 
       CPASSERT(m_max < eri4_fundamentals_size)
 
+      params%prepared_max_order = m_max
+      params%centers(:, 1) = A
+      params%centers(:, 2) = B
+      params%centers(:, 3) = C
+      params%centers(:, 4) = D
+      params%exponents = [Zeta_A, Zeta_B, Zeta_C, Zeta_D]
+
       Zeta = Zeta_A + Zeta_B
-      ZetaInv = 1.0_dp/Zeta
+      params%ZetaInv = 1.0_dp/Zeta
       Eta = Zeta_C + Zeta_D
-      EtaInv = 1.0_dp/Eta
-      ZetapEtaInv = Zeta + Eta
-      ZetapEtaInv = 1.0_dp/ZetapEtaInv
-      Rho = Zeta*Eta*ZetapEtaInv
+      params%EtaInv = 1.0_dp/Eta
+      params%ZetapEtaInv = Zeta + Eta
+      params%ZetapEtaInv = 1.0_dp/params%ZetapEtaInv
+      params%Rho = Zeta*Eta*params%ZetapEtaInv
 
       DO i = 1, 3
-         P(i) = (Zeta_A*A(i) + Zeta_B*B(i))*ZetaInv
-         Q(i) = (Zeta_C*C(i) + Zeta_D*D(i))*EtaInv
+         params%P(i) = (Zeta_A*A(i) + Zeta_B*B(i))*params%ZetaInv
+         params%Q(i) = (Zeta_C*C(i) + Zeta_D*D(i))*params%EtaInv
          AB(i) = A(i) - B(i)
          CD(i) = C(i) - D(i)
-         PQ(i) = P(i) - Q(i)
-         W(i) = (Zeta*P(i) + Eta*Q(i))*ZetapEtaInv
+         PQ(i) = params%P(i) - params%Q(i)
+         params%W(i) = (Zeta*params%P(i) + Eta*params%Q(i))*params%ZetapEtaInv
       END DO
 
       AB2 = DOT_PRODUCT(AB, AB)
       CD2 = DOT_PRODUCT(CD, CD)
       PQ2 = DOT_PRODUCT(PQ, PQ)
 
-      S1234 = EXP((-Zeta_A*Zeta_B*ZetaInv*AB2) + (-Zeta_C*Zeta_D*EtaInv*CD2))
-      T = Rho*PQ2
+      S1234 = EXP((-Zeta_A*Zeta_B*params%ZetaInv*AB2) + (-Zeta_C*Zeta_D*params%EtaInv*CD2))
+      T = params%Rho*PQ2
 
       SELECT CASE (potential_parameter%potential_type)
       CASE (do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
          IF (PQ2 > (R11 + R22 + potential_parameter%cutoff_radius)**2) RETURN
       END SELECT
       IF (potential_parameter%potential_type == do_potential_id) THEN
-         ssss = -Zeta_A*Zeta_B*ZetaInv*AB2
+         ssss = -Zeta_A*Zeta_B*params%ZetaInv*AB2
 
          num = (Zeta_A + Zeta_B)*Zeta_C
          den = Zeta_A + Zeta_B + Zeta_C
-         ssss = ssss - num/den*SUM((P - C)**2)
+         ssss = ssss - num/den*SUM((params%P - C)**2)
 
          G(:) = (Zeta_A*A(:) + Zeta_B*B(:) + Zeta_C*C(:))/den
          num = den*Zeta_D
          den = den + Zeta_D
          ssss = ssss - num/den*SUM((G - D)**2)
 
-         F(:) = EXP(ssss)
+         params%Fm(:) = EXP(ssss)
          ! The ID seed already contains the four-Gaussian attenuation.
          normalization = 1.0_dp
          IF (S1234 > EPSILON(0.0_dp)) normalization = 1.0_dp/S1234
       ELSE
-         CALL compute_r12_fundamentals(F, normalization, m_max, potential_parameter%potential_type, Rho, T, fundamentals_work, &
+         CALL compute_r12_fundamentals(params%Fm, normalization, m_max, potential_parameter%potential_type, &
+                                       params%Rho, T, fundamentals_work, &
                                        omega=potential_parameter%omega, &
                                        cutoff_radius=potential_parameter%cutoff_radius, &
                                        scale_coulomb=potential_parameter%scale_coulomb, &
@@ -239,13 +246,13 @@ CONTAINS
                                        scale_gaussian=potential_parameter%scale_gaussian)
       END IF
 
-      prefactor = normalization*S1234*SQRT((Pi*ZetapEtaInv)**3)
+      prefactor = normalization*S1234*SQRT((Pi*params%ZetapEtaInv)**3)
 
       DO i = 1, m_max + 1
-         F(i) = F(i)*prefactor
+         params%Fm(i) = params%Fm(i)*prefactor
       END DO
 
-      CALL cp_libint_set_params_eri(libint, A, B, C, D, ZetaInv, EtaInv, ZetapEtaInv, Rho, P, Q, W, m_max, F)
+      CALL cp_libint_set_params_eri(libint, params, [1, 2, 3, 4], m_max)
 
    END SUBROUTINE build_quartet_data_screen
 
@@ -271,12 +278,6 @@ CONTAINS
 !> \param tmp_max_all ...
 !> \param eps_schwarz ...
 !> \param neris ...
-!> \param Zeta_A ...
-!> \param Zeta_B ...
-!> \param Zeta_C ...
-!> \param Zeta_D ...
-!> \param ZetaInv ...
-!> \param EtaInv ...
 !> \param s_offset_a ...
 !> \param s_offset_b ...
 !> \param s_offset_c ...
@@ -317,7 +318,6 @@ CONTAINS
                                  nsgfa, nsgfb, nsgfc, nsgfd, &
                                  primitives, max_contraction, tmp_max_all, &
                                  eps_schwarz, neris, &
-                                 Zeta_A, Zeta_B, Zeta_C, Zeta_D, ZetaInv, EtaInv, &
                                  s_offset_a, s_offset_b, s_offset_c, s_offset_d, &
                                  nl_a, nl_b, nl_c, nl_d, nsoa, nsob, nsoc, nsod, &
                                  sphi_a, sphi_b, sphi_c, sphi_d, &
@@ -334,8 +334,6 @@ CONTAINS
          DIMENSION(nsgfa, nsgfb, nsgfc, nsgfd, 12)       :: primitives
       REAL(dp)                                           :: max_contraction, tmp_max_all, eps_schwarz
       INTEGER(int_8)                                     :: neris
-      REAL(dp), INTENT(IN)                               :: Zeta_A, Zeta_B, Zeta_C, Zeta_D, ZetaInv, &
-                                                            EtaInv
       INTEGER                                            :: s_offset_a, s_offset_b, s_offset_c, &
                                                             s_offset_d, nl_a, nl_b, nl_c, nl_d, &
                                                             nsoa, nsob, nsoc, nsod
@@ -359,11 +357,9 @@ CONTAINS
       REAL(dp)                                           :: tmp_max_all_virial
 
       INTEGER                                            :: a_mysize(1), angular_momenta(4), i, j, &
-                                                            k, m, m_max, mysize, n, pair_order(2), &
-                                                            permutation(4)
+                                                            k, m, m_max, mysize, n, permutation(4)
       LOGICAL                                            :: direct_contract
-      REAL(dp) :: centers(3, 4), exponents(4), inverse_exponents(2), product_centers(3, 2), &
-         scoord(12), tmp_max, tmp_max_virial
+      REAL(dp)                                           :: scoord(12), tmp_max, tmp_max_virial
 
       m_max = n_a + n_b + n_c + n_d
       m_max = m_max + 1
@@ -379,25 +375,9 @@ CONTAINS
       CALL get_eri_permutation(n_a, n_b, n_c, n_d, permutation)
       angular_momenta = [n_a, n_b, n_c, n_d]
       angular_momenta = angular_momenta(permutation)
-      exponents = [Zeta_A, Zeta_B, Zeta_C, Zeta_D]
-      exponents = exponents(permutation)
-      pair_order = [1, 2]
-      IF (permutation(1) > 2) pair_order = [2, 1]
-      inverse_exponents = [ZetaInv, EtaInv]
-      inverse_exponents = inverse_exponents(pair_order)
+
       DO i = 1, nproducts
-         centers(:, 1) = pgf_product_list(i)%ra
-         centers(:, 2) = pgf_product_list(i)%rb
-         centers(:, 3) = pgf_product_list(i)%rc
-         centers(:, 4) = pgf_product_list(i)%rd
-         product_centers(:, 1) = pgf_product_list(i)%P
-         product_centers(:, 2) = pgf_product_list(i)%Q
-         CALL cp_libint_set_params_eri_deriv(context%deriv, centers(:, permutation(1)), centers(:, permutation(2)), &
-                                             centers(:, permutation(3)), centers(:, permutation(4)), &
-                                             product_centers(:, pair_order(1)), product_centers(:, pair_order(2)), &
-                                             pgf_product_list(i)%W, exponents(1), exponents(2), exponents(3), exponents(4), &
-                                             inverse_exponents(1), inverse_exponents(2), pgf_product_list(i)%ZetapEtaInv, &
-                                             pgf_product_list(i)%Rho, m_max, pgf_product_list(i)%Fm)
+         CALL cp_libint_set_params_eri_deriv(context%deriv, pgf_product_list(i), permutation, m_max)
          CALL cp_libint_get_derivs(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
                                    angular_momenta(1), context%deriv, work_forces, a_mysize)
          DO k = 1, 12
@@ -408,7 +388,7 @@ CONTAINS
          neris = neris + 12*mysize
          IF (use_virial) THEN
             DO j = 1, 4
-               CALL real_to_scaled(scoord(3*j - 2:3*j), centers(:, permutation(j)), cell)
+               CALL real_to_scaled(scoord(3*j - 2:3*j), pgf_product_list(i)%centers(:, permutation(j)), cell)
             END DO
             DO k = 1, 12
                DO j = 1, mysize
@@ -623,8 +603,6 @@ CONTAINS
 !> \param tmp_max ...
 !> \param eps_schwarz ...
 !> \param neris ...
-!> \param ZetaInv ...
-!> \param EtaInv ...
 !> \param s_offset_a ...
 !> \param s_offset_b ...
 !> \param s_offset_c ...
@@ -657,7 +635,6 @@ CONTAINS
                            nsgfa, nsgfb, nsgfc, nsgfd, &
                            primitives, max_contraction, tmp_max, &
                            eps_schwarz, neris, &
-                           ZetaInv, EtaInv, &
                            s_offset_a, s_offset_b, s_offset_c, s_offset_d, &
                            nl_a, nl_b, nl_c, nl_d, nsoa, nsob, nsoc, nsod, &
                            sphi_a, sphi_b, sphi_c, sphi_d, work, work2, buffer1, buffer2, &
@@ -671,7 +648,6 @@ CONTAINS
       REAL(dp), DIMENSION(nsgfa, nsgfb, nsgfc, nsgfd)    :: primitives
       REAL(dp)                                           :: max_contraction, tmp_max, eps_schwarz
       INTEGER(int_8)                                     :: neris
-      REAL(dp), INTENT(IN)                               :: ZetaInv, EtaInv
       INTEGER                                            :: s_offset_a, s_offset_b, s_offset_c, &
                                                             s_offset_d, nl_a, nl_b, nl_c, nl_d, &
                                                             nsoa, nsob, nsoc, nsod
@@ -686,11 +662,8 @@ CONTAINS
          nl_c, nsod*nl_d)                                :: primitives_tmp
 
       INTEGER                                            :: a_mysize(1), angular_momenta(4), i, &
-                                                            m_max, mysize, pair_order(2), &
-                                                            permutation(4)
+                                                            m_max, mysize, permutation(4)
       LOGICAL                                            :: direct_contract
-      REAL(dp)                                           :: centers(3, 4), inverse_exponents(2), &
-                                                            product_centers(3, 2)
       REAL(dp), DIMENSION(:), POINTER                    :: eri_src, p_work
 
       IF (nproducts == 0) RETURN
@@ -704,22 +677,9 @@ CONTAINS
          CALL get_eri_permutation(n_a, n_b, n_c, n_d, permutation)
          angular_momenta = [n_a, n_b, n_c, n_d]
          angular_momenta = angular_momenta(permutation)
-         pair_order = [1, 2]
-         IF (permutation(1) > 2) pair_order = [2, 1]
-         inverse_exponents = [ZetaInv, EtaInv]
-         inverse_exponents = inverse_exponents(pair_order)
+
          DO i = 1, nproducts
-            centers(:, 1) = pgf_product_list(i)%ra
-            centers(:, 2) = pgf_product_list(i)%rb
-            centers(:, 3) = pgf_product_list(i)%rc
-            centers(:, 4) = pgf_product_list(i)%rd
-            product_centers(:, 1) = pgf_product_list(i)%P
-            product_centers(:, 2) = pgf_product_list(i)%Q
-            CALL cp_libint_set_params_eri(context%eri, centers(:, permutation(1)), centers(:, permutation(2)), &
-                                          centers(:, permutation(3)), centers(:, permutation(4)), &
-                                          inverse_exponents(1), inverse_exponents(2), pgf_product_list(i)%ZetapEtaInv, &
-                                          pgf_product_list(i)%Rho, product_centers(:, pair_order(1)), &
-                                          product_centers(:, pair_order(2)), pgf_product_list(i)%W, m_max, pgf_product_list(i)%Fm)
+            CALL cp_libint_set_params_eri(context%eri, pgf_product_list(i), permutation, m_max)
             CALL cp_libint_get_eris(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
                                     angular_momenta(1), context%eri, p_work, a_mysize)
             IF (nproducts > 1) work(1:mysize) = work(1:mysize) + p_work(1:mysize)

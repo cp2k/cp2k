@@ -11,7 +11,8 @@
 ! **************************************************************************************************
 MODULE four_center_integral_types
    USE kinds,                           ONLY: dp
-   USE libint_wrapper,                  ONLY: eri4_fundamentals_size => prim_data_f_size
+   USE libint_wrapper,                  ONLY: eri4_fundamentals_size => prim_data_f_size,&
+                                              eri4_pgf_product_type => eri_primitive_data_type
 
    IMPLICIT NONE
    PRIVATE
@@ -51,15 +52,5 @@ MODULE four_center_integral_types
       REAL(dp)                                 :: zeta = 0.0_dp, zetb = 0.0_dp
       INTEGER                                  :: ipgf = 0, jpgf = 0
    END TYPE eri4_pgf_pair_type
-
-! **************************************************************************************************
-   TYPE eri4_pgf_product_type
-      REAL(dp)                                 :: ra(3) = 0.0_dp, rb(3) = 0.0_dp, rc(3) = 0.0_dp, rd(3) = 0.0_dp
-      REAL(dp)                                 :: ZetapEtaInv = 0.0_dp
-      REAL(dp)                                 :: Rho = 0.0_dp, RhoInv = 0.0_dp
-      REAL(dp)                                 :: P(3) = 0.0_dp, Q(3) = 0.0_dp, W(3) = 0.0_dp
-      REAL(dp)                                 :: AB(3) = 0.0_dp, CD(3) = 0.0_dp
-      REAL(dp)                                 :: Fm(eri4_fundamentals_size) = 0.0_dp
-   END TYPE eri4_pgf_product_type
 
 END MODULE four_center_integral_types
