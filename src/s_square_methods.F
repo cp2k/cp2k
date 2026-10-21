@@ -146,6 +146,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Compute the expectation value <(\cal S)^2> of the single determinant defined by the
 !>        spin up (alpha) and spin down (beta) orbitals
+!> \param mosin ...
 !> \param kpoints ...
 !> \param matrix_s ...
 !> \param s_square [out] <(\cal S)^2> including potential spin contaminations
@@ -153,8 +154,9 @@ CONTAINS
 !> \par History
 !>      10.2026 adapted and generalized to partial occupation and k-points
 ! **************************************************************************************************
-   SUBROUTINE compute_s_square_kp(kpoints, matrix_s, s_square, s_square_ideal)
+   SUBROUTINE compute_s_square_kp(mosin, kpoints, matrix_s, s_square, s_square_ideal)
 
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mosin
       TYPE(kpoint_type), INTENT(IN), POINTER             :: kpoints
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       REAL(KIND=dp), INTENT(OUT)                         :: s_square, s_square_ideal
@@ -172,8 +174,8 @@ CONTAINS
       TYPE(cp_cfm_type), POINTER                         :: c_alpha, c_beta
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, matrix_struct
-      TYPE(cp_fm_type)                                   :: asb, asb2, fmlocal, rsmat, scb
-      TYPE(cp_fm_type), POINTER                          :: r_alpha, r_beta
+      TYPE(cp_fm_type)                                   :: asb, asb2, fmglobal, fmlocal, rsmat, scb
+      TYPE(cp_fm_type), POINTER                          :: moc, r_alpha, r_beta
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_operator_context_type)                 :: op_ctx
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
@@ -194,28 +196,33 @@ CONTAINS
       CALL get_kpoint_info(kpoints, mpools=mpools)
       CALL mpools_get(mpools, ao_ao_fm_pools=ao_ao_fm_pools)
       CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, fmlocal)
-      CALL cp_fm_get_info(fmlocal, matrix_struct=matrix_struct, nrow_global=nao)
+      CALL cp_fm_get_info(fmlocal, matrix_struct=matrix_struct)
       IF (wfn_real) THEN
          CALL cp_fm_create(rsmat, matrix_struct)
       ELSE
          CALL cp_cfm_create(csmat, matrix_struct)
       END IF
+      CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmlocal)
 
+      ! fm matrix_structure for the global environment
+      CALL get_mo_set(mo_set=mosin(1), mo_coeff=moc, nao=nao)
+      CALL cp_fm_create(fmglobal, moc%matrix_struct, nrow=nao, ncol=nao)
       ! The overlap is spin free: the routine drives every instance under the
       ! single spin-free key.
-      CALL kpoint_operator_context_create(op_ctx, kpoints, fmlocal, 1)
+      CALL kpoint_operator_context_create(op_ctx, kpoints, fmglobal, 1)
       CALL kpoint_operator_prepare(op_ctx, matrix_s, kpoint_slot_s, matrix_row=kpoint_spin_free)
       DO ikp = 1, kpmax
          CALL kpoint_operator_start(op_ctx, ikp, kpoint_spin_free, matrix_s, kpoint_slot_s, &
                                     use_grid=.FALSE., matrix_row=kpoint_spin_free)
       END DO
+      CALL cp_fm_release(fmglobal)
 
       s2 = 0.0_dp
       DO ikp = 1, kpmax
          IF (wfn_real) THEN
             CALL kpoint_operator_finish(op_ctx, ikp, kpoint_spin_free, kpoint_slot_s, fm_re=rsmat)
          ELSE
-            CALL kpoint_operator_finish(op_ctx, ikp, kpoint_spin_free, kpoint_slot_s, csmat)
+            CALL kpoint_operator_finish(op_ctx, ikp, kpoint_spin_free, kpoint_slot_s, cmat=csmat)
          END IF
 
          IF (ikp > kplocal) CYCLE
@@ -289,7 +296,6 @@ CONTAINS
       ELSE
          CALL cp_cfm_release(csmat)
       END IF
-      CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmlocal)
 
       CALL timestop(handle)
 

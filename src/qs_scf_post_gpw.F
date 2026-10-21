@@ -2562,7 +2562,7 @@ CONTAINS
          ! S**2 estimation
          IF (do_kpoints) THEN
             CALL get_qs_env(qs_env=qs_env, matrix_s_kp=matrix_s_kp, kpoints=kpoints)
-            CALL compute_s_square_kp(kpoints, matrix_s_kp, s_square, s_square_ideal)
+            CALL compute_s_square_kp(mos, kpoints, matrix_s_kp, s_square, s_square_ideal)
          ELSE
             CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
             CALL compute_s_square(mos, matrix_s, s_square, s_square_ideal)
