@@ -438,7 +438,8 @@ CONTAINS
                        ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
                        nimages, do_periodic)
 
-      TYPE(four_center_integral_context_type)            :: context
+      TYPE(four_center_integral_context_type), &
+         INTENT(INOUT)                                   :: context
       REAL(dp), INTENT(IN)                               :: ra(3), rb(3), rc(3), rd(3)
       INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, lb_min, lb_max, lc_min, &
          lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd, sphi_a_u1, sphi_a_u2, sphi_a_u3, &
@@ -664,7 +665,8 @@ CONTAINS
                       ede_work2_virial, ede_primitives_tmp_virial, primitive_integrals_virial, &
                       cart_estimate_virial)
 
-      TYPE(four_center_integral_context_type)            :: context
+      TYPE(four_center_integral_context_type), &
+         INTENT(INOUT)                                   :: context
       REAL(dp), INTENT(IN)                               :: ra(3), rb(3), rc(3), rd(3)
       INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, lb_min, lb_max, lc_min, &
          lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd, sphi_a_u1, sphi_a_u2, sphi_a_u3, &

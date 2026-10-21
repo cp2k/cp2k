@@ -44,7 +44,7 @@ MODULE four_center_integral_interface
              evaluate_eri_screen
 
 !> \brief Context owning the energy and first-derivative backend workspaces.
-!> \note Intrinsic copies share backend storage and must not be cleaned up independently.
+!> \note Each thread owns its context. Pass it directly without intrinsic copying.
    TYPE, PUBLIC :: four_center_integral_context_type
       PRIVATE
       TYPE(cp_libint_t) :: eri, deriv
@@ -70,7 +70,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Release the workspaces of an owning four-center context.
-!> \param context original initialized owner; borrowed copies must not be passed here
+!> \param context original initialized owner
 ! **************************************************************************************************
    SUBROUTINE four_center_integral_cleanup(context)
       TYPE(four_center_integral_context_type), &
@@ -219,7 +219,8 @@ CONTAINS
                                  use_virial, work_virial, work2_virial, primitives_tmp_virial, &
                                  primitives_virial, cell, tmp_max_all_virial)
 
-      TYPE(four_center_integral_context_type)            :: context
+      TYPE(four_center_integral_context_type), &
+         INTENT(INOUT)                                   :: context
       INTEGER, INTENT(IN)                                :: nproducts
       TYPE(eri4_pgf_product_type), DIMENSION(nproducts)  :: pgf_product_list
       INTEGER, INTENT(IN)                                :: n_a, n_b, n_c, n_d, ncoa, ncob, ncoc, &
@@ -431,7 +432,8 @@ CONTAINS
                                   n_a, n_b, n_c, n_d, &
                                   max_val, potential_parameter, R1, R2)
 
-      TYPE(four_center_integral_context_type)            :: context
+      TYPE(four_center_integral_context_type), &
+         INTENT(INOUT)                                   :: context
       REAL(dp), INTENT(IN)                               :: A(3), B(3), C(3), D(3), Zeta_A, Zeta_B, &
                                                             Zeta_C, Zeta_D
       INTEGER, INTENT(IN)                                :: n_a, n_b, n_c, n_d
@@ -551,7 +553,8 @@ CONTAINS
                            sphi_a, sphi_b, sphi_c, sphi_d, work, work2, buffer1, buffer2, &
                            primitives_tmp)
 
-      TYPE(four_center_integral_context_type)            :: context
+      TYPE(four_center_integral_context_type), &
+         INTENT(INOUT)                                   :: context
       INTEGER, INTENT(IN)                                :: nproducts
       TYPE(eri4_pgf_product_type), DIMENSION(nproducts)  :: pgf_product_list
       INTEGER, INTENT(IN)                                :: n_a, n_b, n_c, n_d, ncoa, ncob, ncoc, &
