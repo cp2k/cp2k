@@ -31,7 +31,7 @@ MODULE mp2_optimize_ri_basis
    USE hfx_types,                       ONLY: hfx_basis_info_type,&
                                               hfx_basis_type
    USE kinds,                           ONLY: dp
-   USE libint_wrapper,                  ONLY: build_eri_size
+   USE libint_wrapper,                  ONLY: libint_max_am
    USE machine,                         ONLY: default_output_unit,&
                                               m_flush
    USE memory_utilities,                ONLY: reallocate
@@ -280,7 +280,7 @@ CONTAINS
       DEALLOCATE (basis_was_assoc)
 
       ! check if the max angular momentum exceed the libint one
-      IF (max_l_am > build_eri_size) THEN
+      IF (max_l_am > libint_max_am) THEN
          CPABORT("The angular momentum needed exceeds the value assumed when configuring libint.")
       END IF
 
