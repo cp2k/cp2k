@@ -89,7 +89,7 @@ CONTAINS
       IF (ASSOCIATED(rotmat_store)) THEN
          CALL get_qs_env(qs_env, cell=cell)
          CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
-         CALL get_qs_kind_set(qs_kind_set, maxlgto=lval)
+         CALL get_qs_kind_set(qs_kind_set, maxlgto=lval, basis_type=my_basis)
          nrot = SIZE(rotmat_store, 1)
          nkind = SIZE(rotmat_store, 2)
          ! remove possible old rotation matrices
