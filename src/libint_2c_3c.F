@@ -14,11 +14,11 @@
 MODULE libint_2c_3c
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_id,&
-                                              do_potential_long,&
                                               do_potential_mix_cl_trunc,&
                                               do_potential_short,&
                                               do_potential_truncated
-   USE integral_library_types,          ONLY: coulomb_operator_type,&
+   USE integral_library_types,          ONLY: compare_potential_types,&
+                                              coulomb_operator_type,&
                                               libint_potential_type => coulomb_operator_type
    USE kinds,                           ONLY: dp
    USE libint_wrapper,                  ONLY: cp_libint_get_2eri_derivs,&
@@ -875,35 +875,6 @@ CONTAINS
                                     params%m_max, params%Fm)
 
    END SUBROUTINE set_params_2c
-
-! **************************************************************************************************
-!> \brief Helper function to compare Coulomb operator types
-!> \param potential1 first potential
-!> \param potential2 second potential
-!> \return Boolean whether both potentials are equal
-! **************************************************************************************************
-   PURE FUNCTION compare_potential_types(potential1, potential2) RESULT(equals)
-      TYPE(coulomb_operator_type), INTENT(IN)            :: potential1, potential2
-      LOGICAL                                            :: equals
-
-      IF (potential1%potential_type /= potential2%potential_type) THEN
-         equals = .FALSE.
-      ELSE
-         equals = .TRUE.
-         SELECT CASE (potential1%potential_type)
-         CASE (do_potential_short, do_potential_long)
-            IF (potential1%omega /= potential2%omega) equals = .FALSE.
-         CASE (do_potential_truncated)
-            IF (potential1%cutoff_radius /= potential2%cutoff_radius) equals = .FALSE.
-         CASE (do_potential_mix_cl_trunc)
-            IF (potential1%cutoff_radius /= potential2%cutoff_radius) equals = .FALSE.
-            IF (potential1%omega /= potential2%omega) equals = .FALSE.
-            IF (potential1%scale_coulomb /= potential2%scale_coulomb) equals = .FALSE.
-            IF (potential1%scale_longrange /= potential2%scale_longrange) equals = .FALSE.
-         END SELECT
-      END IF
-
-   END FUNCTION compare_potential_types
 
 !> \brief Computes the 2-center derivatives of the electron repulsion integrals (a|b) for a given
 !>        set of cartesian gaussian orbitals. Returns the derivatives wrt to the first center

@@ -9,7 +9,10 @@
 !> \brief Library choices for electronic integral APIs.
 ! **************************************************************************************************
 MODULE integral_library_types
-   USE input_constants,                 ONLY: do_potential_coulomb
+   USE input_constants,                 ONLY: &
+        do_potential_TShPSC, do_potential_coulomb, do_potential_gaussian, do_potential_long, &
+        do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, do_potential_short, &
+        do_potential_truncated
    USE kinds,                           ONLY: default_path_length,&
                                               dp
 
@@ -40,13 +43,48 @@ MODULE integral_library_types
       CHARACTER(default_path_length) :: filename = ""
       REAL(dp)                       :: scale_coulomb = 0.0_dp ! Only for WFC methods
       REAL(dp)                       :: scale_longrange = 0.0_dp ! Only for WFC methods
+      REAL(dp)                       :: scale_gaussian = 0.0_dp ! Gaussian coefficient in mixed operators
    END TYPE coulomb_operator_type
 
    TYPE(integral_library_type), SAVE, PUBLIC :: active_integral_library = integral_library_type()
 
-   PUBLIC :: integral_library_init
+   PUBLIC :: compare_potential_types, integral_library_init
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Compare the parameters defining two radial operators.
+!> \param potential1 first operator
+!> \param potential2 second operator
+!> \return whether the operator selectors and their relevant parameters agree
+!> \note Table filenames and effective short-range screening cutoffs are excluded.
+! **************************************************************************************************
+   PURE FUNCTION compare_potential_types(potential1, potential2) RESULT(equals)
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential1, potential2
+      LOGICAL                                            :: equals
+
+      equals = .FALSE.
+      IF (potential1%potential_type /= potential2%potential_type) RETURN
+
+      equals = .TRUE.
+      SELECT CASE (potential1%potential_type)
+      CASE (do_potential_short, do_potential_long, do_potential_gaussian)
+         IF (potential1%omega /= potential2%omega) equals = .FALSE.
+      CASE (do_potential_truncated, do_potential_TShPSC)
+         IF (potential1%cutoff_radius /= potential2%cutoff_radius) equals = .FALSE.
+      CASE (do_potential_mix_cl, do_potential_mix_cl_trunc)
+         IF (potential1%omega /= potential2%omega) equals = .FALSE.
+         IF (potential1%scale_coulomb /= potential2%scale_coulomb) equals = .FALSE.
+         IF (potential1%scale_longrange /= potential2%scale_longrange) equals = .FALSE.
+         IF (potential1%potential_type == do_potential_mix_cl_trunc) THEN
+            IF (potential1%cutoff_radius /= potential2%cutoff_radius) equals = .FALSE.
+         END IF
+      CASE (do_potential_mix_lg)
+         IF (potential1%omega /= potential2%omega) equals = .FALSE.
+         IF (potential1%scale_longrange /= potential2%scale_longrange) equals = .FALSE.
+         IF (potential1%scale_gaussian /= potential2%scale_gaussian) equals = .FALSE.
+      END SELECT
+   END FUNCTION compare_potential_types
 
 ! **************************************************************************************************
 !> \brief Resolves requested Coulomb integral libraries against the compiled-in backends.

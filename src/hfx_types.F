@@ -56,12 +56,13 @@ MODULE hfx_types
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
+   USE integral_library_types,          ONLY: compare_potential_types,&
+                                              hfx_potential_type => coulomb_operator_type,&
+                                              libint_potential_type => coulomb_operator_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp,&
                                               int_8
-   USE libint_2c_3c,                    ONLY: compare_potential_types,&
-                                              libint_potential_type
    USE libint_wrapper,                  ONLY: &
         cp_libint_cleanup_eri, cp_libint_cleanup_eri1, cp_libint_init_eri, cp_libint_init_eri1, &
         cp_libint_set_contrdepth, cp_libint_static_cleanup, cp_libint_static_init, cp_libint_t, &
@@ -136,17 +137,6 @@ MODULE hfx_types
    INTEGER, SAVE                                         :: init_t_c_g0_lmax = -1
 
 !***
-
-! **************************************************************************************************
-   TYPE hfx_potential_type
-      INTEGER                                  :: potential_type = do_potential_coulomb !! 1/r/ erfc(wr)/r ...
-      REAL(dp)                                 :: omega = 0.0_dp !! w
-      REAL(dp)                                 :: scale_coulomb = 0.0_dp !! scaling factor for mixed potential
-      REAL(dp)                                 :: scale_longrange = 0.0_dp !! scaling factor for mixed potential
-      REAL(dp)                                 :: scale_gaussian = 0.0_dp!! scaling factor for mixed potential
-      REAL(dp)                                 :: cutoff_radius = 0.0_dp!! cutoff radius if cutoff potential in use
-      CHARACTER(default_path_length)           :: filename = ""
-   END TYPE hfx_potential_type
 
 ! **************************************************************************************************
    TYPE hfx_screening_type
@@ -1108,13 +1098,7 @@ CONTAINS
 
       NULLIFY (hf_sub_section)
 
-      ASSOCIATE (hfx_pot => ri_data%hfx_pot)
-         hfx_pot%potential_type = x_data%potential_parameter%potential_type
-         hfx_pot%omega = x_data%potential_parameter%omega
-         hfx_pot%cutoff_radius = x_data%potential_parameter%cutoff_radius
-         hfx_pot%scale_coulomb = x_data%potential_parameter%scale_coulomb
-         hfx_pot%scale_longrange = x_data%potential_parameter%scale_longrange
-      END ASSOCIATE
+      ri_data%hfx_pot = x_data%potential_parameter
       ri_data%ri_section => ri_section
       ri_data%hfx_section => hfx_section
       ri_data%eps_schwarz = x_data%screening_parameter%eps_schwarz
