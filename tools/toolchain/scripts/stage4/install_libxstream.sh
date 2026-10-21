@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libxstream_ver="1.0.0"
-libxstream_sha256="44a2823b12eb58b5eaf97649244b93dcf921597ceabc718053cd28e5f59260e3"
+libxstream_ver="f4511a4"
+libxstream_sha256="b57d3d2fbd285ac41a265bd0a0797ae2e101186638d635e8d90ca95fed2b559f"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -34,7 +34,12 @@ case "$with_libxstream" in
     if verify_checksums "${install_lock_file}"; then
       echo "libxstream-${libxstream_ver} is already installed, skipping it."
     else
-      retrieve_package "${libxstream_sha256}" "libxstream-${libxstream_ver}.tar.gz"
+      if [ -f "libxstream-${libxstream_ver}.tar.gz" ] && checksum "${libxstream_sha256}" "libxstream-${libxstream_ver}.tar.gz"; then
+        echo "libxstream-${libxstream_ver}.tar.gz is found and checksum is right"
+      else
+        download_pkg_from_urlpath "${libxstream_sha256}" "${libxstream_ver}" \
+          https://codeload.github.com/hfp/libxstream/tar.gz "libxstream-${libxstream_ver}.tar.gz"
+      fi
       [ -d libxstream-${libxstream_ver} ] && rm -rf libxstream-${libxstream_ver}
       tar -xzf libxstream-${libxstream_ver}.tar.gz
 

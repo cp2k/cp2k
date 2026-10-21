@@ -1083,6 +1083,16 @@ if(CP2K_USE_ACCEL MATCHES "CUDA" OR CP2K_USE_ACCEL MATCHES "HIP")
     "      - LIBXC: ${CP2K_ENABLE_LIBXC_GPU}\n")
 endif()
 
+if(CP2K_USE_ACCEL MATCHES "OPENCL")
+  message(
+    "  - Hardware acceleration\n"
+    "    - Backend: OpenCL\n"
+    "    - OpenCL library: ${OpenCL_LIBRARIES}\n"
+    "    - LIBXSTREAM package directory: ${libxstream_DIR}\n"
+    "    - GPU-accelerated modules\n"
+    "      - DBM: ${CP2K_ENABLE_DBM_GPU}\n")
+endif()
+
 if(CP2K_USE_CUSOLVER_MP)
   message("  - cuSOLVERMp\n"
           "    - Include directories: ${CP2K_CUSOLVER_MP_INCLUDE_DIRS}\n"
@@ -1142,9 +1152,11 @@ if(CP2K_USE_PLUMED)
 endif()
 
 if(CP2K_USE_LIBXS)
-  message("  - LIBXS\n"
-          "    - Include directories: ${CP2K_LIBXS_INCLUDE_DIRS}\n"
-          "    - Libraries: ${CP2K_LIBXS_LINK_LIBRARIES}\n")
+  message("  - LIBXS\n" "    - Package directory: ${libxs_DIR}\n")
+endif()
+
+if(CP2K_USE_LIBXSMM)
+  message("  - LIBXSMM\n" "    - Package directory: ${libxsmm_DIR}\n")
 endif()
 
 if(CP2K_USE_SPLA)
