@@ -43,11 +43,11 @@ MODULE libint_wrapper
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: cp_libint_t, prim_data_f_size, build_eri_size, build_deriv1_eri_size, &
-             libint_max_am, libderiv_max_am1, cp_libint_get_eris, cp_libint_get_derivs, &
+   PUBLIC :: cp_libint_t, prim_data_f_size, &
+             libint_max_am, cp_libint_get_eris, cp_libint_get_derivs, &
              cp_libint_init_eri, cp_libint_init_eri1, cp_libint_cleanup_eri, &
              cp_libint_cleanup_eri1, cp_libint_static_init, cp_libint_static_cleanup, &
-             get_ssss_f_val, cp_libint_set_contrdepth, &
+             cp_libint_set_contrdepth, &
              cp_libint_set_params_eri, cp_libint_set_params_eri_deriv, &
              cp_libint_init_3eri, cp_libint_cleanup_3eri, cp_libint_get_3eris, &
              cp_libint_init_2eri, cp_libint_cleanup_2eri, cp_libint_get_2eris, &
@@ -62,12 +62,7 @@ MODULE libint_wrapper
    INTEGER, PARAMETER :: libint_max_am = 0
 #endif
 
-   INTEGER, PARAMETER :: libderiv_max_am1 = libint_max_am
    INTEGER, PARAMETER :: prim_data_f_size = 4*(libint_max_am) + 1
-   INTEGER, PARAMETER :: libint_vrr_classes_size = 2*(libint_max_am) + 1
-   INTEGER, PARAMETER :: libint_dvrr_classes_size = 2*(libderiv_max_am1) + 1
-   INTEGER, PARAMETER :: build_eri_size = libint_max_am
-   INTEGER, PARAMETER :: build_deriv1_eri_size = libderiv_max_am1
 
 !> \brief Prepared primitive in original center order for the legacy Libint backend.
 !> \note Zero exponents denote dummy centers. Fm contains orders zero through prepared_max_order.
@@ -475,22 +470,6 @@ CONTAINS
 #endif
 
    END SUBROUTINE cp_libint_get_derivs
-
-   FUNCTION get_ssss_f_val(lib)
-      TYPE(cp_libint_t) :: lib
-      REAL(KIND=dp) :: get_ssss_f_val
-
-      get_ssss_f_val = 0
-
-#if(__LIBINT)
-      get_ssss_f_val = lib%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_0(1)
-#else
-      MARK_USED(lib)
-      get_ssss_f_val = 0.0_dp
-      CPABORT("This CP2K executable has not been linked against the required library libint.")
-#endif
-
-   END FUNCTION get_ssss_f_val
 
    SUBROUTINE cp_libint_init_eri(lib, max_am)
       TYPE(cp_libint_t)               :: lib
