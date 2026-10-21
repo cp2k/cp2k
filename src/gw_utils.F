@@ -31,18 +31,17 @@ MODULE gw_utils
                                               cp_cfm_to_fm,&
                                               cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_create, dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_p_type, &
-        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set,&
+                                              dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
-                                              cp_dbcsr_dist2d_to_dist,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
-   USE cp_fm_redistribution,            ONLY: cp_fm_to_replicated_array
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -59,9 +58,9 @@ MODULE gw_utils
         dbt_clear, dbt_create, dbt_destroy, dbt_filter, dbt_iterator_blocks_left, &
         dbt_iterator_next_block, dbt_iterator_start, dbt_iterator_stop, dbt_iterator_type, &
         dbt_mp_environ_pgrid, dbt_pgrid_create, dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
-   USE distribution_2d_types,           ONLY: distribution_2d_type
    USE gw_auto_ri_generate_RI_basis,    ONLY: generate_auto_ri_basis
    USE gw_auto_ri_types,                ONLY: auto_ri_type
+   USE gw_compute_V_and_W,              ONLY: get_V_tr_R
    USE gw_utils_compute_integrals,      ONLY: build_3c_integral_block
    USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
                                               fm_invert,&
@@ -84,7 +83,6 @@ MODULE gw_utils
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_create,&
                                               kpoint_type
-   USE libint_2c_3c,                    ONLY: libint_potential_type
    USE libint_wrapper,                  ONLY: cp_libint_static_cleanup,&
                                               cp_libint_static_init
    USE machine,                         ONLY: m_walltime
@@ -113,11 +111,8 @@ MODULE gw_utils
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
-                                              release_neighbor_list_sets
-   USE qs_tensors,                      ONLY: build_2c_integrals,&
-                                              build_2c_neighbor_lists,&
-                                              build_3c_integrals,&
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_tensors,                      ONLY: build_3c_integrals,&
                                               build_3c_neighbor_lists,&
                                               get_tensor_occupancy,&
                                               neighbor_list_3c_destroy
@@ -136,9 +131,12 @@ MODULE gw_utils
 
    PRIVATE
 
-   PUBLIC :: create_and_init_bs_env_for_gw, de_init_bs_env, &
-             compute_xkp, analyt_conti_and_print, &
-             add_R, is_cell_in_index_to_cell, get_V_tr_R, &
+   PUBLIC :: create_and_init_bs_env_for_gw, &
+             de_init_bs_env, &
+             compute_xkp, &
+             analyt_conti_and_print, &
+             add_R, &
+             is_cell_in_index_to_cell, &
              rtbse_resolve_rirs_flag
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_utils'
@@ -3220,93 +3218,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE heuristic_RI_regularization
-
-! **************************************************************************************************
-!> \brief ...
-!> \param V_tr_R ...
-!> \param pot_type ...
-!> \param regularization_RI ...
-!> \param bs_env ...
-!> \param qs_env ...
-! **************************************************************************************************
-   SUBROUTINE get_V_tr_R(V_tr_R, pot_type, regularization_RI, bs_env, qs_env)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: V_tr_R
-      TYPE(libint_potential_type)                        :: pot_type
-      REAL(KIND=dp)                                      :: regularization_RI
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_V_tr_R'
-
-      INTEGER                                            :: handle, img, nimages_scf_desymm
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sizes_RI
-      INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_V_tr_R
-      TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
-      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: mat_V_tr_R
-      TYPE(distribution_2d_type), POINTER                :: dist_2d
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_RI
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-
-      CALL timeset(routineN, handle)
-
-      NULLIFY (sab_RI, dist_2d)
-
-      CALL get_qs_env(qs_env=qs_env, &
-                      blacs_env=blacs_env, &
-                      distribution_2d=dist_2d, &
-                      qs_kind_set=qs_kind_set, &
-                      particle_set=particle_set)
-
-      ALLOCATE (sizes_RI(bs_env%n_atom))
-      CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_RI, basis=bs_env%basis_set_RI)
-      CALL build_2c_neighbor_lists(sab_RI, bs_env%basis_set_RI, bs_env%basis_set_RI, &
-                                   pot_type, "2c_nl_RI", qs_env, sym_ij=.FALSE., &
-                                   dist_2d=dist_2d)
-      CALL cp_dbcsr_dist2d_to_dist(dist_2d, dbcsr_dist)
-      ALLOCATE (row_bsize(SIZE(sizes_RI)))
-      ALLOCATE (col_bsize(SIZE(sizes_RI)))
-      row_bsize(:) = sizes_RI
-      col_bsize(:) = sizes_RI
-
-      nimages_scf_desymm = bs_env%nimages_scf_desymm
-      ALLOCATE (mat_V_tr_R(nimages_scf_desymm))
-      CALL dbcsr_create(mat_V_tr_R(1), "(RI|RI)", dbcsr_dist, dbcsr_type_no_symmetry, &
-                        row_bsize, col_bsize)
-      DEALLOCATE (row_bsize, col_bsize)
-
-      DO img = 2, nimages_scf_desymm
-         CALL dbcsr_create(mat_V_tr_R(img), template=mat_V_tr_R(1))
-      END DO
-
-      CALL build_2c_integrals(mat_V_tr_R, 0.0_dp, qs_env, sab_RI, bs_env%basis_set_RI, &
-                              bs_env%basis_set_RI, pot_type, do_kpoints=.TRUE., &
-                              ext_kpoints=bs_env%kpoints_scf_desymm, &
-                              regularization_RI=regularization_RI)
-
-      ALLOCATE (fm_V_tr_R(nimages_scf_desymm))
-      DO img = 1, nimages_scf_desymm
-         CALL cp_fm_create(fm_V_tr_R(img), bs_env%fm_RI_RI%matrix_struct)
-         CALL copy_dbcsr_to_fm(mat_V_tr_R(img), fm_V_tr_R(img))
-         CALL dbcsr_release(mat_V_tr_R(img))
-      END DO
-
-      IF (.NOT. ALLOCATED(V_tr_R)) THEN
-         ALLOCATE (V_tr_R(bs_env%n_RI, bs_env%n_RI, nimages_scf_desymm))
-      END IF
-
-      CALL cp_fm_to_replicated_array(fm_V_tr_R, V_tr_R)
-
-      CALL cp_fm_release(fm_V_tr_R)
-      CALL dbcsr_distribution_release(dbcsr_dist)
-      CALL release_neighbor_list_sets(sab_RI)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE get_V_tr_R
 
 ! **************************************************************************************************
 !> \brief ...

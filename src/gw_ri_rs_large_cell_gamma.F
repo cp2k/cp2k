@@ -21,11 +21,11 @@ MODULE gw_ri_rs_large_cell_Gamma
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
+   USE gw_compute_V_and_W,              ONLY: get_W_MIC
    USE gw_tensor_large_cell_Gamma,      ONLY: G_occ_vir,&
                                               compute_QP_energies,&
                                               delete_unnecessary_files,&
-                                              fill_fm_Sigma_c_Gamma_time,&
-                                              get_W_MIC
+                                              fill_fm_Sigma_c_Gamma_time
    USE gw_utils,                        ONLY: de_init_bs_env
    USE gw_utils_dbcsr,                  ONLY: dbcsr_contract_ABA,&
                                               hadamard_product
