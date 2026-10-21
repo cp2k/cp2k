@@ -454,14 +454,12 @@ CONTAINS
             CALL panel_template_elems(r_blk_sizes, bs_env%ri_rs%chunk_centroids, &
                                       grid_used, pan_first(ipan), pan_last(ipan), &
                                       bs_env%ri_rs%cutoff_radius_v_w, nze_tmpl)
-            CALL panel_mem_estimate_GB(nze_tmpl, pan_rows, pan_width, n_grid_total, &
-                                       n_RI, bs_env%n_ao, n_procs, mem_pan_GB)
          ELSE
             pan_width = n_grid_total
-            mem_pan_GB = (3.0_dp*REAL(pan_rows, dp)*REAL(pan_width, dp) + &
-                          2.0_dp*REAL(pan_rows, dp)*REAL(n_RI, dp))* &
-                         8.0_dp/REAL(n_procs, dp)*1.0E-9_dp
+            nze_tmpl = INT(pan_rows, int_8)*INT(pan_width, int_8)
          END IF
+         CALL panel_mem_estimate_GB(nze_tmpl, pan_rows, pan_width, n_grid_total, &
+                                    n_RI, bs_env%n_ao, n_procs, mem_pan_GB)
          mem_panels_GB = MAX(mem_panels_GB, mem_pan_GB)
       END DO
       mem_panels_GB = mem_panels_GB + &
