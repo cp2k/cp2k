@@ -433,7 +433,6 @@ MODULE cp_control_types
 ! \brief some parameters useful for ddapc_restraints
 ! **************************************************************************************************
    TYPE ddapc_restraint_type
-      INTEGER                              :: ref_count = 0
       REAL(KIND=dp)                        :: strength = 0.0_dp
       REAL(KIND=dp)                        :: TARGET = 0.0_dp
       REAL(KIND=dp)                        :: ddapc_order_p = 0.0_dp
