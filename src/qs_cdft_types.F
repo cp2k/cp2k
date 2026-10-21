@@ -221,7 +221,7 @@ MODULE qs_cdft_types
                                               fragment_b_fname = "", &
                                               fragment_a_spin_fname = "", &
                                               fragment_b_spin_fname = ""
-      INTEGER                              :: ref_count = -1, total_steps = -1, TYPE = -1, &
+      INTEGER                              :: total_steps = -1, TYPE = -1, &
                                               precond_freq = -1, nreused = -1, max_reuse = -1, &
                                               purge_freq = -1, nbad_conv = -1, purge_offset = -1, &
                                               istep = -1, ienergy = -1, natoms = -1
