@@ -1,7 +1,7 @@
-Scripts to generate the minimax_k53.F source file that contains minimax coefficients 
-to approximate 1/x as a sum over exponential functions.
+Scripts to generate the sparse data module for exponential minimax approximations
+of 1/x as a sum over exponential functions.
 
-Based on tabulated coefficients from
+The source data are tabulated coefficients from
 D. Braess and W. Hackbusch, IMA Journal of Numerical Analysis 25.4 (2005): 685-697
 http://www.mis.mpg.de/scicomp/EXP_SUM/1_x
 
@@ -10,4 +10,9 @@ first execute
 ./wget_minimax.sh
 to download the data and then execute
 ./minimax_to_fortran_source.py
-to create (overwrite) the cp2k/src/minimax/minimax_k53.F file
+to create (overwrite) src/minimax/minimax_exp_data.F.
+
+The generator adaptively selects interpolation knots and performs a dense numerical
+certification against the tabulated minimax-error envelope before writing the source.
+It formats the generated Fortran source with CP2K's precommit formatter before writing
+it or checking it with `--check`.

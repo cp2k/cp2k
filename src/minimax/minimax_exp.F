@@ -10,18 +10,13 @@
 !>        approximate 1/x as a sum over exponential functions
 !>        1/x ~ SUM_{i}^{K} w_i EXP(-a_i * x) for x belonging to [1:Rc].
 !>
-!>        This module is an extension of original minimax module minimax_exp_k15
-!>        (up to K = 15) to provide minimax approximations for larger
-!>        ranges Rc (up to K = 53).
+!>        For K > 15, coefficients are obtained by local interpolation in log(Rc)
+!>        from a sparse subset of the Braess-Hackbusch minimax data. The sparse
+!>        representation is generated and certified against the tabulated minimax
+!>        error envelope by tools/minimax_tools/minimax_to_fortran_source.py.
 !>
-!>        k53 implementation is based on directly tabulated coefficients from
-!>        D. Braess and W. Hackbusch, IMA Journal of Numerical Analysis 25.4 (2005): 685-697
-!>        http://www.mis.mpg.de/scicomp/EXP_SUM/1_x
-!>
-!>        Note: Due to discrete Rc values, the k53 implementation does not yield
-!>        optimal approximations for arbitrary Rc. If optimal minimax coefficients
-!>        are needed, the minimax_exp_k15 module should be extended by interpolating
-!>        k53 coefficients.
+!>        K <= 15 still uses the historical polynomial fit in minimax_exp_k15,
+!>        except below its supported range where the sparse data backend is used.
 !> \par History
 !>      02.2016 created [Patrick Seewald]
 ! **************************************************************************************************
@@ -32,14 +27,15 @@ MODULE minimax_exp
    USE minimax_exp_k15,                 ONLY: check_range_k15,&
                                               get_minimax_coeff_k15,&
                                               get_minimax_numerical_error
-   USE minimax_exp_k53,                 ONLY: R_max,&
+   USE minimax_exp_data,                ONLY: R_max,&
                                               R_mm,&
-                                              err_mm,&
+                                              R_ref,&
+                                              err_ref,&
                                               get_minimax_coeff_low,&
+                                              interp_degree,&
                                               k_max,&
-                                              k_mm,&
                                               k_p,&
-                                              n_approx
+                                              ref_p
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -52,37 +48,7 @@ MODULE minimax_exp
 
    PUBLIC :: get_exp_minimax_coeff, validate_exp_minimax, check_exp_minimax_range
 
-   ! Imported from minimax_k53:
-
-   ! Number of tabulated minimax approximations:
-   ! INTEGER, PARAMETER :: n_approx
-
-   ! Number of K values:
-   ! INTEGER, PARAMETER :: n_k
-
-   ! Maximum K value:
-   ! INTEGER, PARAMETER :: k_max
-
-   ! Maximum range Rc:
-   ! REAL(KIND=dp), PARAMETER :: R_max
-
-   ! Values of K:
-   ! INTEGER, PARAMETER, DIMENSION(n_approx) :: k_mm
-
-   ! Values of Rc:
-   ! REAL(KIND=dp), PARAMETER, DIMENSION(n_approx) :: R_mm
-
-   ! Values of minimax error:
-   ! REAL(KIND=dp), PARAMETER, DIMENSION(n_approx) :: err_mm
-
-   ! Note: the coefficients (k_mm, R_mm, err_mm) are sorted w.r.t. 1) k_mm, 2) R_mm
-
-   ! Given the ith value of K, k_p(i) points to the first minimax
-   ! approximation with K terms:
-   ! INTEGER, PARAMETER, DIMENSION(n_k+1) :: k_p
-
-   ! Minimax coefficients aw of the ith minimax approximation:
-   ! SUBROUTINE get_minimax_coeff_low(i, aw)
+   ! Sparse coefficient and reference-error data are provided by minimax_exp_data.
 
 CONTAINS
 
@@ -95,7 +61,7 @@ CONTAINS
 !> \param Rc ...
 !> \param ierr ...
 !> \note: ierr ==  1 is not a fatal error since get_exp_minimax_coeff will return
-!>        k53 minimax coefficients with smallest possible range.
+!>        sparse minimax coefficients with smallest possible range.
 ! **************************************************************************************************
    SUBROUTINE check_exp_minimax_range(k, Rc, ierr)
       INTEGER, INTENT(IN)                                :: k
@@ -121,7 +87,7 @@ CONTAINS
 !>        elements correspond to a_i and the K+1:2k correspond to w_i.
 !> \param mm_error Numerical error of minimax approximation for given k, Rc
 !> \param which_coeffs Whether the coefficients returned have been generated from
-!>        k15 or k53 coefficients (mm_k15 or mm_k53).
+!>        the k15 fit or sparse coefficient data (mm_k15 or mm_k53).
 ! **************************************************************************************************
    SUBROUTINE get_exp_minimax_coeff(k, Rc, aw, mm_error, which_coeffs)
       INTEGER, INTENT(IN)                                :: k
@@ -135,7 +101,7 @@ CONTAINS
       IF (k <= 15) THEN
          CALL check_range_k15(k, Rc, ierr)
          IF (ierr == 1) THEN ! Rc too small for k15 coeffs --> use k53
-            CALL get_minimax_coeff_k53(k, Rc, aw, mm_error)
+            CALL get_minimax_coeff_data(k, Rc, aw, mm_error)
             IF (PRESENT(which_coeffs)) which_coeffs = mm_k53
          ELSE
             CPASSERT(ierr == 0)
@@ -143,7 +109,7 @@ CONTAINS
             IF (PRESENT(which_coeffs)) which_coeffs = mm_k15
          END IF
       ELSE IF (k <= 53) THEN
-         CALL get_minimax_coeff_k53(k, Rc, aw, mm_error)
+         CALL get_minimax_coeff_data(k, Rc, aw, mm_error)
          IF (PRESENT(which_coeffs)) which_coeffs = mm_k53
       ELSE
          CPABORT("No minimax approximations available for k = "//cp_to_string(k))
@@ -151,101 +117,146 @@ CONTAINS
    END SUBROUTINE get_exp_minimax_coeff
 
 ! **************************************************************************************************
-!> \brief Get minimax coefficients: k53 implementation (coefficients up to k=53 terms).
-!>        All a_i and w_i for a set of discrete values Rc, k are tabulated and
-!>        the most accurate coefficients for given input k, Rc are returned.
+!> \brief Get minimax coefficients: sparse-data implementation (coefficients up to k=53 terms).
+!>        Sparse retained coefficients are interpolated locally in log(Rc).
 !> \param k ...
 !> \param Rc ...
 !> \param aw ...
 !> \param mm_error ...
 ! **************************************************************************************************
-   SUBROUTINE get_minimax_coeff_k53(k, Rc, aw, mm_error)
+!> \brief Interpolate sparse exponential-minimax coefficients for arbitrary Rc.
+!> \param k Number of exponential terms.
+!> \param Rc Minimax range.
+!> \param aw Exponents followed by weights.
+!> \param mm_error Numerical approximation error at Rc.
+! **************************************************************************************************
+   SUBROUTINE get_minimax_coeff_data(k, Rc, aw, mm_error)
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: Rc
       REAL(KIND=dp), DIMENSION(2*k), INTENT(OUT)         :: aw
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: mm_error
 
-      INTEGER                                            :: i_mm
+      INTEGER                                            :: degree, i, i_first, i_last, i_right, j, &
+                                                            n_full, n_interp, n_knots, start
+      REAL(KIND=dp)                                      :: error_l, error_r, weight, x
+      REAL(KIND=dp), DIMENSION(2*k)                      :: aw_i, aw_l, aw_r
+      REAL(KIND=dp), DIMENSION(8)                        :: nodes
 
-      CALL get_best_minimax_approx_k53(k, Rc, i_mm)
-      CALL get_minimax_coeff_low(i_mm, aw)
+      CPASSERT(k >= 1 .AND. k <= k_max)
+      i_first = k_p(k)
+      i_last = k_p(k + 1) - 1
+      n_knots = i_last - i_first + 1
+
+      IF (Rc <= R_mm(i_first)) THEN
+         CALL get_minimax_coeff_low(i_first, aw)
+      ELSE IF (Rc >= R_mm(i_last)) THEN
+         CALL get_minimax_coeff_low(i_last, aw)
+      ELSE IF (n_knots == 2) THEN
+         ! Preserve the historical discrete choice for the few two-point blocks.
+         CALL get_minimax_coeff_low(i_first, aw_l)
+         CALL get_minimax_coeff_low(i_last, aw_r)
+         error_l = get_minimax_numerical_error(Rc, aw_l)
+         error_r = get_minimax_numerical_error(Rc, aw_r)
+         IF (error_r <= error_l) THEN
+            aw = aw_r
+         ELSE
+            aw = aw_l
+         END IF
+      ELSE
+         i_right = i_first + 1
+         DO WHILE (Rc > R_mm(i_right))
+            i_right = i_right + 1
+         END DO
+
+         degree = interp_degree(k)
+         n_full = degree + 1
+         IF (n_knots <= n_full) THEN
+            n_interp = n_knots
+            start = i_first
+         ELSE IF (i_right == i_first + 1) THEN
+            n_interp = degree
+            start = i_first
+         ELSE IF (i_right == i_last) THEN
+            n_interp = degree
+            start = i_last - n_interp + 1
+         ELSE
+            n_interp = n_full
+            start = i_right - n_interp/2
+         END IF
+         start = MAX(i_first, MIN(start, i_last - n_interp + 1))
+
+         x = LOG(Rc)
+         DO i = 1, n_interp
+            nodes(i) = LOG(R_mm(start + i - 1))
+         END DO
+
+         aw = 0.0_dp
+         DO i = 1, n_interp
+            weight = 1.0_dp
+            DO j = 1, n_interp
+               IF (i /= j) weight = weight*(x - nodes(j))/(nodes(i) - nodes(j))
+            END DO
+            CALL get_minimax_coeff_low(start + i - 1, aw_i)
+            aw = aw + weight*aw_i
+         END DO
+      END IF
+
       IF (PRESENT(mm_error)) mm_error = get_minimax_numerical_error(Rc, aw)
 
-   END SUBROUTINE get_minimax_coeff_k53
+   END SUBROUTINE get_minimax_coeff_data
 
 ! **************************************************************************************************
-!> \brief find minimax approx. with k terms that is most accurate for range Rc.
+!> \brief find the reference-error entry for range Rc.
 !> \param k ...
 !> \param Rc ...
 !> \param i_mm ...
 !> \param ge_Rc Whether the tabulated range of the returned minimax approximation
 !>              must be strictly greater than or equal to Rc. Default is .FALSE.
 ! **************************************************************************************************
-   SUBROUTINE get_best_minimax_approx_k53(k, Rc, i_mm, ge_Rc)
+!> \brief Find the first tabulated reference range greater than or equal to Rc.
+!> \param k Number of exponential terms.
+!> \param Rc Minimax range.
+!> \param i_ref Global reference-data index.
+! **************************************************************************************************
+   SUBROUTINE get_reference_index(k, Rc, i_ref)
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: Rc
-      INTEGER, INTENT(OUT)                               :: i_mm
-      LOGICAL, INTENT(IN), OPTIONAL                      :: ge_Rc
+      INTEGER, INTENT(OUT)                               :: i_ref
 
-      INTEGER                                            :: i, i_k, i_l, i_r
-      REAL(KIND=dp)                                      :: error_l, error_r, R_k_max, R_k_min
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: aw
+      INTEGER                                            :: i_first, i_last
 
-      CPASSERT(k <= k_max)
+      CPASSERT(k >= 1 .AND. k <= k_max)
+      i_first = ref_p(k)
+      i_last = ref_p(k + 1) - 1
 
-      ! find k pointer and smallest and largest R_mm value for this k
-      i_k = 1
-      DO WHILE (k_mm(k_p(i_k)) < k)
-         i_k = i_k + 1
-      END DO
-      CPASSERT(k_mm(k_p(i_k)) == k)
-
-      R_k_min = R_mm(k_p(i_k))
-      R_k_max = R_mm(k_p(i_k + 1) - 1)
-
-      IF (Rc >= R_k_max) THEN
-         i_mm = k_p(i_k + 1) - 1 ! pointer to largest Rc for current k
-      ELSE IF (Rc <= R_k_min) THEN
-         i_mm = k_p(i_k) ! pointer to smallest Rc for current k
+      IF (Rc <= R_ref(i_first)) THEN
+         i_ref = i_first
+      ELSE IF (Rc >= R_ref(i_last)) THEN
+         i_ref = i_last
       ELSE
-         i = k_p(i_k)
-         DO WHILE (Rc > R_mm(i))
-            i = i + 1
+         i_ref = i_first + 1
+         DO WHILE (Rc > R_ref(i_ref))
+            i_ref = i_ref + 1
          END DO
-         i_r = i ! pointer to closest R_mm >= Rc
-         i_l = i - 1 ! pointer to closest R_mm < Rc
-
-         IF (PRESENT(ge_Rc)) THEN
-            IF (ge_Rc) THEN
-               i_mm = i_r
-               RETURN
-            END IF
-         END IF
-
-         ALLOCATE (aw(2*k_mm(i_r)))
-         CALL get_minimax_coeff_low(i_r, aw)
-         error_l = get_minimax_numerical_error(Rc, aw)
-         DEALLOCATE (aw)
-         ALLOCATE (aw(2*k_mm(i_l)))
-         CALL get_minimax_coeff_low(i_l, aw)
-         error_r = get_minimax_numerical_error(Rc, aw)
-         DEALLOCATE (aw)
-         i_mm = MERGE(i_r, i_l, error_l <= error_r)
       END IF
 
-   END SUBROUTINE get_best_minimax_approx_k53
+   END SUBROUTINE get_reference_index
 
 ! **************************************************************************************************
 !> \brief Unit test checking that numerical error of minimax approximations
-!>        generated using any k15 or k53 coefficients is consistent with
+!>        generated using any the k15 fit or sparse coefficient data is consistent with
 !>        tabulated error.
 !> \param n_R Number of Rc values to be tested.
 !> \param iw ...
 ! **************************************************************************************************
+!> \brief Unit test checking exponential-minimax errors against the tabulated reference envelope.
+!> \param n_R Number of arbitrary Rc values to be tested.
+!> \param iw Output unit.
+! **************************************************************************************************
    SUBROUTINE validate_exp_minimax(n_R, iw)
       INTEGER, INTENT(IN)                                :: n_R, iw
 
-      INTEGER                                            :: i_mm, i_R, ierr, k, which_coeffs
+      INTEGER                                            :: i_R, i_ref, ierr, k, which_coeffs
       LOGICAL                                            :: do_exit
       REAL(KIND=dp)                                      :: dR, mm_error, R, ref_error
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: aw
@@ -254,70 +265,73 @@ CONTAINS
          WRITE (iw, '(//T2,A)') &
             "Unit tests for minimax 1/x ~ SUM_{i}^{K} w_i EXP(-a_i * x) for x belonging to [1:Rc]"
          WRITE (iw, '(T2,84("*"))')
-      END IF
-
-      IF (iw > 0) THEN
          WRITE (iw, '(/T2,A)') &
             "1) checking numerical error against tabulated error at tabulated values Rc"
          WRITE (iw, '(/T2,A)') &
             "which coeffs, K, Rc, num. error, ref. error, rel. diff (num. error - ref. error)/(ref. error)"
          WRITE (iw, '(T2,54("-"))')
       END IF
-      DO i_mm = 1, n_approx
-         R = R_mm(i_mm)
-         k = k_mm(i_mm)
-         CALL check_exp_minimax_range(k, R, ierr)
-         IF (ierr == 0) THEN
-            ALLOCATE (aw(2*k))
-            CALL get_exp_minimax_coeff(k, R, aw, mm_error, which_coeffs)
-            ref_error = err_mm(i_mm)
-            DEALLOCATE (aw)
-            IF (iw > 0) WRITE (iw, '(T2,A4, I3, ES10.1, ES12.3, ES12.3, ES12.3)') &
-               MERGE("k15", "k53", which_coeffs == mm_k15), k, R, &
-               mm_error, ref_error, (mm_error - ref_error)/ref_error
-            CPASSERT(mm_error <= ref_error*1.05_dp + 1.0E-15_dp)
-         ELSE
-            IF (iw > 0) WRITE (iw, '(T2,A4, I3, ES10.1, 3X, A)') "k15", k, R, "missing"
-         END IF
 
-         IF (k <= 15) THEN
-            ALLOCATE (aw(2*k))
-            CALL get_minimax_coeff_k53(k, R, aw, mm_error)
-            ref_error = err_mm(i_mm)
-            DEALLOCATE (aw)
-            IF (iw > 0) WRITE (iw, '(T2,A4,I3, ES10.1, ES12.3, ES12.3, ES12.3)') &
-               "k53", k, R, mm_error, ref_error, (mm_error - ref_error)/ref_error
-            IF (mm_error > ref_error*1.05_dp + 1.0E-15_dp) THEN
-               CPABORT("Test 1 failed: numerical error is larger than tabulated error")
+      DO k = 1, k_max
+         DO i_ref = ref_p(k), ref_p(k + 1) - 1
+            R = R_ref(i_ref)
+            CALL check_exp_minimax_range(k, R, ierr)
+            IF (ierr == 0) THEN
+               ALLOCATE (aw(2*k))
+               CALL get_exp_minimax_coeff(k, R, aw, mm_error, which_coeffs)
+               ref_error = err_ref(i_ref)
+               DEALLOCATE (aw)
+               IF (iw > 0) WRITE (iw, '(T2,A4, I3, ES10.1, ES12.3, ES12.3, ES12.3)') &
+                  MERGE("k15 ", "data", which_coeffs == mm_k15), k, R, &
+                  mm_error, ref_error, (mm_error - ref_error)/ref_error
+               CPASSERT(mm_error <= ref_error*1.05_dp + 1.0E-15_dp)
+            ELSE
+               IF (iw > 0) WRITE (iw, '(T2,A4, I3, ES10.1, 3X, A)') "k15 ", k, R, "missing"
             END IF
-         END IF
+
+            IF (k <= 15) THEN
+               ALLOCATE (aw(2*k))
+               CALL get_minimax_coeff_data(k, R, aw, mm_error)
+               ref_error = err_ref(i_ref)
+               DEALLOCATE (aw)
+               IF (iw > 0) WRITE (iw, '(T2,A4,I3, ES10.1, ES12.3, ES12.3, ES12.3)') &
+                  "data", k, R, mm_error, ref_error, (mm_error - ref_error)/ref_error
+               IF (mm_error > ref_error*1.05_dp + 1.0E-15_dp) THEN
+                  CPABORT("Test 1 failed: numerical error is larger than tabulated error")
+               END IF
+            END IF
+         END DO
       END DO
 
-      IF (iw > 0 .AND. n_R > 0) THEN
+      IF (iw > 0) THEN
          WRITE (iw, '(T2,54("-"))')
          WRITE (iw, '(/T2,A)') "Test 1 OK"
+      END IF
+      IF (n_R <= 0) RETURN
+
+      IF (iw > 0) THEN
          WRITE (iw, '(/T2,A)') &
             "2) checking numerical error against tabulated error at arbitrary values Rc"
          WRITE (iw, '(/T2,A)') &
             "which coeffs, K, Rc, num. error, ref. error, rel. diff (num. error - ref. error)/(ref. error)"
          WRITE (iw, '(T2,54("-"))')
       END IF
-      dR = R_max**(1.0_dp/n_R)
 
+      dR = R_max**(1.0_dp/n_R)
       DO k = 1, k_max
          ALLOCATE (aw(2*k))
          do_exit = .FALSE.
          DO i_R = 1, n_R
             R = dR**i_R
             CALL get_exp_minimax_coeff(k, R, aw, mm_error, which_coeffs)
-            CALL get_best_minimax_approx_k53(k, R, i_mm, ge_Rc=.TRUE.)
-            IF (R > R_mm(i_mm)) THEN
+            CALL get_reference_index(k, R, i_ref)
+            IF (R > R_ref(i_ref)) THEN
                R = R_max
                do_exit = .TRUE.
             END IF
-            ref_error = err_mm(i_mm)
+            ref_error = err_ref(i_ref)
             IF (iw > 0) WRITE (iw, '(T2, A4, I3, ES10.1, ES12.3, ES12.3, ES12.3)') &
-               MERGE("k15", "k53", which_coeffs == mm_k15), k, R, &
+               MERGE("k15 ", "data", which_coeffs == mm_k15), k, R, &
                mm_error, ref_error, (mm_error - ref_error)/ref_error
             IF (mm_error > ref_error*1.05_dp + 1.0E-15_dp) THEN
                CPABORT("Test 2 failed: numerical error is larger than tabulated error")
@@ -330,6 +344,7 @@ CONTAINS
          WRITE (iw, '(T2,54("-"))')
          WRITE (iw, '(/T2,A)') "Test 2 OK"
       END IF
+
    END SUBROUTINE validate_exp_minimax
 
 END MODULE minimax_exp
