@@ -28,6 +28,8 @@
 
 typedef struct {
   grid_sphere_cache sphere_cache;
+  void *scratch; // thread local scratch, grown on demand
+  size_t scratch_size;
   long counters[GRID_NBACKENDS * GRID_NKERNELS * GRID_MAX_LP];
 } grid_library_globals;
 
@@ -94,6 +96,7 @@ void grid_library_finalize(void) {
 
   for (int i = 0; i < max_threads; i++) {
     grid_sphere_cache_free(&per_thread_globals[i]->sphere_cache);
+    free(per_thread_globals[i]->scratch);
     free(per_thread_globals[i]);
   }
   free(per_thread_globals);
@@ -109,6 +112,23 @@ grid_sphere_cache *grid_library_get_sphere_cache(void) {
   const int ithread = omp_get_thread_num();
   assert(ithread < max_threads);
   return &per_thread_globals[ithread]->sphere_cache;
+}
+
+/*******************************************************************************
+ * \brief Returns a pointer to a thread local scratch buffer with at least the
+ *        given size. The buffer grows on demand and is reused across calls.
+ ******************************************************************************/
+void *grid_library_get_scratch(const size_t bytes) {
+  const int ithread = omp_get_thread_num();
+  assert(ithread < max_threads);
+  grid_library_globals *globals = per_thread_globals[ithread];
+  if (globals->scratch_size < bytes) {
+    free(globals->scratch);
+    globals->scratch = malloc(bytes);
+    assert(globals->scratch != NULL);
+    globals->scratch_size = bytes;
+  }
+  return globals->scratch;
 }
 
 /*******************************************************************************
