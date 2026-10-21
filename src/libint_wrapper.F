@@ -26,8 +26,8 @@ MODULE libint_wrapper
                             C_F_POINTER, &
                             C_F_PROCPOINTER, &
                             C_NULL_PTR, &
+                            C_NULL_FUNPTR, &
                             C_FUNPTR
-   USE cp_log_handling, ONLY: cp_to_string
    USE kinds, ONLY: dp
 #if(__LIBINT)
    USE libint_f, ONLY: &
@@ -83,7 +83,48 @@ MODULE libint_wrapper
 #endif
    END TYPE cp_libint_t
 
+#if(__LIBINT)
+   INTERFACE build_eri_kernel
+      MODULE PROCEDURE build_eri_kernel_2c, build_eri_kernel_3c, build_eri_kernel_4c
+   END INTERFACE build_eri_kernel
+#endif
+
 CONTAINS
+
+#if(__LIBINT)
+   #:for rank in range(2, 5)
+! **************************************************************************************************
+!> \brief Validate and invoke a generated Libint kernel without indexing outside its task table.
+!> \param lib backend workspace
+!> \param kernels zero-based kernel table for this integral task and derivative order
+!> \param angular_momenta indices in the table's own center order
+!> \param kernel_name integral task used in diagnostics
+! **************************************************************************************************
+      SUBROUTINE build_eri_kernel_${rank}$c(lib, kernels, angular_momenta, kernel_name)
+         TYPE(cp_libint_t), INTENT(INOUT) :: lib
+         TYPE(C_FUNPTR), INTENT(IN) :: kernels(${", ".join(["0:"]*rank)}$)
+         INTEGER, INTENT(IN) :: angular_momenta(${rank}$)
+         CHARACTER(LEN=*), INTENT(IN) :: kernel_name
+
+         CHARACTER(LEN=160) :: error_msg
+         TYPE(C_FUNPTR) :: build_funptr
+         PROCEDURE(libint2_build), POINTER :: pbuild
+
+         build_funptr = C_NULL_FUNPTR
+         IF (ALL(angular_momenta >= LBOUND(kernels)) .AND. ALL(angular_momenta <= UBOUND(kernels))) THEN
+            build_funptr = kernels(${", ".join("angular_momenta(" + str(i) + ")" for i in range(1, rank + 1))}$)
+         END IF
+         IF (.NOT. C_ASSOCIATED(build_funptr)) THEN
+            WRITE (error_msg, '(A,${rank}$(I0,1X))') &
+               "LIBINT has no "//TRIM(kernel_name)//" kernel for angular momenta: ", angular_momenta
+            CPABORT(TRIM(error_msg))
+         END IF
+         CALL C_F_PROCPOINTER(build_funptr, pbuild)
+         CALL pbuild(lib%prv)
+      END SUBROUTINE build_eri_kernel_${rank}$c
+
+   #:endfor
+#endif
 
 ! **************************************************************************************************
 !> \brief Fill an ERI backend from one prepared primitive and a pair-symmetry permutation.
@@ -233,13 +274,10 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n_d, n_c, n_b, n_a
       TYPE(cp_libint_t)                                  :: lib
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
-      INTEGER                                            :: a_mysize(1)
+      INTEGER, INTENT(IN)                                :: a_mysize(1)
 
 #if(__LIBINT)
-      PROCEDURE(libint2_build), POINTER                  :: pbuild
-
-      CALL C_F_PROCPOINTER(libint2_build_eri(n_d, n_c, n_b, n_a), pbuild)
-      CALL pbuild(lib%prv)
+      CALL build_eri_kernel(lib, libint2_build_eri, [n_d, n_c, n_b, n_a], "4-center ERI")
 
       CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=a_mysize)
 #else
@@ -268,22 +306,10 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n_c, n_b, n_a
       TYPE(cp_libint_t)                                  :: lib
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
-      INTEGER                                            :: a_mysize(1)
+      INTEGER, INTENT(IN)                                :: a_mysize(1)
 
 #if(__LIBINT)
-      CHARACTER(LEN=160)                                 :: error_msg
-      PROCEDURE(libint2_build), POINTER                  :: pbuild
-      TYPE(C_FUNPTR)                                     :: build_funptr
-
-      build_funptr = libint2_build_3eri(n_c, n_b, n_a)
-      IF (.NOT. C_ASSOCIATED(build_funptr)) THEN
-         error_msg = "LIBINT has no 3-center ERI kernel for (lc,lb,la)=("// &
-                     TRIM(cp_to_string(n_c))//","//TRIM(cp_to_string(n_b))//","// &
-                     TRIM(cp_to_string(n_a))//")"
-         CALL cp_abort(__LOCATION__, TRIM(error_msg))
-      END IF
-      CALL C_F_PROCPOINTER(build_funptr, pbuild)
-      CALL pbuild(lib%prv)
+      CALL build_eri_kernel(lib, libint2_build_3eri, [n_c, n_b, n_a], "3-center ERI")
 
       CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=a_mysize)
 #else
@@ -315,11 +341,9 @@ CONTAINS
 
 #if(__LIBINT)
       REAL(dp), DIMENSION(:), POINTER                    :: p_work_tmp
-      PROCEDURE(libint2_build), POINTER                  :: pbuild
       INTEGER :: i
 
-      CALL C_F_PROCPOINTER(libint2_build_3eri1(n_c, n_b, n_a), pbuild)
-      CALL pbuild(lib%prv)
+      CALL build_eri_kernel(lib, libint2_build_3eri1, [n_c, n_b, n_a], "3-center ERI derivative")
 
       ALLOCATE (p_work(a_mysize(1), 9))
 
@@ -358,11 +382,9 @@ CONTAINS
 
 #if(__LIBINT)
       REAL(dp), DIMENSION(:), POINTER                    :: p_work_tmp
-      PROCEDURE(libint2_build), POINTER                  :: pbuild
       INTEGER :: i
 
-      CALL C_F_PROCPOINTER(libint2_build_2eri1(n_b, n_a), pbuild)
-      CALL pbuild(lib%prv)
+      CALL build_eri_kernel(lib, libint2_build_2eri1, [n_b, n_a], "2-center ERI derivative")
 
       ALLOCATE (p_work(a_mysize(1), 6))
 
@@ -396,13 +418,10 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n_b, n_a
       TYPE(cp_libint_t)                                  :: lib
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
-      INTEGER                                            :: a_mysize(1)
+      INTEGER, INTENT(IN)                                :: a_mysize(1)
 
 #if(__LIBINT)
-      PROCEDURE(libint2_build), POINTER                  :: pbuild
-
-      CALL C_F_PROCPOINTER(libint2_build_2eri(n_b, n_a), pbuild)
-      CALL pbuild(lib%prv)
+      CALL build_eri_kernel(lib, libint2_build_2eri, [n_b, n_a], "2-center ERI")
 
       CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=a_mysize)
 #else
@@ -431,18 +450,16 @@ CONTAINS
       TYPE(cp_libint_t)                                  :: lib
       REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*nco(n_c)*nco &
                           (n_d), 12)                                      :: work_forces
-      INTEGER                                            :: a_mysize(1)
+      INTEGER, INTENT(IN)                                :: a_mysize(1)
 
 #if(__LIBINT)
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
 
-      PROCEDURE(libint2_build), POINTER                  :: pbuild
       INTEGER                                            :: i, k
 #endif
 
 #if(__LIBINT)
-      CALL C_F_PROCPOINTER(libint2_build_eri1(n_d, n_c, n_b, n_a), pbuild)
-      CALL pbuild(lib%prv)
+      CALL build_eri_kernel(lib, libint2_build_eri1, [n_d, n_c, n_b, n_a], "4-center ERI derivative")
 
       DO k = 1, 12
          IF (k == 4 .OR. k == 5 .OR. k == 6) CYCLE
