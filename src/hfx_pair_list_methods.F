@@ -15,10 +15,7 @@
 MODULE hfx_pair_list_methods
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
-   USE four_center_integral_methods,    ONLY: build_pair_list_pgf,&
-                                              build_pgf_product_list,&
-                                              min_image_gap_sq,&
-                                              pgf_product_list_size
+   USE four_center_integral_methods,    ONLY: min_image_gap_sq
    USE hfx_types,                       ONLY: hfx_basis_type,&
                                               hfx_block_range_type,&
                                               hfx_cell_type,&
@@ -35,10 +32,7 @@ MODULE hfx_pair_list_methods
 
    PUBLIC :: build_pair_list, &
              build_pair_list_mp2, &
-             build_pair_list_pgf, &
-             build_pgf_product_list, &
              build_atomic_pair_list, &
-             pgf_product_list_size, &
              build_pair_list_pbc_pgf, &
              bra_t, allocate_bra, min_image_gap_sq
 

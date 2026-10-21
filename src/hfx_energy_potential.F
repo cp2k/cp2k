@@ -36,6 +36,9 @@ MODULE hfx_energy_potential
                            dbcsr_p_type, &
                            dbcsr_type_antisymmetric, &
                            dbcsr_dot_threadsafe
+   USE four_center_integral_interface, ONLY: four_center_integral_context_type
+   USE four_center_integral_methods, ONLY: coulomb4, &
+                                           pgf_product_list_size
    USE gamma, ONLY: init_md_ftable
    USE hfx_communication, ONLY: distribute_ks_matrix, &
                                 get_atomic_block_maps, &
@@ -48,15 +51,11 @@ MODULE hfx_energy_potential
                                       hfx_get_single_cache_element, &
                                       hfx_reset_cache_and_container
    USE hfx_contract_block, ONLY: contract_block
-   USE four_center_integral_interface, ONLY: evaluate_eri
    USE hfx_load_balance_methods, ONLY: collect_load_balance_info, &
                                        hfx_load_balance, &
                                        hfx_update_load_balance
    USE hfx_pair_list_methods, ONLY: build_atomic_pair_list, &
-                                    build_pair_list, &
-                                    build_pair_list_pgf, &
-                                    build_pgf_product_list, &
-                                    pgf_product_list_size
+                                    build_pair_list
    USE hfx_screening_methods, ONLY: calc_pair_dist_radii, &
                                     calc_screening_functions, &
                                     update_pmax_mat
@@ -82,7 +81,6 @@ MODULE hfx_energy_potential
                     int_8
    USE kpoint_types, ONLY: get_kpoint_info, &
                            kpoint_type
-   USE four_center_integral_interface, ONLY: four_center_integral_context_type
    USE machine, ONLY: m_flush, &
                       m_memory, &
                       m_walltime
@@ -111,7 +109,7 @@ MODULE hfx_energy_potential
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC ::  integrate_four_center, coulomb4
+   PUBLIC :: integrate_four_center
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_energy_potential'
 
@@ -225,7 +223,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: coeffs_kind_max0
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(four_center_integral_context_type)                                  :: private_lib
+      TYPE(four_center_integral_context_type)                                  :: private_context
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit_hfx
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -422,7 +420,7 @@ CONTAINS
 !$OMP         max_pgf,jkind,lb_max,nsetb,npgfb,first_sgfb,sphi_b,nsgfb,ncob,sgfb,nneighbors,pgf_list_ij,pgf_list_kl,&
 !$OMP         pgf_product_list,nimages,ks_fully_occ,subtr_size_mb,use_disk_storage,counter,do_disk_storage,&
 !$OMP         maxval_container_disk,maxval_cache_disk,integral_containers_disk,integral_caches_disk,eps_schwarz,&
-!$OMP         log10_eps_schwarz,eps_storage,hf_fraction,buffer_overflow,logger,private_lib,last_sgf_global,handle_getp,&
+!$OMP         log10_eps_schwarz,eps_storage,hf_fraction,buffer_overflow,logger,private_context,last_sgf_global,handle_getp,&
 !$OMP         fac,handle_load,do_dynamic_load_balancing,my_bin_size,maxval_container,integral_containers,maxval_cache,&
 !$OMP         integral_caches,tmp_task_list,tmp_task_list_cost,tmp_index,handle_main,coeffs_kind_max0,set_list_ij,&
 !$OMP         set_list_kl,iatom_start,iatom_end,jatom_start,jatom_end,nblocks,bins_left,do_it,distribution_energy,&
@@ -756,7 +754,7 @@ CONTAINS
       END IF
       logger => cp_get_default_logger()
 
-      private_lib = actual_x_data%eri4_context
+      private_context = actual_x_data%eri4_context
 
       !! Helper array to map local basis function indices to global ones
       ALLOCATE (last_sgf_global(0:natom))
@@ -870,7 +868,7 @@ CONTAINS
                                    shm_master_x_data%pair_dist_radii_pgf, max_set, max_pgf, eps_schwarz, &
                                    n_threads, i_thread)
 !$OMP BARRIER
-         CALL calc_screening_functions(qs_env, basis_parameter, private_lib, shm_master_x_data%potential_parameter, &
+         CALL calc_screening_functions(qs_env, basis_parameter, private_context, shm_master_x_data%potential_parameter, &
                                        shm_master_x_data%screen_funct_coeffs_set, &
                                        shm_master_x_data%screen_funct_coeffs_kind, &
                                        shm_master_x_data%screen_funct_coeffs_pgf, &
@@ -1636,7 +1634,7 @@ CONTAINS
                               tmp_screen_pgf1 => screen_coeffs_pgf(:, :, jset, iset, jkind, ikind)
                               tmp_screen_pgf2 => screen_coeffs_pgf(:, :, lset, kset, lkind, kkind)
 
-                              CALL coulomb4(private_lib, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
+                              CALL coulomb4(private_context, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
                                             la_min(iset), la_max(iset), lb_min(jset), lb_max(jset), &
                                             lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset), &
                                             nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
@@ -2339,229 +2337,6 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE integrate_four_center
-
-! **************************************************************************************************
-!> \brief calculates two-electron integrals of a quartet/shell using the library
-!>      lib_int in the periodic case
-!> \param lib ...
-!> \param ra ...
-!> \param rb ...
-!> \param rc ...
-!> \param rd ...
-!> \param npgfa ...
-!> \param npgfb ...
-!> \param npgfc ...
-!> \param npgfd ...
-!> \param la_min ...
-!> \param la_max ...
-!> \param lb_min ...
-!> \param lb_max ...
-!> \param lc_min ...
-!> \param lc_max ...
-!> \param ld_min ...
-!> \param ld_max ...
-!> \param nsgfa ...
-!> \param nsgfb ...
-!> \param nsgfc ...
-!> \param nsgfd ...
-!> \param sphi_a_u1 ...
-!> \param sphi_a_u2 ...
-!> \param sphi_a_u3 ...
-!> \param sphi_b_u1 ...
-!> \param sphi_b_u2 ...
-!> \param sphi_b_u3 ...
-!> \param sphi_c_u1 ...
-!> \param sphi_c_u2 ...
-!> \param sphi_c_u3 ...
-!> \param sphi_d_u1 ...
-!> \param sphi_d_u2 ...
-!> \param sphi_d_u3 ...
-!> \param zeta ...
-!> \param zetb ...
-!> \param zetc ...
-!> \param zetd ...
-!> \param primitive_integrals array of primitive_integrals
-!> \param potential_parameter contains info for libint
-!> \param neighbor_cells Periodic images
-!> \param screen1 set based coefficients for near field screening
-!> \param screen2 set based coefficients for near field screening
-!> \param eps_schwarz threshold
-!> \param max_contraction_val maximum multiplication factor for cart -> sph
-!> \param cart_estimate maximum calculated integral value
-!> \param cell cell
-!> \param neris_tmp counter for calculated cart integrals
-!> \param log10_pmax logarithm of initial p matrix max element
-!> \param log10_eps_schwarz log of threshold
-!> \param R1_pgf coefficients for radii of product distribution function
-!> \param R2_pgf coefficients for radii of product distribution function
-!> \param pgf1 schwarz coefficients pgf basid
-!> \param pgf2 schwarz coefficients pgf basid
-!> \param pgf_list_ij ...
-!> \param pgf_list_kl ...
-!> \param pgf_product_list ...
-!> \param nsgfl_a ...
-!> \param nsgfl_b ...
-!> \param nsgfl_c ...
-!> \param nsgfl_d ...
-!> \param sphi_a_ext ...
-!> \param sphi_b_ext ...
-!> \param sphi_c_ext ...
-!> \param sphi_d_ext ...
-!> \param ee_work ...
-!> \param ee_work2 ...
-!> \param ee_buffer1 ...
-!> \param ee_buffer2 ...
-!> \param ee_primitives_tmp ...
-!> \param nimages ...
-!> \param do_periodic ...
-!> \par History
-!>      11.2006 created [Manuel Guidon]
-!>      02.2009 completely rewritten screening part [Manuel Guidon]
-!> \author Manuel Guidon
-! **************************************************************************************************
-   SUBROUTINE coulomb4(lib, ra, rb, rc, rd, npgfa, npgfb, npgfc, npgfd, &
-                       la_min, la_max, lb_min, lb_max, &
-                       lc_min, lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd, &
-                       sphi_a_u1, sphi_a_u2, sphi_a_u3, &
-                       sphi_b_u1, sphi_b_u2, sphi_b_u3, &
-                       sphi_c_u1, sphi_c_u2, sphi_c_u3, &
-                       sphi_d_u1, sphi_d_u2, sphi_d_u3, &
-                       zeta, zetb, zetc, zetd, &
-                       primitive_integrals, &
-                       potential_parameter, neighbor_cells, &
-                       screen1, screen2, eps_schwarz, max_contraction_val, &
-                       cart_estimate, cell, neris_tmp, log10_pmax, &
-                       log10_eps_schwarz, R1_pgf, R2_pgf, pgf1, pgf2, &
-                       pgf_list_ij, pgf_list_kl, &
-                       pgf_product_list, &
-                       nsgfl_a, nsgfl_b, nsgfl_c, &
-                       nsgfl_d, &
-                       sphi_a_ext, sphi_b_ext, sphi_c_ext, sphi_d_ext, &
-                       ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
-                       nimages, do_periodic)
-
-      TYPE(four_center_integral_context_type)                                  :: lib
-      REAL(dp), INTENT(IN)                               :: ra(3), rb(3), rc(3), rd(3)
-      INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, lb_min, lb_max, lc_min, &
-                             lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd, sphi_a_u1, sphi_a_u2, sphi_a_u3, &
-                             sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_u1, sphi_c_u2, sphi_c_u3, sphi_d_u1, sphi_d_u2, &
-                             sphi_d_u3
-      REAL(dp), DIMENSION(1:npgfa), INTENT(IN)           :: zeta
-      REAL(dp), DIMENSION(1:npgfb), INTENT(IN)           :: zetb
-      REAL(dp), DIMENSION(1:npgfc), INTENT(IN)           :: zetc
-      REAL(dp), DIMENSION(1:npgfd), INTENT(IN)           :: zetd
-      REAL(dp), DIMENSION(nsgfa, nsgfb, nsgfc, nsgfd)    :: primitive_integrals
-      TYPE(hfx_potential_type)                           :: potential_parameter
-      TYPE(hfx_cell_type), DIMENSION(:), POINTER         :: neighbor_cells
-      REAL(dp), INTENT(IN)                               :: screen1(2), screen2(2), eps_schwarz, &
-                                                            max_contraction_val
-      REAL(dp)                                           :: cart_estimate
-      TYPE(cell_type), POINTER                           :: cell
-      INTEGER(int_8)                                     :: neris_tmp
-      REAL(dp), INTENT(IN)                               :: log10_pmax, log10_eps_schwarz
-      TYPE(hfx_screen_coeff_type), DIMENSION(:, :), &
-         POINTER                                         :: R1_pgf, R2_pgf, pgf1, pgf2
-      TYPE(hfx_pgf_list), DIMENSION(*)                   :: pgf_list_ij, pgf_list_kl
-      TYPE(hfx_pgf_product_list), ALLOCATABLE, &
-         DIMENSION(:), INTENT(INOUT)                     :: pgf_product_list
-      INTEGER, DIMENSION(0:), INTENT(IN)                 :: nsgfl_a, nsgfl_b, nsgfl_c, nsgfl_d
-      REAL(dp), INTENT(IN) :: sphi_a_ext(sphi_a_u1, sphi_a_u2, sphi_a_u3), &
-                              sphi_b_ext(sphi_b_u1, sphi_b_u2, sphi_b_u3), sphi_c_ext(sphi_c_u1, sphi_c_u2, sphi_c_u3), &
-                              sphi_d_ext(sphi_d_u1, sphi_d_u2, sphi_d_u3)
-      REAL(dp), DIMENSION(*)                             :: ee_work, ee_work2, ee_buffer1, &
-                                                            ee_buffer2, ee_primitives_tmp
-      INTEGER, DIMENSION(*)                              :: nimages
-      LOGICAL, INTENT(IN)                                :: do_periodic
-
-      INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, list_ij, list_kl, lpgf, max_l, ncoa, ncob, &
-                 ncoc, ncod, nelements_ij, nelements_kl, nproducts, nsgfla, nsgflb, nsgflc, nsgfld, nsoa, &
-                 nsob, nsoc, nsod, s_offset_a, s_offset_b, s_offset_c, s_offset_d
-      REAL(dp)                                           :: EtaInv, tmp_max, ZetaInv
-
-      cart_estimate = 0.0_dp
-      neris_tmp = 0
-      primitive_integrals = 0.0_dp
-
-      CALL build_pair_list_pgf(npgfa, npgfb, pgf_list_ij, zeta, zetb, screen1, screen2, &
-                               pgf1, R1_pgf, log10_pmax, log10_eps_schwarz, ra, rb, &
-                               nelements_ij, &
-                               neighbor_cells, nimages, do_periodic, cell)
-      IF (nelements_ij == 0) RETURN
-      CALL build_pair_list_pgf(npgfc, npgfd, pgf_list_kl, zetc, zetd, screen2, screen1, &
-                               pgf2, R2_pgf, log10_pmax, log10_eps_schwarz, rc, rd, &
-                               nelements_kl, &
-                               neighbor_cells, nimages, do_periodic, cell)
-      IF (nelements_kl == 0) RETURN
-
-      max_l = la_max + lb_max + lc_max + ld_max
-
-      DO list_ij = 1, nelements_ij
-         ZetaInv = pgf_list_ij(list_ij)%ZetaInv
-         ipgf = pgf_list_ij(list_ij)%ipgf
-         jpgf = pgf_list_ij(list_ij)%jpgf
-
-         DO list_kl = 1, nelements_kl
-            EtaInv = pgf_list_kl(list_kl)%ZetaInv
-            kpgf = pgf_list_kl(list_kl)%ipgf
-            lpgf = pgf_list_kl(list_kl)%jpgf
-
-            CALL build_pgf_product_list(pgf_list_ij(list_ij), pgf_list_kl(list_kl), pgf_product_list, &
-                                        nproducts, log10_pmax, log10_eps_schwarz, neighbor_cells, cell, &
-                                        potential_parameter, max_l, do_periodic)
-            IF (nproducts == 0) CYCLE
-
-            s_offset_a = 0
-            DO la = la_min, la_max
-               s_offset_b = 0
-               ncoa = nco(la)
-               nsgfla = nsgfl_a(la)
-               nsoa = nso(la)
-
-               DO lb = lb_min, lb_max
-                  s_offset_c = 0
-                  ncob = nco(lb)
-                  nsgflb = nsgfl_b(lb)
-                  nsob = nso(lb)
-
-                  DO lc = lc_min, lc_max
-                     s_offset_d = 0
-                     ncoc = nco(lc)
-                     nsgflc = nsgfl_c(lc)
-                     nsoc = nso(lc)
-
-                     DO ld = ld_min, ld_max
-                        ncod = nco(ld)
-                        nsgfld = nsgfl_d(ld)
-                        nsod = nso(ld)
-
-                        tmp_max = 0.0_dp
-                        CALL evaluate_eri(lib, nproducts, pgf_product_list, &
-                                          la, lb, lc, ld, &
-                                          ncoa, ncob, ncoc, ncod, &
-                                          nsgfa, nsgfb, nsgfc, nsgfd, &
-                                          primitive_integrals, &
-                                          max_contraction_val, tmp_max, eps_schwarz, &
-                                          neris_tmp, ZetaInv, EtaInv, &
-                                          s_offset_a, s_offset_b, s_offset_c, s_offset_d, &
-                                          nsgfla, nsgflb, nsgflc, nsgfld, nsoa, nsob, nsoc, nsod, &
-                                          sphi_a_ext(1, la + 1, ipgf), &
-                                          sphi_b_ext(1, lb + 1, jpgf), &
-                                          sphi_c_ext(1, lc + 1, kpgf), &
-                                          sphi_d_ext(1, ld + 1, lpgf), &
-                                          ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp)
-                        cart_estimate = MAX(tmp_max, cart_estimate)
-                        s_offset_d = s_offset_d + nsod*nsgfld
-                     END DO !ld
-                     s_offset_c = s_offset_c + nsoc*nsgflc
-                  END DO !lc
-                  s_offset_b = s_offset_b + nsob*nsgflb
-               END DO !lb
-               s_offset_a = s_offset_a + nsoa*nsgfla
-            END DO !la
-         END DO
-      END DO
-
-   END SUBROUTINE coulomb4
 
 ! **************************************************************************************************
 !> \brief Given a 2d index pair, this function returns a 1d index pair for
