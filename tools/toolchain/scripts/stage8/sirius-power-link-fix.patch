@@ -1,0 +1,28 @@
+diff --git a/src/core/power.hpp b/src/core/power.hpp
+index e4ab753..8372515 100644
+--- a/src/core/power.hpp
++++ b/src/core/power.hpp
+@@ -91,7 +91,7 @@ class Profile
+     {
+         events_.emplace_back(label_, 0);
+     }
+-    inline static std::vector<Event> events_;
++    static std::vector<Event> events_;
+ };
+ 
+ inline std::string
+diff --git a/src/core/profiler.cpp b/src/core/profiler.cpp
+index 332ee31..24bf5ed 100644
+--- a/src/core/profiler.cpp
++++ b/src/core/profiler.cpp
+@@ -12,7 +12,10 @@
+  */
+ 
+ #include "profiler.hpp"
++#include "power.hpp"
+ 
+ namespace sirius {
++std::vector<power::Event> power::Profile::events_;
++
+ ::rt_graph::Timer global_rtgraph_timer;
+ 

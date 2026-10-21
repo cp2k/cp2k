@@ -35,6 +35,12 @@ case "$with_sirius" in
       [ -d sirius-${sirius_ver} ] && rm -rf sirius-${sirius_ver}
       tar -xzf SIRIUS-${sirius_ver}.tar.gz
       cd SIRIUS-${sirius_ver}
+
+      patch -l -p1 < "${SCRIPT_DIR}/stage8/sirius-mkl.patch" \
+        > sirius-mkl.patch.log 2>&1 || tail_excerpt sirius-mkl.patch.log
+      patch -l -p1 < "${SCRIPT_DIR}/stage8/sirius-power-link-fix.patch" \
+        > sirius-power-link-fix.patch.log 2>&1 || tail_excerpt sirius-power-link-fix.patch.log
+
       if [ "${with_elpa}" != "__DONTUSE__" ]; then
         EXTRA_CMAKE_FLAGS="-DSIRIUS_USE_ELPA=ON ${EXTRA_CMAKE_FLAGS}"
       fi
