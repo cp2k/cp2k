@@ -70,13 +70,10 @@ MODULE gw_ri_rs_non_periodic
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
-   USE ri_rs_grid_setup,                ONLY: setup_ri_rs_grid
-   USE ri_rs_matrices,                  ONLY: atomic_basis_at_grid_point,&
-                                              print_matrix_occupation,&
+   USE ri_rs_matrices,                  ONLY: print_matrix_occupation,&
                                               release_dbcsr_topology_and_matrices,&
                                               setup_square_topology
-   USE ri_rs_setup,                     ONLY: compute_Z_lP
-   USE ri_rs_utils,                     ONLY: precompute_ri_rs_radii
+   USE ri_rs_setup,                     ONLY: ensure_ri_rs_representation
    USE time_frequency_grids,            ONLY: negative_time,&
                                               positive_time,&
                                               transform_time_to_frequency
@@ -109,57 +106,10 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! ==============================================================================
-      ! 0. Precompute AO and RI radii
-      !    Per-atom cutoff radii from the most diffuse Gaussian primitives of
-      !    the AO ("ORB") and RI auxiliary ("RI_AUX") basis sets:
-      !      α_min,ao = min { ζ_ao | ζ_ao > 10⁻³ },  α_min,ri analogous
-      !      r_ao = sqrt( -ln(ε) / α_min,ao )   (radius_ao_per_atom)
-      !      r_ri = sqrt( -ln(ε) / α_min,ri )   (radius_ri_per_atom)
-      ! ==============================================================================
-      CALL precompute_ri_rs_radii(bs_env%ri_rs, bs_env%basis_set_AO, bs_env%basis_set_RI, &
-                                  bs_env%eps_filter, bs_env%unit_nr)
-
-      ! ==============================================================================
-      ! 1. Grid generation for RI-RS
-      !    Modified Lebedev atomic grids (Duchemin & Blase), one per atom,
-      !    concatenated into a flat global list:  r_l = R_A + r_l^(A)
-      ! ==============================================================================
-      CALL setup_ri_rs_grid(bs_env, bs_env%ri_rs%grid_points)
-
-      ! ==============================================================================
-      ! 2a. Atomic basis evaluation on the grid (grid x AO matrix)
-      !     ϕ_μl = ϕ_μ(r_l)   (mat_phi_mu_l)
-      ! ==============================================================================
-      CALL atomic_basis_at_grid_point(bs_env%ri_rs, bs_env%basis_set_AO, &
-                                      bs_env%mat_ao_ao%matrix, bs_env%para_env, bs_env%eps_filter, &
-                                      bs_env%dbcsr_msg_elem_limit, bs_env%unit_nr, periodic_images=.FALSE.)
+      ! Build the common grid, phi and Z representation with the system's boundary conditions.
+      CALL ensure_ri_rs_representation(qs_env, bs_env)
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
-      CALL print_matrix_occupation(bs_env%ri_rs%mat_phi_mu_l, 'ϕ_μ(r_l)', bs_env%para_env, bs_env%unit_nr, &
-                                   bs_env%dbcsr_msg_elem_limit)
-
-      ! ==============================================================================
-      ! 2b. Print the memory estimate for the RI-RS calculation
-      ! ==============================================================================
       CALL print_ri_rs_memory_estimate(bs_env)
-
-      ! ==============================================================================
-      ! 3. RI-RS fitting coefficients Z_lP (grid x RI matrix)
-      !    Per-atom regularized solve, restricted to grid points r_l within a
-      !    cutoff distance of atom P:
-      !      a. D_ll' = [ Σ_μ ϕ_μ(r_l) ϕ_μ(r_l') ]²
-      !      b. D_lP  = Σ_μν ϕ_μ(r_l) ϕ_ν(r_l) (μν|P)
-      !      c. Jacobi conditioning with d_l = 1/sqrt(D_ll):
-      !         D'_ll' = d_l D_ll' d_l' + λδ_ll' ,  D'_lP = d_l D_lP
-      !      d. Solve Σ_l' D'_ll' Z'_l'P = D'_lP
-      !      e. Rescale Z_lP = d_l Z'_lP                        (mat_Z_lP)
-      ! ==============================================================================
-      CALL compute_Z_lP(qs_env, bs_env, bs_env%ri_rs%grid_points, &
-                        bs_env%ri_rs%mat_phi_mu_l, bs_env%ri_rs%mat_Z_lP)
-
-      ! flag the RI-RS grid as built so a subsequent RT-BSE run reuses Z_lP
-      ! instead of rebuilding it
-      bs_env%ri_rs%grid_built = .TRUE.
 
       CALL mp_print_mem_per_rank(bs_env%para_env, bs_env%unit_nr, &
                                  label='Memory per MPI process after computing Z_lP:')
@@ -897,29 +847,20 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_ri_rs_memory_estimate(bs_env)
 
-!$    USE OMP_LIB, ONLY: omp_get_max_threads
-
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_ri_rs_memory_estimate'
 
       CHARACTER(LEN=max_line_length)                     :: msg
-      INTEGER                                            :: handle, iatom, ipan, l, &
-                                                            max_n_ao_used, max_n_local_grid, &
-                                                            n_ao_used_atom, n_grid_total, &
-                                                            n_local_grid, n_loc_ri_max, n_procs, &
-                                                            n_RI, n_threads, natom, pan_rows, &
-                                                            pan_width
+      INTEGER                                            :: handle, ipan, n_grid_total, n_procs, &
+                                                            n_RI, pan_rows, pan_width
       INTEGER(KIND=int_8)                                :: nze_tmpl
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pan_first, pan_last
       INTEGER, DIMENSION(:), POINTER                     :: r_blk_sizes
       LOGICAL                                            :: use_cutoff
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: grid_used
-      REAL(KIND=dp)                                      :: cutoff_ri, mem_avail_GB, mem_D_local_GB, &
-                                                            mem_dlp_GB, mem_pan_GB, mem_panels_GB, &
-                                                            mem_phi_local_GB, mem_Z_lP_GB, &
-                                                            mem_Zlp_peak_GB, pos_P(3)
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      REAL(KIND=dp)                                      :: mem_avail_GB, mem_pan_GB, mem_panels_GB, &
+                                                            mem_Z_lP_GB
 
       CALL timeset(routineN, handle)
 
@@ -966,49 +907,6 @@ CONTAINS
       mem_panels_GB = mem_panels_GB + &
                       REAL(n_RI, dp)*REAL(n_RI, dp)*8.0_dp/REAL(n_procs, dp)*1.0E-9_dp
 
-      ! Z_lP SOLVE peak (compute_Z_lP). For the atom P with the largest integration
-      ! sphere, one rank holds simultaneously:
-      !   D_local  : n_local_grid x n_local_grid  (dense D'_ll', BLAS path only; O(n_local_grid^2))
-      !   phi_local: n_local_grid x n_ao_used  (AOs reaching into the sphere only)
-      !   d_lp     : n_local_grid x n_loc_ri, replicated once + one private copy per OMP thread
-      ! n_local_grid = # grid points within cutoff_ri(P) = r_c(RI metric) + r_RI(P).
-      ! This is NOT evenly distributed: n_local_grid depends on the
-      ! local density of atoms/grid, so the rank owning the densest atom peaks well above the
-      ! average. We report the worst-case (max over atoms) as a per-rank upper bound.
-      particle_set => bs_env%ri_rs%particle_set
-      CPASSERT(ASSOCIATED(particle_set))
-      natom = bs_env%n_atom
-
-      max_n_local_grid = 0
-      n_loc_ri_max = 0
-      max_n_ao_used = 0
-      DO iatom = 1, natom
-         cutoff_ri = bs_env%ri_metric%cutoff_radius + bs_env%ri_rs%radius_ri_per_atom(iatom)
-         pos_P(:) = particle_set(iatom)%r(:)
-         n_local_grid = 0
-         DO l = 1, n_grid_total
-            IF (SUM((bs_env%ri_rs%grid_points(1:3, l) - pos_P(1:3))**2) <= cutoff_ri**2) THEN
-               n_local_grid = n_local_grid + 1
-            END IF
-         END DO
-         max_n_local_grid = MAX(max_n_local_grid, n_local_grid)
-         CALL get_n_ao_in_sphere(bs_env, iatom, cutoff_ri, n_ao_used_atom)
-         max_n_ao_used = MAX(max_n_ao_used, n_ao_used_atom)
-         n_loc_ri_max = MAX(n_loc_ri_max, &
-                            bs_env%i_RI_end_from_atom(iatom) - bs_env%i_RI_start_from_atom(iatom) + 1)
-      END DO
-
-      n_threads = 1
-!$    n_threads = omp_get_max_threads()
-
-      ! D_local: dense on one rank (single-rank BLAS path). This is the upper bound; atoms whose
-      ! solve does not fit are distributed automatically over a rank subgroup (ScaLAPACK).
-      mem_D_local_GB = REAL(max_n_local_grid, dp)**2*8.0_dp*1.0E-9_dp
-      mem_phi_local_GB = REAL(max_n_local_grid, dp)*REAL(max_n_ao_used, dp)*8.0_dp*1.0E-9_dp
-      mem_dlp_GB = REAL(max_n_local_grid, dp)*REAL(n_loc_ri_max, dp)*8.0_dp* &
-                   REAL(1 + n_threads, dp)*1.0E-9_dp
-      mem_Zlp_peak_GB = mem_D_local_GB + mem_phi_local_GB + mem_dlp_GB
-
       ! Available memory per process = node MemLikelyFree / ranks-per-node, min across ranks
       ! (0 on non-Linux => warnings suppressed below).
       CALL mp_mem_avail_per_rank_GB(bs_env%para_env, mem_avail_GB)
@@ -1022,12 +920,9 @@ CONTAINS
             'Required for Z_lP (dense upper bound; actual is sparser)', mem_Z_lP_GB, ' GB'
          WRITE (bs_env%unit_nr, '(T4,A,F25.2,A)') &
             'Required for χ, W, Σ panels (peak per panel step)', mem_panels_GB, ' GB'
-         WRITE (bs_env%unit_nr, '(T4,A,F17.2,A)') &
-            'Required for Z_lP solve peak (D_local+ϕ, worst-case atom)', mem_Zlp_peak_GB, ' GB'
-         WRITE (bs_env%unit_nr, '(T4,A,T69,I12)') &
-            'Worst-case local-grid number of grid points:', max_n_local_grid
-         WRITE (bs_env%unit_nr, '(T4,A,T69,F9.2,A)') &
-            'Worst-case memory D_local:', mem_D_local_GB, ' GB'
+         IF (bs_env%ri_rs%Z_lP_exists .AND. .NOT. bs_env%auto_ri%enabled) THEN
+            WRITE (bs_env%unit_nr, '(T4,A)') 'Z_lP fitting skipped (matrix read from restart)'
+         END IF
 
       END IF
 
@@ -1045,19 +940,6 @@ CONTAINS
             " GB per process, exceeds the available ", mem_avail_GB, " GB. Panel memory "// &
             "scales roughly as 3*panel_size*n_grid/n_procs, so add nodes, use fewer MPI ranks "// &
             "per node."
-         CPWARN(TRIM(msg))
-      END IF
-
-      IF (mem_avail_GB > 0.0_dp .AND. mem_Zlp_peak_GB > mem_avail_GB) THEN
-         WRITE (msg, '(A,F0.2,A,F0.2,A)') &
-            "The estimated peak memory of the Z_lP solve, ", mem_Zlp_peak_GB, &
-            " GB per process, exceeds the available ", mem_avail_GB, &
-            " GB. The per-atom matrix D'_ll' dominates and "// &
-            "scales as n_local_grid^2, and it is not balanced across ranks: the rank owning "// &
-            "the atom with the largest integration sphere peaks well above the average. "// &
-            "Such atoms are distributed automatically over a rank subgroup via ScaLAPACK. "// &
-            "If the run still runs out of memory, use fewer MPI ranks per node so that each "// &
-            "rank has more memory for the peak atom."
          CPWARN(TRIM(msg))
       END IF
 
@@ -2429,38 +2311,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE to_Gamma_and_mo_real
-
-! **************************************************************************************************
-!> \brief Counts the AO functions whose radial support intersects an RI fitting sphere.
-!> \param bs_env ...
-!> \param atom_P Atom at the center of the RI fitting sphere
-!> \param cutoff_ri Radius of the RI fitting sphere
-!> \param n_ao_used Number of intersecting AO functions
-! **************************************************************************************************
-   SUBROUTINE get_n_ao_in_sphere(bs_env, atom_P, cutoff_ri, n_ao_used)
-
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER, INTENT(IN)                                :: atom_P
-      REAL(KIND=dp), INTENT(IN)                          :: cutoff_ri
-      INTEGER, INTENT(OUT)                               :: n_ao_used
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_n_ao_in_sphere'
-
-      INTEGER                                            :: handle, ri_atom
-
-      CALL timeset(routineN, handle)
-
-      n_ao_used = 0
-      DO ri_atom = 1, bs_env%n_atom
-         IF (NORM2(bs_env%ri_rs%particle_set(ri_atom)%r(:) - &
-                   bs_env%ri_rs%particle_set(atom_P)%r(:)) > &
-             bs_env%ri_rs%radius_ao_per_atom(ri_atom) + cutoff_ri) CYCLE
-         n_ao_used = n_ao_used + bs_env%i_ao_end_from_atom(ri_atom) - &
-                     bs_env%i_ao_start_from_atom(ri_atom) + 1
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE get_n_ao_in_sphere
 
 END MODULE gw_ri_rs_non_periodic
