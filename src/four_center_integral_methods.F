@@ -196,12 +196,12 @@ CONTAINS
 
                   num = den*Zeta_C
                   den = den + Zeta_C
-                  ssss = ssss - num/den*SUM((P - rc)**2)
+                  ssss = ssss - num/den*SUM((P - C11)**2)
 
-                  G(:) = (list1%zeta*ra(:) + list1%zetb*rb(:) + Zeta_C*rc(:))/den
+                  G(:) = (list1%zeta*ra(:) + list1%zetb*rb(:) + Zeta_C*C11(:))/den
                   num = den*Zeta_D
                   den = den + Zeta_D
-                  ssss = ssss - num/den*SUM((G - rd)**2)
+                  ssss = ssss - num/den*SUM((G - tmp_D)**2)
 
                   product_list(nproducts)%Fm(:) = EXP(ssss)
                   ! The ID seed already contains the four-Gaussian attenuation.
