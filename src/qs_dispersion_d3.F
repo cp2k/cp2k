@@ -792,6 +792,13 @@ CONTAINS
                END IF
             END DO
          END DO
+         IF (idmp == 1) THEN
+            ! Zero damping: the switch (cutoff_switch_d3) removes part of the pairs in [rcut - 1 bohr, rcut] from
+            ! the explicit sum. Add that part with g(r) = 1, as GROMACS does for switched potentials. The factors
+            ! depend only on rcut, so forces are unchanged and the tail pressure stays E_lrc/V = -dE_lrc/dV.
+            elrc6 = elrc6*(1._dp + switched_shell_fraction(rcut, 6))
+            elrc8 = elrc8*(1._dp + switched_shell_fraction(rcut, 8))
+         END IF
          IF (use_virial) THEN
             IF (para_env%is_source()) THEN
                DO i = 1, 3
@@ -976,8 +983,31 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rab, rcutab, srn, alpn, rcut
       REAL(KIND=dp), INTENT(OUT)                         :: fdab, dfdab
 
-      REAL(KIND=dp)                                      :: a, b, c, d, dd, dfab, dfcc, dz, fab, &
-                                                            fcc, rl, rr, ru, z, zz
+      REAL(KIND=dp)                                      :: dfab, dfcc, fab, fcc, rr
+
+      CALL cutoff_switch_d3(rab, rcut, fcc, dfcc)
+
+      rr = 6._dp*(rab/(srn*rcutab))**(-alpn)
+      fab = 1._dp/(1._dp + rr)
+      dfab = fab*fab*rr*alpn/rab
+      fdab = fab*fcc
+      dfdab = dfab*fcc + fab*dfcc
+
+   END SUBROUTINE damping_d3
+
+! **************************************************************************************************
+!> \brief Switching function of zero damping, from 1 at rcut - 1 bohr to 0 at rcut
+!> \param rab distance
+!> \param rcut cutoff
+!> \param fcc switching function
+!> \param dfcc its derivative with respect to rab
+! **************************************************************************************************
+   SUBROUTINE cutoff_switch_d3(rab, rcut, fcc, dfcc)
+
+      REAL(KIND=dp), INTENT(IN)                          :: rab, rcut
+      REAL(KIND=dp), INTENT(OUT)                         :: fcc, dfcc
+
+      REAL(KIND=dp)                                      :: a, b, c, d, dd, dz, rl, ru, z, zz
 
       rl = rcut - 1._dp
       ru = rcut
@@ -1000,13 +1030,45 @@ CONTAINS
          dfcc = zz*dz/z*(3._dp*a + 4._dp*b*z + 5._dp*c*z*z)
       END IF
 
-      rr = 6._dp*(rab/(srn*rcutab))**(-alpn)
-      fab = 1._dp/(1._dp + rr)
-      dfab = fab*fab*rr*alpn/rab
-      fdab = fab*fcc
-      dfdab = dfab*fcc + fab*dfcc
+   END SUBROUTINE cutoff_switch_d3
 
-   END SUBROUTINE damping_d3
+! **************************************************************************************************
+!> \brief Long-range correction of an r^-n term carried by the pairs that the zero-damping switch removes
+!>        from [rcut - 1 bohr, rcut], relative to the correction beyond rcut (g(r) = 1):
+!>        (n-3) rcut^(n-3) int_{rcut-1}^{rcut} r^(2-n) (1 - fcc(r)) dr
+!> \param rcut cutoff
+!> \param n power of the term
+!> \return relative correction
+! **************************************************************************************************
+   FUNCTION switched_shell_fraction(rcut, n) RESULT(frac)
+
+      REAL(KIND=dp), INTENT(IN)                          :: rcut
+      INTEGER, INTENT(IN)                                :: n
+      REAL(KIND=dp)                                      :: frac
+
+      INTEGER, PARAMETER                                 :: nstep = 1000
+
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: dfcc, fcc, h, r, w
+
+      ! Simpson's rule
+      h = 1._dp/REAL(nstep, KIND=dp)
+      frac = 0._dp
+      DO i = 0, nstep
+         r = rcut - 1._dp + REAL(i, KIND=dp)*h
+         CALL cutoff_switch_d3(r, rcut, fcc, dfcc)
+         IF (i == 0 .OR. i == nstep) THEN
+            w = 1._dp
+         ELSE IF (MOD(i, 2) == 1) THEN
+            w = 4._dp
+         ELSE
+            w = 2._dp
+         END IF
+         frac = frac + w*r**(2 - n)*(1._dp - fcc)
+      END DO
+      frac = REAL(n - 3, KIND=dp)*rcut**(n - 3)*frac*h/3._dp
+
+   END FUNCTION switched_shell_fraction
 
 ! **************************************************************************************************
 !> \brief ...
