@@ -793,13 +793,20 @@ CONTAINS
             END DO
          END DO
          IF (use_virial) THEN
-            ! The pair sum is truncated at rcut, so the missing pressure is the virial of the pairs beyond rcut,
-            ! -(2pi/3V^2) sum_ab Na Nb int_rcut^inf r^3 u'(r) dr = (n/3) E_lrc,n / V, i.e. 2*E6/V and 8/3*E8/V
-            ! (as pair_modify tail in LAMMPS or DispCorr in GROMACS), not -dE_lrc/dV = E_lrc/V.
-            ! The three-body term (2*elrc9) is unchanged and has not been checked yet.
+            ! Pressure of the pairs not contained in the explicit sum (g(r) = 1 beyond the cutoff).
+            ! BJ damping: the pair sum is truncated sharply at rcut and its virial misses the pairs crossing rcut,
+            ! so the tail pressure is (n/3) E_lrc,n / V, i.e. 2*E6/V and 8/3*E8/V (as pair_modify tail in LAMMPS
+            ! or DispCorr in GROMACS).
+            ! Zero damping: damping_d3 switches the pairs off smoothly over [rcut - 1 bohr, rcut]; the virial of
+            ! the switching force already contains the cutoff contribution and the tail pressure is E_lrc,n / V.
+            ! The three-body term (2*elrc9) has not been checked.
             IF (para_env%is_source()) THEN
                DO i = 1, 3
-                  virial%pv_virial(i, i) = virial%pv_virial(i, i) + (2._dp*elrc6 + 8._dp/3._dp*elrc8 + 2._dp*elrc9)
+                  IF (idmp == 2) THEN
+                     virial%pv_virial(i, i) = virial%pv_virial(i, i) + (2._dp*elrc6 + 8._dp/3._dp*elrc8 + 2._dp*elrc9)
+                  ELSE
+                     virial%pv_virial(i, i) = virial%pv_virial(i, i) + (elrc6 + elrc8 + 2._dp*elrc9)
+                  END IF
                END DO
             END IF
          END IF
