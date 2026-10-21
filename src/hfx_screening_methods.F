@@ -76,7 +76,8 @@ CONTAINS
                       max_val, potential_parameter, tmp_R_1, &
                       rab2)
 
-      TYPE(four_center_integral_context_type)            :: context
+      TYPE(four_center_integral_context_type), &
+         INTENT(INOUT)                                   :: context
       REAL(dp), INTENT(IN)                               :: ra(3), rb(3)
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: zeta, zetb
       INTEGER, INTENT(IN)                                :: la_min, la_max, lb_min, lb_max, npgfa, &
@@ -302,7 +303,8 @@ CONTAINS
                                        max_set, max_pgf, n_threads, i_thread)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
-      TYPE(four_center_integral_context_type)            :: context
+      TYPE(four_center_integral_context_type), &
+         INTENT(INOUT)                                   :: context
       TYPE(hfx_potential_type)                           :: potential_parameter
       TYPE(hfx_screen_coeff_type), &
          DIMENSION(:, :, :, :), POINTER                  :: coeffs_set
