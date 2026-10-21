@@ -221,6 +221,7 @@ list(
   force_field_types.F
   four_center_integral_interface.F
   four_center_integral_methods.F
+  four_center_integral_preparation.F
   four_center_integral_types.F
   fp_methods.F
   fp_types.F

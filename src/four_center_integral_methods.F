@@ -14,23 +14,23 @@ MODULE four_center_integral_methods
    USE four_center_integral_interface,  ONLY: evaluate_deriv_eri,&
                                               evaluate_eri,&
                                               four_center_integral_context_type
+   USE four_center_integral_preparation,ONLY: prepare_eri4_pair,&
+                                              prepare_eri4_primitive,&
+                                              prepare_eri4_product
    USE four_center_integral_types,      ONLY: eri4_cell_type,&
-                                              eri4_fundamentals_size,&
+                                              eri4_pgf_image_type,&
                                               eri4_pgf_pair_type,&
                                               eri4_pgf_product_type,&
                                               eri4_screen_coeff_type
    USE input_constants,                 ONLY: do_potential_TShPSC,&
-                                              do_potential_id,&
                                               do_potential_mix_cl_trunc,&
                                               do_potential_short,&
                                               do_potential_truncated
    USE integral_library_types,          ONLY: coulomb_operator_type
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: nco,&
                                               nso
-   USE r12_fundamentals,                ONLY: compute_r12_fundamentals
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -74,24 +74,22 @@ CONTAINS
 
       REAL(dp), PARAMETER                                :: r_cutoff_eps = 1.0E-12_dp
 
-      INTEGER                                            :: i, j, k, k_max, l, nimages1, nimages2, &
+      INTEGER                                            :: i, j, k, k_max, nimages1, nimages2, &
                                                             tmp_i4
       LOGICAL                                            :: has_r_cutoff
-      REAL(dp) :: C11(3), den, Eta, EtaInv, fundamentals_work(eri4_fundamentals_size), G(3), &
-         min_img_delta, normalization, num, P(3), pgf_max_1, pgf_max_2, PQ(3), pq2, prefactor, &
-         Q(3), R1, R2, r_cutoff_sq, r_cutoff_sq_guard, ra(3), rb(3), rc(3), rcut_eff, rd(3), Rho, &
-         rpq2, S1234, S1234a, S1234b, shift(3), ssss, T, temp(3), temp_CC(3), temp_DD(3), &
-         tmp_D(3), W(3), Zeta1, Zeta_C, Zeta_D, ZetapEtaInv
+      REAL(dp) :: C11(3), EtaInv, min_img_delta, P(3), pgf_max_1, pgf_max_2, PQ(3), pq2, Q(3), R1, &
+         R2, r_cutoff_sq, r_cutoff_sq_guard, rc(3), rcut_eff, rd(3), rpq2, S1234, S1234a, S1234b, &
+         shift(3), temp(3), temp_CC(3), temp_DD(3), tmp_D(3), Zeta_C, Zeta_D
+      TYPE(eri4_pgf_image_type)                          :: shifted_image
+      TYPE(eri4_pgf_product_type)                        :: product
       TYPE(eri4_pgf_product_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: tmp_product_list
-
-      CPASSERT(m_max < eri4_fundamentals_size)
 
       nimages1 = list1%nimages
       nimages2 = list2%nimages
       nproducts = 0
-      Zeta1 = list1%zetapzetb
-      Eta = list2%zetapzetb
+      IF (nimages1 == 0 .OR. nimages2 == 0) RETURN
+      CALL prepare_eri4_product(list1, list2, m_max, product)
       EtaInv = list2%ZetaInv
       Zeta_C = list2%zeta
       Zeta_D = list2%zetb
@@ -115,8 +113,6 @@ CONTAINS
          R1 = list1%image_list(i)%R
          S1234a = list1%image_list(i)%S1234
          pgf_max_1 = list1%image_list(i)%pgf_max
-         ra = list1%image_list(i)%ra
-         rb = list1%image_list(i)%rb
          DO j = 1, nimages2
             pgf_max_2 = list2%image_list(j)%pgf_max
             IF (pgf_max_1 + pgf_max_2 + log10_pmax < log10_eps_schwarz) CYCLE
@@ -147,9 +143,6 @@ CONTAINS
                temp_DD = rd + shift
             END IF
 
-            ZetapEtaInv = Zeta1 + Eta
-            ZetapEtaInv = 1.0_dp/ZetapEtaInv
-            Rho = Zeta1*Eta*ZetapEtaInv
             S1234 = EXP(S1234a + S1234b)
 
             DO k = 1, k_max
@@ -188,55 +181,11 @@ CONTAINS
                   DEALLOCATE (tmp_product_list)
                END IF
 
-               T = Rho*rpq2
-               IF (potential_parameter%potential_type == do_potential_id) THEN
-                  num = list1%zeta*list1%zetb
-                  den = list1%zeta + list1%zetb
-                  ssss = -num/den*SUM((ra - rb)**2)
-
-                  num = den*Zeta_C
-                  den = den + Zeta_C
-                  ssss = ssss - num/den*SUM((P - C11)**2)
-
-                  G(:) = (list1%zeta*ra(:) + list1%zetb*rb(:) + Zeta_C*C11(:))/den
-                  num = den*Zeta_D
-                  den = den + Zeta_D
-                  ssss = ssss - num/den*SUM((G - tmp_D)**2)
-
-                  product_list(nproducts)%Fm(:) = EXP(ssss)
-                  ! The ID seed already contains the four-Gaussian attenuation.
-                  normalization = 1.0_dp
-                  IF (S1234 > EPSILON(0.0_dp)) normalization = 1.0_dp/S1234
-               ELSE
-                  CALL compute_r12_fundamentals(product_list(nproducts)%Fm, normalization, m_max, &
-                                                potential_parameter%potential_type, Rho, T, fundamentals_work, &
-                                                omega=potential_parameter%omega, &
-                                                cutoff_radius=potential_parameter%cutoff_radius, &
-                                                scale_coulomb=potential_parameter%scale_coulomb, &
-                                                scale_longrange=potential_parameter%scale_longrange, &
-                                                scale_gaussian=potential_parameter%scale_gaussian)
-               END IF
-
-               prefactor = normalization*S1234*SQRT((Pi*ZetapEtaInv)**3)
-
-               DO l = 1, m_max + 1
-                  product_list(nproducts)%Fm(l) = product_list(nproducts)%Fm(l)*prefactor
-               END DO
-
-               W = (Zeta1*P + Eta*Q)*ZetapEtaInv
-               product_list(nproducts)%centers(:, 1) = ra
-               product_list(nproducts)%centers(:, 2) = rb
-               product_list(nproducts)%centers(:, 3) = C11
-               product_list(nproducts)%centers(:, 4) = tmp_D
-               product_list(nproducts)%prepared_max_order = m_max
-               product_list(nproducts)%exponents = [list1%zeta, list1%zetb, Zeta_C, Zeta_D]
-               product_list(nproducts)%ZetaInv = list1%ZetaInv
-               product_list(nproducts)%EtaInv = EtaInv
-               product_list(nproducts)%ZetapEtaInv = ZetapEtaInv
-               product_list(nproducts)%Rho = Rho
-               product_list(nproducts)%P = P
-               product_list(nproducts)%Q = Q
-               product_list(nproducts)%W = W
+               shifted_image%ra = C11
+               shifted_image%rb = tmp_D
+               shifted_image%P = Q
+               CALL prepare_eri4_primitive(product, list1%image_list(i), shifted_image, S1234, rpq2, &
+                                           potential_parameter, product_list(nproducts))
             END DO
          END DO
       END DO
@@ -286,7 +235,7 @@ CONTAINS
 
       INTEGER                                            :: element_counter, i, i_max, ipgf, j, jpgf
       REAL(dp)                                           :: AB(3), im_B(3), min_img_delta, pgf_max, &
-                                                            rab2, Zeta1, Zeta_A, Zeta_B, ZetaInv
+                                                            rab2
 
       i_max = SIZE(neighbor_cells)
       IF (do_periodic) THEN
@@ -330,31 +279,15 @@ CONTAINS
                END IF
                nimages(element_counter) = nimages(element_counter) + 1
                list(element_counter)%image_list(nimages(element_counter))%pgf_max = pgf_max
-               list(element_counter)%image_list(nimages(element_counter))%ra = ra
-               list(element_counter)%image_list(nimages(element_counter))%rb = im_B
-               list(element_counter)%image_list(nimages(element_counter))%rab2 = rab2
-
-               Zeta_A = zeta(ipgf)
-               Zeta_B = zetb(jpgf)
-               Zeta1 = Zeta_A + Zeta_B
-               ZetaInv = 1.0_dp/Zeta1
-
+               CALL prepare_eri4_pair(ra, im_B, zeta(ipgf), zetb(jpgf), rab2, &
+                                      list(element_counter), list(element_counter)%image_list(nimages(element_counter)))
                IF (nimages(element_counter) == 1) THEN
                   list(element_counter)%ipgf = ipgf
                   list(element_counter)%jpgf = jpgf
-                  list(element_counter)%zetaInv = ZetaInv
-                  list(element_counter)%zetapzetb = Zeta1
-                  list(element_counter)%zeta = Zeta_A
-                  list(element_counter)%zetb = Zeta_B
                END IF
 
-               list(element_counter)%image_list(nimages(element_counter))%S1234 = (-Zeta_A*Zeta_B*ZetaInv*rab2)
-               list(element_counter)%image_list(nimages(element_counter))%P = (Zeta_A*ra + Zeta_B*im_B)*ZetaInv
                list(element_counter)%image_list(nimages(element_counter))%R = &
                   MAX(0.0_dp, R_pgf(jpgf, ipgf)%x(1)*rab2 + R_pgf(jpgf, ipgf)%x(2))
-               list(element_counter)%image_list(nimages(element_counter))%ra = ra
-               list(element_counter)%image_list(nimages(element_counter))%rb = im_B
-               list(element_counter)%image_list(nimages(element_counter))%rab2 = rab2
                list(element_counter)%image_list(nimages(element_counter))%bcell = neighbor_cells(i)%cell
             END DO
          END DO

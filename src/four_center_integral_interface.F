@@ -16,11 +16,14 @@ MODULE four_center_integral_interface
 
    USE cell_types,                      ONLY: cell_type,&
                                               real_to_scaled
-   USE four_center_integral_types,      ONLY: eri4_fundamentals_size,&
+   USE four_center_integral_preparation,ONLY: prepare_eri4_pair,&
+                                              prepare_eri4_primitive,&
+                                              prepare_eri4_product
+   USE four_center_integral_types,      ONLY: eri4_pgf_image_type,&
+                                              eri4_pgf_pair_type,&
                                               eri4_pgf_product_type
    USE hfx_contraction_methods,         ONLY: contract
-   USE input_constants,                 ONLY: do_potential_id,&
-                                              do_potential_mix_cl_trunc,&
+   USE input_constants,                 ONLY: do_potential_mix_cl_trunc,&
                                               do_potential_short,&
                                               do_potential_truncated
    USE integral_library_types,          ONLY: coulomb_operator_type
@@ -29,10 +32,8 @@ MODULE four_center_integral_interface
    USE libint_wrapper,                  ONLY: &
         cp_libint_cleanup_eri, cp_libint_cleanup_eri1, cp_libint_get_derivs, cp_libint_get_eris, &
         cp_libint_init_eri, cp_libint_init_eri1, cp_libint_set_contrdepth, &
-        cp_libint_set_params_eri, cp_libint_set_params_eri_deriv, cp_libint_t, get_ssss_f_val
-   USE mathconstants,                   ONLY: pi
+        cp_libint_set_params_eri, cp_libint_set_params_eri_deriv, cp_libint_t
    USE orbital_pointers,                ONLY: nco
-   USE r12_fundamentals,                ONLY: compute_r12_fundamentals
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -148,117 +149,6 @@ CONTAINS
          END DO
       END DO
    END SUBROUTINE reorder_eri_block
-
-! **************************************************************************************************
-!> \brief Fill data structure used in libint
-!> \param A ...
-!> \param B ...
-!> \param C ...
-!> \param D ...
-!> \param Zeta_A ...
-!> \param Zeta_B ...
-!> \param Zeta_C ...
-!> \param Zeta_D ...
-!> \param m_max ...
-!> \param potential_parameter ...
-!> \param libint ...
-!> \param R11 ...
-!> \param R22 ...
-!> \param active whether the quartet survived the radial cutoff and initialized the backend
-!> \par History
-!>      03.2007 created [Manuel Guidon]
-!> \author Manuel Guidon
-! **************************************************************************************************
-   SUBROUTINE build_quartet_data_screen(A, B, C, D, Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
-                                        potential_parameter, libint, R11, R22, active)
-
-      REAL(KIND=dp)                                      :: A(3), B(3), C(3), D(3)
-      REAL(KIND=dp), INTENT(IN)                          :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
-      INTEGER, INTENT(IN)                                :: m_max
-      TYPE(coulomb_operator_type)                        :: potential_parameter
-      TYPE(cp_libint_t)                                  :: libint
-      REAL(dp)                                           :: R11, R22
-      LOGICAL, INTENT(OUT)                               :: active
-
-      INTEGER                                            :: i
-      REAL(dp) :: AB(3), AB2, CD(3), CD2, den, Eta, fundamentals_work(eri4_fundamentals_size), &
-         G(3), normalization, num, PQ(3), PQ2, prefactor, S1234, ssss, T, Zeta
-      TYPE(eri4_pgf_product_type)                        :: params
-
-      CPASSERT(m_max < eri4_fundamentals_size)
-
-      active = .FALSE.
-      params%prepared_max_order = m_max
-      params%centers(:, 1) = A
-      params%centers(:, 2) = B
-      params%centers(:, 3) = C
-      params%centers(:, 4) = D
-      params%exponents = [Zeta_A, Zeta_B, Zeta_C, Zeta_D]
-
-      Zeta = Zeta_A + Zeta_B
-      params%ZetaInv = 1.0_dp/Zeta
-      Eta = Zeta_C + Zeta_D
-      params%EtaInv = 1.0_dp/Eta
-      params%ZetapEtaInv = Zeta + Eta
-      params%ZetapEtaInv = 1.0_dp/params%ZetapEtaInv
-      params%Rho = Zeta*Eta*params%ZetapEtaInv
-
-      DO i = 1, 3
-         params%P(i) = (Zeta_A*A(i) + Zeta_B*B(i))*params%ZetaInv
-         params%Q(i) = (Zeta_C*C(i) + Zeta_D*D(i))*params%EtaInv
-         AB(i) = A(i) - B(i)
-         CD(i) = C(i) - D(i)
-         PQ(i) = params%P(i) - params%Q(i)
-         params%W(i) = (Zeta*params%P(i) + Eta*params%Q(i))*params%ZetapEtaInv
-      END DO
-
-      AB2 = DOT_PRODUCT(AB, AB)
-      CD2 = DOT_PRODUCT(CD, CD)
-      PQ2 = DOT_PRODUCT(PQ, PQ)
-
-      S1234 = EXP((-Zeta_A*Zeta_B*params%ZetaInv*AB2) + (-Zeta_C*Zeta_D*params%EtaInv*CD2))
-      T = params%Rho*PQ2
-
-      SELECT CASE (potential_parameter%potential_type)
-      CASE (do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
-         IF (PQ2 > (R11 + R22 + potential_parameter%cutoff_radius)**2) RETURN
-      END SELECT
-      IF (potential_parameter%potential_type == do_potential_id) THEN
-         ssss = -Zeta_A*Zeta_B*params%ZetaInv*AB2
-
-         num = (Zeta_A + Zeta_B)*Zeta_C
-         den = Zeta_A + Zeta_B + Zeta_C
-         ssss = ssss - num/den*SUM((params%P - C)**2)
-
-         G(:) = (Zeta_A*A(:) + Zeta_B*B(:) + Zeta_C*C(:))/den
-         num = den*Zeta_D
-         den = den + Zeta_D
-         ssss = ssss - num/den*SUM((G - D)**2)
-
-         params%Fm(:) = EXP(ssss)
-         ! The ID seed already contains the four-Gaussian attenuation.
-         normalization = 1.0_dp
-         IF (S1234 > EPSILON(0.0_dp)) normalization = 1.0_dp/S1234
-      ELSE
-         CALL compute_r12_fundamentals(params%Fm, normalization, m_max, potential_parameter%potential_type, &
-                                       params%Rho, T, fundamentals_work, &
-                                       omega=potential_parameter%omega, &
-                                       cutoff_radius=potential_parameter%cutoff_radius, &
-                                       scale_coulomb=potential_parameter%scale_coulomb, &
-                                       scale_longrange=potential_parameter%scale_longrange, &
-                                       scale_gaussian=potential_parameter%scale_gaussian)
-      END IF
-
-      prefactor = normalization*S1234*SQRT((Pi*params%ZetapEtaInv)**3)
-
-      DO i = 1, m_max + 1
-         params%Fm(i) = params%Fm(i)*prefactor
-      END DO
-
-      CALL cp_libint_set_params_eri(libint, params, [1, 2, 3, 4], m_max)
-      active = .TRUE.
-
-   END SUBROUTINE build_quartet_data_screen
 
 ! **************************************************************************************************
 !> \brief Evaluates derivatives of electron repulsion integrals for a primitive quartet
@@ -551,39 +441,53 @@ CONTAINS
 
       INTEGER                                            :: a_mysize(1), angular_momenta(4), i, &
                                                             m_max, mysize, permutation(4)
-      LOGICAL                                            :: active
-      REAL(dp)                                           :: centers(3, 4), exponents(4)
+      REAL(dp)                                           :: centers(3, 4), exponents(4), PQ(3), PQ2, &
+                                                            S1234
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
+      TYPE(eri4_pgf_image_type)                          :: image_a, image_b
+      TYPE(eri4_pgf_pair_type)                           :: pair_a, pair_b
+      TYPE(eri4_pgf_product_type)                        :: params, product
 
       m_max = n_a + n_b + n_c + n_d
       mysize = nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d)
       a_mysize = mysize
 
+      CALL get_eri_permutation(n_a, n_b, n_c, n_d, permutation)
+      angular_momenta = [n_a, n_b, n_c, n_d]
+      angular_momenta = angular_momenta(permutation)
+      centers(:, 1) = A
+      centers(:, 2) = B
+      centers(:, 3) = C
+      centers(:, 4) = D
+      centers = centers(:, permutation)
+      exponents = [Zeta_A, Zeta_B, Zeta_C, Zeta_D]
+      exponents = exponents(permutation)
+
+      PQ = centers(:, 1) - centers(:, 2)
+      CALL prepare_eri4_pair(centers(:, 1), centers(:, 2), exponents(1), exponents(2), &
+                             DOT_PRODUCT(PQ, PQ), pair_a, image_a)
+      PQ = centers(:, 3) - centers(:, 4)
+      CALL prepare_eri4_pair(centers(:, 3), centers(:, 4), exponents(3), exponents(4), &
+                             DOT_PRODUCT(PQ, PQ), pair_b, image_b)
+      PQ = image_a%P - image_b%P
+      PQ2 = DOT_PRODUCT(PQ, PQ)
+      SELECT CASE (potential_parameter%potential_type)
+      CASE (do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
+         IF (PQ2 > (R1 + R2 + potential_parameter%cutoff_radius)**2) RETURN
+      END SELECT
+
+      CALL prepare_eri4_product(pair_a, pair_b, m_max, product)
+      S1234 = EXP(image_a%S1234 + image_b%S1234)
+      CALL prepare_eri4_primitive(product, image_a, image_b, S1234, PQ2, potential_parameter, params)
       IF (m_max /= 0) THEN
-         CALL get_eri_permutation(n_a, n_b, n_c, n_d, permutation)
-         angular_momenta = [n_a, n_b, n_c, n_d]
-         angular_momenta = angular_momenta(permutation)
-         centers(:, 1) = A
-         centers(:, 2) = B
-         centers(:, 3) = C
-         centers(:, 4) = D
-         exponents = [Zeta_A, Zeta_B, Zeta_C, Zeta_D]
-         exponents = exponents(permutation)
-         CALL build_quartet_data_screen(centers(:, permutation(1)), centers(:, permutation(2)), &
-                                        centers(:, permutation(3)), centers(:, permutation(4)), &
-                                        exponents(1), exponents(2), exponents(3), exponents(4), m_max, &
-                                        potential_parameter, context%eri, R1, R2, active)
-         IF (.NOT. active) RETURN
+         CALL cp_libint_set_params_eri(context%eri, params, [1, 2, 3, 4], m_max)
          CALL cp_libint_get_eris(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
                                  angular_momenta(1), context%eri, p_work, a_mysize)
          DO i = 1, mysize
             max_val = MAX(max_val, ABS(p_work(i)))
          END DO
       ELSE
-         CALL build_quartet_data_screen(A, B, C, D, Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
-                                        potential_parameter, context%eri, R1, R2, active)
-         IF (.NOT. active) RETURN
-         max_val = ABS(get_ssss_f_val(context%eri))
+         max_val = ABS(params%Fm(1))
       END IF
 
    END SUBROUTINE evaluate_eri_screen
