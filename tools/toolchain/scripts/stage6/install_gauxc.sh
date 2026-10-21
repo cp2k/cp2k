@@ -125,6 +125,8 @@ case "${with_gauxc}" in
         -DCMAKE_CXX_COMPILER="${CXX}" \
         -DCMAKE_Fortran_COMPILER="${FC}" \
         -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_STANDARD=20 \
+        -DCMAKE_CXX_STANDARD_REQUIRED=ON \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
         -DBUILD_SHARED_LIBS=OFF \
         -DGAUXC_ENABLE_C=ON \
