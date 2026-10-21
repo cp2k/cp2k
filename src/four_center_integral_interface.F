@@ -164,12 +164,13 @@ CONTAINS
 !> \param libint ...
 !> \param R11 ...
 !> \param R22 ...
+!> \param active whether the quartet survived the radial cutoff and initialized the backend
 !> \par History
 !>      03.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! **************************************************************************************************
    SUBROUTINE build_quartet_data_screen(A, B, C, D, Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
-                                        potential_parameter, libint, R11, R22)
+                                        potential_parameter, libint, R11, R22, active)
 
       REAL(KIND=dp)                                      :: A(3), B(3), C(3), D(3)
       REAL(KIND=dp), INTENT(IN)                          :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
@@ -177,6 +178,7 @@ CONTAINS
       TYPE(coulomb_operator_type)                        :: potential_parameter
       TYPE(cp_libint_t)                                  :: libint
       REAL(dp)                                           :: R11, R22
+      LOGICAL, INTENT(OUT)                               :: active
 
       INTEGER                                            :: i
       REAL(dp) :: AB(3), AB2, CD(3), CD2, den, Eta, fundamentals_work(eri4_fundamentals_size), &
@@ -185,6 +187,7 @@ CONTAINS
 
       CPASSERT(m_max < eri4_fundamentals_size)
 
+      active = .FALSE.
       params%prepared_max_order = m_max
       params%centers(:, 1) = A
       params%centers(:, 2) = B
@@ -253,6 +256,7 @@ CONTAINS
       END DO
 
       CALL cp_libint_set_params_eri(libint, params, [1, 2, 3, 4], m_max)
+      active = .TRUE.
 
    END SUBROUTINE build_quartet_data_screen
 
@@ -547,6 +551,7 @@ CONTAINS
 
       INTEGER                                            :: a_mysize(1), angular_momenta(4), i, &
                                                             m_max, mysize, permutation(4)
+      LOGICAL                                            :: active
       REAL(dp)                                           :: centers(3, 4), exponents(4)
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
 
@@ -567,7 +572,8 @@ CONTAINS
          CALL build_quartet_data_screen(centers(:, permutation(1)), centers(:, permutation(2)), &
                                         centers(:, permutation(3)), centers(:, permutation(4)), &
                                         exponents(1), exponents(2), exponents(3), exponents(4), m_max, &
-                                        potential_parameter, context%eri, R1, R2)
+                                        potential_parameter, context%eri, R1, R2, active)
+         IF (.NOT. active) RETURN
          CALL cp_libint_get_eris(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
                                  angular_momenta(1), context%eri, p_work, a_mysize)
          DO i = 1, mysize
@@ -575,7 +581,8 @@ CONTAINS
          END DO
       ELSE
          CALL build_quartet_data_screen(A, B, C, D, Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
-                                        potential_parameter, context%eri, R1, R2)
+                                        potential_parameter, context%eri, R1, R2, active)
+         IF (.NOT. active) RETURN
          max_val = ABS(get_ssss_f_val(context%eri))
       END IF
 
