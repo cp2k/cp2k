@@ -27,10 +27,14 @@
 #    of the first file, which is the reference for the comparison.
 #    It also shows the relative difference (in percentage) with respect to
 #    the reference values. Colors/bold are used to easy spot the larger discrepancies:
-#       blue: smaller than reference
-#       blue bold: smaller than reference > 100%
-#       green: bigger than reference
-#       green bold: bigger than reference > 100%
+#       green: faster than reference (beyond threshold)
+#       red: slower than reference (beyond threshold)
+#       plain: within +/- threshold of the reference (neutral)
+#       bold: at least 2x faster or slower than reference
+#    You can use the option
+#       -t <percent>
+#    to change the threshold (default is 5%).
+#    Colors are disabled if the output is not a terminal or NO_COLOR is set.
 #    A set of dashes "-------" are reported for SUBROUTINES that
 #    are only in the reference file, while the SUBROUTINES
 #    that are only in the other files are reported for each file at the end.
@@ -63,13 +67,15 @@
 #    to use the option
 #       -k <file keys>
 #    to specify a different file.
-#    The values will appear under "Stats report".
+#    The values will appear under "Stats report" (omitted if stats_keys is empty).
+#    Only lines after the "DBCSR STATISTICS" banner are considered.
 #
 
 import sys
 import argparse
 import operator
 import os
+import importlib.util
 from importlib.machinery import SourceFileLoader
 
 
@@ -90,17 +96,17 @@ def read_file(filename, field, special_keys, stats_keys):
                     split = line.split()
                     nameout[1] = split[-1]  # last item
                     continue
-                if "DBCSR STATISTICS" not in line and nstats == 0:
-                    continue
-                nstats = 1
-                for stats_key in stats_keys:
-                    if stats_key in line:
-                        for index in stats_keys[stats_key]:
-                            index_key = stats_key.strip() + " [" + str(index) + "]"
-                            dict_stats[index_key] = line.split(stats_key, 2)[1].split()[
-                                index
-                            ]
-                        break
+                if "DBCSR STATISTICS" in line:
+                    nstats = 1
+                if nstats != 0:
+                    for stats_key in stats_keys:
+                        if stats_key in line:
+                            fields = line.split(stats_key, 1)[1].split()
+                            for index in stats_keys[stats_key]:
+                                index_key = stats_key.strip() + " [" + str(index) + "]"
+                                if index < len(fields):
+                                    dict_stats[index_key] = fields[index]
+                            break
                 if "T I M I N G" not in line and nline == 0:
                     continue
                 nline += 1
@@ -124,7 +130,6 @@ def read_file(filename, field, special_keys, stats_keys):
                 else:
                     dict_values[values[0]] = float(values[3 + field])
 
-        f.closed
         return dict_values, dict_stats, nameout
     except IOError:
         print("Cannot open " + filename)
@@ -132,19 +137,25 @@ def read_file(filename, field, special_keys, stats_keys):
         sys.exit(-1)
 
 
-def print_value(ref, value, show_comp):
+def ansi(code, colors):
+    return "\033[" + code + "m" if colors else ""
+
+
+def print_value(ref, value, show_comp, threshold, colors):
     if ref > 0:
         comp = (value - ref) / ref * 100
     else:
         comp = float("Inf")
-    color = "\033[0m"  # reset
-    nocol = "\033[0m"  # reset
-    if comp > 0:
-        color = "\033[92m"  # green
-    elif comp < 0:
-        color = "\033[94m"  # blue
-    if abs(comp) > 100:
-        color += "\033[1m"  # bold
+    color = ansi("0", colors)  # reset
+    nocol = ansi("0", colors)  # reset
+    # timings: lower is better
+    if comp < -threshold:
+        color = ansi("92", colors)  # green
+    elif comp > threshold:
+        color = ansi("91", colors)  # red
+    # at least 2x faster or slower
+    if abs(comp) > threshold and (comp <= -50 or comp >= 100):
+        color += ansi("1", colors)  # bold
     if show_comp:
         sys.stdout.write(color + "%10.3f" % value + "%5.0f" % comp + nocol)
     else:
@@ -193,6 +204,14 @@ def main():
         help="Fields to grep (check the exact correspondance of the words)",
     )
     parser.add_argument(
+        "-t",
+        metavar="threshold",
+        type=float,
+        dest="threshold",
+        default=5.0,
+        help="relative difference in percent considered neutral (default is 5)",
+    )
+    parser.add_argument(
         "-k", metavar="file_keys", dest="file_keys", default="", help="File of keys"
     )
     parser.add_argument(
@@ -202,6 +221,7 @@ def main():
         help="show comparison values",
     )
     args = parser.parse_args()
+    colors = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
 
     # Empty keys by default
     special_keys = {}
@@ -216,14 +236,21 @@ def main():
         file_keys.append(os.getcwd() + "/diff_cp2k_keys.py")
         file_keys.append(os.path.expanduser("~") + "/diff_cp2k_keys.py")
 
+    # first file found takes precedence (local directory before home)
     for filename in file_keys:
         try:
-            module = SourceFileLoader("*", filename).load_module()
-            special_keys = module.special_keys
-            stats_keys = module.stats_keys
+            loader = SourceFileLoader("diff_cp2k_keys", filename)
+            spec = importlib.util.spec_from_file_location(
+                "diff_cp2k_keys", filename, loader=loader
+            )
+            module = importlib.util.module_from_spec(spec)
+            loader.exec_module(module)
+            special_keys = getattr(module, "special_keys", {})
+            stats_keys = getattr(module, "stats_keys", {})
+            break
         except IOError:
             if len(args.file_keys) > 0:
-                print("Cannont open file keys " + filename + "!")
+                print("Cannot open file keys " + filename + "!")
                 print("Exit")
                 sys.exit(-1)
 
@@ -264,7 +291,13 @@ def main():
             if key[0] not in dict_values[filename]:
                 sys.stdout.write(("-" * ndash).rjust(5 + ndash))
                 continue
-            print_value(key[1], dict_values[filename][key[0]], args.show_comp)
+            print_value(
+                key[1],
+                dict_values[filename][key[0]],
+                args.show_comp,
+                args.threshold,
+                colors,
+            )
             del dict_values[filename][key[0]]
         print("")
 
@@ -273,15 +306,14 @@ def main():
     ref = 0
     if len(files[args.file_lists[args.base - 1]][1]) > 0:
         ref = float(files[args.file_lists[args.base - 1]][1])
-    color = "\033[0m"  # reset
-    nocol = "\033[0m"  # reset
+    nocol = ansi("0", colors)  # reset
     for filename in args.file_lists:
         if len(files[filename][1]) > 0 and ref != 0:
             comp = (float(files[filename][1]) - ref) / ref
             if abs(comp) > 1e-14:
-                color = "\033[91m"  # red
+                color = ansi("91", colors)  # red
             else:
-                color = "\033[0m"  # reset
+                color = ansi("0", colors)  # reset
             print(
                 ("{0} ==> {1} : {2} : " + color + "{3}" + nocol).format(
                     files[filename][0],
@@ -291,9 +323,7 @@ def main():
                 )
             )
         else:
-            print(("{0} ==> {1} : ").format(files[filename][0], filename)),
-            sys.stdout.write(("-" * 20).rjust(20))
-            print("")
+            print(("{0} ==> {1} : ").format(files[filename][0], filename) + "-" * 20)
 
     print("")
 
@@ -317,9 +347,8 @@ def main():
             print("<None>")
         print("")
 
-    print("===== Stats report =====")
-
     if len(stats_keys) > 0:
+        print("===== Stats report =====")
         for stats_key in stats_keys:
             for index in stats_keys[stats_key]:
                 index_key = stats_key.strip() + " [" + str(index) + "]"
@@ -330,10 +359,7 @@ def main():
                         continue
                     sys.stdout.write(dict_stats[filename][index_key].ljust(20))
                 print("")
-    else:
-        print("<None>")
-
-    print("")
+        print("")
 
 
 # ===============================================================================
