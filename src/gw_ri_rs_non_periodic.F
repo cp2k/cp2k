@@ -91,8 +91,7 @@ CONTAINS
       !      χ_ll'(iτ)       = G^occ_ll'(i|τ|) ∘ G^vir_ll'(i|τ|) (element-wise)
       !      χ_PQ(iτ)        = Σ_ll' Z_lP χ_ll'(iτ) Z_l'Q
       ! ==============================================================================
-      CALL get_mat_chi_Gamma_tau(bs_env, bs_env%mat_chi_Gamma_tau, &
-                                 bs_env%ri_rs%mat_phi_mu_l, bs_env%ri_rs%mat_Z_lP, bs_env%ri_rs%cutoff_radius_v_w)
+      CALL get_mat_chi_Gamma_tau(bs_env, bs_env%mat_chi_Gamma_tau, bs_env%ri_rs%cutoff_radius_v_w)
 
       ! ==============================================================================
       ! 5. Screened Coulomb interaction W (RI basis)
@@ -108,8 +107,7 @@ CONTAINS
       !      Σ^x_ll'       = D_ll' ∘ V^tr_ll'
       !      Σ^x_λσ(k=0)   = -Σ_ll' ϕ_λ(r_l) Σ^x_ll' ϕ_σ(r_l')
       ! ==============================================================================
-      CALL compute_Sigma_x(bs_env, qs_env, bs_env%ri_rs%mat_phi_mu_l, &
-                           bs_env%ri_rs%mat_Z_lP, fm_Sigma_x_Gamma, bs_env%ri_rs%cutoff_radius_v_w)
+      CALL compute_Sigma_x(bs_env, qs_env, fm_Sigma_x_Gamma, bs_env%ri_rs%cutoff_radius_v_w)
 
       ! ==============================================================================
       ! 7. Correlation self-energy Σ^c and quasiparticle energies, iterated
@@ -176,8 +174,7 @@ CONTAINS
          ! Σ^c_ll'(iτ) = -G^occ_ll'(i|τ|) ∘ W_ll'(iτ),  τ < 0
          ! Σ^c_ll'(iτ) =  G^vir_ll'(i|τ|) ∘ W_ll'(iτ),  τ > 0
          ! Σ^c_λσ(iτ)  =  Σ_ll' ϕ_λ(r_l) Σ^c_ll'(iτ) ϕ_σ(r_l')
-         CALL compute_Sigma_c(bs_env, fm_W_time, bs_env%ri_rs%mat_phi_mu_l, &
-                              bs_env%ri_rs%mat_Z_lP, fm_Sigma_c_Gamma_time, bs_env%ri_rs%cutoff_radius_v_w)
+         CALL compute_Sigma_c(bs_env, fm_W_time, fm_Sigma_c_Gamma_time, bs_env%ri_rs%cutoff_radius_v_w)
 
          ! Σ^c_λσ(iτ) -> Σ^c_nn(ϵ)
          ! ϵ_n^GW,(i) = ϵ_n^DFT + Σ^c_nn[G^(i-1),W](ϵ_n^GW,(i)) + Σ^x_nn - v^xc_nn

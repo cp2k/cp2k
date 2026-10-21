@@ -16,7 +16,7 @@ MODULE ri_rs_matrices
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_data_size, &
         dbcsr_get_info, dbcsr_get_occupation, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_put_block, dbcsr_release, dbcsr_set, dbcsr_type, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_set, dbcsr_type, &
         dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               max_elements_per_block
@@ -670,7 +670,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       INTEGER, INTENT(IN)                                :: blk0
       TYPE(dbcsr_type), INTENT(OUT)                      :: A_template
-      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: col_map
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: col_map
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_geo_template_panel'
 
@@ -690,7 +690,7 @@ CONTAINS
 
       ! create_product_matrix assigns row r to process MOD(r-1,nprows) and
       ! col c to MOD(c-1,npcols), so we can determine local ownership analytically.
-      CALL create_product_matrix(L_pan, L_full, 'N', 'T', A_template)
+      CALL create_product_matrix(L_pan, L_full, 'T', A_template)
       CALL dbcsr_get_info(A_template, distribution=dist)
       CALL dbcsr_distribution_get(dist, nprows=nprows, npcols=npcols, &
                                   myprow=my_prow, mypcol=my_pcol)
@@ -704,8 +704,7 @@ CONTAINS
          rs = pan_blk_sizes(r)
          DO c = 1, n_grid_blks
             IF (MOD(c - 1, npcols) /= my_pcol) CYCLE
-            cg = c
-            IF (PRESENT(col_map)) cg = col_map(c)
+            cg = col_map(c)
             IF ((centroids(1, blk0 + r - 1) - centroids(1, cg))**2 + &
                 (centroids(2, blk0 + r - 1) - centroids(2, cg))**2 + &
                 (centroids(3, blk0 + r - 1) - centroids(3, cg))**2 <= cutoff2) THEN
@@ -926,38 +925,33 @@ CONTAINS
 !>        dbcsr_multiply. Row structure comes from op(left), column structure from op(right).
 !> \param mat_left ...
 !> \param mat_right ...
-!> \param transa 'N' or 'T' applied to mat_left
 !> \param transb 'N' or 'T' applied to mat_right
 !> \param mat_out ...
 ! **************************************************************************************************
-   SUBROUTINE create_product_matrix(mat_left, mat_right, transa, transb, mat_out)
+   SUBROUTINE create_product_matrix(mat_left, mat_right, transb, mat_out)
 
       TYPE(dbcsr_type), INTENT(IN)                       :: mat_left, mat_right
-      CHARACTER(LEN=1), INTENT(IN)                       :: transa, transb
+      CHARACTER(LEN=1), INTENT(IN)                       :: transb
       TYPE(dbcsr_type), INTENT(OUT)                      :: mat_out
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_product_matrix'
 
       INTEGER                                            :: handle, i, npcols, nprows
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_l, col_blk_r, out_col_blk, &
-                                                            out_col_dist, out_row_blk, &
-                                                            out_row_dist, row_blk_l, row_blk_r
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_r, out_col_blk, out_col_dist, &
+                                                            out_row_blk, out_row_dist, row_blk_l, &
+                                                            row_blk_r
       TYPE(dbcsr_distribution_type)                      :: dist_l, dist_out
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_get_info(mat_left, distribution=dist_l, row_blk_size=row_blk_l, col_blk_size=col_blk_l)
+      CALL dbcsr_get_info(mat_left, distribution=dist_l, row_blk_size=row_blk_l)
       CALL dbcsr_get_info(mat_right, row_blk_size=row_blk_r, col_blk_size=col_blk_r)
       CALL dbcsr_distribution_get(dist_l, nprows=nprows, npcols=npcols)
 
       ! block SIZES follow op(left)/op(right); DISTRIBUTIONS are freshly round-robined onto the
       ! shared process grid (a transposed operand's row-dist is NOT a valid col-dist on a
       ! non-square grid). dbcsr_multiply redistributes internally, so any valid mapping works.
-      IF (transa == 'N') THEN
-         out_row_blk => row_blk_l
-      ELSE
-         out_row_blk => col_blk_l
-      END IF
+      out_row_blk => row_blk_l
       IF (transb == 'N') THEN
          out_col_blk => col_blk_r
       ELSE
@@ -997,15 +991,15 @@ CONTAINS
 !>        The physical contractions and their signs/spin factors are specified in gw_ri_rs_kernels:
 !>          χ:   L_A=L_B=ϕ, M_A=G_occ, M_B=G_vir, L_out=Z      -> RI x RI
 !>          Σx:  L_A=ϕ, M_A=D, L_B=Z, M_B=M^-1 V^tr M^-1, L_out=ϕ -> AO x AO
-!>          Σc:  L_A=ϕ, M_A=G_occ, M_A2=G_vir, L_B=Z, M_B=W, L_out=ϕ -> two AO x AO outputs.
+!>          Σc:  L_A=ϕ, M_A=[G_occ,G_vir], L_B=Z, M_B=W, L_out=ϕ -> two AO x AO outputs.
 !>        The second Σc output reuses the same W grid panel; its projection and back-projection
 !>        otherwise follow the same operations as the first output.
 !> \param L_A grid-by-basis collocation or fitting matrix for the first operand
-!> \param M_A first square operator, with row/column blocking matching the columns of L_A
+!> \param M_A one or two square operators, with row/column blocking matching the columns of L_A
 !> \param L_B grid-by-basis collocation or fitting matrix for the second operand
 !> \param M_B second square operator, with row/column blocking matching the columns of L_B
 !> \param L_out grid-by-output-basis matrix for back-projection
-!> \param mat_out pre-created square output with the column blocking of L_out
+!> \param mat_out borrowed pointers to pre-created outputs, one per M_A, with the column blocking of L_out
 !> \param scale prefactor of the Hadamard product, including the caller's sign/spin convention
 !> \param eps DBCSR multiplication screening threshold
 !> \param para_env communicator containing all matrix ranks
@@ -1017,16 +1011,17 @@ CONTAINS
 !> \param centroids optional global grid-block centres, paired with a positive cutoff for truncation
 !> \param cutoff retain grid-block pairs within this centroid distance; nonpositive disables truncation
 !> \param grid_occupation allocated-element fraction of the first grid operand before the Hadamard product
-!> \param M_A2 optional second operator with the same shape/layout as M_A; supplied together with mat_out2
-!> \param mat_out2 second pre-created output, with the same shape/layout as mat_out
 ! **************************************************************************************************
    SUBROUTINE contract_grid_panels(L_A, M_A, L_B, M_B, L_out, mat_out, scale, eps, para_env, &
                                    pan_first, pan_last, lb_eq_la, lout_eq_la, zero_out, &
-                                   centroids, cutoff, grid_occupation, M_A2, mat_out2)
+                                   centroids, cutoff, grid_occupation)
 
-      TYPE(dbcsr_type), INTENT(INOUT), TARGET            :: L_A, M_A, L_B
+      TYPE(dbcsr_type), INTENT(INOUT), TARGET            :: L_A
+      TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: M_A
+      TYPE(dbcsr_type), INTENT(INOUT), TARGET            :: L_B
       TYPE(dbcsr_type), INTENT(INOUT)                    :: M_B
-      TYPE(dbcsr_type), INTENT(INOUT), TARGET            :: L_out, mat_out
+      TYPE(dbcsr_type), INTENT(INOUT), TARGET            :: L_out
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mat_out
       REAL(KIND=dp), INTENT(IN)                          :: scale, eps
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       INTEGER, DIMENSION(:), INTENT(IN)                  :: pan_first, pan_last
@@ -1035,27 +1030,24 @@ CONTAINS
          OPTIONAL                                        :: centroids
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: cutoff
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: grid_occupation
-      TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL, TARGET  :: M_A2, mat_out2
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_grid_panels'
 
-      INTEGER                                            :: blk0, blk1, handle, i_A, ipan, n_A, &
+      INTEGER                                            :: blk0, blk1, handle, i_A, ipan, &
                                                             n_grid_total, ncols_pan, nrows_pan
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: gmap
       LOGICAL                                            :: use_cutoff
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: grid_used, usedA, usedB
       TYPE(dbcsr_type)                                   :: A_pan(2), B_pan, LB_pan, LB_panC, &
                                                             MA_sub, MB_sub, tmp2, tmpA, tmpB
-      TYPE(dbcsr_type), POINTER                          :: operator_A, output_A, panel_out, RB_A, &
-                                                            RB_B, RB_out
+      TYPE(dbcsr_type), POINTER                          :: panel_out, RB_A, RB_B, RB_out
       TYPE(dbcsr_type), TARGET                           :: LA_near, LA_pan, LA_panC, LB_near, &
                                                             Lout_near, Lout_pan
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(PRESENT(M_A2) .EQV. PRESENT(mat_out2))
-      n_A = 1
-      IF (PRESENT(M_A2)) n_A = 2
+      CPASSERT(SIZE(M_A) >= 1 .AND. SIZE(M_A) <= 2)
+      CPASSERT(SIZE(mat_out) == SIZE(M_A))
 
       use_cutoff = PRESENT(centroids) .AND. PRESENT(cutoff)
       IF (use_cutoff) use_cutoff = cutoff > 0.0_dp
@@ -1064,8 +1056,9 @@ CONTAINS
       CALL dbcsr_get_info(L_A, nfullrows_total=n_grid_total)
 
       IF (zero_out) THEN
-         CALL dbcsr_set(mat_out, 0.0_dp)
-         IF (PRESENT(mat_out2)) CALL dbcsr_set(mat_out2, 0.0_dp)
+         DO i_A = 1, SIZE(mat_out)
+            CALL dbcsr_set(mat_out(i_A)%matrix, 0.0_dp)
+         END DO
       END IF
 
       DO ipan = 1, SIZE(pan_first)
@@ -1123,22 +1116,20 @@ CONTAINS
             RB_out => L_out
          END IF
 
-         DO i_A = 1, n_A
-            operator_A => M_A
-            IF (i_A == 2) operator_A => M_A2
-            ! A_pan(i_A) = LA_pan * operator_A * L_A^T   (P x grid_near).
+         DO i_A = 1, SIZE(M_A)
+            ! A_pan(i_A) = LA_pan * M_A(i_A) * L_A^T   (P x grid_near).
             ! When cutoff is active, A_pan(i_A) is pre-seeded with only nearby blocks via
             ! build_geo_template_panel, and the multiply uses retain_sparsity to skip
             ! computing distant blocks entirely within the chosen grid cutoff.
-            CALL extract_masked_blocks(operator_A, usedA, MA_sub, compress_rows=.TRUE.)
-            CALL create_product_matrix(LA_panC, MA_sub, 'N', 'N', tmpA)
+            CALL extract_masked_blocks(M_A(i_A), usedA, MA_sub, compress_rows=.TRUE.)
+            CALL create_product_matrix(LA_panC, MA_sub, 'N', tmpA)
             CALL dbcsr_multiply('N', 'N', 1.0_dp, LA_panC, MA_sub, 0.0_dp, tmpA, filter_eps=eps)
             CALL dbcsr_release(MA_sub)
             IF (use_cutoff) THEN
                CALL build_geo_template_panel(LA_pan, LA_near, centroids, cutoff, blk0, A_pan(i_A), &
                                              col_map=gmap)
             ELSE
-               CALL create_product_matrix(tmpA, RB_A, 'N', 'T', A_pan(i_A))
+               CALL create_product_matrix(tmpA, RB_A, 'T', A_pan(i_A))
             END IF
             CALL dbcsr_multiply('N', 'T', 1.0_dp, tmpA, RB_A, 0.0_dp, A_pan(i_A), &
                                 filter_eps=eps, retain_sparsity=use_cutoff)
@@ -1162,19 +1153,19 @@ CONTAINS
          ! retain_sparsity forces the final multiply to fill only those blocks (exact for ∘).
          IF (lb_eq_la) THEN
             CALL extract_masked_blocks(M_B, usedA, MB_sub, compress_rows=.TRUE.)
-            CALL create_product_matrix(LA_panC, MB_sub, 'N', 'N', tmpB)
+            CALL create_product_matrix(LA_panC, MB_sub, 'N', tmpB)
             CALL dbcsr_multiply('N', 'N', 1.0_dp, LA_panC, MB_sub, 0.0_dp, tmpB, filter_eps=eps)
          ELSE
             CALL extract_masked_blocks(LB_pan, usedB, LB_panC, compress_rows=.FALSE.)
             CALL extract_masked_blocks(M_B, usedB, MB_sub, compress_rows=.TRUE.)
-            CALL create_product_matrix(LB_panC, MB_sub, 'N', 'N', tmpB)
+            CALL create_product_matrix(LB_panC, MB_sub, 'N', tmpB)
             CALL dbcsr_multiply('N', 'N', 1.0_dp, LB_panC, MB_sub, 0.0_dp, tmpB, filter_eps=eps)
             CALL dbcsr_release(LB_panC)
          END IF
          CALL dbcsr_release(MB_sub)
          CALL dbcsr_create(B_pan, template=A_pan(1))
          CALL dbcsr_copy(B_pan, A_pan(1))
-         IF (n_A == 2) CALL dbcsr_add(B_pan, A_pan(2), 1.0_dp, 1.0_dp)
+         IF (SIZE(M_A) == 2) CALL dbcsr_add(B_pan, A_pan(2), 1.0_dp, 1.0_dp)
          CALL dbcsr_set(B_pan, 0.0_dp)
          ! The output pattern is already fixed. Omitting redundant on-the-fly filtering also
          ! avoids overflowing DBCSR's single-precision screening norms for conditioned Z fits.
@@ -1183,17 +1174,15 @@ CONTAINS
          CALL dbcsr_release(tmpB)
          CALL dbcsr_release(LA_panC)
 
-         DO i_A = 1, n_A
-            output_A => mat_out
-            IF (i_A == 2) output_A => mat_out2
+         DO i_A = 1, SIZE(M_A)
             ! Reuse A_pan storage for its Hadamard product with the shared B panel.
             CALL hadamard_product_inplace(A_pan(i_A), B_pan, scale)
-            CALL create_product_matrix(A_pan(i_A), RB_out, 'N', 'N', tmp2)
+            CALL create_product_matrix(A_pan(i_A), RB_out, 'N', tmp2)
             CALL dbcsr_multiply('N', 'N', 1.0_dp, A_pan(i_A), RB_out, 0.0_dp, tmp2, filter_eps=eps)
             CALL dbcsr_release(A_pan(i_A))
 
             ! mat_out += L_out_pan^T * tmp2.
-            CALL dbcsr_multiply('T', 'N', 1.0_dp, panel_out, tmp2, 1.0_dp, output_A, filter_eps=eps)
+            CALL dbcsr_multiply('T', 'N', 1.0_dp, panel_out, tmp2, 1.0_dp, mat_out(i_A)%matrix, filter_eps=eps)
             CALL dbcsr_release(tmp2)
          END DO
          CALL dbcsr_release(B_pan)

@@ -46,8 +46,7 @@ MODULE gw_tensor_large_cell_Gamma
                                               get_W_MIC
    USE gw_utils,                        ONLY: G_occ_vir,&
                                               analyt_conti_and_print,&
-                                              de_init_bs_env,&
-                                              fill_fm_Sigma_c_Gamma_time
+                                              de_init_bs_env
    USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
                                               fm_contract_ABA
    USE input_constants,                 ONLY: G0W0
@@ -78,7 +77,6 @@ MODULE gw_tensor_large_cell_Gamma
    PUBLIC :: gw_calc_tensor_large_cell_Gamma, &
              compute_3c_integrals, &
              G_occ_vir, &
-             fill_fm_Sigma_c_Gamma_time, &
              delete_unnecessary_files, &
              compute_QP_energies, &
              get_mat_chi_Gamma_tau, &
@@ -1194,6 +1192,44 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE contract_to_Sigma
+
+! **************************************************************************************************
+!> \brief Copy the positive- and negative-time self-energy matrices to the FM time array.
+!> \param fm_Sigma_c_Gamma_time allocated output indexed by time, time sector and spin
+!> \param bs_env time grid, spin count and AO layout
+!> \param mat_Sigma_pos_tau positive-time self-energy matrices
+!> \param mat_Sigma_neg_tau negative-time self-energy matrices
+! **************************************************************************************************
+   SUBROUTINE fill_fm_Sigma_c_Gamma_time(fm_Sigma_c_Gamma_time, bs_env, &
+                                         mat_Sigma_pos_tau, mat_Sigma_neg_tau)
+
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :, :)  :: fm_Sigma_c_Gamma_time
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_Sigma_pos_tau, mat_Sigma_neg_tau
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_fm_Sigma_c_Gamma_time'
+
+      INTEGER                                            :: handle, i_t, ispin, pos_neg
+
+      CALL timeset(routineN, handle)
+
+      ALLOCATE (fm_Sigma_c_Gamma_time(bs_env%num_time_freq_points, 2, bs_env%n_spin))
+      DO ispin = 1, bs_env%n_spin
+         DO i_t = 1, bs_env%num_time_freq_points
+            DO pos_neg = 1, 2
+               CALL cp_fm_create(fm_Sigma_c_Gamma_time(i_t, pos_neg, ispin), &
+                                 bs_env%fm_s_Gamma%matrix_struct)
+            END DO
+            CALL copy_dbcsr_to_fm(mat_Sigma_pos_tau(i_t, ispin)%matrix, &
+                                  fm_Sigma_c_Gamma_time(i_t, 1, ispin))
+            CALL copy_dbcsr_to_fm(mat_Sigma_neg_tau(i_t, ispin)%matrix, &
+                                  fm_Sigma_c_Gamma_time(i_t, 2, ispin))
+         END DO
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE fill_fm_Sigma_c_Gamma_time
 
 ! **************************************************************************************************
 !> \brief ...

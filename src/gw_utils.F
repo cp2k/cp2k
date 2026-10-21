@@ -140,8 +140,7 @@ MODULE gw_utils
              add_R, &
              is_cell_in_index_to_cell, &
              rtbse_resolve_rirs_flag, &
-             G_occ_vir, &
-             fill_fm_Sigma_c_Gamma_time
+             G_occ_vir
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_utils'
 
@@ -3676,43 +3675,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE G_occ_vir
-
-! **************************************************************************************************
-!> \brief Copy the positive- and negative-time self-energy matrices to the FM time array.
-!> \param fm_Sigma_c_Gamma_time allocated output indexed by time, time sector and spin
-!> \param bs_env time grid, spin count and AO layout
-!> \param mat_Sigma_pos_tau positive-time self-energy matrices
-!> \param mat_Sigma_neg_tau negative-time self-energy matrices
-! **************************************************************************************************
-   SUBROUTINE fill_fm_Sigma_c_Gamma_time(fm_Sigma_c_Gamma_time, bs_env, &
-                                         mat_Sigma_pos_tau, mat_Sigma_neg_tau)
-
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :, :)  :: fm_Sigma_c_Gamma_time
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_Sigma_pos_tau, mat_Sigma_neg_tau
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_fm_Sigma_c_Gamma_time'
-
-      INTEGER                                            :: handle, i_t, ispin, pos_neg
-
-      CALL timeset(routineN, handle)
-
-      ALLOCATE (fm_Sigma_c_Gamma_time(bs_env%num_time_freq_points, 2, bs_env%n_spin))
-      DO ispin = 1, bs_env%n_spin
-         DO i_t = 1, bs_env%num_time_freq_points
-            DO pos_neg = 1, 2
-               CALL cp_fm_create(fm_Sigma_c_Gamma_time(i_t, pos_neg, ispin), &
-                                 bs_env%fm_s_Gamma%matrix_struct)
-            END DO
-            CALL copy_dbcsr_to_fm(mat_Sigma_pos_tau(i_t, ispin)%matrix, &
-                                  fm_Sigma_c_Gamma_time(i_t, 1, ispin))
-            CALL copy_dbcsr_to_fm(mat_Sigma_neg_tau(i_t, ispin)%matrix, &
-                                  fm_Sigma_c_Gamma_time(i_t, 2, ispin))
-         END DO
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE fill_fm_Sigma_c_Gamma_time
 
 END MODULE gw_utils

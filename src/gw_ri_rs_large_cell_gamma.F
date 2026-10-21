@@ -67,8 +67,7 @@ CONTAINS
        !!    χ_ll'(iτ)       = G^occ_ll'(i|τ|) * G^vir_ll'(i|τ|)
        !!    χ_PQ(iτ)        = sum_ll' Z_lP χ_ll'(iτ) Z_l'Q
        !!========================================================================
-      CALL get_mat_chi_Gamma_tau(bs_env, bs_env%mat_chi_Gamma_tau, &
-                                 bs_env%ri_rs%mat_phi_mu_l, bs_env%ri_rs%mat_Z_lP, cutoff=0.0_dp)
+      CALL get_mat_chi_Gamma_tau(bs_env, bs_env%mat_chi_Gamma_tau, cutoff=0.0_dp)
 
        !!========================================================================
        !! 5. Compute Screened Interaction (W^MIC)
@@ -84,8 +83,7 @@ CONTAINS
        !!    Σ^x_ll'       = D_ll' * V^trunc_ll'
        !!    Σ^x_λσ(k=0)   = -sum_ll' ϕ_λ(r_l) Σ^x_ll' ϕ_σ(r_l')
        !!========================================================================
-      CALL compute_Sigma_x(bs_env, qs_env, bs_env%ri_rs%mat_phi_mu_l, &
-                           bs_env%ri_rs%mat_Z_lP, fm_Sigma_x_Gamma, cutoff=0.0_dp)
+      CALL compute_Sigma_x(bs_env, qs_env, fm_Sigma_x_Gamma, cutoff=0.0_dp)
 
        !!========================================================================
        !! 7. Compute Correlation Self-Energy (Σ^c)
@@ -94,8 +92,7 @@ CONTAINS
        !!    Σ^c_ll'(iτ)   =  G^vir_ll'(i|τ|) * W^MIC_ll'(iτ), for τ > 0
        !!    Σ^c_λσ(iτ)    =  sum_ll' ϕ_λ(r_l) Σ^c_ll'(iτ) ϕ_σ(r_l')
        !!========================================================================
-      CALL compute_Sigma_c(bs_env, fm_W_time, bs_env%ri_rs%mat_phi_mu_l, &
-                           bs_env%ri_rs%mat_Z_lP, fm_Sigma_c_Gamma_time, cutoff=0.0_dp)
+      CALL compute_Sigma_c(bs_env, fm_W_time, fm_Sigma_c_Gamma_time, cutoff=0.0_dp)
       CALL cp_fm_release(fm_W_time)
       CALL delete_unnecessary_files(bs_env)
 
