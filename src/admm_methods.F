@@ -79,7 +79,8 @@ MODULE admm_methods
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE kpoint_methods,                  ONLY: kpoint_density_matrices,&
+   USE kpoint_methods,                  ONLY: calibrate_symmetry_phases,&
+                                              kpoint_density_matrices,&
                                               kpoint_density_transform,&
                                               rskp_transform
    USE kpoint_mo_symmetry_methods,      ONLY: kpoint_transform_scf_mo
@@ -567,6 +568,8 @@ CONTAINS
       END DO
 
       IF (apply_star) THEN
+         CALL calibrate_symmetry_phases(kpoints, matrix_s_aux_fit, matrix_s_aux_fit(1, 1)%matrix, &
+                                        sab_aux_fit, cell_to_index, for_aux_fit=.TRUE.)
          ALLOCATE (rho_tmp(nspins, SIZE(rho_ao_aux, 2)))
          DO img = 1, SIZE(rho_ao_aux, 2)
             DO ispin = 1, nspins
