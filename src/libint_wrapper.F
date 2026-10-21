@@ -396,33 +396,34 @@ CONTAINS
    END SUBROUTINE cp_libint_get_3eris
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Copy independent 3-center derivatives into caller-owned compact scratch.
 !> \param n_c ...
 !> \param n_b ...
 !> \param n_a ...
 !> \param lib ...
-!> \param p_work ...
+!> \param p_work first a_mysize(1) rows and 6 columns receive Cartesian derivative triplets
 !> \param a_mysize ...
 ! **************************************************************************************************
    SUBROUTINE cp_libint_get_3eri_derivs(n_c, n_b, n_a, lib, p_work, a_mysize)
       INTEGER, INTENT(IN)                                :: n_c, n_b, n_a
       TYPE(cp_libint_t)                                  :: lib
-      INTEGER                                            :: a_mysize(1)
-      REAL(dp), DIMENSION(:, :), POINTER                    :: p_work
+      INTEGER, INTENT(IN)                                :: a_mysize(1)
+      REAL(dp), DIMENSION(:, :), INTENT(OUT)              :: p_work
 
 #if(__LIBINT)
       REAL(dp), DIMENSION(:), POINTER                    :: p_work_tmp
       INTEGER :: i
 
-      CALL build_eri_kernel(lib, libint2_build_3eri1, [n_c, n_b, n_a], "3-center ERI derivative")
+      CPASSERT(SIZE(p_work, 1) >= a_mysize(1))
+      CPASSERT(SIZE(p_work, 2) >= 6)
 
-      ALLOCATE (p_work(a_mysize(1), 9))
+      CALL build_eri_kernel(lib, libint2_build_3eri1, [n_c, n_b, n_a], "3-center ERI derivative")
 
       !Derivatives 1-3 can be obtained using translational invariance
       DO i = 4, 9
          NULLIFY (p_work_tmp)
          CALL C_F_POINTER(lib%prv(1)%targets(i), p_work_tmp, SHAPE=a_mysize)
-         p_work(:, i) = p_work_tmp
+         p_work(1:a_mysize(1), i - 3) = p_work_tmp
       END DO
 #else
       MARK_USED(n_c)
@@ -437,33 +438,33 @@ CONTAINS
    END SUBROUTINE cp_libint_get_3eri_derivs
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param n_c ...
+!> \brief Copy independent 2-center derivatives into caller-owned compact scratch.
 !> \param n_b ...
 !> \param n_a ...
 !> \param lib ...
-!> \param p_work ...
+!> \param p_work first a_mysize(1) rows and 3 columns receive Cartesian derivative triplets
 !> \param a_mysize ...
 ! **************************************************************************************************
    SUBROUTINE cp_libint_get_2eri_derivs(n_b, n_a, lib, p_work, a_mysize)
       INTEGER, INTENT(IN)                                :: n_b, n_a
       TYPE(cp_libint_t)                                  :: lib
-      INTEGER                                            :: a_mysize(1)
-      REAL(dp), DIMENSION(:, :), POINTER                 :: p_work
+      INTEGER, INTENT(IN)                                :: a_mysize(1)
+      REAL(dp), DIMENSION(:, :), INTENT(OUT)              :: p_work
 
 #if(__LIBINT)
       REAL(dp), DIMENSION(:), POINTER                    :: p_work_tmp
       INTEGER :: i
 
-      CALL build_eri_kernel(lib, libint2_build_2eri1, [n_b, n_a], "2-center ERI derivative")
+      CPASSERT(SIZE(p_work, 1) >= a_mysize(1))
+      CPASSERT(SIZE(p_work, 2) >= 3)
 
-      ALLOCATE (p_work(a_mysize(1), 6))
+      CALL build_eri_kernel(lib, libint2_build_2eri1, [n_b, n_a], "2-center ERI derivative")
 
       !Derivatives 1-3 can be obtained using translational invariance
       DO i = 4, 6
          NULLIFY (p_work_tmp)
          CALL C_F_POINTER(lib%prv(1)%targets(i), p_work_tmp, SHAPE=a_mysize)
-         p_work(:, i) = p_work_tmp
+         p_work(1:a_mysize(1), i - 3) = p_work_tmp
       END DO
 #else
       MARK_USED(n_b)
