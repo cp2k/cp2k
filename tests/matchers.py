@@ -870,3 +870,5 @@ registry["Kubo_symmetry_points"] = GenericMatcher(
 registry["Unfold_band1_energy"] = GenericMatcher(
     r"^\s*1\s+([-+]?\d+\.\d+)\s+\d+\.\d+\s+\d+\.\d+", col=2, regex=True
 )
+
+registry["TACO_writer_header"] = TextPresenceMatcher('"software":"CP2K"')

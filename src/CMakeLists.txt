@@ -14,6 +14,12 @@ configure_file(base/base_uses.f90 base/base_uses.f90 @ONLY)
 # Source lists are kept separately from source selection and build logic.
 include("${CMAKE_CURRENT_LIST_DIR}/CMakeSources.cmake")
 
+if(CP2K_USE_TACO)
+  list(APPEND CP2K_SRCS_C taco_cp2k.c)
+else()
+  list(APPEND CP2K_EXCLUDED_SRCS_C taco_cp2k.c)
+endif()
+
 if(CP2K_USE_FFT_GPU)
   list(APPEND CP2K_SRCS_F fft/fft_gpu.F)
 endif()
@@ -288,6 +294,7 @@ target_link_libraries(
             $<$<BOOL:${CP2K_USE_DLAF}>:${CP2K_DLAF_FORTRAN_TARGET}>
             $<$<BOOL:${CP2K_USE_GREENX}>:cp2k::greenx>
             $<$<BOOL:${CP2K_USE_TREXIO}>:cp2k::trexio::trexio>
+            $<$<BOOL:${CP2K_USE_TACO}>:cp2k::taco>
             $<$<BOOL:${CP2K_USE_HDF5}>:HDF5::HDF5
             hdf5::hdf5_fortran>
             wignernj::wignernj
@@ -367,6 +374,7 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_LIBXC}>:__LIBXC>
     $<$<BOOL:${CP2K_USE_HDF5}>:__HDF5>
     $<$<BOOL:${CP2K_USE_OPENPMD}>:__OPENPMD>
+    $<$<BOOL:${CP2K_USE_TACO}>:__TACO>
     $<$<BOOL:${CP2K_USE_TREXIO}>:__TREXIO>
     $<$<BOOL:${CP2K_USE_GREENX}>:__GREENX>
     $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:__FFTW3>

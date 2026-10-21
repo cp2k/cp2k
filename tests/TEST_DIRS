@@ -13,6 +13,7 @@ QS/regtest-cusolver                                         cusolvermp
 QS/regtest-dlaf                                             dlaf spglib
 QS/regtest-dlaf-2                                           dlaf libint
 QS/regtest-openpmd                                          openpmd
+Fist/regtest-taco                                           taco
 QS/regtest-gauxc-cuda                                       gauxc_cuda libtorch_cuda
 QS/regtest-pexsi                                            pexsi
 Fist/regtest-deepmd                                         deepmd !lsan

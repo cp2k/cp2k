@@ -12,43 +12,49 @@
 ! **************************************************************************************************
 MODULE motion_utils
 
-   USE cell_types,                      ONLY: cell_type
-   USE cp2k_info,                       ONLY: compile_revision,&
-                                              cp2k_version,&
-                                              r_host_name,&
-                                              r_user_name
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type
-   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                              cp_print_key_unit_nr
-   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                              cp_subsys_type
-   USE cp_units,                        ONLY: cp_unit_from_cp2k
-   USE force_env_types,                 ONLY: force_env_get,&
-                                              force_env_type
-   USE input_constants,                 ONLY: dump_atomic,&
-                                              dump_dcd,&
-                                              dump_dcd_aligned_cell,&
-                                              dump_extxyz,&
-                                              dump_pdb,&
-                                              dump_xmol
-   USE input_section_types,             ONLY: section_get_ival,&
-                                              section_vals_get,&
-                                              section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp,&
-                                              sp
-   USE machine,                         ONLY: m_flush,&
-                                              m_timestamp,&
-                                              timestamp_length
-   USE mathlib,                         ONLY: diamat_all
-   USE particle_list_types,             ONLY: particle_list_type
-   USE particle_methods,                ONLY: write_particle_coordinates
-   USE particle_types,                  ONLY: particle_type
-   USE physcon,                         ONLY: angstrom
-   USE virial_types,                    ONLY: virial_type
+   USE cell_types, ONLY: cell_type
+   USE cp2k_info, ONLY: compile_revision, &
+                        cp2k_version, &
+                        r_host_name, &
+                        r_user_name
+   USE cp_log_handling, ONLY: cp_get_default_logger, &
+                              cp_logger_type
+   USE cp_output_handling, ONLY: cp_print_key_finished_output, &
+                                 cp_print_key_generate_filename, &
+                                 cp_print_key_unit_nr
+   USE cp_subsys_types, ONLY: cp_subsys_get, &
+                              cp_subsys_type
+   USE cp_units, ONLY: cp_unit_from_cp2k
+   USE force_env_types, ONLY: force_env_get, &
+                              force_env_type
+   USE input_constants, ONLY: dump_atomic, &
+                              dump_dcd, &
+                              dump_dcd_aligned_cell, &
+                              dump_extxyz, &
+                              dump_pdb, &
+                              dump_taco, &
+                              dump_xmol
+   USE input_section_types, ONLY: section_get_ival, &
+                                  section_vals_get, &
+                                  section_vals_get_subs_vals, &
+                                  section_vals_type, &
+                                  section_vals_val_get
+   USE kinds, ONLY: default_path_length, &
+                    default_string_length, &
+                    dp, &
+                    sp
+   USE machine, ONLY: m_flush, &
+                      m_timestamp, &
+                      timestamp_length
+   USE mathlib, ONLY: diamat_all
+   USE particle_list_types, ONLY: particle_list_type
+   USE particle_methods, ONLY: write_particle_coordinates
+   USE particle_types, ONLY: particle_type
+   USE physcon, ONLY: angstrom
+#ifdef __TACO
+   USE taco_writer, ONLY: taco_write_frame
+#endif
+   USE virial_types, ONLY: virial_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -295,8 +301,14 @@ CONTAINS
       CHARACTER(LEN=4)                                   :: id_dcd
       CHARACTER(LEN=5)                                   :: pbc_str
       CHARACTER(LEN=80), DIMENSION(2)                    :: remark
-      CHARACTER(LEN=default_string_length) :: etot_str, id_extxyz, id_label, id_wpc, my_act, &
-         my_ext, my_form, my_middle, my_pk_name, my_pos, section_ref, step_str, time_str, unit_str
+#ifdef __TACO
+      CHARACTER(LEN=default_path_length)                 :: filename
+#endif
+      CHARACTER(LEN=default_string_length)               :: etot_str, id_extxyz, id_label, &
+                                                            id_wpc, my_act, my_ext, my_form, &
+                                                            my_middle, my_pk_name, my_pos, &
+                                                            section_ref, step_str, time_str, &
+                                                            unit_str
       CHARACTER(LEN=timestamp_length)                    :: timestamp
       INTEGER                                            :: handle, i, ii, iskip, nat, outformat, &
                                                             traj_unit
@@ -314,11 +326,11 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: my_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: force_env_section, &
-                                                            force_mixing_restart_section
+                                                            force_mixing_restart_section, print_key
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (logger, cell, subsys, my_particles, particle_set)
+      NULLIFY (logger, cell, subsys, my_particles, particle_set, print_key)
       logger => cp_get_default_logger()
       id_label = logger%iter_info%level_name(logger%iter_info%n_rlevel)
       my_pos = "APPEND"
@@ -384,6 +396,33 @@ CONTAINS
 
       ! Get the output format
       CALL get_output_format(root_section, "MOTION%PRINT%"//TRIM(my_pk_name), my_form, my_ext)
+#ifdef __TACO
+      ! TACO manages its own file handle, so handle it before cp_print_key_unit_nr
+      ! opens a Fortran unit on the same file.
+      CALL section_vals_val_get(root_section, "MOTION%PRINT%"//TRIM(my_pk_name)//"%FORMAT", &
+                                i_val=outformat)
+      IF (outformat == dump_taco) THEN
+         ! TACO stores positions, velocities and forces in a single file, so the
+         ! whole frame is written on the TRAJECTORY (position) call only; the
+         ! separate VELOCITIES/FORCES calls carry no extra data.
+         IF (TRIM(my_pk_name) == "TRAJECTORY" .AND. logger%para_env%mepos == 0) THEN
+            print_key => section_vals_get_subs_vals(root_section, "MOTION%PRINT%"//TRIM(my_pk_name))
+            filename = cp_print_key_generate_filename(logger, print_key, &
+                                                      middle_name=TRIM(my_middle), &
+                                                      extension=TRIM(my_ext), my_local=.FALSE.)
+            CALL taco_write_frame(filename, particle_set, cell, it, time, dtime, etot)
+         END IF
+         CALL timestop(handle)
+         RETURN
+      END IF
+#else
+      CALL section_vals_val_get(root_section, "MOTION%PRINT%"//TRIM(my_pk_name)//"%FORMAT", &
+                                i_val=outformat)
+      IF (outformat == dump_taco) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "TACO trajectory output requires a CP2K built with CP2K_USE_TACO")
+      END IF
+#endif
       traj_unit = cp_print_key_unit_nr(logger, root_section, "MOTION%PRINT%"//TRIM(my_pk_name), &
                                        extension=my_ext, file_position=my_pos, file_action=my_act, &
                                        file_form=my_form, middle_name=TRIM(my_middle), is_new_file=new_file)
@@ -537,6 +576,9 @@ CONTAINS
       CASE (dump_pdb)
          my_form = "FORMATTED"
          my_ext = ".pdb"
+      CASE (dump_taco)
+         my_form = "UNFORMATTED"
+         my_ext = ".taco"
       CASE DEFAULT
          my_form = "FORMATTED"
          my_ext = ".xyz"
