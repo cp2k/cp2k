@@ -48,7 +48,7 @@ MODULE hfx_energy_potential
                                       hfx_get_single_cache_element, &
                                       hfx_reset_cache_and_container
    USE hfx_contract_block, ONLY: contract_block
-   USE hfx_libint_interface, ONLY: evaluate_eri
+   USE four_center_integral_interface, ONLY: evaluate_eri
    USE hfx_load_balance_methods, ONLY: collect_load_balance_info, &
                                        hfx_load_balance, &
                                        hfx_update_load_balance
@@ -82,7 +82,7 @@ MODULE hfx_energy_potential
                     int_8
    USE kpoint_types, ONLY: get_kpoint_info, &
                            kpoint_type
-   USE libint_wrapper, ONLY: cp_libint_t
+   USE four_center_integral_interface, ONLY: four_center_integral_context_type
    USE machine, ONLY: m_flush, &
                       m_memory, &
                       m_walltime
@@ -212,7 +212,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:) :: ee_buffer1, ee_buffer2, ee_primitives_tmp, ee_work, &
                                              ee_work2, kac_buf, kad_buf, kbc_buf, kbd_buf, pac_buf, pad_buf, pbc_buf, pbd_buf, &
                                              primitive_integrals
-      REAL(dp), DIMENSION(:), POINTER                    :: p_work
+
       REAL(dp), DIMENSION(:, :), POINTER :: full_density_alpha, full_density_beta, full_ks_alpha, &
                                             full_ks_beta, max_contraction, ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, shm_pmax_atom, &
                                             shm_pmax_block, sphi_b, zeta, zetb, zetc, zetd, &
@@ -225,7 +225,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: coeffs_kind_max0
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_libint_t)                                  :: private_lib
+      TYPE(four_center_integral_context_type)                                  :: private_lib
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit_hfx
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -423,7 +423,7 @@ CONTAINS
 !$OMP         pgf_product_list,nimages,ks_fully_occ,subtr_size_mb,use_disk_storage,counter,do_disk_storage,&
 !$OMP         maxval_container_disk,maxval_cache_disk,integral_containers_disk,integral_caches_disk,eps_schwarz,&
 !$OMP         log10_eps_schwarz,eps_storage,hf_fraction,buffer_overflow,logger,private_lib,last_sgf_global,handle_getp,&
-!$OMP         p_work,fac,handle_load,do_dynamic_load_balancing,my_bin_size,maxval_container,integral_containers,maxval_cache,&
+!$OMP         fac,handle_load,do_dynamic_load_balancing,my_bin_size,maxval_container,integral_containers,maxval_cache,&
 !$OMP         integral_caches,tmp_task_list,tmp_task_list_cost,tmp_index,handle_main,coeffs_kind_max0,set_list_ij,&
 !$OMP         set_list_kl,iatom_start,iatom_end,jatom_start,jatom_end,nblocks,bins_left,do_it,distribution_energy,&
 !$OMP         my_thread_id,my_bin_id,handle_bin,bintime_start,my_istart,my_current_counter,latom_block,tmp_block,&
@@ -756,7 +756,7 @@ CONTAINS
       END IF
       logger => cp_get_default_logger()
 
-      private_lib = actual_x_data%lib
+      private_lib = actual_x_data%eri4_context
 
       !! Helper array to map local basis function indices to global ones
       ALLOCATE (last_sgf_global(0:natom))
@@ -875,7 +875,7 @@ CONTAINS
                                        shm_master_x_data%screen_funct_coeffs_kind, &
                                        shm_master_x_data%screen_funct_coeffs_pgf, &
                                        shm_master_x_data%pair_dist_radii_pgf, &
-                                       max_set, max_pgf, n_threads, i_thread, p_work)
+                                       max_set, max_pgf, n_threads, i_thread)
 
 !$OMP MASTER
          shm_master_x_data%screen_funct_is_initialized = .TRUE.
@@ -1661,7 +1661,7 @@ CONTAINS
                                             sphi_c_ext_set, &
                                             sphi_d_ext_set, &
                                             ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
-                                            nimages, do_periodic, p_work)
+                                            nimages, do_periodic)
 
                               nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
                               neris_total = neris_total + nints
@@ -2414,7 +2414,6 @@ CONTAINS
 !> \param ee_primitives_tmp ...
 !> \param nimages ...
 !> \param do_periodic ...
-!> \param p_work ...
 !> \par History
 !>      11.2006 created [Manuel Guidon]
 !>      02.2009 completely rewritten screening part [Manuel Guidon]
@@ -2439,9 +2438,9 @@ CONTAINS
                        nsgfl_d, &
                        sphi_a_ext, sphi_b_ext, sphi_c_ext, sphi_d_ext, &
                        ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
-                       nimages, do_periodic, p_work)
+                       nimages, do_periodic)
 
-      TYPE(cp_libint_t)                                  :: lib
+      TYPE(four_center_integral_context_type)                                  :: lib
       REAL(dp), INTENT(IN)                               :: ra(3), rb(3), rc(3), rd(3)
       INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, lb_min, lb_max, lc_min, &
                              lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd, sphi_a_u1, sphi_a_u2, sphi_a_u3, &
@@ -2473,7 +2472,6 @@ CONTAINS
                                                             ee_buffer2, ee_primitives_tmp
       INTEGER, DIMENSION(*)                              :: nimages
       LOGICAL, INTENT(IN)                                :: do_periodic
-      REAL(dp), DIMENSION(:), POINTER                    :: p_work
 
       INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, list_ij, list_kl, lpgf, max_l, ncoa, ncob, &
                  ncoc, ncod, nelements_ij, nelements_kl, nproducts, nsgfla, nsgflb, nsgflc, nsgfld, nsoa, &
@@ -2550,8 +2548,7 @@ CONTAINS
                                           sphi_b_ext(1, lb + 1, jpgf), &
                                           sphi_c_ext(1, lc + 1, kpgf), &
                                           sphi_d_ext(1, ld + 1, lpgf), &
-                                          ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
-                                          p_work)
+                                          ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp)
                         cart_estimate = MAX(tmp_max, cart_estimate)
                         s_offset_d = s_offset_d + nsod*nsgfld
                      END DO !ld

@@ -39,7 +39,7 @@ MODULE hfx_derivatives
                                       hfx_get_mult_cache_elements, &
                                       hfx_get_single_cache_element, &
                                       hfx_reset_cache_and_container
-   USE hfx_libint_interface, ONLY: evaluate_deriv_eri
+   USE four_center_integral_interface, ONLY: evaluate_deriv_eri
    USE hfx_load_balance_methods, ONLY: collect_load_balance_info, &
                                        hfx_load_balance, &
                                        hfx_update_load_balance
@@ -61,7 +61,7 @@ MODULE hfx_derivatives
    USE input_section_types, ONLY: section_vals_type
    USE kinds, ONLY: dp, &
                     int_8
-   USE libint_wrapper, ONLY: cp_libint_t
+   USE four_center_integral_interface, ONLY: four_center_integral_context_type
    USE machine, ONLY: m_walltime
    USE mathconstants, ONLY: fac
    USE orbital_pointers, ONLY: nco, &
@@ -187,7 +187,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_libint_t)                                  :: private_deriv
+      TYPE(four_center_integral_context_type)                                  :: private_deriv
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_basis_info_type), POINTER                 :: basis_info
@@ -438,7 +438,7 @@ CONTAINS
       counter = 0_int_8
 
       !! Copy the libint_guy
-      private_deriv = actual_x_data%lib_deriv
+      private_deriv = actual_x_data%eri4_context
 
       !! Get screening parameter
 
@@ -1747,12 +1747,6 @@ CONTAINS
          END IF
       END IF
 
-      !
-      ! this wraps to free_libint, but currently causes a segfault
-      ! as a result, we don't call it, but some memory remains allocated
-      !
-      ! CALL terminate_libderiv(private_deriv)
-
 !$OMP END PARALLEL
 
       CALL timestop(handle)
@@ -1864,7 +1858,7 @@ CONTAINS
                       ede_work2_virial, ede_primitives_tmp_virial, primitive_integrals_virial, &
                       cart_estimate_virial)
 
-      TYPE(cp_libint_t)                                  :: deriv
+      TYPE(four_center_integral_context_type)                                  :: deriv
       REAL(dp), INTENT(IN)                               :: ra(3), rb(3), rc(3), rd(3)
       INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, lb_min, lb_max, lc_min, &
                              lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd, sphi_a_u1, sphi_a_u2, sphi_a_u3, &

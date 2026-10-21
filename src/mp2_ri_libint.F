@@ -35,6 +35,7 @@ MODULE mp2_ri_libint
                                               cp_fm_release,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_type
+   USE four_center_integral_interface,  ONLY: four_center_integral_context_type
    USE gamma,                           ONLY: init_md_ftable
    USE hfx_energy_potential,            ONLY: coulomb4
    USE hfx_pair_list_methods,           ONLY: build_pair_list_mp2
@@ -48,7 +49,6 @@ MODULE mp2_ri_libint
                                               do_potential_long
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE libint_wrapper,                  ONLY: cp_libint_t
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: init_TShPSC_lmax,&
                                               mp2_biel_type,&
@@ -449,7 +449,6 @@ CONTAINS
                                                             primitive_integrals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: L_block, L_full_matrix, max_contraction
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BI1, MNRS
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: p_work
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: shm_pmax_block, zeta, zetb, zetc, zetd
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: sphi_a_ext_set, sphi_b_ext_set, &
                                                             sphi_c_ext_set, sphi_d_ext_set
@@ -459,7 +458,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_L
       TYPE(cp_fm_type)                                   :: fm_matrix_L
-      TYPE(cp_libint_t)                                  :: private_lib
+      TYPE(four_center_integral_context_type)            :: private_lib
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
       TYPE(hfx_pgf_list), ALLOCATABLE, DIMENSION(:)      :: pgf_list_ij, pgf_list_kl
       TYPE(hfx_pgf_product_list), ALLOCATABLE, &
@@ -494,7 +493,7 @@ CONTAINS
                                  nsgf_max, primitive_integrals, ee_work, ee_work2, ee_buffer1, ee_buffer2, &
                                  ee_primitives_tmp, nspins, max_contraction, max_pgf, pgf_list_ij, &
                                  pgf_list_kl, pgf_product_list, nimages, eps_schwarz, log10_eps_schwarz, &
-                                 private_lib, p_work, screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
+                                 private_lib, screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
                                  radii_pgf, RI_basis_parameter, RI_basis_info)
 
       ALLOCATE (radii_pgf_large(SIZE(radii_pgf, 1), SIZE(radii_pgf, 2)))
@@ -640,7 +639,7 @@ CONTAINS
                                 sphi_c_ext_set, &
                                 sphi_d_ext_set, &
                                 ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
-                                nimages, do_periodic, p_work)
+                                nimages, do_periodic)
 
                   primitive_counter = 0
                   DO llB = 1, nsgfd(lset)
@@ -867,7 +866,7 @@ CONTAINS
                                 sphi_c_ext_set, &
                                 sphi_d_ext_set, &
                                 ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
-                                nimages, do_periodic, p_work)
+                                nimages, do_periodic)
 
                   nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
                   neris_total = neris_total + nints
@@ -977,7 +976,6 @@ CONTAINS
 !> \param eps_schwarz ...
 !> \param log10_eps_schwarz ...
 !> \param private_lib ...
-!> \param p_work ...
 !> \param screen_coeffs_set ...
 !> \param screen_coeffs_kind ...
 !> \param screen_coeffs_pgf ...
@@ -990,7 +988,7 @@ CONTAINS
                                     nsgf_max, primitive_integrals, ee_work, ee_work2, ee_buffer1, ee_buffer2, &
                                     ee_primitives_tmp, nspins, max_contraction, max_pgf, pgf_list_ij, &
                                     pgf_list_kl, pgf_product_list, nimages, eps_schwarz, log10_eps_schwarz, &
-                                    private_lib, p_work, screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
+                                    private_lib, screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
                                     radii_pgf, RI_basis_parameter, RI_basis_info)
 
       TYPE(cell_type), POINTER                           :: cell
@@ -1020,8 +1018,8 @@ CONTAINS
          DIMENSION(:), INTENT(OUT)                       :: pgf_product_list
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: nimages
       REAL(KIND=dp), INTENT(OUT)                         :: eps_schwarz, log10_eps_schwarz
-      TYPE(cp_libint_t), INTENT(OUT)                     :: private_lib
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: p_work
+      TYPE(four_center_integral_context_type), &
+         INTENT(OUT)                                     :: private_lib
       TYPE(hfx_screen_coeff_type), &
          DIMENSION(:, :, :, :), POINTER                  :: screen_coeffs_set
       TYPE(hfx_screen_coeff_type), DIMENSION(:, :), &
@@ -1146,7 +1144,7 @@ CONTAINS
 
       !! The number of integrals that fit into the given MAX_MEMORY
 
-      private_lib = actual_x_data%lib
+      private_lib = actual_x_data%eri4_context
 
       !!!!!!!! Missing part on the density matrix
 
@@ -1164,7 +1162,7 @@ CONTAINS
                                        shm_master_x_data%screen_funct_coeffs_kind, &
                                        shm_master_x_data%screen_funct_coeffs_pgf, &
                                        shm_master_x_data%pair_dist_radii_pgf, &
-                                       max_set, max_pgf, n_threads, i_thread, p_work)
+                                       max_set, max_pgf, n_threads, i_thread)
 
          shm_master_x_data%screen_funct_is_initialized = .TRUE.
       END IF

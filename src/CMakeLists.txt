@@ -269,7 +269,7 @@ list(
   hfx_helpers.F
   four_center_integral_types.F
   four_center_integral_methods.F
-  hfx_libint_interface.F
+  four_center_integral_interface.F
   hfx_load_balance_methods.F
   hfx_pair_list_methods.F
   hfx_pw_methods.F

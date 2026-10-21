@@ -15,6 +15,7 @@ MODULE mp2_direct_method
    USE cell_types,                      ONLY: cell_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
+   USE four_center_integral_interface,  ONLY: four_center_integral_context_type
    USE hfx_energy_potential,            ONLY: coulomb4
    USE hfx_load_balance_methods,        ONLY: cost_model,&
                                               p1_energy,&
@@ -31,7 +32,6 @@ MODULE mp2_direct_method
    USE input_constants,                 ONLY: do_potential_TShPSC
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE libint_wrapper,                  ONLY: cp_libint_t
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: zero
    USE message_passing,                 ONLY: mp_para_env_release,&
@@ -445,7 +445,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_RS_mat_rec, C_beta_T, max_contraction
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb, BIb_RS_mat_rec_big, zero_mat_big
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: BI1, MNRS
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: p_work
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: shm_pmax_block, zeta, zetb, zetc, zetd
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: sphi_a_ext_set, sphi_b_ext_set, &
                                                             sphi_c_ext_set, sphi_d_ext_set
@@ -454,8 +453,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(dimen, 2)                 :: zero_mat
       REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C_T
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_libint_t)                                  :: private_lib
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(four_center_integral_context_type)            :: private_lib
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
       TYPE(hfx_pgf_list), ALLOCATABLE, DIMENSION(:)      :: pgf_list_ij, pgf_list_kl
       TYPE(hfx_pgf_product_list), ALLOCATABLE, &
@@ -490,7 +489,7 @@ CONTAINS
                                  nsgf_max, primitive_integrals, ee_work, ee_work2, ee_buffer1, ee_buffer2, &
                                  ee_primitives_tmp, nspins, max_contraction, max_pgf, pgf_list_ij, &
                                  pgf_list_kl, pgf_product_list, nimages, eps_schwarz, log10_eps_schwarz, &
-                                 private_lib, p_work, screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
+                                 private_lib, screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
                                  radii_pgf)
 
       ln_10 = LOG(10.0_dp)
@@ -810,7 +809,7 @@ CONTAINS
                                    sphi_c_ext_set, &
                                    sphi_d_ext_set, &
                                    ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
-                                   nimages, do_periodic, p_work)
+                                   nimages, do_periodic)
 
                      nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
                      neris_total = neris_total + nints

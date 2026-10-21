@@ -44,6 +44,9 @@ MODULE hfx_types
         dbt_create, dbt_default_distvec, dbt_destroy, dbt_distribution_destroy, &
         dbt_distribution_new, dbt_distribution_type, dbt_mp_dims_create, dbt_pgrid_create, &
         dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
+   USE four_center_integral_interface,  ONLY: four_center_integral_cleanup,&
+                                              four_center_integral_context_type,&
+                                              four_center_integral_init
    USE four_center_integral_types,      ONLY: hfx_cell_type => eri4_cell_type,&
                                               hfx_pgf_list => eri4_pgf_pair_type,&
                                               hfx_pgf_product_list => eri4_pgf_product_type,&
@@ -67,14 +70,6 @@ MODULE hfx_types
                                               default_string_length,&
                                               dp,&
                                               int_8
-   USE libint_wrapper,                  ONLY: cp_libint_cleanup_eri,&
-                                              cp_libint_cleanup_eri1,&
-                                              cp_libint_init_eri,&
-                                              cp_libint_init_eri1,&
-                                              cp_libint_set_contrdepth,&
-                                              cp_libint_static_cleanup,&
-                                              cp_libint_static_init,&
-                                              cp_libint_t
    USE machine,                         ONLY: m_chdir,&
                                               m_getcwd
    USE mathlib,                         ONLY: erfc_cutoff
@@ -453,7 +448,7 @@ MODULE hfx_types
 !> \param b_first_load_balance_x flag to indicate if it is enough just to update
 !>        the distribution of the integrals
 !> \param full_ks_x full ks matrices
-!> \param lib libint type for eris
+!> \param eri4_context per-thread four-center integral context
 !> \param basis_info contains information for basis sets
 !> \param screen_funct_coeffs_pgf pgf based near field screening coefficients
 !> \param pair_dist_radii_pgf pgf based radii coefficients of pair distributions
@@ -492,7 +487,7 @@ MODULE hfx_types
                                                   b_first_load_balance_forces = .FALSE.
       REAL(dp), DIMENSION(:, :), POINTER        :: full_ks_alpha => NULL()
       REAL(dp), DIMENSION(:, :), POINTER        :: full_ks_beta => NULL()
-      TYPE(cp_libint_t)                        :: lib
+      TYPE(four_center_integral_context_type) :: eri4_context
       TYPE(hfx_basis_info_type)                :: basis_info = hfx_basis_info_type()
       TYPE(hfx_screen_coeff_type), &
          DIMENSION(:, :, :, :, :, :), POINTER     :: screen_funct_coeffs_pgf => NULL(), &
@@ -514,7 +509,6 @@ MODULE hfx_types
       TYPE(hfx_task_list_type), DIMENSION(:), &
          POINTER        :: task_list => NULL()
       REAL(dp), DIMENSION(:, :), POINTER        :: pmax_atom => NULL(), pmax_atom_forces => NULL()
-      TYPE(cp_libint_t)                         :: lib_deriv
       REAL(dp), DIMENSION(:, :), POINTER        :: pmax_block => NULL()
       LOGICAL, DIMENSION(:, :), POINTER         :: atomic_pair_list => NULL()
       LOGICAL, DIMENSION(:, :), POINTER         :: atomic_pair_list_forces => NULL()
@@ -928,12 +922,7 @@ CONTAINS
                DEALLOCATE (kind_of, atom2kind)
             END IF
 
-            ! ** Initialize libint type
-            CALL cp_libint_static_init()
-            CALL cp_libint_init_eri(actual_x_data%lib, actual_x_data%basis_info%max_am)
-            CALL cp_libint_init_eri1(actual_x_data%lib_deriv, actual_x_data%basis_info%max_am)
-            CALL cp_libint_set_contrdepth(actual_x_data%lib, 1)
-            CALL cp_libint_set_contrdepth(actual_x_data%lib_deriv, 1)
+            CALL four_center_integral_init(actual_x_data%eri4_context, actual_x_data%basis_info%max_am)
 
             CALL alloc_containers(actual_x_data%store_ints, 1)
             CALL alloc_containers(actual_x_data%store_forces, 1)
@@ -1243,9 +1232,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! initialize libint
-      CALL cp_libint_static_init()
-
       natom = SIZE(particle_set)
       nkind = SIZE(qs_kind_set, 1)
       nproc = para_env%num_pe
@@ -1484,9 +1470,6 @@ CONTAINS
       LOGICAL                                            :: my_write_stats
 
       CALL timeset(routineN, handle)
-
-      ! cleanup libint
-      CALL cp_libint_static_cleanup()
 
       my_write_stats = .TRUE.
       IF (PRESENT(write_stats)) my_write_stats = write_stats
@@ -1979,10 +1962,7 @@ CONTAINS
             !! BASIS parameter
             CALL hfx_release_basis_types(actual_x_data%basis_parameter)
 
-            !MK Release libint and libderiv data structure
-            CALL cp_libint_cleanup_eri(actual_x_data%lib)
-            CALL cp_libint_cleanup_eri1(actual_x_data%lib_deriv)
-            CALL cp_libint_static_cleanup()
+            CALL four_center_integral_cleanup(actual_x_data%eri4_context)
 
             !! Deallocate containers
             CALL dealloc_containers(actual_x_data%store_ints, actual_x_data%memory_parameter%actual_memory_usage)
