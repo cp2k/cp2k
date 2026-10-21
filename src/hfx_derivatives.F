@@ -30,7 +30,6 @@ MODULE hfx_derivatives
    USE cp_dbcsr_api, ONLY: dbcsr_get_matrix_type, &
                            dbcsr_p_type, &
                            dbcsr_type_antisymmetric
-   USE four_center_integral_interface, ONLY: four_center_integral_context_type
    USE four_center_integral_methods, ONLY: forces4, &
                                            pgf_product_list_size
    USE gamma, ONLY: init_md_ftable
@@ -185,7 +184,6 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(four_center_integral_context_type)                                  :: private_context
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_basis_info_type), POINTER                 :: basis_info
@@ -367,7 +365,7 @@ CONTAINS
 !$OMP  pad_buf_resp_beta,particle_set,pbc_buf,pbc_buf_beta,pbc_buf_resp,pbc_buf_resp_beta,pbd_buf,pbd_buf_beta, &
 !$OMP  pbd_buf_resp, pbd_buf_resp_beta, pgf_list_ij,&
 !$OMP  pgf_list_kl,pgf_product_list,pmax_atom,pmax_blocks,pmax_entry,pmax_tmp,potential_parameter,primitive_forces,&
-!$OMP  primitive_forces_virial,private_context,ptr_p_1,ptr_p_2,ptr_p_3,ptr_p_4,ra,rab2,&
+!$OMP  primitive_forces_virial,ptr_p_1,ptr_p_2,ptr_p_3,ptr_p_4,ra,rab2,&
 !$OMP  rb,rc,rcd2,rd,screening_parameter,screen_pmat_forces,set_list_ij,set_list_kl,&
 !$OMP  sgfb,spherical_estimate,spherical_estimate_virial,sphi_a_ext,sphi_a_ext_set,sphi_a_u1,sphi_a_u2,sphi_a_u3,&
 !$OMP  sphi_b,sphi_b_ext,sphi_b_ext_set,sphi_b_u1,sphi_b_u2,sphi_b_u3,sphi_c_ext,sphi_c_ext_set,&
@@ -434,9 +432,6 @@ CONTAINS
       eps_storage = eps_schwarz*memory_parameter%eps_storage_scaling
 
       counter = 0_int_8
-
-      !! Copy the libint_guy
-      private_context = actual_x_data%eri4_context
 
       !! Get screening parameter
 
@@ -1287,7 +1282,7 @@ CONTAINS
                            tmp_screen_pgf1 => screen_coeffs_pgf(:, :, jset, iset, jkind, ikind)
                            tmp_screen_pgf2 => screen_coeffs_pgf(:, :, lset, kset, lkind, kkind)
 
-                           CALL forces4(private_context, ra, rb, rc, rd, npgfa(iset), npgfb(jset), &
+                           CALL forces4(actual_x_data%eri4_context, ra, rb, rc, rd, npgfa(iset), npgfb(jset), &
                                         npgfc(kset), npgfd(lset), &
                                         la_min(iset), la_max(iset), lb_min(jset), lb_max(jset), &
                                         lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset), &

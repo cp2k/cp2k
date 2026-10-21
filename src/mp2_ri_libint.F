@@ -35,7 +35,6 @@ MODULE mp2_ri_libint
                                               cp_fm_release,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_type
-   USE four_center_integral_interface,  ONLY: four_center_integral_context_type
    USE four_center_integral_methods,    ONLY: coulomb4
    USE gamma,                           ONLY: init_md_ftable
    USE hfx_pair_list_methods,           ONLY: build_pair_list_mp2
@@ -458,7 +457,6 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_L
       TYPE(cp_fm_type)                                   :: fm_matrix_L
-      TYPE(four_center_integral_context_type)            :: private_context
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
       TYPE(hfx_pgf_list), ALLOCATABLE, DIMENSION(:)      :: pgf_list_ij, pgf_list_kl
       TYPE(hfx_pgf_product_list), ALLOCATABLE, &
@@ -493,7 +491,7 @@ CONTAINS
                                  nsgf_max, primitive_integrals, ee_work, ee_work2, ee_buffer1, ee_buffer2, &
                                  ee_primitives_tmp, nspins, max_contraction, max_pgf, pgf_list_ij, &
                                  pgf_list_kl, pgf_product_list, nimages, eps_schwarz, log10_eps_schwarz, &
-                                 private_context, screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
+                                 screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
                                  radii_pgf, RI_basis_parameter, RI_basis_info)
 
       ALLOCATE (radii_pgf_large(SIZE(radii_pgf, 1), SIZE(radii_pgf, 2)))
@@ -614,7 +612,7 @@ CONTAINS
 
                   ALLOCATE (L_block(nsgfa(iset), nsgfc(kset)))
 
-                  CALL coulomb4(private_context, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
+                  CALL coulomb4(actual_x_data%eri4_context, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
                                 la_min(iset), la_max(iset), lb_min(jset), lb_max(jset), &
                                 lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset), &
                                 nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
@@ -841,7 +839,7 @@ CONTAINS
 
                   max_contraction_val = max_contraction(kset, katom)*max_contraction(lset, latom)
 
-                  CALL coulomb4(private_context, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
+                  CALL coulomb4(actual_x_data%eri4_context, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
                                 la_min(iset), la_max(iset), lb_min(jset), lb_max(jset), &
                                 lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset), &
                                 nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
@@ -975,7 +973,6 @@ CONTAINS
 !> \param nimages ...
 !> \param eps_schwarz ...
 !> \param log10_eps_schwarz ...
-!> \param private_context borrowed per-thread four-center integral context
 !> \param screen_coeffs_set ...
 !> \param screen_coeffs_kind ...
 !> \param screen_coeffs_pgf ...
@@ -988,7 +985,7 @@ CONTAINS
                                     nsgf_max, primitive_integrals, ee_work, ee_work2, ee_buffer1, ee_buffer2, &
                                     ee_primitives_tmp, nspins, max_contraction, max_pgf, pgf_list_ij, &
                                     pgf_list_kl, pgf_product_list, nimages, eps_schwarz, log10_eps_schwarz, &
-                                    private_context, screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
+                                    screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
                                     radii_pgf, RI_basis_parameter, RI_basis_info)
 
       TYPE(cell_type), POINTER                           :: cell
@@ -1018,8 +1015,6 @@ CONTAINS
          DIMENSION(:), INTENT(OUT)                       :: pgf_product_list
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: nimages
       REAL(KIND=dp), INTENT(OUT)                         :: eps_schwarz, log10_eps_schwarz
-      TYPE(four_center_integral_context_type), &
-         INTENT(OUT)                                     :: private_context
       TYPE(hfx_screen_coeff_type), &
          DIMENSION(:, :, :, :), POINTER                  :: screen_coeffs_set
       TYPE(hfx_screen_coeff_type), DIMENSION(:, :), &
@@ -1144,8 +1139,6 @@ CONTAINS
 
       !! The number of integrals that fit into the given MAX_MEMORY
 
-      private_context = actual_x_data%eri4_context
-
       !!!!!!!! Missing part on the density matrix
 
       !! Initialize schwarz screening matrices for near field estimates and boxing screening matrices
@@ -1157,7 +1150,7 @@ CONTAINS
          CALL calc_pair_dist_radii(qs_env, basis_parameter, &
                                    shm_master_x_data%pair_dist_radii_pgf, max_set, max_pgf, eps_schwarz, &
                                    n_threads, i_thread)
-         CALL calc_screening_functions(qs_env, basis_parameter, private_context, shm_master_x_data%potential_parameter, &
+         CALL calc_screening_functions(qs_env, basis_parameter, actual_x_data%eri4_context, shm_master_x_data%potential_parameter, &
                                        shm_master_x_data%screen_funct_coeffs_set, &
                                        shm_master_x_data%screen_funct_coeffs_kind, &
                                        shm_master_x_data%screen_funct_coeffs_pgf, &

@@ -36,7 +36,6 @@ MODULE hfx_energy_potential
                            dbcsr_p_type, &
                            dbcsr_type_antisymmetric, &
                            dbcsr_dot_threadsafe
-   USE four_center_integral_interface, ONLY: four_center_integral_context_type
    USE four_center_integral_methods, ONLY: coulomb4, &
                                            pgf_product_list_size
    USE gamma, ONLY: init_md_ftable
@@ -223,7 +222,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: coeffs_kind_max0
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(four_center_integral_context_type)                                  :: private_context
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit_hfx
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -420,7 +418,7 @@ CONTAINS
 !$OMP         max_pgf,jkind,lb_max,nsetb,npgfb,first_sgfb,sphi_b,nsgfb,ncob,sgfb,nneighbors,pgf_list_ij,pgf_list_kl,&
 !$OMP         pgf_product_list,nimages,ks_fully_occ,subtr_size_mb,use_disk_storage,counter,do_disk_storage,&
 !$OMP         maxval_container_disk,maxval_cache_disk,integral_containers_disk,integral_caches_disk,eps_schwarz,&
-!$OMP         log10_eps_schwarz,eps_storage,hf_fraction,buffer_overflow,logger,private_context,last_sgf_global,handle_getp,&
+!$OMP         log10_eps_schwarz,eps_storage,hf_fraction,buffer_overflow,logger,last_sgf_global,handle_getp,&
 !$OMP         fac,handle_load,do_dynamic_load_balancing,my_bin_size,maxval_container,integral_containers,maxval_cache,&
 !$OMP         integral_caches,tmp_task_list,tmp_task_list_cost,tmp_index,handle_main,coeffs_kind_max0,set_list_ij,&
 !$OMP         set_list_kl,iatom_start,iatom_end,jatom_start,jatom_end,nblocks,bins_left,do_it,distribution_energy,&
@@ -754,8 +752,6 @@ CONTAINS
       END IF
       logger => cp_get_default_logger()
 
-      private_context = actual_x_data%eri4_context
-
       !! Helper array to map local basis function indices to global ones
       ALLOCATE (last_sgf_global(0:natom))
       last_sgf_global(0) = 0
@@ -868,7 +864,7 @@ CONTAINS
                                    shm_master_x_data%pair_dist_radii_pgf, max_set, max_pgf, eps_schwarz, &
                                    n_threads, i_thread)
 !$OMP BARRIER
-         CALL calc_screening_functions(qs_env, basis_parameter, private_context, shm_master_x_data%potential_parameter, &
+         CALL calc_screening_functions(qs_env, basis_parameter, actual_x_data%eri4_context, shm_master_x_data%potential_parameter, &
                                        shm_master_x_data%screen_funct_coeffs_set, &
                                        shm_master_x_data%screen_funct_coeffs_kind, &
                                        shm_master_x_data%screen_funct_coeffs_pgf, &
@@ -1634,7 +1630,8 @@ CONTAINS
                               tmp_screen_pgf1 => screen_coeffs_pgf(:, :, jset, iset, jkind, ikind)
                               tmp_screen_pgf2 => screen_coeffs_pgf(:, :, lset, kset, lkind, kkind)
 
-                              CALL coulomb4(private_context, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
+                              CALL coulomb4(actual_x_data%eri4_context, ra, rb, rc, rd, &
+                                            npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
                                             la_min(iset), la_max(iset), lb_min(jset), lb_max(jset), &
                                             lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset), &
                                             nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
