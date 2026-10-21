@@ -1963,17 +1963,24 @@ CONTAINS
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_nl, sab_nl_nosym
+         POINTER                                         :: sab_aux_fit, sab_aux_fit_asymm, sab_nl, &
+                                                            sab_nl_nosym
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
       NULLIFY (rho_desymm, kpoints, sab_nl_nosym, scf_env, matrix_ks, dft_control, &
-               sab_nl, nl_iterator, cell_to_index, pblock, pblock_desymm)
+               sab_nl, sab_aux_fit, sab_aux_fit_asymm, nl_iterator, cell_to_index, &
+               pblock, pblock_desymm)
 
       CALL get_qs_env(qs_env, kpoints=kpoints, scf_env=scf_env, matrix_ks_kp=matrix_ks, dft_control=dft_control)
       CALL get_kpoint_info(kpoints, sab_nl_nosym=sab_nl_nosym, cell_to_index=cell_to_index, sab_nl=sab_nl)
 
       IF (dft_control%do_admm) THEN
-         CALL get_admm_env(qs_env%admm_env, matrix_ks_aux_fit_kp=matrix_ks)
+         CALL get_admm_env(qs_env%admm_env, matrix_ks_aux_fit_kp=matrix_ks, &
+                           sab_aux_fit=sab_aux_fit, sab_aux_fit_asymm=sab_aux_fit_asymm)
+         IF (ASSOCIATED(sab_aux_fit) .AND. ASSOCIATED(sab_aux_fit_asymm)) THEN
+            sab_nl => sab_aux_fit
+            sab_nl_nosym => sab_aux_fit_asymm
+         END IF
       END IF
 
       nspins = SIZE(matrix_ks, 1)
