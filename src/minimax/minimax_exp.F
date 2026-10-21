@@ -10,13 +10,10 @@
 !>        approximate 1/x as a sum over exponential functions
 !>        1/x ~ SUM_{i}^{K} w_i EXP(-a_i * x) for x belonging to [1:Rc].
 !>
-!>        For K > 15, coefficients are obtained by local interpolation in log(Rc)
-!>        from a sparse subset of the Braess-Hackbusch minimax data. The sparse
-!>        representation is generated and certified against the tabulated minimax
-!>        error envelope by tools/minimax_tools/minimax_to_fortran_source.py.
-!>
-!>        K <= 15 still uses the historical polynomial fit in minimax_exp_k15,
-!>        except below its supported range where the sparse data backend is used.
+!>        Coefficients for K = 1,...,53 are obtained by local interpolation in
+!>        log(Rc) from a sparse subset of the Braess-Hackbusch minimax data. The
+!>        sparse representation is generated and certified against the tabulated
+!>        minimax-error envelope by tools/minimax_tools/minimax_to_fortran_source.py.
 !> \par History
 !>      02.2016 created [Patrick Seewald]
 ! **************************************************************************************************
@@ -24,9 +21,6 @@
 MODULE minimax_exp
    USE cp_log_handling,                 ONLY: cp_to_string
    USE kinds,                           ONLY: dp
-   USE minimax_exp_k15,                 ONLY: check_range_k15,&
-                                              get_minimax_coeff_k15,&
-                                              get_minimax_numerical_error
    USE minimax_exp_data,                ONLY: R_max,&
                                               R_mm,&
                                               R_ref,&
@@ -44,7 +38,6 @@ MODULE minimax_exp
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'minimax_exp'
 
-   INTEGER, PARAMETER :: mm_k15 = 0, mm_k53 = 1
 
    PUBLIC :: get_exp_minimax_coeff, validate_exp_minimax, check_exp_minimax_range
 
@@ -53,15 +46,10 @@ MODULE minimax_exp
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Check that a minimax approximation is available for given input k, Rc.
-!>        ierr ==  0: everything ok
-!>        ierr ==  1: Rc too small
-!>        ierr == -1: k too large
-!> \param k ...
-!> \param Rc ...
-!> \param ierr ...
-!> \note: ierr ==  1 is not a fatal error since get_exp_minimax_coeff will return
-!>        sparse minimax coefficients with smallest possible range.
+!> \brief Check that an exponential minimax approximation is available.
+!> \param k Number of exponential terms.
+!> \param Rc Minimax range.
+!> \param ierr Zero when supported, -1 for unsupported k, 1 for invalid Rc.
 ! **************************************************************************************************
    SUBROUTINE check_exp_minimax_range(k, Rc, ierr)
       INTEGER, INTENT(IN)                                :: k
@@ -69,60 +57,66 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: ierr
 
       ierr = 0
-      IF (k <= 15) THEN
-         CALL check_range_k15(k, Rc, ierr)
-      ELSE
-         IF (k > k_max) ierr = -1
+      IF (k < 1 .OR. k > k_max) THEN
+         ierr = -1
+      ELSE IF (Rc < 1.0_dp) THEN
+         ierr = 1
       END IF
 
    END SUBROUTINE check_exp_minimax_range
 
 ! **************************************************************************************************
-!> \brief Get best minimax approximation for given input parameters. Automatically
-!>        chooses the most exact set of minimax coefficients (k15 or k53) for
-!>        given k, Rc.
-!> \param k Number of minimax terms
-!> \param Rc Minimax range
-!> \param aw The a_i and w_i coefficient are stored in aw such that the first 1:K
-!>        elements correspond to a_i and the K+1:2k correspond to w_i.
-!> \param mm_error Numerical error of minimax approximation for given k, Rc
-!> \param which_coeffs Whether the coefficients returned have been generated from
-!>        the k15 fit or sparse coefficient data (mm_k15 or mm_k53).
+!> \brief Sample the numerical error of an exponential minimax approximation.
+!> \param Rc Minimax range.
+!> \param aw Exponents followed by weights.
+!> \return Maximum sampled absolute error.
 ! **************************************************************************************************
-   SUBROUTINE get_exp_minimax_coeff(k, Rc, aw, mm_error, which_coeffs)
+   FUNCTION get_minimax_numerical_error(Rc, aw) RESULT(numerr)
+      REAL(KIND=dp), INTENT(IN)                          :: Rc
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: aw
+      REAL(KIND=dp)                                      :: numerr
+
+      INTEGER, PARAMETER                                 :: npoints = 100
+      INTEGER                                            :: j, k, np
+      REAL(KIND=dp)                                      :: mm, x
+
+      k = SIZE(aw)/2
+      numerr = 0.0_dp
+      DO np = 1, npoints
+         x = 1.0_dp + (Rc - 1.0_dp)*(npoints - np)/(npoints - 1)
+         mm = 0.0_dp
+         DO j = 1, k
+            mm = mm + aw(j + k)*EXP(-aw(j)*x)
+         END DO
+         numerr = MAX(numerr, ABS(mm - 1.0_dp/x))
+      END DO
+
+   END FUNCTION get_minimax_numerical_error
+
+! **************************************************************************************************
+!> \brief Get exponential minimax coefficients for arbitrary Rc.
+!> \param k Number of exponential terms.
+!> \param Rc Minimax range.
+!> \param aw Exponents followed by weights.
+!> \param mm_error Numerical approximation error at Rc.
+! **************************************************************************************************
+   SUBROUTINE get_exp_minimax_coeff(k, Rc, aw, mm_error)
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: Rc
       REAL(KIND=dp), DIMENSION(2*k), INTENT(OUT)         :: aw
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: mm_error
-      INTEGER, INTENT(OUT), OPTIONAL                     :: which_coeffs
 
-      INTEGER                                            :: ierr
-
-      IF (k <= 15) THEN
-         CALL check_range_k15(k, Rc, ierr)
-         IF (ierr == 1) THEN ! Rc too small for k15 coeffs --> use k53
-            CALL get_minimax_coeff_data(k, Rc, aw, mm_error)
-            IF (PRESENT(which_coeffs)) which_coeffs = mm_k53
-         ELSE
-            CPASSERT(ierr == 0)
-            CALL get_minimax_coeff_k15(k, Rc, aw, mm_error)
-            IF (PRESENT(which_coeffs)) which_coeffs = mm_k15
-         END IF
-      ELSE IF (k <= 53) THEN
-         CALL get_minimax_coeff_data(k, Rc, aw, mm_error)
-         IF (PRESENT(which_coeffs)) which_coeffs = mm_k53
-      ELSE
+      IF (k < 1 .OR. k > k_max) THEN
          CPABORT("No minimax approximations available for k = "//cp_to_string(k))
       END IF
+      IF (Rc < 1.0_dp) THEN
+         CPABORT("Minimax range Rc must be greater than or equal to one")
+      END IF
+
+      CALL get_minimax_coeff_data(k, Rc, aw, mm_error)
+
    END SUBROUTINE get_exp_minimax_coeff
 
-! **************************************************************************************************
-!> \brief Get minimax coefficients: sparse-data implementation (coefficients up to k=53 terms).
-!>        Sparse retained coefficients are interpolated locally in log(Rc).
-!> \param k ...
-!> \param Rc ...
-!> \param aw ...
-!> \param mm_error ...
 ! **************************************************************************************************
 !> \brief Interpolate sparse exponential-minimax coefficients for arbitrary Rc.
 !> \param k Number of exponential terms.
@@ -152,7 +146,6 @@ CONTAINS
       ELSE IF (Rc >= R_mm(i_last)) THEN
          CALL get_minimax_coeff_low(i_last, aw)
       ELSE IF (n_knots == 2) THEN
-         ! Preserve the historical discrete choice for the few two-point blocks.
          CALL get_minimax_coeff_low(i_first, aw_l)
          CALL get_minimax_coeff_low(i_last, aw_r)
          error_l = get_minimax_numerical_error(Rc, aw_l)
@@ -206,13 +199,6 @@ CONTAINS
    END SUBROUTINE get_minimax_coeff_data
 
 ! **************************************************************************************************
-!> \brief find the reference-error entry for range Rc.
-!> \param k ...
-!> \param Rc ...
-!> \param i_mm ...
-!> \param ge_Rc Whether the tabulated range of the returned minimax approximation
-!>              must be strictly greater than or equal to Rc. Default is .FALSE.
-! **************************************************************************************************
 !> \brief Find the first tabulated reference range greater than or equal to Rc.
 !> \param k Number of exponential terms.
 !> \param Rc Minimax range.
@@ -243,12 +229,6 @@ CONTAINS
    END SUBROUTINE get_reference_index
 
 ! **************************************************************************************************
-!> \brief Unit test checking that numerical error of minimax approximations
-!>        generated using any the k15 fit or sparse coefficient data is consistent with
-!>        tabulated error.
-!> \param n_R Number of Rc values to be tested.
-!> \param iw ...
-! **************************************************************************************************
 !> \brief Unit test checking exponential-minimax errors against the tabulated reference envelope.
 !> \param n_R Number of arbitrary Rc values to be tested.
 !> \param iw Output unit.
@@ -256,7 +236,7 @@ CONTAINS
    SUBROUTINE validate_exp_minimax(n_R, iw)
       INTEGER, INTENT(IN)                                :: n_R, iw
 
-      INTEGER                                            :: i_R, i_ref, ierr, k, which_coeffs
+      INTEGER                                            :: i_R, i_ref, k
       LOGICAL                                            :: do_exit
       REAL(KIND=dp)                                      :: dR, mm_error, R, ref_error
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: aw
@@ -268,39 +248,23 @@ CONTAINS
          WRITE (iw, '(/T2,A)') &
             "1) checking numerical error against tabulated error at tabulated values Rc"
          WRITE (iw, '(/T2,A)') &
-            "which coeffs, K, Rc, num. error, ref. error, rel. diff (num. error - ref. error)/(ref. error)"
+            "K, Rc, num. error, ref. error, rel. diff (num. error - ref. error)/(ref. error)"
          WRITE (iw, '(T2,54("-"))')
       END IF
 
       DO k = 1, k_max
+         ALLOCATE (aw(2*k))
          DO i_ref = ref_p(k), ref_p(k + 1) - 1
             R = R_ref(i_ref)
-            CALL check_exp_minimax_range(k, R, ierr)
-            IF (ierr == 0) THEN
-               ALLOCATE (aw(2*k))
-               CALL get_exp_minimax_coeff(k, R, aw, mm_error, which_coeffs)
-               ref_error = err_ref(i_ref)
-               DEALLOCATE (aw)
-               IF (iw > 0) WRITE (iw, '(T2,A4, I3, ES10.1, ES12.3, ES12.3, ES12.3)') &
-                  MERGE("k15 ", "data", which_coeffs == mm_k15), k, R, &
-                  mm_error, ref_error, (mm_error - ref_error)/ref_error
-               CPASSERT(mm_error <= ref_error*1.05_dp + 1.0E-15_dp)
-            ELSE
-               IF (iw > 0) WRITE (iw, '(T2,A4, I3, ES10.1, 3X, A)') "k15 ", k, R, "missing"
-            END IF
-
-            IF (k <= 15) THEN
-               ALLOCATE (aw(2*k))
-               CALL get_minimax_coeff_data(k, R, aw, mm_error)
-               ref_error = err_ref(i_ref)
-               DEALLOCATE (aw)
-               IF (iw > 0) WRITE (iw, '(T2,A4,I3, ES10.1, ES12.3, ES12.3, ES12.3)') &
-                  "data", k, R, mm_error, ref_error, (mm_error - ref_error)/ref_error
-               IF (mm_error > ref_error*1.05_dp + 1.0E-15_dp) THEN
-                  CPABORT("Test 1 failed: numerical error is larger than tabulated error")
-               END IF
+            CALL get_exp_minimax_coeff(k, R, aw, mm_error)
+            ref_error = err_ref(i_ref)
+            IF (iw > 0) WRITE (iw, '(T2,I3, ES10.1, ES12.3, ES12.3, ES12.3)') &
+               k, R, mm_error, ref_error, (mm_error - ref_error)/ref_error
+            IF (mm_error > ref_error*1.05_dp + 1.0E-15_dp) THEN
+               CPABORT("Test 1 failed: numerical error is larger than tabulated error")
             END IF
          END DO
+         DEALLOCATE (aw)
       END DO
 
       IF (iw > 0) THEN
@@ -313,7 +277,7 @@ CONTAINS
          WRITE (iw, '(/T2,A)') &
             "2) checking numerical error against tabulated error at arbitrary values Rc"
          WRITE (iw, '(/T2,A)') &
-            "which coeffs, K, Rc, num. error, ref. error, rel. diff (num. error - ref. error)/(ref. error)"
+            "K, Rc, num. error, ref. error, rel. diff (num. error - ref. error)/(ref. error)"
          WRITE (iw, '(T2,54("-"))')
       END IF
 
@@ -323,16 +287,15 @@ CONTAINS
          do_exit = .FALSE.
          DO i_R = 1, n_R
             R = dR**i_R
-            CALL get_exp_minimax_coeff(k, R, aw, mm_error, which_coeffs)
+            CALL get_exp_minimax_coeff(k, R, aw, mm_error)
             CALL get_reference_index(k, R, i_ref)
             IF (R > R_ref(i_ref)) THEN
                R = R_max
                do_exit = .TRUE.
             END IF
             ref_error = err_ref(i_ref)
-            IF (iw > 0) WRITE (iw, '(T2, A4, I3, ES10.1, ES12.3, ES12.3, ES12.3)') &
-               MERGE("k15 ", "data", which_coeffs == mm_k15), k, R, &
-               mm_error, ref_error, (mm_error - ref_error)/ref_error
+            IF (iw > 0) WRITE (iw, '(T2,I3, ES10.1, ES12.3, ES12.3, ES12.3)') &
+               k, R, mm_error, ref_error, (mm_error - ref_error)/ref_error
             IF (mm_error > ref_error*1.05_dp + 1.0E-15_dp) THEN
                CPABORT("Test 2 failed: numerical error is larger than tabulated error")
             END IF
