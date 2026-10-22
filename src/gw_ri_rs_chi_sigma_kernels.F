@@ -64,84 +64,82 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ASSOCIATE (mat_phi_mu_l => bs_env%ri_rs%mat_phi_mu_l, mat_Z_lP => bs_env%ri_rs%mat_Z_lP)
+      ! Panel boundaries for the grid-streaming contraction.
+      ! The panels are identical for χ, Σ^x and Σ^c, so the count is reported once here for all three stages.
 
-         ! Panel boundaries for the grid-streaming contraction.
-         ! The panels are identical for χ, Σ^x and Σ^c, so the count is reported once here for all three stages.
+      CALL resolve_grid_panels(bs_env%ri_rs, bs_env%para_env, bs_env%dbcsr_msg_elem_limit, &
+                               pan_first, pan_last, cutoff)
 
-         CALL resolve_grid_panels(bs_env%ri_rs, bs_env%para_env, bs_env%dbcsr_msg_elem_limit, &
-                                  pan_first, pan_last, cutoff)
+      n_panels = SIZE(pan_first)
+      IF (bs_env%unit_nr > 0) THEN
+         WRITE (bs_env%unit_nr, '(T2,A,T74,I9)') &
+            'Number of batches for χ, Σ matrices', n_panels
+         WRITE (bs_env%unit_nr, '(A)') ' '
+         CALL m_flush(bs_env%unit_nr)
+      END IF
 
-         n_panels = SIZE(pan_first)
-         IF (bs_env%unit_nr > 0) THEN
-            WRITE (bs_env%unit_nr, '(T2,A,T74,I9)') &
-               'Number of batches for χ, Σ matrices', n_panels
-            WRITE (bs_env%unit_nr, '(A)') ' '
-            CALL m_flush(bs_env%unit_nr)
+      ! =========================================================================
+      ! IMAGINARY TIME LOOP
+      ! χ_PQ(iτ) = Σ_s g_s · Z^T ( (ϕ G^occ_s ϕ^T) ∘ (ϕ G^vir_s ϕ^T) ) Z
+      ! (g_s = spin degeneracy)
+      ! =========================================================================
+      ! A disassociated actual pointer omits the optional diagnostic after the first time point.
+      grid_occ => first_grid_occ
+      DO i_t = 1, bs_env%num_time_freq_points
+         t1 = m_walltime()
+         tau = bs_env%time_frequency_grid%imaginary_time(i_t)
+
+         DO ispin = 1, bs_env%n_spin
+
+            ! AO-space Green's functions G^occ_µν, G^vir_µν (dense AO x AO, small)
+            CALL build_G_ao(bs_env, tau, ispin, .TRUE., .FALSE., &
+                            bs_env%ri_rs%mat_phi_mu_l, matrix_G_occ_ao(1))
+            CALL build_G_ao(bs_env, tau, ispin, .FALSE., .TRUE., &
+                            bs_env%ri_rs%mat_phi_mu_l, matrix_G_vir_ao)
+
+            ! χ_PQ += g_s · Z^T ( (ϕ G^occ ϕ^T) ∘ (ϕ G^vir ϕ^T) ) Z
+            CALL contract_grid_panels(L_A=bs_env%ri_rs%mat_phi_mu_l, M_A=matrix_G_occ_ao, &
+                                      L_B=bs_env%ri_rs%mat_phi_mu_l, M_B=matrix_G_vir_ao, &
+                                      L_out=bs_env%ri_rs%mat_Z_lP, mat_out=mat_chi_Gamma_tau(i_t:i_t), &
+                                      scale=bs_env%spin_degeneracy, eps=bs_env%eps_filter, &
+                                      para_env=bs_env%para_env, &
+                                      pan_first=pan_first, pan_last=pan_last, &
+                                      lb_eq_la=.TRUE., lout_eq_la=.FALSE., &
+                                      zero_out=(ispin == 1), &
+                                      centroids=bs_env%ri_rs%chunk_centroids, &
+                                      cutoff=cutoff, grid_occupation=grid_occ)
+
+            CALL dbcsr_release(matrix_G_occ_ao(1))
+            CALL dbcsr_release(matrix_G_vir_ao)
+
+         END DO ! ispin
+
+         ! Sparsity reports
+         IF (i_t == 1) THEN
+            CALL print_matrix_occupation(bs_env%ri_rs%mat_Z_lP, 'Z_lP', bs_env%para_env, bs_env%unit_nr, &
+                                         bs_env%dbcsr_msg_elem_limit)
+            IF (bs_env%unit_nr > 0) THEN
+               WRITE (bs_env%unit_nr, '(T2,A,T73,F7.2,A)') &
+                  'Percentage of non-zero matrix elements in G_ll'', χ_ll'', W_ll''', &
+                  first_grid_occ*100.0_dp, ' %'
+               CALL m_flush(bs_env%unit_nr)
+            END IF
+            CALL print_matrix_occupation(mat_chi_Gamma_tau(i_t)%matrix, 'χ_PQ', &
+                                         bs_env%para_env, bs_env%unit_nr, bs_env%dbcsr_msg_elem_limit, &
+                                         suffix=' for time point 1')
+            IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
          END IF
 
-         ! =========================================================================
-         ! IMAGINARY TIME LOOP
-         ! χ_PQ(iτ) = Σ_s g_s · Z^T ( (ϕ G^occ_s ϕ^T) ∘ (ϕ G^vir_s ϕ^T) ) Z
-         ! (g_s = spin degeneracy)
-         ! =========================================================================
-         ! A disassociated actual pointer omits the optional diagnostic after the first time point.
-         grid_occ => first_grid_occ
-         DO i_t = 1, bs_env%num_time_freq_points
-            t1 = m_walltime()
-            tau = bs_env%time_frequency_grid%imaginary_time(i_t)
+         IF (bs_env%unit_nr > 0) THEN
+            WRITE (bs_env%unit_nr, '(T2,A,I13,A,I3,A,F7.1,A)') &
+               'Computed χ(iτ,k=0) for time point', i_t, ' /', bs_env%num_time_freq_points, &
+               ',    Execution time', m_walltime() - t1, ' s'
+         END IF
 
-            DO ispin = 1, bs_env%n_spin
+         NULLIFY (grid_occ)
+      END DO ! i_t
 
-               ! AO-space Green's functions G^occ_µν, G^vir_µν (dense AO x AO, small)
-               CALL build_G_ao(bs_env, tau, ispin, .TRUE., .FALSE., mat_phi_mu_l, matrix_G_occ_ao(1))
-               CALL build_G_ao(bs_env, tau, ispin, .FALSE., .TRUE., mat_phi_mu_l, matrix_G_vir_ao)
-
-               ! χ_PQ += g_s · Z^T ( (ϕ G^occ ϕ^T) ∘ (ϕ G^vir ϕ^T) ) Z
-               CALL contract_grid_panels(L_A=mat_phi_mu_l, M_A=matrix_G_occ_ao, &
-                                         L_B=mat_phi_mu_l, M_B=matrix_G_vir_ao, &
-                                         L_out=mat_Z_lP, mat_out=mat_chi_Gamma_tau(i_t:i_t), &
-                                         scale=bs_env%spin_degeneracy, eps=bs_env%eps_filter, &
-                                         para_env=bs_env%para_env, &
-                                         pan_first=pan_first, pan_last=pan_last, &
-                                         lb_eq_la=.TRUE., lout_eq_la=.FALSE., &
-                                         zero_out=(ispin == 1), &
-                                         centroids=bs_env%ri_rs%chunk_centroids, &
-                                         cutoff=cutoff, grid_occupation=grid_occ)
-
-               CALL dbcsr_release(matrix_G_occ_ao(1))
-               CALL dbcsr_release(matrix_G_vir_ao)
-
-            END DO ! ispin
-
-            ! Sparsity reports
-            IF (i_t == 1) THEN
-               CALL print_matrix_occupation(mat_Z_lP, 'Z_lP', bs_env%para_env, bs_env%unit_nr, &
-                                            bs_env%dbcsr_msg_elem_limit)
-               IF (bs_env%unit_nr > 0) THEN
-                  WRITE (bs_env%unit_nr, '(T2,A,T73,F7.2,A)') &
-                     'Percentage of non-zero matrix elements in G_ll'', χ_ll'', W_ll''', &
-                     first_grid_occ*100.0_dp, ' %'
-                  CALL m_flush(bs_env%unit_nr)
-               END IF
-               CALL print_matrix_occupation(mat_chi_Gamma_tau(i_t)%matrix, 'χ_PQ', &
-                                            bs_env%para_env, bs_env%unit_nr, bs_env%dbcsr_msg_elem_limit, &
-                                            suffix=' for time point 1')
-               IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
-            END IF
-
-            IF (bs_env%unit_nr > 0) THEN
-               WRITE (bs_env%unit_nr, '(T2,A,I13,A,I3,A,F7.1,A)') &
-                  'Computed χ(iτ,k=0) for time point', i_t, ' /', bs_env%num_time_freq_points, &
-                  ',    Execution time', m_walltime() - t1, ' s'
-            END IF
-
-            NULLIFY (grid_occ)
-         END DO ! i_t
-
-         IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
-
-      END ASSOCIATE
+      IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
 
       CALL timestop(handle)
 
@@ -175,68 +173,66 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ASSOCIATE (mat_phi_mu_l => bs_env%ri_rs%mat_phi_mu_l, mat_Z_lP => bs_env%ri_rs%mat_Z_lP)
+      t1 = m_walltime()
 
-         t1 = m_walltime()
+      ALLOCATE (fm_Sigma_x_Gamma(bs_env%n_spin))
+      DO ispin = 1, bs_env%n_spin
+         CALL cp_fm_create(fm_Sigma_x_Gamma(ispin), bs_env%fm_s_Gamma%matrix_struct)
+      END DO
 
-         ALLOCATE (fm_Sigma_x_Gamma(bs_env%n_spin))
-         DO ispin = 1, bs_env%n_spin
-            CALL cp_fm_create(fm_Sigma_x_Gamma(ispin), bs_env%fm_s_Gamma%matrix_struct)
-         END DO
+      mat_Sigma_x_Gamma(1)%matrix => matrix_Sigma_x
+      CALL dbcsr_create(matrix_Sigma_x, template=bs_env%mat_ao_ao%matrix)
 
-         mat_Sigma_x_Gamma(1)%matrix => matrix_Sigma_x
-         CALL dbcsr_create(matrix_Sigma_x, template=bs_env%mat_ao_ao%matrix)
+      CALL resolve_grid_panels(bs_env%ri_rs, bs_env%para_env, bs_env%dbcsr_msg_elem_limit, &
+                               pan_first, pan_last, cutoff)
 
-         CALL resolve_grid_panels(bs_env%ri_rs, bs_env%para_env, bs_env%dbcsr_msg_elem_limit, &
-                                  pan_first, pan_last, cutoff)
+      ! =========================================================================
+      ! 1. COMPUTE V^tr_PQ (RI x RI)
+      ! =========================================================================
+      CALL build_ri_rs_bare_aux_interaction(qs_env, bs_env%fm_Minv_Gamma, bs_env%trunc_coulomb, &
+                                            bs_env%auto_ri, bs_env%ri_rs%mat_Z_lP, matrix_V_aux)
+      CALL dbcsr_filter(matrix_V_aux, bs_env%eps_filter)
 
-         ! =========================================================================
-         ! 1. COMPUTE V^tr_PQ (RI x RI)
-         ! =========================================================================
-         CALL build_ri_rs_bare_aux_interaction(qs_env, bs_env%fm_Minv_Gamma, bs_env%trunc_coulomb, &
-                                               bs_env%auto_ri, mat_Z_lP, matrix_V_aux)
-         CALL dbcsr_filter(matrix_V_aux, bs_env%eps_filter)
+      ! =========================================================================
+      ! 2. SPIN LOOP FOR EXACT EXCHANGE
+      ! Σ^x_λσ = -Σ_ll' ϕ_λ(r_l) ( D_ll' V^tr_ll' ) ϕ_σ(r_l')
+      !        = -ϕ^T ( (ϕ D ϕ^T) ∘ (Z V^tr Z^T) ) ϕ
+      ! =========================================================================
+      DO ispin = 1, bs_env%n_spin
 
-         ! =========================================================================
-         ! 2. SPIN LOOP FOR EXACT EXCHANGE
-         ! Σ^x_λσ = -Σ_ll' ϕ_λ(r_l) ( D_ll' V^tr_ll' ) ϕ_σ(r_l')
-         !        = -ϕ^T ( (ϕ D ϕ^T) ∘ (Z V^tr Z^T) ) ϕ
-         ! =========================================================================
-         DO ispin = 1, bs_env%n_spin
+         ! AO-space density matrix D_µν = G^occ at τ = 0
+         CALL build_G_ao(bs_env, 0.0_dp, ispin, .TRUE., .FALSE., &
+                         bs_env%ri_rs%mat_phi_mu_l, matrix_D_ao(1))
 
-            ! AO-space density matrix D_µν = G^occ at τ = 0
-            CALL build_G_ao(bs_env, 0.0_dp, ispin, .TRUE., .FALSE., mat_phi_mu_l, matrix_D_ao(1))
+         CALL contract_grid_panels(L_A=bs_env%ri_rs%mat_phi_mu_l, M_A=matrix_D_ao, &
+                                   L_B=bs_env%ri_rs%mat_Z_lP, M_B=matrix_V_aux, &
+                                   L_out=bs_env%ri_rs%mat_phi_mu_l, mat_out=mat_Sigma_x_Gamma, &
+                                   scale=1.0_dp, eps=bs_env%eps_filter, &
+                                   para_env=bs_env%para_env, &
+                                   pan_first=pan_first, pan_last=pan_last, &
+                                   lb_eq_la=.FALSE., lout_eq_la=.TRUE., zero_out=.TRUE., &
+                                   centroids=bs_env%ri_rs%chunk_centroids, &
+                                   cutoff=cutoff)
+         CALL dbcsr_scale(matrix_Sigma_x, -1.0_dp)
 
-            CALL contract_grid_panels(L_A=mat_phi_mu_l, M_A=matrix_D_ao, &
-                                      L_B=mat_Z_lP, M_B=matrix_V_aux, &
-                                      L_out=mat_phi_mu_l, mat_out=mat_Sigma_x_Gamma, &
-                                      scale=1.0_dp, eps=bs_env%eps_filter, &
-                                      para_env=bs_env%para_env, &
-                                      pan_first=pan_first, pan_last=pan_last, &
-                                      lb_eq_la=.FALSE., lout_eq_la=.TRUE., zero_out=.TRUE., &
-                                      centroids=bs_env%ri_rs%chunk_centroids, &
-                                      cutoff=cutoff)
-            CALL dbcsr_scale(matrix_Sigma_x, -1.0_dp)
+         CALL dbcsr_release(matrix_D_ao(1))
 
-            CALL dbcsr_release(matrix_D_ao(1))
+         ! Data I/O and Export to CP2K Full Matrices
+         CALL copy_dbcsr_to_fm(matrix_Sigma_x, fm_Sigma_x_Gamma(ispin))
 
-            ! Data I/O and Export to CP2K Full Matrices
-            CALL copy_dbcsr_to_fm(matrix_Sigma_x, fm_Sigma_x_Gamma(ispin))
+      END DO ! ispin
 
-         END DO ! ispin
+      IF (bs_env%unit_nr > 0) THEN
+         WRITE (bs_env%unit_nr, '(T2,A,T58,A,F7.1,A)') &
+            'Computed Σ^x(k=0),', ' Execution time', m_walltime() - t1, ' s'
+         WRITE (bs_env%unit_nr, '(A)') ' '
+      END IF
 
-         IF (bs_env%unit_nr > 0) THEN
-            WRITE (bs_env%unit_nr, '(T2,A,T58,A,F7.1,A)') &
-               'Computed Σ^x(k=0),', ' Execution time', m_walltime() - t1, ' s'
-            WRITE (bs_env%unit_nr, '(A)') ' '
-         END IF
-
-         ! =========================================================================
-         ! 3. CLEANUP
-         ! =========================================================================
-         CALL dbcsr_release(matrix_V_aux)
-         CALL dbcsr_release(matrix_Sigma_x)
-      END ASSOCIATE
+      ! =========================================================================
+      ! 3. CLEANUP
+      ! =========================================================================
+      CALL dbcsr_release(matrix_V_aux)
+      CALL dbcsr_release(matrix_Sigma_x)
 
       CALL timestop(handle)
 
@@ -272,97 +268,96 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ASSOCIATE (mat_phi_mu_l => bs_env%ri_rs%mat_phi_mu_l, mat_Z_lP => bs_env%ri_rs%mat_Z_lP)
+      ! =========================================================================
+      ! 1. SETUP AUXILIARY TOPOLOGY AND PRE-ALLOCATE OUTPUT ARRAYS
+      ! =========================================================================
+      CALL setup_square_topology(bs_env%ri_rs%mat_Z_lP, 'COL', dist_aux_aux, blk_aux, dist_row_aux)
 
-         ! =========================================================================
-         ! 1. SETUP AUXILIARY TOPOLOGY AND PRE-ALLOCATE OUTPUT ARRAYS
-         ! =========================================================================
-         CALL setup_square_topology(mat_Z_lP, 'COL', dist_aux_aux, blk_aux, dist_row_aux)
+      CALL resolve_grid_panels(bs_env%ri_rs, bs_env%para_env, bs_env%dbcsr_msg_elem_limit, &
+                               pan_first, pan_last, cutoff)
 
-         CALL resolve_grid_panels(bs_env%ri_rs, bs_env%para_env, bs_env%dbcsr_msg_elem_limit, &
-                                  pan_first, pan_last, cutoff)
+      ! Only the final FM time array persists; DBCSR outputs are streamed one time/spin at a time.
+      ALLOCATE (fm_Sigma_c_Gamma_time(bs_env%num_time_freq_points, 2, bs_env%n_spin))
+      DO i_sector = 1, 2
+         mat_Sigma_tau(i_sector)%matrix => matrix_Sigma_tau(i_sector)
+      END DO
 
-         ! Only the final FM time array persists; DBCSR outputs are streamed one time/spin at a time.
-         ALLOCATE (fm_Sigma_c_Gamma_time(bs_env%num_time_freq_points, 2, bs_env%n_spin))
-         DO i_sector = 1, 2
-            mat_Sigma_tau(i_sector)%matrix => matrix_Sigma_tau(i_sector)
-         END DO
+      ! =========================================================================
+      ! 2. IMAGINARY TIME LOOP
+      ! Σ^c_neg_λσ(iτ) = -ϕ^T ( (ϕ G^occ ϕ^T) ∘ (Z W^MIC Z^T) ) ϕ
+      ! Σ^c_pos_λσ(iτ) =  ϕ^T ( (ϕ G^vir ϕ^T) ∘ (Z W^MIC Z^T) ) ϕ
+      ! =========================================================================
+      DO i_t = 1, bs_env%num_time_freq_points
+         tau = bs_env%time_frequency_grid%imaginary_time(i_t)
 
-         ! =========================================================================
-         ! 2. IMAGINARY TIME LOOP
-         ! Σ^c_neg_λσ(iτ) = -ϕ^T ( (ϕ G^occ ϕ^T) ∘ (Z W^MIC Z^T) ) ϕ
-         ! Σ^c_pos_λσ(iτ) =  ϕ^T ( (ϕ G^vir ϕ^T) ∘ (Z W^MIC Z^T) ) ϕ
-         ! =========================================================================
-         DO i_t = 1, bs_env%num_time_freq_points
-            tau = bs_env%time_frequency_grid%imaginary_time(i_t)
+         CALL dbcsr_create(matrix_W_aux, "W_aux", dist_aux_aux, dbcsr_type_no_symmetry, &
+                           blk_aux, blk_aux)
+         CALL copy_fm_to_dbcsr(fm_W_time(i_t), matrix_W_aux, keep_sparsity=.FALSE.)
+         CALL dbcsr_filter(matrix_W_aux, bs_env%eps_filter)
 
-            CALL dbcsr_create(matrix_W_aux, "W_aux", dist_aux_aux, dbcsr_type_no_symmetry, &
-                              blk_aux, blk_aux)
-            CALL copy_fm_to_dbcsr(fm_W_time(i_t), matrix_W_aux, keep_sparsity=.FALSE.)
-            CALL dbcsr_filter(matrix_W_aux, bs_env%eps_filter)
+         DO ispin = 1, bs_env%n_spin
+            t1 = m_walltime()
 
-            DO ispin = 1, bs_env%n_spin
-               t1 = m_walltime()
+            ! AO-space Green's functions G^occ_µν, G^vir_µν (dense AO x AO, small)
+            CALL build_G_ao(bs_env, tau, ispin, .TRUE., .FALSE., &
+                            bs_env%ri_rs%mat_phi_mu_l, matrix_G_ao(1))
+            CALL build_G_ao(bs_env, tau, ispin, .FALSE., .TRUE., &
+                            bs_env%ri_rs%mat_phi_mu_l, matrix_G_ao(2))
 
-               ! AO-space Green's functions G^occ_µν, G^vir_µν (dense AO x AO, small)
-               CALL build_G_ao(bs_env, tau, ispin, .TRUE., .FALSE., mat_phi_mu_l, matrix_G_ao(1))
-               CALL build_G_ao(bs_env, tau, ispin, .FALSE., .TRUE., mat_phi_mu_l, matrix_G_ao(2))
+            DO i_sector = 1, 2
+               CALL dbcsr_create(matrix_Sigma_tau(i_sector), template=bs_env%mat_ao_ao%matrix)
+            END DO
 
-               DO i_sector = 1, 2
-                  CALL dbcsr_create(matrix_Sigma_tau(i_sector), template=bs_env%mat_ao_ao%matrix)
-               END DO
+            ! Σ^c_neg and Σ^c_pos in a single panel loop: W_pan = Z_panel × W × Z^T built once
+            CALL contract_grid_panels(L_A=bs_env%ri_rs%mat_phi_mu_l, M_A=matrix_G_ao, &
+                                      L_B=bs_env%ri_rs%mat_Z_lP, M_B=matrix_W_aux, &
+                                      L_out=bs_env%ri_rs%mat_phi_mu_l, &
+                                      mat_out=mat_Sigma_tau, &
+                                      scale=1.0_dp, eps=bs_env%eps_filter, para_env=bs_env%para_env, &
+                                      pan_first=pan_first, pan_last=pan_last, &
+                                      lb_eq_la=.FALSE., lout_eq_la=.TRUE., zero_out=.TRUE., &
+                                      centroids=bs_env%ri_rs%chunk_centroids, cutoff=cutoff)
+            CALL dbcsr_scale(matrix_Sigma_tau(1), -1.0_dp)
 
-               ! Σ^c_neg and Σ^c_pos in a single panel loop: W_pan = Z_panel × W × Z^T built once
-               CALL contract_grid_panels(L_A=mat_phi_mu_l, M_A=matrix_G_ao, &
-                                         L_B=mat_Z_lP, M_B=matrix_W_aux, L_out=mat_phi_mu_l, &
-                                         mat_out=mat_Sigma_tau, &
-                                         scale=1.0_dp, eps=bs_env%eps_filter, para_env=bs_env%para_env, &
-                                         pan_first=pan_first, pan_last=pan_last, &
-                                         lb_eq_la=.FALSE., lout_eq_la=.TRUE., zero_out=.TRUE., &
-                                         centroids=bs_env%ri_rs%chunk_centroids, cutoff=cutoff)
-               CALL dbcsr_scale(matrix_Sigma_tau(1), -1.0_dp)
+            ! FM time sector 1 is positive, sector 2 is negative.
+            DO i_sector = 1, 2
+               CALL dbcsr_release(matrix_G_ao(i_sector))
+               CALL cp_fm_create(fm_Sigma_c_Gamma_time(i_t, 3 - i_sector, ispin), &
+                                 bs_env%fm_s_Gamma%matrix_struct)
+               CALL copy_dbcsr_to_fm(matrix_Sigma_tau(i_sector), &
+                                     fm_Sigma_c_Gamma_time(i_t, 3 - i_sector, ispin))
+            END DO
 
-               ! FM time sector 1 is positive, sector 2 is negative.
-               DO i_sector = 1, 2
-                  CALL dbcsr_release(matrix_G_ao(i_sector))
-                  CALL cp_fm_create(fm_Sigma_c_Gamma_time(i_t, 3 - i_sector, ispin), &
-                                    bs_env%fm_s_Gamma%matrix_struct)
-                  CALL copy_dbcsr_to_fm(matrix_Sigma_tau(i_sector), &
-                                        fm_Sigma_c_Gamma_time(i_t, 3 - i_sector, ispin))
-               END DO
+            ! Report the first-time outputs before releasing the current DBCSR pair.
+            IF (i_t == 1) THEN
+               sigma_label = 'Σ^c'
+               IF (bs_env%n_spin == 2 .AND. ispin == 1) sigma_label = 'Σ^c_α'
+               IF (bs_env%n_spin == 2 .AND. ispin == 2) sigma_label = 'Σ^c_β'
+               CALL print_matrix_occupation(matrix_Sigma_tau(2), &
+                                            TRIM(sigma_label)//'(iτ)', bs_env%para_env, bs_env%unit_nr, &
+                                            bs_env%dbcsr_msg_elem_limit, suffix=' for time point 1')
+               CALL print_matrix_occupation(matrix_Sigma_tau(1), &
+                                            TRIM(sigma_label)//'(-iτ)', bs_env%para_env, bs_env%unit_nr, &
+                                            bs_env%dbcsr_msg_elem_limit, suffix=' for time point 1')
+            END IF
+            DO i_sector = 1, 2
+               CALL dbcsr_release(matrix_Sigma_tau(i_sector))
+            END DO
 
-               ! Report the first-time outputs before releasing the current DBCSR pair.
-               IF (i_t == 1) THEN
-                  sigma_label = 'Σ^c'
-                  IF (bs_env%n_spin == 2 .AND. ispin == 1) sigma_label = 'Σ^c_α'
-                  IF (bs_env%n_spin == 2 .AND. ispin == 2) sigma_label = 'Σ^c_β'
-                  CALL print_matrix_occupation(matrix_Sigma_tau(2), &
-                                               TRIM(sigma_label)//'(iτ)', bs_env%para_env, bs_env%unit_nr, &
-                                               bs_env%dbcsr_msg_elem_limit, suffix=' for time point 1')
-                  CALL print_matrix_occupation(matrix_Sigma_tau(1), &
-                                               TRIM(sigma_label)//'(-iτ)', bs_env%para_env, bs_env%unit_nr, &
-                                               bs_env%dbcsr_msg_elem_limit, suffix=' for time point 1')
-               END IF
-               DO i_sector = 1, 2
-                  CALL dbcsr_release(matrix_Sigma_tau(i_sector))
-               END DO
+            IF (bs_env%unit_nr > 0) THEN
+               WRITE (bs_env%unit_nr, '(T2,A,I15,A,I3,A,F7.1,A)') &
+                  'Computed Σ^c(iτ) for time point', i_t, ' /', bs_env%num_time_freq_points, &
+                  ',    Execution time', m_walltime() - t1, ' s'
+            END IF
 
-               IF (bs_env%unit_nr > 0) THEN
-                  WRITE (bs_env%unit_nr, '(T2,A,I15,A,I3,A,F7.1,A)') &
-                     'Computed Σ^c(iτ) for time point', i_t, ' /', bs_env%num_time_freq_points, &
-                     ',    Execution time', m_walltime() - t1, ' s'
-               END IF
+         END DO ! ispin
 
-            END DO ! ispin
+         CALL dbcsr_release(matrix_W_aux)
 
-            CALL dbcsr_release(matrix_W_aux)
+      END DO ! i_t
 
-         END DO ! i_t
-
-         ! fm_W_time and the scratch files belong to the caller and survive every evGW0 iteration.
-         CALL release_dbcsr_topology_and_matrices(dist=dist_aux_aux, mapped_dist=dist_row_aux)
-
-      END ASSOCIATE
+      ! fm_W_time and the scratch files belong to the caller and survive every evGW0 iteration.
+      CALL release_dbcsr_topology_and_matrices(dist=dist_aux_aux, mapped_dist=dist_row_aux)
 
       CALL timestop(handle)
 
