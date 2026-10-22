@@ -17,6 +17,7 @@
 MODULE machine
    USE ISO_C_BINDING, ONLY: C_CHAR, &
                             C_INT, &
+                            C_SIZE_T, &
                             C_PTR, &
                             C_NULL_CHAR, &
                             C_ASSOCIATED
@@ -77,7 +78,7 @@ MODULE machine
    PRIVATE
 
    PUBLIC :: m_walltime, m_timestamp, m_hostnm, m_flush, &
-             m_getcwd, m_getlog, m_getpid, m_procrun, m_abort, &
+             m_getcwd, m_getexe, m_getlog, m_getpid, m_procrun, m_abort, &
              m_chdir, m_mov, m_unlink, m_memory, m_memory_details, m_energy, &
              m_cpuinfo, m_cpuid_static, m_cpuid, m_cpuid_name, &
              m_cpuid_vlen, m_omp_get_stacksize, m_omp_trace_issues
@@ -628,6 +629,33 @@ CONTAINS
       i = INDEX(tmp, c_null_char) - 1
       curdir = tmp(1:i)
    END SUBROUTINE m_getcwd
+
+! **************************************************************************************************
+!> \brief Returns the path of the running executable
+!> \param exe_path ...
+! **************************************************************************************************
+   SUBROUTINE m_getexe(exe_path)
+      CHARACTER(len=*), INTENT(OUT)            :: exe_path
+
+      CHARACTER(len=default_path_length), TARGET :: tmp
+      INTEGER                                  :: n
+
+      INTERFACE
+         FUNCTION readlink(path, buf, bufsiz) BIND(C, name="readlink") RESULT(nbytes)
+            IMPORT
+            CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: path, buf
+            INTEGER(KIND=C_SIZE_T), VALUE            :: bufsiz
+            INTEGER(KIND=C_SIZE_T)                   :: nbytes
+         END FUNCTION readlink
+      END INTERFACE
+
+      n = INT(readlink("/proc/self/exe"//C_NULL_CHAR, tmp, INT(LEN(tmp), C_SIZE_T)))
+      IF (n > 0 .AND. n < LEN(tmp)) THEN
+         exe_path = tmp(1:n)
+      ELSE
+         CALL GET_COMMAND_ARGUMENT(0, exe_path)
+      END IF
+   END SUBROUTINE m_getexe
 
 ! **************************************************************************************************
 !> \brief ...

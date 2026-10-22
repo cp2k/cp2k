@@ -1968,6 +1968,7 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_MPI_F08}>:__MPI_F08>
     __COMPILE_HOST=\"${CP2K_HOST_NAME}\"
     __DATA_DIR=\"${CP2K_DATA_DIR}\"
+    __COMPILE_DIR=\"${CMAKE_BINARY_DIR}\"
     __COMPILE_ARCH=\"${CMAKE_SYSTEM_PROCESSOR}\"
     $<$<BOOL:${CP2K_USE_PLUMED}>:__PLUMED2>
     $<$<BOOL:${CP2K_USE_MAXWELL}>:__LIBMAXWELL>

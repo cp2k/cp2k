@@ -39,6 +39,7 @@ MODULE cp_files
    PUBLIC :: close_file, &
              open_file, &
              file_exists, &
+             get_compile_dir, &
              get_data_dir, &
              discover_file, &
              join_paths
@@ -596,6 +597,37 @@ CONTAINS
       CALL cp_abort(__LOCATION__, "The CP2K_DATA_DIR path is too long")
 
    END FUNCTION get_data_dir
+
+! **************************************************************************************************
+!> \brief Returns the build directory
+!> \return ...
+! **************************************************************************************************
+   FUNCTION get_compile_dir() RESULT(res)
+      CHARACTER(len=default_path_length)                 :: res
+
+      CHARACTER(LEN=1, KIND=C_CHAR), DIMENSION(:), &
+         POINTER                                         :: path_f
+      INTEGER                                            :: i
+      TYPE(C_PTR)                                        :: path_c
+      INTERFACE
+         FUNCTION get_compile_dir_c() BIND(C, name="get_compile_dir")
+            IMPORT :: C_PTR
+            TYPE(C_PTR)                               :: get_compile_dir_c
+         END FUNCTION get_compile_dir_c
+      END INTERFACE
+
+      path_c = get_compile_dir_c()
+      CALL C_F_POINTER(path_c, path_f, shape=[default_path_length])
+
+      res = ""
+      DO i = 1, default_path_length
+         IF (path_f(i) == C_NULL_CHAR) RETURN
+         res(i:i) = path_f(i)
+      END DO
+
+      CALL cp_abort(__LOCATION__, "The compile directory path is too long")
+
+   END FUNCTION get_compile_dir
 
 ! **************************************************************************************************
 !> \brief Joins two file paths, inserting '/' as needed.
