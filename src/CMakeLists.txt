@@ -2105,7 +2105,8 @@ list(
   "gx_ac_unittest")
 
 if(CP2K_USE_MPI)
-  list(APPEND __CP2K_APPS "message_passing_thread_unittest")
+  list(APPEND __CP2K_APPS "message_passing_thread_unittest"
+       "cp_fm_diag_utils_unittest")
 endif()
 
 add_executable(cp2k-bin start/cp2k.F)
@@ -2162,6 +2163,7 @@ add_executable(gx_ac_unittest gx_ac_unittest.F)
 if(CP2K_USE_MPI)
   add_executable(message_passing_thread_unittest
                  mpiwrap/message_passing_thread_unittest.F)
+  add_executable(cp_fm_diag_utils_unittest fm/cp_fm_diag_utils_unittest.F)
 endif()
 
 set_target_properties(
