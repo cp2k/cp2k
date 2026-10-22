@@ -174,7 +174,8 @@ CONTAINS
          ! Σ^c_ll'(iτ) = -G^occ_ll'(i|τ|) ∘ W_ll'(iτ),  τ < 0
          ! Σ^c_ll'(iτ) =  G^vir_ll'(i|τ|) ∘ W_ll'(iτ),  τ > 0
          ! Σ^c_λσ(iτ)  =  Σ_ll' ϕ_λ(r_l) Σ^c_ll'(iτ) ϕ_σ(r_l')
-         CALL compute_Sigma_c(bs_env, fm_W_time, fm_Sigma_c_Gamma_time, bs_env%ri_rs%cutoff_radius_v_w)
+         CALL compute_Sigma_c(bs_env, fm_W_time, fm_Sigma_c_Gamma_time, &
+                              bs_env%ri_rs%cutoff_radius_v_w, keep_w_and_files=.TRUE.)
 
          ! Σ^c_λσ(iτ) -> Σ^c_nn(ϵ)
          ! ϵ_n^GW,(i) = ϵ_n^DFT + Σ^c_nn[G^(i-1),W](ϵ_n^GW,(i)) + Σ^x_nn - v^xc_nn

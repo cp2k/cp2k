@@ -20,7 +20,9 @@ MODULE gw_ri_rs_chi_sigma_kernels
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_release,&
                                               cp_fm_type
+   USE gw_tensor_large_cell_Gamma,      ONLY: delete_unnecessary_files
    USE gw_utils,                        ONLY: G_occ_vir
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush,&
@@ -246,13 +248,15 @@ CONTAINS
 !> \param fm_W_time ...
 !> \param fm_Sigma_c_Gamma_time ...
 !> \param cutoff grid-centroid distance cutoff; zero disables geometric truncation
+!> \param keep_w_and_files keep W and scratch files for another Sigma_c evaluation
 ! **************************************************************************************************
-   SUBROUTINE compute_Sigma_c(bs_env, fm_W_time, fm_Sigma_c_Gamma_time, cutoff)
+   SUBROUTINE compute_Sigma_c(bs_env, fm_W_time, fm_Sigma_c_Gamma_time, cutoff, keep_w_and_files)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_W_time
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :, :)  :: fm_Sigma_c_Gamma_time
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
+      LOGICAL, INTENT(IN), OPTIONAL                      :: keep_w_and_files
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_Sigma_c'
 
@@ -260,6 +264,7 @@ CONTAINS
       INTEGER                                            :: handle, i_sector, i_t, ispin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pan_first, pan_last
       INTEGER, DIMENSION(:), POINTER                     :: blk_aux, dist_row_aux
+      LOGICAL                                            :: retain_work
       REAL(KIND=dp)                                      :: t1, tau
       TYPE(dbcsr_distribution_type)                      :: dist_aux_aux
       TYPE(dbcsr_p_type)                                 :: mat_Sigma_tau(2)
@@ -267,6 +272,9 @@ CONTAINS
       TYPE(dbcsr_type), TARGET                           :: matrix_Sigma_tau(2)
 
       CALL timeset(routineN, handle)
+
+      retain_work = .FALSE.
+      IF (PRESENT(keep_w_and_files)) retain_work = keep_w_and_files
 
       ! =========================================================================
       ! 1. SETUP AUXILIARY TOPOLOGY AND PRE-ALLOCATE OUTPUT ARRAYS
@@ -356,8 +364,14 @@ CONTAINS
 
       END DO ! i_t
 
-      ! fm_W_time and the scratch files belong to the caller and survive every evGW0 iteration.
+      ! The DBCSR topology is local to this contraction.
       CALL release_dbcsr_topology_and_matrices(dist=dist_aux_aux, mapped_dist=dist_row_aux)
+
+      ! The non-periodic evGW0 path keeps these across Sigma_c evaluations.
+      IF (.NOT. retain_work) THEN
+         CALL cp_fm_release(fm_W_time)
+         CALL delete_unnecessary_files(bs_env)
+      END IF
 
       CALL timestop(handle)
 

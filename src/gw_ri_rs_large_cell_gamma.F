@@ -11,14 +11,12 @@
 !>      04.2026 created [Ritaj Tyagi]
 ! **************************************************************************************************
 MODULE gw_ri_rs_large_cell_Gamma
-   USE cp_fm_types,                     ONLY: cp_fm_release,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_type
    USE gw_compute_V_and_W,              ONLY: get_W_MIC
    USE gw_ri_rs_chi_sigma_kernels,      ONLY: compute_Sigma_c,&
                                               compute_Sigma_x,&
                                               get_mat_chi_Gamma_tau
-   USE gw_tensor_large_cell_Gamma,      ONLY: compute_QP_energies,&
-                                              delete_unnecessary_files
+   USE gw_tensor_large_cell_Gamma,      ONLY: compute_QP_energies
    USE gw_utils,                        ONLY: de_init_bs_env
    USE kinds,                           ONLY: dp
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
@@ -93,8 +91,6 @@ CONTAINS
        !!    Σ^c_λσ(iτ)    =  sum_ll' ϕ_λ(r_l) Σ^c_ll'(iτ) ϕ_σ(r_l')
        !!========================================================================
       CALL compute_Sigma_c(bs_env, fm_W_time, fm_Sigma_c_Gamma_time, cutoff=0.0_dp)
-      CALL cp_fm_release(fm_W_time)
-      CALL delete_unnecessary_files(bs_env)
 
        !!========================================================================
        !! 8. Compute Quasiparticle Energies
