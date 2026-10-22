@@ -7,7 +7,17 @@
 "diamond_admms.inp"                     = [{matcher="M011", tol=1.0E-10, ref=-79.738004880335254}]
 "diamond_admmq.inp"                     = [{matcher="M031", tol=1.0E-8, ref=-5.01813876744E+04}]
 "H_debug.inp"                           = []
-"LiH_admm_kpsym.inp"                    = [{matcher="M011", tol=1.0E-6, ref=REPLACE}]
-"LiH_admm_nosym.inp"                    = [{matcher="M011", tol=1.0E-6, ref=REPLACE}]
 "AlAs_admm_kpsym.inp"                   = [{matcher="M011", tol=1.0E-6, ref=REPLACE}]
 "AlAs_admm_nosym.inp"                   = [{matcher="M011", tol=1.0E-6, ref=REPLACE}]
+"LiH_cubic_admm_kpsym.inp"              = [{matcher="M011", tol=2.0E-6, ref=-5.034970970224302},
+                                            {matcher="M031", tol=1.0E-5, ref=-2.02942941728E+08},
+                                            {matcher="M072", tol=1.0E-2, ref=1.09072547E-08},
+                                            {matcher="Atomic_force_1_x", tol=1.0E-6, ref=0.0},
+                                            {matcher="Atomic_force_1_y", tol=1.0E-6, ref=0.0},
+                                            {matcher="Atomic_force_1_z", tol=1.0E-6, ref=0.0},
+                                            {matcher="Atomic_force_2_x", tol=1.0E-6, ref=0.0},
+                                            {matcher="Atomic_force_2_y", tol=1.0E-6, ref=0.0},
+                                            {matcher="Atomic_force_2_z", tol=1.0E-6, ref=0.0}]
+"LiH_cubic_admm_nosym.inp"              = [{matcher="M011", tol=2.0E-6, ref=-5.034970932623098},
+                                            {matcher="M031", tol=1.0E-5, ref=-2.02942869178E+08},
+                                            {matcher="M072", tol=1.0E-2, ref=1.09109929E-08}]
