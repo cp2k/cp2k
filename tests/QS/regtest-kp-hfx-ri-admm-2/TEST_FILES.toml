@@ -7,8 +7,8 @@
 "diamond_admms.inp"                     = [{matcher="M011", tol=1.0E-10, ref=-79.738004880335254}]
 "diamond_admmq.inp"                     = [{matcher="M031", tol=1.0E-8, ref=-5.01813876744E+04}]
 "H_debug.inp"                           = []
-# "AlAs_admm_kpsym.inp"                   = [{matcher="M011", tol=1.0E-6, ref=REPLACE}]  # pending refs (sym aborts in Cholesky)
-# "AlAs_admm_nosym.inp"                   = [{matcher="M011", tol=1.0E-6, ref=REPLACE}]  # pending refs
+"AlAs_admm_kpsym.inp"                   = [{matcher="M011", tol=2.0E-6, ref=-6.12354870691}]
+"AlAs_admm_nosym.inp"                   = [{matcher="M011", tol=2.0E-6, ref=-6.12354870691}]
 "LiH_cubic_admm_kpsym.inp"              = [{matcher="M011", tol=2.0E-6, ref=-5.034970970224302},
                                             {matcher="M031", tol=1.0E-5, ref=-2.02942941728E+08},
                                             {matcher="M072", tol=1.0E-2, ref=1.09072547E-08},
