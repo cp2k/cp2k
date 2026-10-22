@@ -37,7 +37,7 @@ PROGRAM cp_fm_diag_utils_unittest
       END DO
 
       IF (cp_fm_max_ncpu_non_zero_column(matrix_struct, 32, 64) /= 32) THEN
-         ERROR STOP "Valid original ELPA layout changed"
+         ERROR STOP "Valid original redistribution layout changed"
       END IF
       ! 20 ranks use a 2x10 grid with empty columns; 18 ranks use a safe 3x6 grid.
       IF (cp_fm_max_ncpu_non_zero_column(matrix_struct, 20, 64) /= 18) THEN

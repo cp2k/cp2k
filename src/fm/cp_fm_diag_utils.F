@@ -162,6 +162,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: a, x
       LOGICAL, INTENT(IN)                                :: should_print, elpa_force_redistribute
 
+      CPASSERT(a > 0 .AND. x > 0)
+
       ! Init work first: the structure constructor resets every component, so the
       ! settings have to be written after it, not before
       work_redistribute = cp_fm_redistribute_type()
