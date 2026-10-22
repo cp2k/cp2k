@@ -25,7 +25,6 @@
       ! in the ADMM density transform, unlike a time-reversal-only cell.
       SCHEME MONKHORST-PACK 2 2 2
       SYMMETRY ON
-      PARALLEL_GROUP_SIZE 0
       VERBOSE T
     &END KPOINTS
     &MGRID

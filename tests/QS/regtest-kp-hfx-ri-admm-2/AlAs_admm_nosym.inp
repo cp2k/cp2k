@@ -23,7 +23,6 @@
       ! unreduced companion of AlAs_admm_kpsym (8 k-points).
       SCHEME MONKHORST-PACK 2 2 2
       SYMMETRY OFF
-      PARALLEL_GROUP_SIZE 0
       FULL_GRID ON
       VERBOSE T
     &END KPOINTS
