@@ -14,7 +14,7 @@ MODULE gw_ri_rs_large_cell_Gamma
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE gw_compute_V_and_W,              ONLY: get_W_MIC
-   USE gw_ri_rs_kernels,                ONLY: compute_Sigma_c,&
+   USE gw_ri_rs_chi_sigma_kernels,      ONLY: compute_Sigma_c,&
                                               compute_Sigma_x,&
                                               get_mat_chi_Gamma_tau
    USE gw_tensor_large_cell_Gamma,      ONLY: compute_QP_energies,&

@@ -20,7 +20,7 @@ MODULE gw_ri_rs_non_periodic
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE gw_compute_V_and_W,              ONLY: compute_W
-   USE gw_ri_rs_kernels,                ONLY: compute_Sigma_c,&
+   USE gw_ri_rs_chi_sigma_kernels,      ONLY: compute_Sigma_c,&
                                               compute_Sigma_x,&
                                               get_mat_chi_Gamma_tau
    USE gw_tensor_large_cell_Gamma,      ONLY: delete_unnecessary_files

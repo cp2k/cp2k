@@ -8,7 +8,7 @@
 ! **************************************************************************************************
 !> \brief Shared RI-RS polarizability and self-energy assembly.
 ! **************************************************************************************************
-MODULE gw_ri_rs_kernels
+MODULE gw_ri_rs_chi_sigma_kernels
    USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_distribution_type,&
                                               dbcsr_filter,&
@@ -37,7 +37,7 @@ MODULE gw_ri_rs_kernels
 
    IMPLICIT NONE
    PRIVATE
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_kernels'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_chi_sigma_kernels'
    PUBLIC :: get_mat_chi_Gamma_tau, compute_Sigma_x, compute_Sigma_c
 CONTAINS
 
@@ -419,4 +419,4 @@ CONTAINS
 
    END SUBROUTINE build_G_ao
 
-END MODULE gw_ri_rs_kernels
+END MODULE gw_ri_rs_chi_sigma_kernels
