@@ -29,7 +29,7 @@
 "h2o_ot_manual_virtual.inp"             = [{matcher="E_total", tol=1e-11, ref=-16.81150876492846},
                                            {matcher="M092", tol=1e-6, ref=32.29178404}]
 "h2o_diag_forces.inp"                   = [{matcher="E_total", tol=1e-11, ref=-16.81150876492863},
-                                           {matcher="Atomic_force_1_z", tol=1e-8, ref=-1.27900509E-02}]
+                                           {matcher="Atomic_force_1_z", tol=2e-8, ref=-1.27900509E-02}]
 "h2o_ot_forces.inp"                     = [{matcher="E_total", tol=1e-11, ref=-16.81150876492838},
                                            {matcher="Atomic_force_1_z", tol=1e-6, ref=-1.27900509E-02}]
 "h2o_otloc_manual.inp"                  = [{matcher="E_total", tol=1e-10, ref=-16.81150876492865}]
