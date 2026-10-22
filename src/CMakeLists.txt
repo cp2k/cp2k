@@ -1662,9 +1662,11 @@ set(CP2K_PROGS_F
     gx_ac_unittest.F)
 
 if(CP2K_USE_MPI)
-  list(APPEND CP2K_PROGS_F mpiwrap/message_passing_thread_unittest.F)
+  list(APPEND CP2K_PROGS_F mpiwrap/message_passing_thread_unittest.F
+       fm/cp_fm_diag_utils_unittest.F)
 else()
-  list(APPEND CP2K_EXCLUDED_SRCS_F mpiwrap/message_passing_thread_unittest.F)
+  list(APPEND CP2K_EXCLUDED_SRCS_F mpiwrap/message_passing_thread_unittest.F
+       fm/cp_fm_diag_utils_unittest.F)
 endif()
 
 if(CP2K_USE_CUDA
