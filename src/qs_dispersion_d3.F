@@ -792,6 +792,13 @@ CONTAINS
                END IF
             END DO
          END DO
+         IF (idmp == 1) THEN
+            ! Zero damping: the switch (cutoff_switch_d3) removes part of the pairs in [rcut - 1 bohr, rcut] from
+            ! the explicit sum. Add that part with g(r) = 1, as GROMACS does for switched potentials. The factors
+            ! depend only on rcut, so forces are unchanged and the tail pressure stays E_lrc/V = -dE_lrc/dV.
+            elrc6 = elrc6*(1._dp + switched_shell_fraction(rcut, 6))
+            elrc8 = elrc8*(1._dp + switched_shell_fraction(rcut, 8))
+         END IF
          IF (use_virial) THEN
             ! Pressure of the pairs not contained in the explicit sum (g(r) = 1 beyond the cutoff).
             ! BJ damping: the pair sum is truncated sharply at rcut and its virial misses the pairs crossing rcut,
@@ -987,8 +994,31 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rab, rcutab, srn, alpn, rcut
       REAL(KIND=dp), INTENT(OUT)                         :: fdab, dfdab
 
-      REAL(KIND=dp)                                      :: a, b, c, d, dd, dfab, dfcc, dz, fab, &
-                                                            fcc, rl, rr, ru, z, zz
+      REAL(KIND=dp)                                      :: dfab, dfcc, fab, fcc, rr
+
+      CALL cutoff_switch_d3(rab, rcut, fcc, dfcc)
+
+      rr = 6._dp*(rab/(srn*rcutab))**(-alpn)
+      fab = 1._dp/(1._dp + rr)
+      dfab = fab*fab*rr*alpn/rab
+      fdab = fab*fcc
+      dfdab = dfab*fcc + fab*dfcc
+
+   END SUBROUTINE damping_d3
+
+! **************************************************************************************************
+!> \brief Switching function of zero damping, from 1 at rcut - 1 bohr to 0 at rcut
+!> \param rab distance
+!> \param rcut cutoff
+!> \param fcc switching function
+!> \param dfcc its derivative with respect to rab
+! **************************************************************************************************
+   SUBROUTINE cutoff_switch_d3(rab, rcut, fcc, dfcc)
+
+      REAL(KIND=dp), INTENT(IN)                          :: rab, rcut
+      REAL(KIND=dp), INTENT(OUT)                         :: fcc, dfcc
+
+      REAL(KIND=dp)                                      :: a, b, c, d, dd, dz, rl, ru, z, zz
 
       rl = rcut - 1._dp
       ru = rcut
@@ -1011,13 +1041,44 @@ CONTAINS
          dfcc = zz*dz/z*(3._dp*a + 4._dp*b*z + 5._dp*c*z*z)
       END IF
 
-      rr = 6._dp*(rab/(srn*rcutab))**(-alpn)
-      fab = 1._dp/(1._dp + rr)
-      dfab = fab*fab*rr*alpn/rab
-      fdab = fab*fcc
-      dfdab = dfab*fcc + fab*dfcc
+   END SUBROUTINE cutoff_switch_d3
 
-   END SUBROUTINE damping_d3
+! **************************************************************************************************
+!> \brief Long-range correction of an r^-n term carried by the pairs that the zero-damping switch removes
+!>        from [rcut - 1 bohr, rcut], relative to the correction beyond rcut (g(r) = 1):
+!>        (n-3) rcut^(n-3) int_{rcut-1}^{rcut} r^(2-n) (1 - fcc(r)) dr
+!>        evaluated with a 16-point Gauss-Legendre rule (xgl: positive nodes on [-1, 1], wgl: their weights)
+!> \param rcut cutoff
+!> \param n power of the term
+!> \return relative correction
+! **************************************************************************************************
+   FUNCTION switched_shell_fraction(rcut, n) RESULT(frac)
+
+      REAL(KIND=dp), INTENT(IN)                          :: rcut
+      INTEGER, INTENT(IN)                                :: n
+      REAL(KIND=dp)                                      :: frac
+
+      REAL(KIND=dp), DIMENSION(8), PARAMETER :: wgl = [0.18945061045506849629_dp, &
+         0.18260341504492358887_dp, 0.16915651939500253819_dp, 0.14959598881657673208_dp, &
+         0.12462897125553387205_dp, 0.09515851168249278481_dp, 0.062253523938647892863_dp, &
+         0.027152459411754094852_dp], xgl = [0.095012509837637440185_dp, 0.28160355077925891323_dp,&
+         0.45801677765722738634_dp, 0.61787624440264374845_dp, 0.7554044083550030339_dp, &
+         0.86563120238783174388_dp, 0.94457502307323257608_dp, 0.9894009349916499326_dp]
+
+      INTEGER                                            :: i, j
+      REAL(KIND=dp)                                      :: dfcc, fcc, r
+
+      frac = 0._dp
+      DO i = 1, 8
+         DO j = -1, 1, 2
+            r = rcut - 0.5_dp + 0.5_dp*REAL(j, KIND=dp)*xgl(i)
+            CALL cutoff_switch_d3(r, rcut, fcc, dfcc)
+            frac = frac + wgl(i)*r**(2 - n)*(1._dp - fcc)
+         END DO
+      END DO
+      frac = 0.5_dp*REAL(n - 3, KIND=dp)*rcut**(n - 3)*frac
+
+   END FUNCTION switched_shell_fraction
 
 ! **************************************************************************************************
 !> \brief ...
