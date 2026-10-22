@@ -157,8 +157,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_to_dense(dbcsr_mat, dense_mat, para_env)
       USE cp_dbcsr_api, ONLY: dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, &
-                              dbcsr_get_matrix_type, dbcsr_get_readonly_block_p, &
-                              dbcsr_get_stored_coordinates, dbcsr_type_antisymmetric, &
+                              dbcsr_get_matrix_type, dbcsr_iterator_blocks_left, &
+                              dbcsr_iterator_next_block, dbcsr_iterator_readonly_start, &
+                              dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_type_antisymmetric, &
                               dbcsr_type_symmetric
       TYPE(dbcsr_p_type), INTENT(IN)                     :: dbcsr_mat
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :), &
@@ -166,24 +167,24 @@ CONTAINS
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
 
       CHARACTER                                          :: matrix_type
-      INTEGER :: col, col_end, col_start, icol, irow, mynode, nblkcols_total, nblkrows_total, &
-         ncols, nrows, numnodes, owner, row, row_end, row_start
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: c_offset, r_offset
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
-      LOGICAL                                            :: found
+      INTEGER                                            :: col_end, col_start, icol, irow, ncol, &
+                                                            ncols, nrow, nrows, numnodes, row_end, &
+                                                            row_start
+      LOGICAL                                            :: has_symmetry, transposed
       REAL(c_double), POINTER                            :: block(:, :)
+      REAL(KIND=dp)                                      :: symmetry_sign
       TYPE(dbcsr_distribution_type)                      :: dist
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL dbcsr_get_info(dbcsr_mat%matrix, &
-                          row_blk_size=row_blk_size, &
-                          col_blk_size=col_blk_size, &
-                          nblkrows_total=nblkrows_total, &
-                          nblkcols_total=nblkcols_total, &
                           nfullrows_total=nrows, &
                           nfullcols_total=ncols, &
                           distribution=dist)
-      CALL dbcsr_distribution_get(dist, mynode=mynode, numnodes=numnodes)
+      CALL dbcsr_distribution_get(dist, numnodes=numnodes)
       matrix_type = dbcsr_get_matrix_type(dbcsr_mat%matrix)
+      has_symmetry = matrix_type == dbcsr_type_symmetric .OR. matrix_type == dbcsr_type_antisymmetric
+      symmetry_sign = 1.0_dp
+      IF (matrix_type == dbcsr_type_antisymmetric) symmetry_sign = -1.0_dp
 
       IF (.NOT. ALLOCATED(dense_mat)) THEN
          ALLOCATE (dense_mat(nrows, ncols))
@@ -195,42 +196,30 @@ CONTAINS
       END IF
       dense_mat = 0._dp
 
-      ALLOCATE (r_offset(nblkrows_total), c_offset(nblkcols_total))
-
-      r_offset(1) = 1
-      DO row = 2, nblkrows_total
-         r_offset(row) = r_offset(row - 1) + row_blk_size(row - 1)
-      END DO
-      c_offset(1) = 1
-      DO col = 2, nblkcols_total
-         c_offset(col) = c_offset(col - 1) + col_blk_size(col - 1)
-      END DO
-
       ! Replicated DBCSR blocks must enter the following MPI sum exactly once.
-      DO irow = 1, nblkrows_total
-         DO icol = 1, nblkcols_total
-            IF (numnodes == 1 .AND. para_env%num_pe > 1 .AND. para_env%mepos /= 0) CYCLE
-            CALL dbcsr_get_stored_coordinates(dbcsr_mat%matrix, irow, icol, owner)
-            IF (owner /= mynode) CYCLE
-            CALL dbcsr_get_readonly_block_p(matrix=dbcsr_mat%matrix, row=irow, col=icol, &
-                                            block=block, found=found)
-            IF (.NOT. found) CYCLE
-            row_start = r_offset(irow)
-            row_end = row_start + row_blk_size(irow) - 1
-            col_start = c_offset(icol)
-            col_end = col_start + col_blk_size(icol) - 1
-            dense_mat(row_start:row_end, col_start:col_end) = block
-            IF (irow /= icol) THEN
-               IF (matrix_type == dbcsr_type_symmetric) THEN
-                  dense_mat(col_start:col_end, row_start:row_end) = TRANSPOSE(block)
-               ELSE IF (matrix_type == dbcsr_type_antisymmetric) THEN
-                  dense_mat(col_start:col_end, row_start:row_end) = -TRANSPOSE(block)
-               END IF
-            END IF
-         END DO
-      END DO
+      IF (numnodes == 1 .AND. para_env%num_pe > 1 .AND. para_env%mepos /= 0) RETURN
 
-      DEALLOCATE (r_offset, c_offset)
+      ! Stored blocks and their symmetry mirrors occupy disjoint dense slices.
+!$OMP PARALLEL DEFAULT(NONE) SHARED(dbcsr_mat, dense_mat, has_symmetry, symmetry_sign) &
+!$OMP PRIVATE(iter, irow, icol, block, transposed, row_start, col_start, nrow, ncol, row_end, col_end)
+      CALL dbcsr_iterator_readonly_start(iter, dbcsr_mat%matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, irow, icol, block, transposed=transposed, &
+                                        row_size=nrow, col_size=ncol, row_offset=row_start, col_offset=col_start)
+         row_end = row_start + nrow - 1
+         col_end = col_start + ncol - 1
+         IF (transposed) THEN
+            dense_mat(row_start:row_end, col_start:col_end) = symmetry_sign*TRANSPOSE(block)
+         ELSE
+            dense_mat(row_start:row_end, col_start:col_end) = block
+         END IF
+         IF (has_symmetry .AND. irow /= icol) THEN
+            dense_mat(col_start:col_end, row_start:row_end) = &
+               symmetry_sign*TRANSPOSE(dense_mat(row_start:row_end, col_start:col_end))
+         END IF
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
    END SUBROUTINE dbcsr_to_dense
 
