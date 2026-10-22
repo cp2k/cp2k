@@ -84,4 +84,20 @@ PROGRAM cp_fm_diag_utils_unittest
       ERROR STOP "ELPA block-size change skipped the target grid check"
    END IF
    DEALLOCATE (matrix_struct%nrow_locals, matrix_struct%ncol_locals)
+
+   ! A safe default grid must not hide an invalid original custom grid.
+   para_env%num_pe = 32
+   matrix_struct%nrow_block = 64
+   matrix_struct%ncol_block = 64
+   ALLOCATE (matrix_struct%nrow_locals(0:1), matrix_struct%ncol_locals(0:15))
+   DO i = 0, 1
+      matrix_struct%nrow_locals(i) = numroc(509, 64, i, 0, 2)
+   END DO
+   DO i = 0, 15
+      matrix_struct%ncol_locals(i) = numroc(509, 64, i, 0, 16)
+   END DO
+   IF (cp_fm_max_ncpu_non_zero_column(matrix_struct, 32, 64) /= 24) THEN
+      ERROR STOP "Invalid original ELPA grid skipped mandatory redistribution"
+   END IF
+   DEALLOCATE (matrix_struct%nrow_locals, matrix_struct%ncol_locals)
 END PROGRAM cp_fm_diag_utils_unittest

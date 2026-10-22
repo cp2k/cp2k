@@ -211,7 +211,11 @@ CONTAINS
       ! Keep a valid original layout only when no redistribution is needed.
       IF (ncpu == matrix_struct%para_env%num_pe .AND. &
           block_size == matrix_struct%nrow_block .AND. block_size == matrix_struct%ncol_block) THEN
-         IF (ALL(matrix_struct%nrow_locals > 0) .AND. ALL(matrix_struct%ncol_locals > 0)) RETURN
+         nzero = COUNT(matrix_struct%nrow_locals == 0) + COUNT(matrix_struct%ncol_locals == 0)
+         IF (nzero == 0) RETURN
+         ! A smaller rank count ensures that an invalid original grid is replaced.
+         ncpu = ncpu - nzero
+         IF (ncpu > 2) ncpu = ncpu - MODULO(ncpu, 2)
       END IF
 
       ! Fewer CPUs can mean more process columns (e.g. 32: 4x8, 20: 2x10).
