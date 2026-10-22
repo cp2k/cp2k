@@ -305,6 +305,18 @@ static void multiply_packs(const bool transa, const bool transb,
           for (int jb = b_range_start; jb < b_range_end; ++jb) {
             const dbm_pack_block_t *const blk_b = &pack_b->blocks[jb];
 
+            // Overlap the two dependent cache misses of upcoming lookups.
+            if (jb + DBM_PREFETCH_SLOT < b_range_end) {
+              dbm_shard_prefetch_slot(
+                  shard_c, blk_a->free_index,
+                  pack_b->blocks[jb + DBM_PREFETCH_SLOT].free_index);
+            }
+            if (jb + DBM_PREFETCH_BLOCK < b_range_end) {
+              dbm_shard_prefetch_block(
+                  shard_c, blk_a->free_index,
+                  pack_b->blocks[jb + DBM_PREFETCH_BLOCK].free_index);
+            }
+
             // Norm filter first (early reject).
             const float result_norm = alpha2 * blk_a->norm * blk_b->norm;
             if (result_norm < rows_max_eps[blk_a->free_index]) {

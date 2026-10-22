@@ -16,6 +16,10 @@
 #define DBM_MAX_BATCH_SIZE 30000
 #define DBM_BATCH_NUM_BUCKETS 1000
 
+// Distances (in tasks) at which C-block lookups are prefetched.
+#define DBM_PREFETCH_SLOT 8
+#define DBM_PREFETCH_BLOCK 4
+
 #endif
 
 // EOF
