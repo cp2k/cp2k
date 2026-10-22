@@ -220,6 +220,7 @@ CONTAINS
          my_requires_stress_grad, my_route_atom_chunks, my_use_atom_chunks, &
          use_atom_chunk_protocol, use_atom_chunk_routing
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: global_dynamic, local_dynamic
+      REAL(KIND=dp), DIMENSION(3)                        :: integrals
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: rho, rhoa, rhob, tau_a, tau_b, tau_total
       TYPE(cp_3d_r_cp_type), DIMENSION(3)                :: drho, drhoa, drhob
       TYPE(pw_grid_type), POINTER                        :: pw_grid
@@ -392,9 +393,11 @@ CONTAINS
                                           cached_layout%chunk_grid_weights)
             END IF
          END IF
-         CALL pw_grid%para%group%sum(features%electron_count)
-         CALL pw_grid%para%group%sum(features%kinetic_integral)
-         CALL pw_grid%para%group%sum(features%spin_moment)
+         integrals = [features%electron_count, features%kinetic_integral, features%spin_moment]
+         CALL pw_grid%para%group%sum(integrals)
+         features%electron_count = integrals(1)
+         features%kinetic_integral = integrals(2)
+         features%spin_moment = integrals(3)
       ELSE
          features%electron_count = SUM((features%density(:, 1) + features%density(:, 2))* &
                                        features%grid_weights)
