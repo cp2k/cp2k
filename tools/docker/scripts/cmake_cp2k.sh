@@ -170,6 +170,7 @@ elif [[ "${PROFILE}" == "toolchain_cuda_"* ]] && [[ "${VERSION}" == "psmp" ]]; t
     -DCP2K_USE_GAUXC=OFF \
     -DCP2K_USE_SKALA_FTORCH=OFF \
     -DCP2K_USE_OPENPMD=OFF \
+    -DCP2K_USE_SIRIUS=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
