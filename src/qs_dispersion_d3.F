@@ -1036,6 +1036,7 @@ CONTAINS
 !> \brief Long-range correction of an r^-n term carried by the pairs that the zero-damping switch removes
 !>        from [rcut - 1 bohr, rcut], relative to the correction beyond rcut (g(r) = 1):
 !>        (n-3) rcut^(n-3) int_{rcut-1}^{rcut} r^(2-n) (1 - fcc(r)) dr
+!>        evaluated with a 16-point Gauss-Legendre rule (xgl: positive nodes on [-1, 1], wgl: their weights)
 !> \param rcut cutoff
 !> \param n power of the term
 !> \return relative correction
@@ -1046,14 +1047,12 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp)                                      :: frac
 
-      ! 16-point Gauss-Legendre rule on [-1, 1]: positive nodes and their weights (the rule is symmetric)
-      REAL(KIND=dp), DIMENSION(8), PARAMETER :: &
-         xgl = [0.095012509837637440185_dp, 0.28160355077925891323_dp, 0.45801677765722738634_dp, &
-                0.61787624440264374845_dp, 0.7554044083550030339_dp, 0.86563120238783174388_dp, &
-                0.94457502307323257608_dp, 0.9894009349916499326_dp], &
-         wgl = [0.18945061045506849629_dp, 0.18260341504492358887_dp, 0.16915651939500253819_dp, &
-                0.14959598881657673208_dp, 0.12462897125553387205_dp, 0.09515851168249278481_dp, &
-                0.062253523938647892863_dp, 0.027152459411754094852_dp]
+      REAL(KIND=dp), DIMENSION(8), PARAMETER :: wgl = [0.18945061045506849629_dp, &
+         0.18260341504492358887_dp, 0.16915651939500253819_dp, 0.14959598881657673208_dp, &
+         0.12462897125553387205_dp, 0.09515851168249278481_dp, 0.062253523938647892863_dp, &
+         0.027152459411754094852_dp], xgl = [0.095012509837637440185_dp, 0.28160355077925891323_dp,&
+         0.45801677765722738634_dp, 0.61787624440264374845_dp, 0.7554044083550030339_dp, &
+         0.86563120238783174388_dp, 0.94457502307323257608_dp, 0.9894009349916499326_dp]
 
       INTEGER                                            :: i, j
       REAL(KIND=dp)                                      :: dfcc, fcc, r
