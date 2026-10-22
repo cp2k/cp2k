@@ -24,13 +24,10 @@ MODULE admm_methods
                                               cp_cfm_uplo_to_full
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_cholesky_invert
-   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                              cp_cfm_get_info,&
-                                              cp_cfm_release,&
-                                              cp_cfm_to_cfm,&
-                                              cp_cfm_to_fm,&
-                                              cp_cfm_type,&
-                                              cp_fm_to_cfm
+   USE cp_cfm_types,                    ONLY: &
+        copy_cfm_info_type, cp_cfm_cleanup_copy_general, cp_cfm_create, &
+        cp_cfm_finish_copy_general, cp_cfm_get_info, cp_cfm_release, cp_cfm_start_copy_general, &
+        cp_cfm_to_cfm, cp_cfm_to_fm, cp_cfm_type, cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
@@ -283,6 +280,51 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \brief Build the global list of symmetry-star members for the auxiliary density.
+!> \param kpoints ...
+!> \param nstar ...
+!> \param star_xkp ...
+!> \param star_w ...
+!> \param star_ik ...
+!> \param star_is ...
+! **************************************************************************************************
+   SUBROUTINE admm_kp_build_star_list(kpoints, nstar, star_xkp, star_w, star_ik, star_is)
+
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      INTEGER, INTENT(OUT)                               :: nstar
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: star_xkp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: star_w
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: star_ik, star_is
+
+      INTEGER                                            :: ik, isg, istar
+      TYPE(kpoint_sym_type), POINTER                     :: kpsym
+
+      nstar = 0
+      DO ik = 1, kpoints%nkp
+         kpsym => kpoints%kp_sym(ik)%kpoint_sym
+         IF (kpsym%apply_symmetry) nstar = nstar + kpsym%nwght
+      END DO
+      ALLOCATE (star_xkp(3, nstar), star_w(nstar), star_ik(nstar), star_is(nstar))
+      isg = 0
+      DO ik = 1, kpoints%nkp
+         kpsym => kpoints%kp_sym(ik)%kpoint_sym
+         IF (.NOT. kpsym%apply_symmetry) CYCLE
+         DO istar = 1, kpsym%nwght
+            isg = isg + 1
+            star_ik(isg) = ik
+            star_is(isg) = istar
+            star_xkp(:, isg) = kpsym%xkp(:, istar)
+            star_w(isg) = kpoints%wkp(ik)/REAL(kpsym%nwght, dp)
+         END DO
+      END DO
+      CPASSERT(isg == nstar)
+
+   END SUBROUTINE admm_kp_build_star_list
+
+! **************************************************************************************************
+!> \brief ...
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE admm_mo_calc_rho_aux_kp(qs_env)
@@ -292,29 +334,39 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: basis_type, mo_reason
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: aux_mo_data(:, :)
-      INTEGER :: handle, igroup, ik, ikloc, ikp, img, indx, ispin, istar, kplocal, kpmax, &
-         nao_aux_fit, nao_orb, natom, nkp, nkp_groups, nmo, nspins, nwght
+      INTEGER :: handle, igroup, ik, ikloc, ikp, img, indx, isg, ispin, istar, kplocal, kpmax, &
+         nao_aux_fit, nao_orb, natom, nc_star, nkp, nkp_groups, nmo, nspins, nstar
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: star_ik, star_is
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       INTEGER, POINTER                                   :: aux_mo_cols(:)
       LOGICAL                                            :: apply_star, gapw, mo_ok, my_kpgrp, &
-                                                            pmat_from_rs, use_real_wfn
+                                                            pmat_from_rs, star_owner, use_real_wfn
       REAL(dp)                                           :: maxval_mos, nelec_aux(2), nelec_orb(2), &
                                                             tmp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: wkp_save
-      REAL(KIND=dp), DIMENSION(3)                        :: xkp_save
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: star_w
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: star_dense, star_xkp, xkp_save
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occ_num, occ_num_aux, tot_rho_r_aux
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(copy_cfm_info_type)                           :: info_c
+      TYPE(copy_info_type)                               :: info_r
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info
-      TYPE(cp_cfm_type)                                  :: caux_mo, caux_mo0, cmo_star, cpmatrix, &
-                                                            cwork_aux_aux, cwork_aux_orb
-      TYPE(cp_fm_struct_type), POINTER                   :: struct_aux_aux, struct_aux_mo, &
-                                                            struct_aux_orb, struct_orb_orb
-      TYPE(cp_fm_type)                                   :: fmdummy, work_aux_orb, work_orb_orb, &
-                                                            work_orb_orb2
+      TYPE(cp_cfm_type)                                  :: a_c, caux_mo, caux_mo0, cmo_star, &
+                                                            cpmatrix, cwork_aux_aux, &
+                                                            cwork_aux_orb, p_c, pa_c, src_c_null, &
+                                                            w_c
+      TYPE(cp_fm_struct_type), POINTER                   :: struct_ao_g, struct_aux_aux, &
+                                                            struct_aux_mo, struct_aux_orb, &
+                                                            struct_oo_g, struct_orb_orb, &
+                                                            struct_star
+      TYPE(cp_fm_type)                                   :: a_r, fmdummy, p_r, pa_r, pi, pr, &
+                                                            src_r_null, w_r, work_aux_orb, &
+                                                            work_orb_orb, work_orb_orb2
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :, :)  :: pmat_save
+      TYPE(cp_fm_type), ALLOCATABLE, &
+         DIMENSION(:, :, :), TARGET                      :: pmat_star
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:, :)   :: rho_tmp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
@@ -327,7 +379,7 @@ CONTAINS
       TYPE(kpoint_sym_type), POINTER                     :: kpsym
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_aux_fit, mos_aux_fit_kp, mos_kp
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_global
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux_fit, sab_kp
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g_aux
@@ -568,6 +620,7 @@ CONTAINS
       END DO
 
       IF (apply_star) THEN
+         para_env_global => kpoints%blacs_env_all%para_env
          CALL calibrate_symmetry_phases(kpoints, matrix_s_aux_fit, matrix_s_aux_fit(1, 1)%matrix, &
                                         sab_aux_fit, cell_to_index, for_aux_fit=.TRUE.)
          ALLOCATE (rho_tmp(nspins, SIZE(rho_ao_aux, 2)))
@@ -580,9 +633,12 @@ CONTAINS
                CALL dbcsr_set(rho_ao_aux(ispin, img)%matrix, 0.0_dp)
             END DO
          END DO
-         ALLOCATE (wkp_save(kp_range(1):kp_range(2)))
-         DO ik = kp_range(1), kp_range(2)
-            wkp_save(ik) = kpoints%wkp(ik)
+
+         CALL admm_kp_build_star_list(kpoints, nstar, star_xkp, star_w, star_ik, star_is)
+
+         ALLOCATE (xkp_save(3, nkp))
+         DO ik = 1, nkp
+            xkp_save(:, ik) = kpoints%xkp(:, ik)
          END DO
          ALLOCATE (pmat_save(kplocal, nspins, 2))
          DO ikp = 1, kplocal
@@ -598,58 +654,108 @@ CONTAINS
             END DO
          END DO
 
-         DO ik = kp_range(1), kp_range(2)
-            kpsym => kpoints%kp_sym(ik)%kpoint_sym
-            IF (.NOT. kpsym%apply_symmetry) CYCLE
-            nwght = kpsym%nwght
-            ikp = ik - kp_range(1) + 1
-            xkp_save(1:3) = kpoints%xkp(1:3, ik)
-            DO istar = 1, nwght
-               DO ikloc = kp_range(1), kp_range(2)
-                  kpoints%wkp(ikloc) = 0.0_dp
+         nc_star = MERGE(1, 2, use_real_wfn)
+         ALLOCATE (pmat_star(nc_star, nspins, nstar))
+         IF (.NOT. pmat_from_rs) ALLOCATE (star_dense(nao_aux_fit, nao_aux_fit))
+         CALL cp_fm_struct_create(struct_star, context=kpoints%blacs_env_all, &
+                                  para_env=para_env_global, nrow_global=nao_aux_fit, &
+                                  ncol_global=nao_aux_fit)
+         IF (pmat_from_rs) THEN
+            CALL cp_fm_struct_create(struct_ao_g, context=kpoints%blacs_env_all, &
+                                     para_env=para_env_global, nrow_global=nao_aux_fit, &
+                                     ncol_global=nao_orb)
+            CALL cp_fm_struct_create(struct_oo_g, context=kpoints%blacs_env_all, &
+                                     para_env=para_env_global, nrow_global=nao_orb, &
+                                     ncol_global=nao_orb)
+            IF (use_real_wfn) THEN
+               CALL cp_fm_create(a_r, struct_ao_g)
+               CALL cp_fm_create(w_r, struct_ao_g)
+               CALL cp_fm_create(p_r, struct_oo_g)
+               CALL cp_fm_create(pr, struct_oo_g)
+               CALL cp_fm_create(pa_r, struct_star)
+            ELSE
+               CALL cp_cfm_create(a_c, struct_ao_g)
+               CALL cp_cfm_create(w_c, struct_ao_g)
+               CALL cp_cfm_create(p_c, struct_oo_g)
+               CALL cp_cfm_create(pa_c, struct_star)
+               CALL cp_fm_create(pr, struct_oo_g)
+               CALL cp_fm_create(pi, struct_oo_g)
+            END IF
+         END IF
+         DO isg = 1, nstar
+            DO ispin = 1, nspins
+               DO ikloc = 1, nc_star
+                  CALL cp_fm_create(pmat_star(ikloc, ispin, isg), struct_star)
                END DO
-               kpoints%wkp(ik) = wkp_save(ik)/REAL(nwght, dp)
-               kpoints%xkp(1:3, ik) = kpsym%xkp(1:3, istar)
-               kpoints%kp_sym(ik)%kpoint_sym%apply_symmetry = .FALSE.
+            END DO
+         END DO
 
-               CALL kpoint_calc_admm_matrices(qs_env, .FALSE.)
+         DO isg = 1, nstar
+            ik = star_ik(isg)
+            istar = star_is(isg)
+            kpsym => kpoints%kp_sym(ik)%kpoint_sym
+            star_owner = (ik >= kp_range(1) .AND. ik <= kp_range(2))
+            IF (star_owner) THEN
+               ikp = ik - kp_range(1) + 1
                kp => kpoints%kp_aux_env(ikp)%kpoint_env
-               IF (pmat_from_rs) THEN
-                  IF (use_real_wfn) THEN
-                     DO ispin = 1, nspins
-                        CALL dbcsr_set(pmatrix(1), 0.0_dp)
-                        CALL rskp_transform(rmatrix=pmatrix(1), rsmat=rho_ao_orb, ispin=ispin, &
-                                            xkp=kpoints%xkp(1:3, ik), cell_to_index=cell_to_index, &
-                                            sab_nl=sab_kp)
-                        CALL dbcsr_desymmetrize(pmatrix(1), pmatrix_tmp)
-                        CALL copy_dbcsr_to_fm(pmatrix_tmp, work_orb_orb)
-                        CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, 1.0_dp, kp%amat, &
-                                           work_orb_orb, 0.0_dp, work_aux_orb)
-                        CALL parallel_gemm('N', 'T', nao_aux_fit, nao_aux_fit, nao_orb, 1.0_dp, &
-                                           work_aux_orb, kp%amat, 0.0_dp, kp%pmat(1, ispin))
-                     END DO
+            END IF
+            kpoints%xkp(:, ik) = star_xkp(:, isg)
+
+            CALL kpoint_calc_admm_matrices(qs_env, .FALSE.)
+            IF (pmat_from_rs) THEN
+               IF (use_real_wfn) THEN
+                  IF (star_owner) THEN
+                     CALL cp_fm_start_copy_general(kp%amat, a_r, para_env_global, info_r)
                   ELSE
-                     DO ispin = 1, nspins
-                        CALL dbcsr_set(pmatrix(1), 0.0_dp)
-                        CALL dbcsr_set(pmatrix(2), 0.0_dp)
-                        CALL rskp_transform(rmatrix=pmatrix(1), cmatrix=pmatrix(2), rsmat=rho_ao_orb, &
-                                            ispin=ispin, xkp=kpoints%xkp(1:3, ik), &
-                                            cell_to_index=cell_to_index, sab_nl=sab_kp)
-                        CALL dbcsr_desymmetrize(pmatrix(1), pmatrix_tmp)
-                        CALL copy_dbcsr_to_fm(pmatrix_tmp, work_orb_orb)
-                        CALL dbcsr_desymmetrize(pmatrix(2), pmatrix_tmp)
-                        CALL copy_dbcsr_to_fm(pmatrix_tmp, work_orb_orb2)
-                        CALL cp_fm_to_cfm(work_orb_orb, work_orb_orb2, cpmatrix)
-                        CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, z_one, kp%camat, &
-                                           cpmatrix, z_zero, cwork_aux_orb)
-                        CALL parallel_gemm('N', 'C', nao_aux_fit, nao_aux_fit, nao_orb, z_one, &
-                                           cwork_aux_orb, kp%camat, z_zero, cwork_aux_aux)
-                        CALL cp_cfm_to_fm(cwork_aux_aux, &
-                                          mtargetr=kpoints%kp_aux_env(ikp)%kpoint_env%pmat(1, ispin), &
-                                          mtargeti=kpoints%kp_aux_env(ikp)%kpoint_env%pmat(2, ispin))
-                     END DO
+                     NULLIFY (src_r_null%matrix_struct)
+                     CALL cp_fm_start_copy_general(src_r_null, a_r, para_env_global, info_r)
                   END IF
+                  CALL cp_fm_finish_copy_general(a_r, info_r)
+                  IF (ALLOCATED(info_r%send_buf)) CALL cp_fm_cleanup_copy_general(info_r)
+                  DO ispin = 1, nspins
+                     CALL dbcsr_set(pmatrix(1), 0.0_dp)
+                     CALL rskp_transform(rmatrix=pmatrix(1), rsmat=rho_ao_orb, ispin=ispin, &
+                                         xkp=kpoints%xkp(1:3, ik), cell_to_index=cell_to_index, &
+                                         sab_nl=sab_kp)
+                     CALL dbcsr_desymmetrize(pmatrix(1), pmatrix_tmp)
+                     CALL copy_dbcsr_to_fm(pmatrix_tmp, pr)
+                     CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, 1.0_dp, a_r, pr, &
+                                        0.0_dp, w_r)
+                     CALL parallel_gemm('N', 'T', nao_aux_fit, nao_aux_fit, nao_orb, 1.0_dp, w_r, a_r, &
+                                        0.0_dp, pa_r)
+                     CALL cp_fm_to_fm(pa_r, pmat_star(1, ispin, isg))
+                  END DO
                ELSE
+                  IF (star_owner) THEN
+                     CALL cp_cfm_start_copy_general(kp%camat, a_c, para_env_global, info_c)
+                  ELSE
+                     NULLIFY (src_c_null%matrix_struct)
+                     CALL cp_cfm_start_copy_general(src_c_null, a_c, para_env_global, info_c)
+                  END IF
+                  CALL cp_cfm_finish_copy_general(a_c, info_c)
+                  IF (ALLOCATED(info_c%send_buf)) CALL cp_cfm_cleanup_copy_general(info_c)
+                  DO ispin = 1, nspins
+                     CALL dbcsr_set(pmatrix(1), 0.0_dp)
+                     CALL dbcsr_set(pmatrix(2), 0.0_dp)
+                     CALL rskp_transform(rmatrix=pmatrix(1), cmatrix=pmatrix(2), rsmat=rho_ao_orb, &
+                                         ispin=ispin, xkp=kpoints%xkp(1:3, ik), &
+                                         cell_to_index=cell_to_index, sab_nl=sab_kp)
+                     CALL dbcsr_desymmetrize(pmatrix(1), pmatrix_tmp)
+                     CALL copy_dbcsr_to_fm(pmatrix_tmp, pr)
+                     CALL dbcsr_desymmetrize(pmatrix(2), pmatrix_tmp)
+                     CALL copy_dbcsr_to_fm(pmatrix_tmp, pi)
+                     CALL cp_fm_to_cfm(pr, pi, p_c)
+                     CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, z_one, a_c, p_c, &
+                                        z_zero, w_c)
+                     CALL parallel_gemm('N', 'C', nao_aux_fit, nao_aux_fit, nao_orb, z_one, w_c, a_c, &
+                                        z_zero, pa_c)
+                     CALL cp_cfm_to_fm(pa_c, mtargetr=pmat_star(1, ispin, isg), &
+                                       mtargeti=pmat_star(2, ispin, isg))
+                  END DO
+               END IF
+            ELSE
+               IF (star_owner) THEN
+                  kp => kpoints%kp_aux_env(ikp)%kpoint_env
                   CALL get_kpoint_env(kpoints%kp_env(ikp)%kpoint_env, mos=mos_kp)
                   DO ispin = 1, nspins
                      nmo = admm_env%nmo(ispin)
@@ -680,27 +786,49 @@ CONTAINS
                      CALL cp_cfm_release(cmo_star)
                      CALL cp_fm_struct_release(struct_aux_mo)
                   END DO
+
                END IF
 
-               CALL kpoint_density_transform(kpoints, rho_tmp, .FALSE., &
-                                             matrix_s_aux_fit(1, 1)%matrix, sab_aux_fit, &
-                                             admm_env%scf_work_aux_fit, for_aux_fit=.TRUE.)
-               DO img = 1, SIZE(rho_ao_aux, 2)
-                  DO ispin = 1, nspins
-                     CALL dbcsr_add(rho_ao_aux(ispin, img)%matrix, rho_tmp(ispin, img)%matrix, &
-                                    1.0_dp, 1.0_dp)
+               DO ispin = 1, nspins
+                  DO ikloc = 1, nc_star
+                     star_dense(:, :) = 0.0_dp
+                     IF (star_owner) THEN
+                        BLOCK
+                           REAL(KIND=dp), POINTER, CONTIGUOUS :: ld(:, :)
+                           INTEGER, POINTER :: ri(:), ci(:)
+                           INTEGER :: i, j
+                           CALL cp_fm_get_info(kp%pmat(ikloc, ispin), local_data=ld, &
+                                               row_indices=ri, col_indices=ci)
+                           DO j = 1, SIZE(ld, 2)
+                              DO i = 1, SIZE(ld, 1)
+                                 star_dense(ri(i), ci(j)) = ld(i, j)
+                              END DO
+                           END DO
+                        END BLOCK
+                     END IF
+                     CALL para_env_global%sum(star_dense)
+                     BLOCK
+                        REAL(KIND=dp), POINTER, CONTIGUOUS :: gd(:, :)
+                        INTEGER, POINTER :: gri(:), gci(:)
+                        INTEGER :: i, j
+                        CALL cp_fm_get_info(pmat_star(ikloc, ispin, isg), local_data=gd, &
+                                            row_indices=gri, col_indices=gci)
+                        DO j = 1, SIZE(gd, 2)
+                           DO i = 1, SIZE(gd, 1)
+                              gd(i, j) = star_dense(gri(i), gci(j))
+                           END DO
+                        END DO
+                     END BLOCK
                   END DO
                END DO
 
-               kpoints%xkp(1:3, ik) = xkp_save(1:3)
-               kpoints%kp_sym(ik)%kpoint_sym%apply_symmetry = .TRUE.
-            END DO
-            kpoints%wkp(ik) = wkp_save(ik)
+            END IF
+            kpoints%xkp(:, ik) = xkp_save(:, ik)
          END DO
 
          CALL kpoint_calc_admm_matrices(qs_env, .FALSE.)
-         DO ik = kp_range(1), kp_range(2)
-            kpoints%wkp(ik) = wkp_save(ik)
+         DO ik = 1, nkp
+            kpoints%xkp(:, ik) = xkp_save(:, ik)
          END DO
          DO ikp = 1, kplocal
             DO ispin = 1, nspins
@@ -712,8 +840,41 @@ CONTAINS
                CALL cp_fm_release(pmat_save(ikp, ispin, 2))
             END DO
          END DO
-         DEALLOCATE (pmat_save)
-         DEALLOCATE (wkp_save)
+         DEALLOCATE (pmat_save, xkp_save)
+
+         CALL kpoint_density_transform(kpoints, rho_ao_aux, .FALSE., &
+                                       matrix_s_aux_fit(1, 1)%matrix, sab_aux_fit, &
+                                       admm_env%scf_work_aux_fit, for_aux_fit=.TRUE., &
+                                       star_source=pmat_star, star_xkp=star_xkp, star_weight=star_w)
+
+         DO isg = 1, nstar
+            DO ispin = 1, nspins
+               DO ikloc = 1, nc_star
+                  CALL cp_fm_release(pmat_star(ikloc, ispin, isg))
+               END DO
+            END DO
+         END DO
+         IF (pmat_from_rs) THEN
+            IF (use_real_wfn) THEN
+               CALL cp_fm_release(a_r)
+               CALL cp_fm_release(w_r)
+               CALL cp_fm_release(p_r)
+               CALL cp_fm_release(pr)
+               CALL cp_fm_release(pa_r)
+            ELSE
+               CALL cp_cfm_release(a_c)
+               CALL cp_cfm_release(w_c)
+               CALL cp_cfm_release(p_c)
+               CALL cp_cfm_release(pa_c)
+               CALL cp_fm_release(pr)
+               CALL cp_fm_release(pi)
+            END IF
+            CALL cp_fm_struct_release(struct_ao_g)
+            CALL cp_fm_struct_release(struct_oo_g)
+         END IF
+         CALL cp_fm_struct_release(struct_star)
+         DEALLOCATE (pmat_star, star_xkp, star_w, star_ik, star_is)
+         IF (ALLOCATED(star_dense)) DEALLOCATE (star_dense)
 
          DO img = 1, SIZE(rho_tmp, 2)
             DO ispin = 1, nspins
