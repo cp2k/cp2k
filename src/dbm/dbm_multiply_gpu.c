@@ -88,6 +88,12 @@ bool dbm_multiply_gpu_upload_packs(const dbm_pack_t *pack_a,
   }
   // Record event to check if all c-streams already completed.
   offloadEventRecord(ctx->upload_event, ctx->main_stream);
+  // A growing pack frees its buffer on the host while kernels may still read
+  // it (the waits above are device-side only).
+  if (ctx->pack_a_dev.data_allocated < pack_a->data_size ||
+      ctx->pack_b_dev.data_allocated < pack_b->data_size) {
+    offloadEventSynchronize(ctx->upload_event);
+  }
 
   bool uploaded = false;
   /*if (offloadEventQuery(ctx->upload_event))*/

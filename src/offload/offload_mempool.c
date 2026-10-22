@@ -341,7 +341,7 @@ void offload_mempool_stats_get(offload_mempool_stats_t *memstats) {
                           sum_chunks_used(mempool_host.allocated_head);
     memstats->host_size = sum_chunks_size(mempool_host.available_head) +
                           sum_chunks_size(mempool_host.allocated_head);
-    memstats->host_peak = imax(mempool_host.peak_size, memstats->device_size);
+    memstats->host_peak = imax(mempool_host.peak_size, memstats->host_size);
 
     memstats->device_mallocs = device_malloc_counter;
     memstats->device_used = sum_chunks_used(mempool_device.available_head) +
