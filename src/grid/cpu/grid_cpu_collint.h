@@ -979,23 +979,36 @@ general_cijk_to_grid(const int border_mask, const int lp, const double zetp,
     index_max[idir] = (int)ceil(gp[idir] + rad_idx);
   }
 
-  // Precompute mappings
+  // Mappings and exponential tables live in thread local heap scratch instead
+  // of VLAs, because large radii on fine grids can exceed the default stack.
   const int range_i = index_max[0] - index_min[0] + 1;
-  int map_i[range_i], sections_i[range_i];
+  const int range_j = index_max[1] - index_min[1] + 1;
+  const int range_k = index_max[2] - index_min[2] + 1;
+  const size_t exp_count = (size_t)range_i * range_j +
+                           (size_t)range_j * range_k +
+                           (size_t)range_k * range_i;
+  const size_t map_count = 2 * ((size_t)range_i + range_j + range_k);
+  double *const scratch = (double *)grid_library_get_scratch(
+      exp_count * sizeof(double) + map_count * sizeof(int));
+  double *restrict const exp_ij = scratch;
+  double *restrict const exp_jk = exp_ij + (size_t)range_i * range_j;
+  double *restrict const exp_ik = exp_jk + (size_t)range_j * range_k;
+  int *restrict const map_i = (int *)(exp_ik + (size_t)range_k * range_i);
+  int *restrict const sections_i = map_i + range_i;
+  int *restrict const map_j = sections_i + range_i;
+  int *restrict const sections_j = map_j + range_j;
+  int *restrict const map_k = sections_j + range_j;
+  int *restrict const sections_k = map_k + range_k;
   if (!general_precompute_mapping(index_min[0], index_max[0], shift_local[0],
                                   npts_global[0], bounds_i, map_i,
                                   sections_i)) {
     return;
   }
-  const int range_j = index_max[1] - index_min[1] + 1;
-  int map_j[range_j], sections_j[range_j];
   if (!general_precompute_mapping(index_min[1], index_max[1], shift_local[1],
                                   npts_global[1], bounds_j, map_j,
                                   sections_j)) {
     return;
   }
-  const int range_k = index_max[2] - index_min[2] + 1;
-  int map_k[range_k], sections_k[range_k];
   if (!general_precompute_mapping(index_min[2], index_max[2], shift_local[2],
                                   npts_global[2], bounds_k, map_k,
                                   sections_k)) {
@@ -1003,11 +1016,8 @@ general_cijk_to_grid(const int border_mask, const int lp, const double zetp,
   }
 
   // Precompute exponentials
-  double exp_ij[range_i * range_j];
   general_fill_exp_table(0, 1, index_min, index_max, zetp, dh, gp, exp_ij);
-  double exp_jk[range_j * range_k];
   general_fill_exp_table(1, 2, index_min, index_max, zetp, dh, gp, exp_jk);
-  double exp_ik[range_k * range_i];
   general_fill_exp_table(0, 2, index_min, index_max, zetp, dh, gp, exp_ik);
 
   // go over the grid, but cycle if the point is not within the radius

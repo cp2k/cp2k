@@ -14,6 +14,7 @@ extern "C" {
 #include "grid_constants.h"
 #include "grid_sphere_cache.h"
 #include <stdbool.h>
+#include <stddef.h>
 
 /*******************************************************************************
  * \brief Initializes the grid library.
@@ -75,6 +76,13 @@ enum grid_library_kernel {
  * \author Ole Schuett
  ******************************************************************************/
 grid_sphere_cache *grid_library_get_sphere_cache(void);
+
+/*******************************************************************************
+ * \brief Returns a pointer to a thread local scratch buffer with at least the
+ *        given size. The buffer grows on demand and is reused across calls.
+ *        It stays valid until the next call on the same thread.
+ ******************************************************************************/
+void *grid_library_get_scratch(const size_t bytes);
 
 /*******************************************************************************
  * \brief Adds given increment to counter specified by lp, backend, and kernel.
