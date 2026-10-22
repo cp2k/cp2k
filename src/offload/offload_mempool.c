@@ -73,7 +73,17 @@ static void *actual_malloc(const size_t size, const bool on_device) {
 
   void *memory = NULL;
 
-#if defined(__OFFLOAD)
+// This pool must not sit on top of LIBXSTREAM's pool (double caching).
+#if defined(__OFFLOAD) && defined(__LIBXSTREAM)
+  offload_activate_chosen_device();
+  if (on_device) {
+    OFFLOAD_CHECK(libxstream_mem_dev_allocate_hint(&memory, size,
+                                                   LIBXSTREAM_MALLOC_CP2K));
+  } else {
+    OFFLOAD_CHECK(libxstream_mem_host_allocate_hint(&memory, size,
+                                                    LIBXSTREAM_MALLOC_CP2K));
+  }
+#elif defined(__OFFLOAD)
   if (on_device) {
     offload_activate_chosen_device();
     offloadMalloc(&memory, size);
@@ -115,7 +125,17 @@ static void actual_free(void *memory, const bool on_device) {
     return;
   }
 
-#if defined(__OFFLOAD)
+// This pool must not sit on top of LIBXSTREAM's pool (double caching).
+#if defined(__OFFLOAD) && defined(__LIBXSTREAM)
+  offload_activate_chosen_device();
+  if (on_device) {
+    OFFLOAD_CHECK(
+        libxstream_mem_dev_deallocate_hint(memory, LIBXSTREAM_MALLOC_CP2K));
+  } else {
+    OFFLOAD_CHECK(
+        libxstream_mem_host_deallocate_hint(memory, LIBXSTREAM_MALLOC_CP2K));
+  }
+#elif defined(__OFFLOAD)
   if (on_device) {
     offload_activate_chosen_device();
     offloadFree(memory);
