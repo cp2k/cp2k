@@ -13,4 +13,6 @@ print-keys
 preprocessing
 regtesting
 dependencies
+profiling
+reference-counting
 ```

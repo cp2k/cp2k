@@ -17,7 +17,7 @@ This feature should not be used outside of wrapper modules to prevent fragmentat
 
 ## Error handling
 
-See the [error handling](error-handling.md).
+See [error handling](error-handling.md).
 
 ## Prevention of compiler issues
 
@@ -46,16 +46,20 @@ This trick does not work in the rare case of assumed-size arguments where we nee
     `ALLOCATABLE` components to `NULL()` (see for instance
     [here](https://github.com/cp2k/cp2k/blob/master/src/mp2_types.F)), otherwise, use the ordinary
     default initializer.
-  - OOP features in OpenMP regions: Instead of `DEFAULT(NONE)` at the start of a `PARALLEL` region,
-    use `DEFAULT(OMP_DEFAULT_NONE_WITH_OOP)`.
 - Support for performance-related features.
 
 ## Code generation
 
 This is in principal possible with both preprocessors but CP2K relies on the capabilities of Fypp.
-The reason is that Fypp allows the use of Python expression to precompute expressions which may also
-used for a more refined preprocessing in contrast to the C-Preprocessor. Another reason is that Fypp
-automatically splits lines which the C-Preprocessor does not. This feature is currently used in two
-places: In the `xc`-module, we use it to write the code to calculate the up to 45 different but
-structurally similar terms of the second-order XC kernel. In the `eri_mme` package, we use it to
-unroll the loops of the necessary kernels and the easiest combinations of parameters.
+The reason is that Fypp allows the use of Python to precompute expressions which may also be used
+for a more refined preprocessing in contrast to the C-Preprocessor. Another reason is that Fypp
+automatically splits lines which the C-Preprocessor does not. This feature is used in different
+places:
+
+- In the `xc`-module to generate the code to calculate the up to 45 different but structurally
+  similar terms of the second-order XC kernel.
+- In the `eri_mme` package to unroll the loops of the necessary kernels and the easiest combinations
+  of parameters.
+- In `cp_linked_list.fypp` to implement a templated linked list. In all occasions where we are in
+  need of linked list, the missing parts of the template need to be provided by the module (see the
+  modules `cp_linked_list_*.F` for some examples).
