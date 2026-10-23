@@ -60,6 +60,9 @@ MODULE dbt_block
       dbt_reserve_blocks, &
       destroy_block, &
       checker_tr, &
+      dbt_copy_block, &
+      dbt_get_block_data, &
+      dbt_put_block_data, &
       ndims_iterator
 
    TYPE dbt_iterator_type
@@ -472,12 +475,7 @@ CONTAINS
       INTEGER, DIMENSION(ndims_tensor(tensor)), &
          INTENT(IN)                                :: ind
 
-      SELECT CASE (ndims_tensor(tensor))
-         #:for ndim in ndims
-            CASE (${ndim}$)
-            CALL dbt_put_${ndim}$d_block(tensor, ind, block%sizes, block%blk, summation=summation)
-         #:endfor
-      END SELECT
+      CALL dbt_put_block_data(tensor, ind, block%sizes, block%blk, summation=summation)
    END SUBROUTINE dbt_put_anyd_block
 
 ! **************************************************************************************************
@@ -499,19 +497,81 @@ CONTAINS
       INTEGER, DIMENSION(ndims_tensor(tensor)), &
          INTENT(IN)                                :: ind
       INTEGER, DIMENSION(ndims_tensor(tensor))    :: blk_size
-      REAL(dp), DIMENSION(:), ALLOCATABLE         :: block_arr
 
       CALL dbt_blk_sizes(tensor, ind, blk_size)
-      ALLOCATE (block_arr(PRODUCT(blk_size)))
+      CALL create_block(block, blk_size)
+      CALL dbt_get_block_data(tensor, ind, blk_size, block%blk, found)
+   END SUBROUTINE dbt_get_anyd_block
+
+! **************************************************************************************************
+!> \brief Get a block into the given contiguous data (arbitrary tensor rank), without allocating
+!>        any intermediate block.
+!> \param ind block index
+!> \param sizes block size
+!> \param data block data
+!> \param found whether block was found
+!> \author Hans Pabst
+! **************************************************************************************************
+   SUBROUTINE dbt_get_block_data(tensor, ind, sizes, data, found)
+      TYPE(dbt_type), INTENT(INOUT)                        :: tensor
+      INTEGER, DIMENSION(ndims_tensor(tensor)), INTENT(IN) :: ind, sizes
+      REAL(dp), DIMENSION(PRODUCT(sizes)), INTENT(OUT)     :: data
+      LOGICAL, INTENT(OUT)                                 :: found
+
+      found = .FALSE.
+      SELECT CASE (ndims_tensor(tensor))
+         #:for ndim in ndims
+            CASE (${ndim}$)
+            CALL dbt_get_${ndim}$d_block(tensor, ind, sizes, data, found)
+         #:endfor
+      END SELECT
+   END SUBROUTINE dbt_get_block_data
+
+! **************************************************************************************************
+!> \brief Put a block from the given contiguous data (arbitrary tensor rank), without allocating
+!>        any intermediate block.
+!> \param ind block index
+!> \param sizes block size
+!> \param data block data
+!> \param summation whether block should be summed to existing block
+!> \author Hans Pabst
+! **************************************************************************************************
+   SUBROUTINE dbt_put_block_data(tensor, ind, sizes, data, summation)
+      TYPE(dbt_type), INTENT(INOUT)                        :: tensor
+      INTEGER, DIMENSION(ndims_tensor(tensor)), INTENT(IN) :: ind, sizes
+      REAL(dp), DIMENSION(PRODUCT(sizes)), INTENT(IN)      :: data
+      LOGICAL, INTENT(IN), OPTIONAL                        :: summation
 
       SELECT CASE (ndims_tensor(tensor))
          #:for ndim in ndims
             CASE (${ndim}$)
-            CALL dbt_get_${ndim}$d_block(tensor, ind, blk_size, block_arr, found)
+            CALL dbt_put_${ndim}$d_block(tensor, ind, sizes, data, summation=summation)
          #:endfor
       END SELECT
-      CALL create_block(block, blk_size, block_arr)
-   END SUBROUTINE dbt_get_anyd_block
+   END SUBROUTINE dbt_put_block_data
+
+! **************************************************************************************************
+!> \brief Copy a block between tensors with the same index mapping and block sizes (e.g., one
+!>        created from the other), which needs no reshape since the matrix blocks are equal.
+!> \param ind block index
+!> \param summation whether block should be summed to existing block
+!> \author Hans Pabst
+! **************************************************************************************************
+   SUBROUTINE dbt_copy_block(tensor_in, tensor_out, ind, summation)
+      TYPE(dbt_type), INTENT(INOUT)                           :: tensor_in, tensor_out
+      INTEGER, DIMENSION(ndims_tensor(tensor_in)), INTENT(IN) :: ind
+      LOGICAL, INTENT(IN), OPTIONAL                           :: summation
+
+      INTEGER(KIND=int_8), DIMENSION(2)                       :: ind_2d
+      REAL(dp), DIMENSION(:, :), POINTER, CONTIGUOUS          :: block_2d
+
+      NULLIFY (block_2d)
+      ind_2d(:) = get_2d_indices_tensor(tensor_in%nd_index_blk, ind)
+      CALL dbt_tas_get_block_p(tensor_in%matrix_rep, ind_2d(1), ind_2d(2), block_2d)
+      IF (ASSOCIATED(block_2d)) THEN
+         CALL dbt_tas_put_block(tensor_out%matrix_rep, ind_2d(1), ind_2d(2), block_2d, summation=summation)
+      END IF
+   END SUBROUTINE dbt_copy_block
 
    #:for ndim in ndims
 ! **************************************************************************************************

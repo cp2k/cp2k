@@ -18,6 +18,7 @@ MODULE dbt_split
    USE dbt_allocate_wrap, ONLY: allocate_any
    USE dbt_array_list_methods, ONLY: get_ith_array
    USE dbt_block, ONLY: dbt_iterator_type, &
+                        dbt_copy_block, &
                         dbt_get_block, &
                         dbt_put_block, &
                         dbt_iterator_start, &
@@ -674,6 +675,12 @@ CONTAINS
                                     blk_bounds(1, idim) = MAX(bounds(1, idim) - blk_offset(idim) + 1, 1)
                                     blk_bounds(2, idim) = MIN(bounds(2, idim) - blk_offset(idim) + 1, blk_size(idim))
                                  END DO
+
+                                 ! tensor_out was created from tensor_in, hence uncropped blocks copy as is
+                                 IF (ALL(blk_bounds(1, :) == 1) .AND. ALL(blk_bounds(2, :) == blk_size)) THEN
+                                    CALL dbt_copy_block(tensor_in, tensor_out, blk_index)
+                                    CYCLE iter_loop
+                                 END IF
 
                                  #:for ndim in ndims
                                     IF (ndims_tensor(tensor_in) == ${ndim}$) THEN

@@ -43,6 +43,7 @@ MODULE cp2k_runs
                                               cp_unit_set_type,&
                                               export_units_as_xml
    USE dbm_api,                         ONLY: dbm_library_print_stats
+   USE dbt_api,                         ONLY: dbt_library_print_stats
    USE environment,                     ONLY: cp2k_finalize,&
                                               cp2k_init,&
                                               cp2k_read,&
@@ -423,6 +424,7 @@ CONTAINS
 
       CALL dbcsr_print_statistics()
       CALL dbm_library_print_stats(mpi_comm=mpi_comm, output_unit=output_unit)
+      CALL dbt_library_print_stats(mpi_comm=mpi_comm, output_unit=output_unit)
       CALL grid_library_print_stats(mpi_comm=mpi_comm, output_unit=output_unit)
       CALL offload_mempool_stats_print(mpi_comm=mpi_comm, output_unit=output_unit)
 
