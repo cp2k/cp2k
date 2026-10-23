@@ -3502,17 +3502,19 @@ CONTAINS
 
       CALL dbt_clear(tensor)
 
-      storage_counter_integrals = memory_usage*cache_size
-      memory = memory + REAL(storage_counter_integrals, dp)/1024/128
-      !WRITE (UNIT=iw, FMT="((T3,A,T60,I21))") &
-      !   "HFX_MEM_INFO| Total memory consumption ERI's RAM [MiB]:            ", memory
-
       CALL hfx_flush_last_cache(6, maxval_cache, maxval_container, memory_usage, &
                                 .FALSE.)
       DO i = 1, 64
          CALL hfx_flush_last_cache(i, integral_caches(i), integral_containers(i), &
                                    memory_usage, .FALSE.)
       END DO
+
+      ! all of it (before the reset restarts memory_usage): a cache and a first node for each of the
+      ! 64 integral containers and the maxval container, and the nodes added since (from one)
+      storage_counter_integrals = INT(2*65 + memory_usage - 1, int_8)*cache_size
+      memory = memory + REAL(storage_counter_integrals, dp)/1024/128
+      !WRITE (UNIT=iw, FMT="((T3,A,T60,I21))") &
+      !   "HFX_MEM_INFO| Total memory consumption ERI's RAM [MiB]:            ", memory
 
       CALL hfx_reset_cache_and_container(maxval_cache, maxval_container, memory_usage, .FALSE.)
       DO i = 1, 64
