@@ -106,7 +106,9 @@ void dbm_library_counter_increment(const int m, const int n, const int k) {
  * \author Ole Schuett
  ******************************************************************************/
 static int compare_counters(const void *a, const void *b) {
-  return *(const int64_t *)b - *(const int64_t *)a;
+  // Descending order: the difference of two counts may overflow int.
+  const int64_t x = *(const int64_t *)a, y = *(const int64_t *)b;
+  return (x < y) - (x > y);
 }
 
 /*******************************************************************************
