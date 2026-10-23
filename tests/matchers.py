@@ -63,7 +63,7 @@ registry["Shake_colvar_multiplier"] = GenericMatcher(
 
 registry["M002"] = GenericMatcher(r"MD| Potential energy", col=5)
 registry["M003"] = GenericMatcher(r"Total energy [eV]:", col=4)
-registry["M004"] = GenericMatcher(r"Ideal and single determinant", col=8)
+registry["S2_estimate"] = GenericMatcher(r"Ideal and single determinant", col=8)
 registry["M005"] = GenericMatcher(r"BSSE-free interaction energy:", col=5)
 registry["M006"] = GenericMatcher(r"Average Energy", col=4)
 registry["M007"] = GenericMatcher(r"OPT| Total energy [hartree]", col=5)

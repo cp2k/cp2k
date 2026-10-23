@@ -64,6 +64,7 @@ MODULE cp_fm_types
              cp_fm_to_fm, & ! copy (parts of) a fm to a fm
              cp_fm_vectorsnorm, & ! compute the norm of the column-vectors
              cp_fm_vectorssum, & ! compute the sum of all elements of the column-vectors
+             cp_fm_sumall, & ! sum all elements or a function of them of the matrix
              cp_fm_to_fm_submat, & ! copy (parts of) a fm to a fm
              cp_fm_to_fm_triangular, &
              cp_fm_copy_general, &
@@ -1308,6 +1309,44 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE cp_fm_vectorssum
+
+! **************************************************************************************************
+!> \brief summing up all the elements of the matrix
+!>        \f$ result = \sum_{ij} fun(A_{ij}) \f$
+!> \param matrix     an input matrix A
+!> \param fun ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION cp_fm_sumall(matrix, fun) RESULT(res)
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
+      CHARACTER(LEN=3), INTENT(IN), OPTIONAL             :: fun
+      REAL(KIND=dp)                                      :: res
+
+      CHARACTER(LEN=3)                                   :: funval
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data
+
+      IF (PRESENT(fun)) THEN
+         funval = fun
+      ELSE
+         funval = "ONE"
+      END IF
+
+      DATA => matrix%local_data
+
+      SELECT CASE (funval)
+      CASE ("ONE", "one")
+         res = SUM(DATA)
+      CASE ("TWO", "two")
+         res = SUM(DATA**2)
+      CASE ("ABS", "abs")
+         res = SUM(ABS(DATA))
+      CASE DEFAULT
+         CPABORT("Unknown function requested")
+      END SELECT
+
+      CALL matrix%matrix_struct%para_env%sum(res)
+
+   END FUNCTION cp_fm_sumall
 
 ! **************************************************************************************************
 !> \brief copy one identically sized matrix in the other
