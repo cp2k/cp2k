@@ -57,6 +57,8 @@ MODULE ri_rs_types
       REAL(KIND=dp), ALLOCATABLE                       :: chunk_centroids(:, :)
       INTEGER, ALLOCATABLE                             :: grid_atom_boundaries(:)
       INTEGER, ALLOCATABLE                             :: pan_first(:), pan_last(:)
+      ! Panel plans share a fixed grid, process layout and message limit until release.
+      REAL(KIND=dp)                                    :: panel_plan_cutoff = 0.0_dp
 
       ! Atom-specific grids used directly by the grid assembler
       TYPE(rirs_grid_type), ALLOCATABLE                :: atomic_grids(:)
@@ -131,6 +133,7 @@ CONTAINS
       IF (ALLOCATED(ri_rs%grid_atom_boundaries)) DEALLOCATE (ri_rs%grid_atom_boundaries)
       IF (ALLOCATED(ri_rs%pan_first)) DEALLOCATE (ri_rs%pan_first)
       IF (ALLOCATED(ri_rs%pan_last)) DEALLOCATE (ri_rs%pan_last)
+      ri_rs%panel_plan_cutoff = 0.0_dp
       NULLIFY (ri_rs%atomic_kind_set, ri_rs%cell, ri_rs%particle_set)
       ri_rs%fit_max_grid = 0
       ri_rs%fit_peak_bytes = 0.0_dp

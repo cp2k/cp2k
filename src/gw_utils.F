@@ -47,6 +47,7 @@ MODULE gw_utils
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_diag,&
+                                              cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -94,6 +95,7 @@ MODULE gw_utils
    USE mp2_gpw,                         ONLY: create_mat_munu
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat,&
                                               trunc_coulomb_for_exchange
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
@@ -137,7 +139,8 @@ MODULE gw_utils
              analyt_conti_and_print, &
              add_R, &
              is_cell_in_index_to_cell, &
-             rtbse_resolve_rirs_flag
+             rtbse_resolve_rirs_flag, &
+             G_occ_vir
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_utils'
 
@@ -3602,5 +3605,75 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE correct_obvious_fitting_fails
+
+! **************************************************************************************************
+!> \brief Build the real Gamma occupied or virtual one-particle propagator.
+!> \param bs_env MO coefficients, eigenvalues and reusable work matrix
+!> \param tau imaginary time
+!> \param fm_G_Gamma output AO propagator
+!> \param ispin spin channel
+!> \param occ select the occupied sector
+!> \param vir select the virtual sector
+! **************************************************************************************************
+   SUBROUTINE G_occ_vir(bs_env, tau, fm_G_Gamma, ispin, occ, vir)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      REAL(KIND=dp)                                      :: tau
+      TYPE(cp_fm_type)                                   :: fm_G_Gamma
+      INTEGER                                            :: ispin
+      LOGICAL                                            :: occ, vir
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'G_occ_vir'
+
+      INTEGER                                            :: handle, homo, i_row_local, j_col, &
+                                                            j_col_local, n_mo, ncol_local, &
+                                                            nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices
+      REAL(KIND=dp)                                      :: tau_E
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(occ .NEQV. vir)
+
+      CALL cp_fm_get_info(matrix=bs_env%fm_work_mo(1), &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          col_indices=col_indices)
+
+      n_mo = bs_env%n_ao
+      homo = bs_env%n_occ(ispin)
+
+      CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(ispin), bs_env%fm_work_mo(1))
+
+      DO i_row_local = 1, nrow_local
+         DO j_col_local = 1, ncol_local
+
+            j_col = col_indices(j_col_local)
+
+            tau_E = ABS(tau*0.5_dp*(bs_env%eigenval_scf_Gamma(j_col, ispin) - bs_env%e_fermi(ispin)))
+
+            IF (tau_E < bs_env%stabilize_exp) THEN
+               bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local) = &
+                  bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local)*EXP(-tau_E)
+            ELSE
+               bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local) = 0.0_dp
+            END IF
+
+            ! the modes above n_mo_retained are removed by the canonical orthogonalization
+            ! (EPS_EIGVAL) and carry no MO coefficients
+            IF ((occ .AND. j_col > homo) .OR. (vir .AND. j_col <= homo) .OR. &
+                j_col > bs_env%n_mo_retained) THEN
+               bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local) = 0.0_dp
+            END IF
+
+         END DO
+      END DO
+
+      CALL parallel_gemm(transa="N", transb="T", m=n_mo, n=n_mo, k=n_mo, alpha=1.0_dp, &
+                         matrix_a=bs_env%fm_work_mo(1), matrix_b=bs_env%fm_work_mo(1), &
+                         beta=0.0_dp, matrix_c=fm_G_Gamma)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE G_occ_vir
 
 END MODULE gw_utils

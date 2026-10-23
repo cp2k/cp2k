@@ -30,9 +30,7 @@ MODULE gw_tensor_large_cell_Gamma
                                               copy_fm_to_dbcsr,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
                                               cp_fm_release,&
-                                              cp_fm_to_fm,&
                                               cp_fm_type
    USE dbt_api,                         ONLY: dbt_clear,&
                                               dbt_contract,&
@@ -46,7 +44,8 @@ MODULE gw_tensor_large_cell_Gamma
    USE gw_compute_V_and_W,              ONLY: fm_read,&
                                               fm_write,&
                                               get_W_MIC
-   USE gw_utils,                        ONLY: analyt_conti_and_print,&
+   USE gw_utils,                        ONLY: G_occ_vir,&
+                                              analyt_conti_and_print,&
                                               de_init_bs_env
    USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
                                               fm_contract_ABA
@@ -57,7 +56,6 @@ MODULE gw_tensor_large_cell_Gamma
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_file_delete
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
-   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE post_scf_bandstructure_utils,    ONLY: cfm_ikp_from_fm_Gamma,&
@@ -79,7 +77,6 @@ MODULE gw_tensor_large_cell_Gamma
    PUBLIC :: gw_calc_tensor_large_cell_Gamma, &
              compute_3c_integrals, &
              G_occ_vir, &
-             fill_fm_Sigma_c_Gamma_time, &
              delete_unnecessary_files, &
              compute_QP_energies, &
              get_mat_chi_Gamma_tau, &
@@ -396,76 +393,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE destroy_tensors_chi
-
-! **************************************************************************************************
-!> \brief ...
-!> \param bs_env ...
-!> \param tau ...
-!> \param fm_G_Gamma ...
-!> \param ispin ...
-!> \param occ ...
-!> \param vir ...
-! **************************************************************************************************
-   SUBROUTINE G_occ_vir(bs_env, tau, fm_G_Gamma, ispin, occ, vir)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp)                                      :: tau
-      TYPE(cp_fm_type)                                   :: fm_G_Gamma
-      INTEGER                                            :: ispin
-      LOGICAL                                            :: occ, vir
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'G_occ_vir'
-
-      INTEGER                                            :: handle, homo, i_row_local, j_col, &
-                                                            j_col_local, n_mo, ncol_local, &
-                                                            nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices
-      REAL(KIND=dp)                                      :: tau_E
-
-      CALL timeset(routineN, handle)
-
-      CPASSERT(occ .NEQV. vir)
-
-      CALL cp_fm_get_info(matrix=bs_env%fm_work_mo(1), &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          col_indices=col_indices)
-
-      n_mo = bs_env%n_ao
-      homo = bs_env%n_occ(ispin)
-
-      CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(ispin), bs_env%fm_work_mo(1))
-
-      DO i_row_local = 1, nrow_local
-         DO j_col_local = 1, ncol_local
-
-            j_col = col_indices(j_col_local)
-
-            tau_E = ABS(tau*0.5_dp*(bs_env%eigenval_scf_Gamma(j_col, ispin) - bs_env%e_fermi(ispin)))
-
-            IF (tau_E < bs_env%stabilize_exp) THEN
-               bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local) = &
-                  bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local)*EXP(-tau_E)
-            ELSE
-               bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local) = 0.0_dp
-            END IF
-
-            ! the modes above n_mo_retained are removed by the canonical orthogonalization
-            ! (EPS_EIGVAL) and carry no MO coefficients
-            IF ((occ .AND. j_col > homo) .OR. (vir .AND. j_col <= homo) .OR. &
-                j_col > bs_env%n_mo_retained) THEN
-               bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local) = 0.0_dp
-            END IF
-
-         END DO
-      END DO
-
-      CALL parallel_gemm(transa="N", transb="T", m=n_mo, n=n_mo, k=n_mo, alpha=1.0_dp, &
-                         matrix_a=bs_env%fm_work_mo(1), matrix_b=bs_env%fm_work_mo(1), &
-                         beta=0.0_dp, matrix_c=fm_G_Gamma)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE G_occ_vir
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1267,11 +1194,11 @@ CONTAINS
    END SUBROUTINE contract_to_Sigma
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param fm_Sigma_c_Gamma_time ...
-!> \param bs_env ...
-!> \param mat_Sigma_pos_tau ...
-!> \param mat_Sigma_neg_tau ...
+!> \brief Copy the positive- and negative-time self-energy matrices to the FM time array.
+!> \param fm_Sigma_c_Gamma_time allocated output indexed by time, time sector and spin
+!> \param bs_env time grid, spin count and AO layout
+!> \param mat_Sigma_pos_tau positive-time self-energy matrices
+!> \param mat_Sigma_neg_tau negative-time self-energy matrices
 ! **************************************************************************************************
    SUBROUTINE fill_fm_Sigma_c_Gamma_time(fm_Sigma_c_Gamma_time, bs_env, &
                                          mat_Sigma_pos_tau, mat_Sigma_neg_tau)
