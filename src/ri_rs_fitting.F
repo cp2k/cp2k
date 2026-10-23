@@ -68,49 +68,29 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_ri_rs_fit'
 
-      INTEGER                                            :: handle, handle2, i, info, j, n_ao, &
-                                                            n_grid, n_rhs
+      INTEGER                                            :: handle, handle2, i, info, n_grid, n_rhs
       REAL(KIND=dp), ALLOCATABLE                         :: gram(:, :), jacobi_scale(:)
 
       CALL timeset(routineN, handle)
 
       n_grid = SIZE(phi_local, 1)
-      n_ao = SIZE(phi_local, 2)
       n_rhs = SIZE(d_lp, 2)
       CPASSERT(SIZE(d_lp, 1) == n_grid)
       CPASSERT(PRESENT(para_env_sub) .EQV. PRESENT(blacs_env_sub))
-      ALLOCATE (jacobi_scale(n_grid))
-
       IF (PRESENT(para_env_sub)) THEN
          ! Only the row norms are replicated; the distributed solve builds its own Gram tiles.
+         ALLOCATE (jacobi_scale(n_grid))
          !$OMP PARALLEL DO DEFAULT(NONE) &
          !$OMP SHARED(n_grid, phi_local, jacobi_scale) &
          !$OMP PRIVATE(i) SCHEDULE(STATIC)
          DO i = 1, n_grid
-            jacobi_scale(i) = DOT_PRODUCT(phi_local(i, :), phi_local(i, :))
+            jacobi_scale(i) = 1.0_dp/MAX(DOT_PRODUCT(phi_local(i, :), phi_local(i, :)), SQRT(jacobi_floor))
          END DO
          !$OMP END PARALLEL DO
       ELSE
-         ALLOCATE (gram(n_grid, n_grid))
-         ! First form the lower triangle of Σ_μ ϕ_μ(r_l) ϕ_μ(r_l'); square it below to obtain D_ll'.
-         CALL timeset(routineN//'_dsyrk', handle2)
-         CALL dsyrk('L', 'N', n_grid, n_ao, 1.0_dp, phi_local, n_grid, &
-                    0.0_dp, gram, n_grid)
-         CALL timestop(handle2)
-         DO i = 1, n_grid
-            jacobi_scale(i) = gram(i, i)
-         END DO
+         CALL factor_ri_rs_fit(phi_local, tikhonov, gram, jacobi_scale, info)
+         IF (info /= 0) CPABORT('RI-RS Cholesky factorization failed')
       END IF
-
-      ! D_ll = [Σ_μ ϕ_μ(r_l)²]², so d_l = 1/max(Σ_μ ϕ_μ(r_l)², sqrt(jacobi_floor)).
-      !$OMP PARALLEL DO DEFAULT(NONE) &
-      !$OMP SHARED(n_grid, jacobi_scale) &
-      !$OMP PRIVATE(i) &
-      !$OMP SCHEDULE(STATIC)
-      DO i = 1, n_grid
-         jacobi_scale(i) = 1.0_dp/MAX(jacobi_scale(i), SQRT(jacobi_floor))
-      END DO
-      !$OMP END PARALLEL DO
 
       ! Pre-scale the right-hand side: d_lP <- d_l d_lP.
       CALL scale_rows_by_diag(d_lp, jacobi_scale)
@@ -118,21 +98,6 @@ CONTAINS
          CALL solve_D_lp_distributed(phi_local, jacobi_scale, d_lp, tikhonov, &
                                      para_env_sub, blacs_env_sub)
       ELSE
-         ! Build D'_ll' = d_l D_ll' d_l' + λ δ_ll'; DPOTRF/DPOTRS use only its lower triangle.
-         !$OMP PARALLEL DO DEFAULT(NONE) &
-         !$OMP SHARED(n_grid, gram, jacobi_scale, tikhonov) &
-         !$OMP PRIVATE(j, i) SCHEDULE(DYNAMIC)
-         DO j = 1, n_grid
-            DO i = j, n_grid
-               gram(i, j) = gram(i, j)**2*jacobi_scale(i)*jacobi_scale(j)
-            END DO
-            gram(j, j) = gram(j, j) + tikhonov
-         END DO
-         !$OMP END PARALLEL DO
-         CALL timeset(routineN//'_dpotrf', handle2)
-         CALL dpotrf('L', n_grid, gram, n_grid, info)
-         CALL timestop(handle2)
-         IF (info /= 0) CPABORT('RI-RS Cholesky factorization failed')
          ! Solve Σ_l' D'_ll' Z'_l'P = d_l d_lP, overwriting d_lp with Z'_lP.
          CALL timeset(routineN//'_dpotrs', handle2)
          CALL dpotrs('L', n_grid, n_rhs, gram, n_grid, d_lp, n_grid, info)
@@ -145,6 +110,63 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE solve_ri_rs_fit
+
+! **************************************************************************************************
+!> \brief Build and factor the Jacobi-scaled squared AO Gram matrix, K = d D d + λ I.
+!>        The lower triangle is used throughout; the factor is retained for subsequent solves.
+!>        See solve_ri_rs_fit for the RI-RS balancing convention and reference.
+!> \param phi AO values indexed (grid point, AO)
+!> \param tikhonov regularization in the Jacobi-scaled space
+!> \param factor lower Cholesky factor of K on successful return
+!> \param jacobi_scale pair-feature scales d_l
+!> \param info LAPACK factorization status; the caller chooses how to handle failure
+!> \param overlap optional lower triangle of the scaled AO overlap V V^T, V_l = sqrt(d_l) phi_l
+! **************************************************************************************************
+   SUBROUTINE factor_ri_rs_fit(phi, tikhonov, factor, jacobi_scale, info, overlap)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: phi
+      REAL(KIND=dp), INTENT(IN)                          :: tikhonov
+      REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: factor(:, :), jacobi_scale(:)
+      INTEGER, INTENT(OUT)                               :: info
+      REAL(KIND=dp), ALLOCATABLE, INTENT(OUT), OPTIONAL  :: overlap(:, :)
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'factor_ri_rs_fit'
+
+      INTEGER                                            :: handle, handle2, i, j, n_grid
+
+      CALL timeset(routineN, handle)
+      n_grid = SIZE(phi, 1)
+      ALLOCATE (factor(n_grid, n_grid), jacobi_scale(n_grid))
+      ! First form S_ll' = Σ_μ phi_lμ phi_l'μ; D_ll' = S_ll'^2.
+      CALL timeset(routineN//'_dsyrk', handle2)
+      CALL dsyrk('L', 'N', n_grid, SIZE(phi, 2), 1.0_dp, phi, n_grid, 0.0_dp, factor, n_grid)
+      CALL timestop(handle2)
+      DO i = 1, n_grid
+         jacobi_scale(i) = 1.0_dp/MAX(factor(i, i), SQRT(jacobi_floor))
+      END DO
+      IF (PRESENT(overlap)) THEN
+         ALLOCATE (overlap(n_grid, n_grid))
+         DO j = 1, n_grid
+            DO i = j, n_grid
+               overlap(i, j) = factor(i, j)*SQRT(jacobi_scale(i))*SQRT(jacobi_scale(j))
+            END DO
+         END DO
+      END IF
+      ! Add λ after Jacobi scaling; LAPACK needs only the lower triangle.
+      !$OMP PARALLEL DO DEFAULT(NONE) &
+      !$OMP SHARED(n_grid, factor, jacobi_scale, tikhonov) &
+      !$OMP PRIVATE(j, i) SCHEDULE(DYNAMIC)
+      DO j = 1, n_grid
+         DO i = j, n_grid
+            factor(i, j) = factor(i, j)**2*jacobi_scale(i)*jacobi_scale(j)
+         END DO
+         factor(j, j) = factor(j, j) + tikhonov
+      END DO
+      !$OMP END PARALLEL DO
+      CALL timeset(routineN//'_dpotrf', handle2)
+      CALL dpotrf('L', n_grid, factor, n_grid, info)
+      CALL timestop(handle2)
+      CALL timestop(handle)
+   END SUBROUTINE factor_ri_rs_fit
 
 ! **************************************************************************************************
 !> \brief Multiplies every matrix row by the corresponding diagonal entry:
