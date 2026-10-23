@@ -714,7 +714,7 @@ CONTAINS
             END IF
             kpoints%xkp(:, ik) = star_xkp(:, isg)
 
-            CALL kpoint_calc_admm_matrices(qs_env, .FALSE.)
+            CALL kpoint_calc_admm_matrices(qs_env, .FALSE., ik_only=ik)
             IF (pmat_from_rs) THEN
                IF (use_real_wfn) THEN
                   IF (star_owner) THEN
@@ -4125,17 +4125,21 @@ CONTAINS
 !> \brief Store the ADMM auxiliary overlap and projection A = S^-1 Q in their native scalar type.
 !> \param qs_env ...
 !> \param calculate_forces ...
+!> \param ik_only restrict the fit to one global k-point (still collective)
 ! **************************************************************************************************
-   SUBROUTINE kpoint_calc_admm_matrices(qs_env, calculate_forces)
+   SUBROUTINE kpoint_calc_admm_matrices(qs_env, calculate_forces, ik_only)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL                                            :: calculate_forces
+      INTEGER, INTENT(IN), OPTIONAL                      :: ik_only
 
       INTEGER                                            :: igroup, ik, ikp, indx, kplocal, kpmax, &
-                                                            nao_aux_fit, nao_orb, nkp, nkp_groups
+                                                            nao_aux_fit, nao_orb, ninfo, nkp, &
+                                                            nkp_groups
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: my_kpgrp, store_overlap, use_real_wfn
+      LOGICAL                                            :: do_local, my_kpgrp, store_overlap, &
+                                                            use_real_wfn
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info
@@ -4229,7 +4233,9 @@ CONTAINS
          CALL cp_cfm_create(cmat_aux_fit_vs_orb, matrix_struct_aux_fit_vs_orb)
       END IF
 
-      ALLOCATE (info(nkp, 4))
+      ninfo = nkp
+      IF (PRESENT(ik_only)) ninfo = 1
+      ALLOCATE (info(ninfo, 4))
 
       ! Steup and start all the communication
       indx = 0
@@ -4237,6 +4243,9 @@ CONTAINS
          DO igroup = 1, nkp_groups
             ik = kp_dist(1, igroup) + ikp - 1
             IF (ik > kp_dist(2, igroup)) CYCLE
+            IF (PRESENT(ik_only)) THEN
+               IF (ik /= ik_only) CYCLE
+            END IF
             my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
             indx = indx + 1
 
@@ -4296,13 +4305,18 @@ CONTAINS
       ! Finish communication and store
       indx = 0
       DO ikp = 1, kpmax
+         do_local = .NOT. PRESENT(ik_only)
          DO igroup = 1, nkp_groups
             ik = kp_dist(1, igroup) + ikp - 1
             IF (ik > kp_dist(2, igroup)) CYCLE
+            IF (PRESENT(ik_only)) THEN
+               IF (ik /= ik_only) CYCLE
+            END IF
             my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
             indx = indx + 1
 
             IF (my_kpgrp) THEN
+               do_local = .TRUE.
                CALL cp_fm_finish_copy_general(rmat_aux_fit, info(indx, 1))
                CALL cp_fm_finish_copy_general(rmat_aux_fit_vs_orb, info(indx, 3))
                IF (.NOT. use_real_wfn) THEN
@@ -4312,6 +4326,7 @@ CONTAINS
             END IF
          END DO
 
+         IF (.NOT. do_local) CYCLE
          IF (ikp > kplocal) CYCLE
          kp => kpoints%kp_aux_env(ikp)%kpoint_env
 

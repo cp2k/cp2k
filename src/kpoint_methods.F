@@ -304,6 +304,7 @@ CONTAINS
       ALLOCATE (kpsym%f0(natom, ns), kpsym%fcell(3, natom, ns), kpsym%fcell_gauge(3, natom, ns))
       ALLOCATE (kpsym%phase_mode(ns))
       kpsym%phase_mode(:) = 0
+      kpoint%phases_calibrated = .FALSE.
 
       nr = 0
       DO ilink = link_start(ik), link_start(ik + 1) - 1
@@ -3519,6 +3520,8 @@ CONTAINS
       mixed_aux_orb_local = .FALSE.
       IF (PRESENT(mixed_aux_orb)) mixed_aux_orb_local = mixed_aux_orb
 
+      IF (kpoint%phases_calibrated) RETURN
+
       needs_calibration = .FALSE.
       DO ik = 1, kpoint%nkp
          kpsym => kpoint%kp_sym(ik)%kpoint_sym
@@ -3530,7 +3533,10 @@ CONTAINS
             END IF
          END IF
       END DO
-      IF (.NOT. needs_calibration) RETURN
+      IF (.NOT. needs_calibration) THEN
+         kpoint%phases_calibrated = .TRUE.
+         RETURN
+      END IF
 
       CALL timeset(routineN, handle)
       CPASSERT(ASSOCIATED(kpoint%ibrot))
@@ -3663,6 +3669,7 @@ CONTAINS
       CALL dbcsr_deallocate_matrix(direct_c)
       CALL dbcsr_deallocate_matrix(sym_r)
       CALL dbcsr_deallocate_matrix(sym_c)
+      kpoint%phases_calibrated = .TRUE.
       CALL timestop(handle)
 
    END SUBROUTINE calibrate_symmetry_phases
