@@ -2358,7 +2358,7 @@ CONTAINS
 
       para_env => kpoint%blacs_env_all%para_env
       local = para_env%num_pe == 1
-      IF (local) THEN
+      IF (local .AND. .NOT. star_mode) THEN
          CPASSERT(kpoint%kp_range(1) == 1 .AND. kplocal == nkp)
       END IF
       ! The regular-grid route is an optional specialization without spatial rotations.
@@ -2460,14 +2460,11 @@ CONTAINS
          IF (star_mode) THEN
             ALLOCATE (groups(0:0))
             ALLOCATE (groups(0)%ikp(SIZE(source, 1)), groups(0)%weight(SIZE(source, 1)), &
-                      groups(0)%xkp(3, SIZE(source, 1)), groups(0)%inverse(SIZE(row_size)))
+                      groups(0)%xkp(3, SIZE(source, 1)))
             DO i = 1, SIZE(source, 1)
                groups(0)%ikp(i) = i
                groups(0)%weight(i) = star_weight(i)
                groups(0)%xkp(:, i) = star_xkp(:, i)
-            END DO
-            DO i = 1, SIZE(row_size)
-               groups(0)%inverse(i) = i
             END DO
             groups(0)%op%identity = .TRUE.
             groups(0)%reverse_phase = .FALSE.
@@ -2552,7 +2549,8 @@ CONTAINS
             DO tile = 1, ntile
                j = tile_start(tile)
                DO slot = 0, UBOUND(groups, 1)
-                  IF (.NOT. ALLOCATED(groups(slot)%inverse)) CYCLE
+                  IF (.NOT. ALLOCATED(groups(slot)%ikp)) CYCLE
+                  IF (SIZE(groups(slot)%ikp) == 0) CYCLE
                   DO orientation = 1, 2
                      CALL kp_density_source_block(groups(slot), jobs(1:2, j), plan%symmetric, &
                                                   orientation, a, b, trans)
