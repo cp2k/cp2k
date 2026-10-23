@@ -115,39 +115,6 @@ MODULE cp_output_handling
 ! Public functions to set/get the flags
    PUBLIC :: cp_mpi_io_set, cp_mpi_io_get
 
-! **************************************************************************************************
-!> \brief stores the flags_env controlling the output of properties
-!> \param ref_count reference count (see doc/ReferenceCounting.html)
-!> \param n_flags number of flags stored in this type
-!> \param names names of the stored flags
-!> \param control_val value of the flag
-!> \param input the input (with all the printkeys)
-!> \param logger logger and iteration information (to know if output is needed)
-!> \param strict if flags that were not stored can be read
-!> \param default_val default value of the flags that are not explicitly
-!>        stored
-!> \note
-!>      Two features of this object should be:
-!>        1) easy state storage, one should be able to store the state of the
-!>           flags, to some changes to them just for one (or few) force evaluations
-!>           and then reset the original state. The actual implementation is good
-!>           in this respect
-!>        2) work well with subsections. This is a problem at the moment, as
-!>           if you pass just a subsection of the input the control flags get lost.
-!>        A better implementation should be done storing the flags also in the
-!>        input itself to be transparent
-!> \author fawzi
-! **************************************************************************************************
-   TYPE cp_out_flags_type
-      INTEGER :: ref_count = 0, n_flags = 0
-      CHARACTER(default_string_length), DIMENSION(:), POINTER :: names => NULL()
-      INTEGER, DIMENSION(:), POINTER :: control_val => NULL()
-      TYPE(section_vals_type), POINTER :: input => NULL()
-      TYPE(cp_logger_type), POINTER :: logger => NULL()
-      LOGICAL :: strict = .FALSE.
-      INTEGER :: default_val = 0
-   END TYPE cp_out_flags_type
-
 CONTAINS
 
 ! **************************************************************************************************
