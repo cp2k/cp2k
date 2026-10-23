@@ -35,7 +35,8 @@ MODULE ri_rs_fitting
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ri_rs_fitting'
    REAL(KIND=dp), PARAMETER, PRIVATE :: jacobi_floor = 1.0E-16_dp
 
-   PUBLIC :: solve_ri_rs_fit, &
+   PUBLIC :: evaluate_ri_rs_fit, &
+             solve_ri_rs_fit, &
              store_Z_lP_columns
 
 CONTAINS
@@ -167,6 +168,196 @@ CONTAINS
       CALL timestop(handle2)
       CALL timestop(handle)
    END SUBROUTINE factor_ri_rs_fit
+
+! **************************************************************************************************
+!> \brief Evaluate the normalized cluster residual and its exact derivative in AO space.
+!>
+!>        V_l = sqrt(d_l) phi_l, S = V V^T, K = S∘S + λI, and K Z' = b, with
+!>        b_lP = V_l^T B_P V_l. B_P is the symmetric matrix defined by the upper AO triangle.
+!>        The objective is ||B - A Z'||²/||B||², A_:l = svec(V_l V_l^T), without a penalty term.
+!>        For λ>0 the derivative includes the response of the regularized coefficients.
+!>        The balancing convention and RI-RS reference are given in solve_ri_rs_fit.
+!> \param phi unscaled AO values indexed (grid point, AO)
+!> \param int_3c three-center integrals indexed (AO, AO, RI); only the upper AO triangle is used
+!> \param tikhonov regularization in the Jacobi-scaled space
+!> \param normalized_error normalized squared residual
+!> \param fit_successful false if the target is empty or the regularized fit cannot be solved
+!> \param ao_gradient optional derivative with respect to the unscaled AO values
+!> \param max_abs_error optional largest absolute unweighted integral error
+! **************************************************************************************************
+   SUBROUTINE evaluate_ri_rs_fit(phi, int_3c, tikhonov, normalized_error, fit_successful, &
+                                 ao_gradient, max_abs_error)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: phi
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: int_3c
+      REAL(KIND=dp), INTENT(IN)                          :: tikhonov
+      REAL(KIND=dp), INTENT(OUT)                         :: normalized_error
+      LOGICAL, INTENT(OUT)                               :: fit_successful
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
+         OPTIONAL                                        :: ao_gradient
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: max_abs_error
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_ri_rs_fit'
+      INTEGER, PARAMETER                                 :: residual_block_size = 64
+
+      INTEGER                                            :: first, handle, handle2, i, imu, info, &
+                                                            inu, ip, j, last, n_ao, n_grid, n_ri
+      REAL(KIND=dp) :: coefficient_norm2, error_scale, integral_norm2, projection, residual_norm2, &
+         roundoff_estimate, row_norm2, value, weight
+      REAL(KIND=dp), ALLOCATABLE :: coefficient_work(:, :), factor(:, :), jacobi_scale(:), &
+         overlap(:, :), residual(:, :), v(:, :), work(:, :), z_prime(:, :)
+
+      CALL timeset(routineN, handle)
+      n_grid = SIZE(phi, 1)
+      n_ao = SIZE(phi, 2)
+      n_ri = SIZE(int_3c, 3)
+      CPASSERT(SIZE(int_3c, 1) == n_ao .AND. SIZE(int_3c, 2) == n_ao)
+      CPASSERT(tikhonov >= 0.0_dp)
+      IF (PRESENT(ao_gradient)) THEN
+         CPASSERT(ALL(SHAPE(ao_gradient) == SHAPE(phi)))
+         ao_gradient(:, :) = 0.0_dp
+      END IF
+      normalized_error = HUGE(normalized_error)
+      IF (PRESENT(max_abs_error)) max_abs_error = HUGE(max_abs_error)
+      fit_successful = .FALSE.
+      IF (n_grid < 1 .OR. n_ri < 1) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+      integral_norm2 = 0.0_dp
+      DO ip = 1, n_ri
+         DO inu = 1, n_ao
+            integral_norm2 = integral_norm2 + int_3c(inu, inu, ip)**2 + &
+                             2.0_dp*DOT_PRODUCT(int_3c(1:inu - 1, inu, ip), int_3c(1:inu - 1, inu, ip))
+         END DO
+      END DO
+      IF (integral_norm2 <= TINY(1.0_dp)) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      IF (PRESENT(ao_gradient)) THEN
+         CALL factor_ri_rs_fit(phi, tikhonov, factor, jacobi_scale, info, overlap)
+      ELSE
+         CALL factor_ri_rs_fit(phi, tikhonov, factor, jacobi_scale, info)
+      END IF
+      IF (info /= 0) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+      ALLOCATE (v(n_grid, n_ao), work(n_grid, n_ao), &
+                coefficient_work(n_grid, n_ri), z_prime(n_grid, n_ri))
+      DO imu = 1, n_ao
+         v(:, imu) = SQRT(jacobi_scale)*phi(:, imu)
+      END DO
+      CALL timeset(routineN//'_rhs', handle2)
+      DO ip = 1, n_ri
+         CALL dsymm('R', 'U', n_grid, n_ao, 1.0_dp, int_3c(:, :, ip), n_ao, v, n_grid, &
+                    0.0_dp, work, n_grid)
+         DO i = 1, n_grid
+            coefficient_work(i, ip) = DOT_PRODUCT(v(i, :), work(i, :))
+         END DO
+      END DO
+      CALL timestop(handle2)
+      z_prime(:, :) = coefficient_work
+      CALL dpotrs('L', n_grid, n_ri, factor, n_grid, z_prime, n_grid, info)
+      IF (info /= 0) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      ! K Z' = b implies ||B-AZ'||² = ||B||² - tr(Z'^T b) - λ ||Z'||².
+      value = SUM(z_prime*coefficient_work)
+      coefficient_norm2 = SUM(z_prime*z_prime)
+      weight = tikhonov*coefficient_norm2
+      residual_norm2 = integral_norm2 - value - weight
+      error_scale = integral_norm2 + ABS(value) + weight
+      ! Large coefficients can also amplify the factorization's backward error. The scaled
+      ! Gram has diagonal <= 1, hence ||K||_2 <= n_grid + λ; use a conservative roundoff estimate.
+      roundoff_estimate = 8.0_dp*EPSILON(1.0_dp)*REAL(n_grid, dp)* &
+                          (REAL(n_grid, dp) + tikhonov)*coefficient_norm2
+      ! Near an exact fit, use bounded AO-column panels to avoid cancellation. This path also
+      ! supplies the final maximum-error diagnostic, without storing a pair-by-RI residual.
+      IF (PRESENT(max_abs_error) .OR. &
+          residual_norm2 <= MAX(SQRT(EPSILON(1.0_dp))*error_scale, roundoff_estimate)) THEN
+         CALL timeset(routineN//'_residual', handle2)
+         ALLOCATE (residual(n_ao, MIN(residual_block_size, n_ao)))
+         residual_norm2 = 0.0_dp
+         IF (PRESENT(max_abs_error)) max_abs_error = 0.0_dp
+         DO ip = 1, n_ri
+            DO first = 1, n_ao, residual_block_size
+               last = MIN(first + residual_block_size - 1, n_ao)
+               DO inu = first, last
+                  work(:, inu - first + 1) = z_prime(:, ip)*v(:, inu)
+               END DO
+               CALL dgemm('T', 'N', n_ao, last - first + 1, n_grid, -1.0_dp, v, n_grid, work, n_grid, &
+                          0.0_dp, residual, n_ao)
+               DO inu = first, last
+                  DO imu = 1, inu
+                     value = int_3c(imu, inu, ip) + residual(imu, inu - first + 1)
+                     weight = REAL(2 - MERGE(1, 0, imu == inu), dp)
+                     residual_norm2 = residual_norm2 + weight*value**2
+                     IF (PRESENT(max_abs_error)) max_abs_error = MAX(max_abs_error, ABS(value))
+                  END DO
+               END DO
+            END DO
+         END DO
+         CALL timestop(handle2)
+      END IF
+      normalized_error = residual_norm2/integral_norm2
+
+      IF (PRESENT(ao_gradient)) THEN
+         CALL timeset(routineN//'_gradient', handle2)
+         ! The RHS is no longer needed. Reuse its storage for the coefficient response and C.
+         coefficient_work(:, :) = z_prime
+         IF (tikhonov > 0.0_dp) THEN
+            ! Y = K^-1 Z' is needed only for the regularized coefficient response.
+            CALL dpotrs('L', n_grid, n_ri, factor, n_grid, coefficient_work, n_grid, info)
+            IF (info /= 0) THEN
+               CALL timestop(handle2)
+               CALL timestop(handle)
+               RETURN
+            END IF
+            ! With T = Z'/2 + λY, M = Z'T^T + TZ'^T = Z'Z'^T + λ(Z'Y^T + YZ'^T).
+            ! The factor is no longer needed after the solves, so overwrite it with M.
+            coefficient_work(:, :) = 0.5_dp*z_prime + tikhonov*coefficient_work
+            CALL dsyr2k('L', 'N', n_grid, n_ri, 1.0_dp, z_prime, n_grid, coefficient_work, n_grid, &
+                        0.0_dp, factor, n_grid)
+            ! C = T + Z'/2 = Z' + λY.
+            coefficient_work(:, :) = coefficient_work + 0.5_dp*z_prime
+         ELSE
+            CALL dsyrk('L', 'N', n_grid, n_ri, 1.0_dp, z_prime, n_grid, 0.0_dp, factor, n_grid)
+         END IF
+         DO j = 1, n_grid
+            DO i = j, n_grid
+               factor(i, j) = factor(i, j)*overlap(i, j)
+            END DO
+         END DO
+         ! dE/dV = 4/||B||² [(M∘S)V - Σ_P C_lP B_P V_l], C = Z' + λY.
+         CALL dsymm('L', 'L', n_grid, n_ao, 1.0_dp, factor, n_grid, v, n_grid, &
+                    0.0_dp, ao_gradient, n_grid)
+         DO ip = 1, n_ri
+            CALL dsymm('R', 'U', n_grid, n_ao, 1.0_dp, int_3c(:, :, ip), n_ao, v, n_grid, &
+                       0.0_dp, work, n_grid)
+            DO imu = 1, n_ao
+               ao_gradient(:, imu) = ao_gradient(:, imu) - coefficient_work(:, ip)*work(:, imu)
+            END DO
+         END DO
+         ao_gradient(:, :) = (4.0_dp/integral_norm2)*ao_gradient
+         ! V_l = sqrt(d_l) phi_l. Differentiate the normalization only above the floor;
+         ! on the clamped branch d_l is constant, including at the branch boundary.
+         DO i = 1, n_grid
+            row_norm2 = DOT_PRODUCT(phi(i, :), phi(i, :))
+            IF (row_norm2 > SQRT(jacobi_floor)) THEN
+               projection = DOT_PRODUCT(phi(i, :), ao_gradient(i, :))/row_norm2
+               ao_gradient(i, :) = ao_gradient(i, :) - projection*phi(i, :)
+            END IF
+            ao_gradient(i, :) = SQRT(jacobi_scale(i))*ao_gradient(i, :)
+         END DO
+         CALL timestop(handle2)
+      END IF
+      fit_successful = .TRUE.
+      CALL timestop(handle)
+   END SUBROUTINE evaluate_ri_rs_fit
 
 ! **************************************************************************************************
 !> \brief Multiplies every matrix row by the corresponding diagonal entry:
