@@ -18,7 +18,6 @@ MODULE qs_matrix_pools
                                               fm_pool_create,&
                                               fm_pool_get_el_struct,&
                                               fm_pool_release,&
-                                              fm_pool_retain,&
                                               fm_pools_dealloc
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_get,&
@@ -74,7 +73,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief releases the given mpools
-!> \param mpools the matrix pools type to retain
+!> \param mpools the matrix pools type to release
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
@@ -327,12 +326,10 @@ CONTAINS
             CALL cp_fm_struct_create(fmstruct, nrow_global=nao, &
                                      ncol_global=max_nmo, para_env=para_env, &
                                      context=blacs_env)
-            CALL fm_pool_create(mpools%ao_mo_fm_pools(1)%pool, fmstruct)
-            CALL cp_fm_struct_release(fmstruct)
-            DO ispin = 2, SIZE(mos)
-               mpools%ao_mo_fm_pools(ispin)%pool => mpools%ao_mo_fm_pools(1)%pool
-               CALL fm_pool_retain(mpools%ao_mo_fm_pools(1)%pool)
+            DO ispin = 1, SIZE(mos)
+               CALL fm_pool_create(mpools%ao_mo_fm_pools(ispin)%pool, fmstruct)
             END DO
+            CALL cp_fm_struct_release(fmstruct)
          ELSE
             DO ispin = 1, SIZE(mos)
                CALL get_mo_set(mos(ispin), nmo=nmo, nao=nao)
@@ -368,13 +365,11 @@ CONTAINS
             CALL cp_fm_struct_create(fmstruct, nrow_global=max_nmo, &
                                      ncol_global=max_nmo, para_env=para_env, &
                                      context=blacs_env)
-            CALL fm_pool_create(mpools%mo_mo_fm_pools(1)%pool, &
-                                fmstruct)
-            CALL cp_fm_struct_release(fmstruct)
-            DO ispin = 2, SIZE(mos)
-               mpools%mo_mo_fm_pools(ispin)%pool => mpools%mo_mo_fm_pools(1)%pool
-               CALL fm_pool_retain(mpools%mo_mo_fm_pools(1)%pool)
+            DO ispin = 1, SIZE(mos)
+               CALL fm_pool_create(mpools%mo_mo_fm_pools(ispin)%pool, &
+                                   fmstruct)
             END DO
+            CALL cp_fm_struct_release(fmstruct)
          ELSE
             DO ispin = 1, SIZE(mos)
                NULLIFY (mpools%mo_mo_fm_pools(ispin)%pool)
@@ -413,12 +408,10 @@ CONTAINS
                CALL cp_fm_struct_create(fmstruct, nrow_global=nao, &
                                         ncol_global=nmosub(1), para_env=para_env, &
                                         context=blacs_env)
-               CALL fm_pool_create(mpools%ao_mosub_fm_pools(1)%pool, fmstruct)
-               CALL cp_fm_struct_release(fmstruct)
-               DO ispin = 2, SIZE(mos)
-                  mpools%ao_mosub_fm_pools(ispin)%pool => mpools%ao_mosub_fm_pools(1)%pool
-                  CALL fm_pool_retain(mpools%ao_mosub_fm_pools(1)%pool)
+               DO ispin = 1, SIZE(mos)
+                  CALL fm_pool_create(mpools%ao_mosub_fm_pools(ispin)%pool, fmstruct)
                END DO
+               CALL cp_fm_struct_release(fmstruct)
             ELSE
                DO ispin = 1, SIZE(mos)
                   CALL get_mo_set(mos(ispin), nao=nao)
@@ -453,13 +446,11 @@ CONTAINS
                CALL cp_fm_struct_create(fmstruct, nrow_global=nmosub(1), &
                                         ncol_global=nmosub(1), para_env=para_env, &
                                         context=blacs_env)
-               CALL fm_pool_create(mpools%mosub_mosub_fm_pools(1)%pool, &
-                                   fmstruct)
-               CALL cp_fm_struct_release(fmstruct)
-               DO ispin = 2, SIZE(mos)
-                  mpools%mosub_mosub_fm_pools(ispin)%pool => mpools%mosub_mosub_fm_pools(1)%pool
-                  CALL fm_pool_retain(mpools%mosub_mosub_fm_pools(1)%pool)
+               DO ispin = 1, SIZE(mos)
+                  CALL fm_pool_create(mpools%mosub_mosub_fm_pools(ispin)%pool, &
+                                      fmstruct)
                END DO
+               CALL cp_fm_struct_release(fmstruct)
             ELSE
                DO ispin = 1, SIZE(mos)
                   NULLIFY (mpools%mosub_mosub_fm_pools(ispin)%pool)
