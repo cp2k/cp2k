@@ -23,7 +23,7 @@ MODULE skala_periodic_partition
       REAL(dp), ALLOCATABLE :: atoms(:, :), offset(:, :, :), inverse_distance(:, :)
       REAL(dp), ALLOCATABLE :: cutoff(:, :), cutoff_gradient(:, :, :)
       INTEGER, ALLOCATABLE :: owner(:, :), self(:)
-   END TYPE
+   END TYPE skala_periodic_partition_type
    PUBLIC :: build_periodic_atom_image_layout, periodic_atom_image_partition
    PUBLIC :: periodic_atom_image_partition_from_layout
 CONTAINS
@@ -188,6 +188,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Convenience evaluation without retaining a layout between grid points.
+!> \param grid_point Cartesian evaluation point.
+!> \param atom_coords Base-atom coordinates.
+!> \param cell Simulation cell.
+!> \param target_atom Reference-cell atom.
+!> \param weight Normalized reference-image weight.
+!> \param dweight_datom Optional base-atom derivative at fixed grid point and cell.
+!> \param dweight_dstrain Optional cell response at fixed grid point and base atoms.
+!> \param image_periodicity Optional periodic directions.
 ! **************************************************************************************************
    SUBROUTINE periodic_atom_image_partition(grid_point, atom_coords, cell, target_atom, weight, &
                                             dweight_datom, dweight_dstrain, image_periodicity)
@@ -207,6 +215,13 @@ CONTAINS
                                                      dweight_datom, dweight_dstrain)
    END SUBROUTINE periodic_atom_image_partition
 
+! **************************************************************************************************
+!> \brief Compact quintic window in fractional coordinates.
+!> \param layout Cell geometry and periodic directions.
+!> \param x Cartesian displacement from the window center.
+!> \param value Window value.
+!> \param gradient Cartesian displacement gradient.
+! **************************************************************************************************
    PURE SUBROUTINE compact_window(layout, x, value, gradient)
       TYPE(skala_periodic_partition_type), INTENT(IN)    :: layout
       REAL(dp), INTENT(IN)                               :: x(3)
@@ -239,6 +254,12 @@ CONTAINS
       gradient = MATMUL(TRANSPOSE(layout%inverse), dh)
    END SUBROUTINE compact_window
 
+! **************************************************************************************************
+!> \brief Threefold Becke polynomial and its derivative.
+!> \param mu Normalized difference of distances to the two centers.
+!> \param value Pair weight.
+!> \param derivative Derivative with respect to mu.
+! **************************************************************************************************
    PURE SUBROUTINE pair_switch(mu, value, derivative)
       REAL(dp), INTENT(IN)                               :: mu
       REAL(dp), INTENT(OUT)                              :: value, derivative
@@ -253,6 +274,15 @@ CONTAINS
       END DO
    END SUBROUTINE pair_switch
 
+! **************************************************************************************************
+!> \brief Evaluate one compact atom-image seed using its translated neighbor environment.
+!> \param layout Cached neighbor geometry.
+!> \param atom Base atom identifying the image family.
+!> \param x Evaluation point relative to the image center.
+!> \param q Seed value or logarithm.
+!> \param zero Whether the seed is identically zero at this point.
+!> \param logarithmic Return the logarithm to avoid product underflow.
+! **************************************************************************************************
    PURE SUBROUTINE seed_value(layout, atom, x, q, zero, logarithmic)
       TYPE(skala_periodic_partition_type), INTENT(IN)    :: layout
       INTEGER, INTENT(IN)                                :: atom
@@ -290,6 +320,16 @@ CONTAINS
       END DO
    END SUBROUTINE seed_value
 
+! **************************************************************************************************
+!> \brief Reverse one log seed into base-atom derivatives and the affine strain moment.
+!> \param layout Cached neighbor geometry.
+!> \param atom Base atom identifying the image family.
+!> \param center Cartesian image center.
+!> \param point Cartesian evaluation point.
+!> \param coefficient Adjoint of the log seed after normalization.
+!> \param datom Accumulated base-atom derivatives.
+!> \param moment Accumulated center moment including explicit inverse-cell responses.
+! **************************************************************************************************
    SUBROUTINE seed_reverse(layout, atom, center, point, coefficient, datom, moment)
       TYPE(skala_periodic_partition_type), INTENT(IN)    :: layout
       INTEGER, INTENT(IN)                                :: atom
