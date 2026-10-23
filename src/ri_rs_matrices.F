@@ -535,9 +535,9 @@ CONTAINS
    END SUBROUTINE panel_mem_estimate_GB
 
 ! **************************************************************************************************
-!> \brief Plans whole-grid-block panels within the estimated message and memory limits.
-!>        A positive cutoff uses the geometric block pattern; otherwise the grid panels are dense.
-!>        Memory estimates guide splitting. A single indivisible block exceeding the memory
+!> \brief Plans whole-grid-block panels using a message-size target without a cutoff.
+!>        A positive cutoff additionally checks estimated message and memory costs.
+!>        A single indivisible cutoff block exceeding the memory
 !>        budget is reported, while exceeding the message bound is an error.
 !> \param msg_elem_limit maximum number of elements per DBCSR message
 !> \param r_blk_sizes grid row-block sizes
@@ -573,26 +573,21 @@ CONTAINS
       INTEGER, ALLOCATABLE                               :: tmp_first(:), tmp_last(:)
       LOGICAL                                            :: fits, use_cutoff, warned_memory
       LOGICAL, ALLOCATABLE                               :: used(:)
-      REAL(KIND=dp)                                      :: f_near, max_rows, mem_GB
+      REAL(KIND=dp)                                      :: f_near, mem_GB
 
       CALL timeset(routineN, handle)
 
       use_cutoff = PRESENT(centroids) .AND. PRESENT(cutoff)
       IF (use_cutoff) use_cutoff = cutoff > 0.0_dp
-      msg_limit = msg_elem_limit/2
-      IF (use_cutoff) msg_limit = msg_elem_limit/4
+      msg_limit = msg_elem_limit/4
       warned_memory = .FALSE.
       n_grid_blocks = SIZE(r_blk_sizes)
       n_grid_total = SUM(r_blk_sizes)
       panel_size = n_grid_total
       IF (.NOT. use_cutoff) THEN
-         ! Dense panel costs are linear in the number of rows. Start at their estimated
-         ! ceiling to avoid halving an already safe panel into unnecessarily small batches.
-         max_rows = REAL(msg_limit, dp)*REAL(MAX(min_dim, 1), dp)/REAL(MAX(n_grid_total, n_RI, n_ao), dp)
-         CALL panel_mem_estimate_GB(INT(n_grid_total, int_8), 1, n_grid_total, n_grid_total, &
-                                    n_RI, n_ao, n_procs, mem_GB)
-         IF (mem_budget_GB > 0.0_dp) max_rows = MIN(max_rows, mem_budget_GB/mem_GB)
-         panel_size = INT(MAX(1.0_dp, MIN(REAL(n_grid_total, dp), max_rows)))
+         ! Preserve the original message-derived target and whole-block growth.
+         panel_size = INT(0.5_dp*REAL(msg_elem_limit, dp)*REAL(min_dim, dp)/REAL(n_grid_total, dp))
+         panel_size = MAX(1, MIN(panel_size, n_grid_total))
       END IF
       ALLOCATE (tmp_first(n_grid_blocks), tmp_last(n_grid_blocks))
 
@@ -603,21 +598,14 @@ CONTAINS
          DO
             rows_acc = 0
             DO ib = blk0, n_grid_blocks
-               IF (.NOT. use_cutoff .AND. ib > blk0) THEN
-                  IF (rows_acc + r_blk_sizes(ib) > TARGET) EXIT
-               END IF
                rows_acc = rows_acc + r_blk_sizes(ib)
                blk1 = ib
                IF (rows_acc >= TARGET) EXIT
             END DO
-            IF (use_cutoff) THEN
-               CALL mask_grid_blocks_near_panel(centroids, blk0, blk1, cutoff, used)
-               width = SUM(r_blk_sizes, MASK=used)
-               CALL panel_template_elems(r_blk_sizes, centroids, used, blk0, blk1, cutoff, nze_tmpl)
-            ELSE
-               width = n_grid_total
-               nze_tmpl = INT(rows_acc, int_8)*INT(width, int_8)
-            END IF
+            IF (.NOT. use_cutoff) EXIT
+            CALL mask_grid_blocks_near_panel(centroids, blk0, blk1, cutoff, used)
+            width = SUM(r_blk_sizes, MASK=used)
+            CALL panel_template_elems(r_blk_sizes, centroids, used, blk0, blk1, cutoff, nze_tmpl)
             f_near = REAL(width, dp)/REAL(MAX(n_grid_total, 1), dp)
             side = INT(REAL(rows_acc, dp)*f_near*REAL(MAX(n_RI, n_ao), dp), int_8)
             msg = MAX(nze_tmpl, side)/INT(MAX(min_dim, 1), int_8)
@@ -1301,10 +1289,12 @@ CONTAINS
       min_dim = MAX(MIN(nprows, npcols), 1)
 
       CALL dbcsr_get_info(ri_rs%mat_Z_lP, nfullcols_total=n_RI)
-      ! Half of the measured free memory is available to the streamed panels.
-      ! A zero result on unsupported platforms disables the memory constraint.
-      CALL mp_mem_avail_per_rank_GB(para_env, mem_avail_GB)
-      mem_budget_GB = 0.5_dp*mem_avail_GB
+      ! Only the cutoff path uses the measured free memory to limit panel sizes.
+      mem_budget_GB = 0.0_dp
+      IF (use_cutoff) THEN
+         CALL mp_mem_avail_per_rank_GB(para_env, mem_avail_GB)
+         mem_budget_GB = 0.5_dp*mem_avail_GB
+      END IF
       CALL plan_grid_panels(msg_elem_limit, r_blk_sizes, min_dim, pan_first, pan_last, &
                             n_RI, n_ao, para_env%num_pe, mem_budget_GB, &
                             centroids=ri_rs%chunk_centroids, cutoff=effective_cutoff)
