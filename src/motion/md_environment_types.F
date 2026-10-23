@@ -15,8 +15,7 @@
 MODULE md_environment_types
    USE averages_types,                  ONLY: average_quantities_type,&
                                               create_averages,&
-                                              release_averages,&
-                                              retain_averages
+                                              release_averages
    USE barostat_types,                  ONLY: barostat_type,&
                                               release_barostat_type
    USE cell_types,                      ONLY: cell_type
@@ -281,7 +280,7 @@ CONTAINS
 !> \param barostat ...
 !> \param reftraj ...
 !> \param md_ener ...
-!> \param averages ...
+!> \param averages Ownership is transferred to this routine
 !> \param thermal_regions ...
 !> \param ehrenfest_md ...
 ! **************************************************************************************************
@@ -360,8 +359,7 @@ CONTAINS
          md_env%md_ener => md_ener
       END IF
       IF (PRESENT(averages)) THEN
-         CALL release_averages(md_env%averages)
-         CALL retain_averages(averages)
+         IF (.NOT. ASSOCIATED(md_env%averages, averages)) CALL release_averages(md_env%averages)
          md_env%averages => averages
       END IF
       IF (PRESENT(thermal_regions)) THEN

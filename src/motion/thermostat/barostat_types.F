@@ -50,7 +50,6 @@ MODULE barostat_types
 
 ! **************************************************************************************************
    TYPE barostat_type
-      INTEGER                          :: ref_count = 0
       INTEGER                          :: virial_components = do_clv_geo_center
       REAL(KIND=dp)                    :: temp_ext = 0.0_dp
       TYPE(npt_info_type), POINTER  :: npt(:, :) => NULL()
@@ -98,7 +97,6 @@ CONTAINS
           simpar%ensemble == nph_uniaxial_ensemble .OR. &
           simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
          ALLOCATE (barostat)
-         barostat%ref_count = 1
          barostat%section => barostat_section
          NULLIFY (barostat%npt)
          CALL force_env_get(force_env, cell=cell)
@@ -142,19 +140,12 @@ CONTAINS
    SUBROUTINE release_barostat_type(barostat)
       TYPE(barostat_type), POINTER                       :: barostat
 
-      LOGICAL                                            :: check
-
       IF (ASSOCIATED(barostat)) THEN
-         check = barostat%ref_count > 0
-         CPASSERT(check)
-         barostat%ref_count = barostat%ref_count - 1
-         IF (barostat%ref_count < 1) THEN
-            IF (ASSOCIATED(barostat%npt)) THEN
-               DEALLOCATE (barostat%npt)
-            END IF
-            NULLIFY (barostat%section)
-            DEALLOCATE (barostat)
+         IF (ASSOCIATED(barostat%npt)) THEN
+            DEALLOCATE (barostat%npt)
          END IF
+         NULLIFY (barostat%section)
+         DEALLOCATE (barostat)
       END IF
 
    END SUBROUTINE release_barostat_type

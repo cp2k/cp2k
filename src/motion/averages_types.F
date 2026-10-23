@@ -36,7 +36,7 @@ MODULE averages_types
 
 ! **************************************************************************************************
    TYPE average_quantities_type
-      INTEGER                                       :: ref_count = 0, itimes_start = -1
+      INTEGER                                       :: itimes_start = -1
       LOGICAL                                       :: do_averages = .FALSE.
       TYPE(section_vals_type), POINTER              :: averages_section => NULL()
       ! Real Scalar Quantities
@@ -60,7 +60,7 @@ MODULE averages_types
 
 ! *** Public subroutines and data types ***
    PUBLIC :: average_quantities_type, create_averages, release_averages, &
-             retain_averages, compute_averages
+             compute_averages
 
 ! *** Global parameters ***
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'averages_types'
@@ -87,7 +87,6 @@ CONTAINS
       ALLOCATE (averages)
       ! Point to the averages section
       averages%averages_section => averages_section
-      averages%ref_count = 1
       CALL section_vals_val_get(averages_section, "_SECTION_PARAMETERS_", l_val=averages%do_averages)
       IF (averages%do_averages) THEN
          ! Setup Virial if requested
@@ -112,19 +111,6 @@ CONTAINS
    END SUBROUTINE create_averages
 
 ! **************************************************************************************************
-!> \brief retains the given averages env
-!> \param averages ...
-!> \author Teodoro Laino [tlaino] - 03.2008 - University of Zurich
-! **************************************************************************************************
-   SUBROUTINE retain_averages(averages)
-      TYPE(average_quantities_type), POINTER             :: averages
-
-      CPASSERT(ASSOCIATED(averages))
-      CPASSERT(averages%ref_count > 0)
-      averages%ref_count = averages%ref_count + 1
-   END SUBROUTINE retain_averages
-
-! **************************************************************************************************
 !> \brief releases the given averages env
 !> \param averages ...
 !> \author Teodoro Laino [tlaino] - 03.2008 - University of Zurich
@@ -135,23 +121,19 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: work_section
 
       IF (ASSOCIATED(averages)) THEN
-         CPASSERT(averages%ref_count > 0)
-         averages%ref_count = averages%ref_count - 1
-         IF (averages%ref_count == 0) THEN
-            IF (ASSOCIATED(averages%virial)) DEALLOCATE (averages%virial)
-            IF (ASSOCIATED(averages%avecolvar)) THEN
-               DEALLOCATE (averages%avecolvar)
-            END IF
-            IF (ASSOCIATED(averages%aveMmatrix)) THEN
-               DEALLOCATE (averages%aveMmatrix)
-            END IF
-            ! Removes restart values from the corresponding restart section..
-            work_section => section_vals_get_subs_vals(averages%averages_section, "RESTART_AVERAGES")
-            CALL section_vals_remove_values(work_section)
-            NULLIFY (averages%averages_section)
-            !
-            DEALLOCATE (averages)
+         IF (ASSOCIATED(averages%virial)) DEALLOCATE (averages%virial)
+         IF (ASSOCIATED(averages%avecolvar)) THEN
+            DEALLOCATE (averages%avecolvar)
          END IF
+         IF (ASSOCIATED(averages%aveMmatrix)) THEN
+            DEALLOCATE (averages%aveMmatrix)
+         END IF
+         ! Removes restart values from the corresponding restart section..
+         work_section => section_vals_get_subs_vals(averages%averages_section, "RESTART_AVERAGES")
+         CALL section_vals_remove_values(work_section)
+         NULLIFY (averages%averages_section)
+         !
+         DEALLOCATE (averages)
       END IF
 
    END SUBROUTINE release_averages
