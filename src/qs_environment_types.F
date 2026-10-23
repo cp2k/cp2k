@@ -120,7 +120,6 @@ MODULE qs_environment_types
                                               rhoz_type,&
                                               set_local_rho
    USE qs_matrix_pools,                 ONLY: mpools_release,&
-                                              mpools_retain,&
                                               qs_matrix_pools_type
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               mo_set_type
@@ -1365,8 +1364,7 @@ CONTAINS
          qs_env%xas_env => xas_env
       END IF
       IF (PRESENT(mpools)) THEN
-         CALL mpools_retain(mpools)
-         CALL mpools_release(qs_env%mpools)
+         IF (.NOT. ASSOCIATED(qs_env%mpools, mpools)) CALL mpools_release(qs_env%mpools)
          qs_env%mpools => mpools
       END IF
       IF (PRESENT(rho_atom_set)) THEN

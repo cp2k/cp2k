@@ -125,7 +125,6 @@ MODULE qs_cdft_types
 !>                              of isolated fragment a
 !> \param fragment_b_spin_fname filename of cube file holding the spin difference density
 !>                              of isolated fragment b
-!> \param ref_count             the ref count
 !> \param need_pot              logical which determines if the Becke potential needs to be built
 !> \param save_pot              logical which determines if the Becke potential should be saved until forces
 !>                              have been evaluated

@@ -80,7 +80,6 @@ MODULE qs_fb_env_methods
    USE qs_fb_trial_fns_types,           ONLY: fb_trial_fns_create,&
                                               fb_trial_fns_nullify,&
                                               fb_trial_fns_obj,&
-                                              fb_trial_fns_release,&
                                               fb_trial_fns_set
    USE qs_integral_utils,               ONLY: basis_set_list_setup
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -1098,7 +1097,6 @@ CONTAINS
       ! set fb_env
       CALL fb_env_set(fb_env=fb_env, &
                       trial_fns=trial_fns)
-      CALL fb_trial_fns_release(trial_fns)
 
       ! cleanup
       DEALLOCATE (basis_set_list)

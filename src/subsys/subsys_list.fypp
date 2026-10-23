@@ -7,7 +7,7 @@
 #:mute
 
    #! *************************************************************************************************
-   #!> \brief Fypp macro to create a simple a simple array based list of the given type
+   #!> \brief Fypp macro to create a simple array based list of the given type
    #!> \author Ole Schuett
    #! *************************************************************************************************
    #:def subsys_list_macro(name)

@@ -36,12 +36,11 @@ MODULE qs_matrix_pools
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_matrix_pools'
 
    PUBLIC :: qs_matrix_pools_type
-   PUBLIC :: mpools_retain, mpools_release, mpools_get, &
+   PUBLIC :: mpools_release, mpools_get, &
              mpools_create, mpools_rebuild_fm_pools
 
 ! **************************************************************************************************
 !> \brief container for the pools of matrixes used by qs
-!> \param ref_count reference count (see doc/ReferenceCounting.html)
 !> \param ao_mo_fm_pools pools with (ao x mo) full matrixes (same order as
 !>        c).
 !> \param ao_ao_fm_pools pools with (ao x ao) full matrixes (same order as
@@ -64,7 +63,6 @@ MODULE qs_matrix_pools
 !> \author fawzi
 ! **************************************************************************************************
    TYPE qs_matrix_pools_type
-      INTEGER :: ref_count = -1
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER        :: ao_mo_fm_pools => NULL(), &
                                                                ao_ao_fm_pools => NULL(), mo_mo_fm_pools => NULL()
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER        :: ao_mosub_fm_pools => NULL(), &
@@ -72,21 +70,6 @@ MODULE qs_matrix_pools
    END TYPE qs_matrix_pools_type
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief retains the given qs_matrix_pools_type
-!> \param mpools the matrix pools type to retain
-!> \par History
-!>      04.2003 created [fawzi]
-!> \author fawzi
-! **************************************************************************************************
-   SUBROUTINE mpools_retain(mpools)
-      TYPE(qs_matrix_pools_type), POINTER                :: mpools
-
-      CPASSERT(ASSOCIATED(mpools))
-      CPASSERT(mpools%ref_count > 0)
-      mpools%ref_count = mpools%ref_count + 1
-   END SUBROUTINE mpools_retain
 
 ! **************************************************************************************************
 !> \brief releases the given mpools
@@ -99,20 +82,16 @@ CONTAINS
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
 
       IF (ASSOCIATED(mpools)) THEN
-         CPASSERT(mpools%ref_count > 0)
-         mpools%ref_count = mpools%ref_count - 1
-         IF (mpools%ref_count == 0) THEN
-            CALL fm_pools_dealloc(mpools%ao_mo_fm_pools)
-            CALL fm_pools_dealloc(mpools%ao_ao_fm_pools)
-            CALL fm_pools_dealloc(mpools%mo_mo_fm_pools)
-            IF (ASSOCIATED(mpools%ao_mosub_fm_pools)) THEN
-               CALL fm_pools_dealloc(mpools%ao_mosub_fm_pools)
-            END IF
-            IF (ASSOCIATED(mpools%mosub_mosub_fm_pools)) THEN
-               CALL fm_pools_dealloc(mpools%mosub_mosub_fm_pools)
-            END IF
-            DEALLOCATE (mpools)
+         CALL fm_pools_dealloc(mpools%ao_mo_fm_pools)
+         CALL fm_pools_dealloc(mpools%ao_ao_fm_pools)
+         CALL fm_pools_dealloc(mpools%mo_mo_fm_pools)
+         IF (ASSOCIATED(mpools%ao_mosub_fm_pools)) THEN
+            CALL fm_pools_dealloc(mpools%ao_mosub_fm_pools)
          END IF
+         IF (ASSOCIATED(mpools%mosub_mosub_fm_pools)) THEN
+            CALL fm_pools_dealloc(mpools%mosub_mosub_fm_pools)
+         END IF
+         DEALLOCATE (mpools)
       END IF
       NULLIFY (mpools)
    END SUBROUTINE mpools_release
@@ -187,7 +166,6 @@ CONTAINS
       NULLIFY (mpools%ao_ao_fm_pools, mpools%ao_mo_fm_pools, &
                mpools%mo_mo_fm_pools, mpools%ao_mosub_fm_pools, &
                mpools%mosub_mosub_fm_pools)
-      mpools%ref_count = 1
    END SUBROUTINE mpools_create
 
 ! **************************************************************************************************
