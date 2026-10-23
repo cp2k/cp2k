@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL MEDIUM
-  PROJECT LiH_cubic_admm_nosym
+  PROJECT H2_admm_kpsym
   RUN_TYPE ENERGY_FORCE
 &END GLOBAL
 &FORCE_EVAL
@@ -17,15 +17,17 @@
       EXCH_CORRECTION_FUNC NONE
     &END AUXILIARY_DENSITY_MATRIX_METHOD
     &KPOINTS
+      ! Periodic H2 cell from cp2k-kpoint-data/advanced/tddfpt/h2_sym.inp.
+      ! The 2x2x2 mesh reduces 8 -> 1 by the crystal point group; time reversal
+      ! alone would leave 4.
       SCHEME MONKHORST-PACK 2 2 2
-      SYMMETRY OFF
-      FULL_GRID ON
+      SYMMETRY ON
       WAVEFUNCTIONS COMPLEX
       VERBOSE T
     &END KPOINTS
     &MGRID
-      CUTOFF 300
-      REL_CUTOFF 40
+      CUTOFF 150
+      REL_CUTOFF 30
     &END MGRID
     &QS
       EPS_PGF_ORB 1.0E-5
@@ -34,9 +36,8 @@
       PW_GRID_BLOCKED FALSE
     &END QS
     &SCF
-      EPS_SCF 1.0E-7
-      IGNORE_CONVERGENCE_FAILURE
-      MAX_SCF 200
+      EPS_SCF 1.0E-8
+      MAX_SCF 100
       SCF_GUESS ATOMIC
       &DIAGONALIZATION
         ALGORITHM STANDARD
@@ -45,13 +46,16 @@
         ALPHA 0.15
         METHOD BROYDEN_MIXING
       &END MIXING
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
       &HF
         FRACTION 1.0
         &INTERACTION_POTENTIAL
-          CUTOFF_RADIUS 2.0
-          POTENTIAL_TYPE TRUNCATED
+          POTENTIAL_TYPE IDENTITY
         &END INTERACTION_POTENTIAL
         &RI
           EPS_PGF_ORB 1.0E-5
@@ -66,28 +70,19 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 4.1 4.1 4.1
-      ALPHA_BETA_GAMMA 90.0 90.0 90.0
-      MULTIPLE_UNIT_CELL 1 1 1
+      ABC 6.0 6.0 6.0
+      PERIODIC XYZ
     &END CELL
     &COORD
-      SCALED
-      Li  0.00000000  0.00000000  0.00000000
-      H   0.50000000  0.50000000  0.50000000
+      SCALED T
+      H 0.441667 0.5 0.5
+      H 0.558333 0.5 0.5
     &END COORD
-    &KIND Li
-      BASIS_SET ccGRB-D-q3
-      BASIS_SET AUX_FIT admm-dz-q3
-      POTENTIAL GTH-HYB-q3
-    &END KIND
     &KIND H
       BASIS_SET ccGRB-D-q1
       BASIS_SET AUX_FIT admm-dz-q1
       POTENTIAL GTH-HYB-q1
     &END KIND
-    &TOPOLOGY
-      MULTIPLE_UNIT_CELL 1 1 1
-    &END TOPOLOGY
   &END SUBSYS
   &PRINT
     &FORCES ON

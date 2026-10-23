@@ -1,7 +1,7 @@
 &GLOBAL
   PRINT_LEVEL MEDIUM
-  PROJECT AlAs_admm_kpsym
-  RUN_TYPE ENERGY
+  PROJECT LiH_rhombohedral_shifted_admm_nosym
+  RUN_TYPE ENERGY_FORCE
 &END GLOBAL
 
 &FORCE_EVAL
@@ -10,26 +10,22 @@
     AUTO_BASIS RI_HFX SMALL
     BASIS_SET_FILE_NAME BASIS_ccGRB_UZH
     BASIS_SET_FILE_NAME BASIS_ADMM_UZH
-    BASIS_SET_FILE_NAME BASIS_MINBAS
-    BASIS_SET_FILE_NAME BASIS_ADMM_MOLOPT
     POTENTIAL_FILE_NAME POTENTIAL_UZH
     SORT_BASIS EXP
-    WFN_RESTART_FILE_NAME AlAs_pbe-RESTART.kp
     &AUXILIARY_DENSITY_MATRIX_METHOD
       ADMM_PURIFICATION_METHOD NONE
       EXCH_CORRECTION_FUNC NONE
     &END AUXILIARY_DENSITY_MATRIX_METHOD
     &KPOINTS
-      ! AlAs zincblende: the 2x2x2 mesh reduces 8 -> 2 by the crystal
-      ! point group (F-43m). This exercises a genuine point-group operation
-      ! in the ADMM density transform, unlike a time-reversal-only cell.
+      ! Unreduced companion of LiH_rhombohedral_shifted_admm_kpsym (8 k-points).
       SCHEME MONKHORST-PACK 2 2 2
-      SYMMETRY ON
-      VERBOSE T
+      SYMMETRY OFF
+      FULL_GRID ON
+      WAVEFUNCTIONS COMPLEX
     &END KPOINTS
     &MGRID
-      CUTOFF 150
-      REL_CUTOFF 30
+      CUTOFF 300
+      REL_CUTOFF 40
     &END MGRID
     &QS
       EPS_PGF_ORB 1.0E-5
@@ -38,19 +34,26 @@
       PW_GRID_BLOCKED FALSE
     &END QS
     &SCF
-      EPS_SCF 1.0E-5
-      MAX_SCF 1
-      IGNORE_CONVERGENCE_FAILURE
-      SCF_GUESS RESTART
+      EPS_SCF 1.0E-6
+      MAX_SCF 100
+      SCF_GUESS ATOMIC
+      &DIAGONALIZATION
+        ALGORITHM STANDARD
+      &END DIAGONALIZATION
       &MIXING
         ALPHA 0.15
         METHOD BROYDEN_MIXING
       &END MIXING
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
       &HF
         FRACTION 1.0
         &INTERACTION_POTENTIAL
+          ! Small enough for this cell; keeps the test cheap.
           POTENTIAL_TYPE IDENTITY
         &END INTERACTION_POTENTIAL
         &RI
@@ -64,26 +67,30 @@
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
+  &PRINT
+    &FORCES ON
+    &END FORCES
+  &END PRINT
   &SUBSYS
     &CELL
-      ABC 4.0133978007 4.0133978007 4.0133978007
+      ABC 6.5 6.5 6.5
       ALPHA_BETA_GAMMA 60.0 60.0 60.0
       MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
     &COORD
       SCALED
-      Al  0.00000000  0.00000000  0.00000000
-      As  0.25000000  0.25000000  0.25000000
+      Li  0.00000000  0.00000000  0.00000000
+      H   0.50100000  0.50100000  0.50100000
     &END COORD
-    &KIND Al
-      BASIS_SET sv-pbe0-q3
-      BASIS_SET AUX_FIT cFIT6
-      POTENTIAL GTH-PBE0-q3
+    &KIND Li
+      BASIS_SET ccGRB-D-q3
+      BASIS_SET AUX_FIT admm-dz-q3
+      POTENTIAL GTH-HYB-q3
     &END KIND
-    &KIND As
-      BASIS_SET sv-pbe0-q5
-      BASIS_SET AUX_FIT cFIT6
-      POTENTIAL GTH-PBE0-q5
+    &KIND H
+      BASIS_SET ccGRB-D-q1
+      BASIS_SET AUX_FIT admm-dz-q1
+      POTENTIAL GTH-HYB-q1
     &END KIND
     &TOPOLOGY
       MULTIPLE_UNIT_CELL 1 1 1
