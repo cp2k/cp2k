@@ -24,7 +24,8 @@ MODULE ri_rs_grid_optimization
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_mem_avail_per_rank_GB,&
+                                              mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE ri_rs_fitting,                   ONLY: evaluate_ri_rs_fit
@@ -158,19 +159,21 @@ CONTAINS
 !> \param atom_coordinate_offsets Starting coordinate offset for each atom.
 !> \param bs_env ...
 !> \param cluster_3c_int Rank-local cluster three-centre integrals.
+!> \param fit_memory_budget Per-rank bytes available for cluster workspaces; zero means unknown.
 !> \param normalized_error Mean normalized squared three-centre-integral error.
 !> \param coordinate_gradient Optional derivative; omitting it requests final error diagnostics only.
 !> \param max_abs_error Largest absolute integral error in diagnostic mode; zero in gradient mode.
 !> \param fit_successful Whether every local-cluster evaluation succeeded.
 ! **************************************************************************************************
    SUBROUTINE grid_objective(grid_coordinates, atom_coordinate_offsets, bs_env, cluster_3c_int, &
-                             normalized_error, coordinate_gradient, &
+                             fit_memory_budget, normalized_error, coordinate_gradient, &
                              max_abs_error, fit_successful)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: grid_coordinates
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_coordinate_offsets
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(local_cluster_3c_integrals_type), &
          DIMENSION(:), INTENT(IN)                        :: cluster_3c_int
+      REAL(KIND=dp), INTENT(IN)                          :: fit_memory_budget
       REAL(KIND=dp), INTENT(OUT)                         :: normalized_error
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT), OPTIONAL :: coordinate_gradient
       REAL(KIND=dp), INTENT(OUT)                         :: max_abs_error
@@ -197,15 +200,14 @@ CONTAINS
       fit_successful = .TRUE.
       DO icluster = 1, SIZE(cluster_3c_int)
          IF (PRESENT(coordinate_gradient)) THEN
-            CALL evaluate_local_cluster(cluster_3c_int(icluster), bs_env, cluster_normalized_error, &
+            CALL evaluate_local_cluster(cluster_3c_int(icluster), bs_env, fit_memory_budget, cluster_normalized_error, &
                                         cluster_max_abs_error, cluster_fit_successful, cluster_coordinate_gradient)
          ELSE
-            CALL evaluate_local_cluster(cluster_3c_int(icluster), bs_env, cluster_normalized_error, &
+            CALL evaluate_local_cluster(cluster_3c_int(icluster), bs_env, fit_memory_budget, cluster_normalized_error, &
                                         cluster_max_abs_error, cluster_fit_successful)
          END IF
          IF (.NOT. cluster_fit_successful) THEN
             fit_successful = .FALSE.
-            IF (ALLOCATED(cluster_coordinate_gradient)) DEALLOCATE (cluster_coordinate_gradient)
             EXIT
          END IF
          normalized_error = normalized_error + cluster_normalized_error
@@ -250,7 +252,8 @@ CONTAINS
 
       INTEGER, PARAMETER                                 :: lbfgs_history = 7
       REAL(KIND=dp), PARAMETER                           :: lbfgs_factr = 0.0_dp, &
-                                                            lbfgs_pgtol = 1.0E-9_dp
+                                                            lbfgs_pgtol = 1.0E-9_dp, &
+                                                            mem_safety = 0.8_dp
 
       CHARACTER(LEN=60)                                  :: line_search_state, optimizer_task
       INTEGER                                            :: evaluation_count, handle, iatom, &
@@ -262,8 +265,10 @@ CONTAINS
                                                             have_best
       LOGICAL, ALLOCATABLE                               :: inside(:)
       LOGICAL, DIMENSION(4)                              :: logical_state
-      REAL(KIND=dp)                                      :: best_normalized_error, max_abs_error, &
-                                                            normalized_error, start_time
+      REAL(KIND=dp)                                      :: best_normalized_error, &
+                                                            fit_memory_budget, max_abs_error, &
+                                                            mem_avail_GB, normalized_error, &
+                                                            start_time
       REAL(KIND=dp), ALLOCATABLE :: best_grid_coordinates(:), coordinate_gradient(:), &
          grid_coordinates(:), lower_bounds(:), points(:, :), upper_bounds(:), workspace(:)
       REAL(KIND=dp), DIMENSION(29)                       :: real_state
@@ -301,6 +306,17 @@ CONTAINS
       best_normalized_error = HUGE(best_normalized_error)
       best_grid_coordinates(:) = grid_coordinates
 
+      ! This query is collective. Take one snapshot after resident integrals and L-BFGS
+      ! workspaces exist, before ranks enter their unequal numbers of local cluster evaluations.
+      ! Use the same safety fraction as the production Z_lP fitting classification.
+      CALL mp_mem_avail_per_rank_GB(bs_env%para_env, mem_avail_GB)
+      ! This budgets all incremental cluster workspaces, including the caller's AO arrays.
+      ! The product cache receives only the remainder after those workspaces are reserved.
+      fit_memory_budget = mem_safety*mem_avail_GB*1.0E9_dp
+      IF (mem_avail_GB <= 0.0_dp .AND. bs_env%unit_nr > 0) THEN
+         CPWARN("RI-RS grid optimization: no meminfo; streaming one RI column")
+      END IF
+
       DO
          CALL setulb(SIZE(grid_coordinates), lbfgs_history, grid_coordinates, &
                      lower_bounds, upper_bounds, bound_types, &
@@ -310,7 +326,7 @@ CONTAINS
          IF (optimizer_task(1:2) == 'FG') THEN
             IF (evaluation_count >= bs_env%ri_rs%grid_opt%max_iter) EXIT
             CALL grid_objective(grid_coordinates, atom_coordinate_offsets, bs_env, cluster_3c_int, &
-                                normalized_error, coordinate_gradient, &
+                                fit_memory_budget, normalized_error, coordinate_gradient, &
                                 max_abs_error, evaluation_successful)
             evaluation_count = evaluation_count + 1
             IF (.NOT. evaluation_successful) EXIT
@@ -335,7 +351,7 @@ CONTAINS
       ! grid_objective restores the best coordinates to atomic_grids and evaluates only the
       ! final errors. No best-fit coefficients are retained across L-BFGS trials.
       CALL grid_objective(grid_coordinates, atom_coordinate_offsets, bs_env, cluster_3c_int, &
-                          normalized_error, max_abs_error=max_abs_error, fit_successful=fit_successful)
+                          fit_memory_budget, normalized_error, max_abs_error=max_abs_error, fit_successful=fit_successful)
 
       IF (.NOT. fit_successful) CPABORT("RI-RS grid optimization produced no regularized fit")
 
@@ -469,15 +485,17 @@ CONTAINS
 !> \brief Evaluate ϕ_μ(r_l) on G_A and compute the normalized local error E_A and its gradient.
 !> \param cluster_3c_int Local atom indices and exact three-centre integrals.
 !> \param bs_env ...
+!> \param fit_memory_budget Per-rank incremental workspace budget before allocating this cluster.
 !> \param normalized_error Normalized squared three-centre-integral error.
 !> \param max_abs_error Largest absolute integral error in diagnostic mode; zero in gradient mode.
 !> \param fit_successful Whether the regularized fitting equations were solved.
 !> \param coordinate_gradient Optional derivative with respect to the cluster's physical grid coordinates.
 ! **************************************************************************************************
-   SUBROUTINE evaluate_local_cluster(cluster_3c_int, bs_env, normalized_error, max_abs_error, &
+   SUBROUTINE evaluate_local_cluster(cluster_3c_int, bs_env, fit_memory_budget, normalized_error, max_abs_error, &
                                      fit_successful, coordinate_gradient)
       TYPE(local_cluster_3c_integrals_type), INTENT(IN)  :: cluster_3c_int
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      REAL(KIND=dp), INTENT(IN)                          :: fit_memory_budget
       REAL(KIND=dp), INTENT(OUT)                         :: normalized_error, max_abs_error
       LOGICAL, INTENT(OUT)                               :: fit_successful
       REAL(KIND=dp), ALLOCATABLE, INTENT(OUT), OPTIONAL  :: coordinate_gradient(:, :)
@@ -485,6 +503,7 @@ CONTAINS
       INTEGER                                            :: AO_offset, grid_point_offset, iatom, &
                                                             icartesian, icluster_atom, igrid, &
                                                             ikind, n_grid_points, nAO, nAO_atom
+      REAL(KIND=dp)                                      :: evaluation_budget
       REAL(KIND=dp), ALLOCATABLE                         :: ao_gradient(:, :), &
                                                             dPhi_alpha_l_mu(:, :, :), &
                                                             grid_points(:, :), Phi_l_mu(:, :)
@@ -500,6 +519,15 @@ CONTAINS
          iatom = cluster_3c_int%atom_indices(icluster_atom)
          n_grid_points = n_grid_points + SIZE(bs_env%ri_rs%atomic_grids(iatom)%raw_points, 2)
       END DO
+      evaluation_budget = 0.0_dp
+      IF (PRESENT(coordinate_gradient) .AND. fit_memory_budget > 0.0_dp) THEN
+         ! phi, dphi and its adjoint use 5*g*a doubles; points and coordinate gradients use 6*g.
+         evaluation_budget = fit_memory_budget - &
+                             8.0_dp*REAL(n_grid_points, dp)*(5.0_dp*REAL(nAO, dp) + 6.0_dp)
+         IF (evaluation_budget <= 0.0_dp) THEN
+            CPABORT("RI-RS cluster AO workspace exceeds memory budget")
+         END IF
+      END IF
       ALLOCATE (grid_points(3, n_grid_points), Phi_l_mu(n_grid_points, nAO))
       IF (PRESENT(coordinate_gradient)) THEN
          ALLOCATE (dPhi_alpha_l_mu(3, n_grid_points, nAO), ao_gradient(n_grid_points, nAO), &
@@ -537,7 +565,8 @@ CONTAINS
       max_abs_error = 0.0_dp
       IF (PRESENT(coordinate_gradient)) THEN
          CALL evaluate_ri_rs_fit(Phi_l_mu, cluster_3c_int%Int_3c, bs_env%ri_rs%tikhonov, &
-                                 normalized_error, fit_successful, ao_gradient=ao_gradient)
+                                 normalized_error, fit_successful, ao_gradient=ao_gradient, &
+                                 workspace_budget_bytes=evaluation_budget)
          IF (.NOT. fit_successful) RETURN
          DO igrid = 1, n_grid_points
             DO icartesian = 1, 3
