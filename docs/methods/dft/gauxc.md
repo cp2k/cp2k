@@ -257,9 +257,12 @@ that route from the kind settings.
 For native Skala, `NATIVE_GRID_LAYOUT` selects the grid on which the combined primitive fields are
 formed. `ATOM_COMPOSITE`, the default, interpolates the smooth field to GAPW radial/Lebedev grids
 and adds the hard-minus-soft fields there before constructing the nonlinear Skala features. In
-periodic cells, a Becke-like partition over all atom images assigns the outer energy quadrature. A
-separate partition over only the target atom's self-images defines its complete periodic descriptor
-domain, avoiding a truncation of non-local descriptors at boundaries between different atoms.
+periodic cells, compact Becke seeds with equivalent translated neighbor environments assign the
+outer energy quadrature. Their normalization includes all images with nonzero compact support,
+so the atom-image weights sum to one. The model's Gaussian descriptor convolutions instead use
+the unpartitioned radial/Lebedev weights and the periodic fields on the complete target-atom grid.
+A self-image window would truncate those convolutions at a cell-dependent distance and is not
+applied. Radial/angular quadrature and the periodic energy partition still require convergence.
 `COMMON_GRID` reconstructs the same fields on the regular grid and is retained as a cutoff-sensitive
 diagnostic reference. At matched cutoff, complete atom blocks are both substantially closer to the
 corresponding non-periodic atom-composite limit and much less expensive than resolving all
