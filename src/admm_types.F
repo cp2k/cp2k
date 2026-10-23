@@ -18,6 +18,8 @@ MODULE admm_types
    USE bibliography,                    ONLY: Guidon2010,&
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_cfm_types,                    ONLY: cp_cfm_p_type,&
+                                              cp_cfm_release
    USE cp_control_types,                ONLY: admm_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
@@ -25,6 +27,7 @@ MODULE admm_types
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
    USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
@@ -197,6 +200,13 @@ MODULE admm_types
       TYPE(task_list_type), POINTER            :: task_list_aux_fit => NULL()
       TYPE(cp_fm_type), DIMENSION(:), &
          POINTER                               :: mo_derivs_aux_fit => NULL()
+      ! Geometry-dependent A(k) of the symmetry-star members, reused across SCF steps.
+      TYPE(cp_fm_p_type), DIMENSION(:), &
+         POINTER                               :: astar_r => NULL()
+      TYPE(cp_cfm_p_type), DIMENSION(:), &
+         POINTER                               :: astar_c => NULL()
+      LOGICAL                                  :: astar_valid = .FALSE.
+      INTEGER                                  :: astar_nstar = 0
 
    END TYPE admm_type
 
@@ -429,7 +439,7 @@ CONTAINS
 
       TYPE(admm_type), POINTER                           :: admm_env
 
-      INTEGER                                            :: ispin
+      INTEGER                                            :: ispin, istar
 
       CPASSERT(ASSOCIATED(admm_env))
 
@@ -534,6 +544,25 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(admm_env%task_list_aux_fit)) CALL deallocate_task_list(admm_env%task_list_aux_fit)
+
+      IF (ASSOCIATED(admm_env%astar_r)) THEN
+         DO istar = 1, SIZE(admm_env%astar_r)
+            IF (ASSOCIATED(admm_env%astar_r(istar)%matrix)) THEN
+               CALL cp_fm_release(admm_env%astar_r(istar)%matrix)
+               DEALLOCATE (admm_env%astar_r(istar)%matrix)
+            END IF
+         END DO
+         DEALLOCATE (admm_env%astar_r)
+      END IF
+      IF (ASSOCIATED(admm_env%astar_c)) THEN
+         DO istar = 1, SIZE(admm_env%astar_c)
+            IF (ASSOCIATED(admm_env%astar_c(istar)%matrix)) THEN
+               CALL cp_cfm_release(admm_env%astar_c(istar)%matrix)
+               DEALLOCATE (admm_env%astar_c(istar)%matrix)
+            END IF
+         END DO
+         DEALLOCATE (admm_env%astar_c)
+      END IF
 
       DEALLOCATE (admm_env)
 

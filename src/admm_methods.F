@@ -324,6 +324,51 @@ CONTAINS
    END SUBROUTINE admm_kp_build_star_list
 
 ! **************************************************************************************************
+!> \brief Prepare persistent storage for the geometry-dependent star-member A(k).
+!> \param admm_env ...
+!> \param nstar ...
+!> \param use_real_wfn ...
+! **************************************************************************************************
+   SUBROUTINE admm_star_cache_alloc(admm_env, nstar, use_real_wfn)
+
+      TYPE(admm_type), POINTER                           :: admm_env
+      INTEGER, INTENT(IN)                                :: nstar
+      LOGICAL, INTENT(IN)                                :: use_real_wfn
+
+      INTEGER                                            :: istar
+
+      IF (ASSOCIATED(admm_env%astar_r)) THEN
+         IF (SIZE(admm_env%astar_r) /= nstar .OR. .NOT. use_real_wfn) THEN
+            DO istar = 1, SIZE(admm_env%astar_r)
+               IF (ASSOCIATED(admm_env%astar_r(istar)%matrix)) THEN
+                  CALL cp_fm_release(admm_env%astar_r(istar)%matrix)
+                  DEALLOCATE (admm_env%astar_r(istar)%matrix)
+               END IF
+            END DO
+            DEALLOCATE (admm_env%astar_r)
+         END IF
+      END IF
+      IF (ASSOCIATED(admm_env%astar_c)) THEN
+         IF (SIZE(admm_env%astar_c) /= nstar .OR. use_real_wfn) THEN
+            DO istar = 1, SIZE(admm_env%astar_c)
+               IF (ASSOCIATED(admm_env%astar_c(istar)%matrix)) THEN
+                  CALL cp_cfm_release(admm_env%astar_c(istar)%matrix)
+                  DEALLOCATE (admm_env%astar_c(istar)%matrix)
+               END IF
+            END DO
+            DEALLOCATE (admm_env%astar_c)
+         END IF
+      END IF
+      IF (use_real_wfn) THEN
+         IF (.NOT. ASSOCIATED(admm_env%astar_r)) ALLOCATE (admm_env%astar_r(nstar))
+      ELSE
+         IF (.NOT. ASSOCIATED(admm_env%astar_c)) ALLOCATE (admm_env%astar_c(nstar))
+      END IF
+      admm_env%astar_nstar = nstar
+
+   END SUBROUTINE admm_star_cache_alloc
+
+! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 ! **************************************************************************************************
@@ -341,8 +386,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       INTEGER, POINTER                                   :: aux_mo_cols(:)
-      LOGICAL                                            :: apply_star, gapw, mo_ok, my_kpgrp, &
-                                                            pmat_from_rs, save_overlap, &
+      LOGICAL                                            :: apply_star, fill_cache, gapw, mo_ok, &
+                                                            my_kpgrp, pmat_from_rs, save_overlap, &
                                                             star_owner, use_real_wfn
       REAL(dp)                                           :: maxval_mos, nelec_aux(2), nelec_orb(2), &
                                                             tmp
@@ -358,6 +403,7 @@ CONTAINS
                                                             cwork_aux_aux, cwork_aux_orb, p_c, &
                                                             pa_c, src_c_null, w_c
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: camat_save, csmat_save
+      TYPE(cp_cfm_type), POINTER                         :: a_c_src
       TYPE(cp_fm_struct_type), POINTER :: struct_ao_g, struct_aux_aux, struct_aux_mo, &
          struct_aux_orb, struct_oo_g, struct_orb_orb, struct_paux, struct_star
       TYPE(cp_fm_type)                                   :: a_r, fmdummy, p_r, pa_r, paux_i, paux_r, &
@@ -366,7 +412,7 @@ CONTAINS
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: amat_save, smat_save
       TYPE(cp_fm_type), ALLOCATABLE, &
          DIMENSION(:, :, :), TARGET                      :: pmat_star
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
+      TYPE(cp_fm_type), POINTER                          :: a_r_src, mo_coeff, mo_coeff_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s, matrix_s_aux_fit, rho_ao_aux, &
                                                             rho_ao_orb
@@ -636,6 +682,8 @@ CONTAINS
 
          nc_star = MERGE(1, 2, use_real_wfn)
          ALLOCATE (pmat_star(nc_star, nspins, nstar))
+         fill_cache = .NOT. admm_env%astar_valid .OR. admm_env%astar_nstar /= nstar
+         IF (fill_cache) CALL admm_star_cache_alloc(admm_env, nstar, use_real_wfn)
          IF (.NOT. pmat_from_rs) THEN
             CALL cp_fm_struct_create(struct_paux, context=kpoints%blacs_env, &
                                      para_env=kpoints%para_env_kp, nrow_global=nao_aux_fit, &
@@ -714,11 +762,35 @@ CONTAINS
             END IF
             kpoints%xkp(:, ik) = star_xkp(:, isg)
 
-            CALL kpoint_calc_admm_matrices(qs_env, .FALSE., ik_only=ik)
+            IF (fill_cache) THEN
+               CALL kpoint_calc_admm_matrices(qs_env, .FALSE., ik_only=ik)
+               IF (star_owner) THEN
+                  IF (use_real_wfn) THEN
+                     IF (.NOT. ASSOCIATED(admm_env%astar_r(isg)%matrix)) THEN
+                        ALLOCATE (admm_env%astar_r(isg)%matrix)
+                        CALL cp_fm_create(admm_env%astar_r(isg)%matrix, kp%amat%matrix_struct)
+                     END IF
+                     CALL cp_fm_to_fm(kp%amat, admm_env%astar_r(isg)%matrix)
+                  ELSE
+                     IF (.NOT. ASSOCIATED(admm_env%astar_c(isg)%matrix)) THEN
+                        ALLOCATE (admm_env%astar_c(isg)%matrix)
+                        CALL cp_cfm_create(admm_env%astar_c(isg)%matrix, kp%camat%matrix_struct)
+                     END IF
+                     CALL cp_cfm_to_cfm(kp%camat, admm_env%astar_c(isg)%matrix)
+                  END IF
+               END IF
+            END IF
+            IF (star_owner) THEN
+               IF (use_real_wfn) THEN
+                  a_r_src => admm_env%astar_r(isg)%matrix
+               ELSE
+                  a_c_src => admm_env%astar_c(isg)%matrix
+               END IF
+            END IF
             IF (pmat_from_rs) THEN
                IF (use_real_wfn) THEN
                   IF (star_owner) THEN
-                     CALL cp_fm_start_copy_general(kp%amat, a_r, para_env_global, info_r)
+                     CALL cp_fm_start_copy_general(a_r_src, a_r, para_env_global, info_r)
                   ELSE
                      NULLIFY (src_r_null%matrix_struct)
                      CALL cp_fm_start_copy_general(src_r_null, a_r, para_env_global, info_r)
@@ -740,7 +812,7 @@ CONTAINS
                   END DO
                ELSE
                   IF (star_owner) THEN
-                     CALL cp_cfm_start_copy_general(kp%camat, a_c, para_env_global, info_c)
+                     CALL cp_cfm_start_copy_general(a_c_src, a_c, para_env_global, info_c)
                   ELSE
                      NULLIFY (src_c_null%matrix_struct)
                      CALL cp_cfm_start_copy_general(src_c_null, a_c, para_env_global, info_c)
@@ -791,7 +863,7 @@ CONTAINS
                      CALL kpoint_transform_scf_mo(mos_kp(ispin)%cmo_coeff, cmo_star, kpoints, ik, &
                                                   istar, mo_ok, mo_reason)
                      IF (.NOT. mo_ok) CALL cp_abort(__LOCATION__, TRIM(mo_reason))
-                     CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, z_one, kp%camat, &
+                     CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, z_one, a_c_src, &
                                         cmo_star, z_zero, caux_mo)
                      CALL cp_cfm_get_info(caux_mo, local_data=aux_mo_data, col_indices=aux_mo_cols)
                      DO ikloc = 1, SIZE(aux_mo_data, 2)
@@ -837,6 +909,7 @@ CONTAINS
             END IF
             kpoints%xkp(:, ik) = xkp_save(:, isg)
          END DO
+         IF (fill_cache) admm_env%astar_valid = .TRUE.
 
          DO ikp = 1, kplocal
             kp => kpoints%kp_aux_env(ikp)%kpoint_env
@@ -4164,6 +4237,9 @@ CONTAINS
                para_env_global, matrix_struct_aux_fit, matrix_struct_aux_fit_vs_orb)
 
       CALL get_qs_env(qs_env, kpoints=kpoints, admm_env=admm_env)
+
+      ! A full (non star-member) fit means the geometry/basis changed: drop the cache.
+      IF (.NOT. PRESENT(ik_only)) admm_env%astar_valid = .FALSE.
 
       CALL get_admm_env(admm_env, matrix_s_aux_fit_kp=matrix_s_aux_fit, &
                         matrix_s_aux_fit_vs_orb_kp=matrix_s_aux_fit_vs_orb, &
