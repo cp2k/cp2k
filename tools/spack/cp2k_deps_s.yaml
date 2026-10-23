@@ -149,7 +149,7 @@ spack:
 #   - "libxstream@git.f4511a4b72a8e19e2cd0b5e399679a9c50091a6f=main"
     - "openblas@0.3.34"
     - "pace@2025.12.4.1"
-    - "py-torch@2.13.0"
+    - "py-torch@2.14.1"
     - "spglib@2.8.0"
     - "tblite@0.7.0"
     - "trexio@2.6.1"

@@ -242,7 +242,7 @@ spack:
     - "pace@2025.12.4.1"
     - "pexsi@2.0.0"
     - "plumed@2.10.1"
-    - "py-torch@2.13.0"
+    - "py-torch@2.14.1"
     - "sirius@7.12.0"
     - "spfft@1.1.1"
     - "spglib@2.8.0"
