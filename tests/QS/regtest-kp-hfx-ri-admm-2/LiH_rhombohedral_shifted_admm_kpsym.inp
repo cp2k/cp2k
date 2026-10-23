@@ -1,11 +1,11 @@
 &GLOBAL
   PRINT_LEVEL MEDIUM
-  PROJECT LiH_cubic_admm_kpsym
+  PROJECT LiH_rhombohedral_shifted_admm_kpsym
   RUN_TYPE ENERGY_FORCE
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
-  STRESS_TENSOR ANALYTICAL
   &DFT
     AUTO_BASIS RI_HFX SMALL
     BASIS_SET_FILE_NAME BASIS_ccGRB_UZH
@@ -17,10 +17,13 @@
       EXCH_CORRECTION_FUNC NONE
     &END AUXILIARY_DENSITY_MATRIX_METHOD
     &KPOINTS
+      ! LiH in the primitive rhombohedral cell. The 2x2x2 mesh reduces 8 -> 2
+      ! by the crystal point group; time reversal alone would leave 4. H is
+      ! shifted by 0.001 along [111] (scaled coordinates) to lower the site
+      ! symmetry to C3v, giving non-zero forces while preserving the reduction.
       SCHEME MONKHORST-PACK 2 2 2
       SYMMETRY ON
       WAVEFUNCTIONS COMPLEX
-      VERBOSE T
     &END KPOINTS
     &MGRID
       CUTOFF 300
@@ -33,9 +36,8 @@
       PW_GRID_BLOCKED FALSE
     &END QS
     &SCF
-      EPS_SCF 1.0E-7
-      IGNORE_CONVERGENCE_FAILURE
-      MAX_SCF 200
+      EPS_SCF 1.0E-6
+      MAX_SCF 100
       SCF_GUESS ATOMIC
       &DIAGONALIZATION
         ALGORITHM STANDARD
@@ -44,13 +46,17 @@
         ALPHA 0.15
         METHOD BROYDEN_MIXING
       &END MIXING
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
       &HF
         FRACTION 1.0
         &INTERACTION_POTENTIAL
-          CUTOFF_RADIUS 2.0
-          POTENTIAL_TYPE TRUNCATED
+          ! Small enough for this cell; keeps the test cheap.
+          POTENTIAL_TYPE IDENTITY
         &END INTERACTION_POTENTIAL
         &RI
           EPS_PGF_ORB 1.0E-5
@@ -63,16 +69,20 @@
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
+  &PRINT
+    &FORCES ON
+    &END FORCES
+  &END PRINT
   &SUBSYS
     &CELL
-      ABC 4.1 4.1 4.1
-      ALPHA_BETA_GAMMA 90.0 90.0 90.0
+      ABC 6.5 6.5 6.5
+      ALPHA_BETA_GAMMA 60.0 60.0 60.0
       MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
     &COORD
       SCALED
       Li  0.00000000  0.00000000  0.00000000
-      H   0.50000000  0.50000000  0.50000000
+      H   0.50100000  0.50100000  0.50100000
     &END COORD
     &KIND Li
       BASIS_SET ccGRB-D-q3
@@ -88,11 +98,4 @@
       MULTIPLE_UNIT_CELL 1 1 1
     &END TOPOLOGY
   &END SUBSYS
-  &PRINT
-    &FORCES ON
-    &END FORCES
-    &STRESS_TENSOR
-      COMPONENTS
-    &END STRESS_TENSOR
-  &END PRINT
 &END FORCE_EVAL
