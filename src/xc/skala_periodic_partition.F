@@ -128,7 +128,8 @@ CONTAINS
       CPASSERT(target_image >= 1 .AND. target_image <= layout%natom)
       CPASSERT(PRESENT(dweight_datom) .EQV. PRESENT(dweight_dstrain))
       IF (PRESENT(dweight_datom)) THEN
-         CPASSERT(SIZE(dweight_datom, 1) == 3 .AND. SIZE(dweight_datom, 2) == layout%natom)
+         CPASSERT(SIZE(dweight_datom, 1) == 3)
+         CPASSERT(SIZE(dweight_datom, 2) == layout%natom)
          CPASSERT(ALL(SHAPE(dweight_dstrain) == [3, 3]))
          dweight_datom = 0.0_dp
          dweight_dstrain = 0.0_dp
