@@ -13,7 +13,6 @@ MODULE qs_fb_env_types
                                               fb_atomic_halo_list_obj,&
                                               fb_atomic_halo_list_release
    USE qs_fb_trial_fns_types,           ONLY: fb_trial_fns_associate,&
-                                              fb_trial_fns_has_data,&
                                               fb_trial_fns_nullify,&
                                               fb_trial_fns_obj,&
                                               fb_trial_fns_release

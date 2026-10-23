@@ -82,16 +82,16 @@ CONTAINS
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
 
       IF (ASSOCIATED(mpools)) THEN
-            CALL fm_pools_dealloc(mpools%ao_mo_fm_pools)
-            CALL fm_pools_dealloc(mpools%ao_ao_fm_pools)
-            CALL fm_pools_dealloc(mpools%mo_mo_fm_pools)
-            IF (ASSOCIATED(mpools%ao_mosub_fm_pools)) THEN
-               CALL fm_pools_dealloc(mpools%ao_mosub_fm_pools)
-            END IF
-            IF (ASSOCIATED(mpools%mosub_mosub_fm_pools)) THEN
-               CALL fm_pools_dealloc(mpools%mosub_mosub_fm_pools)
-            END IF
-            DEALLOCATE (mpools)
+         CALL fm_pools_dealloc(mpools%ao_mo_fm_pools)
+         CALL fm_pools_dealloc(mpools%ao_ao_fm_pools)
+         CALL fm_pools_dealloc(mpools%mo_mo_fm_pools)
+         IF (ASSOCIATED(mpools%ao_mosub_fm_pools)) THEN
+            CALL fm_pools_dealloc(mpools%ao_mosub_fm_pools)
+         END IF
+         IF (ASSOCIATED(mpools%mosub_mosub_fm_pools)) THEN
+            CALL fm_pools_dealloc(mpools%mosub_mosub_fm_pools)
+         END IF
+         DEALLOCATE (mpools)
       END IF
       NULLIFY (mpools)
    END SUBROUTINE mpools_release
