@@ -17,10 +17,10 @@
       EXCH_CORRECTION_FUNC NONE
     &END AUXILIARY_DENSITY_MATRIX_METHOD
     &KPOINTS
+      FULL_GRID ON
       ! Unreduced companion of LiH_rhombohedral_shifted_admm_kpsym (8 k-points).
       SCHEME MONKHORST-PACK 2 2 2
       SYMMETRY OFF
-      FULL_GRID ON
       WAVEFUNCTIONS COMPLEX
     &END KPOINTS
     &MGRID
