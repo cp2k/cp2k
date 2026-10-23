@@ -537,8 +537,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Plans whole-grid-block panels using a message-size target without a cutoff.
 !>        A positive cutoff additionally checks estimated message and memory costs.
-!>        A single indivisible cutoff block exceeding the memory
-!>        budget is reported, while exceeding the message bound is an error.
+!>        A single indivisible cutoff block exceeding an estimated limit is reported
+!>        and accepted, since the panel cannot be split further.
 !> \param msg_elem_limit maximum number of elements per DBCSR message
 !> \param r_blk_sizes grid row-block sizes
 !> \param min_dim smaller dimension of the DBCSR process grid
@@ -571,7 +571,8 @@ CONTAINS
                                                             rows_acc, TARGET, width
       INTEGER(KIND=int_8)                                :: msg, msg_limit, nze_tmpl, side
       INTEGER, ALLOCATABLE                               :: tmp_first(:), tmp_last(:)
-      LOGICAL                                            :: fits, use_cutoff, warned_memory
+      LOGICAL                                            :: fits, use_cutoff, warned_memory, &
+                                                            warned_message
       LOGICAL, ALLOCATABLE                               :: used(:)
       REAL(KIND=dp)                                      :: f_near, mem_GB
 
@@ -581,6 +582,7 @@ CONTAINS
       IF (use_cutoff) use_cutoff = cutoff > 0.0_dp
       msg_limit = msg_elem_limit/4
       warned_memory = .FALSE.
+      warned_message = .FALSE.
       n_grid_blocks = SIZE(r_blk_sizes)
       n_grid_total = SUM(r_blk_sizes)
       panel_size = n_grid_total
@@ -615,10 +617,11 @@ CONTAINS
             IF (mem_budget_GB > 0.0_dp) fits = fits .AND. mem_GB <= mem_budget_GB
             IF (fits) EXIT
             IF (blk1 == blk0) THEN
-               IF (msg > msg_limit) THEN
-                  CPABORT("RI-RS grid block exceeds the panel message limit. Use smaller grid blocks.")
+               IF (msg > msg_limit .AND. .NOT. warned_message) THEN
+                  CPWARN("A single RI-RS grid block exceeds the estimated panel message limit.")
+                  warned_message = .TRUE.
                END IF
-               IF (.NOT. warned_memory) THEN
+               IF (mem_budget_GB > 0.0_dp .AND. mem_GB > mem_budget_GB .AND. .NOT. warned_memory) THEN
                   CPWARN("A single RI-RS grid block exceeds the estimated panel memory budget.")
                   warned_memory = .TRUE.
                END IF
