@@ -12,14 +12,20 @@
 !> \author Manuel Guidon
 ! **************************************************************************************************
 MODULE hfx_compression_methods
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
-   USE hfx_compression_core_methods,    ONLY: bits2ints_specific,&
-                                              ints2bits_specific
-   USE hfx_types,                       ONLY: hfx_cache_type,&
-                                              hfx_container_type
-   USE kinds,                           ONLY: dp,&
-                                              int_8
+   USE cp_files, ONLY: close_file, &
+                       open_file
+   USE hfx_types, ONLY: hfx_cache_type, &
+                        hfx_container_type
+   USE kinds, ONLY: dp, &
+                    int_8
+   USE hfx_compression_core_methods, ONLY: bits2ints_specific, &
+                                           groups2ints, &
+                                           ints2bits_specific, &
+                                           ints2groups
+   USE iso_fortran_env, ONLY: iostat_end
+#if defined(__LIBXS)
+   USE libxs, ONLY: libxs_vpack, libxs_vunpack
+#endif
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -32,6 +38,10 @@ MODULE hfx_compression_methods
 #define CACHE_SIZE 1024
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_compression_methods'
+
+   ! values per group stored at one width (records of a cache), zero or negative: one width per
+   ! container; LIBXS takes 1 to 255 (exceptions at 8), the Fortran path multiples of 8 up to 248
+   INTEGER, PARAMETER, PRIVATE :: group_size = 8
 
    INTEGER(kind=int_8), PARAMETER :: ugly_duck = ISHFT(1_int_8, 63)
    INTEGER(int_8), PARAMETER :: shifts(0:63) = &
@@ -114,38 +124,52 @@ CONTAINS
       LOGICAL                                            :: use_disk_storage
       INTEGER(int_8), OPTIONAL                           :: max_val_memory
 
-      INTEGER                                            :: end_idx, increment_counter, start_idx, &
-                                                            tmp_elements, tmp_nints
+      INTEGER                                            :: end_idx, increment_counter, nwords, &
+                                                            start_idx, tmp_elements, tmp_nints
+      INTEGER(int_8), DIMENSION(CACHE_SIZE)              :: values
+      INTEGER(int_8), DIMENSION(CACHE_SIZE+32)           :: record
 
-      start_idx = container%element_counter
-      increment_counter = (nbits*CACHE_SIZE + 63)/64
-      end_idx = start_idx + increment_counter - 1
-      IF (end_idx < CACHE_SIZE) THEN
-         CALL ints2bits_specific(nbits, CACHE_SIZE, container%current%data(start_idx), full_array(1))
-         container%element_counter = container%element_counter + increment_counter
+      IF (group_size > 0) THEN
+         ! a record is its length in words followed by the values at a width per group
+         values = full_array(1:CACHE_SIZE) - shifts(nbits - 1)
+#if defined(__LIBXS)
+         nwords = INT(libxs_vpack(record(2:), values, nbits, group_size))
+#else
+         nwords = ints2groups(nbits, group_size, record(2:), values)
+#endif
+         record(1) = nwords
+         CALL hfx_container_put(container, record, nwords + 1, memory_usage, use_disk_storage, max_val_memory)
       ELSE
-         !! We have to fill the container first with the remaining number of bits
-         tmp_elements = CACHE_SIZE - start_idx + 1
-         tmp_nints = (tmp_elements*64)/nbits
-         CALL ints2bits_specific(nbits, tmp_nints, container%current%data(start_idx), full_array(1))
-         IF (use_disk_storage) THEN
-            !! write to file
-            WRITE (container%unit) container%current%data
-!$OMP         ATOMIC
-            memory_usage = memory_usage + 1
-            container%file_counter = container%file_counter + 1
+         start_idx = container%element_counter
+         increment_counter = (nbits*CACHE_SIZE + 63)/64
+         end_idx = start_idx + increment_counter - 1
+         IF (end_idx < CACHE_SIZE) THEN
+            CALL ints2bits_specific(nbits, CACHE_SIZE, container%current%data(start_idx), full_array(1))
+            container%element_counter = container%element_counter + increment_counter
          ELSE
-            !! Allocate new list entry
-            ALLOCATE (container%current%next)
+            !! We have to fill the container first with the remaining number of bits
+            tmp_elements = CACHE_SIZE - start_idx + 1
+            tmp_nints = (tmp_elements*64)/nbits
+            CALL ints2bits_specific(nbits, tmp_nints, container%current%data(start_idx), full_array(1))
+            IF (use_disk_storage) THEN
+               !! write to file
+               WRITE (container%unit) container%current%data
 !$OMP         ATOMIC
-            memory_usage = memory_usage + 1
-            container%current%next%next => NULL()
-            container%current => container%current%next
-            IF (PRESENT(max_val_memory)) max_val_memory = max_val_memory + 1
+               memory_usage = memory_usage + 1
+               container%file_counter = container%file_counter + 1
+            ELSE
+               !! Allocate new list entry
+               ALLOCATE (container%current%next)
+!$OMP         ATOMIC
+               memory_usage = memory_usage + 1
+               container%current%next%next => NULL()
+               container%current => container%current%next
+               IF (PRESENT(max_val_memory)) max_val_memory = max_val_memory + 1
+            END IF
+            !! compress remaining ints
+            CALL ints2bits_specific(nbits, CACHE_SIZE - tmp_nints, container%current%data(1), full_array(tmp_nints + 1))
+            container%element_counter = 1 + (nbits*(CACHE_SIZE - tmp_nints) + 63)/64
          END IF
-         !! compress remaining ints
-         CALL ints2bits_specific(nbits, CACHE_SIZE - tmp_nints, container%current%data(1), full_array(tmp_nints + 1))
-         container%element_counter = 1 + (nbits*(CACHE_SIZE - tmp_nints) + 63)/64
       END IF
 
    END SUBROUTINE hfx_compress_cache
@@ -204,41 +228,149 @@ CONTAINS
       INTEGER                                            :: memory_usage
       LOGICAL                                            :: use_disk_storage
 
-      INTEGER                                            :: end_idx, increment_counter, start_idx, &
-                                                            stat, tmp_elements, tmp_nints
+      INTEGER                                            :: end_idx, increment_counter, nwords, &
+                                                            start_idx, stat, tmp_elements, &
+                                                            tmp_nints
+      INTEGER(int_8)                                     :: nread
+      INTEGER(int_8), DIMENSION(CACHE_SIZE)              :: values
+      INTEGER(int_8), DIMENSION(CACHE_SIZE+32)           :: record
 
       CPASSERT(ASSOCIATED(container%current))
 
-      start_idx = container%element_counter
-      increment_counter = (nbits*CACHE_SIZE + 63)/64
-      end_idx = start_idx + increment_counter - 1
-      IF (end_idx < CACHE_SIZE) THEN
-         CALL bits2ints_specific(nbits, CACHE_SIZE, container%current%data(start_idx), full_array(1))
-         container%element_counter = container%element_counter + increment_counter
-      ELSE
-         !! We have to fill the container first with the remaining number of bits
-         tmp_elements = CACHE_SIZE - start_idx + 1
-         tmp_nints = (tmp_elements*64)/nbits
-         CALL bits2ints_specific(nbits, tmp_nints, container%current%data(start_idx), full_array(1))
-         IF (use_disk_storage) THEN
-            !! it could happen, that we are at the end of a file and we try to read
-            !! This happens in case a container has fully been filled in the compression step
-            !! but no other was needed for the current bit size
-            !! Therefore we can safely igonore an eof error
-            ! We still need to ask for it to read the data correctly, so we mark it as used
-            READ (container%unit, IOSTAT=stat) container%current%data
-            MARK_USED(stat)
-            memory_usage = memory_usage + 1
-            container%file_counter = container%file_counter + 1
+      IF (group_size > 0) THEN
+         CALL hfx_container_get(container, record, 1, memory_usage, use_disk_storage)
+         nwords = INT(record(1))
+         ! a zero word is no record (nothing stored), which decodes as zeros like the fixed-width format
+         IF (0 < nwords) THEN
+            CPASSERT(nwords < SIZE(record))
+            CALL hfx_container_get(container, record(2:), nwords, memory_usage, use_disk_storage)
+#if defined(__LIBXS)
+            nread = INT(libxs_vunpack(values, record(2:nwords + 1)), KIND=int_8)
+#else
+            nread = INT(groups2ints(record(2:nwords + 1), values), KIND=int_8)
+#endif
+            CPASSERT(nread == nwords)
+            full_array(1:CACHE_SIZE) = values + shifts(nbits - 1)
          ELSE
-            container%current => container%current%next
-            memory_usage = memory_usage + 1
+            CPASSERT(0 == nwords)
+            full_array(1:CACHE_SIZE) = 0
          END IF
-         !! decompress remaining ints
-         CALL bits2ints_specific(nbits, CACHE_SIZE - tmp_nints, container%current%data(1), full_array(tmp_nints + 1))
-         container%element_counter = 1 + (nbits*(CACHE_SIZE - tmp_nints) + 63)/64
+      ELSE
+         start_idx = container%element_counter
+         increment_counter = (nbits*CACHE_SIZE + 63)/64
+         end_idx = start_idx + increment_counter - 1
+         IF (end_idx < CACHE_SIZE) THEN
+            CALL bits2ints_specific(nbits, CACHE_SIZE, container%current%data(start_idx), full_array(1))
+            container%element_counter = container%element_counter + increment_counter
+         ELSE
+            !! We have to fill the container first with the remaining number of bits
+            tmp_elements = CACHE_SIZE - start_idx + 1
+            tmp_nints = (tmp_elements*64)/nbits
+            CALL bits2ints_specific(nbits, tmp_nints, container%current%data(start_idx), full_array(1))
+            IF (use_disk_storage) THEN
+               !! it could happen, that we are at the end of a file and we try to read
+               !! This happens in case a container has fully been filled in the compression step
+               !! but no other was needed for the current bit size
+               !! Therefore we can safely igonore an eof error
+               ! We still need to ask for it to read the data correctly, so we mark it as used
+               READ (container%unit, IOSTAT=stat) container%current%data
+               MARK_USED(stat)
+               memory_usage = memory_usage + 1
+               container%file_counter = container%file_counter + 1
+            ELSE
+               container%current => container%current%next
+               memory_usage = memory_usage + 1
+            END IF
+            !! decompress remaining ints
+            CALL bits2ints_specific(nbits, CACHE_SIZE - tmp_nints, container%current%data(1), full_array(tmp_nints + 1))
+            container%element_counter = 1 + (nbits*(CACHE_SIZE - tmp_nints) + 63)/64
+         END IF
       END IF
    END SUBROUTINE hfx_decompress_cache
+
+! **************************************************************************************************
+!> \brief Appends words to a container: a full list entry is written to file or followed by a
+!>        new one (as hfx_compress_cache does for packed values).
+!> \param container linked list, that stores the compressed values
+!> \param words words to be appended
+!> \param nwords number of words
+!> \param memory_usage ...
+!> \param use_disk_storage ...
+!> \param max_val_memory ...
+! **************************************************************************************************
+   SUBROUTINE hfx_container_put(container, words, nwords, memory_usage, use_disk_storage, max_val_memory)
+      TYPE(hfx_container_type)                           :: container
+      INTEGER(int_8), DIMENSION(*), INTENT(IN)           :: words
+      INTEGER, INTENT(IN)                                :: nwords
+      INTEGER                                            :: memory_usage
+      LOGICAL                                            :: use_disk_storage
+      INTEGER(int_8), OPTIONAL                           :: max_val_memory
+
+      INTEGER                                            :: i, m
+
+      i = 0
+      DO WHILE (i < nwords)
+         m = MIN(nwords - i, CACHE_SIZE - container%element_counter + 1)
+         container%current%data(container%element_counter:container%element_counter + m - 1) = words(i + 1:i + m)
+         container%element_counter = container%element_counter + m
+         i = i + m
+         IF (container%element_counter > CACHE_SIZE) THEN
+            IF (use_disk_storage) THEN
+               WRITE (container%unit) container%current%data
+!$OMP          ATOMIC
+               memory_usage = memory_usage + 1
+               container%file_counter = container%file_counter + 1
+            ELSE
+               ALLOCATE (container%current%next)
+!$OMP          ATOMIC
+               memory_usage = memory_usage + 1
+               container%current%next%next => NULL()
+               container%current => container%current%next
+               IF (PRESENT(max_val_memory)) max_val_memory = max_val_memory + 1
+            END IF
+            container%element_counter = 1
+         END IF
+      END DO
+   END SUBROUTINE hfx_container_put
+
+! **************************************************************************************************
+!> \brief Reads words from a container, mirroring hfx_container_put.
+!> \param container linked list, that stores the compressed values
+!> \param words words to be read
+!> \param nwords number of words
+!> \param memory_usage ...
+!> \param use_disk_storage ...
+! **************************************************************************************************
+   SUBROUTINE hfx_container_get(container, words, nwords, memory_usage, use_disk_storage)
+      TYPE(hfx_container_type)                           :: container
+      INTEGER(int_8), DIMENSION(*), INTENT(OUT)          :: words
+      INTEGER, INTENT(IN)                                :: nwords
+      INTEGER                                            :: memory_usage
+      LOGICAL                                            :: use_disk_storage
+
+      INTEGER                                            :: i, m, stat
+
+      i = 0
+      DO WHILE (i < nwords)
+         m = MIN(nwords - i, CACHE_SIZE - container%element_counter + 1)
+         words(i + 1:i + m) = container%current%data(container%element_counter:container%element_counter + m - 1)
+         container%element_counter = container%element_counter + m
+         i = i + m
+         IF (container%element_counter > CACHE_SIZE) THEN
+            IF (use_disk_storage) THEN
+               ! a full last entry is followed by none: the end of the file is fine
+               READ (container%unit, IOSTAT=stat) container%current%data
+               IF (stat /= 0 .AND. stat /= iostat_end) CPABORT("Failed to read HFX container")
+               memory_usage = memory_usage + 1
+               container%file_counter = container%file_counter + 1
+            ELSE
+               container%current => container%current%next
+               memory_usage = memory_usage + 1
+            END IF
+            container%element_counter = 1
+         END IF
+      END DO
+   END SUBROUTINE hfx_container_get
 
 ! **************************************************************************************************
 !> \brief - This routine resets the containers list pointer to the first element and
