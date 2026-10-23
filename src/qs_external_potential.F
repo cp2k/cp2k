@@ -17,15 +17,14 @@ MODULE qs_external_potential
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_realspace_grid_cube,          ONLY: cp_cube_to_pw
-   USE force_fields_util,               ONLY: get_generic_info
    USE fparser,                         ONLY: evalf,&
                                               evalfd,&
                                               finalizef,&
                                               initf,&
                                               parsef
+   USE generic_function_input,          ONLY: parse_function_section
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
+                                              section_vals_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp,&
@@ -312,23 +311,21 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: coupling_function
       CHARACTER(LEN=default_string_length)               :: def_error, this_error
       CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER                           :: my_par
+         ALLOCATABLE, DIMENSION(:)                       :: my_par
       INTEGER                                            :: handle, j
       INTEGER(kind=int_8)                                :: ipoint, npoints
       LOGICAL                                            :: check, my_force
       REAL(KIND=dp)                                      :: dedf, dx, err, lerr
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: my_val
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: my_val
 
       CALL timeset(routineN, handle)
-      NULLIFY (my_par, my_val)
       my_force = .FALSE.
       IF (PRESENT(calc_derivatives)) my_force = calc_derivatives
       check = PRESENT(dfunc) .EQV. PRESENT(calc_derivatives)
       CPASSERT(check)
-      CALL section_vals_val_get(ext_pot_section, "DX", r_val=dx)
-      CALL section_vals_val_get(ext_pot_section, "ERROR_LIMIT", r_val=lerr)
-      CALL get_generic_info(ext_pot_section, "FUNCTION", coupling_function, my_par, my_val, &
-                            input_variables=["X", "Y", "Z"], i_rep_sec=1)
+      CALL parse_function_section(ext_pot_section, "FUNCTION", coupling_function, &
+                                  my_par, my_val, i_rep_sec=1, &
+                                  input_variables=["X", "Y", "Z"], dx=dx, error_limit=lerr)
       CALL initf(1)
       CALL parsef(1, TRIM(coupling_function), my_par)
 
@@ -350,7 +347,7 @@ CONTAINS
                   CALL compress(def_error, .TRUE.)
                   CALL cp_warn(__LOCATION__, &
                                'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)// &
-                               ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'// &
+                               ' Error '//TRIM(this_error)//' in computing numerical derivatives larger than'// &
                                TRIM(def_error)//' .')
                END IF
                dfunc(j, ipoint) = dedf

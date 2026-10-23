@@ -1157,16 +1157,16 @@ CONTAINS
 
 !----- -------- --------- --------- --------- --------- --------- --------- -------
 
-      doc = "A functional form is specified. Mathematical Operators recognized are "
+      doc = "Mathematical Operators recognized are "
       DO i = cAdd, cPow
          IF (i > cAdd) doc = doc//", "
-         doc = doc//Ops(i)
+         doc = doc//"`"//Ops(i)//"`"
       END DO
-      doc = doc//" or alternatively **, whereas symbols for brackets must be (). The function"// &
+      doc = doc//" or alternatively `**`, whereas symbols for brackets must be `()`. The function"// &
             " parser recognizes the Fortran 90 intrinsic functions "
       DO i = cAbs, cErfc
          IF (i > cAbs) doc = doc//", "
-         doc = doc//TRIM(Funcs(i))
+         doc = doc//"`"//TRIM(Funcs(i))//"`"
       END DO
       doc = doc//". Parsing for intrinsic functions is not case sensitive."
    END FUNCTION docf

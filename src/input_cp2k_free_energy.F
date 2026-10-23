@@ -441,19 +441,25 @@ CONTAINS
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="ALCHEMICAL_CHANGE", &
-                          description="Controls the calculation of delta free energies"// &
-                          " with the alchemical change method.", &
+                          description="Controls the calculation of delta free energies with the "// &
+                          "alchemical change method. This requires setting up a generic mixed "// &
+                          "force env with the FORCE_EVAL/MIXED/MIXING_TYPE keyword set as GENMIX "// &
+                          "and the coupling function defined in the FORCE_EVAL/MIXED/GENERIC section.", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="PARAMETER", &
-                          description="Defines the perturbing parameter of the alchemical change transformation", &
-                          usage="PARAMETERS k", type_of_var=char_t, &
+                          description="Defines the symbol for the perturbing parameter of the "// &
+                          "alchemical change transformation. This must be one of the symbols "// &
+                          "for the corresponding FORCE_EVAL/MIXED/GENERIC/PARAMETERS keyword.", &
+                          usage="PARAMETER k", type_of_var=char_t, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="WEIGHTING_FUNCTION", &
-                          description="Specifies the weighting function (umbrella potential, part of the mixing function)", &
+                          description="Specifies the weighting function (umbrella potential, "// &
+                          "part of the mixing function) using the identical symbols for the "// &
+                          "parameters and variables in FORCE_EVAL/MIXED/GENERIC.", &
                           usage="WEIGHTING_FUNCTION (E1+E2-LOG(E1/E2))", type_of_var=lchar_t, &
                           n_var=1, default_lc_val="0")
       CALL section_add_keyword(section, keyword)

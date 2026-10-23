@@ -77,7 +77,6 @@ MODULE force_env_methods
    USE force_env_utils,                 ONLY: rescale_forces,&
                                               write_atener,&
                                               write_forces
-   USE force_fields_util,               ONLY: get_generic_info
    USE fp_methods,                      ONLY: fp_eval
    USE fparser,                         ONLY: EvalErrType,&
                                               evalf,&
@@ -85,6 +84,7 @@ MODULE force_env_methods
                                               finalizef,&
                                               initf,&
                                               parsef
+   USE generic_function_input,          ONLY: parse_function_section
    USE global_types,                    ONLY: global_environment_type,&
                                               globenv_retain
    USE grrm_utils,                      ONLY: write_grrm
@@ -1293,7 +1293,11 @@ CONTAINS
          CALL cp_results_mp_bcast(results(iforce_eval)%results, source, force_env%para_env)
       END DO
 
-      force_env%mixed_env%energies = energies
+      IF (ALLOCATED(force_env%mixed_env%energies)) THEN
+         DEALLOCATE (force_env%mixed_env%energies)
+      END IF
+      ALLOCATE (force_env%mixed_env%energies(nforce_eval))
+      force_env%mixed_env%energies(:) = energies(:)
       ! Start combining the different sub_force_env
       CALL get_mixed_env(mixed_env=force_env%mixed_env, &
                          mixed_energy=mixed_energy)
@@ -1360,8 +1364,9 @@ CONTAINS
       CASE (mix_generic)
          ! Support any number of force_eval sections
          gen_section => section_vals_get_subs_vals(mixed_section, "GENERIC")
-         CALL get_generic_info(gen_section, "MIXING_FUNCTION", coupling_function, force_env%mixed_env%par, &
-                               force_env%mixed_env%val, energies)
+         CALL parse_function_section(gen_section, "MIXING_FUNCTION", coupling_function, &
+                                     force_env%mixed_env%par, force_env%mixed_env%val, &
+                                     var_values=energies, dx=dx, error_limit=lerr)
          CALL initf(1)
          CALL parsef(1, TRIM(coupling_function), force_env%mixed_env%par)
          ! Now the hardest part.. map energy with corresponding force_eval
@@ -1370,8 +1375,6 @@ CONTAINS
          CALL zero_virial(virial_mix, reset=.FALSE.)
          CALL cp_results_erase(results_mix)
          DO iforce_eval = 1, nforce_eval
-            CALL section_vals_val_get(gen_section, "DX", r_val=dx)
-            CALL section_vals_val_get(gen_section, "ERROR_LIMIT", r_val=lerr)
             dedf = evalfd(1, iforce_eval, force_env%mixed_env%val, dx, err)
             IF (ABS(err) > lerr) THEN
                WRITE (this_error, "(A,G12.6,A)") "(", err, ")"
@@ -1380,7 +1383,7 @@ CONTAINS
                CALL compress(def_error, .TRUE.)
                CALL cp_warn(__LOCATION__, &
                             'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)// &
-                            ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'// &
+                            ' Error '//TRIM(this_error)//' in computing numerical derivatives larger than'// &
                             TRIM(def_error)//' .')
             END IF
             ! General Mapping of forces...

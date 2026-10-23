@@ -10,11 +10,13 @@
 !> \par History
 !>      10.2005 moved out of input_cp2k [fawzi]
 !>      10.2020 moved out of input_cp2k_dft [JGH]
+!>      10.2026 applied create_function_section to create_ext_pot_section [Zilong He]
 !> \author fawzi
 ! **************************************************************************************************
 MODULE input_cp2k_external
    USE bibliography,                    ONLY: Tozer1996,&
                                               Zhao1994
+   USE generic_function_input,          ONLY: create_function_section
    USE input_constants,                 ONLY: use_coulomb,&
                                               use_diff,&
                                               use_no
@@ -26,11 +28,10 @@ MODULE input_cp2k_external
                                               section_create,&
                                               section_release,&
                                               section_type
-   USE input_val_types,                 ONLY: char_t,&
-                                              lchar_t,&
-                                              real_t
+   USE input_val_types,                 ONLY: char_t
    USE kinds,                           ONLY: dp
-   USE string_utilities,                ONLY: s2a
+   USE string_utilities,                ONLY: newline,&
+                                              s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -46,6 +47,10 @@ CONTAINS
 !> \brief Creates the section for applying an electrostatic external potential
 !> \param section ...
 !> \date 12.2009
+!> \par   This is for FORCE_EVAL/DFT/EXTERNAL_POTENTIAL and applicable to Quickstep DFT only,
+!>        corresponding to get_external_potential in qs_external_potential.F.
+!>        Not to be confused with FORCE_EVAL/EXTERNAL_POTENTIAL, which is created separately
+!>        in input_cp2k_force_eval.F and applicable to any force method.
 !> \author teo
 ! **************************************************************************************************
    SUBROUTINE create_ext_pot_section(section)
@@ -55,61 +60,27 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="EXTERNAL_POTENTIAL", &
-                          description="Section controlling the presence of an electrostatic "// &
-                          "external potential dependent on the atomic positions (X,Y,Z). "// &
-                          "As the external potential is currently applied via a grid, "// &
-                          "it only works with DFT based methods (GPW/GAPW) that already use "// &
-                          "a grid based approach to solve the Poisson equation.", &
-                          n_keywords=7, n_subsections=0, repeats=.FALSE.)
+
+      CALL create_function_section(section, "EXTERNAL_POTENTIAL", "FUNCTION", &
+                                   description="Section controlling the presence of an electrostatic "// &
+                                   "external potential dependent on the atomic positions (X,Y,Z). "// &
+                                   "As the external potential is currently applied via a grid, "// &
+                                   "it only works with DFT based methods (GPW/GAPW) that already use "// &
+                                   "a grid-based approach to solve the Poisson equation. Not to be "// &
+                                   "confused with other similar sections:"//newline//newline// &
+                                   "* FORCE_EVAL/EXTERNAL_POTENTIAL, which is applicable to general "// &
+                                   "force methods and is not grid-based;"//newline// &
+                                   "* FORCE_EVAL/DFT/EFIELD, which is for finite, time-dependent "// &
+                                   "electric field in DFT;"//newline// &
+                                   "* FORCE_EVAL/DFT/PERIODIC_EFIELD, which is for finite periodic "// &
+                                   "electric field using the Berry phase approach in DFT.", &
+                                   do_deriv=.TRUE., input_variables=["X", "Y", "Z"])
       NULLIFY (keyword, subsection)
-
-      CALL keyword_create(keyword, __LOCATION__, name="FUNCTION", &
-                          description="Specifies the functional form in mathematical notation. Variables must be the atomic "// &
-                          "coordinates (X,Y,Z) of the grid.", usage="FUNCTION  X^2+Y^2+Z^2+LOG(ABS(X+Y))", &
-                          type_of_var=lchar_t, n_var=1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="PARAMETERS", &
-                          description="Defines the parameters of the functional form", &
-                          usage="PARAMETERS a b D", type_of_var=char_t, &
-                          n_var=-1, repeats=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="VALUES", &
-                          description="Defines the values of parameter of the functional form", &
-                          usage="VALUES ", type_of_var=real_t, &
-                          n_var=-1, repeats=.TRUE., unit_str="internal_cp2k")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="UNITS", &
-                          description="Optionally, allows to define valid CP2K unit strings for each parameter value. "// &
-                          "It is assumed that the corresponding parameter value is specified in this unit.", &
-                          usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K", type_of_var=char_t, &
-                          n_var=-1, repeats=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="STATIC", &
                           description="Specifies the external potential as STATIC or time dependent. At the moment "// &
                           "only static potentials are implemented.", &
                           usage="STATIC T", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="DX", &
-                          description="Parameter used for computing the derivative with the Ridders' method.", &
-                          usage="DX <REAL>", default_r_val=0.1_dp, unit_str="bohr")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="ERROR_LIMIT", &
-                          description="Checks that the error in computing the derivative is not larger than "// &
-                          "the value set; in case error is larger a warning message is printed.", &
-                          usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

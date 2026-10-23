@@ -27,7 +27,6 @@ MODULE force_fields_util
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
    USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_create,&
@@ -57,10 +56,8 @@ MODULE force_fields_util
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: default_path_length,&
-                                              default_string_length,&
+   USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE memory_utilities,                ONLY: reallocate
    USE molecule_kind_types,             ONLY: &
         atom_type, bend_type, bond_type, colvar_constraint_type, g3x3_constraint_type, &
         g4x6_constraint_type, get_molecule_kind, impr_type, molecule_kind_type, opbend_type, &
@@ -71,7 +68,6 @@ MODULE force_fields_util
    USE particle_types,                  ONLY: particle_type
    USE qmmm_types_low,                  ONLY: qmmm_env_mm_type
    USE shell_potential_types,           ONLY: shell_kind_type
-   USE string_utilities,                ONLY: compress
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -81,8 +77,7 @@ MODULE force_fields_util
    PRIVATE
    PUBLIC :: force_field_pack, &
              force_field_qeff_output, &
-             clean_intra_force_kind, &
-             get_generic_info
+             clean_intra_force_kind
 
 CONTAINS
 
@@ -1181,151 +1176,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE clean_intra_force_kind
-
-! **************************************************************************************************
-!> \brief Reads from the input structure all information for generic functions
-!> \param gen_section ...
-!> \param func_name ...
-!> \param xfunction ...
-!> \param parameters ...
-!> \param values ...
-!> \param var_values ...
-!> \param size_variables ...
-!> \param i_rep_sec ...
-!> \param input_variables ...
-! **************************************************************************************************
-   SUBROUTINE get_generic_info(gen_section, func_name, xfunction, parameters, values, &
-                               var_values, size_variables, i_rep_sec, input_variables)
-      TYPE(section_vals_type), POINTER                   :: gen_section
-      CHARACTER(LEN=*), INTENT(IN)                       :: func_name
-      CHARACTER(LEN=default_path_length), INTENT(OUT)    :: xfunction
-      CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER                           :: parameters
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: values
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: var_values
-      INTEGER, INTENT(IN), OPTIONAL                      :: size_variables, i_rep_sec
-      CHARACTER(LEN=*), DIMENSION(:), OPTIONAL           :: input_variables
-
-      CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER                           :: my_par, my_par_tmp, my_units, &
-                                                            my_units_tmp, my_var
-      INTEGER                                            :: i, ind, irep, isize, j, mydim, n_par, &
-                                                            n_units, n_val, nblank
-      LOGICAL                                            :: check
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: my_val, my_val_tmp
-
-      NULLIFY (my_var, my_par, my_val, my_par_tmp, my_val_tmp)
-      NULLIFY (my_units)
-      NULLIFY (my_units_tmp)
-      IF (ASSOCIATED(parameters)) THEN
-         DEALLOCATE (parameters)
-      END IF
-      IF (ASSOCIATED(values)) THEN
-         DEALLOCATE (values)
-      END IF
-      irep = 1
-      IF (PRESENT(i_rep_sec)) irep = i_rep_sec
-      mydim = 0
-      CALL section_vals_val_get(gen_section, TRIM(func_name), i_rep_section=irep, c_val=xfunction)
-      CALL compress(xfunction, full=.TRUE.)
-      IF (PRESENT(input_variables)) THEN
-         ALLOCATE (my_var(SIZE(input_variables)))
-         my_var = input_variables
-      ELSE
-         CALL section_vals_val_get(gen_section, "VARIABLES", i_rep_section=irep, c_vals=my_var)
-      END IF
-      IF (ASSOCIATED(my_var)) THEN
-         mydim = SIZE(my_var)
-      END IF
-      IF (PRESENT(size_variables)) THEN
-         CPASSERT(mydim == size_variables)
-      END IF
-      ! Check for presence of Parameters
-      CALL section_vals_val_get(gen_section, "PARAMETERS", i_rep_section=irep, n_rep_val=n_par)
-      CALL section_vals_val_get(gen_section, "VALUES", i_rep_section=irep, n_rep_val=n_val)
-      check = (n_par > 0) .EQV. (n_val > 0)
-      CPASSERT(check)
-      CALL section_vals_val_get(gen_section, "UNITS", i_rep_section=irep, n_rep_val=n_units)
-      IF (n_par > 0) THEN
-         ! Parameters
-         ALLOCATE (my_par(0))
-         ALLOCATE (my_val(0))
-         DO i = 1, n_par
-            isize = SIZE(my_par)
-            CALL section_vals_val_get(gen_section, "PARAMETERS", i_rep_section=irep, i_rep_val=i, c_vals=my_par_tmp)
-            nblank = COUNT(my_par_tmp == "")
-            CALL reallocate(my_par, 1, isize + SIZE(my_par_tmp) - nblank)
-            ind = 0
-            DO j = 1, SIZE(my_par_tmp)
-               IF (my_par_tmp(j) == "") CYCLE
-               ind = ind + 1
-               my_par(isize + ind) = my_par_tmp(j)
-            END DO
-         END DO
-         DO i = 1, n_val
-            isize = SIZE(my_val)
-            CALL section_vals_val_get(gen_section, "VALUES", i_rep_section=irep, i_rep_val=i, r_vals=my_val_tmp)
-            CALL reallocate(my_val, 1, isize + SIZE(my_val_tmp))
-            my_val(isize + 1:isize + SIZE(my_val_tmp)) = my_val_tmp
-         END DO
-         CPASSERT(SIZE(my_par) == SIZE(my_val))
-         ! Optionally read the units for each parameter value
-         ALLOCATE (my_units(0))
-         IF (n_units > 0) THEN
-            DO i = 1, n_units
-               isize = SIZE(my_units)
-               CALL section_vals_val_get(gen_section, "UNITS", i_rep_section=irep, i_rep_val=i, c_vals=my_units_tmp)
-               nblank = COUNT(my_units_tmp == "")
-               CALL reallocate(my_units, 1, isize + SIZE(my_units_tmp) - nblank)
-               ind = 0
-               DO j = 1, SIZE(my_units_tmp)
-                  IF (my_units_tmp(j) == "") CYCLE
-                  ind = ind + 1
-                  my_units(isize + ind) = my_units_tmp(j)
-               END DO
-            END DO
-            CPASSERT(SIZE(my_units) == SIZE(my_val))
-         END IF
-         mydim = mydim + SIZE(my_val)
-         IF (SIZE(my_val) == 0) THEN
-            DEALLOCATE (my_par)
-            DEALLOCATE (my_val)
-            DEALLOCATE (my_units)
-         END IF
-      END IF
-      ! Handle trivial case of a null function defined
-      ALLOCATE (parameters(mydim))
-      ALLOCATE (values(mydim))
-      IF (mydim > 0) THEN
-         parameters(1:SIZE(my_var)) = my_var
-         values(1:SIZE(my_var)) = 0.0_dp
-         IF (PRESENT(var_values)) THEN
-            CPASSERT(SIZE(var_values) == SIZE(my_var))
-            values(1:SIZE(my_var)) = var_values
-         END IF
-         IF (ASSOCIATED(my_val)) THEN
-            DO i = 1, SIZE(my_val)
-               parameters(SIZE(my_var) + i) = my_par(i)
-               IF (n_units > 0) THEN
-                  values(SIZE(my_var) + i) = cp_unit_to_cp2k(my_val(i), TRIM(ADJUSTL(my_units(i))))
-               ELSE
-                  values(SIZE(my_var) + i) = my_val(i)
-               END IF
-            END DO
-         END IF
-      END IF
-      IF (ASSOCIATED(my_par)) THEN
-         DEALLOCATE (my_par)
-      END IF
-      IF (ASSOCIATED(my_val)) THEN
-         DEALLOCATE (my_val)
-      END IF
-      IF (ASSOCIATED(my_units)) THEN
-         DEALLOCATE (my_units)
-      END IF
-      IF (PRESENT(input_variables)) THEN
-         DEALLOCATE (my_var)
-      END IF
-   END SUBROUTINE get_generic_info
 
 END MODULE force_fields_util
