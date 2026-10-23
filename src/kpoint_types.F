@@ -236,6 +236,7 @@ MODULE kpoint_types
       ! symmetry
       TYPE(kpoint_sym_p_type), DIMENSION(:), &
          POINTER                              :: kp_sym => Null()
+      LOGICAL                                 :: phases_calibrated = .FALSE.
       INTEGER, DIMENSION(:), POINTER          :: atype => Null()
       INTEGER, DIMENSION(:), POINTER          :: ibrot => Null()
       TYPE(kind_rotmat_type), DIMENSION(:, :), &
@@ -286,6 +287,7 @@ CONTAINS
       kpoint%parallel_group_size = -1
 
       kpoint%nkp = 0
+      kpoint%phases_calibrated = .FALSE.
 
       NULLIFY (kpoint%xkp, kpoint%wkp)
       NULLIFY (kpoint%xkp_input, kpoint%wkp_input)
