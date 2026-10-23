@@ -1098,7 +1098,6 @@ CONTAINS
       ! set fb_env
       CALL fb_env_set(fb_env=fb_env, &
                       trial_fns=trial_fns)
-      CALL fb_trial_fns_release(trial_fns)
 
       ! cleanup
       DEALLOCATE (basis_set_list)

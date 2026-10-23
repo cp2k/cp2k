@@ -37,11 +37,9 @@ MODULE qs_fb_buffer_types
 !>                size of the current data, which is the same as the
 !>                displacement for the new data to be added
 !> \param data_1d : where all of the slices are stored
-!> \param ref_count : reference counter of this object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **********************************************************************
    TYPE fb_buffer_i_data
-      INTEGER :: ref_count = -1
       INTEGER :: n = -1
       INTEGER, DIMENSION(:), POINTER :: disps => NULL()
       INTEGER, DIMENSION(:), POINTER :: data_1d => NULL()
@@ -64,11 +62,9 @@ MODULE qs_fb_buffer_types
 !>                size of the current data, which is the same as the
 !>                displacement for the new data to be added
 !> \param data_1d : where all of the slices are stored
-!> \param ref_count : reference counter of this object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **********************************************************************
    TYPE fb_buffer_d_data
-      INTEGER :: ref_count = -1
       INTEGER :: n = -1
       INTEGER, DIMENSION(:), POINTER :: disps => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER :: data_1d => NULL()
@@ -88,11 +84,6 @@ MODULE qs_fb_buffer_types
       MODULE PROCEDURE fb_buffer_i_add
       MODULE PROCEDURE fb_buffer_d_add
    END INTERFACE fb_buffer_add
-
-   INTERFACE fb_buffer_associate
-      MODULE PROCEDURE fb_buffer_i_associate
-      MODULE PROCEDURE fb_buffer_d_associate
-   END INTERFACE fb_buffer_associate
 
    INTERFACE fb_buffer_create
       MODULE PROCEDURE fb_buffer_i_create
@@ -124,11 +115,6 @@ MODULE qs_fb_buffer_types
       MODULE PROCEDURE fb_buffer_d_release
    END INTERFACE fb_buffer_release
 
-   INTERFACE fb_buffer_retain
-      MODULE PROCEDURE fb_buffer_i_retain
-      MODULE PROCEDURE fb_buffer_d_retain
-   END INTERFACE fb_buffer_retain
-
    INTERFACE fb_buffer_nullify
       MODULE PROCEDURE fb_buffer_i_nullify
       MODULE PROCEDURE fb_buffer_d_nullify
@@ -144,18 +130,6 @@ CONTAINS
 ! INTEGER VERSION
 
 ! **************************************************************************************************
-!> \brief retains the given fb_buffer
-!> \param buffer : the fb_bffer object
-!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! **************************************************************************************************
-   SUBROUTINE fb_buffer_i_retain(buffer)
-      TYPE(fb_buffer_i_obj), INTENT(INOUT)               :: buffer
-
-      CPASSERT(ASSOCIATED(buffer%obj))
-      buffer%obj%ref_count = buffer%obj%ref_count + 1
-   END SUBROUTINE fb_buffer_i_retain
-
-! **************************************************************************************************
 !> \brief releases the given fb_buffer
 !> \param buffer : the fb_bffer object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
@@ -164,19 +138,13 @@ CONTAINS
       TYPE(fb_buffer_i_obj), INTENT(INOUT)               :: buffer
 
       IF (ASSOCIATED(buffer%obj)) THEN
-         CPASSERT(buffer%obj%ref_count > 0)
-         buffer%obj%ref_count = buffer%obj%ref_count - 1
-         IF (buffer%obj%ref_count == 0) THEN
-            buffer%obj%ref_count = 1
-            IF (ASSOCIATED(buffer%obj%data_1d)) THEN
-               DEALLOCATE (buffer%obj%data_1d)
-            END IF
-            IF (ASSOCIATED(buffer%obj%disps)) THEN
-               DEALLOCATE (buffer%obj%disps)
-            END IF
-            buffer%obj%ref_count = 0
-            DEALLOCATE (buffer%obj)
+         IF (ASSOCIATED(buffer%obj%data_1d)) THEN
+            DEALLOCATE (buffer%obj%data_1d)
          END IF
+         IF (ASSOCIATED(buffer%obj%disps)) THEN
+            DEALLOCATE (buffer%obj%disps)
+         END IF
+         DEALLOCATE (buffer%obj)
       ELSE
          NULLIFY (buffer%obj)
       END IF
@@ -192,20 +160,6 @@ CONTAINS
 
       NULLIFY (buffer%obj)
    END SUBROUTINE fb_buffer_i_nullify
-
-! **************************************************************************************************
-!> \brief associate object a to object b
-!> \param a : object to associate
-!> \param b : object target
-!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! **************************************************************************************************
-   SUBROUTINE fb_buffer_i_associate(a, b)
-      TYPE(fb_buffer_i_obj), INTENT(OUT)                 :: a
-      TYPE(fb_buffer_i_obj), INTENT(IN)                  :: b
-
-      a%obj => b%obj
-      CALL fb_buffer_retain(a)
-   END SUBROUTINE fb_buffer_i_associate
 
 ! **************************************************************************************************
 !> \brief check if an object as associated data
@@ -281,8 +235,6 @@ CONTAINS
          CPASSERT(check_ok)
          buffer%obj%data_1d(1:my_ndata) = data_1d(1:my_ndata)
       END IF
-      ! obj meta data update
-      buffer%obj%ref_count = 1
    END SUBROUTINE fb_buffer_i_create
 
 ! **************************************************************************************************
@@ -460,18 +412,6 @@ CONTAINS
 ! DOUBLE PRECISION VERSION
 
 ! **************************************************************************************************
-!> \brief retains the given fb_buffer
-!> \param buffer : the fb_bffer object
-!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! **************************************************************************************************
-   SUBROUTINE fb_buffer_d_retain(buffer)
-      TYPE(fb_buffer_d_obj), INTENT(INOUT)               :: buffer
-
-      CPASSERT(ASSOCIATED(buffer%obj))
-      buffer%obj%ref_count = buffer%obj%ref_count + 1
-   END SUBROUTINE fb_buffer_d_retain
-
-! **************************************************************************************************
 !> \brief releases the given fb_buffer
 !> \param buffer : the fb_bffer object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
@@ -480,19 +420,13 @@ CONTAINS
       TYPE(fb_buffer_d_obj), INTENT(INOUT)               :: buffer
 
       IF (ASSOCIATED(buffer%obj)) THEN
-         CPASSERT(buffer%obj%ref_count > 0)
-         buffer%obj%ref_count = buffer%obj%ref_count - 1
-         IF (buffer%obj%ref_count == 0) THEN
-            buffer%obj%ref_count = 1
-            IF (ASSOCIATED(buffer%obj%data_1d)) THEN
-               DEALLOCATE (buffer%obj%data_1d)
-            END IF
-            IF (ASSOCIATED(buffer%obj%disps)) THEN
-               DEALLOCATE (buffer%obj%disps)
-            END IF
-            buffer%obj%ref_count = 0
-            DEALLOCATE (buffer%obj)
+         IF (ASSOCIATED(buffer%obj%data_1d)) THEN
+            DEALLOCATE (buffer%obj%data_1d)
          END IF
+         IF (ASSOCIATED(buffer%obj%disps)) THEN
+            DEALLOCATE (buffer%obj%disps)
+         END IF
+         DEALLOCATE (buffer%obj)
       ELSE
          NULLIFY (buffer%obj)
       END IF
@@ -508,20 +442,6 @@ CONTAINS
 
       NULLIFY (buffer%obj)
    END SUBROUTINE fb_buffer_d_nullify
-
-! **************************************************************************************************
-!> \brief associate object a to object b
-!> \param a : object to associate
-!> \param b : object target
-!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! **************************************************************************************************
-   SUBROUTINE fb_buffer_d_associate(a, b)
-      TYPE(fb_buffer_d_obj), INTENT(OUT)                 :: a
-      TYPE(fb_buffer_d_obj), INTENT(IN)                  :: b
-
-      a%obj => b%obj
-      CALL fb_buffer_retain(a)
-   END SUBROUTINE fb_buffer_d_associate
 
 ! **************************************************************************************************
 !> \brief check if an object as associated data
@@ -598,8 +518,6 @@ CONTAINS
          CPASSERT(check_ok)
          buffer%obj%data_1d(1:my_ndata) = data_1d(1:my_ndata)
       END IF
-      ! obj meta data update
-      buffer%obj%ref_count = 1
    END SUBROUTINE fb_buffer_d_create
 
 ! **************************************************************************************************
