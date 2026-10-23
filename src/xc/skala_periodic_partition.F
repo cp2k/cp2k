@@ -59,7 +59,8 @@ CONTAINS
       CPASSERT(ALL(layout%periodicity == 0 .OR. layout%periodicity == 1))
       layout%cell = cell%hmat
       layout%inverse = cell%h_inv
-      layout%atoms = atom_coords
+      ALLOCATE (layout%atoms(3, layout%natom))
+      layout%atoms(:, :) = atom_coords
       extent = (image_shell + 1)*layout%periodicity
       layout%nneighbor = layout%natom*PRODUCT(2*extent + 1)
       ALLOCATE (layout%offset(3, layout%nneighbor, layout%natom), &
