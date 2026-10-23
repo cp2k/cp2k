@@ -46,7 +46,7 @@ export OMPI_MCA_pml=ob1
 
 # Use keepalive mode for GPU tests.
 if [[ "${PROFILE}" == *cuda* ]] || [[ "${PROFILE}" == *hip* ]]; then
-  TESTOPTS="--keepalive --timeout=400 --maxtasks=24 ${TESTOPTS}"
+  TESTOPTS="--keepalive --timeout=400 --ompthreads=1 --maxtasks=2 ${TESTOPTS}"
 fi
 
 # Flag slow tests in debug runs.
