@@ -23,7 +23,6 @@ MODULE cp_fm_diag_utils
                                               cp_cfm_release,&
                                               cp_cfm_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                              cp_fm_struct_get,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -80,6 +79,9 @@ MODULE cp_fm_diag_utils
              cp_fm_redistribute_init, &
              cp_cfm_redistribute_start, &
              cp_cfm_redistribute_end
+#if defined(__parallel)
+   PUBLIC :: cp_fm_max_ncpu_non_zero_column
+#endif
 
 CONTAINS
 
@@ -134,8 +136,12 @@ CONTAINS
          DEALLOCATE (work_redistribute%group_distribution)
          DEALLOCATE (work_redistribute%group_partition)
       END IF
-      ! Return work to its initial state
-      work_redistribute = cp_fm_redistribute_type()
+      ! Return the temporaries to their initial state; the settings written by
+      ! cp_fm_redistribute_init have to survive every redistribution
+      NULLIFY (work_redistribute%group_distribution)
+      NULLIFY (work_redistribute%group_partition)
+      NULLIFY (work_redistribute%blacs_env_new)
+      NULLIFY (work_redistribute%para_env_new)
 
    END SUBROUTINE cp_fm_redistribute_work_finalize
 
@@ -156,12 +162,15 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: a, x
       LOGICAL, INTENT(IN)                                :: should_print, elpa_force_redistribute
 
+      CPASSERT(a > 0 .AND. x > 0)
+
+      ! Init work first: the structure constructor resets every component, so the
+      ! settings have to be written after it, not before
+      work_redistribute = cp_fm_redistribute_type()
       work_redistribute%a = a
       work_redistribute%x = x
       work_redistribute%should_print = should_print
       work_redistribute%elpa_force_redistribute = elpa_force_redistribute
-      ! Init work
-      work_redistribute = cp_fm_redistribute_type()
 
    END SUBROUTINE cp_fm_redistribute_init
 
@@ -182,44 +191,37 @@ CONTAINS
 
 #if defined(__parallel)
 ! **************************************************************************************************
-!> \brief  Determines the largest number of CPUs a matrix can be distributed on without any of the
-!>         processors getting a zero-width column (currently only needed for ELPA).
-!> \param  matrix the matrix that will be diagonalized
-!> \return the maximum number of CPUs for ELPA
+!> \brief  Finds a safe ELPA layout at or below the requested number of CPUs.
+!> \param  matrix_struct the original matrix layout
+!> \param  ncpu_max the upper limit on the number of CPUs
+!> \param  block_size the block size of the redistributed matrix
+!> \return a number of CPUs whose layout has no empty process rows or columns
 !> \author Nico Holmberg [01.2018]
 ! **************************************************************************************************
-   FUNCTION cp_fm_max_ncpu_non_zero_column(matrix) RESULT(ncpu)
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
+   FUNCTION cp_fm_max_ncpu_non_zero_column(matrix_struct, ncpu_max, block_size) RESULT(ncpu)
+      TYPE(cp_fm_struct_type), INTENT(IN)                :: matrix_struct
+      INTEGER, INTENT(IN)                                :: ncpu_max, block_size
       INTEGER                                            :: ncpu
 
-      INTEGER                                            :: gcd_max, ipe, jpe, ncol_block, &
-                                                            ncol_global, npcol, nrow_block, &
-                                                            nrow_global, num_pe_old, nzero
-      INTEGER, DIMENSION(:), POINTER                     :: ncol_locals
+      INTEGER                                            :: gcd_max, ipe, jpe, npcol, nprow, nzero
       INTEGER, EXTERNAL                                  :: numroc
 
-      NULLIFY (ncol_locals)
-      ! First check if there are any zero width columns in current layout
-      CALL cp_fm_get_info(matrix, ncol_locals=ncol_locals, &
-                          nrow_global=nrow_global, ncol_global=ncol_global, &
-                          nrow_block=nrow_block, ncol_block=ncol_block)
-      nzero = COUNT(ncol_locals == 0)
-      num_pe_old = matrix%matrix_struct%para_env%num_pe
-      ncpu = num_pe_old - nzero
+      ncpu = MAX(1, MIN(ncpu_max, matrix_struct%para_env%num_pe))
+      ! Avoid layouts with odd number of CPUs (blacs grid layout will be square).
+      IF (ncpu > 2) ncpu = ncpu - MODULO(ncpu, 2)
 
-      ! Avoid layouts with odd number of CPUs (blacs grid layout will be square)
-      IF (ncpu > 2) THEN
-         ncpu = ncpu - MODULO(ncpu, 2)
+      ! Keep a valid original layout only when no redistribution is needed.
+      IF (ncpu == matrix_struct%para_env%num_pe .AND. &
+          block_size == matrix_struct%nrow_block .AND. block_size == matrix_struct%ncol_block) THEN
+         nzero = COUNT(matrix_struct%nrow_locals == 0) + COUNT(matrix_struct%ncol_locals == 0)
+         IF (nzero == 0) RETURN
+         ! A smaller rank count ensures that an invalid original grid is replaced.
+         ncpu = ncpu - nzero
+         IF (ncpu > 2) ncpu = ncpu - MODULO(ncpu, 2)
       END IF
 
-      ! if there are no zero-width columns and the number of processors was even, leave it at that
-      IF (ncpu == num_pe_old) THEN
-         RETURN
-      END IF
-
-      ! Iteratively search for the maximum number of CPUs for ELPA
-      ! On each step, we test whether the blacs grid created with ncpu processes
-      ! contains any columns with zero width
+      ! Fewer CPUs can mean more process columns (e.g. 32: 4x8, 20: 2x10).
+      ! Check the actual candidate grid with the final block size.
       DO WHILE (ncpu > 1)
          ! Determine layout of new blacs grid with ncpu CPUs
          ! (snippet copied from cp_blacs_env.F:cp_blacs_env_create)
@@ -230,16 +232,22 @@ CONTAINS
                CYCLE
             END IF
             IF (gcd(ipe, jpe) >= gcd_max) THEN
+               nprow = ipe
                npcol = jpe
                gcd_max = gcd(ipe, jpe)
             END IF
          END DO
 
-         ! Count the number of processors without any columns
+         ! Count empty process rows and columns.
          ! (snippet copied from cp_fm_struct.F:cp_fm_struct_create)
          nzero = 0
          DO ipe = 0, npcol - 1
-            IF (numroc(ncol_global, ncol_block, ipe, 0, npcol) == 0) THEN
+            IF (numroc(matrix_struct%ncol_global, block_size, ipe, 0, npcol) == 0) THEN
+               nzero = nzero + 1
+            END IF
+         END DO
+         DO ipe = 0, nprow - 1
+            IF (numroc(matrix_struct%nrow_global, block_size, ipe, 0, nprow) == 0) THEN
                nzero = nzero + 1
             END IF
          END DO
@@ -329,37 +337,24 @@ CONTAINS
       rdinfo%redistribute = .FALSE.
 
       IF (is_elpa) THEN
-         ! with ELPA we don't have to redistribute if not necessary (scales, unlike ScaLAPACK)
-         rdinfo%num_pe_new = rdinfo%num_pe_old
-
-         ! BUT: Diagonalization with ELPA fails when a processor column has zero width
-         ! Determine the maximum number of CPUs the matrix can be distributed without zero-width columns
-         ! for the current block size.
-         rdinfo%num_pe_max_nz_col = cp_fm_max_ncpu_non_zero_column(matrix)
-
-         ! if the user wants to redistribute to the ScaLAPACK optimal number of CPUs anyway, let him if it's safe.
-         IF (work_redistribute%elpa_force_redistribute .AND. rdinfo%num_pe_opt < rdinfo%num_pe_max_nz_col) THEN
-            ! Use heuristics to determine the need for redistribution (when num_pe_opt is smaller than the safe maximum)
-            ! in this case we can also take the block size used for ScaLAPACK
-            rdinfo%num_pe_new = rdinfo%num_pe_opt
-         ELSE IF (rdinfo%num_pe_old > rdinfo%num_pe_max_nz_col) THEN
-            ! Otherwise, only redistribute if we have to
-            rdinfo%num_pe_new = rdinfo%num_pe_max_nz_col
-            ! do NOT let cp_fm_struct_create automatically adjust the block size because the
-            ! calculated number of processors such that no block has 0 columns wouldn't match (see #578):
-            ! if the automatically chosen block size is larger than the present one we would still end
-            ! up with empty processors
-         END IF
-
          CALL cp_fm_get_info(matrix, ncol_block=ncol_block, nrow_block=nrow_block)
 
-         ! On GPUs, ELPA requires the block size to be a power of 2
+         ! On GPUs, ELPA requires the block size to be a power of 2.
          blksize = 1
          DO WHILE (2*blksize <= MIN(nrow_block, ncol_block))
             blksize = blksize*2
          END DO
          nrow_block = blksize
          ncol_block = blksize
+
+         ! Only redistribute when necessary unless the user requests the heuristic.
+         rdinfo%num_pe_max_nz_col = cp_fm_max_ncpu_non_zero_column( &
+                                    matrix%matrix_struct, rdinfo%num_pe_old, blksize)
+         rdinfo%num_pe_new = rdinfo%num_pe_max_nz_col
+         IF (work_redistribute%elpa_force_redistribute .AND. rdinfo%num_pe_opt < rdinfo%num_pe_new) THEN
+            rdinfo%num_pe_new = cp_fm_max_ncpu_non_zero_column( &
+                                matrix%matrix_struct, rdinfo%num_pe_opt, blksize)
+         END IF
       END IF
 
       ! finally, only redistribute if we're going to use less CPUs than before or changed the block size
@@ -529,83 +524,6 @@ CONTAINS
 
    END SUBROUTINE cp_fm_redistribute_end
 
-#if defined(__parallel)
-! **************************************************************************************************
-!> \brief  Determines the largest number of CPUs a matrix can be distributed on without any of the
-!>         processors getting a zero-width column (currently only needed for ELPA).
-!> \param  matrix the matrix that will be diagonalized
-!> \return the maximum number of CPUs for ELPA
-! **************************************************************************************************
-   FUNCTION cp_cfm_max_ncpu_non_zero_column(matrix) RESULT(ncpu)
-      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix
-      INTEGER                                            :: ncpu
-
-      INTEGER                                            :: gcd_max, ipe, jpe, ncol_block, &
-                                                            ncol_global, npcol, nrow_block, &
-                                                            nrow_global, num_pe_old, nzero
-      INTEGER, DIMENSION(:), POINTER                     :: ncol_locals
-      INTEGER, EXTERNAL                                  :: numroc
-
-      NULLIFY (ncol_locals)
-      ! First check if there are any zero width columns in current layout
-      CALL cp_fm_struct_get(matrix%matrix_struct, ncol_locals=ncol_locals, &
-                            nrow_global=nrow_global, ncol_global=ncol_global, &
-                            nrow_block=nrow_block, ncol_block=ncol_block)
-      nzero = COUNT(ncol_locals == 0)
-      num_pe_old = matrix%matrix_struct%para_env%num_pe
-      ncpu = num_pe_old - nzero
-
-      ! Avoid layouts with odd number of CPUs (blacs grid layout will be square)
-      IF (ncpu > 2) THEN
-         ncpu = ncpu - MODULO(ncpu, 2)
-      END IF
-
-      ! if there are no zero-width columns and the number of processors was even, leave it at that
-      IF (ncpu == num_pe_old) THEN
-         RETURN
-      END IF
-
-      ! Iteratively search for the maximum number of CPUs for ELPA
-      ! On each step, we test whether the blacs grid created with ncpu processes
-      ! contains any columns with zero width
-      DO WHILE (ncpu > 1)
-         ! Determine layout of new blacs grid with ncpu CPUs
-         ! (snippet copied from cp_blacs_env.F:cp_blacs_env_create)
-         gcd_max = -1
-         DO ipe = 1, CEILING(SQRT(REAL(ncpu, dp)))
-            jpe = ncpu/ipe
-            IF (ipe*jpe /= ncpu) THEN
-               CYCLE
-            END IF
-            IF (gcd(ipe, jpe) >= gcd_max) THEN
-               npcol = jpe
-               gcd_max = gcd(ipe, jpe)
-            END IF
-         END DO
-
-         ! Count the number of processors without any columns
-         ! (snippet copied from cp_fm_struct.F:cp_fm_struct_create)
-         nzero = 0
-         DO ipe = 0, npcol - 1
-            IF (numroc(ncol_global, ncol_block, ipe, 0, npcol) == 0) THEN
-               nzero = nzero + 1
-            END IF
-         END DO
-
-         IF (nzero == 0) THEN
-            EXIT
-         END IF
-
-         ncpu = ncpu - nzero
-
-         IF (ncpu > 2) THEN
-            ncpu = ncpu - MODULO(ncpu, 2)
-         END IF
-      END DO
-
-   END FUNCTION cp_cfm_max_ncpu_non_zero_column
-#endif
-
 ! **************************************************************************************************
 !> \brief   Determines the optimal number of CPUs for matrix diagonalization and redistributes
 !>          the input matrices if necessary
@@ -676,37 +594,24 @@ CONTAINS
       rdinfo%redistribute = .FALSE.
 
       IF (is_elpa) THEN
-         ! with ELPA we don't have to redistribute if not necessary (scales, unlike ScaLAPACK)
-         rdinfo%num_pe_new = rdinfo%num_pe_old
-
-         ! BUT: Diagonalization with ELPA fails when a processor column has zero width
-         ! Determine the maximum number of CPUs the matrix can be distributed without zero-width columns
-         ! for the current block size.
-         rdinfo%num_pe_max_nz_col = cp_cfm_max_ncpu_non_zero_column(matrix)
-
-         ! if the user wants to redistribute to the ScaLAPACK optimal number of CPUs anyway, let him if it's safe.
-         IF (work_redistribute%elpa_force_redistribute .AND. rdinfo%num_pe_opt < rdinfo%num_pe_max_nz_col) THEN
-            ! Use heuristics to determine the need for redistribution (when num_pe_opt is smaller than the safe maximum)
-            ! in this case we can also take the block size used for ScaLAPACK
-            rdinfo%num_pe_new = rdinfo%num_pe_opt
-         ELSE IF (rdinfo%num_pe_old > rdinfo%num_pe_max_nz_col) THEN
-            ! Otherwise, only redistribute if we have to
-            rdinfo%num_pe_new = rdinfo%num_pe_max_nz_col
-            ! do NOT let cp_fm_struct_create automatically adjust the block size because the
-            ! calculated number of processors such that no block has 0 columns wouldn't match (see #578):
-            ! if the automatically chosen block size is larger than the present one we would still end
-            ! up with empty processors
-         END IF
-
          CALL cp_cfm_get_info(matrix, ncol_block=ncol_block, nrow_block=nrow_block)
 
-         ! On GPUs, ELPA requires the block size to be a power of 2
+         ! On GPUs, ELPA requires the block size to be a power of 2.
          blksize = 1
          DO WHILE (2*blksize <= MIN(nrow_block, ncol_block))
             blksize = blksize*2
          END DO
          nrow_block = blksize
          ncol_block = blksize
+
+         ! Only redistribute when necessary unless the user requests the heuristic.
+         rdinfo%num_pe_max_nz_col = cp_fm_max_ncpu_non_zero_column( &
+                                    matrix%matrix_struct, rdinfo%num_pe_old, blksize)
+         rdinfo%num_pe_new = rdinfo%num_pe_max_nz_col
+         IF (work_redistribute%elpa_force_redistribute .AND. rdinfo%num_pe_opt < rdinfo%num_pe_new) THEN
+            rdinfo%num_pe_new = cp_fm_max_ncpu_non_zero_column( &
+                                matrix%matrix_struct, rdinfo%num_pe_opt, blksize)
+         END IF
       END IF
 
       ! finally, only redistribute if we're going to use less CPUs than before or changed the block size

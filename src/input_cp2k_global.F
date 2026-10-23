@@ -811,11 +811,11 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ELPA_FORCE_REDISTRIBUTE", &
                           description="Controls how to perform redistribution when ELPA is used for diagonalization. "// &
-                          "By default, redistribution is always performed using the defined rules. "// &
-                          "By turning off this keyword, matrices are redistributed only to prevent crashes in the ELPA "// &
-                          "library which happens when the original matrix is distributed over too many processors.", &
+                          "By default, matrices are redistributed only when required by the ELPA layout. "// &
+                          "Turning on this keyword also applies the defined rules to reduce the number of "// &
+                          "processors, using a layout without empty process rows or columns.", &
                           usage="ELPA_FORCE_REDISTRIBUTE", type_of_var=logical_t, &
-                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
