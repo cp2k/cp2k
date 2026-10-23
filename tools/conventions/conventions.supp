@@ -44,6 +44,7 @@ fftw3_lib.F: Found type fftwf_iodim without initializer https://cp2k.org/conv#c0
 fftw3_lib.F: Found type fftw_iodim64 without initializer https://cp2k.org/conv#c016
 fftw3_lib.F: Found type fftw_iodim without initializer https://cp2k.org/conv#c016
 fftw3_lib.F: Same actual argument associated with INTENT(OUT) argument 'out' and INTENT(OUT) argument 'in' at (1)
+four_center_integral_interface.F: Found type four_center_integral_context_type without initializer https://cp2k.org/conv#c016
 fparser.F: Found WRITE statement with hardcoded unit in "parseerrmsg" https://cp2k.org/conv#c012
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc" https://cp2k.org/conv#c012
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc_low" https://cp2k.org/conv#c012
