@@ -342,7 +342,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       INTEGER, POINTER                                   :: aux_mo_cols(:)
       LOGICAL                                            :: apply_star, gapw, mo_ok, my_kpgrp, &
-                                                            pmat_from_rs, star_owner, use_real_wfn
+                                                            pmat_from_rs, save_overlap, &
+                                                            star_owner, use_real_wfn
       REAL(dp)                                           :: maxval_mos, nelec_aux(2), nelec_orb(2), &
                                                             tmp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: star_w
@@ -356,11 +357,13 @@ CONTAINS
       TYPE(cp_cfm_type)                                  :: a_c, caux_mo, cmo_star, cpmatrix, &
                                                             cwork_aux_aux, cwork_aux_orb, p_c, &
                                                             pa_c, src_c_null, w_c
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: camat_save, csmat_save
       TYPE(cp_fm_struct_type), POINTER :: struct_ao_g, struct_aux_aux, struct_aux_mo, &
          struct_aux_orb, struct_oo_g, struct_orb_orb, struct_paux, struct_star
       TYPE(cp_fm_type)                                   :: a_r, fmdummy, p_r, pa_r, paux_i, paux_r, &
                                                             pi, pr, src_r_null, w_r, work_aux_orb, &
                                                             work_orb_orb, work_orb_orb2
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: amat_save, smat_save
       TYPE(cp_fm_type), ALLOCATABLE, &
          DIMENSION(:, :, :), TARGET                      :: pmat_star
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
@@ -673,6 +676,33 @@ CONTAINS
             END DO
          END DO
 
+         ! The per-star A fits overwrite the local A(k) and, for ADMMP/Q/S, the
+         ! stored overlaps. Save them so the final grid-wide recompute is avoided.
+         save_overlap = admm_env%do_admmp .OR. admm_env%do_admmq .OR. admm_env%do_admms
+         ALLOCATE (amat_save(kplocal), camat_save(kplocal))
+         IF (save_overlap) ALLOCATE (smat_save(kplocal), csmat_save(kplocal))
+         DO ikp = 1, kplocal
+            kp => kpoints%kp_aux_env(ikp)%kpoint_env
+            IF (ASSOCIATED(kp%amat%matrix_struct)) THEN
+               CALL cp_fm_create(amat_save(ikp), kp%amat%matrix_struct)
+               CALL cp_fm_to_fm(kp%amat, amat_save(ikp))
+            END IF
+            IF (ASSOCIATED(kp%camat%matrix_struct)) THEN
+               CALL cp_cfm_create(camat_save(ikp), kp%camat%matrix_struct)
+               CALL cp_cfm_to_cfm(kp%camat, camat_save(ikp))
+            END IF
+            IF (save_overlap) THEN
+               IF (ASSOCIATED(kp%smat%matrix_struct)) THEN
+                  CALL cp_fm_create(smat_save(ikp), kp%smat%matrix_struct)
+                  CALL cp_fm_to_fm(kp%smat, smat_save(ikp))
+               END IF
+               IF (ASSOCIATED(kp%csmat%matrix_struct)) THEN
+                  CALL cp_cfm_create(csmat_save(ikp), kp%csmat%matrix_struct)
+                  CALL cp_cfm_to_cfm(kp%csmat, csmat_save(ikp))
+               END IF
+            END IF
+         END DO
+
          DO isg = 1, nstar
             ik = star_ik(isg)
             istar = star_is(isg)
@@ -808,7 +838,29 @@ CONTAINS
             kpoints%xkp(:, ik) = xkp_save(:, isg)
          END DO
 
-         CALL kpoint_calc_admm_matrices(qs_env, .FALSE.)
+         DO ikp = 1, kplocal
+            kp => kpoints%kp_aux_env(ikp)%kpoint_env
+            IF (ASSOCIATED(amat_save(ikp)%matrix_struct)) THEN
+               CALL cp_fm_to_fm(amat_save(ikp), kp%amat)
+               CALL cp_fm_release(amat_save(ikp))
+            END IF
+            IF (ASSOCIATED(camat_save(ikp)%matrix_struct)) THEN
+               CALL cp_cfm_to_cfm(camat_save(ikp), kp%camat)
+               CALL cp_cfm_release(camat_save(ikp))
+            END IF
+            IF (save_overlap) THEN
+               IF (ASSOCIATED(smat_save(ikp)%matrix_struct)) THEN
+                  CALL cp_fm_to_fm(smat_save(ikp), kp%smat)
+                  CALL cp_fm_release(smat_save(ikp))
+               END IF
+               IF (ASSOCIATED(csmat_save(ikp)%matrix_struct)) THEN
+                  CALL cp_cfm_to_cfm(csmat_save(ikp), kp%csmat)
+                  CALL cp_cfm_release(csmat_save(ikp))
+               END IF
+            END IF
+         END DO
+         DEALLOCATE (amat_save, camat_save)
+         IF (save_overlap) DEALLOCATE (smat_save, csmat_save)
          DEALLOCATE (xkp_save)
 
          CALL kpoint_density_transform(kpoints, rho_ao_aux, .FALSE., &
