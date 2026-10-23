@@ -59,9 +59,7 @@ CONTAINS
 
       INTEGER                                            :: handle, i_t, ispin, n_panels
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pan_first, pan_last
-      REAL(KIND=dp)                                      :: t1, tau
-      REAL(KIND=dp), POINTER                             :: grid_occ
-      REAL(KIND=dp), TARGET                              :: first_grid_occ
+      REAL(KIND=dp)                                      :: first_grid_occ, t1, tau
       TYPE(dbcsr_type)                                   :: matrix_G_occ_ao(1), matrix_G_vir_ao
 
       CALL timeset(routineN, handle)
@@ -85,8 +83,6 @@ CONTAINS
       ! χ_PQ(iτ) = Σ_s g_s · Z^T ( (ϕ G^occ_s ϕ^T) ∘ (ϕ G^vir_s ϕ^T) ) Z
       ! (g_s = spin degeneracy)
       ! =========================================================================
-      ! A disassociated actual pointer omits the optional diagnostic after the first time point.
-      grid_occ => first_grid_occ
       DO i_t = 1, bs_env%num_time_freq_points
          t1 = m_walltime()
          tau = bs_env%time_frequency_grid%imaginary_time(i_t)
@@ -100,16 +96,29 @@ CONTAINS
                             bs_env%ri_rs%mat_phi_mu_l, matrix_G_vir_ao)
 
             ! χ_PQ += g_s · Z^T ( (ϕ G^occ ϕ^T) ∘ (ϕ G^vir ϕ^T) ) Z
-            CALL contract_grid_panels(L_A=bs_env%ri_rs%mat_phi_mu_l, M_A=matrix_G_occ_ao, &
-                                      L_B=bs_env%ri_rs%mat_phi_mu_l, M_B=matrix_G_vir_ao, &
-                                      L_out=bs_env%ri_rs%mat_Z_lP, mat_out=mat_chi_Gamma_tau(i_t:i_t), &
-                                      scale=bs_env%spin_degeneracy, eps=bs_env%eps_filter, &
-                                      para_env=bs_env%para_env, &
-                                      pan_first=pan_first, pan_last=pan_last, &
-                                      lb_eq_la=.TRUE., lout_eq_la=.FALSE., &
-                                      zero_out=(ispin == 1), &
-                                      centroids=bs_env%ri_rs%chunk_centroids, &
-                                      cutoff=cutoff, grid_occupation=grid_occ)
+            IF (i_t == 1) THEN
+               CALL contract_grid_panels(L_A=bs_env%ri_rs%mat_phi_mu_l, M_A=matrix_G_occ_ao, &
+                                         L_B=bs_env%ri_rs%mat_phi_mu_l, M_B=matrix_G_vir_ao, &
+                                         L_out=bs_env%ri_rs%mat_Z_lP, mat_out=mat_chi_Gamma_tau(i_t:i_t), &
+                                         scale=bs_env%spin_degeneracy, eps=bs_env%eps_filter, &
+                                         para_env=bs_env%para_env, &
+                                         pan_first=pan_first, pan_last=pan_last, &
+                                         lb_eq_la=.TRUE., lout_eq_la=.FALSE., &
+                                         zero_out=(ispin == 1), &
+                                         centroids=bs_env%ri_rs%chunk_centroids, &
+                                         cutoff=cutoff, grid_occupation=first_grid_occ)
+            ELSE
+               CALL contract_grid_panels(L_A=bs_env%ri_rs%mat_phi_mu_l, M_A=matrix_G_occ_ao, &
+                                         L_B=bs_env%ri_rs%mat_phi_mu_l, M_B=matrix_G_vir_ao, &
+                                         L_out=bs_env%ri_rs%mat_Z_lP, mat_out=mat_chi_Gamma_tau(i_t:i_t), &
+                                         scale=bs_env%spin_degeneracy, eps=bs_env%eps_filter, &
+                                         para_env=bs_env%para_env, &
+                                         pan_first=pan_first, pan_last=pan_last, &
+                                         lb_eq_la=.TRUE., lout_eq_la=.FALSE., &
+                                         zero_out=(ispin == 1), &
+                                         centroids=bs_env%ri_rs%chunk_centroids, &
+                                         cutoff=cutoff)
+            END IF
 
             CALL dbcsr_release(matrix_G_occ_ao(1))
             CALL dbcsr_release(matrix_G_vir_ao)
@@ -138,7 +147,6 @@ CONTAINS
                ',    Execution time', m_walltime() - t1, ' s'
          END IF
 
-         NULLIFY (grid_occ)
       END DO ! i_t
 
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
