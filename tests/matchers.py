@@ -118,6 +118,52 @@ registry["OT_lattice_local_correction"] = TextPresenceMatcher(
 registry["Kubo_sigma_iso"] = GenericMatcher(r"KUBO_TRANSPORT| sigma_iso[S/cm]", col=3)
 registry["Kubo_sigma_iso_2d"] = GenericMatcher(r"KUBO_TRANSPORT| sigma_iso[S]", col=3)
 registry["Kubo_sigma_iso_1d"] = GenericMatcher(r"KUBO_TRANSPORT| sigma_iso[S*m]", col=3)
+registry["NLO_chi2_3d_zzz_real"] = GenericMatcher(
+    r"NONLINEAR_OPTICS\| 3D\s+ZZZ\s+([-+0-9.EeDd]+)", col=1, regex=True
+)
+registry["NLO_chi2_3d_zzz_imag"] = GenericMatcher(
+    r"NONLINEAR_OPTICS\| 3D\s+ZZZ\s+[-+0-9.EeDd]+\s+([-+0-9.EeDd]+)",
+    col=1,
+    regex=True,
+)
+registry["NLO_chi2_3d_xxz_real"] = GenericMatcher(
+    r"NONLINEAR_OPTICS\| 3D\s+XXZ\s+([-+0-9.EeDd]+)", col=1, regex=True
+)
+registry["NLO_chi2_3d_xxz_imag"] = GenericMatcher(
+    r"NONLINEAR_OPTICS\| 3D\s+XXZ\s+[-+0-9.EeDd]+\s+([-+0-9.EeDd]+)", col=1, regex=True
+)
+registry["NLO_chi2_2d_zzz_real"] = GenericMatcher(
+    r"NONLINEAR_OPTICS\| 2D\s+ZZZ\s+([-+0-9.EeDd]+)", col=1, regex=True
+)
+registry["NLO_chi2_3d_zzz_real_first"] = GenericMatcher(
+    r"NONLINEAR_OPTICS\| 3D\s+ZZZ\s+([-+0-9.EeDd]+)",
+    col=1,
+    regex=True,
+    first=True,
+)
+registry["NLO_chi2_3d_zzz_imag_first"] = GenericMatcher(
+    r"NONLINEAR_OPTICS\| 3D\s+ZZZ\s+[-+0-9.EeDd]+\s+([-+0-9.EeDd]+)",
+    col=1,
+    regex=True,
+    first=True,
+)
+registry["NLO_chi2_2d_zzz_real_first"] = GenericMatcher(
+    r"NONLINEAR_OPTICS\| 2D\s+ZZZ\s+([-+0-9.EeDd]+)",
+    col=1,
+    regex=True,
+    first=True,
+)
+for nlo_order in (3, 4, 5):
+    nlo_prefix = rf"NONLINEAR_OPTICS\| 3D\s+Z{{{nlo_order + 1}}}\s+"
+    registry[f"NLO_chi{nlo_order}_3d_zz_real"] = GenericMatcher(
+        nlo_prefix + r"([-+0-9.EeDd]+)", col=1, regex=True
+    )
+    registry[f"NLO_chi{nlo_order}_3d_zz_imag"] = GenericMatcher(
+        nlo_prefix + r"[-+0-9.EeDd]+\s+([-+0-9.EeDd]+)", col=1, regex=True
+    )
+registry["NLO_T1_T2_fs"] = GenericMatcher(
+    r"NONLINEAR_OPTICS\| T1 = T2:\s+([-+0-9.EeDd]+)\s+fs", col=1, regex=True
+)
 registry["Kubo_internal_diag"] = TextPresenceMatcher("internal diagonalization")
 registry["Kubo_reused_mos"] = TextPresenceMatcher("CP2K canonical MOs")
 registry["Kubo_reference"] = TextPresenceMatcher(
