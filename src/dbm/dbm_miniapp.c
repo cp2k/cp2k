@@ -12,6 +12,7 @@
 #include "../offload/offload_mempool.h"
 
 #include <assert.h>
+#include <limits.h>
 #include <omp.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -64,6 +65,19 @@ static dbm_distribution_t *create_dist(const int nrows, const int ncols,
 }
 
 /*******************************************************************************
+ * \brief Private routine for drawing block sizes from [size_min, size_max].
+ * \author Ole Schuett
+ ******************************************************************************/
+static void set_some_sizes(const int nsizes, const int size_min,
+                           const int size_max, int sizes[nsizes]) {
+  assert(0 < size_min && size_min <= size_max);
+  const int range = size_max - size_min + 1;
+  for (int i = 0; i < nsizes; i++) {
+    sizes[i] = (1 < range ? size_min + rand() % range : size_max);
+  }
+}
+
+/*******************************************************************************
  * \brief Private routine for creating a distribution and an empty matrix.
  * \author Ole Schuett
  ******************************************************************************/
@@ -79,28 +93,8 @@ create_some_matrix(const int nrows, const int ncols, const int nrows_min,
   int *row_sizes = malloc(nrows * sizeof(int));
   int *col_sizes = malloc(ncols * sizeof(int));
   assert(row_sizes != NULL && col_sizes != NULL);
-  assert(0 < nrows_min && nrows_min <= nrows_max);
-  assert(0 < ncols_min && ncols_min <= ncols_max);
-  if (nrows_min != nrows_max) {
-    const int row_size = nrows_max - nrows_min + 1;
-    for (int i = 0; i < nrows; i++) {
-      row_sizes[i] = rand() % row_size + 1;
-    }
-  } else {
-    for (int i = 0; i < nrows; i++) {
-      row_sizes[i] = nrows_max;
-    }
-  }
-  if (ncols_min != ncols_max) {
-    const int col_size = ncols_max - ncols_min + 1;
-    for (int i = 0; i < ncols; i++) {
-      col_sizes[i] = rand() % col_size + 1;
-    }
-  } else {
-    for (int i = 0; i < ncols; i++) {
-      col_sizes[i] = ncols_max;
-    }
-  }
+  set_some_sizes(nrows, nrows_min, nrows_max, row_sizes);
+  set_some_sizes(ncols, ncols_min, ncols_max, col_sizes);
   dbm_matrix_t *matrix = NULL;
   dbm_create(&matrix, dist, "some name", nrows, ncols, row_sizes, col_sizes);
   dbm_distribution_release(dist);
@@ -169,22 +163,32 @@ static void set_all_blocks(dbm_matrix_t *matrix) {
       int row, col, row_size, col_size;
       double *block;
       dbm_iterator_next_block(iter, &row, &col, &block, &row_size, &col_size);
+      // Blocks of the same size differ, which exposes mixed up blocks.
+      const int shift = (31 * row + 17 * col) % 101;
       const int block_size = row_size * col_size;
       for (int i = 0; i < block_size; i++) {
-        block[i] = 1.0 / (i + 1);
+        block[i] = 1.0 / (i + 1 + shift);
       }
     }
     dbm_iterator_stop(iter);
   }
 }
 /*******************************************************************************
- * \brief Run a benchmark of dbm_multiply with given block sizes.
+ * \brief Run a benchmark of dbm_multiply with given block sizes. The blocks
+ *        of A have 1 to m rows and those of B have 1 to n columns, unless
+ *        DBM_MINIAPP_FIXED is set (non-zero), e.g., for homogeneous batches.
  * \author Ole Schuett
  ******************************************************************************/
 void benchmark_multiply(const int M, const int N, const int K, const int m,
                         const int n, const int k, const cp_mpi_comm_t comm) {
-  dbm_matrix_t *matrix_a = create_some_matrix(M, K, 1, m, k, k, comm);
-  dbm_matrix_t *matrix_b = create_some_matrix(K, N, k, k, 1, n, comm);
+  const char *const fixed_env = getenv("DBM_MINIAPP_FIXED");
+  const bool fixed = (NULL != fixed_env && 0 != atoi(fixed_env));
+
+  srand(25071975); // same matrices regardless of preceding benchmarks
+  dbm_matrix_t *matrix_a =
+      create_some_matrix(M, K, fixed ? m : 1, m, k, k, comm);
+  dbm_matrix_t *matrix_b =
+      create_some_matrix(K, N, k, k, fixed ? n : 1, n, comm);
   dbm_distribution_t *dist_c = create_dist(M, N, comm);
   dbm_matrix_t *matrix_c = NULL, *matrix_d = NULL;
   dbm_create(&matrix_c, dist_c, "result", M, N, matrix_a->row_sizes,
@@ -242,13 +246,55 @@ void benchmark_multiply(const int M, const int N, const int K, const int m,
 }
 
 /*******************************************************************************
+ * \brief Private routine for parsing a triplet like MxNxK, where omitted
+ *        components default to the first one. Returns false if invalid.
+ * \author Hans Pabst
+ ******************************************************************************/
+static bool parse_triplet(const char *arg, int triplet[3]) {
+  const char *const delims = "x,;:|/";
+  int ntriplet = 0;
+  while (ntriplet < 3 && '\0' != *arg) {
+    char *end = NULL;
+    const long value = strtol(arg, &end, 10);
+    if (end == arg || value <= 0 || INT_MAX < value) {
+      break;
+    }
+    triplet[ntriplet++] = (int)value;
+    for (arg = end; '\0' != *arg && NULL != strchr(delims, *arg); ++arg) {
+    }
+  }
+  for (int i = ntriplet; 0 < ntriplet && i < 3; i++) {
+    triplet[i] = triplet[0];
+  }
+  return (0 < ntriplet && '\0' == *arg);
+}
+
+/*******************************************************************************
+ * \brief Private routine for running benchmarks given as pairs of triplets,
+ *        i.e., block sizes followed by the matrix size in blocks (default:
+ *        128x128x128 if the last pair is incomplete).
+ * \author Hans Pabst
+ ******************************************************************************/
+static bool run_benchmarks(const int nargs, char *args[],
+                           const cp_mpi_comm_t comm) {
+  bool valid = (0 < nargs);
+  for (int i = 0; valid && i < nargs; i += 2) {
+    int mnk[3], MNK[3] = {128, 128, 128};
+    valid = parse_triplet(args[i], mnk) &&
+            (nargs <= i + 1 || parse_triplet(args[i + 1], MNK));
+    if (valid) {
+      benchmark_multiply(MNK[0], MNK[1], MNK[2], mnk[0], mnk[1], mnk[2], comm);
+    }
+  }
+  return valid;
+}
+
+/*******************************************************************************
  * \brief Stand-alone miniapp for smoke-testing and benchmarking dbm_multiply.
  * \author Ole Schuett
  ******************************************************************************/
 int main(int argc, char *argv[]) {
   int result = EXIT_SUCCESS;
-
-  srand(25071975); // seed rng
 
   cp_mpi_init(&argc, &argv);
   dbm_library_init();
@@ -302,45 +348,35 @@ int main(int argc, char *argv[]) {
     benchmark_multiply(350, 350, 350, 23, 23, 23, comm);
     benchmark_multiply(250, 250, 250, 32, 32, 32, comm);
     benchmark_multiply(60, 60, 60, 128, 128, 128, comm);
-  } else { /* read triplet(s) from file or one triplet from command line */
-    FILE *const file = fopen(argv[1], "r"); /* try 1st arg as filename */
-    char buffer[1024];
-    const char delims[] = "x,;:|/\t ";
-    int mnk[] = {0, 0, 0}, i = 1, j = 0;
-    while (i < argc &&
-           (NULL == file || NULL != fgets(buffer, sizeof(buffer), file))) {
-      const char *arg = strtok(NULL != file ? buffer : argv[i], delims);
-      for (; NULL != arg && j < 3; arg = strtok(NULL, delims), ++j) {
-        mnk[j] = atoi(arg);
-      }
-      if (NULL != file) {
-        j = 0;
-      } else if (++i < argc) {
-        continue;
-      }
-      if (0 < mnk[0]) { /* valid MxNxK? */
-        const int m = mnk[0];
-        const int n = (0 < mnk[1] ? mnk[1] : m);
-        const int k = (0 < mnk[2] ? mnk[2] : m);
-        int M = (NULL == arg ? 0 : atoi(arg)), N, K;
-        if (0 < M) {
-          arg = strtok(NULL, delims);
-          N = (NULL == arg ? 1 : atoi(arg));
-          arg = strtok(NULL, delims);
-          K = (NULL == arg ? 1 : atoi(arg));
-        } else { /* default */
-          M = N = K = 128;
-        }
-        benchmark_multiply(M, N, K, m, n, k, comm);
-        mnk[0] = mnk[1] = mnk[2] = 0;
-      } else {
-        fprintf(stderr, "ERROR: invalid argument(s)\n");
-        result = EXIT_FAILURE;
-        i = argc; /* break */
-      }
-    }
+  } else { // Pairs of triplets from the command line or per line of a file.
+    FILE *const file = fopen(argv[1], "r");
+    bool valid = true;
     if (NULL != file) {
+      char buffer[1024];
+      while (valid && NULL != fgets(buffer, sizeof(buffer), file)) {
+        char *args[2] = {NULL, NULL};
+        int nargs = 0;
+        for (char *arg = strtok(buffer, " \t\r\n"); NULL != arg;
+             arg = strtok(NULL, " \t\r\n")) {
+          valid = (nargs < 2);
+          if (!valid) {
+            break;
+          }
+          args[nargs++] = arg;
+        }
+        if (valid && 0 < nargs) { // skip empty lines
+          valid = run_benchmarks(nargs, args, comm);
+        }
+      }
       fclose(file);
+    } else {
+      valid = run_benchmarks(argc - 1, argv + 1, comm);
+    }
+    if (!valid) {
+      if (my_rank == 0) {
+        fprintf(stderr, "Usage: %s [file | mxnxk [MxNxK] ...]\n", argv[0]);
+      }
+      result = EXIT_FAILURE;
     }
   }
 
