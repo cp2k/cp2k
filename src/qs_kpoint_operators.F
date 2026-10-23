@@ -34,7 +34,7 @@ MODULE qs_kpoint_operators
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr_bc,&
                                               dbcsr_fm_copy_plan_type
-   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
+   USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
                                               fm_pool_create_fm,&
                                               fm_pool_give_back_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
@@ -164,7 +164,7 @@ MODULE qs_kpoint_operators
       ! Borrowed host/distribution references; the context cannot span an energy evaluation.
       TYPE(kpoint_type), POINTER                          :: kpoints => NULL()
       TYPE(cp_fm_struct_type), POINTER                    :: ao_ao_fmstruct => NULL()
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER      :: group_fm_pools => NULL()
+      TYPE(cp_fm_pool_type), POINTER                      :: group_fm_pools => NULL()
       ! Identity of the neighbor lists used by scratch and prepared snapshots.
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                          :: work_sab => NULL()
@@ -454,7 +454,7 @@ CONTAINS
          DEALLOCATE (ctx%fmimag)
       END IF
       IF (ALLOCATED(ctx%fmlocal)) THEN
-         CALL fm_pool_give_back_fm(ctx%group_fm_pools(1)%pool, ctx%fmlocal)
+         CALL fm_pool_give_back_fm(ctx%group_fm_pools, ctx%fmlocal)
          DEALLOCATE (ctx%fmlocal)
       END IF
       IF (ALLOCATED(ctx%info)) DEALLOCATE (ctx%info)
@@ -538,7 +538,7 @@ CONTAINS
       IF (.NOT. ALLOCATED(ctx%fmlocal)) THEN
          CALL mpools_get(ctx%kpoints%mpools, ao_ao_fm_pools=ctx%group_fm_pools)
          ALLOCATE (ctx%fmlocal)
-         CALL fm_pool_create_fm(ctx%group_fm_pools(1)%pool, ctx%fmlocal)
+         CALL fm_pool_create_fm(ctx%group_fm_pools, ctx%fmlocal)
       END IF
 
    END SUBROUTINE kpoint_operator_ensure_group
