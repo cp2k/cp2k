@@ -10,6 +10,7 @@
 
 #include <assert.h>
 #include <limits.h>
+#include <omp.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -380,7 +381,8 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
                                        const bool trans_dist,
                                        const dbm_matrix_t *restrict matrix,
                                        const dbm_distribution_t *restrict dist,
-                                       const int nticks) {
+                                       const int nticks,
+                                       dbm_comm_iterator_t *iter) {
   assert(cp_mpi_comms_are_similar(matrix->dist->comm, dist->comm));
 
   // The row/col indicies are distributed along one cart dimension and the
@@ -432,6 +434,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
     free(plans_per_pack[ipack]);
 
     // 1st communication: Exchange block counts.
+    double tick = omp_get_wtime();
     int blks_recv_count[nranks], blks_recv_displ[nranks];
     cp_mpi_alltoall_int(blks_send_count, 1, blks_recv_count, 1, dist->comm);
     icumsum(nranks, blks_recv_count, blks_recv_displ);
@@ -451,6 +454,10 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
           checked_byte_count(blks_recv_count[i], sizeof(dbm_pack_block_t));
       blks_recv_displ_byte[i] =
           checked_byte_count(blks_recv_displ[i], sizeof(dbm_pack_block_t));
+    }
+    for (int i = 0; i < nranks; i++) {
+      iter->bytes_alltoall += blks_send_count_byte[i] +
+                              (int64_t)data_send_count[i] * sizeof(double);
     }
     cp_mpi_alltoallv_byte(blks_send, blks_send_count_byte, blks_send_displ_byte,
                           blks_recv, blks_recv_count_byte, blks_recv_displ_byte,
@@ -476,9 +483,12 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
                             dist->comm);
 
     // 5th post-process received blocks and assemble them into a pack.
+    const double tock = omp_get_wtime();
+    iter->seconds_alltoall += tock - tick;
     postprocess_received_blocks(nranks, dist_indices->nshards, nblocks_recv,
                                 blks_recv_count, blks_recv_displ,
                                 data_recv_displ, blks_recv);
+    iter->seconds_sort += omp_get_wtime() - tock;
     packed.send_packs[ipack].nblocks = nblocks_recv;
     packed.send_packs[ipack].data_size = ndata_recv;
     packed.send_packs[ipack].blocks = blks_recv;
@@ -495,8 +505,10 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
     max_nblocks = imax(max_nblocks, packed.send_packs[ipack].nblocks);
     max_data_size = imax(max_data_size, packed.send_packs[ipack].data_size);
   }
+  const double tick = omp_get_wtime();
   cp_mpi_max_int(&max_nblocks, 1, packed.dist_ticks->comm);
   cp_mpi_max_int(&max_data_size, 1, packed.dist_ticks->comm);
+  iter->seconds_alltoall += omp_get_wtime() - tick;
   packed.max_nblocks = max_nblocks;
   packed.max_data_size = max_data_size;
   packed.recv_pack.blocks =
@@ -517,7 +529,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
  * \author Ole Schuett
  ******************************************************************************/
 static dbm_pack_t *sendrecv_pack(const int itick, const int nticks,
-                                 dbm_packed_matrix_t *packed) {
+                                 dbm_packed_matrix_t *packed, int64_t *bytes) {
   const int nranks = packed->dist_ticks->nranks;
   const int my_rank = packed->dist_ticks->my_rank;
 
@@ -537,6 +549,8 @@ static dbm_pack_t *sendrecv_pack(const int itick, const int nticks,
     assert(send_rank == recv_rank && send_ipack == recv_ipack);
     return send_pack; // Local pack, no mpi needed.
   } else {
+    *bytes += (int64_t)send_pack->nblocks * sizeof(dbm_pack_block_t) +
+              (int64_t)send_pack->data_size * sizeof(double);
     // Exchange blocks.
     const int nblocks_in_bytes = cp_mpi_sendrecv_byte(
         /*sendbuf=*/send_pack->blocks,
@@ -610,12 +624,14 @@ dbm_comm_iterator_t *dbm_comm_iterator_start(const bool transa,
   // chosen as the least common multiple of the cart's dimensions.
   iter->nticks = lcm(iter->dist->rows.nranks, iter->dist->cols.nranks);
   iter->itick = 0;
+  iter->seconds_alltoall = iter->seconds_sort = 0.0;
+  iter->bytes_alltoall = iter->bytes_shift = 0;
 
   // 1.arg=source dimension, 2.arg=target dimension, false=rows, true=columns.
   iter->packed_a =
-      pack_matrix(transa, false, matrix_a, iter->dist, iter->nticks);
+      pack_matrix(transa, false, matrix_a, iter->dist, iter->nticks, iter);
   iter->packed_b =
-      pack_matrix(!transb, true, matrix_b, iter->dist, iter->nticks);
+      pack_matrix(!transb, true, matrix_b, iter->dist, iter->nticks, iter);
 
   return iter;
 }
@@ -633,8 +649,10 @@ bool dbm_comm_iterator_next(dbm_comm_iterator_t *iter, dbm_pack_t **pack_a,
   // Start each rank at a different tick to spread the load on the sources.
   const int shift = iter->dist->rows.my_rank + iter->dist->cols.my_rank;
   const int itick = (iter->itick + shift) % iter->nticks;
-  *pack_a = sendrecv_pack(itick, iter->nticks, &iter->packed_a);
-  *pack_b = sendrecv_pack(itick, iter->nticks, &iter->packed_b);
+  *pack_a =
+      sendrecv_pack(itick, iter->nticks, &iter->packed_a, &iter->bytes_shift);
+  *pack_b =
+      sendrecv_pack(itick, iter->nticks, &iter->packed_b, &iter->bytes_shift);
 
   ++iter->itick;
   return true;
