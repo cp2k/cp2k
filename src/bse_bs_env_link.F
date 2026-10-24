@@ -23,7 +23,8 @@ MODULE bse_bs_env_link
                                               bse_resolve_memory_per_proc
    USE bse_types,                       ONLY: bse_env_release,&
                                               bse_env_type
-   USE bse_util,                        ONLY: bse_window_from_dft
+   USE bse_util,                        ONLY: adapt_BSE_screening,&
+                                              bse_window_from_dft
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
@@ -53,6 +54,7 @@ MODULE bse_bs_env_link
    USE dbt_matrix_redistribution,       ONLY: cp_fm_to_dbt
    USE gw_tensor_large_cell_Gamma,      ONLY: compute_3c_integrals
    USE gw_utils_fm,                     ONLY: fm_contract_ABA
+   USE input_constants,                 ONLY: bse_screening_w0
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -144,12 +146,14 @@ CONTAINS
       n_mo_real = MIN(bs_env%n_mo_retained, bs_env%n_ao)
 
       CALL read_bse_section(bse_section, bse_env)
+      CALL adapt_BSE_screening(bse_env, unit_nr)
       CALL bse_resolve_memory_per_proc(bse_env%memory_per_proc_gb, bs_env%para_env, unit_nr)
 
       CALL link_window(bs_env, bse_env, n_mo_real, window, homo_red, virt_red, unit_nr)
       n_window = window%last_mo - window%first_mo + 1
 
-      CALL link_screening(qs_env, bs_env, unit_nr, fm_M_inv_V_sqrt, fm_eps_inv)
+      CALL link_screening(qs_env, bs_env, unit_nr, fm_M_inv_V_sqrt, fm_eps_inv, &
+                          bse_env%screening_method == bse_screening_w0)
       ! the GW kept W(0) for the screening and nl_3c for the slabs; each goes once read
       CALL cp_fm_release(bs_env%fm_W_MIC_freq_zero)
 
@@ -235,18 +239,20 @@ CONTAINS
 !>        the full static W of the GW. The GW builds the same factor M^-1 V^1/2 per frequency from a
 !>        Cholesky factor of V (compute_MinvVsqrt_Vsqrt); the symmetric roots here give V^-1/2 as
 !>        well, which the stored W~ needs, with the eigenvalue threshold of the GW (eps_eigval_mat_RI).
-!>        Two diagonalisations of an RI x RI matrix, once per run
+!>        The inverse root and the effective dielectric matrix are needed for W0 screening only.
 !> \param qs_env for the 2c RI integrals
 !> \param bs_env RI metric and its inverse, the stored static W~, the RI x RI matrix structure
 !> \param unit_nr output unit, positive on the writing rank only
 !> \param fm_M_inv_V_sqrt [M^-1 V^1/2]_QP, RI x RI, created here
-!> \param fm_eps_inv ε^-1_eff,PQ, RI x RI, created here
+!> \param fm_eps_inv ε^-1_eff,PQ, RI x RI, created here for W0 screening only
+!> \param need_screening whether to build the effective inverse dielectric matrix
 ! **************************************************************************************************
-   SUBROUTINE link_screening(qs_env, bs_env, unit_nr, fm_M_inv_V_sqrt, fm_eps_inv)
+   SUBROUTINE link_screening(qs_env, bs_env, unit_nr, fm_M_inv_V_sqrt, fm_eps_inv, need_screening)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(cp_fm_type), INTENT(OUT)                      :: fm_M_inv_V_sqrt, fm_eps_inv
+      LOGICAL, INTENT(IN)                                :: need_screening
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'link_screening'
 
@@ -260,16 +266,15 @@ CONTAINS
       n_RI = bs_env%n_RI
       ! bare Coulomb V_PQ (coulomb_op keeps its default, the full 1/r) and the RI metric M_PQ
       CALL RI_2c_integral_mat(qs_env, fm_V, bs_env%fm_RI_RI%matrix_struct, n_RI, coulomb_op)
-      CALL RI_2c_integral_mat(qs_env, fm_M, bs_env%fm_RI_RI%matrix_struct, n_RI, bs_env%ri_metric)
+      IF (need_screening) THEN
+         CALL RI_2c_integral_mat(qs_env, fm_M, bs_env%fm_RI_RI%matrix_struct, n_RI, bs_env%ri_metric)
+      END IF
 
       ! [V^1/2]_PQ and [V^-1/2]_PQ by symmetric roots; eigenvalues of V under the GW's threshold are dropped
       CALL cp_fm_create(fm_V_sqrt, bs_env%fm_RI_RI%matrix_struct)
-      CALL cp_fm_create(fm_V_inv_sqrt, bs_env%fm_RI_RI%matrix_struct)
       CALL cp_fm_create(fm_work, bs_env%fm_RI_RI%matrix_struct)
       CALL cp_fm_to_fm(fm_V(1, 1), fm_V_sqrt)
       CALL cp_fm_power(fm_V_sqrt, fm_work, 0.5_dp, bs_env%eps_eigval_mat_RI, n_dependent)
-      CALL cp_fm_to_fm(fm_V(1, 1), fm_V_inv_sqrt)
-      CALL cp_fm_power(fm_V_inv_sqrt, fm_work, -0.5_dp, bs_env%eps_eigval_mat_RI, n_dependent)
       IF (unit_nr > 0 .AND. n_dependent > 0) WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', &
          'RI Coulomb directions dropped by the eigenvalue threshold', n_dependent
 
@@ -278,15 +283,20 @@ CONTAINS
       CALL parallel_gemm("N", "N", n_RI, n_RI, n_RI, 1.0_dp, bs_env%fm_Minv_Gamma, fm_V_sqrt, &
                          0.0_dp, fm_M_inv_V_sqrt)
 
-      ! W^c_PQ(iω=0) = sum_RS M_PR W~_RS M_SQ, in place on a copy of the stored W~
-      CALL cp_fm_create(fm_Wc, bs_env%fm_RI_RI%matrix_struct)
-      CALL cp_fm_to_fm(bs_env%fm_W_MIC_freq_zero, fm_Wc)
-      CALL fm_contract_ABA(fm_M(1, 1), fm_Wc)
-      ! ε^-1_eff,PQ = δ_PQ + sum_RS [V^-1/2]_PR W^c_RS(iω=0) [V^-1/2]_SQ, the sum in the work matrix
-      CALL fm_contract_ABA(fm_V_inv_sqrt, fm_Wc, fm_work)
-      CALL cp_fm_create(fm_eps_inv, bs_env%fm_RI_RI%matrix_struct)
-      CALL cp_fm_set_all(fm_eps_inv, 0.0_dp, 1.0_dp)
-      CALL cp_fm_scale_and_add(1.0_dp, fm_eps_inv, 1.0_dp, fm_work)
+      IF (need_screening) THEN
+         CALL cp_fm_create(fm_V_inv_sqrt, bs_env%fm_RI_RI%matrix_struct)
+         CALL cp_fm_to_fm(fm_V(1, 1), fm_V_inv_sqrt)
+         CALL cp_fm_power(fm_V_inv_sqrt, fm_work, -0.5_dp, bs_env%eps_eigval_mat_RI, n_dependent)
+         ! W^c_PQ(iω=0) = sum_RS M_PR W~_RS M_SQ, in place on a copy of the stored W~
+         CALL cp_fm_create(fm_Wc, bs_env%fm_RI_RI%matrix_struct)
+         CALL cp_fm_to_fm(bs_env%fm_W_MIC_freq_zero, fm_Wc)
+         CALL fm_contract_ABA(fm_M(1, 1), fm_Wc)
+         ! ε^-1_eff,PQ = δ_PQ + sum_RS [V^-1/2]_PR W^c_RS(iω=0) [V^-1/2]_SQ, the sum in the work matrix
+         CALL fm_contract_ABA(fm_V_inv_sqrt, fm_Wc, fm_work)
+         CALL cp_fm_create(fm_eps_inv, bs_env%fm_RI_RI%matrix_struct)
+         CALL cp_fm_set_all(fm_eps_inv, 0.0_dp, 1.0_dp)
+         CALL cp_fm_scale_and_add(1.0_dp, fm_eps_inv, 1.0_dp, fm_work)
+      END IF
 
       CALL cp_fm_release(fm_V)
       CALL cp_fm_release(fm_M)

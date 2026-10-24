@@ -77,7 +77,7 @@ MODULE bse_util
    PUBLIC :: screen_slabs, bse_window_from_dft, bse_window_from_mos, &
              comp_eigvec_coeff_BSE, sort_excitations, &
              estimate_BSE_resources, fulldiag_memory_estimate_GB, filter_eigvec_contrib, truncate_BSE_matrices, &
-             adapt_BSE_input_params, get_multipoles_mo, &
+             adapt_BSE_input_params, adapt_BSE_screening, get_multipoles_mo, &
              reshuffle_eigvec, print_bse_nto_cubes, trace_exciton_descr, &
              get_bse_spin_block_layout, assemble_joint_ov_slab, &
              ia_of_occ_virt, occ_of_ia, virt_of_ia
@@ -140,14 +140,16 @@ CONTAINS
 !> \param homo occupied levels in the window
 !> \param virtual virtual levels in the window
 !> \param fm_S_bar_ij \bar{B}^P_ij, created here on fm_S_ij's structure
-!> \param fm_S_bar_ia \bar{B}^P_ia, created here on fm_S_ia's structure
+!> \param fm_S_bar_ia \bar{B}^P_ia, created here on fm_S_ia's structure for ABBA only
+!> \param do_abba whether the coupling matrix B needs the screened ia slab
 ! **************************************************************************************************
    SUBROUTINE screen_slabs(fm_eps_inv, fm_S_ij, fm_S_ia, dimen_RI_red, homo, virtual, &
-                           fm_S_bar_ij, fm_S_bar_ia)
+                           fm_S_bar_ij, fm_S_bar_ia, do_abba)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_eps_inv, fm_S_ij, fm_S_ia
       INTEGER, INTENT(IN)                                :: dimen_RI_red, homo, virtual
       TYPE(cp_fm_type), INTENT(OUT)                      :: fm_S_bar_ij, fm_S_bar_ia
+      LOGICAL, INTENT(IN)                                :: do_abba
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'screen_slabs'
 
@@ -157,17 +159,19 @@ CONTAINS
 
       CALL cp_fm_create(fm_S_bar_ij, fm_S_ij%matrix_struct)
       CALL cp_fm_set_all(fm_S_bar_ij, 0.0_dp)
-      CALL cp_fm_create(fm_S_bar_ia, fm_S_ia%matrix_struct)
-      CALL cp_fm_set_all(fm_S_bar_ia, 0.0_dp)
 
       ! \bar{B}^P_ij = sum_Q [1+Q(0)]^-1_PQ B^Q_ij
       CALL parallel_gemm(transa="N", transb="N", m=dimen_RI_red, n=homo**2, k=dimen_RI_red, alpha=1.0_dp, &
                          matrix_a=fm_eps_inv, matrix_b=fm_S_ij, beta=0.0_dp, matrix_c=fm_S_bar_ij)
 
-      ! \bar{B}^P_ia = sum_Q [1+Q(0)]^-1_PQ B^Q_ia; fm_S_ia comes from RPA and has a different
-      ! blacs_env than fm_S_ij
-      CALL parallel_gemm(transa="N", transb="N", m=dimen_RI_red, n=homo*virtual, k=dimen_RI_red, alpha=1.0_dp, &
-                         matrix_a=fm_eps_inv, matrix_b=fm_S_ia, beta=0.0_dp, matrix_c=fm_S_bar_ia)
+      IF (do_abba) THEN
+         CALL cp_fm_create(fm_S_bar_ia, fm_S_ia%matrix_struct)
+         CALL cp_fm_set_all(fm_S_bar_ia, 0.0_dp)
+         ! \bar{B}^P_ia = sum_Q [1+Q(0)]^-1_PQ B^Q_ia; fm_S_ia comes from RPA and has a different
+         ! blacs_env than fm_S_ij
+         CALL parallel_gemm(transa="N", transb="N", m=dimen_RI_red, n=homo*virtual, k=dimen_RI_red, alpha=1.0_dp, &
+                            matrix_a=fm_eps_inv, matrix_b=fm_S_ia, beta=0.0_dp, matrix_c=fm_S_bar_ia)
+      END IF
 
       CALL timestop(handle)
 
@@ -1078,6 +1082,45 @@ CONTAINS
          END IF
       END IF
 
+      ! Add warning for usage of KS energies
+      IF (bse_env%use_ks_energies) THEN
+         IF (unit_nr > 0) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "Using KS energies for BSE calculations. Therefore, no quantities "// &
+                         "of the preceeding GW calculation enter the BSE.")
+         END IF
+      END IF
+
+      ! Add warning if periodic calculation is invoked
+      IF (ndim_periodic_poisson /= 0) THEN
+         IF (unit_nr > 0) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "Poisson solver should be invoked by PERIODIC NONE. "// &
+                         "The applied length gauge might give misleading results for "// &
+                         "oscillator strengths.")
+         END IF
+      END IF
+      IF (ndim_periodic_cell /= 0) THEN
+         IF (unit_nr > 0) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "CELL in SUBSYS should be invoked with PERIODIC NONE. "// &
+                         "The applied length gauge might give misleading results for "// &
+                         "oscillator strengths.")
+         END IF
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE adapt_BSE_input_params
+
+! **************************************************************************************************
+!> \brief Resolve SCREENING_IN_W and its factor before constructing the dielectric matrix or slabs.
+!> \param bse_env screening method and factor, normalised in place
+!> \param unit_nr output unit, positive on the writing rank only
+! **************************************************************************************************
+   SUBROUTINE adapt_BSE_screening(bse_env, unit_nr)
+      TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+
       ! Handle screening factor options
       IF (bse_env%screening_factor > 0.0_dp) THEN
          IF (bse_env%screening_method /= bse_screening_alpha) THEN
@@ -1114,35 +1157,7 @@ CONTAINS
          bse_env%screening_method = bse_screening_tdhf
       END IF
 
-      ! Add warning for usage of KS energies
-      IF (bse_env%use_ks_energies) THEN
-         IF (unit_nr > 0) THEN
-            CALL cp_warn(__LOCATION__, &
-                         "Using KS energies for BSE calculations. Therefore, no quantities "// &
-                         "of the preceeding GW calculation enter the BSE.")
-         END IF
-      END IF
-
-      ! Add warning if periodic calculation is invoked
-      IF (ndim_periodic_poisson /= 0) THEN
-         IF (unit_nr > 0) THEN
-            CALL cp_warn(__LOCATION__, &
-                         "Poisson solver should be invoked by PERIODIC NONE. "// &
-                         "The applied length gauge might give misleading results for "// &
-                         "oscillator strengths.")
-         END IF
-      END IF
-      IF (ndim_periodic_cell /= 0) THEN
-         IF (unit_nr > 0) THEN
-            CALL cp_warn(__LOCATION__, &
-                         "CELL in SUBSYS should be invoked with PERIODIC NONE. "// &
-                         "The applied length gauge might give misleading results for "// &
-                         "oscillator strengths.")
-         END IF
-      END IF
-
-      CALL timestop(handle)
-   END SUBROUTINE adapt_BSE_input_params
+   END SUBROUTINE adapt_BSE_screening
 
 ! **************************************************************************************************
 
