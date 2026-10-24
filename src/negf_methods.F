@@ -43,9 +43,9 @@ MODULE negf_methods
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: &
-        cp_add_iter_level, cp_iterate, cp_p_file, cp_print_key_finished_output, &
-        cp_print_key_should_output, cp_print_key_unit_nr, cp_rm_iter_level, debug_print_level, &
-        high_print_level
+        cp_add_iter_level, cp_iter_level_print, cp_iterate, cp_p_file, &
+        cp_print_key_finished_output, cp_print_key_should_output, cp_print_key_unit_nr, &
+        cp_rm_iter_level, debug_print_level, high_print_level
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_p_type,&
@@ -1366,6 +1366,7 @@ CONTAINS
 
       ALLOCATE (g_surf_circular(nspins), g_surf_linear(nspins), g_surf_nonequiv(nspins))
       CALL cp_add_iter_level(logger%iter_info, "NEGF_SCF")
+      CALL cp_iter_level_print(logger, "A")
 
       !--- main SCF cycle -------------------------------------------------------------------!
       DO iter_count = 1, negf_control%max_scf
@@ -1753,6 +1754,7 @@ CONTAINS
       END IF
 
       DEALLOCATE (target_m)
+      CALL cp_iter_level_print(logger, "R")
       CALL cp_rm_iter_level(logger%iter_info, level_name="NEGF_SCF")
 
       !--------------------------------------------------------------------------------------!

@@ -36,6 +36,7 @@ MODULE pint_methods
                                               cp_logger_type,&
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                              cp_iter_level_print,&
                                               cp_iterate,&
                                               cp_p_file,&
                                               cp_print_key_finished_output,&
@@ -237,6 +238,7 @@ CONTAINS
       NULLIFY (pint_env%logger)
       pint_env%logger => cp_get_default_logger()
       CALL cp_add_iter_level(pint_env%logger%iter_info, "PINT")
+      CALL cp_iter_level_print(pint_env%logger, "A")
 
       NULLIFY (pint_env%replicas, pint_env%input, pint_env%staging_env, &
                pint_env%normalmode_env, pint_env%propagator)
@@ -1892,6 +1894,7 @@ CONTAINS
       END DO
 
       ! remove iteration level
+      CALL cp_iter_level_print(pint_env%logger, "R")
       CALL cp_rm_iter_level(pint_env%logger%iter_info, "PINT")
 
    END SUBROUTINE pint_do_run

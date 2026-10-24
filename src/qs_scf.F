@@ -79,6 +79,7 @@ MODULE qs_scf
                                               cp_rm_default_logger,&
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                              cp_iter_level_print,&
                                               cp_iterate,&
                                               cp_p_file,&
                                               cp_print_key_should_output,&
@@ -555,6 +556,7 @@ CONTAINS
             REPEAT("-", 78)
       END IF
       CALL cp_add_iter_level(logger%iter_info, "QS_SCF")
+      CALL cp_iter_level_print(logger, "A")
 
       ! check for external communicator and if the intermediate energy should be sent
       res_val_3(:) = -1.0_dp
@@ -1017,6 +1019,7 @@ CONTAINS
          END IF !fm->dbcsr
       END DO !fm -> dbcsr
 
+      CALL cp_iter_level_print(logger, "R")
       CALL cp_rm_iter_level(logger%iter_info, level_name="QS_SCF")
       CALL timestop(handle)
 

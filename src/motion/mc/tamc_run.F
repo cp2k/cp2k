@@ -30,6 +30,7 @@ MODULE tamc_run
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                              cp_iter_level_print,&
                                               cp_iterate,&
                                               cp_p_file,&
                                               cp_print_key_finished_output,&
@@ -226,6 +227,7 @@ CONTAINS
       force_env_section => force_env%force_env_section
       subsys_section => section_vals_get_subs_vals(force_env_section, "SUBSYS")
       CALL cp_add_iter_level(logger%iter_info, "MD")
+      CALL cp_iter_level_print(logger, "A")
       CALL cp_iterate(logger%iter_info, iter_nr=initialStep)
       ! Read MD section
       CALL read_md_section(simpar, motion_section, md_section)
@@ -570,6 +572,7 @@ CONTAINS
 ! if we need the final kinetic energy for Hybrid Monte Carlo
 
       ! Remove the iteration level
+      CALL cp_iter_level_print(logger, "R")
       CALL cp_rm_iter_level(logger%iter_info, "MD")
 
       ! Deallocate Thermostats and Barostats

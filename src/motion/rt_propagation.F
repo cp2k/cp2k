@@ -31,6 +31,7 @@ MODULE rt_propagation
                                               cp_logger_type,&
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                              cp_iter_level_print,&
                                               cp_iterate,&
                                               cp_p_file,&
                                               cp_print_key_generate_filename,&
@@ -386,6 +387,7 @@ CONTAINS
       rtp%energy_old = energy%total
       time_iter_start = m_walltime()
       CALL cp_add_iter_level(logger%iter_info, "MD")
+      CALL cp_iter_level_print(logger, "A")
       CALL cp_iterate(logger%iter_info, iter_nr=0)
       IF (rtp%i_start >= max_steps) CALL cp_abort(__LOCATION__, &
                                                   "maximum step number smaller than initial step value")
@@ -458,6 +460,7 @@ CONTAINS
             EXIT
          END IF
       END DO
+      CALL cp_iter_level_print(logger, "R")
       CALL cp_rm_iter_level(logger%iter_info, "MD")
 
       IF (.NOT. rtp%converged) THEN

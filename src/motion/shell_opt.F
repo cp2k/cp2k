@@ -18,6 +18,7 @@ MODULE shell_opt
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                              cp_iter_level_print,&
                                               cp_rm_iter_level
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
@@ -131,6 +132,7 @@ CONTAINS
                          geo_opt_section=geo_section)
 
       CALL cp_add_iter_level(logger%iter_info, "SHELL_OPT")
+      CALL cp_iter_level_print(logger, "A")
       gopt_env%eval_opt_geo = .FALSE.
       CALL geoopt_cg(force_env, gopt_param, globenv, &
                      geo_section, gopt_env, dvec_sc, do_update=do_update)
@@ -141,6 +143,7 @@ CONTAINS
             shell_particle_set(i)%r(3) = -dvec_sc_0(3 + 3*(i - 1)) + core_particle_set(i)%r(3)
          END DO
       END IF
+      CALL cp_iter_level_print(logger, "R")
       CALL cp_rm_iter_level(logger%iter_info, "SHELL_OPT")
 
       CALL gopt_f_release(gopt_env)
