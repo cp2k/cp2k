@@ -386,7 +386,7 @@ CONTAINS
    END SUBROUTINE optimize_grid_coordinates
 
 ! **************************************************************************************************
-!> \brief Build each C_A and store its exact (μν|P); this routine owns the integral context.
+!> \brief Build each C_A and store the upper AO triangle of (μν|P); this routine owns the integral context.
 !> \param bs_env ...
 !> \param cluster_3c_int Rank-local cluster three-centre integrals.
 ! **************************************************************************************************
@@ -451,7 +451,9 @@ CONTAINS
             iatom_p = cluster_3c_int(ilocal_cluster)%atom_indices(i_cluster_atom_p)
             DO i_cluster_atom_k = 1, SIZE(cluster_3c_int(ilocal_cluster)%atom_indices)
                iatom_k = cluster_3c_int(ilocal_cluster)%atom_indices(i_cluster_atom_k)
-               DO i_cluster_atom_j = 1, SIZE(cluster_3c_int(ilocal_cluster)%atom_indices)
+               ! The evaluator reads only the upper AO triangle (DSYMM with UPLO='U').
+               ! Global atom ordering also orders the cluster AO blocks; lower blocks stay zero.
+               DO i_cluster_atom_j = 1, i_cluster_atom_k
                   iatom_j = cluster_3c_int(ilocal_cluster)%atom_indices(i_cluster_atom_j)
                   CALL build_3c_integral_block_ctx(cluster_3c_int(ilocal_cluster)%Int_3c, &
                                                    integral_context, workspace, &
