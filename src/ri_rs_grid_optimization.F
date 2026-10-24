@@ -24,9 +24,11 @@ MODULE ri_rs_grid_optimization
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_mem_avail_per_rank_GB,&
+                                              mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
+   USE ri_rs_fitting,                   ONLY: evaluate_ri_rs_fit
    USE ri_rs_grid_initialization,       ONLY: initialize_ri_rs_grid
    USE ri_rs_types,                     ONLY: rirs_grid_type
    USE ri_rs_utils,                     ONLY: evaluate_ao_basis_on_points,&
@@ -157,21 +159,23 @@ CONTAINS
 !> \param atom_coordinate_offsets Starting coordinate offset for each atom.
 !> \param bs_env ...
 !> \param cluster_3c_int Rank-local cluster three-centre integrals.
+!> \param fit_memory_budget Per-rank bytes available for cluster workspaces; zero means unknown.
 !> \param normalized_error Mean normalized squared three-centre-integral error.
-!> \param coordinate_gradient Derivative of normalized_error with respect to coordinates.
-!> \param max_abs_error Largest absolute three-centre-integral error.
+!> \param coordinate_gradient Optional derivative; omitting it requests final error diagnostics only.
+!> \param max_abs_error Largest absolute integral error in diagnostic mode; zero in gradient mode.
 !> \param fit_successful Whether every local-cluster evaluation succeeded.
 ! **************************************************************************************************
    SUBROUTINE grid_objective(grid_coordinates, atom_coordinate_offsets, bs_env, cluster_3c_int, &
-                             normalized_error, coordinate_gradient, &
+                             fit_memory_budget, normalized_error, coordinate_gradient, &
                              max_abs_error, fit_successful)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: grid_coordinates
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_coordinate_offsets
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(local_cluster_3c_integrals_type), &
          DIMENSION(:), INTENT(IN)                        :: cluster_3c_int
+      REAL(KIND=dp), INTENT(IN)                          :: fit_memory_budget
       REAL(KIND=dp), INTENT(OUT)                         :: normalized_error
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: coordinate_gradient
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT), OPTIONAL :: coordinate_gradient
       REAL(KIND=dp), INTENT(OUT)                         :: max_abs_error
       LOGICAL, INTENT(OUT)                               :: fit_successful
 
@@ -184,36 +188,43 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       para_env => bs_env%para_env
-      CPASSERT(SIZE(coordinate_gradient) == SIZE(grid_coordinates))
+      IF (PRESENT(coordinate_gradient)) THEN
+         CPASSERT(SIZE(coordinate_gradient) == SIZE(grid_coordinates))
+         coordinate_gradient(:) = 0.0_dp
+      END IF
       CALL unpack_lbfgs_grid_coordinates(grid_coordinates, atom_coordinate_offsets, &
                                          bs_env%ri_rs%atomic_grids)
       normalized_error = 0.0_dp
-      coordinate_gradient = 0.0_dp
       evaluated_cluster_count = 0
       max_abs_error = 0.0_dp
       fit_successful = .TRUE.
       DO icluster = 1, SIZE(cluster_3c_int)
-         CALL evaluate_local_cluster(cluster_3c_int(icluster), bs_env, &
-                                     cluster_normalized_error, cluster_coordinate_gradient, &
-                                     cluster_max_abs_error, cluster_fit_successful)
+         IF (PRESENT(coordinate_gradient)) THEN
+            CALL evaluate_local_cluster(cluster_3c_int(icluster), bs_env, fit_memory_budget, cluster_normalized_error, &
+                                        cluster_max_abs_error, cluster_fit_successful, cluster_coordinate_gradient)
+         ELSE
+            CALL evaluate_local_cluster(cluster_3c_int(icluster), bs_env, fit_memory_budget, cluster_normalized_error, &
+                                        cluster_max_abs_error, cluster_fit_successful)
+         END IF
          IF (.NOT. cluster_fit_successful) THEN
             fit_successful = .FALSE.
-            IF (ALLOCATED(cluster_coordinate_gradient)) DEALLOCATE (cluster_coordinate_gradient)
             EXIT
          END IF
          normalized_error = normalized_error + cluster_normalized_error
-         CALL accumulate_atom_gradient(cluster_3c_int(icluster)%atom_indices, &
-                                       bs_env%ri_rs%atomic_grids, &
-                                       atom_coordinate_offsets, cluster_coordinate_gradient, &
-                                       coordinate_gradient)
+         IF (PRESENT(coordinate_gradient)) THEN
+            CALL accumulate_atom_gradient(cluster_3c_int(icluster)%atom_indices, &
+                                          bs_env%ri_rs%atomic_grids, &
+                                          atom_coordinate_offsets, cluster_coordinate_gradient, &
+                                          coordinate_gradient)
+            DEALLOCATE (cluster_coordinate_gradient)
+         END IF
          evaluated_cluster_count = evaluated_cluster_count + 1
          max_abs_error = &
             MAX(max_abs_error, cluster_max_abs_error)
-         DEALLOCATE (cluster_coordinate_gradient)
       END DO
       successful_ranks = MERGE(1, 0, fit_successful)
       CALL para_env%sum(normalized_error)
-      CALL para_env%sum(coordinate_gradient)
+      IF (PRESENT(coordinate_gradient)) CALL para_env%sum(coordinate_gradient)
       CALL para_env%sum(evaluated_cluster_count)
       CALL para_env%sum(successful_ranks)
       CALL para_env%max(max_abs_error)
@@ -221,12 +232,12 @@ CONTAINS
                        successful_ranks == para_env%num_pe
       IF (.NOT. fit_successful) THEN
          normalized_error = HUGE(normalized_error)
-         coordinate_gradient = 0.0_dp
+         IF (PRESENT(coordinate_gradient)) coordinate_gradient(:) = 0.0_dp
          RETURN
       END IF
       ! E_loc(norm) = (1/N_atom) Σ_A [E_A / Σ_{μνP ∈ C_A} |(μν|P)|²].
       normalized_error = normalized_error/REAL(bs_env%n_atom, dp)
-      coordinate_gradient = coordinate_gradient/REAL(bs_env%n_atom, dp)
+      IF (PRESENT(coordinate_gradient)) coordinate_gradient(:) = coordinate_gradient/REAL(bs_env%n_atom, dp)
    END SUBROUTINE grid_objective
 
 ! **************************************************************************************************
@@ -241,7 +252,8 @@ CONTAINS
 
       INTEGER, PARAMETER                                 :: lbfgs_history = 7
       REAL(KIND=dp), PARAMETER                           :: lbfgs_factr = 0.0_dp, &
-                                                            lbfgs_pgtol = 1.0E-9_dp
+                                                            lbfgs_pgtol = 1.0E-9_dp, &
+                                                            mem_safety = 0.8_dp
 
       CHARACTER(LEN=60)                                  :: line_search_state, optimizer_task
       INTEGER                                            :: evaluation_count, handle, iatom, &
@@ -253,8 +265,10 @@ CONTAINS
                                                             have_best
       LOGICAL, ALLOCATABLE                               :: inside(:)
       LOGICAL, DIMENSION(4)                              :: logical_state
-      REAL(KIND=dp)                                      :: best_normalized_error, max_abs_error, &
-                                                            normalized_error, start_time
+      REAL(KIND=dp)                                      :: best_normalized_error, &
+                                                            fit_memory_budget, max_abs_error, &
+                                                            mem_avail_GB, normalized_error, &
+                                                            start_time
       REAL(KIND=dp), ALLOCATABLE :: best_grid_coordinates(:), coordinate_gradient(:), &
          grid_coordinates(:), lower_bounds(:), points(:, :), upper_bounds(:), workspace(:)
       REAL(KIND=dp), DIMENSION(29)                       :: real_state
@@ -292,6 +306,17 @@ CONTAINS
       best_normalized_error = HUGE(best_normalized_error)
       best_grid_coordinates(:) = grid_coordinates
 
+      ! This query is collective. Take one snapshot after resident integrals and L-BFGS
+      ! workspaces exist, before ranks enter their unequal numbers of local cluster evaluations.
+      ! Use the same safety fraction as the production Z_lP fitting classification.
+      CALL mp_mem_avail_per_rank_GB(bs_env%para_env, mem_avail_GB)
+      ! This budgets all incremental cluster workspaces, including the caller's AO arrays.
+      ! The product cache receives only the remainder after those workspaces are reserved.
+      fit_memory_budget = mem_safety*mem_avail_GB*1.0E9_dp
+      IF (mem_avail_GB <= 0.0_dp .AND. bs_env%unit_nr > 0) THEN
+         CPWARN("RI-RS grid optimization: no meminfo; streaming one RI column")
+      END IF
+
       DO
          CALL setulb(SIZE(grid_coordinates), lbfgs_history, grid_coordinates, &
                      lower_bounds, upper_bounds, bound_types, &
@@ -301,7 +326,7 @@ CONTAINS
          IF (optimizer_task(1:2) == 'FG') THEN
             IF (evaluation_count >= bs_env%ri_rs%grid_opt%max_iter) EXIT
             CALL grid_objective(grid_coordinates, atom_coordinate_offsets, bs_env, cluster_3c_int, &
-                                normalized_error, coordinate_gradient, &
+                                fit_memory_budget, normalized_error, coordinate_gradient, &
                                 max_abs_error, evaluation_successful)
             evaluation_count = evaluation_count + 1
             IF (.NOT. evaluation_successful) EXIT
@@ -321,10 +346,12 @@ CONTAINS
             EXIT
          END IF
       END DO
-      IF (have_best) grid_coordinates(:) = best_grid_coordinates
+      IF (.NOT. have_best) CPABORT("RI-RS grid optimization produced no regularized fit")
+      grid_coordinates(:) = best_grid_coordinates
+      ! grid_objective restores the best coordinates to atomic_grids and evaluates only the
+      ! final errors. No best-fit coefficients are retained across L-BFGS trials.
       CALL grid_objective(grid_coordinates, atom_coordinate_offsets, bs_env, cluster_3c_int, &
-                          normalized_error, coordinate_gradient, &
-                          max_abs_error, fit_successful)
+                          fit_memory_budget, normalized_error, max_abs_error=max_abs_error, fit_successful=fit_successful)
 
       IF (.NOT. fit_successful) CPABORT("RI-RS grid optimization produced no regularized fit")
 
@@ -458,24 +485,27 @@ CONTAINS
 !> \brief Evaluate ϕ_μ(r_l) on G_A and compute the normalized local error E_A and its gradient.
 !> \param cluster_3c_int Local atom indices and exact three-centre integrals.
 !> \param bs_env ...
+!> \param fit_memory_budget Per-rank incremental workspace budget before allocating this cluster.
 !> \param normalized_error Normalized squared three-centre-integral error.
-!> \param coordinate_gradient Derivative with respect to the cluster's physical grid coordinates.
-!> \param max_abs_error Largest absolute three-centre-integral error.
+!> \param max_abs_error Largest absolute integral error in diagnostic mode; zero in gradient mode.
 !> \param fit_successful Whether the regularized fitting equations were solved.
+!> \param coordinate_gradient Optional derivative with respect to the cluster's physical grid coordinates.
 ! **************************************************************************************************
-   SUBROUTINE evaluate_local_cluster(cluster_3c_int, bs_env, normalized_error, coordinate_gradient, &
-                                     max_abs_error, fit_successful)
+   SUBROUTINE evaluate_local_cluster(cluster_3c_int, bs_env, fit_memory_budget, normalized_error, max_abs_error, &
+                                     fit_successful, coordinate_gradient)
       TYPE(local_cluster_3c_integrals_type), INTENT(IN)  :: cluster_3c_int
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), INTENT(OUT)                         :: normalized_error
-      REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: coordinate_gradient(:, :)
-      REAL(KIND=dp), INTENT(OUT)                         :: max_abs_error
+      REAL(KIND=dp), INTENT(IN)                          :: fit_memory_budget
+      REAL(KIND=dp), INTENT(OUT)                         :: normalized_error, max_abs_error
       LOGICAL, INTENT(OUT)                               :: fit_successful
+      REAL(KIND=dp), ALLOCATABLE, INTENT(OUT), OPTIONAL  :: coordinate_gradient(:, :)
 
       INTEGER                                            :: AO_offset, grid_point_offset, iatom, &
-                                                            icluster_atom, ikind, n_grid_points, &
-                                                            nAO, nAO_atom
-      REAL(KIND=dp), ALLOCATABLE                         :: dPhi_alpha_l_mu(:, :, :), &
+                                                            icartesian, icluster_atom, igrid, &
+                                                            ikind, n_grid_points, nAO, nAO_atom
+      REAL(KIND=dp)                                      :: evaluation_budget
+      REAL(KIND=dp), ALLOCATABLE                         :: ao_gradient(:, :), &
+                                                            dPhi_alpha_l_mu(:, :, :), &
                                                             grid_points(:, :), Phi_l_mu(:, :)
       TYPE(cell_type), POINTER                           :: cell
       TYPE(gto_basis_set_type), POINTER                  :: AO_basis
@@ -489,10 +519,23 @@ CONTAINS
          iatom = cluster_3c_int%atom_indices(icluster_atom)
          n_grid_points = n_grid_points + SIZE(bs_env%ri_rs%atomic_grids(iatom)%raw_points, 2)
       END DO
-      ALLOCATE (grid_points(3, n_grid_points), Phi_l_mu(n_grid_points, nAO), &
-                dPhi_alpha_l_mu(3, n_grid_points, nAO), coordinate_gradient(3, n_grid_points))
+      evaluation_budget = 0.0_dp
+      IF (PRESENT(coordinate_gradient) .AND. fit_memory_budget > 0.0_dp) THEN
+         ! phi, dphi and its adjoint use 5*g*a doubles; points and coordinate gradients use 6*g.
+         evaluation_budget = fit_memory_budget - &
+                             8.0_dp*REAL(n_grid_points, dp)*(5.0_dp*REAL(nAO, dp) + 6.0_dp)
+         IF (evaluation_budget <= 0.0_dp) THEN
+            CPABORT("RI-RS cluster AO workspace exceeds memory budget")
+         END IF
+      END IF
+      ALLOCATE (grid_points(3, n_grid_points), Phi_l_mu(n_grid_points, nAO))
+      IF (PRESENT(coordinate_gradient)) THEN
+         ALLOCATE (dPhi_alpha_l_mu(3, n_grid_points, nAO), ao_gradient(n_grid_points, nAO), &
+                   coordinate_gradient(3, n_grid_points))
+         dPhi_alpha_l_mu = 0.0_dp
+         coordinate_gradient(:, :) = 0.0_dp
+      END IF
       Phi_l_mu = 0.0_dp
-      dPhi_alpha_l_mu = 0.0_dp
       grid_point_offset = 0
       DO icluster_atom = 1, SIZE(cluster_3c_int%atom_indices)
          iatom = cluster_3c_int%atom_indices(icluster_atom)
@@ -509,228 +552,33 @@ CONTAINS
          ikind = particle_set(iatom)%atomic_kind%kind_number
          AO_basis => bs_env%basis_set_AO(ikind)%gto_basis_set
          nAO_atom = AO_basis%nsgf
-         CALL evaluate_ao_basis_on_points(Phi_l_mu(:, AO_offset + 1:AO_offset + nAO_atom), &
-                                          grid_points, AO_basis, particle_set(iatom)%r, cell, &
-                                          dphi=dPhi_alpha_l_mu(:, :, AO_offset + 1:AO_offset + nAO_atom))
+         IF (PRESENT(coordinate_gradient)) THEN
+            CALL evaluate_ao_basis_on_points(Phi_l_mu(:, AO_offset + 1:AO_offset + nAO_atom), &
+                                             grid_points, AO_basis, particle_set(iatom)%r, cell, &
+                                             dphi=dPhi_alpha_l_mu(:, :, AO_offset + 1:AO_offset + nAO_atom))
+         ELSE
+            CALL evaluate_ao_basis_on_points(Phi_l_mu(:, AO_offset + 1:AO_offset + nAO_atom), &
+                                             grid_points, AO_basis, particle_set(iatom)%r, cell)
+         END IF
          AO_offset = AO_offset + nAO_atom
       END DO
-      CALL evaluate_rirs_grid_cluster(Phi_l_mu, dPhi_alpha_l_mu, cluster_3c_int%Int_3c, &
-                                      bs_env%ri_rs%tikhonov, normalized_error, coordinate_gradient, &
-                                      max_abs_error, fit_successful)
-   END SUBROUTINE evaluate_local_cluster
-
-! **************************************************************************************************
-!> \brief Solve the cluster-local Z_lP for one C_A and evaluate its normalized error and exact gradient.
-!>
-!> The solve applies the same column Jacobi scaling and Tikhonov parameter as the production
-!> Z_lP construction. Z_prime_lP denotes the coefficients before undoing the Jacobi scaling.
-!> \param Phi_l_mu AO values ϕ_μ(r_l), indexed (l, μ).
-!> \param dPhi_alpha_l_mu Cartesian derivatives of ϕ_μ(r_l), indexed (α, l, μ).
-!> \param Int_3c Exact three-centre integrals, indexed (mu,nu,P).
-!> \param tikhonov Tikhonov parameter used by the production RI-RS solve.
-!> \param normalized_error Normalized squared residual for this cluster.
-!> \param coordinate_gradient Analytic derivative of normalized_error with respect to r(alpha,l).
-!> \param max_abs_error Largest absolute error in an unweighted three-centre integral.
-!> \param fit_successful False if the regularized normal equations cannot be solved.
-! **************************************************************************************************
-   SUBROUTINE evaluate_rirs_grid_cluster(Phi_l_mu, dPhi_alpha_l_mu, Int_3c, tikhonov, &
-                                         normalized_error, coordinate_gradient, &
-                                         max_abs_error, fit_successful)
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Phi_l_mu
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: dPhi_alpha_l_mu, Int_3c
-      REAL(KIND=dp), INTENT(IN)                          :: tikhonov
-      REAL(KIND=dp), INTENT(OUT)                         :: normalized_error
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: coordinate_gradient
-      REAL(KIND=dp), INTENT(OUT)                         :: max_abs_error
-      LOGICAL, INTENT(OUT)                               :: fit_successful
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'evaluate_rirs_grid_cluster'
-      REAL(KIND=dp), PARAMETER                           :: jacobi_floor = 1.0E-16_dp
-
-      INTEGER                                            :: handle, i_ao_pair, icartesian, &
-                                                            igrid_point, imu, inu, ip, &
-                                                            lapack_info, n_AO_pairs, &
-                                                            n_grid_points, nAO, nRI, phase_handle
-      INTEGER, ALLOCATABLE                               :: mu_of_pair(:), nu_of_pair(:)
-      REAL(KIND=dp)                                      :: absolute_error, dPhi_munu_l, &
-                                                            Int_3c_norm2, jacobi_scale, &
-                                                            Phi_munu_norm2, scaling_projection, &
-                                                            symmetry_factor
-      REAL(KIND=dp), ALLOCATABLE :: D_inverse_Z_prime_lP(:, :), &
-         D_inverse_Z_prime_times_Z_prime_transpose_ll(:, :), D_ll(:, :), d_lP(:, :), &
-         dE_dPhi_munu_l(:, :), dPhi_munu_l_scaled(:), Int_3c_munu_P(:, :), jacobi_scaling(:), &
-         Phi_munu_l(:, :), Phi_munu_l_scaled(:, :), R_munu_P(:, :), Z_prime_lP(:, :)
-
-      CALL timeset(routineN, handle)
-
-      n_grid_points = SIZE(Phi_l_mu, 1)
-      nAO = SIZE(Phi_l_mu, 2)
-      nRI = SIZE(Int_3c, 3)
-      n_AO_pairs = nAO*(nAO + 1)/2
-
-      CPASSERT(SIZE(dPhi_alpha_l_mu, 1) == 3)
-      CPASSERT(SIZE(dPhi_alpha_l_mu, 2) == n_grid_points)
-      CPASSERT(SIZE(dPhi_alpha_l_mu, 3) == nAO)
-      CPASSERT(SIZE(Int_3c, 1) == nAO)
-      CPASSERT(SIZE(Int_3c, 2) == nAO)
-      CPASSERT(SIZE(coordinate_gradient, 1) == 3)
-      CPASSERT(SIZE(coordinate_gradient, 2) == n_grid_points)
-      CPASSERT(tikhonov >= 0.0_dp)
-
-      normalized_error = HUGE(normalized_error)
-      coordinate_gradient = 0.0_dp
-      max_abs_error = HUGE(max_abs_error)
-      fit_successful = .FALSE.
-      IF (n_grid_points < 1 .OR. nRI < 1) THEN
-         CALL timestop(handle)
-         RETURN
-      END IF
-
-      ALLOCATE (Phi_munu_l(n_AO_pairs, n_grid_points), Phi_munu_l_scaled(n_AO_pairs, n_grid_points), &
-                Int_3c_munu_P(n_AO_pairs, nRI), mu_of_pair(n_AO_pairs), nu_of_pair(n_AO_pairs), &
-                jacobi_scaling(n_grid_points))
-      CALL timeset("rirs_cluster_AO_products", phase_handle)
-      i_ao_pair = 0
-      DO inu = 1, nAO
-         DO imu = 1, inu
-            i_ao_pair = i_ao_pair + 1
-            mu_of_pair(i_ao_pair) = imu
-            nu_of_pair(i_ao_pair) = inu
-            symmetry_factor = SQRT(REAL(2 - MERGE(1, 0, imu == inu), dp))
-            DO igrid_point = 1, n_grid_points
-               Phi_munu_l(i_ao_pair, igrid_point) = &
-                  symmetry_factor*Phi_l_mu(igrid_point, imu)*Phi_l_mu(igrid_point, inu)
-            END DO
-            DO ip = 1, nRI
-               Int_3c_munu_P(i_ao_pair, ip) = symmetry_factor*Int_3c(imu, inu, ip)
-            END DO
-         END DO
-      END DO
-
-      Int_3c_norm2 = SUM(Int_3c_munu_P*Int_3c_munu_P)
-      CALL timestop(phase_handle)
-      IF (Int_3c_norm2 <= TINY(1.0_dp)) THEN
-         DEALLOCATE (Phi_munu_l, Phi_munu_l_scaled, Int_3c_munu_P, mu_of_pair, nu_of_pair, jacobi_scaling)
-         CALL timestop(handle)
-         RETURN
-      END IF
-
-      ! D'_ll' = d_l D_ll' d_l' + λδ_ll', with d_l = 1/sqrt(D_ll).
-      DO igrid_point = 1, n_grid_points
-         Phi_munu_norm2 = SUM(Phi_munu_l(:, igrid_point)*Phi_munu_l(:, igrid_point))
-         jacobi_scaling(igrid_point) = 1.0_dp/SQRT(MAX(Phi_munu_norm2, jacobi_floor))
-         Phi_munu_l_scaled(:, igrid_point) = &
-            jacobi_scaling(igrid_point)*Phi_munu_l(:, igrid_point)
-      END DO
-      ALLOCATE (D_ll(n_grid_points, n_grid_points), d_lP(n_grid_points, nRI), Z_prime_lP(n_grid_points, nRI))
-      CALL timeset("rirs_cluster_D_ll", phase_handle)
-      CALL dgemm('T', 'N', n_grid_points, n_grid_points, n_AO_pairs, 1.0_dp, Phi_munu_l_scaled, n_AO_pairs, &
-                 Phi_munu_l_scaled, n_AO_pairs, 0.0_dp, D_ll, n_grid_points)
-      CALL timestop(phase_handle)
-      DO igrid_point = 1, n_grid_points
-         D_ll(igrid_point, igrid_point) = D_ll(igrid_point, igrid_point) + tikhonov
-      END DO
-      CALL timeset("rirs_cluster_d_lP", phase_handle)
-      CALL dgemm('T', 'N', n_grid_points, nRI, n_AO_pairs, 1.0_dp, Phi_munu_l_scaled, n_AO_pairs, &
-                 Int_3c_munu_P, n_AO_pairs, 0.0_dp, d_lP, n_grid_points)
-      CALL timestop(phase_handle)
-      CALL dpotrf('L', n_grid_points, D_ll, n_grid_points, lapack_info)
-      IF (lapack_info /= 0) THEN
-         DEALLOCATE (Phi_munu_l, Phi_munu_l_scaled, Int_3c_munu_P, D_ll, mu_of_pair, nu_of_pair, d_lP, &
-                     jacobi_scaling, Z_prime_lP)
-         CALL timestop(handle)
-         RETURN
-      END IF
-      Z_prime_lP(:, :) = d_lP
-      CALL dpotrs('L', n_grid_points, nRI, D_ll, n_grid_points, Z_prime_lP, n_grid_points, lapack_info)
-      DEALLOCATE (d_lP)
-      IF (lapack_info /= 0) THEN
-         DEALLOCATE (Phi_munu_l, Phi_munu_l_scaled, Int_3c_munu_P, D_ll, mu_of_pair, nu_of_pair, &
-                     jacobi_scaling, Z_prime_lP)
-         CALL timestop(handle)
-         RETURN
-      END IF
-
-      CALL timeset("rirs_cluster_residual", phase_handle)
-      ALLOCATE (R_munu_P(n_AO_pairs, nRI))
-      R_munu_P(:, :) = Int_3c_munu_P
-      ! R_μνP = (μν|P) - Σ_l ϕ_μ(r_l) ϕ_ν(r_l) d_l Z'_lP.
-      CALL dgemm('N', 'N', n_AO_pairs, nRI, n_grid_points, -1.0_dp, Phi_munu_l_scaled, n_AO_pairs, &
-                 Z_prime_lP, n_grid_points, 1.0_dp, R_munu_P, n_AO_pairs)
-      normalized_error = SUM(R_munu_P*R_munu_P)/Int_3c_norm2
-      CALL timestop(phase_handle)
-
-      ! For λ>0, the residual derivative includes the response of the regularized coefficients:
-      ! dE/dϕ = [-2 R Z^T - 2λ(R Y^T - ϕ Y Z^T)] / ||Int_3c||^2.
-      ALLOCATE (D_inverse_Z_prime_lP(n_grid_points, nRI), dE_dPhi_munu_l(n_AO_pairs, n_grid_points))
-      D_inverse_Z_prime_lP(:, :) = Z_prime_lP
-      CALL dpotrs('L', n_grid_points, nRI, D_ll, n_grid_points, D_inverse_Z_prime_lP, n_grid_points, lapack_info)
-      IF (lapack_info /= 0) THEN
-         DEALLOCATE (Phi_munu_l, Phi_munu_l_scaled, Int_3c_munu_P, dE_dPhi_munu_l, D_ll, mu_of_pair, nu_of_pair, &
-                     R_munu_P, jacobi_scaling, D_inverse_Z_prime_lP, Z_prime_lP)
-         CALL timestop(handle)
-         RETURN
-      END IF
-      CALL timeset("rirs_cluster_gradient_products", phase_handle)
-      CALL dgemm('N', 'T', n_AO_pairs, n_grid_points, nRI, -2.0_dp/Int_3c_norm2, R_munu_P, n_AO_pairs, &
-                 Z_prime_lP, n_grid_points, 0.0_dp, dE_dPhi_munu_l, n_AO_pairs)
-      IF (tikhonov > 0.0_dp) THEN
-         CALL dgemm('N', 'T', n_AO_pairs, n_grid_points, nRI, -2.0_dp*tikhonov/Int_3c_norm2, R_munu_P, n_AO_pairs, &
-                    D_inverse_Z_prime_lP, n_grid_points, 1.0_dp, dE_dPhi_munu_l, n_AO_pairs)
-         ALLOCATE (D_inverse_Z_prime_times_Z_prime_transpose_ll(n_grid_points, n_grid_points))
-         CALL dgemm('N', 'T', n_grid_points, n_grid_points, nRI, 1.0_dp, D_inverse_Z_prime_lP, n_grid_points, &
-                    Z_prime_lP, n_grid_points, 0.0_dp, D_inverse_Z_prime_times_Z_prime_transpose_ll, n_grid_points)
-         CALL dgemm('N', 'N', n_AO_pairs, n_grid_points, n_grid_points, &
-                    2.0_dp*tikhonov/Int_3c_norm2, Phi_munu_l_scaled, n_AO_pairs, &
-                    D_inverse_Z_prime_times_Z_prime_transpose_ll, n_grid_points, 1.0_dp, dE_dPhi_munu_l, n_AO_pairs)
-         DEALLOCATE (D_inverse_Z_prime_times_Z_prime_transpose_ll)
-      END IF
-
-      CALL timestop(phase_handle)
-      CALL timeset("rirs_cluster_gradient_coordinates", phase_handle)
-      ALLOCATE (dPhi_munu_l_scaled(n_AO_pairs))
-      DO igrid_point = 1, n_grid_points
-         jacobi_scale = jacobi_scaling(igrid_point)
-         Phi_munu_norm2 = SUM(Phi_munu_l(:, igrid_point)*Phi_munu_l(:, igrid_point))
-         DO icartesian = 1, 3
-            DO i_ao_pair = 1, n_AO_pairs
-               imu = mu_of_pair(i_ao_pair)
-               inu = nu_of_pair(i_ao_pair)
-               symmetry_factor = SQRT(REAL(2 - MERGE(1, 0, imu == inu), dp))
-               dPhi_munu_l = symmetry_factor*( &
-                             dPhi_alpha_l_mu(icartesian, igrid_point, imu)* &
-                             Phi_l_mu(igrid_point, inu) + &
-                             Phi_l_mu(igrid_point, imu)* &
-                             dPhi_alpha_l_mu(icartesian, igrid_point, inu))
-               dPhi_munu_l_scaled(i_ao_pair) = jacobi_scale*dPhi_munu_l
-            END DO
-            IF (Phi_munu_norm2 > jacobi_floor) THEN
-               scaling_projection = &
-                  DOT_PRODUCT(Phi_munu_l(:, igrid_point), dPhi_munu_l_scaled)/jacobi_scale
-               dPhi_munu_l_scaled(:) = dPhi_munu_l_scaled - &
-                                       jacobi_scale**3*Phi_munu_l(:, igrid_point)*scaling_projection
-            END IF
-            coordinate_gradient(icartesian, igrid_point) = &
-               DOT_PRODUCT(dE_dPhi_munu_l(:, igrid_point), dPhi_munu_l_scaled)
-         END DO
-      END DO
-
-      CALL timestop(phase_handle)
       max_abs_error = 0.0_dp
-      DO ip = 1, nRI
-         DO i_ao_pair = 1, n_AO_pairs
-            symmetry_factor = &
-               SQRT(REAL(2 - MERGE(1, 0, mu_of_pair(i_ao_pair) == nu_of_pair(i_ao_pair)), dp))
-            absolute_error = ABS(R_munu_P(i_ao_pair, ip))/symmetry_factor
-            max_abs_error = MAX(max_abs_error, absolute_error)
+      IF (PRESENT(coordinate_gradient)) THEN
+         CALL evaluate_ri_rs_fit(Phi_l_mu, cluster_3c_int%Int_3c, bs_env%ri_rs%tikhonov, &
+                                 normalized_error, fit_successful, ao_gradient=ao_gradient, &
+                                 workspace_budget_bytes=evaluation_budget)
+         IF (.NOT. fit_successful) RETURN
+         DO igrid = 1, n_grid_points
+            DO icartesian = 1, 3
+               coordinate_gradient(icartesian, igrid) = &
+                  DOT_PRODUCT(ao_gradient(igrid, :), dPhi_alpha_l_mu(icartesian, igrid, :))
+            END DO
          END DO
-      END DO
-
-      fit_successful = .TRUE.
-      DEALLOCATE (Phi_munu_l, Phi_munu_l_scaled, Int_3c_munu_P, dE_dPhi_munu_l, dPhi_munu_l_scaled, D_ll, &
-                  mu_of_pair, nu_of_pair, R_munu_P, jacobi_scaling, D_inverse_Z_prime_lP, Z_prime_lP)
-      CALL timestop(handle)
-   END SUBROUTINE evaluate_rirs_grid_cluster
+      ELSE
+         CALL evaluate_ri_rs_fit(Phi_l_mu, cluster_3c_int%Int_3c, bs_env%ri_rs%tikhonov, &
+                                 normalized_error, fit_successful, max_abs_error=max_abs_error)
+      END IF
+   END SUBROUTINE evaluate_local_cluster
 
 ! **************************************************************************************************
 !> \brief Sum gradient contributions from overlapping C_A into each atom-centred grid coordinate.
