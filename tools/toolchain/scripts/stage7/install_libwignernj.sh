@@ -42,6 +42,7 @@ case "${with_libwignernj:=__INSTALL__}" in
         -DWIGNERNJ_BUILD_TESTS=OFF \
         -DWIGNERNJ_BUILD_CXX_TESTS=OFF \
         -DWIGNERNJ_BUILD_EXAMPLES=OFF \
+        -DWIGNERNJ_BUILD_LTO=OFF \
         > cmake.log 2>&1 || tail_excerpt cmake.log
       cmake --build build --target install -j "$(get_nprocs)" \
         > build.log 2>&1 || tail_excerpt build.log
