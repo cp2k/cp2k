@@ -146,11 +146,16 @@ CONTAINS
       END DO
       IF (PRESENT(overlap)) THEN
          ALLOCATE (overlap(n_grid, n_grid))
+         ! Only the grid optimizer requests this overlap; leave the production solve path unchanged.
+         !$OMP PARALLEL DO DEFAULT(NONE) &
+         !$OMP SHARED(n_grid, overlap, factor, jacobi_scale) &
+         !$OMP PRIVATE(j, i) SCHEDULE(DYNAMIC)
          DO j = 1, n_grid
             DO i = j, n_grid
                overlap(i, j) = factor(i, j)*SQRT(jacobi_scale(i))*SQRT(jacobi_scale(j))
             END DO
          END DO
+         !$OMP END PARALLEL DO
       END IF
       ! Add λ after Jacobi scaling; LAPACK needs only the lower triangle.
       !$OMP PARALLEL DO DEFAULT(NONE) &
@@ -209,7 +214,7 @@ CONTAINS
                                                             n_cached, n_grid, n_panel, n_ri, &
                                                             panel_first, panel_last
       REAL(KIND=dp) :: coefficient_norm2, error_scale, fixed_bytes, integral_norm2, na, ng, &
-         projection, residual_norm2, roundoff_estimate, row_norm2, value, weight
+         projection, residual_max, residual_norm2, roundoff_estimate, row_norm2, value, weight
       REAL(KIND=dp), ALLOCATABLE :: coefficient_work(:, :), factor(:, :), jacobi_scale(:), &
          overlap(:, :), products(:, :, :), residual(:, :), v(:, :), z_prime(:, :)
 
@@ -231,12 +236,17 @@ CONTAINS
          RETURN
       END IF
       integral_norm2 = 0.0_dp
+      ! Threaded loops below use only scalar private storage; the workspace budget is unchanged.
+      !$OMP PARALLEL DO DEFAULT(NONE) &
+      !$OMP SHARED(n_ri, n_ao, int_3c) PRIVATE(ip, inu) &
+      !$OMP REDUCTION(+:integral_norm2) SCHEDULE(STATIC)
       DO ip = 1, n_ri
          DO inu = 1, n_ao
             integral_norm2 = integral_norm2 + int_3c(inu, inu, ip)**2 + &
                              2.0_dp*DOT_PRODUCT(int_3c(1:inu - 1, inu, ip), int_3c(1:inu - 1, inu, ip))
          END DO
       END DO
+      !$OMP END PARALLEL DO
       IF (integral_norm2 <= TINY(1.0_dp)) THEN
          CALL timestop(handle)
          RETURN
@@ -272,9 +282,14 @@ CONTAINS
       END IF
       ALLOCATE (v(n_grid, n_ao), products(n_grid, n_ao, n_cached), &
                 coefficient_work(n_grid, n_ri), z_prime(n_grid, n_ri))
+      !$OMP PARALLEL DO DEFAULT(NONE) &
+      !$OMP SHARED(n_ao, n_grid, v, jacobi_scale, phi) PRIVATE(imu, i) SCHEDULE(STATIC)
       DO imu = 1, n_ao
-         v(:, imu) = SQRT(jacobi_scale)*phi(:, imu)
+         DO i = 1, n_grid
+            v(i, imu) = SQRT(jacobi_scale(i))*phi(i, imu)
+         END DO
       END DO
+      !$OMP END PARALLEL DO
       ! K is independent of P. Solve a panel of RHSs and consume its cached products immediately.
       ! Keep Z' and the coefficient response for the final grid-space symmetric product.
       value = 0.0_dp
@@ -287,9 +302,13 @@ CONTAINS
             IF (PRESENT(ao_gradient)) icache = ip - panel_first + 1
             CALL dsymm('R', 'U', n_grid, n_ao, 1.0_dp, int_3c(:, :, ip), n_ao, v, n_grid, &
                        0.0_dp, products(:, :, icache), n_grid)
+            !$OMP PARALLEL DO DEFAULT(NONE) &
+            !$OMP SHARED(n_grid, coefficient_work, ip, v, products, icache) &
+            !$OMP PRIVATE(i) SCHEDULE(STATIC)
             DO i = 1, n_grid
                coefficient_work(i, ip) = DOT_PRODUCT(v(i, :), products(i, :, icache))
             END DO
+            !$OMP END PARALLEL DO
          END DO
          z_prime(:, panel_first:panel_last) = coefficient_work(:, panel_first:panel_last)
          CALL dpotrs('L', n_grid, panel_last - panel_first + 1, factor, n_grid, &
@@ -319,12 +338,19 @@ CONTAINS
                                                              tikhonov*coefficient_work(:, panel_first:panel_last)
             END IF
             ! Accumulate -Σ_P C_lP (V B_P)_l while the panel products are still available.
-            DO ip = panel_first, panel_last
-               icache = ip - panel_first + 1
-               DO imu = 1, n_ao
-                  ao_gradient(:, imu) = ao_gradient(:, imu) - coefficient_work(:, ip)*products(:, imu, icache)
+            ! Own AO columns, keeping RI accumulation order within every gradient element.
+            !$OMP PARALLEL DO DEFAULT(NONE) &
+            !$OMP SHARED(n_ao, n_grid, panel_first, panel_last, ao_gradient, coefficient_work, products) &
+            !$OMP PRIVATE(imu, ip, icache, i) SCHEDULE(STATIC)
+            DO imu = 1, n_ao
+               DO ip = panel_first, panel_last
+                  icache = ip - panel_first + 1
+                  DO i = 1, n_grid
+                     ao_gradient(i, imu) = ao_gradient(i, imu) - coefficient_work(i, ip)*products(i, imu, icache)
+                  END DO
                END DO
             END DO
+            !$OMP END PARALLEL DO
             IF (tikhonov > 0.0_dp) THEN
                ! Retain T = C - Z'/2 = Z'/2 + λY for M = Z'T^T + TZ'^T below.
                coefficient_work(:, panel_first:panel_last) = coefficient_work(:, panel_first:panel_last) - &
@@ -348,25 +374,36 @@ CONTAINS
          CALL timeset(routineN//'_residual', handle2)
          ALLOCATE (residual(n_ao, MIN(residual_block_size, n_ao)))
          residual_norm2 = 0.0_dp
-         IF (PRESENT(max_abs_error)) max_abs_error = 0.0_dp
+         residual_max = 0.0_dp
          DO ip = 1, n_ri
             DO first = 1, n_ao, residual_block_size
                last = MIN(first + residual_block_size - 1, n_ao)
+               !$OMP PARALLEL DO DEFAULT(NONE) &
+               !$OMP SHARED(first, last, n_grid, products, z_prime, ip, v) &
+               !$OMP PRIVATE(inu, i) SCHEDULE(STATIC)
                DO inu = first, last
-                  products(:, inu - first + 1, 1) = z_prime(:, ip)*v(:, inu)
+                  DO i = 1, n_grid
+                     products(i, inu - first + 1, 1) = z_prime(i, ip)*v(i, inu)
+                  END DO
                END DO
+               !$OMP END PARALLEL DO
                CALL dgemm('T', 'N', n_ao, last - first + 1, n_grid, -1.0_dp, v, n_grid, products(:, :, 1), n_grid, &
                           0.0_dp, residual, n_ao)
+               !$OMP PARALLEL DO DEFAULT(NONE) &
+               !$OMP SHARED(first, last, int_3c, ip, residual) PRIVATE(inu, imu, value, weight) &
+               !$OMP REDUCTION(+:residual_norm2) REDUCTION(MAX:residual_max) SCHEDULE(STATIC)
                DO inu = first, last
                   DO imu = 1, inu
                      value = int_3c(imu, inu, ip) + residual(imu, inu - first + 1)
                      weight = REAL(2 - MERGE(1, 0, imu == inu), dp)
                      residual_norm2 = residual_norm2 + weight*value**2
-                     IF (PRESENT(max_abs_error)) max_abs_error = MAX(max_abs_error, ABS(value))
+                     residual_max = MAX(residual_max, ABS(value))
                   END DO
                END DO
+               !$OMP END PARALLEL DO
             END DO
          END DO
+         IF (PRESENT(max_abs_error)) max_abs_error = residual_max
          CALL timestop(handle2)
       END IF
       DEALLOCATE (products)
@@ -381,25 +418,38 @@ CONTAINS
          ELSE
             CALL dsyrk('L', 'N', n_grid, n_ri, 1.0_dp, z_prime, n_grid, 0.0_dp, factor, n_grid)
          END IF
+         !$OMP PARALLEL DO DEFAULT(NONE) &
+         !$OMP SHARED(n_grid, factor, overlap) PRIVATE(j, i) SCHEDULE(DYNAMIC)
          DO j = 1, n_grid
             DO i = j, n_grid
                factor(i, j) = factor(i, j)*overlap(i, j)
             END DO
          END DO
+         !$OMP END PARALLEL DO
          ! Add (M∘S)V to the accumulated negative term, then normalize the AO gradient.
          CALL dsymm('L', 'L', n_grid, n_ao, 1.0_dp, factor, n_grid, v, n_grid, &
                     1.0_dp, ao_gradient, n_grid)
-         ao_gradient(:, :) = (4.0_dp/integral_norm2)*ao_gradient
          ! V_l = sqrt(d_l) phi_l. Differentiate the normalization only above the floor;
          ! on the clamped branch d_l is constant, including at the branch boundary.
+         !$OMP PARALLEL DO DEFAULT(NONE) &
+         !$OMP SHARED(n_grid, n_ao, integral_norm2, phi, ao_gradient, jacobi_scale) &
+         !$OMP PRIVATE(i, imu, row_norm2, projection) SCHEDULE(STATIC)
          DO i = 1, n_grid
+            DO imu = 1, n_ao
+               ao_gradient(i, imu) = (4.0_dp/integral_norm2)*ao_gradient(i, imu)
+            END DO
             row_norm2 = DOT_PRODUCT(phi(i, :), phi(i, :))
             IF (row_norm2 > SQRT(jacobi_floor)) THEN
                projection = DOT_PRODUCT(phi(i, :), ao_gradient(i, :))/row_norm2
-               ao_gradient(i, :) = ao_gradient(i, :) - projection*phi(i, :)
+               DO imu = 1, n_ao
+                  ao_gradient(i, imu) = ao_gradient(i, imu) - projection*phi(i, imu)
+               END DO
             END IF
-            ao_gradient(i, :) = SQRT(jacobi_scale(i))*ao_gradient(i, :)
+            DO imu = 1, n_ao
+               ao_gradient(i, imu) = SQRT(jacobi_scale(i))*ao_gradient(i, imu)
+            END DO
          END DO
+         !$OMP END PARALLEL DO
          CALL timestop(handle2)
       END IF
       fit_successful = .TRUE.

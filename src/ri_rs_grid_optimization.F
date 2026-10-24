@@ -570,12 +570,16 @@ CONTAINS
                                  normalized_error, fit_successful, ao_gradient=ao_gradient, &
                                  workspace_budget_bytes=evaluation_budget)
          IF (.NOT. fit_successful) RETURN
+         !$OMP PARALLEL DO DEFAULT(NONE) &
+         !$OMP SHARED(n_grid_points, coordinate_gradient, ao_gradient, dPhi_alpha_l_mu) &
+         !$OMP PRIVATE(igrid, icartesian) SCHEDULE(STATIC)
          DO igrid = 1, n_grid_points
             DO icartesian = 1, 3
                coordinate_gradient(icartesian, igrid) = &
                   DOT_PRODUCT(ao_gradient(igrid, :), dPhi_alpha_l_mu(icartesian, igrid, :))
             END DO
          END DO
+         !$OMP END PARALLEL DO
       ELSE
          CALL evaluate_ri_rs_fit(Phi_l_mu, cluster_3c_int%Int_3c, bs_env%ri_rs%tikhonov, &
                                  normalized_error, fit_successful, max_abs_error=max_abs_error)
