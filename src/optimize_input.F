@@ -185,7 +185,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      CALL cp_add_iter_level(logger%iter_info, "POWELL_OPT")
+      CALL cp_add_iter_level(logger, "POWELL_OPT")
       output_unit = cp_logger_get_default_io_unit(logger)
 
       IF (output_unit > 0) THEN
@@ -474,7 +474,7 @@ CONTAINS
          END DO
       END IF
 
-      CALL cp_rm_iter_level(logger%iter_info, "POWELL_OPT")
+      CALL cp_rm_iter_level(logger, "POWELL_OPT")
 
       ! deallocate for cleanup
       IF (ASSOCIATED(cell_traj)) DEALLOCATE (cell_traj)

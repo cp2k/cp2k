@@ -871,7 +871,7 @@ CONTAINS
       n_step = meta_env%n_steps
 
       ! Create a temporary logger level specific for metadynamics
-      CALL cp_add_iter_level(logger%iter_info, "METADYNAMICS")
+      CALL cp_add_iter_level(logger, "METADYNAMICS")
       CALL get_meta_iter_level(meta_env, iter_nr)
       CALL cp_iterate(logger%iter_info, last=.FALSE., iter_nr=iter_nr)
 
@@ -1078,7 +1078,7 @@ CONTAINS
       DEALLOCATE (numf)
       DEALLOCATE (denf)
 
-      CALL cp_rm_iter_level(logger%iter_info, "METADYNAMICS")
+      CALL cp_rm_iter_level(logger, "METADYNAMICS")
 
       CALL timestop(handle)
 

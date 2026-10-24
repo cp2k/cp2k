@@ -247,7 +247,7 @@ CONTAINS
       CALL create_simpar_type(simpar)
       force_env_section => force_env%force_env_section
       subsys_section => section_vals_get_subs_vals(force_env_section, "SUBSYS")
-      CALL cp_add_iter_level(logger%iter_info, "MD")
+      CALL cp_add_iter_level(logger, "MD")
       CALL cp_iterate(logger%iter_info, iter_nr=0)
       ! Read MD section
       CALL read_md_section(simpar, motion_section, md_section)
@@ -581,7 +581,7 @@ CONTAINS
       IF (PRESENT(hmc_e_final)) hmc_e_final = md_ener%ekin
 
       ! Remove the iteration level
-      CALL cp_rm_iter_level(logger%iter_info, "MD")
+      CALL cp_rm_iter_level(logger, "MD")
 
       ! Clean up PLUMED
       IF (ASSOCIATED(force_env%meta_env)) THEN

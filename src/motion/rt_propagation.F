@@ -385,7 +385,7 @@ CONTAINS
 
       rtp%energy_old = energy%total
       time_iter_start = m_walltime()
-      CALL cp_add_iter_level(logger%iter_info, "MD")
+      CALL cp_add_iter_level(logger, "MD")
       CALL cp_iterate(logger%iter_info, iter_nr=0)
       IF (rtp%i_start >= max_steps) CALL cp_abort(__LOCATION__, &
                                                   "maximum step number smaller than initial step value")
@@ -458,7 +458,7 @@ CONTAINS
             EXIT
          END IF
       END DO
-      CALL cp_rm_iter_level(logger%iter_info, "MD")
+      CALL cp_rm_iter_level(logger, "MD")
 
       IF (.NOT. rtp%converged) THEN
          CALL cp_abort(__LOCATION__, "propagation did not converge, "// &

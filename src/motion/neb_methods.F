@@ -116,7 +116,7 @@ CONTAINS
       NULLIFY (logger, subsys, f_env, rep_env)
       NULLIFY (forces, coords, vels, neb_env)
       logger => cp_get_default_logger()
-      CALL cp_add_iter_level(logger%iter_info, "BAND")
+      CALL cp_add_iter_level(logger, "BAND")
       motion_section => section_vals_get_subs_vals(input, "MOTION")
       print_section => section_vals_get_subs_vals(motion_section, "PRINT")
       neb_section => section_vals_get_subs_vals(motion_section, "BAND")
@@ -205,7 +205,7 @@ CONTAINS
       CALL rep_env_release(rep_env)
       CALL cp_print_key_finished_output(output_unit, logger, neb_section, &
                                         "PROGRAM_RUN_INFO")
-      CALL cp_rm_iter_level(logger%iter_info, "BAND")
+      CALL cp_rm_iter_level(logger, "BAND")
       CALL timestop(handle)
    END SUBROUTINE neb
 

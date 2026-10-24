@@ -29,7 +29,9 @@ MODULE cp_output_handling
                                               cp_iteration_info_retain,&
                                               cp_iteration_info_type,&
                                               each_desc_labels,&
-                                              each_possible_labels
+                                              each_possible_labels,&
+                                              iter_notice,&
+                                              iter_silent
    USE cp_log_handling,                 ONLY: cp_logger_generate_filename,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_get_unit_nr,&
@@ -63,7 +65,8 @@ MODULE cp_output_handling
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_output_handling'
-   PUBLIC :: cp_print_key_should_output, cp_iterate, cp_get_iter_level_by_name, cp_get_iter_nr, cp_add_iter_level, cp_rm_iter_level
+   PUBLIC :: cp_print_key_should_output, cp_iterate, cp_get_iter_level_by_name, cp_get_iter_nr
+   PUBLIC :: cp_add_iter_level, cp_rm_iter_level, cp_iter_level_print
    PUBLIC :: cp_iter_string, cp_print_key_section_create
    PUBLIC :: cp_print_key_unit_nr, cp_print_key_finished_output
    PUBLIC :: cp_print_key_generate_filename, cp_printkey_is_on
@@ -637,20 +640,23 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Adds an iteration level
-!> \param iteration_info the iteration info to which an iteration level has
+!> \param logger the logger with the iteration info to which an iteration level has
 !>        to be added
 !> \param level_name the name of this level, for pretty printing only, right now
 !> \param n_rlevel_new number of iteration levels after this call
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE cp_add_iter_level(iteration_info, level_name, n_rlevel_new)
-      TYPE(cp_iteration_info_type), POINTER              :: iteration_info
+   SUBROUTINE cp_add_iter_level(logger, level_name, n_rlevel_new)
+      TYPE(cp_logger_type), POINTER                      :: logger
       CHARACTER(LEN=*), INTENT(IN)                       :: level_name
       INTEGER, INTENT(OUT), OPTIONAL                     :: n_rlevel_new
 
       INTEGER                                            :: i
       LOGICAL                                            :: found
+      TYPE(cp_iteration_info_type), POINTER              :: iteration_info
 
+      CPASSERT(ASSOCIATED(logger))
+      iteration_info => logger%iter_info
       CPASSERT(ASSOCIATED(iteration_info))
       CPASSERT(iteration_info%ref_count > 0)
       found = .FALSE.
@@ -670,6 +676,7 @@ CONTAINS
          iteration_info%level_name(iteration_info%n_rlevel) = level_name
          iteration_info%last_iter(iteration_info%n_rlevel) = .FALSE.
          IF (PRESENT(n_rlevel_new)) n_rlevel_new = iteration_info%n_rlevel
+         CALL cp_iter_level_print(logger, "A")
       ELSE
          CALL cp_abort(__LOCATION__, &
                        "Trying to create an iteration level ("//TRIM(level_name)//") not defined. "// &
@@ -680,24 +687,28 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Removes an iteration level
-!> \param iteration_info the iteration info to which an iteration level has
+!> \param logger the logger with the iteration info to which an iteration level has
 !>        to be removed
 !> \param level_name level_name to be destroyed (if does not match gives an error)
 !> \param n_rlevel_att iteration level before the call (to do some checks)
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE cp_rm_iter_level(iteration_info, level_name, n_rlevel_att)
-      TYPE(cp_iteration_info_type), POINTER              :: iteration_info
+   SUBROUTINE cp_rm_iter_level(logger, level_name, n_rlevel_att)
+      TYPE(cp_logger_type), POINTER                      :: logger
       CHARACTER(LEN=*), INTENT(IN)                       :: level_name
       INTEGER, INTENT(IN), OPTIONAL                      :: n_rlevel_att
 
       LOGICAL                                            :: check
+      TYPE(cp_iteration_info_type), POINTER              :: iteration_info
 
+      CPASSERT(ASSOCIATED(logger))
+      iteration_info => logger%iter_info
       CPASSERT(ASSOCIATED(iteration_info))
       CPASSERT(iteration_info%ref_count > 0)
       IF (PRESENT(n_rlevel_att)) THEN
          CPASSERT(n_rlevel_att == iteration_info%n_rlevel)
       END IF
+      CALL cp_iter_level_print(logger, "R")
       CALL cp_iteration_info_release(iteration_info)
       ! This check that the iteration levels are consistently created and destroyed..
       ! Never remove this check..
@@ -708,6 +719,73 @@ CONTAINS
       CALL reallocate(iteration_info%level_name, 1, iteration_info%n_rlevel)
       CALL reallocate(iteration_info%last_iter, 1, iteration_info%n_rlevel)
    END SUBROUTINE cp_rm_iter_level
+
+! **************************************************************************************************
+!> \brief Print information entering or exiting an iteration level
+!> \param logger the logger with iteration info and para_env
+!> \param direction entering (A) or exiting (R) the iteration level
+!> \param local if the unit should be local to this task
+!> \author Zilong HE
+! **************************************************************************************************
+   SUBROUTINE cp_iter_level_print(logger, direction, local)
+      TYPE(cp_logger_type), POINTER                      :: logger
+      CHARACTER(LEN=1), INTENT(IN)                       :: direction
+      LOGICAL, INTENT(IN), OPTIONAL                      :: local
+
+      INTEGER, PARAMETER                                 :: min_iter_level = 2
+
+      CHARACTER(LEN=:), ALLOCATABLE                      :: level_name
+      INTEGER                                            :: iter_nr, rlevel, unit_nr
+      LOGICAL                                            :: my_local
+      TYPE(cp_iteration_info_type), POINTER              :: iteration_info
+
+      ! min_iter_level = 2 is to skip iteration_info%level_name(1)
+      ! which corresponds to a fictitious __ROOT__ level added in
+      ! the init_cp2k subroutine. The level_name should be one of
+      ! the list each_possible_labels; the following WRITE format
+      ! assumes implicitly a maximum length of 27 characters.
+
+      iteration_info => logger%iter_info
+      my_local = .FALSE.
+      IF (PRESENT(local)) my_local = local
+      IF (my_local .OR. logger%para_env%is_source()) THEN
+         IF (iteration_info%iter_print > iter_silent) THEN
+            rlevel = iteration_info%n_rlevel
+            CPASSERT(rlevel > 0)
+            level_name = TRIM(ADJUSTL(iteration_info%level_name(rlevel)))
+            CALL cp_get_iter_nr(iteration_info, rlevel, iter_nr)
+            unit_nr = cp_logger_get_unit_nr(logger, local=my_local)
+            IF (unit_nr > 0) THEN
+               WRITE (UNIT=unit_nr, FMT="()")
+               ! The current iteration level
+               SELECT CASE (direction)
+               CASE ("A") ! After adding level in cp_add_iter_level
+                  WRITE (UNIT=unit_nr, FMT="(T2,A,T37,I3,T41,A,T73,I8)") &
+                     "ITER_LV| >>>>>>>> Entering level +", rlevel, "[ "//level_name//" ]", iter_nr
+               CASE ("R") ! Before removing level in cp_rm_iter_level
+                  WRITE (UNIT=unit_nr, FMT="(T2,A,T37,I3,T41,A,T73,I8)") &
+                     "ITER_LV| <<<<<<<<  Exiting level -", rlevel, "[ "//level_name//" ]", iter_nr
+               CASE DEFAULT
+                  CALL cp_abort(__LOCATION__, &
+                                "Only entering (A) or exiting (R) an iteration level "// &
+                                "can have a message printed.")
+               END SELECT
+               ! The rest of stack of iteration levels
+               IF (iteration_info%iter_print > iter_notice) THEN
+                  DO WHILE (rlevel > min_iter_level)
+                     rlevel = rlevel - 1
+                     level_name = TRIM(ADJUSTL(iteration_info%level_name(rlevel)))
+                     CALL cp_get_iter_nr(iteration_info, rlevel, iter_nr)
+                     WRITE (UNIT=unit_nr, FMT="(T2,A,T37,I3,T41,A,T73,I8)") &
+                        "ITER_LV|                         *", rlevel, "[ "//level_name//" ]", iter_nr
+                  END DO
+               END IF
+               WRITE (UNIT=unit_nr, FMT="()")
+            END IF
+         END IF
+      END IF
+
+   END SUBROUTINE cp_iter_level_print
 
 ! **************************************************************************************************
 !> \brief Utility function that returns a unit number to write the print key.

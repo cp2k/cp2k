@@ -112,7 +112,7 @@ CONTAINS
          END DO
       END IF
       ! Setup the iteration level for BSSE
-      CALL cp_add_iter_level(logger%iter_info, "BSSE")
+      CALL cp_add_iter_level(logger, "BSSE")
       CALL cp_iterate(logger%iter_info, last=.FALSE., iter_nr=istart)
 
       ! Evaluating the energy of the N-body cluster terms
@@ -133,7 +133,7 @@ CONTAINS
          CALL write_bsse_restart(bsse_section, root_section)
       END DO
       IF (.NOT. should_stop) CALL dump_bsse_results(conf, Em, num_of_frag, bsse_section)
-      CALL cp_rm_iter_level(logger%iter_info, "BSSE")
+      CALL cp_rm_iter_level(logger, "BSSE")
       DEALLOCATE (Em)
       DEALLOCATE (conf)
 
