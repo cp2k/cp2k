@@ -27,7 +27,8 @@ MODULE upf_projector_integrals
                                               ncoset
    USE orbital_transformation_matrices, ONLY: init_spherical_harmonics,&
                                               orbtramat
-   USE upf_types,                       ONLY: atom_upfpot_type
+   USE upf_types,                       ONLY: atom_upfpot_type,&
+                                              upf_radial_weights
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -65,8 +66,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: degree
       TYPE(upf_projector_type), INTENT(OUT)              :: projectors
 
-      INTEGER                                            :: a, b, i, j, k, l, lambda, m, n, &
-                                                            nsimpson, p, powers(3), q, s
+      INTEGER                                            :: a, b, i, j, k, l, lambda, m, n, p, &
+                                                            powers(3), q, s
       REAL(KIND=dp), ALLOCATABLE                         :: moments(:, :), weights(:)
 
       CPASSERT(degree >= 0)
@@ -95,16 +96,7 @@ CONTAINS
       projectors%r(:) = pot%r
       projectors%lbeta(:) = pot%lbeta
       ALLOCATE (weights(n))
-      weights = 0.0_dp
-      ! Composite Simpson in the mesh index; PP_RAB is dr/d(index).
-      ! An even mesh has one final trapezoidal interval.
-      nsimpson = n - 1 + MODULO(n, 2)
-      weights(1:nsimpson:2) = 2.0_dp/3.0_dp
-      weights(2:nsimpson - 1:2) = 4.0_dp/3.0_dp
-      weights(1) = 1.0_dp/3.0_dp
-      weights(nsimpson) = 1.0_dp/3.0_dp
-      IF (nsimpson < n) weights(n - 1:n) = weights(n - 1:n) + 0.5_dp
-      weights(:) = weights*pot%rab*pot%r**2
+      weights(:) = upf_radial_weights(pot)*pot%r**2
       ALLOCATE (projectors%weighted_beta(n, pot%number_of_proj))
       DO i = 1, pot%number_of_proj
          projectors%weighted_beta(:, i) = weights*pot%beta(:, i)

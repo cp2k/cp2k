@@ -1983,7 +1983,7 @@ CONTAINS
       CALL get_qs_env(qs_env, mpools=mpools, &
                       scf_env=scf_env, &
                       scf_control=scf_control, &
-                      matrix_s=matrix_s, &
+                      matrix_metric=matrix_s, &
                       dft_control=dft_control)
       CALL mpools_get(mpools, maxao_maxmo_fm_pool=maxao_maxmo_fm_pool)
       IF (ASSOCIATED(scf_env)) THEN
