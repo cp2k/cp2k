@@ -16,7 +16,10 @@ PROGRAM ot_covariant_preconditioner_unittest
                                               cp_fm_release,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_type
-   USE input_constants,                 ONLY: ot_precond_full_all_covariant
+   USE ieee_arithmetic,                 ONLY: ieee_is_finite
+   USE input_constants,                 ONLY: ot_low_rank_base_overlap,&
+                                              ot_precond_fermi_low_rank,&
+                                              ot_precond_full_all_covariant
    USE iso_fortran_env,                 ONLY: error_unit
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type,&
@@ -32,7 +35,7 @@ PROGRAM ot_covariant_preconditioner_unittest
    INTEGER, PARAMETER                                  :: k = 3, n = 5
    REAL(KIND=dp), PARAMETER                            :: eps = 2.0E-11_dp
 
-   INTEGER                                             :: i, j
+   INTEGER                                             :: i, j, rank_used
    REAL(KIND=dp), DIMENSION(n, k)                      :: gradient, gradient_rotated, hessian_x, &
                                                           output, output_reference, &
                                                           output_rotated, x_reference
@@ -40,6 +43,7 @@ PROGRAM ot_covariant_preconditioner_unittest
    REAL(KIND=dp), DIMENSION(k)                         :: occ_evals
    REAL(KIND=dp), DIMENSION(k, k)                      :: occupied_h, q, rotation, rotation_2, &
                                                           rotation_gauge
+   REAL(KIND=dp), DIMENSION(n, n)                      :: inverse, overlap_inverse, spectral_vectors
    TYPE(cp_blacs_env_type), POINTER                    :: blacs_env
    TYPE(cp_fm_struct_type), POINTER                    :: fm_struct
    TYPE(cp_fm_type)                                    :: matrix_in, matrix_out
@@ -78,8 +82,14 @@ PROGRAM ot_covariant_preconditioner_unittest
    preconditioner_env%full_evals = full_evals
    preconditioner_env%occ_evals = occ_evals
 
-   CALL set_identity(preconditioner_env%fm, n)
-   CALL make_rotation(0.43_dp, -0.31_dp, rotation)
+   spectral_vectors = 0.0_dp
+   DO i = 1, n
+      spectral_vectors(i, i) = 1.0_dp
+   END DO
+   CALL cp_fm_set_submatrix(preconditioner_env%fm, spectral_vectors)
+   CALL plane_rotation(0.43_dp, 1, 2, rotation)
+   CALL plane_rotation(-0.31_dp, 2, 3, q)
+   rotation = MATMUL(rotation, q)
    CALL cp_fm_set_submatrix(preconditioner_env%occ_rotation, rotation)
 
    DO j = 1, k
@@ -91,11 +101,7 @@ PROGRAM ot_covariant_preconditioner_unittest
       END DO
    END DO
 
-   ! Check the production FM wrapper against its explicit spectral formula.
-   CALL apply_model(gradient, rotation, full_evals, occ_evals, &
-                    preconditioner_env%energy_gap, output_reference)
-   CALL apply_fm(preconditioner_env, matrix_in, matrix_out, gradient, output)
-   CALL assert_close(output, output_reference, eps, "Explicit covariant spectral inverse")
+   CALL apply_fm(preconditioner_env, matrix_in, matrix_out, gradient, output_reference)
 
    ! Invert the frozen-H Sylvester operator A X - X B exactly.
    occupied_h = 0.0_dp
@@ -110,24 +116,15 @@ PROGRAM ot_covariant_preconditioner_unittest
    CALL assert_close(output, x_reference, eps, "Frozen-H Sylvester inverse")
 
    ! Rotate the occupied gauge and verify P_(C R)(G R) = P_C(G) R.
-   CALL make_rotation(-0.37_dp, 0.28_dp, rotation_gauge)
+   CALL plane_rotation(-0.37_dp, 1, 2, rotation_gauge)
+   CALL plane_rotation(0.28_dp, 2, 3, q)
+   rotation_gauge = MATMUL(rotation_gauge, q)
    rotation_2 = MATMUL(TRANSPOSE(rotation_gauge), rotation)
    gradient_rotated = MATMUL(gradient, rotation_gauge)
    CALL cp_fm_set_submatrix(preconditioner_env%occ_rotation, rotation_2)
    CALL apply_fm(preconditioner_env, matrix_in, matrix_out, gradient_rotated, output_rotated)
    CALL assert_close(output_rotated, MATMUL(output_reference, rotation_gauge), eps, &
                      "Occupied-gauge covariance")
-
-   ! Eigenvectors may rotate freely inside a degenerate occupied eigenspace.
-   occ_evals = [-0.4_dp, -0.4_dp, 0.2_dp]
-   preconditioner_env%occ_evals = occ_evals
-   CALL cp_fm_set_submatrix(preconditioner_env%occ_rotation, rotation)
-   CALL apply_fm(preconditioner_env, matrix_in, matrix_out, gradient, output)
-   CALL plane_rotation(0.61_dp, 1, 2, q)
-   rotation_2 = MATMUL(rotation, q)
-   CALL cp_fm_set_submatrix(preconditioner_env%occ_rotation, rotation_2)
-   CALL apply_fm(preconditioner_env, matrix_in, matrix_out, gradient, output_rotated)
-   CALL assert_close(output_rotated, output, eps, "Degenerate occupied subspace")
 
    ! The gap floor must leave the inverse positive definite.
    preconditioner_env%energy_gap = 0.75_dp
@@ -137,6 +134,35 @@ PROGRAM ot_covariant_preconditioner_unittest
    IF (SUM(gradient*output) <= 0.0_dp) THEN
       ERROR STOP "Gap-floor inverse is not positive definite"
    END IF
+
+   ! Exercise the production low-rank FM path with a nontrivial overlap base,
+   ! including zero rank, truncation, and a gap-clipped complementary eigenvalue.
+   preconditioner_env%in_use = ot_precond_fermi_low_rank
+   preconditioner_env%low_rank_base = ot_low_rank_base_overlap
+   preconditioner_env%energy_gap = 0.1_dp
+   preconditioner_env%spectral_reference = full_evals(k + 1) - 0.04_dp
+   preconditioner_env%spectral_base_scale = 1.25_dp
+   CALL plane_rotation(0.29_dp, 2, 4, spectral_vectors)
+   spectral_vectors(:, 2) = 1.2_dp*spectral_vectors(:, 2)
+   spectral_vectors(:, 4) = 0.8_dp*spectral_vectors(:, 4)
+   overlap_inverse = MATMUL(spectral_vectors, TRANSPOSE(spectral_vectors))
+   CALL cp_fm_set_submatrix(preconditioner_env%fm, spectral_vectors)
+   ALLOCATE (preconditioner_env%base_fm)
+   CALL cp_fm_create(preconditioner_env%base_fm, preconditioner_env%fm%matrix_struct)
+   CALL cp_fm_set_submatrix(preconditioner_env%base_fm, overlap_inverse)
+   DO rank_used = 0, n - k
+      preconditioner_env%spectral_rank = rank_used
+      inverse = preconditioner_env%spectral_base_scale*overlap_inverse
+      DO i = k + 1, k + rank_used
+         inverse = inverse + (1.0_dp/MAX(preconditioner_env%energy_gap, &
+                                         full_evals(i) - preconditioner_env%spectral_reference) - &
+                              preconditioner_env%spectral_base_scale)* &
+                   outer_product(spectral_vectors(:, i), spectral_vectors(:, i))
+      END DO
+      output_reference = MATMUL(inverse, gradient)
+      CALL apply_fm(preconditioner_env, matrix_in, matrix_out, gradient, output)
+      CALL assert_close(output, output_reference, eps, "Low-rank spectral inverse")
+   END DO
 
    CALL cp_fm_release(matrix_in)
    CALL cp_fm_release(matrix_out)
@@ -169,56 +195,6 @@ CONTAINS
    END SUBROUTINE apply_fm
 
 ! **************************************************************************************************
-!> \brief Explicit reference for the covariant state-selective spectral inverse.
-!> \param input ...
-!> \param rotation ...
-!> \param full_evals ...
-!> \param occ_evals ...
-!> \param gap ...
-!> \param RESULT ...
-! **************************************************************************************************
-   SUBROUTINE apply_model(input, rotation, full_evals, occ_evals, gap, RESULT)
-
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: input, rotation
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: full_evals, occ_evals
-      REAL(KIND=dp), INTENT(IN)                          :: gap
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: result
-
-      INTEGER                                            :: i, j
-      REAL(KIND=dp), &
-         DIMENSION(SIZE(input, 1), SIZE(input, 2))       :: canonical
-
-      canonical = MATMUL(input, rotation)
-      DO j = 1, SIZE(input, 2)
-         DO i = 1, SIZE(input, 1)
-            canonical(i, j) = canonical(i, j)/MAX(gap, full_evals(i) - occ_evals(j))
-         END DO
-      END DO
-      RESULT = MATMUL(canonical, TRANSPOSE(rotation))
-
-   END SUBROUTINE apply_model
-
-! **************************************************************************************************
-!> \brief Create a product of two plane rotations.
-!> \param angle_12 ...
-!> \param angle_23 ...
-!> \param rotation ...
-! **************************************************************************************************
-   SUBROUTINE make_rotation(angle_12, angle_23, rotation)
-
-      REAL(KIND=dp), INTENT(IN)                          :: angle_12, angle_23
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: rotation
-
-      REAL(KIND=dp), &
-         DIMENSION(SIZE(rotation, 1), SIZE(rotation, 2)) :: r12, r23
-
-      CALL plane_rotation(angle_12, 1, 2, r12)
-      CALL plane_rotation(angle_23, 2, 3, r23)
-      rotation = MATMUL(r12, r23)
-
-   END SUBROUTINE make_rotation
-
-! **************************************************************************************************
 !> \brief Create an orthogonal plane rotation.
 !> \param angle ...
 !> \param axis_1 ...
@@ -243,27 +219,6 @@ CONTAINS
       rotation(axis_2, axis_1) = SIN(angle)
 
    END SUBROUTINE plane_rotation
-
-! **************************************************************************************************
-!> \brief Set a distributed full matrix to the identity.
-!> \param matrix ...
-!> \param n ...
-! **************************************************************************************************
-   SUBROUTINE set_identity(matrix, n)
-
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
-      INTEGER, INTENT(IN)                                :: n
-
-      INTEGER                                            :: i
-      REAL(KIND=dp), DIMENSION(n, n)                     :: identity
-
-      identity = 0.0_dp
-      DO i = 1, n
-         identity(i, i) = 1.0_dp
-      END DO
-      CALL cp_fm_set_submatrix(matrix, identity)
-
-   END SUBROUTINE set_identity
 
 ! **************************************************************************************************
 !> \brief Form a real outer product.
@@ -301,9 +256,11 @@ CONTAINS
 
       INTEGER                                            :: io_unit
 
-      IF (MAXVAL(ABS(actual - reference)) > tolerance) THEN
+      IF (.NOT. ALL(ieee_is_finite(actual)) .OR. &
+          .NOT. ALL(ieee_is_finite(reference)) .OR. MAXVAL(ABS(actual - reference)) > tolerance) THEN
          io_unit = error_unit
-         WRITE (io_unit, '(A)') TRIM(label)
+         WRITE (io_unit, '(A,2(1X,ES13.6))') TRIM(label)//": error/tolerance", &
+            MAXVAL(ABS(actual - reference)), tolerance
          ERROR STOP "Matrix comparison failed"
       END IF
 

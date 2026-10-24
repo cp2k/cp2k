@@ -3488,75 +3488,38 @@ CONTAINS
 
       ! make the diis matrix and solve it
       DO i = 1, diis_bound
-         ! I think there are two possible options, with and without preconditioner
-         ! as a metric
-         ! the second option seems most logical to me, and it seems marginally faster
-         ! in some of the tests
-         IF (.FALSE.) THEN
-            qs_ot_env(1)%ls_diis(i, j) = 0.0_dp
-            IF (do_ks) THEN
-               DO ispin = 1, nspin
-                  CALL dbcsr_dot(qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
-                                 qs_ot_env(ispin)%matrix_h_e(i)%matrix, &
-                                 tmp)
-                  qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) + tmp
-                  IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                     CALL dbcsr_dot(qs_ot_env(ispin)%matrix_h_e_im(j)%matrix, &
-                                    qs_ot_env(ispin)%matrix_h_e_im(i)%matrix, tmp)
-                     qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) + tmp
-                  END IF
-                  IF (qs_ot_env(ispin)%settings%do_rotation) THEN
-                     CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
-                                    qs_ot_env(ispin)%rot_mat_h_e(i)%matrix, &
-                                    tmp)
-                     qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) + 0.5_dp*tmp
-                     IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                        CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_h_e_im(j)%matrix, &
-                                       qs_ot_env(ispin)%rot_mat_h_e_im(i)%matrix, tmp)
-                        qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) + 0.5_dp*tmp
-                     END IF
-                  END IF
-               END DO
-            END IF
-            IF (do_ener) THEN
-               DO ispin = 1, nspin
-                  tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_h_e(j, :), qs_ot_env(ispin)%ener_h_e(i, :))
-                  qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) + tmp
-               END DO
-            END IF
-         ELSE
-            qs_ot_env(1)%ls_diis(i, j) = 0.0_dp
-            IF (do_ks) THEN
-               DO ispin = 1, nspin
-                  CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, &
-                                 qs_ot_env(ispin)%matrix_h_e(i)%matrix, &
-                                 tmp)
+         ! Form the DIIS metric from the gradient and stored steps.
+         qs_ot_env(1)%ls_diis(i, j) = 0.0_dp
+         IF (do_ks) THEN
+            DO ispin = 1, nspin
+               CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, &
+                              qs_ot_env(ispin)%matrix_h_e(i)%matrix, &
+                              tmp)
+               qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) - qs_ot_env(1)%ds_min*tmp
+               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx_im, &
+                                 qs_ot_env(ispin)%matrix_h_e_im(i)%matrix, tmp)
                   qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) - qs_ot_env(1)%ds_min*tmp
+               END IF
+               IF (qs_ot_env(ispin)%settings%do_rotation) THEN
+                  CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, &
+                                 qs_ot_env(ispin)%rot_mat_h_e(i)%matrix, &
+                                 tmp)
+                  qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) - qs_ot_env(1)%ds_min*0.5_dp*tmp
                   IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                     CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx_im, &
-                                    qs_ot_env(ispin)%matrix_h_e_im(i)%matrix, tmp)
-                     qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) - qs_ot_env(1)%ds_min*tmp
+                     CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx_im, &
+                                    qs_ot_env(ispin)%rot_mat_h_e_im(i)%matrix, tmp)
+                     qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) - &
+                                                  qs_ot_env(1)%ds_min*0.5_dp*tmp
                   END IF
-                  IF (qs_ot_env(ispin)%settings%do_rotation) THEN
-                     CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, &
-                                    qs_ot_env(ispin)%rot_mat_h_e(i)%matrix, &
-                                    tmp)
-                     qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) - qs_ot_env(1)%ds_min*0.5_dp*tmp
-                     IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                        CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx_im, &
-                                       qs_ot_env(ispin)%rot_mat_h_e_im(i)%matrix, tmp)
-                        qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) - &
-                                                     qs_ot_env(1)%ds_min*0.5_dp*tmp
-                     END IF
-                  END IF
-               END DO
-            END IF
-            IF (do_ener) THEN
-               DO ispin = 1, nspin
-                  tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_gx(:), qs_ot_env(ispin)%ener_h_e(i, :))
-                  qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) - qs_ot_env(1)%ds_min*tmp
-               END DO
-            END IF
+               END IF
+            END DO
+         END IF
+         IF (do_ener) THEN
+            DO ispin = 1, nspin
+               tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_gx(:), qs_ot_env(ispin)%ener_h_e(i, :))
+               qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) - qs_ot_env(1)%ds_min*tmp
+            END DO
          END IF
          CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, qs_ot_env(1)%ls_diis(i, j))
          qs_ot_env(1)%ls_diis(j, i) = qs_ot_env(1)%ls_diis(i, j)

@@ -14,7 +14,7 @@ MODULE low_rank_preconditioner_model
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC :: apply_low_rank_dense, low_rank_inverse_weight, low_rank_select_rank
+   PUBLIC :: low_rank_inverse_weight, low_rank_select_rank
 
 CONTAINS
 
@@ -71,40 +71,5 @@ CONTAINS
       END DO
 
    END FUNCTION low_rank_select_rank
-
-! **************************************************************************************************
-!> \brief Dense reference application used to verify right covariance under orbital rotations.
-!> \param overlap_inverse inverse overlap matrix
-!> \param vectors retained complementary-state vectors
-!> \param eigenvalues retained complementary-state eigenvalues
-!> \param reference common occupied reference level
-!> \param energy_gap lower bound for spectral denominators
-!> \param spectral_window overlap-inverse replacement window
-!> \param matrix_in input orbital-gradient matrix
-!> \param matrix_out preconditioned matrix
-! **************************************************************************************************
-   PURE SUBROUTINE apply_low_rank_dense(overlap_inverse, vectors, eigenvalues, reference, &
-                                        energy_gap, spectral_window, matrix_in, matrix_out)
-
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: overlap_inverse, vectors
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenvalues
-      REAL(KIND=dp), INTENT(IN)                          :: reference, energy_gap, spectral_window
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: matrix_in
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: matrix_out
-
-      INTEGER                                            :: i
-      REAL(KIND=dp)                                      :: correction
-      REAL(KIND=dp), DIMENSION(SIZE(matrix_in, 2))       :: projections
-
-      matrix_out = MATMUL(overlap_inverse, matrix_in)/spectral_window
-      DO i = 1, SIZE(eigenvalues)
-         correction = low_rank_inverse_weight(eigenvalues(i), reference, energy_gap) - &
-                      1.0_dp/spectral_window
-         projections(:) = MATMUL(vectors(:, i), matrix_in)
-         matrix_out = matrix_out + correction*SPREAD(vectors(:, i), 2, SIZE(matrix_in, 2))* &
-                      SPREAD(projections, 1, SIZE(matrix_in, 1))
-      END DO
-
-   END SUBROUTINE apply_low_rank_dense
 
 END MODULE low_rank_preconditioner_model

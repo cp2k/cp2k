@@ -58,19 +58,14 @@ MODULE qs_ot
    PUBLIC  :: qs_ot_apply_complex_frechet_dbcsr
    PUBLIC  :: qs_ot_antihermitian_spectral_norm
    PUBLIC  :: qs_ot_complex_exp_frechet_kernel
-   PUBLIC  :: qs_ot_density_secant_hessian
    PUBLIC  :: qs_ot_density_secant_orbital_overlaps
    PUBLIC  :: qs_ot_density_secant_projected_hessian
    PUBLIC  :: qs_ot_density_tangent
    PUBLIC  :: qs_ot_fixed_n_energy_gradient
-   PUBLIC  :: qs_ot_fixed_n_energy_hessian
    PUBLIC  :: qs_ot_fixed_n_multigroup_schur_block
-   PUBLIC  :: qs_ot_fixed_n_schur_block
-   PUBLIC  :: qs_ot_fixed_n_projector_frechet
    PUBLIC  :: qs_ot_fixed_n_response_mu_shift
    PUBLIC  :: qs_ot_finite_rotation_response
    PUBLIC  :: qs_ot_projected_response_update
-   PUBLIC  :: qs_ot_symmetric_sr1_update
    PUBLIC  :: qs_ot_symmetric_abs_solve
    PUBLIC  :: qs_ot_generate_rotation
    PUBLIC  :: qs_ot_generate_rotation_complex
@@ -171,89 +166,12 @@ CONTAINS
    END SUBROUTINE qs_ot_fixed_n_energy_gradient
 
 ! **************************************************************************************************
-!> \brief dense fixed-N occupation Hessian in auxiliary-energy coordinates
-!>
-!>        H = diag(chi) - chi chi^T / sum(chi) is symmetric and has the constant-energy gauge as
-!>        an exact null vector. It can be indefinite for non-monotone smearing distributions.
-!> \param response_weight signed weighted occupation responses chi_i
-!> \param fixed_n_weight_sum global sum_i chi_i for the fixed-N group
-!> \param hessian projected fixed-N Hessian
-! **************************************************************************************************
-   PURE SUBROUTINE qs_ot_fixed_n_energy_hessian(response_weight, fixed_n_weight_sum, hessian)
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: response_weight
-      REAL(KIND=dp), INTENT(IN)                          :: fixed_n_weight_sum
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: hessian
-
-      INTEGER                                            :: i, j, n
-
-      n = SIZE(response_weight)
-      hessian(:, :) = 0.0_dp
-      DO i = 1, n
-         hessian(i, i) = response_weight(i)
-      END DO
-      IF (ABS(fixed_n_weight_sum) > EPSILON(fixed_n_weight_sum)) THEN
-         DO j = 1, n
-            DO i = 1, n
-               hessian(i, j) = hessian(i, j) - &
-                               response_weight(i)*response_weight(j)/fixed_n_weight_sum
-            END DO
-         END DO
-      END IF
-      hessian(:, :) = 0.5_dp*(hessian + TRANSPOSE(hessian))
-
-   END SUBROUTINE qs_ot_fixed_n_energy_hessian
-
-! **************************************************************************************************
-!> \brief local block of the fixed-N rotation/energy Schur complement
-!>
-!>        For C = D - chi chi^T / sum(chi), elimination of the auxiliary-energy block gives
-!>
-!>          S = A - R^T C R
-!>            = (A - R^T D R) + v v^T / sum(chi),  v = R^T chi.
-!>
-!>        This routine builds the channel-local terms. The final rank-one term is deliberately left
-!>        separate so spin/k-point channels can be coupled without assembling a global dense
-!>        rotation Hessian.
-!> \param rotation_hessian fixed-occupation rotation Hessian A
-!> \param rayleigh_response derivative R of the Rayleigh energies with respect to rotations
-!> \param response_weight local signed occupation responses chi
-!> \param rotation_gradient physical rotation gradient
-!> \param energy_gradient physical auxiliary-energy gradient
-!> \param schur_block local block A - R^T D R
-!> \param coupling_vector local part of v = R^T chi
-!> \param schur_rhs local right-hand side g_x + R^T g_e
-! **************************************************************************************************
-   SUBROUTINE qs_ot_fixed_n_schur_block( &
-      rotation_hessian, rayleigh_response, response_weight, rotation_gradient, energy_gradient, &
-      schur_block, coupling_vector, schur_rhs)
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: rotation_hessian, rayleigh_response
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: response_weight, rotation_gradient, &
-                                                            energy_gradient
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: schur_block
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: coupling_vector, schur_rhs
-
-      INTEGER                                            :: nenergy
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: response_group
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coupling_matrix
-
-      nenergy = SIZE(response_weight)
-      ALLOCATE (response_group(nenergy), coupling_matrix(SIZE(coupling_vector), 1))
-      response_group(:) = 1
-      CALL qs_ot_fixed_n_multigroup_schur_block( &
-         rotation_hessian, rayleigh_response, response_weight, response_group, &
-         rotation_gradient, energy_gradient, schur_block, coupling_matrix, schur_rhs)
-      coupling_vector(:) = coupling_matrix(:, 1)
-      DEALLOCATE (response_group, coupling_matrix)
-
-   END SUBROUTINE qs_ot_fixed_n_schur_block
-
-! **************************************************************************************************
 !> \brief eliminate spin-resolved auxiliary energies while retaining every fixed-N constraint
 !>
 !>        Each energy variable belongs to one particle-number group. The diagonal occupation
 !>        response is eliminated locally, while one coupling column per group is retained for the
 !>        subsequent global chemical-potential projection. A single group reduces exactly to
-!>        qs_ot_fixed_n_schur_block.
+!>        the single-group Schur complement A - R^T (D - chi chi^T/sum(chi)) R.
 !> \param rotation_hessian finite orbital-rotation Hessian
 !> \param rayleigh_response derivative of all spin-resolved Rayleigh energies
 !> \param response_weight positive occupation-response weights
@@ -447,132 +365,6 @@ CONTAINS
       DEALLOCATE (eigenvalues, eigenvectors, rhs, work)
 
    END SUBROUTINE qs_ot_projected_response_update
-
-! **************************************************************************************************
-!> \brief add one accepted symmetric response secant to a reference Hessian
-!>
-!>        With r=y-B0*s, the symmetric-rank-one update B=B0+r*r^T/(r^T*s) satisfies B*s=y
-!>        exactly.  The signed denominator is retained because a self-consistent Hxc response can
-!>        be indefinite.  Nearly orthogonal residuals are rejected instead of manufacturing a
-!>        large unresolved mode.
-!> \param matrix reference symmetric Hessian B0
-!> \param step accepted displacement s
-!> \param response measured gradient response y
-!> \param updated_matrix symmetric secant Hessian B
-!> \param valid whether a resolved finite update was constructed
-!> \param relative_tolerance optional SR1 denominator acceptance threshold
-! **************************************************************************************************
-   PURE SUBROUTINE qs_ot_symmetric_sr1_update( &
-      matrix, step, response, updated_matrix, valid, relative_tolerance)
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: matrix
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: step, response
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: updated_matrix
-      LOGICAL, INTENT(OUT)                               :: valid
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: relative_tolerance
-
-      INTEGER                                            :: n
-      REAL(KIND=dp)                                      :: denominator, residual_norm, step_norm, &
-                                                            threshold, tolerance
-      REAL(KIND=dp), DIMENSION(SIZE(step))               :: residual
-
-      n = SIZE(step)
-      updated_matrix(:, :) = 0.0_dp
-      valid = SIZE(response) == n .AND. ALL(SHAPE(matrix) == [n, n]) .AND. &
-              ALL(SHAPE(updated_matrix) == [n, n])
-      IF (.NOT. valid) RETURN
-      valid = ALL(matrix == matrix) .AND. ALL(step == step) .AND. ALL(response == response)
-      IF (.NOT. valid) RETURN
-
-      updated_matrix(:, :) = 0.5_dp*(matrix + TRANSPOSE(matrix))
-      residual(:) = response - MATMUL(updated_matrix, step)
-      denominator = DOT_PRODUCT(residual, step)
-      residual_norm = SQRT(MAX(0.0_dp, DOT_PRODUCT(residual, residual)))
-      step_norm = SQRT(MAX(0.0_dp, DOT_PRODUCT(step, step)))
-      tolerance = SQRT(EPSILON(1.0_dp))
-      IF (PRESENT(relative_tolerance)) tolerance = MAX(tolerance, relative_tolerance)
-      threshold = tolerance*residual_norm*step_norm
-      valid = residual_norm > TINY(residual_norm) .AND. step_norm > TINY(step_norm) .AND. &
-              ABS(denominator) > threshold
-      IF (.NOT. valid) RETURN
-
-      updated_matrix(:, :) = updated_matrix + &
-                             SPREAD(residual, DIM=2, NCOPIES=n)*SPREAD(residual, DIM=1, NCOPIES=n)/denominator
-      updated_matrix(:, :) = 0.5_dp*(updated_matrix + TRANSPOSE(updated_matrix))
-      valid = ALL(updated_matrix == updated_matrix)
-
-   END SUBROUTINE qs_ot_symmetric_sr1_update
-
-! **************************************************************************************************
-!> \brief project a self-adjoint density/Hamiltonian secant onto density-response modes
-!>
-!>        For an accepted Hermitian density change S and the corresponding self-consistent
-!>        Hamiltonian change Y, the minimum-Frobenius-norm self-adjoint response satisfying
-!>        K*S=Y is
-!>
-!>          K = (Y<S,.> + S<Y,.>)/<S,S> - <S,Y>S<S,.>/<S,S>**2.
-!>
-!>        The returned matrix is <B_q,K*B_r> for the supplied Hermitian density modes B_r.  Its
-!>        density-space construction is invariant under a common complex similarity transform.
-!> \param density_step accepted density-matrix change S
-!> \param hamiltonian_step accepted self-consistent Hamiltonian change Y
-!> \param density_modes density derivatives B_r of the coupled minimizer variables
-!> \param correction projected symmetric Hxc response
-!> \param valid whether a finite nonzero density secant was available
-!> \param density_norm_sq optional <S,S>
-!> \param response_work optional <S,Y>
-! **************************************************************************************************
-   SUBROUTINE qs_ot_density_secant_hessian( &
-      density_step, hamiltonian_step, density_modes, correction, valid, &
-      density_norm_sq, response_work)
-
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: density_step, hamiltonian_step
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: density_modes
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: correction
-      LOGICAL, INTENT(OUT)                               :: valid
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: density_norm_sq, response_work
-
-      INTEGER                                            :: i, j, mode, n, nmode
-      REAL(KIND=dp)                                      :: density_norm, density_response_work, &
-                                                            scale
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: density_overlap, response_overlap
-
-      n = SIZE(density_step, 1)
-      nmode = SIZE(density_modes, 3)
-      CPASSERT(n > 0)
-      CPASSERT(SIZE(density_step, 2) == n)
-      CPASSERT(ALL(SHAPE(hamiltonian_step) == [n, n]))
-      CPASSERT(SIZE(density_modes, 1) == n)
-      CPASSERT(SIZE(density_modes, 2) == n)
-      CPASSERT(ALL(SHAPE(correction) == [nmode, nmode]))
-
-      correction(:, :) = 0.0_dp
-      valid = .FALSE.
-      density_norm = 0.0_dp
-      density_response_work = 0.0_dp
-      DO j = 1, n
-         DO i = 1, n
-            density_norm = density_norm + &
-                           REAL(CONJG(density_step(i, j))*density_step(i, j), KIND=dp)
-            density_response_work = density_response_work + &
-                                    REAL(CONJG(density_step(i, j))*hamiltonian_step(i, j), KIND=dp)
-         END DO
-      END DO
-      IF (PRESENT(density_norm_sq)) density_norm_sq = density_norm
-      IF (PRESENT(response_work)) response_work = density_response_work
-      scale = MAXVAL(ABS(density_step))
-      IF (scale <= TINY(1.0_dp)) RETURN
-      IF (density_norm <= 64.0_dp*EPSILON(1.0_dp)*scale*scale .OR. nmode <= 0) RETURN
-
-      ALLOCATE (density_overlap(nmode), response_overlap(nmode))
-      DO mode = 1, nmode
-         density_overlap(mode) = SUM(REAL(CONJG(density_step)*density_modes(:, :, mode), KIND=dp))
-         response_overlap(mode) = SUM(REAL(CONJG(hamiltonian_step)*density_modes(:, :, mode), KIND=dp))
-      END DO
-      CALL qs_ot_density_secant_projected_hessian( &
-         density_norm, density_response_work, density_overlap, response_overlap, correction, valid)
-      DEALLOCATE (density_overlap, response_overlap)
-
-   END SUBROUTINE qs_ot_density_secant_hessian
 
 ! **************************************************************************************************
 !> \brief form a projected self-adjoint Hxc response from distributed density-space overlaps
@@ -850,97 +642,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE qs_ot_density_secant_orbital_overlaps
-
-! **************************************************************************************************
-!> \brief fixed-N Frechet derivative of a smooth occupation projector
-!>
-!>        The spectral divided-difference kernel is invariant under rotations inside a degenerate
-!>        eigenspace. Its diagonal includes the chemical-potential response of the complete fixed-N
-!>        group, while off-diagonal terms describe the physical change of the spectral projector.
-!> \param chc projected Hermitian Hamiltonian
-!> \param dchc Hermitian Hamiltonian perturbation
-!> \param occupation canonical occupations associated with the eigenvalues of chc
-!> \param kpoint_weight irreducible-k-point weight
-!> \param response_weight signed weighted occupation responses for this channel
-!> \param fixed_n_weight_sum susceptibility summed over the complete fixed-N group
-!> \param projector_derivative derivative of the weighted occupation projector
-!> \param density_factor optional representation-dependent density prefactor
-! **************************************************************************************************
-   SUBROUTINE qs_ot_fixed_n_projector_frechet( &
-      chc, dchc, occupation, kpoint_weight, response_weight, fixed_n_weight_sum, &
-      projector_derivative, density_factor)
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: chc, dchc
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: occupation
-      REAL(KIND=dp), INTENT(IN)                          :: kpoint_weight
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: response_weight
-      REAL(KIND=dp), INTENT(IN)                          :: fixed_n_weight_sum
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: projector_derivative
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: density_factor
-
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: eigenvectors, kernel, work
-      INTEGER                                            :: i, j, n
-      REAL(KIND=dp)                                      :: coefficient, denominator, factor, &
-                                                            gap_tolerance, local_weight_sum, &
-                                                            mu_numerator, mu_shift, scale
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, weighted_occupation
-
-      n = SIZE(chc, 1)
-      CPASSERT(n > 0)
-      CPASSERT(ALL(SHAPE(chc) == [n, n]))
-      CPASSERT(ALL(SHAPE(dchc) == [n, n]))
-      CPASSERT(SIZE(occupation) == n)
-      CPASSERT(SIZE(response_weight) == n)
-      CPASSERT(ALL(SHAPE(projector_derivative) == [n, n]))
-
-      factor = 1.0_dp
-      IF (PRESENT(density_factor)) factor = density_factor
-      projector_derivative(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
-      IF (factor == 0.0_dp .OR. kpoint_weight <= 0.0_dp) RETURN
-
-      ALLOCATE (eigenvectors(n, n), kernel(n, n), work(n, n), eigenvalues(n), &
-                weighted_occupation(n))
-      CALL diag_complex(chc, eigenvectors, eigenvalues)
-      work(:, :) = MATMUL(CONJG(TRANSPOSE(eigenvectors)), MATMUL(dchc, eigenvectors))
-      weighted_occupation(:) = factor*kpoint_weight*occupation(:)
-
-      local_weight_sum = SUM(response_weight(:))
-      mu_numerator = 0.0_dp
-      DO i = 1, n
-         mu_numerator = mu_numerator + response_weight(i)* &
-                        REAL(work(i, i), KIND=dp)
-      END DO
-      mu_shift = qs_ot_fixed_n_response_mu_shift(mu_numerator, local_weight_sum, &
-                                                 fixed_n_weight_sum)
-
-      scale = MAX(1.0_dp, MAXVAL(ABS(eigenvalues(:))))
-      gap_tolerance = SQRT(EPSILON(1.0_dp))*scale
-      kernel(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
-      DO j = 1, n
-         DO i = 1, n
-            IF (i == j) THEN
-               coefficient = -factor*response_weight(i)
-               kernel(i, i) = CMPLX(coefficient*(REAL(work(i, i), KIND=dp) - mu_shift), &
-                                    0.0_dp, KIND=dp)
-            ELSE
-               denominator = eigenvalues(i) - eigenvalues(j)
-               IF (ABS(denominator) > gap_tolerance) THEN
-                  coefficient = (weighted_occupation(i) - weighted_occupation(j))/denominator
-               ELSE
-                  coefficient = -0.5_dp*factor*(response_weight(i) + response_weight(j))
-               END IF
-               kernel(i, j) = coefficient*work(i, j)
-            END IF
-         END DO
-      END DO
-
-      projector_derivative(:, :) = MATMUL(eigenvectors, &
-                                          MATMUL(kernel, CONJG(TRANSPOSE(eigenvectors))))
-      projector_derivative(:, :) = 0.5_dp*(projector_derivative + &
-                                           CONJG(TRANSPOSE(projector_derivative)))
-
-      DEALLOCATE (eigenvectors, kernel, work, eigenvalues, weighted_occupation)
-
-   END SUBROUTINE qs_ot_fixed_n_projector_frechet
 
 ! **************************************************************************************************
 !> \brief finite complex REF rotation Hessian and Rayleigh-energy response
