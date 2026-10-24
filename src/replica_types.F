@@ -211,8 +211,7 @@ CONTAINS
       END IF
       CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env)
       logger => cp_get_default_logger()
-      CALL cp_rm_iter_level(iteration_info=logger%iter_info, &
-                            level_name="REPLICA_EVAL")
+      CALL cp_rm_iter_level(logger, "REPLICA_EVAL")
       CALL f_env_rm_defaults(f_env, ierr)
       CPASSERT(ierr == 0)
    END SUBROUTINE rep_env_destroy_low

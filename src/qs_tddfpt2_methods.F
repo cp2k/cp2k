@@ -1570,7 +1570,7 @@ CONTAINS
             WRITE (log_unit, '(1X,79("-"))')
          END IF
 
-         CALL cp_add_iter_level(logger%iter_info, "TDDFT_SCF")
+         CALL cp_add_iter_level(logger, "TDDFT_SCF")
 
          DO
             ! *** perform Davidson iterations ***
@@ -1615,7 +1615,7 @@ CONTAINS
                                    logger=logger, &
                                    tddfpt_print_section=tddfpt_print_section)
 
-         CALL cp_rm_iter_level(logger%iter_info, "TDDFT_SCF")
+         CALL cp_rm_iter_level(logger, "TDDFT_SCF")
 
          ! print convergence summary
          IF (log_unit > 0) THEN

@@ -236,7 +236,7 @@ CONTAINS
 
       NULLIFY (pint_env%logger)
       pint_env%logger => cp_get_default_logger()
-      CALL cp_add_iter_level(pint_env%logger%iter_info, "PINT")
+      CALL cp_add_iter_level(pint_env%logger, "PINT")
 
       NULLIFY (pint_env%replicas, pint_env%input, pint_env%staging_env, &
                pint_env%normalmode_env, pint_env%propagator)
@@ -1892,7 +1892,7 @@ CONTAINS
       END DO
 
       ! remove iteration level
-      CALL cp_rm_iter_level(pint_env%logger%iter_info, "PINT")
+      CALL cp_rm_iter_level(pint_env%logger, "PINT")
 
    END SUBROUTINE pint_do_run
 
