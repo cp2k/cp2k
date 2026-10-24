@@ -83,7 +83,9 @@ async def main() -> None:
 
     help = "Runs only the first test of each directory."
     parser.add_argument("--smoketest", dest="smoketest", action="store_true", help=help)
-    help = "Run only directories that match given regex. Can be used multiple times."
+    help = (
+        "Run only directories matching a regex, including subdirectories. Repeatable."
+    )
     parser.add_argument("--restrictdir", action="append", help=help)
     help = "Skip directories that match given regex. Can be used multiple times."
     parser.add_argument("--skipdir", action="append", help=help)
@@ -185,7 +187,7 @@ async def main() -> None:
     for batch in batches:
         if not batch.requirements_satisfied(flags, cfg.mpiranks):
             print(f"Skipping {batch.name} because its requirements are not satisfied.")
-        elif not any(re.fullmatch(p, batch.name) for p in cfg.restrictdirs):
+        elif not matches_restrictdir(batch.name, cfg.restrictdirs):
             num_restrictdirs += 1
         elif any(re.fullmatch(p, batch.name) for p in cfg.skipdirs):
             num_skipdirs += 1
@@ -770,6 +772,17 @@ def percentile(values: List[float], percent: float) -> float:
     d0 = values[int(f)] * (c - k)
     d1 = values[int(c)] * (k - f)
     return d0 + d1
+
+
+# ======================================================================================
+def matches_restrictdir(name: str, patterns: List[str]) -> bool:
+    """Match a test directory or any of its parent directories."""
+    parts = name.split("/")
+    return any(
+        re.fullmatch(pattern, "/".join(parts[:n]))
+        for pattern in patterns
+        for n in range(1, len(parts) + 1)
+    )
 
 
 # ======================================================================================
