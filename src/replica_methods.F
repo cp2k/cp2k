@@ -21,7 +21,8 @@ MODULE replica_methods
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
                                               cp_to_string
-   USE cp_output_handling,              ONLY: cp_add_iter_level
+   USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                              cp_iter_level_print
    USE cp_result_types,                 ONLY: cp_result_create,&
                                               cp_result_retain
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
@@ -302,8 +303,8 @@ CONTAINS
       CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env)
       logger => cp_get_default_logger()
       logger%iter_info%iteration(1) = rep_env%my_rep_group
-      CALL cp_add_iter_level(iteration_info=logger%iter_info, &
-                             level_name="REPLICA_EVAL")
+      CALL cp_add_iter_level(logger%iter_info, "REPLICA_EVAL")
+      CALL cp_iter_level_print(logger, "A")
       !wf interp
       IF (rep_env%keep_wf_history) THEN
          CALL force_env_get(f_env%force_env, in_use=in_use)

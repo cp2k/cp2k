@@ -31,6 +31,7 @@ MODULE cp2k_runs
                                               cp_logger_would_log,&
                                               cp_note_level
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                              cp_iter_level_print,&
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
@@ -234,7 +235,7 @@ CONTAINS
          ! initial setup (cp2k does it in the creation of the force_env)
          CALL globenv_create(globenv)
          CALL section_vals_retain(input_file)
-         CALL cp2k_init(para_env, output_unit, globenv, input_file_name=input_file_name)
+         CALL cp2k_init(root_section, para_env, output_unit, globenv, input_file_name=input_file_name)
          CALL cp2k_read(root_section, para_env, globenv)
          CALL cp2k_setup(root_section, para_env, globenv)
       END IF
@@ -315,8 +316,8 @@ CONTAINS
          END IF
 
          sublogger => cp_get_default_logger()
-         CALL cp_add_iter_level(sublogger%iter_info, "JUST_ENERGY", &
-                                n_rlevel_new=iter_level)
+         CALL cp_add_iter_level(sublogger%iter_info, "JUST_ENERGY", n_rlevel_new=iter_level)
+         CALL cp_iter_level_print(sublogger, "A")
 
          ! loop over molecules to generate a molecular guess
          ! this procedure is initiated here to avoid passing globenv deep down
@@ -350,6 +351,7 @@ CONTAINS
             CPABORT("Unknown run type")
          END SELECT
          IF (method_name_id == do_qs) force_env%qs_env%skip_wf_history = .FALSE.
+         CALL cp_iter_level_print(sublogger, "R")
          CALL cp_rm_iter_level(sublogger%iter_info, level_name="JUST_ENERGY", n_rlevel_att=iter_level)
       CASE (mol_dyn_run)
          CALL qs_mol_dyn(force_env, globenv)

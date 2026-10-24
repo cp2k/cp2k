@@ -26,6 +26,7 @@ MODULE metadynamics
                            torsion_colvar_id
    USE constraint_fxd, ONLY: fix_atom_control
    USE cp_output_handling, ONLY: cp_add_iter_level, &
+                                 cp_iter_level_print, &
                                  cp_iterate, &
                                  cp_print_key_finished_output, &
                                  cp_print_key_unit_nr, &
@@ -872,6 +873,7 @@ CONTAINS
 
       ! Create a temporary logger level specific for metadynamics
       CALL cp_add_iter_level(logger%iter_info, "METADYNAMICS")
+      CALL cp_iter_level_print(logger, "A")
       CALL get_meta_iter_level(meta_env, iter_nr)
       CALL cp_iterate(logger%iter_info, last=.FALSE., iter_nr=iter_nr)
 
@@ -1078,6 +1080,7 @@ CONTAINS
       DEALLOCATE (numf)
       DEALLOCATE (denf)
 
+      CALL cp_iter_level_print(logger, "R")
       CALL cp_rm_iter_level(logger%iter_info, "METADYNAMICS")
 
       CALL timestop(handle)

@@ -18,6 +18,7 @@ MODULE bsse
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                              cp_iter_level_print,&
                                               cp_iterate,&
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
@@ -113,6 +114,7 @@ CONTAINS
       END IF
       ! Setup the iteration level for BSSE
       CALL cp_add_iter_level(logger%iter_info, "BSSE")
+      CALL cp_iter_level_print(logger, "A")
       CALL cp_iterate(logger%iter_info, last=.FALSE., iter_nr=istart)
 
       ! Evaluating the energy of the N-body cluster terms
@@ -133,6 +135,7 @@ CONTAINS
          CALL write_bsse_restart(bsse_section, root_section)
       END DO
       IF (.NOT. should_stop) CALL dump_bsse_results(conf, Em, num_of_frag, bsse_section)
+      CALL cp_iter_level_print(logger, "R")
       CALL cp_rm_iter_level(logger%iter_info, "BSSE")
       DEALLOCATE (Em)
       DEALLOCATE (conf)

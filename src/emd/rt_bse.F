@@ -100,6 +100,7 @@ MODULE rt_bse
    USE cp_log_handling, ONLY: cp_logger_type, &
                               cp_get_default_logger
    USE cp_output_handling, ONLY: cp_add_iter_level, &
+                                 cp_iter_level_print, &
                                  cp_rm_iter_level, &
                                  cp_iterate
    USE rt_propagation_output, ONLY: print_ft
@@ -174,6 +175,7 @@ CONTAINS
 
       ! Initiate iteration level "MD" in order to copy the structure of other RTP codes
       CALL cp_add_iter_level(logger%iter_info, "MD")
+      CALL cp_iter_level_print(logger, "A")
       ! Initialize non-trivial values
       !  - calculates the moment operators
       CALL initialize_moments(rtbse_env)
@@ -247,6 +249,7 @@ CONTAINS
       END DO
       ! ********************** End the time loop **********************
 
+      CALL cp_iter_level_print(logger, "R")
       CALL cp_rm_iter_level(logger%iter_info, "MD")
 
       ! Carry out the FT

@@ -12,6 +12,7 @@ MODULE optimize_input
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                              cp_iter_level_print,&
                                               cp_iterate,&
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
@@ -186,6 +187,7 @@ CONTAINS
 
       logger => cp_get_default_logger()
       CALL cp_add_iter_level(logger%iter_info, "POWELL_OPT")
+      CALL cp_iter_level_print(logger, "A")
       output_unit = cp_logger_get_default_io_unit(logger)
 
       IF (output_unit > 0) THEN
@@ -474,6 +476,7 @@ CONTAINS
          END DO
       END IF
 
+      CALL cp_iter_level_print(logger, "R")
       CALL cp_rm_iter_level(logger%iter_info, "POWELL_OPT")
 
       ! deallocate for cleanup

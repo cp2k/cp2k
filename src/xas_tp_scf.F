@@ -33,6 +33,7 @@ MODULE xas_tp_scf
                                               cp_logger_type,&
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                              cp_iter_level_print,&
                                               cp_iterate,&
                                               cp_p_file,&
                                               cp_print_key_finished_output,&
@@ -200,6 +201,7 @@ CONTAINS
       xas_control => dft_control%xas_control
 
       CALL cp_add_iter_level(logger%iter_info, "XAS_SCF")
+      CALL cp_iter_level_print(logger, "A")
 
       CALL get_qs_env(qs_env, matrix_ks=matrix_ks, rho=rho, mos=mos)
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
@@ -378,6 +380,7 @@ CONTAINS
 
       CALL cp_print_key_finished_output(output_unit, logger, xas_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
+      CALL cp_iter_level_print(logger, "R")
       CALL cp_rm_iter_level(logger%iter_info, "XAS_SCF")
 
       CALL timestop(handle)

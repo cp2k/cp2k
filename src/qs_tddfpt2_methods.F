@@ -50,6 +50,7 @@ MODULE qs_tddfpt2_methods
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                              cp_iter_level_print,&
                                               cp_iterate,&
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
@@ -1571,6 +1572,7 @@ CONTAINS
          END IF
 
          CALL cp_add_iter_level(logger%iter_info, "TDDFT_SCF")
+         CALL cp_iter_level_print(logger, "A")
 
          DO
             ! *** perform Davidson iterations ***
@@ -1615,6 +1617,7 @@ CONTAINS
                                    logger=logger, &
                                    tddfpt_print_section=tddfpt_print_section)
 
+         CALL cp_iter_level_print(logger, "R")
          CALL cp_rm_iter_level(logger%iter_info, "TDDFT_SCF")
 
          ! print convergence summary

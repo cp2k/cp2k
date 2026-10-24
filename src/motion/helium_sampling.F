@@ -20,6 +20,7 @@ MODULE helium_sampling
                                               cp_logger_type,&
                                               cp_rm_default_logger
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                              cp_iter_level_print,&
                                               cp_iterate,&
                                               cp_rm_iter_level
    USE global_types,                    ONLY: global_environment_type
@@ -102,6 +103,7 @@ CONTAINS
             ! embedded in the pint code so the same step counter applies.
             IF (k == 1) THEN
                CALL cp_add_iter_level(helium_env(k)%helium%logger%iter_info, "PINT")
+               CALL cp_iter_level_print(helium_env(k)%helium%logger, "A")
                CALL cp_iterate(helium_env(k)%helium%logger%iter_info, &
                                iter_nr=helium_env(k)%helium%first_step)
             END IF
@@ -156,6 +158,7 @@ CONTAINS
 
       ! remove iteration level
       IF (ASSOCIATED(helium_env)) THEN
+         CALL cp_iter_level_print(helium_env(1)%helium%logger, "R")
          CALL cp_rm_iter_level(helium_env(1)%helium%logger%iter_info, "PINT")
       END IF
 
