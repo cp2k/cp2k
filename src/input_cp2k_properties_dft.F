@@ -81,6 +81,7 @@ MODULE input_cp2k_properties_dft
                               logical_t, &
                               real_t
    USE input_cp2k_xas, ONLY: create_xas_tdp_section
+   USE nlo, ONLY: create_nonlinear_optics_section
    USE kinds, ONLY: dp
    USE string_utilities, ONLY: s2a
 #include "./base/base_uses.f90"
@@ -150,6 +151,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_rixs_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_nonlinear_optics_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

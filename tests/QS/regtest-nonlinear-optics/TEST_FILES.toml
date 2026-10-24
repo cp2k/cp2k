@@ -1,0 +1,24 @@
+"h2-inversion.inp" = [{matcher="NLO_chi2_3d_zzz_real", tol=1e-18, ref=0.0},
+                      {matcher="NLO_chi2_3d_zzz_imag", tol=1e-18, ref=0.0}]
+"h2-chi5-selected.inp" = [{matcher="NLO_chi5_3d_zz_real", tol=1e-18, ref=0.0},
+                           {matcher="NLO_chi5_3d_zz_imag", tol=1e-18, ref=0.0}]
+"geo-chi2-scalar.inp" = [{matcher="NLO_chi2_3d_zzz_real", tol=1e-5, ref=1.319842325472E-11},
+                         {matcher="NLO_chi2_3d_zzz_imag", tol=1e-5, ref=2.893996882678E-13},
+                         {matcher="NLO_T1_T2_fs", tol=1e-10, ref=30.0},
+    {matcher="NLO_chi2_3d_xxz_real", tol=1e-5, ref=-8.213455279222E-14},
+    {matcher="NLO_chi2_3d_xxz_imag", tol=1e-5, ref=-3.860626763651E-15}]
+"geo-chi2-scalar-explicit-times.inp" = [{matcher="NLO_chi2_3d_zzz_real", tol=1e-5, ref=1.319842325472E-11},
+                                        {matcher="NLO_chi2_3d_zzz_imag", tol=1e-5, ref=2.893996882678E-13},
+                                        {matcher="NLO_T1_T2_fs", tol=1e-10, ref=30.0}]
+"geo-chi3-scalar.inp" = [{matcher="NLO_chi3_3d_zz_real", tol=1e-5, ref=5.215795729075E-22},
+                         {matcher="NLO_chi3_3d_zz_imag", tol=1e-5, ref=1.682886274390E-23}]
+"geo-chi4-selected.inp" = [{matcher="NLO_chi4_3d_zz_real", tol=1e-5, ref=1.063469813010E-31},
+    {matcher="NLO_chi4_3d_zz_imag", tol=1e-5, ref=7.082958831201E-33}]
+"geo-chi5-selected.inp" = [{matcher="NLO_chi5_3d_zz_real", tol=1e-5, ref=9.309176036978E-41},
+    {matcher="NLO_chi5_3d_zz_imag", tol=1e-5, ref=1.272761392959E-42}]
+"h2-chi3-mixed-2k.inp" = [{matcher="NLO_chi3_3d_zz_real", tol=1e-5, ref=-8.061690511503E-25},
+                            {matcher="NLO_chi3_3d_zz_imag", tol=1e-5, ref=-2.336715035127E-26}]
+"geo-chi2-range.inp" = [{matcher="NLO_chi2_3d_zzz_real_first", tol=1e-5, ref=1.319842325472E-11},
+                        {matcher="NLO_chi2_3d_zzz_imag_first", tol=1e-5, ref=2.893996882678E-13},
+                        {matcher="NLO_chi2_3d_zzz_real", tol=1e-5, ref=1.496974706401E-11},
+                        {matcher="NLO_chi2_3d_zzz_imag", tol=1e-5, ref=3.234784288477E-13}]
