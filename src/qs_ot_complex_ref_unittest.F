@@ -1449,7 +1449,7 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: nfail
 
       INTEGER, PARAMETER                                 :: nbands = 3, nrotation = 6
-      REAL(KIND=dp), PARAMETER                           :: fd_step = 2.0E-6_dp, &
+      REAL(KIND=dp), PARAMETER                           :: fd_step = 2.0E-5_dp, &
                                                             kpoint_weight = 0.625_dp
 
       COMPLEX(KIND=dp), DIMENSION(nbands, nbands) :: density_minus, density_plus, density_tangent, &
