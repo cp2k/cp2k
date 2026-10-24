@@ -1455,6 +1455,7 @@ list(
   xc_adiabatic_utils.F
   xc/cp_linked_list_xc_deriv.F
   xc/skala_gpw_features.F
+  xc/skala_periodic_partition.F
   xc/skala_gpw_functional.F
   xc/skala_torch_api.F
   xc_pot_saop.F
@@ -1629,6 +1630,7 @@ set(CP2K_PROGS_F
     common/parallel_rng_types_unittest.F
     pseudopotentials/atom_upf_unittest.F
     xc/xc_semilocal_unittest.F
+    xc/skala_periodic_partition_unittest.F
     pseudopotentials/upf_projector_integrals_unittest.F
     pseudopotentials/upf_local_integrals_unittest.F
     gapw_unittest.F
@@ -2073,6 +2075,7 @@ list(
   "parallel_rng_types_unittest"
   "atom_upf_unittest"
   "xc_semilocal_unittest"
+  "skala_periodic_partition_unittest"
   "upf_projector_integrals_unittest"
   "upf_local_integrals_unittest"
   "gapw_unittest"
@@ -2123,6 +2126,8 @@ add_executable(memory_utilities_unittest common/memory_utilities_unittest.F)
 add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
 add_executable(atom_upf_unittest pseudopotentials/atom_upf_unittest.F)
 add_executable(xc_semilocal_unittest xc/xc_semilocal_unittest.F)
+add_executable(skala_periodic_partition_unittest
+               xc/skala_periodic_partition_unittest.F)
 add_executable(upf_projector_integrals_unittest
                pseudopotentials/upf_projector_integrals_unittest.F)
 add_executable(upf_local_integrals_unittest
