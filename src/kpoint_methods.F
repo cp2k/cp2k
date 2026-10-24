@@ -43,6 +43,7 @@ MODULE kpoint_methods
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
+                                              cp_fm_pool_type,&
                                               fm_pool_create_fm,&
                                               fm_pool_give_back_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
@@ -828,7 +829,7 @@ CONTAINS
       LOGICAL                                            :: aux_fit
       REAL(KIND=dp)                                      :: flexible_electron_count, maxocc, n_el_f
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
+      TYPE(cp_fm_pool_type), POINTER     :: ao_ao_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type), POINTER                          :: fmlocal
       TYPE(kpoint_env_type), POINTER                     :: kp
@@ -926,7 +927,7 @@ CONTAINS
          ! allocate density matrices
          CALL mpools_get(mpools, ao_ao_fm_pools=ao_ao_fm_pools)
          ALLOCATE (fmlocal)
-         CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, fmlocal)
+         CALL fm_pool_create_fm(ao_ao_fm_pools, fmlocal)
          CALL cp_fm_get_info(fmlocal, matrix_struct=matrix_struct)
          DO ik = 1, nkp_loc
             IF (aux_fit) THEN
@@ -951,7 +952,7 @@ CONTAINS
                END DO
             END DO
          END DO
-         CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmlocal)
+         CALL fm_pool_give_back_fm(ao_ao_fm_pools, fmlocal)
          DEALLOCATE (fmlocal)
 
       END IF

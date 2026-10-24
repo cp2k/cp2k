@@ -35,7 +35,7 @@ MODULE cp_fm_pool_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_pool_types'
 
    PUBLIC :: cp_fm_pool_type, cp_fm_pool_p_type
-   PUBLIC :: fm_pool_create, fm_pool_retain, &
+   PUBLIC :: fm_pool_create, &
              fm_pool_release, &
              fm_pool_create_fm, fm_pool_give_back_fm, &
              fm_pool_get_el_struct
@@ -46,7 +46,6 @@ MODULE cp_fm_pool_types
 
 ! **************************************************************************************************
 !> \brief represent a pool of elements with the same structure
-!> \param ref_count reference count (see /cp2k/doc/ReferenceCounting.html)
 !> \param el_struct the structure of the elements stored in this pool
 !> \param cache linked list with the elements in the pool
 !> \par History
@@ -55,7 +54,6 @@ MODULE cp_fm_pool_types
 ! **************************************************************************************************
    TYPE cp_fm_pool_type
       PRIVATE
-      INTEGER :: ref_count = -1
       TYPE(cp_fm_struct_type), POINTER :: el_struct => NULL()
       TYPE(cp_sll_fm_type), POINTER :: cache => NULL()
    END TYPE cp_fm_pool_type
@@ -103,24 +101,8 @@ CONTAINS
       ALLOCATE (pool)
       pool%el_struct => el_struct
       CALL cp_fm_struct_retain(pool%el_struct)
-      pool%ref_count = 1
 
    END SUBROUTINE fm_pool_create
-
-! **************************************************************************************************
-!> \brief retains the pool (see cp2k/doc/ReferenceCounting.html)
-!> \param pool the pool to retain
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE fm_pool_retain(pool)
-      TYPE(cp_fm_pool_type), INTENT(INOUT)               :: pool
-
-      CPASSERT(pool%ref_count > 0)
-
-      pool%ref_count = pool%ref_count + 1
-   END SUBROUTINE fm_pool_retain
 
 ! **************************************************************************************************
 !> \brief deallocates all the cached elements
@@ -156,16 +138,9 @@ CONTAINS
       TYPE(cp_fm_pool_type), POINTER                     :: pool
 
       IF (ASSOCIATED(pool)) THEN
-         CPASSERT(pool%ref_count > 0)
-         pool%ref_count = pool%ref_count - 1
-         IF (pool%ref_count == 0) THEN
-            pool%ref_count = 1
-            CALL fm_pool_flush_cache(pool)
-            CALL cp_fm_struct_release(pool%el_struct)
-            pool%ref_count = 0
-
-            DEALLOCATE (pool)
-         END IF
+         CALL fm_pool_flush_cache(pool)
+         CALL cp_fm_struct_release(pool%el_struct)
+         DEALLOCATE (pool)
       END IF
       NULLIFY (pool)
    END SUBROUTINE fm_pool_release
@@ -253,27 +228,6 @@ CONTAINS
    END FUNCTION fm_pool_get_el_struct
 
 !================== pools ================
-
-! **************************************************************************************************
-!> \brief shallow copy of an array of pools (retains each pool)
-!> \param source_pools the pools to copy
-!> \param target_pools will contains the new pools
-!> \par History
-!>      11.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE fm_pools_copy(source_pools, target_pools)
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: source_pools, target_pools
-
-      INTEGER                                            :: i
-
-      CPASSERT(ASSOCIATED(source_pools))
-      ALLOCATE (target_pools(SIZE(source_pools)))
-      DO i = 1, SIZE(source_pools)
-         target_pools(i)%pool => source_pools(i)%pool
-         CALL fm_pool_retain(source_pools(i)%pool)
-      END DO
-   END SUBROUTINE fm_pools_copy
 
 ! **************************************************************************************************
 !> \brief deallocate an array of pools (releasing each pool)
