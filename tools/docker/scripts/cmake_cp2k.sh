@@ -45,6 +45,7 @@ if [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "pdbg" ]]; then
     -DCMAKE_BUILD_TYPE="Debug" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_TACO=OFF \
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_PEXSI=OFF \
     -DCP2K_USE_OPENPMD=OFF \
@@ -59,6 +60,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "sdbg" ]]; then
     -DCMAKE_BUILD_TYPE="Debug" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_TACO=OFF \
     -DCP2K_USE_MPI=OFF \
     -DCP2K_USE_OPENPMD=OFF \
     -Werror=dev \
@@ -71,6 +73,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_TACO=OFF \
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_PEXSI=OFF \
     -DCP2K_USE_OPENPMD=OFF \
@@ -84,6 +87,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_TACO=OFF \
     -DCP2K_USE_MPI=OFF \
     -DCP2K_USE_OPENPMD=OFF \
     -Werror=dev \
@@ -96,6 +100,7 @@ elif [[ "${PROFILE}" == "toolchain_intel" ]] && [[ "${VERSION}" == "psmp" ]]; th
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_TACO=OFF \
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_OPENPMD=OFF \
     -DCP2K_USE_DEEPMD=OFF \
@@ -114,6 +119,7 @@ elif [[ "${PROFILE}" == "toolchain_intel" ]] && [[ "${VERSION}" == "ssmp" ]]; th
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_TACO=OFF \
     -DCP2K_USE_MPI=OFF \
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_DEEPMD=OFF \
@@ -132,6 +138,7 @@ elif [[ "${PROFILE}" == "toolchain_arm64" ]] && [[ "${VERSION}" == "psmp" ]]; th
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_TACO=OFF \
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_PEXSI=OFF \
     -DCP2K_USE_ACE=OFF \
@@ -154,6 +161,7 @@ elif [[ "${PROFILE}" == "toolchain_cuda_"* ]] && [[ "${VERSION}" == "psmp" ]]; t
     -DCP2K_WITH_GPU="${PROFILE:15}" \
     -DCP2K_USE_ACCEL=CUDA \
     -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_TACO=OFF \
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_SPLA_GEMM_OFFLOADING=ON \
     -DCP2K_USE_PEXSI=OFF \
@@ -194,6 +202,7 @@ elif [[ "${PROFILE}" == "toolchain_generic" ]] && [[ "${VERSION}" == "psmp" ]]; 
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_TACO=OFF \
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_PEXSI=OFF \
     -DCP2K_USE_OPENPMD=OFF \
@@ -210,6 +219,7 @@ elif [[ "${PROFILE}" == "toolchain_conventions" ]] && [[ "${VERSION}" == "psmp" 
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCMAKE_Fortran_COMPILER_LAUNCHER="redirect_gfortran_output.py" \
     -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_TACO=OFF \
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_PEXSI=OFF \
     -DCP2K_USE_OPENPMD=OFF \
@@ -223,6 +233,7 @@ elif [[ "${PROFILE}" == "toolchain_coverage" ]] && [[ "${VERSION}" == "psmp" ]];
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_TACO=OFF \
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_PEXSI=OFF \
     -DCP2K_USE_OPENPMD=OFF \
@@ -238,6 +249,7 @@ elif [[ "${PROFILE}" == "toolchain_asan" ]] && [[ "${VERSION}" == "psmp" ]]; the
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_TACO=OFF \
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_PEXSI=OFF \
     -DCP2K_USE_GREENX=OFF \
@@ -256,6 +268,7 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_TACO=OFF \
     -DCP2K_USE_ACE=OFF \
     -DCP2K_USE_DEEPMD=OFF \
     -DCP2K_USE_DFTD4=OFF \

@@ -423,6 +423,7 @@ list(
   molsym.F
   moments_utils.F
   motion_utils.F
+  taco_writer.F
   mp2_cphf.F
   mp2_direct_method.F
   mp2_eri.F
@@ -1131,7 +1132,10 @@ list(
   fm/cp_fm_struct.F
   fm/cp_linked_list_fm.F)
 
-list(APPEND CP2K_SRCS_C fm/cp_fm_cusolver.c)
+list(APPEND CP2K_SRCS_C fm/cp_fm_cusolver.c taco_cp2k.c)
+if(NOT CP2K_USE_TACO)
+  set_source_files_properties(taco_cp2k.c PROPERTIES HEADER_FILE_ONLY TRUE)
+endif()
 
 list(APPEND CP2K_SRCS_F fm/cp_dlaf_utils_api.F fm/cp_fm_dlaf_api.F
      fm/cp_cfm_dlaf_api.F)
@@ -1928,6 +1932,7 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_TREXIO}>:cp2k::trexio::trexio>
     $<$<BOOL:${CP2K_USE_HDF5}>:HDF5::HDF5
     hdf5::hdf5_fortran>
+    $<$<BOOL:${CP2K_USE_TACO}>:cp2k::taco>
     wignernj::wignernj
     DBCSR::dbcsr
     $<$<BOOL:${CP2K_USE_MPI}>:cp2k::SCALAPACK::scalapack>
@@ -2004,6 +2009,7 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_LIBXC}>:__LIBXC>
     $<$<BOOL:${CP2K_USE_HDF5}>:__HDF5>
     $<$<BOOL:${CP2K_USE_OPENPMD}>:__OPENPMD>
+    $<$<BOOL:${CP2K_USE_TACO}>:__TACO>
     $<$<BOOL:${CP2K_USE_TREXIO}>:__TREXIO>
     $<$<BOOL:${CP2K_USE_GREENX}>:__GREENX>
     $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:__FFTW3>

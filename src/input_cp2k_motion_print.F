@@ -21,6 +21,7 @@ MODULE input_cp2k_motion_print
                                               dump_dcd_aligned_cell,&
                                               dump_extxyz,&
                                               dump_pdb,&
+                                              dump_taco,&
                                               dump_xmol
    USE input_cp2k_subsys,               ONLY: create_structure_data_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -315,10 +316,10 @@ CONTAINS
 
          CALL keyword_create( &
             keyword, __LOCATION__, name="FORMAT", &
-            description=description, usage="FORMAT (ATOMIC|DCD|PDB|XMOL|XYZ|EXTXYZ)", &
+            description=description, usage="FORMAT (ATOMIC|DCD|PDB|XMOL|XYZ|EXTXYZ|TACO)", &
             default_i_val=dump_xmol, &
-            enum_c_vals=s2a("ATOMIC", "DCD", "DCD_ALIGNED_CELL", "PDB", "XMOL", "XYZ", "EXTXYZ"), &
-            enum_i_vals=[dump_atomic, dump_dcd, dump_dcd_aligned_cell, dump_pdb, dump_xmol, dump_xmol, dump_extxyz], &
+            enum_c_vals=s2a("ATOMIC", "DCD", "DCD_ALIGNED_CELL", "PDB", "XMOL", "XYZ", "EXTXYZ", "TACO"), &
+            enum_i_vals=[dump_atomic, dump_dcd, dump_dcd_aligned_cell, dump_pdb, dump_xmol, dump_xmol, dump_extxyz, dump_taco], &
             enum_desc=s2a("Write only the coordinates X,Y,Z without element symbols to a formatted file", &
                           "Write the coordinates (no element labels) and the cell information to a binary file", &
                           "Like DCD, but the dumped coordinates refer to an aligned cell following the common convention: "// &
@@ -329,7 +330,8 @@ CONTAINS
                           "Alias name for XMOL", &
                           "Extended XYZ format including cell information. "// &
                           "For details see [ASE](https://ase-lib.org/ase/io/formatoptions.html#extxyz) "// &
-                          "and [OVITO](https://www.ovito.org/manual/reference/file_formats/input/xyz.html)."))
+                          "and [OVITO](https://www.ovito.org/manual/reference/file_formats/input/xyz.html).", &
+                          "Write the trajectory to the binary TACO format."))
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 

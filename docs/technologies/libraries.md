@@ -450,3 +450,15 @@ libGint - A library for the calculation of the Hartree Fock exchange on GPUs
 - &FORCE_EVAL &DFT &XC &HF HFX_LIBRARY libGint
 - &FORCE_EVAL &DFT &XC &HF &MEMORY MAX_MEMORY X
 - pass `-DCP2K_USE_LIBGINT=ON` to CMake.
+
+## TACO (compressed trajectory format)
+
+TACO is an open-source binary trajectory format that stores the positions, velocities and forces of
+each frame in a single compressed file. Trajectory output can be enabled by passing
+`-DCP2K_USE_TACO=ON` to CMake, which allows `MOTION%PRINT%...%FORMAT TACO`.
+
+- TACO is used as a prebuilt C library, so no Rust toolchain is needed to build CP2K. Point
+  `TACO_ROOT` (or `TACO_DIR`) at an installation prefix containing `include/taco_format_c.h` and
+  `lib/libtaco_format_c.a`.
+- The redistributable library tarball ships that prefix along with a relocatable `taco.pc`
+  (pkg-config) file and a CMake package config.
