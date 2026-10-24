@@ -1,2 +1,2 @@
-dbm_multiply_opencl.cl.h
+dbm_kernels.h
 dbm_miniapp.x
