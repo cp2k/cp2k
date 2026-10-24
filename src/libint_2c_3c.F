@@ -14,21 +14,17 @@
 MODULE libint_2c_3c
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_id,&
-                                              do_potential_long,&
                                               do_potential_mix_cl_trunc,&
                                               do_potential_short,&
                                               do_potential_truncated
-   USE integral_library_types,          ONLY: coulomb_operator_type,&
+   USE integral_library_types,          ONLY: compare_potential_types,&
+                                              coulomb_operator_type,&
                                               libint_potential_type => coulomb_operator_type
    USE kinds,                           ONLY: dp
-   USE libint_wrapper,                  ONLY: cp_libint_get_2eri_derivs,&
-                                              cp_libint_get_2eris,&
-                                              cp_libint_get_3eri_derivs,&
-                                              cp_libint_get_3eris,&
-                                              cp_libint_set_params_eri,&
-                                              cp_libint_set_params_eri_deriv,&
-                                              cp_libint_t,&
-                                              prim_data_f_size
+   USE libint_wrapper,                  ONLY: &
+        cp_libint_get_2eri_derivs, cp_libint_get_2eris, cp_libint_get_3eri_derivs, &
+        cp_libint_get_3eris, cp_libint_set_params_eri, cp_libint_set_params_eri_deriv, &
+        cp_libint_t, eri_primitive_data_type, prim_data_f_size
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: nco,&
                                               ncoset
@@ -47,23 +43,6 @@ MODULE libint_2c_3c
    ! For screening of integrals with a truncated potential, it is important to use a slightly larger
    ! cutoff radius due to the discontinuity of the truncated Coulomb potential at the cutoff radius.
    REAL(KIND=dp), PARAMETER :: cutoff_screen_factor = 1.0001_dp
-
-   TYPE :: params_2c
-      INTEGER                               :: m_max = 0
-      REAL(dp)                              :: ZetaInv = 0.0_dp, EtaInv = 0.0_dp, ZetapEtaInv = 0.0_dp, Rho = 0.0_dp
-      REAL(dp), DIMENSION(3)                :: W = 0.0_dp
-      REAL(dp), DIMENSION(prim_data_f_size) :: Fm = 0.0_dp
-   END TYPE params_2c
-
-   TYPE :: params_3c
-      INTEGER                               :: m_max = 0
-      REAL(dp)                              :: ZetaInv = 0.0_dp, EtaInv = 0.0_dp, ZetapEtaInv = 0.0_dp, Rho = 0.0_dp
-      REAL(dp), DIMENSION(3)                :: Q = 0.0_dp, W = 0.0_dp
-      REAL(dp), DIMENSION(prim_data_f_size) :: Fm = 0.0_dp
-   END TYPE params_3c
-
-   ! Compatibility alias retained for existing callers. New interfaces should use the
-   ! backend-neutral name from integral_library_types.
 
 CONTAINS
 
@@ -124,10 +103,9 @@ CONTAINS
          jpgf, k, kpgf, li, lj, lk, ncoa, ncob, ncoc, op, p1, p2, p3
       REAL(dp)                                           :: dr_ab, dr_ac, dr_bc, zeti, zetj, zetk
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
-      TYPE(params_3c), POINTER                           :: params
+      TYPE(eri_primitive_data_type)                      :: params
 
-      NULLIFY (params, p_work)
-      ALLOCATE (params)
+      NULLIFY (p_work)
 
       dr_ab = 0.0_dp
       dr_bc = 0.0_dp
@@ -175,8 +153,9 @@ CONTAINS
                c_start = (kpgf - 1)*ncoset(lc_max)
 
                !start with all the (c|ba) integrals (standard order) and keep to lb >= la
-               CALL set_params_3c(lib, ra, rb, rc, zeti, zetj, zetk, la_max, lb_max, lc_max, &
-                                  potential_parameter=potential_parameter, params_out=params)
+               CALL prepare_3c_primitive(ra, rb, rc, zeti, zetj, zetk, &
+                                         la_max + lb_max + lc_max, potential_parameter, params)
+               CALL cp_libint_set_params_eri(lib, params, [1, 2, 3, 4], params%prepared_max_order)
 
                DO li = la_min, la_max
                   a_offset = a_start + ncoset(li - 1)
@@ -221,7 +200,7 @@ CONTAINS
                END DO !li
 
                !swap centers 3 and 4 to compute (c|ab) with lb < la
-               CALL set_params_3c(lib, rb, ra, rc, params_in=params)
+               CALL cp_libint_set_params_eri(lib, params, [1, 2, 4, 3], params%prepared_max_order)
 
                DO lj = lb_min, lb_max
                   b_offset = b_start + ncoset(lj - 1)
@@ -269,104 +248,75 @@ CONTAINS
          END DO !jpgf
       END DO !ipgf
 
-      DEALLOCATE (params)
-
    END SUBROUTINE eri_3center
 
 ! **************************************************************************************************
-!> \brief Sets the internals of the cp_libint_t object for integrals of type (k|ji)
-!> \param lib ..
+!> \brief Prepare geometry and radial seeds for 3-center integrals at the requested order.
 !> \param ri ...
 !> \param rj ...
 !> \param rk ...
 !> \param zeti ...
 !> \param zetj ...
 !> \param zetk ...
-!> \param li_max ...
-!> \param lj_max ...
-!> \param lk_max ...
-!> \param potential_parameter ...
-!> \param params_in external parameters to use for libint
-!> \param params_out returns the libint parameters computed based on the other arguments
-!> \note The use of params_in and params_out comes from the fact that one might have to swap
-!>       centers 3 and 4 because of angular momenta and pretty much all the parameters of libint
-!>       remain the same upon such a change => might avoid recomputing things over and over again
+!> \param m_max maximum radial order, including any derivative increment
+!> \param potential_parameter radial operator parameters
+!> \param params reusable primitive parameter cache
 ! **************************************************************************************************
-   SUBROUTINE set_params_3c(lib, ri, rj, rk, zeti, zetj, zetk, li_max, lj_max, lk_max, &
-                            potential_parameter, params_in, params_out)
-
-      TYPE(cp_libint_t), INTENT(INOUT)                   :: lib
-      REAL(dp), DIMENSION(3), INTENT(IN)                 :: ri, rj, rk
-      REAL(dp), INTENT(IN), OPTIONAL                     :: zeti, zetj, zetk
-      INTEGER, INTENT(IN), OPTIONAL                      :: li_max, lj_max, lk_max
-      TYPE(coulomb_operator_type), INTENT(IN), OPTIONAL  :: potential_parameter
-      TYPE(params_3c), OPTIONAL, POINTER                 :: params_in, params_out
+   SUBROUTINE prepare_3c_primitive(ri, rj, rk, zeti, zetj, zetk, m_max, potential_parameter, params)
+      REAL(dp), INTENT(IN)                               :: ri(3), rj(3), rk(3), zeti, zetj, zetk
+      INTEGER, INTENT(IN)                                :: m_max
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
+      TYPE(eri_primitive_data_type), INTENT(INOUT)       :: params
 
       REAL(dp) :: fundamentals_work(prim_data_f_size), gammaq, normalization, prefac, S1234, T
-      TYPE(params_3c), POINTER                           :: params
 
-      !Assume that one of params_in or params_out is present, and that in the latter case, all
-      !other optional arguments are here
+      CPASSERT(m_max < prim_data_f_size)
 
-      !The internal structure of libint2 is based on 4-center integrals
-      !For 3-center, one of those is a dummy center
-      !The integral is assumed to be (k|ji) where the centers are ordered as:
-      !k -> 1, j -> 3 and i -> 4 (the center #2 is the dummy center)
+      ! Libint layout: (k, dummy k | j, i).
+      params%centers(:, 1) = rk
+      params%centers(:, 2) = rk
+      params%centers(:, 3) = rj
+      params%centers(:, 4) = ri
+      params%exponents = [zetk, 0.0_dp, zetj, zeti]
+      params%P = rk
 
-      !If external parameters are given, just use them
-      IF (PRESENT(params_in)) THEN
-         params => params_in
+      params%prepared_max_order = m_max
+      gammaq = zeti + zetj
+      params%ZetaInv = 1._dp/zetk; params%EtaInv = 1._dp/gammaq
+      params%ZetapEtaInv = 1._dp/(zetk + gammaq)
 
-         !If no external parameters to use, compute them
-      ELSE
-         params => params_out
+      params%Q = (zeti*ri + zetj*rj)*params%EtaInv
+      params%W = (zetk*rk + gammaq*params%Q)*params%ZetapEtaInv
+      params%Rho = zetk*gammaq/(zetk + gammaq)
 
-         !Note: some variable of 4-center integrals simplify with a dummy center:
-         !      P -> rk, gammap -> zetk
-         params%m_max = li_max + lj_max + lk_max
-         gammaq = zeti + zetj
-         params%ZetaInv = 1._dp/zetk; params%EtaInv = 1._dp/gammaq
-         params%ZetapEtaInv = 1._dp/(zetk + gammaq)
+      params%Fm = 0.0_dp
+      SELECT CASE (potential_parameter%potential_type)
+      CASE (do_potential_coulomb, do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
+         IF (potential_parameter%potential_type == do_potential_truncated .OR. &
+             potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
+            CPASSERT(get_lmax_init() >= params%prepared_max_order)
+         END IF
+         T = params%Rho*SUM((params%Q - rk)**2)
+         S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
+         CALL compute_r12_fundamentals(params%Fm, normalization, params%prepared_max_order, potential_parameter%potential_type, &
+                                       params%Rho, T, fundamentals_work, &
+                                       omega=potential_parameter%omega, &
+                                       cutoff_radius=potential_parameter%cutoff_radius, &
+                                       scale_coulomb=potential_parameter%scale_coulomb, &
+                                       scale_longrange=potential_parameter%scale_longrange, &
+                                       scale_gaussian=0.0_dp)
+         prefac = normalization*SQRT((pi*params%ZetapEtaInv)**3)*S1234
+         params%Fm = prefac*params%Fm
+      CASE (do_potential_id)
+         S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2) &
+                     - gammaq*zetk*params%ZetapEtaInv*SUM((params%Q - rk)**2))
+         prefac = SQRT((pi*params%ZetapEtaInv)**3)*S1234
 
-         params%Q = (zeti*ri + zetj*rj)*params%EtaInv
-         params%W = (zetk*rk + gammaq*params%Q)*params%ZetapEtaInv
-         params%Rho = zetk*gammaq/(zetk + gammaq)
-
-         params%Fm = 0.0_dp
-         SELECT CASE (potential_parameter%potential_type)
-         CASE (do_potential_coulomb, do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
-            IF (potential_parameter%potential_type == do_potential_truncated .OR. &
-                potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
-               CPASSERT(get_lmax_init() >= params%m_max)
-            END IF
-            T = params%Rho*SUM((params%Q - rk)**2)
-            S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
-            CALL compute_r12_fundamentals(params%Fm, normalization, params%m_max, potential_parameter%potential_type, &
-                                          params%Rho, T, fundamentals_work, &
-                                          omega=potential_parameter%omega, &
-                                          cutoff_radius=potential_parameter%cutoff_radius, &
-                                          scale_coulomb=potential_parameter%scale_coulomb, &
-                                          scale_longrange=potential_parameter%scale_longrange, &
-                                          scale_gaussian=0.0_dp)
-            prefac = normalization*SQRT((pi*params%ZetapEtaInv)**3)*S1234
-            params%Fm = prefac*params%Fm
-         CASE (do_potential_id)
-            S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2) &
-                        - gammaq*zetk*params%ZetapEtaInv*SUM((params%Q - rk)**2))
-            prefac = SQRT((pi*params%ZetapEtaInv)**3)*S1234
-
-            params%Fm(:) = prefac
-         CASE DEFAULT
-            CPABORT("Requested operator NYI")
-         END SELECT
-
-      END IF
-
-      CALL cp_libint_set_params_eri(lib, rk, rk, rj, ri, params%ZetaInv, params%EtaInv, &
-                                    params%ZetapEtaInv, params%Rho, rk, params%Q, params%W, &
-                                    params%m_max, params%Fm)
-
-   END SUBROUTINE set_params_3c
+         params%Fm(:) = prefac
+      CASE DEFAULT
+         CPABORT("Requested operator NYI")
+      END SELECT
+   END SUBROUTINE prepare_3c_primitive
 
 ! **************************************************************************************************
 !> \brief Computes the derivatives of the 3-center electron repulsion integrals (ab|c) for a given
@@ -432,10 +382,9 @@ CONTAINS
       REAL(dp)                                           :: dr_ab, dr_ac, dr_bc, zeti, zetj, zetk
       REAL(dp), DIMENSION(3)                             :: der_abc_1_ext_prv, der_abc_2_ext_prv
       REAL(dp), DIMENSION(:, :), POINTER                 :: p_deriv
-      TYPE(params_3c), POINTER                           :: params
+      TYPE(eri_primitive_data_type)                      :: params
 
-      NULLIFY (params, p_deriv)
-      ALLOCATE (params)
+      NULLIFY (p_deriv)
 
       permute_1 = [4, 5, 6]
       permute_2 = [7, 8, 9]
@@ -487,8 +436,9 @@ CONTAINS
                c_start = (kpgf - 1)*ncoset(lc_max)
 
                !start with all the (c|ba) integrals (standard order) and keep to lb >= la
-               CALL set_params_3c_deriv(lib, ra, rb, rc, zeti, zetj, zetk, la_max, lb_max, lc_max, &
-                                        potential_parameter=potential_parameter, params_out=params)
+               CALL prepare_3c_primitive(ra, rb, rc, zeti, zetj, zetk, &
+                                         la_max + lb_max + lc_max + 1, potential_parameter, params)
+               CALL cp_libint_set_params_eri_deriv(lib, params, [1, 2, 3, 4], params%prepared_max_order)
 
                DO li = la_min, la_max
                   a_offset = a_start + ncoset(li - 1)
@@ -553,7 +503,7 @@ CONTAINS
                END DO !li
 
                !swap centers 3 and 4 to compute (c|ab) with lb < la
-               CALL set_params_3c_deriv(lib, rb, ra, rc, zetj, zeti, zetk, params_in=params)
+               CALL cp_libint_set_params_eri_deriv(lib, params, [1, 2, 4, 3], params%prepared_max_order)
 
                DO lj = lb_min, lb_max
                   b_offset = b_start + ncoset(lj - 1)
@@ -624,92 +574,7 @@ CONTAINS
       IF (PRESENT(der_abc_1_ext)) der_abc_1_ext = der_abc_1_ext_prv
       IF (PRESENT(der_abc_2_ext)) der_abc_2_ext = der_abc_2_ext_prv
 
-      DEALLOCATE (params)
-
    END SUBROUTINE eri_3center_derivs
-
-! **************************************************************************************************
-!> \brief Sets the internals of the cp_libint_t object for derivatives of integrals of type (k|ji)
-!> \param lib ..
-!> \param ri ...
-!> \param rj ...
-!> \param rk ...
-!> \param zeti ...
-!> \param zetj ...
-!> \param zetk ...
-!> \param li_max ...
-!> \param lj_max ...
-!> \param lk_max ...
-!> \param potential_parameter ...
-!> \param params_in ...
-!> \param params_out ...
-!> \note The use of params_in and params_out comes from the fact that one might have to swap
-!>       centers 3 and 4 because of angular momenta and pretty much all the parameters of libint
-!>       remain the same upon such a change => might avoid recomputing things over and over again
-! **************************************************************************************************
-   SUBROUTINE set_params_3c_deriv(lib, ri, rj, rk, zeti, zetj, zetk, li_max, lj_max, lk_max, &
-                                  potential_parameter, params_in, params_out)
-
-      TYPE(cp_libint_t), INTENT(INOUT)                   :: lib
-      REAL(dp), DIMENSION(3), INTENT(IN)                 :: ri, rj, rk
-      REAL(dp), INTENT(IN)                               :: zeti, zetj, zetk
-      INTEGER, INTENT(IN), OPTIONAL                      :: li_max, lj_max, lk_max
-      TYPE(coulomb_operator_type), INTENT(IN), OPTIONAL  :: potential_parameter
-      TYPE(params_3c), OPTIONAL, POINTER                 :: params_in, params_out
-
-      REAL(dp) :: fundamentals_work(prim_data_f_size), gammaq, normalization, prefac, S1234, T
-      TYPE(params_3c), POINTER                           :: params
-
-      IF (PRESENT(params_in)) THEN
-         params => params_in
-
-      ELSE
-         params => params_out
-
-         params%m_max = li_max + lj_max + lk_max + 1
-         gammaq = zeti + zetj
-         params%ZetaInv = 1._dp/zetk; params%EtaInv = 1._dp/gammaq
-         params%ZetapEtaInv = 1._dp/(zetk + gammaq)
-
-         params%Q = (zeti*ri + zetj*rj)*params%EtaInv
-         params%W = (zetk*rk + gammaq*params%Q)*params%ZetapEtaInv
-         params%Rho = zetk*gammaq/(zetk + gammaq)
-
-         params%Fm = 0.0_dp
-         SELECT CASE (potential_parameter%potential_type)
-         CASE (do_potential_coulomb, do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
-            IF (potential_parameter%potential_type == do_potential_truncated .OR. &
-                potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
-               CPASSERT(get_lmax_init() >= params%m_max)
-            END IF
-            T = params%Rho*SUM((params%Q - rk)**2)
-            S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
-            CALL compute_r12_fundamentals(params%Fm, normalization, params%m_max, potential_parameter%potential_type, &
-                                          params%Rho, T, fundamentals_work, &
-                                          omega=potential_parameter%omega, &
-                                          cutoff_radius=potential_parameter%cutoff_radius, &
-                                          scale_coulomb=potential_parameter%scale_coulomb, &
-                                          scale_longrange=potential_parameter%scale_longrange, &
-                                          scale_gaussian=0.0_dp)
-            prefac = normalization*SQRT((pi*params%ZetapEtaInv)**3)*S1234
-            params%Fm = prefac*params%Fm
-         CASE (do_potential_id)
-            S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2) &
-                        - gammaq*zetk*params%ZetapEtaInv*SUM((params%Q - rk)**2))
-            prefac = SQRT((pi*params%ZetapEtaInv)**3)*S1234
-
-            params%Fm(:) = prefac
-         CASE DEFAULT
-            CPABORT("Requested operator NYI")
-         END SELECT
-
-      END IF
-
-      CALL cp_libint_set_params_eri_deriv(lib, rk, rk, rj, ri, rk, &
-                                          params%Q, params%W, zetk, 0.0_dp, zetj, zeti, params%ZetaInv, &
-                                          params%EtaInv, params%ZetapEtaInv, params%Rho, params%m_max, params%Fm)
-
-   END SUBROUTINE set_params_3c_deriv
 
 ! **************************************************************************************************
 !> \brief Computes the 2-center electron repulsion integrals (a|b) for a given set of cartesian
@@ -754,6 +619,7 @@ CONTAINS
                                                             li, lj, ncoa, ncob, p1, p2
       REAL(dp)                                           :: dr_ab, zeti, zetj
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
+      TYPE(eri_primitive_data_type)                      :: params
 
       NULLIFY (p_work)
 
@@ -779,7 +645,9 @@ CONTAINS
             !screening
             IF (rpgfa(ipgf) + rpgfb(jpgf) + dr_ab < dab) CYCLE
 
-            CALL set_params_2c(lib, ra, rb, zeti, zetj, la_max, lb_max, potential_parameter)
+            CALL prepare_2c_primitive(ra, rb, zeti, zetj, la_max + lb_max, &
+                                      potential_parameter, params)
+            CALL cp_libint_set_params_eri(lib, params, [1, 2, 3, 4], params%prepared_max_order)
 
             DO li = la_min, la_max
                a_offset = a_start + ncoset(li - 1)
@@ -808,37 +676,35 @@ CONTAINS
    END SUBROUTINE eri_2center
 
 ! **************************************************************************************************
-!> \brief Sets the internals of the cp_libint_t object for integrals of type (k|j)
-!> \param lib ..
+!> \brief Prepare geometry and radial seeds for 2-center integrals at the requested order.
 !> \param rj ...
 !> \param rk ...
 !> \param zetj ...
 !> \param zetk ...
-!> \param lj_max ...
-!> \param lk_max ...
-!> \param potential_parameter ...
+!> \param m_max maximum radial order, including any derivative increment
+!> \param potential_parameter radial operator parameters
+!> \param params reusable primitive parameter cache
 ! **************************************************************************************************
-   SUBROUTINE set_params_2c(lib, rj, rk, zetj, zetk, lj_max, lk_max, potential_parameter)
-
-      TYPE(cp_libint_t), INTENT(INOUT)                   :: lib
-      REAL(dp), DIMENSION(3), INTENT(IN)                 :: rj, rk
-      REAL(dp), INTENT(IN)                               :: zetj, zetk
-      INTEGER, INTENT(IN)                                :: lj_max, lk_max
+   SUBROUTINE prepare_2c_primitive(rj, rk, zetj, zetk, m_max, potential_parameter, params)
+      REAL(dp), INTENT(IN)                               :: rj(3), rk(3), zetj, zetk
+      INTEGER, INTENT(IN)                                :: m_max
       TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
+      TYPE(eri_primitive_data_type), INTENT(INOUT)       :: params
 
       REAL(dp) :: fundamentals_work(prim_data_f_size), normalization, prefac, T
-      TYPE(params_2c)                                    :: params
 
-      !The internal structure of libint2 is based on 4-center integrals
-      !For 2-center, two of those are dummy centers
-      !The integral is assumed to be (k|j) where the centers are ordered as:
-      !k -> 1, j -> 3 and (the centers #2 & #4 are dummy centers)
+      CPASSERT(m_max < prim_data_f_size)
 
-      !Note: some variable of 4-center integrals simplify due to dummy centers:
-      !      P -> rk, gammap -> zetk
-      !      Q -> rj, gammaq -> zetj
+      ! Libint layout: (k, dummy k | j, dummy j).
+      params%centers(:, 1) = rk
+      params%centers(:, 2) = rk
+      params%centers(:, 3) = rj
+      params%centers(:, 4) = rj
+      params%exponents = [zetk, 0.0_dp, zetj, 0.0_dp]
+      params%P = rk
+      params%Q = rj
 
-      params%m_max = lj_max + lk_max
+      params%prepared_max_order = m_max
       params%ZetaInv = 1._dp/zetk; params%EtaInv = 1._dp/zetj
       params%ZetapEtaInv = 1._dp/(zetk + zetj)
 
@@ -850,10 +716,10 @@ CONTAINS
       CASE (do_potential_coulomb, do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
          IF (potential_parameter%potential_type == do_potential_truncated .OR. &
              potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
-            CPASSERT(get_lmax_init() >= params%m_max)
+            CPASSERT(get_lmax_init() >= params%prepared_max_order)
          END IF
          T = params%Rho*SUM((rj - rk)**2)
-         CALL compute_r12_fundamentals(params%Fm, normalization, params%m_max, potential_parameter%potential_type, &
+         CALL compute_r12_fundamentals(params%Fm, normalization, params%prepared_max_order, potential_parameter%potential_type, &
                                        params%Rho, T, fundamentals_work, &
                                        omega=potential_parameter%omega, &
                                        cutoff_radius=potential_parameter%cutoff_radius, &
@@ -869,41 +735,7 @@ CONTAINS
       CASE DEFAULT
          CPABORT("Requested operator NYI")
       END SELECT
-
-      CALL cp_libint_set_params_eri(lib, rk, rk, rj, rj, params%ZetaInv, params%EtaInv, &
-                                    params%ZetapEtaInv, params%Rho, rk, rj, params%W, &
-                                    params%m_max, params%Fm)
-
-   END SUBROUTINE set_params_2c
-
-! **************************************************************************************************
-!> \brief Helper function to compare Coulomb operator types
-!> \param potential1 first potential
-!> \param potential2 second potential
-!> \return Boolean whether both potentials are equal
-! **************************************************************************************************
-   PURE FUNCTION compare_potential_types(potential1, potential2) RESULT(equals)
-      TYPE(coulomb_operator_type), INTENT(IN)            :: potential1, potential2
-      LOGICAL                                            :: equals
-
-      IF (potential1%potential_type /= potential2%potential_type) THEN
-         equals = .FALSE.
-      ELSE
-         equals = .TRUE.
-         SELECT CASE (potential1%potential_type)
-         CASE (do_potential_short, do_potential_long)
-            IF (potential1%omega /= potential2%omega) equals = .FALSE.
-         CASE (do_potential_truncated)
-            IF (potential1%cutoff_radius /= potential2%cutoff_radius) equals = .FALSE.
-         CASE (do_potential_mix_cl_trunc)
-            IF (potential1%cutoff_radius /= potential2%cutoff_radius) equals = .FALSE.
-            IF (potential1%omega /= potential2%omega) equals = .FALSE.
-            IF (potential1%scale_coulomb /= potential2%scale_coulomb) equals = .FALSE.
-            IF (potential1%scale_longrange /= potential2%scale_longrange) equals = .FALSE.
-         END SELECT
-      END IF
-
-   END FUNCTION compare_potential_types
+   END SUBROUTINE prepare_2c_primitive
 
 !> \brief Computes the 2-center derivatives of the electron repulsion integrals (a|b) for a given
 !>        set of cartesian gaussian orbitals. Returns the derivatives wrt to the first center
@@ -948,6 +780,7 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: permute
       REAL(dp)                                           :: dr_ab, zeti, zetj
       REAL(dp), DIMENSION(:, :), POINTER                 :: p_deriv
+      TYPE(eri_primitive_data_type)                      :: params
 
       NULLIFY (p_deriv)
 
@@ -975,7 +808,9 @@ CONTAINS
             !screening
             IF (rpgfa(ipgf) + rpgfb(jpgf) + dr_ab < dab) CYCLE
 
-            CALL set_params_2c_deriv(lib, ra, rb, zeti, zetj, la_max, lb_max, potential_parameter)
+            CALL prepare_2c_primitive(ra, rb, zeti, zetj, la_max + lb_max + 1, &
+                                      potential_parameter, params)
+            CALL cp_libint_set_params_eri_deriv(lib, params, [1, 2, 3, 4], params%prepared_max_order)
 
             DO li = la_min, la_max
                a_offset = a_start + ncoset(li - 1)
@@ -1005,75 +840,5 @@ CONTAINS
       END DO
 
    END SUBROUTINE eri_2center_derivs
-
-! **************************************************************************************************
-!> \brief Sets the internals of the cp_libint_t object for derivatives of integrals of type (k|j)
-!> \param lib ..
-!> \param rj ...
-!> \param rk ...
-!> \param zetj ...
-!> \param zetk ...
-!> \param lj_max ...
-!> \param lk_max ...
-!> \param potential_parameter ...
-! **************************************************************************************************
-   SUBROUTINE set_params_2c_deriv(lib, rj, rk, zetj, zetk, lj_max, lk_max, potential_parameter)
-
-      TYPE(cp_libint_t), INTENT(INOUT)                   :: lib
-      REAL(dp), DIMENSION(3), INTENT(IN)                 :: rj, rk
-      REAL(dp), INTENT(IN)                               :: zetj, zetk
-      INTEGER, INTENT(IN)                                :: lj_max, lk_max
-      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
-
-      REAL(dp) :: fundamentals_work(prim_data_f_size), normalization, prefac, T
-      TYPE(params_2c)                                    :: params
-
-      !The internal structure of libint2 is based on 4-center integrals
-      !For 2-center, two of those are dummy centers
-      !The integral is assumed to be (k|j) where the centers are ordered as:
-      !k -> 1, j -> 3 and (the centers #2 & #4 are dummy centers)
-
-      !Note: some variable of 4-center integrals simplify due to dummy centers:
-      !      P -> rk, gammap -> zetk
-      !      Q -> rj, gammaq -> zetj
-
-      params%m_max = lj_max + lk_max + 1
-      params%ZetaInv = 1._dp/zetk; params%EtaInv = 1._dp/zetj
-      params%ZetapEtaInv = 1._dp/(zetk + zetj)
-
-      params%W = (zetk*rk + zetj*rj)*params%ZetapEtaInv
-      params%Rho = zetk*zetj/(zetk + zetj)
-
-      params%Fm = 0.0_dp
-      SELECT CASE (potential_parameter%potential_type)
-      CASE (do_potential_coulomb, do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
-         IF (potential_parameter%potential_type == do_potential_truncated .OR. &
-             potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
-            CPASSERT(get_lmax_init() >= params%m_max)
-         END IF
-         T = params%Rho*SUM((rj - rk)**2)
-         CALL compute_r12_fundamentals(params%Fm, normalization, params%m_max, potential_parameter%potential_type, &
-                                       params%Rho, T, fundamentals_work, &
-                                       omega=potential_parameter%omega, &
-                                       cutoff_radius=potential_parameter%cutoff_radius, &
-                                       scale_coulomb=potential_parameter%scale_coulomb, &
-                                       scale_longrange=potential_parameter%scale_longrange, &
-                                       scale_gaussian=0.0_dp)
-         prefac = normalization*SQRT((pi*params%ZetapEtaInv)**3)
-         params%Fm = prefac*params%Fm
-      CASE (do_potential_id)
-
-         prefac = SQRT((pi*params%ZetapEtaInv)**3)*EXP(-zetj*zetk*params%ZetapEtaInv*SUM((rk - rj)**2))
-         params%Fm(:) = prefac
-      CASE DEFAULT
-         CPABORT("Requested operator NYI")
-      END SELECT
-
-      CALL cp_libint_set_params_eri_deriv(lib, rk, rk, rj, rj, rk, rj, params%W, zetk, 0.0_dp, &
-                                          zetj, 0.0_dp, params%ZetaInv, params%EtaInv, &
-                                          params%ZetapEtaInv, params%Rho, &
-                                          params%m_max, params%Fm)
-
-   END SUBROUTINE set_params_2c_deriv
 
 END MODULE libint_2c_3c

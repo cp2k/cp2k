@@ -30,6 +30,9 @@ MODULE hfx_derivatives
    USE cp_dbcsr_api, ONLY: dbcsr_get_matrix_type, &
                            dbcsr_p_type, &
                            dbcsr_type_antisymmetric
+   USE four_center_integral_interface, ONLY: four_center_integral_context_type
+   USE four_center_integral_methods, ONLY: forces4, &
+                                           pgf_product_list_size
    USE gamma, ONLY: init_md_ftable
    USE hfx_communication, ONLY: get_full_density
    USE hfx_compression_methods, ONLY: hfx_add_mult_cache_elements, &
@@ -39,15 +42,11 @@ MODULE hfx_derivatives
                                       hfx_get_mult_cache_elements, &
                                       hfx_get_single_cache_element, &
                                       hfx_reset_cache_and_container
-   USE hfx_libint_interface, ONLY: evaluate_deriv_eri
    USE hfx_load_balance_methods, ONLY: collect_load_balance_info, &
                                        hfx_load_balance, &
                                        hfx_update_load_balance
    USE hfx_pair_list_methods, ONLY: build_atomic_pair_list, &
-                                    build_pair_list, &
-                                    build_pair_list_pgf, &
-                                    build_pgf_product_list, &
-                                    pgf_product_list_size
+                                    build_pair_list
    USE hfx_screening_methods, ONLY: update_pmax_mat
    USE hfx_types, ONLY: &
       alloc_containers, dealloc_containers, hfx_basis_info_type, hfx_basis_type, hfx_cache_type, &
@@ -61,7 +60,6 @@ MODULE hfx_derivatives
    USE input_section_types, ONLY: section_vals_type
    USE kinds, ONLY: dp, &
                     int_8
-   USE libint_wrapper, ONLY: cp_libint_t
    USE machine, ONLY: m_walltime
    USE mathconstants, ONLY: fac
    USE orbital_pointers, ONLY: nco, &
@@ -187,7 +185,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_libint_t)                                  :: private_deriv
+      TYPE(four_center_integral_context_type)                                  :: private_context
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_basis_info_type), POINTER                 :: basis_info
@@ -369,7 +367,7 @@ CONTAINS
 !$OMP  pad_buf_resp_beta,particle_set,pbc_buf,pbc_buf_beta,pbc_buf_resp,pbc_buf_resp_beta,pbd_buf,pbd_buf_beta, &
 !$OMP  pbd_buf_resp, pbd_buf_resp_beta, pgf_list_ij,&
 !$OMP  pgf_list_kl,pgf_product_list,pmax_atom,pmax_blocks,pmax_entry,pmax_tmp,potential_parameter,primitive_forces,&
-!$OMP  primitive_forces_virial,private_deriv,ptr_p_1,ptr_p_2,ptr_p_3,ptr_p_4,ra,rab2,&
+!$OMP  primitive_forces_virial,private_context,ptr_p_1,ptr_p_2,ptr_p_3,ptr_p_4,ra,rab2,&
 !$OMP  rb,rc,rcd2,rd,screening_parameter,screen_pmat_forces,set_list_ij,set_list_kl,&
 !$OMP  sgfb,spherical_estimate,spherical_estimate_virial,sphi_a_ext,sphi_a_ext_set,sphi_a_u1,sphi_a_u2,sphi_a_u3,&
 !$OMP  sphi_b,sphi_b_ext,sphi_b_ext_set,sphi_b_u1,sphi_b_u2,sphi_b_u3,sphi_c_ext,sphi_c_ext_set,&
@@ -438,7 +436,7 @@ CONTAINS
       counter = 0_int_8
 
       !! Copy the libint_guy
-      private_deriv = actual_x_data%lib_deriv
+      private_context = actual_x_data%eri4_context
 
       !! Get screening parameter
 
@@ -1289,7 +1287,7 @@ CONTAINS
                            tmp_screen_pgf1 => screen_coeffs_pgf(:, :, jset, iset, jkind, ikind)
                            tmp_screen_pgf2 => screen_coeffs_pgf(:, :, lset, kset, lkind, kkind)
 
-                           CALL forces4(private_deriv, ra, rb, rc, rd, npgfa(iset), npgfb(jset), &
+                           CALL forces4(private_context, ra, rb, rc, rd, npgfa(iset), npgfb(jset), &
                                         npgfc(kset), npgfd(lset), &
                                         la_min(iset), la_max(iset), lb_min(jset), lb_max(jset), &
                                         lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset), &
@@ -1747,263 +1745,11 @@ CONTAINS
          END IF
       END IF
 
-      !
-      ! this wraps to free_libint, but currently causes a segfault
-      ! as a result, we don't call it, but some memory remains allocated
-      !
-      ! CALL terminate_libderiv(private_deriv)
-
 !$OMP END PARALLEL
 
       CALL timestop(handle)
 
    END SUBROUTINE derivatives_four_center
-
-! **************************************************************************************************
-!> \brief ...
-!> \param deriv ...
-!> \param ra ...
-!> \param rb ...
-!> \param rc ...
-!> \param rd ...
-!> \param npgfa ...
-!> \param npgfb ...
-!> \param npgfc ...
-!> \param npgfd ...
-!> \param la_min ...
-!> \param la_max ...
-!> \param lb_min ...
-!> \param lb_max ...
-!> \param lc_min ...
-!> \param lc_max ...
-!> \param ld_min ...
-!> \param ld_max ...
-!> \param nsgfa ...
-!> \param nsgfb ...
-!> \param nsgfc ...
-!> \param nsgfd ...
-!> \param sphi_a_u1 ...
-!> \param sphi_a_u2 ...
-!> \param sphi_a_u3 ...
-!> \param sphi_b_u1 ...
-!> \param sphi_b_u2 ...
-!> \param sphi_b_u3 ...
-!> \param sphi_c_u1 ...
-!> \param sphi_c_u2 ...
-!> \param sphi_c_u3 ...
-!> \param sphi_d_u1 ...
-!> \param sphi_d_u2 ...
-!> \param sphi_d_u3 ...
-!> \param zeta ...
-!> \param zetb ...
-!> \param zetc ...
-!> \param zetd ...
-!> \param primitive_integrals ...
-!> \param potential_parameter ...
-!> \param neighbor_cells ...
-!> \param screen1 ...
-!> \param screen2 ...
-!> \param eps_schwarz ...
-!> \param max_contraction_val ...
-!> \param cart_estimate ...
-!> \param cell ...
-!> \param neris_tmp ...
-!> \param log10_pmax ...
-!> \param log10_eps_schwarz ...
-!> \param R1_pgf ...
-!> \param R2_pgf ...
-!> \param pgf1 ...
-!> \param pgf2 ...
-!> \param pgf_list_ij ...
-!> \param pgf_list_kl ...
-!> \param pgf_product_list ...
-!> \param nsgfl_a ...
-!> \param nsgfl_b ...
-!> \param nsgfl_c ...
-!> \param nsgfl_d ...
-!> \param sphi_a_ext ...
-!> \param sphi_b_ext ...
-!> \param sphi_c_ext ...
-!> \param sphi_d_ext ...
-!> \param ede_work ...
-!> \param ede_work2 ...
-!> \param ede_work_forces ...
-!> \param ede_buffer1 ...
-!> \param ede_buffer2 ...
-!> \param ede_primitives_tmp ...
-!> \param nimages ...
-!> \param do_periodic ...
-!> \param use_virial ...
-!> \param ede_work_virial ...
-!> \param ede_work2_virial ...
-!> \param ede_primitives_tmp_virial ...
-!> \param primitive_integrals_virial ...
-!> \param cart_estimate_virial ...
-! **************************************************************************************************
-   SUBROUTINE forces4(deriv, ra, rb, rc, rd, npgfa, npgfb, npgfc, npgfd, &
-                      la_min, la_max, lb_min, lb_max, &
-                      lc_min, lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd, &
-                      sphi_a_u1, sphi_a_u2, sphi_a_u3, &
-                      sphi_b_u1, sphi_b_u2, sphi_b_u3, &
-                      sphi_c_u1, sphi_c_u2, sphi_c_u3, &
-                      sphi_d_u1, sphi_d_u2, sphi_d_u3, &
-                      zeta, zetb, zetc, zetd, &
-                      primitive_integrals, &
-                      potential_parameter, neighbor_cells, &
-                      screen1, screen2, eps_schwarz, max_contraction_val, &
-                      cart_estimate, cell, neris_tmp, log10_pmax, &
-                      log10_eps_schwarz, R1_pgf, R2_pgf, pgf1, pgf2, &
-                      pgf_list_ij, pgf_list_kl, &
-                      pgf_product_list, &
-                      nsgfl_a, nsgfl_b, nsgfl_c, &
-                      nsgfl_d, &
-                      sphi_a_ext, sphi_b_ext, sphi_c_ext, sphi_d_ext, &
-                      ede_work, ede_work2, ede_work_forces, &
-                      ede_buffer1, ede_buffer2, ede_primitives_tmp, &
-                      nimages, do_periodic, use_virial, ede_work_virial, &
-                      ede_work2_virial, ede_primitives_tmp_virial, primitive_integrals_virial, &
-                      cart_estimate_virial)
-
-      TYPE(cp_libint_t)                                  :: deriv
-      REAL(dp), INTENT(IN)                               :: ra(3), rb(3), rc(3), rd(3)
-      INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, lb_min, lb_max, lc_min, &
-                             lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd, sphi_a_u1, sphi_a_u2, sphi_a_u3, &
-                             sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_u1, sphi_c_u2, sphi_c_u3, sphi_d_u1, sphi_d_u2, &
-                             sphi_d_u3
-      REAL(dp), DIMENSION(1:npgfa), INTENT(IN)           :: zeta
-      REAL(dp), DIMENSION(1:npgfb), INTENT(IN)           :: zetb
-      REAL(dp), DIMENSION(1:npgfc), INTENT(IN)           :: zetc
-      REAL(dp), DIMENSION(1:npgfd), INTENT(IN)           :: zetd
-      REAL(dp), &
-         DIMENSION(nsgfa, nsgfb, nsgfc, nsgfd, 12)       :: primitive_integrals
-      TYPE(hfx_potential_type)                           :: potential_parameter
-      TYPE(hfx_cell_type), DIMENSION(:), POINTER         :: neighbor_cells
-      REAL(dp), INTENT(IN)                               :: screen1(2), screen2(2), eps_schwarz, &
-                                                            max_contraction_val
-      REAL(dp)                                           :: cart_estimate
-      TYPE(cell_type), POINTER                           :: cell
-      INTEGER(int_8)                                     :: neris_tmp
-      REAL(dp), INTENT(IN)                               :: log10_pmax, log10_eps_schwarz
-      TYPE(hfx_screen_coeff_type), DIMENSION(:, :), &
-         POINTER                                         :: R1_pgf, R2_pgf, pgf1, pgf2
-      TYPE(hfx_pgf_list), DIMENSION(*)                   :: pgf_list_ij, pgf_list_kl
-      TYPE(hfx_pgf_product_list), ALLOCATABLE, &
-         DIMENSION(:), INTENT(INOUT)                     :: pgf_product_list
-      INTEGER, DIMENSION(0:), INTENT(IN)                 :: nsgfl_a, nsgfl_b, nsgfl_c, nsgfl_d
-      REAL(dp), INTENT(IN) :: sphi_a_ext(sphi_a_u1, sphi_a_u2, sphi_a_u3), &
-                              sphi_b_ext(sphi_b_u1, sphi_b_u2, sphi_b_u3), sphi_c_ext(sphi_c_u1, sphi_c_u2, sphi_c_u3), &
-                              sphi_d_ext(sphi_d_u1, sphi_d_u2, sphi_d_u3)
-      REAL(dp), DIMENSION(*)                             :: ede_work, ede_work2, ede_work_forces, &
-                                                            ede_buffer1, ede_buffer2, &
-                                                            ede_primitives_tmp
-      INTEGER, DIMENSION(*)                              :: nimages
-      LOGICAL, INTENT(IN)                                :: do_periodic, use_virial
-      REAL(dp), DIMENSION(*)                             :: ede_work_virial, ede_work2_virial, &
-                                                            ede_primitives_tmp_virial
-      REAL(dp), &
-         DIMENSION(nsgfa, nsgfb, nsgfc, nsgfd, 12, 3)    :: primitive_integrals_virial
-      REAL(dp)                                           :: cart_estimate_virial
-
-      INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, list_ij, list_kl, lpgf, max_l, ncoa, ncob, &
-                 ncoc, ncod, nelements_ij, nelements_kl, nproducts, nsgfla, nsgflb, nsgflc, nsgfld, nsoa, &
-                 nsob, nsoc, nsod, s_offset_a, s_offset_b, s_offset_c, s_offset_d
-      REAL(dp)                                           :: EtaInv, tmp_max, tmp_max_virial, Zeta_A, &
-                                                            Zeta_B, Zeta_C, Zeta_D, ZetaInv
-
-      cart_estimate = 0.0_dp
-      primitive_integrals = 0.0_dp
-      IF (use_virial) THEN
-         primitive_integrals_virial = 0.0_dp
-         cart_estimate_virial = 0.0_dp
-      END IF
-      neris_tmp = 0_int_8
-
-      CALL build_pair_list_pgf(npgfa, npgfb, pgf_list_ij, zeta, zetb, screen1, screen2, &
-                               pgf1, R1_pgf, log10_pmax, log10_eps_schwarz, ra, rb, &
-                               nelements_ij, &
-                               neighbor_cells, nimages, do_periodic, cell)
-      IF (nelements_ij == 0) RETURN
-      CALL build_pair_list_pgf(npgfc, npgfd, pgf_list_kl, zetc, zetd, screen2, screen1, &
-                               pgf2, R2_pgf, log10_pmax, log10_eps_schwarz, rc, rd, &
-                               nelements_kl, &
-                               neighbor_cells, nimages, do_periodic, cell)
-      IF (nelements_kl == 0) RETURN
-
-      max_l = la_max + lb_max + lc_max + ld_max + 1
-      DO list_ij = 1, nelements_ij
-         Zeta_A = pgf_list_ij(list_ij)%zeta
-         Zeta_B = pgf_list_ij(list_ij)%zetb
-         ZetaInv = pgf_list_ij(list_ij)%ZetaInv
-         ipgf = pgf_list_ij(list_ij)%ipgf
-         jpgf = pgf_list_ij(list_ij)%jpgf
-
-         DO list_kl = 1, nelements_kl
-            Zeta_C = pgf_list_kl(list_kl)%zeta
-            Zeta_D = pgf_list_kl(list_kl)%zetb
-            EtaInv = pgf_list_kl(list_kl)%ZetaInv
-            kpgf = pgf_list_kl(list_kl)%ipgf
-            lpgf = pgf_list_kl(list_kl)%jpgf
-
-            CALL build_pgf_product_list(pgf_list_ij(list_ij), pgf_list_kl(list_kl), pgf_product_list, &
-                                        nproducts, log10_pmax, log10_eps_schwarz, neighbor_cells, cell, &
-                                        potential_parameter, max_l, do_periodic)
-            IF (nproducts == 0) CYCLE
-            s_offset_a = 0
-            DO la = la_min, la_max
-               s_offset_b = 0
-               ncoa = nco(la)
-               nsgfla = nsgfl_a(la)
-               nsoa = nso(la)
-
-               DO lb = lb_min, lb_max
-                  s_offset_c = 0
-                  ncob = nco(lb)
-                  nsgflb = nsgfl_b(lb)
-                  nsob = nso(lb)
-
-                  DO lc = lc_min, lc_max
-                     s_offset_d = 0
-                     ncoc = nco(lc)
-                     nsgflc = nsgfl_c(lc)
-                     nsoc = nso(lc)
-
-                     DO ld = ld_min, ld_max
-                        ncod = nco(ld)
-                        nsgfld = nsgfl_d(ld)
-                        nsod = nso(ld)
-                        tmp_max = 0.0_dp
-                        tmp_max_virial = 0.0_dp
-                        CALL evaluate_deriv_eri(deriv, nproducts, pgf_product_list, &
-                                                la, lb, lc, ld, &
-                                                ncoa, ncob, ncoc, ncod, &
-                                                nsgfa, nsgfb, nsgfc, nsgfd, &
-                                                primitive_integrals, &
-                                                max_contraction_val, tmp_max, eps_schwarz, neris_tmp, &
-                                                Zeta_A, Zeta_B, Zeta_C, Zeta_D, ZetaInv, EtaInv, &
-                                                s_offset_a, s_offset_b, s_offset_c, s_offset_d, &
-                                                nsgfla, nsgflb, nsgflc, nsgfld, nsoa, nsob, nsoc, nsod, &
-                                                sphi_a_ext(1, la + 1, ipgf), &
-                                                sphi_b_ext(1, lb + 1, jpgf), &
-                                                sphi_c_ext(1, lc + 1, kpgf), &
-                                                sphi_d_ext(1, ld + 1, lpgf), &
-                                                ede_work, ede_work2, ede_work_forces, &
-                                                ede_buffer1, ede_buffer2, ede_primitives_tmp, use_virial, &
-                                                ede_work_virial, ede_work2_virial, ede_primitives_tmp_virial, &
-                                                primitive_integrals_virial, cell, tmp_max_virial)
-                        cart_estimate = MAX(tmp_max, cart_estimate)
-                        IF (use_virial) cart_estimate_virial = MAX(tmp_max_virial, cart_estimate_virial)
-                        s_offset_d = s_offset_d + nsod*nsgfld
-                     END DO !ld
-                     s_offset_c = s_offset_c + nsoc*nsgflc
-                  END DO !lc
-                  s_offset_b = s_offset_b + nsob*nsgflb
-               END DO !lb
-               s_offset_a = s_offset_a + nsoa*nsgfla
-            END DO !la
-         END DO
-      END DO
-
-   END SUBROUTINE forces4
 
 ! **************************************************************************************************
 !> \brief Given a 2d index pair, this function returns a 1d index pair for

@@ -47,7 +47,7 @@ MODULE libint_wrapper
              libint_max_am, libderiv_max_am1, cp_libint_get_eris, cp_libint_get_derivs, &
              cp_libint_init_eri, cp_libint_init_eri1, cp_libint_cleanup_eri, &
              cp_libint_cleanup_eri1, cp_libint_static_init, cp_libint_static_cleanup, &
-             get_ssss_f_val, cp_libint_set_contrdepth, cp_libint_set_params_eri_screen, &
+             get_ssss_f_val, cp_libint_set_contrdepth, &
              cp_libint_set_params_eri, cp_libint_set_params_eri_deriv, &
              cp_libint_init_3eri, cp_libint_cleanup_3eri, cp_libint_get_3eris, &
              cp_libint_init_2eri, cp_libint_cleanup_2eri, cp_libint_get_2eris, &
@@ -69,6 +69,16 @@ MODULE libint_wrapper
    INTEGER, PARAMETER :: build_eri_size = libint_max_am
    INTEGER, PARAMETER :: build_deriv1_eri_size = libderiv_max_am1
 
+!> \brief Prepared primitive in original center order for the legacy Libint backend.
+!> \note Zero exponents denote dummy centers. Fm contains orders zero through prepared_max_order.
+   TYPE, PUBLIC :: eri_primitive_data_type
+      INTEGER :: prepared_max_order = -1
+      REAL(dp) :: centers(3, 4) = 0.0_dp, exponents(4) = 0.0_dp
+      REAL(dp) :: P(3) = 0.0_dp, Q(3) = 0.0_dp, W(3) = 0.0_dp
+      REAL(dp) :: ZetaInv = 0.0_dp, EtaInv = 0.0_dp, ZetapEtaInv = 0.0_dp, Rho = 0.0_dp
+      REAL(dp) :: Fm(prim_data_f_size) = 0.0_dp
+   END TYPE eri_primitive_data_type
+
    TYPE :: cp_libint_t
       PRIVATE
 #if(__LIBINT)
@@ -80,241 +90,140 @@ MODULE libint_wrapper
 
 CONTAINS
 
-   SUBROUTINE cp_libint_set_params_eri_screen(libint, A, B, C, D, P, Q, W, ZetaInv, EtaInv, ZetapEtaInv, Rho, m_max, F)
-      TYPE(cp_libint_t)                       :: libint
-      REAL(KIND=dp), INTENT(IN), DIMENSION(3) :: A, B, C, D, P, Q, W
-      REAL(KIND=dp), INTENT(IN)               :: ZetaInv, EtaInv, ZetapEtaInv, Rho
-      INTEGER, INTENT(IN)                     :: m_max
-      REAL(KIND=dp), DIMENSION(:)             :: F
+! **************************************************************************************************
+!> \brief Fill an ERI backend from one prepared primitive and a pair-symmetry permutation.
+!> \param libint backend workspace
+!> \param params primitive data in original center order
+!> \param permutation original center index for each backend center; preserves the ERI pair structure
+!> \param m_max requested radial order, not exceeding the prepared order
+! **************************************************************************************************
+   SUBROUTINE cp_libint_set_params_eri(libint, params, permutation, m_max)
+      TYPE(cp_libint_t), INTENT(INOUT) :: libint
+      TYPE(eri_primitive_data_type), INTENT(IN) :: params
+      INTEGER, INTENT(IN) :: permutation(4), m_max
 
 #if(__LIBINT)
-      libint%prv(1)%AB_x(1) = A(1) - B(1)
-      libint%prv(1)%AB_y(1) = A(2) - B(2)
-      libint%prv(1)%AB_z(1) = A(3) - B(3)
-
-      libint%prv(1)%CD_x(1) = C(1) - D(1)
-      libint%prv(1)%CD_y(1) = C(2) - D(2)
-      libint%prv(1)%CD_z(1) = C(3) - D(3)
-
-      libint%prv(1)%PA_x(1) = P(1) - A(1)
-      libint%prv(1)%PA_y(1) = P(2) - A(2)
-      libint%prv(1)%PA_z(1) = P(3) - A(3)
-
-      libint%prv(1)%QC_x(1) = Q(1) - C(1)
-      libint%prv(1)%QC_y(1) = Q(2) - C(2)
-      libint%prv(1)%QC_z(1) = Q(3) - C(3)
-
-      libint%prv(1)%WP_x(1) = W(1) - P(1)
-      libint%prv(1)%WP_y(1) = W(2) - P(2)
-      libint%prv(1)%WP_z(1) = W(3) - P(3)
-
-      libint%prv(1)%WQ_x(1) = W(1) - Q(1)
-      libint%prv(1)%WQ_y(1) = W(2) - Q(2)
-      libint%prv(1)%WQ_z(1) = W(3) - Q(3)
-
-      libint%prv(1)%oo2z(1) = 0.5_dp*ZetaInv
-      libint%prv(1)%oo2e(1) = 0.5_dp*EtaInv
-      libint%prv(1)%oo2ze(1) = 0.5_dp*ZetapEtaInv
-      libint%prv(1)%roz(1) = Rho*ZetaInv
-      libint%prv(1)%roe(1) = Rho*EtaInv
-
-      #:for m_max in range(0, 4*libint_max_am_supported)
-#if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
-         IF (${m_max}$ <= m_max) THEN
-            libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$ (1) &
-               = F(${m_max}$+1)
-         END IF
-
-#endif
-      #:endfor
-
-#else
-      MARK_USED(libint)
-      MARK_USED(A)
-      MARK_USED(B)
-      MARK_USED(C)
-      MARK_USED(D)
-      MARK_USED(P)
-      MARK_USED(Q)
-      MARK_USED(W)
-      MARK_USED(ZetaInv)
-      MARK_USED(EtaInv)
-      MARK_USED(ZetapEtaInv)
-      MARK_USED(Rho)
-      MARK_USED(m_max)
-      MARK_USED(F)
-
-      CPABORT("This CP2K executable has not been linked against the required library libint.")
+      INTEGER :: pair_order(2)
+      REAL(dp) :: product_centers(3, 2), inverse_exponents(2)
 #endif
 
-   END SUBROUTINE cp_libint_set_params_eri_screen
-
-   SUBROUTINE cp_libint_set_params_eri_deriv(libint, A, B, C, D, P, Q, W, zeta_A, zeta_B, zeta_C, zeta_D, &
-                                             ZetaInv, EtaInv, ZetapEtaInv, Rho, m_max, F)
-      TYPE(cp_libint_t)                       :: libint
-      REAL(KIND=dp), INTENT(IN), DIMENSION(3) :: A, B, C, D, P, Q, W
-      REAL(KIND=dp), INTENT(IN)               :: zeta_A, zeta_B, zeta_C, zeta_D, ZetaInv, EtaInv, ZetapEtaInv, Rho
-
-      INTEGER, INTENT(IN)                     :: m_max
-      REAL(KIND=dp), DIMENSION(:)             :: F
+      CPASSERT(m_max <= params%prepared_max_order)
 
 #if(__LIBINT)
-      REAL(KIND=dp)                           :: gammap, gammaq, gammapq, rhop, rhoq
-      libint%prv(1)%AB_x(1) = A(1) - B(1)
-      libint%prv(1)%AB_y(1) = A(2) - B(2)
-      libint%prv(1)%AB_z(1) = A(3) - B(3)
+      pair_order = [1, 2]
+      IF (permutation(1) > 2) pair_order = [2, 1]
+      product_centers(:, 1) = params%P
+      product_centers(:, 2) = params%Q
+      inverse_exponents = [params%ZetaInv, params%EtaInv]
 
-      libint%prv(1)%CD_x(1) = C(1) - D(1)
-      libint%prv(1)%CD_y(1) = C(2) - D(2)
-      libint%prv(1)%CD_z(1) = C(3) - D(3)
+      ASSOCIATE (A => params%centers(:, permutation(1)), B => params%centers(:, permutation(2)), &
+                 C => params%centers(:, permutation(3)), D => params%centers(:, permutation(4)), &
+                 P => product_centers(:, pair_order(1)), Q => product_centers(:, pair_order(2)), &
+                 W => params%W, ZetaInv => inverse_exponents(pair_order(1)), &
+                 EtaInv => inverse_exponents(pair_order(2)), ZetapEtaInv => params%ZetapEtaInv, &
+                 Rho => params%Rho, F => params%Fm)
+         libint%prv(1)%AB_x(1) = A(1) - B(1)
+         libint%prv(1)%AB_y(1) = A(2) - B(2)
+         libint%prv(1)%AB_z(1) = A(3) - B(3)
 
-      libint%prv(1)%PA_x(1) = P(1) - A(1)
-      libint%prv(1)%PA_y(1) = P(2) - A(2)
-      libint%prv(1)%PA_z(1) = P(3) - A(3)
+         libint%prv(1)%CD_x(1) = C(1) - D(1)
+         libint%prv(1)%CD_y(1) = C(2) - D(2)
+         libint%prv(1)%CD_z(1) = C(3) - D(3)
 
-      libint%prv(1)%PB_x(1) = P(1) - B(1)
-      libint%prv(1)%PB_y(1) = P(2) - B(2)
-      libint%prv(1)%PB_z(1) = P(3) - B(3)
+         libint%prv(1)%PA_x(1) = P(1) - A(1)
+         libint%prv(1)%PA_y(1) = P(2) - A(2)
+         libint%prv(1)%PA_z(1) = P(3) - A(3)
 
-      libint%prv(1)%QC_x(1) = Q(1) - C(1)
-      libint%prv(1)%QC_y(1) = Q(2) - C(2)
-      libint%prv(1)%QC_z(1) = Q(3) - C(3)
+         libint%prv(1)%QC_x(1) = Q(1) - C(1)
+         libint%prv(1)%QC_y(1) = Q(2) - C(2)
+         libint%prv(1)%QC_z(1) = Q(3) - C(3)
 
-      libint%prv(1)%WP_x(1) = W(1) - P(1)
-      libint%prv(1)%WP_y(1) = W(2) - P(2)
-      libint%prv(1)%WP_z(1) = W(3) - P(3)
+         libint%prv(1)%WP_x(1) = W(1) - P(1)
+         libint%prv(1)%WP_y(1) = W(2) - P(2)
+         libint%prv(1)%WP_z(1) = W(3) - P(3)
 
-      libint%prv(1)%WQ_x(1) = W(1) - Q(1)
-      libint%prv(1)%WQ_y(1) = W(2) - Q(2)
-      libint%prv(1)%WQ_z(1) = W(3) - Q(3)
+         libint%prv(1)%WQ_x(1) = W(1) - Q(1)
+         libint%prv(1)%WQ_y(1) = W(2) - Q(2)
+         libint%prv(1)%WQ_z(1) = W(3) - Q(3)
 
-      libint%prv(1)%two_alpha0_bra(1) = 2.0_dp*Zeta_A
-      libint%prv(1)%two_alpha0_ket(1) = 2.0_dp*Zeta_B
-      libint%prv(1)%two_alpha1_ket(1) = 2.0_dp*Zeta_D
+         libint%prv(1)%oo2z(1) = 0.5_dp*ZetaInv
+         libint%prv(1)%oo2e(1) = 0.5_dp*EtaInv
+         libint%prv(1)%oo2ze(1) = 0.5_dp*ZetapEtaInv
+         libint%prv(1)%roz(1) = Rho*ZetaInv
+         libint%prv(1)%roe(1) = Rho*EtaInv
 
-      gammap = Zeta_A + Zeta_B
-      gammaq = Zeta_C + Zeta_D
-      gammapq = gammap*gammaq/(gammap + gammaq)
-      libint%prv(1)%alpha1_rho_over_zeta2(1) = Zeta_A*gammapq/(gammap*gammap)
-      libint%prv(1)%alpha2_rho_over_zeta2(1) = Zeta_B*gammapq/(gammap*gammap)
-      libint%prv(1)%alpha4_rho_over_eta2(1) = Zeta_D*gammapq/(gammaq*gammaq)
-      libint%prv(1)%alpha1_over_zetapluseta(1) = Zeta_A/(gammap + gammaq)
-      libint%prv(1)%alpha2_over_zetapluseta(1) = Zeta_B/(gammap + gammaq)
-      libint%prv(1)%alpha4_over_zetapluseta(1) = Zeta_D/(gammap + gammaq)
-
-      rhop = Zeta_A*Zeta_B/gammap
-      rhoq = Zeta_C*Zeta_D/gammaq
-      libint%prv(1)%rho12_over_alpha1(1) = rhop/Zeta_A
-
-      libint%prv(1)%rho34_over_alpha3(1) = rhoq/Zeta_C
-
-      libint%prv(1)%oo2z(1) = 0.5_dp*ZetaInv
-      libint%prv(1)%oo2e(1) = 0.5_dp*EtaInv
-      libint%prv(1)%oo2ze(1) = 0.5_dp*ZetapEtaInv
-      libint%prv(1)%roz(1) = Rho*ZetaInv
-      libint%prv(1)%roe(1) = Rho*EtaInv
-
-      #:for m_max in range(0, 4*libint_max_am_supported)
-#if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
-         IF (${m_max}$ <= m_max) THEN
-            libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$ (1) & ! ERROR: __LIBINT_MAX_AM is too large
-               = F(${m_max}$+1)
-         END IF
-#endif
-      #:endfor
-
-#else
-      MARK_USED(libint)
-      MARK_USED(A)
-      MARK_USED(B)
-      MARK_USED(C)
-      MARK_USED(D)
-      MARK_USED(P)
-      MARK_USED(Q)
-      MARK_USED(W)
-      MARK_USED(zeta_A)
-      MARK_USED(zeta_B)
-      MARK_USED(zeta_C)
-      MARK_USED(zeta_D)
-      MARK_USED(ZetaInv)
-      MARK_USED(EtaInv)
-      MARK_USED(ZetapEtaInv)
-      MARK_USED(Rho)
-      MARK_USED(m_max)
-      MARK_USED(F)
-      CPABORT("This CP2K executable has not been linked against the required library libint.")
-#endif
-
-   END SUBROUTINE cp_libint_set_params_eri_deriv
-
-   SUBROUTINE cp_libint_set_params_eri(libint, A, B, C, D, ZetaInv, EtaInv, ZetapEtaInv, Rho, P, Q, W, m_max, F)
-      TYPE(cp_libint_t)                       :: libint
-      REAL(KIND=dp), INTENT(IN), DIMENSION(3) :: A, B, C, D, P, Q, W
-      REAL(KIND=dp), INTENT(IN)               :: ZetaInv, EtaInv, ZetapEtaInv, Rho
-      REAL(KIND=dp), DIMENSION(:)             :: F
-
-      INTEGER, INTENT(IN)                     :: m_max
-
-#if(__LIBINT)
-      libint%prv(1)%AB_x(1) = A(1) - B(1)
-      libint%prv(1)%AB_y(1) = A(2) - B(2)
-      libint%prv(1)%AB_z(1) = A(3) - B(3)
-
-      libint%prv(1)%CD_x(1) = C(1) - D(1)
-      libint%prv(1)%CD_y(1) = C(2) - D(2)
-      libint%prv(1)%CD_z(1) = C(3) - D(3)
-
-      libint%prv(1)%PA_x(1) = P(1) - A(1)
-      libint%prv(1)%PA_y(1) = P(2) - A(2)
-      libint%prv(1)%PA_z(1) = P(3) - A(3)
-
-      libint%prv(1)%QC_x(1) = Q(1) - C(1)
-      libint%prv(1)%QC_y(1) = Q(2) - C(2)
-      libint%prv(1)%QC_z(1) = Q(3) - C(3)
-
-      libint%prv(1)%WP_x(1) = W(1) - P(1)
-      libint%prv(1)%WP_y(1) = W(2) - P(2)
-      libint%prv(1)%WP_z(1) = W(3) - P(3)
-
-      libint%prv(1)%WQ_x(1) = W(1) - Q(1)
-      libint%prv(1)%WQ_y(1) = W(2) - Q(2)
-      libint%prv(1)%WQ_z(1) = W(3) - Q(3)
-
-      libint%prv(1)%oo2z(1) = 0.5_dp*ZetaInv
-      libint%prv(1)%oo2e(1) = 0.5_dp*EtaInv
-      libint%prv(1)%oo2ze(1) = 0.5_dp*ZetapEtaInv
-      libint%prv(1)%roz(1) = Rho*ZetaInv
-      libint%prv(1)%roe(1) = Rho*EtaInv
-
-      #:for m_max in range(0, 4*libint_max_am_supported)
+         #:for m_max in range(0, 4*libint_max_am_supported)
 #if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
 
-         IF (${m_max}$ <= m_max) THEN
-            libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$ (1) & ! ERROR: __LIBINT_MAX_AM is too large
-               = F(${m_max}$+1)
-         END IF
+            IF (${m_max}$ <= m_max) THEN
+               libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$ (1) &
+                  = F(${m_max}$+1)
+            END IF
 #endif
-      #:endfor
+         #:endfor
 
+      END ASSOCIATE
 #else
       MARK_USED(libint)
-      MARK_USED(A)
-      MARK_USED(B)
-      MARK_USED(C)
-      MARK_USED(D)
-      MARK_USED(P)
-      MARK_USED(Q)
-      MARK_USED(W)
-      MARK_USED(ZetaInv)
-      MARK_USED(EtaInv)
-      MARK_USED(ZetapEtaInv)
-      MARK_USED(Rho)
+      MARK_USED(params)
+      MARK_USED(permutation)
       MARK_USED(m_max)
-      MARK_USED(F)
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
-
    END SUBROUTINE cp_libint_set_params_eri
+
+! **************************************************************************************************
+!> \brief Fill common ERI fields and the additional first-derivative recurrence fields.
+!> \param libint backend workspace
+!> \param params primitive data in original center order
+!> \param permutation original center index for each backend center; preserves the ERI pair structure
+!> \param m_max requested radial order, including the first-derivative increment
+! **************************************************************************************************
+   SUBROUTINE cp_libint_set_params_eri_deriv(libint, params, permutation, m_max)
+      TYPE(cp_libint_t), INTENT(INOUT) :: libint
+      TYPE(eri_primitive_data_type), INTENT(IN) :: params
+      INTEGER, INTENT(IN) :: permutation(4), m_max
+
+#if(__LIBINT)
+      REAL(dp) :: P(3), exponents(4), gammap, gammaq, gammapq, rhop, rhoq
+#endif
+
+      CALL cp_libint_set_params_eri(libint, params, permutation, m_max)
+
+#if(__LIBINT)
+      P = params%P
+      IF (permutation(1) > 2) P = params%Q
+      exponents = params%exponents(permutation)
+      ASSOCIATE (B => params%centers(:, permutation(2)), &
+                 Zeta_A => exponents(1), Zeta_B => exponents(2), &
+                 Zeta_C => exponents(3), Zeta_D => exponents(4))
+         libint%prv(1)%PB_x(1) = P(1) - B(1)
+         libint%prv(1)%PB_y(1) = P(2) - B(2)
+         libint%prv(1)%PB_z(1) = P(3) - B(3)
+
+         libint%prv(1)%two_alpha0_bra(1) = 2.0_dp*Zeta_A
+         libint%prv(1)%two_alpha0_ket(1) = 2.0_dp*Zeta_B
+         libint%prv(1)%two_alpha1_ket(1) = 2.0_dp*Zeta_D
+
+         gammap = Zeta_A + Zeta_B
+         gammaq = Zeta_C + Zeta_D
+         gammapq = gammap*gammaq/(gammap + gammaq)
+         libint%prv(1)%alpha1_rho_over_zeta2(1) = Zeta_A*gammapq/(gammap*gammap)
+         libint%prv(1)%alpha2_rho_over_zeta2(1) = Zeta_B*gammapq/(gammap*gammap)
+         libint%prv(1)%alpha4_rho_over_eta2(1) = Zeta_D*gammapq/(gammaq*gammaq)
+         libint%prv(1)%alpha1_over_zetapluseta(1) = Zeta_A/(gammap + gammaq)
+         libint%prv(1)%alpha2_over_zetapluseta(1) = Zeta_B/(gammap + gammaq)
+         libint%prv(1)%alpha4_over_zetapluseta(1) = Zeta_D/(gammap + gammaq)
+
+         rhop = Zeta_A*Zeta_B/gammap
+         rhoq = Zeta_C*Zeta_D/gammaq
+         libint%prv(1)%rho12_over_alpha1(1) = rhop/Zeta_A
+
+         libint%prv(1)%rho34_over_alpha3(1) = rhoq/Zeta_C
+
+      END ASSOCIATE
+#endif
+   END SUBROUTINE cp_libint_set_params_eri_deriv
 ! **************************************************************************************************
 !> \brief ...
 !> \param n_d ...
