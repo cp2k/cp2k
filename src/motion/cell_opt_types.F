@@ -129,9 +129,7 @@ CONTAINS
       ! The masked pressure criterion is structurally off target for this
       ! combination on a non-orthorhombic cell. The run stays legal: the
       ! geometry criteria still work, and the pressure criterion may still
-      ! be met when the pinned shear stresses vanish by symmetry. The
-      ! decision lives in pres_crit_shear_pinned, which the unit test
-      ! checks over all 64 masks.
+      ! be met when the pinned shear stresses vanish by symmetry.
       IF (pres_crit_shear_pinned(cell_env%constraint_id, &
                                  cell_env%opt_cell%orthorhombic, &
                                  cell_env%keep_angles)) THEN
@@ -228,8 +226,6 @@ CONTAINS
       !    yz = {BX..CZ}            B complete, C complete  -> safe
       ! A partial group breaks the parallelism. A complete or untouched group keeps it.
       IF (cell_env%keep_angles) THEN
-         ! The decision lives in keep_angles_conflict, which the unit test
-         ! checks over all 64 masks.
          IF (keep_angles_conflict(cell_env%constraint_id, &
                                   cell_env%opt_cell%orthorhombic)) THEN
             CALL cp_abort(__LOCATION__, &
@@ -241,8 +237,6 @@ CONTAINS
       END IF
 
       IF (cell_env%keep_symmetry .AND. cell_env%constraint_id /= fix_none) THEN
-         ! The decision lives in keep_symmetry_conflict, which the unit test
-         ! checks over all 64 masks for every crystal system.
          bad_constraint = keep_symmetry_conflict(cell_env%constraint_id, &
                                                  cell_env%opt_cell%symmetry_id)
          IF (bad_constraint) THEN

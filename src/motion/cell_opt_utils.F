@@ -33,13 +33,13 @@ MODULE cell_opt_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_opt_utils'
 
-   PUBLIC :: fixes_partially, get_dg_dh, keep_angles_conflict, &
+   PUBLIC :: get_dg_dh, keep_angles_conflict, &
              keep_symmetry_coupled_set, keep_symmetry_conflict, &
              pres_crit_shear_pinned, parse_token, &
              read_external_press_tensor, &
              apply_cell_constraints, cell_opt_constraint_label, &
              parse_cell_constraint, &
-             rescale_new_cell_volume, slot_is_fixed
+             rescale_new_cell_volume
 
    ! Masks of the six independent cell variables in the canonical frame
    ! (a along x, b in the xy plane): AX, BX, BY, CX, CY, CZ.
