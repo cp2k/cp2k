@@ -231,7 +231,7 @@ def main() -> None:
                 mpi_mode="mpich",
                 base_image="nvidia/cuda:12.9.1-devel-ubuntu24.04",
                 gpu_model="A40",
-                feature_flags="-df elpa -ef cusolver_mp",
+                feature_flags="-df elpa -df libtorch -df sirius -ef cusolver_mp",
                 testopts=f"{testopts} --mpiranks 1 --keepalive",
                 image_tag=f.image_tag,
             )
