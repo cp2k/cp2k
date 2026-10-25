@@ -235,6 +235,7 @@ CONTAINS
          END DO
          IF (use_md_history) THEN
             ALLOCATE (jacobian(nvar, nvar))
+            jacobian = 0.0_dp
             DO i = 1, nvar
                jacobian(i, i) = (gradient_history(i, 2) - gradient_history(i, 1))/ &
                                 (variable_history(i, 2) - variable_history(i, 1))
@@ -261,6 +262,7 @@ CONTAINS
                           "to 3 for optimizers that build the Jacobian from SCF history.")
          END IF
          ALLOCATE (jacobian(nvar, nvar))
+         jacobian = 0.0_dp
          DO i = 1, nvar
             jacobian(i, i) = (scf_env%outer_scf%gradient(i, ihistory) - scf_env%outer_scf%gradient(i, ihistory - 1))/ &
                              (scf_env%outer_scf%variables(i, ihistory) - scf_env%outer_scf%variables(i, ihistory - 1))
