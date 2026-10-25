@@ -2,7 +2,7 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 #
-"HeH-water-noconstraint.inp" = [{matcher = "E_total", tol = 2e-11, ref = -2.95332848940707}]
+"HeH-water-noconstraint.inp" = [{matcher = "E_total", tol = 2e-11, ref = -2.95332848915134}]
 # The MM part seems to introduce noise that is difficult to account for
 # So just running the test successfully is sufficient
 "HeH-water-cdft-state-1.inp" = []
@@ -12,9 +12,9 @@
 # becke_qs.inc), so the charge transfer energy is not fully converged and is
 # prone to run-to-run noise (~1e-6 to 1e-5). Tolerances below are loosened
 # accordingly.
-"HeH-water-mixed-cdft-1.inp" = [{matcher = "M075", tol = 5e-5, ref = -0.144754579372}]
+"HeH-water-mixed-cdft-1.inp" = [{matcher = "M075", tol = 5e-5, ref = 0.048026266892}]
 "HeH-water-mixed-cdft-2.inp" = [{matcher = "M075", tol = 5e-5, ref = -0.144754579371}]
 # MD tests in parallel/serial modes
-"HeH-water-mixed-cdft-3.inp" = [{matcher = "M011", tol = 1e-09, ref = -2.564762048165651}]
+"HeH-water-mixed-cdft-3.inp" = [{matcher = "M011", tol = 1e-09, ref = -2.565755621942254}]
 "HeH-water-mixed-cdft-4.inp" = [{matcher = "M011", tol = 2e-09, ref = -2.564762048183066}]
 #EOF

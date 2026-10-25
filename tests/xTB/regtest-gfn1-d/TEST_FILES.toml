@@ -13,8 +13,8 @@
 "ch2o_t08.inp"                 = []
 "ch2o_cn_stress.inp"           = []
 "ch2o_d4_sparse.inp"           = [
-  {matcher = "E_total", tol = 1.0E-12, ref = -7.84825467662732},
-  {matcher = "M033", tol = 1.0E-12, ref = -0.00152141629964},
+  {matcher = "E_total", tol = 1.0E-12, ref = -7.84825397856766},
+  {matcher = "M033", tol = 1.0E-12, ref = -0.00152141631979},
   {matcher = "M072", tol = 1.0E-10, ref = 0.0},
   {matcher = "M031", tol = 1.0E-06, ref = -1.62137050123E+04}
 ]

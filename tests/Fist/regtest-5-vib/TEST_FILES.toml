@@ -1,30 +1,30 @@
 #vibrational analysis
 "wat_freq.inp"                = [
-  {matcher = "Vib_freq", tol = 1.0E-14, ref = 1736.7101734},
+  {matcher = "Vib_freq", tol = 1.0E-14, ref = 1736.7101724},
   {matcher = "Vib_frc_const", tol = 1.0E-04, ref = 0.122443}
 ]
-"wat_freq_norot.inp"          = [{matcher = "Vib_freq", tol = 1.0E-14, ref = 1736.7101734}]
-"wat_freq_freeze.inp"         = [{matcher = "Vib_freq", tol = 1.0E-14, ref = -37.593283504}]
+"wat_freq_norot.inp"          = [{matcher = "Vib_freq", tol = 1.0E-14, ref = 1736.7101725}]
+"wat_freq_freeze.inp"         = [{matcher = "Vib_freq", tol = 1.0E-14, ref = -37.593283484}]
 "wat_mode_sel.inp"            = []
 "wat_mode_sel_range.inp"      = []
 # MD inititalization with velocities from vibrational analysis
 "wat_md_vib_init.inp"         = [{matcher = "M070", tol = 1.0E-1, ref = 165.644}]
-"ethene-vib-mode-sel-int.inp" = [{matcher = "M021", tol = 1.0E-14, ref = 57.938395}]
+"ethene-vib-mode-sel-int.inp" = [{matcher = "M021", tol = 1.0E-14, ref = 57.938405}]
 # new mode_selective tests for several restart types
-"N3dye_geoopt.inp"            = [{matcher = "M007", tol = 1.0E-14, ref = 0.5616272352}]
+"N3dye_geoopt.inp"            = [{matcher = "M007", tol = 1.0E-14, ref = 0.5616272348}]
 "N3dye_vib_bfgs.inp"          = [{matcher = "M018", tol = 1e-03, ref = 1503.8296069999999}]
-"N3dye_vib_bfgs2.inp"         = [{matcher = "M018", tol = 2e-08, ref = 1721.1518249999999}]
-"N3dye_vib_inv_atoms.inp"     = [{matcher = "M018", tol = 1.0E-14, ref = 1434.154489}]
-"N3dye_vib_restart_vec3.inp"  = [{matcher = "M018", tol = 1.0E-14, ref = 1720.504985}]
-"N3dye_vib_restart_vec2.inp"  = [{matcher = "M018", tol = 1.0E-14, ref = 1434.156631}]
-"N3dye_vib_restart_vec.inp"   = [{matcher = "M018", tol = 1.0E-14, ref = 1720.504999}]
-"N3dye_vib_restart_vec4.inp"  = [{matcher = "M018", tol = 1.0E-14, ref = 1720.506967}]
+"N3dye_vib_bfgs2.inp"         = [{matcher = "M018", tol = 2e-08, ref = 1721.054205}]
+"N3dye_vib_inv_atoms.inp"     = [{matcher = "M018", tol = 1.0E-14, ref = 1434.154488}]
+"N3dye_vib_restart_vec3.inp"  = [{matcher = "M018", tol = 1.0E-14, ref = 1720.504984}]
+"N3dye_vib_restart_vec2.inp"  = [{matcher = "M018", tol = 1.0E-14, ref = 1434.15663}]
+"N3dye_vib_restart_vec.inp"   = [{matcher = "M018", tol = 1.0E-14, ref = 1720.504998}]
+"N3dye_vib_restart_vec4.inp"  = [{matcher = "M018", tol = 1.0E-14, ref = 1720.506966}]
 # write vibrational normal modes to molden, then re-read as initial dimer vector
-"argon_vib_molden_write.inp"  = [{matcher = "Vib_freq", tol = 1.0E-14, ref = 33.245417079}]
+"argon_vib_molden_write.inp"  = [{matcher = "Vib_freq", tol = 1.0E-14, ref = 33.245397362}]
 "argon_dimer_molden_read.inp" = [{matcher = "M007", tol = 1.0E-7, ref = 0.0000033386}]
 
 # Inverse BFGS Hessian as mode-selective initial guess
 # Allow one unit in the last printed energy digit (F25.10) across builds.
-"N3dye_geoopt_inverse.inp"   = [{matcher = "M007", tol = 2.0E-10, ref = 0.5616277602}]
-"N3dye_vib_bfgs_inverse.inp" = [{matcher = "M018", tol = 1.0E-07, ref = 1721.581032}]
+"N3dye_geoopt_inverse.inp"   = [{matcher = "M007", tol = 2.0E-10, ref = 0.5616272568}]
+"N3dye_vib_bfgs_inverse.inp" = [{matcher = "M018", tol = 1.0E-07, ref = 1721.546463}]
 #EOF

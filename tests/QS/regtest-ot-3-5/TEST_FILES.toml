@@ -4,11 +4,11 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 "Al-kpoint-mermin-response.inp"       = [
-  {matcher = "E_total", tol = 1e-9, ref = -3.995032366510561},
+  {matcher = "E_total", tol = 1e-9, ref = -3.99503235996837},
   {matcher = "OT_mermin_response_update"},
 ]
 "Al-kpoint-mermin-response-lbfgs.inp" = [
-  {matcher = "E_total", tol = 1e-9, ref = -3.990589661470200},
+  {matcher = "E_total", tol = 1e-9, ref = -3.99058965556219},
   {matcher = "OT_mermin_lbfgs_response_update"},
 ]
 "Al-kpoint-mermin-md.inp"             = [

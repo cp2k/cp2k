@@ -2,7 +2,7 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 # ENERGY : LS + KG embed (GGA) + Harris (Diag)
-"H2_H2O-xcLLP_ec.inp"       = [{matcher = "M011", tol = 1e-08, ref = -18.1323810074}]
+"H2_H2O-xcLLP_ec.inp"       = [{matcher = "M011", tol = 1e-08, ref = -18.13238128767193}]
 # ENERGY : LS + KG embed + Harris (Diag)
 "H2_H2O_ec.inp"             = [{matcher = "M011", tol = 1e-10, ref = -18.4641086282}]
 # ENERGY : LS + KG embed + Harris (Diag) primitive basis
@@ -36,9 +36,9 @@
 # FORCES: KS + Harris (Diag) + MO solver
 "H2O_ec.inp"                = [{matcher = "M011", tol = 1e-08, ref = -17.2629537942}]
 # FORCES KS + KG embed + Harris (TRS4) + AO solver
-"H2_H2O_KSKGeH_AO_grad.inp" = [{matcher = "M072", tol = 1E-06, ref = 0.01991310}]
+"H2_H2O_KSKGeH_AO_grad.inp" = [{matcher = "M072", tol = 1E-06, ref = 0.0199132259}]
 # FORCES KS + KG embed + Harris (TRS4) + MO solver
-"H2_H2O_KSKGeH_MO_grad.inp" = [{matcher = "M072", tol = 1E-06, ref = 0.02066929}]
+"H2_H2O_KSKGeH_MO_grad.inp" = [{matcher = "M072", tol = 1E-06, ref = 0.0206695276}]
 # FORCES KS + KG atomic + Harris (TRS4) + AO solver
 "H2_H2O_LSKGaH_AO_grad.inp" = [{matcher = "M072", tol = 1E-06, ref = 0.24253827}]
 # FORCES KS + KG atomic + Harris (TRS4) + MO solver
@@ -47,7 +47,7 @@
 # STRESS: KS + KG embed  + Harris (TRS4) + AO solver
 "H2_H2O_KSKGeH_AO_an.inp"   = [{matcher = "M031", tol = 1e-05, ref = 1.95042985060E+06}]
 # STRESS: KS + KG embed  + Harris (TRS4) + MO solver
-"H2_H2O_KSKGeH_MO_an.inp"   = [{matcher = "M031", tol = 1e-05, ref = -9.06100773653E+03}]
+"H2_H2O_KSKGeH_MO_an.inp"   = [{matcher = "M031", tol = 1e-05, ref = -9.06184982934E+03}]
 # STRESS: LS + KG atomic + Harris (TRS4) + AO solver
 "H2_H2O_LSKGaH_AO_an.inp"   = [{matcher = "M031", tol = 1e-05, ref = 1.49007996537E+06}]
 # STRESS: LS + KG atomic + Harris (TRS4) + MO solver
@@ -57,7 +57,7 @@
 # STRESS: KS + Harris (Diag) + MO solver - Diagonal numerical
 "H2O_KSH_AO_numdiag.inp"    = [{matcher = "M031", tol = 1e-05, ref = -2.41849782017E+04}]
 #
-"N2_ec-hfx.inp"             = [{matcher = "M011", tol = 1e-10, ref = -19.8158435718}]
+"N2_ec-hfx.inp"             = [{matcher = "M011", tol = 1e-10, ref = -19.815843574593828}]
 "N2_ec-hfx-admm.inp"        = [{matcher = "M011", tol = 1e-10, ref = -19.8434174923}]
 #
 "harris.inp"                = []

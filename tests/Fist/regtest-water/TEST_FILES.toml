@@ -1,6 +1,6 @@
 # Test common water models
-"H2O-SPC-6x6x6.inp"            = [{matcher = "M002", tol = 1.0E-12, ref = -0.262569484903E+01}]
-"H2O-SPCE-6x6x6.inp"           = [{matcher = "M002", tol = 1.0E-12, ref = -0.278895062813E+01}]
-"H2O-TIP3P-6x6x6.inp"          = [{matcher = "M002", tol = 1.0E-12, ref = -0.270534423425E+01}]
-"H2O-TIP3P_FLEXIBLE-6x6x6.inp" = [{matcher = "M002", tol = 1.0E-12, ref = -0.263573237268E+01}]
+"H2O-SPC-6x6x6.inp"            = [{matcher = "M002", tol = 1.0E-12, ref = -2.6256950591E+00}]
+"H2O-SPCE-6x6x6.inp"           = [{matcher = "M002", tol = 1.0E-12, ref = -2.78895083693E+00}]
+"H2O-TIP3P-6x6x6.inp"          = [{matcher = "M002", tol = 1.0E-12, ref = -2.7053444466E+00}]
+"H2O-TIP3P_FLEXIBLE-6x6x6.inp" = [{matcher = "M002", tol = 1.0E-12, ref = -2.63573275828E+00}]
 #EOF

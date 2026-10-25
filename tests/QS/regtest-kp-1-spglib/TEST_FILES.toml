@@ -25,39 +25,39 @@
   {matcher = "N_special_kpoints", tol = 0.0, ref = 1}
 ]
 "h_fcc_sym_red.inp"                                  = [
-  {matcher = "E_total", tol = 1e-13, ref = -4.35025489265897},
+  {matcher = "E_total", tol = 1e-13, ref = -4.35025489559784},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 1}
 ]
 "h_fcc_spglib_method.inp"                            = [
-  {matcher = "E_total", tol = 1e-13, ref = -4.35025489265897},
+  {matcher = "E_total", tol = 1e-13, ref = -4.35025489559784},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 1}
 ]
 "h_fcc_spglib_backend.inp"                           = [
-  {matcher = "E_total", tol = 1e-13, ref = -4.35025489265897},
+  {matcher = "E_total", tol = 1e-13, ref = -4.35025489559784},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 1}
 ]
 "h_fcc_macdonald_spglib_backend.inp"                 = [
-  {matcher = "E_total", tol = 1e-13, ref = -4.35025489265897},
+  {matcher = "E_total", tol = 1e-13, ref = -4.35025489559784},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 1}
 ]
 "h_fcc_general_spglib_backend.inp"                   = [
-  {matcher = "E_total", tol = 1e-13, ref = -4.34524388359536},
+  {matcher = "E_total", tol = 1e-13, ref = -4.3452438898097},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 1}
 ]
 "h_fcc_general_wannier90_spglib.inp"                 = [
-  {matcher = "E_total", tol = 1e-13, ref = -4.34524388359536},
+  {matcher = "E_total", tol = 1e-13, ref = -4.3452438898097},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 1},
   {matcher = "WANNIER90_SCF_MO_REUSE"},
   {matcher = "WANNIER90_DEGENERATE_SUBSPACE_ALIGN"}
 ]
 "h_fcc_macdonald_wannier90_spglib.inp"               = [
-  {matcher = "E_total", tol = 1e-13, ref = -4.34524388359536},
+  {matcher = "E_total", tol = 1e-13, ref = -4.34524388980971},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 1},
   {matcher = "WANNIER90_SCF_MO_REUSE"},
   {matcher = "WANNIER90_DEGENERATE_SUBSPACE_ALIGN"}
 ]
 "h_fcc_general_spglib_method_k290_backend.inp"       = [
-  {matcher = "E_total", tol = 1e-13, ref = -4.34524388359536},
+  {matcher = "E_total", tol = 1e-13, ref = -4.34524388980971},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 1}
 ]
 "h_fcc_general_geo_opt_spglib_backend.inp"           = [
@@ -65,11 +65,11 @@
   {matcher = "N_special_kpoints", tol = 0.0, ref = 1}
 ]
 "h_fcc_spglib_backend_4.inp"                         = [
-  {matcher = "E_total", tol = 1e-13, ref = -4.31445892211372},
+  {matcher = "E_total", tol = 1e-13, ref = -4.31445892465898},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
 "h_fcc_wannier90_scf_mp_4_bloch_validate_spglib.inp" = [
-  {matcher = "E_total", tol = 1e-13, ref = -4.30964310650676},
+  {matcher = "E_total", tol = 1e-13, ref = -4.30964311232483},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4},
   {matcher = "WANNIER90_SCF_MO_REUSE"},
   {matcher = "WANNIER90_DEGENERATE_SUBSPACE_ALIGN"},

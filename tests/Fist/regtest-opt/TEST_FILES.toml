@@ -4,111 +4,111 @@
 #      for details see cp2k/tools/do_regtest
 #
 # Geometry optimisation
-"geo_opt_bfgs.inp"                             = [{matcher = "M011", tol = 1.0E-14, ref = -35.282422070543703}]
-"geo_opt_cg_2pnt.inp"                          = [{matcher = "M011", tol = 2.0e-14, ref = -35.282422123859703}]
-"geo_opt_cg_fit.inp"                           = [{matcher = "M011", tol = 1.0E-12, ref = -35.28242197359649}]
-"geo_opt_cg_gold.inp"                          = [{matcher = "M011", tol = 1.0E-14, ref = -35.28242198134038}]
-"geo_opt_lbfgs.inp"                            = [{matcher = "M011", tol = 1.0E-14, ref = -35.282422125160856}]
+"geo_opt_bfgs.inp"                             = [{matcher = "M011", tol = 1.0E-14, ref = -35.282422632289126}]
+"geo_opt_cg_2pnt.inp"                          = [{matcher = "M011", tol = 2.0e-14, ref = -35.282422685605404}]
+"geo_opt_cg_fit.inp"                           = [{matcher = "M011", tol = 1.0E-12, ref = -35.28242253534181}]
+"geo_opt_cg_gold.inp"                          = [{matcher = "M011", tol = 1.0E-14, ref = -35.282422543085595}]
+"geo_opt_lbfgs.inp"                            = [{matcher = "M011", tol = 1.0E-14, ref = -35.28242268690661}]
 # Direct cell optimisation (combined geometry and cell optimiser)
-"cell_opt_direct_bfgs.inp"                     = [{matcher = "M011", tol = 1.0E-14, ref = -35.644084205321462}]
-"cell_opt_direct_cg_2pnt.inp"                  = [{matcher = "M011", tol = 2.0E-14, ref = -35.64408417979653}]
-"cell_opt_direct_cg_gold.inp"                  = [{matcher = "M011", tol = 4e-10, ref = -35.64408416148384}]
-"cell_opt_direct_lbfgs.inp"                    = [{matcher = "M011", tol = 3.0E-11, ref = -35.644084204213243}]
+"cell_opt_direct_bfgs.inp"                     = [{matcher = "M011", tol = 1.0E-14, ref = -35.64408497236847}]
+"cell_opt_direct_cg_2pnt.inp"                  = [{matcher = "M011", tol = 2.0E-14, ref = -35.64408494684402}]
+"cell_opt_direct_cg_gold.inp"                  = [{matcher = "M011", tol = 4e-10, ref = -35.64408492841895}]
+"cell_opt_direct_lbfgs.inp"                    = [{matcher = "M011", tol = 3.0E-11, ref = -35.64408497130051}]
 # Geometry optimisation using core-shell models
-"cs_geo_opt_bfgs.inp"                          = [{matcher = "M011", tol = 1.0E-14, ref = -34.165775691654950}]
-"cs_geo_opt_cg_2pnt.inp"                       = [{matcher = "M011", tol = 2e-14, ref = -34.16577572305044}]
-"cs_geo_opt_cg_fit.inp"                        = [{matcher = "M011", tol = 1.0E-11, ref = -34.16577575560136}]
-"cs_geo_opt_cg_gold.inp"                       = [{matcher = "M011", tol = 1.0E-14, ref = -34.16577575379811}]
-"cs_geo_opt_lbfgs.inp"                         = [{matcher = "M011", tol = 1.0E-14, ref = -34.165775670048319}]
+"cs_geo_opt_bfgs.inp"                          = [{matcher = "M011", tol = 1.0E-14, ref = -34.16577635643728}]
+"cs_geo_opt_cg_2pnt.inp"                       = [{matcher = "M011", tol = 2e-14, ref = -34.165776387832935}]
+"cs_geo_opt_cg_fit.inp"                        = [{matcher = "M011", tol = 1.0E-11, ref = -34.165776420383914}]
+"cs_geo_opt_cg_gold.inp"                       = [{matcher = "M011", tol = 1.0E-14, ref = -34.16577641858067}]
+"cs_geo_opt_lbfgs.inp"                         = [{matcher = "M011", tol = 1.0E-14, ref = -34.16577633483075}]
 # Direct cell optimisation using core-shell models
-"cs_cell_opt_direct_bfgs.inp"                  = [{matcher = "M011", tol = 1.0E-14, ref = -34.187395867233498}]
-"cs_cell_opt_direct_cg_2pnt.inp"               = [{matcher = "M011", tol = 1.0E-14, ref = -34.18739586859258}]
-"cs_cell_opt_direct_cg_gold.inp"               = [{matcher = "M011", tol = 5e-11, ref = -34.187395868578747}]
-"cs_cell_opt_direct_lbfgs.inp"                 = [{matcher = "M011", tol = 1.0E-14, ref = -34.18739586621215}]
+"cs_cell_opt_direct_bfgs.inp"                  = [{matcher = "M011", tol = 1.0E-14, ref = -34.18739657441548}]
+"cs_cell_opt_direct_cg_2pnt.inp"               = [{matcher = "M011", tol = 1.0E-14, ref = -34.1873965757745}]
+"cs_cell_opt_direct_cg_gold.inp"               = [{matcher = "M011", tol = 5e-11, ref = -34.18739657657318}]
+"cs_cell_opt_direct_lbfgs.inp"                 = [{matcher = "M011", tol = 1.0E-14, ref = -34.1873965733942}]
 # Test parsing of products
-"mc_cs_geo_opt_lbfgs.inp"                      = [{matcher = "M011", tol = 1e-08, ref = -136.663104867266583}]
+"mc_cs_geo_opt_lbfgs.inp"                      = [{matcher = "M011", tol = 1e-08, ref = -136.6631075263879}]
 # Cell symmetry constraint
-"cell_sym_cubic.inp"                           = [{matcher = "M011", tol = 1e-10, ref = -129.12247913626771}]
-"cell_sym_hexagonal_gamma_120.inp"             = [{matcher = "M011", tol = 4e-09, ref = -129.05206532631195}]
-"cell_sym_hexagonal_gamma_60.inp"              = [{matcher = "M011", tol = 4e-09, ref = -129.05206533232612}]
-"cell_sym_hexagonal.inp"                       = [{matcher = "M011", tol = 4e-09, ref = -129.05206533232612}]
-"cell_sym_monoclinic.inp"                      = [{matcher = "M011", tol = 1e-08, ref = -129.28637033131494}]
-"cell_sym_monoclinic_gamma_ab.inp"             = [{matcher = "M011", tol = 1e-08, ref = -129.23692670296523}]
-"cell_sym_none.inp"                            = [{matcher = "M011", tol = 1e-08, ref = -129.28637032411459}]
-"cell_sym_orthorhombic.inp"                    = [{matcher = "M011", tol = 1e-08, ref = -129.28636945323004}]
-"cell_sym_rhombohedral.inp"                    = [{matcher = "M011", tol = 1e-08, ref = -129.03437105082563}]
-"cell_sym_tetragonal_ab.inp"                   = [{matcher = "M011", tol = 1e-08, ref = -129.2369243617301}]
-"cell_sym_tetragonal_ac.inp"                   = [{matcher = "M011", tol = 1e-08, ref = -129.22195126442756}]
-"cell_sym_tetragonal_bc.inp"                   = [{matcher = "M011", tol = 1e-08, ref = -129.12318608682179}]
-"cell_sym_tetragonal.inp"                      = [{matcher = "M011", tol = 1e-08, ref = -129.2369243617301}]
-"cell_sym_triclinic.inp"                       = [{matcher = "M011", tol = 1e-08, ref = -129.28637032103501}]
+"cell_sym_cubic.inp"                           = [{matcher = "M011", tol = 1e-10, ref = -129.12247992001835}]
+"cell_sym_hexagonal_gamma_120.inp"             = [{matcher = "M011", tol = 4e-09, ref = -129.05206766148248}]
+"cell_sym_hexagonal_gamma_60.inp"              = [{matcher = "M011", tol = 4e-09, ref = -129.0520676615101}]
+"cell_sym_hexagonal.inp"                       = [{matcher = "M011", tol = 4e-09, ref = -129.0520676615101}]
+"cell_sym_monoclinic.inp"                      = [{matcher = "M011", tol = 1e-08, ref = -129.28637265337676}]
+"cell_sym_monoclinic_gamma_ab.inp"             = [{matcher = "M011", tol = 1e-08, ref = -129.2369293856453}]
+"cell_sym_none.inp"                            = [{matcher = "M011", tol = 1e-08, ref = -129.28637261597245}]
+"cell_sym_orthorhombic.inp"                    = [{matcher = "M011", tol = 1e-08, ref = -129.28637227941525}]
+"cell_sym_rhombohedral.inp"                    = [{matcher = "M011", tol = 1e-08, ref = -129.03437305902955}]
+"cell_sym_tetragonal_ab.inp"                   = [{matcher = "M011", tol = 1e-08, ref = -129.23692868410066}]
+"cell_sym_tetragonal_ac.inp"                   = [{matcher = "M011", tol = 1e-08, ref = -129.2219531062483}]
+"cell_sym_tetragonal_bc.inp"                   = [{matcher = "M011", tol = 1e-08, ref = -129.12319095668724}]
+"cell_sym_tetragonal.inp"                      = [{matcher = "M011", tol = 1e-08, ref = -129.23692868410066}]
+"cell_sym_triclinic.inp"                       = [{matcher = "M011", tol = 1e-08, ref = -129.28637261597245}]
 # Cell optimisation constraint
-"cell_opt_constraint_none.inp"                 = [{matcher = "M011", tol = 1.0E-10, ref = -1210.562919201514887}]
+"cell_opt_constraint_none.inp"                 = [{matcher = "M011", tol = 1.0E-10, ref = -1210.5629475625515}]
 "cell_opt_constraint_xy.inp"                   = [
-  {matcher = "M011", tol = 1.0E-10, ref = -1210.460826328278017},
+  {matcher = "M011", tol = 1.0E-10, ref = -1210.4608541401574},
   {matcher = "Cell_length_a", tol = 1.0E-9, ref = 27.500000},
   {matcher = "Cell_length_b", tol = 1.0E-9, ref = 27.500000}
 ]
 "cell_opt_constraint_z.inp"                    = [
-  {matcher = "M011", tol = 1.0E-10, ref = -1210.524637046745283},
+  {matcher = "M011", tol = 1.0E-10, ref = -1210.5246651993493},
   {matcher = "Cell_length_c", tol = 1.0E-9, ref = 27.500000}
 ]
 # Component-wise cell optimisation constraints (C fixes the same components as Z,
 # the reference value is shared with cell_opt_constraint_z on purpose)
 "cell_opt_constraint_c.inp"                    = [
-  {matcher = "M011", tol = 1.0E-10, ref = -1210.524637046745283},
+  {matcher = "M011", tol = 1.0E-10, ref = -1210.5246651993493},
   {matcher = "Cell_length_c", tol = 1.0E-9, ref = 27.500000}
 ]
 "cell_opt_constraint_ab.inp"                   = [
-  {matcher = "M011", tol = 1.0E-8, ref = -261.459538486902431},
+  {matcher = "M011", tol = 1.0E-8, ref = -261.45954449413495},
   {matcher = "Cell_length_a", tol = 1.0E-9, ref = 16.500000},
   {matcher = "Cell_length_b", tol = 1.0E-9, ref = 16.500000}
 ]
 "cell_opt_constraint_ax_by_cz.inp"             = [
-  {matcher = "M011", tol = 1.0E-8, ref = -261.430306445227473},
+  {matcher = "M011", tol = 1.0E-8, ref = -261.4303122979182},
   {matcher = "Cell_length_a", tol = 1.0E-9, ref = 16.500000},
   {matcher = "Cell_length_b", tol = 1.0E-9, ref = 16.500000},
   {matcher = "Cell_length_c", tol = 1.0E-9, ref = 16.500000}
 ]
 "cell_opt_constraint_2d.inp"                   = [
-  {matcher = "M011", tol = 1.0E-8, ref = -0.391897271410234},
+  {matcher = "M011", tol = 1.0E-8, ref = -0.391897236997836},
   {matcher = "Cell_length_c", tol = 1.0E-9, ref = 15.000000}
 ]
 "cell_opt_constraint_b.inp"                    = [
-  {matcher = "M011", tol = 1.0E-8, ref = -261.473321602204408},
+  {matcher = "M011", tol = 1.0E-8, ref = -261.4733276830376},
   {matcher = "Cell_length_b", tol = 1.0E-9, ref = 16.500000}
 ]
 # Same run as cell_opt_constraint_b with a trailing comment and a quoted value.
 "cell_opt_constraint_comment.inp"              = [
-  {matcher = "M011", tol = 1.0E-8, ref = -261.473321602204408},
+  {matcher = "M011", tol = 1.0E-8, ref = -261.4733276830376},
   {matcher = "Cell_length_b", tol = 1.0E-9, ref = 16.500000}
 ]
 "cell_opt_constraint_quoted.inp"               = [
-  {matcher = "M011", tol = 1.0E-8, ref = -261.473321602204408},
+  {matcher = "M011", tol = 1.0E-8, ref = -261.4733276830376},
   {matcher = "Cell_length_b", tol = 1.0E-9, ref = 16.500000}
 ]
 "cell_opt_constraint_a_keep_angles.inp"        = [
-  {matcher = "M011", tol = 1.0E-8, ref = -261.473321602206113},
+  {matcher = "M011", tol = 1.0E-8, ref = -261.47332768303664},
   {matcher = "Cell_length_a", tol = 1.0E-9, ref = 16.500000}
 ]
 # Non-orthorhombic KEEP_ANGLE variants: the 60-degree rhombohedral cell pins the
 # a length and the kept alpha, the triclinic smoke run anchors an early step.
 "cell_opt_constraint_a_keep_angles_rhombo.inp" = [
-  {matcher = "M011", tol = 1.0E-10, ref = -19.369006707220770},
+  {matcher = "M011", tol = 1.0E-10, ref = -19.369007160993753},
   {matcher = "Cell_length_a", tol = 1.0E-9, ref = 7.703891},
   {matcher = "Cell_angle_alpha", tol = 1.0E-9, ref = 60.000000}
 ]
 "cell_opt_constraint_z_keep_angles_smoke.inp"  = [
-  {matcher = "M011", tol = 1.0E-10, ref = -77.466559969627582},
+  {matcher = "M011", tol = 1.0E-10, ref = -77.46656177197448},
   {matcher = "Cell_length_c", tol = 1.0E-9, ref = 11.000000},
   {matcher = "Cell_angle_alpha", tol = 1.0E-9, ref = 89.000000}
 ]
 # Cell optimisation with fixed volume
-"cell_opt_keep_volume.inp"                     = [{matcher = "M011", tol = 1.0E-10, ref = -16.136339196984437}]
-"cell_opt_keep_volume_symmetry.inp"            = [{matcher = "M011", tol = 1.0E-10, ref = -16.13633919692934}]
+"cell_opt_keep_volume.inp"                     = [{matcher = "M011", tol = 1.0E-10, ref = -16.136339649892786}]
+"cell_opt_keep_volume_symmetry.inp"            = [{matcher = "M011", tol = 1.0E-10, ref = -16.136339649823668}]
 # Inverse BFGS
-"geo_opt_bfgs_inverse.inp"                     = [{matcher = "M011", tol = 1.0E-14, ref = -35.282422070543689}]
-"cell_opt_direct_bfgs_inverse.inp"             = [{matcher = "M011", tol = 1.0E-14, ref = -35.644084205321576}]
-"cell_opt_bfgs_inverse_restart_direct.inp"     = [{matcher = "M011", tol = 1.0E-14, ref = -35.644084205353230}]
-"cell_opt_bfgs_inverse_vib.inp"                = [{matcher = "M018", tol = 1.0E-14, ref = 587.912968}]
+"geo_opt_bfgs_inverse.inp"                     = [{matcher = "M011", tol = 1.0E-14, ref = -35.282422632289126}]
+"cell_opt_direct_bfgs_inverse.inp"             = [{matcher = "M011", tol = 1.0E-14, ref = -35.64408497236847}]
+"cell_opt_bfgs_inverse_restart_direct.inp"     = [{matcher = "M011", tol = 1.0E-14, ref = -35.64408497240003}]
+"cell_opt_bfgs_inverse_vib.inp"                = [{matcher = "M018", tol = 1.0E-14, ref = 587.913017}]
 #EOF

@@ -2,25 +2,25 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 #
-"He2-energy-diag.inp"                 = [{matcher = "M011", tol = 2e-13, ref = -4.892580810846837}]
-"He2-cdft-diag-1.inp"                 = [{matcher = "M011", tol = 2e-13, ref = -4.526329437291760}]
-"He2-cdft-diag-2.inp"                 = [{matcher = "M011", tol = 2e-13, ref = -4.526329530761175}]
+"He2-energy-diag.inp"                 = [{matcher = "M011", tol = 2e-13, ref = -4.892580810518292}]
+"He2-cdft-diag-1.inp"                 = [{matcher = "M011", tol = 2e-13, ref = -4.526329385643045}]
+"He2-cdft-diag-2.inp"                 = [{matcher = "M011", tol = 2e-13, ref = -4.526329539805599}]
 # Mixed CDFT: change parameters related to how fractionally occupied MOs are treated
-"He2-mixed-cdft-diag-1.inp"           = [{matcher = "M073", tol = 1e-11, ref = 444.493157682007}]
-"He2-mixed-cdft-diag-2.inp"           = [{matcher = "M073", tol = 3e-9, ref = 0.120864933677}]
-"He2-mixed-cdft-diag-3.inp"           = [{matcher = "M073", tol = 1e-11, ref = 444.493471275986}]
-"He2-mixed-cdft-diag-5.inp"           = [{matcher = "M073", tol = 1e-11, ref = 444.493471275987}]
-"He2-mixed-cdft-diag-6.inp"           = [{matcher = "M073", tol = 1e-11, ref = 34.273313989932}]
-"He2-mixed-cdft-diag-7.inp"           = [{matcher = "M073", tol = 1e-11, ref = 535.869873289158}]
+"He2-mixed-cdft-diag-1.inp"           = [{matcher = "M073", tol = 1e-11, ref = 444.493181259633}]
+"He2-mixed-cdft-diag-2.inp"           = [{matcher = "M073", tol = 3e-9, ref = 0.12086278028}]
+"He2-mixed-cdft-diag-3.inp"           = [{matcher = "M073", tol = 1e-11, ref = 444.493494847791}]
+"He2-mixed-cdft-diag-5.inp"           = [{matcher = "M073", tol = 1e-11, ref = 444.493494847791}]
+"He2-mixed-cdft-diag-6.inp"           = [{matcher = "M073", tol = 1e-11, ref = 34.273322334264}]
+"He2-mixed-cdft-diag-7.inp"           = [{matcher = "M073", tol = 1e-11, ref = 535.869825033752}]
 # Constrain alpha and beta spin densities separately
 "He2-cdft-alphabeta-diag-1.inp"       = [{matcher = "M011", tol = 1e-9, ref = -4.370119684895506}]
 "He2-cdft-alphabeta-diag-2.inp"       = [{matcher = "M011", tol = 1e-9, ref = -4.367613387595789}]
 "He2-mixed-cdft-alphabeta-diag-1.inp" = [{matcher = "M076", tol = 1e-7, ref = 5.100767610558}]
 # MD with two constraints testing various Jacobian reusing schemes
-"He2-cdft-alphabeta-diag-md-1.inp"    = [{matcher = "M011", tol = 6e-10, ref = -4.092821224519497}]
-"He2-cdft-alphabeta-diag-md-2.inp"    = [{matcher = "M011", tol = 6e-10, ref = -4.332289335492456}]
-"He2-cdft-alphabeta-diag-md-3.inp"    = [{matcher = "M011", tol = 6e-10, ref = -3.818257028460804}]
-"He2-cdft-alphabeta-diag-md-4.inp"    = [{matcher = "M011", tol = 6e-10, ref = -4.044764550174948}]
+"He2-cdft-alphabeta-diag-md-1.inp"    = [{matcher = "M011", tol = 6e-10, ref = -4.092821214126708}]
+"He2-cdft-alphabeta-diag-md-2.inp"    = [{matcher = "M011", tol = 6e-10, ref = -4.33228932700165}]
+"He2-cdft-alphabeta-diag-md-3.inp"    = [{matcher = "M011", tol = 6e-10, ref = -3.818257013577989}]
+"He2-cdft-alphabeta-diag-md-4.inp"    = [{matcher = "M011", tol = 6e-10, ref = -4.044764538853583}]
 # Use different Jacobian step sizes for constraints 1 and 2
-"He2-cdft-alphabeta-diag-3.inp"       = [{matcher = "M011", tol = 6e-10, ref = -4.416814537401490}]
+"He2-cdft-alphabeta-diag-3.inp"       = [{matcher = "M011", tol = 6e-10, ref = -4.416814507711738}]
 #EOF

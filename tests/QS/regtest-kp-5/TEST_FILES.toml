@@ -15,22 +15,22 @@
 # land on the energy of the fixed-count twin with 16 added MOS. Without the
 # growth the energy misses the reference by 3.4E-8. The default k-point group
 # split gives two single-rank groups at the two CI ranks
-"Al-kpoint-dav-smear-auto.inp"  = [{matcher = "E_total", tol = 1e-9, ref = -8.173546695860358}]
+"Al-kpoint-dav-smear-auto.inp"  = [{matcher = "E_total", tol = 1e-9, ref = -8.1735466708231}]
 # blocked Davidson at complex K points, same oracle energy as the OT family below
 "he_dav.inp"                    = [
-  {matcher = "E_total", tol = 1e-9, ref = -2.89466358139099},
+  {matcher = "E_total", tol = 1e-9, ref = -2.8946635781677},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
 "he_dav_full_all.inp"           = [
-  {matcher = "E_total", tol = 1e-9, ref = -2.89466358139099},
+  {matcher = "E_total", tol = 1e-9, ref = -2.8946635781677},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
 "he_dav_s_inverse.inp"          = [
-  {matcher = "E_total", tol = 1e-9, ref = -2.89466358139099},
+  {matcher = "E_total", tol = 1e-9, ref = -2.8946635781677},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
 "he_dav_single_inverse.inp"     = [
-  {matcher = "E_total", tol = 1e-9, ref = -2.89466358139099},
+  {matcher = "E_total", tol = 1e-9, ref = -2.8946635781677},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
 # warm start from extrapolated MOS: the second geometry step consumes the

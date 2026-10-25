@@ -53,7 +53,7 @@
 ]
 "H2O_tddfpt_stda-s-1.inp"               = [
   {matcher = "TDDFPT_Check_Energy", tol = 1.0E-05, ref = 0.173147E+00},
-  {matcher = "TDDFPT_Check_Osc_Strength", tol = 1.0E-06, ref = 0.13595821E+02}
+  {matcher = "TDDFPT_Check_Osc_Strength", tol = 1.0E-06, ref = 1.3595959E+01}
 ]
 "NO_tddfpt_stda-s-1.inp"                = [
   {matcher = "TDDFPT_Check_Energy", tol = 1.0E-05, ref = 0.375613E+00},

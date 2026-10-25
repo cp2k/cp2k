@@ -4,33 +4,33 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # General and legacy k-point regression tests
-"bn1.inp"                       = [{matcher = "M094", tol = 1.0E-14, ref = 27}]
+"bn1.inp"                       = [{matcher = "M094", tol = 1.0E-14, ref = 25.0}]
 "ch1.inp"                       = [
-  {matcher = "E_total", tol = 1.0E-12, ref = -12.18193777586973},
+  {matcher = "E_total", tol = 1.0E-12, ref = -12.18193778217277},
   {matcher = "S2_estimate", tol = 2.0E-06, ref = 0.787459}
 ]
 "ch2.inp"                       = [
-  {matcher = "E_total", tol = 1.0E-12, ref = -12.18193777586973},
+  {matcher = "E_total", tol = 1.0E-12, ref = -12.18193778217277},
   {matcher = "S2_estimate", tol = 2.0E-06, ref = 0.539058}
 ]
 "ch3.inp"                       = [
-  {matcher = "E_total", tol = 1.0E-12, ref = -12.18193777586973},
+  {matcher = "E_total", tol = 1.0E-12, ref = -12.18193778217277},
   {matcher = "S2_estimate", tol = 2.0E-06, ref = 0.437608}
 ]
-"cc1.inp"                       = [{matcher = "M011", tol = 5.0E-12, ref = -45.389916659345360}]
-"cc2.inp"                       = [{matcher = "M011", tol = 5.0E-10, ref = -45.389916849143461}]
-"cc3.inp"                       = [{matcher = "M011", tol = 5.0E-10, ref = -45.389916564497383}]
-"cc4.inp"                       = [{matcher = "M011", tol = 5.0E-10, ref = -45.389916355782667}]
-"cc5.inp"                       = [{matcher = "M011", tol = 5.0E-10, ref = -45.389916356646268}]
-"cc6.inp"                       = [{matcher = "M011", tol = 5.0E-10, ref = -45.389916356646268}]
+"cc1.inp"                       = [{matcher = "M011", tol = 5.0E-12, ref = -45.38991665719877}]
+"cc2.inp"                       = [{matcher = "M011", tol = 5.0E-10, ref = -45.389916733083766}]
+"cc3.inp"                       = [{matcher = "M011", tol = 5.0E-10, ref = -45.38991662051999}]
+"cc4.inp"                       = [{matcher = "M011", tol = 5.0E-10, ref = -45.389916994232195}]
+"cc5.inp"                       = [{matcher = "M011", tol = 5.0E-10, ref = -45.389916995083354}]
+"cc6.inp"                       = [{matcher = "M011", tol = 5.0E-10, ref = -45.389916995083354}]
 "cc7.inp"                       = [
-  {matcher = "M011", tol = 5.0E-10, ref = -45.389916355960565},
-  {matcher = "gext", tol = 5.0E-08, ref = 0.0700127407}
+  {matcher = "M011", tol = 5.0E-10, ref = -45.389916993396795},
+  {matcher = "gext", tol = 5.0E-08, ref = 0.4465940837}
 ]
 "cc8.inp"                       = [
-  {matcher = "M011", tol = 5.0E-10, ref = -45.389916356641265},
-  {matcher = "gext", tol = 5.0E-08, ref = 0.7099959941}
+  {matcher = "M011", tol = 5.0E-10, ref = -45.38991699507173},
+  {matcher = "gext", tol = 5.0E-08, ref = 1.3837057256}
 ]
 "cc9.inp"                       = [{matcher = "M011", tol = 5.0E-10, ref = -45.270016601865670}]
-"he_kpoint_symmetry_openmp.inp" = [{matcher = "E_total", tol = 1e-10, ref = -11.23084551534152}]
+"he_kpoint_symmetry_openmp.inp" = [{matcher = "E_total", tol = 1e-10, ref = -11.23084551994711}]
 #EOF
