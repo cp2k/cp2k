@@ -455,6 +455,41 @@ CONTAINS
    END SUBROUTINE ot_mini_sum_kpoint_scalar
 
 ! **************************************************************************************************
+!> \brief Normalize the current minimizer product on a common orbital/energy scale.
+!> \param qs_ot_env local spin/k-point channels; updates delta in the first channel
+!> \param nvariables global orbital and auxiliary-energy coordinate count
+!> \param para_env_inter_kp communicator between distributed k-point groups
+! **************************************************************************************************
+   SUBROUTINE ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp)
+      TYPE(qs_ot_type), DIMENSION(:), INTENT(INOUT)      :: qs_ot_env
+      REAL(KIND=dp), INTENT(OUT)                         :: nvariables
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
+
+      INTEGER                                            :: ispin, k, n
+      INTEGER(KIND=int_8)                                :: nlocal, norbital
+
+      ! Keep the established SD/CG/DIIS scale: rotations contribute to the product,
+      ! but do not enlarge its normalization and dilute the stopping criterion.
+      nlocal = 0_int_8
+      DO ispin = 1, SIZE(qs_ot_env)
+         IF (qs_ot_env(1)%settings%ks) THEN
+            CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullrows_total=n, nfullcols_total=k)
+            norbital = INT(n, KIND=int_8)*INT(k, KIND=int_8)
+            IF (qs_ot_env(ispin)%has_complex_kpoint_state) norbital = 2_int_8*norbital
+            nlocal = nlocal + norbital
+         END IF
+         IF (qs_ot_env(1)%settings%do_ener) THEN
+            nlocal = nlocal + SIZE(qs_ot_env(ispin)%ener_x, KIND=int_8)
+         END IF
+      END DO
+      nvariables = REAL(nlocal, KIND=dp)
+      CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, nvariables)
+
+      qs_ot_env(1)%delta = 0.0_dp
+      IF (nvariables > 0.0_dp) qs_ot_env(1)%delta = SQRT(ABS(qs_ot_env(1)%gnorm)/nvariables)
+   END SUBROUTINE ot_update_delta
+
+! **************************************************************************************************
 !> \brief Assess a finite-response candidate at its accepted Mermin endpoint.
 !> \param reference_energy Mermin energy at the start of the search
 !> \param current_energy Mermin energy at the accepted endpoint
@@ -1525,7 +1560,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ot_new_sd_direction'
 
-      INTEGER                                            :: handle, ispin, itmp, k, n, nener, nspin
+      INTEGER                                            :: handle, ispin, nspin
       LOGICAL                                            :: do_ener, do_ks, use_occupation_response
       REAL(KIND=dp)                                      :: nvariables, tmp
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1641,30 +1676,11 @@ CONTAINS
          END IF
       END IF
 
-      k = 0
-      n = 0
-      nener = 0
-      IF (do_ks) THEN
-         CALL dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
-         DO ispin = 1, nspin
-            CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
-            k = k + itmp
-            IF (qs_ot_env(ispin)%has_complex_kpoint_state) k = k + itmp
-         END DO
-      END IF
-      IF (do_ener) THEN
-         DO ispin = 1, nspin
-            nener = nener + SIZE(qs_ot_env(ispin)%ener_x)
-         END DO
-      END IF
-      nvariables = REAL(INT(n, KIND=int_8)*INT(k, KIND=int_8) + nener, KIND=dp)
-      CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, nvariables)
+      CALL ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp)
       ! Handling the case of no free variables to optimize
       IF (nvariables > 0.0_dp) THEN
-         qs_ot_env(1)%delta = SQRT(ABS(qs_ot_env(1)%gnorm)/nvariables)
          qs_ot_env(1)%gradient = -qs_ot_env(1)%gnorm
       ELSE
-         qs_ot_env(1)%delta = 0.0_dp
          qs_ot_env(1)%gradient = 0.0_dp
       END IF
 
@@ -1688,12 +1704,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ot_new_cg_direction'
 
-      INTEGER                                            :: handle, ispin, itmp, k, n, nener, nspin
+      INTEGER                                            :: handle, ispin, nspin
       LOGICAL                                            :: do_ener, do_ks, &
                                                             preceding_response_candidate, &
                                                             use_response_candidate
-      REAL(KIND=dp)                                      :: baseline_delta, baseline_gnorm, beta_pr, &
-                                                            gnorm_cross, nvariables, test_down, tmp
+      REAL(KIND=dp)                                      :: baseline_delta, beta_pr, gnorm_cross, &
+                                                            nvariables, test_down, tmp
       TYPE(cp_logger_type), POINTER                      :: logger
 
 ! Only the physical low-rank subspace solve can become active. The frozen-H response remains a
@@ -1843,35 +1859,10 @@ CONTAINS
          END IF
          CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, qs_ot_env(1)%gnorm)
       END IF
-      baseline_gnorm = qs_ot_env(1)%gnorm
-
-      k = 0
-      n = 0
-      nener = 0
-      IF (do_ks) THEN
-         CALL dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
-         DO ispin = 1, nspin
-            CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
-            k = k + itmp
-            IF (qs_ot_env(ispin)%has_complex_kpoint_state) k = k + itmp
-         END DO
-      END IF
-      IF (do_ener) THEN
-         DO ispin = 1, nspin
-            nener = nener + SIZE(qs_ot_env(ispin)%ener_x)
-         END DO
-      END IF
-      nvariables = REAL(INT(n, KIND=int_8)*INT(k, KIND=int_8) + nener, KIND=dp)
-      CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, nvariables)
-
-      baseline_delta = 0.0_dp
-      IF (nvariables > 0.0_dp) THEN
-         baseline_delta = SQRT(ABS(baseline_gnorm)/nvariables)
-      END IF
-
       ! Keep convergence reporting tied to the conventional preconditioned residual. The finite
       ! response is an accepted-step candidate, not a redefinition of the physical stopping test.
-      qs_ot_env(1)%delta = baseline_delta
+      CALL ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp)
+      baseline_delta = qs_ot_env(1)%delta
       IF (nvariables > 0.0_dp) THEN
          beta_pr = (qs_ot_env(1)%gnorm - gnorm_cross)/qs_ot_env(1)%gnorm_old
       ELSE
@@ -2409,16 +2400,15 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: rotation_scale_max = 1.0E3_dp, &
                                                             rotation_scale_min = 1.0E-3_dp
 
-      INTEGER                                            :: handle, i, ispin, itmp, j, k, m_history, &
-                                                            n, nener, newest, nhistory, nspin
-      INTEGER(KIND=int_8)                                :: nrotation, nvariables
+      INTEGER                                            :: handle, i, ispin, j, m_history, newest, &
+                                                            nhistory, nspin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: history_index
       LOGICAL                                            :: do_ener, preceding_response_candidate, &
                                                             restart_history, restart_step, &
                                                             use_response_candidate
       REAL(KIND=dp) :: beta, current_gradient_norm_sq, curvature_tol, damping_shift, g_dot_z, &
-         gamma, gamma_rotation, nvariables_global, previous_gradient_norm_sq, ss, ss_rotation, &
-         stq, sy, sy_rotation, test_down, tmp, yy, yy_newest, yy_rotation
+         gamma, gamma_rotation, nvariables, previous_gradient_norm_sq, ss, ss_rotation, stq, sy, &
+         sy_rotation, test_down, tmp, yy, yy_newest, yy_rotation
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: alpha, rho
 
       CALL timeset(routineN, handle)
@@ -2778,8 +2768,20 @@ CONTAINS
       CALL ot_apply_lbfgs_initial_inverse( &
          qs_ot_env, gamma, gamma_rotation, m_history + 1, para_env_inter_kp)
 
-      ! The m+1 slot was scratch space for the occupation secant completion. Preserve the current
-      ! accepted point and physical gradient there for the next L-BFGS update.
+      ! Use the conventional coupled residual for convergence, independent of the L-BFGS history
+      ! and its inverse-Hessian scales. The m+1 slot is free until the snapshot below.
+      CALL ot_build_history_residual(qs_ot_env, m_history + 1, 1.0_dp, &
+                                     para_env_inter_kp, qs_ot_env(1)%gnorm)
+      IF (.NOT. ieee_is_finite(qs_ot_env(1)%gnorm) .OR. qs_ot_env(1)%gnorm <= 0.0_dp) THEN
+         ! Match the identity-metric descent fallback without using the history-based direction.
+         CALL ot_build_history_residual_once(qs_ot_env, m_history + 1, 1.0_dp, .FALSE., &
+                                             qs_ot_env(1)%gnorm, use_preconditioner=.FALSE.)
+         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, qs_ot_env(1)%gnorm)
+      END IF
+      CALL ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp)
+
+      ! The m+1 slot was scratch space for the initial inverse and convergence residual. Preserve
+      ! the current accepted point and physical gradient there for the next L-BFGS update.
       DO ispin = 1, nspin
          CALL dbcsr_copy(qs_ot_env(ispin)%matrix_h_x(m_history + 1)%matrix, &
                          qs_ot_env(ispin)%matrix_x)
@@ -2989,33 +2991,7 @@ CONTAINS
       qs_ot_env(1)%gnorm = g_dot_z
       qs_ot_env(1)%gradient = -g_dot_z
 
-      k = 0
-      n = 0
-      nener = 0
-      nrotation = 0_int_8
-      CALL dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
-      DO ispin = 1, nspin
-         CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
-         k = k + itmp
-         IF (qs_ot_env(ispin)%has_complex_kpoint_state) k = k + itmp
-         IF (qs_ot_env(1)%settings%do_rotation) THEN
-            nrotation = nrotation + INT(itmp, KIND=int_8)*INT(itmp - 1, KIND=int_8)/2_int_8
-            IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-               nrotation = nrotation + INT(itmp, KIND=int_8)*INT(itmp + 1, KIND=int_8)/2_int_8
-            END IF
-         END IF
-         IF (do_ener) nener = nener + SIZE(qs_ot_env(ispin)%ener_x)
-      END DO
-      nvariables = INT(n, KIND=int_8)*INT(k, KIND=int_8) + nrotation + &
-                   INT(nener, KIND=int_8)
-      nvariables_global = REAL(nvariables, KIND=dp)
-      CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, nvariables_global)
-      IF (nvariables_global > 0.0_dp) THEN
-         qs_ot_env(1)%delta = SQRT(ABS(g_dot_z)/nvariables_global)
-      ELSE
-         qs_ot_env(1)%delta = 0.0_dp
-         qs_ot_env(1)%gradient = 0.0_dp
-      END IF
+      IF (nvariables <= 0.0_dp) qs_ot_env(1)%gradient = 0.0_dp
 
       test_down = -g_dot_z
       CALL ot_try_mermin_response_direction( &
@@ -3078,23 +3054,27 @@ CONTAINS
 !> \param step_scale scale applied to the stored residual
 !> \param use_occupation_response use the fixed-N occupation-response approximation
 !> \param gnorm product of the physical Mermin gradient and unscaled residual
+!> \param use_preconditioner apply the orbital preconditioner; defaults to true
 ! **************************************************************************************************
    SUBROUTINE ot_build_history_residual_once(qs_ot_env, history_index, step_scale, &
-                                             use_occupation_response, gnorm)
+                                             use_occupation_response, gnorm, use_preconditioner)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
       INTEGER, INTENT(IN)                                :: history_index
       REAL(KIND=dp), INTENT(IN)                          :: step_scale
       LOGICAL, INTENT(IN)                                :: use_occupation_response
       REAL(KIND=dp), INTENT(OUT)                         :: gnorm
+      LOGICAL, INTENT(IN), OPTIONAL                      :: use_preconditioner
 
       INTEGER                                            :: ispin
-      LOGICAL                                            :: do_ener, do_ks
+      LOGICAL                                            :: do_ener, do_ks, precondition
       REAL(KIND=dp)                                      :: tmp
       TYPE(dbcsr_type), POINTER                          :: history_residual_im, orbital_residual, &
                                                             orbital_residual_im
 
       do_ks = qs_ot_env(1)%settings%ks
       do_ener = qs_ot_env(1)%settings%do_ener
+      precondition = .TRUE.
+      IF (PRESENT(use_preconditioner)) precondition = use_preconditioner
       gnorm = 0.0_dp
 
       IF (do_ks) THEN
@@ -3117,9 +3097,21 @@ CONTAINS
                END IF
             END IF
 
-            CALL ot_apply_channel_preconditioner(qs_ot_env(ispin), orbital_residual, &
-                                                 qs_ot_env(ispin)%matrix_h_e(history_index)%matrix, &
-                                                 orbital_residual_im, history_residual_im)
+            IF (precondition) THEN
+               CALL ot_apply_channel_preconditioner(qs_ot_env(ispin), orbital_residual, &
+                                                    qs_ot_env(ispin)%matrix_h_e(history_index)%matrix, &
+                                                    orbital_residual_im, history_residual_im)
+            ELSE
+               CALL dbcsr_copy(qs_ot_env(ispin)%matrix_h_e(history_index)%matrix, orbital_residual)
+               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_copy(history_residual_im, orbital_residual_im)
+               END IF
+               IF (qs_ot_env(ispin)%settings%ot_algorithm == 'TOD') THEN
+                  CALL qs_ot_project_gradient(qs_ot_env(ispin), &
+                                              qs_ot_env(ispin)%matrix_h_e(history_index)%matrix, &
+                                              history_residual_im, use_preconditioner=.FALSE.)
+               END IF
+            END IF
 
             CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, &
                            qs_ot_env(ispin)%matrix_h_e(history_index)%matrix, tmp)
@@ -3180,7 +3172,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_diis_step'
 
       INTEGER                                            :: diis_bound, diis_m, handle, i, info, &
-                                                            ispin, itmp, j, k, n, nener, nspin
+                                                            ispin, j, nspin
       LOGICAL                                            :: do_ener, do_ks, do_ot_sd
       REAL(KIND=dp)                                      :: nvariables, overlap, tmp, tr_xnew_gx, &
                                                             tr_xold_gx
@@ -3229,30 +3221,11 @@ CONTAINS
       END IF
       CALL ot_build_history_residual(qs_ot_env, j, -qs_ot_env(1)%ds_min, &
                                      para_env_inter_kp, qs_ot_env(1)%gnorm)
-      k = 0
-      n = 0
-      nener = 0
-      IF (do_ks) THEN
-         CALL dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
-         DO ispin = 1, nspin
-            CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
-            k = k + itmp
-            IF (qs_ot_env(ispin)%has_complex_kpoint_state) k = k + itmp
-         END DO
-      END IF
-      IF (do_ener) THEN
-         DO ispin = 1, nspin
-            nener = nener + SIZE(qs_ot_env(ispin)%ener_x)
-         END DO
-      END IF
-      nvariables = REAL(INT(n, KIND=int_8)*INT(k, KIND=int_8) + nener, KIND=dp)
-      CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, nvariables)
+      CALL ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp)
       ! Handling the case of no free variables to optimize
       IF (nvariables > 0.0_dp) THEN
-         qs_ot_env(1)%delta = SQRT(ABS(qs_ot_env(1)%gnorm)/nvariables)
          qs_ot_env(1)%gradient = -qs_ot_env(1)%gnorm
       ELSE
-         qs_ot_env(1)%delta = 0.0_dp
          qs_ot_env(1)%gradient = 0.0_dp
       END IF
 
@@ -3508,15 +3481,12 @@ CONTAINS
                                                             broyden_position = 1, &
                                                             broyden_random = 3, &
                                                             broyden_residual = 2
-      INTEGER                                            :: diis_bound, diis_m, i, ispin, itmp, j, &
-                                                            k, n, nener, nspin
-      INTEGER(KIND=int_8)                                :: nrotation, nvariables
+      INTEGER                                            :: diis_bound, diis_m, i, j, k, nspin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: circ_index
       LOGICAL                                            :: adaptive_sigma, do_ener, do_ks, &
                                                             do_rotation, enable_flip, forget_history
-      REAL(KIND=dp)                                      :: beta, eta, gamma, omega, sigma, &
-                                                            sigma_dec, sigma_min, tmp, tmp2, &
-                                                            nvariables_global
+      REAL(KIND=dp)                                      :: beta, eta, gamma, nvariables, omega, &
+                                                            sigma, sigma_dec, sigma_min, tmp, tmp2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f, x
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G, S
       eta = qs_ot_env(1)%settings%broyden_eta
@@ -3576,34 +3546,12 @@ CONTAINS
          CALL broyden_bound_occupation_response(j, qs_ot_env(1)%gnorm)
       END IF
 
-      k = 0
-      n = 0
-      nener = 0
-      nrotation = 0_int_8
-      CALL dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
-      DO ispin = 1, nspin
-         CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
-         k = k + itmp
-         IF (qs_ot_env(ispin)%has_complex_kpoint_state) k = k + itmp
-         IF (do_rotation) THEN
-            nrotation = nrotation + INT(itmp, KIND=int_8)*INT(itmp - 1, KIND=int_8)/2_int_8
-            IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-               nrotation = nrotation + INT(itmp, KIND=int_8)*INT(itmp + 1, KIND=int_8)/2_int_8
-            END IF
-         END IF
-         IF (do_ener) nener = nener + SIZE(qs_ot_env(ispin)%ener_x)
-      END DO
-      nvariables = INT(n, KIND=int_8)*INT(k, KIND=int_8) + nrotation + &
-                   INT(nener, KIND=int_8)
-      nvariables_global = REAL(nvariables, KIND=dp)
-      CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, nvariables_global)
+      CALL ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp)
 
       ! Handling the case of no free variables to optimize
-      IF (nvariables_global > 0.0_dp) THEN
-         qs_ot_env(1)%delta = SQRT(ABS(qs_ot_env(1)%gnorm)/nvariables_global)
+      IF (nvariables > 0.0_dp) THEN
          qs_ot_env(1)%gradient = -qs_ot_env(1)%gnorm
       ELSE
-         qs_ot_env(1)%delta = 0.0_dp
          qs_ot_env(1)%gradient = 0.0_dp
       END IF
 
