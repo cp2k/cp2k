@@ -241,8 +241,7 @@ CONTAINS
 !                with a Long-Range Dispersion Correction, J. Comp. Chem. 27: 1787-1799 (2006)
 ! doi:10.1002/jcc.20495
 !
-! Conversion factor [Jnm^6mol^-1] -> [a.u.] : 17.34527758021901
-! Conversion factor [A] -> [a.u.] : 1.889726132885643
+! Unit conversions below use bohr and kjmol from physcon.
 !
 ! C6 values in [Jnm^6/mol]
 ! vdW radii [A]

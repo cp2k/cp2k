@@ -39,7 +39,6 @@ PROGRAM xyz2dcd
                          xyz_file_unit = default_input_unit
 
    REAL(KIND=dp), PARAMETER :: pi = 3.14159265358979323846264338_dp
-!  REAL(KIND=dp), PARAMETER :: angstrom = 0.52917720859_dp            ! [a.u.] -> [Angstrom]
    REAL(KIND=dp), PARAMETER :: degree = 180.0_dp/pi                   ! [rad]  -> [degree]
 
    ! Variables

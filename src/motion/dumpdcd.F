@@ -35,6 +35,10 @@ PROGRAM dumpdcd
 ! variable declarations below
 ! USE ISO_FORTRAN_ENV, ONLY: error_unit,input_unit,output_unit
 
+   USE physcon,                         ONLY: angstrom,&
+                                              kelvin,&
+                                              massunit
+
    IMPLICIT NONE
 
    ! Comment the following lines if the ISO_FORTRAN_ENV is used (see above)
@@ -57,10 +61,7 @@ PROGRAM dumpdcd
                          xyz_input_unit = 11
 
    REAL(KIND=dp), PARAMETER :: pi = 3.14159265358979323846264338_dp
-   REAL(KIND=dp), PARAMETER :: angstrom = 0.52917720859_dp, &            ! [a.u.] -> [Angstrom]
-                               degree = 180.0_dp/pi, &                   ! [rad]  -> [degree]
-                               kelvin = 315774.647902944_dp, &           ! [a.u.] -> [K]
-                               massunit = 1822.88484264550_dp            ! [u]    -> [a.u.]
+   REAL(KIND=dp), PARAMETER :: degree = 180.0_dp/pi                     ! [rad] -> [degree]
 
    ! Variables
    CHARACTER(LEN=4)                                   :: id_dcd
