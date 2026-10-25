@@ -13,6 +13,7 @@
 !> \author Matthias Krack (22.05.2001)
 ! **************************************************************************************************
 MODULE cp_fm_types
+   USE OMP_LIB,                         ONLY: omp_get_max_threads
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_blacs_types,                  ONLY: cp_blacs_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -1212,37 +1213,54 @@ CONTAINS
    END SUBROUTINE cp_fm_maxabsrownorm
 
 ! **************************************************************************************************
-!> \brief find the inorm of each column norm_{j}= sqrt( \sum_{i} A_{ij}*A_{ij} )
+!> \brief find the norm of each column norm_{j}= sqrt( \sum_{i} A_{ij}*A_{ij} )
 !> \param matrix ...
 !> \param norm_array ...
+!> \param squared return squared norms instead (default: false)
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_vectorsnorm(matrix, norm_array)
+   SUBROUTINE cp_fm_vectorsnorm(matrix, norm_array, squared)
       TYPE(cp_fm_type), INTENT(IN)                       :: matrix
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: norm_array
+      LOGICAL, INTENT(IN), OPTIONAL                      :: squared
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cp_fm_vectorsnorm'
 
-      INTEGER                                            :: handle, i, j, ncol_global, ncol_local, &
-                                                            nrow_local
+      INTEGER                                            :: handle, i, j, ncol_local, nrow_local
+
+!$    INTEGER                                            :: nworkers
       INTEGER, DIMENSION(:), POINTER                     :: col_indices
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: my_block
+      LOGICAL                                            :: take_sqrt
+      REAL(KIND=dp)                                      :: norm_sq
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
 
       CALL timeset(routineN, handle)
 
-      my_block => matrix%local_data
+      local_data => matrix%local_data
+      CALL cp_fm_get_info(matrix, col_indices=col_indices, nrow_local=nrow_local, &
+                          ncol_local=ncol_local)
 
-      CALL cp_fm_get_info(matrix, col_indices=col_indices, ncol_global=ncol_global, &
-                          nrow_local=nrow_local, ncol_local=ncol_local)
-
-      ! the efficiency could be improved by making use of the row-col distribution of scalapack
       norm_array = 0.0_dp
+      ! Own whole columns and keep at least 8192 elements per worker to amortize team startup.
+!$    nworkers = MAX(1, MIN(omp_get_max_threads(), ncol_local))
+!$    nworkers = MAX(1, MIN(nworkers, (nrow_local*ncol_local + 1)/8192))
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP SHARED(local_data, col_indices, nrow_local, ncol_local, norm_array) PRIVATE(i, j, norm_sq) &
+!$OMP NUM_THREADS(nworkers) IF(nworkers > 1)
       DO j = 1, ncol_local
+         norm_sq = 0.0_dp
+!$OMP SIMD REDUCTION(+:norm_sq)
          DO i = 1, nrow_local
-            norm_array(col_indices(j)) = norm_array(col_indices(j)) + my_block(i, j)*my_block(i, j)
+            norm_sq = norm_sq + local_data(i, j)**2
          END DO
+!$OMP END SIMD
+         norm_array(col_indices(j)) = norm_sq
       END DO
+!$OMP END PARALLEL DO
       CALL matrix%matrix_struct%para_env%sum(norm_array)
-      norm_array = SQRT(norm_array)
+      take_sqrt = .TRUE.
+      IF (PRESENT(squared)) take_sqrt = .NOT. squared
+      IF (take_sqrt) norm_array = SQRT(norm_array)
 
       CALL timestop(handle)
    END SUBROUTINE cp_fm_vectorsnorm
