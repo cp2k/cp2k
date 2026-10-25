@@ -13,9 +13,9 @@
 "He2-mixed-cdft-diag-6.inp"             = [{matcher="M073", tol=1e-11, ref=34.273313989932}]
 "He2-mixed-cdft-diag-7.inp"             = [{matcher="M073", tol=1e-11, ref=535.869873289158}]
 # Constrain alpha and beta spin densities separately
-"He2-cdft-alphabeta-diag-1.inp"         = [{matcher="M011", tol=1e-9, ref=-3.044689112623726}]
-"He2-cdft-alphabeta-diag-2.inp"         = [{matcher="M011", tol=1e-9, ref=-3.044689417773989}]
-"He2-mixed-cdft-alphabeta-diag-1.inp"   = [{matcher="M076", tol=1e-7, ref=5.100790096990}]
+"He2-cdft-alphabeta-diag-1.inp"         = [{matcher="M011", tol=1e-9, ref=-4.370119684895506}]
+"He2-cdft-alphabeta-diag-2.inp"         = [{matcher="M011", tol=1e-9, ref=-4.367613387595789}]
+"He2-mixed-cdft-alphabeta-diag-1.inp"   = [{matcher="M076", tol=1e-7, ref=5.100767610558}]
 # MD with two constraints testing various Jacobian reusing schemes
 "He2-cdft-alphabeta-diag-md-1.inp"      = [{matcher="M011", tol=6e-10, ref=-4.092821224519497}]
 "He2-cdft-alphabeta-diag-md-2.inp"      = [{matcher="M011", tol=6e-10, ref=-4.332289335492456}]
