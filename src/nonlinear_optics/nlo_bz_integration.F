@@ -136,7 +136,8 @@ CONTAINS
                ! Each rho^(n) follows from lower orders at Omega = sum_j omega_j.
                CALL nlo_current_tensor_derivatives( &
                   nlo_env%order, omega(1:nlo_env%order), nlo_env%energies, &
-                  1.0_dp/nlo_env%t1_t2_au, nlo_env%band_hamiltonian_derivatives, &
+                  1.0_dp/nlo_env%t1_au, 1.0_dp/nlo_env%t2_au, &
+                  nlo_env%transition_width_au, nlo_env%band_hamiltonian_derivatives, &
                   nlo_env%band_connection_derivatives, curvature, &
                   nlo_env%rho0_derivatives, &
                   nlo_env%velocity, &

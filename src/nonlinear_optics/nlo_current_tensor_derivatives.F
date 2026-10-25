@@ -13,6 +13,10 @@ MODULE nlo_current
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: gaussi
+   USE nlo_T1_T2_band_transition,       ONLY: nlo_band_transition_correction,&
+                                              nlo_band_transition_prepare,&
+                                              nlo_band_transition_rate,&
+                                              nlo_band_transition_type
    USE nlo_derivatives,                 ONLY: derivatives_index,&
                                               nlo_derivative_count,&
                                               nlo_derivative_indices,&
@@ -34,7 +38,9 @@ CONTAINS
 !> \param order Number of incident fields, 2:5
 !> \param omega Incident photon energies in Hartree
 !> \param energies Central band energies in Hartree
-!> \param rate Common damping energies in Hartree
+!> \param rate1 Population damping energy in Hartree
+!> \param rate2 Coherence damping energy in Hartree
+!> \param transition_width Band-energy width of their smooth transition in Hartree
 !> \param hamiltonian Orthogonal Bloch Hamiltonian normalized k derivatives through grade n
 !> \param connection Orthogonal Bloch position connection derivatives through grade n-1
 !> \param curvature Three position-curvature matrices for this k point and spin
@@ -58,11 +64,13 @@ CONTAINS
 !>       with [r_c,r_a]=iF_ca. The curvature term is always included. The second
 !>       array index stores a_1,...,a_n as 1+Σ_j(a_j-1)3^(j-1).
 ! **************************************************************************************************
-   SUBROUTINE nlo_current_tensor_derivatives(order, omega, energies, rate, hamiltonian, &
+   SUBROUTINE nlo_current_tensor_derivatives(order, omega, energies, rate1, rate2, &
+                                             transition_width, hamiltonian, &
                                              connection, curvature, rho0, velocity, current, &
                                              elements)
       INTEGER, INTENT(IN)                                :: order
-      REAL(KIND=dp), INTENT(IN)                          :: omega(:), energies(:), rate
+      REAL(KIND=dp), INTENT(IN)                          :: omega(:), energies(:), rate1, rate2, &
+                                                            transition_width
       COMPLEX(dp), INTENT(IN)                            :: hamiltonian(:, :, :), &
                                                             connection(:, :, :, :), &
                                                             curvature(:, :, :), rho0(:, :, :), &
@@ -126,14 +134,17 @@ CONTAINS
          END DO
       END DO
       IF (.NOT. ALL(ieee_is_finite(omega)) .OR. .NOT. ALL(ieee_is_finite(energies)) .OR. &
-          .NOT. ieee_is_finite(rate) .OR. .NOT. ALL(ieee_is_finite(REAL(velocity, KIND=dp))) .OR. &
+          .NOT. ieee_is_finite(rate1) .OR. .NOT. ieee_is_finite(rate2) .OR. &
+          .NOT. ieee_is_finite(transition_width) .OR. &
+          .NOT. ALL(ieee_is_finite(REAL(velocity, KIND=dp))) .OR. &
           .NOT. ALL(ieee_is_finite(AIMAG(velocity))) .OR. &
           .NOT. ALL(ieee_is_finite(REAL(hamiltonian, KIND=dp))) .OR. &
           .NOT. ALL(ieee_is_finite(AIMAG(hamiltonian))) .OR. &
           .NOT. ALL(ieee_is_finite(REAL(connection, KIND=dp))) .OR. &
           .NOT. ALL(ieee_is_finite(AIMAG(connection))) .OR. &
           .NOT. ALL(ieee_is_finite(REAL(rho0, KIND=dp))) .OR. &
-          .NOT. ALL(ieee_is_finite(AIMAG(rho0))) .OR. rate <= 0.0_dp &
+          .NOT. ALL(ieee_is_finite(AIMAG(rho0))) .OR. rate1 <= 0.0_dp .OR. &
+          rate2 < rate1 .OR. transition_width <= 0.0_dp &
           .OR. ABS(SUM(omega)) <= 1.e-14_dp) THEN
          CPABORT('NLO current response contains invalid data.')
       END IF
@@ -193,9 +204,10 @@ CONTAINS
                      END DO
                   END IF
                   previous_end = previous_start + ncoeff(previous_mask) - 1
-                  ! (eps_m-eps_n-Omega_S-i/T) rho_S = source[lower-order rho].
+                  ! (ε_m-ε_n-Ω_S-iγ_mn)ρ_S = source from lower-order responses.
                   CALL nlo_density_step_derivatives(order - order_subset, direction, &
-                                                    subset_omega, energies, rate, &
+                                                    subset_omega, energies, rate1, rate2, &
+                                                    transition_width, &
                                                     hamiltonian, connection, &
                                                     previous_density(:, :, &
                                                                      previous_start:previous_end), &
@@ -333,7 +345,9 @@ CONTAINS
 !> \param direction Cartesian component of the new input field, 1:3
 !> \param omega Cumulative input photon energy in Hartree
 !> \param energies Central band energies in Hartree
-!> \param rate Common relaxation energy in Hartree
+!> \param rate1 Population damping energy in Hartree
+!> \param rate2 Coherence damping energy in Hartree
+!> \param transition_width Band-energy width of their smooth transition in Hartree
 !> \param hamiltonian Orthogonal-frame Hamiltonian k derivatives through the active response order
 !> \param connection Connection k derivatives through one grade below the response order
 !> \param previous Previous-order density normalized k derivatives, at least through grade
@@ -343,17 +357,22 @@ CONTAINS
 !>       the field component j with cumulative photon energy Ω, solve
 !>       (L_H0-Ω-iΓ_0)ρ_{p,α} = -i(α_j+1)ρ_{p-1,α+e_j}
 !>       -Σ_{β+γ=α}[A_{j,β},ρ_{p-1,γ}]
-!>       -Σ_{0<β≤α}[H_β,ρ_{p,α-β}].
-!>       Γ_0=1/T1_T2 is scalar; all positive-grade relaxation derivatives vanish.
+!>       -Σ_{0<β≤α}[H_β,ρ_{p,α-β}]
+!>       +iΣ_{0<β≤α}Γ_β(ρ_{p,α-β}).
+!>       For equal times Γ_0=1/T1_T2 and all higher Γ derivatives vanish.
+!>       For separate times, Γ_H(X)=γ₂X+(γ₁−γ₂)exp[−(ad_H/w)²]X.
+!>       The known positive-grade Γ_H terms enter the right-hand side.
 !>       The central H_0 is diagonal in this frame.
 !> \note If previous has grade <=g+1, this produces the next response through grade g.
-!>       Denominators use exp(-i ω t): ε_n-ε_m-ω-i/T1_T2.
+!>       Denominators use exp(-i ω t): ε_m-ε_n-ω-iγ_mn.
 !>       The field couples as +E.r for an electron, r=i ∂_k+A.
 ! **************************************************************************************************
-   SUBROUTINE nlo_density_step_derivatives(max_grade, direction, omega, energies, rate, &
+   SUBROUTINE nlo_density_step_derivatives(max_grade, direction, omega, energies, rate1, &
+                                           rate2, transition_width, &
                                            hamiltonian, connection, previous, response)
       INTEGER, INTENT(IN)                                :: max_grade, direction
-      REAL(KIND=dp), INTENT(IN)                          :: omega, energies(:), rate
+      REAL(KIND=dp), INTENT(IN)                          :: omega, energies(:), rate1, rate2, &
+                                                            transition_width
       COMPLEX(dp), INTENT(IN)                            :: hamiltonian(:, :, :), &
                                                             connection(:, :, :, :), &
                                                             previous(:, :, :)
@@ -361,10 +380,15 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'nlo_density_step_derivatives'
 
-      COMPLEX(dp), ALLOCATABLE                           :: matrix_term(:, :), rhs(:, :)
-      INTEGER                                            :: handle, i, ia, ib, j, k, n, nh, np, &
-                                                            plus(3), remain(3)
+      COMPLEX(dp), ALLOCATABLE                           :: matrix_term(:, :), rhs(:, :), &
+                                                            transition_term(:, :, :)
+      INTEGER                                            :: grade, handle, i, ia, ib, j, k, n, &
+                                                            ngrade, nh, nlower, np, plus(3), &
+                                                            remain(3)
       INTEGER, DIMENSION(3, nlo_n_derivatives)           :: alpha
+      LOGICAL                                            :: separate_times
+      REAL(KIND=dp)                                      :: pair_rate
+      TYPE(nlo_band_transition_type)                     :: transition
 
       CALL timeset(routineN, handle)
 
@@ -389,14 +413,31 @@ CONTAINS
       CPASSERT(SIZE(response, 2) == n)
       CPASSERT(SIZE(response, 3) >= nh)
       IF (.NOT. ieee_is_finite(omega) .OR. .NOT. ALL(ieee_is_finite(energies)) .OR. &
-          .NOT. ieee_is_finite(rate) .OR. rate <= 0.0_dp .OR. &
+          .NOT. ieee_is_finite(rate1) .OR. .NOT. ieee_is_finite(rate2) .OR. &
+          .NOT. ieee_is_finite(transition_width) .OR. rate1 <= 0.0_dp .OR. &
+          rate2 < rate1 .OR. transition_width <= 0.0_dp .OR. &
           .NOT. ALL(ieee_is_finite(REAL(previous, KIND=dp))) .OR. &
           .NOT. ALL(ieee_is_finite(AIMAG(previous)))) THEN
          CPABORT('NLO density response contains invalid data.')
       END IF
       ALLOCATE (matrix_term(n, n), rhs(n, n))
+      separate_times = rate1 < rate2
+      IF (separate_times) THEN
+         ALLOCATE (transition_term(n, n, (max_grade + 1)*(max_grade + 2)/2))
+         CALL nlo_band_transition_prepare(energies, transition_width, rate1, rate2, transition)
+      END IF
       CALL nlo_derivative_indices(alpha)
+      nlower = 0
       DO ia = 1, nlo_derivative_count(max_grade)
+         grade = SUM(alpha(:, ia))
+         IF (separate_times .AND. grade > 0) THEN
+            IF (ia == nlo_derivative_count(grade - 1) + 1) THEN
+               nlower = ia - 1
+               ngrade = nlo_derivative_count(grade) - nlower
+               CALL nlo_band_transition_correction(transition, hamiltonian, response, grade, &
+                                                   transition_term(:, :, :ngrade))
+            END IF
+         END IF
          plus = alpha(:, ia)
          plus(direction) = plus(direction) + 1
          ib = derivatives_index(alpha, plus)
@@ -421,10 +462,15 @@ CONTAINS
             matrix_term(:, :) = MATMUL(response(:, :, j), hamiltonian(:, :, ib))
             rhs(:, :) = rhs + matrix_term
          END DO
+         IF (separate_times .AND. grade > 0) THEN
+            rhs(:, :) = rhs + gaussi*transition_term(:, :, ia - nlower)
+         END IF
          DO k = 1, n
             DO i = 1, n
+               pair_rate = rate1
+               IF (separate_times) pair_rate = nlo_band_transition_rate(transition, i, k)
                response(i, k, ia) = rhs(i, k)/ &
-                                    CMPLX(energies(i) - energies(k) - omega, -rate, dp)
+                                    CMPLX(energies(i) - energies(k) - omega, -pair_rate, dp)
             END DO
          END DO
       END DO

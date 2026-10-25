@@ -69,7 +69,7 @@ CONTAINS
 !>       and in nlo_current_tensor_derivatives.
 !>
 !>       1. Read the optical k mesh, incident frequencies, tensor elements,
-!>          and common relaxation time T = T₁ = T₂.
+!>          and either a common time T₁ = T₂ or separate relaxation times.
 !>
 !>       2. Build lattice-image matrices for the AO Hamiltonian H, overlap S,
 !>          dipole d.
@@ -88,9 +88,19 @@ CONTAINS
 !>          equilibrium matrix, second order uses first-order responses,
 !>          and so on through fifth order. Each new response is obtained
 !>          from the previous one by an analytic k derivative and a
-!>          band-energy denominator ε_m - ε_n - Ω - i/T. Here ε_m and ε_n
+!>          band-energy denominator ε_m - ε_n - Ω - iΓ_mn. Here ε_m and ε_n
 !>          are band energies, Ω is the sum of the incident photon energies,
-!>          and T is the common relaxation time. All possible orders of
+!>          and Γ is the band-pair relaxation rate. For T₁ = T₂ it is the
+!>          constant 1/T₁. For separate times, with γᵢ = 1/Tᵢ and
+!>          Δε = ε_m - ε_n, it is
+!>
+!>          Γ_mn = γ₁ + (γ₂ - γ₁)[1 - exp(-(Δε/w)²)].
+!>
+!>          The positive width w sets the smooth transition at nearly
+!>          degenerate bands. Its basis-covariant operator form is
+!>          Γ_H(X) = γ₂X + (γ₁ - γ₂)exp[-(ad_H/w)²]X,
+!>          where ad_H(X) = [H,X]. Its analytic k derivatives enter the
+!>          response. All possible orders of
 !>          the incident fields are averaged. No numerical derivatives of
 !>          separately diagonalized bands or their phases are used.
 !>
@@ -238,10 +248,23 @@ CONTAINS
          WRITE (iw, '(T2,A,T69,I12)') 'NONLINEAR_OPTICS| Selected tensor elements:', &
             COUNT(nlo_env%elements)
          WRITE (iw, '(T2,A,T69,I12)') 'NONLINEAR_OPTICS| Bands in response:', nlo_env%n_bands
-         WRITE (iw, '(T2,A,T70,F8.1,1X,A)') 'NONLINEAR_OPTICS| T1 = T2:', &
-            nlo_env%t1_t2_au*femtoseconds, 'fs'
-         WRITE (iw, '(T2,A,T73,F8.1,1X,A)') 'NONLINEAR_OPTICS| ℏ/T1 = ℏ/T2:', &
-            1000.0_dp*evolt/nlo_env%t1_t2_au, 'meV'
+         IF (nlo_env%t1_au == nlo_env%t2_au) THEN
+            WRITE (iw, '(T2,A,T70,F8.1,1X,A)') 'NONLINEAR_OPTICS| T1 = T2:', &
+               nlo_env%t1_au*femtoseconds, 'fs'
+            WRITE (iw, '(T2,A,T73,F8.1,1X,A)') 'NONLINEAR_OPTICS| ℏ/T1 = ℏ/T2:', &
+               1000.0_dp*evolt/nlo_env%t1_au, 'meV'
+         ELSE
+            WRITE (iw, '(T2,A,T70,F8.1,1X,A)') 'NONLINEAR_OPTICS| T1:', &
+               nlo_env%t1_au*femtoseconds, 'fs'
+            WRITE (iw, '(T2,A,T70,F8.1,1X,A)') 'NONLINEAR_OPTICS| T2:', &
+               nlo_env%t2_au*femtoseconds, 'fs'
+            WRITE (iw, '(T2,A,T71,F8.1,1X,A)') 'NONLINEAR_OPTICS| ℏ/T1:', &
+               1000.0_dp*evolt/nlo_env%t1_au, 'meV'
+            WRITE (iw, '(T2,A,T71,F8.1,1X,A)') 'NONLINEAR_OPTICS| ℏ/T2:', &
+               1000.0_dp*evolt/nlo_env%t2_au, 'meV'
+            WRITE (iw, '(T2,A,T69,F8.1,1X,A)') 'NONLINEAR_OPTICS| Band transition width:', &
+               1000.0_dp*nlo_env%transition_width_au*evolt, 'meV'
+         END IF
       END IF
 
       CALL timestop(handle)

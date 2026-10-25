@@ -8,29 +8,31 @@
 !> \author Jan Wilhelm, with help from ChatGPT
 
 MODULE nlo_read_input
+!&<
    USE bibliography,                    ONLY: Cheng2015
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
-   USE input_keyword_types,             ONLY: keyword_create,&
-                                              keyword_release,&
+   USE input_keyword_types,             ONLY: keyword_create, &
+                                              keyword_release, &
                                               keyword_type
-   USE input_section_types,             ONLY: section_add_keyword,&
-                                              section_create,&
-                                              section_type,&
-                                              section_vals_get_subs_vals,&
-                                              section_vals_type,&
+   USE input_section_types,             ONLY: section_add_keyword, &
+                                              section_create, &
+                                              section_type, &
+                                              section_vals_get_subs_vals, &
+                                              section_vals_type, &
                                               section_vals_val_get
-   USE input_val_types,                 ONLY: char_t,&
-                                              integer_t,&
-                                              real_t,&
+   USE input_val_types,                 ONLY: char_t, &
+                                              integer_t, &
+                                              real_t, &
                                               val_type
-   USE kinds,                           ONLY: default_string_length,&
+   USE kinds,                           ONLY: default_string_length, &
                                               dp
-   USE nlo_types,                       ONLY: nlo_frequency_type,&
+   USE nlo_types,                       ONLY: nlo_frequency_type, &
                                               nlo_type
-   USE qs_environment_types,            ONLY: get_qs_env,&
+   USE qs_environment_types,            ONLY: get_qs_env, &
                                               qs_environment_type
    USE string_utilities,                ONLY: uppercase
+!&>
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -66,19 +68,24 @@ CONTAINS
                           " is expanded in powers of the electric field. With $E(t)=\sum_ω "// &
                           "E(ω)e^{-iωt}"//"$, the second- through fifth-order "// &
                           "contributions are "// &
-                          ACHAR(10)//ACHAR(10)//"$$P_i^{(2)}(Ω)=ε_0\sum_{ab}\sum_{ω_1+ω_2=Ω} "// &
-                          "χ_{i;ab}^{(2)}(ω_1,ω_2)E_a(ω_1)E_b(ω_2),$$"//ACHAR(10)//ACHAR(10)// &
+                          ACHAR(10)//ACHAR(10)// &
+                          "$$P_i^{(2)}(Ω)=ε_0\sum_{ab}\sum_{ω_1+ω_2=Ω} "// &
+                          "χ_{i;ab}^{(2)}(ω_1,ω_2)E_a(ω_1)E_b(ω_2),$$"// &
+                          ACHAR(10)//ACHAR(10)// &
                           ACHAR(10)//ACHAR(10)// &
                           "$$P_i^{(3)}(Ω)=ε_0\sum_{abc} \sum_{ω_1+ω_2+ω_3=Ω} "// &
-                          "χ_{i;abc}^{(3)}(ω_1,ω_2,ω_3) E_a(ω_1)E_b(ω_2)E_c(ω_3),$$"//ACHAR(10)// &
+                          "χ_{i;abc}^{(3)}(ω_1,ω_2,ω_3) E_a(ω_1)E_b(ω_2)E_c(ω_3),$$"// &
+                          ACHAR(10)// &
                           ACHAR(10)//ACHAR(10)//ACHAR(10)// &
                           "$$P_i^{(4)}(Ω)=ε_0\sum_{abcd} \sum_{ω_1+ω_2+ω_3+ω_4=Ω} "// &
                           "χ_{i;abcd}^{(4)}(ω_1,ω_2,ω_3,ω_4) "// &
-                          "E_a(ω_1)E_b(ω_2)E_c(ω_3)E_d(ω_4),$$"//ACHAR(10)//ACHAR(10)//ACHAR(10)// &
+                          "E_a(ω_1)E_b(ω_2)E_c(ω_3)E_d(ω_4),$$"// &
+                          ACHAR(10)//ACHAR(10)//ACHAR(10)// &
                           ACHAR(10)// &
                           "$$P_i^{(5)}(Ω)=ε_0\sum_{abcde} \sum_{ω_1+ω_2+ω_3+ω_4+ω_5=Ω} "// &
                           "χ_{i;abcde}^{(5)}(ω_1,ω_2,ω_3,ω_4,ω_5) "// &
-                          "E_a(ω_1)E_b(ω_2)E_c(ω_3)E_d(ω_4)E_e(ω_5).$$"//ACHAR(10)//ACHAR(10)// &
+                          "E_a(ω_1)E_b(ω_2)E_c(ω_3)E_d(ω_4)E_e(ω_5).$$"// &
+                          ACHAR(10)//ACHAR(10)// &
                           "Here i,a,... denote Cartesian directions and ε_0 is the vacuum "// &
                           "permittivity. Each tensor is averaged over all simultaneous "// &
                           "permutations of its incident frequency-direction pairs. The "// &
@@ -93,13 +100,19 @@ CONTAINS
                           "$$\left.\dot{ρ}_{mn}\right|_{\mathrm{rel}}= "// &
                           "-δ_{mn}(ρ_{nn}-f_n)/T_1 -(1-δ_{mn})ρ_{mn}/T_2.$$"//ACHAR(10)// &
                           ACHAR(10)// &
-                          "Here $f_n$ is the equilibrium occupation. This implementation "// &
-                          "uses $T_1=T_2=T$, giving the basis-covariant "// &
-                          "relaxation operator and common energy broadening "//ACHAR(10)// &
-                          ACHAR(10)//"$$\left.\dot{ρ}\right|_{\mathrm{rel}}= "// &
-                          "-(ρ-ρ_{\mathrm{eq}})/T, \qquad Γ=ℏ/T,\qquad T_2=ℏ/Γ.$$"//ACHAR(10)// &
-                          ACHAR(10)// &
-                          "At each response step, denominators are $ε_m-ε_n-ℏΩ-iΓ$. The "// &
+                          "Here $f_n$ is the equilibrium occupation. With T1_T2, "// &
+                          "$T_1=T_2=T$ and the relaxation is "// &
+                          "$-(ρ-ρ_{\mathrm{eq}})/T$. With separate T1 and T2, "// &
+                          "the rate for bands m and n changes smoothly with their energy "// &
+                          "difference Δε: "//ACHAR(10)//ACHAR(10)// &
+                          "$$γ_{mn}=1/T_1+(1/T_2-1/T_1) "// &
+                          "[1-\exp(-(Δε/w)^2)],\qquad Δε=ε_m-ε_n.$$"//ACHAR(10)//ACHAR(10)// &
+                          "The width w is T1_T2_SMOOTHING_WIDTH. At exact degeneracy the "// &
+                          "rate is 1/T1 for all matrices within the degenerate band "// &
+                          "subspace. The Gaussian function of the Hamiltonian commutator "// &
+                          "gives a basis-covariant transition without band grouping. "// &
+                          "At each response step, denominators are "// &
+                          "$ε_m-ε_n-ℏΩ-iγ_{mn}$. The "// &
                           "current includes the field-dependent contribution "// &
                           "required by the projected position operator. In "// &
                           "atomic units, with r_i=i∂_{k_i}+A_i, "//ACHAR(10)//ACHAR(10)// &
@@ -199,6 +212,35 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="T1", &
+                          description= &
+                          "Relaxation time for diagonal band occupations. Set together with "// &
+                          "T2 to use separate population and coherence times. Must satisfy "// &
+                          "T1 >= T2 > 0. Do not combine with an explicitly set T1_T2.", &
+                          usage="T1 [fs] 300", type_of_var=real_t, n_var=1, unit_str="fs")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="T2", &
+                          description= &
+                          "Decoherence time for well-separated bands. Set together with T1. "// &
+                          "Near degenerate bands the relaxation rate changes smoothly to 1/T1.", &
+                          usage="T2 [fs] 30", type_of_var=real_t, n_var=1, unit_str="fs")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="T1_T2_SMOOTHING_WIDTH", &
+                          description= &
+                          "Positive energy width w of the smooth transition between population "// &
+                          "and coherence relaxation. The band-pair rate is "// &
+                          "1/T1 + (1/T2 - 1/T1)[1 - exp(-((epsilon_m-epsilon_n)/w)^2)]. "// &
+                          "The default 0.025 eV is a model choice to converge for each system.", &
+                          usage="T1_T2_SMOOTHING_WIDTH [eV] 0.025", type_of_var=real_t, &
+                          n_var=1, unit_str="eV", &
+                          default_r_val=cp_unit_to_cp2k(value=0.025_dp, unit_str="eV"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="K_MESH", &
                           description= &
                           "Monkhorst-Pack-type uniform k mesh, shifted to include Γ, for the"// &
@@ -256,6 +298,8 @@ CONTAINS
       CHARACTER(len=6)                                   :: frequency_name
       CHARACTER(len=default_string_length), POINTER      :: words(:)
       INTEGER                                            :: i_frequency
+      LOGICAL                                            :: common_explicit, t1_explicit, &
+                                                            t2_explicit
       INTEGER, POINTER                                   :: mesh(:)
       TYPE(val_type), POINTER                            :: input_value
 
@@ -267,9 +311,36 @@ CONTAINS
          CPABORT('NLO ORDER must be between 2 and 5.')
       END IF
       CALL read_nlo_elements(section, nlo_env)
-      CALL section_vals_val_get(section, 'T1_T2', r_val=nlo_env%t1_t2_au)
-      IF (.NOT. ieee_is_finite(nlo_env%t1_t2_au) .OR. nlo_env%t1_t2_au <= 0.0_dp) THEN
+      CALL section_vals_val_get(section, 'T1_T2', r_val=nlo_env%t1_au)
+      IF (.NOT. ieee_is_finite(nlo_env%t1_au) .OR. nlo_env%t1_au <= 0.0_dp) THEN
          CPABORT('NONLINEAR_OPTICS T1_T2 must be a positive, finite time.')
+      END IF
+      CALL section_vals_val_get(section, 'T1_T2', explicit=common_explicit)
+      CALL section_vals_val_get(section, 'T1', explicit=t1_explicit)
+      CALL section_vals_val_get(section, 'T2', explicit=t2_explicit)
+      IF (t1_explicit .NEQV. t2_explicit) THEN
+         CPABORT('NONLINEAR_OPTICS requires both T1 and T2 when either is set.')
+      END IF
+      IF (t1_explicit .AND. common_explicit) THEN
+         CPABORT('NONLINEAR_OPTICS cannot combine T1_T2 with T1 and T2.')
+      END IF
+      nlo_env%t2_au = nlo_env%t1_au
+      IF (t1_explicit) THEN
+         CALL section_vals_val_get(section, 'T1', r_val=nlo_env%t1_au)
+         CALL section_vals_val_get(section, 'T2', r_val=nlo_env%t2_au)
+      END IF
+      IF (.NOT. ieee_is_finite(nlo_env%t1_au) .OR. &
+          .NOT. ieee_is_finite(nlo_env%t2_au)) THEN
+         CPABORT('NONLINEAR_OPTICS T1 and T2 must be finite times.')
+      END IF
+      IF (nlo_env%t2_au <= 0.0_dp .OR. nlo_env%t1_au < nlo_env%t2_au) THEN
+         CPABORT('NONLINEAR_OPTICS requires T1 >= T2 > 0.')
+      END IF
+      CALL section_vals_val_get(section, 'T1_T2_SMOOTHING_WIDTH', &
+                                r_val=nlo_env%transition_width_au)
+      IF (.NOT. ieee_is_finite(nlo_env%transition_width_au) .OR. &
+          nlo_env%transition_width_au <= 0.0_dp) THEN
+         CPABORT('NONLINEAR_OPTICS requires a positive, finite transition width.')
       END IF
       CALL section_vals_val_get(section, 'K_MESH', val=input_value)
       IF (.NOT. ASSOCIATED(input_value)) CPABORT('NONLINEAR_OPTICS requires K_MESH.')

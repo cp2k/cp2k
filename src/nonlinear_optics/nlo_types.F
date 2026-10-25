@@ -37,7 +37,9 @@ MODULE nlo_types
       INTEGER                                        :: order = 0, &
                                                         k_mesh(3) = 0
       LOGICAL, ALLOCATABLE                           :: elements(:, :)
-      REAL(KIND=dp)                                  :: t1_t2_au = 0.0_dp
+      REAL(KIND=dp)                                  :: t1_au = 0.0_dp
+      REAL(KIND=dp)                                  :: t2_au = 0.0_dp
+      REAL(KIND=dp)                                  :: transition_width_au = 0.0_dp
       TYPE(nlo_frequency_type)                       :: frequency(5)
       ! Number of independent tuples formed from FREQ_1,...,FREQ_ORDER.
       INTEGER                                        :: n_frequency_combinations = 0

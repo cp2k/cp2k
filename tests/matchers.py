@@ -247,6 +247,23 @@ for nlo_order in (3, 4, 5):
 registry["NLO_T1_T2_fs"] = GenericMatcher(
     r"NONLINEAR_OPTICS\| T1 = T2:\s+([-+0-9.EeDd]+)\s+fs", col=1, regex=True
 )
+registry["NLO_T1_fs"] = GenericMatcher(
+    r"NONLINEAR_OPTICS\| T1:\s+([-+0-9.EeDd]+)\s+fs", col=1, regex=True
+)
+registry["NLO_T2_fs"] = GenericMatcher(
+    r"NONLINEAR_OPTICS\| T2:\s+([-+0-9.EeDd]+)\s+fs", col=1, regex=True
+)
+registry["NLO_hbar_T1_meV"] = GenericMatcher(
+    r"NONLINEAR_OPTICS\| ℏ/T1:\s+([-+0-9.EeDd]+)\s+meV", col=1, regex=True
+)
+registry["NLO_hbar_T2_meV"] = GenericMatcher(
+    r"NONLINEAR_OPTICS\| ℏ/T2:\s+([-+0-9.EeDd]+)\s+meV", col=1, regex=True
+)
+registry["NLO_transition_width_meV"] = GenericMatcher(
+    r"NONLINEAR_OPTICS\| Band transition width:\s+([-+0-9.EeDd]+)\s+meV",
+    col=1,
+    regex=True,
+)
 registry["Kubo_internal_diag"] = TextPresenceMatcher("internal diagonalization")
 registry["Kubo_reused_mos"] = TextPresenceMatcher("CP2K canonical MOs")
 registry["Kubo_reference"] = TextPresenceMatcher(
