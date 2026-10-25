@@ -35,8 +35,11 @@ MODULE qs_ot_minimizer
    USE qs_ot,                           ONLY: qs_ot_get_derivative,&
                                               qs_ot_get_derivative_complex,&
                                               qs_ot_get_derivative_ref,&
-                                              qs_ot_get_derivative_ref_complex
+                                              qs_ot_get_derivative_ref_complex,&
+                                              qs_ot_prepare_complex_tangent_metric,&
+                                              qs_ot_project_gradient
    USE qs_ot_types,                     ONLY: qs_ot_kpoint_preconditioner_scale,&
+                                              qs_ot_reset_history,&
                                               qs_ot_type
 #include "./base/base_uses.f90"
 
@@ -140,7 +143,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_mini'
 
-      INTEGER                                            :: handle, ispin, nspin
+      INTEGER                                            :: handle, ispin, nspin, restart_history
       LOGICAL                                            :: do_ener, do_ks, evaluate_gradient_only, &
                                                             reuse_gradient, &
                                                             separate_occupation_gradient
@@ -158,6 +161,26 @@ CONTAINS
 
       do_ks = qs_ot_env(1)%settings%ks
       do_ener = qs_ot_env(1)%settings%do_ener
+
+      ! Settle each channel's metric before projecting gradients or consuming history.
+      restart_history = 0
+      DO ispin = 1, nspin
+         IF (do_ks .AND. qs_ot_env(ispin)%settings%ot_algorithm == 'TOD' .AND. &
+             qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+            CALL qs_ot_prepare_complex_tangent_metric(qs_ot_env(ispin))
+         END IF
+         IF (qs_ot_env(ispin)%preconditioner_changed) restart_history = 1
+      END DO
+      IF (PRESENT(para_env_inter_kp)) THEN
+         IF (ASSOCIATED(para_env_inter_kp)) CALL para_env_inter_kp%max(restart_history)
+      END IF
+      IF (restart_history /= 0) THEN
+         DO ispin = 1, nspin
+            CALL qs_ot_reset_history(qs_ot_env(ispin))
+         END DO
+         reuse_gradient = .FALSE.
+      END IF
+
       separate_occupation_gradient = PRESENT(matrix_hc_physical)
       IF (separate_occupation_gradient) THEN
          CPASSERT(qs_ot_env(1)%settings%occupation_preconditioner)
@@ -2982,10 +3005,17 @@ CONTAINS
             g_dot_z = 0.0_dp
             DO ispin = 1, nspin
                CALL dbcsr_copy(qs_ot_env(ispin)%matrix_dx, qs_ot_env(ispin)%matrix_gx)
+               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_copy(qs_ot_env(ispin)%matrix_dx_im, qs_ot_env(ispin)%matrix_gx_im)
+               END IF
+               IF (qs_ot_env(ispin)%settings%ot_algorithm == 'TOD') THEN
+                  ! The P-projected gradient needs an identity-metric projection for this step.
+                  CALL qs_ot_project_gradient(qs_ot_env(ispin), qs_ot_env(ispin)%matrix_dx, &
+                                              qs_ot_env(ispin)%matrix_dx_im, use_preconditioner=.FALSE.)
+               END IF
                CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx, tmp)
                g_dot_z = g_dot_z + tmp
                IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                  CALL dbcsr_copy(qs_ot_env(ispin)%matrix_dx_im, qs_ot_env(ispin)%matrix_gx_im)
                   CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx_im, &
                                  qs_ot_env(ispin)%matrix_dx_im, tmp)
                   g_dot_z = g_dot_z + tmp

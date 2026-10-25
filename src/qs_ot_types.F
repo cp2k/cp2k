@@ -66,6 +66,7 @@ MODULE qs_ot_types
    PUBLIC  :: qs_ot_channel_index
    PUBLIC  :: qs_ot_check_channel_context
    PUBLIC  :: qs_ot_init
+   PUBLIC  :: qs_ot_reset_history
    PUBLIC  :: qs_ot_kpoint_preconditioner_solver_supported
    PUBLIC  :: qs_ot_kpoint_preconditioner_scale
    PUBLIC  :: qs_ot_kpoint_preconditioner_supported
@@ -177,6 +178,8 @@ MODULE qs_ot_types
 
       ! matrix os valid
       LOGICAL :: os_valid = .FALSE.
+      ! Consumed by ot_mini after synchronizing the restart across k-point groups.
+      LOGICAL :: preconditioner_changed = .FALSE.
 
       ! for efficient/parallel writing to the blacs_matrix
       TYPE(mp_para_env_type), POINTER :: para_env => NULL()
@@ -576,10 +579,10 @@ CONTAINS
    END SUBROUTINE qs_ot_check_channel_context
 
 ! **************************************************************************************************
-!> \brief init matrices, needs c0 and sc0 so that c0*sc0=1
-!> \param qs_ot_env ...
+!> \brief Restart the minimizer at the current point without changing its coordinates or gradient.
+!> \param qs_ot_env OT channel state
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_init(qs_ot_env)
+   SUBROUTINE qs_ot_reset_history(qs_ot_env)
       TYPE(qs_ot_type)                                   :: qs_ot_env
 
       qs_ot_env%OT_energy(:) = 0.0_dp
@@ -591,27 +594,9 @@ CONTAINS
       qs_ot_env%gnorm_old = 1.0_dp
       qs_ot_env%diis_iter = 0
       qs_ot_env%ds_min = qs_ot_env%settings%ds_min
-      qs_ot_env%os_valid = .FALSE.
-
-      CALL dbcsr_set(qs_ot_env%matrix_gx, 0.0_dp)
-      IF (ASSOCIATED(qs_ot_env%matrix_gx_im)) THEN
-         CALL dbcsr_set(qs_ot_env%matrix_gx_im, 0.0_dp)
-      END IF
-      IF (ASSOCIATED(qs_ot_env%matrix_preconditioned_gx)) THEN
-         CALL dbcsr_set(qs_ot_env%matrix_preconditioned_gx, 0.0_dp)
-      END IF
-      IF (ASSOCIATED(qs_ot_env%matrix_preconditioned_gx_im)) THEN
-         CALL dbcsr_set(qs_ot_env%matrix_preconditioned_gx_im, 0.0_dp)
-      END IF
-      IF (ASSOCIATED(qs_ot_env%matrix_response_gx)) CALL dbcsr_set(qs_ot_env%matrix_response_gx, 0.0_dp)
-      IF (ASSOCIATED(qs_ot_env%matrix_response_gx_im)) THEN
-         CALL dbcsr_set(qs_ot_env%matrix_response_gx_im, 0.0_dp)
-      END IF
-      IF (ASSOCIATED(qs_ot_env%matrix_mermin_g0)) CALL dbcsr_set(qs_ot_env%matrix_mermin_g0, 0.0_dp)
-      IF (ASSOCIATED(qs_ot_env%matrix_mermin_g0_im)) THEN
-         CALL dbcsr_set(qs_ot_env%matrix_mermin_g0_im, 0.0_dp)
-      END IF
+      qs_ot_env%line_search_might_be_done = .FALSE.
       qs_ot_env%mermin_gradient_ref_valid = .FALSE.
+      qs_ot_env%preconditioner_changed = .FALSE.
 
       IF (qs_ot_env%use_dx) THEN
          CALL dbcsr_set(qs_ot_env%matrix_dx, 0.0_dp)
@@ -632,6 +617,70 @@ CONTAINS
          qs_ot_env%lbfgs_yy = 0.0_dp
          qs_ot_env%lbfgs_sy_rotation = 0.0_dp
          qs_ot_env%lbfgs_yy_rotation = 0.0_dp
+      END IF
+
+      IF (qs_ot_env%settings%do_rotation) THEN
+         qs_ot_env%rotation_response_valid = .FALSE.
+         qs_ot_env%response_candidate_pending = .FALSE.
+         qs_ot_env%response_shadow_pending = .FALSE.
+         qs_ot_env%response_candidate_directions = 0
+         qs_ot_env%response_candidate_good_samples = 0
+         qs_ot_env%response_candidate_cooldown = 0
+         qs_ot_env%response_shadow_good_samples = 0
+         qs_ot_env%response_model_curvature = 0.0_dp
+         qs_ot_env%response_shadow_curvature = 0.0_dp
+         qs_ot_env%response_hxc_direction_valid = .FALSE.
+         qs_ot_env%response_reference_energy = 0.0_dp
+         qs_ot_env%response_reference_residual = 0.0_dp
+         qs_ot_env%response_predicted_slope = 0.0_dp
+         qs_ot_env%response_predicted_curvature = 0.0_dp
+         IF (qs_ot_env%use_dx) THEN
+            CALL dbcsr_set(qs_ot_env%rot_mat_dx, 0.0_dp)
+            IF (ASSOCIATED(qs_ot_env%rot_mat_dx_im)) CALL dbcsr_set(qs_ot_env%rot_mat_dx_im, 0.0_dp)
+         END IF
+         IF (qs_ot_env%use_gx_old) THEN
+            CALL dbcsr_set(qs_ot_env%rot_mat_gx_old, 0.0_dp)
+            IF (ASSOCIATED(qs_ot_env%rot_mat_gx_old_im)) CALL dbcsr_set(qs_ot_env%rot_mat_gx_old_im, 0.0_dp)
+         END IF
+      END IF
+      IF (qs_ot_env%settings%do_ener) THEN
+         IF (qs_ot_env%use_dx) THEN
+            qs_ot_env%ener_dx(:) = 0.0_dp
+         END IF
+         IF (qs_ot_env%use_gx_old) THEN
+            qs_ot_env%ener_gx_old(:) = 0.0_dp
+         END IF
+      END IF
+
+   END SUBROUTINE qs_ot_reset_history
+
+! **************************************************************************************************
+!> \brief init matrices, needs c0 and sc0 so that c0*sc0=1
+!> \param qs_ot_env ...
+! **************************************************************************************************
+   SUBROUTINE qs_ot_init(qs_ot_env)
+      TYPE(qs_ot_type)                                   :: qs_ot_env
+
+      CALL qs_ot_reset_history(qs_ot_env)
+      qs_ot_env%os_valid = .FALSE.
+
+      CALL dbcsr_set(qs_ot_env%matrix_gx, 0.0_dp)
+      IF (ASSOCIATED(qs_ot_env%matrix_gx_im)) THEN
+         CALL dbcsr_set(qs_ot_env%matrix_gx_im, 0.0_dp)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%matrix_preconditioned_gx)) THEN
+         CALL dbcsr_set(qs_ot_env%matrix_preconditioned_gx, 0.0_dp)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%matrix_preconditioned_gx_im)) THEN
+         CALL dbcsr_set(qs_ot_env%matrix_preconditioned_gx_im, 0.0_dp)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%matrix_response_gx)) CALL dbcsr_set(qs_ot_env%matrix_response_gx, 0.0_dp)
+      IF (ASSOCIATED(qs_ot_env%matrix_response_gx_im)) THEN
+         CALL dbcsr_set(qs_ot_env%matrix_response_gx_im, 0.0_dp)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%matrix_mermin_g0)) CALL dbcsr_set(qs_ot_env%matrix_mermin_g0, 0.0_dp)
+      IF (ASSOCIATED(qs_ot_env%matrix_mermin_g0_im)) THEN
+         CALL dbcsr_set(qs_ot_env%matrix_mermin_g0_im, 0.0_dp)
       END IF
 
       IF (qs_ot_env%settings%do_rotation) THEN
@@ -658,28 +707,6 @@ CONTAINS
          IF (ASSOCIATED(qs_ot_env%rot_mat_mermin_g0_im)) THEN
             CALL dbcsr_set(qs_ot_env%rot_mat_mermin_g0_im, 0.0_dp)
          END IF
-         qs_ot_env%rotation_response_valid = .FALSE.
-         qs_ot_env%response_candidate_pending = .FALSE.
-         qs_ot_env%response_shadow_pending = .FALSE.
-         qs_ot_env%response_candidate_directions = 0
-         qs_ot_env%response_candidate_good_samples = 0
-         qs_ot_env%response_candidate_cooldown = 0
-         qs_ot_env%response_shadow_good_samples = 0
-         qs_ot_env%response_model_curvature = 0.0_dp
-         qs_ot_env%response_shadow_curvature = 0.0_dp
-         qs_ot_env%response_hxc_direction_valid = .FALSE.
-         qs_ot_env%response_reference_energy = 0.0_dp
-         qs_ot_env%response_reference_residual = 0.0_dp
-         qs_ot_env%response_predicted_slope = 0.0_dp
-         qs_ot_env%response_predicted_curvature = 0.0_dp
-         IF (qs_ot_env%use_dx) THEN
-            CALL dbcsr_set(qs_ot_env%rot_mat_dx, 0.0_dp)
-            IF (ASSOCIATED(qs_ot_env%rot_mat_dx_im)) CALL dbcsr_set(qs_ot_env%rot_mat_dx_im, 0.0_dp)
-         END IF
-         IF (qs_ot_env%use_gx_old) THEN
-            CALL dbcsr_set(qs_ot_env%rot_mat_gx_old, 0.0_dp)
-            IF (ASSOCIATED(qs_ot_env%rot_mat_gx_old_im)) CALL dbcsr_set(qs_ot_env%rot_mat_gx_old_im, 0.0_dp)
-         END IF
       END IF
       IF (qs_ot_env%settings%do_ener) THEN
          qs_ot_env%ener_rayleigh(:) = 0.0_dp
@@ -689,12 +716,6 @@ CONTAINS
          END IF
          IF (ASSOCIATED(qs_ot_env%ener_response_gx)) qs_ot_env%ener_response_gx(:) = 0.0_dp
          IF (ALLOCATED(qs_ot_env%ener_mermin_g0)) qs_ot_env%ener_mermin_g0(:) = 0.0_dp
-         IF (qs_ot_env%use_dx) THEN
-            qs_ot_env%ener_dx(:) = 0.0_dp
-         END IF
-         IF (qs_ot_env%use_gx_old) THEN
-            qs_ot_env%ener_gx_old(:) = 0.0_dp
-         END IF
       END IF
 
    END SUBROUTINE qs_ot_init

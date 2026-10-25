@@ -51,6 +51,7 @@ MODULE qs_ot
    PUBLIC  :: qs_ot_get_derivative
    PUBLIC  :: qs_ot_get_derivative_complex
    PUBLIC  :: qs_ot_prepare_complex_tangent_metric
+   PUBLIC  :: qs_ot_project_gradient
    PUBLIC  :: qs_ot_get_orbitals_ref
    PUBLIC  :: qs_ot_get_orbitals_ref_complex
    PUBLIC  :: qs_ot_get_derivative_ref
@@ -1075,6 +1076,7 @@ CONTAINS
       INTEGER                                            :: ncoef
 
       qs_ot_env%preconditioner => preconditioner
+      qs_ot_env%preconditioner_changed = .TRUE.
       qs_ot_env%os_valid = .FALSE.
       IF (.NOT. ASSOCIATED(qs_ot_env%matrix_psc0)) THEN
          CALL dbcsr_init_p(qs_ot_env%matrix_psc0)
@@ -3038,14 +3040,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_derivative'
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
 
-      INTEGER                                            :: handle, k, n, ortho_k
-      TYPE(dbcsr_type), POINTER                          :: matrix_hc_local, matrix_target
+      INTEGER                                            :: handle
+      TYPE(dbcsr_type), POINTER                          :: matrix_hc_local
 
       CALL timeset(routineN, handle)
 
       NULLIFY (matrix_hc_local)
-
-      CALL dbcsr_get_info(matrix_x, nfullrows_total=n, nfullcols_total=k)
 
       ! could in principle be taken inside qs_ot_get_derivative_* for increased efficiency
       ! create a local rotated version of matrix_hc leaving matrix_hc untouched (needed
@@ -3066,39 +3066,7 @@ CONTAINS
          CALL qs_ot_get_derivative_diag(matrix_hc_local, matrix_x, matrix_sx, matrix_gx, qs_ot_env)
       END IF
 
-      ! and make it orthogonal
-      CALL dbcsr_get_info(qs_ot_env%matrix_sc0, nfullcols_total=ortho_k)
-
-      IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
-         matrix_target => qs_ot_env%matrix_psc0
-      ELSE
-         matrix_target => qs_ot_env%matrix_sc0
-      END IF
-      ! first make the matrix os if not yet valid
-      IF (.NOT. qs_ot_env%os_valid) THEN
-         ! this assumes that the preconditioner is a single matrix
-         ! that maps sc0 onto psc0
-
-         IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
-            CALL apply_preconditioner(qs_ot_env%preconditioner, qs_ot_env%matrix_sc0, &
-                                      qs_ot_env%matrix_psc0)
-         END IF
-         CALL dbcsr_multiply('T', 'N', rone, &
-                             qs_ot_env%matrix_sc0, matrix_target, &
-                             rzero, qs_ot_env%matrix_os)
-         CALL cp_dbcsr_cholesky_decompose(qs_ot_env%matrix_os, &
-                                          para_env=qs_ot_env%para_env, blacs_env=qs_ot_env%blacs_env)
-         CALL cp_dbcsr_cholesky_invert(qs_ot_env%matrix_os, &
-                                       para_env=qs_ot_env%para_env, blacs_env=qs_ot_env%blacs_env, &
-                                       uplo_to_full=.TRUE.)
-         qs_ot_env%os_valid = .TRUE.
-      END IF
-      CALL dbcsr_multiply('T', 'N', rone, matrix_target, matrix_gx, &
-                          rzero, qs_ot_env%matrix_buf1_ortho)
-      CALL dbcsr_multiply('N', 'N', rone, qs_ot_env%matrix_os, &
-                          qs_ot_env%matrix_buf1_ortho, rzero, qs_ot_env%matrix_buf2_ortho)
-      CALL dbcsr_multiply('N', 'N', -rone, qs_ot_env%matrix_sc0, &
-                          qs_ot_env%matrix_buf2_ortho, rone, matrix_gx)
+      CALL qs_ot_project_gradient(qs_ot_env, matrix_gx)
       ! also treat the rot_mat gradient here
       IF (qs_ot_env%settings%do_rotation) THEN
          CALL qs_ot_rot_mat_derivative(qs_ot_env)
@@ -3113,23 +3081,112 @@ CONTAINS
    END SUBROUTINE qs_ot_get_derivative
 
 ! **************************************************************************************************
+!> \brief Project a STRICT gradient, or a fallback direction using the identity metric.
+!> \param qs_ot_env OT channel state
+!> \param matrix_gx real component to project in place
+!> \param matrix_gx_im imaginary component for a complex channel
+!> \param use_preconditioner use the attached preconditioner, default true
+! **************************************************************************************************
+   SUBROUTINE qs_ot_project_gradient(qs_ot_env, matrix_gx, matrix_gx_im, use_preconditioner)
+      TYPE(qs_ot_type)                                   :: qs_ot_env
+      TYPE(dbcsr_type), POINTER                          :: matrix_gx
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_gx_im
+      LOGICAL, INTENT(IN), OPTIONAL                      :: use_preconditioner
+
+      REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
+
+      LOGICAL                                            :: preconditioned
+      TYPE(dbcsr_type), POINTER                          :: target_im, target_re
+
+      preconditioned = .TRUE.
+      IF (PRESENT(use_preconditioner)) preconditioned = use_preconditioner
+      IF (.NOT. preconditioned) qs_ot_env%os_valid = .FALSE.
+      IF (qs_ot_env%has_complex_kpoint_state) THEN
+         CPASSERT(PRESENT(matrix_gx_im))
+         CALL qs_ot_prepare_complex_tangent_metric(qs_ot_env, use_preconditioner=preconditioned)
+         IF (preconditioned .AND. ASSOCIATED(qs_ot_env%preconditioner)) THEN
+            target_re => qs_ot_env%matrix_psc0
+            target_im => qs_ot_env%matrix_psc0_im
+         ELSE
+            target_re => qs_ot_env%matrix_sc0
+            target_im => qs_ot_env%matrix_sc0_im
+         END IF
+
+         CALL qs_ot_complex_multiply('C', 'N', target_re, target_im, &
+                                     matrix_gx, matrix_gx_im, &
+                                     qs_ot_env%matrix_buf1_ortho, qs_ot_env%matrix_buf1_ortho_im, &
+                                     qs_ot_env%matrix_tmp_ortho)
+         CALL qs_ot_complex_multiply('N', 'N', qs_ot_env%matrix_os, qs_ot_env%matrix_os_im, &
+                                     qs_ot_env%matrix_buf1_ortho, qs_ot_env%matrix_buf1_ortho_im, &
+                                     qs_ot_env%matrix_buf2_ortho, qs_ot_env%matrix_buf2_ortho_im, &
+                                     qs_ot_env%matrix_tmp_ortho)
+         CALL qs_ot_complex_multiply('N', 'N', qs_ot_env%matrix_sc0, qs_ot_env%matrix_sc0_im, &
+                                     qs_ot_env%matrix_buf2_ortho, qs_ot_env%matrix_buf2_ortho_im, &
+                                     qs_ot_env%matrix_buf_nk, qs_ot_env%matrix_buf_nk_im, &
+                                     qs_ot_env%matrix_tmp_nk)
+         CALL dbcsr_add(matrix_gx, qs_ot_env%matrix_buf_nk, &
+                        alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+         CALL dbcsr_add(matrix_gx_im, qs_ot_env%matrix_buf_nk_im, &
+                        alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+      ELSE
+         IF (preconditioned .AND. ASSOCIATED(qs_ot_env%preconditioner)) THEN
+            target_re => qs_ot_env%matrix_psc0
+         ELSE
+            target_re => qs_ot_env%matrix_sc0
+         END IF
+         ! first make the matrix os if not yet valid
+         IF (.NOT. qs_ot_env%os_valid) THEN
+            ! this assumes that the preconditioner is a single matrix
+            ! that maps sc0 onto psc0
+
+            IF (preconditioned .AND. ASSOCIATED(qs_ot_env%preconditioner)) THEN
+               CALL apply_preconditioner(qs_ot_env%preconditioner, qs_ot_env%matrix_sc0, &
+                                         qs_ot_env%matrix_psc0)
+            END IF
+            CALL dbcsr_multiply('T', 'N', rone, &
+                                qs_ot_env%matrix_sc0, target_re, &
+                                rzero, qs_ot_env%matrix_os)
+            CALL cp_dbcsr_cholesky_decompose(qs_ot_env%matrix_os, &
+                                             para_env=qs_ot_env%para_env, blacs_env=qs_ot_env%blacs_env)
+            CALL cp_dbcsr_cholesky_invert(qs_ot_env%matrix_os, &
+                                          para_env=qs_ot_env%para_env, blacs_env=qs_ot_env%blacs_env, &
+                                          uplo_to_full=.TRUE.)
+            qs_ot_env%os_valid = preconditioned
+         END IF
+         CALL dbcsr_multiply('T', 'N', rone, target_re, matrix_gx, &
+                             rzero, qs_ot_env%matrix_buf1_ortho)
+         CALL dbcsr_multiply('N', 'N', rone, qs_ot_env%matrix_os, &
+                             qs_ot_env%matrix_buf1_ortho, rzero, qs_ot_env%matrix_buf2_ortho)
+         CALL dbcsr_multiply('N', 'N', -rone, qs_ot_env%matrix_sc0, &
+                             qs_ot_env%matrix_buf2_ortho, rone, matrix_gx)
+      END IF
+
+   END SUBROUTINE qs_ot_project_gradient
+
+! **************************************************************************************************
 !> \brief Prepare the inverse metric used to project a complex STRICT gradient.
 !>        An unusable preconditioner is detached before any minimizer history is updated.
 !> \param qs_ot_env OT channel state
 !> \param preconditioner_rejected true if the attached preconditioner was not positive definite
+!> \param use_preconditioner use the attached preconditioner, default true
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_prepare_complex_tangent_metric(qs_ot_env, preconditioner_rejected)
+   SUBROUTINE qs_ot_prepare_complex_tangent_metric(qs_ot_env, preconditioner_rejected, use_preconditioner)
       TYPE(qs_ot_type)                                   :: qs_ot_env
       LOGICAL, INTENT(OUT), OPTIONAL                     :: preconditioner_rejected
+      LOGICAL, INTENT(IN), OPTIONAL                      :: use_preconditioner
 
       INTEGER                                            :: i, k
+      LOGICAL                                            :: preconditioned
       REAL(KIND=dp)                                      :: eval_scale, eval_threshold
       TYPE(dbcsr_type), POINTER                          :: target_im, target_re
 
+      preconditioned = .TRUE.
+      IF (PRESENT(use_preconditioner)) preconditioned = use_preconditioner
+      IF (.NOT. preconditioned) qs_ot_env%os_valid = .FALSE.
       IF (PRESENT(preconditioner_rejected)) preconditioner_rejected = .FALSE.
       IF (qs_ot_env%os_valid) RETURN
 
-      IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
+      IF (preconditioned .AND. ASSOCIATED(qs_ot_env%preconditioner)) THEN
          target_re => qs_ot_env%matrix_psc0
          target_im => qs_ot_env%matrix_psc0_im
          CALL apply_preconditioner(qs_ot_env%preconditioner, &
@@ -3143,15 +3200,17 @@ CONTAINS
                                   target_re, target_im, qs_ot_env%matrix_os, qs_ot_env%matrix_os_im, &
                                   qs_ot_env%matrix_buf1)
       CALL dbcsr_get_info(qs_ot_env%matrix_os, nfullrows_total=k)
+      ! Preserve the eigenvectors and eigenvalues of X^H*S*X used by the STRICT derivative.
       CALL cp_dbcsr_heevd(matrix_re=qs_ot_env%matrix_os, matrix_im=qs_ot_env%matrix_os_im, &
-                          eigenvectors_re=qs_ot_env%matrix_r, eigenvectors_im=qs_ot_env%matrix_r_im, &
-                          eigenvalues=qs_ot_env%evals, para_env=qs_ot_env%para_env, &
+                          eigenvectors_re=qs_ot_env%matrix_buf3, eigenvectors_im=qs_ot_env%matrix_buf3_im, &
+                          eigenvalues=qs_ot_env%dum, para_env=qs_ot_env%para_env, &
                           blacs_env=qs_ot_env%blacs_env)
-      eval_scale = MAX(1.0_dp, MAXVAL(ABS(qs_ot_env%evals(1:k))))
+      eval_scale = MAX(1.0_dp, MAXVAL(ABS(qs_ot_env%dum(1:k))))
       eval_threshold = 100.0_dp*EPSILON(1.0_dp)*eval_scale
-      IF (MINVAL(qs_ot_env%evals(1:k)) <= eval_threshold .AND. &
-          ASSOCIATED(qs_ot_env%preconditioner)) THEN
+      IF (MINVAL(qs_ot_env%dum(1:k)) <= eval_threshold .AND. &
+          preconditioned .AND. ASSOCIATED(qs_ot_env%preconditioner)) THEN
          NULLIFY (qs_ot_env%preconditioner)
+         qs_ot_env%preconditioner_changed = .TRUE.
          IF (PRESENT(preconditioner_rejected)) preconditioner_rejected = .TRUE.
          target_re => qs_ot_env%matrix_sc0
          target_im => qs_ot_env%matrix_sc0_im
@@ -3159,25 +3218,26 @@ CONTAINS
                                      target_re, target_im, qs_ot_env%matrix_os, qs_ot_env%matrix_os_im, &
                                      qs_ot_env%matrix_buf1)
          CALL cp_dbcsr_heevd(matrix_re=qs_ot_env%matrix_os, matrix_im=qs_ot_env%matrix_os_im, &
-                             eigenvectors_re=qs_ot_env%matrix_r, eigenvectors_im=qs_ot_env%matrix_r_im, &
-                             eigenvalues=qs_ot_env%evals, para_env=qs_ot_env%para_env, &
+                             eigenvectors_re=qs_ot_env%matrix_buf3, eigenvectors_im=qs_ot_env%matrix_buf3_im, &
+                             eigenvalues=qs_ot_env%dum, para_env=qs_ot_env%para_env, &
                              blacs_env=qs_ot_env%blacs_env)
-         eval_scale = MAX(1.0_dp, MAXVAL(ABS(qs_ot_env%evals(1:k))))
+         eval_scale = MAX(1.0_dp, MAXVAL(ABS(qs_ot_env%dum(1:k))))
          eval_threshold = 100.0_dp*EPSILON(1.0_dp)*eval_scale
       END IF
-      CPASSERT(MINVAL(qs_ot_env%evals(1:k)) > eval_threshold)
+      CPASSERT(MINVAL(qs_ot_env%dum(1:k)) > eval_threshold)
       DO i = 1, k
-         qs_ot_env%dum(i) = 1.0_dp/qs_ot_env%evals(i)
+         qs_ot_env%dum(i) = 1.0_dp/qs_ot_env%dum(i)
       END DO
-      CALL dbcsr_copy(qs_ot_env%matrix_buf1, qs_ot_env%matrix_r)
-      CALL dbcsr_copy(qs_ot_env%matrix_buf1_im, qs_ot_env%matrix_r_im)
+      CALL dbcsr_copy(qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf3)
+      CALL dbcsr_copy(qs_ot_env%matrix_buf1_im, qs_ot_env%matrix_buf3_im)
       CALL dbcsr_scale_by_vector(qs_ot_env%matrix_buf1, alpha=qs_ot_env%dum, side='right')
       CALL dbcsr_scale_by_vector(qs_ot_env%matrix_buf1_im, alpha=qs_ot_env%dum, side='right')
       CALL qs_ot_complex_multiply('N', 'C', qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf1_im, &
-                                  qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, &
+                                  qs_ot_env%matrix_buf3, qs_ot_env%matrix_buf3_im, &
                                   qs_ot_env%matrix_os, qs_ot_env%matrix_os_im, &
                                   qs_ot_env%matrix_buf2)
-      qs_ot_env%os_valid = .TRUE.
+      ! An identity-metric projection must not replace the cached preconditioned metric.
+      qs_ot_env%os_valid = preconditioned
 
    END SUBROUTINE qs_ot_prepare_complex_tangent_metric
 
@@ -3201,8 +3261,7 @@ CONTAINS
       TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_type)                                   :: tmp_nk
       TYPE(dbcsr_type), POINTER                          :: hc_rotation_im, hc_rotation_re, &
-                                                            hc_work_im, hc_work_re, target_im, &
-                                                            target_re
+                                                            hc_work_im, hc_work_re
       TYPE(dbcsr_type), TARGET                           :: hc_rot_im, hc_rot_re
 
       CALL timeset(routineN, handle)
@@ -3342,32 +3401,7 @@ CONTAINS
       CALL dbcsr_add(qs_ot_env%matrix_gx_im, qs_ot_env%matrix_buf_nk_im, &
                      alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
 
-      ! Preconditioner-aware projection onto the complex STRICT tangent space.
-      CALL qs_ot_prepare_complex_tangent_metric(qs_ot_env)
-      IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
-         target_re => qs_ot_env%matrix_psc0
-         target_im => qs_ot_env%matrix_psc0_im
-      ELSE
-         target_re => qs_ot_env%matrix_sc0
-         target_im => qs_ot_env%matrix_sc0_im
-      END IF
-
-      CALL qs_ot_complex_multiply('C', 'N', target_re, target_im, &
-                                  qs_ot_env%matrix_gx, qs_ot_env%matrix_gx_im, &
-                                  qs_ot_env%matrix_buf1_ortho, qs_ot_env%matrix_buf1_ortho_im, &
-                                  qs_ot_env%matrix_tmp_ortho)
-      CALL qs_ot_complex_multiply('N', 'N', qs_ot_env%matrix_os, qs_ot_env%matrix_os_im, &
-                                  qs_ot_env%matrix_buf1_ortho, qs_ot_env%matrix_buf1_ortho_im, &
-                                  qs_ot_env%matrix_buf2_ortho, qs_ot_env%matrix_buf2_ortho_im, &
-                                  qs_ot_env%matrix_tmp_ortho)
-      CALL qs_ot_complex_multiply('N', 'N', qs_ot_env%matrix_sc0, qs_ot_env%matrix_sc0_im, &
-                                  qs_ot_env%matrix_buf2_ortho, qs_ot_env%matrix_buf2_ortho_im, &
-                                  qs_ot_env%matrix_buf_nk, qs_ot_env%matrix_buf_nk_im, &
-                                  qs_ot_env%matrix_tmp_nk)
-      CALL dbcsr_add(qs_ot_env%matrix_gx, qs_ot_env%matrix_buf_nk, &
-                     alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-      CALL dbcsr_add(qs_ot_env%matrix_gx_im, qs_ot_env%matrix_buf_nk_im, &
-                     alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+      CALL qs_ot_project_gradient(qs_ot_env, qs_ot_env%matrix_gx, qs_ot_env%matrix_gx_im)
 
       IF (qs_ot_env%settings%do_rotation) THEN
          CALL dbcsr_release(hc_rot_re)
