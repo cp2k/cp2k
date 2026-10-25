@@ -382,7 +382,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: pw_aux, pw_pool
-      TYPE(pw_r3d_rs_type)                               :: coeff_raux, coeff_rspace
+      TYPE(pw_r3d_rs_type)                               :: coeff_rspace
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
@@ -482,10 +482,8 @@ CONTAINS
          CALL pw_copy(coeff_gaux, coeff_gspace)
          CALL pw_transfer(coeff_gspace, coeff_rspace)
          CALL pw_aux%give_back_pw(coeff_gaux)
-         CALL pw_aux%create_pw(coeff_raux)
-         fscale = coeff_rspace%pw_grid%dvol/coeff_raux%pw_grid%dvol
+         fscale = coeff_rspace%pw_grid%dvol/pw_aux%pw_grid%dvol
          CALL pw_scale(coeff_rspace, fscale)
-         CALL pw_aux%give_back_pw(coeff_raux)
       ELSE
 
          IF (coeff_gspace%pw_grid%spherical) THEN
