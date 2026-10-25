@@ -36,6 +36,7 @@ PROGRAM wannier90_projections_unittest
    COMPLEX(KIND=dp) :: mixed_reference(4, 3, 2)
    LOGICAL :: allowed(4)
    INTEGER :: anchor, ik, nfail, pivots(2), reference_pivots(2)
+   INTEGER :: empty_groups(4, 0)
    REAL(KIND=dp) :: angle, min_svalue
    TYPE(mp_comm_type) :: comm
    TYPE(mp_para_env_type), POINTER :: para_env
@@ -137,7 +138,7 @@ PROGRAM wannier90_projections_unittest
       END DO
    END IF
    DEALLOCATE (hybrids)
-   CALL wannier90_hybrid_candidates(candidates, RESHAPE([1, 2, 3, 4], [4, 0]), hybrids)
+   CALL wannier90_hybrid_candidates(candidates, empty_groups, hybrids)
    IF (para_env%is_source()) THEN
       IF (MAXVAL(ABS(hybrids - candidates)) > 1.0e-14_dp) nfail = nfail + 1
    END IF
