@@ -28,6 +28,9 @@ implementation or assuming that they have accepted ownership.
   have narrow, explicit exceptions; CP2K definitions remain strictly checked. The optional
   OpenMM/LAMMPS/QM-MM adapters and server CLI are not yet part of this typing target.
 - Keep imports free of native-library and MPI initialization side effects.
+- Maintain `src/cp2k/_units.py` alongside `../src/common/physcon.F`: use the same CODATA adjustment,
+  published table values and derived expressions. Update both files together. Python adapters share
+  `_units.py`; the two language definitions are maintained manually.
 - Test missing/older optional C API symbols. Report unavailable capabilities explicitly; do not
   silently return zero stress or successful SCF convergence.
 - Run unit tests without a native library and native integration tests against the matching CP2K
