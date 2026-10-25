@@ -1935,7 +1935,8 @@ CONTAINS
          row_begin_tmp = row_begin(subchunk)
          row_count_tmp = row_count(subchunk)
          insert_at = subchunk
-         DO WHILE (insert_at > 1 .AND. padded_rows(insert_at - 1) < padded_rows_tmp)
+         DO WHILE (insert_at > 1)
+            IF (padded_rows(insert_at - 1) >= padded_rows_tmp) EXIT
             padded_rows(insert_at) = padded_rows(insert_at - 1)
             atom_begin(insert_at) = atom_begin(insert_at - 1)
             atom_count(insert_at) = atom_count(insert_at - 1)
