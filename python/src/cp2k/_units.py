@@ -1,22 +1,22 @@
-"""CODATA-2006 conversions maintained alongside src/common/physcon.F.
+"""CODATA-2022 conversions maintained alongside src/common/physcon.F.
 
 Keep the table values and derived expressions synchronized with physcon.
-Source: https://doi.org/10.1103/RevModPhys.80.633
+Source: https://doi.org/10.1103/RevModPhys.97.025002
 """
 
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-CODATA_YEAR = 2006
+CODATA_YEAR = 2022
 
-# Exact SI value for this CODATA adjustment, matching physcon::c_light [m/s].
-_C_LIGHT = 299792458.0
+# Exact SI defining constants, matching physcon names and SI units.
+_C_LIGHT = 299792458.0  # c_light [m/s]
+_H_PLANCK = 6.62607015e-34  # h_planck [J s]
+_E_CHARGE = 1.602176634e-19  # e_charge [C]
+_N_AVOGADRO = 6.02214076e23  # n_avogadro [1/mol]
 
 # Recommended table entries, with physcon names and SI units.
-_H_PLANCK = 6.62606896e-34  # h_planck [J s]
-_E_CHARGE = 1.602176487e-19  # e_charge [C]
-_RYDBERG = 10973731.568527  # rydberg [1/m]
-_N_AVOGADRO = 6.02214179e23  # n_avogadro [1/mol]
-_A_BOHR = 0.52917720859e-10  # a_bohr [m]
+_RYDBERG = 10973731.568157  # rydberg [1/m]
+_A_BOHR = 5.29177210544e-11  # a_bohr [m]
 
 # Derived conversions, using the same expressions as physcon.
 BOHR_TO_ANGSTROM = 1.0e10 * _A_BOHR

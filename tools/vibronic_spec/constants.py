@@ -1,14 +1,29 @@
 """
-Physical constants and conversion factors
+CODATA-2022 constants and conversions, maintained alongside src/common/physcon.F.
+
+Source: https://doi.org/10.1103/RevModPhys.97.025002
 """
 
-E_MASS = 0.000548579903
-AU_TO_EV = 27.2113838565563
+# Exact SI defining constants.
+_C_LIGHT = 299792458.0
+_H_PLANCK = 6.62607015e-34
+_E_CHARGE = 1.602176634e-19
+_BOLTZMANN = 1.380649e-23
+
+# Recommended CODATA table entries.
+_E_MASS = 9.1093837139e-31
+_A_MASS = 1.66053906892e-27
+_RYDBERG = 10973731.568157
+_A_BOHR = 5.29177210544e-11
+
+# Derived conversions, using the same expressions as physcon.
+E_MASS = _E_MASS / _A_MASS  # Electron mass in u.
+AU_TO_JOULES = 2.0 * _RYDBERG * _H_PLANCK * _C_LIGHT
+AU_TO_EV = AU_TO_JOULES / _E_CHARGE
 EV_TO_AU = 1 / AU_TO_EV
-WAVENUMBER_TO_AU = 1 / 219474.631370540
-AU_TO_JOULES = 4.35974393937059e-18
-kB = 1.3806504e-23 / AU_TO_JOULES
-BOHR_TO_ANGSTROM = 0.52917720859
+WAVENUMBER_TO_AU = 1 / (0.02 * _RYDBERG)
+kB = _BOLTZMANN / AU_TO_JOULES
+BOHR_TO_ANGSTROM = 1.0e10 * _A_BOHR
 
 # Atomic masses in amu (Dalton)
 # Source: www.angelo.edu/faculty/kboudrea/periodic/structure_mass.htm

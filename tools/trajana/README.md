@@ -10,7 +10,7 @@ This directory contains five standalone Fortran programs for post-processing CP2
 - `fresean.x` extracts frequency-selective anharmonic vibrational modes from molecular dynamics.
 
 The programs share the same XYZ reader, triclinic-cell geometry, frame selection, atom selection,
-and group definitions. CODATA-2006 physical constants are defined locally in `constants.f90`, so the
+and group definitions. CODATA-2022 physical constants are defined locally in `constants.f90`, so the
 programs can be built independently of the CP2K source tree. The legacy `tools/trajana.f90` remains
 available while workflows are migrated and can be compiled on its own.
 
