@@ -6,10 +6,15 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE trajana_spectral_tools
+   USE trajana_constants,               ONLY: c_light,&
+                                              e_charge,&
+                                              h_planck
    USE trajana_kinds,                   ONLY: dp
 
    IMPLICIT NONE
    PRIVATE
+
+   REAL(dp), PARAMETER :: thz_to_mev = 1.0E15_dp*h_planck/e_charge
 
    PUBLIC :: frequency_axes, second_frequency_moment, write_peak_header, write_spectral_peaks
 
@@ -24,8 +29,8 @@ CONTAINS
 
       frequency_hz = REAL(index, dp)/(REAL(nfft, dp)*dt_fs*1.0e-15_dp)
       terahertz = frequency_hz*1.0e-12_dp
-      wavenumber = frequency_hz/2.99792458e10_dp
-      energy_mev = terahertz*4.135667696_dp
+      wavenumber = frequency_hz/(100.0_dp*c_light)
+      energy_mev = terahertz*thz_to_mev
    END SUBROUTINE frequency_axes
 
    REAL(dp) FUNCTION second_frequency_moment(power, nfft, dt_fs) RESULT(moment)
@@ -91,7 +96,7 @@ CONTAINS
             IF (fwhm_thz > TINY(1.0_dp)) lifetime_fs = 1000.0_dp/(ACOS(-1.0_dp)*fwhm_thz)
          END IF
          CALL frequency_axes(frequency, nfft, dt_fs, wavenumber, terahertz, energy_mev)
-         fwhm_mev = fwhm_thz*4.135667696_dp
+         fwhm_mev = fwhm_thz*thz_to_mev
          intensity = power(frequency)*scale
          phase_velocity = 0.0_dp
          IF (q_value > TINY(1.0_dp)) phase_velocity = 0.2_dp*ACOS(-1.0_dp)*terahertz/q_value

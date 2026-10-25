@@ -12,6 +12,9 @@ MODULE trajana_twopt_analysis
                                               get_option,&
                                               get_real_option,&
                                               has_flag
+   USE trajana_constants,               ONLY: angstrom,&
+                                              c_light,&
+                                              picoseconds
    USE trajana_frame_controls,          ONLY: frame_selected
    USE trajana_geometry,                ONLY: cell_volume,&
                                               minimum_image
@@ -39,7 +42,7 @@ MODULE trajana_twopt_analysis
    IMPLICIT NONE
    PRIVATE
 
-   REAL(dp), PARAMETER :: bohr_per_atomic_time_to_angstrom_per_ps = 21876.91263641118_dp
+   REAL(dp), PARAMETER :: bohr_per_atomic_time_to_angstrom_per_ps = angstrom/picoseconds
 
    PUBLIC :: run_twopt, print_twopt_help
 
@@ -271,7 +274,7 @@ CONTAINS
       CALL make_optional_dos(rotational, rotational_dof, effective_dt, window, nfft, rotational_dos)
       CALL make_optional_dos(vibration, vibrational_dof, effective_dt, window, nfft, vibration_dos)
       ALLOCATE (frequency(0:nfft/2))
-      frequency = [(REAL(ierr, dp)*1.0E15_dp/(REAL(nfft, dp)*effective_dt*2.99792458E10_dp), &
+      frequency = [(REAL(ierr, dp)*1.0E15_dp/(REAL(nfft, dp)*effective_dt*100.0_dp*c_light), &
                     ierr=0, nfft/2)]
 
       CALL partition_twopt(translation_dos, frequency(1), temperature, molecular_mass, molecules, &
@@ -302,7 +305,7 @@ CONTAINS
          CALL integrate_twopt_channel(frequency, frequency(1), temperature, vibration_gas, &
                                       vibration_solid, 0.0_dp, vibration_result)
       translation_result%diffusion_cm2_s = translation_result%s0_cm*gas_constant*temperature/ &
-                                            (12.0_dp*2.99792458E10_dp*mass_total)*1.0E5_dp
+                                            (12.0_dp*100.0_dp*c_light*mass_total)*1.0E5_dp
       CALL sum_channels(translation_result, rotation_result, vibration_result, total_result)
 
       energy_reference = 0.0_dp
@@ -657,7 +660,7 @@ CONTAINS
       DO frequency = 1, nfft/2 - 1
          power(frequency) = 2.0_dp*power(frequency)
       END DO
-      frequency_step = 1.0E15_dp/(REAL(nfft, dp)*dt_fs*2.99792458E10_dp)
+      frequency_step = 1.0E15_dp/(REAL(nfft, dp)*dt_fs*100.0_dp*c_light)
       area = frequency_step*(0.5_dp*(power(0) + power(nfft/2)) + SUM(power(1:nfft/2 - 1)))
       IF (area <= TINY(1.0_dp)) CALL fail("A 2PT velocity channel has zero spectral power")
       ALLOCATE (dos(0:nfft/2))

@@ -97,10 +97,11 @@ gaps, count mismatches and repeated/decreasing XYZ steps are rejected. Initial X
 CSV on standard output contains step, CV, lambda, Z, G, weight and instantaneous corrected force.
 The final JSON summary is on standard error and is printed **only on success**. On failure, discard
 any partial CSV and inspect the nonzero exit status. Free-energy gradients are in hartree per
-internal CV unit; for a distance, divide by `0.52917720859` to convert from hartree/bohr to
-hartree/Angstrom. This program does not integrate windows or claim statistical convergence. Check
-time-step/constraint-tolerance convergence and use block analysis or block bootstrap of the weighted
-numerator **and** denominator for correlated uncertainty estimates.
+internal CV unit; for a distance, divide by the `[Bohr] -> [Angstrom]` conversion factor printed by
+CP2K to convert from hartree/bohr to hartree/Angstrom. This program does not integrate windows or
+claim statistical convergence. Check time-step/constraint-tolerance convergence and use block
+analysis or block bootstrap of the weighted numerator **and** denominator for correlated uncertainty
+estimates.
 
 ## Coordinate definitions
 

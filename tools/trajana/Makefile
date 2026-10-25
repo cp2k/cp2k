@@ -3,6 +3,7 @@ FFLAGS ?= -O2 -std=f2008
 
 COMMON_OBJECTS = \
         kinds.o \
+        constants.o \
         text_utils.o \
         trajectory_types.o \
         geometry.o \
@@ -46,6 +47,9 @@ twopt3d.x: $(COMMON_OBJECTS) twopt_thermodynamics.o twopt3d_analysis.o twopt3d_m
 
 fresean.x: $(COMMON_OBJECTS) fresean_analysis.o fresean_main.o
 	$(FC) $(FFLAGS) -o $@ $^
+
+constants.o: kinds.o
+cube_io.o spectral_tools.o twopt_thermodynamics.o twopt_analysis.o twopt3d_analysis.o fresean_analysis.o: constants.o
 
 trajectory_types.o: kinds.o
 geometry.o: kinds.o trajectory_types.o

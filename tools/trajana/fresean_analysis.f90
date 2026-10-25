@@ -14,6 +14,12 @@ MODULE trajana_fresean_analysis
                                               get_option,&
                                               get_real_option,&
                                               has_flag
+   USE trajana_constants,               ONLY: angstrom,&
+                                              boltzmann,&
+                                              c_light,&
+                                              h_planck,&
+                                              n_avogadro,&
+                                              picoseconds
    USE trajana_fft,                     ONLY: fft_any_in_place
    USE trajana_frame_controls,          ONLY: frame_selected
    USE trajana_groups,                  ONLY: mass_table_type,&
@@ -32,12 +38,13 @@ MODULE trajana_fresean_analysis
    IMPLICIT NONE
    PRIVATE
 
-   REAL(dp), PARAMETER :: bohr_per_atomic_time_to_angstrom_per_ps = 21876.91263641118_dp
-   REAL(dp), PARAMETER :: speed_of_light_cm_per_ps = 0.0299792458_dp
+   REAL(dp), PARAMETER :: bohr_per_atomic_time_to_angstrom_per_ps = angstrom/picoseconds
+   REAL(dp), PARAMETER :: speed_of_light_cm_per_ps = c_light*1.0E-10_dp
+   ! Exact conversion from (g/mol)*(angstrom/ps)^2 to J/mol.
    REAL(dp), PARAMETER :: mass_velocity_to_j_mol = 10.0_dp
-   REAL(dp), PARAMETER :: gas_constant_j_mol_k = 8.31446261815324_dp
-   REAL(dp), PARAMETER :: thz_to_wavenumber = 33.3564095198152_dp
-   REAL(dp), PARAMETER :: wavenumber_to_kj_mol = 0.0119626565638697_dp
+   REAL(dp), PARAMETER :: gas_constant_j_mol_k = n_avogadro*boltzmann
+   REAL(dp), PARAMETER :: thz_to_wavenumber = 1.0E10_dp/c_light
+   REAL(dp), PARAMETER :: wavenumber_to_kj_mol = 0.1_dp*h_planck*c_light*n_avogadro
 
    PUBLIC :: print_fresean_help, run_fresean
 
