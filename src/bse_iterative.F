@@ -43,7 +43,7 @@ MODULE bse_iterative
                                               bse_abba_olsen_stratmann,&
                                               bse_screening_alpha,&
                                               bse_screening_rpa,&
-                                              bse_screening_tdhf,&
+                                              bse_screening_w0,&
                                               bse_singlet,&
                                               bse_triplet
    USE kinds,                           ONLY: dp
@@ -317,9 +317,8 @@ CONTAINS
          w_fac = 1.0_dp
       END SELECT
 
-      ! TDHF and ALPHA screening contract the bare slabs, all others the W-multiplied ones
-      IF (bse_env%screening_method == bse_screening_tdhf .OR. &
-          bse_env%screening_method == bse_screening_alpha) THEN
+      ! Only W0 needs screened slabs; RPA sets w_fac=0 and does not read either W slab.
+      IF (bse_env%screening_method /= bse_screening_w0) THEN
          fm_W_ij => fm_S_ij
          fm_W_ia => fm_S_ia
       ELSE

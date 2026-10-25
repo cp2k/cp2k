@@ -54,7 +54,7 @@ MODULE bse_full_diag
    USE input_constants,                 ONLY: bse_iterdiag,&
                                               bse_screening_alpha,&
                                               bse_screening_rpa,&
-                                              bse_screening_tdhf,&
+                                              bse_screening_w0,&
                                               bse_singlet,&
                                               bse_triplet
    USE kinds,                           ONLY: dp
@@ -466,8 +466,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_RI
       TYPE(bse_env_type), INTENT(IN)                     :: bse_env
 
-      IF (bse_env%screening_method == bse_screening_tdhf .OR. &
-          bse_env%screening_method == bse_screening_alpha) THEN
+      ! RPA skips the W term; TDHF and ALPHA use the bare slabs.
+      IF (bse_env%screening_method /= bse_screening_w0) THEN
          CALL create_A(fm_S_ia, fm_S_ij, fm_S_ab, fm_A, Eigenval, unit_nr, &
                        homo, virtual, dimen_RI, bse_env)
          IF (do_abba) THEN
