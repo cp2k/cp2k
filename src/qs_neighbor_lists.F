@@ -953,12 +953,14 @@ CONTAINS
          END IF
       END IF
 
+      ! Match the atom images used by the k-point matrix lists, including half-cell boundaries.
       IF (lrigpw .OR. lri_optbas) THEN
          ! set neighborlists in lri_env environment
          CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
          soo_list => qs_env%lri_env%soo_list
          CALL build_neighbor_lists(soo_list, particle_set, atom2d, cell, pair_radius, &
-                                   mic=mic, molecular=molecule_only, subcells=subcells, nlname="soo_list")
+                                   mic=mic, molecular=molecule_only, subcells=subcells, nlname="soo_list", &
+                                   stable_images=stable_images)
          qs_env%lri_env%soo_list => soo_list
          CALL write_neighbor_lists(soo_list, particle_set, cell, para_env, neighbor_list_section, &
                                    "/SOO_LIST", "soo_list", "ORBITAL ORBITAL (RI)")
@@ -979,20 +981,23 @@ CONTAINS
          CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
          soo_list => qs_env%lri_env%soo_list
          CALL build_neighbor_lists(soo_list, particle_set, atom2d, cell, pair_radius, &
-                                   mic=mic, molecular=molecule_only, subcells=subcells, nlname="soo_list")
+                                   mic=mic, molecular=molecule_only, subcells=subcells, nlname="soo_list", &
+                                   stable_images=stable_images)
          qs_env%lri_env%soo_list => soo_list
          !
          CALL pair_radius_setup(ri_present, ri_present, ri_radius, ri_radius, pair_radius)
          saa_list => qs_env%lri_env%saa_list
          CALL build_neighbor_lists(saa_list, particle_set, atom2d, cell, pair_radius, &
-                                   mic=mic, molecular=molecule_only, subcells=subcells, nlname="saa_list")
+                                   mic=mic, molecular=molecule_only, subcells=subcells, nlname="saa_list", &
+                                   stable_images=stable_images)
          qs_env%lri_env%saa_list => saa_list
          !
          CALL pair_radius_setup(ri_present, orb_present, ri_radius, orb_radius, pair_radius)
          soa_list => qs_env%lri_env%soa_list
          CALL build_neighbor_lists(soa_list, particle_set, atom2d, cell, pair_radius, &
                                    mic=mic, symmetric=.FALSE., molecular=molecule_only, &
-                                   subcells=subcells, operator_type="ABC", nlname="saa_list")
+                                   subcells=subcells, operator_type="ABC", nlname="saa_list", &
+                                   stable_images=stable_images)
          qs_env%lri_env%soa_list => soa_list
       END IF
 
