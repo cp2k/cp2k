@@ -35,15 +35,21 @@ MODULE qs_linres_nmr_utils
    USE cp_parser_types,                 ONLY: cp_parser_type,&
                                               parser_create,&
                                               parser_release
-   USE cp_units,                        ONLY: cp_unit_from_cp2k,&
-                                              cp_unit_to_cp2k
+   USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               dp
+   USE mathconstants,                   ONLY: pi
    USE memory_utilities,                ONLY: reallocate
    USE particle_types,                  ONLY: particle_type
+   USE physcon,                         ONLY: a_bohr,&
+                                              a_fine,&
+                                              e_charge,&
+                                              e_mass,&
+                                              mu_perm,&
+                                              n_avogadro
    USE pw_env_types,                    ONLY: pw_env_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -178,17 +184,16 @@ CONTAINS
       !
       ! Conversion factors
       ! factor for the CHEMICAL SHIFTS: alpha^2 *  ppm.
-      nmr_env%shift_factor = (1.0_dp/137.03602_dp)**2*1.0E+6_dp/cell%deth
+      nmr_env%shift_factor = a_fine**2*1.0E+6_dp/cell%deth
       ! factor for the CHEMICAL SHIFTS: alpha^2 *  ppm.
-      nmr_env%shift_factor_gapw = (1.0_dp/137.03602_dp)**2*1.0E+6_dp
+      nmr_env%shift_factor_gapw = a_fine**2*1.0E+6_dp
       ! chi_factor =  1/4 * e^2/m * a_0 ^2
-      nmr_env%chi_factor = 1.9727566E-29_dp/1.0E-30_dp ! -> displayed in 10^-30 J/T^2
+      nmr_env%chi_factor = e_charge**2*a_bohr**2/(4.0_dp*e_mass)/1.0E-30_dp ! -> displayed in 10^-30 J/T^2
       ! Factor to convert 10^-30 J/T^2 into ppm cgs = ppm cm^3/mol
       ! = 10^-30 * mu_0/4pi * N_A * 10^6 * 10^6  [one 10^6 for ppm, one for m^3 -> cm^3]
-      nmr_env%chi_SI2ppmcgs = 6.022045_dp/1.0E+2_dp
+      nmr_env%chi_SI2ppmcgs = 1.0E-18_dp*mu_perm*n_avogadro/(4.0_dp*pi)
       ! Chi to Shift: 10^-30  *  2/3  mu_0 / Omega  * 1/ppm
-      nmr_env%chi_SI2shiftppm = 1.0E-30_dp*8.37758041E-7_dp/ &
-                                (cp_unit_from_cp2k(cell%deth, "angstrom^3")*1.0E-30_dp)*1.0E+6_dp
+      nmr_env%chi_SI2shiftppm = 1.0E-30_dp*(2.0_dp/3.0_dp)*mu_perm/(cell%deth*a_bohr**3)*1.0E+6_dp
 
       IF (output_unit > 0) THEN
          WRITE (output_unit, "(T2,A,T65,ES15.6)") "NMR| Shift gapw radius (a.u.) ", nmr_env%shift_gapw_radius

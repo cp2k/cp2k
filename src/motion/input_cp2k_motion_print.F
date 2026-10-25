@@ -110,11 +110,11 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, __LOCATION__, "VELOCITIES", &
                                        description="Controls the output of the atomic velocities. "// &
                                        "All available CP2K units can be used; the default is atomic unit "// &
-                                       "[bohr\*au_t^-1], which is about 1/137.036-th of the speed of light "// &
+                                       "[bohr\*au_t^-1], which is about 1/137.036 of the speed of light "// &
                                        "or $2.18769 \times 10^6$ [m\*s^-1]. The kinetic energy $K_i$ "// &
                                        "in [hartree] of an atom $i$ with mass $m_i$ in atomic mass units "// &
                                        "[amu] (or just [u]) and velocity $v_i$ can be obtained from "// &
-                                       "$K_i = \frac{1}{2}f_u\,m_i\,v_i^2$ with $f_u = 1822.888$ as the "// &
+                                       "$K_i = \frac{1}{2}f_u\,m_i\,v_i^2$ with $f_u = m_u/m_e$ as the "// &
                                        "conversion factor from [u] to [a.u.]. All relevant conversion "// &
                                        "factors can be printed in full precision in the top of the CP2K "// &
                                        "output by setting the GLOBAL/PRINT/PHYSCON keyword to ON.", &
