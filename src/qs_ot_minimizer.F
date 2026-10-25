@@ -17,6 +17,7 @@ MODULE qs_ot_minimizer
                                               dbcsr_copy,&
                                               dbcsr_get_info,&
                                               dbcsr_p_type,&
+                                              dbcsr_release,&
                                               dbcsr_scale,&
                                               dbcsr_set,&
                                               dbcsr_type
@@ -455,10 +456,11 @@ CONTAINS
    END SUBROUTINE ot_mini_sum_kpoint_scalar
 
 ! **************************************************************************************************
-!> \brief Normalize the current minimizer product on a common orbital/energy scale.
+!> \brief Normalize the convergence product on an orbital/energy scale.
 !> \param qs_ot_env local spin/k-point channels; updates delta in the first channel
-!> \param nvariables global orbital and auxiliary-energy coordinate count
+!> \param nvariables global coordinate count, weighted for complex k points
 !> \param para_env_inter_kp communicator between distributed k-point groups
+!> \note Call before overwriting the physical gradients for complex k points.
 ! **************************************************************************************************
    SUBROUTINE ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp)
       TYPE(qs_ot_type), DIMENSION(:), INTENT(INOUT)      :: qs_ot_env
@@ -467,11 +469,16 @@ CONTAINS
 
       INTEGER                                            :: ispin, k, n
       INTEGER(KIND=int_8)                                :: nlocal, norbital
+      REAL(KIND=dp)                                      :: gnorm, weight
 
-      ! Keep the established SD/CG/DIIS scale: rotations contribute to the product,
-      ! but do not enlarge its normalization and dilute the stopping criterion.
-      nlocal = 0_int_8
+      gnorm = qs_ot_env(1)%gnorm
+      IF (qs_ot_env(1)%has_complex_kpoint_state) gnorm = ot_kpoint_convergence(qs_ot_env, para_env_inter_kp)
+
+      ! Rotations contribute to the product, but do not add coordinates to the
+      ! orbital/energy normalization and dilute the stopping criterion.
+      nvariables = 0.0_dp
       DO ispin = 1, SIZE(qs_ot_env)
+         nlocal = 0_int_8
          IF (qs_ot_env(1)%settings%ks) THEN
             CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullrows_total=n, nfullcols_total=k)
             norbital = INT(n, KIND=int_8)*INT(k, KIND=int_8)
@@ -481,13 +488,106 @@ CONTAINS
          IF (qs_ot_env(1)%settings%do_ener) THEN
             nlocal = nlocal + SIZE(qs_ot_env(ispin)%ener_x, KIND=int_8)
          END IF
+         weight = 1.0_dp
+         IF (qs_ot_env(ispin)%has_complex_kpoint_state) weight = qs_ot_env(ispin)%kpoint_weight
+         nvariables = nvariables + weight*REAL(nlocal, KIND=dp)
       END DO
-      nvariables = REAL(nlocal, KIND=dp)
       CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, nvariables)
 
       qs_ot_env(1)%delta = 0.0_dp
-      IF (nvariables > 0.0_dp) qs_ot_env(1)%delta = SQRT(ABS(qs_ot_env(1)%gnorm)/nvariables)
+      IF (nvariables > 0.0_dp) qs_ot_env(1)%delta = SQRT(ABS(gnorm)/nvariables)
    END SUBROUTINE ot_update_delta
+
+! **************************************************************************************************
+!> \brief Evaluate the coupled residual with one k-point weight per contribution.
+!> \param qs_ot_env complex k-point channels with their current physical gradients
+!> \param para_env_inter_kp communicator between distributed k-point groups
+!> \return weighted convergence product, independent of search directions and history
+! **************************************************************************************************
+   FUNCTION ot_kpoint_convergence(qs_ot_env, para_env_inter_kp) RESULT(gnorm)
+      TYPE(qs_ot_type), DIMENSION(:), INTENT(INOUT)      :: qs_ot_env
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
+      REAL(KIND=dp)                                      :: gnorm
+
+      INTEGER, PARAMETER                                 :: identity_residual = 3, &
+                                                            occupation_response = 1, &
+                                                            physical_residual = 2
+
+      INTEGER                                            :: ispin, residual_kind
+      REAL(KIND=dp)                                      :: inverse_weight, scale, tmp
+      TYPE(dbcsr_type), POINTER                          :: input_im, input_re, residual_im, &
+                                                            residual_re
+      TYPE(dbcsr_type), TARGET                           :: identity_im, identity_re
+
+      DO residual_kind = MERGE(occupation_response, physical_residual, &
+                               qs_ot_env(1)%settings%occupation_preconditioner), identity_residual
+         gnorm = 0.0_dp
+         DO ispin = 1, SIZE(qs_ot_env)
+            CPASSERT(qs_ot_env(ispin)%kpoint_weight > 0.0_dp)
+            inverse_weight = 1.0_dp/qs_ot_env(ispin)%kpoint_weight
+            IF (qs_ot_env(1)%settings%ks) THEN
+               input_re => qs_ot_env(ispin)%matrix_gx
+               input_im => qs_ot_env(ispin)%matrix_gx_im
+               IF (residual_kind == occupation_response) THEN
+                  input_re => qs_ot_env(ispin)%matrix_preconditioned_gx
+                  input_im => qs_ot_env(ispin)%matrix_preconditioned_gx_im
+               END IF
+               scale = inverse_weight
+               IF (residual_kind /= identity_residual) THEN
+                  ! Derivative workspaces are free here; preserve minimizer history and directions.
+                  IF (qs_ot_env(ispin)%settings%ot_algorithm == 'TOD') THEN
+                     residual_re => qs_ot_env(ispin)%matrix_buf_nk
+                     residual_im => qs_ot_env(ispin)%matrix_buf_nk_im
+                  ELSE
+                     residual_re => qs_ot_env(ispin)%buf1_n_k
+                     residual_im => qs_ot_env(ispin)%buf1_n_k_dp
+                  END IF
+                  CALL ot_apply_channel_preconditioner(qs_ot_env(ispin), input_re, residual_re, &
+                                                       input_im, residual_im)
+                  ! The attached inverse Hessian already includes 1/w; an identity map does not.
+                  IF (ASSOCIATED(qs_ot_env(ispin)%preconditioner)) scale = 1.0_dp
+               ELSE
+                  ! STRICT projection uses the derivative buffers, so this rare fallback needs
+                  ! separate targets. Only one channel's temporary matrices are live at a time.
+                  CALL dbcsr_copy(identity_re, input_re)
+                  CALL dbcsr_copy(identity_im, input_im)
+                  residual_re => identity_re
+                  residual_im => identity_im
+                  IF (qs_ot_env(ispin)%settings%ot_algorithm == 'TOD') THEN
+                     CALL qs_ot_project_gradient(qs_ot_env(ispin), residual_re, residual_im, &
+                                                 use_preconditioner=.FALSE.)
+                  END IF
+               END IF
+               CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, residual_re, tmp)
+               gnorm = gnorm + scale*tmp
+               CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx_im, residual_im, tmp)
+               gnorm = gnorm + scale*tmp
+               IF (residual_kind == identity_residual) THEN
+                  CALL dbcsr_release(identity_re)
+                  CALL dbcsr_release(identity_im)
+               END IF
+               IF (qs_ot_env(ispin)%settings%do_rotation) THEN
+                  CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx, tmp)
+                  gnorm = gnorm + 0.5_dp*inverse_weight*tmp
+                  CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx_im, qs_ot_env(ispin)%rot_mat_gx_im, tmp)
+                  gnorm = gnorm + 0.5_dp*inverse_weight*tmp
+               END IF
+            END IF
+            IF (qs_ot_env(1)%settings%do_ener) THEN
+               IF (residual_kind == occupation_response) THEN
+                  tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_gx, qs_ot_env(ispin)%ener_preconditioned_gx)
+               ELSE
+                  tmp = inverse_weight*DOT_PRODUCT(qs_ot_env(ispin)%ener_gx, qs_ot_env(ispin)%ener_gx)
+               END IF
+               gnorm = gnorm + tmp
+            END IF
+         END DO
+         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, gnorm)
+         IF (ieee_is_finite(gnorm) .AND. gnorm > 0.0_dp) EXIT
+         ! Decide the diagnostic fallback from the complete weighted product. The minimizers
+         ! independently test their actual directions with the original, unscaled inner products.
+      END DO
+   END FUNCTION ot_kpoint_convergence
 
 ! **************************************************************************************************
 !> \brief Assess a finite-response candidate at its accepted Mermin endpoint.
@@ -1633,6 +1733,8 @@ CONTAINS
          WRITE (cp_logger_get_default_unit_nr(logger), *) "WARNING Preconditioner not positive definite !"
       END IF
 
+      CALL ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp)
+
       ! Detaching a preconditioner leaves the direction workspace in use.
       IF (qs_ot_env(1)%use_dx) THEN
          IF (do_ks) THEN
@@ -1676,7 +1778,6 @@ CONTAINS
          END IF
       END IF
 
-      CALL ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp)
       ! Handling the case of no free variables to optimize
       IF (nvariables > 0.0_dp) THEN
          qs_ot_env(1)%gradient = -qs_ot_env(1)%gnorm
@@ -1776,13 +1877,6 @@ CONTAINS
                CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx_im, qs_ot_env(ispin)%matrix_gx_old_im, tmp)
                qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
             END IF
-            IF (ASSOCIATED(qs_ot_env(ispin)%preconditioner) .AND. &
-                .NOT. qs_ot_env(ispin)%settings%occupation_preconditioner) THEN
-               CALL dbcsr_copy(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx_old)
-               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                  CALL dbcsr_copy(qs_ot_env(ispin)%matrix_gx_im, qs_ot_env(ispin)%matrix_gx_old_im)
-               END IF
-            END IF
          END DO
          IF (qs_ot_env(1)%settings%do_rotation) THEN
             DO ispin = 1, nspin
@@ -1863,6 +1957,18 @@ CONTAINS
       ! response is an accepted-step candidate, not a redefinition of the physical stopping test.
       CALL ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp)
       baseline_delta = qs_ot_env(1)%delta
+      ! Preserve the physical gradients until the stopping test, then retain CG's
+      ! preconditioned gradients for its direction and line-search products.
+      IF (do_ks .AND. .NOT. qs_ot_env(1)%settings%occupation_preconditioner) THEN
+         DO ispin = 1, nspin
+            IF (ASSOCIATED(qs_ot_env(ispin)%preconditioner)) THEN
+               CALL dbcsr_copy(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx_old)
+               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_copy(qs_ot_env(ispin)%matrix_gx_im, qs_ot_env(ispin)%matrix_gx_old_im)
+               END IF
+            END IF
+         END DO
+      END IF
       IF (nvariables > 0.0_dp) THEN
          beta_pr = (qs_ot_env(1)%gnorm - gnorm_cross)/qs_ot_env(1)%gnorm_old
       ELSE
@@ -2768,15 +2874,16 @@ CONTAINS
       CALL ot_apply_lbfgs_initial_inverse( &
          qs_ot_env, gamma, gamma_rotation, m_history + 1, para_env_inter_kp)
 
-      ! Use the conventional coupled residual for convergence, independent of the L-BFGS history
-      ! and its inverse-Hessian scales. The m+1 slot is free until the snapshot below.
-      CALL ot_build_history_residual(qs_ot_env, m_history + 1, 1.0_dp, &
-                                     para_env_inter_kp, qs_ot_env(1)%gnorm)
-      IF (.NOT. ieee_is_finite(qs_ot_env(1)%gnorm) .OR. qs_ot_env(1)%gnorm <= 0.0_dp) THEN
-         ! Match the identity-metric descent fallback without using the history-based direction.
-         CALL ot_build_history_residual_once(qs_ot_env, m_history + 1, 1.0_dp, .FALSE., &
-                                             qs_ot_env(1)%gnorm, use_preconditioner=.FALSE.)
-         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, qs_ot_env(1)%gnorm)
+      ! Real-orbital convergence uses the conventional coupled residual below.
+      IF (.NOT. qs_ot_env(1)%has_complex_kpoint_state) THEN
+         CALL ot_build_history_residual(qs_ot_env, m_history + 1, 1.0_dp, &
+                                        para_env_inter_kp, qs_ot_env(1)%gnorm)
+         IF (.NOT. ieee_is_finite(qs_ot_env(1)%gnorm) .OR. qs_ot_env(1)%gnorm <= 0.0_dp) THEN
+            ! Match the identity-metric descent fallback without using the history-based direction.
+            CALL ot_build_history_residual_once(qs_ot_env, m_history + 1, 1.0_dp, .FALSE., &
+                                                qs_ot_env(1)%gnorm, use_preconditioner=.FALSE.)
+            CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, qs_ot_env(1)%gnorm)
+         END IF
       END IF
       CALL ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp)
 

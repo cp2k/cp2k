@@ -6,5 +6,5 @@
 "Al-kpoint-mermin-lbfgs.inp"            = [{matcher="E_total", tol=1e-8, ref=-8.159987070109953}]
 "Al-kpoint-mermin-lbfgs-occ.inp"        = [{matcher="E_total", tol=1e-9, ref=-2.903015358383124}]
 "Al-kpoint-mermin-broyden-occ.inp"      = [{matcher="E_total", tol=1e-9, ref=-2.903015358436246}]
-"Al-kpoint-mermin-diis-occ.inp"           = [{matcher="E_total", tol=1e-6, ref=-8.15734061513311}]
+"Al-kpoint-mermin-diis-occ.inp"         = [{matcher="E_total", tol=1e-6, ref=-8.16335068358016}]
 #EOF
