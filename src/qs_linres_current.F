@@ -69,7 +69,8 @@ MODULE qs_linres_current
                                               section_vals_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
-                                              dp
+                                              dp,&
+                                              int_8
    USE mathconstants,                   ONLY: twopi
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
@@ -1992,9 +1993,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'collocate_gauge_new'
 
-      INTEGER :: delta_lb(3), handle, i, iatom, ib, ibe, ibox, ibs, ie, is, j, jatom, jb, jbe, &
-         jbox, jbs, je, js, k, kb, kbe, kbox, kbs, ke, ks, lb(3), lb_local(3), natms, &
+      INTEGER :: box_end(3), box_start(3), delta_lb(3), grid_end(3), grid_start(3), handle, i, &
+         iatom, ib, ibox, j, jatom, jb, jbox, k, kb, kbox, lb(3), lb_local(3), natms, &
          natms_local0, natms_local1, ng(3)
+      INTEGER(KIND=int_8)                                :: box_lower(3), box_upper(3), &
+                                                            grid_lower(3), grid_upper(3), npts(3)
       REAL(dp), DIMENSION(:, :), POINTER                 :: r_ptr
       REAL(KIND=dp)                                      :: ab, box_center(3), buf_tmp, dist, dr(3), &
                                                             gauge_atom_radius, offset(3), pa, pb, &
@@ -2028,63 +2031,45 @@ CONTAINS
          grid_y => rs_grid_y%r(:, :, :)
          grid_z => rs_grid_z%r(:, :, :)
          ng(:) = UBOUND(grid_x)
+         npts(:) = INT(rs_grid_x%desc%npts(:), KIND=int_8)
          delta_lb(:) = lb_local(:) - lb(:)
          offset(1) = cell%hmat(1, 1)*0.5_dp
          offset(2) = cell%hmat(2, 2)*0.5_dp
          offset(3) = cell%hmat(3, 3)*0.5_dp
          ALLOCATE (buf(natms), ratom(3, natms), atms_pnt(3, natms), nrm_atms_pnt(natms))
          !
-         ! find the boxes that match the grid
-         ibs = FLOOR(REAL(delta_lb(1), dp)*dr(1)/dbox(1))
-         ibe = FLOOR(REAL(ng(1) - 1 + delta_lb(1), dp)*dr(1)/dbox(1))
-         jbs = FLOOR(REAL(delta_lb(2), dp)*dr(2)/dbox(2))
-         jbe = FLOOR(REAL(ng(2) - 1 + delta_lb(2), dp)*dr(2)/dbox(2))
-         kbs = FLOOR(REAL(delta_lb(3), dp)*dr(3)/dbox(3))
-         kbe = FLOOR(REAL(ng(3) - 1 + delta_lb(3), dp)*dr(3)/dbox(3))
+         ! Both the grid and the boxes partition the same cell. Cancel the cell length:
+         ! g*dr >= b*dbox is equivalent to g*nbox >= b*npts.
+         ! For a positive divisor d, floor(a/d) = (a - MODULO(a,d))/d,
+         ! including negative indices in the grid's halo. Use 64-bit products.
+         grid_lower = INT(delta_lb, KIND=int_8)*nbox
+         grid_upper = (INT(ng, KIND=int_8) - 1_int_8 + delta_lb)*nbox
+         box_start = INT((grid_lower - MODULO(grid_lower, npts))/npts)
+         box_end = INT((grid_upper - MODULO(grid_upper, npts))/npts)
          !
          ! go over the box-list
-         DO kb = kbs, kbe
-         DO jb = jbs, jbe
-         DO ib = ibs, ibe
+         DO kb = box_start(3), box_end(3)
+         DO jb = box_start(2), box_end(2)
+         DO ib = box_start(1), box_end(1)
             ibox = MODULO(ib, nbox(1))
             jbox = MODULO(jb, nbox(2))
             kbox = MODULO(kb, nbox(3))
             !
-            is = MAX(CEILING(REAL(ib, dp)*dbox(1)/dr(1)), delta_lb(1)) - delta_lb(1) + 1
-            ie = MIN(FLOOR(REAL(ib + 1, dp)*dbox(1)/dr(1)), ng(1) - 1 + delta_lb(1)) - delta_lb(1) + 1
-            js = MAX(CEILING(REAL(jb, dp)*dbox(2)/dr(2)), delta_lb(2)) - delta_lb(2) + 1
-            je = MIN(FLOOR(REAL(jb + 1, dp)*dbox(2)/dr(2)), ng(2) - 1 + delta_lb(2)) - delta_lb(2) + 1
-            ks = MAX(CEILING(REAL(kb, dp)*dbox(3)/dr(3)), delta_lb(3)) - delta_lb(3) + 1
-            ke = MIN(FLOOR(REAL(kb + 1, dp)*dbox(3)/dr(3)), ng(3) - 1 + delta_lb(3)) - delta_lb(3) + 1
+            ! The existing box intervals include both endpoints. Compute ceil(b*npts/nbox)
+            ! and floor((b+1)*npts/nbox) exactly, then clip to this rank's local grid.
+            ! ceil(a/d) = (a + MODULO(-a,d))/d also handles negative box indices.
+            box_lower = INT([ib, jb, kb], KIND=int_8)*npts
+            box_upper = (INT([ib, jb, kb], KIND=int_8) + 1_int_8)*npts
+            grid_start = INT((box_lower + MODULO(-box_lower, INT(nbox, KIND=int_8)))/nbox)
+            grid_end = INT((box_upper - MODULO(box_upper, INT(nbox, KIND=int_8)))/nbox)
+            grid_start = MAX(grid_start, delta_lb) - delta_lb + 1
+            grid_end = MIN(grid_end, ng - 1 + delta_lb) - delta_lb + 1
             !
-            ! sanity checks
-            IF (.TRUE.) THEN
-               IF (REAL(ks - 1 + delta_lb(3), dp)*dr(3) < REAL(kb, dp)*dbox(3) .OR. &
-                   REAL(ke - 1 + delta_lb(3), dp)*dr(3) > REAL(kb + 1, dp)*dbox(3)) THEN
-                  WRITE (*, *) 'box_k', REAL(kb, dp)*dbox(3), REAL(kb + 1, dp)*dbox(3)
-                  WRITE (*, *) 'point_k', REAL(ks - 1 + delta_lb(3), dp)*dr(3), REAL(ke - 1 + delta_lb(3), dp)*dr(3)
-                  WRITE (*, *) 'ibox', ibox, 'jbox', jbox, 'kbox', kbox
-                  WRITE (*, *) 'is,ie', is, ie, ' js,je', js, je, ' ks,ke', ks, ke
-                  WRITE (*, *) 'ibs,ibe', ibs, ibe, ' jbs,jbe', jbs, jbe, ' kbs,kbe', kbs, kbe
-                  CPABORT("we stop_k")
-               END IF
-               IF (REAL(js - 1 + delta_lb(2), dp)*dr(2) < REAL(jb, dp)*dbox(2) .OR. &
-                   REAL(je - 1 + delta_lb(2), dp)*dr(2) > REAL(jb + 1, dp)*dbox(2)) THEN
-                  WRITE (*, *) 'box_j', REAL(jb, dp)*dbox(2), REAL(jb + 1, dp)*dbox(2)
-                  WRITE (*, *) 'point_j', REAL(js - 1 + delta_lb(2), dp)*dr(2), REAL(je - 1 + delta_lb(2), dp)*dr(2)
-                  WRITE (*, *) 'is,ie', is, ie, ' js,je', js, je, ' ks,ke', ks, ke
-                  WRITE (*, *) 'ibs,ibe', ibs, ibe, ' jbs,jbe', jbs, jbe, ' kbs,kbe', kbs, kbe
-                  CPABORT("we stop_j")
-               END IF
-               IF (REAL(is - 1 + delta_lb(1), dp)*dr(1) < REAL(ib, dp)*dbox(1) .OR. &
-                   REAL(ie - 1 + delta_lb(1), dp)*dr(1) > REAL(ib + 1, dp)*dbox(1)) THEN
-                  WRITE (*, *) 'box_i', REAL(ib, dp)*dbox(1), REAL(ib + 1, dp)*dbox(1)
-                  WRITE (*, *) 'point_i', REAL(is - 1 + delta_lb(1), dp)*dr(1), REAL(ie - 1 + delta_lb(1), dp)*dr(1)
-                  WRITE (*, *) 'is,ie', is, ie, ' js,je', js, je, ' ks,ke', ks, ke
-                  WRITE (*, *) 'ibs,ibe', ibs, ibe, ' jbs,jbe', jbs, jbe, ' kbs,kbe', kbs, kbe
-                  CPABORT("we stop_i")
-               END IF
-            END IF
+            ! Check the box boundaries in the same exact integer coordinates.
+            grid_lower = (INT(grid_start, KIND=int_8) - 1_int_8 + delta_lb)*nbox
+            grid_upper = (INT(grid_end, KIND=int_8) - 1_int_8 + delta_lb)*nbox
+            CPASSERT(ALL(grid_lower >= box_lower))
+            CPASSERT(ALL(grid_upper <= box_upper))
             !
             ! the center of the box
             box_center(1) = (REAL(ibox, dp) + 0.5_dp)*dbox(1)
@@ -2099,9 +2084,9 @@ CONTAINS
             IF (natms_local0 > 0) THEN
                !
                ! here there are some atoms...
-               DO k = ks, ke
-               DO j = js, je
-               DO i = is, ie
+               DO k = grid_start(3), grid_end(3)
+               DO j = grid_start(2), grid_end(2)
+               DO i = grid_start(1), grid_end(1)
                   point(1) = REAL(i - 1 + delta_lb(1), dp)*dr(1)
                   point(2) = REAL(j - 1 + delta_lb(2), dp)*dr(2)
                   point(3) = REAL(k - 1 + delta_lb(3), dp)*dr(3)
@@ -2181,9 +2166,9 @@ CONTAINS
             ELSE
                !
                ! here there is no atom
-               DO k = ks, ke
-               DO j = js, je
-               DO i = is, ie
+               DO k = grid_start(3), grid_end(3)
+               DO j = grid_start(2), grid_end(2)
+               DO i = grid_start(1), grid_end(1)
                   grid_x(i, j, k) = 0.0_dp
                   grid_y(i, j, k) = 0.0_dp
                   grid_z(i, j, k) = 0.0_dp
