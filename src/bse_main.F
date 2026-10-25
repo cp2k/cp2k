@@ -115,9 +115,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! the settings afresh from the input, since adapt_BSE_input_params normalises them in place and a
-      ! later energy evaluation on the same environment runs the BSE again; the local pointer keeps the
-      ! section apart from bse_env, whose section pointer the reader sets
+      ! Re-read the settings afresh from the input, since adapt_BSE_screening here and
+      ! adapt_BSE_input_params in bse_solve normalise them in place, and a later energy evaluation
+      ! on the same environment runs the BSE again; the local pointer keeps the section apart from
+      ! bse_env, whose section pointer the reader sets
+
       bse_section => bse_env%bse_section
       CALL read_bse_section(bse_section, bse_env)
       CALL adapt_BSE_screening(bse_env, unit_nr)

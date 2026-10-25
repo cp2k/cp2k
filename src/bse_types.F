@@ -36,7 +36,8 @@ MODULE bse_types
 
 ! **************************************************************************************************
 !> \brief Settings of the &BSE section (read_bse_section, re-read before every BSE run, normalised in
-!>        place by adapt_BSE_input_params) and the state that the entry of the GW fills for bse_solve:
+!>        place by adapt_BSE_screening and adapt_BSE_input_params) and the state that the entry of the
+!>        GW fills for bse_solve:
 !>        prepare_bse_env_from_ri_rpa_gw for RI_RPA%GW, prepare_bse_env_from_bandstructure_gw for
 !>        PROPERTIES%BANDSTRUCTURE%GW
 ! **************************************************************************************************
