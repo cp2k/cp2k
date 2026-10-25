@@ -598,9 +598,10 @@ for every point. There is no assumed speedup from avoiding repeated process star
 | MPI                 | Launch command, e.g. `mpiexec -n 2 cp2k.psmp -s`  | Collective calls on a caller-owned mpi4py communicator |
 | Native abort        | Child process fails; parent is a separate process | Can terminate the Python interpreter                   |
 
-The adapter uses CP2K's unit-conversion constants, matching its shell protocol. ASE's default CODATA
-constants differ slightly; mixing the two would introduce a systematic energy/geometry offset even
-when the underlying CP2K calculation is identical.
+The adapter uses a static CODATA-2022 conversion table, maintained alongside CP2K's `physcon.F`. Use
+a matching CP2K build for both direct and socket calculations. ASE's default CODATA constants differ
+slightly; mixing the two would introduce a systematic energy/geometry offset even when the
+underlying CP2K calculation is identical.
 
 For the same `atoms` and method mapping `inp` (without geometry or `GLOBAL/PROJECT`), the essential
 syntax is:

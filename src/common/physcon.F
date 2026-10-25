@@ -39,15 +39,15 @@
 !>      picoseconds : Conversion factor [a.u.] -> [ps]
 !>      rydberg     : Rydberg constant [1/m]
 !>      seconds     : Conversion factor [a.u.] -> [s]
-!>      vibfac      : Conversion factor [a.u./Bohr**2] -> [1/cm]
+!>      vibfac      : Conversion factor sqrt([hartree]/[u]/[Bohr**2]) -> [1/cm]
 !>      wavenumbers : Conversion factor [a.u.] -> [1/cm]
 !>      debye       : Conversion factor [a.u.] -> Debye
 !> \note
 !>      Fundamental physical constants (SI units)
-!>      Literature: P. J. Mohr, B. N. Taylor, and D. B. Newell,
+!>      Literature: P. J. Mohr, D. B. Newell, B. N. Taylor, and E. Tiesinga,
 !>                    "CODATA recommended values of the fundamental physical
-!>                     constants: 2006", Rev. Mod. Phys. 80, 633 (2008),
-!>                    https://doi.org/10.1103/RevModPhys.80.633
+!>                     constants: 2022", Rev. Mod. Phys. 97, 025002 (2025),
+!>                    https://doi.org/10.1103/RevModPhys.97.025002
 !>      This module is the authoritative source for CP2K.
 !>      Independent post-processing tools maintain their own CODATA constants.
 !>      Keep the Python conversions in python/src/cp2k/_units.py synchronized manually.
@@ -58,6 +58,7 @@
 !>      - Updated to CODATA 2010. (10.12.2012,MK)
 !>      - Turned constants into Fortran parameters (2014, Ole Schuett)
 !>      - Remove all but CODATA 2006 (2015, Ole Schuett)
+!>      - Updated to CODATA 2022 and the revised SI (2026)
 !> \author Matthias Krack (MK)
 ! **************************************************************************************************
 MODULE physcon
@@ -76,50 +77,47 @@ MODULE physcon
 
    PUBLIC :: codata_year, write_physcon
 
-   INTEGER, PARAMETER :: codata_year = 2006
+   INTEGER, PARAMETER :: codata_year = 2022
 
-   ! Exact SI values in the SI system used by CODATA 2006.
+   ! Exact SI defining constants, including the 2019 redefinitions.
    ! Speed of light in vacuum [m/s]
    REAL(KIND=dp), PARAMETER :: c_light = 299792458.0_dp
 
-   ! Magnetic constant or permeability of vacuum [N/A**2]
-   REAL(KIND=dp), PARAMETER :: mu_perm = 4.0_dp*pi*1.0E-7_dp
+   ! Planck constant [J*s]
+   REAL(KIND=dp), PARAMETER :: h_planck = 6.62607015E-34_dp
+
+   ! Elementary charge [C]
+   REAL(KIND=dp), PARAMETER :: e_charge = 1.602176634E-19_dp
+
+   ! Avogadro constant [1/mol]
+   REAL(KIND=dp), PARAMETER :: n_avogadro = 6.02214076E+23_dp
+
+   ! Boltzmann constant [J/K]
+   REAL(KIND=dp), PARAMETER :: boltzmann = 1.380649E-23_dp
 
    ! Recommended CODATA table entries. Some quantities are correlated or derived in the
    ! adjustment; keep their published rounded values here, separately from CP2K conversions.
 
-   ! Planck constant [J*s]
-   REAL(KIND=dp), PARAMETER :: h_planck = 6.62606896E-34_dp
-
-   ! Elementary charge [C]
-   REAL(KIND=dp), PARAMETER :: e_charge = 1.602176487E-19_dp
-
    ! Electron mass [kg]
-   REAL(KIND=dp), PARAMETER :: e_mass = 9.10938215E-31_dp
+   REAL(KIND=dp), PARAMETER :: e_mass = 9.1093837139E-31_dp
 
    ! Proton mass [kg]
-   REAL(KIND=dp), PARAMETER :: p_mass = 1.672621637E-27_dp
+   REAL(KIND=dp), PARAMETER :: p_mass = 1.67262192595E-27_dp
 
    ! Electron g factor [ ]
-   REAL(KIND=dp), PARAMETER :: e_gfactor = -2.0023193043622_dp
+   REAL(KIND=dp), PARAMETER :: e_gfactor = -2.00231930436092_dp
 
    ! Fine-structure constant
-   REAL(KIND=dp), PARAMETER :: a_fine = 7.2973525376E-3_dp
+   REAL(KIND=dp), PARAMETER :: a_fine = 7.2973525643E-3_dp
 
    ! Rydberg constant [1/m]
-   REAL(KIND=dp), PARAMETER :: rydberg = 10973731.568527_dp
-
-   ! Avogadro constant [1/mol]
-   REAL(KIND=dp), PARAMETER :: n_avogadro = 6.02214179E+23_dp
-
-   ! Boltzmann constant [J/K]
-   REAL(KIND=dp), PARAMETER :: boltzmann = 1.3806504E-23_dp
+   REAL(KIND=dp), PARAMETER :: rydberg = 10973731.568157_dp
 
    ! Atomic mass unit [kg]; conversion factor [u] -> [kg]
-   REAL(KIND=dp), PARAMETER :: a_mass = 1.660538782E-27_dp
+   REAL(KIND=dp), PARAMETER :: a_mass = 1.66053906892E-27_dp
 
    ! Bohr radius [m]
-   REAL(KIND=dp), PARAMETER :: a_bohr = 0.52917720859E-10_dp
+   REAL(KIND=dp), PARAMETER :: a_bohr = 5.29177210544E-11_dp
 
    ! Derived constants and unit conversions; all numerical inputs are defined above.
 
@@ -128,6 +126,9 @@ MODULE physcon
 
    ! Reduced Planck constant [J*s]
    REAL(KIND=dp), PARAMETER :: h_bar = h_planck/(2.0_dp*pi)
+
+   ! Magnetic constant or permeability of vacuum [N/A**2]; no longer exact in the revised SI.
+   REAL(KIND=dp), PARAMETER :: mu_perm = 2.0_dp*a_fine*h_planck/(e_charge**2*c_light)
 
    ! Electric constant or permittivity of vacuum [F/m]
    REAL(KIND=dp), PARAMETER :: permittivity = 1.0_dp/(mu_perm*c_light**2)
@@ -180,8 +181,9 @@ MODULE physcon
    ! [a.u.] -> [Hz]
    REAL(KIND=dp), PARAMETER :: hertz = joule/h_planck
 
-   ! [a.u./Bohr**2] -> [1/cm] (wave numbers)
-   REAL(KIND=dp), PARAMETER :: vibfac = 5.0_dp*SQRT(kjmol)/(pi*a_bohr*c_light)
+   ! sqrt([hartree]/[u]/[Bohr**2]) -> [1/cm] (wave numbers).
+   ! Use a_mass explicitly: n_avogadro*a_mass is no longer exactly 1 g/mol in the revised SI.
+   REAL(KIND=dp), PARAMETER :: vibfac = SQRT(joule/a_mass)/(200.0_dp*pi*a_bohr*c_light)
 
    ! [a.u.] -> [1/cm] (wave numbers)
    REAL(KIND=dp), PARAMETER :: wavenumbers = 0.02_dp*rydberg
@@ -215,7 +217,7 @@ CONTAINS
 
       WRITE (UNIT=output_unit, FMT="(T2,/,T2,A,/,/,(T2,A))") &
          "*** Fundamental physical constants (SI units) ***", &
-         "*** Literature: P. J. Mohr, B. N. Taylor, and D. B. Newell,", &
+         "*** Literature: P. J. Mohr, D. B. Newell, B. N. Taylor, and E. Tiesinga,", &
          "***             CODATA recommended values of the fundamental physical", &
          "***             constants: "//year, &
          "***             https://physics.nist.gov/constants"
@@ -273,7 +275,7 @@ CONTAINS
          "[a.u.] -> [eV]", evolt, &
          "[a.u.] -> [Hz]", hertz, &
          "[a.u.] -> [1/cm] (wave numbers)", wavenumbers, &
-         "[a.u./Bohr**2] -> [1/cm]", vibfac
+         "sqrt([hartree]/[u]/[Bohr**2]) -> [1/cm]", vibfac
       WRITE (UNIT=output_unit, FMT="(T2,A)") ""
 
    END SUBROUTINE write_physcon

@@ -664,7 +664,7 @@ class TrajectoryToolTests(unittest.TestCase):
                 (translation[2] / 2.99792458e10 * 1.0e-2)
                 / 2.0
                 * math.sqrt(
-                    math.pi * 6.02214179e23 * 1.3806504e-23 * 300.0 / (39.948e-3)
+                    math.pi * 6.02214076e23 * 1.380649e-23 * 300.0 / (39.948e-3)
                 )
                 * 2.0
                 / 9.0
@@ -1133,7 +1133,7 @@ class TrajectoryToolTests(unittest.TestCase):
             self.assertGreater(spectrum_values[0][3], 0.0)
             self.assertGreater(sum(row[3] for row in spectrum_values[1:]), 0.0)
             self.assertAlmostEqual(
-                spectrum_values[1][2], 1.0e15 * 6.62606896e-34 / 1.602176487e-19 * 500.0
+                spectrum_values[1][2], 1.0e15 * 6.62607015e-34 / 1.602176634e-19 * 500.0
             )
 
     def test_hbond_and_dynamic_structure_factor(self):
