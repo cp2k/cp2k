@@ -2768,8 +2768,20 @@ CONTAINS
       CALL ot_apply_lbfgs_initial_inverse( &
          qs_ot_env, gamma, gamma_rotation, m_history + 1, para_env_inter_kp)
 
-      ! The m+1 slot was scratch space for the occupation secant completion. Preserve the current
-      ! accepted point and physical gradient there for the next L-BFGS update.
+      ! Use the conventional coupled residual for convergence, independent of the L-BFGS history
+      ! and its inverse-Hessian scales. The m+1 slot is free until the snapshot below.
+      CALL ot_build_history_residual(qs_ot_env, m_history + 1, 1.0_dp, &
+                                     para_env_inter_kp, qs_ot_env(1)%gnorm)
+      IF (.NOT. ieee_is_finite(qs_ot_env(1)%gnorm) .OR. qs_ot_env(1)%gnorm <= 0.0_dp) THEN
+         ! Match the identity-metric descent fallback without using the history-based direction.
+         CALL ot_build_history_residual_once(qs_ot_env, m_history + 1, 1.0_dp, .FALSE., &
+                                             qs_ot_env(1)%gnorm, use_preconditioner=.FALSE.)
+         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, qs_ot_env(1)%gnorm)
+      END IF
+      CALL ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp)
+
+      ! The m+1 slot was scratch space for the initial inverse and convergence residual. Preserve
+      ! the current accepted point and physical gradient there for the next L-BFGS update.
       DO ispin = 1, nspin
          CALL dbcsr_copy(qs_ot_env(ispin)%matrix_h_x(m_history + 1)%matrix, &
                          qs_ot_env(ispin)%matrix_x)
@@ -2979,7 +2991,6 @@ CONTAINS
       qs_ot_env(1)%gnorm = g_dot_z
       qs_ot_env(1)%gradient = -g_dot_z
 
-      CALL ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp)
       IF (nvariables <= 0.0_dp) qs_ot_env(1)%gradient = 0.0_dp
 
       test_down = -g_dot_z
@@ -3043,23 +3054,27 @@ CONTAINS
 !> \param step_scale scale applied to the stored residual
 !> \param use_occupation_response use the fixed-N occupation-response approximation
 !> \param gnorm product of the physical Mermin gradient and unscaled residual
+!> \param use_preconditioner apply the orbital preconditioner; defaults to true
 ! **************************************************************************************************
    SUBROUTINE ot_build_history_residual_once(qs_ot_env, history_index, step_scale, &
-                                             use_occupation_response, gnorm)
+                                             use_occupation_response, gnorm, use_preconditioner)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
       INTEGER, INTENT(IN)                                :: history_index
       REAL(KIND=dp), INTENT(IN)                          :: step_scale
       LOGICAL, INTENT(IN)                                :: use_occupation_response
       REAL(KIND=dp), INTENT(OUT)                         :: gnorm
+      LOGICAL, INTENT(IN), OPTIONAL                      :: use_preconditioner
 
       INTEGER                                            :: ispin
-      LOGICAL                                            :: do_ener, do_ks
+      LOGICAL                                            :: do_ener, do_ks, precondition
       REAL(KIND=dp)                                      :: tmp
       TYPE(dbcsr_type), POINTER                          :: history_residual_im, orbital_residual, &
                                                             orbital_residual_im
 
       do_ks = qs_ot_env(1)%settings%ks
       do_ener = qs_ot_env(1)%settings%do_ener
+      precondition = .TRUE.
+      IF (PRESENT(use_preconditioner)) precondition = use_preconditioner
       gnorm = 0.0_dp
 
       IF (do_ks) THEN
@@ -3082,9 +3097,21 @@ CONTAINS
                END IF
             END IF
 
-            CALL ot_apply_channel_preconditioner(qs_ot_env(ispin), orbital_residual, &
-                                                 qs_ot_env(ispin)%matrix_h_e(history_index)%matrix, &
-                                                 orbital_residual_im, history_residual_im)
+            IF (precondition) THEN
+               CALL ot_apply_channel_preconditioner(qs_ot_env(ispin), orbital_residual, &
+                                                    qs_ot_env(ispin)%matrix_h_e(history_index)%matrix, &
+                                                    orbital_residual_im, history_residual_im)
+            ELSE
+               CALL dbcsr_copy(qs_ot_env(ispin)%matrix_h_e(history_index)%matrix, orbital_residual)
+               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_copy(history_residual_im, orbital_residual_im)
+               END IF
+               IF (qs_ot_env(ispin)%settings%ot_algorithm == 'TOD') THEN
+                  CALL qs_ot_project_gradient(qs_ot_env(ispin), &
+                                              qs_ot_env(ispin)%matrix_h_e(history_index)%matrix, &
+                                              history_residual_im, use_preconditioner=.FALSE.)
+               END IF
+            END IF
 
             CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, &
                            qs_ot_env(ispin)%matrix_h_e(history_index)%matrix, tmp)
