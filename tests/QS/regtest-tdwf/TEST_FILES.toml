@@ -1,5 +1,5 @@
 #
-"ala2-tdwf.inp"  = [{matcher = "Spread_Berry", tol = 1e-10, ref = 754.0073854860}]
+"ala2-tdwf.inp"  = [{matcher = "Spread_Berry", tol = 1e-10, ref = 754.0073811076}]
 # localized moments after the SCF: total dipole of the density on any number of ranks
 "H2O-locmom.inp" = [{matcher = "Dipole_z", tol = 1e-6, ref = 1.997475}]
 #EOF

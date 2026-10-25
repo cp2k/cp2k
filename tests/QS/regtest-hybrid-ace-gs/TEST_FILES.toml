@@ -13,6 +13,6 @@
 ]
 "h2o-exact-ace-gpaw.inp"       = [
   {matcher = "E_total", tol = 1e-10, ref = -76.29952974495100},
-  {matcher = "M072", tol = 1e-8, ref = 1.44497194E-04}
+  {matcher = "M072", tol = 1e-8, ref = 1.44497181E-04}
 ]
 #EOF

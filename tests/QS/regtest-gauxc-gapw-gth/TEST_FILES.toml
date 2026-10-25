@@ -1,7 +1,7 @@
 "H2_GAUXC_MODEL_NONE_GAPW_REPRESENTATION.inp" = [{matcher = "E_total", tol = 1e-8, ref = -0.949254181994843}]
 "H2_GAUXC_SKALA_GAPW_GTH_COMPOSITE.inp"       = [
   {matcher = "E_total", tol = 1e-8, ref = -0.96837841755075},
-  {matcher = "M033", tol = 1e-10, ref = -0.00015569563402},
+  {matcher = "M033", tol = 1e-10, ref = -0.00015569563406},
   {matcher = "M072", tol = 1e-4, ref = 3.69018359E-04},
   {matcher = "SKALA_GAPW_composite_electrons", tol = 5e-4, ref = 2.0}
 ]

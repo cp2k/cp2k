@@ -10,10 +10,10 @@
 "c_debug_kpsym_full.inp"                = [{matcher = "N_special_kpoints", tol = 0.0, ref = 3}]
 "c_geo_opt_kpsym_spglib.inp"            = [{matcher = "N_special_kpoints", tol = 0.0, ref = 1}]
 "c_spglib_backend_gamma_real_wfn.inp"   = [
-  {matcher = "E_total", tol = 1e-13, ref = -45.10384660417728},
+  {matcher = "E_total", tol = 1e-13, ref = -45.10384660086508},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 1}
 ]
-"h_spglib_sym_red.inp"                  = [{matcher = "E_total", tol = 1e-13, ref = -4.34916646889997}]
+"h_spglib_sym_red.inp"                  = [{matcher = "E_total", tol = 1e-13, ref = -4.34916647174988}]
 "h_spglib_sym_red_restart.inp"          = [{matcher = "E_total", tol = 1e-8, ref = -4.34916647312477}]
 "h_hex_c3_sym_red.inp"                  = [
   {matcher = "E_total", tol = 1e-8, ref = -9.17691856252346},

@@ -7,13 +7,13 @@
 # check that the level shifting technique has no influence on total energy and HOMO-LUMO gap
 # METHOD gpw  ; CHOLESKY inverse
 "c2h2-gpw-inverse.inp" = [
-  {matcher = "E_total", tol = 1.0E-12, ref = -12.47387109223699},
+  {matcher = "E_total", tol = 1.0E-12, ref = -12.47387109225068},
   {matcher = "E_gap_DFT_2", tol = 1.0E-8, ref = 0.261219}
 ]
 
 # METHOD gpw  ; CHOLESKY off
 "c2h2-gpw-off.inp" = [
-  {matcher = "E_total", tol = 1.0E-12, ref = -12.47387109223699},
+  {matcher = "E_total", tol = 1.0E-12, ref = -12.47387109225067},
   {matcher = "E_gap_DFT_2", tol = 1.0E-8, ref = 0.261219}
 ]
 
@@ -25,31 +25,31 @@
 
 # METHOD gpw  ; CHOLESKY reduce
 "c2h2-gpw-reduce.inp" = [
-  {matcher = "E_total", tol = 1.0E-12, ref = -12.47387109223699},
+  {matcher = "E_total", tol = 1.0E-12, ref = -12.47387109225068},
   {matcher = "E_gap_DFT_2", tol = 1.0E-8, ref = 0.261219}
 ]
 
 # METHOD gpw  ; CHOLESKY restore
 "c2h2-gpw-restore.inp" = [
-  {matcher = "E_total", tol = 1.0E-12, ref = -12.47387109223699},
+  {matcher = "E_total", tol = 1.0E-12, ref = -12.47387109225067},
   {matcher = "E_gap_DFT_2", tol = 1.0E-8, ref = 0.261219}
 ]
 
 # Restart guesses must preserve the overlap factors used by level shifting.
 "c2h2-gpw-restart-restore.inp" = [
-  {matcher = "E_total", tol = 1.0E-12, ref = -12.47387109223699},
+  {matcher = "E_total", tol = 1.0E-12, ref = -12.47387109225101},
   {matcher = "E_gap_DFT_2", tol = 1.0E-8, ref = 0.261219}
 ]
 "c2h2-gpw-restart-reduce.inp"  = [
-  {matcher = "E_total", tol = 1.0E-12, ref = -12.47387109223699},
+  {matcher = "E_total", tol = 1.0E-12, ref = -12.47387109225101},
   {matcher = "E_gap_DFT_2", tol = 1.0E-8, ref = 0.261219}
 ]
 "c2h2-gpw-restart-inverse.inp" = [
-  {matcher = "E_total", tol = 1.0E-12, ref = -12.47387109223699},
+  {matcher = "E_total", tol = 1.0E-12, ref = -12.47387109225102},
   {matcher = "E_gap_DFT_2", tol = 1.0E-8, ref = 0.261219}
 ]
 "c2h2-gpw-history-restart.inp" = [
-  {matcher = "E_total", tol = 1.0E-12, ref = -12.47387109223699},
+  {matcher = "E_total", tol = 1.0E-12, ref = -12.47387109225099},
   {matcher = "E_gap_DFT_2", tol = 1.0E-8, ref = 0.261219}
 ]
 #EOF

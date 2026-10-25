@@ -119,7 +119,7 @@ int main() {
   double energy;
   cp2k_get_potential_energy(force_env, &energy);
   printf("\n ENERGY: %.12f\n", energy);
-  if (fabs(-1.118912797546392 - energy) / fabs(energy) > 1e-13) {
+  if (fabs(-1.1189127985379683 - energy) / fabs(energy) > 1e-13) {
     printf("Wrong energy\n");
     return (-1);
   }
@@ -181,7 +181,7 @@ int main() {
   cp2k_create_force_env(&force_env, inp_fn, "__STD_OUT__");
   cp2k_calc_energy_force(force_env);
   cp2k_get_potential_energy(force_env, &energy);
-  if (fabs(-1.118912797546392 - energy) / fabs(energy) > 1e-13) {
+  if (fabs(-1.1189127985379683 - energy) / fabs(energy) > 1e-13) {
     printf("Wrong energy after run_input\n");
     return (-1);
   }

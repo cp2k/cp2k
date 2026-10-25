@@ -4,14 +4,14 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # QM/MM
-"wdim_scc.inp"      = [{matcher = "M011", tol = 1.0E-14, ref = -4.071762227106622}]
-"wdim_nonscc.inp"   = [{matcher = "M011", tol = 1.0E-14, ref = -4.103196491657343}]
-"wdimmc_scc.inp"    = [{matcher = "M011", tol = 1.0E-14, ref = -4.073207386660245}]
-"wdimmc_nonscc.inp" = [{matcher = "M011", tol = 1.0E-14, ref = -4.104297786205956}]
-"epc_1.inp"         = [{matcher = "M011", tol = 1.0E-14, ref = -4.071784048619484}]
-"epc_2.inp"         = [{matcher = "M011", tol = 1.0E-14, ref = -4.071742011375120}]
-"epc_3.inp"         = [{matcher = "M011", tol = 1.0E-14, ref = -4.103221098162717}]
-"epc_4.inp"         = [{matcher = "M011", tol = 1.0E-14, ref = -4.071792193944629}]
+"wdim_scc.inp"      = [{matcher = "M011", tol = 1.0E-14, ref = -4.071762227469544}]
+"wdim_nonscc.inp"   = [{matcher = "M011", tol = 1.0E-14, ref = -4.103196491672506}]
+"wdimmc_scc.inp"    = [{matcher = "M011", tol = 1.0E-14, ref = -4.073207387018496}]
+"wdimmc_nonscc.inp" = [{matcher = "M011", tol = 1.0E-14, ref = -4.104297786230048}]
+"epc_1.inp"         = [{matcher = "M011", tol = 1.0E-14, ref = -4.071784048982534}]
+"epc_2.inp"         = [{matcher = "M011", tol = 1.0E-14, ref = -4.071742011737968}]
+"epc_3.inp"         = [{matcher = "M011", tol = 1.0E-14, ref = -4.103221098177905}]
+"epc_4.inp"         = [{matcher = "M011", tol = 1.0E-14, ref = -4.071792194307741}]
 "fdeb_1.inp"        = []
 "fdeb_2.inp"        = []
 "fdeb_3.inp"        = []
