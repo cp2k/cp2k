@@ -22,6 +22,7 @@ MODULE preconditioner_makes
                                               setup_arnoldi_env
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
                                               cp_cfm_gemm,&
+                                              cp_cfm_get_diag,&
                                               cp_cfm_norm,&
                                               cp_cfm_scale_and_add,&
                                               cp_cfm_triangular_multiply,&
@@ -96,7 +97,7 @@ CONTAINS
 !> \param matrix_c0 complex reference orbitals, C^H S C = I
 !> \param matrix_h complex Hermitian k-point Hamiltonian
 !> \param matrix_s complex Hermitian k-point overlap
-!> \param c0_evals reference-orbital energies in the current OT gauge
+!> \param c0_evals optional reference energies; defaults to diag(C^H H C) in the current gauge
 !> \param energy_gap denominator floor
 ! **************************************************************************************************
    SUBROUTINE make_complex_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, &
@@ -104,7 +105,7 @@ CONTAINS
 
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_c0, matrix_h, matrix_s
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: c0_evals
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: c0_evals
       REAL(KIND=dp), INTENT(IN)                          :: energy_gap
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_complex_full_all'
@@ -126,7 +127,9 @@ CONTAINS
       CALL cp_cfm_get_info(matrix_c0, nrow_global=n, ncol_global=k)
       CPASSERT(n > 0)
       CPASSERT(k > 0 .AND. k <= n)
-      CPASSERT(SIZE(c0_evals) >= k)
+      IF (PRESENT(c0_evals)) THEN
+         CPASSERT(SIZE(c0_evals) >= k)
+      END IF
       CPASSERT(energy_gap > 0.0_dp)
 
       IF (ASSOCIATED(preconditioner_env%complex_fm)) THEN
@@ -162,7 +165,15 @@ CONTAINS
       ! As in the real FULL_ALL implementation, use it to prevent an inaccurate
       ! reference subspace from producing an overly aggressive preconditioner.
       ALLOCATE (shifted_evals(k), residual_norm_sq(k))
-      shifted_evals(:) = CMPLX(c0_evals(1:k), 0.0_dp, KIND=dp)
+      IF (PRESENT(c0_evals)) THEN
+         preconditioner_env%occ_evals(:) = c0_evals(1:k)
+      ELSE
+         ! OT MO labels can be stale or independent Mermin variables. Use the current
+         ! reference and Hamiltonian without changing the orbitals or occupations.
+         CALL cp_cfm_get_diag(matrix_chc, shifted_evals)
+         preconditioner_env%occ_evals(:) = REAL(shifted_evals, KIND=dp)
+      END IF
+      shifted_evals(:) = CMPLX(preconditioner_env%occ_evals, 0.0_dp, KIND=dp)
       CALL cp_cfm_to_cfm(matrix_sc0, matrix_sc_chc)
       CALL cp_cfm_column_scale(matrix_sc_chc, shifted_evals)
       CALL cp_cfm_to_cfm(matrix_hc0, matrix_shifted_sc)
@@ -194,7 +205,7 @@ CONTAINS
 
       ! Shift the retained reference subspace below the complementary spectrum, diagonalize,
       ! and then restore the original reference columns and their energy labels exactly.
-      shifted_evals(:) = CMPLX(c0_evals(1:k) - lambda, 0.0_dp, KIND=dp)
+      shifted_evals(:) = CMPLX(preconditioner_env%occ_evals - lambda, 0.0_dp, KIND=dp)
       CALL cp_cfm_to_cfm(matrix_sc0, matrix_shifted_sc)
       CALL cp_cfm_column_scale(matrix_shifted_sc, shifted_evals)
       CALL cp_cfm_gemm('N', 'C', n, n, k, z_one, matrix_shifted_sc, matrix_sc0, z_one, matrix_tmp)
@@ -203,8 +214,7 @@ CONTAINS
       CALL cp_cfm_geeig(matrix_tmp, matrix_s_copy, preconditioner_env%complex_fm, &
                         preconditioner_env%full_evals, matrix_diag_work)
 
-      preconditioner_env%occ_evals(:) = c0_evals(1:k)
-      preconditioner_env%full_evals(1:k) = c0_evals(1:k)
+      preconditioner_env%full_evals(1:k) = preconditioner_env%occ_evals(:)
       CALL cp_cfm_to_cfm(matrix_c0, preconditioner_env%complex_fm, k)
       preconditioner_env%in_use = ot_precond_full_all
       preconditioner_env%solver = ot_precond_solver_default

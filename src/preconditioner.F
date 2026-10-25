@@ -942,7 +942,6 @@ CONTAINS
 !> \param matrix_h_im imaginary part of H(k)
 !> \param matrix_s_re real part of S(k)
 !> \param matrix_s_im imaginary part of S(k)
-!> \param mo_set ...
 !> \param energy_gap denominator floor
 !> \param solver_type inverse application selected in the OT input
 ! **************************************************************************************************
@@ -950,24 +949,21 @@ CONTAINS
                                                    matrix_c_re, matrix_c_im, &
                                                    matrix_h_re, matrix_h_im, &
                                                    matrix_s_re, matrix_s_im, &
-                                                   mo_set, energy_gap, solver_type)
+                                                   energy_gap, solver_type)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(dbcsr_type), POINTER                          :: matrix_c_re, matrix_c_im, matrix_h_re, &
                                                             matrix_h_im, matrix_s_re, matrix_s_im
-      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       REAL(KIND=dp), INTENT(IN)                          :: energy_gap
       INTEGER, INTENT(IN)                                :: solver_type
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_preconditioner_complex_full_all'
 
-      INTEGER                                            :: handle, k
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
+      INTEGER                                            :: handle
       TYPE(cp_cfm_type)                                  :: matrix_c, matrix_h, matrix_s
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (eigenvalues)
       CPASSERT(ASSOCIATED(matrix_c_re))
       CPASSERT(ASSOCIATED(matrix_c_im))
       CPASSERT(ASSOCIATED(matrix_h_re))
@@ -977,12 +973,6 @@ CONTAINS
       IF (solver_type /= ot_precond_solver_default) THEN
          CPABORT('Complex FULL_ALL supports only PRECOND_SOLVER DEFAULT')
       END IF
-      CALL dbcsr_get_info(matrix_c_re, nfullcols_total=k)
-      CPASSERT(k > 0)
-      CALL get_mo_set(mo_set, eigenvalues=eigenvalues)
-      CPASSERT(ASSOCIATED(eigenvalues))
-      CPASSERT(SIZE(eigenvalues) >= k)
-
       CALL dbcsr_pair_to_cfm(matrix_c_re, matrix_c_im, preconditioner_env, &
                              'complex FULL_ALL C', matrix_c)
       CALL dbcsr_pair_to_cfm(matrix_h_re, matrix_h_im, preconditioner_env, &
@@ -990,7 +980,7 @@ CONTAINS
       CALL dbcsr_pair_to_cfm(matrix_s_re, matrix_s_im, preconditioner_env, &
                              'complex FULL_ALL S', matrix_s)
       CALL make_complex_full_all(preconditioner_env, matrix_c, matrix_h, matrix_s, &
-                                 eigenvalues(1:k), energy_gap)
+                                 energy_gap=energy_gap)
 
       CALL cp_cfm_release(matrix_c)
       CALL cp_cfm_release(matrix_s)
