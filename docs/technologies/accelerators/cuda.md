@@ -5,8 +5,7 @@
   The deprecated `-DCP2K_WITH_GPU` selector remains available with the values K20X, K40, K80, P100,
   V100, A100, H100, B200, GB10, and A40.
 - Use `-DCP2K_USE_NVHPC=ON` when building with the NVHPC kit.
-- Use `-DCP2K_WITH_GPU_PROFILING` to turn on NVIDIA Tools Extensions. It requires to link
-  `-lnvToolsExt`.
+- Use `-DCP2K_WITH_GPU_PROFILING` to turn on NVIDIA Tools Extensions.
 - Link to a BLAS/ScaLAPACK library that accelerates large DGEMMs (e.g., libsci_acc)
 - Use `-DCP2K_ENABLE_GRID_GPU=OFF` to disable the GPU backend of the grid library.
 - Use `-DCP2K_ENABLE_DBM_GPU=OFF` to disable the GPU backend of the sparse tensor library.

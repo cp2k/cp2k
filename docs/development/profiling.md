@@ -170,14 +170,18 @@ The result, a file named callgrind.out.XXX, can be visualized with
 
 ## Profiling on GPUs
 
-Profiling the GPU code can be done quite nicely using the the vendor-provided tools. To do so, it is
-useful to enable user events which requires compiling cp2k with `-DCP2K_WITH_GPU_PROFILING` and
-linking against `-lnvToolsExt` (NVIDIA hardware) or `-lroctx64 -lroctracer64` (AMD hardware). Then,
-all calls to `timeset` and `timestop` also call NVTX (NVIDIA) or ROCTX (AMD). For the serial code,
-things are easy just run (for NVIDIA hardware)
+GPU code can be profiled using vendor-provided tools. To enable user-defined profiling events, build
+CP2K with `-DCP2K_WITH_GPU_PROFILING=ON`. Calls to `timeset` and `timestop` will then also generate
+NVTX (NVIDIA) or ROCTX (AMD) events.
 
-```
-nvprof -o log.nvprof ./cp2k.ssmp -i test.inp -o test.out
+NVIDIA builds use NVTX 3, which is header-only and requires no additional library linkage. AMD
+builds require linking against `-lroctx64 -lroctracer64`.
+
+For NVIDIA GPUs, a profiling trace can be collected using Nsight Systems:
+
+```bash
+nsys profile --trace=cuda,nvtx -o cp2k-profile ./cp2k.ssmp -i test.inp -o test.out
 ```
 
-and visualize log.nvprof with the nvvp tool.
+The resulting `cp2k-profile.nsys-rep` file can be analyzed using the Nsight Systems GUI or the
+`nsys stats` command.
