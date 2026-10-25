@@ -34,7 +34,9 @@
 MODULE cubecruncher
   IMPLICIT NONE
   INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
-  REAL(KIND=dp), PARAMETER :: a2au = 1.0/0.5291772083 ! multiply angstrom by a2au to get bohr
+  ! CODATA 2006: https://doi.org/10.1103/RevModPhys.80.633
+  REAL(KIND=dp), PARAMETER :: au2a = 1.0E10_dp*0.52917720859E-10_dp
+  REAL(KIND=dp), PARAMETER :: a2au = 1.0_dp/au2a
   TYPE cube_type
      INTEGER :: npoints(3)
      REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: grid
@@ -592,9 +594,8 @@ MODULE cube_post_process
    USE cubecruncher
 
   IMPLICIT NONE
-!  REAL(KIND=dp), PARAMETER :: a2au = 1.0/0.5291772083D0 ! multiply angstrom by a2au to get bohr
-  REAL(KIND=dp), PARAMETER :: au2a = 0.5291772083D0 ! multiply bohr by au2a to get angstrom 
-  REAL(KIND=dp), PARAMETER :: au2eV = 27.211384D0
+  ! Hartree energy 2*Rydberg*h*c, divided by the elementary charge, in eV.
+  REAL(KIND=dp), PARAMETER :: au2eV = 2.0_dp*10973731.568527_dp*6.62606896E-34_dp*299792458.0_dp/1.602176487E-19_dp
 
 CONTAINS
 

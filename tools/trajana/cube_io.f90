@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE trajana_cube_io
+   USE trajana_constants,               ONLY: angstrom_to_bohr => bohr
    USE trajana_kinds,                   ONLY: dp
 
    IMPLICIT NONE
@@ -23,7 +24,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(OUT)                      :: message
 
       INTEGER                                            :: index, ix, iy, iz, unit, written
-      REAL(dp), PARAMETER                                :: angstrom_to_bohr = 1.8897261246257702_dp
 
       ierr = 0
       message = ""
