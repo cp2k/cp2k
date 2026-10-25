@@ -3649,7 +3649,7 @@ CONTAINS
          qs_ot_env%evals(i) = MAX(0.0_dp, qs_ot_env%evals(i))
       END DO
 
-      !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i) SHARED(k,qs_ot_env)
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i) SHARED(k,qs_ot_env)
       DO i = 1, k
          qs_ot_env%dum(i) = COS(SQRT(qs_ot_env%evals(i)))
       END DO
@@ -3658,7 +3658,7 @@ CONTAINS
       CALL dbcsr_multiply('N', 'T', rone, qs_ot_env%matrix_r, qs_ot_env%matrix_buf1, &
                           rzero, qs_ot_env%matrix_cosp)
 
-      !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i) SHARED(k,qs_ot_env)
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i) SHARED(k,qs_ot_env)
       DO i = 1, k
          qs_ot_env%dum(i) = qs_ot_sinc(SQRT(qs_ot_env%evals(i)))
       END DO

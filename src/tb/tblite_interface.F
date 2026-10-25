@@ -1311,14 +1311,16 @@ CONTAINS
                                                                     native_dot_weight*pblock(ib, ia)*( &
                                                                     (-hij)*sint(ia, ib, idim + 1)*rij(jdim) + &
                                                                     hij_base*dshpoly*sint(ia, ib, 1)*rij(idim)*rij(jdim) + &
-                                                                0.5_dp*h0%hscale(iset, jset, ikind, jkind)*shpoly*sint(ia, ib, 1)* &
+                                                                    0.5_dp*h0%hscale(iset, jset, ikind, &
+                                                                                     jkind)*shpoly*sint(ia, ib, 1)* &
                                                                     (tb%dsedcn(n1 + iset)*tb%dcndL(idim, jdim, icol) + &
                                                                      tb%dsedcn(n2 + jset)*tb%dcndL(idim, jdim, irow)))
                                  ELSE
                                     radial_hint(ia, ib, idim, jdim) = radial_hint(ia, ib, idim, jdim) + &
                                                                       (-hij)*sint(ia, ib, idim + 1)*rij(jdim) + &
                                                                       hij_base*dshpoly*sint(ia, ib, 1)*rij(idim)*rij(jdim) + &
-                                                                0.5_dp*h0%hscale(iset, jset, ikind, jkind)*shpoly*sint(ia, ib, 1)* &
+                                                                      0.5_dp*h0%hscale(iset, jset, ikind, &
+                                                                                       jkind)*shpoly*sint(ia, ib, 1)* &
                                                                       (tb%dsedcn(n1 + iset)*tb%dcndL(idim, jdim, icol) + &
                                                                        tb%dsedcn(n2 + jset)*tb%dcndL(idim, jdim, irow))
                                  END IF

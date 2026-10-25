@@ -323,7 +323,8 @@ CONTAINS
          siesta_struct%iaorb(col_blk_offset(icol_blk):col_blk_offset(icol_blk) + col_blk_size(icol_blk) - 1) = icol_blk
       END DO
       DO image = 2, ncells_siesta_total
-        siesta_struct%iaorb((image - 1)*ncols_total + 1:image*ncols_total) = siesta_struct%iaorb(1:ncols_total) + (image - 1)*natoms
+         siesta_struct%iaorb((image - 1)*ncols_total + 1:image*ncols_total) = siesta_struct%iaorb(1:ncols_total) + (image &
+                                                                                                                    - 1)*natoms
       END DO
 
       ! coordinates of all particles in each cell images
@@ -1282,12 +1283,14 @@ CONTAINS
 
             IF (do_merge) THEN
                node_merged_indices(inode) = (((cell_ijk_siesta(2) - 1)*ncells_siesta_local(1) + cell_ijk_siesta(1) - 1)* &
-                                     INT(natoms, kind=int_8) + icol_blk - 1)*INT(natoms, kind=int_8) + INT(irow_blk - 1, kind=int_8)
+                                             INT(natoms, kind=int_8) + icol_blk - 1)*INT(natoms, kind=int_8) + INT(irow_blk - 1, &
+                                                                                                                   kind=int_8)
                image = cell_ijk_siesta(1) + ncells_siesta(1)*(cell_ijk_siesta(2) - 1)
             ELSE
                node_merged_indices(inode) = ((((cell_ijk_siesta(3) - 1)*ncells_siesta_local(2) + &
                                                cell_ijk_siesta(2) - 1)*ncells_siesta_local(1) + cell_ijk_siesta(1) - 1)* &
-                                     INT(natoms, kind=int_8) + icol_blk - 1)*INT(natoms, kind=int_8) + INT(irow_blk - 1, kind=int_8)
+                                             INT(natoms, kind=int_8) + icol_blk - 1)*INT(natoms, kind=int_8) + INT(irow_blk - 1, &
+                                                                                                                   kind=int_8)
                image = cell_ijk_siesta(1) + ncells_siesta(1)*(cell_ijk_siesta(2) - 1 + ncells_siesta(2)*(cell_ijk_siesta(3) - 1))
             END IF
             k_cells(inode) = cell_ijk_siesta(3)

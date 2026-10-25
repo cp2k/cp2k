@@ -43,7 +43,7 @@ CONTAINS
 
       SELECT CASE (Nbits)
          #:for nb in range(1, 65)
-            CASE (${nb}$)
+         CASE (${nb}$)
             CALL ints2bits_${nb}$ (Ndata, packed_data, full_data)
          #:endfor
       CASE DEFAULT
@@ -65,7 +65,7 @@ CONTAINS
 
       SELECT CASE (Nbits)
          #:for nb in range(1, 65)
-            CASE (${nb}$)
+         CASE (${nb}$)
             CALL bits2ints_${nb}$ (Ndata, packed_data, full_data)
          #:endfor
       CASE DEFAULT

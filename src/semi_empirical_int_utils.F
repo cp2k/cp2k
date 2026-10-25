@@ -725,10 +725,14 @@ CONTAINS
          da = da/2.0_dp
          db = db/2.0_dp
          qxzqxz = &
-      +(r + da - db)/SQRT((r + da - db)**2 + (da - db)**2 + add)**3 - (r + da + db)/SQRT((r + da + db)**2 + (da - db)**2 + add)**3 &
-     - (r - da - db)/SQRT((r - da - db)**2 + (da - db)**2 + add)**3 + (r - da + db)/SQRT((r - da + db)**2 + (da - db)**2 + add)**3 &
-     - (r + da - db)/SQRT((r + da - db)**2 + (da + db)**2 + add)**3 + (r + da + db)/SQRT((r + da + db)**2 + (da + db)**2 + add)**3 &
-       + (r - da - db)/SQRT((r - da - db)**2 + (da + db)**2 + add)**3 - (r - da + db)/SQRT((r - da + db)**2 + (da + db)**2 + add)**3
+            +(r + da - db)/SQRT((r + da - db)**2 + (da - db)**2 + add)**3 - (r + da + db)/SQRT((r + da + db)**2 + (da - db)**2 &
+                                                                                               + add)**3 &
+            - (r - da - db)/SQRT((r - da - db)**2 + (da - db)**2 + add)**3 + (r - da + db)/SQRT((r - da + db)**2 + (da - db)**2 &
+                                                                                                + add)**3 &
+            - (r + da - db)/SQRT((r + da - db)**2 + (da + db)**2 + add)**3 + (r + da + db)/SQRT((r + da + db)**2 + (da + db)**2 &
+                                                                                                + add)**3 &
+            + (r - da - db)/SQRT((r - da - db)**2 + (da + db)**2 + add)**3 - (r - da + db)/SQRT((r - da + db)**2 + (da + &
+                                                                                                                    db)**2 + add)**3
          charg = -qxzqxz*0.125_dp*fact
          RETURN
       END IF
@@ -1389,7 +1393,8 @@ CONTAINS
       END IF
       ! XX - XX
       IF (l1 == 2 .AND. l2 == 2 .AND. m == 2) THEN
-    xyxy = 4.0_dp/SQRT(r**2 + (da - db)**2 + add) + 4.0_dp/SQRT(r**2 + (da + db)**2 + add) - 8.0_dp/SQRT(r**2 + da**2 + db**2 + add)
+         xyxy = 4.0_dp/SQRT(r**2 + (da - db)**2 + add) + 4.0_dp/SQRT(r**2 + (da + db)**2 + add) - 8.0_dp/SQRT(r**2 + da**2 + &
+                                                                                                              db**2 + add)
          charg = xyxy*0.0625_dp*fact
          RETURN
       END IF
@@ -1514,16 +1519,24 @@ CONTAINS
          aa = da/SQRT(2.0_dp)
          ab = db/SQRT(2.0_dp)
          qxzqxz = &
-            +2.0_dp*(r+aa-ab)/SQRT((r+aa-ab)**2+(aa-ab)**2+add)**3-2.0_dp*(r+aa+ab)/SQRT((r+aa+ab)**2+(aa-ab)**2+add)**3 &
-            -2.0_dp*(r-aa-ab)/SQRT((r-aa-ab)**2+(aa-ab)**2+add)**3+2.0_dp*(r-aa+ab)/SQRT((r-aa+ab)**2+(aa-ab)**2+add)**3 &
-            -2.0_dp*(r+aa-ab)/SQRT((r+aa-ab)**2+(aa+ab)**2+add)**3+2.0_dp*(r+aa+ab)/SQRT((r+aa+ab)**2+(aa+ab)**2+add)**3 &
-            +2.0_dp*(r-aa-ab)/SQRT((r-aa-ab)**2+(aa+ab)**2+add)**3-2.0_dp*(r-aa+ab)/SQRT((r-aa+ab)**2+(aa+ab)**2+add)**3
+            +2.0_dp*(r + aa - ab)/SQRT((r + aa - ab)**2 + (aa - ab)**2 + add)**3 - 2.0_dp*(r + aa + ab)/SQRT((r + aa + ab)**2 + &
+                                                                                                             (aa - ab)**2 &
+                                                                                                             + add)**3 &
+            - 2.0_dp*(r - aa - ab)/SQRT((r - aa - ab)**2 + (aa - ab)**2 + add)**3 + 2.0_dp*(r - aa + ab)/SQRT((r - aa + ab)**2 + &
+                                                                                                              (aa - ab)**2 &
+                                                                                                              + add)**3 &
+            - 2.0_dp*(r + aa - ab)/SQRT((r + aa - ab)**2 + (aa + ab)**2 + add)**3 + 2.0_dp*(r + aa + ab)/SQRT((r + aa + ab)**2 + &
+                                                                                                              (aa + ab)**2 &
+                                                                                                              + add)**3 &
+            + 2.0_dp*(r - aa - ab)/SQRT((r - aa - ab)**2 + (aa + ab)**2 + add)**3 - 2.0_dp*(r - aa + ab)/SQRT((r - aa + ab)**2 + &
+                                                                                                              (aa + ab)**2 + add)**3
          charg = -qxzqxz*0.0625_dp*fact
          RETURN
       END IF
       ! XX - XX
       IF (l1 == 2 .AND. l2 == 2 .AND. m == 2) THEN
-         xyxy = 4.0_dp*r/SQRT(r**2+(da-db)**2+add)**3+4.0_dp*r/SQRT(r**2+(da+db)**2+add)**3-8.0_dp*r/SQRT(r**2+da**2+db**2+add)**3
+         xyxy = 4.0_dp*r/SQRT(r**2 + (da - db)**2 + add)**3 + 4.0_dp*r/SQRT(r**2 + (da + db)**2 + add)**3 - 8.0_dp*r/SQRT(r**2 + &
+                                                                                                             da**2 + db**2 + add)**3
          charg = -xyxy*0.0625_dp*fact
          RETURN
       END IF
@@ -1651,10 +1664,14 @@ CONTAINS
          aa = da/SQRT(2.0_dp)
          ab = db/SQRT(2.0_dp)
          qxzqxz = &
-          +2.0_dp*add0/SQRT((r + aa - ab)**2 + (aa - ab)**2 + add)**3 - 2.0_dp*add0/SQRT((r + aa + ab)**2 + (aa - ab)**2 + add)**3 &
-         - 2.0_dp*add0/SQRT((r - aa - ab)**2 + (aa - ab)**2 + add)**3 + 2.0_dp*add0/SQRT((r - aa + ab)**2 + (aa - ab)**2 + add)**3 &
-         - 2.0_dp*add0/SQRT((r + aa - ab)**2 + (aa + ab)**2 + add)**3 + 2.0_dp*add0/SQRT((r + aa + ab)**2 + (aa + ab)**2 + add)**3 &
-           + 2.0_dp*add0/SQRT((r - aa - ab)**2 + (aa + ab)**2 + add)**3 - 2.0_dp*add0/SQRT((r - aa + ab)**2 + (aa + ab)**2 + add)**3
+            +2.0_dp*add0/SQRT((r + aa - ab)**2 + (aa - ab)**2 + add)**3 - 2.0_dp*add0/SQRT((r + aa + ab)**2 + (aa - ab)**2 &
+                                                                                           + add)**3 &
+            - 2.0_dp*add0/SQRT((r - aa - ab)**2 + (aa - ab)**2 + add)**3 + 2.0_dp*add0/SQRT((r - aa + ab)**2 + (aa - ab)**2 &
+                                                                                            + add)**3 &
+            - 2.0_dp*add0/SQRT((r + aa - ab)**2 + (aa + ab)**2 + add)**3 + 2.0_dp*add0/SQRT((r + aa + ab)**2 + (aa + ab)**2 &
+                                                                                            + add)**3 &
+            + 2.0_dp*add0/SQRT((r - aa - ab)**2 + (aa + ab)**2 + add)**3 - 2.0_dp*add0/SQRT((r - aa + ab)**2 + (aa + &
+                                                                                                                ab)**2 + add)**3
          charg = -qxzqxz*0.0625_dp*fact
          RETURN
       END IF

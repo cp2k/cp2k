@@ -1023,7 +1023,8 @@ CONTAINS
       ! Apply Thermostat over the full set of particles
       IF (shell_adiabatic) THEN
          CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
-                                        particle_set, local_molecules, local_particles, para_env, shell_adiabatic=shell_adiabatic, &
+                                         particle_set, local_molecules, local_particles, para_env, &
+                                         shell_adiabatic=shell_adiabatic, &
                                          shell_particle_set=shell_particle_set, core_particle_set=core_particle_set)
 
          CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set, &
@@ -1131,7 +1132,8 @@ CONTAINS
       ! Apply Thermostat over the full set of particles
       IF (shell_adiabatic) THEN
          CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
-                                        particle_set, local_molecules, local_particles, para_env, shell_adiabatic=shell_adiabatic, &
+                                         particle_set, local_molecules, local_particles, para_env, &
+                                         shell_adiabatic=shell_adiabatic, &
                                          vel=tmp%vel, shell_vel=tmp%shell_vel, core_vel=tmp%core_vel)
 
          CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set, &
@@ -1289,7 +1291,8 @@ CONTAINS
       IF (simpar%ensemble /= npe_i_ensemble) THEN
          IF (shell_adiabatic) THEN
             CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
-                                        particle_set, local_molecules, local_particles, para_env, shell_adiabatic=shell_adiabatic, &
+                                            particle_set, local_molecules, local_particles, para_env, &
+                                            shell_adiabatic=shell_adiabatic, &
                                             shell_particle_set=shell_particle_set, core_particle_set=core_particle_set)
 
          ELSE
@@ -1379,7 +1382,8 @@ CONTAINS
          vector_v(:) = tmp%scale_v(:)*tmp%poly_v(:)
 
          IF (simpar%constraint) CALL shake_roll_control(gci, local_molecules, &
-                                                      molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, dt, simpar, &
+                                                        molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, &
+                                                        dt, simpar, &
                                                         roll_tol, iroll, vector_r, vector_v, para_env, cell=cell, &
                                                         local_particles=local_particles)
       END DO SR
@@ -1442,7 +1446,8 @@ CONTAINS
       IF (simpar%ensemble /= npe_i_ensemble) THEN
          IF (shell_adiabatic) THEN
             CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
-                                        particle_set, local_molecules, local_particles, para_env, shell_adiabatic=shell_adiabatic, &
+                                            particle_set, local_molecules, local_particles, para_env, &
+                                            shell_adiabatic=shell_adiabatic, &
                                             vel=tmp%vel, shell_vel=tmp%shell_vel, core_vel=tmp%core_vel)
          ELSE
             CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
@@ -1920,7 +1925,8 @@ CONTAINS
          vector_r(1) = tmp%scale_r(1)*tmp%poly_r(1)
 
          IF (simpar%constraint) CALL shake_roll_control(gci, local_molecules, &
-                                                      molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, dt, simpar, &
+                                                        molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, &
+                                                        dt, simpar, &
                                                         roll_tol, iroll, vector_r, vector_v, para_env, cell=cell, &
                                                         local_particles=local_particles)
       END DO SR
@@ -2166,7 +2172,8 @@ CONTAINS
          vector_r(1) = tmp%scale_r(1)*tmp%poly_r(1)
 
          IF (simpar%constraint) CALL shake_roll_control(gci, local_molecules, &
-                                                      molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, dt, simpar, &
+                                                        molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, &
+                                                        dt, simpar, &
                                                         roll_tol, iroll, vector_r, vector_v, para_env, cell=cell, &
                                                         local_particles=local_particles)
       END DO SR
@@ -2205,8 +2212,10 @@ CONTAINS
       RR: DO WHILE (ABS(roll_tol) >= roll_tol_thrs) ! RATTLE-ROLL LOOP
          roll_tol = 0._dp
          IF (simpar%constraint) CALL rattle_roll_setup(old, gci, atomic_kind_set, &
-                                                  particle_set, local_particles, molecule_kind_set, molecule_set, local_molecules, &
-                                                 tmp%vel, dt, cell, npt, simpar, virial, vector_v, roll_tol, iroll, infree, first, &
+                                                       particle_set, local_particles, molecule_kind_set, molecule_set, &
+                                                       local_molecules, &
+                                                       tmp%vel, dt, cell, npt, simpar, virial, vector_v, roll_tol, iroll, &
+                                                       infree, first, &
                                                        para_env)
          ! perform damping on the barostat momentum
          CALL damp_veps(npt(1, 1), gamma1, dt)
@@ -2360,7 +2369,8 @@ CONTAINS
       IF (simpar%ensemble /= npe_f_ensemble) THEN
          IF (shell_adiabatic) THEN
             CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
-                                        particle_set, local_molecules, local_particles, para_env, shell_adiabatic=shell_adiabatic, &
+                                            particle_set, local_molecules, local_particles, para_env, &
+                                            shell_adiabatic=shell_adiabatic, &
                                             shell_particle_set=shell_particle_set, core_particle_set=core_particle_set)
          ELSE
             CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
@@ -2502,7 +2512,8 @@ CONTAINS
       IF (simpar%ensemble /= npe_f_ensemble) THEN
          IF (shell_adiabatic) THEN
             CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
-                                        particle_set, local_molecules, local_particles, para_env, shell_adiabatic=shell_adiabatic, &
+                                            particle_set, local_molecules, local_particles, para_env, &
+                                            shell_adiabatic=shell_adiabatic, &
                                             vel=tmp%vel, shell_vel=tmp%shell_vel, core_vel=tmp%core_vel)
 
          ELSE

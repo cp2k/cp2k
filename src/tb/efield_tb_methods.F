@@ -330,7 +330,8 @@ CONTAINS
       strength = dft_control%period_efield%strength
       IF (ALLOCATED(dft_control%period_efield%strength_list)) THEN
          strength = dft_control%period_efield%strength_list(MOD(qs_env%sim_step &
-                                        - dft_control%period_efield%start_frame, SIZE(dft_control%period_efield%strength_list)) + 1)
+                                                                - dft_control%period_efield%start_frame, &
+                                                                SIZE(dft_control%period_efield%strength_list)) + 1)
       END IF
 
       fieldpol = dft_control%period_efield%polarisation
@@ -671,7 +672,8 @@ CONTAINS
       strength = dft_control%period_efield%strength
       IF (ALLOCATED(dft_control%period_efield%strength_list)) THEN
          strength = dft_control%period_efield%strength_list(MOD(qs_env%sim_step &
-                                        - dft_control%period_efield%start_frame, SIZE(dft_control%period_efield%strength_list)) + 1)
+                                                                - dft_control%period_efield%start_frame, &
+                                                                SIZE(dft_control%period_efield%strength_list)) + 1)
       END IF
 
       fieldpol = dft_control%period_efield%polarisation

@@ -393,7 +393,8 @@ CONTAINS
                               dr_ij_dR(:) = dr1_r2(:)/tmp_const
                               !derivative w.r.t. Rj
                               dr_j_dR = dist_vec(:)/dist2
-                             dmy_dR_j(:) = -(dr_j_dR(:)/becke_control%vector_buffer%R12(iatom, jatom) - (dist1 - dist2)*dr_ij_dR(:))
+                              dmy_dR_j(:) = -(dr_j_dR(:)/becke_control%vector_buffer%R12(iatom, jatom) - (dist1 - &
+                                                                                                          dist2)*dr_ij_dR(:))
                               !derivative w.r.t. Ri
                               dmy_dR_i(:) = dr_i_dR(:)/becke_control%vector_buffer%R12(iatom, jatom) - (dist1 - dist2)*dr_ij_dR(:)
                            END IF

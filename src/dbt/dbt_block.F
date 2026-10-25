@@ -521,7 +521,7 @@ CONTAINS
       found = .FALSE.
       SELECT CASE (ndims_tensor(tensor))
          #:for ndim in ndims
-            CASE (${ndim}$)
+         CASE (${ndim}$)
             CALL dbt_get_${ndim}$d_block(tensor, ind, sizes, data, found)
          #:endfor
       END SELECT
@@ -544,7 +544,7 @@ CONTAINS
 
       SELECT CASE (ndims_tensor(tensor))
          #:for ndim in ndims
-            CASE (${ndim}$)
+         CASE (${ndim}$)
             CALL dbt_put_${ndim}$d_block(tensor, ind, sizes, data, summation=summation)
          #:endfor
       END SELECT

@@ -224,7 +224,8 @@ CONTAINS
          mo_ref_temp(ispin)%nmo = mo_set%nmo + proj_mo%ref_nlumo
          NULLIFY (mo_ref_fmstruct)
          CALL cp_fm_struct_create(mo_ref_fmstruct, nrow_global=mo_set%nao, &
-                               ncol_global=mo_ref_temp(ispin)%nmo, para_env=para_env, context=mo_set%mo_coeff%matrix_struct%context)
+                                  ncol_global=mo_ref_temp(ispin)%nmo, para_env=para_env, &
+                                  context=mo_set%mo_coeff%matrix_struct%context)
          NULLIFY (mo_ref_temp(ispin)%mo_coeff)
          ALLOCATE (mo_ref_temp(ispin)%mo_coeff)
          CALL cp_fm_create(mo_ref_temp(ispin)%mo_coeff, mo_ref_fmstruct)

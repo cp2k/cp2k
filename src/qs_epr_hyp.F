@@ -250,19 +250,27 @@ CONTAINS
                                              rtemp**5
                            END DO ! iso
                            hypaniso(1, 1, jatom) = hypaniso(1, 1, jatom) + hypanisotemp* &
-                                                  (3._dp*(rab(1) + grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia))* &
-                                                (rab(1) + grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia)) - rtemp**2)
+                                                   (3._dp*(rab(1) + &
+                                                           grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia))* &
+                                                    (rab(1) + grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia)) &
+                                                    - rtemp**2)
                            hypaniso(1, 2, jatom) = hypaniso(1, 2, jatom) + hypanisotemp* &
-                                                  (3._dp*(rab(1) + grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia))* &
-                                                   (rab(2) + grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia)) - 0._dp)
+                                                   (3._dp*(rab(1) + &
+                                                           grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia))* &
+                                                    (rab(2) + &
+                                                     grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia)) - 0._dp)
                            hypaniso(1, 3, jatom) = hypaniso(1, 3, jatom) + hypanisotemp* &
-                                                  (3._dp*(rab(1) + grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia))* &
+                                                   (3._dp*(rab(1) + &
+                                                           grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia))* &
                                                     (rab(3) + grid_atom%rad(ir)*grid_atom%cos_pol(ia)) - 0._dp)
                            hypaniso(2, 2, jatom) = hypaniso(2, 2, jatom) + hypanisotemp* &
-                                                  (3._dp*(rab(2) + grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia))* &
-                                                (rab(2) + grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia)) - rtemp**2)
+                                                   (3._dp*(rab(2) + &
+                                                           grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia))* &
+                                                    (rab(2) + grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia)) &
+                                                    - rtemp**2)
                            hypaniso(2, 3, jatom) = hypaniso(2, 3, jatom) + hypanisotemp* &
-                                                  (3._dp*(rab(2) + grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia))* &
+                                                   (3._dp*(rab(2) + &
+                                                           grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia))* &
                                                     (rab(3) + grid_atom%rad(ir)*grid_atom%cos_pol(ia)) - 0._dp)
                            hypaniso(3, 3, jatom) = hypaniso(3, 3, jatom) + hypanisotemp* &
                                                    (3._dp*(rab(3) + grid_atom%rad(ir)*grid_atom%cos_pol(ia))* &

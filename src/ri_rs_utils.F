@@ -316,13 +316,13 @@ CONTAINS
          CALL get_cell(cell, h=hmat)
       END IF
 
-      !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-      !$OMP SHARED(phi, dphi, grid_points, cell, basis, source_position, cutoff_squared, ncoset, indco) &
-      !$OMP SHARED(sum_images, image_extent, hmat) &
-      !$OMP PRIVATE(ipoint, relative, radius2, iset, n_cart_total, ishell, l, istart_co, &
-      !$OMP         iend_co, first_sgf, last_sgf, ipgf, exponent, exponential, isgf, ico, &
-      !$OMP         irow, weight, lx, ly, lz, polynomial, polynomial_derivative, ialpha, &
-      !$OMP         relative_raw, ix, iy, iz)
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP SHARED(phi, dphi, grid_points, cell, basis, source_position, cutoff_squared, ncoset, indco) &
+!$OMP SHARED(sum_images, image_extent, hmat) &
+!$OMP PRIVATE(ipoint, relative, radius2, iset, n_cart_total, ishell, l, istart_co, &
+!$OMP         iend_co, first_sgf, last_sgf, ipgf, exponent, exponential, isgf, ico, &
+!$OMP         irow, weight, lx, ly, lz, polynomial, polynomial_derivative, ialpha, &
+!$OMP         relative_raw, ix, iy, iz)
       DO ipoint = 1, SIZE(grid_points, 2)
          relative_raw = grid_points(:, ipoint) - source_position
          IF (.NOT. sum_images) relative_raw = pbc(relative_raw, cell)
@@ -380,7 +380,7 @@ CONTAINS
          END DO
          END DO
       END DO
-      !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
    END SUBROUTINE evaluate_ao_basis_on_points
 
 END MODULE ri_rs_utils

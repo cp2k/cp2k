@@ -1678,13 +1678,18 @@ CONTAINS
                         DO j = 1, 3
                            ! matrix_rcomr(i, j) = (Vnl*r_i)*r_j - (r_i*Vnl)*r_j
                            blocks_rvr(i, j, 1)%block(1:na, 1:nb) = blocks_rvr(i, j, 1)%block(1:na, 1:nb) + &
-                                                     MATMUL(achint(1:na, 1:np, bi_1), TRANSPOSE(bcint(1:nb, 1:np, bi_rr(i, j)))) - &
-                                                          MATMUL(achint(1:na, 1:np, bi_r(i)), TRANSPOSE(bcint(1:nb, 1:np, bi_r(j))))
+                                                                   MATMUL(achint(1:na, 1:np, bi_1), TRANSPOSE(bcint(1:nb, 1:np, &
+                                                                                                                    bi_rr(i, &
+                                                                                                                          j)))) - &
+                                                                   MATMUL(achint(1:na, 1:np, bi_r(i)), TRANSPOSE(bcint(1:nb, &
+                                                                                                                    1:np, bi_r(j))))
 
                            ! matrix_rrcom(i, j) = r_j*(Vnl*r_i) - r_j*(r_i*Vnl)
                            blocks_rvr(i, j, 2)%block(1:na, 1:nb) = blocks_rvr(i, j, 2)%block(1:na, 1:nb) + &
-                                                      MATMUL(achint(1:na, 1:np, bi_r(j)), TRANSPOSE(bcint(1:nb, 1:np, bi_r(i)))) - &
-                                                         MATMUL(achint(1:na, 1:np, bi_rr(i, j)), TRANSPOSE(bcint(1:nb, 1:np, bi_1)))
+                                                                   MATMUL(achint(1:na, 1:np, bi_r(j)), TRANSPOSE(bcint(1:nb, 1:np, &
+                                                                                                                      bi_r(i)))) - &
+                                                                   MATMUL(achint(1:na, 1:np, bi_rr(i, j)), TRANSPOSE(bcint(1:nb, &
+                                                                                                                       1:np, bi_1)))
                         END DO
                      END DO
 

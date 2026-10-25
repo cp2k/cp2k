@@ -359,7 +359,8 @@ CONTAINS
 
       ! finally, only redistribute if we're going to use less CPUs than before or changed the block size
       rdinfo%redistribute = (rdinfo%num_pe_old > rdinfo%num_pe_new) .OR. (blksize >= 0 .AND. &
-                                   ((blksize /= matrix%matrix_struct%ncol_block) .OR. (blksize /= matrix%matrix_struct%nrow_block)))
+                                                                          ((blksize /= matrix%matrix_struct%ncol_block) .OR. &
+                                                                           (blksize /= matrix%matrix_struct%nrow_block)))
 
       IF (work_redistribute%should_print .AND. io_unit > 0) THEN
          IF (is_elpa) THEN
@@ -616,7 +617,8 @@ CONTAINS
 
       ! finally, only redistribute if we're going to use less CPUs than before or changed the block size
       rdinfo%redistribute = (rdinfo%num_pe_old > rdinfo%num_pe_new) .OR. (blksize >= 0 .AND. &
-                                   ((blksize /= matrix%matrix_struct%ncol_block) .OR. (blksize /= matrix%matrix_struct%nrow_block)))
+                                                                          ((blksize /= matrix%matrix_struct%ncol_block) .OR. &
+                                                                           (blksize /= matrix%matrix_struct%nrow_block)))
 
       IF (work_redistribute%should_print .AND. io_unit > 0) THEN
          IF (is_elpa) THEN

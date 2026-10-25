@@ -181,7 +181,7 @@
          END TYPE cp_sll_${nametype1[i]}$_p_type
       #:endfor
 
-      CONTAINS
+   CONTAINS
 
       ${private_routines}$ ! this comment prevents trailing whitespace
 

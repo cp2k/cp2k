@@ -543,8 +543,10 @@ CONTAINS
 !        The end of the initialization.
          task = 'FG_START'
 !        return to the driver to calculate f and g; reenter at 111.
-     CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, col, itail, &
-                        iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, dnorm, epsmch, &
+         CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, &
+                         col, itail, &
+                         iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, &
+                         dnorm, epsmch, &
                          cpu1, cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd)
          RETURN
       ELSE
@@ -613,8 +615,10 @@ CONTAINS
                         iter, nfgv, nintol, nskip, nact, g_inf_norm, &
                         time, nseg, word, iback, stp, xstep, k, &
                         cachyt, sbtime, lnscht, wunit)
-     CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, col, itail, &
-                        iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, dnorm, epsmch, &
+            CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, &
+                            col, itail, &
+                            iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, &
+                            dnorm, epsmch, &
                             cpu1, cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd)
             RETURN
          END IF
@@ -642,8 +646,10 @@ CONTAINS
                         iter, nfgv, nintol, nskip, nact, g_inf_norm, &
                         time, nseg, word, iback, stp, xstep, k, &
                         cachyt, sbtime, lnscht, wunit)
-     CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, col, itail, &
-                        iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, dnorm, epsmch, &
+            CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, &
+                            col, itail, &
+                            iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, &
+                            dnorm, epsmch, &
                             cpu1, cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd)
             RETURN
          END IF
@@ -837,8 +843,10 @@ CONTAINS
                            iter, nfgv, nintol, nskip, nact, g_inf_norm, &
                            time, nseg, word, iback, stp, xstep, k, &
                            cachyt, sbtime, lnscht, wunit)
-     CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, col, itail, &
-                        iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, dnorm, epsmch, &
+               CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, &
+                               col, itail, &
+                               iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, &
+                               dnorm, epsmch, &
                                cpu1, cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd)
                RETURN
             ELSE
@@ -859,8 +867,10 @@ CONTAINS
             END IF
          ELSE IF (task(1:5) == 'FG_LN') THEN
 !          return to the driver for calculating f and g; reenter at 666.
-     CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, col, itail, &
-                        iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, dnorm, epsmch, &
+            CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, &
+                            col, itail, &
+                            iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, &
+                            dnorm, epsmch, &
                             cpu1, cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd)
             RETURN
          ELSE
@@ -877,8 +887,10 @@ CONTAINS
 
             CALL prn2lb(n, x, f, g, iprint, itfile, iter, nfgv, nact, &
                         g_inf_norm, nseg, word, iword, iback, stp, xstep, wunit)
-     CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, col, itail, &
-                        iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, dnorm, epsmch, &
+            CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, &
+                            col, itail, &
+                            iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, &
+                            dnorm, epsmch, &
                             cpu1, cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd)
             RETURN
          END IF
@@ -895,8 +907,10 @@ CONTAINS
                      iter, nfgv, nintol, nskip, nact, g_inf_norm, &
                      time, nseg, word, iback, stp, xstep, k, &
                      cachyt, sbtime, lnscht, wunit)
-     CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, col, itail, &
-                        iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, dnorm, epsmch, &
+         CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, &
+                         col, itail, &
+                         iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, &
+                         dnorm, epsmch, &
                          cpu1, cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd)
          RETURN
       END IF
@@ -913,8 +927,10 @@ CONTAINS
                      iter, nfgv, nintol, nskip, nact, g_inf_norm, &
                      time, nseg, word, iback, stp, xstep, k, &
                      cachyt, sbtime, lnscht, wunit)
-     CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, col, itail, &
-                        iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, dnorm, epsmch, &
+         CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, &
+                         col, itail, &
+                         iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, &
+                         dnorm, epsmch, &
                          cpu1, cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd)
          RETURN
       END IF
@@ -4072,8 +4088,10 @@ CONTAINS
 !> \author Samuel Andermatt (01.15)
 ! **************************************************************************************************
 
-   SUBROUTINE save_local(lsave,isave,dsave,x_projected,constrained,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,&
-                  iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, dnorm, epsmch, cpu1, &
+   SUBROUTINE save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, &
+                         col, itail, &
+                         iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, dnorm, &
+                         epsmch, cpu1, &
                          cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd)
       LOGICAL, INTENT(out)                               :: lsave(4)
       INTEGER, INTENT(out)                               :: isave(23)

@@ -926,7 +926,7 @@ CONTAINS
       ELSE
          ! Or use the 3 stage FFT scheme described in fftw3_create_plan_3d
          ALLOCATE (tmp1(n1*n2*n3))   ! Temporary vector used for transpositions
-         !$OMP PARALLEL DEFAULT(NONE) PRIVATE(tid,nt,i,j,k) SHARED(zin,tmp1,n1,n2,n3,plan,xout)
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(tid,nt,i,j,k) SHARED(zin,tmp1,n1,n2,n3,plan,xout)
          tid = 0
          nt = 1
 
@@ -936,17 +936,17 @@ CONTAINS
                                           n3, nt, tid, &
                                           zin, n1*n2, tmp1, n1*n2)
 
-         !$OMP BARRIER
+!$OMP BARRIER
          CALL fftw3_workshare_execute_dft(plan%fftw_plan_ny, plan%fftw_plan_ny_r, &
                                           n3, nt, tid, &
                                           tmp1, n1*n2, xout, 1)
-         !$OMP BARRIER
+!$OMP BARRIER
          CALL fftw3_workshare_execute_dft(plan%fftw_plan_nz, plan%fftw_plan_nz_r, &
                                           n1, nt, tid, &
                                           xout, n2*n3, tmp1, n2*n3)
-         !$OMP BARRIER
+!$OMP BARRIER
 
-         !$OMP DO COLLAPSE(3)
+!$OMP DO COLLAPSE(3)
          DO i = 1, n1
             DO j = 1, n2
                DO k = 1, n3
@@ -955,9 +955,9 @@ CONTAINS
                END DO
             END DO
          END DO
-         !$OMP END DO
+!$OMP END DO
 
-         !$OMP END PARALLEL
+!$OMP END PARALLEL
       END IF
 
       IF (scale /= 1.0_dp) THEN
@@ -1169,13 +1169,13 @@ CONTAINS
       IF (.FALSE.) THEN; DO; IF (ABS(zin(1)) > ABS(zout(1))) EXIT; END DO; END IF
       stat = 0
 
-!$    else
-!$    end if
+!$ else
+!$ end if
 
 #endif
 
 !$OMP END PARALLEL
 
-      END SUBROUTINE fftw31dm
+END SUBROUTINE fftw31dm
 
-   END MODULE fftw3_lib
+END MODULE fftw3_lib

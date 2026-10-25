@@ -84,8 +84,8 @@ CONTAINS
             END DO
          END DO
       END DO
-      END SUBROUTINE ${name}$
-      #:enddef
+   END SUBROUTINE ${name}$
+#:enddef
 
 ! **************************************************************************************************
 !> \brief ...
@@ -104,97 +104,97 @@ CONTAINS
 !> \param prim ...
 !> \param scale ...
 ! **************************************************************************************************
-      SUBROUTINE contract_block(ma_max, mb_max, mc_max, md_max, kbd, kbc, kad, kac, pbd, pbc, pad, pac, prim, scale)
-         INTEGER                                  :: ma_max, mb_max, mc_max, md_max
-         REAL(KIND=dp) :: kbd(mb_max*md_max), kbc(mb_max*mc_max), &
-                          kad(ma_max*md_max), kac(ma_max*mc_max), pbd(mb_max*md_max), &
-                          pbc(mb_max*mc_max), pad(ma_max*md_max), pac(ma_max*mc_max), &
-                          prim(ma_max*mb_max*mc_max*md_max), scale
+SUBROUTINE contract_block(ma_max, mb_max, mc_max, md_max, kbd, kbc, kad, kac, pbd, pbc, pad, pac, prim, scale)
+   INTEGER                                  :: ma_max, mb_max, mc_max, md_max
+   REAL(KIND=dp) :: kbd(mb_max*md_max), kbc(mb_max*mc_max), &
+                    kad(ma_max*md_max), kac(ma_max*mc_max), pbd(mb_max*md_max), &
+                    pbc(mb_max*mc_max), pad(ma_max*md_max), pac(ma_max*mc_max), &
+                    prim(ma_max*mb_max*mc_max*md_max), scale
 
 #if !defined (__LIBINT)
-         MARK_USED(ma_max)
-         MARK_USED(mb_max)
-         MARK_USED(mc_max)
-         MARK_USED(md_max)
-         MARK_USED(kbd)
-         MARK_USED(kbc)
-         MARK_USED(kad)
-         MARK_USED(kac)
-         MARK_USED(pbd)
-         MARK_USED(pbc)
-         MARK_USED(pad)
-         MARK_USED(pac)
-         MARK_USED(prim)
-         MARK_USED(scale)
-         CPABORT("libint not compiled in")
+   MARK_USED(ma_max)
+   MARK_USED(mb_max)
+   MARK_USED(mc_max)
+   MARK_USED(md_max)
+   MARK_USED(kbd)
+   MARK_USED(kbc)
+   MARK_USED(kad)
+   MARK_USED(kac)
+   MARK_USED(pbd)
+   MARK_USED(pbc)
+   MARK_USED(pad)
+   MARK_USED(pac)
+   MARK_USED(prim)
+   MARK_USED(scale)
+   CPABORT("libint not compiled in")
 #else
-         SELECT CASE (ma_max)
-            #:for a in block_sizes
-               CASE (${a}$)
-               SELECT CASE (mb_max)
-                  #:for b in block_sizes
-                     CASE (${b}$)
-                     #:if a*b < max_product
-                        SELECT CASE (mc_max)
-                           #:for c in block_sizes
-                              CASE (${c}$)
-                              #:if a*b*c < max_product
-                                 SELECT CASE (md_max)
-                                    #:for d in block_sizes
-                                       CASE (${d}$)
-                                       #:if a*b*c*d < max_product
-                                          $:call_block((a, b, c, d))
-                                       #:else
-                                          $:call_block((a, b, c))
-                                       #:endif
-                                    #:endfor
-                                 CASE DEFAULT
-                                    $:call_block()
-                                 END SELECT
-                              #:else
-                                 $:call_block((a, b))
-                              #:endif
-                           #:endfor
-                        CASE DEFAULT
-                           $:call_block()
-                        END SELECT
-                     #:else
-                        $:call_block((a, b))
-                     #:endif
-                  #:endfor
-               CASE DEFAULT
-                  $:call_block()
-               END SELECT
+   SELECT CASE (ma_max)
+      #:for a in block_sizes
+      CASE (${a}$)
+         SELECT CASE (mb_max)
+            #:for b in block_sizes
+            CASE (${b}$)
+               #:if a*b < max_product
+                  SELECT CASE (mc_max)
+                     #:for c in block_sizes
+                     CASE (${c}$)
+                        #:if a*b*c < max_product
+                           SELECT CASE (md_max)
+                              #:for d in block_sizes
+                              CASE (${d}$)
+                                 #:if a*b*c*d < max_product
+                                    $:call_block((a, b, c, d))
+                                 #:else
+                                    $:call_block((a, b, c))
+                                 #:endif
+                              #:endfor
+                           CASE DEFAULT
+                              $:call_block()
+                           END SELECT
+                        #:else
+                           $:call_block((a, b))
+                        #:endif
+                     #:endfor
+                  CASE DEFAULT
+                     $:call_block()
+                  END SELECT
+               #:else
+                  $:call_block((a, b))
+               #:endif
             #:endfor
          CASE DEFAULT
             $:call_block()
          END SELECT
+      #:endfor
+   CASE DEFAULT
+      $:call_block()
+   END SELECT
 #endif
-      END SUBROUTINE contract_block
+END SUBROUTINE contract_block
 
 #if defined(__LIBINT)
-      $:block()
+$:block()
 
-      #:for a in block_sizes
-         #:for b in block_sizes
-            #:if a*b < max_product
-               #:for c in block_sizes
-                  #:if a*b*c < max_product
-                     #:for d in block_sizes
-                        #:if a*b*c*d < max_product
-                           $:block((a, b, c, d))
-                        #:endif
-                     #:endfor
-                     #:if a*b*c*block_sizes[-1] >= max_product
-                        $:block((a, b, c))
-                     #:endif
+#:for a in block_sizes
+   #:for b in block_sizes
+      #:if a*b < max_product
+         #:for c in block_sizes
+            #:if a*b*c < max_product
+               #:for d in block_sizes
+                  #:if a*b*c*d < max_product
+                     $:block((a, b, c, d))
                   #:endif
                #:endfor
-            #:endif
-            #:if a*b*block_sizes[-1] >= max_product
-               $:block((a, b))
+               #:if a*b*c*block_sizes[-1] >= max_product
+                  $:block((a, b, c))
+               #:endif
             #:endif
          #:endfor
-      #:endfor
+      #:endif
+      #:if a*b*block_sizes[-1] >= max_product
+         $:block((a, b))
+      #:endif
+   #:endfor
+#:endfor
 #endif
-   END MODULE hfx_contract_block
+END MODULE hfx_contract_block

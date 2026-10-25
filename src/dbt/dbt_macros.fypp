@@ -37,7 +37,7 @@
 
    #:def varlist_equal(name, nmin=1, nmax=maxrank, suffix="", namesuffix="")
       #!    create variable list "name_1=name_1, name_2=name_2, ..., name_n=name_n
-      $:    ", ".join([name + "_" + str(i) + suffix + " = " + namesuffix + name + "_" + str(i) + suffix for i in range(nmin, nmax+1)])
+    $:    ", ".join([name + "_" + str(i) + suffix + " = " + namesuffix + name + "_" + str(i) + suffix for i in range(nmin, nmax+1)])
    #:enddef
 
    #:def pointer_list(name, nmin=1, nmax=maxrank, suffix="")
@@ -67,12 +67,12 @@
 
    #:def extern_varlist_and_size(name, type, nmin=1, nmax=maxrank, suffix="")
       #!    create variable list "type* name_1, type name_1_size, type* name_2, type name_2_size ...
-      $:    ", ".join([type + "* " + name + "_" + str(i) + ", " + type + " " + name + "_" + str(i) + "_" + "size" + suffix for i in range(nmin, nmax+1)])
+$:    ", ".join([type + "* " + name + "_" + str(i) + ", " + type + " " + name + "_" + str(i) + "_" + "size" + suffix for i in range(nmin, nmax+1)])
    #:enddef
 
    #:def extern_alloc_varlist_and_size(name, nmin=1, nmax=maxrank, suffix="")
       #!    create variable list "int* name_1, int name_1_size, int* name_2, int name_2_size ...
-      $:    ", ".join(["int** " + name + "_" + str(i) + ", " + "int* " + name + "_" + str(i) + "_" + "size" + suffix for i in range(nmin, nmax+1)])
+$:    ", ".join(["int** " + name + "_" + str(i) + ", " + "int* " + name + "_" + str(i) + "_" + "size" + suffix for i in range(nmin, nmax+1)])
    #:enddef
 
    #! Handling optional arguments for non-interoperable types
@@ -188,7 +188,7 @@
             + " .AND. " * (bool(len(diff)) * bool(len(diff) - len(varlist))) &
             + " .AND. ".join([".NOT. " + check + "(" +  prefix + str(i) + ")" for i in flatdiff]) + ") THEN "
       #:else
-         ELSE
+      ELSE
       #:endif
    #:enddef
 

@@ -240,7 +240,8 @@ CONTAINS
          data_to = mepos - icpu
          dest_cpu = MODULO(data_to, ncpu) + 1
          block_size = block_offset(dest_cpu + 1) - block_offset(dest_cpu)
-       sendbuffer(1:block_size) = sendbuffer(1:block_size) + full_ks(block_offset(dest_cpu):block_offset(dest_cpu) + block_size - 1)
+         sendbuffer(1:block_size) = sendbuffer(1:block_size) + full_ks(block_offset(dest_cpu):block_offset(dest_cpu) + &
+                                                                       block_size - 1)
          IF (icpu == ncpu) EXIT
          CALL para_env%isendrecv(sendbuffer, dest, recbuffer, source, &
                                  req(1), req(2), 13)

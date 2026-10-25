@@ -1831,7 +1831,8 @@ CONTAINS
          res = poly2(nsa, p1, p2, p3)*poly2(nsb, p1, p2, p3)*poly2(nsc, p1, p2, p3)*poly2(nsd, p1, p2, p3)* &
                poly2(npgfa, p4, p5, p6)*poly2(npgfb, p4, p5, p6)*poly2(npgfc, p4, p5, p6)* &
                poly2(npgfd, p4, p5, p6)*EXP(-p7*ratio + p8*ratio**2) + &
-              1000.0_dp*p9 + poly2(nsa, p10, p11, p12)*poly2(nsb, p10, p11, p12)*poly2(nsc, p10, p11, p12)*poly2(nsd, p10, p11, p12)
+               1000.0_dp*p9 + poly2(nsa, p10, p11, p12)*poly2(nsb, p10, p11, p12)*poly2(nsc, p10, p11, p12)*poly2(nsd, &
+                                                                                                                  p10, p11, p12)
          res = 1 + ABS(res)
       END FUNCTION estimate_basic
 
@@ -2528,7 +2529,8 @@ CONTAINS
 
          WRITE (iw, FMT="(T3,A,T35,A,T55,A,/)") "MPI RANK", "EST cost", "Processing time [s]"
          DO i = nranks, 1, -1
-       WRITE (iw, FMT="(T6,I5,T27,I16,T55,F19.8)") sort_idx(i) - 1, summary(2*(sort_idx(i) - 1) + 1), REAL(buffer(i), dp)/10000.0_dp
+            WRITE (iw, FMT="(T6,I5,T27,I16,T55,F19.8)") sort_idx(i) - 1, summary(2*(sort_idx(i) - 1) + 1), REAL(buffer(i), &
+                                                                                                                dp)/10000.0_dp
          END DO
 
          DEALLOCATE (summary, buffer, sort_idx)

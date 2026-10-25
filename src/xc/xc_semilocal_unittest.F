@@ -261,7 +261,9 @@ CONTAINS
                   first_fd = (8.0_dp*(ep - em) - (epp - emm))/(12.0_dp*h)
                   first_error = MAX(first_error, ABS(first_fd - gradient(axis))/(1.0_dp + ABS(gradient(axis))))
                   second_error = MAX(second_error, &
-                      MAXVAL(ABS((8.0_dp*(gp - gm) - (gpp - gmm))/(12.0_dp*h) - hessian(:, axis))/(1.0_dp + ABS(hessian(:, axis)))))
+                                     MAXVAL(ABS((8.0_dp*(gp - gm) - (gpp - gmm))/(12.0_dp*h) - hessian(:, axis))/(1.0_dp + &
+                                                                                                                  ABS(hessian(:, &
+                                                                                                                           axis)))))
                   IF (family <= 2) THEN
                      third_error = MAX(third_error, &
                                        MAXVAL(ABS((8.0_dp*(hp - hm) - (hpp - hmm))/(12.0_dp*h) - third(:, :, axis))/ &
@@ -747,7 +749,8 @@ CONTAINS
                CALL evaluate(trials, minus, scratchs, hessian, derivative_order=1)
                error = MAX(error, ABS((plus - minus)/(2.0_dp*step) - gs(axis))/(1.0_dp + ABS(gs(axis))))
             END DO
-    IF (configuration == 1 .AND. MAXVAL(ABS(gs(4:5))) > 1.e-13_dp) ERROR STOP 'XWPBE spin zero-gradient potential is not stationary'
+            IF (configuration == 1 .AND. MAXVAL(ABS(gs(4:5))) > 1.e-13_dp) ERROR STOP &
+               'XWPBE spin zero-gradient potential is not stationary'
          END DO
       END DO
       WRITE (*, '(A,ES15.6)') 'XWPBE limiting/large-gradient first-derivative error:', error

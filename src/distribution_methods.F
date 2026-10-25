@@ -655,7 +655,8 @@ CONTAINS
                            DO iatom_mol = 1, natom_mol
                               iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1
                               center = center + &
-                                   pbc(particle_set(iatom)%r(:) - particle_set(iatom_one)%r(:), cell) + particle_set(iatom_one)%r(:)
+                                       pbc(particle_set(iatom)%r(:) - particle_set(iatom_one)%r(:), cell) + &
+                                       particle_set(iatom_one)%r(:)
                            END DO
                            center = center/natom_mol
                            CALL real_to_scaled(pbc_scaled_coords(:, imol), pbc(center, cell), cell)

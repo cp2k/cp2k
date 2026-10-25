@@ -238,96 +238,97 @@ CONTAINS
                                      sphi_a, sphi_b, sphi_c, sphi_d, primitives, buffer1, buffer2)
 
             INTEGER, INTENT(IN) :: ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod
-            #:else
+         #:else
             SUBROUTINE contract_${name}$ (work, nl_a, nl_b, nl_c, nl_d, &
                                           sphi_a, sphi_b, sphi_c, sphi_d, primitives, buffer1, buffer2)
 
-               #:endif
-               REAL(dp), DIMENSION(${ '*'.join(nc) }$), INTENT(IN) :: work
-               INTEGER :: nl_a, nl_b, nl_c, nl_d
-               #:for axis, ncart, nsph in zip('abcd', nc, ns)
-                  REAL(dp), DIMENSION(${ncart}$, ${nsph}$*nl_${axis}$), INTENT(IN) :: sphi_${axis}$
-               #:endfor
-               REAL(dp), DIMENSION(${ns[0]}$*nl_a, ${ns[1]}$*nl_b, ${ns[2]}$*nl_c, ${ns[3]}$*nl_d) :: primitives
-               REAL(dp), DIMENSION(${ '*'.join(nc) }$) :: buffer1, buffer2
-
-               INTEGER :: i, i1, i2, i3, ia, ib, ic, id, imax, &
-   #:if generic
-                          j, jmax, k, &
-   #:endif
-                          kmax, s_offset_a1, s_offset_b1, s_offset_c1, s_offset_d1
-
-               s_offset_a1 = 0
-               DO ia = 1, nl_a
-                  s_offset_b1 = 0
-                  DO ib = 1, nl_b
-                     s_offset_c1 = 0
-                     DO ic = 1, nl_c
-                        s_offset_d1 = 0
-                        DO id = 1, nl_d
-                           #:for stage, axis in enumerate('abcd')
-                              #:set source = ['work', 'buffer1', 'buffer2', 'buffer1'][stage]
-                              #:if stage < 3
-                                 #:set target = ['buffer1', 'buffer2', 'buffer1'][stage]
-                                 ${target}$ = 0.0_dp
-                              #:endif
-                              imax = ${ '*'.join(ns[:stage] + nc[stage + 1:]) }$
-                              #:if generic
-                                 jmax = ${ns[stage]}$
-                              #:endif
-                              kmax = ${nc[stage]}$
-                              #:if stage == 3
-                                 i = 0
-                              #:endif
-                              #:if generic
-                                 SELECT CASE (kmax)
-                                    #:for l, ncart in enumerate(cartesian[:lmax_generic + 1])
-                                       CASE (${ncart}$)
-                                       $:transform(l, stage, ns)
-                                    #:endfor
-                                 CASE DEFAULT
-                                    DO j = 1, jmax
-                                       #:if stage < 3
-                                          DO i = 1, imax
-                                             DO k = 1, kmax
-                                                ${target}$ (i + imax*(j - 1)) = ${target}$ (i + imax*(j - 1)) &
-                                                           + ${source}$ (k + (i - 1)*kmax)*sphi_${axis}$ (k, j + s_offset_${axis}$1)
-                                             END DO
-                                          END DO
-                                       #:else
-                                          i = 0
-                                          DO i1 = 1, nsoc
-                                          DO i2 = 1, nsob
-                                          DO i3 = 1, nsoa
-                                             i = i + 1
-                                             DO k = 1, kmax
-                                               primitives(s_offset_a1 + i3, s_offset_b1 + i2, s_offset_c1 + i1, s_offset_d1 + j) = &
-                                                 primitives(s_offset_a1 + i3, s_offset_b1 + i2, s_offset_c1 + i1, s_offset_d1 + j) &
-                                                   + buffer1(k + (i - 1)*kmax)*sphi_d(k, j + s_offset_d1)
-                                             END DO
-                                          END DO
-                                          END DO
-                                          END DO
-                                       #:endif
-                                    END DO
-                                 END SELECT
-                              #:else
-                                 $:transform(angular[stage], stage, ns)
-                              #:endif
-                           #:endfor
-                           s_offset_d1 = s_offset_d1 + ${ns[3]}$
-                        END DO
-                        s_offset_c1 = s_offset_c1 + ${ns[2]}$
-                     END DO
-                     s_offset_b1 = s_offset_b1 + ${ns[1]}$
-                  END DO
-                  s_offset_a1 = s_offset_a1 + ${ns[0]}$
-               END DO
-            END SUBROUTINE contract_${name}$
-            #:if not generic
-#endif
             #:endif
-            #:enddef
+            REAL(dp), DIMENSION(${ '*'.join(nc) }$), INTENT(IN) :: work
+            INTEGER :: nl_a, nl_b, nl_c, nl_d
+            #:for axis, ncart, nsph in zip('abcd', nc, ns)
+               REAL(dp), DIMENSION(${ncart}$, ${nsph}$*nl_${axis}$), INTENT(IN) :: sphi_${axis}$
+            #:endfor
+            REAL(dp), DIMENSION(${ns[0]}$*nl_a, ${ns[1]}$*nl_b, ${ns[2]}$*nl_c, ${ns[3]}$*nl_d) :: primitives
+            REAL(dp), DIMENSION(${ '*'.join(nc) }$) :: buffer1, buffer2
+
+            INTEGER :: i, i1, i2, i3, ia, ib, ic, id, imax, &
+   #:if generic
+                       j, jmax, k, &
+   #:endif
+                       kmax, s_offset_a1, s_offset_b1, s_offset_c1, s_offset_d1
+
+            s_offset_a1 = 0
+            DO ia = 1, nl_a
+               s_offset_b1 = 0
+               DO ib = 1, nl_b
+                  s_offset_c1 = 0
+                  DO ic = 1, nl_c
+                     s_offset_d1 = 0
+                     DO id = 1, nl_d
+                        #:for stage, axis in enumerate('abcd')
+                           #:set source = ['work', 'buffer1', 'buffer2', 'buffer1'][stage]
+                           #:if stage < 3
+                              #:set target = ['buffer1', 'buffer2', 'buffer1'][stage]
+                              ${target}$ = 0.0_dp
+                           #:endif
+                           imax = ${ '*'.join(ns[:stage] + nc[stage + 1:]) }$
+                           #:if generic
+                              jmax = ${ns[stage]}$
+                           #:endif
+                           kmax = ${nc[stage]}$
+                           #:if stage == 3
+                              i = 0
+                           #:endif
+                           #:if generic
+                              SELECT CASE (kmax)
+                                 #:for l, ncart in enumerate(cartesian[:lmax_generic + 1])
+                                 CASE (${ncart}$)
+                                    $:transform(l, stage, ns)
+                                 #:endfor
+                              CASE DEFAULT
+                                 DO j = 1, jmax
+                                    #:if stage < 3
+                                       DO i = 1, imax
+                                          DO k = 1, kmax
+                                             ${target}$ (i + imax*(j - 1)) = ${target}$ (i + imax*(j - 1)) &
+                                                                             + ${source}$ (k + (i - 1)*kmax)*sphi_${axis}$ (k, j + &
+                                                                                                                 s_offset_${axis}$1)
+                                          END DO
+                                       END DO
+                                    #:else
+                                       i = 0
+                                       DO i1 = 1, nsoc
+                                       DO i2 = 1, nsob
+                                       DO i3 = 1, nsoa
+                                          i = i + 1
+                                          DO k = 1, kmax
+                                             primitives(s_offset_a1 + i3, s_offset_b1 + i2, s_offset_c1 + i1, s_offset_d1 + j) = &
+                                                primitives(s_offset_a1 + i3, s_offset_b1 + i2, s_offset_c1 + i1, s_offset_d1 + j) &
+                                                + buffer1(k + (i - 1)*kmax)*sphi_d(k, j + s_offset_d1)
+                                          END DO
+                                       END DO
+                                       END DO
+                                       END DO
+                                    #:endif
+                                 END DO
+                              END SELECT
+                           #:else
+                              $:transform(angular[stage], stage, ns)
+                           #:endif
+                        #:endfor
+                        s_offset_d1 = s_offset_d1 + ${ns[3]}$
+                     END DO
+                     s_offset_c1 = s_offset_c1 + ${ns[2]}$
+                  END DO
+                  s_offset_b1 = s_offset_b1 + ${ns[1]}$
+               END DO
+               s_offset_a1 = s_offset_a1 + ${ns[0]}$
+            END DO
+         END SUBROUTINE contract_${name}$
+         #:if not generic
+#endif
+         #:endif
+      #:enddef
 
 ! **************************************************************************************************
 !> \brief ...
@@ -356,74 +357,71 @@ CONTAINS
 !> \param buffer1 ...
 !> \param buffer2 ...
 ! **************************************************************************************************
-            SUBROUTINE contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
-                                n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work, &
-                                sphi_a, sphi_b, sphi_c, sphi_d, &
-                                primitives, &
-                                buffer1, buffer2)
+      SUBROUTINE contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
+                          n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work, &
+                          sphi_a, sphi_b, sphi_c, sphi_d, &
+                          primitives, &
+                          buffer1, buffer2)
 
-               INTEGER, INTENT(IN)         :: ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
-                                              n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d
-               REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod), INTENT(IN) :: work
-               REAL(dp), DIMENSION(ncoa, nsoa*nl_a), INTENT(IN)   :: sphi_a
-               REAL(dp), DIMENSION(ncob, nsob*nl_b), INTENT(IN)   :: sphi_b
-               REAL(dp), DIMENSION(ncoc, nsoc*nl_c), INTENT(IN)   :: sphi_c
-               REAL(dp), DIMENSION(ncod, nsod*nl_d), INTENT(IN)   :: sphi_d
+         INTEGER, INTENT(IN)         :: ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &
+                                        n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d
+         REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod), INTENT(IN) :: work
+         REAL(dp), DIMENSION(ncoa, nsoa*nl_a), INTENT(IN)   :: sphi_a
+         REAL(dp), DIMENSION(ncob, nsob*nl_b), INTENT(IN)   :: sphi_b
+         REAL(dp), DIMENSION(ncoc, nsoc*nl_c), INTENT(IN)   :: sphi_c
+         REAL(dp), DIMENSION(ncod, nsod*nl_d), INTENT(IN)   :: sphi_d
 
-               REAL(dp), DIMENSION(nsoa*nl_a, nsob*nl_b, nsoc*nl_c, nsod*nl_d) :: primitives
-               REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod)  :: buffer1, buffer2
+         REAL(dp), DIMENSION(nsoa*nl_a, nsob*nl_b, nsoc*nl_c, nsod*nl_d) :: primitives
+         REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod)  :: buffer1, buffer2
 
 #if !defined(__LIBINT)
-               MARK_USED(ncoa)
-               MARK_USED(ncob)
-               MARK_USED(ncoc)
-               MARK_USED(ncod)
-               MARK_USED(nsoa)
-               MARK_USED(nsob)
-               MARK_USED(nsoc)
-               MARK_USED(nsod)
-               MARK_USED(n_a)
-               MARK_USED(n_b)
-               MARK_USED(n_c)
-               MARK_USED(n_d)
-               MARK_USED(nl_a)
-               MARK_USED(nl_b)
-               MARK_USED(nl_c)
-               MARK_USED(nl_d)
-               MARK_USED(sphi_a)
-               MARK_USED(sphi_b)
-               MARK_USED(sphi_c)
-               MARK_USED(sphi_d)
-               MARK_USED(work)
-               MARK_USED(primitives)
-               MARK_USED(buffer1)
-               MARK_USED(buffer2)
-               CPABORT("libint not compiled in")
+         MARK_USED(ncoa)
+         MARK_USED(ncob)
+         MARK_USED(ncoc)
+         MARK_USED(ncod)
+         MARK_USED(nsoa)
+         MARK_USED(nsob)
+         MARK_USED(nsoc)
+         MARK_USED(nsod)
+         MARK_USED(n_a)
+         MARK_USED(n_b)
+         MARK_USED(n_c)
+         MARK_USED(n_d)
+         MARK_USED(nl_a)
+         MARK_USED(nl_b)
+         MARK_USED(nl_c)
+         MARK_USED(nl_d)
+         MARK_USED(sphi_a)
+         MARK_USED(sphi_b)
+         MARK_USED(sphi_c)
+         MARK_USED(sphi_d)
+         MARK_USED(work)
+         MARK_USED(primitives)
+         MARK_USED(buffer1)
+         MARK_USED(buffer2)
+         CPABORT("libint not compiled in")
 #else
-               SELECT CASE (n_a)
-                  #:for a in range(lmax_specific + 1)
-                     CASE (${a}$)
-                     SELECT CASE (n_b)
-                        #:for b in range(lmax_specific + 1)
-                           CASE (${b}$)
-                           SELECT CASE (n_c)
-                              #:for c in range(lmax_specific + 1)
-                                 CASE (${c}$)
-                                 SELECT CASE (n_d)
-                                    #:for d in range(lmax_specific + 1)
-                                       CASE (${d}$)
-                                       #:set max_contr = max(a, b, c, d)
+         SELECT CASE (n_a)
+            #:for a in range(lmax_specific + 1)
+            CASE (${a}$)
+               SELECT CASE (n_b)
+                  #:for b in range(lmax_specific + 1)
+                  CASE (${b}$)
+                     SELECT CASE (n_c)
+                        #:for c in range(lmax_specific + 1)
+                        CASE (${c}$)
+                           SELECT CASE (n_d)
+                              #:for d in range(lmax_specific + 1)
+                              CASE (${d}$)
+                                 #:set max_contr = max(a, b, c, d)
 #if __MAX_CONTR >= ${max_contr}$
-                                       CALL contract_${''.join(shells[l] for l in (a, b, c, d))}$ (work, &
-                                                                                                   nl_a, nl_b, nl_c, nl_d, &
-                                                                       sphi_a, sphi_b, sphi_c, sphi_d, primitives, buffer1, buffer2)
+                                 CALL contract_${''.join(shells[l] for l in (a, b, c, d))}$ (work, &
+                                                                                             nl_a, nl_b, nl_c, nl_d, &
+                                                                                             sphi_a, sphi_b, sphi_c, sphi_d, &
+                                                                                             primitives, buffer1, buffer2)
 #else
-                                       $:call_generic()
+                                 $:call_generic()
 #endif
-                                    #:endfor
-                                 CASE DEFAULT
-                                    $:call_generic()
-                                 END SELECT
                               #:endfor
                            CASE DEFAULT
                               $:call_generic()
@@ -436,20 +434,24 @@ CONTAINS
                CASE DEFAULT
                   $:call_generic()
                END SELECT
+            #:endfor
+         CASE DEFAULT
+            $:call_generic()
+         END SELECT
 #endif
-            END SUBROUTINE contract
+      END SUBROUTINE contract
 
 #if defined(__LIBINT)
-            #:for a in range(lmax_specific + 1)
-               #:for b in range(lmax_specific + 1)
-                  #:for c in range(lmax_specific + 1)
-                     #:for d in range(lmax_specific + 1)
-                        $:contraction((a, b, c, d))
-                     #:endfor
-                  #:endfor
+      #:for a in range(lmax_specific + 1)
+         #:for b in range(lmax_specific + 1)
+            #:for c in range(lmax_specific + 1)
+               #:for d in range(lmax_specific + 1)
+                  $:contraction((a, b, c, d))
                #:endfor
             #:endfor
+         #:endfor
+      #:endfor
 
-            $:contraction()
+      $:contraction()
 #endif
-            END MODULE hfx_contraction_methods
+   END MODULE hfx_contraction_methods

@@ -561,7 +561,8 @@ CONTAINS
                WRITE (unit_nr, '(T2, A)') "ERI_MME| Estimated absolute error for normalized Hermite-Gaussian basis"
                WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Minimax error:", param%par%err_mm
                WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Cutoff error:", param%par%err_c
-             WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Total error (minimax + cutoff):", param%par%err_mm + param%par%err_c
+               WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Total error (minimax + cutoff):", param%par%err_mm + &
+                  param%par%err_c
             END IF
             IF (param%par%print_calib) THEN
                WRITE (unit_nr, '(T2, A, T68, F13.10)') "ERI_MME|   Minimax scaling constant in AM-GM estimate:", param%par%C_mm

@@ -866,7 +866,8 @@ CONTAINS
                          *t4*t64 + 0.6e1_dp*t3/t87*t43*t27 - 0.6e1_dp*t3 &
                          *t42*t27*t63 + t3*t18*(0.18e2_dp*beta*t53*t23 &
                                                 - 0.18e2_dp*beta*t57*t59 + 0.6e1_dp*t4*(0.3e1_dp/ &
-                                                                                   t6/t103*t2*x - 0.3e1_dp*t51*x)*t23 - 0.18e2_dp* &
+                                                                                        t6/t103*t2*x - 0.3e1_dp*t51*x)*t23 - &
+                                                0.18e2_dp* &
                                                 t4*t53*t59*t22 + 0.12e2_dp*t4*t57*t22/t58/t7)
                   t133 = 0.16e2_dp/0.9e1_dp*t36*t127*t2 + 0.28e2_dp/0.9e1_dp &
                          *t67*x

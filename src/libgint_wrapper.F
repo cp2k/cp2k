@@ -42,9 +42,9 @@ MODULE libGint_wrapper
    TYPE(bra_t), TARGET, SAVE :: bra, ket
    LOGICAL, SAVE :: first_call = .TRUE.
    TYPE(c_ptr), SAVE :: libGint_handle
-   !$OMP THREADPRIVATE( first_set_of_atom, first_call )
-   !$OMP THREADPRIVATE( bra,ket )
-   !$OMP THREADPRIVATE( libGint_handle )
+!$OMP THREADPRIVATE( first_set_of_atom, first_call )
+!$OMP THREADPRIVATE( bra,ket )
+!$OMP THREADPRIVATE( libGint_handle )
 #endif
 
    PUBLIC :: cp_libGint_init, libGint_update_env, libGint_set_density, libGint_coulomb4, &

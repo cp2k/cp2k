@@ -50,7 +50,7 @@
          TYPE(${name}$_list_type), POINTER :: list => NULL()
       END TYPE ${name}$_list_p_type
 
-      CONTAINS
+   CONTAINS
 
 ! **************************************************************************************************
 !> \brief creates a list

@@ -77,7 +77,7 @@ MODULE openpmd_api
    #:set dataset_types_f = ['REAL(kind=dp)']
    #:set dataset_types_enum = ['double']
    #:set dimensions = [1, 2, 3]
-   #:set upcasts = [("Series", "Attributable"), ("Iteration", "Attributable"), ("RecordComponent", "Attributable"), ("Mesh", "RecordComponent"), ("Record", "RecordComponent"), ("Mesh", "MeshRecordComponent"), ("MeshRecordComponent", "RecordComponent")]
+#:set upcasts = [("Series", "Attributable"), ("Iteration", "Attributable"), ("RecordComponent", "Attributable"), ("Mesh", "RecordComponent"), ("Record", "RecordComponent"), ("Mesh", "MeshRecordComponent"), ("MeshRecordComponent", "RecordComponent")]
    #:set fortran_names = {"RecordComponent": "record_component", "MeshRecordComponent": "mesh_record_component"}
 
    TYPE openpmd_attributable_type
@@ -160,7 +160,7 @@ MODULE openpmd_api
          #:for j, dim in enumerate(dimensions)
             #:if i * n + j == count_up_to - 1
          store_chunk_${dim}$d_${type_enum}$
-         #:else
+      #:else
       store_chunk_${dim}$d_${type_enum}$, &
             #:endif
          #:endfor
@@ -1175,46 +1175,46 @@ MODULE openpmd_api
          size_ = SIZE(vec)
          CALL openpmd_c_set_vector_attribute(this%c_ptr, C_LOC(vec(1)), size_, 1)
 
-         END SUBROUTINE ${f_routine}$
-         #:endfor
+      END SUBROUTINE ${f_routine}$
+   #:endfor
 
-         SUBROUTINE openpmd_mesh_set_grid_unit_SI(this, gridUnitSI)
-            CLASS(openpmd_mesh_type) :: this
-            REAL(kind=C_DOUBLE), INTENT(IN), VALUE :: gridUnitSI
+   SUBROUTINE openpmd_mesh_set_grid_unit_SI(this, gridUnitSI)
+      CLASS(openpmd_mesh_type) :: this
+      REAL(kind=C_DOUBLE), INTENT(IN), VALUE :: gridUnitSI
 
-            INTERFACE
-               SUBROUTINE openpmd_c_mesh_set_grid_unit_SI(mesh, gridUnitSI) &
-                  BIND(C, NAME="openPMD_Mesh_setGridUnitSI")
-                  IMPORT :: C_PTR, C_DOUBLE
-                  TYPE(C_PTR), VALUE :: mesh
-                  REAL(kind=C_DOUBLE), VALUE :: gridUnitSI
-               END SUBROUTINE openpmd_c_mesh_set_grid_unit_SI
-            END INTERFACE
+      INTERFACE
+         SUBROUTINE openpmd_c_mesh_set_grid_unit_SI(mesh, gridUnitSI) &
+            BIND(C, NAME="openPMD_Mesh_setGridUnitSI")
+            IMPORT :: C_PTR, C_DOUBLE
+            TYPE(C_PTR), VALUE :: mesh
+            REAL(kind=C_DOUBLE), VALUE :: gridUnitSI
+         END SUBROUTINE openpmd_c_mesh_set_grid_unit_SI
+      END INTERFACE
 
-            CALL openpmd_c_mesh_set_grid_unit_SI(this%c_ptr, gridUnitSI)
-         END SUBROUTINE openpmd_mesh_set_grid_unit_SI
+      CALL openpmd_c_mesh_set_grid_unit_SI(this%c_ptr, gridUnitSI)
+   END SUBROUTINE openpmd_mesh_set_grid_unit_SI
 
-         ! L = 0, //!< length
-         ! M, //!< mass
-         ! T, //!< time
-         ! I, //!< electric current
-         ! theta, //!< thermodynamic temperature
-         ! N, //!< amount of substance
-         ! J //!< luminous intensity
-         SUBROUTINE openpmd_mesh_set_unit_dimension(this, unitDimension)
-            CLASS(openpmd_mesh_type) :: this
-            REAL(kind=C_DOUBLE), DIMENSION(7), TARGET :: unitDimension
+   ! L = 0, //!< length
+   ! M, //!< mass
+   ! T, //!< time
+   ! I, //!< electric current
+   ! theta, //!< thermodynamic temperature
+   ! N, //!< amount of substance
+   ! J //!< luminous intensity
+   SUBROUTINE openpmd_mesh_set_unit_dimension(this, unitDimension)
+      CLASS(openpmd_mesh_type) :: this
+      REAL(kind=C_DOUBLE), DIMENSION(7), TARGET :: unitDimension
 
-            INTERFACE
-               SUBROUTINE openpmd_c_mesh_set_unit_dimension(mesh, unitDimension) &
-                  BIND(C, NAME="openPMD_Mesh_setUnitDimension")
-                  IMPORT :: C_PTR, C_DOUBLE
-                  TYPE(C_PTR), VALUE :: mesh
-                  REAL(kind=C_DOUBLE), DIMENSION(*) :: unitDimension
-               END SUBROUTINE openpmd_c_mesh_set_unit_dimension
-            END INTERFACE
+      INTERFACE
+         SUBROUTINE openpmd_c_mesh_set_unit_dimension(mesh, unitDimension) &
+            BIND(C, NAME="openPMD_Mesh_setUnitDimension")
+            IMPORT :: C_PTR, C_DOUBLE
+            TYPE(C_PTR), VALUE :: mesh
+            REAL(kind=C_DOUBLE), DIMENSION(*) :: unitDimension
+         END SUBROUTINE openpmd_c_mesh_set_unit_dimension
+      END INTERFACE
 
-            CALL openpmd_c_mesh_set_unit_dimension(this%c_ptr, unitDimension)
-         END SUBROUTINE openpmd_mesh_set_unit_dimension
+      CALL openpmd_c_mesh_set_unit_dimension(this%c_ptr, unitDimension)
+   END SUBROUTINE openpmd_mesh_set_unit_dimension
 #endif
-      END MODULE openpmd_api
+END MODULE openpmd_api

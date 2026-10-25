@@ -1485,7 +1485,8 @@ CONTAINS
                IF (molecular_virial_debug) THEN
                   CALL debug_gauxc_molecular_virial( &
                      exc_grad%exc_grad, particle_set, qs_kind_set, density_scalar, params%nspins, &
-                    params%model_eval_name, params%xc_fun_name, params%grid_type, params%radial_quadrature, params%pruning_scheme, &
+                     params%model_eval_name, params%xc_fun_name, params%grid_type, params%radial_quadrature, &
+                     params%pruning_scheme, &
                      params%lb_exec_space, params%int_exec_space, params%lwd_kernel, params%batch_size, &
                      params%device_runtime_fill_fraction, molecular_virial_debug_dx, para_env)
                END IF
@@ -1554,7 +1555,8 @@ CONTAINS
                IF (molecular_virial_debug) THEN
                   CALL debug_gauxc_molecular_virial( &
                      exc_grad%exc_grad, particle_set, qs_kind_set, density_scalar, params%nspins, &
-                    params%model_eval_name, params%xc_fun_name, params%grid_type, params%radial_quadrature, params%pruning_scheme, &
+                     params%model_eval_name, params%xc_fun_name, params%grid_type, params%radial_quadrature, &
+                     params%pruning_scheme, &
                      params%lb_exec_space, params%int_exec_space, params%lwd_kernel, params%batch_size, &
                      params%device_runtime_fill_fraction, molecular_virial_debug_dx, para_env, &
                      density_zeta=density_zeta)

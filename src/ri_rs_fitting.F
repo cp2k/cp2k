@@ -81,13 +81,13 @@ CONTAINS
       IF (PRESENT(para_env_sub)) THEN
          ! Only the row norms are replicated; the distributed solve builds its own Gram tiles.
          ALLOCATE (jacobi_scale(n_grid))
-         !$OMP PARALLEL DO DEFAULT(NONE) &
-         !$OMP SHARED(n_grid, phi_local, jacobi_scale) &
-         !$OMP PRIVATE(i) SCHEDULE(STATIC)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(n_grid, phi_local, jacobi_scale) &
+!$OMP PRIVATE(i) SCHEDULE(STATIC)
          DO i = 1, n_grid
             jacobi_scale(i) = 1.0_dp/MAX(DOT_PRODUCT(phi_local(i, :), phi_local(i, :)), SQRT(jacobi_floor))
          END DO
-         !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
       ELSE
          CALL factor_ri_rs_fit(phi_local, tikhonov, gram, jacobi_scale, info)
          IF (info /= 0) CPABORT('RI-RS Cholesky factorization failed')
@@ -153,16 +153,16 @@ CONTAINS
          END DO
       END IF
       ! Add λ after Jacobi scaling; LAPACK needs only the lower triangle.
-      !$OMP PARALLEL DO DEFAULT(NONE) &
-      !$OMP SHARED(n_grid, factor, jacobi_scale, tikhonov) &
-      !$OMP PRIVATE(j, i) SCHEDULE(DYNAMIC)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(n_grid, factor, jacobi_scale, tikhonov) &
+!$OMP PRIVATE(j, i) SCHEDULE(DYNAMIC)
       DO j = 1, n_grid
          DO i = j, n_grid
             factor(i, j) = factor(i, j)**2*jacobi_scale(i)*jacobi_scale(j)
          END DO
          factor(j, j) = factor(j, j) + tikhonov
       END DO
-      !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
       CALL timeset(routineN//'_dpotrf', handle2)
       CALL dpotrf('L', n_grid, factor, n_grid, info)
       CALL timestop(handle2)
@@ -424,16 +424,16 @@ CONTAINS
       CALL timeset(routineN, handle)
       CPASSERT(SIZE(diagonal) == SIZE(matrix, 1))
 
-      !$OMP PARALLEL DO DEFAULT(NONE) &
-      !$OMP SHARED(matrix, diagonal) &
-      !$OMP PRIVATE(j, i) &
-      !$OMP SCHEDULE(STATIC)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(matrix, diagonal) &
+!$OMP PRIVATE(j, i) &
+!$OMP SCHEDULE(STATIC)
       DO j = 1, SIZE(matrix, 2)
          DO i = 1, SIZE(matrix, 1)
             matrix(i, j) = matrix(i, j)*diagonal(i)
          END DO
       END DO
-      !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
 
       CALL timestop(handle)
 
@@ -565,37 +565,37 @@ CONTAINS
             DO ib = 1, nrow_local, ntile
                ie = MIN(ib + ntile - 1, nrow_local)
                mb = ie - ib + 1
-               !$OMP PARALLEL DO DEFAULT(NONE) &
-               !$OMP SHARED(mb, n_ao, phi_rows_t, phi_local, row_indices, ib) &
-               !$OMP PRIVATE(ti, j_loc) SCHEDULE(STATIC)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(mb, n_ao, phi_rows_t, phi_local, row_indices, ib) &
+!$OMP PRIVATE(ti, j_loc) SCHEDULE(STATIC)
                DO j_loc = 1, n_ao
                   DO ti = 1, mb
                      phi_rows_t(ti, j_loc) = phi_local(row_indices(ib + ti - 1), j_loc)
                   END DO
                END DO
-               !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
                DO jb = 1, ncol_local, ntile
                   je = MIN(jb + ntile - 1, ncol_local)
                   kb = je - jb + 1
-                  !$OMP PARALLEL DO DEFAULT(NONE) &
-                  !$OMP SHARED(kb, n_ao, phi_cols_t, phi_local, col_indices, jb) &
-                  !$OMP PRIVATE(tj, i_loc) SCHEDULE(STATIC)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(kb, n_ao, phi_cols_t, phi_local, col_indices, jb) &
+!$OMP PRIVATE(tj, i_loc) SCHEDULE(STATIC)
                   DO tj = 1, kb
                      DO i_loc = 1, n_ao
                         phi_cols_t(i_loc, tj) = phi_local(col_indices(jb + tj - 1), i_loc)
                      END DO
                   END DO
-                  !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
                   CALL timeset(routineN//'_dgemm', handle_dgemm)
                   CALL dgemm('N', 'N', mb, kb, n_ao, &
                              1.0_dp, phi_rows_t, ntile, phi_cols_t, n_ao, &
                              0.0_dp, gram_t, ntile)
                   CALL timestop(handle_dgemm)
                   ! Square the AO Gram entries, apply d_l d_l', and add λ on the global diagonal.
-                  !$OMP PARALLEL DO DEFAULT(NONE) &
-                  !$OMP SHARED(mb, kb, gram_t, d_vec, row_indices, col_indices, ib, jb) &
-                  !$OMP SHARED(local_data, tikhonov) &
-                  !$OMP PRIVATE(ti, tj, ig, jg) SCHEDULE(STATIC)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(mb, kb, gram_t, d_vec, row_indices, col_indices, ib, jb) &
+!$OMP SHARED(local_data, tikhonov) &
+!$OMP PRIVATE(ti, tj, ig, jg) SCHEDULE(STATIC)
                   DO tj = 1, kb
                      jg = col_indices(jb + tj - 1)
                      DO ti = 1, mb
@@ -608,7 +608,7 @@ CONTAINS
                         END IF
                      END DO
                   END DO
-                  !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
                END DO
             END DO
             DEALLOCATE (phi_rows_t, phi_cols_t, gram_t)

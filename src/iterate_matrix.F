@@ -1397,10 +1397,10 @@ CONTAINS
       CALL dissection%init(matrix)
       CALL dissection%get_sm_ids_for_rank(myrank, my_sms)
 
-      !$OMP PARALLEL DEFAULT(NONE) &
-      !$OMP          PRIVATE(sm, sm_sign, sm_size) &
-      !$OMP          SHARED(dissection, myrank, my_sms, order, submatrix_sign_method, threshold, unit_nr)
-      !$OMP DO SCHEDULE(GUIDED)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP          PRIVATE(sm, sm_sign, sm_size) &
+!$OMP          SHARED(dissection, myrank, my_sms, order, submatrix_sign_method, threshold, unit_nr)
+!$OMP DO SCHEDULE(GUIDED)
       DO i = 1, SIZE(my_sms)
          WRITE (unit_nr, '(T3,A,1X,I4,1X,A,1X,I6)') "Rank", myrank, "processing submatrix", my_sms(i)
          CALL dissection%generate_submatrix(my_sms(i), sm)
@@ -1417,8 +1417,8 @@ CONTAINS
          CALL dissection%copy_resultcol(my_sms(i), sm_sign)
          DEALLOCATE (sm, sm_sign)
       END DO
-      !$OMP END DO
-      !$OMP END PARALLEL
+!$OMP END DO
+!$OMP END PARALLEL
 
       CALL dissection%communicate_results(matrix_sign)
       CALL dissection%final
@@ -1479,11 +1479,11 @@ CONTAINS
 
       trace = 0.0_dp
 
-      !$OMP PARALLEL DEFAULT(NONE) &
-      !$OMP          PRIVATE(sm, sm_sign, sm_size, sm_firstcol, sm_lastcol, j, tmp) &
-      !$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, threshold, variant) &
-      !$OMP          REDUCTION(+:trace)
-      !$OMP DO SCHEDULE(GUIDED)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP          PRIVATE(sm, sm_sign, sm_size, sm_firstcol, sm_lastcol, j, tmp) &
+!$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, threshold, variant) &
+!$OMP          REDUCTION(+:trace)
+!$OMP DO SCHEDULE(GUIDED)
       DO i = 1, SIZE(my_sms)
          CALL dissection%generate_submatrix(my_sms(i), sm)
          sm_size = SIZE(sm, 1)
@@ -1510,8 +1510,8 @@ CONTAINS
          DEALLOCATE (sm)
          trace = trace + trace_from_eigdecomp(eigbufs(i)%eigvals, eigbufs(i)%eigvecs, sm_firstcol, sm_lastcol, 0.0_dp)
       END DO
-      !$OMP END DO
-      !$OMP END PARALLEL
+!$OMP END DO
+!$OMP END PARALLEL
 
       has_mu_low = .FALSE.
       has_mu_high = .FALSE.
@@ -1540,26 +1540,26 @@ CONTAINS
          END IF
 
          trace = 0
-         !$OMP PARALLEL DEFAULT(NONE) &
-         !$OMP          PRIVATE(i, sm_sign, tmp, sm_size, sm_firstcol, sm_lastcol) &
-         !$OMP          SHARED(dissection, my_sms, unit_nr, eigbufs, mu, new_mu, nelectron) &
-         !$OMP          REDUCTION(+:trace)
-         !$OMP DO SCHEDULE(GUIDED)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP          PRIVATE(i, sm_sign, tmp, sm_size, sm_firstcol, sm_lastcol) &
+!$OMP          SHARED(dissection, my_sms, unit_nr, eigbufs, mu, new_mu, nelectron) &
+!$OMP          REDUCTION(+:trace)
+!$OMP DO SCHEDULE(GUIDED)
          DO j = 1, SIZE(my_sms)
             sm_size = SIZE(eigbufs(j)%eigvals)
             CALL dissection%get_relevant_sm_columns(my_sms(j), sm_firstcol, sm_lastcol)
             trace = trace + trace_from_eigdecomp(eigbufs(j)%eigvals, eigbufs(j)%eigvecs, sm_firstcol, sm_lastcol, new_mu - mu)
          END DO
-         !$OMP END DO
-         !$OMP END PARALLEL
+!$OMP END DO
+!$OMP END PARALLEL
       END DO
 
       ! Finalize sign matrix from eigendecompositions if we kept all eigenvectors
       IF (variant == ls_scf_submatrix_sign_direct_muadj) THEN
-         !$OMP PARALLEL DEFAULT(NONE) &
-         !$OMP          PRIVATE(sm, sm_sign, sm_size, sm_firstcol, sm_lastcol, j) &
-         !$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, mu, new_mu)
-         !$OMP DO SCHEDULE(GUIDED)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP          PRIVATE(sm, sm_sign, sm_size, sm_firstcol, sm_lastcol, j) &
+!$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, mu, new_mu)
+!$OMP DO SCHEDULE(GUIDED)
          DO i = 1, SIZE(my_sms)
             WRITE (unit_nr, '(T3,A,1X,I4,1X,A,1X,I6)') "Rank", myrank, "finalizing submatrix", my_sms(i)
             sm_size = SIZE(eigbufs(i)%eigvals)
@@ -1568,18 +1568,18 @@ CONTAINS
             CALL dissection%copy_resultcol(my_sms(i), sm_sign)
             DEALLOCATE (sm_sign)
          END DO
-         !$OMP END DO
-         !$OMP END PARALLEL
+!$OMP END DO
+!$OMP END PARALLEL
       END IF
 
       DEALLOCATE (eigbufs)
 
       ! If we only stored parts of the eigenvectors and mu has changed, we need to recompute sm_sign
       IF ((variant == ls_scf_submatrix_sign_direct_muadj_lowmem) .AND. (mu /= new_mu)) THEN
-         !$OMP PARALLEL DEFAULT(NONE) &
-         !$OMP          PRIVATE(sm, sm_sign, sm_size, sm_firstcol, sm_lastcol, j) &
-         !$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, mu, new_mu)
-         !$OMP DO SCHEDULE(GUIDED)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP          PRIVATE(sm, sm_sign, sm_size, sm_firstcol, sm_lastcol, j) &
+!$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, mu, new_mu)
+!$OMP DO SCHEDULE(GUIDED)
          DO i = 1, SIZE(my_sms)
             WRITE (unit_nr, '(T3,A,1X,I4,1X,A,1X,I6)') "Rank", myrank, "reprocessing submatrix", my_sms(i)
             CALL dissection%generate_submatrix(my_sms(i), sm)
@@ -1592,8 +1592,8 @@ CONTAINS
             CALL dissection%copy_resultcol(my_sms(i), sm_sign)
             DEALLOCATE (sm, sm_sign)
          END DO
-         !$OMP END DO
-         !$OMP END PARALLEL
+!$OMP END DO
+!$OMP END PARALLEL
       END IF
 
       mu = new_mu

@@ -590,7 +590,8 @@ CONTAINS
                ! General Case
                ! Factor of 2 found by experiment
                IF (l_denuc) dscale = dscale*(2._dp*xab*EXP(-aab*(rija + 0.0003_dp*rija**6))) &
-                                - scale*2._dp*xab*EXP(-aab*(rija + 0.0003_dp*rija**6))*aab*(1.0_dp + 6.0_dp*0.0003_dp*rija**5)*drija
+                                     - scale*2._dp*xab*EXP(-aab*(rija + 0.0003_dp*rija**6))*aab*(1.0_dp + &
+                                                                                                 6.0_dp*0.0003_dp*rija**5)*drija
                IF (l_enuc) scale = scale*(2._dp*xab*EXP(-aab*(rija + 0.0003_dp*rija**6)))
             END IF
             ! General correction term a*exp(-b*(rij-c)^2)

@@ -568,7 +568,9 @@ CONTAINS
                IF (t571) THEN
                   marho = e_c_u_1_s1rho + t196*(0.2e1_dp*t541*t542 &
                                                 *t_s1rho + t187*t197*(t546 + t549)*t205 - t554*t557*(t546 &
-                                                                              + t549 + 0.2e1_dp*A_s1*t202*A_s1rho + 0.4e1_dp*t562* &
+                                                                                                     + t549 + &
+                                                                                                     0.2e1_dp*A_s1*t202*A_s1rho &
+                                                                                                     + 0.4e1_dp*t562* &
                                                                                                      t_s1rho))*t569
                ELSE
                   marho = epsilon_cGGArho
@@ -599,7 +601,9 @@ CONTAINS
                IF (t639) THEN
                   mbrho = e_c_u_1_s2rho + t218*(0.2e1_dp*t609*t610 &
                                                 *t_s2rho + t187*t219*(t614 + t617)*t227 - t622*t625*(t614 &
-                                                                              + t617 + 0.2e1_dp*A_s2*t224*A_s2rho + 0.4e1_dp*t630* &
+                                                                                                     + t617 + &
+                                                                                                     0.2e1_dp*A_s2*t224*A_s2rho &
+                                                                                                     + 0.4e1_dp*t630* &
                                                                                                      t_s2rho))*t637
                ELSE
                   mbrho = epsilon_cGGArho
@@ -664,8 +668,11 @@ CONTAINS
                                        t274 + t267*(d*epsilon_cRevPKZBnorm_drho*t272 + 0.3e1_dp* &
                                                     t268*t659*tau_wnorm_drho)) + scale_ex*t337*t490*((( &
                                                                                0.2e1_dp*t445*t303*znorm_drho - 0.4e1_dp*t450*t452* &
-                                                                         znorm_drho)*p + t305*pnorm_drho + 0.292e3_dp/0.2025e4_dp* &
-                                                                               tildeq_b*tildeq_bnorm_drho - 0.73e2_dp/0.4050e4_dp* &
+                                                                                                      znorm_drho)*p + &
+                                                                                                      t305*pnorm_drho + &
+                                                                                                      0.292e3_dp/0.2025e4_dp* &
+                                                                                                      tildeq_b*tildeq_bnorm_drho - &
+                                                                                                      0.73e2_dp/0.4050e4_dp* &
                                                                              tildeq_bnorm_drho*t313 - 0.73e2_dp/0.8100e4_dp*t464*( &
                                                                                0.36e2_dp*z*znorm_drho + 0.100e3_dp*p*pnorm_drho) + &
                                                                        0.200e3_dp/0.6561e4_dp*t472*pnorm_drho + 0.8e1_dp/0.45e2_dp &

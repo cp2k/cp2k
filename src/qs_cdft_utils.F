@@ -1358,7 +1358,8 @@ CONTAINS
                                         file_position="REWIND", middle_name=middle_name, extension=".cube")
 
          CALL cp_pw_to_cube(cdft_control%hw_rho_total, unit_nr, "CDFT Weight Function", mpi_io=mpi_io, &
-                  particles=particles, stride=section_get_ivals(cdft_constraint_section, "PROGRAM_RUN_INFO%WEIGHT_FUNCTION%STRIDE"))
+                            particles=particles, stride=section_get_ivals(cdft_constraint_section, &
+                                                                          "PROGRAM_RUN_INFO%WEIGHT_FUNCTION%STRIDE"))
 
          CALL cp_print_key_finished_output(unit_nr, logger, cdft_constraint_section, "PROGRAM_RUN_INFO", mpi_io=mpi_io)
 

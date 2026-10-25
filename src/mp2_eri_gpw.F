@@ -250,15 +250,15 @@ CONTAINS
          END DO
 
          ! integrate the little bastards
-         !$OMP PARALLEL DO DEFAULT(NONE) &
-         !$OMP SHARED(natom, particle_set, cell, pw_env_sub, rs_v, offset_2d, &
-         !$OMP        qs_kind_set, ncoset, para_env_sub, dft_control, i_counter, &
-         !$OMP        kind_of, l_local_col) &
-         !$OMP PRIVATE(iatom, ikind, basis_set_a, first_sgfa, la_max, la_min, npgfa, &
-         !$OMP         nseta, nsgfa, rpgfa, set_radius_a, sphi_a, zeta, &
-         !$OMP         ra, iset, ncoa, I_tmp2, I_ab, igrid_level, &
-         !$OMP         map_it_here, dir, tp, lb, ub, location, ipgf, &
-         !$OMP         sgfa, na1, na2, radius, offset, use_subpatch)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(natom, particle_set, cell, pw_env_sub, rs_v, offset_2d, &
+!$OMP        qs_kind_set, ncoset, para_env_sub, dft_control, i_counter, &
+!$OMP        kind_of, l_local_col) &
+!$OMP PRIVATE(iatom, ikind, basis_set_a, first_sgfa, la_max, la_min, npgfa, &
+!$OMP         nseta, nsgfa, rpgfa, set_radius_a, sphi_a, zeta, &
+!$OMP         ra, iset, ncoa, I_tmp2, I_ab, igrid_level, &
+!$OMP         map_it_here, dir, tp, lb, ub, location, ipgf, &
+!$OMP         sgfa, na1, na2, radius, offset, use_subpatch)
          DO iatom = 1, natom
             ikind = kind_of(iatom)
             CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a, basis_type="RI_AUX")
@@ -331,7 +331,7 @@ CONTAINS
 
             END DO
          END DO
-         !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
          DEALLOCATE (offset_2d)
 
       END DO

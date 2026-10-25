@@ -417,7 +417,7 @@ CONTAINS
          spgr%eqatom(:, ia) = ia
       END DO
 
-      !$OMP PARALLEL DO PRIVATE (ia,ib,ir,ri,rb,ro,rot,tr,diff) SHARED (spgr,scoord,natom,nop) DEFAULT(NONE)
+!$OMP PARALLEL DO PRIVATE (ia,ib,ir,ri,rb,ro,rot,tr,diff) SHARED (spgr,scoord,natom,nop) DEFAULT(NONE)
       DO ia = 1, natom
          IF (.NOT. spgr%lat(ia)) CYCLE
          ri(1:3) = scoord(1:3, ia)
@@ -441,9 +441,9 @@ CONTAINS
             END DO
          END DO
       END DO
-      !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
 
-      !$OMP PARALLEL DO PRIVATE (i,j,ia,ib,ir,ri,rb,ro,rot,tr,diff) SHARED (spgr,scoord,natom,nshell,nop) DEFAULT(NONE)
+!$OMP PARALLEL DO PRIVATE (i,j,ia,ib,ir,ri,rb,ro,rot,tr,diff) SHARED (spgr,scoord,natom,nshell,nop) DEFAULT(NONE)
       DO i = 1, nshell
          ia = natom + i
          IF (.NOT. spgr%lat(ia)) CYCLE
@@ -469,7 +469,7 @@ CONTAINS
             END DO
          END DO
       END DO
-      !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
 
       CALL timestop(handle)
 
@@ -628,7 +628,7 @@ CONTAINS
       nparticle = spgr%nparticle
       nops = spgr%n_reduced_operations
 
-      !$OMP PARALLEL DO PRIVATE (ia,ib,ja,jb,ir,ri,ro,rf,rn,rot,tr) SHARED (spgr,coord,cold,nparticle,nop,nops) DEFAULT(NONE)
+!$OMP PARALLEL DO PRIVATE (ia,ib,ja,jb,ir,ri,ro,rf,rn,rot,tr) SHARED (spgr,coord,cold,nparticle,nop,nops) DEFAULT(NONE)
       DO ia = 1, nparticle
          IF (.NOT. spgr%lat(ia)) CYCLE
          ja = 3*(ia - 1)
@@ -652,7 +652,7 @@ CONTAINS
          rn = rn/REAL(nops, dp)
          CALL scaled_to_real(coord(ja + 1:ja + 3), rn(1:3), spgr%cell_ref)
       END DO
-      !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
 
       DEALLOCATE (cold)
       CALL timestop(handle)
@@ -689,7 +689,7 @@ CONTAINS
       nparticle = spgr%nparticle
       nops = spgr%n_reduced_operations
 
-      !$OMP PARALLEL DO PRIVATE (ia,ib,ja,jb,ir,ri,ro,rn,rot) SHARED (spgr,force,fold,nparticle,nop,nops) DEFAULT(NONE)
+!$OMP PARALLEL DO PRIVATE (ia,ib,ja,jb,ir,ri,ro,rn,rot) SHARED (spgr,force,fold,nparticle,nop,nops) DEFAULT(NONE)
       DO ia = 1, nparticle
          IF (.NOT. spgr%lat(ia)) CYCLE
          ja = 3*(ia - 1)
@@ -708,7 +708,7 @@ CONTAINS
          rn = rn/REAL(nops, dp)
          CALL scaled_to_real(force(ja + 1:ja + 3), rn(1:3), spgr%cell_ref)
       END DO
-      !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
 
       DEALLOCATE (fold)
       CALL timestop(handle)

@@ -165,7 +165,8 @@ CONTAINS
                      DO i = 0, a
                         DO j = 0, b
                            polynomial(a, b, i + j, axis) = polynomial(a, b, i + j, axis) &
-                                                       + binomial(a, i)*binomial(b, j)*shift_a(axis)**(a - i)*shift_b(axis)**(b - j)
+                                                           + binomial(a, i)*binomial(b, j)*shift_a(axis)**(a - &
+                                                                                                           i)*shift_b(axis)**(b - j)
                         END DO
                      END DO
                   END DO
