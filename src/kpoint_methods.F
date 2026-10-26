@@ -2230,13 +2230,9 @@ CONTAINS
 !> \param pmat_ext ...
 !> \param overlap_rs ...
 !> \param mixed_aux_orb ...
-!> \param star_source ...
-!> \param star_xkp ...
-!> \param star_weight ...
 ! **************************************************************************************************
    SUBROUTINE kpoint_density_transform(kpoint, denmat, wtype, tempmat, sab_nl, fmwork, for_aux_fit, &
-                                       pmat_ext, overlap_rs, mixed_aux_orb, star_source, star_xkp, &
-                                       star_weight)
+                                       pmat_ext, overlap_rs, mixed_aux_orb)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(dbcsr_p_type), DIMENSION(:, :)                :: denmat
@@ -2251,10 +2247,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: overlap_rs
       LOGICAL, OPTIONAL                                  :: mixed_aux_orb
-      TYPE(cp_fm_type), DIMENSION(:, :, :), OPTIONAL, &
-         TARGET                                          :: star_source
-      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: star_xkp
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: star_weight
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform'
 
@@ -2264,7 +2256,7 @@ CONTAINS
       LOGICAL                                            :: aux_fit, do_symmetric, local, &
                                                             mixed_aux_orb_local, &
                                                             regular_grid_done, &
-                                                            regular_grid_eligible, star_mode
+                                                            regular_grid_eligible
       TYPE(cp_fm_p_type), ALLOCATABLE, &
          DIMENSION(:, :, :)                              :: source
       TYPE(dbcsr_p_type), DIMENSION(2)                   :: components
@@ -2291,7 +2283,6 @@ CONTAINS
       IF (aux_fit) THEN
          CPASSERT(ASSOCIATED(kpoint%kp_aux_env))
       END IF
-      star_mode = PRESENT(star_source)
 
       ! work storage
       ALLOCATE (rpmat)
@@ -2315,10 +2306,6 @@ CONTAINS
       END IF
       nspin = SIZE(kp%mos)
       nc = SIZE(kp%pmat, 1)
-      IF (star_mode) THEN
-         nc = SIZE(star_source, 1)
-         nspin = SIZE(star_source, 2)
-      END IF
       nimg = SIZE(denmat, 2)
       CALL kp_transform_plan_create(transform_plan, sab_nl, cell_to_index, nimg, &
                                     group_entries=.TRUE.)
@@ -2326,45 +2313,34 @@ CONTAINS
       ! Borrow one common view for ordinary P, W, auxiliary and external matrices.
       ! Pointers remain within this call, including the TARGET lifetime of pmat_ext.
       kplocal = kpoint%kp_range(2) - kpoint%kp_range(1) + 1
-      IF (star_mode) kplocal = SIZE(star_source, 3)
       ALLOCATE (source(kplocal, nc, nspin))
-      IF (star_mode) THEN
-         DO ispin = 1, nspin
-            DO ikp = 1, kplocal
-               DO ic = 1, nc
-                  source(ikp, ic, ispin)%matrix => star_source(ic, ispin, ikp)
-               END DO
-            END DO
-         END DO
-      ELSE
-         DO ispin = 1, nspin
-            DO ikp = 1, kplocal
-               IF (aux_fit) THEN
-                  kp => kpoint%kp_aux_env(ikp)%kpoint_env
+      DO ispin = 1, nspin
+         DO ikp = 1, kplocal
+            IF (aux_fit) THEN
+               kp => kpoint%kp_aux_env(ikp)%kpoint_env
+            ELSE
+               kp => kpoint%kp_env(ikp)%kpoint_env
+            END IF
+            DO ic = 1, nc
+               IF (PRESENT(pmat_ext)) THEN
+                  source(ikp, ic, ispin)%matrix => pmat_ext(ikp, ic, ispin)
+               ELSE IF (wtype) THEN
+                  source(ikp, ic, ispin)%matrix => kp%wmat(ic, ispin)
                ELSE
-                  kp => kpoint%kp_env(ikp)%kpoint_env
+                  source(ikp, ic, ispin)%matrix => kp%pmat(ic, ispin)
                END IF
-               DO ic = 1, nc
-                  IF (PRESENT(pmat_ext)) THEN
-                     source(ikp, ic, ispin)%matrix => pmat_ext(ikp, ic, ispin)
-                  ELSE IF (wtype) THEN
-                     source(ikp, ic, ispin)%matrix => kp%wmat(ic, ispin)
-                  ELSE
-                     source(ikp, ic, ispin)%matrix => kp%pmat(ic, ispin)
-                  END IF
-               END DO
             END DO
          END DO
-      END IF
+      END DO
 
       para_env => kpoint%blacs_env_all%para_env
       local = para_env%num_pe == 1
-      IF (local .AND. .NOT. star_mode) THEN
+      IF (local) THEN
          CPASSERT(kpoint%kp_range(1) == 1 .AND. kplocal == nkp)
       END IF
       ! The regular-grid route is an optional specialization without spatial rotations.
       ! The batched block transform handles all remaining cases.
-      regular_grid_eligible = (nimg < nkp) .AND. .NOT. star_mode
+      regular_grid_eligible = nimg < nkp
       IF (ASSOCIATED(kpoint%index_to_cell)) THEN
          regular_grid_eligible = regular_grid_eligible .AND. nimg <= SIZE(kpoint%index_to_cell, 2)
       ELSE
@@ -2392,8 +2368,7 @@ CONTAINS
       END IF
       IF (.NOT. regular_grid_done) THEN
          CALL kpoint_density_transform_batched(kpoint, source, denmat, rpmat, transform_plan, &
-                                               for_aux_fit=aux_fit, mixed_aux_orb=mixed_aux_orb_local, &
-                                               star_xkp=star_xkp, star_weight=star_weight, star_mode=star_mode)
+                                               for_aux_fit=aux_fit, mixed_aux_orb=mixed_aux_orb_local)
       END IF
 
       CALL dbcsr_deallocate_matrix(rpmat)
@@ -2415,21 +2390,15 @@ CONTAINS
 !> \param plan neighbor-list traversal and storage conventions
 !> \param for_aux_fit ...
 !> \param mixed_aux_orb ...
-!> \param star_xkp ...
-!> \param star_weight ...
-!> \param star_mode ...
 ! **************************************************************************************************
    SUBROUTINE kpoint_density_transform_batched(kpoint, source, denmat, template, plan, for_aux_fit, &
-                                               mixed_aux_orb, star_xkp, star_weight, star_mode)
+                                               mixed_aux_orb)
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(cp_fm_p_type), DIMENSION(:, :, :), INTENT(IN) :: source
       TYPE(dbcsr_p_type), DIMENSION(:, :)                :: denmat
       TYPE(dbcsr_type), POINTER                          :: template
       TYPE(kp_transform_plan_type), INTENT(IN)           :: plan
       LOGICAL, INTENT(IN), OPTIONAL                      :: for_aux_fit, mixed_aux_orb
-      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: star_xkp
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: star_weight
-      LOGICAL, OPTIONAL                                  :: star_mode
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform_batched'
       INTEGER(KIND=int_8), PARAMETER                     :: max_bytes = 64_int_8*1024*1024
@@ -2457,29 +2426,8 @@ CONTAINS
       world => kpoint%blacs_env_all%para_env
       CALL dbcsr_get_info(template, row_blk_size=row_size, col_blk_size=col_size, &
                           row_blk_offset=row_offset, col_blk_offset=col_offset)
-      IF (PRESENT(star_mode)) THEN
-         IF (star_mode) THEN
-            ALLOCATE (groups(0:0))
-            ALLOCATE (groups(0)%ikp(SIZE(source, 1)), groups(0)%weight(SIZE(source, 1)), &
-                      groups(0)%xkp(3, SIZE(source, 1)), groups(0)%inverse(SIZE(row_size)))
-            DO i = 1, SIZE(source, 1)
-               groups(0)%ikp(i) = i
-               groups(0)%weight(i) = star_weight(i)
-               groups(0)%xkp(:, i) = star_xkp(:, i)
-            END DO
-            DO i = 1, SIZE(row_size)
-               groups(0)%inverse(i) = i
-            END DO
-            groups(0)%op%identity = .TRUE.
-            groups(0)%reverse_phase = .FALSE.
-         ELSE
-            CALL kp_density_groups_create(kpoint, SIZE(row_size), groups, for_aux_fit=for_aux_fit, &
-                                          mixed_aux_orb=mixed_aux_orb)
-         END IF
-      ELSE
-         CALL kp_density_groups_create(kpoint, SIZE(row_size), groups, for_aux_fit=for_aux_fit, &
-                                       mixed_aux_orb=mixed_aux_orb)
-      END IF
+      CALL kp_density_groups_create(kpoint, SIZE(row_size), groups, for_aux_fit=for_aux_fit, &
+                                    mixed_aux_orb=mixed_aux_orb)
       CPASSERT(SIZE(row_size) == SIZE(col_size))
       ALLOCATE (tiles(4, SIZE(row_size), SIZE(source, 1), SIZE(source, 2), SIZE(source, 3)))
       DO ispin = 1, SIZE(source, 3)
