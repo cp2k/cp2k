@@ -829,7 +829,7 @@ CONTAINS
       LOGICAL                                            :: aux_fit
       REAL(KIND=dp)                                      :: flexible_electron_count, maxocc, n_el_f
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_pool_type), POINTER     :: ao_ao_fm_pools
+      TYPE(cp_fm_pool_type), POINTER     :: ao_ao_fm_pool
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type), POINTER                          :: fmlocal
       TYPE(kpoint_env_type), POINTER                     :: kp
@@ -925,9 +925,9 @@ CONTAINS
          END DO
 
          ! allocate density matrices
-         CALL mpools_get(mpools, ao_ao_fm_pools=ao_ao_fm_pools)
+         CALL mpools_get(mpools, ao_ao_fm_pool=ao_ao_fm_pool)
          ALLOCATE (fmlocal)
-         CALL fm_pool_create_fm(ao_ao_fm_pools, fmlocal)
+         CALL fm_pool_create_fm(ao_ao_fm_pool, fmlocal)
          CALL cp_fm_get_info(fmlocal, matrix_struct=matrix_struct)
          DO ik = 1, nkp_loc
             IF (aux_fit) THEN
@@ -952,7 +952,7 @@ CONTAINS
                END DO
             END DO
          END DO
-         CALL fm_pool_give_back_fm(ao_ao_fm_pools, fmlocal)
+         CALL fm_pool_give_back_fm(ao_ao_fm_pool, fmlocal)
          DEALLOCATE (fmlocal)
 
       END IF

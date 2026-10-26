@@ -172,7 +172,7 @@ CONTAINS
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:), POINTER   :: occa, occb
       TYPE(cp_cfm_type)                                  :: casb, casb2, cscb, csmat
       TYPE(cp_cfm_type), POINTER                         :: c_alpha, c_beta
-      TYPE(cp_fm_pool_type), POINTER                     :: ao_ao_fm_pools
+      TYPE(cp_fm_pool_type), POINTER                     :: ao_ao_fm_pool
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, matrix_struct
       TYPE(cp_fm_type)                                   :: asb, asb2, fmglobal, fmlocal, rsmat, scb
       TYPE(cp_fm_type), POINTER                          :: moc, r_alpha, r_beta
@@ -194,15 +194,15 @@ CONTAINS
 
       ! fm pools to be used within a kpoint group
       CALL get_kpoint_info(kpoints, mpools=mpools)
-      CALL mpools_get(mpools, ao_ao_fm_pools=ao_ao_fm_pools)
-      CALL fm_pool_create_fm(ao_ao_fm_pools, fmlocal)
+      CALL mpools_get(mpools, ao_ao_fm_pool=ao_ao_fm_pool)
+      CALL fm_pool_create_fm(ao_ao_fm_pool, fmlocal)
       CALL cp_fm_get_info(fmlocal, matrix_struct=matrix_struct)
       IF (wfn_real) THEN
          CALL cp_fm_create(rsmat, matrix_struct)
       ELSE
          CALL cp_cfm_create(csmat, matrix_struct)
       END IF
-      CALL fm_pool_give_back_fm(ao_ao_fm_pools, fmlocal)
+      CALL fm_pool_give_back_fm(ao_ao_fm_pool, fmlocal)
 
       ! fm matrix_structure for the global environment
       CALL get_mo_set(mo_set=mosin(1), mo_coeff=moc, nao=nao)

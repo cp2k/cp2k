@@ -42,7 +42,7 @@ MODULE qs_matrix_pools
 !> \brief container for the pools of matrixes used by qs
 !> \param ao_mo_fm_pools pools with (ao x mo) full matrixes (same order as
 !>        c).
-!> \param ao_ao_fm_pools pools with (ao x ao) full matrixes (same order as
+!> \param ao_ao_fm_pool pools with (ao x ao) full matrixes (same order as
 !>        c).
 !> \param mo_mo_fm_pools pools with (mo x mo) full matrixes (same
 !>        order as c).
@@ -64,7 +64,7 @@ MODULE qs_matrix_pools
    TYPE qs_matrix_pools_type
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER        :: ao_mo_fm_pools => NULL(), &
                                                                mo_mo_fm_pools => NULL()
-      TYPE(cp_fm_pool_type), POINTER                      :: ao_ao_fm_pools => NULL()
+      TYPE(cp_fm_pool_type), POINTER                      :: ao_ao_fm_pool => NULL()
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER        :: ao_mosub_fm_pools => NULL(), &
                                                                mosub_mosub_fm_pools => NULL()
    END TYPE qs_matrix_pools_type
@@ -83,7 +83,7 @@ CONTAINS
 
       IF (ASSOCIATED(mpools)) THEN
          CALL fm_pools_dealloc(mpools%ao_mo_fm_pools)
-         CALL fm_pool_release(mpools%ao_ao_fm_pools)
+         CALL fm_pool_release(mpools%ao_ao_fm_pool)
          CALL fm_pools_dealloc(mpools%mo_mo_fm_pools)
          IF (ASSOCIATED(mpools%ao_mosub_fm_pools)) THEN
             CALL fm_pools_dealloc(mpools%ao_mosub_fm_pools)
@@ -101,7 +101,7 @@ CONTAINS
 !>      contained in it)
 !> \param mpools the matrix pools object you want info about
 !> \param ao_mo_fm_pools ...
-!> \param ao_ao_fm_pools ...
+!> \param ao_ao_fm_pool ...
 !> \param mo_mo_fm_pools ...
 !> \param ao_mosub_fm_pools ...
 !> \param mosub_mosub_fm_pools ...
@@ -112,13 +112,13 @@ CONTAINS
 !>      04.2003 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE mpools_get(mpools, ao_mo_fm_pools, ao_ao_fm_pools, &
+   SUBROUTINE mpools_get(mpools, ao_mo_fm_pools, ao_ao_fm_pool, &
                          mo_mo_fm_pools, ao_mosub_fm_pools, mosub_mosub_fm_pools, &
                          maxao_maxmo_fm_pool, maxao_maxao_fm_pool, maxmo_maxmo_fm_pool)
       TYPE(qs_matrix_pools_type), INTENT(IN)             :: mpools
       TYPE(cp_fm_pool_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ao_mo_fm_pools
-      TYPE(cp_fm_pool_type), OPTIONAL, POINTER           :: ao_ao_fm_pools
+      TYPE(cp_fm_pool_type), OPTIONAL, POINTER           :: ao_ao_fm_pool
       TYPE(cp_fm_pool_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mo_mo_fm_pools, ao_mosub_fm_pools, &
                                                             mosub_mosub_fm_pools
@@ -134,10 +134,10 @@ CONTAINS
             NULLIFY (maxao_maxmo_fm_pool) ! raise an error?
          END IF
       END IF
-      IF (PRESENT(ao_ao_fm_pools)) ao_ao_fm_pools => mpools%ao_ao_fm_pools
+      IF (PRESENT(ao_ao_fm_pool)) ao_ao_fm_pool => mpools%ao_ao_fm_pool
       IF (PRESENT(maxao_maxao_fm_pool)) THEN
-         IF (ASSOCIATED(mpools%ao_ao_fm_pools)) THEN
-            maxao_maxao_fm_pool => mpools%ao_ao_fm_pools
+         IF (ASSOCIATED(mpools%ao_ao_fm_pool)) THEN
+            maxao_maxao_fm_pool => mpools%ao_ao_fm_pool
          ELSE
             NULLIFY (maxao_maxao_fm_pool) ! raise an error?
          END IF
@@ -165,7 +165,7 @@ CONTAINS
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
 
       ALLOCATE (mpools)
-      NULLIFY (mpools%ao_ao_fm_pools, mpools%ao_mo_fm_pools, &
+      NULLIFY (mpools%ao_ao_fm_pool, mpools%ao_mo_fm_pools, &
                mpools%mo_mo_fm_pools, mpools%ao_mosub_fm_pools, &
                mpools%mosub_mosub_fm_pools)
    END SUBROUTINE mpools_create
@@ -225,11 +225,11 @@ CONTAINS
          END DO
       END IF
 
-      IF (ASSOCIATED(mpools%ao_ao_fm_pools)) THEN
-         CALL fm_pool_release(mpools%ao_ao_fm_pools)
+      IF (ASSOCIATED(mpools%ao_ao_fm_pool)) THEN
+         CALL fm_pool_release(mpools%ao_ao_fm_pool)
       END IF
-      IF (.NOT. ASSOCIATED(mpools%ao_ao_fm_pools)) THEN
-         NULLIFY (mpools%ao_ao_fm_pools)
+      IF (.NOT. ASSOCIATED(mpools%ao_ao_fm_pool)) THEN
+         NULLIFY (mpools%ao_ao_fm_pool)
       END IF
 
       IF (ASSOCIATED(mpools%mo_mo_fm_pools)) THEN
@@ -285,22 +285,22 @@ CONTAINS
       ! aoao pools
       should_rebuild = .FALSE.
       DO ispin = 1, nspins
-         p_att => mpools%ao_ao_fm_pools
+         p_att => mpools%ao_ao_fm_pool
          should_rebuild = (should_rebuild .OR. (.NOT. ASSOCIATED(p_att)))
          IF (.NOT. should_rebuild) THEN
-            fmstruct => fm_pool_get_el_struct(mpools%ao_ao_fm_pools)
+            fmstruct => fm_pool_get_el_struct(mpools%ao_ao_fm_pool)
             CALL cp_fm_struct_get(fmstruct, nrow_global=nrg, ncol_global=ncg)
             CALL get_mo_set(mos(1), nao=nao, nmo=nmo)
             should_rebuild = nao /= nrg .OR. nao /= ncg
          END IF
       END DO
       IF (should_rebuild) THEN
-         CALL fm_pool_release(mpools%ao_ao_fm_pools)
+         CALL fm_pool_release(mpools%ao_ao_fm_pool)
 
          CALL cp_fm_struct_create(fmstruct, nrow_global=nao, &
                                   ncol_global=nao, para_env=para_env, &
                                   context=blacs_env)
-         CALL fm_pool_create(mpools%ao_ao_fm_pools, fmstruct)
+         CALL fm_pool_create(mpools%ao_ao_fm_pool, fmstruct)
          CALL cp_fm_struct_release(fmstruct)
       END IF
 

@@ -164,7 +164,7 @@ MODULE qs_kpoint_operators
       ! Borrowed host/distribution references; the context cannot span an energy evaluation.
       TYPE(kpoint_type), POINTER                          :: kpoints => NULL()
       TYPE(cp_fm_struct_type), POINTER                    :: ao_ao_fmstruct => NULL()
-      TYPE(cp_fm_pool_type), POINTER                      :: group_fm_pools => NULL()
+      TYPE(cp_fm_pool_type), POINTER                      :: group_fm_pool => NULL()
       ! Identity of the neighbor lists used by scratch and prepared snapshots.
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                          :: work_sab => NULL()
@@ -454,12 +454,12 @@ CONTAINS
          DEALLOCATE (ctx%fmimag)
       END IF
       IF (ALLOCATED(ctx%fmlocal)) THEN
-         CALL fm_pool_give_back_fm(ctx%group_fm_pools, ctx%fmlocal)
+         CALL fm_pool_give_back_fm(ctx%group_fm_pool, ctx%fmlocal)
          DEALLOCATE (ctx%fmlocal)
       END IF
       IF (ALLOCATED(ctx%info)) DEALLOCATE (ctx%info)
       IF (ALLOCATED(ctx%status)) DEALLOCATE (ctx%status)
-      NULLIFY (ctx%kpoints, ctx%ao_ao_fmstruct, ctx%group_fm_pools)
+      NULLIFY (ctx%kpoints, ctx%ao_ao_fmstruct, ctx%group_fm_pool)
 
       CALL timestop(handle)
 
@@ -536,9 +536,9 @@ CONTAINS
       TYPE(kpoint_operator_context_type), INTENT(INOUT)  :: ctx
 
       IF (.NOT. ALLOCATED(ctx%fmlocal)) THEN
-         CALL mpools_get(ctx%kpoints%mpools, ao_ao_fm_pools=ctx%group_fm_pools)
+         CALL mpools_get(ctx%kpoints%mpools, ao_ao_fm_pool=ctx%group_fm_pool)
          ALLOCATE (ctx%fmlocal)
-         CALL fm_pool_create_fm(ctx%group_fm_pools, ctx%fmlocal)
+         CALL fm_pool_create_fm(ctx%group_fm_pool, ctx%fmlocal)
       END IF
 
    END SUBROUTINE kpoint_operator_ensure_group

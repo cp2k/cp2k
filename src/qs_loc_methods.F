@@ -368,7 +368,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf, nsgf
       REAL(dp)                                           :: eps
       TYPE(cp_cfm_type), POINTER                         :: complex_vectors, my_zij_cfm_set(:, :)
-      TYPE(cp_fm_pool_type), POINTER                     :: ao_ao_fm_pools
+      TYPE(cp_fm_pool_type), POINTER                     :: ao_ao_fm_pool
       TYPE(cp_fm_type)                                   :: opvec
       TYPE(cp_fm_type), POINTER                          :: ov_fm
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -410,9 +410,9 @@ CONTAINS
                             first_sgf=first_sgf, last_sgf=last_sgf, nsgf=nsgf)
 
       !   Copy the overlap sparse matrix in a full matrix
-      CALL mpools_get(qs_env%mpools, ao_ao_fm_pools=ao_ao_fm_pools)
+      CALL mpools_get(qs_env%mpools, ao_ao_fm_pool=ao_ao_fm_pool)
       ALLOCATE (ov_fm)
-      CALL fm_pool_create_fm(ao_ao_fm_pools, ov_fm, name=" ")
+      CALL fm_pool_create_fm(ao_ao_fm_pool, ov_fm, name=" ")
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, ov_fm)
 
       !   Compute zij here
