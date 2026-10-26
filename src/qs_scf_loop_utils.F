@@ -9,6 +9,7 @@
 ! **************************************************************************************************
 MODULE qs_scf_loop_utils
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_p_type,&
                                               cp_cfm_release,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
@@ -43,6 +44,7 @@ MODULE qs_scf_loop_utils
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_get_submatrix,&
+                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_to_fm,&
@@ -114,7 +116,8 @@ MODULE qs_scf_loop_utils
         qs_ot_density_secant_projected_hessian, qs_ot_density_tangent, &
         qs_ot_finite_rotation_response, qs_ot_fixed_n_energy_gradient, &
         qs_ot_fixed_n_multigroup_schur_block, qs_ot_get_orbitals_complex, &
-        qs_ot_get_orbitals_ref_complex, qs_ot_projected_response_update, qs_ot_symmetric_abs_solve
+        qs_ot_get_orbitals_local_batch, qs_ot_get_orbitals_ref_complex, &
+        qs_ot_projected_response_update, qs_ot_symmetric_abs_solve
    USE qs_ot_minimizer,                 ONLY: ot_mermin_response_preparation_needed,&
                                               ot_mermin_secant_curvature,&
                                               ot_mini,&
@@ -700,14 +703,16 @@ CONTAINS
          local_channel, local_kpoint, nao, nkp_groups, nkpoint, nlocal_channels, nmo, &
          nspin_energy, nspin_ot
       INTEGER, DIMENSION(2)                              :: kp_range
-      LOGICAL :: need_gradient, need_mo_coeff, ot_gradient_prepared, physical_base_state, &
-         restart_history, restricted_roks, use_operator_cache, use_real_wfn
+      LOGICAL :: local_orbitals, need_gradient, need_mo_coeff, ot_gradient_prepared, &
+         physical_base_state, restart_history, restricted_roks, use_operator_cache, use_real_wfn
       REAL(KIND=dp)                                      :: trial_kTS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: orbital_scaling_factor, roks_occupation, &
                                                             trial_mu
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: trial_eigenvalues, trial_occupation
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers, wkp
+      TYPE(cp_cfm_p_type), ALLOCATABLE                   :: local_c(:)
       TYPE(cp_cfm_type)                                  :: active_mo_coeff_cfm, hc_cfm, physical_h
+      TYPE(cp_fm_p_type), ALLOCATABLE                    :: local_s(:, :)
       TYPE(cp_fm_struct_type), POINTER                   :: active_mo_struct, chc_struct
       TYPE(cp_fm_type)                                   :: active_mo_coeff, active_mo_coeff_im, &
                                                             chc_im, chc_re, mo_coeff, mo_coeff_im
@@ -1165,58 +1170,77 @@ CONTAINS
       scf_env%iter_delta = local_ot_env(1)%delta
       energy_only = local_ot_env(1)%energy_only
 
+      ! Borrow cached overlaps and physical MO storage; no matrix ownership changes in workers.
+      ALLOCATE (local_s(2, nlocal_channels), local_c(nlocal_channels))
+      DO local_kpoint = 1, SIZE(kpoints%kp_env)
+         kp => kpoints%kp_env(local_kpoint)%kpoint_env
+         CPASSERT(ASSOCIATED(kp%ot_smat))
+         CPASSERT(SIZE(kp%ot_smat) >= 2)
+         DO ispin = 1, nspin_ot
+            local_channel = qs_ot_channel_index(ispin, kp%nkpoint, nspin_ot) - first_channel + 1
+            local_s(1, local_channel)%matrix => kp%ot_smat(1)
+            local_s(2, local_channel)%matrix => kp%ot_smat(2)
+            local_c(local_channel)%matrix => kp%mos(ispin)%cmo_coeff
+         END DO
+      END DO
+      CALL qs_ot_get_orbitals_local_batch(local_ot_env, local_s, local_c, local_orbitals)
+
       DO local_kpoint = 1, SIZE(kpoints%kp_env)
          kp => kpoints%kp_env(local_kpoint)%kpoint_env
          ikpoint = kp%nkpoint
          CPASSERT(ASSOCIATED(kp%ot_smat))
          CPASSERT(SIZE(kp%ot_smat) >= 2)
-         CALL kpoint_operator_get_local(matrix_s, kpoints, kp, 1, &
-                                        kp%ot_smat(1), kp%ot_smat(2), &
-                                        matrix_s_re, matrix_s_im)
+         IF (.NOT. local_orbitals) THEN
+            CALL kpoint_operator_get_local(matrix_s, kpoints, kp, 1, &
+                                           kp%ot_smat(1), kp%ot_smat(2), &
+                                           matrix_s_re, matrix_s_im)
+         END IF
          DO ispin = 1, nspin_ot
             local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
             CALL get_mo_set(kp%mos(ispin), homo=homo, eigenvalues=eigenvalues, &
                             nao=nao, nmo=nmo)
             IF (local_ot_env(local_channel)%settings%do_ener) homo = nmo
-            SELECT CASE (local_ot_env(local_channel)%settings%ot_algorithm)
-            CASE ("TOD")
-               CALL qs_ot_get_orbitals_complex(matrix_hc(local_channel)%matrix, &
-                                               matrix_hc_im(local_channel)%matrix, &
-                                               matrix_s_re, matrix_s_im, &
-                                               local_ot_env(local_channel))
-            CASE ("REF")
-               CALL qs_ot_get_orbitals_ref_complex(matrix_hc(local_channel)%matrix, &
-                                                   matrix_hc_im(local_channel)%matrix, &
-                                                   matrix_s_re, matrix_s_im, &
-                                                   local_ot_env(local_channel), local_ot_env(1))
-            CASE DEFAULT
-               CPABORT("K-point OT orbital update requires ALGORITHM STRICT or IRAC")
-            END SELECT
-            CALL cp_fm_struct_create(active_mo_struct, template_fmstruct=kp%mos(ispin)%cmo_coeff%matrix_struct, &
-                                     ncol_global=homo)
-            CALL cp_fm_create(active_mo_coeff, active_mo_struct)
-            CALL cp_fm_create(active_mo_coeff_im, active_mo_struct)
-            CALL copy_dbcsr_to_fm(matrix_hc(local_channel)%matrix, active_mo_coeff)
-            CALL copy_dbcsr_to_fm(matrix_hc_im(local_channel)%matrix, active_mo_coeff_im)
-            IF (cp_fm_struct_equivalent(active_mo_struct, kp%mos(ispin)%cmo_coeff%matrix_struct)) THEN
-               CALL cp_fm_to_cfm(active_mo_coeff, active_mo_coeff_im, kp%mos(ispin)%cmo_coeff)
-            ELSE
-               ! Preserve padded MO columns and handle different active/full matrix layouts.
-               CALL cp_fm_create(mo_coeff, kp%mos(ispin)%cmo_coeff%matrix_struct)
-               CALL cp_fm_create(mo_coeff_im, kp%mos(ispin)%cmo_coeff%matrix_struct)
-               CALL cp_cfm_to_fm(kp%mos(ispin)%cmo_coeff, mo_coeff, mo_coeff_im)
-               CALL cp_fm_to_fm(active_mo_coeff, mo_coeff, homo)
-               CALL cp_fm_to_fm(active_mo_coeff_im, mo_coeff_im, homo)
-               CALL cp_fm_to_cfm(mo_coeff, mo_coeff_im, kp%mos(ispin)%cmo_coeff)
-               CALL cp_fm_release(mo_coeff)
-               CALL cp_fm_release(mo_coeff_im)
+            IF (.NOT. local_orbitals) THEN
+               SELECT CASE (local_ot_env(local_channel)%settings%ot_algorithm)
+               CASE ("TOD")
+                  CALL qs_ot_get_orbitals_complex(matrix_hc(local_channel)%matrix, &
+                                                  matrix_hc_im(local_channel)%matrix, &
+                                                  matrix_s_re, matrix_s_im, &
+                                                  local_ot_env(local_channel))
+               CASE ("REF")
+                  CALL qs_ot_get_orbitals_ref_complex(matrix_hc(local_channel)%matrix, &
+                                                      matrix_hc_im(local_channel)%matrix, &
+                                                      matrix_s_re, matrix_s_im, &
+                                                      local_ot_env(local_channel), local_ot_env(1))
+               CASE DEFAULT
+                  CPABORT("K-point OT orbital update requires ALGORITHM STRICT or IRAC")
+               END SELECT
+               CALL cp_fm_struct_create(active_mo_struct, template_fmstruct=kp%mos(ispin)%cmo_coeff%matrix_struct, &
+                                        ncol_global=homo)
+               CALL cp_fm_create(active_mo_coeff, active_mo_struct)
+               CALL cp_fm_create(active_mo_coeff_im, active_mo_struct)
+               CALL copy_dbcsr_to_fm(matrix_hc(local_channel)%matrix, active_mo_coeff)
+               CALL copy_dbcsr_to_fm(matrix_hc_im(local_channel)%matrix, active_mo_coeff_im)
+               IF (cp_fm_struct_equivalent(active_mo_struct, kp%mos(ispin)%cmo_coeff%matrix_struct)) THEN
+                  CALL cp_fm_to_cfm(active_mo_coeff, active_mo_coeff_im, kp%mos(ispin)%cmo_coeff)
+               ELSE
+                  ! Preserve padded MO columns and handle different active/full matrix layouts.
+                  CALL cp_fm_create(mo_coeff, kp%mos(ispin)%cmo_coeff%matrix_struct)
+                  CALL cp_fm_create(mo_coeff_im, kp%mos(ispin)%cmo_coeff%matrix_struct)
+                  CALL cp_cfm_to_fm(kp%mos(ispin)%cmo_coeff, mo_coeff, mo_coeff_im)
+                  CALL cp_fm_to_fm(active_mo_coeff, mo_coeff, homo)
+                  CALL cp_fm_to_fm(active_mo_coeff_im, mo_coeff_im, homo)
+                  CALL cp_fm_to_cfm(mo_coeff, mo_coeff_im, kp%mos(ispin)%cmo_coeff)
+                  CALL cp_fm_release(mo_coeff)
+                  CALL cp_fm_release(mo_coeff_im)
+               END IF
+               CALL cp_fm_release(active_mo_coeff)
+               CALL cp_fm_release(active_mo_coeff_im)
+               CALL cp_fm_struct_release(active_mo_struct)
             END IF
             IF (local_ot_env(local_channel)%settings%do_ener .AND. .NOT. restricted_roks) THEN
                eigenvalues(1:homo) = local_ot_env(local_channel)%ener_x(:)
             END IF
-            CALL cp_fm_release(active_mo_coeff)
-            CALL cp_fm_release(active_mo_coeff_im)
-            CALL cp_fm_struct_release(active_mo_struct)
          END DO
          IF (restricted_roks) THEN
             CPASSERT(SIZE(kp%mos) == 2)
@@ -1229,8 +1253,10 @@ CONTAINS
                END DO
             END IF
          END IF
-         CALL dbcsr_release_p(matrix_s_re)
-         CALL dbcsr_release_p(matrix_s_im)
+         IF (.NOT. local_orbitals) THEN
+            CALL dbcsr_release_p(matrix_s_re)
+            CALL dbcsr_release_p(matrix_s_im)
+         END IF
       END DO
 
       IF (local_ot_env(1)%settings%do_ener) THEN

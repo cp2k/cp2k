@@ -76,7 +76,7 @@ MODULE cp_cfm_diag
       REAL(KIND=dp), ALLOCATABLE :: evals(:), rwork(:)
       INTEGER, ALLOCATABLE :: iwork(:)
    END TYPE cp_cfm_diag_workspace_type
-   PUBLIC :: cp_cfm_local_workspace_prepare
+   PUBLIC :: cp_cfm_heevd_local, cp_cfm_local_workspace_prepare
 
 CONTAINS
 
@@ -900,15 +900,16 @@ CONTAINS
    END SUBROUTINE cp_cfm_geeig_canon_local
 
 ! **************************************************************************************************
-!> \brief Local LAPACK ZHEEVD helper. The eigenvectors are copied to vectors.
-!> \param matrix ...
-!> \param vectors ...
+!> \brief Local LAPACK ZHEEVD with prepared scratch, without allocation or communication.
+!> \param matrix input matrix, overwritten by eigenvectors
+!> \param vectors optional copy of the eigenvectors
 !> \param info ...
 !> \param ws prepared private LAPACK scratch
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_heevd_local(matrix, vectors, info, ws)
 
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)  :: matrix, vectors
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)  :: matrix
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), OPTIONAL :: vectors
       INTEGER, INTENT(OUT)                               :: info
 
       TYPE(cp_cfm_diag_workspace_type), INTENT(INOUT) :: ws
@@ -927,7 +928,7 @@ CONTAINS
 #if defined (__HAS_IEEE_EXCEPTIONS)
       CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif
-      vectors(1:n, 1:n) = matrix(1:n, 1:n)
+      IF (PRESENT(vectors)) vectors(1:n, 1:n) = matrix(1:n, 1:n)
 
    END SUBROUTINE cp_cfm_heevd_local
 

@@ -14,6 +14,10 @@
 ! **************************************************************************************************
 MODULE qs_ot
    USE arnoldi_api,                     ONLY: arnoldi_extremal
+   USE cp_cfm_diag,                     ONLY: cp_cfm_diag_workspace_type,&
+                                              cp_cfm_heevd_local,&
+                                              cp_cfm_local_workspace_prepare
+   USE cp_cfm_types,                    ONLY: cp_cfm_p_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_filter, &
         dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_matrix_type, &
@@ -33,6 +37,7 @@ MODULE qs_ot
                                               dbcsr_scale_by_vector
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_heevd,&
                                               cp_dbcsr_syevd
+   USE cp_fm_types,                     ONLY: cp_fm_p_type
    USE kinds,                           ONLY: dp
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
                                               local_gemm_ctxt_type
@@ -54,6 +59,7 @@ MODULE qs_ot
    PUBLIC  :: qs_ot_get_p_complex
    PUBLIC  :: qs_ot_get_orbitals
    PUBLIC  :: qs_ot_get_orbitals_complex
+   PUBLIC  :: qs_ot_get_orbitals_local_batch
    PUBLIC  :: qs_ot_get_derivative
    PUBLIC  :: qs_ot_get_derivative_complex
    PUBLIC  :: qs_ot_get_derivative_local_batch
@@ -81,7 +87,6 @@ MODULE qs_ot
    PUBLIC  :: qs_ot_rot_mat_derivative_complex
    PUBLIC  :: qs_ot_new_preconditioner
    PRIVATE :: qs_ot_p2m_diag
-   PRIVATE :: qs_ot_p2m_diag_complex
    PRIVATE :: qs_ot_complex_multiply
    PRIVATE :: qs_ot_sinc
    PRIVATE :: qs_ot_ref_poly
@@ -94,11 +99,18 @@ MODULE qs_ot
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot'
 
+   INTERFACE qs_ot_complex_multiply_local
+      MODULE PROCEDURE qs_ot_complex_multiply_pair_local, qs_ot_complex_multiply_parts_local
+   END INTERFACE
+
    ! Transient per-worker storage. The last index is 1 for real and 2 for imaginary.
    TYPE qs_ot_local_work_type
       INTEGER                                            :: n = 0, k = 0, o = 0
       TYPE(local_gemm_ctxt_type)                         :: gemm_ctx
-      REAL(dp), ALLOCATABLE :: hc(:, :, :), x(:, :, :), sx(:, :, :), c0(:, :, :), gx(:, :, :), &
+      TYPE(cp_cfm_diag_workspace_type)                   :: solver
+      COMPLEX(dp), ALLOCATABLE                           :: vectors(:, :)
+      REAL(dp), ALLOCATABLE                              :: values(:)
+      REAL(dp), ALLOCATABLE :: hc(:, :, :), x(:, :, :), sx(:, :, :), c0(:, :, :), out(:, :, :), &
                                r(:, :, :), sinp(:, :, :), sc0(:, :, :), TARGET(:, :, :), os(:, :, :), &
                                buf1(:, :, :), buf2(:, :, :), buf3(:, :, :), buf4(:, :, :), buf_nk(:, :, :), &
                                buf1_ortho(:, :, :), buf2_ortho(:, :, :), sinp_b(:, :), cosp_b(:, :), tmp(:, :), tmp_ortho(:, :)
@@ -2625,7 +2637,7 @@ CONTAINS
       CALL qs_ot_complex_multiply('C', 'N', matrix_x, matrix_x_im, matrix_sx, matrix_sx_im, &
                                   qs_ot_env%matrix_p, qs_ot_env%matrix_p_im, qs_ot_env%matrix_buf1)
       qs_ot_env%do_taylor = .FALSE.
-      CALL qs_ot_p2m_diag_complex(qs_ot_env)
+      CALL qs_ot_p2m_diag(qs_ot_env)
 
       CALL timestop(handle)
 
@@ -3400,6 +3412,194 @@ CONTAINS
    END SUBROUTINE qs_ot_get_derivative_complex
 
 ! **************************************************************************************************
+!> \brief Whether all channels can use the single-rank, fixed-occupation STRICT kernels.
+!> \param qs_ot_env local OT channels
+!> \return true when every channel is eligible
+! **************************************************************************************************
+   LOGICAL FUNCTION qs_ot_local_channels(qs_ot_env) RESULT(local)
+      TYPE(qs_ot_type), INTENT(IN)                       :: qs_ot_env(:)
+
+      INTEGER                                            :: i
+
+      local = .FALSE.
+      IF (SIZE(qs_ot_env) == 0) RETURN
+      DO i = 1, SIZE(qs_ot_env)
+         IF (.NOT. qs_ot_env(i)%has_complex_kpoint_state) RETURN
+         IF (qs_ot_env(i)%settings%ot_algorithm /= 'TOD') RETURN
+         IF (qs_ot_env(i)%settings%do_ener .OR. qs_ot_env(i)%settings%do_rotation) RETURN
+         IF (qs_ot_env(i)%para_env%num_pe /= 1) RETURN
+      END DO
+      local = .TRUE.
+   END FUNCTION qs_ot_local_channels
+
+! **************************************************************************************************
+!> \brief Rebuild single-rank STRICT orbitals in bounded batches using cached overlaps.
+!>        DBCSR packing and writeback are outside OpenMP; workers only use dense data and private scratch.
+!> \param qs_ot_env local OT channels
+!> \param matrix_s pointers to cached real/imaginary overlaps, indexed by component and channel
+!> \param matrix_c pointers to physical orbitals; only their active columns are updated
+!> \param handled false when the original distributed/rotation path is required
+! **************************************************************************************************
+   SUBROUTINE qs_ot_get_orbitals_local_batch(qs_ot_env, matrix_s, matrix_c, handled)
+      TYPE(qs_ot_type), INTENT(INOUT)                    :: qs_ot_env(:)
+      TYPE(cp_fm_p_type), INTENT(IN)                     :: matrix_s(:, :)
+      TYPE(cp_cfm_p_type), INTENT(IN)                    :: matrix_c(:)
+      LOGICAL, INTENT(OUT)                               :: handled
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ot_get_orbitals_local_batch'
+
+      INTEGER                                            :: first, handle, i, j, k, n, nbatch, &
+                                                            nchannels, nworkers
+      INTEGER, ALLOCATABLE                               :: info(:)
+      TYPE(qs_ot_local_work_type), ALLOCATABLE           :: work(:)
+
+      handled = .FALSE.
+      IF (.NOT. qs_ot_local_channels(qs_ot_env)) RETURN
+      CALL timeset(routineN, handle)
+      nchannels = SIZE(qs_ot_env)
+      nworkers = 1
+!$    nworkers = MIN(nchannels, omp_get_max_threads())
+      ALLOCATE (work(nworkers), info(nworkers))
+      DO j = 1, nworkers
+         CALL work(j)%gemm_ctx%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
+      END DO
+      DO first = 1, nchannels, nworkers
+         nbatch = MIN(nworkers, nchannels - first + 1)
+         DO j = 1, nbatch
+            i = first + j - 1
+            CALL dbcsr_get_info(qs_ot_env(i)%matrix_x, nfullrows_total=n, nfullcols_total=k)
+            CALL qs_ot_allocate_local_work(work(j), n, k)
+            IF (ALLOCATED(work(j)%vectors)) THEN
+               IF (SIZE(work(j)%vectors, 1) /= k) DEALLOCATE (work(j)%vectors, work(j)%values)
+            END IF
+            IF (.NOT. ALLOCATED(work(j)%vectors)) ALLOCATE (work(j)%vectors(k, k), work(j)%values(k))
+            CALL cp_cfm_local_workspace_prepare(work(j)%solver, k, work(j)%vectors)
+            CALL qs_ot_load_local_pair(qs_ot_env(i)%matrix_x, qs_ot_env(i)%matrix_x_im, work(j)%x)
+            CALL qs_ot_load_local_pair(qs_ot_env(i)%matrix_c0, qs_ot_env(i)%matrix_c0_im, work(j)%c0)
+         END DO
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nbatch) IF(nbatch > 1) &
+!$OMP SHARED(work,info,matrix_s,matrix_c,nbatch,first) PRIVATE(i,n,k)
+         DO j = 1, nbatch
+            i = first + j - 1
+            CALL qs_ot_orbitals_local(work(j), matrix_s(1, i)%matrix%local_data, &
+                                      matrix_s(2, i)%matrix%local_data, info(j))
+            IF (info(j) /= 0) CYCLE
+            n = work(j)%n
+            k = work(j)%k
+            matrix_c(i)%matrix%local_data(1:n, 1:k) = CMPLX(work(j)%out(:, :, 1), work(j)%out(:, :, 2), KIND=dp)
+         END DO
+!$OMP END PARALLEL DO
+         DO j = 1, nbatch
+            IF (info(j) /= 0) CPABORT('Local complex STRICT overlap diagonalization failed')
+            i = first + j - 1
+            CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_sx, qs_ot_env(i)%matrix_sx_im, work(j)%sx)
+            CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_p, qs_ot_env(i)%matrix_p_im, work(j)%buf3)
+            CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_r, qs_ot_env(i)%matrix_r_im, work(j)%r)
+            CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_cosp, qs_ot_env(i)%matrix_cosp_im, work(j)%buf4)
+            CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_sinp, qs_ot_env(i)%matrix_sinp_im, work(j)%sinp)
+            CALL qs_ot_store_local_matrix(qs_ot_env(i)%matrix_cosp_b, work(j)%cosp_b)
+            CALL qs_ot_store_local_matrix(qs_ot_env(i)%matrix_sinp_b, work(j)%sinp_b)
+            qs_ot_env(i)%evals(:) = work(j)%solver%evals(:)
+            qs_ot_env(i)%do_taylor = .FALSE.
+         END DO
+      END DO
+      DO j = 1, nworkers
+         CALL work(j)%gemm_ctx%destroy()
+      END DO
+      handled = .TRUE.
+      CALL timestop(handle)
+   END SUBROUTINE qs_ot_get_orbitals_local_batch
+
+! **************************************************************************************************
+!> \brief Evaluate S*X, spectral matrix functions and C0*cos(sqrt(P))+X*sinc(sqrt(P)).
+!> \param w private storage; buf3 retains P and buf4 retains cos(sqrt(P)) for writeback
+!> \param overlap_re cached real overlap, including any leading-dimension padding
+!> \param overlap_im cached imaginary overlap
+!> \param info LAPACK status
+! **************************************************************************************************
+   SUBROUTINE qs_ot_orbitals_local(w, overlap_re, overlap_im, info)
+      TYPE(qs_ot_local_work_type), INTENT(INOUT)         :: w
+      REAL(dp), CONTIGUOUS, INTENT(IN)                   :: overlap_re(:, :), overlap_im(:, :)
+      INTEGER, INTENT(OUT)                               :: info
+
+      CALL qs_ot_complex_multiply_local('N', 'N', overlap_re, overlap_im, w%x(:, :, 1), w%x(:, :, 2), &
+                                        w%sx(:, :, 1), w%sx(:, :, 2), w%tmp, w%gemm_ctx)
+      CALL qs_ot_complex_multiply_local('C', 'N', w%x, w%sx, w%buf3, w%buf2(:, :, 1), w%gemm_ctx)
+      w%vectors(:, :) = CMPLX(w%buf3(:, :, 1), w%buf3(:, :, 2), KIND=dp)
+      CALL cp_cfm_heevd_local(w%vectors, info=info, ws=w%solver)
+      IF (info /= 0) RETURN
+      w%solver%evals(:) = MAX(0.0_dp, w%solver%evals(:))
+      w%r(:, :, 1) = REAL(w%vectors, KIND=dp)
+      w%r(:, :, 2) = AIMAG(w%vectors)
+      CALL qs_ot_spectral_matrix_local(w, .TRUE., w%buf4)
+      CALL qs_ot_spectral_matrix_local(w, .FALSE., w%sinp)
+      w%values(:) = SQRT(w%solver%evals(:))
+      CALL qs_ot_spectral_kernel(w%values, w%values, w%cosp_b, .TRUE.)
+      CALL qs_ot_spectral_kernel(w%values, w%values, w%sinp_b, .FALSE.)
+      CALL qs_ot_complex_multiply_local('N', 'N', w%c0, w%buf4, w%out, w%tmp, w%gemm_ctx)
+      CALL qs_ot_complex_multiply_local('N', 'N', w%x, w%sinp, w%buf_nk, w%tmp, w%gemm_ctx)
+      w%out(:, :, :) = w%out(:, :, :) + w%buf_nk(:, :, :)
+   END SUBROUTINE qs_ot_orbitals_local
+
+! **************************************************************************************************
+!> \brief Reconstruct one spectral matrix function from the local eigenvectors.
+!> \param w private eigenvectors, eigenvalues and scratch
+!> \param cosine select cos(sqrt(P)); otherwise sinc(sqrt(P))
+!> \param matrix dense real/imaginary result
+! **************************************************************************************************
+   SUBROUTINE qs_ot_spectral_matrix_local(w, cosine, matrix)
+      TYPE(qs_ot_local_work_type), INTENT(INOUT)         :: w
+      LOGICAL, INTENT(IN)                                :: cosine
+      REAL(dp), CONTIGUOUS, INTENT(INOUT)                :: matrix(:, :, :)
+
+      INTEGER                                            :: i
+
+      CALL qs_ot_spectral_values(w%solver%evals, w%values, cosine)
+      DO i = 1, w%k
+         w%buf1(:, i, 1) = w%r(:, i, 1)*w%values(i)
+         w%buf1(:, i, 2) = w%r(:, i, 2)*w%values(i)
+      END DO
+      CALL qs_ot_complex_multiply_local('N', 'C', w%buf1, w%r, matrix, w%buf2(:, :, 1), w%gemm_ctx)
+   END SUBROUTINE qs_ot_spectral_matrix_local
+
+! **************************************************************************************************
+!> \brief Allocate common dense OT storage only when a worker's matrix dimensions change.
+!> \param w worker storage
+!> \param n AO count
+!> \param k active MO count
+! **************************************************************************************************
+   SUBROUTINE qs_ot_allocate_local_work(w, n, k)
+      TYPE(qs_ot_local_work_type), INTENT(INOUT)         :: w
+      INTEGER, INTENT(IN)                                :: n, k
+
+      IF (ALLOCATED(w%x)) THEN
+         IF (n == w%n .AND. k == w%k) RETURN
+         DEALLOCATE (w%x, w%sx, w%c0, w%out, w%r, w%sinp, w%buf1, w%buf2, w%buf3, w%buf4, &
+                     w%buf_nk, w%sinp_b, w%cosp_b, w%tmp)
+      END IF
+      ALLOCATE (w%x(n, k, 2), w%sx(n, k, 2), w%c0(n, k, 2), w%out(n, k, 2), &
+                w%r(k, k, 2), w%sinp(k, k, 2), w%buf1(k, k, 2), w%buf2(k, k, 2), &
+                w%buf3(k, k, 2), w%buf4(k, k, 2), w%buf_nk(n, k, 2), &
+                w%sinp_b(k, k), w%cosp_b(k, k), w%tmp(n, k))
+      w%n = n
+      w%k = k
+   END SUBROUTINE qs_ot_allocate_local_work
+
+! **************************************************************************************************
+!> \brief Write a dense complex pair back to two DBCSR matrices outside OpenMP.
+!> \param matrix_re real DBCSR output
+!> \param matrix_im imaginary DBCSR output
+!> \param dense dense real/imaginary pair
+! **************************************************************************************************
+   SUBROUTINE qs_ot_store_local_pair(matrix_re, matrix_im, dense)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_re, matrix_im
+      REAL(dp), INTENT(IN)                               :: dense(:, :, :)
+
+      CALL qs_ot_store_local_matrix(matrix_re, dense(:, :, 1))
+      CALL qs_ot_store_local_matrix(matrix_im, dense(:, :, 2))
+   END SUBROUTINE qs_ot_store_local_pair
+
+! **************************************************************************************************
 !> \brief Evaluate independent, single-rank STRICT gradients in bounded OpenMP batches.
 !>        Matrix lifetimes and metric preparation stay outside the worker region.
 !> \param qs_ot_env local OT channels
@@ -3419,14 +3619,8 @@ CONTAINS
       TYPE(qs_ot_local_work_type), ALLOCATABLE           :: work(:)
 
       handled = .FALSE.
+      IF (.NOT. qs_ot_local_channels(qs_ot_env)) RETURN
       nchannels = SIZE(qs_ot_env)
-      IF (nchannels == 0) RETURN
-      DO i = 1, nchannels
-         IF (.NOT. qs_ot_env(i)%has_complex_kpoint_state) RETURN
-         IF (qs_ot_env(i)%settings%ot_algorithm /= 'TOD') RETURN
-         IF (qs_ot_env(i)%settings%do_ener .OR. qs_ot_env(i)%settings%do_rotation) RETURN
-         IF (qs_ot_env(i)%para_env%num_pe /= 1) RETURN
-      END DO
 
       CALL timeset(routineN, handle)
       nworkers = 1
@@ -3449,8 +3643,8 @@ CONTAINS
 !$OMP END PARALLEL DO
          DO j = 1, nbatch
             i = first + j - 1
-            CALL qs_ot_store_local_matrix(qs_ot_env(i)%matrix_gx, work(j)%gx(:, :, 1))
-            CALL qs_ot_store_local_matrix(qs_ot_env(i)%matrix_gx_im, work(j)%gx(:, :, 2))
+            CALL qs_ot_store_local_matrix(qs_ot_env(i)%matrix_gx, work(j)%out(:, :, 1))
+            CALL qs_ot_store_local_matrix(qs_ot_env(i)%matrix_gx_im, work(j)%out(:, :, 2))
          END DO
       END DO
       DO j = 1, nworkers
@@ -3467,7 +3661,7 @@ CONTAINS
 !> \param orbital real X or C0
 !> \param orbital_im imaginary X or C0
 !> \param kernel real sinc or cos divided differences
-!> \param result real contraction
+!> \param RESULT real contraction
 !> \param result_im imaginary contraction
 !> \param qs_ot_env channel eigenvectors and scratch
 ! **************************************************************************************************
@@ -3507,19 +3701,13 @@ CONTAINS
       CALL dbcsr_get_info(qs_ot_env%matrix_sc0, nfullcols_total=o)
       IF (.NOT. ALLOCATED(w%hc) .OR. n /= w%n .OR. k /= w%k .OR. o /= w%o) THEN
          IF (ALLOCATED(w%hc)) THEN
-            DEALLOCATE (w%hc, w%x, w%sx, w%c0, w%gx, w%r, w%sinp, w%sc0, w%target, w%os, &
-                        w%buf1, w%buf2, w%buf3, w%buf4, w%buf_nk, w%buf1_ortho, w%buf2_ortho, &
-                        w%sinp_b, w%cosp_b, w%tmp, w%tmp_ortho)
+            DEALLOCATE (w%hc, w%sc0, w%target, w%os, w%buf1_ortho, w%buf2_ortho, w%tmp_ortho)
          END IF
-         ALLOCATE (w%hc(n, k, 2), w%x(n, k, 2), w%sx(n, k, 2), w%c0(n, k, 2), w%gx(n, k, 2), &
-                   w%r(k, k, 2), w%sinp(k, k, 2), w%sc0(n, o, 2), w%target(n, o, 2), w%os(o, o, 2), &
-                   w%buf1(k, k, 2), w%buf2(k, k, 2), w%buf3(k, k, 2), w%buf4(k, k, 2), &
-                   w%buf_nk(n, k, 2), w%buf1_ortho(o, k, 2), w%buf2_ortho(o, k, 2), &
-                   w%sinp_b(k, k), w%cosp_b(k, k), w%tmp(n, k), w%tmp_ortho(o, k))
-         w%n = n
-         w%k = k
+         ALLOCATE (w%hc(n, k, 2), w%sc0(n, o, 2), w%target(n, o, 2), w%os(o, o, 2), &
+                   w%buf1_ortho(o, k, 2), w%buf2_ortho(o, k, 2), w%tmp_ortho(o, k))
          w%o = o
       END IF
+      CALL qs_ot_allocate_local_work(w, n, k)
       CALL qs_ot_load_local_pair(matrix_hc, matrix_hc_im, w%hc)
       CALL qs_ot_load_local_pair(qs_ot_env%matrix_x, qs_ot_env%matrix_x_im, w%x)
       CALL qs_ot_load_local_pair(qs_ot_env%matrix_sx, qs_ot_env%matrix_sx_im, w%sx)
@@ -3619,10 +3807,35 @@ CONTAINS
 !> \param tmp real workspace, at least as large as one component of C
 !> \param gemm_ctx caller-owned GEMM context
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_complex_multiply_local(op_a, op_b, a, b, c, tmp, gemm_ctx)
+   SUBROUTINE qs_ot_complex_multiply_pair_local(op_a, op_b, a, b, c, tmp, gemm_ctx)
       CHARACTER(LEN=1), INTENT(IN)                       :: op_a, op_b
       REAL(dp), CONTIGUOUS, INTENT(IN)                   :: a(:, :, :), b(:, :, :)
       REAL(dp), CONTIGUOUS, INTENT(INOUT)                :: c(:, :, :), tmp(:, :)
+      TYPE(local_gemm_ctxt_type)                         :: gemm_ctx
+
+      CALL qs_ot_complex_multiply_parts_local(op_a, op_b, a(:, :, 1), a(:, :, 2), &
+                                              b(:, :, 1), b(:, :, 2), c(:, :, 1), c(:, :, 2), tmp, gemm_ctx)
+   END SUBROUTINE qs_ot_complex_multiply_pair_local
+
+! **************************************************************************************************
+!> \brief Multiply separate real/imaginary arrays, including cached overlap matrices.
+!> \param op_a N or C
+!> \param op_b N or C
+!> \param a_re real left operand
+!> \param a_im imaginary left operand
+!> \param b_re real right operand
+!> \param b_im imaginary right operand
+!> \param c_re real result
+!> \param c_im imaginary result
+!> \param tmp real workspace
+!> \param gemm_ctx caller-owned GEMM context
+! **************************************************************************************************
+   SUBROUTINE qs_ot_complex_multiply_parts_local(op_a, op_b, a_re, a_im, b_re, b_im, &
+                                                 c_re, c_im, tmp, gemm_ctx)
+      CHARACTER(LEN=1), INTENT(IN)                       :: op_a, op_b
+      REAL(dp), CONTIGUOUS, INTENT(IN)                   :: a_re(:, :), a_im(:, :), b_re(:, :), &
+                                                            b_im(:, :)
+      REAL(dp), CONTIGUOUS, INTENT(INOUT)                :: c_re(:, :), c_im(:, :), tmp(:, :)
       TYPE(local_gemm_ctxt_type)                         :: gemm_ctx
 
       CHARACTER(LEN=1)                                   :: trans_a, trans_b
@@ -3635,27 +3848,27 @@ CONTAINS
       trans_b = MERGE('N', 'T', op_b == 'N')
       sign_a = MERGE(1.0_dp, -1.0_dp, op_a == 'N')
       sign_b = MERGE(1.0_dp, -1.0_dp, op_b == 'N')
-      m = SIZE(c, 1)
-      n = SIZE(c, 2)
-      k = MERGE(SIZE(a, 2), SIZE(a, 1), op_a == 'N')
-      CALL gemm_ctx%gemm(trans_a, trans_b, m, n, k, 1.0_dp, a(:, :, 1), SIZE(a, 1), &
-                         b(:, :, 1), SIZE(b, 1), 0.0_dp, c(:, :, 1), SIZE(c, 1))
-      CALL gemm_ctx%gemm(trans_a, trans_b, m, n, k, 1.0_dp, a(:, :, 2), SIZE(a, 1), &
-                         b(:, :, 2), SIZE(b, 1), 0.0_dp, tmp, SIZE(tmp, 1))
-      c(:, :, 1) = c(:, :, 1) - sign_a*sign_b*tmp(1:m, 1:n)
-      CALL gemm_ctx%gemm(trans_a, trans_b, m, n, k, sign_b, a(:, :, 1), SIZE(a, 1), &
-                         b(:, :, 2), SIZE(b, 1), 0.0_dp, c(:, :, 2), SIZE(c, 1))
-      CALL gemm_ctx%gemm(trans_a, trans_b, m, n, k, sign_a, a(:, :, 2), SIZE(a, 1), &
-                         b(:, :, 1), SIZE(b, 1), 0.0_dp, tmp, SIZE(tmp, 1))
-      c(:, :, 2) = c(:, :, 2) + tmp(1:m, 1:n)
-   END SUBROUTINE qs_ot_complex_multiply_local
+      m = SIZE(c_re, 1)
+      n = SIZE(c_re, 2)
+      k = MERGE(SIZE(a_re, 2), SIZE(a_re, 1), op_a == 'N')
+      CALL gemm_ctx%gemm(trans_a, trans_b, m, n, k, 1.0_dp, a_re, SIZE(a_re, 1), &
+                         b_re, SIZE(b_re, 1), 0.0_dp, c_re, SIZE(c_re, 1))
+      CALL gemm_ctx%gemm(trans_a, trans_b, m, n, k, 1.0_dp, a_im, SIZE(a_im, 1), &
+                         b_im, SIZE(b_im, 1), 0.0_dp, tmp, SIZE(tmp, 1))
+      c_re(:, :) = c_re(:, :) - sign_a*sign_b*tmp(1:m, 1:n)
+      CALL gemm_ctx%gemm(trans_a, trans_b, m, n, k, sign_b, a_re, SIZE(a_re, 1), &
+                         b_im, SIZE(b_im, 1), 0.0_dp, c_im, SIZE(c_im, 1))
+      CALL gemm_ctx%gemm(trans_a, trans_b, m, n, k, sign_a, a_im, SIZE(a_im, 1), &
+                         b_re, SIZE(b_re, 1), 0.0_dp, tmp, SIZE(tmp, 1))
+      c_im(:, :) = c_im(:, :) + tmp(1:m, 1:n)
+   END SUBROUTINE qs_ot_complex_multiply_parts_local
 
 ! **************************************************************************************************
 !> \brief Contract one STRICT term in the local eigenvector basis.
 !> \param w channel matrices and scratch
 !> \param orbital dense X or C0 pair
 !> \param kernel real sinc or cos divided differences
-!> \param result contraction in the eigenvector basis
+!> \param RESULT contraction in the eigenvector basis
 ! **************************************************************************************************
    SUBROUTINE qs_ot_strict_frechet_local(w, orbital, kernel, RESULT)
       TYPE(qs_ot_local_work_type)                        :: w
@@ -3680,7 +3893,7 @@ CONTAINS
       REAL(dp)                                           :: im, re
 
       ! Direct term, followed by the X*sinc and C0*cos Frechet contributions.
-      CALL qs_ot_complex_multiply_local('N', 'N', w%hc, w%sinp, w%gx, w%tmp, w%gemm_ctx)
+      CALL qs_ot_complex_multiply_local('N', 'N', w%hc, w%sinp, w%out, w%tmp, w%gemm_ctx)
       CALL qs_ot_strict_frechet_local(w, w%x, w%sinp_b, w%buf3)
       CALL qs_ot_strict_frechet_local(w, w%c0, w%cosp_b, w%buf4)
       w%buf3(:, :, :) = w%buf3(:, :, :) + w%buf4(:, :, :)
@@ -3701,13 +3914,13 @@ CONTAINS
          END DO
       END DO
       CALL qs_ot_complex_multiply_local('N', 'N', w%sx, w%buf3, w%buf_nk, w%tmp, w%gemm_ctx)
-      w%gx(:, :, :) = w%gx(:, :, :) + w%buf_nk(:, :, :)
+      w%out(:, :, :) = w%out(:, :, :) + w%buf_nk(:, :, :)
 
       ! Tangent projection with the same preconditioned reference and inverse metric.
-      CALL qs_ot_complex_multiply_local('C', 'N', w%target, w%gx, w%buf1_ortho, w%tmp_ortho, w%gemm_ctx)
+      CALL qs_ot_complex_multiply_local('C', 'N', w%target, w%out, w%buf1_ortho, w%tmp_ortho, w%gemm_ctx)
       CALL qs_ot_complex_multiply_local('N', 'N', w%os, w%buf1_ortho, w%buf2_ortho, w%tmp_ortho, w%gemm_ctx)
       CALL qs_ot_complex_multiply_local('N', 'N', w%sc0, w%buf2_ortho, w%buf_nk, w%tmp, w%gemm_ctx)
-      w%gx(:, :, :) = w%gx(:, :, :) - w%buf_nk(:, :, :)
+      w%out(:, :, :) = w%out(:, :, :) - w%buf_nk(:, :, :)
    END SUBROUTINE qs_ot_strict_gradient_local
 
 ! **************************************************************************************************
@@ -3958,171 +4171,141 @@ CONTAINS
 !> \param qs_ot_env ...
 ! **************************************************************************************************
    SUBROUTINE qs_ot_p2m_diag(qs_ot_env)
-
       TYPE(qs_ot_type)                                   :: qs_ot_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_ot_p2m_diag'
-      REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
 
-      INTEGER                                            :: col, col_offset, col_size, handle, i, j, &
-                                                            k, row, row_offset, row_size
-      REAL(dp), DIMENSION(:, :), POINTER                 :: block
-      REAL(KIND=dp)                                      :: a, b
-      TYPE(dbcsr_iterator_type)                          :: iter
+      INTEGER                                            :: handle, phase
+      LOGICAL                                            :: cosine
+      TYPE(dbcsr_type), POINTER                          :: kernel, matrix, matrix_im
 
       CALL timeset(routineN, handle)
-
-      CALL dbcsr_get_info(qs_ot_env%matrix_p, nfullrows_total=k)
-      CALL dbcsr_copy(qs_ot_env%matrix_buf1, qs_ot_env%matrix_p)
-      CALL cp_dbcsr_syevd(qs_ot_env%matrix_buf1, qs_ot_env%matrix_r, qs_ot_env%evals, &
-                          qs_ot_env%para_env, qs_ot_env%blacs_env)
-      DO i = 1, k
-         qs_ot_env%evals(i) = MAX(0.0_dp, qs_ot_env%evals(i))
+      IF (qs_ot_env%has_complex_kpoint_state) THEN
+         CALL cp_dbcsr_heevd(matrix_re=qs_ot_env%matrix_p, matrix_im=qs_ot_env%matrix_p_im, &
+                             eigenvectors_re=qs_ot_env%matrix_r, eigenvectors_im=qs_ot_env%matrix_r_im, &
+                             eigenvalues=qs_ot_env%evals, para_env=qs_ot_env%para_env, &
+                             blacs_env=qs_ot_env%blacs_env)
+      ELSE
+         CALL dbcsr_copy(qs_ot_env%matrix_buf1, qs_ot_env%matrix_p)
+         CALL cp_dbcsr_syevd(qs_ot_env%matrix_buf1, qs_ot_env%matrix_r, qs_ot_env%evals, &
+                             qs_ot_env%para_env, qs_ot_env%blacs_env)
+      END IF
+      qs_ot_env%evals(:) = MAX(0.0_dp, qs_ot_env%evals(:))
+      DO phase = 1, 2
+         cosine = phase == 1
+         IF (cosine) THEN
+            matrix => qs_ot_env%matrix_cosp
+            matrix_im => qs_ot_env%matrix_cosp_im
+            kernel => qs_ot_env%matrix_cosp_b
+         ELSE
+            matrix => qs_ot_env%matrix_sinp
+            matrix_im => qs_ot_env%matrix_sinp_im
+            kernel => qs_ot_env%matrix_sinp_b
+         END IF
+         CALL qs_ot_spectral_values(qs_ot_env%evals, qs_ot_env%dum, cosine)
+         CALL dbcsr_copy(qs_ot_env%matrix_buf1, qs_ot_env%matrix_r)
+         CALL dbcsr_scale_by_vector(qs_ot_env%matrix_buf1, alpha=qs_ot_env%dum, side='right')
+         IF (qs_ot_env%has_complex_kpoint_state) THEN
+            CALL dbcsr_copy(qs_ot_env%matrix_buf1_im, qs_ot_env%matrix_r_im)
+            CALL dbcsr_scale_by_vector(qs_ot_env%matrix_buf1_im, alpha=qs_ot_env%dum, side='right')
+            CALL qs_ot_complex_multiply('N', 'C', qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf1_im, &
+                                        qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, &
+                                        matrix, matrix_im, qs_ot_env%matrix_buf2)
+         ELSE
+            ! Retain the original real-path operand order.
+            CALL dbcsr_multiply('N', 'T', 1.0_dp, qs_ot_env%matrix_r, qs_ot_env%matrix_buf1, 0.0_dp, matrix)
+         END IF
+         qs_ot_env%dum(:) = SQRT(qs_ot_env%evals(:))
+         CALL dbcsr_copy(kernel, matrix)
+         CALL qs_ot_spectral_kernel_dbcsr(qs_ot_env%dum, kernel, cosine)
       END DO
-
-      !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i) SHARED(k,qs_ot_env)
-      DO i = 1, k
-         qs_ot_env%dum(i) = COS(SQRT(qs_ot_env%evals(i)))
-      END DO
-      CALL dbcsr_copy(qs_ot_env%matrix_buf1, qs_ot_env%matrix_r)
-      CALL dbcsr_scale_by_vector(qs_ot_env%matrix_buf1, alpha=qs_ot_env%dum, side='right')
-      CALL dbcsr_multiply('N', 'T', rone, qs_ot_env%matrix_r, qs_ot_env%matrix_buf1, &
-                          rzero, qs_ot_env%matrix_cosp)
-
-      !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i) SHARED(k,qs_ot_env)
-      DO i = 1, k
-         qs_ot_env%dum(i) = qs_ot_sinc(SQRT(qs_ot_env%evals(i)))
-      END DO
-      CALL dbcsr_copy(qs_ot_env%matrix_buf1, qs_ot_env%matrix_r)
-      CALL dbcsr_scale_by_vector(qs_ot_env%matrix_buf1, alpha=qs_ot_env%dum, side='right')
-      CALL dbcsr_multiply('N', 'T', rone, qs_ot_env%matrix_r, qs_ot_env%matrix_buf1, &
-                          rzero, qs_ot_env%matrix_sinp)
-
-      CALL dbcsr_copy(qs_ot_env%matrix_cosp_b, qs_ot_env%matrix_cosp)
-      CALL dbcsr_iterator_start(iter, qs_ot_env%matrix_cosp_b)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, row, col, block, &
-                                        row_size=row_size, col_size=col_size, &
-                                        row_offset=row_offset, col_offset=col_offset)
-         DO j = 1, col_size
-         DO i = 1, row_size
-            a = (SQRT(qs_ot_env%evals(row_offset + i - 1)) &
-                 - SQRT(qs_ot_env%evals(col_offset + j - 1)))/2.0_dp
-            b = (SQRT(qs_ot_env%evals(row_offset + i - 1)) &
-                 + SQRT(qs_ot_env%evals(col_offset + j - 1)))/2.0_dp
-            block(i, j) = -0.5_dp*qs_ot_sinc(a)*qs_ot_sinc(b)
-         END DO
-         END DO
-      END DO
-      CALL dbcsr_iterator_stop(iter)
-
-      CALL dbcsr_copy(qs_ot_env%matrix_sinp_b, qs_ot_env%matrix_sinp)
-      CALL dbcsr_iterator_start(iter, qs_ot_env%matrix_sinp_b)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, row, col, block, &
-                                        row_size=row_size, col_size=col_size, &
-                                        row_offset=row_offset, col_offset=col_offset)
-         DO j = 1, col_size
-         DO i = 1, row_size
-            a = SQRT(qs_ot_env%evals(row_offset + i - 1))
-            b = SQRT(qs_ot_env%evals(col_offset + j - 1))
-            block(i, j) = qs_ot_sincf(a, b)
-         END DO
-         END DO
-      END DO
-      CALL dbcsr_iterator_stop(iter)
-
       CALL timestop(handle)
-
    END SUBROUTINE qs_ot_p2m_diag
 
 ! **************************************************************************************************
-!> \brief diagonalize Hermitian P and build cos(sqrt(P)), sinc(sqrt(P)), and Frechet kernels
-!> \param qs_ot_env complex STRICT channel state
+!> \brief Evaluate cos(sqrt(P)) or sinc(sqrt(P)) on the nonnegative eigenvalues of P.
+!> \param evals nonnegative eigenvalues
+!> \param values function values
+!> \param cosine select cosine; otherwise sinc
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_p2m_diag_complex(qs_ot_env)
-      TYPE(qs_ot_type)                                   :: qs_ot_env
+   SUBROUTINE qs_ot_spectral_values(evals, values, cosine)
+      REAL(dp), INTENT(IN)                               :: evals(:)
+      REAL(dp), INTENT(OUT)                              :: values(:)
+      LOGICAL, INTENT(IN)                                :: cosine
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_p2m_diag_complex'
+      INTEGER                                            :: i
 
-      INTEGER                                            :: col, col_offset, col_size, handle, i, j, &
-                                                            k, row, row_offset, row_size
-      REAL(dp), DIMENSION(:, :), POINTER                 :: block
-      REAL(KIND=dp)                                      :: a, b
-      TYPE(dbcsr_iterator_type)                          :: iter
+      IF (cosine) THEN
+         DO i = 1, SIZE(evals)
+            values(i) = COS(SQRT(evals(i)))
+         END DO
+      ELSE
+         DO i = 1, SIZE(evals)
+            values(i) = qs_ot_sinc(SQRT(evals(i)))
+         END DO
+      END IF
+   END SUBROUTINE qs_ot_spectral_values
 
-      CALL timeset(routineN, handle)
+! **************************************************************************************************
+!> \brief Build a block of the real STRICT Frechet kernel, including coincident eigenvalues.
+!> \param roots_i square roots of the row eigenvalues
+!> \param roots_j square roots of the column eigenvalues
+!> \param block dense output block
+!> \param cosine select cosine; otherwise sinc
+! **************************************************************************************************
+   SUBROUTINE qs_ot_spectral_kernel(roots_i, roots_j, block, cosine)
+      REAL(dp), INTENT(IN)                               :: roots_i(:), roots_j(:)
+      REAL(dp), INTENT(OUT)                              :: block(:, :)
+      LOGICAL, INTENT(IN)                                :: cosine
 
-      CALL dbcsr_get_info(qs_ot_env%matrix_p, nfullrows_total=k)
-      CALL cp_dbcsr_heevd(matrix_re=qs_ot_env%matrix_p, matrix_im=qs_ot_env%matrix_p_im, &
-                          eigenvectors_re=qs_ot_env%matrix_r, eigenvectors_im=qs_ot_env%matrix_r_im, &
-                          eigenvalues=qs_ot_env%evals, para_env=qs_ot_env%para_env, &
-                          blacs_env=qs_ot_env%blacs_env)
-      DO i = 1, k
-         qs_ot_env%evals(i) = MAX(0.0_dp, qs_ot_env%evals(i))
-      END DO
+      INTEGER                                            :: i, j
+      REAL(dp)                                           :: a, b
 
-      DO i = 1, k
-         qs_ot_env%dum(i) = COS(SQRT(qs_ot_env%evals(i)))
-      END DO
-      CALL dbcsr_copy(qs_ot_env%matrix_buf1, qs_ot_env%matrix_r)
-      CALL dbcsr_copy(qs_ot_env%matrix_buf1_im, qs_ot_env%matrix_r_im)
-      CALL dbcsr_scale_by_vector(qs_ot_env%matrix_buf1, alpha=qs_ot_env%dum, side='right')
-      CALL dbcsr_scale_by_vector(qs_ot_env%matrix_buf1_im, alpha=qs_ot_env%dum, side='right')
-      CALL qs_ot_complex_multiply('N', 'C', qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf1_im, &
-                                  qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, &
-                                  qs_ot_env%matrix_cosp, qs_ot_env%matrix_cosp_im, &
-                                  qs_ot_env%matrix_buf2)
-
-      DO i = 1, k
-         qs_ot_env%dum(i) = qs_ot_sinc(SQRT(qs_ot_env%evals(i)))
-      END DO
-      CALL dbcsr_copy(qs_ot_env%matrix_buf1, qs_ot_env%matrix_r)
-      CALL dbcsr_copy(qs_ot_env%matrix_buf1_im, qs_ot_env%matrix_r_im)
-      CALL dbcsr_scale_by_vector(qs_ot_env%matrix_buf1, alpha=qs_ot_env%dum, side='right')
-      CALL dbcsr_scale_by_vector(qs_ot_env%matrix_buf1_im, alpha=qs_ot_env%dum, side='right')
-      CALL qs_ot_complex_multiply('N', 'C', qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf1_im, &
-                                  qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, &
-                                  qs_ot_env%matrix_sinp, qs_ot_env%matrix_sinp_im, &
-                                  qs_ot_env%matrix_buf2)
-
-      CALL dbcsr_copy(qs_ot_env%matrix_cosp_b, qs_ot_env%matrix_cosp)
-      CALL dbcsr_iterator_start(iter, qs_ot_env%matrix_cosp_b)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, row, col, block, &
-                                        row_size=row_size, col_size=col_size, &
-                                        row_offset=row_offset, col_offset=col_offset)
-         DO j = 1, col_size
-         DO i = 1, row_size
-            a = (SQRT(qs_ot_env%evals(row_offset + i - 1)) &
-                 - SQRT(qs_ot_env%evals(col_offset + j - 1)))/2.0_dp
-            b = (SQRT(qs_ot_env%evals(row_offset + i - 1)) &
-                 + SQRT(qs_ot_env%evals(col_offset + j - 1)))/2.0_dp
+      IF (cosine) THEN
+         DO j = 1, SIZE(roots_j)
+         DO i = 1, SIZE(roots_i)
+            a = (roots_i(i) - roots_j(j))/2.0_dp
+            b = (roots_i(i) + roots_j(j))/2.0_dp
             block(i, j) = -0.5_dp*qs_ot_sinc(a)*qs_ot_sinc(b)
          END DO
          END DO
-      END DO
-      CALL dbcsr_iterator_stop(iter)
+      ELSE
+         DO j = 1, SIZE(roots_j)
+         DO i = 1, SIZE(roots_i)
+            block(i, j) = qs_ot_sincf(roots_i(i), roots_j(j))
+         END DO
+         END DO
+      END IF
+   END SUBROUTINE qs_ot_spectral_kernel
 
-      CALL dbcsr_copy(qs_ot_env%matrix_sinp_b, qs_ot_env%matrix_sinp)
-      CALL dbcsr_iterator_start(iter, qs_ot_env%matrix_sinp_b)
+! **************************************************************************************************
+!> \brief Fill the existing blocks of a STRICT Frechet kernel with the shared dense formulas.
+!> \param roots square roots of the eigenvalues
+!> \param matrix distributed kernel
+!> \param cosine select cosine; otherwise sinc
+! **************************************************************************************************
+   SUBROUTINE qs_ot_spectral_kernel_dbcsr(roots, matrix, cosine)
+      REAL(dp), INTENT(IN)                               :: roots(:)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      LOGICAL, INTENT(IN)                                :: cosine
+
+      INTEGER                                            :: col, nc, nr, row
+      LOGICAL                                            :: transposed
+      REAL(dp), POINTER                                  :: block(:, :)
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL dbcsr_iterator_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, row, col, block, &
-                                        row_size=row_size, col_size=col_size, &
-                                        row_offset=row_offset, col_offset=col_offset)
-         DO j = 1, col_size
-         DO i = 1, row_size
-            a = SQRT(qs_ot_env%evals(row_offset + i - 1))
-            b = SQRT(qs_ot_env%evals(col_offset + j - 1))
-            block(i, j) = qs_ot_sincf(a, b)
-         END DO
-         END DO
+         CALL dbcsr_iterator_next_block(iter, block=block, transposed=transposed, &
+                                        row_size=nr, col_size=nc, row_offset=row, col_offset=col)
+         IF (transposed) THEN
+            CALL qs_ot_spectral_kernel(roots(col:col + nc - 1), roots(row:row + nr - 1), block, cosine)
+         ELSE
+            CALL qs_ot_spectral_kernel(roots(row:row + nr - 1), roots(col:col + nc - 1), block, cosine)
+         END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE qs_ot_p2m_diag_complex
+   END SUBROUTINE qs_ot_spectral_kernel_dbcsr
 
 ! **************************************************************************************************
 !> \brief computes sin(x)/x for all values of the argument
