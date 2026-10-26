@@ -27,6 +27,9 @@ MODULE ri_rs_fitting
                                               cp_fm_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
+
+!$ USE OMP_LIB, ONLY: omp_get_max_threads
+
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -209,14 +212,12 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_ri_rs_fit'
       INTEGER, PARAMETER                                 :: residual_block_size = 64
 
-      INTEGER                                            :: first, handle, handle2, i, icache, imu, &
-                                                            info, inu, ip, j, last, n_ao, &
-                                                            n_cached, n_grid, n_panel, n_ri, &
-                                                            panel_first, panel_last
+      INTEGER :: first, handle, handle2, i, icache, imu, info, inu, ip, j, last, n_ao, n_cached, &
+         n_grid, n_panel, n_ri, n_threads, panel_first, panel_last
       REAL(KIND=dp) :: coefficient_norm2, error_scale, fixed_bytes, integral_norm2, na, ng, &
          projection, residual_max, residual_norm2, roundoff_estimate, row_norm2, value, weight
       REAL(KIND=dp), ALLOCATABLE :: coefficient_work(:, :), factor(:, :), jacobi_scale(:), &
-         overlap(:, :), products(:, :, :), residual(:, :), v(:, :), z_prime(:, :)
+         overlap(:, :), partial_norm2(:), products(:, :, :), residual(:, :), v(:, :), z_prime(:, :)
 
       CALL timeset(routineN, handle)
       n_grid = SIZE(phi, 1)
@@ -235,18 +236,24 @@ CONTAINS
          CALL timestop(handle)
          RETURN
       END IF
-      integral_norm2 = 0.0_dp
-      ! Threaded loops below use only scalar private storage; the workspace budget is unchanged.
+      ! The two norm sums use per-iteration partials and a fixed-order accumulation, so they do
+      ! not depend on the order in which OpenMP threads finish.
+      ALLOCATE (partial_norm2(n_ri))
       !$OMP PARALLEL DO DEFAULT(NONE) &
-      !$OMP SHARED(n_ri, n_ao, int_3c) PRIVATE(ip, inu) &
-      !$OMP REDUCTION(+:integral_norm2) SCHEDULE(STATIC)
+      !$OMP SHARED(n_ri, n_ao, int_3c, partial_norm2) PRIVATE(ip, inu) SCHEDULE(STATIC)
       DO ip = 1, n_ri
+         partial_norm2(ip) = 0.0_dp
          DO inu = 1, n_ao
-            integral_norm2 = integral_norm2 + int_3c(inu, inu, ip)**2 + &
-                             2.0_dp*DOT_PRODUCT(int_3c(1:inu - 1, inu, ip), int_3c(1:inu - 1, inu, ip))
+            partial_norm2(ip) = partial_norm2(ip) + int_3c(inu, inu, ip)**2 + &
+                                2.0_dp*DOT_PRODUCT(int_3c(1:inu - 1, inu, ip), int_3c(1:inu - 1, inu, ip))
          END DO
       END DO
       !$OMP END PARALLEL DO
+      integral_norm2 = 0.0_dp
+      DO ip = 1, n_ri
+         integral_norm2 = integral_norm2 + partial_norm2(ip)
+      END DO
+      DEALLOCATE (partial_norm2)
       IF (integral_norm2 <= TINY(1.0_dp)) THEN
          CALL timestop(handle)
          RETURN
@@ -261,9 +268,10 @@ CONTAINS
                ng = REAL(n_grid, dp)
                na = REAL(n_ao, dp)
                ! Reserve factor, overlap, V, two coefficient arrays, Jacobi scales and the
-               ! largest residual panel before assigning all remaining budget to V B_P.
+               ! largest residual panel with its norm partials before assigning all remaining
+               ! budget to V B_P.
                fixed_bytes = 8.0_dp*(2.0_dp*ng**2 + ng*na + 2.0_dp*ng*REAL(n_ri, dp) + ng + &
-                                     na*MIN(na, REAL(residual_block_size, dp)))
+                                     (na + 1.0_dp)*MIN(na, REAL(residual_block_size, dp)))
                n_panel = INT(MIN(REAL(n_ri, dp), MAX(0.0_dp, &
                                                      (workspace_budget_bytes - fixed_bytes)/(8.0_dp*ng*na))))
                IF (n_panel < 1) THEN
@@ -294,22 +302,44 @@ CONTAINS
       ! Keep Z' and the coefficient response for the final grid-space symmetric product.
       value = 0.0_dp
       coefficient_norm2 = 0.0_dp
+      n_threads = 1
+!$    n_threads = omp_get_max_threads()
       CALL timeset(routineN//'_ri_panels', handle2)
       DO panel_first = 1, n_ri, n_panel
          panel_last = MIN(panel_first + n_panel - 1, n_ri)
-         DO ip = panel_first, panel_last
-            icache = 1
-            IF (PRESENT(ao_gradient)) icache = ip - panel_first + 1
-            CALL dsymm('R', 'U', n_grid, n_ao, 1.0_dp, int_3c(:, :, ip), n_ao, v, n_grid, &
-                       0.0_dp, products(:, :, icache), n_grid)
+         IF (PRESENT(ao_gradient) .AND. panel_last - panel_first + 1 >= n_threads) THEN
+            ! Gradient panels already cache one product per RI function, so give each thread whole
+            ! RI functions instead of threading every per-function product (a scheduling heuristic).
+            ! It is intended for BLAS calls that run serially inside the active parallel region;
+            ! nested BLAS threading can oversubscribe the allocation.
             !$OMP PARALLEL DO DEFAULT(NONE) &
-            !$OMP SHARED(n_grid, coefficient_work, ip, v, products, icache) &
-            !$OMP PRIVATE(i) SCHEDULE(STATIC)
-            DO i = 1, n_grid
-               coefficient_work(i, ip) = DOT_PRODUCT(v(i, :), products(i, :, icache))
+            !$OMP SHARED(panel_first, panel_last, n_grid, n_ao, int_3c, v, products, coefficient_work) &
+            !$OMP PRIVATE(ip, icache, imu) SCHEDULE(STATIC)
+            DO ip = panel_first, panel_last
+               icache = ip - panel_first + 1
+               CALL dsymm('R', 'U', n_grid, n_ao, 1.0_dp, int_3c(:, :, ip), n_ao, v, n_grid, &
+                          0.0_dp, products(:, :, icache), n_grid)
+               coefficient_work(:, ip) = 0.0_dp
+               DO imu = 1, n_ao
+                  coefficient_work(:, ip) = coefficient_work(:, ip) + v(:, imu)*products(:, imu, icache)
+               END DO
             END DO
             !$OMP END PARALLEL DO
-         END DO
+         ELSE
+            DO ip = panel_first, panel_last
+               icache = 1
+               IF (PRESENT(ao_gradient)) icache = ip - panel_first + 1
+               CALL dsymm('R', 'U', n_grid, n_ao, 1.0_dp, int_3c(:, :, ip), n_ao, v, n_grid, &
+                          0.0_dp, products(:, :, icache), n_grid)
+               !$OMP PARALLEL DO DEFAULT(NONE) &
+               !$OMP SHARED(n_grid, coefficient_work, ip, v, products, icache) &
+               !$OMP PRIVATE(i) SCHEDULE(STATIC)
+               DO i = 1, n_grid
+                  coefficient_work(i, ip) = DOT_PRODUCT(v(i, :), products(i, :, icache))
+               END DO
+               !$OMP END PARALLEL DO
+            END DO
+         END IF
          z_prime(:, panel_first:panel_last) = coefficient_work(:, panel_first:panel_last)
          CALL dpotrs('L', n_grid, panel_last - panel_first + 1, factor, n_grid, &
                      z_prime(:, panel_first:panel_last), n_grid, info)
@@ -372,7 +402,7 @@ CONTAINS
       IF (PRESENT(max_abs_error) .OR. &
           residual_norm2 <= MAX(SQRT(EPSILON(1.0_dp))*error_scale, roundoff_estimate)) THEN
          CALL timeset(routineN//'_residual', handle2)
-         ALLOCATE (residual(n_ao, MIN(residual_block_size, n_ao)))
+         ALLOCATE (residual(n_ao, MIN(residual_block_size, n_ao)), partial_norm2(MIN(residual_block_size, n_ao)))
          residual_norm2 = 0.0_dp
          residual_max = 0.0_dp
          DO ip = 1, n_ri
@@ -390,17 +420,21 @@ CONTAINS
                CALL dgemm('T', 'N', n_ao, last - first + 1, n_grid, -1.0_dp, v, n_grid, products(:, :, 1), n_grid, &
                           0.0_dp, residual, n_ao)
                !$OMP PARALLEL DO DEFAULT(NONE) &
-               !$OMP SHARED(first, last, int_3c, ip, residual) PRIVATE(inu, imu, value, weight) &
-               !$OMP REDUCTION(+:residual_norm2) REDUCTION(MAX:residual_max) SCHEDULE(STATIC)
+               !$OMP SHARED(first, last, int_3c, ip, residual, partial_norm2) PRIVATE(inu, imu, value, weight) &
+               !$OMP REDUCTION(MAX:residual_max) SCHEDULE(STATIC)
                DO inu = first, last
+                  partial_norm2(inu - first + 1) = 0.0_dp
                   DO imu = 1, inu
                      value = int_3c(imu, inu, ip) + residual(imu, inu - first + 1)
                      weight = REAL(2 - MERGE(1, 0, imu == inu), dp)
-                     residual_norm2 = residual_norm2 + weight*value**2
+                     partial_norm2(inu - first + 1) = partial_norm2(inu - first + 1) + weight*value**2
                      residual_max = MAX(residual_max, ABS(value))
                   END DO
                END DO
                !$OMP END PARALLEL DO
+               DO inu = first, last
+                  residual_norm2 = residual_norm2 + partial_norm2(inu - first + 1)
+               END DO
             END DO
          END DO
          IF (PRESENT(max_abs_error)) max_abs_error = residual_max
