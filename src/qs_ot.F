@@ -16,9 +16,10 @@ MODULE qs_ot
    USE arnoldi_api,                     ONLY: arnoldi_extremal
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_filter, &
-        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_release, dbcsr_release_p, &
+        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_matrix_type, &
+        dbcsr_get_occupation, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_readonly_start, dbcsr_iterator_start, dbcsr_iterator_stop, &
+        dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_release_p, &
         dbcsr_reserve_blocks, dbcsr_scale, dbcsr_set, dbcsr_transposed, dbcsr_type, &
         dbcsr_type_no_symmetry
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
@@ -28,10 +29,13 @@ MODULE qs_ot
                                               dbcsr_frobenius_norm,&
                                               dbcsr_gershgorin_norm,&
                                               dbcsr_hadamard_product,&
+                                              dbcsr_reserve_all_blocks,&
                                               dbcsr_scale_by_vector
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_heevd,&
                                               cp_dbcsr_syevd
    USE kinds,                           ONLY: dp
+   USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
+                                              local_gemm_ctxt_type
    USE mathlib,                         ONLY: diag_complex,&
                                               diamat_all,&
                                               gemm_square
@@ -39,6 +43,8 @@ MODULE qs_ot
    USE preconditioner,                  ONLY: apply_preconditioner
    USE preconditioner_types,            ONLY: preconditioner_type
    USE qs_ot_types,                     ONLY: qs_ot_type
+
+!$ USE OMP_LIB, ONLY: omp_get_max_threads
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -50,6 +56,7 @@ MODULE qs_ot
    PUBLIC  :: qs_ot_get_orbitals_complex
    PUBLIC  :: qs_ot_get_derivative
    PUBLIC  :: qs_ot_get_derivative_complex
+   PUBLIC  :: qs_ot_get_derivative_local_batch
    PUBLIC  :: qs_ot_prepare_complex_tangent_metric
    PUBLIC  :: qs_ot_project_gradient
    PUBLIC  :: qs_ot_get_orbitals_ref
@@ -86,6 +93,16 @@ MODULE qs_ot
    PRIVATE :: qs_ot_on_the_fly_localize
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot'
+
+   ! Transient per-worker storage. The last index is 1 for real and 2 for imaginary.
+   TYPE qs_ot_local_work_type
+      INTEGER                                            :: n = 0, k = 0, o = 0
+      TYPE(local_gemm_ctxt_type)                         :: gemm_ctx
+      REAL(dp), ALLOCATABLE :: hc(:, :, :), x(:, :, :), sx(:, :, :), c0(:, :, :), gx(:, :, :), &
+                               r(:, :, :), sinp(:, :, :), sc0(:, :, :), TARGET(:, :, :), os(:, :, :), &
+                               buf1(:, :, :), buf2(:, :, :), buf3(:, :, :), buf4(:, :, :), buf_nk(:, :, :), &
+                               buf1_ortho(:, :, :), buf2_ortho(:, :, :), sinp_b(:, :), cosp_b(:, :), tmp(:, :), tmp_ortho(:, :)
+   END TYPE qs_ot_local_work_type
 
 CONTAINS
 
@@ -3331,41 +3348,10 @@ CONTAINS
                                   qs_ot_env%matrix_gx, qs_ot_env%matrix_gx_im, &
                                   qs_ot_env%matrix_tmp_nk)
 
-      ! Frechet contribution from X sinc(sqrt(P)).
-      CALL qs_ot_complex_multiply('C', 'N', hc_work_re, hc_work_im, &
-                                  qs_ot_env%matrix_x, qs_ot_env%matrix_x_im, &
-                                  qs_ot_env%matrix_buf2, qs_ot_env%matrix_buf2_im, &
-                                  qs_ot_env%matrix_buf1)
-      CALL qs_ot_complex_multiply('N', 'N', qs_ot_env%matrix_buf2, qs_ot_env%matrix_buf2_im, &
-                                  qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, &
-                                  qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf1_im, &
-                                  qs_ot_env%matrix_buf4)
-      CALL qs_ot_complex_multiply('C', 'N', qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, &
-                                  qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf1_im, &
-                                  qs_ot_env%matrix_buf2, qs_ot_env%matrix_buf2_im, &
-                                  qs_ot_env%matrix_buf4)
-      CALL dbcsr_hadamard_product(qs_ot_env%matrix_buf2, qs_ot_env%matrix_sinp_b, &
-                                  qs_ot_env%matrix_buf3)
-      CALL dbcsr_hadamard_product(qs_ot_env%matrix_buf2_im, qs_ot_env%matrix_sinp_b, &
-                                  qs_ot_env%matrix_buf3_im)
-
-      ! Frechet contribution from C0 cos(sqrt(P)).
-      CALL qs_ot_complex_multiply('C', 'N', hc_work_re, hc_work_im, &
-                                  qs_ot_env%matrix_c0, qs_ot_env%matrix_c0_im, &
-                                  qs_ot_env%matrix_buf2, qs_ot_env%matrix_buf2_im, &
-                                  qs_ot_env%matrix_buf1)
-      CALL qs_ot_complex_multiply('N', 'N', qs_ot_env%matrix_buf2, qs_ot_env%matrix_buf2_im, &
-                                  qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, &
-                                  qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf1_im, &
-                                  qs_ot_env%matrix_buf4)
-      CALL qs_ot_complex_multiply('C', 'N', qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, &
-                                  qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf1_im, &
-                                  qs_ot_env%matrix_buf2, qs_ot_env%matrix_buf2_im, &
-                                  qs_ot_env%matrix_buf4)
-      CALL dbcsr_hadamard_product(qs_ot_env%matrix_buf2, qs_ot_env%matrix_cosp_b, &
-                                  qs_ot_env%matrix_buf4)
-      CALL dbcsr_hadamard_product(qs_ot_env%matrix_buf2_im, qs_ot_env%matrix_cosp_b, &
-                                  qs_ot_env%matrix_buf4_im)
+      CALL qs_ot_strict_frechet(hc_work_re, hc_work_im, qs_ot_env%matrix_x, qs_ot_env%matrix_x_im, &
+                                qs_ot_env%matrix_sinp_b, qs_ot_env%matrix_buf3, qs_ot_env%matrix_buf3_im, qs_ot_env)
+      CALL qs_ot_strict_frechet(hc_work_re, hc_work_im, qs_ot_env%matrix_c0, qs_ot_env%matrix_c0_im, &
+                                qs_ot_env%matrix_cosp_b, qs_ot_env%matrix_buf4, qs_ot_env%matrix_buf4_im, qs_ot_env)
       CALL dbcsr_add(qs_ot_env%matrix_buf3, qs_ot_env%matrix_buf4, &
                      alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
       CALL dbcsr_add(qs_ot_env%matrix_buf3_im, qs_ot_env%matrix_buf4_im, &
@@ -3412,6 +3398,317 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_ot_get_derivative_complex
+
+! **************************************************************************************************
+!> \brief Evaluate independent, single-rank STRICT gradients in bounded OpenMP batches.
+!>        Matrix lifetimes and metric preparation stay outside the worker region.
+!> \param qs_ot_env local OT channels
+!> \param matrix_hc real orbital gradients
+!> \param matrix_hc_im imaginary orbital gradients
+!> \param handled false when the original distributed/rotation path is required
+! **************************************************************************************************
+   SUBROUTINE qs_ot_get_derivative_local_batch(qs_ot_env, matrix_hc, matrix_hc_im, handled)
+      TYPE(qs_ot_type), INTENT(INOUT)                    :: qs_ot_env(:)
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: matrix_hc(:), matrix_hc_im(:)
+      LOGICAL, INTENT(OUT)                               :: handled
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ot_get_derivative_local_batch'
+
+      INTEGER                                            :: first, handle, i, j, nbatch, nchannels, &
+                                                            nworkers
+      TYPE(qs_ot_local_work_type), ALLOCATABLE           :: work(:)
+
+      handled = .FALSE.
+      nchannels = SIZE(qs_ot_env)
+      IF (nchannels == 0) RETURN
+      DO i = 1, nchannels
+         IF (.NOT. qs_ot_env(i)%has_complex_kpoint_state) RETURN
+         IF (qs_ot_env(i)%settings%ot_algorithm /= 'TOD') RETURN
+         IF (qs_ot_env(i)%settings%do_ener .OR. qs_ot_env(i)%settings%do_rotation) RETURN
+         IF (qs_ot_env(i)%para_env%num_pe /= 1) RETURN
+      END DO
+
+      CALL timeset(routineN, handle)
+      nworkers = 1
+!$    nworkers = MIN(nchannels, omp_get_max_threads())
+      ALLOCATE (work(nworkers))
+      DO j = 1, nworkers
+         CALL work(j)%gemm_ctx%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
+      END DO
+      DO first = 1, nchannels, nworkers
+         nbatch = MIN(nworkers, nchannels - first + 1)
+         DO j = 1, nbatch
+            i = first + j - 1
+            CALL qs_ot_prepare_complex_tangent_metric(qs_ot_env(i))
+            CALL qs_ot_load_local_work(work(j), qs_ot_env(i), matrix_hc(i)%matrix, matrix_hc_im(i)%matrix)
+         END DO
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nbatch) IF(nbatch > 1) SHARED(work,nbatch)
+         DO j = 1, nbatch
+            CALL qs_ot_strict_gradient_local(work(j))
+         END DO
+!$OMP END PARALLEL DO
+         DO j = 1, nbatch
+            i = first + j - 1
+            CALL qs_ot_store_local_matrix(qs_ot_env(i)%matrix_gx, work(j)%gx(:, :, 1))
+            CALL qs_ot_store_local_matrix(qs_ot_env(i)%matrix_gx_im, work(j)%gx(:, :, 2))
+         END DO
+      END DO
+      DO j = 1, nworkers
+         CALL work(j)%gemm_ctx%destroy()
+      END DO
+      handled = .TRUE.
+      CALL timestop(handle)
+   END SUBROUTINE qs_ot_get_derivative_local_batch
+
+! **************************************************************************************************
+!> \brief Contract one STRICT term with its Frechet kernel in the eigenvector basis.
+!> \param matrix_hc real orbital gradient
+!> \param matrix_hc_im imaginary orbital gradient
+!> \param orbital real X or C0
+!> \param orbital_im imaginary X or C0
+!> \param kernel real sinc or cos divided differences
+!> \param result real contraction
+!> \param result_im imaginary contraction
+!> \param qs_ot_env channel eigenvectors and scratch
+! **************************************************************************************************
+   SUBROUTINE qs_ot_strict_frechet(matrix_hc, matrix_hc_im, orbital, orbital_im, kernel, &
+                                   RESULT, result_im, qs_ot_env)
+      TYPE(dbcsr_type)                                   :: matrix_hc, matrix_hc_im, orbital, &
+                                                            orbital_im, kernel, RESULT, result_im
+      TYPE(qs_ot_type)                                   :: qs_ot_env
+
+      CALL qs_ot_complex_multiply('C', 'N', matrix_hc, matrix_hc_im, orbital, orbital_im, &
+                                  qs_ot_env%matrix_buf2, qs_ot_env%matrix_buf2_im, qs_ot_env%matrix_buf1)
+      CALL qs_ot_complex_multiply('N', 'N', qs_ot_env%matrix_buf2, qs_ot_env%matrix_buf2_im, &
+                                  qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, &
+                                  qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf1_im, qs_ot_env%matrix_buf4)
+      CALL qs_ot_complex_multiply('C', 'N', qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, &
+                                  qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf1_im, &
+                                  qs_ot_env%matrix_buf2, qs_ot_env%matrix_buf2_im, qs_ot_env%matrix_buf4)
+      CALL dbcsr_hadamard_product(qs_ot_env%matrix_buf2, kernel, RESULT)
+      CALL dbcsr_hadamard_product(qs_ot_env%matrix_buf2_im, kernel, result_im)
+   END SUBROUTINE qs_ot_strict_frechet
+
+! **************************************************************************************************
+!> \brief Reuse one worker's scratch and pack the local kernel inputs.
+!> \param w worker storage
+!> \param qs_ot_env channel with an already prepared tangent metric
+!> \param matrix_hc real orbital gradient
+!> \param matrix_hc_im imaginary orbital gradient
+! **************************************************************************************************
+   SUBROUTINE qs_ot_load_local_work(w, qs_ot_env, matrix_hc, matrix_hc_im)
+      TYPE(qs_ot_local_work_type), INTENT(INOUT)         :: w
+      TYPE(qs_ot_type), INTENT(IN)                       :: qs_ot_env
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_hc, matrix_hc_im
+
+      INTEGER                                            :: k, n, o
+
+      CALL dbcsr_get_info(qs_ot_env%matrix_x, nfullrows_total=n, nfullcols_total=k)
+      CALL dbcsr_get_info(qs_ot_env%matrix_sc0, nfullcols_total=o)
+      IF (.NOT. ALLOCATED(w%hc) .OR. n /= w%n .OR. k /= w%k .OR. o /= w%o) THEN
+         IF (ALLOCATED(w%hc)) THEN
+            DEALLOCATE (w%hc, w%x, w%sx, w%c0, w%gx, w%r, w%sinp, w%sc0, w%target, w%os, &
+                        w%buf1, w%buf2, w%buf3, w%buf4, w%buf_nk, w%buf1_ortho, w%buf2_ortho, &
+                        w%sinp_b, w%cosp_b, w%tmp, w%tmp_ortho)
+         END IF
+         ALLOCATE (w%hc(n, k, 2), w%x(n, k, 2), w%sx(n, k, 2), w%c0(n, k, 2), w%gx(n, k, 2), &
+                   w%r(k, k, 2), w%sinp(k, k, 2), w%sc0(n, o, 2), w%target(n, o, 2), w%os(o, o, 2), &
+                   w%buf1(k, k, 2), w%buf2(k, k, 2), w%buf3(k, k, 2), w%buf4(k, k, 2), &
+                   w%buf_nk(n, k, 2), w%buf1_ortho(o, k, 2), w%buf2_ortho(o, k, 2), &
+                   w%sinp_b(k, k), w%cosp_b(k, k), w%tmp(n, k), w%tmp_ortho(o, k))
+         w%n = n
+         w%k = k
+         w%o = o
+      END IF
+      CALL qs_ot_load_local_pair(matrix_hc, matrix_hc_im, w%hc)
+      CALL qs_ot_load_local_pair(qs_ot_env%matrix_x, qs_ot_env%matrix_x_im, w%x)
+      CALL qs_ot_load_local_pair(qs_ot_env%matrix_sx, qs_ot_env%matrix_sx_im, w%sx)
+      CALL qs_ot_load_local_pair(qs_ot_env%matrix_c0, qs_ot_env%matrix_c0_im, w%c0)
+      CALL qs_ot_load_local_pair(qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, w%r)
+      CALL qs_ot_load_local_pair(qs_ot_env%matrix_sinp, qs_ot_env%matrix_sinp_im, w%sinp)
+      CALL qs_ot_load_local_pair(qs_ot_env%matrix_sc0, qs_ot_env%matrix_sc0_im, w%sc0)
+      CALL qs_ot_load_local_pair(qs_ot_env%matrix_os, qs_ot_env%matrix_os_im, w%os)
+      CALL qs_ot_load_local_matrix(qs_ot_env%matrix_sinp_b, w%sinp_b)
+      CALL qs_ot_load_local_matrix(qs_ot_env%matrix_cosp_b, w%cosp_b)
+      IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
+         CALL qs_ot_load_local_pair(qs_ot_env%matrix_psc0, qs_ot_env%matrix_psc0_im, w%target)
+      ELSE
+         w%target(:, :, :) = w%sc0(:, :, :)
+      END IF
+   END SUBROUTINE qs_ot_load_local_work
+
+! **************************************************************************************************
+!> \brief Pack a complex pair, allowing different sparse patterns in its two components.
+!> \param matrix_re real DBCSR matrix
+!> \param matrix_im imaginary DBCSR matrix
+!> \param dense dense real/imaginary pair
+! **************************************************************************************************
+   SUBROUTINE qs_ot_load_local_pair(matrix_re, matrix_im, dense)
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_re, matrix_im
+      REAL(dp), INTENT(OUT)                              :: dense(:, :, :)
+
+      CALL qs_ot_load_local_matrix(matrix_re, dense(:, :, 1))
+      CALL qs_ot_load_local_matrix(matrix_im, dense(:, :, 2))
+   END SUBROUTINE qs_ot_load_local_pair
+
+! **************************************************************************************************
+!> \brief Load a single-rank, nonsymmetric matrix without redistribution.
+!> \param matrix DBCSR matrix
+!> \param dense full local matrix
+! **************************************************************************************************
+   SUBROUTINE qs_ot_load_local_matrix(matrix, dense)
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
+      REAL(dp), INTENT(OUT)                              :: dense(:, :)
+
+      INTEGER                                            :: col, nc, nr, row
+      LOGICAL                                            :: transposed
+      REAL(dp), POINTER                                  :: block(:, :)
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CPASSERT(dbcsr_get_matrix_type(matrix) == dbcsr_type_no_symmetry)
+      dense(:, :) = 0.0_dp
+      CALL dbcsr_iterator_readonly_start(iter, matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, block=block, transposed=transposed, &
+                                        row_size=nr, col_size=nc, row_offset=row, col_offset=col)
+         IF (transposed) THEN
+            dense(row:row + nr - 1, col:col + nc - 1) = TRANSPOSE(block)
+         ELSE
+            dense(row:row + nr - 1, col:col + nc - 1) = block
+         END IF
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+   END SUBROUTINE qs_ot_load_local_matrix
+
+! **************************************************************************************************
+!> \brief Store a single-rank, nonsymmetric matrix without redistribution.
+!> \param matrix DBCSR matrix
+!> \param dense full local matrix
+! **************************************************************************************************
+   SUBROUTINE qs_ot_store_local_matrix(matrix, dense)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      REAL(dp), INTENT(IN)                               :: dense(:, :)
+
+      INTEGER                                            :: col, nc, nr, row
+      LOGICAL                                            :: transposed
+      REAL(dp), POINTER                                  :: block(:, :)
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CPASSERT(dbcsr_get_matrix_type(matrix) == dbcsr_type_no_symmetry)
+      CALL dbcsr_reserve_all_blocks(matrix)
+      CALL dbcsr_iterator_start(iter, matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, block=block, transposed=transposed, &
+                                        row_size=nr, col_size=nc, row_offset=row, col_offset=col)
+         IF (transposed) THEN
+            block(:, :) = TRANSPOSE(dense(row:row + nr - 1, col:col + nc - 1))
+         ELSE
+            block(:, :) = dense(row:row + nr - 1, col:col + nc - 1)
+         END IF
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+   END SUBROUTINE qs_ot_store_local_matrix
+
+! **************************************************************************************************
+!> \brief Multiply dense real/imaginary pairs in the same four-product order as DBCSR.
+!> \param op_a N or C
+!> \param op_b N or C
+!> \param a left operand
+!> \param b right operand
+!> \param c result
+!> \param tmp real workspace, at least as large as one component of C
+!> \param gemm_ctx caller-owned GEMM context
+! **************************************************************************************************
+   SUBROUTINE qs_ot_complex_multiply_local(op_a, op_b, a, b, c, tmp, gemm_ctx)
+      CHARACTER(LEN=1), INTENT(IN)                       :: op_a, op_b
+      REAL(dp), CONTIGUOUS, INTENT(IN)                   :: a(:, :, :), b(:, :, :)
+      REAL(dp), CONTIGUOUS, INTENT(INOUT)                :: c(:, :, :), tmp(:, :)
+      TYPE(local_gemm_ctxt_type)                         :: gemm_ctx
+
+      CHARACTER(LEN=1)                                   :: trans_a, trans_b
+      INTEGER                                            :: k, m, n
+      REAL(dp)                                           :: sign_a, sign_b
+
+      CPASSERT(op_a == 'N' .OR. op_a == 'C')
+      CPASSERT(op_b == 'N' .OR. op_b == 'C')
+      trans_a = MERGE('N', 'T', op_a == 'N')
+      trans_b = MERGE('N', 'T', op_b == 'N')
+      sign_a = MERGE(1.0_dp, -1.0_dp, op_a == 'N')
+      sign_b = MERGE(1.0_dp, -1.0_dp, op_b == 'N')
+      m = SIZE(c, 1)
+      n = SIZE(c, 2)
+      k = MERGE(SIZE(a, 2), SIZE(a, 1), op_a == 'N')
+      CALL gemm_ctx%gemm(trans_a, trans_b, m, n, k, 1.0_dp, a(:, :, 1), SIZE(a, 1), &
+                         b(:, :, 1), SIZE(b, 1), 0.0_dp, c(:, :, 1), SIZE(c, 1))
+      CALL gemm_ctx%gemm(trans_a, trans_b, m, n, k, 1.0_dp, a(:, :, 2), SIZE(a, 1), &
+                         b(:, :, 2), SIZE(b, 1), 0.0_dp, tmp, SIZE(tmp, 1))
+      c(:, :, 1) = c(:, :, 1) - sign_a*sign_b*tmp(1:m, 1:n)
+      CALL gemm_ctx%gemm(trans_a, trans_b, m, n, k, sign_b, a(:, :, 1), SIZE(a, 1), &
+                         b(:, :, 2), SIZE(b, 1), 0.0_dp, c(:, :, 2), SIZE(c, 1))
+      CALL gemm_ctx%gemm(trans_a, trans_b, m, n, k, sign_a, a(:, :, 2), SIZE(a, 1), &
+                         b(:, :, 1), SIZE(b, 1), 0.0_dp, tmp, SIZE(tmp, 1))
+      c(:, :, 2) = c(:, :, 2) + tmp(1:m, 1:n)
+   END SUBROUTINE qs_ot_complex_multiply_local
+
+! **************************************************************************************************
+!> \brief Contract one STRICT term in the local eigenvector basis.
+!> \param w channel matrices and scratch
+!> \param orbital dense X or C0 pair
+!> \param kernel real sinc or cos divided differences
+!> \param result contraction in the eigenvector basis
+! **************************************************************************************************
+   SUBROUTINE qs_ot_strict_frechet_local(w, orbital, kernel, RESULT)
+      TYPE(qs_ot_local_work_type)                        :: w
+      REAL(dp), CONTIGUOUS, INTENT(IN)                   :: orbital(:, :, :), kernel(:, :)
+      REAL(dp), CONTIGUOUS, INTENT(INOUT)                :: result(:, :, :)
+
+      CALL qs_ot_complex_multiply_local('C', 'N', w%hc, orbital, w%buf2, w%buf1(:, :, 1), w%gemm_ctx)
+      CALL qs_ot_complex_multiply_local('N', 'N', w%buf2, w%r, w%buf1, w%buf4(:, :, 1), w%gemm_ctx)
+      CALL qs_ot_complex_multiply_local('C', 'N', w%r, w%buf1, w%buf2, w%buf4(:, :, 1), w%gemm_ctx)
+      RESULT(:, :, 1) = w%buf2(:, :, 1)*kernel(:, :)
+      RESULT(:, :, 2) = w%buf2(:, :, 2)*kernel(:, :)
+   END SUBROUTINE qs_ot_strict_frechet_local
+
+! **************************************************************************************************
+!> \brief Evaluate and project one local STRICT gradient without allocating or calling DBCSR.
+!> \param w channel matrices and scratch, with a prepared inverse tangent metric
+! **************************************************************************************************
+   SUBROUTINE qs_ot_strict_gradient_local(w)
+      TYPE(qs_ot_local_work_type)                        :: w
+
+      INTEGER                                            :: i, j
+      REAL(dp)                                           :: im, re
+
+      ! Direct term, followed by the X*sinc and C0*cos Frechet contributions.
+      CALL qs_ot_complex_multiply_local('N', 'N', w%hc, w%sinp, w%gx, w%tmp, w%gemm_ctx)
+      CALL qs_ot_strict_frechet_local(w, w%x, w%sinp_b, w%buf3)
+      CALL qs_ot_strict_frechet_local(w, w%c0, w%cosp_b, w%buf4)
+      w%buf3(:, :, :) = w%buf3(:, :, :) + w%buf4(:, :, :)
+      CALL qs_ot_complex_multiply_local('N', 'N', w%r, w%buf3, w%buf1, w%buf2(:, :, 1), w%gemm_ctx)
+      CALL qs_ot_complex_multiply_local('N', 'C', w%buf1, w%r, w%buf3, w%buf2(:, :, 1), w%gemm_ctx)
+
+      ! Merge each conjugate pair in place, without a transpose temporary.
+      DO j = 1, w%k
+         w%buf3(j, j, 1) = w%buf3(j, j, 1) + w%buf3(j, j, 1)
+         w%buf3(j, j, 2) = 0.0_dp
+         DO i = j + 1, w%k
+            re = w%buf3(i, j, 1) + w%buf3(j, i, 1)
+            im = w%buf3(i, j, 2) - w%buf3(j, i, 2)
+            w%buf3(i, j, 1) = re
+            w%buf3(j, i, 1) = re
+            w%buf3(i, j, 2) = im
+            w%buf3(j, i, 2) = -im
+         END DO
+      END DO
+      CALL qs_ot_complex_multiply_local('N', 'N', w%sx, w%buf3, w%buf_nk, w%tmp, w%gemm_ctx)
+      w%gx(:, :, :) = w%gx(:, :, :) + w%buf_nk(:, :, :)
+
+      ! Tangent projection with the same preconditioned reference and inverse metric.
+      CALL qs_ot_complex_multiply_local('C', 'N', w%target, w%gx, w%buf1_ortho, w%tmp_ortho, w%gemm_ctx)
+      CALL qs_ot_complex_multiply_local('N', 'N', w%os, w%buf1_ortho, w%buf2_ortho, w%tmp_ortho, w%gemm_ctx)
+      CALL qs_ot_complex_multiply_local('N', 'N', w%sc0, w%buf2_ortho, w%buf_nk, w%tmp, w%gemm_ctx)
+      w%gx(:, :, :) = w%gx(:, :, :) - w%buf_nk(:, :, :)
+   END SUBROUTINE qs_ot_strict_gradient_local
 
 ! **************************************************************************************************
 !> \brief ...

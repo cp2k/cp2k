@@ -35,6 +35,7 @@ MODULE qs_ot_minimizer
    USE preconditioner,                  ONLY: apply_preconditioner
    USE qs_ot,                           ONLY: qs_ot_get_derivative,&
                                               qs_ot_get_derivative_complex,&
+                                              qs_ot_get_derivative_local_batch,&
                                               qs_ot_get_derivative_ref,&
                                               qs_ot_get_derivative_ref_complex,&
                                               qs_ot_prepare_complex_tangent_metric,&
@@ -148,9 +149,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_mini'
 
       INTEGER                                            :: handle, ispin, nspin
-      LOGICAL                                            :: do_ener, do_ks, evaluate_gradient_only, &
-                                                            restart, reuse_gradient, &
-                                                            separate_occupation_gradient
+      LOGICAL :: do_ener, do_ks, evaluate_gradient_only, local_gradient, restart, reuse_gradient, &
+         separate_occupation_gradient
       REAL(KIND=dp)                                      :: tmp
 
       CALL timeset(routineN, handle)
@@ -189,8 +189,12 @@ CONTAINS
       ! compute the gradient for the variables x
       IF (.NOT. reuse_gradient .AND. .NOT. qs_ot_env(1)%energy_only) THEN
          qs_ot_env(1)%gradient = 0.0_dp
+         local_gradient = .FALSE.
+         IF (do_ks .AND. PRESENT(matrix_hc_im) .AND. .NOT. separate_occupation_gradient) THEN
+            CALL qs_ot_get_derivative_local_batch(qs_ot_env, matrix_hc, matrix_hc_im, local_gradient)
+         END IF
          DO ispin = 1, nspin
-            IF (do_ks) THEN
+            IF (do_ks .AND. .NOT. local_gradient) THEN
                IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
                   IF (.NOT. PRESENT(matrix_hc_im)) THEN
                      CPABORT("Complex k-point OT derivative requires imaginary H(k)*C(k).")
