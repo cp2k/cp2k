@@ -17,6 +17,7 @@ MODULE gw_tensor_small_cell_full_kp
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
+                                              cp_cfm_set_all,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_type
    USE cp_fm_redistribution,            ONLY: cp_fm_to_replicated_array
@@ -394,9 +395,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'G_occ_vir'
 
-      INTEGER                                            :: handle, homo, i_cell_S, ikp, j, &
-                                                            j_col_local, n_mo, ncol_local, &
-                                                            nimages, nkp
+      INTEGER                                            :: first_mo, handle, homo, i_cell_S, ikp, &
+                                                            j, j_col_local, n_active, n_mo, &
+                                                            ncol_local, nimages, nkp
       INTEGER, DIMENSION(:), POINTER                     :: col_indices
       REAL(KIND=dp)                                      :: tau_E
 
@@ -412,6 +413,12 @@ CONTAINS
       nimages = bs_env%nimages_scf_desymm
       n_mo = bs_env%n_ao
       homo = bs_env%n_occ(ispin)
+      first_mo = 1
+      n_active = homo
+      IF (vir) THEN
+         first_mo = homo + 1
+         n_active = n_mo - homo
+      END IF
 
       DO i_cell_S = 1, bs_env%nimages_scf_desymm
          CALL cp_fm_set_all(bs_env%fm_G_S(i_cell_S), 0.0_dp)
@@ -443,9 +450,14 @@ CONTAINS
 
          END DO
 
-         CALL parallel_gemm(transa="N", transb="C", m=n_mo, n=n_mo, k=n_mo, alpha=z_one, &
-                            matrix_a=bs_env%cfm_work_mo, matrix_b=bs_env%cfm_work_mo, &
-                            beta=z_zero, matrix_c=bs_env%cfm_work_mo_2)
+         IF (n_active > 0) THEN
+            CALL parallel_gemm(transa="N", transb="C", m=n_mo, n=n_mo, k=n_active, alpha=z_one, &
+                               matrix_a=bs_env%cfm_work_mo, matrix_b=bs_env%cfm_work_mo, &
+                               beta=z_zero, matrix_c=bs_env%cfm_work_mo_2, &
+                               a_first_col=first_mo, b_first_col=first_mo)
+         ELSE
+            CALL cp_cfm_set_all(bs_env%cfm_work_mo_2, z_zero)
+         END IF
 
          ! trafo k-point k -> cell S:  G^occ/vir_µλ(i|τ|,k) -> G^occ/vir,S_µλ(i|τ|)
          CALL fm_add_kp_to_all_rs(bs_env%cfm_work_mo_2, bs_env%fm_G_S, &

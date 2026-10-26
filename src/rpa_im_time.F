@@ -829,12 +829,20 @@ CONTAINS
 
       CALL para_env%sync()
 
-      CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, k=nmo, alpha=1.0_dp, &
-                         matrix_a=fm_mo_coeff_occ_scaled, matrix_b=fm_mo_coeff_occ_scaled, beta=0.0_dp, &
-                         matrix_c=fm_scaled_dm_occ_tau)
-      CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, k=nmo, alpha=1.0_dp, &
-                         matrix_a=fm_mo_coeff_virt_scaled, matrix_b=fm_mo_coeff_virt_scaled, beta=0.0_dp, &
-                         matrix_c=fm_scaled_dm_virt_tau)
+      IF (homo > 0) THEN
+         CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, k=homo, alpha=1.0_dp, &
+                            matrix_a=fm_mo_coeff_occ_scaled, matrix_b=fm_mo_coeff_occ_scaled, beta=0.0_dp, &
+                            matrix_c=fm_scaled_dm_occ_tau)
+      ELSE
+         CALL cp_fm_set_all(fm_scaled_dm_occ_tau, 0.0_dp)
+      END IF
+      IF (nmo > homo) THEN
+         CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, k=nmo - homo, alpha=1.0_dp, &
+                            matrix_a=fm_mo_coeff_virt_scaled, matrix_b=fm_mo_coeff_virt_scaled, beta=0.0_dp, &
+                            matrix_c=fm_scaled_dm_virt_tau, a_first_col=homo + 1, b_first_col=homo + 1)
+      ELSE
+         CALL cp_fm_set_all(fm_scaled_dm_virt_tau, 0.0_dp)
+      END IF
 
       CALL dbcsr_set(mat_occ, 0.0_dp)
       CALL copy_fm_to_dbcsr(fm_scaled_dm_occ_tau, mat_occ, keep_sparsity=.FALSE.)

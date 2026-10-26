@@ -3624,9 +3624,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'G_occ_vir'
 
-      INTEGER                                            :: handle, homo, i_row_local, j_col, &
-                                                            j_col_local, n_mo, ncol_local, &
-                                                            nrow_local
+      INTEGER                                            :: first_mo, handle, homo, i_row_local, &
+                                                            j_col, j_col_local, last_mo, n_active, &
+                                                            n_mo, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices
       REAL(KIND=dp)                                      :: tau_E
 
@@ -3641,6 +3641,14 @@ CONTAINS
 
       n_mo = bs_env%n_ao
       homo = bs_env%n_occ(ispin)
+      first_mo = 1
+      last_mo = MIN(n_mo, bs_env%n_mo_retained)
+      IF (occ) THEN
+         last_mo = MIN(last_mo, homo)
+      ELSE
+         first_mo = homo + 1
+      END IF
+      n_active = MAX(0, last_mo - first_mo + 1)
 
       CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(ispin), bs_env%fm_work_mo(1))
 
@@ -3668,9 +3676,14 @@ CONTAINS
          END DO
       END DO
 
-      CALL parallel_gemm(transa="N", transb="T", m=n_mo, n=n_mo, k=n_mo, alpha=1.0_dp, &
-                         matrix_a=bs_env%fm_work_mo(1), matrix_b=bs_env%fm_work_mo(1), &
-                         beta=0.0_dp, matrix_c=fm_G_Gamma)
+      IF (n_active > 0) THEN
+         CALL parallel_gemm(transa="N", transb="T", m=n_mo, n=n_mo, k=n_active, alpha=1.0_dp, &
+                            matrix_a=bs_env%fm_work_mo(1), matrix_b=bs_env%fm_work_mo(1), &
+                            beta=0.0_dp, matrix_c=fm_G_Gamma, &
+                            a_first_col=first_mo, b_first_col=first_mo)
+      ELSE
+         CALL cp_fm_set_all(fm_G_Gamma, 0.0_dp)
+      END IF
 
       CALL timestop(handle)
 
