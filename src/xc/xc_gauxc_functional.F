@@ -56,6 +56,7 @@ MODULE xc_gauxc_functional
    USE string_utilities,                ONLY: uppercase
    USE xc_gauxc_cache,                  ONLY: cp_gauxc_cache_params,&
                                               cp_gauxc_cache_type,&
+                                              gauxc_cache_ensure_gradient,&
                                               gauxc_cache_init
    USE xc_gauxc_interface,              ONLY: &
         cp_gauxc_basisset_type, cp_gauxc_grid_type, cp_gauxc_integrator_type, &
@@ -1400,6 +1401,12 @@ CONTAINS
          particle_set, &
          qs_kind_set, &
          gauxc_status)
+
+      ! Built once on the first force/virial evaluation and kept in the cache;
+      ! toggling need_xc_gradient between SCF and force calls must not rebuild
+      ! the molecule/grid/energy integrator.
+      CALL gauxc_cache_ensure_gradient(cache, params, para_env, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
 
       hdf5_output = (TRIM(output_path) /= "")
       write_hdf5_output = hdf5_output .AND. para_env%mepos == 0 .AND. .NOT. external_density

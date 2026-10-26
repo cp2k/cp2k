@@ -64,10 +64,12 @@ MODULE xc_gauxc_cache
       TYPE(cp_gauxc_integrator_type)               :: gradient_integrator = cp_gauxc_integrator_type()
       INTEGER                                      :: mpi_comm = -1
       LOGICAL                                      :: is_init = .FALSE.
+      LOGICAL                                      :: gradient_is_init = .FALSE.
+      LOGICAL                                      :: gradient_notice_printed = .FALSE.
       REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: last_positions
    CONTAINS
 
-      PROCEDURE, PUBLIC                            :: needs_gradient_grid => gauxc_cache_type_needs_gradient_grid
+      PROCEDURE, PUBLIC                            :: has_gradient_grid => gauxc_cache_type_has_gradient_grid
       PROCEDURE, PUBLIC                            :: max_l => gauxc_cache_type_max_l
    END TYPE cp_gauxc_cache_type
 
@@ -75,6 +77,7 @@ MODULE xc_gauxc_cache
       cp_gauxc_cache_type, &
       gauxc_cache_init, &
       gauxc_cache_is_valid, &
+      gauxc_cache_ensure_gradient, &
       gauxc_cache_release, cp_gauxc_cache_params
 
 CONTAINS
@@ -84,12 +87,12 @@ CONTAINS
 !> \param this ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION gauxc_cache_type_needs_gradient_grid(this) RESULT(res)
+   FUNCTION gauxc_cache_type_has_gradient_grid(this) RESULT(res)
       class(cp_gauxc_cache_type) :: this
       LOGICAL :: res
 
-      res = this%use_gradient_self_runtime
-   END FUNCTION gauxc_cache_type_needs_gradient_grid
+      res = this%gradient_is_init
+   END FUNCTION gauxc_cache_type_has_gradient_grid
 
 ! **************************************************************************************************
 !> \brief ...
@@ -130,7 +133,7 @@ CONTAINS
       TYPE(cp_gauxc_status_type), INTENT(inout)          :: status
 
 #ifdef __GAUXC
-      INTEGER                                            :: gradient_error, unit_nr
+      INTEGER                                            :: gradient_error
 
       IF (gauxc_cache_is_valid( &
           cache, &
@@ -163,8 +166,12 @@ CONTAINS
          RETURN
       END IF
 
+      ! Resolve the gradient route from the structural inputs (basis, functional,
+      ! runtime), not from whether this particular call needs a gradient.  The
+      ! result is cached so later energy-only/force calls reuse it and do not
+      ! invalidate the whole cache when need_xc_gradient flips.
       CALL gauxc_resolve_gradient_policy( &
-         params%need_xc_gradient, params%gapw_method, cache%max_l(), params%use_gauxc_model, para_env%num_pe, &
+         .TRUE., params%gapw_method, cache%max_l(), params%use_gauxc_model, para_env%num_pe, &
          params%use_self_runtime, TRIM(params%gradient_runtime), params%force_fd_gradient, &
          params%use_fd_gradient, params%use_gradient_mpi_runtime, params%use_gradient_self_runtime, gradient_error)
       SELECT CASE (gradient_error)
@@ -182,22 +189,6 @@ CONTAINS
          CALL cp_abort(__LOCATION__, "Unknown GAUXC%MODEL_GRADIENT_RUNTIME value.")
       END SELECT
 
-      IF (params%use_fd_gradient .AND. .NOT. params%force_fd_gradient .AND. para_env%mepos == 0) THEN
-         CALL cp_warn( &
-            __LOCATION__, &
-            "Using finite-difference GauXC XC gradients for METHOD GAPW/GAPW_XC with "// &
-            "basis functions beyond f shells. Analytical high-l gradients have not been "// &
-            "enabled for this GauXC installation and functional path.")
-      END IF
-      IF (params%need_xc_gradient .AND. para_env%mepos == 0) THEN
-         unit_nr = cp_logger_get_default_io_unit()
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(A,A)') " GAUXC| Molecular XC gradient method: ", &
-               TRIM(MERGE("FD        ", "ANALYTICAL", params%use_fd_gradient))
-            WRITE (unit_nr, '(A,A)') " GAUXC| Molecular XC gradient runtime: ", &
-               MERGE("MPI ", "SELF", params%use_gradient_mpi_runtime)
-         END IF
-      END IF
       IF (params%use_self_runtime .OR. .NOT. params%use_gauxc_model) THEN
          ! SKALA currently needs a replicated molecular runtime for reproducible
          ! open-shell densities across CP2K MPI ranks.
@@ -249,37 +240,10 @@ CONTAINS
          RETURN
       END IF
 
-      IF (params%use_gradient_self_runtime) THEN
-         ! Retain the energy/VXC runtime when SELF is requested or the external
-         ! GauXC installation has not advertised corrected distributed gradients.
-         cache%gradient_grid = gauxc_create_grid( &
-                               cache%molecule, &
-                               cache%basisset, &
-                               params%grid_type, &
-                               params%radial_quadrature, &
-                               params%pruning_scheme, &
-                               params%lb_exec_space, &
-                               params%batch_size, &
-                               params%device_runtime_fill_fraction, &
-                               status, &
-                               mpi_comm=mp_comm_self%get_handle(), &
-                               force_new_runtime=.TRUE.)
-         IF (status%status%code /= 0) THEN
-            CALL cleanup_after_gradient_grid()
-            RETURN
-         END IF
-         cache%gradient_integrator = gauxc_create_integrator( &
-                                     TRIM(params%xc_fun_name), &
-                                     cache%gradient_grid, &
-                                     params%int_exec_space, &
-                                     params%lwd_kernel, &
-                                     params%nspins, &
-                                     status)
-         IF (status%status%code /= 0) THEN
-            CALL cleanup_after_gradient_integrator()
-            RETURN
-         END IF
-      END IF
+      ! The gradient grid/integrator is built lazily on the first call that
+      ! actually needs a gradient and then kept until the cache is rebuilt.
+      cache%gradient_is_init = .FALSE.
+      cache%gradient_notice_printed = .FALSE.
 
       cache%natom = params%natom
       cache%nspins = params%nspins
@@ -331,24 +295,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 ! **************************************************************************************************
-      SUBROUTINE cleanup_after_gradient_integrator()
-         CALL gauxc_destroy_integrator(cache%gradient_integrator, status)
-         CALL gauxc_check_status(status)
-         CALL cleanup_after_gradient_grid()
-      END SUBROUTINE cleanup_after_gradient_integrator
-
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE cleanup_after_gradient_grid()
-         CALL gauxc_destroy_grid(cache%gradient_grid, status)
-         CALL gauxc_check_status(status)
-         CALL cleanup_after_integrator()
-      END SUBROUTINE cleanup_after_gradient_grid
-
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
       SUBROUTINE cleanup_after_integrator()
          CALL gauxc_destroy_integrator(cache%integrator, status)
          CALL gauxc_check_status(status)
@@ -387,6 +333,8 @@ CONTAINS
 ! **************************************************************************************************
       SUBROUTINE cleanup_final()
          IF (ALLOCATED(cache%last_positions)) DEALLOCATE (cache%last_positions)
+         cache%gradient_is_init = .FALSE.
+         cache%gradient_notice_printed = .FALSE.
          cache%is_init = .FALSE.
       END SUBROUTINE cleanup_final
 
@@ -403,7 +351,7 @@ CONTAINS
       TYPE(cp_gauxc_status_type)                            :: status
 
       IF (cache%is_init) THEN
-         IF (cache%needs_gradient_grid()) THEN
+         IF (cache%has_gradient_grid()) THEN
             CALL gauxc_destroy_integrator(cache%gradient_integrator, status)
             CALL gauxc_check_status(status)
             CALL gauxc_destroy_grid(cache%gradient_grid, status)
@@ -419,13 +367,105 @@ CONTAINS
          CALL gauxc_check_status(status)
       END IF
       IF (ALLOCATED(cache%last_positions)) DEALLOCATE (cache%last_positions)
+      cache%gradient_is_init = .FALSE.
+      cache%gradient_notice_printed = .FALSE.
       cache%is_init = .FALSE.
 #else
       MARK_USED(cache)
       IF (ALLOCATED(cache%last_positions)) DEALLOCATE (cache%last_positions)
+      cache%gradient_is_init = .FALSE.
+      cache%gradient_notice_printed = .FALSE.
       cache%is_init = .FALSE.
 #endif
    END SUBROUTINE gauxc_cache_release
+
+! **************************************************************************************************
+!> \brief Build the separate gradient grid/integrator on first use and keep it cached.
+!>
+!> A separate gradient runtime is only needed for the SELF route.  Building it
+!> lazily (instead of during gauxc_cache_init) keeps energy-only runs from
+!> allocating it, while still reusing it for every later force/virial call until
+!> the cache is invalidated by a real geometry/parameter change.
+!> \param cache ...
+!> \param params ...
+!> \param para_env ...
+!> \param status ...
+! **************************************************************************************************
+   SUBROUTINE gauxc_cache_ensure_gradient(cache, params, para_env, status)
+      TYPE(cp_gauxc_cache_type), INTENT(INOUT)           :: cache
+      TYPE(cp_gauxc_cache_params), INTENT(INOUT)         :: params
+      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(cp_gauxc_status_type), INTENT(INOUT)          :: status
+
+#ifdef __GAUXC
+      INTEGER                                            :: error_code, unit_nr
+
+      IF (.NOT. params%need_xc_gradient) RETURN
+
+      ! The gradient-route notice used to be emitted from gauxc_cache_init.
+      ! With the cache now surviving the energy/force toggle, report it here on
+      ! the first call that actually needs a gradient.
+      IF (.NOT. cache%gradient_notice_printed) THEN
+         IF (params%use_fd_gradient .AND. .NOT. params%force_fd_gradient .AND. &
+             para_env%mepos == 0) THEN
+            CALL cp_warn( &
+               __LOCATION__, &
+               "Using finite-difference GauXC XC gradients for METHOD GAPW/GAPW_XC with "// &
+               "basis functions beyond f shells. Analytical high-l gradients have not been "// &
+               "enabled for this GauXC installation and functional path.")
+         END IF
+         IF (para_env%mepos == 0) THEN
+            unit_nr = cp_logger_get_default_io_unit()
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(A,A)') " GAUXC| Molecular XC gradient method: ", &
+                  TRIM(MERGE("FD        ", "ANALYTICAL", params%use_fd_gradient))
+               WRITE (unit_nr, '(A,A)') " GAUXC| Molecular XC gradient runtime: ", &
+                  MERGE("MPI ", "SELF", params%use_gradient_mpi_runtime)
+            END IF
+         END IF
+         cache%gradient_notice_printed = .TRUE.
+      END IF
+
+      IF (params%use_fd_gradient) RETURN
+      IF (.NOT. params%use_gradient_self_runtime) RETURN
+      IF (.NOT. cache%is_init) RETURN
+      IF (cache%gradient_is_init) RETURN
+
+      cache%gradient_grid = gauxc_create_grid( &
+                            cache%molecule, &
+                            cache%basisset, &
+                            params%grid_type, &
+                            params%radial_quadrature, &
+                            params%pruning_scheme, &
+                            params%lb_exec_space, &
+                            params%batch_size, &
+                            params%device_runtime_fill_fraction, &
+                            status, &
+                            mpi_comm=mp_comm_self%get_handle(), &
+                            force_new_runtime=.TRUE.)
+      IF (status%status%code /= 0) RETURN
+
+      cache%gradient_integrator = gauxc_create_integrator( &
+                                  TRIM(params%xc_fun_name), &
+                                  cache%gradient_grid, &
+                                  params%int_exec_space, &
+                                  params%lwd_kernel, &
+                                  params%nspins, &
+                                  status)
+      IF (status%status%code /= 0) THEN
+         error_code = status%status%code
+         CALL gauxc_destroy_grid(cache%gradient_grid, status)
+         status%status%code = error_code
+         RETURN
+      END IF
+      cache%gradient_is_init = .TRUE.
+#else
+      MARK_USED(cache)
+      MARK_USED(params)
+      MARK_USED(para_env)
+      MARK_USED(status)
+#endif
+   END SUBROUTINE gauxc_cache_ensure_gradient
 
 ! **************************************************************************************************
 !> \brief Check if the GauXC cache is valid for the given parameters
@@ -472,8 +512,11 @@ CONTAINS
       IF (cache%use_mpi_runtime .NEQV. params%use_mpi_runtime) RETURN
 
       ! Compare requests, not flags resolved from the basis during initialization.
+      ! need_xc_gradient is intentionally not a key: it merely selects whether
+      ! the current call computes a gradient.  The gradient grid/integrator is
+      ! built lazily by gauxc_cache_ensure_gradient and kept across SCF/force
+      ! calls, so a toggle must not rebuild the whole cache.
       IF (cache%gradient_runtime /= params%gradient_runtime) RETURN
-      IF (cache%need_xc_gradient .NEQV. params%need_xc_gradient) RETURN
       IF (cache%gapw_method .NEQV. params%gapw_method) RETURN
       IF (cache%force_fd_gradient .NEQV. params%force_fd_gradient) RETURN
       IF (cache%use_gauxc_model .NEQV. params%use_gauxc_model) RETURN
