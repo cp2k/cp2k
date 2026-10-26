@@ -490,19 +490,23 @@ CONTAINS
 !> \param qs_ot_env local spin/k-point channels; updates delta in the first channel
 !> \param nvariables global coordinate count, weighted for complex k points
 !> \param para_env_inter_kp communicator between distributed k-point groups
+!> \param residual_product optional current, globally reduced, unscaled gradient/preconditioned-gradient product
 !> \note Call before overwriting the physical gradients for complex k points.
 ! **************************************************************************************************
-   SUBROUTINE ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp)
+   SUBROUTINE ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp, residual_product)
       TYPE(qs_ot_type), DIMENSION(:), INTENT(INOUT)      :: qs_ot_env
       REAL(KIND=dp), INTENT(OUT)                         :: nvariables
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: residual_product
 
       INTEGER                                            :: ispin, k, n
       INTEGER(KIND=int_8)                                :: nlocal, norbital
       REAL(KIND=dp)                                      :: gnorm, weight
 
       gnorm = qs_ot_env(1)%gnorm
-      IF (qs_ot_env(1)%has_complex_kpoint_state) gnorm = ot_kpoint_convergence(qs_ot_env, para_env_inter_kp)
+      IF (qs_ot_env(1)%has_complex_kpoint_state) THEN
+         gnorm = ot_kpoint_convergence(qs_ot_env, para_env_inter_kp, residual_product)
+      END IF
 
       ! Rotations contribute to the product, but do not add coordinates to the
       ! orbital/energy normalization and dilute the stopping criterion.
@@ -532,22 +536,46 @@ CONTAINS
 !> \brief Evaluate the coupled residual with one k-point weight per contribution.
 !> \param qs_ot_env complex k-point channels with their current physical gradients
 !> \param para_env_inter_kp communicator between distributed k-point groups
+!> \param residual_product optional current, globally reduced, unscaled residual product
 !> \return weighted convergence product, independent of search directions and history
 ! **************************************************************************************************
-   FUNCTION ot_kpoint_convergence(qs_ot_env, para_env_inter_kp) RESULT(gnorm)
+   FUNCTION ot_kpoint_convergence(qs_ot_env, para_env_inter_kp, residual_product) RESULT(gnorm)
       TYPE(qs_ot_type), DIMENSION(:), INTENT(INOUT)      :: qs_ot_env
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: residual_product
       REAL(KIND=dp)                                      :: gnorm
 
       INTEGER, PARAMETER                                 :: identity_residual = 3, &
                                                             occupation_response = 1, &
                                                             physical_residual = 2
 
-      INTEGER                                            :: ispin, residual_kind
+      INTEGER                                            :: ispin, residual_kind, reuse_product
       REAL(KIND=dp)                                      :: inverse_weight, scale, tmp
       TYPE(dbcsr_type), POINTER                          :: input_im, input_re, residual_im, &
                                                             residual_re
       TYPE(dbcsr_type), TARGET                           :: identity_im, identity_re
+
+      IF (PRESENT(residual_product)) THEN
+         reuse_product = 0
+         IF (ieee_is_finite(residual_product)) THEN
+            IF (residual_product > 0.0_dp) reuse_product = 1
+         END IF
+         ! Without an attached preconditioner, the history product lacks the inverse k-point weight.
+         DO ispin = 1, SIZE(qs_ot_env)
+            IF (.NOT. ASSOCIATED(qs_ot_env(ispin)%preconditioner) .OR. &
+                qs_ot_env(ispin)%settings%do_ener .OR. &
+                qs_ot_env(ispin)%settings%do_rotation .OR. &
+                qs_ot_env(ispin)%settings%occupation_preconditioner) reuse_product = 0
+         END DO
+         ! All groups must take the same branch before the fallback's collective reductions.
+         IF (PRESENT(para_env_inter_kp)) THEN
+            IF (ASSOCIATED(para_env_inter_kp)) CALL para_env_inter_kp%min(reuse_product)
+         END IF
+         IF (reuse_product == 1) THEN
+            gnorm = residual_product
+            RETURN
+         END IF
+      END IF
 
       DO residual_kind = MERGE(occupation_response, physical_residual, &
                                qs_ot_env(1)%settings%occupation_preconditioner), identity_residual
@@ -1763,7 +1791,8 @@ CONTAINS
          WRITE (cp_logger_get_default_unit_nr(logger), *) "WARNING Preconditioner not positive definite !"
       END IF
 
-      CALL ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp)
+      CALL ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp, &
+                           residual_product=qs_ot_env(1)%gnorm)
 
       ! Detaching a preconditioner leaves the direction workspace in use.
       IF (qs_ot_env(1)%use_dx) THEN
@@ -1985,7 +2014,8 @@ CONTAINS
       END IF
       ! Keep convergence reporting tied to the conventional preconditioned residual. The finite
       ! response is an accepted-step candidate, not a redefinition of the physical stopping test.
-      CALL ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp)
+      CALL ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp, &
+                           residual_product=qs_ot_env(1)%gnorm)
       baseline_delta = qs_ot_env(1)%delta
       ! Preserve the physical gradients until the stopping test, then retain CG's
       ! preconditioned gradients for its direction and line-search products.
@@ -3358,7 +3388,8 @@ CONTAINS
       END IF
       CALL ot_build_history_residual(qs_ot_env, j, -qs_ot_env(1)%ds_min, &
                                      para_env_inter_kp, qs_ot_env(1)%gnorm)
-      CALL ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp)
+      CALL ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp, &
+                           residual_product=qs_ot_env(1)%gnorm)
       ! Handling the case of no free variables to optimize
       IF (nvariables > 0.0_dp) THEN
          qs_ot_env(1)%gradient = -qs_ot_env(1)%gnorm
@@ -3683,7 +3714,8 @@ CONTAINS
          CALL broyden_bound_occupation_response(j, qs_ot_env(1)%gnorm)
       END IF
 
-      CALL ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp)
+      CALL ot_update_delta(qs_ot_env, nvariables, para_env_inter_kp, &
+                           residual_product=qs_ot_env(1)%gnorm)
 
       ! Handling the case of no free variables to optimize
       IF (nvariables > 0.0_dp) THEN
