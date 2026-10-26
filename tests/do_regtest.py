@@ -5,6 +5,7 @@
 from asyncio import Semaphore, Task
 from asyncio.subprocess import DEVNULL, PIPE, STDOUT, Process
 from datetime import datetime
+from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any, Coroutine, Dict, List, Optional, TextIO, Tuple, Union
 from statistics import mean, stdev
@@ -83,9 +84,9 @@ async def main() -> None:
 
     help = "Runs only the first test of each directory."
     parser.add_argument("--smoketest", dest="smoketest", action="store_true", help=help)
-    help = "Run only directories that match given regex. Can be used multiple times."
+    help = "Run only directories that match a glob pattern. Can be used multiple times."
     parser.add_argument("--restrictdir", action="append", help=help)
-    help = "Skip directories that match given regex. Can be used multiple times."
+    help = "Skip directories that match a glob pattern. Can be used multiple times."
     parser.add_argument("--skipdir", action="append", help=help)
     help = "Run only directories listed in given file, i.e overwrite TEST_DIRS."
     parser.add_argument("--testdirs", type=Path, help=help)
@@ -185,9 +186,9 @@ async def main() -> None:
     for batch in batches:
         if not batch.requirements_satisfied(flags, cfg.mpiranks):
             print(f"Skipping {batch.name} because its requirements are not satisfied.")
-        elif not any(re.fullmatch(p, batch.name) for p in cfg.restrictdirs):
+        elif not any(fnmatchcase(batch.name, p) for p in cfg.restrictdirs):
             num_restrictdirs += 1
-        elif any(re.fullmatch(p, batch.name) for p in cfg.skipdirs):
+        elif any(fnmatchcase(batch.name, p) for p in cfg.skipdirs):
             num_skipdirs += 1
         else:
             # Need to keep a reference of the task to protect it from garbage collection.
@@ -342,7 +343,7 @@ class Config:
         self.version = args.version
         self.debug = args.debug
         self.max_errors = args.maxerrors
-        self.restrictdirs = [d.rstrip("/") for d in args.restrictdir or [".*"]]
+        self.restrictdirs = [d.rstrip("/") for d in args.restrictdir or ["*"]]
         self.skipdirs = [d.rstrip("/") for d in args.skipdir or []]
         self.skip_unittests = args.skip_unittests
         self.skip_regtests = args.skip_regtests
