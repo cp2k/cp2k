@@ -64,6 +64,7 @@ MODULE preconditioner
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner_apply,            ONLY: apply_preconditioner_cfm_complex,&
+                                              apply_preconditioner_complex_batch,&
                                               apply_preconditioner_dbcsr,&
                                               apply_preconditioner_dbcsr_complex,&
                                               apply_preconditioner_fm
@@ -109,7 +110,7 @@ MODULE preconditioner
              make_preconditioner_complex_full_single, &
              make_preconditioner_complex_full_single_inverse, restart_preconditioner, &
              dbcsr_pair_to_cfm
-   PUBLIC :: apply_preconditioner, prepare_preconditioner
+   PUBLIC :: apply_preconditioner, prepare_preconditioner, apply_preconditioner_complex_batch
 
 ! The public interface for apply preconditioner, the routines can be found in preconditioner_apply.F
    INTERFACE apply_preconditioner

@@ -74,6 +74,7 @@ MODULE cp_dbcsr_operations
       REAL(KIND=dp), ALLOCATABLE :: send_values(:), recv_values(:)
    END TYPE dbcsr_fm_copy_plan_type
 
+   PUBLIC :: copy_dbcsr_to_local, copy_local_to_dbcsr
    PUBLIC :: dbcsr_multiply_local
 
    ! CP2K API emulation
@@ -109,6 +110,64 @@ MODULE cp_dbcsr_operations
    END INTERFACE
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Load a single-rank, nonsymmetric matrix without redistribution.
+!> \param matrix DBCSR matrix
+!> \param dense full local matrix
+! **************************************************************************************************
+   SUBROUTINE copy_dbcsr_to_local(matrix, dense)
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
+      REAL(dp), INTENT(OUT)                              :: dense(:, :)
+
+      INTEGER                                            :: col, nc, nr, row
+      LOGICAL                                            :: transposed
+      REAL(dp), POINTER                                  :: block(:, :)
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CPASSERT(dbcsr_get_matrix_type(matrix) == dbcsr_type_no_symmetry)
+      dense(:, :) = 0.0_dp
+      CALL dbcsr_iterator_readonly_start(iter, matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, block=block, transposed=transposed, &
+                                        row_size=nr, col_size=nc, row_offset=row, col_offset=col)
+         IF (transposed) THEN
+            dense(row:row + nr - 1, col:col + nc - 1) = TRANSPOSE(block)
+         ELSE
+            dense(row:row + nr - 1, col:col + nc - 1) = block
+         END IF
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+   END SUBROUTINE copy_dbcsr_to_local
+
+! **************************************************************************************************
+!> \brief Store a single-rank, nonsymmetric matrix without redistribution.
+!> \param matrix DBCSR matrix
+!> \param dense full local matrix
+! **************************************************************************************************
+   SUBROUTINE copy_local_to_dbcsr(matrix, dense)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      REAL(dp), INTENT(IN)                               :: dense(:, :)
+
+      INTEGER                                            :: col, nc, nr, row
+      LOGICAL                                            :: transposed
+      REAL(dp), POINTER                                  :: block(:, :)
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CPASSERT(dbcsr_get_matrix_type(matrix) == dbcsr_type_no_symmetry)
+      CALL dbcsr_reserve_all_blocks(matrix)
+      CALL dbcsr_iterator_start(iter, matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, block=block, transposed=transposed, &
+                                        row_size=nr, col_size=nc, row_offset=row, col_offset=col)
+         IF (transposed) THEN
+            block(:, :) = TRANSPOSE(dense(row:row + nr - 1, col:col + nc - 1))
+         ELSE
+            block(:, :) = dense(row:row + nr - 1, col:col + nc - 1)
+         END IF
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+   END SUBROUTINE copy_local_to_dbcsr
 
 ! **************************************************************************************************
 !> \brief   Copy a BLACS matrix to a dbcsr matrix.

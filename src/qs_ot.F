@@ -20,12 +20,11 @@ MODULE qs_ot
    USE cp_cfm_types,                    ONLY: cp_cfm_p_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_filter, &
-        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_matrix_type, &
-        dbcsr_get_occupation, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_readonly_start, dbcsr_iterator_start, dbcsr_iterator_stop, &
-        dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_release_p, &
-        dbcsr_reserve_blocks, dbcsr_scale, dbcsr_set, dbcsr_transposed, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_release_p, dbcsr_reserve_blocks, dbcsr_scale, dbcsr_set, dbcsr_transposed, &
+        dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert,&
                                               cp_dbcsr_cholesky_restore
@@ -33,10 +32,11 @@ MODULE qs_ot
                                               dbcsr_frobenius_norm,&
                                               dbcsr_gershgorin_norm,&
                                               dbcsr_hadamard_product,&
-                                              dbcsr_reserve_all_blocks,&
                                               dbcsr_scale_by_vector
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_heevd,&
                                               cp_dbcsr_syevd
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_local,&
+                                              copy_local_to_dbcsr
    USE cp_fm_types,                     ONLY: cp_fm_p_type
    USE kinds,                           ONLY: dp
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
@@ -3497,8 +3497,8 @@ CONTAINS
             CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_r, qs_ot_env(i)%matrix_r_im, work(j)%r)
             CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_cosp, qs_ot_env(i)%matrix_cosp_im, work(j)%buf4)
             CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_sinp, qs_ot_env(i)%matrix_sinp_im, work(j)%sinp)
-            CALL qs_ot_store_local_matrix(qs_ot_env(i)%matrix_cosp_b, work(j)%cosp_b)
-            CALL qs_ot_store_local_matrix(qs_ot_env(i)%matrix_sinp_b, work(j)%sinp_b)
+            CALL copy_local_to_dbcsr(qs_ot_env(i)%matrix_cosp_b, work(j)%cosp_b)
+            CALL copy_local_to_dbcsr(qs_ot_env(i)%matrix_sinp_b, work(j)%sinp_b)
             qs_ot_env(i)%evals(:) = work(j)%solver%evals(:)
             qs_ot_env(i)%do_taylor = .FALSE.
          END DO
@@ -3595,8 +3595,8 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_re, matrix_im
       REAL(dp), INTENT(IN)                               :: dense(:, :, :)
 
-      CALL qs_ot_store_local_matrix(matrix_re, dense(:, :, 1))
-      CALL qs_ot_store_local_matrix(matrix_im, dense(:, :, 2))
+      CALL copy_local_to_dbcsr(matrix_re, dense(:, :, 1))
+      CALL copy_local_to_dbcsr(matrix_im, dense(:, :, 2))
    END SUBROUTINE qs_ot_store_local_pair
 
 ! **************************************************************************************************
@@ -3643,8 +3643,8 @@ CONTAINS
 !$OMP END PARALLEL DO
          DO j = 1, nbatch
             i = first + j - 1
-            CALL qs_ot_store_local_matrix(qs_ot_env(i)%matrix_gx, work(j)%out(:, :, 1))
-            CALL qs_ot_store_local_matrix(qs_ot_env(i)%matrix_gx_im, work(j)%out(:, :, 2))
+            CALL copy_local_to_dbcsr(qs_ot_env(i)%matrix_gx, work(j)%out(:, :, 1))
+            CALL copy_local_to_dbcsr(qs_ot_env(i)%matrix_gx_im, work(j)%out(:, :, 2))
          END DO
       END DO
       DO j = 1, nworkers
@@ -3716,8 +3716,8 @@ CONTAINS
       CALL qs_ot_load_local_pair(qs_ot_env%matrix_sinp, qs_ot_env%matrix_sinp_im, w%sinp)
       CALL qs_ot_load_local_pair(qs_ot_env%matrix_sc0, qs_ot_env%matrix_sc0_im, w%sc0)
       CALL qs_ot_load_local_pair(qs_ot_env%matrix_os, qs_ot_env%matrix_os_im, w%os)
-      CALL qs_ot_load_local_matrix(qs_ot_env%matrix_sinp_b, w%sinp_b)
-      CALL qs_ot_load_local_matrix(qs_ot_env%matrix_cosp_b, w%cosp_b)
+      CALL copy_dbcsr_to_local(qs_ot_env%matrix_sinp_b, w%sinp_b)
+      CALL copy_dbcsr_to_local(qs_ot_env%matrix_cosp_b, w%cosp_b)
       IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
          CALL qs_ot_load_local_pair(qs_ot_env%matrix_psc0, qs_ot_env%matrix_psc0_im, w%target)
       ELSE
@@ -3735,67 +3735,9 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_re, matrix_im
       REAL(dp), INTENT(OUT)                              :: dense(:, :, :)
 
-      CALL qs_ot_load_local_matrix(matrix_re, dense(:, :, 1))
-      CALL qs_ot_load_local_matrix(matrix_im, dense(:, :, 2))
+      CALL copy_dbcsr_to_local(matrix_re, dense(:, :, 1))
+      CALL copy_dbcsr_to_local(matrix_im, dense(:, :, 2))
    END SUBROUTINE qs_ot_load_local_pair
-
-! **************************************************************************************************
-!> \brief Load a single-rank, nonsymmetric matrix without redistribution.
-!> \param matrix DBCSR matrix
-!> \param dense full local matrix
-! **************************************************************************************************
-   SUBROUTINE qs_ot_load_local_matrix(matrix, dense)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      REAL(dp), INTENT(OUT)                              :: dense(:, :)
-
-      INTEGER                                            :: col, nc, nr, row
-      LOGICAL                                            :: transposed
-      REAL(dp), POINTER                                  :: block(:, :)
-      TYPE(dbcsr_iterator_type)                          :: iter
-
-      CPASSERT(dbcsr_get_matrix_type(matrix) == dbcsr_type_no_symmetry)
-      dense(:, :) = 0.0_dp
-      CALL dbcsr_iterator_readonly_start(iter, matrix)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, block=block, transposed=transposed, &
-                                        row_size=nr, col_size=nc, row_offset=row, col_offset=col)
-         IF (transposed) THEN
-            dense(row:row + nr - 1, col:col + nc - 1) = TRANSPOSE(block)
-         ELSE
-            dense(row:row + nr - 1, col:col + nc - 1) = block
-         END IF
-      END DO
-      CALL dbcsr_iterator_stop(iter)
-   END SUBROUTINE qs_ot_load_local_matrix
-
-! **************************************************************************************************
-!> \brief Store a single-rank, nonsymmetric matrix without redistribution.
-!> \param matrix DBCSR matrix
-!> \param dense full local matrix
-! **************************************************************************************************
-   SUBROUTINE qs_ot_store_local_matrix(matrix, dense)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
-      REAL(dp), INTENT(IN)                               :: dense(:, :)
-
-      INTEGER                                            :: col, nc, nr, row
-      LOGICAL                                            :: transposed
-      REAL(dp), POINTER                                  :: block(:, :)
-      TYPE(dbcsr_iterator_type)                          :: iter
-
-      CPASSERT(dbcsr_get_matrix_type(matrix) == dbcsr_type_no_symmetry)
-      CALL dbcsr_reserve_all_blocks(matrix)
-      CALL dbcsr_iterator_start(iter, matrix)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, block=block, transposed=transposed, &
-                                        row_size=nr, col_size=nc, row_offset=row, col_offset=col)
-         IF (transposed) THEN
-            block(:, :) = TRANSPOSE(dense(row:row + nr - 1, col:col + nc - 1))
-         ELSE
-            block(:, :) = dense(row:row + nr - 1, col:col + nc - 1)
-         END IF
-      END DO
-      CALL dbcsr_iterator_stop(iter)
-   END SUBROUTINE qs_ot_store_local_matrix
 
 ! **************************************************************************************************
 !> \brief Multiply dense real/imaginary pairs in the same four-product order as DBCSR.
