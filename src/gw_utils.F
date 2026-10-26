@@ -47,7 +47,6 @@ MODULE gw_utils
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_diag,&
-                                              cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -95,7 +94,6 @@ MODULE gw_utils
    USE mp2_gpw,                         ONLY: create_mat_munu
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat,&
                                               trunc_coulomb_for_exchange
-   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
@@ -126,6 +124,7 @@ MODULE gw_utils
    USE ri_rs_types,                     ONLY: ri_rs_env,&
                                               ri_rs_grid_opt_type
    USE rpa_gw,                          ONLY: continuation_pade
+   USE rpa_gw_im_time_util,             ONLY: build_ao_propagator
    USE time_frequency_grids,            ONLY: build_minimax_time_frequency_grid
 #include "base/base_uses.f90"
 
@@ -3624,66 +3623,36 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'G_occ_vir'
 
-      INTEGER                                            :: first_mo, handle, homo, i_row_local, &
-                                                            j_col, j_col_local, last_mo, n_active, &
-                                                            n_mo, ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices
+      INTEGER                                            :: first_mo, handle, homo, i_mo, last_mo
       REAL(KIND=dp)                                      :: tau_E
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: column_factors
 
       CALL timeset(routineN, handle)
 
       CPASSERT(occ .NEQV. vir)
 
-      CALL cp_fm_get_info(matrix=bs_env%fm_work_mo(1), &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          col_indices=col_indices)
-
-      n_mo = bs_env%n_ao
       homo = bs_env%n_occ(ispin)
       first_mo = 1
-      last_mo = MIN(n_mo, bs_env%n_mo_retained)
+      ! Canonical orthogonalization removes the modes above n_mo_retained.
+      last_mo = MIN(bs_env%n_ao, bs_env%n_mo_retained)
       IF (occ) THEN
          last_mo = MIN(last_mo, homo)
       ELSE
          first_mo = homo + 1
       END IF
-      n_active = MAX(0, last_mo - first_mo + 1)
-
-      CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(ispin), bs_env%fm_work_mo(1))
-
-      DO i_row_local = 1, nrow_local
-         DO j_col_local = 1, ncol_local
-
-            j_col = col_indices(j_col_local)
-
-            tau_E = ABS(tau*0.5_dp*(bs_env%eigenval_scf_Gamma(j_col, ispin) - bs_env%e_fermi(ispin)))
-
-            IF (tau_E < bs_env%stabilize_exp) THEN
-               bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local) = &
-                  bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local)*EXP(-tau_E)
-            ELSE
-               bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local) = 0.0_dp
-            END IF
-
-            ! the modes above n_mo_retained are removed by the canonical orthogonalization
-            ! (EPS_EIGVAL) and carry no MO coefficients
-            IF ((occ .AND. j_col > homo) .OR. (vir .AND. j_col <= homo) .OR. &
-                j_col > bs_env%n_mo_retained) THEN
-               bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local) = 0.0_dp
-            END IF
-
-         END DO
+      ALLOCATE (column_factors(first_mo:last_mo))
+      DO i_mo = first_mo, last_mo
+         tau_E = ABS(tau*0.5_dp*(bs_env%eigenval_scf_Gamma(i_mo, ispin) - bs_env%e_fermi(ispin)))
+         IF (tau_E < bs_env%stabilize_exp) THEN
+            column_factors(i_mo) = EXP(-tau_E)
+         ELSE
+            column_factors(i_mo) = 0.0_dp
+         END IF
       END DO
 
-      IF (n_active > 0) THEN
-         CALL parallel_gemm(transa="N", transb="T", m=n_mo, n=n_mo, k=n_active, alpha=1.0_dp, &
-                            matrix_a=bs_env%fm_work_mo(1), matrix_b=bs_env%fm_work_mo(1), &
-                            beta=0.0_dp, matrix_c=fm_G_Gamma, &
-                            a_first_col=first_mo, b_first_col=first_mo)
-      ELSE
-         CALL cp_fm_set_all(fm_G_Gamma, 0.0_dp)
-      END IF
+      CALL build_ao_propagator(bs_env%fm_mo_coeff_Gamma(ispin), column_factors, first_mo, &
+                               bs_env%fm_work_mo(1), fm_G_Gamma)
+      DEALLOCATE (column_factors)
 
       CALL timestop(handle)
 

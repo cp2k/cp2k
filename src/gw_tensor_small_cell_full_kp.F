@@ -15,9 +15,7 @@ MODULE gw_tensor_small_cell_full_kp
                                               cite_reference
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_get_diag
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                              cp_cfm_get_info,&
                                               cp_cfm_release,&
-                                              cp_cfm_set_all,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_type
    USE cp_fm_redistribution,            ONLY: cp_fm_to_replicated_array
@@ -51,10 +49,10 @@ MODULE gw_tensor_small_cell_full_kp
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
    USE mathlib,                         ONLY: gemm_square
-   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE post_scf_bandstructure_utils,    ONLY: get_all_VBM_CBM_bandgaps
    USE qs_environment_types,            ONLY: qs_environment_type
+   USE rpa_gw_im_time_util,             ONLY: build_ao_propagator
    USE time_frequency_grids,            ONLY: negative_time,&
                                               positive_time,&
                                               transform_time_to_frequency
@@ -396,29 +394,23 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'G_occ_vir'
 
       INTEGER                                            :: first_mo, handle, homo, i_cell_S, ikp, &
-                                                            j, j_col_local, n_active, n_mo, &
-                                                            ncol_local, nimages, nkp
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices
+                                                            j, last_mo, nkp
       REAL(KIND=dp)                                      :: tau_E
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: column_factors
 
       CALL timeset(routineN, handle)
 
       CPASSERT(occ .NEQV. vir)
 
-      CALL cp_cfm_get_info(matrix=bs_env%cfm_work_mo, &
-                           ncol_local=ncol_local, &
-                           col_indices=col_indices)
-
       nkp = bs_env%nkp_scf_desymm
-      nimages = bs_env%nimages_scf_desymm
-      n_mo = bs_env%n_ao
       homo = bs_env%n_occ(ispin)
       first_mo = 1
-      n_active = homo
+      last_mo = homo
       IF (vir) THEN
          first_mo = homo + 1
-         n_active = n_mo - homo
+         last_mo = bs_env%n_ao
       END IF
+      ALLOCATE (column_factors(first_mo:last_mo))
 
       DO i_cell_S = 1, bs_env%nimages_scf_desymm
          CALL cp_fm_set_all(bs_env%fm_G_S(i_cell_S), 0.0_dp)
@@ -426,44 +418,26 @@ CONTAINS
 
       DO ikp = 1, nkp
 
-         ! get C_µn(k)
-         CALL cp_cfm_to_cfm(bs_env%cfm_mo_coeff_kp(ikp, ispin), bs_env%cfm_work_mo)
-
-         ! G^occ/vir_µλ(i|τ|,k) = sum_n^occ/vir C_µn(k)^* e^(-|(ϵ_nk-ϵ_F)τ|) C_λn(k)
-         DO j_col_local = 1, ncol_local
-
-            j = col_indices(j_col_local)
-
+         ! G^occ/vir_µλ(i|τ|,k) = sum_n^occ/vir C_µn(k) e^(-|(ϵ_nk-ϵ_F)τ|) C_λn(k)^*
+         DO j = first_mo, last_mo
             ! 0.5 * |(ϵ_nk-ϵ_F)τ|
             tau_E = ABS(tau*0.5_dp*(bs_env%eigenval_scf(j, ikp, ispin) - bs_env%e_fermi(ispin)))
-
             IF (tau_E < bs_env%stabilize_exp) THEN
-               bs_env%cfm_work_mo%local_data(:, j_col_local) = &
-                  bs_env%cfm_work_mo%local_data(:, j_col_local)*EXP(-tau_E)
+               column_factors(j) = EXP(-tau_E)
             ELSE
-               bs_env%cfm_work_mo%local_data(:, j_col_local) = z_zero
+               column_factors(j) = 0.0_dp
             END IF
-
-            IF ((occ .AND. j > homo) .OR. (vir .AND. j <= homo)) THEN
-               bs_env%cfm_work_mo%local_data(:, j_col_local) = z_zero
-            END IF
-
          END DO
 
-         IF (n_active > 0) THEN
-            CALL parallel_gemm(transa="N", transb="C", m=n_mo, n=n_mo, k=n_active, alpha=z_one, &
-                               matrix_a=bs_env%cfm_work_mo, matrix_b=bs_env%cfm_work_mo, &
-                               beta=z_zero, matrix_c=bs_env%cfm_work_mo_2, &
-                               a_first_col=first_mo, b_first_col=first_mo)
-         ELSE
-            CALL cp_cfm_set_all(bs_env%cfm_work_mo_2, z_zero)
-         END IF
+         CALL build_ao_propagator(bs_env%cfm_mo_coeff_kp(ikp, ispin), column_factors, first_mo, &
+                                  bs_env%cfm_work_mo, bs_env%cfm_work_mo_2)
 
          ! trafo k-point k -> cell S:  G^occ/vir_µλ(i|τ|,k) -> G^occ/vir,S_µλ(i|τ|)
          CALL fm_add_kp_to_all_rs(bs_env%cfm_work_mo_2, bs_env%fm_G_S, &
                                   bs_env%kpoints_scf_desymm, ikp)
 
       END DO ! ikp
+      DEALLOCATE (column_factors)
 
       ! replicate to tensor from local tensor group
       DO i_cell_S = 1, bs_env%nimages_scf_desymm

@@ -60,7 +60,8 @@ MODULE rpa_im_time
    USE qs_tensors,                      ONLY: decompress_tensor,&
                                               get_tensor_occupancy
    USE qs_tensors_types,                ONLY: create_2c_tensor
-   USE rpa_gw_im_time_util,             ONLY: compute_weight_re_im,&
+   USE rpa_gw_im_time_util,             ONLY: build_ao_propagator,&
+                                              compute_weight_re_im,&
                                               get_atom_index_from_basis_function_index
    USE time_frequency_grids,            ONLY: time_frequency_grid_type
 #include "./base/base_uses.f90"
@@ -776,85 +777,50 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_gamma_propagator'
       REAL(KIND=dp), PARAMETER                           :: stabilize_exp = 70.0_dp
 
-      INTEGER                                            :: handle, i_global, iiB, jjB, nao, &
-                                                            ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      TYPE(cp_fm_type)                                   :: fm_mo_coeff_occ_scaled, &
-                                                            fm_mo_coeff_virt_scaled, &
-                                                            fm_scaled_dm_occ_tau, &
-                                                            fm_scaled_dm_virt_tau
-      TYPE(dbcsr_type), POINTER                          :: mat_occ, mat_virt
+      INTEGER                                            :: first_mo, handle, i_mo, isector, &
+                                                            last_mo, nao
+      REAL(KIND=dp)                                      :: column_factors(nmo), tau_E
+      TYPE(cp_fm_type)                                   :: fm_mo_coeff_scaled, fm_scaled_dm_tau
+      TYPE(dbcsr_type), POINTER                          :: mat
 
       CALL timeset(routineN, handle)
       CALL para_env%sync()
 
-      mat_occ => propagator(propagator_sector_occupied, jquad, 1)%matrix
-      mat_virt => propagator(propagator_sector_virtual, jquad, 1)%matrix
+      CALL cp_fm_get_info(fm_mo_coeff, nrow_global=nao)
+      CALL cp_fm_create(fm_scaled_dm_tau, fm_mo_coeff%matrix_struct, nrow=nao, ncol=nao)
+      CALL cp_fm_create(fm_mo_coeff_scaled, fm_mo_coeff%matrix_struct)
 
-      CALL cp_fm_get_info(fm_mo_coeff, &
-                          nrow_global=nao, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices)
-
-      CALL cp_fm_create(fm_scaled_dm_occ_tau, fm_mo_coeff%matrix_struct, nrow=nao, ncol=nao)
-      CALL cp_fm_create(fm_scaled_dm_virt_tau, fm_mo_coeff%matrix_struct, nrow=nao, ncol=nao)
-      CALL cp_fm_create(fm_mo_coeff_occ_scaled, fm_mo_coeff%matrix_struct)
-      CALL cp_fm_create(fm_mo_coeff_virt_scaled, fm_mo_coeff%matrix_struct)
-
-      DO jjB = 1, nrow_local
-         DO iiB = 1, ncol_local
-            i_global = col_indices(iiB)
-            IF (i_global <= homo .AND. ABS(tau*0.5_dp*(Eigenval(i_global) - e_fermi)) < stabilize_exp) THEN
-               fm_mo_coeff_occ_scaled%local_data(jjB, iiB) = &
-                  fm_mo_coeff%local_data(jjB, iiB)*EXP(tau*0.5_dp*(Eigenval(i_global) - e_fermi))
-            ELSE
-               fm_mo_coeff_occ_scaled%local_data(jjB, iiB) = 0.0_dp
-            END IF
-         END DO
-      END DO
-
-      DO jjB = 1, nrow_local
-         DO iiB = 1, ncol_local
-            i_global = col_indices(iiB)
-            IF (i_global > homo .AND. ABS(tau*0.5_dp*(Eigenval(i_global) - e_fermi)) < stabilize_exp) THEN
-               fm_mo_coeff_virt_scaled%local_data(jjB, iiB) = &
-                  fm_mo_coeff%local_data(jjB, iiB)*EXP(-tau*0.5_dp*(Eigenval(i_global) - e_fermi))
-            ELSE
-               fm_mo_coeff_virt_scaled%local_data(jjB, iiB) = 0.0_dp
-            END IF
-         END DO
+      DO i_mo = 1, nmo
+         tau_E = tau*0.5_dp*(Eigenval(i_mo) - e_fermi)
+         IF (ABS(tau_E) < stabilize_exp) THEN
+            IF (i_mo > homo) tau_E = -tau_E
+            column_factors(i_mo) = EXP(tau_E)
+         ELSE
+            column_factors(i_mo) = 0.0_dp
+         END IF
       END DO
 
       CALL para_env%sync()
 
-      IF (homo > 0) THEN
-         CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, k=homo, alpha=1.0_dp, &
-                            matrix_a=fm_mo_coeff_occ_scaled, matrix_b=fm_mo_coeff_occ_scaled, beta=0.0_dp, &
-                            matrix_c=fm_scaled_dm_occ_tau)
-      ELSE
-         CALL cp_fm_set_all(fm_scaled_dm_occ_tau, 0.0_dp)
-      END IF
-      IF (nmo > homo) THEN
-         CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, k=nmo - homo, alpha=1.0_dp, &
-                            matrix_a=fm_mo_coeff_virt_scaled, matrix_b=fm_mo_coeff_virt_scaled, beta=0.0_dp, &
-                            matrix_c=fm_scaled_dm_virt_tau, a_first_col=homo + 1, b_first_col=homo + 1)
-      ELSE
-         CALL cp_fm_set_all(fm_scaled_dm_virt_tau, 0.0_dp)
-      END IF
+      DO isector = propagator_sector_occupied, propagator_sector_virtual
+         first_mo = 1
+         last_mo = homo
+         IF (isector == propagator_sector_virtual) THEN
+            first_mo = homo + 1
+            last_mo = nmo
+         END IF
+         CALL build_ao_propagator(fm_mo_coeff, column_factors(first_mo:last_mo), first_mo, &
+                                  fm_mo_coeff_scaled, fm_scaled_dm_tau)
 
-      CALL dbcsr_set(mat_occ, 0.0_dp)
-      CALL copy_fm_to_dbcsr(fm_scaled_dm_occ_tau, mat_occ, keep_sparsity=.FALSE.)
-      CALL dbcsr_filter(mat_occ, eps_filter)
-      CALL dbcsr_set(mat_virt, 0.0_dp)
-      CALL copy_fm_to_dbcsr(fm_scaled_dm_virt_tau, mat_virt, keep_sparsity=.FALSE.)
-      CALL dbcsr_filter(mat_virt, eps_filter)
+         ! Each sector is copied before the dense coefficient and AO workspaces are reused.
+         mat => propagator(isector, jquad, 1)%matrix
+         CALL dbcsr_set(mat, 0.0_dp)
+         CALL copy_fm_to_dbcsr(fm_scaled_dm_tau, mat, keep_sparsity=.FALSE.)
+         CALL dbcsr_filter(mat, eps_filter)
+      END DO
 
-      CALL cp_fm_release(fm_scaled_dm_occ_tau)
-      CALL cp_fm_release(fm_scaled_dm_virt_tau)
-      CALL cp_fm_release(fm_mo_coeff_occ_scaled)
-      CALL cp_fm_release(fm_mo_coeff_virt_scaled)
+      CALL cp_fm_release(fm_scaled_dm_tau)
+      CALL cp_fm_release(fm_mo_coeff_scaled)
       CALL timestop(handle)
 
    END SUBROUTINE compute_gamma_propagator
