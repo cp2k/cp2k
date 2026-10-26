@@ -37,6 +37,7 @@ MODULE qs_scf_loop_utils
                                               cp_fm_column_scale,&
                                               cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_equivalent,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -841,9 +842,6 @@ CONTAINS
 
             CALL get_mo_set(kp%mos(ispin), homo=homo, nao=nao, nmo=nmo, &
                             occupation_numbers=occupation_numbers)
-            CALL cp_fm_create(mo_coeff, kp%mos(ispin)%cmo_coeff%matrix_struct)
-            CALL cp_fm_create(mo_coeff_im, kp%mos(ispin)%cmo_coeff%matrix_struct)
-            CALL cp_cfm_to_fm(kp%mos(ispin)%cmo_coeff, mo_coeff, mo_coeff_im)
             IF (local_ot_env(local_channel)%settings%do_ener) homo = nmo
             CPASSERT(homo >= 1 .AND. homo <= nmo)
             IF (.NOT. local_ot_env(local_channel)%settings%do_ener) THEN
@@ -863,12 +861,21 @@ CONTAINS
                   END IF
                END IF
             END IF
-            CALL cp_fm_struct_create(active_mo_struct, template_fmstruct=mo_coeff%matrix_struct, &
+            CALL cp_fm_struct_create(active_mo_struct, template_fmstruct=kp%mos(ispin)%cmo_coeff%matrix_struct, &
                                      ncol_global=homo)
             CALL cp_fm_create(active_mo_coeff, active_mo_struct)
             CALL cp_fm_create(active_mo_coeff_im, active_mo_struct)
-            CALL cp_fm_to_fm(mo_coeff, active_mo_coeff, homo)
-            CALL cp_fm_to_fm(mo_coeff_im, active_mo_coeff_im, homo)
+            IF (cp_fm_struct_equivalent(active_mo_struct, kp%mos(ispin)%cmo_coeff%matrix_struct)) THEN
+               CALL cp_cfm_to_fm(kp%mos(ispin)%cmo_coeff, active_mo_coeff, active_mo_coeff_im)
+            ELSE
+               CALL cp_fm_create(mo_coeff, kp%mos(ispin)%cmo_coeff%matrix_struct)
+               CALL cp_fm_create(mo_coeff_im, kp%mos(ispin)%cmo_coeff%matrix_struct)
+               CALL cp_cfm_to_fm(kp%mos(ispin)%cmo_coeff, mo_coeff, mo_coeff_im)
+               CALL cp_fm_to_fm(mo_coeff, active_mo_coeff, homo)
+               CALL cp_fm_to_fm(mo_coeff_im, active_mo_coeff_im, homo)
+               CALL cp_fm_release(mo_coeff)
+               CALL cp_fm_release(mo_coeff_im)
+            END IF
             CALL cp_fm_create(hc_re, active_mo_struct)
             CALL cp_fm_create(hc_im, active_mo_struct)
 
@@ -899,14 +906,17 @@ CONTAINS
                END IF
             END IF
 
+            IF (local_ot_env(local_channel)%settings%do_ener) THEN
+               ! Reuse the projected-Hamiltonian workspace for both ROKS spin channels.
+               CALL cp_fm_struct_create(chc_struct, template_fmstruct=active_mo_struct, &
+                                        nrow_global=homo, ncol_global=homo)
+               CALL cp_fm_create(chc_re, chc_struct)
+               CALL cp_fm_create(chc_im, chc_struct)
+            END IF
             IF (restricted_roks) THEN
                ! ROKS has one complex orbital variable but two spin densities. Form the exact
                ! shared-orbital derivative before handing it to the one-channel OT minimizer.
                IF (local_ot_env(local_channel)%settings%do_ener) THEN
-                  CALL cp_fm_struct_create(chc_struct, template_fmstruct=active_mo_struct, &
-                                           nrow_global=homo, ncol_global=homo)
-                  CALL cp_fm_create(chc_re, chc_struct)
-                  CALL cp_fm_create(chc_im, chc_struct)
                   CALL multiply_complex_fm_adjoint( &
                      active_mo_coeff, active_mo_coeff_im, hc_re, hc_im, &
                      chc_re, chc_im, 1.0_dp, 0.0_dp)
@@ -915,9 +925,6 @@ CONTAINS
                                       local_ot_env(local_channel)%ener_rayleigh(1:homo))
                   CALL local_ot_env(local_channel)%para_env%sum( &
                      local_ot_env(local_channel)%ener_rayleigh(1:homo))
-                  CALL cp_fm_release(chc_im)
-                  CALL cp_fm_release(chc_re)
-                  CALL cp_fm_struct_release(chc_struct)
                END IF
                CALL cp_fm_column_scale(hc_re, occupation_numbers(1:homo))
                CALL cp_fm_column_scale(hc_im, occupation_numbers(1:homo))
@@ -941,10 +948,6 @@ CONTAINS
                CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, active_mo_coeff, hc_roks_im, homo, &
                                             alpha=1.0_dp, beta=1.0_dp)
                IF (local_ot_env(local_channel)%settings%do_ener) THEN
-                  CALL cp_fm_struct_create(chc_struct, template_fmstruct=active_mo_struct, &
-                                           nrow_global=homo, ncol_global=homo)
-                  CALL cp_fm_create(chc_re, chc_struct)
-                  CALL cp_fm_create(chc_im, chc_struct)
                   CALL multiply_complex_fm_adjoint( &
                      active_mo_coeff, active_mo_coeff_im, hc_roks_re, hc_roks_im, &
                      chc_re, chc_im, 1.0_dp, 0.0_dp)
@@ -953,9 +956,6 @@ CONTAINS
                                       local_ot_env(local_channel)%ener_rayleigh(homo + 1:2*homo))
                   CALL local_ot_env(local_channel)%para_env%sum( &
                      local_ot_env(local_channel)%ener_rayleigh(homo + 1:2*homo))
-                  CALL cp_fm_release(chc_im)
-                  CALL cp_fm_release(chc_re)
-                  CALL cp_fm_struct_release(chc_struct)
                END IF
                CALL cp_fm_column_scale(hc_roks_re, roks_occupation)
                CALL cp_fm_column_scale(hc_roks_im, roks_occupation)
@@ -967,10 +967,6 @@ CONTAINS
             END IF
 
             IF (local_ot_env(local_channel)%settings%do_ener) THEN
-               CALL cp_fm_struct_create(chc_struct, template_fmstruct=active_mo_struct, &
-                                        nrow_global=homo, ncol_global=homo)
-               CALL cp_fm_create(chc_re, chc_struct)
-               CALL cp_fm_create(chc_im, chc_struct)
                CALL multiply_complex_fm_adjoint( &
                   active_mo_coeff, active_mo_coeff_im, hc_re, hc_im, &
                   chc_re, chc_im, 1.0_dp, 0.0_dp)
@@ -998,8 +994,6 @@ CONTAINS
             CALL cp_fm_release(active_mo_coeff_im)
             CALL cp_fm_release(hc_re)
             CALL cp_fm_release(hc_im)
-            CALL cp_fm_release(mo_coeff)
-            CALL cp_fm_release(mo_coeff_im)
             CALL cp_fm_struct_release(active_mo_struct)
             CALL dbcsr_release_p(matrix_k_re)
             CALL dbcsr_release_p(matrix_k_im)
@@ -1021,12 +1015,12 @@ CONTAINS
             local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
             CALL get_mo_set(kp%mos(ispin), homo=homo, nmo=nmo, &
                             occupation_numbers=occupation_numbers)
-            CALL cp_fm_create(mo_coeff, kp%mos(ispin)%cmo_coeff%matrix_struct)
-            CALL cp_fm_create(mo_coeff_im, kp%mos(ispin)%cmo_coeff%matrix_struct)
-            CALL cp_cfm_to_fm(kp%mos(ispin)%cmo_coeff, mo_coeff, mo_coeff_im)
             IF (local_ot_env(local_channel)%settings%do_ener) homo = nmo
             IF (physical_base_state .AND. &
                 local_ot_env(local_channel)%settings%occupation_preconditioner) THEN
+               CALL cp_fm_create(mo_coeff, kp%mos(ispin)%cmo_coeff%matrix_struct)
+               CALL cp_fm_create(mo_coeff_im, kp%mos(ispin)%cmo_coeff%matrix_struct)
+               CALL cp_cfm_to_fm(kp%mos(ispin)%cmo_coeff, mo_coeff, mo_coeff_im)
                IF (restricted_roks) THEN
                   IF (.NOT. (nspin_energy <= SIZE(local_ot_env(local_channel)%mermin_physical))) THEN
                      CALL cp_abort(__LOCATION__, "Missing Mermin physical spin state")
@@ -1045,13 +1039,15 @@ CONTAINS
                      kp%ot_hmat(2, MIN(ispin, SIZE(kp%ot_hmat, 2))), &
                      trial_occupation(:, ikpoint, ispin))
                END IF
+               CALL cp_fm_release(mo_coeff)
+               CALL cp_fm_release(mo_coeff_im)
             END IF
+            ALLOCATE (orbital_scaling_factor(homo))
             IF (local_ot_env(local_channel)%settings%occupation_preconditioner) THEN
                CALL dbcsr_copy(matrix_hc_physical(local_channel)%matrix, &
                                matrix_hc(local_channel)%matrix)
                CALL dbcsr_copy(matrix_hc_physical_im(local_channel)%matrix, &
                                matrix_hc_im(local_channel)%matrix)
-               ALLOCATE (orbital_scaling_factor(homo))
                IF (restricted_roks) THEN
                   orbital_scaling_factor(:) = 2.0_dp*wkp(ikpoint)
                ELSE
@@ -1062,9 +1058,7 @@ CONTAINS
                                           alpha=orbital_scaling_factor, side='right')
                CALL dbcsr_scale_by_vector(matrix_hc_physical_im(local_channel)%matrix, &
                                           alpha=orbital_scaling_factor, side='right')
-               DEALLOCATE (orbital_scaling_factor)
             END IF
-            ALLOCATE (orbital_scaling_factor(homo))
             IF (local_ot_env(local_channel)%settings%occupation_preconditioner) THEN
                orbital_scaling_factor(:) = 2.0_dp*wkp(ikpoint)
             ELSE IF (restricted_roks) THEN
@@ -1080,8 +1074,6 @@ CONTAINS
             CALL dbcsr_scale_by_vector(matrix_hc_im(local_channel)%matrix, &
                                        alpha=orbital_scaling_factor, side='right')
             DEALLOCATE (orbital_scaling_factor)
-            CALL cp_fm_release(mo_coeff)
-            CALL cp_fm_release(mo_coeff_im)
          END DO
       END DO
 
@@ -1149,9 +1141,6 @@ CONTAINS
             local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
             CALL get_mo_set(kp%mos(ispin), homo=homo, eigenvalues=eigenvalues, &
                             nao=nao, nmo=nmo)
-            CALL cp_fm_create(mo_coeff, kp%mos(ispin)%cmo_coeff%matrix_struct)
-            CALL cp_fm_create(mo_coeff_im, kp%mos(ispin)%cmo_coeff%matrix_struct)
-            CALL cp_cfm_to_fm(kp%mos(ispin)%cmo_coeff, mo_coeff, mo_coeff_im)
             IF (local_ot_env(local_channel)%settings%do_ener) homo = nmo
             SELECT CASE (local_ot_env(local_channel)%settings%ot_algorithm)
             CASE ("TOD")
@@ -1167,22 +1156,30 @@ CONTAINS
             CASE DEFAULT
                CPABORT("K-point OT orbital update requires ALGORITHM STRICT or IRAC")
             END SELECT
-            CALL cp_fm_struct_create(active_mo_struct, template_fmstruct=mo_coeff%matrix_struct, &
+            CALL cp_fm_struct_create(active_mo_struct, template_fmstruct=kp%mos(ispin)%cmo_coeff%matrix_struct, &
                                      ncol_global=homo)
             CALL cp_fm_create(active_mo_coeff, active_mo_struct)
             CALL cp_fm_create(active_mo_coeff_im, active_mo_struct)
             CALL copy_dbcsr_to_fm(matrix_hc(local_channel)%matrix, active_mo_coeff)
             CALL copy_dbcsr_to_fm(matrix_hc_im(local_channel)%matrix, active_mo_coeff_im)
-            CALL cp_fm_to_fm(active_mo_coeff, mo_coeff, homo)
-            CALL cp_fm_to_fm(active_mo_coeff_im, mo_coeff_im, homo)
-            CALL cp_fm_to_cfm(mo_coeff, mo_coeff_im, kp%mos(ispin)%cmo_coeff)
+            IF (cp_fm_struct_equivalent(active_mo_struct, kp%mos(ispin)%cmo_coeff%matrix_struct)) THEN
+               CALL cp_fm_to_cfm(active_mo_coeff, active_mo_coeff_im, kp%mos(ispin)%cmo_coeff)
+            ELSE
+               ! Preserve padded MO columns and handle different active/full matrix layouts.
+               CALL cp_fm_create(mo_coeff, kp%mos(ispin)%cmo_coeff%matrix_struct)
+               CALL cp_fm_create(mo_coeff_im, kp%mos(ispin)%cmo_coeff%matrix_struct)
+               CALL cp_cfm_to_fm(kp%mos(ispin)%cmo_coeff, mo_coeff, mo_coeff_im)
+               CALL cp_fm_to_fm(active_mo_coeff, mo_coeff, homo)
+               CALL cp_fm_to_fm(active_mo_coeff_im, mo_coeff_im, homo)
+               CALL cp_fm_to_cfm(mo_coeff, mo_coeff_im, kp%mos(ispin)%cmo_coeff)
+               CALL cp_fm_release(mo_coeff)
+               CALL cp_fm_release(mo_coeff_im)
+            END IF
             IF (local_ot_env(local_channel)%settings%do_ener .AND. .NOT. restricted_roks) THEN
                eigenvalues(1:homo) = local_ot_env(local_channel)%ener_x(:)
             END IF
             CALL cp_fm_release(active_mo_coeff)
             CALL cp_fm_release(active_mo_coeff_im)
-            CALL cp_fm_release(mo_coeff)
-            CALL cp_fm_release(mo_coeff_im)
             CALL cp_fm_struct_release(active_mo_struct)
          END DO
          IF (restricted_roks) THEN
