@@ -51,17 +51,6 @@ MODULE qs_diis_types
    END TYPE qs_diis_buffer_type
 
 ! **************************************************************************************************
-!> \brief build array of pointers to diis buffers
-!> \param diis_buffer the diis buffer pointer
-!> \par History
-!>      02.2003 created [fawzi]
-!> \author fawzi
-! **************************************************************************************************
-   TYPE qs_diis_buffer_p_type
-      TYPE(qs_diis_buffer_type), POINTER :: diis_buffer => NULL()
-   END TYPE qs_diis_buffer_p_type
-
-! **************************************************************************************************
 !> \brief build array of pointers to diis buffers for sparse matrix case
 !> \param diis_buffer the diis buffer pointer
 !> \par History
@@ -75,10 +64,6 @@ MODULE qs_diis_types
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER     :: param => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER          :: b_matrix => NULL()
    END TYPE qs_diis_buffer_type_sparse
-
-   TYPE qs_diis_buffer_p_type_sparse
-      TYPE(qs_diis_buffer_type_sparse), POINTER        :: diis_buffer => NULL()
-   END TYPE qs_diis_buffer_p_type_sparse
 
 ! **************************************************************************************************
 !> \brief build arrau of pointers to diis buffers in the k-point (complex full matrices) case
@@ -95,10 +80,6 @@ MODULE qs_diis_types
       TYPE(cp_cfm_type), DIMENSION(:, :, :), POINTER   :: error => NULL()
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER       :: b_matrix => NULL()
    END TYPE qs_diis_buffer_type_kp
-
-   TYPE qs_diis_buffer_p_type_kp
-      TYPE(qs_diis_buffer_type_kp), POINTER            :: diis_buffer => NULL()
-   END TYPE qs_diis_buffer_p_type_kp
 
 CONTAINS
 

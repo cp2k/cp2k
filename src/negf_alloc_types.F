@@ -18,8 +18,7 @@ MODULE negf_alloc_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'negf_alloc_types'
 
-   PUBLIC :: negf_allocatable_ivector, negf_allocatable_rvector, &
-             negf_allocatable_imatrix, negf_allocatable_rmatrix
+   PUBLIC :: negf_allocatable_ivector, negf_allocatable_rvector
 
 ! **************************************************************************************************
 !> \brief Allocatable 1-D integer vector
@@ -36,21 +35,5 @@ MODULE negf_alloc_types
       !> allocatable 1-D real vector
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: vector
    END TYPE negf_allocatable_rvector
-
-! **************************************************************************************************
-!> \brief Allocatable 2-D integer matrix
-! **************************************************************************************************
-   TYPE negf_allocatable_imatrix
-      !> allocatable 2-D integer matrix
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: matrix
-   END TYPE negf_allocatable_imatrix
-
-! **************************************************************************************************
-!> \brief Allocatable 2-D real matrix
-! **************************************************************************************************
-   TYPE negf_allocatable_rmatrix
-      !> allocatable 2-D real matrix
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: matrix
-   END TYPE negf_allocatable_rmatrix
 
 END MODULE negf_alloc_types
