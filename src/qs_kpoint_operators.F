@@ -1670,14 +1670,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Read an operator inside a group-local OT loop, after collective cache preparation.
-!>        One group retains the sparse transform and distribution required by OT's DBCSR kernels.
-!>        Multiple groups read their owned cache; no world collective may occur in this loop.
+!>        A single distributed group retains the sparse transform and distribution.
+!>        One-rank or multiple groups read their owned cache, without world collectives.
 !> \param matrix_rs current real-space operator
 !> \param kpoints host environment
 !> \param kp local k-point state
 !> \param ispin source row (one for spin-free S/T)
-!> \param cache_re owned real part, used with multiple groups
-!> \param cache_im owned imaginary part, used with multiple groups
+!> \param cache_re prepared real part on the k-point group
+!> \param cache_im prepared imaginary part on the k-point group
 !> \param matrix_re newly initialized sparse real output
 !> \param matrix_im newly initialized sparse imaginary output
 ! **************************************************************************************************
@@ -1708,7 +1708,7 @@ CONTAINS
       xkp => kpoints%xkp
       cell_to_index => kpoints%cell_to_index
       sab_nl => kpoints%sab_nl
-      IF (nkp_groups == 1) THEN
+      IF (nkp_groups == 1 .AND. kpoints%para_env_kp%num_pe > 1) THEN
          CPASSERT(ASSOCIATED(xkp))
          CPASSERT(ASSOCIATED(cell_to_index))
          CPASSERT(ASSOCIATED(sab_nl))

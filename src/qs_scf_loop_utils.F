@@ -696,9 +696,8 @@ CONTAINS
          local_channel, local_kpoint, nao, nkp_groups, nkpoint, nlocal_channels, nmo, &
          nspin_energy, nspin_ot
       INTEGER, DIMENSION(2)                              :: kp_range
-      LOGICAL                                            :: need_gradient, ot_gradient_prepared, &
-                                                            physical_base_state, restart_history, &
-                                                            restricted_roks, use_real_wfn
+      LOGICAL :: need_gradient, ot_gradient_prepared, physical_base_state, restart_history, &
+         restricted_roks, use_operator_cache, use_real_wfn
       REAL(KIND=dp)                                      :: trial_kTS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: orbital_scaling_factor, roks_occupation, &
                                                             trial_mu
@@ -744,6 +743,7 @@ CONTAINS
       CALL get_kpoint_info(kpoints, nkp=nkpoint, wkp=wkp, use_real_wfn=use_real_wfn, &
                            kp_range=kp_range, nkp_groups=nkp_groups, para_env_inter_kp=para_env_inter_kp, &
                            sab_nl=sab_nl)
+      use_operator_cache = nkp_groups > 1 .OR. kpoints%para_env_kp%num_pe == 1
       fmwork => scf_env%scf_work1
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
       CPASSERT(ASSOCIATED(sab_nl))
@@ -772,10 +772,6 @@ CONTAINS
                                        require_local_state=.TRUE., &
                                        require_complex_state=.TRUE.)
 
-      IF (nkp_groups > 1) THEN
-         CALL kpoint_operator_store(kpoints, fmwork(1), matrix_ks, matrix_s)
-      END IF
-
       first_channel = qs_ot_channel_index(1, kp_range(1), nspin_ot)
       nlocal_channels = SIZE(kpoints%kp_env)*nspin_ot
       local_ot_env => scf_env%qs_ot_env(first_channel:first_channel + nlocal_channels - 1)
@@ -787,6 +783,12 @@ CONTAINS
 
       CALL ot_mini_prepare(local_ot_env, restart_history, para_env_inter_kp)
       need_gradient = .NOT. local_ot_env(1)%energy_only .OR. restart_history
+
+      ! Include one-rank groups in the batched, k-point-parallel operator preparation.
+      ! Fixed-occupation energy-only trials need no H(k) and can reuse the stored S(k).
+      IF (use_operator_cache .AND. (need_gradient .OR. local_ot_env(1)%settings%do_ener)) THEN
+         CALL kpoint_operator_store(kpoints, fmwork(1), matrix_ks, matrix_s)
+      END IF
 
       ALLOCATE (matrix_hc(nlocal_channels))
       ALLOCATE (matrix_hc_im(nlocal_channels))
@@ -831,7 +833,7 @@ CONTAINS
                matrix_ks, kpoints, kp, MIN(ispin, SIZE(matrix_ks, 1)), &
                kp%ot_hmat(1, MIN(ispin, SIZE(kp%ot_hmat, 2))), &
                kp%ot_hmat(2, MIN(ispin, SIZE(kp%ot_hmat, 2))), matrix_k_re, matrix_k_im)
-            IF (physical_base_state .AND. nkp_groups == 1) THEN
+            IF (physical_base_state .AND. .NOT. use_operator_cache) THEN
                ! The direct single-group transform bypasses the full-matrix cache.  Synchronize it
                ! at accepted endpoints so the physical Mermin history sees the H(k) used for H(k)C(k).
                CALL copy_dbcsr_to_fm( &
@@ -1608,7 +1610,7 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: projected
       INTEGER :: ikpoint, ispin, local_channel, local_kpoint, nao, nimages, nkp_groups, &
          nlocal_kpoints, nmo, nmode, response_mode, test_mode
-      LOGICAL                                            :: do_hfx
+      LOGICAL                                            :: do_hfx, use_operator_cache
       REAL(KIND=dp)                                      :: symmetry_error, symmetry_scale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dense_im, dense_re, lowdin_response
       TYPE(cp_cfm_type)                                  :: action_cfm, coeff_cfm
@@ -1639,6 +1641,7 @@ CONTAINS
       CALL section_vals_get(hfx_section, explicit=do_hfx)
       IF (do_hfx) RETURN
       CALL get_kpoint_info(kpoints, nkp_groups=nkp_groups)
+      use_operator_cache = nkp_groups > 1 .OR. kpoints%para_env_kp%num_pe == 1
 
       nlocal_kpoints = SIZE(kpoints%kp_env)
       nmo = SIZE(channel_density_modes, 1)
@@ -1678,7 +1681,7 @@ CONTAINS
       ! response mode: nothing inside the loop changes the host k-point
       ! environment, and every mode rebuilds potential_rs from the same
       ! rho_ao_kp template, so the work trio distribution stays valid.
-      IF (nkp_groups > 1) THEN
+      IF (use_operator_cache) THEN
          CALL kpoint_operator_context_create(hxc_op_ctx, kpoints, fmwork(1), nspin_ot)
       END IF
       DO response_mode = 1, nmode
@@ -1757,7 +1760,7 @@ CONTAINS
          DEALLOCATE (density_kp)
 
          CALL apply_hxc_kernel_kp(qs_env, kernel_env, density_rs, potential_rs)
-         IF (nkp_groups > 1) THEN
+         IF (use_operator_cache) THEN
             ! Refresh every response mode. The OT channel can use a different
             ! group-local BLACS layout from the default AO/AO pool.
             CALL kpoint_operator_prepare(hxc_op_ctx, potential_rs, kpoint_slot_ks, TARGET=operator_re(1, 1))
@@ -1842,7 +1845,7 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(potential_rs)
          NULLIFY (density_rs, potential_rs)
       END DO
-      IF (nkp_groups > 1) THEN
+      IF (use_operator_cache) THEN
          CALL kpoint_operator_context_release(hxc_op_ctx)
       END IF
 
