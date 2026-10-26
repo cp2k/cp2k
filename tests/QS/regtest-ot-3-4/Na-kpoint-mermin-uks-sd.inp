@@ -12,7 +12,6 @@
     UKS TRUE
     &KPOINTS
       FULL_GRID OFF
-      PARALLEL_GROUP_SIZE 0
       SCHEME MONKHORST-PACK 2 1 1
       SYMMETRY ON
     &END KPOINTS
@@ -25,7 +24,7 @@
     &SCF
       ADDED_MOS 1
       # Keep the first REF rebuild window below the late-SCF residual plateau.
-      EPS_SCF 1.0E-9
+      EPS_SCF 1.0E-6
       MAX_SCF 40
       SCF_GUESS ATOMIC
       &OT

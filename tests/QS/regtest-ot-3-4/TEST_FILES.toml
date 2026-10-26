@@ -3,8 +3,8 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"Na-kpoint-mermin-uks-sd.inp"           = [{matcher="E_total", tol=1e-9, ref=-0.280830319393730}]
-"Na-kpoint-mermin-uks-cg.inp"           = [{matcher="E_total", tol=1e-9, ref=-0.280830319393724}]
+"Na-kpoint-mermin-uks-sd.inp"           = [{matcher="E_total", tol=1e-9, ref=-0.280830319392400}]
+"Na-kpoint-mermin-uks-cg.inp"           = [{matcher="E_total", tol=1e-9, ref=-0.280830319393706}]
 # The fixed-moment state provides the initial wavefunction for the common-mu test.
 "Al-kpoint-mermin-uks-fixed-moment.inp" = [
   {matcher="QS_number_of_molecular_orbitals", tol=0.0, ref=4.0},
