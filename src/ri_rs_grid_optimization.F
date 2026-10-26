@@ -21,7 +21,8 @@ MODULE ri_rs_grid_optimization
                                               gw_3c_ws_create,&
                                               gw_3c_ws_release,&
                                               gw_3c_ws_type
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE message_passing,                 ONLY: mp_mem_avail_per_rank_GB,&
@@ -398,8 +399,8 @@ CONTAINS
       INTEGER :: handle, i_cluster_atom_j, i_cluster_atom_k, i_cluster_atom_p, iatom, iatom_j, &
          iatom_k, iatom_p, icenter_atom, icluster_atom, ikind, ilocal_cluster, ip, &
          n_local_clusters, nAO_cluster, nRI_cluster, nRI_nonzero
-      INTEGER, ALLOCATABLE                               :: AO_offset(:), RI_offset(:), &
-                                                            sizes_ref_RI(:)
+      INTEGER, ALLOCATABLE                               :: AO_offset(:), owner_rank(:), &
+                                                            RI_offset(:), sizes_ref_RI(:)
       LOGICAL                                            :: screened
       REAL(KIND=dp)                                      :: cluster_radius
       REAL(KIND=dp), ALLOCATABLE                         :: Int_3c_nonzero(:, :, :)
@@ -420,8 +421,9 @@ CONTAINS
          ikind = particle_set(iatom)%atomic_kind%kind_number
          sizes_ref_RI(iatom) = bs_env%basis_set_RI(ikind)%gto_basis_set%nsgf
       END DO
-      n_local_clusters = COUNT([(MOD(icenter_atom - 1, para_env%num_pe) == para_env%mepos, &
-                                 icenter_atom=1, bs_env%n_atom)])
+      ALLOCATE (owner_rank(bs_env%n_atom))
+      CALL assign_clusters_to_ranks(bs_env, sizes_ref_RI, owner_rank)
+      n_local_clusters = COUNT(owner_rank == para_env%mepos)
       ALLOCATE (cluster_3c_int(n_local_clusters), &
                 AO_offset(bs_env%n_atom), RI_offset(bs_env%n_atom))
       CALL gw_3c_ctx_create(integral_context, bs_env, bs_env%ri_metric, &
@@ -430,7 +432,7 @@ CONTAINS
       CALL gw_3c_ws_create(workspace, integral_context)
       ilocal_cluster = 0
       DO icenter_atom = 1, bs_env%n_atom
-         IF (MOD(icenter_atom - 1, para_env%num_pe) /= para_env%mepos) CYCLE
+         IF (owner_rank(icenter_atom) /= para_env%mepos) CYCLE
          ilocal_cluster = ilocal_cluster + 1
          CALL get_rirs_cluster_atoms(particle_set, cell, icenter_atom, cluster_radius, &
                                      cluster_3c_int(ilocal_cluster)%atom_indices)
@@ -585,6 +587,125 @@ CONTAINS
                                  normalized_error, fit_successful, max_abs_error=max_abs_error)
       END IF
    END SUBROUTINE evaluate_local_cluster
+
+! **************************************************************************************************
+!> \brief Estimate AO-space evaluator work and streaming traffic for each cluster.
+!> \param npts Grid points in each cluster.
+!> \param nao AO functions in each cluster.
+!> \param nri Estimated nonzero RI columns (pre-screening upper bounds).
+!> \param tikhonov Regularization parameter; positive values require a response solve.
+!> \param cost Relative work estimate, not a prediction in seconds.
+! **************************************************************************************************
+   SUBROUTINE cluster_cost(npts, nao, nri, tikhonov, cost)
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: npts, nao, nri
+      REAL(KIND=dp), INTENT(IN)                          :: tikhonov
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: cost
+
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: a, g, r, response, words, work
+
+      CPASSERT(SIZE(npts) == SIZE(nao) .AND. SIZE(npts) == SIZE(nri))
+      CPASSERT(SIZE(npts) == SIZE(cost))
+      response = MERGE(1.0_dp, 0.0_dp, tikhonov > 0.0_dp)
+      DO i = 1, SIZE(npts)
+         g = REAL(npts(i), dp)
+         a = REAL(nao(i), dp)
+         r = REAL(nri(i), dp)
+         ! AO-space work, g points, a AOs, r nonzero RI columns, h = (lambda > 0):
+         ! F = g^3/3 + 3*g^2*a + (3+3*h)*g^2*r + 4*g*a^2*r + 4*g*a*r + 20*g*a + 2*a^2*r.
+         ! Includes the explicit residual fallback conservatively (2*g*a^2*r of the 4*g*a^2*r).
+         ! Memory proxy in doubles: W = a^2*r + 3*g*a*r + 2*g^2 + 6*g*a + 2*g*r.
+         ! W counts resident integrals, product streams and fixed dense workspaces; cost = F + W
+         ! uses one work unit per double, without hardware or panel-size calibration.
+         work = g**3/3.0_dp + 3.0_dp*g*g*a + (3.0_dp + 3.0_dp*response)*g*g*r + &
+                4.0_dp*g*a*a*r + 4.0_dp*g*a*r + 20.0_dp*g*a + 2.0_dp*a*a*r
+         words = a*a*r + 3.0_dp*g*a*r + 2.0_dp*g*g + 6.0_dp*g*a + 2.0_dp*g*r
+         cost(i) = work + words
+      END DO
+   END SUBROUTINE cluster_cost
+
+! **************************************************************************************************
+!> \brief Assign whole clusters by longest-processing-time scheduling, identically on every rank.
+!>        MAXLOC/MINLOC select the first occurrence: ties use atom index, then the lower load bin.
+!>        Load bins are then mapped to ranks by a fixed permutation that depends only on num_pe.
+!> \param cost Estimated cluster costs, indexed by centre atom.
+!> \param num_pe Number of MPI ranks.
+!> \param owner_rank Zero-based owner rank of every cluster.
+! **************************************************************************************************
+   SUBROUTINE schedule_clusters(cost, num_pe, owner_rank)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: cost
+      INTEGER, INTENT(IN)                                :: num_pe
+      INTEGER, DIMENSION(:), INTENT(OUT)                 :: owner_rank
+
+      INTEGER                                            :: best_rank, i, ia, ib, ipick, remainder, &
+                                                            stride
+      LOGICAL, ALLOCATABLE                               :: done(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: rank_load(:)
+
+      CPASSERT(num_pe > 0)
+      CPASSERT(SIZE(owner_rank) == SIZE(cost))
+      ALLOCATE (done(SIZE(cost)), rank_load(num_pe))
+      done = .FALSE.
+      rank_load = 0.0_dp
+      DO i = 1, SIZE(cost)
+         ipick = MAXLOC(cost, DIM=1, MASK=.NOT. done)
+         done(ipick) = .TRUE.
+         best_rank = MINLOC(rank_load, DIM=1)
+         owner_rank(ipick) = best_rank - 1
+         rank_load(best_rank) = rank_load(best_rank) + cost(ipick)
+      END DO
+      ! The first num_pe picks fill the load bins in decreasing cost. Spread consecutive bins over the
+      ! rank labels with a stride coprime to num_pe (a placement heuristic; its benefit depends on
+      ! rank binding and hardware topology). Each bin keeps its clusters and its load.
+      stride = MAX(1, NINT(0.618_dp*REAL(num_pe, dp)))
+      DO
+         ia = stride
+         ib = num_pe
+         DO WHILE (ib /= 0)
+            remainder = MOD(ia, ib)
+            ia = ib
+            ib = remainder
+         END DO
+         IF (ia == 1) EXIT
+         stride = stride + 1
+      END DO
+      owner_rank(:) = INT(MOD(INT(owner_rank(:), int_8)*INT(stride, int_8), INT(num_pe, int_8)))
+   END SUBROUTINE schedule_clusters
+
+! **************************************************************************************************
+!> \brief Derive replicated cluster sizes before assigning ownership and constructing integrals.
+!> \param bs_env Bandstructure state with initialized grids.
+!> \param sizes_ref_RI Auxiliary basis sizes before zero-column screening.
+!> \param owner_rank Zero-based owner rank of every cluster.
+! **************************************************************************************************
+   SUBROUTINE assign_clusters_to_ranks(bs_env, sizes_ref_RI, owner_rank)
+      TYPE(post_scf_bandstructure_type), INTENT(IN), &
+         POINTER                                         :: bs_env
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: sizes_ref_RI
+      INTEGER, DIMENSION(:), INTENT(OUT)                 :: owner_rank
+
+      INTEGER                                            :: iatom, icenter, j
+      INTEGER, ALLOCATABLE                               :: atom_indices(:), nao(:), npts(:), nri(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: cost(:)
+
+      ALLOCATE (nao(bs_env%n_atom), npts(bs_env%n_atom), nri(bs_env%n_atom), cost(bs_env%n_atom))
+      DO icenter = 1, bs_env%n_atom
+         CALL get_rirs_cluster_atoms(bs_env%ri_rs%particle_set, bs_env%ri_rs%cell, icenter, &
+                                     bs_env%ri_rs%grid_opt%cutoff_atomic_cluster, atom_indices)
+         nao(icenter) = SUM(bs_env%sizes_AO(atom_indices))
+         ! Exact nonzero counts require integrals on the future owner. Use the full RI count
+         ! as a conservative estimate, identically on every rank; do not build or migrate twice.
+         nri(icenter) = SUM(sizes_ref_RI(atom_indices))
+         npts(icenter) = 0
+         DO j = 1, SIZE(atom_indices)
+            iatom = atom_indices(j)
+            npts(icenter) = npts(icenter) + SIZE(bs_env%ri_rs%atomic_grids(iatom)%raw_points, 2)
+         END DO
+         DEALLOCATE (atom_indices)
+      END DO
+      CALL cluster_cost(npts, nao, nri, bs_env%ri_rs%tikhonov, cost)
+      CALL schedule_clusters(cost, bs_env%para_env%num_pe, owner_rank)
+   END SUBROUTINE assign_clusters_to_ranks
 
 ! **************************************************************************************************
 !> \brief Sum gradient contributions from overlapping C_A into each atom-centred grid coordinate.
