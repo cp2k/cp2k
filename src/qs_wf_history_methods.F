@@ -389,7 +389,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'wfs_overlap_kp'
 
       INTEGER                                            :: handle, ikp, kplocal, use_cache
-      TYPE(cp_fm_pool_type), POINTER                     :: ao_ao_fm_pools
+      TYPE(cp_fm_pool_type), POINTER                     :: ao_ao_fm_pool
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -401,8 +401,8 @@ CONTAINS
       para_env => kpoints%blacs_env_all%para_env
       kplocal = SIZE(kpoints%kp_env)
       CPASSERT(kplocal > 0)
-      CALL mpools_get(kpoints%mpools, ao_ao_fm_pools=ao_ao_fm_pools)
-      matrix_struct => fm_pool_get_el_struct(ao_ao_fm_pools)
+      CALL mpools_get(kpoints%mpools, ao_ao_fm_pool=ao_ao_fm_pool)
+      matrix_struct => fm_pool_get_el_struct(ao_ao_fm_pool)
 
       ! All ranks must choose the same path if any cache is missing or incompatible.
       use_cache = 0
@@ -1286,7 +1286,7 @@ CONTAINS
                                                             cmos_new, csc_cfm
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: csmat_cur
       TYPE(cp_cfm_type), POINTER                         :: mo_coeff
-      TYPE(cp_fm_pool_type), POINTER                     :: ao_ao_fm_pools_kp
+      TYPE(cp_fm_pool_type), POINTER                     :: ao_ao_fm_pool_kp
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_struct, nmo_nmo_struct
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1346,8 +1346,8 @@ CONTAINS
       END IF
 
       CALL get_kpoint_info(kpoints, mpools=mpools_kp)
-      CALL mpools_get(mpools_kp, ao_ao_fm_pools=ao_ao_fm_pools_kp)
-      ao_ao_struct => fm_pool_get_el_struct(ao_ao_fm_pools_kp)
+      CALL mpools_get(mpools_kp, ao_ao_fm_pool=ao_ao_fm_pool_kp)
+      ao_ao_struct => fm_pool_get_el_struct(ao_ao_fm_pool_kp)
 
       CALL cp_cfm_create(cmos_new, mo_coeff%matrix_struct)
       CALL cp_cfm_create(cfm_nao_nmo_work, mo_coeff%matrix_struct)
@@ -1752,7 +1752,7 @@ CONTAINS
                                                             cmos_new, csc_cfm
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: csmat_cur
       TYPE(cp_cfm_type), POINTER                         :: mo_coeff
-      TYPE(cp_fm_pool_type), POINTER                     :: ao_ao_fm_pools_kp
+      TYPE(cp_fm_pool_type), POINTER                     :: ao_ao_fm_pool_kp
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_struct, nmo_nmo_struct
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
       TYPE(kpoint_env_type), POINTER                     :: kp
@@ -1767,7 +1767,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       NULLIFY (ao_ao_struct, kp, kpoints, matrix_s_kp, mo_coeff, mpools_kp, &
                para_env_inter_kp, scf_env, t0_state, t1_state, wkp, xkp, nmo_nmo_struct, &
-               ao_ao_fm_pools_kp)
+               ao_ao_fm_pool_kp)
 
       CALL get_qs_env(qs_env, kpoints=kpoints, matrix_s_kp=matrix_s_kp, scf_env=scf_env)
       CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn, kp_range=kp_range, &
@@ -1801,8 +1801,8 @@ CONTAINS
       nspin = SIZE(kp%mos)
       CALL get_mo_set(kp%mos(1), nao=nao, nmo=nmo, cmo_coeff=mo_coeff)
 
-      CALL mpools_get(mpools_kp, ao_ao_fm_pools=ao_ao_fm_pools_kp)
-      ao_ao_struct => fm_pool_get_el_struct(ao_ao_fm_pools_kp)
+      CALL mpools_get(mpools_kp, ao_ao_fm_pool=ao_ao_fm_pool_kp)
+      ao_ao_struct => fm_pool_get_el_struct(ao_ao_fm_pool_kp)
 
       ALLOCATE (csmat_cur(kplocal), weight_kp(kplocal))
       DO ikp = 1, kplocal
