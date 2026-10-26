@@ -55,13 +55,6 @@ MODULE atomic_kind_types
       TYPE(damping_p_type), POINTER          :: damping => Null()
    END TYPE atomic_kind_type
 
-!> \brief Provides a vector of pointers of type atomic_kind_type
-! **************************************************************************************************
-   TYPE atomic_kind_p_type
-      TYPE(atomic_kind_type), DIMENSION(:), &
-         POINTER                             :: atomic_kind_set => NULL()
-   END TYPE atomic_kind_p_type
-
    ! Public subroutines
 
    PUBLIC :: deallocate_atomic_kind_set, &

@@ -231,17 +231,9 @@ MODULE external_potential_types
       REAL(KIND=dp), DIMENSION(:), POINTER       :: c_nlcc => Null()
    END TYPE sgp_potential_type
 
-   TYPE all_potential_p_type
-      TYPE(all_potential_type), POINTER          :: all_potential => NULL()
-   END TYPE all_potential_p_type
-
    TYPE gth_potential_p_type
       TYPE(gth_potential_type), POINTER          :: gth_potential => NULL()
    END TYPE gth_potential_p_type
-
-   TYPE local_potential_p_type
-      TYPE(local_potential_type), POINTER        :: local_potential => NULL()
-   END TYPE local_potential_p_type
 
    TYPE sgp_potential_p_type
       TYPE(sgp_potential_type), POINTER          :: sgp_potential => NULL()

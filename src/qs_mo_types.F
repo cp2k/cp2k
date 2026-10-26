@@ -86,12 +86,7 @@ MODULE qs_mo_types
       REAL(KIND=dp)                                      :: flexible_electron_count = -1.0_dp
    END TYPE mo_set_type
 
-   TYPE mo_set_p_type
-      TYPE(mo_set_type), POINTER :: mo_set => NULL()
-   END TYPE mo_set_p_type
-
-   PUBLIC :: mo_set_p_type, &
-             mo_set_type
+   PUBLIC :: mo_set_type
 
    PUBLIC :: allocate_mo_set, &
              deallocate_mo_set, &

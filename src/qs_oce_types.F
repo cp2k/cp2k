@@ -7,8 +7,6 @@
 ! **************************************************************************************************
 MODULE qs_oce_types
 
-   USE block_p_types,                   ONLY: block_p_type
-   USE kinds,                           ONLY: dp
    USE sap_kind_types,                  ONLY: release_sap_int,&
                                               sap_int_type
 #include "./base/base_uses.f90"
@@ -22,16 +20,6 @@ MODULE qs_oce_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_oce_types'
 
 ! *** Define a oce matrix type ***
-
-! **************************************************************************************************
-   TYPE qlist_type
-      TYPE(block_p_type), DIMENSION(:), POINTER :: sac => NULL()
-      REAL(KIND=dp), DIMENSION(:), POINTER      :: r2 => NULL()
-      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: r => NULL()
-      INTEGER                                   :: n = -1
-      INTEGER, DIMENSION(:), POINTER            :: index_list => NULL()
-      INTEGER, DIMENSION(:), POINTER            :: list => NULL()
-   END TYPE qlist_type
 
 ! **************************************************************************************************
    TYPE oce_matrix_type

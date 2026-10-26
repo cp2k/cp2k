@@ -245,14 +245,6 @@ MODULE qs_kind_types
       TYPE(pao_descriptor_type), DIMENSION(:), POINTER :: pao_descriptors => Null()
    END TYPE qs_kind_type
 
-! **************************************************************************************************
-!> \brief Provides a vector of pointers of type qs_kind_type
-! **************************************************************************************************
-   TYPE qs_kind_p_type
-      TYPE(qs_kind_type), DIMENSION(:), &
-         POINTER                             :: qs_kind_set => NULL()
-   END TYPE qs_kind_p_type
-
    ! Public subroutines
 
    PUBLIC :: check_qs_kind_set, &

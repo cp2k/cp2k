@@ -40,10 +40,6 @@ MODULE qs_rho_atom_types
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER     :: int_scr_s => NULL()
    END TYPE rho_atom_type
 
-   TYPE rho_atom_p_type
-      TYPE(rho_atom_type), POINTER :: rho_atom => NULL()
-   END TYPE rho_atom_p_type
-
    PUBLIC :: deallocate_rho_atom_set, get_rho_atom, rho_atom_coeff, rho_atom_type, &
              zero_rho_atom_integrals
 
