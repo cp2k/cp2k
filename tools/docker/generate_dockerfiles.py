@@ -224,6 +224,19 @@ def main() -> None:
             )
         )
 
+    with OutputFile(f"Dockerfile.test_spack_psmp-A40-cusolvermp", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                version="psmp",
+                mpi_mode="mpich",
+                base_image="nvidia/cuda:12.9.1-devel-ubuntu24.04",
+                gpu_model="A40",
+                feature_flags="-df elpa -df libtorch -df sirius -ef cusolver_mp",
+                testopts=f"{testopts} --mpiranks 1 --ompthreads 4 --maxtasks 8 --keepalive",
+                image_tag=f.image_tag,
+            )
+        )
+
     with OutputFile(f"Dockerfile.test_spack_performance-openmp", args.check) as f:
         f.write(
             install_cp2k_spack(
