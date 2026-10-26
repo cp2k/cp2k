@@ -1,7 +1,7 @@
 &GLOBAL
-  PRINT_LEVEL MEDIUM
+  PRINT_LEVEL LOW
   PROJECT LiH_rhombohedral_shifted_admm_kpsym
-  RUN_TYPE ENERGY_FORCE
+  RUN_TYPE ENERGY
 &END GLOBAL
 
 &FORCE_EVAL
@@ -43,7 +43,7 @@
         ALGORITHM STANDARD
       &END DIAGONALIZATION
       &MIXING
-        ALPHA 0.15
+        ALPHA 0.30
         METHOD BROYDEN_MIXING
       &END MIXING
       &PRINT
@@ -69,10 +69,6 @@
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
-  &PRINT
-    &FORCES ON
-    &END FORCES
-  &END PRINT
   &SUBSYS
     &CELL
       ABC 6.5 6.5 6.5
