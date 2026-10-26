@@ -125,7 +125,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_r3d_rs_type)                               :: coeff_rspace, rho0_r_tmp
+      TYPE(pw_r3d_rs_type)                               :: coeff_rspace
       TYPE(pw_r3d_rs_type), POINTER                      :: rho0_s_rs
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
@@ -254,15 +254,17 @@ CONTAINS
          CALL pw_pool%give_back_pw(coeff_rspace)
          CALL pw_pool%give_back_pw(coeff_gspace)
       ELSE
-
-         CALL pw_pool%create_pw(rho0_r_tmp)
-
-         CALL transfer_rs2pw(rs_grid, rho0_r_tmp)
-
-         tot_rs_int = pw_integrate_function(rho0_r_tmp, isign=-1)
-
-         CALL pw_transfer(rho0_r_tmp, rho0_s_rs)
-         CALL pw_pool%give_back_pw(rho0_r_tmp)
+         IF (ASSOCIATED(rs_grid%desc%pw, rho0_s_rs%pw_grid)) THEN
+            CALL transfer_rs2pw(rs_grid, rho0_s_rs)
+            tot_rs_int = pw_integrate_function(rho0_s_rs, isign=-1)
+         ELSE
+            ! Custom pools may use a distinct grid descriptor at the same level.
+            CALL pw_pool%create_pw(coeff_rspace)
+            CALL transfer_rs2pw(rs_grid, coeff_rspace)
+            tot_rs_int = pw_integrate_function(coeff_rspace, isign=-1)
+            CALL pw_transfer(coeff_rspace, rho0_s_rs)
+            CALL pw_pool%give_back_pw(coeff_rspace)
+         END IF
 
          CALL pw_zero(rho0_s_gs)
          CALL pw_transfer(rho0_s_rs, rho0_s_gs)
@@ -363,7 +365,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cg_list
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, lmax, lmax_nuc, lmin, &
                                                             lmin_nuc, npgf, npgf_nuc
-      LOGICAL                                            :: grid_distributed, paw_atom, use_virial
+      LOGICAL                                            :: direct_transfer, grid_distributed, &
+                                                            paw_atom, use_virial
       REAL(KIND=dp)                                      :: eps_rho_rspace, force_tmp(3), fscale, &
                                                             ra(3), rpgf0, zet0
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
@@ -472,35 +475,43 @@ CONTAINS
          pw_pool => pw_pools(igrid)%pool
       END IF
 
-      CALL pw_pool%create_pw(coeff_gspace)
-      CALL pw_pool%create_pw(coeff_rspace)
-
-      IF (igrid /= auxbas_grid) THEN
-         pw_aux => pw_pools(auxbas_grid)%pool
-         CALL pw_aux%create_pw(coeff_gaux)
-         CALL pw_transfer(v_rspace, coeff_gaux)
-         CALL pw_copy(coeff_gaux, coeff_gspace)
-         CALL pw_transfer(coeff_gspace, coeff_rspace)
-         CALL pw_aux%give_back_pw(coeff_gaux)
-         fscale = coeff_rspace%pw_grid%dvol/pw_aux%pw_grid%dvol
-         CALL pw_scale(coeff_rspace, fscale)
-      ELSE
-
-         IF (coeff_gspace%pw_grid%spherical) THEN
-            CALL pw_transfer(v_rspace, coeff_gspace)
+      direct_transfer = igrid == auxbas_grid .AND. .NOT. pw_pool%pw_grid%spherical .AND. &
+                        ASSOCIATED(rs_desc%pw, v_rspace%pw_grid)
+      IF (.NOT. direct_transfer) THEN
+         CALL pw_pool%create_pw(coeff_rspace)
+         IF (igrid /= auxbas_grid .OR. pw_pool%pw_grid%spherical) THEN
+            CALL pw_pool%create_pw(coeff_gspace)
+            IF (igrid /= auxbas_grid) THEN
+               pw_aux => pw_pools(auxbas_grid)%pool
+               CALL pw_aux%create_pw(coeff_gaux)
+               CALL pw_transfer(v_rspace, coeff_gaux)
+               CALL pw_copy(coeff_gaux, coeff_gspace)
+               CALL pw_aux%give_back_pw(coeff_gaux)
+            ELSE
+               ! Preserve the reciprocal-space projection on spherical grids.
+               CALL pw_transfer(v_rspace, coeff_gspace)
+            END IF
             CALL pw_transfer(coeff_gspace, coeff_rspace)
+            CALL pw_pool%give_back_pw(coeff_gspace)
+            IF (igrid /= auxbas_grid) THEN
+               fscale = coeff_rspace%pw_grid%dvol/pw_aux%pw_grid%dvol
+               CALL pw_scale(coeff_rspace, fscale)
+            END IF
          ELSE
             CALL pw_copy(v_rspace, coeff_rspace)
          END IF
       END IF
-      CALL pw_pool%give_back_pw(coeff_gspace)
 
       ! Setup the rs grid at level igrid
       CALL rs_grid_create(rs_v, rs_desc)
       CALL rs_grid_zero(rs_v)
-      CALL transfer_pw2rs(rs_v, coeff_rspace)
-
-      CALL pw_pool%give_back_pw(coeff_rspace)
+      IF (direct_transfer) THEN
+         ! The potential is already on the target grid; no PW copy is needed.
+         CALL transfer_pw2rs(rs_v, v_rspace)
+      ELSE
+         CALL transfer_pw2rs(rs_v, coeff_rspace)
+         CALL pw_pool%give_back_pw(coeff_rspace)
+      END IF
 
       ! Now the potential is on the right grid => integration
 
