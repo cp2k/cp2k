@@ -62,6 +62,7 @@ MODULE qs_ot_minimizer
               ot_mermin_response_shadow_followup, &
               ot_mermin_secant_curvature, &
               ot_mini, &
+              ot_mini_prepare, &
               ot_mini_prepare_gradient
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_minimizer'
@@ -130,23 +131,25 @@ CONTAINS
 !> \param para_env_inter_kp communicator between distributed k-point groups
 !> \param gradient_only return after evaluating the current OT gradient
 !> \param gradient_prepared reuse a gradient evaluated by ot_mini_prepare_gradient
+!> \param restart_history pending restart from ot_mini_prepare; absent prepares here
 ! **************************************************************************************************
    SUBROUTINE ot_mini(qs_ot_env, matrix_hc, matrix_hc_im, &
                       matrix_hc_physical, matrix_hc_physical_im, para_env_inter_kp, &
-                      gradient_only, gradient_prepared)
+                      gradient_only, gradient_prepared, restart_history)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_hc_im, matrix_hc_physical, &
                                                             matrix_hc_physical_im
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
-      LOGICAL, INTENT(IN), OPTIONAL                      :: gradient_only, gradient_prepared
+      LOGICAL, INTENT(IN), OPTIONAL                      :: gradient_only, gradient_prepared, &
+                                                            restart_history
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_mini'
 
-      INTEGER                                            :: handle, ispin, nspin, restart_history
+      INTEGER                                            :: handle, ispin, nspin
       LOGICAL                                            :: do_ener, do_ks, evaluate_gradient_only, &
-                                                            reuse_gradient, &
+                                                            restart, reuse_gradient, &
                                                             separate_occupation_gradient
       REAL(KIND=dp)                                      :: tmp
 
@@ -163,19 +166,12 @@ CONTAINS
       do_ks = qs_ot_env(1)%settings%ks
       do_ener = qs_ot_env(1)%settings%do_ener
 
-      ! Settle each channel's metric before projecting gradients or consuming history.
-      restart_history = 0
-      DO ispin = 1, nspin
-         IF (do_ks .AND. qs_ot_env(ispin)%settings%ot_algorithm == 'TOD' .AND. &
-             qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-            CALL qs_ot_prepare_complex_tangent_metric(qs_ot_env(ispin))
-         END IF
-         IF (qs_ot_env(ispin)%preconditioner_changed) restart_history = 1
-      END DO
-      IF (PRESENT(para_env_inter_kp)) THEN
-         IF (ASSOCIATED(para_env_inter_kp)) CALL para_env_inter_kp%max(restart_history)
+      IF (PRESENT(restart_history)) THEN
+         restart = restart_history
+      ELSE
+         CALL ot_mini_prepare(qs_ot_env, restart, para_env_inter_kp)
       END IF
-      IF (restart_history /= 0) THEN
+      IF (restart) THEN
          DO ispin = 1, nspin
             CALL qs_ot_reset_history(qs_ot_env(ispin))
          END DO
@@ -378,6 +374,33 @@ CONTAINS
    END SUBROUTINE ot_mini
 
 ! **************************************************************************************************
+!> \brief Prepare projection metrics and synchronize pending history restarts before building gradients.
+!> \param qs_ot_env OT channel environments
+!> \param restart_history whether ot_mini must restart and evaluate a gradient, even on an energy-only step
+!> \param para_env_inter_kp communicator between distributed k-point groups
+! **************************************************************************************************
+   SUBROUTINE ot_mini_prepare(qs_ot_env, restart_history, para_env_inter_kp)
+      TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
+      LOGICAL, INTENT(OUT)                               :: restart_history
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
+
+      INTEGER                                            :: ispin, restart
+
+      restart = 0
+      DO ispin = 1, SIZE(qs_ot_env)
+         IF (qs_ot_env(1)%settings%ks .AND. qs_ot_env(ispin)%settings%ot_algorithm == 'TOD' .AND. &
+             qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+            CALL qs_ot_prepare_complex_tangent_metric(qs_ot_env(ispin))
+         END IF
+         IF (qs_ot_env(ispin)%preconditioner_changed) restart = 1
+      END DO
+      IF (PRESENT(para_env_inter_kp)) THEN
+         IF (ASSOCIATED(para_env_inter_kp)) CALL para_env_inter_kp%max(restart)
+      END IF
+      restart_history = restart /= 0
+   END SUBROUTINE ot_mini_prepare
+
+! **************************************************************************************************
 !> \brief Evaluate the current OT derivative without advancing the minimizer.
 !> \param qs_ot_env OT channel environments
 !> \param matrix_hc real H*C products
@@ -385,20 +408,23 @@ CONTAINS
 !> \param matrix_hc_physical occupation-weighted real H*C products
 !> \param matrix_hc_physical_im occupation-weighted imaginary H*C products
 !> \param para_env_inter_kp communicator between distributed K-point groups
+!> \param restart_history pending restart from ot_mini_prepare; absent prepares here
 ! **************************************************************************************************
    SUBROUTINE ot_mini_prepare_gradient(qs_ot_env, matrix_hc, matrix_hc_im, &
-                                       matrix_hc_physical, matrix_hc_physical_im, para_env_inter_kp)
+                                       matrix_hc_physical, matrix_hc_physical_im, para_env_inter_kp, &
+                                       restart_history)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_hc_im, matrix_hc_physical, &
                                                             matrix_hc_physical_im
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
+      LOGICAL, INTENT(IN), OPTIONAL                      :: restart_history
 
       CALL ot_mini(qs_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
                    matrix_hc_physical=matrix_hc_physical, &
                    matrix_hc_physical_im=matrix_hc_physical_im, &
-                   para_env_inter_kp=para_env_inter_kp, gradient_only=.TRUE.)
+                   para_env_inter_kp=para_env_inter_kp, gradient_only=.TRUE., restart_history=restart_history)
 
    END SUBROUTINE ot_mini_prepare_gradient
 

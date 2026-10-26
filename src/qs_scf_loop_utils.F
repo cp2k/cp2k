@@ -115,6 +115,7 @@ MODULE qs_scf_loop_utils
    USE qs_ot_minimizer,                 ONLY: ot_mermin_response_preparation_needed,&
                                               ot_mermin_secant_curvature,&
                                               ot_mini,&
+                                              ot_mini_prepare,&
                                               ot_mini_prepare_gradient
    USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
                                               ot_scf_mini
@@ -694,9 +695,9 @@ CONTAINS
          local_channel, local_kpoint, nao, nkp_groups, nkpoint, nlocal_channels, nmo, &
          nspin_energy, nspin_ot
       INTEGER, DIMENSION(2)                              :: kp_range
-      LOGICAL                                            :: ot_gradient_prepared, &
-                                                            physical_base_state, restricted_roks, &
-                                                            use_real_wfn
+      LOGICAL                                            :: need_gradient, ot_gradient_prepared, &
+                                                            physical_base_state, restart_history, &
+                                                            restricted_roks, use_real_wfn
       REAL(KIND=dp)                                      :: trial_kTS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: orbital_scaling_factor, roks_occupation, &
                                                             trial_mu
@@ -783,9 +784,12 @@ CONTAINS
                             (local_ot_env(1)%line_search_count == 0 .OR. &
                              local_ot_env(1)%line_search_might_be_done)
 
+      CALL ot_mini_prepare(local_ot_env, restart_history, para_env_inter_kp)
+      need_gradient = .NOT. local_ot_env(1)%energy_only .OR. restart_history
+
       ALLOCATE (matrix_hc(nlocal_channels))
       ALLOCATE (matrix_hc_im(nlocal_channels))
-      IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
+      IF (need_gradient .AND. local_ot_env(1)%settings%occupation_preconditioner) THEN
          ALLOCATE (matrix_hc_physical(nlocal_channels))
          ALLOCATE (matrix_hc_physical_im(nlocal_channels))
       END IF
@@ -799,7 +803,7 @@ CONTAINS
                          name="matrix_hc_im")
          CALL dbcsr_set(matrix_hc(local_channel)%matrix, 0.0_dp)
          CALL dbcsr_set(matrix_hc_im(local_channel)%matrix, 0.0_dp)
-         IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
+         IF (ASSOCIATED(matrix_hc_physical)) THEN
             NULLIFY (matrix_hc_physical(local_channel)%matrix)
             NULLIFY (matrix_hc_physical_im(local_channel)%matrix)
             ALLOCATE (matrix_hc_physical(local_channel)%matrix)
@@ -814,6 +818,8 @@ CONTAINS
       END DO
 
       DO local_kpoint = 1, SIZE(kpoints%kp_env)
+         ! Mermin SD trials still use the auxiliary-energy gradient in take_step.
+         IF (.NOT. need_gradient .AND. .NOT. local_ot_env(1)%settings%do_ener) CYCLE
          kp => kpoints%kp_env(local_kpoint)%kpoint_env
          ikpoint = kp%nkpoint
          CPASSERT(ASSOCIATED(kp%ot_hmat))
@@ -983,8 +989,10 @@ CONTAINS
                CALL cp_fm_struct_release(chc_struct)
             END IF
 
-            CALL copy_fm_to_dbcsr(hc_re, matrix_hc(local_channel)%matrix)
-            CALL copy_fm_to_dbcsr(hc_im, matrix_hc_im(local_channel)%matrix)
+            IF (need_gradient) THEN
+               CALL copy_fm_to_dbcsr(hc_re, matrix_hc(local_channel)%matrix)
+               CALL copy_fm_to_dbcsr(hc_im, matrix_hc_im(local_channel)%matrix)
+            END IF
 
             CALL cp_fm_release(active_mo_coeff)
             CALL cp_fm_release(active_mo_coeff_im)
@@ -1006,6 +1014,7 @@ CONTAINS
       END IF
 
       DO local_kpoint = 1, SIZE(kpoints%kp_env)
+         IF (.NOT. need_gradient) CYCLE
          kp => kpoints%kp_env(local_kpoint)%kpoint_env
          ikpoint = kp%nkpoint
          DO ispin = 1, nspin_ot
@@ -1082,21 +1091,23 @@ CONTAINS
             kpoints, local_ot_env, first_channel, nspin_ot, nspin_energy, restricted_roks, &
             wkp, para_env_inter_kp, scf_control%smear, &
             trial_eigenvalues, trial_occupation, trial_mu)
-         IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
-            CALL ot_mini_prepare_gradient( &
-               local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
-               matrix_hc_physical=matrix_hc_physical, &
-               matrix_hc_physical_im=matrix_hc_physical_im, &
-               para_env_inter_kp=para_env_inter_kp)
-         ELSE
-            CALL ot_mini_prepare_gradient( &
-               local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
-               para_env_inter_kp=para_env_inter_kp)
+         IF (need_gradient) THEN
+            IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
+               CALL ot_mini_prepare_gradient( &
+                  local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
+                  matrix_hc_physical=matrix_hc_physical, &
+                  matrix_hc_physical_im=matrix_hc_physical_im, &
+                  para_env_inter_kp=para_env_inter_kp, restart_history=restart_history)
+            ELSE
+               CALL ot_mini_prepare_gradient( &
+                  local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
+                  para_env_inter_kp=para_env_inter_kp, restart_history=restart_history)
+            END IF
+            ot_gradient_prepared = .TRUE.
+            restart_history = .FALSE.
          END IF
-         ot_gradient_prepared = .TRUE.
-         ! A coupled response direction is consumed only when the minimizer starts a new
-         ! search.  Line-search trial points still need their physical gradient, but rebuilding
-         ! the dense finite-rotation Hessian there cannot affect the accepted direction.
+         ! A coupled response direction is consumed only when the minimizer starts a new search.
+         ! Other line-search points do not need the dense finite-rotation Hessian.
          IF (physical_base_state) THEN
             CALL qs_scf_loop_prepare_ot_kp_rotation_response( &
                qs_env, kpoints, local_ot_env, first_channel, nspin_ot, restricted_roks, &
@@ -1112,16 +1123,16 @@ CONTAINS
             END DO
          END IF
       END IF
-      IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
+      IF (ASSOCIATED(matrix_hc_physical)) THEN
          CALL ot_mini(local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
                       matrix_hc_physical=matrix_hc_physical, &
                       matrix_hc_physical_im=matrix_hc_physical_im, &
                       para_env_inter_kp=para_env_inter_kp, &
-                      gradient_prepared=ot_gradient_prepared)
+                      gradient_prepared=ot_gradient_prepared, restart_history=restart_history)
       ELSE
          CALL ot_mini(local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
                       para_env_inter_kp=para_env_inter_kp, &
-                      gradient_prepared=ot_gradient_prepared)
+                      gradient_prepared=ot_gradient_prepared, restart_history=restart_history)
       END IF
       scf_env%iter_delta = local_ot_env(1)%delta
       energy_only = local_ot_env(1)%energy_only
@@ -1222,7 +1233,7 @@ CONTAINS
          CALL dbcsr_release(matrix_hc_im(local_channel)%matrix)
          DEALLOCATE (matrix_hc(local_channel)%matrix)
          DEALLOCATE (matrix_hc_im(local_channel)%matrix)
-         IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
+         IF (ASSOCIATED(matrix_hc_physical)) THEN
             CALL dbcsr_release(matrix_hc_physical(local_channel)%matrix)
             CALL dbcsr_release(matrix_hc_physical_im(local_channel)%matrix)
             DEALLOCATE (matrix_hc_physical(local_channel)%matrix)
@@ -1230,7 +1241,7 @@ CONTAINS
          END IF
       END DO
       DEALLOCATE (matrix_hc, matrix_hc_im)
-      IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
+      IF (ASSOCIATED(matrix_hc_physical)) THEN
          DEALLOCATE (matrix_hc_physical, matrix_hc_physical_im)
       END IF
 

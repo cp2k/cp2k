@@ -39,7 +39,8 @@ MODULE qs_ot_scf
    USE qs_ot,                           ONLY: qs_ot_get_orbitals,&
                                               qs_ot_get_orbitals_ref,&
                                               qs_ot_get_p
-   USE qs_ot_minimizer,                 ONLY: ot_mini
+   USE qs_ot_minimizer,                 ONLY: ot_mini,&
+                                              ot_mini_prepare
    USE qs_ot_types,                     ONLY: ot_readwrite_input,&
                                               qs_ot_allocate,&
                                               qs_ot_destroy,&
@@ -140,6 +141,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_scf_mini'
 
       INTEGER                                            :: handle, ispin, k, n, nspin
+      LOGICAL                                            :: need_gradient, restart_history
       REAL(KIND=dp)                                      :: ener_nondiag, trace
       TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: expectation_values, occupation_numbers, &
                                                             scaling_factor
@@ -151,6 +153,9 @@ CONTAINS
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
+
+      CALL ot_mini_prepare(qs_ot_env, restart_history)
+      need_gradient = .NOT. qs_ot_env(1)%energy_only .OR. restart_history
 
       nspin = SIZE(mo_array)
 
@@ -258,37 +263,39 @@ CONTAINS
          END DO
       END IF
 
-      ! this is kind of a hack so far (costly memory wise), we locally recreate the scaled matrix_hc, and
-      ! use it in the following, eventually, as occupations numbers get more integrated, it should become possible
-      ! to remove this.
-      ALLOCATE (matrix_dedc_scaled(SIZE(matrix_dedc)))
+      ! The minimizer does not read derivative matrices on an energy-only trial.
+      matrix_dedc_scaled => matrix_dedc
       NULLIFY (matrix_dedc_physical)
-      IF (qs_ot_env(1)%settings%occupation_preconditioner) THEN
-         ALLOCATE (matrix_dedc_physical(SIZE(matrix_dedc)))
-      END IF
-      DO ispin = 1, SIZE(matrix_dedc)
-         ALLOCATE (matrix_dedc_scaled(ispin)%matrix)
-         CALL dbcsr_copy(matrix_dedc_scaled(ispin)%matrix, matrix_dedc(ispin)%matrix)
-
+      IF (need_gradient) THEN
+         ALLOCATE (matrix_dedc_scaled(SIZE(matrix_dedc)))
          IF (qs_ot_env(1)%settings%occupation_preconditioner) THEN
-            ALLOCATE (matrix_dedc_physical(ispin)%matrix)
-            CALL dbcsr_copy(matrix_dedc_physical(ispin)%matrix, matrix_dedc(ispin)%matrix)
-            CALL dbcsr_scale_by_vector(matrix_dedc_physical(ispin)%matrix, &
-                                       alpha=2.0_dp*occupation_numbers(ispin)%array, side='right')
-            scaling_factor(ispin)%array = 2.0_dp
+            ALLOCATE (matrix_dedc_physical(SIZE(matrix_dedc)))
          END IF
-         CALL dbcsr_scale_by_vector(matrix_dedc_scaled(ispin)%matrix, alpha=scaling_factor(ispin)%array, side='right')
-      END DO
+         DO ispin = 1, SIZE(matrix_dedc)
+            ALLOCATE (matrix_dedc_scaled(ispin)%matrix)
+            CALL dbcsr_copy(matrix_dedc_scaled(ispin)%matrix, matrix_dedc(ispin)%matrix)
+
+            IF (qs_ot_env(1)%settings%occupation_preconditioner) THEN
+               ALLOCATE (matrix_dedc_physical(ispin)%matrix)
+               CALL dbcsr_copy(matrix_dedc_physical(ispin)%matrix, matrix_dedc(ispin)%matrix)
+               CALL dbcsr_scale_by_vector(matrix_dedc_physical(ispin)%matrix, &
+                                          alpha=2.0_dp*occupation_numbers(ispin)%array, side='right')
+               scaling_factor(ispin)%array = 2.0_dp
+            END IF
+            CALL dbcsr_scale_by_vector(matrix_dedc_scaled(ispin)%matrix, alpha=scaling_factor(ispin)%array, side='right')
+         END DO
+      END IF
 
       ! notice we use qs_ot_env(1) for driving all output and the minimization in case of LSD
       qs_ot_env(1)%etotal = energy + ener_nondiag
 
-      IF (qs_ot_env(1)%settings%occupation_preconditioner .AND. &
+      IF (ASSOCIATED(matrix_dedc_physical) .AND. &
           (qs_ot_env(1)%settings%ot_method == "CG" .OR. &
            qs_ot_env(1)%settings%ot_method == "SD")) THEN
-         CALL ot_mini(qs_ot_env, matrix_dedc_scaled, matrix_hc_physical=matrix_dedc_physical)
+         CALL ot_mini(qs_ot_env, matrix_dedc_scaled, matrix_hc_physical=matrix_dedc_physical, &
+                      restart_history=restart_history)
       ELSE
-         CALL ot_mini(qs_ot_env, matrix_dedc_scaled)
+         CALL ot_mini(qs_ot_env, matrix_dedc_scaled, restart_history=restart_history)
       END IF
 
       delta = qs_ot_env(1)%delta
@@ -343,11 +350,13 @@ CONTAINS
          DEALLOCATE (expectation_values)
       END IF
       DEALLOCATE (occupation_numbers)
-      DO ispin = 1, SIZE(matrix_dedc_scaled)
-         CALL dbcsr_release(matrix_dedc_scaled(ispin)%matrix)
-         DEALLOCATE (matrix_dedc_scaled(ispin)%matrix)
-      END DO
-      DEALLOCATE (matrix_dedc_scaled)
+      IF (need_gradient) THEN
+         DO ispin = 1, SIZE(matrix_dedc_scaled)
+            CALL dbcsr_release(matrix_dedc_scaled(ispin)%matrix)
+            DEALLOCATE (matrix_dedc_scaled(ispin)%matrix)
+         END DO
+         DEALLOCATE (matrix_dedc_scaled)
+      END IF
       IF (ASSOCIATED(matrix_dedc_physical)) THEN
          DO ispin = 1, SIZE(matrix_dedc_physical)
             CALL dbcsr_release(matrix_dedc_physical(ispin)%matrix)
