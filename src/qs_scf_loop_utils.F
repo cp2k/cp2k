@@ -69,6 +69,8 @@ MODULE qs_scf_loop_utils
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_env_type,&
                                               kpoint_type
+   USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
+                                              local_gemm_ctxt_type
    USE message_passing,                 ONLY: mp_para_env_type
    USE physcon,                         ONLY: evolt
    USE qs_density_matrices,             ONLY: calculate_density_matrix
@@ -148,6 +150,8 @@ MODULE qs_scf_loop_utils
                                               smearing_separate_spin,&
                                               smearing_spin_targets
    USE tblite_interface,                ONLY: tb_native_scc_mixer_active
+
+!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -696,8 +700,8 @@ CONTAINS
          local_channel, local_kpoint, nao, nkp_groups, nkpoint, nlocal_channels, nmo, &
          nspin_energy, nspin_ot
       INTEGER, DIMENSION(2)                              :: kp_range
-      LOGICAL :: need_gradient, ot_gradient_prepared, physical_base_state, restart_history, &
-         restricted_roks, use_operator_cache, use_real_wfn
+      LOGICAL :: need_gradient, need_mo_coeff, ot_gradient_prepared, physical_base_state, &
+         restart_history, restricted_roks, use_operator_cache, use_real_wfn
       REAL(KIND=dp)                                      :: trial_kTS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: orbital_scaling_factor, roks_occupation, &
                                                             trial_mu
@@ -706,10 +710,11 @@ CONTAINS
       TYPE(cp_cfm_type)                                  :: active_mo_coeff_cfm, hc_cfm, physical_h
       TYPE(cp_fm_struct_type), POINTER                   :: active_mo_struct, chc_struct
       TYPE(cp_fm_type)                                   :: active_mo_coeff, active_mo_coeff_im, &
-                                                            chc_im, chc_re, hc_im, hc_re, &
-                                                            hc_roks_im, hc_roks_re, mo_coeff, &
-                                                            mo_coeff_im
+                                                            chc_im, chc_re, mo_coeff, mo_coeff_im
+      TYPE(cp_fm_type), ALLOCATABLE, TARGET              :: local_hc(:, :, :)
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
+      TYPE(cp_fm_type), POINTER                          :: hc_im, hc_re, hc_roks_im, hc_roks_re
+      TYPE(cp_fm_type), TARGET                           :: hc_roks_work(2), hc_work(2)
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc, matrix_hc_im, &
                                                             matrix_hc_physical, &
                                                             matrix_hc_physical_im
@@ -820,6 +825,11 @@ CONTAINS
          END IF
       END DO
 
+      IF (kpoints%para_env_kp%num_pe == 1 .AND. (need_gradient .OR. local_ot_env(1)%settings%do_ener)) THEN
+         CALL qs_scf_ot_kp_hc(kpoints, local_ot_env(1)%settings%do_ener, restricted_roks, local_hc)
+      END IF
+      need_mo_coeff = .NOT. ALLOCATED(local_hc) .OR. local_ot_env(1)%settings%do_ener .OR. ALLOCATED(kpoints%lowdin_v)
+
       DO local_kpoint = 1, SIZE(kpoints%kp_env)
          ! Mermin SD trials still use the auxiliary-energy gradient in take_step.
          IF (.NOT. need_gradient .AND. .NOT. local_ot_env(1)%settings%do_ener) CYCLE
@@ -829,10 +839,12 @@ CONTAINS
          CPASSERT(SIZE(kp%ot_hmat, 1) >= 2)
          DO ispin = 1, nspin_ot
             local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
-            CALL kpoint_operator_get_local( &
-               matrix_ks, kpoints, kp, MIN(ispin, SIZE(matrix_ks, 1)), &
-               kp%ot_hmat(1, MIN(ispin, SIZE(kp%ot_hmat, 2))), &
-               kp%ot_hmat(2, MIN(ispin, SIZE(kp%ot_hmat, 2))), matrix_k_re, matrix_k_im)
+            IF (.NOT. ALLOCATED(local_hc)) THEN
+               CALL kpoint_operator_get_local( &
+                  matrix_ks, kpoints, kp, MIN(ispin, SIZE(matrix_ks, 1)), &
+                  kp%ot_hmat(1, MIN(ispin, SIZE(kp%ot_hmat, 2))), &
+                  kp%ot_hmat(2, MIN(ispin, SIZE(kp%ot_hmat, 2))), matrix_k_re, matrix_k_im)
+            END IF
             IF (physical_base_state .AND. .NOT. use_operator_cache) THEN
                ! The direct single-group transform bypasses the full-matrix cache.  Synchronize it
                ! at accepted endpoints so the physical Mermin history sees the H(k) used for H(k)C(k).
@@ -863,30 +875,38 @@ CONTAINS
                   END IF
                END IF
             END IF
-            CALL cp_fm_struct_create(active_mo_struct, template_fmstruct=kp%mos(ispin)%cmo_coeff%matrix_struct, &
-                                     ncol_global=homo)
-            CALL cp_fm_create(active_mo_coeff, active_mo_struct)
-            CALL cp_fm_create(active_mo_coeff_im, active_mo_struct)
-            IF (cp_fm_struct_equivalent(active_mo_struct, kp%mos(ispin)%cmo_coeff%matrix_struct)) THEN
-               CALL cp_cfm_to_fm(kp%mos(ispin)%cmo_coeff, active_mo_coeff, active_mo_coeff_im)
-            ELSE
-               CALL cp_fm_create(mo_coeff, kp%mos(ispin)%cmo_coeff%matrix_struct)
-               CALL cp_fm_create(mo_coeff_im, kp%mos(ispin)%cmo_coeff%matrix_struct)
-               CALL cp_cfm_to_fm(kp%mos(ispin)%cmo_coeff, mo_coeff, mo_coeff_im)
-               CALL cp_fm_to_fm(mo_coeff, active_mo_coeff, homo)
-               CALL cp_fm_to_fm(mo_coeff_im, active_mo_coeff_im, homo)
-               CALL cp_fm_release(mo_coeff)
-               CALL cp_fm_release(mo_coeff_im)
+            IF (need_mo_coeff) THEN
+               CALL cp_fm_struct_create(active_mo_struct, template_fmstruct=kp%mos(ispin)%cmo_coeff%matrix_struct, &
+                                        ncol_global=homo)
+               CALL cp_fm_create(active_mo_coeff, active_mo_struct)
+               CALL cp_fm_create(active_mo_coeff_im, active_mo_struct)
+               IF (cp_fm_struct_equivalent(active_mo_struct, kp%mos(ispin)%cmo_coeff%matrix_struct)) THEN
+                  CALL cp_cfm_to_fm(kp%mos(ispin)%cmo_coeff, active_mo_coeff, active_mo_coeff_im)
+               ELSE
+                  CALL cp_fm_create(mo_coeff, kp%mos(ispin)%cmo_coeff%matrix_struct)
+                  CALL cp_fm_create(mo_coeff_im, kp%mos(ispin)%cmo_coeff%matrix_struct)
+                  CALL cp_cfm_to_fm(kp%mos(ispin)%cmo_coeff, mo_coeff, mo_coeff_im)
+                  CALL cp_fm_to_fm(mo_coeff, active_mo_coeff, homo)
+                  CALL cp_fm_to_fm(mo_coeff_im, active_mo_coeff_im, homo)
+                  CALL cp_fm_release(mo_coeff)
+                  CALL cp_fm_release(mo_coeff_im)
+               END IF
             END IF
-            CALL cp_fm_create(hc_re, active_mo_struct)
-            CALL cp_fm_create(hc_im, active_mo_struct)
-
-            CALL cp_dbcsr_sm_fm_multiply(matrix_k_re, active_mo_coeff, hc_re, homo)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, active_mo_coeff_im, hc_re, homo, &
-                                         alpha=-1.0_dp, beta=1.0_dp)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_k_re, active_mo_coeff_im, hc_im, homo)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, active_mo_coeff, hc_im, homo, &
-                                         alpha=1.0_dp, beta=1.0_dp)
+            IF (ALLOCATED(local_hc)) THEN
+               hc_re => local_hc(1, ispin, local_kpoint)
+               hc_im => local_hc(2, ispin, local_kpoint)
+            ELSE
+               hc_re => hc_work(1)
+               hc_im => hc_work(2)
+               CALL cp_fm_create(hc_re, active_mo_struct)
+               CALL cp_fm_create(hc_im, active_mo_struct)
+               CALL cp_dbcsr_sm_fm_multiply(matrix_k_re, active_mo_coeff, hc_re, homo)
+               CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, active_mo_coeff_im, hc_re, homo, &
+                                            alpha=-1.0_dp, beta=1.0_dp)
+               CALL cp_dbcsr_sm_fm_multiply(matrix_k_re, active_mo_coeff_im, hc_im, homo)
+               CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, active_mo_coeff, hc_im, homo, &
+                                            alpha=1.0_dp, beta=1.0_dp)
+            END IF
             IF (ALLOCATED(kpoints%lowdin_v)) THEN
                IF (ANY(kpoints%lowdin_v(:, ispin) /= 0.0_dp)) THEN
                   CALL cp_cfm_create(active_mo_coeff_cfm, active_mo_struct)
@@ -930,25 +950,33 @@ CONTAINS
                END IF
                CALL cp_fm_column_scale(hc_re, occupation_numbers(1:homo))
                CALL cp_fm_column_scale(hc_im, occupation_numbers(1:homo))
-               CALL dbcsr_release_p(matrix_k_re)
-               CALL dbcsr_release_p(matrix_k_im)
-
-               CALL kpoint_operator_get_local( &
-                  matrix_ks, kpoints, kp, 2, kp%ot_hmat(1, 2), kp%ot_hmat(2, 2), &
-                  matrix_k_re, matrix_k_im)
+               IF (.NOT. ALLOCATED(local_hc)) THEN
+                  CALL dbcsr_release_p(matrix_k_re)
+                  CALL dbcsr_release_p(matrix_k_im)
+                  CALL kpoint_operator_get_local( &
+                     matrix_ks, kpoints, kp, 2, kp%ot_hmat(1, 2), kp%ot_hmat(2, 2), &
+                     matrix_k_re, matrix_k_im)
+               END IF
                CALL get_mo_set(kp%mos(2), occupation_numbers=occupation_numbers, nmo=nmo)
                ALLOCATE (roks_occupation(homo))
                roks_occupation(:) = 0.0_dp
                roks_occupation(1:MIN(homo, nmo)) = occupation_numbers(1:MIN(homo, nmo))
 
-               CALL cp_fm_create(hc_roks_re, active_mo_struct)
-               CALL cp_fm_create(hc_roks_im, active_mo_struct)
-               CALL cp_dbcsr_sm_fm_multiply(matrix_k_re, active_mo_coeff, hc_roks_re, homo)
-               CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, active_mo_coeff_im, hc_roks_re, homo, &
-                                            alpha=-1.0_dp, beta=1.0_dp)
-               CALL cp_dbcsr_sm_fm_multiply(matrix_k_re, active_mo_coeff_im, hc_roks_im, homo)
-               CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, active_mo_coeff, hc_roks_im, homo, &
-                                            alpha=1.0_dp, beta=1.0_dp)
+               IF (ALLOCATED(local_hc)) THEN
+                  hc_roks_re => local_hc(1, 2, local_kpoint)
+                  hc_roks_im => local_hc(2, 2, local_kpoint)
+               ELSE
+                  hc_roks_re => hc_roks_work(1)
+                  hc_roks_im => hc_roks_work(2)
+                  CALL cp_fm_create(hc_roks_re, active_mo_struct)
+                  CALL cp_fm_create(hc_roks_im, active_mo_struct)
+                  CALL cp_dbcsr_sm_fm_multiply(matrix_k_re, active_mo_coeff, hc_roks_re, homo)
+                  CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, active_mo_coeff_im, hc_roks_re, homo, &
+                                               alpha=-1.0_dp, beta=1.0_dp)
+                  CALL cp_dbcsr_sm_fm_multiply(matrix_k_re, active_mo_coeff_im, hc_roks_im, homo)
+                  CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, active_mo_coeff, hc_roks_im, homo, &
+                                               alpha=1.0_dp, beta=1.0_dp)
+               END IF
                IF (local_ot_env(local_channel)%settings%do_ener) THEN
                   CALL multiply_complex_fm_adjoint( &
                      active_mo_coeff, active_mo_coeff_im, hc_roks_re, hc_roks_im, &
@@ -992,15 +1020,21 @@ CONTAINS
                CALL copy_fm_to_dbcsr(hc_im, matrix_hc_im(local_channel)%matrix)
             END IF
 
-            CALL cp_fm_release(active_mo_coeff)
-            CALL cp_fm_release(active_mo_coeff_im)
+            IF (need_mo_coeff) THEN
+               CALL cp_fm_release(active_mo_coeff)
+               CALL cp_fm_release(active_mo_coeff_im)
+               CALL cp_fm_struct_release(active_mo_struct)
+            END IF
             CALL cp_fm_release(hc_re)
             CALL cp_fm_release(hc_im)
-            CALL cp_fm_struct_release(active_mo_struct)
-            CALL dbcsr_release_p(matrix_k_re)
-            CALL dbcsr_release_p(matrix_k_im)
+            IF (.NOT. ALLOCATED(local_hc)) THEN
+               CALL dbcsr_release_p(matrix_k_re)
+               CALL dbcsr_release_p(matrix_k_im)
+            END IF
          END DO
       END DO
+      ! Each result was released by its consuming channel above.
+      IF (ALLOCATED(local_hc)) DEALLOCATE (local_hc)
 
       IF (local_ot_env(1)%settings%do_ener) THEN
          CALL qs_scf_loop_collect_ot_kp_trial_smearing( &
@@ -1247,6 +1281,103 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_scf_loop_do_ot_kp
+
+! **************************************************************************************************
+!> \brief Form H(k)C(k) for one-rank OT groups, without DBCSR conversions or communication.
+!> \param kpoints prepared Hamiltonians and current complex orbitals
+!> \param do_ener include all orbitals for variable occupations
+!> \param restricted_roks use the shared spin-up orbitals for both ROKS Hamiltonians
+!> \param hc real/imaginary products, released by the caller after each channel is consumed
+! **************************************************************************************************
+   SUBROUTINE qs_scf_ot_kp_hc(kpoints, do_ener, restricted_roks, hc)
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      LOGICAL, INTENT(IN)                                :: do_ener, restricted_roks
+      TYPE(cp_fm_type), ALLOCATABLE, INTENT(OUT), TARGET :: hc(:, :, :)
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_scf_ot_kp_hc'
+
+      INTEGER                                            :: handle, homo, ikp, ispin, kplocal, &
+                                                            max_nao, max_nmo, nao, nmo, nspin, &
+                                                            nworkers, spin, thread
+      REAL(KIND=dp), ALLOCATABLE                         :: coeff(:, :, :, :)
+      TYPE(cp_fm_struct_type), POINTER                   :: active_mo_struct
+      TYPE(cp_fm_type), POINTER                          :: h_im, h_re, hc_im, hc_re
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(local_gemm_ctxt_type), ALLOCATABLE            :: gemm_ctx(:)
+
+      CALL timeset(routineN, handle)
+      CPASSERT(kpoints%para_env_kp%num_pe == 1)
+      kplocal = SIZE(kpoints%kp_env)
+      nspin = SIZE(kpoints%kp_env(1)%kpoint_env%mos)
+      nworkers = 1
+!$    nworkers = MIN(omp_get_max_threads(), kplocal*nspin)
+      ALLOCATE (hc(2, nspin, kplocal), gemm_ctx(nworkers))
+      max_nao = 0
+      max_nmo = 0
+      ! Matrix structures retain communication contexts; create them before entering OpenMP.
+      DO ikp = 1, kplocal
+         kp => kpoints%kp_env(ikp)%kpoint_env
+         DO ispin = 1, nspin
+            spin = MERGE(1, ispin, restricted_roks)
+            CALL get_mo_set(kp%mos(spin), homo=homo, nao=nao, nmo=nmo)
+            IF (do_ener) homo = nmo
+            CPASSERT(homo >= 1 .AND. homo <= nmo)
+            CALL cp_fm_struct_create(active_mo_struct, template_fmstruct=kp%mos(spin)%cmo_coeff%matrix_struct, &
+                                     ncol_global=homo)
+            CALL cp_fm_create(hc(1, ispin, ikp), active_mo_struct, set_zero=.TRUE.)
+            CALL cp_fm_create(hc(2, ispin, ikp), active_mo_struct, set_zero=.TRUE.)
+            CALL cp_fm_struct_release(active_mo_struct)
+            max_nao = MAX(max_nao, nao)
+            max_nmo = MAX(max_nmo, homo)
+         END DO
+      END DO
+      ALLOCATE (coeff(max_nao, max_nmo, 2, nworkers))
+      DO thread = 1, nworkers
+         CALL gemm_ctx(thread)%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
+      END DO
+
+!$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE) SCHEDULE(DYNAMIC, 1) NUM_THREADS(nworkers) IF(nworkers > 1) &
+!$OMP SHARED(kpoints,hc,coeff,gemm_ctx,kplocal,nspin,nworkers,max_nao,restricted_roks) &
+!$OMP PRIVATE(ikp,ispin,spin,thread,kp,nao,homo,h_re,h_im,hc_re,hc_im)
+      DO ikp = 1, kplocal
+         DO ispin = 1, nspin
+            thread = 1
+!$          thread = omp_get_thread_num() + 1
+            kp => kpoints%kp_env(ikp)%kpoint_env
+            spin = MERGE(1, ispin, restricted_roks)
+            hc_re => hc(1, ispin, ikp)
+            hc_im => hc(2, ispin, ikp)
+            nao = hc_re%matrix_struct%nrow_global
+            homo = hc_re%matrix_struct%ncol_global
+            h_re => kp%ot_hmat(1, MIN(ispin, SIZE(kp%ot_hmat, 2)))
+            h_im => kp%ot_hmat(2, MIN(ispin, SIZE(kp%ot_hmat, 2)))
+            coeff(1:nao, 1:homo, 1, thread) = REAL(kp%mos(spin)%cmo_coeff%local_data(1:nao, 1:homo), KIND=dp)
+            coeff(1:nao, 1:homo, 2, thread) = AIMAG(kp%mos(spin)%cmo_coeff%local_data(1:nao, 1:homo))
+            ! Keep the four real products and their accumulation order.
+            CALL gemm_ctx(thread)%gemm("N", "N", nao, homo, nao, 1.0_dp, &
+                                       h_re%local_data, SIZE(h_re%local_data, 1), &
+                                       coeff(:, :, 1, thread), max_nao, 0.0_dp, &
+                                       hc_re%local_data, SIZE(hc_re%local_data, 1))
+            CALL gemm_ctx(thread)%gemm("N", "N", nao, homo, nao, -1.0_dp, &
+                                       h_im%local_data, SIZE(h_im%local_data, 1), &
+                                       coeff(:, :, 2, thread), max_nao, 1.0_dp, &
+                                       hc_re%local_data, SIZE(hc_re%local_data, 1))
+            CALL gemm_ctx(thread)%gemm("N", "N", nao, homo, nao, 1.0_dp, &
+                                       h_re%local_data, SIZE(h_re%local_data, 1), &
+                                       coeff(:, :, 2, thread), max_nao, 0.0_dp, &
+                                       hc_im%local_data, SIZE(hc_im%local_data, 1))
+            CALL gemm_ctx(thread)%gemm("N", "N", nao, homo, nao, 1.0_dp, &
+                                       h_im%local_data, SIZE(h_im%local_data, 1), &
+                                       coeff(:, :, 1, thread), max_nao, 1.0_dp, &
+                                       hc_im%local_data, SIZE(hc_im%local_data, 1))
+         END DO
+      END DO
+!$OMP END PARALLEL DO
+      DO thread = 1, nworkers
+         CALL gemm_ctx(thread)%destroy()
+      END DO
+      CALL timestop(handle)
+   END SUBROUTINE qs_scf_ot_kp_hc
 
 ! **************************************************************************************************
 !> \brief roll one accepted physical K-point Mermin endpoint into a bounded response history
