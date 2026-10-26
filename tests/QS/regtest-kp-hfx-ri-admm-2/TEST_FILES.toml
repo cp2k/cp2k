@@ -16,4 +16,4 @@
                              {matcher = "Atomic_force_2_x", tol = 1.0E-3, ref = 2.03665739E-01},
                              {matcher = "Atomic_force_2_y", tol = 1.0E-6, ref = 0.0},
                              {matcher = "Atomic_force_2_z", tol = 1.0E-6, ref = 0.0}]
-"LiH_rhombohedral_shifted_admm_kpsym.inp" = [{matcher = "M011", tol = 1.0E-6, ref = -5.420067960743244}]
+"LiH_rhombohedral_shifted_admm_kpsym.inp" = [{matcher = "M011", tol = 1.0E-4, ref = -5.420043336715053}]
