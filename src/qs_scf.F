@@ -2309,7 +2309,6 @@ CONTAINS
                   scf_env%qs_ot_env(ot_channel)%matrix_c0, &
                   scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
                   matrix_h_re, matrix_h_im, matrix_s_re, matrix_s_im, &
-                  kp%mos(ispin), &
                   scf_env%qs_ot_env(ot_channel)%settings%energy_gap, &
                   scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type)
             CASE (ot_precond_full_single)
