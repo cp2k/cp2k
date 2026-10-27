@@ -1629,6 +1629,27 @@
    END SUBROUTINE mp_sum_root_${nametype1}$m
 
 ! **************************************************************************************************
+!> \brief Element-wise sum of data from all processes with result left only on
+!>        one.
+!> \param[in,out] msg         Rank-3 tensor to sum (input) and (only on process root)
+!>                            result (output)
+!> \param root ...
+!> \param comm ...
+!> \note see mp_sum_root_${nametype1}$v
+! **************************************************************************************************
+   SUBROUTINE mp_sum_root_${nametype1}$m3(msg, root, comm)
+      ${type1}$, CONTIGUOUS, TARGET, INTENT(INOUT) :: msg(:, :, :)
+      INTEGER, INTENT(IN)                        :: root
+      CLASS(mp_comm_type), INTENT(IN)            :: comm
+
+      ${type1}$, CONTIGUOUS, POINTER             :: msg_flat(:)
+
+      ! Remap the contiguous tensor without allocating or copying its elements.
+      msg_flat(1:SIZE(msg)) => msg
+      CALL mp_sum_root_${nametype1}$v(msg_flat, root, comm)
+   END SUBROUTINE mp_sum_root_${nametype1}$m3
+
+! **************************************************************************************************
 !> \brief Partial sum of data from all processes with result on each process.
 !> \param[in] msg          Matrix to sum (input)
 !> \param[out] res         Matrix containing result (output)

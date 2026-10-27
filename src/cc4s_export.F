@@ -364,7 +364,6 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: off1, off2, off3
       INTEGER, DIMENSION(3)                              :: ind3
       LOGICAL                                            :: found
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: flat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: blk3
       TYPE(dbt_iterator_type)                            :: iter
 
@@ -404,11 +403,7 @@ CONTAINS
       DEALLOCATE (off1, off2, off3)
 
       ! Reduce: collect contributions on the source rank
-      ALLOCATE (flat(nRI*nAO*nAO))
-      flat(:) = RESHAPE(eri_pao, [nRI*nAO*nAO])
-      CALL para_env%sum(flat, para_env%source)
-      eri_pao(:, :, :) = RESHAPE(flat, [nRI, nAO, nAO])
-      DEALLOCATE (flat)
+      CALL para_env%sum(eri_pao, para_env%source)
 
    END SUBROUTINE gather_3c_pao
 
