@@ -13,9 +13,11 @@ The CP2K interface provides two separate, mutually exclusive XC functional secti
   machinery. It has a different support scope and keyword set.
 
 Keywords from one section are not accepted by the other. In particular, all native-grid controls
-(`USE_CUDA`, `ATOM_PARTITION`, `LAYOUT`, `GAPW_*`, and the model precision/chunking controls) belong
-to `SKALA_NATIVE`, while `GRID`, `PRUNING_SCHEME`, `RADIAL_QUADRATURE`, `LB_EXECUTION_SPACE`,
-`INT_EXECUTION_SPACE`, `LWD_KERNEL`, and `SKALA_RUNTIME` belong to `GAUXC`.
+(`USE_GPU`, `CUDA_DEVICE`, `ATOM_PARTITION`, `LAYOUT`, `GAPW_*`, and the model
+precision/chunking controls) belong to `SKALA_NATIVE`, while `GRID`, `PRUNING_SCHEME`,
+`RADIAL_QUADRATURE`, `LB_EXECUTION_SPACE`, `INT_EXECUTION_SPACE`, `LWD_KERNEL`, and
+`SKALA_RUNTIME` belong to `GAUXC`. Both sections use the same `USE_GPU` keyword to
+select GPU or host execution.
 
 ## Basic Input
 
@@ -57,22 +59,37 @@ hf download microsoft/skala-1.1 skala-1.1-rev1-cuda.fun --local-dir .
 ```
 
 Select a downloaded checkpoint explicitly with `MODEL ./skala-1.1-rev1.fun`. Alternatively, set
-`SKALA_MODEL` to the CPU checkpoint and use `MODEL SKALA` for host execution. For
-`INT_EXECUTION_SPACE DEVICE`, set `SKALA_CUDA_MODEL` to the CUDA checkpoint. CP2K falls back to
+`SKALA_MODEL` to the CPU checkpoint and use `MODEL SKALA` for host execution. For GPU execution,
+set `SKALA_CUDA_MODEL` to the CUDA checkpoint. CP2K falls back to
 `SKALA_MODEL` for compatibility with existing configurations where that variable already points to a
 device-compatible checkpoint; the CPU checkpoint itself is not device-compatible. For the model
 interface and available checkpoints, consult
 [GauXC/Skala model documentation](https://microsoft.github.io/skala/gauxc/c-library.html#download-checkpoint-from-huggingface)
 and obtain `.fun` files only from trusted sources.
 
+`USE_GPU` selects the default GPU or host execution:
+
+- `AUTO` (default) uses the GPU when CP2K and GauXC are built with CUDA support. It aborts if the
+  build selects the GPU but no usable device is found.
+- `HOST` forces host-only execution.
+- `GPU` requires a usable GPU and aborts if none is found.
+
+Some feature combinations are currently host-only in the GauXC device backend:
+`MODEL_GRADIENT_RUNTIME SELF` analytical gradients, CDFT with multiple Skala
+runtimes, and `PSEUDOPOTENTIAL_GAPW_REPRESENTATION PAW_ONE_CENTER_SPLIT`. Set
+`USE_GPU HOST` for these until the device backend covers them.
+
 `LB_EXECUTION_SPACE` and `INT_EXECUTION_SPACE` select where GauXC performs the load balancing and the
-quadrature integration. A device runtime is created whenever **either** of them is `DEVICE`, so
-`INT_EXECUTION_SPACE DEVICE` works with the default `LB_EXECUTION_SPACE HOST`. If the CUDA device or
-a CUDA-enabled GauXC/LibTorch is not available, a `DEVICE` request aborts instead of silently falling
-back to the host. CP2K prints the resolved spaces and runtime once:
+quadrature integration. Unless set explicitly, both follow `USE_GPU` (`DEVICE` when GPU execution is
+selected, otherwise `HOST`). A device runtime is created whenever **either** of them is `DEVICE`. If the CUDA device or a CUDA-enabled GauXC/LibTorch is not
+available, a `DEVICE` request aborts instead of silently falling back to the host. CP2K prints the
+resolved spaces and runtime once:
 `GAUXC| Execution spaces: LB ..., INT ..., runtime DEVICE|HOST`.
 
 ### Device and GPU Controls
+
+`USE_GPU` is the master GPU/host selector described above. `USE_GPU HOST` rejects
+an explicit `LB_EXECUTION_SPACE DEVICE` or `INT_EXECUTION_SPACE DEVICE`.
 
 `DEVICE_RUNTIME_FILL_FRACTION` (default `0.1`) sets the fraction of currently available GPU memory
 that a GauXC device runtime preallocates. It is used whenever `LB_EXECUTION_SPACE` or
@@ -240,8 +257,9 @@ A minimal native input is:
 ```
 
 `MODEL` selects the TorchScript checkpoint. `MODEL SKALA` resolves the installed model from
-`SKALA_MODEL` on the host path and from `SKALA_CUDA_MODEL` when `USE_CUDA T` is set. The CUDA variant
-is required in that case; there is no automatic host-model fallback. An explicit `.fun` path in
+`SKALA_MODEL` on the host path and from `SKALA_CUDA_MODEL` when GPU execution is selected (AUTO on
+a CUDA build or DEVICE). The CUDA variant is required in that case; there is no automatic
+host-model fallback. An explicit `.fun` path in
 `MODEL` overrides both environment variables.
 
 `MODEL_FP64` (default `T`) promotes float32 numerical state and explicit floating-point casts in the
@@ -256,19 +274,20 @@ feature block supplied to Torch. This is useful when validating a model or a per
 ### CPU, CUDA, and MPI
 
 The `SKALA_NATIVE` implementation supports both CPU and CUDA TorchScript evaluation, including k-point
-calculations. CUDA evaluation is selected explicitly with:
+calculations. GPU execution is controlled by the same `USE_GPU` keyword:
 
 ```text
 &SKALA_NATIVE
   MODEL SKALA
-  USE_CUDA T
+  USE_GPU GPU
   CUDA_DEVICE -1
 &END SKALA_NATIVE
 ```
 
-`USE_CUDA` defaults to `F`. With `USE_CUDA T`, the model is run through LibTorch's CUDA backend when a
-visible CUDA device is available. If no device is visible, CP2K prints a warning and continues on the
-CPU. The selected model path is then still resolved from `SKALA_CUDA_MODEL`, as described above.
+`USE_GPU AUTO` (default) uses the GPU when CP2K is built with a CUDA-enabled LibTorch and
+aborts if no usable device is found. `HOST` forces CPU execution. `GPU` requires a usable GPU and
+aborts otherwise. With GPU execution the model path is resolved from `SKALA_CUDA_MODEL`; with HOST
+it is resolved from `SKALA_MODEL`.
 
 `CUDA_DEVICE` defaults to `-1`. A negative value maps the MPI-local rank to one of the visible CUDA
 devices (`rank MOD device_count`); a non-negative value selects that visible device explicitly.
