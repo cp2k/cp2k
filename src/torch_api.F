@@ -209,26 +209,30 @@ CONTAINS
 !> \brief Reuses or creates a device leaf tensor and copies data into it.
 !>        The source must be an ALLOCATABLE to prevent passing a temporary array.
 ! **************************************************************************************************
-      SUBROUTINE torch_tensor_reset_from_array_double_${ndims}$d(tensor, source, requires_grad)
+      SUBROUTINE torch_tensor_reset_from_array_double_${ndims}$d(tensor, source, requires_grad, &
+                                                                 reallocated)
          TYPE(torch_tensor_type), INTENT(INOUT)             :: tensor
          #:set arraydims = ", ".join(":" for i in range(ndims))
          REAL(dp), DIMENSION(${arraydims}$), ALLOCATABLE, INTENT(IN)  :: source
          LOGICAL, OPTIONAL, INTENT(IN)                      :: requires_grad
+         LOGICAL, OPTIONAL, INTENT(OUT)                     :: reallocated
 
 #if defined(__LIBTORCH)
          INTEGER(kind=int_8), DIMENSION(${ndims}$)          :: sizes_c
          LOGICAL                                            :: my_req_grad
+         LOGICAL(kind=C_BOOL)                               :: reallocated_c
 
          INTERFACE
-            SUBROUTINE torch_c_tensor_reset_from_array_double(tensor, req_grad, ndims, sizes, source) &
-               BIND(C, name="torch_c_tensor_reset_from_array_double")
+            FUNCTION torch_c_tensor_reset_from_array_double_status(tensor, req_grad, ndims, sizes, source) &
+               RESULT(reallocated_flag) BIND(C, name="torch_c_tensor_reset_from_array_double_status")
                IMPORT :: C_PTR, C_INT, C_INT64_T, C_DOUBLE, C_BOOL
                TYPE(C_PTR)                                  :: tensor
                LOGICAL(kind=C_BOOL), VALUE                  :: req_grad
                INTEGER(kind=C_INT), VALUE                   :: ndims
                INTEGER(kind=C_INT64_T), DIMENSION(*)        :: sizes
                REAL(kind=C_DOUBLE), DIMENSION(*)            :: source
-            END SUBROUTINE torch_c_tensor_reset_from_array_double
+               LOGICAL(kind=C_BOOL)                         :: reallocated_flag
+            END FUNCTION torch_c_tensor_reset_from_array_double_status
          END INTERFACE
 
          my_req_grad = .FALSE.
@@ -238,17 +242,20 @@ CONTAINS
             sizes_c(${axis + 1}$) = SIZE(source, ${ndims - axis}$) ! C arrays are stored row-major.
          #:endfor
 
-         CALL torch_c_tensor_reset_from_array_double(tensor=tensor%c_ptr, &
-                                                     req_grad=LOGICAL(my_req_grad, C_BOOL), &
-                                                     ndims=${ndims}$, &
-                                                     sizes=sizes_c, &
-                                                     source=source)
+         reallocated_c = torch_c_tensor_reset_from_array_double_status( &
+            tensor=tensor%c_ptr, &
+            req_grad=LOGICAL(my_req_grad, C_BOOL), &
+            ndims=${ndims}$, &
+            sizes=sizes_c, &
+            source=source)
+         IF (PRESENT(reallocated)) reallocated = reallocated_c
          CPASSERT(C_ASSOCIATED(tensor%c_ptr))
 #else
          CPABORT("CP2K compiled without the Torch library.")
          MARK_USED(tensor)
          MARK_USED(source)
          MARK_USED(requires_grad)
+         MARK_USED(reallocated)
 #endif
       END SUBROUTINE torch_tensor_reset_from_array_double_${ndims}$d
 

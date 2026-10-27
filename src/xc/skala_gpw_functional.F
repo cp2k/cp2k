@@ -559,7 +559,8 @@ CONTAINS
                                    requires_stress_grad=compute_virial, &
                                    use_atom_chunks=native_grid_atom_chunks, &
                                    route_atom_chunks=native_grid_atom_chunk_routing, &
-                                   atom_partition=native_grid_atom_partition)
+                                   atom_partition=native_grid_atom_partition, &
+                                   cuda_device=selected_cuda_device)
       CALL section_vals_val_get(gauxc_section, "DIAGNOSTICS", l_val=native_grid_diagnostics)
       IF (native_grid_diagnostics) THEN
          CALL print_native_grid_diagnostics(features, rho_r(1)%pw_grid%para%group%mepos == 0)
@@ -835,7 +836,8 @@ CONTAINS
                                    requires_coordinate_grad=.FALSE., &
                                    requires_stress_grad=.TRUE., &
                                    use_atom_chunks=.FALSE., route_atom_chunks=.FALSE., &
-                                   atom_partition=native_grid_atom_partition)
+                                   atom_partition=native_grid_atom_partition, &
+                                   cuda_device=selected_cuda_device)
       CALL skala_torch_model_get_exc(cached_model, features%inputs, features%grid_weights_t, &
                                      exc_tensor, exc)
       CALL torch_tensor_backward_scalar(exc_tensor)

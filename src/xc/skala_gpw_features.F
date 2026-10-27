@@ -56,6 +56,7 @@ MODULE skala_gpw_features
                                                             chunk_feature_count = 0, chunk_natom = 0, &
                                                             natom = 0, nflat = 0, nflat_local = 0, &
                                                             npoint = 0, nproc = 0, &
+                                                            cuda_device = -3, &
                                                             atom_partition = skala_gpw_atom_partition_hard
       INTEGER, DIMENSION(2, 3)                           :: bo = 0, bounds = 0
       INTEGER, DIMENSION(3)                              :: npts = 0
@@ -196,11 +197,12 @@ CONTAINS
 !> \param use_atom_chunks ...
 !> \param route_atom_chunks ...
 !> \param atom_partition ...
+!> \param cuda_device selected Torch device (-1 for CPU, >=0 for CUDA)
 ! **************************************************************************************************
    SUBROUTINE skala_gpw_feature_build(features, rho_set, rho_r, particle_set, cell, &
                                       requires_grad, weights, requires_coordinate_grad, &
                                       requires_stress_grad, use_atom_chunks, route_atom_chunks, &
-                                      atom_partition)
+                                      atom_partition, cuda_device)
       TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
       TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN)     :: rho_r
@@ -212,6 +214,7 @@ CONTAINS
                                                             requires_stress_grad, use_atom_chunks, &
                                                             route_atom_chunks
       INTEGER, INTENT(IN), OPTIONAL                      :: atom_partition
+      INTEGER, INTENT(IN)                                :: cuda_device
 
       INTEGER :: handle, i, ipt, ispin, j, k, local_row, my_atom_partition, &
          ndynamic_local_per_point, nflat, nflat_local, nspins, phase_handle, real_base, row
@@ -264,7 +267,8 @@ CONTAINS
       use_atom_chunk_routing = use_atom_chunk_protocol .AND. my_route_atom_chunks
       CALL timeset("skala_gpw_layout_cache", phase_handle)
       CALL ensure_layout_cache(pw_grid, particle_set, cell, weights, my_atom_partition, &
-                               needs_full_static_tensors=.NOT. use_atom_chunk_protocol)
+                               needs_full_static_tensors=.NOT. use_atom_chunk_protocol, &
+                               cuda_device=cuda_device)
       CALL timestop(phase_handle)
       nflat = cached_layout%nflat
       collapse_spin_dynamics = nspins == 1 .AND. use_atom_chunk_routing
@@ -451,15 +455,17 @@ CONTAINS
 !> \param weights ...
 !> \param atom_partition ...
 !> \param needs_full_static_tensors ...
+!> \param cuda_device ...
 ! **************************************************************************************************
    SUBROUTINE ensure_layout_cache(pw_grid, particle_set, cell, weights, atom_partition, &
-                                  needs_full_static_tensors)
+                                  needs_full_static_tensors, cuda_device)
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
       INTEGER, INTENT(IN), OPTIONAL                      :: atom_partition
       LOGICAL, INTENT(IN)                                :: needs_full_static_tensors
+      INTEGER, INTENT(IN)                                :: cuda_device
 
       INTEGER                                            :: my_atom_partition, phase_handle
       LOGICAL                                            :: cache_matches
@@ -469,12 +475,13 @@ CONTAINS
       IF (PRESENT(weights)) THEN
          CALL timeset("skala_gpw_layout_match", phase_handle)
          cache_matches = layout_cache_matches(pw_grid, particle_set, cell, weights, &
-                                              my_atom_partition)
+                                              my_atom_partition, cuda_device)
          CALL timestop(phase_handle)
       ELSE
          CALL timeset("skala_gpw_layout_match", phase_handle)
          cache_matches = layout_cache_matches(pw_grid, particle_set, cell, &
-                                              atom_partition=my_atom_partition)
+                                              atom_partition=my_atom_partition, &
+                                              cuda_device=cuda_device)
          CALL timestop(phase_handle)
       END IF
 
@@ -490,11 +497,12 @@ CONTAINS
       CALL timeset("skala_gpw_layout_rebuild", phase_handle)
       IF (PRESENT(weights)) THEN
          CALL rebuild_layout_cache(pw_grid, particle_set, cell, weights, my_atom_partition, &
-                                   needs_full_static_tensors)
+                                   needs_full_static_tensors, cuda_device)
       ELSE
          CALL rebuild_layout_cache(pw_grid, particle_set, cell, &
                                    atom_partition=my_atom_partition, &
-                                   needs_full_static_tensors=needs_full_static_tensors)
+                                   needs_full_static_tensors=needs_full_static_tensors, &
+                                   cuda_device=cuda_device)
       END IF
       CALL timestop(phase_handle)
 
@@ -507,14 +515,17 @@ CONTAINS
 !> \param cell ...
 !> \param weights ...
 !> \param atom_partition ...
+!> \param cuda_device ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION layout_cache_matches(pw_grid, particle_set, cell, weights, atom_partition) RESULT(matches)
+   FUNCTION layout_cache_matches(pw_grid, particle_set, cell, weights, atom_partition, &
+                                 cuda_device) RESULT(matches)
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
       INTEGER, INTENT(IN), OPTIONAL                      :: atom_partition
+      INTEGER, INTENT(IN)                                :: cuda_device
       LOGICAL                                            :: matches
 
       INTEGER                                            :: iatom, my_atom_partition
@@ -524,6 +535,7 @@ CONTAINS
       IF (PRESENT(atom_partition)) my_atom_partition = atom_partition
       matches = .FALSE.
       IF (.NOT. cached_layout%active) RETURN
+      IF (cached_layout%cuda_device /= cuda_device) RETURN
       IF (cached_layout%atom_partition /= my_atom_partition) RETURN
       IF (cached_layout%natom /= SIZE(particle_set)) RETURN
       IF (cached_layout%nflat_local /= pw_grid%ngpts_local) RETURN
@@ -590,15 +602,17 @@ CONTAINS
 !> \param weights ...
 !> \param atom_partition ...
 !> \param needs_full_static_tensors ...
+!> \param cuda_device ...
 ! **************************************************************************************************
    SUBROUTINE rebuild_layout_cache(pw_grid, particle_set, cell, weights, atom_partition, &
-                                   needs_full_static_tensors)
+                                   needs_full_static_tensors, cuda_device)
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
       INTEGER, INTENT(IN), OPTIONAL                      :: atom_partition
       LOGICAL, INTENT(IN)                                :: needs_full_static_tensors
+      INTEGER, INTENT(IN)                                :: cuda_device
 
       INTEGER :: feature_local, feature_slot, i, iatom, ipt, j, jatom, k, local_feature, &
          local_row, max_grid_size, max_local_features, my_atom_partition, natom, nfeature_local, &
@@ -934,6 +948,7 @@ CONTAINS
       cached_layout%npoint = npoint
       cached_layout%nproc = nproc
       cached_layout%atom_partition = my_atom_partition
+      cached_layout%cuda_device = cuda_device
       cached_layout%bo = bo
       cached_layout%bounds = pw_grid%bounds
       cached_layout%npts = pw_grid%npts
@@ -2230,7 +2245,10 @@ CONTAINS
                                                             requires_stress_grad, use_atom_chunks
       LOGICAL, INTENT(IN), OPTIONAL                      :: requires_weight_grad
 
-      LOGICAL                                            :: my_requires_weight_grad
+      LOGICAL                                            :: dynamic_reallocated, &
+                                                            my_requires_weight_grad, &
+                                                            reallocated_density, reallocated_grad, &
+                                                            reallocated_kin
 
       my_requires_weight_grad = .FALSE.
       IF (PRESENT(requires_weight_grad)) my_requires_weight_grad = requires_weight_grad
@@ -2269,14 +2287,28 @@ CONTAINS
          END IF
 
          CALL torch_tensor_reset_from_array(cached_layout%chunk_density_t, &
-                                            features%chunk_density, requires_grad=requires_grad)
+                                            features%chunk_density, requires_grad=requires_grad, &
+                                            reallocated=reallocated_density)
          features%density_t = cached_layout%chunk_density_t
          CALL torch_tensor_reset_from_array(cached_layout%chunk_grad_t, features%chunk_grad, &
-                                            requires_grad=requires_grad)
+                                            requires_grad=requires_grad, reallocated=reallocated_grad)
          features%grad_t = cached_layout%chunk_grad_t
          CALL torch_tensor_reset_from_array(cached_layout%chunk_kin_t, features%chunk_kin, &
-                                            requires_grad=requires_grad)
+                                            requires_grad=requires_grad, reallocated=reallocated_kin)
          features%kin_t = cached_layout%chunk_kin_t
+         dynamic_reallocated = reallocated_density .OR. reallocated_grad .OR. reallocated_kin
+         IF (dynamic_reallocated) THEN
+            IF (cached_layout%chunk_inputs_active) THEN
+               CALL torch_dict_release(cached_layout%chunk_inputs)
+               cached_layout%chunk_inputs_active = .FALSE.
+            END IF
+            IF (cached_layout%chunk_dynamic_input_views_active) THEN
+               CALL torch_tensor_release(cached_layout%chunk_density_input_t)
+               CALL torch_tensor_release(cached_layout%chunk_grad_input_t)
+               CALL torch_tensor_release(cached_layout%chunk_kin_input_t)
+               cached_layout%chunk_dynamic_input_views_active = .FALSE.
+            END IF
+         END IF
          cached_layout%chunk_dynamic_tensors_active = .TRUE.
 
          IF (features%uses_collapsed_rks_dynamic .AND. &
@@ -2332,14 +2364,19 @@ CONTAINS
          features%local_feature_indices_t = cached_layout%local_feature_indices_t
 
          CALL torch_tensor_reset_from_array(cached_layout%density_t, features%density, &
-                                            requires_grad=requires_grad)
+                                            requires_grad=requires_grad, reallocated=reallocated_density)
          features%density_t = cached_layout%density_t
          CALL torch_tensor_reset_from_array(cached_layout%grad_t, features%grad, &
-                                            requires_grad=requires_grad)
+                                            requires_grad=requires_grad, reallocated=reallocated_grad)
          features%grad_t = cached_layout%grad_t
          CALL torch_tensor_reset_from_array(cached_layout%kin_t, features%kin, &
-                                            requires_grad=requires_grad)
+                                            requires_grad=requires_grad, reallocated=reallocated_kin)
          features%kin_t = cached_layout%kin_t
+         dynamic_reallocated = reallocated_density .OR. reallocated_grad .OR. reallocated_kin
+         IF (dynamic_reallocated .AND. cached_layout%inputs_active) THEN
+            CALL torch_dict_release(cached_layout%inputs)
+            cached_layout%inputs_active = .FALSE.
+         END IF
          cached_layout%dynamic_tensors_active = .TRUE.
 
          IF (requires_coordinate_grad .OR. requires_stress_grad .OR. my_requires_weight_grad) THEN
