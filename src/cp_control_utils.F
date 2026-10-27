@@ -138,7 +138,7 @@ CONTAINS
       TYPE(cp_parser_type)                               :: parser
       TYPE(section_vals_type), POINTER :: hairy_probes_section, hfx_section, kg_xc_fun_section, &
          kg_xc_section, maxwell_section, sccs_section, scf_section, tmp_section, xc_fun_section, &
-         xc_gauxc_subsection, xc_skala_native_subsection, xc_section
+         xc_gauxc_subsection, xc_section, xc_skala_native_subsection
 
       was_present = .FALSE.
 

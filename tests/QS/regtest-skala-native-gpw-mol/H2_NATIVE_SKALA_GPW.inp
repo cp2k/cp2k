@@ -42,9 +42,9 @@
       &END VDW_POTENTIAL
       &XC_FUNCTIONAL
         &SKALA_NATIVE
-          USE_GPU HOST
-          MODEL SKALA
           ATOM_PARTITION HARD
+          MODEL SKALA
+          USE_GPU HOST
         &END SKALA_NATIVE
       &END XC_FUNCTIONAL
     &END XC
