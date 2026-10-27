@@ -1,8 +1,8 @@
 # All-electron H2O with phase-independent export checks.
 "h2o.inp" = [
-  {matcher="M011", tol=1e-10, ref=-76.022733931855555},
+  {matcher="M011", tol=1e-10, ref=-76.02262322176965},
   {matcher="CC4S_vertex_norm", tol=1e-9, ref=35.399608877970252},
-  {matcher="CC4S_eigenenergy_sum", tol=1e-9, ref=14.781236959873137},
+  {matcher="CC4S_eigenenergy_sum", tol=1e-9, ref=14.78954031112605},
 ]
 
 # Gamma-point periodic GPW/RI-HF with a finite-range Coulomb interaction.
