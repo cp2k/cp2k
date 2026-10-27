@@ -320,6 +320,7 @@ CONTAINS
 
       COMPLEX(dp), ALLOCATABLE :: a(:, :), b(:, :), work(:), sc(:, :), residual(:, :)
       REAL(dp), ALLOCATABLE :: eigenvalues(:), rwork(:)
+      INTEGER, ALLOCATABLE :: iwork(:)
       REAL(dp) :: hnorm, snorm, herror, serror
       INTEGER :: n, info, i
 #if defined(__HAS_IEEE_EXCEPTIONS)
@@ -335,13 +336,14 @@ CONTAINS
       herror = MAXVAL(ABS(h - CONJG(TRANSPOSE(h))))
       serror = MAXVAL(ABS(s - CONJG(TRANSPOSE(s))))
       IF (herror > tolerance*hnorm .OR. serror > tolerance*snorm) RETURN
-      ALLOCATE (a(n, n), b(n, n), work(MAX(1, 2*n)), eigenvalues(n), rwork(MAX(1, 3*n)))
+      ALLOCATE (a(n, n), b(n, n), eigenvalues(n), work(MAX(1, 2*n + n*n)), &
+                rwork(MAX(1, 1 + 5*n + 2*n*n)), iwork(MAX(1, 3 + 5*n)))
       a(:, :) = s
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_get_halting_mode(IEEE_ALL, halt)
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
-      CALL zheev('N', 'U', n, a, n, eigenvalues, work, SIZE(work), rwork, info)
+      CALL zheevd('N', 'U', n, a, n, eigenvalues, work, SIZE(work), rwork, SIZE(rwork), iwork, SIZE(iwork), info)
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif
@@ -355,7 +357,8 @@ CONTAINS
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
-      CALL zhegv(1, 'V', 'U', n, a, n, b, n, eigenvalues, work, SIZE(work), rwork, info)
+      CALL zhegvd(1, 'V', 'U', n, a, n, b, n, eigenvalues, work, SIZE(work), rwork, SIZE(rwork), &
+                  iwork, SIZE(iwork), info)
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif

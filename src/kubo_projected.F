@@ -82,6 +82,7 @@ CONTAINS
 
       COMPLEX(dp), ALLOCATABLE :: b(:, :), work(:)
       REAL(dp), ALLOCATABLE :: rwork(:)
+      INTEGER, ALLOCATABLE :: iwork(:)
       INTEGER :: n, info
 #if defined(__HAS_IEEE_EXCEPTIONS)
       LOGICAL :: halt(SIZE(IEEE_ALL))
@@ -94,13 +95,13 @@ CONTAINS
       IF (n < 1 .OR. SIZE(h, 2) /= n .OR. ANY(SHAPE(s) /= [n, n])) RETURN
       IF (SIZE(energies) /= n .OR. ANY(SHAPE(c) /= [n, n])) RETURN
       IF (.NOT. valid_hermitian(h) .OR. .NOT. valid_hermitian(s)) RETURN
-      ALLOCATE (b(n, n), work(MAX(1, 2*n)), rwork(MAX(1, 3*n)))
+      ALLOCATE (b(n, n), work(MAX(1, 2*n + n*n)), rwork(MAX(1, 1 + 5*n + 2*n*n)), iwork(MAX(1, 3 + 5*n)))
       b(:, :) = s
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_get_halting_mode(IEEE_ALL, halt)
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
-      CALL zheev('N', 'U', n, b, n, energies, work, SIZE(work), rwork, info)
+      CALL zheevd('N', 'U', n, b, n, energies, work, SIZE(work), rwork, SIZE(rwork), iwork, SIZE(iwork), info)
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif
@@ -114,7 +115,7 @@ CONTAINS
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
-      CALL zhegv(1, 'V', 'U', n, c, n, b, n, energies, work, SIZE(work), rwork, info)
+      CALL zhegvd(1, 'V', 'U', n, c, n, b, n, energies, work, SIZE(work), rwork, SIZE(rwork), iwork, SIZE(iwork), info)
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif

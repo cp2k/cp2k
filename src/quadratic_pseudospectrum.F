@@ -759,17 +759,19 @@ CONTAINS
       INTEGER, INTENT(OUT) :: status
       COMPLEX(dp), ALLOCATABLE :: workspace(:)
       REAL(dp), ALLOCATABLE :: rwork(:)
+      INTEGER, ALLOCATABLE :: iwork(:)
       INTEGER :: n
 #if defined(__HAS_IEEE_EXCEPTIONS)
       LOGICAL :: halt(SIZE(IEEE_ALL))
 #endif
       n = SIZE(values)
-      ALLOCATE (workspace(MAX(1, 2*n)), rwork(MAX(1, 3*n - 2)))
+      ALLOCATE (workspace(MAX(1, 2*n + n*n)), rwork(MAX(1, 1 + 5*n + 2*n*n)), iwork(MAX(1, 3 + 5*n)))
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_get_halting_mode(IEEE_ALL, halt)
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
-      CALL zheev('V', 'L', n, matrix, n, values, workspace, SIZE(workspace), rwork, status)
+      CALL zheevd('V', 'L', n, matrix, n, values, workspace, SIZE(workspace), rwork, SIZE(rwork), &
+                  iwork, SIZE(iwork), status)
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif
