@@ -427,6 +427,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: gap, metric_ratio
 
       COMPLEX(KIND=dp), ALLOCATABLE                      :: a(:, :), b(:, :), work(:)
+      INTEGER, ALLOCATABLE                               :: iwork(:)
       INTEGER                                            :: info, n, negative, pf, pf_reference, &
                                                             positive, ldl_positive, ldl_negative
 #if defined(__HAS_IEEE_EXCEPTIONS)
@@ -452,14 +453,14 @@ CONTAINS
          IF (.NOT. self_dual(s, matrix_tol)) RETURN
       END IF
 
-      ALLOCATE (a(n, n), eigenvalues(n), work(MAX(1, 2*n)), rwork(MAX(1, 3*n)))
+      ALLOCATE (a(n, n), eigenvalues(n), work(MAX(1, 2*n)), rwork(MAX(1, 3*n)), iwork(1))
       a(:, :) = s
       ! Follow CP2K's eigensolvers: LAPACK may use exceptional IEEE intermediates internally.
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_get_halting_mode(IEEE_ALL, halt)
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
-      CALL zheev('N', 'U', n, a, n, eigenvalues, work, SIZE(work), rwork, info)
+      CALL zheevd('N', 'U', n, a, n, eigenvalues, work, SIZE(work), rwork, SIZE(rwork), iwork, SIZE(iwork), info)
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif
@@ -470,10 +471,10 @@ CONTAINS
       metric_ratio = MINVAL(eigenvalues)/MAXVAL(eigenvalues)
       IF (metric_ratio <= metric_tol) RETURN
       metric_min = MINVAL(eigenvalues)
-      DEALLOCATE (a, eigenvalues, work, rwork)
+      DEALLOCATE (a, eigenvalues, work, rwork, iwork)
 
       ALLOCATE (a(2*n, 2*n), b(2*n, 2*n))
-      ALLOCATE (eigenvalues(2*n), work(4*n), rwork(6*n))
+      ALLOCATE (eigenvalues(2*n), work(4*n), rwork(6*n), iwork(1))
       status = -1
       IF (.NOT. ALL(ieee_is_finite(REAL(localizer, dp))) .OR. &
           .NOT. ALL(ieee_is_finite(AIMAG(localizer)))) RETURN
@@ -486,7 +487,8 @@ CONTAINS
       CALL ieee_get_halting_mode(IEEE_ALL, halt)
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
-      CALL zhegv(1, 'N', 'U', 2*n, a, 2*n, b, 2*n, eigenvalues, work, SIZE(work), rwork, info)
+      CALL zhegvd(1, 'N', 'U', 2*n, a, 2*n, b, 2*n, eigenvalues, work, SIZE(work), rwork, SIZE(rwork), &
+                  iwork, SIZE(iwork), info)
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif
