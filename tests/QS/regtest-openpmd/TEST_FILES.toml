@@ -4,4 +4,4 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 
-"H2O-geo-ot-lumo-all-openpmd.inp"       = [{matcher="E_total", tol=9.0e-14, ref=-17.11058846146146}]
+"H2O-geo-ot-lumo-all-openpmd.inp" = [{matcher = "E_total", tol = 9.0e-14, ref = -17.11058846146146}]

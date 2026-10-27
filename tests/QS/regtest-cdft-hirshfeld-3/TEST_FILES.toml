@@ -2,6 +2,6 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 #
-"HeH-noconstraint.inp"                  = [{matcher="M072", tol=1e-7, ref=0.1450972684448}]
-"HeH-cdft-1.inp"                        = [{matcher="M072", tol=1e-7, ref=0.1552195046628}]
+"HeH-noconstraint.inp" = [{matcher = "M072", tol = 1e-7, ref = 0.1450972684448}]
+"HeH-cdft-1.inp"       = [{matcher = "M072", tol = 1e-7, ref = 0.1552195046628}]
 #EOF

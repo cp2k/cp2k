@@ -3,8 +3,8 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"bnt1.inp"                              = []
-"ft1.inp"                               = []
-"ft2.inp"                               = []
-"ft3.inp"                               = []
+"bnt1.inp" = []
+"ft1.inp"  = []
+"ft2.inp"  = []
+"ft3.inp"  = []
 #EOF
