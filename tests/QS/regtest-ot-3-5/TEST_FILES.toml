@@ -3,18 +3,12 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"Al-kpoint-mermin-response.inp"         = [
-  {matcher="E_total", tol=1e-9, ref=-3.995032366510561},
-  {matcher="OT_mermin_response_update"},
-]
-"Al-kpoint-mermin-response-lbfgs.inp"   = [
-  {matcher="E_total", tol=1e-9, ref=-3.990589661470200},
-  {matcher="OT_mermin_lbfgs_response_update"},
-]
-"Al-kpoint-mermin-md.inp"              = [
-  {matcher="M_INIT_ENERGY", tol=1e-8, ref=-4.065278275060435},
-  {matcher="M_CONS_QTY", tol=1e-8, ref=-4.06478643187},
-]
-"Al-kpoint-mermin-geo-opt.inp"         = [{matcher="E_total", tol=1e-8, ref=-4.06534815637185}]
-"Al-kpoint-mermin-cell-opt.inp"        = [{matcher="E_total", tol=1e-8, ref=-2.08597923726350}]
+"Al-kpoint-mermin-response.inp"       = [{matcher="E_total", tol=1e-9, ref=-3.995032366510561},
+                                         {matcher="OT_mermin_response_update"},]
+"Al-kpoint-mermin-response-lbfgs.inp" = [{matcher="E_total", tol=1e-9, ref=-3.990589661470200},
+                                         {matcher="OT_mermin_lbfgs_response_update"},]
+"Al-kpoint-mermin-md.inp"             = [{matcher="M_INIT_ENERGY", tol=1e-8, ref=-4.065278275060435},
+                                         {matcher="M_CONS_QTY", tol=1e-8, ref=-4.06478643187},]
+"Al-kpoint-mermin-geo-opt.inp"        = [{matcher="E_total", tol=1e-8, ref=-4.06534815637185}]
+"Al-kpoint-mermin-cell-opt.inp"       = [{matcher="E_total", tol=1e-8, ref=-2.08597923726350}]
 #EOF

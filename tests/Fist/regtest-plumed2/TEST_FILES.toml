@@ -5,5 +5,5 @@
 #      for details see cp2k/tools/do_regtest
 #
 # dang-chang model
-"water.inp"                             = [{matcher="M011", tol=1.0E-14, ref=-0.000258715302443}]
+"water.inp" = [{matcher="M011", tol=1.0E-14, ref=-0.000258715302443}]
 #EOF

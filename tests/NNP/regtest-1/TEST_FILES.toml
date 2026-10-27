@@ -1,13 +1,13 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-"H2O-64_NNP_MD.inp"                     = [{matcher="M002", tol=1.0E-14, ref=0.375124218267E+04}]
-"H2O_C-NNP_MD.inp"                      = [{matcher="M002", tol=1.0E-14, ref=0.586488095231E+02}]
-"H2O-64_C-NNP_MD.inp"                   = [{matcher="M002", tol=1.0E-14, ref=0.375124235844E+04}]
-"H2O-64_C-NNP_MD-NpT.inp"               = [{matcher="M002", tol=1.0E-14, ref=0.375126784023E+04}]
-"H2O-64_C-NNP_MD-NpT-numeric.inp"       = [{matcher="M002", tol=1.0E-14, ref=0.375124841615E+04}]
-"H2O-64_C-NNP_biased_MD.inp"            = [{matcher="M002", tol=1.0E-14, ref=0.375124232248E+04}]
-"H2O-64_C-NNP_biased_MD_restart.inp"    = [{matcher="M002", tol=1.0E-14, ref=0.375124124406E+04}]
+"H2O-64_NNP_MD.inp"                  = [{matcher="M002", tol=1.0E-14, ref=0.375124218267E+04}]
+"H2O_C-NNP_MD.inp"                   = [{matcher="M002", tol=1.0E-14, ref=0.586488095231E+02}]
+"H2O-64_C-NNP_MD.inp"                = [{matcher="M002", tol=1.0E-14, ref=0.375124235844E+04}]
+"H2O-64_C-NNP_MD-NpT.inp"            = [{matcher="M002", tol=1.0E-14, ref=0.375126784023E+04}]
+"H2O-64_C-NNP_MD-NpT-numeric.inp"    = [{matcher="M002", tol=1.0E-14, ref=0.375124841615E+04}]
+"H2O-64_C-NNP_biased_MD.inp"         = [{matcher="M002", tol=1.0E-14, ref=0.375124232248E+04}]
+"H2O-64_C-NNP_biased_MD_restart.inp" = [{matcher="M002", tol=1.0E-14, ref=0.375124124406E+04}]
 
 # H2O-256_C-NNP_MD-bitexact: non-cubic 256-water NVT (24.84 x 24.84
 # x 12.42 A, two axes with L > 2*r_cut). Locks the step-zero
@@ -17,9 +17,7 @@
 # across compilers), but without it integrator and neighbour-cache
 # bugs that let energy drift and blow up the temperature can pass
 # silently.
-"H2O-256_C-NNP_MD-bitexact.inp" = [
-    {matcher="M_INIT_ENERGY", tol=1.0E-14, ref=15004.992479346592518},
-    {matcher="M002",          tol=1.0E-14, ref=0.150049870566E+05},
-    {matcher="M_CONS_QTY",    tol=1.0E-14, ref=0.150060861414E+05},
-]
+"H2O-256_C-NNP_MD-bitexact.inp"      = [{matcher="M_INIT_ENERGY", tol=1.0E-14, ref=15004.992479346592518},
+                                        {matcher="M002", tol=1.0E-14, ref=0.150049870566E+05},
+                                        {matcher="M_CONS_QTY", tol=1.0E-14, ref=0.150060861414E+05},]
 #EOF

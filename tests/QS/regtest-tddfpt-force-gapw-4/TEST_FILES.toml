@@ -3,9 +3,9 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"h2o_t09.inp"                           = []
-"h2o_t10.inp"                           = []
-"h2o_t11.inp"                           = []
-"h2o_t12.inp"                           = []
-"bnt2.inp"                              = []
+"h2o_t09.inp" = []
+"h2o_t10.inp" = []
+"h2o_t11.inp" = []
+"h2o_t12.inp" = []
+"bnt2.inp"    = []
 #EOF

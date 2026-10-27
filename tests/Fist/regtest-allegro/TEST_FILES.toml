@@ -1,4 +1,4 @@
 # Test of Allegro using libtorch https://pytorch.org/cppdocs/installing.html
-"water-bulk.inp"                        = [{matcher="M011", tol=1.0E-9, ref=-550.634583715432086},
-                                           {matcher="M031", tol=1.0E-6, ref=3.40720924931E+04}]
+"water-bulk.inp" = [{matcher="M011", tol=1.0E-9, ref=-550.634583715432086},
+                    {matcher="M031", tol=1.0E-6, ref=3.40720924931E+04}]
 #EOF

@@ -9,19 +9,19 @@
 # testing the "stand alone" analysis tool
 # first single calculations and then restarting
 # create trajectory to analyse
-"TMC_ana_create_traj_without_ana.inp"   = []
+"TMC_ana_create_traj_without_ana.inp" = []
 # density calculations
-"TMC_ana_density.inp"                   = [{matcher="M039", tol=1.0E-14, ref=0.139659291455834}]
+"TMC_ana_density.inp"                 = [{matcher="M039", tol=1.0E-14, ref=0.139659291455834}]
 # radial distribution function
-"TMC_ana_G_R.inp"                       = [{matcher="M039", tol=3.5E-03, ref=0.00512119420581984}]
+"TMC_ana_G_R.inp"                     = [{matcher="M039", tol=3.5E-03, ref=0.00512119420581984}]
 # classical dipole moment writing out TMC restart file (no ana restart file)
-"TMC_ana_dip_cl.inp"                    = []
+"TMC_ana_dip_cl.inp"                  = []
 # calculating the root mean squared deviation from the last cell and the average
-"TMC_ana_deviation.inp"                 = [{matcher="M039", tol=3.5E-02, ref=0.76812571375286065}]
+"TMC_ana_deviation.inp"               = [{matcher="M039", tol=3.5E-02, ref=0.76812571375286065}]
 # all together for the restart case, creating the analysis input file
-"TMC_ana_all.inp"                       = [{matcher="M039", tol=3.5E-02, ref=0.76812571375286065}]
+"TMC_ana_all.inp"                     = [{matcher="M039", tol=3.5E-02, ref=0.76812571375286065}]
 # creating a not analyzed trajectory
-"TMC_ana_extend_trajectory.inp"         = []
+"TMC_ana_extend_trajectory.inp"       = []
 # restarting with existing analysis restart file
-"TMC_ana_restart.inp"                   = [{matcher="M039", tol=3.5E-02, ref=0.75766069922260437}]
+"TMC_ana_restart.inp"                 = [{matcher="M039", tol=3.5E-02, ref=0.75766069922260437}]
 #EOF

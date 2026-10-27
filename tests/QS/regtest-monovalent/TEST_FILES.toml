@@ -4,4 +4,4 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 
-"ethane_stub.inp"                       = [{matcher="E_total", tol=1e-11, ref=-7.70882067473086}]
+"ethane_stub.inp" = [{matcher="E_total", tol=1e-11, ref=-7.70882067473086}]
