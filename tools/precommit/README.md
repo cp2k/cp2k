@@ -13,6 +13,7 @@ The precommit system consists of the following tools that analyze and format the
 - [mdformat](https://github.com/executablebooks/mdformat) with
   [gfm plugin](https://github.com/hukkin/mdformat-gfm) to format Markdown scripts.
 - [cmake-format](https://github.com/cheshirekow/cmake_format) to format CMake scripts.
+- [Tombi](https://tombi-toml.github.io/tombi/) to format `TEST_FILES.toml` files.
 
 In contrast to the [CP2K-CI](https://github.com/cp2k/cp2k-ci) these tools process each file
 individually, which makes them much more lightweight.
@@ -39,6 +40,12 @@ The same server can also be started locally when Docker is available:
 
 The server can also be installed without Docker by following the steps in the
 [Dockerfile](./Dockerfile).
+
+Tombi runs offline with [tombi.toml](./tombi.toml), copied into each request's temporary directory.
+Schema processing is disabled to preserve test and matcher order. No line-width limit is set; use a
+trailing comma after the last matcher to keep an array multiline. Formatting uses the usual diff and
+`--allow-modifications` handling. Rebuild and deploy the server when adding a tool or changing its
+configuration.
 
 Once the server is up and running it can be used like this:
 

@@ -254,6 +254,9 @@ def process_file(fn: str, allow_modifications: bool) -> None:
     if re.match(r".*\.md$", fn):
         run_remote_tool("mdformat", fn)
 
+    if basename == "TEST_FILES.toml":
+        run_remote_tool("tombi", fn)
+
     if re.match(r"(.*/CMakeLists.txt)|(.*\.cmake)$", fn):
         run_remote_tool("cmakeformat", fn)
         run_remote_tool("cmakelint", fn)

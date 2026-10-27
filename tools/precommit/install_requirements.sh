@@ -29,7 +29,7 @@ export PATH="/opt/venv/bin:$PATH"
 # TODO Add a pylock.toml file (https://peps.python.org/pep-0751/)
 # Install Python packages. Upgrade via:
 #   pip3 install black flask gunicorn cmakelang fortitude-lint \
-#      mdformat mdformat-gfm mdformat-myst
+#      mdformat mdformat-gfm mdformat-myst tombi
 #   pip3 freeze > requirements.txt
 pip3 install --quiet -r requirements.txt
 

@@ -7,6 +7,7 @@ import logging
 from os import path
 from time import time
 import tempfile
+import shutil
 import subprocess
 from subprocess import PIPE, STDOUT
 from flask import Flask, request, abort
@@ -62,6 +63,13 @@ def clangformat():
 
 
 # ======================================================================================
+@app.route("/tombi", methods=["POST"])
+def tombi():
+    config = f"{os.getcwd()}/tombi.toml"
+    return run_tool(["tombi", "format", "--offline"], config=config)
+
+
+# ======================================================================================
 @app.route("/cmakeformat", methods=["POST"])
 def cmakeformat():
     return run_tool(["cmake-format", "-i"], timeout=30)
@@ -94,13 +102,15 @@ def fortitude_nofix():
 
 
 # ======================================================================================
-def run_tool(cmd, timeout=3):
+def run_tool(cmd, timeout=3, config=None):
     assert len(request.files) == 1
     orig_fn = list(request.files.keys())[0]
     data_before = request.files[orig_fn].read()
     data_kb = len(data_before) / 1024.0
     fn = path.basename(orig_fn)
     workdir = tempfile.TemporaryDirectory()
+    if config is not None:
+        shutil.copyfile(config, path.join(workdir.name, path.basename(config)))
     abs_fn = path.join(workdir.name, fn)
     open(abs_fn, "wb").write(data_before)
 
