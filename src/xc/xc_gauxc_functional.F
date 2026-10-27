@@ -1430,7 +1430,6 @@ CONTAINS
          END IF
       END IF
 
-      ! Resolve the gradient route once the cache knows the actual basis angular momentum.
       params%gapw_method = gapw_method
       params%need_xc_gradient = need_xc_gradient
 
@@ -1444,9 +1443,6 @@ CONTAINS
          qs_kind_set, &
          gauxc_status)
 
-      ! Built once on the first force/virial evaluation and kept in the cache;
-      ! toggling need_xc_gradient between SCF and force calls must not rebuild
-      ! the molecule/grid/energy integrator.
       CALL gauxc_cache_ensure_gradient(cache, params, para_env, gauxc_status)
       CALL gauxc_check_status(gauxc_status)
 

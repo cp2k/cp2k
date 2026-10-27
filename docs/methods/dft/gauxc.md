@@ -18,6 +18,23 @@ to `SKALA_NATIVE`, while `GRID`, `PRUNING_SCHEME`, `RADIAL_QUADRATURE`, `LB_EXEC
 `INT_EXECUTION_SPACE`, `LWD_KERNEL`, and `SKALA_RUNTIME` belong to `GAUXC`. Both sections use the
 same `USE_GPU` keyword to select GPU or host execution.
 
+## Choosing between GAUXC and SKALA_NATIVE
+
+For **non-periodic (isolated) systems**, use `&GAUXC` with `MODEL SKALA` as the default SKALA path.
+GauXC's molecular quadrature is the established implementation for isolated calculations and is
+generally the more accurate and cheaper choice there; it avoids the native real-space-grid
+interpolation, cutoff, and periodic-image machinery.
+
+For **compact periodic systems**, use `&SKALA_NATIVE`. The `GAUXC` molecular path cannot represent
+compact periodic quadrature: its periodic mode is restricted to isolated-cell reference calculations
+via `PERIODIC_REFERENCE`, and it does not provide periodic neighbour-cell AO blocks, periodic
+k-points, or a periodic stress tensor. `SKALA_NATIVE` supports selected periodic GPW/GAPW cases,
+including k-points and analytical stress.
+
+Both paths evaluate the same SKALA model but with different numerical representations. Accuracy and
+cost should still be checked for the target system: converge `GRID`/`PRUNING_SCHEME` for `GAUXC`,
+and `ATOM_PARTITION`/`LAYOUT` plus the CP2K grid cutoffs for `SKALA_NATIVE`.
+
 ## Basic Input
 
 GauXC is selected as the only XC functional in the

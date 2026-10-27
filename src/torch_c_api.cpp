@@ -478,17 +478,6 @@ void torch_c_tensor_from_array_double(torch_c_tensor_t **tensor,
 void torch_c_free_string(char *content) { free(content); }
 
 /*******************************************************************************
- * \brief Reuses or creates a device tensor and copies double data into it.
- ******************************************************************************/
-void torch_c_tensor_reset_from_array_double(torch_c_tensor_t **tensor,
-                                            const bool req_grad,
-                                            const int ndims,
-                                            const int64_t sizes[],
-                                            double source[]) {
-  (void)reset_tensor_from_array_double(tensor, req_grad, ndims, sizes, source);
-}
-
-/*******************************************************************************
  * \brief Reuses or creates a device tensor and reports reallocation.
  ******************************************************************************/
 bool torch_c_tensor_reset_from_array_double_status(torch_c_tensor_t **tensor,

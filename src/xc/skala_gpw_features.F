@@ -43,6 +43,7 @@ MODULE skala_gpw_features
    INTEGER, PARAMETER, PRIVATE          :: periodic_partition_image_shell = 1
 
    PUBLIC :: skala_gpw_atom_subchunk_count, skala_gpw_atom_subchunk_layout, &
+             skala_gpw_features_release_cache, &
              skala_gpw_feature_build, skala_gpw_feature_build_atom_subchunk, &
              skala_gpw_feature_build_atom_subchunk_bounds, skala_gpw_feature_release, &
              skala_gpw_feature_type, skala_gpw_smooth_partition_derivatives, &
@@ -1619,6 +1620,13 @@ CONTAINS
    END SUBROUTINE weights_signature
 
 ! **************************************************************************************************
+!> \brief Release the module-level layout cache.
+! **************************************************************************************************
+   SUBROUTINE skala_gpw_features_release_cache()
+      CALL release_layout_cache(cached_layout)
+   END SUBROUTINE skala_gpw_features_release_cache
+
+! **************************************************************************************************
 !> \brief Release cached layout arrays.
 !> \param cache ...
 ! **************************************************************************************************
@@ -2166,68 +2174,6 @@ CONTAINS
                              features%coarse_0_atomic_coords_t)
 
    END SUBROUTINE add_subchunk_feature_tensors
-
-! **************************************************************************************************
-!> \brief Insert owned subchunk arrays into a Torch dictionary.
-!> \param features ...
-!> \param requires_grad ...
-! **************************************************************************************************
-   SUBROUTINE add_owned_feature_tensors(features, requires_grad)
-      TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
-      LOGICAL, INTENT(IN)                                :: requires_grad
-
-      CPASSERT(ALLOCATED(features%chunk_density))
-      CPASSERT(ALLOCATED(features%chunk_grad))
-      CPASSERT(ALLOCATED(features%chunk_kin))
-      CPASSERT(ALLOCATED(features%grid_coords))
-      CPASSERT(ALLOCATED(features%grid_weights))
-      CPASSERT(ALLOCATED(features%atomic_grid_weights))
-      CPASSERT(ALLOCATED(features%atomic_grid_sizes))
-      CPASSERT(ALLOCATED(features%atomic_grid_size_bound_shape))
-      CPASSERT(ALLOCATED(features%coarse_0_atomic_coords))
-
-      features%owns_coordinate_tensor = .FALSE.
-      features%owns_dynamic_tensors = .TRUE.
-      features%owns_inputs = .TRUE.
-      features%owns_static_tensors = .TRUE.
-
-      CALL torch_tensor_from_array(features%grid_coords_t, features%grid_coords)
-      CALL torch_tensor_to_device_leaf(features%grid_coords_t, .FALSE.)
-      CALL torch_tensor_from_array(features%grid_weights_t, features%grid_weights)
-      CALL torch_tensor_to_device_leaf(features%grid_weights_t, .FALSE.)
-      CALL torch_tensor_from_array(features%atomic_grid_weights_t, features%atomic_grid_weights)
-      CALL torch_tensor_to_device_leaf(features%atomic_grid_weights_t, .FALSE.)
-      CALL torch_tensor_from_array(features%atomic_grid_sizes_t, features%atomic_grid_sizes)
-      CALL torch_tensor_to_device_leaf(features%atomic_grid_sizes_t, .FALSE.)
-      CALL torch_tensor_from_array(features%coarse_0_atomic_coords_t, &
-                                   features%coarse_0_atomic_coords)
-      CALL torch_tensor_to_device_leaf(features%coarse_0_atomic_coords_t, .FALSE.)
-      CALL torch_tensor_from_array(features%atomic_grid_size_bound_shape_t, &
-                                   features%atomic_grid_size_bound_shape)
-      CALL torch_tensor_to_device_leaf(features%atomic_grid_size_bound_shape_t, .FALSE.)
-      CALL torch_tensor_from_array(features%density_t, features%chunk_density)
-      CALL torch_tensor_to_device_leaf(features%density_t, requires_grad)
-      CALL torch_tensor_from_array(features%grad_t, features%chunk_grad)
-      CALL torch_tensor_to_device_leaf(features%grad_t, requires_grad)
-      CALL torch_tensor_from_array(features%kin_t, features%chunk_kin)
-      CALL torch_tensor_to_device_leaf(features%kin_t, requires_grad)
-
-      CALL torch_dict_create(features%inputs)
-      CALL torch_dict_insert(features%inputs, "grid_coords", features%grid_coords_t)
-      CALL torch_dict_insert(features%inputs, "grid_weights", features%grid_weights_t)
-      CALL torch_dict_insert(features%inputs, "atomic_grid_weights", &
-                             features%atomic_grid_weights_t)
-      CALL torch_dict_insert(features%inputs, "atomic_grid_sizes", &
-                             features%atomic_grid_sizes_t)
-      CALL torch_dict_insert(features%inputs, "atomic_grid_size_bound_shape", &
-                             features%atomic_grid_size_bound_shape_t)
-      CALL torch_dict_insert(features%inputs, "density", features%density_t)
-      CALL torch_dict_insert(features%inputs, "grad", features%grad_t)
-      CALL torch_dict_insert(features%inputs, "kin", features%kin_t)
-      CALL torch_dict_insert(features%inputs, "coarse_0_atomic_coords", &
-                             features%coarse_0_atomic_coords_t)
-
-   END SUBROUTINE add_owned_feature_tensors
 
 ! **************************************************************************************************
 !> \brief Insert all SKALA feature tensors into the Torch dictionary.

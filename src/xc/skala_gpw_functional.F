@@ -41,8 +41,8 @@ MODULE skala_gpw_functional
         skala_gpw_atom_partition_hard, skala_gpw_atom_partition_smooth, &
         skala_gpw_atom_subchunk_count, skala_gpw_atom_subchunk_layout, skala_gpw_feature_build, &
         skala_gpw_feature_build_atom_subchunk_bounds, skala_gpw_feature_release, &
-        skala_gpw_feature_type, skala_gpw_smooth_partition_derivatives, &
-        smooth_partition_atomic_weight_scale_derivative
+        skala_gpw_feature_type, skala_gpw_features_release_cache, &
+        skala_gpw_smooth_partition_derivatives, smooth_partition_atomic_weight_scale_derivative
    USE skala_torch_api,                 ONLY: skala_torch_model_get_exc,&
                                               skala_torch_model_load,&
                                               skala_torch_model_release,&
@@ -98,13 +98,14 @@ MODULE skala_gpw_functional
              native_skala_uses_atom_composite_grid, &
              native_skala_gapw_composite_direct_ao, native_skala_gapw_composite_reference, &
              native_skala_gapw_density_partition, skala_gpw_eval, skala_gpw_weight_derivative, &
-             skala_execution_use_cuda, skala_gapw_representation, &
+             skala_execution_use_cuda, skala_gpw_release_caches, skala_gapw_representation, &
              xc_section_uses_native_skala_evaluator, &
              xc_section_uses_native_skala_grid, xc_section_uses_gauxc_model, &
              xc_section_uses_skala_model
 
    TYPE(skala_torch_model_type), SAVE                  :: cached_model
    TYPE(skala_gapw_atom_cuda_tensor_cache_type), SAVE, TARGET :: cached_atom_cuda_tensors
+   LOGICAL, SAVE                                       :: cached_atom_cuda_tensors_active = .FALSE.
    CHARACTER(len=default_path_length), SAVE            :: cached_model_path = ""
    LOGICAL, SAVE                                       :: cached_model_loaded = .FALSE.
    LOGICAL, SAVE                                       :: cached_model_fp64 = .FALSE.
@@ -1310,6 +1311,7 @@ CONTAINS
             CALL torch_tensor_reset_from_array(density_t, density, need_derivatives)
             CALL torch_tensor_reset_from_array(grad_t, grad, need_derivatives)
             CALL torch_tensor_reset_from_array(kin_t, kin, need_derivatives)
+            cached_atom_cuda_tensors_active = .TRUE.
          ELSE
             grid_coords_t => grid_coords_local_t
             grid_weights_t => grid_weights_local_t
@@ -3109,6 +3111,27 @@ CONTAINS
       END IF
 
    END SUBROUTINE get_skala_model_path
+
+! **************************************************************************************************
+!> \brief Release all module-level SKALA/Torch caches.
+! **************************************************************************************************
+   SUBROUTINE skala_gpw_release_caches()
+      IF (cached_model_loaded) THEN
+         CALL skala_torch_model_release(cached_model)
+         cached_model_loaded = .FALSE.
+      END IF
+      IF (cached_atom_cuda_tensors_active) THEN
+         CALL torch_tensor_release(cached_atom_cuda_tensors%grid_coords_t)
+         CALL torch_tensor_release(cached_atom_cuda_tensors%grid_weights_t)
+         CALL torch_tensor_release(cached_atom_cuda_tensors%atomic_grid_weights_t)
+         CALL torch_tensor_release(cached_atom_cuda_tensors%atomic_coords_t)
+         CALL torch_tensor_release(cached_atom_cuda_tensors%density_t)
+         CALL torch_tensor_release(cached_atom_cuda_tensors%grad_t)
+         CALL torch_tensor_release(cached_atom_cuda_tensors%kin_t)
+         cached_atom_cuda_tensors_active = .FALSE.
+      END IF
+      CALL skala_gpw_features_release_cache()
+   END SUBROUTINE skala_gpw_release_caches
 
 ! **************************************************************************************************
 !> \brief Return the CP2K-native SKALA functional subsection, if present.

@@ -553,16 +553,9 @@ CONTAINS
       radial_quad_local = read_radial_quad(radial_quadrature)
       pruning_scheme_local = read_pruning_scheme(pruning_scheme)
       lb_exec_space_local = read_execution_space(lb_exec_space)
-      ! The molecular-weights factory stays on the host; only the runtime
-      ! selection below looks at the requested integrator space.
       int_exec_space_local = read_execution_space("host")
       int_exec_requested = read_execution_space("host")
       IF (PRESENT(int_exec_space)) int_exec_requested = read_execution_space(int_exec_space)
-      ! A device integrator obtains its device runtime from the load balancer
-      ! (`as_device_runtime(load_balancer.runtime())`), so a device runtime is
-      ! required whenever either phase runs on the device - even if the load
-      ! balancer itself stays on the host.  Previously only LB=DEVICE created
-      ! one, so INT=DEVICE with the default LB=HOST silently used a host runtime.
       use_device_runtime = (lb_exec_space_local == gauxc_executionspace%device) .OR. &
                            (int_exec_requested == gauxc_executionspace%device)
 #if defined(GAUXC_HAS_DEVICE) && defined(__LIBTORCH)

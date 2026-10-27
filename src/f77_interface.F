@@ -143,6 +143,7 @@ MODULE f77_interface
    USE sirius_interface,                ONLY: cp_sirius_finalize,&
                                               cp_sirius_init,&
                                               cp_sirius_is_initialized
+   USE skala_gpw_functional,            ONLY: skala_gpw_release_caches
    USE string_table,                    ONLY: string_table_allocate,&
                                               string_table_deallocate
    USE timings,                         ONLY: add_timer_env,&
@@ -384,6 +385,7 @@ CONTAINS
          ! Release the cached LibXC workers, because their device buffers are
          ! owned by the offload memory pool which is cleared below
          CALL libxc_release_workers()
+         CALL skala_gpw_release_caches()
 
          ! Finalize libraries (Offload)
          CALL dbt_library_finalize()
