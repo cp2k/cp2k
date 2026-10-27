@@ -47,7 +47,7 @@ MODULE mp2_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_types'
 
-   PUBLIC :: mp2_type, &
+   PUBLIC :: mp2_type, ri_g0w0_type, &
              integ_mat_buffer_type, &
              integ_mat_buffer_type_2D, &
              mp2_method_none, &
@@ -196,7 +196,13 @@ MODULE mp2_types
 
    END TYPE ri_rpa_im_time_type
 
+   TYPE exact_rpa_diag_type
+      LOGICAL                                            :: enabled = .FALSE.
+      REAL(KIND=dp)                                      :: broadening_eta = 0.0_dp
+   END TYPE exact_rpa_diag_type
+
    TYPE ri_g0w0_type
+      TYPE(exact_rpa_diag_type)                          :: exact_rpa_diag
       INTEGER                                            :: corr_mos_occ = 0, &
                                                             corr_mos_virt = 0, &
                                                             corr_mos_occ_beta = 0, &

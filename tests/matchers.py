@@ -1,3 +1,4 @@
+import math
 import traceback
 from typing import Any, Dict
 
@@ -29,6 +30,82 @@ class MatcherRegistry(Dict[str, Matcher]):
 
 # ======================================================================================
 registry = MatcherRegistry()
+
+
+class GWOrbitalSelfEnergyMatcher(Matcher):
+    """Check the shared real-frequency orbital file and one reference value."""
+
+    def run(self, output: str, **kwargs: Any) -> MatchResult:
+        method = kwargs["method"]
+        lines = output.splitlines()
+        if f"# Method: {method}" not in lines:
+            return MatchResult(
+                "WRONG RESULT", "Incorrect GW self-energy method.\n", None
+            )
+        header = "# Real_frequency_eV Re_Sigma_c_eV Im_Sigma_c_eV A_n_1_per_eV"
+        if header not in lines:
+            return MatchResult(
+                "WRONG RESULT", "Missing GW self-energy columns.\n", None
+            )
+        try:
+            rows = [
+                tuple(map(float, line.split()))
+                for line in lines
+                if line and not line.startswith("#")
+            ]
+        except ValueError:
+            return MatchResult("WRONG RESULT", "Invalid GW self-energy row.\n", None)
+        if len(rows) != kwargs["points"] or any(
+            len(row) != 4 or not all(map(math.isfinite, row)) for row in rows
+        ):
+            return MatchResult(
+                "WRONG RESULT", "Nonfinite or incomplete GW self-energy rows.\n", None
+            )
+        if any(len(line) > 80 for line in lines):
+            return MatchResult(
+                "WRONG RESULT", "GW self-energy line exceeds 80 columns.\n", None
+            )
+        if any(row[3] < -1e-12 for row in rows):
+            return MatchResult(
+                "WRONG RESULT", "Negative orbital spectral function.\n", None
+            )
+        if method == "EXACT_RPA_DIAG" and any(row[2] > 1e-12 for row in rows):
+            return MatchResult(
+                "WRONG RESULT", "Positive retarded RPA imaginary self-energy.\n", None
+            )
+        if any(rows[i + 1][0] <= rows[i][0] for i in range(len(rows) - 1)):
+            return MatchResult(
+                "WRONG RESULT", "Nonmonotonic real-frequency grid.\n", None
+            )
+        metadata = dict(
+            line[2:].split(": ", 1)
+            for line in lines
+            if line.startswith("# ") and ": " in line
+        )
+        epsilon = float(metadata["SCF_energy_eV"])
+        exchange = float(metadata["Sigma_x_minus_vxc_eV"])
+        eta = float(metadata["Green_broadening_eV"])
+        for omega, real, imag, spectral in rows:
+            gamma = eta - imag if method == "EXACT_RPA_DIAG" else eta + abs(imag)
+            expected = gamma / (
+                math.pi * ((omega - epsilon - exchange - real) ** 2 + gamma**2)
+            )
+            if not math.isclose(spectral, expected, rel_tol=2e-8, abs_tol=1e-12):
+                return MatchResult(
+                    "WRONG RESULT",
+                    "Spectral function disagrees with documented Dyson equation.\n",
+                    None,
+                )
+        value = min(rows, key=lambda row: abs(row[0]))[1]
+        ref, tol = kwargs["ref"], kwargs["tol"]
+        if abs(value - ref) > tol * max(abs(ref), 1.0):
+            return MatchResult(
+                "WRONG RESULT", f"Real self-energy at zero differs: {value}.\n", value
+            )
+        return MatchResult("OK", None, value)
+
+
+registry["GW_orbital_self_energy"] = GWOrbitalSelfEnergyMatcher()
 
 # Total energy in Hartree
 registry["E_total"] = GenericMatcher(r"Total energy:", col=3)

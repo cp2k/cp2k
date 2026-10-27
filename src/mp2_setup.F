@@ -162,6 +162,10 @@ CONTAINS
                                 r_val=mp2_env%ri_g0w0%eps_iter)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT_EXX", &
                                 i_val=mp2_env%ri_g0w0%print_exx)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%EXACT_RPA_DIAG%_SECTION_PARAMETERS_", &
+                                l_val=mp2_env%ri_g0w0%exact_rpa_diag%enabled)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%EXACT_RPA_DIAG%BROADENING_ETA", &
+                                r_val=mp2_env%ri_g0w0%exact_rpa_diag%broadening_eta)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT_SELF_ENERGY", &
                                 l_val=mp2_env%ri_g0w0%print_self_energy)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%RI_SIGMA_X", &

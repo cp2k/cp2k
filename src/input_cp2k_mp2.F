@@ -706,7 +706,8 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="GW", &
-                          description="Parameters influencing GW calculations on molecules.", &
+                          description="GW quasiparticle calculations. Use EXACT_RPA_DIAG for direct full-RPA "// &
+                          "diagonalization, or ANALYTIC_CONTINUATION for continuation from imaginary frequencies.", &
                           n_keywords=24, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
@@ -929,9 +930,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PRINT_SELF_ENERGY", &
-                          description="If true, print the self-energy for all levels for real energy "// &
-                          "together with the straight line to see the quasiparticle energy as intersection. "// &
-                          "In addition, prints the self-energy for imaginary frequencies together with the Pade fit.", &
+                          description="Write the correlation self-energy and spectral function "// &
+                          "to GW_level_N_self_energy.dat. Set the frequency grid with PRINT/GW_DOS/LOWER_BOUND, "// &
+                          "UPPER_BOUND and a positive STEP. Orbital selection uses MIN_LEVEL_SELF_ENERGY "// &
+                          "and MAX_LEVEL_SELF_ENERGY (zero maximum includes all corrected orbitals).", &
                           usage="PRINT_SELF_ENERGY", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
@@ -1072,6 +1074,10 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL create_exact_rpa_diag_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       ! here we generate a subsection for the periodic GW correction
       CALL create_periodic_gw_correction_section(subsection)
       CALL section_add_subsection(section, subsection)
@@ -1098,6 +1104,60 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE create_ri_g0w0
+
+! **************************************************************************************************
+!> \brief Input for GW from direct diagonalization of the full singlet RPA problem.
+! **************************************************************************************************
+   SUBROUTINE create_exact_rpa_diag_section(section)
+      TYPE(section_type), POINTER :: section
+      TYPE(keyword_type), POINTER :: keyword
+
+      NULLIFY (keyword)
+      CALL section_create(section, __LOCATION__, name="EXACT_RPA_DIAG", &
+                          description="Compute GW self-energies by full RPA diagonalization, without analytic continuation. "// &
+                          "Available for closed-shell molecular, conventional one-shot GW."//CHAR(10)//CHAR(10)// &
+                          "**RPA excitations.** Indices $i,j$ denote occupied orbitals, $a,b$ virtual orbitals, "// &
+                          "$P$ an auxiliary RI index, and $\varepsilon_p$ an SCF orbital energy. "// &
+                          "Coulomb factors satisfy $(pq|rt)\approx\sum_P B_{P,pq}B_{P,rt}$. "// &
+                          "With $\Delta_{ia}=\varepsilon_a-\varepsilon_i$ and "// &
+                          "$K_{ia,jb}=\sum_P B_{P,ia}B_{P,jb}$, the singlet RPA matrices are"//CHAR(10)//CHAR(10)// &
+                          "$$A_{ia,jb}=\Delta_{ia}\delta_{ij}\delta_{ab}+2K_{ia,jb}, "// &
+                          "\qquad B^{\mathrm{RPA}}_{ia,jb}=2K_{ia,jb}.$$"//CHAR(10)//CHAR(10)// &
+                          "The symmetric squared RPA matrix is diagonalized:"// &
+                          CHAR(10)//CHAR(10)// &
+                          "$$C_{ia,jb}=\sqrt{\Delta_{ia}}(A+B^{\mathrm{RPA}})_{ia,jb}\sqrt{\Delta_{jb}}, "// &
+                          "\qquad \sum_{jb}C_{ia,jb}U_{jb,s}=\Omega_s^2U_{ia,s}.$$"//CHAR(10)//CHAR(10)// &
+                          "Here $s$ labels excitations, $\Omega_s>0$, and $U$ has orthonormal columns."//CHAR(10)//CHAR(10)// &
+                          "**Self-energy.** For output orbital $n$ and intermediate orbital $m$, define "// &
+                          "$g_{nm,s}=\sqrt{2/\Omega_s}\sum_{P,ia}B_{P,nm}B_{P,ia}\sqrt{\Delta_{ia}}U_{ia,s}$. "// &
+                          "The retarded correlation self-energy and orbital spectrum are"//CHAR(10)//CHAR(10)// &
+                          "$$\Sigma_n^{c,R}(\omega)=\sum_{m,s}\frac{g_{nm,s}^2} "// &
+                          "{\omega-\varepsilon_m+\tau_m\Omega_s+i\eta}, "// &
+                          "\qquad A_n(\omega)=-\frac1\pi\mathrm{Im} "// &
+                          "[\omega+i\eta_G-\varepsilon_n-\Delta_n^x-\Sigma_n^{c,R}(\omega)]^{-1}.$$"// &
+                          CHAR(10)//CHAR(10)// &
+                          "Here $\tau_m=+1$ for occupied and $-1$ for virtual orbitals, "// &
+                          "$\Delta_n^x=\langle n|\Sigma_x-v_{xc}|n\rangle$, "// &
+                          "$\eta$ is BROADENING_ETA and $\eta_G$ is PRINT/GW_DOS/BROADENING. "// &
+                          "Frequencies are energies ($\hbar=1$). Use PRINT_SELF_ENERGY for orbital files and "// &
+                          "PRINT/GW_DOS for the frequency grid and summed spectrum. CROSSING_SEARCH selects "// &
+                          "Z_SHOT or NEWTON for quasiparticle energies.", &
+                          n_keywords=2, n_subsections=0, repeats=.FALSE.)
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Use direct full-RPA diagonalization for the GW self-energy.", &
+                          usage="&EXACT_RPA_DIAG", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="BROADENING_ETA", &
+                          description="Positive $\eta$ in the retarded self-energy denominators shown above. "// &
+                          "Smaller values resolve narrower poles and require a finer frequency grid. "// &
+                          "The Green-function broadening is set separately by PRINT/GW_DOS/BROADENING.", &
+                          usage="BROADENING_ETA [eV] 0.1", &
+                          default_r_val=cp_unit_to_cp2k(value=0.1_dp, unit_str="eV"), unit_str="eV")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_exact_rpa_diag_section
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1158,11 +1218,12 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL section_create(gw_dos_section, __LOCATION__, name="GW_DOS", &
-                          description="Section for printing the spectral function.", &
+                          description="Real-frequency grid and orbital selection for GW self-energy and spectral output. "// &
+                          "A positive STEP writes the summed spectral function to spectral.dat.", &
                           n_keywords=6, n_subsections=0, repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="LOWER_BOUND", &
-                          description="Lower bound for GW-DOS in eV.", &
+                          description="Lower real-frequency bound for self-energy and spectral output, in eV.", &
                           usage="LOWER_BOUND -20.0", &
                           default_r_val=cp_unit_to_cp2k(value=-20.0_dp, unit_str="eV"), &
                           unit_str="eV")
@@ -1170,7 +1231,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="UPPER_BOUND", &
-                          description="Upper bound for GW-DOS in eV.", &
+                          description="Upper real-frequency bound for self-energy and spectral output, in eV. "// &
+                          "The upper endpoint is excluded.", &
                           usage="UPPER_BOUND 5.0", &
                           default_r_val=cp_unit_to_cp2k(value=0.0_dp, unit_str="eV"), &
                           unit_str="eV")
@@ -1178,7 +1240,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="STEP", &
-                          description="Difference of two consecutive energy levels for GW-DOS.", &
+                          description="Spacing of the real-frequency grid. Zero disables the grid; use a positive "// &
+                          "value for PRINT_SELF_ENERGY or spectral output. Resolve the chosen broadening.", &
                           usage="STEP 0.1", &
                           default_r_val=cp_unit_to_cp2k(value=0.0_dp, unit_str="eV"), &
                           unit_str="eV")
@@ -1186,35 +1249,40 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MIN_LEVEL_SPECTRAL", &
-                          description="Lowest energy level to print the self energy to files.", &
+                          description="Lowest corrected molecular orbital included in the summed spectral function.", &
                           usage="MIN_LEVEL_SPECTRAL 3", &
                           default_i_val=1)
       CALL section_add_keyword(gw_dos_section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_LEVEL_SPECTRAL", &
-                          description="Highest energy level to print the self energy to files.", &
+                          description="Highest corrected molecular orbital included in the summed spectral function. "// &
+                          "Zero includes all corrected orbitals.", &
                           usage="MAX_LEVEL_SPECTRAL 6", &
                           default_i_val=0)
       CALL section_add_keyword(gw_dos_section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MIN_LEVEL_SELF_ENERGY", &
-                          description="Lowest energy level to print the self energy to files.", &
+                          description="Lowest corrected molecular orbital selected for self-energy files.", &
                           usage="MIN_LEVEL_SELF_ENERGY 3", &
                           default_i_val=1)
       CALL section_add_keyword(gw_dos_section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_LEVEL_SELF_ENERGY", &
-                          description="Highest energy level to print the self energy to files.", &
+                          description="Highest corrected molecular orbital selected for self-energy files. A positive "// &
+                          "value also enables these files without PRINT_SELF_ENERGY. Zero selects all "// &
+                          "corrected orbitals when PRINT_SELF_ENERGY is enabled.", &
                           usage="MAX_LEVEL_SELF_ENERGY 6", &
                           default_i_val=0)
       CALL section_add_keyword(gw_dos_section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="BROADENING", &
-                          description="Broadening parameter for spectral function.", &
+                          description="Nonnegative Green-function broadening $\eta_G$ for the spectral function. "// &
+                          "For EXACT_RPA_DIAG the total width is $\eta_G-\mathrm{Im}\Sigma_n^{c,R}$. "// &
+                          "PADE uses $\eta_G+|\mathrm{Im}\Sigma_n^c|$, following the GW_DOS convention.", &
                           usage="BROADENING 0.001", &
                           default_r_val=cp_unit_to_cp2k(value=0.0_dp, unit_str="eV"), &
                           unit_str="eV")

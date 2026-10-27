@@ -345,6 +345,7 @@ CONTAINS
       ELSE
          num_integ_points = mp2_env%ri_rpa%rpa_num_quad_points
          input_num_integ_groups = mp2_env%ri_rpa%rpa_num_integ_groups
+         IF (my_do_gw .AND. mp2_env%ri_g0w0%exact_rpa_diag%enabled) input_num_integ_groups = 1
          IF (my_do_gw .AND. do_minimax_quad) THEN
             IF (num_integ_points > 34) THEN
                IF (unit_nr > 0) THEN
@@ -417,7 +418,7 @@ CONTAINS
 
          ! Check the input number of integration groups
          IF (input_num_integ_groups > 0) THEN
-            IF (num_integ_points < input_num_integ_groups) THEN
+            IF (num_integ_points >= input_num_integ_groups) THEN
                IF (MOD(ngroup, input_num_integ_groups) == 0) THEN
                   best_integ_group_size = ngroup/input_num_integ_groups
                   best_num_integ_point = (num_integ_points + input_num_integ_groups - 1)/input_num_integ_groups
@@ -1325,6 +1326,13 @@ CONTAINS
 
       END IF
 
+      IF (my_do_gw .AND. mp2_env%ri_g0w0%exact_rpa_diag%enabled) THEN
+         IF (do_im_time .OR. do_periodic .OR. nspins /= 1 .OR. num_integ_group /= 1 .OR. &
+             iter_evGW /= 1 .OR. iter_sc_GW0 /= 1 .OR. do_static_cohsex) THEN
+            CPABORT("EXACT_RPA_DIAG requires closed-shell molecular one-shot conventional GW")
+         END IF
+      END IF
+
       IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_create(rpa_grad, fm_mat_Q(1), &
                                                                    fm_mat_S, homo, virtual, mp2_env, Eigenval(:, 1, :), &
                                                                    unit_nr, do_ri_sos_laplace_mp2)
@@ -1761,7 +1769,7 @@ CONTAINS
                                      t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                      matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, mat_W, matrix_s, &
                                      kpoints, mp2_env, qs_env, nkp_self_energy, do_kpoints_cubic_RPA, &
-                                     starts_array_mc, ends_array_mc)
+                                     starts_array_mc, ends_array_mc, fm_mat_S, fm_mat_S_gw)
 
             ! if HOMO-LUMO gap differs by less than mp2_env%ri_g0w0%eps_ev_sc_iter, exit ev sc GW loop
             IF (exit_ev_gw) EXIT
