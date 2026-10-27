@@ -52,6 +52,7 @@ BENCHMARKS=(
   "QS/H2O-64_nonortho.inp"
   "QS_reference/w64PBE.inp"
   "QS_reference/w64SCAN.inp"
+  "QS_reference/w64GAPW.inp"
   "QS_kp/ZnO.inp"
   "QS_single_node/H2O-hyb.inp"
   "QS_single_node/GW_PBE_4benzene.inp"
