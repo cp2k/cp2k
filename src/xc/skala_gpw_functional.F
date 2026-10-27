@@ -27,7 +27,8 @@ MODULE skala_gpw_functional
                                               dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_comm_type
-   USE offload_api,                     ONLY: offload_set_chosen_device
+   USE offload_api,                     ONLY: offload_get_chosen_device,&
+                                              offload_get_device_count
    USE particle_types,                  ONLY: particle_type
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_methods,                      ONLY: pw_scale,&
@@ -110,8 +111,7 @@ MODULE skala_gpw_functional
    INTEGER, SAVE                                       :: cached_model_cuda_device = -3
    INTEGER, SAVE                                       :: logged_cuda_device = -3, &
                                                           logged_cuda_device_count = -1, &
-                                                          logged_cuda_nproc = -1, &
-                                                          logged_cuda_request = -3
+                                                          logged_cuda_nproc = -1
    LOGICAL, SAVE                                       :: entry_torch_use_cuda = .TRUE.
 
 CONTAINS
@@ -443,9 +443,8 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: model_path
       INTEGER :: i, ipt, ispin, iw, j, k, native_grid_atom_chunk_max_rows, &
-         native_grid_atom_partition, native_grid_atom_subchunks, native_grid_cuda_device, nspins, &
-         omp_max_threads_restore, phase_handle, selected_cuda_device, xc_deriv_method_id, &
-         xc_rho_smooth_id
+         native_grid_atom_partition, native_grid_atom_subchunks, nspins, omp_max_threads_restore, &
+         phase_handle, selected_cuda_device, xc_deriv_method_id, xc_rho_smooth_id
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL :: has_atom_chunk_work, have_atom_coord_grad, lsd, my_just_energy, &
          native_grid_atom_chunk_routing, native_grid_atom_chunks, native_grid_diagnostics, &
@@ -488,14 +487,11 @@ CONTAINS
       lsd = (nspins /= 1)
       CALL get_skala_model_path(xc_section, model_path)
       native_grid_use_cuda = skala_execution_use_cuda(xc_section)
-      native_grid_cuda_device = -1
       native_grid_atom_chunks = .TRUE.
       native_grid_atom_chunk_max_rows = -1
       native_grid_atom_partition = skala_gpw_atom_partition_smooth
       gauxc_section => get_skala_native_section(xc_section)
       IF (ASSOCIATED(gauxc_section)) THEN
-         CALL section_vals_val_get(gauxc_section, "CUDA_DEVICE", &
-                                   i_val=native_grid_cuda_device)
          CALL section_vals_val_get(gauxc_section, "ATOM_CHUNKS", &
                                    l_val=native_grid_atom_chunks)
          CALL section_vals_val_get(gauxc_section, "ATOM_CHUNK_MAX_ROWS", &
@@ -529,7 +525,7 @@ CONTAINS
       entry_torch_use_cuda = torch_get_use_cuda()
       CALL torch_use_cuda(native_grid_use_cuda)
       selected_cuda_device = configure_native_grid_cuda( &
-                             native_grid_use_cuda, native_grid_cuda_device, rho_r(1)%pw_grid%para%group)
+                             native_grid_use_cuda, rho_r(1)%pw_grid%para%group)
       CALL ensure_model_loaded(model_path, selected_cuda_device, xc_section)
 
       IF (lsd) THEN
@@ -755,8 +751,8 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: model_path
       INTEGER :: feature_begin, feature_end, feature_pos, i, iatom, j, k, local_row, &
-         native_grid_atom_partition, native_grid_cuda_device, natom, nspins, &
-         omp_max_threads_restore, row, selected_cuda_device, xc_deriv_method_id, xc_rho_smooth_id
+         native_grid_atom_partition, natom, nspins, omp_max_threads_restore, row, &
+         selected_cuda_device, xc_deriv_method_id, xc_rho_smooth_id
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: lsd, native_grid_use_cuda
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: included
@@ -782,12 +778,9 @@ CONTAINS
       lsd = (nspins /= 1)
       CALL get_skala_model_path(xc_section, model_path)
       native_grid_use_cuda = skala_execution_use_cuda(xc_section)
-      native_grid_cuda_device = -1
       native_grid_atom_partition = skala_gpw_atom_partition_smooth
       gauxc_section => get_skala_native_section(xc_section)
       IF (ASSOCIATED(gauxc_section)) THEN
-         CALL section_vals_val_get(gauxc_section, "CUDA_DEVICE", &
-                                   i_val=native_grid_cuda_device)
          CALL section_vals_val_get(gauxc_section, "ATOM_PARTITION", &
                                    i_val=native_grid_atom_partition)
       END IF
@@ -807,7 +800,7 @@ CONTAINS
       entry_torch_use_cuda = torch_get_use_cuda()
       CALL torch_use_cuda(native_grid_use_cuda)
       selected_cuda_device = configure_native_grid_cuda( &
-                             native_grid_use_cuda, native_grid_cuda_device, rho_r(1)%pw_grid%para%group)
+                             native_grid_use_cuda, rho_r(1)%pw_grid%para%group)
       CALL ensure_model_loaded(model_path, selected_cuda_device, xc_section)
 
       IF (lsd) THEN
@@ -945,7 +938,7 @@ CONTAINS
          OPTIONAL                                        :: atom_virial
 
       CHARACTER(len=default_path_length)                 :: model_path
-      INTEGER                                            :: ia, idir, ir, native_grid_cuda_device, &
+      INTEGER                                            :: ia, idir, ir, &
                                                             jdir, nflat, omp_max_threads_restore, row, &
                                                             selected_cuda_device
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: atomic_grid_sizes
@@ -959,7 +952,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: atom_coord_grad, density_grad, &
                                                             grid_coord_grad, kin_grad
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grad_grad
-      TYPE(section_vals_type), POINTER                   :: gauxc_section
       TYPE(torch_dict_type)                              :: inputs
       TYPE(torch_tensor_type)                            :: atomic_grid_size_bound_shape_t, &
                                                             atomic_grid_sizes_t, &
@@ -992,16 +984,10 @@ CONTAINS
 
       CALL get_skala_model_path(xc_section, model_path)
       native_grid_use_cuda = skala_execution_use_cuda(xc_section)
-      native_grid_cuda_device = -1
-      gauxc_section => get_skala_native_section(xc_section)
-      IF (ASSOCIATED(gauxc_section)) THEN
-         CALL section_vals_val_get(gauxc_section, "CUDA_DEVICE", &
-                                   i_val=native_grid_cuda_device)
-      END IF
       entry_torch_use_cuda = torch_get_use_cuda()
       CALL torch_use_cuda(native_grid_use_cuda)
       selected_cuda_device = configure_native_grid_cuda( &
-                             native_grid_use_cuda, native_grid_cuda_device, group)
+                             native_grid_use_cuda, group)
       CALL ensure_model_loaded(model_path, selected_cuda_device, xc_section)
 
       nflat = na*nr
@@ -1211,7 +1197,7 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: model_path
       INTEGER :: atom_begin, atom_count, chunk_max_rows, chunk_row_count, chunk_row_start, &
-                 ichunk, local_natom, local_nrow, max_grid_size, native_grid_cuda_device, &
+                 ichunk, local_natom, local_nrow, max_grid_size, &
                  nchunks, omp_max_threads_restore, phase_handle, selected_cuda_device
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: chunk_atom_begin, chunk_atom_count, &
                                                             chunk_row_begin, chunk_row_counts
@@ -1274,13 +1260,10 @@ CONTAINS
 
       CALL get_skala_model_path(xc_section, model_path)
       native_grid_use_cuda = skala_execution_use_cuda(xc_section)
-      native_grid_cuda_device = -1
       native_grid_atom_chunks = .TRUE.
       chunk_max_rows = -1
       gauxc_section => get_skala_native_section(xc_section)
       IF (ASSOCIATED(gauxc_section)) THEN
-         CALL section_vals_val_get(gauxc_section, "CUDA_DEVICE", &
-                                   i_val=native_grid_cuda_device)
          CALL section_vals_val_get(gauxc_section, "ATOM_CHUNKS", &
                                    l_val=native_grid_atom_chunks)
          CALL section_vals_val_get(gauxc_section, "ATOM_CHUNK_MAX_ROWS", &
@@ -1297,7 +1280,7 @@ CONTAINS
       entry_torch_use_cuda = torch_get_use_cuda()
       CALL torch_use_cuda(native_grid_use_cuda)
       selected_cuda_device = configure_native_grid_cuda( &
-                             native_grid_use_cuda, native_grid_cuda_device, group)
+                             native_grid_use_cuda, group)
       exc = 0.0_dp
       IF (active_rank) THEN
          CALL timeset("skala_atom_tensor_setup", phase_handle)
@@ -2963,13 +2946,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Configure CUDA device selection for the native SKALA GPW Torch path.
 !> \param use_cuda ...
-!> \param requested_device ...
 !> \param group ...
 !> \return selected CUDA device, or -1 when CUDA is disabled
 ! **************************************************************************************************
-   FUNCTION configure_native_grid_cuda(use_cuda, requested_device, group) RESULT(selected_device)
+   FUNCTION configure_native_grid_cuda(use_cuda, group) RESULT(selected_device)
       LOGICAL, INTENT(IN)                                :: use_cuda
-      INTEGER, INTENT(IN)                                :: requested_device
 
       CLASS(mp_comm_type), INTENT(IN)                    :: group
 
@@ -2990,17 +2971,16 @@ CONTAINS
                        "GPU execution was requested, but no usable CUDA device was "// &
                        "found. Set USE_GPU HOST to force CPU execution.")
       END IF
-      IF (requested_device < 0) THEN
-         selected_device = MOD(group%mepos, cuda_device_count)
+      IF (offload_get_device_count() > 0) THEN
+         selected_device = offload_get_chosen_device()
       ELSE
-         selected_device = requested_device
+         selected_device = MOD(group%mepos, cuda_device_count)
       END IF
-      IF (selected_device >= cuda_device_count) THEN
+      IF (selected_device < 0 .OR. selected_device >= cuda_device_count) THEN
          CALL cp_abort(__LOCATION__, &
-                       "SKALA_NATIVE%CUDA_DEVICE selects a CUDA device outside the visible "// &
-                       "Torch CUDA device range.")
+                       "CP2K selected CUDA device outside the range visible to Torch. "// &
+                       "Check CUDA_VISIBLE_DEVICES and the offload device selection.")
       END IF
-      IF (selected_device >= 0) CALL offload_set_chosen_device(selected_device)
 
       ALLOCATE (selected_devices(group%num_pe))
       CALL group%allgather(selected_device, selected_devices)
@@ -3011,8 +2991,7 @@ CONTAINS
       END IF
       IF (selected_device == logged_cuda_device .AND. &
           cuda_device_count == logged_cuda_device_count .AND. &
-          group%num_pe == logged_cuda_nproc .AND. &
-          requested_device == logged_cuda_request) THEN
+          group%num_pe == logged_cuda_nproc) THEN
          DEALLOCATE (selected_devices)
          RETURN
       END IF
@@ -3022,9 +3001,9 @@ CONTAINS
          DEALLOCATE (selected_devices)
          RETURN
       END IF
-      WRITE (UNIT=iw, FMT="(/,T2,A,1X,I0,1X,A,1X,I0,1X,A,1X,I0)") &
+      WRITE (UNIT=iw, FMT="(/,T2,A,1X,I0,1X,A,1X,I0)") &
          "SKALA_GPW| Native grid Torch CUDA device", selected_device, &
-         "of", cuda_device_count, "requested", requested_device
+         "of", cuda_device_count
       WRITE (UNIT=iw, FMT="(T2,A)", ADVANCE="NO") &
          "SKALA_GPW| Native grid Torch CUDA rank devices"
       DO pe = 1, group%num_pe
@@ -3035,7 +3014,6 @@ CONTAINS
       logged_cuda_device = selected_device
       logged_cuda_device_count = cuda_device_count
       logged_cuda_nproc = group%num_pe
-      logged_cuda_request = requested_device
       DEALLOCATE (selected_devices)
 
    END FUNCTION configure_native_grid_cuda
