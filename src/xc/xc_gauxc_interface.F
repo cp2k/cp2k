@@ -553,11 +553,15 @@ CONTAINS
       radial_quad_local = read_radial_quad(radial_quadrature)
       pruning_scheme_local = read_pruning_scheme(pruning_scheme)
       lb_exec_space_local = read_execution_space(lb_exec_space)
-      int_exec_space_local = read_execution_space("host")
       int_exec_requested = read_execution_space("host")
       IF (PRESENT(int_exec_space)) int_exec_requested = read_execution_space(int_exec_space)
       use_device_runtime = (lb_exec_space_local == gauxc_executionspace%device) .OR. &
                            (int_exec_requested == gauxc_executionspace%device)
+      IF (use_device_runtime) THEN
+         int_exec_space_local = gauxc_executionspace%device
+      ELSE
+         int_exec_space_local = gauxc_executionspace%host
+      END IF
 #if defined(GAUXC_HAS_DEVICE) && defined(__LIBTORCH)
       IF (use_device_runtime) THEN
          IF (.NOT. torch_cuda_is_available() .OR. torch_cuda_device_count() <= 0) THEN
