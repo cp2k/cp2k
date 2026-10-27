@@ -868,6 +868,11 @@ MODULE input_constants
    ! HFX periodic number of shells
    INTEGER, PARAMETER, PUBLIC               :: do_hfx_auto_shells = -1
 
+   ! GPU execution mode
+   INTEGER, PARAMETER, PUBLIC               :: do_gpu_auto = 1, &
+                                               do_gpu_host = 2, &
+                                               do_gpu_device = 3
+
    ! adiabatic hybrid type
    INTEGER, PARAMETER, PUBLIC               :: do_adiabatic_hybrid_mcy3 = 1
 

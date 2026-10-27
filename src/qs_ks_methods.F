@@ -149,7 +149,8 @@ MODULE qs_ks_methods
         ensure_native_skala_grid_scope, get_gauxc_section, get_skala_native_section, &
         native_skala_gapw_atom_composite_requested, native_skala_gapw_composite_direct_ao, &
         native_skala_gapw_composite_reference, native_skala_uses_atom_composite_grid, &
-        skala_gapw_representation, xc_section_uses_gauxc_model, xc_section_uses_native_skala_grid
+        skala_execution_use_cuda, skala_gapw_representation, xc_section_uses_gauxc_model, &
+        xc_section_uses_native_skala_grid
    USE smeagol_interface,               ONLY: smeagol_shift_v_hartree
    USE string_utilities,                ONLY: uppercase
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
@@ -781,15 +782,13 @@ CONTAINS
                END IF
                IF (do_kpoints) THEN
                   CPASSERT(ASSOCIATED(kpoints))
-                  native_section => get_skala_native_section(xc_section)
-                  CPASSERT(ASSOCIATED(native_section))
-                  CALL section_vals_val_get(native_section, "USE_CUDA", l_val=native_grid_use_cuda)
+                  native_grid_use_cuda = skala_execution_use_cuda(xc_section)
                   IF (.NOT. native_grid_use_cuda) THEN
                      IF (para_env%mepos == 0 .AND. .NOT. native_grid_cpu_kpoints_warned) THEN
                         CALL cp_warn(__LOCATION__, &
                                      "Native SKALA grid evaluation with k-points is using the CPU TorchScript "// &
                                      "path. Use a mutually compatible BLAS, ScaLAPACK, OpenMP, and LibTorch "// &
-                                     "runtime stack, or select USE_CUDA T.")
+                                     "runtime stack, or select USE_GPU GPU.")
                         native_grid_cpu_kpoints_warned = .TRUE.
                      END IF
                   END IF

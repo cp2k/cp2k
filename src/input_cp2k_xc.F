@@ -22,7 +22,8 @@ MODULE input_cp2k_xc
                                               high_print_level
    USE eeq_input,                       ONLY: create_eeq_control_section
    USE input_constants,                 ONLY: &
-        do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, do_libxc_cpu, do_libxc_gpu, &
+        do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, do_gpu_auto, do_gpu_device, &
+        do_gpu_host, do_libxc_cpu, do_libxc_gpu, &
         fxc_funct_gga, fxc_funct_lda, fxc_funct_pade, fxc_none, gaussian, slater, vdw_nl_drsll, &
         vdw_nl_lmkll, vdw_nl_rvv10, vdw_pairpot_dftd2, vdw_pairpot_dftd2chg, vdw_pairpot_dftd3, &
         vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, &
@@ -1500,23 +1501,43 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="USE_GPU", &
+                          description="Select GPU execution for GauXC. AUTO (default) uses "// &
+                          "the GPU when CP2K and GauXC are built with CUDA support. HOST "// &
+                          "forces host-only execution. GPU requires a usable GPU and "// &
+                          "aborts otherwise. Unless set explicitly, both LB_EXECUTION_SPACE "// &
+                          "and INT_EXECUTION_SPACE follow this selection.", &
+                          usage="USE_GPU AUTO", &
+                          enum_c_vals=s2a("AUTO", "HOST", "GPU"), &
+                          enum_i_vals=[do_gpu_auto, do_gpu_host, do_gpu_device], &
+                          enum_desc=s2a("Follow the build configuration", &
+                                        "Force host execution", &
+                                        "Force GPU execution"), &
+                          default_i_val=do_gpu_auto)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="LB_EXECUTION_SPACE", &
-                          description="Execution space for load balancer in GauXC", &
+                          description="Execution space for the GauXC load balancer. "// &
+                          "Defaults to DEVICE when USE_GPU enables the GPU and HOST "// &
+                          "otherwise. An explicit value overrides that default.", &
                           usage="LB_EXECUTION_SPACE host", &
                           enum_c_vals=s2a("HOST", "DEVICE"), &
                           enum_i_vals=[1, 2], &
-                          enum_desc=s2a("Run on host (default)", &
+                          enum_desc=s2a("Run on host", &
                                         "Run on device"), &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="INT_EXECUTION_SPACE", &
-                          description="Execution space for integrator in GauXC", &
+                          description="Execution space for the GauXC quadrature integrator. "// &
+                          "Defaults to DEVICE when USE_GPU enables the GPU and HOST "// &
+                          "otherwise. An explicit value overrides that default.", &
                           usage="INT_EXECUTION_SPACE host", &
                           enum_c_vals=s2a("HOST", "DEVICE"), &
                           enum_i_vals=[1, 2], &
-                          enum_desc=s2a("Run on host (default)", &
+                          enum_desc=s2a("Run on host", &
                                         "Run on device"), &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
@@ -1613,7 +1634,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="MODEL", &
                           description="SKALA TorchScript model for the CP2K-native grid path. "// &
                           "MODEL SKALA resolves the installed SKALA model; an explicit path "// &
-                          "selects a .fun file. With USE_CUDA the model is resolved from "// &
+                          "selects a .fun file. With GPU execution the model is resolved from "// &
                           "SKALA_CUDA_MODEL, otherwise from SKALA_MODEL.", &
                           usage="MODEL SKALA", &
                           default_c_val="SKALA")
@@ -1660,20 +1681,25 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="USE_CUDA", &
-                          description="Evaluate the CP2K-native SKALA TorchScript "// &
-                          "model on CUDA when libtorch CUDA support is available. This requires a "// &
-                          "CUDA-compatible SKALA model export; with USE_CUDA the model "// &
-                          "is resolved from SKALA_CUDA_MODEL, otherwise from SKALA_MODEL. "// &
-                          "The portable default uses CPU tensors.", &
-                          usage="USE_CUDA T", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create(keyword, __LOCATION__, name="USE_GPU", &
+                          description="Select GPU execution for the CP2K-native SKALA "// &
+                          "TorchScript model. AUTO (default) uses the GPU when CP2K is "// &
+                          "built with a CUDA-enabled LibTorch. HOST forces CPU execution. "// &
+                          "GPU requires a usable GPU and aborts otherwise. GPU execution "// &
+                          "resolves MODEL SKALA from SKALA_CUDA_MODEL; HOST uses SKALA_MODEL.", &
+                          usage="USE_GPU AUTO", &
+                          enum_c_vals=s2a("AUTO", "HOST", "GPU"), &
+                          enum_i_vals=[do_gpu_auto, do_gpu_host, do_gpu_device], &
+                          enum_desc=s2a("Follow the build configuration", &
+                                        "Force CPU execution", &
+                                        "Force GPU execution"), &
+                          default_i_val=do_gpu_auto)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUDA_DEVICE", &
                           description="CUDA device used by the experimental CP2K-native SKALA GPW "// &
-                          "TorchScript path when USE_CUDA is enabled. A negative value "// &
+                          "TorchScript path when GPU execution is enabled. A negative value "// &
                           "maps the MPI-local rank to one of the CUDA devices visible to the process; "// &
                           "CUDA exports with device-specific TorchScript constants may require a "// &
                           "rank-local CUDA_VISIBLE_DEVICES list. A non-negative value selects that "// &
