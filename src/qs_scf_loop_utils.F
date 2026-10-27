@@ -111,7 +111,7 @@ MODULE qs_scf_loop_utils
                                               mo_set_type
    USE qs_mom_methods,                  ONLY: do_mom_diag
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_ot,                           ONLY: &
+   USE qs_ot_kp,                        ONLY: &
         qs_ot_antihermitian_spectral_norm, qs_ot_density_secant_orbital_overlaps, &
         qs_ot_density_secant_projected_hessian, qs_ot_density_tangent, &
         qs_ot_finite_rotation_response, qs_ot_fixed_n_energy_gradient, &

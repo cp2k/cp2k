@@ -39,9 +39,9 @@ MODULE qs_ot_minimizer
                                               apply_preconditioner_complex_batch
    USE preconditioner_types,            ONLY: preconditioner_p_type
    USE qs_ot,                           ONLY: qs_ot_get_derivative,&
-                                              qs_ot_get_derivative_complex,&
+                                              qs_ot_get_derivative_ref
+   USE qs_ot_kp,                        ONLY: qs_ot_get_derivative_complex,&
                                               qs_ot_get_derivative_local_batch,&
-                                              qs_ot_get_derivative_ref,&
                                               qs_ot_get_derivative_ref_complex,&
                                               qs_ot_prepare_complex_tangent_metric,&
                                               qs_ot_prepare_complex_tangent_metric_batch,&

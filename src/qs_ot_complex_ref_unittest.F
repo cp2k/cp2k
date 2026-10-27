@@ -32,7 +32,7 @@ PROGRAM qs_ot_complex_ref_unittest
                                               mp_para_env_type,&
                                               mp_world_finalize,&
                                               mp_world_init
-   USE qs_ot,                           ONLY: qs_ot_apply_complex_frechet_dbcsr,&
+   USE qs_ot_kp,                        ONLY: qs_ot_apply_complex_frechet_dbcsr,&
                                               qs_ot_complex_exp_frechet_kernel,&
                                               qs_ot_density_tangent,&
                                               qs_ot_get_derivative_complex,&

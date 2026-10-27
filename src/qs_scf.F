@@ -189,10 +189,10 @@ MODULE qs_scf
                                               mo_set_type,&
                                               reassign_allocated_mos
    USE qs_ot,                           ONLY: qs_ot_complex_multiply,&
-                                              qs_ot_get_orbitals_local_batch,&
-                                              qs_ot_get_orbitals_ref_complex,&
-                                              qs_ot_get_p_complex,&
                                               qs_ot_new_preconditioner
+   USE qs_ot_kp,                        ONLY: qs_ot_get_orbitals_local_batch,&
+                                              qs_ot_get_orbitals_ref_complex,&
+                                              qs_ot_get_p_complex
    USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
                                               ot_scf_init,&
                                               ot_scf_read_input
