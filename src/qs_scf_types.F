@@ -38,6 +38,8 @@ MODULE qs_scf_types
                                               fb_env_nullify,&
                                               fb_env_obj,&
                                               fb_env_release
+   USE qs_kpoint_operators,             ONLY: kpoint_operator_context_release,&
+                                              kpoint_operator_context_type
    USE qs_ot_types,                     ONLY: qs_ot_destroy,&
                                               qs_ot_type
    USE qs_scf_subspace_types,           ONLY: qs_scf_subspace_buffer_release,&
@@ -62,6 +64,7 @@ MODULE qs_scf_types
 
    PUBLIC :: qs_scf_env_type
    PUBLIC :: scf_env_release, scf_env_create, scf_env_did_change
+   PUBLIC :: scf_env_release_ot_operators
    PUBLIC :: krylov_space_type, krylov_space_create, subspace_env_type
    PUBLIC :: diag_subspace_env_create
 
@@ -123,6 +126,9 @@ MODULE qs_scf_types
       TYPE(dbcsr_type), POINTER :: ortho_dbcsr => NULL(), buf1_dbcsr => NULL(), buf2_dbcsr => NULL()
       TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner => NULL()
       TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env => NULL()
+      ! K-point operator routing and overlap are valid for one inner SCF loop.
+      TYPE(kpoint_operator_context_type), ALLOCATABLE :: ot_operator_ctx
+      LOGICAL :: ot_ks_valid = .FALSE.
       TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer => NULL()
       TYPE(qs_scf_subspace_buffer_type), POINTER :: scf_subspace_buffer => NULL()
       TYPE(subspace_env_type), POINTER :: subspace_env => NULL()
@@ -136,6 +142,20 @@ MODULE qs_scf_types
    END TYPE qs_scf_env_type
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Drop k-point OT operator caches before their pools or layout can change.
+!> \param scf_env SCF environment owning the operator context
+! **************************************************************************************************
+   SUBROUTINE scf_env_release_ot_operators(scf_env)
+      TYPE(qs_scf_env_type), INTENT(INOUT)               :: scf_env
+
+      IF (ALLOCATED(scf_env%ot_operator_ctx)) THEN
+         CALL kpoint_operator_context_release(scf_env%ot_operator_ctx)
+         DEALLOCATE (scf_env%ot_operator_ctx)
+      END IF
+      scf_env%ot_ks_valid = .FALSE.
+   END SUBROUTINE scf_env_release_ot_operators
 
 ! **************************************************************************************************
 !> \brief allocates and initialize an scf_env
@@ -230,6 +250,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      CALL scf_env_release_ot_operators(scf_env)
       IF (ALLOCATED(scf_env%fm_copy_plan)) DEALLOCATE (scf_env%fm_copy_plan)
       IF (ASSOCIATED(scf_env%p_mix_new)) THEN
          CALL dbcsr_deallocate_matrix_set(scf_env%p_mix_new)
@@ -264,6 +285,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      CALL scf_env_release_ot_operators(scf_env)
       IF (ALLOCATED(scf_env%fm_copy_plan)) DEALLOCATE (scf_env%fm_copy_plan)
       CALL cp_fm_release(scf_env%scf_work1)
       IF (ASSOCIATED(scf_env%scf_work1_red)) THEN

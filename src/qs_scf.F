@@ -155,7 +155,8 @@ MODULE qs_scf
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_kpoint_operators,             ONLY: kpoint_operator_get_local,&
+   USE qs_kpoint_operators,             ONLY: kpoint_operator_context_create,&
+                                              kpoint_operator_get_local,&
                                               kpoint_operator_store
    USE qs_kpoint_state,                 ONLY: qs_kpoint_copy_spin_mos,&
                                               qs_kpoint_mos_initialized,&
@@ -235,7 +236,7 @@ MODULE qs_scf
    USE qs_scf_types,                    ONLY: &
         block_davidson_diag_method_nr, block_krylov_diag_method_nr, filter_matrix_diag_method_nr, &
         general_diag_method_nr, ot_diag_method_nr, ot_method_nr, qs_scf_env_type, &
-        smeagol_method_nr, special_diag_method_nr
+        scf_env_release_ot_operators, smeagol_method_nr, special_diag_method_nr
    USE qs_vxc_atom,                     ONLY: gapw_cdft_one_center
    USE qs_wf_history_methods,           ONLY: wfi_purge_history,&
                                               wfi_update
@@ -1153,6 +1154,7 @@ CONTAINS
          END IF
       END IF
 
+      CALL scf_env_release_ot_operators(scf_env)
       ALLOCATE (old_mos(nspins))
       DO ispin = 1, nspins
          CALL duplicate_mo_set(old_mos(ispin), mos(ispin))
@@ -1533,6 +1535,11 @@ CONTAINS
                                         kp_range=kp_range, &
                                         wkp=wkp)
 
+               CALL scf_env_release_ot_operators(scf_env)
+               ALLOCATE (scf_env%ot_operator_ctx)
+               CALL kpoint_operator_context_create(scf_env%ot_operator_ctx, kpoints, &
+                                                   scf_env%scf_work1(1), dft_control%nspins)
+
                ! A previous zero-width filling may have changed the occupied rank at each k point.
                ! Restore the fixed OT ranks before validating or reconstructing the active space.
                IF (.NOT. scf_env%qs_ot_env(1)%settings%do_ener) THEN
@@ -1565,7 +1572,7 @@ CONTAINS
                   CPASSERT(ASSOCIATED(rho))
                   CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
                   CPASSERT(ASSOCIATED(rho_ao_kp))
-                  CALL kpoint_operator_store(kpoints, scf_env%scf_work1(1), rho_ao_kp, matrix_s_kp)
+                  CALL kpoint_operator_store(scf_env%ot_operator_ctx, rho_ao_kp, matrix_s_kp)
                   CALL qs_kpoint_state_prepare_fixed_density(kpoints)
                   IF (SIZE(rho_ao_kp, 1) < nspin_ot) THEN
                      CPASSERT(SIZE(rho_ao_kp, 1) == 1)
@@ -1621,7 +1628,12 @@ CONTAINS
 
                ! Redistribute the physical operators to their owning k-point groups.  OT must not
                ! call the collective real-space transform independently with group-local k values.
-               CALL kpoint_operator_store(kpoints, scf_env%scf_work1(1), matrix_ks_kp, matrix_s_kp, matrix_t_kp)
+               IF (scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_kinetic) THEN
+                  CALL kpoint_operator_store(scf_env%ot_operator_ctx, matrix_ks_kp, matrix_s_kp, matrix_t_kp)
+               ELSE
+                  CALL kpoint_operator_store(scf_env%ot_operator_ctx, matrix_ks_kp, matrix_s_kp)
+               END IF
+               scf_env%ot_ks_valid = .TRUE.
 
                ! Natural orbitals define the fixed occupied projector but not its internal gauge.
                ! Canonicalize that subspace with the matching physical Hamiltonian and populate

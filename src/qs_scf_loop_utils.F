@@ -143,7 +143,7 @@ MODULE qs_scf_loop_utils
    USE qs_scf_types,                    ONLY: &
         block_davidson_diag_method_nr, block_krylov_diag_method_nr, filter_matrix_diag_method_nr, &
         general_diag_method_nr, ot_diag_method_nr, ot_method_nr, qs_scf_env_type, &
-        smeagol_method_nr, special_diag_method_nr
+        scf_env_release_ot_operators, smeagol_method_nr, special_diag_method_nr
    USE scf_control_types,               ONLY: scf_control_type,&
                                               smear_type
    USE smeagol_interface,               ONLY: run_smeagol_emtrans
@@ -796,8 +796,12 @@ CONTAINS
 
       ! Include one-rank groups in the batched, k-point-parallel operator preparation.
       ! Fixed-occupation energy-only trials need no H(k) and can reuse the stored S(k).
+      ! Initialization already stored H(k); rebuild_ks_matrix invalidates it.
       IF (use_operator_cache .AND. (need_gradient .OR. local_ot_env(1)%settings%do_ener)) THEN
-         CALL kpoint_operator_store(kpoints, fmwork(1), matrix_ks, matrix_s)
+         IF (.NOT. scf_env%ot_ks_valid) THEN
+            CALL kpoint_operator_store(scf_env%ot_operator_ctx, matrix_ks, matrix_s)
+            scf_env%ot_ks_valid = .TRUE.
+         END IF
       END IF
 
       ALLOCATE (matrix_hc(nlocal_channels))
@@ -3790,6 +3794,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      CALL scf_env_release_ot_operators(scf_env)
       SELECT CASE (scf_env%method)
       CASE (ot_method_nr)
          DO ispin = 1, SIZE(scf_env%qs_ot_env)

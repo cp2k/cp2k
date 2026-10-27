@@ -1992,6 +1992,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix_h_im, matrix_h_re, matrix_s_im, &
                                                             matrix_s_re, matrix_t_im, matrix_t_re
       TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(kpoint_operator_context_type)                 :: op_ctx
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
 
@@ -2015,11 +2016,13 @@ CONTAINS
          CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, &
                                  .FALSE., diis_step)
       END IF
+      CALL kpoint_operator_context_create(op_ctx, kpoints, scf_env%scf_work1(1), nspin)
       IF (store_kinetic) THEN
-         CALL kpoint_operator_store(kpoints, scf_env%scf_work1(1), matrix_ks, matrix_s, matrix_t)
+         CALL kpoint_operator_store(op_ctx, matrix_ks, matrix_s, matrix_t)
       ELSE
-         CALL kpoint_operator_store(kpoints, scf_env%scf_work1(1), matrix_ks, matrix_s)
+         CALL kpoint_operator_store(op_ctx, matrix_ks, matrix_s)
       END IF
+      CALL kpoint_operator_context_release(op_ctx)
 
       scf_env%iter_delta = 0.0_dp
       DO ikp = 1, SIZE(kpoints%kp_env)
