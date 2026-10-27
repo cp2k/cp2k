@@ -4,6 +4,7 @@
 
 ### New Features
 
+- Separate augmented all-electron and GTH basis/RI data files for excited states
 - Improved NNP CPU scaling ([#5295](https://github.com/cp2k/cp2k/pull/5295),
   [#5747](https://github.com/cp2k/cp2k/pull/5747))
 - MACE potentials interface ([#5580](https://github.com/cp2k/cp2k/pull/5580))
@@ -219,7 +220,7 @@ ______________________________________________________________________
 
 ### New Features
 
-- Add new BASIS_AUG_MOLOPT and BASIS_RI_AUG_MOLOPT basis sets (all electron)
+- Add new BASIS_AUG_MOLOPT_ae and BASIS_RI_AUG_MOLOPT_ae basis sets (all electron)
   ([#4354](https://github.com/cp2k/cp2k/pull/4354))
 - Active Space: Added a new longrange truncated potential for the ERI
   ([#4357](https://github.com/cp2k/cp2k/pull/4357))

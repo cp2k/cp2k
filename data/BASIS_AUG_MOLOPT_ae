@@ -20,7 +20,7 @@
 #  Also, the condition number is optimized to prevent issues regarding SCF         #
 #  convergence of large molecules and solids.                                      #
 #                                                                                  #
-#  Corresponding RI basis sets in BASIS_RI_AUG_MOLOPT                              #
+#  Corresponding RI basis sets in BASIS_RI_AUG_MOLOPT_ae                           #
 #                                                                                  #
 #  Contact: Jan Wilhelm, jan.wilhelm@ur.de                                         #
 #                                                                                  #
