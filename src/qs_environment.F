@@ -108,7 +108,8 @@ MODULE qs_environment
                                               section_vals_type,&
                                               section_vals_val_get
    USE kg_environment,                  ONLY: kg_env_create
-   USE kinds,                           ONLY: default_string_length,&
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp
    USE kpoint_methods,                  ONLY: kpoint_env_initialize,&
                                               kpoint_initialize,&
@@ -212,7 +213,8 @@ MODULE qs_environment
    USE semi_empirical_types,            ONLY: se_taper_create,&
                                               se_taper_type
    USE semi_empirical_utils,            ONLY: se_cutoff_compatible
-   USE skala_gpw_functional,            ONLY: xc_section_uses_native_skala_evaluator
+   USE skala_gpw_functional,            ONLY: xc_section_uses_native_skala_evaluator,&
+                                              xc_section_uses_skala_model
    USE tblite_interface,                ONLY: tb_get_basis,&
                                               tb_init_geometry,&
                                               tb_init_wf,&
@@ -2019,6 +2021,15 @@ CONTAINS
             NULLIFY (nl_section)
             nl_section => section_vals_get_subs_vals(xc_section, "VDW_POTENTIAL%NON_LOCAL")
             CALL qs_dispersion_nonloc_init(dispersion_env, para_env)
+         END IF
+         IF (dispersion_env%type == xc_vdw_fun_none .AND. &
+             xc_section_uses_skala_model(xc_section)) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "SKALA versions 1.0 and 1.1 were optimized together with a D3(BJ) "// &
+                         "dispersion correction, but no dispersion correction is active. "// &
+                         "Add one, e.g. VDW_POTENTIAL/POTENTIAL_TYPE PAIR_POTENTIAL with "// &
+                         "PAIR_POTENTIAL/TYPE DFTD3(BJ), REFERENCE_FUNCTIONAL SKALA, and "// &
+                         "PARAMETER_FILE_NAME dftd3.dat.")
          END IF
          CALL set_qs_env(qs_env, dispersion_env=dispersion_env)
       ELSE IF (dft_control%qs_control%method_id == do_method_dftb) THEN
