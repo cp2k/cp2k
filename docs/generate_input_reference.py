@@ -322,6 +322,10 @@ def render_keyword(
     data_type_element = keyword.find("DATA_TYPE")
     assert data_type_element is not None
     data_type = data_type_element.attrib["kind"]
+    # Preserve distinction between string (lchar_t) and word (char_t) to make
+    # a notice about comments: the former must have the value double-quoted
+    # to prevent consumption of inline comments
+    double_quote_required_before_comments = data_type == "string"
     if data_type == "word":
         data_type = "string"
     if data_type == "keyword":
@@ -381,6 +385,8 @@ def render_keyword(
         metadata += [f"**Aliases:** {escape_markdown(aliases)}"]
     if lone_keyword_value:
         metadata += [f"**Lone keyword:** {escape_markdown(lone_keyword_value)}"]
+    if double_quote_required_before_comments:
+        metadata += [f"Value must be double-quoted if followed by inline comments."]
     if usage:
         metadata += [f"**Usage:** `{escape_markdown(usage)}`"]
     output += ["  \n".join(metadata), ""]
