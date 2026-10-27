@@ -183,7 +183,7 @@ CONTAINS
       END IF
       IF (SIZE(x_data, 1) /= 1) THEN
          CALL cp_abort(__LOCATION__, &
-                       "CC4S: exactly one HF section is required")
+                       "CC4S: exactly one HF section is allowed")
       END IF
       IF (ABS(x_data(1, 1)%general_parameter%fraction - 1.0_dp) > hf_fraction_tolerance) THEN
          CPABORT("CC4S: HF FRACTION must be 1")
