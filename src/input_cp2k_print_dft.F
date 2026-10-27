@@ -721,19 +721,15 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL section_create(print_key, __LOCATION__, "CC4S", &
-                          description="Export a restricted RI-HF reference and CC4S input after converged single-point SCF. "// &
-                          "Requires RI_FLAVOR MO, XC_FUNCTIONAL NONE, HF FRACTION 1 and identical HF and RI operators. "// &
-                          "Use COULOMB for molecules or TRUNCATED for neutral, fully periodic Gamma-point cells. "// &
-                          "Dense implementation for small systems; no k-point sampling.", &
-                          n_keywords=7, n_subsections=0, repeats=.FALSE.)
-      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
-                          description="Enable CC4S export for a single-point calculation.", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "CC4S", &
+                             description="Export a restricted RI-HF reference and CC4S input after converged single-point SCF. "// &
+                                  "Requires RI_FLAVOR MO, XC_FUNCTIONAL NONE, HF FRACTION 1 and identical HF and RI operators. "// &
+                                       "Use COULOMB for molecules or TRUNCATED for neutral, fully periodic Gamma-point cells. "// &
+                                       "Dense implementation for small systems; no k-point sampling. "// &
+                                       "FILENAME sets the common file prefix; exact names (=name) and stdout are unsupported.", &
+                                       print_level=debug_print_level + 1, filename="cc4s", common_iter_levels=2)
       CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
-                          description="Correlation method requested in the generated cc4s.in file.", default_i_val=2, &
+                          description="Correlation method requested in the generated CC4S input file.", default_i_val=2, &
                           enum_c_vals=s2a("MP2", "CCSD", "CCSD_T"), enum_i_vals=[1, 2, 3], &
                           enum_desc=s2a("MP2", "MP2 and CCSD", "MP2, CCSD and perturbative triples"))
       CALL section_add_keyword(print_key, keyword)

@@ -20,8 +20,6 @@ MODULE cc4s_export
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
    USE cp_fm_diag,                      ONLY: cp_fm_geeig_canon
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -33,6 +31,12 @@ MODULE cc4s_export
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
+   USE cp_output_handling,              ONLY: cp_p_file,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_generate_filename,&
+                                              cp_print_key_should_output,&
+                                              cp_print_key_unit_nr,&
+                                              cp_printkey_is_on
    USE dbt_api,                         ONLY: &
         dbt_get_block, dbt_get_info, dbt_iterator_blocks_left, dbt_iterator_next_block, &
         dbt_iterator_start, dbt_iterator_stop, dbt_iterator_type, dbt_nblks_total, dbt_type
@@ -45,7 +49,8 @@ MODULE cc4s_export
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_path_length,&
+                                              dp
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_HOST,&
                                               local_gemm_ctxt_type
    USE message_passing,                 ONLY: mp_para_env_type
@@ -77,6 +82,7 @@ CONTAINS
       REAL(dp), PARAMETER :: hf_fraction_tolerance = 1.0e-14_dp
 
       CHARACTER(len=8)                                   :: method
+      CHARACTER(len=default_path_length)                 :: filename
       INTEGER                                            :: frozen, functional, handle, homo, imo, &
                                                             inu, jmo, max_iter, method_id, nao, &
                                                             nmo, nri, nstored, output_unit, &
@@ -109,10 +115,16 @@ CONTAINS
       logger => cp_get_default_logger()
       CALL get_qs_env(qs_env, input=input)
       print_section => section_vals_get_subs_vals(input, "DFT%PRINT%CC4S")
-      CALL section_vals_val_get(print_section, "_SECTION_PARAMETERS_", l_val=enabled)
+      enabled = cp_printkey_is_on(logger%iter_info, print_section)
       IF (.NOT. enabled) RETURN
       IF (.NOT. qs_env%single_point_run) THEN
          CALL cp_abort(__LOCATION__, "CC4S: export requires a single-point RUN_TYPE ENERGY or ENERGY_FORCE")
+      END IF
+      IF (.NOT. BTEST(cp_print_key_should_output(logger%iter_info, print_section), cp_p_file)) RETURN
+      CALL section_vals_val_get(print_section, "FILENAME", c_val=filename)
+      IF (filename(1:1) == '=' .OR. filename == '__STD_OUT__') THEN
+         CALL cp_abort(__LOCATION__, &
+                       "CC4S: FILENAME must be a file prefix, not an exact name (=name) or __STD_OUT__")
       END IF
       CALL timeset(routineN, handle)
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -303,17 +315,16 @@ CONTAINS
                gamma(:, jmo, imo) = pair
             END DO
          END DO
-         CALL write_eigen_energies_files(nmo, homo - frozen, &
+         CALL write_eigen_energies_files(logger, print_section, nmo, homo - frozen, &
                                          eigenvalues(frozen + 1:frozen + nmo), fermi_energy)
          ! A finite-range periodic interaction has no Ewald/Madelung correction.
          ! Preserve the SCF eigenenergies and its live truncated-interaction vertex.
-         CALL write_coulomb_vertex_files(nri, nmo, gamma, periodic, cutoff_radius, cell%hmat)
-         CALL write_cc4s_in(method, max_iter, energy_conv, amp_conv)
+         CALL write_coulomb_vertex_files(logger, print_section, nri, nmo, gamma, periodic, cutoff_radius, cell%hmat)
+         CALL write_cc4s_in(logger, print_section, method, max_iter, energy_conv, amp_conv)
          IF (output_unit > 0) THEN
             WRITE (output_unit, '(T3,A,3I8)') "CC4S| Auxiliary / active / occupied orbitals: ", nri, nmo, homo - frozen
             WRITE (output_unit, '(T3,A,ES25.16)') "CC4S| Vertex norm squared: ", SUM(gamma**2)
             WRITE (output_unit, '(T3,A,ES25.16)') "CC4S| Eigenenergy sum: ", SUM(eigenvalues(frozen + 1:frozen + nmo))
-            WRITE (output_unit, '(T3,A)') "CC4S| Files written to the working directory."
             IF (periodic) THEN
                WRITE (output_unit, '(T3,A)') "CC4S| Gamma-point TRUNCATED interaction; no added Madelung term."
                WRITE (output_unit, '(T3,A,ES25.16)') "CC4S| Coulomb cutoff radius [bohr]: ", cutoff_radius
@@ -440,18 +451,23 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief  Write EigenEnergies.yaml and EigenEnergies.elements (CC4S format, Hartree units).
+!> \param logger Logger for output selection and naming
+!> \param print_section CC4S print key
 !> \param nMO Number of active canonical orbitals
 !> \param homo Number of active occupied orbitals
 !> \param eigenvalues Active orbital energies in Hartree
 !> \param fermi_energy Energy inside the HOMO-LUMO gap
 ! **************************************************************************************************
-   SUBROUTINE write_eigen_energies_files(nMO, homo, eigenvalues, fermi_energy)
+   SUBROUTINE write_eigen_energies_files(logger, print_section, nMO, homo, eigenvalues, fermi_energy)
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: print_section
       INTEGER, INTENT(IN)                                :: nMO, homo
       REAL(KIND=dp), INTENT(IN)                          :: eigenvalues(nMO), fermi_energy
 
       INTEGER                                            :: i, iunit
 
-      CALL open_export_file(iunit, 'EigenEnergies.yaml')
+      iunit = cp_print_key_unit_nr(logger, print_section, extension='.yaml', middle_name='EigenEnergies', &
+                                   file_status='REPLACE', file_position='REWIND')
       WRITE (iunit, '(A)') 'version: 100'
       WRITE (iunit, '(A)') 'type: Tensor'
       WRITE (iunit, '(A)') 'scalarType: Real64'
@@ -468,19 +484,22 @@ CONTAINS
       DO i = 1, nMO
          WRITE (iunit, '(A,ES25.16)') '  - ', eigenvalues(i)
       END DO
-      CALL close_file(iunit)
+      CALL cp_print_key_finished_output(iunit, logger, print_section)
 
-      CALL open_export_file(iunit, 'EigenEnergies.elements')
+      iunit = cp_print_key_unit_nr(logger, print_section, extension='.elements', middle_name='EigenEnergies', &
+                                   file_status='REPLACE', file_position='REWIND')
       DO i = 1, nMO
          WRITE (iunit, '(ES25.16)') eigenvalues(i)
       END DO
-      CALL close_file(iunit)
+      CALL cp_print_key_finished_output(iunit, logger, print_section)
 
    END SUBROUTINE write_eigen_energies_files
 
 ! **************************************************************************************************
 !> \brief  Write CoulombVertex.yaml and CoulombVertex.elements (CC4S format, sqrt(Hartree) units).
 !>         Elements are written in Fortran (column-major) order: P (AuxiliaryField) varies fastest.
+!> \param logger Logger for output selection and naming
+!> \param print_section CC4S print key
 !> \param nRI Number of auxiliary functions
 !> \param nMO Number of active canonical orbitals
 !> \param gamma Coulomb vertex in auxiliary-orbital-orbital order
@@ -488,7 +507,9 @@ CONTAINS
 !> \param cutoff_radius Truncated Coulomb cutoff in bohr (zero for molecular Coulomb)
 !> \param hmat Cell vectors as columns, in bohr
 ! **************************************************************************************************
-   SUBROUTINE write_coulomb_vertex_files(nRI, nMO, gamma, periodic, cutoff_radius, hmat)
+   SUBROUTINE write_coulomb_vertex_files(logger, print_section, nRI, nMO, gamma, periodic, cutoff_radius, hmat)
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: print_section
       INTEGER, INTENT(IN)                                :: nRI, nMO
       REAL(KIND=dp), INTENT(IN)                          :: gamma(nRI, nMO, nMO)
       LOGICAL, INTENT(IN)                                :: periodic
@@ -496,7 +517,8 @@ CONTAINS
 
       INTEGER                                            :: i, io_status, iunit
 
-      CALL open_export_file(iunit, 'CoulombVertex.yaml')
+      iunit = cp_print_key_unit_nr(logger, print_section, extension='.yaml', middle_name='CoulombVertex', &
+                                   file_status='REPLACE', file_position='REWIND')
       WRITE (iunit, '(A)') 'version: 100'
       WRITE (iunit, '(A)') 'type: Tensor'
       WRITE (iunit, '(A)') 'scalarType: Real64'
@@ -525,44 +547,46 @@ CONTAINS
          WRITE (iunit, '(A)') '  boundaryConditions: "molecular"'
          WRITE (iunit, '(A)') '  interactionPotential: "COULOMB"'
       END IF
-      CALL close_file(iunit)
+      CALL cp_print_key_finished_output(iunit, logger, print_section)
 
-      CALL open_export_file(iunit, 'CoulombVertex.elements', binary=.TRUE.)
+      iunit = cp_print_key_unit_nr(logger, print_section, extension='.elements', middle_name='CoulombVertex', &
+                                   file_status='REPLACE', file_position='REWIND', &
+                                   file_form='UNFORMATTED', file_access='STREAM')
       WRITE (iunit, IOSTAT=io_status) gamma
       IF (io_status /= 0) THEN
          CPABORT("CC4S: failed writing CoulombVertex.elements")
       END IF
-      CALL close_file(iunit)
+      CALL cp_print_key_finished_output(iunit, logger, print_section)
 
    END SUBROUTINE write_coulomb_vertex_files
 
 ! **************************************************************************************************
 !> \brief  Write the CC4S algorithm sequence and solver settings to cc4s.in.
+!> \param logger Logger for output selection and naming
+!> \param print_section CC4S print key
 !> \param method Requested correlation method: MP2, CCSD or CCSD_T
 !> \param max_iter Maximum coupled-cluster iterations
 !> \param energy_conv CC4S energy convergence threshold
 !> \param amp_conv CC4S amplitude convergence threshold
 ! **************************************************************************************************
-   SUBROUTINE write_cc4s_in(method, max_iter, energy_conv, amp_conv)
+   SUBROUTINE write_cc4s_in(logger, print_section, method, max_iter, energy_conv, amp_conv)
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: print_section
       CHARACTER(LEN=*), INTENT(IN)                       :: method
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(dp), INTENT(IN)                               :: energy_conv, amp_conv
 
+      CHARACTER(len=default_path_length)                 :: filename
       INTEGER                                            :: iunit
 
-      CALL open_export_file(iunit, 'cc4s.in')
+      iunit = cp_print_key_unit_nr(logger, print_section, extension='.in', &
+                                   file_status='REPLACE', file_position='REWIND')
 
       ! --- common header: read tensors, slice, build integrals ---
-      WRITE (iunit, '(A)') '- name: Read'
-      WRITE (iunit, '(A)') '  in:'
-      WRITE (iunit, '(A)') '    fileName: CoulombVertex.yaml'
-      WRITE (iunit, '(A)') '  out:'
-      WRITE (iunit, '(A)') '    destination: CoulombVertex'
-      WRITE (iunit, '(A)') '- name: Read'
-      WRITE (iunit, '(A)') '  in:'
-      WRITE (iunit, '(A)') '    fileName: EigenEnergies.yaml'
-      WRITE (iunit, '(A)') '  out:'
-      WRITE (iunit, '(A)') '    destination: EigenEnergies'
+      filename = cp_print_key_generate_filename(logger, print_section, 'CoulombVertex', '.yaml', .FALSE.)
+      CALL write_tensor_read(iunit, filename, 'CoulombVertex')
+      filename = cp_print_key_generate_filename(logger, print_section, 'EigenEnergies', '.yaml', .FALSE.)
+      CALL write_tensor_read(iunit, filename, 'EigenEnergies')
       WRITE (iunit, '(A)') '- name: DefineHolesAndParticles'
       WRITE (iunit, '(A)') '  in:'
       WRITE (iunit, '(A)') '    eigenEnergies: EigenEnergies'
@@ -608,7 +632,7 @@ CONTAINS
          WRITE (iunit, '(A)') '  out: {}'
       END IF
 
-      CALL close_file(iunit)
+      CALL cp_print_key_finished_output(iunit, logger, print_section)
 
    END SUBROUTINE write_cc4s_in
 
@@ -647,27 +671,28 @@ CONTAINS
    END SUBROUTINE write_coupled_cluster_step
 
 ! **************************************************************************************************
-!> \brief Open an export file for replacement using CP2K's file handling.
-!> \param iunit File unit
-!> \param filename File path
-!> \param binary Use a raw unformatted stream
+!> \brief Write a tensor reference relative to the generated CC4S input's directory.
+!> \param iunit CC4S input unit
+!> \param filename Generated tensor header filename
+!> \param destination CC4S tensor name
 ! **************************************************************************************************
-   SUBROUTINE open_export_file(iunit, filename, binary)
-      INTEGER, INTENT(OUT)                               :: iunit
-      CHARACTER(len=*), INTENT(IN)                       :: filename
-      LOGICAL, INTENT(IN), OPTIONAL                      :: binary
+   SUBROUTINE write_tensor_read(iunit, filename, destination)
+      INTEGER, INTENT(IN)                                :: iunit
+      CHARACTER(len=*), INTENT(IN)                       :: filename, destination
 
-      LOGICAL                                            :: raw
+      INTEGER                                            :: i
 
-      iunit = -1
-      raw = .FALSE.
-      IF (PRESENT(binary)) raw = binary
-      IF (raw) THEN
-         CALL open_file(file_name=filename, file_status='REPLACE', file_action='WRITE', &
-                        file_access='STREAM', file_form='UNFORMATTED', unit_number=iunit)
-      ELSE
-         CALL open_file(file_name=filename, file_status='REPLACE', file_action='WRITE', unit_number=iunit)
-      END IF
-   END SUBROUTINE open_export_file
+      WRITE (iunit, '(A)') '- name: Read'
+      WRITE (iunit, '(A)') '  in:'
+      WRITE (iunit, '(A)', ADVANCE='NO') "    fileName: '"
+      ! A quoted YAML scalar preserves spaces and punctuation; apostrophes are doubled.
+      DO i = INDEX(filename, '/', BACK=.TRUE.) + 1, LEN_TRIM(filename)
+         WRITE (iunit, '(A)', ADVANCE='NO') filename(i:i)
+         IF (filename(i:i) == "'") WRITE (iunit, '(A)', ADVANCE='NO') "'"
+      END DO
+      WRITE (iunit, '(A)') "'"
+      WRITE (iunit, '(A)') '  out:'
+      WRITE (iunit, '(A)') '    destination: '//destination
+   END SUBROUTINE write_tensor_read
 
 END MODULE cc4s_export
