@@ -1174,7 +1174,7 @@ CONTAINS
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: output(:, :, :)
       COMPLEX(KIND=dp), POINTER                          :: phase(:, :)
       INTEGER                                            :: first, iblock, k, last, nbatch, ncol, &
-                                                            nthreads, thread
+                                                            nthreads, previous, thread
       LOGICAL                                            :: parallel
       REAL(KIND=dp)                                      :: arg
 
@@ -1205,12 +1205,21 @@ CONTAINS
          ALLOCATE (owned_phase(nbatch, SIZE(route%entry, 2)))
          phase => owned_phase
       END IF
+      previous = 0
       DO iblock = 1, SIZE(route%entry, 2)
          IF (.NOT. snapshot%nonzero(iblock)) CYCLE
+         ! Neighboring blocks often share a lattice translation, including its symmetry sign.
+         IF (previous > 0) THEN
+            IF (ALL(route%entry(5:7, iblock) == route%entry(5:7, previous))) THEN
+               phase(:, iblock) = phase(:, previous)
+               CYCLE
+            END IF
+         END IF
          DO k = 1, nbatch
             arg = twopi*DOT_PRODUCT(REAL(route%entry(5:7, iblock), dp), xkp(:, k))
             phase(k, iblock) = CMPLX(COS(arg), SIN(arg), KIND=dp)
          END DO
+         previous = iblock
       END DO
       ncol = route%ncol
       parallel = .TRUE.
@@ -1258,10 +1267,14 @@ CONTAINS
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: full(:, :)
       INTEGER                                            :: c0, col, hi, iblock, j, k, lo, nc, nr, &
                                                             part, r0, row, source_col, source_row
-      REAL(KIND=dp)                                      :: element
+      LOGICAL                                            :: full_fm
+      REAL(KIND=dp)                                      :: element, phase_im, phase_re
 
       IF (first > last) RETURN
       NULLIFY (full)
+      full_fm = .NOT. ASSOCIATED(output) .AND. &
+                route%nrow == route%matrix_struct%nrow_global .AND. &
+                route%ncol == route%matrix_struct%ncol_global
       IF (ASSOCIATED(output)) THEN
          IF (SIZE(output, 1) == 1 .AND. &
              route%nrow == route%matrix_struct%nrow_global .AND. &
@@ -1275,6 +1288,39 @@ CONTAINS
          c0 = route%entry(2, iblock)
          nr = route%entry(3, iblock)
          nc = route%entry(4, iblock)
+         IF (full_fm) THEN
+            ! Single-rank split-FM caches have contiguous global rows and columns.
+            ! Keep each block's direct/mirrored order, without per-element index lookup.
+            phase_re = REAL(phase(1, iblock), dp)
+            phase_im = AIMAG(phase(1, iblock))
+            lo = MAX(first, c0)
+            hi = MIN(last, c0 + nc - 1)
+            DO j = lo, hi
+!$OMP SIMD PRIVATE(element)
+               DO row = 1, nr
+                  element = snapshot%blocks(iblock)%data(row, j - c0 + 1)
+                  fm_re%local_data(r0 + row - 1, j) = fm_re%local_data(r0 + row - 1, j) + phase_re*element
+                  IF (PRESENT(fm_im)) THEN
+                     fm_im%local_data(r0 + row - 1, j) = fm_im%local_data(r0 + row - 1, j) + phase_im*element
+                  END IF
+               END DO
+            END DO
+            IF (route%entry(8, iblock) /= 0) THEN
+               lo = MAX(first, r0)
+               hi = MIN(last, r0 + nr - 1)
+               DO j = lo, hi
+!$OMP SIMD PRIVATE(element)
+                  DO row = 1, nc
+                     element = snapshot%blocks(iblock)%data(j - r0 + 1, row)
+                     fm_re%local_data(c0 + row - 1, j) = fm_re%local_data(c0 + row - 1, j) + phase_re*element
+                     IF (PRESENT(fm_im)) THEN
+                        fm_im%local_data(c0 + row - 1, j) = fm_im%local_data(c0 + row - 1, j) - phase_im*element
+                     END IF
+                  END DO
+               END DO
+            END IF
+            CYCLE
+         END IF
          IF (ASSOCIATED(full)) THEN
             ! Update whole contiguous blocks, clipped to this worker's columns.
             lo = MAX(first, c0)

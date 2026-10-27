@@ -33,7 +33,8 @@ MODULE qs_ot_minimizer
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE mathlib,                         ONLY: diamat_all
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_type
    USE preconditioner,                  ONLY: apply_preconditioner,&
                                               apply_preconditioner_complex_batch
    USE preconditioner_types,            ONLY: preconditioner_p_type
@@ -3403,6 +3404,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE                               :: coefficients(:), dots(:), dots_new(:), weights(:)
       TYPE(dbcsr_p_type), ALLOCATABLE                    :: positions(:), gradients(:), history(:, :)
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
 
@@ -3459,6 +3461,7 @@ CONTAINS
 
       ! copy the position and the error vector in the diis buffers
 
+      IF (nmat > 0) CALL dbcsr_get_info(gradients(1)%matrix, group=group)
       DO m = 1, nmat
          CALL dbcsr_copy(history(m, diis_bound + j)%matrix, positions(m)%matrix)
       END DO
@@ -3482,7 +3485,7 @@ CONTAINS
       DO i = 1, diis_bound
          ! Form the DIIS metric from the gradient and stored steps.
          qs_ot_env(1)%ls_diis(i, j) = 0.0_dp
-         CALL dbcsr_dot_batch(gradients, history(:, i), dots)
+         CALL dbcsr_dot_batch(gradients, history(:, i), dots, comm=group)
          DO m = 1, nmat
             qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) - qs_ot_env(1)%ds_min*weights(m)*dots(m)
          END DO
@@ -3543,8 +3546,8 @@ CONTAINS
             ! the direction of the step is x_new-x_old
             tr_xold_gx = 0.0_dp
             tr_xnew_gx = 0.0_dp
-            CALL dbcsr_dot_batch(history(:, diis_bound + j), gradients, dots)
-            CALL dbcsr_dot_batch(positions, gradients, dots_new)
+            CALL dbcsr_dot_batch(history(:, diis_bound + j), gradients, dots, comm=group)
+            CALL dbcsr_dot_batch(positions, gradients, dots_new, comm=group)
             DO m = 1, nmat
                tr_xold_gx = tr_xold_gx + weights(m)*dots(m)
                tr_xnew_gx = tr_xnew_gx + weights(m)*dots_new(m)

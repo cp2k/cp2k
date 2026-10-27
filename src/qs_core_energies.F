@@ -19,9 +19,11 @@ MODULE qs_core_energies
                                               atprop_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_info,&
+                                              dbcsr_p_type,&
                                               dbcsr_type
-   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot,&
+                                              dbcsr_dot_batch
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: oorootpi,&
@@ -135,9 +137,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ptrace_kp'
 
-      INTEGER                                            :: handle, ic, ispin, nc
+      INTEGER                                            :: handle, ic, ispin, j, nc
       LOGICAL                                            :: lspin
-      REAL(KIND=dp)                                      :: etr
+      REAL(KIND=dp), ALLOCATABLE                         :: traces(:)
+      TYPE(dbcsr_p_type), ALLOCATABLE                    :: h(:), p(:)
+      TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
 
@@ -145,18 +149,25 @@ CONTAINS
       IF (PRESENT(spinmat)) lspin = spinmat
 
       nc = SIZE(pmat, 2)
-
-      ecore = 0.0_dp
+      ALLOCATE (h(nspin*nc), p(nspin*nc), traces(nspin*nc))
+      j = 0
       DO ispin = 1, nspin
          DO ic = 1, nc
-            etr = 0.0_dp
+            j = j + 1
             IF (lspin) THEN
-               CALL dbcsr_dot(hmat(ispin, ic)%matrix, pmat(ispin, ic)%matrix, etr)
+               h(j)%matrix => hmat(ispin, ic)%matrix
             ELSE
-               CALL dbcsr_dot(hmat(1, ic)%matrix, pmat(ispin, ic)%matrix, etr)
+               h(j)%matrix => hmat(1, ic)%matrix
             END IF
-            ecore = ecore + etr
+            p(j)%matrix => pmat(ispin, ic)%matrix
          END DO
+      END DO
+      IF (SIZE(h) > 0) CALL dbcsr_get_info(h(1)%matrix, group=group)
+      CALL dbcsr_dot_batch(h, p, traces, comm=group)
+      ! Retain the spin/image accumulation order after the common MPI reduction.
+      ecore = 0.0_dp
+      DO j = 1, SIZE(traces)
+         ecore = ecore + traces(j)
       END DO
 
       CALL timestop(handle)

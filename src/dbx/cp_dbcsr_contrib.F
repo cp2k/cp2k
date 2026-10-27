@@ -386,10 +386,13 @@ CONTAINS
 !> \param matrix_a first operands, in reduction order
 !> \param matrix_b second operands
 !> \param trace dot products
+!> \param comm optional common communicator; all operands must use this exact communicator
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_dot_batch(matrix_a, matrix_b, trace)
+   SUBROUTINE dbcsr_dot_batch(matrix_a, matrix_b, trace, comm)
       TYPE(dbcsr_p_type), INTENT(IN)                     :: matrix_a(:), matrix_b(:)
       REAL(KIND=dp), INTENT(OUT)                         :: trace(SIZE(matrix_a))
+
+      CLASS(mp_comm_type), INTENT(IN), OPTIONAL          :: comm
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'dbcsr_dot_batch'
 
@@ -406,6 +409,10 @@ CONTAINS
       DO i = 1, SIZE(matrix_a)
          has_symmetry = dbcsr_has_symmetry(matrix_a(i)%matrix)
          CPASSERT(has_symmetry .EQV. dbcsr_has_symmetry(matrix_b(i)%matrix))
+         IF (PRESENT(comm)) THEN
+            CALL dbcsr_get_info(matrix_a(i)%matrix, group=group)
+            CPASSERT(group == comm)
+         END IF
       END DO
 
       trace = 0.0_dp
@@ -430,10 +437,14 @@ CONTAINS
       END DO
 !$OMP END PARALLEL
 
-      DO i = 1, SIZE(matrix_a)
-         CALL dbcsr_get_info(matrix_a(i)%matrix, group=group)
-         CALL group%sum(trace(i))
-      END DO
+      IF (PRESENT(comm)) THEN
+         IF (SIZE(trace) > 0 .AND. comm%num_pe > 1) CALL comm%sum(trace)
+      ELSE
+         DO i = 1, SIZE(matrix_a)
+            CALL dbcsr_get_info(matrix_a(i)%matrix, group=group)
+            IF (group%num_pe > 1) CALL group%sum(trace(i))
+         END DO
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE dbcsr_dot_batch
