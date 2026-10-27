@@ -1696,18 +1696,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="CUDA_DEVICE", &
-                          description="CUDA device used by the experimental CP2K-native SKALA GPW "// &
-                          "TorchScript path when GPU execution is enabled. A negative value "// &
-                          "maps the MPI-local rank to one of the CUDA devices visible to the process; "// &
-                          "CUDA exports with device-specific TorchScript constants may require a "// &
-                          "rank-local CUDA_VISIBLE_DEVICES list. A non-negative value selects that "// &
-                          "visible CUDA device explicitly.", &
-                          usage="CUDA_DEVICE -1", &
-                          default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="ATOM_PARTITION", &
                           description="Atom partition used to build the experimental CP2K-native "// &
                           "SKALA COMMON_GRID feature block. HARD assigns each native grid point to "// &
