@@ -125,8 +125,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'update_ks_atom'
 
       INTEGER :: bo(2), handle, ia_kind, iac, iat, iatom, ibc, ikind, img, ip, ispin, ja_kind, &
-         jatom, jkind, ka_kind, kac, katom, kbc, kkind, ldCPC, max_gau, max_nsgf, n_cont_a, &
-         n_cont_b, nat, natom, nimages, nkind, nl_table_num_slots, nsoctot, nspins, slot_num
+         jatom, jkind, ka_kind, kac, katom, kbc, kkind, max_gau, max_nsgf, n_cont_a, n_cont_b, &
+         nat, natom, nimages, nkind, nl_table_num_slots, nsoctot, nspins, slot_num
       INTEGER(KIND=int_8)                                :: nl_table_key
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(3)                              :: cell_b
@@ -141,8 +141,7 @@ CONTAINS
       REAL(dp), DIMENSION(3, 3)                          :: force_tmp
       REAL(kind=dp)                                      :: eps_cpc, factor1, factor2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: C_int_h, C_int_s, coc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dCPC_h, dCPC_s
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: PC_h, PC_s
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C_V, PC_V
       REAL(KIND=dp), DIMENSION(2)                        :: force_fac
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_virial_thread
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: C_coeff_hh_a, C_coeff_hh_b, &
@@ -229,7 +228,6 @@ CONTAINS
 
       IF (forces) THEN
          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
-         ldCPC = max_gau
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       ELSE
          use_virial = .FALSE.
@@ -315,12 +313,12 @@ CONTAINS
 !$OMP                 , basis_set_list, nimages, cell_to_index       &
 !$OMP                 , ksmat, pmat, natom, nkind, my_kind_set, my_oce &
 !$OMP                 , my_rho_atom, factor1, factor2, use_virial    &
-!$OMP                 , atom_of_kind, ldCPC, force, locks, force_fac &
+!$OMP                 , atom_of_kind, force, locks, force_fac        &
 !$OMP                 , paw_kind, has_intac                          &
 !$OMP                 )                                              &
 !$OMP          PRIVATE( slot_num, is_entry_null, TASK, is_task_valid &
 !$OMP                 , C_int_h, C_int_s, coc, a_matrix, p_matrix    &
-!$OMP                 , mat_h, mat_p, dCPC_h, dCPC_s, PC_h, PC_s     &
+!$OMP                 , mat_h, mat_p, C_V, PC_V                     &
 !$OMP                 , int_local_h, int_local_s                     &
 !$OMP                 , ikind, jkind, iatom, jatom, cell_b           &
 !$OMP                 , basis_set_a, basis_set_b, img                &
@@ -345,8 +343,7 @@ CONTAINS
       END DO
 
       IF (forces) THEN
-         ALLOCATE (dCPC_h(max_gau, max_gau), dCPC_s(max_gau, max_gau), &
-                   PC_h(max_nsgf, max_gau, nspins), PC_s(max_nsgf, max_gau, nspins))
+         ALLOCATE (C_V(max_nsgf, max_gau), PC_V(max_nsgf, max_gau))
 !$OMP SINGLE
 !$       ALLOCATE (locks(natom*nkind))
 !$OMP END SINGLE
@@ -488,8 +485,8 @@ CONTAINS
                               IF (iatom <= jatom) THEN
                                  CALL add_vhxca_forces(mat_p, C_coeff_hh_a, C_coeff_hh_b, C_coeff_ss_a, C_coeff_ss_b, &
                                                        int_local_h, int_local_s, force_tmp, nspins, iatom, jatom, nsoctot, &
-                                                       list_a, n_cont_a, list_b, n_cont_b, dCPC_h, dCPC_s, ldCPC, &
-                                                       PC_h, PC_s, p_matrix, force_fac)
+                                                       list_a, n_cont_a, list_b, n_cont_b, dista, distb, &
+                                                       C_V, PC_V, coc, p_matrix, force_fac)
                                  force_tmp = factor2*force_tmp
 !$                               CALL omp_set_lock(locks((ka_kind - 1)*nkind + kkind))
                                  force(kkind)%vhxc_atom(1:3, ka_kind) = force(kkind)%vhxc_atom(1:3, ka_kind) + force_tmp(1:3, 3)
@@ -507,8 +504,8 @@ CONTAINS
                               ELSE
                                  CALL add_vhxca_forces(mat_p, C_coeff_hh_b, C_coeff_hh_a, C_coeff_ss_b, C_coeff_ss_a, &
                                                        int_local_h, int_local_s, force_tmp, nspins, jatom, iatom, nsoctot, &
-                                                       list_b, n_cont_b, list_a, n_cont_a, dCPC_h, dCPC_s, ldCPC, &
-                                                       PC_h, PC_s, p_matrix, force_fac)
+                                                       list_b, n_cont_b, list_a, n_cont_a, distb, dista, &
+                                                       C_V, PC_V, coc, p_matrix, force_fac)
                                  force_tmp = factor2*force_tmp
 !$                               CALL omp_set_lock(locks((ka_kind - 1)*nkind + kkind))
                                  force(kkind)%vhxc_atom(1:3, ka_kind) = force(kkind)%vhxc_atom(1:3, ka_kind) + force_tmp(1:3, 3)
@@ -553,7 +550,7 @@ CONTAINS
       DEALLOCATE (mat_h, mat_p, C_int_h, C_int_s, a_matrix, p_matrix, coc)
 
       IF (forces) THEN
-         DEALLOCATE (dCPC_h, dCPC_s, PC_h, PC_s)
+         DEALLOCATE (C_V, PC_V)
 
          ! Implicit barrier at end of OMP DO, so locks can be freed
 !$OMP DO
@@ -729,7 +726,7 @@ CONTAINS
    END SUBROUTINE add_vhxca_to_ks
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Contract one-center coefficient derivatives with the hard-minus-soft potential.
 !> \param mat_p ...
 !> \param C_hh_a ...
 !> \param C_hh_b ...
@@ -746,18 +743,18 @@ CONTAINS
 !> \param nconta ...
 !> \param listb ...
 !> \param ncontb ...
-!> \param dCPC_h ...
-!> \param dCPC_s ...
-!> \param ldCPC ...
-!> \param PC_h ...
-!> \param PC_s ...
+!> \param dista true if A is offsite relative to the one-center expansion atom
+!> \param distb true if B is offsite relative to the one-center expansion atom
+!> \param C_V workspace for potential-weighted coefficients
+!> \param PC_V workspace for density-weighted, potential-weighted coefficients
+!> \param int_diff workspace for the hard-minus-soft potential, reusing the KS scratch buffer
 !> \param p_matrix ...
 !> \param force_scaling ...
 ! **************************************************************************************************
    SUBROUTINE add_vhxca_forces(mat_p, C_hh_a, C_hh_b, C_ss_a, C_ss_b, &
                                int_local_h, int_local_s, &
                                force, nspins, ia, ja, nsp, lista, nconta, listb, ncontb, &
-                               dCPC_h, dCPC_s, ldCPC, PC_h, PC_s, p_matrix, force_scaling)
+                               dista, distb, C_V, PC_V, int_diff, p_matrix, force_scaling)
       TYPE(cp_2d_r_p_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: mat_p
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: C_hh_a, C_hh_b, C_ss_a, C_ss_b
@@ -768,9 +765,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nconta
       INTEGER, DIMENSION(:), INTENT(IN)                  :: listb
       INTEGER, INTENT(IN)                                :: ncontb
-      REAL(KIND=dp), DIMENSION(:, :)                     :: dCPC_h, dCPC_s
-      INTEGER, INTENT(IN)                                :: ldCPC
-      REAL(KIND=dp), DIMENSION(:, :, :)                  :: PC_h, PC_s
+      LOGICAL, INTENT(IN)                                :: dista, distb
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: C_V, PC_V
+      REAL(KIND=dp), INTENT(OUT)                         :: int_diff(nsp, nsp)
       REAL(KIND=dp), DIMENSION(:, :)                     :: p_matrix
       REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: force_scaling
 
@@ -779,8 +776,10 @@ CONTAINS
       REAL(KIND=dp)                                      :: ieqj, trace
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block
 
-!   if(dista.and.distb) we could also here use ChPCh = CsPCs
-!   *** factor 2 because only half of the pairs with ia =/ ja are considered
+      ! Onsite OCE coefficients have zero derivatives (see build_oce_matrices).
+      IF (.NOT. (dista .OR. distb)) RETURN
+
+      ! Factor 2 because only half of the pairs with ia /= ja are considered.
 
       ieqj = 2.0_dp
       IF (ia == ja) ieqj = 1.0_dp
@@ -796,52 +795,51 @@ CONTAINS
          int_hard => int_local_h(ispin)%r_coef
          int_soft => int_local_s(ispin)%r_coef
 
-         CALL DGEMM('N', 'N', nconta, nsp, ncontb, 1.0_dp, p_matrix, SIZE(p_matrix, 1), &
-                    C_hh_b(:, :, 1), SIZE(C_hh_b, 1), &
-                    0.0_dp, PC_h(:, :, ispin), SIZE(PC_h, 1))
-         CALL DGEMM('N', 'N', nconta, nsp, ncontb, 1.0_dp, p_matrix(:, :), SIZE(p_matrix, 1), &
-                    C_ss_b(:, :, 1), SIZE(C_ss_b, 1), &
-                    0.0_dp, PC_s(:, :, ispin), SIZE(PC_s, 1))
+         IF (dista .AND. distb) int_diff(:, :) = int_hard(1:nsp, 1:nsp) - int_soft(1:nsp, 1:nsp)
 
-         DO dir = 2, 4
-            CALL DGEMM('T', 'N', nsp, nsp, nconta, 1.0_dp, PC_h(:, :, ispin), SIZE(PC_h, 1), &
-                       C_hh_a(:, :, dir), SIZE(C_hh_a, 1), &
-                       0.0_dp, dCPC_h, SIZE(dCPC_h, 1))
-            trace = trace_r_AxB(dCPC_h, ldCPC, int_hard, nsp, nsp, nsp)
-            force(dir - 1, 3) = force(dir - 1, 3) + ieqj*trace*force_scaling(ispin)
-            force(dir - 1, 1) = force(dir - 1, 1) - ieqj*trace*force_scaling(ispin)
+         IF (dista) THEN
+            ! Offsite dC_h/dR = dC_s/dR. Form C_V = C_b^h V_h - C_b^s V_s once
+            ! for all three directions, reducing to C_b (V_h - V_s) if B is offsite.
+            IF (distb) THEN
+               CALL DGEMM('N', 'N', ncontb, nsp, nsp, 1.0_dp, C_hh_b(:, :, 1), SIZE(C_hh_b, 1), &
+                          int_diff, nsp, 0.0_dp, C_V, SIZE(C_V, 1))
+            ELSE
+               CALL DGEMM('N', 'N', ncontb, nsp, nsp, 1.0_dp, C_hh_b(:, :, 1), SIZE(C_hh_b, 1), &
+                          int_hard, SIZE(int_hard, 1), 0.0_dp, C_V, SIZE(C_V, 1))
+               CALL DGEMM('N', 'N', ncontb, nsp, nsp, -1.0_dp, C_ss_b(:, :, 1), SIZE(C_ss_b, 1), &
+                          int_soft, SIZE(int_soft, 1), 1.0_dp, C_V, SIZE(C_V, 1))
+            END IF
+            CALL DGEMM('N', 'N', nconta, nsp, ncontb, 1.0_dp, p_matrix, SIZE(p_matrix, 1), &
+                       C_V, SIZE(C_V, 1), 0.0_dp, PC_V, SIZE(PC_V, 1))
+            ! <(P C_b)^T dC_a, V>_F = <dC_a, P (C_b V)>_F.
+            DO dir = 2, 4
+               trace = trace_r_AxB(PC_V, SIZE(PC_V, 1), C_hh_a(:, :, dir), SIZE(C_hh_a, 1), nconta, nsp)
+               trace = ieqj*trace*force_scaling(ispin)
+               force(dir - 1, 3) = force(dir - 1, 3) + trace
+               force(dir - 1, 1) = force(dir - 1, 1) - trace
+            END DO
+         END IF
 
-            CALL DGEMM('T', 'N', nsp, nsp, nconta, 1.0_dp, PC_s(:, :, ispin), SIZE(PC_s, 1), &
-                       C_ss_a(:, :, dir), SIZE(C_ss_a, 1), &
-                       0.0_dp, dCPC_s, SIZE(dCPC_s, 1))
-            trace = trace_r_AxB(dCPC_s, ldCPC, int_soft, nsp, nsp, nsp)
-            force(dir - 1, 3) = force(dir - 1, 3) - ieqj*trace*force_scaling(ispin)
-            force(dir - 1, 1) = force(dir - 1, 1) + ieqj*trace*force_scaling(ispin)
-         END DO
-
-         ! j-k contributions
-         CALL DGEMM('T', 'N', ncontb, nsp, nconta, 1.0_dp, p_matrix, SIZE(p_matrix, 1), &
-                    C_hh_a(:, :, 1), SIZE(C_hh_a, 1), &
-                    0.0_dp, PC_h(:, :, ispin), SIZE(PC_h, 1))
-         CALL DGEMM('T', 'N', ncontb, nsp, nconta, 1.0_dp, p_matrix, SIZE(p_matrix, 1), &
-                    C_ss_a(:, :, 1), SIZE(C_ss_a, 1), &
-                    0.0_dp, PC_s(:, :, ispin), SIZE(PC_s, 1))
-
-         DO dir = 2, 4
-            CALL DGEMM('T', 'N', nsp, nsp, ncontb, 1.0_dp, PC_h(:, :, ispin), SIZE(PC_h, 1), &
-                       C_hh_b(:, :, dir), SIZE(C_hh_b, 1), &
-                       0.0_dp, dCPC_h, SIZE(dCPC_h, 1))
-            trace = trace_r_AxB(dCPC_h, ldCPC, int_hard, nsp, nsp, nsp)
-            force(dir - 1, 3) = force(dir - 1, 3) + ieqj*trace*force_scaling(ispin)
-            force(dir - 1, 2) = force(dir - 1, 2) - ieqj*trace*force_scaling(ispin)
-
-            CALL DGEMM('T', 'N', nsp, nsp, ncontb, 1.0_dp, PC_s(:, :, ispin), SIZE(PC_s, 1), &
-                       C_ss_b(:, :, dir), SIZE(C_ss_b, 1), &
-                       0.0_dp, dCPC_s, SIZE(dCPC_s, 1))
-            trace = trace_r_AxB(dCPC_s, ldCPC, int_soft, nsp, nsp, nsp)
-            force(dir - 1, 3) = force(dir - 1, 3) - ieqj*trace*force_scaling(ispin)
-            force(dir - 1, 2) = force(dir - 1, 2) + ieqj*trace*force_scaling(ispin)
-         END DO
+         IF (distb) THEN
+            ! j-k contributions: use P^T and the potential-weighted A coefficients.
+            IF (dista) THEN
+               CALL DGEMM('N', 'N', nconta, nsp, nsp, 1.0_dp, C_hh_a(:, :, 1), SIZE(C_hh_a, 1), &
+                          int_diff, nsp, 0.0_dp, C_V, SIZE(C_V, 1))
+            ELSE
+               CALL DGEMM('N', 'N', nconta, nsp, nsp, 1.0_dp, C_hh_a(:, :, 1), SIZE(C_hh_a, 1), &
+                          int_hard, SIZE(int_hard, 1), 0.0_dp, C_V, SIZE(C_V, 1))
+               CALL DGEMM('N', 'N', nconta, nsp, nsp, -1.0_dp, C_ss_a(:, :, 1), SIZE(C_ss_a, 1), &
+                          int_soft, SIZE(int_soft, 1), 1.0_dp, C_V, SIZE(C_V, 1))
+            END IF
+            CALL DGEMM('T', 'N', ncontb, nsp, nconta, 1.0_dp, p_matrix, SIZE(p_matrix, 1), &
+                       C_V, SIZE(C_V, 1), 0.0_dp, PC_V, SIZE(PC_V, 1))
+            DO dir = 2, 4
+               trace = trace_r_AxB(PC_V, SIZE(PC_V, 1), C_hh_b(:, :, dir), SIZE(C_hh_b, 1), ncontb, nsp)
+               trace = ieqj*trace*force_scaling(ispin)
+               force(dir - 1, 3) = force(dir - 1, 3) + trace
+               force(dir - 1, 2) = force(dir - 1, 2) - trace
+            END DO
+         END IF
 
       END DO !ispin
 
