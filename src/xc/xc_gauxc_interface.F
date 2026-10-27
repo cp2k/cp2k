@@ -80,6 +80,9 @@ MODULE xc_gauxc_interface
    USE gauxc_runtime_environment, ONLY: &
       gauxc_device_runtime_environment_new
 #endif
+#if defined(GAUXC_HAS_DEVICE) && defined(__LIBTORCH)
+   USE torch_api, ONLY: torch_cuda_device_count, torch_cuda_is_available
+#endif
    USE gauxc_molecule, ONLY: &
       gauxc_delete, &
       gauxc_molecule_new_from_atoms, &
@@ -562,6 +565,15 @@ CONTAINS
       ! one, so INT=DEVICE with the default LB=HOST silently used a host runtime.
       use_device_runtime = (lb_exec_space_local == gauxc_executionspace%device) .OR. &
                            (int_exec_requested == gauxc_executionspace%device)
+#if defined(GAUXC_HAS_DEVICE) && defined(__LIBTORCH)
+      IF (use_device_runtime) THEN
+         IF (.NOT. torch_cuda_is_available() .OR. torch_cuda_device_count() <= 0) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "GPU execution was requested for GauXC, but no usable CUDA device was found. "// &
+                          "Set GAUXC%USE_GPU HOST to force host-only execution.")
+         END IF
+      END IF
+#endif
       force_new_runtime_local = .FALSE.
       IF (PRESENT(force_new_runtime)) force_new_runtime_local = force_new_runtime
       res%owns_rt = .FALSE.
