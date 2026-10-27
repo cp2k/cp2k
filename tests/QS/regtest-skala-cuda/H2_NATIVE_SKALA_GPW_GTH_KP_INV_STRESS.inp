@@ -43,8 +43,8 @@
     &XC
       &XC_FUNCTIONAL
         &SKALA_NATIVE
-          MODEL SKALA
           DIAGNOSTICS F
+          MODEL SKALA
           USE_GPU GPU
         &END SKALA_NATIVE
       &END XC_FUNCTIONAL

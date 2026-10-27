@@ -23,14 +23,13 @@ MODULE input_cp2k_xc
    USE eeq_input,                       ONLY: create_eeq_control_section
    USE input_constants,                 ONLY: &
         do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, do_gpu_auto, do_gpu_device, &
-        do_gpu_host, do_libxc_cpu, do_libxc_gpu, &
-        fxc_funct_gga, fxc_funct_lda, fxc_funct_pade, fxc_none, gaussian, slater, vdw_nl_drsll, &
-        vdw_nl_lmkll, vdw_nl_rvv10, vdw_pairpot_dftd2, vdw_pairpot_dftd2chg, vdw_pairpot_dftd3, &
-        vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, &
-        xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, &
-        xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, xc_none, xc_pot_energy_none, &
-        xc_pot_energy_sum_eigenvalues, xc_pot_energy_xc_functional, xc_vdw_fun_none, &
-        xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+        do_gpu_host, do_libxc_cpu, do_libxc_gpu, fxc_funct_gga, fxc_funct_lda, fxc_funct_pade, &
+        fxc_none, gaussian, slater, vdw_nl_drsll, vdw_nl_lmkll, vdw_nl_rvv10, vdw_pairpot_dftd2, &
+        vdw_pairpot_dftd2chg, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, &
+        xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, &
+        xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, &
+        xc_funct_tpss, xc_none, xc_pot_energy_none, xc_pot_energy_sum_eigenvalues, &
+        xc_pot_energy_xc_functional, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
    USE input_cp2k_mp2,                  ONLY: create_mp2_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -1851,7 +1850,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-
       CALL keyword_create(keyword, __LOCATION__, name="ATOM_CHUNK_MAX_ROWS", &
                           description="Maximum number of atom-grid rows evaluated by one TorchScript "// &
                           "call in the experimental CP2K-native SKALA GPW atom-chunk path. A positive "// &
@@ -1873,7 +1871,6 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_skala_native_section
-
 
 ! **************************************************************************************************
 !> \brief creates the input section for the xc part

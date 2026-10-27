@@ -90,11 +90,11 @@ MODULE qs_vxc_atom
                                               smooth_atom_partition
    USE skala_gpw_functional,            ONLY: &
         build_vxc_from_feature_grads, get_gauxc_section, get_skala_native_section, &
-        native_skala_gapw_density_partition, &
-        skala_gapw_atom_composite_energy, skala_gapw_atom_vxc_of_r, &
-        skala_gapw_density_partition_hard_minus_soft, skala_gapw_density_partition_hard_only, &
-        skala_gapw_density_partition_none, skala_gapw_density_partition_soft_only, &
-        xc_section_uses_gauxc_model, xc_section_uses_native_skala_evaluator
+        native_skala_gapw_density_partition, skala_gapw_atom_composite_energy, &
+        skala_gapw_atom_vxc_of_r, skala_gapw_density_partition_hard_minus_soft, &
+        skala_gapw_density_partition_hard_only, skala_gapw_density_partition_none, &
+        skala_gapw_density_partition_soft_only, xc_section_uses_gauxc_model, &
+        xc_section_uses_native_skala_evaluator
    USE spherical_harmonics,             ONLY: y_lm
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
@@ -360,8 +360,8 @@ CONTAINS
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER     :: r_h_d, r_s_d
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: my_rho_atom_set
       TYPE(rho_atom_type), POINTER                       :: rho_atom
-      TYPE(section_vals_type), POINTER                   :: gauxc_section, input, model_section, &
-                                                            my_xc_section, native_section, xc_fun_section
+      TYPE(section_vals_type), POINTER                   :: input, model_section, my_xc_section, &
+                                                            native_section, xc_fun_section
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
       TYPE(skala_periodic_partition_type) :: composite_partition_image_coords
       TYPE(tau_basis_cache_type)                         :: tau_basis_cache

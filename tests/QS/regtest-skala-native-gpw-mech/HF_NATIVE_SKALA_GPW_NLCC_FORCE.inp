@@ -36,9 +36,9 @@
     &XC
       &XC_FUNCTIONAL
         &SKALA_NATIVE
-          MODEL SKALA
           ATOM_PARTITION SMOOTH
           DIAGNOSTICS T
+          MODEL SKALA
         &END SKALA_NATIVE
       &END XC_FUNCTIONAL
     &END XC
