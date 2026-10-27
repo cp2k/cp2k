@@ -1,4 +1,9 @@
 "H2_GAUXC_SKALA_GAPW_GTH_COMPOSITE.inp" = [
   {matcher = "E_total", tol = 1e-8, ref = -0.968225751229280},
-  {matcher = "M072", tol = 1e-4, ref = 3.69089891E-04}
+  {matcher = "M072", tol = 1e-4, ref = 3.69089891E-04},
+  {matcher = "SKALA_native_cuda_device"}
+]
+"H2_GAUXC_SKALA_ENERGY_DEVICE.inp" = [
+  {matcher = "GAUXC_integrator_device"},
+  {matcher = "E_total", tol = 1e-4, ref = -0.979366068078563}
 ]

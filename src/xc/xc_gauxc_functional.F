@@ -626,7 +626,8 @@ CONTAINS
                       device_runtime_fill_fraction, &
                       gauxc_status, &
                       mpi_comm=mp_comm_self%get_handle(), &
-                      force_new_runtime=.TRUE.)
+                      force_new_runtime=.TRUE., &
+                      int_exec_space=int_exec_space)
       CALL gauxc_check_status(gauxc_status)
       gauxc_integrator_fd = gauxc_create_integrator( &
                             TRIM(xc_fun_name), &

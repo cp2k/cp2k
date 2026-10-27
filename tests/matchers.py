@@ -218,6 +218,22 @@ registry["SKALA_GPW_feature_weight_sum"] = GenericMatcher(
 registry["SKALA_GAPW_composite_electrons"] = GenericMatcher(
     r"SKALA_GPW| Active atom-composite electrons", col=5
 )
+# Fail the -cuda regtests when Torch silently falls back to the CPU.  This
+# exact substring is printed only when a visible CUDA device was selected for
+# rank 0; the fallback line says "no Torch CUDA device is visible".
+registry["SKALA_native_cuda_device"] = TextPresenceMatcher(
+    "SKALA_GPW| Native grid Torch CUDA device 0 of"
+)
+# Fail the GauXC device regtests when the device runtime is not used.
+registry["GAUXC_device_execution"] = TextPresenceMatcher(
+    "GAUXC| Execution spaces: LB DEVICE, INT DEVICE, runtime DEVICE"
+)
+# Covers INT_EXECUTION_SPACE DEVICE with the default LB_EXECUTION_SPACE HOST:
+# the device integrator needs a device runtime even though the load balancer
+# stays on the host.
+registry["GAUXC_integrator_device"] = TextPresenceMatcher(
+    "GAUXC| Execution spaces: LB HOST, INT DEVICE, runtime DEVICE"
+)
 registry["WANNIER90_SCF_MO_REUSE"] = TextPresenceMatcher(
     "WANNIER90| Reused SCF MO coefficients for the Wannier90 full k-point mesh."
 )

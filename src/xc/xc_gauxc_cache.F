@@ -80,6 +80,11 @@ MODULE xc_gauxc_cache
       gauxc_cache_ensure_gradient, &
       gauxc_cache_release, cp_gauxc_cache_params
 
+   ! Report the configured execution spaces once per process (not once per MD
+   ! step) so users and the CUDA regtests can verify that the device path is
+   ! actually selected.
+   LOGICAL, SAVE :: execution_spaces_logged = .FALSE.
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -133,7 +138,7 @@ CONTAINS
       TYPE(cp_gauxc_status_type), INTENT(inout)          :: status
 
 #ifdef __GAUXC
-      INTEGER                                            :: gradient_error
+      INTEGER                                            :: gradient_error, unit_nr
 
       IF (gauxc_cache_is_valid( &
           cache, &
@@ -205,7 +210,8 @@ CONTAINS
                       params%device_runtime_fill_fraction, &
                       status, &
                       mpi_comm=mp_comm_self%get_handle(), &
-                      force_new_runtime=.TRUE.)
+                      force_new_runtime=.TRUE., &
+                      int_exec_space=params%int_exec_space)
       ELSE
          ! Use the QS force-evaluation communicator rather than GauXC's global
          ! runtime.  In mixed CDFT the diabatic states can be built on disjoint
@@ -221,7 +227,8 @@ CONTAINS
                       params%batch_size, &
                       params%device_runtime_fill_fraction, &
                       status, &
-                      mpi_comm=para_env%get_handle())
+                      mpi_comm=para_env%get_handle(), &
+                      int_exec_space=params%int_exec_space)
       END IF
       IF (status%status%code /= 0) THEN
          CALL cleanup_after_grid()
@@ -238,6 +245,16 @@ CONTAINS
       IF (status%status%code /= 0) THEN
          CALL cleanup_after_integrator()
          RETURN
+      END IF
+
+      IF (.NOT. execution_spaces_logged .AND. para_env%mepos == 0) THEN
+         unit_nr = cp_logger_get_default_io_unit()
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(A)') " GAUXC| Execution spaces: LB "// &
+               TRIM(params%lb_exec_space)//", INT "//TRIM(params%int_exec_space)// &
+               ", runtime "//MERGE("DEVICE", "HOST  ", cache%grid%uses_device_runtime)
+         END IF
+         execution_spaces_logged = .TRUE.
       END IF
 
       ! The gradient grid/integrator is built lazily on the first call that
@@ -442,7 +459,8 @@ CONTAINS
                             params%device_runtime_fill_fraction, &
                             status, &
                             mpi_comm=mp_comm_self%get_handle(), &
-                            force_new_runtime=.TRUE.)
+                            force_new_runtime=.TRUE., &
+                            int_exec_space=params%int_exec_space)
       IF (status%status%code /= 0) RETURN
 
       cache%gradient_integrator = gauxc_create_integrator( &
