@@ -726,16 +726,10 @@ CONTAINS
                           "Requires RI_FLAVOR MO, XC_FUNCTIONAL NONE, HF FRACTION 1 and identical HF and RI operators. "// &
                           "Use COULOMB for molecules or TRUNCATED for neutral, fully periodic Gamma-point cells. "// &
                           "Dense implementation for small systems; no k-point sampling.", &
-                          n_keywords=8, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=7, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Enable CC4S export for a single-point calculation.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="OUTPUT_DIR", &
-                          description="Directory for CC4S files; missing directories are created. "// &
-                          "Files are replaced on each export.", &
-                          default_c_val=".", type_of_var=char_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="METHOD", &

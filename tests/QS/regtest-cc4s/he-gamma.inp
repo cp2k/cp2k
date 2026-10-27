@@ -23,7 +23,6 @@
       &CC4S ON
         METHOD CCSD_T
         N_FROZEN_CORE 0
-        OUTPUT_DIR cc4s/gamma
       &END CC4S
     &END PRINT
     &QS

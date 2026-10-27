@@ -79,7 +79,7 @@ MODULE machine
 
    PUBLIC :: m_walltime, m_timestamp, m_hostnm, m_flush, &
              m_getcwd, m_getexe, m_getlog, m_getpid, m_procrun, m_abort, &
-             m_chdir, m_mkdir, m_mov, m_unlink, m_memory, m_memory_details, m_energy, &
+             m_chdir, m_mov, m_unlink, m_memory, m_memory_details, m_energy, &
              m_cpuinfo, m_cpuid_static, m_cpuid, m_cpuid_name, &
              m_cpuid_vlen, m_omp_get_stacksize, m_omp_trace_issues
 
@@ -676,27 +676,6 @@ CONTAINS
 
       ierror = chdir(TRIM(dir)//c_null_char)
    END SUBROUTINE m_chdir
-
-! **************************************************************************************************
-!> \brief Create a directory and missing parents using POSIX, with permissions set by umask.
-!>        Existing directories are accepted; paths are not interpreted by a shell.
-!> \param dir Directory path
-!> \param ierror Zero on success, otherwise a POSIX error number
-! **************************************************************************************************
-   SUBROUTINE m_mkdir(dir, ierror)
-      CHARACTER(len=*), INTENT(IN)             :: dir
-      INTEGER, INTENT(OUT)                     :: ierror
-
-      INTERFACE
-         FUNCTION cp_mkdir_p(path) BIND(C, name="cp_mkdir_p") RESULT(error)
-            IMPORT :: C_CHAR, C_INT
-            CHARACTER(KIND=C_CHAR), INTENT(IN) :: path(*)
-            INTEGER(KIND=C_INT)               :: error
-         END FUNCTION cp_mkdir_p
-      END INTERFACE
-
-      ierror = INT(cp_mkdir_p(TRIM(dir)//C_NULL_CHAR))
-   END SUBROUTINE m_mkdir
 
 ! **************************************************************************************************
 !> \brief ...

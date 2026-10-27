@@ -45,11 +45,9 @@ MODULE cc4s_export
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: default_path_length,&
-                                              dp
+   USE kinds,                           ONLY: dp
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_HOST,&
                                               local_gemm_ctxt_type
-   USE machine,                         ONLY: m_mkdir
    USE message_passing,                 ONLY: mp_para_env_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -78,11 +76,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'write_cc4s'
       REAL(dp), PARAMETER :: hf_fraction_tolerance = 1.0e-14_dp
 
-      CHARACTER(len=32)                                  :: error_code
       CHARACTER(len=8)                                   :: method
-      CHARACTER(len=default_path_length)                 :: outdir
-      INTEGER :: frozen, functional, handle, homo, imo, inu, io_status, jmo, max_iter, method_id, &
-         nao, nmo, nri, nstored, output_unit, poisson_periodic
+      INTEGER                                            :: frozen, functional, handle, homo, imo, &
+                                                            inu, jmo, max_iter, method_id, nao, &
+                                                            nmo, nri, nstored, output_unit, &
+                                                            poisson_periodic
       INTEGER, DIMENSION(2)                              :: dims2
       INTEGER, DIMENSION(3)                              :: dims3
       LOGICAL                                            :: do_kpoints, enabled, periodic
@@ -119,7 +117,6 @@ CONTAINS
       CALL timeset(routineN, handle)
       output_unit = cp_logger_get_default_io_unit(logger)
 
-      CALL section_vals_val_get(print_section, "OUTPUT_DIR", c_val=outdir)
       CALL section_vals_val_get(print_section, "METHOD", i_val=method_id)
       CALL section_vals_val_get(print_section, "N_FROZEN_CORE", i_val=frozen)
       CALL section_vals_val_get(print_section, "MAX_ITER", i_val=max_iter)
@@ -139,9 +136,6 @@ CONTAINS
       IF (max_iter < 1 .OR. energy_conv <= 0.0_dp .OR. amp_conv <= 0.0_dp .OR. max_memory_mb <= 0.0_dp) THEN
          CALL cp_abort(__LOCATION__, &
                        "CC4S: iteration, convergence and memory limits must be positive")
-      END IF
-      IF (LEN_TRIM(outdir) == 0) THEN
-         CPABORT("CC4S: OUTPUT_DIR must not be empty")
       END IF
       CALL get_qs_env(qs_env, x_data=x_data, mos=mos, para_env=para_env, dft_control=dft_control, &
                       cell=cell, do_kpoints=do_kpoints, scf_control=scf_control, &
@@ -244,16 +238,6 @@ CONTAINS
          CPABORT("CC4S: dense export exceeds MAX_MEMORY [MB]")
       END IF
 
-      IF (para_env%is_source()) THEN
-         CALL m_mkdir(outdir, io_status)
-         IF (io_status /= 0) THEN
-            WRITE (error_code, '(I0)') io_status
-            CALL cp_abort(__LOCATION__, &
-                          "CC4S: cannot create OUTPUT_DIR '"//TRIM(outdir)// &
-                          "' (POSIX error "//TRIM(error_code)//"). Check permissions and path components.")
-         END IF
-      END IF
-
       ! Always diagonalize private copies, including for OT or a complete stored MO set.
       ! Drop overlap null modes using the same cutoff as SCF; do not export placeholder energies.
       NULLIFY (fm_struct)
@@ -319,17 +303,17 @@ CONTAINS
                gamma(:, jmo, imo) = pair
             END DO
          END DO
-         CALL write_eigen_energies_files(outdir, nmo, homo - frozen, &
+         CALL write_eigen_energies_files(nmo, homo - frozen, &
                                          eigenvalues(frozen + 1:frozen + nmo), fermi_energy)
          ! A finite-range periodic interaction has no Ewald/Madelung correction.
          ! Preserve the SCF eigenenergies and its live truncated-interaction vertex.
-         CALL write_coulomb_vertex_files(outdir, nri, nmo, gamma, periodic, cutoff_radius, cell%hmat)
-         CALL write_cc4s_in(outdir, method, max_iter, energy_conv, amp_conv)
+         CALL write_coulomb_vertex_files(nri, nmo, gamma, periodic, cutoff_radius, cell%hmat)
+         CALL write_cc4s_in(method, max_iter, energy_conv, amp_conv)
          IF (output_unit > 0) THEN
             WRITE (output_unit, '(T3,A,3I8)') "CC4S| Auxiliary / active / occupied orbitals: ", nri, nmo, homo - frozen
             WRITE (output_unit, '(T3,A,ES25.16)') "CC4S| Vertex norm squared: ", SUM(gamma**2)
             WRITE (output_unit, '(T3,A,ES25.16)') "CC4S| Eigenenergy sum: ", SUM(eigenvalues(frozen + 1:frozen + nmo))
-            WRITE (output_unit, '(T3,A,A)') "CC4S| Files written to: ", TRIM(outdir)
+            WRITE (output_unit, '(T3,A)') "CC4S| Files written to the working directory."
             IF (periodic) THEN
                WRITE (output_unit, '(T3,A)') "CC4S| Gamma-point TRUNCATED interaction; no added Madelung term."
                WRITE (output_unit, '(T3,A,ES25.16)') "CC4S| Coulomb cutoff radius [bohr]: ", cutoff_radius
@@ -456,22 +440,18 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief  Write EigenEnergies.yaml and EigenEnergies.elements (CC4S format, Hartree units).
-!> \param outdir Output directory
 !> \param nMO Number of active canonical orbitals
 !> \param homo Number of active occupied orbitals
 !> \param eigenvalues Active orbital energies in Hartree
 !> \param fermi_energy Energy inside the HOMO-LUMO gap
 ! **************************************************************************************************
-   SUBROUTINE write_eigen_energies_files(outdir, nMO, homo, eigenvalues, fermi_energy)
-      CHARACTER(LEN=*), INTENT(IN)                       :: outdir
+   SUBROUTINE write_eigen_energies_files(nMO, homo, eigenvalues, fermi_energy)
       INTEGER, INTENT(IN)                                :: nMO, homo
       REAL(KIND=dp), INTENT(IN)                          :: eigenvalues(nMO), fermi_energy
 
-      CHARACTER(LEN=default_path_length)                 :: fname
       INTEGER                                            :: i, iunit
 
-      fname = TRIM(outdir)//'/EigenEnergies.yaml'
-      CALL open_export_file(iunit, fname)
+      CALL open_export_file(iunit, 'EigenEnergies.yaml')
       WRITE (iunit, '(A)') 'version: 100'
       WRITE (iunit, '(A)') 'type: Tensor'
       WRITE (iunit, '(A)') 'scalarType: Real64'
@@ -490,8 +470,7 @@ CONTAINS
       END DO
       CALL close_file(iunit)
 
-      fname = TRIM(outdir)//'/EigenEnergies.elements'
-      CALL open_export_file(iunit, fname)
+      CALL open_export_file(iunit, 'EigenEnergies.elements')
       DO i = 1, nMO
          WRITE (iunit, '(ES25.16)') eigenvalues(i)
       END DO
@@ -502,7 +481,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief  Write CoulombVertex.yaml and CoulombVertex.elements (CC4S format, sqrt(Hartree) units).
 !>         Elements are written in Fortran (column-major) order: P (AuxiliaryField) varies fastest.
-!> \param outdir Output directory
 !> \param nRI Number of auxiliary functions
 !> \param nMO Number of active canonical orbitals
 !> \param gamma Coulomb vertex in auxiliary-orbital-orbital order
@@ -510,18 +488,15 @@ CONTAINS
 !> \param cutoff_radius Truncated Coulomb cutoff in bohr (zero for molecular Coulomb)
 !> \param hmat Cell vectors as columns, in bohr
 ! **************************************************************************************************
-   SUBROUTINE write_coulomb_vertex_files(outdir, nRI, nMO, gamma, periodic, cutoff_radius, hmat)
-      CHARACTER(LEN=*), INTENT(IN)                       :: outdir
+   SUBROUTINE write_coulomb_vertex_files(nRI, nMO, gamma, periodic, cutoff_radius, hmat)
       INTEGER, INTENT(IN)                                :: nRI, nMO
       REAL(KIND=dp), INTENT(IN)                          :: gamma(nRI, nMO, nMO)
       LOGICAL, INTENT(IN)                                :: periodic
       REAL(KIND=dp), INTENT(IN)                          :: cutoff_radius, hmat(3, 3)
 
-      CHARACTER(LEN=default_path_length)                 :: fname
       INTEGER                                            :: i, io_status, iunit
 
-      fname = TRIM(outdir)//'/CoulombVertex.yaml'
-      CALL open_export_file(iunit, fname)
+      CALL open_export_file(iunit, 'CoulombVertex.yaml')
       WRITE (iunit, '(A)') 'version: 100'
       WRITE (iunit, '(A)') 'type: Tensor'
       WRITE (iunit, '(A)') 'scalarType: Real64'
@@ -552,8 +527,7 @@ CONTAINS
       END IF
       CALL close_file(iunit)
 
-      fname = TRIM(outdir)//'/CoulombVertex.elements'
-      CALL open_export_file(iunit, fname, binary=.TRUE.)
+      CALL open_export_file(iunit, 'CoulombVertex.elements', binary=.TRUE.)
       WRITE (iunit, IOSTAT=io_status) gamma
       IF (io_status /= 0) THEN
          CPABORT("CC4S: failed writing CoulombVertex.elements")
@@ -564,22 +538,19 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief  Write the CC4S algorithm sequence and solver settings to cc4s.in.
-!> \param outdir Output directory
 !> \param method Requested correlation method: MP2, CCSD or CCSD_T
 !> \param max_iter Maximum coupled-cluster iterations
 !> \param energy_conv CC4S energy convergence threshold
 !> \param amp_conv CC4S amplitude convergence threshold
 ! **************************************************************************************************
-   SUBROUTINE write_cc4s_in(outdir, method, max_iter, energy_conv, amp_conv)
-      CHARACTER(LEN=*), INTENT(IN)                       :: outdir, method
+   SUBROUTINE write_cc4s_in(method, max_iter, energy_conv, amp_conv)
+      CHARACTER(LEN=*), INTENT(IN)                       :: method
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(dp), INTENT(IN)                               :: energy_conv, amp_conv
 
-      CHARACTER(LEN=default_path_length)                 :: fname
       INTEGER                                            :: iunit
 
-      fname = TRIM(outdir)//'/cc4s.in'
-      CALL open_export_file(iunit, fname)
+      CALL open_export_file(iunit, 'cc4s.in')
 
       ! --- common header: read tensors, slice, build integrals ---
       WRITE (iunit, '(A)') '- name: Read'

@@ -22,11 +22,10 @@ unsupported. `ENERGY_FORCE` is also accepted, but any forces are HF forces.
 ## Enable export
 
 Add the following inside [FORCE_EVAL/DFT/PRINT](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT) to enable export.
-All seven optional keywords are shown with their default values:
+All six optional keywords are shown with their default values:
 
 ```text
 &CC4S ON
-  OUTPUT_DIR .
   METHOD CCSD
   N_FROZEN_CORE 0
   MAX_ITER 100
@@ -38,7 +37,6 @@ All seven optional keywords are shown with their default values:
 
 | Keyword                                                                                | Meaning                                                                                                                                                                                 |
 | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [OUTPUT_DIR](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.OUTPUT_DIR)                         | Destination directory; missing directories are created. `.` means the working directory.                                                                                                |
 | [METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.METHOD)                                 | `MP2` generates MP2; `CCSD` adds CCSD; `CCSD_T` also adds perturbative triples.                                                                                                         |
 | [N_FROZEN_CORE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.N_FROZEN_CORE)                   | Number of lowest occupied spatial orbitals excluded from correlation; must leave at least one occupied orbital. With pseudopotentials, excludes additional explicitly treated orbitals. |
 | [MAX_ITER](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.MAX_ITER)                             | Maximum CC4S coupled-cluster iterations.                                                                                                                                                |
@@ -69,8 +67,7 @@ than half the minimum perpendicular spacing between opposite cell faces.
 Export occurs once after converged SCF in a single-point calculation. Geometry optimization and MD
 are unsupported.
 
-`OUTPUT_DIR` is relative to the CP2K working directory unless an absolute path is supplied. Missing
-parent directories are created automatically. Each export writes the following files:
+Each export writes the following files in the CP2K working directory:
 
 | File                     | Contents                                                                           |
 | ------------------------ | ---------------------------------------------------------------------------------- |
