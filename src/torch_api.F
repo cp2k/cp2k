@@ -91,7 +91,7 @@ MODULE torch_api
    PUBLIC :: torch_model_get_attr, torch_model_read_metadata
    PUBLIC :: torch_cuda_device_count, torch_cuda_is_available
    PUBLIC :: torch_allow_tf32, torch_model_freeze, torch_model_freeze_preserving_method, &
-             torch_use_cuda
+             torch_use_cuda, torch_get_use_cuda
 
 CONTAINS
 
@@ -434,6 +434,26 @@ CONTAINS
       MARK_USED(use_cuda)
 #endif
    END SUBROUTINE torch_use_cuda
+
+! **************************************************************************************************
+!> \brief Return whether Torch wrappers currently select CUDA when available.
+! **************************************************************************************************
+   FUNCTION torch_get_use_cuda() RESULT(use_cuda)
+      LOGICAL                                            :: use_cuda
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         FUNCTION torch_c_get_use_cuda() BIND(C, name="torch_c_get_use_cuda")
+            IMPORT :: C_BOOL
+            LOGICAL(kind=C_BOOL)                         :: torch_c_get_use_cuda
+         END FUNCTION torch_c_get_use_cuda
+      END INTERFACE
+
+      use_cuda = torch_c_get_use_cuda()
+#else
+      use_cuda = .FALSE.
+#endif
+   END FUNCTION torch_get_use_cuda
 
 ! **************************************************************************************************
 !> \brief Returns the gradient of a Torch tensor which was computed by autograd.
