@@ -26,7 +26,9 @@ MODULE xc_gauxc_functional
    USE external_potential_types,        ONLY: all_potential_type,&
                                               gth_potential_type,&
                                               sgp_potential_type
-   USE input_constants,                 ONLY: do_gpu_auto, do_gpu_device, do_gpu_host, &
+   USE input_constants,                 ONLY: do_gpu_auto,&
+                                              do_gpu_device,&
+                                              do_gpu_host,&
                                               xc_vdw_fun_nonloc
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
@@ -66,7 +68,6 @@ MODULE xc_gauxc_functional
         gauxc_create_grid, gauxc_create_integrator, gauxc_create_molecule, gauxc_destroy_basisset, &
         gauxc_destroy_grid, gauxc_destroy_integrator, gauxc_destroy_molecule, &
         gauxc_write_basisset_hdf5, gauxc_write_molecule_hdf5
-   USE xc_input_constants,              ONLY: skala_gapw_paw_one_center
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
 #include "../base/base_uses.f90"
 
@@ -1040,8 +1041,8 @@ CONTAINS
       CHARACTER(len=default_string_length) :: gradient_runtime, gradient_runtime_key, grid_key, &
          int_exec_space_key, lb_exec_space_key, lwd_kernel_key, pruning_key, skala_runtime, &
          skala_runtime_key, xc_fun_key
-      INTEGER                                            :: atom_chunk_size, env_status, gpu_mode, img, &
-                                                            ispin, nimages
+      INTEGER                                            :: atom_chunk_size, env_status, gpu_mode, &
+                                                            img, ispin, nimages
       LOGICAL :: atom_chunk_size_explicit, do_kpoints, external_density, gapw_method, &
          gapw_paw_pseudopotentials, gapw_pseudopotentials, grid_explicit, hdf5_output, &
          int_space_explicit, is_periodic, lb_space_explicit, low_spin_scope, molecular_virial, &

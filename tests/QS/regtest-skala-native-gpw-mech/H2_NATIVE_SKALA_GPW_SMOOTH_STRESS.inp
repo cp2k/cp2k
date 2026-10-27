@@ -35,10 +35,10 @@
     &XC
       &XC_FUNCTIONAL
         &SKALA_NATIVE
-          MODEL SKALA
           ATOM_PARTITION SMOOTH
           DIAGNOSTICS F
           LAYOUT COMMON_GRID
+          MODEL SKALA
         &END SKALA_NATIVE
       &END XC_FUNCTIONAL
     &END XC

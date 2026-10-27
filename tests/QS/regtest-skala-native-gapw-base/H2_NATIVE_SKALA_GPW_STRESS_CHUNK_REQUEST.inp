@@ -35,10 +35,10 @@
     &XC
       &XC_FUNCTIONAL
         &SKALA_NATIVE
-          MODEL SKALA
           ATOM_CHUNKS T
           ATOM_CHUNK_MAX_ROWS 1
           DIAGNOSTICS F
+          MODEL SKALA
         &END SKALA_NATIVE
       &END XC_FUNCTIONAL
     &END XC

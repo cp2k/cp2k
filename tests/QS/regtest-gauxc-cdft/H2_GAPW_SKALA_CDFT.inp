@@ -60,10 +60,10 @@
     &XC
       &XC_FUNCTIONAL
         &GAUXC
-          USE_GPU HOST
           GRID FINE
           MODEL SKALA
           PRUNING_SCHEME ROBUST
+          USE_GPU HOST
         &END GAUXC
       &END XC_FUNCTIONAL
     &END XC

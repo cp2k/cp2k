@@ -34,11 +34,11 @@
     &XC
       &XC_FUNCTIONAL
         &SKALA_NATIVE
-          MODEL SKALA
           ATOM_CHUNK_MAX_ROWS 1
           ATOM_PARTITION HARD
           DIAGNOSTICS T
           LAYOUT COMMON_GRID
+          MODEL SKALA
         &END SKALA_NATIVE
       &END XC_FUNCTIONAL
     &END XC

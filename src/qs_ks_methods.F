@@ -149,8 +149,7 @@ MODULE qs_ks_methods
         ensure_native_skala_grid_scope, get_gauxc_section, get_skala_native_section, &
         native_skala_gapw_atom_composite_requested, native_skala_gapw_composite_direct_ao, &
         native_skala_gapw_composite_reference, native_skala_uses_atom_composite_grid, &
-        skala_execution_use_cuda, skala_gapw_representation, xc_section_uses_gauxc_model, &
-        xc_section_uses_native_skala_grid
+        skala_execution_use_cuda, skala_gapw_representation, xc_section_uses_native_skala_grid
    USE smeagol_interface,               ONLY: smeagol_shift_v_hartree
    USE string_utilities,                ONLY: uppercase
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
@@ -274,10 +273,8 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho_struct, rho_xc
-      TYPE(section_vals_type), POINTER                   :: ace_section, &
-                                                            adiabatic_rescaling_section, &
-                                                            gauxc_section, hfx_sections, input, &
-                                                            native_section, scf_section, xc_section
+      TYPE(section_vals_type), POINTER :: ace_section, adiabatic_rescaling_section, gauxc_section, &
+         hfx_sections, input, native_section, scf_section, xc_section
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
