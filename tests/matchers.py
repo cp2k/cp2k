@@ -107,7 +107,7 @@ class GWOrbitalSelfEnergyMatcher(Matcher):
 
 registry["GW_orbital_self_energy"] = GWOrbitalSelfEnergyMatcher()
 
-# Molecular CC4S export invariants (independent of orbital phases).
+# CC4S export invariants (independent of orbital phases).
 registry["CC4S_vertex_norm"] = GenericMatcher(r"CC4S| Vertex norm squared:", col=5)
 registry["CC4S_eigenenergy_sum"] = GenericMatcher(r"CC4S| Eigenenergy sum:", col=4)
 

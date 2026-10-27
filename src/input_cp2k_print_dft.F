@@ -722,8 +722,8 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL section_create(print_key, __LOCATION__, "CC4S", &
-                          description="Export CC4S input after converged single-point restricted HF with RI_FLAVOR MO. "// &
-                          "Requires XC_FUNCTIONAL NONE, HF FRACTION 1 and identical HF and RI operators. "// &
+                          description="Export a restricted RI-HF reference and CC4S input after converged single-point SCF. "// &
+                          "Requires RI_FLAVOR MO, XC_FUNCTIONAL NONE, HF FRACTION 1 and identical HF and RI operators. "// &
                           "Use COULOMB for molecules or TRUNCATED for neutral, fully periodic Gamma-point cells. "// &
                           "Dense implementation for small systems; no k-point sampling.", &
                           n_keywords=8, n_subsections=0, repeats=.FALSE.)
@@ -733,19 +733,19 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="OUTPUT_DIR", &
-                          description="Directory for CC4S files; missing parent directories are created. "// &
+                          description="Directory for CC4S files; missing directories are created. "// &
                           "Files are replaced on each export.", &
                           default_c_val=".", type_of_var=char_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
-                          description="Method for the generated cc4s.in driver.", default_i_val=2, &
+                          description="Correlation method requested in the generated cc4s.in file.", default_i_val=2, &
                           enum_c_vals=s2a("MP2", "CCSD", "CCSD_T"), enum_i_vals=[1, 2, 3], &
                           enum_desc=s2a("MP2", "MP2 and CCSD", "MP2, CCSD and perturbative triples"))
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="N_FROZEN_CORE", &
-                          description="Number of lowest occupied orbitals omitted before writing.", default_i_val=0)
+                          description="Number of lowest occupied spatial orbitals omitted from the export.", default_i_val=0)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &

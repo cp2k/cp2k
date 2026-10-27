@@ -1,4 +1,4 @@
-# All-electron H2O; the phase-independent vertex norm catches AO-pair and metric errors.
+# All-electron H2O with phase-independent export checks.
 "h2o.inp" = [
   {matcher="M011", tol=1e-10, ref=-76.022733931855555},
   {matcher="CC4S_vertex_norm", tol=1e-9, ref=35.399608877970252},

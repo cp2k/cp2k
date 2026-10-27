@@ -7,11 +7,10 @@
 
 ! **************************************************************************************************
 !> \brief Molecular and Gamma-point periodic CC4S export from restricted RI-HF.
-!>        Based on the original cc4s branch (caa9943228).
 !>        RI_FLAVOR MO stores a weighted AO-pair triangle. The full vertex is
 !>        C^T (T + T^T) C, dressed with the symmetric Coulomb inverse square root.
-!>        The SCF tensors and orbitals are read only. Dense assembly limits this
-!>        implementation to small systems; only the source rank transforms/writes.
+!>        The SCF tensors and orbitals are read only. The dense MO vertex is assembled
+!>        and written on the source rank.
 ! **************************************************************************************************
 MODULE cc4s_export
    USE cell_types,                      ONLY: cell_type,&
@@ -351,8 +350,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief  Gather the (AO, RI, AO) = (mu, Q, nu) block tensor into a dense array
-!>         with index order (P, mu, nu) so P varies fastest in Fortran storage.
-!>         Reduces to the source rank; other ranks do not transform or write.
+!>         with index order (Q, mu, nu) so Q varies fastest in Fortran storage.
+!>         Contributions are reduced to the source rank.
 !> \param tensor Distributed RI tensor
 !> \param para_env MPI parallel environment
 !> \param nRI Number of auxiliary functions
@@ -423,7 +422,7 @@ CONTAINS
 !> \param tensor Distributed RI tensor
 !> \param para_env MPI parallel environment
 !> \param nRI Number of auxiliary functions
-!> \param dense Dense auxiliary metric on the source rank
+!> \param dense Dense auxiliary matrix on the source rank
 ! **************************************************************************************************
    SUBROUTINE gather_2c_dense(tensor, para_env, nRI, dense)
       TYPE(dbt_type), INTENT(INOUT)                      :: tensor
@@ -511,7 +510,7 @@ CONTAINS
    END SUBROUTINE write_eigen_energies_files
 
 ! **************************************************************************************************
-!> \brief  Write CoulombVertex.yaml and CoulombVertex.elements (CC4S format, Hartree units).
+!> \brief  Write CoulombVertex.yaml and CoulombVertex.elements (CC4S format, sqrt(Hartree) units).
 !>         Elements are written in Fortran (column-major) order: P (AuxiliaryField) varies fastest.
 !> \param outdir Output directory
 !> \param nRI Number of auxiliary functions
@@ -574,9 +573,9 @@ CONTAINS
    END SUBROUTINE write_coulomb_vertex_files
 
 ! **************************************************************************************************
-!> \brief  Write cc4s.in driver file.
-!> \param  outdir   output directory
-!> \param  method   one of: MP2, CCSD, CCSD_T
+!> \brief  Write the CC4S algorithm sequence and solver settings to cc4s.in.
+!> \param outdir Output directory
+!> \param method Requested correlation method: MP2, CCSD or CCSD_T
 !> \param max_iter Maximum coupled-cluster iterations
 !> \param energy_conv CC4S energy convergence threshold
 !> \param amp_conv CC4S amplitude convergence threshold
@@ -687,7 +686,7 @@ CONTAINS
    END SUBROUTINE write_coupled_cluster_step
 
 ! **************************************************************************************************
-!> \brief Open an export file using CP2K's file handling.
+!> \brief Open an export file for replacement using CP2K's file handling.
 !> \param iunit File unit
 !> \param filename File path
 !> \param binary Use a raw unformatted stream
