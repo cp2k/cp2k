@@ -47,7 +47,6 @@ MODULE xc_gauxc_cache
       LOGICAL                                      :: need_xc_gradient = .FALSE.
       LOGICAL                                      :: gapw_method = .FALSE.
       LOGICAL                                      :: force_fd_gradient = .FALSE.
-      LOGICAL                                      :: use_mpi_runtime = .FALSE.
       LOGICAL                                      :: use_gradient_mpi_runtime = .FALSE.
       LOGICAL                                      :: use_self_runtime = .FALSE.
       LOGICAL                                      :: use_gradient_self_runtime = .FALSE.
@@ -80,9 +79,6 @@ MODULE xc_gauxc_cache
       gauxc_cache_ensure_gradient, &
       gauxc_cache_release, cp_gauxc_cache_params
 
-   ! Report the configured execution spaces once per process (not once per MD
-   ! step) so users and the CUDA regtests can verify that the device path is
-   ! actually selected.
    LOGICAL, SAVE :: execution_spaces_logged = .FALSE.
 
 CONTAINS
@@ -171,10 +167,6 @@ CONTAINS
          RETURN
       END IF
 
-      ! Resolve the gradient route from the structural inputs (basis, functional,
-      ! runtime), not from whether this particular call needs a gradient.  The
-      ! result is cached so later energy-only/force calls reuse it and do not
-      ! invalidate the whole cache when need_xc_gradient flips.
       CALL gauxc_resolve_gradient_policy( &
          .TRUE., params%gapw_method, cache%max_l(), params%use_gauxc_model, para_env%num_pe, &
          params%use_self_runtime, TRIM(params%gradient_runtime), params%force_fd_gradient, &
@@ -257,8 +249,6 @@ CONTAINS
          execution_spaces_logged = .TRUE.
       END IF
 
-      ! The gradient grid/integrator is built lazily on the first call that
-      ! actually needs a gradient and then kept until the cache is rebuilt.
       cache%gradient_is_init = .FALSE.
       cache%gradient_notice_printed = .FALSE.
 
@@ -280,7 +270,6 @@ CONTAINS
       cache%force_fd_gradient = params%force_fd_gradient
       cache%use_gauxc_model = params%use_gauxc_model
       cache%use_gradient_mpi_runtime = params%use_gradient_mpi_runtime
-      cache%use_mpi_runtime = params%use_mpi_runtime
       cache%use_gradient_self_runtime = params%use_gradient_self_runtime
       cache%use_self_runtime = params%use_self_runtime
       cache%use_fd_gradient = params%use_fd_gradient
@@ -399,10 +388,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Build the separate gradient grid/integrator on first use and keep it cached.
 !>
-!> A separate gradient runtime is only needed for the SELF route.  Building it
-!> lazily (instead of during gauxc_cache_init) keeps energy-only runs from
-!> allocating it, while still reusing it for every later force/virial call until
-!> the cache is invalidated by a real geometry/parameter change.
 !> \param cache ...
 !> \param params ...
 !> \param para_env ...
@@ -419,9 +404,6 @@ CONTAINS
 
       IF (.NOT. params%need_xc_gradient) RETURN
 
-      ! The gradient-route notice used to be emitted from gauxc_cache_init.
-      ! With the cache now surviving the energy/force toggle, report it here on
-      ! the first call that actually needs a gradient.
       IF (.NOT. cache%gradient_notice_printed) THEN
          IF (params%use_fd_gradient .AND. .NOT. params%force_fd_gradient .AND. &
              para_env%mepos == 0) THEN
@@ -461,7 +443,12 @@ CONTAINS
                             mpi_comm=mp_comm_self%get_handle(), &
                             force_new_runtime=.TRUE., &
                             int_exec_space=params%int_exec_space)
-      IF (status%status%code /= 0) RETURN
+      IF (status%status%code /= 0) THEN
+         error_code = status%status%code
+         CALL gauxc_destroy_grid(cache%gradient_grid, status)
+         status%status%code = error_code
+         RETURN
+      END IF
 
       cache%gradient_integrator = gauxc_create_integrator( &
                                   TRIM(params%xc_fun_name), &
@@ -527,13 +514,7 @@ CONTAINS
       IF (TRIM(cache%model_eval_name) /= TRIM(params%model_eval_name)) RETURN
       IF (TRIM(cache%lwd_kernel) /= TRIM(params%lwd_kernel)) RETURN
       IF (cache%use_self_runtime .NEQV. params%use_self_runtime) RETURN
-      IF (cache%use_mpi_runtime .NEQV. params%use_mpi_runtime) RETURN
 
-      ! Compare requests, not flags resolved from the basis during initialization.
-      ! need_xc_gradient is intentionally not a key: it merely selects whether
-      ! the current call computes a gradient.  The gradient grid/integrator is
-      ! built lazily by gauxc_cache_ensure_gradient and kept across SCF/force
-      ! calls, so a toggle must not rebuild the whole cache.
       IF (cache%gradient_runtime /= params%gradient_runtime) RETURN
       IF (cache%gapw_method .NEQV. params%gapw_method) RETURN
       IF (cache%force_fd_gradient .NEQV. params%force_fd_gradient) RETURN
