@@ -43,6 +43,7 @@ MODULE qs_ot_minimizer
                                               qs_ot_get_derivative_ref,&
                                               qs_ot_get_derivative_ref_complex,&
                                               qs_ot_prepare_complex_tangent_metric,&
+                                              qs_ot_prepare_complex_tangent_metric_batch,&
                                               qs_ot_project_gradient
    USE qs_ot_types,                     ONLY: qs_ot_kpoint_preconditioner_scale,&
                                               qs_ot_reset_history,&
@@ -396,6 +397,7 @@ CONTAINS
       INTEGER                                            :: ispin, restart
 
       restart = 0
+      CALL qs_ot_prepare_complex_tangent_metric_batch(qs_ot_env)
       DO ispin = 1, SIZE(qs_ot_env)
          IF (qs_ot_env(1)%settings%ks .AND. qs_ot_env(ispin)%settings%ot_algorithm == 'TOD' .AND. &
              qs_ot_env(ispin)%has_complex_kpoint_state) THEN

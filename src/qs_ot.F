@@ -38,6 +38,9 @@ MODULE qs_ot
                                               cp_dbcsr_syevd
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_local,&
                                               copy_local_to_dbcsr
+   USE cp_fm_diag,                      ONLY: FM_DIAG_TYPE_DLAF,&
+                                              diag_lib_explicit,&
+                                              diag_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type
    USE kinds,                           ONLY: dp
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
@@ -46,8 +49,10 @@ MODULE qs_ot
                                               diamat_all,&
                                               gemm_square
    USE message_passing,                 ONLY: mp_comm_type
-   USE preconditioner,                  ONLY: apply_preconditioner
-   USE preconditioner_types,            ONLY: preconditioner_type
+   USE preconditioner,                  ONLY: apply_preconditioner,&
+                                              apply_preconditioner_complex_batch
+   USE preconditioner_types,            ONLY: preconditioner_p_type,&
+                                              preconditioner_type
    USE qs_ot_types,                     ONLY: qs_ot_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads
@@ -65,6 +70,7 @@ MODULE qs_ot
    PUBLIC  :: qs_ot_get_derivative_complex
    PUBLIC  :: qs_ot_get_derivative_local_batch
    PUBLIC  :: qs_ot_prepare_complex_tangent_metric
+   PUBLIC  :: qs_ot_prepare_complex_tangent_metric_batch
    PUBLIC  :: qs_ot_project_gradient
    PUBLIC  :: qs_ot_get_orbitals_ref
    PUBLIC  :: qs_ot_get_orbitals_ref_complex
@@ -3295,6 +3301,113 @@ CONTAINS
       qs_ot_env%os_valid = preconditioned
 
    END SUBROUTINE qs_ot_prepare_complex_tangent_metric
+
+! **************************************************************************************************
+!> \brief Prepare uncached single-rank STRICT metrics in bounded OpenMP batches.
+!>        Leave unsuccessful channels to the scalar path so preconditioner rejection and history
+!>        invalidation retain their existing order. Workers use only private dense storage.
+!> \param qs_ot_env local OT channels
+! **************************************************************************************************
+   SUBROUTINE qs_ot_prepare_complex_tangent_metric_batch(qs_ot_env)
+      TYPE(qs_ot_type), INTENT(INOUT)                    :: qs_ot_env(:)
+
+      INTEGER                                            :: first, i, j, k, n, nbatch, nchannels, &
+                                                            nworkers
+      INTEGER, ALLOCATABLE                               :: channels(:), info(:)
+      LOGICAL                                            :: handled
+      REAL(dp)                                           :: eval_threshold
+      TYPE(dbcsr_p_type), ALLOCATABLE                    :: matrix_in(:, :), matrix_out(:, :)
+      TYPE(preconditioner_p_type), ALLOCATABLE           :: preconditioners(:)
+      TYPE(qs_ot_local_work_type), ALLOCATABLE           :: work(:)
+
+      IF (.NOT. qs_ot_local_channels(qs_ot_env)) RETURN
+      IF (.NOT. qs_ot_env(1)%settings%ks .OR. qs_ot_env(1)%settings%ot_algorithm /= 'TOD') RETURN
+      IF (diag_lib_explicit .OR. diag_type == FM_DIAG_TYPE_DLAF) RETURN
+      nchannels = COUNT(.NOT. qs_ot_env(:)%os_valid)
+      IF (nchannels == 0) RETURN
+      ALLOCATE (channels(nchannels))
+      j = 0
+      DO i = 1, SIZE(qs_ot_env)
+         IF (qs_ot_env(i)%os_valid) CYCLE
+         j = j + 1
+         channels(j) = i
+      END DO
+      nworkers = 1
+!$    nworkers = MIN(nchannels, omp_get_max_threads())
+      ALLOCATE (work(nworkers), info(nworkers), preconditioners(nworkers), &
+                matrix_in(2, nworkers), matrix_out(2, nworkers))
+      DO j = 1, nworkers
+         CALL work(j)%gemm_ctx%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
+      END DO
+      DO first = 1, nchannels, nworkers
+         nbatch = MIN(nworkers, nchannels - first + 1)
+         DO j = 1, nbatch
+            i = channels(first + j - 1)
+            preconditioners(j)%preconditioner => qs_ot_env(i)%preconditioner
+            matrix_in(1, j)%matrix => qs_ot_env(i)%matrix_sc0
+            matrix_in(2, j)%matrix => qs_ot_env(i)%matrix_sc0_im
+            matrix_out(:, j) = matrix_in(:, j)
+            IF (ASSOCIATED(qs_ot_env(i)%preconditioner)) THEN
+               matrix_out(1, j)%matrix => qs_ot_env(i)%matrix_psc0
+               matrix_out(2, j)%matrix => qs_ot_env(i)%matrix_psc0_im
+            END IF
+         END DO
+         CALL apply_preconditioner_complex_batch(preconditioners(1:nbatch), &
+                                                 matrix_in(:, 1:nbatch), matrix_out(:, 1:nbatch), handled)
+         DO j = 1, nbatch
+            IF (.NOT. handled .AND. ASSOCIATED(preconditioners(j)%preconditioner)) THEN
+               CALL apply_preconditioner(preconditioners(j)%preconditioner, &
+                                         matrix_in(1, j)%matrix, matrix_in(2, j)%matrix, &
+                                         matrix_out(1, j)%matrix, matrix_out(2, j)%matrix)
+            END IF
+            CALL dbcsr_get_info(matrix_in(1, j)%matrix, nfullrows_total=n, nfullcols_total=k)
+            IF (ALLOCATED(work(j)%sc0)) THEN
+               IF (n /= work(j)%n .OR. k /= work(j)%k) THEN
+                  DEALLOCATE (work(j)%sc0, work(j)%target, work(j)%os, work(j)%r, &
+                              work(j)%buf1, work(j)%buf2, work(j)%vectors, work(j)%values)
+               END IF
+            END IF
+            IF (.NOT. ALLOCATED(work(j)%sc0)) THEN
+               ALLOCATE (work(j)%sc0(n, k, 2), work(j)%target(n, k, 2), work(j)%os(k, k, 2), &
+                         work(j)%r(k, k, 2), work(j)%buf1(k, k, 2), work(j)%buf2(k, k, 2), &
+                         work(j)%vectors(k, k), work(j)%values(k))
+               work(j)%n = n
+               work(j)%k = k
+            END IF
+            CALL cp_cfm_local_workspace_prepare(work(j)%solver, k, work(j)%vectors)
+            CALL qs_ot_load_local_pair(matrix_in(1, j)%matrix, matrix_in(2, j)%matrix, work(j)%sc0)
+            CALL qs_ot_load_local_pair(matrix_out(1, j)%matrix, matrix_out(2, j)%matrix, work(j)%target)
+         END DO
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nbatch) IF(nbatch > 1) &
+!$OMP SHARED(work,info,nbatch) PRIVATE(eval_threshold)
+         DO j = 1, nbatch
+            CALL qs_ot_complex_multiply_local('C', 'N', work(j)%sc0, work(j)%target, &
+                                              work(j)%os, work(j)%buf2(:, :, 1), work(j)%gemm_ctx)
+            work(j)%vectors(:, :) = CMPLX(work(j)%os(:, :, 1), work(j)%os(:, :, 2), KIND=dp)
+            CALL cp_cfm_heevd_local(work(j)%vectors, info=info(j), ws=work(j)%solver)
+            IF (info(j) /= 0) CYCLE
+            eval_threshold = 100.0_dp*EPSILON(1.0_dp)*MAX(1.0_dp, MAXVAL(ABS(work(j)%solver%evals)))
+            IF (MINVAL(work(j)%solver%evals) <= eval_threshold) THEN
+               info(j) = -1
+               CYCLE
+            END IF
+            work(j)%values(:) = 1.0_dp/work(j)%solver%evals(:)
+            work(j)%r(:, :, 1) = REAL(work(j)%vectors, KIND=dp)
+            work(j)%r(:, :, 2) = AIMAG(work(j)%vectors)
+            CALL qs_ot_spectral_matrix_local(work(j), matrix=work(j)%os)
+         END DO
+!$OMP END PARALLEL DO
+         DO j = 1, nbatch
+            IF (info(j) /= 0) CYCLE
+            i = channels(first + j - 1)
+            CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_os, qs_ot_env(i)%matrix_os_im, work(j)%os)
+            qs_ot_env(i)%os_valid = .TRUE.
+         END DO
+      END DO
+      DO j = 1, nworkers
+         CALL work(j)%gemm_ctx%destroy()
+      END DO
+   END SUBROUTINE qs_ot_prepare_complex_tangent_metric_batch
 
 ! **************************************************************************************************
 !> \brief finite complex STRICT derivative, projected onto C0^H*S*X=0
