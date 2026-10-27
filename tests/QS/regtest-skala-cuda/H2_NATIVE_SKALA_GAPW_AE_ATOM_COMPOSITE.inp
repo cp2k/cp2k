@@ -35,9 +35,9 @@
     &XC
       &XC_FUNCTIONAL
         &SKALA_NATIVE
-          MODEL SKALA
           ATOM_PARTITION SMOOTH
           GAPW_ATOM_COMPOSITE_REFERENCE T
+          MODEL SKALA
           USE_GPU GPU
         &END SKALA_NATIVE
       &END XC_FUNCTIONAL

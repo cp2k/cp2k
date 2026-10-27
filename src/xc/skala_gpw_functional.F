@@ -15,6 +15,9 @@ MODULE skala_gpw_functional
                                               pbc
    USE cp_array_utils,                  ONLY: cp_3d_r_cp_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+   USE input_constants,                 ONLY: do_gpu_auto,&
+                                              do_gpu_device,&
+                                              do_gpu_host
    USE input_section_types,             ONLY: section_get_rval,&
                                               section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
@@ -46,11 +49,11 @@ MODULE skala_gpw_functional
    USE string_utilities,                ONLY: uppercase
    USE torch_api,                       ONLY: &
         torch_cuda_device_count, torch_cuda_is_available, torch_dict_create, torch_dict_insert, &
-        torch_dict_release, torch_dict_type, torch_tensor_backward_scalar, torch_tensor_data_ptr, &
-        torch_tensor_from_array, torch_tensor_grad, torch_tensor_grad_batch3, torch_tensor_narrow, &
-        torch_tensor_release, torch_tensor_reset_from_array, torch_tensor_to_device_leaf, &
-        torch_tensor_type, torch_get_use_cuda, torch_use_cuda
-   USE input_constants,                 ONLY: do_gpu_auto, do_gpu_device, do_gpu_host
+        torch_dict_release, torch_dict_type, torch_get_use_cuda, torch_tensor_backward_scalar, &
+        torch_tensor_data_ptr, torch_tensor_from_array, torch_tensor_grad, &
+        torch_tensor_grad_batch3, torch_tensor_narrow, torch_tensor_release, &
+        torch_tensor_reset_from_array, torch_tensor_to_device_leaf, torch_tensor_type, &
+        torch_use_cuda
    USE xc_input_constants,              ONLY: skala_gapw_atom_composite_grid,&
                                               skala_gapw_common_grid,&
                                               skala_gapw_cp2k_default,&
@@ -2906,7 +2909,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE print_native_grid_diagnostics
-
 
 ! **************************************************************************************************
 !> \brief Resolve the GPU/CUDA execution mode for the SKALA_NATIVE path.
