@@ -75,8 +75,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: converged
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'write_cc4s'
-      REAL(dp), PARAMETER :: canonical_eps_scf = 1.0e-10_dp, hf_fraction_tolerance = 1.0e-14_dp, &
-         occupation_tolerance = 1.0e-12_dp
+      REAL(dp), PARAMETER :: hf_fraction_tolerance = 1.0e-14_dp, occupation_tolerance = 1.0e-12_dp
 
       CHARACTER(len=32)                                  :: error_code
       CHARACTER(len=8)                                   :: method
@@ -243,10 +242,6 @@ CONTAINS
       IF (output_unit > 0) WRITE (output_unit, '(T3,A,F12.1)') "CC4S| Dense workspace bound [MB]: ", memory_mb
       IF (memory_mb > max_memory_mb) THEN
          CPABORT("CC4S: dense export exceeds MAX_MEMORY [MB]")
-      END IF
-      IF (scf_control%eps_scf > canonical_eps_scf) THEN
-         CALL cp_warn(__LOCATION__, &
-                      "CC4S: tighten EPS_SCF to 1e-10 or smaller for accurate canonical HF orbitals")
       END IF
 
       IF (para_env%is_source()) THEN
