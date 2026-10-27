@@ -54,6 +54,7 @@ MODULE cc4s_export
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
+                                              has_uniform_occupation,&
                                               mo_set_type
    USE scf_control_types,               ONLY: scf_control_type
 #include "./base/base_uses.f90"
@@ -75,7 +76,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: converged
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'write_cc4s'
-      REAL(dp), PARAMETER :: hf_fraction_tolerance = 1.0e-14_dp, occupation_tolerance = 1.0e-12_dp
+      REAL(dp), PARAMETER :: hf_fraction_tolerance = 1.0e-14_dp
 
       CHARACTER(len=32)                                  :: error_code
       CHARACTER(len=8)                                   :: method
@@ -92,7 +93,7 @@ CONTAINS
                                                             eigenvalues(:), gamma(:, :, :), &
                                                             half(:, :), metric(:, :), pair(:)
       REAL(dp), ALLOCATABLE, TARGET                      :: eri(:, :, :)
-      REAL(dp), POINTER                                  :: eri_matrix(:, :), occupations(:)
+      REAL(dp), POINTER                                  :: eri_matrix(:, :)
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_coeff, fm_fock, fm_overlap, fm_work
@@ -215,13 +216,12 @@ CONTAINS
          END IF
       END IF
 
-      CALL get_mo_set(mos(1), mo_coeff=mo_coeff, homo=homo, nmo=nstored, nao=nao, &
-                      occupation_numbers=occupations)
+      CALL get_mo_set(mos(1), mo_coeff=mo_coeff, homo=homo, nmo=nstored, nao=nao)
       IF (homo < 1 .OR. homo > nstored) THEN
          CPABORT("CC4S: no occupied orbitals")
       END IF
-      IF (ANY(ABS(occupations(:homo) - 2.0_dp) > occupation_tolerance) .OR. &
-          ANY(ABS(occupations(homo + 1:)) > occupation_tolerance)) THEN
+      IF (.NOT. has_uniform_occupation(mos(1), first_mo=1, last_mo=homo, occupation=2.0_dp) .OR. &
+          .NOT. has_uniform_occupation(mos(1), first_mo=homo + 1, last_mo=nstored, occupation=0.0_dp)) THEN
          CALL cp_abort(__LOCATION__, &
                        "CC4S: occupations must be 2 below the HOMO and 0 above")
       END IF
