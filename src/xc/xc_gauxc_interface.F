@@ -185,6 +185,7 @@ MODULE xc_gauxc_interface
       TYPE(gauxc_molecular_weights_factory_type) :: mwf
       TYPE(gauxc_runtime_environment_type) :: rt
       LOGICAL :: owns_rt = .FALSE.
+      LOGICAL :: uses_device_runtime = .FALSE.
    END TYPE cp_gauxc_grid_type
 
    TYPE cp_gauxc_integrator_type
@@ -507,6 +508,9 @@ CONTAINS
 !> \param status ...
 !> \param mpi_comm optional communicator for a grid-local GauXC runtime
 !> \param force_new_runtime force creation of a grid-local GauXC runtime
+!> \param int_exec_space optional integrator execution space; a DEVICE
+!>        integrator also requires a device runtime even when the load
+!>        balancer stays on the host
 !> \return ...
 ! **************************************************************************************************
    FUNCTION gauxc_create_grid( &
@@ -520,7 +524,8 @@ CONTAINS
       device_runtime_fill_fraction, &
       status, &
       mpi_comm, &
-      force_new_runtime) RESULT(res)
+      force_new_runtime, &
+      int_exec_space) RESULT(res)
 
       TYPE(cp_gauxc_molecule_type), INTENT(IN)           :: molecule
       TYPE(cp_gauxc_basisset_type), INTENT(in)           :: basis
@@ -531,10 +536,12 @@ CONTAINS
       TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
       INTEGER, INTENT(IN), OPTIONAL                      :: mpi_comm
       LOGICAL, INTENT(IN), OPTIONAL                      :: force_new_runtime
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: int_exec_space
       TYPE(cp_gauxc_grid_type)                           :: res
 
 #ifdef __GAUXC
       INTEGER(c_int)                                     :: grid_type_local, int_exec_space_local, &
+                                                            int_exec_requested, &
                                                             lb_exec_space_local, &
                                                             pruning_scheme_local, radial_quad_local
       LOGICAL                                            :: force_new_runtime_local, use_device_runtime
@@ -543,11 +550,22 @@ CONTAINS
       radial_quad_local = read_radial_quad(radial_quadrature)
       pruning_scheme_local = read_pruning_scheme(pruning_scheme)
       lb_exec_space_local = read_execution_space(lb_exec_space)
+      ! The molecular-weights factory stays on the host; only the runtime
+      ! selection below looks at the requested integrator space.
       int_exec_space_local = read_execution_space("host")
-      use_device_runtime = (lb_exec_space_local == gauxc_executionspace%device)
+      int_exec_requested = read_execution_space("host")
+      IF (PRESENT(int_exec_space)) int_exec_requested = read_execution_space(int_exec_space)
+      ! A device integrator obtains its device runtime from the load balancer
+      ! (`as_device_runtime(load_balancer.runtime())`), so a device runtime is
+      ! required whenever either phase runs on the device - even if the load
+      ! balancer itself stays on the host.  Previously only LB=DEVICE created
+      ! one, so INT=DEVICE with the default LB=HOST silently used a host runtime.
+      use_device_runtime = (lb_exec_space_local == gauxc_executionspace%device) .OR. &
+                           (int_exec_requested == gauxc_executionspace%device)
       force_new_runtime_local = .FALSE.
       IF (PRESENT(force_new_runtime)) force_new_runtime_local = force_new_runtime
       res%owns_rt = .FALSE.
+      res%uses_device_runtime = .FALSE.
 
       IF (use_device_runtime) THEN
 #ifdef GAUXC_HAS_DEVICE
@@ -566,6 +584,7 @@ CONTAINS
 #endif
          GAUXC_RETURN_IF_ERROR(status)
          res%owns_rt = .TRUE.
+         res%uses_device_runtime = .TRUE.
 #else
          MARK_USED(device_runtime_fill_fraction)
          CPABORT("GauXC was built without device runtime support")
