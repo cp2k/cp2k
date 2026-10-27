@@ -267,6 +267,9 @@ def process_file(fn: str, allow_modifications: bool) -> None:
     if re.match(r".*\.inp$", fn):
         run_local_tool("./tools/precommit/format_input_file.py", fn)
 
+    if basename == "TEST_FILES.toml":
+        run_local_tool("./tools/precommit/format_test_files.py", fn)
+
     run_check_file_properties(fn)
 
     new_content = Path(fn).read_bytes()
