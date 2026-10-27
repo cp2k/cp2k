@@ -125,24 +125,22 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'update_ks_atom'
 
       INTEGER :: bo(2), handle, ia_kind, iac, iat, iatom, ibc, ikind, img, ip, ispin, ja_kind, &
-         jatom, jkind, ka_kind, kac, katom, kbc, kkind, ldCPC, max_gau, max_nsgf, n_cont_a, &
-         n_cont_b, nat, natom, nimages, nkind, nl_table_num_slots, nsoctot, nspins, slot_num
+         jatom, jkind, ka_kind, kac, katom, kbc, kkind, max_gau, max_nsgf, n_cont_a, n_cont_b, &
+         nat, natom, nimages, nkind, nl_table_num_slots, nsoctot, nspins, slot_num
       INTEGER(KIND=int_8)                                :: nl_table_key
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(3)                              :: cell_b
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, list_a, list_b
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: dista, distb, found, is_entry_null, &
-                                                            is_task_valid, my_tddft, paw_atom, &
-                                                            use_virial
+      LOGICAL                                            :: dista, distb, do_forces, found, &
+                                                            is_entry_null, is_task_valid, &
+                                                            my_tddft, paw_atom, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: has_intac, paw_kind
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a_matrix, p_matrix
       REAL(dp), DIMENSION(3)                             :: rac, rbc
       REAL(dp), DIMENSION(3, 3)                          :: force_tmp
       REAL(kind=dp)                                      :: eps_cpc, factor1, factor2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: C_int_h, C_int_s, coc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dCPC_h, dCPC_s
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: PC_h, PC_s
       REAL(KIND=dp), DIMENSION(2)                        :: force_fac
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_virial_thread
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: C_coeff_hh_a, C_coeff_hh_b, &
@@ -229,7 +227,6 @@ CONTAINS
 
       IF (forces) THEN
          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
-         ldCPC = max_gau
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       ELSE
          use_virial = .FALSE.
@@ -315,12 +312,12 @@ CONTAINS
 !$OMP                 , basis_set_list, nimages, cell_to_index       &
 !$OMP                 , ksmat, pmat, natom, nkind, my_kind_set, my_oce &
 !$OMP                 , my_rho_atom, factor1, factor2, use_virial    &
-!$OMP                 , atom_of_kind, ldCPC, force, locks, force_fac &
+!$OMP                 , atom_of_kind, force, locks, force_fac        &
 !$OMP                 , paw_kind, has_intac                          &
 !$OMP                 )                                              &
 !$OMP          PRIVATE( slot_num, is_entry_null, TASK, is_task_valid &
 !$OMP                 , C_int_h, C_int_s, coc, a_matrix, p_matrix    &
-!$OMP                 , mat_h, mat_p, dCPC_h, dCPC_s, PC_h, PC_s     &
+!$OMP                 , mat_h, mat_p                               &
 !$OMP                 , int_local_h, int_local_s                     &
 !$OMP                 , ikind, jkind, iatom, jatom, cell_b           &
 !$OMP                 , basis_set_a, basis_set_b, img                &
@@ -331,7 +328,7 @@ CONTAINS
 !$OMP                 , katom, rho_at, nsoctot                       &
 !$OMP                 , C_coeff_hh_a, C_coeff_ss_a, dista, rac       &
 !$OMP                 , C_coeff_hh_b, C_coeff_ss_b, distb, rbc       &
-!$OMP                 , ia_kind, ja_kind, ka_kind, force_tmp         &
+!$OMP                 , ia_kind, ja_kind, ka_kind, force_tmp, do_forces &
 !$OMP                 )                                              &
 !$OMP        REDUCTION(+:pv_virial_thread                            &
 !$OMP                 )
@@ -345,8 +342,6 @@ CONTAINS
       END DO
 
       IF (forces) THEN
-         ALLOCATE (dCPC_h(max_gau, max_gau), dCPC_s(max_gau, max_gau), &
-                   PC_h(max_nsgf, max_gau, nspins), PC_s(max_nsgf, max_gau, nspins))
 !$OMP SINGLE
 !$       ALLOCATE (locks(natom*nkind))
 !$OMP END SINGLE
@@ -469,11 +464,25 @@ CONTAINS
                            nsoctot = SIZE(C_coeff_ss_a, 2)
 
                            CALL get_rho_atom(rho_atom=rho_at, int_scr_h=int_local_h, int_scr_s=int_local_s)
-                           CALL add_vhxca_to_ks(mat_h, C_coeff_hh_a, C_coeff_hh_b, C_coeff_ss_a, C_coeff_ss_b, &
-                                                int_local_h, int_local_s, nspins, iatom, jatom, nsoctot, factor1, &
-                                                list_a, n_cont_a, list_b, n_cont_b, C_int_h, C_int_s, a_matrix, dista, distb, coc)
+                           do_forces = forces .AND. (dista .OR. distb)
+                           ! Use the stored block ordering for both KS and force contractions.
+                           IF (iatom <= jatom) THEN
+                              CALL add_vhxca(mat_h, mat_p, C_coeff_hh_a, C_coeff_hh_b, C_coeff_ss_a, C_coeff_ss_b, &
+                                             int_local_h, int_local_s, nspins, iatom, jatom, nsoctot, factor1, &
+                                             list_a, n_cont_a, list_b, n_cont_b, dista, distb, &
+                                             C_int_h, C_int_s, max_nsgf, coc, a_matrix, p_matrix, &
+                                             do_forces, force_tmp, force_fac)
+                           ELSE
+                              CALL add_vhxca(mat_h, mat_p, C_coeff_hh_b, C_coeff_hh_a, C_coeff_ss_b, C_coeff_ss_a, &
+                                             int_local_h, int_local_s, nspins, jatom, iatom, nsoctot, factor1, &
+                                             list_b, n_cont_b, list_a, n_cont_a, distb, dista, &
+                                             C_int_h, C_int_s, max_nsgf, coc, a_matrix, p_matrix, &
+                                             do_forces, force_tmp, force_fac)
+                              ! Restore the original task ordering of the two endpoint forces.
+                              force_tmp(:, 1:2) = force_tmp(:, 2:1:-1)
+                           END IF
 
-                           IF (forces) THEN
+                           IF (do_forces) THEN
                               IF (use_virial) THEN
                                  rac = alist_ac%clist(kac)%rac
                                  rbc = alist_bc%clist(kbc)%rac
@@ -481,50 +490,20 @@ CONTAINS
                               ia_kind = atom_of_kind(iatom)
                               ja_kind = atom_of_kind(jatom)
                               ka_kind = atom_of_kind(katom)
-                              rho_at => my_rho_atom(katom)
-                              force_tmp(1:3, 1:3) = 0.0_dp
-
-                              CALL get_rho_atom(rho_atom=rho_at, int_scr_h=int_local_h, int_scr_s=int_local_s)
-                              IF (iatom <= jatom) THEN
-                                 CALL add_vhxca_forces(mat_p, C_coeff_hh_a, C_coeff_hh_b, C_coeff_ss_a, C_coeff_ss_b, &
-                                                       int_local_h, int_local_s, force_tmp, nspins, iatom, jatom, nsoctot, &
-                                                       list_a, n_cont_a, list_b, n_cont_b, dCPC_h, dCPC_s, ldCPC, &
-                                                       PC_h, PC_s, p_matrix, force_fac)
-                                 force_tmp = factor2*force_tmp
-!$                               CALL omp_set_lock(locks((ka_kind - 1)*nkind + kkind))
-                                 force(kkind)%vhxc_atom(1:3, ka_kind) = force(kkind)%vhxc_atom(1:3, ka_kind) + force_tmp(1:3, 3)
-!$                               CALL omp_unset_lock(locks((ka_kind - 1)*nkind + kkind))
-!$                               CALL omp_set_lock(locks((ia_kind - 1)*nkind + ikind))
-                                 force(ikind)%vhxc_atom(1:3, ia_kind) = force(ikind)%vhxc_atom(1:3, ia_kind) + force_tmp(1:3, 1)
-!$                               CALL omp_unset_lock(locks((ia_kind - 1)*nkind + ikind))
-!$                               CALL omp_set_lock(locks((ja_kind - 1)*nkind + jkind))
-                                 force(jkind)%vhxc_atom(1:3, ja_kind) = force(jkind)%vhxc_atom(1:3, ja_kind) + force_tmp(1:3, 2)
-!$                               CALL omp_unset_lock(locks((ja_kind - 1)*nkind + jkind))
-                                 IF (use_virial) THEN
-                                    CALL virial_pair_force(pv_virial_thread, 1._dp, force_tmp(1:3, 1), rac)
-                                    CALL virial_pair_force(pv_virial_thread, 1._dp, force_tmp(1:3, 2), rbc)
-                                 END IF
-                              ELSE
-                                 CALL add_vhxca_forces(mat_p, C_coeff_hh_b, C_coeff_hh_a, C_coeff_ss_b, C_coeff_ss_a, &
-                                                       int_local_h, int_local_s, force_tmp, nspins, jatom, iatom, nsoctot, &
-                                                       list_b, n_cont_b, list_a, n_cont_a, dCPC_h, dCPC_s, ldCPC, &
-                                                       PC_h, PC_s, p_matrix, force_fac)
-                                 force_tmp = factor2*force_tmp
-!$                               CALL omp_set_lock(locks((ka_kind - 1)*nkind + kkind))
-                                 force(kkind)%vhxc_atom(1:3, ka_kind) = force(kkind)%vhxc_atom(1:3, ka_kind) + force_tmp(1:3, 3)
-!$                               CALL omp_unset_lock(locks((ka_kind - 1)*nkind + kkind))
-!$                               CALL omp_set_lock(locks((ia_kind - 1)*nkind + ikind))
-                                 force(ikind)%vhxc_atom(1:3, ia_kind) = force(ikind)%vhxc_atom(1:3, ia_kind) + force_tmp(1:3, 2)
-!$                               CALL omp_unset_lock(locks((ia_kind - 1)*nkind + ikind))
-!$                               CALL omp_set_lock(locks((ja_kind - 1)*nkind + jkind))
-                                 force(jkind)%vhxc_atom(1:3, ja_kind) = force(jkind)%vhxc_atom(1:3, ja_kind) + force_tmp(1:3, 1)
-!$                               CALL omp_unset_lock(locks((ja_kind - 1)*nkind + jkind))
-                                 IF (use_virial) THEN
-                                    CALL virial_pair_force(pv_virial_thread, 1._dp, force_tmp(1:3, 2), rac)
-                                    CALL virial_pair_force(pv_virial_thread, 1._dp, force_tmp(1:3, 1), rbc)
-                                 END IF
+                              force_tmp = factor2*force_tmp
+!$                            CALL omp_set_lock(locks((ka_kind - 1)*nkind + kkind))
+                              force(kkind)%vhxc_atom(1:3, ka_kind) = force(kkind)%vhxc_atom(1:3, ka_kind) + force_tmp(1:3, 3)
+!$                            CALL omp_unset_lock(locks((ka_kind - 1)*nkind + kkind))
+!$                            CALL omp_set_lock(locks((ia_kind - 1)*nkind + ikind))
+                              force(ikind)%vhxc_atom(1:3, ia_kind) = force(ikind)%vhxc_atom(1:3, ia_kind) + force_tmp(1:3, 1)
+!$                            CALL omp_unset_lock(locks((ia_kind - 1)*nkind + ikind))
+!$                            CALL omp_set_lock(locks((ja_kind - 1)*nkind + jkind))
+                              force(jkind)%vhxc_atom(1:3, ja_kind) = force(jkind)%vhxc_atom(1:3, ja_kind) + force_tmp(1:3, 2)
+!$                            CALL omp_unset_lock(locks((ja_kind - 1)*nkind + jkind))
+                              IF (use_virial) THEN
+                                 CALL virial_pair_force(pv_virial_thread, 1._dp, force_tmp(1:3, 1), rac)
+                                 CALL virial_pair_force(pv_virial_thread, 1._dp, force_tmp(1:3, 2), rbc)
                               END IF
-
                            END IF
                            EXIT ! search loop over jatom-katom list
                         END IF
@@ -553,8 +532,6 @@ CONTAINS
       DEALLOCATE (mat_h, mat_p, C_int_h, C_int_s, a_matrix, p_matrix, coc)
 
       IF (forces) THEN
-         DEALLOCATE (dCPC_h, dCPC_s, PC_h, PC_s)
-
          ! Implicit barrier at end of OMP DO, so locks can be freed
 !$OMP DO
 !$       DO lock_num = 1, natom*nkind
@@ -583,268 +560,149 @@ CONTAINS
    END SUBROUTINE update_ks_atom
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param mat_h ...
-!> \param C_hh_a ...
-!> \param C_hh_b ...
-!> \param C_ss_a ...
-!> \param C_ss_b ...
-!> \param int_local_h ...
-!> \param int_local_s ...
-!> \param nspins ...
-!> \param ia ...
-!> \param ja ...
-!> \param nsp ...
-!> \param factor ...
-!> \param lista ...
-!> \param nconta ...
-!> \param listb ...
-!> \param ncontb ...
-!> \param C_int_h ...
-!> \param C_int_s ...
-!> \param a_matrix ...
-!> \param dista ...
-!> \param distb ...
-!> \param coc ...
+!> \brief Add one-center hard-minus-soft KS and coefficient-derivative force contributions.
+!>        Real symmetric one-center potentials allow the same unscaled C*V intermediates
+!>        to be used for KS assembly and forces within each spin.
+!> \param mat_h KS blocks in stored (A <= B) order
+!> \param mat_p density blocks in the same order, used only for forces
+!> \param C_hh_a hard coefficients and derivatives on A
+!> \param C_hh_b hard coefficients and derivatives on B
+!> \param C_ss_a soft coefficients and derivatives on A
+!> \param C_ss_b soft coefficients and derivatives on B
+!> \param int_local_h hard one-center potentials by spin
+!> \param int_local_s soft one-center potentials by spin
+!> \param nspins number of spins
+!> \param ia atom A
+!> \param ja atom B
+!> \param nsp size of the one-center basis
+!> \param factor KS scaling, kept separate from the force scaling
+!> \param lista contracted basis indices on A
+!> \param nconta number of contracted functions on A
+!> \param listb contracted basis indices on B
+!> \param ncontb number of contracted functions on B
+!> \param dista true if A is offsite relative to the expansion center
+!> \param distb true if B is offsite relative to the expansion center
+!> \param work_h workspace for unscaled potential-weighted coefficients
+!> \param work_s workspace for soft or density-weighted coefficients
+!> \param ldwork leading dimension of the coefficient workspaces
+!> \param int_diff workspace for the hard-minus-soft potential
+!> \param a_matrix workspace for the contracted KS block
+!> \param p_matrix workspace for the aligned density block
+!> \param do_forces whether nonzero coefficient-derivative contributions are needed
+!> \param force forces on A, B, and the expansion center
+!> \param force_scaling force scaling by spin
 ! **************************************************************************************************
-   SUBROUTINE add_vhxca_to_ks(mat_h, C_hh_a, C_hh_b, C_ss_a, C_ss_b, &
-                              int_local_h, int_local_s, &
-                              nspins, ia, ja, nsp, factor, lista, nconta, listb, ncontb, &
-                              C_int_h, C_int_s, a_matrix, dista, distb, coc)
-      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: mat_h
+   SUBROUTINE add_vhxca(mat_h, mat_p, C_hh_a, C_hh_b, C_ss_a, C_ss_b, &
+                        int_local_h, int_local_s, nspins, ia, ja, nsp, factor, &
+                        lista, nconta, listb, ncontb, dista, distb, &
+                        work_h, work_s, ldwork, int_diff, a_matrix, p_matrix, &
+                        do_forces, force, force_scaling)
+      TYPE(cp_2d_r_p_type), DIMENSION(:), INTENT(IN)     :: mat_h, mat_p
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: C_hh_a, C_hh_b, C_ss_a, C_ss_b
-      TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: int_local_h, int_local_s
+      TYPE(rho_atom_coeff), DIMENSION(:), INTENT(IN)     :: int_local_h, int_local_s
       INTEGER, INTENT(IN)                                :: nspins, ia, ja, nsp
       REAL(KIND=dp), INTENT(IN)                          :: factor
       INTEGER, DIMENSION(:), INTENT(IN)                  :: lista
       INTEGER, INTENT(IN)                                :: nconta
       INTEGER, DIMENSION(:), INTENT(IN)                  :: listb
       INTEGER, INTENT(IN)                                :: ncontb
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: C_int_h, C_int_s
-      REAL(dp), DIMENSION(:, :)                          :: a_matrix
       LOGICAL, INTENT(IN)                                :: dista, distb
-      REAL(dp), DIMENSION(:)                             :: coc
-
-      INTEGER                                            :: i, ispin, j, k
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, int_hard, int_soft
-
-      NULLIFY (int_hard, int_soft)
-
-      DO ispin = 1, nspins
-         h_block => mat_h(ispin)%array
-         !
-         int_hard => int_local_h(ispin)%r_coef
-         int_soft => int_local_s(ispin)%r_coef
-         !
-         IF (ia <= ja) THEN
-            IF (dista .AND. distb) THEN
-               k = 0
-               DO i = 1, nsp
-                  DO j = 1, nsp
-                     k = k + 1
-                     coc(k) = int_hard(j, i) - int_soft(j, i)
-                  END DO
-               END DO
-               CALL DGEMM('N', 'T', nsp, ncontb, nsp, 1.0_dp, coc, nsp, C_hh_b(:, :, 1), SIZE(C_hh_b, 1), &
-                          0.0_dp, C_int_h, nsp)
-               CALL DGEMM('N', 'N', nconta, ncontb, nsp, factor, C_hh_a(:, :, 1), SIZE(C_hh_a, 1), &
-                          C_int_h, nsp, 0.0_dp, a_matrix, SIZE(a_matrix, 1))
-            ELSE IF (dista) THEN
-               CALL DGEMM('N', 'T', nsp, ncontb, nsp, 1.0_dp, int_hard, SIZE(int_hard, 1), &
-                          C_hh_b(:, :, 1), SIZE(C_hh_b, 1), 0.0_dp, coc, nsp)
-               CALL DGEMM('N', 'T', nsp, ncontb, nsp, -1.0_dp, int_soft, SIZE(int_soft, 1), &
-                          C_ss_b(:, :, 1), SIZE(C_ss_b, 1), 1.0_dp, coc, nsp)
-               CALL DGEMM('N', 'N', nconta, ncontb, nsp, factor, C_hh_a(:, :, 1), SIZE(C_hh_a, 1), &
-                          coc, nsp, 0.0_dp, a_matrix, SIZE(a_matrix, 1))
-            ELSE IF (distb) THEN
-               CALL DGEMM('N', 'N', nconta, nsp, nsp, factor, C_hh_a(:, :, 1), SIZE(C_hh_a, 1), &
-                          int_hard, SIZE(int_hard, 1), 0.0_dp, coc, nconta)
-               CALL DGEMM('N', 'N', nconta, nsp, nsp, -factor, C_ss_a(:, :, 1), SIZE(C_ss_a, 1), &
-                          int_soft, SIZE(int_soft, 1), 1.0_dp, coc, nconta)
-               CALL DGEMM('N', 'T', nconta, ncontb, nsp, 1.0_dp, coc, nconta, &
-                          C_hh_b(:, :, 1), SIZE(C_hh_b, 1), 0.0_dp, a_matrix, SIZE(a_matrix, 1))
-            ELSE
-               CALL DGEMM('N', 'T', nsp, ncontb, nsp, 1.0_dp, int_hard, SIZE(int_hard, 1), &
-                          C_hh_b(:, :, 1), SIZE(C_hh_b, 1), &
-                          0.0_dp, C_int_h, nsp)
-               CALL DGEMM('N', 'T', nsp, ncontb, nsp, 1.0_dp, int_soft, SIZE(int_soft, 1), &
-                          C_ss_b(:, :, 1), SIZE(C_ss_b, 1), &
-                          0.0_dp, C_int_s, nsp)
-               CALL DGEMM('N', 'N', nconta, ncontb, nsp, factor, C_hh_a(:, :, 1), SIZE(C_hh_a, 1), &
-                          C_int_h, nsp, &
-                          0.0_dp, a_matrix, SIZE(a_matrix, 1))
-               CALL DGEMM('N', 'N', nconta, ncontb, nsp, -factor, C_ss_a(:, :, 1), SIZE(C_ss_a, 1), &
-                          C_int_s, nsp, &
-                          1.0_dp, a_matrix, SIZE(a_matrix, 1))
-            END IF
-            !
-            CALL alist_post_align_blk(a_matrix, SIZE(a_matrix, 1), h_block, SIZE(h_block, 1), &
-                                      lista, nconta, listb, ncontb)
-         ELSE
-            IF (dista .AND. distb) THEN
-               k = 0
-               DO i = 1, nsp
-                  DO j = 1, nsp
-                     k = k + 1
-                     coc(k) = int_hard(j, i) - int_soft(j, i)
-                  END DO
-               END DO
-               CALL DGEMM('N', 'T', nsp, nconta, nsp, 1.0_dp, coc, nsp, C_hh_a(:, :, 1), SIZE(C_hh_a, 1), 0.0_dp, C_int_h, nsp)
-               CALL DGEMM('N', 'N', ncontb, nconta, nsp, factor, C_hh_b(:, :, 1), SIZE(C_hh_b, 1), &
-                          C_int_h, nsp, 0.0_dp, a_matrix, SIZE(a_matrix, 1))
-            ELSE IF (dista) THEN
-               CALL DGEMM('N', 'N', ncontb, nsp, nsp, factor, C_hh_b(:, :, 1), SIZE(C_hh_b, 1), &
-                          int_hard, SIZE(int_hard, 1), 0.0_dp, coc, ncontb)
-               CALL DGEMM('N', 'N', ncontb, nsp, nsp, -factor, C_ss_b(:, :, 1), SIZE(C_ss_b, 1), &
-                          int_soft, SIZE(int_soft, 1), 1.0_dp, coc, ncontb)
-               CALL DGEMM('N', 'T', ncontb, nconta, nsp, 1.0_dp, coc, ncontb, &
-                          C_hh_a(:, :, 1), SIZE(C_hh_a, 1), 0.0_dp, a_matrix, SIZE(a_matrix, 1))
-            ELSE IF (distb) THEN
-               CALL DGEMM('N', 'T', nsp, nconta, nsp, 1.0_dp, int_hard, SIZE(int_hard, 1), &
-                          C_hh_a(:, :, 1), SIZE(C_hh_a, 1), 0.0_dp, coc, nsp)
-               CALL DGEMM('N', 'T', nsp, nconta, nsp, -1.0_dp, int_soft, SIZE(int_soft, 1), &
-                          C_ss_a(:, :, 1), SIZE(C_ss_a, 1), 1.0_dp, coc, nsp)
-               CALL DGEMM('N', 'N', ncontb, nconta, nsp, factor, C_hh_b(:, :, 1), SIZE(C_hh_b, 1), &
-                          coc, nsp, 0.0_dp, a_matrix, SIZE(a_matrix, 1))
-            ELSE
-               CALL DGEMM('N', 'T', nsp, nconta, nsp, 1.0_dp, int_hard, SIZE(int_hard, 1), &
-                          C_hh_a(:, :, 1), SIZE(C_hh_a, 1), &
-                          0.0_dp, C_int_h, nsp)
-               CALL DGEMM('N', 'T', nsp, nconta, nsp, 1.0_dp, int_soft, SIZE(int_soft, 1), &
-                          C_ss_a(:, :, 1), SIZE(C_ss_a, 1), &
-                          0.0_dp, C_int_s, nsp)
-               CALL DGEMM('N', 'N', ncontb, nconta, nsp, factor, C_hh_b(:, :, 1), SIZE(C_hh_b, 1), &
-                          C_int_h, nsp, &
-                          0.0_dp, a_matrix, SIZE(a_matrix, 1))
-               CALL DGEMM('N', 'N', ncontb, nconta, nsp, -factor, C_ss_b(:, :, 1), SIZE(C_ss_b, 1), &
-                          C_int_s, nsp, &
-                          1.0_dp, a_matrix, SIZE(a_matrix, 1))
-            END IF
-            !
-            CALL alist_post_align_blk(a_matrix, SIZE(a_matrix, 1), h_block, SIZE(h_block, 1), &
-                                      listb, ncontb, lista, nconta)
-         END IF
-      END DO
-
-   END SUBROUTINE add_vhxca_to_ks
-
-! **************************************************************************************************
-!> \brief ...
-!> \param mat_p ...
-!> \param C_hh_a ...
-!> \param C_hh_b ...
-!> \param C_ss_a ...
-!> \param C_ss_b ...
-!> \param int_local_h ...
-!> \param int_local_s ...
-!> \param force ...
-!> \param nspins ...
-!> \param ia ...
-!> \param ja ...
-!> \param nsp ...
-!> \param lista ...
-!> \param nconta ...
-!> \param listb ...
-!> \param ncontb ...
-!> \param dCPC_h ...
-!> \param dCPC_s ...
-!> \param ldCPC ...
-!> \param PC_h ...
-!> \param PC_s ...
-!> \param p_matrix ...
-!> \param force_scaling ...
-! **************************************************************************************************
-   SUBROUTINE add_vhxca_forces(mat_p, C_hh_a, C_hh_b, C_ss_a, C_ss_b, &
-                               int_local_h, int_local_s, &
-                               force, nspins, ia, ja, nsp, lista, nconta, listb, ncontb, &
-                               dCPC_h, dCPC_s, ldCPC, PC_h, PC_s, p_matrix, force_scaling)
-      TYPE(cp_2d_r_p_type), DIMENSION(:), INTENT(IN), &
-         POINTER                                         :: mat_p
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: C_hh_a, C_hh_b, C_ss_a, C_ss_b
-      TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: int_local_h, int_local_s
-      REAL(dp), DIMENSION(3, 3), INTENT(INOUT)           :: force
-      INTEGER, INTENT(IN)                                :: nspins, ia, ja, nsp
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: lista
-      INTEGER, INTENT(IN)                                :: nconta
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: listb
-      INTEGER, INTENT(IN)                                :: ncontb
-      REAL(KIND=dp), DIMENSION(:, :)                     :: dCPC_h, dCPC_s
-      INTEGER, INTENT(IN)                                :: ldCPC
-      REAL(KIND=dp), DIMENSION(:, :, :)                  :: PC_h, PC_s
-      REAL(KIND=dp), DIMENSION(:, :)                     :: p_matrix
+      INTEGER, INTENT(IN)                                :: ldwork
+      REAL(KIND=dp), INTENT(OUT)                         :: work_s(ldwork, nsp), &
+                                                            work_h(ldwork, nsp), int_diff(nsp, nsp)
+      REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: a_matrix, p_matrix
+      LOGICAL, INTENT(IN)                                :: do_forces
+      REAL(dp), DIMENSION(3, 3), INTENT(OUT)             :: force
       REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: force_scaling
 
       INTEGER                                            :: dir, ispin
-      REAL(dp), DIMENSION(:, :), POINTER                 :: int_hard, int_soft
+      REAL(dp), DIMENSION(:, :), POINTER                 :: h_block, int_hard, int_soft, p_block
       REAL(KIND=dp)                                      :: ieqj, trace
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block
 
-!   if(dista.and.distb) we could also here use ChPCh = CsPCs
-!   *** factor 2 because only half of the pairs with ia =/ ja are considered
-
+      force(:, :) = 0.0_dp
+      ! Factor 2 because only half of the pairs with ia /= ja are considered.
       ieqj = 2.0_dp
       IF (ia == ja) ieqj = 1.0_dp
 
-      NULLIFY (int_hard, int_soft)
-
       DO ispin = 1, nspins
-         p_block => mat_p(ispin)%array
-
-         CALL alist_pre_align_blk(p_block, SIZE(p_block, 1), p_matrix, SIZE(p_matrix, 1), &
-                                  lista, nconta, listb, ncontb)
-
+         h_block => mat_h(ispin)%array
          int_hard => int_local_h(ispin)%r_coef
          int_soft => int_local_s(ispin)%r_coef
 
-         CALL DGEMM('N', 'N', nconta, nsp, ncontb, 1.0_dp, p_matrix, SIZE(p_matrix, 1), &
-                    C_hh_b(:, :, 1), SIZE(C_hh_b, 1), &
-                    0.0_dp, PC_h(:, :, ispin), SIZE(PC_h, 1))
-         CALL DGEMM('N', 'N', nconta, nsp, ncontb, 1.0_dp, p_matrix(:, :), SIZE(p_matrix, 1), &
-                    C_ss_b(:, :, 1), SIZE(C_ss_b, 1), &
-                    0.0_dp, PC_s(:, :, ispin), SIZE(PC_s, 1))
+         IF (dista .AND. distb) int_diff(:, :) = int_hard(1:nsp, 1:nsp) - int_soft(1:nsp, 1:nsp)
 
-         DO dir = 2, 4
-            CALL DGEMM('T', 'N', nsp, nsp, nconta, 1.0_dp, PC_h(:, :, ispin), SIZE(PC_h, 1), &
-                       C_hh_a(:, :, dir), SIZE(C_hh_a, 1), &
-                       0.0_dp, dCPC_h, SIZE(dCPC_h, 1))
-            trace = trace_r_AxB(dCPC_h, ldCPC, int_hard, nsp, nsp, nsp)
-            force(dir - 1, 3) = force(dir - 1, 3) + ieqj*trace*force_scaling(ispin)
-            force(dir - 1, 1) = force(dir - 1, 1) - ieqj*trace*force_scaling(ispin)
+         IF (distb .AND. .NOT. dista) THEN
+            ! B is offsite: H_ab = (C_a^h V_h - C_a^s V_s) C_b^T.
+            CALL DGEMM('N', 'N', nconta, nsp, nsp, 1.0_dp, C_hh_a(:, :, 1), SIZE(C_hh_a, 1), &
+                       int_hard, SIZE(int_hard, 1), 0.0_dp, work_h, ldwork)
+            CALL DGEMM('N', 'N', nconta, nsp, nsp, -1.0_dp, C_ss_a(:, :, 1), SIZE(C_ss_a, 1), &
+                       int_soft, SIZE(int_soft, 1), 1.0_dp, work_h, ldwork)
+            CALL DGEMM('N', 'T', nconta, ncontb, nsp, factor, work_h, ldwork, &
+                       C_hh_b(:, :, 1), SIZE(C_hh_b, 1), 0.0_dp, a_matrix, SIZE(a_matrix, 1))
+         ELSE
+            IF (distb) THEN
+               ! Both ends are offsite: C_h = C_s, including their derivatives.
+               CALL DGEMM('N', 'N', ncontb, nsp, nsp, 1.0_dp, C_hh_b(:, :, 1), SIZE(C_hh_b, 1), &
+                          int_diff, nsp, 0.0_dp, work_h, ldwork)
+            ELSE
+               CALL DGEMM('N', 'N', ncontb, nsp, nsp, 1.0_dp, C_hh_b(:, :, 1), SIZE(C_hh_b, 1), &
+                          int_hard, SIZE(int_hard, 1), 0.0_dp, work_h, ldwork)
+               IF (dista) THEN
+                  CALL DGEMM('N', 'N', ncontb, nsp, nsp, -1.0_dp, C_ss_b(:, :, 1), SIZE(C_ss_b, 1), &
+                             int_soft, SIZE(int_soft, 1), 1.0_dp, work_h, ldwork)
+               ELSE
+                  CALL DGEMM('N', 'N', ncontb, nsp, nsp, 1.0_dp, C_ss_b(:, :, 1), SIZE(C_ss_b, 1), &
+                             int_soft, SIZE(int_soft, 1), 0.0_dp, work_s, ldwork)
+               END IF
+            END IF
+            CALL DGEMM('N', 'T', nconta, ncontb, nsp, factor, C_hh_a(:, :, 1), SIZE(C_hh_a, 1), &
+                       work_h, ldwork, 0.0_dp, a_matrix, SIZE(a_matrix, 1))
+            IF (.NOT. dista) THEN
+               CALL DGEMM('N', 'T', nconta, ncontb, nsp, -factor, C_ss_a(:, :, 1), SIZE(C_ss_a, 1), &
+                          work_s, ldwork, 1.0_dp, a_matrix, SIZE(a_matrix, 1))
+            END IF
+         END IF
 
-            CALL DGEMM('T', 'N', nsp, nsp, nconta, 1.0_dp, PC_s(:, :, ispin), SIZE(PC_s, 1), &
-                       C_ss_a(:, :, dir), SIZE(C_ss_a, 1), &
-                       0.0_dp, dCPC_s, SIZE(dCPC_s, 1))
-            trace = trace_r_AxB(dCPC_s, ldCPC, int_soft, nsp, nsp, nsp)
-            force(dir - 1, 3) = force(dir - 1, 3) - ieqj*trace*force_scaling(ispin)
-            force(dir - 1, 1) = force(dir - 1, 1) + ieqj*trace*force_scaling(ispin)
-         END DO
+         CALL alist_post_align_blk(a_matrix, SIZE(a_matrix, 1), h_block, SIZE(h_block, 1), &
+                                   lista, nconta, listb, ncontb)
 
-         ! j-k contributions
-         CALL DGEMM('T', 'N', ncontb, nsp, nconta, 1.0_dp, p_matrix, SIZE(p_matrix, 1), &
-                    C_hh_a(:, :, 1), SIZE(C_hh_a, 1), &
-                    0.0_dp, PC_h(:, :, ispin), SIZE(PC_h, 1))
-         CALL DGEMM('T', 'N', ncontb, nsp, nconta, 1.0_dp, p_matrix, SIZE(p_matrix, 1), &
-                    C_ss_a(:, :, 1), SIZE(C_ss_a, 1), &
-                    0.0_dp, PC_s(:, :, ispin), SIZE(PC_s, 1))
+         IF (.NOT. do_forces) CYCLE
+         p_block => mat_p(ispin)%array
+         CALL alist_pre_align_blk(p_block, SIZE(p_block, 1), p_matrix, SIZE(p_matrix, 1), &
+                                  lista, nconta, listb, ncontb)
 
-         DO dir = 2, 4
-            CALL DGEMM('T', 'N', nsp, nsp, ncontb, 1.0_dp, PC_h(:, :, ispin), SIZE(PC_h, 1), &
-                       C_hh_b(:, :, dir), SIZE(C_hh_b, 1), &
-                       0.0_dp, dCPC_h, SIZE(dCPC_h, 1))
-            trace = trace_r_AxB(dCPC_h, ldCPC, int_hard, nsp, nsp, nsp)
-            force(dir - 1, 3) = force(dir - 1, 3) + ieqj*trace*force_scaling(ispin)
-            force(dir - 1, 2) = force(dir - 1, 2) - ieqj*trace*force_scaling(ispin)
+         ! Onsite coefficient derivatives are zero (see build_oce_matrices).
+         ! The offsite derivative is common to hard and soft coefficients.
+         IF (dista) THEN
+            ! Reuse K_b = C_b^h V_h - C_b^s V_s from KS assembly.
+            CALL DGEMM('N', 'N', nconta, nsp, ncontb, 1.0_dp, p_matrix, SIZE(p_matrix, 1), &
+                       work_h, ldwork, 0.0_dp, work_s, ldwork)
+            ! <(P C_b)^T dC_a, V>_F = <dC_a, P (C_b V)>_F.
+            DO dir = 2, 4
+               trace = trace_r_AxB(work_s, ldwork, C_hh_a(:, :, dir), SIZE(C_hh_a, 1), nconta, nsp)
+               trace = ieqj*trace*force_scaling(ispin)
+               force(dir - 1, 3) = force(dir - 1, 3) + trace
+               force(dir - 1, 1) = force(dir - 1, 1) - trace
+            END DO
+         END IF
 
-            CALL DGEMM('T', 'N', nsp, nsp, ncontb, 1.0_dp, PC_s(:, :, ispin), SIZE(PC_s, 1), &
-                       C_ss_b(:, :, dir), SIZE(C_ss_b, 1), &
-                       0.0_dp, dCPC_s, SIZE(dCPC_s, 1))
-            trace = trace_r_AxB(dCPC_s, ldCPC, int_soft, nsp, nsp, nsp)
-            force(dir - 1, 3) = force(dir - 1, 3) - ieqj*trace*force_scaling(ispin)
-            force(dir - 1, 2) = force(dir - 1, 2) + ieqj*trace*force_scaling(ispin)
-         END DO
-
-      END DO !ispin
-
-   END SUBROUTINE add_vhxca_forces
+         IF (distb) THEN
+            IF (dista) THEN
+               ! A force used K_b; now form K_a = C_a (V_h - V_s).
+               CALL DGEMM('N', 'N', nconta, nsp, nsp, 1.0_dp, C_hh_a(:, :, 1), SIZE(C_hh_a, 1), &
+                          int_diff, nsp, 0.0_dp, work_h, ldwork)
+            END IF
+            ! For an onsite A, K_a is already available from KS assembly.
+            CALL DGEMM('T', 'N', ncontb, nsp, nconta, 1.0_dp, p_matrix, SIZE(p_matrix, 1), &
+                       work_h, ldwork, 0.0_dp, work_s, ldwork)
+            DO dir = 2, 4
+               trace = trace_r_AxB(work_s, ldwork, C_hh_b(:, :, dir), SIZE(C_hh_b, 1), ncontb, nsp)
+               trace = ieqj*trace*force_scaling(ispin)
+               force(dir - 1, 3) = force(dir - 1, 3) + trace
+               force(dir - 1, 2) = force(dir - 1, 2) - trace
+            END DO
+         END IF
+      END DO
+   END SUBROUTINE add_vhxca
 
 END MODULE qs_ks_atom
