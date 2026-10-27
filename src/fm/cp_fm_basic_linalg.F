@@ -1317,10 +1317,13 @@ CONTAINS
    END SUBROUTINE cp_fm_uplo_to_full
 
 ! **************************************************************************************************
-!> \brief scales column i of matrix a with scaling(i)
-!> \param matrixa ...
-!> \param scaling : an array used for scaling the columns,
-!>                  SIZE(scaling) determines the number of columns to be scaled
+!> \brief Scales columns of the full matrix by corresponding factors.
+!> \param matrixa target matrix; columns outside the selected window are unchanged
+!> \param scaling factors for consecutive columns starting at first_col;
+!>        the window is truncated at the last global column of the matrix
+!> \param first_col first global column to scale (defaults to 1)
+!> \param source optional source with the same shape and distribution as matrixa;
+!>        if omitted, matrixa is scaled in place
 !> \author Joost VandeVondele
 !> \note
 !>      this is very useful as a first step in the computation of C = sum_i alpha_i A_i transpose (A_i)
@@ -1328,46 +1331,35 @@ CONTAINS
 !>      this procedure can be up to 20 times faster than calling cp_fm_syrk n times
 !>      where every vector has a different prefactor
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_column_scale(matrixa, scaling)
-      TYPE(cp_fm_type), INTENT(IN)             :: matrixa
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: scaling
+   SUBROUTINE cp_fm_column_scale(matrixa, scaling, first_col, source)
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrixa
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: scaling
+      INTEGER, INTENT(IN), OPTIONAL                      :: first_col
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: source
 
-      INTEGER                                  :: k, mypcol, myprow, n, ncol_global, &
-                                                  npcol, nprow
-      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
-#if defined(__parallel)
-      INTEGER                                  :: icol_global, icol_local, &
-                                                  ipcol, iprow, irow_local
-#else
-      INTEGER                                  :: i
-#endif
-
-      myprow = matrixa%matrix_struct%context%mepos(1)
-      mypcol = matrixa%matrix_struct%context%mepos(2)
-      nprow = matrixa%matrix_struct%context%num_pe(1)
-      npcol = matrixa%matrix_struct%context%num_pe(2)
-
-      ncol_global = matrixa%matrix_struct%ncol_global
+      INTEGER                                            :: first, i_factor, icol_local, ncol_local, &
+                                                            nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices
+      LOGICAL                                            :: compatible_layout
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a, b
 
       a => matrixa%local_data
-      n = SIZE(a, 1)
-      k = MIN(SIZE(scaling), ncol_global)
+      b => a
+      IF (PRESENT(source)) THEN
+         compatible_layout = cp_fm_struct_equivalent(matrixa%matrix_struct, source%matrix_struct)
+         CPASSERT(compatible_layout)
+         b => source%local_data
+      END IF
+      first = 1
+      IF (PRESENT(first_col)) first = first_col
+      CPASSERT(first >= 1)
+      CALL cp_fm_get_info(matrixa, nrow_local=nrow_local, ncol_local=ncol_local, col_indices=col_indices)
 
-#if defined(__parallel)
-
-      DO icol_global = 1, k
-         CALL infog2l(1, icol_global, matrixa%matrix_struct%descriptor, &
-                      nprow, npcol, myprow, mypcol, &
-                      irow_local, icol_local, iprow, ipcol)
-         IF ((ipcol == mypcol)) THEN
-            CALL DSCAL(n, scaling(icol_global), a(:, icol_local), 1)
-         END IF
+      DO icol_local = 1, ncol_local
+         i_factor = col_indices(icol_local) - first + 1
+         IF (i_factor < 1 .OR. i_factor > SIZE(scaling)) CYCLE
+         a(1:nrow_local, icol_local) = scaling(i_factor)*b(1:nrow_local, icol_local)
       END DO
-#else
-      DO i = 1, k
-         CALL DSCAL(n, scaling(i), a(:, i), 1)
-      END DO
-#endif
    END SUBROUTINE cp_fm_column_scale
 
 ! **************************************************************************************************

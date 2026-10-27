@@ -623,44 +623,47 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Scales columns of the full matrix by corresponding factors.
-!> \param matrix_a matrix to scale
-!> \param scaling  scale factors for every column. The actual number of scaled columns is
-!>                 limited by the number of scale factors given or by the actual number of columns
-!>                 whichever is smaller.
+!> \param matrix_a target matrix; columns outside the selected window are unchanged
+!> \param scaling factors for consecutive columns starting at first_col;
+!>        the window is truncated at the last global column of the matrix
+!> \param first_col first global column to scale (defaults to 1)
+!> \param source optional source with the same shape and distribution as matrix_a;
+!>        if omitted, matrix_a is scaled in place
 !> \author Joost VandeVondele
 ! **************************************************************************************************
-   SUBROUTINE cp_cfm_column_scale(matrix_a, scaling)
+   SUBROUTINE cp_cfm_column_scale(matrix_a, scaling, first_col, source)
       TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_a
       COMPLEX(kind=dp), DIMENSION(:), INTENT(IN)         :: scaling
+      INTEGER, INTENT(IN), OPTIONAL                      :: first_col
+      TYPE(cp_cfm_type), INTENT(IN), OPTIONAL            :: source
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_column_scale'
 
-      COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a
-      INTEGER                                            :: handle, icol_local, ncol_local, &
-                                                            nrow_local
-#if defined(__parallel)
+      COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a, b
+      INTEGER                                            :: first, handle, i_factor, icol_local, &
+                                                            ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices
-#endif
+      LOGICAL                                            :: compatible_layout
 
       CALL timeset(routineN, handle)
 
       a => matrix_a%local_data
-
-#if defined(__parallel)
+      b => a
+      IF (PRESENT(source)) THEN
+         compatible_layout = cp_fm_struct_equivalent(matrix_a%matrix_struct, source%matrix_struct)
+         CPASSERT(compatible_layout)
+         b => source%local_data
+      END IF
+      first = 1
+      IF (PRESENT(first_col)) first = first_col
+      CPASSERT(first >= 1)
       CALL cp_cfm_get_info(matrix_a, nrow_local=nrow_local, ncol_local=ncol_local, col_indices=col_indices)
-      ncol_local = MIN(ncol_local, SIZE(scaling))
 
       DO icol_local = 1, ncol_local
-         a(1:nrow_local, icol_local) = scaling(col_indices(icol_local))*a(1:nrow_local, icol_local)
+         i_factor = col_indices(icol_local) - first + 1
+         IF (i_factor < 1 .OR. i_factor > SIZE(scaling)) CYCLE
+         a(1:nrow_local, icol_local) = scaling(i_factor)*b(1:nrow_local, icol_local)
       END DO
-#else
-      nrow_local = SIZE(a, 1)
-      ncol_local = MIN(SIZE(a, 2), SIZE(scaling))
-
-      DO icol_local = 1, ncol_local
-         a(1:nrow_local, icol_local) = scaling(icol_local)*a(1:nrow_local, icol_local)
-      END DO
-#endif
 
       CALL timestop(handle)
    END SUBROUTINE cp_cfm_column_scale
