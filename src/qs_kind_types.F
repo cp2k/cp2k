@@ -1475,6 +1475,12 @@ CONTAINS
          ifun = ifun + 1
          functional => section_vals_get_subs_vals2(functionals, i_section=ifun)
          IF (.NOT. ASSOCIATED(functional)) EXIT
+
+         IF (functional%section%name == "SKALA_NATIVE") THEN
+            CALL section_vals_val_get(functional, "PSEUDOPOTENTIAL_GAPW_REPRESENTATION", &
+                                      i_val=representation)
+            RETURN
+         END IF
          IF (functional%section%name /= "GAUXC") CYCLE
 
          CALL section_vals_val_get(functional, "MODEL", c_val=model_name)

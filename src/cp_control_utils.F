@@ -138,13 +138,14 @@ CONTAINS
       TYPE(cp_parser_type)                               :: parser
       TYPE(section_vals_type), POINTER :: hairy_probes_section, hfx_section, kg_xc_fun_section, &
          kg_xc_section, maxwell_section, sccs_section, scf_section, tmp_section, xc_fun_section, &
-         xc_gauxc_subsection, xc_section
+         xc_gauxc_subsection, xc_skala_native_subsection, xc_section
 
       was_present = .FALSE.
 
       logger => cp_get_default_logger()
 
-      NULLIFY (kg_xc_fun_section, kg_xc_section, tmp_section, xc_fun_section, xc_section, xc_gauxc_subsection)
+      NULLIFY (kg_xc_fun_section, kg_xc_section, tmp_section, xc_fun_section, xc_section, &
+               xc_gauxc_subsection, xc_skala_native_subsection)
       ALLOCATE (dft_control)
       CALL dft_control_create(dft_control)
       ! determine wheather this is a semiempirical or DFTB run
@@ -196,9 +197,16 @@ CONTAINS
       END IF
 
       dft_control%use_gauxc = .FALSE.
+      native_skala_grid = .FALSE.
       IF (is_present) THEN
          xc_gauxc_subsection => section_vals_get_subs_vals(xc_fun_section, "GAUXC")
          CALL section_vals_get(xc_gauxc_subsection, explicit=dft_control%use_gauxc)
+         xc_skala_native_subsection => section_vals_get_subs_vals(xc_fun_section, "SKALA_NATIVE")
+         CALL section_vals_get(xc_skala_native_subsection, explicit=native_skala_grid)
+         IF (dft_control%use_gauxc .AND. native_skala_grid) THEN
+            CPABORT("GAUXC and SKALA_NATIVE are mutually exclusive XC functionals.")
+         END IF
+         dft_control%use_gauxc = dft_control%use_gauxc .OR. native_skala_grid
       END IF
 
       scf_section => section_vals_get_subs_vals(dft_section, "SCF")
@@ -213,14 +221,15 @@ CONTAINS
       dft_control%lsd = (dft_control%nspins > 1)
       dft_control%use_kinetic_energy_density = xc_uses_kinetic_energy_density(xc_fun_section, dft_control%lsd)
       IF (dft_control%use_gauxc) THEN
-         native_skala_grid = .FALSE.
-         CALL section_vals_val_get(xc_gauxc_subsection, "NATIVE_GRID", l_val=native_skala_grid)
-         CALL section_vals_val_get(xc_gauxc_subsection, "MODEL", c_val=gauxc_model_name)
-         gauxc_model_name = ADJUSTL(gauxc_model_name)
-         CALL uppercase(gauxc_model_name)
-         IF (native_skala_grid .OR. &
-             (TRIM(gauxc_model_name) /= "" .AND. TRIM(gauxc_model_name) /= "NONE")) THEN
+         IF (native_skala_grid) THEN
             dft_control%use_kinetic_energy_density = .TRUE.
+         ELSE
+            CALL section_vals_val_get(xc_gauxc_subsection, "MODEL", c_val=gauxc_model_name)
+            gauxc_model_name = ADJUSTL(gauxc_model_name)
+            CALL uppercase(gauxc_model_name)
+            IF (TRIM(gauxc_model_name) /= "" .AND. TRIM(gauxc_model_name) /= "NONE") THEN
+               dft_control%use_kinetic_energy_density = .TRUE.
+            END IF
          END IF
       END IF
       tmp_section => section_vals_get_subs_vals(dft_section, "KG_METHOD")
