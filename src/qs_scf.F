@@ -46,6 +46,7 @@
 ! **************************************************************************************************
 MODULE qs_scf
    USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE cc4s_export,                     ONLY: write_cc4s
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_p_type,&
@@ -338,6 +339,8 @@ CONTAINS
 
          ! If SCF has not converged, then we should not start MP2
          IF (ASSOCIATED(qs_env%mp2_env)) qs_env%mp2_env%hf_fail = .NOT. converged
+
+         CALL write_cc4s(qs_env, converged)
 
          ! Add the converged outer_scf SCF gradient(s)/variable(s) to history
          IF (scf_control%outer_scf%have_scf) THEN
