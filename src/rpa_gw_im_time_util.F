@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Utility routines for GW with imaginary time
+!> \brief Utility routines for RPA and GW with imaginary time
 !> \par History
 !>      06.2019 split from rpa_im_time.F [Frederick Stein]
 ! **************************************************************************************************
@@ -16,6 +16,10 @@ MODULE rpa_gw_im_time_util
    USE basis_set_types,                 ONLY: gto_basis_set_p_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale
+   USE cp_cfm_types,                    ONLY: cp_cfm_get_info,&
+                                              cp_cfm_set_all,&
+                                              cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
         dbcsr_distribution_type, dbcsr_filter, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, &
@@ -27,8 +31,11 @@ MODULE rpa_gw_im_time_util
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_row_template
    USE cp_dbcsr_redistribution,         ONLY: cp_dbcsr_from_subgroups
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
                                               cp_fm_release,&
+                                              cp_fm_set_all,&
                                               cp_fm_set_element,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -40,9 +47,12 @@ MODULE rpa_gw_im_time_util
                                               hfx_compression_type
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE mathconstants,                   ONLY: twopi
+   USE mathconstants,                   ONLY: twopi,&
+                                              z_one,&
+                                              z_zero
    USE message_passing,                 ONLY: mp_dims_create,&
                                               mp_para_env_type
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -65,8 +75,78 @@ MODULE rpa_gw_im_time_util
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_gw_im_time_util'
 
    PUBLIC :: get_tensor_3c_overl_int_gw, compute_weight_re_im, get_atom_index_from_basis_function_index
+   PUBLIC :: build_ao_propagator
+
+   INTERFACE build_ao_propagator
+      MODULE PROCEDURE build_ao_propagator_fm, build_ao_propagator_cfm
+   END INTERFACE build_ao_propagator
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Builds G = X X^T, where X is the selected, column-scaled MO window.
+!>        Only the selected workspace columns are overwritten; coefficients are unchanged.
+!> \param coefficients AO-by-MO coefficient matrix
+!> \param column_factors factors for consecutive MOs starting at first_mo
+!> \param first_mo first global MO column in the window
+!> \param work coefficient workspace with the same shape and distribution as coefficients
+!> \param propagator AO-by-AO output matrix
+! **************************************************************************************************
+   SUBROUTINE build_ao_propagator_fm(coefficients, column_factors, first_mo, work, propagator)
+      TYPE(cp_fm_type), INTENT(IN)                       :: coefficients
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: column_factors
+      INTEGER, INTENT(IN)                                :: first_mo
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: work, propagator
+
+      INTEGER                                            :: nao, nmo
+
+      IF (SIZE(column_factors) == 0) THEN
+         CALL cp_fm_set_all(propagator, 0.0_dp)
+         RETURN
+      END IF
+
+      CALL cp_fm_get_info(coefficients, nrow_global=nao, ncol_global=nmo)
+      CPASSERT(first_mo + SIZE(column_factors) - 1 <= nmo)
+
+      CALL cp_fm_column_scale(work, column_factors, first_col=first_mo, source=coefficients)
+
+      CALL parallel_gemm("N", "T", nao, nao, SIZE(column_factors), 1.0_dp, work, work, 0.0_dp, propagator, &
+                         a_first_col=first_mo, b_first_col=first_mo)
+
+   END SUBROUTINE build_ao_propagator_fm
+
+! **************************************************************************************************
+!> \brief Builds G = X X^H, where X is the selected, column-scaled MO window.
+!>        Only the selected workspace columns are overwritten; coefficients are unchanged.
+!> \param coefficients complex AO-by-MO coefficient matrix
+!> \param column_factors real factors for consecutive MOs starting at first_mo
+!> \param first_mo first global MO column in the window
+!> \param work coefficient workspace with the same shape and distribution as coefficients
+!> \param propagator complex AO-by-AO output matrix
+! **************************************************************************************************
+   SUBROUTINE build_ao_propagator_cfm(coefficients, column_factors, first_mo, work, propagator)
+      TYPE(cp_cfm_type), INTENT(IN)                      :: coefficients
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: column_factors
+      INTEGER, INTENT(IN)                                :: first_mo
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: work, propagator
+
+      INTEGER                                            :: nao, nmo
+
+      IF (SIZE(column_factors) == 0) THEN
+         CALL cp_cfm_set_all(propagator, z_zero)
+         RETURN
+      END IF
+
+      CALL cp_cfm_get_info(coefficients, nrow_global=nao, ncol_global=nmo)
+      CPASSERT(first_mo + SIZE(column_factors) - 1 <= nmo)
+
+      CALL cp_cfm_column_scale(work, CMPLX(column_factors, 0.0_dp, KIND=dp), &
+                               first_col=first_mo, source=coefficients)
+
+      CALL parallel_gemm("N", "C", nao, nao, SIZE(column_factors), z_one, work, work, z_zero, propagator, &
+                         a_first_col=first_mo, b_first_col=first_mo)
+
+   END SUBROUTINE build_ao_propagator_cfm
 
 ! **************************************************************************************************
 !> \brief ...
