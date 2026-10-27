@@ -127,6 +127,7 @@ MODULE cp2k_runs
    USE rt_bse_linearized,               ONLY: run_propagation_linearized_bse
    USE rt_propagation,                  ONLY: rt_prop_setup
    USE swarm,                           ONLY: run_swarm
+   USE taco_writer,                     ONLY: taco_close_file
    USE tamc_run,                        ONLY: qs_tamc
    USE tmc_setup,                       ONLY: do_analyze_files,&
                                               do_tmc
@@ -447,6 +448,7 @@ CONTAINS
          CALL f_env_rm_defaults(f_env, ierr=ierr, &
                                 handle=f_env_handle)
          CPASSERT(ierr == 0)
+         CALL taco_close_file()
          CALL destroy_force_env(new_env_id, ierr=ierr)
          CPASSERT(ierr == 0)
       ELSE

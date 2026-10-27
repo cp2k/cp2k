@@ -136,6 +136,7 @@ option(CP2K_USE_LIBXS
        "Enable LIBXS support; required if OpenCL backend enabled"
        ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_SPGLIB "Enable Spglib support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_TACO "Enable TACO trajectory output" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_TREXIO "Enable TREXIO support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_VORI "Enable Libvori support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_CRAY_PM_ENERGY "Enable Cray PM energy framework" OFF)
@@ -968,6 +969,35 @@ if(CP2K_USE_TREXIO)
   find_package(TrexIO REQUIRED)
 endif()
 
+if(CP2K_USE_TACO)
+  # TACO is provided as a prebuilt static/shared C library (no Rust compiler
+  # needed at build time). Point TACO_ROOT (or TACO_DIR) at the installation
+  # prefix, which contains include/taco_format_c.h and lib/libtaco_format_c.a.
+  if(NOT DEFINED TACO_ROOT AND DEFINED TACO_DIR)
+    set(TACO_ROOT ${TACO_DIR})
+  endif()
+  find_path(
+    TACO_INCLUDE_DIR
+    NAMES taco_format_c.h
+    HINTS ${TACO_ROOT}/include ${TACO_ROOT}/include/taco ${TACO_ROOT})
+  find_library(
+    TACO_LIBRARY
+    NAMES taco_format_c
+    HINTS ${TACO_ROOT}/lib ${TACO_ROOT}/lib64 ${TACO_ROOT})
+  if(NOT TACO_INCLUDE_DIR OR NOT TACO_LIBRARY)
+    message(
+      FATAL_ERROR
+        "TACO not found. Set TACO_ROOT to the TACO installation prefix "
+        "(containing include/taco_format_c.h and lib/libtaco_format_c.a).")
+  endif()
+  add_library(cp2k::taco UNKNOWN IMPORTED)
+  set_target_properties(
+    cp2k::taco
+    PROPERTIES IMPORTED_LOCATION ${TACO_LIBRARY}
+               INTERFACE_INCLUDE_DIRECTORIES ${TACO_INCLUDE_DIR}
+               INTERFACE_LINK_LIBRARIES "m;dl;pthread")
+endif()
+
 if(CP2K_USE_GREENX)
   find_package(greenX REQUIRED CONFIG)
   get_target_property(CP2K_GREENX_INCLUDE_DIRS greenX::GXCommon
@@ -1258,6 +1288,11 @@ if(CP2K_USE_TREXIO)
           "    - Libraries: ${CP2K_TREXIO_LINK_LIBRARIES}\n")
 endif()
 
+if(CP2K_USE_TACO)
+  message("  - TACO\n" "    - Include directories: ${TACO_INCLUDE_DIR}\n"
+          "    - Libraries: ${TACO_LIBRARY}\n")
+endif()
+
 if(CP2K_USE_GREENX)
   message("  - GreenX\n"
           "    - Include directories: ${CP2K_GREENX_INCLUDE_DIRS}\n"
@@ -1381,6 +1416,10 @@ endif()
 
 if(NOT CP2K_USE_TREXIO)
   message("  - TREXIO")
+endif()
+
+if(NOT CP2K_USE_TACO)
+  message("  - TACO")
 endif()
 
 if(NOT CP2K_USE_OPENPMD)

@@ -335,6 +335,9 @@ CONTAINS
 #if defined(__TREXIO)
       flags = TRIM(flags)//" trexio"
 #endif
+#if defined(__TACO)
+      flags = TRIM(flags)//" taco"
+#endif
 #if defined(__LIBFCI)
       flags = TRIM(flags)//" libfci"
 #endif
