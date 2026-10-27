@@ -22,7 +22,9 @@ MODULE qs_ot_minimizer
                                               dbcsr_set,&
                                               dbcsr_type
    USE cp_dbcsr_contrib,                ONLY: dbcsr_dot,&
+                                              dbcsr_dot_batch,&
                                               dbcsr_init_random
+   USE cp_dbcsr_operations,             ONLY: dbcsr_sum_many
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -192,8 +194,9 @@ CONTAINS
       IF (.NOT. reuse_gradient .AND. .NOT. qs_ot_env(1)%energy_only) THEN
          qs_ot_env(1)%gradient = 0.0_dp
          local_gradient = .FALSE.
-         IF (do_ks .AND. PRESENT(matrix_hc_im) .AND. .NOT. separate_occupation_gradient) THEN
-            CALL qs_ot_get_derivative_local_batch(qs_ot_env, matrix_hc, matrix_hc_im, local_gradient)
+         IF (do_ks .AND. PRESENT(matrix_hc_im)) THEN
+            CALL qs_ot_get_derivative_local_batch(qs_ot_env, matrix_hc, matrix_hc_im, local_gradient, &
+                                                  matrix_hc_physical, matrix_hc_physical_im)
          END IF
          DO ispin = 1, nspin
             IF (do_ks .AND. .NOT. local_gradient) THEN
@@ -3390,11 +3393,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_diis_step'
 
-      INTEGER                                            :: diis_bound, diis_m, handle, i, info, &
-                                                            ispin, j, nspin
-      LOGICAL                                            :: do_ener, do_ks, do_ot_sd
+      INTEGER                                            :: component, diis_bound, diis_m, handle, i, info, &
+                                                            ispin, j, m, nmat, nspin
+      LOGICAL                                            :: do_ener, do_ks, do_ot_sd, local_history
       REAL(KIND=dp)                                      :: nvariables, overlap, tmp, tr_xnew_gx, &
                                                             tr_xold_gx
+      REAL(dp), ALLOCATABLE                               :: coefficients(:), dots(:), dots_new(:), weights(:)
+      TYPE(dbcsr_p_type), ALLOCATABLE                    :: positions(:), gradients(:), history(:, :)
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
@@ -3415,24 +3420,46 @@ CONTAINS
 
       j = MOD(qs_ot_env(1)%diis_iter, diis_m) + 1 ! index in the circular array
 
-      ! copy the position and the error vector in the diis buffers
-
+      ! Keep component order identical to the scalar product: real, imaginary, then rotation.
+      nmat = 0
+      local_history = do_ks
       IF (do_ks) THEN
          DO ispin = 1, nspin
-            CALL dbcsr_copy(qs_ot_env(ispin)%matrix_h_x(j)%matrix, qs_ot_env(ispin)%matrix_x)
+            m = 1
+            IF (qs_ot_env(ispin)%has_complex_kpoint_state) m = 2
+            nmat = nmat + m
+            IF (qs_ot_env(ispin)%settings%do_rotation) nmat = nmat + m
+            local_history = local_history .AND. qs_ot_env(ispin)%has_complex_kpoint_state .AND. &
+                            .NOT. qs_ot_env(ispin)%settings%do_rotation .AND. qs_ot_env(ispin)%para_env%num_pe == 1
+         END DO
+      END IF
+      ALLOCATE (positions(nmat), gradients(nmat), history(nmat, 2*diis_bound), &
+                weights(nmat), dots(nmat), dots_new(nmat), coefficients(2*diis_bound))
+      component = 0
+      IF (do_ks) THEN
+         DO ispin = 1, nspin
+            CALL add_component(qs_ot_env(ispin)%matrix_x, qs_ot_env(ispin)%matrix_gx, &
+                               qs_ot_env(ispin)%matrix_h_e, qs_ot_env(ispin)%matrix_h_x, 1.0_dp)
             IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-               CALL dbcsr_copy(qs_ot_env(ispin)%matrix_h_x_im(j)%matrix, &
-                               qs_ot_env(ispin)%matrix_x_im)
+               CALL add_component(qs_ot_env(ispin)%matrix_x_im, qs_ot_env(ispin)%matrix_gx_im, &
+                                  qs_ot_env(ispin)%matrix_h_e_im, qs_ot_env(ispin)%matrix_h_x_im, 1.0_dp)
             END IF
             IF (qs_ot_env(ispin)%settings%do_rotation) THEN
-               CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, qs_ot_env(ispin)%rot_mat_x)
+               CALL add_component(qs_ot_env(ispin)%rot_mat_x, qs_ot_env(ispin)%rot_mat_gx, &
+                                  qs_ot_env(ispin)%rot_mat_h_e, qs_ot_env(ispin)%rot_mat_h_x, 0.5_dp)
                IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                  CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_h_x_im(j)%matrix, &
-                                  qs_ot_env(ispin)%rot_mat_x_im)
+                  CALL add_component(qs_ot_env(ispin)%rot_mat_x_im, qs_ot_env(ispin)%rot_mat_gx_im, &
+                                     qs_ot_env(ispin)%rot_mat_h_e_im, qs_ot_env(ispin)%rot_mat_h_x_im, 0.5_dp)
                END IF
             END IF
          END DO
       END IF
+
+      ! copy the position and the error vector in the diis buffers
+
+      DO m = 1, nmat
+         CALL dbcsr_copy(history(m, diis_bound + j)%matrix, positions(m)%matrix)
+      END DO
       IF (do_ener) THEN
          DO ispin = 1, nspin
             qs_ot_env(ispin)%ener_h_x(j, :) = qs_ot_env(ispin)%ener_x(:)
@@ -3453,31 +3480,10 @@ CONTAINS
       DO i = 1, diis_bound
          ! Form the DIIS metric from the gradient and stored steps.
          qs_ot_env(1)%ls_diis(i, j) = 0.0_dp
-         IF (do_ks) THEN
-            DO ispin = 1, nspin
-               CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, &
-                              qs_ot_env(ispin)%matrix_h_e(i)%matrix, &
-                              tmp)
-               qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) - qs_ot_env(1)%ds_min*tmp
-               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                  CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx_im, &
-                                 qs_ot_env(ispin)%matrix_h_e_im(i)%matrix, tmp)
-                  qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) - qs_ot_env(1)%ds_min*tmp
-               END IF
-               IF (qs_ot_env(ispin)%settings%do_rotation) THEN
-                  CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, &
-                                 qs_ot_env(ispin)%rot_mat_h_e(i)%matrix, &
-                                 tmp)
-                  qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) - qs_ot_env(1)%ds_min*0.5_dp*tmp
-                  IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                     CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx_im, &
-                                    qs_ot_env(ispin)%rot_mat_h_e_im(i)%matrix, tmp)
-                     qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) - &
-                                                  qs_ot_env(1)%ds_min*0.5_dp*tmp
-                  END IF
-               END IF
-            END DO
-         END IF
+         CALL dbcsr_dot_batch(gradients, history(:, i), dots)
+         DO m = 1, nmat
+            qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) - qs_ot_env(1)%ds_min*weights(m)*dots(m)
+         END DO
          IF (do_ener) THEN
             DO ispin = 1, nspin
                tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_gx(:), qs_ot_env(ispin)%ener_h_e(i, :))
@@ -3503,59 +3509,16 @@ CONTAINS
          WRITE (cp_logger_get_default_unit_nr(logger), *) "Singular DIIS matrix"
       ELSE
          do_ot_sd = .FALSE.
-         IF (do_ks) THEN
-            DO ispin = 1, nspin
-               ! OK, add the vectors now
-               CALL dbcsr_set(qs_ot_env(ispin)%matrix_x, 0.0_dp)
-               DO i = 1, diis_bound
-                  CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
-                                 qs_ot_env(ispin)%matrix_h_e(i)%matrix, &
-                                 alpha_scalar=1.0_dp, beta_scalar=qs_ot_env(1)%c_diis(i))
+         coefficients(1:diis_bound) = qs_ot_env(1)%c_diis(1:diis_bound)
+         coefficients(diis_bound + 1:2*diis_bound) = qs_ot_env(1)%c_diis(1:diis_bound)
+         IF (local_history) THEN
+            CALL dbcsr_sum_many(positions, history, coefficients)
+         ELSE
+            DO m = 1, nmat
+               CALL dbcsr_set(positions(m)%matrix, 0.0_dp)
+               DO i = 1, 2*diis_bound
+                  CALL dbcsr_add(positions(m)%matrix, history(m, i)%matrix, 1.0_dp, coefficients(i))
                END DO
-               DO i = 1, diis_bound
-                  CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
-                                 qs_ot_env(ispin)%matrix_h_x(i)%matrix, &
-                                 alpha_scalar=1.0_dp, beta_scalar=qs_ot_env(1)%c_diis(i))
-               END DO
-               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                  CALL dbcsr_set(qs_ot_env(ispin)%matrix_x_im, 0.0_dp)
-                  DO i = 1, diis_bound
-                     CALL dbcsr_add(qs_ot_env(ispin)%matrix_x_im, &
-                                    qs_ot_env(ispin)%matrix_h_e_im(i)%matrix, &
-                                    alpha_scalar=1.0_dp, beta_scalar=qs_ot_env(1)%c_diis(i))
-                  END DO
-                  DO i = 1, diis_bound
-                     CALL dbcsr_add(qs_ot_env(ispin)%matrix_x_im, &
-                                    qs_ot_env(ispin)%matrix_h_x_im(i)%matrix, &
-                                    alpha_scalar=1.0_dp, beta_scalar=qs_ot_env(1)%c_diis(i))
-                  END DO
-               END IF
-               IF (qs_ot_env(ispin)%settings%do_rotation) THEN
-                  CALL dbcsr_set(qs_ot_env(ispin)%rot_mat_x, 0.0_dp)
-                  IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                     CALL dbcsr_set(qs_ot_env(ispin)%rot_mat_x_im, 0.0_dp)
-                  END IF
-                  DO i = 1, diis_bound
-                     CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_x, &
-                                    qs_ot_env(ispin)%rot_mat_h_e(i)%matrix, &
-                                    alpha_scalar=1.0_dp, beta_scalar=qs_ot_env(1)%c_diis(i))
-                     IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                        CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_x_im, &
-                                       qs_ot_env(ispin)%rot_mat_h_e_im(i)%matrix, &
-                                       alpha_scalar=1.0_dp, beta_scalar=qs_ot_env(1)%c_diis(i))
-                     END IF
-                  END DO
-                  DO i = 1, diis_bound
-                     CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_x, &
-                                    qs_ot_env(ispin)%rot_mat_h_x(i)%matrix, &
-                                    alpha_scalar=1.0_dp, beta_scalar=qs_ot_env(1)%c_diis(i))
-                     IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                        CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_x_im, &
-                                       qs_ot_env(ispin)%rot_mat_h_x_im(i)%matrix, &
-                                       alpha_scalar=1.0_dp, beta_scalar=qs_ot_env(1)%c_diis(i))
-                     END IF
-                  END DO
-               END IF
             END DO
          END IF
          IF (do_ener) THEN
@@ -3578,40 +3541,12 @@ CONTAINS
             ! the direction of the step is x_new-x_old
             tr_xold_gx = 0.0_dp
             tr_xnew_gx = 0.0_dp
-            IF (do_ks) THEN
-               DO ispin = 1, nspin
-                  CALL dbcsr_dot(qs_ot_env(ispin)%matrix_h_x(j)%matrix, &
-                                 qs_ot_env(ispin)%matrix_gx, tmp)
-                  tr_xold_gx = tr_xold_gx + tmp
-                  CALL dbcsr_dot(qs_ot_env(ispin)%matrix_x, &
-                                 qs_ot_env(ispin)%matrix_gx, tmp)
-                  tr_xnew_gx = tr_xnew_gx + tmp
-                  IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                     CALL dbcsr_dot(qs_ot_env(ispin)%matrix_h_x_im(j)%matrix, &
-                                    qs_ot_env(ispin)%matrix_gx_im, tmp)
-                     tr_xold_gx = tr_xold_gx + tmp
-                     CALL dbcsr_dot(qs_ot_env(ispin)%matrix_x_im, &
-                                    qs_ot_env(ispin)%matrix_gx_im, tmp)
-                     tr_xnew_gx = tr_xnew_gx + tmp
-                  END IF
-                  IF (qs_ot_env(ispin)%settings%do_rotation) THEN
-                     CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, &
-                                    qs_ot_env(ispin)%rot_mat_gx, tmp)
-                     tr_xold_gx = tr_xold_gx + 0.5_dp*tmp
-                     CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_x, &
-                                    qs_ot_env(ispin)%rot_mat_gx, tmp)
-                     tr_xnew_gx = tr_xnew_gx + 0.5_dp*tmp
-                     IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                        CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_h_x_im(j)%matrix, &
-                                       qs_ot_env(ispin)%rot_mat_gx_im, tmp)
-                        tr_xold_gx = tr_xold_gx + 0.5_dp*tmp
-                        CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_x_im, &
-                                       qs_ot_env(ispin)%rot_mat_gx_im, tmp)
-                        tr_xnew_gx = tr_xnew_gx + 0.5_dp*tmp
-                     END IF
-                  END IF
-               END DO
-            END IF
+            CALL dbcsr_dot_batch(history(:, diis_bound + j), gradients, dots)
+            CALL dbcsr_dot_batch(positions, gradients, dots_new)
+            DO m = 1, nmat
+               tr_xold_gx = tr_xold_gx + weights(m)*dots(m)
+               tr_xnew_gx = tr_xnew_gx + weights(m)*dots_new(m)
+            END DO
             IF (do_ener) THEN
                DO ispin = 1, nspin
                   tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_h_x(j, :), qs_ot_env(ispin)%ener_gx(:))
@@ -3632,48 +3567,11 @@ CONTAINS
 
       IF (do_ot_sd) THEN
          qs_ot_env(1)%OT_METHOD_FULL = "OT SD"
-         IF (do_ks) THEN
-            DO ispin = 1, nspin
-               CALL dbcsr_set(qs_ot_env(ispin)%matrix_x, 0.0_dp)
-               CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
-                              qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
-                              1.0_dp, 1.0_dp)
-               CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
-                              qs_ot_env(ispin)%matrix_h_x(j)%matrix, &
-                              1.0_dp, 1.0_dp)
-               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                  CALL dbcsr_set(qs_ot_env(ispin)%matrix_x_im, 0.0_dp)
-                  CALL dbcsr_add(qs_ot_env(ispin)%matrix_x_im, &
-                                 qs_ot_env(ispin)%matrix_h_e_im(j)%matrix, &
-                                 1.0_dp, 1.0_dp)
-                  CALL dbcsr_add(qs_ot_env(ispin)%matrix_x_im, &
-                                 qs_ot_env(ispin)%matrix_h_x_im(j)%matrix, &
-                                 1.0_dp, 1.0_dp)
-               END IF
-               IF (qs_ot_env(ispin)%settings%do_rotation) THEN
-                  CALL dbcsr_set(qs_ot_env(ispin)%rot_mat_x, 0.0_dp)
-                  IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                     CALL dbcsr_set(qs_ot_env(ispin)%rot_mat_x_im, 0.0_dp)
-                  END IF
-                  CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_x, &
-                                 qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
-                                 1.0_dp, 1.0_dp)
-                  IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                     CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_x_im, &
-                                    qs_ot_env(ispin)%rot_mat_h_e_im(j)%matrix, &
-                                    1.0_dp, 1.0_dp)
-                  END IF
-                  CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_x, &
-                                 qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, &
-                                 1.0_dp, 1.0_dp)
-                  IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                     CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_x_im, &
-                                    qs_ot_env(ispin)%rot_mat_h_x_im(j)%matrix, &
-                                    1.0_dp, 1.0_dp)
-                  END IF
-               END IF
-            END DO
-         END IF
+         DO m = 1, nmat
+            CALL dbcsr_set(positions(m)%matrix, 0.0_dp)
+            CALL dbcsr_add(positions(m)%matrix, history(m, j)%matrix, 1.0_dp, 1.0_dp)
+            CALL dbcsr_add(positions(m)%matrix, history(m, diis_bound + j)%matrix, 1.0_dp, 1.0_dp)
+         END DO
          IF (do_ener) THEN
             DO ispin = 1, nspin
                qs_ot_env(ispin)%ener_x(:) = 0._dp
@@ -3684,6 +3582,29 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
+
+   CONTAINS
+
+! **************************************************************************************************
+!> \brief Collect one DIIS component without copying matrix data.
+!> \param x current position
+!> \param gx current gradient
+!> \param he error history
+!> \param hx position history
+!> \param weight metric weight of this component
+! **************************************************************************************************
+      SUBROUTINE add_component(x, gx, he, hx, weight)
+      TYPE(dbcsr_type), POINTER                          :: x, gx
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: he(:), hx(:)
+      REAL(dp), INTENT(IN)                               :: weight
+
+         component = component + 1
+         positions(component)%matrix => x
+         gradients(component)%matrix => gx
+         history(component, 1:diis_bound) = he(1:diis_bound)
+         history(component, diis_bound + 1:2*diis_bound) = hx(1:diis_bound)
+         weights(component) = weight
+      END SUBROUTINE add_component
 
    END SUBROUTINE ot_diis_step
 

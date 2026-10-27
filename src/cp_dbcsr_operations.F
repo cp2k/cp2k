@@ -75,7 +75,7 @@ MODULE cp_dbcsr_operations
    END TYPE dbcsr_fm_copy_plan_type
 
    PUBLIC :: copy_dbcsr_to_local, copy_local_to_dbcsr
-   PUBLIC :: dbcsr_multiply_local
+   PUBLIC :: dbcsr_multiply_local, dbcsr_sum_many
 
    ! CP2K API emulation
    PUBLIC :: copy_fm_to_dbcsr, copy_dbcsr_to_fm, &
@@ -110,6 +110,58 @@ MODULE cp_dbcsr_operations
    END INTERFACE
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Sum local, nonsymmetric matrices in history order, using bounded per-worker storage.
+!>        Pack and store outside OpenMP, including missing or transposed input blocks.
+!> \param matrix_c independent output matrices
+!> \param matrix_a input matrices, indexed by output and history entry; must not alias outputs
+!> \param alpha coefficients of the history entries
+! **************************************************************************************************
+   SUBROUTINE dbcsr_sum_many(matrix_c, matrix_a, alpha)
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: matrix_c(:), matrix_a(:, :)
+      REAL(dp), INTENT(IN)                               :: alpha(:)
+
+      TYPE local_sum_type
+         REAL(dp), ALLOCATABLE :: value(:, :), buffer(:, :)
+      END TYPE local_sum_type
+
+      INTEGER                                            :: first, i, j, k, n, nbatch, nworkers
+      TYPE(local_sum_type), ALLOCATABLE                  :: work(:)
+
+      CPASSERT(SIZE(matrix_c) == SIZE(matrix_a, 1))
+      CPASSERT(SIZE(alpha) == SIZE(matrix_a, 2))
+      IF (SIZE(matrix_c) == 0) RETURN
+      nworkers = 1
+!$    nworkers = MIN(SIZE(matrix_c), omp_get_max_threads())
+      ALLOCATE (work(nworkers))
+      DO first = 1, SIZE(matrix_c), nworkers
+         nbatch = MIN(nworkers, SIZE(matrix_c) - first + 1)
+         DO j = 1, nbatch
+            CALL dbcsr_get_info(matrix_c(first + j - 1)%matrix, nfullrows_total=n, nfullcols_total=k)
+            IF (ALLOCATED(work(j)%value)) THEN
+               IF (SIZE(work(j)%value, 1) /= n .OR. SIZE(work(j)%value, 2) /= k) THEN
+                  DEALLOCATE (work(j)%value, work(j)%buffer)
+               END IF
+            END IF
+            IF (.NOT. ALLOCATED(work(j)%value)) ALLOCATE (work(j)%value(n, k), work(j)%buffer(n, k))
+            work(j)%value(:, :) = 0.0_dp
+         END DO
+         DO i = 1, SIZE(alpha)
+            DO j = 1, nbatch
+               CALL copy_dbcsr_to_local(matrix_a(first + j - 1, i)%matrix, work(j)%buffer)
+            END DO
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nbatch) IF(nbatch > 1) SHARED(work,alpha,i,nbatch)
+            DO j = 1, nbatch
+               work(j)%value(:, :) = work(j)%value(:, :) + alpha(i)*work(j)%buffer(:, :)
+            END DO
+!$OMP END PARALLEL DO
+         END DO
+         DO j = 1, nbatch
+            CALL copy_local_to_dbcsr(matrix_c(first + j - 1)%matrix, work(j)%value)
+         END DO
+      END DO
+   END SUBROUTINE dbcsr_sum_many
 
 ! **************************************************************************************************
 !> \brief Load a single-rank, nonsymmetric matrix without redistribution.

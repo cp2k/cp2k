@@ -2104,7 +2104,7 @@ CONTAINS
                                         scf_env%qs_ot_env(ot_channel)%matrix_x_im, &
                                         scf_env%qs_ot_env(ot_channel)%matrix_sx, &
                                         scf_env%qs_ot_env(ot_channel)%matrix_sx_im, &
-                                        scf_env%qs_ot_env(ot_channel))
+                                        scf_env%qs_ot_env(ot_channel), zero_coordinates=.TRUE.)
             CASE ("REF")
                CALL dbcsr_copy(scf_env%qs_ot_env(ot_channel)%matrix_x, &
                                scf_env%qs_ot_env(ot_channel)%matrix_c0)

@@ -32,6 +32,7 @@ MODULE qs_ot
                                               dbcsr_frobenius_norm,&
                                               dbcsr_gershgorin_norm,&
                                               dbcsr_hadamard_product,&
+                                              dbcsr_reserve_all_blocks,&
                                               dbcsr_scale_by_vector
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_heevd,&
                                               cp_dbcsr_syevd
@@ -2619,11 +2620,13 @@ CONTAINS
 !> \param matrix_sx real part of S*X
 !> \param matrix_sx_im imaginary part of S*X
 !> \param qs_ot_env OT channel state
+!> \param zero_coordinates initialize the known X=0 state without diagonalization
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_get_p_complex(matrix_x, matrix_x_im, matrix_sx, matrix_sx_im, qs_ot_env)
+   SUBROUTINE qs_ot_get_p_complex(matrix_x, matrix_x_im, matrix_sx, matrix_sx_im, qs_ot_env, zero_coordinates)
       TYPE(dbcsr_type), POINTER                          :: matrix_x, matrix_x_im, matrix_sx, &
                                                             matrix_sx_im
       TYPE(qs_ot_type)                                   :: qs_ot_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: zero_coordinates
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_p_complex'
 
@@ -2633,6 +2636,29 @@ CONTAINS
 
       CPASSERT(qs_ot_env%has_complex_kpoint_state)
       CPASSERT(qs_ot_env%settings%ot_algorithm == 'TOD')
+
+      IF (PRESENT(zero_coordinates)) THEN
+         IF (zero_coordinates) THEN
+            CALL dbcsr_set(qs_ot_env%matrix_p, 0.0_dp)
+            CALL dbcsr_set(qs_ot_env%matrix_p_im, 0.0_dp)
+            CALL dbcsr_set(qs_ot_env%matrix_r, 0.0_dp)
+            CALL dbcsr_add_on_diag(qs_ot_env%matrix_r, 1.0_dp)
+            CALL dbcsr_set(qs_ot_env%matrix_r_im, 0.0_dp)
+            CALL dbcsr_copy(qs_ot_env%matrix_cosp, qs_ot_env%matrix_r)
+            CALL dbcsr_copy(qs_ot_env%matrix_sinp, qs_ot_env%matrix_r)
+            CALL dbcsr_set(qs_ot_env%matrix_cosp_im, 0.0_dp)
+            CALL dbcsr_set(qs_ot_env%matrix_sinp_im, 0.0_dp)
+            CALL dbcsr_reserve_all_blocks(qs_ot_env%matrix_cosp_b)
+            CALL dbcsr_reserve_all_blocks(qs_ot_env%matrix_sinp_b)
+            CALL dbcsr_set(qs_ot_env%matrix_cosp_b, -0.5_dp)
+            CALL dbcsr_set(qs_ot_env%matrix_sinp_b, -1.0_dp/6.0_dp)
+            qs_ot_env%evals(:) = 0.0_dp
+            qs_ot_env%dum(:) = 0.0_dp
+            qs_ot_env%do_taylor = .FALSE.
+            CALL timestop(handle)
+            RETURN
+         END IF
+      END IF
 
       CALL qs_ot_complex_multiply('C', 'N', matrix_x, matrix_x_im, matrix_sx, matrix_sx_im, &
                                   qs_ot_env%matrix_p, qs_ot_env%matrix_p_im, qs_ot_env%matrix_buf1)
@@ -3412,7 +3438,7 @@ CONTAINS
    END SUBROUTINE qs_ot_get_derivative_complex
 
 ! **************************************************************************************************
-!> \brief Whether all channels can use the single-rank, fixed-occupation STRICT kernels.
+!> \brief Whether all channels can use the single-rank STRICT/IRAC kernels without rotation.
 !> \param qs_ot_env local OT channels
 !> \return true when every channel is eligible
 ! **************************************************************************************************
@@ -3425,15 +3451,22 @@ CONTAINS
       IF (SIZE(qs_ot_env) == 0) RETURN
       DO i = 1, SIZE(qs_ot_env)
          IF (.NOT. qs_ot_env(i)%has_complex_kpoint_state) RETURN
-         IF (qs_ot_env(i)%settings%ot_algorithm /= 'TOD') RETURN
-         IF (qs_ot_env(i)%settings%do_ener .OR. qs_ot_env(i)%settings%do_rotation) RETURN
+         IF (qs_ot_env(i)%settings%do_rotation) RETURN
+         SELECT CASE (qs_ot_env(i)%settings%ot_algorithm)
+         CASE ('TOD')
+            IF (qs_ot_env(i)%settings%do_ener) RETURN
+         CASE ('REF')
+         CASE DEFAULT
+            RETURN
+         END SELECT
+         IF (qs_ot_env(i)%settings%ot_algorithm /= qs_ot_env(1)%settings%ot_algorithm) RETURN
          IF (qs_ot_env(i)%para_env%num_pe /= 1) RETURN
       END DO
       local = .TRUE.
    END FUNCTION qs_ot_local_channels
 
 ! **************************************************************************************************
-!> \brief Rebuild single-rank STRICT orbitals in bounded batches using cached overlaps.
+!> \brief Rebuild single-rank STRICT/IRAC orbitals in bounded batches using cached overlaps.
 !>        DBCSR packing and writeback are outside OpenMP; workers only use dense data and private scratch.
 !> \param qs_ot_env local OT channels
 !> \param matrix_s pointers to cached real/imaginary overlaps, indexed by component and channel
@@ -3451,10 +3484,14 @@ CONTAINS
       INTEGER                                            :: first, handle, i, j, k, n, nbatch, &
                                                             nchannels, nworkers
       INTEGER, ALLOCATABLE                               :: info(:)
+      LOGICAL                                            :: ref, update
       TYPE(qs_ot_local_work_type), ALLOCATABLE           :: work(:)
 
       handled = .FALSE.
       IF (.NOT. qs_ot_local_channels(qs_ot_env)) RETURN
+      ref = qs_ot_env(1)%settings%ot_algorithm == 'REF'
+      update = .FALSE.
+      IF (ref) update = qs_ot_ref_update(qs_ot_env(1))
       CALL timeset(routineN, handle)
       nchannels = SIZE(qs_ot_env)
       nworkers = 1
@@ -3475,14 +3512,16 @@ CONTAINS
             IF (.NOT. ALLOCATED(work(j)%vectors)) ALLOCATE (work(j)%vectors(k, k), work(j)%values(k))
             CALL cp_cfm_local_workspace_prepare(work(j)%solver, k, work(j)%vectors)
             CALL qs_ot_load_local_pair(qs_ot_env(i)%matrix_x, qs_ot_env(i)%matrix_x_im, work(j)%x)
-            CALL qs_ot_load_local_pair(qs_ot_env(i)%matrix_c0, qs_ot_env(i)%matrix_c0_im, work(j)%c0)
+            IF (.NOT. ref) THEN
+               CALL qs_ot_load_local_pair(qs_ot_env(i)%matrix_c0, qs_ot_env(i)%matrix_c0_im, work(j)%c0)
+            END IF
          END DO
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nbatch) IF(nbatch > 1) &
-!$OMP SHARED(work,info,matrix_s,matrix_c,nbatch,first) PRIVATE(i,n,k)
+!$OMP SHARED(work,info,matrix_s,matrix_c,nbatch,first,ref,UPDATE) PRIVATE(i,n,k)
          DO j = 1, nbatch
             i = first + j - 1
             CALL qs_ot_orbitals_local(work(j), matrix_s(1, i)%matrix%local_data, &
-                                      matrix_s(2, i)%matrix%local_data, info(j))
+                                      matrix_s(2, i)%matrix%local_data, ref, update, info(j))
             IF (info(j) /= 0) CYCLE
             n = work(j)%n
             k = work(j)%k
@@ -3490,9 +3529,16 @@ CONTAINS
          END DO
 !$OMP END PARALLEL DO
          DO j = 1, nbatch
-            IF (info(j) /= 0) CPABORT('Local complex STRICT overlap diagonalization failed')
+            IF (info(j) == -1) CPABORT('Complex REF overlap is not positive definite')
+            IF (info(j) /= 0) CPABORT('Local complex OT overlap diagonalization failed')
             i = first + j - 1
             CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_sx, qs_ot_env(i)%matrix_sx_im, work(j)%sx)
+            IF (ref) THEN
+               CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_ref_inv_sqrt, &
+                                           qs_ot_env(i)%matrix_ref_inv_sqrt_im, work(j)%sinp)
+               IF (update) CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_x, qs_ot_env(i)%matrix_x_im, work(j)%x)
+               CYCLE
+            END IF
             CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_p, qs_ot_env(i)%matrix_p_im, work(j)%buf3)
             CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_r, qs_ot_env(i)%matrix_r_im, work(j)%r)
             CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_cosp, qs_ot_env(i)%matrix_cosp_im, work(j)%buf4)
@@ -3511,16 +3557,21 @@ CONTAINS
    END SUBROUTINE qs_ot_get_orbitals_local_batch
 
 ! **************************************************************************************************
-!> \brief Evaluate S*X, spectral matrix functions and C0*cos(sqrt(P))+X*sinc(sqrt(P)).
+!> \brief Evaluate S*X and reconstruct physical STRICT or IRAC orbitals.
 !> \param w private storage; buf3 retains P and buf4 retains cos(sqrt(P)) for writeback
 !> \param overlap_re cached real overlap, including any leading-dimension padding
 !> \param overlap_im cached imaginary overlap
-!> \param info LAPACK status
+!> \param ref select IRAC instead of STRICT
+!> \param update accept the IRAC coordinate at the existing minimizer update point
+!> \param info LAPACK status, or -1 for a non-positive IRAC overlap
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_orbitals_local(w, overlap_re, overlap_im, info)
+   SUBROUTINE qs_ot_orbitals_local(w, overlap_re, overlap_im, ref, update, info)
       TYPE(qs_ot_local_work_type), INTENT(INOUT)         :: w
       REAL(dp), CONTIGUOUS, INTENT(IN)                   :: overlap_re(:, :), overlap_im(:, :)
+      LOGICAL, INTENT(IN)                                :: ref, update
       INTEGER, INTENT(OUT)                               :: info
+
+      INTEGER                                            :: i
 
       CALL qs_ot_complex_multiply_local('N', 'N', overlap_re, overlap_im, w%x(:, :, 1), w%x(:, :, 2), &
                                         w%sx(:, :, 1), w%sx(:, :, 2), w%tmp, w%gemm_ctx)
@@ -3528,9 +3579,28 @@ CONTAINS
       w%vectors(:, :) = CMPLX(w%buf3(:, :, 1), w%buf3(:, :, 2), KIND=dp)
       CALL cp_cfm_heevd_local(w%vectors, info=info, ws=w%solver)
       IF (info /= 0) RETURN
-      w%solver%evals(:) = MAX(0.0_dp, w%solver%evals(:))
       w%r(:, :, 1) = REAL(w%vectors, KIND=dp)
       w%r(:, :, 2) = AIMAG(w%vectors)
+      IF (ref) THEN
+         IF (ANY(w%solver%evals <= EPSILON(1.0_dp))) THEN
+            info = -1
+            RETURN
+         END IF
+         w%values(:) = 1.0_dp/SQRT(w%solver%evals(:))
+         CALL qs_ot_spectral_matrix_local(w, matrix=w%sinp)
+         CALL qs_ot_complex_multiply_local('N', 'N', w%x, w%sinp, w%out, w%tmp, w%gemm_ctx)
+         IF (update) THEN
+            w%x(:, :, :) = w%out(:, :, :)
+            w%sinp(:, :, :) = 0.0_dp
+            DO i = 1, w%k
+               w%sinp(i, i, 1) = 1.0_dp
+            END DO
+            CALL qs_ot_complex_multiply_local('N', 'N', overlap_re, overlap_im, w%x(:, :, 1), w%x(:, :, 2), &
+                                              w%sx(:, :, 1), w%sx(:, :, 2), w%tmp, w%gemm_ctx)
+         END IF
+         RETURN
+      END IF
+      w%solver%evals(:) = MAX(0.0_dp, w%solver%evals(:))
       CALL qs_ot_spectral_matrix_local(w, .TRUE., w%buf4)
       CALL qs_ot_spectral_matrix_local(w, .FALSE., w%sinp)
       w%values(:) = SQRT(w%solver%evals(:))
@@ -3544,17 +3614,17 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Reconstruct one spectral matrix function from the local eigenvectors.
 !> \param w private eigenvectors, eigenvalues and scratch
-!> \param cosine select cos(sqrt(P)); otherwise sinc(sqrt(P))
+!> \param cosine select cos/sinc(sqrt(P)); if absent, use the supplied spectral values
 !> \param matrix dense real/imaginary result
 ! **************************************************************************************************
    SUBROUTINE qs_ot_spectral_matrix_local(w, cosine, matrix)
       TYPE(qs_ot_local_work_type), INTENT(INOUT)         :: w
-      LOGICAL, INTENT(IN)                                :: cosine
+      LOGICAL, INTENT(IN), OPTIONAL                      :: cosine
       REAL(dp), CONTIGUOUS, INTENT(INOUT)                :: matrix(:, :, :)
 
       INTEGER                                            :: i
 
-      CALL qs_ot_spectral_values(w%solver%evals, w%values, cosine)
+      IF (PRESENT(cosine)) CALL qs_ot_spectral_values(w%solver%evals, w%values, cosine)
       DO i = 1, w%k
          w%buf1(:, i, 1) = w%r(:, i, 1)*w%values(i)
          w%buf1(:, i, 2) = w%r(:, i, 2)*w%values(i)
@@ -3600,32 +3670,46 @@ CONTAINS
    END SUBROUTINE qs_ot_store_local_pair
 
 ! **************************************************************************************************
-!> \brief Evaluate independent, single-rank STRICT gradients in bounded OpenMP batches.
-!>        Matrix lifetimes and metric preparation stay outside the worker region.
+!> \brief Evaluate independent, single-rank STRICT/IRAC gradients in bounded OpenMP batches.
+!>        DBCSR packing, filtering and metric preparation stay outside the worker region.
 !> \param qs_ot_env local OT channels
 !> \param matrix_hc real orbital gradients
 !> \param matrix_hc_im imaginary orbital gradients
 !> \param handled false when the original distributed/rotation path is required
+!> \param matrix_hc_physical optional physical gradients for occupation preconditioning
+!> \param matrix_hc_physical_im imaginary physical gradients
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_get_derivative_local_batch(qs_ot_env, matrix_hc, matrix_hc_im, handled)
+   SUBROUTINE qs_ot_get_derivative_local_batch(qs_ot_env, matrix_hc, matrix_hc_im, handled, &
+                                               matrix_hc_physical, matrix_hc_physical_im)
       TYPE(qs_ot_type), INTENT(INOUT)                    :: qs_ot_env(:)
       TYPE(dbcsr_p_type), INTENT(IN)                     :: matrix_hc(:), matrix_hc_im(:)
       LOGICAL, INTENT(OUT)                               :: handled
+      TYPE(dbcsr_p_type), INTENT(IN), OPTIONAL           :: matrix_hc_physical(:), &
+                                                            matrix_hc_physical_im(:)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ot_get_derivative_local_batch'
 
       INTEGER                                            :: first, handle, i, j, nbatch, nchannels, &
-                                                            nworkers
+                                                            npasses, nworkers, pass
+      LOGICAL                                            :: ref
+      LOGICAL, ALLOCATABLE                               :: filtered(:)
       TYPE(qs_ot_local_work_type), ALLOCATABLE           :: work(:)
 
       handled = .FALSE.
       IF (.NOT. qs_ot_local_channels(qs_ot_env)) RETURN
+      ref = qs_ot_env(1)%settings%ot_algorithm == 'REF'
+      npasses = 1
+      IF (PRESENT(matrix_hc_physical)) THEN
+         IF (.NOT. ref) RETURN
+         CPASSERT(PRESENT(matrix_hc_physical_im))
+         npasses = 2
+      END IF
       nchannels = SIZE(qs_ot_env)
 
       CALL timeset(routineN, handle)
       nworkers = 1
 !$    nworkers = MIN(nchannels, omp_get_max_threads())
-      ALLOCATE (work(nworkers))
+      ALLOCATE (work(nworkers), filtered(nworkers))
       DO j = 1, nworkers
          CALL work(j)%gemm_ctx%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
       END DO
@@ -3633,18 +3717,59 @@ CONTAINS
          nbatch = MIN(nworkers, nchannels - first + 1)
          DO j = 1, nbatch
             i = first + j - 1
-            CALL qs_ot_prepare_complex_tangent_metric(qs_ot_env(i))
+            IF (.NOT. ref) CALL qs_ot_prepare_complex_tangent_metric(qs_ot_env(i))
             CALL qs_ot_load_local_work(work(j), qs_ot_env(i), matrix_hc(i)%matrix, matrix_hc_im(i)%matrix)
+            filtered(j) = ref .AND. qs_ot_env(i)%settings%eps_irac_filter_matrix > 0.0_dp
          END DO
-!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nbatch) IF(nbatch > 1) SHARED(work,nbatch)
-         DO j = 1, nbatch
-            CALL qs_ot_strict_gradient_local(work(j))
-         END DO
+         DO pass = 1, npasses
+            IF (pass == 2) THEN
+               DO j = 1, nbatch
+                  i = first + j - 1
+                  CALL qs_ot_load_local_pair(matrix_hc_physical(i)%matrix, matrix_hc_physical_im(i)%matrix, work(j)%hc)
+               END DO
+            END IF
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nbatch) IF(nbatch > 1) &
+!$OMP SHARED(work,nbatch,ref,filtered)
+            DO j = 1, nbatch
+               IF (ref) THEN
+                  CALL qs_ot_complex_multiply_local('N', 'N', work(j)%x, work(j)%sinp, &
+                                                    work(j)%c0, work(j)%tmp, work(j)%gemm_ctx)
+                  CALL qs_ot_complex_multiply_local('C', 'N', work(j)%c0, work(j)%hc, &
+                                                    work(j)%buf3, work(j)%buf2(:, :, 1), work(j)%gemm_ctx)
+                  IF (.NOT. filtered(j)) CALL qs_ot_ref_gradient_local(work(j))
+               ELSE
+                  CALL qs_ot_strict_gradient_local(work(j))
+               END IF
+            END DO
 !$OMP END PARALLEL DO
-         DO j = 1, nbatch
-            i = first + j - 1
-            CALL copy_local_to_dbcsr(qs_ot_env(i)%matrix_gx, work(j)%out(:, :, 1))
-            CALL copy_local_to_dbcsr(qs_ot_env(i)%matrix_gx_im, work(j)%out(:, :, 2))
+            IF (ANY(filtered(1:nbatch))) THEN
+               ! Keep the existing block filter, including independent real/imaginary sparsity.
+               DO j = 1, nbatch
+                  IF (.NOT. filtered(j)) CYCLE
+                  i = first + j - 1
+                  CALL qs_ot_store_local_pair(qs_ot_env(i)%buf1_k_k_sym, qs_ot_env(i)%buf2_k_k_sym, work(j)%buf3)
+                  CALL dbcsr_filter(qs_ot_env(i)%buf1_k_k_sym, qs_ot_env(i)%settings%eps_irac_filter_matrix)
+                  CALL dbcsr_filter(qs_ot_env(i)%buf2_k_k_sym, qs_ot_env(i)%settings%eps_irac_filter_matrix)
+                  CALL qs_ot_load_local_pair(qs_ot_env(i)%buf1_k_k_sym, qs_ot_env(i)%buf2_k_k_sym, work(j)%buf3)
+               END DO
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nbatch) IF(nbatch > 1) SHARED(work,nbatch,filtered)
+               DO j = 1, nbatch
+                  IF (filtered(j)) CALL qs_ot_ref_gradient_local(work(j))
+               END DO
+!$OMP END PARALLEL DO
+            END IF
+            DO j = 1, nbatch
+               i = first + j - 1
+               CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_gx, qs_ot_env(i)%matrix_gx_im, work(j)%out)
+               IF (filtered(j)) THEN
+                  CALL dbcsr_filter(qs_ot_env(i)%matrix_gx, qs_ot_env(i)%settings%eps_irac_filter_matrix)
+                  CALL dbcsr_filter(qs_ot_env(i)%matrix_gx_im, qs_ot_env(i)%settings%eps_irac_filter_matrix)
+               END IF
+               IF (pass < npasses) THEN
+                  CALL dbcsr_copy(qs_ot_env(i)%matrix_preconditioned_gx, qs_ot_env(i)%matrix_gx)
+                  CALL dbcsr_copy(qs_ot_env(i)%matrix_preconditioned_gx_im, qs_ot_env(i)%matrix_gx_im)
+               END IF
+            END DO
          END DO
       END DO
       DO j = 1, nworkers
@@ -3653,6 +3778,19 @@ CONTAINS
       handled = .TRUE.
       CALL timestop(handle)
    END SUBROUTINE qs_ot_get_derivative_local_batch
+
+! **************************************************************************************************
+!> \brief Complete the IRAC pullback (HC-SX*F*B)*F after forming and optionally filtering B=Q^H*HC.
+!> \param w private storage with F in sinp and B in buf3
+! **************************************************************************************************
+   SUBROUTINE qs_ot_ref_gradient_local(w)
+      TYPE(qs_ot_local_work_type), INTENT(INOUT)         :: w
+
+      CALL qs_ot_complex_multiply_local('N', 'N', w%sx, w%sinp, w%buf_nk, w%tmp, w%gemm_ctx)
+      CALL qs_ot_complex_multiply_local('N', 'N', w%buf_nk, w%buf3, w%c0, w%tmp, w%gemm_ctx)
+      w%c0(:, :, :) = w%hc(:, :, :) - w%c0(:, :, :)
+      CALL qs_ot_complex_multiply_local('N', 'N', w%c0, w%sinp, w%out, w%tmp, w%gemm_ctx)
+   END SUBROUTINE qs_ot_ref_gradient_local
 
 ! **************************************************************************************************
 !> \brief Contract one STRICT term with its Frechet kernel in the eigenvector basis.
@@ -3698,19 +3836,29 @@ CONTAINS
       INTEGER                                            :: k, n, o
 
       CALL dbcsr_get_info(qs_ot_env%matrix_x, nfullrows_total=n, nfullcols_total=k)
-      CALL dbcsr_get_info(qs_ot_env%matrix_sc0, nfullcols_total=o)
-      IF (.NOT. ALLOCATED(w%hc) .OR. n /= w%n .OR. k /= w%k .OR. o /= w%o) THEN
-         IF (ALLOCATED(w%hc)) THEN
-            DEALLOCATE (w%hc, w%sc0, w%target, w%os, w%buf1_ortho, w%buf2_ortho, w%tmp_ortho)
-         END IF
-         ALLOCATE (w%hc(n, k, 2), w%sc0(n, o, 2), w%target(n, o, 2), w%os(o, o, 2), &
-                   w%buf1_ortho(o, k, 2), w%buf2_ortho(o, k, 2), w%tmp_ortho(o, k))
-         w%o = o
-      END IF
       CALL qs_ot_allocate_local_work(w, n, k)
+      IF (ALLOCATED(w%hc)) THEN
+         IF (SIZE(w%hc, 1) /= n .OR. SIZE(w%hc, 2) /= k) DEALLOCATE (w%hc)
+      END IF
+      IF (.NOT. ALLOCATED(w%hc)) ALLOCATE (w%hc(n, k, 2))
       CALL qs_ot_load_local_pair(matrix_hc, matrix_hc_im, w%hc)
       CALL qs_ot_load_local_pair(qs_ot_env%matrix_x, qs_ot_env%matrix_x_im, w%x)
       CALL qs_ot_load_local_pair(qs_ot_env%matrix_sx, qs_ot_env%matrix_sx_im, w%sx)
+      IF (qs_ot_env%settings%ot_algorithm == 'REF') THEN
+         CALL qs_ot_load_local_pair(qs_ot_env%matrix_ref_inv_sqrt, qs_ot_env%matrix_ref_inv_sqrt_im, w%sinp)
+         RETURN
+      END IF
+      CALL dbcsr_get_info(qs_ot_env%matrix_sc0, nfullcols_total=o)
+      IF (ALLOCATED(w%sc0)) THEN
+         IF (SIZE(w%sc0, 1) /= n .OR. SIZE(w%buf1_ortho, 2) /= k .OR. o /= w%o) THEN
+            DEALLOCATE (w%sc0, w%target, w%os, w%buf1_ortho, w%buf2_ortho, w%tmp_ortho)
+         END IF
+      END IF
+      IF (.NOT. ALLOCATED(w%sc0)) THEN
+         ALLOCATE (w%sc0(n, o, 2), w%target(n, o, 2), w%os(o, o, 2), &
+                   w%buf1_ortho(o, k, 2), w%buf2_ortho(o, k, 2), w%tmp_ortho(o, k))
+         w%o = o
+      END IF
       CALL qs_ot_load_local_pair(qs_ot_env%matrix_c0, qs_ot_env%matrix_c0_im, w%c0)
       CALL qs_ot_load_local_pair(qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, w%r)
       CALL qs_ot_load_local_pair(qs_ot_env%matrix_sinp, qs_ot_env%matrix_sinp_im, w%sinp)
