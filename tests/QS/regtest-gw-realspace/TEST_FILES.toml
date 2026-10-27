@@ -1,45 +1,65 @@
-"01_RIRS_G0W0_PBE_H2O.inp"               = [{matcher="RIRS_Grid", tol=1e-03, ref=608},
-                                          {matcher="E_RIRS_HOMO", tol=1e-03, ref=-6.152},
-                                          {matcher="E_RIRS_LUMO", tol=1e-03, ref=17.695},
-                                          {matcher="E_G0W0_direct_gap", tol=1e-03, ref=23.846}]
+"01_RIRS_G0W0_PBE_H2O.inp" = [
+  {matcher = "RIRS_Grid", tol = 1e-03, ref = 608},
+  {matcher = "E_RIRS_HOMO", tol = 1e-03, ref = -6.152},
+  {matcher = "E_RIRS_LUMO", tol = 1e-03, ref = 17.695},
+  {matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 23.846}
+]
 
-"02_RIRS_G0W0_PBE0_H2O.inp"              = [{matcher="E_G0W0_direct_gap", tol=1e-03, ref=24.168}]
+"02_RIRS_G0W0_PBE0_H2O.inp" = [{matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 24.168}]
 
-"03_RIRS_G0W0_PBE0_O2.inp"               = [{matcher="RIRS_Grid", tol=1e-03, ref=672},
-                                          {matcher="E_RIRS_HOMO", tol=1e-03, ref=-6.683},
-                                          {matcher="E_RIRS_LUMO", tol=1e-03, ref=10.743},
-                                          {matcher="E_G0W0_direct_gap", tol=1e-03, ref=21.699}]
+"03_RIRS_G0W0_PBE0_O2.inp" = [
+  {matcher = "RIRS_Grid", tol = 1e-03, ref = 672},
+  {matcher = "E_RIRS_HOMO", tol = 1e-03, ref = -6.683},
+  {matcher = "E_RIRS_LUMO", tol = 1e-03, ref = 10.743},
+  {matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 21.699}
+]
 
-"04_RIRS_G0W0_GPW_PBE_H2O.inp"           = [{matcher="E_RIRS_HOMO", tol=1e-03, ref=-6.419},
-                                          {matcher="E_RIRS_LUMO", tol=1e-03, ref=16.905},
-                                          {matcher="E_G0W0_direct_gap", tol=1e-03, ref=23.324}]
+"04_RIRS_G0W0_GPW_PBE_H2O.inp" = [
+  {matcher = "E_RIRS_HOMO", tol = 1e-03, ref = -6.419},
+  {matcher = "E_RIRS_LUMO", tol = 1e-03, ref = 16.905},
+  {matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 23.324}
+]
 
-"05_RIRS_RESTART_G0W0_PBE_H2O.inp"       = [{matcher="E_RIRS_HOMO", tol=1e-03, ref=-6.092},
-                                          {matcher="E_RIRS_LUMO", tol=1e-03, ref=17.425},
-                                          {matcher="E_G0W0_direct_gap", tol=1e-03, ref=23.517}]
+"05_RIRS_RESTART_G0W0_PBE_H2O.inp" = [
+  {matcher = "E_RIRS_HOMO", tol = 1e-03, ref = -6.092},
+  {matcher = "E_RIRS_LUMO", tol = 1e-03, ref = 17.425},
+  {matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 23.517}
+]
 
-"06_RIRS_G0W0_PBE_H2O_CUTOFFS.inp"       = [{matcher="E_RIRS_HOMO", tol=1e-03, ref=-5.903},
-                                          {matcher="E_RIRS_LUMO", tol=1e-03, ref=17.821},
-                                          {matcher="E_G0W0_direct_gap", tol=1e-03, ref=23.724}]
+"06_RIRS_G0W0_PBE_H2O_CUTOFFS.inp" = [
+  {matcher = "E_RIRS_HOMO", tol = 1e-03, ref = -5.903},
+  {matcher = "E_RIRS_LUMO", tol = 1e-03, ref = 17.821},
+  {matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 23.724}
+]
 
-"07_RIRS_EVGW0_GPW_PBE_H2O.inp"          = [{matcher="E_RIRS_evGW0_HOMO", tol=1e-03, ref=-6.777},
-                                          {matcher="E_RIRS_evGW0_LUMO", tol=1e-03, ref=16.897},
-                                          {matcher="E_evGW0_direct_gap", tol=1e-03, ref=23.674}]
+"07_RIRS_EVGW0_GPW_PBE_H2O.inp" = [
+  {matcher = "E_RIRS_evGW0_HOMO", tol = 1e-03, ref = -6.777},
+  {matcher = "E_RIRS_evGW0_LUMO", tol = 1e-03, ref = 16.897},
+  {matcher = "E_evGW0_direct_gap", tol = 1e-03, ref = 23.674}
+]
 
-"08_RIRS_EVGW0_PBE0_O2.inp"              = [{matcher="E_RIRS_evGW0_HOMO", tol=1e-03, ref=-6.741},
-                                          {matcher="E_RIRS_evGW0_LUMO", tol=1e-03, ref=10.718},
-                                          {matcher="E_evGW0_direct_gap", tol=1e-03, ref=21.416}]
+"08_RIRS_EVGW0_PBE0_O2.inp" = [
+  {matcher = "E_RIRS_evGW0_HOMO", tol = 1e-03, ref = -6.741},
+  {matcher = "E_RIRS_evGW0_LUMO", tol = 1e-03, ref = 10.718},
+  {matcher = "E_evGW0_direct_gap", tol = 1e-03, ref = 21.416}
+]
 
 # AUTO_RI contracts a large QZ reference basis; the resolved RS grid gives a stable GW gap.
-"auto-ri-size-H2O.inp" = [{matcher="Auto_RI_Size", tol=1e-12, ref=18},
-                           {matcher="RIRS_Grid", tol=1e-12, ref=42},
-                           {matcher="E_G0W0_direct_gap", tol=1e-3, ref=22.667}]
+"auto-ri-size-H2O.inp"                      = [
+  {matcher = "Auto_RI_Size", tol = 1e-12, ref = 18},
+  {matcher = "RIRS_Grid", tol = 1e-12, ref = 42},
+  {matcher = "E_G0W0_direct_gap", tol = 1e-3, ref = 22.667}
+]
 # With no AB neighbors, the complete requested RI size is selected from AA contractions.
-"auto-ri-aa-only-H2O.inp" = [{matcher="Auto_RI_Size", tol=1e-12, ref=11}]
-"rirs-grid-cholesky-H2O.inp" = [{matcher="RIRS_Grid", tol=1e-12, ref=14},
-                                  {matcher="RIRS_Grid_Optimization_Error", tol=1e-1, ref=4.9e-3}]
-"rirs-grid-optimization-ratio-H2O.inp" = [{matcher="RIRS_Grid", tol=1e-12, ref=24},
-                                          {matcher="RIRS_Grid_Optimization_Error", tol=1e-1, ref=8.4e-4}]
+"auto-ri-aa-only-H2O.inp"                   = [{matcher = "Auto_RI_Size", tol = 1e-12, ref = 11}]
+"rirs-grid-cholesky-H2O.inp"                = [
+  {matcher = "RIRS_Grid", tol = 1e-12, ref = 14},
+  {matcher = "RIRS_Grid_Optimization_Error", tol = 1e-1, ref = 4.9e-3}
+]
+"rirs-grid-optimization-ratio-H2O.inp"      = [
+  {matcher = "RIRS_Grid", tol = 1e-12, ref = 24},
+  {matcher = "RIRS_Grid_Optimization_Error", tol = 1e-1, ref = 8.4e-4}
+]
 # Candidate generation exceeds its default ratio; rank saturation is completed by maximin.
-"rirs-grid-rank-saturation-maximin-H2O.inp" = [{matcher="RIRS_Grid", tol=1e-12, ref=280}]
+"rirs-grid-rank-saturation-maximin-H2O.inp" = [{matcher = "RIRS_Grid", tol = 1e-12, ref = 280}]
 #EOF

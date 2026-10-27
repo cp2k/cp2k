@@ -3,21 +3,21 @@
 # see regtest/TEST_FILES
 # Density-corrected DFT GAPW Force tests
 # GAPW
-"a1.inp"                                 = []
-"a2.inp"                                 = []
-"a3.inp"                                 = []
-"a4.inp"                                 = []
+"a1.inp" = []
+"a2.inp" = []
+"a3.inp" = []
+"a4.inp" = []
 ###ADMM+XOR nya
 ###"a5.inp"                                 = []
-"a6.inp"                                 = []
-"a7.inp"                                 = []
+"a6.inp" = []
+"a7.inp" = []
 # GAPW_XC
-"b1.inp"                                 = []
-"b2.inp"                                 = []
-"b3.inp"                                 = []
-"b4.inp"                                 = []
+"b1.inp" = []
+"b2.inp" = []
+"b3.inp" = []
+"b4.inp" = []
 ###ADMM+XOR nya
 ###"a5.inp"                                 = []
-"b6.inp"                                 = []
-"b7.inp"                                 = []
+"b6.inp" = []
+"b7.inp" = []
 #EOF

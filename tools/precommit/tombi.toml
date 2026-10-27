@@ -1,0 +1,26 @@
+toml-version = "v1.0.0"
+
+[files]
+include = ["**/TEST_FILES.toml"]
+
+# Test execution order and matcher order must not change.
+[schema]
+enabled = false
+
+[format.rules]
+key-value-equals-sign-alignment = true
+key-value-equals-sign-space-width = 1
+
+array-bracket-space-width = 0
+array-comma-space-width = 1
+inline-table-brace-space-width = 0
+inline-table-comma-space-width = 1
+
+comment-style = "preserve"
+key-quote-style = "preserve"
+string-quote-style = "preserve"
+indent-style = "space"
+indent-width = 2
+line-ending = "lf"
+
+line-width = 120

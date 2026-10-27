@@ -3,15 +3,15 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"h2o_apt.inp"                           = [{matcher="M096", tol=1e-06, ref=-0.879586}]
-"h2o_apt_dyn.inp"                       = [{matcher="M096", tol=1e-06, ref=-0.776093}]
-"h2o_apt_z-matrix.inp"                  = [{matcher="M096", tol=1e-06, ref=-0.882548}]
-"h2o_apt_uks.inp"                       = [{matcher="M096", tol=1e-06, ref=-0.879582}]
-"h2o_apt_uks_z-matrix.inp"              = [{matcher="M096", tol=1e-06, ref=-0.882544}]
-"h2o_apt_loc.inp"                       = [{matcher="M096", tol=1e-06, ref=-0.879586}]
-"h2o_apt_pbc.inp"                       = [{matcher="M096", tol=1e-06, ref=-0.938707}]
-"h2o_apt_pbc_loc.inp"                   = [{matcher="M096", tol=1e-06, ref=-0.938770}]
-"h2o_aat.inp"                           = [{matcher="M100", tol=1e-06, ref=-0.857427}]
-"h2o_apt_fdiff.inp"                     = [{matcher="M127", tol=1e-04, ref=0.0009336267}]
-"h2o_apt_r2scan_fdiff.inp"              = [{matcher="M127", tol=1e-04, ref=-0.0070661291}]
+"h2o_apt.inp"              = [{matcher = "M096", tol = 1e-06, ref = -0.879586}]
+"h2o_apt_dyn.inp"          = [{matcher = "M096", tol = 1e-06, ref = -0.776093}]
+"h2o_apt_z-matrix.inp"     = [{matcher = "M096", tol = 1e-06, ref = -0.882548}]
+"h2o_apt_uks.inp"          = [{matcher = "M096", tol = 1e-06, ref = -0.879582}]
+"h2o_apt_uks_z-matrix.inp" = [{matcher = "M096", tol = 1e-06, ref = -0.882544}]
+"h2o_apt_loc.inp"          = [{matcher = "M096", tol = 1e-06, ref = -0.879586}]
+"h2o_apt_pbc.inp"          = [{matcher = "M096", tol = 1e-06, ref = -0.938707}]
+"h2o_apt_pbc_loc.inp"      = [{matcher = "M096", tol = 1e-06, ref = -0.938770}]
+"h2o_aat.inp"              = [{matcher = "M100", tol = 1e-06, ref = -0.857427}]
+"h2o_apt_fdiff.inp"        = [{matcher = "M127", tol = 1e-04, ref = 0.0009336267}]
+"h2o_apt_r2scan_fdiff.inp" = [{matcher = "M127", tol = 1e-04, ref = -0.0070661291}]
 #EOF

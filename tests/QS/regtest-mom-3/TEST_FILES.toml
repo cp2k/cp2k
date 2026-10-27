@@ -8,8 +8,8 @@
 # number of active electrons : 8
 # excitation              multiplicity  C2v_irreducible_representation
 # ground state              singlet     A1
-"h2o_pbe_gs1.inp"                       = [{matcher="Dipole_berry_traj", tol=1.0E-05, ref=2.2604176760E+00}]
+"h2o_pbe_gs1.inp"    = [{matcher = "Dipole_berry_traj", tol = 1.0E-05, ref = 2.2604176760E+00}]
 # ground state added mos    singlet     A1
-"h2o_pbe_gs2.inp"                       = [{matcher="Dipole_berry_traj", tol=1.0E-05, ref=2.2604176760E+00}]
+"h2o_pbe_gs2.inp"    = [{matcher = "Dipole_berry_traj", tol = 1.0E-05, ref = 2.2604176760E+00}]
 # 4 (alpha) -> 5 (alpha)    singlet     B1
-"h2o_pbe_mom_s1.inp"                    = [{matcher="Dipole_berry_traj", tol=1.0E-05, ref=5.5002027723E-01}]
+"h2o_pbe_mom_s1.inp" = [{matcher = "Dipole_berry_traj", tol = 1.0E-05, ref = 5.5002027723E-01}]

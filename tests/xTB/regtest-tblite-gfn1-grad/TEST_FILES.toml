@@ -3,37 +3,51 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"CH2O_gfn1_force.inp"                          = [{matcher="M082", tol=1.0E-5, ref=0.0000000}]
-"CH2O_gfn1_uks_force.inp"                      = [{matcher="M082", tol=1.0E-5, ref=0.0000000}]
-"O2_gfn1_uks_force.inp"                        = [{matcher="M082", tol=1.0E-5, ref=0.0000000}]
-"COBe_gfn1_fd_force.inp"                       = [{matcher="M082", tol=1.0E-5, ref=0.0000000}]
-"CH2O_gfn1_stress.inp"                         = [{matcher="DEBUG_stress_sum", tol=1.0E-5, ref=0.0000000}]
-"Si_gfn1_fd_force.inp"                         = [{matcher="M082", tol=2.0E-4, ref=0.0000000}]
-"Si_gfn1_fd_stress.inp"                        = [{matcher="M042", tol=1.0E-5, ref=0.0000000}]
-"Si_gfn1_kp_stress.inp"                        = [{matcher="DEBUG_stress_sum", tol=5.0E-6, ref=0.0000000}]
-"H2O_gfn1_yz_kp_debug.inp"                     = [{matcher="DEBUG_stress_sum", tol=1.0E-7, ref=0.0000000},
-                                                   {matcher="DEBUG_periodic_stress_sum", tol=1.0E-7, ref=0.0000000},
-                                                   {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000},
-                                                   {matcher="N_special_kpoints", tol=0.0, ref=2}]
-"Ar_fcc_gfn1_kp_debug.inp"                     = [{matcher="DEBUG_stress_sum", tol=1.0E-5, ref=0.0000000},
-                                                   {matcher="DEBUG_force_sum", tol=1.0E-5, ref=0.0000000},
-                                                   {matcher="N_special_kpoints", tol=0.0, ref=4}]
-"Ar_fcc_gfn1_kp_spglib_backend_debug.inp"      = [{matcher="DEBUG_stress_sum", tol=1.0E-5, ref=0.0000000},
-                                                   {matcher="DEBUG_force_sum", tol=1.0E-5, ref=0.0000000},
-                                                   {matcher="N_special_kpoints", tol=0.0, ref=4}]
-"Ar2_chain_gfn1_x_kp_debug.inp"                = [{matcher="DEBUG_stress_sum", tol=5.0E-6, ref=0.0000000},
-                                                   {matcher="DEBUG_periodic_stress_sum", tol=5.0E-6, ref=0.0000000},
-                                                   {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000},
-                                                   {matcher="N_special_kpoints", tol=0.0, ref=1}]
-"Ar2_chain_gfn1_y_kp_debug.inp"                = [{matcher="DEBUG_stress_sum", tol=5.0E-6, ref=0.0000000},
-                                                   {matcher="DEBUG_periodic_stress_sum", tol=5.0E-6, ref=0.0000000},
-                                                   {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000},
-                                                   {matcher="N_special_kpoints", tol=0.0, ref=1}]
-"Ar_layer_gfn1_yz_kp_debug.inp"                = [{matcher="DEBUG_stress_sum", tol=5.0E-6, ref=0.0000000},
-                                                   {matcher="DEBUG_periodic_stress_sum", tol=5.0E-6, ref=0.0000000},
-                                                   {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000},
-                                                   {matcher="N_special_kpoints", tol=0.0, ref=2}]
-"hbn_gfn1_hex_kp_debug.inp"                    = [{matcher="DEBUG_stress_sum", tol=1.0E-6, ref=0.0000000},
-                                                   {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000},
-                                                   {matcher="N_special_kpoints", tol=0.0, ref=8}]
+"CH2O_gfn1_force.inp"                     = [{matcher = "M082", tol = 1.0E-5, ref = 0.0000000}]
+"CH2O_gfn1_uks_force.inp"                 = [{matcher = "M082", tol = 1.0E-5, ref = 0.0000000}]
+"O2_gfn1_uks_force.inp"                   = [{matcher = "M082", tol = 1.0E-5, ref = 0.0000000}]
+"COBe_gfn1_fd_force.inp"                  = [{matcher = "M082", tol = 1.0E-5, ref = 0.0000000}]
+"CH2O_gfn1_stress.inp"                    = [{matcher = "DEBUG_stress_sum", tol = 1.0E-5, ref = 0.0000000}]
+"Si_gfn1_fd_force.inp"                    = [{matcher = "M082", tol = 2.0E-4, ref = 0.0000000}]
+"Si_gfn1_fd_stress.inp"                   = [{matcher = "M042", tol = 1.0E-5, ref = 0.0000000}]
+"Si_gfn1_kp_stress.inp"                   = [{matcher = "DEBUG_stress_sum", tol = 5.0E-6, ref = 0.0000000}]
+"H2O_gfn1_yz_kp_debug.inp"                = [
+  {matcher = "DEBUG_stress_sum", tol = 1.0E-7, ref = 0.0000000},
+  {matcher = "DEBUG_periodic_stress_sum", tol = 1.0E-7, ref = 0.0000000},
+  {matcher = "DEBUG_force_sum", tol = 1.0E-6, ref = 0.0000000},
+  {matcher = "N_special_kpoints", tol = 0.0, ref = 2}
+]
+"Ar_fcc_gfn1_kp_debug.inp"                = [
+  {matcher = "DEBUG_stress_sum", tol = 1.0E-5, ref = 0.0000000},
+  {matcher = "DEBUG_force_sum", tol = 1.0E-5, ref = 0.0000000},
+  {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
+]
+"Ar_fcc_gfn1_kp_spglib_backend_debug.inp" = [
+  {matcher = "DEBUG_stress_sum", tol = 1.0E-5, ref = 0.0000000},
+  {matcher = "DEBUG_force_sum", tol = 1.0E-5, ref = 0.0000000},
+  {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
+]
+"Ar2_chain_gfn1_x_kp_debug.inp"           = [
+  {matcher = "DEBUG_stress_sum", tol = 5.0E-6, ref = 0.0000000},
+  {matcher = "DEBUG_periodic_stress_sum", tol = 5.0E-6, ref = 0.0000000},
+  {matcher = "DEBUG_force_sum", tol = 1.0E-6, ref = 0.0000000},
+  {matcher = "N_special_kpoints", tol = 0.0, ref = 1}
+]
+"Ar2_chain_gfn1_y_kp_debug.inp"           = [
+  {matcher = "DEBUG_stress_sum", tol = 5.0E-6, ref = 0.0000000},
+  {matcher = "DEBUG_periodic_stress_sum", tol = 5.0E-6, ref = 0.0000000},
+  {matcher = "DEBUG_force_sum", tol = 1.0E-6, ref = 0.0000000},
+  {matcher = "N_special_kpoints", tol = 0.0, ref = 1}
+]
+"Ar_layer_gfn1_yz_kp_debug.inp"           = [
+  {matcher = "DEBUG_stress_sum", tol = 5.0E-6, ref = 0.0000000},
+  {matcher = "DEBUG_periodic_stress_sum", tol = 5.0E-6, ref = 0.0000000},
+  {matcher = "DEBUG_force_sum", tol = 1.0E-6, ref = 0.0000000},
+  {matcher = "N_special_kpoints", tol = 0.0, ref = 2}
+]
+"hbn_gfn1_hex_kp_debug.inp"               = [
+  {matcher = "DEBUG_stress_sum", tol = 1.0E-6, ref = 0.0000000},
+  {matcher = "DEBUG_force_sum", tol = 1.0E-6, ref = 0.0000000},
+  {matcher = "N_special_kpoints", tol = 0.0, ref = 8}
+]
 #EOF

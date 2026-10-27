@@ -3,43 +3,45 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"Na-kpoint-mermin-uks-sd.inp"           = [{matcher="E_total", tol=1e-9, ref=-0.280830319392400}]
-"Na-kpoint-mermin-uks-cg.inp"           = [{matcher="E_total", tol=1e-9, ref=-0.280830319393706}]
+"Na-kpoint-mermin-uks-sd.inp"                = [{matcher = "E_total", tol = 1e-9, ref = -0.280830319392400}]
+"Na-kpoint-mermin-uks-cg.inp"                = [{matcher = "E_total", tol = 1e-9, ref = -0.280830319393706}]
 # The fixed-moment state provides the initial wavefunction for the common-mu test.
-"Al-kpoint-mermin-uks-fixed-moment.inp" = [
-  {matcher="QS_number_of_molecular_orbitals", tol=0.0, ref=4.0},
-  {matcher="E_total", tol=1e-9, ref=-2.092002995440775},
-  {matcher="NO_TEXT", text="K-point smearing includes the first band"},
-  {matcher="NO_TEXT", text="K-point smearing includes the last band"},
+"Al-kpoint-mermin-uks-fixed-moment.inp"      = [
+  {matcher = "QS_number_of_molecular_orbitals", tol = 0.0, ref = 4.0},
+  {matcher = "E_total", tol = 1e-9, ref = -2.092002995440775},
+  {matcher = "NO_TEXT", text = "K-point smearing includes the first band"},
+  {matcher = "NO_TEXT", text = "K-point smearing includes the last band"},
 ]
-"Al-kpoint-mermin-uks-common-mu.inp"    = [
-  {matcher="E_total", tol=1e-9, ref=-2.092003031767048},
-  {matcher="Electronic_entropic_energy", tol=2e-3, ref=-0.00000046433265},
-  {matcher="Integrated_spin_density", tol=1e-6, ref=0.9999844248},
-  {matcher="NO_TEXT", text="K-point smearing includes the first band"},
-  {matcher="NO_TEXT", text="K-point smearing includes the last band"},
+"Al-kpoint-mermin-uks-common-mu.inp"         = [
+  {matcher = "E_total", tol = 1e-9, ref = -2.092003031767048},
+  {matcher = "Electronic_entropic_energy", tol = 2e-3, ref = -0.00000046433265},
+  {matcher = "Integrated_spin_density", tol = 1e-6, ref = 0.9999844248},
+  {matcher = "NO_TEXT", text = "K-point smearing includes the first band"},
+  {matcher = "NO_TEXT", text = "K-point smearing includes the last band"},
 ]
-"Al-kpoint-mermin-roks.inp"             = [
-  {matcher="E_total", tol=1e-6, ref=-2.181856475241352},
-  {matcher="Electronic_entropic_energy", tol=1e-4, ref=-0.00007227407734},
-  {matcher="Integrated_spin_density", tol=1e-7, ref=0.9999998273},
-  {matcher="NO_TEXT", text="K-point smearing includes the first band"},
-  {matcher="NO_TEXT", text="K-point smearing includes the last band"},
+"Al-kpoint-mermin-roks.inp"                  = [
+  {matcher = "E_total", tol = 1e-6, ref = -2.181856475241352},
+  {matcher = "Electronic_entropic_energy", tol = 1e-4, ref = -0.00007227407734},
+  {matcher = "Integrated_spin_density", tol = 1e-7, ref = 0.9999998273},
+  {matcher = "NO_TEXT", text = "K-point smearing includes the first band"},
+  {matcher = "NO_TEXT", text = "K-point smearing includes the last band"},
 ]
-"Al-kpoint-mermin-roks-restart.inp"     = [
-  {matcher="E_total", tol=1e-6, ref=-2.181856796554910},
-  {matcher="Electronic_entropic_energy", tol=1e-4, ref=-0.00007212144571},
-  {matcher="Integrated_spin_density", tol=1e-7, ref=0.9999998273},
-  {matcher="NO_TEXT", text="K-point smearing includes the first band"},
-  {matcher="NO_TEXT", text="K-point smearing includes the last band"},
+"Al-kpoint-mermin-roks-restart.inp"          = [
+  {matcher = "E_total", tol = 1e-6, ref = -2.181856796554910},
+  {matcher = "Electronic_entropic_energy", tol = 1e-4, ref = -0.00007212144571},
+  {matcher = "Integrated_spin_density", tol = 1e-7, ref = 0.9999998273},
+  {matcher = "NO_TEXT", text = "K-point smearing includes the first band"},
+  {matcher = "NO_TEXT", text = "K-point smearing includes the last band"},
 ]
-"H3-kpoint-roks.inp"                    = [{matcher="E_total", tol=1e-9, ref=-1.48796890031007},
-                                           {matcher="M072", tol=1e-6, ref=6.74684616E-02},
-                                           {matcher="M031", tol=1e-6, ref=-1.52567729226E+04}]
-"H3-kpoint-uks-opt.inp"                 = [{matcher="M007", tol=1e-9, ref=-1.4973404381}]
+"H3-kpoint-roks.inp"                         = [
+  {matcher = "E_total", tol = 1e-9, ref = -1.48796890031007},
+  {matcher = "M072", tol = 1e-6, ref = 6.74684616E-02},
+  {matcher = "M031", tol = 1e-6, ref = -1.52567729226E+04}
+]
+"H3-kpoint-uks-opt.inp"                      = [{matcher = "M007", tol = 1e-9, ref = -1.4973404381}]
 "Al-kpoint-mermin-uks-fractional-moment.inp" = [
-  {matcher="E_total", tol=1e-9, ref=-2.085110851347407},
-  {matcher="Integrated_spin_density", tol=1e-6, ref=0.5},
-  {matcher="Electronic_entropic_energy", tol=1e-5, ref=-0.00356162312810},
+  {matcher = "E_total", tol = 1e-9, ref = -2.085110851347407},
+  {matcher = "Integrated_spin_density", tol = 1e-6, ref = 0.5},
+  {matcher = "Electronic_entropic_energy", tol = 1e-5, ref = -0.00356162312810},
 ]
 #EOF
