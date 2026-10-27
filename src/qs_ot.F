@@ -3472,21 +3472,25 @@ CONTAINS
 !> \param matrix_s pointers to cached real/imaginary overlaps, indexed by component and channel
 !> \param matrix_c pointers to physical orbitals; only their active columns are updated
 !> \param handled false when the original distributed/rotation path is required
+!> \param initialize build C0/SC0 from physical orbitals without modifying the physical state
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_get_orbitals_local_batch(qs_ot_env, matrix_s, matrix_c, handled)
+   SUBROUTINE qs_ot_get_orbitals_local_batch(qs_ot_env, matrix_s, matrix_c, handled, initialize)
       TYPE(qs_ot_type), INTENT(INOUT)                    :: qs_ot_env(:)
       TYPE(cp_fm_p_type), INTENT(IN)                     :: matrix_s(:, :)
       TYPE(cp_cfm_p_type), INTENT(IN)                    :: matrix_c(:)
       LOGICAL, INTENT(OUT)                               :: handled
+      LOGICAL, INTENT(IN), OPTIONAL                      :: initialize
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ot_get_orbitals_local_batch'
 
       INTEGER                                            :: first, handle, i, j, k, n, nbatch, &
                                                             nchannels, nworkers
       INTEGER, ALLOCATABLE                               :: info(:)
-      LOGICAL                                            :: ref, update
+      LOGICAL                                            :: initial, ref, update
       TYPE(qs_ot_local_work_type), ALLOCATABLE           :: work(:)
 
+      initial = .FALSE.
+      IF (PRESENT(initialize)) initial = initialize
       handled = .FALSE.
       IF (.NOT. qs_ot_local_channels(qs_ot_env)) RETURN
       ref = qs_ot_env(1)%settings%ot_algorithm == 'REF'
@@ -3506,23 +3510,31 @@ CONTAINS
             i = first + j - 1
             CALL dbcsr_get_info(qs_ot_env(i)%matrix_x, nfullrows_total=n, nfullcols_total=k)
             CALL qs_ot_allocate_local_work(work(j), n, k)
-            IF (ALLOCATED(work(j)%vectors)) THEN
-               IF (SIZE(work(j)%vectors, 1) /= k) DEALLOCATE (work(j)%vectors, work(j)%values)
+            IF (.NOT. initial .OR. ref) THEN
+               IF (ALLOCATED(work(j)%vectors)) THEN
+                  IF (SIZE(work(j)%vectors, 1) /= k) DEALLOCATE (work(j)%vectors, work(j)%values)
+               END IF
+               IF (.NOT. ALLOCATED(work(j)%vectors)) ALLOCATE (work(j)%vectors(k, k), work(j)%values(k))
+               CALL cp_cfm_local_workspace_prepare(work(j)%solver, k, work(j)%vectors)
             END IF
-            IF (.NOT. ALLOCATED(work(j)%vectors)) ALLOCATE (work(j)%vectors(k, k), work(j)%values(k))
-            CALL cp_cfm_local_workspace_prepare(work(j)%solver, k, work(j)%vectors)
-            CALL qs_ot_load_local_pair(qs_ot_env(i)%matrix_x, qs_ot_env(i)%matrix_x_im, work(j)%x)
-            IF (.NOT. ref) THEN
-               CALL qs_ot_load_local_pair(qs_ot_env(i)%matrix_c0, qs_ot_env(i)%matrix_c0_im, work(j)%c0)
+            IF (initial) THEN
+               work(j)%x(:, :, 1) = REAL(matrix_c(i)%matrix%local_data(1:n, 1:k), KIND=dp)
+               work(j)%x(:, :, 2) = AIMAG(matrix_c(i)%matrix%local_data(1:n, 1:k))
+            ELSE
+               CALL qs_ot_load_local_pair(qs_ot_env(i)%matrix_x, qs_ot_env(i)%matrix_x_im, work(j)%x)
+               IF (.NOT. ref) THEN
+                  CALL qs_ot_load_local_pair(qs_ot_env(i)%matrix_c0, qs_ot_env(i)%matrix_c0_im, work(j)%c0)
+               END IF
             END IF
          END DO
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nbatch) IF(nbatch > 1) &
-!$OMP SHARED(work,info,matrix_s,matrix_c,nbatch,first,ref,UPDATE) PRIVATE(i,n,k)
+!$OMP SHARED(work,info,matrix_s,matrix_c,nbatch,first,ref,UPDATE,initial) PRIVATE(i,n,k)
          DO j = 1, nbatch
             i = first + j - 1
             CALL qs_ot_orbitals_local(work(j), matrix_s(1, i)%matrix%local_data, &
-                                      matrix_s(2, i)%matrix%local_data, ref, update, info(j))
+                                      matrix_s(2, i)%matrix%local_data, ref, update, info(j), initial)
             IF (info(j) /= 0) CYCLE
+            IF (initial) CYCLE
             n = work(j)%n
             k = work(j)%k
             matrix_c(i)%matrix%local_data(1:n, 1:k) = CMPLX(work(j)%out(:, :, 1), work(j)%out(:, :, 2), KIND=dp)
@@ -3532,11 +3544,16 @@ CONTAINS
             IF (info(j) == -1) CPABORT('Complex REF overlap is not positive definite')
             IF (info(j) /= 0) CPABORT('Local complex OT overlap diagonalization failed')
             i = first + j - 1
+            IF (initial) THEN
+               CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_c0, qs_ot_env(i)%matrix_c0_im, work(j)%out)
+               CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_sc0, qs_ot_env(i)%matrix_sc0_im, work(j)%buf_nk)
+               IF (.NOT. ref) CYCLE
+            END IF
             CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_sx, qs_ot_env(i)%matrix_sx_im, work(j)%sx)
             IF (ref) THEN
                CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_ref_inv_sqrt, &
                                            qs_ot_env(i)%matrix_ref_inv_sqrt_im, work(j)%sinp)
-               IF (update) CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_x, qs_ot_env(i)%matrix_x_im, work(j)%x)
+               IF (update .OR. initial) CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_x, qs_ot_env(i)%matrix_x_im, work(j)%x)
                CYCLE
             END IF
             CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_p, qs_ot_env(i)%matrix_p_im, work(j)%buf3)
@@ -3564,17 +3581,31 @@ CONTAINS
 !> \param ref select IRAC instead of STRICT
 !> \param update accept the IRAC coordinate at the existing minimizer update point
 !> \param info LAPACK status, or -1 for a non-positive IRAC overlap
+!> \param initialize retain SC0 and use the analytic zero-coordinate STRICT state
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_orbitals_local(w, overlap_re, overlap_im, ref, update, info)
+   SUBROUTINE qs_ot_orbitals_local(w, overlap_re, overlap_im, ref, update, info, initialize)
       TYPE(qs_ot_local_work_type), INTENT(INOUT)         :: w
       REAL(dp), CONTIGUOUS, INTENT(IN)                   :: overlap_re(:, :), overlap_im(:, :)
       LOGICAL, INTENT(IN)                                :: ref, update
       INTEGER, INTENT(OUT)                               :: info
+      LOGICAL, INTENT(IN), OPTIONAL                      :: initialize
 
       INTEGER                                            :: i
 
       CALL qs_ot_complex_multiply_local('N', 'N', overlap_re, overlap_im, w%x(:, :, 1), w%x(:, :, 2), &
                                         w%sx(:, :, 1), w%sx(:, :, 2), w%tmp, w%gemm_ctx)
+      IF (PRESENT(initialize)) THEN
+         IF (initialize) THEN
+            ! Keep the incoming SC0, as in the distributed initializer. IRAC may
+            ! subsequently normalize C0 and accept a different X/SX pair.
+            w%buf_nk(:, :, :) = w%sx(:, :, :)
+            IF (.NOT. ref) THEN
+               w%out(:, :, :) = w%x(:, :, :)
+               info = 0
+               RETURN
+            END IF
+         END IF
+      END IF
       CALL qs_ot_complex_multiply_local('C', 'N', w%x, w%sx, w%buf3, w%buf2(:, :, 1), w%gemm_ctx)
       w%vectors(:, :) = CMPLX(w%buf3(:, :, 1), w%buf3(:, :, 2), KIND=dp)
       CALL cp_cfm_heevd_local(w%vectors, info=info, ws=w%solver)
