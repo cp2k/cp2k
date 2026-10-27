@@ -58,6 +58,7 @@
     &XC
       &XC_FUNCTIONAL
         &GAUXC
+          USE_GPU HOST
           GRID FINE
           MODEL SKALA
           PERIODIC_REFERENCE T

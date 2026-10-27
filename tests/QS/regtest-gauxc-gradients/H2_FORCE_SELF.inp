@@ -39,6 +39,7 @@
     &XC
       &XC_FUNCTIONAL
         &GAUXC
+          USE_GPU HOST
           GRID FINE
           MODEL pbe.fun
           MODEL_GRADIENT_RUNTIME SELF

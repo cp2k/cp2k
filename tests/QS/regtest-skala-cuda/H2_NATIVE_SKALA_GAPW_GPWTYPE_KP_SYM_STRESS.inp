@@ -45,7 +45,7 @@
         &SKALA_NATIVE
           MODEL SKALA
           DIAGNOSTICS F
-          USE_CUDA T
+          USE_GPU GPU
         &END SKALA_NATIVE
       &END XC_FUNCTIONAL
     &END XC
