@@ -13,10 +13,10 @@ The CP2K interface provides two separate, mutually exclusive XC functional secti
   machinery. It has a different support scope and keyword set.
 
 Keywords from one section are not accepted by the other. In particular, all native-grid controls
-(`USE_GPU`, `CUDA_DEVICE`, `ATOM_PARTITION`, `LAYOUT`, `GAPW_*`, and the model precision/chunking
-controls) belong to `SKALA_NATIVE`, while `GRID`, `PRUNING_SCHEME`, `RADIAL_QUADRATURE`,
-`LB_EXECUTION_SPACE`, `INT_EXECUTION_SPACE`, `LWD_KERNEL`, and `SKALA_RUNTIME` belong to `GAUXC`.
-Both sections use the same `USE_GPU` keyword to select GPU or host execution.
+(`USE_GPU`, `ATOM_PARTITION`, `LAYOUT`, `GAPW_*`, and the model precision/chunking controls) belong
+to `SKALA_NATIVE`, while `GRID`, `PRUNING_SCHEME`, `RADIAL_QUADRATURE`, `LB_EXECUTION_SPACE`,
+`INT_EXECUTION_SPACE`, `LWD_KERNEL`, and `SKALA_RUNTIME` belong to `GAUXC`. Both sections use the
+same `USE_GPU` keyword to select GPU or host execution.
 
 ## Basic Input
 
@@ -278,7 +278,6 @@ k-point calculations. GPU execution is controlled by the same `USE_GPU` keyword:
 &SKALA_NATIVE
   MODEL SKALA
   USE_GPU GPU
-  CUDA_DEVICE -1
 &END SKALA_NATIVE
 ```
 
@@ -287,10 +286,10 @@ no usable device is found. `HOST` forces CPU execution. `GPU` requires a usable 
 otherwise. With GPU execution the model path is resolved from `SKALA_CUDA_MODEL`; with HOST it is
 resolved from `SKALA_MODEL`.
 
-`CUDA_DEVICE` defaults to `-1`. A negative value maps the MPI-local rank to one of the visible CUDA
-devices (`rank MOD device_count`); a non-negative value selects that visible device explicitly.
-Requesting a device outside the visible range aborts. CUDA exports with device-specific TorchScript
-constants may require a rank-local `CUDA_VISIBLE_DEVICES` list.
+The GPU is selected by CP2K's offload device policy, i.e. the same rank-to-device mapping used by
+DBCSR, the grid library, and ELPA. Define `CUDA_VISIBLE_DEVICES` per rank when a custom mapping is
+needed. There is no separate SKALA device keyword, so SKALA cannot move other GPU components to a
+different device.
 
 `ATOM_CHUNKS` (default `T`) distributes the model evaluation in atom blocks for MPI calculations and
 can reduce peak CUDA memory. `ATOM_CHUNK_MAX_ROWS` (default `-1`, automatic padded-row cap) further
