@@ -125,6 +125,7 @@ MODULE preconditioner
    PUBLIC :: apply_preconditioner, prepare_preconditioner, apply_preconditioner_complex_batch
 
    TYPE full_all_work_type
+      INTEGER                                            :: info = 0
       TYPE(cp_cfm_type)                                  :: c, h, s, a, b
       TYPE(cp_cfm_diag_workspace_type)                   :: solver
    END TYPE full_all_work_type
@@ -1032,7 +1033,6 @@ CONTAINS
 
       INTEGER                                            :: first, handle, i, j, k, n, nbatch, &
                                                             nchannels, nworkers
-      INTEGER, ALLOCATABLE                               :: info(:)
       TYPE(full_all_work_type), ALLOCATABLE              :: work(:)
       TYPE(preconditioner_type), POINTER                 :: p
 
@@ -1046,7 +1046,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       nworkers = 1
 !$    nworkers = MIN(nchannels, omp_get_max_threads())
-      ALLOCATE (work(nworkers), info(nworkers))
+      ALLOCATE (work(nworkers))
       DO first = 1, nchannels, nworkers
          nbatch = MIN(nworkers, nchannels - first + 1)
          DO j = 1, nbatch
@@ -1069,13 +1069,13 @@ CONTAINS
             CALL cp_cfm_release(work(j)%s)
             CALL cp_cfm_release(work(j)%h)
          END DO
-!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nbatch) IF(nbatch > 1) SHARED(work,info,nbatch)
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nbatch) IF(nbatch > 1) SHARED(work,nbatch)
          DO j = 1, nbatch
-            CALL cp_cfm_heevd_local(work(j)%a%local_data, info=info(j), ws=work(j)%solver)
+            CALL cp_cfm_heevd_local(work(j)%a%local_data, info=work(j)%info, ws=work(j)%solver)
          END DO
 !$OMP END PARALLEL DO
          DO j = 1, nbatch
-            IF (info(j) /= 0) CPABORT('Local FULL_ALL generalized diagonalization failed')
+            IF (work(j)%info /= 0) CPABORT('Local FULL_ALL generalized diagonalization failed')
             i = first + j - 1
             p => preconditioners(i)%preconditioner
             p%full_evals(:) = work(j)%solver%evals(:)

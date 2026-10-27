@@ -93,8 +93,8 @@ MODULE qs_ot
    PUBLIC  :: qs_ot_rot_mat_derivative
    PUBLIC  :: qs_ot_rot_mat_derivative_complex
    PUBLIC  :: qs_ot_new_preconditioner
+   PUBLIC  :: qs_ot_complex_multiply
    PRIVATE :: qs_ot_p2m_diag
-   PRIVATE :: qs_ot_complex_multiply
    PRIVATE :: qs_ot_sinc
    PRIVATE :: qs_ot_ref_poly
    PRIVATE :: qs_ot_ref_chol
@@ -112,7 +112,8 @@ MODULE qs_ot
 
    ! Transient per-worker storage. The last index is 1 for real and 2 for imaginary.
    TYPE qs_ot_local_work_type
-      INTEGER                                            :: n = 0, k = 0, o = 0
+      INTEGER                                            :: n = 0, k = 0, info = 0
+      LOGICAL                                            :: filtered = .FALSE.
       TYPE(local_gemm_ctxt_type)                         :: gemm_ctx
       TYPE(cp_cfm_diag_workspace_type)                   :: solver
       COMPLEX(dp), ALLOCATABLE                           :: vectors(:, :)
@@ -1168,26 +1169,16 @@ CONTAINS
       CHARACTER(LEN=1)                                   :: db_op_a, db_op_b
       REAL(KIND=dp)                                      :: sign_a, sign_b
 
-      SELECT CASE (op_a)
-      CASE ('N')
-         db_op_a = 'N'
-         sign_a = 1.0_dp
-      CASE ('C')
-         db_op_a = 'T'
-         sign_a = -1.0_dp
-      CASE DEFAULT
+      IF (op_a /= 'N' .AND. op_a /= 'C') THEN
          CPABORT("Complex matrix product expects N or C for op_a")
-      END SELECT
-      SELECT CASE (op_b)
-      CASE ('N')
-         db_op_b = 'N'
-         sign_b = 1.0_dp
-      CASE ('C')
-         db_op_b = 'T'
-         sign_b = -1.0_dp
-      CASE DEFAULT
+      END IF
+      IF (op_b /= 'N' .AND. op_b /= 'C') THEN
          CPABORT("Complex matrix product expects N or C for op_b")
-      END SELECT
+      END IF
+      db_op_a = MERGE('N', 'T', op_a == 'N')
+      db_op_b = MERGE('N', 'T', op_b == 'N')
+      sign_a = MERGE(1.0_dp, -1.0_dp, op_a == 'N')
+      sign_b = MERGE(1.0_dp, -1.0_dp, op_b == 'N')
 
       CALL dbcsr_multiply(db_op_a, db_op_b, 1.0_dp, a_re, b_re, 0.0_dp, c_re)
       CALL dbcsr_multiply(db_op_a, db_op_b, 1.0_dp, a_im, b_im, 0.0_dp, tmp)
@@ -1767,13 +1758,7 @@ CONTAINS
       END IF
 
       ! SC = (S_re + i*S_im) * (C_re + i*C_im)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, c_re, 0.0_dp, sc_re)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s_im, c_im, 0.0_dp, tmp_nk)
-      CALL dbcsr_add(sc_re, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, c_im, 0.0_dp, sc_im)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s_im, c_re, 0.0_dp, tmp_nk)
-      CALL dbcsr_add(sc_im, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+      CALL qs_ot_complex_multiply('N', 'N', matrix_s, matrix_s_im, c_re, c_im, sc_re, sc_im, tmp_nk)
 
       ! P = C^H*S*C.  Its imaginary component is real antisymmetric.
       CALL dbcsr_multiply('T', 'N', 1.0_dp, c_re, sc_re, 0.0_dp, p_re)
@@ -1815,13 +1800,7 @@ CONTAINS
 
       ! Return the physical, orthonormal orbitals without changing a rejected
       ! line-search coordinate.
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, c_re, p_re, 0.0_dp, matrix_c)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, c_im, p_im, 0.0_dp, tmp_nk)
-      CALL dbcsr_add(matrix_c, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, c_re, p_im, 0.0_dp, matrix_c_im)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, c_im, p_re, 0.0_dp, tmp_nk)
-      CALL dbcsr_add(matrix_c_im, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+      CALL qs_ot_complex_multiply('N', 'N', c_re, c_im, p_re, p_im, matrix_c, matrix_c_im, tmp_nk)
 
       IF (update) THEN
          CALL dbcsr_copy(c_re, matrix_c)
@@ -1831,13 +1810,7 @@ CONTAINS
          CALL dbcsr_add_on_diag(f_re, alpha=1.0_dp)
          CALL dbcsr_set(f_im, 0.0_dp)
 
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, c_re, 0.0_dp, sc_re)
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s_im, c_im, 0.0_dp, tmp_nk)
-         CALL dbcsr_add(sc_re, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, c_im, 0.0_dp, sc_im)
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s_im, c_re, 0.0_dp, tmp_nk)
-         CALL dbcsr_add(sc_im, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+         CALL qs_ot_complex_multiply('N', 'N', matrix_s, matrix_s_im, c_re, c_im, sc_re, sc_im, tmp_nk)
       END IF
 
       IF (qs_ot_env%settings%do_rotation) THEN
@@ -1848,17 +1821,8 @@ CONTAINS
          CALL dbcsr_copy(rotation_tmp, matrix_c, name="rotation_tmp")
 
          ! C_out = Q*U for complex Q and unitary U.
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_c, qs_ot_env%rot_mat_u, &
-                             0.0_dp, rotated_re)
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_c_im, qs_ot_env%rot_mat_u_im, &
-                             0.0_dp, rotation_tmp)
-         CALL dbcsr_add(rotated_re, rotation_tmp, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_c, qs_ot_env%rot_mat_u_im, &
-                             0.0_dp, rotated_im)
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_c_im, qs_ot_env%rot_mat_u, &
-                             0.0_dp, rotation_tmp)
-         CALL dbcsr_add(rotated_im, rotation_tmp, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+         CALL qs_ot_complex_multiply('N', 'N', matrix_c, matrix_c_im, qs_ot_env%rot_mat_u, &
+                                     qs_ot_env%rot_mat_u_im, rotated_re, rotated_im, rotation_tmp)
 
          CALL dbcsr_copy(matrix_c, rotated_re)
          CALL dbcsr_copy(matrix_c_im, rotated_im)
@@ -2037,7 +2001,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_derivative_ref_complex'
 
       INTEGER                                            :: handle, k, n
-      REAL(dp)                                           :: occ_in, occ_out
       TYPE(dbcsr_type)                                   :: tmp_nk
       TYPE(dbcsr_type), POINTER :: b_im, b_re, f_im, f_re, g_im, g_re, hc_im, hc_re, &
          hc_rotation_im, hc_rotation_re, hc_work_im, hc_work_re, q_im, q_re, sc_im, sc_re, tmp_kk
@@ -2077,13 +2040,8 @@ CONTAINS
       CALL dbcsr_get_info(sc_re, nfullrows_total=n, nfullcols_total=k)
 
       ! Q = X*(X^H*S*X)^(-1/2), reconstructed from the current REF coordinate.
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%matrix_x, f_re, 0.0_dp, q_re)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%matrix_x_im, f_im, 0.0_dp, g_re)
-      CALL dbcsr_add(q_re, g_re, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%matrix_x, f_im, 0.0_dp, q_im)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%matrix_x_im, f_re, 0.0_dp, g_re)
-      CALL dbcsr_add(q_im, g_re, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+      CALL qs_ot_complex_multiply('N', 'N', qs_ot_env%matrix_x, qs_ot_env%matrix_x_im, f_re, f_im, q_re, q_im, &
+                                  g_re)
 
       IF (qs_ot_env%settings%do_rotation) THEN
          CALL qs_ot_generate_rotation_complex(qs_ot_env)
@@ -2131,22 +2089,12 @@ CONTAINS
       CALL dbcsr_add(b_im, tmp_kk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
 
       IF (qs_ot_env%settings%eps_irac_filter_matrix > 0.0_dp) THEN
-         occ_in = dbcsr_get_occupation(b_re)
          CALL dbcsr_filter(b_re, qs_ot_env%settings%eps_irac_filter_matrix)
-         occ_out = dbcsr_get_occupation(b_re)
-         occ_in = dbcsr_get_occupation(b_im)
          CALL dbcsr_filter(b_im, qs_ot_env%settings%eps_irac_filter_matrix)
-         occ_out = dbcsr_get_occupation(b_im)
       END IF
 
       ! S*Q = (S*X)*F.  G is temporary storage for this pair.
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, sc_re, f_re, 0.0_dp, g_re)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, sc_im, f_im, 0.0_dp, q_re)
-      CALL dbcsr_add(g_re, q_re, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, sc_re, f_im, 0.0_dp, g_im)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, sc_im, f_re, 0.0_dp, q_re)
-      CALL dbcsr_add(g_im, q_re, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+      CALL qs_ot_complex_multiply('N', 'N', sc_re, sc_im, f_re, f_im, g_re, g_im, q_re)
 
       ! Form (S*Q)*B.  The Q workspaces are free after B has been formed.
       CALL dbcsr_multiply('N', 'N', 1.0_dp, g_re, b_re, 0.0_dp, q_re)
@@ -2175,12 +2123,8 @@ CONTAINS
       END IF
 
       IF (qs_ot_env%settings%eps_irac_filter_matrix > 0.0_dp) THEN
-         occ_in = dbcsr_get_occupation(g_re)
          CALL dbcsr_filter(g_re, qs_ot_env%settings%eps_irac_filter_matrix)
-         occ_out = dbcsr_get_occupation(g_re)
-         occ_in = dbcsr_get_occupation(g_im)
          CALL dbcsr_filter(g_im, qs_ot_env%settings%eps_irac_filter_matrix)
-         occ_out = dbcsr_get_occupation(g_im)
       END IF
 
       IF (qs_ot_env%settings%do_rotation) THEN
@@ -2278,12 +2222,7 @@ CONTAINS
       ! inner = V^H antiherm(A) V.
       CALL dbcsr_copy(work_re, anti_re, name='work_re')
       CALL dbcsr_copy(work_im, anti_im, name='work_im')
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, anti_re, v_re, 0.0_dp, work_re)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, anti_im, v_im, 0.0_dp, tmp_kk)
-      CALL dbcsr_add(work_re, tmp_kk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, anti_re, v_im, 0.0_dp, work_im)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, anti_im, v_re, 0.0_dp, tmp_kk)
-      CALL dbcsr_add(work_im, tmp_kk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+      CALL qs_ot_complex_multiply('N', 'N', anti_re, anti_im, v_re, v_im, work_re, work_im, tmp_kk)
 
       CALL dbcsr_copy(inner_re, anti_re, name='inner_re')
       CALL dbcsr_copy(inner_im, anti_im, name='inner_im')
@@ -2312,12 +2251,7 @@ CONTAINS
       CALL dbcsr_iterator_stop(iter)
 
       ! Z = V inner V^H.
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, v_re, inner_re, 0.0_dp, work_re)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, v_im, inner_im, 0.0_dp, tmp_kk)
-      CALL dbcsr_add(work_re, tmp_kk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, v_re, inner_im, 0.0_dp, work_im)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, v_im, inner_re, 0.0_dp, tmp_kk)
-      CALL dbcsr_add(work_im, tmp_kk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+      CALL qs_ot_complex_multiply('N', 'N', v_re, v_im, inner_re, inner_im, work_re, work_im, tmp_kk)
 
       CALL dbcsr_copy(z_re, anti_re, name='z_re')
       CALL dbcsr_copy(z_im, anti_im, name='z_im')
@@ -2330,21 +2264,11 @@ CONTAINS
       CALL dbcsr_copy(sq_re, sx_re, name='sq_re')
       CALL dbcsr_copy(sq_im, sx_im, name='sq_im')
       CALL dbcsr_copy(tmp_nk, sx_re, name='tmp_nk')
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, sx_re, f_re, 0.0_dp, sq_re)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, sx_im, f_im, 0.0_dp, tmp_nk)
-      CALL dbcsr_add(sq_re, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, sx_re, f_im, 0.0_dp, sq_im)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, sx_im, f_re, 0.0_dp, tmp_nk)
-      CALL dbcsr_add(sq_im, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+      CALL qs_ot_complex_multiply('N', 'N', sx_re, sx_im, f_re, f_im, sq_re, sq_im, tmp_nk)
 
       CALL dbcsr_copy(vertical_re, sx_re, name='vertical_re')
       CALL dbcsr_copy(vertical_im, sx_im, name='vertical_im')
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, sq_re, z_re, 0.0_dp, vertical_re)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, sq_im, z_im, 0.0_dp, tmp_nk)
-      CALL dbcsr_add(vertical_re, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, sq_re, z_im, 0.0_dp, vertical_im)
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, sq_im, z_re, 0.0_dp, tmp_nk)
-      CALL dbcsr_add(vertical_im, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+      CALL qs_ot_complex_multiply('N', 'N', sq_re, sq_im, z_re, z_im, vertical_re, vertical_im, tmp_nk)
       CALL dbcsr_add(gradient_re, vertical_re, alpha_scalar=1.0_dp, beta_scalar=2.0_dp)
       CALL dbcsr_add(gradient_im, vertical_im, alpha_scalar=1.0_dp, beta_scalar=2.0_dp)
 
@@ -2549,16 +2473,9 @@ CONTAINS
          CALL dbcsr_copy(inner_deriv_im, qs_ot_env%rot_mat_dedu, name="inner_deriv_im")
 
          ! V^H*(dE/dU)*V, split into real and imaginary parts.
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%rot_mat_dedu, &
-                             qs_ot_env%rot_mat_evec_re, 0.0_dp, work_re)
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%rot_mat_dedu_im, &
-                             qs_ot_env%rot_mat_evec_im, 0.0_dp, tmp)
-         CALL dbcsr_add(work_re, tmp, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%rot_mat_dedu, &
-                             qs_ot_env%rot_mat_evec_im, 0.0_dp, work_im)
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%rot_mat_dedu_im, &
-                             qs_ot_env%rot_mat_evec_re, 0.0_dp, tmp)
-         CALL dbcsr_add(work_im, tmp, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+         CALL qs_ot_complex_multiply('N', 'N', qs_ot_env%rot_mat_dedu, qs_ot_env%rot_mat_dedu_im, &
+                                     qs_ot_env%rot_mat_evec_re, qs_ot_env%rot_mat_evec_im, work_re, work_im, &
+                                     tmp)
          CALL dbcsr_multiply('T', 'N', 1.0_dp, qs_ot_env%rot_mat_evec_re, &
                              work_re, 0.0_dp, inner_deriv_re)
          CALL dbcsr_multiply('T', 'N', 1.0_dp, qs_ot_env%rot_mat_evec_im, &
@@ -2572,16 +2489,8 @@ CONTAINS
                                                 inner_deriv_re, inner_deriv_im, &
                                                 outer_deriv_re, outer_deriv_im, adjoint=.TRUE.)
 
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%rot_mat_evec_re, &
-                             outer_deriv_re, 0.0_dp, work_re)
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%rot_mat_evec_im, &
-                             outer_deriv_im, 0.0_dp, tmp)
-         CALL dbcsr_add(work_re, tmp, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%rot_mat_evec_re, &
-                             outer_deriv_im, 0.0_dp, work_im)
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%rot_mat_evec_im, &
-                             outer_deriv_re, 0.0_dp, tmp)
-         CALL dbcsr_add(work_im, tmp, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+         CALL qs_ot_complex_multiply('N', 'N', qs_ot_env%rot_mat_evec_re, qs_ot_env%rot_mat_evec_im, &
+                                     outer_deriv_re, outer_deriv_im, work_re, work_im, tmp)
 
          CALL dbcsr_copy(frechet_re, qs_ot_env%rot_mat_dedu, name="frechet_re")
          CALL dbcsr_copy(frechet_im, qs_ot_env%rot_mat_dedu, name="frechet_im")
@@ -3059,17 +2968,8 @@ CONTAINS
          CALL dbcsr_copy(rotation_tmp, matrix_c, name="strict_rotation_tmp")
 
          ! C_out = Q(X)*U for the finite STRICT chart Q(X).
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_c, qs_ot_env%rot_mat_u, &
-                             0.0_dp, rotated_re)
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_c_im, qs_ot_env%rot_mat_u_im, &
-                             0.0_dp, rotation_tmp)
-         CALL dbcsr_add(rotated_re, rotation_tmp, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_c, qs_ot_env%rot_mat_u_im, &
-                             0.0_dp, rotated_im)
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_c_im, qs_ot_env%rot_mat_u, &
-                             0.0_dp, rotation_tmp)
-         CALL dbcsr_add(rotated_im, rotation_tmp, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+         CALL qs_ot_complex_multiply('N', 'N', matrix_c, matrix_c_im, qs_ot_env%rot_mat_u, &
+                                     qs_ot_env%rot_mat_u_im, rotated_re, rotated_im, rotation_tmp)
 
          CALL dbcsr_copy(matrix_c, rotated_re)
          CALL dbcsr_copy(matrix_c_im, rotated_im)
@@ -3313,7 +3213,7 @@ CONTAINS
 
       INTEGER                                            :: first, i, j, k, n, nbatch, nchannels, &
                                                             nworkers
-      INTEGER, ALLOCATABLE                               :: channels(:), info(:)
+      INTEGER, ALLOCATABLE                               :: channels(:)
       LOGICAL                                            :: handled
       REAL(dp)                                           :: eval_threshold
       TYPE(dbcsr_p_type), ALLOCATABLE                    :: matrix_in(:, :), matrix_out(:, :)
@@ -3334,7 +3234,7 @@ CONTAINS
       END DO
       nworkers = 1
 !$    nworkers = MIN(nchannels, omp_get_max_threads())
-      ALLOCATE (work(nworkers), info(nworkers), preconditioners(nworkers), &
+      ALLOCATE (work(nworkers), preconditioners(nworkers), &
                 matrix_in(2, nworkers), matrix_out(2, nworkers))
       DO j = 1, nworkers
          CALL work(j)%gemm_ctx%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
@@ -3379,16 +3279,16 @@ CONTAINS
             CALL qs_ot_load_local_pair(matrix_out(1, j)%matrix, matrix_out(2, j)%matrix, work(j)%target)
          END DO
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nbatch) IF(nbatch > 1) &
-!$OMP SHARED(work,info,nbatch) PRIVATE(eval_threshold)
+!$OMP SHARED(work,nbatch) PRIVATE(eval_threshold)
          DO j = 1, nbatch
             CALL qs_ot_complex_multiply_local('C', 'N', work(j)%sc0, work(j)%target, &
                                               work(j)%os, work(j)%buf2(:, :, 1), work(j)%gemm_ctx)
             work(j)%vectors(:, :) = CMPLX(work(j)%os(:, :, 1), work(j)%os(:, :, 2), KIND=dp)
-            CALL cp_cfm_heevd_local(work(j)%vectors, info=info(j), ws=work(j)%solver)
-            IF (info(j) /= 0) CYCLE
+            CALL cp_cfm_heevd_local(work(j)%vectors, info=work(j)%info, ws=work(j)%solver)
+            IF (work(j)%info /= 0) CYCLE
             eval_threshold = 100.0_dp*EPSILON(1.0_dp)*MAX(1.0_dp, MAXVAL(ABS(work(j)%solver%evals)))
             IF (MINVAL(work(j)%solver%evals) <= eval_threshold) THEN
-               info(j) = -1
+               work(j)%info = -1
                CYCLE
             END IF
             work(j)%values(:) = 1.0_dp/work(j)%solver%evals(:)
@@ -3398,7 +3298,7 @@ CONTAINS
          END DO
 !$OMP END PARALLEL DO
          DO j = 1, nbatch
-            IF (info(j) /= 0) CYCLE
+            IF (work(j)%info /= 0) CYCLE
             i = channels(first + j - 1)
             CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_os, qs_ot_env(i)%matrix_os_im, work(j)%os)
             qs_ot_env(i)%os_valid = .TRUE.
@@ -3598,7 +3498,6 @@ CONTAINS
 
       INTEGER                                            :: first, handle, i, j, k, n, nbatch, &
                                                             nchannels, nworkers
-      INTEGER, ALLOCATABLE                               :: info(:)
       LOGICAL                                            :: initial, ref, update
       TYPE(qs_ot_local_work_type), ALLOCATABLE           :: work(:)
 
@@ -3613,7 +3512,7 @@ CONTAINS
       nchannels = SIZE(qs_ot_env)
       nworkers = 1
 !$    nworkers = MIN(nchannels, omp_get_max_threads())
-      ALLOCATE (work(nworkers), info(nworkers))
+      ALLOCATE (work(nworkers))
       DO j = 1, nworkers
          CALL work(j)%gemm_ctx%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
       END DO
@@ -3641,12 +3540,12 @@ CONTAINS
             END IF
          END DO
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nbatch) IF(nbatch > 1) &
-!$OMP SHARED(work,info,matrix_s,matrix_c,nbatch,first,ref,UPDATE,initial) PRIVATE(i,n,k)
+!$OMP SHARED(work,matrix_s,matrix_c,nbatch,first,ref,UPDATE,initial) PRIVATE(i,n,k)
          DO j = 1, nbatch
             i = first + j - 1
             CALL qs_ot_orbitals_local(work(j), matrix_s(1, i)%matrix%local_data, &
-                                      matrix_s(2, i)%matrix%local_data, ref, update, info(j), initial)
-            IF (info(j) /= 0) CYCLE
+                                      matrix_s(2, i)%matrix%local_data, ref, update, initial)
+            IF (work(j)%info /= 0) CYCLE
             IF (initial) CYCLE
             n = work(j)%n
             k = work(j)%k
@@ -3654,8 +3553,8 @@ CONTAINS
          END DO
 !$OMP END PARALLEL DO
          DO j = 1, nbatch
-            IF (info(j) == -1) CPABORT('Complex REF overlap is not positive definite')
-            IF (info(j) /= 0) CPABORT('Local complex OT overlap diagonalization failed')
+            IF (work(j)%info == -1) CPABORT('Complex REF overlap is not positive definite')
+            IF (work(j)%info /= 0) CPABORT('Local complex OT overlap diagonalization failed')
             i = first + j - 1
             IF (initial) THEN
                CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_c0, qs_ot_env(i)%matrix_c0_im, work(j)%out)
@@ -3688,19 +3587,17 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Evaluate S*X and reconstruct physical STRICT or IRAC orbitals.
-!> \param w private storage; buf3 retains P and buf4 retains cos(sqrt(P)) for writeback
+!> \param w private storage and status; buf3 retains P and buf4 retains cos(sqrt(P)) for writeback
 !> \param overlap_re cached real overlap, including any leading-dimension padding
 !> \param overlap_im cached imaginary overlap
 !> \param ref select IRAC instead of STRICT
 !> \param update accept the IRAC coordinate at the existing minimizer update point
-!> \param info LAPACK status, or -1 for a non-positive IRAC overlap
 !> \param initialize retain SC0 and use the analytic zero-coordinate STRICT state
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_orbitals_local(w, overlap_re, overlap_im, ref, update, info, initialize)
+   SUBROUTINE qs_ot_orbitals_local(w, overlap_re, overlap_im, ref, update, initialize)
       TYPE(qs_ot_local_work_type), INTENT(INOUT)         :: w
       REAL(dp), CONTIGUOUS, INTENT(IN)                   :: overlap_re(:, :), overlap_im(:, :)
       LOGICAL, INTENT(IN)                                :: ref, update
-      INTEGER, INTENT(OUT)                               :: info
       LOGICAL, INTENT(IN), OPTIONAL                      :: initialize
 
       INTEGER                                            :: i
@@ -3714,20 +3611,20 @@ CONTAINS
             w%buf_nk(:, :, :) = w%sx(:, :, :)
             IF (.NOT. ref) THEN
                w%out(:, :, :) = w%x(:, :, :)
-               info = 0
+               w%info = 0
                RETURN
             END IF
          END IF
       END IF
       CALL qs_ot_complex_multiply_local('C', 'N', w%x, w%sx, w%buf3, w%buf2(:, :, 1), w%gemm_ctx)
       w%vectors(:, :) = CMPLX(w%buf3(:, :, 1), w%buf3(:, :, 2), KIND=dp)
-      CALL cp_cfm_heevd_local(w%vectors, info=info, ws=w%solver)
-      IF (info /= 0) RETURN
+      CALL cp_cfm_heevd_local(w%vectors, info=w%info, ws=w%solver)
+      IF (w%info /= 0) RETURN
       w%r(:, :, 1) = REAL(w%vectors, KIND=dp)
       w%r(:, :, 2) = AIMAG(w%vectors)
       IF (ref) THEN
          IF (ANY(w%solver%evals <= EPSILON(1.0_dp))) THEN
-            info = -1
+            w%info = -1
             RETURN
          END IF
          w%values(:) = 1.0_dp/SQRT(w%solver%evals(:))
@@ -3836,7 +3733,6 @@ CONTAINS
       INTEGER                                            :: first, handle, i, j, nbatch, nchannels, &
                                                             npasses, nworkers, pass
       LOGICAL                                            :: ref
-      LOGICAL, ALLOCATABLE                               :: filtered(:)
       TYPE(qs_ot_local_work_type), ALLOCATABLE           :: work(:)
 
       handled = .FALSE.
@@ -3853,7 +3749,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       nworkers = 1
 !$    nworkers = MIN(nchannels, omp_get_max_threads())
-      ALLOCATE (work(nworkers), filtered(nworkers))
+      ALLOCATE (work(nworkers))
       DO j = 1, nworkers
          CALL work(j)%gemm_ctx%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
       END DO
@@ -3863,7 +3759,7 @@ CONTAINS
             i = first + j - 1
             IF (.NOT. ref) CALL qs_ot_prepare_complex_tangent_metric(qs_ot_env(i))
             CALL qs_ot_load_local_work(work(j), qs_ot_env(i), matrix_hc(i)%matrix, matrix_hc_im(i)%matrix)
-            filtered(j) = ref .AND. qs_ot_env(i)%settings%eps_irac_filter_matrix > 0.0_dp
+            work(j)%filtered = ref .AND. qs_ot_env(i)%settings%eps_irac_filter_matrix > 0.0_dp
          END DO
          DO pass = 1, npasses
             IF (pass == 2) THEN
@@ -3873,39 +3769,39 @@ CONTAINS
                END DO
             END IF
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nbatch) IF(nbatch > 1) &
-!$OMP SHARED(work,nbatch,ref,filtered)
+!$OMP SHARED(work,nbatch,ref)
             DO j = 1, nbatch
                IF (ref) THEN
                   CALL qs_ot_complex_multiply_local('N', 'N', work(j)%x, work(j)%sinp, &
                                                     work(j)%c0, work(j)%tmp, work(j)%gemm_ctx)
                   CALL qs_ot_complex_multiply_local('C', 'N', work(j)%c0, work(j)%hc, &
                                                     work(j)%buf3, work(j)%buf2(:, :, 1), work(j)%gemm_ctx)
-                  IF (.NOT. filtered(j)) CALL qs_ot_ref_gradient_local(work(j))
+                  IF (.NOT. work(j)%filtered) CALL qs_ot_ref_gradient_local(work(j))
                ELSE
                   CALL qs_ot_strict_gradient_local(work(j))
                END IF
             END DO
 !$OMP END PARALLEL DO
-            IF (ANY(filtered(1:nbatch))) THEN
+            IF (ANY(work(1:nbatch)%filtered)) THEN
                ! Keep the existing block filter, including independent real/imaginary sparsity.
                DO j = 1, nbatch
-                  IF (.NOT. filtered(j)) CYCLE
+                  IF (.NOT. work(j)%filtered) CYCLE
                   i = first + j - 1
                   CALL qs_ot_store_local_pair(qs_ot_env(i)%buf1_k_k_sym, qs_ot_env(i)%buf2_k_k_sym, work(j)%buf3)
                   CALL dbcsr_filter(qs_ot_env(i)%buf1_k_k_sym, qs_ot_env(i)%settings%eps_irac_filter_matrix)
                   CALL dbcsr_filter(qs_ot_env(i)%buf2_k_k_sym, qs_ot_env(i)%settings%eps_irac_filter_matrix)
                   CALL qs_ot_load_local_pair(qs_ot_env(i)%buf1_k_k_sym, qs_ot_env(i)%buf2_k_k_sym, work(j)%buf3)
                END DO
-!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nbatch) IF(nbatch > 1) SHARED(work,nbatch,filtered)
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nbatch) IF(nbatch > 1) SHARED(work,nbatch)
                DO j = 1, nbatch
-                  IF (filtered(j)) CALL qs_ot_ref_gradient_local(work(j))
+                  IF (work(j)%filtered) CALL qs_ot_ref_gradient_local(work(j))
                END DO
 !$OMP END PARALLEL DO
             END IF
             DO j = 1, nbatch
                i = first + j - 1
                CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_gx, qs_ot_env(i)%matrix_gx_im, work(j)%out)
-               IF (filtered(j)) THEN
+               IF (work(j)%filtered) THEN
                   CALL dbcsr_filter(qs_ot_env(i)%matrix_gx, qs_ot_env(i)%settings%eps_irac_filter_matrix)
                   CALL dbcsr_filter(qs_ot_env(i)%matrix_gx_im, qs_ot_env(i)%settings%eps_irac_filter_matrix)
                END IF
@@ -3994,14 +3890,13 @@ CONTAINS
       END IF
       CALL dbcsr_get_info(qs_ot_env%matrix_sc0, nfullcols_total=o)
       IF (ALLOCATED(w%sc0)) THEN
-         IF (SIZE(w%sc0, 1) /= n .OR. SIZE(w%buf1_ortho, 2) /= k .OR. o /= w%o) THEN
+         IF (SIZE(w%sc0, 1) /= n .OR. SIZE(w%buf1_ortho, 2) /= k .OR. o /= SIZE(w%sc0, 2)) THEN
             DEALLOCATE (w%sc0, w%target, w%os, w%buf1_ortho, w%buf2_ortho, w%tmp_ortho)
          END IF
       END IF
       IF (.NOT. ALLOCATED(w%sc0)) THEN
          ALLOCATE (w%sc0(n, o, 2), w%target(n, o, 2), w%os(o, o, 2), &
                    w%buf1_ortho(o, k, 2), w%buf2_ortho(o, k, 2), w%tmp_ortho(o, k))
-         w%o = o
       END IF
       CALL qs_ot_load_local_pair(qs_ot_env%matrix_c0, qs_ot_env%matrix_c0_im, w%c0)
       CALL qs_ot_load_local_pair(qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, w%r)

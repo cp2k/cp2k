@@ -56,8 +56,7 @@ MODULE qs_scf
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_info, &
-        dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_init_p, dbcsr_p_type, dbcsr_release_p, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               copy_fm_to_dbcsr_bc,&
@@ -189,7 +188,8 @@ MODULE qs_scf
                                               mo_set_restrict,&
                                               mo_set_type,&
                                               reassign_allocated_mos
-   USE qs_ot,                           ONLY: qs_ot_get_orbitals_local_batch,&
+   USE qs_ot,                           ONLY: qs_ot_complex_multiply,&
+                                              qs_ot_get_orbitals_local_batch,&
                                               qs_ot_get_orbitals_ref_complex,&
                                               qs_ot_get_p_complex,&
                                               qs_ot_new_preconditioner
@@ -2085,25 +2085,12 @@ CONTAINS
                CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_c0_im, 0.0_dp)
                CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_sc0_im, 0.0_dp)
                CALL copy_fm_to_dbcsr(active_mo_coeff_im, scf_env%qs_ot_env(ot_channel)%matrix_c0_im)
-               CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_re, &
-                                   scf_env%qs_ot_env(ot_channel)%matrix_c0, 0.0_dp, &
-                                   scf_env%qs_ot_env(ot_channel)%matrix_sc0)
-               CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_im, &
-                                   scf_env%qs_ot_env(ot_channel)%matrix_c0_im, 0.0_dp, &
-                                   scf_env%qs_ot_env(ot_channel)%matrix_x)
-               CALL dbcsr_add(scf_env%qs_ot_env(ot_channel)%matrix_sc0, &
-                              scf_env%qs_ot_env(ot_channel)%matrix_x, &
-                              alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-
-               CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_re, &
-                                   scf_env%qs_ot_env(ot_channel)%matrix_c0_im, 0.0_dp, &
-                                   scf_env%qs_ot_env(ot_channel)%matrix_sc0_im)
-               CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_im, &
-                                   scf_env%qs_ot_env(ot_channel)%matrix_c0, 0.0_dp, &
-                                   scf_env%qs_ot_env(ot_channel)%matrix_x)
-               CALL dbcsr_add(scf_env%qs_ot_env(ot_channel)%matrix_sc0_im, &
-                              scf_env%qs_ot_env(ot_channel)%matrix_x, &
-                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+               CALL qs_ot_complex_multiply('N', 'N', matrix_sk_re, matrix_sk_im, &
+                                           scf_env%qs_ot_env(ot_channel)%matrix_c0, &
+                                           scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
+                                           scf_env%qs_ot_env(ot_channel)%matrix_sc0, &
+                                           scf_env%qs_ot_env(ot_channel)%matrix_sc0_im, &
+                                           scf_env%qs_ot_env(ot_channel)%matrix_x)
 
                CALL cp_fm_release(active_mo_coeff)
                CALL cp_fm_release(active_mo_coeff_im)
