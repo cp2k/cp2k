@@ -381,14 +381,16 @@ static bool tensor_matches(const torch_c_tensor_t *tensor,
   return tensor->is_contiguous();
 }
 
-static void reset_tensor_from_array_double(torch_c_tensor_t **tensor,
+static bool reset_tensor_from_array_double(torch_c_tensor_t **tensor,
                                            const bool req_grad, const int ndims,
                                            const int64_t sizes[],
                                            double source[]) {
   c10::OptionalDeviceGuard guard;
   const auto device = get_device_with_guard(guard);
   const auto sizes_ref = c10::IntArrayRef(sizes, ndims);
-  if (!tensor_matches(*tensor, torch::kFloat64, device, ndims, sizes)) {
+  const bool reallocated =
+      !tensor_matches(*tensor, torch::kFloat64, device, ndims, sizes);
+  if (reallocated) {
     delete (*tensor);
     const auto opts =
         torch::TensorOptions().dtype(torch::kFloat64).device(device);
@@ -402,6 +404,7 @@ static void reset_tensor_from_array_double(torch_c_tensor_t **tensor,
     (*tensor)->mutable_grad() = torch::Tensor();
   }
   (*tensor)->set_requires_grad(req_grad);
+  return reallocated;
 }
 
 /*******************************************************************************
@@ -482,7 +485,18 @@ void torch_c_tensor_reset_from_array_double(torch_c_tensor_t **tensor,
                                             const int ndims,
                                             const int64_t sizes[],
                                             double source[]) {
-  reset_tensor_from_array_double(tensor, req_grad, ndims, sizes, source);
+  (void)reset_tensor_from_array_double(tensor, req_grad, ndims, sizes, source);
+}
+
+/*******************************************************************************
+ * \brief Reuses or creates a device tensor and reports reallocation.
+ ******************************************************************************/
+bool torch_c_tensor_reset_from_array_double_status(torch_c_tensor_t **tensor,
+                                                   const bool req_grad,
+                                                   const int ndims,
+                                                   const int64_t sizes[],
+                                                   double source[]) {
+  return reset_tensor_from_array_double(tensor, req_grad, ndims, sizes, source);
 }
 
 /*******************************************************************************
