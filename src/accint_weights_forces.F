@@ -205,7 +205,7 @@ CONTAINS
          native_skala_grid = xc_section_uses_native_skala_grid(xc_section)
          native_grid_diagnostics = .FALSE.
          IF (native_skala_grid) THEN
-            CALL section_vals_val_get(xc_section, "XC_FUNCTIONAL%GAUXC%NATIVE_GRID_DIAGNOSTICS", &
+            CALL section_vals_val_get(xc_section, "XC_FUNCTIONAL%SKALA_NATIVE%DIAGNOSTICS", &
                                       l_val=native_grid_diagnostics)
          END IF
          DO ikind = 1, nkind

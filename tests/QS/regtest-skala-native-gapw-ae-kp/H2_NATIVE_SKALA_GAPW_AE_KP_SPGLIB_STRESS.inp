@@ -48,12 +48,11 @@
     &END SCF
     &XC
       &XC_FUNCTIONAL
-        &GAUXC
+        &SKALA_NATIVE
           MODEL SKALA
-          NATIVE_GRID T
-          NATIVE_GRID_ATOM_PARTITION SMOOTH
-          NATIVE_GRID_DIAGNOSTICS F
-        &END GAUXC
+          ATOM_PARTITION SMOOTH
+          DIAGNOSTICS F
+        &END SKALA_NATIVE
       &END XC_FUNCTIONAL
     &END XC
   &END DFT

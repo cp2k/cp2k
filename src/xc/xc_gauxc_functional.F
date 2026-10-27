@@ -365,7 +365,7 @@ CONTAINS
          ifun = ifun + 1
          xc_fun => section_vals_get_subs_vals2(functionals, i_section=ifun)
          IF (.NOT. ASSOCIATED(xc_fun)) EXIT
-         IF (xc_fun%section%name == "GAUXC") THEN
+         IF (xc_fun%section%name == "GAUXC" .OR. xc_fun%section%name == "SKALA_NATIVE") THEN
             uses_gauxc = .TRUE.
             EXIT
          END IF
@@ -951,15 +951,28 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: model_key, model_name
       CHARACTER(len=default_string_length)               :: xc_fun_key, xc_fun_name
-      INTEGER                                            :: gapw_representation
-      LOGICAL                                            :: native_grid
+
+      IF (functional%section%name == "SKALA_NATIVE") THEN
+         CALL section_vals_val_get(functional, "MODEL", c_val=model_name)
+         IF (PRESENT(reference)) reference = "CP2K-native SKALA TorchScript model "//TRIM(model_name)
+         IF (PRESENT(shortform)) shortform = "SKALA (native)"
+         IF (PRESENT(needs)) THEN
+            IF (lsd) THEN
+               needs%rho_spin = .TRUE.
+               needs%drho_spin = .TRUE.
+               needs%tau_spin = .TRUE.
+            ELSE
+               needs%rho = .TRUE.
+               needs%drho = .TRUE.
+               needs%tau = .TRUE.
+            END IF
+         END IF
+         IF (PRESENT(max_deriv)) max_deriv = 1
+         RETURN
+      END IF
 
       CALL section_vals_val_get(functional, "FUNCTIONAL", c_val=xc_fun_name)
       CALL section_vals_val_get(functional, "MODEL", c_val=model_name)
-      CALL section_vals_val_get(functional, "NATIVE_GRID", l_val=native_grid)
-      CALL section_vals_val_get(functional, "PSEUDOPOTENTIAL_GAPW_REPRESENTATION", &
-                                i_val=gapw_representation)
-      native_grid = native_grid .OR. gapw_representation == skala_gapw_paw_one_center
       model_key = ADJUSTL(model_name)
       xc_fun_key = ADJUSTL(xc_fun_name)
       CALL uppercase(model_key)
@@ -982,22 +995,9 @@ CONTAINS
          END IF
       END IF
       IF (PRESENT(needs)) THEN
-         IF (native_grid .AND. TRIM(model_key) /= "NONE" .AND. TRIM(model_key) /= "" .AND. &
-             TRIM(model_key) /= TRIM(xc_fun_key)) THEN
-            IF (lsd) THEN
-               needs%rho_spin = .TRUE.
-               needs%drho_spin = .TRUE.
-               needs%tau_spin = .TRUE.
-            ELSE
-               needs%rho = .TRUE.
-               needs%drho = .TRUE.
-               needs%tau = .TRUE.
-            END IF
-         ELSE
-            needs%rho = .TRUE.
-            IF (lsd) THEN
-               needs%rho_spin = .TRUE.
-            END IF
+         needs%rho = .TRUE.
+         IF (lsd) THEN
+            needs%rho_spin = .TRUE.
          END IF
       END IF
       IF (PRESENT(max_deriv)) max_deriv = 1

@@ -146,7 +146,7 @@ MODULE qs_ks_methods
                                               rtp_admm_merge_ks_matrix
    USE se_fock_matrix,                  ONLY: build_se_fock_matrix
    USE skala_gpw_functional,            ONLY: &
-        ensure_native_skala_grid_scope, get_gauxc_section, &
+        ensure_native_skala_grid_scope, get_gauxc_section, get_skala_native_section, &
         native_skala_gapw_atom_composite_requested, native_skala_gapw_composite_direct_ao, &
         native_skala_gapw_composite_reference, native_skala_uses_atom_composite_grid, &
         skala_gapw_representation, xc_section_uses_gauxc_model, xc_section_uses_native_skala_grid
@@ -276,7 +276,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: ace_section, &
                                                             adiabatic_rescaling_section, &
                                                             gauxc_section, hfx_sections, input, &
-                                                            scf_section, xc_section
+                                                            native_section, scf_section, xc_section
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
@@ -284,7 +284,8 @@ CONTAINS
                rho_struct, para_env, pw_env, virial, vppl_rspace, &
                ace_section, &
                adiabatic_rescaling_section, hfx_sections, input, scf_section, &
-               xc_section, gauxc_section, matrix_h, matrix_h_im, matrix_s, auxbas_pw_pool, poisson_env, &
+               xc_section, gauxc_section, native_section, matrix_h, matrix_h_im, matrix_s, &
+               auxbas_pw_pool, poisson_env, &
                v_rspace_new, v_rspace_new_aux_fit, v_tau_rspace, v_tau_rspace_aux_fit, matrix_vxc, &
                matrix_vxc_kp, matrix_vhxc, &
                vee, rho_nlcc, ks_env, ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao, &
@@ -698,12 +699,10 @@ CONTAINS
          ! Everything else, either via GauXC or manual XC computation
          native_skala_evaluator = xc_section_uses_native_skala_grid(xc_section)
          paw_composite_representation = .FALSE.
-         IF (dft_control%use_gauxc .AND. (gapw .OR. gapw_xc)) THEN
-            paw_composite_representation = xc_section_uses_gauxc_model(xc_section) .AND. &
+         IF (gapw .OR. gapw_xc) THEN
+            paw_composite_representation = xc_section_uses_native_skala_grid(xc_section) .AND. &
                                            skala_gapw_representation(xc_section) == skala_gapw_paw_one_center .AND. &
                                            gauxc_gapw_has_paw_pseudopotentials(qs_kind_set)
-            native_skala_evaluator = native_skala_evaluator .OR. &
-                                     paw_composite_representation
          END IF
          IF (dft_control%use_gauxc) THEN
             IF (native_skala_evaluator) THEN
@@ -738,7 +737,7 @@ CONTAINS
                    .NOT. native_gapw_periodic_atom_composite) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "Mixed all-electron and pseudopotential GAPW kinds require "// &
-                                "NATIVE_GRID_LAYOUT ATOM_COMPOSITE so that their primitive "// &
+                                "LAYOUT ATOM_COMPOSITE so that their primitive "// &
                                 "fields are combined before Skala feature construction.")
                END IF
                native_gapw_atom_composite_reference = &
@@ -770,9 +769,9 @@ CONTAINS
                END IF
                native_gapw_composite_direct_ao = native_gapw_composite_reference .AND. &
                                                  native_skala_gapw_composite_direct_ao(xc_section)
-               gauxc_section => get_gauxc_section(xc_section)
-               IF (ASSOCIATED(gauxc_section)) THEN
-                  CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_DIAGNOSTICS", &
+               native_section => get_skala_native_section(xc_section)
+               IF (ASSOCIATED(native_section)) THEN
+                  CALL section_vals_val_get(native_section, "DIAGNOSTICS", &
                                             l_val=native_grid_diagnostics)
                END IF
                IF ((.NOT. do_kpoints) .AND. nimages /= 1) THEN
@@ -782,15 +781,15 @@ CONTAINS
                END IF
                IF (do_kpoints) THEN
                   CPASSERT(ASSOCIATED(kpoints))
-                  gauxc_section => get_gauxc_section(xc_section)
-                  CPASSERT(ASSOCIATED(gauxc_section))
-                  CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_USE_CUDA", l_val=native_grid_use_cuda)
+                  native_section => get_skala_native_section(xc_section)
+                  CPASSERT(ASSOCIATED(native_section))
+                  CALL section_vals_val_get(native_section, "USE_CUDA", l_val=native_grid_use_cuda)
                   IF (.NOT. native_grid_use_cuda) THEN
                      IF (para_env%mepos == 0 .AND. .NOT. native_grid_cpu_kpoints_warned) THEN
                         CALL cp_warn(__LOCATION__, &
                                      "Native SKALA grid evaluation with k-points is using the CPU TorchScript "// &
                                      "path. Use a mutually compatible BLAS, ScaLAPACK, OpenMP, and LibTorch "// &
-                                     "runtime stack, or select NATIVE_GRID_USE_CUDA T.")
+                                     "runtime stack, or select USE_CUDA T.")
                         native_grid_cpu_kpoints_warned = .TRUE.
                      END IF
                   END IF

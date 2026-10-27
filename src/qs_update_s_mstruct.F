@@ -43,7 +43,7 @@ MODULE qs_update_s_mstruct
    USE qs_rho_types,                    ONLY: qs_rho_create,&
                                               qs_rho_type
    USE qs_scf_types,                    ONLY: scf_env_did_change
-   USE skala_gpw_functional,            ONLY: get_gauxc_section,&
+   USE skala_gpw_functional,            ONLY: get_skala_native_section,&
                                               native_skala_gapw_composite_direct_ao,&
                                               native_skala_gapw_composite_reference,&
                                               skala_gapw_representation
@@ -213,9 +213,9 @@ CONTAINS
                             native_skala_gapw_composite_direct_ao(xc_section)
       paw_one_center = skala_gapw_representation(xc_section) == skala_gapw_paw_one_center
       native_grid_diagnostics = .FALSE.
-      gauxc_section => get_gauxc_section(xc_section)
+      gauxc_section => get_skala_native_section(xc_section)
       IF (ASSOCIATED(gauxc_section)) THEN
-         CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_DIAGNOSTICS", &
+         CALL section_vals_val_get(gauxc_section, "DIAGNOSTICS", &
                                    l_val=native_grid_diagnostics)
       END IF
       skip_load_balance_distributed = dft_control%qs_control%skip_load_balance_distributed

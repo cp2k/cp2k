@@ -291,6 +291,8 @@ CONTAINS
             ! Note: SKALA functional routes through apply_gauxc in qs_ks_methods.F
             ! when USE_GAUXC = .TRUE. (requires dft_control%use_gauxc to be set)
          END IF
+      CASE ("SKALA_NATIVE")
+         CALL skala_info(functional, lsd, reference, shortform, needs, max_deriv)
       CASE ("XWPBE")
          IF (lsd) THEN
             CALL xwpbe_lsd_info(reference, shortform, needs, max_deriv)
@@ -523,6 +525,8 @@ CONTAINS
          ELSE
             CPABORT(abort_message_skala)
          END IF
+      CASE ("SKALA_NATIVE")
+         CPABORT(abort_message_skala)
       CASE ("XWPBE")
          IF (lsd) THEN
             CALL xwpbe_lsd_eval(rho_set, deriv_set, deriv_order, functional)

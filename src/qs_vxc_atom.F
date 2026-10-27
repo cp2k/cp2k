@@ -91,7 +91,8 @@ MODULE qs_vxc_atom
                                               smooth_partition_atomic_weight_scale,&
                                               smooth_partition_atomic_weight_scale_derivative
    USE skala_gpw_functional,            ONLY: &
-        build_vxc_from_feature_grads, get_gauxc_section, native_skala_gapw_density_partition, &
+        build_vxc_from_feature_grads, get_gauxc_section, get_skala_native_section, &
+        native_skala_gapw_density_partition, &
         skala_gapw_atom_composite_energy, skala_gapw_atom_vxc_of_r, &
         skala_gapw_density_partition_hard_minus_soft, skala_gapw_density_partition_hard_only, &
         skala_gapw_density_partition_none, skala_gapw_density_partition_soft_only, &
@@ -364,8 +365,8 @@ CONTAINS
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER     :: r_h_d, r_s_d
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: my_rho_atom_set
       TYPE(rho_atom_type), POINTER                       :: rho_atom
-      TYPE(section_vals_type), POINTER                   :: gauxc_section, input, my_xc_section, &
-                                                            xc_fun_section
+      TYPE(section_vals_type), POINTER                   :: gauxc_section, input, model_section, &
+                                                            my_xc_section, native_section, xc_fun_section
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
       TYPE(tau_basis_cache_type)                         :: tau_basis_cache
       TYPE(virial_type), POINTER                         :: virial
@@ -464,12 +465,16 @@ CONTAINS
       atom_composite_components = 1
       feature_vxc_step = 3.0E-3_dp
       IF (skala_atom_grid) THEN
-         gauxc_section => get_gauxc_section(my_xc_section)
-         CPASSERT(ASSOCIATED(gauxc_section))
-         CALL section_vals_val_get(gauxc_section, "PSEUDOPOTENTIAL_GAPW_REPRESENTATION", &
+         native_section => get_skala_native_section(my_xc_section)
+         model_section => native_section
+         IF (.NOT. ASSOCIATED(model_section)) model_section => get_gauxc_section(my_xc_section)
+         CPASSERT(ASSOCIATED(model_section))
+         CALL section_vals_val_get(model_section, "PSEUDOPOTENTIAL_GAPW_REPRESENTATION", &
                                    i_val=gapw_representation)
-         CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_DIAGNOSTICS", &
-                                   l_val=native_grid_diagnostics)
+         IF (ASSOCIATED(native_section)) THEN
+            CALL section_vals_val_get(native_section, "DIAGNOSTICS", &
+                                      l_val=native_grid_diagnostics)
+         END IF
       END IF
       IF (skala_atom_grid) THEN
          DO ikind = 1, SIZE(my_kind_set)
@@ -482,17 +487,19 @@ CONTAINS
          END DO
       END IF
       IF (skala_atom_grid .AND. xc_section_uses_native_skala_evaluator(my_xc_section)) THEN
-         CALL section_vals_val_get(gauxc_section, &
-                                   "NATIVE_GRID_GAPW_ATOM_COMPOSITE_DIAGNOSTIC", &
+         native_section => get_skala_native_section(my_xc_section)
+         CPASSERT(ASSOCIATED(native_section))
+         CALL section_vals_val_get(native_section, &
+                                   "GAPW_ATOM_COMPOSITE_DIAGNOSTIC", &
                                    l_val=atom_composite_diagnostic)
-         CALL section_vals_val_get(gauxc_section, &
-                                   "NATIVE_GRID_GAPW_ATOM_COMPOSITE_REFERENCE", &
+         CALL section_vals_val_get(native_section, &
+                                   "GAPW_ATOM_COMPOSITE_REFERENCE", &
                                    l_val=atom_composite_reference)
-         CALL section_vals_val_get(gauxc_section, &
-                                   "NATIVE_GRID_GAPW_ATOM_COMPOSITE_COMPONENTS", &
+         CALL section_vals_val_get(native_section, &
+                                   "GAPW_ATOM_COMPOSITE_COMPONENTS", &
                                    i_val=atom_composite_components)
-         CALL section_vals_val_get(gauxc_section, &
-                                   "NATIVE_GRID_GAPW_ATOM_COMPOSITE_FD_STEP", &
+         CALL section_vals_val_get(native_section, &
+                                   "GAPW_ATOM_COMPOSITE_FD_STEP", &
                                    r_val=feature_vxc_step)
       END IF
       atom_composite_reference = atom_composite_reference .OR. &
@@ -1090,7 +1097,7 @@ CONTAINS
                      evaluate_soft = .FALSE.
                   CASE DEFAULT
                      CALL cp_abort(__LOCATION__, &
-                                   "Unknown GAUXC%NATIVE_GRID_GAPW_DENSITY_PARTITION value.")
+                                   "Unknown SKALA_NATIVE%GAPW_DENSITY_PARTITION value.")
                   END SELECT
                END IF
                IF (atom_composite_reference) THEN

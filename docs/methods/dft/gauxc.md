@@ -2,15 +2,20 @@
 
 [GauXC](https://github.com/wavefunction91/GauXC) provides an external exchange-correlation (XC)
 integrator for Quickstep. It can evaluate selected conventional functionals and GauXC Skala models
-through the [GAUXC](#CP2K_INPUT.FORCE_EVAL.DFT.XC.XC_FUNCTIONAL.GAUXC) section.
+through the [GAUXC](#CP2K_INPUT.FORCE_EVAL.DFT.XC.XC_FUNCTIONAL.GAUXC) section or the
+[SKALA_NATIVE](#CP2K_INPUT.FORCE_EVAL.DFT.XC.XC_FUNCTIONAL.SKALA_NATIVE) section.
 
-The CP2K interface currently provides two distinct paths:
+The CP2K interface provides two separate, mutually exclusive XC functional sections:
 
-- The default molecular-quadrature path evaluates the XC contribution through GauXC's atom-centered
-  molecular grid. It is intended primarily for isolated calculations.
-- The experimental native-grid path (`NATIVE_GRID T`) evaluates SKALA TorchScript models from the
-  CP2K GPW real-space grid. It has a different support scope and should be treated separately from
-  the molecular-quadrature path.
+- `GAUXC` evaluates functionals through GauXC's atom-centered molecular quadrature. It is intended
+  primarily for isolated calculations.
+- `SKALA_NATIVE` evaluates SKALA TorchScript models with CP2K's own GPW/GAPW real-space-grid
+  machinery. It has a different support scope and keyword set.
+
+Keywords from one section are not accepted by the other. In particular, all native-grid controls
+(`USE_CUDA`, `ATOM_PARTITION`, `LAYOUT`, `GAPW_*`, and the model precision/chunking controls) belong
+to `SKALA_NATIVE`, while `GRID`, `PRUNING_SCHEME`, `RADIAL_QUADRATURE`, `LB_EXECUTION_SPACE`,
+`INT_EXECUTION_SPACE`, `LWD_KERNEL`, and `SKALA_RUNTIME` belong to `GAUXC`.
 
 ## Basic Input
 
@@ -66,6 +71,27 @@ quadrature integration. A device runtime is created whenever **either** of them 
 a CUDA-enabled GauXC/LibTorch is not available, a `DEVICE` request aborts instead of silently falling
 back to the host. CP2K prints the resolved spaces and runtime once:
 `GAUXC| Execution spaces: LB ..., INT ..., runtime DEVICE|HOST`.
+
+### Device and GPU Controls
+
+`DEVICE_RUNTIME_FILL_FRACTION` (default `0.1`) sets the fraction of currently available GPU memory
+that a GauXC device runtime preallocates. It is used whenever `LB_EXECUTION_SPACE` or
+`INT_EXECUTION_SPACE` is `DEVICE`. Smaller values leave more memory for the Skala Torch model and
+other GPU work; larger values can reduce allocator churn but may exhaust the device.
+
+`BATCH_SIZE` (default `512`) controls how many quadrature points GauXC processes per integrator
+batch. Larger batches reduce kernel-launch overhead but increase device memory use.
+
+`LWD_KERNEL` selects the local-work driver used by the integrator. `AUTO` (default) resolves to
+`SCHEME1-CUTLASS` for `MODEL SKALA` with `INT_EXECUTION_SPACE DEVICE` when GauXC was built with
+CUTLASS support, and otherwise leaves the choice to GauXC. `DEFAULT` always uses GauXC's default.
+`SCHEME1-CUTLASS` forces the CUTLASS grouped local-potential update.
+
+`MODEL_ATOM_CHUNK_SIZE` (see below) controls atom-blocked Torch inference and therefore also device
+memory use. `SKALA_RUNTIME` and `MODEL_GRADIENT_RUNTIME` select MPI or rank-replicated runtimes;
+replicated runtimes duplicate the model state on every rank, which matters for GPU memory.
+`FORCE_NUMERICAL_GRADIENT` performs six full XC energy evaluations per atom, each of which runs on
+the device when the integrator is on the device.
 
 The molecular-quadrature Skala path defaults to `GRID SUPERFINE` and `PRUNING_SCHEME UNPRUNED`
 unless these settings are provided explicitly. These settings are recommended for force checks;
@@ -147,9 +173,13 @@ same selector without additional mixed-system input: all-electron kinds contribu
 primitive fields, while each pseudopotential kind follows `DIRECT_VALENCE`, `PAW_ONE_CENTER`, or the
 legacy `CP2K_DEFAULT` rule.
 
-`NATIVE_GRID_GAPW_DENSITY_PARTITION` controls the legacy one-center diagnostic; its default,
+The same `PSEUDOPOTENTIAL_GAPW_REPRESENTATION` keyword is available in both `GAUXC` and
+`SKALA_NATIVE`. In `GAUXC` it controls the molecular one-center correction; in `SKALA_NATIVE` it
+controls the native GAPW primitive-field reconstruction before the TorchScript model is evaluated.
+
+`GAPW_DENSITY_PARTITION` controls the legacy one-center diagnostic; its default,
 `HARD_MINUS_SOFT`, follows the CP2K GAPW XC construction. `HARD_ONLY`, `SOFT_ONLY`, and `NONE` are
-diagnostic choices. The similarly named `NATIVE_GRID_ATOM_PARTITION` controls a native-grid atom
+diagnostic choices. The similarly named `ATOM_PARTITION` controls a native-grid atom
 partition and does not affect GauXC molecular quadrature.
 
 The one-center representation inherits the kind-dependent `RADIAL_GRID`, `LEBEDEV_GRID`, and
@@ -162,7 +192,7 @@ The reconstructed expression conserves the electron number at the density-repres
 numerical integral on the finite radial/Lebedev quadrature retains the usual molecular-grid error
 and converges with the kind-dependent grid settings. CP2K does not rescale the density to force an
 exact numerical integral: a density-dependent rescaling would modify the Skala functional and would
-require additional VXC, force, and virial derivatives. `NATIVE_GRID_DIAGNOSTICS T` prints the
+require additional VXC, force, and virial derivatives. `DIAGNOSTICS T` prints the
 atom-composite electron integral for convergence checks.
 
 Molecular Skala forces are available for these GAPW and GAPW_XC cases. The direct molecular GauXC
@@ -172,7 +202,7 @@ GAPW/GAPW_XC bases beyond f shells. The separate conventional-functional high-l 
 unchanged by the OneDFT fix. `FORCE_NUMERICAL_GRADIENT T` explicitly selects finite differences for
 diagnostics, including low-l and GPW cases. It uses a displacement of `1.0E-4` bohr at fixed AO
 density and costs six XC energy evaluations per atom, not six additional SCFs. It does not change
-`NATIVE_GRID` or the CP2K one-center contribution. The selected molecular gradient method and
+`SKALA_NATIVE` or the CP2K one-center contribution. The selected molecular gradient method and
 runtime are printed when a gradient cache is initialized. The `PAW_ONE_CENTER` representation
 instead propagates the Skala feature adjoint analytically through the CP2K smooth-field
 interpolation, one-center reconstruction, atom partition, and NLCC center coordinates.
@@ -188,49 +218,66 @@ The kinetic-energy density remains valence-only. Non-local `VDW_POTENTIAL` corre
 higher-XC-derivative response and kernel properties, and real-time propagation remain unsupported
 through GauXC.
 
-## Experimental Native-Grid SKALA Path
+## CP2K-Native SKALA Path
 
-`NATIVE_GRID T` bypasses GauXC's molecular quadrature and evaluates a SKALA TorchScript model from
-CP2K's GPW real-space grid. It is an experimental path for energy, XC potential, and
-nuclear-gradient/stress calculations with one GAUXC functional. Unlike the molecular path, it can
-cover selected isolated and periodic GPW/GAPW calculations, including k-point density matrices.
+Selecting `SKALA_NATIVE` bypasses GauXC's molecular quadrature and evaluates a SKALA TorchScript
+model from CP2K's GPW/GAPW real-space grid. It is an experimental path for energy, XC potential, and
+nuclear-gradient/stress calculations and must be the only XC functional. Unlike the molecular path,
+it can cover selected isolated and periodic GPW/GAPW calculations, including k-point density
+matrices.
 
-A minimal native-grid input is:
+A minimal native input is:
 
 ```text
 &XC
   &XC_FUNCTIONAL
-    &GAUXC
+    &SKALA_NATIVE
       MODEL SKALA
-      NATIVE_GRID T
-      NATIVE_GRID_DIAGNOSTICS T
-    &END GAUXC
+      DIAGNOSTICS T
+    &END SKALA_NATIVE
   &END XC_FUNCTIONAL
 &END XC
 ```
 
-`NATIVE_GRID_DIAGNOSTICS T` prints the electron count, spin moment, and summed grid weights of the
+`MODEL` selects the TorchScript checkpoint. `MODEL SKALA` resolves the installed model from
+`SKALA_MODEL` on the host path and from `SKALA_CUDA_MODEL` when `USE_CUDA T` is set. The CUDA variant
+is required in that case; there is no automatic host-model fallback. An explicit `.fun` path in
+`MODEL` overrides both environment variables.
+
+`MODEL_FP64` (default `T`) promotes float32 numerical state and explicit floating-point casts in the
+TorchScript model to double precision while retaining the trained parameter values exactly. This
+improves SCF and geometry-derivative consistency for mixed-precision exports, but fp64 arithmetic is
+much slower than fp32 on most GPUs. Set `MODEL_FP64 F` to retain the export's native precision when
+validating the corresponding accuracy/performance trade-off.
+
+`DIAGNOSTICS T` prints the electron count, spin moment, and summed grid weights of the
 feature block supplied to Torch. This is useful when validating a model or a periodic setup.
 
 ### CPU, CUDA, and MPI
 
-The native-grid implementation supports both CPU and CUDA TorchScript evaluation, including k-point
+The `SKALA_NATIVE` implementation supports both CPU and CUDA TorchScript evaluation, including k-point
 calculations. CUDA evaluation is selected explicitly with:
 
 ```text
-&GAUXC
-  NATIVE_GRID T
-  NATIVE_GRID_USE_CUDA T
-  NATIVE_GRID_CUDA_DEVICE -1
-&END GAUXC
+&SKALA_NATIVE
+  MODEL SKALA
+  USE_CUDA T
+  CUDA_DEVICE -1
+&END SKALA_NATIVE
 ```
 
-A negative `NATIVE_GRID_CUDA_DEVICE` assigns the MPI-local rank to a visible CUDA device. A
-non-negative value selects that visible device explicitly. CPU k-point calculations require a
-compatible LibTorch/BLAS runtime; see Troubleshooting below.
+`USE_CUDA` defaults to `F`. With `USE_CUDA T`, the model is run through LibTorch's CUDA backend when a
+visible CUDA device is available. If no device is visible, CP2K prints a warning and continues on the
+CPU. The selected model path is then still resolved from `SKALA_CUDA_MODEL`, as described above.
 
-`NATIVE_GRID_ATOM_CHUNKS T` distributes the model evaluation in atom blocks for MPI calculations and
-can reduce peak CUDA memory. `NATIVE_GRID_ATOM_CHUNK_MAX_ROWS` further limits the number of padded
+`CUDA_DEVICE` defaults to `-1`. A negative value maps the MPI-local rank to one of the visible CUDA
+devices (`rank MOD device_count`); a non-negative value selects that visible device explicitly.
+Requesting a device outside the visible range aborts. CUDA exports with device-specific TorchScript
+constants may require a rank-local `CUDA_VISIBLE_DEVICES` list.
+
+`ATOM_CHUNKS` (default `T`) distributes the model evaluation in atom blocks for MPI calculations and
+can reduce peak CUDA memory. `ATOM_CHUNK_MAX_ROWS` (default `-1`, automatic padded-row cap) further
+limits the number of padded
 atom-grid rows handled by one Torch call when needed. This accounts for the rectangular padding
 required by unequal atomic grid sizes. Atomic blocks are never divided, so a single block can exceed
 this limit. For `ATOM_COMPOSITE`, the split follows the independent atom dimension of Skala and is
@@ -247,13 +294,13 @@ blocks on distinct visible GPUs.
 
 ### Atom and GAPW Density Partitions
 
-`NATIVE_GRID_ATOM_PARTITION` assigns native-grid rows to atomic feature blocks. `SMOOTH`, the
+`ATOM_PARTITION` assigns native-grid rows to atomic feature blocks. `SMOOTH`, the
 default, uses a differentiable Becke-like partition. `HARD` assigns each point to its nearest
 periodic atom and is intended for legacy energy/VXC checks. Force and stress calculations use the
 smooth partition internally because derivatives of the partition weights contribute to the Skala
 response.
 
-`NATIVE_GRID_GAPW_DENSITY_PARTITION` is independent of that spatial atom partition. It selects the
+`GAPW_DENSITY_PARTITION` is independent of that spatial atom partition. It selects the
 one-center primitive-field term for PAW-like `METHOD GAPW` and `METHOD GAPW_XC` calculations.
 `HARD_MINUS_SOFT`, the default, adds the hard-minus-soft density, density gradient, and
 kinetic-energy density to the smooth fields before the single nonlinear Skala evaluation.
@@ -261,7 +308,7 @@ kinetic-energy density to the smooth fields before the single nonlinear Skala ev
 valence-density route irrespective of `GPW_TYPE`; the legacy `CP2K_DEFAULT` representation may infer
 that route from the kind settings.
 
-For native Skala, `NATIVE_GRID_LAYOUT` selects the grid on which the combined primitive fields are
+For native Skala, `LAYOUT` selects the grid on which the combined primitive fields are
 formed. `ATOM_COMPOSITE`, the default, interpolates the smooth field to GAPW radial/Lebedev grids
 and adds the hard-minus-soft fields there before constructing the nonlinear Skala features. In
 periodic cells, a Becke-like partition over all atom images assigns the outer energy quadrature. A
