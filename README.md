@@ -70,7 +70,7 @@ the CP2K manual provide several methods for installing CP2K with dependencies:
 [conda-badge]: https://img.shields.io/conda/vn/conda-forge/cp2k
 [conda-link]: https://anaconda.org/conda-forge/cp2k
 [debian-badge]: https://img.shields.io/debian/v/cp2k
-[debian-link]: https://packages.debian.org/search?keywords=cp2k
+[debian-link]: https://tracker.debian.org/pkg/cp2k
 [docker-badge]: https://img.shields.io/docker/v/cp2k/cp2k?label=docker
 [docker-link]: https://hub.docker.com/r/cp2k/cp2k
 [fedora-badge]: https://img.shields.io/fedora/v/cp2k
@@ -82,4 +82,4 @@ the CP2K manual provide several methods for installing CP2K with dependencies:
 [spack-badge]: https://img.shields.io/spack/v/cp2k
 [spack-link]: https://packages.spack.io/package.html?name=cp2k
 [ubuntu-badge]: https://img.shields.io/ubuntu/v/cp2k
-[ubuntu-link]: https://packages.ubuntu.com/search?keywords=cp2k
+[ubuntu-link]: https://launchpad.net/ubuntu/+source/cp2k
