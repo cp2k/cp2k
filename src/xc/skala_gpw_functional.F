@@ -49,7 +49,8 @@ MODULE skala_gpw_functional
         torch_dict_release, torch_dict_type, torch_tensor_backward_scalar, torch_tensor_data_ptr, &
         torch_tensor_from_array, torch_tensor_grad, torch_tensor_grad_batch3, torch_tensor_narrow, &
         torch_tensor_release, torch_tensor_reset_from_array, torch_tensor_to_device_leaf, &
-        torch_tensor_type, torch_use_cuda
+        torch_tensor_type, torch_get_use_cuda, torch_use_cuda
+   USE input_constants,                 ONLY: do_gpu_auto, do_gpu_device, do_gpu_host
    USE xc_input_constants,              ONLY: skala_gapw_atom_composite_grid,&
                                               skala_gapw_common_grid,&
                                               skala_gapw_cp2k_default,&
@@ -93,7 +94,8 @@ MODULE skala_gpw_functional
              native_skala_uses_atom_composite_grid, &
              native_skala_gapw_composite_direct_ao, native_skala_gapw_composite_reference, &
              native_skala_gapw_density_partition, skala_gpw_eval, skala_gpw_weight_derivative, &
-             skala_gapw_representation, xc_section_uses_native_skala_evaluator, &
+             skala_execution_use_cuda, skala_gapw_representation, &
+             xc_section_uses_native_skala_evaluator, &
              xc_section_uses_native_skala_grid, xc_section_uses_gauxc_model, &
              xc_section_uses_skala_model
 
@@ -107,6 +109,7 @@ MODULE skala_gpw_functional
                                                           logged_cuda_device_count = -1, &
                                                           logged_cuda_nproc = -1, &
                                                           logged_cuda_request = -3
+   LOGICAL, SAVE                                       :: entry_torch_use_cuda = .TRUE.
 
 CONTAINS
 
@@ -481,14 +484,13 @@ CONTAINS
       nspins = SIZE(rho_r)
       lsd = (nspins /= 1)
       CALL get_skala_model_path(xc_section, model_path)
-      native_grid_use_cuda = .FALSE.
+      native_grid_use_cuda = skala_execution_use_cuda(xc_section)
       native_grid_cuda_device = -1
       native_grid_atom_chunks = .TRUE.
       native_grid_atom_chunk_max_rows = -1
       native_grid_atom_partition = skala_gpw_atom_partition_smooth
       gauxc_section => get_skala_native_section(xc_section)
       IF (ASSOCIATED(gauxc_section)) THEN
-         CALL section_vals_val_get(gauxc_section, "USE_CUDA", l_val=native_grid_use_cuda)
          CALL section_vals_val_get(gauxc_section, "CUDA_DEVICE", &
                                    i_val=native_grid_cuda_device)
          CALL section_vals_val_get(gauxc_section, "ATOM_CHUNKS", &
@@ -521,6 +523,7 @@ CONTAINS
          native_grid_atom_chunks = .FALSE.
       END IF
       ! The portable SKALA export used by the regtests builds ragged-index tensors on CPU.
+      entry_torch_use_cuda = torch_get_use_cuda()
       CALL torch_use_cuda(native_grid_use_cuda)
       selected_cuda_device = configure_native_grid_cuda( &
                              native_grid_use_cuda, native_grid_cuda_device, rho_r(1)%pw_grid%para%group)
@@ -715,7 +718,7 @@ CONTAINS
       IF (.NOT. use_atom_subchunks .AND. has_atom_chunk_work) CALL torch_tensor_release(exc_tensor)
       CALL skala_gpw_feature_release(features)
       CALL xc_rho_set_release(rho_set, pw_pool=pw_pool)
-      CALL torch_use_cuda(.TRUE.)
+      CALL torch_use_cuda(entry_torch_use_cuda)
       CALL omp_set_num_threads(omp_max_threads_restore)
       CALL timestop(phase_handle)
 
@@ -774,12 +777,11 @@ CONTAINS
       nspins = SIZE(rho_r)
       lsd = (nspins /= 1)
       CALL get_skala_model_path(xc_section, model_path)
-      native_grid_use_cuda = .FALSE.
+      native_grid_use_cuda = skala_execution_use_cuda(xc_section)
       native_grid_cuda_device = -1
       native_grid_atom_partition = skala_gpw_atom_partition_smooth
       gauxc_section => get_skala_native_section(xc_section)
       IF (ASSOCIATED(gauxc_section)) THEN
-         CALL section_vals_val_get(gauxc_section, "USE_CUDA", l_val=native_grid_use_cuda)
          CALL section_vals_val_get(gauxc_section, "CUDA_DEVICE", &
                                    i_val=native_grid_cuda_device)
          CALL section_vals_val_get(gauxc_section, "ATOM_PARTITION", &
@@ -798,6 +800,7 @@ CONTAINS
          native_grid_atom_partition = skala_gpw_atom_partition_smooth
       END IF
 
+      entry_torch_use_cuda = torch_get_use_cuda()
       CALL torch_use_cuda(native_grid_use_cuda)
       selected_cuda_device = configure_native_grid_cuda( &
                              native_grid_use_cuda, native_grid_cuda_device, rho_r(1)%pw_grid%para%group)
@@ -889,7 +892,7 @@ CONTAINS
       CALL torch_tensor_release(exc_tensor)
       CALL skala_gpw_feature_release(features)
       CALL xc_rho_set_release(rho_set, pw_pool=pw_pool)
-      CALL torch_use_cuda(.TRUE.)
+      CALL torch_use_cuda(entry_torch_use_cuda)
       CALL omp_set_num_threads(omp_max_threads_restore)
 
    END SUBROUTINE skala_gpw_weight_derivative
@@ -983,14 +986,14 @@ CONTAINS
       END IF
 
       CALL get_skala_model_path(xc_section, model_path)
-      native_grid_use_cuda = .FALSE.
+      native_grid_use_cuda = skala_execution_use_cuda(xc_section)
       native_grid_cuda_device = -1
       gauxc_section => get_skala_native_section(xc_section)
       IF (ASSOCIATED(gauxc_section)) THEN
-         CALL section_vals_val_get(gauxc_section, "USE_CUDA", l_val=native_grid_use_cuda)
          CALL section_vals_val_get(gauxc_section, "CUDA_DEVICE", &
                                    i_val=native_grid_cuda_device)
       END IF
+      entry_torch_use_cuda = torch_get_use_cuda()
       CALL torch_use_cuda(native_grid_use_cuda)
       selected_cuda_device = configure_native_grid_cuda( &
                              native_grid_use_cuda, native_grid_cuda_device, group)
@@ -1152,7 +1155,7 @@ CONTAINS
       CALL torch_dict_release(inputs)
       DEALLOCATE (atomic_grid_size_bound_shape, atomic_grid_sizes, atomic_grid_weights, &
                   coarse_0_atomic_coords, density, grad, grid_coords, grid_weights, kin)
-      CALL torch_use_cuda(.TRUE.)
+      CALL torch_use_cuda(entry_torch_use_cuda)
       CALL omp_set_num_threads(omp_max_threads_restore)
 
    END SUBROUTINE skala_gapw_atom_vxc_of_r
@@ -1265,13 +1268,12 @@ CONTAINS
       CPASSERT(active_rank .EQV. (local_nrow > 0))
 
       CALL get_skala_model_path(xc_section, model_path)
-      native_grid_use_cuda = .FALSE.
+      native_grid_use_cuda = skala_execution_use_cuda(xc_section)
       native_grid_cuda_device = -1
       native_grid_atom_chunks = .TRUE.
       chunk_max_rows = -1
       gauxc_section => get_skala_native_section(xc_section)
       IF (ASSOCIATED(gauxc_section)) THEN
-         CALL section_vals_val_get(gauxc_section, "USE_CUDA", l_val=native_grid_use_cuda)
          CALL section_vals_val_get(gauxc_section, "CUDA_DEVICE", &
                                    i_val=native_grid_cuda_device)
          CALL section_vals_val_get(gauxc_section, "ATOM_CHUNKS", &
@@ -1287,6 +1289,7 @@ CONTAINS
       IF (chunk_max_rows == -1) THEN
          chunk_max_rows = auto_atom_composite_chunk_max_rows(atomic_grid_sizes, group)
       END IF
+      entry_torch_use_cuda = torch_get_use_cuda()
       CALL torch_use_cuda(native_grid_use_cuda)
       selected_cuda_device = configure_native_grid_cuda( &
                              native_grid_use_cuda, native_grid_cuda_device, group)
@@ -1486,7 +1489,7 @@ CONTAINS
          DEALLOCATE (chunk_atom_begin, chunk_atom_count, chunk_row_begin, chunk_row_counts)
          CALL timestop(phase_handle)
       END IF
-      CALL torch_use_cuda(.TRUE.)
+      CALL torch_use_cuda(entry_torch_use_cuda)
       CALL omp_set_num_threads(omp_max_threads_restore)
 
    END SUBROUTINE skala_gapw_atom_composite_energy
@@ -2904,12 +2907,61 @@ CONTAINS
 
    END SUBROUTINE print_native_grid_diagnostics
 
+
+! **************************************************************************************************
+!> \brief Resolve the GPU/CUDA execution mode for the SKALA_NATIVE path.
+!> \param xc_section ...
+!> \return true when Torch should run on CUDA
+! **************************************************************************************************
+   FUNCTION skala_execution_use_cuda(xc_section) RESULT(use_cuda)
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
+      LOGICAL                                            :: use_cuda
+
+      INTEGER                                            :: gpu_mode
+      TYPE(section_vals_type), POINTER                   :: gauxc_section, native_section
+
+      gpu_mode = do_gpu_auto
+      native_section => get_skala_native_section(xc_section)
+      IF (ASSOCIATED(native_section)) THEN
+         CALL section_vals_val_get(native_section, "USE_GPU", i_val=gpu_mode)
+      ELSE
+         gauxc_section => get_gauxc_section(xc_section)
+         IF (ASSOCIATED(gauxc_section)) THEN
+            CALL section_vals_val_get(gauxc_section, "USE_GPU", i_val=gpu_mode)
+         END IF
+      END IF
+
+      SELECT CASE (gpu_mode)
+      CASE (do_gpu_auto)
+#if defined(__LIBTORCH_CUDA)
+         use_cuda = .TRUE.
+#else
+         use_cuda = .FALSE.
+#endif
+      CASE (do_gpu_host)
+         use_cuda = .FALSE.
+      CASE (do_gpu_device)
+         use_cuda = .TRUE.
+      CASE DEFAULT
+         CALL cp_abort(__LOCATION__, "Unknown SKALA execution-space value.")
+      END SELECT
+
+      IF (use_cuda) THEN
+         IF (.NOT. torch_cuda_is_available() .OR. torch_cuda_device_count() <= 0) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "GPU execution was requested, but no usable CUDA device was "// &
+                          "found. Set USE_GPU HOST to force CPU execution.")
+         END IF
+      END IF
+
+   END FUNCTION skala_execution_use_cuda
+
 ! **************************************************************************************************
 !> \brief Configure CUDA device selection for the native SKALA GPW Torch path.
 !> \param use_cuda ...
 !> \param requested_device ...
 !> \param group ...
-!> \return selected CUDA device, or -1 for CPU fallback/no visible CUDA device
+!> \return selected CUDA device, or -1 when CUDA is disabled
 ! **************************************************************************************************
    FUNCTION configure_native_grid_cuda(use_cuda, requested_device, group) RESULT(selected_device)
       LOGICAL, INTENT(IN)                                :: use_cuda
@@ -2929,16 +2981,19 @@ CONTAINS
       ELSE
          cuda_device_count = torch_cuda_device_count()
       END IF
-      IF (cuda_device_count > 0) THEN
-         IF (requested_device < 0) THEN
-            selected_device = MOD(group%mepos, cuda_device_count)
-         ELSE
-            selected_device = requested_device
-         END IF
+      IF (cuda_device_count <= 0) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "GPU execution was requested, but no usable CUDA device was "// &
+                       "found. Set USE_GPU HOST to force CPU execution.")
+      END IF
+      IF (requested_device < 0) THEN
+         selected_device = MOD(group%mepos, cuda_device_count)
+      ELSE
+         selected_device = requested_device
       END IF
       IF (selected_device >= cuda_device_count) THEN
          CALL cp_abort(__LOCATION__, &
-                       " SKALA_NATIVE%CUDA_DEVICE selects a CUDA device outside the visible "// &
+                       "SKALA_NATIVE%CUDA_DEVICE selects a CUDA device outside the visible "// &
                        "Torch CUDA device range.")
       END IF
       IF (selected_device >= 0) CALL offload_set_chosen_device(selected_device)
@@ -2963,14 +3018,9 @@ CONTAINS
          DEALLOCATE (selected_devices)
          RETURN
       END IF
-      IF (selected_device >= 0) THEN
-         WRITE (UNIT=iw, FMT="(/,T2,A,1X,I0,1X,A,1X,I0,1X,A,1X,I0)") &
-            "SKALA_GPW| Native grid Torch CUDA device", selected_device, &
-            "of", cuda_device_count, "requested", requested_device
-      ELSE
-         WRITE (UNIT=iw, FMT="(/,T2,A)") &
-            "SKALA_GPW| Native grid Torch CUDA requested, but no Torch CUDA device is visible"
-      END IF
+      WRITE (UNIT=iw, FMT="(/,T2,A,1X,I0,1X,A,1X,I0,1X,A,1X,I0)") &
+         "SKALA_GPW| Native grid Torch CUDA device", selected_device, &
+         "of", cuda_device_count, "requested", requested_device
       WRITE (UNIT=iw, FMT="(T2,A)", ADVANCE="NO") &
          "SKALA_GPW| Native grid Torch CUDA rank devices"
       DO pe = 1, group%num_pe
@@ -2997,6 +3047,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: cuda_device
       TYPE(section_vals_type), POINTER                   :: xc_section
 
+      INTEGER                                            :: iw
       LOGICAL                                            :: fp64
       TYPE(section_vals_type), POINTER                   :: native_section
 
@@ -3020,6 +3071,14 @@ CONTAINS
       cached_model_fp64 = fp64
       cached_model_loaded = .TRUE.
 
+      IF (cuda_device >= 0) THEN
+         iw = cp_logger_get_default_io_unit()
+         IF (iw > 0) THEN
+            WRITE (UNIT=iw, FMT="(T2,A,1X,I0)") &
+               "SKALA_GPW| LibTorch CUDA model active on device", cuda_device
+         END IF
+      END IF
+
    END SUBROUTINE ensure_model_loaded
 
 ! **************************************************************************************************
@@ -3036,17 +3095,16 @@ CONTAINS
       LOGICAL                                            :: use_cuda
       TYPE(section_vals_type), POINTER                   :: gauxc_section, native_section
 
+      use_cuda = skala_execution_use_cuda(xc_section)
       native_section => get_skala_native_section(xc_section)
       IF (ASSOCIATED(native_section)) THEN
          CALL section_vals_val_get(native_section, "MODEL", c_val=model_path)
-         CALL section_vals_val_get(native_section, "USE_CUDA", l_val=use_cuda)
       ELSE
          gauxc_section => get_gauxc_section(xc_section)
          IF (.NOT. ASSOCIATED(gauxc_section)) THEN
             CPABORT("Native SKALA GPW requires an XC_FUNCTIONAL%SKALA_NATIVE section")
          END IF
          CALL section_vals_val_get(gauxc_section, "MODEL", c_val=model_path)
-         use_cuda = .FALSE.
       END IF
       model_key = ADJUSTL(model_path)
       CALL uppercase(model_key)
@@ -3057,7 +3115,7 @@ CONTAINS
             CALL GET_ENVIRONMENT_VARIABLE("SKALA_CUDA_MODEL", model_path, STATUS=env_status)
             IF (env_status /= 0 .OR. LEN_TRIM(model_path) == 0) THEN
                CALL cp_abort(__LOCATION__, &
-                             "SKALA_NATIVE with USE_CUDA requires SKALA_CUDA_MODEL")
+                             "GPU execution of SKALA requires SKALA_CUDA_MODEL")
             END IF
          ELSE
             CALL GET_ENVIRONMENT_VARIABLE("SKALA_MODEL", model_path, STATUS=env_status)

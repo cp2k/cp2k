@@ -605,6 +605,11 @@ void torch_c_tensor_to_device_leaf(torch_c_tensor_t **tensor,
 void torch_c_use_cuda(const bool use_cuda) { use_cuda_if_available = use_cuda; }
 
 /*******************************************************************************
+ * \brief Returns whether Torch wrappers currently select CUDA when available.
+ ******************************************************************************/
+bool torch_c_get_use_cuda() { return use_cuda_if_available; }
+
+/*******************************************************************************
  * \brief Returns the gradient of a Torch tensor which was computed by autograd.
  * \author Ole Schuett
  ******************************************************************************/
