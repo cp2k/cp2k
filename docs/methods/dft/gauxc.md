@@ -60,6 +60,13 @@ interface and available checkpoints, consult
 [GauXC/Skala model documentation](https://microsoft.github.io/skala/gauxc/c-library.html#download-checkpoint-from-huggingface)
 and obtain `.fun` files only from trusted sources.
 
+`LB_EXECUTION_SPACE` and `INT_EXECUTION_SPACE` select where GauXC performs the load balancing and the
+quadrature integration. A device runtime is created whenever **either** of them is `DEVICE`, so
+`INT_EXECUTION_SPACE DEVICE` works with the default `LB_EXECUTION_SPACE HOST`. If the CUDA device or
+a CUDA-enabled GauXC/LibTorch is not available, a `DEVICE` request aborts instead of silently falling
+back to the host. CP2K prints the resolved spaces and runtime once:
+`GAUXC| Execution spaces: LB ..., INT ..., runtime DEVICE|HOST`.
+
 The molecular-quadrature Skala path defaults to `GRID SUPERFINE` and `PRUNING_SCHEME UNPRUNED`
 unless these settings are provided explicitly. These settings are recommended for force checks;
 coarser grids are accuracy settings and should be converged for the target calculation.
