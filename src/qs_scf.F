@@ -340,6 +340,7 @@ CONTAINS
          ! If SCF has not converged, then we should not start MP2
          IF (ASSOCIATED(qs_env%mp2_env)) qs_env%mp2_env%hf_fail = .NOT. converged
 
+         ! CC4S export is performed only when enabled in the input section.
          CALL write_cc4s(qs_env, converged)
 
          ! Add the converged outer_scf SCF gradient(s)/variable(s) to history
