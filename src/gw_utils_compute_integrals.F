@@ -24,9 +24,6 @@ MODULE gw_utils_compute_integrals
                                               coulomb_integral_context_type,&
                                               coulomb_integral_init
    USE cp_array_utils,                  ONLY: cp_2d_r_p_type
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
-   USE gamma,                           ONLY: init_md_ftable
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_id,&
                                               do_potential_short,&
@@ -41,8 +38,7 @@ MODULE gw_utils_compute_integrals
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE t_c_g0,                          ONLY: get_lmax_init,&
-                                              init
+   USE r12_fundamentals,                ONLY: r12_fundamentals_init
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
@@ -150,7 +146,7 @@ CONTAINS
 
       INTEGER                                            :: egfi, handle, ibasis, ilist, imax, iset, &
                                                             jset, kset, l, nbasis, ncoi, npgf_l, &
-                                                            sgfi, unit_id
+                                                            sgfi
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmin_i, npgfi, npgfj, npgfk, &
                                                             nsgfi, nsgfj, nsgfk
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
@@ -248,20 +244,8 @@ CONTAINS
          END DO
       END DO
 
-      ! one-time table inits; the truncated-Coulomb init reads a file + bcasts => MPI-collective,
-      ! must happen here and never inside the per-block path or an OMP region
-      IF (ctx%op_ij == do_potential_truncated .OR. ctx%op_jk == do_potential_truncated) THEN
-         IF (ctx%m_max > get_lmax_init()) THEN
-            IF (para_env%mepos == 0) THEN
-               CALL open_file(unit_number=unit_id, file_name=potential_parameter%filename)
-            END IF
-            CALL init(ctx%m_max, unit_id, para_env%mepos, para_env)
-            IF (para_env%mepos == 0) THEN
-               CALL close_file(unit_id)
-            END IF
-         END IF
-      END IF
-      CALL init_md_ftable(nmax=ctx%m_max)
+      ! MPI-collective table preparation stays outside the per-thread workspace lifecycle.
+      CALL r12_fundamentals_init(ctx%m_max, potential_parameter, para_env)
 
       CALL timestop(handle)
 

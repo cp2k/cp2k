@@ -40,8 +40,6 @@ MODULE qs_tensors
                                               dbcsr_type_antisymmetric,&
                                               dbcsr_type_no_symmetry
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
    USE dbt_api,                         ONLY: &
         dbt_blk_sizes, dbt_clear, dbt_copy, dbt_create, dbt_destroy, dbt_filter, dbt_get_block, &
         dbt_get_info, dbt_get_num_blocks, dbt_get_nze_total, dbt_iterator_next_block, &
@@ -49,7 +47,6 @@ MODULE qs_tensors
         dbt_ndims, dbt_put_block, dbt_reserve_blocks, dbt_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
-   USE gamma,                           ONLY: init_md_ftable
    USE hfx_compression_methods,         ONLY: hfx_add_mult_real_elements,&
                                               hfx_decompress_first_real_cache,&
                                               hfx_flush_last_real_cache,&
@@ -94,8 +91,7 @@ MODULE qs_tensors
         distribution_3d_destroy, distribution_3d_type, neighbor_list_3c_iterator_type, &
         neighbor_list_3c_type, symmetric_ij, symmetric_ijk, symmetric_jk, symmetric_none, &
         symmetrik_ik
-   USE t_c_g0,                          ONLY: get_lmax_init,&
-                                              init
+   USE r12_fundamentals,                ONLY: r12_fundamentals_init
    USE util,                            ONLY: get_limit
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
@@ -953,8 +949,7 @@ CONTAINS
          block_start_k, egfi, handle, handle2, i, i_img, i_xyz, iatom, ibasis, ikind, ilist, imax, &
          iset, j_img, jatom, jcell, jkind, jset, katom, kcell, kkind, kset, m_max, max_ncoj, &
          max_nset, max_nsgfi, maxli, maxlj, maxlk, mepos, natom, nbasis, ncell_RI, ncoi, ncoj, &
-         ncok, nimg, nseti, nsetj, nsetk, nthread, op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, &
-         unit_id
+         ncok, nimg, nseti, nsetj, nsetk, nthread, op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: img_to_RI_cell_prv
       INTEGER, DIMENSION(2)                              :: bo
       INTEGER, DIMENSION(3)                              :: blk_idx, blk_size, cell_j, cell_k, &
@@ -1191,22 +1186,7 @@ CONTAINS
          END DO !ibasis
       END DO !ilist
 
-      !Init the truncated Coulomb operator
-      IF (op_ij == do_potential_truncated .OR. op_jk == do_potential_truncated .OR. &
-          op_ij == do_potential_mix_cl_trunc .OR. op_jk == do_potential_mix_cl_trunc) THEN
-
-         IF (m_max > get_lmax_init()) THEN
-            IF (para_env%mepos == 0) THEN
-               CALL open_file(unit_number=unit_id, file_name=potential_parameter%filename)
-            END IF
-            CALL init(m_max, unit_id, para_env%mepos, para_env)
-            IF (para_env%mepos == 0) THEN
-               CALL close_file(unit_id)
-            END IF
-         END IF
-      END IF
-
-      CALL init_md_ftable(nmax=m_max)
+      CALL r12_fundamentals_init(m_max, potential_parameter, para_env)
 
       IF (do_kpoints_prv) THEN
          kp_index_lbounds = LBOUND(cell_to_index)
@@ -1651,7 +1631,7 @@ CONTAINS
          block_start_k, egfi, handle, i, i_xyz, iatom, ibasis, ikind, ilist, imax, iset, j_xyz, &
          jatom, jkind, jset, katom, kkind, kset, m_max, max_ncoj, max_nset, max_nsgfi, maxli, &
          maxlj, maxlk, mepos, natom, nbasis, ncoi, ncoj, ncok, nseti, nsetj, nsetk, nthread, &
-         op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, unit_id
+         op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk
       INTEGER, DIMENSION(2)                              :: bo
       INTEGER, DIMENSION(3)                              :: blk_size, sp
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmax_k, lmin_i, lmin_j, &
@@ -1807,22 +1787,7 @@ CONTAINS
          END DO !ibasis
       END DO !ilist
 
-      !Init the truncated Coulomb operator
-      IF (op_ij == do_potential_truncated .OR. op_jk == do_potential_truncated .OR. &
-          op_ij == do_potential_mix_cl_trunc .OR. op_jk == do_potential_mix_cl_trunc) THEN
-
-         IF (m_max > get_lmax_init()) THEN
-            IF (para_env%mepos == 0) THEN
-               CALL open_file(unit_number=unit_id, file_name=potential_parameter%filename)
-            END IF
-            CALL init(m_max, unit_id, para_env%mepos, para_env)
-            IF (para_env%mepos == 0) THEN
-               CALL close_file(unit_id)
-            END IF
-         END IF
-      END IF
-
-      CALL init_md_ftable(nmax=m_max)
+      CALL r12_fundamentals_init(m_max, potential_parameter, para_env)
 
       nthread = 1
 !$    nthread = omp_get_max_threads()
@@ -2153,8 +2118,7 @@ CONTAINS
          block_start_k, eg_local, handle, handle2, i, iatom, ibasis, ikind, ilist, imax, iset, &
          jatom, jcell, jkind, jset, katom, kcell, kkind, kset, m_max, max_ncoj, max_nset, &
          max_nsgfi, maxli, maxlj, maxlk, natom, nbasis, ncell_RI, ncoi, ncoj, ncok, next_pair, &
-         nimg, nseti, nsetj, nsetk, nsgf, op_ij, op_jk, op_pos_prv, sg_local, sgfi, sgfj, sgfk, &
-         unit_id
+         nimg, nseti, nsetj, nsetk, nsgf, op_ij, op_jk, op_pos_prv, sg_local, sgfi, sgfj, sgfk
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: img_to_RI_cell_prv
       INTEGER, DIMENSION(3)                              :: blk_idx, blk_size, cell_j, cell_k, &
                                                             kp_index_lbounds, kp_index_ubounds, sp
@@ -2425,22 +2389,7 @@ CONTAINS
          END DO !ibasis
       END DO !ilist
 
-      !Init the truncated Coulomb operator
-      IF (op_ij == do_potential_truncated .OR. op_jk == do_potential_truncated &
-          .OR. op_ij == do_potential_mix_cl_trunc .OR. op_jk == do_potential_mix_cl_trunc) THEN
-
-         IF (m_max > get_lmax_init()) THEN
-            IF (para_env%mepos == 0) THEN
-               CALL open_file(unit_number=unit_id, file_name=potential_parameter%filename)
-            END IF
-            CALL init(m_max, unit_id, para_env%mepos, para_env)
-            IF (para_env%mepos == 0) THEN
-               CALL close_file(unit_id)
-            END IF
-         END IF
-      END IF
-
-      CALL init_md_ftable(nmax=m_max)
+      CALL r12_fundamentals_init(m_max, potential_parameter, para_env)
 
       IF (do_kpoints_prv) THEN
          kp_index_lbounds = LBOUND(cell_to_index)
@@ -2777,8 +2726,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_2c_derivatives'
 
       INTEGER :: handle, i_xyz, iatom, ibasis, icol, ikind, imax, img, irow, iset, jatom, jkind, &
-         jset, m_max, maxli, maxlj, natom, ncoi, ncoj, nimg, nseti, nsetj, op_prv, sgfi, sgfj, &
-         unit_id
+         jset, m_max, maxli, maxlj, natom, ncoi, ncoj, nimg, nseti, nsetj, op_prv, sgfi, sgfj
       INTEGER, DIMENSION(3)                              :: cell_j, kp_index_lbounds, &
                                                             kp_index_ubounds
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmin_i, lmin_j, npgfi, &
@@ -2867,21 +2815,7 @@ CONTAINS
 
       m_max = maxli + maxlj + 1
 
-      !Init the truncated Coulomb operator
-      IF (op_prv == do_potential_truncated .OR. op_prv == do_potential_mix_cl_trunc) THEN
-
-         IF (m_max > get_lmax_init()) THEN
-            IF (para_env%mepos == 0) THEN
-               CALL open_file(unit_number=unit_id, file_name=potential_parameter%filename)
-            END IF
-            CALL init(m_max, unit_id, para_env%mepos, para_env)
-            IF (para_env%mepos == 0) THEN
-               CALL close_file(unit_id)
-            END IF
-         END IF
-      END IF
-
-      CALL init_md_ftable(nmax=m_max)
+      CALL r12_fundamentals_init(m_max, potential_parameter, para_env)
 
       CALL coulomb_integral_init(integral_context, max_am_2c=MAX(maxli, maxlj), &
                                  derivative_order=1, library=library_libint)
@@ -3018,7 +2952,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calc_2c_virial'
 
       INTEGER :: handle, i_xyz, iatom, ibasis, ikind, imax, iset, j_xyz, jatom, jkind, jset, &
-         m_max, maxli, maxlj, natom, ncoi, ncoj, nseti, nsetj, op_prv, sgfi, sgfj, unit_id
+         m_max, maxli, maxlj, natom, ncoi, ncoj, nseti, nsetj, op_prv, sgfi, sgfj
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmin_i, lmin_j, npgfi, &
                                                             npgfj, nsgfi, nsgfj
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf_i, first_sgf_j
@@ -3071,21 +3005,7 @@ CONTAINS
 
       m_max = maxli + maxlj + 1
 
-      !Init the truncated Coulomb operator
-      IF (op_prv == do_potential_truncated .OR. op_prv == do_potential_mix_cl_trunc) THEN
-
-         IF (m_max > get_lmax_init()) THEN
-            IF (para_env%mepos == 0) THEN
-               CALL open_file(unit_number=unit_id, file_name=potential_parameter%filename)
-            END IF
-            CALL init(m_max, unit_id, para_env%mepos, para_env)
-            IF (para_env%mepos == 0) THEN
-               CALL close_file(unit_id)
-            END IF
-         END IF
-      END IF
-
-      CALL init_md_ftable(nmax=m_max)
+      CALL r12_fundamentals_init(m_max, potential_parameter, para_env)
 
       CALL coulomb_integral_init(integral_context, max_am_2c=MAX(maxli, maxlj), &
                                  derivative_order=1, library=library_libint)
@@ -3200,8 +3120,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_2c_integrals'
 
       INTEGER :: handle, i_diag, iatom, ibasis, icol, ikind, imax, img, irow, iset, jatom, jkind, &
-         jset, m_max, maxli, maxlj, natom, ncoi, ncoj, nimg, nseti, nsetj, op_prv, sgfi, sgfj, &
-         unit_id
+         jset, m_max, maxli, maxlj, natom, ncoi, ncoj, nimg, nseti, nsetj, op_prv, sgfi, sgfj
       INTEGER, DIMENSION(3)                              :: cell_j, kp_index_lbounds, &
                                                             kp_index_ubounds
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmin_i, lmin_j, npgfi, &
@@ -3294,21 +3213,7 @@ CONTAINS
 
       m_max = maxli + maxlj
 
-      !Init the truncated Coulomb operator
-      IF (op_prv == do_potential_truncated .OR. op_prv == do_potential_mix_cl_trunc) THEN
-
-         IF (m_max > get_lmax_init()) THEN
-            IF (para_env%mepos == 0) THEN
-               CALL open_file(unit_number=unit_id, file_name=potential_parameter%filename)
-            END IF
-            CALL init(m_max, unit_id, para_env%mepos, para_env)
-            IF (para_env%mepos == 0) THEN
-               CALL close_file(unit_id)
-            END IF
-         END IF
-      END IF
-
-      CALL init_md_ftable(nmax=m_max)
+      CALL r12_fundamentals_init(m_max, potential_parameter, para_env)
 
       CALL coulomb_integral_init(integral_context, max_am_2c=MAX(maxli, maxlj), &
                                  derivative_order=0, library=library_libint)
