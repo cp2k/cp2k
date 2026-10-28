@@ -9,20 +9,20 @@
 !> \brief Gaussian-product geometry and radial seeds shared by four-center evaluation and screening.
 ! **************************************************************************************************
 MODULE four_center_integral_preparation
-   USE four_center_integral_types,      ONLY: eri4_fundamentals_size,&
-                                              eri4_pgf_image_type,&
-                                              eri4_pgf_pair_type,&
-                                              eri4_pgf_product_type
+   USE four_center_integral_types,      ONLY: eri4_pgf_image_type,&
+                                              eri4_pgf_pair_type
    USE input_constants,                 ONLY: do_potential_id
    USE integral_library_types,          ONLY: coulomb_operator_type
    USE kinds,                           ONLY: dp
+   USE libint_wrapper,                  ONLY: eri_primitive_data_type,&
+                                              prim_data_f_size
    USE mathconstants,                   ONLY: pi
    USE r12_fundamentals,                ONLY: compute_r12_fundamentals
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: prepare_eri4_pair, prepare_eri4_product, prepare_eri4_primitive
+   PUBLIC :: min_image_gap_sq, prepare_eri4_pair, prepare_eri4_product, prepare_eri4_primitive
 
 CONTAINS
 
@@ -47,7 +47,6 @@ CONTAINS
       pair%ZetaInv = 1.0_dp/pair%zetapzetb
       image%ra = ra
       image%rb = rb
-      image%rab2 = rab2
       image%S1234 = -zeta*zetb*pair%ZetaInv*rab2
       image%P = (zeta*ra + zetb*rb)*pair%ZetaInv
    END SUBROUTINE prepare_eri4_pair
@@ -62,9 +61,9 @@ CONTAINS
    SUBROUTINE prepare_eri4_product(pair_a, pair_b, m_max, product)
       TYPE(eri4_pgf_pair_type), INTENT(IN)               :: pair_a, pair_b
       INTEGER, INTENT(IN)                                :: m_max
-      TYPE(eri4_pgf_product_type), INTENT(INOUT)         :: product
+      TYPE(eri_primitive_data_type), INTENT(INOUT)       :: product
 
-      CPASSERT(m_max < eri4_fundamentals_size)
+      CPASSERT(m_max < prim_data_f_size)
 
       product%prepared_max_order = m_max
       product%exponents = [pair_a%zeta, pair_a%zetb, pair_b%zeta, pair_b%zetb]
@@ -86,15 +85,15 @@ CONTAINS
 !> \param params complete primitive in original center order, ready for backend permutation
 ! **************************************************************************************************
    SUBROUTINE prepare_eri4_primitive(product, image_a, image_b, attenuation, pq2, potential_parameter, params)
-      TYPE(eri4_pgf_product_type), INTENT(IN)            :: product
+      TYPE(eri_primitive_data_type), INTENT(IN)          :: product
       TYPE(eri4_pgf_image_type), INTENT(IN)              :: image_a, image_b
       REAL(dp), INTENT(IN)                               :: attenuation, pq2
       TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
-      TYPE(eri4_pgf_product_type), INTENT(INOUT)         :: params
+      TYPE(eri_primitive_data_type), INTENT(INOUT)       :: params
 
       INTEGER                                            :: i, m_max
-      REAL(dp) :: den, fundamentals_work(eri4_fundamentals_size), G(3), normalization, num, &
-         prefactor, ssss, T
+      REAL(dp) :: den, fundamentals_work(prim_data_f_size), G(3), normalization, num, prefactor, &
+         ssss, T
 
       m_max = product%prepared_max_order
       params%prepared_max_order = m_max
@@ -146,5 +145,23 @@ CONTAINS
          params%Fm(i) = params%Fm(i)*prefactor
       END DO
    END SUBROUTINE prepare_eri4_primitive
+
+! **************************************************************************************************
+!> \brief Squared-distance gap to the next image for an orthorhombic cell.
+!> \param r minimum-image displacement
+!> \param hmat cell matrix
+!> \return smallest squared-distance increment to an adjacent image
+! **************************************************************************************************
+   PURE FUNCTION min_image_gap_sq(r, hmat) RESULT(gap)
+      REAL(dp), DIMENSION(3), INTENT(IN)                 :: r
+      REAL(dp), DIMENSION(3, 3), INTENT(IN)              :: hmat
+      REAL(dp)                                           :: gap
+
+      REAL(dp), DIMENSION(3)                             :: cell_len
+
+      cell_len = [ABS(hmat(1, 1)), ABS(hmat(2, 2)), ABS(hmat(3, 3))]
+      gap = MINVAL(cell_len*(cell_len - 2.0_dp*ABS(r)))
+
+   END FUNCTION min_image_gap_sq
 
 END MODULE four_center_integral_preparation

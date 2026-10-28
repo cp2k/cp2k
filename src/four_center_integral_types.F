@@ -7,18 +7,15 @@
 
 ! **************************************************************************************************
 !> \brief Primitive Gaussian pairs and products for four-center integrals.
-!>        The fixed radial workspace capacity follows the compiled legacy backend.
 ! **************************************************************************************************
 MODULE four_center_integral_types
    USE kinds,                           ONLY: dp
-   USE libint_wrapper,                  ONLY: eri4_fundamentals_size => prim_data_f_size,&
-                                              eri4_pgf_product_type => eri_primitive_data_type
 
    IMPLICIT NONE
    PRIVATE
 
    PUBLIC :: eri4_cell_type, eri4_screen_coeff_type, eri4_pgf_image_type, &
-             eri4_pgf_pair_type, eri4_pgf_product_type, eri4_fundamentals_size
+             eri4_pgf_pair_type
 
 ! **************************************************************************************************
    TYPE eri4_cell_type
@@ -34,12 +31,10 @@ MODULE four_center_integral_types
 ! **************************************************************************************************
    TYPE eri4_pgf_image_type
       REAL(dp)                                 :: ra(3) = 0.0_dp, rb(3) = 0.0_dp
-      REAL(dp)                                 :: rab2 = 0.0_dp
       REAL(dp)                                 :: S1234 = 0.0_dp
       REAL(dp)                                 :: P(3) = 0.0_dp
       REAL(dp)                                 :: R = 0.0_dp
       REAL(dp)                                 :: pgf_max = 0.0_dp
-      REAL(dp), DIMENSION(3)                   :: bcell = 0.0_dp
    END TYPE eri4_pgf_image_type
 
 ! **************************************************************************************************

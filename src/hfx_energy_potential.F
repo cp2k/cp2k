@@ -36,8 +36,7 @@ MODULE hfx_energy_potential
                            dbcsr_p_type, &
                            dbcsr_type_antisymmetric, &
                            dbcsr_dot_threadsafe
-   USE four_center_integral_methods, ONLY: coulomb4, &
-                                           pgf_product_list_size
+   USE four_center_integral_methods, ONLY: coulomb4
    USE gamma, ONLY: init_md_ftable
    USE hfx_communication, ONLY: distribute_ks_matrix, &
                                 get_atomic_block_maps, &
@@ -62,7 +61,7 @@ MODULE hfx_energy_potential
       alloc_containers, dealloc_containers, hfx_basis_info_type, hfx_basis_type, hfx_cache_type, &
       hfx_cell_type, hfx_container_type, hfx_create_neighbor_cells, hfx_distribution, &
       hfx_general_type, hfx_init_container, hfx_load_balance_type, hfx_memory_type, hfx_p_kind, &
-      hfx_pgf_list, hfx_pgf_product_list, hfx_potential_type, hfx_reset_memory_usage_counter, &
+      hfx_pgf_list, hfx_potential_type, hfx_reset_memory_usage_counter, &
       hfx_screen_coeff_type, hfx_screening_type, hfx_task_list_type, hfx_type, init_t_c_g0_lmax, &
       log_zero, pair_list_type, pair_set_list_type
 
@@ -206,9 +205,8 @@ CONTAINS
                   max_contraction_val, max_val1, max_val2, max_val2_set, pmax_atom, pmax_blocks, &
                   pmax_entry, ra(3), rab2, rb(3), rc(3), rcd2, rd(3), screen_kind_ij, screen_kind_kl, &
                   spherical_estimate, symm_fac
-      REAL(dp), ALLOCATABLE, DIMENSION(:) :: ee_buffer1, ee_buffer2, ee_primitives_tmp, ee_work, &
-                                             ee_work2, kac_buf, kad_buf, kbc_buf, kbd_buf, pac_buf, pad_buf, pbc_buf, pbd_buf, &
-                                             primitive_integrals
+      REAL(dp), ALLOCATABLE, DIMENSION(:) :: ee_buffer1, ee_buffer2, ee_primitives_tmp, ee_work2, &
+                                         kac_buf, kad_buf, kbc_buf, kbd_buf, pac_buf, pad_buf, pbc_buf, pbd_buf, primitive_integrals
 
       REAL(dp), DIMENSION(:, :), POINTER :: full_density_alpha, full_density_beta, full_ks_alpha, &
                                             full_ks_beta, max_contraction, ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, shm_pmax_atom, &
@@ -238,8 +236,6 @@ CONTAINS
       TYPE(hfx_memory_type), POINTER                     :: memory_parameter
       TYPE(hfx_p_kind), DIMENSION(:), POINTER            :: shm_initial_p
       TYPE(hfx_pgf_list), ALLOCATABLE, DIMENSION(:)      :: pgf_list_ij, pgf_list_kl
-      TYPE(hfx_pgf_product_list), ALLOCATABLE, &
-         DIMENSION(:)                                    :: pgf_product_list
       TYPE(hfx_potential_type)                           :: potential_parameter
       TYPE(hfx_screen_coeff_type), DIMENSION(:, :), &
          POINTER                                         :: screen_coeffs_kind, tmp_R_1, tmp_R_2, &
@@ -385,7 +381,6 @@ CONTAINS
 !$OMP                                  screen_coeffs_set,&
 !$OMP                                  screen_coeffs_kind,&
 !$OMP                                  screen_coeffs_pgf,&
-!$OMP                                  pgf_product_list_size,&
 !$OMP                                  radii_pgf,&
 !$OMP                                  nkind,&
 !$OMP                                  ispin,&
@@ -414,9 +409,9 @@ CONTAINS
 !$OMP         compression_factor_disk,nprim_ints,neris_tmp,max_val_memory,max_am,do_p_screening,&
 !$OMP         max_set,particle_set,atomic_kind_set,natom,kind_of,ncos_max,nsgf_max,ikind,&
 !$OMP         nseta,npgfa,la_max,nsgfa,primitive_integrals,pbd_buf,pbc_buf,pad_buf,pac_buf,kbd_buf,kbc_buf,&
-!$OMP         kad_buf,kac_buf,ee_work,ee_work2,ee_buffer1,ee_buffer2,ee_primitives_tmp,max_contraction,&
+!$OMP         kad_buf,kac_buf,ee_work2,ee_buffer1,ee_buffer2,ee_primitives_tmp,max_contraction,&
 !$OMP         max_pgf,jkind,lb_max,nsetb,npgfb,first_sgfb,sphi_b,nsgfb,ncob,sgfb,nneighbors,pgf_list_ij,pgf_list_kl,&
-!$OMP         pgf_product_list,nimages,ks_fully_occ,subtr_size_mb,use_disk_storage,counter,do_disk_storage,&
+!$OMP         nimages,ks_fully_occ,subtr_size_mb,use_disk_storage,counter,do_disk_storage,&
 !$OMP         maxval_container_disk,maxval_cache_disk,integral_containers_disk,integral_caches_disk,eps_schwarz,&
 !$OMP         log10_eps_schwarz,eps_storage,hf_fraction,buffer_overflow,logger,last_sgf_global,handle_getp,&
 !$OMP         fac,handle_load,do_dynamic_load_balancing,my_bin_size,maxval_container,integral_containers,maxval_cache,&
@@ -559,7 +554,6 @@ CONTAINS
       ALLOCATE (kbc_buf(nsgf_max**2))
       ALLOCATE (kad_buf(nsgf_max**2))
       ALLOCATE (kac_buf(nsgf_max**2))
-      ALLOCATE (ee_work(ncos_max**4))
       ALLOCATE (ee_work2(ncos_max**4))
       ALLOCATE (ee_buffer1(ncos_max**4))
       ALLOCATE (ee_buffer2(ncos_max**4))
@@ -594,10 +588,6 @@ CONTAINS
       nneighbors = SIZE(actual_x_data%neighbor_cells)
       ALLOCATE (pgf_list_ij(max_pgf**2))
       ALLOCATE (pgf_list_kl(max_pgf**2))
-      ! the size of pgf_product_list is allocated and resized as needed. The initial guess grows as needed
-!$OMP     ATOMIC READ
-      tmp_i4 = pgf_product_list_size
-      ALLOCATE (pgf_product_list(tmp_i4))
       ALLOCATE (nimages(max_pgf**2))
 
       DO i = 1, max_pgf**2
@@ -1648,14 +1638,13 @@ CONTAINS
                                             max_contraction_val, cartesian_estimate, cell, neris_tmp, &
                                             log10_pmax, log10_eps_schwarz, &
                                             tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2, &
-                                            pgf_list_ij, pgf_list_kl, pgf_product_list, &
-                                            nsgfl_a(:, iset), nsgfl_b(:, jset), &
+                                            pgf_list_ij, pgf_list_kl, nsgfl_a(:, iset), nsgfl_b(:, jset), &
                                             nsgfl_c(:, kset), nsgfl_d(:, lset), &
                                             sphi_a_ext_set, &
                                             sphi_b_ext_set, &
                                             sphi_c_ext_set, &
                                             sphi_d_ext_set, &
-                                            ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
+                                            ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
                                             nimages, do_periodic)
 
                               nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
@@ -2321,11 +2310,10 @@ CONTAINS
 
       DEALLOCATE (pgf_list_ij)
       DEALLOCATE (pgf_list_kl)
-      DEALLOCATE (pgf_product_list)
 
       DEALLOCATE (max_contraction, kind_of)
 
-      DEALLOCATE (ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp)
+      DEALLOCATE (ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp)
 
       DEALLOCATE (nimages)
 
