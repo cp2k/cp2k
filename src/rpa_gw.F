@@ -15,6 +15,9 @@ MODULE rpa_gw
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
+   USE bse_full_diag,                   ONLY: create_B,&
+                                              create_hermitian_form_rpa
+   USE bse_types,                       ONLY: bse_env_type
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
    USE core_ppnl,                       ONLY: build_core_ppnl
@@ -43,6 +46,7 @@ MODULE rpa_gw
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_add_on_diag,&
+                                              cp_fm_column_scale,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
@@ -71,7 +75,9 @@ MODULE rpa_gw
    USE hfx_types,                       ONLY: block_ind_type,&
                                               dealloc_containers,&
                                               hfx_compression_type
-   USE input_constants,                 ONLY: gw_pade_approx,&
+   USE input_constants,                 ONLY: bse_screening_rpa,&
+                                              bse_singlet,&
+                                              gw_pade_approx,&
                                               gw_two_pole_model,&
                                               ri_rpa_g0w0_crossing_bisection,&
                                               ri_rpa_g0w0_crossing_newton,&
@@ -460,8 +466,8 @@ CONTAINS
 
       IF (my_do_gw) THEN
 
-         ! minimax grids not implemented for O(N^4) GW
-         CPASSERT(.NOT. do_minimax_quad)
+         ! Minimax is unsupported for imaginary-frequency GW self-energy integration.
+         CPASSERT(.NOT. do_minimax_quad .OR. mp2_env%ri_g0w0%exact_rpa_diag%enabled)
 
          ! create temporary matrix to store B*([1+Q(iw')]^-1-1), has the same size as B
          ALLOCATE (fm_mat_S_gw_work(nspins))
@@ -4401,10 +4407,10 @@ CONTAINS
          m_value(n_level_gw) = 0.0_dp
 
       CASE (ri_rpa_g0w0_crossing_newton)
-         CALL get_sigma_c_newton_pade(vec_gw_energ(n_level_gw), Eigenval_scf(n_level_gw_ref), &
-                                      vec_Sigma_x_minus_vxc_gw(n_level_gw_ref), e_fermi, &
-                                      nparam_pade, omega_points_pade, coeff_pade, &
-                                      level_energ_GW_start, hedin_shift)
+         CALL get_sigma_c_newton(vec_gw_energ(n_level_gw), Eigenval_scf(n_level_gw_ref), &
+                                 vec_Sigma_x_minus_vxc_gw(n_level_gw_ref), level_energ_GW_start, &
+                                 e_fermi=e_fermi, nparam_pade=nparam_pade, &
+                                 omega_points_pade=omega_points_pade, coeff_pade=coeff_pade, hedin_shift=hedin_shift)
          z_value(n_level_gw) = 1.0_dp
          m_value(n_level_gw) = 0.0_dp
 
@@ -4648,65 +4654,78 @@ CONTAINS
    END SUBROUTINE get_sigma_c_bisection_pade
 
 ! **************************************************************************************************
-!> \brief crossing search using the Newton method to find the quasiparticle energy
-!> \param gw_energ real Sigma_c
-!> \param Eigenval_scf Eigenvalue from the SCF
-!> \param Sigma_x_minus_vxc_gw ...
-!> \param e_fermi fermi level
-!> \param nparam_pade number of pade parameters
-!> \param omega_points_pade selection of frequency points of Sigma_c(iomega)
-!> \param coeff_pade pade coefficients
-!> \param start_val start value for the quasiparticle iteration
-!> \param hedin_shift ...
+!> \brief Shared Newton crossing search with the original Pade stopping and return rules.
+!> Continue while |E_new-E_old| > 1e-7 Ha; return the last self-energy after the counter exceeds 500.
+!> \param gw_energ Real correlation self-energy from the last evaluation.
+!> \param Eigenval_scf SCF orbital energy.
+!> \param Sigma_x_minus_vxc_gw Static exchange correction.
+!> \param start_val Initial quasiparticle energy.
+!> \param e_fermi Fermi energy for the Pade frequency reference.
+!> \param nparam_pade Number of Pade coefficients.
+!> \param omega_points_pade Pade frequency points.
+!> \param coeff_pade Pade coefficients.
+!> \param hedin_shift Pade self-energy frequency shift.
+!> \param modes Exact RPA modes; present only for direct self-energy evaluation.
+!> \param eigenval SCF orbital energies for exact RPA.
+!> \param homo Number of occupied orbitals for exact RPA.
+!> \param eta Exact RPA self-energy broadening.
+!> \param para_env Parallel environment for the exact RPA mode sum.
 ! **************************************************************************************************
-   SUBROUTINE get_sigma_c_newton_pade(gw_energ, Eigenval_scf, Sigma_x_minus_vxc_gw, e_fermi, &
-                                      nparam_pade, omega_points_pade, coeff_pade, start_val, &
-                                      hedin_shift)
-
+   SUBROUTINE get_sigma_c_newton(gw_energ, Eigenval_scf, Sigma_x_minus_vxc_gw, start_val, &
+                                 e_fermi, nparam_pade, omega_points_pade, coeff_pade, hedin_shift, &
+                                 modes, eigenval, homo, eta, para_env)
       REAL(KIND=dp), INTENT(OUT)                         :: gw_energ
       REAL(KIND=dp), INTENT(IN)                          :: Eigenval_scf, Sigma_x_minus_vxc_gw, &
-                                                            e_fermi
-      INTEGER, INTENT(IN)                                :: nparam_pade
-      COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: omega_points_pade, coeff_pade
-      REAL(KIND=dp), INTENT(IN)                          :: start_val, hedin_shift
+                                                            start_val
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: e_fermi
+      INTEGER, INTENT(IN), OPTIONAL                      :: nparam_pade
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN), &
+         OPTIONAL                                        :: omega_points_pade, coeff_pade
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: hedin_shift
+      TYPE(exact_rpa_modes_type), INTENT(IN), OPTIONAL   :: modes
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: eigenval
+      INTEGER, INTENT(IN), OPTIONAL                      :: homo
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eta
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_sigma_c_newton_pade'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_sigma_c_newton'
+      INTEGER, PARAMETER                                 :: max_qp_iterations = 500
+      REAL(KIND=dp), PARAMETER :: qp_energy_tolerance = 1.0e-7_dp
 
-      COMPLEX(KIND=dp)                                   :: sigma_c
+      COMPLEX(KIND=dp)                                   :: sigma(1)
       INTEGER                                            :: handle, icount
-      REAL(KIND=dp)                                      :: delta, energy_val, m_value, qp_energy, &
-                                                            qp_energy_old, threshold
+      REAL(KIND=dp)                                      :: delta, derivative, energy_val, &
+                                                            qp_energy, qp_energy_old, slope(1)
 
       CALL timeset(routineN, handle)
-
-      threshold = 1.0E-7_dp
 
       qp_energy = start_val
       qp_energy_old = start_val
       delta = 1.0E-3_dp
 
       icount = 0
-      DO WHILE (ABS(delta) > threshold)
+      DO WHILE (ABS(delta) > qp_energy_tolerance)
          icount = icount + 1
-         energy_val = qp_energy - e_fermi - hedin_shift
-         CALL evaluate_pade_function(energy_val, nparam_pade, omega_points_pade, &
-                                     coeff_pade, sigma_c)
-         !get m_value --> derivative of function
-         CALL get_z_and_m_value_pade(energy_val, nparam_pade, omega_points_pade, &
-                                     coeff_pade, m_value=m_value)
+         IF (PRESENT(modes)) THEN
+            CALL evaluate_exact_rpa(modes, eigenval, homo, eta, [qp_energy], para_env, sigma, slope)
+            derivative = slope(1)
+         ELSE
+            energy_val = qp_energy - e_fermi - hedin_shift
+            CALL evaluate_pade_function(energy_val, nparam_pade, omega_points_pade, coeff_pade, sigma(1))
+            CALL get_z_and_m_value_pade(energy_val, nparam_pade, omega_points_pade, coeff_pade, m_value=derivative)
+         END IF
          qp_energy_old = qp_energy
-         qp_energy = qp_energy - (Eigenval_scf + Sigma_x_minus_vxc_gw + REAL(sigma_c) - qp_energy)/ &
-                     (m_value - 1.0_dp)
+         qp_energy = qp_energy - (Eigenval_scf + Sigma_x_minus_vxc_gw + REAL(sigma(1)) - qp_energy)/ &
+                     (derivative - 1.0_dp)
          delta = qp_energy - qp_energy_old
-         ! Self-consistent quasi-particle solution has not been found
-         IF (icount > 500) EXIT
+         IF (icount > max_qp_iterations) EXIT
       END DO
 
-      gw_energ = REAL(sigma_c)
+      gw_energ = REAL(sigma(1))
 
       CALL timestop(handle)
 
-   END SUBROUTINE get_sigma_c_newton_pade
+   END SUBROUTINE get_sigma_c_newton
 
 ! **************************************************************************************************
 !> \brief Prints the GW stuff to the output and optinally to an external file.
@@ -6511,7 +6530,7 @@ CONTAINS
           gw%crossing_search /= ri_rpa_g0w0_crossing_newton) THEN
          CPABORT("EXACT_RPA_DIAG supports CROSSING_SEARCH Z_SHOT or NEWTON")
       END IF
-      CALL diagonalize_full_rpa(fm_S, eigenval, homo, nmo - homo, nri, para_env, &
+      CALL diagonalize_full_rpa(fm_S, eigenval, homo, nmo - homo, nri, &
                                 modes%fm_T, modes%fm_U, modes%excitation_sq)
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, context=fm_S%matrix_struct%context, &
@@ -6635,28 +6654,19 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: sigma_qp, z_qp, derivative_qp
 
       COMPLEX(KIND=dp)                                   :: sigma(1)
-      INTEGER                                            :: iter
-      REAL(KIND=dp)                                      :: delta_x, derivative(1), omega, residual
+      REAL(KIND=dp)                                      :: delta_x, derivative(1), omega
 
       delta_x = gw%vec_Sigma_x_minus_vxc_gw(ilevel, 1, 1)
       CALL evaluate_exact_rpa(modes, eigenval, homo, gw%exact_rpa_diag%broadening_eta, &
                               [eigenval(ilevel)], para_env, sigma, derivative)
-      IF (ABS(1.0_dp - derivative(1)) < 1.0e-12_dp) CPABORT("Singular EXACT_RPA_DIAG QP derivative")
       sigma_qp = REAL(sigma(1), dp)
       derivative_qp = derivative(1)
       z_qp = 1.0_dp/(1.0_dp - derivative_qp)
       IF (gw%crossing_search == ri_rpa_g0w0_crossing_z_shot) RETURN
-      omega = eigenval(ilevel) + z_qp*(delta_x + sigma_qp)
-      DO iter = 1, 500
-         CALL evaluate_exact_rpa(modes, eigenval, homo, gw%exact_rpa_diag%broadening_eta, &
-                                 [omega], para_env, sigma, derivative)
-         residual = omega - eigenval(ilevel) - delta_x - REAL(sigma(1), dp)
-         IF (ABS(residual) < 1.0e-7_dp) EXIT
-         IF (ABS(1.0_dp - derivative(1)) < 1.0e-12_dp) CPABORT("Singular EXACT_RPA_DIAG Newton derivative")
-         omega = omega - residual/(1.0_dp - derivative(1))
-      END DO
-      IF (iter > 500) CPABORT("EXACT_RPA_DIAG quasiparticle search did not converge; use Z_SHOT")
-      sigma_qp = REAL(sigma(1), dp)
+      omega = (eigenval(ilevel) - derivative_qp*eigenval(ilevel) + sigma_qp + delta_x)*z_qp
+      CALL get_sigma_c_newton(sigma_qp, eigenval(ilevel), delta_x, omega, &
+                              modes=modes, eigenval=eigenval, homo=homo, &
+                              eta=gw%exact_rpa_diag%broadening_eta, para_env=para_env)
       z_qp = 1.0_dp
       derivative_qp = 0.0_dp
 
@@ -6740,29 +6750,26 @@ CONTAINS
 !> \param homo Number of occupied orbitals.
 !> \param virtual Number of virtual orbitals.
 !> \param dimen_RI Number of auxiliary RI functions.
-!> \param para_env Parallel environment for distributed matrices and reductions.
 !> \param fm_T Weighted RI factors T_P,ia from Eq. (1).
 !> \param fm_U Eigenvectors U_ia,s of the squared RPA matrix.
 !> \param excitation_sq Squared RPA excitation energies.
 ! **************************************************************************************************
    SUBROUTINE diagonalize_full_rpa(fm_S, eigenval, homo, virtual, dimen_RI, &
-                                   para_env, fm_T, fm_U, excitation_sq)
+                                   fm_T, fm_U, excitation_sq)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_S
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenval
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cp_fm_type), INTENT(OUT)                      :: fm_T, fm_U
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: excitation_sq
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'diagonalize_full_rpa'
 
-      INTEGER                                            :: diag_info, handle, ia, icol, iocc, irow, &
-                                                            ivirt, ncol_local, nrow_local, ntrans
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      INTEGER                                            :: diag_info, handle, ia, iocc, ivirt, &
+                                                            ntrans
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: gap
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_C
+      TYPE(bse_env_type)                                 :: rpa_env
+      TYPE(cp_fm_type)                                   :: fm_C, fm_empty(0)
 
       CALL timeset(routineN, handle)
 
@@ -6778,31 +6785,12 @@ CONTAINS
       END IF
 
       CALL cp_fm_create(fm_T, fm_S%matrix_struct)
-      CALL cp_fm_to_fm(fm_S, fm_T)
-      CALL cp_fm_get_info(fm_T, ncol_local=ncol_local, col_indices=col_indices)
-      DO icol = 1, ncol_local
-         ia = col_indices(icol)
-         iocc = (ia - 1)/virtual + 1
-         ivirt = MOD(ia - 1, virtual) + 1
-         fm_T%local_data(:, icol) = fm_T%local_data(:, icol)*SQRT(gap(ia))
-      END DO
-      NULLIFY (fm_struct)
-      CALL cp_fm_struct_create(fm_struct, context=fm_S%matrix_struct%context, &
-                               nrow_global=ntrans, ncol_global=ntrans, para_env=para_env)
-      CALL cp_fm_create(fm_C, fm_struct, set_zero=.TRUE.)
-      CALL cp_fm_create(fm_U, fm_struct)
-      CALL cp_fm_struct_release(fm_struct)
-      CALL parallel_gemm("T", "N", ntrans, ntrans, dimen_RI, 4.0_dp, fm_T, fm_T, 0.0_dp, fm_C)
-      CALL cp_fm_get_info(fm_C, nrow_local=nrow_local, ncol_local=ncol_local, &
-                          row_indices=row_indices, col_indices=col_indices)
-      DO icol = 1, ncol_local
-         DO irow = 1, nrow_local
-            IF (row_indices(irow) == col_indices(icol)) THEN
-               ia = row_indices(irow)
-               fm_C%local_data(irow, icol) = fm_C%local_data(irow, icol) + gap(ia)**2
-            END IF
-         END DO
-      END DO
+      CALL cp_fm_column_scale(fm_T, SQRT(gap), source=fm_S)
+      rpa_env%bse_spin_config = bse_singlet
+      rpa_env%screening_method = bse_screening_rpa
+      CALL create_B([fm_S], fm_empty, fm_C, [homo], [virtual], dimen_RI, -1, rpa_env)
+      CALL create_hermitian_form_rpa(fm_C, gap)
+      CALL cp_fm_create(fm_U, fm_C%matrix_struct)
 
       CALL choose_eigv_solver(fm_C, fm_U, excitation_sq, diag_info)
       IF (diag_info /= 0 .OR. MINVAL(excitation_sq) <= 0.0_dp) THEN
