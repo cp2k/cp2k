@@ -14,26 +14,40 @@
 ! **************************************************************************************************
 MODULE preconditioner
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_triangular_invert,&
+                                              cp_cfm_triangular_multiply
+   USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose
+   USE cp_cfm_diag,                     ONLY: cp_cfm_diag_workspace_type,&
+                                              cp_cfm_heevd_local,&
+                                              cp_cfm_local_workspace_prepare
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_release,&
+                                              cp_cfm_to_cfm,&
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_get_info,&
+                                              dbcsr_get_matrix_type,&
                                               dbcsr_p_type,&
                                               dbcsr_release_p,&
-                                              dbcsr_type
+                                              dbcsr_type,&
+                                              dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_dbcsr_to_local,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
-   USE cp_fm_diag,                      ONLY: choose_eigv_solver
+   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
+                                              diag_check_requested,&
+                                              diag_lib_explicit,&
+                                              direct_generalized_diagonalization
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
+                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -64,17 +78,14 @@ MODULE preconditioner
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner_apply,            ONLY: apply_preconditioner_cfm_complex,&
+                                              apply_preconditioner_complex_batch,&
                                               apply_preconditioner_dbcsr,&
                                               apply_preconditioner_dbcsr_complex,&
                                               apply_preconditioner_fm
-   USE preconditioner_makes,            ONLY: make_complex_fermi_low_rank,&
-                                              make_complex_full_all,&
-                                              make_complex_full_all_covariant,&
-                                              make_complex_full_kinetic,&
-                                              make_complex_full_s_inverse,&
-                                              make_complex_full_single,&
-                                              make_complex_full_single_inverse,&
-                                              make_preconditioner_matrix
+   USE preconditioner_makes,            ONLY: &
+        make_complex_fermi_low_rank, make_complex_full_all, make_complex_full_all_covariant, &
+        make_complex_full_kinetic, make_complex_full_s_inverse, make_complex_full_single, &
+        make_complex_full_single_inverse, make_preconditioner_matrix, prepare_complex_full_all
    USE preconditioner_solvers,          ONLY: solve_preconditioner,&
                                               transfer_dbcsr_to_fm,&
                                               transfer_fm_to_dbcsr
@@ -90,6 +101,8 @@ MODULE preconditioner
                                               get_mo_set,&
                                               mo_set_type,&
                                               set_mo_set
+
+!$ USE OMP_LIB, ONLY: omp_get_max_threads
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -102,14 +115,20 @@ MODULE preconditioner
                                            fermi_low_rank_min_window = 1.0_dp
 
    PUBLIC :: make_preconditioner, make_preconditioner_complex_fermi_low_rank, &
-             make_preconditioner_complex_full_all, &
+             make_preconditioner_complex_full_all, make_preconditioner_complex_full_all_batch, &
              make_preconditioner_complex_full_all_covariant, &
              make_preconditioner_complex_full_kinetic, &
              make_preconditioner_complex_full_s_inverse, &
              make_preconditioner_complex_full_single, &
              make_preconditioner_complex_full_single_inverse, restart_preconditioner, &
              dbcsr_pair_to_cfm
-   PUBLIC :: apply_preconditioner, prepare_preconditioner
+   PUBLIC :: apply_preconditioner, prepare_preconditioner, apply_preconditioner_complex_batch
+
+   TYPE full_all_work_type
+      INTEGER                                            :: info = 0
+      TYPE(cp_cfm_type)                                  :: c, h, s, a, b
+      TYPE(cp_cfm_diag_workspace_type)                   :: solver
+   END TYPE full_all_work_type
 
 ! The public interface for apply preconditioner, the routines can be found in preconditioner_apply.F
    INTERFACE apply_preconditioner
@@ -991,6 +1010,90 @@ CONTAINS
    END SUBROUTINE make_preconditioner_complex_full_all
 
 ! **************************************************************************************************
+!> \brief Build local FULL_ALL preconditioners from cached operators in bounded batches.
+!>        Only the independent eigensolves run inside OpenMP.
+!> \param preconditioners local channel preconditioners
+!> \param matrix_c real/imaginary DBCSR reference orbitals
+!> \param matrix_h cached real/imaginary Hamiltonians
+!> \param matrix_s cached real/imaginary overlaps
+!> \param energy_gap denominator floor
+!> \param solver_type inverse application selected in the OT input
+!> \param handled false when the existing distributed or explicitly selected solver is required
+! **************************************************************************************************
+   SUBROUTINE make_preconditioner_complex_full_all_batch(preconditioners, matrix_c, matrix_h, matrix_s, &
+                                                         energy_gap, solver_type, handled)
+      TYPE(preconditioner_p_type), INTENT(IN)            :: preconditioners(:)
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: matrix_c(:, :)
+      TYPE(cp_fm_p_type), INTENT(IN)                     :: matrix_h(:, :), matrix_s(:, :)
+      REAL(dp), INTENT(IN)                               :: energy_gap
+      INTEGER, INTENT(IN)                                :: solver_type
+      LOGICAL, INTENT(OUT)                               :: handled
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'make_preconditioner_complex_full_all_batch'
+
+      INTEGER                                            :: first, handle, i, j, k, n, nbatch, &
+                                                            nchannels, nworkers
+      TYPE(full_all_work_type), ALLOCATABLE              :: work(:)
+      TYPE(preconditioner_type), POINTER                 :: p
+
+      handled = .FALSE.
+      nchannels = SIZE(preconditioners)
+      IF (nchannels == 0 .OR. solver_type /= ot_precond_solver_default) RETURN
+      IF (diag_lib_explicit .OR. diag_check_requested() .OR. direct_generalized_diagonalization) RETURN
+      DO i = 1, nchannels
+         IF (preconditioners(i)%preconditioner%para_env%num_pe /= 1) RETURN
+      END DO
+      CALL timeset(routineN, handle)
+      nworkers = 1
+!$    nworkers = MIN(nchannels, omp_get_max_threads())
+      ALLOCATE (work(nworkers))
+      DO first = 1, nchannels, nworkers
+         nbatch = MIN(nworkers, nchannels - first + 1)
+         DO j = 1, nbatch
+            i = first + j - 1
+            p => preconditioners(i)%preconditioner
+            CALL dbcsr_pair_to_cfm(matrix_c(1, i)%matrix, matrix_c(2, i)%matrix, p, 'FULL_ALL C', work(j)%c)
+            CALL cp_cfm_create(work(j)%h, matrix_h(1, i)%matrix%matrix_struct, name='FULL_ALL H')
+            CALL cp_cfm_create(work(j)%s, matrix_s(1, i)%matrix%matrix_struct, name='FULL_ALL S')
+            CALL cp_fm_to_cfm(matrix_h(1, i)%matrix, matrix_h(2, i)%matrix, work(j)%h)
+            CALL cp_fm_to_cfm(matrix_s(1, i)%matrix, matrix_s(2, i)%matrix, work(j)%s)
+            CALL prepare_complex_full_all(p, work(j)%c, work(j)%h, work(j)%s, work(j)%a, work(j)%b, &
+                                          energy_gap=energy_gap)
+            n = SIZE(p%full_evals)
+            ! Match the existing Cholesky reduction and back transformation exactly.
+            CALL cp_cfm_cholesky_decompose(work(j)%b)
+            CALL cp_cfm_triangular_invert(work(j)%b)
+            CALL cp_cfm_triangular_multiply(work(j)%b, work(j)%a, side='R')
+            CALL cp_cfm_triangular_multiply(work(j)%b, work(j)%a, transa_tr='C')
+            CALL cp_cfm_local_workspace_prepare(work(j)%solver, n, work(j)%a%local_data)
+            CALL cp_cfm_release(work(j)%s)
+            CALL cp_cfm_release(work(j)%h)
+         END DO
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nbatch) IF(nbatch > 1) SHARED(work,nbatch)
+         DO j = 1, nbatch
+            CALL cp_cfm_heevd_local(work(j)%a%local_data, info=work(j)%info, ws=work(j)%solver)
+         END DO
+!$OMP END PARALLEL DO
+         DO j = 1, nbatch
+            IF (work(j)%info /= 0) CPABORT('Local FULL_ALL generalized diagonalization failed')
+            i = first + j - 1
+            p => preconditioners(i)%preconditioner
+            p%full_evals(:) = work(j)%solver%evals(:)
+            CALL cp_cfm_triangular_multiply(work(j)%b, work(j)%a)
+            CALL cp_cfm_to_cfm(work(j)%a, p%complex_fm)
+            k = SIZE(p%occ_evals)
+            p%full_evals(1:k) = p%occ_evals(:)
+            CALL cp_cfm_to_cfm(work(j)%c, p%complex_fm, k)
+            CALL cp_cfm_release(work(j)%b)
+            CALL cp_cfm_release(work(j)%a)
+            CALL cp_cfm_release(work(j)%c)
+         END DO
+      END DO
+      handled = .TRUE.
+      CALL timestop(handle)
+   END SUBROUTINE make_preconditioner_complex_full_all_batch
+
+! **************************************************************************************************
 !> \brief Construct a complex FULL_SINGLE preconditioner from H(k) and S(k).
 !> \param preconditioner_env preconditioner storage
 !> \param matrix_h_re real part of H(k)
@@ -1301,6 +1404,7 @@ CONTAINS
       TYPE(cp_cfm_type), INTENT(OUT)                     :: matrix
 
       INTEGER                                            :: ncol, nrow
+      REAL(dp), ALLOCATABLE                              :: buffer(:, :)
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: matrix_im_fm, matrix_re_fm
 
@@ -1311,15 +1415,26 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct, nrow_global=nrow, ncol_global=ncol, &
                                context=preconditioner_env%ctxt, &
                                para_env=preconditioner_env%para_env)
-      CALL cp_fm_create(matrix_re_fm, fm_struct, name=TRIM(matrix_name)//' real')
-      CALL cp_fm_create(matrix_im_fm, fm_struct, name=TRIM(matrix_name)//' imaginary')
+      CALL cp_cfm_create(matrix, fm_struct, name=matrix_name)
+      IF (preconditioner_env%para_env%num_pe == 1 .AND. &
+          dbcsr_get_matrix_type(matrix_re) == dbcsr_type_no_symmetry .AND. &
+          dbcsr_get_matrix_type(matrix_im) == dbcsr_type_no_symmetry) THEN
+         ALLOCATE (buffer(nrow, ncol))
+         CALL copy_dbcsr_to_local(matrix_re, buffer)
+         matrix%local_data(1:nrow, 1:ncol) = CMPLX(buffer, 0.0_dp, KIND=dp)
+         CALL copy_dbcsr_to_local(matrix_im, buffer)
+         matrix%local_data(1:nrow, 1:ncol) = &
+            matrix%local_data(1:nrow, 1:ncol) + CMPLX(0.0_dp, buffer, KIND=dp)
+      ELSE
+         CALL cp_fm_create(matrix_re_fm, fm_struct, name=TRIM(matrix_name)//' real')
+         CALL cp_fm_create(matrix_im_fm, fm_struct, name=TRIM(matrix_name)//' imaginary')
+         CALL copy_dbcsr_to_fm(matrix_re, matrix_re_fm)
+         CALL copy_dbcsr_to_fm(matrix_im, matrix_im_fm)
+         CALL cp_fm_to_cfm(matrix_re_fm, matrix_im_fm, matrix)
+         CALL cp_fm_release(matrix_im_fm)
+         CALL cp_fm_release(matrix_re_fm)
+      END IF
       CALL cp_fm_struct_release(fm_struct)
-      CALL copy_dbcsr_to_fm(matrix_re, matrix_re_fm)
-      CALL copy_dbcsr_to_fm(matrix_im, matrix_im_fm)
-      CALL cp_cfm_create(matrix, matrix_re_fm%matrix_struct, name=matrix_name)
-      CALL cp_fm_to_cfm(matrix_re_fm, matrix_im_fm, matrix)
-      CALL cp_fm_release(matrix_im_fm)
-      CALL cp_fm_release(matrix_re_fm)
 
    END SUBROUTINE dbcsr_pair_to_cfm
 

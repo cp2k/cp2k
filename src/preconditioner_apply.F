@@ -23,9 +23,11 @@ MODULE preconditioner_apply
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_get_info, dbcsr_init_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_dbcsr_to_local,&
                                               copy_fm_to_dbcsr,&
+                                              copy_local_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_template
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                               cp_fm_scale_and_add
@@ -47,13 +49,18 @@ MODULE preconditioner_apply
    USE kinds,                           ONLY: dp
    USE lattice_preconditioner_operator, ONLY: apply_lattice_inverse_dense,&
                                               apply_lattice_state_inverse_dense
+   USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
+                                              local_gemm_ctxt_type
    USE low_rank_preconditioner_model,   ONLY: low_rank_inverse_weight
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner_types,            ONLY: lattice_rhs_distribution_type,&
+                                              preconditioner_p_type,&
                                               preconditioner_type,&
                                               release_lattice_rhs_distribution
+
+!$ USE OMP_LIB, ONLY: omp_get_max_threads
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -62,9 +69,197 @@ MODULE preconditioner_apply
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner_apply'
 
    PUBLIC :: apply_preconditioner_cfm_complex, apply_preconditioner_dbcsr_complex, &
-             apply_preconditioner_fm, apply_preconditioner_dbcsr
+             apply_preconditioner_fm, apply_preconditioner_dbcsr, apply_preconditioner_complex_batch
+
+   ! Reused across channels in each worker's batch; no FM/CFM lifecycle in the local path.
+   TYPE complex_preconditioner_work_type
+      COMPLEX(dp), ALLOCATABLE :: buffer(:, :, :)
+      REAL(dp), ALLOCATABLE :: packed(:, :, :)
+      TYPE(local_gemm_ctxt_type) :: gemm_ctx
+   END TYPE complex_preconditioner_work_type
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Apply single-rank complex preconditioners in bounded OpenMP batches.
+!>        Packing and DBCSR writeback stay outside OpenMP; each worker owns its dense scratch.
+!> \param preconditioners channel preconditioners
+!> \param matrix_in real/imaginary input pointers, indexed by component and channel
+!> \param matrix_out real/imaginary output pointers, indexed by component and channel
+!> \param handled false when a channel requires the distributed implementation
+!> \param output_scale optional real scale per channel, applied before writeback
+! **************************************************************************************************
+   SUBROUTINE apply_preconditioner_complex_batch(preconditioners, matrix_in, matrix_out, handled, output_scale)
+      TYPE(preconditioner_p_type), INTENT(IN)            :: preconditioners(:)
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: matrix_in(:, :), matrix_out(:, :)
+      LOGICAL, INTENT(OUT)                               :: handled
+      REAL(dp), INTENT(IN), OPTIONAL                     :: output_scale(:)
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_preconditioner_complex_batch'
+
+      INTEGER                                            :: first, handle, i, j, k, n, nbatch, &
+                                                            nchannels, nworkers
+      TYPE(complex_preconditioner_work_type), &
+         ALLOCATABLE                                     :: work(:)
+      TYPE(preconditioner_type), POINTER                 :: p
+
+      handled = .FALSE.
+      nchannels = SIZE(preconditioners)
+      IF (nchannels == 0) RETURN
+      DO i = 1, nchannels
+         p => preconditioners(i)%preconditioner
+         IF (.NOT. ASSOCIATED(p)) RETURN
+         IF (.NOT. ASSOCIATED(p%complex_fm)) RETURN
+         IF (p%complex_fm%matrix_struct%para_env%num_pe /= 1) RETURN
+         SELECT CASE (p%in_use)
+         CASE (ot_precond_full_all, ot_precond_full_all_covariant, ot_precond_fermi_low_rank, &
+               ot_precond_full_single, ot_precond_full_single_inverse, &
+               ot_precond_full_kinetic, ot_precond_s_inverse)
+         CASE DEFAULT
+            RETURN
+         END SELECT
+      END DO
+
+      CALL timeset(routineN, handle)
+      nworkers = 1
+!$    nworkers = MIN(nchannels, omp_get_max_threads())
+      ALLOCATE (work(nworkers))
+      DO j = 1, nworkers
+         CALL work(j)%gemm_ctx%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
+      END DO
+      DO first = 1, nchannels, nworkers
+         nbatch = MIN(nworkers, nchannels - first + 1)
+         DO j = 1, nbatch
+            i = first + j - 1
+            p => preconditioners(i)%preconditioner
+            CALL dbcsr_get_info(matrix_in(1, i)%matrix, nfullrows_total=n, nfullcols_total=k)
+            CPASSERT(n == p%complex_fm%matrix_struct%nrow_global)
+            IF (ALLOCATED(work(j)%buffer)) THEN
+               IF (SIZE(work(j)%buffer, 1) /= n .OR. SIZE(work(j)%buffer, 2) /= k) THEN
+                  DEALLOCATE (work(j)%buffer, work(j)%packed)
+               END IF
+            END IF
+            IF (.NOT. ALLOCATED(work(j)%buffer)) THEN
+               ALLOCATE (work(j)%buffer(n, k, 2), work(j)%packed(n, k, 2))
+            END IF
+            CALL copy_dbcsr_to_local(matrix_in(1, i)%matrix, work(j)%packed(:, :, 1))
+            CALL copy_dbcsr_to_local(matrix_in(2, i)%matrix, work(j)%packed(:, :, 2))
+         END DO
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nbatch) IF(nbatch > 1) &
+!$OMP SHARED(work,preconditioners,first,nbatch,output_scale) PRIVATE(i)
+         DO j = 1, nbatch
+            i = first + j - 1
+            CALL apply_preconditioner_complex_local(preconditioners(i)%preconditioner, work(j))
+            IF (PRESENT(output_scale)) THEN
+               IF (output_scale(i) /= 1.0_dp) work(j)%packed(:, :, :) = output_scale(i)*work(j)%packed(:, :, :)
+            END IF
+         END DO
+!$OMP END PARALLEL DO
+         DO j = 1, nbatch
+            i = first + j - 1
+            CALL copy_local_to_dbcsr(matrix_out(1, i)%matrix, work(j)%packed(:, :, 1))
+            CALL copy_local_to_dbcsr(matrix_out(2, i)%matrix, work(j)%packed(:, :, 2))
+         END DO
+      END DO
+      DO j = 1, nworkers
+         CALL work(j)%gemm_ctx%destroy()
+      END DO
+      handled = .TRUE.
+      CALL timestop(handle)
+   END SUBROUTINE apply_preconditioner_complex_batch
+
+! **************************************************************************************************
+!> \brief Apply the existing complex preconditioner with private local GEMM storage.
+!> \param p channel preconditioner; its matrices are read only
+!> \param w worker storage
+! **************************************************************************************************
+   SUBROUTINE apply_preconditioner_complex_local(p, w)
+      TYPE(preconditioner_type), INTENT(IN)              :: p
+      TYPE(complex_preconditioner_work_type), &
+         INTENT(INOUT), TARGET                           :: w
+
+      COMPLEX(dp), CONTIGUOUS, POINTER                   :: basis(:, :), RESULT(:, :), rhs(:, :), &
+                                                            rotation(:, :)
+      INTEGER                                            :: k, n
+
+      NULLIFY (rotation)
+      n = SIZE(w%buffer, 1)
+      k = SIZE(w%buffer, 2)
+      IF (n == 0 .OR. k == 0) RETURN
+      basis => p%complex_fm%local_data
+      rhs => w%buffer(:, :, 1)
+      RESULT => w%buffer(:, :, 2)
+      rhs(:, :) = CMPLX(w%packed(:, :, 1), w%packed(:, :, 2), KIND=dp)
+      SELECT CASE (p%in_use)
+      CASE (ot_precond_full_all, ot_precond_full_all_covariant, ot_precond_fermi_low_rank)
+         CPASSERT(ASSOCIATED(p%full_evals))
+         CPASSERT(ASSOCIATED(p%occ_evals))
+         CPASSERT(n == SIZE(p%full_evals))
+         IF (p%in_use /= ot_precond_fermi_low_rank) THEN
+            CPASSERT(k == SIZE(p%occ_evals))
+         END IF
+         IF (p%in_use == ot_precond_full_all_covariant) THEN
+            CPASSERT(ASSOCIATED(p%occ_rotation_complex))
+            rotation => p%occ_rotation_complex%local_data
+            CALL w%gemm_ctx%gemm('N', 'N', n, k, k, z_one, rhs, n, &
+                                 rotation, SIZE(rotation, 1), z_zero, RESULT, n)
+            rhs => w%buffer(:, :, 2)
+            RESULT => w%buffer(:, :, 1)
+         END IF
+         CALL w%gemm_ctx%gemm('C', 'N', n, k, n, z_one, basis, SIZE(basis, 1), &
+                              rhs, n, z_zero, RESULT, n)
+         CALL scale_complex_spectral(p, RESULT, p%complex_fm%matrix_struct%row_indices, &
+                                     p%complex_fm%matrix_struct%col_indices)
+         CALL w%gemm_ctx%gemm('N', 'N', n, k, n, z_one, basis, SIZE(basis, 1), &
+                              RESULT, n, z_zero, rhs, n)
+         IF (p%in_use == ot_precond_full_all_covariant) THEN
+            CALL w%gemm_ctx%gemm('N', 'C', n, k, k, z_one, rhs, n, &
+                                 rotation, SIZE(rotation, 1), z_zero, RESULT, n)
+         ELSE
+            RESULT => rhs
+         END IF
+      CASE DEFAULT
+         CALL w%gemm_ctx%gemm('N', 'N', n, k, n, z_one, basis, SIZE(basis, 1), &
+                              rhs, n, z_zero, RESULT, n)
+      END SELECT
+      w%packed(:, :, 1) = REAL(RESULT, KIND=dp)
+      w%packed(:, :, 2) = AIMAG(RESULT)
+   END SUBROUTINE apply_preconditioner_complex_local
+
+! **************************************************************************************************
+!> \brief Scale spectral coefficients identically for local and distributed applications.
+!> \param p spectral preconditioner
+!> \param DATA local spectral coefficients
+!> \param rows global row indices
+!> \param cols global column indices
+! **************************************************************************************************
+   SUBROUTINE scale_complex_spectral(p, DATA, rows, cols)
+      TYPE(preconditioner_type), INTENT(IN)              :: p
+      COMPLEX(dp), INTENT(INOUT)                         :: data(:, :)
+      INTEGER, INTENT(IN)                                :: rows(:), cols(:)
+
+      INTEGER                                            :: i, j, nocc, rank_used
+      REAL(dp)                                           :: scale
+
+      IF (p%in_use == ot_precond_fermi_low_rank) THEN
+         nocc = SIZE(p%occ_evals)
+         rank_used = MIN(p%spectral_rank, SIZE(p%full_evals) - nocc)
+         DO i = 1, SIZE(DATA, 1)
+            scale = p%spectral_base_scale
+            IF (rows(i) > nocc .AND. rows(i) <= nocc + rank_used) THEN
+               scale = low_rank_inverse_weight(p%full_evals(rows(i)), p%spectral_reference, p%energy_gap)
+            END IF
+            DATA(i, :) = scale*DATA(i, :)
+         END DO
+      ELSE
+         DO j = 1, SIZE(DATA, 2)
+            DO i = 1, SIZE(DATA, 1)
+               scale = 1.0_dp/MAX(p%energy_gap, p%full_evals(rows(i)) - p%occ_evals(cols(j)))
+               DATA(i, j) = scale*DATA(i, j)
+            END DO
+         END DO
+      END IF
+   END SUBROUTINE scale_complex_spectral
 
 ! **************************************************************************************************
 !> \brief applies a previously created preconditioner to a full matrix
@@ -201,8 +396,8 @@ CONTAINS
       CPASSERT(n == npre)
 
       SELECT CASE (preconditioner_env%in_use)
-      CASE (ot_precond_full_all)
-         CALL apply_complex_full_all_spectral(preconditioner_env, matrix_in, matrix_out)
+      CASE (ot_precond_full_all, ot_precond_fermi_low_rank)
+         CALL apply_complex_spectral(preconditioner_env, matrix_in, matrix_out)
       CASE (ot_precond_full_all_covariant)
          CPASSERT(ASSOCIATED(preconditioner_env%occ_rotation_complex))
          CALL cp_cfm_create(canonical_in, matrix_in%matrix_struct, &
@@ -211,13 +406,11 @@ CONTAINS
                             name='complex covariant FULL_ALL output')
          CALL cp_cfm_gemm('N', 'N', n, k, k, z_one, matrix_in, &
                           preconditioner_env%occ_rotation_complex, z_zero, canonical_in)
-         CALL apply_complex_full_all_spectral(preconditioner_env, canonical_in, canonical_out)
+         CALL apply_complex_spectral(preconditioner_env, canonical_in, canonical_out)
          CALL cp_cfm_gemm('N', 'C', n, k, k, z_one, canonical_out, &
                           preconditioner_env%occ_rotation_complex, z_zero, matrix_out)
          CALL cp_cfm_release(canonical_out)
          CALL cp_cfm_release(canonical_in)
-      CASE (ot_precond_fermi_low_rank)
-         CALL apply_complex_fermi_low_rank(preconditioner_env, matrix_in, matrix_out)
       CASE DEFAULT
          CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
                           matrix_in, z_zero, matrix_out)
@@ -228,12 +421,12 @@ CONTAINS
    END SUBROUTINE apply_preconditioner_cfm_complex
 
 ! **************************************************************************************************
-!> \brief Apply the spectral FULL_ALL inverse in its canonical complex basis.
+!> \brief Apply the spectral inverse in its canonical complex basis.
 !> \param preconditioner_env complex spectral preconditioner
 !> \param matrix_in input orbital-gradient matrix
 !> \param matrix_out preconditioned orbital-gradient matrix
 ! **************************************************************************************************
-   SUBROUTINE apply_complex_full_all_spectral(preconditioner_env, matrix_in, matrix_out)
+   SUBROUTINE apply_complex_spectral(preconditioner_env, matrix_in, matrix_out)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_in
@@ -241,86 +434,30 @@ CONTAINS
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data
-      INTEGER                                            :: i, j, k, n, ncol_local, nrow_local
+      INTEGER                                            :: k, n, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: scale
       TYPE(cp_cfm_type)                                  :: matrix_spectral
 
       CPASSERT(ASSOCIATED(preconditioner_env%full_evals))
       CPASSERT(ASSOCIATED(preconditioner_env%occ_evals))
       CALL cp_cfm_get_info(matrix_in, nrow_global=n, ncol_global=k)
       CPASSERT(n == SIZE(preconditioner_env%full_evals))
-      CPASSERT(k == SIZE(preconditioner_env%occ_evals))
+      IF (preconditioner_env%in_use /= ot_precond_fermi_low_rank) THEN
+         CPASSERT(k == SIZE(preconditioner_env%occ_evals))
+      END IF
       CALL cp_cfm_create(matrix_spectral, matrix_in%matrix_struct, &
-                         name='complex FULL_ALL spectral input')
+                         name='complex spectral input')
       CALL cp_cfm_gemm('C', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
                        matrix_in, z_zero, matrix_spectral)
       CALL cp_cfm_get_info(matrix_spectral, nrow_local=nrow_local, ncol_local=ncol_local, &
                            row_indices=row_indices, col_indices=col_indices, local_data=local_data)
-      DO j = 1, ncol_local
-         DO i = 1, nrow_local
-            scale = 1.0_dp/MAX(preconditioner_env%energy_gap, &
-                               preconditioner_env%full_evals(row_indices(i)) - &
-                               preconditioner_env%occ_evals(col_indices(j)))
-            local_data(i, j) = scale*local_data(i, j)
-         END DO
-      END DO
+      CALL scale_complex_spectral(preconditioner_env, local_data(1:nrow_local, 1:ncol_local), &
+                                  row_indices, col_indices)
       CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
                        matrix_spectral, z_zero, matrix_out)
       CALL cp_cfm_release(matrix_spectral)
 
-   END SUBROUTINE apply_complex_full_all_spectral
-
-! **************************************************************************************************
-!> \brief Apply an exact-overlap base plus bounded complex complementary low-rank correction.
-!> \param preconditioner_env complex low-rank preconditioner
-!> \param matrix_in input orbital-gradient matrix
-!> \param matrix_out preconditioned orbital-gradient matrix
-! **************************************************************************************************
-   SUBROUTINE apply_complex_fermi_low_rank(preconditioner_env, matrix_in, matrix_out)
-
-      TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_in
-      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_out
-
-      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         POINTER                                         :: local_data
-      INTEGER                                            :: i, j, k, n, ncol_local, nocc, &
-                                                            nrow_local, rank_used
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: scale
-      TYPE(cp_cfm_type)                                  :: matrix_spectral
-
-      CPASSERT(ASSOCIATED(preconditioner_env%complex_fm))
-      CPASSERT(ASSOCIATED(preconditioner_env%full_evals))
-      CPASSERT(ASSOCIATED(preconditioner_env%occ_evals))
-      CALL cp_cfm_get_info(matrix_in, nrow_global=n, ncol_global=k)
-      nocc = SIZE(preconditioner_env%occ_evals)
-      rank_used = MIN(preconditioner_env%spectral_rank, n - nocc)
-      CPASSERT(n == SIZE(preconditioner_env%full_evals))
-
-      CALL cp_cfm_create(matrix_spectral, matrix_in%matrix_struct, &
-                         name='complex FERMI_LOW_RANK spectral input')
-      CALL cp_cfm_gemm('C', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
-                       matrix_in, z_zero, matrix_spectral)
-      CALL cp_cfm_get_info(matrix_spectral, nrow_local=nrow_local, ncol_local=ncol_local, &
-                           row_indices=row_indices, col_indices=col_indices, local_data=local_data)
-      DO j = 1, ncol_local
-         DO i = 1, nrow_local
-            scale = preconditioner_env%spectral_base_scale
-            IF (row_indices(i) > nocc .AND. row_indices(i) <= nocc + rank_used) THEN
-               scale = low_rank_inverse_weight( &
-                       preconditioner_env%full_evals(row_indices(i)), &
-                       preconditioner_env%spectral_reference, preconditioner_env%energy_gap)
-            END IF
-            local_data(i, j) = scale*local_data(i, j)
-         END DO
-      END DO
-      CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
-                       matrix_spectral, z_zero, matrix_out)
-      CALL cp_cfm_release(matrix_spectral)
-
-   END SUBROUTINE apply_complex_fermi_low_rank
+   END SUBROUTINE apply_complex_spectral
 
 ! **************************************************************************************************
 !> \brief Apply a complex orbital preconditioner to paired real/imaginary DBCSR matrices.
@@ -333,16 +470,27 @@ CONTAINS
    SUBROUTINE apply_preconditioner_dbcsr_complex(preconditioner_env, matrix_in_re, matrix_in_im, &
                                                  matrix_out_re, matrix_out_im)
 
-      TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(dbcsr_type)                                   :: matrix_in_re, matrix_in_im, &
+      TYPE(preconditioner_type), TARGET                  :: preconditioner_env
+      TYPE(dbcsr_type), TARGET                           :: matrix_in_re, matrix_in_im, &
                                                             matrix_out_re, matrix_out_im
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_preconditioner_dbcsr_complex'
 
       INTEGER                                            :: handle, k, n
+      LOGICAL                                            :: handled
       TYPE(cp_cfm_type)                                  :: matrix_in, matrix_out
       TYPE(cp_fm_type)                                   :: matrix_in_im_fm, matrix_in_re_fm, &
                                                             matrix_out_im_fm, matrix_out_re_fm
+      TYPE(dbcsr_p_type)                                 :: input(2, 1), output(2, 1)
+      TYPE(preconditioner_p_type)                        :: preconditioners(1)
+
+      preconditioners(1)%preconditioner => preconditioner_env
+      input(1, 1)%matrix => matrix_in_re
+      input(2, 1)%matrix => matrix_in_im
+      output(1, 1)%matrix => matrix_out_re
+      output(2, 1)%matrix => matrix_out_im
+      CALL apply_preconditioner_complex_batch(preconditioners, input, output, handled)
+      IF (handled) RETURN
 
       CALL timeset(routineN, handle)
 

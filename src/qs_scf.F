@@ -48,6 +48,7 @@ MODULE qs_scf
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_p_type,&
                                               cp_cfm_release,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_type,&
@@ -55,8 +56,7 @@ MODULE qs_scf
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_info, &
-        dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_init_p, dbcsr_p_type, dbcsr_release_p, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               copy_fm_to_dbcsr_bc,&
@@ -69,6 +69,7 @@ MODULE qs_scf
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_init_random,&
+                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -119,6 +120,7 @@ MODULE qs_scf
    USE physcon,                         ONLY: evolt
    USE preconditioner,                  ONLY: &
         make_preconditioner_complex_fermi_low_rank, make_preconditioner_complex_full_all, &
+        make_preconditioner_complex_full_all_batch, &
         make_preconditioner_complex_full_all_covariant, make_preconditioner_complex_full_kinetic, &
         make_preconditioner_complex_full_s_inverse, make_preconditioner_complex_full_single, &
         make_preconditioner_complex_full_single_inverse, prepare_preconditioner, &
@@ -152,7 +154,8 @@ MODULE qs_scf
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_kpoint_operators,             ONLY: kpoint_operator_get_local,&
+   USE qs_kpoint_operators,             ONLY: kpoint_operator_context_create,&
+                                              kpoint_operator_get_local,&
                                               kpoint_operator_store
    USE qs_kpoint_state,                 ONLY: qs_kpoint_copy_spin_mos,&
                                               qs_kpoint_mos_initialized,&
@@ -185,9 +188,11 @@ MODULE qs_scf
                                               mo_set_restrict,&
                                               mo_set_type,&
                                               reassign_allocated_mos
-   USE qs_ot,                           ONLY: qs_ot_get_orbitals_ref_complex,&
-                                              qs_ot_get_p_complex,&
+   USE qs_ot,                           ONLY: qs_ot_complex_multiply,&
                                               qs_ot_new_preconditioner
+   USE qs_ot_kp,                        ONLY: qs_ot_get_orbitals_local_batch,&
+                                              qs_ot_get_orbitals_ref_complex,&
+                                              qs_ot_get_p_complex
    USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
                                               ot_scf_init,&
                                               ot_scf_read_input
@@ -231,7 +236,7 @@ MODULE qs_scf
    USE qs_scf_types,                    ONLY: &
         block_davidson_diag_method_nr, block_krylov_diag_method_nr, filter_matrix_diag_method_nr, &
         general_diag_method_nr, ot_diag_method_nr, ot_method_nr, qs_scf_env_type, &
-        smeagol_method_nr, special_diag_method_nr
+        scf_env_release_ot_operators, smeagol_method_nr, special_diag_method_nr
    USE qs_vxc_atom,                     ONLY: gapw_cdft_one_center
    USE qs_wf_history_methods,           ONLY: wfi_purge_history,&
                                               wfi_update
@@ -1149,6 +1154,7 @@ CONTAINS
          END IF
       END IF
 
+      CALL scf_env_release_ot_operators(scf_env)
       ALLOCATE (old_mos(nspins))
       DO ispin = 1, nspins
          CALL duplicate_mo_set(old_mos(ispin), mos(ispin))
@@ -1529,6 +1535,11 @@ CONTAINS
                                         kp_range=kp_range, &
                                         wkp=wkp)
 
+               CALL scf_env_release_ot_operators(scf_env)
+               ALLOCATE (scf_env%ot_operator_ctx)
+               CALL kpoint_operator_context_create(scf_env%ot_operator_ctx, kpoints, &
+                                                   scf_env%scf_work1(1), dft_control%nspins)
+
                ! A previous zero-width filling may have changed the occupied rank at each k point.
                ! Restore the fixed OT ranks before validating or reconstructing the active space.
                IF (.NOT. scf_env%qs_ot_env(1)%settings%do_ener) THEN
@@ -1561,7 +1572,7 @@ CONTAINS
                   CPASSERT(ASSOCIATED(rho))
                   CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
                   CPASSERT(ASSOCIATED(rho_ao_kp))
-                  CALL kpoint_operator_store(kpoints, scf_env%scf_work1(1), rho_ao_kp, matrix_s_kp)
+                  CALL kpoint_operator_store(scf_env%ot_operator_ctx, rho_ao_kp, matrix_s_kp)
                   CALL qs_kpoint_state_prepare_fixed_density(kpoints)
                   IF (SIZE(rho_ao_kp, 1) < nspin_ot) THEN
                      CPASSERT(SIZE(rho_ao_kp, 1) == 1)
@@ -1617,7 +1628,12 @@ CONTAINS
 
                ! Redistribute the physical operators to their owning k-point groups.  OT must not
                ! call the collective real-space transform independently with group-local k values.
-               CALL kpoint_operator_store(kpoints, scf_env%scf_work1(1), matrix_ks_kp, matrix_s_kp, matrix_t_kp)
+               IF (scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_kinetic) THEN
+                  CALL kpoint_operator_store(scf_env%ot_operator_ctx, matrix_ks_kp, matrix_s_kp, matrix_t_kp)
+               ELSE
+                  CALL kpoint_operator_store(scf_env%ot_operator_ctx, matrix_ks_kp, matrix_s_kp)
+               END IF
+               scf_env%ot_ks_valid = .TRUE.
 
                ! Natural orbitals define the fixed occupied projector but not its internal gauge.
                ! Canonicalize that subspace with the matching physical Hamiltonian and populate
@@ -1974,12 +1990,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_qs_ot_kpoint_state'
 
-      INTEGER                                            :: energy_dimension, energy_spin, &
-                                                            energy_start, handle, ikpoint, &
-                                                            ikpoint_local, ispin, nao, nmo, nocc, &
-                                                            ot_channel
-      LOGICAL                                            :: use_real_wfn
+      INTEGER :: energy_dimension, energy_spin, energy_start, first_channel, handle, ikpoint, &
+         ikpoint_local, ispin, local_channel, nao, nmo, nocc, ot_channel
+      LOGICAL                                            :: handled, local_init, use_real_wfn
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
+      TYPE(cp_cfm_p_type), ALLOCATABLE                   :: local_c(:)
+      TYPE(cp_fm_p_type), ALLOCATABLE                    :: local_s(:, :)
       TYPE(cp_fm_struct_type), POINTER                   :: active_mo_struct
       TYPE(cp_fm_type)                                   :: active_mo_coeff, active_mo_coeff_im, &
                                                             mo_coeff, mo_coeff_im
@@ -2002,6 +2018,12 @@ CONTAINS
 
       CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn)
       CPASSERT(.NOT. use_real_wfn)
+
+      local_init = kpoints%para_env_kp%num_pe == 1 .AND. .NOT. scf_env%qs_ot_env(1)%settings%do_rotation
+      IF (scf_env%qs_ot_env(1)%settings%ot_algorithm == 'TOD' .AND. &
+          scf_env%qs_ot_env(1)%settings%do_ener) local_init = .FALSE.
+      first_channel = qs_ot_channel_index(1, kpoints%kp_range(1), nspin_ot)
+      IF (local_init) ALLOCATE (local_s(2, SIZE(kpoints%kp_env)*nspin_ot), local_c(SIZE(kpoints%kp_env)*nspin_ot))
 
       DO ikpoint_local = 1, SIZE(kpoints%kp_env)
          kp => kpoints%kp_env(ikpoint_local)%kpoint_env
@@ -2032,14 +2054,8 @@ CONTAINS
                              "K-point OT requires at least one occupied orbital in every spin channel.")
             END IF
 
-            CALL cp_fm_create(mo_coeff, mo_set%cmo_coeff%matrix_struct)
-            CALL cp_fm_create(mo_coeff_im, mo_set%cmo_coeff%matrix_struct)
-            CALL cp_cfm_to_fm(mo_set%cmo_coeff, mo_coeff, mo_coeff_im)
             CALL cp_fm_struct_create(active_mo_struct, template_fmstruct=mo_set%cmo_coeff%matrix_struct, &
                                      ncol_global=nocc)
-            CALL cp_fm_create(active_mo_coeff, active_mo_struct)
-            CALL cp_fm_to_fm(mo_coeff, active_mo_coeff, nocc)
-
             energy_dimension = nocc
             IF (dft_control%restricted .AND. &
                 scf_env%qs_ot_env(ot_channel)%settings%do_ener) THEN
@@ -2049,34 +2065,38 @@ CONTAINS
                                 matrix_sk_re, &
                                 active_mo_struct, energy_dimension=energy_dimension)
 
-            CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_c0, 0.0_dp)
-            CALL copy_fm_to_dbcsr(active_mo_coeff, scf_env%qs_ot_env(ot_channel)%matrix_c0)
-
-            CALL cp_fm_create(active_mo_coeff_im, active_mo_struct)
-            CALL cp_fm_to_fm(mo_coeff_im, active_mo_coeff_im, nocc)
             CALL qs_ot_allocate_complex_state(scf_env%qs_ot_env(ot_channel), matrix_sk_re)
-            CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_c0_im, 0.0_dp)
-            CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_sc0_im, 0.0_dp)
-            CALL copy_fm_to_dbcsr(active_mo_coeff_im, scf_env%qs_ot_env(ot_channel)%matrix_c0_im)
-            CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_re, &
-                                scf_env%qs_ot_env(ot_channel)%matrix_c0, 0.0_dp, &
-                                scf_env%qs_ot_env(ot_channel)%matrix_sc0)
-            CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_im, &
-                                scf_env%qs_ot_env(ot_channel)%matrix_c0_im, 0.0_dp, &
-                                scf_env%qs_ot_env(ot_channel)%matrix_x)
-            CALL dbcsr_add(scf_env%qs_ot_env(ot_channel)%matrix_sc0, &
-                           scf_env%qs_ot_env(ot_channel)%matrix_x, &
-                           alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+            IF (local_init) THEN
+               local_channel = ot_channel - first_channel + 1
+               local_s(1, local_channel)%matrix => kp%ot_smat(1)
+               local_s(2, local_channel)%matrix => kp%ot_smat(2)
+               local_c(local_channel)%matrix => mo_set%cmo_coeff
+            ELSE
+               CALL cp_fm_create(mo_coeff, mo_set%cmo_coeff%matrix_struct)
+               CALL cp_fm_create(mo_coeff_im, mo_set%cmo_coeff%matrix_struct)
+               CALL cp_cfm_to_fm(mo_set%cmo_coeff, mo_coeff, mo_coeff_im)
+               CALL cp_fm_create(active_mo_coeff, active_mo_struct)
+               CALL cp_fm_to_fm(mo_coeff, active_mo_coeff, nocc)
+               CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_c0, 0.0_dp)
+               CALL copy_fm_to_dbcsr(active_mo_coeff, scf_env%qs_ot_env(ot_channel)%matrix_c0)
 
-            CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_re, &
-                                scf_env%qs_ot_env(ot_channel)%matrix_c0_im, 0.0_dp, &
-                                scf_env%qs_ot_env(ot_channel)%matrix_sc0_im)
-            CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_im, &
-                                scf_env%qs_ot_env(ot_channel)%matrix_c0, 0.0_dp, &
-                                scf_env%qs_ot_env(ot_channel)%matrix_x)
-            CALL dbcsr_add(scf_env%qs_ot_env(ot_channel)%matrix_sc0_im, &
-                           scf_env%qs_ot_env(ot_channel)%matrix_x, &
-                           alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+               CALL cp_fm_create(active_mo_coeff_im, active_mo_struct)
+               CALL cp_fm_to_fm(mo_coeff_im, active_mo_coeff_im, nocc)
+               CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_c0_im, 0.0_dp)
+               CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_sc0_im, 0.0_dp)
+               CALL copy_fm_to_dbcsr(active_mo_coeff_im, scf_env%qs_ot_env(ot_channel)%matrix_c0_im)
+               CALL qs_ot_complex_multiply('N', 'N', matrix_sk_re, matrix_sk_im, &
+                                           scf_env%qs_ot_env(ot_channel)%matrix_c0, &
+                                           scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
+                                           scf_env%qs_ot_env(ot_channel)%matrix_sc0, &
+                                           scf_env%qs_ot_env(ot_channel)%matrix_sc0_im, &
+                                           scf_env%qs_ot_env(ot_channel)%matrix_x)
+
+               CALL cp_fm_release(active_mo_coeff)
+               CALL cp_fm_release(active_mo_coeff_im)
+               CALL cp_fm_release(mo_coeff)
+               CALL cp_fm_release(mo_coeff_im)
+            END IF
 
             CALL qs_ot_init(scf_env%qs_ot_env(ot_channel))
             IF (scf_env%qs_ot_env(ot_channel)%settings%do_ener) THEN
@@ -2104,35 +2124,40 @@ CONTAINS
                                         scf_env%qs_ot_env(ot_channel)%matrix_x_im, &
                                         scf_env%qs_ot_env(ot_channel)%matrix_sx, &
                                         scf_env%qs_ot_env(ot_channel)%matrix_sx_im, &
-                                        scf_env%qs_ot_env(ot_channel))
+                                        scf_env%qs_ot_env(ot_channel), zero_coordinates=.TRUE.)
             CASE ("REF")
-               CALL dbcsr_copy(scf_env%qs_ot_env(ot_channel)%matrix_x, &
-                               scf_env%qs_ot_env(ot_channel)%matrix_c0)
-               CALL dbcsr_copy(scf_env%qs_ot_env(ot_channel)%matrix_sx, &
-                               scf_env%qs_ot_env(ot_channel)%matrix_sc0)
-               CALL dbcsr_copy(scf_env%qs_ot_env(ot_channel)%matrix_x_im, &
-                               scf_env%qs_ot_env(ot_channel)%matrix_c0_im)
-               CALL dbcsr_copy(scf_env%qs_ot_env(ot_channel)%matrix_sx_im, &
-                               scf_env%qs_ot_env(ot_channel)%matrix_sc0_im)
-               CALL qs_ot_get_orbitals_ref_complex(scf_env%qs_ot_env(ot_channel)%matrix_c0, &
-                                                   scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
-                                                   matrix_sk_re, matrix_sk_im, &
-                                                   scf_env%qs_ot_env(ot_channel))
+               IF (.NOT. local_init) THEN
+                  CALL dbcsr_copy(scf_env%qs_ot_env(ot_channel)%matrix_x, &
+                                  scf_env%qs_ot_env(ot_channel)%matrix_c0)
+                  CALL dbcsr_copy(scf_env%qs_ot_env(ot_channel)%matrix_sx, &
+                                  scf_env%qs_ot_env(ot_channel)%matrix_sc0)
+                  CALL dbcsr_copy(scf_env%qs_ot_env(ot_channel)%matrix_x_im, &
+                                  scf_env%qs_ot_env(ot_channel)%matrix_c0_im)
+                  CALL dbcsr_copy(scf_env%qs_ot_env(ot_channel)%matrix_sx_im, &
+                                  scf_env%qs_ot_env(ot_channel)%matrix_sc0_im)
+                  CALL qs_ot_get_orbitals_ref_complex(scf_env%qs_ot_env(ot_channel)%matrix_c0, &
+                                                      scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
+                                                      matrix_sk_re, matrix_sk_im, &
+                                                      scf_env%qs_ot_env(ot_channel))
+               END IF
             CASE DEFAULT
                CPABORT("Algorithm not yet implemented")
             END SELECT
 
             CPASSERT(scf_env%qs_ot_env(ot_channel)%state_allocated)
             CPASSERT(scf_env%qs_ot_env(ot_channel)%has_complex_kpoint_state)
-            CALL cp_fm_release(active_mo_coeff)
-            CALL cp_fm_release(active_mo_coeff_im)
-            CALL cp_fm_release(mo_coeff)
-            CALL cp_fm_release(mo_coeff_im)
             CALL cp_fm_struct_release(active_mo_struct)
          END DO
          CALL dbcsr_release_p(matrix_sk_re)
          CALL dbcsr_release_p(matrix_sk_im)
       END DO
+
+      IF (local_init) THEN
+         CALL qs_ot_get_orbitals_local_batch( &
+            scf_env%qs_ot_env(first_channel:first_channel + SIZE(local_c) - 1), &
+            local_s, local_c, handled, initialize=.TRUE.)
+         CPASSERT(handled)
+      END IF
 
       CALL qs_ot_check_channel_context(scf_env%qs_ot_env, dft_control%nspins, &
                                        nkpoint=kpoints%nkp, &
@@ -2166,10 +2191,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_qs_ot_kpoint_preconditioners'
 
-      INTEGER :: handle, ikpoint, ispin, ks_spin, local_kpoint, n_ot_channels, nocc, &
-         occupation_spin, ot_channel, prec_type, source_channel
+      INTEGER :: first_channel, handle, ikpoint, ispin, ks_spin, local_channel, local_kpoint, &
+         n_ot_channels, nlocal, nocc, occupation_spin, ot_channel, prec_type, source_channel
+      LOGICAL                                            :: handled
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: occupation_signature
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
+      TYPE(cp_fm_p_type), ALLOCATABLE                    :: local_h(:, :), local_s(:, :)
+      TYPE(dbcsr_p_type), ALLOCATABLE                    :: local_c(:, :)
       TYPE(dbcsr_type), POINTER                          :: matrix_h_im, matrix_h_re, matrix_s_im, &
                                                             matrix_s_re, matrix_t_im, matrix_t_re
       TYPE(kpoint_env_type), POINTER                     :: kp
@@ -2219,6 +2247,37 @@ CONTAINS
                                      blacs_env=scf_env%qs_ot_env(ot_channel)%blacs_env)
          END DO
       END DO
+
+      IF (prec_type == ot_precond_full_all .AND. .NOT. ALLOCATED(kpoints%lowdin_v)) THEN
+         first_channel = qs_ot_channel_index(1, kpoints%kp_range(1), nspin_ot)
+         nlocal = SIZE(kpoints%kp_env)*nspin_ot
+         ALLOCATE (local_c(2, nlocal), local_h(2, nlocal), local_s(2, nlocal))
+         DO local_kpoint = 1, SIZE(kpoints%kp_env)
+            kp => kpoints%kp_env(local_kpoint)%kpoint_env
+            DO ispin = 1, nspin_ot
+               ot_channel = qs_ot_channel_index(ispin, kp%nkpoint, nspin_ot)
+               local_channel = ot_channel - first_channel + 1
+               ks_spin = MIN(ispin, SIZE(kp%ot_hmat, 2))
+               local_c(1, local_channel)%matrix => scf_env%qs_ot_env(ot_channel)%matrix_c0
+               local_c(2, local_channel)%matrix => scf_env%qs_ot_env(ot_channel)%matrix_c0_im
+               local_h(1, local_channel)%matrix => kp%ot_hmat(1, ks_spin)
+               local_h(2, local_channel)%matrix => kp%ot_hmat(2, ks_spin)
+               local_s(1, local_channel)%matrix => kp%ot_smat(1)
+               local_s(2, local_channel)%matrix => kp%ot_smat(2)
+            END DO
+         END DO
+         CALL make_preconditioner_complex_full_all_batch( &
+            scf_env%ot_preconditioner(first_channel:first_channel + nlocal - 1), local_c, local_h, local_s, &
+            scf_env%qs_ot_env(1)%settings%energy_gap, scf_env%qs_ot_env(1)%settings%precond_solver_type, handled)
+         IF (handled) THEN
+            DO ot_channel = first_channel, first_channel + nlocal - 1
+               CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ot_channel), &
+                                             scf_env%ot_preconditioner(ot_channel)%preconditioner)
+            END DO
+            CALL timestop(handle)
+            RETURN
+         END IF
+      END IF
 
       DO local_kpoint = 1, SIZE(kpoints%kp_env)
          kp => kpoints%kp_env(local_kpoint)%kpoint_env

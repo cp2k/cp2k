@@ -61,11 +61,11 @@ MODULE qs_ot_eigensolver
    USE qs_mo_methods,                   ONLY: make_basis_sv
    USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_ot,                           ONLY: qs_ot_get_orbitals,&
-                                              qs_ot_get_orbitals_complex,&
                                               qs_ot_get_orbitals_ref,&
-                                              qs_ot_get_orbitals_ref_complex,&
                                               qs_ot_get_p,&
-                                              qs_ot_new_preconditioner,&
+                                              qs_ot_new_preconditioner
+   USE qs_ot_kp,                        ONLY: qs_ot_get_orbitals_complex,&
+                                              qs_ot_get_orbitals_ref_complex,&
                                               qs_ot_prepare_complex_tangent_metric
    USE qs_ot_minimizer,                 ONLY: ot_mini
    USE qs_ot_types,                     ONLY: qs_ot_allocate,&
