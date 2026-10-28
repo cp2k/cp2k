@@ -2658,7 +2658,7 @@ CONTAINS
          scf_env%iter_param = scf_env%p_mix_alpha
          scf_env%iter_method = "P_Mix/Lanczos"
       ELSE
-!        scf_env%iter_param = scf_env%mixing_store%alpha
+         scf_env%iter_param = scf_env%mixing_store%alpha
          scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Lanc."
       END IF
 
@@ -3226,6 +3226,7 @@ CONTAINS
          scf_env%iter_param = scf_env%p_mix_alpha
          scf_env%iter_method = "P_Mix/Lanczos"
       ELSE
+         scf_env%iter_param = scf_env%mixing_store%alpha
          scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Lanc."
       END IF
 
