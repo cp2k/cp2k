@@ -480,16 +480,16 @@ CONTAINS
       ELSE
          nbmax = nkrylov*nblock_e
       END IF
-      IF (nbmax < 3) THEN
-         ! no valid working basis exists (minimal basis, or a degenerate
-         ! NKRYLOV/NBLOCK combination): leave the columns at their entry
-         ! state for the caller to report, instead of aborting the run
+      IF (nbmax < 2) THEN
+         ! no working basis beyond the seed exists (nao below four, or a
+         ! degenerate NKRYLOV/NBLOCK combination): leave the columns at
+         ! their entry state for the caller to report, instead of aborting
          n_conv_cols = 0
          max_res_norm = 0.0_dp
          min_res_norm = HUGE(1.0_dp)
          refined = .FALSE.
          need_suffix_rr = .FALSE.
-         CPWARN("Krylov budget below three columns, Lanczos refinement skipped")
+         CPWARN("Krylov budget below two columns, Lanczos refinement skipped")
          CALL timestop(handle)
          RETURN
       END IF

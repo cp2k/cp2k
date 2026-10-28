@@ -20,5 +20,5 @@
 # twins above, for reproducibility only. The energy is a three-step
 # snapshot 0.029 Ha from the converged value: a change-detector for the
 # ELPA dispatch path, not a physics oracle like the twins above
-"cplx_kp_lan.inp" = [{matcher = "E_total", tol = 1e-10, ref = -41.8682408936132}]
+"cplx_kp_lan.inp"    = [{matcher = "E_total", tol = 1e-10, ref = -41.8682408936132}]
 #EOF
