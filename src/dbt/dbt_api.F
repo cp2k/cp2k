@@ -16,12 +16,14 @@
 ! **************************************************************************************************
 MODULE dbt_api
 
-   USE dbt_block,                       ONLY: dbt_iterator_blocks_left,&
+   USE dbt_block,                       ONLY: dbt_get_block_data,&
+                                              dbt_iterator_blocks_left,&
                                               dbt_iterator_next_block,&
                                               dbt_iterator_num_blocks,&
                                               dbt_iterator_start,&
                                               dbt_iterator_stop,&
-                                              dbt_iterator_type
+                                              dbt_iterator_type,&
+                                              dbt_put_block_data
    USE dbt_index,                       ONLY: dbt_get_mapping_info
    USE dbt_io,                          ONLY: dbt_write_blocks,&
                                               dbt_write_split_info,&
@@ -54,8 +56,10 @@ MODULE dbt_api
 
    PUBLIC :: dbt_contract, dbt_contract_test
    PUBLIC :: dbt_get_block
+   PUBLIC :: dbt_get_block_data
    PUBLIC :: dbt_get_stored_coordinates
    PUBLIC :: dbt_put_block
+   PUBLIC :: dbt_put_block_data
    PUBLIC :: dbt_reserve_blocks
    PUBLIC :: dbt_create
    PUBLIC :: dbt_destroy
