@@ -158,12 +158,13 @@ spack:
       require:
         - "~distributed"
         - "~fbgemm"
-        - "~flash_attention"
         - "~kineto"
         - "~mkldnn"
         - "~rocm"
         - "~valgrind"
         - "~xnnpack"
+        - spec: "~flash_attention"
+          when: "+cuda"
         - spec: "~magma"
           when: "+cuda"
 
