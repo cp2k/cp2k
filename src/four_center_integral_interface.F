@@ -350,7 +350,7 @@ CONTAINS
          CALL cp_libint_set_params_eri_deriv(context%deriv, context%products(i), &
                                              permutation, SUM(angular_momenta) + 1)
          CALL cp_libint_get_derivs(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
-                                   angular_momenta(1), context%deriv, work_forces, [mysize])
+                                   angular_momenta(1), context%deriv, work_forces)
          DO k = 1, 12
             DO j = 1, mysize
                work(j, k) = work(j, k) + work_forces(j, k)
@@ -543,7 +543,7 @@ CONTAINS
       ELSE
          CALL cp_libint_set_params_eri(context%eri, context%products(1), [1, 2, 3, 4], m_max)
          CALL cp_libint_get_eris(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
-                                 angular_momenta(1), context%eri, p_work, [mysize])
+                                 angular_momenta(1), context%eri, p_work)
          DO i = 1, mysize
             max_val = MAX(max_val, ABS(p_work(i)))
          END DO
@@ -643,7 +643,7 @@ CONTAINS
          DO i = 1, context%nproducts
             CALL cp_libint_set_params_eri(context%eri, context%products(i), permutation, m_max)
             CALL cp_libint_get_eris(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
-                                    angular_momenta(1), context%eri, p_work, [mysize])
+                                    angular_momenta(1), context%eri, p_work)
             IF (context%nproducts > 1) buffer1 = buffer1 + p_work(1:mysize)
          END DO
          IF (context%nproducts > 1) p_work => buffer1

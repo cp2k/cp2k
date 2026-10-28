@@ -11,6 +11,10 @@
 ! **************************************************************************************************
 
 MODULE xas_tdp_integrals
+   USE coulomb_integral_interface, ONLY: coulomb_integral_context_type, coulomb_integral_init, &
+                                         coulomb_integral_cleanup, compute_coulomb_2c, compute_coulomb_3c, &
+                                         compute_coulomb_2c_derivs, compute_coulomb_3c_derivs
+   USE integral_library_types, ONLY: library_libint
    USE OMP_LIB, ONLY: omp_get_max_threads, &
                       omp_get_num_threads, &
                       omp_get_thread_num
@@ -53,14 +57,6 @@ MODULE xas_tdp_integrals
    USE kinds, ONLY: dp
    USE integral_library_types, ONLY: cutoff_screen_factor, &
                                      coulomb_operator_type
-   USE libint_2c_3c, ONLY: eri_2center, &
-                           eri_3center
-   USE libint_wrapper, ONLY: cp_libint_cleanup_2eri, &
-                             cp_libint_cleanup_3eri, &
-                             cp_libint_init_2eri, &
-                             cp_libint_init_3eri, &
-                             cp_libint_set_contrdepth, &
-                             cp_libint_t
    USE mathlib, ONLY: invmat_symm
    USE message_passing, ONLY: mp_comm_type, &
                               mp_para_env_type
@@ -309,8 +305,8 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: iabc, sabc, work
       REAL(dp), DIMENSION(:), POINTER                    :: set_radius_a, set_radius_b, set_radius_c
       REAL(dp), DIMENSION(:, :), POINTER                 :: rpgf_a, rpgf_b, rpgf_c, zeta, zetb, zetc
+      TYPE(coulomb_integral_context_type)                :: integral_context
       TYPE(cp_2d_r_p_type), DIMENSION(:, :), POINTER     :: spb, spc, tspa
-      TYPE(cp_libint_t)                                  :: lib
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set, basis_set_a, basis_set_b, &
                                                             basis_set_c
@@ -504,7 +500,7 @@ CONTAINS
 !$OMP SHARED (pq_X,do_screen,max_nset,basis_set_list_a,max_contra,max_contrb,max_contrc,&
 !$OMP         basis_set_list_b, basis_set_list_c,ncoset,screen_radius,potential_parameter,&
 !$OMP         my_eps_screen,maxli,maxlj,maxlk,my_sort_bc,nthread,o3c,o3c_iterator,tspa,spb,spc) &
-!$OMP PRIVATE (lib,i,mepos,work,iset,ncoa,sgfa,egfa,nseta,iatom,ikind,jatom,jkind,katom,kkind,&
+!$OMP PRIVATE (integral_context,i,mepos,work,iset,ncoa,sgfa,egfa,nseta,iatom,ikind,jatom,jkind,katom,kkind,&
 !$OMP          rij,rik,rjk,basis_set_a,nsetb,la_max,la_min,lb_max,lb_min,lc_max,lc_min,npgfa,&
 !$OMP          npgfb,npgfc,nsgfa,nsgfb,nsgfc,ri,rk,first_sgfa,first_sgfb,first_sgfc,nsetc,&
 !$OMP          set_radius_a,set_radius_b,set_radius_c,rj,rpgf_a,rpgf_b,rpgf_c,zeta,zetb,&
@@ -515,8 +511,9 @@ CONTAINS
 !$    mepos = omp_get_thread_num()
 
       !each thread need its own libint object (internals may change at different rates)
-      CALL cp_libint_init_3eri(lib, MAX(maxli, maxlj, maxlk))
-      CALL cp_libint_set_contrdepth(lib, 1)
+      integral_context = coulomb_integral_context_type()
+      CALL coulomb_integral_init(integral_context, max_am_3c=MAX(maxli, maxlj, maxlk), &
+                                 derivative_order=0, library=library_libint)
 
       DO WHILE (o3c_iterate(o3c_iterator, mepos=mepos) == 0)
          CALL get_o3c_iterator_info(o3c_iterator, mepos=mepos, ikind=ikind, jkind=jkind, kkind=kkind, &
@@ -600,11 +597,11 @@ CONTAINS
                   sabc(:, :, :) = 0.0_dp
 
                   IF (do_screen) THEN
-                     CALL eri_3center(sabc, la_min(iset), la_max(iset), npgfa(iset), zeta(:, iset), &
-                                      rpgf_a(:, iset), ri, lb_min(jset), lb_max(jset), npgfb(jset), &
-                                      zetb(:, jset), rpgf_b(:, jset), rj, lc_min(kset), lc_max(kset), &
-                                      npgfc(kset), zetc(:, kset), rpgf_c(:, kset), rk, dij, dik, &
-                                      djk, lib, potential_parameter, int_abc_ext=sabc_ext)
+                     CALL compute_coulomb_3c(integral_context, la_min(iset), la_max(iset), lb_min(jset), &
+                                             lb_max(jset), lc_min(kset), lc_max(kset), npgfa(iset), npgfb(jset), npgfc(kset), &
+                                             zeta(:, iset), zetb(:, jset), zetc(:, kset), rpgf_a(:, iset), rpgf_b(:, jset), &
+                                             rpgf_c(:, kset), ri, rj, rk, sabc, potential_parameter, dab=dij, dac=dik, dbc=djk, &
+                                             int_abc_ext=sabc_ext)
                      IF (my_eps_screen > sabc_ext*(max_contra(iset, ikind)* &
                                                    max_contrb(jset, jkind)* &
                                                    max_contrc(kset, kkind))) THEN
@@ -612,11 +609,10 @@ CONTAINS
                         CYCLE
                      END IF
                   ELSE
-                     CALL eri_3center(sabc, la_min(iset), la_max(iset), npgfa(iset), zeta(:, iset), &
-                                      rpgf_a(:, iset), ri, lb_min(jset), lb_max(jset), npgfb(jset), &
-                                      zetb(:, jset), rpgf_b(:, jset), rj, lc_min(kset), lc_max(kset), &
-                                      npgfc(kset), zetc(:, kset), rpgf_c(:, kset), rk, dij, dik, &
-                                      djk, lib, potential_parameter)
+                     CALL compute_coulomb_3c(integral_context, la_min(iset), la_max(iset), lb_min(jset), &
+                                             lb_max(jset), lc_min(kset), lc_max(kset), npgfa(iset), npgfb(jset), npgfc(kset), &
+                                             zeta(:, iset), zetb(:, jset), zetc(:, kset), rpgf_a(:, iset), rpgf_b(:, jset), &
+                                             rpgf_c(:, kset), ri, rj, rk, sabc, potential_parameter, dab=dij, dac=dik, dbc=djk)
                   END IF
 
                   ALLOCATE (work(nsgfa(iset), nsgfb(jset), nsgfc(kset)))
@@ -643,7 +639,7 @@ CONTAINS
       IF (ALLOCATED(ccp_buffer)) DEALLOCATE (ccp_buffer)
       IF (ALLOCATED(cpp_buffer)) DEALLOCATE (cpp_buffer)
 
-      CALL cp_libint_cleanup_3eri(lib)
+      CALL coulomb_integral_cleanup(integral_context)
 
 !$OMP END PARALLEL
       CALL o3c_iterator_release(o3c_iterator)
@@ -1264,7 +1260,7 @@ CONTAINS
       REAL(dp)                                           :: r(3)
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: metric, pq, work
       REAL(dp), DIMENSION(:, :), POINTER                 :: rpgf, sphi, zet
-      TYPE(cp_libint_t)                                  :: lib
+      TYPE(coulomb_integral_context_type)                :: integral_context
       TYPE(gto_basis_set_type), POINTER                  :: ri_basis
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1289,8 +1285,8 @@ CONTAINS
       r = 0.0_dp
 
       !init the libint 2-center object
-      CALL cp_libint_init_2eri(lib, maxl)
-      CALL cp_libint_set_contrdepth(lib, 1)
+      CALL coulomb_integral_init(integral_context, max_am_2c=maxl, &
+                                 derivative_order=0, library=library_libint)
 
       !make sure the truncted coulomb is initialized
       IF (xas_tdp_control%ri_m_potential%potential_type == do_potential_truncated) THEN
@@ -1320,9 +1316,9 @@ CONTAINS
             ALLOCATE (work(ncop, ncoq))
             work = 0.0_dp
 
-            CALL eri_2center(work, lmin(pset), lmax(pset), npgf_set(pset), zet(:, pset), rpgf(:, pset), &
-                             r, lmin(qset), lmax(qset), npgf_set(qset), zet(:, qset), rpgf(:, qset), &
-                             r, 0.0_dp, lib, xas_tdp_control%ri_m_potential)
+            CALL compute_coulomb_2c(integral_context, lmin(pset), lmax(pset), lmin(qset), lmax(qset), &
+                                   npgf_set(pset), npgf_set(qset), zet(:, pset), zet(:, qset), rpgf(:, pset), rpgf(:, qset), r, r, &
+                                    work, xas_tdp_control%ri_m_potential, dab=0.0_dp)
 
             CALL ab_contract(metric(sgfp:egfp, sgfq:egfq), work, sphi(:, sgfp:), sphi(:, sgfq:), &
                              ncop, ncoq, nsgf_set(pset), nsgf_set(qset))
@@ -1339,7 +1335,7 @@ CONTAINS
          !If no metric, then x_pot = ri_m_pot and (P|Q)^-1 = M^-1 (V-approximation)
          ALLOCATE (xas_tdp_env%ri_inv_ex(nsgf, nsgf))
          xas_tdp_env%ri_inv_ex(:, :) = metric(:, :)
-         CALL cp_libint_cleanup_2eri(lib)
+         CALL coulomb_integral_cleanup(integral_context)
          RETURN
 
       END IF
@@ -1375,9 +1371,9 @@ CONTAINS
             ALLOCATE (work(ncop, ncoq))
             work = 0.0_dp
 
-            CALL eri_2center(work, lmin(pset), lmax(pset), npgf_set(pset), zet(:, pset), rpgf(:, pset), &
-                             r, lmin(qset), lmax(qset), npgf_set(qset), zet(:, qset), rpgf(:, qset), &
-                             r, 0.0_dp, lib, xas_tdp_control%x_potential)
+            CALL compute_coulomb_2c(integral_context, lmin(pset), lmax(pset), lmin(qset), lmax(qset), &
+                                   npgf_set(pset), npgf_set(qset), zet(:, pset), zet(:, qset), rpgf(:, pset), rpgf(:, qset), r, r, &
+                                    work, xas_tdp_control%x_potential, dab=0.0_dp)
 
             CALL ab_contract(pq(sgfp:egfp, sgfq:egfq), work, sphi(:, sgfp:), sphi(:, sgfq:), &
                              ncop, ncoq, nsgf_set(pset), nsgf_set(qset))
@@ -1396,7 +1392,7 @@ CONTAINS
                  0.0_dp, pq, nsgf)
       xas_tdp_env%ri_inv_ex(:, :) = pq(:, :)
 
-      CALL cp_libint_cleanup_2eri(lib)
+      CALL coulomb_integral_cleanup(integral_context)
 
    END SUBROUTINE compute_ri_exchange2_int
 
