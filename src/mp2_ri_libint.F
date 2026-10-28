@@ -23,8 +23,6 @@ MODULE mp2_ri_libint
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -36,7 +34,6 @@ MODULE mp2_ri_libint
                                               cp_fm_set_submatrix,&
                                               cp_fm_type
    USE four_center_integral_methods,    ONLY: coulomb4
-   USE gamma,                           ONLY: init_md_ftable
    USE hfx_pair_list_methods,           ONLY: build_pair_list_mp2
    USE hfx_screening_methods,           ONLY: calc_pair_dist_radii,&
                                               calc_screening_functions
@@ -48,8 +45,7 @@ MODULE mp2_ri_libint
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_para_env_type
-   USE mp2_types,                       ONLY: init_TShPSC_lmax,&
-                                              mp2_biel_type,&
+   USE mp2_types,                       ONLY: mp2_biel_type,&
                                               mp2_type,&
                                               pair_list_type_mp2
    USE orbital_pointers,                ONLY: nco,&
@@ -61,8 +57,7 @@ MODULE mp2_ri_libint
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
-   USE t_sh_p_s_c,                      ONLY: free_C0,&
-                                              init
+   USE r12_fundamentals,                ONLY: r12_fundamentals_init
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -928,11 +923,6 @@ CONTAINS
 
       DEALLOCATE (nimages)
 
-      IF (mp2_env%potential_parameter%potential_type == do_potential_TShPSC) THEN
-         init_TShPSC_lmax = -1
-         CALL free_C0()
-      END IF
-
       CALL timestop(handle)
 
    END SUBROUTINE calc_lai_libint
@@ -1048,9 +1038,14 @@ CONTAINS
          END DO
       END IF
       l_max = 4*l_max
-      CALL init_md_ftable(l_max)
 
-      CALL get_potential_parameters(mp2_env, l_max, para_env, mp2_potential_parameter)
+      CALL r12_fundamentals_init(l_max, mp2_env%potential_parameter, para_env)
+      IF (mp2_env%potential_parameter%potential_type == do_potential_TShPSC) THEN
+         mp2_potential_parameter%cutoff_radius = mp2_env%potential_parameter%cutoff_radius/2.0_dp
+      ELSE IF (mp2_env%potential_parameter%potential_type == do_potential_long) THEN
+         mp2_potential_parameter%omega = mp2_env%potential_parameter%omega
+      END IF
+      mp2_potential_parameter%potential_type = mp2_env%potential_parameter%potential_type
 
       n_threads = 1
 
@@ -1156,42 +1151,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE prepare_integral_calc
-
-! **************************************************************************************************
-!> \brief ...
-!> \param mp2_env ...
-!> \param l_max ...
-!> \param para_env ...
-!> \param mp2_potential_parameter ...
-! **************************************************************************************************
-   SUBROUTINE get_potential_parameters(mp2_env, l_max, para_env, mp2_potential_parameter)
-
-      TYPE(mp2_type)                                     :: mp2_env
-      INTEGER, INTENT(IN)                                :: l_max
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-      TYPE(hfx_potential_type), INTENT(OUT)              :: mp2_potential_parameter
-
-      INTEGER                                            :: unit_id
-
-      IF (mp2_env%potential_parameter%potential_type == do_potential_TShPSC) THEN
-         IF (l_max > init_TShPSC_lmax) THEN
-            IF (para_env%is_source()) THEN
-               CALL open_file(unit_number=unit_id, file_name=mp2_env%potential_parameter%filename)
-            END IF
-            CALL init(l_max, unit_id, para_env%mepos, para_env)
-            IF (para_env%is_source()) THEN
-               CALL close_file(unit_id)
-            END IF
-            init_TShPSC_lmax = l_max
-         END IF
-         mp2_potential_parameter%cutoff_radius = mp2_env%potential_parameter%cutoff_radius/2.0_dp
-      ELSE IF (mp2_env%potential_parameter%potential_type == do_potential_long) THEN
-         mp2_potential_parameter%omega = mp2_env%potential_parameter%omega
-      END IF
-
-      mp2_potential_parameter%potential_type = mp2_env%potential_parameter%potential_type
-
-   END SUBROUTINE get_potential_parameters
 
 ! **************************************************************************************************
 !> \brief ...

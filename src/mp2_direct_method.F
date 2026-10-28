@@ -35,14 +35,12 @@ MODULE mp2_direct_method
    USE message_passing,                 ONLY: mp_para_env_release,&
                                               mp_para_env_type
    USE mp2_ri_libint,                   ONLY: prepare_integral_calc
-   USE mp2_types,                       ONLY: init_TShPSC_lmax,&
-                                              mp2_biel_type,&
+   USE mp2_types,                       ONLY: mp2_biel_type,&
                                               mp2_type,&
                                               pair_list_type_mp2
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: qs_environment_type
-   USE t_sh_p_s_c,                      ONLY: free_C0
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1103,11 +1101,6 @@ CONTAINS
       DEALLOCATE (ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp)
 
       DEALLOCATE (nimages)
-
-      IF (mp2_env%potential_parameter%potential_type == do_potential_TShPSC) THEN
-         init_TShPSC_lmax = -1
-         CALL free_C0()
-      END IF
 
       CALL timestop(handle)
 
