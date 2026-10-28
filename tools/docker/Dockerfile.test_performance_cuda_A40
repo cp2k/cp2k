@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: podman build --shm-size=1g -f ./Dockerfile.test_performance_cuda_V100 ../../
+# Usage: podman build --shm-size=1g -f ./Dockerfile.test_performance_cuda_A40 ../../
 #
 
 FROM docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04
@@ -37,7 +37,7 @@ RUN ./install_cp2k_toolchain.sh \
     --enable-cuda=yes \
     --with-libgint=install \
     --with-sirius=install \
-    --gpu-ver=V100 \
+    --gpu-ver=A40 \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.
@@ -83,15 +83,15 @@ COPY ./CMakePresets.json .
 
 # Compile CP2K.
 COPY ./tools/docker/scripts/build_cp2k.sh ./tools/docker/scripts/cmake_cp2k.sh ./
-RUN ./build_cp2k.sh toolchain_cuda_V100 psmp
+RUN ./build_cp2k.sh toolchain_cuda_A40 psmp
 
-# Run performance test for toolchain_cuda_V100.
+# Run performance test for toolchain_cuda_A40.
 COPY ./benchmarks ./benchmarks
 COPY ./tools/regtesting ./tools/regtesting
 COPY ./tools/docker/scripts/test_performance.sh  \
      ./tools/docker/scripts/plot_performance.py  \
      ./
-RUN ./test_performance.sh "toolchain_cuda_V100" 2>&1 | tee report.log
+RUN ./test_performance.sh "toolchain_cuda_A40" 2>&1 | tee report.log
 
 # Output the report if the image is old and was therefore pulled from the build cache.
 CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
