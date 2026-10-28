@@ -718,6 +718,15 @@ CONTAINS
          END IF
       END IF
 
+      my_owns_out_unit = unit_nr /= default_output_unit
+      IF (PRESENT(owns_out_unit)) my_owns_out_unit = owns_out_unit
+      CALL globenv_create(globenv)
+      CALL cp2k_init(para_env, output_unit=unit_nr, globenv=globenv, input_file_name=input_path, &
+                     wdir=wdir)
+      logger => cp_get_default_logger()
+      ! warning this is dangerous, I did not check that all the subfunctions
+      ! support it, the program might crash upon error
+
       NULLIFY (input_file)
       IF (PRESENT(input)) input_file => input
       IF (.NOT. ASSOCIATED(input_file)) THEN
@@ -734,13 +743,6 @@ CONTAINS
 
       root_section => input_file
       CALL section_vals_retain(root_section)
-
-      my_owns_out_unit = unit_nr /= default_output_unit
-      IF (PRESENT(owns_out_unit)) my_owns_out_unit = owns_out_unit
-      CALL globenv_create(globenv)
-      CALL cp2k_init(root_section, para_env, output_unit=unit_nr, globenv=globenv, input_file_name=input_path, &
-                     wdir=wdir)
-      logger => cp_get_default_logger()
 
       IF (n_f_envs + 1 > SIZE(f_envs)) THEN
          f_envs_old => f_envs

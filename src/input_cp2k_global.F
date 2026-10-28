@@ -40,16 +40,10 @@ MODULE input_cp2k_global
                                               elpa_qr
    USE cp_fm_struct,                    ONLY: cp_fm_struct_get_ncol_block,&
                                               cp_fm_struct_get_nrow_block
-   USE cp_iter_types,                   ONLY: iter_notice,&
-                                              iter_silent,&
-                                              iter_stack
-   USE cp_output_handling,              ONLY: add_last_numeric,&
-                                              cp_print_key_section_create,&
-                                              debug_print_level,&
-                                              high_print_level,&
-                                              low_print_level,&
-                                              medium_print_level,&
-                                              silent_print_level
+   USE cp_output_handling,              ONLY: &
+        add_last_numeric, cp_print_key_section_create, debug_print_level, high_print_level, &
+        iter_notice, iter_silent, iter_stack, low_print_level, medium_print_level, &
+        silent_print_level
    USE grid_api,                        ONLY: GRID_BACKEND_AUTO,&
                                               GRID_BACKEND_CPU,&
                                               GRID_BACKEND_DGEMM,&

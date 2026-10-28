@@ -234,7 +234,7 @@ CONTAINS
          ! initial setup (cp2k does it in the creation of the force_env)
          CALL globenv_create(globenv)
          CALL section_vals_retain(input_file)
-         CALL cp2k_init(root_section, para_env, output_unit, globenv, input_file_name=input_file_name)
+         CALL cp2k_init(para_env, output_unit, globenv, input_file_name=input_file_name)
          CALL cp2k_read(root_section, para_env, globenv)
          CALL cp2k_setup(root_section, para_env, globenv)
       END IF

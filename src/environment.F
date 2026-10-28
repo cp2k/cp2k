@@ -40,21 +40,14 @@ MODULE environment
    USE cp_fm_struct,                    ONLY: cp_fm_struct_config
    USE cp_fm_types,                     ONLY: cp_fm_get_mm_type,&
                                               cp_fm_setup
-   USE cp_iter_types,                   ONLY: iter_notice,&
-                                              iter_silent,&
-                                              iter_stack
    USE cp_log_handling,                 ONLY: &
         cp_add_default_logger, cp_get_default_logger, cp_logger_create, &
         cp_logger_get_default_unit_nr, cp_logger_release, cp_logger_set, cp_logger_type, &
         cp_rm_default_logger, cp_to_string
-   USE cp_output_handling,              ONLY: cp_mpi_io_set,&
-                                              cp_print_key_finished_output,&
-                                              cp_print_key_unit_nr,&
-                                              debug_print_level,&
-                                              high_print_level,&
-                                              low_print_level,&
-                                              medium_print_level,&
-                                              silent_print_level
+   USE cp_output_handling,              ONLY: &
+        cp_mpi_io_set, cp_print_key_finished_output, cp_print_key_unit_nr, &
+        cp_set_iter_print_default, debug_print_level, high_print_level, iter_notice, iter_silent, &
+        iter_stack, low_print_level, medium_print_level, silent_print_level
    USE fft_tools,                       ONLY: FWFFT,&
                                               fft3d,&
                                               finalize_fft,&
@@ -140,7 +133,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Initializes a CP2K run (setting of the global environment variables)
-!> \param root_section ...
 !> \param para_env ...
 !> \param output_unit ...
 !> \param globenv ...
@@ -152,9 +144,8 @@ CONTAINS
 !>      - merged with cp2k_input (30.10.2002,MK)
 !> \author JGH,MK
 ! **************************************************************************************************
-   SUBROUTINE cp2k_init(root_section, para_env, output_unit, globenv, input_file_name, wdir)
+   SUBROUTINE cp2k_init(para_env, output_unit, globenv, input_file_name, wdir)
 
-      TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: output_unit
       TYPE(global_environment_type), POINTER             :: globenv
@@ -163,8 +154,7 @@ CONTAINS
 
       CHARACTER(LEN=10*default_string_length)            :: cp_flags
       CHARACTER(LEN=default_path_length)                 :: path
-      INTEGER                                            :: i, ilen, iter_print, my_output_unit, print_level
-      LOGICAL                                            :: explicit
+      INTEGER                                            :: i, ilen, my_output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
 
 #if defined(__FAST_MATH__)
@@ -190,19 +180,6 @@ CONTAINS
       CALL add_mp_perf_env()
 
       ! Init the default logger
-      CALL section_vals_val_get(root_section, "GLOBAL%ITER_LEVEL_VERBOSITY", explicit=explicit)
-      IF (explicit) THEN
-         CALL section_vals_val_get(root_section, "GLOBAL%ITER_LEVEL_VERBOSITY", i_val=iter_print)
-      ELSE
-         CALL section_vals_val_get(root_section, "GLOBAL%PRINT_LEVEL", i_val=print_level)
-         IF (print_level >= debug_print_level) THEN
-            iter_print = iter_stack
-         ELSE IF (print_level == high_print_level) THEN
-            iter_print = iter_notice
-         ELSE
-            iter_print = iter_silent
-         END IF
-      END IF
       IF (para_env%is_source()) THEN
          my_output_unit = output_unit
       ELSE
@@ -211,8 +188,7 @@ CONTAINS
       NULLIFY (logger)
       CALL cp_logger_create(logger, para_env=para_env, &
                             default_global_unit_nr=output_unit, &
-                            close_global_unit_on_dealloc=.FALSE., &
-                            iter_print=iter_print)
+                            close_global_unit_on_dealloc=.FALSE.)
       CALL cp_add_default_logger(logger)
       CALL cp_logger_release(logger)
 
@@ -395,10 +371,33 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
 
       CHARACTER(LEN=default_string_length)               :: c_val
-      INTEGER                                            :: i, iw
+      INTEGER                                            :: i, iter_print, iw, print_level
+      LOGICAL                                            :: explicit
       TYPE(cp_logger_type), POINTER                      :: logger
 
       ! Read the input/output section
+
+      ! Set verbosity for printing information about iteration levels.
+      ! Note that at this point there are at least two loggers in the stack
+      ! (first one created in init_cp2k of f77_interface.F, second one created
+      ! in cp2k_init of environment.F) and each logger has an iter_info that
+      ! can carry iteration levels. But cp2k_init does not have access to input
+      ! sections, and also cannot be adjusted to receive them because of the
+      ! fragile initialization order in create_force_env in f77_interface.
+      CALL section_vals_val_get(root_section, "GLOBAL%ITER_LEVEL_VERBOSITY", explicit=explicit)
+      IF (explicit) THEN
+         CALL section_vals_val_get(root_section, "GLOBAL%ITER_LEVEL_VERBOSITY", i_val=iter_print)
+      ELSE
+         CALL section_vals_val_get(root_section, "GLOBAL%PRINT_LEVEL", i_val=print_level)
+         IF (print_level >= debug_print_level) THEN
+            iter_print = iter_stack
+         ELSE IF (print_level == high_print_level) THEN
+            iter_print = iter_notice
+         ELSE
+            iter_print = iter_silent
+         END IF
+      END IF
+      CALL cp_set_iter_print_default(iter_print)
 
       logger => cp_get_default_logger()
 

@@ -44,8 +44,7 @@ MODULE cp_log_handling
    USE cp_iter_types,                   ONLY: cp_iteration_info_create,&
                                               cp_iteration_info_release,&
                                               cp_iteration_info_retain,&
-                                              cp_iteration_info_type,&
-                                              iter_silent
+                                              cp_iteration_info_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -159,7 +158,7 @@ MODULE cp_log_handling
       TYPE(cp_logger_type), POINTER :: cp_default_logger => Null()
    END TYPE default_logger_stack_type
 
-   INTEGER, PRIVATE            :: iter_print_default = iter_silent, stack_pointer = 0
+   INTEGER, PRIVATE            :: stack_pointer = 0
    INTEGER, PARAMETER, PRIVATE :: max_stack_pointer = 10
    TYPE(default_logger_stack_type), SAVE, DIMENSION(max_stack_pointer) ::  default_logger_stack
 
@@ -267,7 +266,6 @@ CONTAINS
 !>        logger is deallocated (defaults to true if a local_filename is given,
 !>        to false otherwise)
 !> \param iter_info the iteration info type
-!> \param iter_print verbosity of iteration information
 !> \param close_local_unit_on_dealloc if the unit should be closed when the
 !>        logger is deallocated (defaults to true)
 !> \param suffix the suffix that should be added to all the generated filenames
@@ -283,7 +281,7 @@ CONTAINS
    SUBROUTINE cp_logger_create(logger, para_env, print_level, &
                                default_global_unit_nr, default_local_unit_nr, global_filename, &
                                local_filename, close_global_unit_on_dealloc, iter_info, &
-                               iter_print, close_local_unit_on_dealloc, suffix, template_logger)
+                               close_local_unit_on_dealloc, suffix, template_logger)
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
       INTEGER, INTENT(in), OPTIONAL                      :: print_level, default_global_unit_nr, &
@@ -291,7 +289,6 @@ CONTAINS
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: global_filename, local_filename
       LOGICAL, INTENT(in), OPTIONAL                      :: close_global_unit_on_dealloc
       TYPE(cp_iteration_info_type), OPTIONAL, POINTER    :: iter_info
-      INTEGER, INTENT(in), OPTIONAL                      :: iter_print
       LOGICAL, INTENT(in), OPTIONAL                      :: close_local_unit_on_dealloc
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: suffix
       TYPE(cp_logger_type), OPTIONAL, POINTER            :: template_logger
@@ -399,15 +396,6 @@ CONTAINS
       ELSE
          CALL cp_iteration_info_create(logger%iter_info, "")
       END IF
-      ! cp2k_init should be the only instance where cp_logger_create is called
-      ! with the optional iter_print argument, whose value is from input keyword
-      ! GLOBAL/ITER_LEVEL_VERBOSITY
-      IF (PRESENT(iter_print)) THEN
-         CALL cp_logger_set_iter_print_default(iter_print)
-      END IF
-      ! Synchronize the iter_info type
-      logger%iter_info%iter_print = iter_print_default
-
    END SUBROUTINE cp_logger_create
 
 ! **************************************************************************************************
@@ -750,17 +738,6 @@ CONTAINS
       IF (PRESENT(local_filename)) logger%local_filename = local_filename
       IF (PRESENT(global_filename)) logger%global_filename = global_filename
    END SUBROUTINE cp_logger_set
-
-! **************************************************************************************************
-!> \brief set the default for iteration printing, which will be applied
-!>        to newly created loggers in the stack
-!> \param iter_print ...
-! **************************************************************************************************
-   SUBROUTINE cp_logger_set_iter_print_default(iter_print)
-      INTEGER, INTENT(IN)                                :: iter_print
-
-      iter_print_default = iter_print
-   END SUBROUTINE cp_logger_set_iter_print_default
 
 ! **************************************************************************************************
 !> \brief converts an int to a string
