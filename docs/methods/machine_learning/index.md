@@ -7,6 +7,7 @@ maxdepth: 2
 ---
 nequip
 mace
+symmetrix
 nnp
 pao-ml
 deepmd

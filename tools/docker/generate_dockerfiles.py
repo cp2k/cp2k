@@ -27,7 +27,7 @@ def main() -> None:
         f.write(regtest("toolchain", "psmp", testopts=testopts))
 
     with OutputFile(f"Dockerfile.test_generic_psmp", args.check) as f:
-        f.write(install_deps_toolchain(target_cpu="generic"))
+        f.write(install_deps_toolchain(target_cpu="generic", with_symmetrix="no"))
         f.write(regtest("toolchain_generic", "psmp"))
 
     with OutputFile(f"Dockerfile.test_openmpi-psmp", args.check) as f:
@@ -313,6 +313,7 @@ def main() -> None:
         libs = dict(
             with_libtorch="no",
             with_skala_ftorch="no",
+            with_symmetrix="no",
             with_deepmd="no",
             with_gauxc="no",
         )
@@ -643,6 +644,7 @@ FROM docker.io/{base_image}
         with_libsmeagol="",
         with_libtorch="no",
         with_skala_ftorch="no",
+        with_symmetrix="no",
         with_deepmd="no",
         with_gauxc="no",
     )

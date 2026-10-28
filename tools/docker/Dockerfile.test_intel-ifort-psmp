@@ -26,6 +26,7 @@ RUN ./install_cp2k_toolchain.sh \
     --with-libsmeagol \
     --with-libtorch=no \
     --with-skala-ftorch=no \
+    --with-symmetrix=no \
     --with-deepmd=no \
     --with-gauxc=no \
     --dry-run

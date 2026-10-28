@@ -1,0 +1,54 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT sym_h2o_virial
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+# Exercises the ghost-edge virial of the atom-decomposed evaluation. Under
+# atom decomposition each rank holds a lopsided subset of the edges, so its
+# partial virial is NOT symmetric - only the cross-rank sum is. A bug there is
+# invisible in the energy and shows up only here, which is why this test
+# carries the stress tensor explicitly.
+&FORCE_EVAL
+  METHOD FIST
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &MACE
+          ATOMS H O
+          BACKEND SYMMETRIX
+          POT_FILE_NAME Symmetrix/toy_mace-1-8.json
+        &END MACE
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &PRINT
+    &FORCES
+    &END FORCES
+    &STRESS_TENSOR
+    &END STRESS_TENSOR
+  &END PRINT
+  &SUBSYS
+    &CELL
+      ABC 9.0 9.5 10.0
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+      O  0.000  0.000  0.000
+      H  0.757  0.586  0.000
+      H -0.757  0.586  0.000
+      O  0.000  0.000  2.900
+      H  0.757  0.586  2.900
+      H -0.757  0.586  2.900
+      O  3.100  2.400  1.400
+      H  3.857  2.986  1.400
+      H  2.343  2.986  1.400
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
