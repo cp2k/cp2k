@@ -299,10 +299,10 @@ static void collocate_one_grid_level(
     // Matrix pab is re-used across tasks.
     double pab[imax(task_list->maxco * task_list->maxco, 1)];
 
-    // Ensure that grid can fit into thread-local storage, reallocate if needed.
     const int npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
     const size_t grid_size = npts_local_total * sizeof(double);
-    if (task_list->threadlocal_sizes[ithread] < grid_size) {
+    // Multiple threads need private grids; a single thread uses the output.
+    if (nthreads > 1 && task_list->threadlocal_sizes[ithread] < grid_size) {
       if (task_list->threadlocals[ithread] != NULL) {
         free(task_list->threadlocals[ithread]);
       }
@@ -310,9 +310,8 @@ static void collocate_one_grid_level(
       assert(task_list->threadlocals[ithread] != NULL);
       task_list->threadlocal_sizes[ithread] = grid_size;
     }
-
-    // Zero thread-local copy of the grid.
-    double *const my_grid = task_list->threadlocals[ithread];
+    double *const my_grid =
+        nthreads == 1 ? grid->host_buffer : task_list->threadlocals[ithread];
     memset(my_grid, 0, grid_size);
 
     // Parallelize over blocks to avoid unnecessary calls to load_pab.
@@ -416,12 +415,14 @@ static void collocate_one_grid_level(
 #pragma omp barrier
     }
 
-    // Copy final result from first thread into shared grid.
-    const int64_t lb = ((int64_t)npts_local_total * ithread) / nthreads;
-    const int64_t ub = ((int64_t)npts_local_total * (ithread + 1)) / nthreads;
-    GRID_PRAGMA_SIMD_LOOP
-    for (int i = (int)lb; i < (int)ub; i++) {
-      grid->host_buffer[i] = task_list->threadlocals[0][i];
+    if (nthreads > 1) {
+      // Copy final result from first thread into shared grid.
+      const int64_t lb = ((int64_t)npts_local_total * ithread) / nthreads;
+      const int64_t ub = ((int64_t)npts_local_total * (ithread + 1)) / nthreads;
+      GRID_PRAGMA_SIMD_LOOP
+      for (int i = (int)lb; i < (int)ub; i++) {
+        grid->host_buffer[i] = task_list->threadlocals[0][i];
+      }
     }
 
   } // end of omp parallel region
