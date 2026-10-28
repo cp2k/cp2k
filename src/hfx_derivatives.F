@@ -12,6 +12,7 @@
 !> \author Manuel Guidon
 ! **************************************************************************************************
 MODULE hfx_derivatives
+   USE r12_fundamentals, ONLY: r12_fundamentals_init
    USE admm_types, ONLY: admm_type
    USE atomic_kind_types, ONLY: atomic_kind_type, &
                                 get_atomic_kind_set
@@ -31,7 +32,6 @@ MODULE hfx_derivatives
                            dbcsr_p_type, &
                            dbcsr_type_antisymmetric
    USE four_center_integral_methods, ONLY: forces4
-   USE gamma, ONLY: init_md_ftable
    USE hfx_communication, ONLY: get_full_density
    USE hfx_compression_methods, ONLY: hfx_add_mult_cache_elements, &
                                       hfx_add_single_cache_element, &
@@ -51,7 +51,7 @@ MODULE hfx_derivatives
       hfx_cell_type, hfx_container_type, hfx_distribution, hfx_general_type, hfx_init_container, &
       hfx_load_balance_type, hfx_memory_type, hfx_p_kind, hfx_pgf_list, &
       hfx_potential_type, hfx_screen_coeff_type, hfx_screening_type, hfx_task_list_type, &
-      hfx_type, init_t_c_g0_lmax, log_zero, pair_list_type, pair_set_list_type
+      hfx_type, log_zero, pair_list_type, pair_set_list_type
    USE input_constants, ONLY: do_potential_mix_cl_trunc, &
                               do_potential_truncated, &
                               hfx_do_eval_forces
@@ -67,7 +67,6 @@ MODULE hfx_derivatives
    USE qs_environment_types, ONLY: get_qs_env, &
                                    qs_environment_type
    USE qs_force_types, ONLY: qs_force_type
-   USE t_c_g0, ONLY: init
    USE util, ONLY: sort
    USE virial_types, ONLY: virial_type
 
@@ -134,10 +133,10 @@ CONTAINS
                  jatom_start, jkind, jset, k, k_atom, katom, katom_block, katom_end, katom_start
       INTEGER :: kind_kind_idx, kkind, kset, l_atom, l_max, latom, latom_block, latom_end, &
                  latom_start, lkind, lset, max_am, max_pgf, max_set, my_bin_id, my_bin_size, my_thread_id, &
-                 n_threads, natom, nbits, ncob, ncos_max, nints, nkimages, nkind, nneighbors, nseta, &
-                 nsetb, nsgf_max, my_nspins, sgfb, shm_task_counter, shm_total_bins, sphi_a_u1, sphi_a_u2, &
+                 n_threads, natom, nbits, ncob, ncos_max, nints, nkimages, nkind, nneighbors, nseta, nsetb, &
+                 nsgf_max, my_nspins, sgfb, shm_task_counter, shm_total_bins, sphi_a_u1, sphi_a_u2, &
                  sphi_a_u3, sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_u1, sphi_c_u2, sphi_c_u3, sphi_d_u1, &
-                 sphi_d_u2, sphi_d_u3, swap_id, tmp_i4, unit_id
+                 sphi_d_u2, sphi_d_u3, swap_id, tmp_i4
       INTEGER(int_8) :: atom_block, counter, estimate_to_store_int, max_val_memory, &
                         mem_compression_counter, mem_eris, mem_max_val, my_current_counter, my_istart, &
                         n_processes, nblocks, ncpu, neris_incore, neris_onthefly, neris_tmp, neris_total, &
@@ -257,17 +256,7 @@ CONTAINS
          l_max = MAX(l_max, MAXVAL(my_x_data(1, 1)%basis_parameter(ikind)%lmax))
       END DO
       l_max = 4*l_max + 1
-      CALL init_md_ftable(l_max)
-
-      IF (my_x_data(1, 1)%potential_parameter%potential_type == do_potential_truncated .OR. &
-          my_x_data(1, 1)%potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
-         IF (l_max > init_t_c_g0_lmax) THEN
-            CALL open_file(unit_number=unit_id, file_name=my_x_data(1, 1)%potential_parameter%filename)
-            CALL init(l_max, unit_id, para_env%mepos, para_env)
-            CALL close_file(unit_id)
-            init_t_c_g0_lmax = l_max
-         END IF
-      END IF
+      CALL r12_fundamentals_init(l_max, my_x_data(1, 1)%potential_parameter, para_env)
 
       n_threads = 1
 !$    n_threads = omp_get_max_threads()

@@ -9,8 +9,8 @@
 !> \brief 3-center integrals machinery for the XAS_TDP method
 !> \author A. Bussy (03.2020)
 ! **************************************************************************************************
-
 MODULE xas_tdp_integrals
+   USE r12_fundamentals, ONLY: r12_fundamentals_init
    USE coulomb_integral_interface, ONLY: coulomb_integral_context_type, coulomb_integral_init, &
                                          coulomb_integral_cleanup, compute_coulomb_2c, compute_coulomb_3c, &
                                          compute_coulomb_2c_derivs, compute_coulomb_3c_derivs
@@ -47,7 +47,6 @@ MODULE xas_tdp_integrals
    USE eri_mme_integrate, ONLY: eri_mme_2c_integrate
    USE eri_mme_types, ONLY: eri_mme_init, &
                             eri_mme_release
-   USE gamma, ONLY: init_md_ftable
    USE generic_os_integrals, ONLY: int_operators_r12_ab_os
    USE input_constants, ONLY: do_potential_coulomb, &
                               do_potential_id, &
@@ -87,8 +86,6 @@ MODULE xas_tdp_integrals
                            o3c_iterator_release, &
                            o3c_iterator_type, &
                            release_o3c_container
-   USE t_c_g0, ONLY: get_lmax_init, &
-                     init
    USE xas_tdp_types, ONLY: xas_tdp_control_type, &
                             xas_tdp_env_type
 #if defined(__LIBXS)
@@ -290,7 +287,7 @@ CONTAINS
 
       INTEGER :: egfa, egfb, egfc, handle, i, iatom, ibasis, ikind, ilist, imax, iset, jatom, &
          jkind, jset, katom, kkind, kset, m_max, max_nset, maxli, maxlj, maxlk, mepos, nbasis, &
-         ncoa, ncob, ncoc, ni, nj, nk, nseta, nsetb, nsetc, nthread, sgfa, sgfb, sgfc, unit_id
+         ncoa, ncob, ncoc, ni, nj, nk, nseta, nsetb, nsetc, nthread, sgfa, sgfb, sgfc
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, lc_max, &
                                                             lc_min, npgfa, npgfb, npgfc, nsgfa, &
                                                             nsgfb, nsgfc
@@ -466,24 +463,8 @@ CONTAINS
       my_sort_bc = .FALSE.
       IF (PRESENT(only_bc_same_center)) my_sort_bc = only_bc_same_center
 
-      !Init the truncated Coulomb operator
       CALL get_qs_env(qs_env, para_env=para_env)
-      IF (potential_parameter%potential_type == do_potential_truncated) THEN
-
-         !open the file only if necessary
-         IF (m_max > get_lmax_init()) THEN
-            IF (para_env%mepos == 0) THEN
-               CALL open_file(unit_number=unit_id, file_name=potential_parameter%filename)
-            END IF
-            CALL init(m_max, unit_id, para_env%mepos, para_env)
-            IF (para_env%mepos == 0) THEN
-               CALL close_file(unit_id)
-            END IF
-         END IF
-      END IF
-
-      !Inint the initial gamma function before the OMP region as it is not thread safe
-      CALL init_md_ftable(nmax=m_max)
+      CALL r12_fundamentals_init(m_max, potential_parameter, para_env)
 
       !Strategy: we use the o3c iterator because it is OMP parallelized and also takes the
       !          only_bc_same_center argument. Only the dbcsr_put_block is critical
@@ -1254,7 +1235,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       INTEGER                                            :: egfp, egfq, maxl, ncop, ncoq, nset, &
-                                                            nsgf, pset, qset, sgfp, sgfq, unit_id
+                                                            nsgf, pset, qset, sgfp, sgfq
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf_set, nsgf_set
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf
       REAL(dp)                                           :: r(3)
@@ -1288,19 +1269,7 @@ CONTAINS
       CALL coulomb_integral_init(integral_context, max_am_2c=maxl, &
                                  derivative_order=0, library=library_libint)
 
-      !make sure the truncted coulomb is initialized
-      IF (xas_tdp_control%ri_m_potential%potential_type == do_potential_truncated) THEN
-
-         IF (2*maxl + 1 > get_lmax_init()) THEN
-            IF (para_env%mepos == 0) THEN
-               CALL open_file(unit_number=unit_id, file_name=xas_tdp_control%ri_m_potential%filename)
-            END IF
-            CALL init(2*maxl + 1, unit_id, para_env%mepos, para_env)
-            IF (para_env%mepos == 0) THEN
-               CALL close_file(unit_id)
-            END IF
-         END IF
-      END IF
+      CALL r12_fundamentals_init(2*maxl + 1, xas_tdp_control%ri_m_potential, para_env)
 
 !  Compute the RI metric
       DO pset = 1, nset
@@ -1340,19 +1309,7 @@ CONTAINS
 
       END IF
 
-      !make sure the truncted coulomb is initialized
-      IF (xas_tdp_control%x_potential%potential_type == do_potential_truncated) THEN
-
-         IF (2*maxl + 1 > get_lmax_init()) THEN
-            IF (para_env%mepos == 0) THEN
-               CALL open_file(unit_number=unit_id, file_name=xas_tdp_control%x_potential%filename)
-            END IF
-            CALL init(2*maxl + 1, unit_id, para_env%mepos, para_env)
-            IF (para_env%mepos == 0) THEN
-               CALL close_file(unit_id)
-            END IF
-         END IF
-      END IF
+      CALL r12_fundamentals_init(2*maxl + 1, xas_tdp_control%x_potential, para_env)
 
 !  Compute the proper exchange 2-center
       ALLOCATE (pq(nsgf, nsgf))

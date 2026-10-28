@@ -30,9 +30,6 @@ MODULE gw_auto_ri_generate_RI_basis
         dbcsr_distribution_type, dbcsr_finalize, dbcsr_put_block, dbcsr_release, dbcsr_type, &
         dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-   USE cp_files,                        ONLY: close_file,&
-                                              discover_file,&
-                                              open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_syrk,&
                                               cp_fm_uplo_to_full
@@ -61,8 +58,7 @@ MODULE gw_auto_ri_generate_RI_basis
    USE integral_library_types,          ONLY: active_integral_library,&
                                               coulomb_operator_type,&
                                               library_libint
-   USE kinds,                           ONLY: default_path_length,&
-                                              dp
+   USE kinds,                           ONLY: dp
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_HOST,&
                                               local_gemm_ctxt_type
    USE machine,                         ONLY: m_walltime
@@ -74,8 +70,7 @@ MODULE gw_auto_ri_generate_RI_basis
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE t_c_g0,                          ONLY: get_lmax_init,&
-                                              init_t_c_g0 => init
+   USE r12_fundamentals,                ONLY: r12_fundamentals_init
    USE util,                            ONLY: sort
 #include "base/base_uses.f90"
 
@@ -2393,9 +2388,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_auto_ri_integrals'
 
-      CHARACTER(LEN=default_path_length)                 :: table_file
       INTEGER                                            :: handle, ikind, max_ao_l, max_l, &
-                                                            max_ri_l, table_lmax, unit_id
+                                                            max_ri_l, table_lmax
 
       CALL timeset(routineN, handle)
 
@@ -2419,15 +2413,7 @@ CONTAINS
       IF (bs_env%ri_metric%potential_type == do_potential_truncated) THEN
          ! Cover both the RI-RI two-center and AO-AO-RI three-center kernels.
          table_lmax = MAX(2*max_ri_l + 1, 2*max_ao_l + max_ri_l)
-         IF (get_lmax_init() < table_lmax) THEN
-            unit_id = -1
-            IF (bs_env%para_env%is_source()) THEN
-               table_file = discover_file(bs_env%ri_metric%filename)
-               CALL open_file(unit_number=unit_id, file_name=TRIM(table_file))
-            END IF
-            CALL init_t_c_g0(table_lmax, unit_id, bs_env%para_env%mepos, bs_env%para_env)
-            IF (bs_env%para_env%is_source()) CALL close_file(unit_id)
-         END IF
+         CALL r12_fundamentals_init(table_lmax, bs_env%ri_metric, bs_env%para_env)
       END IF
 
       CALL timestop(handle)

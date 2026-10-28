@@ -56,8 +56,7 @@ MODULE mp2_types
              mp2_ri_optimize_basis, &
              ri_mp2_method_gpw, &
              ri_rpa_method_gpw, &
-             ri_mp2_laplace, &
-             init_TShPSC_lmax
+             ri_mp2_laplace
 
    PUBLIC :: mp2_env_create, &
              mp2_env_release, &
@@ -68,8 +67,6 @@ MODULE mp2_types
              one_dim_real_array, &
              two_dim_real_array, &
              three_dim_real_array
-
-   INTEGER, SAVE :: init_TShPSC_lmax = -1
 
 ! TYPE definitions
 

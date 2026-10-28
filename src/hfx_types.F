@@ -89,7 +89,6 @@ MODULE hfx_types
         distribution_3d_create, distribution_3d_destroy, distribution_3d_type, pgf_block_sizes, &
         split_block_sizes
    USE string_utilities,                ONLY: compress
-   USE t_c_g0,                          ONLY: free_C0
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -110,7 +109,7 @@ MODULE hfx_types
              hfx_reset_memory_usage_counter, pair_list_type, pair_list_element_type, &
              pair_set_list_type, hfx_p_kind, hfx_2D_map, hfx_pgf_list, &
              hfx_block_range_type, &
-             alloc_containers, dealloc_containers, hfx_task_list_type, init_t_c_g0_lmax, &
+             alloc_containers, dealloc_containers, hfx_task_list_type, &
              hfx_create_neighbor_cells, hfx_create_basis_types, hfx_release_basis_types, &
              hfx_ri_type, hfx_compression_type, block_ind_type, hfx_ri_init, hfx_ri_release, &
              compare_hfx_sections
@@ -135,8 +134,6 @@ MODULE hfx_types
                                                              2.0317_dp, &
                                                              2.1261_dp, &
                                                              2.2165_dp]
-
-   INTEGER, SAVE                                         :: init_t_c_g0_lmax = -1
 
 !***
 
@@ -1929,11 +1926,6 @@ CONTAINS
       n_rep_hf = x_data(1, 1)%n_rep_hf
       n_threads = SIZE(x_data, 2)
 
-      IF (x_data(1, 1)%potential_parameter%potential_type == do_potential_truncated .OR. &
-          x_data(1, 1)%potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
-         init_t_c_g0_lmax = -1
-         CALL free_C0()
-      END IF
       DO i_thread = 1, n_threads
          DO irep = 1, n_rep_hf
             actual_x_data => x_data(irep, i_thread)
