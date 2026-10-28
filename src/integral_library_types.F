@@ -46,6 +46,9 @@ MODULE integral_library_types
       REAL(dp)                       :: scale_gaussian = 0.0_dp ! Gaussian coefficient in mixed operators
    END TYPE coulomb_operator_type
 
+   ! Enlarge the support slightly when screening the discontinuous truncated Coulomb operator.
+   REAL(dp), PARAMETER, PUBLIC :: cutoff_screen_factor = 1.0001_dp
+
    TYPE(integral_library_type), SAVE, PUBLIC :: active_integral_library = integral_library_type()
 
    PUBLIC :: compare_potential_types, integral_library_init

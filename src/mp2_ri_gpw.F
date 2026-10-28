@@ -22,9 +22,9 @@ MODULE mp2_ri_gpw
                                               group_dist_d1_type,&
                                               maxsize,&
                                               release_group_dist
+   USE integral_library_types,          ONLY: compare_potential_types
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE libint_2c_3c,                    ONLY: compare_potential_types
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU
    USE machine,                         ONLY: m_flush,&
                                               m_memory,&

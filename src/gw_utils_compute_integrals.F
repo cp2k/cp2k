@@ -27,10 +27,10 @@ MODULE gw_utils_compute_integrals
                                               do_potential_id,&
                                               do_potential_short,&
                                               do_potential_truncated
+   USE integral_library_types,          ONLY: coulomb_operator_type,&
+                                              cutoff_screen_factor
    USE kinds,                           ONLY: dp
-   USE libint_2c_3c,                    ONLY: cutoff_screen_factor,&
-                                              eri_3center,&
-                                              libint_potential_type
+   USE libint_2c_3c,                    ONLY: eri_3center
    USE libint_wrapper,                  ONLY: cp_libint_cleanup_3eri,&
                                               cp_libint_init_3eri,&
                                               cp_libint_set_contrdepth,&
@@ -64,7 +64,7 @@ MODULE gw_utils_compute_integrals
 !>        region; creation is MPI-collective when the potential is truncated.
 ! **************************************************************************************************
    TYPE gw_3c_ctx_type
-      TYPE(libint_potential_type)                        :: potential_parameter = libint_potential_type()
+      TYPE(coulomb_operator_type)                        :: potential_parameter = coulomb_operator_type()
       INTEGER                                            :: op_ij = do_potential_id, &
                                                             op_jk = do_potential_id
       REAL(KIND=dp)                                      :: dr_ij = 0.0_dp, dr_jk = 0.0_dp, &
@@ -107,7 +107,7 @@ CONTAINS
    SUBROUTINE gw_3c_ctx_create(ctx, bs_env, potential_parameter, basis_j, basis_k, basis_i)
       TYPE(gw_3c_ctx_type), INTENT(OUT)                  :: ctx
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_j, basis_k, basis_i
 
       CPASSERT(ASSOCIATED(bs_env%ri_rs%atomic_kind_set))
@@ -136,7 +136,7 @@ CONTAINS
    SUBROUTINE gw_3c_ctx_create_core(ctx, potential_parameter, basis_j, basis_k, basis_i, &
                                     atomic_kind_set, cell, natom, para_env, particle_set)
       TYPE(gw_3c_ctx_type), INTENT(OUT)                  :: ctx
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_j, basis_k, basis_i
       TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: atomic_kind_set
@@ -506,7 +506,7 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(:, :, :)                  :: int_3c
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_j, basis_k, basis_i
       INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: cell_j, cell_k, cell_i
       INTEGER, INTENT(IN), OPTIONAL                      :: atom_j, atom_k, atom_i

@@ -30,8 +30,8 @@ MODULE mp2_ri_grad_util
                                               get_group_dist,&
                                               group_dist_d1_type,&
                                               release_group_dist
+   USE integral_library_types,          ONLY: compare_potential_types
    USE kinds,                           ONLY: dp
-   USE libint_2c_3c,                    ONLY: compare_potential_types
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm

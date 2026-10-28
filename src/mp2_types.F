@@ -29,9 +29,9 @@ MODULE mp2_types
         wfc_mm_style_gemm
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type
+   USE integral_library_types,          ONLY: coulomb_operator_type
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
-   USE libint_2c_3c,                    ONLY: libint_potential_type
    USE local_gemm_api,                  ONLY: local_gemm_ctxt_type
    USE matrix_communication,            ONLY: integ_mat_buffer_type => matrix_buffer_type
    USE message_passing,                 ONLY: mp_request_type
@@ -316,7 +316,7 @@ MODULE mp2_types
       INTEGER                                            :: method = mp2_method_none
       TYPE(mp2_laplace_type)                             :: ri_laplace = mp2_laplace_type()
       TYPE(mp2_direct_type)                              :: direct_canonical = mp2_direct_type()
-      TYPE(libint_potential_type)                        :: potential_parameter = libint_potential_type()
+      TYPE(coulomb_operator_type)                        :: potential_parameter = coulomb_operator_type()
       TYPE(mp2_gpw_type)                                 :: mp2_gpw = mp2_gpw_type()
       TYPE(ri_mp2_type)                                  :: ri_mp2 = ri_mp2_type()
       TYPE(ri_rpa_type)                                  :: ri_rpa = ri_rpa_type()
@@ -385,7 +385,7 @@ MODULE mp2_types
       LOGICAL                                            :: do_svd = .FALSE.
       REAL(KIND=dp)                                      :: eps_svd = -1.0_dp
       REAL(KIND=dp)                                      :: eps_range = 0.0_dp
-      TYPE(libint_potential_type)                        :: ri_metric = libint_potential_type()
+      TYPE(coulomb_operator_type)                        :: ri_metric = coulomb_operator_type()
       TYPE(local_gemm_ctxt_type)                         :: local_gemm_ctx = local_gemm_ctxt_type()
       REAL(dp)                                           :: e_gap = 0.0_dp, &
                                                             e_range = 0.0_dp
