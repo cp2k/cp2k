@@ -5,10 +5,10 @@
 #      for details see cp2k/tools/do_regtest
 # tests GAPW GTH and ALL
 #XAS
-"CO.inp"                     = [{matcher = "E_total", tol = 8e-14, ref = -110.24233125201312}]
-"CO_xastphh.inp"             = [{matcher = "E_total", tol = 1e-13, ref = -100.25171072116430}]
-"CO_xastphh_r.inp"           = [{matcher = "E_total", tol = 1e-13, ref = -90.51322995242667}]
-"CO_xastpfh.inp"             = [{matcher = "E_total", tol = 6e-14, ref = -79.09997117400218}]
+"CO.inp"                     = [{matcher = "E_total", tol = 8e-14, ref = -110.24233133673286}]
+"CO_xastphh.inp"             = [{matcher = "E_total", tol = 1e-13, ref = -100.25171081307207}]
+"CO_xastphh_r.inp"           = [{matcher = "E_total", tol = 1e-13, ref = -90.51323027110422}]
+"CO_xastpfh.inp"             = [{matcher = "E_total", tol = 6e-14, ref = -79.09997152385107}]
 # multiple initial state
 "CH3SH_xastpfh_overlap.inp"  = [{matcher = "E_total", tol = 5e-7, ref = -430.51922534155161}]
 # choice of initial state from input
@@ -19,9 +19,9 @@
 "c8_broy_gapw_all.inp"       = [{matcher = "E_total", tol = 5e-09, ref = -302.9969250529296}]
 "c8_broy_gapw_all_xashh.inp" = [{matcher = "E_total", tol = 8e-08, ref = -298.17300596543265}]
 # different scf_env
-"CO_xastpfh_gsot.inp"        = [{matcher = "E_total", tol = 8e-14, ref = -79.09997113686542}]
+"CO_xastpfh_gsot.inp"        = [{matcher = "E_total", tol = 8e-14, ref = -79.0999714867143}]
 # XAS TP choice of core occ from input
-"CO_xastpflex.inp"           = [{matcher = "E_total", tol = 1e-13, ref = -104.77564814878426}]
+"CO_xastpflex.inp"           = [{matcher = "E_total", tol = 1e-13, ref = -104.77564824188175}]
 "CO_xastpflex_c0.3l0.7.inp"  = [{matcher = "E_total", tol = 1e-05, ref = -96.350590808933305}]
-"CO_xastpflex_c0.3.inp"      = [{matcher = "E_total", tol = 1e-13, ref = -96.243337525982160}]
+"CO_xastpflex_c0.3.inp"      = [{matcher = "E_total", tol = 1e-13, ref = -96.24333761975146}]
 #EOF

@@ -8,19 +8,19 @@
   {matcher = "E_total", tol = 1e-11, ref = -17.08906866058686},
 ]
 "H2O-ls-emd-ewindow.inp"               = [
-  {matcher = "M067", tol = 9e-9, ref = 2.23001754e-06},
+  {matcher = "M067", tol = 9e-9, ref = 2.23001691e-06},
 ]
 "H2O-ls-emd-ngs.inp"                   = [
-  {matcher = "E_total", tol = 2e-14, ref = -17.05272806062355},
+  {matcher = "E_total", tol = 2e-14, ref = -17.05272806226498},
 ]
 "H2O-ls-rtp-bch.inp"                   = [
-  {matcher = "E_total", tol = 3e-14, ref = -17.08907706662020},
+  {matcher = "E_total", tol = 3e-14, ref = -17.08907706646883},
 ]
 "H2O-ls-rtp.inp"                       = [
-  {matcher = "E_total", tol = 6e-14, ref = -17.08907732641304},
+  {matcher = "E_total", tol = 6e-14, ref = -17.08907732626163},
 ]
 "H2O-ls-rtp-scf-restart.inp"           = [
-  {matcher = "E_total", tol = 6e-14, ref = -17.08907732641303},
+  {matcher = "E_total", tol = 6e-14, ref = -17.08907732626164},
 ]
 "H2O-ls-emd-scf-restart.inp"           = [
   {matcher = "E_total", tol = 1e-11, ref = -17.08906866058683},
@@ -31,20 +31,20 @@
 "H2O-ls-emd-mcweeny-rt-restart.inp"    = [
   {matcher = "E_total", tol = 1e-11, ref = -17.08905987313443},
 ]
-"emd-KG.inp"                           = [{matcher = "E_total", tol = 1e-14, ref = -18.11820186591314}]
+"emd-KG.inp"                           = [{matcher = "E_total", tol = 1e-14, ref = -18.11820186630566}]
 "H2plus-ls-rtp.inp"                    = [
-  {matcher = "E_total", tol = 2e-12, ref = -0.52809706445746},
+  {matcher = "E_total", tol = 2e-12, ref = -0.52809706552278},
 ]
 "H2plus-ls-rtp2.inp"                   = [
-  {matcher = "E_total", tol = 3e-13, ref = -0.53624161700164},
+  {matcher = "E_total", tol = 3e-13, ref = -0.53624161821568},
 ]
 "H2O-ls-emd-mixing.inp"                = [
   {matcher = "E_total", tol = 3e-11, ref = -17.08894042167865},
 ]
 "Ar_mixed_aa_planar-rtp-osc-field.inp" = [
-  {matcher = "E_total", tol = 8e-13, ref = -21.07372556817139},
+  {matcher = "E_total", tol = 8e-13, ref = -21.07372556814493},
 ]
 "H2O2-emd-overlap-second-deriv.inp"    = [
-  {matcher = "M072", tol = 1e-8, ref = 0.901511984},
+  {matcher = "M072", tol = 1e-8, ref = 0.901511944},
 ]
 #EOF

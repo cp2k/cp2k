@@ -23,7 +23,8 @@ this tool to a particular radial binning convention.
 
 ## Build and run
 
-The tool is standalone and requires a Fortran 2008 compiler. It does not have to be linked to CP2K.
+The tool is standalone and requires a Fortran 2008 compiler. Its source contains the CODATA-2022
+length conversion; it can be built independently of the CP2K source tree.
 
 ```console
 make

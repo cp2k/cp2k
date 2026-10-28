@@ -15,6 +15,9 @@ MODULE trajana_twopt3d_analysis
                                               get_option,&
                                               get_real_option,&
                                               has_flag
+   USE trajana_constants,               ONLY: angstrom,&
+                                              c_light,&
+                                              picoseconds
    USE trajana_cube_io,                 ONLY: write_cube
    USE trajana_fft,                     ONLY: fft_any_in_place
    USE trajana_frame_controls,          ONLY: frame_selected
@@ -45,8 +48,8 @@ MODULE trajana_twopt3d_analysis
    IMPLICIT NONE
    PRIVATE
 
-   REAL(dp), PARAMETER :: bohr_per_atomic_time_to_angstrom_per_ps = 21876.91263641118_dp
-   REAL(dp), PARAMETER :: light_speed_cm_s = 2.99792458E10_dp
+   REAL(dp), PARAMETER :: bohr_per_atomic_time_to_angstrom_per_ps = angstrom/picoseconds
+   REAL(dp), PARAMETER :: light_speed_cm_s = 100.0_dp*c_light
 
    PUBLIC :: print_twopt3d_help, run_twopt3d
 

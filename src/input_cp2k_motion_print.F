@@ -112,7 +112,7 @@ CONTAINS
                                        "The default unit for the atomic velocities $v$ is bohr/au_time. "// &
                                        "The kinetic energy $K_i$ in [hartree] of an atom $i$ with mass $m_i$ in "// &
                                        "atomic mass units [amu] (or just [u]) and velocity $v_i$ can be obtained by "// &
-                                       "$K_i = \frac{1}{2}f_u\,m_i\,v_i^2$ with $f_u = 1822.888$ as conversion factor "// &
+                                       "$K_i = \frac{1}{2}f_u\,m_i\,v_i^2$ with $f_u = m_u/m_e$ as conversion factor "// &
                                        "from [u] to [a.u.]. $f_u$ is printed in full precision in the top of the CP2K "// &
                                        "output for print level MEDIUM or higher.", &
                                        print_level=high_print_level, common_iter_levels=1, &

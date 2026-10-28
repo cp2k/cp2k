@@ -513,6 +513,7 @@ class InputTests(unittest.TestCase):
         # are tangent to xi. Twice differentiating the constraint gives the
         # CP2K-sign multiplier (v_rel1,perp^2/r1-v_rel2,perp^2/r2)/Z_electron_mass.
         # The first SHAKE sample differs by the finite timestep and log rounding.
+        # The archived CP2K 2026.1 trajectory was generated with CODATA 2006.
         amu_per_electron_mass = 1.660538782e-27 / 9.10938215e-31
         lambda_initial = (5e-8 / r1[0] - 9.5625e-8 / r2[0]) / (
             z[0] / amu_per_electron_mass

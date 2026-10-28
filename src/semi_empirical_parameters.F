@@ -699,6 +699,9 @@ CONTAINS
 
       REAL(KIND=dp), PARAMETER                           :: Ang = 0.529167_dp, eV = 27.21_dp
 
+! Historical unit conventions of the PNNL parameterisation. The ratios below convert
+! those fitted parameters to CP2K units; retain these values when physcon is updated.
+
       sep%typ = do_method_pnnl
       sep%name = ptable(z)%name
       sep%eheat = ptable(z)%heat_of_formation/kcalmol

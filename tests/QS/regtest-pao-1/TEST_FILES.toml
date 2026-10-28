@@ -1,5 +1,5 @@
 # All pao methods should reproduce the reference energy
-"H2_ref.inp"                    = [{matcher = "M011", tol = 9e-14, ref = -1.160920966916433}]
+"H2_ref.inp"                    = [{matcher = "M011", tol = 9e-14, ref = -1.16092096688693}]
 "H2_pao_exp.inp"                = [{matcher = "M011", tol = 1e-07, ref = -1.160920966911983}]
 "H2_pao_fock.inp"               = [{matcher = "M011", tol = 1e-07, ref = -1.160920966911983}]
 "H2_pao_rotinv.inp"             = [{matcher = "M011", tol = 1e-07, ref = -1.160920966911983}]

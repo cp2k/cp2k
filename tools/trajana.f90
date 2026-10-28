@@ -21,7 +21,6 @@
   INTEGER :: iu_outfile = 35
   INTEGER :: iu_todofile = 45
   INTEGER :: nframes
-  DOUBLE PRECISION, PARAMETER :: au2ang = 0.5291772
   INTEGER, DIMENSION (1000,5) :: actiontype
   INTEGER :: nactions
   INTEGER :: iostatus
@@ -360,7 +359,8 @@ CONTAINS
     INTEGER, DIMENSION(1000,5), INTENT(IN) :: actiontype
     DOUBLE PRECISION, DIMENSION (1000) :: results
     DOUBLE PRECISION, DIMENSION (3,natoms) :: xyz
-    DOUBLE PRECISION, PARAMETER :: au2ang = 0.5291772
+    ! CODATA 2022: https://doi.org/10.1103/RevModPhys.97.025002
+    DOUBLE PRECISION, PARAMETER :: au2ang = 1.0D10*5.29177210544D-11
     DOUBLE PRECISION, PARAMETER :: rad2deg = 57.29578
     DOUBLE PRECISION, DIMENSION (3,8) :: dummyvec
     INTEGER :: iframe, iaction, I, K, iatom, J

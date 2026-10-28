@@ -22,7 +22,6 @@ def parse_args():
     return parser.parse_args()
 
 
-# hbar = 6.6260689 * 10**-34 / (2 * np.pi)
 hbar = 1  # a.u.
 
 dirs = ["x", "y", "z"]

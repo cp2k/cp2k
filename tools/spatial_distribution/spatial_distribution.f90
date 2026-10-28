@@ -14,7 +14,8 @@ MODULE spatial_distribution_types
    INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND(14, 200)
    INTEGER, PARAMETER :: path_length = 512
    INTEGER, PARAMETER :: label_length = 64
-   REAL(KIND=dp), PARAMETER :: angstrom_to_bohr = 1.0_dp/0.529177210903_dp
+   ! CODATA 2022: https://doi.org/10.1103/RevModPhys.97.025002
+   REAL(KIND=dp), PARAMETER :: angstrom_to_bohr = 1.0_dp/(1.0E10_dp*5.29177210544E-11_dp)
 
    TYPE reference_type
       INTEGER :: origin = 0

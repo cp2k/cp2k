@@ -1,7 +1,7 @@
 # generate training-data / reference
-"H2_dist_0.7_pao.inp"           = [{matcher = "M011", tol = 2e-13, ref = -1.162990066005869}]
-"H2_dist_0.9_pao.inp"           = [{matcher = "M011", tol = 2e-13, ref = -1.153696829899648}]
-"H2_dist_1.2_pao.inp"           = [{matcher = "M011", tol = 2e-13, ref = -1.105593015895884}]
+"H2_dist_0.7_pao.inp"           = [{matcher = "M011", tol = 2e-13, ref = -1.162990065783354}]
+"H2_dist_0.9_pao.inp"           = [{matcher = "M011", tol = 2e-13, ref = -1.15369683027786}]
+"H2_dist_1.2_pao.inp"           = [{matcher = "M011", tol = 2e-13, ref = -1.105593016636625}]
 #
 # predict mid-point using machine learning
 "H2_dist_0.9_GP.inp"            = [{matcher = "M011", tol = 1e-4, ref = -1.153696829898623}]

@@ -1,11 +1,11 @@
 # MD with wavefunction extrapolation methods
-"wfn_ex1.inp" = [{matcher = "M003", tol = 5e-14, ref = -636.12635377881054}]
-"wfn_ex2.inp" = [{matcher = "M003", tol = 3e-14, ref = -636.12635360967624}]
-"wfn_ex3.inp" = [{matcher = "M003", tol = 3e-14, ref = -636.12635356503336}]
-"wfn_ex4.inp" = [{matcher = "M003", tol = 3e-14, ref = -636.12635359100534}]
+"wfn_ex1.inp" = [{matcher = "M003", tol = 5e-14, ref = -636.1263536029901}]
+"wfn_ex2.inp" = [{matcher = "M003", tol = 3e-14, ref = -636.1263534338499}]
+"wfn_ex3.inp" = [{matcher = "M003", tol = 3e-14, ref = -636.1263533892135}]
+"wfn_ex4.inp" = [{matcher = "M003", tol = 3e-14, ref = -636.1263534151852}]
 # EWALD with LSD
-"H2O-4.inp"   = [{matcher = "M003", tol = 4e-11, ref = -636.04298707893065}]
+"H2O-4.inp"   = [{matcher = "M003", tol = 4e-11, ref = -636.042986920079}]
 # NDDO Stress tensor
-"LiH.inp"     = [{matcher = "M031", tol = 1.0E-10, ref = 102436.858834}]
+"LiH.inp"     = [{matcher = "M031", tol = 1.0E-10, ref = 102436.875033}]
 # PERIODIC NDDO
 #EOF

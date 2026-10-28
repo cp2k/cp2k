@@ -4,4 +4,4 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #
-"H28_k.inp" = [{matcher = "E_total", tol = 1e-9, ref = -13.31730669072749}]
+"H28_k.inp" = [{matcher = "E_total", tol = 1e-9, ref = -13.31730553203996}]

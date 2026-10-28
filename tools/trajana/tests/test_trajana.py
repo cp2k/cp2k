@@ -1132,7 +1132,9 @@ class TrajectoryToolTests(unittest.TestCase):
             spectrum_values = data_lines(spectrum)
             self.assertGreater(spectrum_values[0][3], 0.0)
             self.assertGreater(sum(row[3] for row in spectrum_values[1:]), 0.0)
-            self.assertAlmostEqual(spectrum_values[1][2], 4.135667696 * 500.0)
+            self.assertAlmostEqual(
+                spectrum_values[1][2], 1.0e15 * 6.62607015e-34 / 1.602176634e-19 * 500.0
+            )
 
     def test_hbond_and_dynamic_structure_factor(self):
         with tempfile.TemporaryDirectory() as directory:
