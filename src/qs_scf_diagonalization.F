@@ -3291,7 +3291,7 @@ CONTAINS
                   CYCLE
                END IF
                CALL lanczos_refine_channel(kp, ispin, scf_env, my_check_moconv_only, eps_iter, &
-                                           eps_iter_empty, max_iter, workspace(1), output_unit, .FALSE.)
+                                           eps_iter_empty, max_iter, workspace(1), output_unit, .TRUE.)
             END DO
          END DO
       ELSE
