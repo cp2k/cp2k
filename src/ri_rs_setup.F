@@ -18,6 +18,7 @@ MODULE ri_rs_setup
    USE basis_set_types,                 ONLY: get_gto_basis_set
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
+   USE coulomb_integral_interface,      ONLY: compute_coulomb_3c
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -42,7 +43,6 @@ MODULE ri_rs_setup
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp,&
                                               max_line_length
-   USE libint_2c_3c,                    ONLY: eri_3center
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE message_passing,                 ONLY: mp_mem_avail_per_rank_GB,&
@@ -2763,13 +2763,10 @@ CONTAINS
                IF (ncoj*ncok*ncoi <= 0) CYCLE
                ALLOCATE (sijk(ncoj, ncok, ncoi), source=0.0_dp)
                CALL timeset(routineN//'_eri', handle_eri)
-               CALL eri_3center(sijk, &
-                                lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), &
-                                rpgf_j(:, jset), rj, &
-                                lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), &
-                                rpgf_k(:, kset), rk, l, l, npgf_group, zet_group, &
-                                rpgf_group, ri, djk, dij, dik, ws%lib, ctx%potential_parameter, &
-                                int_abc_ext=sijk_ext)
+               CALL compute_coulomb_3c(ws%integrals, lmin_j(jset), lmax_j(jset), lmin_k(kset), lmax_k(kset), l, l, &
+                                   npgfj(jset), npgfk(kset), npgf_group, zetj(:, jset), zetk(:, kset), zet_group, rpgf_j(:, jset), &
+                                       rpgf_k(:, kset), rpgf_group, rj, rk, ri, sijk, ctx%potential_parameter, dab=djk, dac=dij, &
+                                       dbc=dik, int_abc_ext=sijk_ext)
                CALL timestop(handle_eri)
                ALLOCATE (sijk_contr(nsgfj(jset), nsgfk(kset), ncol))
                CALL timeset(routineN//'_contract', handle_contract)

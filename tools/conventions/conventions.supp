@@ -188,9 +188,7 @@ xyz2dcd.F: Found WRITE statement with hardcoded unit in "abort_program" https://
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "print_help" https://cp2k.org/conv#c012
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "xyz2dcd" https://cp2k.org/conv#c012
 
-# Current GFortran AST false positives: the ELPA imports have ONLY clauses, and
-# the Libint engines in the Coulomb context are initialized explicitly.
-coulomb_integral_interface.F: Found type coulomb_integral_context_type without initializer https://cp2k.org/conv#c016
+# Current GFortran AST false positives: the ELPA imports have ONLY clauses.
 cp_cfm_elpa.F: Module "elpa" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 cp_cfm_elpa.F: Module "elpa_constants" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 

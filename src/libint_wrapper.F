@@ -339,18 +339,16 @@ CONTAINS
 !> \param n_a ...
 !> \param lib ...
 !> \param p_work ...
-!> \param a_mysize ...
 ! **************************************************************************************************
-   SUBROUTINE cp_libint_get_eris(n_d, n_c, n_b, n_a, lib, p_work, a_mysize)
+   SUBROUTINE cp_libint_get_eris(n_d, n_c, n_b, n_a, lib, p_work)
       INTEGER, INTENT(IN)                                :: n_d, n_c, n_b, n_a
       TYPE(cp_libint_t)                                  :: lib
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
-      INTEGER, INTENT(IN)                                :: a_mysize(1)
 
 #if(__LIBINT)
       CALL build_eri_kernel(lib, libint2_build_eri, [n_d, n_c, n_b, n_a], "4-center ERI")
 
-      CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=a_mysize)
+      CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=[nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d)])
 #else
       MARK_USED(n_d)
       MARK_USED(n_c)
@@ -358,7 +356,6 @@ CONTAINS
       MARK_USED(n_a)
       MARK_USED(lib)
       MARK_USED(p_work)
-      MARK_USED(a_mysize)
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
 
@@ -371,25 +368,22 @@ CONTAINS
 !> \param n_a ...
 !> \param lib ...
 !> \param p_work ...
-!> \param a_mysize ...
 ! **************************************************************************************************
-   SUBROUTINE cp_libint_get_3eris(n_c, n_b, n_a, lib, p_work, a_mysize)
+   SUBROUTINE cp_libint_get_3eris(n_c, n_b, n_a, lib, p_work)
       INTEGER, INTENT(IN)                                :: n_c, n_b, n_a
       TYPE(cp_libint_t)                                  :: lib
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
-      INTEGER, INTENT(IN)                                :: a_mysize(1)
 
 #if(__LIBINT)
       CALL build_eri_kernel(lib, libint2_build_3eri, [n_c, n_b, n_a], "3-center ERI")
 
-      CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=a_mysize)
+      CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=[nco(n_a)*nco(n_b)*nco(n_c)])
 #else
       MARK_USED(n_c)
       MARK_USED(n_b)
       MARK_USED(n_a)
       MARK_USED(lib)
       MARK_USED(p_work)
-      MARK_USED(a_mysize)
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
 
@@ -401,20 +395,19 @@ CONTAINS
 !> \param n_b ...
 !> \param n_a ...
 !> \param lib ...
-!> \param p_work first a_mysize(1) rows and 6 columns receive Cartesian derivative triplets
-!> \param a_mysize ...
+!> \param p_work leading Cartesian block rows and 6 columns receive Cartesian derivative triplets
 ! **************************************************************************************************
-   SUBROUTINE cp_libint_get_3eri_derivs(n_c, n_b, n_a, lib, p_work, a_mysize)
+   SUBROUTINE cp_libint_get_3eri_derivs(n_c, n_b, n_a, lib, p_work)
       INTEGER, INTENT(IN)                                :: n_c, n_b, n_a
       TYPE(cp_libint_t)                                  :: lib
-      INTEGER, INTENT(IN)                                :: a_mysize(1)
       REAL(dp), DIMENSION(:, :), INTENT(OUT)              :: p_work
 
 #if(__LIBINT)
       REAL(dp), DIMENSION(:), POINTER                    :: p_work_tmp
-      INTEGER :: i
+      INTEGER :: i, ncart
 
-      CPASSERT(SIZE(p_work, 1) >= a_mysize(1))
+      ncart = nco(n_a)*nco(n_b)*nco(n_c)
+      CPASSERT(SIZE(p_work, 1) >= ncart)
       CPASSERT(SIZE(p_work, 2) >= 6)
 
       CALL build_eri_kernel(lib, libint2_build_3eri1, [n_c, n_b, n_a], "3-center ERI derivative")
@@ -422,8 +415,8 @@ CONTAINS
       !Derivatives 1-3 can be obtained using translational invariance
       DO i = 4, 9
          NULLIFY (p_work_tmp)
-         CALL C_F_POINTER(lib%prv(1)%targets(i), p_work_tmp, SHAPE=a_mysize)
-         p_work(1:a_mysize(1), i - 3) = p_work_tmp
+         CALL C_F_POINTER(lib%prv(1)%targets(i), p_work_tmp, SHAPE=[ncart])
+         p_work(1:ncart, i - 3) = p_work_tmp
       END DO
 #else
       MARK_USED(n_c)
@@ -431,7 +424,6 @@ CONTAINS
       MARK_USED(n_a)
       MARK_USED(lib)
       MARK_USED(p_work)
-      MARK_USED(a_mysize)
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
 
@@ -442,20 +434,19 @@ CONTAINS
 !> \param n_b ...
 !> \param n_a ...
 !> \param lib ...
-!> \param p_work first a_mysize(1) rows and 3 columns receive Cartesian derivative triplets
-!> \param a_mysize ...
+!> \param p_work leading Cartesian block rows and 3 columns receive Cartesian derivative triplets
 ! **************************************************************************************************
-   SUBROUTINE cp_libint_get_2eri_derivs(n_b, n_a, lib, p_work, a_mysize)
+   SUBROUTINE cp_libint_get_2eri_derivs(n_b, n_a, lib, p_work)
       INTEGER, INTENT(IN)                                :: n_b, n_a
       TYPE(cp_libint_t)                                  :: lib
-      INTEGER, INTENT(IN)                                :: a_mysize(1)
       REAL(dp), DIMENSION(:, :), INTENT(OUT)              :: p_work
 
 #if(__LIBINT)
       REAL(dp), DIMENSION(:), POINTER                    :: p_work_tmp
-      INTEGER :: i
+      INTEGER :: i, ncart
 
-      CPASSERT(SIZE(p_work, 1) >= a_mysize(1))
+      ncart = nco(n_a)*nco(n_b)
+      CPASSERT(SIZE(p_work, 1) >= ncart)
       CPASSERT(SIZE(p_work, 2) >= 3)
 
       CALL build_eri_kernel(lib, libint2_build_2eri1, [n_b, n_a], "2-center ERI derivative")
@@ -463,15 +454,14 @@ CONTAINS
       !Derivatives 1-3 can be obtained using translational invariance
       DO i = 4, 6
          NULLIFY (p_work_tmp)
-         CALL C_F_POINTER(lib%prv(1)%targets(i), p_work_tmp, SHAPE=a_mysize)
-         p_work(1:a_mysize(1), i - 3) = p_work_tmp
+         CALL C_F_POINTER(lib%prv(1)%targets(i), p_work_tmp, SHAPE=[ncart])
+         p_work(1:ncart, i - 3) = p_work_tmp
       END DO
 #else
       MARK_USED(n_b)
       MARK_USED(n_a)
       MARK_USED(lib)
       MARK_USED(p_work)
-      MARK_USED(a_mysize)
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
 
@@ -484,24 +474,21 @@ CONTAINS
 !> \param n_a ...
 !> \param lib ...
 !> \param p_work ...
-!> \param a_mysize ...
 ! **************************************************************************************************
-   SUBROUTINE cp_libint_get_2eris(n_b, n_a, lib, p_work, a_mysize)
+   SUBROUTINE cp_libint_get_2eris(n_b, n_a, lib, p_work)
       INTEGER, INTENT(IN)                                :: n_b, n_a
       TYPE(cp_libint_t)                                  :: lib
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
-      INTEGER, INTENT(IN)                                :: a_mysize(1)
 
 #if(__LIBINT)
       CALL build_eri_kernel(lib, libint2_build_2eri, [n_b, n_a], "2-center ERI")
 
-      CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=a_mysize)
+      CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=[nco(n_a)*nco(n_b)])
 #else
       MARK_USED(n_b)
       MARK_USED(n_a)
       MARK_USED(lib)
       MARK_USED(p_work)
-      MARK_USED(a_mysize)
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
 
@@ -515,34 +502,33 @@ CONTAINS
 !> \param n_a ...
 !> \param lib ...
 !> \param work_forces ...
-!> \param a_mysize ...
 ! **************************************************************************************************
-   SUBROUTINE cp_libint_get_derivs(n_d, n_c, n_b, n_a, lib, work_forces, a_mysize)
+   SUBROUTINE cp_libint_get_derivs(n_d, n_c, n_b, n_a, lib, work_forces)
       INTEGER, INTENT(IN)                                :: n_d, n_c, n_b, n_a
       TYPE(cp_libint_t)                                  :: lib
       REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*nco(n_c)*nco &
                           (n_d), 12)                                      :: work_forces
-      INTEGER, INTENT(IN)                                :: a_mysize(1)
 
 #if(__LIBINT)
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
 
-      INTEGER                                            :: i, k
+      INTEGER                                            :: i, k, ncart
 #endif
 
 #if(__LIBINT)
+      ncart = SIZE(work_forces, 1)
       CALL build_eri_kernel(lib, libint2_build_eri1, [n_d, n_c, n_b, n_a], "4-center ERI derivative")
 
       DO k = 1, 12
          IF (k == 4 .OR. k == 5 .OR. k == 6) CYCLE
-         CALL C_F_POINTER(lib%prv(1)%targets(k), p_work, SHAPE=a_mysize)
-         DO i = 1, a_mysize(1)
+         CALL C_F_POINTER(lib%prv(1)%targets(k), p_work, SHAPE=[ncart])
+         DO i = 1, ncart
             work_forces(i, k) = p_work(i)
          END DO
       END DO
       ! Libint omits the canonical second-center derivatives; recover them by translation invariance.
       DO k = 4, 6
-         DO i = 1, a_mysize(1)
+         DO i = 1, ncart
             work_forces(i, k) = -1.0_dp*(work_forces(i, k - 3) + &
                                          work_forces(i, k + 3) + work_forces(i, k + 6))
          END DO
@@ -554,7 +540,6 @@ CONTAINS
       MARK_USED(n_a)
       MARK_USED(lib)
       MARK_USED(work_forces)
-      MARK_USED(a_mysize)
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
 

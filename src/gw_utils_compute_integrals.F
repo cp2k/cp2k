@@ -19,6 +19,10 @@ MODULE gw_utils_compute_integrals
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
                                               pbc
+   USE coulomb_integral_interface,      ONLY: compute_coulomb_3c,&
+                                              coulomb_integral_cleanup,&
+                                              coulomb_integral_context_type,&
+                                              coulomb_integral_init
    USE cp_array_utils,                  ONLY: cp_2d_r_p_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
@@ -28,13 +32,9 @@ MODULE gw_utils_compute_integrals
                                               do_potential_short,&
                                               do_potential_truncated
    USE integral_library_types,          ONLY: coulomb_operator_type,&
-                                              cutoff_screen_factor
+                                              cutoff_screen_factor,&
+                                              library_libint
    USE kinds,                           ONLY: dp
-   USE libint_2c_3c,                    ONLY: eri_3center
-   USE libint_wrapper,                  ONLY: cp_libint_cleanup_3eri,&
-                                              cp_libint_init_3eri,&
-                                              cp_libint_set_contrdepth,&
-                                              cp_libint_t
    USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
@@ -88,7 +88,7 @@ MODULE gw_utils_compute_integrals
 !>        buffers. Each thread creates its own (inside the parallel region is fine).
 ! **************************************************************************************************
    TYPE gw_3c_ws_type
-      TYPE(cp_libint_t), ALLOCATABLE                                  :: lib
+      TYPE(coulomb_integral_context_type)                :: integrals = coulomb_integral_context_type()
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cpp_buffer, ccp_buffer
    END TYPE gw_3c_ws_type
 
@@ -303,9 +303,8 @@ CONTAINS
       TYPE(gw_3c_ws_type), INTENT(OUT)                   :: ws
       TYPE(gw_3c_ctx_type), INTENT(IN)                   :: ctx
 
-      ALLOCATE (ws%lib)
-      CALL cp_libint_init_3eri(ws%lib, ctx%max_am)
-      CALL cp_libint_set_contrdepth(ws%lib, 1)
+      CALL coulomb_integral_init(ws%integrals, max_am_3c=ctx%max_am, &
+                                 derivative_order=0, library=library_libint)
       ALLOCATE (ws%cpp_buffer(ctx%max_nsgfj*ctx%max_ncok), &
                 ws%ccp_buffer(ctx%max_nsgfj*ctx%max_nsgfk*ctx%max_ncoi))
 
@@ -319,8 +318,7 @@ CONTAINS
 
       TYPE(gw_3c_ws_type), INTENT(INOUT)                 :: ws
 
-      CALL cp_libint_cleanup_3eri(ws%lib)
-      DEALLOCATE (ws%lib)
+      CALL coulomb_integral_cleanup(ws%integrals)
       DEALLOCATE (ws%cpp_buffer, ws%ccp_buffer)
 
    END SUBROUTINE gw_3c_ws_release
@@ -441,15 +439,10 @@ CONTAINS
                ALLOCATE (sijk(ncoj, ncok, ncoi))
                sijk(:, :, :) = 0.0_dp
 
-               CALL eri_3center(sijk, &
-                                lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), &
-                                rpgf_j(:, jset), rj, &
-                                lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), &
-                                rpgf_k(:, kset), rk, &
-                                lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), &
-                                rpgf_i(:, iset), ri, &
-                                djk, dij, dik, ws%lib, ctx%potential_parameter, &
-                                int_abc_ext=sijk_ext)
+               CALL compute_coulomb_3c(ws%integrals, lmin_j(jset), lmax_j(jset), lmin_k(kset), lmax_k(kset), &
+                                       lmin_i(iset), lmax_i(iset), npgfj(jset), npgfk(kset), npgfi(iset), zetj(:, jset), &
+                                      zetk(:, kset), zeti(:, iset), rpgf_j(:, jset), rpgf_k(:, kset), rpgf_i(:, iset), rj, rk, ri, &
+                                       sijk, ctx%potential_parameter, dab=djk, dac=dij, dbc=dik, int_abc_ext=sijk_ext)
 
                ALLOCATE (sijk_contr(nsgfj(jset), nsgfk(kset), nsgfi(iset)))
                CALL abc_contract_xsmm(sijk_contr, sijk, ctx%tspj(jset, jkind)%array, &
