@@ -26,6 +26,7 @@ MODULE post_scf_bandstructure_types
    USE input_constants,                 ONLY: G0W0,&
                                               cohsex_off,&
                                               tensor_small_cell_full_kp
+   USE integral_library_types,          ONLY: coulomb_operator_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp,&
@@ -33,7 +34,6 @@ MODULE post_scf_bandstructure_types
                                               int_8
    USE kpoint_types,                    ONLY: kpoint_release,&
                                               kpoint_type
-   USE libint_2c_3c,                    ONLY: libint_potential_type
    USE message_passing,                 ONLY: mp_para_env_release,&
                                               mp_para_env_type
    USE physcon,                         ONLY: evolt
@@ -304,8 +304,8 @@ MODULE post_scf_bandstructure_types
       INTEGER, DIMENSION(:), ALLOCATABLE           :: sizes_AO, &
                                                       sizes_RI
       TYPE(neighbor_list_3c_type)                  :: nl_3c = neighbor_list_3c_type()
-      TYPE(libint_potential_type)                  :: ri_metric = libint_potential_type(), &
-                                                      trunc_coulomb = libint_potential_type()
+      TYPE(coulomb_operator_type)                  :: ri_metric = coulomb_operator_type(), &
+                                                      trunc_coulomb = coulomb_operator_type()
 
       ! parameters for SOC calculation
       REAL(KIND=dp)                                :: soc_window_occ = -1.0_dp

@@ -36,9 +36,9 @@ MODULE xas_tdp_types
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type,&
                                               section_vals_val_get
+   USE integral_library_types,          ONLY: coulomb_operator_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE libint_2c_3c,                    ONLY: libint_potential_type
    USE mathlib,                         ONLY: erfc_cutoff
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
@@ -111,8 +111,8 @@ MODULE xas_tdp_types
       REAL(dp)                                :: eps_pgf = 0.0_dp
       REAL(dp)                                :: eps_filter = 0.0_dp
       REAL(dp)                                :: ot_eps_iter = 0.0_dp
-      TYPE(libint_potential_type)             :: x_potential = libint_potential_type()
-      TYPE(libint_potential_type)             :: ri_m_potential = libint_potential_type()
+      TYPE(coulomb_operator_type)             :: x_potential = coulomb_operator_type()
+      TYPE(coulomb_operator_type)             :: ri_m_potential = coulomb_operator_type()
       REAL(dp)                                :: ri_radius = 0.0_dp
       LOGICAL                                 :: do_ot = .FALSE.
       LOGICAL                                 :: do_hfx = .FALSE.

@@ -58,13 +58,13 @@ MODULE mp2_integrals
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
+   USE integral_library_types,          ONLY: compare_potential_types,&
+                                              coulomb_operator_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index
    USE kpoint_types,                    ONLY: kpoint_type
-   USE libint_2c_3c,                    ONLY: compare_potential_types,&
-                                              libint_potential_type
    USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_cart_type,&
                                               mp_comm_type,&
@@ -249,7 +249,7 @@ CONTAINS
          DIMENSION(:, :, :), INTENT(INOUT)               :: t_3c_O_compressed
       TYPE(block_ind_type), ALLOCATABLE, &
          DIMENSION(:, :, :)                              :: t_3c_O_ind
-      TYPE(libint_potential_type), INTENT(IN)            :: ri_metric
+      TYPE(coulomb_operator_type), INTENT(IN)            :: ri_metric
       TYPE(group_dist_d1_type), ALLOCATABLE, &
          DIMENSION(:), INTENT(OUT)                       :: gd_B_occ_bse, gd_B_virt_bse
 

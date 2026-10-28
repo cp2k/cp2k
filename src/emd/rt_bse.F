@@ -51,7 +51,7 @@ MODULE rt_bse
                       dbt_copy_matrix_to_tensor, &
                       dbt_copy_tensor_to_matrix, &
                       dbt_type
-   USE libint_2c_3c, ONLY: libint_potential_type
+   USE integral_library_types, ONLY: coulomb_operator_type
    USE qs_tensors, ONLY: build_2c_integrals, &
                          build_2c_neighbor_lists
    USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type, &
@@ -1237,7 +1237,7 @@ CONTAINS
       TYPE(rtbse_env_type), POINTER, INTENT(IN)          :: rtbse_env
       TYPE(dbcsr_type)                                   :: v_dbcsr
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(libint_potential_type)                        :: coulomb_op
+      TYPE(coulomb_operator_type)                        :: coulomb_op
       TYPE(cp_fm_type)                                   :: V_fm
       TYPE(cp_fm_type)                                   :: metric_fm
       TYPE(cp_fm_type)                                   :: metric_inv_fm, &

@@ -59,10 +59,10 @@ MODULE gw_auto_ri_generate_RI_basis
                                               do_potential_truncated,&
                                               tensor_small_cell_full_kp
    USE integral_library_types,          ONLY: active_integral_library,&
+                                              coulomb_operator_type,&
                                               library_libint
    USE kinds,                           ONLY: default_path_length,&
                                               dp
-   USE libint_2c_3c,                    ONLY: libint_potential_type
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_HOST,&
                                               local_gemm_ctxt_type
    USE machine,                         ONLY: m_walltime
@@ -2447,13 +2447,13 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: atom_A, atom_B
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: M_PQ
-      TYPE(libint_potential_type), INTENT(IN), OPTIONAL  :: ri_potential
+      TYPE(coulomb_operator_type), INTENT(IN), OPTIONAL  :: ri_potential
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_M_PQ_AB'
 
       INTEGER                                            :: atom_1, atom_2, handle, kind_1, kind_2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: M_PQ_canonical
-      TYPE(libint_potential_type)                        :: potential
+      TYPE(coulomb_operator_type)                        :: potential
 
       CALL timeset(routineN, handle)
 
@@ -2507,7 +2507,7 @@ CONTAINS
    SUBROUTINE compute_M_PQ(basis_a, basis_b, center_a, center_b, potential, M_PQ)
       TYPE(gto_basis_set_type), POINTER                  :: basis_a, basis_b
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: center_a, center_b
-      TYPE(libint_potential_type), INTENT(IN)            :: potential
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: M_PQ
 

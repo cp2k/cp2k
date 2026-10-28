@@ -79,10 +79,10 @@ MODULE rpa_im_time_force_methods
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
+   USE integral_library_types,          ONLY: coulomb_operator_type
    USE iterate_matrix,                  ONLY: matrix_exponential
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE libint_2c_3c,                    ONLY: libint_potential_type
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE mathconstants,                   ONLY: fourpi
@@ -216,6 +216,7 @@ CONTAINS
       REAL(dp)                                           :: compression_factor, eps_pgf_orb, &
                                                             eps_pgf_orb_old, memory, occ
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(coulomb_operator_type)                        :: identity_pot
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
@@ -231,7 +232,6 @@ CONTAINS
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: basis_set_ao, basis_set_ri_aux
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
-      TYPE(libint_potential_type)                        :: identity_pot
       TYPE(mp_cart_type)                                 :: mp_comm_t3c, mp_comm_vir
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_3c_type)                        :: nl_3c
@@ -702,6 +702,7 @@ CONTAINS
       REAL(dp), DIMENSION(3, 3)                          :: work_virial, work_virial_ovlp
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(coulomb_operator_type)                        :: identity_pot
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: propagator
       TYPE(dbcsr_type)                                   :: dbcsr_work1, dbcsr_work2, dbcsr_work3, &
@@ -715,7 +716,6 @@ CONTAINS
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: basis_set_ao, basis_set_ri_aux
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
-      TYPE(libint_potential_type)                        :: identity_pot
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -1234,6 +1234,7 @@ CONTAINS
       REAL(dp), DIMENSION(3, 3)                          :: work_virial, work_virial_ovlp
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(coulomb_operator_type)                        :: identity_pot
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_P_tau, matrix_ks, matrix_s
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: propagator
@@ -1248,7 +1249,6 @@ CONTAINS
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: basis_set_ao, basis_set_ri_aux
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
-      TYPE(libint_potential_type)                        :: identity_pot
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force

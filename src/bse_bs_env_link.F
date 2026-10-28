@@ -56,9 +56,9 @@ MODULE bse_bs_env_link
    USE gw_utils_fm,                     ONLY: fm_contract_ABA
    USE input_constants,                 ONLY: bse_screening_w0
    USE input_section_types,             ONLY: section_vals_type
+   USE integral_library_types,          ONLY: coulomb_operator_type
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE libint_2c_3c,                    ONLY: libint_potential_type
    USE mo_window,                       ONLY: mo_window_type
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -257,9 +257,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'link_screening'
 
       INTEGER                                            :: handle, n_dependent, n_RI
+      TYPE(coulomb_operator_type)                        :: coulomb_op
       TYPE(cp_fm_type)                                   :: fm_V_inv_sqrt, fm_V_sqrt, fm_Wc, fm_work
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_M, fm_V
-      TYPE(libint_potential_type)                        :: coulomb_op
 
       CALL timeset(routineN, handle)
 

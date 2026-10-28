@@ -26,8 +26,8 @@ MODULE mp2_eri_gpw
                                               do_potential_mix_cl,&
                                               do_potential_short,&
                                               do_potential_truncated
+   USE integral_library_types,          ONLY: coulomb_operator_type
    USE kinds,                           ONLY: dp
-   USE libint_2c_3c,                    ONLY: libint_potential_type
    USE mathconstants,                   ONLY: fourpi
    USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: ncoset
@@ -122,7 +122,7 @@ CONTAINS
       TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: rho_r
       TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: pot_g
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(task_list_type), INTENT(IN), POINTER          :: task_list_sub
@@ -168,7 +168,7 @@ CONTAINS
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
       INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, natom
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          INTENT(IN), POINTER                             :: sab_orb_sub
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: L_local_col
@@ -390,7 +390,7 @@ CONTAINS
       TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
       TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
       TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: pot_g
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
       LOGICAL, INTENT(IN)                                :: use_virial
       TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_g_copy, dvg(3)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of, atom_of_kind
@@ -525,7 +525,7 @@ CONTAINS
       TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_g
       TYPE(task_list_type), INTENT(IN), POINTER          :: task_list_sub
       TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
       TYPE(qs_ks_env_type), INTENT(IN), POINTER          :: ks_env
       TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
       TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: pot_g
@@ -718,7 +718,7 @@ CONTAINS
       TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_g
       TYPE(pw_c1d_gs_type), INTENT(IN)                   :: dvg(3)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_gpw_potential'
@@ -757,7 +757,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE factor_virial_gpw(pw, potential_parameter)
       TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: pw
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
 
       SELECT CASE (potential_parameter%potential_type)
       CASE (do_potential_coulomb)
@@ -1106,7 +1106,7 @@ CONTAINS
       TYPE(pw_c1d_gs_type), INTENT(IN)                   :: rho_g
       TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
       TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: pot_g
-      TYPE(libint_potential_type), INTENT(IN), OPTIONAL  :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN), OPTIONAL  :: potential_parameter
       TYPE(pw_c1d_gs_type), DIMENSION(3), &
          INTENT(INOUT), OPTIONAL                         :: dvg
       LOGICAL, INTENT(IN), OPTIONAL                      :: no_transfer

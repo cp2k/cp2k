@@ -55,11 +55,11 @@ MODULE qs_neighbor_lists
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
+   USE integral_library_types,          ONLY: cutoff_screen_factor
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
    USE kpoint_types,                    ONLY: kpoint_type
-   USE libint_2c_3c,                    ONLY: cutoff_screen_factor
    USE mathlib,                         ONLY: erfc_cutoff
    USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_types,                  ONLY: molecule_type

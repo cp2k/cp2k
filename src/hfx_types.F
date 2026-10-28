@@ -64,8 +64,8 @@ MODULE hfx_types
                                               section_vals_type,&
                                               section_vals_val_get
    USE integral_library_types,          ONLY: compare_potential_types,&
-                                              hfx_potential_type => coulomb_operator_type,&
-                                              libint_potential_type => coulomb_operator_type
+                                              coulomb_operator_type,&
+                                              hfx_potential_type => coulomb_operator_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp,&
@@ -333,10 +333,10 @@ MODULE hfx_types
                  ncell_RI = 0, nimg = 0, kp_stack_size = 0, nimg_nze = 0, kp_ngroups = 1
       LOGICAL :: check_2c_inv = .FALSE., calc_condnum = .FALSE.
 
-      TYPE(libint_potential_type) :: ri_metric = libint_potential_type()
+      TYPE(coulomb_operator_type) :: ri_metric = coulomb_operator_type()
 
       ! input parameters from hfx
-      TYPE(libint_potential_type) :: hfx_pot = libint_potential_type() ! interaction potential
+      TYPE(coulomb_operator_type) :: hfx_pot = coulomb_operator_type() ! interaction potential
       REAL(KIND=dp) :: eps_schwarz = 0.0_dp ! integral screening threshold
       REAL(KIND=dp) :: eps_schwarz_forces = 0.0_dp ! integral derivatives screening threshold
 

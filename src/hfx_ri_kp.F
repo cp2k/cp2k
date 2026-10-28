@@ -64,13 +64,13 @@ MODULE hfx_ri_kp
                                               section_vals_type,&
                                               section_vals_val_get,&
                                               section_vals_val_set
+   USE integral_library_types,          ONLY: cutoff_screen_factor
    USE iterate_matrix,                  ONLY: invert_hotelling
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
-   USE libint_2c_3c,                    ONLY: cutoff_screen_factor
    USE machine,                         ONLY: m_flush,&
                                               m_memory,&
                                               m_walltime

@@ -41,11 +41,11 @@ MODULE rpa_grad
                                               group_dist_proc,&
                                               maxsize,&
                                               release_group_dist
+   USE integral_library_types,          ONLY: compare_potential_types
    USE kahan_sum,                       ONLY: accurate_dot_product,&
                                               accurate_dot_product_2
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE libint_2c_3c,                    ONLY: compare_potential_types
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
                                               local_gemm_ctxt_type
    USE machine,                         ONLY: m_flush,&

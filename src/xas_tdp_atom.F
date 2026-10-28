@@ -51,13 +51,13 @@ MODULE xas_tdp_atom
    USE input_constants,                 ONLY: do_potential_id
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
+   USE integral_library_types,          ONLY: coulomb_operator_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE lebedev,                         ONLY: deallocate_lebedev_grids,&
                                               get_number_of_lebedev_grid,&
                                               init_lebedev_grids,&
                                               lebedev_grid
-   USE libint_2c_3c,                    ONLY: libint_potential_type
    USE mathlib,                         ONLY: get_diag,&
                                               invmat_symm
    USE memory_utilities,                ONLY: reallocate
@@ -827,6 +827,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: t_block
       REAL(dp), DIMENSION(:, :), POINTER                 :: pmat_block, pmat_blockt, sinv_block, &
                                                             sinv_blockt
+      TYPE(coulomb_operator_type)                        :: pot
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: overlap, rho_ao
@@ -835,7 +836,6 @@ CONTAINS
       TYPE(dbt_iterator_type)                            :: iter
       TYPE(dbt_type)                                     :: pqX
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_orb, basis_set_ri
-      TYPE(libint_potential_type)                        :: pot
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: ab_list, ac_list, sab_ri

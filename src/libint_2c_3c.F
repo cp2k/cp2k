@@ -17,9 +17,8 @@ MODULE libint_2c_3c
                                               do_potential_mix_cl_trunc,&
                                               do_potential_short,&
                                               do_potential_truncated
-   USE integral_library_types,          ONLY: compare_potential_types,&
-                                              coulomb_operator_type,&
-                                              libint_potential_type => coulomb_operator_type
+   USE integral_library_types,          ONLY: coulomb_operator_type,&
+                                              cutoff_screen_factor
    USE kinds,                           ONLY: dp
    USE libint_wrapper,                  ONLY: &
         cp_libint_get_2eri_derivs, cp_libint_get_2eris, cp_libint_get_3eri_derivs, &
@@ -37,12 +36,7 @@ MODULE libint_2c_3c
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'libint_2c_3c'
 
-   PUBLIC :: eri_2center, eri_3center, cutoff_screen_factor, libint_potential_type, &
-             eri_3center_derivs, eri_2center_derivs, compare_potential_types
-
-   ! For screening of integrals with a truncated potential, it is important to use a slightly larger
-   ! cutoff radius due to the discontinuity of the truncated Coulomb potential at the cutoff radius.
-   REAL(KIND=dp), PARAMETER :: cutoff_screen_factor = 1.0001_dp
+   PUBLIC :: eri_2center, eri_3center, eri_3center_derivs, eri_2center_derivs
 
 CONTAINS
 

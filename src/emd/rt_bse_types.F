@@ -50,7 +50,7 @@ MODULE rt_bse_types
    USE gw_tensor_large_cell_Gamma, ONLY: compute_3c_integrals
    USE gw_utils, ONLY: rtbse_resolve_rirs_flag
    USE qs_tensors, ONLY: neighbor_list_3c_destroy
-   USE libint_2c_3c, ONLY: libint_potential_type
+   USE integral_library_types, ONLY: coulomb_operator_type
    USE input_constants, ONLY: use_mom_ref_coac, &
                               do_bch, &
                               do_exact, &
@@ -1118,7 +1118,7 @@ CONTAINS
       TYPE(gto_basis_set_p_type), DIMENSION(:)          :: basis_set_AO, &
                                                            basis_set_RI
       INTEGER, DIMENSION(:)                             :: i_RI_start_from_atom
-      TYPE(libint_potential_type)                       :: ri_metric
+      TYPE(coulomb_operator_type)                       :: ri_metric
       TYPE(qs_environment_type), POINTER                :: qs_env
       INTEGER                                           :: unit_nr
       REAL(kind=dp)                                     :: size_mb
