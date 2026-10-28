@@ -232,7 +232,7 @@ def main() -> None:
                 base_image="nvidia/cuda:12.9.1-devel-ubuntu24.04",
                 gpu_model="A40",
                 feature_flags="-df elpa -df libtorch -df sirius -ef cusolver_mp",
-                testopts=f"{testopts} --mpiranks 1 --ompthreads 1 --maxtasks 8 --keepalive",
+                testopts=f"{testopts} --mpiranks 1 --ompthreads 1 --maxtasks 8 --keepalive --timeout 400",
                 image_tag=f.image_tag,
             )
         )
