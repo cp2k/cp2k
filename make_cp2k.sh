@@ -1493,15 +1493,32 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
 
   ((VERBOSE > 0)) && spack find -c
 
-  # Install CP2K dependencies via Spack
-  if ! spack -e "${CP2K_ENV}" install -j "${NUM_PROCS}" -p "${NUM_PACKAGES}" "${VERBOSE_SPACK}"; then
-    echo "ERROR: Building the CP2K dependencies with spack failed"
-    if [[ "${USE_EXTERNALS}" == "yes" ]]; then
-      echo "HINT:  Try to re-run the build without the (-ue | --use_externals) flag which avoids"
-      echo "       errors or conflicts caused by externals from the host system"
+  # Abort git transfers slower than 1 KB/s for 60 s, since git has no timeout,
+  # so that a stalled clone (e.g. py-torch with submodules) fails and is retried
+  export GIT_HTTP_LOW_SPEED_LIMIT=1000
+  export GIT_HTTP_LOW_SPEED_TIME=60
+
+  # Install CP2K dependencies via Spack (retry with backoff only if fetching failed to bridge
+  # transient network issues, whereby already installed packages are skipped)
+  SPACK_INSTALL_LOG="${SPACK_BUILD_PATH}/spack_install.log"
+  for i in 1 2 3; do
+    spack -e "${CP2K_ENV}" install -j "${NUM_PROCS}" -p "${NUM_PACKAGES}" "${VERBOSE_SPACK}" 2>&1 | tee "${SPACK_INSTALL_LOG}"
+    if ((PIPESTATUS[0] == 0)); then
+      rm -f "${SPACK_INSTALL_LOG}"
+      break
     fi
-    ${EXIT_CMD} 1
-  fi
+    if ((i == 3)) || ! grep -q "All fetchers failed" "${SPACK_INSTALL_LOG}"; then
+      echo "ERROR: Building the CP2K dependencies with spack failed"
+      if [[ "${USE_EXTERNALS}" == "yes" ]]; then
+        echo "HINT:  Try to re-run the build without the (-ue | --use_externals) flag which avoids"
+        echo "       errors or conflicts caused by externals from the host system"
+      fi
+      ${EXIT_CMD} 1
+    fi
+    INSTALL_DELAY=$((60 * 2 ** (i - 1)))
+    echo "WARNING: Fetching failed in installation attempt ${i}, retrying in ${INSTALL_DELAY} seconds"
+    sleep "${INSTALL_DELAY}"
+  done
 
   # Find all compilers
   if ! spack compiler find; then
