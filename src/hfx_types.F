@@ -44,6 +44,13 @@ MODULE hfx_types
         dbt_create, dbt_default_distvec, dbt_destroy, dbt_distribution_destroy, &
         dbt_distribution_new, dbt_distribution_type, dbt_mp_dims_create, dbt_pgrid_create, &
         dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
+   USE four_center_integral_interface,  ONLY: four_center_integral_cleanup,&
+                                              four_center_integral_context_type,&
+                                              four_center_integral_init
+   USE four_center_integral_types,      ONLY: hfx_cell_type => eri4_cell_type,&
+                                              hfx_pgf_list => eri4_pgf_pair_type,&
+                                              hfx_pgf_product_list => eri4_pgf_product_type,&
+                                              hfx_screen_coeff_type => eri4_screen_coeff_type
    USE hfx_helpers,                     ONLY: count_cells_perd,&
                                               next_image_cell_perd
    USE input_constants,                 ONLY: &
@@ -56,16 +63,13 @@ MODULE hfx_types
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
+   USE integral_library_types,          ONLY: compare_potential_types,&
+                                              hfx_potential_type => coulomb_operator_type,&
+                                              libint_potential_type => coulomb_operator_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp,&
                                               int_8
-   USE libint_2c_3c,                    ONLY: compare_potential_types,&
-                                              libint_potential_type
-   USE libint_wrapper,                  ONLY: &
-        cp_libint_cleanup_eri, cp_libint_cleanup_eri1, cp_libint_init_eri, cp_libint_init_eri1, &
-        cp_libint_set_contrdepth, cp_libint_static_cleanup, cp_libint_static_init, cp_libint_t, &
-        prim_data_f_size
    USE machine,                         ONLY: m_chdir,&
                                               m_getcwd
    USE mathlib,                         ONLY: erfc_cutoff
@@ -138,17 +142,6 @@ MODULE hfx_types
 !***
 
 ! **************************************************************************************************
-   TYPE hfx_potential_type
-      INTEGER                                  :: potential_type = do_potential_coulomb !! 1/r/ erfc(wr)/r ...
-      REAL(dp)                                 :: omega = 0.0_dp !! w
-      REAL(dp)                                 :: scale_coulomb = 0.0_dp !! scaling factor for mixed potential
-      REAL(dp)                                 :: scale_longrange = 0.0_dp !! scaling factor for mixed potential
-      REAL(dp)                                 :: scale_gaussian = 0.0_dp!! scaling factor for mixed potential
-      REAL(dp)                                 :: cutoff_radius = 0.0_dp!! cutoff radius if cutoff potential in use
-      CHARACTER(default_path_length)           :: filename = ""
-   END TYPE hfx_potential_type
-
-! **************************************************************************************************
    TYPE hfx_screening_type
       REAL(dp)                                 :: eps_schwarz = 0.0_dp !! threshold
       REAL(dp)                                 :: eps_schwarz_forces = 0.0_dp !! threshold
@@ -203,12 +196,6 @@ MODULE hfx_types
       INTEGER                                  :: hfx_library = 0
       LOGICAL                                  :: treat_lsd_in_core = .FALSE.
    END TYPE hfx_general_type
-
-! **************************************************************************************************
-   TYPE hfx_cell_type
-      REAL(dp)                                 :: cell(3) = 0.0_dp
-      REAL(dp)                                 :: cell_r(3) = 0.0_dp
-   END TYPE hfx_cell_type
 
 ! **************************************************************************************************
    TYPE hfx_distribution
@@ -293,11 +280,6 @@ MODULE hfx_types
    END TYPE hfx_basis_info_type
 
 ! **************************************************************************************************
-   TYPE hfx_screen_coeff_type
-      REAL(dp)                                 :: x(2) = 0.0_dp
-   END TYPE hfx_screen_coeff_type
-
-! **************************************************************************************************
    TYPE hfx_p_kind
       REAL(dp), DIMENSION(:, :, :, :), POINTER    :: p_kind => NULL()
    END TYPE hfx_p_kind
@@ -307,38 +289,6 @@ MODULE hfx_types
       INTEGER, DIMENSION(:), POINTER           :: iatom_list => NULL()
       INTEGER, DIMENSION(:), POINTER           :: jatom_list => NULL()
    END TYPE hfx_2D_map
-
-! **************************************************************************************************
-   TYPE hfx_pgf_image
-      REAL(dp)                                 :: ra(3) = 0.0_dp, rb(3) = 0.0_dp
-      REAL(dp)                                 :: rab2 = 0.0_dp
-      REAL(dp)                                 :: S1234 = 0.0_dp
-      REAL(dp)                                 :: P(3) = 0.0_dp
-      REAL(dp)                                 :: R = 0.0_dp
-      REAL(dp)                                 :: pgf_max = 0.0_dp
-      REAL(dp), DIMENSION(3)                   :: bcell = 0.0_dp
-   END TYPE hfx_pgf_image
-
-! **************************************************************************************************
-   TYPE hfx_pgf_list
-      TYPE(hfx_pgf_image), DIMENSION(:), POINTER &
-         :: image_list => NULL()
-      INTEGER                                  :: nimages = 0
-      REAL(dp)                                 :: zetapzetb = 0.0_dp
-      REAL(dp)                                 :: ZetaInv = 0.0_dp
-      REAL(dp)                                 :: zeta = 0.0_dp, zetb = 0.0_dp
-      INTEGER                                  :: ipgf = 0, jpgf = 0
-   END TYPE hfx_pgf_list
-
-! **************************************************************************************************
-   TYPE hfx_pgf_product_list
-      REAL(dp)                                 :: ra(3) = 0.0_dp, rb(3) = 0.0_dp, rc(3) = 0.0_dp, rd(3) = 0.0_dp
-      REAL(dp)                                 :: ZetapEtaInv = 0.0_dp
-      REAL(dp)                                 :: Rho = 0.0_dp, RhoInv = 0.0_dp
-      REAL(dp)                                 :: P(3) = 0.0_dp, Q(3) = 0.0_dp, W(3) = 0.0_dp
-      REAL(dp)                                 :: AB(3) = 0.0_dp, CD(3) = 0.0_dp
-      REAL(dp)                                 :: Fm(prim_data_f_size) = 0.0_dp
-   END TYPE hfx_pgf_product_list
 
 ! **************************************************************************************************
    TYPE hfx_block_range_type
@@ -498,7 +448,7 @@ MODULE hfx_types
 !> \param b_first_load_balance_x flag to indicate if it is enough just to update
 !>        the distribution of the integrals
 !> \param full_ks_x full ks matrices
-!> \param lib libint type for eris
+!> \param eri4_context per-thread four-center integral context
 !> \param basis_info contains information for basis sets
 !> \param screen_funct_coeffs_pgf pgf based near field screening coefficients
 !> \param pair_dist_radii_pgf pgf based radii coefficients of pair distributions
@@ -537,7 +487,7 @@ MODULE hfx_types
                                                   b_first_load_balance_forces = .FALSE.
       REAL(dp), DIMENSION(:, :), POINTER        :: full_ks_alpha => NULL()
       REAL(dp), DIMENSION(:, :), POINTER        :: full_ks_beta => NULL()
-      TYPE(cp_libint_t)                        :: lib
+      TYPE(four_center_integral_context_type) :: eri4_context
       TYPE(hfx_basis_info_type)                :: basis_info = hfx_basis_info_type()
       TYPE(hfx_screen_coeff_type), &
          DIMENSION(:, :, :, :, :, :), POINTER     :: screen_funct_coeffs_pgf => NULL(), &
@@ -559,7 +509,6 @@ MODULE hfx_types
       TYPE(hfx_task_list_type), DIMENSION(:), &
          POINTER        :: task_list => NULL()
       REAL(dp), DIMENSION(:, :), POINTER        :: pmax_atom => NULL(), pmax_atom_forces => NULL()
-      TYPE(cp_libint_t)                         :: lib_deriv
       REAL(dp), DIMENSION(:, :), POINTER        :: pmax_block => NULL()
       LOGICAL, DIMENSION(:, :), POINTER         :: atomic_pair_list => NULL()
       LOGICAL, DIMENSION(:, :), POINTER         :: atomic_pair_list_forces => NULL()
@@ -973,12 +922,7 @@ CONTAINS
                DEALLOCATE (kind_of, atom2kind)
             END IF
 
-            ! ** Initialize libint type
-            CALL cp_libint_static_init()
-            CALL cp_libint_init_eri(actual_x_data%lib, actual_x_data%basis_info%max_am)
-            CALL cp_libint_init_eri1(actual_x_data%lib_deriv, actual_x_data%basis_info%max_am)
-            CALL cp_libint_set_contrdepth(actual_x_data%lib, 1)
-            CALL cp_libint_set_contrdepth(actual_x_data%lib_deriv, 1)
+            CALL four_center_integral_init(actual_x_data%eri4_context, actual_x_data%basis_info%max_am)
 
             CALL alloc_containers(actual_x_data%store_ints, 1)
             CALL alloc_containers(actual_x_data%store_forces, 1)
@@ -1108,13 +1052,7 @@ CONTAINS
 
       NULLIFY (hf_sub_section)
 
-      ASSOCIATE (hfx_pot => ri_data%hfx_pot)
-         hfx_pot%potential_type = x_data%potential_parameter%potential_type
-         hfx_pot%omega = x_data%potential_parameter%omega
-         hfx_pot%cutoff_radius = x_data%potential_parameter%cutoff_radius
-         hfx_pot%scale_coulomb = x_data%potential_parameter%scale_coulomb
-         hfx_pot%scale_longrange = x_data%potential_parameter%scale_longrange
-      END ASSOCIATE
+      ri_data%hfx_pot = x_data%potential_parameter
       ri_data%ri_section => ri_section
       ri_data%hfx_section => hfx_section
       ri_data%eps_schwarz = x_data%screening_parameter%eps_schwarz
@@ -1293,9 +1231,6 @@ CONTAINS
       CALL cite_reference(Bussy2023)
 
       CALL timeset(routineN, handle)
-
-      ! initialize libint
-      CALL cp_libint_static_init()
 
       natom = SIZE(particle_set)
       nkind = SIZE(qs_kind_set, 1)
@@ -1535,9 +1470,6 @@ CONTAINS
       LOGICAL                                            :: my_write_stats
 
       CALL timeset(routineN, handle)
-
-      ! cleanup libint
-      CALL cp_libint_static_cleanup()
 
       my_write_stats = .TRUE.
       IF (PRESENT(write_stats)) my_write_stats = write_stats
@@ -2030,10 +1962,7 @@ CONTAINS
             !! BASIS parameter
             CALL hfx_release_basis_types(actual_x_data%basis_parameter)
 
-            !MK Release libint and libderiv data structure
-            CALL cp_libint_cleanup_eri(actual_x_data%lib)
-            CALL cp_libint_cleanup_eri1(actual_x_data%lib_deriv)
-            CALL cp_libint_static_cleanup()
+            CALL four_center_integral_cleanup(actual_x_data%eri4_context)
 
             !! Deallocate containers
             CALL dealloc_containers(actual_x_data%store_ints, actual_x_data%memory_parameter%actual_memory_usage)

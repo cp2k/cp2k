@@ -6,47 +6,79 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Interface to the Libint-Library
+!> \brief Four-center integral evaluation with an encapsulated Libint backend.
 !> \par History
 !>      11.2006 created [Manuel Guidon]
 !>      11.2019 Fixed potential_id initial values (A. Bussy)
 !> \author Manuel Guidon
 ! **************************************************************************************************
-MODULE hfx_libint_interface
+MODULE four_center_integral_interface
 
    USE cell_types,                      ONLY: cell_type,&
                                               real_to_scaled
+   USE four_center_integral_preparation,ONLY: prepare_eri4_pair,&
+                                              prepare_eri4_primitive,&
+                                              prepare_eri4_product
+   USE four_center_integral_types,      ONLY: eri4_pgf_image_type,&
+                                              eri4_pgf_pair_type,&
+                                              eri4_pgf_product_type
    USE hfx_contraction_methods,         ONLY: contract
-   USE hfx_types,                       ONLY: hfx_pgf_product_list,&
-                                              hfx_potential_type
-   USE input_constants,                 ONLY: do_potential_id,&
-                                              do_potential_mix_cl_trunc,&
+   USE input_constants,                 ONLY: do_potential_mix_cl_trunc,&
                                               do_potential_short,&
                                               do_potential_truncated
+   USE integral_library_types,          ONLY: coulomb_operator_type
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE libint_wrapper,                  ONLY: cp_libint_get_derivs,&
-                                              cp_libint_get_eris,&
-                                              cp_libint_set_params_eri,&
-                                              cp_libint_set_params_eri_deriv,&
-                                              cp_libint_set_params_eri_screen,&
-                                              cp_libint_t,&
-                                              get_ssss_f_val,&
-                                              prim_data_f_size
-   USE mathconstants,                   ONLY: pi
+   USE libint_wrapper,                  ONLY: &
+        cp_libint_cleanup_eri, cp_libint_cleanup_eri1, cp_libint_get_derivs, cp_libint_get_eris, &
+        cp_libint_init_eri, cp_libint_init_eri1, cp_libint_set_contrdepth, &
+        cp_libint_set_params_eri, cp_libint_set_params_eri_deriv, cp_libint_t
    USE orbital_pointers,                ONLY: nco
-   USE r12_fundamentals,                ONLY: compute_r12_fundamentals
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: evaluate_eri, &
+   PUBLIC :: four_center_integral_init, four_center_integral_cleanup, &
+             evaluate_eri, &
              evaluate_deriv_eri, &
              evaluate_eri_screen
 
-!***
+!> \brief Context owning the energy and first-derivative backend workspaces.
+!> \note Intrinsic copies share backend storage and must not be cleaned up independently.
+   TYPE, PUBLIC :: four_center_integral_context_type
+      PRIVATE
+      TYPE(cp_libint_t) :: eri, deriv
+   END TYPE four_center_integral_context_type
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Initialize the four-center energy and first-derivative workspaces.
+!> \param context owning context; global backend initialization is provided by init_cp2k
+!> \param max_am maximum angular momentum on any center
+! **************************************************************************************************
+   SUBROUTINE four_center_integral_init(context, max_am)
+      TYPE(four_center_integral_context_type), &
+         INTENT(INOUT)                                   :: context
+      INTEGER, INTENT(IN)                                :: max_am
+
+      CALL cp_libint_init_eri(context%eri, max_am)
+      CALL cp_libint_init_eri1(context%deriv, max_am)
+      CALL cp_libint_set_contrdepth(context%eri, 1)
+      CALL cp_libint_set_contrdepth(context%deriv, 1)
+   END SUBROUTINE four_center_integral_init
+
+! **************************************************************************************************
+!> \brief Release the workspaces of an owning four-center context.
+!> \param context original initialized owner; borrowed copies must not be passed here
+! **************************************************************************************************
+   SUBROUTINE four_center_integral_cleanup(context)
+      TYPE(four_center_integral_context_type), &
+         INTENT(INOUT)                                   :: context
+
+      CALL cp_libint_cleanup_eri(context%eri)
+      CALL cp_libint_cleanup_eri1(context%deriv)
+   END SUBROUTINE four_center_integral_cleanup
 
 ! **************************************************************************************************
 !> \brief Return the canonical quartet order required by the Libint ERI kernels.
@@ -119,106 +151,8 @@ CONTAINS
    END SUBROUTINE reorder_eri_block
 
 ! **************************************************************************************************
-!> \brief Fill data structure used in libint
-!> \param A ...
-!> \param B ...
-!> \param C ...
-!> \param D ...
-!> \param Zeta_A ...
-!> \param Zeta_B ...
-!> \param Zeta_C ...
-!> \param Zeta_D ...
-!> \param m_max ...
-!> \param potential_parameter ...
-!> \param libint ...
-!> \param R11 ...
-!> \param R22 ...
-!> \par History
-!>      03.2007 created [Manuel Guidon]
-!> \author Manuel Guidon
-! **************************************************************************************************
-   SUBROUTINE build_quartet_data_screen(A, B, C, D, Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
-                                        potential_parameter, libint, R11, R22)
-
-      REAL(KIND=dp)                                      :: A(3), B(3), C(3), D(3)
-      REAL(KIND=dp), INTENT(IN)                          :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
-      INTEGER, INTENT(IN)                                :: m_max
-      TYPE(hfx_potential_type)                           :: potential_parameter
-      TYPE(cp_libint_t)                                  :: libint
-      REAL(dp)                                           :: R11, R22
-
-      INTEGER                                            :: i
-      REAL(dp)                                           :: normalization
-      REAL(KIND=dp) :: AB(3), AB2, CD(3), CD2, den, Eta, EtaInv, G(3), num, P(3), PQ(3), PQ2, &
-         prefactor, Q(3), Rho, S1234, ssss, T, W(3), Zeta, ZetaInv, ZetapEtaInv
-      REAL(KIND=dp), DIMENSION(prim_data_f_size)         :: F, fundamentals_work
-
-      Zeta = Zeta_A + Zeta_B
-      ZetaInv = 1.0_dp/Zeta
-      Eta = Zeta_C + Zeta_D
-      EtaInv = 1.0_dp/Eta
-      ZetapEtaInv = Zeta + Eta
-      ZetapEtaInv = 1.0_dp/ZetapEtaInv
-      Rho = Zeta*Eta*ZetapEtaInv
-
-      DO i = 1, 3
-         P(i) = (Zeta_A*A(i) + Zeta_B*B(i))*ZetaInv
-         Q(i) = (Zeta_C*C(i) + Zeta_D*D(i))*EtaInv
-         AB(i) = A(i) - B(i)
-         CD(i) = C(i) - D(i)
-         PQ(i) = P(i) - Q(i)
-         W(i) = (Zeta*P(i) + Eta*Q(i))*ZetapEtaInv
-      END DO
-
-      AB2 = DOT_PRODUCT(AB, AB)
-      CD2 = DOT_PRODUCT(CD, CD)
-      PQ2 = DOT_PRODUCT(PQ, PQ)
-
-      S1234 = EXP((-Zeta_A*Zeta_B*ZetaInv*AB2) + (-Zeta_C*Zeta_D*EtaInv*CD2))
-      T = Rho*PQ2
-
-      SELECT CASE (potential_parameter%potential_type)
-      CASE (do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
-         IF (PQ2 > (R11 + R22 + potential_parameter%cutoff_radius)**2) RETURN
-      END SELECT
-      IF (potential_parameter%potential_type == do_potential_id) THEN
-         ssss = -Zeta_A*Zeta_B*ZetaInv*AB2
-
-         num = (Zeta_A + Zeta_B)*Zeta_C
-         den = Zeta_A + Zeta_B + Zeta_C
-         ssss = ssss - num/den*SUM((P - C)**2)
-
-         G(:) = (Zeta_A*A(:) + Zeta_B*B(:) + Zeta_C*C(:))/den
-         num = den*Zeta_D
-         den = den + Zeta_D
-         ssss = ssss - num/den*SUM((G - D)**2)
-
-         F(:) = EXP(ssss)
-         ! The ID seed already contains the four-Gaussian attenuation.
-         normalization = 1.0_dp
-         IF (S1234 > EPSILON(0.0_dp)) normalization = 1.0_dp/S1234
-      ELSE
-         CALL compute_r12_fundamentals(F, normalization, m_max, potential_parameter%potential_type, Rho, T, fundamentals_work, &
-                                       omega=potential_parameter%omega, &
-                                       cutoff_radius=potential_parameter%cutoff_radius, &
-                                       scale_coulomb=potential_parameter%scale_coulomb, &
-                                       scale_longrange=potential_parameter%scale_longrange, &
-                                       scale_gaussian=potential_parameter%scale_gaussian)
-      END IF
-
-      prefactor = normalization*S1234*SQRT((Pi*ZetapEtaInv)**3)
-
-      DO i = 1, m_max + 1
-         F(i) = F(i)*prefactor
-      END DO
-
-      CALL cp_libint_set_params_eri_screen(libint, A, B, C, D, P, Q, W, ZetaInv, EtaInv, ZetapEtaInv, Rho, m_max, F)
-
-   END SUBROUTINE build_quartet_data_screen
-
-! **************************************************************************************************
 !> \brief Evaluates derivatives of electron repulsion integrals for a primitive quartet
-!> \param deriv ...
+!> \param context four-center integral context
 !> \param nproducts ...
 !> \param pgf_product_list ...
 !> \param n_a ...
@@ -238,12 +172,6 @@ CONTAINS
 !> \param tmp_max_all ...
 !> \param eps_schwarz ...
 !> \param neris ...
-!> \param Zeta_A ...
-!> \param Zeta_B ...
-!> \param Zeta_C ...
-!> \param Zeta_D ...
-!> \param ZetaInv ...
-!> \param EtaInv ...
 !> \param s_offset_a ...
 !> \param s_offset_b ...
 !> \param s_offset_c ...
@@ -278,13 +206,12 @@ CONTAINS
 !>      08.2007 refactured permutation part [Manuel Guidon]
 !> \author Manuel Guidon
 ! **************************************************************************************************
-   SUBROUTINE evaluate_deriv_eri(deriv, nproducts, pgf_product_list, &
+   SUBROUTINE evaluate_deriv_eri(context, nproducts, pgf_product_list, &
                                  n_a, n_b, n_c, n_d, &
                                  ncoa, ncob, ncoc, ncod, &
                                  nsgfa, nsgfb, nsgfc, nsgfd, &
                                  primitives, max_contraction, tmp_max_all, &
                                  eps_schwarz, neris, &
-                                 Zeta_A, Zeta_B, Zeta_C, Zeta_D, ZetaInv, EtaInv, &
                                  s_offset_a, s_offset_b, s_offset_c, s_offset_d, &
                                  nl_a, nl_b, nl_c, nl_d, nsoa, nsob, nsoc, nsod, &
                                  sphi_a, sphi_b, sphi_c, sphi_d, &
@@ -292,17 +219,15 @@ CONTAINS
                                  use_virial, work_virial, work2_virial, primitives_tmp_virial, &
                                  primitives_virial, cell, tmp_max_all_virial)
 
-      TYPE(cp_libint_t)                                  :: deriv
+      TYPE(four_center_integral_context_type)            :: context
       INTEGER, INTENT(IN)                                :: nproducts
-      TYPE(hfx_pgf_product_list), DIMENSION(nproducts)   :: pgf_product_list
+      TYPE(eri4_pgf_product_type), DIMENSION(nproducts)  :: pgf_product_list
       INTEGER, INTENT(IN)                                :: n_a, n_b, n_c, n_d, ncoa, ncob, ncoc, &
                                                             ncod, nsgfa, nsgfb, nsgfc, nsgfd
       REAL(dp), &
          DIMENSION(nsgfa, nsgfb, nsgfc, nsgfd, 12)       :: primitives
       REAL(dp)                                           :: max_contraction, tmp_max_all, eps_schwarz
       INTEGER(int_8)                                     :: neris
-      REAL(dp), INTENT(IN)                               :: Zeta_A, Zeta_B, Zeta_C, Zeta_D, ZetaInv, &
-                                                            EtaInv
       INTEGER                                            :: s_offset_a, s_offset_b, s_offset_c, &
                                                             s_offset_d, nl_a, nl_b, nl_c, nl_d, &
                                                             nsoa, nsob, nsoc, nsod
@@ -326,11 +251,9 @@ CONTAINS
       REAL(dp)                                           :: tmp_max_all_virial
 
       INTEGER                                            :: a_mysize(1), angular_momenta(4), i, j, &
-                                                            k, m, m_max, mysize, n, pair_order(2), &
-                                                            permutation(4)
+                                                            k, m, m_max, mysize, n, permutation(4)
       LOGICAL                                            :: direct_contract
-      REAL(dp) :: centers(3, 4), exponents(4), inverse_exponents(2), product_centers(3, 2), &
-         scoord(12), tmp_max, tmp_max_virial
+      REAL(dp)                                           :: scoord(12), tmp_max, tmp_max_virial
 
       m_max = n_a + n_b + n_c + n_d
       m_max = m_max + 1
@@ -346,27 +269,11 @@ CONTAINS
       CALL get_eri_permutation(n_a, n_b, n_c, n_d, permutation)
       angular_momenta = [n_a, n_b, n_c, n_d]
       angular_momenta = angular_momenta(permutation)
-      exponents = [Zeta_A, Zeta_B, Zeta_C, Zeta_D]
-      exponents = exponents(permutation)
-      pair_order = [1, 2]
-      IF (permutation(1) > 2) pair_order = [2, 1]
-      inverse_exponents = [ZetaInv, EtaInv]
-      inverse_exponents = inverse_exponents(pair_order)
+
       DO i = 1, nproducts
-         centers(:, 1) = pgf_product_list(i)%ra
-         centers(:, 2) = pgf_product_list(i)%rb
-         centers(:, 3) = pgf_product_list(i)%rc
-         centers(:, 4) = pgf_product_list(i)%rd
-         product_centers(:, 1) = pgf_product_list(i)%P
-         product_centers(:, 2) = pgf_product_list(i)%Q
-         CALL cp_libint_set_params_eri_deriv(deriv, centers(:, permutation(1)), centers(:, permutation(2)), &
-                                             centers(:, permutation(3)), centers(:, permutation(4)), &
-                                             product_centers(:, pair_order(1)), product_centers(:, pair_order(2)), &
-                                             pgf_product_list(i)%W, exponents(1), exponents(2), exponents(3), exponents(4), &
-                                             inverse_exponents(1), inverse_exponents(2), pgf_product_list(i)%ZetapEtaInv, &
-                                             pgf_product_list(i)%Rho, m_max, pgf_product_list(i)%Fm)
+         CALL cp_libint_set_params_eri_deriv(context%deriv, pgf_product_list(i), permutation, m_max)
          CALL cp_libint_get_derivs(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
-                                   angular_momenta(1), deriv, work_forces, a_mysize)
+                                   angular_momenta(1), context%deriv, work_forces, a_mysize)
          DO k = 1, 12
             DO j = 1, mysize
                work(j, k) = work(j, k) + work_forces(j, k)
@@ -375,7 +282,7 @@ CONTAINS
          neris = neris + 12*mysize
          IF (use_virial) THEN
             DO j = 1, 4
-               CALL real_to_scaled(scoord(3*j - 2:3*j), centers(:, permutation(j)), cell)
+               CALL real_to_scaled(scoord(3*j - 2:3*j), pgf_product_list(i)%centers(:, permutation(j)), cell)
             END DO
             DO k = 1, 12
                DO j = 1, mysize
@@ -498,7 +405,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Evaluates max-abs values of  electron repulsion integrals for a primitive quartet
-!> \param libint ...
+!> \param context four-center integral context
 !> \param A ...
 !> \param B ...
 !> \param C ...
@@ -515,64 +422,79 @@ CONTAINS
 !> \param potential_parameter ...
 !> \param R1 ...
 !> \param R2 ...
-!> \param p_work ...
 !> \par History
 !>      03.2007 created [Manuel Guidon]
 !>      08.2007 refactured permutation part [Manuel Guidon]
 !> \author Manuel Guidon
 ! **************************************************************************************************
-   SUBROUTINE evaluate_eri_screen(libint, A, B, C, D, Zeta_A, Zeta_B, Zeta_C, Zeta_D, &
+   SUBROUTINE evaluate_eri_screen(context, A, B, C, D, Zeta_A, Zeta_B, Zeta_C, Zeta_D, &
                                   n_a, n_b, n_c, n_d, &
-                                  max_val, potential_parameter, R1, R2, &
-                                  p_work)
+                                  max_val, potential_parameter, R1, R2)
 
-      TYPE(cp_libint_t)                                  :: libint
+      TYPE(four_center_integral_context_type)            :: context
       REAL(dp), INTENT(IN)                               :: A(3), B(3), C(3), D(3), Zeta_A, Zeta_B, &
                                                             Zeta_C, Zeta_D
       INTEGER, INTENT(IN)                                :: n_a, n_b, n_c, n_d
       REAL(dp), INTENT(INOUT)                            :: max_val
-      TYPE(hfx_potential_type)                           :: potential_parameter
+      TYPE(coulomb_operator_type)                        :: potential_parameter
       REAL(dp)                                           :: R1, R2
-      REAL(dp), DIMENSION(:), POINTER                    :: p_work
 
       INTEGER                                            :: a_mysize(1), angular_momenta(4), i, &
                                                             m_max, mysize, permutation(4)
-      REAL(dp)                                           :: centers(3, 4), exponents(4)
+      REAL(dp)                                           :: centers(3, 4), exponents(4), PQ(3), PQ2, &
+                                                            S1234
+      REAL(dp), DIMENSION(:), POINTER                    :: p_work
+      TYPE(eri4_pgf_image_type)                          :: image_a, image_b
+      TYPE(eri4_pgf_pair_type)                           :: pair_a, pair_b
+      TYPE(eri4_pgf_product_type)                        :: params, product
 
       m_max = n_a + n_b + n_c + n_d
       mysize = nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d)
       a_mysize = mysize
 
+      CALL get_eri_permutation(n_a, n_b, n_c, n_d, permutation)
+      angular_momenta = [n_a, n_b, n_c, n_d]
+      angular_momenta = angular_momenta(permutation)
+      centers(:, 1) = A
+      centers(:, 2) = B
+      centers(:, 3) = C
+      centers(:, 4) = D
+      centers = centers(:, permutation)
+      exponents = [Zeta_A, Zeta_B, Zeta_C, Zeta_D]
+      exponents = exponents(permutation)
+
+      PQ = centers(:, 1) - centers(:, 2)
+      CALL prepare_eri4_pair(centers(:, 1), centers(:, 2), exponents(1), exponents(2), &
+                             DOT_PRODUCT(PQ, PQ), pair_a, image_a)
+      PQ = centers(:, 3) - centers(:, 4)
+      CALL prepare_eri4_pair(centers(:, 3), centers(:, 4), exponents(3), exponents(4), &
+                             DOT_PRODUCT(PQ, PQ), pair_b, image_b)
+      PQ = image_a%P - image_b%P
+      PQ2 = DOT_PRODUCT(PQ, PQ)
+      SELECT CASE (potential_parameter%potential_type)
+      CASE (do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
+         IF (PQ2 > (R1 + R2 + potential_parameter%cutoff_radius)**2) RETURN
+      END SELECT
+
+      CALL prepare_eri4_product(pair_a, pair_b, m_max, product)
+      S1234 = EXP(image_a%S1234 + image_b%S1234)
+      CALL prepare_eri4_primitive(product, image_a, image_b, S1234, PQ2, potential_parameter, params)
       IF (m_max /= 0) THEN
-         CALL get_eri_permutation(n_a, n_b, n_c, n_d, permutation)
-         angular_momenta = [n_a, n_b, n_c, n_d]
-         angular_momenta = angular_momenta(permutation)
-         centers(:, 1) = A
-         centers(:, 2) = B
-         centers(:, 3) = C
-         centers(:, 4) = D
-         exponents = [Zeta_A, Zeta_B, Zeta_C, Zeta_D]
-         exponents = exponents(permutation)
-         CALL build_quartet_data_screen(centers(:, permutation(1)), centers(:, permutation(2)), &
-                                        centers(:, permutation(3)), centers(:, permutation(4)), &
-                                        exponents(1), exponents(2), exponents(3), exponents(4), m_max, &
-                                        potential_parameter, libint, R1, R2)
+         CALL cp_libint_set_params_eri(context%eri, params, [1, 2, 3, 4], m_max)
          CALL cp_libint_get_eris(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
-                                 angular_momenta(1), libint, p_work, a_mysize)
+                                 angular_momenta(1), context%eri, p_work, a_mysize)
          DO i = 1, mysize
             max_val = MAX(max_val, ABS(p_work(i)))
          END DO
       ELSE
-         CALL build_quartet_data_screen(A, B, C, D, Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
-                                        potential_parameter, libint, R1, R2)
-         max_val = ABS(get_ssss_f_val(libint))
+         max_val = ABS(params%Fm(1))
       END IF
 
    END SUBROUTINE evaluate_eri_screen
 
 ! **************************************************************************************************
 !> \brief Evaluate electron repulsion integrals for a primitive quartet
-!> \param libint ...
+!> \param context four-center integral context
 !> \param nproducts ...
 !> \param pgf_product_list ...
 !> \param n_a ...
@@ -592,8 +514,6 @@ CONTAINS
 !> \param tmp_max ...
 !> \param eps_schwarz ...
 !> \param neris ...
-!> \param ZetaInv ...
-!> \param EtaInv ...
 !> \param s_offset_a ...
 !> \param s_offset_b ...
 !> \param s_offset_c ...
@@ -615,33 +535,30 @@ CONTAINS
 !> \param buffer1 ...
 !> \param buffer2 ...
 !> \param primitives_tmp ...
-!> \param p_work ...
 !> \par History
 !>      11.2006 created [Manuel Guidon]
 !>      08.2007 refactured permutation part [Manuel Guidon]
 !> \author Manuel Guidon
 ! **************************************************************************************************
-   SUBROUTINE evaluate_eri(libint, nproducts, pgf_product_list, &
+   SUBROUTINE evaluate_eri(context, nproducts, pgf_product_list, &
                            n_a, n_b, n_c, n_d, &
                            ncoa, ncob, ncoc, ncod, &
                            nsgfa, nsgfb, nsgfc, nsgfd, &
                            primitives, max_contraction, tmp_max, &
                            eps_schwarz, neris, &
-                           ZetaInv, EtaInv, &
                            s_offset_a, s_offset_b, s_offset_c, s_offset_d, &
                            nl_a, nl_b, nl_c, nl_d, nsoa, nsob, nsoc, nsod, &
                            sphi_a, sphi_b, sphi_c, sphi_d, work, work2, buffer1, buffer2, &
-                           primitives_tmp, p_work)
+                           primitives_tmp)
 
-      TYPE(cp_libint_t)                                  :: libint
+      TYPE(four_center_integral_context_type)            :: context
       INTEGER, INTENT(IN)                                :: nproducts
-      TYPE(hfx_pgf_product_list), DIMENSION(nproducts)   :: pgf_product_list
+      TYPE(eri4_pgf_product_type), DIMENSION(nproducts)  :: pgf_product_list
       INTEGER, INTENT(IN)                                :: n_a, n_b, n_c, n_d, ncoa, ncob, ncoc, &
                                                             ncod, nsgfa, nsgfb, nsgfc, nsgfd
       REAL(dp), DIMENSION(nsgfa, nsgfb, nsgfc, nsgfd)    :: primitives
       REAL(dp)                                           :: max_contraction, tmp_max, eps_schwarz
       INTEGER(int_8)                                     :: neris
-      REAL(dp), INTENT(IN)                               :: ZetaInv, EtaInv
       INTEGER                                            :: s_offset_a, s_offset_b, s_offset_c, &
                                                             s_offset_d, nl_a, nl_b, nl_c, nl_d, &
                                                             nsoa, nsob, nsoc, nsod
@@ -654,15 +571,11 @@ CONTAINS
       REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod)           :: buffer1, buffer2
       REAL(dp), DIMENSION(nsoa*nl_a, nsob*nl_b, nsoc*&
          nl_c, nsod*nl_d)                                :: primitives_tmp
-      REAL(dp), DIMENSION(:), POINTER                    :: p_work
 
       INTEGER                                            :: a_mysize(1), angular_momenta(4), i, &
-                                                            m_max, mysize, pair_order(2), &
-                                                            permutation(4)
+                                                            m_max, mysize, permutation(4)
       LOGICAL                                            :: direct_contract
-      REAL(dp)                                           :: centers(3, 4), inverse_exponents(2), &
-                                                            product_centers(3, 2)
-      REAL(dp), DIMENSION(:), POINTER                    :: eri_src
+      REAL(dp), DIMENSION(:), POINTER                    :: eri_src, p_work
 
       IF (nproducts == 0) RETURN
 
@@ -675,24 +588,11 @@ CONTAINS
          CALL get_eri_permutation(n_a, n_b, n_c, n_d, permutation)
          angular_momenta = [n_a, n_b, n_c, n_d]
          angular_momenta = angular_momenta(permutation)
-         pair_order = [1, 2]
-         IF (permutation(1) > 2) pair_order = [2, 1]
-         inverse_exponents = [ZetaInv, EtaInv]
-         inverse_exponents = inverse_exponents(pair_order)
+
          DO i = 1, nproducts
-            centers(:, 1) = pgf_product_list(i)%ra
-            centers(:, 2) = pgf_product_list(i)%rb
-            centers(:, 3) = pgf_product_list(i)%rc
-            centers(:, 4) = pgf_product_list(i)%rd
-            product_centers(:, 1) = pgf_product_list(i)%P
-            product_centers(:, 2) = pgf_product_list(i)%Q
-            CALL cp_libint_set_params_eri(libint, centers(:, permutation(1)), centers(:, permutation(2)), &
-                                          centers(:, permutation(3)), centers(:, permutation(4)), &
-                                          inverse_exponents(1), inverse_exponents(2), pgf_product_list(i)%ZetapEtaInv, &
-                                          pgf_product_list(i)%Rho, product_centers(:, pair_order(1)), &
-                                          product_centers(:, pair_order(2)), pgf_product_list(i)%W, m_max, pgf_product_list(i)%Fm)
+            CALL cp_libint_set_params_eri(context%eri, pgf_product_list(i), permutation, m_max)
             CALL cp_libint_get_eris(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
-                                    angular_momenta(1), libint, p_work, a_mysize)
+                                    angular_momenta(1), context%eri, p_work, a_mysize)
             IF (nproducts > 1) work(1:mysize) = work(1:mysize) + p_work(1:mysize)
             neris = neris + mysize
          END DO
@@ -755,4 +655,4 @@ CONTAINS
 
    END SUBROUTINE evaluate_eri
 
-END MODULE hfx_libint_interface
+END MODULE four_center_integral_interface

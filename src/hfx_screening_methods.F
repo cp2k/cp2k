@@ -14,7 +14,8 @@
 MODULE hfx_screening_methods
    USE ao_util,                         ONLY: exp_radius_very_extended
    USE basis_set_types,                 ONLY: gto_basis_set_type
-   USE hfx_libint_interface,            ONLY: evaluate_eri_screen
+   USE four_center_integral_interface,  ONLY: evaluate_eri_screen,&
+                                              four_center_integral_context_type
    USE hfx_types,                       ONLY: hfx_basis_type,&
                                               hfx_p_kind,&
                                               hfx_potential_type,&
@@ -23,7 +24,6 @@ MODULE hfx_screening_methods
                                               powell_min_log
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE libint_wrapper,                  ONLY: cp_libint_t
    USE machine,                         ONLY: default_output_unit
    USE orbital_pointers,                ONLY: ncoset
    USE powell,                          ONLY: opt_state_type,&
@@ -50,7 +50,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief calculates max values of two-electron integrals in a quartet/shell
 !>      w.r.t. different zetas using the library lib_int
-!> \param lib ...
+!> \param context four-center integral context
 !> \param ra position
 !> \param rb position
 !> \param zeta zeta
@@ -62,22 +62,21 @@ CONTAINS
 !> \param npgfa number of primitive cartesian gaussian in actual shell
 !> \param npgfb number of primitive cartesian gaussian in actual shell
 !> \param max_val schwarz screening value
-!> \param potential_parameter contains info for libint
+!> \param potential_parameter radial operator parameters
 !> \param tmp_R_1 pgf_based screening coefficients
 !> \param rab2 Squared Distance of centers ab
-!> \param p_work ...
 !> \par History
 !>     03.2007 created [Manuel Guidon]
 !>     02.2009 refactored [Manuel Guidon]
 !> \author Manuel Guidon
 ! **************************************************************************************************
-   SUBROUTINE screen4(lib, ra, rb, zeta, zetb, &
+   SUBROUTINE screen4(context, ra, rb, zeta, zetb, &
                       la_min, la_max, lb_min, lb_max, &
                       npgfa, npgfb, &
                       max_val, potential_parameter, tmp_R_1, &
-                      rab2, p_work)
+                      rab2)
 
-      TYPE(cp_libint_t)                                  :: lib
+      TYPE(four_center_integral_context_type)            :: context
       REAL(dp), INTENT(IN)                               :: ra(3), rb(3)
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: zeta, zetb
       INTEGER, INTENT(IN)                                :: la_min, la_max, lb_min, lb_max, npgfa, &
@@ -87,7 +86,6 @@ CONTAINS
       TYPE(hfx_screen_coeff_type), DIMENSION(:, :), &
          POINTER                                         :: tmp_R_1
       REAL(dp)                                           :: rab2
-      REAL(dp), DIMENSION(:), POINTER                    :: p_work
 
       INTEGER                                            :: ipgf, jpgf, la, lb
       REAL(dp)                                           :: max_val_temp, R1
@@ -99,10 +97,10 @@ CONTAINS
             DO la = la_min, la_max
                DO lb = lb_min, lb_max
                   !Build primitives
-                  CALL evaluate_eri_screen(lib, ra, rb, ra, rb, &
+                  CALL evaluate_eri_screen(context, ra, rb, ra, rb, &
                                            zeta(ipgf), zetb(jpgf), zeta(ipgf), zetb(jpgf), &
                                            la, lb, la, lb, &
-                                           max_val_temp, potential_parameter, R1, R1, p_work)
+                                           max_val_temp, potential_parameter, R1, R1)
 
                   max_val = MAX(max_val, max_val_temp)
                END DO !lb
@@ -266,7 +264,7 @@ CONTAINS
 !> \brief calculates screening functions for schwarz screening
 !> \param qs_env qs_env
 !> \param basis_parameter ...
-!> \param lib structure to libint
+!> \param context structure to libint
 !> \param potential_parameter contains infos on potential
 !> \param coeffs_set set based coefficients
 !> \param coeffs_kind kind based coefficients
@@ -276,7 +274,6 @@ CONTAINS
 !> \param max_pgf Maximum Number of basis set pgfs in the system
 !> \param n_threads ...
 !> \param i_thread Thread ID of current task
-!> \param p_work ...
 !> \par History
 !>     02.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -297,13 +294,12 @@ CONTAINS
 !>      screening matrices
 ! **************************************************************************************************
 
-   SUBROUTINE calc_screening_functions(qs_env, basis_parameter, lib, potential_parameter, &
+   SUBROUTINE calc_screening_functions(qs_env, basis_parameter, context, potential_parameter, &
                                        coeffs_set, coeffs_kind, coeffs_pgf, radii_pgf, &
-                                       max_set, max_pgf, n_threads, i_thread, &
-                                       p_work)
+                                       max_set, max_pgf, n_threads, i_thread)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
-      TYPE(cp_libint_t)                                  :: lib
+      TYPE(four_center_integral_context_type)            :: context
       TYPE(hfx_potential_type)                           :: potential_parameter
       TYPE(hfx_screen_coeff_type), &
          DIMENSION(:, :, :, :), POINTER                  :: coeffs_set
@@ -312,7 +308,6 @@ CONTAINS
       TYPE(hfx_screen_coeff_type), &
          DIMENSION(:, :, :, :, :, :), POINTER            :: coeffs_pgf, radii_pgf
       INTEGER, INTENT(IN)                                :: max_set, max_pgf, n_threads, i_thread
-      REAL(dp), DIMENSION(:), POINTER                    :: p_work
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_screening_functions'
 
@@ -418,10 +413,10 @@ CONTAINS
                               DO lb = lb_min(jset), lb_max(jset)
                                  !Build primitives
                                  max_val_temp = 0.0_dp
-                                 CALL evaluate_eri_screen(lib, ra, rb, ra, rb, &
+                                 CALL evaluate_eri_screen(context, ra, rb, ra, rb, &
                                                           zeta(ipgf, iset), zetb(jpgf, jset), zeta(ipgf, iset), zetb(jpgf, jset), &
                                                           la, lb, la, lb, &
-                                                          max_val_temp, potential_parameter, R1, R1, p_work)
+                                                          max_val_temp, potential_parameter, R1, R1)
                                  max_val = MAX(max_val, max_val_temp)
                               END DO !lb
                            END DO !la
@@ -518,11 +513,11 @@ CONTAINS
                   DO i = i_thread, 100, n_threads
                      rb(1) = 0.0_dp + REAL(i, dp)*0.01_dp*radius
                      max_val = 0.0_dp
-                     CALL screen4(lib, ra, rb, &
+                     CALL screen4(context, ra, rb, &
                                   zeta(:, iset), zetb(:, jset), &
                                   la_min(iset), la_max(iset), lb_min(jset), lb_max(jset), &
                                   npgfa(iset), npgfb(jset), &
-                                  max_val, potential_parameter, tmp_R_1, rb(1)**2, p_work)
+                                  max_val, potential_parameter, tmp_R_1, rb(1)**2)
                      max_val = SQRT(max_val)
                      max_val = max_val*max_contraction_a*max_contraction_b
                      DATA(1, i) = rb(1)
@@ -601,11 +596,11 @@ CONTAINS
                      rb(1) = 0.0_dp + REAL(i, dp)*0.01_dp*radius
                      max_val = 0.0_dp
                      tmp_R_1 => radii_pgf(:, :, jset, iset, jkind, ikind)
-                     CALL screen4(lib, ra, rb, &
+                     CALL screen4(context, ra, rb, &
                                   zeta(:, iset), zetb(:, jset), &
                                   la_min(iset), la_max(iset), lb_min(jset), lb_max(jset), &
                                   npgfa(iset), npgfb(jset), &
-                                  max_val, potential_parameter, tmp_R_1, rb(1)**2, p_work)
+                                  max_val, potential_parameter, tmp_R_1, rb(1)**2)
                      DATA(1, i) = rb(1)
                      max_val = SQRT(max_val)
                      max_val = max_val*max_contraction_a*max_contraction_b
