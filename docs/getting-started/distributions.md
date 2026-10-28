@@ -54,8 +54,8 @@ See also [conda-forge.org](https://conda-forge.org/packages/) and
 apt-get install cp2k
 ```
 
-See also [debian.org](https://packages.debian.org/search?keywords=cp2k) and
-[ubuntu.com](https://packages.ubuntu.com/search?keywords=cp2k).
+See also [debian.org](https://tracker.debian.org/pkg/cp2k) and
+[launchpad.net/ubuntu](https://launchpad.net/ubuntu/+source/cp2k).
 
 ## Docker / Podman
 
