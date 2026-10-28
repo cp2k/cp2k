@@ -43,6 +43,7 @@ MODULE libint_wrapper
 
    IMPLICIT NONE
    PRIVATE
+   PUBLIC :: get_eri_permutation, reorder_eri_block
    PUBLIC :: cp_libint_t, prim_data_f_size, &
              libint_max_am, cp_libint_get_eris, cp_libint_get_derivs, &
              cp_libint_init_eri, cp_libint_init_eri1, cp_libint_cleanup_eri, &
@@ -90,6 +91,76 @@ MODULE libint_wrapper
 #endif
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Select the canonical center order required by generated Libint kernels.
+!> \param la original first-center angular momentum
+!> \param lb original second-center angular momentum
+!> \param lc original third-center angular momentum
+!> \param ld original fourth-center angular momentum
+!> \param permutation original center index for each canonical center
+! **************************************************************************************************
+   PURE SUBROUTINE get_eri_permutation(la, lb, lc, ld, permutation)
+      INTEGER, INTENT(IN)                                :: la, lb, lc, ld
+      INTEGER, INTENT(OUT)                               :: permutation(4)
+
+      permutation = [1, 2, 3, 4]
+      IF (la < lb) permutation(1:2) = [2, 1]
+      IF (lc < ld) permutation(3:4) = [4, 3]
+      IF (la + lb > lc + ld) permutation = permutation([3, 4, 1, 2])
+   END SUBROUTINE get_eri_permutation
+
+! **************************************************************************************************
+!> \brief Restore original Cartesian axes and derivative center labels.
+!> \param source canonical block with the fourth Cartesian index varying fastest
+!> \param destination original block with the first Cartesian index varying fastest
+!> \param ncart Cartesian shell sizes in original center order
+!> \param permutation original center index for each canonical center
+!> \param ncomponents one integral component or twelve center derivatives
+!> \param nplanes number of independent planes
+! **************************************************************************************************
+   PURE SUBROUTINE reorder_eri_block(source, destination, ncart, permutation, ncomponents, nplanes)
+      INTEGER, INTENT(IN)                                :: ncart(4), permutation(4), ncomponents, &
+                                                            nplanes
+      REAL(dp), INTENT(OUT) :: destination(PRODUCT(ncart), ncomponents, nplanes)
+      REAL(dp), INTENT(IN) :: source(PRODUCT(ncart), ncomponents, nplanes)
+
+      INTEGER                                            :: component, extent(4), i, isource, j, k, &
+                                                            l, output_component, p1, p2, p3, p4, &
+                                                            plane, stride(4)
+
+      stride = [1, ncart(1), ncart(1)*ncart(2), ncart(1)*ncart(2)*ncart(3)]
+      stride = stride(permutation)
+      extent = ncart(permutation)
+      ! Read the Libint block contiguously and restore the original Fortran layout with strides.
+      DO plane = 1, nplanes
+         DO component = 1, ncomponents
+            output_component = component
+            IF (ncomponents == 12) THEN
+               output_component = 3*(permutation((component - 1)/3 + 1) - 1) + MOD(component - 1, 3) + 1
+            END IF
+            isource = 0
+            p1 = 1
+            DO i = 1, extent(1)
+               p2 = p1
+               DO j = 1, extent(2)
+                  p3 = p2
+                  DO k = 1, extent(3)
+                     p4 = p3
+                     DO l = 1, extent(4)
+                        isource = isource + 1
+                        destination(p4, output_component, plane) = source(isource, component, plane)
+                        p4 = p4 + stride(4)
+                     END DO
+                     p3 = p3 + stride(3)
+                  END DO
+                  p2 = p2 + stride(2)
+               END DO
+               p1 = p1 + stride(1)
+            END DO
+         END DO
+      END DO
+   END SUBROUTINE reorder_eri_block
 
 #if(__LIBINT)
    #:for rank in range(2, 5)

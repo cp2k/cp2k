@@ -42,8 +42,7 @@ MODULE mp2_ri_libint
                                               calc_screening_functions
    USE hfx_types,                       ONLY: &
         hfx_basis_info_type, hfx_basis_type, hfx_create_neighbor_cells, hfx_pgf_list, &
-        hfx_pgf_product_list, hfx_potential_type, hfx_screen_coeff_type, hfx_type, log_zero, &
-        pair_set_list_type
+        hfx_potential_type, hfx_screen_coeff_type, hfx_type, log_zero, pair_set_list_type
    USE input_constants,                 ONLY: do_potential_TShPSC,&
                                               do_potential_long
    USE kinds,                           ONLY: dp,&
@@ -444,7 +443,7 @@ CONTAINS
          log10_eps_schwarz, log10_pmax, max_contraction_val, pmax_atom, pmax_entry, ra(3), rb(3), &
          rc(3), rd(3)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ee_buffer1, ee_buffer2, &
-                                                            ee_primitives_tmp, ee_work, ee_work2, &
+                                                            ee_primitives_tmp, ee_work2, &
                                                             primitive_integrals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: L_block, L_full_matrix, max_contraction
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BI1, MNRS
@@ -459,8 +458,6 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: fm_matrix_L
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
       TYPE(hfx_pgf_list), ALLOCATABLE, DIMENSION(:)      :: pgf_list_ij, pgf_list_kl
-      TYPE(hfx_pgf_product_list), ALLOCATABLE, &
-         DIMENSION(:)                                    :: pgf_product_list
       TYPE(hfx_potential_type)                           :: mp2_potential_parameter
       TYPE(hfx_screen_coeff_type), ALLOCATABLE, &
          DIMENSION(:, :), TARGET                         :: radii_pgf_large, screen_coeffs_pgf_large
@@ -488,9 +485,9 @@ CONTAINS
 
       CALL prepare_integral_calc(cell, qs_env, mp2_env, para_env, mp2_potential_parameter, actual_x_data, &
                                  do_periodic, basis_parameter, max_set, particle_set, natom, kind_of, &
-                                 nsgf_max, primitive_integrals, ee_work, ee_work2, ee_buffer1, ee_buffer2, &
+                                 nsgf_max, primitive_integrals, ee_work2, ee_buffer1, ee_buffer2, &
                                  ee_primitives_tmp, nspins, max_contraction, max_pgf, pgf_list_ij, &
-                                 pgf_list_kl, pgf_product_list, nimages, eps_schwarz, log10_eps_schwarz, &
+                                 pgf_list_kl, nimages, eps_schwarz, log10_eps_schwarz, &
                                  screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
                                  radii_pgf, RI_basis_parameter, RI_basis_info)
 
@@ -629,14 +626,13 @@ CONTAINS
                                 max_contraction_val, cartesian_estimate, cell, neris_tmp, &
                                 log10_pmax, log10_eps_schwarz, &
                                 tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2, &
-                                pgf_list_ij, pgf_list_kl, pgf_product_list, &
-                                nsgfl_a(:, iset), nsgfl_b(:, jset), &
+                                pgf_list_ij, pgf_list_kl, nsgfl_a(:, iset), nsgfl_b(:, jset), &
                                 nsgfl_c(:, kset), nsgfl_d(:, lset), &
                                 sphi_a_ext_set, &
                                 sphi_b_ext_set, &
                                 sphi_c_ext_set, &
                                 sphi_d_ext_set, &
-                                ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
+                                ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
                                 nimages, do_periodic)
 
                   primitive_counter = 0
@@ -856,14 +852,13 @@ CONTAINS
                                 max_contraction_val, cartesian_estimate, cell, neris_tmp, &
                                 log10_pmax, log10_eps_schwarz, &
                                 tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2, &
-                                pgf_list_ij, pgf_list_kl, pgf_product_list, &
-                                nsgfl_a(:, iset), nsgfl_b(:, jset), &
+                                pgf_list_ij, pgf_list_kl, nsgfl_a(:, iset), nsgfl_b(:, jset), &
                                 nsgfl_c(:, kset), nsgfl_d(:, lset), &
                                 sphi_a_ext_set, &
                                 sphi_b_ext_set, &
                                 sphi_c_ext_set, &
                                 sphi_d_ext_set, &
-                                ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
+                                ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
                                 nimages, do_periodic)
 
                   nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
@@ -926,11 +921,10 @@ CONTAINS
 
       DEALLOCATE (pgf_list_ij)
       DEALLOCATE (pgf_list_kl)
-      DEALLOCATE (pgf_product_list)
 
       DEALLOCATE (max_contraction, kind_of)
 
-      DEALLOCATE (ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp)
+      DEALLOCATE (ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp)
 
       DEALLOCATE (nimages)
 
@@ -959,7 +953,6 @@ CONTAINS
 !> \param kind_of ...
 !> \param nsgf_max ...
 !> \param primitive_integrals ...
-!> \param ee_work ...
 !> \param ee_work2 ...
 !> \param ee_buffer1 ...
 !> \param ee_buffer2 ...
@@ -969,7 +962,6 @@ CONTAINS
 !> \param max_pgf ...
 !> \param pgf_list_ij ...
 !> \param pgf_list_kl ...
-!> \param pgf_product_list ...
 !> \param nimages ...
 !> \param eps_schwarz ...
 !> \param log10_eps_schwarz ...
@@ -982,9 +974,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE prepare_integral_calc(cell, qs_env, mp2_env, para_env, mp2_potential_parameter, actual_x_data, &
                                     do_periodic, basis_parameter, max_set, particle_set, natom, kind_of, &
-                                    nsgf_max, primitive_integrals, ee_work, ee_work2, ee_buffer1, ee_buffer2, &
+                                    nsgf_max, primitive_integrals, ee_work2, ee_buffer1, ee_buffer2, &
                                     ee_primitives_tmp, nspins, max_contraction, max_pgf, pgf_list_ij, &
-                                    pgf_list_kl, pgf_product_list, nimages, eps_schwarz, log10_eps_schwarz, &
+                                    pgf_list_kl, nimages, eps_schwarz, log10_eps_schwarz, &
                                     screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
                                     radii_pgf, RI_basis_parameter, RI_basis_info)
 
@@ -1002,7 +994,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: kind_of
       INTEGER, INTENT(OUT)                               :: nsgf_max
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                                     :: primitive_integrals, ee_work, ee_work2, &
+         INTENT(OUT)                                     :: primitive_integrals, ee_work2, &
                                                             ee_buffer1, ee_buffer2, &
                                                             ee_primitives_tmp
       INTEGER, INTENT(OUT)                               :: nspins
@@ -1011,8 +1003,6 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: max_pgf
       TYPE(hfx_pgf_list), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: pgf_list_ij, pgf_list_kl
-      TYPE(hfx_pgf_product_list), ALLOCATABLE, &
-         DIMENSION(:), INTENT(OUT)                       :: pgf_product_list
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: nimages
       REAL(KIND=dp), INTENT(OUT)                         :: eps_schwarz, log10_eps_schwarz
       TYPE(hfx_screen_coeff_type), &
@@ -1105,7 +1095,6 @@ CONTAINS
       ALLOCATE (primitive_integrals(nsgf_max**4))
       primitive_integrals = 0.0_dp
 
-      ALLOCATE (ee_work(ncos_max**4))
       ALLOCATE (ee_work2(ncos_max**4))
       ALLOCATE (ee_buffer1(ncos_max**4))
       ALLOCATE (ee_buffer2(ncos_max**4))
@@ -1119,7 +1108,6 @@ CONTAINS
       nneighbors = SIZE(actual_x_data%neighbor_cells)
       ALLOCATE (pgf_list_ij(max_pgf**2))
       ALLOCATE (pgf_list_kl(max_pgf**2))
-      ALLOCATE (pgf_product_list(nneighbors**3))
       ALLOCATE (nimages(max_pgf**2))
 
       DO ii = 1, max_pgf**2

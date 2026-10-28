@@ -23,7 +23,6 @@ MODULE mp2_direct_method
    USE hfx_pair_list_methods,           ONLY: build_pair_list_mp2
    USE hfx_types,                       ONLY: hfx_basis_type,&
                                               hfx_pgf_list,&
-                                              hfx_pgf_product_list,&
                                               hfx_potential_type,&
                                               hfx_screen_coeff_type,&
                                               hfx_type,&
@@ -440,7 +439,7 @@ CONTAINS
          screen_kind_kl
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cost_RS, cost_RS_temp, ee_buffer1, &
                                                             ee_buffer2, ee_primitives_tmp, &
-                                                            ee_work, ee_work2, primitive_integrals
+                                                            ee_work2, primitive_integrals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_RS_mat_rec, C_beta_T, max_contraction
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb, BIb_RS_mat_rec_big, zero_mat_big
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: BI1, MNRS
@@ -455,8 +454,6 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
       TYPE(hfx_pgf_list), ALLOCATABLE, DIMENSION(:)      :: pgf_list_ij, pgf_list_kl
-      TYPE(hfx_pgf_product_list), ALLOCATABLE, &
-         DIMENSION(:)                                    :: pgf_product_list
       TYPE(hfx_potential_type)                           :: mp2_potential_parameter
       TYPE(hfx_screen_coeff_type), DIMENSION(:, :), &
          POINTER                                         :: screen_coeffs_kind, tmp_R_1, tmp_R_2, &
@@ -484,9 +481,9 @@ CONTAINS
 
       CALL prepare_integral_calc(cell, qs_env, mp2_env, para_env, mp2_potential_parameter, actual_x_data, &
                                  do_periodic, basis_parameter, max_set, particle_set, natom, kind_of, &
-                                 nsgf_max, primitive_integrals, ee_work, ee_work2, ee_buffer1, ee_buffer2, &
+                                 nsgf_max, primitive_integrals, ee_work2, ee_buffer1, ee_buffer2, &
                                  ee_primitives_tmp, nspins, max_contraction, max_pgf, pgf_list_ij, &
-                                 pgf_list_kl, pgf_product_list, nimages, eps_schwarz, log10_eps_schwarz, &
+                                 pgf_list_kl, nimages, eps_schwarz, log10_eps_schwarz, &
                                  screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
                                  radii_pgf)
 
@@ -799,14 +796,13 @@ CONTAINS
                                    max_contraction_val, cartesian_estimate, cell, neris_tmp, &
                                    log10_pmax, log10_eps_schwarz, &
                                    tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2, &
-                                   pgf_list_ij, pgf_list_kl, pgf_product_list, &
-                                   nsgfl_a(:, iset), nsgfl_b(:, jset), &
+                                   pgf_list_ij, pgf_list_kl, nsgfl_a(:, iset), nsgfl_b(:, jset), &
                                    nsgfl_c(:, kset), nsgfl_d(:, lset), &
                                    sphi_a_ext_set, &
                                    sphi_b_ext_set, &
                                    sphi_c_ext_set, &
                                    sphi_d_ext_set, &
-                                   ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
+                                   ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
                                    nimages, do_periodic)
 
                      nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
@@ -1101,11 +1097,10 @@ CONTAINS
 
       DEALLOCATE (pgf_list_ij)
       DEALLOCATE (pgf_list_kl)
-      DEALLOCATE (pgf_product_list)
 
       DEALLOCATE (max_contraction, kind_of)
 
-      DEALLOCATE (ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp)
+      DEALLOCATE (ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp)
 
       DEALLOCATE (nimages)
 

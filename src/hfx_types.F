@@ -49,7 +49,6 @@ MODULE hfx_types
                                               four_center_integral_init
    USE four_center_integral_types,      ONLY: hfx_cell_type => eri4_cell_type,&
                                               hfx_pgf_list => eri4_pgf_pair_type,&
-                                              hfx_pgf_product_list => eri4_pgf_product_type,&
                                               hfx_screen_coeff_type => eri4_screen_coeff_type
    USE hfx_helpers,                     ONLY: count_cells_perd,&
                                               next_image_cell_perd
@@ -110,7 +109,7 @@ MODULE hfx_types
              hfx_basis_info_type, hfx_screen_coeff_type, &
              hfx_reset_memory_usage_counter, pair_list_type, pair_list_element_type, &
              pair_set_list_type, hfx_p_kind, hfx_2D_map, hfx_pgf_list, &
-             hfx_pgf_product_list, hfx_block_range_type, &
+             hfx_block_range_type, &
              alloc_containers, dealloc_containers, hfx_task_list_type, init_t_c_g0_lmax, &
              hfx_create_neighbor_cells, hfx_create_basis_types, hfx_release_basis_types, &
              hfx_ri_type, hfx_compression_type, block_ind_type, hfx_ri_init, hfx_ri_release, &
