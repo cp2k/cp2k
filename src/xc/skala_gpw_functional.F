@@ -93,7 +93,8 @@ MODULE skala_gpw_functional
              native_skala_gapw_composite_direct_ao, native_skala_gapw_composite_reference, &
              native_skala_gapw_density_partition, skala_gpw_eval, skala_gpw_weight_derivative, &
              skala_gapw_representation, xc_section_uses_native_skala_evaluator, &
-             xc_section_uses_native_skala_grid, xc_section_uses_gauxc_model
+             xc_section_uses_native_skala_grid, xc_section_uses_gauxc_model, &
+             xc_section_uses_skala_model
 
    TYPE(skala_torch_model_type), SAVE                  :: cached_model
    TYPE(skala_gapw_atom_cuda_tensor_cache_type), SAVE, TARGET :: cached_atom_cuda_tensors
@@ -297,6 +298,29 @@ CONTAINS
       END IF
 
    END FUNCTION xc_section_uses_gauxc_model
+
+! **************************************************************************************************
+!> \brief Return true if the XC section requests a SKALA model (GauXC or native/FTorch).
+!> \param xc_section ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION xc_section_uses_skala_model(xc_section) RESULT(uses_skala_model)
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
+      LOGICAL                                            :: uses_skala_model
+
+      CHARACTER(len=default_path_length)                 :: model_key, model_name
+      TYPE(section_vals_type), POINTER                   :: gauxc_section
+
+      uses_skala_model = .FALSE.
+      gauxc_section => get_gauxc_section(xc_section)
+      IF (.NOT. ASSOCIATED(gauxc_section)) RETURN
+
+      CALL section_vals_val_get(gauxc_section, "MODEL", c_val=model_name)
+      model_key = ADJUSTL(model_name)
+      CALL uppercase(model_key)
+      uses_skala_model = INDEX(TRIM(model_key), "SKALA") > 0
+
+   END FUNCTION xc_section_uses_skala_model
 
 ! **************************************************************************************************
 !> \brief Return the hard/soft GAPW one-center density partition for native SKALA.

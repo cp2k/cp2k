@@ -1,4 +1,7 @@
-"H2_NATIVE_SKALA_GAPW_GTH_STRESS.inp"               = [{matcher = "E_total", tol = 5e-7, ref = -0.98711215396284}]
+"H2_NATIVE_SKALA_GAPW_GTH_STRESS.inp"               = [
+  {matcher = "E_total", tol = 5e-7, ref = -0.98766361870469},
+  {matcher = "M033", tol = 1e-10, ref = -0.00055191720337}
+]
 "H2_NATIVE_SKALA_GAPW_GTH_STRESS_CHUNK_REQUEST.inp" = [{matcher = "E_total", tol = 5e-7, ref = -0.97023301259343}]
 "H2_NATIVE_SKALA_GAPW_GPWTYPE_STRESS.inp"           = [
   {matcher = "E_total", tol = 1e-8, ref = -0.966280511828740},
