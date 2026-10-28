@@ -730,8 +730,6 @@ CONTAINS
          CALL section_vals_retain(input_file)
       END IF
 
-      CALL check_cp2k_input(input_declaration, input_file, para_env=para_env, output_unit=unit_nr)
-
       root_section => input_file
       CALL section_vals_retain(root_section)
 
@@ -741,6 +739,8 @@ CONTAINS
       CALL cp2k_init(root_section, para_env, output_unit=unit_nr, globenv=globenv, input_file_name=input_path, &
                      wdir=wdir)
       logger => cp_get_default_logger()
+
+      CALL check_cp2k_input(input_declaration, input_file, para_env=para_env, output_unit=unit_nr)
 
       IF (n_f_envs + 1 > SIZE(f_envs)) THEN
          f_envs_old => f_envs
