@@ -387,19 +387,20 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bse_matvec_apply'
 
-      INTEGER                                            :: col, col_shift_B, handle, handle2, ia, &
-                                                            iloc, k, me, n_work_bufs, nb, nb_max, &
-                                                            nrow_local, p
+      INTEGER :: col, col_shift_B, first_row, handle, handle2, ia, iloc, k, last_row, me, &
+         n_outputs, n_work_bufs, nb, nb_max, nrow_local, nvec, offset, p, peer, rows
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       LOGICAL                                            :: do_B
       REAL(KIND=dp)                                      :: mem_avail_GB
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: R_loc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: BabZ_buf, RA_buf, RB_buf, Z_buf
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: result_buf, work_buf
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BjaZ_ab, T_Pk
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         POINTER                                         :: B_ia_2d, BabZ_wide, RA, RB, Z, Z_wide
+         POINTER                                         :: B_ia_2d, BabZ_wide, local_result, &
+                                                            packed, RA, RB, Z, Z_wide
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: BabZ_3d, RA_3d, RB_3d, Z_3d
+      INTEGER                                            :: displs(SIZE(mv_env%row_displ)), &
+                                                            counts(SIZE(mv_env%row_count))
 
       CALL timeset(routineN, handle)
 
@@ -417,14 +418,11 @@ CONTAINS
       me = mv_env%para_env%mepos + 1
       CPASSERT(nrow_local == mv_env%row_count(me))
       CPASSERT(nrow_local == 0 .OR. row_indices(1) == mv_env%row_displ(me) + 1)
-      ALLOCATE (R_loc(nrow_local))
 
       ! columns per pass from the memory of the replicated work arrays Z, B_ab Z, R^A (and R^B)
-      IF (do_B) THEN
-         n_work_bufs = 4
-      ELSE
-         n_work_bufs = 3
-      END IF
+      n_outputs = 1
+      IF (do_B) n_outputs = 2
+      n_work_bufs = 2 + n_outputs
       IF (mv_env%block_cols > 0) THEN
          ! pinned by input: the replicated work arrays are then a known n_work_bufs*n_ov*nb doubles
          nb_max = MIN(ncol, mv_env%block_cols)
@@ -435,37 +433,54 @@ CONTAINS
                           mem_avail_GB*1.0E9_dp/(8.0_dp*REAL(n_work_bufs, dp)*REAL(mv_env%n_ov, dp))))
       END IF
       nb_max = MAX(nb_max, 1)
+      ! The paired work buffer and all collective counts/displacements use default INTEGER.
+      nb_max = MIN(nb_max, (HUGE(0)/2)/mv_env%n_ov)
+      CPASSERT(nb_max >= 1)
 
-      ALLOCATE (Z_buf(mv_env%n_ov*nb_max), RA_buf(mv_env%n_ov*nb_max), BabZ_buf(mv_env%n_ov*nb_max))
-      IF (do_B) THEN
-         ALLOCATE (RB_buf(mv_env%n_ov*nb_max), BjaZ_ab(mv_env%virt, mv_env%virt))
-      END IF
+      ! Keep the same three/four full buffers. Their slots serve both BLAS and communication:
+      ! work_buf holds Z and B_ab Z, result_buf holds R^A (and R^B).
+      ALLOCATE (work_buf(2*mv_env%n_ov*nb_max), result_buf(n_outputs*mv_env%n_ov*nb_max))
+      IF (do_B) ALLOCATE (BjaZ_ab(mv_env%virt, mv_env%virt))
       ALLOCATE (T_Pk(mv_env%n_ri_loc, nb_max))
       B_ia_2d(1:mv_env%n_ov, 1:mv_env%n_ri_loc) => mv_env%B_ia
 
       DO col = first_col, first_col + ncol - 1, nb_max
          nb = MIN(nb_max, first_col + ncol - col)
+         nvec = mv_env%n_ov*nb
          ! three views of one contiguous buffer, bounds-remapping pointer assignment (Fortran 2003):
          ! Z_ia,k for the exchange DGEMM, Z_3d(a, i, k) per column, Z_wide(a, (i k)) for the wide product
-         Z(1:mv_env%n_ov, 1:nb) => Z_buf(1:mv_env%n_ov*nb)
-         Z_3d(1:mv_env%virt, 1:mv_env%homo, 1:nb) => Z_buf(1:mv_env%n_ov*nb)
-         Z_wide(1:mv_env%virt, 1:mv_env%homo*nb) => Z_buf(1:mv_env%n_ov*nb)
-         RA(1:mv_env%n_ov, 1:nb) => RA_buf(1:mv_env%n_ov*nb)
-         RA_3d(1:mv_env%virt, 1:mv_env%homo, 1:nb) => RA_buf(1:mv_env%n_ov*nb)
-         BabZ_3d(1:mv_env%virt, 1:mv_env%homo, 1:nb) => BabZ_buf(1:mv_env%n_ov*nb)
-         BabZ_wide(1:mv_env%virt, 1:mv_env%homo*nb) => BabZ_buf(1:mv_env%n_ov*nb)
+         Z(1:mv_env%n_ov, 1:nb) => work_buf(1:nvec)
+         Z_3d(1:mv_env%virt, 1:mv_env%homo, 1:nb) => work_buf(1:nvec)
+         Z_wide(1:mv_env%virt, 1:mv_env%homo*nb) => work_buf(1:nvec)
+         RA(1:mv_env%n_ov, 1:nb) => result_buf(1:nvec)
+         RA_3d(1:mv_env%virt, 1:mv_env%homo, 1:nb) => result_buf(1:nvec)
+         BabZ_3d(1:mv_env%virt, 1:mv_env%homo, 1:nb) => work_buf(nvec + 1:2*nvec)
+         BabZ_wide(1:mv_env%virt, 1:mv_env%homo*nb) => work_buf(nvec + 1:2*nvec)
          IF (do_B) THEN
-            RB(1:mv_env%n_ov, 1:nb) => RB_buf(1:mv_env%n_ov*nb)
-            RB_3d(1:mv_env%virt, 1:mv_env%homo, 1:nb) => RB_buf(1:mv_env%n_ov*nb)
+            RB(1:mv_env%n_ov, 1:nb) => result_buf(nvec + 1:2*nvec)
+            RB_3d(1:mv_env%virt, 1:mv_env%homo, 1:nb) => result_buf(nvec + 1:2*nvec)
          END IF
 
          ! Z_ia,k on every rank, by design: each rank contracts its whole RI slices against all of Z (header of
          ! bse_matvec_create), so the trial vectors are the one replicated buffer, n_ov x nb per matvec at any rank
-         ! count; every rank owns a contiguous ia range, so the column arrives sorted
+         ! count. Gather the entire block in rank-major order, then unpack the contiguous row ranges.
+         ! result_buf is free until the exchange; the second work slot is free until the W contraction.
          CALL timeset(routineN//"_gather", handle2)
          DO k = 1, nb
-            CALL mv_env%para_env%allgatherv(fm_Z%local_data(1:nrow_local, col + k - 1), Z(:, k), &
-                                            mv_env%row_count, mv_env%row_displ)
+            offset = (k - 1)*nrow_local
+            result_buf(offset + 1:offset + nrow_local) = fm_Z%local_data(1:nrow_local, col + k - 1)
+         END DO
+         counts = mv_env%row_count*nb
+         displs = mv_env%row_displ*nb
+         CALL mv_env%para_env%allgatherv(result_buf(1:nrow_local*nb), work_buf(nvec + 1:2*nvec), counts, displs)
+         DO peer = 1, mv_env%para_env%num_pe
+            rows = mv_env%row_count(peer)
+            first_row = mv_env%row_displ(peer) + 1
+            last_row = mv_env%row_displ(peer) + rows
+            DO k = 1, nb
+               offset = nvec + displs(peer) + (k - 1)*rows
+               Z(first_row:last_row, k) = work_buf(offset + 1:offset + rows)
+            END DO
          END DO
          CALL timestop(handle2)
 
@@ -504,27 +519,47 @@ CONTAINS
          END IF
          CALL timestop(handle2)
 
-         ! the sum over the ranks lands on the owner of each row, never replicated
+         ! The full Z and B_ab Z slots are now free: retain the local Z in the A output for its
+         ! diagonal term, then pack both images by destination rank into work_buf. A/B occupy
+         ! consecutive segments within each rank, so one reduce-scatter completes the RI sum.
          CALL timeset(routineN//"_reduce", handle2)
-         ! (A Z)_ia,k = (ε_a-ε_i) Z_ia,k + R^A_ia,k and (B Z)_ia,k = R^B_ia,k on the local rows
          DO k = 1, nb
-            CALL mv_env%para_env%sum_scatter(RA(:, k:k), R_loc, mv_env%row_count)
             DO iloc = 1, nrow_local
                ia = row_indices(iloc)
-               fm_AZ%local_data(iloc, col + k - 1) = R_loc(iloc) + mv_env%eps_diff(ia)*Z(ia, k)
+               fm_AZ%local_data(iloc, col + k - 1) = Z(ia, k)
             END DO
-            IF (do_B) THEN
-               CALL mv_env%para_env%sum_scatter(RB(:, k:k), R_loc, mv_env%row_count)
-               fm_BZ%local_data(1:nrow_local, col + col_shift_B + k - 1) = R_loc(1:nrow_local)
-            END IF
+         END DO
+         DO peer = 1, mv_env%para_env%num_pe
+            rows = mv_env%row_count(peer)
+            first_row = mv_env%row_displ(peer) + 1
+            last_row = mv_env%row_displ(peer) + rows
+            DO k = 1, nb
+               offset = n_outputs*displs(peer) + (k - 1)*rows
+               work_buf(offset + 1:offset + rows) = RA(first_row:last_row, k)
+               IF (do_B) THEN
+                  offset = offset + rows*nb
+                  work_buf(offset + 1:offset + rows) = RB(first_row:last_row, k)
+               END IF
+            END DO
+         END DO
+         counts = counts*n_outputs
+         ! The wrapper's serial branch also expects a single-column flattened send buffer.
+         packed(1:n_outputs*nvec, 1:1) => work_buf(1:n_outputs*nvec)
+         CALL mv_env%para_env%sum_scatter(packed, result_buf(1:n_outputs*nrow_local*nb), counts)
+         local_result(1:nrow_local, 1:n_outputs*nb) => result_buf(1:n_outputs*nrow_local*nb)
+         DO k = 1, nb
+            DO iloc = 1, nrow_local
+               ia = row_indices(iloc)
+               fm_AZ%local_data(iloc, col + k - 1) = local_result(iloc, k) + &
+                                                     mv_env%eps_diff(ia)*fm_AZ%local_data(iloc, col + k - 1)
+            END DO
+            IF (do_B) fm_BZ%local_data(1:nrow_local, col + col_shift_B + k - 1) = local_result(:, nb + k)
          END DO
          CALL timestop(handle2)
       END DO
 
-      DEALLOCATE (Z_buf, RA_buf, BabZ_buf, T_Pk)
-      IF (do_B) THEN
-         DEALLOCATE (RB_buf, BjaZ_ab)
-      END IF
+      DEALLOCATE (work_buf, result_buf, T_Pk)
+      IF (do_B) DEALLOCATE (BjaZ_ab)
 
       CALL timestop(handle)
 
