@@ -2094,6 +2094,7 @@ if [[ -n "${GROMACS_VERSION}" ]]; then
     -DGMX_DOUBLE="OFF" \
     -DGMX_INSTALL_NBLIB_API="OFF" \
     -DGMX_MPI="${USE_MPI}" \
+    -DGMX_NNPOT="OFF" \
     -DGMXAPI="OFF" \
     -Werror=dev \
     &> "${GROMACS_BUILD_PATH}/cmake.log"
