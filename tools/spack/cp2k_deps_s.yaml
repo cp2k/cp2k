@@ -107,6 +107,7 @@ spack:
       require:
         - "~distributed"
         - "~fbgemm"
+        - "~flash_attention"
         - "~kineto"
         - "~mkldnn"
         - "~rocm"
