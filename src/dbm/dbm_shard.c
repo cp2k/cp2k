@@ -32,13 +32,12 @@ static int next_power2(const int start) {
  * \author Ole Schuett
  ******************************************************************************/
 static int next_prime(const int start) {
-  int candidate = start, divisor = 0;
-  while (divisor < candidate) {
-    for (divisor = 2; divisor < candidate; divisor++) {
-      if (candidate % divisor == 0) {
-        candidate++;
-        break;
-      }
+  int candidate = start;
+  // Divisors up to the square root suffice (division avoids an overflow).
+  for (int divisor = 2; divisor <= candidate / divisor; divisor++) {
+    if (candidate % divisor == 0) { // try the next candidate
+      ++candidate;
+      divisor = 1;
     }
   }
   return candidate;
@@ -133,43 +132,22 @@ void dbm_shard_release(dbm_shard_t *shard) {
 }
 
 /*******************************************************************************
- * \brief Private hash function based on Cantor pairing function.
- *        https://en.wikipedia.org/wiki/Pairing_function#Cantor_pairing_function
- *        Szudzik's elegant pairing proved to be too asymmetric wrt. row / col.
- *        Using unsigned int to return a positive number even after overflow.
- * \author Ole Schuett
- ******************************************************************************/
-static inline unsigned int hash(const unsigned int row,
-                                const unsigned int col) {
-  return (row + col) * (row + col + 1) / 2 + row; // Division by 2 is cheap.
-}
-
-/*******************************************************************************
- * \brief Internal routine for masking a slot in the hash-table.
- * \author Hans Pabst
- ******************************************************************************/
-static inline int hashtable_mask(const dbm_shard_t *shard) {
-  return shard->hashtable_size - 1;
-}
-
-/*******************************************************************************
  * \brief Private routine for inserting a block into a shard's hashtable.
  * \author Ole Schuett
  ******************************************************************************/
 static void hashtable_insert(dbm_shard_t *shard, const int block_idx) {
   assert(0 <= block_idx && block_idx < shard->nblocks);
   const dbm_block_t *blk = &shard->blocks[block_idx];
-  const unsigned int h = hash(blk->row, blk->col);
   // Bounded probe: at most hashtable_size steps (load factor < 1 guarantees
   // termination). Avoids unbounded scans when the slot variable wrapped around
   // via the mask but the inner iteration continued past the table end.
-  int slot = (shard->hashtable_prime * h) & hashtable_mask(shard);
+  int slot = dbm_shard_slot(shard, blk->row, blk->col);
   for (int i = 0; i < shard->hashtable_size; ++i) { // linear probing
     if (shard->hashtable[slot] == 0) {              // 0 means empty
       shard->hashtable[slot] = block_idx + 1;       // 1-based
       return;
     }
-    slot = (slot + 1) & hashtable_mask(shard);
+    slot = dbm_shard_nextslot(shard, slot);
   }
   assert(false);
 }
@@ -182,7 +160,7 @@ dbm_block_t *dbm_shard_lookup(const dbm_shard_t *shard, const int row,
                               const int col) {
   // Bounded probe count prevents scanning the entire table on a miss when
   // clusters exist (previous code could re-enter via slot wrap and re-scan).
-  int slot = (shard->hashtable_prime * hash(row, col)) & hashtable_mask(shard);
+  int slot = dbm_shard_slot(shard, row, col);
   for (int i = 0; i < shard->hashtable_size; ++i) { // linear probing
     const int block_idx = shard->hashtable[slot];
     if (block_idx == 0) { // 1-based, 0 means empty
@@ -193,21 +171,21 @@ dbm_block_t *dbm_shard_lookup(const dbm_shard_t *shard, const int row,
     if (blk->row == row && blk->col == col) {
       return blk;
     }
-    slot = (slot + 1) & hashtable_mask(shard);
+    slot = dbm_shard_nextslot(shard, slot);
   }
   return NULL;
 }
 
 /*******************************************************************************
- * \brief Internal routine for allocating the metadata of a new block.
- * \author Ole Schuett
+ * \brief Internal routine for growing the block metadata of a shard such that
+ *        it holds nblocks blocks in total without growing again.
+ * \author Ole Schuett and Hans Pabst
  ******************************************************************************/
-dbm_block_t *dbm_shard_promise_new_block(dbm_shard_t *shard, const int row,
-                                         const int col, const int block_size) {
+void dbm_shard_reserve(dbm_shard_t *shard, const int nblocks) {
   // Grow blocks array if necessary.
-  if (shard->nblocks_allocated < shard->nblocks + 1) {
-    shard->nblocks_allocated = DBM_ALLOCATION_FACTOR * (shard->nblocks + 1);
-    assert((shard->nblocks + 1) <= shard->nblocks_allocated);
+  if (shard->nblocks_allocated < nblocks) {
+    shard->nblocks_allocated = DBM_ALLOCATION_FACTOR * nblocks;
+    assert(nblocks <= shard->nblocks_allocated);
     shard->blocks =
         realloc(shard->blocks, shard->nblocks_allocated * sizeof(dbm_block_t));
     assert(shard->blocks != NULL);
@@ -219,6 +197,15 @@ dbm_block_t *dbm_shard_promise_new_block(dbm_shard_t *shard, const int row,
       hashtable_insert(shard, i);
     }
   }
+}
+
+/*******************************************************************************
+ * \brief Internal routine for allocating the metadata of a new block.
+ * \author Ole Schuett
+ ******************************************************************************/
+dbm_block_t *dbm_shard_promise_new_block(dbm_shard_t *shard, const int row,
+                                         const int col, const int block_size) {
+  dbm_shard_reserve(shard, shard->nblocks + 1);
 
   const int new_block_idx = shard->nblocks;
   shard->nblocks++;
