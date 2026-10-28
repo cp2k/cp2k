@@ -51,10 +51,10 @@ MODULE xas_tdp_integrals
                               do_potential_truncated
    USE input_section_types, ONLY: section_vals_val_get
    USE kinds, ONLY: dp
-   USE libint_2c_3c, ONLY: cutoff_screen_factor, &
-                           eri_2center, &
-                           eri_3center, &
-                           libint_potential_type
+   USE integral_library_types, ONLY: cutoff_screen_factor, &
+                                     coulomb_operator_type
+   USE libint_2c_3c, ONLY: eri_2center, &
+                           eri_3center
    USE libint_wrapper, ONLY: cp_libint_cleanup_2eri, &
                              cp_libint_cleanup_3eri, &
                              cp_libint_init_2eri, &
@@ -285,7 +285,7 @@ CONTAINS
          POINTER                                         :: ab_nl, ac_nl
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list_a, basis_set_list_b, &
                                                             basis_set_list_c
-      TYPE(libint_potential_type)                        :: potential_parameter
+      TYPE(coulomb_operator_type)                        :: potential_parameter
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: only_bc_same_center
       REAL(dp), INTENT(IN), OPTIONAL                     :: eps_screen
@@ -1164,9 +1164,9 @@ CONTAINS
 
       INTEGER                                            :: handle, natom, nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: blk_size_orb, blk_size_ri
+      TYPE(coulomb_operator_type)                        :: pot
       TYPE(dbcsr_distribution_type)                      :: opt_dbcsr_dist
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_orb, basis_set_ri
-      TYPE(libint_potential_type)                        :: pot
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: ab_list, ac_list

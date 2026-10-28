@@ -27,10 +27,10 @@ MODULE ri_rs_matrices
    USE gw_auto_ri_types,                ONLY: auto_ri_type
    USE gw_utils_dbcsr,                  ONLY: hadamard_product_inplace
    USE gw_utils_fm,                     ONLY: fm_contract_ABA
+   USE integral_library_types,          ONLY: coulomb_operator_type
    USE kinds,                           ONLY: dp,&
                                               int_8,&
                                               max_line_length
-   USE libint_2c_3c,                    ONLY: libint_potential_type
    USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_mem_avail_per_rank_GB,&
                                               mp_para_env_type
@@ -1207,7 +1207,7 @@ CONTAINS
                                                mat_Z_lP, matrix_V_aux)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), INTENT(IN)                       :: metric_inverse
-      TYPE(libint_potential_type), INTENT(IN)            :: trunc_coulomb
+      TYPE(coulomb_operator_type), INTENT(IN)            :: trunc_coulomb
       TYPE(auto_ri_type), INTENT(IN)                     :: auto_ri
       TYPE(dbcsr_type), INTENT(IN)                       :: mat_Z_lP
       TYPE(dbcsr_type), INTENT(OUT)                      :: matrix_V_aux

@@ -37,8 +37,8 @@ MODULE mp2_ri_grad
                                               ri_mp2_laplace,&
                                               ri_mp2_method_gpw,&
                                               ri_rpa_method_gpw
+   USE integral_library_types,          ONLY: compare_potential_types
    USE kinds,                           ONLY: dp
-   USE libint_2c_3c,                    ONLY: compare_potential_types
    USE message_passing,                 ONLY: mp_para_env_release,&
                                               mp_para_env_type,&
                                               mp_request_null,&
