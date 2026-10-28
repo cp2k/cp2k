@@ -345,6 +345,7 @@ CONTAINS
       ELSE
          num_integ_points = mp2_env%ri_rpa%rpa_num_quad_points
          input_num_integ_groups = mp2_env%ri_rpa%rpa_num_integ_groups
+         IF (my_do_gw .AND. mp2_env%ri_g0w0%exact_rpa_diag%enabled) input_num_integ_groups = 1
          IF (my_do_gw .AND. do_minimax_quad) THEN
             IF (num_integ_points > 34) THEN
                IF (unit_nr > 0) THEN
@@ -417,7 +418,7 @@ CONTAINS
 
          ! Check the input number of integration groups
          IF (input_num_integ_groups > 0) THEN
-            IF (num_integ_points < input_num_integ_groups) THEN
+            IF (num_integ_points >= input_num_integ_groups) THEN
                IF (MOD(ngroup, input_num_integ_groups) == 0) THEN
                   best_integ_group_size = ngroup/input_num_integ_groups
                   best_num_integ_point = (num_integ_points + input_num_integ_groups - 1)/input_num_integ_groups
@@ -1116,9 +1117,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, prim_blk_sizes, &
                                                             RI_blk_sizes
-      LOGICAL :: do_apply_ic_corr_to_gw, do_gw_im_time, do_ic_model, do_kpoints_cubic_RPA, &
-         do_periodic, do_print, do_ri_Sigma_x, do_static_cohsex, exit_ev_gw, first_cycle, &
-         first_cycle_periodic_correction, my_open_shell, print_ic_values
+      LOGICAL :: do_apply_ic_corr_to_gw, do_exact_rpa, do_gw_im_time, do_ic_model, &
+         do_kpoints_cubic_RPA, do_periodic, do_print, do_ri_Sigma_x, do_static_cohsex, exit_ev_gw, &
+         first_cycle, first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
       REAL(KIND=dp) :: alpha, dbcsr_time, e_exchange, e_exchange_corr, eps_filter, &
          eps_filter_im_time, ext_scaling, fermi_level_offset, fermi_level_offset_input, &
@@ -1173,6 +1174,7 @@ CONTAINS
       do_periodic = mp2_env%ri_g0w0%do_periodic
       do_kpoints_cubic_RPA = mp2_env%ri_rpa_im_time%do_im_time_kpoints
       do_static_cohsex = my_do_gw .AND. mp2_env%ri_g0w0%do_static_cohsex
+      do_exact_rpa = my_do_gw .AND. mp2_env%ri_g0w0%exact_rpa_diag%enabled
 
       ! For SOS-MP2 only gemm is implemented
       mm_style = wfc_mm_style_gemm
@@ -1323,6 +1325,16 @@ CONTAINS
 
          END IF
 
+      END IF
+
+      IF (do_exact_rpa) THEN
+         IF (do_bse .AND. do_minimax_quad) THEN
+            CPABORT("EXACT_RPA_DIAG with BSE requires Clenshaw-Curtis quadrature for static screening")
+         END IF
+         IF (do_im_time .OR. do_periodic .OR. nspins /= 1 .OR. num_integ_group /= 1 .OR. &
+             iter_evGW /= 1 .OR. iter_sc_GW0 /= 1 .OR. do_static_cohsex) THEN
+            CPABORT("EXACT_RPA_DIAG requires closed-shell molecular one-shot conventional GW")
+         END IF
       END IF
 
       IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_create(rpa_grad, fm_mat_Q(1), &
@@ -1477,6 +1489,10 @@ CONTAINS
             first_cycle = .FALSE.
          END IF
 
+         IF (my_do_gw) THEN
+            CALL get_fermi_level_offset(fermi_level_offset, fermi_level_offset_input, Eigenval(:, 1, :), homo)
+         END IF
+
          DO jquad = 1, num_integ_points
             ! static COHSEX needs no frequency integral
             IF (do_static_cohsex) EXIT
@@ -1624,9 +1640,8 @@ CONTAINS
 
             CALL timestop(handle3)
 
-            IF (my_do_gw) THEN
-
-               CALL get_fermi_level_offset(fermi_level_offset, fermi_level_offset_input, Eigenval(:, 1, :), homo)
+            ! Exact RPA uses this quadrature only for the correlation energy, not Sigma(iw).
+            IF (my_do_gw .AND. .NOT. do_exact_rpa) THEN
 
                ! do_im_time = TRUE means low-scaling calculation
                IF (do_im_time) THEN
@@ -1744,6 +1759,11 @@ CONTAINS
          ! (static COHSEX energies are already computed and printed in static_cohsex_qp_energies)
          IF (my_do_gw .AND. .NOT. do_static_cohsex) THEN
 
+            ! Restore the bare RI factors after the energy quadrature. The exact path is one-shot.
+            IF (do_exact_rpa) THEN
+               CALL remove_scaling_factor_rpa(fm_mat_S(1), virtual(1), &
+                                              Eigenval_scf(:, 1, 1), homo(1), omega_old)
+            END IF
             CALL compute_QP_energies(vec_Sigma_c_gw, count_ev_sc_GW, gw_corr_lev_occ, &
                                      gw_corr_lev_tot, gw_corr_lev_virt, homo, &
                                      nmo, num_fit_points, &
@@ -1761,7 +1781,7 @@ CONTAINS
                                      t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                      matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, mat_W, matrix_s, &
                                      kpoints, mp2_env, qs_env, nkp_self_energy, do_kpoints_cubic_RPA, &
-                                     starts_array_mc, ends_array_mc)
+                                     starts_array_mc, ends_array_mc, fm_mat_S, fm_mat_S_gw)
 
             ! if HOMO-LUMO gap differs by less than mp2_env%ri_g0w0%eps_ev_sc_iter, exit ev sc GW loop
             IF (exit_ev_gw) EXIT
@@ -1814,12 +1834,14 @@ CONTAINS
             CALL cp_fm_create(fm_mat_S_ia_bse(ispin), fm_mat_S(ispin)%matrix_struct)
             CALL cp_fm_to_fm(fm_mat_S(ispin), fm_mat_S_ia_bse(ispin))
             ! Remove energy/frequency factor from 3c-Integral for BSE
+            IF (.NOT. do_exact_rpa) THEN
             IF (iter_sc_gw0 == 1) THEN
                CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse(ispin), virtual(ispin), &
                                               Eigenval_last(:, 1, ispin), homo(ispin), omega)
             ELSE
                CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse(ispin), virtual(ispin), &
                                               Eigenval_scf(:, 1, ispin), homo(ispin), omega)
+            END IF
             END IF
          END DO
          ! ==============================================================================

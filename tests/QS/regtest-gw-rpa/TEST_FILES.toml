@@ -1,0 +1,17 @@
+"G0W0_H2_PBE_exact_rpa_diag.inp"   = [
+  {matcher = "E_G0W0_gap", tol = 1e-4, ref = 22.5897},
+  {matcher = "GW_orbital_self_energy", file = "GW_level_1_self_energy.dat", method = "EXACT_RPA_DIAG", points = 6000, tol = 1e-4, ref = -1.0588457079},
+  {matcher = "GW_orbital_self_energy", file = "GW_level_2_self_energy.dat", method = "EXACT_RPA_DIAG", points = 6000, tol = 1e-4, ref = -0.25208860533},
+]
+"G0W0_H2_PBE_Pade_self_energy.inp" = [
+  {matcher = "E_G0W0_gap", tol = 1e-4, ref = 22.5402},
+  {matcher = "GW_orbital_self_energy", file = "GW_level_1_self_energy.dat", method = "Analytic continuation (Pade)", points = 6000, tol = 1e-4, ref = -2.8764313173},
+  {matcher = "GW_orbital_self_energy", file = "GW_level_2_self_energy.dat", method = "Analytic continuation (Pade)", points = 6000, tol = 1e-4, ref = -0.23465392481},
+]
+
+"G0W0_H2_PBE_exact_rpa_zshot.inp" = [{matcher = "E_G0W0_gap", tol = 1e-4, ref = 22.6361}]
+
+"G0W0_H2_PBE_exact_rpa_selection.inp" = [
+  {matcher = "E_G0W0_gap", tol = 1e-4, ref = 22.5897},
+  {matcher = "GW_orbital_self_energy", file = "GW_level_2_self_energy.dat", method = "EXACT_RPA_DIAG", points = 80, tol = 1e-4, ref = -0.25208860533},
+]

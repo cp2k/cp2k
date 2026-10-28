@@ -117,6 +117,7 @@ QS/regtest-dcdft-gapw                                       libint libxc !ifx
 QS/regtest-dcdft-stress                                     libint libxc !ifx
 QS/regtest-hfx-ri                                           libint !ifx
 QS/regtest-gw                                               libint !ifx
+QS/regtest-gw-rpa
 QS/regtest-libxc                                            libxc libint libdftd4 !ifx
 QS/regtest-ec-stress                                        libint libxc !ifx
 xTB/regtest-1

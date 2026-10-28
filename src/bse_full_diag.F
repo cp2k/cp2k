@@ -35,21 +35,19 @@ MODULE bse_full_diag
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               tddfpt2_control_type
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                              cp_fm_row_scale,&
+                                              cp_fm_scale,&
+                                              cp_fm_scale_and_add
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
                                               cp_fm_power
    USE cp_fm_redistribution,            ONLY: cp_fm_permute
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_get_submatrix,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_to_fm_submat,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_release, &
+        cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type
    USE exstates_types,                  ONLY: excited_energy_type
    USE input_constants,                 ONLY: bse_iterdiag,&
                                               bse_screening_alpha,&
@@ -71,7 +69,7 @@ MODULE bse_full_diag
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_full_diag'
 
    PUBLIC :: create_A, diagonalize_A, create_B, create_A_and_B, create_hermitian_form_of_ABBA, &
-             diagonalize_C, postprocess_bse
+             diagonalize_C, postprocess_bse, create_hermitian_form_rpa
 
 CONTAINS
 
@@ -485,6 +483,41 @@ CONTAINS
 
    END SUBROUTINE create_A_and_B
 
+! **************************************************************************************************
+!> \brief Form C = sqrt(Δ) (Δ + 2 B) sqrt(Δ) in place for RPA, where A-B = diag(Δ).
+!> \param fm_C RPA coupling matrix B on entry; squared excitation matrix C on exit.
+!> \param gap Positive occupied-virtual energy differences Δ.
+! **************************************************************************************************
+   SUBROUTINE create_hermitian_form_rpa(fm_C, gap)
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_C
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: gap
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_hermitian_form_rpa'
+
+      INTEGER                                            :: handle, icol, irow, ncol_local, &
+                                                            nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+
+      CALL timeset(routineN, handle)
+
+      IF (MINVAL(gap) <= 0.0_dp) CPABORT("RPA requires positive occupied-virtual energy differences")
+      CALL cp_fm_scale(2.0_dp, fm_C)
+      CALL cp_fm_get_info(fm_C, nrow_local=nrow_local, ncol_local=ncol_local, &
+                          row_indices=row_indices, col_indices=col_indices)
+      DO icol = 1, ncol_local
+         DO irow = 1, nrow_local
+            IF (row_indices(irow) == col_indices(icol)) THEN
+               fm_C%local_data(irow, icol) = fm_C%local_data(irow, icol) + gap(row_indices(irow))
+            END IF
+         END DO
+      END DO
+      CALL cp_fm_column_scale(fm_C, SQRT(gap))
+      CALL cp_fm_row_scale(fm_C, SQRT(gap))
+
+      CALL timestop(handle)
+
+   END SUBROUTINE create_hermitian_form_rpa
+
    ! **************************************************************************************************
 !> \brief Construct Matrix C=(A-B)^0.5 (A+B) (A-B)^0.5 to solve full BSE matrix as a hermitian problem
 !>   (cf. Eq. (A7) in F. Furche J. Chem. Phys., Vol. 114, No. 14, (2001)).
@@ -513,11 +546,37 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_hermitian_form_of_ABBA'
 
       INTEGER                                            :: dim_mat, handle, n_dependent
+      REAL(KIND=dp), ALLOCATABLE                         :: diag_B(:), gap(:)
       REAL(KIND=dp), DIMENSION(2)                        :: eigvals_AB_diff
       TYPE(cp_fm_type)                                   :: fm_A_minus_B, fm_A_plus_B, fm_dummy, &
                                                             fm_work_product
 
       CALL timeset(routineN, handle)
+
+      IF (bse_env%screening_method == bse_screening_rpa) THEN
+         ! In RPA, A-B is diagonal; neither a matrix power nor dense products are needed.
+         CALL cp_fm_get_info(fm_A, nrow_global=dim_mat)
+         ALLOCATE (gap(dim_mat), diag_B(dim_mat))
+         CALL cp_fm_get_diag(fm_A, gap)
+         CALL cp_fm_get_diag(fm_B, diag_B)
+         gap(:) = gap(:) - diag_B(:)
+         CALL cp_fm_create(fm_C, fm_B%matrix_struct)
+         CALL cp_fm_to_fm(fm_B, fm_C)
+         CALL create_hermitian_form_rpa(fm_C, gap)
+         CALL cp_fm_create(fm_sqrt_A_minus_B, fm_A%matrix_struct)
+         CALL cp_fm_create(fm_inv_sqrt_A_minus_B, fm_A%matrix_struct)
+         CALL cp_fm_set_all(fm_sqrt_A_minus_B, 0.0_dp, 1.0_dp)
+         CALL cp_fm_set_all(fm_inv_sqrt_A_minus_B, 0.0_dp, 1.0_dp)
+         CALL cp_fm_column_scale(fm_sqrt_A_minus_B, SQRT(gap))
+         CALL cp_fm_column_scale(fm_inv_sqrt_A_minus_B, 1.0_dp/SQRT(gap))
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A,T65,F16.6)') 'BSE|', &
+               'Smallest eigenvalue of A-B (eV)', MINVAL(gap)*evolt
+         END IF
+         DEALLOCATE (gap, diag_B)
+         CALL timestop(handle)
+         RETURN
+      END IF
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4,T7,A25,A39,ES6.0,A3)') 'BSE|', 'Diagonalizing aux. matrix', &
