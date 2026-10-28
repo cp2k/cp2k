@@ -387,23 +387,32 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bse_matvec_apply'
 
-      INTEGER                                            :: col, col_shift_B, handle, handle2, ia, &
-                                                            iloc, k, me, n_work_bufs, nb, nb_max, &
-                                                            nrow_local, p
+      INTEGER :: a, col, col_shift_B, first_row, handle, handle2, homo, i, ia, iloc, k, last_row, &
+         me, n_outputs, n_small, n_work_bufs, nb, nb_max, nrow_local, nvec, offset, p, peer, rows, &
+         virt
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
-      LOGICAL                                            :: do_B
+      LOGICAL                                            :: do_B, do_screened, has_exchange
       REAL(KIND=dp)                                      :: mem_avail_GB
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: R_loc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: BabZ_buf, RA_buf, RB_buf, Z_buf
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BjaZ_ab, T_Pk
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: result_buf, work_buf
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: T_Pk
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         POINTER                                         :: B_ia_2d, BabZ_wide, RA, RB, Z, Z_wide
+         POINTER                                         :: B_ia_2d, local_result, packed, RA, &
+                                                            RA_virt, RB_occ, RB_virt, T_occ, &
+                                                            T_small_cols, T_small_rows, T_virt, Z, &
+                                                            Z_occ, Z_virt
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
-         POINTER                                         :: BabZ_3d, RA_3d, RB_3d, Z_3d
+         POINTER                                         :: RA_screen, RB_screen, Z_screen
+      INTEGER                                            :: displs(SIZE(mv_env%row_displ)), &
+                                                            counts(SIZE(mv_env%row_count))
 
       CALL timeset(routineN, handle)
 
+      homo = mv_env%homo
+      virt = mv_env%virt
+      n_small = MIN(homo, virt)
       do_B = PRESENT(fm_BZ)
+      do_screened = mv_env%w_fac /= 0.0_dp .AND. mv_env%n_ri_loc > 0
+      has_exchange = mv_env%alpha /= 0.0_dp .AND. mv_env%n_ri_loc > 0
       IF (do_B) THEN
          ! B Z needs the \bar{B}^P_ia slab, which is sliced for do_abba only
          CPASSERT(mv_env%do_abba)
@@ -417,14 +426,11 @@ CONTAINS
       me = mv_env%para_env%mepos + 1
       CPASSERT(nrow_local == mv_env%row_count(me))
       CPASSERT(nrow_local == 0 .OR. row_indices(1) == mv_env%row_displ(me) + 1)
-      ALLOCATE (R_loc(nrow_local))
 
-      ! columns per pass from the memory of the replicated work arrays Z, B_ab Z, R^A (and R^B)
-      IF (do_B) THEN
-         n_work_bufs = 4
-      ELSE
-         n_work_bufs = 3
-      END IF
+      ! columns per pass from three/four replicated blocks: trial vectors, scratch and A (and B)
+      n_outputs = 1
+      IF (do_B) n_outputs = 2
+      n_work_bufs = 2 + n_outputs
       IF (mv_env%block_cols > 0) THEN
          ! pinned by input: the replicated work arrays are then a known n_work_bufs*n_ov*nb doubles
          nb_max = MIN(ncol, mv_env%block_cols)
@@ -435,96 +441,182 @@ CONTAINS
                           mem_avail_GB*1.0E9_dp/(8.0_dp*REAL(n_work_bufs, dp)*REAL(mv_env%n_ov, dp))))
       END IF
       nb_max = MAX(nb_max, 1)
+      ! The paired work buffer and all collective counts/displacements use default INTEGER.
+      nb_max = MIN(nb_max, (HUGE(0)/2)/mv_env%n_ov)
+      CPASSERT(nb_max >= 1)
 
-      ALLOCATE (Z_buf(mv_env%n_ov*nb_max), RA_buf(mv_env%n_ov*nb_max), BabZ_buf(mv_env%n_ov*nb_max))
-      IF (do_B) THEN
-         ALLOCATE (RB_buf(mv_env%n_ov*nb_max), BjaZ_ab(mv_env%virt, mv_env%virt))
-      END IF
+      ! Keep the same three/four full buffers, reused by communication, exchange and screening.
+      ! Canonical Z and the exchange image start in the first slots of work_buf and result_buf.
+      ALLOCATE (work_buf(2*mv_env%n_ov*nb_max), result_buf(n_outputs*mv_env%n_ov*nb_max))
       ALLOCATE (T_Pk(mv_env%n_ri_loc, nb_max))
       B_ia_2d(1:mv_env%n_ov, 1:mv_env%n_ri_loc) => mv_env%B_ia
 
       DO col = first_col, first_col + ncol - 1, nb_max
          nb = MIN(nb_max, first_col + ncol - col)
-         ! three views of one contiguous buffer, bounds-remapping pointer assignment (Fortran 2003):
-         ! Z_ia,k for the exchange DGEMM, Z_3d(a, i, k) per column, Z_wide(a, (i k)) for the wide product
-         Z(1:mv_env%n_ov, 1:nb) => Z_buf(1:mv_env%n_ov*nb)
-         Z_3d(1:mv_env%virt, 1:mv_env%homo, 1:nb) => Z_buf(1:mv_env%n_ov*nb)
-         Z_wide(1:mv_env%virt, 1:mv_env%homo*nb) => Z_buf(1:mv_env%n_ov*nb)
-         RA(1:mv_env%n_ov, 1:nb) => RA_buf(1:mv_env%n_ov*nb)
-         RA_3d(1:mv_env%virt, 1:mv_env%homo, 1:nb) => RA_buf(1:mv_env%n_ov*nb)
-         BabZ_3d(1:mv_env%virt, 1:mv_env%homo, 1:nb) => BabZ_buf(1:mv_env%n_ov*nb)
-         BabZ_wide(1:mv_env%virt, 1:mv_env%homo*nb) => BabZ_buf(1:mv_env%n_ov*nb)
-         IF (do_B) THEN
-            RB(1:mv_env%n_ov, 1:nb) => RB_buf(1:mv_env%n_ov*nb)
-            RB_3d(1:mv_env%virt, 1:mv_env%homo, 1:nb) => RB_buf(1:mv_env%n_ov*nb)
-         END IF
+         nvec = mv_env%n_ov*nb
+         ! Canonical ia-by-k views for the exchange block GEMMs.
+         Z(1:mv_env%n_ov, 1:nb) => work_buf(1:nvec)
+         RA(1:mv_env%n_ov, 1:nb) => result_buf(1:nvec)
 
          ! Z_ia,k on every rank, by design: each rank contracts its whole RI slices against all of Z (header of
          ! bse_matvec_create), so the trial vectors are the one replicated buffer, n_ov x nb per matvec at any rank
-         ! count; every rank owns a contiguous ia range, so the column arrives sorted
+         ! count. Gather the entire block in rank-major order, then unpack the contiguous row ranges.
+         ! result_buf is free until the exchange; the second work slot receives the gathered data.
          CALL timeset(routineN//"_gather", handle2)
          DO k = 1, nb
-            CALL mv_env%para_env%allgatherv(fm_Z%local_data(1:nrow_local, col + k - 1), Z(:, k), &
-                                            mv_env%row_count, mv_env%row_displ)
+            offset = (k - 1)*nrow_local
+            result_buf(offset + 1:offset + nrow_local) = fm_Z%local_data(1:nrow_local, col + k - 1)
+         END DO
+         counts = mv_env%row_count*nb
+         displs = mv_env%row_displ*nb
+         CALL mv_env%para_env%allgatherv(result_buf(1:nrow_local*nb), work_buf(nvec + 1:2*nvec), counts, displs)
+         DO peer = 1, mv_env%para_env%num_pe
+            rows = mv_env%row_count(peer)
+            first_row = mv_env%row_displ(peer) + 1
+            last_row = mv_env%row_displ(peer) + rows
+            DO k = 1, nb
+               offset = nvec + displs(peer) + (k - 1)*rows
+               Z(first_row:last_row, k) = work_buf(offset + 1:offset + rows)
+            END DO
          END DO
          CALL timestop(handle2)
 
          ! exchange, identical in A Z and B Z: R_ia,k = α sum_P B^P_ia t_Pk, t_Pk = sum_jb B^P_jb Z_jb,k
          CALL timeset(routineN//"_exchange", handle2)
-         RA(:, :) = 0.0_dp
-         IF (mv_env%alpha /= 0.0_dp .AND. mv_env%n_ri_loc > 0) THEN
+         IF (has_exchange) THEN
             CALL DGEMM('T', 'N', mv_env%n_ri_loc, nb, mv_env%n_ov, 1.0_dp, B_ia_2d, mv_env%n_ov, Z, mv_env%n_ov, &
                        0.0_dp, T_Pk, mv_env%n_ri_loc)
+         END IF
+         ! Without screening, Z is no longer needed after forming T_Pk. Reuse its slot
+         ! for the canonical exchange image, leaving result_buf free for the reduction.
+         IF (.NOT. do_screened) RA(1:mv_env%n_ov, 1:nb) => work_buf(1:nvec)
+         IF (has_exchange) THEN
             CALL DGEMM('N', 'N', mv_env%n_ov, nb, mv_env%n_ri_loc, mv_env%alpha, B_ia_2d, mv_env%n_ov, T_Pk, mv_env%n_ri_loc, &
                        0.0_dp, RA, mv_env%n_ov)
+         ELSE IF (.NOT. do_screened) THEN
+            RA(:, :) = 0.0_dp
          END IF
-         IF (do_B) RB(:, :) = RA(:, :)
+         CALL timestop(handle2)
+
+         CALL timeset(routineN//"_pack", handle2)
+         IF (do_screened) THEN
+            ! Put the trial-vector index between the two orbital indices. One flat block then has
+            ! both (i, (k a)) and ((i k), a) views, so neither contraction needs a per-vector GEMM.
+            ! TDA keeps this Z in work slot 2; ABBA uses result slot 2, leaving both work slots for A/B.
+            IF (do_B) THEN
+               Z_screen(1:homo, 1:nb, 1:virt) => result_buf(nvec + 1:2*nvec)
+            ELSE
+               Z_screen(1:homo, 1:nb, 1:virt) => work_buf(nvec + 1:2*nvec)
+            END IF
+            Z_occ(1:homo, 1:nb*virt) => Z_screen
+            Z_virt(1:homo*nb, 1:virt) => Z_screen
+            DO a = 1, virt
+               DO k = 1, nb
+                  DO i = 1, homo
+                     Z_screen(i, k, a) = Z(ia_of_occ_virt(i, a, virt), k)
+                  END DO
+               END DO
+            END DO
+
+            ! Copy the shared exchange image into the two screened output layouts, then its original
+            ! result slot is free for all RI-slice intermediates. These permutations happen once per pass.
+            RA_screen(1:homo, 1:nb, 1:virt) => work_buf(1:nvec)
+            RA_virt(1:homo*nb, 1:virt) => work_buf(1:nvec)
+            IF (do_B) THEN
+               RB_screen(1:virt, 1:nb, 1:homo) => work_buf(nvec + 1:2*nvec)
+               RB_occ(1:virt, 1:nb*homo) => work_buf(nvec + 1:2*nvec)
+               RB_virt(1:virt*nb, 1:homo) => work_buf(nvec + 1:2*nvec)
+            END IF
+            IF (has_exchange) THEN
+               DO a = 1, virt
+                  DO k = 1, nb
+                     DO i = 1, homo
+                        ia = ia_of_occ_virt(i, a, virt)
+                        RA_screen(i, k, a) = RA(ia, k)
+                        IF (do_B) RB_screen(a, k, i) = RA(ia, k)
+                     END DO
+                  END DO
+               END DO
+            ELSE
+               RA_virt(:, :) = 0.0_dp
+               IF (do_B) RB_occ(:, :) = 0.0_dp
+            END IF
+            T_occ(1:homo, 1:nb*virt) => result_buf(1:nvec)
+            T_virt(1:homo*nb, 1:virt) => result_buf(1:nvec)
+            ! The B association chooses the smaller square intermediate: n_small^2*nb <= nvec.
+            T_small_cols(1:n_small, 1:nb*n_small) => result_buf(1:n_small*n_small*nb)
+            T_small_rows(1:n_small*nb, 1:n_small) => result_buf(1:n_small*n_small*nb)
+         END IF
          CALL timestop(handle2)
 
          CALL timeset(routineN//"_W", handle2)
-         IF (mv_env%w_fac /= 0.0_dp) THEN
+         IF (do_screened) THEN
             DO p = 1, mv_env%n_ri_loc
-               ! A: R_ia,k -= w sum_jb \bar{B}^P_ij B^P_ab Z_jb,k, BabZ_ib,k = sum_b B^P_ab Z_jb,k first
-               CALL DGEMM('T', 'N', mv_env%virt, mv_env%homo*nb, mv_env%virt, 1.0_dp, mv_env%B_ab(:, :, p), mv_env%virt, &
-                          Z_wide, mv_env%virt, 0.0_dp, BabZ_wide, mv_env%virt)
-               DO k = 1, nb
-                  CALL DGEMM('N', 'N', mv_env%virt, mv_env%homo, mv_env%homo, -mv_env%w_fac, BabZ_3d(:, :, k), mv_env%virt, &
-                             mv_env%B_bar_ij(:, :, p), mv_env%homo, 1.0_dp, RA_3d(:, :, k), mv_env%virt)
-               END DO
-               ! B: R_ia,k -= w sum_jb \bar{B}^P_ib B^P_ja Z_jb,k, BjaZ_ab = sum_j B^P_ja Z_jb,k first
+               ! A: T_ikb = sum_j \bar{B}^P_ji Z_bjk, R^A_ika -= w sum_b T_ikb B^P_ba.
+               ! Only the view of T changes between the occupied and virtual block GEMMs.
+               CALL DGEMM('T', 'N', homo, nb*virt, homo, 1.0_dp, mv_env%B_bar_ij(:, :, p), homo, &
+                          Z_occ, homo, 0.0_dp, T_occ, homo)
+               CALL DGEMM('N', 'N', homo*nb, virt, virt, -mv_env%w_fac, T_virt, homo*nb, &
+                          mv_env%B_ab(:, :, p), virt, 1.0_dp, RA_virt, homo*nb)
                IF (do_B) THEN
-                  DO k = 1, nb
-                     CALL DGEMM('N', 'T', mv_env%virt, mv_env%virt, mv_env%homo, 1.0_dp, mv_env%B_ia(:, :, p), mv_env%virt, &
-                                Z_3d(:, :, k), mv_env%virt, 0.0_dp, BjaZ_ab, mv_env%virt)
-                     CALL DGEMM('N', 'N', mv_env%virt, mv_env%homo, mv_env%virt, -mv_env%w_fac, BjaZ_ab, mv_env%virt, &
-                                mv_env%B_bar_ia(:, :, p), mv_env%virt, 1.0_dp, RB_3d(:, :, k), mv_env%virt)
-                  END DO
+                  ! B: R^B_aik -= w sum_jb B^P_aj Z_bjk \bar{B}^P_bi.
+                  ! Associate the products as B (Z^T \bar{B}) for homo <= virt, otherwise (B Z^T) \bar{B}.
+                  IF (homo <= virt) THEN
+                     CALL DGEMM('N', 'N', homo*nb, homo, virt, 1.0_dp, Z_virt, homo*nb, &
+                                mv_env%B_bar_ia(:, :, p), virt, 0.0_dp, T_small_rows, homo*nb)
+                     CALL DGEMM('N', 'N', virt, nb*homo, homo, -mv_env%w_fac, mv_env%B_ia(:, :, p), virt, &
+                                T_small_cols, homo, 1.0_dp, RB_occ, virt)
+                  ELSE
+                     CALL DGEMM('N', 'N', virt, nb*virt, homo, 1.0_dp, mv_env%B_ia(:, :, p), virt, &
+                                Z_occ, homo, 0.0_dp, T_small_cols, virt)
+                     CALL DGEMM('N', 'N', virt*nb, homo, virt, -mv_env%w_fac, T_small_rows, virt*nb, &
+                                mv_env%B_bar_ia(:, :, p), virt, 1.0_dp, RB_virt, virt*nb)
+                  END IF
                END IF
             END DO
          END IF
          CALL timestop(handle2)
 
-         ! the sum over the ranks lands on the owner of each row, never replicated
+         ! Pack by destination rank. Screening has distinct A/B layouts; without it,
+         ! both outputs share the canonical exchange image. result_buf is free in either case.
          CALL timeset(routineN//"_reduce", handle2)
-         ! (A Z)_ia,k = (ε_a-ε_i) Z_ia,k + R^A_ia,k and (B Z)_ia,k = R^B_ia,k on the local rows
+         DO peer = 1, mv_env%para_env%num_pe
+            rows = mv_env%row_count(peer)
+            first_row = mv_env%row_displ(peer) + 1
+            DO k = 1, nb
+               offset = n_outputs*displs(peer) + (k - 1)*rows
+               IF (do_screened) THEN
+                  DO iloc = 1, rows
+                     ia = first_row + iloc - 1
+                     i = occ_of_ia(ia, virt)
+                     a = virt_of_ia(ia, virt)
+                     result_buf(offset + iloc) = RA_screen(i, k, a)
+                     IF (do_B) result_buf(offset + rows*nb + iloc) = RB_screen(a, k, i)
+                  END DO
+               ELSE
+                  last_row = first_row + rows - 1
+                  result_buf(offset + 1:offset + rows) = RA(first_row:last_row, k)
+                  IF (do_B) result_buf(offset + rows*nb + 1:offset + rows*nb + rows) = RA(first_row:last_row, k)
+               END IF
+            END DO
+         END DO
+         counts = counts*n_outputs
+         ! The wrapper's serial branch also expects a single-column flattened send buffer.
+         packed(1:n_outputs*nvec, 1:1) => result_buf(1:n_outputs*nvec)
+         CALL mv_env%para_env%sum_scatter(packed, work_buf(1:n_outputs*nrow_local*nb), counts)
+         local_result(1:nrow_local, 1:n_outputs*nb) => work_buf(1:n_outputs*nrow_local*nb)
          DO k = 1, nb
-            CALL mv_env%para_env%sum_scatter(RA(:, k:k), R_loc, mv_env%row_count)
             DO iloc = 1, nrow_local
                ia = row_indices(iloc)
-               fm_AZ%local_data(iloc, col + k - 1) = R_loc(iloc) + mv_env%eps_diff(ia)*Z(ia, k)
+               fm_AZ%local_data(iloc, col + k - 1) = local_result(iloc, k) + &
+                                                     mv_env%eps_diff(ia)*fm_Z%local_data(iloc, col + k - 1)
             END DO
-            IF (do_B) THEN
-               CALL mv_env%para_env%sum_scatter(RB(:, k:k), R_loc, mv_env%row_count)
-               fm_BZ%local_data(1:nrow_local, col + col_shift_B + k - 1) = R_loc(1:nrow_local)
-            END IF
+            IF (do_B) fm_BZ%local_data(1:nrow_local, col + col_shift_B + k - 1) = local_result(:, nb + k)
          END DO
          CALL timestop(handle2)
       END DO
 
-      DEALLOCATE (Z_buf, RA_buf, BabZ_buf, T_Pk)
-      IF (do_B) THEN
-         DEALLOCATE (RB_buf, BjaZ_ab)
-      END IF
+      DEALLOCATE (work_buf, result_buf, T_Pk)
 
       CALL timestop(handle)
 
