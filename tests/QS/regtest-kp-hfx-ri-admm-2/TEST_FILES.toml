@@ -1,19 +1,21 @@
-"hBN_gpw_pbe0.inp"        = [{matcher = "M011", tol = 1.0E-10, ref = -8.627502654876013}]
-"LiH_gapw_pbex.inp"       = [{matcher = "M011", tol = 2.0E-9, ref = -7.774042231360941}]
-"LiH_gpw_none.inp"        = [{matcher = "M011", tol = 1.0E-10, ref = -5.383857047510018}]
-"LiH_gpw_none_kpsym.inp"  = [{matcher = "M011", tol = 1.0E-10, ref = -5.383857047510018}]
-"hBN_gapw_lsd_stress.inp" = [{matcher = "M031", tol = 1.0E-8, ref = -1.24548924781E+04}]
-"diamond_admmp.inp"       = [{matcher = "M011", tol = 4.5E-9, ref = -8.244883910014904}]
-"diamond_admms.inp"       = [{matcher = "M011", tol = 1.0E-10, ref = -79.738004880335254}]
-"diamond_admmq.inp"       = [{matcher = "M031", tol = 1.0E-8, ref = -5.01813876744E+04}]
-"H_debug.inp"             = []
-"H2_admm_kpsym.inp"       = [{matcher = "M011", tol = 1.0E-7, ref = -0.546176445420311},
-                             {matcher = "M031", tol = 1.0E-5, ref = 1.87169299033E+04},
-                             {matcher = "M072", tol = 1.0E-6, ref = 0.0},
-                             {matcher = "Atomic_force_1_x", tol = 1.0E-3, ref = -2.03665739E-01},
-                             {matcher = "Atomic_force_1_y", tol = 1.0E-6, ref = 0.0},
-                             {matcher = "Atomic_force_1_z", tol = 1.0E-6, ref = 0.0},
-                             {matcher = "Atomic_force_2_x", tol = 1.0E-3, ref = 2.03665739E-01},
-                             {matcher = "Atomic_force_2_y", tol = 1.0E-6, ref = 0.0},
-                             {matcher = "Atomic_force_2_z", tol = 1.0E-6, ref = 0.0}]
+"hBN_gpw_pbe0.inp"                        = [{matcher = "M011", tol = 1.0E-10, ref = -8.627502654876013}]
+"LiH_gapw_pbex.inp"                       = [{matcher = "M011", tol = 2.0E-9, ref = -7.774042231360941}]
+"LiH_gpw_none.inp"                        = [{matcher = "M011", tol = 1.0E-10, ref = -5.383857047510018}]
+"LiH_gpw_none_kpsym.inp"                  = [{matcher = "M011", tol = 1.0E-10, ref = -5.383857047510018}]
+"hBN_gapw_lsd_stress.inp"                 = [{matcher = "M031", tol = 1.0E-8, ref = -1.24548924781E+04}]
+"diamond_admmp.inp"                       = [{matcher = "M011", tol = 4.5E-9, ref = -8.244883910014904}]
+"diamond_admms.inp"                       = [{matcher = "M011", tol = 1.0E-10, ref = -79.738004880335254}]
+"diamond_admmq.inp"                       = [{matcher = "M031", tol = 1.0E-8, ref = -5.01813876744E+04}]
+"H_debug.inp"                             = []
+"H2_admm_kpsym.inp"                       = [
+  {matcher = "M011", tol = 1.0E-7, ref = -0.546176445420311},
+  {matcher = "M031", tol = 1.0E-5, ref = 1.87169299033E+04},
+  {matcher = "M072", tol = 1.0E-6, ref = 0.0},
+  {matcher = "Atomic_force_1_x", tol = 1.0E-3, ref = -2.03665739E-01},
+  {matcher = "Atomic_force_1_y", tol = 1.0E-6, ref = 0.0},
+  {matcher = "Atomic_force_1_z", tol = 1.0E-6, ref = 0.0},
+  {matcher = "Atomic_force_2_x", tol = 1.0E-3, ref = 2.03665739E-01},
+  {matcher = "Atomic_force_2_y", tol = 1.0E-6, ref = 0.0},
+  {matcher = "Atomic_force_2_z", tol = 1.0E-6, ref = 0.0}
+]
 "LiH_rhombohedral_shifted_admm_kpsym.inp" = [{matcher = "M011", tol = 1.0E-4, ref = -5.420043336715053}]
