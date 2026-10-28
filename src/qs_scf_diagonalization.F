@@ -1340,7 +1340,11 @@ CONTAINS
          CALL cp_cfm_create(workspace(i)%csmat, matrix_struct)
          CALL cp_cfm_create(workspace(i)%cwork, matrix_struct)
          CALL cp_cfm_create(workspace(i)%cmos, mo_struct)
-         IF (.NOT. local .AND. .NOT. my_lanczos) CYCLE
+         ! the transfer rounds of the Lanczos driver also need the stored
+         ! overlap copy, although they never run the local solvers
+         IF (local .OR. my_lanczos) THEN
+            CALL cp_cfm_create(workspace(i)%csmat_base, matrix_struct)
+         END IF
          IF (local) THEN
             CALL workspace(i)%gemm_ctx%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
             ALLOCATE (workspace(i)%phase(1, nentry))
@@ -1352,9 +1356,6 @@ CONTAINS
                                                    workspace(i)%csmat%local_data)
             END IF
          END IF
-         ! the transfer rounds of the Lanczos driver also need the stored
-         ! overlap copy, although they never run the local solvers
-         CALL cp_cfm_create(workspace(i)%csmat_base, matrix_struct)
          IF (my_lanczos) THEN
             CALL lanczos_workspace_create(workspace(i)%lan_ws, mo_struct, matrix_struct, nkrylov, nblock)
          END IF
