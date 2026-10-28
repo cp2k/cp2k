@@ -364,7 +364,15 @@ MODULE hfx_types
       ! KP distribution of iatom (of i,j atom pairs) to subgroups
       TYPE(cp_1d_logical_p_type), DIMENSION(:), ALLOCATABLE :: iatom_to_subgroup
 
-      ! KP 3c tensors replicated on the subgroups
+      ! Potential-weighted fitted pair densities G_j(P^x; nu^0, lambda^l).
+      ! Values are independent of the SCF density and retained on each subgroup.
+      ! RI rows are shifted only when forming a KS batch.
+      TYPE(dbt_type), DIMENSION(:), ALLOCATABLE :: kp_t_3c_G_sub
+      INTEGER, ALLOCATABLE :: kp_G_to_RI(:, :), kp_RI_atom(:)
+      LOGICAL, ALLOCATABLE :: kp_RI_neighbors(:, :)
+      INTEGER :: kp_G_ngroups = 0
+
+      ! Unweighted fitted pairs on the subgroups, allocated only for forces.
       TYPE(dbt_type), DIMENSION(:), ALLOCATABLE :: kp_t_3c_int
 
       ! Note: changed static DIMENSION(1,1) of dbt_type to allocatables as workaround for gfortran 8.3.0,
@@ -1602,6 +1610,17 @@ CONTAINS
          END DO
          DEALLOCATE (ri_data%kp_mat_2c_pot)
       END IF
+
+      IF (ALLOCATED(ri_data%kp_t_3c_G_sub)) THEN
+         DO i = 1, SIZE(ri_data%kp_t_3c_G_sub)
+            CALL dbt_destroy(ri_data%kp_t_3c_G_sub(i))
+         END DO
+         DEALLOCATE (ri_data%kp_t_3c_G_sub)
+      END IF
+      IF (ALLOCATED(ri_data%kp_G_to_RI)) DEALLOCATE (ri_data%kp_G_to_RI)
+      IF (ALLOCATED(ri_data%kp_RI_atom)) DEALLOCATE (ri_data%kp_RI_atom)
+      IF (ALLOCATED(ri_data%kp_RI_neighbors)) DEALLOCATE (ri_data%kp_RI_neighbors)
+      ri_data%kp_G_ngroups = 0
 
       IF (ALLOCATED(ri_data%kp_t_3c_int)) THEN
          DO i = 1, SIZE(ri_data%kp_t_3c_int)
