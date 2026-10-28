@@ -30,8 +30,7 @@ MODULE hfx_derivatives
    USE cp_dbcsr_api, ONLY: dbcsr_get_matrix_type, &
                            dbcsr_p_type, &
                            dbcsr_type_antisymmetric
-   USE four_center_integral_methods, ONLY: forces4, &
-                                           pgf_product_list_size
+   USE four_center_integral_methods, ONLY: forces4
    USE gamma, ONLY: init_md_ftable
    USE hfx_communication, ONLY: get_full_density
    USE hfx_compression_methods, ONLY: hfx_add_mult_cache_elements, &
@@ -50,7 +49,7 @@ MODULE hfx_derivatives
    USE hfx_types, ONLY: &
       alloc_containers, dealloc_containers, hfx_basis_info_type, hfx_basis_type, hfx_cache_type, &
       hfx_cell_type, hfx_container_type, hfx_distribution, hfx_general_type, hfx_init_container, &
-      hfx_load_balance_type, hfx_memory_type, hfx_p_kind, hfx_pgf_list, hfx_pgf_product_list, &
+      hfx_load_balance_type, hfx_memory_type, hfx_p_kind, hfx_pgf_list, &
       hfx_potential_type, hfx_screen_coeff_type, hfx_screening_type, hfx_task_list_type, &
       hfx_type, init_t_c_g0_lmax, log_zero, pair_list_type, pair_set_list_type
    USE input_constants, ONLY: do_potential_mix_cl_trunc, &
@@ -198,8 +197,6 @@ CONTAINS
       TYPE(hfx_memory_type), POINTER                     :: memory_parameter
       TYPE(hfx_p_kind), DIMENSION(:), POINTER            :: shm_initial_p
       TYPE(hfx_pgf_list), ALLOCATABLE, DIMENSION(:)      :: pgf_list_ij, pgf_list_kl
-      TYPE(hfx_pgf_product_list), ALLOCATABLE, &
-         DIMENSION(:)                                    :: pgf_product_list
       TYPE(hfx_potential_type)                           :: potential_parameter
       TYPE(hfx_screen_coeff_type), DIMENSION(:, :), &
          POINTER                                         :: screen_coeffs_kind, tmp_R_1, tmp_R_2, &
@@ -323,7 +320,6 @@ CONTAINS
 !$OMP                                  screen_coeffs_set,&
 !$OMP                                  screen_coeffs_kind,&
 !$OMP                                  screen_coeffs_pgf,&
-!$OMP                                  pgf_product_list_size,&
 !$OMP                                  nkind,&
 !$OMP                                  is_anti_symmetric,&
 !$OMP                                  radii_pgf,&
@@ -364,7 +360,7 @@ CONTAINS
 !$OMP  offset_bc_set,offset_bd_set,pac_buf,pac_buf_beta,pac_buf_resp,pac_buf_resp_beta,pad_buf,pad_buf_beta,pad_buf_resp,&
 !$OMP  pad_buf_resp_beta,particle_set,pbc_buf,pbc_buf_beta,pbc_buf_resp,pbc_buf_resp_beta,pbd_buf,pbd_buf_beta, &
 !$OMP  pbd_buf_resp, pbd_buf_resp_beta, pgf_list_ij,&
-!$OMP  pgf_list_kl,pgf_product_list,pmax_atom,pmax_blocks,pmax_entry,pmax_tmp,potential_parameter,primitive_forces,&
+!$OMP  pgf_list_kl,pmax_atom,pmax_blocks,pmax_entry,pmax_tmp,potential_parameter,primitive_forces,&
 !$OMP  primitive_forces_virial,ptr_p_1,ptr_p_2,ptr_p_3,ptr_p_4,ra,rab2,&
 !$OMP  rb,rc,rcd2,rd,screening_parameter,screen_pmat_forces,set_list_ij,set_list_kl,&
 !$OMP  sgfb,spherical_estimate,spherical_estimate_virial,sphi_a_ext,sphi_a_ext_set,sphi_a_u1,sphi_a_u2,sphi_a_u3,&
@@ -616,9 +612,6 @@ CONTAINS
       nneighbors = SIZE(actual_x_data%neighbor_cells)
       ALLOCATE (pgf_list_ij(max_pgf**2))
       ALLOCATE (pgf_list_kl(max_pgf**2))
-!$OMP     ATOMIC READ
-      tmp_i4 = pgf_product_list_size
-      ALLOCATE (pgf_product_list(tmp_i4))
       ALLOCATE (nimages(max_pgf**2))
 
       DO i = 1, max_pgf**2
@@ -1301,8 +1294,7 @@ CONTAINS
                                         max_contraction_val, cartesian_estimate, cell, neris_tmp, &
                                         log10_pmax, log10_eps_schwarz, &
                                         tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2, &
-                                        pgf_list_ij, pgf_list_kl, pgf_product_list, &
-                                        nsgfl_a(:, iset), nsgfl_b(:, jset), &
+                                        pgf_list_ij, pgf_list_kl, nsgfl_a(:, iset), nsgfl_b(:, jset), &
                                         nsgfl_c(:, kset), nsgfl_d(:, lset), &
                                         sphi_a_ext_set, sphi_b_ext_set, sphi_c_ext_set, sphi_d_ext_set, &
                                         ede_work, ede_work2, ede_work_forces, &
@@ -1718,7 +1710,6 @@ CONTAINS
 
       DEALLOCATE (pgf_list_ij)
       DEALLOCATE (pgf_list_kl)
-      DEALLOCATE (pgf_product_list)
 
       DEALLOCATE (set_list_ij, set_list_kl)
 
