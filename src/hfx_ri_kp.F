@@ -43,10 +43,10 @@ MODULE hfx_ri_kp
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist
    USE dbt_api,                         ONLY: &
         dbt_batched_contract_finalize, dbt_batched_contract_init, dbt_clear, dbt_contract, &
-        dbt_copy, dbt_copy_indexed, dbt_copy_matrix_to_tensor, dbt_copy_tensor_to_matrix, &
-        dbt_create, dbt_destroy, dbt_distribution_destroy, dbt_distribution_new, &
-        dbt_distribution_type, dbt_filter, dbt_finalize, dbt_get_block, dbt_get_block_pattern, &
-        dbt_get_info, dbt_get_stored_coordinates, dbt_iterator_blocks_left, &
+        dbt_copy, dbt_copy_block, dbt_copy_indexed, dbt_copy_matrix_to_tensor, &
+        dbt_copy_tensor_to_matrix, dbt_create, dbt_destroy, dbt_distribution_destroy, &
+        dbt_distribution_new, dbt_distribution_type, dbt_filter, dbt_finalize, dbt_get_block, &
+        dbt_get_block_pattern, dbt_get_info, dbt_get_stored_coordinates, dbt_iterator_blocks_left, &
         dbt_iterator_next_block, dbt_iterator_start, dbt_iterator_stop, dbt_iterator_type, &
         dbt_mp_environ_pgrid, dbt_pgrid_create, dbt_pgrid_destroy, dbt_pgrid_type, dbt_put_block, &
         dbt_reserve_blocks, dbt_scale, dbt_type
@@ -4553,12 +4553,10 @@ CONTAINS
 
       INTEGER                                            :: dest(3), i_img, idx, ind(3), lb, nblks, &
                                                             nimg, offset, ub
-      LOGICAL                                            :: do_filter, found
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: blk
+      LOGICAL                                            :: do_filter
       TYPE(dbt_iterator_type)                            :: iter
 
-      !We loop over the a images from the ac_pairs, then copy the 3c ints to the correct spot in
-      !in the stack tensor (corresponding to pair index). Distributions match by construction
+      ! Source and stack have matching block layouts and MPI owners by construction.
       nimg = ri_data%nimg
       nblks = SIZE(ri_data%bsizes_AO_split)
 
@@ -4574,37 +4572,26 @@ CONTAINS
          offset = lb - 1
       END IF
 
+      ! Each image fills a distinct stack slice, so the team can span the whole batch.
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(images,t_3c_in,t_3c_stack,nblks,nimg,lb,ub,stack_dim,filter_at,filter_dim,idx_to_at,do_filter,offset) &
+!$OMP PRIVATE(iter,ind,dest,i_img,idx)
       DO idx = lb, ub
          i_img = images(idx)
          IF (i_img == 0 .OR. i_img > nimg) CYCLE
-
-!$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED(idx,i_img,t_3c_in,t_3c_stack,nblks,stack_dim,filter_at,filter_dim,idx_to_at,do_filter,offset) &
-!$OMP PRIVATE(iter,ind,blk,found,dest)
          CALL dbt_iterator_start(iter, t_3c_in(i_img))
          DO WHILE (dbt_iterator_blocks_left(iter))
             CALL dbt_iterator_next_block(iter, ind)
-
             IF (do_filter) THEN
                IF (.NOT. idx_to_at(ind(filter_dim)) == filter_at) CYCLE
             END IF
-            CALL dbt_get_block(t_3c_in(i_img), ind, blk, found)
-            IF (.NOT. found) CYCLE
-
-            IF (stack_dim == 1) THEN
-               dest = [(idx - offset - 1)*nblks + ind(1), ind(2), ind(3)]
-            ELSE IF (stack_dim == 2) THEN
-               dest = [ind(1), (idx - offset - 1)*nblks + ind(2), ind(3)]
-            ELSE
-               dest = [ind(1), ind(2), (idx - offset - 1)*nblks + ind(3)]
-            END IF
-
-            CALL dbt_put_block(t_3c_stack, dest, SHAPE(blk), blk)
-            DEALLOCATE (blk)
+            dest(:) = ind(:)
+            dest(stack_dim) = ind(stack_dim) + (idx - offset - 1)*nblks
+            CALL dbt_copy_block(t_3c_in(i_img), t_3c_stack, ind, ind_out=dest)
          END DO
          CALL dbt_iterator_stop(iter)
+      END DO
 !$OMP END PARALLEL
-      END DO !i_img
       CALL dbt_finalize(t_3c_stack)
 
    END SUBROUTINE fill_3c_stack
