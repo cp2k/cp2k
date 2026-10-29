@@ -42,9 +42,9 @@ MODULE dbt_tas_mm
                                               dbt_tas_replicate,&
                                               dbt_tas_reshape
    USE dbt_tas_split,                   ONLY: &
-        accept_pgrid_dims, colsplit, dbt_tas_create_split, dbt_tas_get_split_info, &
-        dbt_tas_info_hold, dbt_tas_mp_comm, dbt_tas_release_info, default_nsplit_accept_ratio, &
-        rowsplit
+        accept_pgrid_dims, colsplit, dbt_tas_create_split, dbt_tas_get_nsplit, &
+        dbt_tas_get_split_info, dbt_tas_info_hold, dbt_tas_mp_comm, dbt_tas_release_info, &
+        default_nsplit_accept_ratio, rowsplit
    USE dbt_tas_types,                   ONLY: dbt_tas_distribution_type,&
                                               dbt_tas_iterator,&
                                               dbt_tas_split_info,&
@@ -432,8 +432,12 @@ CONTAINS
          END IF
       END IF
 
-      pdims = 0
-      CALL mp_comm_mm%create(mp_comm_group, 2, pdims)
+      IF (opt_pgrid) THEN
+         pdims = 0
+         CALL mp_comm_mm%create(mp_comm_group, 2, pdims)
+      ELSE
+         mp_comm_mm = mp_comm_group
+      END IF
 
       ! Convert DBM submatrices to optimized process grids and multiply
       SELECT CASE (max_mm_dim)
@@ -732,7 +736,7 @@ CONTAINS
          END IF
       END SELECT
 
-      CALL mp_comm_mm%free()
+      IF (opt_pgrid) CALL mp_comm_mm%free()
 
       CALL dbt_tas_get_split_info(info_c, mp_comm=mp_comm)
 
@@ -985,24 +989,9 @@ CONTAINS
          optimize_dist_prv = .FALSE.
       END IF
 
-      dims1 = [dbt_tas_nblkrows_total(matrix1_in), dbt_tas_nblkcols_total(matrix1_in)]
-      dims2 = [dbt_tas_nblkrows_total(matrix2_in), dbt_tas_nblkcols_total(matrix2_in)]
-      nze1 = dbt_tas_get_nze_total(matrix1_in)
-      nze2 = dbt_tas_get_nze_total(matrix2_in)
-
       IF (trans1) split_rc_1 = MOD(split_rc_1, 2) + 1
 
       IF (trans2) split_rc_2 = MOD(split_rc_2, 2) + 1
-
-      IF (nze1 >= nze2) THEN
-         ref = 1
-         split_rc_ref = split_rc_1
-         dims_ref = dims1
-      ELSE
-         ref = 2
-         split_rc_ref = split_rc_2
-         dims_ref = dims2
-      END IF
 
       IF (PRESENT(nsplit)) THEN
          nsplit_prv = nsplit
@@ -1040,6 +1029,21 @@ CONTAINS
             END IF
          END IF
       ELSE
+
+         ! Occupancies only select the reference layout when redistribution is required.
+         dims1 = [dbt_tas_nblkrows_total(matrix1_in), dbt_tas_nblkcols_total(matrix1_in)]
+         dims2 = [dbt_tas_nblkrows_total(matrix2_in), dbt_tas_nblkcols_total(matrix2_in)]
+         nze1 = dbt_tas_get_nze_total(matrix1_in)
+         nze2 = dbt_tas_get_nze_total(matrix2_in)
+         IF (nze1 >= nze2) THEN
+            ref = 1
+            split_rc_ref = split_rc_1
+            dims_ref = dims1
+         ELSE
+            ref = 2
+            split_rc_ref = split_rc_2
+            dims_ref = dims2
+         END IF
 
          IF (optimize_dist_prv) THEN
             IF (unit_nr_prv > 0) THEN
@@ -1215,21 +1219,18 @@ CONTAINS
       nodata_prv = .FALSE.
       IF (PRESENT(nodata)) nodata_prv = nodata
 
-      CALL dbt_tas_get_info(matrix_in, name=name, &
-                            row_blk_size=rbsize, col_blk_size=cbsize, &
-                            proc_row_dist=rdist, proc_col_dist=cdist)
-
-      CALL dbt_tas_create_split(split_info, mp_comm, split_rowcol, nsplit_prv, opt_nsplit=opt_nsplit)
-
-      CALL dbt_tas_get_split_info(split_info, nsplit=nsplit_new)
-
+      nsplit_new = dbt_tas_get_nsplit(mp_comm%num_pe_cart, split_rowcol, nsplit_prv, opt_nsplit)
       IF (nsplit_old == nsplit_new .AND. split_rc == split_rowcol) THEN
          matrix_out => matrix_in
          is_new = .FALSE.
-         CALL dbt_tas_release_info(split_info)
          CALL timestop(handle)
          RETURN
       END IF
+
+      CALL dbt_tas_get_info(matrix_in, name=name, &
+                            row_blk_size=rbsize, col_blk_size=cbsize, &
+                            proc_row_dist=rdist, proc_col_dist=cdist)
+      CALL dbt_tas_create_split(split_info, mp_comm, split_rowcol, nsplit_prv, opt_nsplit=opt_nsplit)
 
       CALL dbt_tas_distribution_new(dist, mp_comm, rdist, cdist, &
                                     split_info=split_info)
