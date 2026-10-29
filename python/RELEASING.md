@@ -117,15 +117,6 @@ wheel with `--no-deps`. Native compatibility is a separate prerequisite, not dem
 pure-Python publishing workflow. Verify installation and hashes on production PyPI before announcing
 the release and closing #6168.
 
-## Review and handover
-
-The release preparation is available on
-[`DCM-Uni-Paderborn/cp2k`, branch `prepare-pycp2k-release`](https://github.com/DCM-Uni-Paderborn/cp2k/tree/prepare-pycp2k-release).
-Review and merge these changes into `cp2k/cp2k:master` before publication. The fork is a handover
-location, not a second package source or a publishing repository. Its workflow cannot upload to
-either index, even if `publish` is selected. The existing PyPI owner and upstream repository
-administrators can complete the setup above without waiting for a contributor's PyPI login.
-
 References:
 [PyPA release workflow](https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/)
 and [PyPI Trusted Publishers](https://docs.pypi.org/trusted-publishers/).

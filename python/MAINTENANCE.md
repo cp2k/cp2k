@@ -6,12 +6,12 @@ does not choose protocols, validate the full input schema or parse calculation o
 
 ## Ownership
 
-Ole Schuett owns the `pycp2k` PyPI project and has confirmed agreement with Lauri Himanen to reuse
-its name in [#6168](https://github.com/cp2k/cp2k/issues/6168). Contributors can prepare release
-changes in CP2K without personal PyPI access. The existing PyPI owner can register the Trusted
-Publisher, while the repository administrators configure protected release approvals. Agree who
-approves each release before publishing. This preparation does not transfer package ownership or
-assign release duties to other contributors.
+Reuse of the `pycp2k` PyPI project was agreed with its original maintainer in
+[#6168](https://github.com/cp2k/cp2k/issues/6168). Project owners manage PyPI publishing
+permissions, while the CP2K repository administrators configure protected release approvals.
+Contributors can prepare release changes without personal PyPI access. Agree who approves each
+release before publishing; the preparation does not change account permissions or assign release
+duties.
 
 Keep the C API fixes and compatibility tests in CP2K. Coordinate higher-level calculator and
 workflow contributions with their existing projects. In particular, the proposed AiiDA helper uses
