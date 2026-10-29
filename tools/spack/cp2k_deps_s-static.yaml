@@ -100,10 +100,6 @@ spack:
       require:
         - "~shared"
 
-    tblite:
-      require:
-        - "~shared"
-
   repos:
     builtin:
       commit: 4fcf009e9f80634440c461937f322a9f0510a37b # 2026-11-04
