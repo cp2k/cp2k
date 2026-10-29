@@ -96,6 +96,7 @@ MODULE dbm_api
    PUBLIC :: dbm_get_block_p
    PUBLIC :: dbm_put_block
    PUBLIC :: dbm_reserve_blocks
+   PUBLIC :: dbm_reserve_blocks_template
    PUBLIC :: dbm_filter
    PUBLIC :: dbm_finalize
    PUBLIC :: dbm_multiply
@@ -621,6 +622,52 @@ CONTAINS
 #endif
       CALL timestop(handle)
    END SUBROUTINE dbm_reserve_blocks
+
+! **************************************************************************************************
+!> \brief Reserves template blocks in a matrix sharing the distribution object.
+!>        Block sizes may differ. Existing values are preserved, new blocks zeroed.
+!>        Call outside an OpenMP parallel region.
+!> \param matrix Target matrix
+!> \param template Source block structure
+! **************************************************************************************************
+   SUBROUTINE dbm_reserve_blocks_template(matrix, template)
+      TYPE(dbm_type), INTENT(INOUT)                      :: matrix
+      TYPE(dbm_type), INTENT(IN)                         :: template
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbm_reserve_blocks_template'
+
+      INTEGER                                            :: handle
+#if defined(DBM_VALIDATE_AGAINST_DBCSR)
+      INTEGER                                            :: iblock, nblocks
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rows, cols
+      TYPE(dbm_iterator)                                 :: iter
+#endif
+      INTERFACE
+         SUBROUTINE dbm_reserve_blocks_template_c(matrix, template) &
+            BIND(C, name="dbm_reserve_blocks_template")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE                               :: matrix, template
+         END SUBROUTINE dbm_reserve_blocks_template_c
+      END INTERFACE
+
+      CALL timeset(routineN, handle)
+      CALL dbm_reserve_blocks_template_c(matrix%c_ptr, template%c_ptr)
+#if defined(DBM_VALIDATE_AGAINST_DBCSR)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix,template) PRIVATE(iter,nblocks,iblock,rows,cols)
+      CALL dbm_iterator_start(iter, template)
+      nblocks = dbm_iterator_num_blocks(iter)
+      ALLOCATE (rows(nblocks), cols(nblocks))
+      DO iblock = 1, nblocks
+         CALL dbm_iterator_next_block(iter, row=rows(iblock), column=cols(iblock))
+      END DO
+      CALL dbm_iterator_stop(iter)
+      CALL dbcsr_reserve_blocks(matrix%dbcsr, rows, cols)
+      DEALLOCATE (rows, cols)
+!$OMP END PARALLEL
+      CALL validate(matrix)
+#endif
+      CALL timestop(handle)
+   END SUBROUTINE dbm_reserve_blocks_template
 
 ! **************************************************************************************************
 !> \brief Multiplies all entries in the given matrix by the given factor alpha.

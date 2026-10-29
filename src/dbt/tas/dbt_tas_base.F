@@ -19,7 +19,7 @@ MODULE dbt_tas_base
         dbm_get_local_cols, dbm_get_local_rows, dbm_get_name, dbm_get_num_blocks, dbm_get_nze, &
         dbm_get_row_block_sizes, dbm_iterator, dbm_iterator_blocks_left, dbm_iterator_next_block, &
         dbm_iterator_num_blocks, dbm_iterator_start, dbm_iterator_stop, dbm_put_block, &
-        dbm_release, dbm_reserve_blocks, dbm_type
+        dbm_release, dbm_reserve_blocks, dbm_reserve_blocks_template, dbm_type
    USE dbt_tas_global,                  ONLY: dbt_tas_blk_size_arb,&
                                               dbt_tas_dist_arb,&
                                               dbt_tas_distribution,&
@@ -307,6 +307,12 @@ CONTAINS
       TYPE(dbt_tas_iterator)                             :: iter
 
       CALL timeset(routineN, handle)
+
+      IF (dbm_distribution_is_same(matrix_in%dist%dbm_dist, matrix_out%dist%dbm_dist)) THEN
+         CALL dbm_reserve_blocks_template(matrix_out%matrix, matrix_in%matrix)
+         CALL timestop(handle)
+         RETURN
+      END IF
 
 !$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_in,matrix_out) &
 !$OMP PRIVATE(iter,nblk,rows,columns)
