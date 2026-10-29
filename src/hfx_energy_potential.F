@@ -802,7 +802,7 @@ CONTAINS
                                     shm_pmax_atom, &
                                     full_density_alpha, full_density_beta, &
                                     natom, kind_of, basis_parameter, &
-                                    nkind, shm_master_x_data%is_assoc_atomic_block)
+                                    nkind, shm_master_x_data%is_assoc_atomic_block, my_nspins)
             END IF
          END IF
       ELSE
@@ -830,7 +830,7 @@ CONTAINS
                                     shm_pmax_atom, &
                                     full_density_alpha, full_density_beta, &
                                     natom, kind_of, basis_parameter, &
-                                    nkind, shm_master_x_data%is_assoc_atomic_block)
+                                    nkind, shm_master_x_data%is_assoc_atomic_block, my_nspins)
             END IF
          END IF
          ! ** Now get the density(ispin)
