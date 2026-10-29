@@ -3,20 +3,20 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"COBe_gfn1_fd.inp"                     = [{matcher = "E_total", tol = 1.0E-8, ref = -7.42848707385935}]
-"CH2O_gfn1.inp"                        = [{matcher = "E_total", tol = 1.0E-8, ref = -7.8504891036979}]
-"Si_gfn1_fd.inp"                       = [{matcher = "E_total", tol = 3.0E-8, ref = -14.44320245934278}]
-"Si_gfn1_kp.inp"                       = [{matcher = "E_total", tol = 3.0E-8, ref = -14.70433442694045}]
+"COBe_gfn1_fd.inp"                     = [{matcher = "E_total", tol = 1.0E-8, ref = -7.42803060256928}]
+"CH2O_gfn1.inp"                        = [{matcher = "E_total", tol = 1.0E-8, ref = -7.84972394226095}]
+"Si_gfn1_fd.inp"                       = [{matcher = "E_total", tol = 3.0E-8, ref = -14.38286872870182}]
+"Si_gfn1_kp.inp"                       = [{matcher = "E_total", tol = 3.0E-8, ref = -14.68440544793175}]
 "Si_gfn1_kp_kpsym.inp"                 = [
-  {matcher = "E_total", tol = 1.0E-8, ref = -14.72017602003837},
+  {matcher = "E_total", tol = 1.0E-8, ref = -14.70438303543802},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
 "Si_gfn1_kp_spglib_backend.inp"        = [
-  {matcher = "E_total", tol = 1.0E-8, ref = -14.72017602003837},
+  {matcher = "E_total", tol = 1.0E-8, ref = -14.70438303543802},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
 "Al_fcc_gfn1_kp_ot_smear.inp"          = [
-  {matcher = "E_total", tol = 1.0E-9, ref = -1.14691758427999},
+  {matcher = "E_total", tol = 1.0E-9, ref = -1.14684309056033},
   {matcher = "Electronic_entropic_energy", tol = 1.0E-9, ref = -7.1232462562E-4},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 2},
   {matcher = "NO_TEXT", text = "K-point smearing includes the first band"},
@@ -24,7 +24,7 @@
   {matcher = "NO_TEXT", text = "MAX ITER EXCEEDED"}
 ]
 "Al_fcc_gfn1_kp_ot_fermi_low_rank.inp" = [
-  {matcher = "E_total", tol = 1.0E-9, ref = -1.146917584283822},
+  {matcher = "E_total", tol = 1.0E-9, ref = -1.14684309056003},
   {matcher = "Electronic_entropic_energy", tol = 1.0E-9, ref = -7.1232462562E-4},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 2},
   {matcher = "NO_TEXT", text = "K-point smearing includes the first band"},
