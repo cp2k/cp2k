@@ -50,7 +50,9 @@ MODULE cc4s_export
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
-                                              dp
+                                              dp,&
+                                              dp_size,&
+                                              int_8
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_HOST,&
                                               local_gemm_ctxt_type
    USE message_passing,                 ONLY: mp_para_env_type
@@ -514,8 +516,8 @@ CONTAINS
    END SUBROUTINE write_eigen_energies_files
 
 ! **************************************************************************************************
-!> \brief  Write CoulombVertex.yaml and CoulombVertex.elements (CC4S format, sqrt(Hartree) units).
-!>         Elements are written in Fortran (column-major) order: P (AuxiliaryField) varies fastest.
+!> \brief Stream the dense vertex in blocks of at most 8 MiB without copying it.
+!>        Preserve Fortran element order with the auxiliary index varying fastest.
 !> \param logger Logger for output selection and naming
 !> \param print_section CC4S print key
 !> \param nRI Number of auxiliary functions
@@ -529,11 +531,49 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_section
       INTEGER, INTENT(IN)                                :: nRI, nMO
-      REAL(KIND=dp), INTENT(IN)                          :: gamma(nRI, nMO, nMO)
+      REAL(KIND=dp), INTENT(IN), TARGET                  :: gamma(nRI, nMO, nMO)
       LOGICAL, INTENT(IN)                                :: periodic
       REAL(KIND=dp), INTENT(IN)                          :: cutoff_radius, hmat(3, 3)
 
-      INTEGER                                            :: i, io_status, iunit
+      INTEGER(KIND=int_8), PARAMETER :: max_write_elements = 1048576_int_8
+
+      INTEGER                                            :: iunit
+      INTEGER(KIND=int_8)                                :: count, nvalues, offset
+      REAL(KIND=dp), CONTIGUOUS, POINTER                 :: values(:)
+
+      CALL open_coulomb_vertex_file(logger, print_section, nRI, nMO, periodic, cutoff_radius, hmat, iunit)
+      nvalues = SIZE(gamma, KIND=int_8)
+      values(1:nvalues) => gamma
+      offset = 0_int_8
+      DO WHILE (offset < nvalues)
+         count = MIN(max_write_elements, nvalues - offset)
+         CALL write_coulomb_vertex_block(iunit, offset, values(offset + 1:offset + count))
+         offset = offset + count
+      END DO
+      NULLIFY (values)
+      CALL cp_print_key_finished_output(iunit, logger, print_section)
+   END SUBROUTINE write_coulomb_vertex_files
+
+! **************************************************************************************************
+!> \brief Write the Coulomb vertex header and open its raw binary elements file.
+!> \param logger Logger for output selection and naming
+!> \param print_section CC4S print key
+!> \param nRI Number of auxiliary functions
+!> \param nMO Number of active canonical orbitals
+!> \param periodic Whether the cell is three-dimensionally periodic at Gamma
+!> \param cutoff_radius Truncated Coulomb cutoff in bohr (zero for molecular Coulomb)
+!> \param hmat Cell vectors as columns, in bohr
+!> \param iunit Open stream unit for vertex elements
+! **************************************************************************************************
+   SUBROUTINE open_coulomb_vertex_file(logger, print_section, nRI, nMO, periodic, cutoff_radius, hmat, iunit)
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: print_section
+      INTEGER, INTENT(IN)                                :: nRI, nMO
+      LOGICAL, INTENT(IN)                                :: periodic
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff_radius, hmat(3, 3)
+      INTEGER, INTENT(OUT)                               :: iunit
+
+      INTEGER                                            :: i
 
       iunit = cp_print_key_unit_nr(logger, print_section, extension='.yaml', middle_name='CoulombVertex', &
                                    file_status='REPLACE', file_position='REWIND')
@@ -570,13 +610,32 @@ CONTAINS
       iunit = cp_print_key_unit_nr(logger, print_section, extension='.elements', middle_name='CoulombVertex', &
                                    file_status='REPLACE', file_position='REWIND', &
                                    file_form='UNFORMATTED', file_access='STREAM')
-      WRITE (iunit, IOSTAT=io_status) gamma
+   END SUBROUTINE open_coulomb_vertex_file
+
+! **************************************************************************************************
+!> \brief Write a contiguous vertex block at an explicit position in the raw elements file.
+!> \param iunit Open stream unit for vertex elements
+!> \param offset Zero-based element offset in auxiliary-orbital-orbital storage order
+!> \param values Contiguous block of vertex elements
+! **************************************************************************************************
+   SUBROUTINE write_coulomb_vertex_block(iunit, offset, values)
+      INTEGER, INTENT(IN)                                :: iunit
+      INTEGER(KIND=int_8), INTENT(IN)                    :: offset
+      REAL(KIND=dp), CONTIGUOUS, INTENT(IN)              :: values(:)
+
+      INTEGER                                            :: io_status
+      INTEGER(KIND=int_8)                                :: position
+
+      ! Use CP2K's Real64 byte size, independent of direct-access record-length units.
+      CPASSERT(offset >= 0_int_8)
+      CPASSERT(SIZE(values, KIND=int_8) > 0_int_8)
+      CPASSERT(SIZE(values, KIND=int_8) <= HUGE(position)/INT(dp_size, int_8) - offset)
+      position = offset*INT(dp_size, int_8) + 1_int_8
+      WRITE (iunit, POS=position, IOSTAT=io_status) values
       IF (io_status /= 0) THEN
          CPABORT("CC4S: failed writing CoulombVertex.elements")
       END IF
-      CALL cp_print_key_finished_output(iunit, logger, print_section)
-
-   END SUBROUTINE write_coulomb_vertex_files
+   END SUBROUTINE write_coulomb_vertex_block
 
 ! **************************************************************************************************
 !> \brief  Write the CC4S algorithm sequence and solver settings to cc4s.in.
