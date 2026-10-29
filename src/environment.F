@@ -40,14 +40,21 @@ MODULE environment
    USE cp_fm_struct,                    ONLY: cp_fm_struct_config
    USE cp_fm_types,                     ONLY: cp_fm_get_mm_type,&
                                               cp_fm_setup
+   USE cp_iter_types,                   ONLY: iter_notice,&
+                                              iter_silent,&
+                                              iter_stack
    USE cp_log_handling,                 ONLY: &
         cp_add_default_logger, cp_get_default_logger, cp_logger_create, &
         cp_logger_get_default_unit_nr, cp_logger_release, cp_logger_set, cp_logger_type, &
         cp_rm_default_logger, cp_to_string
-   USE cp_output_handling,              ONLY: &
-        cp_mpi_io_set, cp_print_key_finished_output, cp_print_key_unit_nr, &
-        cp_set_iter_print_default, debug_print_level, high_print_level, iter_notice, iter_silent, &
-        iter_stack, low_print_level, medium_print_level, silent_print_level
+   USE cp_output_handling,              ONLY: cp_mpi_io_set,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_unit_nr,&
+                                              debug_print_level,&
+                                              high_print_level,&
+                                              low_print_level,&
+                                              medium_print_level,&
+                                              silent_print_level
    USE fft_tools,                       ONLY: FWFFT,&
                                               fft3d,&
                                               finalize_fft,&
@@ -384,6 +391,8 @@ CONTAINS
       ! can carry iteration levels. But cp2k_init does not have access to input
       ! sections, and also cannot be adjusted to receive them because of the
       ! fragile initialization order in create_force_env in f77_interface.
+      ! GLOBAL%ITER_LEVEL_VERBOSITY configures the second one like
+      ! GLOBAL%PRINT_LEVEL does.
       CALL section_vals_val_get(root_section, "GLOBAL%ITER_LEVEL_VERBOSITY", explicit=explicit)
       IF (explicit) THEN
          CALL section_vals_val_get(root_section, "GLOBAL%ITER_LEVEL_VERBOSITY", i_val=iter_print)
@@ -397,9 +406,9 @@ CONTAINS
             iter_print = iter_silent
          END IF
       END IF
-      CALL cp_set_iter_print_default(iter_print)
 
       logger => cp_get_default_logger()
+      logger%iter_info%iter_print = iter_print
 
       ! try to use better names for the local log if it is not too late
       CALL section_vals_val_get(root_section, "GLOBAL%OUTPUT_FILE_NAME", &

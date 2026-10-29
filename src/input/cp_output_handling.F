@@ -29,7 +29,9 @@ MODULE cp_output_handling
                                               cp_iteration_info_retain,&
                                               cp_iteration_info_type,&
                                               each_desc_labels,&
-                                              each_possible_labels
+                                              each_possible_labels,&
+                                              iter_notice,&
+                                              iter_silent
    USE cp_log_handling,                 ONLY: cp_logger_generate_filename,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_get_unit_nr,&
@@ -77,9 +79,6 @@ MODULE cp_output_handling
                                                medium_print_level = 2, &
                                                high_print_level = 3, &
                                                debug_print_level = 4
-   INTEGER, PARAMETER, PUBLIC               :: iter_silent = 0, &
-                                               iter_notice = 1, &
-                                               iter_stack = 2
 
 !! flags controlling the printing and storing of a property.
 !!
@@ -118,10 +117,6 @@ MODULE cp_output_handling
    LOGICAL, PRIVATE, SAVE      :: enable_mpi_io = .FALSE.
 ! Public functions to set/get the flags
    PUBLIC :: cp_mpi_io_set, cp_mpi_io_get
-! Flag determining the verbosity of iteration level information
-   INTEGER, PRIVATE, SAVE      :: iter_print_default = iter_silent
-! Public functions to set/get the flags
-   PUBLIC :: cp_set_iter_print_default, cp_get_iter_print_default
 
 CONTAINS
 
@@ -740,7 +735,7 @@ CONTAINS
       INTEGER, PARAMETER                                 :: min_iter_level = 2
 
       CHARACTER(LEN=:), ALLOCATABLE                      :: level_name
-      INTEGER                                            :: iter_nr, iter_print, rlevel, unit_nr
+      INTEGER                                            :: iter_nr, rlevel, unit_nr
       LOGICAL                                            :: my_local
       TYPE(cp_iteration_info_type), POINTER              :: iteration_info
 
@@ -753,65 +748,50 @@ CONTAINS
       iteration_info => logger%iter_info
       my_local = .FALSE.
       IF (PRESENT(local)) my_local = local
-      CALL cp_get_iter_print_default(iter_print)
       IF (my_local .OR. logger%para_env%is_source()) THEN
-         IF (iter_print > iter_silent) THEN
+         IF (iteration_info%iter_print >= iter_silent) THEN
             rlevel = iteration_info%n_rlevel
             CPASSERT(rlevel > 0)
             level_name = TRIM(ADJUSTL(iteration_info%level_name(rlevel)))
             CALL cp_get_iter_nr(iteration_info, rlevel, iter_nr)
-            unit_nr = cp_logger_get_unit_nr(logger, local=my_local)
-            IF (unit_nr > 0) THEN
-               WRITE (UNIT=unit_nr, FMT="()")
-               ! The current iteration level
-               SELECT CASE (direction)
-               CASE ("A") ! After adding level in cp_add_iter_level
-                  WRITE (UNIT=unit_nr, FMT="(T2,A,T37,I3,T41,A,T73,I8)") &
-                     "ITER_LV| >>>>>>>> Entering level +", rlevel, "[ "//level_name//" ]", iter_nr
-               CASE ("R") ! Before removing level in cp_rm_iter_level
-                  WRITE (UNIT=unit_nr, FMT="(T2,A,T37,I3,T41,A,T73,I8)") &
-                     "ITER_LV| <<<<<<<<  Exiting level -", rlevel, "[ "//level_name//" ]", iter_nr
-               CASE DEFAULT
-                  CALL cp_abort(__LOCATION__, &
-                                "Only entering (A) or exiting (R) an iteration level "// &
-                                "can have a message printed.")
-               END SELECT
-               ! The rest of stack of iteration levels
-               IF (iter_print > iter_notice) THEN
-                  DO WHILE (rlevel > min_iter_level)
-                     rlevel = rlevel - 1
-                     level_name = TRIM(ADJUSTL(iteration_info%level_name(rlevel)))
-                     CALL cp_get_iter_nr(iteration_info, rlevel, iter_nr)
+            IF (iteration_info%iter_print > iter_silent) THEN
+               unit_nr = cp_logger_get_unit_nr(logger, local=my_local)
+               IF (unit_nr > 0) THEN
+                  WRITE (UNIT=unit_nr, FMT="()")
+                  ! The current iteration level
+                  SELECT CASE (direction)
+                  CASE ("A") ! After adding level in cp_add_iter_level
                      WRITE (UNIT=unit_nr, FMT="(T2,A,T37,I3,T41,A,T73,I8)") &
-                        "ITER_LV|                         *", rlevel, "[ "//level_name//" ]", iter_nr
-                  END DO
+                        "ITER_LV| >>>>>>>> Entering level +", rlevel, "[ "//level_name//" ]", iter_nr
+                  CASE ("R") ! Before removing level in cp_rm_iter_level
+                     WRITE (UNIT=unit_nr, FMT="(T2,A,T37,I3,T41,A,T73,I8)") &
+                        "ITER_LV| <<<<<<<<  Exiting level -", rlevel, "[ "//level_name//" ]", iter_nr
+                  CASE DEFAULT
+                     CALL cp_abort(__LOCATION__, &
+                                   "Only entering (A) or exiting (R) an iteration level "// &
+                                   "can have a message printed.")
+                  END SELECT
+                  ! The rest of stack of iteration levels
+                  IF (iteration_info%iter_print > iter_notice) THEN
+                     DO WHILE (rlevel > min_iter_level)
+                        rlevel = rlevel - 1
+                        level_name = TRIM(ADJUSTL(iteration_info%level_name(rlevel)))
+                        CALL cp_get_iter_nr(iteration_info, rlevel, iter_nr)
+                        WRITE (UNIT=unit_nr, FMT="(T2,A,T37,I3,T41,A,T73,I8)") &
+                           "ITER_LV|                         *", rlevel, "[ "//level_name//" ]", iter_nr
+                     END DO
+                  END IF
+                  WRITE (UNIT=unit_nr, FMT="()")
                END IF
-               WRITE (UNIT=unit_nr, FMT="()")
             END IF
+         ELSE
+            CALL cp_warn(__LOCATION__, &
+                         "An iteration level has been added to or removed from a logger "// &
+                         "that does not receive the GLOBAL%ITER_LEVEL_VERBOSITY setting.")
          END IF
       END IF
 
    END SUBROUTINE cp_iter_level_print
-
-! **************************************************************************************************
-!> \brief set the default for iteration printing
-!> \param iter_print ...
-! **************************************************************************************************
-   SUBROUTINE cp_set_iter_print_default(iter_print)
-      INTEGER, INTENT(IN)                                :: iter_print
-
-      iter_print_default = iter_print
-   END SUBROUTINE cp_set_iter_print_default
-
-! **************************************************************************************************
-!> \brief get the default for iteration printing
-!> \param iter_print ...
-! **************************************************************************************************
-   SUBROUTINE cp_get_iter_print_default(iter_print)
-      INTEGER, INTENT(OUT)                               :: iter_print
-
-      iter_print = iter_print_default
-   END SUBROUTINE cp_get_iter_print_default
 
 ! **************************************************************************************************
 !> \brief Utility function that returns a unit number to write the print key.
