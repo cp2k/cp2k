@@ -76,6 +76,7 @@ MODULE dbm_api
    PUBLIC :: dbm_distribution_new
    PUBLIC :: dbm_distribution_hold
    PUBLIC :: dbm_distribution_release
+   PUBLIC :: dbm_distribution_is_same
    PUBLIC :: dbm_distribution_col_dist
    PUBLIC :: dbm_distribution_row_dist
 
@@ -1281,6 +1282,19 @@ CONTAINS
 #endif
 
    END FUNCTION dbm_get_distribution
+
+! **************************************************************************************************
+!> \brief Returns whether two handles refer to the same distribution object.
+!> \param dist_a ...
+!> \param dist_b ...
+!> \return ...
+! **************************************************************************************************
+   PURE FUNCTION dbm_distribution_is_same(dist_a, dist_b) RESULT(res)
+      TYPE(dbm_distribution_obj), INTENT(IN)             :: dist_a, dist_b
+      LOGICAL                                            :: res
+
+      res = C_ASSOCIATED(dist_a%c_ptr, dist_b%c_ptr)
+   END FUNCTION dbm_distribution_is_same
 
 ! **************************************************************************************************
 !> \brief Creates a new two dimensional distribution.
