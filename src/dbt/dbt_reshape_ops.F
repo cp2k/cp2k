@@ -20,6 +20,7 @@ MODULE dbt_reshape_ops
       dbt_iterator_stop, dbt_get_block_data, dbt_put_block_data, dbt_reserve_blocks
    USE dbt_types, ONLY: dbt_blk_sizes, &
                         dbt_type, &
+                        dbt_get_info, &
                         ndims_tensor, &
                         dbt_get_stored_coordinates, &
                         dbt_clear
@@ -34,7 +35,17 @@ MODULE dbt_reshape_ops
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbt_reshape_ops'
 
-   PUBLIC :: dbt_reshape, dbt_reshape_release
+   PUBLIC :: dbt_reshape, dbt_copy_indexed, dbt_reshape_release
+
+   ! Non-owning references allow scalar copies and image gathers to share one transport.
+   TYPE tensor_source_type
+      TYPE(dbt_type), POINTER :: tensor => NULL()
+      INTEGER :: stack_offset = 0
+   END TYPE tensor_source_type
+
+   INTERFACE dbt_copy_indexed
+      MODULE PROCEDURE dbt_reshape, dbt_gather
+   END INTERFACE dbt_copy_indexed
 
    ! Communication buffers persist across calls such that pages are faulted in once rather than per
    ! call; per block, the index holds the data offset (relative to the peer's data) and nd-index.
@@ -47,30 +58,97 @@ CONTAINS
 !>        tensor_out = tensor_out + tensor_in move_data memory optimization:
 !>        transfer data from tensor_in to tensor_out s.t. tensor_in is empty on return
 !> \param bounds crop tensor data while copying (as dbt_crop): start and end index per dimension
+!> \param tensor_in source tensor on the parent communicator
+!> \param tensor_out destination tensor; smaller communicators denote equal, contiguous subgroups
+!> \param summation add to destination instead of replacing it
+!> \param move_data clear the source after copying
+!> \param index_map optional source-to-destination block indices; zero skips a block
+!> \param group_mask optional subgroup selection by source block index
+!> \param group_dim source dimension indexing group_mask
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE dbt_reshape(tensor_in, tensor_out, summation, move_data, bounds)
+   SUBROUTINE dbt_reshape(tensor_in, tensor_out, summation, move_data, bounds, index_map, group_mask, group_dim)
 
-      TYPE(dbt_type), INTENT(INOUT)               :: tensor_in, tensor_out
+      TYPE(dbt_type), TARGET, INTENT(INOUT) :: tensor_in
+      TYPE(dbt_type), INTENT(INOUT) :: tensor_out
+      LOGICAL, INTENT(IN), OPTIONAL :: summation, move_data
+      INTEGER, INTENT(IN), OPTIONAL :: bounds(:, :), index_map(:, :), group_dim
+      LOGICAL, INTENT(IN), OPTIONAL :: group_mask(:, :)
+
+      TYPE(tensor_source_type) :: sources(1)
+
+      sources(1)%tensor => tensor_in
+      CALL dbt_reshape_sources(sources, tensor_out, tensor_in%pgrid%mp_comm_2d, summation, move_data, bounds, &
+                               index_map=index_map, group_mask=group_mask, group_dim=group_dim)
+   END SUBROUTINE dbt_reshape
+
+! **************************************************************************************************
+!> \brief Gather whole blocks from selected tensors, optionally relabelling each block index.
+!>        Zero images or mapped indices are skipped. Blocks retain their sizes. Each image occupies
+!>        one source tensor extent along stack_dim, including skipped images. Retained index maps
+!>        must be injective; the stack-dimension map stays within one source extent.
+!> \param tensor_in source tensors on one communicator, with identical shapes
+!> \param tensor_out destination tensor
+!> \param images source tensor indices; zero skips an image
+!> \param index_map source-to-destination block indices, padded to the largest source dimension
+!> \param stack_dim dimension along which images are stacked
+! **************************************************************************************************
+   SUBROUTINE dbt_gather(tensor_in, tensor_out, images, index_map, stack_dim)
+      TYPE(dbt_type), TARGET, INTENT(INOUT) :: tensor_in(:)
+      TYPE(dbt_type), INTENT(INOUT) :: tensor_out
+      INTEGER, INTENT(IN) :: images(:), index_map(:, :), stack_dim
+
+      INTEGER :: i, nblks(SIZE(index_map, 2))
+      TYPE(tensor_source_type) :: sources(SIZE(images))
+
+      CPASSERT(SIZE(tensor_in) > 0)
+      CPASSERT(SIZE(index_map, 2) == ndims_tensor(tensor_out))
+      CPASSERT(stack_dim >= 1 .AND. stack_dim <= SIZE(nblks))
+      CALL dbt_get_info(tensor_in(1), nblks_total=nblks)
+      CPASSERT(SIZE(index_map, 1) >= MAXVAL(nblks))
+      CPASSERT(ALL(index_map(:nblks(stack_dim), stack_dim) <= nblks(stack_dim)))
+      DO i = 1, SIZE(images)
+         CPASSERT(images(i) >= 0 .AND. images(i) <= SIZE(tensor_in))
+         IF (images(i) == 0) CYCLE
+         sources(i)%tensor => tensor_in(images(i))
+         sources(i)%stack_offset = (i - 1)*nblks(stack_dim)
+      END DO
+      CALL dbt_reshape_sources(sources, tensor_out, tensor_in(1)%pgrid%mp_comm_2d, &
+                               index_map=index_map, stack_dim=stack_dim)
+   END SUBROUTINE dbt_gather
+
+! **************************************************************************************************
+!> \brief Shared block transport for copies, indexed gathers and subgroup replication.
+!>        Subgroups have identical layouts and contiguous rank ranges in comm. group_mask selects
+!>        replicas by a source block index; with no mask, every subgroup receives the block.
+! **************************************************************************************************
+   SUBROUTINE dbt_reshape_sources(sources, tensor_out, comm, summation, move_data, bounds, &
+                                  index_map, stack_dim, group_mask, group_dim)
+
+      TYPE(tensor_source_type), INTENT(IN) :: sources(:)
+      TYPE(dbt_type), INTENT(INOUT) :: tensor_out
+      CLASS(mp_comm_type), INTENT(IN) :: comm
       LOGICAL, INTENT(IN), OPTIONAL                    :: summation
       LOGICAL, INTENT(IN), OPTIONAL                    :: move_data
-      INTEGER, DIMENSION(2, ndims_tensor(tensor_in)), INTENT(IN), OPTIONAL :: bounds
+      INTEGER, INTENT(IN), OPTIONAL :: bounds(:, :), index_map(:, :), stack_dim, group_dim
+      LOGICAL, INTENT(IN), OPTIONAL :: group_mask(:, :)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_reshape'
 
       INTEGER                                            :: iproc, numnodes, nindex, &
-                                                            handle, handle2, iblk, offset, ndata
+                                                            handle, handle2, iblk, offset, ndata, &
+                                                            isource, d, igroup, ngroups, group_size, peer, first_offset
       INTEGER, DIMENSION(2)                              :: block_range
       TYPE(dbt_iterator_type)                            :: iter
       CHARACTER(LEN=32)                                  :: name_pack, name_unpack
-      INTEGER, DIMENSION(ndims_tensor(tensor_in))        :: blk_size, blk_offset, ind_nd
-      INTEGER, DIMENSION(2, ndims_tensor(tensor_in))     :: bounds_prv
+      INTEGER, DIMENSION(ndims_tensor(tensor_out)) :: blk_size, blk_offset, ind_nd, dest, dest_size
+      INTEGER, DIMENSION(2, ndims_tensor(tensor_out)) :: bounds_prv
       LOGICAL :: found, summation_prv, move_prv, do_bounds, overlap, inside
+      TYPE(dbt_type), POINTER :: tensor_in
+      INTEGER :: source_shape(ndims_tensor(tensor_out))
 
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nblks_send_total, ndata_send_total, &
-                                                            nblks_recv_total, ndata_recv_total, &
-                                                            nblks_send_mythread, ndata_send_mythread
-      TYPE(mp_comm_type) :: mp_comm
+      INTEGER, ALLOCATABLE :: counts_send(:, :), counts_recv(:, :)
+      INTEGER, ALLOCATABLE :: nblks_send_mythread(:), ndata_send_mythread(:)
 
       CALL timeset(routineN, handle)
 
@@ -94,6 +172,19 @@ CONTAINS
       END IF
 
       CPASSERT(tensor_out%valid)
+      group_size = tensor_out%pgrid%mp_comm_2d%num_pe
+      CPASSERT(MOD(comm%num_pe, group_size) == 0)
+      CPASSERT(MOD(comm%mepos, group_size) == tensor_out%pgrid%mp_comm_2d%mepos)
+      ngroups = comm%num_pe/group_size
+      CPASSERT(PRESENT(group_mask) .EQV. PRESENT(group_dim))
+      IF (PRESENT(group_mask)) THEN
+         CPASSERT(SIZE(group_mask, 1) == ngroups)
+         CPASSERT(group_dim >= 1 .AND. group_dim <= SIZE(ind_nd))
+      END IF
+      IF (PRESENT(index_map)) THEN
+         CPASSERT(SIZE(index_map, 2) == SIZE(ind_nd))
+         CPASSERT(ALL(index_map >= 0))
+      END IF
 
       IF (.NOT. summation_prv) THEN
          CALL timeset(routineN//"_clear", handle2)
@@ -101,92 +192,147 @@ CONTAINS
          CALL timestop(handle2)
       END IF
 
-      mp_comm = tensor_in%pgrid%mp_comm_2d
-      numnodes = mp_comm%num_pe
-      nindex = ndims_tensor(tensor_in) + 1
+      numnodes = comm%num_pe
+      nindex = ndims_tensor(tensor_out) + 1
       ! separate timers for blocks that need a reshape (index order differs from matrix layout)
       name_pack = routineN//"_pack"
-      IF (permuted(tensor_in)) name_pack = routineN//"_pack_perm"
+      DO isource = 1, SIZE(sources)
+         IF (.NOT. ASSOCIATED(sources(isource)%tensor)) CYCLE
+         CALL dbt_get_info(sources(isource)%tensor, nblks_total=source_shape)
+         IF (PRESENT(index_map)) THEN
+            CPASSERT(SIZE(index_map, 1) >= MAXVAL(source_shape))
+         END IF
+         IF (PRESENT(group_mask)) THEN
+            CPASSERT(SIZE(group_mask, 2) == source_shape(group_dim))
+         END IF
+         IF (permuted(sources(isource)%tensor)) name_pack = routineN//"_pack_perm"
+      END DO
       name_unpack = routineN//"_unpack"
       IF (permuted(tensor_out)) name_unpack = routineN//"_unpack_perm"
-      ALLOCATE (nblks_send_total(0:numnodes - 1), ndata_send_total(0:numnodes - 1), source=0)
-      ALLOCATE (nblks_recv_total(0:numnodes - 1), ndata_recv_total(0:numnodes - 1), source=0)
+      ALLOCATE (counts_send(2, 0:numnodes - 1), counts_recv(2, 0:numnodes - 1), source=0)
 
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED(tensor_in,tensor_out,summation,mp_comm,numnodes,nindex,name_pack,name_unpack) &
+!$OMP SHARED(sources,tensor_out,summation,comm,numnodes,nindex,name_pack,name_unpack) &
+!$OMP SHARED(index_map,stack_dim,group_mask,group_dim,group_size,ngroups) &
 !$OMP SHARED(do_bounds,bounds_prv,buffer_send,buffer_recv) &
-!$OMP SHARED(nblks_send_total,ndata_send_total,nblks_recv_total,ndata_recv_total) &
+!$OMP SHARED(counts_send,counts_recv) &
 !$OMP PRIVATE(nblks_send_mythread,ndata_send_mythread) &
 !$OMP PRIVATE(iter,ind_nd,blk_size,blk_offset,found,overlap,inside,iproc,handle2) &
-!$OMP PRIVATE(block_range,offset,ndata,iblk)
+!$OMP PRIVATE(block_range,offset,ndata,iblk,tensor_in,isource,d,dest,dest_size,igroup,peer,first_offset)
       CALL timeset(routineN//"_count", handle2)
       ALLOCATE (nblks_send_mythread(0:numnodes - 1), ndata_send_mythread(0:numnodes - 1), source=0)
 
-      CALL dbt_iterator_start(iter, tensor_in)
-      DO WHILE (dbt_iterator_blocks_left(iter))
-         CALL dbt_iterator_next_block(iter, ind_nd, blk_size=blk_size, blk_offset=blk_offset)
-         IF (do_bounds) THEN
-            CALL block_bounds(bounds_prv, blk_offset, blk_size, overlap, inside)
-            IF (.NOT. overlap) CYCLE
-         END IF
-         CALL dbt_get_stored_coordinates(tensor_out, ind_nd, iproc)
-         nblks_send_mythread(iproc) = nblks_send_mythread(iproc) + 1
-         ndata_send_mythread(iproc) = ndata_send_mythread(iproc) + PRODUCT(blk_size)
+      DO isource = 1, SIZE(sources)
+         tensor_in => sources(isource)%tensor
+         IF (.NOT. ASSOCIATED(tensor_in)) CYCLE
+         CALL dbt_iterator_start(iter, tensor_in)
+         DO WHILE (dbt_iterator_blocks_left(iter))
+            CALL dbt_iterator_next_block(iter, ind_nd, blk_size=blk_size, blk_offset=blk_offset)
+            IF (do_bounds) THEN
+               CALL block_bounds(bounds_prv, blk_offset, blk_size, overlap, inside)
+               IF (.NOT. overlap) CYCLE
+            END IF
+            dest = ind_nd
+            IF (PRESENT(index_map)) THEN
+               DO d = 1, SIZE(dest)
+                  dest(d) = index_map(ind_nd(d), d)
+               END DO
+               IF (ANY(dest == 0)) CYCLE
+            END IF
+            IF (PRESENT(stack_dim)) dest(stack_dim) = dest(stack_dim) + sources(isource)%stack_offset
+            IF (PRESENT(index_map)) THEN
+               CALL dbt_blk_sizes(tensor_out, dest, dest_size)
+               CPASSERT(ALL(dest_size == blk_size))
+            END IF
+            CALL dbt_get_stored_coordinates(tensor_out, dest, iproc)
+            DO igroup = 1, ngroups
+               IF (PRESENT(group_mask)) THEN
+                  IF (.NOT. group_mask(igroup, ind_nd(group_dim))) CYCLE
+               END IF
+               peer = (igroup - 1)*group_size + iproc
+               nblks_send_mythread(peer) = nblks_send_mythread(peer) + 1
+               ndata_send_mythread(peer) = ndata_send_mythread(peer) + PRODUCT(blk_size)
+            END DO
+         END DO
+         CALL dbt_iterator_stop(iter)
       END DO
-      CALL dbt_iterator_stop(iter)
 !$OMP CRITICAL(omp_dbt_reshape)
-      nblks_send_total(:) = nblks_send_total(:) + nblks_send_mythread(:)
-      ndata_send_total(:) = ndata_send_total(:) + ndata_send_mythread(:)
-      nblks_send_mythread(:) = nblks_send_total(:) ! current totals indicate slot for this thread
-      ndata_send_mythread(:) = ndata_send_total(:)
+      counts_send(1, :) = counts_send(1, :) + ndata_send_mythread(:)
+      counts_send(2, :) = counts_send(2, :) + nblks_send_mythread(:)
+      ndata_send_mythread(:) = counts_send(1, :) ! current totals indicate slot for this thread
+      nblks_send_mythread(:) = counts_send(2, :)
 !$OMP END CRITICAL(omp_dbt_reshape)
 !$OMP BARRIER
 
 !$OMP MASTER
-      CALL mp_comm%alltoall(nblks_send_total, nblks_recv_total, 1)
-      CALL mp_comm%alltoall(ndata_send_total, ndata_recv_total, 1)
+      CALL comm%alltoall(counts_send, counts_recv, 2)
 !$OMP END MASTER
 !$OMP BARRIER
       CALL timestop(handle2)
 
       CALL timeset(TRIM(name_pack), handle2)
 !$OMP MASTER
-      CALL grow_buffer(buffer_send, ndata_send_total, nblks_send_total, nindex)
-      CALL grow_buffer(buffer_recv, ndata_recv_total, nblks_recv_total, nindex)
+      CALL grow_buffer(buffer_send, counts_send(1, :), counts_send(2, :), nindex)
+      CALL grow_buffer(buffer_recv, counts_recv(1, :), counts_recv(2, :), nindex)
 !$OMP END MASTER
 !$OMP BARRIER
 
-      CALL dbt_iterator_start(iter, tensor_in)
-      DO WHILE (dbt_iterator_blocks_left(iter))
-         CALL dbt_iterator_next_block(iter, ind_nd, blk_size=blk_size, blk_offset=blk_offset)
-         inside = .TRUE.
-         IF (do_bounds) THEN
-            CALL block_bounds(bounds_prv, blk_offset, blk_size, overlap, inside)
-            IF (.NOT. overlap) CYCLE
-         END IF
-         CALL dbt_get_stored_coordinates(tensor_out, ind_nd, iproc)
-         ! insert block data
-         ndata = PRODUCT(blk_size)
-         ndata_send_mythread(iproc) = ndata_send_mythread(iproc) - ndata
-         offset = buffer_send%msg_offset(iproc) + ndata_send_mythread(iproc)
-         CALL dbt_get_block_data(tensor_in, ind_nd, blk_size, buffer_send%msg(offset + 1:offset + ndata), found)
-         CPASSERT(found)
-         IF (.NOT. inside) CALL block_crop(bounds_prv, blk_offset, blk_size, buffer_send%msg(offset + 1:offset + ndata))
-         ! insert block index
-         nblks_send_mythread(iproc) = nblks_send_mythread(iproc) - 1
-         iblk = buffer_send%indx_offset(iproc) + nblks_send_mythread(iproc) + 1
-         buffer_send%indx(2:, iblk) = ind_nd(:)
-         ! Payload offsets in the metadata are relative to the peer's segment.
-         buffer_send%indx(1, iblk) = ndata_send_mythread(iproc)
+      DO isource = 1, SIZE(sources)
+         tensor_in => sources(isource)%tensor
+         IF (.NOT. ASSOCIATED(tensor_in)) CYCLE
+         CALL dbt_iterator_start(iter, tensor_in)
+         DO WHILE (dbt_iterator_blocks_left(iter))
+            CALL dbt_iterator_next_block(iter, ind_nd, blk_size=blk_size, blk_offset=blk_offset)
+            inside = .TRUE.
+            IF (do_bounds) THEN
+               CALL block_bounds(bounds_prv, blk_offset, blk_size, overlap, inside)
+               IF (.NOT. overlap) CYCLE
+            END IF
+            dest = ind_nd
+            IF (PRESENT(index_map)) THEN
+               DO d = 1, SIZE(dest)
+                  dest(d) = index_map(ind_nd(d), d)
+               END DO
+               IF (ANY(dest == 0)) CYCLE
+            END IF
+            IF (PRESENT(stack_dim)) dest(stack_dim) = dest(stack_dim) + sources(isource)%stack_offset
+            CALL dbt_get_stored_coordinates(tensor_out, dest, iproc)
+            first_offset = -1
+            DO igroup = 1, ngroups
+               IF (PRESENT(group_mask)) THEN
+                  IF (.NOT. group_mask(igroup, ind_nd(group_dim))) CYCLE
+               END IF
+               peer = (igroup - 1)*group_size + iproc
+               ! Insert block data, reading the source only once for all replicas.
+               ndata = PRODUCT(blk_size)
+               ndata_send_mythread(peer) = ndata_send_mythread(peer) - ndata
+               offset = buffer_send%msg_offset(peer) + ndata_send_mythread(peer)
+               IF (first_offset < 0) THEN
+                  CALL dbt_get_block_data(tensor_in, ind_nd, blk_size, buffer_send%msg(offset + 1:offset + ndata), found)
+                  CPASSERT(found)
+                  IF (.NOT. inside) THEN
+                     CALL block_crop(bounds_prv, blk_offset, blk_size, buffer_send%msg(offset + 1:offset + ndata))
+                  END IF
+                  first_offset = offset
+               ELSE
+                  buffer_send%msg(offset + 1:offset + ndata) = buffer_send%msg(first_offset + 1:first_offset + ndata)
+               END IF
+               ! Payload offsets in the metadata are relative to the peer's segment.
+               nblks_send_mythread(peer) = nblks_send_mythread(peer) - 1
+               iblk = buffer_send%indx_offset(peer) + nblks_send_mythread(peer) + 1
+               buffer_send%indx(2:, iblk) = dest(:)
+               buffer_send%indx(1, iblk) = ndata_send_mythread(peer)
+            END DO
+         END DO
+         CALL dbt_iterator_stop(iter)
       END DO
-      CALL dbt_iterator_stop(iter)
       DEALLOCATE (nblks_send_mythread, ndata_send_mythread)
 !$OMP BARRIER
       CALL timestop(handle2)
 
 !$OMP MASTER
       IF (numnodes > 1) THEN
-         CALL exchange_matrix_buffers(mp_comm, buffer_recv, buffer_send)
+         CALL exchange_matrix_buffers(comm, buffer_recv, buffer_send)
       ELSE
          ! A single rank receives what it sends: the buffers trade places.
          CALL swap_buffers(buffer_send, buffer_recv)
@@ -216,17 +362,18 @@ CONTAINS
       CALL timestop(handle2)
 !$OMP END PARALLEL
 
-      DEALLOCATE (nblks_recv_total, ndata_recv_total)
-      DEALLOCATE (nblks_send_total, ndata_send_total)
+      DEALLOCATE (counts_send, counts_recv)
 
       IF (move_prv) THEN
          CALL timeset(routineN//"_clear", handle2)
-         CALL dbt_clear(tensor_in)
+         DO isource = 1, SIZE(sources)
+            IF (ASSOCIATED(sources(isource)%tensor)) CALL dbt_clear(sources(isource)%tensor)
+         END DO
          CALL timestop(handle2)
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE dbt_reshape
+   END SUBROUTINE dbt_reshape_sources
 
 ! **************************************************************************************************
 !> \brief Release the communication buffers that persist across calls of dbt_reshape.
