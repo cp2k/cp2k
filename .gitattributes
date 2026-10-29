@@ -2,5 +2,6 @@
 *.inc linguist-language=Text
 CODEOWNERS export-ignore
 .gitattributes export-ignore
+.github export-ignore
 .git-blame-ignore-revs export-ignore
 .gitignore export-ignore
