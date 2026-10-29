@@ -480,7 +480,7 @@ CONTAINS
 
       INTEGER :: b_img, batch_size, group_size, handle, handle2, i_batch, i_img, i_spin, iatom, &
          iblk, igroup, iprint, jatom, mb_img, n_batch_nze, n_nze, natom, ngroups, nimg, nimg_nze
-      INTEGER(int_8)                                     :: mem, nflop, nze
+      INTEGER(int_8)                                     :: mem, nflop, nflop_sub, nze
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: batch_ranges_at, batch_ranges_nze, &
                                                             idx_to_at_AO
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: iapc_pairs
@@ -674,6 +674,7 @@ CONTAINS
 
       iprint = 1
       t1 = m_walltime()
+      nflop_sub = 0_int_8
       ri_data%kp_cost(:, :, :) = 0.0_dp
       DO b_img = 1, nimg
          IF (print_progress) CALL print_progress_bar(b_img, nimg, iprint, ri_data)
@@ -719,7 +720,7 @@ CONTAINS
                                        contract_2=[2, 3], notcontract_2=[1], &
                                        filter_eps=ri_data%filter_eps, &
                                        move_data=i_spin == nspins, flop=nflop)
-                     ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
+                     nflop_sub = nflop_sub + nflop
                   END DO
                END DO !i_batch
                CALL timestop(handle2)
@@ -739,7 +740,10 @@ CONTAINS
       CALL dbt_batched_contract_finalize(t_3c_work_2(1))
       CALL dbt_batched_contract_finalize(t_3c_work_2(2))
       CALL para_env%sync()
-      CALL para_env%sum(ri_data%dbcsr_nflop)
+      ! DBT returns the average flop count per rank in each subgroup. Reduce only
+      ! this step's subgroup work and keep the accumulated counter per rank.
+      CALL para_env%sum(nflop_sub)
+      ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + (nflop_sub + para_env%num_pe - 1)/para_env%num_pe
       CALL para_env%sum(ri_data%kp_cost)
       t2 = m_walltime()
       ri_data%dbcsr_time = ri_data%dbcsr_time + t2 - t1
