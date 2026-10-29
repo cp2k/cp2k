@@ -1443,7 +1443,7 @@ CONTAINS
          qs_kind_set, &
          gauxc_status)
 
-      CALL gauxc_cache_ensure_gradient(cache, params, para_env, gauxc_status)
+      CALL gauxc_cache_ensure_gradient(cache, params, gauxc_status)
       CALL gauxc_check_status(gauxc_status)
 
       hdf5_output = (TRIM(output_path) /= "")
