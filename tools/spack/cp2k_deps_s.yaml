@@ -112,6 +112,8 @@ spack:
         - "~rocm"
         - "~valgrind"
         - "~xnnpack"
+        - spec: "~flash_attention"
+          when: "+cuda"
         - spec: "~magma"
           when: "+cuda"
 
