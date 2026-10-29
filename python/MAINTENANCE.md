@@ -6,10 +6,12 @@ does not choose protocols, validate the full input schema or parse calculation o
 
 ## Ownership
 
-Before the first public package release, the CP2K maintainers and package contributors must agree
-who owns releases and reviews changes to the Python/native contract. No named maintainer, PyPI
-project ownership or publication commitment is implied by this document. Record the agreed
-maintainers and release procedure here before advertising a published installation command.
+Reuse of the `pycp2k` PyPI project was agreed with its original maintainer in
+[#6168](https://github.com/cp2k/cp2k/issues/6168). Project owners manage PyPI publishing
+permissions, while the CP2K repository administrators configure protected release approvals.
+Contributors can prepare release changes without personal PyPI access. Agree who approves each
+release before publishing; the preparation does not change account permissions or assign release
+duties.
 
 Keep the C API fixes and compatibility tests in CP2K. Coordinate higher-level calculator and
 workflow contributions with their existing projects. In particular, the proposed AiiDA helper uses
@@ -65,7 +67,7 @@ implementation or assuming that they have accepted ownership.
 The wheel contains the Python wrapper, not libcp2k, MPI or numerical libraries. Packaging those
 native dependencies would be a separate distribution effort with its own compatibility testing.
 
-The proposed name/version policy, native compatibility requirements and upload-free validation
-workflow are described in [release preparation](RELEASING.md). Publication and project ownership
-remain subject to explicit agreement; the preparation script neither requests credentials nor
-uploads to PyPI or TestPyPI.
+The name/version policy, native compatibility requirements and upload-free validation workflow are
+described in [release preparation](RELEASING.md). Publication and project ownership remain subject
+to explicit agreement; the preparation script neither requests credentials nor uploads to PyPI or
+TestPyPI.

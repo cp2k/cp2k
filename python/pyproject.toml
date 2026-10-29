@@ -3,8 +3,8 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cp2k-python"
-version = "0.1.0"
+name = "pycp2k"
+version = "0.3.0"
 description = "Direct, in-process Python interface to libcp2k"
 readme = "README.md"
 requires-python = ">=3.10"

@@ -1,33 +1,37 @@
 # Release preparation
 
-This is a proposed release process, not approval to publish. The first release is blocked until
-maintenance ownership is agreed, the required changes are merged and the release checks pass. There
-is no upload job or credential configuration in this change.
+This is a proposed release process, not approval to publish. The first release requires merged
+changes, successful release checks and approval from the release approvers. There is no implicit
+upload, tag creation or credential configuration. The optional publishing workflow requires a
+separate manual dispatch and protected approval for each package index.
 
 ## Decisions before the first release
 
-- Agree on the final distribution and import names (currently `cp2k-python` and `cp2k`). The
-  alternatives proposed in review remain a maintainer decision. In particular, `pycp2k` already
-  identifies a third-party package: coordinate with its maintainer before reusing that name, and
-  document any migration rather than implying API compatibility. Do not rename the distribution or
-  imports before agreement. Check PyPI and TestPyPI separately; an absent public project is not
-  proof that a name is available or reserved. Never co-install the obsolete Cython distribution
-  exporting the same import.
-- Name a primary release maintainer and a backup, and agree who reviews native/Python API changes
-  and responds to failed CI. Do not assign these duties to contributors without their agreement.
-- Agree project ownership, two-factor authentication and protected release approval with the CP2K
-  organization. No personal credentials belong in the repository.
+- The distribution is `pycp2k`, with the unchanged import `cp2k`. Ole confirmed the original
+  maintainer's agreement to reuse the PyPI name in
+  [#6168](https://github.com/cp2k/cp2k/issues/6168#issuecomment-6017099865). Version `0.3.0` starts
+  the incompatible direct-binding API after the original package's `0.2.2`. Keep its historical
+  releases and the migration notice at the beginning of the package README. Do not imply API or
+  license compatibility. Never co-install the obsolete Cython distribution exporting `cp2k`, or the
+  provisional distribution `cp2k-python`.
+- Confirm the release approvers with the existing PyPI owner and the repository administrators. A
+  contributor's personal PyPI access is not required for Trusted Publishing. Use two-factor
+  authentication for PyPI accounts and keep personal credentials out of the repository.
 - Keep the wrapper's release schedule and versions separate from CP2K's. Python-only fixes need not
   wait for a native CP2K release; native compatibility must still be documented and tested. Proposed
-  first release: `0.1.0`, with breaking pre-1.0 API changes in a new minor version and compatible
-  fixes in a patch version. Keep `pyproject.toml` and `cp2k.__version__` synchronized. Do not create
-  a tag until approved; a proposed tag convention is `python-v<VERSION>`.
+  first direct-binding release: `0.3.0`, with breaking pre-1.0 API changes in a new minor version
+  and compatible fixes in a patch version. Keep `pyproject.toml` and `cp2k.__version__`
+  synchronized. Do not create a tag until approved; a proposed tag convention is
+  `python-v<VERSION>`.
 
 ## Native compatibility
 
-For the first supported release, identify the merged CP2K commit and, when available, the first
-released CP2K version containing it. Do not infer compatibility just from a development version
-string. Record the native Git revision, build options, MPI implementation and test results.
+The initial native checks used the C/Fortran sources at CP2K commit
+[`bb81c3bf56575800b1b6d198b8112684e5264a66`](https://github.com/cp2k/cp2k/commit/bb81c3bf56575800b1b6d198b8112684e5264a66),
+with a Release shared-library build and MPI. This is a known-working reference, not a claim that
+every older or newer build is compatible. Repeat the native checks for the actual merged release
+commit. When available, name the first released CP2K version containing the required API and fixes.
+Do not infer compatibility just from a development version string.
 
 | Capability                                           | Native requirement                                                                                      |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
@@ -76,11 +80,42 @@ replace the native tests or make a timing benchmark a release threshold.
    artifacts to PyPI. Verify their hashes and installation. Never silently rebuild between the two
    uploads or reuse a published version for different contents.
 
-If automated publication is agreed, use separate build and publish jobs with a protected manual
-approval environment. Only the publishing job should receive the short-lived publishing identity; PR
-code must not receive it. The publishing repository, workflow filename and environment must match
-the PyPI Trusted Publisher configuration. These settings need project-owner agreement and are
-deliberately not created by the build-only script.
+## Publishing setup
+
+The manually dispatched `.github/workflows/python-release.yml` builds and checks a candidate without
+publishing by default. Before enabling its `publish` input, confirm the release approvers, the
+supported native CP2K revision and successful native tests. Run it on the approved merged commit on
+`master`, after the repository's normal CI has passed.
+
+The PyPI owner and repository administrators must configure the following separately. This PR and
+the build-only script do not create accounts, permissions, environments, publishers or tags.
+
+- Configure the `pycp2k` project independently on PyPI and TestPyPI. The existing PyPI owner can
+  perform this setup without adding another personal account. Keep existing ownership unchanged.
+- Create GitHub environments `testpypi` and `pypi` with required reviewers, prevent self-approval
+  and restrict deployment to `master`. Do not dispatch publication before these protections exist.
+- Register the following Trusted Publishers. No long-lived PyPI token is needed.
+
+| Setting          | TestPyPI             | PyPI                 |
+| ---------------- | -------------------- | -------------------- |
+| Project          | `pycp2k`             | `pycp2k`             |
+| Repository owner | `cp2k`               | `cp2k`               |
+| Repository       | `cp2k`               | `cp2k`               |
+| Workflow file    | `python-release.yml` | `python-release.yml` |
+| Environment      | `testpypi`           | `pypi`               |
+
+With publication explicitly enabled, the workflow uploads to TestPyPI only after its approval. It
+then downloads that version from TestPyPI, checks it against the built wheel's SHA-256 hash, and
+checks installation and import. A separate approval of the `pypi` environment permits the production
+upload of the same wheel and sdist, without rebuilding. Only the two publishing jobs receive
+`id-token: write`; neither runs package build scripts. Ordinary pushes and PRs cannot publish, and
+publication is restricted to the upstream repository's `master` branch. Re-running an upload cannot
+replace an already published version.
+
+The TestPyPI installation check installs dependencies from normal PyPI first, then the candidate
+wheel with `--no-deps`. Native compatibility is a separate prerequisite, not demonstrated by this
+pure-Python publishing workflow. Verify installation and hashes on production PyPI before announcing
+the release and closing #6168.
 
 References:
 [PyPA release workflow](https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/)
