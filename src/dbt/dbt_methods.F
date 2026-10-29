@@ -2176,7 +2176,7 @@ CONTAINS
 !>          `dbt_contract`, note 2 & 3). If they are not, process grid optimizations are
 !>          disabled and a warning is issued.
 !>        - within the scope of a batched contraction, it is not allowed to access or change tensor
-!>          data except by calling the routines dbt_contract & dbt_copy.
+!>          data except by calling dbt_contract, dbt_copy, or the tensor-array form of dbt_copy_indexed.
 !>        - the bounds affecting indices of the smallest tensor must not change in the course of a
 !>          batched contraction (todo: get rid of this requirement).
 !>
