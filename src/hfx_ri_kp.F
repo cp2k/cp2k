@@ -614,7 +614,7 @@ CONTAINS
       ALLOCATE (ks_t_sub(nspins, nimg), t_2c_ao_tmp(1), ks_t_split(2))
       CALL get_subgroup_ks_tensors(t_2c_ao_tmp, ks_t_split, ks_t_sub, para_env_sub, ri_data)
 
-      ALLOCATE (t_3c_apc_sub(nspins, nimg), t_3c_work_2(4))
+      ALLOCATE (t_3c_apc_sub(nspins, nimg), t_3c_work_2(3))
       CALL get_subgroup_3c_tensors(t_3c_work_2, t_3c_apc, t_3c_apc_sub, &
                                    para_env_sub, ri_data)
 
@@ -646,9 +646,8 @@ CONTAINS
       IF (estimate_mem .AND. geometry_did_change) THEN
          !Populate work tensors to simulate maximum usage
          CALL get_iapc_pairs(iapc_pairs, 1, ri_data, qs_env)
-         CALL fill_kp_exchange_stack(t_3c_work_2(4), ri_data, iapc_pairs, 1, 1, 1, &
+         CALL fill_kp_exchange_stack(t_3c_work_2(2), ri_data, iapc_pairs, 1, 1, 1, &
                                      idx_to_at_AO, [batch_ranges_nze(1), batch_ranges_nze(2)])
-         CALL dbt_copy(t_3c_work_2(4), t_3c_work_2(2), move_data=.TRUE.)
          CALL fill_3c_stack(t_3c_work_2(1), t_3c_apc_sub(1, :), iapc_pairs(:, 2), 3, &
                             ri_data, filter_at=1, filter_dim=1, idx_to_at=idx_to_at_AO, &
                             img_bounds=[batch_ranges_nze(1), batch_ranges_nze(2)])
@@ -660,7 +659,6 @@ CONTAINS
          CALL dbt_clear(t_3c_work_2(1))
          CALL dbt_clear(t_3c_work_2(2))
          CALL dbt_clear(t_3c_work_2(3))
-         CALL dbt_clear(t_3c_work_2(4))
 
          IF (ri_data%unit_nr > 0) THEN
             WRITE (ri_data%unit_nr, FMT="(T3,A,I14)") &
@@ -707,10 +705,9 @@ CONTAINS
 
                      IF (nze == 0) CYCLE
                      IF (.NOT. G_ready) THEN
-                        CALL fill_kp_exchange_stack(t_3c_work_2(4), ri_data, iapc_pairs, iatom, jatom, b_img, &
+                        CALL fill_kp_exchange_stack(t_3c_work_2(2), ri_data, iapc_pairs, iatom, jatom, b_img, &
                                                     idx_to_at_AO, &
                                                     [batch_ranges_nze(i_batch), batch_ranges_nze(i_batch + 1)])
-                        CALL dbt_copy(t_3c_work_2(4), t_3c_work_2(2), move_data=.TRUE.)
                         G_ready = .TRUE.
                      END IF
                      CALL dbt_copy(t_3c_work_2(3), t_3c_work_2(1), move_data=.TRUE.)
@@ -758,7 +755,6 @@ CONTAINS
       CALL dbt_destroy(t_3c_work_2(1))
       CALL dbt_destroy(t_3c_work_2(2))
       CALL dbt_destroy(t_3c_work_2(3))
-      CALL dbt_destroy(t_3c_work_2(4))
       DO i_img = 1, nimg
          DO i_spin = 1, nspins
             CALL dbt_destroy(t_3c_apc_sub(i_spin, i_img))
@@ -2638,7 +2634,7 @@ CONTAINS
 !> \brief Select and shift canonical G rows for an existing KS contraction batch.
 !>        The change x -> p=x+b can change the MPI owner. Route each retained
 !>        block to the destination tensor instead of assuming a local copy.
-!> \param stack output in the original (AO | RI AO) layout
+!> \param stack output in the current contraction layout and distribution
 !> \param ri_data geometry-dependent G and local RI neighborhoods
 !> \param pairs image indices (l,a+c) from get_iapc_pairs
 !> \param iatom left AO center selecting the RI rows
@@ -3418,7 +3414,6 @@ CONTAINS
                       ri_data%bsizes_AO_split, bsizes_RI_ext_split, bsizes_stack)
       CALL dbt_create(t_3c_work_2(1), t_3c_work_2(2))
       CALL dbt_create(t_3c_work_2(1), t_3c_work_2(3))
-      CALL dbt_create(t_3c_work_2(1), t_3c_work_2(4))
       CALL dbt_distribution_destroy(t_dist)
       DEALLOCATE (dist1, dist2, dist3, dist_stack)
 
