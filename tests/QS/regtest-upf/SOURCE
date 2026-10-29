@@ -1,10 +1,9 @@
-Prepared UPF pseudopotential data
+Hydrogen USPP regression data
 
-This directory currently contains one supplemented H USPP example for use
-through the normal CP2K data lookup, including offline regressions. It is
-derived from SSSP v2.0, not a complete or unchanged SSSP release. Calculation
-support depends on the CP2K build and supported method. The original SSSP
-collections remain separate, optional upstream inputs.
+This supplemented PBE H USPP supplies the offline H2 regression data.
+It originates from PSLibrary 1.0.0 and was selected by SSSP v2.0 PBE Precision.
+SSSP is a curated selection from several pseudopotential families, not a
+pseudopotential type. This directory does not contain a complete collection.
 
 H.us.pbe.z_1.ld1.psl.v1.0.0-high-full-waves.upf
 
@@ -43,16 +42,6 @@ Source revision
 0fb07d89d13407b0f00a0a3b8c21d7e387fb56f9
 Archive URLs and SHA-256 checksums
 tools/pseudopotentials/sssp_v2_archives.json
-
-Download the original collections into a separately chosen writable cache,
-not into this directory. For download and preparation instructions see
-tools/pseudopotentials/README.md. Downloading original USPPs does not recover
-missing full partial waves; an independently verified generator replay is
-required. No files are downloaded when CP2K starts a calculation.
-
-The original cutoff files give upstream plane-wave recommendations, not
-Gaussian basis or Quickstep multigrid settings. Neither a successful import
-nor the small H2 regression establishes production convergence.
 
 Original library attribution and license information
 https://github.com/unkcpz/sssp-verify-scripts/blob/0fb07d89d13407b0f00a0a3b8c21d7e387fb56f9/README.md#acknowledgements

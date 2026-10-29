@@ -1,9 +1,12 @@
 # SSSP downloads and UPF data preparation
 
-Keep original downloaded collections separate from the prepared data shipped with CP2K. `data/UPF/`
-currently contains one supplemented H USPP example derived from SSSP v2.0 PBE Precision, **not a
-complete or unchanged SSSP collection**. Its `SOURCE` file records the original and supplemented
-checksums, generator replay, attribution and license.
+SSSP is a curated selection from several pseudopotential families, not a pseudopotential type. Its
+collections contain norm-conserving, ultrasoft and PAW datasets in UPF format.
+
+Keep downloaded collections outside the source and installed data trees. The supplemented H USPP
+under `tests/QS/regtest-upf/` is an offline regression input originating from PSLibrary 1.0.0 and
+selected by SSSP v2.0 PBE Precision. Its adjacent `SOURCE` file records the preparation and license.
+It is not installed in the CP2K data directory.
 
 ## Install a selection with prepared USPPs
 
@@ -89,19 +92,17 @@ potential, projectors and augmentation with the replay; only the atomic guess wa
 allow roundoff differences. Original bytes are retained apart from the `has_wfc` flag, and
 `PP_FULL_WFC` is added. Missing core kinetic data are not inferred.
 
-Keep new generated data in a separate working directory until their provenance and CP2K calculation
-checks have been reviewed. Only qualified prepared data should be added under `data/UPF/`, with
-distinct filenames and their preparation recorded in `SOURCE`. Original collections remain upstream
-inputs and must not overwrite supplemented data.
+Keep generated data in a separate working directory. Preserve the original collections and record
+the preparation, checksums and licensing alongside supplemented files.
 
 ## Use the supplied H example
 
-For a CP2K version with the native inverse-USPP implementation, the supplied PBE H dataset can be
-selected using the standard CP2K data-directory lookup:
+For a CP2K version with the native inverse-USPP implementation, select the regression dataset using
+an explicit path to the source tree:
 
 ```text
 &KIND H
-  POTENTIAL UPF UPF/H.us.pbe.z_1.ld1.psl.v1.0.0-high-full-waves.upf
+  POTENTIAL UPF /path/to/cp2k/tests/QS/regtest-upf/H.us.pbe.z_1.ld1.psl.v1.0.0-high-full-waves.upf
 &END KIND
 ```
 

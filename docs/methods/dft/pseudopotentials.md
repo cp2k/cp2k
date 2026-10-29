@@ -97,13 +97,16 @@ GAPW method:
 &END KIND
 ```
 
-## Prepared UPF Data
+## UPF Collections and Regression Data
 
-`data/UPF/` contains a supplemented PBE H USPP example derived from SSSP v2.0 PBE Precision, not a
-complete or unchanged SSSP collection. Its `SOURCE` file records the original data, verified
-generator replay, added AE/PS partial waves and licensing. The native inverse-USPP implementation is
-required to use this example; installing data alone does not enable a missing method. The small H2
-regression does not establish production basis or grid convergence.
+SSSP is a curated selection from several pseudopotential families, not a pseudopotential type. Its
+collections contain norm-conserving, ultrasoft and PAW datasets. The UPF format stores these
+different types, whose calculation support depends on the CP2K implementation and Gaussian basis.
+
+`tests/QS/regtest-upf/` contains a supplemented PBE H USPP for offline regressions of the inverse
+orbital representations. It originates from PSLibrary 1.0.0 and was selected by SSSP v2.0 PBE
+Precision. The adjacent `SOURCE` file records its preparation, checksums, attribution and license.
+The file is regression data and is not installed in the standard CP2K data directory.
 
 The optional installer under `tools/pseudopotentials/` combines original SSSP NC/PAW files with
 prepared USPPs from a checksum-pinned external release. The original UPF hash identifies the
