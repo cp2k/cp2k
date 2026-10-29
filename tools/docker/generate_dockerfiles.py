@@ -224,47 +224,6 @@ def main() -> None:
             )
         )
 
-    with OutputFile(f"Dockerfile.test_spack_ssmp-P100", args.check) as f:
-        f.write(
-            install_cp2k_spack(
-                version="ssmp",
-                mpi_mode="no",
-                base_image="nvidia/cuda:12.9.1-devel-ubuntu24.04",
-                gcc_version=13,
-                gpu_model="P100",
-                testopts=f"{testopts} --maxtasks 2 --ompthreads 2 --smoketest --timeout 300",
-                image_tag=f.image_tag,
-            )
-        )
-
-    with OutputFile(f"Dockerfile.test_spack_psmp-P100", args.check) as f:
-        f.write(
-            install_cp2k_spack(
-                version="psmp",
-                mpi_mode="mpich",
-                base_image="nvidia/cuda:12.9.1-devel-ubuntu24.04",
-                gcc_version=13,
-                gpu_model="P100",
-                feature_flags="",
-                testopts=f"{testopts} --maxtasks 4 --ompthreads 2 --smoketest --timeout 300",
-                image_tag=f.image_tag,
-            )
-        )
-
-    with OutputFile(f"Dockerfile.test_spack_pdbg-P100", args.check) as f:
-        f.write(
-            install_cp2k_spack(
-                version="pdbg",
-                mpi_mode="mpich",
-                base_image="nvidia/cuda:12.9.1-devel-ubuntu24.04",
-                gcc_version=13,
-                gpu_model="P100",
-                feature_flags="",
-                testopts=f"{testopts} --maxtasks 2 --ompthreads 1 --smoketest --timeout 300",
-                image_tag=f.image_tag,
-            )
-        )
-
     with OutputFile(f"Dockerfile.test_spack_performance-openmp", args.check) as f:
         f.write(
             install_cp2k_spack(
