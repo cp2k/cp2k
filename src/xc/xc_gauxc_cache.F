@@ -390,13 +390,11 @@ CONTAINS
 !>
 !> \param cache ...
 !> \param params ...
-!> \param para_env ...
 !> \param status ...
 ! **************************************************************************************************
-   SUBROUTINE gauxc_cache_ensure_gradient(cache, params, para_env, status)
+   SUBROUTINE gauxc_cache_ensure_gradient(cache, params, status)
       TYPE(cp_gauxc_cache_type), INTENT(INOUT)           :: cache
       TYPE(cp_gauxc_cache_params), INTENT(INOUT)         :: params
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(cp_gauxc_status_type), INTENT(INOUT)          :: status
 
 #ifdef __GAUXC
@@ -405,22 +403,19 @@ CONTAINS
       IF (.NOT. params%need_xc_gradient) RETURN
 
       IF (.NOT. cache%gradient_notice_printed) THEN
-         IF (params%use_fd_gradient .AND. .NOT. params%force_fd_gradient .AND. &
-             para_env%mepos == 0) THEN
+         IF (params%use_fd_gradient .AND. .NOT. params%force_fd_gradient) THEN
             CALL cp_warn( &
                __LOCATION__, &
                "Using finite-difference GauXC XC gradients for METHOD GAPW/GAPW_XC with "// &
                "basis functions beyond f shells. Analytical high-l gradients have not been "// &
                "enabled for this GauXC installation and functional path.")
          END IF
-         IF (para_env%mepos == 0) THEN
-            unit_nr = cp_logger_get_default_io_unit()
-            IF (unit_nr > 0) THEN
-               WRITE (unit_nr, '(A,A)') " GAUXC| Molecular XC gradient method: ", &
-                  TRIM(MERGE("FD        ", "ANALYTICAL", params%use_fd_gradient))
-               WRITE (unit_nr, '(A,A)') " GAUXC| Molecular XC gradient runtime: ", &
-                  MERGE("MPI ", "SELF", params%use_gradient_mpi_runtime)
-            END IF
+         unit_nr = cp_logger_get_default_io_unit()
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(A,A)') " GAUXC| Molecular XC gradient method: ", &
+               TRIM(MERGE("FD        ", "ANALYTICAL", params%use_fd_gradient))
+            WRITE (unit_nr, '(A,A)') " GAUXC| Molecular XC gradient runtime: ", &
+               MERGE("MPI ", "SELF", params%use_gradient_mpi_runtime)
          END IF
          cache%gradient_notice_printed = .TRUE.
       END IF
@@ -467,7 +462,6 @@ CONTAINS
 #else
       MARK_USED(cache)
       MARK_USED(params)
-      MARK_USED(para_env)
       MARK_USED(status)
 #endif
    END SUBROUTINE gauxc_cache_ensure_gradient
