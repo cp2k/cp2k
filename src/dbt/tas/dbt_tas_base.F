@@ -12,11 +12,11 @@
 ! **************************************************************************************************
 MODULE dbt_tas_base
    USE dbm_api,                         ONLY: &
-        dbm_clear, dbm_create, dbm_create_from_template, dbm_distribution_col_dist, &
-        dbm_distribution_hold, dbm_distribution_new, dbm_distribution_obj, &
-        dbm_distribution_release, dbm_distribution_row_dist, dbm_filter, dbm_finalize, &
-        dbm_get_block_p, dbm_get_col_block_sizes, dbm_get_distribution, dbm_get_local_cols, &
-        dbm_get_local_rows, dbm_get_name, dbm_get_num_blocks, dbm_get_nze, &
+        dbm_clear, dbm_copy, dbm_create, dbm_create_from_template, dbm_distribution_col_dist, &
+        dbm_distribution_hold, dbm_distribution_is_same, dbm_distribution_new, &
+        dbm_distribution_obj, dbm_distribution_release, dbm_distribution_row_dist, dbm_filter, &
+        dbm_finalize, dbm_get_block_p, dbm_get_col_block_sizes, dbm_get_distribution, &
+        dbm_get_local_cols, dbm_get_local_rows, dbm_get_name, dbm_get_num_blocks, dbm_get_nze, &
         dbm_get_row_block_sizes, dbm_iterator, dbm_iterator_blocks_left, dbm_iterator_next_block, &
         dbm_iterator_num_blocks, dbm_iterator_start, dbm_iterator_stop, dbm_put_block, &
         dbm_release, dbm_reserve_blocks, dbm_type
@@ -255,15 +255,22 @@ CONTAINS
 
       INTEGER                                            :: handle
       INTEGER(KIND=int_8)                                :: column, row
+      LOGICAL                                            :: summation_prv
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
       TYPE(dbt_tas_iterator)                             :: iter
 
       CALL timeset(routineN, handle)
       CPASSERT(matrix_b%valid)
 
-      IF (PRESENT(summation)) THEN
-         IF (.NOT. summation) CALL dbt_tas_clear(matrix_b)
-      ELSE
+      summation_prv = .FALSE.
+      IF (PRESENT(summation)) summation_prv = summation
+      IF (.NOT. summation_prv) THEN
+         ! A shared distribution preserves the TAS-to-DBM index mapping.
+         IF (dbm_distribution_is_same(matrix_a%dist%dbm_dist, matrix_b%dist%dbm_dist)) THEN
+            CALL dbm_copy(matrix_b%matrix, matrix_a%matrix)
+            CALL timestop(handle)
+            RETURN
+         END IF
          CALL dbt_tas_clear(matrix_b)
       END IF
 
