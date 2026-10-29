@@ -38,7 +38,6 @@ MODULE cp_lbfgs_geo
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
-   USE space_groups_types,              ONLY: spgr_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -80,13 +79,11 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(spgr_type), POINTER                           :: spgr
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (optimizer, para_env, spgr)
+      NULLIFY (optimizer, para_env)
       logger => cp_get_default_logger()
-      spgr => gopt_env%spgr
       root_section => force_env%root_section
       CPASSERT(ASSOCIATED(force_env))
       CPASSERT(ASSOCIATED(gopt_param))
@@ -125,7 +122,7 @@ CONTAINS
          ! Real optimization step..
          IF (.NOT. cp_opt_gopt_next(optimizer, geo_section=geo_section, &
                                     force_env=force_env, gopt_param=gopt_param, &
-                                    converged=converged, spgr=spgr)) EXIT
+                                    converged=converged)) EXIT
 
          ! Check for an external exit command
          CALL external_control(should_stop, "GEO", globenv=globenv)

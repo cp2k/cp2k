@@ -30,7 +30,9 @@ MODULE cp_lbfgs_optimizer_gopt
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
    USE gopt_f_methods,                  ONLY: cp_eval_at,&
-                                              gopt_f_io
+                                              gopt_f_io,&
+                                              gopt_f_project_coord,&
+                                              gopt_f_project_vector
    USE gopt_f_types,                    ONLY: gopt_f_release,&
                                               gopt_f_retain,&
                                               gopt_f_type
@@ -40,8 +42,6 @@ MODULE cp_lbfgs_optimizer_gopt
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_para_env_release,&
                                               mp_para_env_type
-   USE space_groups,                    ONLY: spgr_apply_rotations_coord,&
-                                              spgr_apply_rotations_force
    USE space_groups_types,              ONLY: spgr_type
 #include "../base/base_uses.f90"
 
@@ -346,7 +346,6 @@ CONTAINS
 !> \param geo_section ...
 !> \param force_env ...
 !> \param gopt_param ...
-!> \param spgr ...
 !> \par History
 !>      01.2020 modified [pcazade]
 !> \author Fawzi Mohamed
@@ -356,7 +355,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_opt_gopt_step(optimizer, n_iter, f, last_f, &
                                projected_gradient, converged, geo_section, force_env, &
-                               gopt_param, spgr)
+                               gopt_param)
       TYPE(cp_lbfgs_opt_gopt_type), INTENT(INOUT)        :: optimizer
       INTEGER, INTENT(out), OPTIONAL                     :: n_iter
       REAL(kind=dp), INTENT(out), OPTIONAL               :: f, last_f, projected_gradient
@@ -364,14 +363,12 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: geo_section
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(gopt_param_type), POINTER                     :: gopt_param
-      TYPE(spgr_type), OPTIONAL, POINTER                 :: spgr
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_opt_gopt_step'
 
       CHARACTER(LEN=5)                                   :: wildcard
       INTEGER                                            :: dataunit, handle, its
-      LOGICAL                                            :: conv, is_master, just_entered, &
-                                                            keep_space_group
+      LOGICAL                                            :: conv, is_master, just_entered
       REAL(KIND=dp)                                      :: t_diff, t_now, t_old
       REAL(KIND=dp), DIMENSION(:), POINTER               :: xold
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -388,15 +385,8 @@ CONTAINS
       ! collecting subsys
       CALL force_env_get(force_env, subsys=subsys)
 
-      keep_space_group = .FALSE.
-      IF (PRESENT(spgr)) THEN
-         IF (ASSOCIATED(spgr)) keep_space_group = spgr%keep_space_group
-      END IF
-
       ! applies rotation matrices to coordinates
-      IF (keep_space_group) THEN
-         CALL spgr_apply_rotations_coord(spgr, optimizer%x)
-      END IF
+      CALL gopt_f_project_coord(optimizer%obj_funct, optimizer%x)
 
       xold = optimizer%x
       t_old = m_walltime()
@@ -408,7 +398,7 @@ CONTAINS
                                          "PRINT%PROGRAM_RUN_INFO", extension=".geoLog")
          IF (is_master) THEN
             optimizer%task = 'START'
-            CALL cp_opt_gopt_setulb(optimizer, spgr=spgr, iwunit=dataunit)
+            CALL cp_opt_gopt_setulb(optimizer, spgr=optimizer%obj_funct%spgr, iwunit=dataunit)
          END IF
          CALL cp_print_key_finished_output(dataunit, logger, geo_section, &
                                            "PRINT%PROGRAM_RUN_INFO")
@@ -423,21 +413,17 @@ CONTAINS
                optimizer%status = 0
                optimizer%task = 'START'
                ! applies rotation matrices to coordinates and forces
-               IF (keep_space_group) THEN
-                  CALL spgr_apply_rotations_coord(spgr, optimizer%x)
-                  CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
-               END IF
-               CALL cp_opt_gopt_setulb(optimizer, spgr=spgr, iwunit=dataunit)
-               IF (keep_space_group) THEN
-                  CALL spgr_apply_rotations_coord(spgr, optimizer%x)
-                  CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
-               END IF
+               CALL gopt_f_project_coord(optimizer%obj_funct, optimizer%x)
+               CALL gopt_f_project_vector(optimizer%obj_funct, optimizer%gradient)
+               CALL cp_opt_gopt_setulb(optimizer, spgr=optimizer%obj_funct%spgr, iwunit=dataunit)
+               CALL gopt_f_project_coord(optimizer%obj_funct, optimizer%x)
+               CALL gopt_f_project_vector(optimizer%obj_funct, optimizer%gradient)
             END IF
             IF (optimizer%task(1:2) == 'FG') THEN
                IF (optimizer%isave(36) > optimizer%max_f_per_iter) THEN
                   optimizer%task = 'STOP: CPU, hit max f eval in iter'
                   optimizer%status = 5 ! anormal exit
-                  CALL cp_opt_gopt_setulb(optimizer, spgr=spgr, iwunit=dataunit)
+                  CALL cp_opt_gopt_setulb(optimizer, spgr=optimizer%obj_funct%spgr, iwunit=dataunit)
                ELSE
                   optimizer%status = 1
                END IF
@@ -445,21 +431,15 @@ CONTAINS
                IF (just_entered) THEN
                   optimizer%status = 2
                   ! applies rotation matrices to coordinates and forces
-                  IF (keep_space_group) THEN
-                     CALL spgr_apply_rotations_coord(spgr, optimizer%x)
-                     CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
-                  END IF
-                  CALL cp_opt_gopt_setulb(optimizer, spgr=spgr, iwunit=dataunit)
-                  IF (keep_space_group) THEN
-                     CALL spgr_apply_rotations_coord(spgr, optimizer%x)
-                     CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
-                  END IF
+                  CALL gopt_f_project_coord(optimizer%obj_funct, optimizer%x)
+                  CALL gopt_f_project_vector(optimizer%obj_funct, optimizer%gradient)
+                  CALL cp_opt_gopt_setulb(optimizer, spgr=optimizer%obj_funct%spgr, iwunit=dataunit)
+                  CALL gopt_f_project_coord(optimizer%obj_funct, optimizer%x)
+                  CALL gopt_f_project_vector(optimizer%obj_funct, optimizer%gradient)
                ELSE
                   ! applies rotation matrices to coordinates and forces
-                  IF (keep_space_group) THEN
-                     CALL spgr_apply_rotations_coord(spgr, optimizer%x)
-                     CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
-                  END IF
+                  CALL gopt_f_project_coord(optimizer%obj_funct, optimizer%x)
+                  CALL gopt_f_project_vector(optimizer%obj_funct, optimizer%gradient)
                   optimizer%status = 3
                END IF
             ELSE IF (optimizer%task(1:4) == 'CONV') THEN
@@ -497,15 +477,11 @@ CONTAINS
                                             "PRINT%PROGRAM_RUN_INFO", extension=".geoLog")
             IF (is_master) THEN
                ! applies rotation matrices to coordinates and forces
-               IF (keep_space_group) THEN
-                  CALL spgr_apply_rotations_coord(spgr, optimizer%x)
-                  CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
-               END IF
-               CALL cp_opt_gopt_setulb(optimizer, spgr=spgr, iwunit=dataunit)
-               IF (keep_space_group) THEN
-                  CALL spgr_apply_rotations_coord(spgr, optimizer%x)
-                  CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
-               END IF
+               CALL gopt_f_project_coord(optimizer%obj_funct, optimizer%x)
+               CALL gopt_f_project_vector(optimizer%obj_funct, optimizer%gradient)
+               CALL cp_opt_gopt_setulb(optimizer, spgr=optimizer%obj_funct%spgr, iwunit=dataunit)
+               CALL gopt_f_project_coord(optimizer%obj_funct, optimizer%x)
+               CALL gopt_f_project_vector(optimizer%obj_funct, optimizer%gradient)
             END IF
             CALL cp_print_key_finished_output(dataunit, logger, geo_section, &
                                               "PRINT%PROGRAM_RUN_INFO")
@@ -647,7 +623,6 @@ CONTAINS
 !> \param geo_section ...
 !> \param force_env ...
 !> \param gopt_param ...
-!> \param spgr ...
 !> \return ...
 !> \par History
 !>      01.2020 modified [pcazade]
@@ -658,7 +633,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION cp_opt_gopt_next(optimizer, n_iter, f, last_f, &
                              projected_gradient, converged, geo_section, force_env, &
-                             gopt_param, spgr) RESULT(res)
+                             gopt_param) RESULT(res)
       TYPE(cp_lbfgs_opt_gopt_type), INTENT(INOUT)        :: optimizer
       INTEGER, INTENT(out), OPTIONAL                     :: n_iter
       REAL(kind=dp), INTENT(out), OPTIONAL               :: f, last_f, projected_gradient
@@ -666,14 +641,12 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: geo_section
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(gopt_param_type), POINTER                     :: gopt_param
-      TYPE(spgr_type), OPTIONAL, POINTER                 :: spgr
       LOGICAL                                            :: res
 
-      ! passes spgr structure if present
       CALL cp_opt_gopt_step(optimizer, n_iter=n_iter, f=f, &
                             last_f=last_f, projected_gradient=projected_gradient, &
                             converged=converged, geo_section=geo_section, &
-                            force_env=force_env, gopt_param=gopt_param, spgr=spgr)
+                            force_env=force_env, gopt_param=gopt_param)
       res = (optimizer%status < 4) .AND. .NOT. converged
 
    END FUNCTION cp_opt_gopt_next

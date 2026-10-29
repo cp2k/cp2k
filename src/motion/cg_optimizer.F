@@ -27,7 +27,8 @@ MODULE cg_optimizer
    USE global_types,                    ONLY: global_environment_type
    USE gopt_f_methods,                  ONLY: &
         cp_eval_at, gopt_f_ii, gopt_f_io, gopt_f_io_finalize, gopt_f_io_init, &
-        gopt_f_space_group_init, gopt_f_space_group_show, print_geo_opt_header, print_geo_opt_nc
+        gopt_f_project_coord, gopt_f_project_vector, gopt_f_space_group_init, &
+        gopt_f_space_group_show, print_geo_opt_header, print_geo_opt_nc
    USE gopt_f_types,                    ONLY: gopt_f_type
    USE gopt_param_types,                ONLY: gopt_param_type
    USE input_constants,                 ONLY: default_ts_method_id
@@ -35,9 +36,6 @@ MODULE cg_optimizer
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
-   USE space_groups,                    ONLY: spgr_apply_rotations_coord,&
-                                              spgr_apply_rotations_force
-   USE space_groups_types,              ONLY: spgr_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -143,11 +141,10 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(spgr_type), POINTER                           :: spgr
 
       CALL timeset(routineN, handle)
       t_old = m_walltime()
-      NULLIFY (logger, g, h, xi, spgr)
+      NULLIFY (logger, g, h, xi)
       root_section => force_env%root_section
       logger => cp_get_default_logger()
       conv = .FALSE.
@@ -163,11 +160,8 @@ CONTAINS
       ALLOCATE (xold(SIZE(x0)))
       CALL force_env_get(force_env, cell=cell, subsys=subsys)
 
-      spgr => gopt_env%spgr
       ! applies rotation matrices to coordinates
-      IF (spgr%keep_space_group) THEN
-         CALL spgr_apply_rotations_coord(spgr, x0)
-      END IF
+      CALL gopt_f_project_coord(gopt_env, x0)
 
       ! Evaluate energy and forces at the first step
       ![NB] consistent energies and forces not required for CG, but some line minimizers might set it
@@ -180,10 +174,8 @@ CONTAINS
       gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
       ! Symmetrize coordinates and forces
-      IF (spgr%keep_space_group) THEN
-         CALL spgr_apply_rotations_coord(spgr, x0)
-         CALL spgr_apply_rotations_force(spgr, xi)
-      END IF
+      CALL gopt_f_project_coord(gopt_env, x0)
+      CALL gopt_f_project_vector(gopt_env, xi)
 
       g = -xi
       h = g
@@ -203,11 +195,9 @@ CONTAINS
          CALL gopt_f_ii(its, output_unit)
 
          ! Symmetrize coordinates and forces
-         IF (spgr%keep_space_group) THEN
-            CALL spgr_apply_rotations_coord(spgr, x0)
-            CALL spgr_apply_rotations_force(spgr, g)
-            CALL spgr_apply_rotations_force(spgr, xi)
-         END IF
+         CALL gopt_f_project_coord(gopt_env, x0)
+         CALL gopt_f_project_vector(gopt_env, g)
+         CALL gopt_f_project_vector(gopt_env, xi)
 
          xold(:) = x0
 
@@ -215,13 +205,11 @@ CONTAINS
          CALL cg_linmin(gopt_env, x0, xi, g, opt_energy, output_unit, gopt_param, globenv)
 
          ! Applies rotation matrices to coordinates
-         IF (spgr%keep_space_group) THEN
-            CALL spgr_apply_rotations_coord(spgr, x0)
-         END IF
+         CALL gopt_f_project_coord(gopt_env, x0)
 
          IF (evaluate_before_io) THEN
             ! Keep the accepted point and the physical state consistent even on external stop.
-            CALL cg_eval_current(gopt_env, x0, opt_energy, xi, spgr)
+            CALL cg_eval_current(gopt_env, x0, opt_energy, xi)
          END IF
 
          ! Check for an external exit command
@@ -240,7 +228,7 @@ CONTAINS
 
          IF (conv .OR. (its == maxiter)) EXIT
          IF (.NOT. evaluate_before_io) THEN
-            CALL cg_eval_current(gopt_env, x0, opt_energy, xi, spgr)
+            CALL cg_eval_current(gopt_env, x0, opt_energy, xi)
          END IF
 
          ! Get Conjugate Directions:  updates the searching direction (h)
@@ -248,10 +236,8 @@ CONTAINS
          CALL get_conjugate_direction(gopt_env, Fletcher_Reeves, g, xi, h)
 
          ! Symmetrize coordinates and forces
-         IF (spgr%keep_space_group) THEN
-            CALL spgr_apply_rotations_force(spgr, g)
-            CALL spgr_apply_rotations_force(spgr, h)
-         END IF
+         CALL gopt_f_project_vector(gopt_env, g)
+         CALL gopt_f_project_vector(gopt_env, h)
 
          ! Reset Condition or Steepest Descent Requested
          ! ABS(DOT_PRODUCT(g, h))/SQRT((DOT_PRODUCT(g, g)*DOT_PRODUCT(h, h))) > res_lim ...
@@ -290,14 +276,12 @@ CONTAINS
 !> \param x Current coordinates, possibly projected by cp_eval_at
 !> \param energy Energy at the evaluated coordinates
 !> \param gradient Gradient at the evaluated coordinates
-!> \param spgr Space-group data
 ! **************************************************************************************************
-   SUBROUTINE cg_eval_current(gopt_env, x, energy, gradient, spgr)
+   SUBROUTINE cg_eval_current(gopt_env, x, energy, gradient)
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x
       REAL(KIND=dp), INTENT(OUT)                         :: energy
       REAL(KIND=dp), DIMENSION(:), POINTER               :: gradient
-      TYPE(spgr_type), POINTER                           :: spgr
 
       LOGICAL                                            :: save_consistent_energy_force
 
@@ -307,7 +291,7 @@ CONTAINS
                       para_env=gopt_env%force_env%para_env)
       gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
-      IF (spgr%keep_space_group) CALL spgr_apply_rotations_force(spgr, gradient)
+      CALL gopt_f_project_vector(gopt_env, gradient)
    END SUBROUTINE cg_eval_current
 
 END MODULE cg_optimizer

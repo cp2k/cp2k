@@ -18,7 +18,6 @@ MODULE bfgs_optimizer
                                               get_atomic_kind_set
    USE bibliography,                    ONLY: Lindh1995,&
                                               cite_reference
-   USE cell_opt_utils,                  ONLY: apply_cell_constraints
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE constraint_fxd,                  ONLY: fix_atom_control
@@ -58,7 +57,8 @@ MODULE bfgs_optimizer
    USE global_types,                    ONLY: global_environment_type
    USE gopt_f_methods,                  ONLY: &
         cp_eval_at, gopt_f_ii, gopt_f_io, gopt_f_io_finalize, gopt_f_io_init, &
-        gopt_f_space_group_init, gopt_f_space_group_show, print_geo_opt_header, print_geo_opt_nc
+        gopt_f_project_coord, gopt_f_project_step, gopt_f_project_vector, gopt_f_space_group_init, &
+        gopt_f_space_group_show, print_geo_opt_header, print_geo_opt_nc
    USE gopt_f_types,                    ONLY: gopt_f_type
    USE gopt_param_types,                ONLY: gopt_param_type
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
@@ -80,9 +80,6 @@ MODULE bfgs_optimizer
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
-   USE space_groups,                    ONLY: spgr_apply_rotations_coord,&
-                                              spgr_apply_rotations_force
-   USE space_groups_types,              ONLY: spgr_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -156,13 +153,11 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: print_key, root_section
-      TYPE(spgr_type), POINTER                           :: spgr
 
-      NULLIFY (logger, g, blacs_env, spgr)
+      NULLIFY (logger, g, blacs_env)
       logger => cp_get_default_logger()
       para_env => force_env%para_env
       root_section => force_env%root_section
-      spgr => gopt_env%spgr
       t_old = m_walltime()
 
       CALL timeset(routineN, handle)
@@ -326,10 +321,8 @@ CONTAINS
                       para_env=gopt_env%force_env%para_env)
 
       ! Symmetrize coordinates and forces
-      IF (spgr%keep_space_group) THEN
-         CALL spgr_apply_rotations_coord(spgr, x0)
-         CALL spgr_apply_rotations_force(spgr, g)
-      END IF
+      CALL gopt_f_project_coord(gopt_env, x0)
+      CALL gopt_f_project_vector(gopt_env, g)
 
       ! Print info at time 0
       emin = etot
@@ -344,10 +337,8 @@ CONTAINS
 
          IF ((its - iter_nr) > 1) THEN
             ! Symmetrize old coordinates and old forces.
-            IF (spgr%keep_space_group) THEN
-               CALL spgr_apply_rotations_coord(spgr, xold)
-               CALL spgr_apply_rotations_force(spgr, gold)
-            END IF
+            CALL gopt_f_project_coord(gopt_env, xold)
+            CALL gopt_f_project_vector(gopt_env, gold)
 
             ! cp_eval_at may project the proposed geometry: use the actual displacement.
             dx(:) = x0(:) - xold(:)
@@ -362,10 +353,8 @@ CONTAINS
                END IF
             END IF
 
-            IF (spgr%keep_space_group) THEN
-               CALL spgr_apply_rotations_force(spgr, dx)
-               CALL spgr_apply_rotations_force(spgr, dg)
-            END IF
+            CALL gopt_f_project_vector(gopt_env, dx)
+            CALL gopt_f_project_vector(gopt_env, dg)
 
             IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
                CALL write_bfgs_hessian(geo_section, hess_mat, logger, gopt_env, matrix_method)
@@ -373,10 +362,8 @@ CONTAINS
          END IF
 
          ! Symmetrize coordinates and forces
-         IF (spgr%keep_space_group) THEN
-            CALL spgr_apply_rotations_coord(spgr, x0)
-            CALL spgr_apply_rotations_force(spgr, g)
-         END IF
+         CALL gopt_f_project_coord(gopt_env, x0)
+         CALL gopt_f_project_vector(gopt_env, g)
 
          ! Setting the present positions & gradients as old
          xold(:) = x0
@@ -409,14 +396,7 @@ CONTAINS
             CALL geoopt_get_step(ndf, eigval, eigvec_mat, hess_tmp, dr, g, para_env, use_rfo)
 
          END IF
-         IF (gopt_env%type_id == default_cell_method_id) THEN
-            CALL bfgs_project_cell_step(gopt_env, dr)
-         END IF
-
-         ! Symmetrize dr
-         IF (spgr%keep_space_group) THEN
-            CALL spgr_apply_rotations_force(spgr, dr)
-         END IF
+         CALL gopt_f_project_step(gopt_env, dr)
 
          IF (inverse) THEN
             ! Avoid a zero-step division and initialize the reported scale on every step.
@@ -435,9 +415,7 @@ CONTAINS
          x0 = x0 + dr
 
          ! Symmetrize coordinates
-         IF (spgr%keep_space_group) THEN
-            CALL spgr_apply_rotations_coord(spgr, x0)
-         END IF
+         CALL gopt_f_project_coord(gopt_env, x0)
 
          eold = etot
 
@@ -455,9 +433,7 @@ CONTAINS
          ediff = etot - eold
 
          ! Symmetrize forces
-         IF (spgr%keep_space_group) THEN
-            CALL spgr_apply_rotations_force(spgr, g)
-         END IF
+         CALL gopt_f_project_vector(gopt_env, g)
 
          ! check for an external exit command
          CALL external_control(should_stop, "GEO", globenv=globenv)
@@ -636,23 +612,6 @@ CONTAINS
          dr = -g
       END IF
    END SUBROUTINE bfgs_inverse_step
-
-! **************************************************************************************************
-!> \brief Apply existing cell restrictions to a proposed BFGS direction.
-!> \param gopt_env Optimization environment
-!> \param dr Search direction
-! **************************************************************************************************
-   SUBROUTINE bfgs_project_cell_step(gopt_env, dr)
-      TYPE(gopt_f_type), POINTER                         :: gopt_env
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), TARGET :: dr
-
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: cell_step
-
-      cell_step => dr(SIZE(dr) - 5:SIZE(dr))
-      CALL apply_cell_constraints(cell_step, gopt_env%cell_env%opt_cell, &
-                                  gopt_env%cell_env%keep_angles, gopt_env%cell_env%keep_symmetry, &
-                                  gopt_env%cell_env%constraint_id)
-   END SUBROUTINE bfgs_project_cell_step
 
 ! **************************************************************************************************
 !> \brief Convert a restart matrix once, not during normal inverse-BFGS iterations.
