@@ -755,13 +755,14 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="OUTPUT_BUFFER_SIZE", &
                           description="Maximum output buffer size per MPI rank in MiB (1 MiB = 1048576 bytes). "// &
                           "Positive real value; rounded down to whole Real64 elements and capped by the vertex size. "// &
-                          "The element count must fit a default INTEGER. Does not control transformation batches.", &
+                          "The element count must fit a default INTEGER. Does not directly set transformation batch sizes.", &
                           default_r_val=8.0_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="MAX_MEMORY", &
                           description="Maximum estimated export workspace per MPI rank in MB, "// &
-                          "including output and reduction buffers (excluding SCF storage).", &
+                          "Selects orbital and auxiliary batch sizes; includes output and reduction buffers. "// &
+                          "Excludes existing SCF storage, allocator overhead and CC4S. This is not a process memory limit.", &
                           default_r_val=1024.0_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)

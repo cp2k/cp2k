@@ -51,8 +51,13 @@ The filename prefix and CC4S-specific keywords are shown with their default valu
 `OUTPUT_BUFFER_SIZE` is rounded down to whole 8-byte values and must hold at least one value. Its
 element count must fit a default `INTEGER` (at most 2,147,483,647 with 32-bit integers). The actual
 buffer is capped by the exported vertex size and printed in MiB. This keyword controls output
-gathering and writing; it does not change transformation batches or numerical thresholds.
-`MAX_MEMORY` remains in decimal MB (1 MB = 1,000,000 bytes).
+gathering and writing; it does not directly set transformation batch sizes or numerical thresholds.
+`MAX_MEMORY` remains in decimal MB (1 MB = 1,000,000 bytes). It selects orbital and auxiliary
+transformation batches. Each orbital batch is written before the next is constructed; the output
+buffer is reused. The estimate conservatively allows for simultaneous arrays and redistribution
+buffers without assuming balanced MPI storage. It excludes allocator overhead and is not a limit on
+the process RSS or a measurement of available memory. An insufficient budget for canonicalization or
+the smallest batch causes an error. The log reports the selected batch sizes and stage timings.
 
 Export is OFF by default. `ON` enables it independently of `GLOBAL/PRINT_LEVEL`; standard print
 levels are also accepted. The iteration and convergence settings above control CC4S, independently
