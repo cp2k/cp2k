@@ -459,6 +459,26 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
                       data_send_displ, blks_send, data_send);
     free(plans_per_pack[ipack]);
 
+    if (nranks == 1) {
+      // The send buffers already contain the local pack. Transfer ownership
+      // instead of copying them into receive buffers that are never exchanged.
+      assert(nsend_packs == 1);
+      const double tick = omp_get_wtime();
+      postprocess_received_blocks(nranks, dist_indices->nshards,
+                                  nblks_send_per_pack[ipack], blks_send_count,
+                                  blks_send_displ, data_send_displ, blks_send);
+      iter->seconds_sort += omp_get_wtime() - tick;
+      packed.send_packs[ipack] =
+          (dbm_pack_t){.nblocks = nblks_send_per_pack[ipack],
+                       .data_size = ndata_send_per_pack[ipack],
+                       .blocks = blks_send,
+                       .data = data_send};
+      packed.recv_pack = (dbm_pack_t){0};
+      packed.max_nblocks = nblks_send_per_pack[ipack];
+      packed.max_data_size = ndata_send_per_pack[ipack];
+      return packed;
+    }
+
     // 1st communication: Exchange block counts.
     double tick = omp_get_wtime();
     int blks_recv_count[nranks], blks_recv_displ[nranks];
