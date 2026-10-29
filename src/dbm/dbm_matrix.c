@@ -340,18 +340,36 @@ void dbm_reserve_blocks(dbm_matrix_t *matrix, const int nblocks,
   const int nshards = dbm_get_num_shards(matrix);
   const int nthreads = omp_get_num_threads();
   const int ithread = omp_get_thread_num();
+  if (nthreads == 1 && nshards == 1) {
+    dbm_shard_t *const shard = &matrix->shards[0];
+    dbm_shard_reserve(shard, shard->nblocks + nblocks);
+    for (int i = 0; i < nblocks; i++) {
+      const int row = rows[i], col = cols[i];
+      assert(0 <= row && row < matrix->nrows);
+      assert(0 <= col && col < matrix->ncols);
+      assert(dbm_get_stored_coordinates(matrix, row, col) == my_rank);
+      const int block_size = matrix->row_sizes[row] * matrix->col_sizes[col];
+      dbm_shard_get_or_promise_block(shard, row, col, block_size);
+    }
+    dbm_shard_allocate_promised_blocks(shard);
+    return;
+  }
+
   // Shared by the threads: blocks are binned by shard such that a single
   // thread owns a shard (no locks).
-  static int *reserve_offset = NULL; // per thread and shard
-  static int *reserve_start = NULL;  // per shard (and end)
-  static int *reserve_rowcol = NULL; // row/col pairs grouped by shard
+  struct {
+    int *rowcol;
+    int offsets[]; // thread/shard counts, followed by shard boundaries
+  } *workspace;
 
-#pragma omp single
+#pragma omp single copyprivate(workspace)
   {
-    reserve_offset = calloc((size_t)nthreads * nshards, sizeof(int));
-    reserve_start = malloc((nshards + 1) * sizeof(int));
-    assert(reserve_offset != NULL && reserve_start != NULL);
+    const size_t count = (size_t)nthreads * nshards + nshards + 1;
+    workspace = calloc(1, sizeof(*workspace) + count * sizeof(int));
+    assert(workspace != NULL);
   }
+  int *const reserve_offset = workspace->offsets;
+  int *const reserve_start = reserve_offset + (size_t)nthreads * nshards;
   int *const offset = reserve_offset + (size_t)ithread * nshards;
   for (int i = 0; i < nblocks; i++) {
     const int row = rows[i], col = cols[i];
@@ -375,10 +393,11 @@ void dbm_reserve_blocks(dbm_matrix_t *matrix, const int nblocks,
       }
     }
     reserve_start[nshards] = total;
-    reserve_rowcol =
+    workspace->rowcol =
         (0 < total ? malloc(2 * (size_t)total * sizeof(int)) : NULL);
-    assert(reserve_rowcol != NULL || 0 == total);
+    assert(workspace->rowcol != NULL || 0 == total);
   }
+  int *const reserve_rowcol = workspace->rowcol;
   for (int i = 0; i < nblocks; i++) {
     const int j = offset[dbm_get_shard_index(matrix, rows[i], cols[i])]++;
     reserve_rowcol[2 * j + 0] = rows[i];
@@ -388,6 +407,9 @@ void dbm_reserve_blocks(dbm_matrix_t *matrix, const int nblocks,
 
 #pragma omp for DBM_OMP_SCHEDULE
   for (int ishard = 0; ishard < nshards; ishard++) {
+    if (reserve_start[ishard] == reserve_start[ishard + 1]) {
+      continue;
+    }
     dbm_shard_t *const shard = &matrix->shards[ishard];
     // one rebuild of the hashtable rather than one per growth
     dbm_shard_reserve(shard, shard->nblocks + reserve_start[ishard + 1] -
@@ -401,12 +423,43 @@ void dbm_reserve_blocks(dbm_matrix_t *matrix, const int nblocks,
     dbm_shard_allocate_promised_blocks(shard);
   }
 
-#pragma omp single
+#pragma omp single nowait
   {
     free(reserve_rowcol);
-    free(reserve_start);
-    free(reserve_offset);
-    reserve_rowcol = reserve_start = reserve_offset = NULL;
+    free(workspace);
+  }
+}
+
+/*******************************************************************************
+ * \brief Reserves template blocks in a matrix sharing the distribution object.
+ *        Block sizes may differ. Existing values are kept, new blocks zeroed.
+ *        Call outside an OpenMP parallel region.
+ ******************************************************************************/
+void dbm_reserve_blocks_template(dbm_matrix_t *matrix,
+                                 const dbm_matrix_t *matrix_template) {
+  assert(omp_get_num_threads() == 1);
+  assert(matrix->dist == matrix_template->dist);
+  if (matrix == matrix_template) {
+    return;
+  }
+
+#pragma omp parallel for DBM_OMP_SCHEDULE
+  for (int ishard = 0; ishard < dbm_get_num_shards(matrix); ishard++) {
+    dbm_shard_t *const shard = &matrix->shards[ishard];
+    const dbm_shard_t *const source = &matrix_template->shards[ishard];
+    if (source->nblocks == 0) {
+      continue;
+    }
+    if (shard->nblocks == 0) {
+      dbm_shard_reserve(shard, source->nblocks);
+    }
+    for (int i = 0; i < source->nblocks; i++) {
+      const dbm_block_t *const block = &source->blocks[i];
+      const int block_size =
+          matrix->row_sizes[block->row] * matrix->col_sizes[block->col];
+      dbm_shard_get_or_promise_block(shard, block->row, block->col, block_size);
+    }
+    dbm_shard_allocate_promised_blocks(shard);
   }
 }
 
