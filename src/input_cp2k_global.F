@@ -40,6 +40,9 @@ MODULE input_cp2k_global
                                               elpa_qr
    USE cp_fm_struct,                    ONLY: cp_fm_struct_get_ncol_block,&
                                               cp_fm_struct_get_nrow_block
+   USE cp_iter_types,                   ONLY: iter_notice,&
+                                              iter_silent,&
+                                              iter_stack
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -526,6 +529,19 @@ CONTAINS
          description="Flush output regularly, enabling this option might degrade performance significantly on certain machines.", &
          usage="FLUSH_SHOULD_FLUSH", &
          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ITER_LEVEL_VERBOSITY", &
+                          description="Controls the verbosity of information about iteration levels printed "// &
+                          "upon entry or exit of one. The default is dependent on PRINT_LEVEL: SILENT for "// &
+                          "MEDIUM or lower, NOTICE for HIGH, STACK for DEBUG.", &
+                          usage="ITER_LEVEL_VERBOSITY NOTICE", default_i_val=iter_silent, &
+                          enum_c_vals=s2a("SILENT", "NOTICE", "STACK"), &
+                          enum_desc=s2a("Do not print anything about iter levels", &
+                                        "Print a notice when entering or exiting an iter level", &
+                                        "Print a notice and also the full stack of iter levels"), &
+                          enum_i_vals=[iter_silent, iter_notice, iter_stack])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

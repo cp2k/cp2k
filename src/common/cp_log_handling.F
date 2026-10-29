@@ -265,7 +265,7 @@ CONTAINS
 !> \param close_global_unit_on_dealloc if the unit should be closed when the
 !>        logger is deallocated (defaults to true if a local_filename is given,
 !>        to false otherwise)
-!> \param iter_info ...
+!> \param iter_info the iteration info type
 !> \param close_local_unit_on_dealloc if the unit should be closed when the
 !>        logger is deallocated (defaults to true)
 !> \param suffix the suffix that should be added to all the generated filenames

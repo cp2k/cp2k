@@ -40,6 +40,9 @@ MODULE environment
    USE cp_fm_struct,                    ONLY: cp_fm_struct_config
    USE cp_fm_types,                     ONLY: cp_fm_get_mm_type,&
                                               cp_fm_setup
+   USE cp_iter_types,                   ONLY: iter_notice,&
+                                              iter_silent,&
+                                              iter_stack
    USE cp_log_handling,                 ONLY: &
         cp_add_default_logger, cp_get_default_logger, cp_logger_create, &
         cp_logger_get_default_unit_nr, cp_logger_release, cp_logger_set, cp_logger_type, &
@@ -375,12 +378,37 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
 
       CHARACTER(LEN=default_string_length)               :: c_val
-      INTEGER                                            :: i, iw
+      INTEGER                                            :: i, iter_print, iw, print_level
+      LOGICAL                                            :: explicit
       TYPE(cp_logger_type), POINTER                      :: logger
 
       ! Read the input/output section
 
+      ! Set verbosity for printing information about iteration levels.
+      ! Note that at this point there are at least two loggers in the stack
+      ! (first one created in init_cp2k of f77_interface.F, second one created
+      ! in cp2k_init of environment.F) and each logger has an iter_info that
+      ! can carry iteration levels. But cp2k_init does not have access to input
+      ! sections, and also cannot be adjusted to receive them because of the
+      ! fragile initialization order in create_force_env in f77_interface.
+      ! GLOBAL%ITER_LEVEL_VERBOSITY configures the second one like
+      ! GLOBAL%PRINT_LEVEL does.
+      CALL section_vals_val_get(root_section, "GLOBAL%ITER_LEVEL_VERBOSITY", explicit=explicit)
+      IF (explicit) THEN
+         CALL section_vals_val_get(root_section, "GLOBAL%ITER_LEVEL_VERBOSITY", i_val=iter_print)
+      ELSE
+         CALL section_vals_val_get(root_section, "GLOBAL%PRINT_LEVEL", i_val=print_level)
+         IF (print_level >= debug_print_level) THEN
+            iter_print = iter_stack
+         ELSE IF (print_level == high_print_level) THEN
+            iter_print = iter_notice
+         ELSE
+            iter_print = iter_silent
+         END IF
+      END IF
+
       logger => cp_get_default_logger()
+      logger%iter_info%iter_print = iter_print
 
       ! try to use better names for the local log if it is not too late
       CALL section_vals_val_get(root_section, "GLOBAL%OUTPUT_FILE_NAME", &

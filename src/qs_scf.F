@@ -563,7 +563,7 @@ CONTAINS
             "Step", "Update method", "Time", "Convergence", "Total energy", "Change", &
             REPEAT("-", 78)
       END IF
-      CALL cp_add_iter_level(logger%iter_info, "QS_SCF")
+      CALL cp_add_iter_level(logger, "QS_SCF")
 
       ! check for external communicator and if the intermediate energy should be sent
       res_val_3(:) = -1.0_dp
@@ -1026,7 +1026,7 @@ CONTAINS
          END IF !fm->dbcsr
       END DO !fm -> dbcsr
 
-      CALL cp_rm_iter_level(logger%iter_info, level_name="QS_SCF")
+      CALL cp_rm_iter_level(logger, level_name="QS_SCF")
       CALL timestop(handle)
 
    END SUBROUTINE scf_env_do_scf

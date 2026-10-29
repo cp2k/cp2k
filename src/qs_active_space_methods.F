@@ -3498,7 +3498,7 @@ CONTAINS
          WRITE (UNIT=iw, FMT="(/,T3,A,T11,A,T21,A,T34,A,T55,A,T75,A,/,T3,A)") &
             "Iter", "Update", "Time", "Corr. energy", "Total energy", "Change", REPEAT("-", 78)
       END IF
-      ! CALL cp_add_iter_level(logger%iter_info, "QS_SCF")
+      ! TODO: consider using an iteration level
 
       iter = 0
       converged = .FALSE.

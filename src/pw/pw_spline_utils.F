@@ -2683,7 +2683,7 @@ CONTAINS
       CALL pool%create_pw(p)
       CALL pool%create_pw(Ap)
 
-      !CALL cp_add_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFFS")
+      !CALL cp_add_iter_level(logger, "SPLINE_FIND_COEFFS")
       ext_do: DO iiter = 1, max_iter, 10
          CALL pw_zero(r)
          CALL linOp(pw_in=coeffs, pw_out=r)
@@ -2733,7 +2733,7 @@ CONTAINS
 
          END DO
       END DO ext_do
-      !CALL cp_rm_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFFS")
+      !CALL cp_rm_iter_level(logger, "SPLINE_FIND_COEFFS")
 
       CALL pool%give_back_pw(r)
       CALL pool%give_back_pw(z)

@@ -1365,7 +1365,7 @@ CONTAINS
                            REAL(negf_control%delta_npoles, kind=dp)*twopi*temperature, kind=dp)
 
       ALLOCATE (g_surf_circular(nspins), g_surf_linear(nspins), g_surf_nonequiv(nspins))
-      CALL cp_add_iter_level(logger%iter_info, "NEGF_SCF")
+      CALL cp_add_iter_level(logger, "NEGF_SCF")
 
       !--- main SCF cycle -------------------------------------------------------------------!
       DO iter_count = 1, negf_control%max_scf
@@ -1753,7 +1753,7 @@ CONTAINS
       END IF
 
       DEALLOCATE (target_m)
-      CALL cp_rm_iter_level(logger%iter_info, level_name="NEGF_SCF")
+      CALL cp_rm_iter_level(logger, level_name="NEGF_SCF")
 
       !--------------------------------------------------------------------------------------!
 

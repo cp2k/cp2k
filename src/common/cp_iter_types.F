@@ -26,6 +26,11 @@ MODULE cp_iter_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_iter_types'
    LOGICAL, PRIVATE, PARAMETER          :: debug_this_module = .FALSE.
 
+   ! Verbosity of iteration level information
+   INTEGER, PARAMETER, PUBLIC :: iter_silent = 0, &
+                                 iter_notice = 1, &
+                                 iter_stack = 2
+
    ! When adding a new iteration level PLEASE update the following list with the proper name!
    CHARACTER(LEN=default_path_length), PARAMETER, PUBLIC, DIMENSION(19) :: each_possible_labels = [ &
                                                                            "__ROOT__          ", &
@@ -77,6 +82,7 @@ MODULE cp_iter_types
    TYPE cp_iteration_info_type
       INTEGER                              :: ref_count = -1
       INTEGER                              :: print_level = -1, n_rlevel = -1
+      INTEGER                              :: iter_print = iter_silent - 1
       INTEGER, DIMENSION(:), POINTER       :: iteration => NULL()
       LOGICAL, DIMENSION(:), POINTER       :: last_iter => NULL()
       CHARACTER(len=default_string_length) :: project_name = ""
@@ -101,6 +107,7 @@ CONTAINS
       iteration_info%ref_count = 1
       iteration_info%print_level = 2
       iteration_info%n_rlevel = 1
+      iteration_info%iter_print = iter_silent - 1
       iteration_info%project_name = project_name
       ALLOCATE (iteration_info%iteration(iteration_info%n_rlevel))
       ALLOCATE (iteration_info%level_name(iteration_info%n_rlevel))

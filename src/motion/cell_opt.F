@@ -75,11 +75,11 @@ CONTAINS
       CALL gopt_f_create_x0(gopt_env, x0)
 
       CALL section_vals_val_get(geo_section, "STEP_START_VAL", i_val=step_start_val)
-      CALL cp_add_iter_level(logger%iter_info, "CELL_OPT")
+      CALL cp_add_iter_level(logger, "CELL_OPT")
       CALL cp_iterate(logger%iter_info, iter_nr=step_start_val)
       CALL gopt_dispatch_optimizer(force_env, globenv, gopt_param, gopt_env, &
                                    geo_section, x0)
-      CALL cp_rm_iter_level(logger%iter_info, "CELL_OPT")
+      CALL cp_rm_iter_level(logger, "CELL_OPT")
 
       ! Reset counter for next iteration
       CALL section_vals_val_set(geo_section, "STEP_START_VAL", i_val=0)

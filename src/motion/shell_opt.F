@@ -130,7 +130,7 @@ CONTAINS
       CALL gopt_f_create(gopt_env, gopt_param, force_env=force_env, globenv=globenv, &
                          geo_opt_section=geo_section)
 
-      CALL cp_add_iter_level(logger%iter_info, "SHELL_OPT")
+      CALL cp_add_iter_level(logger, "SHELL_OPT")
       gopt_env%eval_opt_geo = .FALSE.
       CALL geoopt_cg(force_env, gopt_param, globenv, &
                      geo_section, gopt_env, dvec_sc, do_update=do_update)
@@ -141,7 +141,7 @@ CONTAINS
             shell_particle_set(i)%r(3) = -dvec_sc_0(3 + 3*(i - 1)) + core_particle_set(i)%r(3)
          END DO
       END IF
-      CALL cp_rm_iter_level(logger%iter_info, "SHELL_OPT")
+      CALL cp_rm_iter_level(logger, "SHELL_OPT")
 
       CALL gopt_f_release(gopt_env)
       DEALLOCATE (gopt_param)

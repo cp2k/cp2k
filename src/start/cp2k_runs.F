@@ -315,8 +315,7 @@ CONTAINS
          END IF
 
          sublogger => cp_get_default_logger()
-         CALL cp_add_iter_level(sublogger%iter_info, "JUST_ENERGY", &
-                                n_rlevel_new=iter_level)
+         CALL cp_add_iter_level(sublogger, "JUST_ENERGY", n_rlevel_new=iter_level)
 
          ! loop over molecules to generate a molecular guess
          ! this procedure is initiated here to avoid passing globenv deep down
@@ -350,7 +349,7 @@ CONTAINS
             CPABORT("Unknown run type")
          END SELECT
          IF (method_name_id == do_qs) force_env%qs_env%skip_wf_history = .FALSE.
-         CALL cp_rm_iter_level(sublogger%iter_info, level_name="JUST_ENERGY", n_rlevel_att=iter_level)
+         CALL cp_rm_iter_level(sublogger, "JUST_ENERGY", n_rlevel_att=iter_level)
       CASE (mol_dyn_run)
          CALL qs_mol_dyn(force_env, globenv)
       CASE (geo_opt_run)

@@ -173,7 +173,7 @@ CONTAINS
       CALL print_rtbse_header_info(rtbse_env)
 
       ! Initiate iteration level "MD" in order to copy the structure of other RTP codes
-      CALL cp_add_iter_level(logger%iter_info, "MD")
+      CALL cp_add_iter_level(logger, "MD")
       ! Initialize non-trivial values
       !  - calculates the moment operators
       CALL initialize_moments(rtbse_env)
@@ -247,7 +247,7 @@ CONTAINS
       END DO
       ! ********************** End the time loop **********************
 
-      CALL cp_rm_iter_level(logger%iter_info, "MD")
+      CALL cp_rm_iter_level(logger, "MD")
 
       ! Carry out the FT
       CALL print_ft(rtbse_env%rtp_section, &
