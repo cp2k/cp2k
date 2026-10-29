@@ -267,8 +267,12 @@ CONTAINS
       memory_mb = 8.0_dp*(4.0_dp*REAL(nri, dp)*REAL(nao, dp)**2 + &
                           REAL(nri, dp)**2 + 6.0_dp*REAL(nao, dp)**2 + &
                           2.0_dp*MIN(REAL(buffer_elements, dp), REAL(nri, dp)*REAL(nao, dp)**2))/1.0e6_dp
-      IF (output_unit > 0) WRITE (output_unit, '(/,T3,A,T69,F12.3)') &
-         "CC4S| Estimated memory required for export per MPI rank [MB]:", memory_mb
+      IF (output_unit > 0) THEN
+         WRITE (output_unit, '(/,T3,A,T69,F12.3)') &
+            "CC4S| Estimated memory required for export per MPI rank [MB]:", memory_mb
+         WRITE (output_unit, '(T3,A,T69,F12.3)') &
+            "CC4S| Maximum memory allowed for export per MPI rank [MB]:", max_memory_mb
+      END IF
       IF (memory_mb > max_memory_mb) THEN
          CPABORT("CC4S: export exceeds MAX_MEMORY [MB]")
       END IF
@@ -300,7 +304,7 @@ CONTAINS
       nmo = nmo - frozen
       buffer_elements = MIN(buffer_elements, INT(nri, int_8)*INT(nmo, int_8)**2)
       IF (output_unit > 0) WRITE (output_unit, '(T3,A,T69,F12.6)') &
-         "CC4S| Output buffer per MPI rank [MiB]:", REAL(buffer_elements, dp)/elements_per_mib
+         "CC4S| Actual output buffer size per MPI rank [MiB]:", REAL(buffer_elements, dp)/elements_per_mib
       CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo, template_fmstruct=mo_coeff%matrix_struct)
       CALL cp_fm_create(fm_active, fm_struct, name="CC4S active orbitals")
       CALL cp_fm_struct_release(fm_struct)
