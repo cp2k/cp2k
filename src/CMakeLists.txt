@@ -87,6 +87,7 @@ list(
   bse_input.F
   bsse.F
   casino_utils.F
+  cc4s_export.F
   cell_methods.F
   colvar_methods.F
   colvar_utils.F

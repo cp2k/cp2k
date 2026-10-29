@@ -829,12 +829,13 @@ CONTAINS
 !> \param fout   Name of the actual file where the output will be written. Needed mainly for MPI IO
 !>               because inquiring the filename from the MPI filehandle does not work across
 !>               all MPI libraries.
+!> \param file_access Fortran access mode (SEQUENTIAL by default, or STREAM); unused with MPI I/O
 !> \return ...
 ! **************************************************************************************************
    FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension, &
                                  middle_name, local, log_filename, ignore_should_output, file_form, file_position, &
                                  file_action, file_status, do_backup, on_file, is_new_file, mpi_io, &
-                                 fout) RESULT(res)
+                                 fout, file_access) RESULT(res)
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), INTENT(IN)                :: basis_section
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
@@ -848,6 +849,7 @@ CONTAINS
       LOGICAL, INTENT(INOUT), OPTIONAL                   :: mpi_io
       CHARACTER(len=default_path_length), INTENT(OUT), &
          OPTIONAL                                        :: fout
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: file_access
       INTEGER                                            :: res
 
       CHARACTER(len=default_path_length)                 :: filename, filename_bak, filename_bak_1, &
@@ -1008,7 +1010,7 @@ CONTAINS
             IF (.NOT. my_mpi_io) THEN
                CALL open_file(file_name=filename, file_status=my_file_status, &
                               file_form=my_file_form, file_action=my_file_action, &
-                              file_position=my_file_position, unit_number=res)
+                              file_position=my_file_position, file_access=file_access, unit_number=res)
             ELSE
                IF (replace) CALL mp_file_delete(filename)
                CALL mp_unit%open(groupid=logger%para_env, &

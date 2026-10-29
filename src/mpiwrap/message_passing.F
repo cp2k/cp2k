@@ -275,9 +275,12 @@ MODULE message_passing
          mp_sum_d, mp_sum_dv, mp_sum_dm, mp_sum_dm3, mp_sum_dm4, &
          mp_sum_c, mp_sum_cv, mp_sum_cm, mp_sum_cm3, mp_sum_cm4, &
          mp_sum_z, mp_sum_zv, mp_sum_zm, mp_sum_zm3, mp_sum_zm4, &
-         mp_sum_root_iv, mp_sum_root_im, mp_sum_root_lv, mp_sum_root_lm, &
-         mp_sum_root_rv, mp_sum_root_rm, mp_sum_root_dv, mp_sum_root_dm, &
-         mp_sum_root_cv, mp_sum_root_cm, mp_sum_root_zv, mp_sum_root_zm, &
+         mp_sum_root_iv, mp_sum_root_im, mp_sum_root_im3, &
+         mp_sum_root_lv, mp_sum_root_lm, mp_sum_root_lm3, &
+         mp_sum_root_rv, mp_sum_root_rm, mp_sum_root_rm3, &
+         mp_sum_root_dv, mp_sum_root_dm, mp_sum_root_dm3, &
+         mp_sum_root_cv, mp_sum_root_cm, mp_sum_root_cm3, &
+         mp_sum_root_zv, mp_sum_root_zm, mp_sum_root_zm3, &
          mp_sum_b, mp_sum_bv
       GENERIC, PUBLIC :: sum => mp_sum_i, mp_sum_iv, mp_sum_im, mp_sum_im3, mp_sum_im4, &
          mp_sum_l, mp_sum_lv, mp_sum_lm, mp_sum_lm3, mp_sum_lm4, &
@@ -285,9 +288,12 @@ MODULE message_passing
          mp_sum_d, mp_sum_dv, mp_sum_dm, mp_sum_dm3, mp_sum_dm4, &
          mp_sum_c, mp_sum_cv, mp_sum_cm, mp_sum_cm3, mp_sum_cm4, &
          mp_sum_z, mp_sum_zv, mp_sum_zm, mp_sum_zm3, mp_sum_zm4, &
-         mp_sum_root_iv, mp_sum_root_im, mp_sum_root_lv, mp_sum_root_lm, &
-         mp_sum_root_rv, mp_sum_root_rm, mp_sum_root_dv, mp_sum_root_dm, &
-         mp_sum_root_cv, mp_sum_root_cm, mp_sum_root_zv, mp_sum_root_zm, &
+         mp_sum_root_iv, mp_sum_root_im, mp_sum_root_im3, &
+         mp_sum_root_lv, mp_sum_root_lm, mp_sum_root_lm3, &
+         mp_sum_root_rv, mp_sum_root_rm, mp_sum_root_rm3, &
+         mp_sum_root_dv, mp_sum_root_dm, mp_sum_root_dm3, &
+         mp_sum_root_cv, mp_sum_root_cm, mp_sum_root_cm3, &
+         mp_sum_root_zv, mp_sum_root_zm, mp_sum_root_zm3, &
          mp_sum_b, mp_sum_bv
 
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_isum_iv, &

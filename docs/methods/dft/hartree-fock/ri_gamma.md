@@ -17,6 +17,9 @@ molecules with large basis sets, and small/medium size solids. For large and spa
 for greatly speeding up HFX calculations, can be seamlessly used with RI-HFX. Nuclear forces and
 stress tensors are available.
 
+The [CC4S interface](../../post_hartree_fock/cc4s) exports single-point restricted RI-HF references
+for external correlation calculations. See that page for its supported settings.
+
 ## Brief theory recap
 
 For $\Gamma$-point calculations, the exact-exchange contribution to the KS matrix is obtained by

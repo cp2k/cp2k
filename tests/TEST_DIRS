@@ -115,6 +115,7 @@ QS/regtest-dm-ls-scf-4
 QS/regtest-gw-realspace                                     libint !ifx
 QS/regtest-dcdft-gapw                                       libint libxc !ifx
 QS/regtest-dcdft-stress                                     libint libxc !ifx
+QS/regtest-cc4s                                            libint
 QS/regtest-hfx-ri                                           libint !ifx
 QS/regtest-gw                                               libint !ifx
 QS/regtest-gw-rpa
