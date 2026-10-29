@@ -100,9 +100,6 @@ CONTAINS
 
       CALL dbt_copy_tensor_to_matrix(tensor, mat_tensor)
       CALL dbt_clear(tensor)
-      ! the next para_env%sync is not mandatory, but it makes the timing output
-      ! of cp_dbcsr_from_subgroups correct
-      CALL para_env%sync()
       CALL cp_dbcsr_from_subgroups(mat_tensor, mat_global, para_env)
 
       CALL timestop(handle)

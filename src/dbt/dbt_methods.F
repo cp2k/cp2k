@@ -245,7 +245,6 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                  :: unit_nr
       INTEGER :: handle
 
-      CALL tensor_in%pgrid%mp_comm_2d%sync()
       CALL timeset("dbt_total", handle)
 
       ! make sure that it is safe to use dbt_copy during a batched contraction
@@ -253,7 +252,6 @@ CONTAINS
       CALL dbt_tas_batched_mm_complete(tensor_out%matrix_rep, warn=.TRUE.)
 
       CALL dbt_copy_expert(tensor_in, tensor_out, order, summation, bounds, move_data, unit_nr)
-      CALL tensor_in%pgrid%mp_comm_2d%sync()
       CALL timestop(handle)
    END SUBROUTINE dbt_copy
 
@@ -682,7 +680,6 @@ CONTAINS
 
       INTEGER                     :: handle
 
-      CALL tensor_1%pgrid%mp_comm_2d%sync()
       CALL timeset("dbt_total", handle)
       CALL dbt_contract_expert(alpha, tensor_1, tensor_2, beta, tensor_3, &
                                contract_1, notcontract_1, &
@@ -701,7 +698,6 @@ CONTAINS
                                retain_sparsity=retain_sparsity, &
                                unit_nr=unit_nr, &
                                log_verbose=log_verbose)
-      CALL tensor_1%pgrid%mp_comm_2d%sync()
       CALL timestop(handle)
 
    END SUBROUTINE dbt_contract
@@ -2257,7 +2253,6 @@ CONTAINS
       LOGICAL :: do_write
       INTEGER :: unit_nr_prv, handle
 
-      CALL tensor%pgrid%mp_comm_2d%sync()
       CALL timeset("dbt_total", handle)
       unit_nr_prv = prep_output_unit(unit_nr)
 
@@ -2281,7 +2276,6 @@ CONTAINS
 
       CALL destroy_array_list(tensor%contraction_storage%batch_ranges)
       DEALLOCATE (tensor%contraction_storage)
-      CALL tensor%pgrid%mp_comm_2d%sync()
       CALL timestop(handle)
 
    END SUBROUTINE dbt_batched_contract_finalize
