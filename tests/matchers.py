@@ -108,8 +108,10 @@ class GWOrbitalSelfEnergyMatcher(Matcher):
 registry["GW_orbital_self_energy"] = GWOrbitalSelfEnergyMatcher()
 
 # CC4S export invariants (independent of orbital phases).
-registry["CC4S_vertex_norm"] = GenericMatcher(r"CC4S| Vertex norm squared:", col=5)
-registry["CC4S_eigenenergy_sum"] = GenericMatcher(r"CC4S| Eigenenergy sum:", col=4)
+registry["CC4S_vertex_norm"] = GenericMatcher(r"CC4S| Vertex norm squared [Ha]:", col=6)
+registry["CC4S_eigenenergy_sum"] = GenericMatcher(
+    r"CC4S| Sum of exported orbital energies [Ha]:", col=8
+)
 
 # Total energy in Hartree
 registry["E_total"] = GenericMatcher(r"Total energy:", col=3)

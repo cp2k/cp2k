@@ -245,7 +245,8 @@ CONTAINS
       ! Conservative dense workspace estimate; excludes CP2K's existing SCF storage.
       memory_mb = 8.0_dp*(4.0_dp*REAL(nri, dp)*REAL(nao, dp)**2 + &
                           REAL(nri, dp)**2 + 6.0_dp*REAL(nao, dp)**2)/1.0e6_dp
-      IF (output_unit > 0) WRITE (output_unit, '(T3,A,F12.1)') "CC4S| Dense workspace bound [MB]: ", memory_mb
+      IF (output_unit > 0) WRITE (output_unit, '(/,T3,A,T69,F12.3)') &
+         "CC4S| Estimated memory required for export per MPI rank [MB]:", memory_mb
       IF (memory_mb > max_memory_mb) THEN
          CPABORT("CC4S: dense export exceeds MAX_MEMORY [MB]")
       END IF
@@ -322,14 +323,31 @@ CONTAINS
          CALL write_coulomb_vertex_files(logger, print_section, nri, nmo, gamma, periodic, cutoff_radius, cell%hmat)
          CALL write_cc4s_in(logger, print_section, method, max_iter, energy_conv, amp_conv)
          IF (output_unit > 0) THEN
-            WRITE (output_unit, '(T3,A,3I8)') "CC4S| Auxiliary / active / occupied orbitals: ", nri, nmo, homo - frozen
-            WRITE (output_unit, '(T3,A,ES25.16)') "CC4S| Vertex norm squared: ", SUM(gamma**2)
-            WRITE (output_unit, '(T3,A,ES25.16)') "CC4S| Eigenenergy sum: ", SUM(eigenvalues(frozen + 1:frozen + nmo))
-            IF (periodic) THEN
-               WRITE (output_unit, '(T3,A)') "CC4S| Gamma-point TRUNCATED interaction; no added Madelung term."
-               WRITE (output_unit, '(T3,A,ES25.16)') "CC4S| Coulomb cutoff radius [bohr]: ", cutoff_radius
+            IF (method == 'CCSD_T') THEN
+               WRITE (output_unit, '(T3,A,T73,A8)') "CC4S| Requested method:", 'CCSD(T)'
+            ELSE
+               WRITE (output_unit, '(T3,A,T73,A8)') "CC4S| Requested method:", TRIM(method)
             END IF
-            WRITE (output_unit, '(T3,A)') "CC4S| RI-HFX fits exchange; the SCF Hartree term uses the CP2K grid."
+            IF (method /= 'MP2') THEN
+               WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Maximum CCSD iterations:", max_iter
+               WRITE (output_unit, '(T3,A,T73,ES8.1)') "CC4S| CCSD energy convergence [Ha]:", energy_conv
+               WRITE (output_unit, '(T3,A,T73,ES8.1)') "CC4S| CCSD amplitudes convergence:", amp_conv
+            END IF
+            WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of auxiliary basis functions:", nri
+            WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of exported orbitals:", nmo
+            WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of exported occupied orbitals:", homo - frozen
+            WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of exported virtual orbitals:", nmo - homo + frozen
+            WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of frozen occupied orbitals:", frozen
+            WRITE (output_unit, '(T3,A,T56,ES25.16)') "CC4S| Vertex norm squared [Ha]:", SUM(gamma**2)
+            WRITE (output_unit, '(T3,A,T56,ES25.16)') &
+               "CC4S| Sum of exported orbital energies [Ha]:", SUM(eigenvalues(frozen + 1:frozen + nmo))
+            IF (periodic) THEN
+               WRITE (output_unit, '(T3,A)') "CC4S| Gamma-point TRUNCATED interaction"
+               WRITE (output_unit, '(T3,A,T69,F12.6)') "CC4S| Coulomb cutoff radius [bohr]:", cutoff_radius
+            END IF
+            filename = cp_print_key_generate_filename(logger, print_section, extension='.in', my_local=.FALSE.)
+            WRITE (output_unit, '(T3,A,T41,A)') "CC4S| Generated input file:", &
+               ADJUSTR(filename(:MAX(40, LEN_TRIM(filename))))
          END IF
          DEALLOCATE (dressed, half, gamma, pair)
       END IF
