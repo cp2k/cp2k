@@ -32,6 +32,7 @@ The filename prefix and CC4S-specific keywords are shown with their default valu
   MAX_ITER 100
   ENERGY_CONVERGENCE 1e-7
   AMPLITUDES_CONVERGENCE 1e-6
+  OUTPUT_BUFFER_SIZE 8
   MAX_MEMORY 1024
 &END CC4S
 ```
@@ -44,7 +45,14 @@ The filename prefix and CC4S-specific keywords are shown with their default valu
 | [MAX_ITER](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.MAX_ITER)                             | Maximum CC4S coupled-cluster iterations.                                                                                                                                                |
 | [ENERGY_CONVERGENCE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.ENERGY_CONVERGENCE)         | CC4S energy convergence threshold, in Hartree.                                                                                                                                          |
 | [AMPLITUDES_CONVERGENCE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.AMPLITUDES_CONVERGENCE) | CC4S amplitude convergence threshold.                                                                                                                                                   |
-| [MAX_MEMORY](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.MAX_MEMORY)                         | Estimated export workspace limit, in MB per MPI rank; excludes existing SCF storage and CC4S memory.                                                                                    |
+| [OUTPUT_BUFFER_SIZE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.OUTPUT_BUFFER_SIZE)         | Maximum output buffer per MPI rank, in MiB (1 MiB = 1048576 bytes). Positive real value; defaults to 8.                                                                                 |
+| [MAX_MEMORY](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.MAX_MEMORY)                         | Estimated export workspace limit, in MB per MPI rank; includes output and MPI reduction buffers, but excludes existing SCF storage and CC4S memory.                                     |
+
+`OUTPUT_BUFFER_SIZE` is rounded down to whole 8-byte values and must hold at least one value. Its
+element count must fit a default `INTEGER` (at most 2,147,483,647 with 32-bit integers). The actual
+buffer is capped by the exported vertex size and printed in MiB. This keyword controls output
+gathering and writing; it does not change transformation batches or numerical thresholds.
+`MAX_MEMORY` remains in decimal MB (1 MB = 1,000,000 bytes).
 
 Export is OFF by default. `ON` enables it independently of `GLOBAL/PRINT_LEVEL`; standard print
 levels are also accepted. The iteration and convergence settings above control CC4S, independently

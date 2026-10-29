@@ -725,7 +725,7 @@ CONTAINS
                              description="Export a restricted RI-HF reference and CC4S input after converged single-point SCF. "// &
                                   "Requires RI_FLAVOR MO, XC_FUNCTIONAL NONE, HF FRACTION 1 and identical HF and RI operators. "// &
                                        "Use COULOMB for molecules or TRUNCATED for neutral, fully periodic Gamma-point cells. "// &
-                                       "Dense implementation for small systems; no k-point sampling. "// &
+                                       "Complete distributed intermediates; no k-point sampling. "// &
                                        "FILENAME sets the common file prefix; exact names (=name) and stdout are unsupported.", &
                                        print_level=debug_print_level + 1, filename="cc4s", common_iter_levels=2)
       CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
@@ -752,8 +752,16 @@ CONTAINS
                           default_r_val=1.0e-6_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="OUTPUT_BUFFER_SIZE", &
+                          description="Maximum output buffer size per MPI rank in MiB (1 MiB = 1048576 bytes). "// &
+                          "Positive real value; rounded down to whole Real64 elements and capped by the vertex size. "// &
+                          "The element count must fit a default INTEGER. Does not control transformation batches.", &
+                          default_r_val=8.0_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="MAX_MEMORY", &
-                          description="Maximum estimated dense export workspace per MPI rank in MB (excluding SCF storage).", &
+                          description="Maximum estimated export workspace per MPI rank in MB, "// &
+                          "including output and reduction buffers (excluding SCF storage).", &
                           default_r_val=1024.0_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)

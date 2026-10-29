@@ -46,6 +46,7 @@ MODULE cc4s_export
         dbt_iterator_stop, dbt_iterator_type, dbt_nblks_total, dbt_pgrid_create, &
         dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
    USE hfx_types,                       ONLY: hfx_type
+   USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_truncated,&
                                               sic_none,&
@@ -75,7 +76,7 @@ MODULE cc4s_export
    PRIVATE
    PUBLIC :: write_cc4s
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cc4s_export'
-   INTEGER(KIND=int_8), PARAMETER :: max_write_elements = 1048576_int_8
+   REAL(dp), PARAMETER :: elements_per_mib = 1024.0_dp**2/REAL(dp_size, dp)
 
 CONTAINS
 
@@ -95,11 +96,12 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: filename
       INTEGER :: frozen, functional, handle, homo, max_iter, method_id, nao, nmo, nri, nstored, &
          output_unit, poisson_periodic, stage_handle
+      INTEGER(KIND=int_8)                                :: buffer_elements
       INTEGER, DIMENSION(2)                              :: dims2
       INTEGER, DIMENSION(3)                              :: dims3
       LOGICAL                                            :: do_kpoints, enabled, periodic
       REAL(dp) :: amp_conv, cutoff_radius, energy_conv, export_start, fermi_energy, max_cutoff, &
-         max_memory_mb, memory_mb, vertex_norm, write_start
+         max_memory_mb, memory_mb, output_buffer_mib, vertex_norm, write_start
       REAL(dp), ALLOCATABLE                              :: eigenvalues(:)
       REAL(dp), DIMENSION(2)                             :: elapsed
       TYPE(cell_type), POINTER                           :: cell
@@ -143,6 +145,16 @@ CONTAINS
       CALL section_vals_val_get(print_section, "ENERGY_CONVERGENCE", r_val=energy_conv)
       CALL section_vals_val_get(print_section, "AMPLITUDES_CONVERGENCE", r_val=amp_conv)
       CALL section_vals_val_get(print_section, "MAX_MEMORY", r_val=max_memory_mb)
+      CALL section_vals_val_get(print_section, "OUTPUT_BUFFER_SIZE", r_val=output_buffer_mib)
+      IF (.NOT. ieee_is_finite(output_buffer_mib)) THEN
+         CPABORT("CC4S: OUTPUT_BUFFER_SIZE must be finite")
+      END IF
+      IF (output_buffer_mib < 1.0_dp/elements_per_mib .OR. &
+          output_buffer_mib > REAL(HUGE(1), dp)/elements_per_mib) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "CC4S: OUTPUT_BUFFER_SIZE must hold at least one Real64 value and fit the MPI integer count")
+      END IF
+      buffer_elements = FLOOR(output_buffer_mib*elements_per_mib, KIND=int_8)
       SELECT CASE (method_id)
       CASE (1)
          method = 'MP2'
@@ -254,7 +266,7 @@ CONTAINS
       ! Includes the bounded gather/reduction buffers, but excludes existing SCF storage.
       memory_mb = 8.0_dp*(4.0_dp*REAL(nri, dp)*REAL(nao, dp)**2 + &
                           REAL(nri, dp)**2 + 6.0_dp*REAL(nao, dp)**2 + &
-                          2.0_dp*MIN(REAL(max_write_elements, dp), REAL(nri, dp)*REAL(nao, dp)**2))/1.0e6_dp
+                          2.0_dp*MIN(REAL(buffer_elements, dp), REAL(nri, dp)*REAL(nao, dp)**2))/1.0e6_dp
       IF (output_unit > 0) WRITE (output_unit, '(/,T3,A,T69,F12.3)') &
          "CC4S| Estimated memory required for export per MPI rank [MB]:", memory_mb
       IF (memory_mb > max_memory_mb) THEN
@@ -286,6 +298,9 @@ CONTAINS
       END IF
       fermi_energy = 0.5_dp*(eigenvalues(homo) + eigenvalues(homo + 1))
       nmo = nmo - frozen
+      buffer_elements = MIN(buffer_elements, INT(nri, int_8)*INT(nmo, int_8)**2)
+      IF (output_unit > 0) WRITE (output_unit, '(T3,A,T69,F12.6)') &
+         "CC4S| Output buffer per MPI rank [MiB]:", REAL(buffer_elements, dp)/elements_per_mib
       CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo, template_fmstruct=mo_coeff%matrix_struct)
       CALL cp_fm_create(fm_active, fm_struct, name="CC4S active orbitals")
       CALL cp_fm_struct_release(fm_struct)
@@ -314,7 +329,7 @@ CONTAINS
       END IF
       ! A finite-range periodic interaction has no Ewald/Madelung correction.
       CALL write_coulomb_vertex_files(logger, print_section, para_env, nri, nmo, gamma, &
-                                      periodic, cutoff_radius, cell%hmat, vertex_norm)
+                                      periodic, cutoff_radius, cell%hmat, buffer_elements, vertex_norm)
       CALL dbt_destroy(gamma)
       IF (para_env%is_source()) THEN
          CALL write_cc4s_in(logger, print_section, method, max_iter, energy_conv, amp_conv)
@@ -481,7 +496,7 @@ CONTAINS
    END SUBROUTINE write_eigen_energies_files
 
 ! **************************************************************************************************
-!> \brief Gather and stream the distributed vertex using a reusable buffer of at most 8 MiB.
+!> \brief Gather and stream the distributed vertex using a reusable bounded buffer.
 !>        Preserve Fortran element order with the auxiliary index varying fastest.
 !> \param logger Logger for output selection and naming
 !> \param print_section CC4S print key
@@ -492,10 +507,11 @@ CONTAINS
 !> \param periodic Whether the cell is three-dimensionally periodic at Gamma
 !> \param cutoff_radius Truncated Coulomb cutoff in bohr (zero for molecular Coulomb)
 !> \param hmat Cell vectors as columns, in bohr
+!> \param buffer_elements Maximum number of Real64 values in each output piece
 !> \param vertex_norm Squared vertex norm on the writing rank
 ! **************************************************************************************************
    SUBROUTINE write_coulomb_vertex_files(logger, print_section, para_env, nRI, nMO, gamma, &
-                                         periodic, cutoff_radius, hmat, vertex_norm)
+                                         periodic, cutoff_radius, hmat, buffer_elements, vertex_norm)
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_section
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -503,6 +519,7 @@ CONTAINS
       TYPE(dbt_type), INTENT(INOUT)                      :: gamma
       LOGICAL, INTENT(IN)                                :: periodic
       REAL(dp), INTENT(IN)                               :: cutoff_radius, hmat(3, 3)
+      INTEGER(KIND=int_8), INTENT(IN)                    :: buffer_elements
       REAL(dp), INTENT(OUT)                              :: vertex_norm
 
       INTEGER                                            :: hi, ind(3), iunit, j, k, lo, sizes(3)
@@ -517,14 +534,15 @@ CONTAINS
          CALL open_coulomb_vertex_file(logger, print_section, nRI, nMO, periodic, cutoff_radius, hmat, iunit)
       END IF
       nvalues = INT(nRI, int_8)*INT(nMO, int_8)**2
-      ALLOCATE (values(MIN(max_write_elements, nvalues)))
+      CPASSERT(buffer_elements >= 1_int_8 .AND. buffer_elements <= nvalues)
+      ALLOCATE (values(buffer_elements))
       ALLOCATE (off1(dbt_nblks_total(gamma, 1)), off2(dbt_nblks_total(gamma, 2)), &
                 off3(dbt_nblks_total(gamma, 3)))
       CALL dbt_get_info(gamma, blk_offset_1=off1, blk_offset_2=off2, blk_offset_3=off3)
       vertex_norm = 0.0_dp
       offset = 0_int_8
       DO WHILE (offset < nvalues)
-         count = MIN(max_write_elements, nvalues - offset)
+         count = MIN(buffer_elements, nvalues - offset)
          values = 0.0_dp
          ! Blocks own disjoint elements; threads fill disjoint parts of the bounded buffer.
 !$OMP PARALLEL DEFAULT(NONE) &
