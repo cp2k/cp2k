@@ -55,6 +55,7 @@ MODULE cc4s_export
                                               int_8
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_HOST,&
                                               local_gemm_ctxt_type
+   USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_para_env_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -85,20 +86,18 @@ CONTAINS
 
       CHARACTER(len=8)                                   :: method
       CHARACTER(len=default_path_length)                 :: filename
-      INTEGER                                            :: frozen, functional, handle, homo, imo, &
-                                                            inu, jmo, max_iter, method_id, nao, &
-                                                            nmo, nri, nstored, output_unit, &
-                                                            poisson_periodic
+      INTEGER :: frozen, functional, handle, homo, imo, inu, jmo, max_iter, method_id, nao, nmo, &
+         nri, nstored, output_unit, poisson_periodic, stage_handle
       INTEGER, DIMENSION(2)                              :: dims2
       INTEGER, DIMENSION(3)                              :: dims3
       LOGICAL                                            :: do_kpoints, enabled, periodic
-      REAL(dp)                                           :: amp_conv, cutoff_radius, energy_conv, &
-                                                            fermi_energy, max_cutoff, &
-                                                            max_memory_mb, memory_mb
+      REAL(dp) :: amp_conv, cutoff_radius, energy_conv, export_start, fermi_energy, max_cutoff, &
+         max_memory_mb, memory_mb, write_start
       REAL(dp), ALLOCATABLE                              :: coeff(:, :), dressed(:, :), &
                                                             eigenvalues(:), gamma(:, :, :), &
                                                             half(:, :), metric(:, :), pair(:)
       REAL(dp), ALLOCATABLE, TARGET                      :: eri(:, :, :)
+      REAL(dp), DIMENSION(2)                             :: elapsed
       REAL(dp), POINTER                                  :: eri_matrix(:, :)
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -129,6 +128,8 @@ CONTAINS
                        "CC4S: FILENAME must be a file prefix, not an exact name (=name) or __STD_OUT__")
       END IF
       CALL timeset(routineN, handle)
+      export_start = m_walltime()
+      elapsed = 0.0_dp
       output_unit = cp_logger_get_default_io_unit(logger)
 
       CALL section_vals_val_get(print_section, "METHOD", i_val=method_id)
@@ -286,20 +287,25 @@ CONTAINS
       CALL cp_fm_release(fm_work)
 
       ALLOCATE (eri(nri, nao, nao), metric(nri, nri))
+      CALL timeset("cc4s_gather", stage_handle)
       CALL gather_3c_pao(x_data(1, 1)%ri_data%t_3c_int_ctr_1(1, 1), para_env, nri, nao, eri)
       CALL dbt_get_info(x_data(1, 1)%ri_data%t_2c_int(1, 1), nfull_total=dims2)
       CPASSERT(ALL(dims2 == nri))
       CALL gather_2c_dense(x_data(1, 1)%ri_data%t_2c_int(1, 1), para_env, nri, metric)
+      CALL timestop(stage_handle)
 
       IF (para_env%is_source()) THEN
          ALLOCATE (dressed(nri, nao*nao), half(nri, nmo), gamma(nri, nmo, nmo), pair(nri))
          CALL gemm_context%create(LOCAL_GEMM_PU_HOST)
          ! Identical HF and RI operators give a symmetric inverse square root.
          ! Remap the contiguous AO-pair dimensions without copying the dense tensor.
+         CALL timeset("cc4s_metric", stage_handle)
          eri_matrix(1:nri, 1:nao*nao) => eri
          CALL gemm_context%gemm('T', 'N', nri, nao*nao, nri, 1.0_dp, metric, nri, eri_matrix, nri, &
                                 0.0_dp, dressed, nri)
          NULLIFY (eri_matrix)
+         CALL timestop(stage_handle)
+         CALL timeset("cc4s_transform", stage_handle)
          gamma(:, :, :) = 0.0_dp
          DO inu = 1, nao
             CALL gemm_context%gemm('N', 'N', nri, nmo, nao, 1.0_dp, dressed(:, (inu - 1)*nao + 1:inu*nao), nri, &
@@ -318,12 +324,17 @@ CONTAINS
                gamma(:, jmo, imo) = pair
             END DO
          END DO
+         CALL timestop(stage_handle)
+         CALL timeset("cc4s_write_files", stage_handle)
+         write_start = m_walltime()
          CALL write_eigen_energies_files(logger, print_section, nmo, homo - frozen, &
                                          eigenvalues(frozen + 1:frozen + nmo), fermi_energy)
          ! A finite-range periodic interaction has no Ewald/Madelung correction.
          ! Preserve the SCF eigenenergies and its live truncated-interaction vertex.
          CALL write_coulomb_vertex_files(logger, print_section, nri, nmo, gamma, periodic, cutoff_radius, cell%hmat)
          CALL write_cc4s_in(logger, print_section, method, max_iter, energy_conv, amp_conv)
+         elapsed(2) = m_walltime() - write_start
+         CALL timestop(stage_handle)
          IF (output_unit > 0) THEN
             IF (method == 'CCSD_T') THEN
                WRITE (output_unit, '(T3,A,T73,A8)') "CC4S| Requested method:", 'CCSD(T)'
@@ -355,6 +366,13 @@ CONTAINS
       END IF
       DEALLOCATE (eri, metric, coeff, eigenvalues)
       CALL para_env%sync()
+      elapsed(1) = m_walltime() - export_start
+      ! Report the longest rank-local elapsed times; only the source rank writes files.
+      CALL para_env%max(elapsed)
+      IF (output_unit > 0) THEN
+         WRITE (output_unit, '(T3,A,T69,F12.3)') "CC4S| Total export time [s]:", elapsed(1)
+         WRITE (output_unit, '(T3,A,T69,F12.3)') "CC4S| File writing time [s]:", elapsed(2)
+      END IF
       CALL timestop(handle)
    END SUBROUTINE write_cc4s
 
