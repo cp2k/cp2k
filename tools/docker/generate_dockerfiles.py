@@ -323,18 +323,17 @@ def main() -> None:
         f.write(install_deps_toolchain())
         f.write(performance("toolchain"))
 
-    for gpu_ver in "P100", "V100", "A100":
-        with OutputFile(f"Dockerfile.test_cuda_{gpu_ver}", args.check) as f:
-            f.write(install_deps_toolchain_cuda(gpu_ver=gpu_ver))
-            f.write(regtest(f"toolchain_cuda_{gpu_ver}", "psmp"))
-        with OutputFile(f"Dockerfile.test_performance_cuda_{gpu_ver}", args.check) as f:
-            f.write(install_deps_toolchain_cuda(gpu_ver=gpu_ver))
-            f.write(performance(f"toolchain_cuda_{gpu_ver}"))
+    with OutputFile(f"Dockerfile.test_cuda_A40", args.check) as f:
+        f.write(install_deps_toolchain_cuda(gpu_ver="A40"))
+        f.write(regtest(f"toolchain_cuda_A40", "psmp"))
 
-    for gpu_ver in "Mi50", "Mi100":
-        with OutputFile(f"Dockerfile.build_hip_rocm_{gpu_ver}", args.check) as f:
-            f.write(install_deps_toolchain_hip_rocm(gpu_ver=gpu_ver))
-            f.write(test_build(f"toolchain_hip_{gpu_ver}", "psmp"))
+    with OutputFile(f"Dockerfile.test_performance_cuda_A40", args.check) as f:
+        f.write(install_deps_toolchain_cuda(gpu_ver="A40"))
+        f.write(performance(f"toolchain_cuda_A40"))
+
+    with OutputFile(f"Dockerfile.build_hip_rocm_Mi100", args.check) as f:
+        f.write(install_deps_toolchain_hip_rocm(gpu_ver="Mi100"))
+        f.write(test_build(f"toolchain_hip_Mi100", "psmp"))
 
     with OutputFile(f"Dockerfile.test_conventions", args.check) as f:
         f.write(install_deps_toolchain())
