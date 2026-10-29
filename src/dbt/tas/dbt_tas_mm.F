@@ -137,7 +137,6 @@ CONTAINS
                                                             mp_comm_mm, mp_comm_opt
 
       CALL timeset(routineN, handle)
-      CALL matrix_a%dist%info%mp_comm%sync()
       CALL timeset("dbt_tas_total", handle2)
 
       NULLIFY (matrix_b_rs, matrix_a_rs, matrix_c_rs)
@@ -486,7 +485,6 @@ CONTAINS
          info_c = dbt_tas_info(matrix_c_rs)
          CALL dbt_tas_info_hold(info_c)
 
-         CALL matrix_a%dist%info%mp_comm%sync()
          CALL timeset("dbt_tas_dbm", handle4)
          IF (.NOT. tr_case) THEN
             CALL timeset("dbt_tas_mm_1N", handle3)
@@ -503,7 +501,6 @@ CONTAINS
 
             CALL timestop(handle3)
          END IF
-         CALL matrix_a%dist%info%mp_comm%sync()
          CALL timestop(handle4)
 
          IF (opt_pgrid) THEN
@@ -588,13 +585,11 @@ CONTAINS
          info_c = dbt_tas_info(matrix_c_rep)
          CALL dbt_tas_info_hold(info_c)
 
-         CALL matrix_a%dist%info%mp_comm%sync()
          CALL timeset("dbt_tas_dbm", handle4)
          CALL timeset("dbt_tas_mm_2", handle3)
          CALL dbm_multiply(transa=transa_prv, transb=transb_prv, alpha=alpha, matrix_a=matrix_a_mm, &
                            matrix_b=matrix_b_mm, beta=beta, matrix_c=matrix_c_mm, &
                            filter_eps=filter_eps_prv/REAL(nsplit, KIND=dp), retain_sparsity=retain_sparsity, flop=flop)
-         CALL matrix_a%dist%info%mp_comm%sync()
          CALL timestop(handle3)
          CALL timestop(handle4)
 
@@ -690,7 +685,6 @@ CONTAINS
          info_c = dbt_tas_info(matrix_c_rs)
          CALL dbt_tas_info_hold(info_c)
 
-         CALL matrix_a%dist%info%mp_comm%sync()
          CALL timeset("dbt_tas_dbm", handle4)
          IF (.NOT. tr_case) THEN
             CALL timeset("dbt_tas_mm_3N", handle3)
@@ -705,7 +699,6 @@ CONTAINS
                               filter_eps=filter_eps_prv, retain_sparsity=retain_sparsity, flop=flop)
             CALL timestop(handle3)
          END IF
-         CALL matrix_a%dist%info%mp_comm%sync()
          CALL timestop(handle4)
 
          IF (opt_pgrid) THEN
@@ -808,7 +801,6 @@ CONTAINS
       CALL dbt_tas_release_info(info_b)
       CALL dbt_tas_release_info(info_c)
 
-      CALL matrix_a%dist%info%mp_comm%sync()
       CALL timestop(handle2)
       CALL timestop(handle)
 
@@ -1713,10 +1705,9 @@ CONTAINS
 
       INTEGER                                            :: handle
 
-      CALL matrix%dist%info%mp_comm%sync()
-      CALL timeset("dbt_tas_total", handle)
-
       IF (matrix%do_batched == 0) RETURN
+
+      CALL timeset("dbt_tas_total", handle)
 
       IF (matrix%mm_storage%batched_out) THEN
          CALL dbm_scale(matrix%matrix, matrix%mm_storage%batched_beta)
@@ -1729,7 +1720,6 @@ CONTAINS
       DEALLOCATE (matrix%mm_storage)
       CALL dbt_tas_set_batched_state(matrix, state=0)
 
-      CALL matrix%dist%info%mp_comm%sync()
       CALL timestop(handle)
 
    END SUBROUTINE dbt_tas_batched_mm_finalize
