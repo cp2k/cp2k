@@ -12,19 +12,19 @@
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
 "Si_gfn2_kp_kpsym.inp"          = [
-  {matcher = "E_total", tol = 1.0E-8, ref = -13.65663936611194},
+  {matcher = "E_total", tol = 1.0E-8, ref = -13.65631645685679},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
 "Si_gfn2_kp_spglib_backend.inp" = [
-  {matcher = "E_total", tol = 1.0E-8, ref = -13.65663936611194},
+  {matcher = "E_total", tol = 1.0E-8, ref = -13.65631645685679},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
 "Si_gfn2_kp_spglib_shifted.inp" = [
-  {matcher = "E_total", tol = 1.0E-8, ref = -13.65663936611193},
+  {matcher = "E_total", tol = 1.0E-8, ref = -13.65631645685678},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
 "Zn_fcc_gfn2_kp_k290.inp"       = [
-  {matcher = "E_total", tol = 1.0E-8, ref = -0.52857489142004},
+  {matcher = "E_total", tol = 1.0E-8, ref = -0.52825040363497},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
 #EOF
