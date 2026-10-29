@@ -172,6 +172,7 @@ spack:
       require:
         - "~apps"
         - "+dftd3"
+        - "+dftd4"
         - "+dlaf"
         - "+elpa"
         - "+fortran"
