@@ -56,13 +56,9 @@ MODULE bfgs_optimizer
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
    USE global_types,                    ONLY: global_environment_type
-   USE gopt_f_methods,                  ONLY: cp_eval_at,&
-                                              gopt_f_ii,&
-                                              gopt_f_io,&
-                                              gopt_f_io_finalize,&
-                                              gopt_f_io_init,&
-                                              print_geo_opt_header,&
-                                              print_geo_opt_nc
+   USE gopt_f_methods,                  ONLY: &
+        cp_eval_at, gopt_f_ii, gopt_f_io, gopt_f_io_finalize, gopt_f_io_init, &
+        gopt_f_space_group_init, gopt_f_space_group_show, print_geo_opt_header, print_geo_opt_nc
    USE gopt_f_types,                    ONLY: gopt_f_type
    USE gopt_param_types,                ONLY: gopt_param_type
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
@@ -84,9 +80,7 @@ MODULE bfgs_optimizer
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
-   USE space_groups,                    ONLY: identify_space_group,&
-                                              print_spgr,&
-                                              spgr_apply_rotations_coord,&
+   USE space_groups,                    ONLY: spgr_apply_rotations_coord,&
                                               spgr_apply_rotations_force
    USE space_groups_types,              ONLY: spgr_type
 #include "../base/base_uses.f90"
@@ -321,11 +315,7 @@ CONTAINS
       dr(:) = 0.0_dp
 
       ! find space_group
-      IF (spgr%keep_space_group) THEN
-         CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
-         CALL spgr_apply_rotations_coord(spgr, x0)
-         CALL print_spgr(spgr)
-      END IF
+      CALL gopt_f_space_group_init(gopt_env, x0, geo_section, output_unit)
 
       ! Geometry optimization starts now
       CALL cp_iterate(logger%iter_info, increment=0, iter_nr_out=iter_nr)
@@ -497,10 +487,7 @@ CONTAINS
       END IF
 
       ! show space_group
-      IF (spgr%show_space_group) THEN
-         CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
-         CALL print_spgr(spgr)
-      END IF
+      CALL gopt_f_space_group_show(gopt_env, geo_section, output_unit)
 
       ! Write final  information, if converged
       CALL cp_iterate(logger%iter_info, last=.TRUE., increment=0)

@@ -72,7 +72,10 @@ MODULE gopt_f_methods
    USE particle_types,                  ONLY: particle_type
    USE qmmm_util,                       ONLY: apply_qmmm_translate
    USE qmmmx_util,                      ONLY: apply_qmmmx_translate
-   USE space_groups,                    ONLY: spgr_apply_rotations_force,&
+   USE space_groups,                    ONLY: identify_space_group,&
+                                              print_spgr,&
+                                              spgr_apply_rotations_coord,&
+                                              spgr_apply_rotations_force,&
                                               spgr_apply_rotations_stress,&
                                               spgr_project_cell_metric,&
                                               spgr_write_stress_tensor
@@ -90,6 +93,7 @@ MODULE gopt_f_methods
 
    PUBLIC :: cp_eval_at, &
              gopt_f_create_x0, &
+             gopt_f_space_group_init, gopt_f_space_group_show, &
              print_geo_opt_header, print_geo_opt_nc, &
              gopt_f_io_init, gopt_f_io, gopt_f_io_finalize, gopt_f_ii, &
              apply_cell_change
@@ -1501,5 +1505,55 @@ CONTAINS
       CALL cell_release(cell_ref)
 
    END SUBROUTINE apply_cell_change
+
+! **************************************************************************************************
+!> \brief Identify the space group, symmetrize x0 and print it (KEEP_SPACE_GROUP)
+!> \param gopt_env ...
+!> \param x0 ...
+!> \param geo_section ...
+!> \param output_unit ...
+! **************************************************************************************************
+   SUBROUTINE gopt_f_space_group_init(gopt_env, x0, geo_section, output_unit)
+      TYPE(gopt_f_type), POINTER                         :: gopt_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: x0
+      TYPE(section_vals_type), POINTER                   :: geo_section
+      INTEGER, INTENT(IN)                                :: output_unit
+
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+
+      NULLIFY (subsys)
+
+      IF (.NOT. gopt_env%spgr%keep_space_group) RETURN
+      SELECT CASE (gopt_env%type_id)
+      CASE (default_minimization_method_id, default_ts_method_id, default_cell_method_id)
+         CALL force_env_get(gopt_env%force_env, subsys=subsys)
+         CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
+         CALL spgr_apply_rotations_coord(gopt_env%spgr, x0)
+         CALL print_spgr(gopt_env%spgr)
+      CASE DEFAULT
+         gopt_env%spgr%keep_space_group = .FALSE.
+      END SELECT
+   END SUBROUTINE gopt_f_space_group_init
+
+! **************************************************************************************************
+!> \brief Identify and print the space group of the current structure (SHOW_SPACE_GROUP)
+!> \param gopt_env ...
+!> \param geo_section ...
+!> \param output_unit ...
+! **************************************************************************************************
+   SUBROUTINE gopt_f_space_group_show(gopt_env, geo_section, output_unit)
+      TYPE(gopt_f_type), POINTER                         :: gopt_env
+      TYPE(section_vals_type), POINTER                   :: geo_section
+      INTEGER, INTENT(IN)                                :: output_unit
+
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+
+      NULLIFY (subsys)
+
+      IF (.NOT. gopt_env%spgr%show_space_group) RETURN
+      CALL force_env_get(gopt_env%force_env, subsys=subsys)
+      CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
+      CALL print_spgr(gopt_env%spgr)
+   END SUBROUTINE gopt_f_space_group_show
 
 END MODULE gopt_f_methods

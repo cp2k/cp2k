@@ -11,7 +11,6 @@
 !>      01.2020 Space Group Symmetry introduced by Pierre-André Cazade [pcazade]
 ! **************************************************************************************************
 MODULE cp_lbfgs_geo
-   USE cell_types,                      ONLY: cell_type
    USE cp_external_control,             ONLY: external_control
    USE cp_lbfgs_optimizer_gopt,         ONLY: cp_lbfgs_opt_gopt_type,&
                                               cp_opt_gopt_create,&
@@ -23,12 +22,13 @@ MODULE cp_lbfgs_geo
    USE cp_output_handling,              ONLY: cp_iterate,&
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
    USE global_types,                    ONLY: global_environment_type
    USE gopt_f_methods,                  ONLY: gopt_f_ii,&
                                               gopt_f_io_finalize,&
+                                              gopt_f_space_group_init,&
+                                              gopt_f_space_group_show,&
                                               print_geo_opt_header,&
                                               print_geo_opt_nc
    USE gopt_f_types,                    ONLY: gopt_f_type
@@ -38,9 +38,6 @@ MODULE cp_lbfgs_geo
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
-   USE space_groups,                    ONLY: identify_space_group,&
-                                              print_spgr,&
-                                              spgr_apply_rotations_coord
    USE space_groups_types,              ONLY: spgr_type
 #include "../base/base_uses.f90"
 
@@ -79,10 +76,8 @@ CONTAINS
 
       INTEGER                                            :: handle, iter_nr, its, output_unit
       LOGICAL                                            :: converged, should_stop
-      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(spgr_type), POINTER                           :: spgr
@@ -96,8 +91,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(force_env))
       CPASSERT(ASSOCIATED(gopt_param))
 
-      ! collecting subsys
-      CALL force_env_get(force_env, para_env=para_env, cell=cell, subsys=subsys)
+      CALL force_env_get(force_env, para_env=para_env)
 
       ! Geometry optimization starts now
       output_unit = cp_print_key_unit_nr(logger, geo_section, "PRINT%PROGRAM_RUN_INFO", &
@@ -105,11 +99,7 @@ CONTAINS
       CALL print_geo_opt_header(gopt_env, output_unit, "L-BFGS")
 
       ! finds space group
-      IF (spgr%keep_space_group) THEN
-         CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
-         CALL spgr_apply_rotations_coord(spgr, x0)
-         CALL print_spgr(spgr)
-      END IF
+      CALL gopt_f_space_group_init(gopt_env, x0, geo_section, output_unit)
 
       ! Stop if not implemented
       IF (gopt_env%type_id == default_ts_method_id) THEN
@@ -156,10 +146,7 @@ CONTAINS
       END IF
 
       ! show space_group
-      IF (spgr%show_space_group) THEN
-         CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
-         CALL print_spgr(spgr)
-      END IF
+      CALL gopt_f_space_group_show(gopt_env, geo_section, output_unit)
 
       ! Write final output information, if converged
       CALL cp_iterate(logger%iter_info, last=.TRUE., increment=0)
