@@ -459,23 +459,24 @@ CONTAINS
             CALL dbt_tas_write_dist(matrix_b_rep, unit_nr_prv, full_info=log_verbose)
          END IF
 
-         CALL convert_to_new_pgrid(mp_comm_mm, matrix_a_rs%matrix, matrix_a_mm, optimize_pgrid=opt_pgrid, move_data=move_a)
+         CALL convert_to_new_pgrid(mp_comm_mm, matrix_a_rs%matrix, matrix_a_mm, optimize_pgrid=opt_pgrid, &
+                                   move_data=move_a, borrow=.TRUE.)
 
          ! keep communicators alive even after releasing TAS matrices (communicator management does not work between DBM and TAS)
          info_a = dbt_tas_info(matrix_a_rs)
          CALL dbt_tas_info_hold(info_a)
 
-         IF (new_a) THEN
+         IF (new_a .AND. opt_pgrid) THEN
             CALL dbt_tas_destroy(matrix_a_rs)
             DEALLOCATE (matrix_a_rs)
          END IF
          CALL convert_to_new_pgrid(mp_comm_mm, matrix_b_rep%matrix, matrix_b_mm, optimize_pgrid=opt_pgrid, &
-                                   move_data=matrix_b%do_batched == 0)
+                                   move_data=matrix_b%do_batched == 0, borrow=.TRUE.)
 
          info_b = dbt_tas_info(matrix_b_rep)
          CALL dbt_tas_info_hold(info_b)
 
-         IF (matrix_b%do_batched == 0) THEN
+         IF (matrix_b%do_batched == 0 .AND. opt_pgrid) THEN
             CALL dbt_tas_destroy(matrix_b_rep)
             DEALLOCATE (matrix_b_rep)
          END IF
@@ -505,8 +506,19 @@ CONTAINS
          CALL matrix_a%dist%info%mp_comm%sync()
          CALL timestop(handle4)
 
-         CALL dbm_release(matrix_a_mm)
-         CALL dbm_release(matrix_b_mm)
+         IF (opt_pgrid) THEN
+            CALL dbm_release(matrix_a_mm)
+            CALL dbm_release(matrix_b_mm)
+         ELSE
+            IF (new_a) THEN
+               CALL dbt_tas_destroy(matrix_a_rs)
+               DEALLOCATE (matrix_a_rs)
+            END IF
+            IF (matrix_b%do_batched == 0) THEN
+               CALL dbt_tas_destroy(matrix_b_rep)
+               DEALLOCATE (matrix_b_rep)
+            END IF
+         END IF
 
          nze_c = dbm_get_nze(matrix_c_mm)
 
@@ -548,23 +560,25 @@ CONTAINS
             CALL dbt_tas_write_dist(matrix_b_rs, unit_nr_prv)
          END IF
 
-         CALL convert_to_new_pgrid(mp_comm_mm, matrix_a_rs%matrix, matrix_a_mm, optimize_pgrid=opt_pgrid, move_data=move_a)
+         CALL convert_to_new_pgrid(mp_comm_mm, matrix_a_rs%matrix, matrix_a_mm, optimize_pgrid=opt_pgrid, &
+                                   move_data=move_a, borrow=.TRUE.)
 
          ! keep communicators alive even after releasing TAS matrices (communicator management does not work between DBM and TAS)
          info_a = dbt_tas_info(matrix_a_rs)
          CALL dbt_tas_info_hold(info_a)
 
-         IF (new_a) THEN
+         IF (new_a .AND. opt_pgrid) THEN
             CALL dbt_tas_destroy(matrix_a_rs)
             DEALLOCATE (matrix_a_rs)
          END IF
 
-         CALL convert_to_new_pgrid(mp_comm_mm, matrix_b_rs%matrix, matrix_b_mm, optimize_pgrid=opt_pgrid, move_data=move_b)
+         CALL convert_to_new_pgrid(mp_comm_mm, matrix_b_rs%matrix, matrix_b_mm, optimize_pgrid=opt_pgrid, &
+                                   move_data=move_b, borrow=.TRUE.)
 
          info_b = dbt_tas_info(matrix_b_rs)
          CALL dbt_tas_info_hold(info_b)
 
-         IF (new_b) THEN
+         IF (new_b .AND. opt_pgrid) THEN
             CALL dbt_tas_destroy(matrix_b_rs)
             DEALLOCATE (matrix_b_rs)
          END IF
@@ -584,8 +598,19 @@ CONTAINS
          CALL timestop(handle3)
          CALL timestop(handle4)
 
-         CALL dbm_release(matrix_a_mm)
-         CALL dbm_release(matrix_b_mm)
+         IF (opt_pgrid) THEN
+            CALL dbm_release(matrix_a_mm)
+            CALL dbm_release(matrix_b_mm)
+         ELSE
+            IF (new_a) THEN
+               CALL dbt_tas_destroy(matrix_a_rs)
+               DEALLOCATE (matrix_a_rs)
+            END IF
+            IF (new_b) THEN
+               CALL dbt_tas_destroy(matrix_b_rs)
+               DEALLOCATE (matrix_b_rs)
+            END IF
+         END IF
 
          nze_c = dbm_get_nze(matrix_c_mm)
 
@@ -639,23 +664,24 @@ CONTAINS
          END IF
 
          CALL convert_to_new_pgrid(mp_comm_mm, matrix_a_rep%matrix, matrix_a_mm, optimize_pgrid=opt_pgrid, &
-                                   move_data=matrix_a%do_batched == 0)
+                                   move_data=matrix_a%do_batched == 0, borrow=.TRUE.)
 
          ! keep communicators alive even after releasing TAS matrices (communicator management does not work between DBM and TAS)
          info_a = dbt_tas_info(matrix_a_rep)
          CALL dbt_tas_info_hold(info_a)
 
-         IF (matrix_a%do_batched == 0) THEN
+         IF (matrix_a%do_batched == 0 .AND. opt_pgrid) THEN
             CALL dbt_tas_destroy(matrix_a_rep)
             DEALLOCATE (matrix_a_rep)
          END IF
 
-         CALL convert_to_new_pgrid(mp_comm_mm, matrix_b_rs%matrix, matrix_b_mm, optimize_pgrid=opt_pgrid, move_data=move_b)
+         CALL convert_to_new_pgrid(mp_comm_mm, matrix_b_rs%matrix, matrix_b_mm, optimize_pgrid=opt_pgrid, &
+                                   move_data=move_b, borrow=.TRUE.)
 
          info_b = dbt_tas_info(matrix_b_rs)
          CALL dbt_tas_info_hold(info_b)
 
-         IF (new_b) THEN
+         IF (new_b .AND. opt_pgrid) THEN
             CALL dbt_tas_destroy(matrix_b_rs)
             DEALLOCATE (matrix_b_rs)
          END IF
@@ -682,8 +708,19 @@ CONTAINS
          CALL matrix_a%dist%info%mp_comm%sync()
          CALL timestop(handle4)
 
-         CALL dbm_release(matrix_a_mm)
-         CALL dbm_release(matrix_b_mm)
+         IF (opt_pgrid) THEN
+            CALL dbm_release(matrix_a_mm)
+            CALL dbm_release(matrix_b_mm)
+         ELSE
+            IF (matrix_a%do_batched == 0) THEN
+               CALL dbt_tas_destroy(matrix_a_rep)
+               DEALLOCATE (matrix_a_rep)
+            END IF
+            IF (new_b) THEN
+               CALL dbt_tas_destroy(matrix_b_rs)
+               DEALLOCATE (matrix_b_rs)
+            END IF
+         END IF
 
          nze_c = dbm_get_nze(matrix_c_mm)
 
@@ -1574,13 +1611,15 @@ CONTAINS
 !> \param move_data memory optimization: move data such that matrix_in is empty on return.
 !> \param nodata Data of matrix_in should not be copied to matrix_out
 !> \param optimize_pgrid Whether to change process grid
+!> \param borrow Reuse matrix_in when the process grid is unchanged. The caller must keep the
+!>               source alive until the multiplication finishes and must not release matrix_out.
 !> \author Patrick Seewald
 ! **************************************************************************************************
-   SUBROUTINE convert_to_new_pgrid(mp_comm_cart, matrix_in, matrix_out, move_data, nodata, optimize_pgrid)
+   SUBROUTINE convert_to_new_pgrid(mp_comm_cart, matrix_in, matrix_out, move_data, nodata, optimize_pgrid, borrow)
       TYPE(mp_cart_type), INTENT(IN)                     :: mp_comm_cart
       TYPE(dbm_type), INTENT(INOUT)                      :: matrix_in
       TYPE(dbm_type), INTENT(OUT)                        :: matrix_out
-      LOGICAL, INTENT(IN), OPTIONAL                      :: move_data, nodata, optimize_pgrid
+      LOGICAL, INTENT(IN), OPTIONAL                      :: move_data, nodata, optimize_pgrid, borrow
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_to_new_pgrid'
 
@@ -1610,6 +1649,15 @@ CONTAINS
       name = dbm_get_name(matrix_in)
 
       IF (.NOT. optimize_pgrid_prv) THEN
+         IF (PRESENT(borrow)) THEN
+            IF (borrow) THEN
+               CPASSERT(.NOT. nodata_prv)
+               ! The source is read-only; defer move_data cleanup to the caller.
+               matrix_out = matrix_in
+               CALL timestop(handle)
+               RETURN
+            END IF
+         END IF
          CALL dbm_create_from_template(matrix_out, name=name, template=matrix_in)
          IF (.NOT. nodata_prv) CALL dbm_copy(matrix_out, matrix_in)
          CALL timestop(handle)
