@@ -53,12 +53,13 @@ MODULE bfgs_optimizer
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE force_env_types,                 ONLY: force_env_get,&
+                                              force_env_get_nparticle,&
                                               force_env_type
    USE global_types,                    ONLY: global_environment_type
    USE gopt_f_methods,                  ONLY: &
         cp_eval_at, gopt_f_ii, gopt_f_io, gopt_f_io_finalize, gopt_f_io_init, &
-        gopt_f_project_coord, gopt_f_project_step, gopt_f_project_vector, gopt_f_space_group_init, &
-        gopt_f_space_group_show, print_geo_opt_header, print_geo_opt_nc
+        gopt_f_project_coord, gopt_f_project_step, gopt_f_project_vector, gopt_f_set_h_ref, &
+        print_geo_opt_header, print_geo_opt_nc
    USE gopt_f_types,                    ONLY: gopt_f_type
    USE gopt_param_types,                ONLY: gopt_param_type
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
@@ -309,9 +310,6 @@ CONTAINS
       ALLOCATE (dr(ndf))
       dr(:) = 0.0_dp
 
-      ! find space_group
-      CALL gopt_f_space_group_init(gopt_env, x0, geo_section, output_unit)
-
       ! Geometry optimization starts now
       CALL cp_iterate(logger%iter_info, increment=0, iter_nr_out=iter_nr)
       CALL print_geo_opt_header(gopt_env, output_unit, wildcard)
@@ -461,9 +459,6 @@ CONTAINS
       IF (its == maxiter .AND. (.NOT. conv)) THEN
          CALL print_geo_opt_nc(gopt_env, output_unit)
       END IF
-
-      ! show space_group
-      CALL gopt_f_space_group_show(gopt_env, geo_section, output_unit)
 
       ! Write final  information, if converged
       CALL cp_iterate(logger%iter_info, last=.TRUE., increment=0)
@@ -844,10 +839,10 @@ CONTAINS
          CPABORT("Singular reference cell in BFGS restart")
       END IF
       transform = MATMUL(reference_cell, inv_3x3(gopt_env%h_ref))
-      DO i = 1, SIZE(x0) - 6, 3
+      DO i = 1, 3*force_env_get_nparticle(gopt_env%force_env), 3
          x0(i:i + 2) = MATMUL(transform, x0(i:i + 2))
       END DO
-      gopt_env%h_ref = reference_cell
+      CALL gopt_f_set_h_ref(gopt_env, reference_cell)
    END SUBROUTINE bfgs_restore_cell_frame
 
 ! **************************************************************************************************

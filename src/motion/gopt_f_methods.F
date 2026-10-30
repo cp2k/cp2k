@@ -30,7 +30,11 @@ MODULE gopt_f_methods
                                               cell_type,&
                                               real_to_scaled,&
                                               scaled_to_real
-   USE cp_log_handling,                 ONLY: cp_to_string
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type,&
+                                              cp_to_string
+   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                              cp_print_key_unit_nr
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_set,&
                                               cp_subsys_type,&
@@ -95,7 +99,7 @@ MODULE gopt_f_methods
    PUBLIC :: cp_eval_at, &
              gopt_f_create_x0, &
              gopt_f_project_coord, gopt_f_project_step, gopt_f_project_vector, &
-             gopt_f_space_group_init, gopt_f_space_group_show, &
+             gopt_f_set_h_ref, gopt_f_space_group_show, &
              print_geo_opt_header, print_geo_opt_nc, &
              gopt_f_io_init, gopt_f_io, gopt_f_io_finalize, gopt_f_ii, &
              apply_cell_change
@@ -115,11 +119,13 @@ CONTAINS
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x0
 
-      INTEGER                                            :: i, idg, j, nparticle
+      INTEGER                                            :: i, idg, j, nparticle, output_unit
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
 
       NULLIFY (cell)
+      NULLIFY (logger)
       NULLIFY (subsys)
 
       SELECT CASE (gopt_env%type_id)
@@ -149,6 +155,17 @@ CONTAINS
       CASE DEFAULT
          CPABORT("Invalid or not yet implemented type of optimization")
       END SELECT
+
+      IF (gopt_env%spgr%keep_space_group) THEN
+         logger => cp_get_default_logger()
+         output_unit = cp_print_key_unit_nr(logger, gopt_env%geo_section, &
+                                            "PRINT%PROGRAM_RUN_INFO", extension=".geoLog")
+         CALL identify_space_group(subsys, gopt_env%geo_section, gopt_env, output_unit)
+         CALL spgr_apply_rotations_coord(gopt_env%spgr, x0)
+         CALL print_spgr(gopt_env%spgr)
+         CALL cp_print_key_finished_output(output_unit, logger, gopt_env%geo_section, &
+                                           "PRINT%PROGRAM_RUN_INFO")
+      END IF
 
    END SUBROUTINE gopt_f_create_x0
 
@@ -195,10 +212,12 @@ CONTAINS
 
       INTEGER                                            :: handle, idg, idir, ip, nparticle, nsize, &
                                                             shell_index
+      LOGICAL                                            :: unit_is_open
       REAL(KIND=dp)                                      :: f_ts
       REAL(KIND=dp), DIMENSION(3, 3)                     :: av_ptens, av_ptens_opt
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cell_gradient, gradient_ts
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles
@@ -208,6 +227,7 @@ CONTAINS
       NULLIFY (cell)
       NULLIFY (core_particles)
       NULLIFY (gradient_ts)
+      NULLIFY (logger)
       NULLIFY (particles)
       NULLIFY (shell_particles)
       NULLIFY (subsys)
@@ -315,7 +335,23 @@ CONTAINS
                   IF (spgr%keep_space_group) THEN
                      CALL spgr_apply_rotations_force(spgr, gradient)
                      CALL spgr_apply_rotations_stress(spgr, cell, av_ptens)
-                     CALL spgr_write_stress_tensor(av_ptens, spgr)
+                     ! Non-IO ranks have iunit <= 0. On IO ranks, a file print-key
+                     ! unit may be closed between steps, so check OPENED first.
+                     IF (spgr%iunit > 0) THEN
+                        INQUIRE (UNIT=spgr%iunit, OPENED=unit_is_open)
+                        IF (unit_is_open) THEN
+                           CALL spgr_write_stress_tensor(av_ptens, spgr)
+                        ELSE
+                           logger => cp_get_default_logger()
+                           spgr%iunit = cp_print_key_unit_nr(logger, gopt_env%geo_section, &
+                                                             "PRINT%PROGRAM_RUN_INFO", &
+                                                             extension=".geoLog")
+                           CALL spgr_write_stress_tensor(av_ptens, spgr)
+                           CALL cp_print_key_finished_output(spgr%iunit, logger, &
+                                                             gopt_env%geo_section, &
+                                                             "PRINT%PROGRAM_RUN_INFO")
+                        END IF
+                     END IF
                   END IF
                   cell_gradient => gradient(nsize + 1:nsize + 6)
                   cell_gradient = 0.0_dp
@@ -1509,39 +1545,10 @@ CONTAINS
    END SUBROUTINE apply_cell_change
 
 ! **************************************************************************************************
-!> \brief Identify the space group, symmetrize x0 and print it (KEEP_SPACE_GROUP)
-!> \param gopt_env ...
-!> \param x0 ...
-!> \param geo_section ...
-!> \param output_unit ...
-! **************************************************************************************************
-   SUBROUTINE gopt_f_space_group_init(gopt_env, x0, geo_section, output_unit)
-      TYPE(gopt_f_type), POINTER                         :: gopt_env
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: x0
-      TYPE(section_vals_type), POINTER                   :: geo_section
-      INTEGER, INTENT(IN)                                :: output_unit
-
-      TYPE(cp_subsys_type), POINTER                      :: subsys
-
-      NULLIFY (subsys)
-
-      IF (.NOT. gopt_env%spgr%keep_space_group) RETURN
-      SELECT CASE (gopt_env%type_id)
-      CASE (default_minimization_method_id, default_ts_method_id, default_cell_method_id)
-         CALL force_env_get(gopt_env%force_env, subsys=subsys)
-         CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
-         CALL spgr_apply_rotations_coord(gopt_env%spgr, x0)
-         CALL print_spgr(gopt_env%spgr)
-      CASE DEFAULT
-         gopt_env%spgr%keep_space_group = .FALSE.
-      END SELECT
-   END SUBROUTINE gopt_f_space_group_init
-
-! **************************************************************************************************
-!> \brief Identify and print the space group of the current structure (SHOW_SPACE_GROUP)
-!> \param gopt_env ...
-!> \param geo_section ...
-!> \param output_unit ...
+!> \brief Identify and print the space group of the current structure (SHOW_SPACE_GROUP).
+!> \param gopt_env geometry optimization environment
+!> \param geo_section GEO_OPT or CELL_OPT input section
+!> \param output_unit print-key output unit
 ! **************************************************************************************************
    SUBROUTINE gopt_f_space_group_show(gopt_env, geo_section, output_unit)
       TYPE(gopt_f_type), POINTER                         :: gopt_env
@@ -1559,10 +1566,26 @@ CONTAINS
    END SUBROUTINE gopt_f_space_group_show
 
 ! **************************************************************************************************
-!> \brief Project optimizer coordinates onto the space-group-invariant subspace
-!>        (KEEP_SPACE_GROUP)
-!> \param gopt_env ...
-!> \param x ...
+!> \brief Update the reference cell in gopt_env and spgr%cell_ref.
+!> \param gopt_env geometry optimization environment
+!> \param h_ref new 3x3 reference cell matrix
+! **************************************************************************************************
+   SUBROUTINE gopt_f_set_h_ref(gopt_env, h_ref)
+      TYPE(gopt_f_type), POINTER                         :: gopt_env
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_ref
+
+      gopt_env%h_ref = h_ref
+      ! space_groups maps coordinates and forces through spgr%cell_ref,
+      ! so BFGS restarts must update spgr%cell_ref alongside h_ref.
+      IF (ASSOCIATED(gopt_env%spgr%cell_ref)) THEN
+         CALL init_cell(gopt_env%spgr%cell_ref, hmat=h_ref)
+      END IF
+   END SUBROUTINE gopt_f_set_h_ref
+
+! **************************************************************************************************
+!> \brief Project optimizer coordinates onto the space-group-invariant subspace.
+!> \param gopt_env geometry optimization environment
+!> \param x coordinate vector to symmetrize in place
 ! **************************************************************************************************
    SUBROUTINE gopt_f_project_coord(gopt_env, x)
       TYPE(gopt_f_type), POINTER                         :: gopt_env
@@ -1572,10 +1595,9 @@ CONTAINS
    END SUBROUTINE gopt_f_project_coord
 
 ! **************************************************************************************************
-!> \brief Project a gradient, displacement or search direction (linear, no
-!>        translations)
-!> \param gopt_env ...
-!> \param v ...
+!> \brief Project a gradient, step, or search direction onto the space-group subspace.
+!> \param gopt_env geometry optimization environment
+!> \param v vector to symmetrize in place (rotations only, no translations)
 ! **************************************************************************************************
    SUBROUTINE gopt_f_project_vector(gopt_env, v)
       TYPE(gopt_f_type), POINTER                         :: gopt_env
