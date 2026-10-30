@@ -432,7 +432,6 @@ list(
   "orbital_transformation_matrices_unittest"
   "gemm_square_unittest"
   "memory_utilities_unittest"
-  "cell_manifold_utils_unittest"
   "cell_opt_utils_unittest"
   "parallel_rng_types_unittest"
   "atom_upf_unittest"
@@ -517,8 +516,6 @@ add_executable(qs_ot_complex_ref_unittest qs_ot_complex_ref_unittest.F)
 add_executable(wannier90_projections_unittest wannier90_projections_unittest.F)
 add_executable(cell_types_unittest subsys/cell_types_unittest.F)
 add_executable(hfx_pair_list_methods_unittest hfx_pair_list_methods_unittest.F)
-add_executable(cell_manifold_utils_unittest
-               motion/cell_manifold_utils_unittest.F)
 add_executable(cell_opt_utils_unittest motion/cell_opt_utils_unittest.F)
 add_executable(graph metadyn_tools/graph.F)
 add_executable(dumpdcd motion/dumpdcd.F)

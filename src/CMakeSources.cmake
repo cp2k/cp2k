@@ -1632,7 +1632,6 @@ set(CP2K_PROGS_F
     gapw_unittest.F
     kpoint_lattice_fft_unittest.F
     kpoint_smearing_unittest.F
-    motion/cell_manifold_utils_unittest.F
     motion/cell_opt_utils_unittest.F
     topology_wilson_unittest.F
     kubo_unittest.F

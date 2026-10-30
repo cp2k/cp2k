@@ -5,7 +5,6 @@ dbt_tas_unittest
 dbt_unittest
 cell_types_unittest
 hfx_pair_list_methods_unittest
-cell_manifold_utils_unittest
 cell_opt_utils_unittest
 grid_unittest
 kpoint_lattice_fft_unittest
