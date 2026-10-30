@@ -25,8 +25,8 @@
   {matcher = "E_total", tol = 5e-13, ref = -39.16560926583436},
   {matcher = "S2_estimate", tol = 2e-6, ref = 0.772334}
 ]
-"H2O-admm-emd.inp"        = [{matcher = "M002", tol = 1e-11, ref = -16.8569938021}]
-"H2O-admm-emd_lsd.inp"    = [{matcher = "M002", tol = 1e-11, ref = -16.8754913713}]
+"H2O-admm-emd.inp"        = [{matcher = "M002", tol = 1e-11, ref = -16.8569937938}]
+"H2O-admm-emd_lsd.inp"    = [{matcher = "M002", tol = 1e-11, ref = -16.8754915211}]
 "H2-admm-rtp.inp"         = [{matcher = "E_total", tol = 1e-12, ref = -0.76379610493161}]
 "H2-admm-rtp_restart.inp" = [{matcher = "E_total", tol = 1e-12, ref = -0.7637961046146}]
 #EOF

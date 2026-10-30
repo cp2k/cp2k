@@ -23,9 +23,9 @@ MODULE rt_propagation_forces
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_type, &
         dbcsr_type_no_symmetry
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
@@ -213,14 +213,15 @@ CONTAINS
    END SUBROUTINE compute_forces
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Force contribution from the dependence of the ADMM projection on the nuclear positions
 !> \param qs_env ...
+!> \par History
+!>      10.2026 use the density matrix instead of the MO coefficients
 ! **************************************************************************************************
    SUBROUTINE rt_admm_force(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos, mos_admm
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: KS_aux_im, KS_aux_re, matrix_s_aux_fit, &
                                                             matrix_s_aux_fit_vs_orb
       TYPE(rt_prop_type), POINTER                        :: rtp
@@ -233,50 +234,61 @@ CONTAINS
                         matrix_s_aux_fit=matrix_s_aux_fit, &
                         matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb)
 
-      CALL get_rtp(rtp=rtp, mos_new=mos, admm_mos=mos_admm)
-
       ! currently only none option
-      CALL rt_admm_forces_none(qs_env, admm_env, KS_aux_re, KS_aux_im, &
-                               matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, mos_admm, mos)
+      CALL rt_admm_forces_none(qs_env, admm_env, rtp, KS_aux_re, KS_aux_im, &
+                               matrix_s_aux_fit, matrix_s_aux_fit_vs_orb)
 
    END SUBROUTINE rt_admm_force
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief ADMM projection force without purification.
+!>        With P~ = A*P*A^T and A = S~^-1*Q, the weighted matrices are
+!>        W_Q = -2*S~^-1*Re(K~*A*P) and W_S = -W_Q*A^T.
+!>        The complex density matrix P is used instead of the MO coefficients, so that
+!>        P is consistent with the auxiliary KS matrix K~ and includes the occupations.
 !> \param qs_env ...
 !> \param admm_env ...
+!> \param rtp ...
 !> \param KS_aux_re ...
 !> \param KS_aux_im ...
 !> \param matrix_s_aux_fit ...
 !> \param matrix_s_aux_fit_vs_orb ...
-!> \param mos_admm ...
-!> \param mos ...
 ! **************************************************************************************************
-   SUBROUTINE rt_admm_forces_none(qs_env, admm_env, KS_aux_re, KS_aux_im, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, mos_admm, mos)
+   SUBROUTINE rt_admm_forces_none(qs_env, admm_env, rtp, KS_aux_re, KS_aux_im, matrix_s_aux_fit, &
+                                  matrix_s_aux_fit_vs_orb)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: KS_aux_re, KS_aux_im, matrix_s_aux_fit, &
                                                             matrix_s_aux_fit_vs_orb
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_admm, mos
 
-      INTEGER                                            :: im, ispin, jspin, nao, natom, naux, nmo, &
-                                                            re
+      INTEGER                                            :: ispin, nao, natom, naux
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: admm_force
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_fm_struct_type), POINTER                   :: mstruct
-      TYPE(cp_fm_type), DIMENSION(2)                     :: tmp_aux_aux, tmp_aux_mo, tmp_aux_mo1, &
-                                                            tmp_aux_nao
-      TYPE(dbcsr_type), POINTER                          :: matrix_w_q, matrix_w_s
+      TYPE(cp_fm_type)                                   :: tmp_aux_aux, tmp_aux_kap, tmp_aux_nao, &
+                                                            tmp_nao_nao
+      TYPE(cp_fm_type), DIMENSION(2)                     :: tmp_aux_ap
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao, rho_ao_im, rho_new
+      TYPE(dbcsr_type), POINTER                          :: matrix_w_q, matrix_w_s, rho_im, rho_re
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux_fit_asymm, sab_aux_fit_vs_orb
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_rho_type), POINTER                         :: rho
 
-      NULLIFY (sab_aux_fit_asymm, sab_aux_fit_vs_orb, ks_env)
+      NULLIFY (sab_aux_fit_asymm, sab_aux_fit_vs_orb, ks_env, rho, rho_ao, rho_ao_im, rho_new)
 
-      CALL get_qs_env(qs_env, ks_env=ks_env)
+      CALL get_qs_env(qs_env, ks_env=ks_env, rho=rho, natom=natom, &
+                      atomic_kind_set=atomic_kind_set, force=force)
       CALL get_admm_env(admm_env, sab_aux_fit_asymm=sab_aux_fit_asymm, &
                         sab_aux_fit_vs_orb=sab_aux_fit_vs_orb)
+      IF (rtp%linear_scaling) THEN
+         CALL get_rtp(rtp=rtp, rho_new=rho_new)
+      ELSE
+         CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao, rho_ao_im=rho_ao_im)
+      END IF
+
+      naux = admm_env%nao_aux_fit; nao = admm_env%nao_orb
 
       ALLOCATE (matrix_w_s)
       CALL dbcsr_create(matrix_w_s, template=matrix_s_aux_fit(1)%matrix, &
@@ -287,61 +299,46 @@ CONTAINS
       CALL dbcsr_copy(matrix_w_q, matrix_s_aux_fit_vs_orb(1)%matrix, &
                       "W MATRIX AUX Q")
 
-      DO jspin = 1, 2
-         CALL cp_fm_create(tmp_aux_aux(jspin), admm_env%work_aux_aux%matrix_struct, name="taa")
-         CALL cp_fm_create(tmp_aux_nao(jspin), admm_env%work_aux_orb%matrix_struct, name="tao")
-      END DO
+      CALL cp_fm_create(tmp_nao_nao, admm_env%work_orb_orb%matrix_struct, name="too")
+      CALL cp_fm_create(tmp_aux_ap(1), admm_env%work_aux_orb%matrix_struct, name="tao")
+      CALL cp_fm_create(tmp_aux_ap(2), admm_env%work_aux_orb%matrix_struct, name="tao")
+      CALL cp_fm_create(tmp_aux_kap, admm_env%work_aux_orb%matrix_struct, name="tao")
+      CALL cp_fm_create(tmp_aux_nao, admm_env%work_aux_orb%matrix_struct, name="tao")
+      CALL cp_fm_create(tmp_aux_aux, admm_env%work_aux_aux%matrix_struct, name="taa")
+
+      ALLOCATE (admm_force(3, natom))
 
       DO ispin = 1, SIZE(KS_aux_re)
-         re = 2*ispin - 1; im = 2*ispin
-         naux = admm_env%nao_aux_fit; nmo = admm_env%nmo(ispin); nao = admm_env%nao_orb
+         IF (rtp%linear_scaling) THEN
+            rho_re => rho_new(2*ispin - 1)%matrix
+            rho_im => rho_new(2*ispin)%matrix
+         ELSE
+            rho_re => rho_ao(ispin)%matrix
+            rho_im => rho_ao_im(ispin)%matrix
+         END IF
 
-         mstruct => admm_env%work_aux_nmo(ispin)%matrix_struct
-         DO jspin = 1, 2
-            CALL cp_fm_create(tmp_aux_mo(jspin), mstruct, name="tam")
-            CALL cp_fm_create(tmp_aux_mo1(jspin), mstruct, name="tam")
-         END DO
+! First calculate A*P, real part ends on tmp_aux_ap(1), imaginary part on tmp_aux_ap(2)
+         CALL copy_dbcsr_to_fm(rho_re, tmp_nao_nao)
+         CALL parallel_gemm('N', 'N', naux, nao, nao, 1.0_dp, admm_env%A, tmp_nao_nao, 0.0_dp, tmp_aux_ap(1))
+         CALL copy_dbcsr_to_fm(rho_im, tmp_nao_nao)
+         CALL parallel_gemm('N', 'N', naux, nao, nao, 1.0_dp, admm_env%A, tmp_nao_nao, 0.0_dp, tmp_aux_ap(2))
 
-! First calculate H=KS_aux*C~, real part ends on work_aux_aux2, imaginary part ends at work_aux_aux3
-         CALL cp_dbcsr_sm_fm_multiply(KS_aux_re(ispin)%matrix, mos_admm(re), tmp_aux_mo(1), nmo, 4.0_dp, 0.0_dp)
-         CALL cp_dbcsr_sm_fm_multiply(KS_aux_re(ispin)%matrix, mos_admm(im), tmp_aux_mo(2), nmo, 4.0_dp, 0.0_dp)
-         CALL cp_dbcsr_sm_fm_multiply(KS_aux_im(ispin)%matrix, mos_admm(im), tmp_aux_mo(1), nmo, -4.0_dp, 1.0_dp)
-         CALL cp_dbcsr_sm_fm_multiply(KS_aux_im(ispin)%matrix, mos_admm(re), tmp_aux_mo(2), nmo, 4.0_dp, 1.0_dp)
+! Next step Re(K~*A*P) = K~_re*A*P_re - K~_im*A*P_im
+         CALL cp_dbcsr_sm_fm_multiply(KS_aux_re(ispin)%matrix, tmp_aux_ap(1), tmp_aux_kap, nao, 1.0_dp, 0.0_dp)
+         CALL cp_dbcsr_sm_fm_multiply(KS_aux_im(ispin)%matrix, tmp_aux_ap(2), tmp_aux_kap, nao, -1.0_dp, 1.0_dp)
 
-! Next step compute S-1*H
-         CALL parallel_gemm('N', 'N', naux, nmo, naux, 1.0_dp, admm_env%S_inv, tmp_aux_mo(1), 0.0_dp, tmp_aux_mo1(1))
-         CALL parallel_gemm('N', 'N', naux, nmo, naux, 1.0_dp, admm_env%S_inv, tmp_aux_mo(2), 0.0_dp, tmp_aux_mo1(2))
+! Wq=-2*S~^-1*Re(K~*A*P), minus sign due to force = -dE/dR
+         CALL parallel_gemm('N', 'N', naux, nao, naux, -2.0_dp, admm_env%S_inv, tmp_aux_kap, 0.0_dp, tmp_aux_nao)
 
-! Here we go on with Ws=S-1*H * C^H (take care of sign of the imaginary part!!!)
-
-         CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(1), mos(re), 0.0_dp, &
-                            tmp_aux_nao(1))
-         CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(2), mos(im), 1.0_dp, &
-                            tmp_aux_nao(1))
-         CALL parallel_gemm("N", "T", naux, nao, nmo, 1.0_dp, tmp_aux_mo1(1), mos(im), 0.0_dp, &
-                            tmp_aux_nao(2))
-         CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(2), mos(re), 1.0_dp, &
-                            tmp_aux_nao(2))
-
-! Let's do the final bit  Wq=S-1*H * C^H * A^T
-         CALL parallel_gemm('N', 'T', naux, naux, nao, -1.0_dp, tmp_aux_nao(1), admm_env%A, 0.0_dp, tmp_aux_aux(1))
-         CALL parallel_gemm('N', 'T', naux, naux, nao, -1.0_dp, tmp_aux_nao(2), admm_env%A, 0.0_dp, tmp_aux_aux(2))
+! Ws=-Wq*A^T
+         CALL parallel_gemm('N', 'T', naux, naux, nao, -1.0_dp, tmp_aux_nao, admm_env%A, 0.0_dp, tmp_aux_aux)
 
          ! *** copy to sparse matrix
-         CALL copy_fm_to_dbcsr(tmp_aux_nao(1), matrix_w_q, keep_sparsity=.TRUE.)
+         CALL copy_fm_to_dbcsr(tmp_aux_nao, matrix_w_q, keep_sparsity=.TRUE.)
 
          ! *** copy to sparse matrix
-         CALL copy_fm_to_dbcsr(tmp_aux_aux(1), matrix_w_s, keep_sparsity=.TRUE.)
+         CALL copy_fm_to_dbcsr(tmp_aux_aux, matrix_w_s, keep_sparsity=.TRUE.)
 
-         DO jspin = 1, 2
-            CALL cp_fm_release(tmp_aux_mo(jspin))
-            CALL cp_fm_release(tmp_aux_mo1(jspin))
-         END DO
-
-! *** This can be done in one call w_total = w_alpha + w_beta
-         ! allocate force vector
-         CALL get_qs_env(qs_env=qs_env, natom=natom)
-         ALLOCATE (admm_force(3, natom))
          admm_force = 0.0_dp
          CALL build_overlap_force(ks_env, admm_force, &
                                   basis_type_a="AUX_FIT", basis_type_b="AUX_FIT", &
@@ -350,21 +347,22 @@ CONTAINS
                                   basis_type_a="AUX_FIT", basis_type_b="ORB", &
                                   sab_nl=sab_aux_fit_vs_orb, matrix_p=matrix_w_q)
          ! add forces
-         CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
-                         force=force)
          CALL add_qs_force(admm_force, force, "overlap_admm", atomic_kind_set)
-         DEALLOCATE (admm_force)
 
       END DO
+
+      DEALLOCATE (admm_force)
 
       ! *** Deallocated weighted density matrices
       CALL dbcsr_deallocate_matrix(matrix_w_s)
       CALL dbcsr_deallocate_matrix(matrix_w_q)
 
-      DO jspin = 1, 2
-         CALL cp_fm_release(tmp_aux_aux(jspin))
-         CALL cp_fm_release(tmp_aux_nao(jspin))
-      END DO
+      CALL cp_fm_release(tmp_nao_nao)
+      CALL cp_fm_release(tmp_aux_ap(1))
+      CALL cp_fm_release(tmp_aux_ap(2))
+      CALL cp_fm_release(tmp_aux_kap)
+      CALL cp_fm_release(tmp_aux_nao)
+      CALL cp_fm_release(tmp_aux_aux)
 
    END SUBROUTINE rt_admm_forces_none
 

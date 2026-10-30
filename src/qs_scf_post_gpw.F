@@ -239,7 +239,8 @@ MODULE qs_scf_post_gpw
 
    ! Global parameters
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post_gpw'
-   PUBLIC :: make_lumo_gpw, &
+   PUBLIC :: get_effective_core_charges, &
+             make_lumo_gpw, &
              scf_post_calculation_gpw, &
              qs_scf_post_moments, &
              write_mo_dependent_results, &

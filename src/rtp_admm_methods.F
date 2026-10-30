@@ -34,8 +34,7 @@ MODULE rtp_admm_methods
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE hfx_admm_utils,                  ONLY: create_admm_xc_section
-   USE input_constants,                 ONLY: do_admm_basis_projection,&
-                                              do_admm_purify_none
+   USE input_constants,                 ONLY: do_admm_purify_none
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: default_string_length,&
@@ -209,8 +208,6 @@ CONTAINS
       CASE (do_admm_purify_none)
          CALL calculate_rtp_admm_density(density_matrix_aux, density_matrix_aux_im, &
                                          rtp_coeff_aux_fit, occupation, ispin)
-      CASE DEFAULT
-         CPWARN("only purification NONE possible with RTP/EMD at the moment")
       END SELECT
 
       CALL timestop(handle)
@@ -263,10 +260,6 @@ CONTAINS
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
          CALL create_admm_xc_section(x_data=qs_env%x_data, xc_section=xc_section, &
                                      admm_env=admm_env)
-
-         IF (admm_control%method /= do_admm_basis_projection) THEN
-            CPWARN("RTP requires BASIS_PROJECTION.")
-         END IF
       END IF
 
       recalc_S = geometry_did_change .OR. (rtp%iter == 0 .AND. (rtp%istep == rtp%i_start))
@@ -275,8 +268,6 @@ CONTAINS
       CASE (do_admm_purify_none)
          CALL rtp_fit_mo_coeffs_none(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
                                      mos, mos_aux_fit, rtp, rtp_coeff_aux_fit, recalc_S)
-      CASE DEFAULT
-         CPWARN("Purification method not implemented in combination with RTP")
       END SELECT
 
       CALL timestop(handle)
@@ -500,8 +491,6 @@ CONTAINS
                                          matrix_ks, matrix_ks_aux_fit)
             CALL rt_merge_ks_matrix_none(ispin, admm_env, &
                                          matrix_ks_im, matrix_ks_aux_fit_im)
-         CASE DEFAULT
-            CPWARN("only purification NONE possible with RTP/EMD at the moment")
          END SELECT
 
       END DO !spin loop
