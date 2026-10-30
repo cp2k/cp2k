@@ -130,6 +130,7 @@ cmake_common_args=(
   "-DCP2K_BLAS_VENDOR:STRING=FlexiBLAS"
   "-DCP2K_USE_EVERYTHING:BOOL=OFF"
   "-DCP2K_USE_STATIC_BLAS:BOOL=OFF"
+  "-DCP2K_INSTALL_UNITTESTS:BOOL=OFF"
   "-DCP2K_USE_LIBINT2:BOOL=ON"
   "-DCP2K_USE_LIBXC:BOOL=ON"
   "-DCP2K_USE_SPGLIB:BOOL=ON"
@@ -175,11 +176,6 @@ for mpi in '' mpich openmpi; do
   %cmake_install
   [ -n "$mpi" ] && module unload mpi/${mpi}-%{_arch}
 done
-
-# TODO: Properly separate the installation of unit tests
-rm -f %{_buildrootdir}/**/%{_bindir}/*_unittest.*
-rm -f %{_buildrootdir}/**/%{_libdir}/openmpi/bin/*_unittest.*
-rm -f %{_buildrootdir}/**/%{_libdir}/mpich/bin/*_unittest.*
 
 %check
 export CP2K_DATA_DIR=%{buildroot}%{_datadir}/cp2k/data

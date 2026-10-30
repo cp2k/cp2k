@@ -113,6 +113,7 @@ option(CMAKE_POSITION_INDEPENDENT_CODE "Enable position independent code" ON)
 option(CP2K_ENABLE_CONSISTENCY_CHECKS
        "Check that the list of compiled files and files contained in src match"
        OFF)
+option(CP2K_INSTALL_UNITTESTS "Install unit-test executables" ON)
 
 option(CP2K_USE_EVERYTHING
        "Enable all dependencies. They can be individually turned off again."
@@ -1393,8 +1394,8 @@ endif()
 
 message(
   "\n"
-  "After building and installing CP2K, run the regtests with:\n"
-  "  ${PROJECT_SOURCE_DIR}/tests/do_regtest.py ${CMAKE_INSTALL_PREFIX}/bin ${__cp2k_ext}\n"
+  "After building CP2K the regtests can be run with the following command:\n"
+  "  ${PROJECT_SOURCE_DIR}/tests/do_regtest.py ${PROJECT_BINARY_DIR}/bin ${__cp2k_ext}\n"
 )
 
 # files needed for cmake
