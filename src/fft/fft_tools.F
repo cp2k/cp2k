@@ -1247,8 +1247,7 @@ CONTAINS
             END IF
 
             ! FFT along y and z
-            CALL fft_1d(fft_scratch%fft_plan(1), cin, sbuf, 1._dp)
-            CALL fft_1d(fft_scratch%fft_plan(2), sbuf, tbuf, 1._dp)
+            CALL fft_2d(fft_scratch%fft_plan(1), cin, tbuf, 1._dp)
 
             IF (test) THEN
                sum_data = ABS(SUM(tbuf))
@@ -1318,8 +1317,7 @@ CONTAINS
             END IF
 
             ! FFT along y and z
-            CALL fft_1d(fft_scratch%fft_plan(5), tbuf, sbuf, 1._dp)
-            CALL fft_1d(fft_scratch%fft_plan(6), sbuf, cin, 1._dp)
+            CALL fft_2d(fft_scratch%fft_plan(5), tbuf, cin, 1._dp)
 
             IF (test) THEN
                sum_data = ABS(SUM(cin))
@@ -1643,11 +1641,9 @@ CONTAINS
                END IF
             END IF
 
-            abuf => fft_scratch%a2buf
             bbuf => fft_scratch%a4buf
             ! FFT along z and y
-            CALL fft_1d(fft_scratch%fft_plan(1), zin, abuf, norm)
-            CALL fft_1d(fft_scratch%fft_plan(2), abuf, bbuf, 1.0_dp)
+            CALL fft_2d(fft_scratch%fft_plan(1), zin, bbuf, norm)
 
             abuf => fft_scratch%a5buf
 
@@ -1721,13 +1717,8 @@ CONTAINS
                END IF
             END IF
 
-            bbuf => fft_scratch%a2buf
-
-            ! FFT along y
-            CALL fft_1d(fft_scratch%fft_plan(5), abuf, bbuf, 1.0_dp)
-
-            ! FFT along z
-            CALL fft_1d(fft_scratch%fft_plan(6), bbuf, zin, norm)
+            ! FFT along y and z
+            CALL fft_2d(fft_scratch%fft_plan(5), abuf, zin, norm)
 
             IF (test) THEN
                sum_data = ABS(SUM(zin))
@@ -3436,24 +3427,17 @@ CONTAINS
                ALLOCATE (fft_scratch_new%fft_scratch%rbuf6(mx1*mz1*mcy3, 0:DIM(1) - 1))
 
                !set up fft plans
-               CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(1), FWFFT, .TRUE., .FALSE., &
-                                       mx1*my1, n(3), n(3), mx1*my1, &
-                                       fft_scratch_new%fft_scratch%a1buf, fft_scratch_new%fft_scratch%a2buf)
-               CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(2), FWFFT, .TRUE., .FALSE., &
-                                       mx1*mz1, n(2), n(2), mx1*mz1, &
-                                       fft_scratch_new%fft_scratch%a2buf, fft_scratch_new%fft_scratch%a4buf)
+               CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(1), FWFFT, .TRUE., .FALSE., &
+                                       [n(3), n(2)], mx1, &
+                                       fft_scratch_new%fft_scratch%a1buf, fft_scratch_new%fft_scratch%a4buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(3), FWFFT, .TRUE., .FALSE., &
                                        my3*mz3, n(1), n(1), my3*mz3, &
                                        fft_scratch_new%fft_scratch%a5buf, fft_scratch_new%fft_scratch%a6buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(4), BWFFT, .FALSE., .TRUE., &
                                        n(1), my3*mz3, n(1), my3*mz3, &
                                        fft_scratch_new%fft_scratch%a6buf, fft_scratch_new%fft_scratch%a5buf)
-               CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(5), BWFFT, .FALSE., .TRUE., &
-                                       n(2), mx1*mz1, n(2), mx1*mz1, &
-                                       fft_scratch_new%fft_scratch%a4buf, fft_scratch_new%fft_scratch%a2buf)
-               CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(6), BWFFT, .FALSE., .TRUE., &
-                                       n(3), mx1*my1, n(3), mx1*my1, &
-                                       fft_scratch_new%fft_scratch%a2buf, fft_scratch_new%fft_scratch%a1buf)
+               CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(5), BWFFT, .FALSE., .TRUE., &
+                                       [n(3), n(2)], mx1, fft_scratch_new%fft_scratch%a4buf, fft_scratch_new%fft_scratch%a1buf)
 
             CASE (200) ! fft3d_ps: plane distribution
                CPASSERT(PRESENT(fft_sizes))
@@ -3492,24 +3476,17 @@ CONTAINS
                END IF
 
                !set up fft plans
-               CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(1), FWFFT, .TRUE., .FALSE., &
-                                       nx*ny, nz, nz, nx*ny, &
-                                       fft_scratch_new%fft_scratch%tbuf, fft_scratch_new%fft_scratch%r1buf)
-               CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(2), FWFFT, .TRUE., .FALSE., &
-                                       nx*nz, ny, ny, nx*nz, &
-                                       fft_scratch_new%fft_scratch%r1buf, fft_scratch_new%fft_scratch%tbuf)
+               CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(1), FWFFT, .TRUE., .FALSE., &
+                                       [nz, ny], nx, fft_scratch_new%fft_scratch%r1buf, fft_scratch_new%fft_scratch%tbuf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(3), FWFFT, .TRUE., .FALSE., &
                                        nyzray, n(1), n(1), nyzray, &
                                        fft_scratch_new%fft_scratch%r1buf, fft_scratch_new%fft_scratch%r2buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(4), BWFFT, .FALSE., .TRUE., &
                                        n(1), nyzray, n(1), nyzray, &
                                        fft_scratch_new%fft_scratch%r2buf, fft_scratch_new%fft_scratch%r1buf)
-               CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(5), BWFFT, .FALSE., .TRUE., &
-                                       ny, nx*nz, ny, nx*nz, &
+               CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(5), BWFFT, .FALSE., .TRUE., &
+                                       [nz, ny], nx, &
                                        fft_scratch_new%fft_scratch%tbuf, fft_scratch_new%fft_scratch%r1buf)
-               CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(6), BWFFT, .FALSE., .TRUE., &
-                                       nz, nx*ny, nz, nx*ny, &
-                                       fft_scratch_new%fft_scratch%r1buf, fft_scratch_new%fft_scratch%tbuf)
 
             CASE (300) ! fft3d_ps: block distribution
                CPASSERT(PRESENT(fft_sizes))
