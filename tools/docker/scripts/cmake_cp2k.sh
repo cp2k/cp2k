@@ -90,6 +90,45 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
+elif [[ "${PROFILE}" == "toolchain_mkl" ]] && [[ "${VERSION}" == "psmp" ]]; then
+  cmake \
+    --preset "native-gnu-x86_64" \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCP2K_BLAS_VENDOR=MKL \
+    -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_MPI=ON \
+    -DCP2K_USE_LIBTORCH=OFF \
+    -DCP2K_USE_OPENPMD=OFF \
+    -DCP2K_USE_DEEPMD=OFF \
+    -DCP2K_USE_GAUXC=OFF \
+    -DCP2K_USE_SKALA_FTORCH=OFF \
+    -DCP2K_USE_MIMIC=OFF \
+    -DCP2K_USE_PEXSI=OFF \
+    -DCP2K_USE_DLAF=OFF \
+    -Werror=dev \
+    .. |& tee ./cmake.log
+  CMAKE_EXIT_CODE=$?
+
+elif [[ "${PROFILE}" == "toolchain_mkl" ]] && [[ "${VERSION}" == "ssmp" ]]; then
+  cmake \
+    --preset "native-gnu-x86_64" \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCP2K_BLAS_VENDOR=MKL \
+    -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_MPI=OFF \
+    -DCP2K_USE_LIBTORCH=OFF \
+    -DCP2K_USE_DEEPMD=OFF \
+    -DCP2K_USE_GAUXC=OFF \
+    -DCP2K_USE_SKALA_FTORCH=OFF \
+    -DCP2K_USE_MIMIC=OFF \
+    -DCP2K_USE_PEXSI=OFF \
+    -DCP2K_USE_DLAF=OFF \
+    -Werror=dev \
+    .. |& tee ./cmake.log
+  CMAKE_EXIT_CODE=$?
+
 elif [[ "${PROFILE}" == "toolchain_intel" ]] && [[ "${VERSION}" == "psmp" ]]; then
   cmake \
     --preset "native-intel" \
