@@ -769,6 +769,13 @@ list(
   qs_scf_lanczos.F
   qs_scf_loop_utils.F
   qs_scf_methods.F
+  nonlinear_optics/nlo_current_tensor_derivatives.F
+  nonlinear_optics/nlo_derivatives.F
+  nonlinear_optics/nlo_T1_T2_band_transition.F
+  nonlinear_optics/nlo_read_input.F
+  nonlinear_optics/nlo_bz_integration.F
+  nonlinear_optics/nlo.F
+  nonlinear_optics/nlo_types.F
   qs_scf_output.F
   qs_scf_post_gpw.F
   qs_scf_post_scf.F
