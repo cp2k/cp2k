@@ -533,9 +533,11 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ITER_LEVEL_VERBOSITY", &
-                          description="Controls the verbosity of information about iteration levels printed "// &
-                          "upon entry or exit of one. The default is dependent on PRINT_LEVEL: SILENT for "// &
-                          "MEDIUM or lower, NOTICE for HIGH, STACK for DEBUG.", &
+                          description="Controls the verbosity of information about iteration levels "// &
+                          "printed upon entry or exit of one. Iteration levels are defined by type "// &
+                          "of task; the names and descriptions of iteration levels are listed under "// &
+                          "the EACH section of printkeys. The default is dependent on PRINT_LEVEL: "// &
+                          "SILENT for MEDIUM or lower, NOTICE for HIGH, STACK for DEBUG.", &
                           usage="ITER_LEVEL_VERBOSITY NOTICE", default_i_val=iter_silent, &
                           enum_c_vals=s2a("SILENT", "NOTICE", "STACK"), &
                           enum_desc=s2a("Do not print anything about iter levels", &
