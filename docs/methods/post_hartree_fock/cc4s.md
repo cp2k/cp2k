@@ -37,27 +37,44 @@ The filename prefix and CC4S-specific keywords are shown with their default valu
 &END CC4S
 ```
 
-| Keyword                                                                                | Meaning                                                                                                                                                                                 |
-| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [FILENAME](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.FILENAME)                             | Common prefix for the generated files, using standard CP2K print-key naming.                                                                                                            |
-| [METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.METHOD)                                 | `MP2` generates MP2; `CCSD` adds CCSD; `CCSD_T` also adds perturbative triples.                                                                                                         |
-| [N_FROZEN_CORE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.N_FROZEN_CORE)                   | Number of lowest occupied spatial orbitals excluded from correlation; must leave at least one occupied orbital. With pseudopotentials, excludes additional explicitly treated orbitals. |
-| [MAX_ITER](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.MAX_ITER)                             | Maximum CC4S coupled-cluster iterations.                                                                                                                                                |
-| [ENERGY_CONVERGENCE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.ENERGY_CONVERGENCE)         | CC4S energy convergence threshold, in Hartree.                                                                                                                                          |
-| [AMPLITUDES_CONVERGENCE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.AMPLITUDES_CONVERGENCE) | CC4S amplitude convergence threshold.                                                                                                                                                   |
-| [OUTPUT_BUFFER_SIZE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.OUTPUT_BUFFER_SIZE)         | Maximum output buffer per MPI rank, in MiB (1 MiB = 1048576 bytes). Positive real value; defaults to 8.                                                                                 |
-| [MAX_MEMORY](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.MAX_MEMORY)                         | Estimated export workspace limit, in MB per MPI rank; includes output and MPI reduction buffers, but excludes existing SCF storage and CC4S memory.                                     |
+| Keyword | Meaning | |
+-------------------------------------------------------------------------------------- |
+\---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| | [FILENAME](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.FILENAME) | Common prefix for the generated
+files, using standard CP2K print-key naming. | |
+[METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.METHOD) | `MP2` generates MP2; `CCSD` adds CCSD;
+`CCSD_T` also adds perturbative triples. | |
+[N_FROZEN_CORE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.N_FROZEN_CORE) | Number of lowest occupied
+spatial orbitals excluded from correlation; must leave at least one occupied orbital. With
+pseudopotentials, excludes additional explicitly treated orbitals. | |
+[MAX_ITER](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.MAX_ITER) | Maximum CC4S coupled-cluster
+iterations. | | [ENERGY_CONVERGENCE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.ENERGY_CONVERGENCE) |
+CC4S energy convergence threshold, in Hartree. | |
+[AMPLITUDES_CONVERGENCE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.AMPLITUDES_CONVERGENCE) | CC4S
+amplitude convergence threshold. | |
+[OUTPUT_BUFFER_SIZE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.OUTPUT_BUFFER_SIZE) | Maximum output
+buffer per MPI rank, in MiB (1 MiB = 1048576 bytes). Positive real value; defaults to 8. | |
+[MAX_MEMORY](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.MAX_MEMORY) | Estimated export workspace limit,
+in MB per MPI rank; includes output and MPI reduction buffers, but excludes existing SCF storage and
+CC4S memory. |
 
 `OUTPUT_BUFFER_SIZE` is rounded down to whole 8-byte values and must hold at least one value. Its
 element count must fit a default `INTEGER` (at most 2,147,483,647 with 32-bit integers). The actual
-buffer is capped by the exported vertex size and printed in MiB. This keyword controls output
-gathering and writing; it does not directly set transformation batch sizes or numerical thresholds.
-`MAX_MEMORY` remains in decimal MB (1 MB = 1,000,000 bytes). It selects orbital and auxiliary
-transformation batches. Each orbital batch is written before the next is constructed; the output
-buffer is reused. The estimate conservatively allows for simultaneous arrays and redistribution
-buffers without assuming balanced MPI storage. It excludes allocator overhead and is not a limit on
-the process RSS or a measurement of available memory. An insufficient budget for canonicalization or
-the smallest batch causes an error. The log reports the selected batch sizes and stage timings.
+buffer is capped by the exported vertex size and the MPI wrapper's byte-count range, and printed in
+MiB. This keyword controls output gathering and writing; it does not directly set transformation
+batch sizes or numerical thresholds. `MAX_MEMORY` remains in decimal MB (1 MB = 1,000,000 bytes). It
+selects orbital and auxiliary transformation batches. Each orbital batch is written before the next
+is constructed; the output buffer is reused. The estimate conservatively allows for simultaneous
+arrays and redistribution buffers without assuming balanced MPI storage. It excludes allocator
+overhead and is not a limit on the process RSS or a measurement of available memory. An insufficient
+budget for canonicalization or the smallest batch causes an error. The log reports the selected
+batch sizes and stage timings.
+
+Global vertex sizes and stream offsets use checked 64-bit arithmetic. Output pieces and
+transformation batches also obey conservative MPI and tensor-library count limits, independently of
+`MAX_MEMORY`. Fixed coefficient/metric storage or a minimum batch exceeding those limits is
+rejected. The complete vertex need not fit a default `INTEGER`; this does not remove limits in SCF
+or CC4S.
 
 Export is OFF by default. `ON` enables it independently of `GLOBAL/PRINT_LEVEL`; standard print
 levels are also accepted. The iteration and convergence settings above control CC4S, independently
@@ -71,10 +88,10 @@ converged production settings.
 
 ## Boundary conditions and interactions
 
-| System                                 | CELL and POISSON periodicity | HF potential | RI metric |
-| -------------------------------------- | ---------------------------- | ------------ | --------- |
-| Isolated molecule                      | `NONE` in both               | `COULOMB`    | `COULOMB` |
-| Neutral three-dimensional Γ-point cell | `XYZ` in both                | `TRUNCATED`  | `HFX`     |
+| System | CELL and POISSON periodicity | HF potential | RI metric | |
+-------------------------------------- | ---------------------------- | ------------ | --------- | |
+Isolated molecule | `NONE` in both | `COULOMB` | `COULOMB` | | Neutral three-dimensional Γ-point
+cell | `XYZ` in both | `TRUNCATED` | `HFX` |
 
 Periodic export supports Γ-point calculations only. `CUTOFF_RADIUS` must be positive and smaller
 than half the minimum perpendicular spacing between opposite cell faces.
@@ -86,13 +103,13 @@ are unsupported.
 
 With `PROJECT water` and the defaults above, the files in the CP2K working directory are:
 
-| File                                | Contents                                                                           |
-| ----------------------------------- | ---------------------------------------------------------------------------------- |
-| `water-cc4s-EigenEnergies.yaml`     | Tensor header, Fermi level and complete orbital-energy list in `metaData.energies` |
-| `water-cc4s-EigenEnergies.elements` | Plain-text orbital energies in Hartree                                             |
-| `water-cc4s-CoulombVertex.yaml`     | Tensor header, dimensions and interaction metadata                                 |
-| `water-cc4s-CoulombVertex.elements` | Raw binary real 64-bit vertex elements, without Fortran record markers             |
-| `water-cc4s.in`                     | CC4S algorithm sequence and solver settings                                        |
+| File | Contents | | ----------------------------------- |
+---------------------------------------------------------------------------------- | |
+`water-cc4s-EigenEnergies.yaml` | Tensor header, Fermi level and complete orbital-energy list in
+`metaData.energies` | | `water-cc4s-EigenEnergies.elements` | Plain-text orbital energies in Hartree
+| | `water-cc4s-CoulombVertex.yaml` | Tensor header, dimensions and interaction metadata | |
+`water-cc4s-CoulombVertex.elements` | Raw binary real 64-bit vertex elements, without Fortran record
+markers | | `water-cc4s.in` | CC4S algorithm sequence and solver settings |
 
 With `PROJECT water`:
 

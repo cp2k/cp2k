@@ -67,8 +67,7 @@ MODULE cc4s_export
                                               has_uniform_occupation,&
                                               mo_set_type
    USE qs_tensors_types,                ONLY: create_2c_tensor,&
-                                              create_3c_tensor,&
-                                              split_block_sizes
+                                              create_3c_tensor
    USE scf_control_types,               ONLY: scf_control_type
 #include "./base/base_uses.f90"
 
@@ -76,6 +75,12 @@ MODULE cc4s_export
    PRIVATE
    PUBLIC :: write_cc4s
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cc4s_export'
+   ! MPI statistics count bytes in default integers. DBT/DBM also use default-integer
+   ! counts and grow buffers by up to 30%; leave a factor of two for data storage.
+   INTEGER(int_8), PARAMETER :: output_count_limit = INT(HUGE(0), int_8)/dp_size
+   INTEGER(int_8), PARAMETER :: backend_data_limit = output_count_limit/2
+   ! Up to four 64-bit indices per block, with allocation/communication headroom.
+   INTEGER(int_8), PARAMETER :: backend_block_limit = INT(HUGE(0), int_8)/64
    REAL(dp), PARAMETER :: elements_per_mib = 1024.0_dp**2/REAL(dp_size, dp)
 
 CONTAINS
@@ -96,7 +101,7 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: filename
       INTEGER :: frozen, functional, handle, homo, max_iter, method_id, nao, nmo, nri, nstored, &
          output_unit, poisson_periodic, stage_handle
-      INTEGER(KIND=int_8)                                :: buffer_elements
+      INTEGER(KIND=int_8)                                :: buffer_elements, total_elements
       INTEGER, DIMENSION(2)                              :: dims2
       INTEGER, DIMENSION(3)                              :: dims3
       LOGICAL                                            :: do_kpoints, enabled, periodic
@@ -259,9 +264,12 @@ CONTAINS
       CALL dbt_get_info(x_data(1, 1)%ri_data%t_3c_int_ctr_1(1, 1), nfull_total=dims3)
       nri = dims3(2)
       CPASSERT(dims3(1) == nao .AND. dims3(3) == nao .AND. nri > 0)
-      IF (REAL(nri, dp)*REAL(nao, dp)**2 > REAL(HUGE(1), dp)) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "CC4S: dense tensor exceeds the supported integer indexing range")
+      ! Check quadratic storage before canonicalization; the full AO vertex is never gathered.
+      IF (limited_product([INT(nao, int_8), INT(nao, int_8)], backend_data_limit) > backend_data_limit) THEN
+         CPABORT("CC4S: canonical matrices exceed backend count limits")
+      END IF
+      IF (limited_product([INT(nri, int_8), INT(nri, int_8)], backend_data_limit) > backend_data_limit) THEN
+         CPABORT("CC4S: RI metric exceeds backend count limits")
       END IF
       ! Canonicalization precedes batch selection; reject an insufficient budget before allocation.
       memory_mb = REAL(dp_size, dp)*6.0_dp*REAL(nao, dp)**2/1.0e6_dp
@@ -295,7 +303,13 @@ CONTAINS
       END IF
       fermi_energy = 0.5_dp*(eigenvalues(homo) + eigenvalues(homo + 1))
       nmo = nmo - frozen
-      buffer_elements = MIN(buffer_elements, INT(nri, int_8)*INT(nmo, int_8)**2)
+      total_elements = vertex_size(nri, nmo)
+      buffer_elements = MIN(buffer_elements, total_elements, output_count_limit)
+      ! The initial coefficient copy can have a different block partition. Bound its
+      ! metadata by the number of elements before entering DBCSR/DBT conversion.
+      IF (limited_product([INT(nao, int_8), INT(nmo, int_8)], backend_block_limit) > backend_block_limit) THEN
+         CPABORT("CC4S: coefficients exceed backend count limits")
+      END IF
       IF (output_unit > 0) WRITE (output_unit, '(/,T3,A,T69,F12.6)') &
          "CC4S| Actual output buffer size per MPI rank [MiB]:", REAL(buffer_elements, dp)/elements_per_mib
       CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo, template_fmstruct=mo_coeff%matrix_struct)
@@ -411,12 +425,11 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: homo
       REAL(dp), INTENT(IN)                               :: eigenvalues(nmo), fermi_energy
 
-      INTEGER                                            :: bounds2(2, 2), bounds3(2, 3), handle, &
-                                                            im, ir, iunit, mb, mfirst, mlast, nao, &
-                                                            nri, pdims(3), pdims2(2), rb, rfirst, &
-                                                            rlast
+      INTEGER :: block_width, bounds2(2, 2), bounds3(2, 3), handle, im, ir, iunit, mb, &
+         metric_blocks(2), mfirst, mlast, nao, nri, pdims(3), pdims2(2), rb, rfirst, rlast
       INTEGER, ALLOCATABLE                               :: ao(:), d1(:), d2(:), d3(:), mo(:), ri(:)
-      REAL(dp)                                           :: memory_mb, start, trial_m, trial_r
+      REAL(dp)                                           :: memory_mb, pressure, start, trial_m, &
+                                                            trial_r
       REAL(dp), ALLOCATABLE                              :: values(:)
       TYPE(dbt_pgrid_type)                               :: grid, grid2
       TYPE(dbt_type)                                     :: ao_triangle, coeff, coeff_batch, gamma, &
@@ -426,24 +439,45 @@ CONTAINS
       CALL dbt_get_info(integrals, blk_size_1=ao, blk_size_2=ri)
       nao = SUM(ao)
       nri = SUM(ri)
-      CALL split_block_sizes([nmo], mo, max_size=16)
+      ! Smaller orbital blocks may be necessary for one output stripe to fit the backend.
+      block_width = 16
+      DO WHILE (limited_product([INT(nri, int_8), INT(nmo, int_8), INT(block_width, int_8)], &
+                                backend_data_limit) > backend_data_limit .AND. block_width > 1)
+         block_width = block_width/2
+      END DO
+      ALLOCATE (mo(1 + (nmo - 1)/block_width))
+      mo = block_width
+      mo(SIZE(mo)) = nmo - (SIZE(mo) - 1)*block_width
+      CALL dbt_get_info(metric, nblks_total=metric_blocks)
+      ! Reblocking can refine both original and requested auxiliary partitions.
+      IF (limited_product([INT(para_env%num_pe, int_8), INT(metric_blocks(1), int_8) + SIZE(ri, KIND=int_8), &
+                           INT(metric_blocks(2), int_8) + SIZE(ri, KIND=int_8)], &
+                          backend_block_limit) > backend_block_limit) THEN
+         CPABORT("CC4S: RI metric metadata exceeds backend limits")
+      END IF
       mb = SIZE(mo)
       rb = SIZE(ri)
       ! Bound the busiest rank without assuming balanced distribution. Include private operands,
       ! simultaneously live results, and conservative redistribution/communication copies.
-      memory_mb = batch_workspace(nao, nri, nmo, mo, ri, mb, rb, buffer_elements)
-      DO WHILE (memory_mb > max_memory_mb .AND. (mb > 1 .OR. rb > 1))
+      pressure = batch_pressure(ao, ri, mo, mb, rb, para_env%num_pe, buffer_elements, max_memory_mb)
+      DO WHILE (pressure > 1.0_dp .AND. (mb > 1 .OR. rb > 1))
          trial_m = HUGE(0.0_dp)
          trial_r = HUGE(0.0_dp)
-         IF (mb > 1) trial_m = batch_workspace(nao, nri, nmo, mo, ri, (mb + 1)/2, rb, buffer_elements)
-         IF (rb > 1) trial_r = batch_workspace(nao, nri, nmo, mo, ri, mb, (rb + 1)/2, buffer_elements)
+         IF (mb > 1) trial_m = batch_pressure(ao, ri, mo, mb/2 + MODULO(mb, 2), rb, para_env%num_pe, &
+                                              buffer_elements, max_memory_mb)
+         IF (rb > 1) trial_r = batch_pressure(ao, ri, mo, mb, rb/2 + MODULO(rb, 2), para_env%num_pe, &
+                                              buffer_elements, max_memory_mb)
          IF (trial_m <= trial_r) THEN
-            mb = (mb + 1)/2
+            mb = mb/2 + MODULO(mb, 2)
          ELSE
-            rb = (rb + 1)/2
+            rb = rb/2 + MODULO(rb, 2)
          END IF
-         memory_mb = MIN(trial_m, trial_r)
+         pressure = MIN(trial_m, trial_r)
       END DO
+      memory_mb = batch_workspace(nao, nri, nmo, mo, ri, mb, rb, buffer_elements)
+      IF (.NOT. batch_counts_fit(ao, ri, mo, mb, rb, para_env%num_pe)) THEN
+         CPABORT("CC4S: minimum batch exceeds backend count limits")
+      END IF
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(T3,A,T69,F12.3)') &
             "CC4S| Estimated memory required for export per MPI rank [MB]:", memory_mb
@@ -457,8 +491,8 @@ CONTAINS
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Maximum orbitals per transformation batch:", batch_width(mo, mb)
          WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Maximum auxiliary functions per batch:", batch_width(ri, rb)
-         WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of orbital batches:", (SIZE(mo) + mb - 1)/mb
-         WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of auxiliary batches:", (SIZE(ri) + rb - 1)/rb
+         WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of orbital batches:", 1 + (SIZE(mo) - 1)/mb
+         WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of auxiliary batches:", 1 + (SIZE(ri) - 1)/rb
       END IF
       pdims = 0
       pdims2 = 0
@@ -486,13 +520,13 @@ CONTAINS
                                name="CC4S Coulomb vertex batch")
          DEALLOCATE (d1, d2, d3)
          mfirst = SUM(mo(:im - 1)) + 1
-         mlast = SUM(mo(:MIN(SIZE(mo), im + mb - 1)))
+         mlast = SUM(mo(:im + MIN(mb - 1, SIZE(mo) - im)))
          bounds2(:, 1) = [1, nao]
          bounds2(:, 2) = [mfirst, mlast]
          CALL dbt_copy(coeff, coeff_batch, bounds=bounds2)
          DO ir = 1, SIZE(ri), rb
             rfirst = SUM(ri(:ir - 1)) + 1
-            rlast = SUM(ri(:MIN(SIZE(ri), ir + rb - 1)))
+            rlast = SUM(ri(:ir + MIN(rb - 1, SIZE(ri) - ir)))
             start = m_walltime()
             CALL timeset("cc4s_transform", handle)
             bounds3(:, 1) = [1, nao]
@@ -547,6 +581,142 @@ CONTAINS
    END SUBROUTINE export_vertex_batches
 
 ! **************************************************************************************************
+!> \brief Positive product, saturated at limit+1, without overflowing intermediate products.
+!> \param factors Nonnegative factors
+!> \param limit Maximum supported value, strictly below HUGE(int_8)
+!> \return Product or limit+1 if the limit would be exceeded
+! **************************************************************************************************
+   PURE FUNCTION limited_product(factors, limit) RESULT(value)
+      INTEGER(int_8), INTENT(IN)                         :: factors(:), limit
+      INTEGER(int_8)                                     :: value
+
+      INTEGER                                            :: i
+
+      value = 1_int_8
+      DO i = 1, SIZE(factors)
+         IF (factors(i) == 0_int_8) THEN
+            value = 0_int_8
+            RETURN
+         END IF
+      END DO
+      DO i = 1, SIZE(factors)
+         IF (value > limit/factors(i)) THEN
+            value = limit + 1_int_8
+            RETURN
+         END IF
+         value = value*factors(i)
+      END DO
+   END FUNCTION limited_product
+
+! **************************************************************************************************
+!> \brief Validate the complete stream extent before constructing offsets or opening files.
+!> \param nri Number of auxiliary functions
+!> \param nmo Number of active orbitals
+!> \return Number of exported Real64 elements
+! **************************************************************************************************
+   FUNCTION vertex_size(nri, nmo) RESULT(elements)
+      INTEGER, INTENT(IN)                                :: nri, nmo
+      INTEGER(int_8)                                     :: elements
+
+      INTEGER(int_8), PARAMETER :: file_limit = HUGE(0_int_8)/dp_size
+
+      CPASSERT(nri > 0 .AND. nmo > 0)
+      elements = limited_product([INT(nri, int_8), INT(nmo, int_8), INT(nmo, int_8)], file_limit)
+      IF (elements > file_limit) CPABORT("CC4S: vertex exceeds stream position range")
+   END FUNCTION vertex_size
+
+! **************************************************************************************************
+!> \brief Intersect a block segment with an output piece before narrowing to local indices.
+!> \param start Zero-based global offset of the block segment
+!> \param length Number of values in the block segment
+!> \param offset Zero-based global offset of the output piece
+!> \param count Number of values in the output piece
+!> \param lo First overlapping block index, or 1 for an empty intersection
+!> \param hi Last overlapping block index, or 0 for an empty intersection
+! **************************************************************************************************
+   PURE SUBROUTINE segment_overlap(start, length, offset, count, lo, hi)
+      INTEGER(int_8), INTENT(IN)                         :: start
+      INTEGER, INTENT(IN)                                :: length
+      INTEGER(int_8), INTENT(IN)                         :: offset, count
+      INTEGER, INTENT(OUT)                               :: lo, hi
+
+      INTEGER(int_8)                                     :: first, last
+
+      first = MAX(start, offset)
+      last = MIN(start + INT(length, int_8), offset + count)
+      lo = 1
+      hi = 0
+      IF (first >= last) RETURN
+      lo = INT(first - start) + 1
+      hi = INT(last - start)
+   END SUBROUTINE segment_overlap
+
+! **************************************************************************************************
+!> \brief Bound backend data and metadata independently of the user memory budget.
+!> \param ao AO block sizes
+!> \param ri Auxiliary block sizes
+!> \param mo MO block sizes
+!> \param mb MO blocks in a batch
+!> \param rb Auxiliary blocks in a batch
+!> \param nranks Maximum replication multiplicity
+!> \param pressure Maximum ratio of a count bound to its supported limit
+!> \return Whether every intermediate is safely representable, even on one rank
+! **************************************************************************************************
+   FUNCTION batch_counts_fit(ao, ri, mo, mb, rb, nranks, pressure) RESULT(fits)
+      INTEGER, INTENT(IN)                                :: ao(:), ri(:), mo(:), mb, rb, nranks
+      REAL(dp), INTENT(OUT), OPTIONAL                    :: pressure
+      LOGICAL                                            :: fits
+
+      INTEGER(int_8), PARAMETER :: product_limit = HUGE(0_int_8)/dp_size
+
+      INTEGER(int_8)                                     :: a, b, block_count, data_count, m, na, &
+                                                            nb, nm, nq, nr, q, r
+
+      a = SUM(INT(ao, int_8)); r = SUM(INT(ri, int_8)); m = SUM(INT(mo, int_8))
+      b = INT(batch_width(mo, mb), int_8); q = INT(batch_width(ri, rb), int_8)
+      na = SIZE(ao, KIND=int_8); nr = SIZE(ri, KIND=int_8); nm = SIZE(mo, KIND=int_8)
+      nb = INT(mb, int_8); nq = INT(rb, int_8)
+      data_count = MAX(limited_product([a, a, q], product_limit), &
+                       limited_product([b, q, a], product_limit), &
+                       limited_product([q, m, b], product_limit), &
+                       limited_product([r, m, b], product_limit))
+      ! Allow refinement in three dimensions and replicated partial-result metadata
+      ! received from every rank. Payload buffers in TAS replication are per peer.
+      block_count = MAX(limited_product([8_int_8, INT(nranks, int_8), na, nm], product_limit), &
+                        limited_product([8_int_8, INT(nranks, int_8), na, na, nq], product_limit), &
+                        limited_product([8_int_8, INT(nranks, int_8), nb, nq, na], product_limit), &
+                        limited_product([8_int_8, INT(nranks, int_8), nq, nm, nb], product_limit), &
+                        limited_product([8_int_8, INT(nranks, int_8), nr, nm, nb], product_limit))
+      fits = data_count <= backend_data_limit .AND. block_count <= backend_block_limit
+      IF (PRESENT(pressure)) pressure = MAX(REAL(data_count, dp)/REAL(backend_data_limit, dp), &
+                                            REAL(block_count, dp)/REAL(backend_block_limit, dp))
+   END FUNCTION batch_counts_fit
+
+! **************************************************************************************************
+!> \brief Score a candidate batch against both workspace and integer-count limits.
+!> \param ao AO block sizes
+!> \param ri Auxiliary block sizes
+!> \param mo MO block sizes
+!> \param mb MO blocks in a batch
+!> \param rb Auxiliary blocks in a batch
+!> \param nranks Maximum replication multiplicity
+!> \param buffer_elements Output buffer length
+!> \param max_memory_mb Additional workspace budget
+!> \return Score no larger than one for an admissible batch
+! **************************************************************************************************
+   FUNCTION batch_pressure(ao, ri, mo, mb, rb, nranks, buffer_elements, max_memory_mb) RESULT(pressure)
+      INTEGER, INTENT(IN)                                :: ao(:), ri(:), mo(:), mb, rb, nranks
+      INTEGER(int_8), INTENT(IN)                         :: buffer_elements
+      REAL(dp), INTENT(IN)                               :: max_memory_mb
+      REAL(dp)                                           :: pressure
+
+      REAL(dp)                                           :: count_pressure
+
+      pressure = batch_workspace(SUM(ao), SUM(ri), SUM(mo), mo, ri, mb, rb, buffer_elements)/max_memory_mb
+      IF (.NOT. batch_counts_fit(ao, ri, mo, mb, rb, nranks, count_pressure)) pressure = MAX(pressure, count_pressure)
+   END FUNCTION batch_pressure
+
+! **************************************************************************************************
 !> \brief Largest number of functions in a group of consecutive tensor blocks.
 !> \param sizes Block sizes
 !> \param blocks Number of blocks per batch
@@ -560,7 +730,7 @@ CONTAINS
 
       width = 0
       DO i = 1, SIZE(sizes), blocks
-         width = MAX(width, SUM(sizes(i:MIN(SIZE(sizes), i + blocks - 1))))
+         width = MAX(width, SUM(sizes(i:i + MIN(blocks - 1, SIZE(sizes) - i))))
       END DO
    END FUNCTION batch_width
 
@@ -675,6 +845,7 @@ CONTAINS
 
       start_time = m_walltime()
       CALL timeset("cc4s_gather", handle)
+      CPASSERT(SIZE(values, KIND=int_8) <= output_count_limit)
       ALLOCATE (off1(dbt_nblks_total(gamma, 1)), off2(dbt_nblks_total(gamma, 2)), &
                 off3(dbt_nblks_total(gamma, 3)))
       CALL dbt_get_info(gamma, blk_offset_1=off1, blk_offset_2=off2, blk_offset_3=off3)
@@ -702,8 +873,7 @@ CONTAINS
                DO k = 1, sizes(3)
                   DO j = 1, sizes(2)
                      start = first + INT(nRI, int_8)*(INT(j - 1, int_8) + INT(nMO, int_8)*INT(k - 1, int_8))
-                     lo = INT(MAX(0_int_8, offset - start)) + 1
-                     hi = INT(MIN(INT(sizes(1), int_8), offset + count - start))
+                     CALL segment_overlap(start, sizes(1), offset, count, lo, hi)
                      IF (lo > hi) CYCLE
                      values(start + lo - offset:start + hi - offset) = block(lo:hi, j, k)
                   END DO
