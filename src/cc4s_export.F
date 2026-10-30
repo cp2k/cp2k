@@ -324,7 +324,7 @@ CONTAINS
       CALL timeset("cc4s_write_files", stage_handle)
       write_start = m_walltime()
       IF (para_env%is_source()) THEN
-         CALL write_cc4s_in(logger, print_section, method, max_iter, energy_conv, amp_conv)
+         CALL write_cc4s_in(logger, print_section, method, homo - frozen, max_iter, energy_conv, amp_conv)
       END IF
       elapsed(5) = elapsed(5) + m_walltime() - write_start
       CALL timestop(stage_handle)
@@ -834,15 +834,16 @@ CONTAINS
 !> \param logger Logger for output selection and naming
 !> \param print_section CC4S print key
 !> \param method Requested correlation method: MP2, CCSD or CCSD_T
+!> \param nocc Number of exported occupied spatial orbitals
 !> \param max_iter Maximum coupled-cluster iterations
 !> \param energy_conv CC4S energy convergence threshold
 !> \param amp_conv CC4S amplitude convergence threshold
 ! **************************************************************************************************
-   SUBROUTINE write_cc4s_in(logger, print_section, method, max_iter, energy_conv, amp_conv)
+   SUBROUTINE write_cc4s_in(logger, print_section, method, nocc, max_iter, energy_conv, amp_conv)
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_section
       CHARACTER(LEN=*), INTENT(IN)                       :: method
-      INTEGER, INTENT(IN)                                :: max_iter
+      INTEGER, INTENT(IN)                                :: nocc, max_iter
       REAL(dp), INTENT(IN)                               :: energy_conv, amp_conv
 
       CHARACTER(len=default_path_length)                 :: filename
@@ -886,7 +887,7 @@ CONTAINS
       CASE ('MP2')
          ! The MP2 driver is complete above.
       CASE ('CCSD', 'CCSD_T')
-         CALL write_coupled_cluster_step(iunit, 'Ccsd', 'Amplitudes', max_iter, energy_conv, amp_conv)
+         CALL write_coupled_cluster_step(iunit, 'Ccsd', 'Amplitudes', nocc, max_iter, energy_conv, amp_conv)
       CASE DEFAULT
          CPABORT("CC4S: unsupported method")
       END SELECT
@@ -910,20 +911,22 @@ CONTAINS
 !> \param iunit Output file unit
 !> \param cc_method CC4S coupled-cluster method
 !> \param amp_key CC4S output key for amplitudes
+!> \param nocc Number of exported occupied spatial orbitals
 !> \param max_iter Maximum coupled-cluster iterations
 !> \param energy_conv CC4S energy convergence threshold
 !> \param amp_conv CC4S amplitude convergence threshold
 ! **************************************************************************************************
-   SUBROUTINE write_coupled_cluster_step(iunit, cc_method, amp_key, max_iter, energy_conv, amp_conv)
+   SUBROUTINE write_coupled_cluster_step(iunit, cc_method, amp_key, nocc, max_iter, energy_conv, amp_conv)
       INTEGER, INTENT(IN)                                :: iunit
       CHARACTER(LEN=*), INTENT(IN)                       :: cc_method, amp_key
-      INTEGER, INTENT(IN)                                :: max_iter
+      INTEGER, INTENT(IN)                                :: nocc, max_iter
       REAL(dp), INTENT(IN)                               :: energy_conv, amp_conv
 
       WRITE (iunit, '(A)') '- name: CoupledCluster'
       WRITE (iunit, '(A)') '  in:'
       WRITE (iunit, '(A)') '    method: '//TRIM(cc_method)
-      WRITE (iunit, '(A)') '    integralsSliceSize: 100'
+      ! Match CC4S v1.1 defaults using the occupied space after frozen-core removal.
+      WRITE (iunit, '(A,I0)') '    integralsSliceSize: ', nocc
       WRITE (iunit, '(A)') '    slicedEigenEnergies: EigenEnergies'
       WRITE (iunit, '(A)') '    coulombIntegrals: CoulombIntegrals'
       WRITE (iunit, '(A)') '    slicedCoulombVertex: CoulombVertex'
@@ -932,7 +935,7 @@ CONTAINS
       WRITE (iunit, '(A,ES25.16)') '    amplitudesConvergence: ', amp_conv
       WRITE (iunit, '(A)') '    mixer:'
       WRITE (iunit, '(A)') '      type: DiisMixer'
-      WRITE (iunit, '(A)') '      maxResidua: 5'
+      WRITE (iunit, '(A)') '      maxResidua: 4'
       WRITE (iunit, '(A)') '  out:'
       WRITE (iunit, '(A)') '    amplitudes: '//TRIM(amp_key)
       WRITE (iunit, '(A)') '    energy: CoupledClusterEnergy'
