@@ -14,9 +14,9 @@
 MODULE cell_opt_utils
    USE cell_manifold_utils,             ONLY: &
         comp_ax, comp_bx, comp_by, comp_cx, comp_cy, comp_cz, geom_a, geom_alpha, geom_b, &
-        geom_beta, geom_c, geom_gamma, mask_a, mask_all, mask_b, mask_c, mask_x, mask_xy, mask_xz, &
-        mask_y, mask_yz, mask_z, min_cell_length, n_geom, n_slot, slot_ax, slot_bx, slot_by, &
-        slot_cx, slot_cy, slot_cz
+        geom_beta, geom_c, geom_gamma, gfix_alpha, gfix_beta, gfix_gamma, mask_a, mask_all, &
+        mask_b, mask_c, mask_x, mask_xy, mask_xz, mask_y, mask_yz, mask_z, min_cell_length, &
+        n_geom, n_slot, slot_ax, slot_bx, slot_by, slot_cx, slot_cy, slot_cz
    USE cell_types,                      ONLY: &
         cell_sym_cubic, cell_sym_hexagonal_gamma_120, cell_sym_hexagonal_gamma_60, &
         cell_sym_monoclinic, cell_sym_monoclinic_gamma_ab, cell_sym_none, cell_sym_orthorhombic, &
@@ -41,6 +41,7 @@ MODULE cell_opt_utils
    PUBLIC :: cell_opt_constraint_label, &
              comp_ax, comp_bx, comp_by, comp_cx, comp_cy, comp_cz, &
              get_dg_dh, &
+             gfix_alpha, gfix_beta, gfix_gamma, &
              mask_a, mask_all, mask_b, mask_c, mask_x, mask_xy, mask_xz, mask_y, mask_yz, mask_z, &
              parse_cell_constraint, &
              parse_token, &
@@ -233,6 +234,9 @@ CONTAINS
          IF (IAND(mask, comp_cx) /= 0) label = TRIM(label)//" CX"
          IF (IAND(mask, comp_cy) /= 0) label = TRIM(label)//" CY"
          IF (IAND(mask, comp_cz) /= 0) label = TRIM(label)//" CZ"
+         IF (IAND(mask, gfix_alpha) /= 0) label = TRIM(label)//" ALPHA"
+         IF (IAND(mask, gfix_beta) /= 0) label = TRIM(label)//" BETA"
+         IF (IAND(mask, gfix_gamma) /= 0) label = TRIM(label)//" GAMMA"
          label = ADJUSTL(label)
       END SELECT
 
@@ -455,9 +459,12 @@ CONTAINS
          token_mask = mask_xz
       CASE ("YZ")
          token_mask = mask_yz
-      CASE ("ALPHA", "BETA", "GAMMA")
-         accepted = .FALSE.
-         reject_reason = "CELL_OPT CONSTRAINT on angles (ALPHA, BETA, GAMMA) is not supported yet."
+      CASE ("ALPHA")
+         token_mask = gfix_alpha
+      CASE ("BETA")
+         token_mask = gfix_beta
+      CASE ("GAMMA")
+         token_mask = gfix_gamma
       CASE ("AY", "AZ", "BZ")
          accepted = .FALSE.
          reject_reason = "CELL_OPT CONSTRAINT token "//TRIM(token)//" is always zero in "// &
@@ -467,8 +474,8 @@ CONTAINS
          accepted = .FALSE.
          reject_reason = "Unknown CELL_OPT CONSTRAINT token: "//TRIM(token)// &
                          ". Accepted tokens: NONE, the directions X, Y, Z,"// &
-                         " XY, XZ, YZ, the vectors A, B, C, and the components"// &
-                         " AX, BX, BY, CX, CY, CZ. Several tokens may be combined."
+                         " XY, XZ, YZ, the vectors A, B, C, the components"// &
+                         " AX, BX, BY, CX, CY, CZ, and the angles ALPHA, BETA, GAMMA."
       END SELECT
    END SUBROUTINE parse_token
 

@@ -11,12 +11,9 @@ PROGRAM cell_opt_utils_TEST
         geom_a, geom_alpha, geom_b, geom_beta, geom_c, geom_gamma, info_ok, n_geom, n_slot, &
         slot_ax, slot_bx
    USE cell_methods,                    ONLY: cell_create
-   USE cell_opt_utils,                  ONLY: cell_opt_constraint_label,&
-                                              mask_all,&
-                                              parse_cell_constraint,&
-                                              parse_token,&
-                                              spgr_point_group_symmetry_id,&
-                                              symmetry_constraint_rows
+   USE cell_opt_utils,                  ONLY: &
+        cell_opt_constraint_label, gfix_alpha, gfix_beta, gfix_gamma, mask_all, &
+        parse_cell_constraint, parse_token, spgr_point_group_symmetry_id, symmetry_constraint_rows
    USE cell_types,                      ONLY: &
         cell_release, cell_sym_cubic, cell_sym_hexagonal_gamma_120, cell_sym_hexagonal_gamma_60, &
         cell_sym_monoclinic, cell_sym_monoclinic_gamma_ab, cell_sym_none, cell_sym_orthorhombic, &
@@ -49,16 +46,14 @@ CONTAINS
 !> \brief Check token masks, label round trips, rejections and 2D defaults.
 ! **************************************************************************************************
    SUBROUTINE check_parser()
-      CHARACTER(LEN=4), PARAMETER :: &
-         legacy(7) = ["NONE", "   X", "   Y", "   Z", "  XY", "  XZ", "  YZ"], names(18) = [ &
-         CHARACTER(LEN=4) :: "NONE", "X", "Y", "Z", "XY", "XZ", "YZ", "a", "AX", "B", "BX", "BY", &
-         "C", "CX", "CY", "CZ", "none", " z "]
-      CHARACTER(LEN=5), PARAMETER :: &
-         invalid(5) = [CHARACTER(LEN=5) :: "AY", "AZ", "BZ", "ALPHA", "YX"]
-      INTEGER, PARAMETER :: &
-         masks(18) = [0, 11, 22, 56, 31, 59, 62, 1, 1, 6, 2, 4, 56, 8, 16, 32, 0, 56]
+      CHARACTER(LEN=5), PARAMETER :: invalid(4) = [CHARACTER(LEN=5) :: "AY", "AZ", "BZ", "YX"], &
+         legacy(7) = [CHARACTER(LEN=5) :: "NONE", "   X", "   Y", "   Z", "  XY", "  XZ", "  YZ"], &
+         names(21) = [CHARACTER(LEN=5) :: "NONE", "X", "Y", "Z", "XY", "XZ", "YZ", "a", "AX", "B", &
+         "BX", "BY", "C", "CX", "CY", "CZ", "ALPHA", "BETA", "GAMMA", "none", " z "]
+      INTEGER, PARAMETER :: masks(21) = [0, 11, 22, 56, 31, 59, 62, 1, 1, 6, 2, 4, 56, 8, 16, 32, &
+         gfix_alpha, gfix_beta, gfix_gamma, 0, 56]
 
-      CHARACTER(LEN=default_string_length)               :: label, reason, tokens(6)
+      CHARACTER(LEN=default_string_length)               :: label, reason, tokens(9)
       INTEGER                                            :: i, mask, n, wanted
       LOGICAL                                            :: accepted
 
@@ -69,11 +64,17 @@ CONTAINS
          CALL parse_cell_constraint([names(i)], cell, .TRUE., mask)
          IF (mask /= masks(i)) ERROR STOP "Incorrect constraint token mask"
          IF (i <= SIZE(legacy)) THEN
-            IF (cell_opt_constraint_label(mask) /= legacy(i)) ERROR STOP "Legacy constraint label changed"
+            IF (cell_opt_constraint_label(mask) /= legacy(i) (1:4)) THEN
+               ERROR STOP "Legacy constraint label changed"
+            END IF
          END IF
       END DO
-      CALL parse_cell_constraint(["AX", "BY", "CZ"], cell, .TRUE., mask)
-      IF (mask /= 37) ERROR STOP "Constraint components were not combined"
+      CALL parse_cell_constraint([CHARACTER(LEN=5) :: "AX", "BY", "CZ", "ALPHA", "GAMMA"], &
+                                 cell, .TRUE., mask)
+      IF (mask /= 37 + gfix_alpha + gfix_gamma .OR. &
+          cell_opt_constraint_label(mask) /= "AX BY CZ ALPHA GAMMA") THEN
+         ERROR STOP "Angle constraint mask or label mismatch"
+      END IF
       CALL parse_cell_constraint(["a ", "b ", "ax"], cell, .TRUE., mask)
       IF (mask /= 7) ERROR STOP "Redundant constraint changed the mask"
       CALL parse_cell_constraint(["X", "B"], cell, .TRUE., mask)

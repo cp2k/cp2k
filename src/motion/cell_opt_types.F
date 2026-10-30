@@ -15,8 +15,8 @@ MODULE cell_opt_types
 
    USE cell_manifold_utils,             ONLY: &
         cell_manifold_init, cell_manifold_pack_hmat, cell_manifold_status_label, &
-        cell_manifold_type, comp_bx, comp_cx, comp_cy, gfix_alpha, gfix_beta, gfix_gamma, gfix_v, &
-        info_licq, info_ok, n_constraint_bits, n_geom, n_slot
+        cell_manifold_type, comp_bx, comp_cx, comp_cy, gfix_all, gfix_alpha, gfix_beta, &
+        gfix_gamma, gfix_v, info_licq, info_ok, mask_all, n_constraint_bits, n_geom, n_slot
    USE cell_methods,                    ONLY: canonicalize_cell_matrix,&
                                               cell_create
    USE cell_opt_utils,                  ONLY: cell_opt_constraint_label,&
@@ -192,13 +192,15 @@ CONTAINS
 
       q0 = cell_manifold_pack_hmat(cell_env%opt_cell%hmat)
 
-      ! Anchor q0 and lock in explicit CONSTRAINT rows before greedy KEEP_* checks.
-      CALL cell_manifold_init(cell_env%manifold, q0, cell_env%constraint_id, info)
+      ! Anchor q0 with explicit component rows, then fold explicit angle rows.
+      CALL cell_manifold_init(cell_env%manifold, q0, IAND(cell_env%constraint_id, mask_all), info)
       IF (info /= info_ok) THEN
          CALL cp_abort(__LOCATION__, &
                        "CELL_OPT: initial cell or CONSTRAINT is invalid ("// &
                        TRIM(cell_manifold_status_label(info))//").")
       END IF
+      CALL try_add_mask_bits(cell_env%manifold, IAND(cell_env%constraint_id, gfix_all), &
+                             "CONSTRAINT")
 
       IF (cell_env%keep_symmetry) THEN
          CALL cell_opt_fold_symmetry_rows(cell_env, cell_env%opt_cell%symmetry_id)
