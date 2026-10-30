@@ -430,6 +430,9 @@ registry["M090"] = GenericMatcher(r"Final localization:", col=3)
 registry["M091"] = GenericMatcher(r"Ionization potentials for XPS", col=8)
 registry["M092"] = GenericMatcher(r"FCIDUMP| Checksum:", col=3)
 registry["AS_NMIXING_deprecated"] = TextPresenceMatcher("NMIXING has no effect")
+registry["AS_embedding_iterations"] = GenericMatcher(
+    "rs-DFT embedding run converged in", col=7
+)
 registry["FCIDUMP_MS2"] = GenericMatcher(
     r"&FCI .*MS2=\s*([-+0-9]+),", col=1, regex=True
 )

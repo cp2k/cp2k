@@ -12,24 +12,28 @@
       ACTIVE_ORBITALS 6
       ACTIVE_ORBITAL_INDICES 1 2 3 4 5 6
       AS_SOLVER FCI
-      MAX_ITER 1
+      EPS_ITER 1E-8
+      MAX_ITER 5
       ORBITAL_SELECTION MANUAL
-      SCF_EMBEDDING F
+      SCF_EMBEDDING T
       &ERI
         EPS_INTEGRAL 1E-10
         METHOD FULL_GPW
-        OMEGA 1.0
-        OPERATOR LONGRANGE
+        OPERATOR COULOMB
         PERIODICITY 0 0 0
       &END ERI
       &ERI_GPW
-        CUTOFF 250
+        CUTOFF 500
       &END ERI_GPW
       &FCIDUMP ON
       &END FCIDUMP
+      &MIXING
+        ALPHA 1.0
+        METHOD DIRECT_P_MIXING
+      &END MIXING
     &END ACTIVE_SPACE
     &MGRID
-      CUTOFF 300
+      CUTOFF 500
     &END MGRID
     &POISSON
       PERIODIC NONE
@@ -52,22 +56,8 @@
     &XC
       &HF
         FRACTION 1.0
-        &INTERACTION_POTENTIAL
-          OMEGA 1.0
-          POTENTIAL_TYPE LONGRANGE
-        &END INTERACTION_POTENTIAL
       &END HF
-      &XC_FUNCTIONAL
-        &LDA_C_PMGB06
-          SCALE -1.0
-          _OMEGA 1.0
-        &END LDA_C_PMGB06
-        &LDA_C_PW
-        &END LDA_C_PW
-        &LDA_X_ERF
-          _OMEGA 1.0
-          SCALE 1.0
-        &END LDA_X_ERF
+      &XC_FUNCTIONAL NONE
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
