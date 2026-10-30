@@ -282,13 +282,15 @@ CONTAINS
                   reduced(axis) = reduced(axis) - 1
                   term = factor*REAL(powers(axis), dp)
                   dharmonics(axis, lm) = dharmonics(axis, lm) + term*PRODUCT(displacement**reduced)
-                  DO axis2 = 1, 3
-                     IF (reduced(axis2) == 0) CYCLE
-                     reduced(axis2) = reduced(axis2) - 1
-                     ddharmonics(axis, axis2, lm) = ddharmonics(axis, axis2, lm) + &
-                                                    term*REAL(reduced(axis2) + 1, dp)*PRODUCT(displacement**reduced)
-                     reduced(axis2) = reduced(axis2) + 1
-                  END DO
+                  IF (PRESENT(hessian)) THEN
+                     DO axis2 = 1, 3
+                        IF (reduced(axis2) == 0) CYCLE
+                        reduced(axis2) = reduced(axis2) - 1
+                        ddharmonics(axis, axis2, lm) = ddharmonics(axis, axis2, lm) + &
+                                                       term*REAL(reduced(axis2) + 1, dp)*PRODUCT(displacement**reduced)
+                        reduced(axis2) = reduced(axis2) + 1
+                     END DO
+                  END IF
                END DO
             END DO
          END DO
@@ -318,7 +320,7 @@ CONTAINS
                END IF
                radial = c0 + t*(c1 + t*(c2 + t*(c3 + t*(c4 + t*c5))))
                radial_d = (c1 + t*(2.0_dp*c2 + t*(3.0_dp*c3 + t*(4.0_dp*c4 + t*5.0_dp*c5))))/h
-               radial_dd = (2.0_dp*c2 + t*(6.0_dp*c3 + t*(12.0_dp*c4 + t*20.0_dp*c5)))/h**2
+               IF (PRESENT(hessian)) radial_dd = (2.0_dp*c2 + t*(6.0_dp*c3 + t*(12.0_dp*c4 + t*20.0_dp*c5)))/h**2
                angular = 0.0_dp
                angular_gradient = 0.0_dp
                angular_hessian = 0.0_dp
@@ -326,7 +328,7 @@ CONTAINS
                   factor = augmentation%gaunt(p, q, lm)
                   angular = angular + factor*harmonics(lm)
                   angular_gradient = angular_gradient + factor*dharmonics(:, lm)
-                  angular_hessian = angular_hessian + factor*ddharmonics(:, :, lm)
+                  IF (PRESENT(hessian)) angular_hessian = angular_hessian + factor*ddharmonics(:, :, lm)
                END DO
                value = radial*angular
                qr(p, q) = qr(p, q) + value
@@ -377,11 +379,16 @@ CONTAINS
       CPASSERT(ALL(SHAPE(density) == n))
       CPASSERT(ALL(SHAPE(displacements) == [3, SIZE(rho)]))
       CPASSERT(ALL(SHAPE(gradient) == SHAPE(displacements)))
+      IF (SIZE(rho) > 0) THEN
+         CPASSERT(ALLOCATED(augmentation%radial_x))
+      END IF
       ALLOCATE (qr(n, n), dqr(n, n, 3))
       ALLOCATE (harmonics((augmentation%lmax + 1)**2), &
                 dharmonics(3, (augmentation%lmax + 1)**2), &
                 ddharmonics(3, 3, (augmentation%lmax + 1)**2))
       DO point = 1, SIZE(rho)
+         ! The point kernel is exactly zero outside the original radial support.
+         IF (SUM(displacements(:, point)**2) > augmentation%realspace_radius**2) CYCLE
          CALL realspace_with_workspace(augmentation, displacements(:, point), qr, dqr, &
                                        harmonics=harmonics, dharmonics=dharmonics, ddharmonics=ddharmonics)
          rho(point) = rho(point) + SUM(density*qr)
@@ -442,6 +449,8 @@ CONTAINS
       DO point = 1, SIZE(weights)
          IF (weights(point) == 0.0_dp) CYCLE
          IF (v_rho(point) == 0.0_dp .AND. ALL(v_gradient(:, point) == 0.0_dp)) CYCLE
+         CPASSERT(ALLOCATED(augmentation%radial_x))
+         IF (SUM(displacements(:, point)**2) > augmentation%realspace_radius**2) CYCLE
          IF (ALLOCATED(ddqr)) THEN
             CALL realspace_with_workspace(augmentation, displacements(:, point), qr, dqr, ddqr, &
                                           harmonics, dharmonics, ddharmonics)

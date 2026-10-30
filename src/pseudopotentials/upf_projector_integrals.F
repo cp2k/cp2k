@@ -246,7 +246,9 @@ CONTAINS
             END DO
             radial_power(:) = radial_work
             DO k = 0, degree
-               radial(k, :, lambda) = MATMUL(radial_power, projectors%weighted_beta)
+               DO j = 1, nb
+                  radial(k, j, lambda) = DOT_PRODUCT(radial_power, projectors%weighted_beta(:, j))
+               END DO
                radial_power(:) = radial_power*projectors%r
             END DO
          END DO
