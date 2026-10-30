@@ -2100,6 +2100,7 @@ if [[ -n "${GROMACS_VERSION}" ]]; then
   cmake -S "${GROMACS_ROOT}" -B "${GROMACS_BUILD_PATH}" \
     -DBUILD_SHARED_LIBS="OFF" \
     -DCMAKE_BUILD_TYPE="${CP2K_BUILD_TYPE}" \
+    -DCMAKE_CXX_STANDARD="20" \
     -DCMAKE_INSTALL_LIBDIR="lib" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_DIR="${INSTALL_PREFIX}"/lib \
@@ -2108,7 +2109,6 @@ if [[ -n "${GROMACS_VERSION}" ]]; then
     -DGMX_DOUBLE="OFF" \
     -DGMX_INSTALL_NBLIB_API="OFF" \
     -DGMX_MPI="${USE_MPI}" \
-    -DGMX_NNPOT="OFF" \
     -DGMXAPI="OFF" \
     -Werror=dev \
     &> "${GROMACS_BUILD_PATH}/cmake.log"
