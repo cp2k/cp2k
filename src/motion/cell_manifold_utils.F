@@ -356,6 +356,7 @@ CONTAINS
       cos_ang = [DOT_PRODUCT([bx, by, 0.0_dp], [cx, cy, cz])/(len_b*len_c), &
                  (ax*cx)/(len_a*len_c), &
                  (ax*bx)/(len_a*len_b)]
+      cos_ang = MIN(1.0_dp, MAX(-1.0_dp, cos_ang))
       sin_ang = SIN(s(geom_alpha:geom_gamma))
 
       ! alpha = angle(b, c), with b.c = BX*CX + BY*CY.
