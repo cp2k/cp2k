@@ -1,35 +1,40 @@
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT h2_as_fci_uks
+  PROJECT h3_as_fci_uks
   RUN_TYPE ENERGY
 &END GLOBAL
 
 &FORCE_EVAL
   METHOD QS
   &DFT
+    MULTIPLICITY 2
     UKS TRUE
     &ACTIVE_SPACE
-      ACTIVE_ELECTRONS 2
-      ACTIVE_ORBITALS 2
-      ACTIVE_ORBITAL_INDICES 1 2 1 2
+      ACTIVE_ELECTRONS 3
+      ACTIVE_ORBITALS 4
+      ACTIVE_ORBITAL_INDICES 1 2 3 4 1 2 3 4
       AS_SOLVER FCI
       EPS_FCI 1E-18
-      MAX_ITER 3
+      EPS_ITER 1E-8
+      MAX_ITER 5
       ORBITAL_SELECTION MANUAL
       SCF_EMBEDDING T
       &ERI
         EPS_INTEGRAL 1E-10
         METHOD FULL_GPW
-        OMEGA 1.0
-        OPERATOR LONGRANGE
+        OPERATOR COULOMB
         PERIODICITY 0 0 0
       &END ERI
       &ERI_GPW
-        CUTOFF 250
+        CUTOFF 500
       &END ERI_GPW
+      &MIXING
+        ALPHA 1.0
+        METHOD DIRECT_P_MIXING
+      &END MIXING
     &END ACTIVE_SPACE
     &MGRID
-      CUTOFF 300
+      CUTOFF 500
     &END MGRID
     &POISSON
       PERIODIC NONE
@@ -39,11 +44,11 @@
       METHOD GAPW
     &END QS
     &SCF
-      ADDED_MOS 3
+      ADDED_MOS 4
       EPS_DIIS 1E-003
       EPS_EIGVAL 1E-009
-      EPS_SCF 1E-009
-      MAX_SCF 20
+      EPS_SCF 1E-011
+      MAX_SCF 100
       &PRINT
         &RESTART OFF
         &END RESTART
@@ -52,22 +57,8 @@
     &XC
       &HF
         FRACTION 1.0
-        &INTERACTION_POTENTIAL
-          OMEGA 1.0
-          POTENTIAL_TYPE LONGRANGE
-        &END INTERACTION_POTENTIAL
       &END HF
-      &XC_FUNCTIONAL
-        &LDA_C_PMGB06
-          SCALE -1.0
-          _OMEGA 1.0
-        &END LDA_C_PMGB06
-        &LDA_C_PW
-        &END LDA_C_PW
-        &LDA_X_ERF
-          _OMEGA 1.0
-          SCALE 1.0
-        &END LDA_X_ERF
+      &XC_FUNCTIONAL NONE
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
@@ -77,8 +68,9 @@
       PERIODIC NONE
     &END CELL
     &COORD
-      H 0.0 0.0  0.356
-      H 0.0 0.0 -0.356
+      H 0.0 0.0 0.0
+      H 0.0 0.0 0.8
+      H 0.9 0.0 0.2
     &END COORD
     &KIND H
       BASIS_SET 6-31G*

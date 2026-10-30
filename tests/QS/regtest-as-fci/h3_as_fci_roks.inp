@@ -1,21 +1,21 @@
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT h2_as_fci_roks
+  PROJECT h3_as_fci_roks
   RUN_TYPE ENERGY
 &END GLOBAL
 
 &FORCE_EVAL
   METHOD QS
   &DFT
-    CHARGE 1
     MULTIPLICITY 2
     ROKS T
     &ACTIVE_SPACE
-      ACTIVE_ELECTRONS 1
-      ACTIVE_ORBITALS 2
+      ACTIVE_ELECTRONS 3
+      ACTIVE_ORBITALS 4
       AS_SOLVER FCI
-      MAX_ITER 1
-      SCF_EMBEDDING F
+      EPS_ITER 1E-8
+      MAX_ITER 5
+      SCF_EMBEDDING T
       &ERI
         METHOD GPW_HALF_TRANSFORM
         PERIODICITY 0 0 0
@@ -23,6 +23,10 @@
       &ERI_GPW
         CUTOFF 500
       &END ERI_GPW
+      &MIXING
+        ALPHA 1.0
+        METHOD DIRECT_P_MIXING
+      &END MIXING
     &END ACTIVE_SPACE
     &MGRID
       CUTOFF 500
@@ -32,11 +36,12 @@
       POISSON_SOLVER ANALYTIC
     &END POISSON
     &QS
-      METHOD GPW
+      METHOD GAPW
     &END QS
     &SCF
-      ADDED_MOS 3
-      MAX_SCF 10
+      ADDED_MOS 4
+      EPS_SCF 1E-11
+      MAX_SCF 100
       &PRINT
         &RESTART OFF
         &END RESTART
@@ -55,12 +60,13 @@
       PERIODIC NONE
     &END CELL
     &COORD
-      H 0.000 0.000  0.356
-      H 0.000 0.000 -0.356
+      H 0.0 0.0 0.0
+      H 0.0 0.0 0.8
+      H 0.9 0.0 0.2
     &END COORD
     &KIND H
       BASIS_SET 6-31G*
-      POTENTIAL GTH-HF
+      POTENTIAL ALL
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
