@@ -1,0 +1,20 @@
+{
+  "version": "v0.2.0",
+  "catalog": {
+    "file": "inverse-uspp-v0.2.0.json",
+    "url": "https://github.com/DCM-Uni-Paderborn/inverse-uspp/releases/download/v0.2.0/inverse-uspp-v0.2.0.json",
+    "sha256": "2e0701fa67b15fa669a4d443d8d69a56ed4f103fd812435df7dc67eecc81ecc4"
+  },
+  "archives": {
+    "pbe": {
+      "file": "inverse-uspp-pbe-v0.2.0.tar.gz",
+      "url": "https://github.com/DCM-Uni-Paderborn/inverse-uspp/releases/download/v0.2.0/inverse-uspp-pbe-v0.2.0.tar.gz",
+      "sha256": "d99f45a107bd7d22004ce54acf9b6f635956ca12058b95907e363d5e28fd06e3"
+    },
+    "pbesol": {
+      "file": "inverse-uspp-pbesol-v0.2.0.tar.gz",
+      "url": "https://github.com/DCM-Uni-Paderborn/inverse-uspp/releases/download/v0.2.0/inverse-uspp-pbesol-v0.2.0.tar.gz",
+      "sha256": "de74df90d20afc9faf26c6842638e9c864abeb1e483451c2c245180ccf511bc3"
+    }
+  }
+}

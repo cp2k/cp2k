@@ -97,6 +97,27 @@ GAPW method:
 &END KIND
 ```
 
+## UPF Collections and Regression Data
+
+SSSP is a curated selection from several pseudopotential families, not a pseudopotential type. Its
+collections contain norm-conserving, ultrasoft and PAW datasets. The UPF format stores these
+different types, whose calculation support depends on the CP2K implementation and Gaussian basis.
+
+`tests/QS/regtest-upf/` contains a supplemented PBE H USPP for offline regressions of the inverse
+orbital representations. It originates from PSLibrary 1.0.0 and was selected by SSSP v2.0 PBE
+Precision. The adjacent `SOURCE` file records its preparation, checksums, attribution and license.
+The file is regression data and is not installed in the standard CP2K data directory.
+
+The optional installer under `tools/pseudopotentials/` combines original SSSP NC/PAW files with
+prepared USPPs from a checksum-pinned external release. The original UPF hash identifies the
+matching USPP, preserving the SSSP selection. A selection index records the installed file
+locations. Additional non-SSSP USPPs and complete original collections remain separately selectable.
+The external catalog distinguishes compatible generator replays from auxiliary reconstructions and
+records their atomic checks. Calculation support still depends on the method and Gaussian basis.
+Choose a writable external destination. Downloads do not run automatically. See the
+[download and preparation instructions](https://github.com/cp2k/cp2k/blob/master/tools/pseudopotentials/README.md).
+SSSP plane-wave cutoffs are not Gaussian-basis or Quickstep multigrid recommendations.
+
 ## Consistency Checks
 
 Useful checks when setting up a calculation are:
