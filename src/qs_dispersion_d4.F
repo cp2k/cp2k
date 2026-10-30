@@ -397,7 +397,7 @@ CONTAINS
             ga(:, :) = 0.0_dp
             sigma(:, :) = 0.0_dp
          END IF
-         CALL dispersion_2b(dispersion_env, cutoff%disp2, disp%r4r2, &
+         CALL dispersion_2b(dispersion_env, cutoff%disp2, cutoff%width2, disp%r4r2, &
                             gwvec, gwdcn, gwdq, disp%c6, disp%ref, &
                             energies, dEdcn, dEdq, grad, ga, sigma, &
                             atom_map, species)
@@ -732,9 +732,45 @@ CONTAINS
 #endif
 
 ! **************************************************************************************************
+!> \brief Quintic Hermite switching function used by the D4 two-body cutoff.
+!> \param r interatomic distance
+!> \param cutoff real-space cutoff
+!> \param width width of the smooth cutoff region
+!> \param sw switching function value
+!> \param dswdr derivative of the switching function with respect to r
+! **************************************************************************************************
+   SUBROUTINE d4_smooth_cutoff(r, cutoff, width, sw, dswdr)
+      REAL(KIND=dp), INTENT(IN)                          :: r, cutoff, width
+      REAL(KIND=dp), INTENT(OUT)                         :: sw, dswdr
+
+      REAL(KIND=dp)                                      :: effective_width, inner, x
+
+      IF (width <= 0.0_dp .OR. cutoff <= 0.0_dp) THEN
+         sw = 1.0_dp
+         dswdr = 0.0_dp
+      ELSE
+         effective_width = MIN(width, cutoff)
+         inner = cutoff - effective_width
+         IF (r <= inner) THEN
+            sw = 1.0_dp
+            dswdr = 0.0_dp
+         ELSE IF (r >= cutoff) THEN
+            sw = 0.0_dp
+            dswdr = 0.0_dp
+         ELSE
+            x = (cutoff - r)/effective_width
+            sw = x**3*(10.0_dp + x*(-15.0_dp + 6.0_dp*x))
+            dswdr = -30.0_dp*x**2*(1.0_dp - x)**2/effective_width
+         END IF
+      END IF
+
+   END SUBROUTINE d4_smooth_cutoff
+
+! **************************************************************************************************
 !> \brief ...
 !> \param dispersion_env ...
 !> \param cutoff ...
+!> \param width ...
 !> \param r4r2 ...
 !> \param gwvec ...
 !> \param gwdcn ...
@@ -750,13 +786,13 @@ CONTAINS
 !> \param atom_map ...
 !> \param species ...
 ! **************************************************************************************************
-   SUBROUTINE dispersion_2b(dispersion_env, cutoff, r4r2, &
+   SUBROUTINE dispersion_2b(dispersion_env, cutoff, width, r4r2, &
                             gwvec, gwdcn, gwdq, c6ref, mrefs, &
                             energies, dEdcn, dEdq, &
                             calculate_forces, gradient, stress, &
                             atom_map, species)
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
-      REAL(KIND=dp), INTENT(IN)                          :: cutoff
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff, width
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r4r2
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: gwvec, gwdcn, gwdq
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: c6ref
@@ -769,8 +805,9 @@ CONTAINS
       INTEGER                                            :: ia, iatom, ik, ikind, ja, jatom, jk, &
                                                             jkind, mepos, num_pe
       REAL(KINd=dp)                                      :: a1, a2, c6ij, cutoff2, d6, d8, dE, dr2, &
-                                                            edisp, fac, gdisp, r0ij, rrij, s6, s8, &
-                                                            t6, t8
+                                                            dswdr, edisp, edisp0, fac, gdisp, &
+                                                            gdisp0, r, r0ij, rrij, s6, s8, sw, t6, &
+                                                            t8
       REAL(KINd=dp), DIMENSION(2)                        :: dcdcn, dcdq
       REAL(KINd=dp), DIMENSION(3)                        :: dG, rij
       REAL(KINd=dp), DIMENSION(3, 3)                     :: dS
@@ -814,10 +851,14 @@ CONTAINS
             END IF
             fac = 1._dp
             IF (iatom == jatom) fac = 0.5_dp
+            r = SQRT(dr2)
+            CALL d4_smooth_cutoff(r, cutoff, width, sw, dswdr)
+            IF (sw <= 0.0_dp) CYCLE
             t6 = 1.0_dp/(dr2**3 + r0ij**6)
             t8 = 1.0_dp/(dr2**4 + r0ij**8)
 
-            edisp = (s6*t6 + s8*rrij*t8)*fac
+            edisp0 = s6*t6 + s8*rrij*t8
+            edisp = sw*edisp0*fac
             dE = -c6ij*edisp
             energies(iatom) = energies(iatom) + dE*0.5_dp
             energies(jatom) = energies(jatom) + dE*0.5_dp
@@ -825,7 +866,8 @@ CONTAINS
             IF (calculate_forces) THEN
                d6 = -6.0_dp*dr2**2*t6**2
                d8 = -8.0_dp*dr2**3*t8**2
-               gdisp = (s6*d6 + s8*rrij*d8)*fac
+               gdisp0 = s6*d6 + s8*rrij*d8
+               gdisp = (sw*gdisp0 + dswdr*edisp0/r)*fac
                dG(:) = -c6ij*gdisp*rij(:)
                gradient(:, iatom) = gradient(:, iatom) - dG
                gradient(:, jatom) = gradient(:, jatom) + dG
