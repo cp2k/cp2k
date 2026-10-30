@@ -6,53 +6,98 @@
 # Davidson diagonalization and smearing at k-points
 # blocked Davidson at symmetry-reduced complex K points with fractional occupations,
 # the Davidson counterpart of the STANDARD Al smearing family in regtest-kp-2
-"Al-kpoint-dav-smear.inp"       = [{matcher = "E_total", tol = 1e-9, ref = -8.159987079852488}]
+"Al-kpoint-dav-smear.inp"        = [{matcher = "E_total", tol = 1e-9, ref = -8.159987079852488}]
 # same with the adaptive inner tolerance (EPS_ADAPT): loose early SCF steps,
 # unoccupied MOS converge five times looser
-"Al-kpoint-dav-smear-adapt.inp" = [{matcher = "E_total", tol = 1e-9, ref = -8.159987079852488}]
+"Al-kpoint-dav-smear-adapt.inp"  = [{matcher = "E_total", tol = 1e-9, ref = -8.159987079852488}]
 # same with ADDED_MOS AUTO: the raised temperature pushes the Fermi tail onto
 # the top band, so the run must grow the virtual space twice (4 -> 8 -> 16) and
 # land on the energy of the fixed-count twin with 16 added MOS. Without the
 # growth the energy misses the reference by 3.4E-8. The default k-point group
 # split gives two single-rank groups at the two CI ranks
-"Al-kpoint-dav-smear-auto.inp"  = [{matcher = "E_total", tol = 1e-9, ref = -8.173546695860358}]
+"Al-kpoint-dav-smear-auto.inp"   = [{matcher = "E_total", tol = 1e-9, ref = -8.173546695860358}]
 # blocked Davidson at complex K points, same oracle energy as the OT family below
-"he_dav.inp"                    = [
+"he_dav.inp"                     = [
   {matcher = "E_total", tol = 1e-9, ref = -2.89466358139099},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
-"he_dav_full_all.inp"           = [
+"he_dav_full_all.inp"            = [
   {matcher = "E_total", tol = 1e-9, ref = -2.89466358139099},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
-"he_dav_s_inverse.inp"          = [
+"he_dav_s_inverse.inp"           = [
   {matcher = "E_total", tol = 1e-9, ref = -2.89466358139099},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
-"he_dav_single_inverse.inp"     = [
+"he_dav_single_inverse.inp"      = [
   {matcher = "E_total", tol = 1e-9, ref = -2.89466358139099},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
 # warm start from extrapolated MOS: the second geometry step consumes the
 # extrapolated MOS as trial subspace instead of a cold start (PS, and ASPC below)
-"he_dav_geo_opt.inp"            = [
+"he_dav_geo_opt.inp"             = [
   {matcher = "E_total", tol = 1e-9, ref = -2.89466358072372},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
-"he_dav_geo_opt_aspc.inp"       = [
+"he_dav_geo_opt_aspc.inp"        = [
   {matcher = "E_total", tol = 1e-9, ref = -2.89466358072372},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
 # density-only WFN restart (the .kp file holds no MOS): the Davidson cold-starts
 # on top of the restarted density
-"he_dav_restart.inp"            = [{matcher = "E_total", tol = 1e-9, ref = -2.89466358138925}]
+"he_dav_restart.inp"             = [{matcher = "E_total", tol = 1e-9, ref = -2.89466358138925}]
 # no preconditioner: every call is a single Rayleigh-Ritz rotation
-"he_dav_none.inp"               = [
+"he_dav_none.inp"                = [
   {matcher = "E_total", tol = 1e-9, ref = -2.89466358135803},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
-"li_dav_uks.inp"                = [
+"li_dav_uks.inp"                 = [
   {matcher = "E_total", tol = 1e-9, ref = -7.304793043105472},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 1}
 ]
+# block Krylov (Lanczos) refinement at complex k points, same oracle energy as
+# the Davidson and OT families
+"he_lan.inp"                     = [
+  {matcher = "E_total", tol = 1e-9, ref = -2.89466358139099},
+  {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
+]
+# block Krylov (Lanczos) refinement with the adaptive inner tolerance, same
+# oracle energy as he_lan
+"he_lan_adapt.inp"               = [
+  {matcher = "E_total", tol = 1e-9, ref = -2.89466358139099},
+  {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
+]
+# minimal basis (NAO=4, one occupied MO): the Krylov budget holds a
+# two-column chain, so the refinement must run on the smallest valid working
+# basis; oracle energy from STANDARD diagonalization of the same input
+"h2_lan_minbasis.inp"            = [{matcher = "E_total", tol = 1e-8, ref = -1.12823190266784}]
+# the Lanczos counterpart of the Davidson Al smearing family: an unreachable
+# EPS_SCF with IGNORE_CONVERGENCE_FAILURE polishes the fixed point. The
+# energy lands 1.1E-9 from the Davidson oracle
+"Al-kpoint-lan-smear.inp"        = [{matcher = "E_total", tol = 1e-8, ref = -8.159987079852488}]
+# same with ADDED_MOS AUTO at a raised temperature: the virtual space grows
+# twice (4 -> 8 -> 16). The energy matches the fixed-count twin with 16
+# added MOS within 1.6E-9
+"Al-kpoint-lan-smear-auto.inp"   = [{matcher = "E_total", tol = 1e-8, ref = -8.173546697911490}]
+# multi-column blocks (NBLOCK 4 below the pending width): the within-batch
+# orthogonalization, the batched convergence write-back and the ragged last
+# block only engage above one column per block
+"Al-kpoint-lan-smear-block4.inp" = [{matcher = "E_total", tol = 1e-8, ref = -8.159987079852488}]
+# shared-subspace regime (NBLOCK at least the pending width): all pending
+# columns refine in one joint Krylov space
+"Al-kpoint-lan-smear-global.inp" = [{matcher = "E_total", tol = 1e-8, ref = -8.159987079852488}]
+# deep inner tolerance (EPS_KRYLOV 1E-12): every SCF step keeps refining,
+# so the write-back quality at full depth stays exercised
+"Al-kpoint-lan-smear-deep.inp"   = [{matcher = "E_total", tol = 1e-8, ref = -8.159987079852488}]
+# parallel layout test with PARALLEL_GROUP_SIZE 2: two ranks per k-point group
+# verify the distributed Rayleigh-Ritz execution
+"Al-kpoint-lan-smear-pgs2.inp"   = [{matcher = "E_total", tol = 1e-8, ref = -8.159987079852488}]
+
+# uneven-distribution deadlock guard: three full-grid k-points over two
+# single-rank groups split 2+1 (the layout #5993 made possible). A driver
+# that loops only to its own kplocal count hangs on the mismatched
+# collective sequence. The kpoint banner (min 1 / max 2 per group) doubles
+# as the layout check. The reference is self-generated on the fixed kernel:
+# a change-detector for the layout, not a physics oracle
+"he_lan_uneven.inp" = [{matcher = "E_total", tol = 1e-9, ref = -2.896729165475741}]
 #EOF

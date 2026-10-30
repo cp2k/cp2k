@@ -14,4 +14,11 @@
 # Crashes at one rank with unfixed ELPA (heap corruption in tridiag_band's width-1
 # tail block accounting) at the very first diagonalization; passes at two ranks.
 "H13-tailblock.inp"  = [{matcher = "E_total", tol = 1e-9, ref = -4.603864759135386}]
+# The Lanczos refinement through the ELPA branch of the solver dispatcher:
+# two SCF steps past the cold start refine the complex k-point MOS with
+# cp_cfm_heevd routed to ELPA. The tolerance is the same 1e-10 as for the
+# twins above, for reproducibility only. The energy is a three-step
+# snapshot 0.029 Ha from the converged value: a change-detector for the
+# ELPA dispatch path, not a physics oracle like the twins above
+"cplx_kp_lan.inp"    = [{matcher = "E_total", tol = 1e-10, ref = -41.8682408936132}]
 #EOF
