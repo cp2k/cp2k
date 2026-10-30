@@ -33,10 +33,22 @@
 "cell_sym_hexagonal_gamma_60.inp"              = [{matcher = "M011", tol = 4e-09, ref = -129.05206533232612}]
 "cell_sym_hexagonal.inp"                       = [{matcher = "M011", tol = 4e-09, ref = -129.05206533232612}]
 "cell_sym_monoclinic.inp"                      = [{matcher = "M011", tol = 1e-08, ref = -129.28637033131494}]
-"cell_sym_monoclinic_gamma_ab.inp"             = [{matcher = "M011", tol = 1e-08, ref = -129.23692670296523}]
+"cell_sym_monoclinic_gamma_ab.inp"             = [
+  {matcher = "M011", tol = 1e-08, ref = -129.236927312613687},
+  {matcher = "Cell_length_a", tol = 1e-03, ref = 10.161123},
+  {matcher = "Cell_length_b", tol = 1e-03, ref = 10.161123}
+]
 "cell_sym_none.inp"                            = [{matcher = "M011", tol = 1e-08, ref = -129.28637032411459}]
 "cell_sym_orthorhombic.inp"                    = [{matcher = "M011", tol = 1e-08, ref = -129.28636945323004}]
-"cell_sym_rhombohedral.inp"                    = [{matcher = "M011", tol = 1e-08, ref = -129.03437105082563}]
+"cell_sym_rhombohedral.inp"                    = [
+  {matcher = "M011", tol = 1e-08, ref = -129.122478493516269},
+  {matcher = "Cell_angle_alpha", tol = 1e-02, ref = 89.998384},
+  {matcher = "Cell_angle_beta", tol = 1e-02, ref = 89.998384},
+  {matcher = "Cell_angle_gamma", tol = 1e-02, ref = 89.998384},
+  {matcher = "Cell_length_a", tol = 1e-03, ref = 10.365661},
+  {matcher = "Cell_length_b", tol = 1e-03, ref = 10.365661},
+  {matcher = "Cell_length_c", tol = 1e-03, ref = 10.365661}
+]
 "cell_sym_tetragonal_ab.inp"                   = [{matcher = "M011", tol = 1e-08, ref = -129.2369243617301}]
 "cell_sym_tetragonal_ac.inp"                   = [{matcher = "M011", tol = 1e-08, ref = -129.22195126442756}]
 "cell_sym_tetragonal_bc.inp"                   = [{matcher = "M011", tol = 1e-08, ref = -129.12318608682179}]
@@ -53,8 +65,8 @@
   {matcher = "M011", tol = 1.0E-10, ref = -1210.524637046745283},
   {matcher = "Cell_length_c", tol = 1.0E-9, ref = 27.500000}
 ]
-# Component-wise cell optimisation constraints (C fixes the same components as Z,
-# the reference value is shared with cell_opt_constraint_z on purpose)
+# Component-wise cell optimisation constraints. C fixes the same components as Z,
+# so cell_opt_constraint_c shares its reference values with cell_opt_constraint_z.
 "cell_opt_constraint_c.inp"                    = [
   {matcher = "M011", tol = 1.0E-10, ref = -1210.524637046745283},
   {matcher = "Cell_length_c", tol = 1.0E-9, ref = 27.500000}
@@ -91,8 +103,8 @@
   {matcher = "M011", tol = 1.0E-8, ref = -261.473321602206113},
   {matcher = "Cell_length_a", tol = 1.0E-9, ref = 16.500000}
 ]
-# Non-orthorhombic KEEP_ANGLE variants: the 60-degree rhombohedral cell pins the
-# a length and the kept alpha, the triclinic smoke run anchors an early step.
+# Non-orthorhombic KEEP_ANGLES variants. The 60-degree rhombohedral cell fixes
+# length a and angle alpha. The triclinic smoke run checks an early step.
 "cell_opt_constraint_a_keep_angles_rhombo.inp" = [
   {matcher = "M011", tol = 1.0E-10, ref = -19.369006707220770},
   {matcher = "Cell_length_a", tol = 1.0E-9, ref = 7.703891},
@@ -104,8 +116,28 @@
   {matcher = "Cell_angle_alpha", tol = 1.0E-9, ref = 89.000000}
 ]
 # Cell optimisation with fixed volume
-"cell_opt_keep_volume.inp"                     = [{matcher = "M011", tol = 1.0E-10, ref = -16.136339196984437}]
-"cell_opt_keep_volume_symmetry.inp"            = [{matcher = "M011", tol = 1.0E-10, ref = -16.13633919692934}]
+"cell_opt_keep_volume.inp"                     = [
+  {matcher = "M011", tol = 1.0E-10, ref = -16.144145384392772},
+  {matcher = "Cell_volume", tol = 1.0E-06, ref = 142.564830}
+]
+"cell_opt_keep_volume_symmetry.inp"            = [
+  {matcher = "M011", tol = 1.0E-10, ref = -16.144145384391454},
+  {matcher = "Cell_volume", tol = 1.0E-06, ref = 142.564830}
+]
+"cell_opt_keep_angles_hexagonal.inp"           = [
+  {matcher = "M011", tol = 4.0E-9, ref = -129.052065329952654},
+  {matcher = "Cell_angle_gamma", tol = 1.0E-4, ref = 60.000000}
+]
+"cell_opt_keep_spacegroup.inp"                 = [
+  {matcher = "M011", tol = 1.0E-10, ref = -77.476026828658405},
+  {matcher = "Cell_angle_alpha", tol = 1.0E-2, ref = 90.000094},
+  {matcher = "Cell_length_a", tol = 1.0E-3, ref = 10.894946},
+  {matcher = "Cell_length_b", tol = 1.0E-3, ref = 10.894946}
+]
+"cell_opt_constraint_abc.inp"                  = [
+  {matcher = "M011", tol = 1.0E-10, ref = -16.129309625303605},
+  {matcher = "Cell_volume", tol = 1.0E-06, ref = 142.564830}
+]
 # Inverse BFGS
 "geo_opt_bfgs_inverse.inp"                     = [{matcher = "M011", tol = 1.0E-14, ref = -35.282422070543689}]
 "cell_opt_direct_bfgs_inverse.inp"             = [{matcher = "M011", tol = 1.0E-14, ref = -35.644084205321576}]

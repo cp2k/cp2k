@@ -58,8 +58,8 @@ MODULE bfgs_optimizer
    USE global_types,                    ONLY: global_environment_type
    USE gopt_f_methods,                  ONLY: &
         cp_eval_at, gopt_f_ii, gopt_f_io, gopt_f_io_finalize, gopt_f_io_init, &
-        gopt_f_project_coord, gopt_f_project_step, gopt_f_project_vector, gopt_f_set_h_ref, &
-        print_geo_opt_header, print_geo_opt_nc
+        gopt_f_project_coord, gopt_f_project_vector, gopt_f_set_h_ref, print_geo_opt_header, &
+        print_geo_opt_nc
    USE gopt_f_types,                    ONLY: gopt_f_type
    USE gopt_param_types,                ONLY: gopt_param_type
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
@@ -394,7 +394,7 @@ CONTAINS
             CALL geoopt_get_step(ndf, eigval, eigvec_mat, hess_tmp, dr, g, para_env, use_rfo)
 
          END IF
-         CALL gopt_f_project_step(gopt_env, dr)
+         CALL gopt_f_project_vector(gopt_env, dr)
 
          IF (inverse) THEN
             ! Avoid a zero-step division and initialize the reported scale on every step.
