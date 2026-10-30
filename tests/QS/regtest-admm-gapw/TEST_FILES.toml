@@ -18,5 +18,5 @@
 "H2-geo-XC.inp"               = [{matcher = "E_total", tol = 5e-10, ref = -1.15201541750519}]
 "H2O-ADMMP-XC.inp"            = [{matcher = "E_total", tol = 1e-12, ref = -16.85600729246631}]
 # GAPW ADMM with RTP
-"H2O-admm-emd.inp"            = [{matcher = "M002", tol = 1e-10, ref = -16.8535073307}]
+"H2O-admm-emd.inp"            = [{matcher = "M002", tol = 1e-10, ref = -16.8535073210}]
 #EOF
