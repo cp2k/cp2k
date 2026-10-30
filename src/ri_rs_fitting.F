@@ -236,8 +236,9 @@ CONTAINS
          CALL timestop(handle)
          RETURN
       END IF
-      ! The two norm sums use per-iteration partials and a fixed-order accumulation, so they do
-      ! not depend on the order in which OpenMP threads finish.
+      ! Floating-point addition is not associative. Both sums are therefore accumulated from per-index
+      ! partials in a fixed order, so that the result does not depend on the OpenMP thread count or
+      ! scheduling.
       ALLOCATE (partial_norm2(n_ri))
       !$OMP PARALLEL DO DEFAULT(NONE) &
       !$OMP SHARED(n_ri, n_ao, int_3c, partial_norm2) PRIVATE(ip, inu) SCHEDULE(STATIC)
