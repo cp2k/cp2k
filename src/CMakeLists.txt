@@ -662,12 +662,13 @@ endforeach()
 # ##############################################################################
 # installation
 # ##############################################################################
-install(
-  TARGETS ${__CP2K_APPS} cp2k-bin grid_miniapp grid_unittest dbm_miniapp
-  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
-  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-  INCLUDES
-  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}")
+
+set(__CP2K_INSTALL_APPS ${__CP2K_APPS} cp2k-bin grid_miniapp grid_unittest
+                        dbm_miniapp)
+if(NOT CP2K_INSTALL_UNITTESTS)
+  list(FILTER __CP2K_INSTALL_APPS EXCLUDE REGEX "_unittest$")
+endif()
+install(TARGETS ${__CP2K_INSTALL_APPS})
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/data/" DESTINATION "${CP2K_DATA_DIR}")
 

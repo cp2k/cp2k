@@ -416,6 +416,7 @@ Along with some options with CP2K:
   directory, which CP2K prioritizes when attempting to retrieve the data. It should *always* be
   specified as an absolute path. It is created by copying over the existing `data` directory to the
   location during installation. Default is `share/cp2k/data` under `-DCMAKE_INSTALL_PREFIX`.
+- `-DCP2K_INSTALL_UNITTESTS` Specifies whether to install unit-test executables. Default is `ON`.
 - `-DCP2K_ENABLE_CONSISTENCY_CHECKS` Only used for
   [testing](https://dashboard.cp2k.org/archive/misc/index.html).
 - `-DCP2K_USE_CRAY_PM_ENERGY` Enables power monitoring on Cray systems.
