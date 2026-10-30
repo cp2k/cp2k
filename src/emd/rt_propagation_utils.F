@@ -94,6 +94,7 @@ MODULE rt_propagation_utils
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_set,&
                                               qs_rho_type
+   USE qs_scf_post_gpw,                 ONLY: get_effective_core_charges
    USE qs_scf_wfn_mix,                  ONLY: wfn_mix
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
@@ -743,6 +744,7 @@ CONTAINS
                                                             rt_time_step, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: list, list_index
       LOGICAL                                            :: append_cube, do_kpoints, mpi_io
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zcharge
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -796,6 +798,7 @@ CONTAINS
                       particle_set=particle_set, &
                       dft_control=dft_control)
       CALL qs_subsys_get(subsys, particles=particles)
+      CALL get_effective_core_charges(qs_env, zcharge)
 
       nspins = dft_control%nspins
       rt_time_step = qs_env%sim_step
@@ -870,7 +873,7 @@ CONTAINS
                                            middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
                                            mpi_io=mpi_io)
             WRITE (title, *) "DENSITY ", ivector, " spin ", ispin, " i.e. HOMO - ", ivector - homo
-            CALL cp_pw_to_cube(density_r, unit_nr, title, particles=particles, &
+            CALL cp_pw_to_cube(density_r, unit_nr, title, particles=particles, zeff=zcharge, &
                                stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"), mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES", mpi_io=mpi_io)
          END DO
@@ -881,6 +884,7 @@ CONTAINS
       CALL auxbas_pw_pool%give_back_pw(wf_r)
       CALL auxbas_pw_pool%give_back_pw(wf_g)
       CALL auxbas_pw_pool%give_back_pw(density_r)
+      DEALLOCATE (zcharge)
 
       CALL timestop(handle)
 
