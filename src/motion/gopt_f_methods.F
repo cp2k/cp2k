@@ -21,7 +21,8 @@ MODULE gopt_f_methods
    USE cell_methods,                    ONLY: cell_create,&
                                               init_cell,&
                                               write_cell
-   USE cell_opt_utils,                  ONLY: cell_opt_constraint_label,&
+   USE cell_opt_utils,                  ONLY: apply_cell_constraints,&
+                                              cell_opt_constraint_label,&
                                               get_dg_dh,&
                                               rescale_new_cell_volume
    USE cell_types,                      ONLY: cell_copy,&
@@ -72,7 +73,10 @@ MODULE gopt_f_methods
    USE particle_types,                  ONLY: particle_type
    USE qmmm_util,                       ONLY: apply_qmmm_translate
    USE qmmmx_util,                      ONLY: apply_qmmmx_translate
-   USE space_groups,                    ONLY: spgr_apply_rotations_force,&
+   USE space_groups,                    ONLY: identify_space_group,&
+                                              print_spgr,&
+                                              spgr_apply_rotations_coord,&
+                                              spgr_apply_rotations_force,&
                                               spgr_apply_rotations_stress,&
                                               spgr_project_cell_metric,&
                                               spgr_write_stress_tensor
@@ -90,6 +94,8 @@ MODULE gopt_f_methods
 
    PUBLIC :: cp_eval_at, &
              gopt_f_create_x0, &
+             gopt_f_project_coord, gopt_f_project_step, gopt_f_project_vector, &
+             gopt_f_space_group_init, gopt_f_space_group_show, &
              print_geo_opt_header, print_geo_opt_nc, &
              gopt_f_io_init, gopt_f_io, gopt_f_io_finalize, gopt_f_ii, &
              apply_cell_change
@@ -1501,5 +1507,102 @@ CONTAINS
       CALL cell_release(cell_ref)
 
    END SUBROUTINE apply_cell_change
+
+! **************************************************************************************************
+!> \brief Identify the space group, symmetrize x0 and print it (KEEP_SPACE_GROUP)
+!> \param gopt_env ...
+!> \param x0 ...
+!> \param geo_section ...
+!> \param output_unit ...
+! **************************************************************************************************
+   SUBROUTINE gopt_f_space_group_init(gopt_env, x0, geo_section, output_unit)
+      TYPE(gopt_f_type), POINTER                         :: gopt_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: x0
+      TYPE(section_vals_type), POINTER                   :: geo_section
+      INTEGER, INTENT(IN)                                :: output_unit
+
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+
+      NULLIFY (subsys)
+
+      IF (.NOT. gopt_env%spgr%keep_space_group) RETURN
+      SELECT CASE (gopt_env%type_id)
+      CASE (default_minimization_method_id, default_ts_method_id, default_cell_method_id)
+         CALL force_env_get(gopt_env%force_env, subsys=subsys)
+         CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
+         CALL spgr_apply_rotations_coord(gopt_env%spgr, x0)
+         CALL print_spgr(gopt_env%spgr)
+      CASE DEFAULT
+         gopt_env%spgr%keep_space_group = .FALSE.
+      END SELECT
+   END SUBROUTINE gopt_f_space_group_init
+
+! **************************************************************************************************
+!> \brief Identify and print the space group of the current structure (SHOW_SPACE_GROUP)
+!> \param gopt_env ...
+!> \param geo_section ...
+!> \param output_unit ...
+! **************************************************************************************************
+   SUBROUTINE gopt_f_space_group_show(gopt_env, geo_section, output_unit)
+      TYPE(gopt_f_type), POINTER                         :: gopt_env
+      TYPE(section_vals_type), POINTER                   :: geo_section
+      INTEGER, INTENT(IN)                                :: output_unit
+
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+
+      NULLIFY (subsys)
+
+      IF (.NOT. gopt_env%spgr%show_space_group) RETURN
+      CALL force_env_get(gopt_env%force_env, subsys=subsys)
+      CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
+      CALL print_spgr(gopt_env%spgr)
+   END SUBROUTINE gopt_f_space_group_show
+
+! **************************************************************************************************
+!> \brief Project optimizer coordinates onto the space-group-invariant subspace
+!>        (KEEP_SPACE_GROUP)
+!> \param gopt_env ...
+!> \param x ...
+! **************************************************************************************************
+   SUBROUTINE gopt_f_project_coord(gopt_env, x)
+      TYPE(gopt_f_type), POINTER                         :: gopt_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: x
+
+      IF (gopt_env%spgr%keep_space_group) CALL spgr_apply_rotations_coord(gopt_env%spgr, x)
+   END SUBROUTINE gopt_f_project_coord
+
+! **************************************************************************************************
+!> \brief Project a gradient, displacement or search direction (linear, no
+!>        translations)
+!> \param gopt_env ...
+!> \param v ...
+! **************************************************************************************************
+   SUBROUTINE gopt_f_project_vector(gopt_env, v)
+      TYPE(gopt_f_type), POINTER                         :: gopt_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: v
+
+      IF (gopt_env%spgr%keep_space_group) CALL spgr_apply_rotations_force(gopt_env%spgr, v)
+   END SUBROUTINE gopt_f_project_vector
+
+! **************************************************************************************************
+!> \brief Restrict a proposed optimizer step: cell constraints (CELL_OPT),
+!>        then space group
+!> \param gopt_env ...
+!> \param dr ...
+! **************************************************************************************************
+   SUBROUTINE gopt_f_project_step(gopt_env, dr)
+      TYPE(gopt_f_type), POINTER                         :: gopt_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), TARGET :: dr
+
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: cell_step
+
+      IF (gopt_env%type_id == default_cell_method_id) THEN
+         cell_step => dr(SIZE(dr) - 5:SIZE(dr))
+         CALL apply_cell_constraints(cell_step, gopt_env%cell_env%opt_cell, &
+                                     gopt_env%cell_env%keep_angles, gopt_env%cell_env%keep_symmetry, &
+                                     gopt_env%cell_env%constraint_id)
+      END IF
+      CALL gopt_f_project_vector(gopt_env, dr)
+   END SUBROUTINE gopt_f_project_step
 
 END MODULE gopt_f_methods
