@@ -90,7 +90,9 @@ CONTAINS
 
       nnp%num_atoms = helium%solute_atoms + 1
 
-      CALL nnp_init_model(nnp, "HELIUM NNP")
+      ! The helium-solute coupling has no device force path, so this environment
+      ! stays on the CPU and never claims the per-process GPU state.
+      CALL nnp_init_model(nnp, "HELIUM NNP", gpu_capable=.FALSE.)
 
       periodicity = 0
       IF (helium%periodic) periodicity = 1
