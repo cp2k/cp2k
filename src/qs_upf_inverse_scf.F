@@ -51,6 +51,7 @@ MODULE qs_upf_inverse_scf
                                               qs_rho_type
    USE qs_upf_inverse,                  ONLY: qs_upf_inverse_atomic_operators
    USE qs_upf_inverse_augmentation,     ONLY: qs_upf_inverse_augmentation_prepare
+   USE qs_upf_inverse_core,             ONLY: qs_upf_inverse_core_collocate
    USE qs_upf_inverse_grid,             ONLY: qs_upf_inverse_grid_collocate,&
                                               qs_upf_inverse_grid_integrate,&
                                               qs_upf_inverse_grid_metric,&
@@ -159,6 +160,7 @@ CONTAINS
       CALL dbcsr_set(uspp%ao_pattern, 0.0_dp)
       state%enabled = .TRUE.
       CALL set_ks_env(ks_env, upf_inverse=state)
+      CALL qs_upf_inverse_core_collocate(ks_env)
       CALL qs_upf_inverse_scf_core(ks_env)
       CALL qs_ks_did_change(ks_env, s_mstruct_changed=.TRUE., rho_changed=.TRUE., potential_changed=.TRUE.)
    END SUBROUTINE qs_upf_inverse_scf_prepare
