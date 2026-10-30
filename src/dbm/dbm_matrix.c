@@ -340,6 +340,7 @@ void dbm_reserve_blocks(dbm_matrix_t *matrix, const int nblocks,
   const int nshards = dbm_get_num_shards(matrix);
   const int nthreads = omp_get_num_threads();
   const int ithread = omp_get_thread_num();
+  // Fast-track for single-threaded runs.
   if (nthreads == 1 && nshards == 1) {
     dbm_shard_t *const shard = &matrix->shards[0];
     dbm_shard_reserve(shard, shard->nblocks + nblocks);
@@ -357,18 +358,16 @@ void dbm_reserve_blocks(dbm_matrix_t *matrix, const int nblocks,
 
   // Shared by the threads: blocks are binned by shard such that a single
   // thread owns a shard (no locks).
-  struct {
-    int *rowcol;
-    int offsets[]; // thread/shard counts, followed by shard boundaries
-  } *workspace;
+  int *workspace = NULL;
+  int *reserve_rowcol = NULL;
 
 #pragma omp single copyprivate(workspace)
   {
     const size_t count = (size_t)nthreads * nshards + nshards + 1;
-    workspace = calloc(1, sizeof(*workspace) + count * sizeof(int));
+    workspace = calloc(count, sizeof(*workspace));
     assert(workspace != NULL);
   }
-  int *const reserve_offset = workspace->offsets;
+  int *const reserve_offset = workspace;
   int *const reserve_start = reserve_offset + (size_t)nthreads * nshards;
   int *const offset = reserve_offset + (size_t)ithread * nshards;
   for (int i = 0; i < nblocks; i++) {
@@ -380,7 +379,7 @@ void dbm_reserve_blocks(dbm_matrix_t *matrix, const int nblocks,
   }
 #pragma omp barrier
 
-#pragma omp single
+#pragma omp single copyprivate(reserve_rowcol)
   { // exclusive prefix sum over shards (major) and threads (minor)
     int total = 0;
     for (int ishard = 0; ishard < nshards; ishard++) {
@@ -393,11 +392,10 @@ void dbm_reserve_blocks(dbm_matrix_t *matrix, const int nblocks,
       }
     }
     reserve_start[nshards] = total;
-    workspace->rowcol =
+    reserve_rowcol =
         (0 < total ? malloc(2 * (size_t)total * sizeof(int)) : NULL);
-    assert(workspace->rowcol != NULL || 0 == total);
+    assert(reserve_rowcol != NULL || 0 == total);
   }
-  int *const reserve_rowcol = workspace->rowcol;
   for (int i = 0; i < nblocks; i++) {
     const int j = offset[dbm_get_shard_index(matrix, rows[i], cols[i])]++;
     reserve_rowcol[2 * j + 0] = rows[i];
@@ -407,13 +405,14 @@ void dbm_reserve_blocks(dbm_matrix_t *matrix, const int nblocks,
 
 #pragma omp for DBM_OMP_SCHEDULE
   for (int ishard = 0; ishard < nshards; ishard++) {
-    if (reserve_start[ishard] == reserve_start[ishard + 1]) {
+    const int reserve_nblocks_ishard =
+        reserve_start[ishard + 1] - reserve_start[ishard];
+    if (reserve_nblocks_ishard == 0) {
       continue;
     }
     dbm_shard_t *const shard = &matrix->shards[ishard];
     // one rebuild of the hashtable rather than one per growth
-    dbm_shard_reserve(shard, shard->nblocks + reserve_start[ishard + 1] -
-                                 reserve_start[ishard]);
+    dbm_shard_reserve(shard, shard->nblocks + reserve_nblocks_ishard);
     for (int j = reserve_start[ishard]; j < reserve_start[ishard + 1]; j++) {
       const int row = reserve_rowcol[2 * j + 0];
       const int col = reserve_rowcol[2 * j + 1];
