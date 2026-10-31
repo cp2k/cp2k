@@ -1174,7 +1174,9 @@ CONTAINS
                                  #:endif
                                  INTEGER, DIMENSION(:), POINTER                     :: n
                                  LOGICAL                                            :: test
-                                 TYPE(fft_scratch_type), POINTER                    :: fft_scratch
+                                 #:if (space=="rs" and kind2=="c1d") or (space=="gs" and kind2=="r3d")
+                                    TYPE(fft_scratch_type), POINTER                    :: fft_scratch
+                                 #:endif
 
                                  CALL timeset(routineN, handle2)
                                  out_unit = cp_logger_get_default_io_unit()
