@@ -25,7 +25,8 @@ PROGRAM pw_unittest
                                               pw_grid_release
    USE pw_methods,                      ONLY: do_accurate_sum,&
                                               do_standard_sum,&
-                                              pw_integral_ab
+                                              pw_integral_ab,&
+                                              pw_real_fourier_aliases
    USE pw_poisson_methods,              ONLY: pw_poisson_set,&
                                               pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_mt,&
@@ -52,12 +53,52 @@ PROGRAM pw_unittest
       CALL check_copy(mode)
    END DO
    max_error = 0.0_dp
+   CALL check_real_fourier_aliases()
    CALL check_pw_integral_and_poisson()
    CALL check_mt2d_kernel()
    PRINT '(A,ES16.7)', 'PW integral and MT2D kernel maximum scaled error: ', max_error
    CALL cp2k_finalize()
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Preserve independent reflection symmetry on even real-grid Fourier boundaries.
+! **************************************************************************************************
+   SUBROUTINE check_real_fourier_aliases()
+      COMPLEX(dp)                                        :: phase
+      INTEGER                                            :: alias, axis, ig, nalias
+      LOGICAL                                            :: boundary(3)
+      REAL(dp)                                           :: cell(3, 3), point(3), vectors(3, 8)
+      TYPE(mp_comm_type)                                 :: comm
+      TYPE(pw_grid_type), POINTER                        :: grid
+
+      CALL comm%set_handle(mp_comm_world%get_handle())
+      cell = 0.0_dp
+      DO axis = 1, 3
+         cell(axis, axis) = 6.0_dp
+      END DO
+      NULLIFY (grid)
+      CALL pw_grid_create(grid, comm, cell, grid_span=FULLSPACE, npts=[6, 6, 6], odd=.FALSE., fft_usage=.FALSE.)
+      point = MATMUL(grid%dh, REAL([1, 2, -1], dp))
+      DO ig = 1, SIZE(grid%g, 2)
+         CALL pw_real_fourier_aliases(grid, ig, vectors, nalias)
+         boundary = ABS(grid%g_hat(:, ig)) == 3
+         IF (nalias /= 2**COUNT(boundary)) ERROR STOP "Missing real Fourier boundary aliases."
+         phase = 0.0_dp
+         DO alias = 1, nalias
+            phase = phase + EXP(CMPLX(0.0_dp, DOT_PRODUCT(vectors(:, alias), point), dp))/REAL(nalias, dp)
+         END DO
+         IF (ABS(phase - EXP(CMPLX(0.0_dp, DOT_PRODUCT(grid%g(:, ig), point), dp))) > 3.e-14_dp) THEN
+            ERROR STOP "Fourier boundary aliases changed the native grid phase."
+         END IF
+         IF (boundary(1) .AND. boundary(2)) THEN
+            IF (ABS(SUM(vectors(1, :nalias)*vectors(2, :nalias))/REAL(nalias, dp)) > 3.e-14_dp) THEN
+               ERROR STOP "A mixed odd kernel survived independent Nyquist reflection."
+            END IF
+         END IF
+      END DO
+      CALL pw_grid_release(grid)
+   END SUBROUTINE check_real_fourier_aliases
 
 ! **************************************************************************************************
 !> \brief Preserve three-digit cube exponents and parse adjacent values across z-slices.

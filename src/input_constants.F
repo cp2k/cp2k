@@ -288,6 +288,8 @@ MODULE input_constants
                                                do_method_pw = 19, &
                                                do_method_xtb = 20
 
+   INTEGER, PARAMETER, PUBLIC               :: uspp_method_direct = 0, uspp_method_inverse = 1, uspp_method_inverse_1c = 2
+
    INTEGER, PARAMETER, PUBLIC               :: do_multipole_section_on = 0, &
                                                do_multipole_section_off = 1
 
