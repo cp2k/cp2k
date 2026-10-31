@@ -65,10 +65,12 @@ if [ "${with_mkl}" != "__DONTUSE__" ]; then
   # check we have required libraries
   if [ ${with_intel} != "__DONTUSE__" ]; then
     mkl_interface_lib="mkl_intel_lp64"
+    mkl_thread_lib="mkl_intel_thread"
   else
     mkl_interface_lib="mkl_gf_lp64"
+    mkl_thread_lib="mkl_gnu_thread"
   fi
-  mkl_required_libs="lib${mkl_interface_lib}.so libmkl_sequential.so libmkl_core.so"
+  mkl_required_libs="lib${mkl_interface_lib}.so lib${mkl_thread_lib}.so libmkl_core.so"
   for ii in $mkl_required_libs; do
     if [ ! -f "$mkl_lib_dir/${ii}" ]; then
       report_error $LINENO "missing MKL library ${ii}"
@@ -94,7 +96,7 @@ if [ "${with_mkl}" != "__DONTUSE__" ]; then
 
   # set the correct lib flags from MKL link adviser
   MKL_LIBS="-L${mkl_lib_dir} -Wl,-rpath,${mkl_lib_dir} ${mkl_scalapack_lib}"
-  MKL_LIBS+=" -Wl,--start-group -l${mkl_interface_lib} -lmkl_sequential -lmkl_core"
+  MKL_LIBS+=" -Wl,--start-group -l${mkl_interface_lib} -l${mkl_thread_lib} -lmkl_core"
   MKL_LIBS+=" ${mkl_blacs_lib} -Wl,--end-group -lpthread -lm -ldl"
   # setup_mkl disables using separate FFTW library (see below)
   MKL_CFLAGS="${MKL_CFLAGS} -I${MKLROOT}/include"
