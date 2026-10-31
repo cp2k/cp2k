@@ -83,7 +83,7 @@ MODULE fft_tools
       ! to be used in cube_transpose_* routines
       TYPE(mp_cart_type), DIMENSION(2)     :: cart_sub_comm = mp_cart_type()
       INTEGER, DIMENSION(2)                :: dim = -1, pos = -1
-      ! to be used in fft3d_s
+      ! to be used in fft3d_s and PW real/complex conversion
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER, CONTIGUOUS &
          :: ziptr => NULL(), zoptr => NULL()
       ! to be used in fft3d_ps : block distribution
@@ -153,11 +153,12 @@ MODULE fft_tools
    ! these saved variables are FFT globals
    LOGICAL, SAVE :: alltoall_sgl = .FALSE.
 
-   ! these are only needed for pw_gpu (-D__OFFLOAD)
+   ! scratch access is shared by the CPU PW wrappers and pw_gpu
    PUBLIC :: get_fft_scratch, release_fft_scratch
+   PUBLIC :: fft_scratch_sizes, fft_scratch_type
+   ! these are only needed for pw_gpu (-D__OFFLOAD)
    PUBLIC :: cube_transpose_1, cube_transpose_2
    PUBLIC :: yz_to_x, x_to_yz, xz_to_yz, yz_to_xz
-   PUBLIC :: fft_scratch_sizes, fft_scratch_type
 
    INTERFACE fft3d
       MODULE PROCEDURE fft3d_s, fft3d_ps, fft3d_pb
@@ -391,11 +392,13 @@ CONTAINS
 !> \param zout ...
 !> \param status ...
 !> \param debug ...
+!> \param scratch Optional checked-out local FFT scratch, retained by the caller
+!> \param scale Override the default normalization (1/PRODUCT(n) for a forward FFT)
 !> \par History
 !>      none
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE fft3d_s(fsign, n, zin, zout, status, debug)
+   SUBROUTINE fft3d_s(fsign, n, zin, zout, status, debug, scratch, scale)
 
       INTEGER, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: n
@@ -405,6 +408,9 @@ CONTAINS
          INTENT(INOUT), OPTIONAL, TARGET                 :: zout
       INTEGER, INTENT(OUT), OPTIONAL                     :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
+      TYPE(fft_scratch_type), INTENT(IN), OPTIONAL, &
+         POINTER                                         :: scratch
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'fft3d_s'
 
@@ -427,6 +433,7 @@ CONTAINS
       ELSE
          CPABORT("Unknown FFT direction!")
       END IF
+      IF (PRESENT(scale)) norm = scale
 
       IF (PRESENT(debug)) THEN
          test = debug
@@ -453,7 +460,14 @@ CONTAINS
       END IF
 
       sign = fsign
-      CALL get_fft_scratch(fft_scratch, tf_type=400, n=n)
+      IF (PRESENT(scratch)) THEN
+         CPASSERT(ASSOCIATED(scratch))
+         CPASSERT(scratch%in_use .AND. scratch%tf_type == 400)
+         CPASSERT(ALL(scratch%nfft == n))
+         fft_scratch => scratch
+      ELSE
+         CALL get_fft_scratch(fft_scratch, tf_type=400, n=n)
+      END IF
 
       IF (fft_in_place) THEN
          zoptr => zdum
@@ -470,7 +484,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL release_fft_scratch(fft_scratch)
+      IF (.NOT. PRESENT(scratch)) CALL release_fft_scratch(fft_scratch)
 
       IF (PRESENT(zout)) THEN
          lo(1) = SIZE(zout, 1)
@@ -2968,7 +2982,8 @@ CONTAINS
             ALLOCATE (fft_scratch_new)
             ALLOCATE (fft_scratch_new%fft_scratch)
 
-            IF (tf_type /= 400) THEN
+            IF (tf_type /= 400 .AND. tf_type /= 500) THEN
+               CPASSERT(PRESENT(fft_sizes))
                fft_scratch_new%fft_scratch%sizes = fft_sizes
                np = fft_sizes%numtask
                ALLOCATE (fft_scratch_new%fft_scratch%scount(0:np - 1), fft_scratch_new%fft_scratch%rcount(0:np - 1), &
@@ -3285,6 +3300,9 @@ CONTAINS
                                        fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%zoptr)
                CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(4), .FALSE., BWFFT, n, &
                                        fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%zoptr)
+
+            CASE (500) ! PW real/complex conversion buffer; no FFT plans required
+               CALL fft_alloc(fft_scratch_new%fft_scratch%ziptr, n)
 
             END SELECT
 

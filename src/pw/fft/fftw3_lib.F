@@ -1036,7 +1036,7 @@ CONTAINS
       END IF
 
 !$    IF (plan%need_alt_plan) THEN
-!$       plan%alt_num_rows = plan%m - (plan%num_threads_needed - 1)*num_rows
+!$       plan%alt_num_rows = num_rows + 1
 !$       IF (plan%fsign == +1) THEN
 !$          CALL dfftw_plan_many_dft(plan%alt_fftw_plan, 1, plan%n, plan%alt_num_rows, zin, 0, istride, idist, &
 !$                                   zout, 0, ostride, odist, FFTW_FORWARD, fftw_plan_type)
@@ -1104,7 +1104,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: stat
 
       INTEGER                                            :: in_offset, my_id, num_rows, out_offset, &
-                                                            scal_offset
+                                                            row_offset, scal_offset
       TYPE(C_PTR)                                        :: fftw_plan
 !------------------------------------------------------------------------------
 
@@ -1121,7 +1121,7 @@ CONTAINS
 #endif
 
 !$OMP PARALLEL DEFAULT(NONE), &
-!$OMP          PRIVATE(my_id,num_rows,in_offset,out_offset,scal_offset,fftw_plan), &
+!$OMP          PRIVATE(my_id,num_rows,in_offset,out_offset,row_offset,scal_offset,fftw_plan), &
 !$OMP          SHARED(zin,zout), &
 !$OMP          SHARED(plan,scale,stat)
 !$    my_id = omp_get_thread_num()
@@ -1134,16 +1134,18 @@ CONTAINS
          out_offset = 1
          scal_offset = 1
 
-!$       in_offset = 1 + plan%num_rows*my_id*plan%n
-!$       out_offset = 1 + plan%num_rows*my_id*plan%n
+         ! Distribute the remainder over the first threads, one extra row each.
+!$       row_offset = plan%num_rows*my_id + MIN(my_id, MOD(plan%m, plan%num_threads_needed))
+!$       in_offset = 1 + row_offset*plan%n
+!$       out_offset = 1 + row_offset*plan%n
 !$       IF (plan%trans_in) THEN
-!$          in_offset = 1 + plan%num_rows*my_id
+!$          in_offset = 1 + row_offset
 !$       END IF
 !$       IF (plan%trans_out) THEN
-!$          out_offset = 1 + plan%num_rows*my_id
+!$          out_offset = 1 + row_offset
 !$       END IF
-!$       scal_offset = 1 + plan%n*plan%num_rows*my_id
-!$       IF (plan%need_alt_plan .AND. my_id == plan%num_threads_needed - 1) THEN
+!$       scal_offset = 1 + plan%n*row_offset
+!$       IF (plan%need_alt_plan .AND. my_id < MOD(plan%m, plan%num_threads_needed)) THEN
 !$          num_rows = plan%alt_num_rows
 !$          fftw_plan = plan%alt_fftw_plan
 !$       ELSE
