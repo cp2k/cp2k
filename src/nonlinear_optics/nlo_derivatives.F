@@ -17,6 +17,7 @@ MODULE nlo_derivatives
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: gaussi
+   USE mathlib,                         ONLY: diag_complex
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -123,12 +124,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'nlo_lowdin_derivatives'
 
       COMPLEX(dp), ALLOCATABLE                           :: matrix_work(:, :), metric_u(:, :), &
-                                                            rhs(:, :), work(:)
+                                                            rhs(:, :)
       COMPLEX(dp), ALLOCATABLE, DIMENSION(:, :)          :: matrix_product
-      INTEGER                                            :: handle, ib, ic, id, ij, info, n, nj
+      INTEGER                                            :: handle, ib, ic, id, ij, n, nj
       INTEGER, DIMENSION(3, nlo_n_derivatives)           :: alpha
       REAL(KIND=dp)                                      :: scale
-      REAL(KIND=dp), ALLOCATABLE                         :: metric_e(:), work_e(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: metric_e(:)
 
       CALL timeset(routineN, handle)
 
@@ -149,12 +150,9 @@ CONTAINS
          END IF
       END DO
       ALLOCATE (metric_u(n, n), rhs(n, n), matrix_work(n, n), &
-                matrix_product(n, n), work(MAX(1, 2*n)), &
-                metric_e(n), work_e(MAX(1, 3*n)))
-      metric_u(:, :) = overlap(:, :, 1)
+                matrix_product(n, n), metric_e(n))
 
-      CALL zheev('V', 'U', n, metric_u, n, metric_e, work, SIZE(work), work_e, info)
-      IF (info /= 0) CPABORT('NONLINEAR_OPTICS Löwdin overlap eigensolver failed.')
+      CALL diag_complex(overlap(:, :, 1), metric_u, metric_e)
 
       IF (MAXVAL(metric_e) <= 0.0_dp .OR. MINVAL(metric_e) <= 1.e-10_dp*MAXVAL(metric_e)) THEN
          CPABORT('NONLINEAR_OPTICS Löwdin derivative check failed.')
