@@ -23,8 +23,6 @@ MODULE mp2_ri_libint
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -35,23 +33,19 @@ MODULE mp2_ri_libint
                                               cp_fm_release,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_type
-   USE four_center_integral_interface,  ONLY: four_center_integral_context_type
    USE four_center_integral_methods,    ONLY: coulomb4
-   USE gamma,                           ONLY: init_md_ftable
    USE hfx_pair_list_methods,           ONLY: build_pair_list_mp2
    USE hfx_screening_methods,           ONLY: calc_pair_dist_radii,&
                                               calc_screening_functions
    USE hfx_types,                       ONLY: &
         hfx_basis_info_type, hfx_basis_type, hfx_create_neighbor_cells, hfx_pgf_list, &
-        hfx_pgf_product_list, hfx_potential_type, hfx_screen_coeff_type, hfx_type, log_zero, &
-        pair_set_list_type
+        hfx_potential_type, hfx_screen_coeff_type, hfx_type, log_zero, pair_set_list_type
    USE input_constants,                 ONLY: do_potential_TShPSC,&
                                               do_potential_long
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_para_env_type
-   USE mp2_types,                       ONLY: init_TShPSC_lmax,&
-                                              mp2_biel_type,&
+   USE mp2_types,                       ONLY: mp2_biel_type,&
                                               mp2_type,&
                                               pair_list_type_mp2
    USE orbital_pointers,                ONLY: nco,&
@@ -63,8 +57,7 @@ MODULE mp2_ri_libint
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
-   USE t_sh_p_s_c,                      ONLY: free_C0,&
-                                              init
+   USE r12_fundamentals,                ONLY: r12_fundamentals_init
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -445,7 +438,7 @@ CONTAINS
          log10_eps_schwarz, log10_pmax, max_contraction_val, pmax_atom, pmax_entry, ra(3), rb(3), &
          rc(3), rd(3)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ee_buffer1, ee_buffer2, &
-                                                            ee_primitives_tmp, ee_work, ee_work2, &
+                                                            ee_primitives_tmp, ee_work2, &
                                                             primitive_integrals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: L_block, L_full_matrix, max_contraction
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BI1, MNRS
@@ -458,11 +451,8 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_L
       TYPE(cp_fm_type)                                   :: fm_matrix_L
-      TYPE(four_center_integral_context_type)            :: private_context
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
       TYPE(hfx_pgf_list), ALLOCATABLE, DIMENSION(:)      :: pgf_list_ij, pgf_list_kl
-      TYPE(hfx_pgf_product_list), ALLOCATABLE, &
-         DIMENSION(:)                                    :: pgf_product_list
       TYPE(hfx_potential_type)                           :: mp2_potential_parameter
       TYPE(hfx_screen_coeff_type), ALLOCATABLE, &
          DIMENSION(:, :), TARGET                         :: radii_pgf_large, screen_coeffs_pgf_large
@@ -490,10 +480,10 @@ CONTAINS
 
       CALL prepare_integral_calc(cell, qs_env, mp2_env, para_env, mp2_potential_parameter, actual_x_data, &
                                  do_periodic, basis_parameter, max_set, particle_set, natom, kind_of, &
-                                 nsgf_max, primitive_integrals, ee_work, ee_work2, ee_buffer1, ee_buffer2, &
+                                 nsgf_max, primitive_integrals, ee_work2, ee_buffer1, ee_buffer2, &
                                  ee_primitives_tmp, nspins, max_contraction, max_pgf, pgf_list_ij, &
-                                 pgf_list_kl, pgf_product_list, nimages, eps_schwarz, log10_eps_schwarz, &
-                                 private_context, screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
+                                 pgf_list_kl, nimages, eps_schwarz, log10_eps_schwarz, &
+                                 screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
                                  radii_pgf, RI_basis_parameter, RI_basis_info)
 
       ALLOCATE (radii_pgf_large(SIZE(radii_pgf, 1), SIZE(radii_pgf, 2)))
@@ -614,7 +604,7 @@ CONTAINS
 
                   ALLOCATE (L_block(nsgfa(iset), nsgfc(kset)))
 
-                  CALL coulomb4(private_context, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
+                  CALL coulomb4(actual_x_data%eri4_context, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
                                 la_min(iset), la_max(iset), lb_min(jset), lb_max(jset), &
                                 lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset), &
                                 nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
@@ -631,14 +621,13 @@ CONTAINS
                                 max_contraction_val, cartesian_estimate, cell, neris_tmp, &
                                 log10_pmax, log10_eps_schwarz, &
                                 tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2, &
-                                pgf_list_ij, pgf_list_kl, pgf_product_list, &
-                                nsgfl_a(:, iset), nsgfl_b(:, jset), &
+                                pgf_list_ij, pgf_list_kl, nsgfl_a(:, iset), nsgfl_b(:, jset), &
                                 nsgfl_c(:, kset), nsgfl_d(:, lset), &
                                 sphi_a_ext_set, &
                                 sphi_b_ext_set, &
                                 sphi_c_ext_set, &
                                 sphi_d_ext_set, &
-                                ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
+                                ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
                                 nimages, do_periodic)
 
                   primitive_counter = 0
@@ -841,7 +830,7 @@ CONTAINS
 
                   max_contraction_val = max_contraction(kset, katom)*max_contraction(lset, latom)
 
-                  CALL coulomb4(private_context, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
+                  CALL coulomb4(actual_x_data%eri4_context, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
                                 la_min(iset), la_max(iset), lb_min(jset), lb_max(jset), &
                                 lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset), &
                                 nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
@@ -858,14 +847,13 @@ CONTAINS
                                 max_contraction_val, cartesian_estimate, cell, neris_tmp, &
                                 log10_pmax, log10_eps_schwarz, &
                                 tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2, &
-                                pgf_list_ij, pgf_list_kl, pgf_product_list, &
-                                nsgfl_a(:, iset), nsgfl_b(:, jset), &
+                                pgf_list_ij, pgf_list_kl, nsgfl_a(:, iset), nsgfl_b(:, jset), &
                                 nsgfl_c(:, kset), nsgfl_d(:, lset), &
                                 sphi_a_ext_set, &
                                 sphi_b_ext_set, &
                                 sphi_c_ext_set, &
                                 sphi_d_ext_set, &
-                                ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
+                                ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
                                 nimages, do_periodic)
 
                   nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
@@ -928,18 +916,12 @@ CONTAINS
 
       DEALLOCATE (pgf_list_ij)
       DEALLOCATE (pgf_list_kl)
-      DEALLOCATE (pgf_product_list)
 
       DEALLOCATE (max_contraction, kind_of)
 
-      DEALLOCATE (ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp)
+      DEALLOCATE (ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp)
 
       DEALLOCATE (nimages)
-
-      IF (mp2_env%potential_parameter%potential_type == do_potential_TShPSC) THEN
-         init_TShPSC_lmax = -1
-         CALL free_C0()
-      END IF
 
       CALL timestop(handle)
 
@@ -961,7 +943,6 @@ CONTAINS
 !> \param kind_of ...
 !> \param nsgf_max ...
 !> \param primitive_integrals ...
-!> \param ee_work ...
 !> \param ee_work2 ...
 !> \param ee_buffer1 ...
 !> \param ee_buffer2 ...
@@ -971,11 +952,9 @@ CONTAINS
 !> \param max_pgf ...
 !> \param pgf_list_ij ...
 !> \param pgf_list_kl ...
-!> \param pgf_product_list ...
 !> \param nimages ...
 !> \param eps_schwarz ...
 !> \param log10_eps_schwarz ...
-!> \param private_context borrowed per-thread four-center integral context
 !> \param screen_coeffs_set ...
 !> \param screen_coeffs_kind ...
 !> \param screen_coeffs_pgf ...
@@ -985,10 +964,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE prepare_integral_calc(cell, qs_env, mp2_env, para_env, mp2_potential_parameter, actual_x_data, &
                                     do_periodic, basis_parameter, max_set, particle_set, natom, kind_of, &
-                                    nsgf_max, primitive_integrals, ee_work, ee_work2, ee_buffer1, ee_buffer2, &
+                                    nsgf_max, primitive_integrals, ee_work2, ee_buffer1, ee_buffer2, &
                                     ee_primitives_tmp, nspins, max_contraction, max_pgf, pgf_list_ij, &
-                                    pgf_list_kl, pgf_product_list, nimages, eps_schwarz, log10_eps_schwarz, &
-                                    private_context, screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
+                                    pgf_list_kl, nimages, eps_schwarz, log10_eps_schwarz, &
+                                    screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
                                     radii_pgf, RI_basis_parameter, RI_basis_info)
 
       TYPE(cell_type), POINTER                           :: cell
@@ -1005,7 +984,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: kind_of
       INTEGER, INTENT(OUT)                               :: nsgf_max
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                                     :: primitive_integrals, ee_work, ee_work2, &
+         INTENT(OUT)                                     :: primitive_integrals, ee_work2, &
                                                             ee_buffer1, ee_buffer2, &
                                                             ee_primitives_tmp
       INTEGER, INTENT(OUT)                               :: nspins
@@ -1014,12 +993,8 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: max_pgf
       TYPE(hfx_pgf_list), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: pgf_list_ij, pgf_list_kl
-      TYPE(hfx_pgf_product_list), ALLOCATABLE, &
-         DIMENSION(:), INTENT(OUT)                       :: pgf_product_list
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: nimages
       REAL(KIND=dp), INTENT(OUT)                         :: eps_schwarz, log10_eps_schwarz
-      TYPE(four_center_integral_context_type), &
-         INTENT(OUT)                                     :: private_context
       TYPE(hfx_screen_coeff_type), &
          DIMENSION(:, :, :, :), POINTER                  :: screen_coeffs_set
       TYPE(hfx_screen_coeff_type), DIMENSION(:, :), &
@@ -1063,9 +1038,14 @@ CONTAINS
          END DO
       END IF
       l_max = 4*l_max
-      CALL init_md_ftable(l_max)
 
-      CALL get_potential_parameters(mp2_env, l_max, para_env, mp2_potential_parameter)
+      CALL r12_fundamentals_init(l_max, mp2_env%potential_parameter, para_env)
+      IF (mp2_env%potential_parameter%potential_type == do_potential_TShPSC) THEN
+         mp2_potential_parameter%cutoff_radius = mp2_env%potential_parameter%cutoff_radius/2.0_dp
+      ELSE IF (mp2_env%potential_parameter%potential_type == do_potential_long) THEN
+         mp2_potential_parameter%omega = mp2_env%potential_parameter%omega
+      END IF
+      mp2_potential_parameter%potential_type = mp2_env%potential_parameter%potential_type
 
       n_threads = 1
 
@@ -1110,7 +1090,6 @@ CONTAINS
       ALLOCATE (primitive_integrals(nsgf_max**4))
       primitive_integrals = 0.0_dp
 
-      ALLOCATE (ee_work(ncos_max**4))
       ALLOCATE (ee_work2(ncos_max**4))
       ALLOCATE (ee_buffer1(ncos_max**4))
       ALLOCATE (ee_buffer2(ncos_max**4))
@@ -1124,7 +1103,6 @@ CONTAINS
       nneighbors = SIZE(actual_x_data%neighbor_cells)
       ALLOCATE (pgf_list_ij(max_pgf**2))
       ALLOCATE (pgf_list_kl(max_pgf**2))
-      ALLOCATE (pgf_product_list(nneighbors**3))
       ALLOCATE (nimages(max_pgf**2))
 
       DO ii = 1, max_pgf**2
@@ -1144,8 +1122,6 @@ CONTAINS
 
       !! The number of integrals that fit into the given MAX_MEMORY
 
-      private_context = actual_x_data%eri4_context
-
       !!!!!!!! Missing part on the density matrix
 
       !! Initialize schwarz screening matrices for near field estimates and boxing screening matrices
@@ -1157,7 +1133,7 @@ CONTAINS
          CALL calc_pair_dist_radii(qs_env, basis_parameter, &
                                    shm_master_x_data%pair_dist_radii_pgf, max_set, max_pgf, eps_schwarz, &
                                    n_threads, i_thread)
-         CALL calc_screening_functions(qs_env, basis_parameter, private_context, shm_master_x_data%potential_parameter, &
+         CALL calc_screening_functions(qs_env, basis_parameter, actual_x_data%eri4_context, shm_master_x_data%potential_parameter, &
                                        shm_master_x_data%screen_funct_coeffs_set, &
                                        shm_master_x_data%screen_funct_coeffs_kind, &
                                        shm_master_x_data%screen_funct_coeffs_pgf, &
@@ -1175,42 +1151,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE prepare_integral_calc
-
-! **************************************************************************************************
-!> \brief ...
-!> \param mp2_env ...
-!> \param l_max ...
-!> \param para_env ...
-!> \param mp2_potential_parameter ...
-! **************************************************************************************************
-   SUBROUTINE get_potential_parameters(mp2_env, l_max, para_env, mp2_potential_parameter)
-
-      TYPE(mp2_type)                                     :: mp2_env
-      INTEGER, INTENT(IN)                                :: l_max
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-      TYPE(hfx_potential_type), INTENT(OUT)              :: mp2_potential_parameter
-
-      INTEGER                                            :: unit_id
-
-      IF (mp2_env%potential_parameter%potential_type == do_potential_TShPSC) THEN
-         IF (l_max > init_TShPSC_lmax) THEN
-            IF (para_env%is_source()) THEN
-               CALL open_file(unit_number=unit_id, file_name=mp2_env%potential_parameter%filename)
-            END IF
-            CALL init(l_max, unit_id, para_env%mepos, para_env)
-            IF (para_env%is_source()) THEN
-               CALL close_file(unit_id)
-            END IF
-            init_TShPSC_lmax = l_max
-         END IF
-         mp2_potential_parameter%cutoff_radius = mp2_env%potential_parameter%cutoff_radius/2.0_dp
-      ELSE IF (mp2_env%potential_parameter%potential_type == do_potential_long) THEN
-         mp2_potential_parameter%omega = mp2_env%potential_parameter%omega
-      END IF
-
-      mp2_potential_parameter%potential_type = mp2_env%potential_parameter%potential_type
-
-   END SUBROUTINE get_potential_parameters
 
 ! **************************************************************************************************
 !> \brief ...

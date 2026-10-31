@@ -20,6 +20,7 @@ MODULE mp2_optimize_ri_basis
                                               remove_basis_from_container
    USE basis_set_types,                 ONLY: allocate_gto_basis_set,&
                                               gto_basis_set_type
+   USE coulomb_integral_interface,      ONLY: coulomb_integral_max_am
    USE cp_log_handling,                 ONLY: cp_add_default_logger,&
                                               cp_get_default_logger,&
                                               cp_logger_create,&
@@ -31,7 +32,6 @@ MODULE mp2_optimize_ri_basis
    USE hfx_types,                       ONLY: hfx_basis_info_type,&
                                               hfx_basis_type
    USE kinds,                           ONLY: dp
-   USE libint_wrapper,                  ONLY: build_eri_size
    USE machine,                         ONLY: default_output_unit,&
                                               m_flush
    USE memory_utilities,                ONLY: reallocate
@@ -280,7 +280,7 @@ CONTAINS
       DEALLOCATE (basis_was_assoc)
 
       ! check if the max angular momentum exceed the libint one
-      IF (max_l_am > build_eri_size) THEN
+      IF (max_l_am > coulomb_integral_max_am) THEN
          CPABORT("The angular momentum needed exceeds the value assumed when configuring libint.")
       END IF
 

@@ -49,7 +49,6 @@ MODULE hfx_types
                                               four_center_integral_init
    USE four_center_integral_types,      ONLY: hfx_cell_type => eri4_cell_type,&
                                               hfx_pgf_list => eri4_pgf_pair_type,&
-                                              hfx_pgf_product_list => eri4_pgf_product_type,&
                                               hfx_screen_coeff_type => eri4_screen_coeff_type
    USE hfx_helpers,                     ONLY: count_cells_perd,&
                                               next_image_cell_perd
@@ -64,8 +63,8 @@ MODULE hfx_types
                                               section_vals_type,&
                                               section_vals_val_get
    USE integral_library_types,          ONLY: compare_potential_types,&
-                                              hfx_potential_type => coulomb_operator_type,&
-                                              libint_potential_type => coulomb_operator_type
+                                              coulomb_operator_type,&
+                                              hfx_potential_type => coulomb_operator_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp,&
@@ -90,7 +89,6 @@ MODULE hfx_types
         distribution_3d_create, distribution_3d_destroy, distribution_3d_type, pgf_block_sizes, &
         split_block_sizes
    USE string_utilities,                ONLY: compress
-   USE t_c_g0,                          ONLY: free_C0
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -110,8 +108,8 @@ MODULE hfx_types
              hfx_basis_info_type, hfx_screen_coeff_type, &
              hfx_reset_memory_usage_counter, pair_list_type, pair_list_element_type, &
              pair_set_list_type, hfx_p_kind, hfx_2D_map, hfx_pgf_list, &
-             hfx_pgf_product_list, hfx_block_range_type, &
-             alloc_containers, dealloc_containers, hfx_task_list_type, init_t_c_g0_lmax, &
+             hfx_block_range_type, &
+             alloc_containers, dealloc_containers, hfx_task_list_type, &
              hfx_create_neighbor_cells, hfx_create_basis_types, hfx_release_basis_types, &
              hfx_ri_type, hfx_compression_type, block_ind_type, hfx_ri_init, hfx_ri_release, &
              compare_hfx_sections
@@ -136,8 +134,6 @@ MODULE hfx_types
                                                              2.0317_dp, &
                                                              2.1261_dp, &
                                                              2.2165_dp]
-
-   INTEGER, SAVE                                         :: init_t_c_g0_lmax = -1
 
 !***
 
@@ -333,10 +329,10 @@ MODULE hfx_types
                  ncell_RI = 0, nimg = 0, kp_stack_size = 0, nimg_nze = 0, kp_ngroups = 1
       LOGICAL :: check_2c_inv = .FALSE., calc_condnum = .FALSE.
 
-      TYPE(libint_potential_type) :: ri_metric = libint_potential_type()
+      TYPE(coulomb_operator_type) :: ri_metric = coulomb_operator_type()
 
       ! input parameters from hfx
-      TYPE(libint_potential_type) :: hfx_pot = libint_potential_type() ! interaction potential
+      TYPE(coulomb_operator_type) :: hfx_pot = coulomb_operator_type() ! interaction potential
       REAL(KIND=dp) :: eps_schwarz = 0.0_dp ! integral screening threshold
       REAL(KIND=dp) :: eps_schwarz_forces = 0.0_dp ! integral derivatives screening threshold
 
@@ -1930,11 +1926,6 @@ CONTAINS
       n_rep_hf = x_data(1, 1)%n_rep_hf
       n_threads = SIZE(x_data, 2)
 
-      IF (x_data(1, 1)%potential_parameter%potential_type == do_potential_truncated .OR. &
-          x_data(1, 1)%potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
-         init_t_c_g0_lmax = -1
-         CALL free_C0()
-      END IF
       DO i_thread = 1, n_threads
          DO irep = 1, n_rep_hf
             actual_x_data => x_data(irep, i_thread)

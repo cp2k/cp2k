@@ -48,7 +48,7 @@ MODULE mp2_eri
                                          coulomb_integral_cleanup, &
                                          coulomb_integral_context_type, &
                                          coulomb_integral_init
-   USE libint_2c_3c, ONLY: libint_potential_type
+   USE integral_library_types, ONLY: coulomb_operator_type
    USE orbital_pointers, ONLY: coset, &
                                init_orbital_pointers, &
                                ncoset
@@ -120,7 +120,7 @@ CONTAINS
                                    last_b, eri_method, pab, force_a, force_b, hdab, hadb, &
                                    reflection_z_a, reflection_z_b, do_reflection_a, do_reflection_b)
       TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
       TYPE(mp_para_env_type), INTENT(IN)        :: para_env
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: basis_type_a, basis_type_b
@@ -384,7 +384,7 @@ CONTAINS
                                eri_method, pab, force_a, force_b, hdab, hadb, G_count, R_count, &
                                do_reflection_a, do_reflection_b, rpgfa, rpgfb, coulomb_context)
       TYPE(eri_mme_param), INTENT(INOUT)                 :: param
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
       INTEGER, INTENT(IN)                                :: la_min, la_max, lb_min, lb_max, npgfa
       REAL(KIND=dp), DIMENSION(npgfa), INTENT(IN)        :: zeta
       INTEGER, INTENT(IN)                                :: npgfb
@@ -633,7 +633,7 @@ CONTAINS
                                    pabc, force_a, force_b, force_c, &
                                    mat_dabc, mat_adbc, mat_abdc)
       TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
       TYPE(mp_para_env_type), INTENT(IN)        :: para_env
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       INTEGER, INTENT(IN)                                :: first_c, last_c
@@ -1108,7 +1108,7 @@ CONTAINS
                                GG_count, GR_count, RR_count)
 
       TYPE(eri_mme_param), INTENT(INOUT)                 :: param
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
       INTEGER, INTENT(IN)                                :: la_min, la_max, lb_min, lb_max, lc_min, &
                                                             lc_max, npgfa, npgfb, npgfc
       REAL(KIND=dp), DIMENSION(npgfa), INTENT(IN)        :: zeta

@@ -19,30 +19,26 @@ MODULE gw_utils_compute_integrals
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
                                               pbc
+   USE coulomb_integral_interface,      ONLY: compute_coulomb_3c,&
+                                              coulomb_integral_cleanup,&
+                                              coulomb_integral_context_type,&
+                                              coulomb_integral_init
    USE cp_array_utils,                  ONLY: cp_2d_r_p_type
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
-   USE gamma,                           ONLY: init_md_ftable
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_id,&
                                               do_potential_short,&
                                               do_potential_truncated
+   USE integral_library_types,          ONLY: coulomb_operator_type,&
+                                              cutoff_screen_factor,&
+                                              library_libint
    USE kinds,                           ONLY: dp
-   USE libint_2c_3c,                    ONLY: cutoff_screen_factor,&
-                                              eri_3center,&
-                                              libint_potential_type
-   USE libint_wrapper,                  ONLY: cp_libint_cleanup_3eri,&
-                                              cp_libint_init_3eri,&
-                                              cp_libint_set_contrdepth,&
-                                              cp_libint_t
    USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE t_c_g0,                          ONLY: get_lmax_init,&
-                                              init
+   USE r12_fundamentals,                ONLY: r12_fundamentals_init
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
@@ -64,7 +60,7 @@ MODULE gw_utils_compute_integrals
 !>        region; creation is MPI-collective when the potential is truncated.
 ! **************************************************************************************************
    TYPE gw_3c_ctx_type
-      TYPE(libint_potential_type)                        :: potential_parameter = libint_potential_type()
+      TYPE(coulomb_operator_type)                        :: potential_parameter = coulomb_operator_type()
       INTEGER                                            :: op_ij = do_potential_id, &
                                                             op_jk = do_potential_id
       REAL(KIND=dp)                                      :: dr_ij = 0.0_dp, dr_jk = 0.0_dp, &
@@ -88,7 +84,7 @@ MODULE gw_utils_compute_integrals
 !>        buffers. Each thread creates its own (inside the parallel region is fine).
 ! **************************************************************************************************
    TYPE gw_3c_ws_type
-      TYPE(cp_libint_t), ALLOCATABLE                                  :: lib
+      TYPE(coulomb_integral_context_type)                :: integrals = coulomb_integral_context_type()
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cpp_buffer, ccp_buffer
    END TYPE gw_3c_ws_type
 
@@ -107,7 +103,7 @@ CONTAINS
    SUBROUTINE gw_3c_ctx_create(ctx, bs_env, potential_parameter, basis_j, basis_k, basis_i)
       TYPE(gw_3c_ctx_type), INTENT(OUT)                  :: ctx
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_j, basis_k, basis_i
 
       CPASSERT(ASSOCIATED(bs_env%ri_rs%atomic_kind_set))
@@ -136,7 +132,7 @@ CONTAINS
    SUBROUTINE gw_3c_ctx_create_core(ctx, potential_parameter, basis_j, basis_k, basis_i, &
                                     atomic_kind_set, cell, natom, para_env, particle_set)
       TYPE(gw_3c_ctx_type), INTENT(OUT)                  :: ctx
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_j, basis_k, basis_i
       TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: atomic_kind_set
@@ -150,7 +146,7 @@ CONTAINS
 
       INTEGER                                            :: egfi, handle, ibasis, ilist, imax, iset, &
                                                             jset, kset, l, nbasis, ncoi, npgf_l, &
-                                                            sgfi, unit_id
+                                                            sgfi
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmin_i, npgfi, npgfj, npgfk, &
                                                             nsgfi, nsgfj, nsgfk
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
@@ -248,20 +244,8 @@ CONTAINS
          END DO
       END DO
 
-      ! one-time table inits; the truncated-Coulomb init reads a file + bcasts => MPI-collective,
-      ! must happen here and never inside the per-block path or an OMP region
-      IF (ctx%op_ij == do_potential_truncated .OR. ctx%op_jk == do_potential_truncated) THEN
-         IF (ctx%m_max > get_lmax_init()) THEN
-            IF (para_env%mepos == 0) THEN
-               CALL open_file(unit_number=unit_id, file_name=potential_parameter%filename)
-            END IF
-            CALL init(ctx%m_max, unit_id, para_env%mepos, para_env)
-            IF (para_env%mepos == 0) THEN
-               CALL close_file(unit_id)
-            END IF
-         END IF
-      END IF
-      CALL init_md_ftable(nmax=ctx%m_max)
+      ! MPI-collective table preparation stays outside the per-thread workspace lifecycle.
+      CALL r12_fundamentals_init(ctx%m_max, potential_parameter, para_env)
 
       CALL timestop(handle)
 
@@ -303,9 +287,8 @@ CONTAINS
       TYPE(gw_3c_ws_type), INTENT(OUT)                   :: ws
       TYPE(gw_3c_ctx_type), INTENT(IN)                   :: ctx
 
-      ALLOCATE (ws%lib)
-      CALL cp_libint_init_3eri(ws%lib, ctx%max_am)
-      CALL cp_libint_set_contrdepth(ws%lib, 1)
+      CALL coulomb_integral_init(ws%integrals, max_am_3c=ctx%max_am, &
+                                 derivative_order=0, library=library_libint)
       ALLOCATE (ws%cpp_buffer(ctx%max_nsgfj*ctx%max_ncok), &
                 ws%ccp_buffer(ctx%max_nsgfj*ctx%max_nsgfk*ctx%max_ncoi))
 
@@ -319,8 +302,7 @@ CONTAINS
 
       TYPE(gw_3c_ws_type), INTENT(INOUT)                 :: ws
 
-      CALL cp_libint_cleanup_3eri(ws%lib)
-      DEALLOCATE (ws%lib)
+      CALL coulomb_integral_cleanup(ws%integrals)
       DEALLOCATE (ws%cpp_buffer, ws%ccp_buffer)
 
    END SUBROUTINE gw_3c_ws_release
@@ -441,15 +423,10 @@ CONTAINS
                ALLOCATE (sijk(ncoj, ncok, ncoi))
                sijk(:, :, :) = 0.0_dp
 
-               CALL eri_3center(sijk, &
-                                lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), &
-                                rpgf_j(:, jset), rj, &
-                                lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), &
-                                rpgf_k(:, kset), rk, &
-                                lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), &
-                                rpgf_i(:, iset), ri, &
-                                djk, dij, dik, ws%lib, ctx%potential_parameter, &
-                                int_abc_ext=sijk_ext)
+               CALL compute_coulomb_3c(ws%integrals, lmin_j(jset), lmax_j(jset), lmin_k(kset), lmax_k(kset), &
+                                       lmin_i(iset), lmax_i(iset), npgfj(jset), npgfk(kset), npgfi(iset), zetj(:, jset), &
+                                      zetk(:, kset), zeti(:, iset), rpgf_j(:, jset), rpgf_k(:, kset), rpgf_i(:, iset), rj, rk, ri, &
+                                       sijk, ctx%potential_parameter, dab=djk, dac=dij, dbc=dik, int_abc_ext=sijk_ext)
 
                ALLOCATE (sijk_contr(nsgfj(jset), nsgfk(kset), nsgfi(iset)))
                CALL abc_contract_xsmm(sijk_contr, sijk, ctx%tspj(jset, jkind)%array, &
@@ -506,7 +483,7 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(:, :, :)                  :: int_3c
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_j, basis_k, basis_i
       INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: cell_j, cell_k, cell_i
       INTEGER, INTENT(IN), OPTIONAL                      :: atom_j, atom_k, atom_i

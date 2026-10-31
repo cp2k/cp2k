@@ -139,6 +139,7 @@ MODULE f77_interface
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_env_create,&
                                               qs_environment_type
+   USE r12_fundamentals,                ONLY: r12_fundamentals_cleanup
    USE reference_manager,               ONLY: remove_all_references
    USE sirius_interface,                ONLY: cp_sirius_finalize,&
                                               cp_sirius_init,&
@@ -376,6 +377,7 @@ CONTAINS
             CPASSERT(ierr == 0)
          END DO
          DEALLOCATE (f_envs)
+         CALL r12_fundamentals_cleanup()
 
 #if defined(__LIBINT)
          CALL cp_libint_static_cleanup()

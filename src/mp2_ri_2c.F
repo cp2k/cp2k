@@ -74,14 +74,14 @@ MODULE mp2_ri_2c
                                               do_potential_id,&
                                               do_potential_long,&
                                               do_potential_truncated
+   USE integral_library_types,          ONLY: compare_potential_types,&
+                                              coulomb_operator_type
    USE kinds,                           ONLY: dp
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index,&
                                               rskp_transform
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
-   USE libint_2c_3c,                    ONLY: compare_potential_types,&
-                                              libint_potential_type
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: gaussi,&
                                               z_one,&
@@ -183,7 +183,7 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_array
       LOGICAL, INTENT(IN)                                :: calc_PQ_cond_num, do_svd
       REAL(KIND=dp), INTENT(IN)                          :: eps_svd
-      TYPE(libint_potential_type)                        :: potential, ri_metric
+      TYPE(coulomb_operator_type)                        :: potential, ri_metric
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_matrix_L_kpoints, &
                                                             cfm_matrix_Minv_L_kpoints
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :), &
@@ -202,11 +202,11 @@ CONTAINS
 
       INTEGER                                            :: handle, i_size, num_small_eigen
       REAL(KIND=dp)                                      :: cond_num, eps_pgf_orb_old
+      TYPE(coulomb_operator_type)                        :: trunc_coulomb
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_matrix_M_kpoints
       TYPE(cp_fm_type)                                   :: fm_matrix_L_work, fm_matrix_M_inv_work, &
                                                             fm_matrix_V
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(libint_potential_type)                        :: trunc_coulomb
       TYPE(mp_para_env_type), POINTER                    :: para_env_L
 
       CALL timeset(routineN, handle)
@@ -578,7 +578,7 @@ CONTAINS
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_Minv_L_gamma
       TYPE(cp_fm_struct_type), INTENT(IN), POINTER       :: fm_matrix_L_struct
       INTEGER, INTENT(IN)                                :: dimen_RI
-      TYPE(libint_potential_type)                        :: ri_metric
+      TYPE(coulomb_operator_type)                        :: ri_metric
       LOGICAL, OPTIONAL                                  :: put_mat_KS_env
       REAL(KIND=dp), OPTIONAL                            :: regularization_RI
 
@@ -609,7 +609,7 @@ CONTAINS
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_matrix_M_kpoints
       TYPE(cp_fm_struct_type), INTENT(IN), POINTER       :: fm_matrix_struct
       INTEGER, INTENT(IN)                                :: dimen_RI
-      TYPE(libint_potential_type)                        :: ri_metric
+      TYPE(coulomb_operator_type)                        :: ri_metric
       TYPE(kpoint_type), POINTER                         :: kpoints
       LOGICAL, OPTIONAL                                  :: put_mat_KS_env
       REAL(KIND=dp), OPTIONAL                            :: regularization_RI
@@ -650,7 +650,7 @@ CONTAINS
          INTENT(OUT), OPTIONAL                           :: cfm_matrix_M_kpoints
       TYPE(cp_fm_struct_type), INTENT(IN), POINTER       :: fm_matrix_L_struct
       INTEGER, INTENT(IN)                                :: dimen_RI
-      TYPE(libint_potential_type)                        :: ri_metric
+      TYPE(coulomb_operator_type)                        :: ri_metric
       LOGICAL, INTENT(IN)                                :: do_kpoints
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
       LOGICAL, OPTIONAL                                  :: put_mat_KS_env
@@ -958,7 +958,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calc_PQ_cond_num
       REAL(KIND=dp), INTENT(OUT)                         :: cond_num
       INTEGER, INTENT(OUT)                               :: num_small_eigen
-      TYPE(libint_potential_type), INTENT(IN)            :: potential
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_im_time
@@ -1508,7 +1508,7 @@ CONTAINS
    SUBROUTINE trunc_coulomb_for_exchange(qs_env, trunc_coulomb, rel_cutoff_trunc_coulomb_ri_x, &
                                          cell_grid, do_BvK_cell)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(libint_potential_type), OPTIONAL              :: trunc_coulomb
+      TYPE(coulomb_operator_type), OPTIONAL              :: trunc_coulomb
       REAL(KIND=dp), OPTIONAL                            :: rel_cutoff_trunc_coulomb_ri_x
       INTEGER, DIMENSION(3), OPTIONAL                    :: cell_grid
       LOGICAL, OPTIONAL                                  :: do_BvK_cell

@@ -58,10 +58,10 @@ MODULE gw_compute_V_and_W
    USE input_constants,                 ONLY: rtp_method_bse,&
                                               rtp_method_bse_linearized
    USE input_section_types,             ONLY: section_vals_type
+   USE integral_library_types,          ONLY: coulomb_operator_type
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
-   USE libint_2c_3c,                    ONLY: libint_potential_type
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
@@ -1191,7 +1191,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_V_tr_R(V_tr_R, pot_type, regularization_RI, bs_env, qs_env)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: V_tr_R
-      TYPE(libint_potential_type)                        :: pot_type
+      TYPE(coulomb_operator_type)                        :: pot_type
       REAL(KIND=dp)                                      :: regularization_RI
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
