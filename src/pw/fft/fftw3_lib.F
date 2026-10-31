@@ -661,12 +661,14 @@ CONTAINS
 !> \param plan ...
 !> \param zin ...
 !> \param zout ...
+!> \param work Shared transpose workspace; only allocated for separated plans
 ! **************************************************************************************************
-   SUBROUTINE fftw3_create_plan_3d(plan, zin, zout)
+   SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, work)
 
       TYPE(fft_plan_type), INTENT(INOUT)              :: plan
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zout
+      COMPLEX(KIND=dp), DIMENSION(:), CONTIGUOUS, POINTER, INTENT(INOUT) :: work
 #if defined(__FFTW3)
       INTEGER                                            :: n1, n2, n3
       INTEGER                                            :: nt
@@ -674,7 +676,6 @@ CONTAINS
       INTEGER                                            :: rows_per_th_r
       INTEGER                                            :: fft_direction
       INTEGER                                            :: th_planA, th_planB
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: tmp(:)
 
       ! GURU Interface
       INTEGER :: dim_n(2), dim_istride(2), dim_ostride(2), &
@@ -714,7 +715,8 @@ CONTAINS
             plan%fftw_plan = fftw_plan_dft_3d(n3, n2, n1, zin, zout, fft_direction, fftw_plan_type)
          END IF
       ELSE
-         ALLOCATE (tmp(n1*n2*n3))
+         IF (.NOT. ASSOCIATED(work)) CALL fftw_alloc(work, [n1*n2*n3])
+         CPASSERT(SIZE(work) == n1*n2*n3)
          ! ************************* PLANS WITH TRANSPOSITIONS ****************************
          !  In the cases described above, we manually thread each stage of the 3D FFT.
          !
@@ -754,7 +756,7 @@ CONTAINS
          CALL fftw3_create_3d_plans(plan%fftw_plan_nx, plan%fftw_plan_nx_r, &
                                     dim_n, dim_istride, dim_ostride, howmany_n, &
                                     howmany_istride, howmany_ostride, &
-                                    zin, tmp, &
+                                    zin, work, &
                                     fft_direction, fftw_plan_type, rows_per_th, &
                                     rows_per_th_r)
 
@@ -775,7 +777,7 @@ CONTAINS
          CALL fftw3_create_3d_plans(plan%fftw_plan_ny, plan%fftw_plan_ny_r, &
                                     dim_n, dim_istride, dim_ostride, &
                                     howmany_n, howmany_istride, howmany_ostride, &
-                                    tmp, zin, &
+                                    work, zin, &
                                     fft_direction, fftw_plan_type, rows_per_th, &
                                     rows_per_th_r)
 
@@ -795,17 +797,16 @@ CONTAINS
          CALL fftw3_create_3d_plans(plan%fftw_plan_nz, plan%fftw_plan_nz_r, &
                                     dim_n, dim_istride, dim_ostride, &
                                     howmany_n, howmany_istride, howmany_ostride, &
-                                    zin, tmp, &
+                                    zin, work, &
                                     fft_direction, fftw_plan_type, rows_per_th, &
                                     rows_per_th_r)
 
          plan%separated_plans = .TRUE.
-
-         DEALLOCATE (tmp)
       END IF
 
 #else
       MARK_USED(plan)
+      MARK_USED(work)
       !MARK_USED does not work with assumed size arguments
       IF (.FALSE.) THEN; DO; IF (ABS(zin(1)) > ABS(zout(1))) EXIT; END DO; END IF
 #endif
@@ -892,17 +893,18 @@ CONTAINS
 !> \param zin ...
 !> \param zout ...
 !> \param stat ...
+!> \param tmp1 Transpose workspace shared by the local 3D FFT plans
 ! **************************************************************************************************
-   SUBROUTINE fftw33d(plan, scale, zin, zout, stat)
+   SUBROUTINE fftw33d(plan, scale, zin, zout, stat, tmp1)
 
       TYPE(fft_plan_type), INTENT(IN)                      :: plan
       REAL(KIND=dp), INTENT(IN)                            :: scale
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET:: zin
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET:: zout
       INTEGER, INTENT(OUT)                                 :: stat
+      COMPLEX(KIND=dp), DIMENSION(:), CONTIGUOUS, POINTER, INTENT(INOUT) :: tmp1
 #if defined(__FFTW3)
       COMPLEX(KIND=dp), POINTER                            :: xout(:)
-      COMPLEX(KIND=dp), ALLOCATABLE                        :: tmp1(:)
       INTEGER                                              :: n1, n2, n3
       INTEGER                                              :: tid, nt
       INTEGER                                              :: i, j, k
@@ -925,7 +927,8 @@ CONTAINS
          CALL fftw_execute_dft(plan%fftw_plan, zin, xout)
       ELSE
          ! Or use the 3 stage FFT scheme described in fftw3_create_plan_3d
-         ALLOCATE (tmp1(n1*n2*n3))   ! Temporary vector used for transpositions
+         CPASSERT(ASSOCIATED(tmp1))
+         CPASSERT(SIZE(tmp1) == n1*n2*n3)
          !$OMP PARALLEL DEFAULT(NONE) PRIVATE(tid,nt,i,j,k) SHARED(zin,tmp1,n1,n2,n3,plan,xout)
          tid = 0
          nt = 1
@@ -967,6 +970,7 @@ CONTAINS
 #else
       MARK_USED(plan)
       MARK_USED(scale)
+      MARK_USED(tmp1)
       !MARK_USED does not work with assumed size arguments
       IF (.FALSE.) THEN; DO; IF (ABS(zin(1)) > ABS(zout(1))) EXIT; END DO; END IF
       stat = 0

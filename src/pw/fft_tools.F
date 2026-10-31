@@ -86,6 +86,8 @@ MODULE fft_tools
       ! to be used in fft3d_s and PW real/complex conversion
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER, CONTIGUOUS &
          :: ziptr => NULL(), zoptr => NULL()
+      ! shared by the four local 3D FFT plans, including their planning calls
+      COMPLEX(KIND=dp), DIMENSION(:), POINTER, CONTIGUOUS :: work3d => NULL()
       ! to be used in fft3d_ps : block distribution
       COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER &
          :: p1buf => NULL(), p2buf => NULL(), p3buf => NULL(), p4buf => NULL(), &
@@ -472,15 +474,15 @@ CONTAINS
       IF (fft_in_place) THEN
          zoptr => zdum
          IF (fsign == FWFFT) THEN
-            CALL fft_3d(fft_scratch%fft_plan(1), norm, zin, zoptr, stat)
+            CALL fft_3d(fft_scratch%fft_plan(1), norm, zin, zoptr, stat, fft_scratch%work3d)
          ELSE
-            CALL fft_3d(fft_scratch%fft_plan(2), norm, zin, zoptr, stat)
+            CALL fft_3d(fft_scratch%fft_plan(2), norm, zin, zoptr, stat, fft_scratch%work3d)
          END IF
       ELSE
          IF (fsign == FWFFT) THEN
-            CALL fft_3d(fft_scratch%fft_plan(3), norm, zin, zout, stat)
+            CALL fft_3d(fft_scratch%fft_plan(3), norm, zin, zout, stat, fft_scratch%work3d)
          ELSE
-            CALL fft_3d(fft_scratch%fft_plan(4), norm, zin, zout, stat)
+            CALL fft_3d(fft_scratch%fft_plan(4), norm, zin, zout, stat, fft_scratch%work3d)
          END IF
       END IF
 
@@ -2647,6 +2649,9 @@ CONTAINS
       IF (ASSOCIATED(fft_scratch%zoptr)) THEN
          CALL fft_dealloc(fft_scratch%zoptr)
       END IF
+      IF (ASSOCIATED(fft_scratch%work3d)) THEN
+         CALL fft_dealloc(fft_scratch%work3d)
+      END IF
       IF (ASSOCIATED(fft_scratch%p1buf)) THEN
          CALL fft_dealloc(fft_scratch%p1buf)
       END IF
@@ -3292,14 +3297,18 @@ CONTAINS
 
                !in place plans
                CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(1), .TRUE., FWFFT, n, &
-                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%ziptr)
+                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%ziptr, &
+                                       fft_scratch_new%fft_scratch%work3d)
                CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(2), .TRUE., BWFFT, n, &
-                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%ziptr)
+                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%ziptr, &
+                                       fft_scratch_new%fft_scratch%work3d)
                ! out of place plans
                CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(3), .FALSE., FWFFT, n, &
-                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%zoptr)
+                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%zoptr, &
+                                       fft_scratch_new%fft_scratch%work3d)
                CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(4), .FALSE., BWFFT, n, &
-                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%zoptr)
+                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%zoptr, &
+                                       fft_scratch_new%fft_scratch%work3d)
 
             CASE (500) ! PW real/complex conversion buffer; no FFT plans required
                CALL fft_alloc(fft_scratch_new%fft_scratch%ziptr, n)
