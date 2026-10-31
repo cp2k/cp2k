@@ -18,6 +18,7 @@ MODULE qs_upf_inverse_augmentation
                                               PW_MODE_LOCAL,&
                                               pw_grid_type
    USE pw_methods,                      ONLY: pw_derive,&
+                                              pw_real_fourier_aliases,&
                                               pw_transfer
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
@@ -26,14 +27,14 @@ MODULE qs_upf_inverse_augmentation
                                               qs_ks_env_type
    USE qs_upf_inverse,                  ONLY: qs_upf_inverse_type
    USE qs_upf_inverse_types,            ONLY: qs_upf_inverse_augmentation_type
-   USE uspp_augmentation,               ONLY: uspp_augmentation_collocate,&
-                                              uspp_augmentation_collocate_atom,&
+   USE uspp_augmentation,               ONLY: uspp_augmentation_collocate_atom,&
+                                              uspp_augmentation_fourier,&
                                               uspp_augmentation_init,&
-                                              uspp_augmentation_integrate,&
                                               uspp_augmentation_integrate_atom,&
                                               uspp_augmentation_prepare_fourier,&
                                               uspp_augmentation_prepare_realspace,&
-                                              uspp_augmentation_realspace
+                                              uspp_augmentation_realspace,&
+                                              uspp_augmentation_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -166,6 +167,108 @@ CONTAINS
    END SUBROUTINE qs_upf_inverse_augmentation_integrate
 
 ! **************************************************************************************************
+!> \brief Original Q Fourier kernel projected onto the real tensor-product grid.
+!>        Retain both signs independently at every even-grid boundary, with the same average
+!>        for density, its adjoint, center response and cell response. Original radial data and
+!>        the bounded per-vector radial cache are unchanged.
+!> \param augmentation Original radial and angular kernels.
+!> \param grid Native reciprocal vectors and Nyquist boundaries.
+!> \param index Local Fourier coefficient index.
+!> \param position Original atomic center.
+!> \param kernel Projected Fourier charge kernel.
+!> \param derivative Optional Cartesian center derivative.
+!> \param strain Optional fixed-fractional-center strain derivative, including inverse volume.
+! **************************************************************************************************
+   SUBROUTINE augmentation_grid_fourier(augmentation, grid, index, position, kernel, derivative, strain)
+      TYPE(uspp_augmentation_type), INTENT(IN)           :: augmentation
+      TYPE(pw_grid_type), INTENT(IN)                     :: grid
+      INTEGER, INTENT(IN)                                :: index
+      REAL(dp), INTENT(IN)                               :: position(3)
+      COMPLEX(dp), INTENT(OUT)                           :: kernel(:, :)
+      COMPLEX(dp), INTENT(OUT), OPTIONAL                 :: derivative(:, :, :), strain(:, :, :, :)
+
+      COMPLEX(dp), ALLOCATABLE                           :: response(:, :, :, :)
+      COMPLEX(dp) :: work(SIZE(kernel, 1), SIZE(kernel, 2))
+      INTEGER                                            :: alias, axis, count
+      REAL(dp)                                           :: vectors(3, 8), weight
+
+      CALL pw_real_fourier_aliases(grid, index, vectors, count)
+      weight = 1.0_dp/REAL(count, dp)
+      kernel = 0.0_dp
+      IF (PRESENT(derivative)) derivative = 0.0_dp
+      IF (PRESENT(strain)) THEN
+         ALLOCATE (response(SIZE(kernel, 1), SIZE(kernel, 2), 3, 3))
+         strain = 0.0_dp
+      END IF
+      DO alias = 1, count
+         CALL uspp_augmentation_fourier(augmentation, vectors(:, alias), position, grid%vol, work, response, grid_index=index)
+         kernel = kernel + weight*work
+         IF (PRESENT(derivative)) THEN
+            DO axis = 1, 3
+               derivative(:, :, axis) = derivative(:, :, axis) + weight*CMPLX(0.0_dp, -vectors(axis, alias), dp)*work
+            END DO
+         END IF
+         IF (PRESENT(strain)) strain = strain + weight*response
+      END DO
+   END SUBROUTINE augmentation_grid_fourier
+
+! **************************************************************************************************
+!> \brief Native real-grid adjoint of the projected original Q kernel and its geometry responses.
+!> \param augmentation Original radial and angular kernels.
+!> \param grid Native reciprocal layout and volume.
+!> \param position Original atomic center.
+!> \param potential Native Fourier potential without volume or multiplicity.
+!> \param multiplicity One for full-space coefficients, two for retained half-space pairs.
+!> \param matrix Real symmetric projector operator, overwritten.
+!> \param derivative Optional Cartesian center response.
+!> \param strain Optional fixed-fractional-center density strain response.
+! **************************************************************************************************
+   SUBROUTINE augmentation_grid_integrate(augmentation, grid, position, potential, multiplicity, matrix, derivative, strain)
+      TYPE(uspp_augmentation_type), INTENT(IN)           :: augmentation
+      TYPE(pw_grid_type), INTENT(IN)                     :: grid
+      REAL(dp), INTENT(IN)                               :: position(3)
+      COMPLEX(dp), INTENT(IN)                            :: potential(:)
+      REAL(dp), INTENT(IN)                               :: multiplicity(:)
+      REAL(dp), INTENT(OUT)                              :: matrix(:, :)
+      REAL(dp), INTENT(OUT), OPTIONAL                    :: derivative(:, :, :), strain(:, :, :, :)
+
+      COMPLEX(dp), ALLOCATABLE                           :: cell(:, :, :, :), center(:, :, :)
+      INTEGER                                            :: axis, index, second
+      REAL(dp)                                           :: weight
+      COMPLEX(dp) :: kernel(SIZE(matrix, 1), SIZE(matrix, 2))
+
+      CPASSERT(SIZE(potential) == SIZE(grid%g, 2))
+      CPASSERT(SIZE(multiplicity) == SIZE(potential))
+      matrix = 0.0_dp
+      IF (PRESENT(derivative)) THEN
+         ALLOCATE (center(SIZE(matrix, 1), SIZE(matrix, 2), 3))
+         derivative = 0.0_dp
+      END IF
+      IF (PRESENT(strain)) THEN
+         ALLOCATE (cell(SIZE(matrix, 1), SIZE(matrix, 2), 3, 3))
+         strain = 0.0_dp
+      END IF
+      DO index = 1, SIZE(potential)
+         CALL augmentation_grid_fourier(augmentation, grid, index, position, kernel, center, cell)
+         weight = grid%vol*multiplicity(index)
+         matrix = matrix + weight*REAL(CONJG(kernel)*potential(index), dp)
+         IF (PRESENT(derivative)) THEN
+            DO axis = 1, 3
+               derivative(:, :, axis) = derivative(:, :, axis) + weight*REAL(CONJG(center(:, :, axis))*potential(index), dp)
+            END DO
+         END IF
+         IF (PRESENT(strain)) THEN
+            DO second = 1, 3
+               DO axis = 1, 3
+                  strain(:, :, axis, second) = strain(:, :, axis, second) + &
+                                               weight*REAL(CONJG(cell(:, :, axis, second))*potential(index), dp)
+               END DO
+            END DO
+         END IF
+      END DO
+   END SUBROUTINE augmentation_grid_integrate
+
+! **************************************************************************************************
 !> \brief Add periodic original Q through native FFTs; its zero mode retains the reference radial q.
 !>        Charge has no Bloch phase. The real-grid projection precedes each spectral gradient.
 !> \param frame Prepared inverse frame on this physical-cell PW grid.
@@ -181,8 +284,9 @@ CONTAINS
       COMPLEX(dp), INTENT(IN)                            :: projector_density(:, :)
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: density, gradient(3)
 
-      INTEGER                                            :: atom, axis, center, first, ikind, last, &
-                                                            orders(3)
+      COMPLEX(dp), ALLOCATABLE                           :: kernel(:, :)
+      INTEGER                                            :: atom, axis, center, first, ikind, index, &
+                                                            last, orders(3)
       REAL(dp)                                           :: hermiticity, tolerance
       TYPE(pw_c1d_gs_type)                               :: charge_g, derivative_g
       TYPE(pw_r3d_rs_type)                               :: work_r
@@ -202,9 +306,13 @@ CONTAINS
          first = frame%projector_first(center)
          last = frame%projector_last(center)
          CALL uspp_augmentation_prepare_fourier(augmentation%kinds(ikind), density%pw_grid%g)
-         CALL uspp_augmentation_collocate(augmentation%kinds(ikind), density%pw_grid%g, &
-                                          frame%positions(:, atom), density%pw_grid%vol, &
-                                          REAL(projector_density(first:last, first:last), dp), charge_g%array)
+         ALLOCATE (kernel(last - first + 1, last - first + 1))
+         DO index = 1, SIZE(charge_g%array)
+            CALL augmentation_grid_fourier(augmentation%kinds(ikind), density%pw_grid, index, &
+                                           frame%positions(:, atom), kernel)
+            charge_g%array(index) = charge_g%array(index) + SUM(REAL(projector_density(first:last, first:last), dp)*kernel)
+         END DO
+         DEALLOCATE (kernel)
       END DO
       CALL pw_transfer(charge_g, work_r)
       density%array = density%array + work_r%array
@@ -263,8 +371,8 @@ CONTAINS
          last = frame%projector_last(center)
          ALLOCATE (matrix(last - first + 1, last - first + 1))
          CALL uspp_augmentation_prepare_fourier(augmentation%kinds(ikind), vdensity%pw_grid%g)
-         CALL uspp_augmentation_integrate(augmentation%kinds(ikind), vdensity%pw_grid%g, &
-                                          frame%positions(:, atom), vdensity%pw_grid%vol, potential_g%array, multiplicity, matrix)
+         CALL augmentation_grid_integrate(augmentation%kinds(ikind), vdensity%pw_grid, &
+                                          frame%positions(:, atom), potential_g%array, multiplicity, matrix)
          projector_operator(first:last, first:last) = matrix
          DEALLOCATE (matrix)
       END DO
@@ -349,12 +457,10 @@ CONTAINS
                    derivative(last - first + 1, last - first + 1, 3), &
                    strain_matrix(last - first + 1, last - first + 1, 3, 3))
          CALL uspp_augmentation_prepare_fourier(augmentation%kinds(ikind), vdensity%pw_grid%g)
-         CALL uspp_augmentation_integrate(augmentation%kinds(ikind), vdensity%pw_grid%g, &
-                                          frame%positions(:, atom), vdensity%pw_grid%vol, potential_g%array, &
-                                          multiplicity, matrix, derivative, strain_matrix)
-         CALL uspp_augmentation_integrate(augmentation%kinds(ikind), vdensity%pw_grid%g, &
-                                          frame%positions(:, atom), vdensity%pw_grid%vol, response_g%array, &
-                                          multiplicity, potential_matrix)
+         CALL augmentation_grid_integrate(augmentation%kinds(ikind), vdensity%pw_grid, &
+                                       frame%positions(:, atom), potential_g%array, multiplicity, matrix, derivative, strain_matrix)
+         CALL augmentation_grid_integrate(augmentation%kinds(ikind), vdensity%pw_grid, &
+                                          frame%positions(:, atom), response_g%array, multiplicity, potential_matrix)
          displacement = atom_response(:, atom) - MATMUL(strain, frame%positions(:, atom))
          matrix(:, :) = volume_response*matrix + potential_matrix
          DO axis = 1, 3
