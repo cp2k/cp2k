@@ -27,8 +27,7 @@ MODULE cg_optimizer
    USE global_types,                    ONLY: global_environment_type
    USE gopt_f_methods,                  ONLY: &
         cp_eval_at, gopt_f_ii, gopt_f_io, gopt_f_io_finalize, gopt_f_io_init, &
-        gopt_f_project_coord, gopt_f_project_vector, gopt_f_space_group_init, &
-        gopt_f_space_group_show, print_geo_opt_header, print_geo_opt_nc
+        gopt_f_project_coord, gopt_f_project_vector, print_geo_opt_header, print_geo_opt_nc
    USE gopt_f_types,                    ONLY: gopt_f_type
    USE gopt_param_types,                ONLY: gopt_param_type
    USE input_constants,                 ONLY: default_ts_method_id
@@ -84,14 +83,8 @@ CONTAINS
                                          extension=".geoLog")
       CALL print_geo_opt_header(gopt_env, output_unit, "CONJUGATE GRADIENTS")
 
-      ! find space_group
-      CALL gopt_f_space_group_init(gopt_env, x0, geo_section, output_unit)
-
       CALL cp_cg_main(force_env, x0, gopt_param, output_unit, globenv, &
                       gopt_env, do_update=my_do_update)
-
-      ! show space_group
-      CALL gopt_f_space_group_show(gopt_env, geo_section, output_unit)
 
       CALL cp_print_key_finished_output(output_unit, logger, geo_section, &
                                         "PRINT%PROGRAM_RUN_INFO")

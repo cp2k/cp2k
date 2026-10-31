@@ -154,6 +154,15 @@ registry["Cell_vector_a_y"] = GenericMatcher(r"CELL| Vector a [angstrom]:", col=
 registry["Cell_angle_alpha"] = GenericMatcher(
     r"CELL| Angle (b,c), alpha [degree]:", col=6
 )
+registry["Cell_angle_beta"] = GenericMatcher(
+    r"CELL| Angle (a,c), beta  [degree]:", col=6
+)
+registry["Cell_angle_gamma"] = GenericMatcher(
+    r"CELL| Angle (a,b), gamma [degree]:", col=6
+)
+# GenericMatcher escapes []()|+*? but not ^. Escape \^ in [angstrom\^3]
+# so regex does not treat ^ as a start-of-line anchor.
+registry["Cell_volume"] = GenericMatcher(r"CELL| Volume [angstrom\^3]:", col=4)
 # The "|a| =  ..." column of the cell-vector lines: the vector length,
 # as printed by write_cell_low (last occurrence = the final cell).
 registry["Cell_length_a"] = GenericMatcher(r"CELL| Vector a [angstrom]:", col=10)

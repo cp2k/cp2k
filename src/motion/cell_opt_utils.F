@@ -6,15 +6,20 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief contains a functional that calculates the energy and its derivatives
-!>      for the geometry optimizer
+!> \brief Parse CELL_OPT constraints, build symmetry constraint rows, and
+!>        compute the cell enthalpy gradient.
 !> \par History
 !>      03.2008 - Teodoro Laino [tlaino] - University of Zurich - Cell Optimization
 ! **************************************************************************************************
 MODULE cell_opt_utils
+   USE cell_manifold_utils,             ONLY: &
+        comp_ax, comp_bx, comp_by, comp_cx, comp_cy, comp_cz, geom_a, geom_alpha, geom_b, &
+        geom_beta, geom_c, geom_gamma, gfix_alpha, gfix_beta, gfix_gamma, mask_a, mask_all, &
+        mask_b, mask_c, mask_x, mask_xy, mask_xz, mask_y, mask_yz, mask_z, min_cell_length, &
+        n_geom, n_slot, slot_ax, slot_bx, slot_by, slot_cx, slot_cy, slot_cz
    USE cell_types,                      ONLY: &
         cell_sym_cubic, cell_sym_hexagonal_gamma_120, cell_sym_hexagonal_gamma_60, &
-        cell_sym_monoclinic, cell_sym_monoclinic_gamma_ab, cell_sym_orthorhombic, &
+        cell_sym_monoclinic, cell_sym_monoclinic_gamma_ab, cell_sym_none, cell_sym_orthorhombic, &
         cell_sym_rhombohedral, cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, &
         cell_sym_tetragonal_bc, cell_sym_triclinic, cell_type
    USE input_constants,                 ONLY: fix_none
@@ -22,9 +27,9 @@ MODULE cell_opt_utils
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE mathconstants,                   ONLY: sqrt3
-   USE mathlib,                         ONLY: angle,&
-                                              det_3x3
+   USE mathconstants,                   ONLY: pi,&
+                                              sqrt3
+   USE space_groups_types,              ONLY: spgr_type
    USE string_utilities,                ONLY: uppercase
 #include "../base/base_uses.f90"
 
@@ -33,42 +38,16 @@ MODULE cell_opt_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_opt_utils'
 
-   PUBLIC :: get_dg_dh, keep_angles_conflict, &
-             keep_symmetry_coupled_set, keep_symmetry_conflict, &
-             pres_crit_shear_pinned, parse_token, &
-             read_external_press_tensor, &
-             apply_cell_constraints, cell_opt_constraint_label, &
+   PUBLIC :: cell_opt_constraint_label, &
+             comp_ax, comp_bx, comp_by, comp_cx, comp_cy, comp_cz, &
+             get_dg_dh, &
+             gfix_alpha, gfix_beta, gfix_gamma, &
+             mask_a, mask_all, mask_b, mask_c, mask_x, mask_xy, mask_xz, mask_y, mask_yz, mask_z, &
              parse_cell_constraint, &
-             rescale_new_cell_volume
-
-   ! Masks of the six independent cell variables in the canonical frame
-   ! (a along x, b in the xy plane): AX, BX, BY, CX, CY, CZ.
-   ! A set bit means that a CONSTRAINT fixes the component.
-   ! constraint_id = 0 (fix_none) leaves every component relaxable.
-   INTEGER, PARAMETER, PUBLIC :: comp_ax = 2**0, & ! a(x)
-                                 comp_bx = 2**1, & ! b(x)
-                                 comp_by = 2**2, & ! b(y)
-                                 comp_cx = 2**3, & ! c(x)
-                                 comp_cy = 2**4, & ! c(y)
-                                 comp_cz = 2**5  ! c(z)
-   ! Shorthands for complete cell vectors, Cartesian directions and coupled
-   ! component sets (unions of disjoint bits, hence representable as sums)
-   INTEGER, PARAMETER, PUBLIC :: mask_a = comp_ax, &
-                                 mask_b = comp_bx + comp_by, &
-                                 mask_c = comp_cx + comp_cy + comp_cz, &
-                                 mask_x = comp_ax + comp_bx + comp_cx, &
-                                 mask_y = comp_bx + comp_by + comp_cy, &
-                                 mask_z = mask_c, &
-                                 mask_xy = comp_ax + comp_bx + comp_by + comp_cx + comp_cy, &
-                                 mask_xz = comp_ax + comp_bx + comp_cx + comp_cy + comp_cz, &
-                                 mask_yz = comp_bx + comp_by + comp_cx + comp_cy + comp_cz, &
-                                 mask_diag = comp_ax + comp_by + comp_cz, &
-                                 mask_diag_ab = comp_ax + comp_by, &
-                                 mask_diag_ac = comp_ax + comp_cz, &
-                                 mask_diag_bc = comp_by + comp_cz, &
-                                 mask_ab_plane = comp_ax + comp_bx + comp_by, &
-                                 mask_shear = comp_bx + comp_cx + comp_cy, &
-                                 mask_all = comp_ax + comp_bx + comp_by + comp_cx + comp_cy + comp_cz
+             parse_token, &
+             read_external_press_tensor, &
+             spgr_point_group_symmetry_id, &
+             symmetry_constraint_rows
 
 CONTAINS
 
@@ -87,6 +66,8 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: pres_ext
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: mtrx
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: input_to_opt
+
+      REAL(KIND=dp), PARAMETER                           :: eps_aniso_press = 1.0E-5_dp
 
       INTEGER                                            :: i, ind, j
       LOGICAL                                            :: check
@@ -125,7 +106,7 @@ CONTAINS
          pres_ext = pvals(1)
       END IF
 
-      IF (ANY(ABS(pres_ext_tens) > 1.0E-5_dp)) THEN
+      IF (ANY(ABS(pres_ext_tens) > eps_aniso_press)) THEN
          mtrx = cell%deth*MATMUL(cell%h_inv, MATMUL(pres_ext_tens, TRANSPOSE(cell%h_inv)))
       END IF
 
@@ -221,11 +202,9 @@ CONTAINS
    END SUBROUTINE parse_cell_constraint
 
 ! **************************************************************************************************
-!> \brief Returns the label of the consolidated cell constraint mask
-!> \param mask bit mask of fixed cell components (comp_* / mask_* bits)
-!> \return the historical four-character labels ("   X", "  XY", "NONE") for
-!>         the legacy constraint values (padded for backward compatible
-!>         printing), the fixed components spelled out ("AX BX BY") otherwise
+!> \brief Returns the label of the cell constraint mask
+!> \param mask bit mask of fixed cell components (comp_*, mask_*)
+!> \return 4-character legacy label or space-separated component names
 ! **************************************************************************************************
    PURE FUNCTION cell_opt_constraint_label(mask) RESULT(label)
       INTEGER, INTENT(IN)                                :: mask
@@ -255,168 +234,191 @@ CONTAINS
          IF (IAND(mask, comp_cx) /= 0) label = TRIM(label)//" CX"
          IF (IAND(mask, comp_cy) /= 0) label = TRIM(label)//" CY"
          IF (IAND(mask, comp_cz) /= 0) label = TRIM(label)//" CZ"
+         IF (IAND(mask, gfix_alpha) /= 0) label = TRIM(label)//" ALPHA"
+         IF (IAND(mask, gfix_beta) /= 0) label = TRIM(label)//" BETA"
+         IF (IAND(mask, gfix_gamma) /= 0) label = TRIM(label)//" GAMMA"
          label = ADJUSTL(label)
       END SELECT
 
    END FUNCTION cell_opt_constraint_label
 
 ! **************************************************************************************************
-!> \brief Whether the mask fixes some but not all components of a coupled slot set
-!> \param mask bit mask of fixed cell components (comp_* / mask_* bits)
-!> \param slots the coupled set of components (a mask_* union)
-!> \return ...
-!> \note How it compares: IAND(mask, slots) is a set intersection. It holds
-!>       the components that the mask fixes inside the coupled set. The
-!>       predicate is true when the intersection is non-empty and is not the
-!>       full set. In words: the constraint fixes at least one component of
-!>       the set, and it leaves at least one component free.
-!>       Why the guards need it: a complete freeze and no freeze both keep
-!>       the KEEP_ANGLES and KEEP_SYMMETRY projections consistent. A partial
-!>       fixation breaks them, so the guards reject exactly this case.
+!> \brief Translate a crystal system into cell constraint rows.
+!> \param symmetry_id crystal system of the canonical cell
+!> \param mask comp_* bits for canonical entries fixed to zero by symmetry
+!> \param lin_w linear coupling normals, one normal per column
+!> \param n_lin_rows number of active columns in lin_w
+!> \param eq_pair index pairs [m, n] in 1..6 for geometric equalities, one pair per column
+!> \param n_eq_rows number of active columns in eq_pair
+!> \note Rhombohedral (a = b = c, alpha = beta = gamma) and monoclinic_gamma_ab
+!>       (a = b with free gamma) produce curved geometric equalities. All other
+!>       crystal systems produce constant linear rows with zero curvature.
 ! **************************************************************************************************
-   PURE FUNCTION fixes_partially(mask, slots) RESULT(partial)
-      INTEGER, INTENT(IN)                                :: mask, slots
-      LOGICAL                                            :: partial
-
-      partial = IAND(mask, slots) /= 0 .AND. IAND(mask, slots) /= slots
-   END FUNCTION fixes_partially
-
-! **************************************************************************************************
-!> \brief Whether the constraint mask fixes the given component slot
-!> \param mask bit mask of fixed cell components
-!> \param slot component index in the canonical order AX..CZ (1..6)
-!> \return ...
-!> \note How it compares: BTEST(mask, slot - 1) reads one bit of the mask.
-!>       Each bit position corresponds to one component slot, in the order
-!>       comp_ax ... comp_cz = 2**0 ... 2**5. The slot argument counts from
-!>       one so that it indexes the gradient components directly:
-!>       gradient(1) = AX ... gradient(6) = CZ. BTEST counts bits from zero.
-! **************************************************************************************************
-   PURE FUNCTION slot_is_fixed(mask, slot) RESULT(fixed)
-      INTEGER, INTENT(IN)                                :: mask, slot
-      LOGICAL                                            :: fixed
-
-      fixed = BTEST(mask, slot - 1)
-   END FUNCTION slot_is_fixed
-
-! **************************************************************************************************
-!> \brief Whether a CONSTRAINT mask conflicts with the KEEP_ANGLES projection
-!> \param mask bit mask of fixed cell components
-!> \param orthorhombic whether the cell is orthorhombic
-!> \return conflict flag; the caller aborts when it is true
-!> \note KEEP_ANGLES projects the gradient slots {BX,BY} onto b and {CX,CY,CZ}
-!>       onto c. A conflict arises only on a non-orthorhombic cell, and only
-!>       when the mask fixes part of the b vector or part of the c vector.
-! **************************************************************************************************
-   PURE FUNCTION keep_angles_conflict(mask, orthorhombic) RESULT(conflict)
-      INTEGER, INTENT(IN)                                :: mask
-      LOGICAL, INTENT(IN)                                :: orthorhombic
-      LOGICAL                                            :: conflict
-
-      conflict = .NOT. orthorhombic .AND. &
-                 (fixes_partially(mask, mask_b) .OR. fixes_partially(mask, mask_c))
-   END FUNCTION keep_angles_conflict
-
-! **************************************************************************************************
-!> \brief Whether a CONSTRAINT mask conflicts with the KEEP_SYMMETRY projection
-!> \param mask bit mask of fixed cell components
-!> \param symmetry_id crystal system of the cell (cell_sym_* constants)
-!> \return conflict flag; the caller aborts when it is true
-!> \note Each crystal system couples a set of cell components. A conflict
-!>       arises when the mask fixes part of such a set. Systems without
-!>       coupling never conflict.
-! **************************************************************************************************
-   PURE FUNCTION keep_symmetry_conflict(mask, symmetry_id) RESULT(conflict)
-      INTEGER, INTENT(IN)                                :: mask, symmetry_id
-      LOGICAL                                            :: conflict
-
-      INTEGER                                            :: coupled_set
-
-      coupled_set = keep_symmetry_coupled_set(symmetry_id)
-      conflict = coupled_set /= 0 .AND. fixes_partially(mask, coupled_set)
-   END FUNCTION keep_symmetry_conflict
-
-! **************************************************************************************************
-!> \brief The set of cell components coupled by a crystal system (for diagnostics)
-!> \param symmetry_id crystal system of the cell (cell_sym_* constants)
-!> \return mask of the coupled set; zero for systems without coupling
-!> \note Mirrors the SELECT CASE in keep_symmetry_conflict. The abort messages
-!>       print this label so the user can see which components the symmetry
-!>       couples against their constraint.
-! **************************************************************************************************
-   PURE FUNCTION keep_symmetry_coupled_set(symmetry_id) RESULT(coupled_set)
+   SUBROUTINE symmetry_constraint_rows(symmetry_id, mask, lin_w, n_lin_rows, eq_pair, n_eq_rows)
       INTEGER, INTENT(IN)                                :: symmetry_id
-      INTEGER                                            :: coupled_set
+      INTEGER, INTENT(OUT)                               :: mask
+      REAL(KIND=dp), DIMENSION(n_slot, n_slot), &
+         INTENT(OUT)                                     :: lin_w
+      INTEGER, INTENT(OUT)                               :: n_lin_rows
+      INTEGER, DIMENSION(2, n_geom), INTENT(OUT)         :: eq_pair
+      INTEGER, INTENT(OUT)                               :: n_eq_rows
+
+      REAL(KIND=dp), PARAMETER                           :: half_sqrt3 = 0.5_dp*sqrt3
+
+      mask = 0
+      lin_w = 0.0_dp
+      n_lin_rows = 0
+      eq_pair = 0
+      n_eq_rows = 0
 
       SELECT CASE (symmetry_id)
-      CASE (cell_sym_cubic)
-         coupled_set = mask_diag
-      CASE (cell_sym_rhombohedral)
-         coupled_set = mask_all
-      CASE (cell_sym_hexagonal_gamma_60, &
-            cell_sym_hexagonal_gamma_120, &
-            cell_sym_monoclinic_gamma_ab)
-         coupled_set = mask_ab_plane
+      CASE (cell_sym_orthorhombic)
+         mask = comp_bx + comp_cx + comp_cy
       CASE (cell_sym_tetragonal_ab)
-         coupled_set = mask_diag_ab
+         mask = comp_bx + comp_cx + comp_cy
+         n_lin_rows = 1
+         lin_w(slot_ax, 1) = 1.0_dp
+         lin_w(slot_by, 1) = -1.0_dp
       CASE (cell_sym_tetragonal_ac)
-         coupled_set = mask_diag_ac
+         mask = comp_bx + comp_cx + comp_cy
+         n_lin_rows = 1
+         lin_w(slot_ax, 1) = 1.0_dp
+         lin_w(slot_cz, 1) = -1.0_dp
       CASE (cell_sym_tetragonal_bc)
-         coupled_set = mask_diag_bc
+         mask = comp_bx + comp_cx + comp_cy
+         n_lin_rows = 1
+         lin_w(slot_by, 1) = 1.0_dp
+         lin_w(slot_cz, 1) = -1.0_dp
+      CASE (cell_sym_cubic)
+         mask = comp_bx + comp_cx + comp_cy
+         n_lin_rows = 2
+         lin_w(slot_ax, 1) = 1.0_dp
+         lin_w(slot_by, 1) = -1.0_dp
+         lin_w(slot_by, 2) = 1.0_dp
+         lin_w(slot_cz, 2) = -1.0_dp
+      CASE (cell_sym_hexagonal_gamma_60)
+         mask = comp_cx + comp_cy
+         n_lin_rows = 2
+         lin_w(slot_ax, 1) = -0.5_dp
+         lin_w(slot_bx, 1) = 1.0_dp
+         lin_w(slot_ax, 2) = -half_sqrt3
+         lin_w(slot_by, 2) = 1.0_dp
+      CASE (cell_sym_hexagonal_gamma_120)
+         mask = comp_cx + comp_cy
+         n_lin_rows = 2
+         lin_w(slot_ax, 1) = 0.5_dp
+         lin_w(slot_bx, 1) = 1.0_dp
+         lin_w(slot_ax, 2) = -half_sqrt3
+         lin_w(slot_by, 2) = 1.0_dp
+      CASE (cell_sym_rhombohedral)
+         n_eq_rows = 4
+         eq_pair(:, 1) = [geom_a, geom_b]
+         eq_pair(:, 2) = [geom_b, geom_c]
+         eq_pair(:, 3) = [geom_alpha, geom_beta]
+         eq_pair(:, 4) = [geom_beta, geom_gamma]
+      CASE (cell_sym_monoclinic)
+         mask = comp_bx + comp_cy
+      CASE (cell_sym_monoclinic_gamma_ab)
+         mask = comp_cx + comp_cy
+         n_eq_rows = 1
+         eq_pair(:, 1) = [geom_a, geom_b]
+      CASE (cell_sym_none, cell_sym_triclinic)
+         CONTINUE
       CASE DEFAULT
-         coupled_set = 0
+         CPABORT("Unknown cell symmetry_id")
       END SELECT
-   END FUNCTION keep_symmetry_coupled_set
+
+   END SUBROUTINE symmetry_constraint_rows
 
 ! **************************************************************************************************
-!> \brief Whether the masked pressure criterion is structurally off target
-!> \param mask bit mask of fixed cell components (comp_* / mask_* bits)
-!> \param orthorhombic whether the cell is orthorhombic
-!> \param keep_angles whether the KEEP_ANGLES projection is active
-!> \return pinned flag; the caller warns, the run stays legal
-!> \note On a non-orthorhombic cell the masked pressure criterion (the
-!>       average of the diagonal stresses over the free diagonal slots)
-!>       equals the external pressure at the constrained minimum only when
-!>       the shear stresses conjugate to the pinned shear components vanish.
-!>       That needs the shear components BX, CX, CY to stay free. The
-!>       criterion is therefore not guaranteed to converge when the mask
-!>       pins a shear component, or when KEEP_ANGLES pins the cell angles
-!>       while a diagonal slot is fixed. Zero or all diagonal slots fixed
-!>       stay fine (the hydrostatic trace, resp. the external-pressure
-!>       bypass). Measured on a UO2 cell: the deviation stays at -117 bar
-!>       for CONSTRAINT Z on a triclinic cell without KEEP_ANGLES and at
-!>       +110 bar for CONSTRAINT A with KEEP_ANGLES, static under forced
-!>       continuation, while a symmetric-angle setup converges to -0.003
-!>       bar. The projected-stress criterion planned in #6031 removes the
-!>       limitation.
-!>       The orthorhombic branch is evaluated at setup: a run that starts
-!>       orthorhombic can grow oblique cell components when a shear slot is
-!>       pinned while its partners stay free. That residual is second order
-!>       (two evolved shears must couple into a checked diagonal) and the
-!>       legacy direction masks X, Y, Z are immune to it because their
-!>       pinned slots stay zero, where the coupling vanishes.
+!> \brief Identify the canonical crystal system preserved by a space group's point group.
+!> \param spgr space group with integer lattice rotations in rotations_subset
+!> \param cell symmetric start cell in the canonical frame
+!> \return symmetry_id of the invariant metric form, or cell_sym_triclinic when
+!>         the setting adds no canonical cell constraints
+!> \note Averaging the metric G = hmat^T hmat over the point group produces the
+!>       invariant metric form {G : R G R^T = G for all R}. Classifying the lengths
+!>       and angles of this averaged metric maps the point group to the row sets of
+!>       symmetry_constraint_rows. Non-canonical settings (such as a monoclinic
+!>       unique axis along a or c) return cell_sym_triclinic and add zero cell rows.
 ! **************************************************************************************************
-   PURE LOGICAL FUNCTION pres_crit_shear_pinned(mask, orthorhombic, keep_angles)
-      INTEGER, INTENT(IN)                                :: mask
-      LOGICAL, INTENT(IN)                                :: orthorhombic, keep_angles
+   FUNCTION spgr_point_group_symmetry_id(spgr, cell) RESULT(symmetry_id)
+      TYPE(spgr_type), INTENT(IN), POINTER               :: spgr
+      TYPE(cell_type), POINTER                           :: cell
+      INTEGER                                            :: symmetry_id
 
-      pres_crit_shear_pinned = .FALSE.
-      IF (.NOT. orthorhombic) THEN
-         IF (IAND(mask, mask_diag) /= mask_diag) THEN
-            pres_crit_shear_pinned = IAND(mask, mask_shear) /= 0
-            IF (.NOT. pres_crit_shear_pinned) THEN
-               pres_crit_shear_pinned = keep_angles .AND. IAND(mask, mask_diag) /= 0
+      REAL(KIND=dp), PARAMETER :: ang_120 = 2.0_dp*pi/3.0_dp, ang_60 = pi/3.0_dp, &
+         ang_90 = 0.5_dp*pi, eq_angle_tol = 1.0E-6_dp, rel_len_tol = 1.0E-6_dp, &
+         special_ang_tol = 1.0E-5_dp
+
+      INTEGER                                            :: ir, n90, nop
+      REAL(KIND=dp)                                      :: ang(3), gsym(3, 3), len_tol, lens(3), &
+                                                            metric(3, 3), rot(3, 3)
+
+      symmetry_id = cell_sym_triclinic
+      nop = spgr%n_operations_subset
+      IF (nop == 0) RETURN
+
+      metric = MATMUL(TRANSPOSE(cell%hmat), cell%hmat)
+      gsym = 0.0_dp
+      DO ir = 1, nop
+         ! rotations_subset stores R_frac^T (r_out = rot^T r_in in spgr_apply_rotations_coord),
+         ! so R_frac^T G R_frac takes the form rot * metric * rot^T.
+         rot = REAL(spgr%rotations_subset(:, :, ir), dp)
+         gsym = gsym + MATMUL(rot, MATMUL(metric, TRANSPOSE(rot)))
+      END DO
+      gsym = gsym/REAL(nop, dp)
+
+      lens = [SQRT(gsym(1, 1)), SQRT(gsym(2, 2)), SQRT(gsym(3, 3))]
+      IF (MINVAL(lens) < min_cell_length) RETURN
+      len_tol = rel_len_tol*MAXVAL(lens)
+      ang(1) = ACOS(MAX(-1.0_dp, MIN(1.0_dp, gsym(2, 3)/(lens(2)*lens(3)))))
+      ang(2) = ACOS(MAX(-1.0_dp, MIN(1.0_dp, gsym(1, 3)/(lens(1)*lens(3)))))
+      ang(3) = ACOS(MAX(-1.0_dp, MIN(1.0_dp, gsym(1, 2)/(lens(1)*lens(2)))))
+      n90 = COUNT(ABS(ang - ang_90) < special_ang_tol)
+
+      IF (n90 == 3) THEN
+         IF (ABS(lens(1) - lens(2)) < len_tol .AND. ABS(lens(2) - lens(3)) < len_tol) THEN
+            symmetry_id = cell_sym_cubic
+         ELSE IF (ABS(lens(1) - lens(2)) < len_tol) THEN
+            symmetry_id = cell_sym_tetragonal_ab
+         ELSE IF (ABS(lens(1) - lens(3)) < len_tol) THEN
+            symmetry_id = cell_sym_tetragonal_ac
+         ELSE IF (ABS(lens(2) - lens(3)) < len_tol) THEN
+            symmetry_id = cell_sym_tetragonal_bc
+         ELSE
+            symmetry_id = cell_sym_orthorhombic
+         END IF
+      ELSE IF (n90 == 2) THEN
+         IF (ABS(ang(2) - ang_90) >= special_ang_tol) THEN
+            ! CP2K monoclinic convention places the unique axis along b (beta /= 90 deg).
+            symmetry_id = cell_sym_monoclinic
+         ELSE IF (ABS(ang(3) - ang_90) >= special_ang_tol .AND. &
+                  ABS(lens(1) - lens(2)) < len_tol) THEN
+            IF (ABS(ang(3) - ang_120) < special_ang_tol) THEN
+               symmetry_id = cell_sym_hexagonal_gamma_120
+            ELSE IF (ABS(ang(3) - ang_60) < special_ang_tol) THEN
+               symmetry_id = cell_sym_hexagonal_gamma_60
+            ELSE
+               symmetry_id = cell_sym_monoclinic_gamma_ab
             END IF
          END IF
+      ELSE
+         IF (ABS(ang(1) - ang(2)) < eq_angle_tol .AND. ABS(ang(2) - ang(3)) < eq_angle_tol .AND. &
+             ABS(ang(1) - ang_90) >= special_ang_tol .AND. &
+             ABS(lens(1) - lens(2)) < len_tol .AND. ABS(lens(2) - lens(3)) < len_tol) THEN
+            symmetry_id = cell_sym_rhombohedral
+         END IF
       END IF
-   END FUNCTION pres_crit_shear_pinned
+
+   END FUNCTION spgr_point_group_symmetry_id
 
 ! **************************************************************************************************
 !> \brief Classify one CONSTRAINT token without aborting (decision half of the parser)
 !> \param token one upper-case token of the CONSTRAINT value line
 !> \param accepted .TRUE. when the token contributes a mask
-!> \param token_mask the component mask contributed by an accepted token
-!> \param reject_reason empty for accepted tokens; the abort message otherwise
+!> \param token_mask the constraint mask contributed by an accepted token
+!> \param reject_reason empty for accepted tokens, or the abort message otherwise
 !> \note parse_cell_constraint applies this classification and turns a rejection
 !>       into a cp_abort. Keeping the decision here keeps it unit-testable:
 !>       the unit test checks the classification table without triggering aborts.
@@ -457,9 +459,12 @@ CONTAINS
          token_mask = mask_xz
       CASE ("YZ")
          token_mask = mask_yz
-      CASE ("ALPHA", "BETA", "GAMMA")
-         accepted = .FALSE.
-         reject_reason = "CELL_OPT CONSTRAINT on angles (ALPHA, BETA, GAMMA) is not supported yet."
+      CASE ("ALPHA")
+         token_mask = gfix_alpha
+      CASE ("BETA")
+         token_mask = gfix_beta
+      CASE ("GAMMA")
+         token_mask = gfix_gamma
       CASE ("AY", "AZ", "BZ")
          accepted = .FALSE.
          reject_reason = "CELL_OPT CONSTRAINT token "//TRIM(token)//" is always zero in "// &
@@ -469,53 +474,32 @@ CONTAINS
          accepted = .FALSE.
          reject_reason = "Unknown CELL_OPT CONSTRAINT token: "//TRIM(token)// &
                          ". Accepted tokens: NONE, the directions X, Y, Z,"// &
-                         " XY, XZ, YZ, the vectors A, B, C, and the components"// &
-                         " AX, BX, BY, CX, CY, CZ. Several tokens may be combined."
+                         " XY, XZ, YZ, the vectors A, B, C, the components"// &
+                         " AX, BX, BY, CX, CY, CZ, and the angles ALPHA, BETA, GAMMA."
       END SELECT
    END SUBROUTINE parse_token
 
 ! **************************************************************************************************
 !> \brief Computes the derivatives for the cell
-!> \param gradient ...
+!> \param gradient enthalpy gradient +d(E + pres_ext*V)/dq in the six canonical components
 !> \param av_ptens ...
 !> \param pres_ext ...
 !> \param cell ...
 !> \param mtrx ...
-!> \param keep_angles ...
-!> \param keep_symmetry ...
 !> \param pres_int ...
-!> \param pres_constr ...
-!> \param constraint_id ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! **************************************************************************************************
-   SUBROUTINE get_dg_dh(gradient, av_ptens, pres_ext, cell, mtrx, keep_angles, &
-                        keep_symmetry, pres_int, pres_constr, constraint_id)
+   SUBROUTINE get_dg_dh(gradient, av_ptens, pres_ext, cell, mtrx, pres_int)
 
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: gradient
+      REAL(KIND=dp), DIMENSION(n_slot), INTENT(OUT)      :: gradient
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: av_ptens
       REAL(KIND=dp), INTENT(IN)                          :: pres_ext
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: mtrx
-      LOGICAL, INTENT(IN), OPTIONAL                      :: keep_angles, keep_symmetry
-      REAL(KIND=dp), INTENT(OUT)                         :: pres_int, pres_constr
-      INTEGER, INTENT(IN), OPTIONAL                      :: constraint_id
+      REAL(KIND=dp), INTENT(OUT)                         :: pres_int
 
-      INTEGER                                            :: i, my_constraint_id
-      LOGICAL                                            :: my_keep_angles, my_keep_symmetry
-      LOGICAL, DIMENSION(3)                              :: diag_free
-      REAL(KIND=dp), DIMENSION(3)                        :: diag_ptens
+      INTEGER                                            :: i
       REAL(KIND=dp), DIMENSION(3, 3)                     :: correction, pten_hinv_old, ptens
-
-      my_keep_angles = .FALSE.
-      IF (PRESENT(keep_angles)) my_keep_angles = keep_angles
-      my_keep_symmetry = .FALSE.
-      IF (PRESENT(keep_symmetry)) my_keep_symmetry = keep_symmetry
-      gradient = 0.0_dp
-      IF (PRESENT(constraint_id)) THEN
-         my_constraint_id = constraint_id
-      ELSE
-         my_constraint_id = fix_none
-      END IF
 
       gradient = 0.0_dp
 
@@ -528,20 +512,6 @@ CONTAINS
       END DO
       pres_int = pres_int/3.0_dp
 
-      ! Nominal pressure averaged over the relaxed diagonal cell components
-      ! (AX, BY, CZ couple to the diagonal of the pressure tensor). If all
-      ! diagonal components are fixed, no pressure criterion can be relaxed
-      ! and the external pressure trivially satisfies the tolerance.
-      diag_free = [IAND(my_constraint_id, comp_ax) == 0, &
-                   IAND(my_constraint_id, comp_by) == 0, &
-                   IAND(my_constraint_id, comp_cz) == 0]
-      diag_ptens = [ptens(1, 1), ptens(2, 2), ptens(3, 3)]
-      IF (ANY(diag_free)) THEN
-         pres_constr = SUM(diag_ptens, MASK=diag_free)/COUNT(diag_free)
-      ELSE
-         pres_constr = pres_ext
-      END IF
-
       ptens(1, 1) = av_ptens(1, 1) - pres_ext
       ptens(2, 2) = av_ptens(2, 2) - pres_ext
       ptens(3, 3) = av_ptens(3, 3) - pres_ext
@@ -549,204 +519,15 @@ CONTAINS
       pten_hinv_old = cell%deth*MATMUL(cell%h_inv, ptens)
       correction = MATMUL(mtrx, cell%hmat)
 
-      gradient(1) = pten_hinv_old(1, 1) - correction(1, 1)
-      gradient(2) = pten_hinv_old(2, 1) - correction(2, 1)
-      gradient(3) = pten_hinv_old(2, 2) - correction(2, 2)
-      gradient(4) = pten_hinv_old(3, 1) - correction(3, 1)
-      gradient(5) = pten_hinv_old(3, 2) - correction(3, 2)
-      gradient(6) = pten_hinv_old(3, 3) - correction(3, 3)
-
-      CALL apply_cell_constraints(gradient, cell, my_keep_angles, my_keep_symmetry, my_constraint_id)
+      gradient(slot_ax) = pten_hinv_old(1, 1) - correction(1, 1)
+      gradient(slot_bx) = pten_hinv_old(2, 1) - correction(2, 1)
+      gradient(slot_by) = pten_hinv_old(2, 2) - correction(2, 2)
+      gradient(slot_cx) = pten_hinv_old(3, 1) - correction(3, 1)
+      gradient(slot_cy) = pten_hinv_old(3, 2) - correction(3, 2)
+      gradient(slot_cz) = pten_hinv_old(3, 3) - correction(3, 3)
 
       gradient = -gradient
 
    END SUBROUTINE get_dg_dh
-
-! **************************************************************************************************
-!> \brief Apply cell constraints
-!> \param gradient ...
-!> \param cell ...
-!> \param keep_angles ...
-!> \param keep_symmetry ...
-!> \param constraint_id ...
-!> \author Matthias Krack (October 26, 2017, MK)
-! **************************************************************************************************
-   SUBROUTINE apply_cell_constraints(gradient, cell, keep_angles, keep_symmetry, constraint_id)
-
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: gradient
-      TYPE(cell_type), POINTER                           :: cell
-      LOGICAL, INTENT(IN)                                :: keep_angles, keep_symmetry
-      INTEGER, INTENT(IN)                                :: constraint_id
-
-      INTEGER                                            :: slot
-      REAL(KIND=dp)                                      :: a, a_length, ab_length, b_length, cosa, &
-                                                            cosah, cosg, deriv_gamma, g, gamma, &
-                                                            norm, norm_b, norm_c, sina, sinah, sing
-
-      IF (keep_angles) THEN
-         ! If we want to keep the angles constant we have to project out the
-         ! components of the cell angles
-         norm_b = DOT_PRODUCT(cell%hmat(:, 2), cell%hmat(:, 2))
-         norm = DOT_PRODUCT(cell%hmat(1:2, 2), gradient(2:3))
-         gradient(2:3) = cell%hmat(1:2, 2)/norm_b*norm
-         norm_c = DOT_PRODUCT(cell%hmat(:, 3), cell%hmat(:, 3))
-         norm = DOT_PRODUCT(cell%hmat(1:3, 3), gradient(4:6))
-         gradient(4:6) = cell%hmat(1:3, 3)/norm_c*norm
-         ! Retain an exact orthorhombic cell
-         ! (off-diagonal elements must remain zero identically to keep QS fast)
-         IF (cell%orthorhombic) THEN
-            gradient(2) = 0.0_dp
-            gradient(4) = 0.0_dp
-            gradient(5) = 0.0_dp
-         END IF
-      END IF
-
-      IF (keep_symmetry) THEN
-         SELECT CASE (cell%symmetry_id)
-         CASE (cell_sym_cubic, &
-               cell_sym_tetragonal_ab, &
-               cell_sym_tetragonal_ac, &
-               cell_sym_tetragonal_bc, &
-               cell_sym_orthorhombic)
-            SELECT CASE (cell%symmetry_id)
-            CASE (cell_sym_cubic)
-               g = (gradient(1) + gradient(3) + gradient(6))/3.0_dp
-               gradient(1) = g
-               gradient(3) = g
-               gradient(6) = g
-            CASE (cell_sym_tetragonal_ab, &
-                  cell_sym_tetragonal_ac, &
-                  cell_sym_tetragonal_bc)
-               SELECT CASE (cell%symmetry_id)
-               CASE (cell_sym_tetragonal_ab)
-                  g = 0.5_dp*(gradient(1) + gradient(3))
-                  gradient(1) = g
-                  gradient(3) = g
-               CASE (cell_sym_tetragonal_ac)
-                  g = 0.5_dp*(gradient(1) + gradient(6))
-                  gradient(1) = g
-                  gradient(6) = g
-               CASE (cell_sym_tetragonal_bc)
-                  g = 0.5_dp*(gradient(3) + gradient(6))
-                  gradient(3) = g
-                  gradient(6) = g
-               END SELECT
-            CASE (cell_sym_orthorhombic)
-               ! Nothing else to do
-            END SELECT
-            gradient(2) = 0.0_dp
-            gradient(4) = 0.0_dp
-            gradient(5) = 0.0_dp
-         CASE (cell_sym_hexagonal_gamma_60)
-            g = 0.5_dp*(gradient(1) + 0.5_dp*(gradient(2) + sqrt3*gradient(3)))
-            gradient(1) = g
-            gradient(2) = 0.5_dp*g
-            gradient(3) = sqrt3*gradient(2)
-            gradient(4) = 0.0_dp
-            gradient(5) = 0.0_dp
-         CASE (cell_sym_hexagonal_gamma_120)
-            g = 0.5_dp*(gradient(1) - 0.5_dp*(gradient(2) - sqrt3*gradient(3)))
-            gradient(1) = g
-            gradient(2) = -0.5_dp*g
-            gradient(3) = -sqrt3*gradient(2)
-            gradient(4) = 0.0_dp
-            gradient(5) = 0.0_dp
-         CASE (cell_sym_rhombohedral)
-            a = (angle(cell%hmat(:, 3), cell%hmat(:, 2)) + &
-                 angle(cell%hmat(:, 1), cell%hmat(:, 3)) + &
-                 angle(cell%hmat(:, 1), cell%hmat(:, 2)))/3.0_dp
-            cosa = COS(a)
-            sina = SIN(a)
-            cosah = COS(0.5_dp*a)
-            sinah = SIN(0.5_dp*a)
-            norm = cosa/cosah
-            norm_c = SQRT(1.0_dp - norm*norm)
-            g = (gradient(1) + gradient(2)*cosa + gradient(3)*sina + &
-                 gradient(4)*cosah*norm + gradient(5)*sinah*norm + gradient(6)*norm_c)/3.0_dp
-            gradient(1) = g
-            gradient(2) = g*cosa
-            gradient(3) = g*sina
-            gradient(4) = g*cosah*norm
-            gradient(5) = g*sinah*norm
-            gradient(6) = g*norm_c
-         CASE (cell_sym_monoclinic)
-            gradient(2) = 0.0_dp
-            gradient(5) = 0.0_dp
-         CASE (cell_sym_monoclinic_gamma_ab)
-            ! Cell symmetry with a = b, alpha = beta = 90 degree and gammma not equal 90 degree
-            a_length = SQRT(cell%hmat(1, 1)*cell%hmat(1, 1) + &
-                            cell%hmat(2, 1)*cell%hmat(2, 1) + &
-                            cell%hmat(3, 1)*cell%hmat(3, 1))
-            b_length = SQRT(cell%hmat(1, 2)*cell%hmat(1, 2) + &
-                            cell%hmat(2, 2)*cell%hmat(2, 2) + &
-                            cell%hmat(3, 2)*cell%hmat(3, 2))
-            ab_length = 0.5_dp*(a_length + b_length)
-            gamma = angle(cell%hmat(:, 1), cell%hmat(:, 2))
-            cosg = COS(gamma)
-            sing = SIN(gamma)
-            ! Here, g is the average derivative of the cell vector length ab_length,
-            ! and deriv_gamma is the derivative of the angle gamma
-            g = 0.5_dp*(gradient(1) + cosg*gradient(2) + sing*gradient(3))
-            deriv_gamma = (gradient(3)*cosg - gradient(2)*sing)/b_length
-            gradient(1) = g
-            gradient(2) = g*cosg - ab_length*sing*deriv_gamma
-            gradient(3) = g*sing + ab_length*cosg*deriv_gamma
-            gradient(4) = 0.0_dp
-            gradient(5) = 0.0_dp
-         CASE (cell_sym_triclinic)
-            ! Nothing to do
-         END SELECT
-      END IF
-
-      ! Invariant: the projections above run first, the hard constraint
-      ! zeroing runs last. KEEP_VOLUME is handled separately by
-      ! rescale_new_cell_volume. No projected gradient survives into a fixed
-      ! slot. The cell block is always the last six components of the
-      ! optimization vector.
-      DO slot = 1, 6
-         IF (slot_is_fixed(constraint_id, slot)) gradient(slot) = 0.0_dp
-      END DO
-
-   END SUBROUTINE apply_cell_constraints
-
-! **************************************************************************************************
-!> \brief Rescale x(idg+1:idg+6) according to vol
-!> \param vol ...
-!> \param x ...
-!> \param idg ...
-! **************************************************************************************************
-   SUBROUTINE rescale_new_cell_volume(vol, x, idg)
-
-      REAL(KIND=dp), INTENT(IN)                          :: vol
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: x
-      INTEGER, INTENT(IN)                                :: idg
-
-      INTEGER                                            :: i, j, my_idg
-      REAL(KIND=dp)                                      :: ratio
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat_tmp
-
-      CPASSERT((SIZE(x) == idg + 6))
-      my_idg = idg
-
-      hmat_tmp(:, :) = 0.0_dp
-      DO i = 1, 3
-         DO j = 1, i
-            my_idg = my_idg + 1
-            hmat_tmp(j, i) = x(my_idg)
-         END DO
-      END DO
-
-      ratio = vol/ABS(det_3x3(hmat_tmp))
-      ratio = ratio**(1.0_dp/3.0_dp) ! no need to use EXP(LOG(ratio)/3) for cube root
-
-      my_idg = idg
-      DO i = 1, 3
-         DO j = 1, i
-            my_idg = my_idg + 1
-            x(my_idg) = x(my_idg)*ratio
-         END DO
-      END DO
-
-   END SUBROUTINE rescale_new_cell_volume
 
 END MODULE cell_opt_utils

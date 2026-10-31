@@ -182,6 +182,10 @@ CONTAINS
                gopt_env%gopt_dimer_env%dimer_env => gopt_env%dimer_env
                gopt_env%gopt_dimer_env%label = "ROT_OPT"
                gopt_env%gopt_dimer_env%dimer_rotation = .TRUE.
+               ! Dimer rotation optimizes a 3D unit vector, so space-group
+               ! symmetry does not apply.
+               gopt_env%gopt_dimer_env%spgr%keep_space_group = .FALSE.
+               gopt_env%gopt_dimer_env%spgr%show_space_group = .FALSE.
             END SELECT
          END SELECT
       CASE (default_cell_method_id)
@@ -193,6 +197,9 @@ CONTAINS
          gopt_env%label = "SHELL_OPT"
          gopt_env%tag = "  SHELL-CORE  "
          gopt_env%shellcore_method_id = gopt_param%shellcore_method_id
+         ! Shell-core relaxation bypasses the geometry-optimizer lifecycle.
+         gopt_env%spgr%keep_space_group = .FALSE.
+         gopt_env%spgr%show_space_group = .FALSE.
       END SELECT
    END SUBROUTINE gopt_f_create
 
