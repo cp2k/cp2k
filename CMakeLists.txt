@@ -873,10 +873,9 @@ if(CP2K_USE_SPLA)
 endif()
 
 if(CP2K_USE_DFTD4)
-  find_package(mctc-lib REQUIRED) # workaround: find mctc-lib first
   find_package(dftd4 REQUIRED)
-  if(dftd4_VERSION VERSION_LESS "4.2.0")
-    message(FATAL_ERROR "dftd4 >= 4.2.0 is required; found ${dftd4_VERSION}")
+  if(dftd4_VERSION VERSION_LESS "4.3.0")
+    message(FATAL_ERROR "dftd4 >= 4.3.0 is required; found ${dftd4_VERSION}")
   endif()
 endif()
 
@@ -902,8 +901,8 @@ endif()
 
 if(CP2K_USE_TBLITE)
   find_package(tblite CONFIG REQUIRED)
-  if(tblite_VERSION VERSION_LESS "0.7.0")
-    message(FATAL_ERROR "tblite >= 0.7.0 is required; found ${tblite_VERSION}")
+  if(tblite_VERSION VERSION_LESS "0.8.0")
+    message(FATAL_ERROR "tblite >= 0.8.0 is required; found ${tblite_VERSION}")
   endif()
   add_library(cp2k::tblite INTERFACE IMPORTED)
   target_link_libraries(

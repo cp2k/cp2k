@@ -20,13 +20,13 @@ class Tblite(CMakePackage):
     license("LGPL-3.0-or-later")
 
     version("main", branch="main")
+    version("0.8.0", sha256="2d00fd612b3fcbb69365de53577080457ceae221cd151be52e7a9977b4832ad3")
     version("0.7.0", sha256="3a7cb4602101e828caf41c38ca5e30f82de82d0d26d5db40168acdcad3462b92")
     version("0.6.0", sha256="372281aedb89234168d00eb691addb303197a9462a9c55d145c835f2cf5e8b42")
     version("0.5.0", sha256="e8a70b72ed0a0db0621c7958c63667a9cd008c97c868a4a417ff1bc262052ea8")
     version("0.4.0", sha256="5c2249b568bfd3b987d3b28f2cbfddd5c37f675b646e17c1e750428380af464b")
     version("0.3.0", sha256="46d77c120501ac55ed6a64dea8778d6593b26fb0653c591f8e8c985e35884f0a")
 
-    variant("shared", default=True, description="Build shared libraries")
     variant("openmp", default=True, description="Use OpenMP parallelisation")
     variant("trexio", default=False, description="Enable TREXIO support", when="@0.7.0:")
     variant("hdf5", default=False, description="Enable HDF5 support", when="@0.7.0:")
@@ -38,23 +38,11 @@ class Tblite(CMakePackage):
     depends_on("lapack")
     depends_on("trexio", when="+trexio")
     depends_on("hdf5", when="+hdf5")
-    depends_on("mctc-lib@0.3: build_system=cmake", when="+shared")
-    depends_on("simple-dftd3@0.3: build_system=cmake", when="+shared")
-    depends_on("dftd4@3: build_system=cmake", when="+shared")
-    depends_on("dftd4@:3.7", when="@:0.5+shared")
-    depends_on("mstore build_system=cmake", when="+shared")
-    depends_on("toml-f build_system=cmake", when="+shared")
-    depends_on("pkgconfig", type="build", when="+shared")
 
 
 class CMakeBuilder(cmake.CMakeBuilder):
     def cmake_args(self):
-        args = [
-            self.define_from_variant("BUILD_SHARED_LIBS", "shared"),
-            self.define_from_variant("WITH_OpenMP", "openmp"),
-        ]
-        if "+shared" in self.spec:
-            args.append(self.define("tblite-dependency-method", "cmake"))
+        args = [self.define_from_variant("WITH_OpenMP", "openmp")]
         if self.spec.satisfies("@0.7.0:"):
             args += [
                 self.define_from_variant("TBLITE_WITH_TREXIO", "trexio"),

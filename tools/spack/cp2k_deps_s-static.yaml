@@ -100,10 +100,6 @@ spack:
       require:
         - "~shared"
 
-    tblite:
-      require:
-        - "~shared"
-
   repos:
     builtin:
       commit: dc7929641af94e9f219e0cb5ea00274480701c87 # 2026-10-16
@@ -130,7 +126,7 @@ spack:
     - "openblas@0.3.34"
     - "pace@2025.12.4.1"
     - "spglib@2.8.0"
-    - "tblite@0.7.0"
+    - "tblite@0.8.0"
 
   view:
     default:

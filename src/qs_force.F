@@ -79,7 +79,8 @@ MODULE qs_force
                                               velocity_gauge_nl_force
    USE se_core_core,                    ONLY: se_core_core_interaction
    USE se_core_matrix,                  ONLY: build_se_core_matrix
-   USE tblite_interface,                ONLY: build_tblite_matrices
+   USE tblite_interface,                ONLY: build_tblite_matrices,&
+                                              tb_init_ham
    USE tblite_reference_cli,            ONLY: tb_reference_cli_compare
    USE virial_types,                    ONLY: project_virial_to_periodic_subspace,&
                                               symmetrize_virial,&
@@ -304,6 +305,11 @@ CONTAINS
                                         calculate_forces=.TRUE.)
       ELSE IF (dft_control%qs_control%xtb) THEN
          IF (dft_control%qs_control%xtb_control%do_tblite) THEN
+            ! RTP skips the Hamiltonian initialization in qs_energies.
+            IF (qs_env%run_rtp) THEN
+               CALL tb_init_ham(qs_env, .TRUE.)
+               CALL build_tblite_matrices(qs_env=qs_env, calculate_forces=.FALSE.)
+            END IF
             CALL build_tblite_matrices(qs_env=qs_env, calculate_forces=.TRUE.)
          ELSE
             CALL build_xtb_matrices(qs_env=qs_env, calculate_forces=.TRUE.)
