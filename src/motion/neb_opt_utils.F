@@ -258,7 +258,7 @@ CONTAINS
       IF (accepted .AND. check_diis) THEN
          ! (b) The length of the DIIS step is limited to be no more than 10 times
          !     the reference step
-         IF (ref_norm > step_norm*10.0_dp) accepted = .FALSE.
+         IF (step_norm > ref_norm*10.0_dp) accepted = .FALSE.
          IF (output_unit > 0 .AND. (.NOT. accepted)) THEN
             WRITE (output_unit, '(T2,"DIIS|",A)') &
                "The length of the DIIS step is limited to be no more than 10 times", &
