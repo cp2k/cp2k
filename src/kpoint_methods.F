@@ -41,6 +41,7 @@ MODULE kpoint_methods
    USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
+   USE cp_dbcsr_redistribution,         ONLY: cp_array_to_dbcsr_blocks
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               cp_fm_pool_type,&
@@ -2900,7 +2901,8 @@ CONTAINS
 
       INTEGER                                            :: compatible, element, first, handle, i, &
                                                             ic, igroup, ik, ikp, image, ispin, j, &
-                                                            kplocal, nc, ncol, nrow
+                                                            kplocal, last, nc, ncol, nrow
+      INTEGER, ALLOCATABLE                               :: blocks(:, :), factors(:, :)
       INTEGER, DIMENSION(14)                             :: layout, layout_max, layout_min
       INTEGER, DIMENSION(2)                              :: fft_range
       LOGICAL                                            :: found, local, same_layout
@@ -2965,6 +2967,24 @@ CONTAINS
       DO ispin = 1, SIZE(source, 3)
          CALL kp_density_fft(kpoint, source(:, :, ispin), nrow, ncol, SIZE(denmat, 2), &
                              fft_range, fft_density, local)
+         IF (ALLOCATED(fft_density) .AND. kpoint%para_env_kp%num_pe == 1) THEN
+            IF (.NOT. ALLOCATED(blocks)) THEN
+               ! Keep neighbor-list multiplicity and imaginary signs in the k-point layer.
+               ALLOCATE (blocks(3, plan%ngroup), factors(nc, plan%ngroup))
+               DO igroup = 1, plan%ngroup
+                  first = plan%group_start(igroup)
+                  last = plan%group_start(igroup + 1) - 1
+                  blocks(:, igroup) = [plan%row(first), plan%col(first), plan%image(first)]
+                  factors(1, igroup) = last - first + 1
+                  IF (nc == 2) factors(2, igroup) = NINT(SUM(plan%symmetry_sign(first:last)))
+               END DO
+            END IF
+            CALL cp_array_to_dbcsr_blocks(fft_density, fft_range(1), fft_range(2), para_env, &
+                                          denmat(ispin, :), blocks, factors)
+            DEALLOCATE (fft_density)
+            completed = .TRUE.
+            CYCLE
+         END IF
          IF (ispin == 1) THEN
             IF (local .AND. .NOT. ALLOCATED(fft_density) .AND. dense_work > sparse_work) EXIT
             DO ic = 1, nc
@@ -3035,11 +3055,9 @@ CONTAINS
          IF (ALLOCATED(fft_density)) DEALLOCATE (fft_density)
          completed = .TRUE.
       END DO
-      IF (completed) THEN
-         DO ic = 1, nc
-            CALL cp_fm_release(partial(ic))
-         END DO
-      END IF
+      DO ic = 1, nc
+         CALL cp_fm_release(partial(ic))
+      END DO
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_density_transform_regular_grid
