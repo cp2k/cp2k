@@ -50,9 +50,13 @@ MODULE qs_kpoint_operators
                                               cp_fm_start_copy_general,&
                                               cp_fm_type
    USE input_cp2k_kpoints,              ONLY: lattice_fft_auto,&
+                                              lattice_fft_off,&
                                               lattice_fft_on
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE kpoint_lattice_fft,              ONLY: cell_to_k_grid_fft,&
+                                              lattice_fft_shape,&
+                                              regular_kpoint_grid
    USE kpoint_methods,                  ONLY: kp_transform_plan_create,&
                                               kp_transform_plan_type,&
                                               rskp_grid_type,&
@@ -138,7 +142,7 @@ MODULE qs_kpoint_operators
       LOGICAL, ALLOCATABLE :: nonzero(:)
    END TYPE kpoint_operator_rs_type
 
-   ! Small read-ahead window per prepared row. Keep mutable output separate
+   ! Read-ahead window or complete FFT output per prepared row. Keep output separate
    ! from the immutable snapshot; prepare invalidates only the selected slot.
    TYPE kpoint_operator_rs_batch_type
       INTEGER :: first = 0
@@ -149,6 +153,8 @@ MODULE qs_kpoint_operators
    INTEGER(KIND=int_8), PARAMETER :: rs_snapshot_bytes = 64_int_8*1024_int_8**2
    ! Includes cached tiles and batch phase scratch, divided between all rows/slots.
    INTEGER(KIND=int_8), PARAMETER :: rs_batch_bytes = 32_int_8*1024_int_8**2
+   ! Shared by all prepared spin rows and slots, including transient FFT work.
+   INTEGER(KIND=int_8), PARAMETER :: rs_fft_bytes = 512_int_8*1024_int_8**2
 
 ! **************************************************************************************************
 !> \brief Caller-owned assembly context for a fixed geometry and parallel layout.
@@ -657,6 +663,8 @@ CONTAINS
             row = ispin
             IF (PRESENT(matrix_row)) row = matrix_row
             CALL kpoint_operator_rs_capture(rsmat, row, ctx%rs_route, ctx%kpoints, ctx%rs(ispin, slot))
+            CALL kpoint_operator_fft_prepare(ctx%rs(ispin, slot), ctx%rs_route, ctx%kpoints, &
+                                             ctx%rs_batch(ispin, slot), rs_fft_bytes/INT(ctx%nspin*kpoint_num_slots, int_8))
          END DO
       END IF
       IF (PRESENT(prepared)) prepared = ready
@@ -678,6 +686,211 @@ CONTAINS
       snapshot%matrix_row = 0
 
    END SUBROUTINE kpoint_operator_rs_clear
+
+! **************************************************************************************************
+!> \brief Transform disjoint AO entries, then exchange only group-owned k-point results.
+!>        The snapshot stays usable for direct assembly if any rank rejects the FFT.
+!>        All pool/planner calls and communication precede OpenMP k-point workers.
+!> \param snapshot captured real-space blocks
+!> \param route prepared group-local layout
+!> \param kpoints host sampling and communicators
+!> \param work existing matrix-batch cache, filled for all group-owned k points
+!> \param max_bytes budget for this row's output, maps and transient FFT/exchange buffers
+! **************************************************************************************************
+   SUBROUTINE kpoint_operator_fft_prepare(snapshot, route, kpoints, work, max_bytes)
+      TYPE(kpoint_operator_rs_type), INTENT(IN)          :: snapshot
+      TYPE(kpoint_operator_rs_route_type), INTENT(IN)    :: route
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(kpoint_operator_rs_batch_type), INTENT(OUT)   :: work
+      INTEGER(KIND=int_8), INTENT(IN)                    :: max_bytes
+
+      INTEGER, PARAMETER                                 :: max_batch = 32
+
+      COMPLEX(KIND=dp), ALLOCATABLE, TARGET              :: recvbuf(:), sendbuf(:)
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: values_k(:, :, :)
+      INTEGER                                            :: batch, count, first, group, handle, i, &
+                                                            ik, j, last, local_k, mine, ncell, &
+                                                            nel, ngroup, nkp, offset, pos, width
+      INTEGER(KIND=int_8)                                :: fixed_bytes, per_entry, tile_size
+      INTEGER, ALLOCATABLE                               :: cells(:, :), ranges(:, :), rcount(:), &
+                                                            rdispl(:), scount(:), sdispl(:)
+      INTEGER, DIMENSION(12)                             :: layout, layout_max, layout_min
+      INTEGER, DIMENSION(2)                              :: choice
+      INTEGER, DIMENSION(3)                              :: nfft
+      REAL(KIND=dp), ALLOCATABLE                         :: values_rs(:, :, :)
+      TYPE(cp_fm_struct_type), POINTER                   :: fms
+      TYPE(mp_para_env_type), POINTER                    :: inter, world
+
+      IF (kpoints%lattice_fft == lattice_fft_off) RETURN
+      nkp = SIZE(kpoints%xkp, 2)
+      IF (kpoints%lattice_fft == lattice_fft_auto .AND. nkp < 27) RETURN
+      IF (ANY(kpoints%nkp_grid <= 0)) RETURN
+      IF (32_int_8*PRODUCT(INT(kpoints%nkp_grid, int_8)) > max_bytes) RETURN
+      IF (.NOT. lattice_fft_shape(kpoints%nkp_grid, nfft, allow_arbitrary=.TRUE.)) RETURN
+      IF (32_int_8*PRODUCT(INT(nfft, int_8)) > max_bytes) RETURN
+      IF (.NOT. regular_kpoint_grid(kpoints%xkp, kpoints%nkp_grid, allow_incomplete=.TRUE.)) RETURN
+
+      world => kpoints%blacs_env_all%para_env
+      inter => kpoints%para_env_inter_kp
+      ngroup = inter%num_pe
+      mine = inter%mepos + 1
+      local_k = kpoints%kp_range(2) - kpoints%kp_range(1) + 1
+      fms => route%matrix_struct
+      ! Equivalent inter-group ranks must agree on both local indices and global layout.
+      layout = [fms%nrow_global, fms%ncol_global, fms%nrow_block, fms%ncol_block, &
+                fms%first_p_pos, fms%context%num_pe, fms%context%mepos, route%nrow, route%ncol]
+      layout_min = layout
+      layout_max = layout
+      CALL inter%min(layout_min)
+      CALL inter%max(layout_max)
+      tile_size = INT(route%nrow, int_8)*route%ncol
+      nel = 0
+      IF (tile_size <= HUGE(nel)) nel = INT(tile_size)
+      fixed_bytes = 16_int_8*tile_size*local_k + 32_int_8*PRODUCT(INT(nfft, int_8)) + &
+                    4_int_8*PRODUCT(INT(kpoints%nkp_grid, int_8)) + 12_int_8*nkp + &
+                    80_int_8*SIZE(route%entry, 2, KIND=int_8) + 24_int_8*ngroup
+      per_entry = 16_int_8*SIZE(route%entry, 2, KIND=int_8) + &
+                  16_int_8*(INT(nkp, int_8) + INT(ngroup, int_8)*local_k)
+      width = INT(MAX(0_int_8, MIN(INT(max_batch, int_8), (max_bytes - fixed_bytes)/MAX(1_int_8, per_entry))))
+      choice = [MERGE(1, 0, nel > 0 .AND. ALL(layout_min == layout_max)), width]
+      CALL world%min(choice)
+      IF (choice(1) == 0 .OR. choice(2) == 0) RETURN
+      width = choice(2)
+      IF (kpoints%lattice_fft == lattice_fft_auto .AND. ngroup > 1) THEN
+         IF (16_int_8*width*MINVAL(kpoints%kp_dist(2, :) - kpoints%kp_dist(1, :) + 1) < 32_int_8*1024) RETURN
+      END IF
+
+      CALL timeset("kpoint_operator_fft_prepare", handle)
+      ncell = 2*SIZE(route%entry, 2)
+      ALLOCATE (cells(3, ncell), ranges(2, ngroup))
+      DO i = 1, SIZE(route%entry, 2)
+         cells(:, 2*i - 1) = route%entry(5:7, i)
+         cells(:, 2*i) = -route%entry(5:7, i)
+      END DO
+      DO group = 1, ngroup
+         ranges(1, group) = INT(INT(nel, int_8)*(group - 1)/ngroup) + 1
+         ranges(2, group) = INT(INT(nel, int_8)*group/ngroup)
+      END DO
+      ALLOCATE (work%data(local_k, route%nrow, route%ncol))
+      ALLOCATE (values_rs(width, 1, ncell), sendbuf(width*nkp), recvbuf(width*ngroup*local_k))
+      ALLOCATE (scount(ngroup), sdispl(ngroup), rcount(ngroup), rdispl(ngroup))
+      DO batch = 1, MAXVAL(ranges(2, :) - ranges(1, :) + 1), width
+         first = ranges(1, mine) + batch - 1
+         last = MIN(first + width - 1, ranges(2, mine))
+         count = MAX(0, last - first + 1)
+         IF (count > 0) THEN
+            CALL kpoint_operator_fft_pack(snapshot, route, first, last, values_rs(1:count, :, :))
+            values_k(1:count, 1:1, 1:nkp) => sendbuf(1:count*nkp)
+            ! The transform itself supplies a direct result if the FFT backend fails.
+            CALL cell_to_k_grid_fft(values_rs(1:count, :, :), cells, kpoints%xkp, kpoints%nkp_grid, &
+                                    values_k)
+         END IF
+         offset = 0
+         DO group = 1, ngroup
+            scount(group) = count*(kpoints%kp_dist(2, group) - kpoints%kp_dist(1, group) + 1)
+            sdispl(group) = count*(kpoints%kp_dist(1, group) - 1)
+            first = ranges(1, group) + batch - 1
+            last = MIN(first + width - 1, ranges(2, group))
+            rcount(group) = MAX(0, last - first + 1)*local_k
+            rdispl(group) = offset
+            offset = offset + rcount(group)
+         END DO
+         CALL inter%alltoall(sendbuf, scount, sdispl, recvbuf, rcount, rdispl)
+         DO group = 1, ngroup
+            first = ranges(1, group) + batch - 1
+            last = MIN(first + width - 1, ranges(2, group))
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP SHARED(work,route,recvbuf,rdispl,group,first,last,local_k) PRIVATE(ik,i,j,pos)
+            DO pos = first, last
+               i = MODULO(pos - 1, route%nrow) + 1
+               j = (pos - 1)/route%nrow + 1
+               DO ik = 1, local_k
+                  work%data(ik, i, j) = recvbuf(rdispl(group) + (ik - 1)*(last - first + 1) + pos - first + 1)
+               END DO
+            END DO
+!$OMP END PARALLEL DO
+         END DO
+      END DO
+      work%first = kpoints%kp_range(1)
+      CALL timestop(handle)
+   END SUBROUTINE kpoint_operator_fft_prepare
+
+! **************************************************************************************************
+!> \brief Pack independent AO entries with the same mirror/sign convention as direct assembly.
+!> \param snapshot captured real-space blocks
+!> \param route prepared group-local layout
+!> \param first first flattened local AO entry
+!> \param last last flattened local AO entry
+!> \param values real-cell batch; odd/even cells hold a block and its Hermitian mirror
+! **************************************************************************************************
+   SUBROUTINE kpoint_operator_fft_pack(snapshot, route, first, last, values)
+      TYPE(kpoint_operator_rs_type), INTENT(IN)          :: snapshot
+      TYPE(kpoint_operator_rs_route_type), INTENT(IN)    :: route
+      INTEGER, INTENT(IN)                                :: first, last
+      REAL(KIND=dp), INTENT(OUT)                         :: values(:, :, :)
+
+      INTEGER                                            :: col, element, iblock, part, row, &
+                                                            source_col, source_row
+
+      values(:, :, :) = 0.0_dp
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP SHARED(snapshot,route,first,last,values) PRIVATE(element,row,col,iblock,part,source_row,source_col)
+      DO element = first, last
+         row = MODULO(element - 1, route%nrow) + 1
+         col = (element - 1)/route%nrow + 1
+         DO iblock = 1, SIZE(route%entry, 2)
+            IF (.NOT. snapshot%nonzero(iblock)) CYCLE
+            DO part = 1, 2
+               IF (part == 2 .AND. route%entry(8, iblock) == 0) CYCLE
+               IF (row < route%tile(1, part, iblock) .OR. row > route%tile(2, part, iblock)) CYCLE
+               IF (col < route%tile(3, part, iblock) .OR. col > route%tile(4, part, iblock)) CYCLE
+               source_row = route%matrix_struct%row_indices(row)
+               source_col = route%matrix_struct%col_indices(col)
+               IF (part == 2) THEN
+                  source_col = route%matrix_struct%row_indices(row)
+                  source_row = route%matrix_struct%col_indices(col)
+               END IF
+               values(element - first + 1, 1, 2*iblock - 2 + part) = &
+                  snapshot%blocks(iblock)%data(source_row - route%entry(1, iblock) + 1, &
+                                               source_col - route%entry(2, iblock) + 1)
+            END DO
+         END DO
+      END DO
+!$OMP END PARALLEL DO
+   END SUBROUTINE kpoint_operator_fft_pack
+
+! **************************************************************************************************
+!> \brief Copy a cached matrix into a possibly padded solver matrix, without MPI.
+!> \param values cached reciprocal matrix
+!> \param TARGET complex output
+!> \param fm_re real output
+!> \param fm_im optional imaginary output
+! **************************************************************************************************
+   SUBROUTINE kpoint_operator_rs_copy(values, TARGET, fm_re, fm_im)
+      COMPLEX(KIND=dp), INTENT(IN)                       :: values(:, :)
+      TYPE(cp_cfm_type), INTENT(INOUT), OPTIONAL         :: target
+      TYPE(cp_fm_type), INTENT(INOUT), OPTIONAL          :: fm_re, fm_im
+
+      INTEGER                                            :: ncol, nrow
+
+      nrow = SIZE(values, 1)
+      ncol = SIZE(values, 2)
+      CPASSERT(PRESENT(TARGET) .NEQV. PRESENT(fm_re))
+      IF (PRESENT(TARGET)) THEN
+         target%local_data(1:nrow, 1:ncol) = values
+         target%local_data(nrow + 1:, :) = z_zero
+         target%local_data(:, ncol + 1:) = z_zero
+      ELSE
+         fm_re%local_data(1:nrow, 1:ncol) = REAL(values, dp)
+         fm_re%local_data(nrow + 1:, :) = 0.0_dp
+         fm_re%local_data(:, ncol + 1:) = 0.0_dp
+         IF (PRESENT(fm_im)) THEN
+            fm_im%local_data(1:nrow, 1:ncol) = AIMAG(values)
+            fm_im%local_data(nrow + 1:, :) = 0.0_dp
+            fm_im%local_data(:, ncol + 1:) = 0.0_dp
+         END IF
+      END IF
+   END SUBROUTINE kpoint_operator_rs_copy
 
 ! **************************************************************************************************
 !> \brief Match an explicitly prepared row, sharing spin-free rows across spins.
@@ -1125,7 +1338,8 @@ CONTAINS
       bytes_per_k = 16_int_8*(INT(nrow, int_8)*ncol + SIZE(ctx%rs_route%entry, 2, KIND=int_8))
       width = MIN(rs_batch_size, last - first + 1, &
                   INT(rs_batch_bytes/(INT(ctx%nspin*kpoint_num_slots, int_8)*MAX(1_int_8, bytes_per_k))))
-      IF (width < 2 .OR. nrow == 0 .OR. ncol == 0) THEN
+      IF (ALLOCATED(ctx%rs_batch(irs, slot)%data)) width = SIZE(ctx%rs_batch(irs, slot)%data, 1)
+      IF ((width < 2 .AND. .NOT. ALLOCATED(ctx%rs_batch(irs, slot)%data)) .OR. nrow == 0 .OR. ncol == 0) THEN
          ! No extra dense tile for a large/empty layout or a single local k point.
          CALL kpoint_operator_rs_build_batch(ctx%rs(irs, slot), ctx%rs_route, xkp(:, ik:ik), &
                                              TARGET=TARGET, fm_re=fm_re, fm_im=fm_im)
@@ -1139,19 +1353,7 @@ CONTAINS
             END IF
             k = ik - work%first + 1
             ! Deliver a work copy: eigensolvers may overwrite H/S without corrupting the window.
-            IF (PRESENT(TARGET)) THEN
-               target%local_data(1:nrow, 1:ncol) = work%data(k, :, :)
-               target%local_data(nrow + 1:, :) = z_zero
-               target%local_data(:, ncol + 1:) = z_zero
-            ELSE
-               CPASSERT(PRESENT(fm_re))
-               fm_re%local_data(1:nrow, 1:ncol) = REAL(work%data(k, :, :), dp)
-               IF (PRESENT(fm_im)) fm_im%local_data(1:nrow, 1:ncol) = AIMAG(work%data(k, :, :))
-               fm_re%local_data(nrow + 1:, :) = 0.0_dp
-               fm_re%local_data(:, ncol + 1:) = 0.0_dp
-               IF (PRESENT(fm_im)) fm_im%local_data(nrow + 1:, :) = 0.0_dp
-               IF (PRESENT(fm_im)) fm_im%local_data(:, ncol + 1:) = 0.0_dp
-            END IF
+            CALL kpoint_operator_rs_copy(work%data(k, :, :), TARGET, fm_re, fm_im)
          END ASSOCIATE
       END IF
       IF (ctx%kpoints%use_real_wfn) THEN
@@ -1427,7 +1629,8 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(INOUT), OPTIONAL          :: fm_re, fm_im
 
       REAL(KIND=dp), POINTER                             :: xkp(:, :)
-      INTEGER                                            :: row
+      LOGICAL                                            :: cached
+      INTEGER                                            :: k, row
 
       CPASSERT(ik >= ctx%kpoints%kp_range(1))
       CPASSERT(ik <= ctx%kpoints%kp_range(2))
@@ -1435,9 +1638,16 @@ CONTAINS
       IF (.NOT. ASSOCIATED(ctx%rs(row, slot)%source)) row = 1
       CPASSERT(ASSOCIATED(ctx%rs(row, slot)%source))
       xkp => ctx%kpoints%xkp
-      CALL kpoint_operator_rs_build_batch(ctx%rs(row, slot), ctx%rs_route, xkp(:, ik:ik), &
-                                          TARGET=TARGET, fm_re=fm_re, fm_im=fm_im, &
-                                          phase_work=phase, parallel_columns=.FALSE.)
+      k = ik - ctx%rs_batch(row, slot)%first + 1
+      cached = .FALSE.
+      IF (ALLOCATED(ctx%rs_batch(row, slot)%data)) cached = k >= 1 .AND. k <= SIZE(ctx%rs_batch(row, slot)%data, 1)
+      IF (cached) THEN
+         CALL kpoint_operator_rs_copy(ctx%rs_batch(row, slot)%data(k, :, :), TARGET, fm_re, fm_im)
+      ELSE
+         CALL kpoint_operator_rs_build_batch(ctx%rs(row, slot), ctx%rs_route, xkp(:, ik:ik), &
+                                             TARGET=TARGET, fm_re=fm_re, fm_im=fm_im, &
+                                             phase_work=phase, parallel_columns=.FALSE.)
+      END IF
       IF (ctx%kpoints%use_real_wfn) THEN
          IF (PRESENT(TARGET)) target%local_data(:, :) = CMPLX(REAL(target%local_data, dp), 0.0_dp, dp)
          IF (PRESENT(fm_im)) fm_im%local_data(:, :) = 0.0_dp
@@ -2119,24 +2329,25 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rsmat
       INTEGER, INTENT(IN)                                :: slot, nrows
 
-      INTEGER                                            :: ikp, ispin, kpmax, nworkers
-      LOGICAL                                            :: prepared, ready, use_grid
+      INTEGER                                            :: fft_ready, ikp, ispin, kpmax
+      LOGICAL                                            :: prepared, ready, use_blocks, use_grid
       TYPE(rskp_grid_type), ALLOCATABLE                  :: grids(:)
 
-         nworkers = 1
-!$       nworkers = omp_get_max_threads()
          use_grid = kpoints%lattice_fft == lattice_fft_on .OR. &
                     (kpoints%lattice_fft == lattice_fft_auto .AND. SIZE(kpoints%xkp, 2) >= 27)
-         prepared = .FALSE.
-         ! Match STANDARD's single-world-rank, single-thread preference for the forward lattice FFT.
-         IF (.NOT. use_grid .OR. nworkers > 1 .OR. kpoints%blacs_env_all%para_env%num_pe > 1) THEN
-            IF (slot == kpoint_slot_ks .AND. nrows == ctx%nspin) THEN
-               CALL kpoint_operator_prepare(ctx, rsmat, slot, prepared)
-            ELSE
-               CALL kpoint_operator_prepare(ctx, rsmat, slot, prepared, matrix_row=kpoint_spin_free)
-            END IF
+         IF (slot == kpoint_slot_ks .AND. nrows == ctx%nspin) THEN
+            CALL kpoint_operator_prepare(ctx, rsmat, slot, prepared)
+         ELSE
+            CALL kpoint_operator_prepare(ctx, rsmat, slot, prepared, matrix_row=kpoint_spin_free)
          END IF
-         IF (prepared .AND. kpoints%para_env_kp%num_pe == 1) THEN
+         ! Keep block GEMMs for direct assembly; get copies any prepared FFT output.
+         use_blocks = prepared .AND. kpoints%para_env_kp%num_pe == 1
+         IF (prepared) THEN
+            DO ispin = 1, nrows
+               use_blocks = use_blocks .AND. .NOT. ALLOCATED(ctx%rs_batch(ispin, slot)%data)
+            END DO
+         END IF
+         IF (use_blocks) THEN
             CALL kpoint_operator_store_blocks(ctx, slot, nrows)
          ELSE
             kpmax = MAXVAL(kpoints%kp_dist(2, :) - kpoints%kp_dist(1, :) + 1)
@@ -2152,6 +2363,9 @@ CONTAINS
                                                    max_storage_bytes=512_int_8*1024_int_8**2/INT(nspin + 1, int_8))
                   use_grid = use_grid .AND. ready
                END DO
+               fft_ready = MERGE(1, 0, use_grid)
+               CALL kpoints%blacs_env_all%para_env%min(fft_ready)
+               use_grid = fft_ready == 1
             END IF
             DO ikp = 1, kpmax
                DO ispin = 1, nrows
