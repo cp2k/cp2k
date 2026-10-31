@@ -87,6 +87,7 @@ MODULE qs_kpoint_operators
    PUBLIC :: kpoint_operator_start, kpoint_operator_finish
    PUBLIC :: kpoint_operator_get, kpoint_operator_prepare
    PUBLIC :: kpoint_operator_evaluate, kpoint_operator_work_size
+   PUBLIC :: kpoint_operator_batch_size, kpoint_operator_evaluate_batch
    PUBLIC :: kpoint_operator_store, kpoint_operator_get_local, kpoint_operator_get_all
 
    INTEGER, PARAMETER, PUBLIC :: kpoint_slot_ks = 1, &
@@ -2103,20 +2104,22 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_store_blocks'
 
-      INTEGER :: c0, col, first, handle, iblock, ic, igroup, ikp, ispin, j, k, last, nactive, &
-         nbatch, nc, nelem, ngroup, nimages, nk, nr, nworkers, r0, row, width
-      INTEGER(KIND=int_8)                                :: max_pack, max_per_k, nfactor, npack, &
-                                                            work_size
-      REAL(KIND=dp)                                      :: arg
+      INTEGER                                            :: c0, col, first, handle, ic, igroup, ikp, &
+                                                            ispin, j, k, last, nbatch, nc, nelem, &
+                                                            ngroup, nimages, nk, nr, nworkers, r0, &
+                                                            row, width
+      INTEGER(KIND=int_8)                                :: nfactor, npack, work_size
       REAL(KIND=dp), ALLOCATABLE, TARGET                 :: work(:)
       REAL(KIND=dp), CONTIGUOUS, POINTER                 :: factors(:, :, :), RESULT(:, :, :), &
                                                             values(:, :)
+      REAL(KIND=dp), POINTER                             :: xkp(:, :)
       TYPE(cp_fm_type), POINTER                          :: cache(:)
       TYPE(kpoint_env_type), POINTER                     :: kp
 
       CALL timeset(routineN, handle)
       nk = SIZE(ctx%kpoints%kp_env)
       nc = MERGE(1, 2, ctx%kpoints%use_real_wfn)
+      xkp => ctx%kpoints%xkp
       ASSOCIATE (kpoints => ctx%kpoints)
          ! Clear padding as well as physical rows/columns, as in the per-k-point path.
          DO ikp = 1, nk
@@ -2133,31 +2136,15 @@ CONTAINS
          CALL timestop(handle)
          RETURN
       END IF
-      ASSOCIATE (route => ctx%rs_route)
-         ngroup = SIZE(route%block_first) - 1
-         nworkers = 1
-!$       nworkers = omp_get_max_threads()
-         max_pack = 0_int_8
-         max_per_k = 0_int_8
-         DO igroup = 1, ngroup
-            iblock = route%block_first(igroup)
-            nelem = route%entry(3, iblock)*route%entry(4, iblock)
-            nimages = route%block_first(igroup + 1) - route%block_first(igroup)
-            max_pack = MAX(max_pack, INT(nelem, int_8)*nimages)
-            max_per_k = MAX(max_per_k, INT(nelem, int_8) + nimages)
-         END DO
-         ! Bound scratch replication before choosing the k tile. An oversized block
-         ! still runs with one worker and at least one k point, without a second kernel.
-         nworkers = MIN(nworkers, ngroup*nrows, &
-                        INT(MAX(1_int_8, rs_batch_bytes/(8_int_8*(max_pack + nc*max_per_k)))))
-         width = INT(MIN(INT(nk, int_8), &
-                         MAX(1_int_8, (rs_batch_bytes/(8_int_8*nworkers) - max_pack)/(nc*max_per_k))))
-         work_size = max_pack + INT(width, int_8)*nc*max_per_k
-      END ASSOCIATE
+      ngroup = SIZE(ctx%rs_route%block_first) - 1
+      nworkers = 1
+!$    nworkers = omp_get_max_threads()
+      nworkers = MIN(nworkers, ngroup*nrows)
+      CALL kpoint_operator_batch_size(ctx, nworkers, 0, width, work_size)
 !$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(nworkers) &
-!$OMP SHARED(ctx,slot,nrows,ngroup,nk,nc,width,work_size) &
-!$OMP PRIVATE(work,values,factors,result,igroup,ispin,first,last,iblock,nr,nelem,nimages,r0,c0,nactive,j,col,row, &
-!$OMP         k,ikp,nbatch,ic,kp,cache,npack,nfactor,arg)
+!$OMP SHARED(ctx,slot,nrows,ngroup,nk,nc,width,work_size,xkp) &
+!$OMP PRIVATE(work,values,factors,result,igroup,ispin,first,last,nr,nelem,nimages,r0,c0,j,col,row, &
+!$OMP         k,ikp,nbatch,ic,kp,cache,npack,nfactor)
       ALLOCATE (work(work_size))
 !$OMP DO COLLAPSE(2) SCHEDULE(DYNAMIC, 1)
       DO igroup = 1, ngroup
@@ -2169,42 +2156,19 @@ CONTAINS
             nr = ctx%rs_route%entry(3, first)
             nelem = nr*ctx%rs_route%entry(4, first)
             IF (nelem == 0) CYCLE
+            IF (.NOT. ANY(ctx%rs(ispin, slot)%nonzero(first:last))) CYCLE
             nimages = last - first + 1
             npack = INT(nelem, int_8)*nimages
             nfactor = INT(nimages, int_8)*width*nc
             values(1:nelem, 1:nimages) => work(1:npack)
             factors(1:nimages, 1:width, 1:nc) => work(npack + 1:npack + nfactor)
             RESULT(1:nelem, 1:width, 1:nc) => work(npack + nfactor + 1:npack + nfactor + INT(nelem, int_8)*width*nc)
-            ! Pack changing source values once per AO block and spin, outside the k loop.
-            nactive = 0
-            DO iblock = first, last
-               IF (.NOT. ctx%rs(ispin, slot)%nonzero(iblock)) CYCLE
-               nactive = nactive + 1
-               DO col = 1, ctx%rs_route%entry(4, first)
-!$OMP SIMD
-                  DO row = 1, nr
-                     values(row + (col - 1)*nr, nactive) = ctx%rs(ispin, slot)%blocks(iblock)%data(row, col)
-                  END DO
-               END DO
-            END DO
-            IF (nactive == 0) CYCLE
             DO k = 1, nk, width
                nbatch = MIN(width, nk - k + 1)
-               j = 0
-               DO iblock = first, last
-                  IF (.NOT. ctx%rs(ispin, slot)%nonzero(iblock)) CYCLE
-                  j = j + 1
-                  DO ikp = 1, nbatch
-                     arg = twopi*DOT_PRODUCT(REAL(ctx%rs_route%entry(5:7, iblock), dp), &
-                                             ctx%kpoints%xkp(:, ctx%kpoints%kp_range(1) + k + ikp - 2))
-                     factors(j, ikp, 1) = COS(arg)
-                     IF (nc == 2) factors(j, ikp, 2) = SIN(arg)
-                  END DO
-               END DO
-               DO ic = 1, nc
-                  CALL dgemm('N', 'N', nelem, nbatch, nactive, 1.0_dp, values, nelem, &
-                             factors(:, :, ic), nimages, 0.0_dp, RESULT(:, :, ic), nelem)
-               END DO
+               CALL kpoint_operator_contract_block(ctx%rs(ispin, slot), ctx%rs_route, first, last, &
+                                                   xkp(:, ctx%kpoints%kp_range(1) + k - 1: &
+                                                       ctx%kpoints%kp_range(1) + k + nbatch - 2), &
+                                                   values, factors, RESULT, pack=k == 1)
                DO j = 1, nbatch
                   ikp = k + j - 1
                   kp => ctx%kpoints%kp_env(ikp)%kpoint_env
@@ -2234,6 +2198,186 @@ CONTAINS
 !$OMP END PARALLEL
       CALL timestop(handle)
    END SUBROUTINE kpoint_operator_store_blocks
+
+! **************************************************************************************************
+!> \brief Size local k tiles, budgeting operator outputs and block scratch over all workers.
+!>        A block exceeding the budget is processed by one worker with one k point.
+!>        OT writes existing caches and distributes block/spin jobs; dense callers distribute k tiles.
+!> \param ctx prepared single-rank-group context
+!> \param nworkers requested workers, reduced to fit the minimum working set
+!> \param nmatrices simultaneously retained complex operator tiles; zero writes existing split-FM caches
+!> \param width number of k points per worker
+!> \param work_size real block scratch elements per worker
+! **************************************************************************************************
+   SUBROUTINE kpoint_operator_batch_size(ctx, nworkers, nmatrices, width, work_size)
+      TYPE(kpoint_operator_context_type), INTENT(IN)     :: ctx
+      INTEGER, INTENT(INOUT)                             :: nworkers
+      INTEGER, INTENT(IN)                                :: nmatrices
+      INTEGER, INTENT(OUT)                               :: width
+      INTEGER(KIND=int_8), INTENT(OUT)                   :: work_size
+
+      INTEGER                                            :: first, igroup, nc, nk
+      INTEGER(KIND=int_8)                                :: max_pack, max_per_k, nelem, nimages, &
+                                                            output_bytes, per_k_bytes
+
+      CPASSERT(ctx%kpoints%para_env_kp%num_pe == 1)
+      CPASSERT(nmatrices >= 0 .AND. nworkers > 0)
+      max_pack = 0_int_8
+      max_per_k = 0_int_8
+      IF (SIZE(ctx%rs_route%entry, 2) > 0) THEN
+         DO igroup = 1, SIZE(ctx%rs_route%block_first) - 1
+            first = ctx%rs_route%block_first(igroup)
+            nelem = INT(ctx%rs_route%entry(3, first), int_8)*ctx%rs_route%entry(4, first)
+            nimages = ctx%rs_route%block_first(igroup + 1) - first
+            max_pack = MAX(max_pack, nelem*nimages)
+            max_per_k = MAX(max_per_k, nelem + nimages)
+         END DO
+      END IF
+      output_bytes = 16_int_8*nmatrices*ctx%rs_route%matrix_struct%local_leading_dimension* &
+                     MAX(1, ctx%rs_route%ncol)
+      nc = 2
+      IF (nmatrices == 0) nc = MERGE(1, 2, ctx%kpoints%use_real_wfn)
+      per_k_bytes = 8_int_8*nc*max_per_k + output_bytes
+      nk = SIZE(ctx%kpoints%kp_env)
+      IF (nmatrices > 0) nworkers = MIN(nworkers, nk)
+      nworkers = MIN(nworkers, INT(MAX(1_int_8, rs_batch_bytes/(8_int_8*max_pack + per_k_bytes))))
+      width = INT(MIN(INT(nk, int_8), MAX(1_int_8, (rs_batch_bytes/nworkers - 8_int_8*max_pack)/per_k_bytes)))
+      IF (nmatrices > 0) width = MIN(width, (nk + nworkers - 1)/nworkers)
+      work_size = max_pack + INT(nc, int_8)*width*max_per_k
+   END SUBROUTINE kpoint_operator_batch_size
+
+! **************************************************************************************************
+!> \brief Assemble a caller-owned complex k tile using real block/image contractions.
+!>        The prepared route and snapshots are immutable; workers share no output or scratch.
+!> \param ctx prepared single-rank-group context
+!> \param ispin operator spin
+!> \param slot prepared operator slot
+!> \param first_k first global k index
+!> \param batch complex output (local row, local column, k point), including padding
+!> \param work private real scratch sized by kpoint_operator_batch_size
+! **************************************************************************************************
+   SUBROUTINE kpoint_operator_evaluate_batch(ctx, ispin, slot, first_k, batch, work)
+      TYPE(kpoint_operator_context_type), INTENT(IN)     :: ctx
+      INTEGER, INTENT(IN)                                :: ispin, slot, first_k
+      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(OUT)          :: batch(:, :, :)
+      REAL(KIND=dp), CONTIGUOUS, INTENT(INOUT), TARGET   :: work(:)
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'kpoint_operator_evaluate_batch'
+
+      INTEGER                                            :: c0, col, first, handle, igroup, j, last, &
+                                                            nc, nelem, nimages, nr, r0, row, spin, &
+                                                            width
+      INTEGER(KIND=int_8)                                :: nfactor, npack
+      REAL(KIND=dp), CONTIGUOUS, POINTER                 :: factors(:, :, :), RESULT(:, :, :), &
+                                                            values(:, :)
+      REAL(KIND=dp), POINTER                             :: xkp(:, :)
+
+      CALL timeset(routineN, handle)
+      CPASSERT(ctx%kpoints%para_env_kp%num_pe == 1)
+      CPASSERT(SIZE(batch, 1) >= ctx%rs_route%nrow)
+      CPASSERT(SIZE(batch, 2) >= ctx%rs_route%ncol)
+      width = SIZE(batch, 3)
+      CPASSERT(first_k >= ctx%kpoints%kp_range(1))
+      CPASSERT(first_k + width - 1 <= ctx%kpoints%kp_range(2))
+      spin = ispin
+      IF (.NOT. ASSOCIATED(ctx%rs(spin, slot)%source)) spin = 1
+      CPASSERT(ASSOCIATED(ctx%rs(spin, slot)%source))
+      xkp => ctx%kpoints%xkp
+      batch(:, :, :) = z_zero
+      IF (SIZE(ctx%rs_route%entry, 2) == 0) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+      DO igroup = 1, SIZE(ctx%rs_route%block_first) - 1
+         first = ctx%rs_route%block_first(igroup)
+         last = ctx%rs_route%block_first(igroup + 1) - 1
+         IF (.NOT. ANY(ctx%rs(spin, slot)%nonzero(first:last))) CYCLE
+         r0 = ctx%rs_route%entry(1, first)
+         c0 = ctx%rs_route%entry(2, first)
+         nr = ctx%rs_route%entry(3, first)
+         nc = ctx%rs_route%entry(4, first)
+         nelem = nr*nc
+         IF (nelem == 0) CYCLE
+         nimages = last - first + 1
+         npack = INT(nelem, int_8)*nimages
+         nfactor = 2_int_8*nimages*width
+         CPASSERT(SIZE(work, KIND=int_8) >= npack + nfactor + 2_int_8*nelem*width)
+         values(1:nelem, 1:nimages) => work(1:npack)
+         factors(1:nimages, 1:width, 1:2) => work(npack + 1:npack + nfactor)
+         RESULT(1:nelem, 1:width, 1:2) => work(npack + nfactor + 1:npack + nfactor + 2_int_8*nelem*width)
+         CALL kpoint_operator_contract_block(ctx%rs(spin, slot), ctx%rs_route, first, last, &
+                                             xkp(:, first_k:first_k + width - 1), &
+                                             values, factors, RESULT, pack=.TRUE.)
+         DO j = 1, width
+            DO col = 1, nc
+!$OMP SIMD
+               DO row = 1, nr
+                  batch(r0 + row - 1, c0 + col - 1, j) = &
+                     CMPLX(RESULT(row + (col - 1)*nr, j, 1), RESULT(row + (col - 1)*nr, j, 2), KIND=dp)
+               END DO
+            END DO
+            IF (ctx%rs_route%entry(8, first) == 0) CYCLE
+            DO row = 1, nr
+!$OMP SIMD
+               DO col = 1, nc
+                  batch(c0 + col - 1, r0 + row - 1, j) = CONJG(batch(r0 + row - 1, c0 + col - 1, j))
+               END DO
+            END DO
+         END DO
+      END DO
+      CALL timestop(handle)
+   END SUBROUTINE kpoint_operator_evaluate_batch
+
+! **************************************************************************************************
+!> \brief Contract one AO block's images over a k tile for real or complex destinations.
+!> \param snapshot immutable real-space values
+!> \param route shared AO-block geometry
+!> \param first first image entry
+!> \param last last image entry
+!> \param xkp k coordinates for this tile
+!> \param values packed real source block columns
+!> \param factors real cosine and optional sine factors
+!> \param RESULT real and optional imaginary output blocks
+!> \param pack pack source values on the first tile; later tiles reuse them
+! **************************************************************************************************
+   SUBROUTINE kpoint_operator_contract_block(snapshot, route, first, last, xkp, values, factors, RESULT, pack)
+      TYPE(kpoint_operator_rs_type), INTENT(IN)          :: snapshot
+      TYPE(kpoint_operator_rs_route_type), INTENT(IN)    :: route
+      INTEGER, INTENT(IN)                                :: first, last
+      REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
+      REAL(KIND=dp), CONTIGUOUS, INTENT(INOUT)           :: values(:, :), factors(:, :, :)
+      REAL(KIND=dp), CONTIGUOUS, INTENT(OUT)             :: RESULT(:, :, :)
+      LOGICAL, INTENT(IN)                                :: pack
+
+      INTEGER                                            :: col, iblock, ic, ik, nactive, nelem, nr, &
+                                                            row
+      REAL(KIND=dp)                                      :: arg
+
+      nelem = SIZE(values, 1)
+      nr = route%entry(3, first)
+      nactive = 0
+      DO iblock = first, last
+         IF (.NOT. snapshot%nonzero(iblock)) CYCLE
+         nactive = nactive + 1
+         IF (pack) THEN
+            DO col = 1, route%entry(4, first)
+!$OMP SIMD
+               DO row = 1, nr
+                  values(row + (col - 1)*nr, nactive) = snapshot%blocks(iblock)%data(row, col)
+               END DO
+            END DO
+         END IF
+         DO ik = 1, SIZE(xkp, 2)
+            arg = twopi*DOT_PRODUCT(REAL(route%entry(5:7, iblock), dp), xkp(:, ik))
+            factors(nactive, ik, 1) = COS(arg)
+            IF (SIZE(factors, 3) == 2) factors(nactive, ik, 2) = SIN(arg)
+         END DO
+      END DO
+      DO ic = 1, SIZE(factors, 3)
+         CALL dgemm('N', 'N', nelem, SIZE(xkp, 2), nactive, 1.0_dp, values, nelem, &
+                    factors(:, :, ic), SIZE(factors, 1), 0.0_dp, RESULT(:, :, ic), nelem)
+      END DO
+   END SUBROUTINE kpoint_operator_contract_block
 
 ! **************************************************************************************************
 !> \brief Prepare owned split-FM operators for OT without entering an SCF eigensolver.
