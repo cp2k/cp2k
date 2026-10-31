@@ -348,14 +348,14 @@ CONTAINS
             CALL full_grid_gen(nk, xkp, wkp, shift, gamma_centered=gamma_mesh)
             IF (csym%istriz == 1) THEN
                ! use inversion symmetry
-               CALL inversion_symm(xkp, wkp, csym%kplink(1, :))
+               CALL inversion_symm(xkp, wkp, csym%kplink(1, :), nk)
             ELSE
                ! full kpoint mesh is used
             END IF
          ELSE IF (csym%istriz /= 1 .OR. inversion_only) THEN
             ! use inversion symmetry
             CALL full_grid_gen(nk, xkp, wkp, shift, gamma_centered=gamma_mesh)
-            CALL inversion_symm(xkp, wkp, csym%kplink(1, :))
+            CALL inversion_symm(xkp, wkp, csym%kplink(1, :), nk)
          ELSE
             ! use symmetry library to reduce k-points
             CALL full_grid_gen(nk, xkp, wkp, shift, gamma_centered=gamma_mesh)
@@ -379,7 +379,7 @@ CONTAINS
             END DO
          ELSE
             ! use inversion symmetry
-            CALL inversion_symm(xkp, wkp, csym%kplink(1, :))
+            CALL inversion_symm(xkp, wkp, csym%kplink(1, :), nk)
          END IF
       END IF
       ! count kpoints
@@ -1689,7 +1689,7 @@ CONTAINS
 
       IF (nskipped_overlaps > 0) THEN
          wkp = 1.0_dp
-         CALL inversion_symm(xkp, wkp, csym%kplink(1, :))
+         CALL inversion_symm(xkp, wkp, csym%kplink(1, :), csym%mesh)
          DO i = 1, nkpts
             IF (wkp(i) > 0.0_dp) THEN
                kpop(i) = 1
@@ -1799,15 +1799,17 @@ CONTAINS
    END SUBROUTINE full_grid_gen
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param xkp ...
-!> \param wkp ...
-!> \param link ...
+!> \brief Reduce a regular mesh by inversion/time-reversal in linear time.
+!> \param xkp full mesh in the order produced by full_grid_gen
+!> \param wkp reduced k-point weights
+!> \param link full-mesh index of each point's representative
+!> \param mesh mesh dimensions
 ! **************************************************************************************************
-   SUBROUTINE inversion_symm(xkp, wkp, link)
-      REAL(KIND=dp), DIMENSION(:, :)                     :: xkp
+   SUBROUTINE inversion_symm(xkp, wkp, link, mesh)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp
       REAL(KIND=dp), DIMENSION(:)                        :: wkp
       INTEGER, DIMENSION(:)                              :: link
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: mesh
 
       INTEGER                                            :: i, j, nkpts
       REAL(KIND=dp), DIMENSION(3)                        :: diff
@@ -1817,17 +1819,18 @@ CONTAINS
       link(:) = 0
       DO i = 1, nkpts
          IF (link(i) == 0) link(i) = i
-         DO j = i + 1, nkpts
-            IF (wkp(j) == 0) CYCLE
-            diff(1:3) = xkp(1:3, i) + xkp(1:3, j)
-            diff(1:3) = diff(1:3) - ANINT(diff(1:3))
-            IF (ALL(ABS(diff(1:3)) < 1.e-12_dp)) THEN
-               wkp(i) = wkp(i) + wkp(j)
-               wkp(j) = 0.0_dp
-               link(j) = i
-               EXIT
-            END IF
-         END DO
+         j = regular_kpoint_index(-xkp(1:3, i), xkp(1:3, 1), mesh, 2.e-12_dp)
+         ! Keep the first point as representative; zero means -k is off the shifted mesh.
+         IF (j <= i) CYCLE
+         IF (wkp(j) == 0.0_dp) CYCLE
+         ! Use the original coordinate tolerance after allowing for rounding in the index lookup.
+         diff(1:3) = xkp(1:3, i) + xkp(1:3, j)
+         diff(1:3) = diff(1:3) - ANINT(diff(1:3))
+         IF (ALL(ABS(diff(1:3)) < 1.e-12_dp)) THEN
+            wkp(i) = wkp(i) + wkp(j)
+            wkp(j) = 0.0_dp
+            link(j) = i
+         END IF
       END DO
 
    END SUBROUTINE inversion_symm
