@@ -57,7 +57,7 @@ MODULE qs_vxc
                                               qs_ks_env_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE skala_gpw_functional,            ONLY: get_gauxc_section,&
+   USE skala_gpw_functional,            ONLY: get_skala_native_section,&
                                               native_skala_gapw_composite_direct_ao,&
                                               native_skala_gapw_composite_reference,&
                                               skala_gpw_eval,&
@@ -263,9 +263,9 @@ CONTAINS
                                         native_skala_gapw_composite_direct_ao(xc_section)
       native_grid_diagnostics = .FALSE.
       IF (native_gapw_composite_reference) THEN
-         gauxc_section => get_gauxc_section(xc_section)
+         gauxc_section => get_skala_native_section(xc_section)
          CPASSERT(ASSOCIATED(gauxc_section))
-         CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_DIAGNOSTICS", &
+         CALL section_vals_val_get(gauxc_section, "DIAGNOSTICS", &
                                    l_val=native_grid_diagnostics)
       END IF
       IF (native_gapw_composite_reference) NULLIFY (weights_use)

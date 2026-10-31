@@ -42,12 +42,11 @@
     &END SCF
     &XC
       &XC_FUNCTIONAL
-        &GAUXC
+        &SKALA_NATIVE
+          DIAGNOSTICS F
           MODEL SKALA
-          NATIVE_GRID T
-          NATIVE_GRID_DIAGNOSTICS F
-          NATIVE_GRID_USE_CUDA T
-        &END GAUXC
+          USE_GPU GPU
+        &END SKALA_NATIVE
       &END XC_FUNCTIONAL
     &END XC
   &END DFT

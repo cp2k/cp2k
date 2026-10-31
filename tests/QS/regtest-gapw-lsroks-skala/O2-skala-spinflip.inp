@@ -51,6 +51,7 @@
           MODEL_ATOM_CHUNK_SIZE 1
           PRUNING_SCHEME ROBUST
           SKALA_RUNTIME SELF
+          USE_GPU HOST
         &END GAUXC
       &END XC_FUNCTIONAL
     &END XC
