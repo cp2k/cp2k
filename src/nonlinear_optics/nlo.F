@@ -39,8 +39,11 @@ MODULE nlo
                                               mu_perm
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                              qs_ks_env_type
    USE qs_moments,                      ONLY: build_local_moment_matrix_rs_img
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_upf_inverse_types,            ONLY: qs_upf_inverse_scf_type
    USE scf_control_types,               ONLY: scf_control_type
 #include "../base/base_uses.f90"
 
@@ -149,12 +152,23 @@ CONTAINS
       INTEGER                                            :: handle
       LOGICAL                                            :: nlo_present
       TYPE(nlo_type)                                     :: nlo_env
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_upf_inverse_scf_type), POINTER             :: inverse
       TYPE(section_vals_type), POINTER                   :: input, nlo_section
 
       CALL get_qs_env(qs_env, input=input)
       nlo_section => section_vals_get_subs_vals(input, 'PROPERTIES%NONLINEAR_OPTICS')
       CALL section_vals_val_get(nlo_section, '_SECTION_PARAMETERS_', l_val=nlo_present)
       IF (.NOT. nlo_present) RETURN
+
+      CALL get_qs_env(qs_env, ks_env=ks_env)
+      CALL get_ks_env(ks_env, upf_inverse=inverse)
+      IF (ASSOCIATED(inverse)) THEN
+         IF (inverse%enabled) THEN
+            ! Native image matrices omit the complete UPF operators and position response.
+            CPABORT('NONLINEAR_OPTICS for USPP/PAW is not implemented yet')
+         END IF
+      END IF
 
       CALL timeset(routineN, handle)
 
