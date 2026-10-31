@@ -134,14 +134,17 @@ CONTAINS
 !> \param n ...
 !> \param zin ...
 !> \param zout ...
+!> \param work Shared 3D transpose workspace, allocated on demand during planning
 ! **************************************************************************************************
-   SUBROUTINE fft_create_plan_3d(plan, fft_in_place, fsign, n, zin, zout)
+   SUBROUTINE fft_create_plan_3d(plan, fft_in_place, fsign, n, zin, zout, work)
 
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
       LOGICAL, INTENT(IN)                                :: fft_in_place
       INTEGER, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:), &
+         INTENT(INOUT), POINTER                          :: work
 
       plan%fsign = fsign
       plan%fft_in_place = fft_in_place
@@ -150,7 +153,7 @@ CONTAINS
 
       ! Planning only needed for FFTW3
       IF (fft_type == 3) THEN
-         CALL fftw3_create_plan_3d(plan, zin, zout)
+         CALL fftw3_create_plan_3d(plan, zin, zout, work)
          plan%valid = .TRUE.
       END IF
 
@@ -167,12 +170,15 @@ CONTAINS
 !> \param zin ...
 !> \param zout ...
 !> \param stat ...
+!> \param work Shared 3D transpose workspace retained by the FFT scratch pool
 ! **************************************************************************************************
-   SUBROUTINE fft_3d(plan, scale, zin, zout, stat)
+   SUBROUTINE fft_3d(plan, scale, zin, zout, stat, work)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
       REAL(KIND=dp), INTENT(IN)                          :: scale
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
       INTEGER, INTENT(OUT)                               :: stat
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:), &
+         INTENT(INOUT), POINTER                          :: work
 
       stat = plan%fsign
       IF (plan%n_3d(1)*plan%n_3d(2)*plan%n_3d(3) > 0) THEN
@@ -182,7 +188,7 @@ CONTAINS
          CASE (1)
             CALL fftsg3d(plan%fft_in_place, stat, scale, plan%n_3d, zin, zout)
          CASE (3)
-            CALL fftw33d(plan, scale, zin, zout, stat)
+            CALL fftw33d(plan, scale, zin, zout, stat, work)
          END SELECT
       END IF
       ! stat is set to zero on error, -1,+1 are OK

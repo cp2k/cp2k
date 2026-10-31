@@ -28,7 +28,10 @@ MODULE pw_methods
                               cp_to_string
    USE fft_tools, ONLY: BWFFT, &
                         FWFFT, &
-                        fft3d
+                        fft3d, &
+                        fft_scratch_type, &
+                        get_fft_scratch, &
+                        release_fft_scratch
    USE kahan_sum, ONLY: accurate_dot_product, &
                         accurate_sum
    USE kinds, ONLY: dp
@@ -1171,6 +1174,9 @@ CONTAINS
                                  #:endif
                                  INTEGER, DIMENSION(:), POINTER                     :: n
                                  LOGICAL                                            :: test
+                                 #:if (space=="rs" and kind2=="c1d") or (space=="gs" and kind2=="r3d")
+                                    TYPE(fft_scratch_type), POINTER                    :: fft_scratch
+                                 #:endif
 
                                  CALL timeset(routineN, handle2)
                                  out_unit = cp_logger_get_default_io_unit()
@@ -1228,13 +1234,14 @@ CONTAINS
                                           CALL fft3d(FWFFT, n, c_out, debug=test)
                                        #:elif kind=="c3d" and kind2=="c1d"
                                           c_in => pw1%array
-                                          ALLOCATE (c_out(n(1), n(2), n(3)))
+                                          CALL get_fft_scratch(fft_scratch, tf_type=400, n=n)
+                                          c_out => fft_scratch%zoptr
                                           ! transform
-                                          CALL fft3d(FWFFT, n, c_in, c_out, debug=test)
+                                          CALL fft3d(FWFFT, n, c_in, c_out, debug=test, scratch=fft_scratch, scale=1.0_dp)
                                           ! gather results
                                           IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_GATHER : 3d -> 1d "
-                                          CALL pw_gather_s_${kind2}$_c3d(pw2, c_out)
-                                          DEALLOCATE (c_out)
+                                          CALL pw_gather_s_${kind2}$_c3d(pw2, c_out, scale=1.0_dp/REAL(pw1%pw_grid%ngpts, dp))
+                                          CALL release_fft_scratch(fft_scratch)
                                        #:elif kind=="r3d" and kind2=="c1d"
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
                                           CALL pw_gpu_r3dc1d_3d(pw1, pw2)
@@ -1258,12 +1265,13 @@ CONTAINS
                                           END IF
                                           DEALLOCATE (c_out)
 #else
-                                          ALLOCATE (c_out(n(1), n(2), n(3)))
-                                          c_out = 0.0_dp
+                                          ! Planning may overwrite scratch arrays: acquire them before copying input.
+                                          CALL get_fft_scratch(fft_scratch, tf_type=400, n=n)
+                                          c_out => fft_scratch%ziptr
                                           CALL pw_copy_to_array(pw1, c_out)
-                                          CALL fft3d(FWFFT, n, c_out, debug=test)
-                                          CALL pw_gather_s_${kind2}$_c3d(pw2, c_out)
-                                          DEALLOCATE (c_out)
+                                          CALL fft3d(FWFFT, n, c_out, debug=test, scratch=fft_scratch, scale=1.0_dp)
+                                          CALL pw_gather_s_${kind2}$_c3d(pw2, c_out, scale=1.0_dp/REAL(pw1%pw_grid%ngpts, dp))
+                                          CALL release_fft_scratch(fft_scratch)
 #endif
                                        #:endif
                                     #:else
@@ -1273,12 +1281,13 @@ CONTAINS
                                           CALL fft3d(BWFFT, n, c_in, c_out, debug=test)
                                        #:elif kind=="c3d" and kind2=="r3d"
                                           c_in => pw1%array
-                                          ALLOCATE (c_out(n(1), n(2), n(3)))
-                                          CALL fft3d(BWFFT, n, c_in, c_out, debug=test)
+                                          CALL get_fft_scratch(fft_scratch, tf_type=400, n=n)
+                                          c_out => fft_scratch%zoptr
+                                          CALL fft3d(BWFFT, n, c_in, c_out, debug=test, scratch=fft_scratch)
                                           ! use real part only
                                           IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  REAL part "
                                           pw2%array = REAL(c_out, KIND=dp)
-                                          DEALLOCATE (c_out)
+                                          CALL release_fft_scratch(fft_scratch)
                                        #:elif kind=="c1d" and kind2=="c3d"
                                           c_out => pw2%array
                                           IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
@@ -1313,15 +1322,16 @@ CONTAINS
                                           END IF
                                           DEALLOCATE (c_out)
 #else
-                                          ALLOCATE (c_out(n(1), n(2), n(3)))
+                                          CALL get_fft_scratch(fft_scratch, tf_type=400, n=n)
+                                          c_out => fft_scratch%ziptr
                                           IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
                                           CALL pw_scatter_s_${kind}$_c3d(pw1, c_out)
                                           ! transform
-                                          CALL fft3d(BWFFT, n, c_out, debug=test)
+                                          CALL fft3d(BWFFT, n, c_out, debug=test, scratch=fft_scratch)
                                           ! use real part only
                                           IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  REAL part "
                                           CALL pw_copy_from_array(pw2, c_out)
-                                          DEALLOCATE (c_out)
+                                          CALL release_fft_scratch(fft_scratch)
 #endif
                                        #:endif
                                     #:endif
@@ -1379,7 +1389,8 @@ CONTAINS
 #endif
 !..   prepare input
                                              nloc = pw1%pw_grid%npts_local
-                                             ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)))
+                                             CALL get_fft_scratch(fft_scratch, tf_type=500, n=nloc)
+                                             c_in => fft_scratch%ziptr
                                              CALL pw_copy_to_array(pw1, c_in)
                                              grays = z_zero
                                              !..transform
@@ -1395,7 +1406,7 @@ CONTAINS
                                              IF (test .AND. out_unit > 0) &
                                                 WRITE (out_unit, '(A)') "  PW_GATHER : 2d -> 1d "
                                              CALL pw_gather_p_${kind2}$ (pw2, grays)
-                                             DEALLOCATE (c_in)
+                                             CALL release_fft_scratch(fft_scratch)
 
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
                                           END IF
@@ -1406,7 +1417,6 @@ CONTAINS
                                           !..prepare input
                                           IF (test .AND. out_unit > 0) &
                                              WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
-                                          grays = z_zero
                                           CALL pw_scatter_p_${kind}$ (pw1, grays)
                                           c_in => pw2%array
                                           !..transform
@@ -1430,10 +1440,10 @@ CONTAINS
 !..   prepare input
                                              IF (test .AND. out_unit > 0) &
                                                 WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
-                                             grays = z_zero
                                              CALL pw_scatter_p_${kind}$ (pw1, grays)
                                              nloc = pw2%pw_grid%npts_local
-                                             ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)))
+                                             CALL get_fft_scratch(fft_scratch, tf_type=500, n=nloc)
+                                             c_in => fft_scratch%ziptr
                                              !..transform
                                              IF (pw1%pw_grid%para%ray_distribution) THEN
                                                 CALL fft3d(BWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
@@ -1447,7 +1457,7 @@ CONTAINS
                                              IF (test .AND. out_unit > 0) &
                                                 WRITE (out_unit, '(A)') "  Real part "
                                              CALL pw_copy_from_array(pw2, c_in)
-                                             DEALLOCATE (c_in)
+                                             CALL release_fft_scratch(fft_scratch)
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
                                           END IF
 #endif
