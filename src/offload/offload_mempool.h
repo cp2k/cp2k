@@ -51,9 +51,9 @@ void offload_mempool_clear(void);
 typedef struct offload_mempool_stats_t {
   // Memory consumption (entire pool).
   uint64_t host_size, device_size;
-  // Memory currently used.
+  // Bytes requested by currently borrowed chunks (excludes idle cache).
   uint64_t host_used, device_used;
-  // Memory peak consumption.
+  // Peak pool capacity, retained across pool clearing.
   uint64_t host_peak, device_peak;
   // Number of allocations.
   uint64_t host_mallocs, device_mallocs;

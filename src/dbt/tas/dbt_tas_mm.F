@@ -42,9 +42,9 @@ MODULE dbt_tas_mm
                                               dbt_tas_replicate,&
                                               dbt_tas_reshape
    USE dbt_tas_split,                   ONLY: &
-        accept_pgrid_dims, colsplit, dbt_tas_create_split, dbt_tas_get_split_info, &
-        dbt_tas_info_hold, dbt_tas_mp_comm, dbt_tas_release_info, default_nsplit_accept_ratio, &
-        rowsplit
+        accept_pgrid_dims, colsplit, dbt_tas_create_split, dbt_tas_get_nsplit, &
+        dbt_tas_get_split_info, dbt_tas_info_hold, dbt_tas_mp_comm, dbt_tas_release_info, &
+        default_nsplit_accept_ratio, rowsplit
    USE dbt_tas_types,                   ONLY: dbt_tas_distribution_type,&
                                               dbt_tas_iterator,&
                                               dbt_tas_split_info,&
@@ -68,6 +68,16 @@ MODULE dbt_tas_mm
       dbt_tas_batched_mm_finalize, &
       dbt_tas_set_batched_state, &
       dbt_tas_batched_mm_complete
+
+   ! Owns redistributed DBM data or borrows a TAS matrix for one multiplication input.
+   ! Temporary TAS owners are retained until the borrowed matrix is no longer needed.
+   TYPE multiplication_input
+      TYPE(dbm_type), POINTER       :: matrix => NULL()
+      TYPE(dbm_type)                :: redistributed
+      TYPE(dbt_tas_type), POINTER   :: temporary => NULL()
+      TYPE(dbt_tas_split_info)      :: info
+      LOGICAL                      :: owns_matrix = .FALSE.
+   END TYPE multiplication_input
 
 CONTAINS
 
@@ -129,15 +139,15 @@ CONTAINS
       LOGICAL :: do_batched, move_a, move_b, new_a, new_b, new_c, nodata_3, opt_pgrid, &
          simple_split_prv, tr_case, transa_prv, transb_prv, transc_prv
       REAL(KIND=dp)                                      :: filter_eps_prv
-      TYPE(dbm_type)                                     :: matrix_a_mm, matrix_b_mm, matrix_c_mm
+      TYPE(dbm_type)                                     :: matrix_c_mm
       TYPE(dbt_tas_split_info)                           :: info, info_a, info_b, info_c
       TYPE(dbt_tas_type), POINTER                        :: matrix_a_rep, matrix_a_rs, matrix_b_rep, &
                                                             matrix_b_rs, matrix_c_rep, matrix_c_rs
       TYPE(mp_cart_type)                                 :: comm_tmp, mp_comm, mp_comm_group, &
                                                             mp_comm_mm, mp_comm_opt
+      TYPE(multiplication_input), TARGET                 :: input_a, input_b
 
       CALL timeset(routineN, handle)
-      CALL matrix_a%dist%info%mp_comm%sync()
       CALL timeset("dbt_tas_total", handle2)
 
       NULLIFY (matrix_b_rs, matrix_a_rs, matrix_c_rs)
@@ -433,8 +443,12 @@ CONTAINS
          END IF
       END IF
 
-      pdims = 0
-      CALL mp_comm_mm%create(mp_comm_group, 2, pdims)
+      IF (opt_pgrid) THEN
+         pdims = 0
+         CALL mp_comm_mm%create(mp_comm_group, 2, pdims)
+      ELSE
+         mp_comm_mm = mp_comm_group
+      END IF
 
       ! Convert DBM submatrices to optimized process grids and multiply
       SELECT CASE (max_mm_dim)
@@ -459,54 +473,36 @@ CONTAINS
             CALL dbt_tas_write_dist(matrix_b_rep, unit_nr_prv, full_info=log_verbose)
          END IF
 
-         CALL convert_to_new_pgrid(mp_comm_mm, matrix_a_rs%matrix, matrix_a_mm, optimize_pgrid=opt_pgrid, move_data=move_a)
-
-         ! keep communicators alive even after releasing TAS matrices (communicator management does not work between DBM and TAS)
-         info_a = dbt_tas_info(matrix_a_rs)
-         CALL dbt_tas_info_hold(info_a)
-
-         IF (new_a) THEN
-            CALL dbt_tas_destroy(matrix_a_rs)
-            DEALLOCATE (matrix_a_rs)
-         END IF
-         CALL convert_to_new_pgrid(mp_comm_mm, matrix_b_rep%matrix, matrix_b_mm, optimize_pgrid=opt_pgrid, &
-                                   move_data=matrix_b%do_batched == 0)
-
-         info_b = dbt_tas_info(matrix_b_rep)
-         CALL dbt_tas_info_hold(info_b)
-
-         IF (matrix_b%do_batched == 0) THEN
-            CALL dbt_tas_destroy(matrix_b_rep)
-            DEALLOCATE (matrix_b_rep)
-         END IF
+         CALL prepare_multiplication_input(input_a, mp_comm_mm, matrix_a_rs, opt_pgrid, &
+                                           move_data=move_a, release_source=new_a)
+         CALL prepare_multiplication_input(input_b, mp_comm_mm, matrix_b_rep, opt_pgrid, &
+                                           move_data=matrix_b%do_batched == 0, release_source=matrix_b%do_batched == 0)
 
          CALL convert_to_new_pgrid(mp_comm_mm, matrix_c_rs%matrix, matrix_c_mm, nodata=nodata_3, optimize_pgrid=opt_pgrid)
 
          info_c = dbt_tas_info(matrix_c_rs)
          CALL dbt_tas_info_hold(info_c)
 
-         CALL matrix_a%dist%info%mp_comm%sync()
          CALL timeset("dbt_tas_dbm", handle4)
          IF (.NOT. tr_case) THEN
             CALL timeset("dbt_tas_mm_1N", handle3)
 
             CALL dbm_multiply(transa=.FALSE., transb=.FALSE., alpha=alpha, &
-                              matrix_a=matrix_a_mm, matrix_b=matrix_b_mm, beta=beta, matrix_c=matrix_c_mm, &
+                              matrix_a=input_a%matrix, matrix_b=input_b%matrix, beta=beta, matrix_c=matrix_c_mm, &
                               filter_eps=filter_eps_prv, retain_sparsity=retain_sparsity, flop=flop)
             CALL timestop(handle3)
          ELSE
             CALL timeset("dbt_tas_mm_1T", handle3)
             CALL dbm_multiply(transa=.TRUE., transb=.FALSE., alpha=alpha, &
-                              matrix_a=matrix_b_mm, matrix_b=matrix_a_mm, beta=beta, matrix_c=matrix_c_mm, &
+                              matrix_a=input_b%matrix, matrix_b=input_a%matrix, beta=beta, matrix_c=matrix_c_mm, &
                               filter_eps=filter_eps_prv, retain_sparsity=retain_sparsity, flop=flop)
 
             CALL timestop(handle3)
          END IF
-         CALL matrix_a%dist%info%mp_comm%sync()
          CALL timestop(handle4)
 
-         CALL dbm_release(matrix_a_mm)
-         CALL dbm_release(matrix_b_mm)
+         CALL release_multiplication_input(input_a)
+         CALL release_multiplication_input(input_b)
 
          nze_c = dbm_get_nze(matrix_c_mm)
 
@@ -548,44 +544,27 @@ CONTAINS
             CALL dbt_tas_write_dist(matrix_b_rs, unit_nr_prv)
          END IF
 
-         CALL convert_to_new_pgrid(mp_comm_mm, matrix_a_rs%matrix, matrix_a_mm, optimize_pgrid=opt_pgrid, move_data=move_a)
+         CALL prepare_multiplication_input(input_a, mp_comm_mm, matrix_a_rs, opt_pgrid, &
+                                           move_data=move_a, release_source=new_a)
 
-         ! keep communicators alive even after releasing TAS matrices (communicator management does not work between DBM and TAS)
-         info_a = dbt_tas_info(matrix_a_rs)
-         CALL dbt_tas_info_hold(info_a)
-
-         IF (new_a) THEN
-            CALL dbt_tas_destroy(matrix_a_rs)
-            DEALLOCATE (matrix_a_rs)
-         END IF
-
-         CALL convert_to_new_pgrid(mp_comm_mm, matrix_b_rs%matrix, matrix_b_mm, optimize_pgrid=opt_pgrid, move_data=move_b)
-
-         info_b = dbt_tas_info(matrix_b_rs)
-         CALL dbt_tas_info_hold(info_b)
-
-         IF (new_b) THEN
-            CALL dbt_tas_destroy(matrix_b_rs)
-            DEALLOCATE (matrix_b_rs)
-         END IF
+         CALL prepare_multiplication_input(input_b, mp_comm_mm, matrix_b_rs, opt_pgrid, &
+                                           move_data=move_b, release_source=new_b)
 
          CALL convert_to_new_pgrid(mp_comm_mm, matrix_c_rep%matrix, matrix_c_mm, nodata=nodata_3, optimize_pgrid=opt_pgrid)
 
          info_c = dbt_tas_info(matrix_c_rep)
          CALL dbt_tas_info_hold(info_c)
 
-         CALL matrix_a%dist%info%mp_comm%sync()
          CALL timeset("dbt_tas_dbm", handle4)
          CALL timeset("dbt_tas_mm_2", handle3)
-         CALL dbm_multiply(transa=transa_prv, transb=transb_prv, alpha=alpha, matrix_a=matrix_a_mm, &
-                           matrix_b=matrix_b_mm, beta=beta, matrix_c=matrix_c_mm, &
+         CALL dbm_multiply(transa=transa_prv, transb=transb_prv, alpha=alpha, matrix_a=input_a%matrix, &
+                           matrix_b=input_b%matrix, beta=beta, matrix_c=matrix_c_mm, &
                            filter_eps=filter_eps_prv/REAL(nsplit, KIND=dp), retain_sparsity=retain_sparsity, flop=flop)
-         CALL matrix_a%dist%info%mp_comm%sync()
          CALL timestop(handle3)
          CALL timestop(handle4)
 
-         CALL dbm_release(matrix_a_mm)
-         CALL dbm_release(matrix_b_mm)
+         CALL release_multiplication_input(input_a)
+         CALL release_multiplication_input(input_b)
 
          nze_c = dbm_get_nze(matrix_c_mm)
 
@@ -638,52 +617,34 @@ CONTAINS
             CALL dbt_tas_write_dist(matrix_b_rs, unit_nr_prv)
          END IF
 
-         CALL convert_to_new_pgrid(mp_comm_mm, matrix_a_rep%matrix, matrix_a_mm, optimize_pgrid=opt_pgrid, &
-                                   move_data=matrix_a%do_batched == 0)
+         CALL prepare_multiplication_input(input_a, mp_comm_mm, matrix_a_rep, opt_pgrid, &
+                                           move_data=matrix_a%do_batched == 0, release_source=matrix_a%do_batched == 0)
 
-         ! keep communicators alive even after releasing TAS matrices (communicator management does not work between DBM and TAS)
-         info_a = dbt_tas_info(matrix_a_rep)
-         CALL dbt_tas_info_hold(info_a)
-
-         IF (matrix_a%do_batched == 0) THEN
-            CALL dbt_tas_destroy(matrix_a_rep)
-            DEALLOCATE (matrix_a_rep)
-         END IF
-
-         CALL convert_to_new_pgrid(mp_comm_mm, matrix_b_rs%matrix, matrix_b_mm, optimize_pgrid=opt_pgrid, move_data=move_b)
-
-         info_b = dbt_tas_info(matrix_b_rs)
-         CALL dbt_tas_info_hold(info_b)
-
-         IF (new_b) THEN
-            CALL dbt_tas_destroy(matrix_b_rs)
-            DEALLOCATE (matrix_b_rs)
-         END IF
+         CALL prepare_multiplication_input(input_b, mp_comm_mm, matrix_b_rs, opt_pgrid, &
+                                           move_data=move_b, release_source=new_b)
          CALL convert_to_new_pgrid(mp_comm_mm, matrix_c_rs%matrix, matrix_c_mm, nodata=nodata_3, optimize_pgrid=opt_pgrid)
 
          info_c = dbt_tas_info(matrix_c_rs)
          CALL dbt_tas_info_hold(info_c)
 
-         CALL matrix_a%dist%info%mp_comm%sync()
          CALL timeset("dbt_tas_dbm", handle4)
          IF (.NOT. tr_case) THEN
             CALL timeset("dbt_tas_mm_3N", handle3)
             CALL dbm_multiply(transa=.FALSE., transb=.FALSE., alpha=alpha, &
-                              matrix_a=matrix_a_mm, matrix_b=matrix_b_mm, beta=beta, matrix_c=matrix_c_mm, &
+                              matrix_a=input_a%matrix, matrix_b=input_b%matrix, beta=beta, matrix_c=matrix_c_mm, &
                               filter_eps=filter_eps_prv, retain_sparsity=retain_sparsity, flop=flop)
             CALL timestop(handle3)
          ELSE
             CALL timeset("dbt_tas_mm_3T", handle3)
             CALL dbm_multiply(transa=.FALSE., transb=.TRUE., alpha=alpha, &
-                              matrix_a=matrix_b_mm, matrix_b=matrix_a_mm, beta=beta, matrix_c=matrix_c_mm, &
+                              matrix_a=input_b%matrix, matrix_b=input_a%matrix, beta=beta, matrix_c=matrix_c_mm, &
                               filter_eps=filter_eps_prv, retain_sparsity=retain_sparsity, flop=flop)
             CALL timestop(handle3)
          END IF
-         CALL matrix_a%dist%info%mp_comm%sync()
          CALL timestop(handle4)
 
-         CALL dbm_release(matrix_a_mm)
-         CALL dbm_release(matrix_b_mm)
+         CALL release_multiplication_input(input_a)
+         CALL release_multiplication_input(input_b)
 
          nze_c = dbm_get_nze(matrix_c_mm)
 
@@ -702,7 +663,7 @@ CONTAINS
          END IF
       END SELECT
 
-      CALL mp_comm_mm%free()
+      IF (opt_pgrid) CALL mp_comm_mm%free()
 
       CALL dbt_tas_get_split_info(info_c, mp_comm=mp_comm)
 
@@ -767,11 +728,10 @@ CONTAINS
          WRITE (unit_nr_prv, '(A)') REPEAT("-", 80)
       END IF
 
-      CALL dbt_tas_release_info(info_a)
-      CALL dbt_tas_release_info(info_b)
+      CALL dbt_tas_release_info(input_a%info)
+      CALL dbt_tas_release_info(input_b%info)
       CALL dbt_tas_release_info(info_c)
 
-      CALL matrix_a%dist%info%mp_comm%sync()
       CALL timestop(handle2)
       CALL timestop(handle)
 
@@ -956,24 +916,9 @@ CONTAINS
          optimize_dist_prv = .FALSE.
       END IF
 
-      dims1 = [dbt_tas_nblkrows_total(matrix1_in), dbt_tas_nblkcols_total(matrix1_in)]
-      dims2 = [dbt_tas_nblkrows_total(matrix2_in), dbt_tas_nblkcols_total(matrix2_in)]
-      nze1 = dbt_tas_get_nze_total(matrix1_in)
-      nze2 = dbt_tas_get_nze_total(matrix2_in)
-
       IF (trans1) split_rc_1 = MOD(split_rc_1, 2) + 1
 
       IF (trans2) split_rc_2 = MOD(split_rc_2, 2) + 1
-
-      IF (nze1 >= nze2) THEN
-         ref = 1
-         split_rc_ref = split_rc_1
-         dims_ref = dims1
-      ELSE
-         ref = 2
-         split_rc_ref = split_rc_2
-         dims_ref = dims2
-      END IF
 
       IF (PRESENT(nsplit)) THEN
          nsplit_prv = nsplit
@@ -1011,6 +956,21 @@ CONTAINS
             END IF
          END IF
       ELSE
+
+         ! Occupancies only select the reference layout when redistribution is required.
+         dims1 = [dbt_tas_nblkrows_total(matrix1_in), dbt_tas_nblkcols_total(matrix1_in)]
+         dims2 = [dbt_tas_nblkrows_total(matrix2_in), dbt_tas_nblkcols_total(matrix2_in)]
+         nze1 = dbt_tas_get_nze_total(matrix1_in)
+         nze2 = dbt_tas_get_nze_total(matrix2_in)
+         IF (nze1 >= nze2) THEN
+            ref = 1
+            split_rc_ref = split_rc_1
+            dims_ref = dims1
+         ELSE
+            ref = 2
+            split_rc_ref = split_rc_2
+            dims_ref = dims2
+         END IF
 
          IF (optimize_dist_prv) THEN
             IF (unit_nr_prv > 0) THEN
@@ -1186,21 +1146,18 @@ CONTAINS
       nodata_prv = .FALSE.
       IF (PRESENT(nodata)) nodata_prv = nodata
 
-      CALL dbt_tas_get_info(matrix_in, name=name, &
-                            row_blk_size=rbsize, col_blk_size=cbsize, &
-                            proc_row_dist=rdist, proc_col_dist=cdist)
-
-      CALL dbt_tas_create_split(split_info, mp_comm, split_rowcol, nsplit_prv, opt_nsplit=opt_nsplit)
-
-      CALL dbt_tas_get_split_info(split_info, nsplit=nsplit_new)
-
+      nsplit_new = dbt_tas_get_nsplit(mp_comm%num_pe_cart, split_rowcol, nsplit_prv, opt_nsplit)
       IF (nsplit_old == nsplit_new .AND. split_rc == split_rowcol) THEN
          matrix_out => matrix_in
          is_new = .FALSE.
-         CALL dbt_tas_release_info(split_info)
          CALL timestop(handle)
          RETURN
       END IF
+
+      CALL dbt_tas_get_info(matrix_in, name=name, &
+                            row_blk_size=rbsize, col_blk_size=cbsize, &
+                            proc_row_dist=rdist, proc_col_dist=cdist)
+      CALL dbt_tas_create_split(split_info, mp_comm, split_rowcol, nsplit_prv, opt_nsplit=opt_nsplit)
 
       CALL dbt_tas_distribution_new(dist, mp_comm, rdist, cdist, &
                                     split_info=split_info)
@@ -1567,6 +1524,61 @@ CONTAINS
    END SUBROUTINE create_block_norms_matrix
 
 ! **************************************************************************************************
+!> \brief Prepare a multiplication input, with explicit ownership of intermediate matrices.
+!> \param input Context whose lifetime extends until the multiplication has finished.
+!> \param mp_comm_cart Process grid for DBM multiplication.
+!> \param source TAS matrix to redistribute or borrow.
+!> \param optimize_pgrid Whether to redistribute to a new process grid.
+!> \param move_data Whether redistribution may clear the source data.
+!> \param release_source Transfer ownership of a temporary source to the context.
+! **************************************************************************************************
+   SUBROUTINE prepare_multiplication_input(input, mp_comm_cart, source, optimize_pgrid, move_data, release_source)
+      TYPE(multiplication_input), INTENT(INOUT), TARGET  :: input
+      TYPE(mp_cart_type), INTENT(IN)                     :: mp_comm_cart
+      TYPE(dbt_tas_type), INTENT(INOUT), POINTER         :: source
+      LOGICAL, INTENT(IN)                                :: optimize_pgrid, move_data, release_source
+
+      CPASSERT(.NOT. ASSOCIATED(input%matrix))
+      CPASSERT(.NOT. ASSOCIATED(input%temporary))
+
+      ! DBM does not retain the TAS communicator; keep it alive until the end of dbt_tas_multiply.
+      input%info = dbt_tas_info(source)
+      CALL dbt_tas_info_hold(input%info)
+
+      input%owns_matrix = optimize_pgrid
+      IF (optimize_pgrid) THEN
+         CALL convert_to_new_pgrid(mp_comm_cart, source%matrix, input%redistributed, move_data=move_data)
+         input%matrix => input%redistributed
+         IF (release_source) THEN
+            CALL dbt_tas_destroy(source)
+            DEALLOCATE (source)
+         END IF
+      ELSE
+         input%matrix => source%matrix
+         IF (release_source) THEN
+            input%temporary => source
+            NULLIFY (source)
+         END IF
+      END IF
+   END SUBROUTINE prepare_multiplication_input
+
+! **************************************************************************************************
+!> \brief Release input data after DBM multiplication, retaining communicator references.
+!> \param input Multiplication input; its split info is released at the end of dbt_tas_multiply.
+! **************************************************************************************************
+   SUBROUTINE release_multiplication_input(input)
+      TYPE(multiplication_input), INTENT(INOUT)          :: input
+
+      NULLIFY (input%matrix)
+      IF (input%owns_matrix) CALL dbm_release(input%redistributed)
+      IF (ASSOCIATED(input%temporary)) THEN
+         CALL dbt_tas_destroy(input%temporary)
+         DEALLOCATE (input%temporary)
+      END IF
+      input%owns_matrix = .FALSE.
+   END SUBROUTINE release_multiplication_input
+
+! **************************************************************************************************
 !> \brief Convert a DBM matrix to a new process grid
 !> \param mp_comm_cart new process grid
 !> \param matrix_in ...
@@ -1665,10 +1677,9 @@ CONTAINS
 
       INTEGER                                            :: handle
 
-      CALL matrix%dist%info%mp_comm%sync()
-      CALL timeset("dbt_tas_total", handle)
-
       IF (matrix%do_batched == 0) RETURN
+
+      CALL timeset("dbt_tas_total", handle)
 
       IF (matrix%mm_storage%batched_out) THEN
          CALL dbm_scale(matrix%matrix, matrix%mm_storage%batched_beta)
@@ -1681,7 +1692,6 @@ CONTAINS
       DEALLOCATE (matrix%mm_storage)
       CALL dbt_tas_set_batched_state(matrix, state=0)
 
-      CALL matrix%dist%info%mp_comm%sync()
       CALL timestop(handle)
 
    END SUBROUTINE dbt_tas_batched_mm_finalize

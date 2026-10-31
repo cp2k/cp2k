@@ -17,7 +17,7 @@
 MODULE dbt_api
 
    USE dbt_block,                       ONLY: &
-        dbt_get_block_data, dbt_get_block_pattern, dbt_iterator_blocks_left, &
+        dbt_copy_block, dbt_get_block_data, dbt_get_block_pattern, dbt_iterator_blocks_left, &
         dbt_iterator_next_block, dbt_iterator_num_blocks, dbt_iterator_start, dbt_iterator_stop, &
         dbt_iterator_type, dbt_put_block_data
    USE dbt_index,                       ONLY: dbt_get_mapping_info
@@ -52,6 +52,7 @@ MODULE dbt_api
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbt_api'
 
    PUBLIC :: dbt_contract, dbt_contract_test
+   PUBLIC :: dbt_copy_block
    PUBLIC :: dbt_get_block
    PUBLIC :: dbt_get_block_data
    PUBLIC :: dbt_get_block_pattern, dbt_copy_indexed

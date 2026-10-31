@@ -94,6 +94,10 @@ void dbm_shard_copy(dbm_shard_t *shard_a, const dbm_shard_t *shard_b) {
   }
   shard_a->hashtable_size = shard_b->hashtable_size;
   shard_a->hashtable_prime = shard_b->hashtable_prime;
+  // Future block growth must also respect the capacity of the copied table.
+  if (shard_a->nblocks_allocated > shard_b->nblocks_allocated) {
+    shard_a->nblocks_allocated = shard_b->nblocks_allocated;
+  }
 
   if (shard_a->data_allocated < shard_b->data_size) {
     offload_mempool_host_free(shard_a->data);
@@ -103,6 +107,7 @@ void dbm_shard_copy(dbm_shard_t *shard_a, const dbm_shard_t *shard_b) {
     assert(shard_a->data != NULL);
   }
   shard_a->data_size = shard_b->data_size;
+  shard_a->data_promised = shard_b->data_size;
 
   if (shard_b->nblocks != 0) {
     assert(shard_a->blocks != NULL && shard_b->blocks != NULL);

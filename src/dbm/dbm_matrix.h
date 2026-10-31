@@ -103,6 +103,14 @@ void dbm_reserve_blocks(dbm_matrix_t *matrix, const int nblocks,
                         const int rows[], const int cols[]);
 
 /*******************************************************************************
+ * \brief Reserves template blocks in a matrix sharing the distribution object.
+ *        Block sizes may differ. Existing values are kept, new blocks zeroed.
+ *        Call outside an OpenMP parallel region.
+ ******************************************************************************/
+void dbm_reserve_blocks_template(dbm_matrix_t *matrix,
+                                 const dbm_matrix_t *matrix_template);
+
+/*******************************************************************************
  * \brief Multiplies all entries in the given matrix by the given factor alpha.
  * \author Ole Schuett
  ******************************************************************************/

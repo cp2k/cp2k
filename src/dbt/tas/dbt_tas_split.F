@@ -35,6 +35,7 @@ MODULE dbt_tas_split
       dbt_tas_mp_dims, &
       dbt_tas_release_info, &
       dbt_tas_create_split, &
+      dbt_tas_get_nsplit, &
       dbt_tas_create_split_rows_or_cols, &
       dbt_tas_set_strict_split, &
       group_to_mrowcol, &
@@ -337,12 +338,46 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_tas_create_split'
 
-      INTEGER                                            :: handle, igroup, iproc, nsplit_opt, &
-                                                            pdim_nonsplit, pdim_split
+      INTEGER                                            :: handle, igroup, nsplit_opt
       INTEGER, DIMENSION(2)                              :: pcoord, pdims, pdims_group
-      LOGICAL                                            :: opt_nsplit_prv
 
       CALL timeset(routineN, handle)
+
+      nsplit_opt = dbt_tas_get_nsplit(mp_comm%num_pe_cart, split_rowcol, nsplit, opt_nsplit)
+      pdims = mp_comm%num_pe_cart
+      pcoord = mp_comm%mepos_cart
+
+      pdims_group = pdims
+      pdims_group(split_rowcol) = pdims_group(split_rowcol)/nsplit_opt
+
+      igroup = pcoord(split_rowcol)/pdims_group(split_rowcol)
+
+      CALL dbt_tas_create_split_rows_or_cols(split_info, mp_comm, nsplit_opt, igroup, split_rowcol, own_comm=own_comm)
+
+      IF (nsplit > 0) THEN
+         ALLOCATE (split_info%ngroup_opt, SOURCE=nsplit)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE dbt_tas_create_split
+
+! **************************************************************************************************
+!> \brief Resolve a split factor without creating communicators.
+!> \param pdims dimensions of the Cartesian process grid
+!> \param split_rowcol split rows or columns
+!> \param nsplit desired split factor
+!> \param opt_nsplit whether to optimize the split factor
+!> \return split factor used by dbt_tas_create_split
+! **************************************************************************************************
+   FUNCTION dbt_tas_get_nsplit(pdims, split_rowcol, nsplit, opt_nsplit) RESULT(nsplit_opt)
+      INTEGER, DIMENSION(2), INTENT(IN)                  :: pdims
+      INTEGER, INTENT(IN)                                :: split_rowcol, nsplit
+      LOGICAL, INTENT(IN), OPTIONAL                      :: opt_nsplit
+      INTEGER                                            :: nsplit_opt
+
+      INTEGER                                            :: pdim_nonsplit, pdim_split
+      LOGICAL                                            :: opt_nsplit_prv
 
       IF (PRESENT(opt_nsplit)) THEN
          opt_nsplit_prv = opt_nsplit
@@ -351,10 +386,6 @@ CONTAINS
       END IF
 
       CPASSERT(nsplit > 0)
-
-      iproc = mp_comm%mepos
-      pdims = mp_comm%num_pe_cart
-      pcoord = mp_comm%mepos_cart
 
       SELECT CASE (split_rowcol)
       CASE (rowsplit)
@@ -374,20 +405,7 @@ CONTAINS
          nsplit_opt = nsplit
       END IF
 
-      pdims_group = pdims
-      pdims_group(split_rowcol) = pdims_group(split_rowcol)/nsplit_opt
-
-      igroup = pcoord(split_rowcol)/pdims_group(split_rowcol)
-
-      CALL dbt_tas_create_split_rows_or_cols(split_info, mp_comm, nsplit_opt, igroup, split_rowcol, own_comm=own_comm)
-
-      IF (nsplit > 0) THEN
-         ALLOCATE (split_info%ngroup_opt, SOURCE=nsplit)
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE dbt_tas_create_split
+   END FUNCTION dbt_tas_get_nsplit
 
 ! **************************************************************************************************
 !> \brief Whether to accept proposed process grid dimensions (based on ratio of dimensions)
