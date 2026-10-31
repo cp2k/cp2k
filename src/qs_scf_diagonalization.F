@@ -843,7 +843,7 @@ CONTAINS
       END IF
       ! Retain the unmodified S(k) for this SCF run, outside the driver-local
       ! operator context. Solvers receive work copies because they overwrite S.
-      cache_smat = para_env%num_pe > 1 .AND. update_p .AND. .NOT. use_real_wfn
+      cache_smat = update_p .AND. .NOT. use_real_wfn
       reuse_smat = .FALSE.
       IF (cache_smat) THEN
          reuse_smat = ALLOCATED(kpoints%scf_smat)
