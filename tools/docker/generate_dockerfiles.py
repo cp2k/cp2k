@@ -54,6 +54,12 @@ def main() -> None:
             f.write(install_deps_toolchain_intel(base_image, mpi_mode, with_ifx="yes"))
             f.write(regtest("toolchain_intel", version))
 
+    for version in "ssmp", "psmp":
+        mpi_mode = "mpich" if version.startswith("p") else "no"
+        with OutputFile(f"Dockerfile.test_gcc-mkl-{version}", args.check) as f:
+            f.write(install_deps_toolchain_mkl(mpi_mode=mpi_mode))
+            f.write(regtest("toolchain_mkl", version))
+
     with OutputFile(f"Dockerfile.test_minimal", args.check) as f:
         f.write(install_deps_ubuntu())
         f.write(regtest("minimal", "sdbg"))
@@ -626,6 +632,39 @@ FROM docker.io/{base_image}
         with_ifx=with_ifx,
         with_mkl="",
         with_libsmeagol="",
+        with_libtorch="no",
+        with_skala_ftorch="no",
+        with_deepmd="no",
+        with_gauxc="no",
+    )
+
+
+# ======================================================================================
+def install_deps_toolchain_mkl(mpi_mode: str) -> str:
+    return r"""
+FROM docker.io/intel/oneapi-toolkit:2026.2.0-devel-ubuntu26.04
+
+# Use GNU compilers and let the toolchain build MPICH.
+# Keep only MKL from the inherited oneAPI compiler/MPI search paths.
+ENV CC=gcc CXX=g++ FC=gfortran F77=gfortran F90=gfortran
+ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+    CMAKE_PREFIX_PATH="${MKLROOT}" \
+    CPATH="" \
+    C_INCLUDE_PATH="" \
+    CPLUS_INCLUDE_PATH="" \
+    LIBRARY_PATH="${MKLROOT}/lib" \
+    LD_LIBRARY_PATH="${MKLROOT}/lib" \
+    PKG_CONFIG_PATH="${MKLROOT}/lib/pkgconfig" \
+    I_MPI_ROOT=""
+
+""" + install_toolchain(
+        base_image="ubuntu:26.04",
+        install_all="",
+        mpi_mode=mpi_mode,
+        with_gcc="system",
+        with_intel="no",
+        with_mkl="system",
+        with_openblas="no",
         with_libtorch="no",
         with_skala_ftorch="no",
         with_deepmd="no",
