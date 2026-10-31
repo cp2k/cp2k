@@ -1,21 +1,8 @@
 # OpenCL Backend
 
-DBM processes batches of matrix multiplications which may look like (task):
-
-```C
-typedef struct {
-  int m;
-  int n;
-  int k;
-  int offset_a;
-  int offset_b;
-  int offset_c;
-} dbm_task_t;
-```
-
-Each task is characterized by an M, N, and K parameter as well as offsets pointing into compact data
-arrays representing the A, B, and C matrices of an entire batch. The OpenCL backend provides a
-universal kernel for a general range of M, N, and K parameters.
-
-The OpenCL backend shares the same data structures (header files) and the same input format as used
-for other backends namely CUDA and HIP.
+The OpenCL backend of DBM is maintained in
+[LIBXSTREAM](https://github.com/hfp/libxstream/tree/main/samples/dbm), which is a prerequisite of
+CP2K's OpenCL support anyway. LIBXSTREAM enumerates its sources and kernels for CP2K's build
+(`libxstream_add_dbm` in CMake, `samples/dbm/dbm.mk` for the Makefile), and `dbm_multiply_opencl.c`
+merely adapts the backend to the interface shared with the CUDA and HIP backends. The backend and
+its environment variables are documented alongside the code in LIBXSTREAM.

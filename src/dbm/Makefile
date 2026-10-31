@@ -68,7 +68,10 @@ ifneq ($(LIBXS),0)
 LIBXSROOT ?= $(wildcard $(CP2KHOME)/../libxs)
 ifneq ($(LIBXSROOT),)
 CFLAGS += -D__LIBXS -D__BLAS -I$(LIBXSROOT)
-LIBS += $(LIBXSROOT)/lib/libxs.a
+LIBXSLIB := $(wildcard $(LIBXSROOT)/lib/libxs.a)
+ifeq ($(LIBXSLIB),) # header-only
+CFLAGS += -DLIBXS_SOURCE
+endif
 # LIBXSMM headers enable JIT kernel dispatch inside LIBXS.
 LIBXSMMROOT ?= $(wildcard $(LIBXSROOT)/../libxsmm)
 ifneq ($(LIBXSMMROOT),)
@@ -82,24 +85,11 @@ OPENCL := 0
 endif
 endif
 
-# Make LIBXSTREAM available (auto-detect as sibling of CP2KHOME).
-ifneq ($(LIBXSTREAM),0)
-ifneq ($(OPENCL),0)
-ifneq ($(LIBXS),0)
-LIBXSTREAMROOT ?= $(wildcard $(CP2KHOME)/../libxstream)
-ifneq ($(LIBXSTREAMROOT),)
-CFLAGS += -D__LIBXSTREAM -I$(LIBXSTREAMROOT)
-LIBS += $(LIBXSTREAMROOT)/lib/libxstream.a
-else
-OPENCL := 0
-endif
-endif
-endif
-endif
-
 ifeq ($(filter-out 0,$(OPENCL)),)
 NVCC := $(shell which nvcc 2>/dev/null)
-NVARCH := sm_70
+# Probe the build host's GPU, else nvcc's default architecture (no -arch).
+NVARCH ?= $(if $(NVCC),$(shell $(NVCC) -arch=native -c -x cu /dev/null \
+        -o /dev/null >/dev/null 2>&1 && echo native))
 NVARCHX := $(if $(NVARCH),-arch $(NVARCH))
 NVFLAGS := -g $(OPTFLAG) -lineinfo $(NVARCHX) -Wno-deprecated-gpu-targets -Xcompiler "$(CFLAGS)" -D__OFFLOAD_CUDA
 
@@ -118,8 +108,29 @@ CUDA_PATH := $(if $(CUDA_FILE),$(NVCC_PATH)/../cuda,$(NVCC_PATH))
 CUDA_LIBS := $(if $(wildcard $(CUDA_PATH)/lib64),lib64,lib)
 OPENCL := 0
 endif
+
+# Make LIBXSTREAM available (auto-detect as sibling of CP2KHOME).
+ifneq ($(LIBXSTREAM),0)
 ifneq ($(OPENCL),0)
-OPENCL_GENKRNL := $(PROJHOME)/dbm_multiply_opencl.cl.h
+ifneq ($(LIBXS),0)
+LIBXSTREAMROOT ?= $(wildcard $(CP2KHOME)/../libxstream)
+ifneq ($(LIBXSTREAMROOT),)
+CFLAGS += -D__LIBXSTREAM -I$(LIBXSTREAMROOT)
+LIBXSTREAMLIB := $(wildcard $(LIBXSTREAMROOT)/lib/libxstream.a)
+# The library requires LIBXS as a library as well.
+ifneq ($(and $(LIBXSLIB),$(LIBXSTREAMLIB)),)
+LIBS += $(LIBXSTREAMLIB)
+else # header-only
+CFLAGS += -DLIBXSTREAM_SOURCE
+endif
+else
+OPENCL := 0
+endif
+endif
+endif
+endif
+
+ifneq ($(OPENCL),0)
 ifneq ($(ICX),)
 LIBS += -lifcoremt -limf
 endif
@@ -150,7 +161,8 @@ LIBS += -ldl -lstdc++ -lc -lm
 all: dbm_miniapp.x
 
 clean:
-	rm -fv $(ALL_OBJECTS) $(OPENCL_GENKRNL) \
+	rm -fv $(ALL_OBJECTS) $(LIBXSTREAM_DBM_GENHDR) $(LIBXSTREAM_DBM_OBJS) \
+        $(LIBXSTREAM_SMM_GENHDR) $(LIBXSTREAM_SMM_OBJS) \
         dbm_multiply_gpu.o \
         dbm_multiply_gpu_kernel.o \
         dbm_multiply_opencl.o \
@@ -160,26 +172,38 @@ realclean: clean
 	rm -fv dbm_miniapp.x
 
 
-# Enable OpenCL offload backend.
+# Enable OpenCL offload backend (maintained in LIBXSTREAM/samples/dbm, whose
+# fragment enumerates the files and generates the kernel header).
 ifneq ($(OPENCL),0)
-OPENCL_SRC := $(PROJHOME)/dbm_multiply_opencl.cl
-OPENCL_CMN := $(wildcard $(LIBXSTREAMROOT)/libxstream/opencl/*.h)
-OPENCL_GEN := $(LIBXSTREAMROOT)/scripts/tool_opencl.sh
-OPENCL_ARG := -b 6 -p "" -I $(LIBXSTREAMROOT)/libxstream
+LIBXSTREAM_DBM_GENDIR := $(PROJHOME)
+include $(LIBXSTREAMROOT)/samples/dbm/dbm.mk
 
 ifneq (,$(filter-out 0,$(DBG)))
-OPENCL_ARG += -d
+LIBXSTREAM_DBM_GENARG += -d
 endif
 
-ALL_HEADERS += $(OPENCL_GENKRNL)
-ALL_OBJECTS += dbm_multiply_gpu.o dbm_multiply_opencl.o
-CFLAGS += -D__OFFLOAD_OPENCL -I$(CP2KHOME)/exts/dbcsr
+ALL_HEADERS += $(LIBXSTREAM_DBM_HEADERS)
+ALL_OBJECTS += dbm_multiply_gpu.o dbm_multiply_opencl.o $(LIBXSTREAM_DBM_OBJS)
+CFLAGS += -D__OFFLOAD_OPENCL -I$(CP2KHOME)/exts/dbcsr $(LIBXSTREAM_DBM_IFLAGS)
+
+# Optionally link LIBSMM (LIBXSTREAM/samples/smm), whose kernels homogeneous
+# batches can use (DBM_MULTIPLY_SMM), e.g., to compare both implementations.
+SMM ?= 0
+ifneq ($(SMM),0)
+LIBXSTREAM_SMM_GENDIR := $(PROJHOME)
+include $(LIBXSTREAMROOT)/samples/smm/smm.mk
+ifneq (,$(filter-out 0,$(DBG)))
+LIBXSTREAM_SMM_GENARG += -d
+endif
+ALL_HEADERS += $(LIBXSTREAM_SMM_HEADERS)
+ALL_OBJECTS += $(LIBXSTREAM_SMM_OBJS)
+CFLAGS += $(LIBXSTREAM_SMM_IFLAGS)
+endif
 LIBS += -lgfortran
 
 ifneq (Darwin,$(shell uname))
-OPENCL_LIB := $(shell ldconfig -p 2>/dev/null | grep -m1 OpenCL | rev | cut -d' ' -f1 | rev)
 ifeq (,$(OPENCL_LIB))
-OPENCL_LIB := /usr/lib/x86_64-linux-gnu/libOpenCL.so.1
+OPENCL_LIB := $(shell ldconfig -p 2>/dev/null | grep -m1 OpenCL | rev | cut -d' ' -f1 | rev)
 endif
 ifneq (,$(CUDA_PATH))
 ifeq (,$(wildcard $(OPENCL_INC)))
@@ -220,8 +244,14 @@ LIBS += -framework OpenCL
 endif
 
 dbm_miniapp.x: $(OPENCL_OFFLOAD)
-$(OPENCL_GENKRNL): $(OPENCL_GEN) $(OPENCL_SRC) $(OPENCL_CMN)
-	$(OPENCL_GEN) $(OPENCL_ARG) $(OPENCL_SRC) $@
+
+# The objects are kept here rather than next to their sources.
+$(LIBXSTREAM_DBM_OBJS): %.o: $(LIBXSTREAM_DBM_DIR)/%.c $(ALL_HEADERS)
+	$(CC) -c -std=c11 $(CFLAGS) $< -o $@
+ifneq ($(SMM),0)
+$(LIBXSTREAM_SMM_OBJS): %.o: $(LIBXSTREAM_SMM_DIR)/%.c $(ALL_HEADERS)
+	$(CC) -c -std=c11 $(CFLAGS) $< -o $@
+endif
 
 
 # Enable Cuda when nvcc compiler is present.
@@ -248,8 +278,8 @@ LIBS += -L${ROCM_PATH}/lib -lamdhip64 -lhipfft -lhipblas -lrocblas
 endif
 
 # LIBXS must be linked last (depended upon by LIBXSTREAM)
-ifneq ($(LIBXSROOT),)
-LIBS += $(LIBXSROOT)/lib/libxs.a
+ifneq ($(LIBXSLIB),)
+LIBS += $(LIBXSLIB)
 endif
 
 %.o: %.c $(OMP_TRACE) $(ALL_HEADERS)
