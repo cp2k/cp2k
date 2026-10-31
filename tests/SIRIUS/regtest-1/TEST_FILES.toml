@@ -19,4 +19,12 @@
 "Fe-upf.inp"            = [{matcher = "M085", tol = 5.0E-8, ref = -322.37407840130044}]
 "Au_GTH.inp"            = [{matcher = "M085", tol = 5.0E-8, ref = -33.157343398225969}]
 "Au_GTH_SOC.inp"        = [{matcher = "M085", tol = 5.0E-8, ref = -135.5888488246792}]
+"N2_GTH_NLCC.inp"       = [
+  {matcher = "M085", tol = 5.0E-8, ref = -21.73058304702723},
+  {matcher = "Atomic_force_1_z", tol = 1.0E-6, ref = 0.05070313898705},
+]
+"Br2_SSSP_NC.inp"       = [
+  {matcher = "M085", tol = 5.0E-8, ref = -31.27235894844511},
+  {matcher = "Atomic_force_1_z", tol = 1.0E-6, ref = -0.03500812266789},
+]
 #EOF
