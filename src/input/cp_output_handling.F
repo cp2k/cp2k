@@ -176,7 +176,10 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
-                          description="Level starting at which this property is printed", &
+                          description="Level starting at which this property is printed. "// &
+                          "Printing is activated when the GLOBAL/PRINT_LEVEL of a task is "// &
+                          "higher than or equal to the level as specified here; to override "// &
+                          "this comparison, use ON to always print or OFF to never print.", &
                           usage="silent", &
                           default_i_val=my_print_level, lone_keyword_i_val=silent_print_level, &
                           enum_c_vals=s2a("on", "off", "silent", "low", "medium", "high", "debug"), &
@@ -199,8 +202,10 @@ CONTAINS
                           "the value of each of these keywords is matched with the iteration level during "// &
                           "the calculation. How to handle the last iteration is treated "// &
                           "separately in ADD_LAST (this mean that each iteration level (MD, GEO_OPT, etc..), "// &
-                          "though equal to 0, might print the last iteration). If an iteration level is specified "// &
-                          "that is not present in the flow of the calculation it is just ignored.", &
+                          "though equal to 0, might print the last iteration). "// &
+                          "If an iteration level is specified that is not present in the flow of "// &
+                          "the calculation, it is just ignored; switch GLOBAL/ITER_LEVEL_VERBOSITY "// &
+                          "to NOTICE or STACK to print information about existing iteration levels.", &
                           n_keywords=2, n_subsections=0, repeats=.FALSE., &
                           citations=citations)
 
@@ -676,7 +681,9 @@ CONTAINS
          iteration_info%level_name(iteration_info%n_rlevel) = level_name
          iteration_info%last_iter(iteration_info%n_rlevel) = .FALSE.
          IF (PRESENT(n_rlevel_new)) n_rlevel_new = iteration_info%n_rlevel
-         CALL cp_iter_level_print(logger, "A")
+         IF (iteration_info%iter_print >= iter_silent) THEN
+            CALL cp_iter_level_print(logger, "A")
+         END IF
       ELSE
          CALL cp_abort(__LOCATION__, &
                        "Trying to create an iteration level ("//TRIM(level_name)//") not defined. "// &
@@ -708,7 +715,9 @@ CONTAINS
       IF (PRESENT(n_rlevel_att)) THEN
          CPASSERT(n_rlevel_att == iteration_info%n_rlevel)
       END IF
-      CALL cp_iter_level_print(logger, "R")
+      IF (iteration_info%iter_print >= iter_silent) THEN
+         CALL cp_iter_level_print(logger, "R")
+      END IF
       CALL cp_iteration_info_release(iteration_info)
       ! This check that the iteration levels are consistently created and destroyed..
       ! Never remove this check..
@@ -724,19 +733,16 @@ CONTAINS
 !> \brief Print information entering or exiting an iteration level
 !> \param logger the logger with iteration info and para_env
 !> \param direction entering (A) or exiting (R) the iteration level
-!> \param local if the unit should be local to this task
 !> \author Zilong HE
 ! **************************************************************************************************
-   SUBROUTINE cp_iter_level_print(logger, direction, local)
+   SUBROUTINE cp_iter_level_print(logger, direction)
       TYPE(cp_logger_type), POINTER                      :: logger
       CHARACTER(LEN=1), INTENT(IN)                       :: direction
-      LOGICAL, INTENT(IN), OPTIONAL                      :: local
 
       INTEGER, PARAMETER                                 :: min_iter_level = 2
 
       CHARACTER(LEN=:), ALLOCATABLE                      :: level_name
       INTEGER                                            :: iter_nr, rlevel, unit_nr
-      LOGICAL                                            :: my_local
       TYPE(cp_iteration_info_type), POINTER              :: iteration_info
 
       ! min_iter_level = 2 is to skip iteration_info%level_name(1)
@@ -746,48 +752,41 @@ CONTAINS
       ! assumes implicitly a maximum length of 27 characters.
 
       iteration_info => logger%iter_info
-      my_local = .FALSE.
-      IF (PRESENT(local)) my_local = local
-      IF (my_local .OR. logger%para_env%is_source()) THEN
-         IF (iteration_info%iter_print >= iter_silent) THEN
-            rlevel = iteration_info%n_rlevel
-            CPASSERT(rlevel > 0)
-            level_name = TRIM(ADJUSTL(iteration_info%level_name(rlevel)))
-            CALL cp_get_iter_nr(iteration_info, rlevel, iter_nr)
-            IF (iteration_info%iter_print > iter_silent) THEN
-               unit_nr = cp_logger_get_unit_nr(logger, local=my_local)
-               IF (unit_nr > 0) THEN
-                  WRITE (UNIT=unit_nr, FMT="()")
-                  ! The current iteration level
-                  SELECT CASE (direction)
-                  CASE ("A") ! After adding level in cp_add_iter_level
+      IF (logger%para_env%is_source()) THEN
+         rlevel = iteration_info%n_rlevel
+         CPASSERT(rlevel > 0)
+         level_name = TRIM(ADJUSTL(iteration_info%level_name(rlevel)))
+         CALL cp_get_iter_nr(iteration_info, rlevel, iter_nr)
+         ! Print when GLOBAL/ITER_LEVEL_VERBOSITY is NOTICE or STACK
+         IF (iteration_info%iter_print > iter_silent) THEN
+            unit_nr = cp_logger_get_unit_nr(logger, local=.FALSE.)
+            IF (unit_nr > 0) THEN
+               WRITE (UNIT=unit_nr, FMT="()")
+               ! The current iteration level
+               SELECT CASE (direction)
+               CASE ("A") ! After adding level in cp_add_iter_level
+                  WRITE (UNIT=unit_nr, FMT="(T2,A,T37,I3,T41,A,T73,I8)") &
+                     "ITER_LV| >>>>>>>> Entering level +", rlevel, "[ "//level_name//" ]", iter_nr
+               CASE ("R") ! Before removing level in cp_rm_iter_level
+                  WRITE (UNIT=unit_nr, FMT="(T2,A,T37,I3,T41,A,T73,I8)") &
+                     "ITER_LV| <<<<<<<<  Exiting level -", rlevel, "[ "//level_name//" ]", iter_nr
+               CASE DEFAULT
+                  CALL cp_abort(__LOCATION__, &
+                                "Only entering (A) or exiting (R) an iteration level "// &
+                                "can have a message printed.")
+               END SELECT
+               ! The rest of stack of iteration levels
+               IF (iteration_info%iter_print > iter_notice) THEN
+                  DO WHILE (rlevel > min_iter_level)
+                     rlevel = rlevel - 1
+                     level_name = TRIM(ADJUSTL(iteration_info%level_name(rlevel)))
+                     CALL cp_get_iter_nr(iteration_info, rlevel, iter_nr)
                      WRITE (UNIT=unit_nr, FMT="(T2,A,T37,I3,T41,A,T73,I8)") &
-                        "ITER_LV| >>>>>>>> Entering level +", rlevel, "[ "//level_name//" ]", iter_nr
-                  CASE ("R") ! Before removing level in cp_rm_iter_level
-                     WRITE (UNIT=unit_nr, FMT="(T2,A,T37,I3,T41,A,T73,I8)") &
-                        "ITER_LV| <<<<<<<<  Exiting level -", rlevel, "[ "//level_name//" ]", iter_nr
-                  CASE DEFAULT
-                     CALL cp_abort(__LOCATION__, &
-                                   "Only entering (A) or exiting (R) an iteration level "// &
-                                   "can have a message printed.")
-                  END SELECT
-                  ! The rest of stack of iteration levels
-                  IF (iteration_info%iter_print > iter_notice) THEN
-                     DO WHILE (rlevel > min_iter_level)
-                        rlevel = rlevel - 1
-                        level_name = TRIM(ADJUSTL(iteration_info%level_name(rlevel)))
-                        CALL cp_get_iter_nr(iteration_info, rlevel, iter_nr)
-                        WRITE (UNIT=unit_nr, FMT="(T2,A,T37,I3,T41,A,T73,I8)") &
-                           "ITER_LV|                         *", rlevel, "[ "//level_name//" ]", iter_nr
-                     END DO
-                  END IF
-                  WRITE (UNIT=unit_nr, FMT="()")
+                        "ITER_LV|                         *", rlevel, "[ "//level_name//" ]", iter_nr
+                  END DO
                END IF
+               WRITE (UNIT=unit_nr, FMT="()")
             END IF
-         ELSE
-            CALL cp_warn(__LOCATION__, &
-                         "An iteration level has been added to or removed from a logger "// &
-                         "that does not receive the GLOBAL%ITER_LEVEL_VERBOSITY setting.")
          END IF
       END IF
 
