@@ -98,13 +98,38 @@ PROGRAM kpoint_lattice_fft_unittest
       ERROR STOP "Shifted lattice FFT differs from direct transform"
    END IF
 
-   selected_kpoints = [2, 31, 64]
+   selected_kpoints = [64, 2, 31]
+   ! A reduced request retains the full mesh spacing and shift, including a single point.
+   CALL cell_to_k_grid_fft(values_rs, index_to_cell, xkp(:, selected_kpoints), nkp_grid, &
+                           selected_transformed, used_fft)
+   IF (.NOT. used_fft) ERROR STOP "Regular-grid subset did not use lattice FFT"
+   IF (MAXVAL(ABS(selected_transformed - direct(:, :, selected_kpoints))) > 2.0E-12_dp) THEN
+      ERROR STOP "Subset lattice FFT differs from direct transform"
+   END IF
+   CALL cell_to_k_grid_fft(values_rs, index_to_cell, xkp(:, selected_kpoints), nkp_grid, &
+                           selected_transformed(:, :, 1:2), used_fft, selected_kpoints=[3, 1])
+   IF (.NOT. used_fft) ERROR STOP "Selection within a subset did not use lattice FFT"
+   IF (MAXVAL(ABS(selected_transformed(:, :, 1:2) - direct(:, :, selected_kpoints([3, 1])))) > 2.0E-12_dp) THEN
+      ERROR STOP "Subset selection confused local and full-grid indices"
+   END IF
+   CALL cell_to_k_grid_fft(values_rs, index_to_cell, xkp(:, 31:31), nkp_grid, selected_transformed(:, :, 1:1), used_fft)
+   IF (.NOT. used_fft) ERROR STOP "Single requested grid point did not use lattice FFT"
+   IF (MAXVAL(ABS(selected_transformed(:, :, 1) - direct(:, :, 31))) > 2.0E-12_dp) THEN
+      ERROR STOP "Single-point lattice FFT lost the mesh shift"
+   END IF
+
    CALL cell_to_k_grid_fft(values_rs, index_to_cell, xkp, nkp_grid, selected_transformed, &
                            used_fft, 2, hmat, selected_kpoints=selected_kpoints)
    IF (.NOT. used_fft) ERROR STOP "Selected derivative did not use lattice FFT"
    CALL direct_reference(values_rs, index_to_cell, xkp, direct, 2, hmat)
    IF (MAXVAL(ABS(selected_transformed - direct(:, :, selected_kpoints))) > 5.0E-12_dp) THEN
       ERROR STOP "Selected lattice-FFT derivative differs from direct transform"
+   END IF
+   CALL cell_to_k_grid_fft(values_rs, index_to_cell, xkp(:, selected_kpoints), nkp_grid, &
+                           selected_transformed, used_fft, 2, hmat)
+   IF (.NOT. used_fft) ERROR STOP "Subset derivative did not use lattice FFT"
+   IF (MAXVAL(ABS(selected_transformed - direct(:, :, selected_kpoints))) > 5.0E-12_dp) THEN
+      ERROR STOP "Subset lattice-FFT derivative differs from direct transform"
    END IF
 
    xkp_bad = xkp

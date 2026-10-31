@@ -154,8 +154,8 @@ CONTAINS
                           "27 k points when the grid, memory, and communication-granularity requirements "// &
                           "are satisfied. ON bypasses these performance thresholds. OFF always uses the "// &
                           "established direct phase sum. "// &
-                          "Unsupported or oversized grids retain the direct fallback; the forward operator "// &
-                          "FFT still requires a complete grid.", &
+                          "Unsupported or oversized grids retain the direct fallback. Both directions accept "// &
+                          "subsets of a regular grid; the forward transform returns only the requested points.", &
                           usage="LATTICE_FFT AUTO", type_of_var=enum_t, &
                           enum_c_vals=s2a("AUTO", "ON", "OFF"), &
                           enum_i_vals=[lattice_fft_auto, lattice_fft_on, lattice_fft_off], &

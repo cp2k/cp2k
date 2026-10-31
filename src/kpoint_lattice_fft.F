@@ -9,7 +9,7 @@
 !> \brief Batched lattice Fourier transforms on regular k-point grids.
 !>
 !>        Image cells are folded modulo the reciprocal grid; shifted meshes use a phase twist.
-!>        Forward transforms require a complete grid. The inverse transform can also embed
+!>        Forward transforms may return any subset of a regular grid. The inverse can embed
 !>        an explicitly allowed subset with its supplied weights and zero missing points.
 !>        Unsupported grids retain the direct phase-sum fallback.
 ! **************************************************************************************************
@@ -155,7 +155,7 @@ CONTAINS
    END FUNCTION lattice_fft_shape
 
 ! **************************************************************************************************
-!> \brief Transform a batch of real matrices from image cells to every supplied k point.
+!> \brief Transform real matrices to a regular reciprocal grid or any subset of that grid.
 !> \param values_rs real-space matrices; the last dimension enumerates image cells
 !> \param index_to_cell integer lattice vector for every image cell
 !> \param xkp reciprocal coordinates of all requested k points
@@ -219,9 +219,9 @@ CONTAINS
       END IF
 
       ALLOCATE (grid_index(3, SIZE(xkp, 2)))
-      regular = regular_kpoint_grid(xkp, nkp_grid, grid_index, k_offset)
+      regular = regular_kpoint_grid(xkp, nkp_grid, grid_index, k_offset, allow_incomplete=.TRUE.)
       n = nkp_grid
-      IF (regular) regular = lattice_fft_shape(n, nfft)
+      IF (regular) regular = lattice_fft_shape(n, nfft, allow_arbitrary=.TRUE.)
       IF (.NOT. regular) THEN
          CALL direct_cell_to_k(values_rs, index_to_cell, xkp, values_k, deriv_direction, hmat, &
                                selected_kpoints)

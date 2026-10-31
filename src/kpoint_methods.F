@@ -1248,13 +1248,13 @@ CONTAINS
    END SUBROUTINE rskp_transform
 
 ! **************************************************************************************************
-!> \brief Prepare a batched real-cell to complete reciprocal-grid transform for local DBCSR blocks.
+!> \brief Prepare a batched real-cell transform to a regular grid or subset for local DBCSR blocks.
 !>        The stored blocks remain MPI local.  Irregular or too-large grids return used_fft=.FALSE.
 !> \param grid cached transformed local blocks and their DBCSR coordinates
 !> \param rmatrix allocated output template defining the local block layout
 !> \param rsmat real-space matrix set
 !> \param ispin spin component of rsmat
-!> \param xkp complete reciprocal grid in arbitrary order
+!> \param xkp requested points on a regular reciprocal grid in arbitrary order
 !> \param nkp_grid reciprocal grid dimensions
 !> \param cell_to_index real-cell coordinate mapping
 !> \param sab_nl neighbor list defining the stored block orientation
@@ -1290,7 +1290,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: memory_limit, storage_bytes
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: block_map, index_to_cell
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: fft_cell_to_index
-      INTEGER, DIMENSION(3)                              :: cell, fft_cell
+      INTEGER, DIMENSION(3)                              :: cell, fft_cell, nfft
       LOGICAL                                            :: do_symmetric, found, my_complex
       REAL(KIND=dp)                                      :: fsign, fsym, value_sign
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: values_rs
@@ -1305,11 +1305,26 @@ CONTAINS
 
       nkp = SIZE(xkp, 2)
       nimg = SIZE(rsmat, 2)
-      IF (nkp < 2 .OR. PRODUCT(nkp_grid) /= nkp) THEN
+      memory_limit = 512_int_8*1024_int_8**2
+      IF (PRESENT(max_storage_bytes)) memory_limit = max_storage_bytes
+      IF (nkp < 1 .OR. ANY(nkp_grid <= 0)) THEN
          CALL timestop(handle)
          RETURN
       END IF
-      IF (.NOT. regular_kpoint_grid(xkp, nkp_grid)) THEN
+      ! A reduced request still needs scratch for the full FFT mesh.
+      IF (32_int_8*PRODUCT(INT(nkp_grid, int_8)) > memory_limit) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+      IF (.NOT. lattice_fft_shape(nkp_grid, nfft, allow_arbitrary=.TRUE.)) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+      IF (32_int_8*PRODUCT(INT(nfft, int_8)) > memory_limit) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+      IF (.NOT. regular_kpoint_grid(xkp, nkp_grid, allow_incomplete=.TRUE.)) THEN
          CALL timestop(handle)
          RETURN
       END IF
@@ -1372,11 +1387,10 @@ CONTAINS
          RETURN
       END IF
 
-      memory_limit = 512_int_8*1024_int_8**2
-      IF (PRESENT(max_storage_bytes)) memory_limit = max_storage_bytes
-      ! Include the real-cell input, complex result and conservative FFT work/padding allowance.
-      storage_bytes = INT(nvalues, int_8)*(8_int_8*INT(ncell, int_8) + &
-                                           80_int_8*INT(nkp, int_8))
+      ! Bound the requested output separately from the full-mesh FFT scratch/maps.
+      storage_bytes = INT(nvalues, int_8)*(8_int_8*INT(ncell, int_8) + 16_int_8*INT(nkp, int_8)) + &
+                      32_int_8*PRODUCT(INT(nfft, int_8)) + 4_int_8*PRODUCT(INT(nkp_grid, int_8)) + &
+                      12_int_8*nkp + 28_int_8*ncell
       IF (storage_bytes > memory_limit) THEN
          CALL rskp_transform_grid_release(grid)
          CALL timestop(handle)
