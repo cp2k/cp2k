@@ -23,7 +23,9 @@ PROGRAM qs_ot_complex_ref_unittest
                                               cp_logger_type,&
                                               cp_rm_default_logger
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
+   USE input_constants,                 ONLY: do_dgemm_blas
    USE kinds,                           ONLY: dp
+   USE local_gemm_api,                  ONLY: local_gemm_set_library
    USE machine,                         ONLY: default_output_unit
    USE mathlib,                         ONLY: diag_complex
    USE message_passing,                 ONLY: mp_comm_self,&
@@ -35,6 +37,7 @@ PROGRAM qs_ot_complex_ref_unittest
    USE qs_ot_kp,                        ONLY: qs_ot_apply_complex_frechet_dbcsr,&
                                               qs_ot_complex_exp_frechet_kernel,&
                                               qs_ot_density_tangent,&
+                                              qs_ot_finite_rotation_response,&
                                               qs_ot_get_derivative_complex,&
                                               qs_ot_get_derivative_ref_complex,&
                                               qs_ot_get_orbitals_ref_complex,&
@@ -57,6 +60,7 @@ PROGRAM qs_ot_complex_ref_unittest
    nfail = 0
    NULLIFY (logger, para_env)
    CALL mp_world_init(mp_comm)
+   CALL local_gemm_set_library(do_dgemm_blas)
    mynode = mp_comm%mepos
    io_unit = -1
    IF (mynode == 0) io_unit = default_output_unit
@@ -199,6 +203,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: error_c, error_ref, error_rot, fd_ref, &
                                                             fd_rot, hstep, predicted_ref, &
                                                             predicted_rot
+      REAL(KIND=dp), DIMENSION(2)                        :: response_gradient
+      REAL(KIND=dp), DIMENSION(2, 2)                     :: rayleigh_response, response_hessian
       REAL(KIND=dp), DIMENSION(k)                        :: occupation
       REAL(KIND=dp), DIMENSION(k), TARGET                :: rotation_evals
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -364,6 +370,13 @@ CONTAINS
       predicted_rot = 0.5_dp*(SUM(REAL(gradient_a, KIND=dp)*REAL(direction_a, KIND=dp)) + &
                               SUM(AIMAG(gradient_a)*AIMAG(direction_a)))
       error_rot = ABS(predicted_rot - fd_rot)
+
+      CALL qs_ot_finite_rotation_response(MATMUL(CONJG(TRANSPOSE(c_dense)), MATMUL(hamiltonian, c_dense)), &
+                                          generator, occupation, 0.625_dp, &
+                                          response_gradient, response_hessian, rayleigh_response)
+      CALL check_error('local rotation gradient', MAXVAL(ABS(response_gradient - &
+                                                             0.625_dp*[REAL(gradient_a(1, 2), dp), AIMAG(gradient_a(1, 2))])), &
+                       5.0E-11_dp, nfail)
 
       IF (error_c > 5.0E-11_dp .OR. error_ref > 5.0E-8_dp .OR. &
           error_rot > 5.0E-8_dp) nfail = nfail + 1

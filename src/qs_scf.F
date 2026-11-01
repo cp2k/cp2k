@@ -1996,7 +1996,7 @@ CONTAINS
 
       INTEGER :: energy_dimension, energy_spin, energy_start, first_channel, handle, ikpoint, &
          ikpoint_local, ispin, local_channel, nao, nmo, nocc, ot_channel
-      LOGICAL                                            :: handled, local_init, use_real_wfn
+      LOGICAL                                            :: local_init, use_real_wfn
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(cp_cfm_p_type), ALLOCATABLE                   :: local_c(:)
       TYPE(cp_fm_p_type), ALLOCATABLE                    :: local_s(:, :)
@@ -2023,9 +2023,7 @@ CONTAINS
       CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn)
       CPASSERT(.NOT. use_real_wfn)
 
-      local_init = kpoints%para_env_kp%num_pe == 1 .AND. .NOT. scf_env%qs_ot_env(1)%settings%do_rotation
-      IF (scf_env%qs_ot_env(1)%settings%ot_algorithm == 'TOD' .AND. &
-          scf_env%qs_ot_env(1)%settings%do_ener) local_init = .FALSE.
+      local_init = kpoints%para_env_kp%num_pe == 1
       first_channel = qs_ot_channel_index(1, kpoints%kp_range(1), nspin_ot)
       IF (local_init) ALLOCATE (local_s(2, SIZE(kpoints%kp_env)*nspin_ot), local_c(SIZE(kpoints%kp_env)*nspin_ot))
 
@@ -2117,13 +2115,12 @@ CONTAINS
             END IF
             scf_env%qs_ot_env(ot_channel)%broyden_adaptive_sigma = qs_env%broyden_adaptive_sigma
 
-            CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_x, 0.0_dp)
-            CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_sx, 0.0_dp)
-            CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_x_im, 0.0_dp)
-            CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_sx_im, 0.0_dp)
-
             SELECT CASE (scf_env%qs_ot_env(ot_channel)%settings%ot_algorithm)
             CASE ("TOD")
+               CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_x, 0.0_dp)
+               CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_sx, 0.0_dp)
+               CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_x_im, 0.0_dp)
+               CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_sx_im, 0.0_dp)
                CALL qs_ot_get_p_complex(scf_env%qs_ot_env(ot_channel)%matrix_x, &
                                         scf_env%qs_ot_env(ot_channel)%matrix_x_im, &
                                         scf_env%qs_ot_env(ot_channel)%matrix_sx, &
@@ -2133,12 +2130,8 @@ CONTAINS
                IF (.NOT. local_init) THEN
                   CALL dbcsr_copy(scf_env%qs_ot_env(ot_channel)%matrix_x, &
                                   scf_env%qs_ot_env(ot_channel)%matrix_c0)
-                  CALL dbcsr_copy(scf_env%qs_ot_env(ot_channel)%matrix_sx, &
-                                  scf_env%qs_ot_env(ot_channel)%matrix_sc0)
                   CALL dbcsr_copy(scf_env%qs_ot_env(ot_channel)%matrix_x_im, &
                                   scf_env%qs_ot_env(ot_channel)%matrix_c0_im)
-                  CALL dbcsr_copy(scf_env%qs_ot_env(ot_channel)%matrix_sx_im, &
-                                  scf_env%qs_ot_env(ot_channel)%matrix_sc0_im)
                   CALL qs_ot_get_orbitals_ref_complex(scf_env%qs_ot_env(ot_channel)%matrix_c0, &
                                                       scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
                                                       matrix_sk_re, matrix_sk_im, &
@@ -2159,8 +2152,7 @@ CONTAINS
       IF (local_init) THEN
          CALL qs_ot_get_orbitals_local_batch( &
             scf_env%qs_ot_env(first_channel:first_channel + SIZE(local_c) - 1), &
-            local_s, local_c, handled, initialize=.TRUE.)
-         CPASSERT(handled)
+            local_s, local_c, initialize=.TRUE.)
       END IF
 
       CALL qs_ot_check_channel_context(scf_env%qs_ot_env, dft_control%nspins, &
