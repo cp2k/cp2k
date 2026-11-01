@@ -27,6 +27,8 @@ PROGRAM kpoint_lattice_fft_unittest
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_world_finalize,&
                                               mp_world_init
+   USE offload_api,                     ONLY: offload_get_device_count,&
+                                              offload_set_chosen_device
 
    IMPLICIT NONE
 
@@ -62,6 +64,10 @@ PROGRAM kpoint_lattice_fft_unittest
    COMPLEX(KIND=dp), DIMENSION(2, 3, ncell)            :: weighted_reference, weighted_result
 
    CALL mp_world_init(mp_comm)
+   ! Select the active offload device before initializing the FFT library.
+   IF (offload_get_device_count() > 0) THEN
+      CALL offload_set_chosen_device(MOD(mp_comm%mepos, offload_get_device_count()))
+   END IF
    CALL check_image_reconstruction(mp_comm)
    CALL init_fft(FFT_LIBRARY_BACKEND_DEFAULT, alltoall=.FALSE., pool_limit=4, &
                  wisdom_file="", plan_style=FFT_LIBRARY_FFTW_MODE_ESTIMATE, status=status)

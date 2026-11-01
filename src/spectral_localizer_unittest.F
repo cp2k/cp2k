@@ -391,6 +391,8 @@ CONTAINS
       USE kinds, ONLY: dp
       USE mathconstants, ONLY: twopi
       USE message_passing, ONLY: mp_para_env_type
+      USE offload_api, ONLY: offload_get_device_count, &
+                             offload_set_chosen_device
       USE spectral_localizer_bloch, ONLY: localizer_flatten_bloch
       USE spectral_localizer_dbcsr, ONLY: localizer_dbcsr_dense, localizer_dbcsr_release, localizer_matrix_type
       USE spectral_localizer_flatten, ONLY: localizer_flatten_checked
@@ -412,6 +414,10 @@ CONTAINS
       CHARACTER(LEN=32) :: argument
 
       io = cp_logger_get_default_io_unit()
+      ! Select the active offload device before initializing the FFT library.
+      IF (offload_get_device_count() > 0) THEN
+         CALL offload_set_chosen_device(MOD(para_env%mepos, offload_get_device_count()))
+      END IF
       CALL dbcsr_init_lib(para_env%get_handle(), io)
       CALL init_fft(FFT_LIBRARY_BACKEND_DEFAULT, alltoall=.FALSE., pool_limit=4, wisdom_file='', &
                     plan_style=FFT_LIBRARY_FFTW_MODE_ESTIMATE, status=status)
