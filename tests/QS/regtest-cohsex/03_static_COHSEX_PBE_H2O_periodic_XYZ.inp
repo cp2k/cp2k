@@ -40,12 +40,12 @@
         KPOINTS 2 2 2
       &END DOS
       &GW
+        KPOINTS_W 2 2 2
+        NUM_TIME_FREQ_POINTS 6
         &COHSEX QP_UPDATE
           SCALE_OCC 0.5
           SCALE_VIRT 0.5
         &END COHSEX
-        KPOINTS_W 2 2 2
-        NUM_TIME_FREQ_POINTS 6
       &END GW
     &END BANDSTRUCTURE
   &END PROPERTIES
