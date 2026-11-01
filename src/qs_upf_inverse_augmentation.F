@@ -525,7 +525,8 @@ CONTAINS
 
       CPASSERT((frame%atom_local .OR. frame%inverse%ready) .AND. ASSOCIATED(grid))
       CPASSERT(ASSOCIATED(grid%g) .AND. grid%vol > 0.0_dp)
-      CPASSERT(SIZE(frame%weights) == grid%ngpts_local)
+      ! The quadrature follows the real-space rectangle, not the reciprocal block.
+      CPASSERT(SIZE(frame%weights) == PRODUCT(MAX(0, grid%npts_local)))
       CPASSERT(ALL(frame%weights == grid%dvol))
       CPASSERT(grid%grid_span == FULLSPACE .OR. grid%grid_span == HALFSPACE)
       IF (grid%grid_span == HALFSPACE) THEN
