@@ -34,6 +34,7 @@ MODULE qs_ot_kp
    USE cp_fm_types,                     ONLY: cp_fm_p_type
    USE kinds,                           ONLY: dp
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
+                                              LOCAL_GEMM_PU_HOST,&
                                               local_gemm_ctxt_type
    USE mathlib,                         ONLY: diag_complex,&
                                               diamat_all,&
@@ -86,6 +87,14 @@ MODULE qs_ot_kp
    INTERFACE qs_ot_complex_multiply_local
       MODULE PROCEDURE qs_ot_complex_multiply_pair_local, qs_ot_complex_multiply_parts_local
    END INTERFACE
+
+   ! Private rotation spectrum and scratch, reused across response evaluations.
+   TYPE qs_ot_rotation_work_type
+      INTEGER                                            :: info = 0
+      TYPE(cp_cfm_diag_workspace_type)                   :: solver
+      COMPLEX(dp), ALLOCATABLE                           :: vectors(:, :), u(:, :), work(:, :), &
+                                                            inner(:, :)
+   END TYPE qs_ot_rotation_work_type
 
    ! Transient per-worker storage. The last index is 1 for real and 2 for imaginary.
    TYPE qs_ot_local_work_type
@@ -484,6 +493,8 @@ CONTAINS
          generator_plus, mode_ref, rotation, rotation_minus, rotation_plus, weighted_rotation
       INTEGER                                            :: i, j, n, nrotation, r
       REAL(KIND=dp)                                      :: step, step_scale
+      TYPE(local_gemm_ctxt_type)                         :: gemm_ctx
+      TYPE(qs_ot_rotation_work_type)                     :: rotation_work
 
       n = SIZE(rotation_generator, 1)
       nrotation = n*(n - 1)
@@ -520,9 +531,18 @@ CONTAINS
       CPASSERT(step > EPSILON(step))
       generator_plus(:, :) = rotation_generator + step*direction
       generator_minus(:, :) = rotation_generator - step*direction
-      CALL qs_ot_dense_rotation_state(rotation_generator, rotation)
-      CALL qs_ot_dense_rotation_state(generator_plus, rotation_plus)
-      CALL qs_ot_dense_rotation_state(generator_minus, rotation_minus)
+      CALL qs_ot_prepare_rotation_work(rotation_work, n)
+      CALL gemm_ctx%create(LOCAL_GEMM_PU_HOST, timing=.FALSE.)
+      CALL qs_ot_rotation_state_local(rotation_generator, rotation_work, gemm_ctx)
+      CPASSERT(rotation_work%info == 0)
+      rotation(:, :) = rotation_work%u(:, :)
+      CALL qs_ot_rotation_state_local(generator_plus, rotation_work, gemm_ctx)
+      CPASSERT(rotation_work%info == 0)
+      rotation_plus(:, :) = rotation_work%u(:, :)
+      CALL qs_ot_rotation_state_local(generator_minus, rotation_work, gemm_ctx)
+      CPASSERT(rotation_work%info == 0)
+      rotation_minus(:, :) = rotation_work%u(:, :)
+      CALL gemm_ctx%destroy()
 
       weighted_rotation(:, :) = rotation_plus
       DO j = 1, n
@@ -684,14 +704,17 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: rotation_hessian, rayleigh_response
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: difference_step
 
+      COMPLEX(KIND=dp)                                   :: perturbation
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: base_hamiltonian, generator_minus, &
-                                                            generator_plus, rotation
-      INTEGER                                            :: i, j, n, nrotation, r, s
+                                                            generator_plus
+      INTEGER                                            :: component, i, j, n, nrotation, r, s
       REAL(KIND=dp)                                      :: step
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: occupation_scale, rayleigh, &
                                                             rayleigh_minus, rayleigh_plus
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: gradient_imag, gradient_minus_imag, &
          gradient_minus_real, gradient_plus_imag, gradient_plus_real, gradient_real
+      TYPE(local_gemm_ctxt_type)                         :: gemm_ctx
+      TYPE(qs_ot_rotation_work_type)                     :: rotation_work
 
       n = SIZE(chc, 1)
       nrotation = n*(n - 1)
@@ -709,16 +732,22 @@ CONTAINS
       CPASSERT(step > SQRT(EPSILON(step)))
 
       ALLOCATE (base_hamiltonian(n, n), generator_minus(n, n), generator_plus(n, n), &
-                rotation(n, n), occupation_scale(n), rayleigh(n), rayleigh_minus(n), &
+                occupation_scale(n), rayleigh(n), rayleigh_minus(n), &
                 rayleigh_plus(n), gradient_imag(n, n), gradient_minus_imag(n, n), &
                 gradient_minus_real(n, n), gradient_plus_imag(n, n), &
                 gradient_plus_real(n, n), gradient_real(n, n))
 
-      CALL qs_ot_dense_rotation_state(rotation_generator, rotation)
-      base_hamiltonian(:, :) = MATMUL(rotation, MATMUL(chc, CONJG(TRANSPOSE(rotation))))
+      CALL qs_ot_prepare_rotation_work(rotation_work, n)
+      CALL gemm_ctx%create(LOCAL_GEMM_PU_HOST, timing=.FALSE.)
+      CALL qs_ot_rotation_state_local(rotation_generator, rotation_work, gemm_ctx)
+      CPASSERT(rotation_work%info == 0)
+      CALL gemm_ctx%gemm('N', 'C', n, n, n, (1.0_dp, 0.0_dp), chc, n, rotation_work%u, n, &
+                         (0.0_dp, 0.0_dp), rotation_work%work, n)
+      CALL gemm_ctx%gemm('N', 'N', n, n, n, (1.0_dp, 0.0_dp), rotation_work%u, n, rotation_work%work, n, &
+                         (0.0_dp, 0.0_dp), base_hamiltonian, n)
       occupation_scale(:) = 2.0_dp*kpoint_weight*occupation(:)
-      CALL qs_ot_dense_rotation_gradient(rotation_generator, base_hamiltonian, occupation_scale, &
-                                         gradient_real, gradient_imag, rayleigh)
+      CALL qs_ot_dense_rotation_gradient(base_hamiltonian, occupation_scale, &
+                                         gradient_real, gradient_imag, rayleigh, rotation_work, gemm_ctx)
 
       r = 0
       DO i = 1, n - 1
@@ -734,43 +763,36 @@ CONTAINS
       s = 0
       DO i = 1, n - 1
          DO j = i + 1, n
-            generator_plus(:, :) = rotation_generator(:, :)
-            generator_minus(:, :) = rotation_generator(:, :)
-            generator_plus(i, j) = generator_plus(i, j) + step
-            generator_plus(j, i) = generator_plus(j, i) - step
-            generator_minus(i, j) = generator_minus(i, j) - step
-            generator_minus(j, i) = generator_minus(j, i) + step
-            s = s + 1
-            CALL qs_ot_dense_rotation_gradient(generator_plus, base_hamiltonian, occupation_scale, &
-                                               gradient_plus_real, gradient_plus_imag, rayleigh_plus)
-            CALL qs_ot_dense_rotation_gradient(generator_minus, base_hamiltonian, occupation_scale, &
-                                               gradient_minus_real, gradient_minus_imag, rayleigh_minus)
-            CALL qs_ot_pack_rotation_response( &
-               gradient_plus_real, gradient_plus_imag, gradient_minus_real, gradient_minus_imag, &
-               rayleigh_plus, rayleigh_minus, step, rotation_hessian(:, s), &
-               rayleigh_response(:, s))
-
-            generator_plus(:, :) = rotation_generator(:, :)
-            generator_minus(:, :) = rotation_generator(:, :)
-            generator_plus(i, j) = generator_plus(i, j) + CMPLX(0.0_dp, step, KIND=dp)
-            generator_plus(j, i) = generator_plus(j, i) + CMPLX(0.0_dp, step, KIND=dp)
-            generator_minus(i, j) = generator_minus(i, j) - CMPLX(0.0_dp, step, KIND=dp)
-            generator_minus(j, i) = generator_minus(j, i) - CMPLX(0.0_dp, step, KIND=dp)
-            s = s + 1
-            CALL qs_ot_dense_rotation_gradient(generator_plus, base_hamiltonian, occupation_scale, &
-                                               gradient_plus_real, gradient_plus_imag, rayleigh_plus)
-            CALL qs_ot_dense_rotation_gradient(generator_minus, base_hamiltonian, occupation_scale, &
-                                               gradient_minus_real, gradient_minus_imag, rayleigh_minus)
-            CALL qs_ot_pack_rotation_response( &
-               gradient_plus_real, gradient_plus_imag, gradient_minus_real, gradient_minus_imag, &
-               rayleigh_plus, rayleigh_minus, step, rotation_hessian(:, s), &
-               rayleigh_response(:, s))
+            DO component = 1, 2
+               perturbation = CMPLX(step, 0.0_dp, KIND=dp)
+               IF (component == 2) perturbation = CMPLX(0.0_dp, step, KIND=dp)
+               generator_plus(:, :) = rotation_generator(:, :)
+               generator_minus(:, :) = rotation_generator(:, :)
+               generator_plus(i, j) = generator_plus(i, j) + perturbation
+               generator_plus(j, i) = generator_plus(j, i) - CONJG(perturbation)
+               generator_minus(i, j) = generator_minus(i, j) - perturbation
+               generator_minus(j, i) = generator_minus(j, i) + CONJG(perturbation)
+               s = s + 1
+               CALL qs_ot_rotation_state_local(generator_plus, rotation_work, gemm_ctx)
+               CPASSERT(rotation_work%info == 0)
+               CALL qs_ot_dense_rotation_gradient(base_hamiltonian, occupation_scale, &
+                                                  gradient_plus_real, gradient_plus_imag, rayleigh_plus, rotation_work, gemm_ctx)
+               CALL qs_ot_rotation_state_local(generator_minus, rotation_work, gemm_ctx)
+               CPASSERT(rotation_work%info == 0)
+               CALL qs_ot_dense_rotation_gradient(base_hamiltonian, occupation_scale, &
+                                                  gradient_minus_real, gradient_minus_imag, rayleigh_minus, rotation_work, gemm_ctx)
+               CALL qs_ot_pack_rotation_response( &
+                  gradient_plus_real, gradient_plus_imag, gradient_minus_real, gradient_minus_imag, &
+                  rayleigh_plus, rayleigh_minus, step, rotation_hessian(:, s), &
+                  rayleigh_response(:, s))
+            END DO
          END DO
       END DO
       CPASSERT(s == nrotation)
       rotation_hessian(:, :) = 0.5_dp*(rotation_hessian + TRANSPOSE(rotation_hessian))
 
-      DEALLOCATE (base_hamiltonian, generator_minus, generator_plus, rotation, occupation_scale, &
+      CALL gemm_ctx%destroy()
+      DEALLOCATE (base_hamiltonian, generator_minus, generator_plus, occupation_scale, &
                   rayleigh, rayleigh_minus, rayleigh_plus, gradient_imag, gradient_minus_imag, &
                   gradient_minus_real, gradient_plus_imag, gradient_plus_real, gradient_real)
 
@@ -824,95 +846,121 @@ CONTAINS
    END SUBROUTINE qs_ot_pack_rotation_response
 
 ! **************************************************************************************************
-!> \brief dense complex rotation and projected-Hamiltonian diagonal
-!> \param rotation_generator anti-Hermitian REF generator
+!> \brief Rotation gradient and projected-Hamiltonian diagonal from an already prepared rotation.
 !> \param base_hamiltonian fixed Hamiltonian in the unrotated REF basis
 !> \param occupation_scale twice the weighted occupations
 !> \param gradient_real real-antisymmetric gradient component
 !> \param gradient_imag imaginary-symmetric gradient component
 !> \param rayleigh diagonal of the rotated Hamiltonian
+!> \param w rotation state and private scratch
+!> \param gemm_ctx caller-owned GEMM context
 ! **************************************************************************************************
    SUBROUTINE qs_ot_dense_rotation_gradient( &
-      rotation_generator, base_hamiltonian, occupation_scale, gradient_real, gradient_imag, rayleigh)
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: rotation_generator, base_hamiltonian
+      base_hamiltonian, occupation_scale, gradient_real, gradient_imag, rayleigh, w, gemm_ctx)
+      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(IN)           :: base_hamiltonian(:, :)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: occupation_scale
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: gradient_real, gradient_imag
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: rayleigh
+      TYPE(qs_ot_rotation_work_type), INTENT(INOUT)      :: w
+      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm_ctx
 
-      COMPLEX(KIND=dp)                                   :: kernel
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: covector, eigenvectors, frechet, inner, &
-                                                            outer, rotation, work
       INTEGER                                            :: i, j, n
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
 
-      n = SIZE(rotation_generator, 1)
-      ALLOCATE (covector(n, n), eigenvectors(n, n), frechet(n, n), inner(n, n), &
-                outer(n, n), rotation(n, n), work(n, n), eigenvalues(n))
-      CALL qs_ot_dense_rotation_state(rotation_generator, rotation, &
-                                      eigenvectors=eigenvectors, eigenvalues=eigenvalues)
-
-      work(:, :) = MATMUL(base_hamiltonian, rotation)
-      covector(:, :) = work(:, :)
-      DO j = 1, n
-         covector(:, j) = occupation_scale(j)*covector(:, j)
-      END DO
-
-      work(:, :) = MATMUL(CONJG(TRANSPOSE(rotation)), &
-                          MATMUL(base_hamiltonian, rotation))
+      n = w%solver%n
+      CALL gemm_ctx%gemm('N', 'N', n, n, n, (1.0_dp, 0.0_dp), base_hamiltonian, n, w%u, n, &
+                         (0.0_dp, 0.0_dp), w%work, n)
+      CALL gemm_ctx%gemm('C', 'N', n, n, n, (1.0_dp, 0.0_dp), w%u, n, w%work, n, &
+                         (0.0_dp, 0.0_dp), w%inner, n)
       DO i = 1, n
-         rayleigh(i) = REAL(work(i, i), KIND=dp)
+         rayleigh(i) = REAL(w%inner(i, i), KIND=dp)
       END DO
 
-      inner(:, :) = MATMUL(CONJG(TRANSPOSE(eigenvectors)), &
-                           MATMUL(covector, eigenvectors))
+      ! Reuse H*U for the covector instead of multiplying a second time.
       DO j = 1, n
-         DO i = 1, n
-            kernel = CONJG(qs_ot_complex_exp_frechet_kernel(eigenvalues(i), eigenvalues(j)))
-            outer(i, j) = inner(i, j)*kernel
-         END DO
+         w%work(:, j) = occupation_scale(j)*w%work(:, j)
       END DO
-      frechet(:, :) = MATMUL(eigenvectors, &
-                             MATMUL(outer, CONJG(TRANSPOSE(eigenvectors))))
-      gradient_real(:, :) = REAL(frechet, KIND=dp) - TRANSPOSE(REAL(frechet, KIND=dp))
-      gradient_imag(:, :) = AIMAG(frechet) + TRANSPOSE(AIMAG(frechet))
-
-      DEALLOCATE (covector, eigenvectors, frechet, inner, outer, rotation, work, eigenvalues)
+      CALL qs_ot_rotation_pullback_local(w, gemm_ctx, gradient_real, gradient_imag)
 
    END SUBROUTINE qs_ot_dense_rotation_gradient
 
 ! **************************************************************************************************
-!> \brief dense exponential of an anti-Hermitian REF generator
-!> \param rotation_generator anti-Hermitian generator
-!> \param rotation exp(rotation_generator)
-!> \param eigenvectors optional eigenvectors of i*rotation_generator
-!> \param eigenvalues optional eigenvalues of i*rotation_generator
+!> \brief Pull back dE/dU through exp(A) and project onto anti-Hermitian generator coordinates.
+!> \param w prepared rotation spectrum; work contains dE/dU on entry and is overwritten
+!> \param gemm_ctx caller-owned GEMM context
+!> \param gradient_real real-antisymmetric gradient component
+!> \param gradient_imag imaginary-symmetric gradient component
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_dense_rotation_state(rotation_generator, rotation, eigenvectors, eigenvalues)
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: rotation_generator
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: rotation
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
-         OPTIONAL                                        :: eigenvectors
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT), OPTIONAL :: eigenvalues
+   SUBROUTINE qs_ot_rotation_pullback_local(w, gemm_ctx, gradient_real, gradient_imag)
+      TYPE(qs_ot_rotation_work_type), INTENT(INOUT)      :: w
+      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm_ctx
+      REAL(KIND=dp), INTENT(OUT)                         :: gradient_real(:, :), gradient_imag(:, :)
 
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: vectors, weighted_vectors
-      INTEGER                                            :: j, n
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: values
+      INTEGER                                            :: i, j, n
 
-      n = SIZE(rotation_generator, 1)
-      ALLOCATE (vectors(n, n), weighted_vectors(n, n), values(n))
-      CALL diag_complex(CMPLX(0.0_dp, 1.0_dp, KIND=dp)*rotation_generator, &
-                        vectors, values)
-      weighted_vectors(:, :) = vectors(:, :)
+      n = w%solver%n
+      CALL gemm_ctx%gemm('N', 'N', n, n, n, (1.0_dp, 0.0_dp), w%work, n, w%vectors, n, &
+                         (0.0_dp, 0.0_dp), w%inner, n)
+      CALL gemm_ctx%gemm('C', 'N', n, n, n, (1.0_dp, 0.0_dp), w%vectors, n, w%inner, n, &
+                         (0.0_dp, 0.0_dp), w%work, n)
       DO j = 1, n
-         weighted_vectors(:, j) = EXP(CMPLX(0.0_dp, -values(j), KIND=dp))* &
-                                  weighted_vectors(:, j)
+         DO i = 1, n
+            w%work(i, j) = w%work(i, j)* &
+                           CONJG(qs_ot_complex_exp_frechet_kernel(w%solver%evals(i), w%solver%evals(j)))
+         END DO
       END DO
-      rotation(:, :) = MATMUL(weighted_vectors, CONJG(TRANSPOSE(vectors)))
-      IF (PRESENT(eigenvectors)) eigenvectors(:, :) = vectors(:, :)
-      IF (PRESENT(eigenvalues)) eigenvalues(:) = values(:)
-      DEALLOCATE (vectors, weighted_vectors, values)
+      CALL gemm_ctx%gemm('N', 'C', n, n, n, (1.0_dp, 0.0_dp), w%work, n, w%vectors, n, &
+                         (0.0_dp, 0.0_dp), w%inner, n)
+      CALL gemm_ctx%gemm('N', 'N', n, n, n, (1.0_dp, 0.0_dp), w%vectors, n, w%inner, n, &
+                         (0.0_dp, 0.0_dp), w%work, n)
+      DO j = 1, n
+         DO i = 1, n
+            gradient_real(i, j) = REAL(w%work(i, j), KIND=dp) - REAL(w%work(j, i), KIND=dp)
+            gradient_imag(i, j) = AIMAG(w%work(i, j)) + AIMAG(w%work(j, i))
+         END DO
+      END DO
+   END SUBROUTINE qs_ot_rotation_pullback_local
 
-   END SUBROUTINE qs_ot_dense_rotation_state
+! **************************************************************************************************
+!> \brief Prepare private rotation arrays and LAPACK scratch once per matrix order.
+!> \param w caller-owned rotation workspace
+!> \param n rotation dimension
+! **************************************************************************************************
+   SUBROUTINE qs_ot_prepare_rotation_work(w, n)
+      TYPE(qs_ot_rotation_work_type), INTENT(INOUT)      :: w
+      INTEGER, INTENT(IN)                                :: n
+
+      CPASSERT(n > 0)
+      IF (ALLOCATED(w%vectors)) THEN
+         IF (SIZE(w%vectors, 1) == n) RETURN
+         DEALLOCATE (w%vectors, w%u, w%work, w%inner)
+      END IF
+      ALLOCATE (w%vectors(n, n), w%u(n, n), w%work(n, n), w%inner(n, n))
+      CALL cp_cfm_local_workspace_prepare(w%solver, n, w%vectors)
+   END SUBROUTINE qs_ot_prepare_rotation_work
+
+! **************************************************************************************************
+!> \brief Evaluate exp(A) and retain its spectrum without allocating or communicating.
+!> \param rotation_generator anti-Hermitian generator
+!> \param w prepared workspace; u receives exp(A), info reports LAPACK failure
+!> \param gemm_ctx caller-owned GEMM context
+! **************************************************************************************************
+   SUBROUTINE qs_ot_rotation_state_local(rotation_generator, w, gemm_ctx)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: rotation_generator
+      TYPE(qs_ot_rotation_work_type), INTENT(INOUT)      :: w
+      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm_ctx
+
+      INTEGER                                            :: j, n
+
+      n = w%solver%n
+      w%vectors(:, :) = CMPLX(0.0_dp, 1.0_dp, KIND=dp)*rotation_generator
+      CALL cp_cfm_heevd_local(w%vectors, info=w%info, ws=w%solver)
+      IF (w%info /= 0) RETURN
+      DO j = 1, n
+         w%work(:, j) = EXP(CMPLX(0.0_dp, -w%solver%evals(j), KIND=dp))*w%vectors(:, j)
+      END DO
+      CALL gemm_ctx%gemm('N', 'C', n, n, n, (1.0_dp, 0.0_dp), w%work, n, w%vectors, n, &
+                         (0.0_dp, 0.0_dp), w%u, n)
+   END SUBROUTINE qs_ot_rotation_state_local
 
 ! **************************************************************************************************
 !> \brief Frechet divided-difference kernel for exp(-i*evals)
