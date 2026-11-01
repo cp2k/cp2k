@@ -271,14 +271,15 @@ CONTAINS
 
       INTEGER                                            :: handle
       LOGICAL                                            :: do_evgw0
-      TYPE(section_vals_type), POINTER                   :: auto_ri_sec, evgw0_sec, grid_opt_sec, &
-                                                            gw_sec, ri_rs_sec
+      TYPE(section_vals_type), POINTER                   :: auto_ri_sec, cohsex_sec, evgw0_sec, &
+                                                            grid_opt_sec, gw_sec, ri_rs_sec
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (auto_ri_sec, evgw0_sec, grid_opt_sec, gw_sec, ri_rs_sec)
+      NULLIFY (auto_ri_sec, cohsex_sec, evgw0_sec, grid_opt_sec, gw_sec, ri_rs_sec)
       gw_sec => section_vals_get_subs_vals(bs_sec, "GW")
       auto_ri_sec => section_vals_get_subs_vals(gw_sec, "AUTO_RI")
+      cohsex_sec => section_vals_get_subs_vals(gw_sec, "COHSEX")
       evgw0_sec => section_vals_get_subs_vals(gw_sec, "EVGW0")
       ri_rs_sec => section_vals_get_subs_vals(gw_sec, "RI_RS")
       grid_opt_sec => section_vals_get_subs_vals(ri_rs_sec, "GRID_OPTIMIZATION")
@@ -294,8 +295,8 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "KPOINTS_W", i_vals=bs_env%nkp_grid_chi_eps_W_input)
       CALL section_vals_val_get(gw_sec, "HEDIN_SHIFT", l_val=bs_env%do_hedin_shift)
       CALL section_vals_val_get(gw_sec, "FREQ_MAX_FIT", r_val=bs_env%freq_max_fit)
-      CALL section_vals_val_get(gw_sec, "COHSEX_SCALE_OCC", r_val=bs_env%cohsex_scale_occ)
-      CALL section_vals_val_get(gw_sec, "COHSEX_SCALE_VIRT", r_val=bs_env%cohsex_scale_virt)
+      CALL section_vals_val_get(cohsex_sec, "SCALE_OCC", r_val=bs_env%cohsex_scale_occ)
+      CALL section_vals_val_get(cohsex_sec, "SCALE_VIRT", r_val=bs_env%cohsex_scale_virt)
       CALL read_rirs_input(bs_env%ri_rs, ri_rs_sec)
       CALL read_rirs_grid_opt(bs_env%ri_rs, grid_opt_sec)
       CALL read_evgw0_input(bs_env, evgw0_sec, do_evgw0)
@@ -579,9 +580,9 @@ CONTAINS
             ELSE
                WRITE (u, FMT="(T2,A,T71,A10)") "static COHSEX approximation (COHSEX)", "DIAGONAL"
             END IF
-            WRITE (u, FMT="(T2,A,T74,F8.6)") "static COHSEX scaling of Σ^c, occ-occ (COHSEX_SCALE_OCC):", &
+            WRITE (u, FMT="(T2,A,T74,F8.6)") "static COHSEX scaling of Σ^c, occ-occ (COHSEX%SCALE_OCC):", &
                bs_env%cohsex_scale_occ
-            WRITE (u, FMT="(T2,A,T74,F8.6)") "static COHSEX scaling of Σ^c, virt-virt (COHSEX_SCALE_VIRT):", &
+            WRITE (u, FMT="(T2,A,T74,F8.6)") "static COHSEX scaling of Σ^c, virt-virt (COHSEX%SCALE_VIRT):", &
                bs_env%cohsex_scale_virt
          END IF
          WRITE (u, '(A)') ' '
