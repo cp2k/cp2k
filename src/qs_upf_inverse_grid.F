@@ -90,7 +90,8 @@ CONTAINS
       frame%mode = grid%para%mode
       CPASSERT(frame%dvol > 0.0_dp .AND. ALL(frame%npts > 0))
       n = PRODUCT(MAX(0, frame%bounds_local(2, :) - frame%bounds_local(1, :) + 1))
-      CPASSERT(n == grid%ngpts_local)
+      ! Reciprocal blocks need not have the size of the local real-space rectangle.
+      CPASSERT(n == PRODUCT(MAX(0, grid%npts_local)))
       IF (frame%mode == PW_MODE_LOCAL) THEN
          CPASSERT(ALL(frame%bounds_local == frame%bounds))
          comm = mp_comm_self
