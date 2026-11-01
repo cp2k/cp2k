@@ -55,6 +55,7 @@ MODULE qs_kpoint_operators
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_lattice_fft,              ONLY: cell_to_k_grid_fft,&
+                                              lattice_fft_num_threads,&
                                               lattice_fft_shape,&
                                               regular_kpoint_grid
    USE kpoint_methods,                  ONLY: kp_transform_plan_create,&
@@ -704,8 +705,6 @@ CONTAINS
       TYPE(kpoint_operator_rs_batch_type), INTENT(OUT)   :: work
       INTEGER(KIND=int_8), INTENT(IN)                    :: max_bytes
 
-      INTEGER, PARAMETER                                 :: max_batch = 32
-
       COMPLEX(KIND=dp), ALLOCATABLE, TARGET              :: recvbuf(:), sendbuf(:)
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: values_k(:, :, :)
       INTEGER                                            :: batch, count, first, group, handle, i, &
@@ -746,12 +745,14 @@ CONTAINS
       tile_size = INT(route%nrow, int_8)*route%ncol
       nel = 0
       IF (tile_size <= HUGE(nel)) nel = INT(tile_size)
-      fixed_bytes = 16_int_8*tile_size*local_k + 32_int_8*PRODUCT(INT(nfft, int_8)) + &
+      fixed_bytes = 16_int_8*tile_size*local_k + &
+                    48_int_8*PRODUCT(INT(nfft, int_8))*lattice_fft_num_threads(nfft, nel) + &
                     4_int_8*PRODUCT(INT(kpoints%nkp_grid, int_8)) + 12_int_8*nkp + &
                     80_int_8*SIZE(route%entry, 2, KIND=int_8) + 24_int_8*ngroup
       per_entry = 16_int_8*SIZE(route%entry, 2, KIND=int_8) + &
                   16_int_8*(INT(nkp, int_8) + INT(ngroup, int_8)*local_k)
-      width = INT(MAX(0_int_8, MIN(INT(max_batch, int_8), (max_bytes - fixed_bytes)/MAX(1_int_8, per_entry))))
+      width = INT(MAX(0_int_8, MIN(INT((nel - 1)/ngroup + 1, int_8), &
+                                   (max_bytes - fixed_bytes)/MAX(1_int_8, per_entry))))
       choice = [MERGE(1, 0, nel > 0 .AND. ALL(layout_min == layout_max)), width]
       CALL world%min(choice)
       IF (choice(1) == 0 .OR. choice(2) == 0) RETURN

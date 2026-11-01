@@ -76,6 +76,7 @@ MODULE kpoint_methods
                                               k_grid_to_cell_prepare,&
                                               k_grid_to_cell_release,&
                                               k_grid_to_cell_work_type,&
+                                              lattice_fft_num_threads,&
                                               lattice_fft_shape,&
                                               regular_kpoint_grid
    USE kpoint_types,                    ONLY: &
@@ -1389,7 +1390,8 @@ CONTAINS
 
       ! Bound the requested output separately from the full-mesh FFT scratch/maps.
       storage_bytes = INT(nvalues, int_8)*(8_int_8*INT(ncell, int_8) + 16_int_8*INT(nkp, int_8)) + &
-                      32_int_8*PRODUCT(INT(nfft, int_8)) + 4_int_8*PRODUCT(INT(nkp_grid, int_8)) + &
+                      48_int_8*PRODUCT(INT(nfft, int_8))*lattice_fft_num_threads(nfft, nvalues) + &
+                      4_int_8*PRODUCT(INT(nkp_grid, int_8)) + &
                       12_int_8*nkp + 28_int_8*ncell
       IF (storage_bytes > memory_limit) THEN
          CALL rskp_transform_grid_release(grid)

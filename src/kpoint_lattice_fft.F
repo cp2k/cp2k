@@ -14,7 +14,11 @@
 !>        Unsupported grids retain the direct phase-sum fallback.
 ! **************************************************************************************************
 MODULE kpoint_lattice_fft
-   USE fft_lib,                         ONLY: fft_supports_arbitrary_lengths
+   USE fft_lib,                         ONLY: fft_3d,&
+                                              fft_create_plan_3d,&
+                                              fft_destroy_plan,&
+                                              fft_supports_arbitrary_lengths
+   USE fft_plan,                        ONLY: fft_plan_type
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_NEXT,&
                                               FWFFT,&
@@ -22,10 +26,13 @@ MODULE kpoint_lattice_fft
                                               fft_alloc,&
                                               fft_dealloc,&
                                               fft_radix_operations
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE mathconstants,                   ONLY: gaussi,&
                                               twopi,&
                                               z_zero
+
+!$ USE omp_lib, ONLY: omp_get_max_threads, omp_get_thread_num, omp_set_num_threads
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -38,7 +45,7 @@ MODULE kpoint_lattice_fft
              k_grid_to_cell_fft, &
              k_grid_to_cell_prepare, k_grid_to_cell_execute, k_grid_to_cell_release, &
              k_grid_to_cell_work_type, &
-             lattice_fft_shape, &
+             lattice_fft_num_threads, lattice_fft_shape, &
              regular_kpoint_grid
 
    ! Call-scoped mathematical maps and buffers. Backend plans remain owned by fft_tools.
@@ -155,6 +162,23 @@ CONTAINS
    END FUNCTION lattice_fft_shape
 
 ! **************************************************************************************************
+!> \brief Bound concurrent forward transforms to 64 MiB of scratch, or one grid if larger.
+!> \param nfft FFT grid dimensions
+!> \param nentries number of independent AO entries
+!> \return number of OpenMP workers
+! **************************************************************************************************
+   INTEGER FUNCTION lattice_fft_num_threads(nfft, nentries) RESULT(nthreads)
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: nfft
+      INTEGER, INTENT(IN)                                :: nentries
+
+      ! Two complex grids per worker plus an optional backend transpose buffer.
+      nthreads = 1
+!$    nthreads = omp_get_max_threads()
+      nthreads = INT(MIN(INT(nthreads, int_8), INT(MAX(1, nentries), int_8), &
+                         MAX(1_int_8, 64_int_8*1024_int_8**2/(48_int_8*PRODUCT(INT(nfft, int_8))))))
+   END FUNCTION lattice_fft_num_threads
+
+! **************************************************************************************************
 !> \brief Transform real matrices to a regular reciprocal grid or any subset of that grid.
 !> \param values_rs real-space matrices; the last dimension enumerates image cells
 !> \param index_to_cell integer lattice vector for every image cell
@@ -180,16 +204,24 @@ CONTAINS
          OPTIONAL                                        :: hmat
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: selected_kpoints
 
+      TYPE fft_work_type
+         COMPLEX(KIND=dp), CONTIGUOUS, POINTER :: zin(:, :, :), zout(:, :, :)
+      END TYPE fft_work_type
+
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cell_factor
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: fft_in, fft_out
-      INTEGER                                            :: d, handle, i, icell, ik, ik_out, j, &
-                                                            nout, stat
+      INTEGER                                            :: d, handle, i, icell, ik, ik_out, &
+                                                            ithread, j, local_stat, nout, &
+                                                            nthreads, stat
+
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cell_index, grid_index
       INTEGER, DIMENSION(3)                              :: n, nfft
       LOGICAL                                            :: regular
       REAL(KIND=dp)                                      :: arg
       REAL(KIND=dp), DIMENSION(3)                        :: cell_vector, k_offset
+      TYPE(fft_plan_type)                                :: plan
+      TYPE(fft_work_type), ALLOCATABLE                    :: work(:)
 
       CALL timeset("cell_to_k_grid_fft", handle)
 
@@ -231,9 +263,12 @@ CONTAINS
          RETURN
       END IF
 
-      NULLIFY (fft_in, fft_out)
-      CALL fft_alloc(fft_in, nfft)
-      CALL fft_alloc(fft_out, nfft)
+      nthreads = lattice_fft_num_threads(nfft, SIZE(values_rs, 1)*SIZE(values_rs, 2))
+      ALLOCATE (work(nthreads))
+      DO ithread = 1, nthreads
+         CALL fft_alloc(work(ithread)%zin, nfft)
+         CALL fft_alloc(work(ithread)%zout, nfft)
+      END DO
       ALLOCATE (cell_index(3, SIZE(values_rs, 3)), cell_factor(SIZE(values_rs, 3)))
       DO icell = 1, SIZE(values_rs, 3)
          DO d = 1, 3
@@ -248,6 +283,19 @@ CONTAINS
       END DO
 
       stat = 0
+!$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(nthreads) &
+!$OMP SHARED(work,plan,nfft,values_rs,values_k,cell_index,cell_factor,grid_index,nout,selected_kpoints) &
+!$OMP PRIVATE(ithread,fft_in,fft_out,i,j,icell,ik,ik_out,local_stat) REDUCTION(MAX:stat)
+      ! Each worker executes a serial FFT; this ICV change is scoped to its implicit task.
+!$    CALL omp_set_num_threads(1)
+!$OMP SINGLE
+      CALL fft_create_plan_3d(plan, .FALSE., BWFFT, nfft, work(1)%zin, work(1)%zout)
+!$OMP END SINGLE
+      ithread = 1
+!$    ithread = omp_get_thread_num() + 1
+      fft_in => work(ithread)%zin
+      fft_out => work(ithread)%zout
+!$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
       DO j = 1, SIZE(values_rs, 2)
          DO i = 1, SIZE(values_rs, 1)
             fft_in = z_zero
@@ -256,8 +304,9 @@ CONTAINS
                   fft_in(cell_index(1, icell), cell_index(2, icell), cell_index(3, icell)) + &
                   cell_factor(icell)*values_rs(i, j, icell)
             END DO
-            CALL fft3d(BWFFT, nfft, fft_in, fft_out, status=stat)
-            IF (stat /= 0) EXIT
+            CALL fft_3d(plan, 1.0_dp, fft_in, fft_out, local_stat)
+            stat = MAX(stat, local_stat)
+            IF (local_stat /= 0) CYCLE
             DO ik_out = 1, nout
                ik = ik_out
                IF (PRESENT(selected_kpoints)) ik = selected_kpoints(ik_out)
@@ -265,8 +314,10 @@ CONTAINS
                   fft_out(grid_index(1, ik), grid_index(2, ik), grid_index(3, ik))
             END DO
          END DO
-         IF (stat /= 0) EXIT
       END DO
+!$OMP END DO
+!$OMP END PARALLEL
+      CALL fft_destroy_plan(plan)
 
       IF (stat /= 0) THEN
          CALL direct_cell_to_k(values_rs, index_to_cell, xkp, values_k, deriv_direction, hmat, &
@@ -275,9 +326,11 @@ CONTAINS
       END IF
       IF (PRESENT(used_fft)) used_fft = regular
 
-      CALL fft_dealloc(fft_in)
-      CALL fft_dealloc(fft_out)
-      DEALLOCATE (cell_factor, cell_index, grid_index)
+      DO ithread = 1, nthreads
+         CALL fft_dealloc(work(ithread)%zin)
+         CALL fft_dealloc(work(ithread)%zout)
+      END DO
+      DEALLOCATE (work, cell_factor, cell_index, grid_index)
       CALL timestop(handle)
 
    END SUBROUTINE cell_to_k_grid_fft
