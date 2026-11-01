@@ -1198,19 +1198,22 @@ CONTAINS
       energy_only = local_ot_env(1)%energy_only
 
       ! Borrow cached overlaps and physical MO storage; no matrix ownership changes in workers.
-      ALLOCATE (local_s(2, nlocal_channels), local_c(nlocal_channels))
-      DO local_kpoint = 1, SIZE(kpoints%kp_env)
-         kp => kpoints%kp_env(local_kpoint)%kpoint_env
-         CPASSERT(ASSOCIATED(kp%ot_smat))
-         CPASSERT(SIZE(kp%ot_smat) >= 2)
-         DO ispin = 1, nspin_ot
-            local_channel = qs_ot_channel_index(ispin, kp%nkpoint, nspin_ot) - first_channel + 1
-            local_s(1, local_channel)%matrix => kp%ot_smat(1)
-            local_s(2, local_channel)%matrix => kp%ot_smat(2)
-            local_c(local_channel)%matrix => kp%mos(ispin)%cmo_coeff
+      local_orbitals = kpoints%para_env_kp%num_pe == 1
+      IF (local_orbitals) THEN
+         ALLOCATE (local_s(2, nlocal_channels), local_c(nlocal_channels))
+         DO local_kpoint = 1, SIZE(kpoints%kp_env)
+            kp => kpoints%kp_env(local_kpoint)%kpoint_env
+            CPASSERT(ASSOCIATED(kp%ot_smat))
+            CPASSERT(SIZE(kp%ot_smat) >= 2)
+            DO ispin = 1, nspin_ot
+               local_channel = qs_ot_channel_index(ispin, kp%nkpoint, nspin_ot) - first_channel + 1
+               local_s(1, local_channel)%matrix => kp%ot_smat(1)
+               local_s(2, local_channel)%matrix => kp%ot_smat(2)
+               local_c(local_channel)%matrix => kp%mos(ispin)%cmo_coeff
+            END DO
          END DO
-      END DO
-      CALL qs_ot_get_orbitals_local_batch(local_ot_env, local_s, local_c, local_orbitals)
+         CALL qs_ot_get_orbitals_local_batch(local_ot_env, local_s, local_c)
+      END IF
 
       DO local_kpoint = 1, SIZE(kpoints%kp_env)
          kp => kpoints%kp_env(local_kpoint)%kpoint_env

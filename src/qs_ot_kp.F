@@ -78,8 +78,6 @@ MODULE qs_ot_kp
    PUBLIC :: qs_ot_finite_rotation_response
    PUBLIC :: qs_ot_projected_response_update
    PUBLIC :: qs_ot_symmetric_abs_solve
-   PUBLIC :: qs_ot_generate_rotation_complex
-   PUBLIC :: qs_ot_rot_mat_derivative_complex
    PUBLIC :: qs_ot_project_gradient
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_kp'
@@ -1263,21 +1261,18 @@ CONTAINS
 !> \param matrix_hc ...
 !> \param matrix_hc_im ...
 !> \param qs_ot_env ...
-!> \param matrix_hc_rotation occupation-weighted H(k)C(k) for the rotation channel
-!> \param matrix_hc_rotation_im imaginary component of matrix_hc_rotation
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_get_derivative_ref_complex(matrix_hc, matrix_hc_im, qs_ot_env, &
-                                               matrix_hc_rotation, matrix_hc_rotation_im)
+   SUBROUTINE qs_ot_get_derivative_ref_complex(matrix_hc, matrix_hc_im, qs_ot_env)
       TYPE(dbcsr_type), POINTER                          :: matrix_hc, matrix_hc_im
       TYPE(qs_ot_type)                                   :: qs_ot_env
-      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_hc_rotation, matrix_hc_rotation_im
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_derivative_ref_complex'
 
       INTEGER                                            :: handle, k, n
       TYPE(dbcsr_type)                                   :: tmp_nk
-      TYPE(dbcsr_type), POINTER :: b_im, b_re, f_im, f_re, g_im, g_re, hc_im, hc_re, &
-         hc_rotation_im, hc_rotation_re, hc_work_im, hc_work_re, q_im, q_re, sc_im, sc_re, tmp_kk
+      TYPE(dbcsr_type), POINTER                          :: b_im, b_re, f_im, f_re, g_im, g_re, &
+                                                            hc_im, hc_re, hc_work_im, hc_work_re, &
+                                                            q_im, q_re, sc_im, sc_re, tmp_kk
       TYPE(dbcsr_type), TARGET                           :: hc_rot_im, hc_rot_re
 
       CALL timeset(routineN, handle)
@@ -1292,15 +1287,6 @@ CONTAINS
       sc_im => qs_ot_env%matrix_sx_im
       hc_re => matrix_hc
       hc_im => matrix_hc_im
-      hc_rotation_re => hc_re
-      hc_rotation_im => hc_im
-      IF (PRESENT(matrix_hc_rotation) .OR. PRESENT(matrix_hc_rotation_im)) THEN
-         CPASSERT(PRESENT(matrix_hc_rotation) .AND. PRESENT(matrix_hc_rotation_im))
-         CPASSERT(ASSOCIATED(matrix_hc_rotation))
-         CPASSERT(ASSOCIATED(matrix_hc_rotation_im))
-         hc_rotation_re => matrix_hc_rotation
-         hc_rotation_im => matrix_hc_rotation_im
-      END IF
       hc_work_re => hc_re
       hc_work_im => hc_im
       g_re => qs_ot_env%matrix_gx
@@ -1321,15 +1307,15 @@ CONTAINS
          CALL qs_ot_generate_rotation_complex(qs_ot_env)
 
          ! dF/dU = Q^H*G_C for C=Q*U.
-         CALL dbcsr_multiply('T', 'N', 1.0_dp, q_re, hc_rotation_re, &
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, q_re, hc_re, &
                              0.0_dp, qs_ot_env%rot_mat_dedu)
-         CALL dbcsr_multiply('T', 'N', 1.0_dp, q_im, hc_rotation_im, 0.0_dp, tmp_kk)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, q_im, hc_im, 0.0_dp, tmp_kk)
          CALL dbcsr_add(qs_ot_env%rot_mat_dedu, tmp_kk, &
                         alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
 
-         CALL dbcsr_multiply('T', 'N', 1.0_dp, q_re, hc_rotation_im, &
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, q_re, hc_im, &
                              0.0_dp, qs_ot_env%rot_mat_dedu_im)
-         CALL dbcsr_multiply('T', 'N', 1.0_dp, q_im, hc_rotation_re, 0.0_dp, tmp_kk)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, q_im, hc_re, 0.0_dp, tmp_kk)
          CALL dbcsr_add(qs_ot_env%rot_mat_dedu_im, tmp_kk, &
                         alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
          CALL qs_ot_rot_mat_derivative_complex(qs_ot_env)
@@ -2094,22 +2080,17 @@ CONTAINS
 !> \param matrix_hc real part of H(k)*C(k)
 !> \param matrix_hc_im imaginary part of H(k)*C(k)
 !> \param qs_ot_env OT channel state
-!> \param matrix_hc_rotation occupation-weighted H(k)C(k) for the rotation channel
-!> \param matrix_hc_rotation_im imaginary component of matrix_hc_rotation
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_get_derivative_complex(matrix_hc, matrix_hc_im, qs_ot_env, &
-                                           matrix_hc_rotation, matrix_hc_rotation_im)
+   SUBROUTINE qs_ot_get_derivative_complex(matrix_hc, matrix_hc_im, qs_ot_env)
       TYPE(dbcsr_type), POINTER                          :: matrix_hc, matrix_hc_im
       TYPE(qs_ot_type)                                   :: qs_ot_env
-      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_hc_rotation, matrix_hc_rotation_im
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_derivative_complex'
 
       INTEGER                                            :: handle
       TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_type)                                   :: tmp_nk
-      TYPE(dbcsr_type), POINTER                          :: hc_rotation_im, hc_rotation_re, &
-                                                            hc_work_im, hc_work_re
+      TYPE(dbcsr_type), POINTER                          :: hc_work_im, hc_work_re
       TYPE(dbcsr_type), TARGET                           :: hc_rot_im, hc_rot_re
 
       CALL timeset(routineN, handle)
@@ -2117,15 +2098,6 @@ CONTAINS
       CPASSERT(qs_ot_env%has_complex_kpoint_state)
       CPASSERT(qs_ot_env%settings%ot_algorithm == 'TOD')
 
-      hc_rotation_re => matrix_hc
-      hc_rotation_im => matrix_hc_im
-      IF (PRESENT(matrix_hc_rotation) .OR. PRESENT(matrix_hc_rotation_im)) THEN
-         CPASSERT(PRESENT(matrix_hc_rotation) .AND. PRESENT(matrix_hc_rotation_im))
-         CPASSERT(ASSOCIATED(matrix_hc_rotation))
-         CPASSERT(ASSOCIATED(matrix_hc_rotation_im))
-         hc_rotation_re => matrix_hc_rotation
-         hc_rotation_im => matrix_hc_rotation_im
-      END IF
       hc_work_re => matrix_hc
       hc_work_im => matrix_hc_im
 
@@ -2149,7 +2121,7 @@ CONTAINS
          ! dF/dU = Q(X)^H*G_C for C=Q(X)*U.
          CALL qs_ot_complex_multiply('C', 'N', &
                                      qs_ot_env%matrix_buf_nk, qs_ot_env%matrix_buf_nk_im, &
-                                     hc_rotation_re, hc_rotation_im, &
+                                     matrix_hc, matrix_hc_im, &
                                      qs_ot_env%rot_mat_dedu, qs_ot_env%rot_mat_dedu_im, &
                                      qs_ot_env%matrix_buf1)
          CALL qs_ot_rot_mat_derivative_complex(qs_ot_env)
@@ -2261,14 +2233,12 @@ CONTAINS
 !> \param qs_ot_env local OT channels
 !> \param matrix_s pointers to cached real/imaginary overlaps, indexed by component and channel
 !> \param matrix_c pointers to physical orbitals; only their active columns are updated
-!> \param handled false when the distributed path is required
 !> \param initialize build C0/SC0 from physical orbitals without modifying the physical state
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_get_orbitals_local_batch(qs_ot_env, matrix_s, matrix_c, handled, initialize)
+   SUBROUTINE qs_ot_get_orbitals_local_batch(qs_ot_env, matrix_s, matrix_c, initialize)
       TYPE(qs_ot_type), INTENT(INOUT)                    :: qs_ot_env(:)
       TYPE(cp_fm_p_type), INTENT(IN)                     :: matrix_s(:, :)
       TYPE(cp_cfm_p_type), INTENT(IN)                    :: matrix_c(:)
-      LOGICAL, INTENT(OUT)                               :: handled
       LOGICAL, INTENT(IN), OPTIONAL                      :: initialize
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ot_get_orbitals_local_batch'
@@ -2280,8 +2250,7 @@ CONTAINS
 
       initial = .FALSE.
       IF (PRESENT(initialize)) initial = initialize
-      handled = .FALSE.
-      IF (.NOT. qs_ot_local_channels(qs_ot_env)) RETURN
+      CPASSERT(qs_ot_local_channels(qs_ot_env))
       ref = qs_ot_env(1)%settings%ot_algorithm == 'REF'
       update = .FALSE.
       IF (ref) update = qs_ot_ref_update(qs_ot_env(1))
@@ -2369,7 +2338,6 @@ CONTAINS
       DO j = 1, nworkers
          CALL work(j)%gemm_ctx%destroy()
       END DO
-      handled = .TRUE.
       CALL timestop(handle)
    END SUBROUTINE qs_ot_get_orbitals_local_batch
 
@@ -2540,15 +2508,13 @@ CONTAINS
 !> \param qs_ot_env local OT channels
 !> \param matrix_hc real orbital gradients
 !> \param matrix_hc_im imaginary orbital gradients
-!> \param handled false when the distributed path is required
 !> \param matrix_hc_physical optional physical gradients for occupation preconditioning
 !> \param matrix_hc_physical_im imaginary physical gradients
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_get_derivative_local_batch(qs_ot_env, matrix_hc, matrix_hc_im, handled, &
+   SUBROUTINE qs_ot_get_derivative_local_batch(qs_ot_env, matrix_hc, matrix_hc_im, &
                                                matrix_hc_physical, matrix_hc_physical_im)
       TYPE(qs_ot_type), INTENT(INOUT)                    :: qs_ot_env(:)
       TYPE(dbcsr_p_type), INTENT(IN)                     :: matrix_hc(:), matrix_hc_im(:)
-      LOGICAL, INTENT(OUT)                               :: handled
       TYPE(dbcsr_p_type), INTENT(IN), OPTIONAL           :: matrix_hc_physical(:), &
                                                             matrix_hc_physical_im(:)
 
@@ -2559,8 +2525,7 @@ CONTAINS
       LOGICAL                                            :: ref
       TYPE(qs_ot_local_work_type), ALLOCATABLE           :: work(:)
 
-      handled = .FALSE.
-      IF (.NOT. qs_ot_local_channels(qs_ot_env)) RETURN
+      CPASSERT(qs_ot_local_channels(qs_ot_env))
       ref = qs_ot_env(1)%settings%ot_algorithm == 'REF'
       npasses = 1
       IF (PRESENT(matrix_hc_physical)) THEN
@@ -2654,7 +2619,6 @@ CONTAINS
       DO j = 1, nworkers
          CALL work(j)%gemm_ctx%destroy()
       END DO
-      handled = .TRUE.
       CALL timestop(handle)
    END SUBROUTINE qs_ot_get_derivative_local_batch
 

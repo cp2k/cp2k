@@ -154,10 +154,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_mini'
 
-      INTEGER                                            :: handle, ispin, nspin
-      LOGICAL :: do_ener, do_ks, evaluate_gradient_only, local_gradient, restart, reuse_gradient, &
-         separate_occupation_gradient
+      INTEGER                                            :: handle, ispin, npasses, nspin, pass
+      LOGICAL                                            :: do_ener, do_ks, evaluate_gradient_only, &
+                                                            local_gradient, restart, reuse_gradient
       REAL(KIND=dp)                                      :: tmp
+      TYPE(dbcsr_type), POINTER                          :: hc_im, hc_re
 
       CALL timeset(routineN, handle)
 
@@ -184,10 +185,11 @@ CONTAINS
          reuse_gradient = .FALSE.
       END IF
 
-      separate_occupation_gradient = PRESENT(matrix_hc_physical)
-      IF (separate_occupation_gradient) THEN
+      npasses = 1
+      IF (PRESENT(matrix_hc_physical)) THEN
          CPASSERT(qs_ot_env(1)%settings%occupation_preconditioner)
          CPASSERT(SIZE(matrix_hc_physical) == nspin)
+         npasses = 2
       END IF
 
       qs_ot_env(1)%OT_METHOD_FULL = ""
@@ -196,96 +198,61 @@ CONTAINS
       IF (.NOT. reuse_gradient .AND. .NOT. qs_ot_env(1)%energy_only) THEN
          qs_ot_env(1)%gradient = 0.0_dp
          local_gradient = .FALSE.
-         IF (do_ks .AND. PRESENT(matrix_hc_im)) THEN
-            CALL qs_ot_get_derivative_local_batch(qs_ot_env, matrix_hc, matrix_hc_im, local_gradient, &
-                                                  matrix_hc_physical, matrix_hc_physical_im)
+         IF (do_ks .AND. qs_ot_env(1)%has_complex_kpoint_state) THEN
+            IF (.NOT. PRESENT(matrix_hc_im)) THEN
+               CPABORT("Complex k-point OT derivative requires imaginary H(k)*C(k).")
+            END IF
+            local_gradient = qs_ot_env(1)%para_env%num_pe == 1
+            IF (local_gradient) THEN
+               CALL qs_ot_get_derivative_local_batch(qs_ot_env, matrix_hc, matrix_hc_im, &
+                                                     matrix_hc_physical, matrix_hc_physical_im)
+            END IF
          END IF
          DO ispin = 1, nspin
             IF (do_ks .AND. .NOT. local_gradient) THEN
-               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                  IF (.NOT. PRESENT(matrix_hc_im)) THEN
-                     CPABORT("Complex k-point OT derivative requires imaginary H(k)*C(k).")
-                  END IF
-                  SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
-                  CASE ("TOD")
-                     IF (separate_occupation_gradient) THEN
+               DO pass = 1, npasses
+                  hc_re => matrix_hc(ispin)%matrix
+                  IF (pass == 2) hc_re => matrix_hc_physical(ispin)%matrix
+                  IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                     CPASSERT(PRESENT(matrix_hc_im))
+                     hc_im => matrix_hc_im(ispin)%matrix
+                     IF (pass == 2) THEN
                         CPASSERT(PRESENT(matrix_hc_physical_im))
-                        CALL qs_ot_get_derivative_complex(matrix_hc(ispin)%matrix, &
-                                                          matrix_hc_im(ispin)%matrix, &
-                                                          qs_ot_env(ispin), &
-                                                          matrix_hc_physical(ispin)%matrix, &
-                                                          matrix_hc_physical_im(ispin)%matrix)
-                        CPASSERT(ASSOCIATED(qs_ot_env(ispin)%matrix_preconditioned_gx))
-                        CPASSERT(ASSOCIATED(qs_ot_env(ispin)%matrix_preconditioned_gx_im))
-                        CALL dbcsr_copy(qs_ot_env(ispin)%matrix_preconditioned_gx, &
-                                        qs_ot_env(ispin)%matrix_gx)
-                        CALL dbcsr_copy(qs_ot_env(ispin)%matrix_preconditioned_gx_im, &
-                                        qs_ot_env(ispin)%matrix_gx_im)
-                        CALL qs_ot_get_derivative_complex(matrix_hc_physical(ispin)%matrix, &
-                                                          matrix_hc_physical_im(ispin)%matrix, &
-                                                          qs_ot_env(ispin))
-                     ELSE
-                        CALL qs_ot_get_derivative_complex(matrix_hc(ispin)%matrix, &
-                                                          matrix_hc_im(ispin)%matrix, &
-                                                          qs_ot_env(ispin))
+                        hc_im => matrix_hc_physical_im(ispin)%matrix
                      END IF
-                  CASE ("REF")
-                     IF (separate_occupation_gradient) THEN
-                        CPASSERT(PRESENT(matrix_hc_physical_im))
-                        CALL qs_ot_get_derivative_ref_complex(matrix_hc(ispin)%matrix, &
-                                                              matrix_hc_im(ispin)%matrix, &
-                                                              qs_ot_env(ispin), &
-                                                              matrix_hc_physical(ispin)%matrix, &
-                                                              matrix_hc_physical_im(ispin)%matrix)
-                        CPASSERT(ASSOCIATED(qs_ot_env(ispin)%matrix_preconditioned_gx))
-                        CPASSERT(ASSOCIATED(qs_ot_env(ispin)%matrix_preconditioned_gx_im))
-                        CALL dbcsr_copy(qs_ot_env(ispin)%matrix_preconditioned_gx, &
-                                        qs_ot_env(ispin)%matrix_gx)
-                        CALL dbcsr_copy(qs_ot_env(ispin)%matrix_preconditioned_gx_im, &
-                                        qs_ot_env(ispin)%matrix_gx_im)
-                        CALL qs_ot_get_derivative_ref_complex(matrix_hc_physical(ispin)%matrix, &
-                                                              matrix_hc_physical_im(ispin)%matrix, &
-                                                              qs_ot_env(ispin))
-                     ELSE
-                        CALL qs_ot_get_derivative_ref_complex(matrix_hc(ispin)%matrix, &
-                                                              matrix_hc_im(ispin)%matrix, &
-                                                              qs_ot_env(ispin))
-                     END IF
-                  CASE DEFAULT
-                     CPABORT("Complex k-point OT derivative requires ALGORITHM STRICT or IRAC")
-                  END SELECT
-               ELSE
-                  SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
-                  CASE ("TOD")
-                     CALL qs_ot_get_derivative(matrix_hc(ispin)%matrix, qs_ot_env(ispin)%matrix_x, &
-                                               qs_ot_env(ispin)%matrix_sx, &
-                                               qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin))
-                     IF (separate_occupation_gradient) THEN
-                        CPASSERT(ASSOCIATED(qs_ot_env(ispin)%matrix_preconditioned_gx))
-                        CALL dbcsr_copy(qs_ot_env(ispin)%matrix_preconditioned_gx, &
-                                        qs_ot_env(ispin)%matrix_gx)
-                        CALL qs_ot_get_derivative(matrix_hc_physical(ispin)%matrix, &
-                                                  qs_ot_env(ispin)%matrix_x, &
+                     SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
+                     CASE ("TOD")
+                        CALL qs_ot_get_derivative_complex(hc_re, hc_im, qs_ot_env(ispin))
+                     CASE ("REF")
+                        CALL qs_ot_get_derivative_ref_complex(hc_re, hc_im, qs_ot_env(ispin))
+                     CASE DEFAULT
+                        CPABORT("Complex k-point OT derivative requires ALGORITHM STRICT or IRAC")
+                     END SELECT
+                  ELSE
+                     SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
+                     CASE ("TOD")
+                        CALL qs_ot_get_derivative(hc_re, qs_ot_env(ispin)%matrix_x, &
                                                   qs_ot_env(ispin)%matrix_sx, &
                                                   qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin))
-                     END IF
-                  CASE ("REF")
-                     CALL qs_ot_get_derivative_ref(matrix_hc(ispin)%matrix, &
-                                                   qs_ot_env(ispin)%matrix_x, qs_ot_env(ispin)%matrix_sx, &
-                                                   qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin))
-                     IF (separate_occupation_gradient) THEN
-                        CPASSERT(ASSOCIATED(qs_ot_env(ispin)%matrix_preconditioned_gx))
-                        CALL dbcsr_copy(qs_ot_env(ispin)%matrix_preconditioned_gx, &
-                                        qs_ot_env(ispin)%matrix_gx)
-                        CALL qs_ot_get_derivative_ref(matrix_hc_physical(ispin)%matrix, &
-                                                      qs_ot_env(ispin)%matrix_x, &
-                                                      qs_ot_env(ispin)%matrix_sx, &
+                     CASE ("REF")
+                        CALL qs_ot_get_derivative_ref(hc_re, &
+                                                      qs_ot_env(ispin)%matrix_x, qs_ot_env(ispin)%matrix_sx, &
                                                       qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin))
+                     CASE DEFAULT
+                        CPABORT("ALGORITHM NYI")
+                     END SELECT
+                  END IF
+                  IF (pass < npasses) THEN
+                     ! Save the search gradient; the final pass supplies physical X/rotation gradients.
+                     CPASSERT(ASSOCIATED(qs_ot_env(ispin)%matrix_preconditioned_gx))
+                     CALL dbcsr_copy(qs_ot_env(ispin)%matrix_preconditioned_gx, qs_ot_env(ispin)%matrix_gx)
+                     IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                        CPASSERT(ASSOCIATED(qs_ot_env(ispin)%matrix_preconditioned_gx_im))
+                        CALL dbcsr_copy(qs_ot_env(ispin)%matrix_preconditioned_gx_im, &
+                                        qs_ot_env(ispin)%matrix_gx_im)
                      END IF
-                  CASE DEFAULT
-                     CPABORT("ALGORITHM NYI")
-                  END SELECT
-               END IF
+                  END IF
+               END DO
             END IF
             ! and also the gradient along the direction
             IF (qs_ot_env(1)%use_dx) THEN
