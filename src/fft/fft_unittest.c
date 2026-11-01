@@ -41,13 +41,17 @@ int run_unittests(const bool debug, const int backend, const int planning_mode,
 int main(int argc, char *argv[]) {
   cp_mpi_init(&argc, &argv);
 
-  offload_set_chosen_device(0);
+  const int my_rank = cp_mpi_comm_rank(cp_mpi_get_comm_world());
+  const int device_count = offload_get_device_count();
+  if (device_count > 0) {
+    offload_set_chosen_device(my_rank % device_count);
+  }
 
   const bool debug = false;
   const double threshold = 1e-4;
   const int backend = fft_lib_default_library();
 
-  if (cp_mpi_comm_rank(cp_mpi_get_comm_world()) == 0) {
+  if (my_rank == 0) {
     printf("Number of MPI ranks: %i\n",
            cp_mpi_comm_size(cp_mpi_get_comm_world()));
     int number_of_threads = 1;
