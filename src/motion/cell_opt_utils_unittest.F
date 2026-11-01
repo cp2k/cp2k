@@ -9,14 +9,17 @@ PROGRAM cell_opt_utils_TEST
    USE cell_manifold_utils,             ONLY: &
         cell_manifold_active_jacobian, cell_manifold_chart_eval, cell_manifold_chart_inv, &
         cell_manifold_chart_pullback_grad, cell_manifold_geometry, cell_manifold_init, &
-        cell_manifold_jacobian, cell_manifold_pack_hmat, cell_manifold_proj_pressure, &
-        cell_manifold_residual, cell_manifold_status_label, cell_manifold_type, &
-        cell_manifold_unpack_hmat, comp_ax, comp_bx, comp_cx, comp_cy, geom_a, geom_alpha, geom_b, &
-        geom_beta, geom_c, geom_gamma, gfix_a, gfix_b, gfix_c, gfix_v, info_bad_input, &
-        info_degenerate, info_licq, info_no_converge, info_ok, mask_a, mask_x, n_geom, n_slot, &
-        slot_ax, slot_bx, slot_by, slot_cx, slot_cy
+        cell_manifold_is_redundant, cell_manifold_jacobian, cell_manifold_pack_hmat, &
+        cell_manifold_pin_semidefinite, cell_manifold_proj_pressure, cell_manifold_residual, &
+        cell_manifold_status_label, cell_manifold_type, cell_manifold_unpack_hmat, comp_ax, &
+        comp_bx, comp_by, comp_cx, comp_cy, comp_cz, geom_a, geom_alpha, geom_b, geom_beta, &
+        geom_c, geom_gamma, gfix_a, gfix_b, gfix_c, gfix_v, info_bad_input, info_degenerate, &
+        info_licq, info_no_converge, info_ok, mask_a, mask_x, n_geom, n_slot, slot_ax, slot_bx, &
+        slot_by, slot_cx, slot_cy
    USE cell_methods,                    ONLY: cell_create,&
                                               init_cell
+   USE cell_opt_types,                  ONLY: cell_opt_env_type,&
+                                              cell_opt_setup_manifold
    USE cell_opt_utils,                  ONLY: &
         cell_opt_constraint_label, get_dg_dh, gfix_alpha, gfix_beta, gfix_gamma, mask_all, &
         parse_cell_constraint, parse_token, spgr_point_group_symmetry_id, symmetry_constraint_rows
@@ -59,6 +62,7 @@ PROGRAM cell_opt_utils_TEST
    ALLOCATE (spgr)
    CALL check_parser()
    CALL check_manifold_basis()
+   CALL check_redundancy_and_pinning()
    CALL check_chart_and_pressure()
    CALL check_symmetry_and_spgr()
    CALL release_spgr_type(spgr)
@@ -208,7 +212,7 @@ CONTAINS
          END IF
          DO j = 1, n_slot
             pmax = MAXLOC(ABS(yz(:, j)), DIM=1)
-            IF (yz(pmax, j) <= 0.0_dp) ERROR STOP "Basis column sign convention violated"
+            IF (yz(pmax, j) <= 0.0_dp) ERROR STOP "Basis column broke sign rule"
          END DO
       END DO
 
@@ -230,6 +234,160 @@ CONTAINS
       CALL cell_manifold_init(m, q_tri, 0, info, eq_pair=RESHAPE([geom_a, geom_a], [2, 1]))
       IF (info /= info_bad_input) ERROR STOP "Accepted self-equality pair"
    END SUBROUTINE check_manifold_basis
+
+! **************************************************************************************************
+!> \brief Check redundancy probes, semidefinite pins, and singularity rejections.
+! **************************************************************************************************
+   SUBROUTINE check_redundancy_and_pinning()
+      INTEGER, PARAMETER :: eq_ab(2, 1) = RESHAPE([geom_a, geom_b], [2, 1]), &
+         eq_alpha_beta(2, 1) = RESHAPE([geom_alpha, geom_beta], [2, 1]), &
+         eq_bc(2, 1) = RESHAPE([geom_b, geom_c], [2, 1])
+      REAL(KIND=dp), PARAMETER :: lin_hex60(n_slot, 2) = RESHAPE([1.0_dp, -2.0_dp, 0.0_dp, 0.0_dp, &
+         0.0_dp, 0.0_dp, sqrt3, 0.0_dp, -2.0_dp, 0.0_dp, 0.0_dp, 0.0_dp], [n_slot, 2])
+
+      INTEGER                                            :: info
+      LOGICAL                                            :: is_pinned
+      TYPE(cell_manifold_type)                           :: m
+
+      CALL cell_manifold_init(m, q_tri, comp_ax + comp_by + comp_cz, info)
+      IF (info /= info_ok .OR. .NOT. cell_manifold_is_redundant(m, gfix_v)) THEN
+         ERROR STOP "Diagonal pin + gfix_v is not globally redundant"
+      END IF
+      CALL cell_manifold_init(m, q_tri, mask_all, info)
+      IF (info /= info_ok .OR. .NOT. cell_manifold_is_redundant(m, gfix_v) .OR. &
+          cell_manifold_is_redundant(m, 0, eq_pair=eq_ab)) THEN
+         ERROR STOP "ndof = 0 redundancy or anchor check failed"
+      END IF
+      CALL cell_manifold_init(m, [20.0_dp, 30.0_dp, 150.0_dp, 45.0_dp, &
+                                  0.3_dp*(SQRT(23400.0_dp) - 30.0_dp), 150.0_dp], &
+                              comp_ax + comp_by + gfix_alpha + gfix_beta + gfix_v, info)
+      IF (info /= info_ok .OR. .NOT. cell_manifold_is_redundant(m, 0, eq_pair=eq_alpha_beta)) THEN
+         ERROR STOP "Redundancy check failed on constant-volume equal angles"
+      END IF
+
+      CALL cell_manifold_init(m, q_cubic, gfix_a + gfix_b + gfix_c, info)
+      IF (info /= info_ok .OR. cell_manifold_is_redundant(m, gfix_v)) THEN
+         ERROR STOP "Treated cubic lengths + volume tangency as redundant"
+      END IF
+      CALL cell_manifold_pin_semidefinite(m, gfix_v, is_pinned)
+      IF (.NOT. is_pinned .OR. m%ndof /= 0 .OR. &
+          IAND(m%mask, comp_bx + comp_cx + comp_cy) /= comp_bx + comp_cx + comp_cy) THEN
+         ERROR STOP "Failed to pin cubic lengths + volume directions"
+      END IF
+
+      CALL cell_manifold_init(m, [0.025_dp, 0.0_dp, 0.025_dp, 0.0_dp, 0.0_dp, 0.025_dp], &
+                              gfix_a + gfix_b + gfix_c, info)
+      IF (info /= info_ok .OR. cell_manifold_is_redundant(m, gfix_v)) THEN
+         ERROR STOP "Treated tangency on small cubic cell as redundant"
+      END IF
+      CALL cell_manifold_pin_semidefinite(m, gfix_v, is_pinned)
+      IF (.NOT. is_pinned .OR. m%ndof /= 0) ERROR STOP "Small-cell semidefinite pin failed"
+
+      CALL cell_manifold_init(m, [5.0_dp, 0.0_dp, 5.0_dp, 0.0_dp, 0.0_dp, 8.0_dp], &
+                              comp_ax + comp_by + comp_cx + comp_cy, info, eq_pair=eq_ab)
+      IF (info /= info_licq) ERROR STOP "Missed LICQ on monoclinic_gamma_ab tangency"
+      CALL cell_manifold_init(m, [5.0_dp, 0.0_dp, 5.0_dp, 0.0_dp, 0.0_dp, 8.0_dp], &
+                              comp_ax + comp_by + comp_cx + comp_cy, info)
+      IF (info /= info_ok .OR. cell_manifold_is_redundant(m, 0, eq_pair=eq_ab)) THEN
+         ERROR STOP "Treated monoclinic_gamma_ab AX+BY tangency as redundant"
+      END IF
+      CALL cell_manifold_pin_semidefinite(m, 0, is_pinned, eq_pair=eq_ab)
+      IF (.NOT. is_pinned .OR. m%ndof /= 1 .OR. IAND(m%mask, comp_bx) == 0) THEN
+         ERROR STOP "Failed to pin BX on monoclinic_gamma_ab AX+BY cell"
+      END IF
+
+      CALL cell_manifold_init(m, [4.5_dp, 0.0_dp, 4.5_dp, 90.0_dp, 0.0_dp, 450.0_dp], &
+                              comp_ax + comp_bx + comp_by + comp_cx + comp_cz, info)
+      IF (info /= info_ok .OR. cell_manifold_is_redundant(m, gfix_beta)) THEN
+         ERROR STOP "Treated high-aspect BETA tangency as redundant"
+      END IF
+      CALL cell_manifold_pin_semidefinite(m, gfix_beta, is_pinned)
+      IF (.NOT. is_pinned .OR. m%ndof /= 0 .OR. IAND(m%mask, comp_cy) == 0) THEN
+         ERROR STOP "Semidefinite pin failed on high-aspect BETA cell"
+      END IF
+
+      CALL cell_manifold_init(m, [8.0_dp, 0.0_dp, 8.0_dp, 1.0E-3_dp, 0.0_dp, 30.0_dp], &
+                              comp_ax + comp_bx + comp_by + comp_cx + comp_cz, info)
+      IF (info /= info_ok .OR. cell_manifold_is_redundant(m, gfix_beta)) THEN
+         ERROR STOP "Treated near-orthogonal BETA tangency as redundant"
+      END IF
+      CALL cell_manifold_pin_semidefinite(m, gfix_beta, is_pinned)
+      IF (.NOT. is_pinned .OR. m%ndof /= 0 .OR. IAND(m%mask, comp_cy) == 0) THEN
+         ERROR STOP "Semidefinite pin failed on near-orthogonal BETA cell"
+      END IF
+
+      CALL cell_manifold_init(m, [5.0_dp, 2.0_dp, 5.0_dp, 0.07_dp, 0.0_dp, 10.0_dp], &
+                              comp_cx + comp_cz + gfix_alpha, info)
+      IF (info /= info_ok .OR. cell_manifold_is_redundant(m, gfix_beta)) THEN
+         ERROR STOP "Treated coupled ALPHA and BETA tangency as redundant"
+      END IF
+      CALL cell_manifold_pin_semidefinite(m, gfix_beta, is_pinned)
+      IF (.NOT. is_pinned .OR. m%ndof /= 2 .OR. IAND(m%mask, comp_cy) == 0 .OR. &
+          m%n_lin_rows /= 0) THEN
+         ERROR STOP "Semidefinite pin failed on coupled ALPHA and BETA"
+      END IF
+
+      CALL cell_manifold_init(m, [5.0_dp, 0.0_dp, 5.0_dp, 0.0_dp, 3.0_dp, 4.0_dp], &
+                              comp_ax + comp_cz + gfix_b + gfix_c, info)
+      IF (info /= info_ok) ERROR STOP "Init failed on equal-circle ALPHA test"
+      CALL cell_manifold_pin_semidefinite(m, gfix_alpha, is_pinned)
+      IF (.NOT. is_pinned .OR. m%ndof /= 1 .OR. m%n_lin_rows /= 1) THEN
+         ERROR STOP "Semidefinite pin failed on coupled tangent direction"
+      END IF
+
+      CALL cell_manifold_init(m, [5.0_dp, 0.0_dp, 5.0_dp, 3.0_dp, 2.0_dp, 4.0_dp], &
+                              comp_ax + comp_by + gfix_alpha, info)
+      IF (info /= info_ok) ERROR STOP "Curved-ALPHA + AX BY init failed"
+      CALL cell_manifold_pin_semidefinite(m, 0, is_pinned, eq_pair=eq_ab)
+      IF (.NOT. is_pinned .OR. m%ndof /= 2 .OR. IAND(m%mask, comp_bx) == 0 .OR. &
+          m%n_lin_rows /= 0) THEN
+         ERROR STOP "Curved active row tilted the BX pin"
+      END IF
+
+      CALL cell_manifold_init(m, [5.0_dp, 0.0_dp, 5.0_dp, 0.05_dp, 2.0_dp, 40.0_dp], &
+                              comp_ax + comp_by + gfix_alpha, info)
+      IF (info /= info_ok) ERROR STOP "High-aspect curved-ALPHA + AX BY init failed"
+      CALL cell_manifold_pin_semidefinite(m, 0, is_pinned, eq_pair=eq_ab)
+      IF (.NOT. is_pinned .OR. m%ndof /= 2 .OR. IAND(m%mask, comp_bx) == 0 .OR. &
+          m%n_lin_rows /= 0) THEN
+         ERROR STOP "High-aspect curved row tilted the BX pin"
+      END IF
+
+      CALL cell_manifold_init(m, q_cubic, comp_by + comp_cy + comp_cz, info)
+      IF (info /= info_ok .OR. cell_manifold_is_redundant(m, 0, eq_pair=eq_bc)) THEN
+         ERROR STOP "Treated indefinite BX^2 = CX^2 cone as redundant"
+      END IF
+      CALL cell_manifold_pin_semidefinite(m, 0, is_pinned, eq_pair=eq_bc)
+      IF (is_pinned) ERROR STOP "Pinned indefinite cone singularity BX^2 = CX^2"
+
+      CALL cell_manifold_init(m, [5.0_dp, 0.0_dp, 5.0_dp, 3.0_dp, 0.0_dp, 4.0_dp], &
+                              comp_ax + comp_bx + comp_by + comp_cz, info)
+      IF (info /= info_ok) ERROR STOP "Smooth c-circle init failed"
+      CALL cell_manifold_pin_semidefinite(m, gfix_c, is_pinned)
+      IF (is_pinned .OR. m%ndof /= 2) THEN
+         ERROR STOP "Pinned non-degenerate constraint with nonzero gradient"
+      END IF
+
+      CALL cell_manifold_init(m, [5.0_dp, 0.0_dp, 6.0_dp, 0.0_dp, 0.0_dp, 8.0_dp], &
+                              comp_ax + comp_by + comp_cx + comp_cy, info)
+      IF (info /= info_ok) ERROR STOP "Mismatched anchor init failed"
+      CALL cell_manifold_pin_semidefinite(m, 0, is_pinned, eq_pair=eq_ab)
+      IF (is_pinned) ERROR STOP "Pinned candidate unsatisfied at q0"
+
+      CALL cell_manifold_init(m, [2.0_dp, 1.0_dp, 1.73205081_dp, 0.0_dp, 0.0_dp, 3.0_dp], &
+                              comp_cx + comp_cy, info, lin_w=lin_hex60)
+      IF (info /= info_ok) ERROR STOP "8-digit hexagonal init failed"
+      CALL cell_manifold_pin_semidefinite(m, gfix_gamma, is_pinned)
+      IF (is_pinned .OR. .NOT. cell_manifold_is_redundant(m, gfix_gamma)) THEN
+         ERROR STOP "Redundancy check failed on 8-digit hexagonal GAMMA"
+      END IF
+
+      CALL cell_manifold_init(m, [2.0_dp, 1.0_dp, 1.732051_dp, 0.0_dp, 0.0_dp, 3.0_dp], &
+                              comp_cx + comp_cy, info, lin_w=lin_hex60)
+      IF (info /= info_ok) ERROR STOP "7-digit hexagonal init failed"
+      CALL cell_manifold_pin_semidefinite(m, gfix_gamma, is_pinned)
+      IF (is_pinned) ERROR STOP "Pinned AX on 7-digit tilted cell"
+   END SUBROUTINE check_redundancy_and_pinning
 
 ! **************************************************************************************************
 !> \brief Check chart evaluation, curved FD pullback gradient, get_dg_dh, and projected pressure.
@@ -258,7 +416,7 @@ CONTAINS
       CALL cell_manifold_unpack_hmat(q_tri, cell%hmat)
       IF (cell%hmat(2, 1) /= 0.0_dp .OR. cell%hmat(3, 1) /= 0.0_dp .OR. &
           cell%hmat(3, 2) /= 0.0_dp .OR. ANY(cell_manifold_pack_hmat(cell%hmat) /= q_tri)) THEN
-         ERROR STOP "hmat pack/unpack or lower-triangle zeroing failed"
+         ERROR STOP "hmat pack/unpack left nonzero lower triangle"
       END IF
       CALL init_cell(cell)
       CALL get_dg_dh(g, 2.5_dp*eye3, 0.7_dp, cell, zero3, pint)
@@ -431,6 +589,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: lin_w(n_slot, n_slot), q0(n_slot), &
                                                             qout(n_slot), s(n_geom), u(n_slot)
       TYPE(cell_manifold_type)                           :: m
+      TYPE(cell_opt_env_type)                            :: cell_env
 
       DO i = 1, SIZE(sid)
          SELECT CASE (sid(i))
@@ -489,6 +648,85 @@ CONTAINS
             ERROR STOP "Symmetry step broke crystal angles"
          END IF
       END DO
+
+      cell_env%opt_cell => cell
+      CALL cell_manifold_unpack_hmat([2.0_dp, 1.0_dp, sqrt3, 0.0_dp, 0.0_dp, 3.0_dp], cell%hmat)
+      cell%symmetry_id = cell_sym_hexagonal_gamma_60
+      CALL init_cell(cell)
+      cell_env%keep_symmetry = .TRUE.
+      cell_env%keep_angles = .TRUE.
+      CALL cell_opt_setup_manifold(cell_env)
+      IF (cell_env%manifold%ndof /= 2) ERROR STOP "Hexagonal + KEEP_ANGLES setup failed"
+
+      CALL cell_manifold_unpack_hmat(q_rhom, cell%hmat)
+      cell%symmetry_id = cell_sym_rhombohedral
+      CALL init_cell(cell)
+      cell_env%constraint_id = gfix_alpha
+      CALL cell_opt_setup_manifold(cell_env)
+      IF (cell_env%manifold%ndof /= 1) ERROR STOP "Rhombohedral + ALPHA + KEEP_ANGLES setup failed"
+
+      CALL cell_manifold_unpack_hmat([5.0_dp, 0.0_dp, 5.0_dp, 0.0_dp, 0.0_dp, 8.0_dp], cell%hmat)
+      cell%symmetry_id = cell_sym_monoclinic_gamma_ab
+      CALL init_cell(cell)
+      cell_env%keep_angles = .FALSE.
+      cell_env%constraint_id = comp_ax + comp_by
+      CALL cell_opt_setup_manifold(cell_env)
+      IF (cell_env%manifold%ndof /= 1 .OR. IAND(cell_env%manifold%mask, comp_bx) == 0) THEN
+         ERROR STOP "Monoclinic_gamma_ab + AX BY setup did not pin BX"
+      END IF
+
+      cell%symmetry_id = cell_sym_none
+      cell_env%keep_symmetry = .FALSE.
+      cell_env%keep_angles = .TRUE.
+      cell_env%constraint_id = comp_bx + comp_cx + comp_cz
+      DO i = 1, 2
+         CALL cell_manifold_unpack_hmat([MERGE(8.0_dp, 4.7_dp, i == 1), &
+                                         2.0_dp, 8.0_dp, 1.0_dp, 0.0_dp, 30.0_dp], cell%hmat)
+         CALL init_cell(cell)
+         CALL cell_opt_setup_manifold(cell_env)
+         IF (cell_env%manifold%ndof /= 1 .OR. IAND(cell_env%manifold%mask, comp_cy) == 0 .OR. &
+             cell_env%manifold%n_lin_rows /= 0) THEN
+            ERROR STOP "BX CX CZ + KEEP_ANGLES did not decouple CY from AX"
+         END IF
+      END DO
+
+      CALL cell_manifold_unpack_hmat([5.0_dp, 2.0_dp, 5.0_dp, 3.0_dp, 0.0_dp, 40.0_dp], cell%hmat)
+      CALL init_cell(cell)
+      CALL cell_opt_setup_manifold(cell_env)
+      u(1) = cell_env%manifold%u0(1) + 1.5_dp
+      CALL cell_manifold_chart_eval(cell_env%manifold, u(1:1), qout, info)
+      IF (info /= info_ok .OR. cell_env%manifold%ndof /= 1 .OR. &
+          cell_env%manifold%n_lin_rows /= 0 .OR. &
+          MAXVAL(ABS(qout - [6.5_dp, 2.0_dp, 5.0_dp, 3.0_dp, 0.0_dp, 40.0_dp])) > 1.0E-14_dp) THEN
+         ERROR STOP "High-aspect BX CX CZ + KEEP_ANGLES coupled AX into BY or CY"
+      END IF
+
+      cell_env%keep_angles = .FALSE.
+      cell_env%constraint_id = comp_bx + comp_cx + comp_cz + gfix_alpha + gfix_beta
+      CALL cell_manifold_unpack_hmat([5.0_dp, 2.0_dp, 5.0_dp, 0.15_dp, 0.0_dp, 10.0_dp], cell%hmat)
+      CALL init_cell(cell)
+      CALL cell_opt_setup_manifold(cell_env)
+      IF (cell_env%manifold%ndof /= 1 .OR. IAND(cell_env%manifold%mask, comp_cy) == 0) THEN
+         ERROR STOP "Setup did not pin CY for 1D weak BETA curvature"
+      END IF
+
+      cell_env%constraint_id = comp_cx + comp_cz + gfix_alpha + gfix_beta
+      CALL cell_manifold_unpack_hmat([5.0_dp, 2.0_dp, 5.0_dp, 0.07_dp, 0.0_dp, 10.0_dp], cell%hmat)
+      CALL init_cell(cell)
+      CALL cell_opt_setup_manifold(cell_env)
+      IF (cell_env%manifold%ndof /= 2 .OR. IAND(cell_env%manifold%mask, comp_cy) == 0) THEN
+         ERROR STOP "Setup did not pin CY for 2D weak BETA curvature"
+      END IF
+
+      cell_env%keep_volume = .TRUE.
+      cell_env%constraint_id = comp_bx + comp_cx + comp_cz + gfix_alpha + gfix_beta
+      CALL cell_manifold_unpack_hmat([5.0_dp, 2.0_dp, 5.0_dp, 3.0_dp, 0.0_dp, 200.0_dp], cell%hmat)
+      CALL init_cell(cell)
+      CALL cell_opt_setup_manifold(cell_env)
+      IF (cell_env%manifold%ndof /= 0 .OR. IAND(cell_env%manifold%mask, comp_cy) == 0) THEN
+         ERROR STOP "Setup dropped BETA on high-aspect KEEP_VOLUME cell"
+      END IF
+      cell_env%keep_volume = .FALSE.
 
       CALL cell_manifold_unpack_hmat(q_tri, cell%hmat)
       IF (spgr_point_group_symmetry_id(spgr, cell) /= cell_sym_triclinic) THEN

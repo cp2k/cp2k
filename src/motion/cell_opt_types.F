@@ -14,9 +14,10 @@
 MODULE cell_opt_types
 
    USE cell_manifold_utils,             ONLY: &
-        cell_manifold_init, cell_manifold_pack_hmat, cell_manifold_status_label, &
-        cell_manifold_type, comp_bx, comp_cx, comp_cy, gfix_all, gfix_alpha, gfix_beta, &
-        gfix_gamma, gfix_v, info_licq, info_ok, mask_all, n_constraint_bits, n_geom, n_slot
+        cell_manifold_init, cell_manifold_is_redundant, cell_manifold_pack_hmat, &
+        cell_manifold_pin_semidefinite, cell_manifold_status_label, cell_manifold_type, comp_bx, &
+        comp_cx, comp_cy, gfix_all, gfix_alpha, gfix_beta, gfix_gamma, gfix_v, info_licq, info_ok, &
+        mask_all, n_constraint_bits, n_geom, n_slot
    USE cell_methods,                    ONLY: canonicalize_cell_matrix,&
                                               cell_create
    USE cell_opt_utils,                  ONLY: cell_opt_constraint_label,&
@@ -62,7 +63,7 @@ MODULE cell_opt_types
 ! **************************************************************************************************
    TYPE cell_opt_env_type
       ! Simulation cell optimization parameters
-      ! Bit mask of cell components fixed by CONSTRAINT (comp_* only, 0 = fix_none).
+      ! Bit mask of cell components and angles from CONSTRAINT (comp_* and gfix_*, 0 = fix_none).
       INTEGER                                    :: constraint_id = fix_none
       LOGICAL                                    :: keep_angles = .FALSE., &
                                                     keep_symmetry = .FALSE., &
@@ -183,13 +184,18 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Initialize cell constraints from CONSTRAINT, KEEP_SYMMETRY, KEEP_ANGLES, and KEEP_VOLUME.
 !> \param cell_env cell optimization environment to populate
+!> \param emit_warnings optional flag to emit user warnings (default .TRUE.)
 ! **************************************************************************************************
-   SUBROUTINE cell_opt_setup_manifold(cell_env)
+   SUBROUTINE cell_opt_setup_manifold(cell_env, emit_warnings)
       TYPE(cell_opt_env_type), INTENT(INOUT)             :: cell_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: emit_warnings
 
       INTEGER                                            :: angle_bits, info
+      LOGICAL                                            :: do_warn
       REAL(KIND=dp)                                      :: q0(n_slot)
 
+      do_warn = .TRUE.
+      IF (PRESENT(emit_warnings)) do_warn = emit_warnings
       q0 = cell_manifold_pack_hmat(cell_env%opt_cell%hmat)
 
       ! Anchor q0 with explicit component rows, then fold explicit angle rows.
@@ -200,53 +206,59 @@ CONTAINS
                        TRIM(cell_manifold_status_label(info))//").")
       END IF
       CALL try_add_mask_bits(cell_env%manifold, IAND(cell_env%constraint_id, gfix_all), &
-                             "CONSTRAINT")
+                             "CONSTRAINT", do_warn)
 
       IF (cell_env%keep_symmetry) THEN
-         CALL cell_opt_fold_symmetry_rows(cell_env, cell_env%opt_cell%symmetry_id)
+         CALL cell_opt_fold_symmetry_rows(cell_env, cell_env%opt_cell%symmetry_id, &
+                                          emit_warnings=do_warn)
       END IF
 
       IF (cell_env%keep_angles) THEN
-         ! On an orthorhombic cell, fixing BX = CX = CY = 0 matches fixing all
-         ! angles to 90 deg. It keeps off-diagonal hmat components at 0.0_dp
-         ! so cell%orthorhombic stays TRUE.
+         ! On an orthorhombic cell, BX = CX = CY = 0 fixes all angles to 90 deg.
+         ! Off-diagonal hmat entries stay 0.0_dp so cell%orthorhombic stays TRUE.
          IF (cell_env%opt_cell%orthorhombic) THEN
             angle_bits = comp_bx + comp_cx + comp_cy
          ELSE
             angle_bits = gfix_alpha + gfix_beta + gfix_gamma
          END IF
-         CALL try_add_mask_bits(cell_env%manifold, angle_bits, "KEEP_ANGLES")
+         CALL try_add_mask_bits(cell_env%manifold, angle_bits, "KEEP_ANGLES", do_warn)
       END IF
 
       IF (cell_env%keep_volume) THEN
-         CALL try_add_mask_bits(cell_env%manifold, gfix_v, "KEEP_VOLUME")
+         CALL try_add_mask_bits(cell_env%manifold, gfix_v, "KEEP_VOLUME", do_warn)
       END IF
 
    END SUBROUTINE cell_opt_setup_manifold
 
 ! **************************************************************************************************
 !> \brief Add independent constraint rows for crystal system symmetry_id.
-!> \param cell_env cell optimization environment (updates manifold)
+!> \param cell_env cell optimization environment
 !> \param symmetry_id crystal system identifier (cell_sym_*)
-!> \note Skips candidate rows that are linearly dependent on existing rows
-!>       (such as earlier CONSTRAINT or KEEP_SYMMETRY rows). KEEP_SPACE_GROUP
-!>       passes the point-group crystal system here because the point group
-!>       fixes the same cell metric quantities.
+!> \param emit_warnings optional flag to emit user warnings (default .TRUE.)
+!> \note This routine skips redundant rows and aborts on unresolvable singularities.
+!>       When a row is second-order semidefinite at q0, it pins the implied
+!>       directions and emits a warning. KEEP_SPACE_GROUP passes the point-group
+!>       crystal system here because the point group fixes the same cell metric.
 ! **************************************************************************************************
-   SUBROUTINE cell_opt_fold_symmetry_rows(cell_env, symmetry_id)
+   SUBROUTINE cell_opt_fold_symmetry_rows(cell_env, symmetry_id, emit_warnings)
       TYPE(cell_opt_env_type), INTENT(INOUT)             :: cell_env
       INTEGER, INTENT(IN)                                :: symmetry_id
+      LOGICAL, INTENT(IN), OPTIONAL                      :: emit_warnings
 
       INTEGER                                            :: cand_eq_pair(2, n_geom), cand_n_eq, &
                                                             cand_n_lin, i, info, n_next, &
                                                             probe_eq_pair(2, n_geom), sym_bits
+      LOGICAL                                            :: do_warn
       REAL(KIND=dp)                                      :: cand_lin_w(n_slot, n_slot), &
                                                             probe_lin_w(n_slot, n_slot)
       TYPE(cell_manifold_type)                           :: m_probe
 
+      do_warn = .TRUE.
+      IF (PRESENT(emit_warnings)) do_warn = emit_warnings
+
       CALL symmetry_constraint_rows(symmetry_id, sym_bits, cand_lin_w, cand_n_lin, &
                                     cand_eq_pair, cand_n_eq)
-      CALL try_add_mask_bits(cell_env%manifold, sym_bits, "symmetry component")
+      CALL try_add_mask_bits(cell_env%manifold, sym_bits, "symmetry component constraint", do_warn)
 
       DO i = 1, cand_n_lin
          n_next = cell_env%manifold%n_lin_rows + 1
@@ -259,10 +271,10 @@ CONTAINS
             eq_pair=cell_env%manifold%eq_pair(:, 1:cell_env%manifold%n_eq_rows))
          IF (info == info_ok) THEN
             cell_env%manifold = m_probe
-         ELSE IF (info /= info_licq) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "CELL_OPT: cannot apply symmetry linear constraint ("// &
-                          TRIM(cell_manifold_status_label(info))//").")
+         ELSE
+            CALL resolve_degenerate_constraint(cell_env%manifold, info, &
+                                               "symmetry linear constraint", 0, do_warn, &
+                                               lin_w=cand_lin_w(:, i:i))
          END IF
       END DO
 
@@ -277,10 +289,10 @@ CONTAINS
             eq_pair=probe_eq_pair(:, 1:n_next))
          IF (info == info_ok) THEN
             cell_env%manifold = m_probe
-         ELSE IF (info /= info_licq) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "CELL_OPT: cannot apply symmetry equality constraint ("// &
-                          TRIM(cell_manifold_status_label(info))//").")
+         ELSE
+            CALL resolve_degenerate_constraint(cell_env%manifold, info, &
+                                               "symmetry equality constraint", 0, do_warn, &
+                                               eq_pair=cand_eq_pair(:, i:i))
          END IF
       END DO
 
@@ -288,14 +300,16 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Add each independent bit from candidate_bits into m%mask.
-!> \param m active cell constraint state
-!> \param candidate_bits comp_* or gfix_* flags to probe one bit at a time
-!> \param source_label keyword label used in abort messages
+!> \param m active constraint state
+!> \param candidate_bits comp_* or gfix_* flags to test one bit at a time
+!> \param source_label constraint source label for warning and abort messages
+!> \param do_warn .TRUE. to emit a warning when this routine pins a row
 ! **************************************************************************************************
-   SUBROUTINE try_add_mask_bits(m, candidate_bits, source_label)
+   SUBROUTINE try_add_mask_bits(m, candidate_bits, source_label, do_warn)
       TYPE(cell_manifold_type), INTENT(INOUT)            :: m
       INTEGER, INTENT(IN)                                :: candidate_bits
       CHARACTER(LEN=*), INTENT(IN)                       :: source_label
+      LOGICAL, INTENT(IN)                                :: do_warn
 
       INTEGER                                            :: b, flag, info
       TYPE(cell_manifold_type)                           :: m_probe
@@ -308,15 +322,65 @@ CONTAINS
                                     eq_pair=m%eq_pair(:, 1:m%n_eq_rows))
             IF (info == info_ok) THEN
                m = m_probe
-            ELSE IF (info /= info_licq) THEN
-               CALL cp_abort(__LOCATION__, &
-                             "CELL_OPT: cannot apply "//TRIM(source_label)//" constraint ("// &
-                             TRIM(cell_manifold_status_label(info))//").")
+            ELSE
+               CALL resolve_degenerate_constraint(m, info, source_label, flag, do_warn)
             END IF
          END IF
       END DO
 
    END SUBROUTINE try_add_mask_bits
+
+! **************************************************************************************************
+!> \brief Resolve or reject a candidate constraint row that failed LICQ at q0.
+!> \param m active constraint state. This routine updates m when it pins a row.
+!> \param info failure code from cell_manifold_init
+!> \param source_label constraint source label for warning and abort messages
+!> \param mask candidate comp_* or gfix_* bit, or 0 for a lin_w or eq_pair test
+!> \param do_warn .TRUE. to emit a warning when this routine pins a row
+!> \param lin_w optional 6 x 1 column of candidate linear weights
+!> \param eq_pair optional 2 x 1 index pair for a candidate equality
+! **************************************************************************************************
+   SUBROUTINE resolve_degenerate_constraint(m, info, source_label, mask, do_warn, lin_w, eq_pair)
+      TYPE(cell_manifold_type), INTENT(INOUT)            :: m
+      INTEGER, INTENT(IN)                                :: info
+      CHARACTER(LEN=*), INTENT(IN)                       :: source_label
+      INTEGER, INTENT(IN)                                :: mask
+      LOGICAL, INTENT(IN)                                :: do_warn
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: lin_w(:, :)
+      INTEGER, INTENT(IN), OPTIONAL                      :: eq_pair(:, :)
+
+      INTEGER                                            :: old_mask, old_n_lin, pinned_bits
+      LOGICAL                                            :: is_pinned
+
+      IF (info == info_licq) THEN
+         old_mask = m%mask
+         old_n_lin = m%n_lin_rows
+         CALL cell_manifold_pin_semidefinite(m, mask, is_pinned, lin_w=lin_w, eq_pair=eq_pair)
+         IF (is_pinned) THEN
+            IF (do_warn) THEN
+               pinned_bits = IAND(IAND(NOT(old_mask), m%mask), mask_all)
+               IF (pinned_bits /= 0 .AND. m%n_lin_rows == old_n_lin) THEN
+                  CALL cp_warn(__LOCATION__, &
+                               "CELL_OPT: "//TRIM(source_label)//" is locally degenerate at "// &
+                               "the initial cell. CELL_OPT pins implied cell component(s): "// &
+                               TRIM(ADJUSTL(cell_opt_constraint_label(pinned_bits)))//".")
+               ELSE
+                  CALL cp_warn(__LOCATION__, &
+                               "CELL_OPT: "//TRIM(source_label)//" is locally degenerate at "// &
+                               "the initial cell. CELL_OPT pins implied tangent direction(s).")
+               END IF
+            END IF
+            RETURN
+         END IF
+         IF (cell_manifold_is_redundant(m, mask, lin_w=lin_w, eq_pair=eq_pair)) RETURN
+      END IF
+
+      CALL cp_abort(__LOCATION__, &
+                    "CELL_OPT: "//TRIM(source_label)//" is locally degenerate at "// &
+                    "the initial cell ("// &
+                    TRIM(cell_manifold_status_label(info))//").")
+
+   END SUBROUTINE resolve_degenerate_constraint
 
 ! **************************************************************************************************
 !> \brief ...

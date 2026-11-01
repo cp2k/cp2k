@@ -143,4 +143,11 @@
 "cell_opt_direct_bfgs_inverse.inp"             = [{matcher = "M011", tol = 1.0E-14, ref = -35.644084205321576}]
 "cell_opt_bfgs_inverse_restart_direct.inp"     = [{matcher = "M011", tol = 1.0E-14, ref = -35.644084205353230}]
 "cell_opt_bfgs_inverse_vib.inp"                = [{matcher = "M018", tol = 1.0E-14, ref = 587.912968}]
+"cell_opt_monoclinic_gamma_ab_pin.inp"         = [
+  {matcher = "M011", tol = 1.0E-13, ref = 0.003657785435698},
+  {matcher = "Cell_length_a", tol = 1.0E-06, ref = 6.000000},
+  {matcher = "Cell_length_b", tol = 1.0E-06, ref = 6.000000},
+  {matcher = "Cell_length_c", tol = 1.0E-06, ref = 7.494310},
+  {matcher = "Cell_angle_gamma", tol = 1.0E-06, ref = 90.000000}
+]
 #EOF
