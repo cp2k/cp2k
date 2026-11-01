@@ -2023,9 +2023,9 @@ CONTAINS
       CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn)
       CPASSERT(.NOT. use_real_wfn)
 
-      local_init = kpoints%para_env_kp%num_pe == 1 .AND. .NOT. scf_env%qs_ot_env(1)%settings%do_rotation
+      local_init = kpoints%para_env_kp%num_pe == 1
       IF (scf_env%qs_ot_env(1)%settings%ot_algorithm == 'TOD' .AND. &
-          scf_env%qs_ot_env(1)%settings%do_ener) local_init = .FALSE.
+          (scf_env%qs_ot_env(1)%settings%do_rotation .OR. scf_env%qs_ot_env(1)%settings%do_ener)) local_init = .FALSE.
       first_channel = qs_ot_channel_index(1, kpoints%kp_range(1), nspin_ot)
       IF (local_init) ALLOCATE (local_s(2, SIZE(kpoints%kp_env)*nspin_ot), local_c(SIZE(kpoints%kp_env)*nspin_ot))
 

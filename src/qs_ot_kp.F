@@ -91,7 +91,7 @@ MODULE qs_ot_kp
    ! Private rotation spectrum and scratch, reused across response evaluations.
    TYPE qs_ot_rotation_work_type
       INTEGER                                            :: info = 0
-      TYPE(cp_cfm_diag_workspace_type)                   :: solver
+      TYPE(cp_cfm_diag_workspace_type)                   :: solver = cp_cfm_diag_workspace_type()
       COMPLEX(dp), ALLOCATABLE                           :: vectors(:, :), u(:, :), work(:, :), &
                                                             inner(:, :)
    END TYPE qs_ot_rotation_work_type
@@ -99,9 +99,10 @@ MODULE qs_ot_kp
    ! Transient per-worker storage. The last index is 1 for real and 2 for imaginary.
    TYPE qs_ot_local_work_type
       INTEGER                                            :: n = 0, k = 0, info = 0
-      LOGICAL                                            :: filtered = .FALSE.
-      TYPE(local_gemm_ctxt_type)                         :: gemm_ctx
-      TYPE(cp_cfm_diag_workspace_type)                   :: solver
+      LOGICAL                                            :: do_rotation = .FALSE., filtered = .FALSE.
+      TYPE(local_gemm_ctxt_type)                         :: gemm_ctx = local_gemm_ctxt_type()
+      TYPE(cp_cfm_diag_workspace_type)                   :: solver = cp_cfm_diag_workspace_type()
+      TYPE(qs_ot_rotation_work_type)                     :: rotation = qs_ot_rotation_work_type()
       COMPLEX(dp), ALLOCATABLE                           :: vectors(:, :)
       REAL(dp), ALLOCATABLE                              :: values(:)
       REAL(dp), ALLOCATABLE :: hc(:, :, :), x(:, :, :), sx(:, :, :), c0(:, :, :), out(:, :, :), &
@@ -2229,7 +2230,7 @@ CONTAINS
    END SUBROUTINE qs_ot_get_derivative_complex
 
 ! **************************************************************************************************
-!> \brief Whether all channels can use the single-rank STRICT/IRAC kernels without rotation.
+!> \brief Whether all channels can use the single-rank STRICT/IRAC kernels.
 !> \param qs_ot_env local OT channels
 !> \return true when every channel is eligible
 ! **************************************************************************************************
@@ -2242,10 +2243,9 @@ CONTAINS
       IF (SIZE(qs_ot_env) == 0) RETURN
       DO i = 1, SIZE(qs_ot_env)
          IF (.NOT. qs_ot_env(i)%has_complex_kpoint_state) RETURN
-         IF (qs_ot_env(i)%settings%do_rotation) RETURN
          SELECT CASE (qs_ot_env(i)%settings%ot_algorithm)
          CASE ('TOD')
-            IF (qs_ot_env(i)%settings%do_ener) RETURN
+            IF (qs_ot_env(i)%settings%do_rotation .OR. qs_ot_env(i)%settings%do_ener) RETURN
          CASE ('REF')
          CASE DEFAULT
             RETURN
@@ -2262,7 +2262,7 @@ CONTAINS
 !> \param qs_ot_env local OT channels
 !> \param matrix_s pointers to cached real/imaginary overlaps, indexed by component and channel
 !> \param matrix_c pointers to physical orbitals; only their active columns are updated
-!> \param handled false when the original distributed/rotation path is required
+!> \param handled false when the distributed path or STRICT rotation/energies is required
 !> \param initialize build C0/SC0 from physical orbitals without modifying the physical state
 ! **************************************************************************************************
    SUBROUTINE qs_ot_get_orbitals_local_batch(qs_ot_env, matrix_s, matrix_c, handled, initialize)
@@ -2300,12 +2300,11 @@ CONTAINS
             i = first + j - 1
             CALL dbcsr_get_info(qs_ot_env(i)%matrix_x, nfullrows_total=n, nfullcols_total=k)
             CALL qs_ot_allocate_local_work(work(j), n, k)
-            IF (.NOT. initial .OR. ref) THEN
-               IF (ALLOCATED(work(j)%vectors)) THEN
-                  IF (SIZE(work(j)%vectors, 1) /= k) DEALLOCATE (work(j)%vectors, work(j)%values)
-               END IF
-               IF (.NOT. ALLOCATED(work(j)%vectors)) ALLOCATE (work(j)%vectors(k, k), work(j)%values(k))
-               CALL cp_cfm_local_workspace_prepare(work(j)%solver, k, work(j)%vectors)
+            IF (.NOT. initial .OR. ref) CALL qs_ot_prepare_local_spectrum(work(j))
+            work(j)%do_rotation = qs_ot_env(i)%settings%do_rotation .AND. .NOT. initial
+            IF (work(j)%do_rotation) THEN
+               CALL qs_ot_prepare_rotation_work(work(j)%rotation, k)
+               CALL qs_ot_load_local_pair(qs_ot_env(i)%rot_mat_x, qs_ot_env(i)%rot_mat_x_im, work(j)%buf4)
             END IF
             IF (initial) THEN
                work(j)%x(:, :, 1) = REAL(matrix_c(i)%matrix%local_data(1:n, 1:k), KIND=dp)
@@ -2321,10 +2320,20 @@ CONTAINS
 !$OMP SHARED(work,matrix_s,matrix_c,nbatch,first,ref,UPDATE,initial) PRIVATE(i,n,k)
          DO j = 1, nbatch
             i = first + j - 1
+            IF (work(j)%do_rotation) THEN
+               CALL qs_ot_generate_rotation_local(work(j))
+               IF (work(j)%info /= 0) CYCLE
+            END IF
             CALL qs_ot_orbitals_local(work(j), matrix_s(1, i)%matrix%local_data, &
                                       matrix_s(2, i)%matrix%local_data, ref, update, initial)
             IF (work(j)%info /= 0) CYCLE
             IF (initial) CYCLE
+            IF (work(j)%do_rotation) THEN
+               ! Retraction updates X to Q, while only the physical orbitals receive U.
+               CALL qs_ot_complex_multiply_local('N', 'N', work(j)%out, work(j)%buf4, &
+                                                 work(j)%buf_nk, work(j)%tmp, work(j)%gemm_ctx)
+               work(j)%out(:, :, :) = work(j)%buf_nk(:, :, :)
+            END IF
             n = work(j)%n
             k = work(j)%k
             matrix_c(i)%matrix%local_data(1:n, 1:k) = CMPLX(work(j)%out(:, :, 1), work(j)%out(:, :, 2), KIND=dp)
@@ -2332,8 +2341,11 @@ CONTAINS
 !$OMP END PARALLEL DO
          DO j = 1, nbatch
             IF (work(j)%info == -1) CPABORT('Complex REF overlap is not positive definite')
-            IF (work(j)%info /= 0) CPABORT('Local complex OT overlap diagonalization failed')
+            IF (work(j)%info /= 0) CPABORT('Local complex OT diagonalization failed')
             i = first + j - 1
+            IF (work(j)%do_rotation) THEN
+               CALL qs_ot_store_local_pair(qs_ot_env(i)%rot_mat_u, qs_ot_env(i)%rot_mat_u_im, work(j)%buf4)
+            END IF
             IF (initial) THEN
                CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_c0, qs_ot_env(i)%matrix_c0_im, work(j)%out)
                CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_sc0, qs_ot_env(i)%matrix_sc0_im, work(j)%buf_nk)
@@ -2475,6 +2487,35 @@ CONTAINS
    END SUBROUTINE qs_ot_allocate_local_work
 
 ! **************************************************************************************************
+!> \brief Prepare a worker's orbital eigensolver outside OpenMP.
+!> \param w worker with known matrix dimensions
+! **************************************************************************************************
+   SUBROUTINE qs_ot_prepare_local_spectrum(w)
+      TYPE(qs_ot_local_work_type), INTENT(INOUT)         :: w
+
+      IF (ALLOCATED(w%vectors)) THEN
+         IF (SIZE(w%vectors, 1) /= w%k) DEALLOCATE (w%vectors, w%values)
+      END IF
+      IF (.NOT. ALLOCATED(w%vectors)) ALLOCATE (w%vectors(w%k, w%k), w%values(w%k))
+      CALL cp_cfm_local_workspace_prepare(w%solver, w%k, w%vectors)
+   END SUBROUTINE qs_ot_prepare_local_spectrum
+
+! **************************************************************************************************
+!> \brief Evaluate a worker's rotation and retain its spectrum for the gradient pullback.
+!> \param w prepared storage; buf4 contains A on entry and U on return
+! **************************************************************************************************
+   SUBROUTINE qs_ot_generate_rotation_local(w)
+      TYPE(qs_ot_local_work_type), INTENT(INOUT)         :: w
+
+      w%vectors(:, :) = CMPLX(w%buf4(:, :, 1), w%buf4(:, :, 2), KIND=dp)
+      CALL qs_ot_rotation_state_local(w%vectors, w%rotation, w%gemm_ctx)
+      w%info = w%rotation%info
+      IF (w%info /= 0) RETURN
+      w%buf4(:, :, 1) = REAL(w%rotation%u, KIND=dp)
+      w%buf4(:, :, 2) = AIMAG(w%rotation%u)
+   END SUBROUTINE qs_ot_generate_rotation_local
+
+! **************************************************************************************************
 !> \brief Write a dense complex pair back to two DBCSR matrices outside OpenMP.
 !> \param matrix_re real DBCSR output
 !> \param matrix_im imaginary DBCSR output
@@ -2494,7 +2535,7 @@ CONTAINS
 !> \param qs_ot_env local OT channels
 !> \param matrix_hc real orbital gradients
 !> \param matrix_hc_im imaginary orbital gradients
-!> \param handled false when the original distributed/rotation path is required
+!> \param handled false when the distributed path or STRICT rotation/energies is required
 !> \param matrix_hc_physical optional physical gradients for occupation preconditioning
 !> \param matrix_hc_physical_im imaginary physical gradients
 ! **************************************************************************************************
@@ -2547,11 +2588,15 @@ CONTAINS
                END DO
             END IF
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nbatch) IF(nbatch > 1) &
-!$OMP SHARED(work,nbatch,ref)
+!$OMP SHARED(work,nbatch,ref,pass,npasses)
             DO j = 1, nbatch
                IF (ref) THEN
                   CALL qs_ot_complex_multiply_local('N', 'N', work(j)%x, work(j)%sinp, &
                                                     work(j)%c0, work(j)%tmp, work(j)%gemm_ctx)
+                  IF (work(j)%do_rotation) THEN
+                     CALL qs_ot_ref_rotation_local(work(j), prepare=pass == 1, physical=pass == npasses)
+                     IF (work(j)%info /= 0) CYCLE
+                  END IF
                   CALL qs_ot_complex_multiply_local('C', 'N', work(j)%c0, work(j)%hc, &
                                                     work(j)%buf3, work(j)%buf2(:, :, 1), work(j)%gemm_ctx)
                   IF (.NOT. work(j)%filtered) CALL qs_ot_ref_gradient_local(work(j))
@@ -2560,6 +2605,12 @@ CONTAINS
                END IF
             END DO
 !$OMP END PARALLEL DO
+            IF (ANY(work(1:nbatch)%info == -1)) THEN
+               CPABORT('Complex REF inverse square root is not positive definite')
+            END IF
+            IF (ANY(work(1:nbatch)%info /= 0)) THEN
+               CPABORT('Local complex OT diagonalization failed')
+            END IF
             IF (ANY(work(1:nbatch)%filtered)) THEN
                ! Keep the existing block filter, including independent real/imaginary sparsity.
                DO j = 1, nbatch
@@ -2578,6 +2629,11 @@ CONTAINS
             END IF
             DO j = 1, nbatch
                i = first + j - 1
+               IF (work(j)%do_rotation .AND. pass == npasses) THEN
+                  CALL qs_ot_store_local_pair(qs_ot_env(i)%rot_mat_u, qs_ot_env(i)%rot_mat_u_im, work(j)%buf4)
+                  CALL copy_local_to_dbcsr(qs_ot_env(i)%rot_mat_gx, work(j)%sinp_b)
+                  CALL copy_local_to_dbcsr(qs_ot_env(i)%rot_mat_gx_im, work(j)%cosp_b)
+               END IF
                CALL qs_ot_store_local_pair(qs_ot_env(i)%matrix_gx, qs_ot_env(i)%matrix_gx_im, work(j)%out)
                IF (work(j)%filtered) THEN
                   CALL dbcsr_filter(qs_ot_env(i)%matrix_gx, qs_ot_env(i)%settings%eps_irac_filter_matrix)
@@ -2598,16 +2654,70 @@ CONTAINS
    END SUBROUTINE qs_ot_get_derivative_local_batch
 
 ! **************************************************************************************************
-!> \brief Complete the IRAC pullback (HC-SX*F*B)*F after forming and optionally filtering B=Q^H*HC.
+!> \brief Pull back through the IRAC rotation, sharing spectra across occupation-preconditioner passes.
+!> \param w worker with Q in c0 and G_C in hc; hc receives G_Q
+!> \param prepare compute the rotation and polar spectra on the first pass
+!> \param physical compute the rotation gradient only from the physical covector
+! **************************************************************************************************
+   SUBROUTINE qs_ot_ref_rotation_local(w, prepare, physical)
+      TYPE(qs_ot_local_work_type), INTENT(INOUT)         :: w
+      LOGICAL, INTENT(IN)                                :: prepare, physical
+
+      IF (prepare) THEN
+         CALL qs_ot_generate_rotation_local(w)
+         IF (w%info /= 0) RETURN
+         w%vectors(:, :) = CMPLX(w%sinp(:, :, 1), w%sinp(:, :, 2), KIND=dp)
+         CALL cp_cfm_heevd_local(w%vectors, info=w%info, ws=w%solver)
+         IF (w%info /= 0) RETURN
+         IF (ANY(w%solver%evals <= EPSILON(1.0_dp))) THEN
+            w%info = -1
+            RETURN
+         END IF
+         w%r(:, :, 1) = REAL(w%vectors, KIND=dp)
+         w%r(:, :, 2) = AIMAG(w%vectors)
+      END IF
+      IF (physical) THEN
+         CALL qs_ot_complex_multiply_local('C', 'N', w%c0, w%hc, w%buf3, w%buf2(:, :, 1), w%gemm_ctx)
+         w%rotation%work(:, :) = CMPLX(w%buf3(:, :, 1), w%buf3(:, :, 2), KIND=dp)
+         ! The STRICT kernel arrays are unused by IRAC; keep both rotation-gradient components here.
+         CALL qs_ot_rotation_pullback_local(w%rotation, w%gemm_ctx, w%sinp_b, w%cosp_b)
+      END IF
+      CALL qs_ot_complex_multiply_local('N', 'C', w%hc, w%buf4, w%buf_nk, w%tmp, w%gemm_ctx)
+      w%hc(:, :, :) = w%buf_nk(:, :, :)
+   END SUBROUTINE qs_ot_ref_rotation_local
+
+! **************************************************************************************************
+!> \brief Complete the IRAC pullback, including the vertical polar response for rotation.
 !> \param w private storage with F in sinp and B in buf3
 ! **************************************************************************************************
    SUBROUTINE qs_ot_ref_gradient_local(w)
       TYPE(qs_ot_local_work_type), INTENT(INOUT)         :: w
 
+      INTEGER                                            :: i, j
+      REAL(dp)                                           :: denominator
+
       CALL qs_ot_complex_multiply_local('N', 'N', w%sx, w%sinp, w%buf_nk, w%tmp, w%gemm_ctx)
       CALL qs_ot_complex_multiply_local('N', 'N', w%buf_nk, w%buf3, w%c0, w%tmp, w%gemm_ctx)
       w%c0(:, :, :) = w%hc(:, :, :) - w%c0(:, :, :)
       CALL qs_ot_complex_multiply_local('N', 'N', w%c0, w%sinp, w%out, w%tmp, w%gemm_ctx)
+      IF (.NOT. w%do_rotation) RETURN
+
+      ! Solve P*Z+Z*P=antiherm(B), P=F^(-1), using the shared eigensystem of F.
+      w%buf1(:, :, 1) = 0.5_dp*(w%buf3(:, :, 1) - TRANSPOSE(w%buf3(:, :, 1)))
+      w%buf1(:, :, 2) = 0.5_dp*(w%buf3(:, :, 2) + TRANSPOSE(w%buf3(:, :, 2)))
+      CALL qs_ot_complex_multiply_local('N', 'N', w%buf1, w%r, w%buf2, w%buf3(:, :, 1), w%gemm_ctx)
+      CALL qs_ot_complex_multiply_local('C', 'N', w%r, w%buf2, w%buf1, w%buf3(:, :, 1), w%gemm_ctx)
+      DO j = 1, w%k
+         DO i = 1, w%k
+            denominator = 1.0_dp/w%solver%evals(i) + 1.0_dp/w%solver%evals(j)
+            w%buf1(i, j, :) = w%buf1(i, j, :)/denominator
+         END DO
+      END DO
+      CALL qs_ot_complex_multiply_local('N', 'N', w%r, w%buf1, w%buf2, w%buf3(:, :, 1), w%gemm_ctx)
+      CALL qs_ot_complex_multiply_local('N', 'C', w%buf2, w%r, w%buf1, w%buf3(:, :, 1), w%gemm_ctx)
+      ! buf_nk still contains S*Q. Add the adjoint vertical contribution 2*S*Q*Z.
+      CALL qs_ot_complex_multiply_local('N', 'N', w%buf_nk, w%buf1, w%c0, w%tmp, w%gemm_ctx)
+      w%out(:, :, :) = w%out(:, :, :) + 2.0_dp*w%c0(:, :, :)
    END SUBROUTINE qs_ot_ref_gradient_local
 
 ! **************************************************************************************************
@@ -2664,6 +2774,12 @@ CONTAINS
       CALL qs_ot_load_local_pair(qs_ot_env%matrix_sx, qs_ot_env%matrix_sx_im, w%sx)
       IF (qs_ot_env%settings%ot_algorithm == 'REF') THEN
          CALL qs_ot_load_local_pair(qs_ot_env%matrix_ref_inv_sqrt, qs_ot_env%matrix_ref_inv_sqrt_im, w%sinp)
+         w%do_rotation = qs_ot_env%settings%do_rotation
+         IF (w%do_rotation) THEN
+            CALL qs_ot_prepare_local_spectrum(w)
+            CALL qs_ot_prepare_rotation_work(w%rotation, k)
+            CALL qs_ot_load_local_pair(qs_ot_env%rot_mat_x, qs_ot_env%rot_mat_x_im, w%buf4)
+         END IF
          RETURN
       END IF
       CALL dbcsr_get_info(qs_ot_env%matrix_sc0, nfullcols_total=o)
