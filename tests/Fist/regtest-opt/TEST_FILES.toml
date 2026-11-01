@@ -143,6 +143,17 @@
 "cell_opt_direct_bfgs_inverse.inp"             = [{matcher = "M011", tol = 1.0E-14, ref = -35.644084205321576}]
 "cell_opt_bfgs_inverse_restart_direct.inp"     = [{matcher = "M011", tol = 1.0E-14, ref = -35.644084205353230}]
 "cell_opt_bfgs_inverse_vib.inp"                = [{matcher = "M018", tol = 1.0E-14, ref = 587.912968}]
+"cell_opt_keep_volume_bfgs_part1.inp"          = [
+  {matcher = "M011", tol = 1.0E-13, ref = -0.007040086625465},
+  {matcher = "Cell_volume", tol = 1.0E-06, ref = 212.602406}
+]
+"cell_opt_keep_volume_bfgs_restart.inp"        = [
+  {matcher = "M011", tol = 1.0E-13, ref = -0.007219353938735},
+  {matcher = "Cell_volume", tol = 1.0E-06, ref = 212.602406},
+  {matcher = "Cell_angle_alpha", tol = 1.0E-06, ref = 76.000000},
+  {matcher = "Cell_angle_beta", tol = 1.0E-06, ref = 82.000000},
+  {matcher = "Cell_angle_gamma", tol = 1.0E-06, ref = 105.000000}
+]
 "cell_opt_monoclinic_gamma_ab_pin.inp"         = [
   {matcher = "M011", tol = 1.0E-13, ref = 0.003657785435698},
   {matcher = "Cell_length_a", tol = 1.0E-06, ref = 6.000000},

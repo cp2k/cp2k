@@ -58,8 +58,8 @@ MODULE bfgs_optimizer
    USE global_types,                    ONLY: global_environment_type
    USE gopt_f_methods,                  ONLY: &
         cp_eval_at, gopt_f_ii, gopt_f_io, gopt_f_io_finalize, gopt_f_io_init, &
-        gopt_f_project_coord, gopt_f_project_vector, gopt_f_set_h_ref, print_geo_opt_header, &
-        print_geo_opt_nc
+        gopt_f_project_coord, gopt_f_project_vector, gopt_f_restore_cell_manifold, &
+        gopt_f_set_h_ref, print_geo_opt_header, print_geo_opt_nc
    USE gopt_f_types,                    ONLY: gopt_f_type
    USE gopt_param_types,                ONLY: gopt_param_type
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
@@ -843,6 +843,7 @@ CONTAINS
          x0(i:i + 2) = MATMUL(transform, x0(i:i + 2))
       END DO
       CALL gopt_f_set_h_ref(gopt_env, reference_cell)
+      CALL gopt_f_restore_cell_manifold(gopt_env, reference_cell, x0)
    END SUBROUTINE bfgs_restore_cell_frame
 
 ! **************************************************************************************************

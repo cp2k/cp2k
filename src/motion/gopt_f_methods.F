@@ -22,7 +22,8 @@ MODULE gopt_f_methods
         cell_manifold_chart_eval, cell_manifold_chart_inv, cell_manifold_chart_pullback_grad, &
         cell_manifold_pack_hmat, cell_manifold_proj_pressure, cell_manifold_status_label, &
         cell_manifold_unpack_hmat, info_ok, n_slot
-   USE cell_methods,                    ONLY: cell_create,&
+   USE cell_methods,                    ONLY: canonicalize_cell_matrix,&
+                                              cell_create,&
                                               init_cell,&
                                               write_cell
    USE cell_opt_types,                  ONLY: cell_opt_fold_symmetry_rows,&
@@ -99,11 +100,12 @@ MODULE gopt_f_methods
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_f_methods'
    INTEGER(KIND=int_8), PARAMETER, PRIVATE :: bytes_per_mib = 1024*1024
+   REAL(KIND=dp), PARAMETER, PRIVATE :: restart_manifold_rel_tol = 1.0E-6_dp
 
    PUBLIC :: cp_eval_at, &
              gopt_f_create_x0, &
              gopt_f_project_coord, gopt_f_project_vector, &
-             gopt_f_set_h_ref, gopt_f_space_group_show, &
+             gopt_f_restore_cell_manifold, gopt_f_set_h_ref, gopt_f_space_group_show, &
              print_geo_opt_header, print_geo_opt_nc, &
              gopt_f_io_init, gopt_f_io, gopt_f_io_finalize, gopt_f_ii, &
              apply_cell_change
@@ -166,15 +168,8 @@ CONTAINS
             CALL print_spgr(gopt_env%spgr)
             CALL cp_print_key_finished_output(output_unit, logger, gopt_env%geo_section, &
                                               "PRINT%PROGRAM_RUN_INFO")
-            ! Symmetrize opt_cell before cell_opt_setup_manifold records q0 and s0.
-            CALL spgr_project_cell_metric(gopt_env%spgr, gopt_env%cell_env%opt_cell)
          END IF
-         CALL cell_opt_setup_manifold(gopt_env%cell_env)
-         IF (gopt_env%spgr%keep_space_group) THEN
-            CALL cell_opt_fold_symmetry_rows( &
-               gopt_env%cell_env, &
-               spgr_point_group_symmetry_id(gopt_env%spgr, gopt_env%cell_env%opt_cell))
-         END IF
+         CALL build_cell_opt_manifold(gopt_env, emit_warnings=.TRUE.)
 
          ndof_cell = gopt_env%cell_env%manifold%ndof
          ALLOCATE (x0(3*nparticle + ndof_cell))
@@ -352,8 +347,8 @@ CONTAINS
                   IF (spgr%keep_space_group) THEN
                      CALL spgr_apply_rotations_force(spgr, gradient)
                      CALL spgr_apply_rotations_stress(spgr, cell, av_ptens)
-                     ! Non-IO ranks have iunit <= 0. On IO ranks, a file print-key
-                     ! unit may be closed between steps, so check OPENED first.
+                     ! Non-IO ranks have iunit <= 0. On IO ranks, CP2K closes file print-key
+                     ! units between steps, so check OPENED first.
                      IF (spgr%iunit > 0) THEN
                         INQUIRE (UNIT=spgr%iunit, OPENED=unit_is_open)
                         IF (unit_is_open) THEN
@@ -1613,6 +1608,74 @@ CONTAINS
          CALL init_cell(gopt_env%spgr%cell_ref, hmat=h_ref)
       END IF
    END SUBROUTINE gopt_f_set_h_ref
+
+! **************************************************************************************************
+!> \brief Re-anchor the cell constraint manifold at reference_cell and remap x0.
+!> \param gopt_env geometry optimization environment
+!> \param reference_cell initial cell matrix from the BFGS restart header
+!> \param x0 optimization coordinate vector. This routine updates the cell block of x0 in place.
+! **************************************************************************************************
+   SUBROUTINE gopt_f_restore_cell_manifold(gopt_env, reference_cell, x0)
+      TYPE(gopt_f_type), POINTER                         :: gopt_env
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: reference_cell
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: x0
+
+      INTEGER                                            :: info, n_coord, ndof_cur
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat_cur
+      REAL(KIND=dp), DIMENSION(n_slot)                   :: q_check, q_cur
+
+      ndof_cur = gopt_env%cell_env%manifold%ndof
+      n_coord = 3*force_env_get_nparticle(gopt_env%force_env)
+      CPASSERT(SIZE(x0) == n_coord + ndof_cur)
+
+      hmat_cur = gopt_env%cell_env%opt_cell%hmat
+      q_cur = cell_manifold_pack_hmat(hmat_cur)
+
+      gopt_env%cell_env%opt_cell%hmat = reference_cell
+      CALL canonicalize_cell_matrix(gopt_env%cell_env%opt_cell)
+      CALL build_cell_opt_manifold(gopt_env, emit_warnings=.FALSE.)
+      CALL init_cell(gopt_env%cell_env%opt_cell, hmat=hmat_cur)
+
+      IF (gopt_env%cell_env%manifold%ndof /= ndof_cur) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "CELL_OPT: The cell degrees of freedom on BFGS restart differ "// &
+                       "from the reference cell. Set RESTART_HESSIAN F.")
+      END IF
+
+      CALL cell_manifold_chart_inv(gopt_env%cell_env%manifold, q_cur, &
+                                   x0(n_coord + 1:n_coord + ndof_cur))
+      CALL cell_manifold_chart_eval(gopt_env%cell_env%manifold, &
+                                    x0(n_coord + 1:n_coord + ndof_cur), q_check, info)
+      IF (info /= info_ok .OR. &
+          MAXVAL(ABS(q_check - q_cur)) > &
+          restart_manifold_rel_tol*MAX(1.0_dp, MAXVAL(ABS(q_cur)))) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "CELL_OPT: The restarted cell does not lie on the reference "// &
+                       "constraint manifold. Set RESTART_HESSIAN F.")
+      END IF
+   END SUBROUTINE gopt_f_restore_cell_manifold
+
+! **************************************************************************************************
+!> \brief Build cell_env%manifold from the current canonical opt_cell.
+!> \param gopt_env geometry optimization environment
+!> \param emit_warnings .TRUE. to emit setup and symmetry warnings
+! **************************************************************************************************
+   SUBROUTINE build_cell_opt_manifold(gopt_env, emit_warnings)
+      TYPE(gopt_f_type), POINTER                         :: gopt_env
+      LOGICAL, INTENT(IN)                                :: emit_warnings
+
+      IF (gopt_env%spgr%keep_space_group) THEN
+         ! Symmetrize opt_cell before cell_opt_setup_manifold records q0 and s0.
+         CALL spgr_project_cell_metric(gopt_env%spgr, gopt_env%cell_env%opt_cell)
+      END IF
+      CALL cell_opt_setup_manifold(gopt_env%cell_env, emit_warnings=emit_warnings)
+      IF (gopt_env%spgr%keep_space_group) THEN
+         CALL cell_opt_fold_symmetry_rows( &
+            gopt_env%cell_env, &
+            spgr_point_group_symmetry_id(gopt_env%spgr, gopt_env%cell_env%opt_cell), &
+            emit_warnings=emit_warnings)
+      END IF
+   END SUBROUTINE build_cell_opt_manifold
 
 ! **************************************************************************************************
 !> \brief Project optimizer coordinates onto the space-group-invariant subspace.
