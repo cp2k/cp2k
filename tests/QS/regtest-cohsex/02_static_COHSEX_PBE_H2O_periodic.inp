@@ -40,9 +40,10 @@
         KPOINTS 1 2 2
       &END DOS
       &GW
-        COHSEX
-        COHSEX_SCALE_OCC 0.5
-        COHSEX_SCALE_VIRT 0.5
+        &COHSEX
+          SCALE_OCC 0.5
+          SCALE_VIRT 0.5
+        &END COHSEX
         NUM_TIME_FREQ_POINTS 6
       &END GW
     &END BANDSTRUCTURE

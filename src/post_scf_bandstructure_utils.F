@@ -331,7 +331,7 @@ CONTAINS
       NULLIFY (gw_sec)
       gw_sec => section_vals_get_subs_vals(bs_sec, "GW")
       CALL section_vals_get(gw_sec, explicit=bs_env%do_gw)
-      CALL section_vals_val_get(gw_sec, "COHSEX", i_val=bs_env%cohsex_flavor)
+      CALL section_vals_val_get(gw_sec, "COHSEX%_SECTION_PARAMETERS_", i_val=bs_env%cohsex_flavor)
       bs_env%do_static_cohsex = (bs_env%cohsex_flavor /= cohsex_off)
       CALL section_vals_val_get(gw_sec, "RI_RS%_SECTION_PARAMETERS_", l_val=bs_env%do_gw_ri_rs)
 

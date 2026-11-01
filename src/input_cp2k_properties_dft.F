@@ -2498,7 +2498,7 @@ CONTAINS
                           "For the GW algorithm for molecules, see \[Wilhelm2021\]. "// &
                           "For 2D materials, see \[Graml2024\].", &
                           citations=[Wilhelm2021, Graml2024], &
-                          n_keywords=1, n_subsections=4, repeats=.FALSE.)
+                          n_keywords=1, n_subsections=5, repeats=.FALSE.)
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, &
@@ -2644,7 +2644,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="COHSEX", &
+      NULLIFY (subsection)
+      CALL section_create(subsection, __LOCATION__, name="COHSEX", &
+                          description="Static Coulomb-hole screened-exchange (COHSEX) approximation "// &
+                          "and scaling of its correlation self-energy.", &
+                          n_keywords=3, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Static Coulomb-hole screened-exchange (COHSEX) approximation to "// &
                           "$G_0W_0$. Only the static screened Coulomb interaction $W(\omega=0)$ is computed; "// &
                           "its correlation part $W^\text{c}(0) = W(0) - v$ gives the static correlation "// &
@@ -2654,14 +2661,14 @@ CONTAINS
                           "v^\text{xc}_{mn} + \Sigma^\text{c}_{mn}$ is built in the Kohn-Sham MO basis; its "// &
                           "occupied-virtual blocks are set to zero. The quasiparticle energies are written to "// &
                           "the file Quasiparticle_energies_singlepole.", &
-                          usage="COHSEX QP_UPDATE", &
+                          usage="&COHSEX QP_UPDATE", &
                           enum_c_vals=s2a("OFF", "DIAGONAL", "QP_UPDATE"), &
                           enum_i_vals=[cohsex_off, cohsex_diagonal, cohsex_qp_update], &
-                          enum_desc=s2a("No static COHSEX (default without the keyword).", &
+                          enum_desc=s2a("No static COHSEX (default without the section).", &
                                         "Diagonal static COHSEX (Hedin 1965; Hybertsen and Louie 1986): the "// &
                                         "quasiparticle energies are the diagonal elements "// &
                                         "$\varepsilon_n^\text{DG} = H^\text{QP}_{nn}$. "// &
-                                        "Default of the lone keyword.", &
+                                        "Default of the section without a parameter.", &
                                         "Static COHSEX with quasiparticle update (Tyagi and Voora 2024): "// &
                                         "$H^\text{QP}$ is diagonalized, giving the canonical static COHSEX "// &
                                         "energies $\varepsilon_n^\text{CN}$ and MOs. Both "// &
@@ -2669,26 +2676,29 @@ CONTAINS
                                         "the MOs at the $\Gamma$ point with DFT%PRINT%MO and DFT%PRINT%MO_CUBES."), &
                           citations=[Hedin1965, Hybertsen1986, Tyagi2024], &
                           default_i_val=cohsex_off, lone_keyword_i_val=cohsex_diagonal)
-      CALL section_add_keyword(section, keyword)
+      CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="COHSEX_SCALE_OCC", &
+      CALL keyword_create(keyword, __LOCATION__, name="SCALE_OCC", &
                           description="Scaling factor of the static COHSEX correlation self-energy in the "// &
                           "occupied-occupied block of $H^\text{QP}$.", &
-                          usage="COHSEX_SCALE_OCC 0.6", &
+                          usage="SCALE_OCC 0.6", &
                           citations=[Tyagi2026], &
                           default_r_val=1.0_dp)
-      CALL section_add_keyword(section, keyword)
+      CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="COHSEX_SCALE_VIRT", &
+      CALL keyword_create(keyword, __LOCATION__, name="SCALE_VIRT", &
                           description="Scaling factor of the static COHSEX correlation self-energy in the "// &
                           "virtual-virtual block of $H^\text{QP}$.", &
-                          usage="COHSEX_SCALE_VIRT 0.6", &
+                          usage="SCALE_VIRT 0.6", &
                           citations=[Tyagi2026], &
                           default_r_val=1.0_dp)
-      CALL section_add_keyword(section, keyword)
+      CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
       NULLIFY (subsection, print_key)
       CALL section_create(subsection, __LOCATION__, name="PRINT", &

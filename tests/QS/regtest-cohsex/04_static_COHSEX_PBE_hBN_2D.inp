@@ -40,9 +40,10 @@
         KPOINTS 2 2 1
       &END DOS
       &GW
-        COHSEX QP_UPDATE
-        COHSEX_SCALE_OCC 0.5
-        COHSEX_SCALE_VIRT 0.5
+        &COHSEX QP_UPDATE
+          SCALE_OCC 0.5
+          SCALE_VIRT 0.5
+        &END COHSEX
         KPOINTS_W 4 4 1
         NUM_TIME_FREQ_POINTS 4
       &END GW
