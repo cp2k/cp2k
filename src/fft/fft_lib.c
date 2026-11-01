@@ -73,6 +73,13 @@ int fft_init_lib(const fft_lib lib, const int fftw_planning_flag,
     status =
         fft_fftw_init_lib(fftw_planning_flag, use_guru_interface, wisdom_file);
     printf("Using FFTW library.\n");
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+    // Distributed FFTs always use the GPU backend, so it must be initialized
+    // even when FFTW3 is selected for the local FFTs.
+    if (status == 0) {
+      status = fft_init_acc_lib();
+    }
+#endif
     break;
   case FFT_LIB_GPU:
     status = fft_init_acc_lib();

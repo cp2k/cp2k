@@ -24,7 +24,8 @@
 !> \author Benjamin G. Levine
 ! **************************************************************************************************
 MODULE fft_gpu
-   USE ISO_C_BINDING,                   ONLY: C_DOUBLE,&
+   USE ISO_C_BINDING,                   ONLY: C_BOOL,&
+                                              C_DOUBLE,&
                                               C_INT,&
                                               C_LOC,&
                                               C_PTR
@@ -708,13 +709,16 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_gpu_f'
 
       COMPLEX(KIND=dp), POINTER                          :: ptr_pwin, ptr_pwout
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, ldx_in, ldx_out
+      LOGICAL                                            :: transpose_in, transpose_out
       INTERFACE
-         SUBROUTINE fft_gpu_f_c(zin, zout, dir, n, m) BIND(C, name="fft_gpu_f")
+         SUBROUTINE fft_gpu_f_c(zin, zout, dir, n, m, transpose_in, transpose_out, ldx_in, ldx_out) &
+            BIND(C, name="fft_gpu_f")
             IMPORT
             TYPE(C_PTR), INTENT(IN), VALUE               :: zin
             TYPE(C_PTR), VALUE                           :: zout
-            INTEGER(KIND=C_INT), INTENT(IN), VALUE       :: dir, n, m
+            LOGICAL(KIND=C_BOOL), INTENT(IN), VALUE      :: dir, transpose_in, transpose_out
+            INTEGER(KIND=C_INT), INTENT(IN), VALUE       :: n, m, ldx_in, ldx_out
          END SUBROUTINE fft_gpu_f_c
       END INTERFACE
 
@@ -725,9 +729,23 @@ CONTAINS
          ptr_pwin => pwbuf1(1, 1)
          ptr_pwout => pwbuf2(1, 1)
 
+         IF (dir > 0) THEN
+            transpose_in = .TRUE.
+            transpose_out = .FALSE.
+            ldx_in = m
+            ldx_out = n
+         ELSE
+            transpose_in = .FALSE.
+            transpose_out = .TRUE.
+            ldx_in = n
+            ldx_out = m
+         END IF
+
          ! invoke the combined transformation
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
-         CALL fft_gpu_f_c(c_loc(ptr_pwin), c_loc(ptr_pwout), dir, n, m)
+         CALL fft_gpu_f_c(c_loc(ptr_pwin), c_loc(ptr_pwout), LOGICAL(dir > 0, C_BOOL), &
+                          INT(n, C_INT), INT(m, C_INT), LOGICAL(transpose_in, C_BOOL), &
+                          LOGICAL(transpose_out, C_BOOL), INT(ldx_in, C_INT), INT(ldx_out, C_INT))
 #else
          MARK_USED(dir)
          CPABORT("Compiled without pw offloading")
