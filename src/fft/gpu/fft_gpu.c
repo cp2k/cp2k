@@ -1114,24 +1114,32 @@ void fft_gpu_f(const double *zin, double *zout, const bool dir, const int n,
 
   // Allocate device memory.
   offload_activate_chosen_device();
-  const size_t input_size =
-      2 * sizeof(double) * leading_dimension_in * (transpose_in ? n : m);
-  const size_t output_size =
-      2 * sizeof(double) * leading_dimension_out * (transpose_out ? n : m);
+  const size_t input_elements =
+      transpose_in ? (size_t)(n - 1) * leading_dimension_in + m
+                   : (size_t)(m - 1) * leading_dimension_in + n;
+  const size_t output_elements =
+      transpose_out ? (size_t)(n - 1) * leading_dimension_out + m
+                    : (size_t)(m - 1) * leading_dimension_out + n;
+  const size_t input_size = 2 * sizeof(double) * input_elements;
+  const size_t output_size = 2 * sizeof(double) * output_elements;
   ensure_memory_sizes(imax(input_size, output_size), 0);
 
   // Upload COMPLEX input to device.
   offloadMemcpyAsyncHtoD(buffer_dev_1, zin, input_size, stream);
 
   // Run FFT on the device.
+  double *output_dev = zin != zout ? buffer_dev_2 : buffer_dev_1;
   fft_1d_gpu(dir ? OFFLOAD_FFT_FORWARD : OFFLOAD_FFT_INVERSE, n, m,
              transpose_in, transpose_out, leading_dimension_in,
-             leading_dimension_out, buffer_dev_1,
-             zin != zout ? buffer_dev_2 : buffer_dev_1);
+             leading_dimension_out, buffer_dev_1, output_dev);
 
-  // Download COMPLEX results from device.
-  offloadMemcpyAsyncDtoH(zout, zin != zout ? buffer_dev_2 : buffer_dev_1,
-                         output_size, stream);
+  // Download only the valid (strided) results so that padding between
+  // transforms in the host array is left untouched.
+  const size_t element_size = 2 * sizeof(double);
+  const size_t width = (size_t)(transpose_out ? m : n) * element_size;
+  const size_t height = (size_t)(transpose_out ? n : m);
+  const size_t pitch = (size_t)leading_dimension_out * element_size;
+  offloadMemcpy2DAsync(zout, pitch, output_dev, pitch, width, height, stream);
   offloadStreamSynchronize(stream);
 #else
   (void)zin;
