@@ -101,6 +101,7 @@ MODULE gopt_f_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_f_methods'
    INTEGER(KIND=int_8), PARAMETER, PRIVATE :: bytes_per_mib = 1024*1024
    REAL(KIND=dp), PARAMETER, PRIVATE :: restart_manifold_rel_tol = 1.0E-6_dp
+   REAL(KIND=dp), PARAMETER, PRIVATE :: spgr_project_warn_tol = 1.0E-6_dp
 
    PUBLIC :: cp_eval_at, &
              gopt_f_create_x0, &
@@ -172,6 +173,11 @@ CONTAINS
          CALL build_cell_opt_manifold(gopt_env, emit_warnings=.TRUE.)
 
          ndof_cell = gopt_env%cell_env%manifold%ndof
+         IF (ndof_cell == 0) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "CELL_OPT: Constraints fix all 6 cell degrees of freedom. "// &
+                         "The cell remains fixed during optimization.")
+         END IF
          ALLOCATE (x0(3*nparticle + ndof_cell))
          CALL pack_subsys_particles(subsys=subsys, r=x0)
          CALL cell_manifold_chart_inv(gopt_env%cell_env%manifold, &
@@ -1664,9 +1670,19 @@ CONTAINS
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       LOGICAL, INTENT(IN)                                :: emit_warnings
 
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat_before
+
       IF (gopt_env%spgr%keep_space_group) THEN
+         hmat_before = gopt_env%cell_env%opt_cell%hmat
          ! Symmetrize opt_cell before cell_opt_setup_manifold records q0 and s0.
          CALL spgr_project_cell_metric(gopt_env%spgr, gopt_env%cell_env%opt_cell)
+         IF (emit_warnings .AND. &
+             MAXVAL(ABS(hmat_before - gopt_env%cell_env%opt_cell%hmat)) > &
+             spgr_project_warn_tol*MAX(1.0_dp, MAXVAL(ABS(hmat_before)))) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "CELL_OPT: KEEP_SPACE_GROUP modified the initial cell matrix "// &
+                         "to match the detected point group.")
+         END IF
       END IF
       CALL cell_opt_setup_manifold(gopt_env%cell_env, emit_warnings=emit_warnings)
       IF (gopt_env%spgr%keep_space_group) THEN

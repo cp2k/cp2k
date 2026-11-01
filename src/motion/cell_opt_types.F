@@ -48,6 +48,7 @@ MODULE cell_opt_types
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_opt_types'
+   REAL(KIND=dp), PARAMETER, PRIVATE :: canonical_frame_warn_tol = 1.0E-6_dp
 
    PUBLIC :: cell_opt_env_type, &
              cell_opt_env_create, &
@@ -98,8 +99,9 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: label
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: canonical_tokens, constraint_tokens
-      INTEGER                                            :: output_unit
-      LOGICAL                                            :: constraint_explicit
+      INTEGER                                            :: i, output_unit
+      LOGICAL                                            :: constraint_explicit, &
+                                                            has_frame_dep_constraint
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -129,13 +131,31 @@ CONTAINS
                       "&SUBSYS/&CELL SYMMETRY to specify the crystal system.")
       END IF
 
+      has_frame_dep_constraint = (.NOT. constraint_explicit .AND. &
+                                  cell_env%constraint_id /= fix_none)
       ! Only for explicitly set values: an unset keyword must stay unparsed so
       ! the restart echo keeps omitting the line, as it always has.
       IF (constraint_explicit) THEN
          ALLOCATE (canonical_tokens(SIZE(constraint_tokens)))
          canonical_tokens = constraint_tokens
          CALL uppercase(canonical_tokens)
+         DO i = 1, SIZE(canonical_tokens)
+            SELECT CASE (TRIM(ADJUSTL(canonical_tokens(i))))
+            CASE ("NONE", "A", "B", "C", "ALPHA", "BETA", "GAMMA")
+               CONTINUE
+            CASE DEFAULT
+               has_frame_dep_constraint = .TRUE.
+            END SELECT
+         END DO
          CALL section_vals_val_set(geo_section, "CONSTRAINT", c_vals_ptr=canonical_tokens)
+      END IF
+
+      IF (has_frame_dep_constraint .AND. &
+          MAXVAL(ABS(cell%hmat - cell_env%opt_cell%hmat)) > &
+          canonical_frame_warn_tol*MAX(1.0_dp, MAXVAL(ABS(cell%hmat)))) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "CELL_OPT: Axis and component constraints act on the canonical "// &
+                      "upper-triangular cell, not on the rotated input axes.")
       END IF
 
       ! Get the external pressure
