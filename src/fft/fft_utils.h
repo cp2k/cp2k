@@ -33,13 +33,13 @@ static inline int imax(int x, int y) { return (x > y ? x : y); }
  * \brief Returns the smaller of two given integer (missing from the C standard)
  * \author Frederick Stein
  ******************************************************************************/
-static inline int dmin(double x, double y) { return (x < y ? x : y); }
+static inline double dmin(double x, double y) { return (x < y ? x : y); }
 
 /*******************************************************************************
  * \brief Returns the larger of two given integer (missing from the C standard)
  * \author Frederick Stein
  ******************************************************************************/
-static inline int dmax(double x, double y) { return (x > y ? x : y); }
+static inline double dmax(double x, double y) { return (x > y ? x : y); }
 
 /*******************************************************************************
  * \brief Equivalent of Fortran's MODULO which always returns a positive number.
