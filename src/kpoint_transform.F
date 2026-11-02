@@ -11,11 +11,10 @@
 !>        values; evaluation reads them without communication or SCF state.
 ! **************************************************************************************************
 MODULE kpoint_transform
-   USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
-                                              dbcsr_get_info,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_info,&
                                               dbcsr_get_readonly_block_p,&
                                               dbcsr_p_type,&
-                                              dbcsr_set,&
                                               dbcsr_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
                                               cp_fm_struct_release,&
@@ -50,10 +49,15 @@ MODULE kpoint_transform
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kpoint_transform'
    INTEGER(KIND=int_8), PARAMETER :: fft_batch_bytes = 32_int_8*1024_int_8**2
+   INTEGER(KIND=int_8), PARAMETER, PRIVATE :: rskp_route_bytes = 64_int_8*1024_int_8**2, &
+                                              rskp_fft_bytes = 512_int_8*1024_int_8**2, &
+                                              rskp_gemm_bytes = 1000_int_8*1024_int_8**2
    PUBLIC :: kp_transform_plan_type, kp_transform_plan_create, rskp_route_type, rskp_values_type
    PUBLIC :: rskp_route_create, rskp_route_release, rskp_capture, rskp_compatible, rskp_values_release
    PUBLIC :: rskp_backend_gemm, rskp_backend_fft, cell_to_k_backend_prepare
    PUBLIC :: rskp_batch_size, cell_to_k_backend_evaluate_batch
+   PUBLIC :: rskp_prepared_transform_type, rskp_transform_prepare
+   PUBLIC :: rskp_transform_evaluate, rskp_transform_release
    PUBLIC :: cell_to_k_sparse_fft, k_grid_to_cell_contract, rskp_phase_factors, rskp_work_matrix
 
    TYPE, PUBLIC :: kp_transform_plan_type
@@ -102,7 +106,216 @@ MODULE kpoint_transform
       COMPLEX(KIND=dp) :: scale = z_one
    END TYPE rskp_values_type
 
+   ! Slot-free owner for captured source rows sharing one target-local R-to-K map.
+   TYPE, PUBLIC :: rskp_prepared_transform_type
+      PRIVATE
+      TYPE(rskp_route_type) :: route
+      TYPE(rskp_values_type), ALLOCATABLE :: values(:)
+      INTEGER, ALLOCATABLE :: kp_dist(:, :)
+      REAL(KIND=dp), ALLOCATABLE :: work(:)
+   END TYPE rskp_prepared_transform_type
+
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Prepare source rows for a generic group- or world-distributed target.
+!>        Own route, snapshots, singleton scratch and any FFT cache without SCF slots.
+!> \param prepared transform handle to initialize
+!> \param source real-space source rows and images
+!> \param source_rows source rows sharing the route/backend plan
+!> \param source_sab neighbor-list geometry of source
+!> \param cell_to_index translation-to-image map
+!> \param target_struct output matrix layout
+!> \param world source-matrix communicator
+!> \param group optional target-group communicator; omit for a world target
+!> \param inter optional communicator joining equivalent group ranks; omit for a world target
+!> \param backend selected GEMM or FFT backend
+!> \param xkp full global k-point coordinates
+!> \param nkp_grid regular-grid dimensions
+!> \param kp_dist optional global k ranges by inter-group rank; omit for a world target
+!> \param mirror_sign transpose parity (+1 Hermitian, -1 anti-Hermitian)
+!> \param scale complex prefactor applied to direct and mirrored contributions
+! **************************************************************************************************
+   SUBROUTINE rskp_transform_prepare(prepared, source, source_rows, source_sab, cell_to_index, target_struct, &
+                                     world, group, inter, backend, xkp, nkp_grid, kp_dist, mirror_sign, scale)
+
+      TYPE(rskp_prepared_transform_type), INTENT(INOUT)  :: prepared
+      TYPE(dbcsr_p_type), POINTER                        :: source(:, :)
+      INTEGER, INTENT(IN)                                :: source_rows(:)
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: source_sab
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      TYPE(cp_fm_struct_type), POINTER                   :: target_struct
+      TYPE(mp_para_env_type), POINTER                    :: world
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: group, inter
+      INTEGER, INTENT(IN)                                :: backend
+      REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
+      INTEGER, INTENT(IN)                                :: nkp_grid(3)
+      INTEGER, INTENT(IN), OPTIONAL                      :: kp_dist(:, :), mirror_sign
+      COMPLEX(KIND=dp), INTENT(IN), OPTIONAL             :: scale
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rskp_transform_prepare'
+
+      INTEGER                                            :: first, handle, irow, nk_local
+      INTEGER(KIND=int_8)                                :: max_backend_bytes, phase_bytes, &
+                                                            retained_bytes, workspace_bytes
+      INTEGER, ALLOCATABLE                               :: eval_kp_dist(:, :)
+      LOGICAL                                            :: ready
+      REAL(KIND=dp), ALLOCATABLE                         :: phase_xkp(:, :)
+      TYPE(mp_para_env_type), POINTER                    :: eval_group, eval_inter
+
+      CALL timeset(routineN, handle)
+      CALL rskp_transform_release(prepared)
+      CPASSERT(SIZE(source_rows) > 0)
+      CPASSERT(ALL(source_rows >= 1) .AND. ALL(source_rows <= SIZE(source, 1)))
+      CPASSERT(SIZE(xkp, 1) == 3 .AND. SIZE(xkp, 2) > 0)
+      CPASSERT(ASSOCIATED(target_struct) .AND. ASSOCIATED(world))
+      IF (PRESENT(group) .EQV. PRESENT(inter)) THEN
+         IF (PRESENT(group)) THEN
+            CPASSERT(PRESENT(kp_dist))
+            CPASSERT(ASSOCIATED(group) .AND. ASSOCIATED(inter))
+            eval_group => group
+            eval_inter => inter
+         ELSE
+            CPASSERT(.NOT. PRESENT(kp_dist))
+            CPASSERT(ASSOCIATED(target_struct%para_env, world))
+            eval_group => world
+            eval_inter => world
+         END IF
+      ELSE
+         CPABORT("R-to-K group and inter communicators must be supplied together")
+      END IF
+      IF (PRESENT(kp_dist)) THEN
+         CPASSERT(SIZE(kp_dist, 1) == 2)
+         ALLOCATE (eval_kp_dist, source=kp_dist)
+      ELSE
+         ALLOCATE (eval_kp_dist(2, 1))
+         eval_kp_dist(:, 1) = [1, SIZE(xkp, 2)]
+      END IF
+      max_backend_bytes = rskp_gemm_bytes
+      IF (backend == rskp_backend_fft) max_backend_bytes = rskp_fft_bytes
+      ALLOCATE (prepared%kp_dist, source=eval_kp_dist)
+      ALLOCATE (prepared%values(SIZE(source_rows)))
+      CALL rskp_route_create(source, source_sab, cell_to_index, target_struct, world, eval_group, eval_inter, backend, &
+                             rskp_route_bytes, prepared%route, ready)
+      IF (.NOT. ready) THEN
+         CPABORT("R-to-K route is unsupported, incompatible with the target, or over budget")
+      END IF
+
+      phase_bytes = max_backend_bytes
+      IF (backend == rskp_backend_fft .OR. prepared%route%world_target) THEN
+         workspace_bytes = max_backend_bytes
+         IF (backend == rskp_backend_gemm) workspace_bytes = phase_bytes
+         CALL cell_to_k_backend_prepare(prepared%route, xkp, nkp_grid, workspace_bytes)
+      ELSE
+         first = eval_kp_dist(1, eval_inter%mepos + 1)
+         ALLOCATE (phase_xkp, source=xkp(:, first:eval_kp_dist(2, eval_inter%mepos + 1)))
+         CALL cell_to_k_backend_prepare(prepared%route, phase_xkp, nkp_grid, phase_bytes)
+      END IF
+      retained_bytes = prepared%route%storage
+      DO irow = 1, SIZE(source_rows)
+         CALL rskp_capture(source, source_rows(irow), prepared%route, prepared%values(irow), mirror_sign, scale)
+         retained_bytes = retained_bytes + 8_int_8*SIZE(prepared%values(irow)%packed, KIND=int_8)
+         IF (ALLOCATED(prepared%values(irow)%active)) THEN
+            retained_bytes = retained_bytes + INT(STORAGE_SIZE(.FALSE.)/8, int_8)* &
+                             SIZE(prepared%values(irow)%active, KIND=int_8)
+         END IF
+      END DO
+      IF (retained_bytes > rskp_route_bytes) CPABORT("Prepared R-to-K source exceeds the memory budget")
+      IF (backend == rskp_backend_fft) THEN
+         nk_local = SIZE(xkp, 2)
+         IF (.NOT. prepared%route%world_target) THEN
+            nk_local = eval_kp_dist(2, eval_inter%mepos + 1) - &
+                       eval_kp_dist(1, eval_inter%mepos + 1) + 1
+         END IF
+         retained_bytes = retained_bytes + 16_int_8*SIZE(source_rows, KIND=int_8)*nk_local* &
+                          target_struct%local_leading_dimension*MAX(1, prepared%route%ncol)
+         workspace_bytes = max_backend_bytes - retained_bytes
+         IF (workspace_bytes <= 0_int_8) CPABORT("Prepared lattice FFT exceeds the memory budget")
+         DO irow = 1, SIZE(source_rows)
+            ALLOCATE (prepared%values(irow)%fft_values(target_struct%local_leading_dimension, &
+                                                       MAX(1, prepared%route%ncol), nk_local))
+            CALL cell_to_k_sparse_fft(prepared%values(irow), prepared%route, xkp, nkp_grid, &
+                                      eval_kp_dist, eval_inter, &
+                                      prepared%values(irow)%fft_values, workspace_bytes)
+            DEALLOCATE (prepared%values(irow)%packed)
+         END DO
+         ALLOCATE (prepared%work(0))
+      ELSE
+         ALLOCATE (prepared%work(2_int_8*prepared%route%transform%max_per_k))
+      END IF
+      CALL timestop(handle)
+   END SUBROUTINE rskp_transform_prepare
+
+! **************************************************************************************************
+!> \brief Evaluate one k point directly into an FM, split-FM or CFM target.
+!>        The handle owns mutable scratch; concurrent evaluations need separate handles.
+!> \param prepared initialized transform handle
+!> \param source_index one-based source row index supplied at preparation
+!> \param k global k-point index
+!> \param xkp full global k-point coordinates
+!> \param fm_re real output matrix for split-FM storage
+!> \param fm_im optional imaginary output matrix for split-FM storage
+!> \param cfm optional complex full-matrix output
+! **************************************************************************************************
+   SUBROUTINE rskp_transform_evaluate(prepared, source_index, k, xkp, fm_re, fm_im, cfm)
+      TYPE(rskp_prepared_transform_type), INTENT(INOUT)  :: prepared
+      INTEGER, INTENT(IN)                                :: source_index, k
+      REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
+      TYPE(cp_fm_type), INTENT(INOUT), OPTIONAL, TARGET  :: fm_re, fm_im
+      TYPE(cp_cfm_type), INTENT(INOUT), OPTIONAL, TARGET :: cfm
+
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: batch(:, :, :)
+      INTEGER                                            :: first_local, ncomp
+      TYPE(cp_fm_p_type)                                 :: output(1, 2)
+
+      CPASSERT(ALLOCATED(prepared%values) .AND. ALLOCATED(prepared%work))
+      CPASSERT(source_index >= 1 .AND. source_index <= SIZE(prepared%values))
+      CPASSERT(k >= 1 .AND. k <= SIZE(xkp, 2))
+      first_local = k
+      IF (.NOT. prepared%route%world_target) THEN
+         CPASSERT(k >= prepared%kp_dist(1, prepared%route%inter%mepos + 1))
+         CPASSERT(k <= prepared%kp_dist(2, prepared%route%inter%mepos + 1))
+         first_local = k - prepared%kp_dist(1, prepared%route%inter%mepos + 1) + 1
+      END IF
+      CPASSERT(PRESENT(fm_re) .NEQV. PRESENT(cfm))
+      CPASSERT(.NOT. PRESENT(fm_im) .OR. PRESENT(fm_re))
+      IF (PRESENT(cfm)) THEN
+         CPASSERT(cp_fm_struct_equivalent(cfm%matrix_struct, prepared%route%matrix_struct))
+         batch(1:SIZE(cfm%local_data, 1), 1:SIZE(cfm%local_data, 2), 1:1) => cfm%local_data
+         CALL cell_to_k_backend_evaluate_batch(prepared%values(source_index), prepared%route, &
+                                               xkp(:, k:k), first_local, prepared%work, batch=batch)
+      ELSE
+         output(1, 1)%matrix => fm_re
+         ncomp = 1
+         IF (PRESENT(fm_im)) THEN
+            output(1, 2)%matrix => fm_im
+            ncomp = 2
+         END IF
+         CALL cell_to_k_backend_evaluate_batch(prepared%values(source_index), prepared%route, &
+                                               xkp(:, k:k), first_local, prepared%work, output=output(:, 1:ncomp))
+      END IF
+   END SUBROUTINE rskp_transform_evaluate
+
+! **************************************************************************************************
+!> \brief Release the route, snapshot and cached backend state of a prepared transform.
+!> \param prepared transform handle to release
+! **************************************************************************************************
+   SUBROUTINE rskp_transform_release(prepared)
+      TYPE(rskp_prepared_transform_type), INTENT(INOUT)  :: prepared
+
+      INTEGER                                            :: irow
+
+      IF (ALLOCATED(prepared%values)) THEN
+         DO irow = 1, SIZE(prepared%values)
+            CALL rskp_values_release(prepared%values(irow))
+         END DO
+         DEALLOCATE (prepared%values)
+      END IF
+      CALL rskp_route_release(prepared%route)
+      IF (ALLOCATED(prepared%kp_dist)) DEALLOCATE (prepared%kp_dist)
+      IF (ALLOCATED(prepared%work)) DEALLOCATE (prepared%work)
+   END SUBROUTINE rskp_transform_release
 
 ! **************************************************************************************************
 !> \brief Build the immutable neighbor-list traversal shared by R-to-K and K-to-R transforms.
