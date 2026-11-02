@@ -862,18 +862,22 @@ def install_cp2k_spack(
             test_type=test_type,
         )
         + rf"""
-ARG IMAGE_TAG
-ENV IMAGE_TAG=${{IMAGE_TAG:-{image_tag}}}
+ARG IMAGE_TAG="{image_tag}"
+ENV IMAGE_TAG="${{IMAGE_TAG}}"
 
-ARG SPACK_CACHE
-ENV SPACK_CACHE="${{SPACK_CACHE:-s3://spack-cache --s3-endpoint-url=http://host.containers.internal:9000}}"
+# Set number CPU cores if requested
+ARG NUM_PROCS=""
+ENV NUM_PROCS="${{NUM_PROCS}}"
+
+ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://host.containers.internal:9000"
+ENV SPACK_CACHE="${{SPACK_CACHE}}"
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
 COPY ./tools/spack ./tools/spack
 COPY ./tools/docker ./tools/docker
 COPY ./make_cp2k.sh .
-RUN ./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} {gcc_version_flag} -mpi {mpi_mode} {use_externals} {feature_flags}
+RUN ./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} {gcc_version_flag} -j${{NUM_PROCS}} -mpi {mpi_mode} {use_externals} {feature_flags}
 
 ###### Stage 2: Build CP2K ######
 
@@ -887,7 +891,7 @@ COPY ./tests ./tests
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./tools/conventions ./tools/conventions
 
-RUN ./make_cp2k.sh -cv {version} {gcc_version_flag} -gpu {gpu_model} -mpi {mpi_mode} {feature_flags}
+RUN ./make_cp2k.sh -cv {version} {gcc_version_flag} -gpu {gpu_model} -j${{NUM_PROCS}} -mpi {mpi_mode} {feature_flags}
 """
     )
     output += (
@@ -992,11 +996,11 @@ def install_base_image(
 ) -> str:
     if stage == "build":
         output = rf"""
-ARG BASE_IMAGE="{base_image}"
+ARG BASE_IMAGE="docker.io/{base_image}"
 
 ###### Stage 1: Build CP2K dependencies ######
 
-FROM "docker.io/${{BASE_IMAGE}}" AS build_deps
+FROM "${{BASE_IMAGE}}" AS build_deps
 """
         if "fedora" in base_image:
             output += rf"""
@@ -1070,7 +1074,10 @@ RUN dnf -y install dnf-plugins-core && \
 """
         elif "ubuntu" in base_image:
             output += rf"""
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+ARG APT_GET="apt-get -o APT::Sandbox::User=root -qq"
+
+RUN ${{APT_GET}} update && \
+    ${{APT_GET}} install --no-install-recommends \
     bzip2 \
     ca-certificates \
     cmake \
@@ -1116,7 +1123,7 @@ ENV CUDA_CACHE_DISABLE 1
         output = rf"""
 ###### Stage 3: Install CP2K ######
 
-FROM "docker.io/${{BASE_IMAGE}}" AS install_cp2k
+FROM "${{BASE_IMAGE}}" AS install_cp2k
 """
         if "fedora" in base_image:
             output += rf"""
@@ -1144,10 +1151,14 @@ RUN dnf -y install dnf-plugins-core && \
     && dnf clean -q all
 """
         elif "ubuntu" in base_image:
+            output += rf"""
+ARG APT_GET="apt-get -o APT::Sandbox::User=root -qq"
+"""
             if test_type == "ase":
                 # ASE requires ca-certificates
                 output += rf"""
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+RUN ${{APT_GET}} update && \
+    ${{APT_GET}} install --no-install-recommends \
     ca-certificates \
     {gcc_compilers} \
     python3 \
@@ -1156,7 +1167,8 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
             elif test_type == "gromacs":
                 # GROMACS requires the shared C-library version of Python at runtime
                 output += rf"""
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+RUN ${{APT_GET}} update && \
+    ${{APT_GET}} install --no-install-recommends \
     {gcc_compilers} \
     python3 \
     python3-dev \
@@ -1164,7 +1176,8 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 """
             else:
                 output += rf"""
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+RUN ${{APT_GET}} update && \
+    ${{APT_GET}} install --no-install-recommends \
     {gcc_compilers} \
     python3 \
     && rm -rf /var/lib/apt/lists/*
