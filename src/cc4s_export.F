@@ -13,6 +13,7 @@
 !>        and bounded output pieces are gathered to the writing rank.
 ! **************************************************************************************************
 MODULE cc4s_export
+   USE ISO_FORTRAN_ENV,                 ONLY: file_storage_size
    USE cell_types,                      ONLY: cell_type,&
                                               plane_distance,&
                                               use_perd_none,&
@@ -310,8 +311,29 @@ CONTAINS
       IF (limited_product([INT(nao, int_8), INT(nmo, int_8)], backend_block_limit) > backend_block_limit) THEN
          CPABORT("CC4S: coefficients exceed backend count limits")
       END IF
-      IF (output_unit > 0) WRITE (output_unit, '(/,T3,A,T69,F12.6)') &
-         "CC4S| Actual output buffer size per MPI rank [MiB]:", REAL(buffer_elements, dp)/elements_per_mib
+      IF (output_unit > 0) THEN
+         WRITE (output_unit, '(/,T3,A)') "CC4S| Reference export"
+         WRITE (output_unit, '(T3,A,T60,A21)') "CC4S| Reference:", "Restricted RI-HF"
+         IF (periodic) THEN
+            WRITE (output_unit, '(T3,A,T60,A21)') "CC4S| Boundary conditions:", "Periodic Gamma"
+            WRITE (output_unit, '(T3,A,T60,A21)') "CC4S| Coulomb interaction:", "TRUNCATED"
+            WRITE (output_unit, '(T3,A,T69,F12.6)') "CC4S| Coulomb cutoff radius [bohr]:", cutoff_radius
+         ELSE
+            WRITE (output_unit, '(T3,A,T60,A21)') "CC4S| Boundary conditions:", "Isolated"
+            WRITE (output_unit, '(T3,A,T60,A21)') "CC4S| Coulomb interaction:", "COULOMB"
+         END IF
+         WRITE (output_unit, '(T3,A)') "CC4S|"
+         WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of auxiliary basis functions:", nri
+         WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of exported orbitals:", nmo
+         WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of exported occupied orbitals:", homo - frozen
+         WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of exported virtual orbitals:", nmo - homo + frozen
+         WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of frozen occupied orbitals:", frozen
+         WRITE (output_unit, '(T3,A,T63,F18.6)') &
+            "CC4S| Expected Coulomb vertex size [MiB]:", REAL(total_elements, dp)/elements_per_mib
+         WRITE (output_unit, '(T3,A)') "CC4S|"
+         WRITE (output_unit, '(T3,A,T69,F12.6)') &
+            "CC4S| Actual output buffer size per MPI rank [MiB]:", REAL(buffer_elements, dp)/elements_per_mib
+      END IF
       CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo, template_fmstruct=mo_coeff%matrix_struct)
       CALL cp_fm_create(fm_active, fm_struct, name="CC4S active orbitals")
       CALL cp_fm_struct_release(fm_struct)
@@ -344,31 +366,24 @@ CONTAINS
       CALL timestop(stage_handle)
       IF (para_env%is_source()) THEN
          IF (output_unit > 0) THEN
-            IF (method == 'CCSD_T') THEN
-               WRITE (output_unit, '(T3,A,T73,A8)') "CC4S| Requested method:", 'CCSD(T)'
-            ELSE
-               WRITE (output_unit, '(T3,A,T73,A8)') "CC4S| Requested method:", TRIM(method)
-            END IF
-            IF (method /= 'MP2') THEN
-               WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Maximum CCSD iterations:", max_iter
-               WRITE (output_unit, '(T3,A,T73,ES8.1)') "CC4S| CCSD energy convergence [Ha]:", energy_conv
-               WRITE (output_unit, '(T3,A,T73,ES8.1)') "CC4S| CCSD amplitudes convergence:", amp_conv
-            END IF
-            WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of auxiliary basis functions:", nri
-            WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of exported orbitals:", nmo
-            WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of exported occupied orbitals:", homo - frozen
-            WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of exported virtual orbitals:", nmo - homo + frozen
-            WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of frozen occupied orbitals:", frozen
+            WRITE (output_unit, '(/,T3,A)') "CC4S| Export completed"
             WRITE (output_unit, '(T3,A,T56,ES25.16)') "CC4S| Vertex norm squared [Ha]:", vertex_norm
             WRITE (output_unit, '(T3,A,T56,ES25.16)') &
                "CC4S| Sum of exported orbital energies [Ha]:", SUM(eigenvalues(frozen + 1:frozen + nmo))
-            IF (periodic) THEN
-               WRITE (output_unit, '(T3,A)') "CC4S| Gamma-point TRUNCATED interaction"
-               WRITE (output_unit, '(T3,A,T69,F12.6)') "CC4S| Coulomb cutoff radius [bohr]:", cutoff_radius
-            END IF
-            filename = cp_print_key_generate_filename(logger, print_section, extension='.in', my_local=.FALSE.)
-            WRITE (output_unit, '(T3,A,T41,A)') "CC4S| Generated input file:", &
+            WRITE (output_unit, '(T3,A)') "CC4S|"
+            filename = cp_print_key_generate_filename(logger, print_section, 'EigenEnergies', '.yaml', .FALSE.)
+            WRITE (output_unit, '(T3,A,T41,A)') "CC4S| Orbital energies metadata:", &
                ADJUSTR(filename(:MAX(40, LEN_TRIM(filename))))
+            filename = cp_print_key_generate_filename(logger, print_section, 'EigenEnergies', '.elements', .FALSE.)
+            WRITE (output_unit, '(T3,A,T41,A)') "CC4S| Orbital energies data:", &
+               ADJUSTR(filename(:MAX(40, LEN_TRIM(filename))))
+            filename = cp_print_key_generate_filename(logger, print_section, 'CoulombVertex', '.yaml', .FALSE.)
+            WRITE (output_unit, '(T3,A,T41,A)') "CC4S| Coulomb vertex metadata:", &
+               ADJUSTR(filename(:MAX(40, LEN_TRIM(filename))))
+            filename = cp_print_key_generate_filename(logger, print_section, 'CoulombVertex', '.elements', .FALSE.)
+            WRITE (output_unit, '(T3,A,T41,A)') "CC4S| Coulomb vertex file:", &
+               ADJUSTR(filename(:MAX(40, LEN_TRIM(filename))))
+            CALL print_vertex_file_size(output_unit, filename)
          END IF
       END IF
       DEALLOCATE (eigenvalues)
@@ -383,8 +398,54 @@ CONTAINS
          WRITE (output_unit, '(T3,A,T69,F12.3)') "CC4S| Output gathering time [s]:", elapsed(4)
          WRITE (output_unit, '(T3,A,T69,F12.3)') "CC4S| File writing time [s]:", elapsed(5)
       END IF
+      IF (para_env%is_source()) THEN
+         IF (output_unit > 0) THEN
+            WRITE (output_unit, '(/,T3,A)') "CC4S| Generated CC4S input"
+            filename = cp_print_key_generate_filename(logger, print_section, extension='.in', my_local=.FALSE.)
+            WRITE (output_unit, '(T3,A,T41,A)') "CC4S| Generated input file:", &
+               ADJUSTR(filename(:MAX(40, LEN_TRIM(filename))))
+            IF (method == 'CCSD_T') THEN
+               WRITE (output_unit, '(T3,A,T73,A8)') "CC4S| Requested method:", 'CCSD(T)'
+            ELSE
+               WRITE (output_unit, '(T3,A,T73,A8)') "CC4S| Requested method:", TRIM(method)
+            END IF
+            IF (method /= 'MP2') THEN
+               WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Maximum CCSD iterations:", max_iter
+               WRITE (output_unit, '(T3,A,T73,ES8.1)') "CC4S| CCSD energy convergence [Ha]:", energy_conv
+               WRITE (output_unit, '(T3,A,T73,ES8.1)') "CC4S| CCSD amplitudes convergence:", amp_conv
+            END IF
+         END IF
+      END IF
       CALL timestop(handle)
    END SUBROUTINE write_cc4s
+
+! **************************************************************************************************
+!> \brief Report the actual size of the closed binary vertex file, in MiB, on the writing rank.
+!> \param output_unit Log output unit
+!> \param filename Export filename generated by the print key
+! **************************************************************************************************
+   SUBROUTINE print_vertex_file_size(output_unit, filename)
+      INTEGER, INTENT(IN)                                :: output_unit
+      CHARACTER(len=*), INTENT(IN)                       :: filename
+
+      INTEGER                                            :: io_status
+      INTEGER(int_8)                                     :: file_size
+      REAL(dp)                                           :: size_mib
+
+      file_size = -1_int_8
+      INQUIRE (FILE=TRIM(filename), SIZE=file_size, IOSTAT=io_status)
+      size_mib = -1.0_dp
+      IF (io_status == 0) THEN
+         IF (file_size >= 0_int_8) THEN
+            size_mib = REAL(file_size, dp)*REAL(file_storage_size, dp)/(8.0_dp*1024.0_dp**2)
+         END IF
+      END IF
+      IF (size_mib >= 0.0_dp) THEN
+         WRITE (output_unit, '(T3,A,T63,F18.6)') "CC4S| Written Coulomb vertex size [MiB]:", size_mib
+      ELSE
+         WRITE (output_unit, '(T3,A,T63,A18)') "CC4S| Written Coulomb vertex size [MiB]:", "unavailable"
+      END IF
+   END SUBROUTINE print_vertex_file_size
 
 ! **************************************************************************************************
 !> \brief Transform and stream orbital batches, using private auxiliary slices of the SCF triangle.
@@ -480,9 +541,9 @@ CONTAINS
       END IF
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(T3,A,T69,F12.3)') &
-            "CC4S| Estimated memory required for export per MPI rank [MB]:", memory_mb
+            "CC4S| Estimated export workspace per MPI rank [MB]:", memory_mb
          WRITE (output_unit, '(T3,A,T69,F12.3)') &
-            "CC4S| Maximum memory allowed for export per MPI rank [MB]:", max_memory_mb
+            "CC4S| Export workspace budget per MPI rank [MB]:", max_memory_mb
       END IF
       IF (memory_mb > max_memory_mb) THEN
          CALL cp_abort(__LOCATION__, &
