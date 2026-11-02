@@ -64,8 +64,8 @@ int fft_init_lib(const fft_lib lib, const int fftw_planning_flag,
   CPABORT("OFFLOAD and FPGA cannot be configured concurrently! Recompile with "
           "-D__NO_OFFLOAD_FFT.")
 #endif
-  const int stat = fft_fpga_initialize()
-      assert(stat == 0 && "Initialization of FPGA failed!");
+  const int stat = fft_fpga_initialize();
+  assert(stat == 0 && "Initialization of FPGA failed!");
 #endif
   int status = 1;
   switch (fft_lib_choice) {
