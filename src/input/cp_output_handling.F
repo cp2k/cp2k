@@ -176,7 +176,13 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
-                          description="Level starting at which this property is printed", &
+                          description="Level starting at which this property is printed. "// &
+                          "Printing is activated when the GLOBAL/PRINT_LEVEL of a task is "// &
+                          "higher than or equal to the level as specified here; to override "// &
+                          "this comparison, use ON to always print or OFF to never print. "// &
+                          "Explicitly giving the section without a level or ON or OFF is "// &
+                          "treated as if SILENT is specified, whereas omitting the section "// &
+                          "is treated implicitly using the default value.", &
                           usage="silent", &
                           default_i_val=my_print_level, lone_keyword_i_val=silent_print_level, &
                           enum_c_vals=s2a("on", "off", "silent", "low", "medium", "high", "debug"), &
@@ -197,10 +203,13 @@ CONTAINS
                           description="This section specifies how often this property is printed. "// &
                           "Each keyword inside this section is mapping to a specific iteration level and "// &
                           "the value of each of these keywords is matched with the iteration level during "// &
-                          "the calculation. How to handle the last iteration is treated "// &
-                          "separately in ADD_LAST (this mean that each iteration level (MD, GEO_OPT, etc..), "// &
-                          "though equal to 0, might print the last iteration). If an iteration level is specified "// &
-                          "that is not present in the flow of the calculation it is just ignored.", &
+                          "the calculation. A value of 0 or negative turns off printing for the iteration "// &
+                          "level. How to handle the last iteration is treated separately in the ADD_LAST "// &
+                          "keyword outside of this section; each iteration level might print the last "// &
+                          "iteration even if the corresponding value is set to 0 or negative. "// &
+                          "If an iteration level is specified that is not present in the flow of "// &
+                          "the calculation, it is just ignored; switch GLOBAL/ITER_LEVEL_VERBOSITY "// &
+                          "to NOTICE or STACK to print information about existing iteration levels.", &
                           n_keywords=2, n_subsections=0, repeats=.FALSE., &
                           citations=citations)
 
@@ -254,9 +263,12 @@ CONTAINS
       my_comm_iter_levels = 0
       IF (PRESENT(common_iter_levels)) my_comm_iter_levels = common_iter_levels
       CALL keyword_create(keyword, __LOCATION__, name="COMMON_ITERATION_LEVELS", &
-                          description="How many iterations levels should be written"// &
-                          " in the same file (no extra information about the actual"// &
-                          " iteration level is written to the file)", &
+                          description="How many iteration levels should be written "// &
+                          "in the same file (no extra information about the actual "// &
+                          "iteration level is written to the file). Set to 0 to use "// &
+                          "the current iteration level, 1 to use the next level, ..., "// &
+                          "in the stack of iteration levels (printed by setting the "// &
+                          "GLOBAL/ITER_LEVEL_VERBOSITY to STACK).", &
                           usage="COMMON_ITERATION_LEVELS <INTEGER>", &
                           default_i_val=my_comm_iter_levels)
       CALL section_add_keyword(print_key_section, keyword)
