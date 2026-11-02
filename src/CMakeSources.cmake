@@ -349,6 +349,7 @@ list(
   kpoint_methods.F
   kpoint_mo_dump.F
   kpoint_mo_symmetry_methods.F
+  kpoint_transform.F
   kpoint_transitional.F
   kpoint_types.F
   kpsym.F
