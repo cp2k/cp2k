@@ -433,8 +433,8 @@ CONTAINS
       REAL(dp)                                           :: size_mib
 
       file_size = -1_int_8
-      INQUIRE (FILE=TRIM(filename), SIZE=file_size, IOSTAT=io_status)
       size_mib = -1.0_dp
+      INQUIRE (FILE=TRIM(filename), SIZE=file_size, IOSTAT=io_status)
       IF (io_status == 0) THEN
          IF (file_size >= 0_int_8) THEN
             size_mib = REAL(file_size, dp)*REAL(file_storage_size, dp)/(8.0_dp*1024.0_dp**2)
