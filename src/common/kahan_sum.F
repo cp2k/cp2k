@@ -452,22 +452,29 @@ CONTAINS
 !> \brief computes the accurate sum of an array that is the element wise product of two input arrays.
 !> \param array1 2-D array of complex numbers
 !> \param array2 another 2-D array of complex numbers
+!> \param conjugate_a conjugate the first array before multiplication (default: false)
 !> \return dot product
 ! **************************************************************************************************
-   PURE FUNCTION kahan_dot_product_z2(array1, array2) RESULT(ks)
+   PURE FUNCTION kahan_dot_product_z2(array1, array2, conjugate_a) RESULT(ks)
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(in)      :: array1, array2
+      LOGICAL, INTENT(IN), OPTIONAL                      :: conjugate_a
       COMPLEX(KIND=dp)                                   :: ks
 
-      COMPLEX(KIND=dp)                                   :: c, t, y
+      COMPLEX(KIND=dp)                                   :: c, t, value, y
       INTEGER                                            :: i1, i2, n1, n2
+      LOGICAL                                            :: conjugate
 
       ks = zzero; t = zzero; y = zzero; c = zzero
+      conjugate = .FALSE.
+      IF (PRESENT(conjugate_a)) conjugate = conjugate_a
 
       n1 = SIZE(array1, 1)
       n2 = SIZE(array1, 2)
       DO i2 = 1, n2
          DO i1 = 1, n1
-            y = array1(i1, i2)*array2(i1, i2) - c
+            value = array1(i1, i2)
+            IF (conjugate) value = CONJG(value)
+            y = value*array2(i1, i2) - c
             t = ks + y
             c = (t - ks) - y
             ks = t

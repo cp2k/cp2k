@@ -23,11 +23,8 @@ MODULE qs_diis
                                               cp_cfm_trace
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
-                                              cp_cfm_release,&
                                               cp_cfm_to_cfm,&
-                                              cp_cfm_to_fm,&
-                                              cp_cfm_type,&
-                                              cp_fm_to_cfm
+                                              cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_set, dbcsr_transposed, dbcsr_type
@@ -35,7 +32,6 @@ MODULE qs_diis
                                               dbcsr_maxabs
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                              cp_fm_scale,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_symm,&
                                               cp_fm_trace
@@ -43,7 +39,6 @@ MODULE qs_diis
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_maxabsval,&
-                                              cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -1153,10 +1148,8 @@ CONTAINS
                                                             output_unit
       LOGICAL                                            :: eigenvectors_discarded
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ev
-      TYPE(cp_cfm_type)                                  :: old_errors
       TYPE(cp_cfm_type), POINTER                         :: new_errors
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type)                                   :: ierr, rerr
       TYPE(cp_logger_type), POINTER                      :: logger
 
       NULLIFY (matrix_struct, new_errors, logger)
@@ -1181,31 +1174,25 @@ CONTAINS
 
       ! Calculate the DIIS buffer, and update it if max_error < eps_diis
       CALL cp_cfm_get_info(diis_buffer%error(ib, 1, 1), matrix_struct=matrix_struct)
-      CALL cp_fm_create(ierr, matrix_struct)
-      CALL cp_fm_create(rerr, matrix_struct)
-      CALL cp_cfm_create(old_errors, matrix_struct)
       ALLOCATE (b(nb, nb))
       b = 0.0_dp
       DO jb = 1, nb
          DO ikp = 1, nkp_local
             DO ispin = 1, nspin
                new_errors => diis_buffer%error(ib, ispin, ikp)
-               CALL cp_cfm_to_fm(diis_buffer%error(jb, ispin, ikp), rerr, ierr)
-               CALL cp_fm_scale(-1.0_dp, ierr)
-               CALL cp_fm_to_cfm(rerr, ierr, old_errors)
-               CALL cp_cfm_trace(old_errors, new_errors, tmp)
+               CALL cp_cfm_trace(diis_buffer%error(jb, ispin, ikp), new_errors, tmp, &
+                                 conjugate_a=.TRUE., local=.TRUE.)
                b(jb, ib) = b(jb, ib) + 1.0_dp/REAL(nkp, dp)*tmp
             END DO
          END DO
+      END DO
+      ! Accumulate local AO entries and k points first, then reduce the new history column.
+      ! Each inter-group communicator contains one corresponding rank per k-point group.
+      CALL matrix_struct%para_env%sum(b(:, ib))
+      CALL para_env_inter_kp%sum(b(:, ib))
+      DO jb = 1, nb
          b(ib, jb) = CONJG(b(jb, ib))
       END DO
-      CALL cp_fm_release(ierr)
-      CALL cp_fm_release(rerr)
-      CALL cp_cfm_release(old_errors)
-      ! cp_cfm_trace has already reduced each trace over the ranks of its
-      ! k-point group. Reduce the group contributions only once, over the
-      ! communicator that connects the k-point groups.
-      CALL para_env_inter_kp%sum(b)
 
       error_max = SQRT(REAL(b(ib, ib))**2 + AIMAG(b(ib, ib))**2)
 

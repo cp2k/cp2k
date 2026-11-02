@@ -28,7 +28,6 @@ MODULE cp_cfm_basic_linalg
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
-   USE message_passing,                 ONLY: mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -898,27 +897,30 @@ CONTAINS
    END SUBROUTINE cp_cfm_lu_invert
 
 ! **************************************************************************************************
-!> \brief Returns the trace of matrix_a^T matrix_b, i.e
+!> \brief By default, returns the trace of matrix_a^T matrix_b, i.e
 !>      sum_{i,j}(matrix_a(i,j)*matrix_b(i,j)) .
 !> \param matrix_a a complex matrix
 !> \param matrix_b another complex matrix
 !> \param trace    value of the trace operator
+!> \param conjugate_a conjugate the first matrix for a Hermitian Frobenius inner product (default: false)
+!> \param local return only the local contribution, leaving the reduction to the caller (default: false)
 !> \par History
 !>    * 09.2017 created [Sergey Chulkov]
 !> \author Sergey Chulkov
 !> \note
 !>      Based on the subroutine cp_fm_trace(). Note the transposition of matrix_a!
 ! **************************************************************************************************
-   SUBROUTINE cp_cfm_trace(matrix_a, matrix_b, trace)
+   SUBROUTINE cp_cfm_trace(matrix_a, matrix_b, trace, conjugate_a, local)
       TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_a, matrix_b
       COMPLEX(kind=dp), INTENT(out)                      :: trace
+      LOGICAL, INTENT(IN), OPTIONAL                      :: conjugate_a, local
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_trace'
 
       INTEGER                                            :: handle, mypcol, myprow, ncol_local, &
                                                             npcol, nprow, nrow_local
+      LOGICAL                                            :: reduce
       TYPE(cp_blacs_env_type), POINTER                   :: context
-      TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
 
@@ -928,16 +930,16 @@ CONTAINS
       nprow = context%num_pe(1)
       npcol = context%num_pe(2)
 
-      group = matrix_a%matrix_struct%para_env
-
       nrow_local = MIN(matrix_a%matrix_struct%nrow_locals(myprow), matrix_b%matrix_struct%nrow_locals(myprow))
       ncol_local = MIN(matrix_a%matrix_struct%ncol_locals(mypcol), matrix_b%matrix_struct%ncol_locals(mypcol))
 
       ! compute an accurate dot-product
       trace = accurate_dot_product(matrix_a%local_data(1:nrow_local, 1:ncol_local), &
-                                   matrix_b%local_data(1:nrow_local, 1:ncol_local))
+                                   matrix_b%local_data(1:nrow_local, 1:ncol_local), conjugate_a=conjugate_a)
 
-      CALL group%sum(trace)
+      reduce = .TRUE.
+      IF (PRESENT(local)) reduce = .NOT. local
+      IF (reduce) CALL matrix_a%matrix_struct%para_env%sum(trace)
 
       CALL timestop(handle)
 
