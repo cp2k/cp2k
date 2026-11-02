@@ -51,11 +51,13 @@ MODULE kpoint_transform
    INTEGER(KIND=int_8), PARAMETER :: fft_batch_bytes = 32_int_8*1024_int_8**2
    INTEGER(KIND=int_8), PARAMETER, PRIVATE :: rskp_route_bytes = 64_int_8*1024_int_8**2, &
                                               rskp_fft_bytes = 512_int_8*1024_int_8**2, &
-                                              rskp_gemm_bytes = 1000_int_8*1024_int_8**2
+                                              rskp_gemm_bytes = 1000_int_8*1024_int_8**2, &
+                                              dbcsr_batch_bytes = 1000_int_8*1024_int_8**2
    PUBLIC :: kp_transform_plan_type, kp_transform_plan_create, rskp_route_type, rskp_values_type
    PUBLIC :: rskp_route_create, rskp_route_release, rskp_capture, rskp_compatible, rskp_values_release
    PUBLIC :: rskp_backend_gemm, rskp_backend_fft, cell_to_k_backend_prepare
    PUBLIC :: rskp_batch_size, cell_to_k_backend_evaluate_batch
+   PUBLIC :: rskp_dbcsr_transform_batch
    PUBLIC :: rskp_prepared_transform_type, rskp_transform_prepare
    PUBLIC :: rskp_transform_evaluate, rskp_transform_release
    PUBLIC :: cell_to_k_sparse_fft, k_grid_to_cell_contract, rskp_phase_factors, rskp_work_matrix
@@ -316,6 +318,249 @@ CONTAINS
       IF (ALLOCATED(prepared%kp_dist)) DEALLOCATE (prepared%kp_dist)
       IF (ALLOCATED(prepared%work)) DEALLOCATE (prepared%work)
    END SUBROUTINE rskp_transform_release
+
+! **************************************************************************************************
+!> \brief Transform all real-space spin rows to a full k-grid in distributed DBCSR matrices.
+!>        The real and imaginary output blocks retain their caller-provided sparsity and
+!>        distribution. GEMM contracts all images of an AO block together; FFT transforms
+!>        element tiles while reusing one prepared lattice geometry.
+!> \param source real-space image matrices, by spin and image
+!> \param real_k symmetric real output matrices, by spin and k point
+!> \param imag_k antisymmetric imaginary output matrices, by spin and k point
+!> \param xkp full reciprocal grid
+!> \param cell_to_index translation-to-image map
+!> \param sab_nl neighbor-list geometry of source
+!> \param nkp_grid dimensions of the regular reciprocal grid
+!> \param backend selected bulk R-to-K backend
+! **************************************************************************************************
+   SUBROUTINE rskp_dbcsr_transform_batch(source, real_k, imag_k, xkp, cell_to_index, sab_nl, nkp_grid, backend)
+
+      TYPE(dbcsr_p_type), POINTER                        :: source(:, :), real_k(:, :), imag_k(:, :)
+      REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+      INTEGER, INTENT(IN)                                :: nkp_grid(3), backend
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rskp_dbcsr_transform_batch'
+
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: fft_output(:, :, :)
+      INTEGER :: col, first, first_k, g, handle, i, ik, ispin, last, max_images, max_nelem, ncol, &
+         nelem, nentry, nfold, ngroup, nimages, nk, nphase, nrow, nspin, odd, offset, panels(4), &
+         pos, row_first, row_last, tile_first, tile_size, tile_width, width
+      INTEGER(KIND=int_8)                                :: available_bytes, fft_tile_budget, &
+                                                            nfactor, panel_bytes, per_k_bytes, &
+                                                            per_tile_bytes
+      INTEGER, ALLOCATABLE                               :: element_first(:), group_first(:), &
+                                                            order(:), signed_cells(:, :)
+      INTEGER, DIMENSION(:), POINTER                     :: col_size, row_size
+      LOGICAL                                            :: active(4), found, found_im, found_re
+      REAL(KIND=dp), ALLOCATABLE, TARGET                 :: packed(:), work(:)
+      REAL(KIND=dp), CONTIGUOUS, POINTER                 :: factors(:, :), fft_input(:, :, :), &
+                                                            image_re(:, :), RESULT(:, :)
+      REAL(KIND=dp), POINTER                             :: iblock(:, :), rblock(:, :), &
+                                                            result_block(:, :), rsblock(:, :)
+      TYPE(cell_to_k_grid_work_type)                     :: fft_work
+      TYPE(kp_transform_plan_type)                       :: plan
+      TYPE(rskp_backend_plan_type)                       :: transform
+
+      CALL timeset(routineN, handle)
+      nspin = SIZE(source, 1)
+      nk = SIZE(xkp, 2)
+      CPASSERT(nk > 0)
+      IF (backend /= rskp_backend_gemm .AND. backend /= rskp_backend_fft) THEN
+         CPABORT("Unknown R-to-K backend")
+      END IF
+      CPASSERT(nspin > 0 .AND. SIZE(real_k, 1) == nspin .AND. SIZE(imag_k, 1) == nspin)
+      CPASSERT(SIZE(real_k, 2) == nk .AND. SIZE(imag_k, 2) == nk)
+      CPASSERT(SIZE(source, 2) > 0 .AND. ASSOCIATED(sab_nl) .AND. ASSOCIATED(cell_to_index))
+      DO ik = 1, nk
+         DO ispin = 1, nspin
+            CALL dbcsr_set(real_k(ispin, ik)%matrix, 0.0_dp)
+            CALL dbcsr_set(imag_k(ispin, ik)%matrix, 0.0_dp)
+         END DO
+      END DO
+
+      CALL kp_transform_plan_create(plan, sab_nl, cell_to_index, SIZE(source, 2), group_entries=.TRUE.)
+      nentry = plan%nentry
+      IF (nentry == 0) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+      CALL dbcsr_get_info(source(1, 1)%matrix, row_blk_size=row_size, col_blk_size=col_size)
+      ALLOCATE (group_first(nentry + 1), element_first(nentry + 1), order(nentry), signed_cells(3, nentry))
+      DO i = 1, nentry
+         order(i) = i
+         signed_cells(:, i) = NINT(plan%symmetry_sign(i))*plan%cell(:, i)
+      END DO
+      max_images = 0
+      max_nelem = 0
+      ngroup = 0
+      element_first(1) = 1
+      first = 1
+      DO WHILE (first <= nentry)
+         last = first
+         DO WHILE (last < nentry)
+            IF (plan%row(last + 1) /= plan%row(first) .OR. plan%col(last + 1) /= plan%col(first)) EXIT
+            last = last + 1
+         END DO
+         ngroup = ngroup + 1
+         group_first(ngroup) = first
+         panel_bytes = INT(row_size(plan%row(first)), int_8)*col_size(plan%col(first))*nspin
+         IF (panel_bytes + element_first(ngroup) > HUGE(nelem)) THEN
+            CPABORT("R-to-K DBCSR panel offsets exceed the integer range")
+         END IF
+         element_first(ngroup + 1) = element_first(ngroup) + INT(panel_bytes)
+         max_nelem = MAX(max_nelem, INT(panel_bytes))
+         max_images = MAX(max_images, last - first + 1)
+         first = last + 1
+      END DO
+      group_first(ngroup + 1) = nentry + 1
+      panel_bytes = 8_int_8*max_nelem*max_images
+      IF (panel_bytes >= dbcsr_batch_bytes) THEN
+         CPABORT("R-to-K DBCSR input panel exceeds the memory budget")
+      END IF
+      available_bytes = dbcsr_batch_bytes - panel_bytes
+      IF (backend == rskp_backend_gemm) THEN
+         CALL cell_to_k_phase_prepare(transform, signed_cells, group_first(1:ngroup + 1), order, &
+                                      element_first(1:ngroup + 1), xkp, available_bytes, 0_int_8)
+         IF (ALLOCATED(transform%phases)) THEN
+            available_bytes = available_bytes - 8_int_8*SIZE(transform%phases, KIND=int_8)
+         END IF
+         per_k_bytes = 16_int_8*transform%max_per_k
+         tile_width = INT(MIN(INT(nk, int_8), available_bytes/MAX(1_int_8, per_k_bytes)))
+         IF (tile_width < 1) CPABORT("R-to-K DBCSR GEMM workspace exceeds the memory budget")
+         ALLOCATE (work(per_k_bytes/8*tile_width))
+      ELSE
+         available_bytes = available_bytes - fft_batch_bytes
+         IF (available_bytes <= 0_int_8) CPABORT("R-to-K DBCSR FFT workspace exceeds the memory budget")
+         fft_tile_budget = MIN(fft_batch_bytes, available_bytes)
+         CALL cell_to_k_grid_prepare(fft_work, signed_cells, xkp, nkp_grid)
+         IF (.NOT. fft_work%regular) THEN
+            CPABORT("Forced lattice FFT needs a supported complete regular grid")
+         END IF
+      END IF
+      ALLOCATE (packed(panel_bytes/8))
+
+      DO g = 1, ngroup
+         first = group_first(g)
+         last = group_first(g + 1) - 1
+         nimages = last - first + 1
+         nrow = row_size(plan%row(first))
+         ncol = col_size(plan%col(first))
+         nelem = nrow*ncol
+         IF (backend == rskp_backend_gemm) THEN
+            panels = transform%phase_count([1, 1, 2, 3], g)
+            nfold = SUM(panels)
+         ELSE
+            nfold = nimages
+         END IF
+         image_re(1:nelem*nspin, 1:nfold) => packed(1:nelem*nspin*nfold)
+         image_re = 0.0_dp
+         DO i = first, last
+            pos = i - first + 1
+            odd = 0
+            IF (backend == rskp_backend_gemm) THEN
+               pos = (transform%fold_map(1, i) - transform%packed_first(g))/(nelem*nspin) + 1
+               IF (transform%fold_map(2, i) /= 0) THEN
+                  odd = (ABS(transform%fold_map(2, i)) - transform%packed_first(g))/(nelem*nspin) + 1
+               END IF
+            END IF
+            DO ispin = 1, nspin
+               CALL dbcsr_get_readonly_block_p(source(ispin, plan%image(i))%matrix, plan%row(first), plan%col(first), &
+                                               rsblock, found)
+               IF (.NOT. found) CYCLE
+               CPASSERT(SIZE(rsblock, 1) == nrow .AND. SIZE(rsblock, 2) == ncol)
+               image_re((ispin - 1)*nelem + 1:ispin*nelem, pos) = &
+                  image_re((ispin - 1)*nelem + 1:ispin*nelem, pos) + RESHAPE(rsblock, [nelem])
+               IF (odd == 0) CYCLE
+               image_re((ispin - 1)*nelem + 1:ispin*nelem, odd) = &
+                  image_re((ispin - 1)*nelem + 1:ispin*nelem, odd) + &
+                  REAL(SIGN(1, transform%fold_map(2, i)), dp)*RESHAPE(rsblock, [nelem])
+            END DO
+         END DO
+         IF (.NOT. ANY(image_re /= 0.0_dp)) CYCLE
+
+         IF (backend == rskp_backend_gemm) THEN
+            pos = 1
+            DO i = 1, 4
+               active(i) = ANY(image_re(:, pos:pos + panels(i) - 1) /= 0.0_dp)
+               pos = pos + panels(i)
+            END DO
+            nphase = MAXVAL(transform%phase_count(1:2, g))
+            DO first_k = 1, nk, tile_width
+               width = MIN(tile_width, nk - first_k + 1)
+               nfactor = 2_int_8*nphase*width
+               factors(1:nphase, 1:2*width) => work(1:nfactor)
+               RESULT(1:nelem*nspin, 1:2*width) => work(nfactor + 1:nfactor + 2_int_8*nelem*nspin*width)
+               CALL cell_to_k_block_gemm(packed(1:nelem*nspin*nfold), transform, g, &
+                                         xkp(:, first_k:first_k + width - 1), first_k, factors, RESULT, active)
+               DO ik = 1, width
+                  DO ispin = 1, nspin
+                     CALL dbcsr_get_block_p(real_k(ispin, first_k + ik - 1)%matrix, plan%row(first), plan%col(first), &
+                                            rblock, found)
+                     IF (found) THEN
+                        CPASSERT(SIZE(rblock, 1) == nrow .AND. SIZE(rblock, 2) == ncol)
+                        result_block(1:nrow, 1:ncol) => RESULT((ispin - 1)*nelem + 1:ispin*nelem, ik)
+                        rblock = result_block
+                     END IF
+                     CALL dbcsr_get_block_p(imag_k(ispin, first_k + ik - 1)%matrix, plan%row(first), plan%col(first), &
+                                            iblock, found)
+                     IF (found) THEN
+                        CPASSERT(SIZE(iblock, 1) == nrow .AND. SIZE(iblock, 2) == ncol)
+                        result_block(1:nrow, 1:ncol) => RESULT((ispin - 1)*nelem + 1:ispin*nelem, width + ik)
+                        iblock = result_block
+                     END IF
+                  END DO
+               END DO
+            END DO
+         ELSE
+            per_tile_bytes = 16_int_8*nspin*nk
+            IF (per_tile_bytes > fft_tile_budget) THEN
+               CPABORT("R-to-K DBCSR FFT element tile exceeds the memory budget")
+            END IF
+            tile_width = MIN(nelem, INT(fft_tile_budget/per_tile_bytes))
+            fft_input(1:nelem, 1:nspin, 1:nimages) => packed(1:nelem*nspin*nimages)
+            ALLOCATE (fft_output(tile_width, nspin, nk))
+            DO tile_first = 1, nelem, tile_width
+               tile_size = MIN(tile_width, nelem - tile_first + 1)
+               CALL cell_to_k_grid_fft(fft_input(tile_first:tile_first + tile_size - 1, :, :), &
+                                       signed_cells(:, first:last), xkp, &
+                                       nkp_grid, fft_output(1:tile_size, :, :), require_fft=.TRUE., work=fft_work, &
+                                       cell_first=first)
+               DO ik = 1, nk
+                  DO ispin = 1, nspin
+                     CALL dbcsr_get_block_p(real_k(ispin, ik)%matrix, plan%row(first), plan%col(first), &
+                                            rblock, found_re)
+                     IF (found_re) THEN
+                        CPASSERT(SIZE(rblock, 1) == nrow .AND. SIZE(rblock, 2) == ncol)
+                     END IF
+                     CALL dbcsr_get_block_p(imag_k(ispin, ik)%matrix, plan%row(first), plan%col(first), &
+                                            iblock, found_im)
+                     IF (found_im) THEN
+                        CPASSERT(SIZE(iblock, 1) == nrow .AND. SIZE(iblock, 2) == ncol)
+                     END IF
+                     IF (.NOT. (found_re .OR. found_im)) CYCLE
+                     ! Write each column segment directly; FFT tiles may split a column.
+                     DO col = (tile_first - 1)/nrow + 1, (tile_first + tile_size - 2)/nrow + 1
+                        offset = (col - 1)*nrow
+                        row_first = MAX(1, tile_first - offset)
+                        row_last = MIN(nrow, tile_first + tile_size - 1 - offset)
+                        pos = offset + row_first - tile_first + 1
+                        IF (found_re) rblock(row_first:row_last, col) = &
+                           REAL(fft_output(pos:pos + row_last - row_first, ispin, ik), dp)
+                        IF (found_im) iblock(row_first:row_last, col) = &
+                           AIMAG(fft_output(pos:pos + row_last - row_first, ispin, ik))
+                     END DO
+                  END DO
+               END DO
+            END DO
+            DEALLOCATE (fft_output)
+         END IF
+      END DO
+      CALL cell_to_k_grid_release(fft_work)
+      CALL timestop(handle)
+   END SUBROUTINE rskp_dbcsr_transform_batch
 
 ! **************************************************************************************************
 !> \brief Build the immutable neighbor-list traversal shared by R-to-K and K-to-R transforms.

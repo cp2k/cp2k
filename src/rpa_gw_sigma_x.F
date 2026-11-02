@@ -55,7 +55,7 @@ MODULE rpa_gw_sigma_x
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
-   USE kpoint_methods,                  ONLY: rskp_transform
+   USE kpoint_transform,                ONLY: rskp_dbcsr_transform_batch
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_env_type,&
                                               kpoint_type
@@ -1024,7 +1024,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'transform_matrix_ks_to_kp'
 
-      INTEGER                                            :: handle, ikp, ispin, nkp, nspin
+      INTEGER                                            :: handle, nkp
+      INTEGER, DIMENSION(3)                              :: nkp_grid
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -1033,24 +1034,14 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (sab_nl)
-      CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, sab_nl=sab_nl, cell_to_index=cell_to_index)
+      CALL get_kpoint_info(kpoints, nkp=nkp, nkp_grid=nkp_grid, xkp=xkp, sab_nl=sab_nl, &
+                           cell_to_index=cell_to_index)
 
       CPASSERT(ASSOCIATED(sab_nl))
 
-      nspin = SIZE(matrix_ks_transl, 1)
-
-      DO ikp = 1, nkp
-         DO ispin = 1, nspin
-
-            CALL dbcsr_set(matrix_ks_kp_re(ispin, ikp)%matrix, 0.0_dp)
-            CALL dbcsr_set(matrix_ks_kp_im(ispin, ikp)%matrix, 0.0_dp)
-            CALL rskp_transform(rmatrix=matrix_ks_kp_re(ispin, ikp)%matrix, &
-                                cmatrix=matrix_ks_kp_im(ispin, ikp)%matrix, &
-                                rsmat=matrix_ks_transl, ispin=ispin, &
-                                xkp=xkp(1:3, ikp), cell_to_index=cell_to_index, sab_nl=sab_nl)
-
-         END DO
-      END DO
+      CPASSERT(nkp == SIZE(matrix_ks_kp_re, 2))
+      CALL rskp_dbcsr_transform_batch(matrix_ks_transl, matrix_ks_kp_re, matrix_ks_kp_im, &
+                                      xkp, cell_to_index, sab_nl, nkp_grid, kpoints%rskp_transform)
 
       CALL timestop(handle)
 
