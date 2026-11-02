@@ -54,6 +54,7 @@ int fft_library_init_F(const int backend_F, const int fftw_plan,
 
 void fft_library_finalize_F(const char *wisdom_file) {
   fft_finalize_lib(wisdom_file);
+  fft_finalize_timer();
 }
 
 void fft_print_timing_report_F(const double threshold) {
