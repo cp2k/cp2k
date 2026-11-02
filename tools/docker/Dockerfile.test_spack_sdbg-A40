@@ -3,13 +3,16 @@
 # Usage: ./spack_cache_start.sh; podman build --shm-size=1g -t spack_sdbg-a40 -f ./Dockerfile.test_spack_sdbg-A40 ../../
 #
 
-ARG BASE_IMAGE="nvidia/cuda:12.9.1-devel-ubuntu24.04"
+ARG BASE_IMAGE="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04"
 
 ###### Stage 1: Build CP2K dependencies ######
 
-FROM "docker.io/${BASE_IMAGE}" AS build_deps
+FROM "${BASE_IMAGE}" AS build_deps
 
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+ARG APT_GET="apt-get -o APT::Sandbox::User=root -qq"
+
+RUN ${APT_GET} update && \
+    ${APT_GET} install --no-install-recommends \
     bzip2 \
     ca-certificates \
     cmake \
@@ -44,18 +47,22 @@ ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
 # See also https://github.com/cp2k/cp2k/pull/2337
 ENV CUDA_CACHE_DISABLE 1
 
-ARG IMAGE_TAG
-ENV IMAGE_TAG=${IMAGE_TAG:-spack_sdbg-A40}
+ARG IMAGE_TAG="spack_sdbg-A40"
+ENV IMAGE_TAG="${IMAGE_TAG}"
 
-ARG SPACK_CACHE
-ENV SPACK_CACHE="${SPACK_CACHE:-s3://spack-cache --s3-endpoint-url=http://host.containers.internal:9000}"
+# Set number CPU cores if requested
+ARG NUM_PROCS=""
+ENV NUM_PROCS="${NUM_PROCS}"
+
+ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://host.containers.internal:9000"
+ENV SPACK_CACHE="${SPACK_CACHE}"
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
 COPY ./tools/spack ./tools/spack
 COPY ./tools/docker ./tools/docker
 COPY ./make_cp2k.sh .
-RUN ./make_cp2k.sh -bd_only -cv sdbg -gpu A40 -gv 13 -mpi no -ue 
+RUN ./make_cp2k.sh -bd_only -cv sdbg -gpu A40 -gv 13 -j${NUM_PROCS} -mpi no -ue 
 
 ###### Stage 2: Build CP2K ######
 
@@ -69,13 +76,16 @@ COPY ./tests ./tests
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./tools/conventions ./tools/conventions
 
-RUN ./make_cp2k.sh -cv sdbg -gv 13 -gpu A40 -mpi no 
+RUN ./make_cp2k.sh -cv sdbg -gv 13 -gpu A40 -j${NUM_PROCS} -mpi no 
 
 ###### Stage 3: Install CP2K ######
 
-FROM "docker.io/${BASE_IMAGE}" AS install_cp2k
+FROM "${BASE_IMAGE}" AS install_cp2k
 
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+ARG APT_GET="apt-get -o APT::Sandbox::User=root -qq"
+
+RUN ${APT_GET} update && \
+    ${APT_GET} install --no-install-recommends \
     g++ g++-13 gcc gcc-13 gfortran gfortran-13 \
     python3 \
     && rm -rf /var/lib/apt/lists/*
