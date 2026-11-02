@@ -141,8 +141,10 @@ CONTAINS
       ! Compute V = B^T B and A = M^-1 B^T.
       CALL compute_V_MinvVsqrt(bs_env, qs_env, fm_bare_interaction, fm_V_sqrt, fm_M_inv_V_sqrt)
 
-      ! Reuse the Coulomb buffer for the upper triangle of M^-1 V M^-1 = A A^T.
+      ! Reuse the Coulomb buffer for M^-1 V M^-1 = A A^T.
       CALL cp_fm_syrk('U', 'N', bs_env%n_RI, 1.0_dp, fm_M_inv_V_sqrt, 1, 1, 0.0_dp, fm_bare_interaction)
+      ! The Coulomb factor is no longer needed; reuse it as workspace to complete the lower triangle.
+      CALL cp_fm_uplo_to_full(fm_bare_interaction, fm_V_sqrt)
       CALL cp_fm_release(fm_V_sqrt)
 
       ! 2. Loop over frequencies
@@ -891,7 +893,7 @@ CONTAINS
 !>        Z = A ε^(-1/2), with discarded eigenmodes set to zero.
 !> \param bs_env ...
 !> \param fm_chi_freq_j ...
-!> \param fm_bare_interaction upper triangle of M^-1 V M^-1 = A A^T
+!> \param fm_bare_interaction full symmetric matrix M^-1 V M^-1 = A A^T
 !> \param fm_Minv_Vsqrt RI metric and Coulomb factor A = M^-1 B^T
 !> \param fm_W_freq_j full symmetric metric-dressed correlation interaction W
 ! **************************************************************************************************
