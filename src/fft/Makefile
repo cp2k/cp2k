@@ -1,6 +1,6 @@
 .PHONY : all clean
 
-all: fft_unittest.x fft_perftest.x
+all: fft_unittest.x
 
 clean:
 	rm -fv *.o */*.o *.x ../offload/*.o ../mpiwrap/*.o
@@ -48,9 +48,6 @@ endif
 	cd $(dir $<); $(CC) -c -std=c11 $(CFLAGS) $(notdir $<)
 
 fft_unittest.x: fft_unittest.c $(ALL_OBJECTS)
-	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
-
-fft_perftest.x: fft_perftest.c $(ALL_OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
 #EOF

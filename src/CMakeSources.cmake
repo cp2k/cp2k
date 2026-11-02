@@ -1605,8 +1605,6 @@ set(CP2K_GRID_SRCS_C
     grid/cpu/grid_cpu_task_list.c
     grid/grid_replay.c)
 
-set(CP2K_FPGA_SRC_C fft/fpga/fft_fpga.c fft/fpga/opencl_utils.c)
-
 # GPU source lists.
 set(CP2K_GRID_SRCS_GPU
     grid/gpu/grid_gpu_collocate.cu grid/gpu/grid_gpu_integrate.cu

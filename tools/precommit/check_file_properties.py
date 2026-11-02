@@ -79,8 +79,6 @@ FLAG_EXCEPTIONS = (
     r"openPMD_HAVE_MPI",
     # TODO: Add CMake support for the following flags or remove the corresponding code.
     # See also https://github.com/cp2k/cp2k/issues/4611
-    r"__FFT_FPGA",
-    r"__FFT_FPGA_SP",
     r"__NO_SOCKETS",
     r"__SCALAPACK_NO_WA",
     r"__STATM_RESIDENT",
@@ -145,7 +143,6 @@ BSD_PATHS = (
     "src/fft/fft_timer",
     "src/fft/fft_unittest",
     "src/fft/fft_utils.h",
-    "src/fft/fpga/",
     "src/fft/gpu/",
     "src/fft/LICENSE",
 )
