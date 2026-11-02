@@ -9,36 +9,28 @@
 !> \brief Redistribution of DBCSR blocks and distributed matrix slices.
 ! **************************************************************************************************
 MODULE cp_dbcsr_redistribution
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
-                                              cp_blacs_env_release,&
-                                              cp_blacs_env_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_clear, dbcsr_filter, dbcsr_finalize, dbcsr_get_block_p, &
-        dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_readonly_start, dbcsr_iterator_start, dbcsr_iterator_stop, &
-        dbcsr_iterator_type, dbcsr_p_type, dbcsr_reserve_blocks, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_clear, dbcsr_filter, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, &
+        dbcsr_get_readonly_block_p, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_readonly_start, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_reserve_blocks, dbcsr_set, &
+        dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks
-   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
-                                              cp_dbcsr_m_by_n_from_template
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                              cp_fm_struct_release,&
-                                              cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_type
-   USE kinds,                           ONLY: dp
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_m_by_n_from_template
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE matrix_communication,            ONLY: allocate_matrix_buffers,&
                                               exchange_matrix_buffers,&
                                               matrix_buffer_type
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_type
+   USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_redistribution'
-   PUBLIC :: cp_dbcsr_to_subgroups, cp_dbcsr_from_subgroups, cp_array_to_dbcsr_slices
+   PUBLIC :: cp_dbcsr_to_subgroups, cp_dbcsr_from_subgroups, cp_array_to_dbcsr_slices, cp_array_to_dbcsr_blocks
 
 CONTAINS
 
@@ -375,99 +367,241 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_array_to_dbcsr_slices(array, nrows, ncols, para_env_sub, &
                                        first_row, last_row, template, matrices, matrix_ptrs)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(INOUT)                                   :: array
+      REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT), TARGET  :: array(:, :)
       INTEGER, INTENT(IN)                                :: nrows, ncols
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
       INTEGER, INTENT(IN)                                :: first_row, last_row
       TYPE(dbcsr_type), INTENT(INOUT)                    :: template
-      TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT), &
-         OPTIONAL, TARGET                                :: matrices
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
-         OPTIONAL                                        :: matrix_ptrs
+      TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL, TARGET  :: matrices(:)
+      TYPE(dbcsr_p_type), INTENT(INOUT), OPTIONAL        :: matrix_ptrs(:)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_array_to_dbcsr_slices'
 
-      INTEGER                                            :: flat_row, handle, i, ientry, islice, j, &
-                                                            nprocs, pass, peer
-      INTEGER, ALLOCATABLE                               :: counter(:), recv_count(:), &
-                                                            send_count(:), source_rows(:)
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_ia
-      TYPE(dbcsr_type), POINTER                          :: output_matrix
-      TYPE(matrix_buffer_type)                           :: buffer_rec, buffer_send
+      INTEGER                                            :: handle, i, islice, j, nblock, nslice
+      INTEGER, ALLOCATABLE                               :: blocks(:, :)
+      INTEGER, POINTER                                   :: local_cols(:), local_rows(:)
+      REAL(KIND=dp), POINTER                             :: values(:, :, :)
+      TYPE(dbcsr_p_type), ALLOCATABLE                    :: outputs(:)
 
       CALL timeset(routineN, handle)
       CPASSERT(PRESENT(matrices) .NEQV. PRESENT(matrix_ptrs))
-      NULLIFY (blacs_env, fm_struct)
-      CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env_sub)
-      CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nrows, &
-                               ncol_global=ncols, para_env=para_env_sub)
-      CALL cp_fm_create(fm_ia, fm_struct, name="fm_ia")
-      CALL cp_fm_struct_release(fm_struct)
-      CALL cp_blacs_env_release(blacs_env)
-
-      nprocs = para_env_sub%num_pe
-      ALLOCATE (send_count(0:nprocs - 1), recv_count(0:nprocs - 1), counter(0:nprocs - 1))
-      send_count = 0
-
-      ! Build the coordinate and packing maps once for all slices.
-      DO pass = 1, 2
-         IF (pass == 2) THEN
-            CALL para_env_sub%alltoall(send_count, recv_count, 1)
-            CALL allocate_matrix_buffers(send_count, recv_count, 2, buffer_send, buffer_rec)
-            ALLOCATE (source_rows(SIZE(buffer_send%msg)))
-            counter(:) = buffer_send%msg_offset(:nprocs - 1)
-         END IF
-         DO flat_row = first_row, last_row
-            i = (flat_row - 1)/ncols + 1
-            j = MOD(flat_row - 1, ncols) + 1
-            peer = fm_ia%matrix_struct%context%blacs2mpi( &
-                   fm_ia%matrix_struct%g2p_row(i), fm_ia%matrix_struct%g2p_col(j))
-            IF (pass == 1) THEN
-               send_count(peer) = send_count(peer) + 1
-            ELSE
-               counter(peer) = counter(peer) + 1
-               ientry = counter(peer)
-               buffer_send%indx(:, ientry) = [i, j]
-               source_rows(ientry) = flat_row - first_row + 1
-            END IF
-         END DO
-      END DO
-
-      CALL exchange_matrix_buffers(para_env_sub, buffer_rec, buffer_send, do_msg=.FALSE.)
-      DO ientry = 1, SIZE(buffer_rec%msg)
-         buffer_rec%indx(1, ientry) = fm_ia%matrix_struct%g2l_row(buffer_rec%indx(1, ientry))
-         buffer_rec%indx(2, ientry) = fm_ia%matrix_struct%g2l_col(buffer_rec%indx(2, ientry))
-      END DO
-
-      DO islice = 1, SIZE(array, 2)
-         DO ientry = 1, SIZE(buffer_send%msg)
-            buffer_send%msg(ientry) = array(source_rows(ientry), islice)
-         END DO
-         CALL exchange_matrix_buffers(para_env_sub, buffer_rec, buffer_send, do_indx=.FALSE.)
-         CALL cp_fm_set_all(fm_ia, 0.0_dp)
-         DO ientry = 1, SIZE(buffer_rec%msg)
-            i = buffer_rec%indx(1, ientry)
-            j = buffer_rec%indx(2, ientry)
-            fm_ia%local_data(i, j) = buffer_rec%msg(ientry)
-         END DO
-
+      nslice = SIZE(array, 2)
+      ALLOCATE (outputs(nslice))
+      DO islice = 1, nslice
          IF (PRESENT(matrices)) THEN
-            output_matrix => matrices(islice)
+            outputs(islice)%matrix => matrices(islice)
          ELSE
             ALLOCATE (matrix_ptrs(islice)%matrix)
-            output_matrix => matrix_ptrs(islice)%matrix
+            outputs(islice)%matrix => matrix_ptrs(islice)%matrix
          END IF
-         CALL cp_dbcsr_m_by_n_from_template(output_matrix, template=template, &
+         CALL cp_dbcsr_m_by_n_from_template(outputs(islice)%matrix, template=template, &
                                             m=nrows, n=ncols, sym=dbcsr_type_no_symmetry)
-         CALL copy_fm_to_dbcsr(fm_ia, output_matrix, keep_sparsity=.FALSE.)
+         CALL dbcsr_reserve_all_blocks(outputs(islice)%matrix)
+         CALL dbcsr_finalize(outputs(islice)%matrix)
       END DO
-
+      IF (nslice > 0) THEN
+         CALL dbcsr_get_info(outputs(1)%matrix, local_rows=local_rows, local_cols=local_cols)
+         ALLOCATE (blocks(3, SIZE(local_rows)*SIZE(local_cols)*nslice))
+         nblock = 0
+         DO islice = 1, nslice
+            DO j = 1, SIZE(local_cols)
+               DO i = 1, SIZE(local_rows)
+                  nblock = nblock + 1
+                  blocks(:, nblock) = [local_rows(i), local_cols(j), islice]
+               END DO
+            END DO
+         END DO
+         ! A rank-remapped view preserves the row-major flattened ia convention without copying.
+         values(1:SIZE(array, 1), 1:1, 1:nslice) => array
+         CALL cp_array_to_dbcsr_blocks(values, first_row, last_row, para_env_sub, outputs, blocks, &
+                                       row_major=.TRUE.)
+      END IF
       DEALLOCATE (array)
-      CALL cp_fm_release(fm_ia)
       CALL timestop(handle)
    END SUBROUTINE cp_array_to_dbcsr_slices
+
+! **************************************************************************************************
+!> \brief Fill existing DBCSR blocks directly from distributed flattened array slices.
+!>        Requests split contiguous block fragments at source-rank boundaries. Sources combine
+!>        components before replying, so each target element transfers only one real value.
+!>        Slice tiles bound request/reply storage; existing sparsity is preserved.
+!> \param array local flattened entries, components, slices; borrowed, never deallocated
+!> \param first_entry first flattened entry held locally
+!> \param last_entry last flattened entry held locally; may precede first_entry on empty ranks
+!> \param comm communicator covering sources and output matrices, in any source-range order
+!> \param matrices existing output slices with identical dimensions and block sizes
+!> \param blocks requested (block row, block column, slice) columns; absent local blocks are skipped
+!> \param factors optional integer component multiplicities per requested block; default one component
+!> \param row_major flatten with column index fastest; default Fortran column-major ordering
+!> \note Source ranges must partition the whole flattened matrix. Requested blocks must be unique.
+!>       Unrequested output entries are zeroed. The 64 MiB workspace target includes the borrowed
+!>       array and descriptors; an irreducible single-slice exchange may exceed this target.
+! **************************************************************************************************
+   SUBROUTINE cp_array_to_dbcsr_blocks(array, first_entry, last_entry, comm, matrices, blocks, factors, row_major)
+      REAL(KIND=dp), INTENT(IN)                          :: array(:, :, :)
+      INTEGER, INTENT(IN)                                :: first_entry, last_entry, blocks(:, :)
+
+      CLASS(mp_comm_type), INTENT(IN)                    :: comm
+      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: matrices(:)
+      INTEGER, INTENT(IN), OPTIONAL                      :: factors(:, :)
+      LOGICAL, INTENT(IN), OPTIONAL                      :: row_major
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_array_to_dbcsr_blocks'
+
+      INTEGER(KIND=int_8), PARAMETER                     :: max_bytes = 64_int_8*1024**2
+
+      INTEGER :: a, b, col, component, element, first, handle, i, image, last, length, lo, &
+                 lower, middle, nc, nfast, nprocs, pass, peer, pos, rank, record, row, upper, width
+      INTEGER(KIND=int_8)                                :: fixed_bytes, nel
+      INTEGER, ALLOCATABLE                               :: counter(:), counts_rec(:, :), &
+                                                            counts_send(:, :), ends(:), order(:), &
+                                                            ranges(:, :), targets(:, :)
+      INTEGER, POINTER                                   :: fast_offset(:), fast_size(:), &
+                                                            slow_offset(:), slow_size(:)
+      LOGICAL                                            :: found, row_order
+      REAL(KIND=dp), POINTER                             :: block(:, :)
+      TYPE(matrix_buffer_type)                           :: requests_rec, requests_send
+
+      CALL timeset(routineN, handle)
+      IF (SIZE(matrices) == 0) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+      row_order = .FALSE.
+      IF (PRESENT(row_major)) row_order = row_major
+      CALL dbcsr_get_info(matrices(1)%matrix, row_blk_size=fast_size, col_blk_size=slow_size, &
+                          row_blk_offset=fast_offset, col_blk_offset=slow_offset)
+      IF (row_order) THEN
+         CALL dbcsr_get_info(matrices(1)%matrix, row_blk_size=slow_size, col_blk_size=fast_size, &
+                             row_blk_offset=slow_offset, col_blk_offset=fast_offset)
+      END IF
+      nfast = SUM(fast_size)
+      nel = INT(nfast, int_8)*SUM(slow_size)
+      nc = SIZE(array, 2)
+      CPASSERT(nel > 0 .AND. nel < HUGE(element))
+      CPASSERT(nc >= 1)
+      CPASSERT(SIZE(array, 1) == MAX(0, last_entry - first_entry + 1))
+      CPASSERT(SIZE(array, 3) == SIZE(matrices) .AND. SIZE(blocks, 1) == 3)
+      IF (PRESENT(factors)) THEN
+         CPASSERT(SIZE(factors, 1) == nc .AND. SIZE(factors, 2) == SIZE(blocks, 2))
+      ELSE
+         CPASSERT(nc == 1)
+      END IF
+      nprocs = comm%num_pe
+      ALLOCATE (ends(nprocs), order(nprocs), ranges(2, nprocs), counts_send(2, 0:nprocs - 1), &
+                counts_rec(2, 0:nprocs - 1), counter(0:nprocs - 1))
+      CALL comm%allgather([first_entry, last_entry], ranges)
+      ends(:) = ranges(2, :)
+      WHERE (ranges(2, :) < ranges(1, :)) ends = HUGE(element)
+      CALL sort(ends, nprocs, order)
+      ! Validate coverage, independently of communicator rank ordering and empty ranges.
+      element = 0
+      DO rank = 1, nprocs
+         IF (ends(rank) == HUGE(element)) EXIT
+         CPASSERT(ranges(1, order(rank)) == element + 1)
+         element = ends(rank)
+      END DO
+      CPASSERT(INT(element, int_8) == nel)
+      fixed_bytes = 8_int_8*SIZE(array, KIND=int_8) + 4_int_8*SIZE(blocks, KIND=int_8) + 64_int_8*nprocs
+      IF (PRESENT(factors)) fixed_bytes = fixed_bytes + 4_int_8*SIZE(factors, KIND=int_8)
+      width = INT(MIN(INT(SIZE(matrices), int_8), &
+                      MAX(1_int_8, (max_bytes - fixed_bytes)/((80_int_8 + 8*nc)*nel))))
+      CALL comm%min(width)
+      DO image = 1, SIZE(matrices)
+         CALL dbcsr_set(matrices(image)%matrix, 0.0_dp)
+      END DO
+      DO first = 1, SIZE(matrices), width
+         last = MIN(SIZE(matrices), first + width - 1)
+         counts_send(:, :) = 0
+         DO pass = 1, 2
+            IF (pass == 2) THEN
+               CALL comm%alltoall(counts_send, counts_rec, 2)
+               CALL allocate_matrix_buffers(counts_send(1, :), counts_rec(1, :), 3 + nc, requests_send, requests_rec, &
+                                            send_blocks=counts_send(2, :), recv_blocks=counts_rec(2, :))
+               ALLOCATE (targets(3, SIZE(requests_send%indx, 2)))
+               counter(:) = requests_send%indx_offset(:nprocs - 1)
+            END IF
+            DO i = 1, SIZE(blocks, 2)
+               image = blocks(3, i)
+               IF (image < first .OR. image > last) CYCLE
+               CALL dbcsr_get_readonly_block_p(matrices(image)%matrix, blocks(1, i), blocks(2, i), block, found=found)
+               IF (.NOT. found) CYCLE
+               a = blocks(1, i)
+               b = blocks(2, i)
+               IF (row_order) THEN
+                  a = blocks(2, i)
+                  b = blocks(1, i)
+               END IF
+               DO col = 1, slow_size(b)
+                  row = 1
+                  DO WHILE (row <= fast_size(a))
+                     element = (slow_offset(b) + col - 2)*nfast + fast_offset(a) + row - 1
+                     ! Find the first nonempty source range whose upper bound covers this entry.
+                     lower = 1
+                     upper = nprocs
+                     DO WHILE (lower < upper)
+                        middle = (lower + upper)/2
+                        IF (ends(middle) < element) THEN
+                           lower = middle + 1
+                        ELSE
+                           upper = middle
+                        END IF
+                     END DO
+                     peer = order(lower) - 1
+                     length = MIN(fast_size(a) - row + 1, ends(lower) - element + 1)
+                     IF (pass == 1) THEN
+                        counts_send(:, peer) = counts_send(:, peer) + [length, 1]
+                     ELSE
+                        counter(peer) = counter(peer) + 1
+                        record = counter(peer)
+                        requests_send%indx(1:3, record) = [element, length, image]
+                        requests_send%indx(4:, record) = 1
+                        IF (PRESENT(factors)) requests_send%indx(4:, record) = factors(:, i)
+                        targets(:, record) = [i, row, col]
+                     END IF
+                     row = row + length
+                  END DO
+               END DO
+            END DO
+         END DO
+         CALL exchange_matrix_buffers(comm, requests_rec, requests_send, do_msg=.FALSE.)
+         DO peer = 0, nprocs - 1
+            pos = requests_rec%msg_offset(peer)
+            DO record = requests_rec%indx_offset(peer) + 1, requests_rec%indx_offset(peer + 1)
+               lo = requests_rec%indx(1, record) - first_entry + 1
+               length = requests_rec%indx(2, record)
+               image = requests_rec%indx(3, record)
+               CPASSERT(lo >= 1 .AND. lo + length - 1 <= SIZE(array, 1))
+               requests_rec%msg(pos + 1:pos + length) = &
+                  REAL(requests_rec%indx(4, record), dp)*array(lo:lo + length - 1, 1, image)
+               DO component = 2, nc
+                  requests_rec%msg(pos + 1:pos + length) = requests_rec%msg(pos + 1:pos + length) + &
+                                      REAL(requests_rec%indx(3 + component, record), dp)*array(lo:lo + length - 1, component, image)
+               END DO
+               pos = pos + length
+            END DO
+         END DO
+         CALL exchange_matrix_buffers(comm, requests_send, requests_rec, do_indx=.FALSE.)
+         DO peer = 0, nprocs - 1
+            pos = requests_send%msg_offset(peer)
+            DO record = requests_send%indx_offset(peer) + 1, requests_send%indx_offset(peer + 1)
+               i = targets(1, record)
+               row = targets(2, record)
+               col = targets(3, record)
+               length = requests_send%indx(2, record)
+               CALL dbcsr_get_block_p(matrices(blocks(3, i))%matrix, blocks(1, i), blocks(2, i), block, found=found)
+               CPASSERT(found)
+               IF (row_order) THEN
+                  block(col, row:row + length - 1) = requests_send%msg(pos + 1:pos + length)
+               ELSE
+                  block(row:row + length - 1, col) = requests_send%msg(pos + 1:pos + length)
+               END IF
+               pos = pos + length
+            END DO
+         END DO
+         DEALLOCATE (targets)
+      END DO
+      CALL timestop(handle)
+   END SUBROUTINE cp_array_to_dbcsr_blocks
 
 END MODULE cp_dbcsr_redistribution
