@@ -124,8 +124,8 @@ CONTAINS
 
       INTEGER                                            :: handle, i_t, j_w
       REAL(KIND=dp)                                      :: t1
-      TYPE(cp_fm_type)                                   :: fm_bare_interaction, fm_M_inv_V_sqrt, &
-                                                            fm_V_sqrt
+      TYPE(cp_fm_type)                                   :: fm_coulomb_factor, &
+                                                            fm_Minv_coulomb_factor, fm_Minv_V_Minv
 
       CALL timeset(routineN, handle)
 
@@ -134,18 +134,18 @@ CONTAINS
       CALL create_fm_W_MIC_time(bs_env, fm_W_time)
 
       ! 1. Allocate V and M matrices
-      CALL cp_fm_create(fm_bare_interaction, bs_env%fm_RI_RI%matrix_struct)
-      CALL cp_fm_create(fm_V_sqrt, bs_env%fm_RI_RI%matrix_struct)
-      CALL cp_fm_create(fm_M_inv_V_sqrt, bs_env%fm_RI_RI%matrix_struct)
+      CALL cp_fm_create(fm_Minv_V_Minv, bs_env%fm_RI_RI%matrix_struct)
+      CALL cp_fm_create(fm_coulomb_factor, bs_env%fm_RI_RI%matrix_struct)
+      CALL cp_fm_create(fm_Minv_coulomb_factor, bs_env%fm_RI_RI%matrix_struct)
 
       ! Compute V = B^T B and A = M^-1 B^T.
-      CALL compute_V_MinvVsqrt(bs_env, qs_env, fm_bare_interaction, fm_V_sqrt, fm_M_inv_V_sqrt)
+      CALL compute_coulomb_factors(bs_env, qs_env, fm_Minv_V_Minv, fm_coulomb_factor, fm_Minv_coulomb_factor)
 
       ! Reuse the Coulomb buffer for M^-1 V M^-1 = A A^T.
-      CALL cp_fm_syrk('U', 'N', bs_env%n_RI, 1.0_dp, fm_M_inv_V_sqrt, 1, 1, 0.0_dp, fm_bare_interaction)
+      CALL cp_fm_syrk('U', 'N', bs_env%n_RI, 1.0_dp, fm_Minv_coulomb_factor, 1, 1, 0.0_dp, fm_Minv_V_Minv)
       ! The Coulomb factor is no longer needed; reuse it as workspace to complete the lower triangle.
-      CALL cp_fm_uplo_to_full(fm_bare_interaction, fm_V_sqrt)
-      CALL cp_fm_release(fm_V_sqrt)
+      CALL cp_fm_uplo_to_full(fm_Minv_V_Minv, fm_coulomb_factor)
+      CALL cp_fm_release(fm_coulomb_factor)
 
       ! 2. Loop over frequencies
       DO j_w = 1, bs_env%num_time_freq_points
@@ -153,8 +153,8 @@ CONTAINS
          CALL compute_fm_chi_Gamma_freq(bs_env, bs_env%fm_chi_Gamma_freq, j_w, mat_chi_Gamma_tau)
 
          ! ε(iω_j) = Id + A^T χ(iω_j) A; W(iω_j) = A (ε^-1(iω_j)-Id) A^T.
-         CALL compute_fm_W_freq(bs_env, bs_env%fm_chi_Gamma_freq, fm_bare_interaction, &
-                                fm_M_inv_V_sqrt, bs_env%fm_W_MIC_freq)
+         CALL compute_fm_W_freq(bs_env, bs_env%fm_chi_Gamma_freq, fm_Minv_V_Minv, &
+                                fm_Minv_coulomb_factor, bs_env%fm_W_MIC_freq)
 
          ! Fourier transform from W_PQ^MIC(iω_j) to W_PQ^MIC(iτ)
          CALL Fourier_transform_w_to_t(bs_env, fm_W_time, bs_env%fm_W_MIC_freq, j_w)
@@ -168,8 +168,8 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(mat_chi_Gamma_tau)
 
       ! Cleanup
-      CALL cp_fm_release(fm_bare_interaction)
-      CALL cp_fm_release(fm_M_inv_V_sqrt)
+      CALL cp_fm_release(fm_Minv_V_Minv)
+      CALL cp_fm_release(fm_Minv_coulomb_factor)
 
       ! Marek : Fourier transform W^MIC(itau) back to get it at a specific im.frequency point - iomega = 0
       IF (bs_env%rtp_method == rtp_method_bse) THEN
@@ -815,15 +815,16 @@ CONTAINS
 !> \param bs_env ...
 !> \param qs_env ...
 !> \param fm_V Coulomb matrix V(k=0)
-!> \param fm_V_sqrt upper Cholesky factor B, or symmetric square root if Cholesky fails
-!> \param fm_Minv_Vsqrt product A = M^-1(k=0) B^T
+!> \param fm_coulomb_factor upper Cholesky factor B, or symmetric square root if Cholesky fails
+!> \param fm_Minv_coulomb_factor product A = M^-1(k=0) B^T
 ! **************************************************************************************************
-   SUBROUTINE compute_V_MinvVsqrt(bs_env, qs_env, fm_V, fm_V_sqrt, fm_Minv_Vsqrt)
+   SUBROUTINE compute_coulomb_factors(bs_env, qs_env, fm_V, fm_coulomb_factor, fm_Minv_coulomb_factor)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_V, fm_V_sqrt, fm_Minv_Vsqrt
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_V, fm_coulomb_factor, &
+                                                            fm_Minv_coulomb_factor
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_V_MinvVsqrt'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_coulomb_factors'
 
       INTEGER                                            :: handle
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -873,17 +874,17 @@ CONTAINS
       ! -----------------------------------------------------------------------
       ! 2. V -> B, with V = B^T B.
       ! -----------------------------------------------------------------------
-      CALL fm_sqrt(fm_V, fm_V_sqrt, bs_env%eps_eigval_mat_RI, bs_env%unit_nr)
+      CALL fm_sqrt(fm_V, fm_coulomb_factor, bs_env%eps_eigval_mat_RI, bs_env%unit_nr)
 
       ! -----------------------------------------------------------------------
       ! 3. A = M^-1(k=0) B^T.
       ! -----------------------------------------------------------------------
       CALL parallel_gemm("N", "T", bs_env%n_RI, bs_env%n_RI, bs_env%n_RI, 1.0_dp, &
-                         bs_env%fm_Minv_Gamma, fm_V_sqrt, 0.0_dp, fm_Minv_Vsqrt)
+                         bs_env%fm_Minv_Gamma, fm_coulomb_factor, 0.0_dp, fm_Minv_coulomb_factor)
 
       CALL timestop(handle)
 
-   END SUBROUTINE compute_V_MinvVsqrt
+   END SUBROUTINE compute_coulomb_factors
 
 ! **************************************************************************************************
 !> \brief Computes the metric-dressed screened interaction at one imaginary frequency.
@@ -893,14 +894,14 @@ CONTAINS
 !>        Z = A ε^(-1/2), with discarded eigenmodes set to zero.
 !> \param bs_env ...
 !> \param fm_chi_freq_j ...
-!> \param fm_bare_interaction full symmetric matrix M^-1 V M^-1 = A A^T
-!> \param fm_Minv_Vsqrt RI metric and Coulomb factor A = M^-1 B^T
+!> \param fm_Minv_V_Minv full symmetric matrix M^-1 V M^-1 = A A^T
+!> \param fm_Minv_coulomb_factor RI metric and Coulomb factor A = M^-1 B^T
 !> \param fm_W_freq_j full symmetric metric-dressed correlation interaction W
 ! **************************************************************************************************
-   SUBROUTINE compute_fm_W_freq(bs_env, fm_chi_freq_j, fm_bare_interaction, fm_Minv_Vsqrt, fm_W_freq_j)
+   SUBROUTINE compute_fm_W_freq(bs_env, fm_chi_freq_j, fm_Minv_V_Minv, fm_Minv_coulomb_factor, fm_W_freq_j)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_chi_freq_j, fm_bare_interaction, &
-                                                            fm_Minv_Vsqrt
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_chi_freq_j, fm_Minv_V_Minv, &
+                                                            fm_Minv_coulomb_factor
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_W_freq_j
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_fm_W_freq'
@@ -920,11 +921,11 @@ CONTAINS
       ! -----------------------------------------------------------------------
       ! work = χ(iω_j) A
       CALL parallel_gemm('N', 'N', n_RI, n_RI, n_RI, 1.0_dp, &
-                         fm_chi_freq_j, fm_Minv_Vsqrt, 0.0_dp, fm_work)
+                         fm_chi_freq_j, fm_Minv_coulomb_factor, 0.0_dp, fm_work)
 
       ! eps_work = A^T work
       CALL parallel_gemm('T', 'N', n_RI, n_RI, n_RI, 1.0_dp, &
-                         fm_Minv_Vsqrt, fm_work, 0.0_dp, fm_eps_freq_j)
+                         fm_Minv_coulomb_factor, fm_work, 0.0_dp, fm_eps_freq_j)
 
       ! Add the identity without changing the sign convention of χ.
       CALL cp_fm_add_on_diag(fm_eps_freq_j, 1.0_dp)
@@ -941,13 +942,13 @@ CONTAINS
       CALL cp_fm_cholesky_decompose(fm_eps_freq_j, info_out=info)
       IF (info == 0) THEN
          ! Z = A U^-1, so Z Z^T = A ε^-1 A^T. No explicit inverse is needed.
-         CALL cp_fm_to_fm(fm_Minv_Vsqrt, fm_work)
+         CALL cp_fm_to_fm(fm_Minv_coulomb_factor, fm_work)
          CALL cp_fm_triangular_multiply(fm_eps_freq_j, fm_work, side='R', invert_tr=.TRUE.)
       ELSE
          CALL cp_fm_to_fm(fm_work, fm_eps_freq_j)
          CALL cp_fm_power(fm_eps_freq_j, fm_work, -0.5_dp, bs_env%eps_eigval_mat_RI, n_dependent)
          CALL parallel_gemm('N', 'N', n_RI, n_RI, n_RI, 1.0_dp, &
-                            fm_Minv_Vsqrt, fm_eps_freq_j, 0.0_dp, fm_work)
+                            fm_Minv_coulomb_factor, fm_eps_freq_j, 0.0_dp, fm_work)
          IF (bs_env%unit_nr > 0) THEN
             WRITE (bs_env%unit_nr, '(T2,A)') &
                'Cholesky decomposition failed; screening computed by diagonalization.'
@@ -955,7 +956,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL cp_fm_to_fm(fm_bare_interaction, fm_W_freq_j)
+      CALL cp_fm_to_fm(fm_Minv_V_Minv, fm_W_freq_j)
       CALL cp_fm_syrk('U', 'N', n_RI, 1.0_dp, fm_work, 1, 1, -1.0_dp, fm_W_freq_j)
       CALL cp_fm_uplo_to_full(fm_W_freq_j, fm_work)
 
