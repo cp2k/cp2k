@@ -28,8 +28,6 @@ MODULE kpoint_lattice_fft
    USE mathconstants,                   ONLY: gaussi,&
                                               twopi,&
                                               z_zero
-
-!$ USE omp_lib, ONLY: omp_get_max_threads
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -40,7 +38,7 @@ MODULE kpoint_lattice_fft
 
    PUBLIC :: cell_to_k_grid_fft, cell_to_k_grid_prepare, cell_to_k_grid_release, cell_to_k_grid_work_type
    PUBLIC :: k_grid_to_cell_fft, k_grid_to_cell_prepare, k_grid_to_cell_execute, k_grid_to_cell_release
-   PUBLIC :: k_grid_to_cell_work_type, lattice_fft_num_threads, lattice_fft_shape, regular_kpoint_grid
+   PUBLIC :: k_grid_to_cell_work_type, lattice_fft_shape, regular_kpoint_grid
 
    INTEGER(KIND=int_8), PARAMETER :: fft_batch_bytes = 32_int_8*1024_int_8**2
 
@@ -166,23 +164,6 @@ CONTAINS
       compatible = .TRUE.
 
    END FUNCTION lattice_fft_shape
-
-! **************************************************************************************************
-!> \brief Bound concurrent forward transforms to 64 MiB of scratch, or one grid if larger.
-!> \param nfft FFT grid dimensions
-!> \param nentries number of independent AO entries
-!> \return number of OpenMP workers
-! **************************************************************************************************
-   INTEGER FUNCTION lattice_fft_num_threads(nfft, nentries) RESULT(nthreads)
-      INTEGER, DIMENSION(3), INTENT(IN)                  :: nfft
-      INTEGER, INTENT(IN)                                :: nentries
-
-      ! Two complex grids per worker plus an optional backend transpose buffer.
-      nthreads = 1
-!$    nthreads = omp_get_max_threads()
-      nthreads = INT(MIN(INT(nthreads, int_8), INT(MAX(1, nentries), int_8), &
-                         MAX(1_int_8, 64_int_8*1024_int_8**2/(48_int_8*PRODUCT(INT(nfft, int_8))))))
-   END FUNCTION lattice_fft_num_threads
 
 ! **************************************************************************************************
 !> \brief Transform all lattice lines in three batched 1D FFTs.

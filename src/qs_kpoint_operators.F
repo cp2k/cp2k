@@ -29,14 +29,13 @@ MODULE qs_kpoint_operators
                                               cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE input_cp2k_kpoints,              ONLY: lattice_fft_auto,&
-                                              lattice_fft_on
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_transform,                ONLY: &
         cell_to_k_backend_evaluate_batch, cell_to_k_backend_prepare, cell_to_k_sparse_fft, &
-        rskp_backend_fft, rskp_backend_gemm, rskp_batch_size, rskp_capture, rskp_compatible, rskp_route_create, &
-        rskp_route_release, rskp_route_type, rskp_values_release, rskp_values_type
+        rskp_backend_fft, rskp_backend_gemm, rskp_batch_size, rskp_capture, rskp_compatible, &
+        rskp_route_create, rskp_route_release, rskp_route_type, rskp_values_release, &
+        rskp_values_type
    USE kpoint_types,                    ONLY: kpoint_env_type,&
                                               kpoint_type
    USE message_passing,                 ONLY: mp_para_env_type
@@ -240,7 +239,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_prepare'
 
-      INTEGER                                            :: backend, compatible, handle, ispin, jslot, nk, &
+      INTEGER                                            :: compatible, handle, ispin, jslot, nk, &
                                                             nrow, output_mirror_sign, row
       INTEGER(KIND=int_8)                                :: fft_storage, retained, storage, &
                                                             workspace_bytes
@@ -303,13 +302,9 @@ CONTAINS
       END IF
       IF (.NOT. ALLOCATED(ctx%rs_route)) THEN
          ALLOCATE (ctx%rs_route)
-         backend = rskp_backend_gemm
-         IF (ctx%kpoints%lattice_fft == lattice_fft_on .OR. &
-             (ctx%kpoints%lattice_fft == lattice_fft_auto .AND. SIZE(ctx%kpoints%xkp, 2) >= 27)) &
-            backend = rskp_backend_fft
          CALL rskp_route_create(rsmat, source_sab, ctx%kpoints%cell_to_index, fms, &
                                 ctx%kpoints%blacs_env_all%para_env, ctx%kpoints%para_env_kp, &
-                                ctx%kpoints%para_env_inter_kp, backend, &
+                                ctx%kpoints%para_env_inter_kp, ctx%kpoints%rskp_transform, &
                                 rs_snapshot_bytes, ctx%rs_route, ready)
          IF (.NOT. ready) THEN
             CALL cp_abort(__LOCATION__, &

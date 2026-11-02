@@ -62,24 +62,27 @@ MODULE kpoint_methods
                                               print_kp_symmetry,&
                                               release_csym_type
    USE hairy_probes,                    ONLY: probe_occupancy_kp
-   USE input_constants,                 ONLY: smear_fermi_dirac,&
+   USE input_constants,                 ONLY: rskp_backend_fft,&
+                                              rskp_backend_gemm,&
+                                              smear_fermi_dirac,&
                                               smear_gaussian,&
                                               smear_mp,&
                                               smear_mv
-   USE input_cp2k_kpoints,              ONLY: lattice_fft_auto,&
-                                              lattice_fft_off,&
-                                              use_spglib_kpoint_backend,&
+   USE input_cp2k_kpoints,              ONLY: use_spglib_kpoint_backend,&
                                               use_spglib_kpoint_symmetry
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE kpoint_lattice_fft,              ONLY: cell_to_k_grid_fft,&
-                                              k_grid_to_cell_execute,&
+   USE kpoint_lattice_fft,              ONLY: k_grid_to_cell_execute,&
                                               k_grid_to_cell_prepare,&
                                               k_grid_to_cell_release,&
                                               k_grid_to_cell_work_type,&
-                                              lattice_fft_num_threads,&
                                               lattice_fft_shape,&
                                               regular_kpoint_grid
+   USE kpoint_transform,                ONLY: ensure_work_matrix => rskp_work_matrix,&
+                                              k_grid_to_cell_contract,&
+                                              kp_symmetry_phase_factors => rskp_phase_factors,&
+                                              kp_transform_plan_create,&
+                                              kp_transform_plan_type
    USE kpoint_types,                    ONLY: &
         find_kpoint_rotation_slot, get_kpoint_info, kind_rotmat_type, kpoint_env_create, &
         kpoint_env_p_type, kpoint_env_type, kpoint_sym_create, kpoint_sym_type, kpoint_type
@@ -116,8 +119,7 @@ MODULE kpoint_methods
                                               Smearkp2,&
                                               smearing_separate_spin,&
                                               smearing_spin_targets
-   USE util,                            ONLY: get_limit,&
-                                              sort
+   USE util,                            ONLY: get_limit
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, &
 !$                    omp_get_thread_num
@@ -128,14 +130,6 @@ MODULE kpoint_methods
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kpoint_methods'
-
-   TYPE, PUBLIC :: kp_transform_plan_type
-      INTEGER :: nentry = 0, ngroup = 0
-      LOGICAL :: symmetric = .FALSE.
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: col, col_offset, group_start, image, row, row_offset
-      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: cell
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: symmetry_sign
-   END TYPE kp_transform_plan_type
 
    ! Non-owning view of one symmetry contribution; valid while kpoint metadata is unchanged.
    TYPE :: kp_symmetry_op_type
@@ -160,18 +154,9 @@ MODULE kpoint_methods
    PUBLIC :: kpoint_smearing_edge_status
    PUBLIC :: kpoint_density_matrices, kpoint_density_transform, calibrate_symmetry_phases
    PUBLIC :: kpoint_ot_energy_weighted_density
-   PUBLIC :: kp_transform_plan_create
    PUBLIC :: rskp_transform, lowdin_kp_trans, lowdin_kp_mo_coeff
-   PUBLIC :: rskp_grid_type, rskp_transform_grid_prepare, rskp_transform_grid_extract, &
-             rskp_transform_grid_release
 
 ! **************************************************************************************************
-
-   TYPE rskp_grid_type
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: values
-      INTEGER, ALLOCATABLE, DIMENSION(:)                :: block_col, block_nelem, block_offset, block_row
-      LOGICAL                                           :: ready = .FALSE.
-   END TYPE rskp_grid_type
 
 ! **************************************************************************************************
 
@@ -1250,278 +1235,6 @@ CONTAINS
    END SUBROUTINE rskp_transform
 
 ! **************************************************************************************************
-!> \brief Prepare a batched real-cell transform to a regular grid or subset for local DBCSR blocks.
-!>        The stored blocks remain MPI local.  Irregular or too-large grids return used_fft=.FALSE.
-!> \param grid cached transformed local blocks and their DBCSR coordinates
-!> \param rmatrix allocated output template defining the local block layout
-!> \param rsmat real-space matrix set
-!> \param ispin spin component of rsmat
-!> \param xkp requested points on a regular reciprocal grid in arbitrary order
-!> \param nkp_grid reciprocal grid dimensions
-!> \param cell_to_index real-cell coordinate mapping
-!> \param sab_nl neighbor list defining the stored block orientation
-!> \param used_fft whether the cache was prepared
-!> \param is_complex whether the real-space operator is imaginary
-!> \param rs_sign optional overall sign
-!> \param max_storage_bytes optional conservative per-rank memory limit
-! **************************************************************************************************
-   SUBROUTINE rskp_transform_grid_prepare(grid, rmatrix, rsmat, ispin, xkp, nkp_grid, &
-                                          cell_to_index, sab_nl, used_fft, is_complex, rs_sign, &
-                                          max_storage_bytes)
-
-      TYPE(rskp_grid_type), INTENT(INOUT)                :: grid
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: rmatrix
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rsmat
-      INTEGER, INTENT(IN)                                :: ispin
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp
-      INTEGER, DIMENSION(3), INTENT(IN)                  :: nkp_grid
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_nl
-      LOGICAL, INTENT(OUT)                               :: used_fft
-      LOGICAL, INTENT(IN), OPTIONAL                      :: is_complex
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: rs_sign
-      INTEGER(KIND=int_8), INTENT(IN), OPTIONAL          :: max_storage_bytes
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rskp_transform_grid_prepare'
-
-      INTEGER                                            :: handle, i1, i2, i3, iatom, iblock, ic, &
-                                                            icol, irow, jatom, nblkcols, nblkrows, &
-                                                            nblocks, ncell, nelem, nimg, nkp, &
-                                                            nvalues
-      INTEGER(KIND=int_8)                                :: memory_limit, storage_bytes
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: block_map, index_to_cell
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: fft_cell_to_index
-      INTEGER, DIMENSION(3)                              :: cell, fft_cell, nfft
-      LOGICAL                                            :: do_symmetric, found, my_complex
-      REAL(KIND=dp)                                      :: fsign, fsym, value_sign
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: values_rs
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rblock, rsblock
-      TYPE(dbcsr_iterator_type)                          :: iter
-      TYPE(neighbor_list_iterator_p_type), &
-         DIMENSION(:), POINTER                           :: nl_iterator
-
-      CALL timeset(routineN, handle)
-      CALL rskp_transform_grid_release(grid)
-      used_fft = .FALSE.
-
-      nkp = SIZE(xkp, 2)
-      nimg = SIZE(rsmat, 2)
-      memory_limit = 512_int_8*1024_int_8**2
-      IF (PRESENT(max_storage_bytes)) memory_limit = max_storage_bytes
-      IF (nkp < 1 .OR. ANY(nkp_grid <= 0)) THEN
-         CALL timestop(handle)
-         RETURN
-      END IF
-      ! A reduced request still needs scratch for the full FFT mesh.
-      IF (32_int_8*PRODUCT(INT(nkp_grid, int_8)) > memory_limit) THEN
-         CALL timestop(handle)
-         RETURN
-      END IF
-      IF (.NOT. lattice_fft_shape(nkp_grid, nfft, allow_arbitrary=.TRUE.)) THEN
-         CALL timestop(handle)
-         RETURN
-      END IF
-      IF (32_int_8*PRODUCT(INT(nfft, int_8)) > memory_limit) THEN
-         CALL timestop(handle)
-         RETURN
-      END IF
-      IF (.NOT. regular_kpoint_grid(xkp, nkp_grid, allow_incomplete=.TRUE.)) THEN
-         CALL timestop(handle)
-         RETURN
-      END IF
-
-      nblocks = 0
-      nvalues = 0
-      CALL dbcsr_iterator_start(iter, rmatrix)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, irow, icol, rblock)
-         nblocks = nblocks + 1
-         nvalues = nvalues + SIZE(rblock)
-      END DO
-      CALL dbcsr_iterator_stop(iter)
-      IF (nblocks == 0 .OR. nvalues == 0) THEN
-         CALL timestop(handle)
-         RETURN
-      END IF
-
-      CALL dbcsr_get_info(rmatrix, nblkrows_total=nblkrows, nblkcols_total=nblkcols)
-      ALLOCATE (block_map(nblkrows, nblkcols), source=0)
-      ALLOCATE (grid%block_row(nblocks), grid%block_col(nblocks), &
-                grid%block_offset(nblocks), grid%block_nelem(nblocks))
-      iblock = 0
-      nelem = 0
-      CALL dbcsr_iterator_start(iter, rmatrix)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, irow, icol, rblock)
-         iblock = iblock + 1
-         grid%block_row(iblock) = irow
-         grid%block_col(iblock) = icol
-         grid%block_offset(iblock) = nelem + 1
-         grid%block_nelem(iblock) = SIZE(rblock)
-         block_map(irow, icol) = iblock
-         nelem = nelem + SIZE(rblock)
-      END DO
-      CALL dbcsr_iterator_stop(iter)
-
-      ALLOCATE (fft_cell_to_index(LBOUND(cell_to_index, 1):UBOUND(cell_to_index, 1), &
-                                  LBOUND(cell_to_index, 2):UBOUND(cell_to_index, 2), &
-                                  LBOUND(cell_to_index, 3):UBOUND(cell_to_index, 3)), source=0)
-      ncell = 0
-      DO i3 = LBOUND(cell_to_index, 3), UBOUND(cell_to_index, 3)
-         DO i2 = LBOUND(cell_to_index, 2), UBOUND(cell_to_index, 2)
-            DO i1 = LBOUND(cell_to_index, 1), UBOUND(cell_to_index, 1)
-               IF (cell_to_index(i1, i2, i3) < 1 .OR. cell_to_index(i1, i2, i3) > nimg) CYCLE
-               IF (fft_cell_to_index(i1, i2, i3) == 0) THEN
-                  ncell = ncell + 1
-                  fft_cell_to_index(i1, i2, i3) = ncell
-               END IF
-               IF (fft_cell_to_index(-i1, -i2, -i3) == 0) THEN
-                  ncell = ncell + 1
-                  fft_cell_to_index(-i1, -i2, -i3) = ncell
-               END IF
-            END DO
-         END DO
-      END DO
-      IF (ncell == 0) THEN
-         CALL rskp_transform_grid_release(grid)
-         CALL timestop(handle)
-         RETURN
-      END IF
-
-      ! Bound the requested output separately from the full-mesh FFT scratch/maps.
-      storage_bytes = INT(nvalues, int_8)*(8_int_8*INT(ncell, int_8) + 16_int_8*INT(nkp, int_8)) + &
-                      48_int_8*PRODUCT(INT(nfft, int_8))*lattice_fft_num_threads(nfft, nvalues) + &
-                      4_int_8*PRODUCT(INT(nkp_grid, int_8)) + &
-                      12_int_8*nkp + 28_int_8*ncell
-      IF (storage_bytes > memory_limit) THEN
-         CALL rskp_transform_grid_release(grid)
-         CALL timestop(handle)
-         RETURN
-      END IF
-
-      ALLOCATE (index_to_cell(3, ncell), source=0)
-      DO i3 = LBOUND(fft_cell_to_index, 3), UBOUND(fft_cell_to_index, 3)
-         DO i2 = LBOUND(fft_cell_to_index, 2), UBOUND(fft_cell_to_index, 2)
-            DO i1 = LBOUND(fft_cell_to_index, 1), UBOUND(fft_cell_to_index, 1)
-               ic = fft_cell_to_index(i1, i2, i3)
-               IF (ic > 0) index_to_cell(:, ic) = [i1, i2, i3]
-            END DO
-         END DO
-      END DO
-
-      ALLOCATE (values_rs(nvalues, 1, ncell), source=0.0_dp)
-      ALLOCATE (grid%values(nvalues, 1, nkp))
-      my_complex = .FALSE.
-      IF (PRESENT(is_complex)) my_complex = is_complex
-      fsign = 1.0_dp
-      IF (PRESENT(rs_sign)) fsign = rs_sign
-
-      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl, symmetric=do_symmetric)
-      CALL neighbor_list_iterator_create(nl_iterator, sab_nl)
-      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-         CALL get_iterator_info(nl_iterator, iatom=iatom, jatom=jatom, cell=cell)
-
-         fsym = 1.0_dp
-         irow = iatom
-         icol = jatom
-         IF (do_symmetric .AND. iatom > jatom) THEN
-            irow = jatom
-            icol = iatom
-            fsym = -1.0_dp
-         END IF
-         IF (irow < 1 .OR. irow > nblkrows .OR. icol < 1 .OR. icol > nblkcols) CYCLE
-         iblock = block_map(irow, icol)
-         IF (iblock == 0) CYCLE
-
-         ic = cell_to_index(cell(1), cell(2), cell(3))
-         IF (ic < 1 .OR. ic > nimg) CYCLE
-         CALL dbcsr_get_block_p(matrix=rsmat(ispin, ic)%matrix, row=irow, col=icol, &
-                                block=rsblock, found=found)
-         IF (.NOT. found) CYCLE
-
-         fft_cell = cell
-         value_sign = fsign
-         IF (fsym < 0.0_dp) fft_cell = -cell
-         IF (my_complex) value_sign = value_sign*fsym
-         ic = fft_cell_to_index(fft_cell(1), fft_cell(2), fft_cell(3))
-         nelem = grid%block_nelem(iblock)
-         i1 = grid%block_offset(iblock)
-         values_rs(i1:i1 + nelem - 1, 1, ic) = values_rs(i1:i1 + nelem - 1, 1, ic) + &
-                                               value_sign*RESHAPE(rsblock, [nelem])
-      END DO
-      CALL neighbor_list_iterator_release(nl_iterator)
-
-      CALL cell_to_k_grid_fft(values_rs, index_to_cell, xkp, nkp_grid, grid%values, used_fft)
-      IF (used_fft) THEN
-         grid%ready = .TRUE.
-      ELSE
-         CALL rskp_transform_grid_release(grid)
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE rskp_transform_grid_prepare
-
-! **************************************************************************************************
-!> \brief Extract one reciprocal-grid matrix from a prepared local DBCSR block cache.
-!> \param grid ...
-!> \param ikp ...
-!> \param rmatrix ...
-!> \param cmatrix ...
-! **************************************************************************************************
-   SUBROUTINE rskp_transform_grid_extract(grid, ikp, rmatrix, cmatrix)
-
-      TYPE(rskp_grid_type), INTENT(IN)                   :: grid
-      INTEGER, INTENT(IN)                                :: ikp
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: rmatrix
-      TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: cmatrix
-
-      INTEGER                                            :: iblock, ioffset, nelem
-      LOGICAL                                            :: found
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, rblock
-
-      CPASSERT(grid%ready)
-      CPASSERT(ikp >= 1 .AND. ikp <= SIZE(grid%values, 3))
-      CALL dbcsr_set(rmatrix, 0.0_dp)
-      IF (PRESENT(cmatrix)) CALL dbcsr_set(cmatrix, 0.0_dp)
-
-      DO iblock = 1, SIZE(grid%block_row)
-         ioffset = grid%block_offset(iblock)
-         nelem = grid%block_nelem(iblock)
-         CALL dbcsr_get_block_p(rmatrix, grid%block_row(iblock), grid%block_col(iblock), &
-                                rblock, found=found)
-         CPASSERT(found)
-         rblock = RESHAPE(REAL(grid%values(ioffset:ioffset + nelem - 1, 1, ikp), KIND=dp), &
-                          SHAPE(rblock))
-         IF (PRESENT(cmatrix)) THEN
-            CALL dbcsr_get_block_p(cmatrix, grid%block_row(iblock), grid%block_col(iblock), &
-                                   cblock, found=found)
-            CPASSERT(found)
-            cblock = RESHAPE(AIMAG(grid%values(ioffset:ioffset + nelem - 1, 1, ikp)), SHAPE(cblock))
-         END IF
-      END DO
-
-   END SUBROUTINE rskp_transform_grid_extract
-
-! **************************************************************************************************
-!> \brief Release a reciprocal-grid transformation cache.
-!> \param grid ...
-! **************************************************************************************************
-   SUBROUTINE rskp_transform_grid_release(grid)
-
-      TYPE(rskp_grid_type), INTENT(INOUT)                :: grid
-
-      IF (ALLOCATED(grid%values)) DEALLOCATE (grid%values)
-      IF (ALLOCATED(grid%block_row)) DEALLOCATE (grid%block_row)
-      IF (ALLOCATED(grid%block_col)) DEALLOCATE (grid%block_col)
-      IF (ALLOCATED(grid%block_offset)) DEALLOCATE (grid%block_offset)
-      IF (ALLOCATED(grid%block_nelem)) DEALLOCATE (grid%block_nelem)
-      grid%ready = .FALSE.
-
-   END SUBROUTINE rskp_transform_grid_release
-
-! **************************************************************************************************
 !> \brief Given the eigenvalues of all kpoints, calculates the occupation numbers
 !> \param kpoint  Kpoint environment
 !> \param smear   Smearing information
@@ -2271,9 +1984,7 @@ CONTAINS
                                                             nimg, nkp, nspin
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: aux_fit, do_symmetric, local, &
-                                                            mixed_aux_orb_local, &
-                                                            regular_grid_done, &
-                                                            regular_grid_eligible
+                                                            mixed_aux_orb_local
       TYPE(cp_fm_p_type), ALLOCATABLE, &
          DIMENSION(:, :, :)                              :: source
       TYPE(dbcsr_p_type), DIMENSION(2)                   :: components
@@ -2355,25 +2066,20 @@ CONTAINS
       IF (local) THEN
          CPASSERT(kpoint%kp_range(1) == 1 .AND. kplocal == nkp)
       END IF
-      ! The regular-grid route is an optional specialization without spatial rotations.
-      ! The batched block transform handles all remaining cases.
-      regular_grid_eligible = nimg < nkp
-      IF (ASSOCIATED(kpoint%index_to_cell)) THEN
-         regular_grid_eligible = regular_grid_eligible .AND. nimg <= SIZE(kpoint%index_to_cell, 2)
-      ELSE
-         regular_grid_eligible = .FALSE.
-      END IF
-      IF (regular_grid_eligible) THEN
+      SELECT CASE (kpoint%rskp_transform)
+      CASE (rskp_backend_gemm)
+         CALL kpoint_density_transform_batched(kpoint, source, denmat, rpmat, transform_plan, &
+                                               for_aux_fit=aux_fit, mixed_aux_orb=mixed_aux_orb_local)
+      CASE (rskp_backend_fft)
+         IF (.NOT. ASSOCIATED(kpoint%index_to_cell)) THEN
+            CPABORT("Inverse FFT needs a lattice image map")
+         END IF
+         CPASSERT(nimg <= SIZE(kpoint%index_to_cell, 2))
          DO ik = 1, nkp
             IF (kpoint%kp_sym(ik)%kpoint_sym%apply_symmetry) THEN
-               regular_grid_eligible = .FALSE.
-               EXIT
+               CPABORT("Inverse FFT does not support spatial rotations")
             END IF
          END DO
-      END IF
-
-      regular_grid_done = .FALSE.
-      IF (regular_grid_eligible) THEN
          ALLOCATE (cpmat)
          CALL dbcsr_create(cpmat, template=rpmat, &
                            matrix_type=MERGE(dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, do_symmetric))
@@ -2381,12 +2087,10 @@ CONTAINS
          CALL dbcsr_set(cpmat, 0.0_dp)
          components(2)%matrix => cpmat
          CALL kpoint_density_transform_regular_grid(kpoint, source, denmat, components, fmwork, &
-                                                    transform_plan, regular_grid_done)
-      END IF
-      IF (.NOT. regular_grid_done) THEN
-         CALL kpoint_density_transform_batched(kpoint, source, denmat, rpmat, transform_plan, &
-                                               for_aux_fit=aux_fit, mixed_aux_orb=mixed_aux_orb_local)
-      END IF
+                                                    transform_plan)
+      CASE DEFAULT
+         CPABORT("Unknown RSKP transform backend")
+      END SELECT
 
       CALL dbcsr_deallocate_matrix(rpmat)
       IF (ASSOCIATED(cpmat)) CALL dbcsr_deallocate_matrix(cpmat)
@@ -2398,7 +2102,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Contract group-local densities into bounded batches of real-space AO blocks.
 !>        Small tiles of images sharing an AO block are independent OpenMP work items. Rotations follow the
-!>        k-point contraction; only the resulting blocks are reduced to their DBCSR
+!>        k-point contraction; phases are reused across spins. The resulting blocks go to their DBCSR
 !>        owner. This also works when a source AO block spans several MPI ranks.
 !> \param kpoint ...
 !> \param source borrowed P, W or external density matrices
@@ -2419,10 +2123,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform_batched'
       INTEGER(KIND=int_8), PARAMETER                     :: max_bytes = 64_int_8*1024*1024
-      INTEGER, PARAMETER                                 :: images_per_tile = 8, max_batch = 256
+      INTEGER, PARAMETER                                 :: max_batch = 256
 
       INTEGER :: a, b, batch, first, handle, i, ic, igroup, ikp, image, ispin, j, last, nblock, &
-         ncol, njob, nlocal, nrow, nthreads, ntile, nvalue, orientation, owner, slot, thread, tile
+         njob, nlocal, nrow, nthreads, ntile, nvalue, orientation, owner, slot, thread, tile
       INTEGER(KIND=int_8)                                :: block_size
       INTEGER, ALLOCATABLE                               :: available(:, :, :), counts(:), &
                                                             jobs(:, :), local_jobs(:, :), &
@@ -2433,7 +2137,7 @@ CONTAINS
       LOGICAL                                            :: found, trans
       REAL(KIND=dp), ALLOCATABLE                         :: packed(:, :), phases(:, :), &
                                                             rotation_work(:, :)
-      REAL(KIND=dp), ALLOCATABLE, TARGET                 :: sums(:, :), values(:)
+      REAL(KIND=dp), ALLOCATABLE, TARGET                 :: sums(:, :, :), values(:, :)
       REAL(KIND=dp), POINTER                             :: block(:, :)
       TYPE(kp_density_group_type), ALLOCATABLE           :: groups(:)
       TYPE(local_gemm_ctxt_type), ALLOCATABLE            :: gemm_ctx(:)
@@ -2480,8 +2184,10 @@ CONTAINS
          RETURN
       END IF
       block_size = INT(MAXVAL(row_size), int_8)*MAXVAL(col_size)
-      batch = MAX(1, MIN(max_batch, MAXVAL(counts), INT(max_bytes/(8_int_8*block_size))))
-      ALLOCATE (jobs(8, batch), offsets(batch + 1), tile_start(batch + 1), values(INT(block_size)*batch), &
+      ! Include the output buffer, returned blocks and separate parity sums.
+      batch = MAX(1, MIN(max_batch, MAXVAL(counts), &
+                         INT(max_bytes/(8_int_8*(2 + SIZE(source, 2))*block_size*SIZE(source, 3)))))
+      ALLOCATE (jobs(8, batch), offsets(batch + 1), tile_start(batch + 1), values(INT(block_size)*batch, SIZE(source, 3)), &
                 available(2, 0:UBOUND(groups, 1), batch))
       nthreads = 1
 !$    nthreads = MIN(omp_get_max_threads(), batch)
@@ -2499,15 +2205,15 @@ CONTAINS
             DO j = 1, njob
                offsets(j + 1) = offsets(j) + row_size(jobs(1, j))*col_size(jobs(2, j))
             END DO
-            ! Neighbor-list groups are ordered by AO pair and image. Limit image
-            ! tiles to retain enough independent work items for small unit cells.
+            ! Reuse each packed source batch across all images of this AO pair
+            ! in the current owner batch.
             ntile = 0
             i = 1
             DO WHILE (i <= njob)
                ntile = ntile + 1
                tile_start(ntile) = i
                j = i + 1
-               DO WHILE (j <= MIN(njob, i + images_per_tile - 1))
+               DO WHILE (j <= njob)
                   IF (ANY(jobs(1:2, j) /= jobs(1:2, i))) EXIT
                   j = j + 1
                END DO
@@ -2533,29 +2239,27 @@ CONTAINS
             IF (world%num_pe > 1) CALL world%sum(available(:, :, 1:ntile))
             nvalue = offsets(njob + 1) - 1
             nthreads = MIN(SIZE(gemm_ctx), ntile)
-            DO ispin = 1, SIZE(source, 3)
-               values(1:nvalue) = 0.0_dp
+            values(1:nvalue, :) = 0.0_dp
 !$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(nthreads) &
 !$OMP SHARED(source,tiles,groups,jobs,available,plan,row_size,col_size,row_offset,col_offset, &
-!$OMP        values,offsets,tile_start,ntile,ispin,gemm_ctx) &
-!$OMP PRIVATE(tile,j,last,nrow,ncol,block,packed,phases,sums,rotation_work,thread)
-               thread = 1
-!$             thread = omp_get_thread_num() + 1
+!$OMP        values,offsets,tile_start,ntile,gemm_ctx) &
+!$OMP PRIVATE(tile,j,last,packed,phases,sums,rotation_work,thread)
+            thread = 1
+!$          thread = omp_get_thread_num() + 1
 !$OMP DO SCHEDULE(DYNAMIC, 1)
-               DO tile = 1, ntile
-                  j = tile_start(tile)
-                  last = tile_start(tile + 1) - 1
-                  nrow = row_size(jobs(1, j))
-                  ncol = col_size(jobs(2, j))
-                  block(1:nrow*ncol, 1:last - j + 1) => values(offsets(j):offsets(last + 1) - 1)
-                  CALL kp_density_contract_tile(source(:, :, ispin), tiles(:, :, :, :, ispin), groups, &
-                                                jobs(:, j:last), available(:, :, tile), plan%symmetric, &
-                                                row_size, col_size, row_offset, col_offset, block, &
-                                                packed, phases, sums, rotation_work, gemm_ctx(thread))
-               END DO
+            DO tile = 1, ntile
+               j = tile_start(tile)
+               last = tile_start(tile + 1) - 1
+               CALL kp_density_contract_tile(source, tiles, groups, &
+                                             jobs(:, j:last), available(:, :, tile), plan%symmetric, &
+                                             row_size, col_size, row_offset, col_offset, &
+                                             values(offsets(j):offsets(last + 1) - 1, :), &
+                                             packed, phases, sums, rotation_work, gemm_ctx(thread))
+            END DO
 !$OMP END DO
 !$OMP END PARALLEL
-               IF (world%num_pe > 1) CALL world%sum(values(1:nvalue), root=owner)
+            DO ispin = 1, SIZE(source, 3)
+               IF (world%num_pe > 1) CALL world%sum(values(1:nvalue, ispin), root=owner)
                IF (world%mepos /= owner) CYCLE
                DO j = 1, njob
                   CALL dbcsr_get_block_p(denmat(ispin, jobs(3, j))%matrix, jobs(1, j), jobs(2, j), block, found=found)
@@ -2563,7 +2267,7 @@ CONTAINS
                   nrow = SIZE(block, 1)
                   DO i = 1, SIZE(block, 2)
                      nblock = offsets(j) + (i - 1)*nrow
-                     block(:, i) = values(nblock:nblock + nrow - 1)
+                     block(:, i) = values(nblock:nblock + nrow - 1, ispin)
                   END DO
                END DO
             END DO
@@ -2772,7 +2476,7 @@ CONTAINS
 !> \param col_size ...
 !> \param row_offset ...
 !> \param col_offset ...
-!> \param TARGET flattened output blocks, one column per image
+!> \param TARGET flattened output images, one column per spin
 !> \param packed reusable thread-local source batch
 !> \param phases reusable thread-local contraction coefficients
 !> \param sums reusable thread-local contracted blocks
@@ -2782,128 +2486,74 @@ CONTAINS
    SUBROUTINE kp_density_contract_tile(source, tiles, groups, jobs, available, symmetric, &
                                        row_size, col_size, row_offset, col_offset, TARGET, &
                                        packed, phases, sums, rotation_work, gemm_ctx)
-      TYPE(cp_fm_p_type), INTENT(IN)                     :: source(:, :)
-      INTEGER, INTENT(IN)                                :: tiles(:, :, :, :)
+      TYPE(cp_fm_p_type), INTENT(IN)                     :: source(:, :, :)
+      INTEGER, INTENT(IN)                                :: tiles(:, :, :, :, :)
       TYPE(kp_density_group_type), INTENT(IN)            :: groups(0:)
       INTEGER, INTENT(IN)                                :: jobs(:, :), available(:, 0:)
       LOGICAL, INTENT(IN)                                :: symmetric
       INTEGER, INTENT(IN)                                :: row_size(:), col_size(:), row_offset(:), &
                                                             col_offset(:)
-      REAL(KIND=dp), CONTIGUOUS, INTENT(INOUT), TARGET   :: target(:, :)
+      REAL(KIND=dp), INTENT(INOUT), TARGET               :: target(:, :)
       REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT)          :: packed(:, :), phases(:, :)
-      REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT), TARGET  :: sums(:, :)
+      REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT), TARGET  :: sums(:, :, :)
       REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT)          :: rotation_work(:, :)
       TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm_ctx
 
-      INTEGER(KIND=int_8), PARAMETER                     :: max_elements = 65536_int_8
-
-      INTEGER                                            :: a, b, batch, column, first, i, ic, &
-                                                            ifirst, ii, ikp, ilast, image, j, jj, &
-                                                            k, last, nc, nelement, nimage, nrow, &
-                                                            orientation, shift(3), slot
-      LOGICAL                                            :: contributes, real_only, trans
-      REAL(KIND=dp)                                      :: arg, cosine, factors(2, 2), sine
+      INTEGER                                            :: a, b, image, ispin, m, orientation, &
+                                                            shift(3), slot
+      LOGICAL                                            :: trans
       REAL(KIND=dp), POINTER                             :: left_rot(:, :), right_rot(:, :), &
                                                             source_block(:, :), target_block(:, :)
-      TYPE(cp_fm_type), POINTER                          :: matrix
 
-! Up to 512 KiB of packed input per worker, except for a single larger AO block.
-
-      nc = SIZE(source, 2)
-      real_only = nc == 1
-      nimage = SIZE(jobs, 2)
       DO slot = 0, UBOUND(groups, 1)
          IF (SIZE(groups(slot)%ikp) == 0) CYCLE
          DO orientation = 1, 2
             IF (available(orientation, slot) == 0) CYCLE
             CALL kp_density_source_block(groups(slot), jobs(1:2, 1), symmetric, orientation, a, b, trans)
             CPASSERT(a > 0)
-            nelement = row_size(a)*col_size(b)
-            batch = MAX(1, MIN(128, SIZE(groups(slot)%ikp), INT(max_elements/(INT(nelement, int_8)*nc))))
-            CALL ensure_work_matrix(packed, nelement, nc*batch)
-            CALL ensure_work_matrix(phases, nc*batch, nimage)
-            CALL ensure_work_matrix(sums, nelement, nimage)
-            sums(:, :) = 0.0_dp
             shift(:) = 0
             IF (.NOT. groups(slot)%op%identity) THEN
                shift(:) = groups(slot)%op%cell_shift(:, b) - groups(slot)%op%cell_shift(:, a)
                IF (groups(slot)%reverse_phase) shift(:) = -shift
             END IF
-            DO first = 1, SIZE(groups(slot)%ikp), batch
-               last = MIN(first + batch - 1, SIZE(groups(slot)%ikp))
-               packed(:, :) = 0.0_dp
-               contributes = .FALSE.
-               DO k = first, last
-                  ikp = groups(slot)%ikp(k)
-                  CALL kp_symmetry_phase_factors(shift, groups(slot)%xkp(:, k), &
-                                                 groups(slot)%op%time_reversal, real_only, factors)
-                  DO image = 1, nimage
-                     arg = twopi*DOT_PRODUCT(REAL(jobs(4:6, image), dp), groups(slot)%xkp(:, k))
-                     cosine = REAL(jobs(7, image), dp)*COS(arg)
-                     sine = REAL(jobs(8, image), dp)*SIN(arg)*MERGE(-1.0_dp, 1.0_dp, trans)
-                     IF (real_only) sine = 0.0_dp
-                     DO ic = 1, nc
-                        column = (k - first)*nc + ic
-                        phases(column, image) = groups(slot)%weight(k)*(cosine*factors(1, ic) + sine*factors(2, ic))
-                     END DO
-                  END DO
-                  DO ic = 1, nc
-                     ifirst = tiles(1, a, ikp, ic)
-                     ilast = tiles(2, a, ikp, ic)
-                     IF (ifirst > ilast .OR. tiles(3, b, ikp, ic) > tiles(4, b, ikp, ic)) CYCLE
-                     contributes = .TRUE.
-                     column = (k - first)*nc + ic
-                     matrix => source(ikp, ic)%matrix
-                     nrow = ilast - ifirst + 1
-                     DO j = tiles(3, b, ikp, ic), tiles(4, b, ikp, ic)
-                        jj = matrix%matrix_struct%col_indices(j) - col_offset(b)
-                        ii = matrix%matrix_struct%row_indices(ifirst) - row_offset(a) + 1 + jj*row_size(a)
-                        IF (matrix%matrix_struct%row_indices(ilast) - &
-                            matrix%matrix_struct%row_indices(ifirst) == nrow - 1) THEN
-                           packed(ii:ii + nrow - 1, column) = matrix%local_data(ifirst:ilast, j)
-                        ELSE
-                           DO i = ifirst, ilast
-                              ii = matrix%matrix_struct%row_indices(i) - row_offset(a) + 1 + jj*row_size(a)
-                              packed(ii, column) = matrix%local_data(i, j)
-                           END DO
-                        END IF
-                     END DO
-                  END DO
-               END DO
-               IF (.NOT. contributes) CYCLE
-               CALL gemm_ctx%gemm('N', 'N', nelement, nimage, nc*(last - first + 1), 1.0_dp, &
-                                  packed, SIZE(packed, 1), phases, SIZE(phases, 1), &
-                                  1.0_dp, sums, SIZE(sums, 1))
-            END DO
-            IF (groups(slot)%op%identity) THEN
-               TARGET(:, :) = TARGET + sums
-            ELSE
+            CALL k_grid_to_cell_contract(source, tiles, groups(slot)%ikp, groups(slot)%xkp, groups(slot)%weight, &
+                                         jobs(4:8, :), [a, b], [row_size(a), col_size(b)], &
+                                         [row_offset(a), col_offset(b)], shift, groups(slot)%op%time_reversal, &
+                                         trans, packed, phases, sums, gemm_ctx)
+            m = row_size(jobs(1, 1))*col_size(jobs(2, 1))
+            IF (.NOT. groups(slot)%op%identity) THEN
                left_rot => groups(slot)%op%kind_rot(groups(slot)%op%atom_kind(groups(slot)%inverse(jobs(1, 1))))%rmat
                right_rot => groups(slot)%op%kind_rot_right(groups(slot)%op%atom_kind(groups(slot)%inverse(jobs(2, 1))))%rmat
-               DO image = 1, nimage
-                  source_block(1:row_size(a), 1:col_size(b)) => sums(:, image)
-                  target_block(1:row_size(jobs(1, image)), 1:col_size(jobs(2, image))) => TARGET(:, image)
-                  CALL kp_symmetry_rotate_block(source_block, left_rot, right_rot, trans, &
-                                                1.0_dp, target_block, rotation_work)
-               END DO
             END IF
+            DO ispin = 1, SIZE(source, 3)
+               DO image = 1, SIZE(jobs, 2)
+                  IF (groups(slot)%op%identity) THEN
+                     TARGET((image - 1)*m + 1:image*m, ispin) = &
+                        TARGET((image - 1)*m + 1:image*m, ispin) + sums(:, image, ispin)
+                  ELSE
+                     source_block(1:row_size(a), 1:col_size(b)) => sums(:, image, ispin)
+                     target_block(1:row_size(jobs(1, image)), 1:col_size(jobs(2, image))) => &
+                        TARGET((image - 1)*m + 1:image*m, ispin)
+                     CALL kp_symmetry_rotate_block(source_block, left_rot, right_rot, trans, &
+                                                   1.0_dp, target_block, rotation_work)
+                  END IF
+               END DO
+            END DO
          END DO
       END DO
    END SUBROUTINE kp_density_contract_tile
 
 ! **************************************************************************************************
-!> \brief Sum compatible group-local FM tiles before returning each image to DBCSR.
-!>        The single-rank case stores directly. Incompatible layouts and cheaper
-!>        local sparse sums return to the common batched transform in the caller.
+!> \brief FFT compatible regular-grid density matrices before returning images to DBCSR.
+!>        Incompatible layouts or unavailable FFT workspaces abort.
 !> \param kpoint ...
 !> \param source borrowed density matrices for all local k-points, components and spins
 !> \param denmat ...
 !> \param components real/imaginary DBCSR work matrices
 !> \param fmwork global FM work matrices, unused on one rank
 !> \param plan neighbor-list traversal and storage conventions
-!> \param completed whether all spin/image results were produced
 ! **************************************************************************************************
-   SUBROUTINE kpoint_density_transform_regular_grid(kpoint, source, denmat, components, fmwork, plan, completed)
+   SUBROUTINE kpoint_density_transform_regular_grid(kpoint, source, denmat, components, fmwork, plan)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(cp_fm_p_type), DIMENSION(:, :, :), INTENT(IN) :: source
@@ -2911,21 +2561,17 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: components
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN), TARGET :: fmwork
       TYPE(kp_transform_plan_type), INTENT(IN)           :: plan
-      LOGICAL, INTENT(OUT)                               :: completed
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform_regular_grid'
 
       INTEGER                                            :: compatible, element, first, handle, i, &
-                                                            ic, igroup, ik, ikp, image, ispin, j, &
+                                                            ic, igroup, ikp, image, ispin, j, &
                                                             kplocal, last, nc, ncol, nrow
       INTEGER, ALLOCATABLE                               :: blocks(:, :), factors(:, :)
       INTEGER, DIMENSION(14)                             :: layout, layout_max, layout_min
       INTEGER, DIMENSION(2)                              :: fft_range
-      LOGICAL                                            :: found, local, same_layout
-      REAL(KIND=dp)                                      :: arg, dense_work, sparse_work
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: phase
+      LOGICAL                                            :: local, same_layout
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: fft_density
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
       TYPE(copy_info_type), DIMENSION(2)                 :: info
       TYPE(cp_fm_struct_type), POINTER                   :: fms
       TYPE(cp_fm_type)                                   :: dummy
@@ -2933,7 +2579,6 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: image_source
       TYPE(mp_para_env_type), POINTER                    :: inter, para_env
 
-      completed = .FALSE.
       para_env => kpoint%blacs_env_all%para_env
       inter => kpoint%para_env_inter_kp
       local = para_env%num_pe == 1
@@ -2963,27 +2608,13 @@ CONTAINS
       END IF
       compatible = MERGE(1, 0, same_layout .AND. ALL(layout_min == layout_max))
       IF (.NOT. local) CALL para_env%min(compatible)
-      IF (compatible == 0) RETURN
-
-      ! Count the actual stored block work, so a sparse local transform is not
-      ! replaced by a dense sum merely because the MPI image route is eligible.
-      sparse_work = -1.0_dp
-      dense_work = REAL(nrow, dp)*REAL(ncol, dp)*SIZE(denmat, 2)
-      IF (local) THEN
-         sparse_work = 0.0_dp
-         DO igroup = 1, plan%ngroup
-            first = plan%group_start(igroup)
-            CALL dbcsr_get_readonly_block_p(components(1)%matrix, plan%row(first), plan%col(first), block, found=found)
-            IF (found) sparse_work = sparse_work + REAL(SIZE(block), dp)
-         END DO
-      END IF
+      IF (compatible == 0) CPABORT("Inverse FFT needs compatible k-point matrix layouts")
 
       CALL timeset(routineN, handle)
-      ALLOCATE (phase(kplocal, nc))
       DO ispin = 1, SIZE(source, 3)
          CALL kp_density_fft(kpoint, source(:, :, ispin), nrow, ncol, SIZE(denmat, 2), &
-                             fft_range, fft_density, local)
-         IF (ALLOCATED(fft_density) .AND. kpoint%para_env_kp%num_pe == 1) THEN
+                             fft_range, fft_density)
+         IF (kpoint%para_env_kp%num_pe == 1) THEN
             IF (.NOT. ALLOCATED(blocks)) THEN
                ! Keep neighbor-list multiplicity and imaginary signs in the k-point layer.
                ALLOCATE (blocks(3, plan%ngroup), factors(nc, plan%ngroup))
@@ -2998,11 +2629,9 @@ CONTAINS
             CALL cp_array_to_dbcsr_blocks(fft_density, fft_range(1), fft_range(2), para_env, &
                                           denmat(ispin, :), blocks, factors)
             DEALLOCATE (fft_density)
-            completed = .TRUE.
             CYCLE
          END IF
          IF (ispin == 1) THEN
-            IF (local .AND. .NOT. ALLOCATED(fft_density) .AND. dense_work > sparse_work) EXIT
             DO ic = 1, nc
                CALL cp_fm_create(partial(ic), fms)
             END DO
@@ -3016,37 +2645,16 @@ CONTAINS
             DO ic = 1, nc
                partial(ic)%local_data(:, :) = 0.0_dp
             END DO
-            IF (ALLOCATED(fft_density)) THEN
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
 !$OMP SHARED(partial, fft_density, fft_range, image, nc, nrow) PRIVATE(element, i, j, ic)
-               DO element = fft_range(1), fft_range(2)
-                  i = MODULO(element - 1, nrow) + 1
-                  j = (element - 1)/nrow + 1
-                  DO ic = 1, nc
-                     partial(ic)%local_data(i, j) = fft_density(element - fft_range(1) + 1, ic, image)
-                  END DO
+            DO element = fft_range(1), fft_range(2)
+               i = MODULO(element - 1, nrow) + 1
+               j = (element - 1)/nrow + 1
+               DO ic = 1, nc
+                  partial(ic)%local_data(i, j) = fft_density(element - fft_range(1) + 1, ic, image)
                END DO
+            END DO
 !$OMP END PARALLEL DO
-            ELSE
-               DO ikp = 1, kplocal
-                  ik = kpoint%kp_range(1) + ikp - 1
-                  arg = twopi*DOT_PRODUCT(REAL(kpoint%index_to_cell(:, image), dp), kpoint%xkp(:, ik))
-                  phase(ikp, 1) = kpoint%wkp(ik)*COS(arg)
-                  IF (nc == 2) phase(ikp, 2) = kpoint%wkp(ik)*SIN(arg)
-               END DO
-               ! Keep real/imaginary sums separate for the neighbor-list signs.
-!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-!$OMP SHARED(partial, source, phase, nc, nrow, ncol, kplocal, ispin) PRIVATE(j, ikp, ic)
-               DO j = 1, ncol
-                  DO ikp = 1, kplocal
-                     DO ic = 1, nc
-                        partial(ic)%local_data(1:nrow, j) = partial(ic)%local_data(1:nrow, j) + &
-                                                            phase(ikp, ic)*source(ikp, ic, ispin)%matrix%local_data(1:nrow, j)
-                     END DO
-                  END DO
-               END DO
-!$OMP END PARALLEL DO
-            END IF
 
             IF (.NOT. local) THEN
                DO ic = 1, nc
@@ -3069,7 +2677,6 @@ CONTAINS
                                              components(2)%matrix, image, nc == 1, plan)
          END DO
          IF (ALLOCATED(fft_density)) DEALLOCATE (fft_density)
-         completed = .TRUE.
       END DO
       DO ic = 1, nc
          CALL cp_fm_release(partial(ic))
@@ -3090,10 +2697,9 @@ CONTAINS
 !> \param ncol number of valid local FM columns
 !> \param nimg number of requested real-space images
 !> \param owned local FM element range assigned to this inter-group rank
-!> \param density allocated on success; unallocated selects the regular-grid direct sum
-!> \param local all k-points and matrix entries are on this rank
+!> \param density owned real-space matrix pencils
 ! **************************************************************************************************
-   SUBROUTINE kp_density_fft(kpoint, source, nrow, ncol, nimg, owned, density, local)
+   SUBROUTINE kp_density_fft(kpoint, source, nrow, ncol, nimg, owned, density)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(IN)    :: source
@@ -3101,10 +2707,8 @@ CONTAINS
       INTEGER, DIMENSION(2), INTENT(OUT)                 :: owned
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: density
-      LOGICAL, INTENT(IN)                                :: local
 
-      INTEGER(KIND=int_8), PARAMETER :: max_bytes = 64_int_8*1024*1024, &
-         min_fft_peer_bytes = 32_int_8*1024
+      INTEGER(KIND=int_8), PARAMETER                     :: max_bytes = 64_int_8*1024*1024
       INTEGER, PARAMETER                                 :: max_batch = 32
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -3114,33 +2718,38 @@ CONTAINS
          POINTER                                         :: sendbuf
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: values_k
-      INTEGER :: batch, count, element, first, group, handle, i, ikp, j, last, local_k, &
-         min_local_k, mine, nc, nel, ngroup, nkp, nowned, offset, pos, width
-      INTEGER(KIND=int_8)                                :: fixed_bytes, peer_bytes, per_entry, &
-                                                            tile_size
+      INTEGER :: batch, count, element, fft_status, first, group, handle, i, ikp, j, last, &
+         local_k, mine, nc, nel, ngroup, nkp, nowned, offset, pos, width
+      INTEGER(KIND=int_8)                                :: fixed_bytes, per_entry, tile_size
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcount, rdispl, scount, sdispl
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cells, ranges
       INTEGER, DIMENSION(2)                              :: choice
       INTEGER, DIMENSION(3)                              :: nfft
-      LOGICAL                                            :: compatible
+      LOGICAL                                            :: compatible, fft_success, used_fft
       TYPE(k_grid_to_cell_work_type)                     :: fft_work_data
       TYPE(mp_para_env_type), POINTER                    :: inter
 
       owned = [1, 0]
-      IF (kpoint%lattice_fft == lattice_fft_off) RETURN
+      CPASSERT(kpoint%rskp_transform == rskp_backend_fft)
       nkp = SIZE(kpoint%xkp, 2)
-      IF (kpoint%lattice_fft == lattice_fft_auto .AND. nkp < 27) RETURN
-      ! Preserve AUTO's local direct sum until a batched FFT executor can amortize
-      ! per-transform threading. ON uses FFT on any eligible rank/thread layout.
-      IF (kpoint%lattice_fft == lattice_fft_auto .AND. local) RETURN
-      IF (ANY(kpoint%nkp_grid <= 0)) RETURN
+      IF (ANY(kpoint%nkp_grid <= 0)) THEN
+         CPABORT("Inverse FFT needs a regular k-point grid")
+      END IF
       ! Bound map/scratch allocations before attempting a candidate-grid mapping.
-      IF (32_int_8*PRODUCT(INT(kpoint%nkp_grid, int_8)) > max_bytes) RETURN
+      IF (32_int_8*PRODUCT(INT(kpoint%nkp_grid, int_8)) > max_bytes) THEN
+         CPABORT("Inverse FFT exceeds the grid workspace budget")
+      END IF
       compatible = lattice_fft_shape(kpoint%nkp_grid, nfft, allow_arbitrary=.TRUE.)
-      IF (.NOT. compatible) RETURN
-      IF (32_int_8*PRODUCT(INT(nfft, int_8)) > max_bytes) RETURN
+      IF (.NOT. compatible) THEN
+         CPABORT("Inverse FFT grid is unsupported")
+      END IF
+      IF (32_int_8*PRODUCT(INT(nfft, int_8)) > max_bytes) THEN
+         CPABORT("Inverse FFT padded grid exceeds memory budget")
+      END IF
       compatible = regular_kpoint_grid(kpoint%xkp, kpoint%nkp_grid, allow_incomplete=.TRUE.)
-      IF (.NOT. compatible) RETURN
+      IF (.NOT. compatible) THEN
+         CPABORT("Inverse FFT needs a regular k-point subset")
+      END IF
 
       inter => kpoint%para_env_inter_kp
       ngroup = inter%num_pe
@@ -3161,20 +2770,17 @@ CONTAINS
       fixed_bytes = 8_int_8*nowned*nc*nimg + 32_int_8*PRODUCT(INT(nfft, int_8)) + &
                     4_int_8*PRODUCT(INT(kpoint%nkp_grid, int_8)) + 44_int_8*nkp + 52_int_8*nc*nimg + &
                     24_int_8*ngroup + 64_int_8
-      per_entry = 16_int_8*(INT(ngroup, int_8)*local_k + nkp + INT(nc, int_8)*nimg)
+      ! Bound the batched inverse FFT, including fft_1d_many's planning scratch.
+      per_entry = 16_int_8*(INT(ngroup, int_8)*local_k + nkp + INT(nc, int_8)*nimg) + &
+                  48_int_8*PRODUCT(INT(nfft, int_8))
       width = INT(MAX(0_int_8, MIN(INT(max_batch, int_8), (max_bytes - fixed_bytes)/per_entry)))
       choice = [MERGE(1, 0, tile_size <= HUGE(nel)), width]
-      ! All global ranks must either use FFT pencils or retain the direct path.
+      ! All ranks use the same pencil width, including ranks with empty FM tiles.
       IF (kpoint%blacs_env_all%para_env%num_pe > 1) CALL kpoint%blacs_env_all%para_env%min(choice)
-      IF (choice(1) == 0 .OR. choice(2) == 0) RETURN
-      width = choice(2)
-      IF (kpoint%lattice_fft == lattice_fft_auto .AND. ngroup > 1) THEN
-         ! With several k-point groups, small per-peer payloads do not amortize
-         ! the all-to-all latency and the regular-grid direct sum is faster.
-         min_local_k = MINVAL(kpoint%kp_dist(2, :) - kpoint%kp_dist(1, :) + 1)
-         peer_bytes = 16_int_8*INT(width, int_8)*INT(min_local_k, int_8)
-         IF (peer_bytes < min_fft_peer_bytes) RETURN
+      IF (choice(1) == 0 .OR. choice(2) == 0) THEN
+         CPABORT("Inverse FFT density exceeds memory budget")
       END IF
+      width = choice(2)
 
       CALL timeset("kp_density_fft", handle)
       ALLOCATE (density(nowned, nc, nimg))
@@ -3193,6 +2799,7 @@ CONTAINS
          CALL k_grid_to_cell_prepare(fft_work_data, kpoint%xkp, kpoint%nkp_grid, cells, &
                                      weights=kpoint%wkp, allow_incomplete=.TRUE.)
       END IF
+      fft_success = .TRUE.
       DO batch = 1, MAXVAL(ranges(2, :) - ranges(1, :) + 1), width
          count = MAX(0, MIN(width, nowned - batch + 1))
          offset = 0
@@ -3222,10 +2829,17 @@ CONTAINS
 !$OMP END PARALLEL DO
          END DO
          IF (ngroup > 1) CALL inter%alltoall(sendbuf, scount, sdispl, recvbuf, rcount, rdispl)
+         used_fft = .TRUE.
+         IF (count > 0) THEN
+            values_k(1:count, 1:1, 1:nkp) => recvbuf(1:count*nkp)
+            ! Keep fft_tools pool/planner access outside OpenMP worker regions.
+            CALL k_grid_to_cell_execute(fft_work_data, values_k, values_rs(1:count, :, :), &
+                                        used_fft=used_fft, require_fft=.TRUE., &
+                                        allow_direct_fallback=.FALSE.)
+         END IF
+         fft_success = fft_success .AND. used_fft
          IF (count == 0) CYCLE
-         values_k(1:count, 1:1, 1:nkp) => recvbuf(1:count*nkp)
-         ! Keep fft_tools pool/planner access outside OpenMP worker regions.
-         CALL k_grid_to_cell_execute(fft_work_data, values_k, values_rs(1:count, :, :))
+         IF (.NOT. used_fft) CYCLE
          DO i = 1, nimg
             IF (nc == 1) THEN
                density(batch:batch + count - 1, 1, i) = REAL(values_rs(1:count, 1, i), dp)
@@ -3237,6 +2851,11 @@ CONTAINS
             END IF
          END DO
       END DO
+      fft_status = MERGE(1, 0, fft_success)
+      CALL kpoint%blacs_env_all%para_env%min(fft_status)
+      IF (fft_status == 0) THEN
+         CPABORT("Inverse lattice FFT execution failed")
+      END IF
       CALL k_grid_to_cell_release(fft_work_data)
       IF (ngroup > 1) DEALLOCATE (sendbuf)
       NULLIFY (sendbuf)
@@ -3322,142 +2941,6 @@ CONTAINS
       CALL dbcsr_iterator_stop(iterator)
 
    END SUBROUTINE kp_copy_fm_to_dbcsr
-
-! **************************************************************************************************
-!> \brief Build the immutable neighbor-list traversal shared by R-to-K and K-to-R transforms.
-!> \param plan ...
-!> \param sab_nl ...
-!> \param cell_to_index ...
-!> \param nimg ...
-!> \param block_template ...
-!> \param group_entries ...
-! **************************************************************************************************
-   SUBROUTINE kp_transform_plan_create(plan, sab_nl, cell_to_index, nimg, block_template, group_entries)
-
-      TYPE(kp_transform_plan_type), INTENT(OUT)          :: plan
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_nl
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      INTEGER, INTENT(IN)                                :: nimg
-      TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: block_template
-      LOGICAL, INTENT(IN), OPTIONAL                      :: group_entries
-
-      INTEGER                                            :: i, iatom, icell, icol, igroup, irow, &
-                                                            jatom, nblock
-      INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: key
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: order
-      INTEGER, DIMENSION(3)                              :: cell
-      INTEGER, DIMENSION(:), POINTER                     :: col_offsets, row_offsets
-      LOGICAL                                            :: do_grouping, do_symmetric, store_offsets
-      TYPE(neighbor_list_iterator_p_type), &
-         DIMENSION(:), POINTER                           :: iterator
-
-      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl, symmetric=do_symmetric)
-      plan%symmetric = do_symmetric
-      do_grouping = .FALSE.
-      IF (PRESENT(group_entries)) do_grouping = group_entries
-      store_offsets = PRESENT(block_template)
-      IF (store_offsets) THEN
-         CALL dbcsr_get_info(block_template, row_blk_offset=row_offsets, col_blk_offset=col_offsets)
-      END IF
-      CALL neighbor_list_iterator_create(iterator, sab_nl)
-      DO WHILE (neighbor_list_iterate(iterator) == 0)
-         CALL get_iterator_info(iterator, cell=cell)
-         icell = cell_to_index(cell(1), cell(2), cell(3))
-         IF (icell >= 1 .AND. icell <= nimg) plan%nentry = plan%nentry + 1
-      END DO
-      CALL neighbor_list_iterator_release(iterator)
-
-      ALLOCATE (plan%row(plan%nentry), plan%col(plan%nentry), plan%image(plan%nentry), &
-                plan%cell(3, plan%nentry), plan%symmetry_sign(plan%nentry))
-      IF (store_offsets) THEN
-         ALLOCATE (plan%row_offset(plan%nentry), plan%col_offset(plan%nentry))
-      END IF
-
-      i = 0
-      CALL neighbor_list_iterator_create(iterator, sab_nl)
-      DO WHILE (neighbor_list_iterate(iterator) == 0)
-         CALL get_iterator_info(iterator, iatom=iatom, jatom=jatom, cell=cell)
-         icell = cell_to_index(cell(1), cell(2), cell(3))
-         IF (icell < 1 .OR. icell > nimg) CYCLE
-         i = i + 1
-         irow = iatom
-         icol = jatom
-         plan%symmetry_sign(i) = 1.0_dp
-         IF (do_symmetric .AND. iatom > jatom) THEN
-            irow = jatom
-            icol = iatom
-            plan%symmetry_sign(i) = -1.0_dp
-         END IF
-         plan%row(i) = irow
-         plan%col(i) = icol
-         IF (store_offsets) THEN
-            plan%row_offset(i) = row_offsets(irow)
-            plan%col_offset(i) = col_offsets(icol)
-         END IF
-         plan%image(i) = icell
-         plan%cell(:, i) = cell
-      END DO
-      CALL neighbor_list_iterator_release(iterator)
-      CPASSERT(i == plan%nentry)
-
-      IF (do_grouping .AND. plan%nentry > 0) THEN
-         nblock = MAX(MAXVAL(plan%row), MAXVAL(plan%col))
-         ALLOCATE (key(plan%nentry), order(plan%nentry))
-         DO i = 1, plan%nentry
-            key(i) = INT(plan%image(i), KIND=int_8) + INT(nimg, KIND=int_8)* &
-                     (INT(plan%row(i) - 1, KIND=int_8) + INT(nblock, KIND=int_8)* &
-                      INT(plan%col(i) - 1, KIND=int_8))
-         END DO
-         CALL sort(key, plan%nentry, order)
-         plan%row(:) = plan%row(order)
-         plan%col(:) = plan%col(order)
-         IF (store_offsets) THEN
-            plan%row_offset(:) = plan%row_offset(order)
-            plan%col_offset(:) = plan%col_offset(order)
-         END IF
-         plan%image(:) = plan%image(order)
-         plan%cell(:, :) = plan%cell(:, order)
-         plan%symmetry_sign(:) = plan%symmetry_sign(order)
-
-         plan%ngroup = 1
-         DO i = 2, plan%nentry
-            IF (key(i) /= key(i - 1)) plan%ngroup = plan%ngroup + 1
-         END DO
-         ALLOCATE (plan%group_start(plan%ngroup + 1))
-         igroup = 1
-         plan%group_start(igroup) = 1
-         DO i = 2, plan%nentry
-            IF (key(i) /= key(i - 1)) THEN
-               igroup = igroup + 1
-               plan%group_start(igroup) = i
-            END IF
-         END DO
-         plan%group_start(plan%ngroup + 1) = plan%nentry + 1
-         DEALLOCATE (key, order)
-      END IF
-
-   END SUBROUTINE kp_transform_plan_create
-
-! **************************************************************************************************
-!> \brief Allocate a dense work matrix with the requested shape
-!> \param work dense work matrix
-!> \param nrow number of rows
-!> \param ncol number of columns
-! **************************************************************************************************
-   SUBROUTINE ensure_work_matrix(work, nrow, ncol)
-
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(INOUT)                                   :: work
-      INTEGER, INTENT(IN)                                :: nrow, ncol
-
-      IF (ALLOCATED(work)) THEN
-         IF (SIZE(work, 1) == nrow .AND. SIZE(work, 2) == ncol) RETURN
-         DEALLOCATE (work)
-      END IF
-      ALLOCATE (work(nrow, ncol))
-
-   END SUBROUTINE ensure_work_matrix
 
 ! **************************************************************************************************
 !> \brief Select the Bloch-phase convention that preserves overlap covariance.
@@ -3822,32 +3305,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE symtrans_phase
-
-! **************************************************************************************************
-!> \brief Real two-component representation of the Bloch phase and time reversal.
-!> \param shift column-minus-row cell shift with the selected phase direction
-!> \param xkp target k-point coordinates
-!> \param time_reversal conjugate the source before applying the phase
-!> \param real_only reject phases not representable by real wavefunctions
-!> \param phase coefficients mapping source [Re,Im] to transformed [Re,Im]
-! **************************************************************************************************
-   SUBROUTINE kp_symmetry_phase_factors(shift, xkp, time_reversal, real_only, phase)
-      INTEGER, INTENT(IN)                                :: shift(3)
-      REAL(KIND=dp), INTENT(IN)                          :: xkp(3)
-      LOGICAL, INTENT(IN)                                :: time_reversal, real_only
-      REAL(KIND=dp), INTENT(OUT)                         :: phase(2, 2)
-
-      REAL(KIND=dp)                                      :: arg, cosine, sine
-
-      arg = REAL(shift(1), dp)*xkp(1) + REAL(shift(2), dp)*xkp(2) + REAL(shift(3), dp)*xkp(3)
-      cosine = COS(twopi*arg)
-      sine = SIN(twopi*arg)
-      IF (real_only .AND. ABS(sine) > 1.e-12_dp) THEN
-         CALL cp_abort(__LOCATION__, "Real k-point wavefunctions cannot represent symmetry phases")
-      END IF
-      phase(:, 1) = [cosine, -sine]
-      phase(:, 2) = MERGE(-1.0_dp, 1.0_dp, time_reversal)*[sine, cosine]
-   END SUBROUTINE kp_symmetry_phase_factors
 
 ! **************************************************************************************************
 !> \brief Apply the Bloch phase and optional time reversal to one AO block.
