@@ -21,8 +21,7 @@ MODULE ri_rs_grid_optimization
                                               gw_3c_ws_create,&
                                               gw_3c_ws_release,&
                                               gw_3c_ws_type
-   USE kinds,                           ONLY: dp,&
-                                              int_8
+   USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE message_passing,                 ONLY: mp_mem_avail_per_rank_GB,&
@@ -626,8 +625,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Assign whole clusters by longest-processing-time scheduling, identically on every rank.
-!>        MAXLOC/MINLOC select the first occurrence: ties use atom index, then the lower load bin.
-!>        Load bins are then mapped to ranks by a fixed permutation that depends only on num_pe.
+!>        MAXLOC/MINLOC select the first occurrence: ties use atom index, then the lower rank.
 !> \param cost Estimated cluster costs, indexed by centre atom.
 !> \param num_pe Number of MPI ranks.
 !> \param owner_rank Zero-based owner rank of every cluster.
@@ -637,8 +635,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: num_pe
       INTEGER, DIMENSION(:), INTENT(OUT)                 :: owner_rank
 
-      INTEGER                                            :: best_rank, i, ia, ib, ipick, remainder, &
-                                                            stride
+      INTEGER                                            :: best_rank, i, ipick
       LOGICAL, ALLOCATABLE                               :: done(:)
       REAL(KIND=dp), ALLOCATABLE                         :: rank_load(:)
 
@@ -654,22 +651,6 @@ CONTAINS
          owner_rank(ipick) = best_rank - 1
          rank_load(best_rank) = rank_load(best_rank) + cost(ipick)
       END DO
-      ! The first num_pe picks fill the load bins in decreasing cost. Spread consecutive bins over the
-      ! rank labels with a stride coprime to num_pe (a placement heuristic; its benefit depends on
-      ! rank binding and hardware topology). Each bin keeps its clusters and its load.
-      stride = MAX(1, NINT(0.618_dp*REAL(num_pe, dp)))
-      DO
-         ia = stride
-         ib = num_pe
-         DO WHILE (ib /= 0)
-            remainder = MOD(ia, ib)
-            ia = ib
-            ib = remainder
-         END DO
-         IF (ia == 1) EXIT
-         stride = stride + 1
-      END DO
-      owner_rank(:) = INT(MOD(INT(owner_rank(:), int_8)*INT(stride, int_8), INT(num_pe, int_8)))
    END SUBROUTINE schedule_clusters
 
 ! **************************************************************************************************
