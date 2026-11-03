@@ -442,7 +442,8 @@ CONTAINS
                      corden(:) = corden(:) + fe(:)*rc(:)**(2*j - 2)*cval
                   END DO
                END DO
-               fun(1:nmesh) = corden(1:nmesh)*rp(1:nmesh)
+               ! SIRIUS expects the volume density rho_core(r), not r*rho_core(r).
+               fun(1:nmesh) = corden(1:nmesh)
                CALL sirius_add_atom_type_radial_function(sctx, label, "ps_rho_core", &
                                                          fun(1), nmesh)
                DEALLOCATE (corden, fe, rc)
