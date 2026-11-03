@@ -1,9 +1,9 @@
 # CC4S interface
 
-CP2K can export a converged restricted Hartree–Fock reference for MP2, CCSD and CCSD(T) calculations
-with [CC4S](https://github.com/cc4s/cc4s). CP2K writes canonical orbital energies, a Gaussian RI
-Coulomb vertex and a CC4S input file. Run CC4S separately to calculate correlation energies. CP2K
-does not need to be linked against CC4S.
+CP2K can export data from a converged, restricted closed-shell RI-HF calculation for subsequent MP2,
+CCSD and CCSD(T) calculations with [CC4S](https://github.com/cc4s/cc4s). The export contains
+canonical orbital energies, a Gaussian RI Coulomb vertex and a CC4S input file. Run CC4S separately
+to calculate correlation energies. CP2K does not need to be linked against CC4S.
 
 The interface has been tested with **CC4S v1.1, revision `8204fb21`**. The underlying methods are
 described in the [RI-HFX paper](#Bussy2023) and the
@@ -11,18 +11,46 @@ described in the [RI-HFX paper](#Bussy2023) and the
 
 ## Reference calculation
 
-Use [GLOBAL/RUN_TYPE ENERGY](#CP2K_INPUT.GLOBAL.RUN_TYPE) and a converged, restricted closed-shell
-HF calculation with integer occupations, at least one occupied and one virtual orbital, and a
-positive HOMO–LUMO gap. Set `XC_FUNCTIONAL NONE`, use exactly one `HF` section with `FRACTION 1`,
-and select [HF/RI/RI_FLAVOR MO](#CP2K_INPUT.FORCE_EVAL.DFT.XC.HF.RI.RI_FLAVOR). Supply a suitable
-Gaussian fitting basis through `BASIS_SET RI_HFX` for each atomic kind. These settings belong to
-RI-HFX; the `WF_CORRELATION` integral settings do not configure this exporter. ADMM and smearing are
-unsupported. `ENERGY_FORCE` is also accepted, but any forces are HF forces.
+Use [GLOBAL/RUN_TYPE ENERGY](#CP2K_INPUT.GLOBAL.RUN_TYPE) and converge a restricted closed-shell HF
+reference with integer occupations, at least one occupied and one virtual orbital, and a positive
+HOMO–LUMO gap. For an isolated molecule, add the following inside `FORCE_EVAL/DFT`:
+
+```text
+&XC
+  &XC_FUNCTIONAL NONE
+  &END XC_FUNCTIONAL
+  &HF
+    FRACTION 1.0
+    &INTERACTION_POTENTIAL
+      POTENTIAL_TYPE COULOMB
+    &END INTERACTION_POTENTIAL
+    &RI
+      RI_FLAVOR MO
+      RI_METRIC COULOMB
+    &END RI
+  &END HF
+&END XC
+```
+
+Use exactly one `HF` section. Supply an orbital basis and a suitable Gaussian fitting basis through
+`BASIS_SET RI_HFX` for each atomic kind. The `RI` settings above configure RI-HFX; the
+`WF_CORRELATION` integral settings do not configure this exporter. For a periodic Γ-point cell, use
+the interaction potential and RI metric shown [below](#boundary-conditions-and-interactions). ADMM
+is not supported; do not include the `AUXILIARY_DENSITY_MATRIX_METHOD` section. Smearing is also
+unsupported. `ENERGY_FORCE` is accepted, but any forces are HF forces.
+
+A wavefunction restart can make the final HF calculation cheaper or help it converge. For example,
+first converge a GGA calculation or an HF calculation with different SCF settings. Then set
+`WFN_RESTART_FILE_NAME` in `DFT` to its saved wavefunction and `SCF_GUESS RESTART` in `DFT/SCF`. Use
+the final RI-HF settings above and enable CC4S export only in this final calculation. The restarted
+HF calculation must converge before export; it may take just one SCF iteration, but this is not
+guaranteed. See [restarting CP2K calculations](../restarting.md) for wavefunction-restart setup.
 
 ## Enable export
 
-Add the following inside [FORCE_EVAL/DFT/PRINT](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT) to enable export.
-The filename prefix and CC4S-specific keywords are shown with their default values:
+Add the following [CC4S](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S) section inside
+`FORCE_EVAL/DFT/PRINT`. It shows the standard `FILENAME` control and all CC4S-specific keywords at
+their default values:
 
 ```text
 &CC4S ON
@@ -32,24 +60,32 @@ The filename prefix and CC4S-specific keywords are shown with their default valu
   MAX_ITER 100
   ENERGY_CONVERGENCE 1e-7
   AMPLITUDES_CONVERGENCE 1e-6
+  OUTPUT_BUFFER_SIZE 8
   MAX_MEMORY 1024
 &END CC4S
 ```
 
-| Keyword                                                                                | Meaning                                                                                                                                                                                 |
-| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [FILENAME](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.FILENAME)                             | Common prefix for the generated files, using standard CP2K print-key naming.                                                                                                            |
-| [METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.METHOD)                                 | `MP2` generates MP2; `CCSD` adds CCSD; `CCSD_T` also adds perturbative triples.                                                                                                         |
-| [N_FROZEN_CORE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.N_FROZEN_CORE)                   | Number of lowest occupied spatial orbitals excluded from correlation; must leave at least one occupied orbital. With pseudopotentials, excludes additional explicitly treated orbitals. |
-| [MAX_ITER](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.MAX_ITER)                             | Maximum CC4S coupled-cluster iterations.                                                                                                                                                |
-| [ENERGY_CONVERGENCE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.ENERGY_CONVERGENCE)         | CC4S energy convergence threshold, in Hartree.                                                                                                                                          |
-| [AMPLITUDES_CONVERGENCE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.AMPLITUDES_CONVERGENCE) | CC4S amplitude convergence threshold.                                                                                                                                                   |
-| [MAX_MEMORY](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.MAX_MEMORY)                         | Estimated export workspace limit, in MB per MPI rank; excludes existing SCF storage and CC4S memory.                                                                                    |
+| Keyword                                                                                | Meaning                                                                                                                                                                              |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [FILENAME](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.FILENAME)                             | Common prefix for the exported files, following CP2K print-key naming.                                                                                                               |
+| [METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.METHOD)                                 | `MP2` generates MP2; `CCSD` adds CCSD; `CCSD_T` also adds perturbative triples.                                                                                                      |
+| [N_FROZEN_CORE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.N_FROZEN_CORE)                   | Number of lowest occupied spatial orbitals omitted from export; at least one occupied orbital must remain. With a pseudopotential, these are additional explicitly treated orbitals. |
+| [MAX_ITER](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.MAX_ITER)                             | Maximum number of CC4S coupled-cluster iterations.                                                                                                                                   |
+| [ENERGY_CONVERGENCE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.ENERGY_CONVERGENCE)         | CC4S correlation-energy convergence threshold in Hartree.                                                                                                                            |
+| [AMPLITUDES_CONVERGENCE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.AMPLITUDES_CONVERGENCE) | CC4S amplitude convergence threshold.                                                                                                                                                |
+| [OUTPUT_BUFFER_SIZE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.OUTPUT_BUFFER_SIZE)         | Maximum output buffer per MPI rank, in MiB.                                                                                                                                          |
+| [MAX_MEMORY](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.MAX_MEMORY)                         | Estimated export workspace budget per MPI rank, in decimal MB.                                                                                                                       |
 
-Export is OFF by default. `ON` enables it independently of `GLOBAL/PRINT_LEVEL`; standard print
-levels are also accepted. The iteration and convergence settings above control CC4S, independently
-of CP2K's SCF and integral thresholds. Generic `EACH` and `ADD_LAST` controls need not be specified;
-they select output only when the post-SCF exporter is called.
+`OUTPUT_BUFFER_SIZE` controls gathering and writing the vertex. It must be large enough to hold at
+least one double-precision floating-point element of the Coulomb vertex; the actual buffer may be
+smaller than the requested maximum. `MAX_MEMORY` selects orbital and auxiliary transformation batch
+sizes. Its estimate includes output and MPI reduction buffers, but excludes existing SCF storage and
+CC4S memory. It is not a limit on total process memory. CP2K stops if the budget cannot accommodate
+canonicalization or the smallest transformation batch.
+
+Export is off by default. `ON` enables it independently of `GLOBAL/PRINT_LEVEL`. The CC4S iteration
+and convergence settings above do not change CP2K's SCF or integral thresholds. The exporter checks
+MPI and tensor-library count limits independently of `MAX_MEMORY`.
 
 Complete small input examples are provided in
 [`tests/QS/regtest-cc4s`](https://github.com/cp2k/cp2k/tree/master/tests/QS/regtest-cc4s): `h2o.inp`
@@ -58,28 +94,29 @@ converged production settings.
 
 ## Boundary conditions and interactions
 
-| System                                 | CELL and POISSON periodicity | HF potential | RI metric |
-| -------------------------------------- | ---------------------------- | ------------ | --------- |
-| Isolated molecule                      | `NONE` in both               | `COULOMB`    | `COULOMB` |
-| Neutral three-dimensional Γ-point cell | `XYZ` in both                | `TRUNCATED`  | `HFX`     |
+| System                                 | `CELL` and `POISSON` periodicity | HF potential | RI metric |
+| -------------------------------------- | -------------------------------- | ------------ | --------- |
+| Isolated molecule                      | `NONE` in both                   | `COULOMB`    | `COULOMB` |
+| Neutral three-dimensional Γ-point cell | `XYZ` in both                    | `TRUNCATED`  | `HFX`     |
 
-Periodic export supports Γ-point calculations only. `CUTOFF_RADIUS` must be positive and smaller
-than half the minimum perpendicular spacing between opposite cell faces.
+Periodic export is limited to Γ-only calculations without k-point sampling. `CUTOFF_RADIUS` must be
+positive and smaller than half the minimum perpendicular spacing between opposite cell faces.
 
 ## Exported files
 
 Export occurs once after converged SCF in a single-point calculation. Geometry optimization and MD
 are unsupported.
 
-With `PROJECT water` and the defaults above, the files in the CP2K working directory are:
+With `PROJECT water` and the default `FILENAME cc4s`, CP2K writes these files in its working
+directory:
 
-| File                                | Contents                                                                           |
-| ----------------------------------- | ---------------------------------------------------------------------------------- |
-| `water-cc4s-EigenEnergies.yaml`     | Tensor header, Fermi level and complete orbital-energy list in `metaData.energies` |
-| `water-cc4s-EigenEnergies.elements` | Plain-text orbital energies in Hartree                                             |
-| `water-cc4s-CoulombVertex.yaml`     | Tensor header, dimensions and interaction metadata                                 |
-| `water-cc4s-CoulombVertex.elements` | Raw binary real 64-bit vertex elements, without Fortran record markers             |
-| `water-cc4s.in`                     | CC4S algorithm sequence and solver settings                                        |
+| File                                | Contents                                                                            |
+| ----------------------------------- | ----------------------------------------------------------------------------------- |
+| `water-cc4s-EigenEnergies.yaml`     | Tensor header, Fermi energy, HOMO index and orbital energies in `metaData.energies` |
+| `water-cc4s-EigenEnergies.elements` | Plain-text orbital energies in Hartree                                              |
+| `water-cc4s-CoulombVertex.yaml`     | Tensor header, dimensions and interaction metadata                                  |
+| `water-cc4s-CoulombVertex.elements` | Raw binary Real64 vertex elements, without Fortran record markers                   |
+| `water-cc4s.in`                     | CC4S algorithm sequence and solver settings                                         |
 
 With `PROJECT water`:
 
@@ -88,10 +125,10 @@ With `PROJECT water`:
 - `FILENAME ./sample` produces `sample-EigenEnergies.yaml`, `sample-CoulombVertex.yaml` and
   `sample.in`, with matching `.elements` files and no project prefix.
 
-Paths may refer to existing directories; CP2K does not create them. Exact-name (`=name`) and stdout
-forms are unsupported because this export writes multiple distinct files. The generated input
-references the matching tensor filenames; run CC4S from the directory containing these files.
-Standard iteration suffixes, if selected, apply to the whole file set.
+`FILENAME` can include an existing directory; CP2K does not create directories for the export.
+Exact-name (`=name`) and stdout forms are unsupported because the export writes multiple files. The
+generated CC4S input references the matching tensor filenames. Run CC4S from the directory
+containing the files. CP2K reports the expected and written binary vertex sizes in its output.
 
 The vertex has index order `(auxiliary, orbital, orbital)`, with the auxiliary index varying
 fastest. Its units are the square root of Hartree. The headers use tensor format version `100`,

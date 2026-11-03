@@ -9,24 +9,28 @@
 !> \brief Molecular and Gamma-point periodic CC4S export from restricted RI-HF.
 !>        RI_FLAVOR MO stores a weighted AO-pair triangle. The full vertex is
 !>        C^T (T + T^T) C, dressed with the symmetric Coulomb inverse square root.
-!>        The SCF tensors and orbitals are read only. The dense MO vertex is assembled
-!>        and written on the source rank.
+!>        The SCF tensors and orbitals are read only. MO transformations are distributed
+!>        and bounded output pieces are gathered to the writing rank.
 ! **************************************************************************************************
 MODULE cc4s_export
+   USE ISO_FORTRAN_ENV,                 ONLY: file_storage_size
    USE cell_types,                      ONLY: cell_type,&
                                               plane_distance,&
                                               use_perd_none,&
                                               use_perd_xyz
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
+                                              dbcsr_release,&
+                                              dbcsr_type
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              cp_fm_to_dbcsr_row_template
    USE cp_fm_diag,                      ONLY: cp_fm_geeig_canon
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_submatrix,&
                                               cp_fm_release,&
+                                              cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -38,27 +42,34 @@ MODULE cc4s_export
                                               cp_print_key_unit_nr,&
                                               cp_printkey_is_on
    USE dbt_api,                         ONLY: &
-        dbt_get_block, dbt_get_info, dbt_iterator_blocks_left, dbt_iterator_next_block, &
-        dbt_iterator_start, dbt_iterator_stop, dbt_iterator_type, dbt_nblks_total, dbt_type
+        dbt_contract, dbt_copy, dbt_copy_matrix_to_tensor, dbt_create, dbt_destroy, dbt_get_block, &
+        dbt_get_info, dbt_iterator_blocks_left, dbt_iterator_next_block, dbt_iterator_start, &
+        dbt_iterator_stop, dbt_iterator_type, dbt_nblks_total, dbt_pgrid_create, &
+        dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
    USE hfx_types,                       ONLY: hfx_type
+   USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_truncated,&
                                               sic_none,&
                                               xc_none
    USE input_cp2k_hfx,                  ONLY: ri_mo
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
-                                              dp
-   USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_HOST,&
-                                              local_gemm_ctxt_type
+                                              dp,&
+                                              dp_size,&
+                                              int_8
+   USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_para_env_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               has_uniform_occupation,&
                                               mo_set_type
+   USE qs_tensors_types,                ONLY: create_2c_tensor,&
+                                              create_3c_tensor
    USE scf_control_types,               ONLY: scf_control_type
 #include "./base/base_uses.f90"
 
@@ -66,6 +77,13 @@ MODULE cc4s_export
    PRIVATE
    PUBLIC :: write_cc4s
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cc4s_export'
+   ! MPI statistics count bytes in default integers. DBT/DBM also use default-integer
+   ! counts and grow buffers by up to 30%; leave a factor of two for data storage.
+   INTEGER(int_8), PARAMETER :: output_count_limit = INT(HUGE(0), int_8)/dp_size
+   INTEGER(int_8), PARAMETER :: backend_data_limit = output_count_limit/2
+   ! Up to four 64-bit indices per block, with allocation/communication headroom.
+   INTEGER(int_8), PARAMETER :: backend_block_limit = INT(HUGE(0), int_8)/64
+   REAL(dp), PARAMETER :: elements_per_mib = 1024.0_dp**2/REAL(dp_size, dp)
 
 CONTAINS
 
@@ -83,34 +101,32 @@ CONTAINS
 
       CHARACTER(len=8)                                   :: method
       CHARACTER(len=default_path_length)                 :: filename
-      INTEGER                                            :: frozen, functional, handle, homo, imo, &
-                                                            inu, jmo, max_iter, method_id, nao, &
-                                                            nmo, nri, nstored, output_unit, &
-                                                            poisson_periodic
+      INTEGER :: frozen, functional, handle, homo, max_iter, method_id, nao, nmo, nri, nstored, &
+         output_unit, poisson_periodic, stage_handle
+      INTEGER(KIND=int_8)                                :: buffer_elements, total_elements
       INTEGER, DIMENSION(2)                              :: dims2
       INTEGER, DIMENSION(3)                              :: dims3
-      LOGICAL                                            :: do_kpoints, enabled, periodic
-      REAL(dp)                                           :: amp_conv, cutoff_radius, energy_conv, &
-                                                            fermi_energy, max_cutoff, &
-                                                            max_memory_mb, memory_mb
-      REAL(dp), ALLOCATABLE                              :: coeff(:, :), dressed(:, :), &
-                                                            eigenvalues(:), gamma(:, :, :), &
-                                                            half(:, :), metric(:, :), pair(:)
-      REAL(dp), ALLOCATABLE, TARGET                      :: eri(:, :, :)
-      REAL(dp), POINTER                                  :: eri_matrix(:, :)
+      LOGICAL                                            :: admm_section_present, do_kpoints, &
+                                                            enabled, periodic
+      REAL(dp) :: amp_conv, cutoff_radius, energy_conv, export_start, fermi_energy, max_cutoff, &
+         max_memory_mb, memory_mb, output_buffer_mib, vertex_norm, write_start
+      REAL(dp), ALLOCATABLE                              :: eigenvalues(:)
+      REAL(dp), DIMENSION(5)                             :: elapsed
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_coeff, fm_fock, fm_overlap, fm_work
+      TYPE(cp_fm_type)                                   :: fm_active, fm_coeff, fm_fock, &
+                                                            fm_overlap, fm_work
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
+      TYPE(dbcsr_type)                                   :: coefficient_matrix
+      TYPE(dbt_type)                                     :: coefficients
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
-      TYPE(local_gemm_ctxt_type)                         :: gemm_context
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(section_vals_type), POINTER                   :: input, print_section
+      TYPE(section_vals_type), POINTER                   :: admm_section, input, print_section
 
       logger => cp_get_default_logger()
       CALL get_qs_env(qs_env, input=input)
@@ -127,6 +143,8 @@ CONTAINS
                        "CC4S: FILENAME must be a file prefix, not an exact name (=name) or __STD_OUT__")
       END IF
       CALL timeset(routineN, handle)
+      export_start = m_walltime()
+      elapsed = 0.0_dp
       output_unit = cp_logger_get_default_io_unit(logger)
 
       CALL section_vals_val_get(print_section, "METHOD", i_val=method_id)
@@ -135,6 +153,16 @@ CONTAINS
       CALL section_vals_val_get(print_section, "ENERGY_CONVERGENCE", r_val=energy_conv)
       CALL section_vals_val_get(print_section, "AMPLITUDES_CONVERGENCE", r_val=amp_conv)
       CALL section_vals_val_get(print_section, "MAX_MEMORY", r_val=max_memory_mb)
+      CALL section_vals_val_get(print_section, "OUTPUT_BUFFER_SIZE", r_val=output_buffer_mib)
+      IF (.NOT. ieee_is_finite(output_buffer_mib)) THEN
+         CPABORT("CC4S: OUTPUT_BUFFER_SIZE must be finite")
+      END IF
+      IF (output_buffer_mib < 1.0_dp/elements_per_mib .OR. &
+          output_buffer_mib > REAL(HUGE(1), dp)/elements_per_mib) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "CC4S: OUTPUT_BUFFER_SIZE must hold at least one Real64 value and fit the MPI integer count")
+      END IF
+      buffer_elements = FLOOR(output_buffer_mib*elements_per_mib, KIND=int_8)
       SELECT CASE (method_id)
       CASE (1)
          method = 'MP2'
@@ -145,6 +173,7 @@ CONTAINS
       CASE DEFAULT
          CPABORT("CC4S: unsupported method")
       END SELECT
+      IF (.NOT. ieee_is_finite(max_memory_mb)) CPABORT("CC4S: MAX_MEMORY must be finite")
       IF (max_iter < 1 .OR. energy_conv <= 0.0_dp .OR. amp_conv <= 0.0_dp .OR. max_memory_mb <= 0.0_dp) THEN
          CALL cp_abort(__LOCATION__, &
                        "CC4S: iteration, convergence and memory limits must be positive")
@@ -175,9 +204,13 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "CC4S: a restricted closed-shell reference without smearing is required")
       END IF
-      IF (dft_control%do_admm .OR. dft_control%dft_plus_u .OR. dft_control%sic_method_id /= sic_none) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "CC4S: ADMM, DFT+U and self-interaction corrections are unsupported")
+      admm_section => section_vals_get_subs_vals(input, "DFT%AUXILIARY_DENSITY_MATRIX_METHOD")
+      CALL section_vals_get(admm_section, explicit=admm_section_present)
+      IF (admm_section_present) THEN
+         CPABORT("CC4S: AUXILIARY_DENSITY_MATRIX_METHOD is unsupported")
+      END IF
+      IF (dft_control%dft_plus_u .OR. dft_control%sic_method_id /= sic_none) THEN
+         CPABORT("CC4S: DFT+U and self-interaction corrections are unsupported")
       END IF
       CALL section_vals_val_get(input, "DFT%XC%XC_FUNCTIONAL%_SECTION_PARAMETERS_", i_val=functional)
       IF (functional /= xc_none) THEN
@@ -194,8 +227,11 @@ CONTAINS
       IF (ABS(x_data(1, 1)%general_parameter%fraction - 1.0_dp) > hf_fraction_tolerance) THEN
          CPABORT("CC4S: HF FRACTION must be 1")
       END IF
-      IF (.NOT. ASSOCIATED(x_data(1, 1)%ri_data)) THEN
+      IF (.NOT. x_data(1, 1)%do_hfx_ri) THEN
          CPABORT("CC4S: enable HF/RI with RI_FLAVOR MO")
+      END IF
+      IF (.NOT. ASSOCIATED(x_data(1, 1)%ri_data)) THEN
+         CPABORT("CC4S: RI-HFX data are unavailable")
       END IF
       IF (x_data(1, 1)%ri_data%flavor /= ri_mo) THEN
          CPABORT("CC4S: HF/RI requires RI_FLAVOR MO")
@@ -238,18 +274,19 @@ CONTAINS
       CALL dbt_get_info(x_data(1, 1)%ri_data%t_3c_int_ctr_1(1, 1), nfull_total=dims3)
       nri = dims3(2)
       CPASSERT(dims3(1) == nao .AND. dims3(3) == nao .AND. nri > 0)
-      IF (REAL(nri, dp)*REAL(nao, dp)**2 > REAL(HUGE(1), dp)) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "CC4S: dense tensor exceeds the supported integer indexing range")
+      ! Check quadratic storage before canonicalization; the full AO vertex is never gathered.
+      IF (limited_product([INT(nao, int_8), INT(nao, int_8)], backend_data_limit) > backend_data_limit) THEN
+         CPABORT("CC4S: canonical matrices exceed backend count limits")
       END IF
-      ! Conservative dense workspace estimate; excludes CP2K's existing SCF storage.
-      memory_mb = 8.0_dp*(4.0_dp*REAL(nri, dp)*REAL(nao, dp)**2 + &
-                          REAL(nri, dp)**2 + 6.0_dp*REAL(nao, dp)**2)/1.0e6_dp
-      IF (output_unit > 0) WRITE (output_unit, '(/,T3,A,T69,F12.3)') &
-         "CC4S| Estimated memory required for export per MPI rank [MB]:", memory_mb
+      IF (limited_product([INT(nri, int_8), INT(nri, int_8)], backend_data_limit) > backend_data_limit) THEN
+         CPABORT("CC4S: RI metric exceeds backend count limits")
+      END IF
+      ! Canonicalization precedes batch selection; reject an insufficient budget before allocation.
+      memory_mb = REAL(dp_size, dp)*6.0_dp*REAL(nao, dp)**2/1.0e6_dp
       IF (memory_mb > max_memory_mb) THEN
-         CPABORT("CC4S: dense export exceeds MAX_MEMORY [MB]")
+         CPABORT("CC4S: canonicalization exceeds MAX_MEMORY [MB]")
       END IF
+      elapsed = 0.0_dp
 
       ! Always diagonalize private copies, including for OT or a complete stored MO set.
       ! Drop overlap null modes using the same cutoff as SCF; do not export placeholder energies.
@@ -276,53 +313,106 @@ CONTAINS
       END IF
       fermi_energy = 0.5_dp*(eigenvalues(homo) + eigenvalues(homo + 1))
       nmo = nmo - frozen
-      ALLOCATE (coeff(nao, nmo))
-      CALL cp_fm_get_submatrix(fm_coeff, coeff, start_col=frozen + 1)
+      total_elements = vertex_size(nri, nmo)
+      buffer_elements = MIN(buffer_elements, total_elements, output_count_limit)
+      ! The initial coefficient copy can have a different block partition. Bound its
+      ! metadata by the number of elements before entering DBCSR/DBT conversion.
+      IF (limited_product([INT(nao, int_8), INT(nmo, int_8)], backend_block_limit) > backend_block_limit) THEN
+         CPABORT("CC4S: coefficients exceed backend count limits")
+      END IF
+      IF (output_unit > 0) THEN
+         WRITE (output_unit, '(/,T3,A)') "CC4S| Reference export"
+         WRITE (output_unit, '(T3,A,T60,A21)') "CC4S| Reference:", "Restricted RI-HF"
+         IF (periodic) THEN
+            WRITE (output_unit, '(T3,A,T60,A21)') "CC4S| Boundary conditions:", "Periodic Gamma"
+            WRITE (output_unit, '(T3,A,T60,A21)') "CC4S| Coulomb interaction:", "TRUNCATED"
+            WRITE (output_unit, '(T3,A,T69,F12.6)') "CC4S| Coulomb cutoff radius [bohr]:", cutoff_radius
+         ELSE
+            WRITE (output_unit, '(T3,A,T60,A21)') "CC4S| Boundary conditions:", "Isolated"
+            WRITE (output_unit, '(T3,A,T60,A21)') "CC4S| Coulomb interaction:", "COULOMB"
+         END IF
+         WRITE (output_unit, '(T3,A)') "CC4S|"
+         WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of auxiliary basis functions:", nri
+         WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of exported orbitals:", nmo
+         WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of exported occupied orbitals:", homo - frozen
+         WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of exported virtual orbitals:", nmo - homo + frozen
+         WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of frozen occupied orbitals:", frozen
+         WRITE (output_unit, '(T3,A,T63,F18.6)') &
+            "CC4S| Expected Coulomb vertex size [MiB]:", REAL(total_elements, dp)/elements_per_mib
+         WRITE (output_unit, '(T3,A)') "CC4S|"
+         WRITE (output_unit, '(T3,A,T69,F12.6)') &
+            "CC4S| Actual output buffer size per MPI rank [MiB]:", REAL(buffer_elements, dp)/elements_per_mib
+      END IF
+      CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo, template_fmstruct=mo_coeff%matrix_struct)
+      CALL cp_fm_create(fm_active, fm_struct, name="CC4S active orbitals")
+      CALL cp_fm_struct_release(fm_struct)
+      CALL cp_fm_to_fm(fm_coeff, fm_active, ncol=nmo, source_start=frozen + 1)
+      CALL cp_fm_to_dbcsr_row_template(coefficient_matrix, fm_active, matrix_s(1)%matrix)
+      CALL dbt_create(coefficient_matrix, coefficients, name="CC4S coefficients")
+      CALL dbt_copy_matrix_to_tensor(coefficient_matrix, coefficients)
+      CALL dbcsr_release(coefficient_matrix)
+      CALL cp_fm_release(fm_active)
       CALL cp_fm_release(fm_fock)
       CALL cp_fm_release(fm_overlap)
       CALL cp_fm_release(fm_coeff)
       CALL cp_fm_release(fm_work)
 
-      ALLOCATE (eri(nri, nao, nao), metric(nri, nri))
-      CALL gather_3c_pao(x_data(1, 1)%ri_data%t_3c_int_ctr_1(1, 1), para_env, nri, nao, eri)
       CALL dbt_get_info(x_data(1, 1)%ri_data%t_2c_int(1, 1), nfull_total=dims2)
       CPASSERT(ALL(dims2 == nri))
-      CALL gather_2c_dense(x_data(1, 1)%ri_data%t_2c_int(1, 1), para_env, nri, metric)
-
+      ! Transform and export one orbital range at a time; never retain the complete vertex.
+      CALL export_vertex_batches(x_data(1, 1)%ri_data%t_3c_int_ctr_1(1, 1), &
+                                 x_data(1, 1)%ri_data%t_2c_int(1, 1), coefficients, para_env, &
+                                 logger, print_section, nmo, max_memory_mb, buffer_elements, &
+                                 periodic, cutoff_radius, cell%hmat, output_unit, vertex_norm, elapsed, &
+                                 homo - frozen, eigenvalues(frozen + 1:frozen + nmo), fermi_energy)
+      CALL dbt_destroy(coefficients)
+      CALL timeset("cc4s_write_files", stage_handle)
+      write_start = m_walltime()
       IF (para_env%is_source()) THEN
-         ALLOCATE (dressed(nri, nao*nao), half(nri, nmo), gamma(nri, nmo, nmo), pair(nri))
-         CALL gemm_context%create(LOCAL_GEMM_PU_HOST)
-         ! Identical HF and RI operators give a symmetric inverse square root.
-         ! Remap the contiguous AO-pair dimensions without copying the dense tensor.
-         eri_matrix(1:nri, 1:nao*nao) => eri
-         CALL gemm_context%gemm('T', 'N', nri, nao*nao, nri, 1.0_dp, metric, nri, eri_matrix, nri, &
-                                0.0_dp, dressed, nri)
-         NULLIFY (eri_matrix)
-         gamma(:, :, :) = 0.0_dp
-         DO inu = 1, nao
-            CALL gemm_context%gemm('N', 'N', nri, nmo, nao, 1.0_dp, dressed(:, (inu - 1)*nao + 1:inu*nao), nri, &
-                                   coeff, nao, 0.0_dp, half, nri)
-            DO imo = 1, nmo
-               gamma(:, :, imo) = gamma(:, :, imo) + coeff(inu, imo)*half(:, :)
-            END DO
-         END DO
-         CALL gemm_context%destroy()
-         ! Restore the weighted AO-pair triangle AFTER the linear MO transform.
-         ! Sum, not average: diagonal atom blocks in the stored tensor have weight 1/2.
-         DO imo = 1, nmo
-            DO jmo = imo, nmo
-               pair(:) = gamma(:, imo, jmo) + gamma(:, jmo, imo)
-               gamma(:, imo, jmo) = pair
-               gamma(:, jmo, imo) = pair
-            END DO
-         END DO
-         CALL write_eigen_energies_files(logger, print_section, nmo, homo - frozen, &
-                                         eigenvalues(frozen + 1:frozen + nmo), fermi_energy)
-         ! A finite-range periodic interaction has no Ewald/Madelung correction.
-         ! Preserve the SCF eigenenergies and its live truncated-interaction vertex.
-         CALL write_coulomb_vertex_files(logger, print_section, nri, nmo, gamma, periodic, cutoff_radius, cell%hmat)
-         CALL write_cc4s_in(logger, print_section, method, max_iter, energy_conv, amp_conv)
+         CALL write_cc4s_in(logger, print_section, method, homo - frozen, max_iter, energy_conv, amp_conv)
+      END IF
+      elapsed(5) = elapsed(5) + m_walltime() - write_start
+      CALL timestop(stage_handle)
+      IF (para_env%is_source()) THEN
          IF (output_unit > 0) THEN
+            WRITE (output_unit, '(/,T3,A)') "CC4S| Export completed"
+            WRITE (output_unit, '(T3,A,T56,ES25.16)') "CC4S| Vertex norm squared [Ha]:", vertex_norm
+            WRITE (output_unit, '(T3,A,T56,ES25.16)') &
+               "CC4S| Sum of exported orbital energies [Ha]:", SUM(eigenvalues(frozen + 1:frozen + nmo))
+            WRITE (output_unit, '(T3,A)') "CC4S|"
+            filename = cp_print_key_generate_filename(logger, print_section, 'EigenEnergies', '.yaml', .FALSE.)
+            WRITE (output_unit, '(T3,A,T41,A)') "CC4S| Orbital energies metadata:", &
+               ADJUSTR(filename(:MAX(40, LEN_TRIM(filename))))
+            filename = cp_print_key_generate_filename(logger, print_section, 'EigenEnergies', '.elements', .FALSE.)
+            WRITE (output_unit, '(T3,A,T41,A)') "CC4S| Orbital energies data:", &
+               ADJUSTR(filename(:MAX(40, LEN_TRIM(filename))))
+            filename = cp_print_key_generate_filename(logger, print_section, 'CoulombVertex', '.yaml', .FALSE.)
+            WRITE (output_unit, '(T3,A,T41,A)') "CC4S| Coulomb vertex metadata:", &
+               ADJUSTR(filename(:MAX(40, LEN_TRIM(filename))))
+            filename = cp_print_key_generate_filename(logger, print_section, 'CoulombVertex', '.elements', .FALSE.)
+            WRITE (output_unit, '(T3,A,T41,A)') "CC4S| Coulomb vertex file:", &
+               ADJUSTR(filename(:MAX(40, LEN_TRIM(filename))))
+            CALL print_vertex_file_size(output_unit, filename)
+         END IF
+      END IF
+      DEALLOCATE (eigenvalues)
+      CALL para_env%sync()
+      elapsed(1) = m_walltime() - export_start
+      ! Report the longest rank-local elapsed times; only the source rank writes files.
+      CALL para_env%max(elapsed)
+      IF (output_unit > 0) THEN
+         WRITE (output_unit, '(T3,A,T69,F12.3)') "CC4S| Total export time [s]:", elapsed(1)
+         WRITE (output_unit, '(T3,A,T69,F12.3)') "CC4S| Orbital transformation time [s]:", elapsed(2)
+         WRITE (output_unit, '(T3,A,T69,F12.3)') "CC4S| Metric contraction time [s]:", elapsed(3)
+         WRITE (output_unit, '(T3,A,T69,F12.3)') "CC4S| Output gathering time [s]:", elapsed(4)
+         WRITE (output_unit, '(T3,A,T69,F12.3)') "CC4S| File writing time [s]:", elapsed(5)
+      END IF
+      IF (para_env%is_source()) THEN
+         IF (output_unit > 0) THEN
+            WRITE (output_unit, '(/,T3,A)') "CC4S| Generated CC4S input"
+            filename = cp_print_key_generate_filename(logger, print_section, extension='.in', my_local=.FALSE.)
+            WRITE (output_unit, '(T3,A,T41,A)') "CC4S| Generated input file:", &
+               ADJUSTR(filename(:MAX(40, LEN_TRIM(filename))))
             IF (method == 'CCSD_T') THEN
                WRITE (output_unit, '(T3,A,T73,A8)') "CC4S| Requested method:", 'CCSD(T)'
             ELSE
@@ -333,139 +423,423 @@ CONTAINS
                WRITE (output_unit, '(T3,A,T73,ES8.1)') "CC4S| CCSD energy convergence [Ha]:", energy_conv
                WRITE (output_unit, '(T3,A,T73,ES8.1)') "CC4S| CCSD amplitudes convergence:", amp_conv
             END IF
-            WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of auxiliary basis functions:", nri
-            WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of exported orbitals:", nmo
-            WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of exported occupied orbitals:", homo - frozen
-            WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of exported virtual orbitals:", nmo - homo + frozen
-            WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of frozen occupied orbitals:", frozen
-            WRITE (output_unit, '(T3,A,T56,ES25.16)') "CC4S| Vertex norm squared [Ha]:", SUM(gamma**2)
-            WRITE (output_unit, '(T3,A,T56,ES25.16)') &
-               "CC4S| Sum of exported orbital energies [Ha]:", SUM(eigenvalues(frozen + 1:frozen + nmo))
-            IF (periodic) THEN
-               WRITE (output_unit, '(T3,A)') "CC4S| Gamma-point TRUNCATED interaction"
-               WRITE (output_unit, '(T3,A,T69,F12.6)') "CC4S| Coulomb cutoff radius [bohr]:", cutoff_radius
-            END IF
-            filename = cp_print_key_generate_filename(logger, print_section, extension='.in', my_local=.FALSE.)
-            WRITE (output_unit, '(T3,A,T41,A)') "CC4S| Generated input file:", &
-               ADJUSTR(filename(:MAX(40, LEN_TRIM(filename))))
          END IF
-         DEALLOCATE (dressed, half, gamma, pair)
       END IF
-      DEALLOCATE (eri, metric, coeff, eigenvalues)
-      CALL para_env%sync()
       CALL timestop(handle)
    END SUBROUTINE write_cc4s
 
 ! **************************************************************************************************
-!> \brief  Gather the (AO, RI, AO) = (mu, Q, nu) block tensor into a dense array
-!>         with index order (Q, mu, nu) so Q varies fastest in Fortran storage.
-!>         Contributions are reduced to the source rank.
-!> \param tensor Distributed RI tensor
-!> \param para_env MPI parallel environment
-!> \param nRI Number of auxiliary functions
-!> \param nAO Number of AO basis functions
-!> \param eri_pao Dense auxiliary-AO-AO tensor on the source rank
+!> \brief Report the actual size of the closed binary vertex file, in MiB, on the writing rank.
+!> \param output_unit Log output unit
+!> \param filename Export filename generated by the print key
 ! **************************************************************************************************
-   SUBROUTINE gather_3c_pao(tensor, para_env, nRI, nAO, eri_pao)
-      TYPE(dbt_type), INTENT(INOUT)                      :: tensor
+   SUBROUTINE print_vertex_file_size(output_unit, filename)
+      INTEGER, INTENT(IN)                                :: output_unit
+      CHARACTER(len=*), INTENT(IN)                       :: filename
+
+      INTEGER                                            :: io_status
+      INTEGER(int_8)                                     :: file_size
+      REAL(dp)                                           :: size_mib
+
+      file_size = -1_int_8
+      size_mib = -1.0_dp
+      INQUIRE (FILE=TRIM(filename), SIZE=file_size, IOSTAT=io_status)
+      IF (io_status == 0) THEN
+         IF (file_size >= 0_int_8) THEN
+            size_mib = REAL(file_size, dp)*REAL(file_storage_size, dp)/(8.0_dp*1024.0_dp**2)
+         END IF
+      END IF
+      IF (size_mib >= 0.0_dp) THEN
+         WRITE (output_unit, '(T3,A,T63,F18.6)') "CC4S| Written Coulomb vertex size [MiB]:", size_mib
+      ELSE
+         WRITE (output_unit, '(T3,A,T63,A18)') "CC4S| Written Coulomb vertex size [MiB]:", "unavailable"
+      END IF
+   END SUBROUTINE print_vertex_file_size
+
+! **************************************************************************************************
+!> \brief Transform and stream orbital batches, using private auxiliary slices of the SCF triangle.
+!> \param integrals Live SCF tensor, ordered (AO, RI, AO)
+!> \param metric Live SCF inverse square root of the RI metric
+!> \param coefficients Distributed active canonical orbitals
+!> \param para_env MPI parallel environment
+!> \param logger Logger for output selection and naming
+!> \param print_section CC4S print key
+!> \param nmo Number of active orbitals
+!> \param max_memory_mb Estimated additional workspace limit per rank, in decimal MB
+!> \param buffer_elements Maximum number of Real64 values in each output piece
+!> \param periodic Whether the cell is three-dimensionally periodic at Gamma
+!> \param cutoff_radius Truncated Coulomb cutoff in bohr
+!> \param hmat Cell vectors in bohr
+!> \param output_unit Log output unit
+!> \param vertex_norm Squared vertex norm on the writing rank
+!> \param elapsed Accumulated wall times: total, transformation, metric, gathering, writing
+!> \param homo Number of active occupied orbitals
+!> \param eigenvalues Active canonical orbital energies
+!> \param fermi_energy Energy inside the HOMO-LUMO gap
+! **************************************************************************************************
+   SUBROUTINE export_vertex_batches(integrals, metric, coefficients, para_env, logger, print_section, &
+                                    nmo, max_memory_mb, buffer_elements, periodic, cutoff_radius, hmat, &
+                                    output_unit, vertex_norm, elapsed, homo, eigenvalues, fermi_energy)
+      TYPE(dbt_type), INTENT(INOUT)                      :: integrals, metric, coefficients
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(IN)                                :: nRI, nAO
-      REAL(KIND=dp), DIMENSION(nRI, nAO, nAO), &
-         INTENT(OUT)                                     :: eri_pao
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: print_section
+      INTEGER, INTENT(IN)                                :: nmo
+      REAL(dp), INTENT(IN)                               :: max_memory_mb
+      INTEGER(KIND=int_8), INTENT(IN)                    :: buffer_elements
+      LOGICAL, INTENT(IN)                                :: periodic
+      REAL(dp), INTENT(IN)                               :: cutoff_radius, hmat(3, 3)
+      INTEGER, INTENT(IN)                                :: output_unit
+      REAL(dp), INTENT(OUT)                              :: vertex_norm
+      REAL(dp), INTENT(INOUT)                            :: elapsed(5)
+      INTEGER, INTENT(IN)                                :: homo
+      REAL(dp), INTENT(IN)                               :: eigenvalues(nmo), fermi_energy
 
-      INTEGER                                            :: imu, inu, nb1, nb2, nb3
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: off1, off2, off3
-      INTEGER, DIMENSION(3)                              :: ind3
-      LOGICAL                                            :: found
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: blk3
-      TYPE(dbt_iterator_type)                            :: iter
+      INTEGER :: block_width, bounds2(2, 2), bounds3(2, 3), handle, im, ir, iunit, mb, &
+         metric_blocks(2), mfirst, mlast, nao, nri, pdims(3), pdims2(2), rb, rfirst, rlast
+      INTEGER, ALLOCATABLE                               :: ao(:), d1(:), d2(:), d3(:), mo(:), ri(:)
+      REAL(dp)                                           :: memory_mb, pressure, start, trial_m, &
+                                                            trial_r
+      REAL(dp), ALLOCATABLE                              :: values(:)
+      TYPE(dbt_pgrid_type)                               :: grid, grid2
+      TYPE(dbt_type)                                     :: ao_triangle, coeff, coeff_batch, gamma, &
+                                                            half, metric_copy, triangle
 
-      eri_pao(:, :, :) = 0.0_dp
-
-      ! Allocate offset arrays sized by number of blocks in each dimension
-      nb1 = dbt_nblks_total(tensor, 1)
-      nb2 = dbt_nblks_total(tensor, 2)
-      nb3 = dbt_nblks_total(tensor, 3)
-      ALLOCATE (off1(nb1), off2(nb2), off3(nb3))
-      CALL dbt_get_info(tensor, blk_offset_1=off1, blk_offset_2=off2, blk_offset_3=off3)
-
-      ! DBT iterator requires an OpenMP parallel region; each thread processes its own shard
-!$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED(tensor, off1, off2, off3, eri_pao) &
-!$OMP PRIVATE(iter, ind3, blk3, found, imu, inu)
-      CALL dbt_iterator_start(iter, tensor)
-      DO WHILE (dbt_iterator_blocks_left(iter))
-         CALL dbt_iterator_next_block(iter, ind3)
-         CALL dbt_get_block(tensor, ind3, blk3, found)
-         IF (.NOT. found) CYCLE
-
-         ! Source: blk3(mu_loc, Q_loc, nu_loc), tensor index order = (AO, RI, AO)
-         ! Target: eri_pao(Q, mu, nu)  — transpose first two indices
-         DO inu = 1, SIZE(blk3, 3)
-            DO imu = 1, SIZE(blk3, 1)
-               eri_pao(off2(ind3(2)):off2(ind3(2)) + SIZE(blk3, 2) - 1, &
-                       off1(ind3(1)) + imu - 1, &
-                       off3(ind3(3)) + inu - 1) = blk3(imu, :, inu)
-            END DO
+      ALLOCATE (ao(dbt_nblks_total(integrals, 1)), ri(dbt_nblks_total(integrals, 2)))
+      CALL dbt_get_info(integrals, blk_size_1=ao, blk_size_2=ri)
+      nao = SUM(ao)
+      nri = SUM(ri)
+      ! Smaller orbital blocks may be necessary for one output stripe to fit the backend.
+      block_width = 16
+      DO WHILE (limited_product([INT(nri, int_8), INT(nmo, int_8), INT(block_width, int_8)], &
+                                backend_data_limit) > backend_data_limit .AND. block_width > 1)
+         block_width = block_width/2
+      END DO
+      ALLOCATE (mo(1 + (nmo - 1)/block_width))
+      mo = block_width
+      mo(SIZE(mo)) = nmo - (SIZE(mo) - 1)*block_width
+      CALL dbt_get_info(metric, nblks_total=metric_blocks)
+      ! Reblocking can refine both original and requested auxiliary partitions.
+      IF (limited_product([INT(para_env%num_pe, int_8), INT(metric_blocks(1), int_8) + SIZE(ri, KIND=int_8), &
+                           INT(metric_blocks(2), int_8) + SIZE(ri, KIND=int_8)], &
+                          backend_block_limit) > backend_block_limit) THEN
+         CPABORT("CC4S: RI metric metadata exceeds backend limits")
+      END IF
+      mb = SIZE(mo)
+      rb = SIZE(ri)
+      ! Bound the busiest rank without assuming balanced distribution. Include private operands,
+      ! simultaneously live results, and conservative redistribution/communication copies.
+      pressure = batch_pressure(ao, ri, mo, mb, rb, para_env%num_pe, buffer_elements, max_memory_mb)
+      DO WHILE (pressure > 1.0_dp .AND. (mb > 1 .OR. rb > 1))
+         trial_m = HUGE(0.0_dp)
+         trial_r = HUGE(0.0_dp)
+         IF (mb > 1) trial_m = batch_pressure(ao, ri, mo, mb/2 + MODULO(mb, 2), rb, para_env%num_pe, &
+                                              buffer_elements, max_memory_mb)
+         IF (rb > 1) trial_r = batch_pressure(ao, ri, mo, mb, rb/2 + MODULO(rb, 2), para_env%num_pe, &
+                                              buffer_elements, max_memory_mb)
+         IF (trial_m <= trial_r) THEN
+            mb = mb/2 + MODULO(mb, 2)
+         ELSE
+            rb = rb/2 + MODULO(rb, 2)
+         END IF
+         pressure = MIN(trial_m, trial_r)
+      END DO
+      memory_mb = batch_workspace(nao, nri, nmo, mo, ri, mb, rb, buffer_elements)
+      IF (.NOT. batch_counts_fit(ao, ri, mo, mb, rb, para_env%num_pe)) THEN
+         CPABORT("CC4S: minimum batch exceeds backend count limits")
+      END IF
+      IF (output_unit > 0) THEN
+         WRITE (output_unit, '(T3,A,T69,F12.3)') &
+            "CC4S| Estimated export workspace per MPI rank [MB]:", memory_mb
+         WRITE (output_unit, '(T3,A,T69,F12.3)') &
+            "CC4S| Export workspace budget per MPI rank [MB]:", max_memory_mb
+      END IF
+      IF (memory_mb > max_memory_mb) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "CC4S: minimum transformation batch exceeds MAX_MEMORY; increase the limit or reduce OUTPUT_BUFFER_SIZE")
+      END IF
+      IF (output_unit > 0) THEN
+         WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Maximum orbitals per transformation batch:", batch_width(mo, mb)
+         WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Maximum auxiliary functions per batch:", batch_width(ri, rb)
+         WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of orbital batches:", 1 + (SIZE(mo) - 1)/mb
+         WRITE (output_unit, '(T3,A,T69,I12)') "CC4S| Number of auxiliary batches:", 1 + (SIZE(ri) - 1)/rb
+      END IF
+      pdims = 0
+      pdims2 = 0
+      CALL dbt_pgrid_create(para_env, pdims, grid, tensor_dims=[SIZE(mo), SIZE(ri), SIZE(ao)])
+      CALL dbt_pgrid_create(para_env, pdims2, grid2, tensor_dims=[SIZE(ao), SIZE(mo)])
+      CALL create_2c_tensor(coeff, d1, d2, grid2, ao, mo, name="CC4S active coefficients")
+      DEALLOCATE (d1, d2)
+      CALL dbt_copy(coefficients, coeff)
+      ! The metric and integrals can have different auxiliary block partitions.
+      CALL create_2c_tensor(metric_copy, d1, d2, grid2, ri, ri, name="CC4S inverse metric")
+      DEALLOCATE (d1, d2)
+      CALL dbt_copy(metric, metric_copy)
+      ALLOCATE (values(buffer_elements))
+      vertex_norm = 0.0_dp
+      iunit = -1
+      start = m_walltime()
+      IF (para_env%is_source()) THEN
+         CALL write_eigen_energies_files(logger, print_section, nmo, homo, eigenvalues, fermi_energy)
+         CALL open_coulomb_vertex_file(logger, print_section, nri, nmo, periodic, cutoff_radius, hmat, iunit)
+      END IF
+      elapsed(5) = elapsed(5) + m_walltime() - start
+      DO im = 1, SIZE(mo), mb
+         CALL dbt_create(coeff, coeff_batch, name="CC4S coefficient batch")
+         CALL create_3c_tensor(gamma, d1, d2, d3, grid, ri, mo, mo, [1, 2], [3], &
+                               name="CC4S Coulomb vertex batch")
+         DEALLOCATE (d1, d2, d3)
+         mfirst = SUM(mo(:im - 1)) + 1
+         mlast = SUM(mo(:im + MIN(mb - 1, SIZE(mo) - im)))
+         bounds2(:, 1) = [1, nao]
+         bounds2(:, 2) = [mfirst, mlast]
+         CALL dbt_copy(coeff, coeff_batch, bounds=bounds2)
+         DO ir = 1, SIZE(ri), rb
+            rfirst = SUM(ri(:ir - 1)) + 1
+            rlast = SUM(ri(:ir + MIN(rb - 1, SIZE(ri) - ir)))
+            start = m_walltime()
+            CALL timeset("cc4s_transform", handle)
+            bounds3(:, 1) = [1, nao]
+            bounds3(:, 2) = [rfirst, rlast]
+            bounds3(:, 3) = [1, nao]
+            CALL dbt_create(integrals, ao_triangle)
+            CALL create_3c_tensor(half, d1, d2, d3, grid, mo, ri, ao, [1], [2, 3], &
+                                  name="CC4S half transform")
+            DEALLOCATE (d1, d2, d3)
+            ! Copy only this auxiliary slice. Contractions never receive live SCF tensors.
+            CALL dbt_copy(integrals, ao_triangle, bounds=bounds3)
+            CALL dbt_contract(1.0_dp, coeff_batch, ao_triangle, 0.0_dp, half, &
+                              contract_1=[1], notcontract_1=[2], contract_2=[1], notcontract_2=[2, 3], &
+                              map_1=[1], map_2=[2, 3], filter_eps=0.0_dp)
+            ! Restore the weighted AO triangle before transforming the second orbital index.
+            ! Sum, not average: diagonal atom blocks carry weight 1/2.
+            CALL dbt_contract(1.0_dp, coeff_batch, ao_triangle, 1.0_dp, half, &
+                              contract_1=[1], notcontract_1=[2], contract_2=[3], notcontract_2=[2, 1], &
+                              map_1=[1], map_2=[2, 3], filter_eps=0.0_dp)
+            CALL dbt_destroy(ao_triangle)
+            CALL create_3c_tensor(triangle, d1, d2, d3, grid, ri, mo, mo, [1, 2], [3], &
+                                  name="CC4S MO batch")
+            DEALLOCATE (d1, d2, d3)
+            CALL dbt_contract(1.0_dp, half, coeff, 0.0_dp, triangle, &
+                              contract_1=[3], notcontract_1=[1, 2], contract_2=[1], notcontract_2=[2], &
+                              map_1=[3, 1], map_2=[2], filter_eps=0.0_dp)
+            CALL dbt_destroy(half)
+            CALL timestop(handle)
+            elapsed(2) = elapsed(2) + m_walltime() - start
+            start = m_walltime()
+            CALL timeset("cc4s_metric", handle)
+            CALL dbt_contract(1.0_dp, metric_copy, triangle, 1.0_dp, gamma, &
+                              contract_1=[1], notcontract_1=[2], contract_2=[1], notcontract_2=[2, 3], &
+                              map_1=[1], map_2=[2, 3], filter_eps=0.0_dp)
+            CALL dbt_destroy(triangle)
+            CALL timestop(handle)
+            elapsed(3) = elapsed(3) + m_walltime() - start
          END DO
-
-         DEALLOCATE (blk3)
+         CALL write_coulomb_vertex_batch(para_env, nri, nmo, gamma, iunit, mfirst, mlast, values, vertex_norm, elapsed)
+         CALL dbt_destroy(gamma)
+         CALL dbt_destroy(coeff_batch)
       END DO
-      CALL dbt_iterator_stop(iter)
-!$OMP END PARALLEL
-      DEALLOCATE (off1, off2, off3)
-
-      ! Reduce: collect contributions on the source rank
-      CALL para_env%sum(eri_pao, para_env%source)
-
-   END SUBROUTINE gather_3c_pao
+      start = m_walltime()
+      IF (para_env%is_source()) CALL cp_print_key_finished_output(iunit, logger, print_section)
+      elapsed(5) = elapsed(5) + m_walltime() - start
+      DEALLOCATE (values)
+      CALL dbt_destroy(metric_copy)
+      CALL dbt_destroy(coeff)
+      CALL dbt_pgrid_destroy(grid)
+      CALL dbt_pgrid_destroy(grid2)
+      DEALLOCATE (ao, ri, mo)
+   END SUBROUTINE export_vertex_batches
 
 ! **************************************************************************************************
-!> \brief  Gather a (RI, RI) block tensor to a dense matrix.  Reduces to the source rank.
-!> \param tensor Distributed RI tensor
-!> \param para_env MPI parallel environment
-!> \param nRI Number of auxiliary functions
-!> \param dense Dense auxiliary matrix on the source rank
+!> \brief Positive product, saturated at limit+1, without overflowing intermediate products.
+!> \param factors Nonnegative factors
+!> \param limit Maximum supported value, strictly below HUGE(int_8)
+!> \return Product or limit+1 if the limit would be exceeded
 ! **************************************************************************************************
-   SUBROUTINE gather_2c_dense(tensor, para_env, nRI, dense)
-      TYPE(dbt_type), INTENT(INOUT)                      :: tensor
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(IN)                                :: nRI
-      REAL(KIND=dp), DIMENSION(nRI, nRI), INTENT(OUT)    :: dense
+   PURE FUNCTION limited_product(factors, limit) RESULT(value)
+      INTEGER(int_8), INTENT(IN)                         :: factors(:), limit
+      INTEGER(int_8)                                     :: value
 
-      INTEGER                                            :: nb1, nb2
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: off1, off2
-      INTEGER, DIMENSION(2)                              :: ind2
-      LOGICAL                                            :: found
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: blk2
-      TYPE(dbt_iterator_type)                            :: iter
+      INTEGER                                            :: i
 
-      dense(:, :) = 0.0_dp
-
-      nb1 = dbt_nblks_total(tensor, 1)
-      nb2 = dbt_nblks_total(tensor, 2)
-      ALLOCATE (off1(nb1), off2(nb2))
-      CALL dbt_get_info(tensor, blk_offset_1=off1, blk_offset_2=off2)
-
-!$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED(tensor, off1, off2, dense) &
-!$OMP PRIVATE(iter, ind2, blk2, found)
-      CALL dbt_iterator_start(iter, tensor)
-      DO WHILE (dbt_iterator_blocks_left(iter))
-         CALL dbt_iterator_next_block(iter, ind2)
-         CALL dbt_get_block(tensor, ind2, blk2, found)
-         IF (.NOT. found) CYCLE
-         dense(off1(ind2(1)):off1(ind2(1)) + SIZE(blk2, 1) - 1, &
-               off2(ind2(2)):off2(ind2(2)) + SIZE(blk2, 2) - 1) = blk2
-         DEALLOCATE (blk2)
+      value = 1_int_8
+      DO i = 1, SIZE(factors)
+         IF (factors(i) == 0_int_8) THEN
+            value = 0_int_8
+            RETURN
+         END IF
       END DO
-      CALL dbt_iterator_stop(iter)
-!$OMP END PARALLEL
-      DEALLOCATE (off1, off2)
+      DO i = 1, SIZE(factors)
+         IF (value > limit/factors(i)) THEN
+            value = limit + 1_int_8
+            RETURN
+         END IF
+         value = value*factors(i)
+      END DO
+   END FUNCTION limited_product
 
-      CALL para_env%sum(dense, para_env%source)
+! **************************************************************************************************
+!> \brief Validate the complete stream extent before constructing offsets or opening files.
+!> \param nri Number of auxiliary functions
+!> \param nmo Number of active orbitals
+!> \return Number of exported Real64 elements
+! **************************************************************************************************
+   FUNCTION vertex_size(nri, nmo) RESULT(elements)
+      INTEGER, INTENT(IN)                                :: nri, nmo
+      INTEGER(int_8)                                     :: elements
 
-   END SUBROUTINE gather_2c_dense
+      INTEGER(int_8), PARAMETER :: file_limit = HUGE(0_int_8)/dp_size
+
+      CPASSERT(nri > 0 .AND. nmo > 0)
+      elements = limited_product([INT(nri, int_8), INT(nmo, int_8), INT(nmo, int_8)], file_limit)
+      IF (elements > file_limit) CPABORT("CC4S: vertex exceeds stream position range")
+   END FUNCTION vertex_size
+
+! **************************************************************************************************
+!> \brief Intersect a block segment with an output piece before narrowing to local indices.
+!> \param start Zero-based global offset of the block segment
+!> \param length Number of values in the block segment
+!> \param offset Zero-based global offset of the output piece
+!> \param count Number of values in the output piece
+!> \param lo First overlapping block index, or 1 for an empty intersection
+!> \param hi Last overlapping block index, or 0 for an empty intersection
+! **************************************************************************************************
+   PURE SUBROUTINE segment_overlap(start, length, offset, count, lo, hi)
+      INTEGER(int_8), INTENT(IN)                         :: start
+      INTEGER, INTENT(IN)                                :: length
+      INTEGER(int_8), INTENT(IN)                         :: offset, count
+      INTEGER, INTENT(OUT)                               :: lo, hi
+
+      INTEGER(int_8)                                     :: first, last
+
+      first = MAX(start, offset)
+      last = MIN(start + INT(length, int_8), offset + count)
+      lo = 1
+      hi = 0
+      IF (first >= last) RETURN
+      lo = INT(first - start) + 1
+      hi = INT(last - start)
+   END SUBROUTINE segment_overlap
+
+! **************************************************************************************************
+!> \brief Bound backend data and metadata independently of the user memory budget.
+!> \param ao AO block sizes
+!> \param ri Auxiliary block sizes
+!> \param mo MO block sizes
+!> \param mb MO blocks in a batch
+!> \param rb Auxiliary blocks in a batch
+!> \param nranks Maximum replication multiplicity
+!> \param pressure Maximum ratio of a count bound to its supported limit
+!> \return Whether every intermediate is safely representable, even on one rank
+! **************************************************************************************************
+   FUNCTION batch_counts_fit(ao, ri, mo, mb, rb, nranks, pressure) RESULT(fits)
+      INTEGER, INTENT(IN)                                :: ao(:), ri(:), mo(:), mb, rb, nranks
+      REAL(dp), INTENT(OUT), OPTIONAL                    :: pressure
+      LOGICAL                                            :: fits
+
+      INTEGER(int_8), PARAMETER :: product_limit = HUGE(0_int_8)/dp_size
+
+      INTEGER(int_8)                                     :: a, b, block_count, data_count, m, na, &
+                                                            nb, nm, nq, nr, q, r
+
+      a = SUM(INT(ao, int_8))
+      r = SUM(INT(ri, int_8))
+      m = SUM(INT(mo, int_8))
+      b = INT(batch_width(mo, mb), int_8)
+      q = INT(batch_width(ri, rb), int_8)
+      na = SIZE(ao, KIND=int_8)
+      nr = SIZE(ri, KIND=int_8)
+      nm = SIZE(mo, KIND=int_8)
+      nb = INT(mb, int_8)
+      nq = INT(rb, int_8)
+      data_count = MAX(limited_product([a, a, q], product_limit), &
+                       limited_product([b, q, a], product_limit), &
+                       limited_product([q, m, b], product_limit), &
+                       limited_product([r, m, b], product_limit))
+      ! Allow refinement in three dimensions and replicated partial-result metadata
+      ! received from every rank. Payload buffers in TAS replication are per peer.
+      block_count = MAX(limited_product([8_int_8, INT(nranks, int_8), na, nm], product_limit), &
+                        limited_product([8_int_8, INT(nranks, int_8), na, na, nq], product_limit), &
+                        limited_product([8_int_8, INT(nranks, int_8), nb, nq, na], product_limit), &
+                        limited_product([8_int_8, INT(nranks, int_8), nq, nm, nb], product_limit), &
+                        limited_product([8_int_8, INT(nranks, int_8), nr, nm, nb], product_limit))
+      fits = data_count <= backend_data_limit .AND. block_count <= backend_block_limit
+      IF (PRESENT(pressure)) pressure = MAX(REAL(data_count, dp)/REAL(backend_data_limit, dp), &
+                                            REAL(block_count, dp)/REAL(backend_block_limit, dp))
+   END FUNCTION batch_counts_fit
+
+! **************************************************************************************************
+!> \brief Score a candidate batch against both workspace and integer-count limits.
+!> \param ao AO block sizes
+!> \param ri Auxiliary block sizes
+!> \param mo MO block sizes
+!> \param mb MO blocks in a batch
+!> \param rb Auxiliary blocks in a batch
+!> \param nranks Maximum replication multiplicity
+!> \param buffer_elements Output buffer length
+!> \param max_memory_mb Additional workspace budget
+!> \return Score no larger than one for an admissible batch
+! **************************************************************************************************
+   FUNCTION batch_pressure(ao, ri, mo, mb, rb, nranks, buffer_elements, max_memory_mb) RESULT(pressure)
+      INTEGER, INTENT(IN)                                :: ao(:), ri(:), mo(:), mb, rb, nranks
+      INTEGER(int_8), INTENT(IN)                         :: buffer_elements
+      REAL(dp), INTENT(IN)                               :: max_memory_mb
+      REAL(dp)                                           :: pressure
+
+      REAL(dp)                                           :: count_pressure
+
+      pressure = batch_workspace(SUM(ao), SUM(ri), SUM(mo), mo, ri, mb, rb, buffer_elements)/max_memory_mb
+      IF (.NOT. batch_counts_fit(ao, ri, mo, mb, rb, nranks, count_pressure)) pressure = MAX(pressure, count_pressure)
+   END FUNCTION batch_pressure
+
+! **************************************************************************************************
+!> \brief Largest number of functions in a group of consecutive tensor blocks.
+!> \param sizes Block sizes
+!> \param blocks Number of blocks per batch
+!> \return Maximum batch width
+! **************************************************************************************************
+   FUNCTION batch_width(sizes, blocks) RESULT(width)
+      INTEGER, INTENT(IN)                                :: sizes(:), blocks
+      INTEGER                                            :: width
+
+      INTEGER                                            :: i
+
+      width = 0
+      DO i = 1, SIZE(sizes), blocks
+         width = MAX(width, SUM(sizes(i:i + MIN(blocks - 1, SIZE(sizes) - i))))
+      END DO
+   END FUNCTION batch_width
+
+! **************************************************************************************************
+!> \brief Conservative busiest-rank workspace estimate, without a balanced-distribution assumption.
+!>        Four copies allow for private operands, contraction results and redistribution buffers.
+!>        Excludes existing SCF storage, allocator overhead and CC4S. This is not an RSS limit.
+!> \param nao Number of AO functions
+!> \param nri Number of auxiliary functions
+!> \param nmo Number of active orbitals
+!> \param mo Orbital block sizes
+!> \param ri Auxiliary block sizes
+!> \param mb Orbital blocks per batch
+!> \param rb Auxiliary blocks per batch
+!> \param buffer_elements Reusable output buffer length
+!> \return Estimated additional memory per rank in decimal MB
+! **************************************************************************************************
+   FUNCTION batch_workspace(nao, nri, nmo, mo, ri, mb, rb, buffer_elements) RESULT(memory_mb)
+      INTEGER, INTENT(IN)                                :: nao, nri, nmo, mo(:), ri(:), mb, rb
+      INTEGER(KIND=int_8), INTENT(IN)                    :: buffer_elements
+      REAL(dp)                                           :: memory_mb
+
+      REAL(dp)                                           :: a, b, fixed, m, q, r, work
+
+      a = REAL(nao, dp)
+      r = REAL(nri, dp)
+      m = REAL(nmo, dp)
+      b = REAL(batch_width(mo, mb), dp)
+      q = REAL(batch_width(ri, rb), dp)
+      fixed = 4.0_dp*(r*r + a*m) + 2.0_dp*REAL(buffer_elements, dp)
+      work = 4.0_dp*(a*a*q + b*q*a + q*m*b + r*m*b + a*b)
+      memory_mb = REAL(dp_size, dp)*MAX(6.0_dp*a*a, fixed + work)/1.0e6_dp
+   END FUNCTION batch_workspace
 
 ! **************************************************************************************************
 !> \brief  Write EigenEnergies.yaml and EigenEnergies.elements (CC4S format, Hartree units).
@@ -514,26 +888,130 @@ CONTAINS
    END SUBROUTINE write_eigen_energies_files
 
 ! **************************************************************************************************
-!> \brief  Write CoulombVertex.yaml and CoulombVertex.elements (CC4S format, sqrt(Hartree) units).
-!>         Elements are written in Fortran (column-major) order: P (AuxiliaryField) varies fastest.
+!> \brief Gather and write one orbital range in bounded pieces, preserving Fortran element order.
+!> \param para_env MPI parallel environment
+!> \param nRI Number of auxiliary functions
+!> \param nMO Number of active canonical orbitals
+!> \param gamma Distributed vertex, with data only in the selected third-index range
+!> \param iunit Open stream unit on the writing rank
+!> \param first_mo First orbital in this batch
+!> \param last_mo Last orbital in this batch
+!> \param values Reusable output buffer
+!> \param vertex_norm Accumulated squared norm on the writing rank
+!> \param elapsed Accumulated wall times
+! **************************************************************************************************
+   SUBROUTINE write_coulomb_vertex_batch(para_env, nRI, nMO, gamma, iunit, first_mo, last_mo, &
+                                         values, vertex_norm, elapsed)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(IN)                                :: nRI, nMO
+      TYPE(dbt_type), INTENT(INOUT)                      :: gamma
+      INTEGER, INTENT(IN)                                :: iunit, first_mo, last_mo
+      REAL(dp), INTENT(INOUT)                            :: values(:), vertex_norm, elapsed(5)
+
+      INTEGER                                            :: column, handle, hi, ind(3), j, k, lo, &
+                                                            sizes(3)
+      INTEGER(KIND=int_8)                                :: count, first, last, mirror, nvalues, &
+                                                            offset, row, segment, start, used, &
+                                                            within
+      INTEGER, ALLOCATABLE                               :: off1(:), off2(:), off3(:)
+      LOGICAL                                            :: found
+      REAL(dp)                                           :: start_time
+      REAL(dp), ALLOCATABLE                              :: block(:, :, :)
+      TYPE(dbt_iterator_type)                            :: iter
+
+      start_time = m_walltime()
+      CALL timeset("cc4s_gather", handle)
+      CPASSERT(SIZE(values, KIND=int_8) <= output_count_limit)
+      ALLOCATE (off1(dbt_nblks_total(gamma, 1)), off2(dbt_nblks_total(gamma, 2)), &
+                off3(dbt_nblks_total(gamma, 3)))
+      CALL dbt_get_info(gamma, blk_offset_1=off1, blk_offset_2=off2, blk_offset_3=off3)
+      DO column = first_mo, last_mo
+         offset = INT(nRI, int_8)*INT(nMO, int_8)*INT(column - 1, int_8)
+         nvalues = offset + INT(nRI, int_8)*INT(column, int_8)
+         ! Gather one triangle only. Write its transpose from identical values for exact symmetry.
+         DO WHILE (offset < nvalues)
+            count = MIN(SIZE(values, KIND=int_8), nvalues - offset)
+            values = 0.0_dp
+            ! Blocks own disjoint elements; threads fill disjoint parts of the bounded buffer.
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(gamma, off1, off2, off3, nRI, nMO, offset, count, values) &
+!$OMP PRIVATE(iter, ind, sizes, block, found, j, k, first, last, start, lo, hi)
+            CALL dbt_iterator_start(iter, gamma)
+            DO WHILE (dbt_iterator_blocks_left(iter))
+               CALL dbt_iterator_next_block(iter, ind, blk_size=sizes)
+               first = INT(off1(ind(1)) - 1, int_8) + INT(nRI, int_8)* &
+                       (INT(off2(ind(2)) - 1, int_8) + INT(nMO, int_8)*INT(off3(ind(3)) - 1, int_8))
+               last = first + INT(sizes(1), int_8) + INT(nRI, int_8)* &
+                      (INT(sizes(2) - 1, int_8) + INT(nMO, int_8)*INT(sizes(3) - 1, int_8))
+               IF (first >= offset + count .OR. last <= offset) CYCLE
+               CALL dbt_get_block(gamma, ind, block, found)
+               CPASSERT(found)
+               DO k = 1, sizes(3)
+                  DO j = 1, sizes(2)
+                     start = first + INT(nRI, int_8)*(INT(j - 1, int_8) + INT(nMO, int_8)*INT(k - 1, int_8))
+                     CALL segment_overlap(start, sizes(1), offset, count, lo, hi)
+                     IF (lo > hi) CYCLE
+                     values(start + lo - offset:start + hi - offset) = block(lo:hi, j, k)
+                  END DO
+               END DO
+               DEALLOCATE (block)
+            END DO
+            CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
+            CALL para_env%sum(values(:count), para_env%source)
+            CALL timestop(handle)
+            elapsed(4) = elapsed(4) + m_walltime() - start_time
+            start_time = m_walltime()
+            CALL timeset("cc4s_write_files", handle)
+            IF (para_env%is_source()) THEN
+               CALL write_coulomb_vertex_block(iunit, offset, values(:count))
+               vertex_norm = vertex_norm + SUM(values(:count)**2)
+               used = 0_int_8
+               DO WHILE (used < count)
+                  within = MODULO(offset + used, INT(nRI, int_8)*INT(nMO, int_8))
+                  row = within/INT(nRI, int_8) + 1_int_8
+                  within = MODULO(within, INT(nRI, int_8))
+                  segment = MIN(count - used, INT(nRI, int_8) - within)
+                  IF (row < column) THEN
+                     mirror = within + INT(nRI, int_8)*(INT(column - 1, int_8) + INT(nMO, int_8)*(row - 1_int_8))
+                     CALL write_coulomb_vertex_block(iunit, mirror, values(used + 1:used + segment))
+                     vertex_norm = vertex_norm + SUM(values(used + 1:used + segment)**2)
+                  END IF
+                  used = used + segment
+               END DO
+            END IF
+            CALL timestop(handle)
+            elapsed(5) = elapsed(5) + m_walltime() - start_time
+            start_time = m_walltime()
+            CALL timeset("cc4s_gather", handle)
+            offset = offset + count
+         END DO
+      END DO
+      DEALLOCATE (off1, off2, off3)
+      CALL timestop(handle)
+      elapsed(4) = elapsed(4) + m_walltime() - start_time
+   END SUBROUTINE write_coulomb_vertex_batch
+
+! **************************************************************************************************
+!> \brief Write the Coulomb vertex header and open its raw binary elements file.
 !> \param logger Logger for output selection and naming
 !> \param print_section CC4S print key
 !> \param nRI Number of auxiliary functions
 !> \param nMO Number of active canonical orbitals
-!> \param gamma Coulomb vertex in auxiliary-orbital-orbital order
 !> \param periodic Whether the cell is three-dimensionally periodic at Gamma
 !> \param cutoff_radius Truncated Coulomb cutoff in bohr (zero for molecular Coulomb)
 !> \param hmat Cell vectors as columns, in bohr
+!> \param iunit Open stream unit for vertex elements
 ! **************************************************************************************************
-   SUBROUTINE write_coulomb_vertex_files(logger, print_section, nRI, nMO, gamma, periodic, cutoff_radius, hmat)
+   SUBROUTINE open_coulomb_vertex_file(logger, print_section, nRI, nMO, periodic, cutoff_radius, hmat, iunit)
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_section
       INTEGER, INTENT(IN)                                :: nRI, nMO
-      REAL(KIND=dp), INTENT(IN)                          :: gamma(nRI, nMO, nMO)
       LOGICAL, INTENT(IN)                                :: periodic
       REAL(KIND=dp), INTENT(IN)                          :: cutoff_radius, hmat(3, 3)
+      INTEGER, INTENT(OUT)                               :: iunit
 
-      INTEGER                                            :: i, io_status, iunit
+      INTEGER                                            :: i
 
       iunit = cp_print_key_unit_nr(logger, print_section, extension='.yaml', middle_name='CoulombVertex', &
                                    file_status='REPLACE', file_position='REWIND')
@@ -570,28 +1048,48 @@ CONTAINS
       iunit = cp_print_key_unit_nr(logger, print_section, extension='.elements', middle_name='CoulombVertex', &
                                    file_status='REPLACE', file_position='REWIND', &
                                    file_form='UNFORMATTED', file_access='STREAM')
-      WRITE (iunit, IOSTAT=io_status) gamma
+   END SUBROUTINE open_coulomb_vertex_file
+
+! **************************************************************************************************
+!> \brief Write a contiguous vertex block at an explicit position in the raw elements file.
+!> \param iunit Open stream unit for vertex elements
+!> \param offset Zero-based element offset in auxiliary-orbital-orbital storage order
+!> \param values Contiguous block of vertex elements
+! **************************************************************************************************
+   SUBROUTINE write_coulomb_vertex_block(iunit, offset, values)
+      INTEGER, INTENT(IN)                                :: iunit
+      INTEGER(KIND=int_8), INTENT(IN)                    :: offset
+      REAL(KIND=dp), CONTIGUOUS, INTENT(IN)              :: values(:)
+
+      INTEGER                                            :: io_status
+      INTEGER(KIND=int_8)                                :: position
+
+      ! Use CP2K's Real64 byte size, independent of direct-access record-length units.
+      CPASSERT(offset >= 0_int_8)
+      CPASSERT(SIZE(values, KIND=int_8) > 0_int_8)
+      CPASSERT(SIZE(values, KIND=int_8) <= HUGE(position)/INT(dp_size, int_8) - offset)
+      position = offset*INT(dp_size, int_8) + 1_int_8
+      WRITE (iunit, POS=position, IOSTAT=io_status) values
       IF (io_status /= 0) THEN
          CPABORT("CC4S: failed writing CoulombVertex.elements")
       END IF
-      CALL cp_print_key_finished_output(iunit, logger, print_section)
-
-   END SUBROUTINE write_coulomb_vertex_files
+   END SUBROUTINE write_coulomb_vertex_block
 
 ! **************************************************************************************************
 !> \brief  Write the CC4S algorithm sequence and solver settings to cc4s.in.
 !> \param logger Logger for output selection and naming
 !> \param print_section CC4S print key
 !> \param method Requested correlation method: MP2, CCSD or CCSD_T
+!> \param nocc Number of exported occupied spatial orbitals
 !> \param max_iter Maximum coupled-cluster iterations
 !> \param energy_conv CC4S energy convergence threshold
 !> \param amp_conv CC4S amplitude convergence threshold
 ! **************************************************************************************************
-   SUBROUTINE write_cc4s_in(logger, print_section, method, max_iter, energy_conv, amp_conv)
+   SUBROUTINE write_cc4s_in(logger, print_section, method, nocc, max_iter, energy_conv, amp_conv)
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_section
       CHARACTER(LEN=*), INTENT(IN)                       :: method
-      INTEGER, INTENT(IN)                                :: max_iter
+      INTEGER, INTENT(IN)                                :: nocc, max_iter
       REAL(dp), INTENT(IN)                               :: energy_conv, amp_conv
 
       CHARACTER(len=default_path_length)                 :: filename
@@ -635,7 +1133,7 @@ CONTAINS
       CASE ('MP2')
          ! The MP2 driver is complete above.
       CASE ('CCSD', 'CCSD_T')
-         CALL write_coupled_cluster_step(iunit, 'Ccsd', 'Amplitudes', max_iter, energy_conv, amp_conv)
+         CALL write_coupled_cluster_step(iunit, 'Ccsd', 'Amplitudes', nocc, max_iter, energy_conv, amp_conv)
       CASE DEFAULT
          CPABORT("CC4S: unsupported method")
       END SELECT
@@ -659,20 +1157,22 @@ CONTAINS
 !> \param iunit Output file unit
 !> \param cc_method CC4S coupled-cluster method
 !> \param amp_key CC4S output key for amplitudes
+!> \param nocc Number of exported occupied spatial orbitals
 !> \param max_iter Maximum coupled-cluster iterations
 !> \param energy_conv CC4S energy convergence threshold
 !> \param amp_conv CC4S amplitude convergence threshold
 ! **************************************************************************************************
-   SUBROUTINE write_coupled_cluster_step(iunit, cc_method, amp_key, max_iter, energy_conv, amp_conv)
+   SUBROUTINE write_coupled_cluster_step(iunit, cc_method, amp_key, nocc, max_iter, energy_conv, amp_conv)
       INTEGER, INTENT(IN)                                :: iunit
       CHARACTER(LEN=*), INTENT(IN)                       :: cc_method, amp_key
-      INTEGER, INTENT(IN)                                :: max_iter
+      INTEGER, INTENT(IN)                                :: nocc, max_iter
       REAL(dp), INTENT(IN)                               :: energy_conv, amp_conv
 
       WRITE (iunit, '(A)') '- name: CoupledCluster'
       WRITE (iunit, '(A)') '  in:'
       WRITE (iunit, '(A)') '    method: '//TRIM(cc_method)
-      WRITE (iunit, '(A)') '    integralsSliceSize: 100'
+      ! Match CC4S v1.1 defaults using the occupied space after frozen-core removal.
+      WRITE (iunit, '(A,I0)') '    integralsSliceSize: ', nocc
       WRITE (iunit, '(A)') '    slicedEigenEnergies: EigenEnergies'
       WRITE (iunit, '(A)') '    coulombIntegrals: CoulombIntegrals'
       WRITE (iunit, '(A)') '    slicedCoulombVertex: CoulombVertex'
@@ -681,7 +1181,7 @@ CONTAINS
       WRITE (iunit, '(A,ES25.16)') '    amplitudesConvergence: ', amp_conv
       WRITE (iunit, '(A)') '    mixer:'
       WRITE (iunit, '(A)') '      type: DiisMixer'
-      WRITE (iunit, '(A)') '      maxResidua: 5'
+      WRITE (iunit, '(A)') '      maxResidua: 4'
       WRITE (iunit, '(A)') '  out:'
       WRITE (iunit, '(A)') '    amplitudes: '//TRIM(amp_key)
       WRITE (iunit, '(A)') '    energy: CoupledClusterEnergy'
