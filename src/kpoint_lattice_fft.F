@@ -14,8 +14,6 @@
 !>        Unsupported grids retain the direct phase-sum fallback.
 ! **************************************************************************************************
 MODULE kpoint_lattice_fft
-   USE fft_api,                         ONLY: FFT_LIBRARY_BACKEND_GPU,&
-                                              fft_backend_in_use
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_NEXT,&
                                               FWFFT,&
@@ -173,12 +171,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nentries
 
       ! Two complex grids per worker plus an optional backend transpose buffer.
-      ! The GPU backend uses shared device buffers and is not safe for
-      ! concurrent transforms from multiple OpenMP workers.
       nthreads = 1
-      IF (fft_backend_in_use() /= FFT_LIBRARY_BACKEND_GPU) THEN
-!$       nthreads = omp_get_max_threads()
-      END IF
+!$    nthreads = omp_get_max_threads()
       nthreads = INT(MIN(INT(nthreads, int_8), INT(MAX(1, nentries), int_8), &
                          MAX(1_int_8, 64_int_8*1024_int_8**2/(48_int_8*PRODUCT(INT(nfft, int_8))))))
    END FUNCTION lattice_fft_num_threads
