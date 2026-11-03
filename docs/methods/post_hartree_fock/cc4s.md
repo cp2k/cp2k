@@ -48,8 +48,9 @@ guaranteed. See [restarting CP2K calculations](../restarting.md) for wavefunctio
 
 ## Enable export
 
-Add the following inside [FORCE_EVAL/DFT/PRINT](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT). It shows the
-standard `FILENAME` control and all CC4S-specific keywords at their default values:
+Add the following [CC4S](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S) section inside
+`FORCE_EVAL/DFT/PRINT`. It shows the standard `FILENAME` control and all CC4S-specific keywords at
+their default values:
 
 ```text
 &CC4S ON
