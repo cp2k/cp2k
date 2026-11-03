@@ -1676,8 +1676,8 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every) {
   fft_allocate_complex(fft_size[0] * fft_size[1] * fft_size[2], &input_array);
   fft_allocate_complex(fft_size[0] * fft_size[1] * fft_size[2], &output_array);
 
-  fft_register_3d_local(true, fft_size, input_array, output_array);
-  fft_register_3d_local(false, fft_size, output_array, input_array);
+  fft_register_3d_local(true, fft_size, 1, false, false, input_array, output_array);
+  fft_register_3d_local(false, fft_size, 1, false, false, output_array, input_array);
 
   double max_error = 0.0;
   int number_of_tests = 0;
@@ -1693,7 +1693,7 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every) {
                fft_size[0] * fft_size[1] * fft_size[2] *
                    sizeof(double complex));
         input_array[(mx * fft_size[1] + my) * fft_size[2] + mz] = 1.0;
-        fft_3d_local(true, fft_size, input_array, output_array);
+        fft_3d_local(true, fft_size, 1, false, false, input_array, output_array);
 
 #pragma omp parallel for default(none)                                         \
     shared(output_array, fft_size, pi, mx, my, mz, my_process)                 \
@@ -1743,7 +1743,7 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every) {
         number_of_tests++;
         memset(output_array, 0, product3(fft_size) * sizeof(double complex));
         output_array[(mx * fft_size[1] + my) * fft_size[2] + mz] = 1.0;
-        fft_3d_local(false, fft_size, output_array, input_array);
+        fft_3d_local(false, fft_size, 1, false, false, output_array, input_array);
 
 #pragma omp parallel for default(none)                                         \
     shared(input_array, fft_size, pi, mx, my, mz, my_process)                  \
@@ -1805,8 +1805,8 @@ int fft_test_3d_local_inplace_low(const int fft_size[3], const int test_every) {
   fft_allocate_complex(fft_size[0] * fft_size[1] * fft_size[2], &input_array);
   double complex *output_array = input_array;
 
-  fft_register_3d_local(true, fft_size, input_array, output_array);
-  fft_register_3d_local(false, fft_size, output_array, input_array);
+  fft_register_3d_local(true, fft_size, 1, false, false, input_array, output_array);
+  fft_register_3d_local(false, fft_size, 1, false, false, output_array, input_array);
 
   double max_error = 0.0;
   int number_of_tests = 0;
@@ -1822,7 +1822,7 @@ int fft_test_3d_local_inplace_low(const int fft_size[3], const int test_every) {
                fft_size[0] * fft_size[1] * fft_size[2] *
                    sizeof(double complex));
         input_array[(mx * fft_size[1] + my) * fft_size[2] + mz] = 1.0;
-        fft_3d_local(true, fft_size, input_array, output_array);
+        fft_3d_local(true, fft_size, 1, false, false, input_array, output_array);
 
 #pragma omp parallel for default(none)                                         \
     shared(output_array, fft_size, pi, mx, my, mz) reduction(max : max_error)  \
@@ -1869,7 +1869,7 @@ int fft_test_3d_local_inplace_low(const int fft_size[3], const int test_every) {
         number_of_tests++;
         memset(output_array, 0, product3(fft_size) * sizeof(double complex));
         output_array[(mx * fft_size[1] + my) * fft_size[2] + mz] = 1.0;
-        fft_3d_local(false, fft_size, output_array, input_array);
+        fft_3d_local(false, fft_size, 1, false, false, output_array, input_array);
 
 #pragma omp parallel for default(none)                                         \
     shared(input_array, fft_size, pi, mx, my, mz) reduction(max : max_error)   \
@@ -1930,8 +1930,8 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
   fft_allocate_complex(fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1),
                        &complex_buffer);
 
-  fft_register_3d_r2c_local(fft_size, double_buffer, complex_buffer);
-  fft_register_3d_c2r_local(fft_size, complex_buffer, double_buffer);
+  fft_register_3d_r2c_local(fft_size, 1, false, false, double_buffer, complex_buffer);
+  fft_register_3d_c2r_local(fft_size, 1, false, false, complex_buffer, double_buffer);
 
   double max_error = 0.0;
   int number_of_tests = 0;
@@ -1945,7 +1945,7 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
         number_of_tests++;
         memset(double_buffer, 0, product3(fft_size) * sizeof(double));
         double_buffer[(mx * fft_size[1] + my) * fft_size[2] + mz] = 1.0;
-        fft_3d_r2c_local(fft_size, double_buffer, complex_buffer);
+        fft_3d_r2c_local(fft_size, 1, false, false, double_buffer, complex_buffer);
 
 #pragma omp parallel for default(none)                                         \
     shared(complex_buffer, fft_size, pi, mx, my, mz, my_process)               \
@@ -2010,7 +2010,7 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
             }
           }
         }
-        fft_3d_c2r_local(fft_size, complex_buffer, double_buffer);
+        fft_3d_c2r_local(fft_size, 1, false, false, complex_buffer, double_buffer);
 
 #pragma omp parallel for default(none)                                         \
     shared(double_buffer, fft_size, pi, mx, my, mz, my_process)                \
@@ -2072,8 +2072,8 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3],
   fft_allocate_double(2 * buffer_size, &double_buffer);
   double complex *complex_buffer = (double complex *)double_buffer;
 
-  fft_register_3d_r2c_local(fft_size, double_buffer, complex_buffer);
-  fft_register_3d_c2r_local(fft_size, complex_buffer, double_buffer);
+  fft_register_3d_r2c_local(fft_size, 1, false, false, double_buffer, complex_buffer);
+  fft_register_3d_c2r_local(fft_size, 1, false, false, complex_buffer, double_buffer);
 
   double max_error = 0.0;
   int number_of_tests = 0;
@@ -2088,7 +2088,7 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3],
         memset(double_buffer, 0, 2 * buffer_size * sizeof(double));
         double_buffer[(mx * fft_size[1] + my) * 2 * (fft_size[2] / 2 + 1) +
                       mz] = 1.0;
-        fft_3d_r2c_local(fft_size, double_buffer, complex_buffer);
+        fft_3d_r2c_local(fft_size, 1, false, false, double_buffer, complex_buffer);
 
 #pragma omp parallel for default(none)                                         \
     shared(complex_buffer, fft_size, pi, mx, my, mz, my_process)               \
@@ -2154,7 +2154,7 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3],
             }
           }
         }
-        fft_3d_c2r_local(fft_size, complex_buffer, double_buffer);
+        fft_3d_c2r_local(fft_size, 1, false, false, complex_buffer, double_buffer);
 
 #pragma omp parallel for default(none)                                         \
     shared(double_buffer, fft_size, pi, mx, my, mz, my_process)                \

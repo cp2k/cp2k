@@ -67,7 +67,9 @@ void fft_register_2d_local_F(const bool dir, const int fft_size[2],
                              double complex *grid_out);
 
 void fft_register_3d_local_F(const bool dir, const int fft_size[3],
-                             double complex *grid_in, double complex *grid_out);
+                             const int number_of_ffts, const bool transpose_in,
+                             const bool transpose_out, double complex *grid_in,
+                             double complex *grid_out);
 
 void fft_register_1d_local_inplace_F(const bool dir, const int fft_size,
                                      const int number_of_ffts,
@@ -81,6 +83,8 @@ void fft_register_2d_local_inplace_F(const bool dir, const int fft_size[2],
                                      double complex *grid);
 
 void fft_register_3d_local_inplace_F(const bool dir, const int fft_size[3],
+                                     const int number_of_ffts,
+                                     const bool transpose,
                                      double complex *grid);
 
 void fft_1d_local_F(const bool dir, const int fft_size,
@@ -95,7 +99,9 @@ void fft_2d_local_F(const bool dir, const int fft_size[2],
                     double complex *grid_out);
 
 void fft_3d_local_F(const bool dir, const int fft_size[3],
-                    double complex *grid_in, double complex *grid_out);
+                    const int number_of_ffts, const bool transpose_in,
+                    const bool transpose_out, double complex *grid_in,
+                    double complex *grid_out);
 
 void fft_1d_local_inplace_F(const bool dir, const int fft_size,
                             const int number_of_ffts, const bool transpose,
@@ -106,6 +112,7 @@ void fft_2d_local_inplace_F(const bool dir, const int fft_size[2],
                             double complex *grid);
 
 void fft_3d_local_inplace_F(const bool dir, const int fft_size[3],
+                            const int number_of_ffts, const bool transpose,
                             double complex *grid);
 
 #endif

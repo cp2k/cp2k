@@ -415,7 +415,9 @@ void fft_register_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_3d_local(const bool dir, const int fft_size[3],
-                           double complex *grid_in, double complex *grid_out) {
+                           const int number_of_ffts, const bool transpose_in,
+                           const bool transpose_out, double complex *grid_in,
+                           double complex *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_local");
@@ -428,10 +430,12 @@ void fft_register_3d_local(const bool dir, const int fft_size[3],
   const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
-    fft_register_gpu_fff(dir, fft_size, grid_in == grid_out);
+    fft_register_gpu_fff(dir, fft_size, grid_in == grid_out, number_of_ffts,
+                         transpose_in, transpose_out);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_register_3d_local(dir, fft_size, grid_in, grid_out);
+    fft_fftw_register_3d_local(dir, fft_size, number_of_ffts, transpose_in,
+                               transpose_out, grid_in, grid_out);
     break;
   default:
     cp_assert(0 && "Unknown FFT library.");
@@ -444,8 +448,9 @@ void fft_register_3d_local(const bool dir, const int fft_size[3],
  * \brief Register a local 3D R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_3d_r2c_local(const int fft_size[3], double *grid_in,
-                               double complex *grid_out) {
+void fft_register_3d_r2c_local(const int fft_size[3], const int number_of_ffts,
+                               const bool transpose_in, const bool transpose_out,
+                               double *grid_in, double complex *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_r2c_local");
@@ -458,10 +463,12 @@ void fft_register_3d_r2c_local(const int fft_size[3], double *grid_in,
   const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
-    fft_register_r2c_gpu_fff(true, fft_size, grid_in == (double *)grid_out);
+    fft_register_r2c_gpu_fff(true, fft_size, grid_in == (double *)grid_out,
+                             number_of_ffts, transpose_in, transpose_out);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_register_3d_r2c_local(fft_size, grid_in, grid_out);
+    fft_fftw_register_3d_r2c_local(fft_size, number_of_ffts, transpose_in,
+                                   transpose_out, grid_in, grid_out);
     break;
   default:
     cp_assert(0 && "Unknown FFT library.");
@@ -474,8 +481,9 @@ void fft_register_3d_r2c_local(const int fft_size[3], double *grid_in,
  * \brief Register a local 3D C2R FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_3d_c2r_local(const int fft_size[3], double complex *grid_in,
-                               double *grid_out) {
+void fft_register_3d_c2r_local(const int fft_size[3], const int number_of_ffts,
+                               const bool transpose_in, const bool transpose_out,
+                               double complex *grid_in, double *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_c2r_local");
@@ -489,10 +497,12 @@ void fft_register_3d_c2r_local(const int fft_size[3], double complex *grid_in,
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
     fft_register_r2c_gpu_fff(false, fft_size,
-                             grid_in == (double complex *)grid_out);
+                             grid_in == (double complex *)grid_out,
+                             number_of_ffts, transpose_in, transpose_out);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_register_3d_c2r_local(fft_size, grid_in, grid_out);
+    fft_fftw_register_3d_c2r_local(fft_size, number_of_ffts, transpose_in,
+                                   transpose_out, grid_in, grid_out);
     break;
   default:
     cp_assert(0 && "Unknown FFT library.");
@@ -709,7 +719,9 @@ void fft_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_local(const bool dir, const int fft_size[3],
-                  double complex *grid_in, double complex *grid_out) {
+                  const int number_of_ffts, const bool transpose_in,
+                  const bool transpose_out, double complex *grid_in,
+                  double complex *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_local");
@@ -721,10 +733,12 @@ void fft_3d_local(const bool dir, const int fft_size[3],
   const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
-    fft_gpu_fff((const double *)grid_in, (double *)grid_out, dir, fft_size);
+    fft_gpu_fff((const double *)grid_in, (double *)grid_out, dir, fft_size,
+                number_of_ffts, transpose_in, transpose_out);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_3d_local(dir, fft_size, grid_in, grid_out);
+    fft_fftw_3d_local(dir, fft_size, number_of_ffts, transpose_in,
+                      transpose_out, grid_in, grid_out);
     break;
   default:
     cp_assert(0 && "Unknown FFT library.");
@@ -737,8 +751,9 @@ void fft_3d_local(const bool dir, const int fft_size[3],
  * \brief Perform a local 3D R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_r2c_local(const int fft_size[3], double *grid_in,
-                      double complex *grid_out) {
+void fft_3d_r2c_local(const int fft_size[3], const int number_of_ffts,
+                      const bool transpose_in, const bool transpose_out,
+                      double *grid_in, double complex *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_r2c_local");
@@ -751,10 +766,11 @@ void fft_3d_r2c_local(const int fft_size[3], double *grid_in,
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
     fft_r2c_gpu_fff((const double *)grid_in, (double *)grid_out, true,
-                    fft_size);
+                    fft_size, number_of_ffts, transpose_in, transpose_out);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_3d_r2c_local(fft_size, grid_in, grid_out);
+    fft_fftw_3d_r2c_local(fft_size, number_of_ffts, transpose_in,
+                          transpose_out, grid_in, grid_out);
     break;
   default:
     cp_assert(0 && "Unknown FFT library.");
@@ -767,8 +783,9 @@ void fft_3d_r2c_local(const int fft_size[3], double *grid_in,
  * \brief Perform a local 3D C2R FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_c2r_local(const int fft_size[3], double complex *grid_in,
-                      double *grid_out) {
+void fft_3d_c2r_local(const int fft_size[3], const int number_of_ffts,
+                      const bool transpose_in, const bool transpose_out,
+                      double complex *grid_in, double *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_c2r_local");
@@ -781,10 +798,11 @@ void fft_3d_c2r_local(const int fft_size[3], double complex *grid_in,
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
     fft_r2c_gpu_fff((const double *)grid_in, (double *)grid_out, false,
-                    fft_size);
+                    fft_size, number_of_ffts, transpose_in, transpose_out);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_3d_c2r_local(fft_size, grid_in, grid_out);
+    fft_fftw_3d_c2r_local(fft_size, number_of_ffts, transpose_in,
+                          transpose_out, grid_in, grid_out);
     break;
   default:
     cp_assert(0 && "Unknown FFT library.");

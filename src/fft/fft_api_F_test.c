@@ -814,8 +814,8 @@ int fft_test_F_3d_local_low(const int fft_size[3], const int test_every) {
 
   const int fft_size_F[] = {fft_size[2], fft_size[1], fft_size[0]};
 
-  fft_register_3d_local_F(true, fft_size_F, input_array, output_array);
-  fft_register_3d_local_F(false, fft_size_F, output_array, input_array);
+  fft_register_3d_local_F(true, fft_size_F, 1, false, false, input_array, output_array);
+  fft_register_3d_local_F(false, fft_size_F, 1, false, false, output_array, input_array);
 
   double max_error = 0.0;
   int number_of_tests = 0;
@@ -831,7 +831,7 @@ int fft_test_F_3d_local_low(const int fft_size[3], const int test_every) {
                fft_size[0] * fft_size[1] * fft_size[2] *
                    sizeof(double complex));
         input_array[(mx * fft_size[1] + my) * fft_size[2] + mz] = 1.0;
-        fft_3d_local_F(true, fft_size_F, input_array, output_array);
+        fft_3d_local_F(true, fft_size_F, 1, false, false, input_array, output_array);
 
 #pragma omp parallel for default(none)                                         \
     shared(output_array, fft_size, pi, mx, my, mz, my_process)                 \
@@ -883,7 +883,7 @@ int fft_test_F_3d_local_low(const int fft_size[3], const int test_every) {
                fft_size[0] * fft_size[1] * fft_size[2] *
                    sizeof(double complex));
         output_array[(mx * fft_size[1] + my) * fft_size[2] + mz] = 1.0;
-        fft_3d_local_F(false, fft_size_F, output_array, input_array);
+        fft_3d_local_F(false, fft_size_F, 1, false, false, output_array, input_array);
 
 #pragma omp parallel for default(none)                                         \
     shared(input_array, fft_size, pi, mx, my, mz, my_process)                  \
@@ -948,8 +948,8 @@ int fft_test_F_3d_local_inplace_low(const int fft_size[3],
 
   const int fft_size_F[] = {fft_size[2], fft_size[1], fft_size[0]};
 
-  fft_register_3d_local_inplace_F(true, fft_size_F, input_array);
-  fft_register_3d_local_inplace_F(false, fft_size_F, output_array);
+  fft_register_3d_local_inplace_F(true, fft_size_F, 1, false, input_array);
+  fft_register_3d_local_inplace_F(false, fft_size_F, 1, false, output_array);
 
   double max_error = 0.0;
   int number_of_tests = 0;
@@ -965,7 +965,7 @@ int fft_test_F_3d_local_inplace_low(const int fft_size[3],
                fft_size[0] * fft_size[1] * fft_size[2] *
                    sizeof(double complex));
         input_array[(mx * fft_size[1] + my) * fft_size[2] + mz] = 1.0;
-        fft_3d_local_inplace_F(true, fft_size_F, input_array);
+        fft_3d_local_inplace_F(true, fft_size_F, 1, false, input_array);
 
 #pragma omp parallel for default(none)                                         \
     shared(output_array, fft_size, pi, mx, my, mz) reduction(max : max_error)  \
@@ -1014,7 +1014,7 @@ int fft_test_F_3d_local_inplace_low(const int fft_size[3],
                fft_size[0] * fft_size[1] * fft_size[2] *
                    sizeof(double complex));
         output_array[(mx * fft_size[1] + my) * fft_size[2] + mz] = 1.0;
-        fft_3d_local_inplace_F(false, fft_size_F, output_array);
+        fft_3d_local_inplace_F(false, fft_size_F, 1, false, output_array);
 
 #pragma omp parallel for default(none)                                         \
     shared(input_array, fft_size, pi, mx, my, mz) reduction(max : max_error)   \
