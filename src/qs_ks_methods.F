@@ -1756,19 +1756,19 @@ CONTAINS
 
       CALL calculate_ptrace(matrixkp_h, rho_ao_kp, energy%core, dft_control%nspins)
 
-      ! Add the imaginary part in the RTP case
+      ! kinetic energy
+      IF (ASSOCIATED(matrixkp_t)) THEN
+         CALL calculate_ptrace(matrixkp_t, rho_ao_kp, energy%kinetic, dft_control%nspins)
+      END IF
+
+      ! Add the imaginary part in the RTP case: Re Tr(P*H) = P_re.H_re + P_im.H_im
       IF (qs_env%run_rtp) THEN
          IF (dft_control%rtp_control%velocity_gauge) THEN
             CALL get_qs_env(qs_env, matrix_h_im_kp=matrixkp_h)
             CALL qs_rho_get(rho, rho_ao_im_kp=rho_ao_kp)
             CALL calculate_ptrace(matrixkp_h, rho_ao_kp, energy_core_im, dft_control%nspins)
-            energy%core = energy%core - energy_core_im
+            energy%core = energy%core + energy_core_im
          END IF
-      END IF
-
-      ! kinetic energy
-      IF (ASSOCIATED(matrixkp_t)) THEN
-         CALL calculate_ptrace(matrixkp_t, rho_ao_kp, energy%kinetic, dft_control%nspins)
       END IF
 
       CALL timestop(handle)
