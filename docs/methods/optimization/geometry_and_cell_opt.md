@@ -500,27 +500,16 @@ the [MOTION/PRINT](#CP2K_INPUT.MOTION.PRINT) section.
   [CELL](#CP2K_INPUT.MOTION.PRINT.CELL).
 - `project-1.stress` contains the stress tensors during optimization, as controlled by
   [STRESS](#CP2K_INPUT.MOTION.PRINT.STRESS).
-- `project-1.restart` is a CP2K restart input containing the latest geometry, cell, and relevant
+- `project-1.restart` is a motion restart file containing the latest geometry, cell, and relevant
   settings, as controlled by [RESTART](#CP2K_INPUT.MOTION.PRINT.RESTART). When `BACKUP_COPIES` under
   this section is non-zero, backup restart files from previous optimization steps will also be
   preserved as `project-1.restart.bak-*`.
 
-The restart file can be used directly as a new input file like
-
-```none
-cp2k -i project-1.restart -o project-restart.out
-```
-
-Alternatively, the [EXT_RESTART](#CP2K_INPUT.EXT_RESTART) section can be used for finer restart
-controls. These will be convenient in case an optimization does not converge and a new optimization
-starting from the latest structure is needed.
-
-For expensive electronic-structure calculations, wavefunction restart files can reduce the cost of
-continuation or follow-up calculations; see the
-[Molecular Dynamics Restarts](../restarting.md#molecular-dynamics) section of the restarting guide
-and [FORCE_EVAL/DFT/SCF/PRINT/RESTART](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.PRINT.RESTART). For BFGS
-optimizations, Hessian-restart options are available in the `BFGS` subsection of the active
-optimization driver.
+In addition, the BFGS optimizer makes use of Hessian restart files; relevant options are available
+in the `BFGS` subsection of the active optimization driver. Expensive Quickstep electronic-structure
+calculations also produce wavefunction restart files from SCF iterations. Restart files will be
+convenient and time-saving for many continuation or follow-up calculations; see [](../restarting)
+for details of the usage.
 
 ## Practical checklist
 

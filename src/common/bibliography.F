@@ -81,7 +81,7 @@ MODULE bibliography
                             Clabaut2021, Ren2011, Ren2013, Cohen2000, Rogers2002, Filippetti2000, &
                             Limpanuparb2011, Martin2003, Yin2017, Goerigk2017, &
                             Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Wilhelm2021, Lass2018, &
-                            cp2kqs2020, Iannuzzi2026, Behler2007, Behler2011, Schran2020a, Schran2020b, &
+                            cp2kqs2020, Iannuzzi2026, Mirhosseini2026, Behler2007, Behler2011, Schran2020a, Schran2020b, &
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
                             Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Ditler2022, Mattiat2019, &
                             Mattiat2022, Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020, &
@@ -1750,6 +1750,14 @@ CONTAINS
                          title="The CP2K Program Package Made Simple", &
                          source="J. Phys. Chem. B", volume="130", pages="1237-1310", &
                          year=2026, doi="10.1021/acs.jpcb.5c05851")
+
+      CALL add_reference(key=Mirhosseini2026, &
+                         authors=s2a("H. Mirhosseini", "T. M. A. Müller", "M. Krack", &
+                                     "T. D. Kühne", "J. Hutter"), &
+                         title="The UZH protocol: Separating errors and constructing "// &
+                         "improved CP2K basis sets and pseudopotentials", &
+                         source="J. Chem. Phys.", volume="165", pages="104103", &
+                         year=2026, doi="10.1063/5.0347392")
 
       CALL add_reference(key=Rycroft2009, &
                          authors=s2a("C. H. Rycroft"), &

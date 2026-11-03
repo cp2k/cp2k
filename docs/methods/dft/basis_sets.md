@@ -101,3 +101,4 @@ For a simple tested example, see [](../../getting-started/first-calculation).
 - <https://www.cp2k.org/tools:cp2k-basis>
 - [](#VandeVondele2007)
 - [](#Iannuzzi2026)
+- [](#Mirhosseini2026)

@@ -140,3 +140,4 @@ For a tested minimal GPW input using GTH pseudopotentials, see
 - [](#Hartwigsen1998)
 - [](#Krack2005)
 - [](#Iannuzzi2026)
+- [](#Mirhosseini2026)
