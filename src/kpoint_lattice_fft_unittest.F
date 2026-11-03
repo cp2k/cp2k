@@ -61,7 +61,7 @@ PROGRAM kpoint_lattice_fft_unittest
 
    CALL mp_world_init(mp_comm)
    CALL check_image_reconstruction(mp_comm)
-   CALL init_fft("FFTSG", alltoall=.FALSE., pool_limit=4, &
+   CALL init_fft("FFTW3", alltoall=.FALSE., pool_limit=4, &
                  wisdom_file="", plan_style=1)
 
    nkp_grid = [4, 4, 4]
