@@ -38,12 +38,14 @@ typedef struct {
 } cache_entry;
 
 // We need to reserve more space because of the different combinations
-// (local/distributed, C2C/R2C) This works to run all tests
+// (local/distributed, C2C/R2C) and potential overlap from OpenMP. This works to run all tests.
 #define FFTW_CACHE_SIZE 256
 static cache_entry cache[FFTW_CACHE_SIZE];
 static int cache_oldest_entry = 0; // used for LRU eviction
 
 static bool is_initialized = false;
+
+static omp_nest_lock_t cache_lock;
 
 static int fftw_planning_mode = -1;
 
@@ -53,13 +55,17 @@ static int fftw_planning_mode = -1;
  ******************************************************************************/
 static fftw_plan *lookup_plan_from_cache(const fft_key_t key) {
   cp_assert(is_initialized);
+  omp_set_nest_lock(&cache_lock);
+  fftw_plan *plan = NULL;
   for (int i = 0; i < FFTW_CACHE_SIZE; i++) {
     const int *x = cache[i].key;
     if (memcmp(key, x, sizeof(fft_key_t)) == 0) {
-      return cache[i].plan;
+      plan = cache[i].plan;
+      break;
     }
   }
-  return NULL;
+  omp_unset_nest_lock(&cache_lock);
+  return plan;
 }
 
 /*******************************************************************************
@@ -67,6 +73,7 @@ static fftw_plan *lookup_plan_from_cache(const fft_key_t key) {
  * \author Ole Schuett, Frederick Stein
  ******************************************************************************/
 static void add_plan_to_cache(const fft_key_t key, fftw_plan *plan) {
+  omp_set_nest_lock(&cache_lock);
   const int i = cache_oldest_entry;
   cache_oldest_entry = (cache_oldest_entry + 1) % FFTW_CACHE_SIZE;
   if (cache[i].plan != NULL) {
@@ -75,6 +82,7 @@ static void add_plan_to_cache(const fft_key_t key, fftw_plan *plan) {
   }
   memcpy(cache[i].key, key, sizeof(fft_key_t));
   cache[i].plan = plan;
+  omp_unset_nest_lock(&cache_lock);
 }
 #endif
 
@@ -120,6 +128,7 @@ int fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
   }
   memset(cache, 0, sizeof(cache_entry) * FFTW_CACHE_SIZE);
   cache_oldest_entry = 0;
+  omp_init_nest_lock(&cache_lock);
 
   fftw_planning_mode = fftw_planning_flag;
   switch (fftw_planning_flag) {
@@ -186,6 +195,7 @@ void fft_fftw_finalize_lib(const char *wisdom_file) {
       free(cache[i].plan);
     }
   }
+  omp_destroy_nest_lock(&cache_lock);
   // Export wisdom before finalizing the library to ensure storing the correct
   // threading etc.
   if (wisdom_file != NULL) {
@@ -279,6 +289,12 @@ void fft_fftw_free_complex(double complex *buffer) {
  ******************************************************************************/
 fftw_plan *fft_fftw_create_1d_plan(const fft_key_t key, double complex *grid_in,
                                    double complex *grid_out) {
+  omp_set_nest_lock(&cache_lock);
+  fftw_plan *cached_plan = lookup_plan_from_cache(key);
+  if (cached_plan != NULL) {
+    omp_unset_nest_lock(&cache_lock);
+    return cached_plan;
+  }
   int rank, number_of_threads, number_of_ffts, istride, ostride, idist, odist;
   bool direction, inplace;
   int fft_size[3], inembed[3], onembed[3];
@@ -301,6 +317,7 @@ fftw_plan *fft_fftw_create_1d_plan(const fft_key_t key, double complex *grid_in,
                              fftw_planning_mode);
   cp_assert(plan != NULL);
   add_plan_to_cache(key, plan);
+  omp_unset_nest_lock(&cache_lock);
   return plan;
 }
 /*******************************************************************************
@@ -309,6 +326,12 @@ fftw_plan *fft_fftw_create_1d_plan(const fft_key_t key, double complex *grid_in,
  ******************************************************************************/
 fftw_plan *fft_fftw_create_1d_plan_r2c(const fft_key_t key, double *grid_in,
                                        double *grid_out) {
+  omp_set_nest_lock(&cache_lock);
+  fftw_plan *cached_plan = lookup_plan_from_cache(key);
+  if (cached_plan != NULL) {
+    omp_unset_nest_lock(&cache_lock);
+    return cached_plan;
+  }
   int rank, number_of_threads, number_of_ffts, istride, ostride, idist, odist;
   bool direction, inplace;
   int fft_size[3], inembed[3], onembed[3];
@@ -344,6 +367,7 @@ fftw_plan *fft_fftw_create_1d_plan_r2c(const fft_key_t key, double *grid_in,
   }
   cp_assert(plan != NULL);
   add_plan_to_cache(key, plan);
+  omp_unset_nest_lock(&cache_lock);
   return plan;
 }
 
@@ -353,6 +377,12 @@ fftw_plan *fft_fftw_create_1d_plan_r2c(const fft_key_t key, double *grid_in,
  ******************************************************************************/
 fftw_plan *fft_fftw_create_2d_plan(const fft_key_t key, double complex *grid_in,
                                    double complex *grid_out) {
+  omp_set_nest_lock(&cache_lock);
+  fftw_plan *cached_plan = lookup_plan_from_cache(key);
+  if (cached_plan != NULL) {
+    omp_unset_nest_lock(&cache_lock);
+    return cached_plan;
+  }
   int rank, number_of_threads, number_of_ffts, istride, ostride, idist, odist;
   bool direction, inplace;
   int fft_size[3], inembed[3], onembed[3];
@@ -373,6 +403,7 @@ fftw_plan *fft_fftw_create_2d_plan(const fft_key_t key, double complex *grid_in,
                              fftw_planning_mode);
   cp_assert(plan != NULL);
   add_plan_to_cache(key, plan);
+  omp_unset_nest_lock(&cache_lock);
   return plan;
 }
 
@@ -382,6 +413,12 @@ fftw_plan *fft_fftw_create_2d_plan(const fft_key_t key, double complex *grid_in,
  ******************************************************************************/
 fftw_plan *fft_fftw_create_2d_plan_r2c(const fft_key_t key, double *grid_in,
                                        double *grid_out) {
+  omp_set_nest_lock(&cache_lock);
+  fftw_plan *cached_plan = lookup_plan_from_cache(key);
+  if (cached_plan != NULL) {
+    omp_unset_nest_lock(&cache_lock);
+    return cached_plan;
+  }
   int rank, number_of_threads, number_of_ffts, istride, ostride, idist, odist;
   bool direction, inplace;
   int fft_size[3], inembed[3], onembed[3];
@@ -419,6 +456,7 @@ fftw_plan *fft_fftw_create_2d_plan_r2c(const fft_key_t key, double *grid_in,
   }
   cp_assert(plan != NULL);
   add_plan_to_cache(key, plan);
+  omp_unset_nest_lock(&cache_lock);
   return plan;
 }
 
@@ -428,6 +466,12 @@ fftw_plan *fft_fftw_create_2d_plan_r2c(const fft_key_t key, double *grid_in,
  ******************************************************************************/
 fftw_plan *fft_fftw_create_3d_plan(const fft_key_t key, double complex *grid_in,
                                    double complex *grid_out) {
+  omp_set_nest_lock(&cache_lock);
+  fftw_plan *cached_plan = lookup_plan_from_cache(key);
+  if (cached_plan != NULL) {
+    omp_unset_nest_lock(&cache_lock);
+    return cached_plan;
+  }
   int rank, number_of_threads, number_of_ffts, istride, ostride, idist, odist;
   bool direction, inplace;
   int fft_size[3], inembed[3], onembed[3];
@@ -445,6 +489,7 @@ fftw_plan *fft_fftw_create_3d_plan(const fft_key_t key, double complex *grid_in,
                            fftw_planning_mode);
   add_plan_to_cache(key, plan);
   cp_assert(plan != NULL);
+  omp_unset_nest_lock(&cache_lock);
   return plan;
 }
 
@@ -454,6 +499,12 @@ fftw_plan *fft_fftw_create_3d_plan(const fft_key_t key, double complex *grid_in,
  ******************************************************************************/
 fftw_plan *fft_fftw_create_3d_plan_r2c(const fft_key_t key, double *grid_in,
                                        double *grid_out) {
+  omp_set_nest_lock(&cache_lock);
+  fftw_plan *cached_plan = lookup_plan_from_cache(key);
+  if (cached_plan != NULL) {
+    omp_unset_nest_lock(&cache_lock);
+    return cached_plan;
+  }
   int rank, number_of_threads, number_of_ffts, istride, ostride, idist, odist;
   bool direction, inplace;
   int fft_size[3], inembed[3], onembed[3];
@@ -480,6 +531,7 @@ fftw_plan *fft_fftw_create_3d_plan_r2c(const fft_key_t key, double *grid_in,
   }
   add_plan_to_cache(key, plan);
   cp_assert(plan != NULL);
+  omp_unset_nest_lock(&cache_lock);
   return plan;
 }
 
@@ -491,6 +543,12 @@ fftw_plan *fft_fftw_create_guru_plan(const fft_key_t key,
                                      double complex *grid_in,
                                      double complex *grid_out) {
   cp_assert(has_guru_interface);
+  omp_set_nest_lock(&cache_lock);
+  fftw_plan *cached_plan = lookup_plan_from_cache(key);
+  if (cached_plan != NULL) {
+    omp_unset_nest_lock(&cache_lock);
+    return cached_plan;
+  }
   bool direction, inplace;
   int rank, howmany_rank, number_of_threads;
   fft_iodim dims[3], howmany_dims[3];
@@ -513,6 +571,7 @@ fftw_plan *fft_fftw_create_guru_plan(const fft_key_t key,
                              fftw_planning_mode);
   add_plan_to_cache(key, plan);
   cp_assert(plan != NULL);
+  omp_unset_nest_lock(&cache_lock);
   return plan;
 }
 
@@ -523,6 +582,12 @@ fftw_plan *fft_fftw_create_guru_plan(const fft_key_t key,
 fftw_plan *fft_fftw_create_guru_plan_r2c(const fft_key_t key, double *grid_in,
                                          double *grid_out) {
   cp_assert(has_guru_interface);
+  omp_set_nest_lock(&cache_lock);
+  fftw_plan *cached_plan = lookup_plan_from_cache(key);
+  if (cached_plan != NULL) {
+    omp_unset_nest_lock(&cache_lock);
+    return cached_plan;
+  }
   bool direction, inplace;
   int rank, howmany_rank, number_of_threads;
   fft_iodim dims[3], howmany_dims[3];
@@ -565,6 +630,7 @@ fftw_plan *fft_fftw_create_guru_plan_r2c(const fft_key_t key, double *grid_in,
   }
   add_plan_to_cache(key, plan);
   cp_assert(plan != NULL);
+  omp_unset_nest_lock(&cache_lock);
   return plan;
 }
 #endif
