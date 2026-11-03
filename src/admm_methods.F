@@ -418,9 +418,9 @@ CONTAINS
                                      kpoints%nkp_grid, kpoints%kp_dist)
       END IF !pmat_from_rs
 
-      DO ikp = 1, kplocal
+      DO ik = 1, SIZE(kpoints%xkp, 2)
          DO ispin = 1, nspins
-            ik = kp_range(1) + ikp - 1
+            ikp = ik - kp_range(1) + 1
             IF (pmat_from_rs) THEN
                IF (use_real_wfn) THEN
                   CALL rskp_transform_evaluate(transform, ispin, ik, kpoints%xkp, &
@@ -428,9 +428,10 @@ CONTAINS
                ELSE
                   CALL rskp_transform_evaluate(transform, ispin, ik, kpoints%xkp, &
                                                fm_re=work_orb_orb, fm_im=work_orb_orb2)
-                  CALL cp_fm_to_cfm(work_orb_orb, work_orb_orb2, cpmatrix)
+                  IF (ikp >= 1 .AND. ikp <= kplocal) CALL cp_fm_to_cfm(work_orb_orb, work_orb_orb2, cpmatrix)
                END IF
             END IF
+            IF (ikp < 1 .OR. ikp > kplocal) CYCLE
             IF (use_real_wfn) THEN
 
                nmo = admm_env%nmo(ispin)
@@ -2009,17 +2010,18 @@ CONTAINS
                                   kpoints%para_env_inter_kp, kpoints%rskp_transform, kpoints%xkp, &
                                   kpoints%nkp_grid, kpoints%kp_dist)
 
-      DO ikp = 1, kplocal
+      DO ik = 1, SIZE(kpoints%xkp, 2)
          DO ispin = 1, nspins
-            ik = kp_range(1) + ikp - 1
+            ikp = ik - kp_range(1) + 1
             IF (use_real_wfn) THEN
                CALL rskp_transform_evaluate(transform, ispin, ik, kpoints%xkp, &
                                             fm_re=work_aux_aux)
             ELSE
                CALL rskp_transform_evaluate(transform, ispin, ik, kpoints%xkp, &
                                             fm_re=work_aux_aux, fm_im=work_aux_aux2)
-               CALL cp_fm_to_cfm(work_aux_aux, work_aux_aux2, cK)
+               IF (ikp >= 1 .AND. ikp <= kplocal) CALL cp_fm_to_cfm(work_aux_aux, work_aux_aux2, cK)
             END IF
+            IF (ikp < 1 .OR. ikp > kplocal) CYCLE
             kp => kpoints%kp_aux_env(ikp)%kpoint_env
             IF (use_real_wfn) THEN
 
@@ -2720,17 +2722,18 @@ CONTAINS
                                   kpoints%para_env_inter_kp, kpoints%rskp_transform, kpoints%xkp, &
                                   kpoints%nkp_grid, kpoints%kp_dist)
 
-      DO ikp = 1, kplocal
+      DO ik = 1, SIZE(kpoints%xkp, 2)
          DO ispin = 1, nspins
-            ik = kp_range(1) + ikp - 1
+            ikp = ik - kp_range(1) + 1
             IF (use_real_wfn) THEN
                CALL rskp_transform_evaluate(transform, ispin, ik, kpoints%xkp, &
                                             fm_re=work_aux_aux)
             ELSE
                CALL rskp_transform_evaluate(transform, ispin, ik, kpoints%xkp, &
                                             fm_re=work_aux_aux, fm_im=work_aux_aux2)
-               CALL cp_fm_to_cfm(work_aux_aux, work_aux_aux2, ckmatrix)
+               IF (ikp >= 1 .AND. ikp <= kplocal) CALL cp_fm_to_cfm(work_aux_aux, work_aux_aux2, ckmatrix)
             END IF
+            IF (ikp < 1 .OR. ikp > kplocal) CYCLE
             kp => kpoints%kp_aux_env(ikp)%kpoint_env
 
             IF (use_real_wfn) THEN
@@ -3559,7 +3562,7 @@ CONTAINS
                                                             nao_aux_fit, nao_orb, nkp_groups
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
-      LOGICAL                                            :: my_kpgrp, store_overlap, use_real_wfn
+      LOGICAL                                            :: store_overlap, use_real_wfn
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_cfm_type)                                  :: cmat_aux_fit, cmat_aux_fit_vs_orb, &
                                                             cwork_aux_fit
@@ -3636,21 +3639,17 @@ CONTAINS
          DO igroup = 1, nkp_groups
             ik = kp_dist(1, igroup) + ikp - 1
             IF (ik > kp_dist(2, igroup)) CYCLE
-            my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
-
-            IF (my_kpgrp) THEN
-               IF (use_real_wfn) THEN
-                  CALL rskp_transform_evaluate(transform_aux_fit, 1, ik, kpoints%xkp, &
-                                               fm_re=rmat_aux_fit)
-                  CALL rskp_transform_evaluate(transform_aux_fit_vs_orb, 1, ik, kpoints%xkp, &
-                                               fm_re=rmat_aux_fit_vs_orb)
-               ELSE
-                  CALL rskp_transform_evaluate(transform_aux_fit, 1, ik, kpoints%xkp, &
-                                               fm_re=rmat_aux_fit, fm_im=imat_aux_fit)
-                  CALL rskp_transform_evaluate(transform_aux_fit_vs_orb, 1, ik, kpoints%xkp, &
-                                               fm_re=rmat_aux_fit_vs_orb, &
-                                               fm_im=imat_aux_fit_vs_orb)
-               END IF
+            IF (use_real_wfn) THEN
+               CALL rskp_transform_evaluate(transform_aux_fit, 1, ik, kpoints%xkp, &
+                                            fm_re=rmat_aux_fit)
+               CALL rskp_transform_evaluate(transform_aux_fit_vs_orb, 1, ik, kpoints%xkp, &
+                                            fm_re=rmat_aux_fit_vs_orb)
+            ELSE
+               CALL rskp_transform_evaluate(transform_aux_fit, 1, ik, kpoints%xkp, &
+                                            fm_re=rmat_aux_fit, fm_im=imat_aux_fit)
+               CALL rskp_transform_evaluate(transform_aux_fit_vs_orb, 1, ik, kpoints%xkp, &
+                                            fm_re=rmat_aux_fit_vs_orb, &
+                                            fm_im=imat_aux_fit_vs_orb)
             END IF
          END DO
 

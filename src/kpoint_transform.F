@@ -8,19 +8,33 @@
 ! **************************************************************************************************
 !> \brief Prepared real-space/reciprocal-space transforms and distributed AO adapters.
 !>        Routes fix geometry and ownership. Captured source rows own numerical
-!>        values; evaluation reads them without communication or SCF state.
+!>        values; cached evaluation reads them without communication or SCF state.
+!>        GEMM sources exceeding the cache budget use collective single-k evaluation.
 ! **************************************************************************************************
 MODULE kpoint_transform
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                              cp_blacs_env_release,&
+                                              cp_blacs_env_type
    USE cp_cfm_types,                    ONLY: cp_cfm_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_get_info,&
-                                              dbcsr_get_readonly_block_p,&
-                                              dbcsr_p_type,&
-                                              dbcsr_type
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_block_p, dbcsr_get_info, &
+        dbcsr_get_readonly_block_p, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              dbcsr_fm_copy_plan_type
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_equivalent,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_retain,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
+   USE cp_fm_types,                     ONLY: copy_info_type,&
+                                              cp_fm_cleanup_copy_general,&
+                                              cp_fm_create,&
+                                              cp_fm_finish_copy_general,&
+                                              cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_start_copy_general,&
                                               cp_fm_type
    USE input_constants,                 ONLY: rskp_backend_fft,&
                                               rskp_backend_gemm
@@ -60,6 +74,7 @@ MODULE kpoint_transform
    PUBLIC :: rskp_dbcsr_transform_batch
    PUBLIC :: rskp_prepared_transform_type, rskp_transform_prepare
    PUBLIC :: rskp_transform_evaluate, rskp_transform_release
+   PUBLIC :: rskp_transform, rskp_transform_stream_prepare
    PUBLIC :: cell_to_k_sparse_fft, k_grid_to_cell_contract, rskp_phase_factors, rskp_work_matrix
 
    TYPE, PUBLIC :: kp_transform_plan_type
@@ -115,12 +130,125 @@ MODULE kpoint_transform
       TYPE(rskp_values_type), ALLOCATABLE :: values(:)
       INTEGER, ALLOCATABLE :: kp_dist(:, :)
       REAL(KIND=dp), ALLOCATABLE :: work(:)
+      LOGICAL :: streaming = .FALSE.
+      INTEGER, POINTER :: cell_to_index(:, :, :) => NULL()
+      TYPE(dbcsr_type), POINTER :: real_matrix => NULL(), imag_matrix => NULL()
+      TYPE(cp_fm_type) :: global_work(2), local_work(2)
+      TYPE(dbcsr_fm_copy_plan_type), ALLOCATABLE :: copy_plan(:)
    END TYPE rskp_prepared_transform_type
 
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief Transformation of real space matrices to a kpoint
+!> \param rmatrix  Real part of kpoint matrix
+!> \param cmatrix  Complex part of kpoint matrix (optional)
+!> \param rsmat    Real space matrices
+!> \param ispin    Spin index
+!> \param xkp      Kpoint coordinates
+!> \param cell_to_index   mapping of cell indices to RS index
+!> \param sab_nl   Defining neighbor list
+!> \param is_complex  Matrix to be transformed is imaginary
+!> \param rs_sign  Matrix to be transformed is csaled by rs_sign
+! **************************************************************************************************
+   SUBROUTINE rskp_transform(rmatrix, cmatrix, rsmat, ispin, &
+                             xkp, cell_to_index, sab_nl, is_complex, rs_sign)
+
+      TYPE(dbcsr_type)                                   :: rmatrix
+      TYPE(dbcsr_type), OPTIONAL                         :: cmatrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rsmat
+      INTEGER, INTENT(IN)                                :: ispin
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xkp
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+      LOGICAL, INTENT(IN), OPTIONAL                      :: is_complex
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: rs_sign
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rskp_transform'
+
+      INTEGER                                            :: handle, iatom, ic, icol, irow, jatom, &
+                                                            nimg
+      INTEGER, DIMENSION(3)                              :: cell
+      LOGICAL                                            :: do_symmetric, found, my_complex, &
+                                                            wfn_real_only
+      REAL(KIND=dp)                                      :: arg, coskl, fsign, fsym, sinkl
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, rblock, rsblock
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+
+      CALL timeset(routineN, handle)
+
+      my_complex = .FALSE.
+      IF (PRESENT(is_complex)) my_complex = is_complex
+
+      fsign = 1.0_dp
+      IF (PRESENT(rs_sign)) fsign = rs_sign
+
+      wfn_real_only = .TRUE.
+      IF (PRESENT(cmatrix)) wfn_real_only = .FALSE.
+
+      nimg = SIZE(rsmat, 2)
+
+      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl, symmetric=do_symmetric)
+
+      CALL neighbor_list_iterator_create(nl_iterator, sab_nl)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, iatom=iatom, jatom=jatom, cell=cell)
+
+         ! fsym = +- 1 is due to real space matrices being non-symmetric (although in a symmtric type)
+         ! with the link S_mu^0,nu^b = S_nu^0,mu^-b, and the KP matrices beeing Hermitian
+         fsym = 1.0_dp
+         irow = iatom
+         icol = jatom
+         IF (do_symmetric .AND. (iatom > jatom)) THEN
+            irow = jatom
+            icol = iatom
+            fsym = -1.0_dp
+         END IF
+
+         ic = cell_to_index(cell(1), cell(2), cell(3))
+         IF (ic < 1 .OR. ic > nimg) CYCLE
+
+         arg = REAL(cell(1), dp)*xkp(1) + REAL(cell(2), dp)*xkp(2) + REAL(cell(3), dp)*xkp(3)
+         IF (my_complex) THEN
+            coskl = fsign*fsym*COS(twopi*arg)
+            sinkl = fsign*SIN(twopi*arg)
+         ELSE
+            coskl = fsign*COS(twopi*arg)
+            sinkl = fsign*fsym*SIN(twopi*arg)
+         END IF
+
+         CALL dbcsr_get_block_p(matrix=rsmat(ispin, ic)%matrix, row=irow, col=icol, &
+                                block=rsblock, found=found)
+         IF (.NOT. found) CYCLE
+
+         IF (wfn_real_only) THEN
+            CALL dbcsr_get_block_p(matrix=rmatrix, row=irow, col=icol, &
+                                   block=rblock, found=found)
+            IF (.NOT. found) CYCLE
+            rblock = rblock + coskl*rsblock
+         ELSE
+            CALL dbcsr_get_block_p(matrix=rmatrix, row=irow, col=icol, &
+                                   block=rblock, found=found)
+            IF (.NOT. found) CYCLE
+            CALL dbcsr_get_block_p(matrix=cmatrix, row=irow, col=icol, &
+                                   block=cblock, found=found)
+            IF (.NOT. found) CYCLE
+            rblock = rblock + coskl*rsblock
+            cblock = cblock + sinkl*rsblock
+         END IF
+
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE rskp_transform
+
+! **************************************************************************************************
 !> \brief Prepare source rows for a generic group- or world-distributed target.
+!>        GEMM budget failures retain the distributed source for single-k evaluation.
 !>        Own route, snapshots, singleton scratch and any FFT cache without SCF slots.
 !> \param prepared transform handle to initialize
 !> \param source real-space source rows and images
@@ -162,7 +290,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: max_backend_bytes, phase_bytes, &
                                                             retained_bytes, workspace_bytes
       INTEGER, ALLOCATABLE                               :: eval_kp_dist(:, :)
-      LOGICAL                                            :: ready
+      LOGICAL                                            :: over_budget, ready
       REAL(KIND=dp), ALLOCATABLE                         :: phase_xkp(:, :)
       TYPE(mp_para_env_type), POINTER                    :: eval_group, eval_inter
 
@@ -199,8 +327,15 @@ CONTAINS
       ALLOCATE (prepared%kp_dist, source=eval_kp_dist)
       ALLOCATE (prepared%values(SIZE(source_rows)))
       CALL rskp_route_create(source, source_sab, cell_to_index, target_struct, world, eval_group, eval_inter, backend, &
-                             rskp_route_bytes, prepared%route, ready)
+                             rskp_route_bytes, prepared%route, ready, over_budget)
       IF (.NOT. ready) THEN
+         IF (over_budget .AND. backend == rskp_backend_gemm) THEN
+            CALL rskp_transform_stream_prepare(prepared, source, source_rows, source_sab, cell_to_index, &
+                                               target_struct, world, eval_group, eval_inter, eval_kp_dist, &
+                                               mirror_sign, scale)
+            CALL timestop(handle)
+            RETURN
+         END IF
          CPABORT("R-to-K route is unsupported, incompatible with the target, or over budget")
       END IF
 
@@ -215,15 +350,26 @@ CONTAINS
          CALL cell_to_k_backend_prepare(prepared%route, phase_xkp, nkp_grid, phase_bytes)
       END IF
       retained_bytes = prepared%route%storage
+      retained_bytes = retained_bytes + 8_int_8*SIZE(source_rows, KIND=int_8)* &
+                       (prepared%route%transform%packed_first(SIZE(prepared%route%transform%packed_first)) - 1)
+      IF (backend == rskp_backend_gemm) THEN
+         retained_bytes = retained_bytes + INT(STORAGE_SIZE(.FALSE.)/8, int_8)*4_int_8* &
+                          SIZE(source_rows, KIND=int_8)*SIZE(prepared%route%transform%phase_count, 2)
+      END IF
+      CALL world%max(retained_bytes)
+      IF (retained_bytes > rskp_route_bytes) THEN
+         IF (backend /= rskp_backend_gemm) THEN
+            CPABORT("Prepared FFT source exceeds the memory budget")
+         END IF
+         CALL rskp_transform_stream_prepare(prepared, source, source_rows, source_sab, cell_to_index, &
+                                            target_struct, world, eval_group, eval_inter, eval_kp_dist, &
+                                            mirror_sign, scale)
+         CALL timestop(handle)
+         RETURN
+      END IF
       DO irow = 1, SIZE(source_rows)
          CALL rskp_capture(source, source_rows(irow), prepared%route, prepared%values(irow), mirror_sign, scale)
-         retained_bytes = retained_bytes + 8_int_8*SIZE(prepared%values(irow)%packed, KIND=int_8)
-         IF (ALLOCATED(prepared%values(irow)%active)) THEN
-            retained_bytes = retained_bytes + INT(STORAGE_SIZE(.FALSE.)/8, int_8)* &
-                             SIZE(prepared%values(irow)%active, KIND=int_8)
-         END IF
       END DO
-      IF (retained_bytes > rskp_route_bytes) CPABORT("Prepared R-to-K source exceeds the memory budget")
       IF (backend == rskp_backend_fft) THEN
          nk_local = SIZE(xkp, 2)
          IF (.NOT. prepared%route%world_target) THEN
@@ -233,7 +379,9 @@ CONTAINS
          retained_bytes = retained_bytes + 16_int_8*SIZE(source_rows, KIND=int_8)*nk_local* &
                           target_struct%local_leading_dimension*MAX(1, prepared%route%ncol)
          workspace_bytes = max_backend_bytes - retained_bytes
-         IF (workspace_bytes <= 0_int_8) CPABORT("Prepared lattice FFT exceeds the memory budget")
+         IF (workspace_bytes <= 0_int_8) THEN
+            CPABORT("Prepared lattice FFT exceeds the memory budget")
+         END IF
          DO irow = 1, SIZE(source_rows)
             ALLOCATE (prepared%values(irow)%fft_values(target_struct%local_leading_dimension, &
                                                        MAX(1, prepared%route%ncol), nk_local))
@@ -250,8 +398,113 @@ CONTAINS
    END SUBROUTINE rskp_transform_prepare
 
 ! **************************************************************************************************
+!> \brief Keep distributed source images for collective, single-k evaluation without snapshots.
+!> \param prepared transform handle
+!> \param source borrowed real-space images, unchanged until refresh or release
+!> \param source_rows source rows sharing this geometry
+!> \param source_sab source neighbor lists
+!> \param cell_to_index source translation map
+!> \param target_struct destination FM layout
+!> \param world source communicator
+!> \param group destination group communicator
+!> \param inter communicator joining equivalent group ranks
+!> \param kp_dist global k ranges by group
+!> \param mirror_sign transpose parity
+!> \param scale complex output prefactor
+! **************************************************************************************************
+   SUBROUTINE rskp_transform_stream_prepare(prepared, source, source_rows, source_sab, cell_to_index, &
+                                            target_struct, world, group, inter, kp_dist, mirror_sign, scale)
+      TYPE(rskp_prepared_transform_type), INTENT(INOUT)  :: prepared
+      TYPE(dbcsr_p_type), POINTER                        :: source(:, :)
+      INTEGER, INTENT(IN)                                :: source_rows(:)
+      TYPE(neighbor_list_set_p_type), POINTER            :: source_sab(:)
+      INTEGER, POINTER                                   :: cell_to_index(:, :, :)
+      TYPE(cp_fm_struct_type), POINTER                   :: target_struct
+      TYPE(mp_para_env_type), POINTER                    :: world, group, inter
+      INTEGER, INTENT(IN)                                :: kp_dist(:, :)
+      INTEGER, INTENT(IN), OPTIONAL                      :: mirror_sign
+      COMPLEX(KIND=dp), INTENT(IN), OPTIONAL             :: scale
+
+      CHARACTER                                          :: imag_type, real_type
+      INTEGER                                            :: compatible, i, image, parity
+      INTEGER, POINTER                                   :: cols(:), rows(:), template_cols(:), &
+                                                            template_rows(:)
+      LOGICAL                                            :: symmetric
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs
+      TYPE(cp_fm_struct_type), POINTER                   :: global_struct
+
+      CALL rskp_transform_release(prepared)
+      parity = 1
+      IF (PRESENT(mirror_sign)) parity = mirror_sign
+      CPASSERT(ABS(parity) == 1)
+      CALL get_neighbor_list_set_p(neighbor_list_sets=source_sab, symmetric=symmetric)
+      CPASSERT(SIZE(source_rows) > 0 .AND. SIZE(source, 2) > 0)
+      CALL dbcsr_get_info(source(1, 1)%matrix, row_blk_size=template_rows, col_blk_size=template_cols)
+      compatible = MERGE(1, 0, SUM(template_rows) == target_struct%nrow_global .AND. &
+                         SUM(template_cols) == target_struct%ncol_global)
+      DO i = 1, SIZE(source_rows)
+         CPASSERT(source_rows(i) >= 1 .AND. source_rows(i) <= SIZE(source, 1))
+         DO image = 1, SIZE(source, 2)
+            CALL dbcsr_get_info(source(source_rows(i), image)%matrix, row_blk_size=rows, col_blk_size=cols)
+            IF (SIZE(rows) /= SIZE(template_rows) .OR. SIZE(cols) /= SIZE(template_cols)) THEN
+               compatible = 0
+            ELSE IF (ANY(rows /= template_rows) .OR. ANY(cols /= template_cols)) THEN
+               compatible = 0
+            END IF
+         END DO
+      END DO
+      CALL world%min(compatible)
+      IF (compatible == 0) THEN
+         CPABORT("Single-k R-to-K source has an incompatible layout")
+      END IF
+      real_type = dbcsr_type_no_symmetry
+      imag_type = dbcsr_type_no_symmetry
+      IF (symmetric) THEN
+         real_type = MERGE(dbcsr_type_symmetric, dbcsr_type_antisymmetric, parity == 1)
+         imag_type = MERGE(dbcsr_type_antisymmetric, dbcsr_type_symmetric, parity == 1)
+      END IF
+      prepared%route%world => world
+      prepared%route%group => group
+      prepared%route%inter => inter
+      prepared%route%source_sab => source_sab
+      prepared%route%matrix_struct => target_struct
+      CALL cp_fm_struct_retain(prepared%route%matrix_struct)
+      prepared%route%world_target = ASSOCIATED(target_struct%para_env, world)
+      prepared%cell_to_index => cell_to_index
+      ALLOCATE (prepared%kp_dist, source=kp_dist)
+      ALLOCATE (prepared%values(SIZE(source_rows)))
+      DO i = 1, SIZE(source_rows)
+         CPASSERT(source_rows(i) >= 1 .AND. source_rows(i) <= SIZE(source, 1))
+         prepared%values(i)%source => source
+         prepared%values(i)%matrix_row = source_rows(i)
+         prepared%values(i)%mirror_sign = parity
+         IF (PRESENT(scale)) prepared%values(i)%scale = scale
+      END DO
+      ALLOCATE (prepared%real_matrix, prepared%imag_matrix)
+      ALLOCATE (prepared%copy_plan(2))
+      CALL dbcsr_create(prepared%real_matrix, template=source(source_rows(1), 1)%matrix, matrix_type=real_type)
+      CALL dbcsr_create(prepared%imag_matrix, template=source(source_rows(1), 1)%matrix, matrix_type=imag_type)
+      CALL cp_dbcsr_alloc_block_from_nbl(prepared%real_matrix, source_sab)
+      CALL cp_dbcsr_alloc_block_from_nbl(prepared%imag_matrix, source_sab)
+      CALL cp_blacs_env_create(blacs, world)
+      CALL cp_fm_struct_create(global_struct, para_env=world, context=blacs, &
+                               nrow_global=target_struct%nrow_global, ncol_global=target_struct%ncol_global)
+      DO i = 1, 2
+         CALL cp_fm_create(prepared%global_work(i), global_struct)
+         CALL cp_fm_create(prepared%local_work(i), target_struct)
+      END DO
+      CALL cp_fm_struct_release(global_struct)
+      CALL cp_blacs_env_release(blacs)
+      prepared%streaming = .TRUE.
+      CPHINT("RSKP GEMM cache exceeds the budget; using collective single-k transforms")
+   END SUBROUTINE rskp_transform_stream_prepare
+
+! **************************************************************************************************
 !> \brief Evaluate one k point directly into an FM, split-FM or CFM target.
 !>        The handle owns mutable scratch; concurrent evaluations need separate handles.
+!>        All world ranks call in the same global-k/source order, including inactive
+!>        groups. Cached evaluation returns immediately on inactive groups; streaming
+!>        evaluation transforms collectively and delivers only to the owning group.
 !> \param prepared initialized transform handle
 !> \param source_index one-based source row index supplied at preparation
 !> \param k global k-point index
@@ -259,31 +512,98 @@ CONTAINS
 !> \param fm_re real output matrix for split-FM storage
 !> \param fm_im optional imaginary output matrix for split-FM storage
 !> \param cfm optional complex full-matrix output
+!> \param round use k as a collective local round across all groups (streaming service only)
 ! **************************************************************************************************
-   SUBROUTINE rskp_transform_evaluate(prepared, source_index, k, xkp, fm_re, fm_im, cfm)
+   SUBROUTINE rskp_transform_evaluate(prepared, source_index, k, xkp, fm_re, fm_im, cfm, round)
       TYPE(rskp_prepared_transform_type), INTENT(INOUT)  :: prepared
       INTEGER, INTENT(IN)                                :: source_index, k
       REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
       TYPE(cp_fm_type), INTENT(INOUT), OPTIONAL, TARGET  :: fm_re, fm_im
       TYPE(cp_cfm_type), INTENT(INOUT), OPTIONAL, TARGET :: cfm
+      LOGICAL, INTENT(IN), OPTIONAL                      :: round
 
+      COMPLEX(KIND=dp)                                   :: scale
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: batch(:, :, :)
-      INTEGER                                            :: first_local, ncomp
+      INTEGER                                            :: first_local, g, ic, ik, last_group, ncomp
+      LOGICAL                                            :: owns_k, target_layout_matches, use_round
+      TYPE(copy_info_type)                               :: info(2)
       TYPE(cp_fm_p_type)                                 :: output(1, 2)
+      TYPE(cp_fm_type)                                   :: dummy
 
-      CPASSERT(ALLOCATED(prepared%values) .AND. ALLOCATED(prepared%work))
+      CPASSERT(ALLOCATED(prepared%values))
       CPASSERT(source_index >= 1 .AND. source_index <= SIZE(prepared%values))
+      CPASSERT(PRESENT(fm_re) .NEQV. PRESENT(cfm))
+      CPASSERT(.NOT. PRESENT(fm_im) .OR. PRESENT(fm_re))
+      use_round = .FALSE.
+      IF (PRESENT(round)) use_round = round
+      IF (prepared%streaming) THEN
+         last_group = 1
+         IF (use_round) THEN
+            CPASSERT(.NOT. prepared%route%world_target .OR. SIZE(prepared%kp_dist, 2) == 1)
+            last_group = SIZE(prepared%kp_dist, 2)
+         END IF
+         DO g = 1, last_group
+            ik = k
+            IF (use_round) THEN
+               ik = prepared%kp_dist(1, g) + k - 1
+               IF (ik > prepared%kp_dist(2, g)) CYCLE
+            END IF
+            CPASSERT(ik >= 1 .AND. ik <= SIZE(xkp, 2))
+            owns_k = prepared%route%world_target
+            IF (.NOT. owns_k) owns_k = ik >= prepared%kp_dist(1, prepared%route%inter%mepos + 1) .AND. &
+                                       ik <= prepared%kp_dist(2, prepared%route%inter%mepos + 1)
+            CALL dbcsr_set(prepared%real_matrix, 0.0_dp)
+            CALL dbcsr_set(prepared%imag_matrix, 0.0_dp)
+            CALL rskp_transform(prepared%real_matrix, prepared%imag_matrix, &
+                                prepared%values(source_index)%source, prepared%values(source_index)%matrix_row, &
+                                xkp(:, ik), prepared%cell_to_index, prepared%route%source_sab)
+            CALL copy_dbcsr_to_fm(prepared%real_matrix, prepared%global_work(1), prepared%copy_plan(1))
+            CALL copy_dbcsr_to_fm(prepared%imag_matrix, prepared%global_work(2), prepared%copy_plan(2))
+            DO ic = 1, 2
+               IF (owns_k) THEN
+                  CALL cp_fm_start_copy_general(prepared%global_work(ic), prepared%local_work(ic), &
+                                                prepared%route%world, info(ic))
+               ELSE
+                  CALL cp_fm_start_copy_general(prepared%global_work(ic), dummy, prepared%route%world, info(ic))
+               END IF
+            END DO
+            DO ic = 1, 2
+               IF (owns_k) CALL cp_fm_finish_copy_general(prepared%local_work(ic), info(ic))
+               CALL cp_fm_cleanup_copy_general(info(ic))
+            END DO
+            IF (.NOT. owns_k) CYCLE
+            scale = prepared%values(source_index)%scale
+            IF (PRESENT(cfm)) THEN
+               target_layout_matches = cp_fm_struct_equivalent(cfm%matrix_struct, prepared%route%matrix_struct)
+               CPASSERT(target_layout_matches)
+               cfm%local_data(:, :) = scale*CMPLX(prepared%local_work(1)%local_data, &
+                                                  prepared%local_work(2)%local_data, dp)
+            ELSE
+               target_layout_matches = cp_fm_struct_equivalent(fm_re%matrix_struct, prepared%route%matrix_struct)
+               CPASSERT(target_layout_matches)
+               fm_re%local_data(:, :) = REAL(scale, dp)*prepared%local_work(1)%local_data - &
+                                        AIMAG(scale)*prepared%local_work(2)%local_data
+               IF (PRESENT(fm_im)) THEN
+                  target_layout_matches = cp_fm_struct_equivalent(fm_im%matrix_struct, prepared%route%matrix_struct)
+                  CPASSERT(target_layout_matches)
+                  fm_im%local_data(:, :) = AIMAG(scale)*prepared%local_work(1)%local_data + &
+                                           REAL(scale, dp)*prepared%local_work(2)%local_data
+               END IF
+            END IF
+         END DO
+         RETURN
+      END IF
+      CPASSERT(.NOT. use_round .AND. ALLOCATED(prepared%work))
       CPASSERT(k >= 1 .AND. k <= SIZE(xkp, 2))
       first_local = k
       IF (.NOT. prepared%route%world_target) THEN
-         CPASSERT(k >= prepared%kp_dist(1, prepared%route%inter%mepos + 1))
-         CPASSERT(k <= prepared%kp_dist(2, prepared%route%inter%mepos + 1))
+         IF (k < prepared%kp_dist(1, prepared%route%inter%mepos + 1) .OR. &
+             k > prepared%kp_dist(2, prepared%route%inter%mepos + 1)) RETURN
          first_local = k - prepared%kp_dist(1, prepared%route%inter%mepos + 1) + 1
       END IF
-      CPASSERT(PRESENT(fm_re) .NEQV. PRESENT(cfm))
-      CPASSERT(.NOT. PRESENT(fm_im) .OR. PRESENT(fm_re))
       IF (PRESENT(cfm)) THEN
-         CPASSERT(cp_fm_struct_equivalent(cfm%matrix_struct, prepared%route%matrix_struct))
+         target_layout_matches = cp_fm_struct_equivalent(cfm%matrix_struct, prepared%route%matrix_struct)
+         CPASSERT(target_layout_matches)
          batch(1:SIZE(cfm%local_data, 1), 1:SIZE(cfm%local_data, 2), 1:1) => cfm%local_data
          CALL cell_to_k_backend_evaluate_batch(prepared%values(source_index), prepared%route, &
                                                xkp(:, k:k), first_local, prepared%work, batch=batch)
@@ -307,6 +627,18 @@ CONTAINS
       TYPE(rskp_prepared_transform_type), INTENT(INOUT)  :: prepared
 
       INTEGER                                            :: irow
+
+      IF (prepared%streaming) THEN
+         DEALLOCATE (prepared%copy_plan)
+         CALL dbcsr_deallocate_matrix(prepared%real_matrix)
+         CALL dbcsr_deallocate_matrix(prepared%imag_matrix)
+         DO irow = 1, 2
+            CALL cp_fm_release(prepared%global_work(irow))
+            CALL cp_fm_release(prepared%local_work(irow))
+         END DO
+         prepared%streaming = .FALSE.
+      END IF
+      NULLIFY (prepared%cell_to_index)
 
       IF (ALLOCATED(prepared%values)) THEN
          DO irow = 1, SIZE(prepared%values)
@@ -417,11 +749,14 @@ CONTAINS
       END DO
       group_first(ngroup + 1) = nentry + 1
       panel_bytes = 8_int_8*max_nelem*max_images
-      IF (panel_bytes >= dbcsr_batch_bytes) THEN
-         CPABORT("R-to-K DBCSR input panel exceeds the memory budget")
-      END IF
+      tile_width = 0
       available_bytes = dbcsr_batch_bytes - panel_bytes
-      IF (backend == rskp_backend_gemm) THEN
+      IF (panel_bytes >= dbcsr_batch_bytes) THEN
+         IF (backend /= rskp_backend_gemm) THEN
+            CPABORT("R-to-K DBCSR FFT input exceeds the memory budget")
+         END IF
+         tile_width = 0
+      ELSE IF (backend == rskp_backend_gemm) THEN
          CALL cell_to_k_phase_prepare(transform, signed_cells, group_first(1:ngroup + 1), order, &
                                       element_first(1:ngroup + 1), xkp, available_bytes, 0_int_8)
          IF (ALLOCATED(transform%phases)) THEN
@@ -429,16 +764,27 @@ CONTAINS
          END IF
          per_k_bytes = 16_int_8*transform%max_per_k
          tile_width = INT(MIN(INT(nk, int_8), available_bytes/MAX(1_int_8, per_k_bytes)))
-         IF (tile_width < 1) CPABORT("R-to-K DBCSR GEMM workspace exceeds the memory budget")
-         ALLOCATE (work(per_k_bytes/8*tile_width))
+         IF (tile_width > 0) ALLOCATE (work(per_k_bytes/8*tile_width))
       ELSE
          available_bytes = available_bytes - fft_batch_bytes
-         IF (available_bytes <= 0_int_8) CPABORT("R-to-K DBCSR FFT workspace exceeds the memory budget")
+         IF (available_bytes <= 0_int_8) THEN
+            CPABORT("R-to-K DBCSR FFT workspace exceeds the memory budget")
+         END IF
          fft_tile_budget = MIN(fft_batch_bytes, available_bytes)
          CALL cell_to_k_grid_prepare(fft_work, signed_cells, xkp, nkp_grid)
          IF (.NOT. fft_work%regular) THEN
             CPABORT("Forced lattice FFT needs a supported complete regular grid")
          END IF
+      END IF
+      IF (backend == rskp_backend_gemm .AND. tile_width < 1) THEN
+         DO ik = 1, nk
+            DO ispin = 1, nspin
+               CALL rskp_transform(real_k(ispin, ik)%matrix, imag_k(ispin, ik)%matrix, &
+                                   source, ispin, xkp(:, ik), cell_to_index, sab_nl)
+            END DO
+         END DO
+         CALL timestop(handle)
+         RETURN
       END IF
       ALLOCATE (packed(panel_bytes/8))
 
@@ -734,9 +1080,10 @@ CONTAINS
 !> \param max_bytes per-rank budget for routing and capture buffers
 !> \param route context-owned structural route
 !> \param ready false collectively if unsupported or over budget
+!> \param over_budget distinguishes a cache-budget failure from an incompatible layout
 ! **************************************************************************************************
    SUBROUTINE rskp_route_create(source, source_sab, cell_to_index, matrix_struct, world, group, inter, &
-                                backend, max_bytes, route, ready)
+                                backend, max_bytes, route, ready, over_budget)
 
       TYPE(dbcsr_p_type), POINTER                        :: source(:, :)
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -748,6 +1095,7 @@ CONTAINS
       INTEGER(KIND=int_8), INTENT(IN)                    :: max_bytes
       TYPE(rskp_route_type), INTENT(OUT)                 :: route
       LOGICAL, INTENT(OUT)                               :: ready
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: over_budget
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rskp_route_create'
 
@@ -765,6 +1113,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       ready = .FALSE.
+      IF (PRESENT(over_budget)) over_budget = .FALSE.
       route%world => world
       route%group => group
       route%inter => inter
@@ -800,7 +1149,7 @@ CONTAINS
       CALL world%min(compatible)
       IF (compatible == 0) THEN
          IF (world%mepos == 0) CALL cp_warn(__LOCATION__, &
-                                             "Prepared R-to-K transform has an incompatible source or target layout")
+                                            "Prepared R-to-K transform has an incompatible source or target layout")
          CALL timestop(handle)
          RETURN
       END IF
@@ -860,10 +1209,11 @@ CONTAINS
       storage = storage + 128_int_8*nr(1) + 8_int_8
       ! Borrowed values do not consume the snapshot budget; still bound integer route offsets.
       IF (MAXVAL(ns) >= INT(HUGE(0), int_8) .OR. MAXVAL(nr) >= INT(HUGE(0), int_8)) THEN
-         storage = MAX(storage, max_bytes + 1_int_8)
+         CALL cp_abort(__LOCATION__, "R-to-K route counts exceed the integer range")
       END IF
       CALL world%max(storage)
       IF (storage > max_bytes) THEN
+         IF (PRESENT(over_budget)) over_budget = .TRUE.
          CALL timestop(handle)
          RETURN
       END IF
@@ -1033,10 +1383,12 @@ CONTAINS
                   mirror = rows(col) > rows(col - 1) .AND. cols(row) > cols(row - 1)
                END IF
                IF (.NOT. (direct .OR. mirror)) CYCLE
-               IF (direct) route%element_offset(1, element) = INT(rows(row), int_8) + &
-                                                              INT(cols(col) - 1, int_8)*route%matrix_struct%local_leading_dimension
-               IF (mirror) route%element_offset(2, element) = INT(rows(col), int_8) + &
-                                                              INT(cols(row) - 1, int_8)*route%matrix_struct%local_leading_dimension
+               IF (direct) route%element_offset(1, element) = &
+                  INT(rows(row), int_8) + &
+                  INT(cols(col) - 1, int_8)*route%matrix_struct%local_leading_dimension
+               IF (mirror) route%element_offset(2, element) = &
+                  INT(rows(col), int_8) + &
+                  INT(cols(row) - 1, int_8)*route%matrix_struct%local_leading_dimension
                element = element + 1
             END DO
          END DO
@@ -1691,7 +2043,9 @@ CONTAINS
 
       CPASSERT(nworkers > 0 .AND. nk > 0 .AND. nmatrices >= 0)
       available_bytes = max_bytes
-      IF (ALLOCATED(route%transform%phases)) available_bytes = available_bytes - 8_int_8*SIZE(route%transform%phases, KIND=int_8)
+      IF (ALLOCATED(route%transform%phases)) THEN
+         available_bytes = available_bytes - 8_int_8*SIZE(route%transform%phases, KIND=int_8)
+      END IF
       output_bytes = 16_int_8*nmatrices*route%matrix_struct%local_leading_dimension*MAX(1, route%ncol)
       nc = 2
       IF (nmatrices == 0) nc = ncomp

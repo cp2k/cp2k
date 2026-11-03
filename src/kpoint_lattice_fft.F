@@ -214,7 +214,8 @@ CONTAINS
 !> \param max_workspace_bytes optional FFT workspace bound
 ! **************************************************************************************************
    SUBROUTINE cell_to_k_grid_fft(values_rs, index_to_cell, xkp, nkp_grid, values_k, &
-                              used_fft, deriv_direction, hmat, selected_kpoints, require_fft, work, cell_first, max_workspace_bytes)
+                                 used_fft, deriv_direction, hmat, selected_kpoints, require_fft, work, cell_first, &
+                                 max_workspace_bytes)
 
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: values_rs
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell
@@ -275,7 +276,9 @@ CONTAINS
          CALL cell_to_k_grid_prepare(plan, index_to_cell, xkp, nkp_grid, deriv_direction, hmat)
       END IF
       IF (.NOT. plan%regular .AND. PRESENT(require_fft)) THEN
-         IF (require_fft) CPABORT("Forced lattice FFT needs a supported complete regular grid")
+         IF (require_fft) THEN
+            CPABORT("Forced lattice FFT needs a supported complete regular grid")
+         END IF
       END IF
       success = .FALSE.
       IF (plan%regular) THEN
@@ -334,7 +337,9 @@ CONTAINS
       END IF
       IF (.NOT. success) THEN
          IF (PRESENT(require_fft)) THEN
-            IF (require_fft) CPABORT("Forced lattice FFT execution failed")
+            IF (require_fft) THEN
+               CPABORT("Forced lattice FFT execution failed")
+            END IF
          END IF
          CALL direct_cell_to_k(values_rs, index_to_cell, xkp, values_k, deriv_direction, hmat, selected_kpoints)
       END IF
@@ -559,7 +564,8 @@ CONTAINS
                DO icell = 1, SIZE(values_rs, 3)
                   ! The 1D passes are unnormalized; supplied k weights are already final.
                   values_rs(first:first + nbatch - 1, j, icell) = work%cell_phase(icell)* &
-                                          output(:, work%cell_index(1, icell), work%cell_index(2, icell), work%cell_index(3, icell))
+                                                                  output(:, work%cell_index(1, icell), work%cell_index(2, icell), &
+                                                                         work%cell_index(3, icell))
                END DO
             END DO
             IF (stat /= 0) EXIT
@@ -568,7 +574,9 @@ CONTAINS
       IF (stat /= 0) work%regular = .FALSE.
       IF (.NOT. work%regular) THEN
          IF (PRESENT(require_fft)) THEN
-            IF (require_fft) CPABORT("Forced inverse lattice FFT execution failed")
+            IF (require_fft) THEN
+               CPABORT("Forced inverse lattice FFT execution failed")
+            END IF
          END IF
          IF (PRESENT(allow_direct_fallback)) THEN
             IF (.NOT. allow_direct_fallback) THEN

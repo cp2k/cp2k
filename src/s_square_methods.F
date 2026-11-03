@@ -209,13 +209,14 @@ CONTAINS
                                   kpoints%nkp_grid, kp_dist)
 
       s2 = 0.0_dp
-      DO ikp = 1, kplocal
-         ik = kp_range(1) + ikp - 1
+      DO ik = 1, SIZE(kpoints%xkp, 2)
+         ikp = ik - kp_range(1) + 1
          IF (wfn_real) THEN
             CALL rskp_transform_evaluate(transform, 1, ik, kpoints%xkp, fm_re=rsmat)
          ELSE
             CALL rskp_transform_evaluate(transform, 1, ik, kpoints%xkp, cfm=csmat)
          END IF
+         IF (ikp < 1 .OR. ikp > kplocal) CYCLE
 
          kp => kpoints%kp_env(ikp)%kpoint_env
          CALL get_kpoint_env(kp, wkp=wkp, mos=mos)

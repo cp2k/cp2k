@@ -725,7 +725,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       LOGICAL :: adiis_cdiis, cache_smat, cdiis_step, do_diis, my_added_mos_auto_grow, &
-                 reuse_smat, use_adiis, use_local_kpoints, use_real_wfn
+                 reuse_smat, use_adiis, use_local_kpoints, use_real_wfn, prepared_h, prepared_s
       REAL(KIND=dp)                                      :: diis_weight
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(cp_cfm_type), POINTER :: cksmat, cmos, csmat, cwork
@@ -846,10 +846,12 @@ CONTAINS
       END IF
 
       ! Prepare H/S before starting any round. ADIIS can replace only the idle KS slot.
-      CALL kpoint_operator_prepare(op_ctx, effective_ks, kpoint_slot_ks)
+      CALL kpoint_operator_prepare(op_ctx, effective_ks, kpoint_slot_ks, prepared=prepared_h)
+      prepared_s = .TRUE.
       IF (.NOT. reuse_smat) THEN
-         CALL kpoint_operator_prepare(op_ctx, matrix_s, kpoint_slot_s, matrix_row=kpoint_spin_free)
+         CALL kpoint_operator_prepare(op_ctx, matrix_s, kpoint_slot_s, prepared=prepared_s, matrix_row=kpoint_spin_free)
       END IF
+      use_local_kpoints = use_local_kpoints .AND. prepared_h .AND. prepared_s
 
       nworkers = 1
       IF (use_local_kpoints) nworkers = MIN(omp_threads, kplocal)
@@ -1423,9 +1425,10 @@ CONTAINS
 !> \param fmwork returned global scratch fms
 !> \param op_ctx returned operator context
 !> \param matrix_struct returned AO layout of the k-point group
+!> \param prepared true when both operators support independent group-local evaluation
 ! **************************************************************************************************
    SUBROUTINE kp_diag_setup(qs_env, kpoints, nspin, matrix_ks_kp, matrix_s_kp, fmwork, op_ctx, &
-                            matrix_struct)
+                            matrix_struct, prepared)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, INTENT(IN)                                :: nspin
@@ -1433,8 +1436,10 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
       TYPE(kpoint_operator_context_type)                 :: op_ctx
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: prepared
 
       INTEGER                                            :: i
+      LOGICAL                                            :: prepared_h, prepared_s
       TYPE(cp_fm_pool_type), POINTER                     :: ao_ao_fm_pool, kp_ao_ao_fm_pool
       TYPE(qs_matrix_pools_type), POINTER                :: kp_mpools, mpools
 
@@ -1445,8 +1450,9 @@ CONTAINS
          CALL fm_pool_create_fm(ao_ao_fm_pool, fmwork(i))
       END DO
       CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1), nspin)
-      CALL kpoint_operator_prepare(op_ctx, matrix_ks_kp, kpoint_slot_ks)
-      CALL kpoint_operator_prepare(op_ctx, matrix_s_kp, kpoint_slot_s, matrix_row=kpoint_spin_free)
+      CALL kpoint_operator_prepare(op_ctx, matrix_ks_kp, kpoint_slot_ks, prepared=prepared_h)
+      CALL kpoint_operator_prepare(op_ctx, matrix_s_kp, kpoint_slot_s, prepared=prepared_s, matrix_row=kpoint_spin_free)
+      IF (PRESENT(prepared)) prepared = prepared_h .AND. prepared_s
       CALL get_kpoint_info(kpoints, mpools=kp_mpools)
       CALL mpools_get(kp_mpools, ao_ao_fm_pool=kp_ao_ao_fm_pool)
       matrix_struct => fm_pool_get_el_struct(kp_ao_ao_fm_pool)
@@ -3113,7 +3119,7 @@ CONTAINS
                                                             output_unit
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
-      LOGICAL                                            :: my_check_moconv_only, my_grow, &
+      LOGICAL                                            :: my_check_moconv_only, my_grow, prepared, &
                                                             use_local_kpoints, use_real_wfn
       REAL(KIND=dp)                                      :: eps_iter, eps_iter_empty
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, mo_struct
@@ -3180,7 +3186,8 @@ CONTAINS
       IF (my_check_moconv_only) use_local_kpoints = .FALSE.
       IF (diag_lib_explicit) use_local_kpoints = .FALSE.
       CALL kp_diag_setup(qs_env, kpoints, nspin, matrix_ks_kp, matrix_s_kp, fmwork, op_ctx, &
-                         matrix_struct)
+                         matrix_struct, prepared=prepared)
+      use_local_kpoints = use_local_kpoints .AND. prepared
 
       kp => kpoints%kp_env(1)%kpoint_env
       mo_struct => kp%mos(1)%cmo_coeff%matrix_struct
