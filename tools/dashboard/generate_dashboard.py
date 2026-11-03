@@ -17,6 +17,7 @@ import dataclasses
 import gzip
 import hashlib
 import html
+import tomllib
 import itertools
 import os
 import pickle
@@ -705,9 +706,9 @@ def parse_report(report_txt: Optional[str], log: GitLog) -> Report:
         summary = re.findall(r"^Summary: (.+)$", report_txt, re.MULTILINE)[-1]
         status = re.findall(r"^Status: (.+)$", report_txt, re.MULTILINE)[-1]
         plot_matches = re.findall(r"^Plot: (.+)$", report_txt, re.MULTILINE)
-        plots = [cast(Plot, eval(f"Plot({m})")) for m in plot_matches]
+        plots = [parse_plot(m) for m in plot_matches]
         point_matches = re.findall(r"^PlotPoint: (.+)$", report_txt, re.MULTILINE)
-        points = [cast(PlotPoint, eval(f"PlotPoint({m})")) for m in point_matches]
+        points = [parse_plot_point(m) for m in point_matches]
 
         # Check that every plot has at least one PlotPoint
         if status == "OK":
@@ -723,6 +724,20 @@ def parse_report(report_txt: Optional[str], log: GitLog) -> Report:
     except Exception:
         traceback.print_exc()
         return Report("UNKNOWN", "Error while parsing report.")
+
+
+# ======================================================================================
+def parse_plot(text: str) -> Plot:
+    assert len(text) < 500
+    kwargs = tomllib.loads("plot = {" + text + "}")["plot"]
+    return Plot(**kwargs)
+
+
+# ======================================================================================
+def parse_plot_point(text: str) -> PlotPoint:
+    assert len(text) < 500
+    kwargs = tomllib.loads("point = {" + text + "}")["point"]
+    return PlotPoint(**kwargs)
 
 
 # ======================================================================================
