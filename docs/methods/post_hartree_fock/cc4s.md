@@ -35,8 +35,9 @@ HOMO–LUMO gap. For an isolated molecule, add the following inside `FORCE_EVAL/
 Use exactly one `HF` section. Supply an orbital basis and a suitable Gaussian fitting basis through
 `BASIS_SET RI_HFX` for each atomic kind. The `RI` settings above configure RI-HFX; the
 `WF_CORRELATION` integral settings do not configure this exporter. For a periodic Γ-point cell, use
-the interaction potential and RI metric shown [below](#boundary-conditions-and-interactions). ADMM
-and smearing are unsupported. `ENERGY_FORCE` is also accepted, but any forces are HF forces.
+the interaction potential and RI metric shown [below](#boundary-conditions-and-interactions).
+ADMM is not supported; do not include the `AUXILIARY_DENSITY_MATRIX_METHOD` section. Smearing is
+also unsupported. `ENERGY_FORCE` is accepted, but any forces are HF forces.
 
 A wavefunction restart can make the final HF calculation cheaper or help it converge. For example,
 first converge a GGA calculation or an HF calculation with different SCF settings. Then set

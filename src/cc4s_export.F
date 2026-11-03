@@ -53,7 +53,8 @@ MODULE cc4s_export
                                               sic_none,&
                                               xc_none
    USE input_cp2k_hfx,                  ONLY: ri_mo
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
@@ -105,7 +106,8 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: buffer_elements, total_elements
       INTEGER, DIMENSION(2)                              :: dims2
       INTEGER, DIMENSION(3)                              :: dims3
-      LOGICAL                                            :: do_kpoints, enabled, periodic
+      LOGICAL                                            :: admm_section_present, do_kpoints, &
+                                                            enabled, periodic
       REAL(dp) :: amp_conv, cutoff_radius, energy_conv, export_start, fermi_energy, max_cutoff, &
          max_memory_mb, memory_mb, output_buffer_mib, vertex_norm, write_start
       REAL(dp), ALLOCATABLE                              :: eigenvalues(:)
@@ -124,7 +126,7 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(section_vals_type), POINTER                   :: input, print_section
+      TYPE(section_vals_type), POINTER                   :: admm_section, input, print_section
 
       logger => cp_get_default_logger()
       CALL get_qs_env(qs_env, input=input)
@@ -202,9 +204,13 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "CC4S: a restricted closed-shell reference without smearing is required")
       END IF
-      IF (dft_control%do_admm .OR. dft_control%dft_plus_u .OR. dft_control%sic_method_id /= sic_none) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "CC4S: ADMM, DFT+U and self-interaction corrections are unsupported")
+      admm_section => section_vals_get_subs_vals(input, "DFT%AUXILIARY_DENSITY_MATRIX_METHOD")
+      CALL section_vals_get(admm_section, explicit=admm_section_present)
+      IF (admm_section_present) THEN
+         CPABORT("CC4S: AUXILIARY_DENSITY_MATRIX_METHOD is unsupported")
+      END IF
+      IF (dft_control%dft_plus_u .OR. dft_control%sic_method_id /= sic_none) THEN
+         CPABORT("CC4S: DFT+U and self-interaction corrections are unsupported")
       END IF
       CALL section_vals_val_get(input, "DFT%XC%XC_FUNCTIONAL%_SECTION_PARAMETERS_", i_val=functional)
       IF (functional /= xc_none) THEN
@@ -221,8 +227,11 @@ CONTAINS
       IF (ABS(x_data(1, 1)%general_parameter%fraction - 1.0_dp) > hf_fraction_tolerance) THEN
          CPABORT("CC4S: HF FRACTION must be 1")
       END IF
-      IF (.NOT. ASSOCIATED(x_data(1, 1)%ri_data)) THEN
+      IF (.NOT. x_data(1, 1)%do_hfx_ri) THEN
          CPABORT("CC4S: enable HF/RI with RI_FLAVOR MO")
+      END IF
+      IF (.NOT. ASSOCIATED(x_data(1, 1)%ri_data)) THEN
+         CPABORT("CC4S: RI-HFX data are unavailable")
       END IF
       IF (x_data(1, 1)%ri_data%flavor /= ri_mo) THEN
          CPABORT("CC4S: HF/RI requires RI_FLAVOR MO")
