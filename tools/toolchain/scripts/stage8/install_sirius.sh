@@ -38,8 +38,8 @@ case "$with_sirius" in
 
       patch -l -p1 < "${SCRIPT_DIR}/stage8/sirius-mkl.patch" \
         > sirius-mkl.patch.log 2>&1 || tail_excerpt sirius-mkl.patch.log
-      patch -l -p1 < "${SCRIPT_DIR}/stage8/sirius-power-link-fix.patch" \
-        > sirius-power-link-fix.patch.log 2>&1 || tail_excerpt sirius-power-link-fix.patch.log
+      patch -l -p1 < "${SCRIPT_DIR}/stage8/sirius-intel-compilation.patch" \
+        > sirius-intel-compilation.patch.log 2>&1 || tail_excerpt sirius-intel-compilation.patch.log
 
       if [ "${with_elpa}" != "__DONTUSE__" ]; then
         EXTRA_CMAKE_FLAGS="-DSIRIUS_USE_ELPA=ON ${EXTRA_CMAKE_FLAGS}"
