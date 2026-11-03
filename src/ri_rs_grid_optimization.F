@@ -46,6 +46,7 @@ MODULE ri_rs_grid_optimization
    TYPE, PRIVATE :: local_cluster_3c_integrals_type
       INTEGER, ALLOCATABLE                 :: atom_indices(:)
       REAL(KIND=dp), ALLOCATABLE           :: Int_3c(:, :, :)
+      REAL(KIND=dp)                        :: integral_norm2 = 0.0_dp
    END TYPE local_cluster_3c_integrals_type
 
 CONTAINS
@@ -386,7 +387,8 @@ CONTAINS
    END SUBROUTINE optimize_grid_coordinates
 
 ! **************************************************************************************************
-!> \brief Build each C_A and store the upper AO triangle of (μν|P); this routine owns the integral context.
+!> \brief Build each C_A, store (μν|P) with both AO triangles and its squared norm; this routine owns
+!>        the integral context.
 !> \param bs_env ...
 !> \param cluster_3c_int Rank-local cluster three-centre integrals.
 ! **************************************************************************************************
@@ -396,7 +398,7 @@ CONTAINS
          ALLOCATABLE, INTENT(OUT)                        :: cluster_3c_int(:)
 
       INTEGER :: handle, i_cluster_atom_j, i_cluster_atom_k, i_cluster_atom_p, iatom, iatom_j, &
-         iatom_k, iatom_p, icenter_atom, icluster_atom, ikind, ilocal_cluster, ip, &
+         iatom_k, iatom_p, icenter_atom, icluster_atom, ikind, ilocal_cluster, imu, inu, ip, &
          n_local_clusters, nAO_cluster, nRI_cluster, nRI_nonzero
       INTEGER, ALLOCATABLE                               :: AO_offset(:), owner_rank(:), &
                                                             RI_offset(:), sizes_ref_RI(:)
@@ -452,8 +454,8 @@ CONTAINS
             iatom_p = cluster_3c_int(ilocal_cluster)%atom_indices(i_cluster_atom_p)
             DO i_cluster_atom_k = 1, SIZE(cluster_3c_int(ilocal_cluster)%atom_indices)
                iatom_k = cluster_3c_int(ilocal_cluster)%atom_indices(i_cluster_atom_k)
-               ! The evaluator reads only the upper AO triangle (DSYMM with UPLO='U').
-               ! Global atom ordering also orders the cluster AO blocks; lower blocks stay zero.
+               ! Compute the upper AO block triangle only; global atom ordering also orders the
+               ! cluster AO blocks. The lower triangle is filled by symmetry below.
                DO i_cluster_atom_j = 1, i_cluster_atom_k
                   iatom_j = cluster_3c_int(ilocal_cluster)%atom_indices(i_cluster_atom_j)
                   CALL build_3c_integral_block_ctx(cluster_3c_int(ilocal_cluster)%Int_3c, &
@@ -478,6 +480,18 @@ CONTAINS
             END DO
             CALL MOVE_ALLOC(Int_3c_nonzero, cluster_3c_int(ilocal_cluster)%Int_3c)
          END IF
+         ! The evaluator multiplies by full symmetric B_P (one DGEMM per RI function). The integrals
+         ! are fixed during the optimization, so ||B||² is computed once here.
+         ASSOCIATE (integrals => cluster_3c_int(ilocal_cluster)%Int_3c)
+            DO ip = 1, SIZE(integrals, 3)
+               DO inu = 1, nAO_cluster
+                  DO imu = inu + 1, nAO_cluster
+                     integrals(imu, inu, ip) = integrals(inu, imu, ip)
+                  END DO
+               END DO
+            END DO
+            cluster_3c_int(ilocal_cluster)%integral_norm2 = SUM(integrals**2)
+         END ASSOCIATE
       END DO
       CALL gw_3c_ws_release(workspace)
       CALL gw_3c_ctx_release(integral_context)
@@ -567,9 +581,9 @@ CONTAINS
       END DO
       max_abs_error = 0.0_dp
       IF (PRESENT(coordinate_gradient)) THEN
-         CALL evaluate_ri_rs_fit(Phi_l_mu, cluster_3c_int%Int_3c, bs_env%ri_rs%tikhonov, &
-                                 normalized_error, fit_successful, ao_gradient=ao_gradient, &
-                                 workspace_budget_bytes=evaluation_budget)
+         CALL evaluate_ri_rs_fit(Phi_l_mu, cluster_3c_int%Int_3c, cluster_3c_int%integral_norm2, &
+                                 bs_env%ri_rs%tikhonov, normalized_error, fit_successful, &
+                                 ao_gradient=ao_gradient, workspace_budget_bytes=evaluation_budget)
          IF (.NOT. fit_successful) RETURN
          !$OMP PARALLEL DO DEFAULT(NONE) &
          !$OMP SHARED(n_grid_points, coordinate_gradient, ao_gradient, dPhi_alpha_l_mu) &
@@ -582,8 +596,9 @@ CONTAINS
          END DO
          !$OMP END PARALLEL DO
       ELSE
-         CALL evaluate_ri_rs_fit(Phi_l_mu, cluster_3c_int%Int_3c, bs_env%ri_rs%tikhonov, &
-                                 normalized_error, fit_successful, max_abs_error=max_abs_error)
+         CALL evaluate_ri_rs_fit(Phi_l_mu, cluster_3c_int%Int_3c, cluster_3c_int%integral_norm2, &
+                                 bs_env%ri_rs%tikhonov, normalized_error, fit_successful, &
+                                 max_abs_error=max_abs_error)
       END IF
    END SUBROUTINE evaluate_local_cluster
 

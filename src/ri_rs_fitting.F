@@ -27,9 +27,6 @@ MODULE ri_rs_fitting
                                               cp_fm_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
-
-!$ USE OMP_LIB, ONLY: omp_get_max_threads
-
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -181,13 +178,16 @@ CONTAINS
 !> \brief Evaluate the normalized cluster residual and its exact derivative in AO space.
 !>
 !>        V_l = sqrt(d_l) phi_l, S = V V^T, K = S∘S + λI, and K Z' = b, with
-!>        b_lP = V_l^T B_P V_l. B_P is the symmetric matrix defined by the upper AO triangle.
+!>        b_lP = V_l^T B_P V_l with the symmetric AO matrices B_P.
 !>        The objective is ||B - A Z'||²/||B||², A_:l = svec(V_l V_l^T), without a penalty term.
 !>        For λ>0 the derivative includes the response of the regularized coefficients.
-!>        Each RI-column panel reuses V B_P for the RHS and gradient before releasing the panel.
+!>        Each RI function's product V B_P is one DGEMM; gradient panels form them in parallel over P
+!>        and reuse them for the RHS and gradient before releasing the panel.
 !>        The balancing convention and RI-RS reference are given in solve_ri_rs_fit.
 !> \param phi unscaled AO values indexed (grid point, AO)
-!> \param int_3c three-center integrals indexed (AO, AO, RI); only the upper AO triangle is used
+!> \param int_3c three-center integrals indexed (AO, AO, RI); both AO triangles must be filled
+!> \param integral_norm2 ||B||², the sum of squares of all elements of int_3c. The integrals are
+!>        fixed during the grid optimization, so the caller computes this once.
 !> \param tikhonov regularization in the Jacobi-scaled space
 !> \param normalized_error normalized squared residual
 !> \param fit_successful false if the target is empty or the regularized fit cannot be solved
@@ -197,11 +197,11 @@ CONTAINS
 !>        the caller deducts its own arrays first. Reserve all fixed workspaces before sizing
 !>        the product cache. An absent or nonpositive budget streams one RI column.
 ! **************************************************************************************************
-   SUBROUTINE evaluate_ri_rs_fit(phi, int_3c, tikhonov, normalized_error, fit_successful, &
-                                 ao_gradient, max_abs_error, workspace_budget_bytes)
+   SUBROUTINE evaluate_ri_rs_fit(phi, int_3c, integral_norm2, tikhonov, normalized_error, &
+                                 fit_successful, ao_gradient, max_abs_error, workspace_budget_bytes)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: phi
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: int_3c
-      REAL(KIND=dp), INTENT(IN)                          :: tikhonov
+      REAL(KIND=dp), INTENT(IN)                          :: integral_norm2, tikhonov
       REAL(KIND=dp), INTENT(OUT)                         :: normalized_error
       LOGICAL, INTENT(OUT)                               :: fit_successful
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
@@ -210,12 +210,13 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: workspace_budget_bytes
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_ri_rs_fit'
-      INTEGER, PARAMETER                                 :: residual_block_size = 64
+      INTEGER, PARAMETER                                 :: residual_block_size = 64, &
+                                                            row_block_size = 256
 
       INTEGER :: first, handle, handle2, i, icache, imu, info, inu, ip, j, last, n_ao, n_cached, &
-         n_grid, n_panel, n_ri, n_threads, panel_first, panel_last
-      REAL(KIND=dp) :: coefficient_norm2, error_scale, fixed_bytes, integral_norm2, na, ng, &
-         projection, residual_max, residual_norm2, roundoff_estimate, row_norm2, value, weight
+         n_grid, n_panel, n_ri, panel_first, panel_last, row_first, row_last
+      REAL(KIND=dp) :: coefficient_norm2, error_scale, fixed_bytes, na, ng, projection, &
+         residual_max, residual_norm2, roundoff_estimate, row_norm2, value, weight
       REAL(KIND=dp), ALLOCATABLE :: coefficient_work(:, :), factor(:, :), jacobi_scale(:), &
          overlap(:, :), partial_norm2(:), products(:, :, :), residual(:, :), v(:, :), z_prime(:, :)
 
@@ -236,25 +237,6 @@ CONTAINS
          CALL timestop(handle)
          RETURN
       END IF
-      ! Floating-point addition is not associative. Both sums are therefore accumulated from per-index
-      ! partials in a fixed order, so that the result does not depend on the OpenMP thread count or
-      ! scheduling.
-      ALLOCATE (partial_norm2(n_ri))
-      !$OMP PARALLEL DO DEFAULT(NONE) &
-      !$OMP SHARED(n_ri, n_ao, int_3c, partial_norm2) PRIVATE(ip, inu) SCHEDULE(STATIC)
-      DO ip = 1, n_ri
-         partial_norm2(ip) = 0.0_dp
-         DO inu = 1, n_ao
-            partial_norm2(ip) = partial_norm2(ip) + int_3c(inu, inu, ip)**2 + &
-                                2.0_dp*DOT_PRODUCT(int_3c(1:inu - 1, inu, ip), int_3c(1:inu - 1, inu, ip))
-         END DO
-      END DO
-      !$OMP END PARALLEL DO
-      integral_norm2 = 0.0_dp
-      DO ip = 1, n_ri
-         integral_norm2 = integral_norm2 + partial_norm2(ip)
-      END DO
-      DEALLOCATE (partial_norm2)
       IF (integral_norm2 <= TINY(1.0_dp)) THEN
          CALL timestop(handle)
          RETURN
@@ -303,22 +285,19 @@ CONTAINS
       ! Keep Z' and the coefficient response for the final grid-space symmetric product.
       value = 0.0_dp
       coefficient_norm2 = 0.0_dp
-      n_threads = 1
-!$    n_threads = omp_get_max_threads()
       CALL timeset(routineN//'_ri_panels', handle2)
       DO panel_first = 1, n_ri, n_panel
          panel_last = MIN(panel_first + n_panel - 1, n_ri)
-         IF (PRESENT(ao_gradient) .AND. panel_last - panel_first + 1 >= n_threads) THEN
-            ! Gradient panels already cache one product per RI function, so give each thread whole
-            ! RI functions instead of threading every per-function product (a scheduling heuristic).
-            ! It is intended for BLAS calls that run serially inside the active parallel region;
-            ! nested BLAS threading can oversubscribe the allocation.
+         IF (PRESENT(ao_gradient)) THEN
+            ! Gradient panels cache one product V B_P per RI function. The functions are independent,
+            ! so each thread forms whole products and immediately sums its b_lP over μ in a fixed
+            ! order. BLAS is called from inside the parallel region.
             !$OMP PARALLEL DO DEFAULT(NONE) &
             !$OMP SHARED(panel_first, panel_last, n_grid, n_ao, int_3c, v, products, coefficient_work) &
             !$OMP PRIVATE(ip, icache, imu) SCHEDULE(STATIC)
             DO ip = panel_first, panel_last
                icache = ip - panel_first + 1
-               CALL dsymm('R', 'U', n_grid, n_ao, 1.0_dp, int_3c(:, :, ip), n_ao, v, n_grid, &
+               CALL dgemm('N', 'N', n_grid, n_ao, n_ao, 1.0_dp, v, n_grid, int_3c(:, :, ip), n_ao, &
                           0.0_dp, products(:, :, icache), n_grid)
                coefficient_work(:, ip) = 0.0_dp
                DO imu = 1, n_ao
@@ -327,16 +306,21 @@ CONTAINS
             END DO
             !$OMP END PARALLEL DO
          ELSE
+            ! The value-only path streams one RI function through a single product slot.
             DO ip = panel_first, panel_last
-               icache = 1
-               IF (PRESENT(ao_gradient)) icache = ip - panel_first + 1
-               CALL dsymm('R', 'U', n_grid, n_ao, 1.0_dp, int_3c(:, :, ip), n_ao, v, n_grid, &
-                          0.0_dp, products(:, :, icache), n_grid)
+               CALL dgemm('N', 'N', n_grid, n_ao, n_ao, 1.0_dp, v, n_grid, int_3c(:, :, ip), n_ao, &
+                          0.0_dp, products(:, :, 1), n_grid)
+               ! b_lP = Σ_μ V_lμ (V B_P)_lμ, summed over μ in a fixed order for every element.
                !$OMP PARALLEL DO DEFAULT(NONE) &
-               !$OMP SHARED(n_grid, coefficient_work, ip, v, products, icache) &
-               !$OMP PRIVATE(i) SCHEDULE(STATIC)
-               DO i = 1, n_grid
-                  coefficient_work(i, ip) = DOT_PRODUCT(v(i, :), products(i, :, icache))
+               !$OMP SHARED(ip, n_grid, n_ao, v, products, coefficient_work) &
+               !$OMP PRIVATE(row_first, row_last, imu) SCHEDULE(STATIC)
+               DO row_first = 1, n_grid, row_block_size
+                  row_last = MIN(row_first + row_block_size - 1, n_grid)
+                  coefficient_work(row_first:row_last, ip) = 0.0_dp
+                  DO imu = 1, n_ao
+                     coefficient_work(row_first:row_last, ip) = coefficient_work(row_first:row_last, ip) + &
+                                                                v(row_first:row_last, imu)*products(row_first:row_last, imu, 1)
+                  END DO
                END DO
                !$OMP END PARALLEL DO
             END DO
