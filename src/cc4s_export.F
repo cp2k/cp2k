@@ -733,10 +733,16 @@ CONTAINS
       INTEGER(int_8)                                     :: a, b, block_count, data_count, m, na, &
                                                             nb, nm, nq, nr, q, r
 
-      a = SUM(INT(ao, int_8)); r = SUM(INT(ri, int_8)); m = SUM(INT(mo, int_8))
-      b = INT(batch_width(mo, mb), int_8); q = INT(batch_width(ri, rb), int_8)
-      na = SIZE(ao, KIND=int_8); nr = SIZE(ri, KIND=int_8); nm = SIZE(mo, KIND=int_8)
-      nb = INT(mb, int_8); nq = INT(rb, int_8)
+      a = SUM(INT(ao, int_8))
+      r = SUM(INT(ri, int_8))
+      m = SUM(INT(mo, int_8))
+      b = INT(batch_width(mo, mb), int_8)
+      q = INT(batch_width(ri, rb), int_8)
+      na = SIZE(ao, KIND=int_8)
+      nr = SIZE(ri, KIND=int_8)
+      nm = SIZE(mo, KIND=int_8)
+      nb = INT(mb, int_8)
+      nq = INT(rb, int_8)
       data_count = MAX(limited_product([a, a, q], product_limit), &
                        limited_product([b, q, a], product_limit), &
                        limited_product([q, m, b], product_limit), &
