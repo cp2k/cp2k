@@ -38,6 +38,7 @@ MODULE xtb_coulomb
    USE ewald_methods_tb,                ONLY: tb_ewald_overlap,&
                                               tb_spme_evaluate
    USE ewald_pw_types,                  ONLY: ewald_pw_type
+   USE input_constants,                 ONLY: gfn1xtb
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
@@ -73,6 +74,8 @@ MODULE xtb_coulomb
                                               sap_int_type
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
+   USE xtb_ewald,                       ONLY: apply_xtb_ewald,&
+                                              update_xtb_ewald
    USE xtb_spinpol,                     ONLY: build_xtb_spinpol
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
@@ -84,9 +87,88 @@ MODULE xtb_coulomb
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xtb_coulomb'
 
+   PUBLIC :: build_xtb_ewald, use_xtb_full_ewald
    PUBLIC :: build_xtb_coulomb, gamma_rab_sr, dgamma_rab_sr, xtb_dsint_list
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Use full KO Ewald for the native, three-dimensional periodic GFN1 kernel.
+!>        Other exponents, nonperiodic systems and debug overrides keep their existing path.
+!> \param xtb_control ...
+!> \param cell ...
+!> \return Whether the generalized Ewald kernel applies
+! **************************************************************************************************
+   LOGICAL FUNCTION use_xtb_full_ewald(xtb_control, cell) RESULT(full_ewald)
+      TYPE(xtb_control_type), INTENT(IN)                 :: xtb_control
+      TYPE(cell_type), INTENT(IN)                        :: cell
+
+      full_ewald = xtb_control%gfn_type == gfn1xtb .AND. .NOT. xtb_control%do_tblite &
+                   .AND. xtb_control%kg == 2.0_dp .AND. xtb_control%coulomb_lr &
+                   .AND. xtb_control%do_ewald .AND. ALL(cell%perd == 1)
+   END FUNCTION use_xtb_full_ewald
+
+! **************************************************************************************************
+!> \brief Shared ground-state/response evaluation of the Klopman-Ohno Ewald terms.
+!> \param qs_env ...
+!> \param charges ...
+!> \param gchrg Local potential and negative Cartesian derivatives, reduced by the caller
+!> \param use_virial ...
+! **************************************************************************************************
+   SUBROUTINE build_xtb_ewald(qs_env, charges, gchrg, use_virial)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(dp), INTENT(IN)                               :: charges(:, :)
+      REAL(dp), INTENT(INOUT)                            :: gchrg(:, :, :)
+      LOGICAL, INTENT(IN)                                :: use_virial
+
+      INTEGER                                            :: handle, iat, ikind, nat, natorb, ni
+      INTEGER, ALLOCATABLE                               :: kind_of(:), nshell(:)
+      LOGICAL                                            :: defined
+      REAL(dp)                                           :: alpha, eta, kappa(5), sigma(3, 3)
+      REAL(dp), ALLOCATABLE                              :: hardness(:, :), xyz(:, :)
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(virial_type), POINTER                         :: virial
+      TYPE(xtb_atom_type), POINTER                       :: param
+
+      CALL timeset('build_xtb_ewald', handle)
+      CALL get_qs_env(qs_env, particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
+                      qs_kind_set=qs_kind_set, cell=cell, &
+                      para_env=para_env, virial=virial)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
+      nat = SIZE(charges, 1)
+      ! S3 has its own alpha-independent Ewald decomposition. Balance the real-space
+      ! pair sum against the three structure factors instead of using the SPME alpha.
+      alpha = SQRT(pi)*REAL(MAX(1, nat), dp)**(1.0_dp/6.0_dp)/ABS(cell%deth)**(1.0_dp/3.0_dp)
+      ALLOCATE (xyz(3, nat), hardness(nat, SIZE(charges, 2)), nshell(nat))
+      hardness(:, :) = 0.0_dp
+      nshell(:) = 0
+      DO iat = 1, nat
+         ! Preserve the input images, as in the CP2K/tblite interface. Folding atoms would
+         ! introduce jumps in the finite residual sum at cell boundaries.
+         xyz(:, iat) = particle_set(iat)%r(:)
+         ikind = kind_of(iat)
+         CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=param)
+         CALL get_xtb_atom_param(param, defined=defined, natorb=natorb, lmax=ni, eta=eta, kappa=kappa)
+         IF (.NOT. defined .OR. natorb < 1) CYCLE
+         nshell(iat) = ni + 1
+         hardness(iat, 1:ni + 1) = eta*(1.0_dp + kappa(1:ni + 1))
+         CPASSERT(ALL(hardness(iat, 1:ni + 1) > 0.0_dp))
+      END DO
+      CALL update_xtb_ewald(qs_env%xtb_ewald_cache, cell%hmat, cell%h_inv, xyz, hardness, &
+                            nshell, alpha, para_env%mepos, para_env%num_pe)
+      IF (use_virial) THEN
+         CALL apply_xtb_ewald(qs_env%xtb_ewald_cache, charges, gchrg, sigma)
+         virial%pv_virial(:, :) = virial%pv_virial(:, :) - sigma
+      ELSE
+         CALL apply_xtb_ewald(qs_env%xtb_ewald_cache, charges, gchrg)
+      END IF
+      DEALLOCATE (xyz, hardness, nshell, kind_of)
+      CALL timestop(handle)
+   END SUBROUTINE build_xtb_ewald
 
 ! **************************************************************************************************
 !> \brief ...
@@ -121,7 +203,7 @@ CONTAINS
       INTEGER, DIMENSION(5)                              :: occ
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: defined, do_ewald, do_gamma_stress, &
-                                                            found, use_virial
+                                                            found, full_ewald, use_virial
       REAL(KIND=dp)                                      :: alpha, deth, dr, ecsr, etaa, etab, f1, &
                                                             f2, fi, gmij, kg, rcut, rcuta, rcutb, &
                                                             zeff
@@ -198,63 +280,68 @@ CONTAINS
       ALLOCATE (gmcharge(natom, nmat))
       gmcharge = 0._dp
 
-      ! short range contribution (gamma)
-      ! loop over all atom pairs (sab_xtbe)
-      kg = xtb_control%kg
-      NULLIFY (n_list)
-      CALL get_qs_env(qs_env=qs_env, sab_xtbe=n_list)
-      IF (.NOT. ASSOCIATED(n_list)) THEN
-         CPABORT("sab_xtbe neighbor list is not associated in build_xtb_coulomb")
-      END IF
-      CALL neighbor_list_iterator_create(nl_iterator, n_list)
-      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                iatom=iatom, jatom=jatom, r=rij, cell=cellind)
-         CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
-         CALL get_xtb_atom_param(xtb_atom_a, defined=defined, natorb=natorb_a)
-         IF (.NOT. defined .OR. natorb_a < 1) CYCLE
-         CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
-         CALL get_xtb_atom_param(xtb_atom_b, defined=defined, natorb=natorb_b)
-         IF (.NOT. defined .OR. natorb_b < 1) CYCLE
-         ! atomic parameters
-         CALL get_xtb_atom_param(xtb_atom_a, eta=etaa, lmax=lmaxa, kappa=kappaa, rcut=rcuta)
-         CALL get_xtb_atom_param(xtb_atom_b, eta=etab, lmax=lmaxb, kappa=kappab, rcut=rcutb)
-         ! gamma matrix
-         ni = lmaxa + 1
-         nj = lmaxb + 1
-         ALLOCATE (gammab(ni, nj))
-         rcut = rcuta + rcutb
-         dr = SQRT(SUM(rij(:)**2))
-         CALL gamma_rab_sr(gammab, dr, ni, kappaa, etaa, nj, kappab, etab, kg, rcut)
-         gchrg(iatom, 1:ni, 1) = gchrg(iatom, 1:ni, 1) + MATMUL(gammab, charges(jatom, 1:nj))
-         IF (iatom /= jatom) THEN
-            gchrg(jatom, 1:nj, 1) = gchrg(jatom, 1:nj, 1) + MATMUL(charges(iatom, 1:ni), gammab)
+      full_ewald = use_xtb_full_ewald(xtb_control, cell)
+      IF (full_ewald) THEN
+         CALL build_xtb_ewald(qs_env, charges, gchrg, use_virial)
+      ELSE
+         ! short range contribution (gamma)
+         ! loop over all atom pairs (sab_xtbe)
+         kg = xtb_control%kg
+         NULLIFY (n_list)
+         CALL get_qs_env(qs_env=qs_env, sab_xtbe=n_list)
+         IF (.NOT. ASSOCIATED(n_list)) THEN
+            CPABORT("sab_xtbe neighbor list is not associated in build_xtb_coulomb")
          END IF
-         IF (calculate_forces) THEN
-            IF (dr > 1.e-6_dp) THEN
-               CALL dgamma_rab_sr(gammab, dr, ni, kappaa, etaa, nj, kappab, etab, kg, rcut)
-               DO i = 1, 3
-                  gchrg(iatom, 1:ni, i + 1) = gchrg(iatom, 1:ni, i + 1) &
-                                              + MATMUL(gammab, charges(jatom, 1:nj))*rij(i)/dr
-                  IF (iatom /= jatom) THEN
-                     gchrg(jatom, 1:nj, i + 1) = gchrg(jatom, 1:nj, i + 1) &
-                                                 - MATMUL(charges(iatom, 1:ni), gammab)*rij(i)/dr
-                  END IF
-               END DO
-               IF (use_virial) THEN
-                  gcint(1:ni) = MATMUL(gammab, charges(jatom, 1:nj))
+         CALL neighbor_list_iterator_create(nl_iterator, n_list)
+         DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+            CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                   iatom=iatom, jatom=jatom, r=rij, cell=cellind)
+            CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
+            CALL get_xtb_atom_param(xtb_atom_a, defined=defined, natorb=natorb_a)
+            IF (.NOT. defined .OR. natorb_a < 1) CYCLE
+            CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
+            CALL get_xtb_atom_param(xtb_atom_b, defined=defined, natorb=natorb_b)
+            IF (.NOT. defined .OR. natorb_b < 1) CYCLE
+            ! atomic parameters
+            CALL get_xtb_atom_param(xtb_atom_a, eta=etaa, lmax=lmaxa, kappa=kappaa, rcut=rcuta)
+            CALL get_xtb_atom_param(xtb_atom_b, eta=etab, lmax=lmaxb, kappa=kappab, rcut=rcutb)
+            ! gamma matrix
+            ni = lmaxa + 1
+            nj = lmaxb + 1
+            ALLOCATE (gammab(ni, nj))
+            rcut = rcuta + rcutb
+            dr = SQRT(SUM(rij(:)**2))
+            CALL gamma_rab_sr(gammab, dr, ni, kappaa, etaa, nj, kappab, etab, kg, rcut)
+            gchrg(iatom, 1:ni, 1) = gchrg(iatom, 1:ni, 1) + MATMUL(gammab, charges(jatom, 1:nj))
+            IF (iatom /= jatom) THEN
+               gchrg(jatom, 1:nj, 1) = gchrg(jatom, 1:nj, 1) + MATMUL(charges(iatom, 1:ni), gammab)
+            END IF
+            IF (calculate_forces) THEN
+               IF (dr > 1.e-6_dp) THEN
+                  CALL dgamma_rab_sr(gammab, dr, ni, kappaa, etaa, nj, kappab, etab, kg, rcut)
                   DO i = 1, 3
-                     fij(i) = -SUM(charges(iatom, 1:ni)*gcint(1:ni))*rij(i)/dr
+                     gchrg(iatom, 1:ni, i + 1) = gchrg(iatom, 1:ni, i + 1) &
+                                                 + MATMUL(gammab, charges(jatom, 1:nj))*rij(i)/dr
+                     IF (iatom /= jatom) THEN
+                        gchrg(jatom, 1:nj, i + 1) = gchrg(jatom, 1:nj, i + 1) &
+                                                    - MATMUL(charges(iatom, 1:ni), gammab)*rij(i)/dr
+                     END IF
                   END DO
-                  fi = 1.0_dp
-                  IF (iatom == jatom) fi = 0.5_dp
-                  CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
+                  IF (use_virial) THEN
+                     gcint(1:ni) = MATMUL(gammab, charges(jatom, 1:nj))
+                     DO i = 1, 3
+                        fij(i) = -SUM(charges(iatom, 1:ni)*gcint(1:ni))*rij(i)/dr
+                     END DO
+                     fi = 1.0_dp
+                     IF (iatom == jatom) fi = 0.5_dp
+                     CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
+                  END IF
                END IF
             END IF
-         END IF
-         DEALLOCATE (gammab)
-      END DO
-      CALL neighbor_list_iterator_release(nl_iterator)
+            DEALLOCATE (gammab)
+         END DO
+         CALL neighbor_list_iterator_release(nl_iterator)
+      END IF
 
       ! 1/R contribution
 
@@ -324,7 +411,8 @@ CONTAINS
          IF (do_ewald) THEN
             ! add self charge interaction and background charge contribution
             gmcharge(:, 1) = gmcharge(:, 1) - 2._dp*alpha*oorootpi*mcharge(:)
-            IF (ANY(periodic(:) == 1)) THEN
+            ! Full KO Ewald uses tblite's G=0 convention: no charge-independent shift.
+            IF (.NOT. full_ewald .AND. ANY(periodic(:) == 1)) THEN
                gmcharge(:, 1) = gmcharge(:, 1) - pi/alpha**2/deth
             END IF
          END IF

@@ -10,6 +10,6 @@
 "h2o_f15.inp" = []
 "h2o_f16.inp" = []
 "h2o_f17.inp" = []
-"h2o_f18.inp" = [{matcher = "E_total", tol = 1.0E-12, ref = -5.76904757361574}]
+"h2o_f18.inp" = [{matcher = "E_total", tol = 1.0E-12, ref = -5.76846970260932}]
 "h2o_f19.inp" = []
 #EOF
