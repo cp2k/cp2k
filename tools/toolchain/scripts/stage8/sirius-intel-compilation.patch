@@ -26,3 +26,16 @@ index 332ee31..24bf5ed 100644
 +
  ::rt_graph::Timer global_rtgraph_timer;
  
+diff --git a/src/hamiltonian/hamiltonian.cpp b/src/hamiltonian/hamiltonian.cpp
+index e290967..5993740 100644
+--- a/src/hamiltonian/hamiltonian.cpp
++++ b/src/hamiltonian/hamiltonian.cpp
+@@ -342,7 +342,7 @@ Hamiltonian0<T>::generate_pw_coefs(Potential const& potential__)
+ 
+     int gv_count = this->ctx_.gvec_fft().count();
+ 
+-    auto& fft = this->ctx_.spfft<T>();
++    auto& fft = ctx_.spfft<T>();
+ 
+     /* temporaty output buffer */
+     mdarray<std::complex<T>, 1> fpw_fft({gv_count});
