@@ -35,9 +35,9 @@ HOMO–LUMO gap. For an isolated molecule, add the following inside `FORCE_EVAL/
 Use exactly one `HF` section. Supply an orbital basis and a suitable Gaussian fitting basis through
 `BASIS_SET RI_HFX` for each atomic kind. The `RI` settings above configure RI-HFX; the
 `WF_CORRELATION` integral settings do not configure this exporter. For a periodic Γ-point cell, use
-the interaction potential and RI metric shown [below](#boundary-conditions-and-interactions).
-ADMM is not supported; do not include the `AUXILIARY_DENSITY_MATRIX_METHOD` section. Smearing is
-also unsupported. `ENERGY_FORCE` is accepted, but any forces are HF forces.
+the interaction potential and RI metric shown [below](#boundary-conditions-and-interactions). ADMM
+is not supported; do not include the `AUXILIARY_DENSITY_MATRIX_METHOD` section. Smearing is also
+unsupported. `ENERGY_FORCE` is accepted, but any forces are HF forces.
 
 A wavefunction restart can make the final HF calculation cheaper or help it converge. For example,
 first converge a GGA calculation or an HF calculation with different SCF settings. Then set
@@ -76,10 +76,11 @@ standard `FILENAME` control and all CC4S-specific keywords at their default valu
 | [MAX_MEMORY](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.MAX_MEMORY)                         | Estimated export workspace budget per MPI rank, in decimal MB.                                                                                                                       |
 
 `OUTPUT_BUFFER_SIZE` controls gathering and writing the vertex. It must be large enough to hold at
-least one floating-point vertex element; the actual buffer may be smaller than the requested maximum.
-`MAX_MEMORY` selects orbital and auxiliary transformation batch sizes. Its estimate includes output
-and MPI reduction buffers, but excludes existing SCF storage and CC4S memory. It is not a limit on total process memory. CP2K stops
-if the budget cannot accommodate canonicalization or the smallest transformation batch.
+least one floating-point vertex element; the actual buffer may be smaller than the requested
+maximum. `MAX_MEMORY` selects orbital and auxiliary transformation batch sizes. Its estimate
+includes output and MPI reduction buffers, but excludes existing SCF storage and CC4S memory. It is
+not a limit on total process memory. CP2K stops if the budget cannot accommodate canonicalization or
+the smallest transformation batch.
 
 Export is off by default. `ON` enables it independently of `GLOBAL/PRINT_LEVEL`. The CC4S iteration
 and convergence settings above do not change CP2K's SCF or integral thresholds. The exporter checks
