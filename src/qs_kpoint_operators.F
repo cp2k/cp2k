@@ -752,9 +752,9 @@ CONTAINS
    END SUBROUTINE kpoint_operator_get
 
 ! **************************************************************************************************
-!> \brief Read an operator inside a group-local OT loop, after collective cache preparation.
-!>        A single distributed group retains the sparse transform and distribution.
-!>        One-rank or multiple groups read their owned cache, without world collectives.
+!> \brief Read a cached operator inside a group-local OT loop.
+!>        Every group layout requires collective cache preparation before entering the loop.
+!>        This routine copies the prepared cache, without recomputing the real-space transform.
 !> \param matrix_rs current real-space operator
 !> \param kpoints host environment
 !> \param kp local k-point state
