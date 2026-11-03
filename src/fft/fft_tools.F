@@ -674,7 +674,7 @@ CONTAINS
       plan%fft_in_place = .FALSE.
       plan%n_3d = n
 
-      CALL fft_register_3d_local(fsign, n, zin, zout)
+      CALL fft_register_3d_local(fsign, n, 1, .FALSE., .FALSE., zin, zout)
       plan%valid = .TRUE.
 
    END SUBROUTINE fft_create_plan_3d
@@ -698,7 +698,7 @@ CONTAINS
       plan%fft_in_place = .TRUE.
       plan%n_3d = n
 
-      CALL fft_register_3d_local_inplace(fsign, n, zinout)
+      CALL fft_register_3d_local_inplace(fsign, n, 1, .FALSE., zinout)
       plan%valid = .TRUE.
 
    END SUBROUTINE fft_create_plan_3d_inplace
@@ -719,7 +719,7 @@ CONTAINS
       CPASSERT(.NOT. plan%fft_in_place)
 
       IF (ALL(plan%n_3d > 0)) THEN
-         CALL fft_3d_local(plan%fsign, plan%n_3d, zin, zout)
+         CALL fft_3d_local(plan%fsign, plan%n_3d, 1, .FALSE., .FALSE., zin, zout)
       END IF
       zout(1:PRODUCT(plan%n_3d)) = zout(1:PRODUCT(plan%n_3d))*scale
 
@@ -740,7 +740,7 @@ CONTAINS
       CPASSERT(plan%fft_in_place)
 
       IF (ALL(plan%n_3d > 0)) THEN
-         CALL fft_3d_local_inplace(plan%fsign, plan%n_3d, zinout)
+         CALL fft_3d_local_inplace(plan%fsign, plan%n_3d, 1, .FALSE., zinout)
       END IF
       zinout(1:PRODUCT(plan%n_3d)) = zinout(1:PRODUCT(plan%n_3d))*scale
 

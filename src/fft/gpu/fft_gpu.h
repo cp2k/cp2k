@@ -90,14 +90,18 @@ void fft_register_r2c_gpu_ff(const bool dir, const int n[2], const int m,
  * \brief   Performs a (double precision complex) 3D-FFT on the GPU.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
-void fft_register_gpu_fff(const bool dir, const int *npts, const bool inplace);
+void fft_register_gpu_fff(const bool dir, const int *npts, const bool inplace,
+                          const int number_of_ffts, const bool transpose_in,
+                          const bool transpose_out);
 
 /*******************************************************************************
  * \brief   Performs a 3D-R2C/C2R-FFT, on the GPU.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_register_r2c_gpu_fff(const bool dir, const int *npts,
-                              const bool inplace);
+                              const bool inplace, const int number_of_ffts,
+                              const bool transpose_in,
+                              const bool transpose_out);
 
 /*******************************************************************************
  * \brief   Performs a (double precision complex) 1D-FFT on the GPU.
@@ -136,13 +140,15 @@ void fft_r2c_gpu_ff(const double *zin, double *zout, const bool dir,
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_fff(const double *zin, double *zout, const bool dir,
-                 const int *npts);
+                 const int *npts, const int number_of_ffts,
+                 const bool transpose_in, const bool transpose_out);
 
 /*******************************************************************************
  * \brief   Performs a 3D-R2C/C2R-FFT, on the GPU.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_r2c_gpu_fff(const double *zin, double *zout, const bool dir,
-                     const int *npts);
+                     const int *npts, const int number_of_ffts,
+                     const bool transpose_in, const bool transpose_out);
 
 // EOF
