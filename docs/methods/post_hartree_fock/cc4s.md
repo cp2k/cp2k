@@ -76,7 +76,7 @@ standard `FILENAME` control and all CC4S-specific keywords at their default valu
 | [MAX_MEMORY](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CC4S.MAX_MEMORY)                         | Estimated export workspace budget per MPI rank, in decimal MB.                                                                                                                       |
 
 `OUTPUT_BUFFER_SIZE` controls gathering and writing the vertex. It must be large enough to hold at
-least one double-precision floating-point value of the Coulomb vertex; the actual buffer may be
+least one double-precision floating-point element of the Coulomb vertex; the actual buffer may be
 smaller than the requested maximum. `MAX_MEMORY` selects orbital and auxiliary transformation batch
 sizes. Its estimate includes output and MPI reduction buffers, but excludes existing SCF storage and
 CC4S memory. It is not a limit on total process memory. CP2K stops if the budget cannot accommodate
