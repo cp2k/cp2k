@@ -82,7 +82,8 @@ MODULE kpoint_methods
                                               k_grid_to_cell_contract,&
                                               kp_symmetry_phase_factors => rskp_phase_factors,&
                                               kp_transform_plan_create,&
-                                              kp_transform_plan_type
+                                              kp_transform_plan_type,&
+                                              rskp_transform
    USE kpoint_types,                    ONLY: &
         find_kpoint_rotation_slot, get_kpoint_info, kind_rotmat_type, kpoint_env_create, &
         kpoint_env_p_type, kpoint_env_type, kpoint_sym_create, kpoint_sym_type, kpoint_type
@@ -1126,113 +1127,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_init_cell_index
-
-! **************************************************************************************************
-!> \brief Transformation of real space matrices to a kpoint
-!> \param rmatrix  Real part of kpoint matrix
-!> \param cmatrix  Complex part of kpoint matrix (optional)
-!> \param rsmat    Real space matrices
-!> \param ispin    Spin index
-!> \param xkp      Kpoint coordinates
-!> \param cell_to_index   mapping of cell indices to RS index
-!> \param sab_nl   Defining neighbor list
-!> \param is_complex  Matrix to be transformed is imaginary
-!> \param rs_sign  Matrix to be transformed is csaled by rs_sign
-! **************************************************************************************************
-   SUBROUTINE rskp_transform(rmatrix, cmatrix, rsmat, ispin, &
-                             xkp, cell_to_index, sab_nl, is_complex, rs_sign)
-
-      TYPE(dbcsr_type)                                   :: rmatrix
-      TYPE(dbcsr_type), OPTIONAL                         :: cmatrix
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rsmat
-      INTEGER, INTENT(IN)                                :: ispin
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xkp
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_nl
-      LOGICAL, INTENT(IN), OPTIONAL                      :: is_complex
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: rs_sign
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rskp_transform'
-
-      INTEGER                                            :: handle, iatom, ic, icol, irow, jatom, &
-                                                            nimg
-      INTEGER, DIMENSION(3)                              :: cell
-      LOGICAL                                            :: do_symmetric, found, my_complex, &
-                                                            wfn_real_only
-      REAL(KIND=dp)                                      :: arg, coskl, fsign, fsym, sinkl
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, rblock, rsblock
-      TYPE(neighbor_list_iterator_p_type), &
-         DIMENSION(:), POINTER                           :: nl_iterator
-
-      CALL timeset(routineN, handle)
-
-      my_complex = .FALSE.
-      IF (PRESENT(is_complex)) my_complex = is_complex
-
-      fsign = 1.0_dp
-      IF (PRESENT(rs_sign)) fsign = rs_sign
-
-      wfn_real_only = .TRUE.
-      IF (PRESENT(cmatrix)) wfn_real_only = .FALSE.
-
-      nimg = SIZE(rsmat, 2)
-
-      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl, symmetric=do_symmetric)
-
-      CALL neighbor_list_iterator_create(nl_iterator, sab_nl)
-      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-         CALL get_iterator_info(nl_iterator, iatom=iatom, jatom=jatom, cell=cell)
-
-         ! fsym = +- 1 is due to real space matrices being non-symmetric (although in a symmtric type)
-         ! with the link S_mu^0,nu^b = S_nu^0,mu^-b, and the KP matrices beeing Hermitian
-         fsym = 1.0_dp
-         irow = iatom
-         icol = jatom
-         IF (do_symmetric .AND. (iatom > jatom)) THEN
-            irow = jatom
-            icol = iatom
-            fsym = -1.0_dp
-         END IF
-
-         ic = cell_to_index(cell(1), cell(2), cell(3))
-         IF (ic < 1 .OR. ic > nimg) CYCLE
-
-         arg = REAL(cell(1), dp)*xkp(1) + REAL(cell(2), dp)*xkp(2) + REAL(cell(3), dp)*xkp(3)
-         IF (my_complex) THEN
-            coskl = fsign*fsym*COS(twopi*arg)
-            sinkl = fsign*SIN(twopi*arg)
-         ELSE
-            coskl = fsign*COS(twopi*arg)
-            sinkl = fsign*fsym*SIN(twopi*arg)
-         END IF
-
-         CALL dbcsr_get_block_p(matrix=rsmat(ispin, ic)%matrix, row=irow, col=icol, &
-                                block=rsblock, found=found)
-         IF (.NOT. found) CYCLE
-
-         IF (wfn_real_only) THEN
-            CALL dbcsr_get_block_p(matrix=rmatrix, row=irow, col=icol, &
-                                   block=rblock, found=found)
-            IF (.NOT. found) CYCLE
-            rblock = rblock + coskl*rsblock
-         ELSE
-            CALL dbcsr_get_block_p(matrix=rmatrix, row=irow, col=icol, &
-                                   block=rblock, found=found)
-            IF (.NOT. found) CYCLE
-            CALL dbcsr_get_block_p(matrix=cmatrix, row=irow, col=icol, &
-                                   block=cblock, found=found)
-            IF (.NOT. found) CYCLE
-            rblock = rblock + coskl*rsblock
-            cblock = cblock + sinkl*rsblock
-         END IF
-
-      END DO
-      CALL neighbor_list_iterator_release(nl_iterator)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE rskp_transform
 
 ! **************************************************************************************************
 !> \brief Given the eigenvalues of all kpoints, calculates the occupation numbers
@@ -2608,7 +2502,9 @@ CONTAINS
       END IF
       compatible = MERGE(1, 0, same_layout .AND. ALL(layout_min == layout_max))
       IF (.NOT. local) CALL para_env%min(compatible)
-      IF (compatible == 0) CPABORT("Inverse FFT needs compatible k-point matrix layouts")
+      IF (compatible == 0) THEN
+         CPABORT("Inverse FFT needs compatible k-point matrix layouts")
+      END IF
 
       CALL timeset(routineN, handle)
       DO ispin = 1, SIZE(source, 3)
