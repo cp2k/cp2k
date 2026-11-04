@@ -1031,7 +1031,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: cell_b
       LOGICAL                                            :: found_imag, found_real
-      REAL(dp)                                           :: eps_ppnl, f0, sign_imag
+      REAL(dp)                                           :: eps_ppnl, f0
       REAL(KIND=dp), DIMENSION(3)                        :: fa, fb, rab, vec_pot
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sap_ppnl
@@ -1123,7 +1123,7 @@ CONTAINS
 !$OMP         rho_ao, rho_ao_im) &
 !$OMP PRIVATE (matrix_p_real, matrix_p_imag, acint, achint, bcint, bchint, &
 !$OMP           slot, ikind, jkind, iatom, jatom,&
-!$OMP          cell_b, rab, irow, icol, fa, fb, f0, found_real, found_imag, sign_imag, &
+!$OMP          cell_b, rab, irow, icol, fa, fb, f0, found_real, found_imag, &
 !$OMP          kkind, iac, ibc, alist_ac, alist_bc, kac, kbc,&
 !$OMP          zblock, zblock_b, na, np, nb,  katom) &
 !$OMP REDUCTION (+ : force_thread )
@@ -1156,11 +1156,9 @@ CONTAINS
             IF (iatom <= jatom) THEN
                irow = iatom
                icol = jatom
-               sign_imag = +1.0_dp
             ELSE
                irow = jatom
                icol = iatom
-               sign_imag = -1.0_dp
             END IF
             NULLIFY (matrix_p_real, matrix_p_imag)
             CALL dbcsr_get_block_p(rho_ao(1)%matrix, irow, icol, matrix_p_real, found_real)
@@ -1196,6 +1194,8 @@ CONTAINS
                            katom = alist_ac%clist(kac)%catom
                            ALLOCATE (zblock(MERGE(na, nb, iatom <= jatom), MERGE(nb, na, iatom <= jatom)))
                            ALLOCATE (zblock_b(SIZE(zblock, 1), SIZE(zblock, 2)))
+                           ! In both orientations zblock is conj(dV/dR) on the stored block, so
+                           ! Re(P) Re(dV) + Im(P) Im(dV) needs no sign change for the imaginary part
                            DO idir = 1, 3
                               IF (iatom <= jatom) THEN
                                  zblock(:, :) = MATMUL(acint(1:na, 1:np, 1 + idir), &
@@ -1215,8 +1215,8 @@ CONTAINS
                                  fb(idir) = SUM(matrix_p_real(1:SIZE(zblock_b, 1), 1:SIZE(zblock_b, 2))*REAL(zblock_b, KIND=dp))
                               END IF
                               IF (found_imag) THEN
-                              fa(idir) = fa(idir) - sign_imag*SUM(matrix_p_imag(1:SIZE(zblock, 1), 1:SIZE(zblock, 2))*AIMAG(zblock))
-                        fb(idir) = fb(idir) - sign_imag*SUM(matrix_p_imag(1:SIZE(zblock_b, 1), 1:SIZE(zblock_b, 2))*AIMAG(zblock_b))
+                                 fa(idir) = fa(idir) - SUM(matrix_p_imag(1:SIZE(zblock, 1), 1:SIZE(zblock, 2))*AIMAG(zblock))
+                                 fb(idir) = fb(idir) - SUM(matrix_p_imag(1:SIZE(zblock_b, 1), 1:SIZE(zblock_b, 2))*AIMAG(zblock_b))
                               END IF
                               force_thread(idir, iatom) = force_thread(idir, iatom) + f0*fa(idir)
                               force_thread(idir, katom) = force_thread(idir, katom) - f0*fa(idir)
