@@ -9,4 +9,10 @@
 "H2O-delta-lenrep.inp"  = [{matcher = "E_total", tol = 1e-13, ref = -17.17816511743962}]
 "H2O-vg.inp"            = [{matcher = "E_total", tol = 1e-13, ref = -17.17816535335717}]
 "H2O-delta-velrepr.inp" = [{matcher = "E_total", tol = 1e-13, ref = -17.17816551662581}]
+# EMD in a static field: length gauge (dipole-integral derivative and initial field in H)
+# and velocity gauge (A.p and 1/2 A^2 kinetic terms), checked on the force of the last step
+"H2O-emd-lg-forces.inp" = [{matcher = "M002", tol = 1e-10, ref = -17.1811643543},
+                           {matcher = "QS_atom_2_force_y", tol = 1e-6, ref = -1.21405656E-02}]
+"H2O-emd-vg-forces.inp" = [{matcher = "M002", tol = 1e-10, ref = -17.1758219490},
+                           {matcher = "QS_atom_2_force_y", tol = 1e-4, ref = -1.78026185E-03}]
 #EOF
