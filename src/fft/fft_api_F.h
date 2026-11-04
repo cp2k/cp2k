@@ -115,5 +115,103 @@ void fft_3d_local_inplace_F(const bool dir, const int fft_size[3],
                             const int number_of_ffts, const bool transpose,
                             double complex *grid);
 
+void fft_register_1d_r2c_local_F(const int fft_size, const int number_of_ffts,
+                                 const bool transpose_in,
+                                 const bool transpose_out,
+                                 const int leading_dimension_in,
+                                 const int leading_dimension_out,
+                                 double *grid_in, double complex *grid_out);
+void fft_register_1d_c2r_local_F(const int fft_size, const int number_of_ffts,
+                                 const bool transpose_in,
+                                 const bool transpose_out,
+                                 const int leading_dimension_in,
+                                 const int leading_dimension_out,
+                                 double complex *grid_in, double *grid_out);
+void fft_register_2d_r2c_local_F(const int fft_size[2],
+                                 const int number_of_ffts,
+                                 const bool transpose_in,
+                                 const bool transpose_out, double *grid_in,
+                                 double complex *grid_out);
+void fft_register_2d_c2r_local_F(const int fft_size[2],
+                                 const int number_of_ffts,
+                                 const bool transpose_in,
+                                 const bool transpose_out,
+                                 double complex *grid_in, double *grid_out);
+void fft_register_3d_r2c_local_F(const int fft_size[3],
+                                 const int number_of_ffts,
+                                 const bool transpose_in,
+                                 const bool transpose_out, double *grid_in,
+                                 double complex *grid_out);
+void fft_register_3d_c2r_local_F(const int fft_size[3],
+                                 const int number_of_ffts,
+                                 const bool transpose_in,
+                                 const bool transpose_out,
+                                 double complex *grid_in, double *grid_out);
+
+void fft_1d_r2c_local_F(const int fft_size, const int number_of_ffts,
+                        const bool transpose_in, const bool transpose_out,
+                        const int leading_dimension_in,
+                        const int leading_dimension_out, double *grid_in,
+                        double complex *grid_out);
+void fft_1d_c2r_local_F(const int fft_size, const int number_of_ffts,
+                        const bool transpose_in, const bool transpose_out,
+                        const int leading_dimension_in,
+                        const int leading_dimension_out,
+                        double complex *grid_in, double *grid_out);
+void fft_2d_r2c_local_F(const int fft_size[2], const int number_of_ffts,
+                        const bool transpose_in, const bool transpose_out,
+                        double *grid_in, double complex *grid_out);
+void fft_2d_c2r_local_F(const int fft_size[2], const int number_of_ffts,
+                        const bool transpose_in, const bool transpose_out,
+                        double complex *grid_in, double *grid_out);
+void fft_3d_r2c_local_F(const int fft_size[3], const int number_of_ffts,
+                        const bool transpose_in, const bool transpose_out,
+                        double *grid_in, double complex *grid_out);
+void fft_3d_c2r_local_F(const int fft_size[3], const int number_of_ffts,
+                        const bool transpose_in, const bool transpose_out,
+                        double complex *grid_in, double *grid_out);
+
+void fft_register_1d_r2c_local_inplace_F(const int fft_size,
+                                         const int number_of_ffts,
+                                         const bool transpose,
+                                         const int leading_dimension,
+                                         double *grid);
+void fft_register_1d_c2r_local_inplace_F(const int fft_size,
+                                         const int number_of_ffts,
+                                         const bool transpose,
+                                         const int leading_dimension,
+                                         double *grid);
+void fft_register_2d_r2c_local_inplace_F(const int fft_size[2],
+                                         const int number_of_ffts,
+                                         const bool transpose, double *grid);
+void fft_register_2d_c2r_local_inplace_F(const int fft_size[2],
+                                         const int number_of_ffts,
+                                         const bool transpose, double *grid);
+void fft_register_3d_r2c_local_inplace_F(const int fft_size[3],
+                                         const int number_of_ffts,
+                                         const bool transpose, double *grid);
+void fft_register_3d_c2r_local_inplace_F(const int fft_size[3],
+                                         const int number_of_ffts,
+                                         const bool transpose, double *grid);
+
+void fft_1d_r2c_local_inplace_F(const int fft_size, const int number_of_ffts,
+                                const bool transpose,
+                                const int leading_dimension, double *grid);
+void fft_1d_c2r_local_inplace_F(const int fft_size, const int number_of_ffts,
+                                const bool transpose,
+                                const int leading_dimension, double *grid);
+void fft_2d_r2c_local_inplace_F(const int fft_size[2],
+                                const int number_of_ffts,
+                                const bool transpose, double *grid);
+void fft_2d_c2r_local_inplace_F(const int fft_size[2],
+                                const int number_of_ffts,
+                                const bool transpose, double *grid);
+void fft_3d_r2c_local_inplace_F(const int fft_size[3],
+                                const int number_of_ffts,
+                                const bool transpose, double *grid);
+void fft_3d_c2r_local_inplace_F(const int fft_size[3],
+                                const int number_of_ffts,
+                                const bool transpose, double *grid);
+
 #endif
 // EOF

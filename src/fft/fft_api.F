@@ -29,8 +29,18 @@ MODULE fft_api
    PUBLIC :: fft_allocate, fft_deallocate
    PUBLIC :: fft_register_1d_local, fft_register_2d_local, fft_register_3d_local
    PUBLIC :: fft_register_1d_local_inplace, fft_register_2d_local_inplace, fft_register_3d_local_inplace
+   PUBLIC :: fft_register_1d_r2c_local, fft_register_2d_r2c_local, fft_register_3d_r2c_local
+   PUBLIC :: fft_register_1d_c2r_local, fft_register_2d_c2r_local, fft_register_3d_c2r_local
+   PUBLIC :: fft_register_1d_r2c_local_inplace, fft_register_2d_r2c_local_inplace, &
+             fft_register_3d_r2c_local_inplace
+   PUBLIC :: fft_register_1d_c2r_local_inplace, fft_register_2d_c2r_local_inplace, &
+             fft_register_3d_c2r_local_inplace
    PUBLIC :: fft_1d_local, fft_2d_local, fft_3d_local
    PUBLIC :: fft_1d_local_inplace, fft_2d_local_inplace, fft_3d_local_inplace
+   PUBLIC :: fft_1d_r2c_local, fft_2d_r2c_local, fft_3d_r2c_local
+   PUBLIC :: fft_1d_c2r_local, fft_2d_c2r_local, fft_3d_c2r_local
+   PUBLIC :: fft_1d_r2c_local_inplace, fft_2d_r2c_local_inplace, fft_3d_r2c_local_inplace
+   PUBLIC :: fft_1d_c2r_local_inplace, fft_2d_c2r_local_inplace, fft_3d_c2r_local_inplace
 
    ! Keep it synchronized with fft_api_F.c
    INTEGER, PARAMETER, PUBLIC :: FFT_LIBRARY_BACKEND_DEFAULT = 1
@@ -771,5 +781,641 @@ CONTAINS
                                   INT(number_of_ffts, C_INT), LOGICAL(transpose, C_BOOL), C_LOC(grid))
 
    END SUBROUTINE fft_3d_local_inplace
+
+! **************************************************************************************************
+!> \brief Registers a real-to-complex 1D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_register_1d_r2c_local(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                                        leading_dimension_in, leading_dimension_out, grid_in, grid_out)
+      INTEGER, INTENT(IN)                                :: fft_size, number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
+      INTEGER, INTENT(IN)                                :: leading_dimension_in, leading_dimension_out
+      REAL(KIND=dp), DIMENSION(leading_dimension_in*MERGE(fft_size, number_of_ffts, transpose_in)), INTENT(INOUT), TARGET :: grid_in
+      COMPLEX(KIND=dp), DIMENSION(leading_dimension_out*MERGE(fft_size/2 + 1, number_of_ffts, transpose_out)), &
+         INTENT(OUT), TARGET :: grid_out
+
+      INTERFACE
+         SUBROUTINE fft_register_1d_r2c_local_c(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                                                leading_dimension_in, leading_dimension_out, grid_in, grid_out) &
+            BIND(C, name="fft_register_1d_r2c_local_F")
+            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX, C_PTR
+            INTEGER(C_INT), VALUE :: fft_size, number_of_ffts
+            LOGICAL(C_BOOL), VALUE :: transpose_in, transpose_out
+            INTEGER(C_INT), VALUE :: leading_dimension_in, leading_dimension_out
+            TYPE(C_PTR), VALUE :: grid_in, grid_out
+         END SUBROUTINE fft_register_1d_r2c_local_c
+      END INTERFACE
+
+      CALL fft_register_1d_r2c_local_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
+                                       LOGICAL(transpose_in, C_BOOL), LOGICAL(transpose_out, C_BOOL), &
+                                       INT(leading_dimension_in, C_INT), INT(leading_dimension_out, C_INT), &
+                                       C_LOC(grid_in), C_LOC(grid_out))
+   END SUBROUTINE fft_register_1d_r2c_local
+
+! **************************************************************************************************
+!> \brief Registers a complex-to-real 1D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_register_1d_c2r_local(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                                        leading_dimension_in, leading_dimension_out, grid_in, grid_out)
+      INTEGER, INTENT(IN)                                :: fft_size, number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
+      INTEGER, INTENT(IN)                                :: leading_dimension_in, leading_dimension_out
+      COMPLEX(KIND=dp), DIMENSION(leading_dimension_in*MERGE(fft_size/2 + 1, number_of_ffts, transpose_in)), &
+         INTENT(INOUT), TARGET :: grid_in
+      REAL(KIND=dp), DIMENSION(*), INTENT(OUT), TARGET   :: grid_out
+
+      INTERFACE
+         SUBROUTINE fft_register_1d_c2r_local_c(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                                                leading_dimension_in, leading_dimension_out, grid_in, grid_out) &
+            BIND(C, name="fft_register_1d_c2r_local_F")
+            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX, C_PTR
+            INTEGER(C_INT), VALUE :: fft_size, number_of_ffts
+            LOGICAL(C_BOOL), VALUE :: transpose_in, transpose_out
+            INTEGER(C_INT), VALUE :: leading_dimension_in, leading_dimension_out
+            TYPE(C_PTR), VALUE :: grid_in, grid_out
+         END SUBROUTINE fft_register_1d_c2r_local_c
+      END INTERFACE
+
+      CALL fft_register_1d_c2r_local_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
+                                       LOGICAL(transpose_in, C_BOOL), LOGICAL(transpose_out, C_BOOL), &
+                                       INT(leading_dimension_in, C_INT), INT(leading_dimension_out, C_INT), &
+                                       C_LOC(grid_in), C_LOC(grid_out))
+   END SUBROUTINE fft_register_1d_c2r_local
+
+! **************************************************************************************************
+!> \brief Registers a real-to-complex 2D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_register_2d_r2c_local(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                                        grid_in, grid_out)
+      INTEGER, DIMENSION(2), INTENT(IN)                  :: fft_size
+      INTEGER, INTENT(IN)                                :: number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
+      REAL(KIND=dp), DIMENSION(PRODUCT(fft_size)*number_of_ffts), INTENT(INOUT), TARGET :: grid_in
+      COMPLEX(KIND=dp), DIMENSION((fft_size(1)/2 + 1)*fft_size(2)*number_of_ffts), INTENT(OUT), TARGET :: grid_out
+
+      INTERFACE
+         SUBROUTINE fft_register_2d_r2c_local_c(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                                                grid_in, grid_out) &
+            BIND(C, name="fft_register_2d_r2c_local_F")
+            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX, C_PTR
+            INTEGER(C_INT), DIMENSION(2), INTENT(IN) :: fft_size
+            INTEGER(C_INT), VALUE :: number_of_ffts
+            LOGICAL(C_BOOL), VALUE :: transpose_in, transpose_out
+            TYPE(C_PTR), VALUE :: grid_in, grid_out
+         END SUBROUTINE fft_register_2d_r2c_local_c
+      END INTERFACE
+
+      CALL fft_register_2d_r2c_local_c(INT(fft_size, C_INT), &
+                                       INT(number_of_ffts, C_INT), LOGICAL(transpose_in, C_BOOL), &
+                                       LOGICAL(transpose_out, C_BOOL), C_LOC(grid_in), C_LOC(grid_out))
+   END SUBROUTINE fft_register_2d_r2c_local
+
+! **************************************************************************************************
+!> \brief Registers a complex-to-real 2D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_register_2d_c2r_local(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                                        grid_in, grid_out)
+      INTEGER, DIMENSION(2), INTENT(IN)                  :: fft_size
+      INTEGER, INTENT(IN)                                :: number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
+      COMPLEX(KIND=dp), DIMENSION((fft_size(1)/2 + 1)*fft_size(2)*number_of_ffts), INTENT(INOUT), TARGET :: grid_in
+      REAL(KIND=dp), DIMENSION(*), INTENT(OUT), TARGET   :: grid_out
+
+      INTERFACE
+         SUBROUTINE fft_register_2d_c2r_local_c(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                                                grid_in, grid_out) &
+            BIND(C, name="fft_register_2d_c2r_local_F")
+            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX, C_PTR
+            INTEGER(C_INT), DIMENSION(2), INTENT(IN) :: fft_size
+            INTEGER(C_INT), VALUE :: number_of_ffts
+            LOGICAL(C_BOOL), VALUE :: transpose_in, transpose_out
+            TYPE(C_PTR), VALUE :: grid_in, grid_out
+         END SUBROUTINE fft_register_2d_c2r_local_c
+      END INTERFACE
+
+      CALL fft_register_2d_c2r_local_c(INT(fft_size, C_INT), &
+                                       INT(number_of_ffts, C_INT), LOGICAL(transpose_in, C_BOOL), &
+                                       LOGICAL(transpose_out, C_BOOL), C_LOC(grid_in), C_LOC(grid_out))
+   END SUBROUTINE fft_register_2d_c2r_local
+
+! **************************************************************************************************
+!> \brief Registers a real-to-complex 3D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_register_3d_r2c_local(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                                        grid_in, grid_out)
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: fft_size
+      INTEGER, INTENT(IN)                                :: number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
+      REAL(KIND=dp), DIMENSION(PRODUCT(fft_size)*number_of_ffts), INTENT(INOUT), TARGET :: grid_in
+      COMPLEX(KIND=dp), DIMENSION((fft_size(1)/2 + 1)*fft_size(2)*fft_size(3)*number_of_ffts), INTENT(OUT), TARGET :: grid_out
+
+      INTERFACE
+         SUBROUTINE fft_register_3d_r2c_local_c(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                                                grid_in, grid_out) &
+            BIND(C, name="fft_register_3d_r2c_local_F")
+            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX, C_PTR
+            INTEGER(C_INT), DIMENSION(3), INTENT(IN) :: fft_size
+            INTEGER(C_INT), VALUE :: number_of_ffts
+            LOGICAL(C_BOOL), VALUE :: transpose_in, transpose_out
+            TYPE(C_PTR), VALUE :: grid_in, grid_out
+         END SUBROUTINE fft_register_3d_r2c_local_c
+      END INTERFACE
+
+      CALL fft_register_3d_r2c_local_c(INT(fft_size, C_INT), &
+                                       INT(number_of_ffts, C_INT), LOGICAL(transpose_in, C_BOOL), &
+                                       LOGICAL(transpose_out, C_BOOL), C_LOC(grid_in), C_LOC(grid_out))
+   END SUBROUTINE fft_register_3d_r2c_local
+
+! **************************************************************************************************
+!> \brief Registers a complex-to-real 3D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_register_3d_c2r_local(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                                        grid_in, grid_out)
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: fft_size
+      INTEGER, INTENT(IN)                                :: number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
+      COMPLEX(KIND=dp), DIMENSION((fft_size(1)/2 + 1)*fft_size(2)*fft_size(3)*number_of_ffts), INTENT(INOUT), TARGET :: grid_in
+      REAL(KIND=dp), DIMENSION(*), INTENT(OUT), TARGET   :: grid_out
+
+      INTERFACE
+         SUBROUTINE fft_register_3d_c2r_local_c(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                                                grid_in, grid_out) &
+            BIND(C, name="fft_register_3d_c2r_local_F")
+            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX, C_PTR
+            INTEGER(C_INT), DIMENSION(3), INTENT(IN) :: fft_size
+            INTEGER(C_INT), VALUE :: number_of_ffts
+            LOGICAL(C_BOOL), VALUE :: transpose_in, transpose_out
+            TYPE(C_PTR), VALUE :: grid_in, grid_out
+         END SUBROUTINE fft_register_3d_c2r_local_c
+      END INTERFACE
+
+      CALL fft_register_3d_c2r_local_c(INT(fft_size, C_INT), &
+                                       INT(number_of_ffts, C_INT), LOGICAL(transpose_in, C_BOOL), &
+                                       LOGICAL(transpose_out, C_BOOL), C_LOC(grid_in), C_LOC(grid_out))
+   END SUBROUTINE fft_register_3d_c2r_local
+
+! **************************************************************************************************
+!> \brief Performs a real-to-complex 1D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_1d_r2c_local(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                               leading_dimension_in, leading_dimension_out, grid_in, grid_out)
+      INTEGER, INTENT(IN)                                :: fft_size, number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
+      INTEGER, INTENT(IN)                                :: leading_dimension_in, leading_dimension_out
+      REAL(KIND=dp), DIMENSION(leading_dimension_in*MERGE(fft_size, number_of_ffts, transpose_in)), INTENT(INOUT), TARGET :: grid_in
+      COMPLEX(KIND=dp), DIMENSION(leading_dimension_out*MERGE(fft_size/2 + 1, number_of_ffts, transpose_out)), &
+         INTENT(OUT), TARGET :: grid_out
+
+      INTERFACE
+         SUBROUTINE fft_1d_r2c_local_c(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                                       leading_dimension_in, leading_dimension_out, grid_in, grid_out) &
+            BIND(C, name="fft_1d_r2c_local_F")
+            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX, C_PTR
+            INTEGER(C_INT), VALUE :: fft_size, number_of_ffts
+            LOGICAL(C_BOOL), VALUE :: transpose_in, transpose_out
+            INTEGER(C_INT), VALUE :: leading_dimension_in, leading_dimension_out
+            TYPE(C_PTR), VALUE :: grid_in, grid_out
+         END SUBROUTINE fft_1d_r2c_local_c
+      END INTERFACE
+
+      CALL fft_1d_r2c_local_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
+                              LOGICAL(transpose_in, C_BOOL), LOGICAL(transpose_out, C_BOOL), &
+                              INT(leading_dimension_in, C_INT), INT(leading_dimension_out, C_INT), &
+                              C_LOC(grid_in), C_LOC(grid_out))
+   END SUBROUTINE fft_1d_r2c_local
+
+! **************************************************************************************************
+!> \brief Performs a complex-to-real 1D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_1d_c2r_local(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                               leading_dimension_in, leading_dimension_out, grid_in, grid_out)
+      INTEGER, INTENT(IN)                                :: fft_size, number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
+      INTEGER, INTENT(IN)                                :: leading_dimension_in, leading_dimension_out
+      COMPLEX(KIND=dp), DIMENSION(leading_dimension_in*MERGE(fft_size/2 + 1, number_of_ffts, transpose_in)), &
+         INTENT(INOUT), TARGET :: grid_in
+      REAL(KIND=dp), DIMENSION(*), INTENT(OUT), TARGET   :: grid_out
+
+      INTERFACE
+         SUBROUTINE fft_1d_c2r_local_c(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                                       leading_dimension_in, leading_dimension_out, grid_in, grid_out) &
+            BIND(C, name="fft_1d_c2r_local_F")
+            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX, C_PTR
+            INTEGER(C_INT), VALUE :: fft_size, number_of_ffts
+            LOGICAL(C_BOOL), VALUE :: transpose_in, transpose_out
+            INTEGER(C_INT), VALUE :: leading_dimension_in, leading_dimension_out
+            TYPE(C_PTR), VALUE :: grid_in, grid_out
+         END SUBROUTINE fft_1d_c2r_local_c
+      END INTERFACE
+
+      CALL fft_1d_c2r_local_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
+                              LOGICAL(transpose_in, C_BOOL), LOGICAL(transpose_out, C_BOOL), &
+                              INT(leading_dimension_in, C_INT), INT(leading_dimension_out, C_INT), &
+                              C_LOC(grid_in), C_LOC(grid_out))
+   END SUBROUTINE fft_1d_c2r_local
+
+! **************************************************************************************************
+!> \brief Performs a real-to-complex 2D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_2d_r2c_local(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                               grid_in, grid_out)
+      INTEGER, DIMENSION(2), INTENT(IN)                  :: fft_size
+      INTEGER, INTENT(IN)                                :: number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
+      REAL(KIND=dp), DIMENSION(PRODUCT(fft_size)*number_of_ffts), INTENT(INOUT), TARGET :: grid_in
+      COMPLEX(KIND=dp), DIMENSION((fft_size(1)/2 + 1)*fft_size(2)*number_of_ffts), INTENT(OUT), TARGET :: grid_out
+
+      INTERFACE
+         SUBROUTINE fft_2d_r2c_local_c(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                                       grid_in, grid_out) &
+            BIND(C, name="fft_2d_r2c_local_F")
+            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX, C_PTR
+            INTEGER(C_INT), DIMENSION(2), INTENT(IN) :: fft_size
+            INTEGER(C_INT), VALUE :: number_of_ffts
+            LOGICAL(C_BOOL), VALUE :: transpose_in, transpose_out
+            TYPE(C_PTR), VALUE :: grid_in, grid_out
+         END SUBROUTINE fft_2d_r2c_local_c
+      END INTERFACE
+
+      CALL fft_2d_r2c_local_c(INT(fft_size, C_INT), &
+                              INT(number_of_ffts, C_INT), LOGICAL(transpose_in, C_BOOL), &
+                              LOGICAL(transpose_out, C_BOOL), C_LOC(grid_in), C_LOC(grid_out))
+   END SUBROUTINE fft_2d_r2c_local
+
+! **************************************************************************************************
+!> \brief Performs a complex-to-real 2D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_2d_c2r_local(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                               grid_in, grid_out)
+      INTEGER, DIMENSION(2), INTENT(IN)                  :: fft_size
+      INTEGER, INTENT(IN)                                :: number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
+      COMPLEX(KIND=dp), DIMENSION((fft_size(1)/2 + 1)*fft_size(2)*number_of_ffts), INTENT(INOUT), TARGET :: grid_in
+      REAL(KIND=dp), DIMENSION(*), INTENT(OUT), TARGET   :: grid_out
+
+      INTERFACE
+         SUBROUTINE fft_2d_c2r_local_c(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                                       grid_in, grid_out) &
+            BIND(C, name="fft_2d_c2r_local_F")
+            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX, C_PTR
+            INTEGER(C_INT), DIMENSION(2), INTENT(IN) :: fft_size
+            INTEGER(C_INT), VALUE :: number_of_ffts
+            LOGICAL(C_BOOL), VALUE :: transpose_in, transpose_out
+            TYPE(C_PTR), VALUE :: grid_in, grid_out
+         END SUBROUTINE fft_2d_c2r_local_c
+      END INTERFACE
+
+      CALL fft_2d_c2r_local_c(INT(fft_size, C_INT), &
+                              INT(number_of_ffts, C_INT), LOGICAL(transpose_in, C_BOOL), &
+                              LOGICAL(transpose_out, C_BOOL), C_LOC(grid_in), C_LOC(grid_out))
+   END SUBROUTINE fft_2d_c2r_local
+
+! **************************************************************************************************
+!> \brief Performs a real-to-complex 3D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_3d_r2c_local(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                               grid_in, grid_out)
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: fft_size
+      INTEGER, INTENT(IN)                                :: number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
+      REAL(KIND=dp), DIMENSION(PRODUCT(fft_size)*number_of_ffts), INTENT(INOUT), TARGET :: grid_in
+      COMPLEX(KIND=dp), DIMENSION((fft_size(1)/2 + 1)*fft_size(2)*fft_size(3)*number_of_ffts), INTENT(OUT), TARGET :: grid_out
+
+      INTERFACE
+         SUBROUTINE fft_3d_r2c_local_c(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                                       grid_in, grid_out) &
+            BIND(C, name="fft_3d_r2c_local_F")
+            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX, C_PTR
+            INTEGER(C_INT), DIMENSION(3), INTENT(IN) :: fft_size
+            INTEGER(C_INT), VALUE :: number_of_ffts
+            LOGICAL(C_BOOL), VALUE :: transpose_in, transpose_out
+            TYPE(C_PTR), VALUE :: grid_in, grid_out
+         END SUBROUTINE fft_3d_r2c_local_c
+      END INTERFACE
+
+      CALL fft_3d_r2c_local_c(INT(fft_size, C_INT), &
+                              INT(number_of_ffts, C_INT), LOGICAL(transpose_in, C_BOOL), &
+                              LOGICAL(transpose_out, C_BOOL), C_LOC(grid_in), C_LOC(grid_out))
+   END SUBROUTINE fft_3d_r2c_local
+
+! **************************************************************************************************
+!> \brief Performs a complex-to-real 3D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_3d_c2r_local(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                               grid_in, grid_out)
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: fft_size
+      INTEGER, INTENT(IN)                                :: number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
+      COMPLEX(KIND=dp), DIMENSION((fft_size(1)/2 + 1)*fft_size(2)*fft_size(3)*number_of_ffts), INTENT(INOUT), TARGET :: grid_in
+      REAL(KIND=dp), DIMENSION(*), INTENT(OUT), TARGET   :: grid_out
+
+      INTERFACE
+         SUBROUTINE fft_3d_c2r_local_c(fft_size, number_of_ffts, transpose_in, transpose_out, &
+                                       grid_in, grid_out) &
+            BIND(C, name="fft_3d_c2r_local_F")
+            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX, C_PTR
+            INTEGER(C_INT), DIMENSION(3), INTENT(IN) :: fft_size
+            INTEGER(C_INT), VALUE :: number_of_ffts
+            LOGICAL(C_BOOL), VALUE :: transpose_in, transpose_out
+            TYPE(C_PTR), VALUE :: grid_in, grid_out
+         END SUBROUTINE fft_3d_c2r_local_c
+      END INTERFACE
+
+      CALL fft_3d_c2r_local_c(INT(fft_size, C_INT), &
+                              INT(number_of_ffts, C_INT), LOGICAL(transpose_in, C_BOOL), &
+                              LOGICAL(transpose_out, C_BOOL), C_LOC(grid_in), C_LOC(grid_out))
+   END SUBROUTINE fft_3d_c2r_local
+
+! **************************************************************************************************
+!> \brief Registers an in-place real-to-complex 1D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_register_1d_r2c_local_inplace(fft_size, number_of_ffts, transpose, leading_dimension, grid)
+      INTEGER, INTENT(IN)                                :: fft_size, number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose
+      INTEGER, INTENT(IN)                                :: leading_dimension
+      REAL(KIND=dp), DIMENSION(leading_dimension*MERGE(fft_size, number_of_ffts, transpose)), INTENT(INOUT), TARGET :: grid
+
+      INTERFACE
+         SUBROUTINE fft_register_1d_r2c_local_inplace_c(fft_size, number_of_ffts, transpose, leading_dimension, grid) &
+            BIND(C, name="fft_register_1d_r2c_local_inplace_F")
+            IMPORT :: C_INT, C_BOOL, C_PTR
+            INTEGER(C_INT), VALUE :: fft_size, number_of_ffts, leading_dimension
+            LOGICAL(C_BOOL), VALUE :: transpose
+            TYPE(C_PTR), VALUE :: grid
+         END SUBROUTINE fft_register_1d_r2c_local_inplace_c
+      END INTERFACE
+
+      CALL fft_register_1d_r2c_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
+                              LOGICAL(transpose, C_BOOL), INT(leading_dimension, C_INT), C_LOC(grid))
+   END SUBROUTINE fft_register_1d_r2c_local_inplace
+
+! **************************************************************************************************
+!> \brief Registers an in-place real-to-complex 2D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_register_2d_r2c_local_inplace(fft_size, number_of_ffts, transpose, grid)
+      INTEGER, DIMENSION(2), INTENT(IN)                  :: fft_size
+      INTEGER, INTENT(IN)                                :: number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose
+      REAL(KIND=dp), DIMENSION(2*(fft_size(1)/2 + 1)*fft_size(2)*number_of_ffts), &
+         INTENT(INOUT), TARGET                           :: grid
+
+      INTERFACE
+         SUBROUTINE fft_register_2d_r2c_local_inplace_c(fft_size, number_of_ffts, transpose, grid) &
+            BIND(C, name="fft_register_2d_r2c_local_inplace_F")
+            IMPORT :: C_INT, C_BOOL, C_PTR
+            INTEGER(C_INT), DIMENSION(2), INTENT(IN) :: fft_size
+            INTEGER(C_INT), VALUE :: number_of_ffts
+            LOGICAL(C_BOOL), VALUE :: transpose
+            TYPE(C_PTR), VALUE :: grid
+         END SUBROUTINE fft_register_2d_r2c_local_inplace_c
+      END INTERFACE
+
+      CALL fft_register_2d_r2c_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
+                              LOGICAL(transpose, C_BOOL), C_LOC(grid))
+   END SUBROUTINE fft_register_2d_r2c_local_inplace
+
+! **************************************************************************************************
+!> \brief Registers an in-place real-to-complex 3D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_register_3d_r2c_local_inplace(fft_size, number_of_ffts, transpose, grid)
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: fft_size
+      INTEGER, INTENT(IN)                                :: number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose
+      REAL(KIND=dp), DIMENSION(2*(fft_size(1)/2 + 1)*fft_size(2)*fft_size(3)*number_of_ffts), &
+         INTENT(INOUT), TARGET                           :: grid
+
+      INTERFACE
+         SUBROUTINE fft_register_3d_r2c_local_inplace_c(fft_size, number_of_ffts, transpose, grid) &
+            BIND(C, name="fft_register_3d_r2c_local_inplace_F")
+            IMPORT :: C_INT, C_BOOL, C_PTR
+            INTEGER(C_INT), DIMENSION(3), INTENT(IN) :: fft_size
+            INTEGER(C_INT), VALUE :: number_of_ffts
+            LOGICAL(C_BOOL), VALUE :: transpose
+            TYPE(C_PTR), VALUE :: grid
+         END SUBROUTINE fft_register_3d_r2c_local_inplace_c
+      END INTERFACE
+
+      CALL fft_register_3d_r2c_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
+                              LOGICAL(transpose, C_BOOL), C_LOC(grid))
+   END SUBROUTINE fft_register_3d_r2c_local_inplace
+
+! **************************************************************************************************
+!> \brief Registers an in-place complex-to-real 1D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_register_1d_c2r_local_inplace(fft_size, number_of_ffts, transpose, leading_dimension, grid)
+      INTEGER, INTENT(IN)                                :: fft_size, number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose
+      INTEGER, INTENT(IN)                                :: leading_dimension
+      REAL(KIND=dp), DIMENSION(leading_dimension*MERGE(fft_size, number_of_ffts, transpose)), INTENT(INOUT), TARGET :: grid
+
+      INTERFACE
+         SUBROUTINE fft_register_1d_c2r_local_inplace_c(fft_size, number_of_ffts, transpose, leading_dimension, grid) &
+            BIND(C, name="fft_register_1d_c2r_local_inplace_F")
+            IMPORT :: C_INT, C_BOOL, C_PTR
+            INTEGER(C_INT), VALUE :: fft_size, number_of_ffts, leading_dimension
+            LOGICAL(C_BOOL), VALUE :: transpose
+            TYPE(C_PTR), VALUE :: grid
+         END SUBROUTINE fft_register_1d_c2r_local_inplace_c
+      END INTERFACE
+
+      CALL fft_register_1d_c2r_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
+                              LOGICAL(transpose, C_BOOL), INT(leading_dimension, C_INT), C_LOC(grid))
+   END SUBROUTINE fft_register_1d_c2r_local_inplace
+
+! **************************************************************************************************
+!> \brief Registers an in-place complex-to-real 2D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_register_2d_c2r_local_inplace(fft_size, number_of_ffts, transpose, grid)
+      INTEGER, DIMENSION(2), INTENT(IN)                  :: fft_size
+      INTEGER, INTENT(IN)                                :: number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose
+      REAL(KIND=dp), DIMENSION(2*(fft_size(1)/2 + 1)*fft_size(2)*number_of_ffts), &
+         INTENT(INOUT), TARGET                           :: grid
+
+      INTERFACE
+         SUBROUTINE fft_register_2d_c2r_local_inplace_c(fft_size, number_of_ffts, transpose, grid) &
+            BIND(C, name="fft_register_2d_c2r_local_inplace_F")
+            IMPORT :: C_INT, C_BOOL, C_PTR
+            INTEGER(C_INT), DIMENSION(2), INTENT(IN) :: fft_size
+            INTEGER(C_INT), VALUE :: number_of_ffts
+            LOGICAL(C_BOOL), VALUE :: transpose
+            TYPE(C_PTR), VALUE :: grid
+         END SUBROUTINE fft_register_2d_c2r_local_inplace_c
+      END INTERFACE
+
+      CALL fft_register_2d_c2r_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
+                              LOGICAL(transpose, C_BOOL), C_LOC(grid))
+   END SUBROUTINE fft_register_2d_c2r_local_inplace
+
+! **************************************************************************************************
+!> \brief Registers an in-place complex-to-real 3D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_register_3d_c2r_local_inplace(fft_size, number_of_ffts, transpose, grid)
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: fft_size
+      INTEGER, INTENT(IN)                                :: number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose
+      REAL(KIND=dp), DIMENSION(2*(fft_size(1)/2 + 1)*fft_size(2)*fft_size(3)*number_of_ffts), &
+         INTENT(INOUT), TARGET                           :: grid
+
+      INTERFACE
+         SUBROUTINE fft_register_3d_c2r_local_inplace_c(fft_size, number_of_ffts, transpose, grid) &
+            BIND(C, name="fft_register_3d_c2r_local_inplace_F")
+            IMPORT :: C_INT, C_BOOL, C_PTR
+            INTEGER(C_INT), DIMENSION(3), INTENT(IN) :: fft_size
+            INTEGER(C_INT), VALUE :: number_of_ffts
+            LOGICAL(C_BOOL), VALUE :: transpose
+            TYPE(C_PTR), VALUE :: grid
+         END SUBROUTINE fft_register_3d_c2r_local_inplace_c
+      END INTERFACE
+
+      CALL fft_register_3d_c2r_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
+                              LOGICAL(transpose, C_BOOL), C_LOC(grid))
+   END SUBROUTINE fft_register_3d_c2r_local_inplace
+
+! **************************************************************************************************
+!> \brief Performs an in-place real-to-complex 1D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_1d_r2c_local_inplace(fft_size, number_of_ffts, transpose, leading_dimension, grid)
+      INTEGER, INTENT(IN)                                :: fft_size, number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose
+      INTEGER, INTENT(IN)                                :: leading_dimension
+      REAL(KIND=dp), DIMENSION(leading_dimension*MERGE(fft_size, number_of_ffts, transpose)), INTENT(INOUT), TARGET :: grid
+
+      INTERFACE
+         SUBROUTINE fft_1d_r2c_local_inplace_c(fft_size, number_of_ffts, transpose, leading_dimension, grid) &
+            BIND(C, name="fft_1d_r2c_local_inplace_F")
+            IMPORT :: C_INT, C_BOOL, C_PTR
+            INTEGER(C_INT), VALUE :: fft_size, number_of_ffts, leading_dimension
+            LOGICAL(C_BOOL), VALUE :: transpose
+            TYPE(C_PTR), VALUE :: grid
+         END SUBROUTINE fft_1d_r2c_local_inplace_c
+      END INTERFACE
+
+      CALL fft_1d_r2c_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
+                              LOGICAL(transpose, C_BOOL), INT(leading_dimension, C_INT), C_LOC(grid))
+   END SUBROUTINE fft_1d_r2c_local_inplace
+
+! **************************************************************************************************
+!> \brief Performs an in-place real-to-complex 2D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_2d_r2c_local_inplace(fft_size, number_of_ffts, transpose, grid)
+      INTEGER, DIMENSION(2), INTENT(IN)                  :: fft_size
+      INTEGER, INTENT(IN)                                :: number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose
+      REAL(KIND=dp), DIMENSION(2*(fft_size(1)/2 + 1)*fft_size(2)*number_of_ffts), &
+         INTENT(INOUT), TARGET                           :: grid
+
+      INTERFACE
+         SUBROUTINE fft_2d_r2c_local_inplace_c(fft_size, number_of_ffts, transpose, grid) &
+            BIND(C, name="fft_2d_r2c_local_inplace_F")
+            IMPORT :: C_INT, C_BOOL, C_PTR
+            INTEGER(C_INT), DIMENSION(2), INTENT(IN) :: fft_size
+            INTEGER(C_INT), VALUE :: number_of_ffts
+            LOGICAL(C_BOOL), VALUE :: transpose
+            TYPE(C_PTR), VALUE :: grid
+         END SUBROUTINE fft_2d_r2c_local_inplace_c
+      END INTERFACE
+
+      CALL fft_2d_r2c_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
+                              LOGICAL(transpose, C_BOOL), C_LOC(grid))
+   END SUBROUTINE fft_2d_r2c_local_inplace
+
+! **************************************************************************************************
+!> \brief Performs an in-place real-to-complex 3D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_3d_r2c_local_inplace(fft_size, number_of_ffts, transpose, grid)
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: fft_size
+      INTEGER, INTENT(IN)                                :: number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose
+      REAL(KIND=dp), DIMENSION(2*(fft_size(1)/2 + 1)*fft_size(2)*fft_size(3)*number_of_ffts), &
+         INTENT(INOUT), TARGET                           :: grid
+
+      INTERFACE
+         SUBROUTINE fft_3d_r2c_local_inplace_c(fft_size, number_of_ffts, transpose, grid) &
+            BIND(C, name="fft_3d_r2c_local_inplace_F")
+            IMPORT :: C_INT, C_BOOL, C_PTR
+            INTEGER(C_INT), DIMENSION(3), INTENT(IN) :: fft_size
+            INTEGER(C_INT), VALUE :: number_of_ffts
+            LOGICAL(C_BOOL), VALUE :: transpose
+            TYPE(C_PTR), VALUE :: grid
+         END SUBROUTINE fft_3d_r2c_local_inplace_c
+      END INTERFACE
+
+      CALL fft_3d_r2c_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
+                              LOGICAL(transpose, C_BOOL), C_LOC(grid))
+   END SUBROUTINE fft_3d_r2c_local_inplace
+
+! **************************************************************************************************
+!> \brief Performs an in-place complex-to-real 1D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_1d_c2r_local_inplace(fft_size, number_of_ffts, transpose, leading_dimension, grid)
+      INTEGER, INTENT(IN)                                :: fft_size, number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose
+      INTEGER, INTENT(IN)                                :: leading_dimension
+      REAL(KIND=dp), DIMENSION(leading_dimension*MERGE(fft_size, number_of_ffts, transpose)), INTENT(INOUT), TARGET :: grid
+
+      INTERFACE
+         SUBROUTINE fft_1d_c2r_local_inplace_c(fft_size, number_of_ffts, transpose, leading_dimension, grid) &
+            BIND(C, name="fft_1d_c2r_local_inplace_F")
+            IMPORT :: C_INT, C_BOOL, C_PTR
+            INTEGER(C_INT), VALUE :: fft_size, number_of_ffts, leading_dimension
+            LOGICAL(C_BOOL), VALUE :: transpose
+            TYPE(C_PTR), VALUE :: grid
+         END SUBROUTINE fft_1d_c2r_local_inplace_c
+      END INTERFACE
+
+      CALL fft_1d_c2r_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
+                              LOGICAL(transpose, C_BOOL), INT(leading_dimension, C_INT), C_LOC(grid))
+   END SUBROUTINE fft_1d_c2r_local_inplace
+
+! **************************************************************************************************
+!> \brief Performs an in-place complex-to-real 2D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_2d_c2r_local_inplace(fft_size, number_of_ffts, transpose, grid)
+      INTEGER, DIMENSION(2), INTENT(IN)                  :: fft_size
+      INTEGER, INTENT(IN)                                :: number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose
+      REAL(KIND=dp), DIMENSION(2*(fft_size(1)/2 + 1)*fft_size(2)*number_of_ffts), &
+         INTENT(INOUT), TARGET                           :: grid
+
+      INTERFACE
+         SUBROUTINE fft_2d_c2r_local_inplace_c(fft_size, number_of_ffts, transpose, grid) &
+            BIND(C, name="fft_2d_c2r_local_inplace_F")
+            IMPORT :: C_INT, C_BOOL, C_PTR
+            INTEGER(C_INT), DIMENSION(2), INTENT(IN) :: fft_size
+            INTEGER(C_INT), VALUE :: number_of_ffts
+            LOGICAL(C_BOOL), VALUE :: transpose
+            TYPE(C_PTR), VALUE :: grid
+         END SUBROUTINE fft_2d_c2r_local_inplace_c
+      END INTERFACE
+
+      CALL fft_2d_c2r_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
+                              LOGICAL(transpose, C_BOOL), C_LOC(grid))
+   END SUBROUTINE fft_2d_c2r_local_inplace
+
+! **************************************************************************************************
+!> \brief Performs an in-place complex-to-real 3D FFT
+! **************************************************************************************************
+   SUBROUTINE fft_3d_c2r_local_inplace(fft_size, number_of_ffts, transpose, grid)
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: fft_size
+      INTEGER, INTENT(IN)                                :: number_of_ffts
+      LOGICAL, INTENT(IN)                                :: transpose
+      REAL(KIND=dp), DIMENSION(2*(fft_size(1)/2 + 1)*fft_size(2)*fft_size(3)*number_of_ffts), &
+         INTENT(INOUT), TARGET                           :: grid
+
+      INTERFACE
+         SUBROUTINE fft_3d_c2r_local_inplace_c(fft_size, number_of_ffts, transpose, grid) &
+            BIND(C, name="fft_3d_c2r_local_inplace_F")
+            IMPORT :: C_INT, C_BOOL, C_PTR
+            INTEGER(C_INT), DIMENSION(3), INTENT(IN) :: fft_size
+            INTEGER(C_INT), VALUE :: number_of_ffts
+            LOGICAL(C_BOOL), VALUE :: transpose
+            TYPE(C_PTR), VALUE :: grid
+         END SUBROUTINE fft_3d_c2r_local_inplace_c
+      END INTERFACE
+
+      CALL fft_3d_c2r_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
+                              LOGICAL(transpose, C_BOOL), C_LOC(grid))
+   END SUBROUTINE fft_3d_c2r_local_inplace
 
 END MODULE fft_api
