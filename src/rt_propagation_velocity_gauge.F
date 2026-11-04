@@ -145,6 +145,8 @@ CONTAINS
 
       nimages = dft_control%nimages
       ppnl_present = ASSOCIATED(sap_ppnl)
+      ! The plain non-local term is only replaced if the gauge transformed one is added below
+      IF (.NOT. dft_control%rtp_control%nl_gauge_transform) my_subtract_nl_term = .FALSE.
 
       IF (nimages > 1) THEN
          CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
