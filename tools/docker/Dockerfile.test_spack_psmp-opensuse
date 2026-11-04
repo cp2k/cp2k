@@ -3,11 +3,11 @@
 # Usage: ./spack_cache_start.sh; podman build --shm-size=1g -t spack_psmp-opensuse -f ./Dockerfile.test_spack_psmp-opensuse ../../
 #
 
-ARG BASE_IMAGE="opensuse/leap:16.0"
+ARG BASE_IMAGE="docker.io/opensuse/leap:16.0"
 
 ###### Stage 1: Build CP2K dependencies ######
 
-FROM "docker.io/${BASE_IMAGE}" AS build_deps
+FROM "${BASE_IMAGE}" AS build_deps
 
 RUN zypper --non-interactive --quiet ref && \
     zypper --non-interactive --quiet in --no-recommends \
@@ -33,18 +33,22 @@ RUN zypper --non-interactive --quiet ref && \
     zstd \
     && zypper --non-interactive --quiet clean --all
 
-ARG IMAGE_TAG
-ENV IMAGE_TAG=${IMAGE_TAG:-spack_psmp-opensuse}
+ARG IMAGE_TAG="spack_psmp-opensuse"
+ENV IMAGE_TAG="${IMAGE_TAG}"
 
-ARG SPACK_CACHE
-ENV SPACK_CACHE="${SPACK_CACHE:-s3://spack-cache --s3-endpoint-url=http://host.containers.internal:9000}"
+# Set number CPU cores if requested
+ARG NUM_PROCS=""
+ENV NUM_PROCS="${NUM_PROCS}"
+
+ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://host.containers.internal:9000"
+ENV SPACK_CACHE="${SPACK_CACHE}"
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
 COPY ./tools/spack ./tools/spack
 COPY ./tools/docker ./tools/docker
 COPY ./make_cp2k.sh .
-RUN ./make_cp2k.sh -bd_only -cv psmp -gpu none -gv 13 -mpi mpich -ue 
+RUN ./make_cp2k.sh -bd_only -cv psmp -gpu none -gv 13 -j${NUM_PROCS} -mpi mpich -ue 
 
 ###### Stage 2: Build CP2K ######
 
@@ -58,11 +62,11 @@ COPY ./tests ./tests
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./tools/conventions ./tools/conventions
 
-RUN ./make_cp2k.sh -cv psmp -gv 13 -gpu none -mpi mpich 
+RUN ./make_cp2k.sh -cv psmp -gv 13 -gpu none -j${NUM_PROCS} -mpi mpich 
 
 ###### Stage 3: Install CP2K ######
 
-FROM "docker.io/${BASE_IMAGE}" AS install_cp2k
+FROM "${BASE_IMAGE}" AS install_cp2k
 
 RUN zypper --non-interactive --quiet ref && \
     zypper --non-interactive --quiet in --no-recommends \
