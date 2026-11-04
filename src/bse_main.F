@@ -412,8 +412,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: diag_runtime_est
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval_joint
       TYPE(cp_fm_type)                                   :: fm_A_BSE, fm_B_BSE, fm_C_BSE, &
-                                                            fm_inv_sqrt_A_minus_B, &
-                                                            fm_sqrt_A_minus_B
+                                                            fm_chol_A_minus_B
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
 
       CALL timeset(routineN, handle)
@@ -461,9 +460,8 @@ CONTAINS
                              bse_env%do_abba, eigenval_joint, unit_nr, bse_env%homo_red, &
                              bse_env%virt_red, bse_env%dimen_RI, bse_env)
          IF (bse_env%do_abba) THEN
-            CALL create_hermitian_form_of_ABBA(fm_A_BSE, fm_B_BSE, fm_C_BSE, &
-                                               fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
-                                               unit_nr, bse_env, diag_runtime_est)
+            CALL create_hermitian_form_of_ABBA(fm_A_BSE, fm_B_BSE, fm_C_BSE, fm_chol_A_minus_B, &
+                                               unit_nr, bse_env)
          END IF
          CALL cp_fm_release(fm_B_BSE)
          tddfpt_control => bse_env%dft_control%tddfpt2_control
@@ -475,8 +473,7 @@ CONTAINS
          CALL cp_fm_release(fm_A_BSE)
          IF (bse_env%do_abba) THEN
             CALL diagonalize_C(fm_C_BSE, bse_env%homo_red, bse_env%virt_red, bse_env%homo_full, &
-                               fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
-                               unit_nr, diag_runtime_est, bse_env, mo_coeff)
+                               fm_chol_A_minus_B, unit_nr, diag_runtime_est, bse_env, mo_coeff)
          END IF
          CALL cp_fm_release(fm_C_BSE)
       END IF
