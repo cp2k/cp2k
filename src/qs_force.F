@@ -323,7 +323,7 @@ CONTAINS
          ! The above line reset the core H, which should be re-updated in case a TD field is applied:
          IF (qs_env%run_rtp) THEN
             IF (dft_control%apply_efield_field) THEN
-               CALL efield_potential_lengh_gauge(qs_env)
+               CALL efield_potential_lengh_gauge(qs_env, calculate_forces=.TRUE.)
             END IF
             IF (dft_control%rtp_control%velocity_gauge) THEN
                CALL velocity_gauge_ks_matrix(qs_env, subtract_nl_term=.FALSE.)
