@@ -11,6 +11,7 @@
 
 MODULE rt_propagation_velocity_gauge
    USE ai_moments,                      ONLY: expikr
+   USE ai_overlap,                      ONLY: overlap_ab
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
@@ -21,14 +22,10 @@ MODULE rt_propagation_velocity_gauge
                                               pbc
    USE core_ppnl,                       ONLY: build_core_ppnl
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
-                                              dbcsr_create,&
-                                              dbcsr_get_block_p,&
-                                              dbcsr_init_p,&
-                                              dbcsr_p_type,&
-                                              dbcsr_set,&
-                                              dbcsr_type_antisymmetric,&
-                                              dbcsr_type_symmetric
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_block_p, dbcsr_get_matrix_type, &
+        dbcsr_init_p, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
@@ -56,8 +53,14 @@ MODULE rt_propagation_velocity_gauge
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                              neighbor_list_iterate,&
+                                              neighbor_list_iterator_create,&
+                                              neighbor_list_iterator_p_type,&
+                                              neighbor_list_iterator_release,&
+                                              neighbor_list_set_p_type
    USE qs_operators_ao,                 ONLY: build_lin_mom_matrix
+   USE qs_overlap,                      ONLY: build_overlap_force
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE sap_kind_types,                  ONLY: alist_complex_type,&
@@ -81,7 +84,7 @@ MODULE rt_propagation_velocity_gauge
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_velocity_gauge'
 
    PUBLIC :: velocity_gauge_ks_matrix, update_vector_potential, velocity_gauge_nl_force, &
-             velocity_gauge_nl_commutator
+             velocity_gauge_nl_commutator, velocity_gauge_kinetic_force
 
 CONTAINS
 
@@ -1256,5 +1259,190 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE velocity_gauge_nl_force
+
+! **************************************************************************************************
+!> \brief Force from the field-dependent kinetic terms of the velocity gauge,
+!>        1/2 (p + A)^2 = 1/2 p^2 + A.p + 1/2 A^2. With H_im = - sum_i A_i M_i,
+!>        M_i = <a|d_i|b> = D_A S_ab (build_lin_mom_matrix), and H_re = H_re + 1/2 A^2 S:
+!>        dE/dR = - sum_i A_i Tr(P_im dM_i/dR) + 1/2 A^2 Tr(P_re dS/dR)
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE velocity_gauge_kinetic_force(qs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'velocity_gauge_kinetic_force'
+      INTEGER, DIMENSION(3, 3), PARAMETER :: ider = RESHAPE([1, 2, 3, 2, 4, 5, 3, 5, 6], [3, 3])
+
+      INTEGER :: handle, iatom, icol, idir, ikind, irow, iset, ispin, jatom, jdir, jkind, jset, &
+         ldrr, maxco, maxlgto, natom, ncoa, ncob, nkind, nseta, nsetb, sgfa, sgfb
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, lb_max, npgfa, npgfb, nsgfa, &
+                                                            nsgfb
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
+      LOGICAL                                            :: found, trans
+      REAL(KIND=dp)                                      :: alpha, dab, fp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: rr_work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: fk, pab, work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ddab
+      REAL(KIND=dp), DIMENSION(3)                        :: fab, rab, vec_pot
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, rpgfa, rpgfb, sphi_a, sphi_b, &
+                                                            zeta, zetb
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao, rho_ao_im
+      TYPE(dbcsr_type)                                   :: matrix_p
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_rho_type), POINTER                         :: rho
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, dft_control=dft_control, ks_env=ks_env, rho=rho, force=force, &
+                      atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
+                      sab_orb=sab_orb, natom=natom)
+      CALL qs_rho_get(rho, rho_ao=rho_ao, rho_ao_im=rho_ao_im)
+      vec_pot = dft_control%rtp_control%vec_pot
+
+      ALLOCATE (fk(3, natom))
+      fk = 0.0_dp
+
+      ! 1/2 A^2 Tr(P_re dS/dR), build_overlap_force adds -Tr(P dS/dR)
+      CALL dbcsr_create(matrix_p, template=rho_ao(1)%matrix)
+      CALL dbcsr_copy(matrix_p, rho_ao(1)%matrix)
+      DO ispin = 2, SIZE(rho_ao)
+         CALL dbcsr_add(matrix_p, rho_ao(ispin)%matrix, 1.0_dp, 1.0_dp)
+      END DO
+      CALL dbcsr_scale(matrix_p, -0.5_dp*DOT_PRODUCT(vec_pot, vec_pot))
+      CALL build_overlap_force(ks_env, fk, basis_type_a="ORB", basis_type_b="ORB", &
+                               sab_nl=sab_orb, matrix_p=matrix_p)
+      CALL dbcsr_release(matrix_p)
+
+      ! - sum_i A_i Tr(P_im dM_i/dR), with dM_i/dR_A,j = D_A,j D_A,i S = - dM_i/dR_B,j
+      nkind = SIZE(qs_kind_set)
+      CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxco=maxco, maxlgto=maxlgto)
+      ldrr = maxlgto + 2
+      CALL init_orbital_pointers(maxlgto + 2)
+      ALLOCATE (rr_work(ldrr*ldrr*3), ddab(maxco, maxco, 6), pab(maxco, maxco), work(maxco, maxco))
+
+      ALLOCATE (basis_set_list(nkind))
+      DO ikind = 1, nkind
+         CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a)
+         IF (ASSOCIATED(basis_set_a)) THEN
+            basis_set_list(ikind)%gto_basis_set => basis_set_a
+         ELSE
+            NULLIFY (basis_set_list(ikind)%gto_basis_set)
+         END IF
+      END DO
+
+      ! P_im is antisymmetric: a block stored as (b,a) holds -P_im(a,b)
+      alpha = 1.0_dp
+      IF (dbcsr_get_matrix_type(rho_ao_im(1)%matrix) == dbcsr_type_antisymmetric) alpha = -1.0_dp
+
+      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rab)
+         ! on-site and self-image pairs give equal and opposite contributions to the same atom
+         IF (iatom == jatom) CYCLE
+         basis_set_a => basis_set_list(ikind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
+         basis_set_b => basis_set_list(jkind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
+         first_sgfa => basis_set_a%first_sgf
+         la_max => basis_set_a%lmax
+         npgfa => basis_set_a%npgf
+         nseta = basis_set_a%nset
+         nsgfa => basis_set_a%nsgf_set
+         rpgfa => basis_set_a%pgf_radius
+         set_radius_a => basis_set_a%set_radius
+         sphi_a => basis_set_a%sphi
+         zeta => basis_set_a%zet
+         first_sgfb => basis_set_b%first_sgf
+         lb_max => basis_set_b%lmax
+         npgfb => basis_set_b%npgf
+         nsetb = basis_set_b%nset
+         nsgfb => basis_set_b%nsgf_set
+         rpgfb => basis_set_b%pgf_radius
+         set_radius_b => basis_set_b%set_radius
+         sphi_b => basis_set_b%sphi
+         zetb => basis_set_b%zet
+
+         IF (iatom <= jatom) THEN
+            irow = iatom
+            icol = jatom
+            trans = .FALSE.
+         ELSE
+            irow = jatom
+            icol = iatom
+            trans = .TRUE.
+         END IF
+         dab = NORM2(rab)
+         fab = 0.0_dp
+
+         DO ispin = 1, SIZE(rho_ao_im)
+            NULLIFY (p_block)
+            CALL dbcsr_get_block_p(rho_ao_im(ispin)%matrix, irow, icol, p_block, found)
+            IF (.NOT. found) CYCLE
+            DO iset = 1, nseta
+               ncoa = npgfa(iset)*ncoset(la_max(iset))
+               sgfa = first_sgfa(1, iset)
+               DO jset = 1, nsetb
+                  IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
+                  ncob = npgfb(jset)*ncoset(lb_max(jset))
+                  sgfb = first_sgfb(1, jset)
+                  ! P_im(a,b) in the primitive Cartesian basis
+                  IF (trans) THEN
+                     CALL dgemm("N", "T", ncoa, nsgfb(jset), nsgfa(iset), &
+                                alpha, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                p_block(sgfb, sgfa), SIZE(p_block, 1), &
+                                0.0_dp, work(1, 1), SIZE(work, 1))
+                  ELSE
+                     CALL dgemm("N", "N", ncoa, nsgfb(jset), nsgfa(iset), &
+                                1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                p_block(sgfa, sgfb), SIZE(p_block, 1), &
+                                0.0_dp, work(1, 1), SIZE(work, 1))
+                  END IF
+                  CALL dgemm("N", "T", ncoa, ncob, nsgfb(jset), &
+                             1.0_dp, work(1, 1), SIZE(work, 1), &
+                             sphi_b(1, sgfb), SIZE(sphi_b, 1), &
+                             0.0_dp, pab(1, 1), SIZE(pab, 1))
+                  CALL overlap_ab(la_max(iset), 0, npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                                  lb_max(jset), 0, npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
+                                  rab, ddab=ddab, rr_work=rr_work)
+                  DO jdir = 1, 3
+                     DO idir = 1, 3
+                        fab(jdir) = fab(jdir) - vec_pot(idir)* &
+                                    SUM(pab(1:ncoa, 1:ncob)*ddab(1:ncoa, 1:ncob, ider(idir, jdir)))
+                     END DO
+                  END DO
+               END DO
+            END DO
+         END DO
+         ! the transposed pair (b,a) gives the same contribution
+         fp = 2.0_dp
+         fk(:, iatom) = fk(:, iatom) + fp*fab(:)
+         fk(:, jatom) = fk(:, jatom) - fp*fab(:)
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
+
+      ! add the local contribution, the kinetic force is summed over ranks later
+      CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
+      DO iatom = 1, natom
+         force(kind_of(iatom))%kinetic(:, atom_of_kind(iatom)) = &
+            force(kind_of(iatom))%kinetic(:, atom_of_kind(iatom)) + fk(:, iatom)
+      END DO
+
+      DEALLOCATE (fk, rr_work, ddab, pab, work, basis_set_list)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE velocity_gauge_kinetic_force
 
 END MODULE rt_propagation_velocity_gauge
