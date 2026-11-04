@@ -70,6 +70,7 @@ MODULE bibliography
                             Luber2014, Berghold2011, DelBen2015b, Campana2009, &
                             Schiffmann2015, Bruck2014, Rappe1992, Ceriotti2012, &
                             Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978, Worlton1972, &
+                            Quan2026, &
                             Gilbert2008, Schonherr2014, Ceriotti2014, BaniHashemian2016, &
                             Kapil2016, Heinzmann1976, Ehrhardt1985, Rybkin2016, West2006, &
                             Bates2013, Andermatt2016, Zhu2016, Schuett2016, Lu2004, &
@@ -1334,6 +1335,13 @@ CONTAINS
                          title="Special points for Brillouin-zone integrations", &
                          source="Phys. Rev. B", volume="13", pages="5188-5192", &
                          year=1976, doi="10.1103/PhysRevB.13.5188")
+
+      CALL add_reference(key=Quan2026, &
+                         authors=s2a("J. Quan", "N. Rybin", "M. Scheffler", "C. Carbogno"), &
+                         title="Efficient band structure unfolding with atom-centered orbitals:"// &
+                         " General theory and application", &
+                         source="Phys. Rev. B", volume="113", pages="085112", &
+                         year=2026, doi="10.1103/7xym-7388")
 
       CALL add_reference(key=MacDonald1978, &
                          authors=s2a("A. H. MacDonald"), &
