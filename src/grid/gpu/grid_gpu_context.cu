@@ -138,6 +138,7 @@ extern "C" void grid_gpu_create_task_list(
     ctx->grid_[level].is_distributed(false);
     ctx->grid_[level].set_lattice_vectors(&dh[9 * level], &dh_inv[9 * level]);
     ctx->grid_[level].check_orthogonality(ortho);
+    ctx->grid_[level].max_cube_size(0);
     for (int i = 0; i < 9; i++)
       dh_max[level] = std::max(dh_max[level], std::abs(dh[9 * level + i]));
   }
@@ -315,6 +316,11 @@ extern "C" void grid_gpu_create_task_list(
               &tasks_host[i].lb_cube,     // lower boundary
               &tasks_host[i].cube_size);
     }
+
+    const int3 &cube_size = tasks_host[i].cube_size;
+    grid.max_cube_size(
+        std::max(grid.max_cube_size(),
+                 std::max(cube_size.x, std::max(cube_size.y, cube_size.z))));
   }
 
   // we need to sort the task list although I expect it to be sorted already

@@ -20,6 +20,7 @@
 #include <cuda_runtime.h>
 #endif
 #include <array>
+#include <climits>
 #include <vector>
 
 extern "C" {
@@ -223,8 +224,18 @@ private:
   std::array<T, 9> dh_;
   std::array<T, 9> dh_inv_;
   bool orthogonal_{false};
+  // lattice vectors along x, y and z
+  bool axis_aligned_{false};
   bool is_distributed_{false};
+  // largest cube size (in grid points, all directions) of the tasks of this
+  // level. Used to size the shared memory of the separable integrate kernel.
+  int max_cube_size_{0};
   gpu_vector<T> grid_;
+  // expansion of the cartesian monomials in lattice monomials, see
+  // build_lattice_to_cartesian_matrix in grid_gpu_integrate.cu. Valid up to
+  // lattice_to_cartesian_lmax_ (-1 when not computed for the current dh).
+  gpu_vector<T> lattice_to_cartesian_;
+  int lattice_to_cartesian_lmax_{-1};
 
 public:
   grid_info(const grid_info &) = delete;
@@ -273,6 +284,22 @@ public:
       dh_[i] = dh__[i];
       dh_inv_[i] = dh_inv__[i];
     }
+    axis_aligned_ = (dh_[1] == 0.0) && (dh_[2] == 0.0) && (dh_[3] == 0.0) &&
+                    (dh_[5] == 0.0) && (dh_[6] == 0.0) && (dh_[7] == 0.0);
+    lattice_to_cartesian_lmax_ = -1;
+  }
+
+  inline bool is_axis_aligned() const { return axis_aligned_; }
+
+  inline int max_cube_size() const { return max_cube_size_; }
+  inline void max_cube_size(const int size__) { max_cube_size_ = size__; }
+
+  inline gpu_vector<T> &lattice_to_cartesian() { return lattice_to_cartesian_; }
+  inline int lattice_to_cartesian_lmax() const {
+    return lattice_to_cartesian_lmax_;
+  }
+  inline void lattice_to_cartesian_lmax(const int lmax__) {
+    lattice_to_cartesian_lmax_ = lmax__;
   }
 
   inline void is_distributed(const bool distributed__) {
@@ -456,6 +483,9 @@ struct kernel_params {
   int *sorted_blocks_offset_dev{nullptr};
   int *num_tasks_per_block_dev{nullptr};
   int *cab_block_offset_dev{nullptr};
+  // integrate: tasks with lp >= integrate_separable_lp_min are handled by
+  // integrate_separable_kernel, the others by integrate_kernel.
+  int integrate_separable_lp_min{INT_MAX};
 };
 
 /* regroup all information about the context. */
