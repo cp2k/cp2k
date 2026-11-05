@@ -11,7 +11,7 @@
 ! **************************************************************************************************
 MODULE fft_api
    USE ISO_C_BINDING, ONLY: &
-      C_ASSOCIATED, C_BOOL, C_CHAR, C_DOUBLE, C_DOUBLE_COMPLEX, C_F_POINTER, C_INT, C_LOC, C_NULL_CHAR, &
+      C_ASSOCIATED, C_BOOL, C_CHAR, C_DOUBLE, C_DOUBLE_COMPLEX, C_F_POINTER, C_FUNLOC, C_FUNPTR, C_INT, C_LOC, C_NULL_CHAR, &
       C_NULL_PTR, C_PTR
    USE kinds, ONLY: dp
    USE message_passing, ONLY: mp_comm_type
@@ -177,8 +177,9 @@ CONTAINS
 !> \param threshold ...
 !> \author Frederick Stein
 ! **************************************************************************************************
-   SUBROUTINE fft_print_timing_report(threshold)
+   SUBROUTINE fft_print_timing_report(threshold, output_unit)
       REAL(KIND=dp), INTENT(IN)                          :: threshold
+      INTEGER, INTENT(IN), OPTIONAL                      :: output_unit
 
       INTERFACE
          SUBROUTINE fft_print_timing_report_c(threshold) &
@@ -186,11 +187,34 @@ CONTAINS
             IMPORT :: C_DOUBLE
             REAL(C_DOUBLE), VALUE :: threshold
          END SUBROUTINE fft_print_timing_report_c
+         SUBROUTINE fft_print_timing_report_unit_c(threshold, print_func, output_unit) &
+            BIND(C, name="fft_print_timing_report_unit")
+            IMPORT :: C_DOUBLE, C_FUNPTR, C_INT
+            REAL(C_DOUBLE), VALUE :: threshold
+            TYPE(C_FUNPTR), VALUE :: print_func
+            INTEGER(C_INT), VALUE :: output_unit
+         END SUBROUTINE fft_print_timing_report_unit_c
       END INTERFACE
 
-      CALL fft_print_timing_report_c(threshold)
-
+      IF (PRESENT(output_unit)) THEN
+         CALL fft_print_timing_report_unit_c(REAL(threshold, C_DOUBLE), &
+                                             C_FUNLOC(fft_timing_print_func), INT(output_unit, C_INT))
+      ELSE
+         CALL fft_print_timing_report_c(REAL(threshold, C_DOUBLE))
+      END IF
    END SUBROUTINE fft_print_timing_report
+
+! **************************************************************************************************
+!> \brief Callback to write FFT timing output to a Fortran output unit.
+! **************************************************************************************************
+   SUBROUTINE fft_timing_print_func(msg, msglen, output_unit) &
+      BIND(C, name="fft_api_timing_print_func")
+      CHARACTER(KIND=C_CHAR), INTENT(IN)                 :: msg(*)
+      INTEGER(KIND=C_INT), INTENT(IN), VALUE             :: msglen, output_unit
+
+      IF (output_unit <= 0) RETURN
+      WRITE (output_unit, FMT="(100A)", ADVANCE="NO") msg(1:msglen)
+   END SUBROUTINE fft_timing_print_func
 
 ! **************************************************************************************************
 !> \brief Inquire the library backend in use
