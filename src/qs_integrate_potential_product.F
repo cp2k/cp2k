@@ -41,6 +41,7 @@ MODULE qs_integrate_potential_product
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_finalize,&
                                               dbcsr_get_block_p,&
+                                              dbcsr_get_info,&
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
@@ -115,15 +116,18 @@ CONTAINS
       INTEGER :: bcol, brow, handle, i, iatom, igrid_level, ikind, ikind_old, ilevel, img, ipair, &
          ipgf, ipgf_new, iset, iset_new, iset_old, itask, ithread, jatom, jkind, jkind_old, jpgf, &
          jpgf_new, jset, jset_new, jset_old, maxco, maxpgf, maxset, maxsgf_set, na1, na2, natom, &
-         nb1, nb2, ncoa, ncob, nimages, nkind, nseta, nsetb, nthread, sgfa, sgfb
+         nb1, nb2, ncoa, ncob, nimages, nkind, nseta, nsetb, nthread, offset, sgfa, sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: block_touched
-      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
-                                                            npgfb, nsgfa, nsgfb
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, la_max, la_min, lb_max, &
+                                                            lb_min, npgfa, npgfb, nsgfa, nsgfb, &
+                                                            row_blk_size
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL :: atom_pair_changed, atom_pair_done, dh_duplicated, found, my_compute_tau, &
-         new_set_pair_coming, pab_required, redistribute_matrices, scatter, use_subpatch
+         new_set_pair_coming, pab_required, redistribute_matrices, use_subpatch
       REAL(KIND=dp)                                      :: eps_rho_rspace, f, prefactor, radius, &
                                                             scalef, zetp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         TARGET                                          :: h_buffer
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab, rab_inv, rb, &
                                                             rp
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
@@ -134,8 +138,9 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :, :, :), POINTER      :: hadbt, hdabt
       TYPE(atom_pair_type), DIMENSION(:), POINTER        :: atom_pair_recv, atom_pair_send
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: vhxc_block
+      TYPE(block_p_type)                                 :: vhxc_block(3)
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(dbcsr_p_type)                                 :: matrix_image(1)
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: deltap
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
@@ -177,6 +182,9 @@ CONTAINS
 
       ! GAPW not implemented here
       CPASSERT(.NOT. dft_control%qs_control%gapw)
+      ! The density input contains a single matrix image.
+      nimages = dft_control%nimages
+      CPASSERT(nimages == 1)
 
       ! *** set up the rs multi-grids
       CPASSERT(ASSOCIATED(pw_env))
@@ -207,6 +215,7 @@ CONTAINS
       ! Remote tasks need a working matrix containing the received density blocks.
       ALLOCATE (deltap(dft_control%nimages))
       IF (redistribute_matrices) THEN
+         ALLOCATE (deltap(1)%matrix)
          ! this matrix has no strict sparsity pattern in parallel
          ! deltap%sparsity_id=-1
          CALL dbcsr_copy(deltap(1)%matrix, matrix_p, name="DeltaP")
@@ -227,6 +236,10 @@ CONTAINS
       IF (redistribute_matrices) THEN
          CALL rs_distribute_matrix(rs_descs, deltap, atom_pair_send, atom_pair_recv, &
                                    nimages, scatter=.TRUE.)
+         ! Derivative integrals are accumulated on task ranks before returning to matrix owners.
+         ALLOCATE (h_buffer(task_list%buffer_size_recv, 3))
+         h_buffer(:, :) = 0.0_dp
+         CALL dbcsr_get_info(matrix_p, row_blk_size=row_blk_size, col_blk_size=col_blk_size)
       END IF
 
 !$OMP PARALLEL DEFAULT(NONE), &
@@ -236,6 +249,7 @@ CONTAINS
 !$OMP SHARED(eps_rho_rspace,force,cell), &
 !$OMP SHARED(gridlevel_info,task_list,block_touched,nthread,qs_kind_set), &
 !$OMP SHARED(nimages,lambda, dh_duplicated), &
+!$OMP SHARED(redistribute_matrices,h_buffer,row_blk_size,col_blk_size), &
 !$OMP PRIVATE(ithread,work,hab,hdab,hadb,pab,iset_old,jset_old), &
 !$OMP PRIVATE(ikind_old,jkind_old,iatom,jatom,iset,jset,ikind,jkind,ilevel,ipgf,jpgf), &
 !$OMP PRIVATE(img,brow,bcol,orb_basis_set,first_sgfa,la_max,la_min,npgfa,nseta,nsgfa), &
@@ -245,9 +259,7 @@ CONTAINS
 !$OMP PRIVATE(p_block,ncoa,sgfa,ncob,sgfb,rab,ra,rb,rp,zetp,f,prefactor,radius,igrid_level), &
 !$OMP PRIVATE(na1,na2,nb1,nb2,use_subpatch,rab_inv,new_set_pair_coming,atom_pair_done), &
 !$OMP PRIVATE(iset_new,jset_new,ipgf_new,jpgf_new,scalef), &
-!$OMP PRIVATE(itask)
-
-      IF (.NOT. ALLOCATED(vhxc_block)) ALLOCATE (vhxc_block(3))
+!$OMP PRIVATE(itask,offset)
 
       ithread = 0
 !$    ithread = omp_get_thread_num()
@@ -330,8 +342,14 @@ CONTAINS
 
                DO i = 1, 3
                   NULLIFY (vhxc_block(i)%block)
-                  CALL dbcsr_get_block_p(matrix_vhxc_dbasis(i)%matrix, brow, bcol, vhxc_block(i)%block, found)
-                  CPASSERT(found)
+                  IF (redistribute_matrices) THEN
+                     offset = task_list%pair_offsets_recv(tasks(itask)%pair_index)
+                     vhxc_block(i)%block(1:row_blk_size(brow), 1:col_blk_size(bcol)) => &
+                        h_buffer(offset + 1:offset + row_blk_size(brow)*col_blk_size(bcol), i)
+                  ELSE
+                     CALL dbcsr_get_block_p(matrix_vhxc_dbasis(i)%matrix, brow, bcol, vhxc_block(i)%block, found)
+                     CPASSERT(found)
+                  END IF
                END DO
 
                CALL dbcsr_get_block_p(matrix=deltap(img)%matrix, &
@@ -508,20 +526,22 @@ CONTAINS
          END DO loop_pairs
 !$OMP END DO
 
-         DO i = 1, 3
-            CALL dbcsr_finalize(matrix_vhxc_dbasis(i)%matrix)
-         END DO
+         IF (.NOT. redistribute_matrices) THEN
+            DO i = 1, 3
+               CALL dbcsr_finalize(matrix_vhxc_dbasis(i)%matrix)
+            END DO
+         END IF
 
       END DO loop_gridlevels
 
 !$OMP END PARALLEL
 
       IF (redistribute_matrices) THEN
-         ! Reconstruct H matrix if using distributed RS grids
-         ! note send and recv direction reversed WRT collocate
-         scatter = .FALSE.
-         CALL rs_distribute_matrix(rs_descs, matrix_vhxc_dbasis, atom_pair_recv, atom_pair_send, &
-                                   dft_control%nimages, scatter=.FALSE.)
+         DO i = 1, 3
+            task_list%hab_buffer%host_buffer(:) = h_buffer(:, i)
+            matrix_image(1)%matrix => matrix_vhxc_dbasis(i)%matrix
+            CALL rs_gather_matrices(task_list%hab_buffer, matrix_image, task_list, group)
+         END DO
       END IF
 
       IF (redistribute_matrices) THEN

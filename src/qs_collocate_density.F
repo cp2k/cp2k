@@ -1748,6 +1748,7 @@ CONTAINS
       ALLOCATE (deltap(nimages))
       IF (redistribute_matrices) THEN
          DO img = 1, nimages
+            ALLOCATE (deltap(img)%matrix)
          END DO
          ! this matrix has no strict sparsity pattern in parallel
          ! deltap%sparsity_id=-1
@@ -2130,6 +2131,7 @@ CONTAINS
       ALLOCATE (deltap(nimages))
       IF (redistribute_matrices) THEN
          DO img = 1, nimages
+            ALLOCATE (deltap(img)%matrix)
          END DO
          ! this matrix has no strict sparsity pattern in parallel
          ! deltap%sparsity_id=-1
