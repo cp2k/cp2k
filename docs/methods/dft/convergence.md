@@ -38,7 +38,7 @@ Please try achieving SCF convergence on the starting structure in a single-point
 in the first place; any other tasks not preceded by it is like putting the cart before the ponies.
 ```
 
-## General considerations
+## The chemistry of the system
 
 The very first ingredient of SCF convergence is a sensible input structure, applicable to every type
 of computation task including geometry and cell optimization, as elaborated on
@@ -64,6 +64,8 @@ allow for two alpha electrons that do not get paired with beta electrons. But fo
 cases such as multiple dioxygen molecules coexisting or a dioxygen molecule adsorbed on a surface,
 simply setting `MULTIPLICITY` may not be enough; this is where a delicate preparation of SCF initial
 guess would be necessary.
+
+## Initial guess
 
 The default of [SCF_GUESS](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.SCF_GUESS) is `ATOMIC`, meaning that the
 initial wavefunction and density matrix is generated from the atomic density of each kind of atom.
@@ -106,15 +108,12 @@ from the wavefunction is highly recommended for going to advanced, expensive one
   manipulate MO coefficients and restart an excited-state calculation;
 - ...
 
-```{note}
-The format and suffix of wavefunction restart files differ between a gamma-only formalism and
-a k-point sampling scheme: the former is typically `<project>-RESTART.wfn` while the latter is
-typically `<project>-RESTART.kp`. They cannot be interchanged for the purpose of restarting.
+For details, see [](../restarting.md#wavefunction-restart). It should be emphasized here that the
+format and suffix of wavefunction restart files differ between an "implicit gamma" formalism and a
+k-point sampling scheme: typically the former is `<project>-RESTART.wfn` while the latter is
+`<project>-RESTART.kp`, which cannot be interchanged for the purpose of restarting.
 
-Starting from CP2K version 2026.2, it is possible to produce a `<project>-RESTART.kp` from a
-gamma-only calculation by using the Harris functional for energy correction under section
-[DFT/ENERGY_CORRECTION](#CP2K_INPUT.FORCE_EVAL.DFT.ENERGY_CORRECTION).
-```
+## Other considerations
 
 With the structure, electronic state and initial guess cleared, the next step is to check if the
 [XC](#CP2K_INPUT.FORCE_EVAL.DFT.XC) section or the respective section of model Hamiltonian has been
@@ -128,22 +127,11 @@ good as necessary. The overall time cost is not necessarily increased with the p
 the more accurate and expensive side: even if each SCF iteration takes longer, the total number of
 iterations to reach convergence may still be reduced.
 
-Similarly, higher number or density of k-points for the Brillouin-zone sampling may be beneficial,
-in particular if the cell is small (corresponding to long reciprocal-space lattice vectors) and the
-system is an electronic conductor or semi-conductor. A convergence test for k-points with respect to
-the target property does not need to start with what is too low to make SCF converge.
-
-## Algorithm-specific considerations
-
-At the moment, the convergence criterion does not take the absolute change in energy into account,
-and the convergence of the diagonalization algorithm differs from that of the OT algorithm. Thus,
-these two algorithms are examined separately below.
-
-### For diagonalization
-
-The standard diagonalization algorithm for the Kohn-Sham matrix is activated by setting the
-[DIAGONALIZATION](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.DIAGONALIZATION) section, with full support for the
-mixing and smearing techniques.
+Similarly, higher number or density of [k-points](./k-points) for the Brillouin-zone sampling may be
+beneficial, in particular if the real-space periodic cell is small (corresponding to long lattice
+vectors in the reciprocal space) and the system is an electronic conductor or semi-conductor. A
+convergence test for the number or density of k-points with respect to the target property does not
+need to start with what is too low to make SCF converge.
 
 The mixing procedures of the density matrix in [MIXING](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.MIXING)
 supports several methods in the keyword [METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.MIXING.METHOD). The
@@ -159,16 +147,30 @@ broadening methods like Gaussian broadening. An elevated
 Fermi-Dirac smearing can handle difficult systems, but extrapolation to 0 is required to obtain
 results comparable with what without smearing. Likewise, the Gaussian broadening should use a width
 [SIGMA](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.SMEAR.SIGMA) systematically reduced to 0. Also note that some
-algorithms is compatible only with the uniform occupation.
+procedures may be compatible only with the uniform occupation.
+
+## Algorithm-specific considerations
+
+At the moment, the convergence criterion does not take the absolute change in energy into account,
+and the convergence of the diagonalization algorithm differs from that of the OT algorithm. Thus,
+these two algorithms are examined separately below.
+
+### For diagonalization
+
+The standard diagonalization algorithm for the Kohn-Sham matrix is activated by setting the
+[DIAGONALIZATION](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.DIAGONALIZATION) section. Diagonalization supports
+several choices of [ALGORITHM](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.DIAGONALIZATION.ALGORITHM) and
+[UPDATE_METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.DIAGONALIZATION.UPDATE_METHOD).
 
 ### For OT
 
-Alternative to the diagonalization is the minimization-based orbital transformation ({term}`OT`)
-method, activated by setting the [OT](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT) section. The most important
-settings are [ALGORITHM](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT.ALGORITHM) for the algorithm,
-[LINESEARCH](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT.LINESEARCH) and
-[MINIMIZER](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT.MINIMIZER) for the minimization, and
-[PRECONDITIONER](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT.PRECONDITIONER).
+Alternative to the diagonalization is the [orbital transformation](./orbital_transformation)
+({term}`OT`) method for direct SCF, activated by setting the [OT](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT)
+section. The keywords [ALGORITHM](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT.ALGORITHM) for the algorithm and
+[LINESEARCH](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT.LINESEARCH),
+[MINIMIZER](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT.MINIMIZER),
+[PRECONDITIONER](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT.PRECONDITIONER) for the preconditioner can be
+adjusted for convergence.
 
 The [OUTER_SCF](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OUTER_SCF) section controls an outer loop where the
 OT preconditioner is updated. The conventional loop for updating Kohn-Sham matrix is the inner loop

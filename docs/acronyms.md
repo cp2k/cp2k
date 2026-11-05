@@ -272,7 +272,7 @@ OpenMP
     Open Multi-Processing
 
 OT
-    Orbital Transformation method
+    Orbital Transformation method [→ more](methods/dft/orbital_transformation)
 
 PAO-ML
     Polarized Atomic Orbitals from Machine Learning [→ more](methods/machine_learning/pao-ml)
