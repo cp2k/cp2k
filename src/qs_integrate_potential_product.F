@@ -64,9 +64,7 @@ MODULE qs_integrate_potential_product
    USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                               realspace_grid_type
    USE rs_pw_interface,                 ONLY: potential_pw2rs
-   USE task_list_methods,               ONLY: rs_copy_to_buffer,&
-                                              rs_copy_to_matrices,&
-                                              rs_distribute_matrix,&
+   USE task_list_methods,               ONLY: rs_distribute_matrix,&
                                               rs_gather_matrices,&
                                               rs_scatter_matrices
    USE task_list_types,                 ONLY: atom_pair_type,&
@@ -122,8 +120,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL :: atom_pair_changed, atom_pair_done, dh_duplicated, distributed_grids, found, &
-         my_compute_tau, new_set_pair_coming, pab_required, scatter, use_subpatch
+      LOGICAL :: atom_pair_changed, atom_pair_done, dh_duplicated, found, my_compute_tau, &
+         new_set_pair_coming, pab_required, redistribute_matrices, scatter, use_subpatch
       REAL(KIND=dp)                                      :: eps_rho_rspace, f, prefactor, radius, &
                                                             scalef, zetp
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab, rab_inv, rb, &
@@ -183,9 +181,7 @@ CONTAINS
       ! *** set up the rs multi-grids
       CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho)
-      DO igrid_level = 1, gridlevel_info%ngrid_levels
-         distributed_grids = rs_rho(igrid_level)%desc%distributed
-      END DO
+      redistribute_matrices = ASSOCIATED(task_list%atom_pair_send)
       ! get mpi group from rs_rho
       group = rs_rho(1)%desc%group
 
@@ -208,10 +204,9 @@ CONTAINS
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
       !   *** Initialize working density matrix ***
-      ! distributed rs grids require a matrix that will be changed
-      ! whereas this is not the case for replicated grids
+      ! Remote tasks need a working matrix containing the received density blocks.
       ALLOCATE (deltap(dft_control%nimages))
-      IF (distributed_grids) THEN
+      IF (redistribute_matrices) THEN
          ! this matrix has no strict sparsity pattern in parallel
          ! deltap%sparsity_id=-1
          CALL dbcsr_copy(deltap(1)%matrix, matrix_p, name="DeltaP")
@@ -229,7 +224,7 @@ CONTAINS
       ALLOCATE (hadbt(3, maxco, maxco, 0:nthread))
       ALLOCATE (pabt(maxco, maxco, 0:nthread))
 
-      IF (distributed_grids) THEN
+      IF (redistribute_matrices) THEN
          CALL rs_distribute_matrix(rs_descs, deltap, atom_pair_send, atom_pair_recv, &
                                    nimages, scatter=.TRUE.)
       END IF
@@ -521,7 +516,7 @@ CONTAINS
 
 !$OMP END PARALLEL
 
-      IF (distributed_grids) THEN
+      IF (redistribute_matrices) THEN
          ! Reconstruct H matrix if using distributed RS grids
          ! note send and recv direction reversed WRT collocate
          scatter = .FALSE.
@@ -529,7 +524,7 @@ CONTAINS
                                    dft_control%nimages, scatter=.FALSE.)
       END IF
 
-      IF (distributed_grids) THEN
+      IF (redistribute_matrices) THEN
          CALL dbcsr_deallocate_matrix_set(deltap)
       ELSE
          DO img = 1, dft_control%nimages
@@ -601,13 +596,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace'
 
       CHARACTER(len=default_string_length)               :: my_basis_type
-      INTEGER                                            :: atom_a, handle, iatom, igrid_level, &
-                                                            ikind, img, maxco, maxsgf_set, natoms, &
-                                                            nimages, nkind
+      INTEGER                                            :: atom_a, handle, iatom, ikind, img, &
+                                                            maxco, maxsgf_set, natoms, nimages, &
+                                                            nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
-      LOGICAL                                            :: calculate_virial, distributed_grids, &
-                                                            do_kp, my_compute_tau, my_gapw, &
-                                                            pab_required
+      LOGICAL                                            :: calculate_virial, do_kp, my_compute_tau, &
+                                                            my_gapw, pab_required
       REAL(KIND=dp)                                      :: admm_scal_fac
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: forces_array
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_matrix
@@ -615,7 +609,6 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: deltap, dhmat
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(mp_comm_type)                                 :: group
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -695,9 +688,6 @@ CONTAINS
       ! get mpi group from rs_v
       group = rs_v(1)%desc%group
 
-      ! assign from pw_env
-      gridlevel_info => pw_env%gridlevel_info
-
       ! transform the potential on the rs_multigrids
       CALL potential_pw2rs(rs_v, v_rspace, pw_env)
 
@@ -714,13 +704,6 @@ CONTAINS
                            maxsgf_set=maxsgf_set, &
                            basis_type=my_basis_type)
 
-      distributed_grids = .FALSE.
-      DO igrid_level = 1, gridlevel_info%ngrid_levels
-         IF (rs_v(igrid_level)%desc%distributed) THEN
-            distributed_grids = .TRUE.
-         END IF
-      END DO
-
       ALLOCATE (forces_array(3, natoms))
 
       IF (pab_required) THEN
@@ -735,11 +718,7 @@ CONTAINS
          END IF
 
          ! Distribute matrix blocks.
-         IF (distributed_grids) THEN
-            CALL rs_scatter_matrices(deltap, task_list%pab_buffer, task_list, group)
-         ELSE
-            CALL rs_copy_to_buffer(deltap, task_list%pab_buffer, task_list)
-         END IF
+         CALL rs_scatter_matrices(deltap, task_list%pab_buffer, task_list, group)
          DEALLOCATE (deltap)
       END IF
 
@@ -784,11 +763,7 @@ CONTAINS
       END IF
 
       ! Distribute matrix blocks.
-      IF (distributed_grids) THEN
-         CALL rs_gather_matrices(task_list%hab_buffer, dhmat, task_list, group)
-      ELSE
-         CALL rs_copy_to_matrices(task_list%hab_buffer, dhmat, task_list)
-      END IF
+      CALL rs_gather_matrices(task_list%hab_buffer, dhmat, task_list, group)
       DEALLOCATE (dhmat)
 
       CALL timestop(handle)

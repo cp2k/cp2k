@@ -306,7 +306,7 @@ CONTAINS
       ALLOCATE (nsgf(natoms))
       CALL get_particle_set(particle_set, qs_kind_set, basis=basis_set_list, nsgf=nsgf)
       IF (ASSOCIATED(task_list%atom_pair_send)) THEN
-         ! only needed when there is a distributed grid
+         ! Needed whenever tasks use matrix blocks from other ranks.
          CALL rs_calc_offsets(pairs=task_list%atom_pair_send, &
                               nsgf=nsgf, &
                               group_size=rs_descs(1)%rs_desc%group_size, &
@@ -2542,6 +2542,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: buffer_send
 
       CALL timeset(routineN, handle)
+
+      IF (.NOT. ASSOCIATED(task_list%atom_pair_send)) THEN
+         CALL rs_copy_to_buffer(src_matrices, dest_buffer, task_list)
+         CALL timestop(handle)
+         RETURN
+      END IF
       ALLOCATE (buffer_send(task_list%buffer_size_send))
 
       ! pack dbcsr blocks into send buffer
@@ -2577,6 +2583,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: buffer_send
 
       CALL timeset(routineN, handle)
+
+      IF (.NOT. ASSOCIATED(task_list%atom_pair_send)) THEN
+         CALL rs_copy_to_matrices(src_buffer, dest_matrices, task_list)
+         CALL timestop(handle)
+         RETURN
+      END IF
 
       ! Caution: The meaning of send and recv are reversed in this routine.
       ALLOCATE (buffer_send(task_list%buffer_size_send)) ! e.g. this is actually used for receiving
