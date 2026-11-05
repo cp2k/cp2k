@@ -2940,7 +2940,7 @@ CONTAINS
          keyword, __LOCATION__, name="MAX_ITER", &
          description="Maximum number of objective-and-gradient evaluations in the single "// &
          "cooperative Cartesian grid optimization.", &
-         usage="MAX_ITER 300", default_i_val=300)
+         usage="MAX_ITER 20", default_i_val=20)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
