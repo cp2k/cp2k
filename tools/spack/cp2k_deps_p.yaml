@@ -200,7 +200,7 @@ spack:
 
   repos:
     builtin:
-      commit: a12bbd69e94b8fce1969a412755959bb37ecab3d # 2026-10-19
+      commit: 4fcf009e9f80634440c461937f322a9f0510a37b # 2026-11-04
 
   specs:
     # Build tools
@@ -213,7 +213,7 @@ spack:
     - "python@3.11:"
     # CP2K
     - "adios2@2.12.1"
-    - "cosma@2.8.4"
+    - "cosma@2.8.5"
 #   - "cusolvermp@0.7.2.888"
     - "dbcsr@git.97a623c2b9b89b8781592e546bab90d8f034b947=develop"
     - "deepmdkit@3.2.0"
