@@ -48,7 +48,7 @@ MODULE bse_full_diag
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_release, &
-        cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type
+        cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_to_fm_triangular, cp_fm_type
    USE exstates_types,                  ONLY: excited_energy_type
    USE input_constants,                 ONLY: bse_iterdiag,&
                                               bse_screening_alpha,&
@@ -527,7 +527,7 @@ CONTAINS
 !> \param fm_A matrix A
 !> \param fm_B matrix B
 !> \param fm_C on exit C = U (A+B) U^T
-!> \param fm_chol_A_minus_B on exit the upper Cholesky factor U of A-B (strict lower part undefined)
+!> \param fm_chol_A_minus_B on exit the upper Cholesky factor U of A-B, zero below the diagonal
 !> \param unit_nr output unit
 !> \param bse_env the BSE environment (settings)
 ! **************************************************************************************************
@@ -542,6 +542,7 @@ CONTAINS
 
       INTEGER                                            :: chol_info, dim_mat, handle
       REAL(KIND=dp), ALLOCATABLE                         :: diag_B(:), gap(:)
+      TYPE(cp_fm_type)                                   :: fm_work
 
       CALL timeset(routineN, handle)
 
@@ -569,22 +570,29 @@ CONTAINS
       END IF
 
       ! A-B = U^T U; pdpotrf fails exactly when A-B is not positive definite
-      CALL cp_fm_create(fm_chol_A_minus_B, fm_A%matrix_struct)
-      CALL cp_fm_to_fm(fm_A, fm_chol_A_minus_B)
-      CALL cp_fm_scale_and_add(1.0_dp, fm_chol_A_minus_B, -1.0_dp, fm_B)
-      CALL cp_fm_cholesky_decompose(fm_chol_A_minus_B, info_out=chol_info)
+      CALL cp_fm_create(fm_work, fm_A%matrix_struct)
+      CALL cp_fm_to_fm(fm_A, fm_work)
+      CALL cp_fm_scale_and_add(1.0_dp, fm_work, -1.0_dp, fm_B)
+      CALL cp_fm_cholesky_decompose(fm_work, info_out=chol_info)
       IF (chol_info /= 0) THEN
          CALL cp_abort(__LOCATION__, &
                        "Matrix (A-B) is not positive definite. "// &
                        "Hermitian diagonalization of full ABBA matrix is ill-defined.")
       END IF
+      ! pdpotrf leaves A-B in the strict lower part; a zero there lets U enter plain GEMMs
+      CALL cp_fm_create(fm_chol_A_minus_B, fm_A%matrix_struct)
+      CALL cp_fm_set_all(fm_chol_A_minus_B, 0.0_dp)
+      CALL cp_fm_to_fm_triangular(fm_work, fm_chol_A_minus_B, "U")
 
-      ! C = U (A+B) U^T, built in place by two triangular multiplies
+      ! C = U (A+B) U^T by two GEMMs, which run faster than pdtrmm at half the flops
+      CALL cp_fm_get_info(fm_A, nrow_global=dim_mat)
+      CALL cp_fm_to_fm(fm_A, fm_work)
+      CALL cp_fm_scale_and_add(1.0_dp, fm_work, 1.0_dp, fm_B)
       CALL cp_fm_create(fm_C, fm_A%matrix_struct)
-      CALL cp_fm_to_fm(fm_A, fm_C)
-      CALL cp_fm_scale_and_add(1.0_dp, fm_C, 1.0_dp, fm_B)
-      CALL cp_fm_triangular_multiply(fm_chol_A_minus_B, fm_C, side="L")
-      CALL cp_fm_triangular_multiply(fm_chol_A_minus_B, fm_C, side="R", transpose_tr=.TRUE.)
+      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_chol_A_minus_B, fm_work, 0.0_dp, fm_C)
+      CALL parallel_gemm("N", "T", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_C, fm_chol_A_minus_B, 0.0_dp, fm_work)
+      CALL cp_fm_to_fm(fm_work, fm_C)
+      CALL cp_fm_release(fm_work)
 
       IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A)') 'BSE|DEBUG|', 'Filled C=U (A+B) U^T with A-B=U^T U'
@@ -671,8 +679,9 @@ CONTAINS
 
       ! First, Eq. I from (A10) from Furche with (A-B)^0.5 -> U^T: (X+Y)_n = (Ω_n)^-0.5 U^T T_n
       CALL cp_fm_create(fm_mat_eigvec_transform_sum, fm_C%matrix_struct)
-      CALL cp_fm_to_fm(fm_eigvec_Z, fm_mat_eigvec_transform_sum)
-      CALL cp_fm_triangular_multiply(fm_chol_A_minus_B, fm_mat_eigvec_transform_sum, side="L", transpose_tr=.TRUE.)
+      CALL parallel_gemm(transa="T", transb="N", m=n_ov_joint, n=n_ov_joint, k=n_ov_joint, alpha=1.0_dp, &
+                         matrix_a=fm_chol_A_minus_B, matrix_b=fm_eigvec_Z, beta=0.0_dp, &
+                         matrix_c=fm_mat_eigvec_transform_sum)
       ! This normalizes the eigenvectors
       CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform_sum, Exc_ens, -0.5_dp, gamma=2.0_dp, do_transpose=.TRUE.)
 
