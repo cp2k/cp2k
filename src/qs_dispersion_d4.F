@@ -44,6 +44,7 @@ MODULE qs_dispersion_d4
 
 #if defined(__DFTD4)
 !&<
+   USE cp_control_types,                ONLY: dft_control_type
    USE dftd4,                           ONLY: d4_model, &
                                               damping_param, &
                                               get_dispersion, &
@@ -118,6 +119,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -137,7 +139,7 @@ CONTAINS
       debug = dispersion_env%d4_debug
 
       CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
-                      cell=cell, force=force, virial=virial, para_env=para_env)
+                      cell=cell, dft_control=dft_control, force=force, virial=virial, para_env=para_env)
       CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
 
       !get information about particles
@@ -181,7 +183,7 @@ CONTAINS
       !IF (ALL(periodic == 0)) enshift = 1
 
       !prepare for the call to the dispersion function
-      CALL new(mol, atomtype, xyz, lattice=cell%hmat, periodic=lperiod)
+      CALL new(mol, atomtype, xyz, charge=REAL(dft_control%charge, dp), lattice=cell%hmat, periodic=lperiod)
       CALL new_d4_model(error, disp, mol)
       IF (ALLOCATED(error)) THEN
          CPABORT(error%message)
