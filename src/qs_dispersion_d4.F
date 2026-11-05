@@ -44,14 +44,17 @@ MODULE qs_dispersion_d4
 
 #if defined(__DFTD4)
 !&<
+   USE cp_control_types,                ONLY: dft_control_type
    USE dftd4,                           ONLY: d4_model, &
                                               damping_param, &
                                               get_dispersion, &
                                               get_rational_damping, &
                                               new, &
                                               new_d4_model, &
+                                              new_work_partition, &
                                               realspace_cutoff, &
                                               structure_type, &
+                                              work_partition, &
                                               rational_damping_param, &
                                               get_coordination_number, &
                                               get_lattice_points
@@ -116,6 +119,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -126,6 +130,7 @@ CONTAINS
       TYPE(d4_model)                                     :: disp
       TYPE(structure_type)                               :: mol
       TYPE(realspace_cutoff)                             :: cutoff
+      TYPE(work_partition)                               :: partition
 
       TYPE(error_type), ALLOCATABLE                      :: error
 
@@ -134,7 +139,7 @@ CONTAINS
       debug = dispersion_env%d4_debug
 
       CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
-                      cell=cell, force=force, virial=virial, para_env=para_env)
+                      cell=cell, dft_control=dft_control, force=force, virial=virial, para_env=para_env)
       CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
 
       !get information about particles
@@ -178,7 +183,7 @@ CONTAINS
       !IF (ALL(periodic == 0)) enshift = 1
 
       !prepare for the call to the dispersion function
-      CALL new(mol, atomtype, xyz, lattice=cell%hmat, periodic=lperiod)
+      CALL new(mol, atomtype, xyz, charge=REAL(dft_control%charge, dp), lattice=cell%hmat, periodic=lperiod)
       CALL new_d4_model(error, disp, mol)
       IF (ALLOCATED(error)) THEN
          CPABORT(error%message)
@@ -256,6 +261,11 @@ CONTAINS
          use_virial = .FALSE.
       END IF
 
+      IF (dispersion_env%d4_reference_code .OR. debug) THEN
+         CALL new_work_partition(error, partition, para_env%mepos, para_env%num_pe)
+         IF (ALLOCATED(error)) CPABORT(error%message)
+      END IF
+
       IF (dispersion_env%d4_reference_code) THEN
 
          !> Wrapper to handle the evaluation of dispersion energy and derivatives
@@ -264,25 +274,27 @@ CONTAINS
          END IF
          IF (grad) THEN
             ALLOCATE (gradient(3, natom))
-            CALL get_dispersion(mol, disp, param, cutoff, evdw, gradient, stress)
+            CALL get_dispersion(mol, disp, param, cutoff, evdw, gradient, stress, &
+                                partition=partition, error=error)
+            IF (ALLOCATED(error)) CPABORT(error%message)
             IF (calculate_forces) THEN
                IF (use_virial) THEN
-                  virial%pv_virial = virial%pv_virial - stress/para_env%num_pe
+                  virial%pv_virial = virial%pv_virial - stress
                END IF
                DO iatom = 1, natom
                   ifull = atom_map_back(iatom)
                   ikind = kind_of(ifull)
                   atoma = atom_of_kind(ifull)
                   force(ikind)%dispersion(:, atoma) = &
-                     force(ikind)%dispersion(:, atoma) + gradient(:, iatom)/para_env%num_pe
+                     force(ikind)%dispersion(:, atoma) + gradient(:, iatom)
                END DO
             END IF
             DEALLOCATE (gradient)
          ELSE
-            CALL get_dispersion(mol, disp, param, cutoff, evdw)
+            CALL get_dispersion(mol, disp, param, cutoff, evdw, partition=partition, error=error)
+            IF (ALLOCATED(error)) CPABORT(error%message)
          END IF
-         !dispersion energy is computed by every MPI process
-         evdw = evdw/para_env%num_pe
+         ! Energy, forces and virial remain local until CP2K's existing reductions.
          IF (dispersion_env%ext_charges) dispersion_env%dcharges = 0.0_dp
          IF (PRESENT(atomic_energy)) THEN
             CPWARN("Atomic energies not available for D4 reference code")
@@ -308,12 +320,22 @@ CONTAINS
          END IF
 
          td = 0.0_dp
-         IF (debug .AND. iw > 0) THEN
+         IF (debug) THEN
             ts = m_walltime()
-            CALL refd4_debug(param, disp, mol, cutoff, grad, dispersion_env%doabc, &
+            CALL refd4_debug(param, disp, mol, cutoff, partition, grad, dispersion_env%doabc, &
                              enerd2, enerd3, cnd, qd, Edcn, Edq, gdeb, sdeb)
+            ! Compare complete results; CN and charges are already replicated.
+            CALL para_env%sum(enerd2)
+            IF (dispersion_env%doabc) CALL para_env%sum(enerd3)
+            IF (grad) THEN
+               CALL para_env%sum(Edcn)
+               CALL para_env%sum(Edq)
+               CALL para_env%sum(gdeb)
+               CALL para_env%sum(sdeb)
+            END IF
             te = m_walltime()
             td = te - ts
+            CALL para_env%max(td)
          END IF
 
          tc = 0.0_dp
@@ -377,7 +399,7 @@ CONTAINS
             ga(:, :) = 0.0_dp
             sigma(:, :) = 0.0_dp
          END IF
-         CALL dispersion_2b(dispersion_env, cutoff%disp2, disp%r4r2, &
+         CALL dispersion_2b(dispersion_env, cutoff%disp2, cutoff%width2, disp%r4r2, &
                             gwvec, gwdcn, gwdq, disp%c6, disp%ref, &
                             energies, dEdcn, dEdq, grad, ga, sigma, &
                             atom_map, species)
@@ -505,6 +527,7 @@ CONTAINS
          tc = tc + te - ts
 
          IF (debug) THEN
+            CALL para_env%max(tc)
             ta = SUM(energies)
             CALL para_env%sum(ta)
             IF (iw > 0) THEN
@@ -570,6 +593,7 @@ CONTAINS
 !> \param disp ...
 !> \param mol ...
 !> \param cutoff ...
+!> \param partition ...
 !> \param grad ...
 !> \param doabc ...
 !> \param enerd2 ...
@@ -581,12 +605,13 @@ CONTAINS
 !> \param gradient ...
 !> \param stress ...
 ! **************************************************************************************************
-   SUBROUTINE refd4_debug(param, disp, mol, cutoff, grad, doabc, &
+   SUBROUTINE refd4_debug(param, disp, mol, cutoff, partition, grad, doabc, &
                           enerd2, enerd3, cnd, qd, dEdcn, dEdq, gradient, stress)
       CLASS(damping_param)                               :: param
       TYPE(d4_model)                                     :: disp
       TYPE(structure_type)                               :: mol
       TYPE(realspace_cutoff)                             :: cutoff
+      TYPE(work_partition), INTENT(IN)                   :: partition
       TYPE(error_type), ALLOCATABLE                      :: error
       LOGICAL, INTENT(IN)                                :: grad, doabc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: enerd2, enerd3, cnd, qd, dEdcn, dEdq
@@ -636,15 +661,17 @@ CONTAINS
          ALLOCATE (dEdcn(natom), dEdq(natom))
          dEdcn(:) = 0.0_dp; dEdq(:) = 0.0_dp
       END IF
-      CALL param%get_dispersion2(mol, lattr, cutoff%disp2, cutoff%width2, disp%r4r2, c6, &
-                                 dc6dcn, dc6dq, enerd2, dEdcn, dEdq, gradient(:, :, 1), &
-                                 stress(:, :, 1))
-      !
       IF (grad) THEN
+         CALL param%get_dispersion2(mol, lattr, cutoff%disp2, cutoff%width2, disp%r4r2, c6, &
+                                    dc6dcn, dc6dq, enerd2, dEdcn, dEdq, gradient(:, :, 1), &
+                                    stress(:, :, 1), partition=partition)
          DO i = 1, 3
             gradient(i, :, 2) = MATMUL(qdr(i, :, :), dEdq(:))
             stress(i, :, 2) = MATMUL(qdL(i, :, :), dEdq(:))
          END DO
+      ELSE
+         CALL param%get_dispersion2(mol, lattr, cutoff%disp2, cutoff%width2, disp%r4r2, c6, &
+                                    energy=enerd2, partition=partition)
       END IF
       !
       IF (doabc) THEN
@@ -655,9 +682,14 @@ CONTAINS
          CALL disp%weight_references(mol, cnd, q, gwvec, gwdcn, gwdq)
          CALL disp%get_atomic_c6(mol, gwvec, gwdcn, gwdq, c6, dc6dcn, dc6dq)
          CALL get_lattice_points(mol%periodic, mol%lattice, cutoff%disp3, lattr)
-         CALL param%get_dispersion3(mol, lattr, cutoff%disp3, cutoff%width3, disp%r4r2, c6, &
-                                    dc6dcn, dc6dq, enerd3, dEdcn, qq, gradient(:, :, 3), &
-                                    stress(:, :, 3))
+         IF (grad) THEN
+            CALL param%get_dispersion3(mol, lattr, cutoff%disp3, cutoff%width3, disp%r4r2, c6, &
+                                       dc6dcn, dc6dq, enerd3, dEdcn, qq, gradient(:, :, 3), &
+                                       stress(:, :, 3), partition=partition)
+         ELSE
+            CALL param%get_dispersion3(mol, lattr, cutoff%disp3, cutoff%width3, disp%r4r2, c6, &
+                                       energy=enerd3, partition=partition)
+         END IF
       END IF
       IF (grad) THEN
          DO i = 1, 3
@@ -702,9 +734,45 @@ CONTAINS
 #endif
 
 ! **************************************************************************************************
+!> \brief Quintic Hermite switching function used by the D4 two-body cutoff.
+!> \param r interatomic distance
+!> \param cutoff real-space cutoff
+!> \param width width of the smooth cutoff region
+!> \param sw switching function value
+!> \param dswdr derivative of the switching function with respect to r
+! **************************************************************************************************
+   SUBROUTINE d4_smooth_cutoff(r, cutoff, width, sw, dswdr)
+      REAL(KIND=dp), INTENT(IN)                          :: r, cutoff, width
+      REAL(KIND=dp), INTENT(OUT)                         :: sw, dswdr
+
+      REAL(KIND=dp)                                      :: effective_width, inner, x
+
+      IF (width <= 0.0_dp .OR. cutoff <= 0.0_dp) THEN
+         sw = 1.0_dp
+         dswdr = 0.0_dp
+      ELSE
+         effective_width = MIN(width, cutoff)
+         inner = cutoff - effective_width
+         IF (r <= inner) THEN
+            sw = 1.0_dp
+            dswdr = 0.0_dp
+         ELSE IF (r >= cutoff) THEN
+            sw = 0.0_dp
+            dswdr = 0.0_dp
+         ELSE
+            x = (cutoff - r)/effective_width
+            sw = x**3*(10.0_dp + x*(-15.0_dp + 6.0_dp*x))
+            dswdr = -30.0_dp*x**2*(1.0_dp - x)**2/effective_width
+         END IF
+      END IF
+
+   END SUBROUTINE d4_smooth_cutoff
+
+! **************************************************************************************************
 !> \brief ...
 !> \param dispersion_env ...
 !> \param cutoff ...
+!> \param width ...
 !> \param r4r2 ...
 !> \param gwvec ...
 !> \param gwdcn ...
@@ -720,13 +788,13 @@ CONTAINS
 !> \param atom_map ...
 !> \param species ...
 ! **************************************************************************************************
-   SUBROUTINE dispersion_2b(dispersion_env, cutoff, r4r2, &
+   SUBROUTINE dispersion_2b(dispersion_env, cutoff, width, r4r2, &
                             gwvec, gwdcn, gwdq, c6ref, mrefs, &
                             energies, dEdcn, dEdq, &
                             calculate_forces, gradient, stress, &
                             atom_map, species)
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
-      REAL(KIND=dp), INTENT(IN)                          :: cutoff
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff, width
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r4r2
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: gwvec, gwdcn, gwdq
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: c6ref
@@ -739,8 +807,9 @@ CONTAINS
       INTEGER                                            :: ia, iatom, ik, ikind, ja, jatom, jk, &
                                                             jkind, mepos, num_pe
       REAL(KINd=dp)                                      :: a1, a2, c6ij, cutoff2, d6, d8, dE, dr2, &
-                                                            edisp, fac, gdisp, r0ij, rrij, s6, s8, &
-                                                            t6, t8
+                                                            dswdr, edisp, edisp0, fac, gdisp, &
+                                                            gdisp0, r, r0ij, rrij, s6, s8, sw, t6, &
+                                                            t8
       REAL(KINd=dp), DIMENSION(2)                        :: dcdcn, dcdq
       REAL(KINd=dp), DIMENSION(3)                        :: dG, rij
       REAL(KINd=dp), DIMENSION(3, 3)                     :: dS
@@ -784,10 +853,14 @@ CONTAINS
             END IF
             fac = 1._dp
             IF (iatom == jatom) fac = 0.5_dp
+            r = SQRT(dr2)
+            CALL d4_smooth_cutoff(r, cutoff, width, sw, dswdr)
+            IF (sw <= 0.0_dp) CYCLE
             t6 = 1.0_dp/(dr2**3 + r0ij**6)
             t8 = 1.0_dp/(dr2**4 + r0ij**8)
 
-            edisp = (s6*t6 + s8*rrij*t8)*fac
+            edisp0 = s6*t6 + s8*rrij*t8
+            edisp = sw*edisp0*fac
             dE = -c6ij*edisp
             energies(iatom) = energies(iatom) + dE*0.5_dp
             energies(jatom) = energies(jatom) + dE*0.5_dp
@@ -795,7 +868,8 @@ CONTAINS
             IF (calculate_forces) THEN
                d6 = -6.0_dp*dr2**2*t6**2
                d8 = -8.0_dp*dr2**3*t8**2
-               gdisp = (s6*d6 + s8*rrij*d8)*fac
+               gdisp0 = s6*d6 + s8*rrij*d8
+               gdisp = (sw*gdisp0 + dswdr*edisp0/r)*fac
                dG(:) = -c6ij*gdisp*rij(:)
                gradient(:, iatom) = gradient(:, iatom) - dG
                gradient(:, jatom) = gradient(:, jatom) + dG

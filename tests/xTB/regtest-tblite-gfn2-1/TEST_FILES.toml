@@ -8,7 +8,7 @@
 "H2SO4_gfn2.inp"                           = [{matcher = "E_total", tol = 1.0E-8, ref = -20.535208593}]
 "N2_gfn2.inp"                              = [{matcher = "E_total", tol = 1.0E-8, ref = -5.7289226128}]
 "N2_gfn2_ot.inp"                           = [{matcher = "E_total", tol = 1.0E-8, ref = -5.7289226128}]
-"N2_gfn2_lattice.inp"                      = [{matcher = "E_total", tol = 1.0E-8, ref = -11.45791031045108}]
+"N2_gfn2_lattice.inp"                      = [{matcher = "E_total", tol = 1.0E-8, ref = -11.45789263506492}]
 "N2_gfn2_ls.inp"                           = [{matcher = "M011", tol = 1.0E-8, ref = -5.72892260298788}]
 "N2_gfn2_uks.inp"                          = [{matcher = "E_total", tol = 1.0E-8, ref = -5.7289226128}]
 "N2_gfn2_uks_cp2k_mixer.inp"               = [{matcher = "E_total", tol = 1.0E-8, ref = -5.7289226128}]
@@ -23,7 +23,7 @@
 "N2_gfn2_uks_cp2k_mixer_force.inp"         = [{matcher = "M082", tol = 5.0E-6, ref = 0.0000000}]
 "O2_gfn2_uks_force.inp"                    = [{matcher = "M082", tol = 5.0E-6, ref = 0.0000000}]
 "O2_gfn2_uks_ot.inp"                       = [{matcher = "E_total", tol = 1.0E-8, ref = -7.9319651546}]
-"O2_gfn2_uks_xyz_ls_cp2k_mixer.inp"        = [{matcher = "M011", tol = 1.0E-8, ref = -7.931965128812277}]
+"O2_gfn2_uks_xyz_ls_cp2k_mixer.inp"        = [{matcher = "M011", tol = 1.0E-8, ref = -7.931960645184175}]
 "O2plus_gfn2_uks_cp2k_mixer.inp"           = [{matcher = "E_total", tol = 1.0E-8, ref = -7.27211104712107}]
 "O2plus_gfn2_uks_cp2k_mixer_force.inp"     = [{matcher = "M082", tol = 5.0E-6, ref = 0.0000000}]
 "CH2O_gfn2_force_cp2k_mixer.inp"           = [{matcher = "M082", tol = 5.0E-6, ref = 0.0000000}]
@@ -34,28 +34,28 @@
 ]
 "Hg2Cl2_gfn2_force.inp"                    = [{matcher = "M082", tol = 1.0E-5, ref = 0.0000000}]
 "Si_gfn2_ot_kp.inp"                        = [
-  {matcher = "E_total", tol = 1.0E-8, ref = -13.65652352542018},
+  {matcher = "E_total", tol = 1.0E-8, ref = -13.65620382843962},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 4}
 ]
 "Si_gfn2_ot_kp_lbfgs_rotation.inp"         = [
-  {matcher = "E_total", tol = 1.0E-8, ref = -13.65468885187564},
+  {matcher = "E_total", tol = 1.0E-8, ref = -13.65448794582078},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 1}
 ]
 "Al_fcc_gfn2_kp_otdiag_smear.inp"          = [
-  {matcher = "E_total", tol = 1.0E-9, ref = -1.194939346653323},
+  {matcher = "E_total", tol = 1.0E-9, ref = -1.18799319760596},
   {matcher = "Electronic_entropic_energy", tol = 1.0E-9, ref = -1.18720770936E-3},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 2},
   {matcher = "NO_TEXT", text = "SCF run NOT converged"}
 ]
 "Al_fcc_gfn2_kp_otdiag_fermi_low_rank.inp" = [
-  {matcher = "E_total", tol = 1.0E-9, ref = -1.194939346653323},
+  {matcher = "E_total", tol = 1.0E-9, ref = -1.18799319760598},
   {matcher = "Electronic_entropic_energy", tol = 1.0E-9, ref = -1.18720770936E-3},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 2},
   {matcher = "NO_TEXT", text = "SCF run NOT converged"},
   {matcher = "NO_TEXT", text = "Unsupported complex K-point OT eigensolver preconditioner"}
 ]
 "Al_fcc_gfn2_kp_otdiag_covariant.inp"      = [
-  {matcher = "E_total", tol = 1.0E-9, ref = -1.194939346653323},
+  {matcher = "E_total", tol = 1.0E-9, ref = -1.1879931976056},
   {matcher = "Electronic_entropic_energy", tol = 1.0E-9, ref = -1.18720770936E-3},
   {matcher = "N_special_kpoints", tol = 0.0, ref = 2},
   {matcher = "NO_TEXT", text = "SCF run NOT converged"},

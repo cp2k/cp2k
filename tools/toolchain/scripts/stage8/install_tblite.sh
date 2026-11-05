@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-tblite_ver="0.7.0"
-tblite_sha256="3a7cb4602101e828caf41c38ca5e30f82de82d0d26d5db40168acdcad3462b92"
+tblite_ver="0.8.0"
+tblite_sha256="2d00fd612b3fcbb69365de53577080457ceae221cd151be52e7a9977b4832ad3"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -34,16 +34,14 @@ case "$with_tblite" in
       [ -d tblite-${tblite_ver} ] && rm -rf tblite-${tblite_ver}
       tar -xJf tblite-${tblite_ver}.tar.xz
       cd tblite-${tblite_ver}
-      mkdir -p build && cd build
-      cmake \
+      cmake -B build \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DBUILD_TESTING=OFF \
         -DWITH_TESTS=OFF \
-        .. \
         > cmake.log 2>&1 || tail_excerpt cmake.log
-      make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+      cmake --build build -t install -j $(get_nprocs) > build.log 2>&1 || tail_excerpt build.log
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
       cd ..
     fi

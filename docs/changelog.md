@@ -132,6 +132,7 @@
   ([#6253](https://github.com/cp2k/cp2k/pull/6253))
 - Fix slab-normal dipoles with partial periodicity ([#6274](https://github.com/cp2k/cp2k/pull/6274))
 - Reset Pulay history between SCF runs ([#6279](https://github.com/cp2k/cp2k/pull/6279))
+- Fix native D4 smooth-cutoff ([#6424](https://github.com/cp2k/cp2k/pull/6424))
 - **TODO**
 
 ______________________________________________________________________
