@@ -1574,7 +1574,6 @@ set(CP2K_DBM_SRCS_C
 
 set(CP2K_FFT_SRCS_C
     fft/fft_api_F.c
-    fft/fft_api_F_test.c
     fft/fft_lib.c
     fft/fft_lib_fftw.c
     fft/fft_lib_test.c
