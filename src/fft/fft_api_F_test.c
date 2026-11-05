@@ -15,6 +15,38 @@
 #include <string.h>
 #include <time.h>
 
+
+static inline int fft3d_index(const int fft_size[3], const int x, const int y,
+                              const int z, const int batch,
+                              const int number_of_ffts, const bool transpose) {
+  const int spatial = (x * fft_size[1] + y) * fft_size[2] + z;
+  return transpose ? spatial * number_of_ffts + batch
+                   : batch * (fft_size[0] * fft_size[1] * fft_size[2]) + spatial;
+}
+
+static inline int fft3d_index_complex(const int fft_size[3], const int x,
+                                      const int y, const int z, const int batch,
+                                      const int number_of_ffts,
+                                      const bool transpose) {
+  const int spatial = (x * fft_size[1] + y) * (fft_size[2] / 2 + 1) + z;
+  return transpose
+             ? spatial * number_of_ffts + batch
+             : batch * (fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1)) +
+                   spatial;
+}
+
+static inline int fft3d_index_padded(const int fft_size[3], const int x,
+                                     const int y, const int z, const int batch,
+                                     const int number_of_ffts,
+                                     const bool transpose) {
+  const int spatial =
+      (x * fft_size[1] + y) * 2 * (fft_size[2] / 2 + 1) + z;
+  return transpose ? spatial * number_of_ffts + batch
+                   : batch * (2 * fft_size[0] * fft_size[1] *
+                              (fft_size[2] / 2 + 1)) +
+                         spatial;
+}
+
 /*******************************************************************************
  * \brief Function to test the local FFT backend.
  * \author Frederick Stein
@@ -800,7 +832,8 @@ int fft_test_F_2d_local_inplace_low(const int fft_size[2],
  * \brief Function to test the local FFT backend.
  * \author Frederick Stein
  ******************************************************************************/
-int fft_test_F_3d_local_low(const int fft_size[3], const int test_every) {
+int fft_test_F_3d_local_low(const int fft_size[3], const int test_every,
+                            const bool transpose_in, const bool transpose_out) {
   (void)test_every;
   const int my_process = cp_mpi_comm_rank(cp_mpi_get_comm_world());
 
@@ -816,9 +849,9 @@ int fft_test_F_3d_local_low(const int fft_size[3], const int test_every) {
   fft_allocate_complex_F(volume * number_of_ffts, &input_array);
   fft_allocate_complex_F(volume * number_of_ffts, &output_array);
 
-  fft_register_3d_local_F(true, fft_size_F, number_of_ffts, false, false,
+  fft_register_3d_local_F(true, fft_size_F, number_of_ffts, transpose_in, transpose_out,
                         input_array, output_array);
-  fft_register_3d_local_F(false, fft_size_F, number_of_ffts, false, false,
+  fft_register_3d_local_F(false, fft_size_F, number_of_ffts, transpose_out, transpose_in,
                         output_array, input_array);
 
   double max_error = 0.0;
@@ -831,14 +864,14 @@ int fft_test_F_3d_local_low(const int fft_size[3], const int test_every) {
         if (test_every > 0 && index % test_every != 0)
           continue;
         const int batch = test_every > 0 ? index / test_every : index;
-        input_array[batch * volume + index] = 1.0;
+        input_array[fft3d_index(fft_size, mx, my, mz, batch, number_of_ffts, transpose_in)] = 1.0;
       }
     }
   }
-  fft_3d_local_F(true, fft_size_F, number_of_ffts, false, false, input_array,
+  fft_3d_local_F(true, fft_size_F, number_of_ffts, transpose_in, transpose_out, input_array,
                output_array);
 
-#pragma omp parallel for default(none) firstprivate(test_every)                                         \
+#pragma omp parallel for default(none) firstprivate(test_every) firstprivate(transpose_in, transpose_out)                                         \
     shared(output_array, fft_size, pi, my_process, volume, number_of_ffts)     \
     reduction(max : max_error) collapse(3)
   for (int mx = 0; mx < fft_size[0]; mx++) {
@@ -853,7 +886,7 @@ int fft_test_F_3d_local_low(const int fft_size[3], const int test_every) {
             for (int nz = 0; nz < fft_size[2]; nz++) {
               const int index = (nx * fft_size[1] + ny) * fft_size[2] + nz;
               const double complex my_value =
-                  output_array[batch * volume + index];
+                  output_array[fft3d_index(fft_size, nx, ny, nz, batch, number_of_ffts, transpose_out)];
               const double complex ref_value =
                   cexp(-2.0 * I * pi *
                        (((double)mx) * nx / fft_size[0] +
@@ -892,14 +925,14 @@ int fft_test_F_3d_local_low(const int fft_size[3], const int test_every) {
         if (test_every > 0 && index % test_every != 0)
           continue;
         const int batch = test_every > 0 ? index / test_every : index;
-        output_array[batch * volume + index] = 1.0;
+        output_array[fft3d_index(fft_size, mx, my, mz, batch, number_of_ffts, transpose_out)] = 1.0;
       }
     }
   }
-  fft_3d_local_F(false, fft_size_F, number_of_ffts, false, false, output_array,
+  fft_3d_local_F(false, fft_size_F, number_of_ffts, transpose_out, transpose_in, output_array,
                input_array);
 
-#pragma omp parallel for default(none) firstprivate(test_every)                                         \
+#pragma omp parallel for default(none) firstprivate(test_every) firstprivate(transpose_in, transpose_out)                                         \
     shared(input_array, fft_size, pi, my_process, volume, number_of_ffts)      \
     reduction(max : max_error) collapse(3)
   for (int mx = 0; mx < fft_size[0]; mx++) {
@@ -914,7 +947,7 @@ int fft_test_F_3d_local_low(const int fft_size[3], const int test_every) {
             for (int nz = 0; nz < fft_size[2]; nz++) {
               const int index = (nx * fft_size[1] + ny) * fft_size[2] + nz;
               const double complex my_value =
-                  input_array[batch * volume + index];
+                  input_array[fft3d_index(fft_size, nx, ny, nz, batch, number_of_ffts, transpose_in)];
               const double complex ref_value =
                   cexp(2.0 * I * pi *
                        (((double)mx) * nx / fft_size[0] +
@@ -956,7 +989,8 @@ int fft_test_F_3d_local_low(const int fft_size[3], const int test_every) {
  * \brief Function to test the local FFT backend.
  * \author Frederick Stein
  ******************************************************************************/
-int fft_test_F_3d_local_inplace_low(const int fft_size[3], const int test_every) {
+int fft_test_F_3d_local_inplace_low(const int fft_size[3], const int test_every,
+                                    const bool transpose) {
   (void)test_every;
   const int my_process = cp_mpi_comm_rank(cp_mpi_get_comm_world());
 
@@ -972,9 +1006,9 @@ int fft_test_F_3d_local_inplace_low(const int fft_size[3], const int test_every)
   fft_allocate_complex_F(volume * number_of_ffts, &input_array);
   double complex *output_array = input_array;
 
-  fft_register_3d_local_inplace_F(true, fft_size_F, number_of_ffts, false,
+  fft_register_3d_local_inplace_F(true, fft_size_F, number_of_ffts, transpose,
                                    input_array);
-  fft_register_3d_local_inplace_F(false, fft_size_F, number_of_ffts, false,
+  fft_register_3d_local_inplace_F(false, fft_size_F, number_of_ffts, transpose,
                                    output_array);
 
   double max_error = 0.0;
@@ -987,14 +1021,14 @@ int fft_test_F_3d_local_inplace_low(const int fft_size[3], const int test_every)
         if (test_every > 0 && index % test_every != 0)
           continue;
         const int batch = test_every > 0 ? index / test_every : index;
-        input_array[batch * volume + index] = 1.0;
+        input_array[fft3d_index(fft_size, mx, my, mz, batch, number_of_ffts, transpose)] = 1.0;
       }
     }
   }
-  fft_3d_local_inplace_F(true, fft_size_F, number_of_ffts, false,
+  fft_3d_local_inplace_F(true, fft_size_F, number_of_ffts, transpose,
                           input_array);
 
-#pragma omp parallel for default(none) firstprivate(test_every)                                         \
+#pragma omp parallel for default(none) firstprivate(test_every) firstprivate(transpose)                                         \
     shared(output_array, fft_size, pi, volume, number_of_ffts)                  \
     reduction(max : max_error) collapse(3)
   for (int mx = 0; mx < fft_size[0]; mx++) {
@@ -1009,7 +1043,7 @@ int fft_test_F_3d_local_inplace_low(const int fft_size[3], const int test_every)
             for (int nz = 0; nz < fft_size[2]; nz++) {
               const int index = (nx * fft_size[1] + ny) * fft_size[2] + nz;
               const double complex my_value =
-                  output_array[batch * volume + index];
+                  output_array[fft3d_index(fft_size, nx, ny, nz, batch, number_of_ffts, transpose)];
               const double complex ref_value =
                   cexp(-2.0 * I * pi *
                        (((double)mx) * nx / fft_size[0] +
@@ -1044,14 +1078,14 @@ int fft_test_F_3d_local_inplace_low(const int fft_size[3], const int test_every)
         if (test_every > 0 && index % test_every != 0)
           continue;
         const int batch = test_every > 0 ? index / test_every : index;
-        output_array[batch * volume + index] = 1.0;
+        output_array[fft3d_index(fft_size, mx, my, mz, batch, number_of_ffts, transpose)] = 1.0;
       }
     }
   }
-  fft_3d_local_inplace_F(false, fft_size_F, number_of_ffts, false,
+  fft_3d_local_inplace_F(false, fft_size_F, number_of_ffts, transpose,
                            output_array);
 
-#pragma omp parallel for default(none) firstprivate(test_every)                                         \
+#pragma omp parallel for default(none) firstprivate(test_every) firstprivate(transpose)                                         \
     shared(input_array, fft_size, pi, volume, number_of_ffts)                   \
     reduction(max : max_error) collapse(3)
   for (int mx = 0; mx < fft_size[0]; mx++) {
@@ -1066,7 +1100,7 @@ int fft_test_F_3d_local_inplace_low(const int fft_size[3], const int test_every)
             for (int nz = 0; nz < fft_size[2]; nz++) {
               const int index = (nx * fft_size[1] + ny) * fft_size[2] + nz;
               const double complex my_value =
-                  input_array[batch * volume + index];
+                  input_array[fft3d_index(fft_size, nx, ny, nz, batch, number_of_ffts, transpose)];
               const double complex ref_value =
                   cexp(2.0 * I * pi *
                        (((double)mx) * nx / fft_size[0] +
@@ -1127,11 +1161,11 @@ int fft_test_api_local() {
   errors += fft_test_F_2d_local_inplace_low((const int[2]){7, 10}, 11, false);
 
   // Reduce tests to ca 10 per set
-  errors += fft_test_F_3d_local_low((const int[3]){8, 8, 8}, 10);
-  errors += fft_test_F_3d_local_low((const int[3]){7, 5, 3}, 10);
+  errors += fft_test_F_3d_local_low((const int[3]){8, 8, 8}, 10, false, false);
+  errors += fft_test_F_3d_local_low((const int[3]){7, 5, 3}, 10, true, true);
 
-  errors += fft_test_F_3d_local_inplace_low((const int[3]){8, 8, 8}, 10);
-  errors += fft_test_F_3d_local_inplace_low((const int[3]){7, 5, 3}, 10);
+  errors += fft_test_F_3d_local_inplace_low((const int[3]){8, 8, 8}, 10, false);
+  errors += fft_test_F_3d_local_inplace_low((const int[3]){7, 5, 3}, 10, true);
 
   clock_t end = clock();
   if (cp_mpi_comm_rank(cp_mpi_get_comm_world()) == 0)
