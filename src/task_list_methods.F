@@ -314,6 +314,12 @@ CONTAINS
                               rank_offsets=task_list%rank_offsets_send, &
                               rank_sizes=task_list%rank_sizes_send, &
                               buffer_size=task_list%buffer_size_send)
+      ELSE
+         ! A rebuilt task list can return to owner-local execution.
+         IF (ASSOCIATED(task_list%pair_offsets_send)) DEALLOCATE (task_list%pair_offsets_send)
+         IF (ASSOCIATED(task_list%rank_offsets_send)) DEALLOCATE (task_list%rank_offsets_send)
+         IF (ASSOCIATED(task_list%rank_sizes_send)) DEALLOCATE (task_list%rank_sizes_send)
+         task_list%buffer_size_send = 0
       END IF
       CALL rs_calc_offsets(pairs=task_list%atom_pair_recv, &
                            nsgf=nsgf, &
@@ -1611,25 +1617,28 @@ CONTAINS
 !> \param rs_descs ...
 !> \param ntasks ...
 !> \param tasks ...
+!> \param redistributed true if any task changes rank; identical on all ranks
 !> \par History
 !>      none
 !> \author MattW 21/11/2007
 ! **************************************************************************************************
-   SUBROUTINE load_balance_replicated(rs_descs, ntasks, tasks)
+   SUBROUTINE load_balance_replicated(rs_descs, ntasks, tasks, redistributed)
 
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
       INTEGER                                            :: ntasks
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: redistributed
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_replicated'
 
       INTEGER                                            :: handle, i, iatom, ilevel, img, ipgf, &
                                                             iset, j, jatom, jpgf, jset, &
                                                             no_overloaded, no_underloaded, &
-                                                            proc_receiving
+                                                            proc_receiving, moved
       INTEGER(KIND=int_8)                                :: average_cost, cost_task_rep, count, &
-                                                            offset, total_cost_global
+                                                            max_cost, offset, total_cost_global
+      LOGICAL                                            :: fully_replicated
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: load_imbalance, loads, recv_buf_i
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: index
       TYPE(realspace_grid_desc_type), POINTER            :: desc
@@ -1638,18 +1647,47 @@ CONTAINS
 
       desc => rs_descs(1)%rs_desc
 
+      IF (PRESENT(redistributed)) redistributed = .FALSE.
+      IF (desc%group_size == 1) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
       ! allocate local arrays
       ALLOCATE (recv_buf_i(desc%group_size))
       ALLOCATE (loads(desc%group_size))
 
-      recv_buf_i = 0
+      fully_replicated = .TRUE.
       DO i = 1, SIZE(rs_descs)
-         CALL get_current_loads(loads, rs_descs, i, ntasks, tasks, use_reordered_ranks=.TRUE.)
-         recv_buf_i(:) = recv_buf_i + loads
+         fully_replicated = fully_replicated .AND. .NOT. rs_descs(i)%rs_desc%distributed
       END DO
+
+      IF (fully_replicated) THEN
+         ! These tasks still reside on their matrix owners. One gather suffices for all levels.
+         cost_task_rep = 0
+         DO i = 1, ntasks
+            cost_task_rep = cost_task_rep + tasks(i)%cost
+         END DO
+         CALL desc%group%allgather(cost_task_rep, recv_buf_i)
+      ELSE
+         recv_buf_i = 0
+         DO i = 1, SIZE(rs_descs)
+            CALL get_current_loads(loads, rs_descs, i, ntasks, tasks, use_reordered_ranks=.TRUE.)
+            recv_buf_i(:) = recv_buf_i + loads
+         END DO
+      END IF
 
       total_cost_global = SUM(recv_buf_i)
       average_cost = total_cost_global/desc%group_size
+      max_cost = MAXVAL(recv_buf_i)
+
+      IF (fully_replicated) THEN
+         ! No assignment can improve on the rounded-up mean load.
+         IF (max_cost <= (total_cost_global + desc%group_size - 1)/desc%group_size) THEN
+            CALL timestop(handle)
+            RETURN
+         END IF
+      END IF
 
       !
       ! compute how to redistribute the replicated tasks so that the average cost is reached
@@ -1716,7 +1754,7 @@ CONTAINS
          proc_receiving = HUGE(proc_receiving)
          DO i = 1, no_underloaded
             offset = offset + load_imbalance(INDEX(i))
-            IF (offset <= 0) THEN
+            IF (offset < 0 .OR. (.NOT. fully_replicated .AND. offset == 0)) THEN
                proc_receiving = i
                EXIT
             END IF
@@ -1744,7 +1782,7 @@ CONTAINS
                offset = offset + tasks(j)%cost
                count = count + tasks(j)%cost
                IF (count >= load_imbalance(desc%my_pos + 1)) EXIT
-               IF (offset > 0) THEN
+               IF (offset > 0 .OR. (fully_replicated .AND. offset == 0)) THEN
                   proc_receiving = proc_receiving + 1
                   ! just avoid sending to non existing procs due to integer truncation
                   ! in the computation of the average
@@ -1757,6 +1795,30 @@ CONTAINS
 
       DEALLOCATE (index)
       DEALLOCATE (load_imbalance)
+
+      IF (fully_replicated) THEN
+         ! Indivisible expensive tasks can defeat the greedy assignment. Keep only an improvement.
+         loads = 0
+         DO i = 1, ntasks
+            j = decode_rank(tasks(i)%destination, SIZE(rs_descs)) + 1
+            loads(j) = loads(j) + tasks(i)%cost
+         END DO
+         CALL desc%group%sum(loads)
+         IF (MAXVAL(loads) >= max_cost) THEN
+            DO i = 1, ntasks
+               tasks(i)%destination = tasks(i)%source
+            END DO
+         END IF
+      END IF
+
+      IF (PRESENT(redistributed)) THEN
+         moved = 0
+         DO i = 1, ntasks
+            IF (tasks(i)%destination /= tasks(i)%source) moved = 1
+         END DO
+         CALL desc%group%max(moved)
+         redistributed = moved > 0
+      END IF
 
       CALL timestop(handle)
 
@@ -1889,13 +1951,15 @@ CONTAINS
 !> \param symmetric ...
 !> \param reorder_rs_grid_ranks ...
 !> \param skip_load_balance_distributed ...
+!> \param balance_replicated allow balancing when all grid levels are replicated (default true)
 !> \par History
 !>      none
 !> \author MattW 21/11/2007
 ! **************************************************************************************************
    SUBROUTINE distribute_tasks(rs_descs, ntasks, natoms, &
                                tasks, atom_pair_send, atom_pair_recv, &
-                               symmetric, reorder_rs_grid_ranks, skip_load_balance_distributed)
+                               symmetric, reorder_rs_grid_ranks, skip_load_balance_distributed, &
+                               balance_replicated)
 
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
@@ -1904,6 +1968,7 @@ CONTAINS
       TYPE(atom_pair_type), DIMENSION(:), POINTER        :: atom_pair_send, atom_pair_recv
       LOGICAL, INTENT(IN)                                :: symmetric, reorder_rs_grid_ranks, &
                                                             skip_load_balance_distributed
+      LOGICAL, INTENT(IN), OPTIONAL                      :: balance_replicated
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_tasks'
 
@@ -1912,7 +1977,8 @@ CONTAINS
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: total_loads, total_loads_tmp, trial_loads
       INTEGER(KIND=int_8), DIMENSION(:, :), POINTER      :: loads
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indices, real2virtual, total_index
-      LOGICAL                                            :: distributed_grids, fixed_first_grid
+      LOGICAL                                            :: distributed_grids, fixed_first_grid, &
+                                                            redistribute_matrices, allow_balance
       TYPE(realspace_grid_desc_type), POINTER            :: desc
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks_recv
 
@@ -2025,6 +2091,19 @@ CONTAINS
          ! Now we use the replicated tasks to balance out the rest of the load
          CALL load_balance_replicated(rs_descs, ntasks, tasks)
 
+         DEALLOCATE (loads)
+         DEALLOCATE (total_loads)
+      END IF
+
+      redistribute_matrices = distributed_grids
+      allow_balance = .TRUE.
+      IF (PRESENT(balance_replicated)) allow_balance = balance_replicated
+      IF (.NOT. distributed_grids .AND. allow_balance) THEN
+         CALL load_balance_replicated(rs_descs, ntasks, tasks, redistributed=redistribute_matrices)
+      END IF
+
+      IF (redistribute_matrices) THEN
+
          ! given a list of tasks, this will do the needed reshuffle so that all tasks will be local
          CALL create_local_tasks(rs_descs, ntasks, tasks, ntasks_recv, tasks_recv)
 
@@ -2038,14 +2117,12 @@ CONTAINS
 
          ! cleanup, at this point we  don't need the original tasks anymore
          DEALLOCATE (tasks)
-         DEALLOCATE (loads)
-         DEALLOCATE (total_loads)
 
       ELSE
          tasks_recv => tasks
          ntasks_recv = ntasks
          CALL get_atom_pair(atom_pair_recv, tasks_recv, ntasks=ntasks_recv, send=.FALSE., symmetric=symmetric, rs_descs=rs_descs)
-         ! not distributed, hence atom_pair_send not needed
+         ! Tasks remain on matrix owners, so no matrix communication plan is needed.
       END IF
 
       ! here we sort the task list we will process locally.

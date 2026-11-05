@@ -865,10 +865,11 @@ CONTAINS
       END IF
 
       ! sorts / redistributes the task list
+      ! The replicated current matrices above alias owner-local blocks and are not prepared for migration.
       CALL distribute_tasks(rs_descs=rs_descs, ntasks=ntasks, natoms=natom, tasks=tasks, &
                             atom_pair_send=atom_pair_send, atom_pair_recv=atom_pair_recv, &
                             symmetric=.FALSE., reorder_rs_grid_ranks=.TRUE., &
-                            skip_load_balance_distributed=.FALSE.)
+                            skip_load_balance_distributed=.FALSE., balance_replicated=.FALSE.)
 
       ALLOCATE (rs_current(gridlevel_info%ngrid_levels))
 
