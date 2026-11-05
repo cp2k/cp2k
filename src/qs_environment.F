@@ -94,7 +94,7 @@ MODULE qs_environment
         do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, do_method_pm6fm, &
         do_method_pnnl, do_method_rigpw, do_method_rm1, do_method_xtb, do_qmmm_gauss, &
         do_qmmm_swave, do_spin_density, general_roks, gfn1xtb, hden_atomic, kg_tnadd_embed_ri, &
-        linear_response_run, mtlr_atomic_perturbations, mtlr_reference_from_atomic, &
+        linear_response_run, mtlr_atomic_perturbations, mtlr_reference_from_atomic, negf_run, &
         mtlr_reference_from_restart, rel_none, rel_trans_atom, restart_guess, sic_none, &
         smear_energy_window, smear_fermi_dirac, smear_list, tblite_scc_mixer_tblite, &
         tddfpt_kernel_none, vdw_pairpot_dftd2, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, &
@@ -377,7 +377,7 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: ikind, method_id, nelectron_total, &
-                                                            nkind, nkp_grid(3), tddfpt_kernel
+                                                            nkind, nkp_grid(3), run_type, tddfpt_kernel
       LOGICAL :: dftb_kpoint_sym_restricted, do_active_space, do_admm_rpa, do_bse, do_debug_fdiff, &
          do_debug_forces, do_debug_stress_tensor, do_dftb_scc, do_dftb_scc_high_l, do_ec_hfx, &
          do_et, do_exx, do_gw, do_hfx, do_kpoints, do_linear_response, do_mp2, do_ri_mp2, &
@@ -603,6 +603,8 @@ CONTAINS
                           subsys_section, silent=silent, multip=multip, charge=charge)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
+      CALL section_vals_val_get(root_section, "GLOBAL%RUN_TYPE", i_val=run_type)
+      dft_control%negf = (run_type == negf_run)
       IF (owned_kpoints) THEN
          do_dftb_scc_high_l = .FALSE.
          IF (method_id == do_method_dftb .AND. do_dftb_scc) THEN
@@ -2213,6 +2215,17 @@ CONTAINS
       IF ((MODULO(nelectron, 2) /= 0) .AND. (dft_control%nspins == 1)) THEN
          IF (.NOT. dft_control%qs_control%ofgpw .AND. .NOT. dft_control%smear) THEN
             CPABORT("Use the LSD option for an odd number of electrons")
+         END IF
+      END IF
+
+      ! Native GFN1 spin polarization must be requested explicitly. The tblite
+      ! backend applies its GFN1 spin polarization automatically.
+      IF (dft_control%qs_control%xtb) THEN
+         IF (.NOT. dft_control%qs_control%xtb_control%do_tblite .AND. &
+             dft_control%qs_control%xtb_control%gfn_type == gfn1xtb .AND. &
+             dft_control%nspins == 2 .AND. &
+             .NOT. dft_control%qs_control%xtb_control%do_spinpol) THEN
+            CPABORT("Spin-polarized native GFN1 requires XTB/SPIN_POLARISATION T")
          END IF
       END IF
 

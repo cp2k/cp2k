@@ -284,7 +284,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin
       LOGICAL                                            :: disable_diis, has_unit_metric, &
                                                             skip_diag_sub
-      REAL(KIND=dp)                                      :: saved_eps_diis
+      REAL(KIND=dp)                                      :: old_kTS, saved_eps_diis
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
@@ -438,6 +438,7 @@ CONTAINS
       END SELECT
       IF (disable_diis) scf_control%eps_diis = saved_eps_diis
 
+      old_kTS = energy%kTS
       energy%kTS = 0.0_dp
       energy%efermi = 0.0_dp
       CALL get_qs_env(qs_env, mos=mos)
@@ -446,6 +447,9 @@ CONTAINS
          energy%efermi = energy%efermi + mos(ispin)%mu
       END DO
       energy%efermi = energy%efermi/REAL(SIZE(mos), KIND=dp)
+      IF (dft_control%negf .AND. dft_control%qs_control%xtb) THEN
+         energy%total = energy%total - old_kTS + energy%kTS
+      END IF
 
       CALL timestop(handle)
 
@@ -488,7 +492,7 @@ CONTAINS
                                                             refresh_count
       LOGICAL :: allow_exit_refresh, allow_refresh, base_state, disable_diis, has_unit_metric, &
          my_added_mos_auto_grow, ot_energy_only, refresh
-      REAL(dp)                                           :: diis_error, residual, saved_eps_diis
+      REAL(dp)                                           :: diis_error, old_kTS, residual, saved_eps_diis
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s, matrix_t
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -691,6 +695,7 @@ CONTAINS
       IF (disable_diis) scf_control%eps_diis = saved_eps_diis
 
       CALL get_qs_env(qs_env=qs_env, energy=energy)
+      old_kTS = energy%kTS
       energy%kTS = 0.0_dp
       energy%efermi = 0.0_dp
       mos => kpoints%kp_env(1)%kpoint_env%mos
@@ -699,6 +704,9 @@ CONTAINS
          energy%efermi = energy%efermi + mos(ispin)%mu
       END DO
       energy%efermi = energy%efermi/REAL(SIZE(mos), KIND=dp)
+      IF (dft_control%negf .AND. dft_control%qs_control%xtb) THEN
+         energy%total = energy%total - old_kTS + energy%kTS
+      END IF
 
       CALL timestop(handle)
 
