@@ -432,6 +432,175 @@ __launch_bounds__(64) void compute_hab_forces(const kernel_params dev_) {
 }
 
 /*******************************************************************************
+ * \brief Same as compute_hab_forces with the spherical to cartesian
+ *        transformations done as matrix products. The forces and the virial
+ *        only depend on the cartesian pair (a, b), so they are contracted with
+ *        the cartesian density
+ *
+ *   P[jco][ico] = sum_ij sphib[i][jco] pab[i][j] sphia[j][ico]
+ *
+ *        and evaluated once per pair instead of once per (i, j, a, b):
+ *
+ *   W[i][ico]   = sum_j pab[i][j] sphia[j][ico]              (nsgfb nsgfa ncoa)
+ *   for each (jco, ico):
+ *     p          = sum_i sphib[i][jco] W[i][ico]             (nsgfb ncob ncoa)
+ *     fa, fb, virial += p * get_force / get_virial (a, b)
+ *     H[jco][ico] = get_hab(a, b)
+ *   U[i][ico]   = sum_jco sphib[i][jco] H[jco][ico]          (nsgfb ncob ncoa)
+ *   hab[i][j]  += sum_ico U[i][ico] sphia[j][ico]            (nsgfb nsgfa ncoa)
+ *
+ *        P is never stored. The work arrays H [ld][ld] and W / U
+ *        [max_nsgf_set][ld] (U overwrites W) live in the dynamic shared memory
+ *        after alpha, at work_offset (in doubles), see sphi_work_size.
+ ******************************************************************************/
+template <typename T, bool COMPUTE_TAU>
+__global__ __launch_bounds__(64) void compute_hab_forces_two_step(
+    const kernel_params dev_, const int work_offset, const int ld,
+    const int max_nsgf_set) {
+  extern __shared__ T shared_memory[];
+  const int number_of_tasks = dev_.num_tasks_per_block_dev[block_index()];
+
+  if (number_of_tasks == 0)
+    return;
+
+  T *smem_alpha = &shared_memory[0];
+  T *smem_h = &shared_memory[work_offset]; // [ld][ld], H[jco][ico]
+  T *smem_w = smem_h + ld * ld;            // [max_nsgf_set][ld], W then U
+  const int tid = thread_global_index();
+  const int nthreads = blockDim.x * blockDim.y * blockDim.z;
+  const int offset = dev_.sorted_blocks_offset_dev[block_index()];
+  const bool compute_virial = (dev_.buffers_dev.virial != nullptr);
+
+  T *__restrict__ smem_cab = allocate_workspace<T>(dev_);
+
+  T fa[3] = {0.0, 0.0, 0.0}, fb[3] = {0.0, 0.0, 0.0};
+  T virial[9] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+
+  for (int tk = 0; tk < number_of_tasks; tk++) {
+    __shared__ smem_task<T> task;
+    const int task_id = dev_.task_sorted_by_blocks_dev[offset + tk];
+    if (dev_.tasks[task_id].skip_task)
+      continue;
+
+    // the previous task may still be reading task, W / U and H
+    __syncthreads();
+    fill_smem_task_coef(dev_, task_id, task);
+
+    T *__restrict__ coef_ = reinterpret_cast<T *>(__builtin_assume_aligned(
+        &dev_.buffers_dev.coef[dev_.tasks[task_id].coef_offset], 32));
+
+    __syncthreads();
+    compute_alpha(task, smem_alpha);
+    __syncthreads();
+    cxyz_to_cab(task, smem_alpha, coef_, smem_cab);
+
+    const int nco_a = task.ncoseta - task.first_coseta;
+    const int nco_b = task.ncosetb - task.first_cosetb;
+
+    // W[i][ico] = sum_j pab[i][j] sphia[j][ico]
+    for (int k = tid; k < task.nsgf_setb * nco_a; k += nthreads) {
+      const int i = k / nco_a;
+      const int ico = task.first_coseta + (k - i * nco_a);
+      T val = 0.0;
+      for (int j = 0; j < task.nsgf_seta; j++) {
+        const T block_value = task.block_transposed
+                                  ? task.pab_block[j * task.nsgfb + i]
+                                  : task.pab_block[i * task.nsgfa + j];
+        val += block_value * task.sphia[j * task.maxcoa + ico];
+      }
+      smem_w[i * ld + ico] = val * task.off_diag_twice;
+    }
+    __syncthreads(); // W and cab are complete
+
+    // one pass over the cartesian pairs: density, forces, virial and H
+    for (int k = tid; k < nco_b * nco_a; k += nthreads) {
+      const int jj = k / nco_a;
+      const int jco = task.first_cosetb + jj;
+      const int ico = task.first_coseta + (k - jj * nco_a);
+      const auto &a = coset_inv[ico];
+      const auto &b = coset_inv[jco];
+
+      T p = 0.0;
+      for (int i = 0; i < task.nsgf_setb; i++)
+        p += task.sphib[i * task.maxcob + jco] * smem_w[i * ld + ico];
+
+      for (int d = 0; d < 3; d++) {
+        fa[d] += p * get_force_a<COMPUTE_TAU, T>(a, b, d, task.zeta, task.zetb,
+                                                 task.n1, smem_cab);
+        fb[d] += p * get_force_b<COMPUTE_TAU, T>(a, b, d, task.zeta, task.zetb,
+                                                 task.rab, task.n1, smem_cab);
+      }
+      if (compute_virial) {
+        for (int d1 = 0; d1 < 3; d1++)
+          for (int d2 = 0; d2 < 3; d2++)
+            virial[3 * d1 + d2] +=
+                p *
+                (get_virial_a<COMPUTE_TAU, T>(a, b, d1, d2, task.zeta,
+                                              task.zetb, task.n1, smem_cab) +
+                 get_virial_b<COMPUTE_TAU, T>(a, b, d1, d2, task.zeta,
+                                              task.zetb, task.rab, task.n1,
+                                              smem_cab));
+      }
+
+      smem_h[jco * ld + ico] = get_hab<COMPUTE_TAU, T>(
+          a, b, task.zeta, task.zetb, task.n1, smem_cab);
+    }
+    __syncthreads(); // H is complete, W is no longer read
+
+    // U[i][ico] = sum_jco sphib[i][jco] H[jco][ico], overwrites W
+    for (int k = tid; k < task.nsgf_setb * nco_a; k += nthreads) {
+      const int i = k / nco_a;
+      const int ico = task.first_coseta + (k - i * nco_a);
+      T val = 0.0;
+      for (int jco = task.first_cosetb; jco < task.ncosetb; jco++)
+        val += task.sphib[i * task.maxcob + jco] * smem_h[jco * ld + ico];
+      smem_w[i * ld + ico] = val;
+    }
+    __syncthreads();
+
+    // hab[i][j] += sum_ico U[i][ico] sphia[j][ico]
+    for (int k = tid; k < task.nsgf_setb * task.nsgf_seta; k += nthreads) {
+      const int i = k / task.nsgf_seta;
+      const int j = k - i * task.nsgf_seta;
+      T val = 0.0;
+      for (int ico = task.first_coseta; ico < task.ncoseta; ico++)
+        val += smem_w[i * ld + ico] * task.sphia[j * task.maxcoa + ico];
+      if (task.block_transposed) {
+        task.hab_block[j * task.nsgfb + i] += val;
+      } else {
+        task.hab_block[i * task.nsgfa + j] += val;
+      }
+    }
+  }
+
+  // all tasks of a block belong to the same atom pair
+  __syncthreads();
+
+  const int task_id = dev_.task_sorted_by_blocks_dev[offset];
+  const auto &glb_task = dev_.tasks[task_id];
+  T *forces_a = &dev_.buffers_dev.forces[3 * glb_task.iatom];
+  T *forces_b = &dev_.buffers_dev.forces[3 * glb_task.jatom];
+
+  T *sum = (T *)shared_memory;
+  if (compute_virial) {
+    for (int i = 0; i < 9; i++) {
+      virial[i] = block_reduce_64<T>(sum, virial[i], tid);
+      if (tid == 0)
+        atomicAdd(dev_.buffers_dev.virial + i, virial[i]);
+    }
+  }
+
+  for (int i = 0; i < 3; i++) {
+    fa[i] = block_reduce_64<T>(sum, fa[i], tid);
+    if (tid == 0)
+      atomicAdd(forces_a + i, fa[i]);
+    fb[i] = block_reduce_64<T>(sum, fb[i], tid);
+    if (tid == 0)
+      atomicAdd(forces_b + i, fb[i]);
+  }
+}
+
+/*******************************************************************************
  * Cuda kernel for calculating the coefficients of a potential (density,
  etc...) for a given pair of gaussian basis sets
 
@@ -1206,7 +1375,6 @@ void context_info::compute_hab_coefficients() {
   const dim3 threads_per_block(4, 4, 4);
 
   // two step sphi transformation when its work arrays fit in the shared memory
-  // (compute_hab_forces keeps the fused loop)
   const int ld = ncoset(lmax());
   const size_t smem_two_step =
       smem_params.smem_per_block() +
@@ -1238,16 +1406,26 @@ void context_info::compute_hab_coefficients() {
   }
 
   if (!compute_tau && calculate_forces) {
-    compute_hab_forces<double, double3, false>
-        <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
-           this->main_stream>>>(params);
+    if (two_step)
+      compute_hab_forces_two_step<double, false>
+          <<<this->nblocks, threads_per_block, smem_two_step,
+             this->main_stream>>>(params, work_offset, ld, max_nsgf_set());
+    else
+      compute_hab_forces<double, double3, false>
+          <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
+             this->main_stream>>>(params);
     return;
   }
 
   if (compute_tau && calculate_forces) {
-    compute_hab_forces<double, double3, true>
-        <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
-           this->main_stream>>>(params);
+    if (two_step)
+      compute_hab_forces_two_step<double, true>
+          <<<this->nblocks, threads_per_block, smem_two_step,
+             this->main_stream>>>(params, work_offset, ld, max_nsgf_set());
+    else
+      compute_hab_forces<double, double3, true>
+          <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
+             this->main_stream>>>(params);
   }
 }
 }; // namespace rocm_backend

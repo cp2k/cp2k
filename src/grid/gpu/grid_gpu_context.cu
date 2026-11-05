@@ -269,14 +269,19 @@ extern "C" void grid_gpu_create_task_list(
 
     /* the constant 6 is important here since we do not know ahead of time what
      * specific operation we will be doing. collocate functions can go up to 4
-     * while integrate can go up to 5 (but put 6 for safety reasons) */
+     * while integrate can go up to 5 (but put 6 for safety reasons). It is
+     * capped at grid_gpu_max_l, the end of the ncoset table: an operation needs
+     * at most min(la + lb + 5, grid_gpu_max_l) since smem_parameters rejects
+     * anything larger. */
 
     /* this block is only as temporary scratch for calculating the coefficients.
      * Doing this avoid a lot of atomic operations that are costly on hardware
      * that only have partial support of them. For better performance we should
      * most probably align the offsets as well. it is 256 bytes on Mi100 and
      * above */
-    tasks_host[i].lp_max = tasks_host[i].lb_max + tasks_host[i].la_max + 6;
+    tasks_host[i].lp_max =
+        std::min(tasks_host[i].lb_max + tasks_host[i].la_max + 6,
+                 rocm_backend::grid_gpu_max_l);
     if (i == 0) {
       tasks_host[i].coef_offset = 0;
     } else {

@@ -578,7 +578,8 @@ void context_info::collocate_one_grid_level(const int level,
   const int lp_max = smem_params.lp_max();
   const int max_cube_size = std::max(grid.max_cube_size(), 1);
   const bool axis_aligned = grid.is_axis_aligned();
-  assert(lp_max <= SEP_MAX_L);
+  // lp_max <= grid_gpu_max_l == SEP_MAX_L is checked by smem_parameters
+  static_assert(grid_gpu_max_l <= SEP_MAX_L, "separable tables too small");
 
   init_separable_constant_memory();
   const double *lattice_to_cartesian =

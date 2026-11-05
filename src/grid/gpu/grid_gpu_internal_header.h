@@ -59,6 +59,10 @@ struct orbital {
   int l[3];
 };
 
+// largest angular momentum covered by the tables of the backend (ncoset,
+// coset_inv, binomial_coef). It bounds la + lb of every operation.
+constexpr int grid_gpu_max_l = 18;
+
 __constant__ orbital coset_inv[1330];
 __constant__ int binomial_coef[19][19];
 
@@ -874,6 +878,15 @@ public:
     la_max_ = lmax + ldiffs.la_max_diff;
     lb_max_ = lmax + ldiffs.lb_max_diff;
     lp_max_ = la_max_ + lb_max_;
+
+    if (lp_max_ > grid_gpu_max_l) {
+      fprintf(stderr,
+              "ERROR: the GPU grid backend supports la + lb <= %d, this "
+              "operation needs %d (lmax %d, la_max_diff %d, lb_max_diff %d).\n",
+              grid_gpu_max_l, lp_max_, lmax, ldiffs.la_max_diff,
+              ldiffs.lb_max_diff);
+      abort();
+    }
 
     // NB: cab is allocated in global memory not shared memory. Each block has
     // its own cab space
