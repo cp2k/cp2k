@@ -238,9 +238,9 @@ static void fft_report_printf(fft_print_func_t print_func, const int output_unit
  ******************************************************************************/
 void fft_print_timing_report_unit(const double threshold,
                                   fft_print_func_t print_func,
-                                  const int output_unit) {
+                                  const int output_unit,
+                                  const cp_mpi_comm_t comm) {
   assert(omp_get_num_threads() == 1);
-  const cp_mpi_comm_t comm = cp_mpi_get_comm_world();
   if (timers_initialized) {
     // We restrict ourselves to the routines from rank 0
     if (cp_mpi_comm_rank(comm) == 0) {
@@ -360,8 +360,9 @@ void fft_print_timing_report_unit(const double threshold,
   }
 }
 
-void fft_print_timing_report(const double threshold) {
-  fft_print_timing_report_unit(threshold, fft_print_to_stdout, 0);
+void fft_print_timing_report(const double threshold,
+                             const cp_mpi_comm_t comm) {
+  fft_print_timing_report_unit(threshold, fft_print_to_stdout, 0, comm);
   fflush(stdout);
 }
 
