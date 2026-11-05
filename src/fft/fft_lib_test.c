@@ -2337,6 +2337,275 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3],
   return errors;
 }
 
+
+/*******************************************************************************
+ * \brief Test concurrent 1D C2C FFTs from independent OpenMP threads.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_test_1d_local_omp(void) {
+  const int fft_size = 15;
+  const int number_of_ffts = 2;
+  int errors = 0;
+
+#pragma omp parallel default(none) shared(errors, fft_size, number_of_ffts)
+  {
+    const int thread_id = omp_get_thread_num();
+    double complex *input = NULL, *output = NULL, *reference = NULL;
+    fft_allocate_complex(fft_size * number_of_ffts, &input);
+    fft_allocate_complex(fft_size * number_of_ffts, &output);
+    fft_allocate_complex(fft_size * number_of_ffts, &reference);
+    for (int i = 0; i < fft_size * number_of_ffts; i++)
+      input[i] = cexp(I * (0.11 * (i + 1) + 0.37 * thread_id));
+    memcpy(reference, input, fft_size * number_of_ffts * sizeof(double complex));
+
+    fft_register_1d_local(true, fft_size, number_of_ffts, false, false,
+                          fft_size, fft_size, input, output);
+    fft_register_1d_local(false, fft_size, number_of_ffts, false, false,
+                          fft_size, fft_size, output, input);
+    fft_1d_local(true, fft_size, number_of_ffts, false, false, fft_size,
+                 fft_size, input, output);
+    fft_1d_local(false, fft_size, number_of_ffts, false, false, fft_size,
+                 fft_size, output, input);
+
+    int thread_errors = 0;
+    for (int i = 0; i < fft_size * number_of_ffts; i++)
+      if (cabs(input[i] - (double)fft_size * reference[i]) > 1.0E-8)
+        thread_errors = 1;
+
+    fft_free_complex(input);
+    fft_free_complex(output);
+    fft_free_complex(reference);
+#pragma omp atomic
+    errors += thread_errors;
+  }
+  return errors;
+}
+
+/*******************************************************************************
+ * \brief Test concurrent 1D R2C/C2R FFTs from independent OpenMP threads.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_test_1d_local_omp_r2c(void) {
+  const int fft_size = 15;
+  const int number_of_ffts = 2;
+  const int complex_size = fft_size / 2 + 1;
+  int errors = 0;
+
+#pragma omp parallel default(none) shared(errors, fft_size, number_of_ffts, complex_size)
+  {
+    const int thread_id = omp_get_thread_num();
+    double *input = NULL, *reference = NULL;
+    double complex *output = NULL;
+    fft_allocate_double(fft_size * number_of_ffts, &input);
+    fft_allocate_double(fft_size * number_of_ffts, &reference);
+    fft_allocate_complex(complex_size * number_of_ffts, &output);
+    for (int i = 0; i < fft_size * number_of_ffts; i++)
+      input[i] = sin(0.13 * (i + 1) + 0.29 * thread_id);
+    memcpy(reference, input, fft_size * number_of_ffts * sizeof(double));
+
+    fft_register_1d_r2c_local(fft_size, number_of_ffts, false, false, fft_size,
+                              complex_size, input, output);
+    fft_register_1d_c2r_local(fft_size, number_of_ffts, false, false,
+                              complex_size, fft_size, output, input);
+    fft_1d_r2c_local(fft_size, number_of_ffts, false, false, fft_size,
+                     complex_size, input, output);
+    fft_1d_c2r_local(fft_size, number_of_ffts, false, false, complex_size,
+                     fft_size, output, input);
+
+    int thread_errors = 0;
+    for (int i = 0; i < fft_size * number_of_ffts; i++)
+      if (fabs(input[i] - (double)fft_size * reference[i]) > 1.0E-8)
+        thread_errors = 1;
+
+    fft_free_double(input);
+    fft_free_double(reference);
+    fft_free_complex(output);
+#pragma omp atomic
+    errors += thread_errors;
+  }
+  return errors;
+}
+
+/*******************************************************************************
+ * \brief Test concurrent 2D C2C FFTs from independent OpenMP threads.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_test_2d_local_omp(void) {
+  const int fft_size[2] = {8, 9};
+  const int number_of_ffts = 2;
+  const int total_size = fft_size[0] * fft_size[1] * number_of_ffts;
+  int errors = 0;
+
+#pragma omp parallel default(none) shared(errors, fft_size, number_of_ffts, total_size)
+  {
+    const int thread_id = omp_get_thread_num();
+    double complex *input = NULL, *output = NULL, *reference = NULL;
+    fft_allocate_complex(total_size, &input);
+    fft_allocate_complex(total_size, &output);
+    fft_allocate_complex(total_size, &reference);
+    for (int i = 0; i < total_size; i++)
+      input[i] = cexp(I * (0.09 * (i + 1) + 0.31 * thread_id));
+    memcpy(reference, input, total_size * sizeof(double complex));
+
+    fft_register_2d_local(true, fft_size, number_of_ffts, false, false, input,
+                          output);
+    fft_register_2d_local(false, fft_size, number_of_ffts, false, false,
+                          output, input);
+    fft_2d_local(true, fft_size, number_of_ffts, false, false, input, output);
+    fft_2d_local(false, fft_size, number_of_ffts, false, false, output, input);
+
+    int thread_errors = 0;
+    for (int i = 0; i < total_size; i++)
+      if (cabs(input[i] - (double)(fft_size[0] * fft_size[1]) * reference[i]) >
+          1.0E-8)
+        thread_errors = 1;
+
+    fft_free_complex(input);
+    fft_free_complex(output);
+    fft_free_complex(reference);
+#pragma omp atomic
+    errors += thread_errors;
+  }
+  return errors;
+}
+
+/*******************************************************************************
+ * \brief Test concurrent 2D R2C/C2R FFTs from independent OpenMP threads.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_test_2d_local_omp_r2c(void) {
+  const int fft_size[2] = {8, 9};
+  const int number_of_ffts = 2;
+  const int real_size = fft_size[0] * fft_size[1] * number_of_ffts;
+  const int complex_size = fft_size[0] * (fft_size[1] / 2 + 1) *
+                           number_of_ffts;
+  int errors = 0;
+
+#pragma omp parallel default(none) shared(errors, fft_size, number_of_ffts, real_size, complex_size)
+  {
+    const int thread_id = omp_get_thread_num();
+    double *input = NULL, *reference = NULL;
+    double complex *output = NULL;
+    fft_allocate_double(real_size, &input);
+    fft_allocate_double(real_size, &reference);
+    fft_allocate_complex(complex_size, &output);
+    for (int i = 0; i < real_size; i++)
+      input[i] = cos(0.08 * (i + 1) + 0.23 * thread_id);
+    memcpy(reference, input, real_size * sizeof(double));
+
+    fft_register_2d_r2c_local(fft_size, number_of_ffts, false, false, input,
+                              output);
+    fft_register_2d_c2r_local(fft_size, number_of_ffts, false, false, output,
+                              input);
+    fft_2d_r2c_local(fft_size, number_of_ffts, false, false, input, output);
+    fft_2d_c2r_local(fft_size, number_of_ffts, false, false, output, input);
+
+    int thread_errors = 0;
+    for (int i = 0; i < real_size; i++)
+      if (fabs(input[i] - (double)(fft_size[0] * fft_size[1]) * reference[i]) >
+          1.0E-8)
+        thread_errors = 1;
+
+    fft_free_double(input);
+    fft_free_double(reference);
+    fft_free_complex(output);
+#pragma omp atomic
+    errors += thread_errors;
+  }
+  return errors;
+}
+
+/*******************************************************************************
+ * \brief Test concurrent 3D C2C FFTs from independent OpenMP threads.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_test_3d_local_omp(void) {
+  const int fft_size[3] = {5, 4, 6};
+  const int number_of_ffts = 2;
+  const int total_size = fft_size[0] * fft_size[1] * fft_size[2] *
+                         number_of_ffts;
+  int errors = 0;
+
+#pragma omp parallel default(none) shared(errors, fft_size, number_of_ffts, total_size)
+  {
+    const int thread_id = omp_get_thread_num();
+    double complex *input = NULL, *output = NULL, *reference = NULL;
+    fft_allocate_complex(total_size, &input);
+    fft_allocate_complex(total_size, &output);
+    fft_allocate_complex(total_size, &reference);
+    for (int i = 0; i < total_size; i++)
+      input[i] = cexp(I * (0.07 * (i + 1) + 0.27 * thread_id));
+    memcpy(reference, input, total_size * sizeof(double complex));
+
+    fft_register_3d_local(true, fft_size, number_of_ffts, false, false, input,
+                          output);
+    fft_register_3d_local(false, fft_size, number_of_ffts, false, false,
+                          output, input);
+    fft_3d_local(true, fft_size, number_of_ffts, false, false, input, output);
+    fft_3d_local(false, fft_size, number_of_ffts, false, false, output, input);
+
+    int thread_errors = 0;
+    for (int i = 0; i < total_size; i++)
+      if (cabs(input[i] - (double)(fft_size[0] * fft_size[1] * fft_size[2]) *
+                                reference[i]) > 1.0E-8)
+        thread_errors = 1;
+
+    fft_free_complex(input);
+    fft_free_complex(output);
+    fft_free_complex(reference);
+#pragma omp atomic
+    errors += thread_errors;
+  }
+  return errors;
+}
+
+/*******************************************************************************
+ * \brief Test concurrent 3D R2C/C2R FFTs from independent OpenMP threads.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_test_3d_local_omp_r2c(void) {
+  const int fft_size[3] = {5, 4, 6};
+  const int number_of_ffts = 2;
+  const int real_size = fft_size[0] * fft_size[1] * fft_size[2] *
+                        number_of_ffts;
+  const int complex_size = fft_size[0] * fft_size[1] *
+                           (fft_size[2] / 2 + 1)*number_of_ffts;
+  int errors = 0;
+
+#pragma omp parallel default(none) shared(errors, fft_size, number_of_ffts, real_size, complex_size)
+  {
+    const int thread_id = omp_get_thread_num();
+    double *input = NULL, *reference = NULL;
+    double complex *output = NULL;
+    fft_allocate_double(real_size, &input);
+    fft_allocate_double(real_size, &reference);
+    fft_allocate_complex(complex_size, &output);
+    for (int i = 0; i < real_size; i++)
+      input[i] = sin(0.06 * (i + 1) + 0.19 * thread_id);
+    memcpy(reference, input, real_size * sizeof(double));
+
+    fft_register_3d_r2c_local(fft_size, number_of_ffts, false, false, input,
+                              output);
+    fft_register_3d_c2r_local(fft_size, number_of_ffts, false, false, output,
+                              input);
+    fft_3d_r2c_local(fft_size, number_of_ffts, false, false, input, output);
+    fft_3d_c2r_local(fft_size, number_of_ffts, false, false, output, input);
+
+    int thread_errors = 0;
+    for (int i = 0; i < real_size; i++)
+      if (fabs(input[i] - (double)(fft_size[0] * fft_size[1] * fft_size[2]) *
+                               reference[i]) > 1.0E-8)
+        thread_errors = 1;
+
+    fft_free_double(input);
+    fft_free_double(reference);
+    fft_free_complex(output);
+#pragma omp atomic
+    errors += thread_errors;
+  }
+  return errors;
+}
+
 /*******************************************************************************
  * \brief Function to test the local FFT backend (1-3D).
  * \author Frederick Stein
@@ -2389,6 +2658,13 @@ int fft_test_local() {
 
   errors += fft_test_3d_local_r2c_inplace_low((const int[3]){8, 8, 8}, 10, false);
   errors += fft_test_3d_local_r2c_inplace_low((const int[3]){7, 5, 3}, 10, true);
+
+  errors += fft_test_1d_local_omp();
+  errors += fft_test_1d_local_omp_r2c();
+  errors += fft_test_2d_local_omp();
+  errors += fft_test_2d_local_omp_r2c();
+  errors += fft_test_3d_local_omp();
+  errors += fft_test_3d_local_omp_r2c();
 
   clock_t end = clock();
   if (cp_mpi_comm_rank(cp_mpi_get_comm_world()) == 0)

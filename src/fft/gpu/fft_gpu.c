@@ -72,6 +72,7 @@ static void init_thread_data(gpu_thread_data *data) {
 }
 
 static gpu_thread_data *ensure_thread_data(void) {
+  offload_activate_chosen_device();
   gpu_thread_data *data = &gpu_data[GPU_THREAD_ID];
   assert(data->initialized);
   return data;

@@ -444,6 +444,7 @@ list(
   "upf_local_integrals_unittest"
   "gapw_unittest"
   "kpoint_lattice_fft_unittest"
+  "fft_api_unittest"
   "kpoint_smearing_unittest"
   "topology_wilson_unittest"
   "kubo_unittest"
@@ -497,6 +498,7 @@ add_executable(upf_local_integrals_unittest
                pseudopotentials/upf_local_integrals_unittest.F)
 add_executable(gapw_unittest gapw_unittest.F)
 add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)
+add_executable(fft_api_unittest fft/fft_api_unittest.F)
 add_executable(kpoint_smearing_unittest kpoint_smearing_unittest.F)
 add_executable(topology_wilson_unittest topology_wilson_unittest.F)
 add_executable(kubo_unittest kubo_unittest.F)
