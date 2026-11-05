@@ -92,7 +92,7 @@ start the *GW* calculation from a hybrid functional.
 
 CP2K contains two different *GW* implementations:
 
-- *GW* for molecules \[[](#Wilhelm2016a)\] (Sec. 3)
+- *GW* for molecules \[[](#Wilhelm2016)\] (Sec. 3)
 - *GW* for computing the band structure of a solid with a small unit cell with *k*-point sampling
   (\[[](#Pasquier2025)\] and publication in preparation, Sec. 4)
 
@@ -126,7 +126,7 @@ In the upper *GW* section, the following keywords have been used:
 
 - [QUADRATURE_POINTS](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.QUADRATURE_POINTS): Number
   of imaginary-frequency points used for computing the self-energy (Eq. (21) in
-  \[[](#Wilhelm2016a)\]). 100 points are usually enough for converging quasiparticle energies within
+  \[[](#Wilhelm2016)\]). 100 points are usually enough for converging quasiparticle energies within
   10 meV.
 
 - [SELF_CONSISTENCY](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.SELF_CONSISTENCY):
@@ -154,7 +154,7 @@ The following settings from DFT will also have an influence on *GW* quasiparticl
 
 - [BASIS_SET](#CP2K_INPUT.FORCE_EVAL.SUBSYS.KIND.BASIS_SET): The basis set is of Gaussian type and
   can have strong influence on the quasiparticle energies. For computing quasiparticle energies, a
-  basis set extrapolation is necessary, see Fig. 2a in \[[](#Wilhelm2016a)\] and we recommend
+  basis set extrapolation is necessary, see Fig. 2a in \[[](#Wilhelm2016)\] and we recommend
   all-electron GAPW calculations with correlation-consistent basis sets from the Basis Set Exchange
   Library. For computing the HOMO-LUMO gap from *GW*, we recommend augmented basis sets, for example
   [`aug-cc-pVDZ`](https://www.basissetexchange.org/basis/aug-cc-pvdz/format/cp2k/?version=1&elements=1,6,8)
