@@ -801,52 +801,64 @@ int fft_test_F_2d_local_inplace_low(const int fft_size[2],
  * \author Frederick Stein
  ******************************************************************************/
 int fft_test_F_3d_local_low(const int fft_size[3], const int test_every) {
+  (void)test_every;
   const int my_process = cp_mpi_comm_rank(cp_mpi_get_comm_world());
 
   int errors = 0;
 
   const double pi = acos(-1);
-
-  double complex *input_array = NULL, *output_array = NULL;
-  fft_allocate_complex_F(fft_size[0] * fft_size[1] * fft_size[2], &input_array);
-  fft_allocate_complex_F(fft_size[0] * fft_size[1] * fft_size[2],
-                         &output_array);
-
+  const int volume = fft_size[0] * fft_size[1] * fft_size[2];
+  const int number_of_ffts =
+      test_every > 0 ? (volume + test_every - 1) / test_every : volume;
   const int fft_size_F[] = {fft_size[2], fft_size[1], fft_size[0]};
 
-  fft_register_3d_local_F(true, fft_size_F, 1, false, false, input_array, output_array);
-  fft_register_3d_local_F(false, fft_size_F, 1, false, false, output_array, input_array);
+  double complex *input_array = NULL, *output_array = NULL;
+  fft_allocate_complex_F(volume * number_of_ffts, &input_array);
+  fft_allocate_complex_F(volume * number_of_ffts, &output_array);
+
+  fft_register_3d_local_F(true, fft_size_F, number_of_ffts, false, false,
+                        input_array, output_array);
+  fft_register_3d_local_F(false, fft_size_F, number_of_ffts, false, false,
+                        output_array, input_array);
 
   double max_error = 0.0;
-  int number_of_tests = 0;
+  memset(input_array, 0, volume * number_of_ffts * sizeof(double complex));
   for (int mx = 0; mx < fft_size[0]; mx++) {
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
-        if (test_every > 0 && number_of_tests % test_every != 0) {
-          number_of_tests++;
+        const int index = (mx * fft_size[1] + my) * fft_size[2] + mz;
+        if (test_every > 0 && index % test_every != 0)
           continue;
-        }
-        number_of_tests++;
-        memset(input_array, 0,
-               fft_size[0] * fft_size[1] * fft_size[2] *
-                   sizeof(double complex));
-        input_array[(mx * fft_size[1] + my) * fft_size[2] + mz] = 1.0;
-        fft_3d_local_F(true, fft_size_F, 1, false, false, input_array, output_array);
+        const int batch = test_every > 0 ? index / test_every : index;
+        input_array[batch * volume + index] = 1.0;
+      }
+    }
+  }
+  fft_3d_local_F(true, fft_size_F, number_of_ffts, false, false, input_array,
+               output_array);
 
-#pragma omp parallel for default(none)                                         \
-    shared(output_array, fft_size, pi, mx, my, mz, my_process)                 \
+#pragma omp parallel for default(none) firstprivate(test_every)                                         \
+    shared(output_array, fft_size, pi, my_process, volume, number_of_ffts)     \
     reduction(max : max_error) collapse(3)
+  for (int mx = 0; mx < fft_size[0]; mx++) {
+    for (int my = 0; my < fft_size[1]; my++) {
+      for (int mz = 0; mz < fft_size[2]; mz++) {
+        const int basis = (mx * fft_size[1] + my) * fft_size[2] + mz;
+        if (test_every > 0 && basis % test_every != 0)
+          continue;
+        const int batch = test_every > 0 ? basis / test_every : basis;
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2]; nz++) {
+              const int index = (nx * fft_size[1] + ny) * fft_size[2] + nz;
               const double complex my_value =
-                  output_array[(nx * fft_size[1] + ny) * fft_size[2] + nz];
+                  output_array[batch * volume + index];
               const double complex ref_value =
                   cexp(-2.0 * I * pi *
                        (((double)mx) * nx / fft_size[0] +
                         ((double)my) * ny / fft_size[1] +
                         ((double)mz) * nz / fft_size[2]));
-              double current_error = cabs(my_value - ref_value);
+              const double current_error = cabs(my_value - ref_value);
               if (my_process == 0 && current_error > 1e-6)
                 printf("Error %i %i %i/%i %i %i: (%f %f) (%f %f)\n", nx, ny, nz,
                        mx, my, mz, creal(my_value), cimag(my_value),
@@ -870,35 +882,43 @@ int fft_test_F_3d_local_low(const int fft_size[3], const int test_every) {
   }
 
   max_error = 0.0;
-  number_of_tests = 0;
+  memset(output_array, 0, volume * number_of_ffts * sizeof(double complex));
   for (int mx = 0; mx < fft_size[0]; mx++) {
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
-        if (test_every > 0 && number_of_tests % test_every != 0) {
-          number_of_tests++;
+        const int index = (mx * fft_size[1] + my) * fft_size[2] + mz;
+        if (test_every > 0 && index % test_every != 0)
           continue;
-        }
-        number_of_tests++;
-        memset(output_array, 0,
-               fft_size[0] * fft_size[1] * fft_size[2] *
-                   sizeof(double complex));
-        output_array[(mx * fft_size[1] + my) * fft_size[2] + mz] = 1.0;
-        fft_3d_local_F(false, fft_size_F, 1, false, false, output_array, input_array);
+        const int batch = test_every > 0 ? index / test_every : index;
+        output_array[batch * volume + index] = 1.0;
+      }
+    }
+  }
+  fft_3d_local_F(false, fft_size_F, number_of_ffts, false, false, output_array,
+               input_array);
 
-#pragma omp parallel for default(none)                                         \
-    shared(input_array, fft_size, pi, mx, my, mz, my_process)                  \
+#pragma omp parallel for default(none) firstprivate(test_every)                                         \
+    shared(input_array, fft_size, pi, my_process, volume, number_of_ffts)      \
     reduction(max : max_error) collapse(3)
+  for (int mx = 0; mx < fft_size[0]; mx++) {
+    for (int my = 0; my < fft_size[1]; my++) {
+      for (int mz = 0; mz < fft_size[2]; mz++) {
+        const int basis = (mx * fft_size[1] + my) * fft_size[2] + mz;
+        if (test_every > 0 && basis % test_every != 0)
+          continue;
+        const int batch = test_every > 0 ? basis / test_every : basis;
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2]; nz++) {
+              const int index = (nx * fft_size[1] + ny) * fft_size[2] + nz;
               const double complex my_value =
-                  input_array[(nx * fft_size[1] + ny) * fft_size[2] + nz];
+                  input_array[batch * volume + index];
               const double complex ref_value =
                   cexp(2.0 * I * pi *
                        (((double)mx) * nx / fft_size[0] +
                         ((double)my) * ny / fft_size[1] +
                         ((double)mz) * nz / fft_size[2]));
-              double current_error = cabs(my_value - ref_value);
+              const double current_error = cabs(my_value - ref_value);
               if (my_process == 0 && current_error > 1e-6)
                 printf("Error %i %i %i/%i %i %i: (%f %f) (%f %f)\n", nx, ny, nz,
                        mx, my, mz, creal(my_value), cimag(my_value),
@@ -934,54 +954,65 @@ int fft_test_F_3d_local_low(const int fft_size[3], const int test_every) {
  * \brief Function to test the local FFT backend.
  * \author Frederick Stein
  ******************************************************************************/
-int fft_test_F_3d_local_inplace_low(const int fft_size[3],
-                                    const int test_every) {
+int fft_test_F_3d_local_inplace_low(const int fft_size[3], const int test_every) {
+  (void)test_every;
   const int my_process = cp_mpi_comm_rank(cp_mpi_get_comm_world());
 
   int errors = 0;
 
   const double pi = acos(-1);
-
-  double complex *input_array = NULL;
-  fft_allocate_complex_F(fft_size[0] * fft_size[1] * fft_size[2], &input_array);
-  double complex *output_array = input_array;
-
+  const int volume = fft_size[0] * fft_size[1] * fft_size[2];
+  const int number_of_ffts =
+      test_every > 0 ? (volume + test_every - 1) / test_every : volume;
   const int fft_size_F[] = {fft_size[2], fft_size[1], fft_size[0]};
 
-  fft_register_3d_local_inplace_F(true, fft_size_F, 1, false, input_array);
-  fft_register_3d_local_inplace_F(false, fft_size_F, 1, false, output_array);
+  double complex *input_array = NULL;
+  fft_allocate_complex_F(volume * number_of_ffts, &input_array);
+  double complex *output_array = input_array;
+
+  fft_register_3d_local_inplace_F(true, fft_size_F, number_of_ffts, false,
+                                   input_array);
+  fft_register_3d_local_inplace_F(false, fft_size_F, number_of_ffts, false,
+                                   output_array);
 
   double max_error = 0.0;
-  int number_of_tests = 0;
+  memset(input_array, 0, volume * number_of_ffts * sizeof(double complex));
   for (int mx = 0; mx < fft_size[0]; mx++) {
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
-        if (test_every > 0 && number_of_tests % test_every != 0) {
-          number_of_tests++;
+        const int index = (mx * fft_size[1] + my) * fft_size[2] + mz;
+        if (test_every > 0 && index % test_every != 0)
           continue;
-        }
-        number_of_tests++;
-        memset(input_array, 0,
-               fft_size[0] * fft_size[1] * fft_size[2] *
-                   sizeof(double complex));
-        input_array[(mx * fft_size[1] + my) * fft_size[2] + mz] = 1.0;
-        fft_3d_local_inplace_F(true, fft_size_F, 1, false, input_array);
+        const int batch = test_every > 0 ? index / test_every : index;
+        input_array[batch * volume + index] = 1.0;
+      }
+    }
+  }
+  fft_3d_local_inplace_F(true, fft_size_F, number_of_ffts, false,
+                          input_array);
 
-#pragma omp parallel for default(none)                                         \
-    shared(output_array, fft_size, pi, mx, my, mz) reduction(max : max_error)  \
-    collapse(3)
+#pragma omp parallel for default(none) firstprivate(test_every)                                         \
+    shared(output_array, fft_size, pi, volume, number_of_ffts)                  \
+    reduction(max : max_error) collapse(3)
+  for (int mx = 0; mx < fft_size[0]; mx++) {
+    for (int my = 0; my < fft_size[1]; my++) {
+      for (int mz = 0; mz < fft_size[2]; mz++) {
+        const int basis = (mx * fft_size[1] + my) * fft_size[2] + mz;
+        if (test_every > 0 && basis % test_every != 0)
+          continue;
+        const int batch = test_every > 0 ? basis / test_every : basis;
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2]; nz++) {
+              const int index = (nx * fft_size[1] + ny) * fft_size[2] + nz;
               const double complex my_value =
-                  output_array[(nx * fft_size[1] + ny) * fft_size[2] + nz];
+                  output_array[batch * volume + index];
               const double complex ref_value =
                   cexp(-2.0 * I * pi *
                        (((double)mx) * nx / fft_size[0] +
                         ((double)my) * ny / fft_size[1] +
                         ((double)mz) * nz / fft_size[2]));
-              double current_error = cabs(my_value - ref_value);
-              max_error = fmax(max_error, current_error);
+              max_error = fmax(max_error, cabs(my_value - ref_value));
             }
           }
         }
@@ -1001,36 +1032,43 @@ int fft_test_F_3d_local_inplace_low(const int fft_size[3],
   }
 
   max_error = 0.0;
-  number_of_tests = 0;
+  memset(output_array, 0, volume * number_of_ffts * sizeof(double complex));
   for (int mx = 0; mx < fft_size[0]; mx++) {
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
-        if (test_every > 0 && number_of_tests % test_every != 0) {
-          number_of_tests++;
+        const int index = (mx * fft_size[1] + my) * fft_size[2] + mz;
+        if (test_every > 0 && index % test_every != 0)
           continue;
-        }
-        number_of_tests++;
-        memset(output_array, 0,
-               fft_size[0] * fft_size[1] * fft_size[2] *
-                   sizeof(double complex));
-        output_array[(mx * fft_size[1] + my) * fft_size[2] + mz] = 1.0;
-        fft_3d_local_inplace_F(false, fft_size_F, 1, false, output_array);
+        const int batch = test_every > 0 ? index / test_every : index;
+        output_array[batch * volume + index] = 1.0;
+      }
+    }
+  }
+  fft_3d_local_inplace_F(false, fft_size_F, number_of_ffts, false,
+                           output_array);
 
-#pragma omp parallel for default(none)                                         \
-    shared(input_array, fft_size, pi, mx, my, mz) reduction(max : max_error)   \
-    collapse(3)
+#pragma omp parallel for default(none) firstprivate(test_every)                                         \
+    shared(input_array, fft_size, pi, volume, number_of_ffts)                   \
+    reduction(max : max_error) collapse(3)
+  for (int mx = 0; mx < fft_size[0]; mx++) {
+    for (int my = 0; my < fft_size[1]; my++) {
+      for (int mz = 0; mz < fft_size[2]; mz++) {
+        const int basis = (mx * fft_size[1] + my) * fft_size[2] + mz;
+        if (test_every > 0 && basis % test_every != 0)
+          continue;
+        const int batch = test_every > 0 ? basis / test_every : basis;
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2]; nz++) {
+              const int index = (nx * fft_size[1] + ny) * fft_size[2] + nz;
               const double complex my_value =
-                  input_array[(nx * fft_size[1] + ny) * fft_size[2] + nz];
+                  input_array[batch * volume + index];
               const double complex ref_value =
                   cexp(2.0 * I * pi *
                        (((double)mx) * nx / fft_size[0] +
                         ((double)my) * ny / fft_size[1] +
                         ((double)mz) * nz / fft_size[2]));
-              double current_error = cabs(my_value - ref_value);
-              max_error = fmax(max_error, current_error);
+              max_error = fmax(max_error, cabs(my_value - ref_value));
             }
           }
         }
