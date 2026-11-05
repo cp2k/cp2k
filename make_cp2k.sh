@@ -430,7 +430,7 @@ while [[ $# -gt 0 ]]; do
           cray_pm_accel_energy | spla_gemm_offloading | unified_memory)
             CMAKE_FEATURE_FLAGS_GPU+=" -DCP2K_USE_${2^^}=${ON_OFF}"
             ;;
-          dbm_gpu | elpa_gpu | grid_gpu | libxc_gpu | pw_gpu)
+          dbm_gpu | elpa_gpu | grid_gpu | libxc_gpu | fft_gpu)
             CMAKE_FEATURE_FLAGS_GPU+=" -DCP2K_ENABLE_${2^^}=${ON_OFF}"
             ;;
           none)
@@ -885,7 +885,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "          libgint | libint2 | libsmeagol | libtorch | libvdwxc | libxs | mimic | openpmd | pexsi | plumed |"
   echo "          sirius | spfft | spglib | spla | tblite | trexio | vori "
   echo ""
-  echo "Features: cray_pm_accel_energy | cusolver_mp | dbm_gpu | elpa_gpu | grid_gpu | libxc_gpu | pw_gpu |"
+  echo "Features: cray_pm_accel_energy | cusolver_mp | dbm_gpu | elpa_gpu | grid_gpu | libxc_gpu | fft_gpu |"
   echo "          spla_gemm_offloading | unified_memory"
   echo ""
   ${EXIT_CMD}
