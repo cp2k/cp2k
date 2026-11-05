@@ -74,8 +74,8 @@ MODULE qs_vcd_ao
                                               release_sap_int,&
                                               sap_int_type,&
                                               sap_sort
-   USE task_list_types,                 ONLY: atom_pair_type,&
-                                              task_list_type,&
+   USE task_list_methods,               ONLY: rs_gather_matrices
+   USE task_list_types,                 ONLY: task_list_type,&
                                               task_type
    USE upf_local_integrals,             ONLY: upf_local_init,&
                                               upf_local_matrix
@@ -1076,23 +1076,27 @@ CONTAINS
          ipair, ipgf, ipgf_new, iset, iset_new, iset_old, itask, ithread, jatom, jkind, jkind_old, &
          jpgf, jpgf_new, jset, jset_new, jset_old, ldsab, maxco, maxlgto, maxpgf, maxset, &
          maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, ncoa_full, ncob, ncob_full, nkind, nseta, &
-         nsetb, nthread, sgfa, sgfb
-      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
-                                                            npgfb, nsgfa, nsgfb
+         nsetb, nthread, offset, sgfa, sgfb
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, la_max, la_min, lb_max, &
+                                                            lb_min, npgfa, npgfb, nsgfa, nsgfb, &
+                                                            row_blk_size
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, found, has_threads, &
-         my_compute_tau, my_gapw, new_set_pair_coming
+      LOGICAL                                            :: atom_pair_changed, atom_pair_done, &
+                                                            found, has_threads, my_compute_tau, &
+                                                            my_gapw, new_set_pair_coming
       REAL(KIND=dp)                                      :: eps_rho_rspace, f, prefactor, radius, &
                                                             zetp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         TARGET                                          :: h_buffer
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rab_inv, rac, rb, rbc, rp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hab, sphi_a, sphi_b, work, zeta, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: habt, rhab, workt
-      TYPE(atom_pair_type), DIMENSION(:), POINTER        :: atom_pair_recv, atom_pair_send
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: h_block
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_distribution_type)                      :: dist
+      TYPE(dbcsr_p_type)                                 :: matrix_image(1)
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
@@ -1139,8 +1143,6 @@ CONTAINS
 
       ! short cuts to task list variables
       tasks => task_list%tasks
-      atom_pair_send => task_list%atom_pair_send
-      atom_pair_recv => task_list%atom_pair_recv
 
       CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env, rs_grids=rs_v)
@@ -1164,13 +1166,6 @@ CONTAINS
                            maxlgto=maxlgto, &
                            maxsgf_set=maxsgf_set, &
                            basis_type=my_basis_type)
-
-      distributed_grids = .FALSE.
-      DO igrid_level = 1, gridlevel_info%ngrid_levels
-         IF (rs_v(igrid_level)%desc%distributed) THEN
-            distributed_grids = .TRUE.
-         END IF
-      END DO
 
       nthread = 1
 !$    nthread = omp_get_max_threads()
@@ -1201,6 +1196,13 @@ CONTAINS
 
       ALLOCATE (h_block(3))
 
+      IF (ASSOCIATED(task_list%atom_pair_send)) THEN
+         ! Accumulate on task ranks, then return each partial block to its matrix owner.
+         ALLOCATE (h_buffer(task_list%buffer_size_recv, 3))
+         h_buffer(:, :) = 0.0_dp
+         CALL dbcsr_get_info(hmat(1)%matrix, row_blk_size=row_blk_size, col_blk_size=col_blk_size)
+      END IF
+
       ithread = 0
 !$    ithread = omp_get_thread_num()
       work => workt(:, :, ithread)
@@ -1215,13 +1217,15 @@ CONTAINS
       ! a single block of each matrix, so with OpenMP, each matrix block is only touched
       ! by a single thread for each grid level
       loop_gridlevels: DO igrid_level = 1, gridlevel_info%ngrid_levels
-         DO idir = 1, 3
-            CALL dbcsr_work_create(hmat(idir)%matrix, work_mutable=.TRUE., n=nthread)
-            CALL dbcsr_get_info(hmat(idir)%matrix, distribution=dist)
-            CALL dbcsr_distribution_get(dist, has_threads=has_threads)
-!$          IF (.NOT. has_threads) &
-!$             CPABORT("No thread distribution defined.")
-         END DO
+         IF (.NOT. ALLOCATED(h_buffer)) THEN
+            DO idir = 1, 3
+               CALL dbcsr_work_create(hmat(idir)%matrix, work_mutable=.TRUE., n=nthread)
+               CALL dbcsr_get_info(hmat(idir)%matrix, distribution=dist)
+               CALL dbcsr_distribution_get(dist, has_threads=has_threads)
+!$             IF (.NOT. has_threads) &
+!$                CPABORT("No thread distribution defined.")
+            END DO
+         END IF
 
          loop_pairs: DO ipair = 1, task_list%npairs(igrid_level)
          loop_tasks: DO itask = task_list%taskstart(ipair, igrid_level), task_list%taskstop(ipair, igrid_level)
@@ -1283,8 +1287,14 @@ CONTAINS
 
                DO idir = 1, 3
                   NULLIFY (h_block(idir)%block)
-                  CALL dbcsr_get_block_p(hmat(idir)%matrix, brow, bcol, h_block(idir)%block, found)
-                  CPASSERT(found)
+                  IF (ALLOCATED(h_buffer)) THEN
+                     offset = task_list%pair_offsets_recv(tasks(itask)%pair_index)
+                     h_block(idir)%block(1:row_blk_size(brow), 1:col_blk_size(bcol)) => &
+                        h_buffer(offset + 1:offset + row_blk_size(brow)*col_blk_size(bcol), idir)
+                  ELSE
+                     CALL dbcsr_get_block_p(hmat(idir)%matrix, brow, bcol, h_block(idir)%block, found)
+                     CPASSERT(found)
+                  END IF
                END DO
 
                ikind_old = ikind
@@ -1412,11 +1422,21 @@ CONTAINS
          END DO loop_tasks
          END DO loop_pairs
 
-         DO idir = 1, 3
-            CALL dbcsr_finalize(hmat(idir)%matrix)
-         END DO
+         IF (.NOT. ALLOCATED(h_buffer)) THEN
+            DO idir = 1, 3
+               CALL dbcsr_finalize(hmat(idir)%matrix)
+            END DO
+         END IF
 
       END DO loop_gridlevels
+
+      IF (ALLOCATED(h_buffer)) THEN
+         DO idir = 1, 3
+            task_list%hab_buffer%host_buffer(:) = h_buffer(:, idir)
+            matrix_image(1)%matrix => hmat(idir)%matrix
+            CALL rs_gather_matrices(task_list%hab_buffer, matrix_image, task_list, group)
+         END DO
+      END IF
 
       !   *** Release work storage ***
       DEALLOCATE (habt, rhab, workt, h_block)
