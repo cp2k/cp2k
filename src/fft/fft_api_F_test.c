@@ -823,6 +823,7 @@ int fft_test_F_3d_local_low(const int fft_size[3], const int test_every) {
 
   double max_error = 0.0;
   memset(input_array, 0, volume * number_of_ffts * sizeof(double complex));
+#pragma omp parallel for collapse(3)
   for (int mx = 0; mx < fft_size[0]; mx++) {
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
@@ -883,6 +884,7 @@ int fft_test_F_3d_local_low(const int fft_size[3], const int test_every) {
 
   max_error = 0.0;
   memset(output_array, 0, volume * number_of_ffts * sizeof(double complex));
+#pragma omp parallel for collapse(3)
   for (int mx = 0; mx < fft_size[0]; mx++) {
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
@@ -977,6 +979,7 @@ int fft_test_F_3d_local_inplace_low(const int fft_size[3], const int test_every)
 
   double max_error = 0.0;
   memset(input_array, 0, volume * number_of_ffts * sizeof(double complex));
+#pragma omp parallel for collapse(3)
   for (int mx = 0; mx < fft_size[0]; mx++) {
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
@@ -1033,6 +1036,7 @@ int fft_test_F_3d_local_inplace_low(const int fft_size[3], const int test_every)
 
   max_error = 0.0;
   memset(output_array, 0, volume * number_of_ffts * sizeof(double complex));
+#pragma omp parallel for collapse(3)
   for (int mx = 0; mx < fft_size[0]; mx++) {
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
