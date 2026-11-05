@@ -899,7 +899,8 @@ CONTAINS
             IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. &
                 direct_generalized_diagonalization .AND. &
                 scf_control%level_shift == 0.0_dp .AND. &
-                scf_env%cholesky_method /= cholesky_off) THEN
+                scf_env%cholesky_method /= cholesky_off .AND. &
+                scf_env%cholesky_method /= cholesky_dbcsr) THEN
                CALL get_mo_set(mos(1), nao=nao)
                IF (nao >= cusolver_n_min) THEN
                   scf_env%needs_ortho = .FALSE.
