@@ -158,8 +158,8 @@ get_key_2d_r2c(const bool direction, const int fft_size[2],
  * \author Frederick Stein
  ******************************************************************************/
 static inline void get_key_3d(const bool direction, const int fft_size[3],
-                              const int number_of_ffts,
-                              const bool transpose_in, const bool transpose_out,
+                              const int number_of_ffts, const bool transpose_in,
+                              const bool transpose_out,
                               const int number_of_threads, const bool inplace,
                               int *key) {
   assert((!inplace || (transpose_in == transpose_out)) &&
@@ -184,21 +184,20 @@ static inline void get_key_3d(const bool direction, const int fft_size[3],
  * \brief Get key from FFT input parameters (3D, R2C-case)
  * \author Frederick Stein
  ******************************************************************************/
-static inline void get_key_3d_r2c(
-    const bool direction, const int fft_size[3], const int number_of_ffts,
-    const bool transpose_in, const bool transpose_out,
-    const int number_of_threads, const bool inplace, int *key) {
+static inline void get_key_3d_r2c(const bool direction, const int fft_size[3],
+                                  const int number_of_ffts,
+                                  const bool transpose_in,
+                                  const bool transpose_out,
+                                  const int number_of_threads,
+                                  const bool inplace, int *key) {
   assert((!inplace || (transpose_in == transpose_out)) &&
          "Inplace plans need the same strides for input and output arrays!");
   const int real_volume = fft_size[0] * fft_size[1] * fft_size[2];
-  const int complex_volume =
-      fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1);
+  const int complex_volume = fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1);
   const int input_volume =
-      direction ? (inplace ? 2 * complex_volume : real_volume)
-                : complex_volume;
+      direction ? (inplace ? 2 * complex_volume : real_volume) : complex_volume;
   const int output_volume =
-      direction ? complex_volume
-                : (inplace ? 2 * complex_volume : real_volume);
+      direction ? complex_volume : (inplace ? 2 * complex_volume : real_volume);
   key[0] =
       3 + FFT_KEY_R2C + FFT_KEY_INPLACE * inplace + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
@@ -301,8 +300,7 @@ static inline int get_buffer_size_from_key(const fft_key_t key) {
     const int real_volume = key[3] * key[4] * key[5];
     const int complex_volume = key[3] * key[4] * (key[5] / 2 + 1);
     const bool is_r2c = (key[0] & FFT_KEY_R2C) == FFT_KEY_R2C;
-    const int volume = is_r2c ? imax(real_volume, complex_volume)
-                              : real_volume;
+    const int volume = is_r2c ? imax(real_volume, complex_volume) : real_volume;
     return volume * key[12];
   }
   const int number_of_ffts = 1;

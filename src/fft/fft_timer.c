@@ -209,23 +209,22 @@ void fft_init_timer(const bool use_debug_mode) {
   }
 }
 
-
 static void fft_print_to_stdout(const char *msg, const int msglen,
                                 const int output_unit) {
   (void)output_unit;
   fwrite(msg, 1, msglen, stdout);
 }
 
-static void fft_report_printf(fft_print_func_t print_func, const int output_unit,
-                              const char *format, ...) {
+static void fft_report_printf(fft_print_func_t print_func,
+                              const int output_unit, const char *format, ...) {
   char buffer[4096];
   va_list args;
   va_start(args, format);
   const int length = vsnprintf(buffer, sizeof(buffer), format, args);
   va_end(args);
   if (length > 0 && print_func != NULL) {
-    print_func(buffer, length < (int)sizeof(buffer) ? length
-                                                    : (int)sizeof(buffer) - 1,
+    print_func(buffer,
+               length < (int)sizeof(buffer) ? length : (int)sizeof(buffer) - 1,
                output_unit);
   }
 }
@@ -289,44 +288,59 @@ void fft_print_timing_report_unit(const double threshold,
       qsort(timing_statistics, size_of_timing_statistics,
             sizeof(fft_timing_statistics), compare_fft_timing_statistics);
       // Print the statistics
-      fft_report_printf(print_func, output_unit, " -------------------------------------------------------"
-                      "----------------------"
-                      "------------------------\n");
-      fft_report_printf(print_func, output_unit, " -                                                      "
-                      "                      "
-                      "                       -\n");
-      fft_report_printf(print_func, output_unit, " -                                         FFT TIMING "
-                      "REPORT                  "
-                      "                       -\n");
-      fft_report_printf(print_func, output_unit, " -                                                      "
-                      "                      "
-                      "                       -\n");
-      fft_report_printf(print_func, output_unit, " -------------------------------------------------------"
-                      "----------------------"
-                      "------------------------\n");
-      fft_report_printf(print_func, output_unit, " ROUTINE                                       CALLS    "
-                      " AVG SELF     MAX SELF   AVG TOTAL    MAX TOTAL\n");
+      fft_report_printf(
+          print_func, output_unit,
+          " -------------------------------------------------------"
+          "----------------------"
+          "------------------------\n");
+      fft_report_printf(
+          print_func, output_unit,
+          " -                                                      "
+          "                      "
+          "                       -\n");
       fft_report_printf(print_func, output_unit,
-              "                                                          "
-              "  TIME         TIME  "
-              "      TIME        TIME   \n");
+                        " -                                         FFT TIMING "
+                        "REPORT                  "
+                        "                       -\n");
+      fft_report_printf(
+          print_func, output_unit,
+          " -                                                      "
+          "                      "
+          "                       -\n");
+      fft_report_printf(
+          print_func, output_unit,
+          " -------------------------------------------------------"
+          "----------------------"
+          "------------------------\n");
+      fft_report_printf(
+          print_func, output_unit,
+          " ROUTINE                                       CALLS    "
+          " AVG SELF     MAX SELF   AVG TOTAL    MAX TOTAL\n");
+      fft_report_printf(
+          print_func, output_unit,
+          "                                                          "
+          "  TIME         TIME  "
+          "      TIME        TIME   \n");
       for (int routine = 0; routine < size_of_timing_statistics; routine++) {
         if (timing_statistics[routine].max_total_time >=
             threshold * timing_statistics[0].max_total_time) {
           if (timing_statistics[routine].number_of_calls > 0)
-            fft_report_printf(print_func, output_unit,
-                    " %-43s %7i      %7.3f      %7.3f     %7.3f     %7.3f\n",
-                    timing_statistics[routine].routine_name,
-                    timing_statistics[routine].number_of_calls,
-                    timing_statistics[routine].avg_self_time,
-                    timing_statistics[routine].max_self_time,
-                    timing_statistics[routine].avg_total_time,
-                    timing_statistics[routine].max_total_time);
+            fft_report_printf(
+                print_func, output_unit,
+                " %-43s %7i      %7.3f      %7.3f     %7.3f     %7.3f\n",
+                timing_statistics[routine].routine_name,
+                timing_statistics[routine].number_of_calls,
+                timing_statistics[routine].avg_self_time,
+                timing_statistics[routine].max_self_time,
+                timing_statistics[routine].avg_total_time,
+                timing_statistics[routine].max_total_time);
         }
         free(timing_statistics[routine].routine_name);
       }
-      fft_report_printf(print_func, output_unit, " -------------------------------------------------------"
-                      "------------------------\n");
+      fft_report_printf(
+          print_func, output_unit,
+          " -------------------------------------------------------"
+          "------------------------\n");
       free(timing_statistics);
     } else {
       int number_of_routines_to_consider = -1;
@@ -355,13 +369,14 @@ void fft_print_timing_report_unit(const double threshold,
     cp_mpi_barrier(comm);
   } else {
     if (cp_mpi_comm_rank(comm) == 0)
-      fft_report_printf(print_func, output_unit, "Timing module is not initialized. Timing report is not "
-                      "available!\n");
+      fft_report_printf(
+          print_func, output_unit,
+          "Timing module is not initialized. Timing report is not "
+          "available!\n");
   }
 }
 
-void fft_print_timing_report(const double threshold,
-                             const cp_mpi_comm_t comm) {
+void fft_print_timing_report(const double threshold, const cp_mpi_comm_t comm) {
   fft_print_timing_report_unit(threshold, fft_print_to_stdout, 0, comm);
   fflush(stdout);
 }

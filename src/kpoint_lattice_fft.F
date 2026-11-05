@@ -14,17 +14,9 @@
 !>        Unsupported grids retain the direct phase-sum fallback.
 ! **************************************************************************************************
 MODULE kpoint_lattice_fft
-   USE fft_tools,                       ONLY: BWFFT,&
-                                              FFT_RADIX_NEXT,&
-                                              FWFFT,&
-                                              fft3d,&
-                                              fft_3d,&
-                                              fft_allocate,&
-                                              fft_create_plan_3d,&
-                                              fft_deallocate,&
-                                              fft_destroy_plan,&
-                                              fft_plan_type,&
-                                              fft_radix_operations
+   USE fft_tools,                       ONLY: &
+        BWFFT, FFT_RADIX_NEXT, FWFFT, fft3d, fft_3d, fft_allocate, fft_create_plan_3d, &
+        fft_deallocate, fft_destroy_plan, fft_plan_type, fft_radix_operations
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE mathconstants,                   ONLY: gaussi,&
