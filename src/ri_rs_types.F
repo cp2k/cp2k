@@ -34,7 +34,7 @@ MODULE ri_rs_types
    TYPE ri_rs_grid_opt_type
       LOGICAL                                          :: enabled = .FALSE.
       REAL(KIND=dp)                                    :: cutoff_atomic_cluster = -1.0_dp/angstrom
-      REAL(KIND=dp)                                    :: rs_ao_ratio = 5.0_dp
+      REAL(KIND=dp)                                    :: rs_ao_ratio = 7.0_dp
       INTEGER                                          :: max_iter = 20
    END TYPE ri_rs_grid_opt_type
 

@@ -2767,7 +2767,7 @@ CONTAINS
                           "as 1, 1.5, 2, 3 and 4 until the GW energies are converged. "// &
                           "Larger values increase time and memory, but also increase the "// &
                           "numerical accuracy.", &
-                          default_r_val=2.0_dp, usage="RI_AO_RATIO 2")
+                          default_r_val=3.0_dp, usage="RI_AO_RATIO 3")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
