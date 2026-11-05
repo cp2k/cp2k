@@ -28,7 +28,6 @@ MODULE gw_auto_ri_types
 
       ! Input parameters.
       REAL(KIND=dp)                   :: occ_energy_window = -1.0_dp
-      REAL(KIND=dp)                   :: neighbor_radius = -1.0_dp
       LOGICAL                         :: enabled = .FALSE.
       REAL(KIND=dp)                   :: ri_ao_ratio = -1.0_dp
 
@@ -37,19 +36,9 @@ MODULE gw_auto_ri_types
       TYPE(cp_fm_type)                :: M_pq_inv = cp_fm_type()
       LOGICAL                         :: ready = .FALSE.
       INTEGER, ALLOCATABLE            :: sizes_opt_RI(:)
-
-      ! U_Pp_AB contains the RI-basis contraction coefficients:
-      ! for A=B: φ_p^A(r)  = Σ_P U_Pp^AA φ_P^A(r)    (φ_P^A(r): large ref. RI basis)
-      ! for A≠B: φ_p^AB(r) = Σ_P U_Pp^AB φ_P^AB^⊥(r) (see forthcoming paper)
-      ! RI basis contains contractions of Gaussians on neighboring atoms!!
-      REAL(KIND=dp), ALLOCATABLE      :: U_Pp_AB(:)
-      INTEGER                         :: AB_block_count = 0
-      INTEGER, ALLOCATABLE            :: AB_atom_A(:), AB_atom_B(:)
-      INTEGER, ALLOCATABLE            :: AB_first_p_A(:), AB_first_p_B(:)
-      INTEGER, ALLOCATABLE            :: AB_size_opt_RI_to_A(:)
-      INTEGER, ALLOCATABLE            :: AB_size_ref_RI(:)
-      INTEGER, ALLOCATABLE            :: AB_size_opt_RI(:)
-      INTEGER, ALLOCATABLE            :: U_Pp_AB_offset(:)
+      INTEGER, ALLOCATABLE            :: sizes_ref_RI(:)
+      REAL(KIND=dp), ALLOCATABLE      :: U_Pp_atom(:)
+      INTEGER, ALLOCATABLE            :: U_Pp_atom_offset(:)
 
    END TYPE auto_ri_type
 
@@ -69,18 +58,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (ALLOCATED(auto_ri%sizes_opt_RI)) DEALLOCATE (auto_ri%sizes_opt_RI)
-      IF (ALLOCATED(auto_ri%AB_atom_A)) DEALLOCATE (auto_ri%AB_atom_A)
-      IF (ALLOCATED(auto_ri%AB_atom_B)) DEALLOCATE (auto_ri%AB_atom_B)
-      IF (ALLOCATED(auto_ri%AB_first_p_A)) DEALLOCATE (auto_ri%AB_first_p_A)
-      IF (ALLOCATED(auto_ri%AB_first_p_B)) DEALLOCATE (auto_ri%AB_first_p_B)
-      IF (ALLOCATED(auto_ri%AB_size_opt_RI_to_A)) DEALLOCATE (auto_ri%AB_size_opt_RI_to_A)
-      IF (ALLOCATED(auto_ri%AB_size_ref_RI)) DEALLOCATE (auto_ri%AB_size_ref_RI)
-      IF (ALLOCATED(auto_ri%AB_size_opt_RI)) DEALLOCATE (auto_ri%AB_size_opt_RI)
-      IF (ALLOCATED(auto_ri%U_Pp_AB_offset)) DEALLOCATE (auto_ri%U_Pp_AB_offset)
-      IF (ALLOCATED(auto_ri%U_Pp_AB)) DEALLOCATE (auto_ri%U_Pp_AB)
+      IF (ALLOCATED(auto_ri%sizes_ref_RI)) DEALLOCATE (auto_ri%sizes_ref_RI)
+      IF (ALLOCATED(auto_ri%U_Pp_atom)) DEALLOCATE (auto_ri%U_Pp_atom)
+      IF (ALLOCATED(auto_ri%U_Pp_atom_offset)) DEALLOCATE (auto_ri%U_Pp_atom_offset)
       CALL cp_fm_release(auto_ri%V_pq)
       CALL cp_fm_release(auto_ri%M_pq_inv)
-      auto_ri%AB_block_count = 0
       auto_ri%ready = .FALSE.
 
       CALL timestop(handle)

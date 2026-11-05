@@ -46,11 +46,11 @@
 
 # AUTO_RI contracts a large QZ reference basis; the resolved RS grid gives a stable GW gap.
 "auto-ri-size-H2O.inp"                      = [
-  {matcher = "Auto_RI_Size", tol = 1e-12, ref = 18},
+  {matcher = "Auto_RI_Size", tol = 1e-12, ref = 14},
   {matcher = "RIRS_Grid", tol = 1e-12, ref = 42},
-  {matcher = "E_G0W0_direct_gap", tol = 1e-3, ref = 22.667}
+  {matcher = "E_G0W0_direct_gap", tol = 1e-3, ref = 24.506}
 ]
-# With no AB neighbors, the complete requested RI size is selected from AA contractions.
+# Molecular AUTO_RI uses only atom-local AA contractions.
 "auto-ri-aa-only-H2O.inp"                   = [{matcher = "Auto_RI_Size", tol = 1e-12, ref = 11}]
 "rirs-grid-cholesky-H2O.inp"                = [
   {matcher = "RIRS_Grid", tol = 1e-12, ref = 14},
@@ -62,4 +62,28 @@
 ]
 # Candidate generation exceeds its default ratio; rank saturation is completed by maximin.
 "rirs-grid-rank-saturation-maximin-H2O.inp" = [{matcher = "RIRS_Grid", tol = 1e-12, ref = 280}]
+# Periodic full-k RI-RS GW: SCF mesh and a separate Gamma-X band path.
+"09_RIRS_G0W0_PBE_periodic_H2.inp"          = [
+  {matcher = "E_RIRS_HOMO", tol = 1e-4, ref = -6.867},
+  {matcher = "E_RIRS_LUMO", tol = 1e-4, ref = 22.130},
+  {matcher = "E_G0W0_indirect_gap", tol = 1e-4, ref = 28.997},
+  {matcher = "E_G0W0_direct_gap", tol = 1e-4, ref = 28.997}
+]
+# AUTO_RI trains on the shared SCF mesh before evaluating the separate band path.
+"10_RIRS_G0W0_PBE_periodic_AUTO_RI_H2.inp"  = [
+  {matcher = "Auto_RI_Size", tol = 1e-12, ref = 10},
+  {matcher = "E_G0W0_indirect_gap", tol = 1e-4, ref = 27.366}
+]
+# Fast 2D Ewald smoke tests with GAPW and GPW. The hBN inputs remain available
+# for targeted numerical validation outside the pdbg regression time budget.
+"13_RIRS_G0W0_PBE_2D_AUTO_RI_H2_GAPW.inp"   = [
+  {matcher = "Auto_RI_Size", tol = 1e-12, ref = 2},
+  {matcher = "E_G0W0_indirect_gap", tol = 1e-3, ref = 23.269},
+  {matcher = "E_G0W0_direct_gap", tol = 1e-3, ref = 24.22}
+]
+"14_RIRS_G0W0_PBE_2D_AUTO_RI_H2_GPW.inp"    = [
+  {matcher = "Auto_RI_Size", tol = 1e-12, ref = 2},
+  {matcher = "E_G0W0_indirect_gap", tol = 1e-3, ref = 23.276},
+  {matcher = "E_G0W0_direct_gap", tol = 1e-3, ref = 24.227}
+]
 #EOF

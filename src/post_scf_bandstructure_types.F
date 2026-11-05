@@ -23,6 +23,7 @@ MODULE post_scf_bandstructure_types
                                               dbt_type
    USE gw_auto_ri_types,                ONLY: auto_ri_release,&
                                               auto_ri_type
+   USE gw_ri_rs_small_cell_full_kp_types,ONLY: gwkp_type
    USE hfx_types,                       ONLY: dealloc_containers,&
                                               hfx_compression_type
    USE input_constants,                 ONLY: G0W0,&
@@ -123,10 +124,13 @@ MODULE post_scf_bandstructure_types
 
       ! parameters for RI-RS implementation of GW
       TYPE(ri_rs_env)                                 :: ri_rs
-      ! Eigenvalue self-consistency settings and current GW iteration.
-      INTEGER                                         :: evgw0_iter = 20
+
+      ! Work data of periodic RI-RS GW with full k-point sampling
+      TYPE(gwkp_type), ALLOCATABLE                    :: gwkp_env
+
+      ! Eigenvalue self-consistency settings
+      INTEGER                                         :: evgw0_n_iter = 1
       REAL(KIND=dp)                                   :: evgw0_eps_iter = 5.0E-5_dp
-      INTEGER                                         :: evgw0_i_iter = 0
 
       ! Parameters for automatic RI basis set optimization.
       TYPE(auto_ri_type)                              :: auto_ri = auto_ri_type()

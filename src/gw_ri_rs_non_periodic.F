@@ -168,8 +168,6 @@ CONTAINS
       ! evGW0 self-consistency loop; for G0W0, loop is terminated after one iteration
       DO i_iter = 1, n_iter
 
-         bs_env%evgw0_i_iter = i_iter
-
          ! W_ll'(iτ)   =  Σ_PQ Z_lP W^MIC_PQ(iτ) Z_l'Q
          ! Σ^c_ll'(iτ) = -G^occ_ll'(i|τ|) ∘ W_ll'(iτ),  τ < 0
          ! Σ^c_ll'(iτ) =  G^vir_ll'(i|τ|) ∘ W_ll'(iτ),  τ > 0
@@ -179,7 +177,7 @@ CONTAINS
 
          ! Σ^c_λσ(iτ) -> Σ^c_nn(ϵ)
          ! ϵ_n^GW,(i) = ϵ_n^DFT + Σ^c_nn[G^(i-1),W](ϵ_n^GW,(i)) + Σ^x_nn - v^xc_nn
-         CALL compute_QP_energies(bs_env, fm_Sigma_x_Gamma, fm_Sigma_c_Gamma_time)
+         CALL compute_QP_energies(bs_env, fm_Sigma_x_Gamma, fm_Sigma_c_Gamma_time, i_iter)
 
          IF (bs_env%gw_flavour == G0W0) EXIT
 
@@ -229,12 +227,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      n_iter = 1
+      n_iter = bs_env%evgw0_n_iter
       band_prev(:, :) = 0.0_dp
       e_fermi_dft(:) = 0.0_dp
 
       IF (bs_env%gw_flavour == evGW0) THEN
-         n_iter = bs_env%evgw0_iter
 
          ! eigenvalues currently in G; the first cycle starts is a plain G0W0 step
          bs_env%eigenval_evGW0(:, :, :) = bs_env%eigenval_scf(:, :, :)
@@ -509,12 +506,14 @@ CONTAINS
 !> \param bs_env ...
 !> \param fm_Sigma_x_Gamma ...
 !> \param fm_Sigma_c_Gamma_time ...
+!> \param i_iter ...
 ! **************************************************************************************************
-   SUBROUTINE compute_QP_energies(bs_env, fm_Sigma_x_Gamma, fm_Sigma_c_Gamma_time)
+   SUBROUTINE compute_QP_energies(bs_env, fm_Sigma_x_Gamma, fm_Sigma_c_Gamma_time, i_iter)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_Sigma_x_Gamma
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :, :)  :: fm_Sigma_c_Gamma_time
+      INTEGER, INTENT(IN)                                :: i_iter
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_QP_energies'
 
@@ -560,7 +559,7 @@ CONTAINS
 
          ! 5. Analytic continuation Σ^c_nn(iω) -> Σ^c_nn(ϵ) and the QP levels
          CALL analyt_conti_and_print(bs_env, Sigma_c_n_freq, Sigma_x_n, V_xc_n, &
-                                     bs_env%eigenval_scf(:, 1, ispin), 1, ispin)
+                                     bs_env%eigenval_scf(:, 1, ispin), 1, ispin, i_iter)
 
       END DO ! ispin
 

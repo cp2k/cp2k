@@ -11,6 +11,7 @@
 !>      09.2026 created
 ! **************************************************************************************************
 MODULE ri_rs_grid_setup
+   USE cell_types,                      ONLY: pbc
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE particle_types,                  ONLY: particle_type
@@ -32,7 +33,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Get RI-RS grid points {r_l}, either by on-the-fly optimization or
 !>        reading pretabulated atomic grids
-!> \param bs_env shared geometry, basis, grid settings and owned RI-RS data
+!> \param bs_env Band-structure environment containing GW RI-RS parameters.
 !> \param grid_points x,y,z RI-RS grid coordinates, size (3, ngrid)
 ! **************************************************************************************************
    SUBROUTINE setup_ri_rs_grid(bs_env, grid_points)
@@ -93,7 +94,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: ri_rs_grid_points(:, :)
 
       INTEGER                                            :: atom_grid_end, atom_grid_start, iatom, &
-                                                            ilayout, natom
+                                                            igrid_point, ilayout, natom
       INTEGER, ALLOCATABLE                               :: atom_grid_offsets(:), atom_order(:)
       REAL(KIND=dp)                                      :: atom_center(3)
 
@@ -111,7 +112,7 @@ CONTAINS
       END DO
       bs_env%ri_rs%grid_atom_boundaries(natom + 1) = bs_env%ri_rs%n_grid_points + 1
 
-      IF (bs_env%unit_nr > 0) THEN
+      IF (bs_env%unit_nr > 0 .AND. .NOT. bs_env%ri_rs%grid_opt%enabled) THEN
          WRITE (bs_env%unit_nr, FMT="(T2,A,T69,I12)") &
             'Total grid points used for RI-RS:', bs_env%ri_rs%n_grid_points
          WRITE (bs_env%unit_nr, "(A)") ' '
@@ -120,7 +121,7 @@ CONTAINS
       ALLOCATE (ri_rs_grid_points(3, bs_env%ri_rs%n_grid_points))
       !$OMP PARALLEL DO DEFAULT(NONE) &
       !$OMP SHARED(ri_rs_grid_points, atom_grid_offsets, bs_env, natom) &
-      !$OMP PRIVATE(iatom, atom_center, atom_grid_start, atom_grid_end) &
+      !$OMP PRIVATE(iatom, igrid_point, atom_center, atom_grid_start, atom_grid_end) &
       !$OMP SCHEDULE(DYNAMIC, 1)
       DO iatom = 1, natom
          atom_center(:) = bs_env%ri_rs%particle_set(iatom)%r(:)
@@ -133,6 +134,10 @@ CONTAINS
             bs_env%ri_rs%atomic_grids(iatom)%raw_points(2, :) + atom_center(2)
          ri_rs_grid_points(3, atom_grid_start:atom_grid_end) = &
             bs_env%ri_rs%atomic_grids(iatom)%raw_points(3, :) + atom_center(3)
+         DO igrid_point = atom_grid_start, atom_grid_end
+            ri_rs_grid_points(:, igrid_point) = &
+               pbc(ri_rs_grid_points(:, igrid_point), bs_env%ri_rs%cell)
+         END DO
       END DO
       !$OMP END PARALLEL DO
    END SUBROUTINE assemble_ri_rs_grid_points

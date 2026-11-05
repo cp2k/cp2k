@@ -534,6 +534,7 @@ registry["M105"] = GenericMatcher(r"TDDFT+SOC", col=5)
 
 # G0W0 bandgap of solid
 registry["E_G0W0_direct_gap"] = GenericMatcher(r"G0W0 direct band gap", col=6)
+registry["E_G0W0_indirect_gap"] = GenericMatcher(r"G0W0 indirect band gap", col=6)
 
 # DFT + perturbative SOC bandgap of solid
 registry["E_SCF_SOC_gap"] = GenericMatcher(r"SCF+SOC direct band gap", col=6)

@@ -176,115 +176,80 @@ CONTAINS
 !>        b_lP = V_l^T B_P V_l. B_P is the symmetric matrix defined by the upper AO triangle.
 !>        The objective is ||B - A Z'||²/||B||², A_:l = svec(V_l V_l^T), without a penalty term.
 !>        For λ>0 the derivative includes the response of the regularized coefficients.
-!>        Each RI-column panel reuses V B_P for the RHS and gradient before releasing the panel.
+!>        Each rank of atom_env holds a contiguous range of RI columns. K does not depend on P
+!>        and is factored on every rank; each RI-column panel reuses V B_P for the RHS and
+!>        gradient. The error terms and the AO gradient are summed over atom_env.
 !>        The balancing convention and RI-RS reference are given in solve_ri_rs_fit.
 !> \param phi unscaled AO values indexed (grid point, AO)
-!> \param int_3c three-center integrals indexed (AO, AO, RI); only the upper AO triangle is used
+!> \param int_3c three-center integrals of this rank's RI columns indexed (AO, AO, RI);
+!>        only the upper AO triangle is used
+!> \param integral_norm2 ||B||² over all RI columns of the cluster
 !> \param tikhonov regularization in the Jacobi-scaled space
+!> \param atom_env MPI group sharing the RI columns of the cluster
 !> \param normalized_error normalized squared residual
 !> \param fit_successful false if the target is empty or the regularized fit cannot be solved
-!> \param ao_gradient optional derivative with respect to the unscaled AO values
+!> \param ao_gradient derivative with respect to the unscaled AO values
 !> \param max_abs_error optional largest absolute unweighted integral error
-!> \param workspace_budget_bytes optional total budget for evaluator-owned gradient workspaces;
-!>        the caller deducts its own arrays first. Reserve all fixed workspaces before sizing
-!>        the product cache. An absent or nonpositive budget streams one RI column.
 ! **************************************************************************************************
-   SUBROUTINE evaluate_ri_rs_fit(phi, int_3c, tikhonov, normalized_error, fit_successful, &
-                                 ao_gradient, max_abs_error, workspace_budget_bytes)
+   SUBROUTINE evaluate_ri_rs_fit(phi, int_3c, integral_norm2, tikhonov, atom_env, &
+                                 normalized_error, fit_successful, ao_gradient, max_abs_error)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: phi
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: int_3c
-      REAL(KIND=dp), INTENT(IN)                          :: tikhonov
+      REAL(KIND=dp), INTENT(IN)                          :: integral_norm2, tikhonov
+      TYPE(mp_para_env_type), POINTER                    :: atom_env
       REAL(KIND=dp), INTENT(OUT)                         :: normalized_error
       LOGICAL, INTENT(OUT)                               :: fit_successful
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
-         OPTIONAL                                        :: ao_gradient
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: ao_gradient
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: max_abs_error
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: workspace_budget_bytes
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_ri_rs_fit'
-      INTEGER, PARAMETER                                 :: residual_block_size = 64
+      INTEGER, PARAMETER                                 :: residual_block_size = 64, &
+                                                            ri_panel_size = 16
 
       INTEGER                                            :: first, handle, handle2, i, icache, imu, &
-                                                            info, inu, ip, j, last, n_ao, &
-                                                            n_cached, n_grid, n_panel, n_ri, &
-                                                            panel_first, panel_last
-      REAL(KIND=dp) :: coefficient_norm2, error_scale, fixed_bytes, integral_norm2, na, ng, &
-         projection, residual_norm2, roundoff_estimate, row_norm2, value, weight
+                                                            info, inu, ip, j, last, n_ao, n_grid, &
+                                                            n_ri, panel_first, panel_last
+      REAL(KIND=dp)                                      :: error_scale, projection, residual_norm2, &
+                                                            roundoff_estimate, row_norm2, value, &
+                                                            weight
       REAL(KIND=dp), ALLOCATABLE :: coefficient_work(:, :), factor(:, :), jacobi_scale(:), &
          overlap(:, :), products(:, :, :), residual(:, :), v(:, :), z_prime(:, :)
+      REAL(KIND=dp), DIMENSION(2)                        :: fit_terms
 
       CALL timeset(routineN, handle)
       n_grid = SIZE(phi, 1)
       n_ao = SIZE(phi, 2)
       n_ri = SIZE(int_3c, 3)
       CPASSERT(SIZE(int_3c, 1) == n_ao .AND. SIZE(int_3c, 2) == n_ao)
+      CPASSERT(ALL(SHAPE(ao_gradient) == SHAPE(phi)))
       CPASSERT(tikhonov >= 0.0_dp)
-      IF (PRESENT(ao_gradient)) THEN
-         CPASSERT(ALL(SHAPE(ao_gradient) == SHAPE(phi)))
-         ao_gradient(:, :) = 0.0_dp
-      END IF
+      ao_gradient(:, :) = 0.0_dp
       normalized_error = HUGE(normalized_error)
       IF (PRESENT(max_abs_error)) max_abs_error = HUGE(max_abs_error)
       fit_successful = .FALSE.
-      IF (n_grid < 1 .OR. n_ri < 1) THEN
-         CALL timestop(handle)
-         RETURN
-      END IF
-      integral_norm2 = 0.0_dp
-      DO ip = 1, n_ri
-         DO inu = 1, n_ao
-            integral_norm2 = integral_norm2 + int_3c(inu, inu, ip)**2 + &
-                             2.0_dp*DOT_PRODUCT(int_3c(1:inu - 1, inu, ip), int_3c(1:inu - 1, inu, ip))
-         END DO
-      END DO
-      IF (integral_norm2 <= TINY(1.0_dp)) THEN
+      IF (n_grid < 1 .OR. integral_norm2 <= TINY(1.0_dp)) THEN
          CALL timestop(handle)
          RETURN
       END IF
 
-      n_panel = n_ri
-      n_cached = 1
-      IF (PRESENT(ao_gradient)) THEN
-         n_panel = 1
-         IF (PRESENT(workspace_budget_bytes)) THEN
-            IF (workspace_budget_bytes > 0.0_dp) THEN
-               ng = REAL(n_grid, dp)
-               na = REAL(n_ao, dp)
-               ! Reserve factor, overlap, V, two coefficient arrays, Jacobi scales and the
-               ! largest residual panel before assigning all remaining budget to V B_P.
-               fixed_bytes = 8.0_dp*(2.0_dp*ng**2 + ng*na + 2.0_dp*ng*REAL(n_ri, dp) + ng + &
-                                     na*MIN(na, REAL(residual_block_size, dp)))
-               n_panel = INT(MIN(REAL(n_ri, dp), MAX(0.0_dp, &
-                                                     (workspace_budget_bytes - fixed_bytes)/(8.0_dp*ng*na))))
-               IF (n_panel < 1) THEN
-                  CPABORT("RI-RS minimum fit workspace exceeds memory budget")
-               END IF
-            END IF
-         END IF
-         n_cached = n_panel
-         CALL factor_ri_rs_fit(phi, tikhonov, factor, jacobi_scale, info, overlap)
-      ELSE
-         CALL factor_ri_rs_fit(phi, tikhonov, factor, jacobi_scale, info)
-      END IF
+      ! Every rank factors the same K, so all ranks of atom_env return together on failure.
+      CALL factor_ri_rs_fit(phi, tikhonov, factor, jacobi_scale, info, overlap)
       IF (info /= 0) THEN
          CALL timestop(handle)
          RETURN
       END IF
-      ALLOCATE (v(n_grid, n_ao), products(n_grid, n_ao, n_cached), &
+      ALLOCATE (v(n_grid, n_ao), products(n_grid, n_ao, MAX(1, MIN(ri_panel_size, n_ri))), &
                 coefficient_work(n_grid, n_ri), z_prime(n_grid, n_ri))
       DO imu = 1, n_ao
          v(:, imu) = SQRT(jacobi_scale)*phi(:, imu)
       END DO
-      ! K is independent of P. Solve a panel of RHSs and consume its cached products immediately.
       ! Keep Z' and the coefficient response for the final grid-space symmetric product.
-      value = 0.0_dp
-      coefficient_norm2 = 0.0_dp
+      fit_terms(:) = 0.0_dp
       CALL timeset(routineN//'_ri_panels', handle2)
-      DO panel_first = 1, n_ri, n_panel
-         panel_last = MIN(panel_first + n_panel - 1, n_ri)
+      DO panel_first = 1, n_ri, ri_panel_size
+         panel_last = MIN(panel_first + ri_panel_size - 1, n_ri)
          DO ip = panel_first, panel_last
-            icache = 1
-            IF (PRESENT(ao_gradient)) icache = ip - panel_first + 1
+            icache = ip - panel_first + 1
             CALL dsymm('R', 'U', n_grid, n_ao, 1.0_dp, int_3c(:, :, ip), n_ao, v, n_grid, &
                        0.0_dp, products(:, :, icache), n_grid)
             DO i = 1, n_grid
@@ -294,53 +259,44 @@ CONTAINS
          z_prime(:, panel_first:panel_last) = coefficient_work(:, panel_first:panel_last)
          CALL dpotrs('L', n_grid, panel_last - panel_first + 1, factor, n_grid, &
                      z_prime(:, panel_first:panel_last), n_grid, info)
-         IF (info /= 0) THEN
-            CALL timestop(handle2)
-            CALL timestop(handle)
-            RETURN
-         END IF
+         IF (info /= 0) CPABORT("RI-RS grid fit Cholesky solve failed")
          DO ip = panel_first, panel_last
-            value = value + DOT_PRODUCT(z_prime(:, ip), coefficient_work(:, ip))
-            coefficient_norm2 = coefficient_norm2 + DOT_PRODUCT(z_prime(:, ip), z_prime(:, ip))
+            fit_terms(1) = fit_terms(1) + DOT_PRODUCT(z_prime(:, ip), coefficient_work(:, ip))
+            fit_terms(2) = fit_terms(2) + DOT_PRODUCT(z_prime(:, ip), z_prime(:, ip))
          END DO
-
-         IF (PRESENT(ao_gradient)) THEN
-            ! Reuse the RHS for Y = K^-1 Z' and then C = Z' + λY; λ=0 needs no response solve.
-            coefficient_work(:, panel_first:panel_last) = z_prime(:, panel_first:panel_last)
-            IF (tikhonov > 0.0_dp) THEN
-               CALL dpotrs('L', n_grid, panel_last - panel_first + 1, factor, n_grid, &
-                           coefficient_work(:, panel_first:panel_last), n_grid, info)
-               IF (info /= 0) THEN
-                  CALL timestop(handle2)
-                  CALL timestop(handle)
-                  RETURN
-               END IF
-               coefficient_work(:, panel_first:panel_last) = z_prime(:, panel_first:panel_last) + &
-                                                             tikhonov*coefficient_work(:, panel_first:panel_last)
-            END IF
-            ! Accumulate -Σ_P C_lP (V B_P)_l while the panel products are still available.
-            DO ip = panel_first, panel_last
-               icache = ip - panel_first + 1
-               DO imu = 1, n_ao
-                  ao_gradient(:, imu) = ao_gradient(:, imu) - coefficient_work(:, ip)*products(:, imu, icache)
-               END DO
+         ! Reuse the RHS for Y = K^-1 Z' and then C = Z' + λY; λ=0 needs no response solve.
+         coefficient_work(:, panel_first:panel_last) = z_prime(:, panel_first:panel_last)
+         IF (tikhonov > 0.0_dp) THEN
+            CALL dpotrs('L', n_grid, panel_last - panel_first + 1, factor, n_grid, &
+                        coefficient_work(:, panel_first:panel_last), n_grid, info)
+            IF (info /= 0) CPABORT("RI-RS grid fit response solve failed")
+            coefficient_work(:, panel_first:panel_last) = z_prime(:, panel_first:panel_last) + &
+                                                          tikhonov*coefficient_work(:, panel_first:panel_last)
+         END IF
+         ! Accumulate -Σ_P C_lP (V B_P)_l while the panel products are still available.
+         DO ip = panel_first, panel_last
+            icache = ip - panel_first + 1
+            DO imu = 1, n_ao
+               ao_gradient(:, imu) = ao_gradient(:, imu) - coefficient_work(:, ip)*products(:, imu, icache)
             END DO
-            IF (tikhonov > 0.0_dp) THEN
-               ! Retain T = C - Z'/2 = Z'/2 + λY for M = Z'T^T + TZ'^T below.
-               coefficient_work(:, panel_first:panel_last) = coefficient_work(:, panel_first:panel_last) - &
-                                                             0.5_dp*z_prime(:, panel_first:panel_last)
-            END IF
+         END DO
+         IF (tikhonov > 0.0_dp) THEN
+            ! Retain T = C - Z'/2 = Z'/2 + λY for M = Z'T^T + TZ'^T below.
+            coefficient_work(:, panel_first:panel_last) = coefficient_work(:, panel_first:panel_last) - &
+                                                          0.5_dp*z_prime(:, panel_first:panel_last)
          END IF
       END DO
       CALL timestop(handle2)
+      CALL atom_env%sum(fit_terms)
       ! K Z' = b implies ||B-AZ'||² = ||B||² - tr(Z'^T b) - λ ||Z'||².
-      weight = tikhonov*coefficient_norm2
+      value = fit_terms(1)
+      weight = tikhonov*fit_terms(2)
       residual_norm2 = integral_norm2 - value - weight
       error_scale = integral_norm2 + ABS(value) + weight
       ! Large coefficients can also amplify the factorization's backward error. The scaled
       ! Gram has diagonal <= 1, hence ||K||_2 <= n_grid + λ; use a conservative roundoff estimate.
       roundoff_estimate = 8.0_dp*EPSILON(1.0_dp)*REAL(n_grid, dp)* &
-                          (REAL(n_grid, dp) + tikhonov)*coefficient_norm2
+                          (REAL(n_grid, dp) + tikhonov)*fit_terms(2)
       ! Near an exact fit, use bounded AO-column panels to avoid cancellation. This path also
       ! supplies the final maximum-error diagnostic, without storing a pair-by-RI residual.
       IF (PRESENT(max_abs_error) .OR. &
@@ -367,41 +323,43 @@ CONTAINS
                END DO
             END DO
          END DO
+         CALL atom_env%sum(residual_norm2)
+         IF (PRESENT(max_abs_error)) CALL atom_env%max(max_abs_error)
          CALL timestop(handle2)
       END IF
       DEALLOCATE (products)
       normalized_error = residual_norm2/integral_norm2
 
-      IF (PRESENT(ao_gradient)) THEN
-         CALL timeset(routineN//'_gradient', handle2)
-         ! All panel solves are complete. Reuse the factor for M = Z'Z'^T + λ(Z'Y^T + YZ'^T).
-         IF (tikhonov > 0.0_dp) THEN
-            CALL dsyr2k('L', 'N', n_grid, n_ri, 1.0_dp, z_prime, n_grid, coefficient_work, n_grid, &
-                        0.0_dp, factor, n_grid)
-         ELSE
-            CALL dsyrk('L', 'N', n_grid, n_ri, 1.0_dp, z_prime, n_grid, 0.0_dp, factor, n_grid)
-         END IF
-         DO j = 1, n_grid
-            DO i = j, n_grid
-               factor(i, j) = factor(i, j)*overlap(i, j)
-            END DO
-         END DO
-         ! Add (M∘S)V to the accumulated negative term, then normalize the AO gradient.
-         CALL dsymm('L', 'L', n_grid, n_ao, 1.0_dp, factor, n_grid, v, n_grid, &
-                    1.0_dp, ao_gradient, n_grid)
-         ao_gradient(:, :) = (4.0_dp/integral_norm2)*ao_gradient
-         ! V_l = sqrt(d_l) phi_l. Differentiate the normalization only above the floor;
-         ! on the clamped branch d_l is constant, including at the branch boundary.
-         DO i = 1, n_grid
-            row_norm2 = DOT_PRODUCT(phi(i, :), phi(i, :))
-            IF (row_norm2 > SQRT(jacobi_floor)) THEN
-               projection = DOT_PRODUCT(phi(i, :), ao_gradient(i, :))/row_norm2
-               ao_gradient(i, :) = ao_gradient(i, :) - projection*phi(i, :)
-            END IF
-            ao_gradient(i, :) = SQRT(jacobi_scale(i))*ao_gradient(i, :)
-         END DO
-         CALL timestop(handle2)
+      CALL timeset(routineN//'_gradient', handle2)
+      ! All panel solves are complete. Reuse the factor for this rank's part of
+      ! M = Z'Z'^T + λ(Z'Y^T + YZ'^T); (M∘S)V is linear in M and summed with the AO gradient.
+      IF (tikhonov > 0.0_dp) THEN
+         CALL dsyr2k('L', 'N', n_grid, n_ri, 1.0_dp, z_prime, n_grid, coefficient_work, n_grid, &
+                     0.0_dp, factor, n_grid)
+      ELSE
+         CALL dsyrk('L', 'N', n_grid, n_ri, 1.0_dp, z_prime, n_grid, 0.0_dp, factor, n_grid)
       END IF
+      DO j = 1, n_grid
+         DO i = j, n_grid
+            factor(i, j) = factor(i, j)*overlap(i, j)
+         END DO
+      END DO
+      ! Add (M∘S)V to the accumulated negative term, then normalize the AO gradient.
+      CALL dsymm('L', 'L', n_grid, n_ao, 1.0_dp, factor, n_grid, v, n_grid, &
+                 1.0_dp, ao_gradient, n_grid)
+      CALL atom_env%sum(ao_gradient)
+      ao_gradient(:, :) = (4.0_dp/integral_norm2)*ao_gradient
+      ! V_l = sqrt(d_l) phi_l. Differentiate the normalization only above the floor;
+      ! on the clamped branch d_l is constant, including at the branch boundary.
+      DO i = 1, n_grid
+         row_norm2 = DOT_PRODUCT(phi(i, :), phi(i, :))
+         IF (row_norm2 > SQRT(jacobi_floor)) THEN
+            projection = DOT_PRODUCT(phi(i, :), ao_gradient(i, :))/row_norm2
+            ao_gradient(i, :) = ao_gradient(i, :) - projection*phi(i, :)
+         END IF
+         ao_gradient(i, :) = SQRT(jacobi_scale(i))*ao_gradient(i, :)
+      END DO
+      CALL timestop(handle2)
       fit_successful = .TRUE.
       CALL timestop(handle)
    END SUBROUTINE evaluate_ri_rs_fit
