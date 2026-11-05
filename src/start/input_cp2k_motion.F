@@ -1083,22 +1083,17 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="CONSTRAINT", &
-         description="Imposes a constraint on the pressure tensor by fixing the specified cell components. "// &
-         "Cell convention: a lies along x, b lies in the xy plane. The six independent components "// &
-         "are AX, BX, BY, CX, CY, CZ. A, B and C fix a complete cell vector: A = AX, B = BX and BY, "// &
-         "C = CX, CY and CZ. X, Y and Z follow the legacy direction tokens. X fixes every x "// &
-         "component: AX, BX and CX. Y fixes the complete b vector and the y component of c: "// &
-         "BX, BY and CY. Z fixes the complete c vector, because only c has a z component: Z equals C. "// &
-         "Accepted tokens: NONE, A, B, C, X, Y, Z, XY, XZ, YZ, AX, BX, BY, CX, CY, CZ. "// &
-         "Several tokens may be given on one line, the union of the fixed components is used. "// &
-         "NONE must stand alone, redundant tokens give a warning, and angle constraints "// &
-         "(ALPHA, BETA, GAMMA) are not supported yet. On a non-orthorhombic cell a constraint "// &
-         "that pins a shear component (BX, CX, CY), or a fixed diagonal component together "// &
-         "with KEEP_ANGLES, draws a warning: the pressure criterion is then met only when "// &
-         "the pinned values match the stress-free cell; otherwise it can stay off the "// &
-         "external pressure at the constrained minimum. Check the per-step pressure "// &
-         "convergence report.", &
-         usage="CONSTRAINT {NONE} | ({A|B|C|X|Y|Z|XY|XZ|YZ|AX|BX|BY|CX|CY|CZ} ...)", &
+         description="Imposes a constraint on the cell optimization by fixing the specified "// &
+         "cell components or angles. Cell convention: a lies along x, b lies in the xy plane. "// &
+         "The six independent components are AX, BX, BY, CX, CY, CZ. A, B and C fix a complete "// &
+         "cell vector: A = AX, B = BX and BY, C = CX, CY and CZ. X, Y and Z follow the legacy "// &
+         "direction tokens. X fixes every x component: AX, BX and CX. Y fixes the complete b "// &
+         "vector and the y component of c: BX, BY and CY. Z fixes the complete c vector, "// &
+         "because only c has a z component: Z equals C. ALPHA, BETA and GAMMA fix the "// &
+         "corresponding cell angles. Accepted tokens: NONE, A, B, C, X, Y, Z, XY, XZ, YZ, "// &
+         "AX, BX, BY, CX, CY, CZ, ALPHA, BETA, GAMMA. Several tokens may be given on one line. "// &
+         "Redundant tokens give a warning and NONE must stand alone.", &
+         usage="CONSTRAINT {NONE} | ({A|B|C|X|Y|Z|XY|XZ|YZ|AX|BX|BY|CX|CY|CZ|ALPHA|BETA|GAMMA} ...)", &
          type_of_var=char_t, n_var=-1, default_c_vals=["NONE"])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

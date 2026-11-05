@@ -5,5 +5,8 @@
 #      for details see cp2k/tools/do_regtest
 "zro.inp"                             = [{matcher = "M093", tol = 0, ref = 14}]
 "zro_print_atoms.inp"                 = []
-"cell_opt_keep_volume_spacegroup.inp" = [{matcher = "M011", tol = 1.0E-10, ref = -16.131077747264293}]
+"cell_opt_keep_volume_spacegroup.inp" = [
+  {matcher = "M011", tol = 1.0E-10, ref = -16.132728327744840},
+  {matcher = "Cell_volume", tol = 1.0E-06, ref = 142.564830}
+]
 #EOF

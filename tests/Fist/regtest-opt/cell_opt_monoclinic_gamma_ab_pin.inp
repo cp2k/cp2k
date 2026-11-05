@@ -1,0 +1,64 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT cell_opt_monoclinic_gamma_ab_pin
+  RUN_TYPE CELL_OPT
+&END GLOBAL
+
+&MOTION
+  &CELL_OPT
+    CONSTRAINT AX BY
+    KEEP_SYMMETRY T
+    MAX_ITER 6
+    OPTIMIZER BFGS
+    &BFGS
+      USE_MODEL_HESSIAN F
+    &END BFGS
+  &END CELL_OPT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM Ar
+        CHARGE 0.0
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS Ar Ar
+          EPSILON [K_e] 119.8
+          RCUT [angstrom] 9.0
+          SIGMA [angstrom] 3.405
+        &END LENNARD-JONES
+      &END NONBONDED
+      &SPLINE
+        EPS_SPLINE 1.0E-8
+      &END SPLINE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      A 6.0 0.0 0.0
+      B 0.0 6.0 0.0
+      C 0.0 0.0 7.5
+      SYMMETRY MONOCLINIC_GAMMA_AB
+    &END CELL
+    &COORD
+      SCALED
+      Ar 0.00 0.00 0.00
+      Ar 0.42 0.23 0.00
+      Ar 0.05 0.52 0.48
+      Ar 0.49 0.46 0.51
+    &END COORD
+    &TOPOLOGY
+      CONNECTIVITY OFF
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

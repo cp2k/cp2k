@@ -19,10 +19,13 @@ MODULE geo_opt
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                               cp_iterate,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_unit_nr,&
                                               cp_rm_iter_level
    USE force_env_types,                 ONLY: force_env_type
    USE global_types,                    ONLY: global_environment_type
-   USE gopt_f_methods,                  ONLY: gopt_f_create_x0
+   USE gopt_f_methods,                  ONLY: gopt_f_create_x0,&
+                                              gopt_f_space_group_show
    USE gopt_f_types,                    ONLY: gopt_f_create,&
                                               gopt_f_release,&
                                               gopt_f_type
@@ -170,6 +173,9 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: geo_section
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x0
 
+      INTEGER                                            :: output_unit
+      TYPE(cp_logger_type), POINTER                      :: logger
+
       CPASSERT(ASSOCIATED(force_env))
       CPASSERT(ASSOCIATED(globenv))
       CPASSERT(ASSOCIATED(gopt_param))
@@ -190,6 +196,16 @@ CONTAINS
       CASE DEFAULT
          CPABORT("Invalid or not yet implemented method for optimization")
       END SELECT
+
+      IF ((.NOT. gopt_env%dimer_rotation) .AND. gopt_env%spgr%show_space_group) THEN
+         NULLIFY (logger)
+         logger => cp_get_default_logger()
+         output_unit = cp_print_key_unit_nr(logger, geo_section, "PRINT%PROGRAM_RUN_INFO", &
+                                            extension=".geoLog")
+         CALL gopt_f_space_group_show(gopt_env, geo_section, output_unit)
+         CALL cp_print_key_finished_output(output_unit, logger, geo_section, &
+                                           "PRINT%PROGRAM_RUN_INFO")
+      END IF
 
    END SUBROUTINE gopt_dispatch_optimizer
 

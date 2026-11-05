@@ -27,8 +27,6 @@ MODULE cp_lbfgs_geo
    USE global_types,                    ONLY: global_environment_type
    USE gopt_f_methods,                  ONLY: gopt_f_ii,&
                                               gopt_f_io_finalize,&
-                                              gopt_f_space_group_init,&
-                                              gopt_f_space_group_show,&
                                               print_geo_opt_header,&
                                               print_geo_opt_nc
    USE gopt_f_types,                    ONLY: gopt_f_type
@@ -95,9 +93,6 @@ CONTAINS
                                          extension=".geoLog")
       CALL print_geo_opt_header(gopt_env, output_unit, "L-BFGS")
 
-      ! finds space group
-      CALL gopt_f_space_group_init(gopt_env, x0, geo_section, output_unit)
-
       ! Stop if not implemented
       IF (gopt_env%type_id == default_ts_method_id) THEN
          CPABORT("L-BFGS method not yet working with DIMER")
@@ -141,9 +136,6 @@ CONTAINS
       ELSE IF ((its == gopt_param%max_iter) .AND. (.NOT. converged)) THEN
          CALL print_geo_opt_nc(gopt_env, output_unit)
       END IF
-
-      ! show space_group
-      CALL gopt_f_space_group_show(gopt_env, geo_section, output_unit)
 
       ! Write final output information, if converged
       CALL cp_iterate(logger%iter_info, last=.TRUE., increment=0)

@@ -1,0 +1,71 @@
+#CPQA DEPENDS cell_opt_keep_volume_bfgs_part1.inp
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT cell_opt_keep_volume_bfgs_restart
+  RUN_TYPE CELL_OPT
+&END GLOBAL
+
+&EXT_RESTART
+  RESTART_COUNTERS F
+  RESTART_FILE_NAME cell_opt_keep_volume_bfgs_part1-1.restart.bak-1
+&END EXT_RESTART
+
+&MOTION
+  &CELL_OPT
+    KEEP_ANGLES T
+    KEEP_VOLUME T
+    MAX_ITER 4
+    OPTIMIZER BFGS
+    &BFGS
+      METHOD DIRECT
+      RESTART_FILE_NAME cell_opt_keep_volume_bfgs_part1-BFGS.Hessian
+      RESTART_HESSIAN T
+      USE_MODEL_HESSIAN F
+    &END BFGS
+  &END CELL_OPT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM Ar
+        CHARGE 0.0
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS Ar Ar
+          EPSILON [K_e] 119.8
+          RCUT [angstrom] 9.0
+          SIGMA [angstrom] 3.405
+        &END LENNARD-JONES
+      &END NONBONDED
+      &SPLINE
+        EPS_SPLINE 1.0E-8
+      &END SPLINE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 5.60 6.10 6.80
+      ALPHA_BETA_GAMMA 76.0 82.0 105.0
+    &END CELL
+    &COORD
+      SCALED
+      Ar 0.02 0.01 0.03
+      Ar 0.00 0.52 0.49
+      Ar 0.51 0.00 0.48
+      Ar 0.48 0.51 0.01
+    &END COORD
+    &TOPOLOGY
+      CONNECTIVITY OFF
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
