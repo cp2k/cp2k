@@ -15,7 +15,7 @@
 "h2o_sTDA_spin.inp"  = []
 #
 "Fecp2_1.inp"        = [{matcher = "E_total", tol = 1.0E-12, ref = -29.47908648442224}]
-"Fecp2_5.inp"        = [{matcher = "E_total", tol = 1.0E-12, ref = -29.37543244307937}]
+"Fecp2_5.inp"        = [{matcher = "E_total", tol = 1.0E-12, ref = -29.45805444331909}]
 "Fecp2_5_sp.inp"     = [{matcher = "E_total", tol = 1.0E-12, ref = -29.45805741992731}]
 "Fecp2_5_spext.inp"  = [{matcher = "E_total", tol = 1.0E-12, ref = -29.45805741992731}]
 #EOF

@@ -20,6 +20,9 @@
     &END PRINT
     &QS
       METHOD xTB
+      &XTB
+        SPIN_POLARISATION T
+      &END XTB
     &END QS
     &SCF
       EPS_SCF 1.e-8

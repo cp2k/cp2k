@@ -25,6 +25,7 @@
       EXTRAPOLATION USE_PREV_P
       METHOD xTB
       &XTB
+        SPIN_POLARISATION T
         DO_EWALD T
       &END XTB
     &END QS

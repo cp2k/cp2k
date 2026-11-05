@@ -28,6 +28,7 @@
       EXTRAPOLATION USE_PREV_P
       METHOD xTB
       &XTB
+        SPIN_POLARISATION T
         CHECK_ATOMIC_CHARGES Off
         DO_EWALD T
       &END XTB

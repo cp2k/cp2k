@@ -28,6 +28,7 @@
       EPS_DEFAULT 1.0E-12
       METHOD xTB
       &XTB
+        SPIN_POLARISATION T
         DO_EWALD T
       &END XTB
     &END QS
