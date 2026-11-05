@@ -29,7 +29,7 @@ int run_unittests(const bool debug, const int backend, const int planning_mode,
   fft_init_lib(backend, planning_mode, use_guru, NULL);
 
   errors += fft_test_local();
-  fft_print_timing_report(threshold);
+  fft_print_timing_report(threshold, cp_mpi_get_comm_world());
 
   fft_finalize_lib(NULL);
   fft_finalize_timer();

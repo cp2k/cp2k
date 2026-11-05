@@ -23,10 +23,12 @@ typedef void (*fft_print_func_t)(const char *, int, int);
  * \brief Prints the timing report.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_print_timing_report(const double threshold);
+void fft_print_timing_report(const double threshold,
+                             const cp_mpi_comm_t comm);
 void fft_print_timing_report_unit(const double threshold,
                                   fft_print_func_t print_func,
-                                  const int output_unit);
+                                  const int output_unit,
+                                  const cp_mpi_comm_t comm);
 
 /*******************************************************************************
  * \brief Finalizes the internal timer.

@@ -57,8 +57,17 @@ void fft_library_finalize_F(const char *wisdom_file) {
   fft_finalize_timer();
 }
 
-void fft_print_timing_report_F(const double threshold) {
-  fft_print_timing_report(threshold);
+void fft_print_timing_report_F(const double threshold,
+                               const int fortran_comm) {
+  fft_print_timing_report(threshold, cp_mpi_comm_f2c(fortran_comm));
+}
+
+void fft_print_timing_report_unit_F(const double threshold,
+                                    fft_print_func_t print_func,
+                                    const int output_unit,
+                                    const int fortran_comm) {
+  fft_print_timing_report_unit(threshold, print_func, output_unit,
+                               cp_mpi_comm_f2c(fortran_comm));
 }
 
 /*******************************************************************************
