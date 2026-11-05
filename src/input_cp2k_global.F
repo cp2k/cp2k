@@ -365,6 +365,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="FFTW_USE_GURU_INTERFACE", &
+                          description="Use the FFTW guru interface for local FFTs when it is available. "// &
+                          "This can enable additional optimized plans, but disabling it may help when "// &
+                          "the regular FFTW interface is preferred.", &
+                          usage="FFTW_USE_GURU_INTERFACE .TRUE.", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="FFT_POOL_SCRATCH_LIMIT", &
                           description="Limits the memory usage of the FFT scratch pool, potentially reducing efficiency a bit", &
                           usage="FFT_POOL_SCRATCH_LIMIT {INTEGER}", default_i_val=15)

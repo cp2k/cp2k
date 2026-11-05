@@ -616,6 +616,8 @@ CONTAINS
       CALL section_vals_val_get(global_section, "PROGRAM_NAME", i_val=globenv%prog_name_id)
       CALL section_vals_val_get(global_section, "FFT_POOL_SCRATCH_LIMIT", i_val=globenv%fft_pool_scratch_limit)
       CALL section_vals_val_get(global_section, "FFTW_PLAN_TYPE", i_val=globenv%fftw_plan_type)
+      CALL section_vals_val_get(global_section, "FFTW_USE_GURU_INTERFACE", &
+                                l_val=globenv%fftw_use_guru_interface)
       CALL section_vals_val_get(global_section, "PROJECT_NAME", c_val=project_name)
       CALL section_vals_val_get(global_section, "FFTW_WISDOM_FILE_NAME", c_val=globenv%fftw_wisdom_file_name, &
                                 explicit=globenv%fftw_wisdom_file_explicit)
@@ -1155,7 +1157,8 @@ CONTAINS
                     alltoall=section_get_lval(global_section, "ALLTOALL_SGL"), &
                     pool_limit=globenv%fft_pool_scratch_limit, &
                     wisdom_file=globenv%fftw_wisdom_file_name, &
-                    plan_style=globenv%fftw_plan_type, status=stat)
+                    plan_style=globenv%fftw_plan_type, status=stat, &
+                    use_guru_interface=globenv%fftw_use_guru_interface)
 
       IF (stat /= 0) THEN
          IF (try_fftw) THEN
@@ -1170,7 +1173,8 @@ CONTAINS
                           alltoall=section_get_lval(global_section, "ALLTOALL_SGL"), &
                           pool_limit=globenv%fft_pool_scratch_limit, &
                           wisdom_file=globenv%fftw_wisdom_file_name, &
-                          plan_style=globenv%fftw_plan_type, status=stat)
+                          plan_style=globenv%fftw_plan_type, status=stat, &
+                          use_guru_interface=globenv%fftw_use_guru_interface)
          END IF
          IF (stat /= 0) THEN
             CPABORT("FFT library FFTW does not work. No FFT library available.")
