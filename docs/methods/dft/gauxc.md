@@ -75,11 +75,11 @@ hf download microsoft/skala-1.1 skala-1.1-rev1-cuda.fun --local-dir .
 ```
 
 Select a downloaded checkpoint explicitly with `MODEL ./skala-1.1-rev1.fun`. Alternatively, set
-`SKALA_MODEL` to the CPU checkpoint and use `MODEL SKALA` for host execution. For GPU execution,
-set `SKALA_CUDA_MODEL` to the CUDA checkpoint. CP2K falls back to
-`SKALA_MODEL` for compatibility with existing configurations where that variable already points to a
-device-compatible checkpoint; the CPU checkpoint itself is not device-compatible. For the model
-interface and available checkpoints, consult
+`SKALA_MODEL` to the CPU checkpoint and use `MODEL SKALA` for host execution. For GPU execution, set
+`SKALA_CUDA_MODEL` to the CUDA checkpoint. CP2K falls back to `SKALA_MODEL` for compatibility with
+existing configurations where that variable already points to a device-compatible checkpoint; the
+CPU checkpoint itself is not device-compatible. For the model interface and available checkpoints,
+consult
 [GauXC/Skala model documentation](https://microsoft.github.io/skala/gauxc/c-library.html#download-checkpoint-from-huggingface)
 and obtain `.fun` files only from trusted sources.
 
@@ -91,21 +91,21 @@ and obtain `.fun` files only from trusted sources.
 - `GPU` requires a usable GPU and aborts if none is found.
 
 Some feature combinations are currently host-only in the GauXC device backend:
-`MODEL_GRADIENT_RUNTIME SELF` analytical gradients, CDFT with multiple Skala
-runtimes, and `PSEUDOPOTENTIAL_GAPW_REPRESENTATION PAW_ONE_CENTER_SPLIT`. Set
-`USE_GPU HOST` for these until the device backend covers them.
+`MODEL_GRADIENT_RUNTIME SELF` analytical gradients, CDFT with multiple Skala runtimes, and
+`PSEUDOPOTENTIAL_GAPW_REPRESENTATION PAW_ONE_CENTER_SPLIT`. Set `USE_GPU HOST` for these until the
+device backend covers them.
 
-`LB_EXECUTION_SPACE` and `INT_EXECUTION_SPACE` select where GauXC performs the load balancing and the
-quadrature integration. Unless set explicitly, both follow `USE_GPU` (`DEVICE` when GPU execution is
-selected, otherwise `HOST`). A device runtime is created whenever **either** of them is `DEVICE`. If the CUDA device or a CUDA-enabled GauXC/LibTorch is not
-available, a `DEVICE` request aborts instead of silently falling back to the host. CP2K prints the
-resolved spaces and runtime once:
-`GAUXC| Execution spaces: LB ..., INT ..., runtime DEVICE|HOST`.
+`LB_EXECUTION_SPACE` and `INT_EXECUTION_SPACE` select where GauXC performs the load balancing and
+the quadrature integration. Unless set explicitly, both follow `USE_GPU` (`DEVICE` when GPU
+execution is selected, otherwise `HOST`). A device runtime is created whenever **either** of them is
+`DEVICE`. If the CUDA device or a CUDA-enabled GauXC/LibTorch is not available, a `DEVICE` request
+aborts instead of silently falling back to the host. CP2K prints the resolved spaces and runtime
+once: `GAUXC| Execution spaces: LB ..., INT ..., runtime DEVICE|HOST`.
 
 ### Device and GPU Controls
 
-`USE_GPU` is the master GPU/host selector described above. `USE_GPU HOST` rejects
-an explicit `LB_EXECUTION_SPACE DEVICE` or `INT_EXECUTION_SPACE DEVICE`.
+`USE_GPU` is the master GPU/host selector described above. `USE_GPU HOST` rejects an explicit
+`LB_EXECUTION_SPACE DEVICE` or `INT_EXECUTION_SPACE DEVICE`.
 
 `DEVICE_RUNTIME_FILL_FRACTION` (default `0.1`) sets the fraction of currently available GPU memory
 that a GauXC device runtime preallocates. It is used whenever `LB_EXECUTION_SPACE` or
@@ -210,10 +210,10 @@ The same `PSEUDOPOTENTIAL_GAPW_REPRESENTATION` keyword is available in both `GAU
 `SKALA_NATIVE`. In `GAUXC` it controls the molecular one-center correction; in `SKALA_NATIVE` it
 controls the native GAPW primitive-field reconstruction before the TorchScript model is evaluated.
 
-`GAPW_DENSITY_PARTITION` controls the legacy one-center diagnostic; its default,
-`HARD_MINUS_SOFT`, follows the CP2K GAPW XC construction. `HARD_ONLY`, `SOFT_ONLY`, and `NONE` are
-diagnostic choices. The similarly named `ATOM_PARTITION` controls a native-grid atom
-partition and does not affect GauXC molecular quadrature.
+`GAPW_DENSITY_PARTITION` controls the legacy one-center diagnostic; its default, `HARD_MINUS_SOFT`,
+follows the CP2K GAPW XC construction. `HARD_ONLY`, `SOFT_ONLY`, and `NONE` are diagnostic choices.
+The similarly named `ATOM_PARTITION` controls a native-grid atom partition and does not affect GauXC
+molecular quadrature.
 
 The one-center representation inherits the kind-dependent `RADIAL_GRID`, `LEBEDEV_GRID`, and
 `HARD_EXP_RADIUS` controls, and established tighter settings should not be reduced for a Skala
@@ -225,8 +225,8 @@ The reconstructed expression conserves the electron number at the density-repres
 numerical integral on the finite radial/Lebedev quadrature retains the usual molecular-grid error
 and converges with the kind-dependent grid settings. CP2K does not rescale the density to force an
 exact numerical integral: a density-dependent rescaling would modify the Skala functional and would
-require additional VXC, force, and virial derivatives. `DIAGNOSTICS T` prints the
-atom-composite electron integral for convergence checks.
+require additional VXC, force, and virial derivatives. `DIAGNOSTICS T` prints the atom-composite
+electron integral for convergence checks.
 
 Molecular Skala forces are available for these GAPW and GAPW_XC cases. The direct molecular GauXC
 route uses analytical XC nuclear gradients, including g functions, when the OneDFT gradient fix is
@@ -273,10 +273,9 @@ A minimal native input is:
 ```
 
 `MODEL` selects the TorchScript checkpoint. `MODEL SKALA` resolves the installed model from
-`SKALA_MODEL` on the host path and from `SKALA_CUDA_MODEL` when GPU execution is selected (AUTO on
-a CUDA build or DEVICE). The CUDA variant is required in that case; there is no automatic
-host-model fallback. An explicit `.fun` path in
-`MODEL` overrides both environment variables.
+`SKALA_MODEL` on the host path and from `SKALA_CUDA_MODEL` when GPU execution is selected (AUTO on a
+CUDA build or DEVICE). The CUDA variant is required in that case; there is no automatic host-model
+fallback. An explicit `.fun` path in `MODEL` overrides both environment variables.
 
 `MODEL_FP64` (default `T`) promotes float32 numerical state and explicit floating-point casts in the
 TorchScript model to double precision while retaining the trained parameter values exactly. This
@@ -284,13 +283,13 @@ improves SCF and geometry-derivative consistency for mixed-precision exports, bu
 much slower than fp32 on most GPUs. Set `MODEL_FP64 F` to retain the export's native precision when
 validating the corresponding accuracy/performance trade-off.
 
-`DIAGNOSTICS T` prints the electron count, spin moment, and summed grid weights of the
-feature block supplied to Torch. This is useful when validating a model or a periodic setup.
+`DIAGNOSTICS T` prints the electron count, spin moment, and summed grid weights of the feature block
+supplied to Torch. This is useful when validating a model or a periodic setup.
 
 ### CPU, CUDA, and MPI
 
-The `SKALA_NATIVE` implementation supports both CPU and CUDA TorchScript evaluation, including k-point
-calculations. GPU execution is controlled by the same `USE_GPU` keyword:
+The `SKALA_NATIVE` implementation supports both CPU and CUDA TorchScript evaluation, including
+k-point calculations. GPU execution is controlled by the same `USE_GPU` keyword:
 
 ```text
 &SKALA_NATIVE
@@ -299,10 +298,10 @@ calculations. GPU execution is controlled by the same `USE_GPU` keyword:
 &END SKALA_NATIVE
 ```
 
-`USE_GPU AUTO` (default) uses the GPU when CP2K is built with a CUDA-enabled LibTorch and
-aborts if no usable device is found. `HOST` forces CPU execution. `GPU` requires a usable GPU and
-aborts otherwise. With GPU execution the model path is resolved from `SKALA_CUDA_MODEL`; with HOST
-it is resolved from `SKALA_MODEL`.
+`USE_GPU AUTO` (default) uses the GPU when CP2K is built with a CUDA-enabled LibTorch and aborts if
+no usable device is found. `HOST` forces CPU execution. `GPU` requires a usable GPU and aborts
+otherwise. With GPU execution the model path is resolved from `SKALA_CUDA_MODEL`; with HOST it is
+resolved from `SKALA_MODEL`.
 
 The GPU is selected by CP2K's offload device policy, i.e. the same rank-to-device mapping used by
 DBCSR, the grid library, and ELPA. Define `CUDA_VISIBLE_DEVICES` per rank when a custom mapping is
@@ -311,12 +310,12 @@ different device.
 
 `ATOM_CHUNKS` (default `T`) distributes the model evaluation in atom blocks for MPI calculations and
 can reduce peak CUDA memory. `ATOM_CHUNK_MAX_ROWS` (default `-1`, automatic padded-row cap) further
-limits the number of padded
-atom-grid rows handled by one Torch call when needed. This accounts for the rectangular padding
-required by unequal atomic grid sizes. Atomic blocks are never divided, so a single block can exceed
-this limit. For `ATOM_COMPOSITE`, the split follows the independent atom dimension of Skala and is
-therefore also used for analytical force and stress evaluations; the full input adjoints are
-accumulated before CP2K applies the interpolation, partition, and one-center derivatives.
+limits the number of padded atom-grid rows handled by one Torch call when needed. This accounts for
+the rectangular padding required by unequal atomic grid sizes. Atomic blocks are never divided, so a
+single block can exceed this limit. For `ATOM_COMPOSITE`, the split follows the independent atom
+dimension of Skala and is therefore also used for analytical force and stress evaluations; the full
+input adjoints are accumulated before CP2K applies the interpolation, partition, and one-center
+derivatives.
 
 For the molecular `PAW_ONE_CENTER` representation, each rank assembles only its owned atoms and the
 radial hard/soft fields are replicated once per kind for cross-atom overlap. Every active rank
@@ -328,47 +327,46 @@ blocks on distinct visible GPUs.
 
 ### Atom and GAPW Density Partitions
 
-`ATOM_PARTITION` assigns native-grid rows to atomic feature blocks. `SMOOTH`, the
-default, uses a differentiable Becke-like partition. `HARD` assigns each point to its nearest
-periodic atom and is intended for legacy energy/VXC checks. Force and stress calculations use the
-smooth partition internally because derivatives of the partition weights contribute to the Skala
-response.
+`ATOM_PARTITION` assigns native-grid rows to atomic feature blocks. `SMOOTH`, the default, uses a
+differentiable Becke-like partition. `HARD` assigns each point to its nearest periodic atom and is
+intended for legacy energy/VXC checks. Force and stress calculations use the smooth partition
+internally because derivatives of the partition weights contribute to the Skala response.
 
-`GAPW_DENSITY_PARTITION` is independent of that spatial atom partition. It selects the
-one-center primitive-field term for PAW-like `METHOD GAPW` and `METHOD GAPW_XC` calculations.
+`GAPW_DENSITY_PARTITION` is independent of that spatial atom partition. It selects the one-center
+primitive-field term for PAW-like `METHOD GAPW` and `METHOD GAPW_XC` calculations.
 `HARD_MINUS_SOFT`, the default, adds the hard-minus-soft density, density gradient, and
 kinetic-energy density to the smooth fields before the single nonlinear Skala evaluation.
 `HARD_ONLY`, `SOFT_ONLY`, and `NONE` are diagnostic variants. `DIRECT_VALENCE` uses the
 valence-density route irrespective of `GPW_TYPE`; the legacy `CP2K_DEFAULT` representation may infer
 that route from the kind settings.
 
-For native Skala, `LAYOUT` selects the grid on which the combined primitive fields are
-formed. `ATOM_COMPOSITE`, the default, interpolates the smooth field to GAPW radial/Lebedev grids
-and adds the hard-minus-soft fields there before constructing the nonlinear Skala features. In
-periodic cells, compact Becke seeds with equivalent translated neighbor environments assign the
-outer energy quadrature. Their normalization includes all images with nonzero compact support, so
-the atom-image weights sum to one. The model's Gaussian descriptor convolutions instead use the
-unpartitioned radial/Lebedev weights and the periodic fields on the complete target-atom grid. A
-self-image window would truncate those convolutions at a cell-dependent distance and is not applied.
-Radial/angular quadrature and the periodic energy partition still require convergence. `COMMON_GRID`
-reconstructs the same fields on the regular grid and is retained as a cutoff-sensitive diagnostic
-reference. At matched cutoff, complete atom blocks are both substantially closer to the
-corresponding non-periodic atom-composite limit and much less expensive than resolving all
-hard-minus-soft detail on one global periodic grid. This selector does not change the physical
-density representation: all-electron GAPW, pseudopotential `DIRECT_VALENCE`, and pseudopotential
-`PAW_ONE_CENTER` retain their respective semantics on either layout. It also does not affect
-molecular GauXC quadrature. Molecular GauXC `DIRECT_VALENCE` and native `PAW_ONE_CENTER` remain
-distinct pseudopotential density representations; agreement between periodic and non-periodic
-atom-composite calculations does not imply equality with the direct AO-valence result. Mixed
-all-electron and pseudopotential GAPW kinds use the same input syntax. `ATOM_COMPOSITE` constructs
-every target atom block, adds hard-minus-soft primitive fields only for the kinds that require them,
-and applies the matching per-kind adjoints. The `COMMON_GRID` diagnostic does not provide this mixed
-per-kind reconstruction and therefore remains unavailable for mixed core representations. The finite
-all-electron one-center representation error can be converged independently through
-`DFT%QS%GAPW_1C_BASIS` and the radial and Lebedev kind grids. For example, demanding molecular
-cross-checks can use `EXT_VERY_LARGE` together with 200 radial and 590 Lebedev points. These
-settings are not imposed automatically because their cost is substantial and the required quadrature
-depends on the element and target accuracy.
+For native Skala, `LAYOUT` selects the grid on which the combined primitive fields are formed.
+`ATOM_COMPOSITE`, the default, interpolates the smooth field to GAPW radial/Lebedev grids and adds
+the hard-minus-soft fields there before constructing the nonlinear Skala features. In periodic
+cells, compact Becke seeds with equivalent translated neighbor environments assign the outer energy
+quadrature. Their normalization includes all images with nonzero compact support, so the atom-image
+weights sum to one. The model's Gaussian descriptor convolutions instead use the unpartitioned
+radial/Lebedev weights and the periodic fields on the complete target-atom grid. A self-image window
+would truncate those convolutions at a cell-dependent distance and is not applied. Radial/angular
+quadrature and the periodic energy partition still require convergence. `COMMON_GRID` reconstructs
+the same fields on the regular grid and is retained as a cutoff-sensitive diagnostic reference. At
+matched cutoff, complete atom blocks are both substantially closer to the corresponding non-periodic
+atom-composite limit and much less expensive than resolving all hard-minus-soft detail on one global
+periodic grid. This selector does not change the physical density representation: all-electron GAPW,
+pseudopotential `DIRECT_VALENCE`, and pseudopotential `PAW_ONE_CENTER` retain their respective
+semantics on either layout. It also does not affect molecular GauXC quadrature. Molecular GauXC
+`DIRECT_VALENCE` and native `PAW_ONE_CENTER` remain distinct pseudopotential density
+representations; agreement between periodic and non-periodic atom-composite calculations does not
+imply equality with the direct AO-valence result. Mixed all-electron and pseudopotential GAPW kinds
+use the same input syntax. `ATOM_COMPOSITE` constructs every target atom block, adds hard-minus-soft
+primitive fields only for the kinds that require them, and applies the matching per-kind adjoints.
+The `COMMON_GRID` diagnostic does not provide this mixed per-kind reconstruction and therefore
+remains unavailable for mixed core representations. The finite all-electron one-center
+representation error can be converged independently through `DFT%QS%GAPW_1C_BASIS` and the radial
+and Lebedev kind grids. For example, demanding molecular cross-checks can use `EXT_VERY_LARGE`
+together with 200 radial and 590 Lebedev points. These settings are not imposed automatically
+because their cost is substantial and the required quadrature depends on the element and target
+accuracy.
 
 ### Current Scope
 
