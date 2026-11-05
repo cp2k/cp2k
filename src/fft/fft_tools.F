@@ -187,7 +187,7 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE init_fft(fftlib, alltoall, pool_limit, wisdom_file, &
-                       plan_style, status)
+                       plan_style, status, use_guru_interface)
 
       INTEGER, INTENT(IN)                                :: fftlib
       LOGICAL, INTENT(IN)                                :: alltoall
@@ -195,13 +195,19 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
       INTEGER, INTENT(IN)                                :: plan_style
       INTEGER, INTENT(OUT)                               :: status
+      LOGICAL, INTENT(IN), OPTIONAL                      :: use_guru_interface
+
+      LOGICAL                                            :: use_guru
+
+      use_guru = .TRUE.
+      IF (PRESENT(use_guru_interface)) use_guru = use_guru_interface
 
       alltoall_sgl = alltoall
       fft_pool_scratch_limit = pool_limit
 
       CALL release_fft_scratch_pool()
 
-      CALL fft_library_init(fftlib, plan_style, .TRUE., wisdom_file, status)
+      CALL fft_library_init(fftlib, plan_style, use_guru, wisdom_file, status)
 
       ! setup the FFT scratch pool, if one is associated, clear first
       CALL init_fft_scratch_pool()
