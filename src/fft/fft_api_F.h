@@ -24,7 +24,12 @@ int fft_library_init_F(const int backend_F, const int fftw_plan,
 
 void fft_library_finalize_F(const char *wisdom_file);
 
-void fft_print_timing_report_F(const double threshold);
+typedef void (*fft_print_func_t)(const char *, int, int);
+void fft_print_timing_report_F(const double threshold, const int fortran_comm);
+void fft_print_timing_report_unit_F(const double threshold,
+                                    fft_print_func_t print_func,
+                                    const int output_unit,
+                                    const int fortran_comm);
 
 int fft_backend_in_use_F();
 

@@ -426,7 +426,7 @@ CONTAINS
       CALL dbm_library_print_stats(mpi_comm=mpi_comm, output_unit=output_unit)
       CALL dbt_library_print_stats(mpi_comm=mpi_comm, output_unit=output_unit)
       CALL grid_library_print_stats(mpi_comm=mpi_comm, output_unit=output_unit)
-      CALL fft_print_timing_report(0.0_dp, output_unit)
+      CALL fft_print_timing_report(0.0_dp, output_unit, mpi_comm)
       CALL offload_mempool_stats_print(mpi_comm=mpi_comm, output_unit=output_unit)
 
       m_memory_max_mpi = m_memory_max

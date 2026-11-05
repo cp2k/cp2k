@@ -177,31 +177,30 @@ CONTAINS
 !> \param threshold ...
 !> \author Frederick Stein
 ! **************************************************************************************************
-   SUBROUTINE fft_print_timing_report(threshold, output_unit)
+   SUBROUTINE fft_print_timing_report(threshold, output_unit, mpi_comm)
       REAL(KIND=dp), INTENT(IN)                          :: threshold
-      INTEGER, INTENT(IN), OPTIONAL                      :: output_unit
+      INTEGER, INTENT(IN)                                :: output_unit
+      TYPE(mp_comm_type), INTENT(IN)                     :: mpi_comm
 
       INTERFACE
-         SUBROUTINE fft_print_timing_report_c(threshold) &
+         SUBROUTINE fft_print_timing_report_c(threshold, fortran_comm) &
             BIND(C, name="fft_print_timing_report_F")
-            IMPORT :: C_DOUBLE
+            IMPORT :: C_DOUBLE, C_INT
             REAL(C_DOUBLE), VALUE :: threshold
+            INTEGER(C_INT), VALUE :: fortran_comm
          END SUBROUTINE fft_print_timing_report_c
-         SUBROUTINE fft_print_timing_report_unit_c(threshold, print_func, output_unit) &
-            BIND(C, name="fft_print_timing_report_unit")
+         SUBROUTINE fft_print_timing_report_unit_c(threshold, print_func, output_unit, fortran_comm) &
+            BIND(C, name="fft_print_timing_report_unit_F")
             IMPORT :: C_DOUBLE, C_FUNPTR, C_INT
             REAL(C_DOUBLE), VALUE :: threshold
             TYPE(C_FUNPTR), VALUE :: print_func
-            INTEGER(C_INT), VALUE :: output_unit
+            INTEGER(C_INT), VALUE :: output_unit, fortran_comm
          END SUBROUTINE fft_print_timing_report_unit_c
       END INTERFACE
 
-      IF (PRESENT(output_unit)) THEN
-         CALL fft_print_timing_report_unit_c(REAL(threshold, C_DOUBLE), &
-                                             C_FUNLOC(fft_timing_print_func), INT(output_unit, C_INT))
-      ELSE
-         CALL fft_print_timing_report_c(REAL(threshold, C_DOUBLE))
-      END IF
+      CALL fft_print_timing_report_unit_c(REAL(threshold, C_DOUBLE), &
+                                          C_FUNLOC(fft_timing_print_func), INT(output_unit, C_INT), &
+                                          INT(mpi_comm%get_handle(), C_INT))
    END SUBROUTINE fft_print_timing_report
 
 ! **************************************************************************************************
