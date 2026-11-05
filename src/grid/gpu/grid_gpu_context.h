@@ -228,11 +228,11 @@ private:
   bool axis_aligned_{false};
   bool is_distributed_{false};
   // largest cube size (in grid points, all directions) of the tasks of this
-  // level. Used to size the shared memory of the separable integrate kernel.
+  // level. Used to size the shared memory of the separable kernels.
   int max_cube_size_{0};
   gpu_vector<T> grid_;
   // expansion of the cartesian monomials in lattice monomials, see
-  // build_lattice_to_cartesian_matrix in grid_gpu_integrate.cu. Valid up to
+  // build_lattice_to_cartesian_matrix in grid_gpu_separable.h. Valid up to
   // lattice_to_cartesian_lmax_ (-1 when not computed for the current dh).
   gpu_vector<T> lattice_to_cartesian_;
   int lattice_to_cartesian_lmax_{-1};
@@ -307,35 +307,14 @@ public:
   }
 
   /// Check if the lattice vectors form a orthogonal basis
+  // The orthogonal code paths (cube setup, x / y trimming, separable kernels)
+  // assume lattice vectors along x, y and z. A rotated orthogonal cell is
+  // therefore handled as non orthogonal. ortho (cell%orthorhombic on the
+  // fortran side) is only true for a diagonal hmat, up to 1e-14.
   void check_orthogonality(const bool ortho) {
-    if (ortho) {
-      orthogonal_ = true;
-      return;
-    }
-    T norm1, norm2, norm3;
-    bool orthogonal[3] = {false, false, false};
-    norm1 = dh_[0] * dh_[0] + dh_[1] * dh_[1] + dh_[2] * dh_[2];
-    norm2 = dh_[3] * dh_[3] + dh_[4] * dh_[4] + dh_[5] * dh_[5];
-    norm3 = dh_[6] * dh_[6] + dh_[7] * dh_[7] + dh_[8] * dh_[8];
-
-    norm1 = 1.0 / sqrt(norm1);
-    norm2 = 1.0 / sqrt(norm2);
-    norm3 = 1.0 / sqrt(norm3);
-
-    /* x z */
-    orthogonal[0] =
-        ((fabs(dh_[0] * dh_[6] + dh_[1] * dh_[7] + dh_[2] * dh_[8]) * norm1 *
-          norm3) < 1e-12);
-    /* y z */
-    orthogonal[1] =
-        ((fabs(dh_[3] * dh_[6] + dh_[4] * dh_[7] + dh_[5] * dh_[8]) * norm2 *
-          norm3) < 1e-12);
-    /* x y */
-    orthogonal[2] =
-        ((fabs(dh_[0] * dh_[3] + dh_[1] * dh_[4] + dh_[2] * dh_[5]) * norm1 *
-          norm2) < 1e-12);
-
-    orthogonal_ = orthogonal[0] && orthogonal[1] && orthogonal[2];
+    if (ortho)
+      axis_aligned_ = true;
+    orthogonal_ = axis_aligned_;
   }
 
   inline void copy_to_host(T *data__, offloadStream_t &stream) {
@@ -483,9 +462,9 @@ struct kernel_params {
   int *sorted_blocks_offset_dev{nullptr};
   int *num_tasks_per_block_dev{nullptr};
   int *cab_block_offset_dev{nullptr};
-  // integrate: tasks with lp >= integrate_separable_lp_min are handled by
+  // integrate: tasks with lp >= separable_lp_min are handled by
   // integrate_separable_kernel, the others by integrate_kernel.
-  int integrate_separable_lp_min{INT_MAX};
+  int separable_lp_min{INT_MAX};
 };
 
 /* regroup all information about the context. */
@@ -493,6 +472,9 @@ class context_info {
 private:
   int device_id_{-1};
   int lmax_{0};
+  // largest number of spherical functions of a set over all basis sets. Sizes
+  // the shared memory of calculate_coefficients / compute_hab.
+  int max_nsgf_set_{0};
   unsigned int checksum_{0};
 
 public:
@@ -544,9 +526,10 @@ public:
   // Movable
   context_info(context_info &&other) noexcept
       : device_id_{other.device_id_}, lmax_{other.lmax_},
-        checksum_{other.checksum_}, ntasks{other.ntasks},
-        nlevels{other.nlevels}, natoms{other.natoms}, nkinds{other.nkinds},
-        nblocks{other.nblocks}, cab_size_per_block_{other.cab_size_per_block_},
+        max_nsgf_set_{other.max_nsgf_set_}, checksum_{other.checksum_},
+        ntasks{other.ntasks}, nlevels{other.nlevels}, natoms{other.natoms},
+        nkinds{other.nkinds}, nblocks{other.nblocks},
+        cab_size_per_block_{other.cab_size_per_block_},
         sphi{std::move(other.sphi)},
         level_streams{std::move(other.level_streams)},
         main_stream{other.main_stream},
@@ -579,6 +562,7 @@ public:
     // leave other in a safe state (no ownership)
     other.device_id_ = -1;
     other.lmax_ = 0;
+    other.max_nsgf_set_ = 0;
     other.checksum_ = 0;
     other.ntasks = 0;
     other.nlevels = 0;
@@ -598,6 +582,7 @@ public:
 
       device_id_ = other.device_id_;
       lmax_ = other.lmax_;
+      max_nsgf_set_ = other.max_nsgf_set_;
       checksum_ = other.checksum_;
       ntasks = other.ntasks;
       nlevels = other.nlevels;
@@ -638,6 +623,7 @@ public:
       // reset other
       other.device_id_ = -1;
       other.lmax_ = 0;
+      other.max_nsgf_set_ = 0;
       other.checksum_ = 0;
       other.ntasks = 0;
       other.nlevels = 0;
@@ -694,6 +680,7 @@ public:
   }
 
   int lmax() const { return lmax_; }
+  int max_nsgf_set() const { return max_nsgf_set_; }
 
   void initialize_basis_sets(const grid_basis_set **basis_sets,
                              const int nkinds__) {
@@ -725,11 +712,14 @@ public:
                         basis_set->nsgf * basis_set->maxco * sizeof(double));
     }
     sphi_dev.copy_to_gpu(sphi);
-    // Find largest angular momentum.
+    // Find largest angular momentum and set size.
     lmax_ = 0;
+    max_nsgf_set_ = 0;
     for (int ikind = 0; ikind < nkinds; ikind++) {
       for (int iset = 0; iset < basis_sets[ikind]->nset; iset++) {
         lmax_ = std::max(lmax_, basis_sets[ikind]->lmax[iset]);
+        max_nsgf_set_ =
+            std::max(max_nsgf_set_, basis_sets[ikind]->nsgf_set[iset]);
       }
     }
   }

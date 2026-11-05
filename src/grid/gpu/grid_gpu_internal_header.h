@@ -841,6 +841,21 @@ __device__ __inline__ void fill_smem_task_coef(const kernel_params &dev,
   __syncthreads();
 }
 
+/*******************************************************************************
+ * \brief Size (in doubles) of the work arrays of the two step spherical <->
+ *        cartesian transformations of calculate_coefficients_two_step and
+ *        compute_hab_two_step: [max_nsgf_set][ld] and [ld][ld] with
+ *        ld = ncoset(lmax).
+ ******************************************************************************/
+inline int sphi_work_size(const int lmax, const int max_nsgf_set) {
+  const int ld = ncoset(lmax);
+  return max_nsgf_set * ld + ld * ld;
+}
+
+// shared memory budget of the two step kernels (default limit without opting
+// in on NVIDIA hardware). Above, the fused kernels are used.
+constexpr size_t sphi_two_step_max_smem = 48 * 1024;
+
 class smem_parameters {
 private:
   int la_max_{-1};
