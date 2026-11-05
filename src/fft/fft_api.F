@@ -1169,7 +1169,7 @@ CONTAINS
       END INTERFACE
 
       CALL fft_register_1d_r2c_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
-                              LOGICAL(transpose, C_BOOL), INT(leading_dimension, C_INT), C_LOC(grid))
+                                               LOGICAL(transpose, C_BOOL), INT(leading_dimension, C_INT), C_LOC(grid))
    END SUBROUTINE fft_register_1d_r2c_local_inplace
 
 ! **************************************************************************************************
@@ -1194,7 +1194,7 @@ CONTAINS
       END INTERFACE
 
       CALL fft_register_2d_r2c_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
-                              LOGICAL(transpose, C_BOOL), C_LOC(grid))
+                                               LOGICAL(transpose, C_BOOL), C_LOC(grid))
    END SUBROUTINE fft_register_2d_r2c_local_inplace
 
 ! **************************************************************************************************
@@ -1219,7 +1219,7 @@ CONTAINS
       END INTERFACE
 
       CALL fft_register_3d_r2c_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
-                              LOGICAL(transpose, C_BOOL), C_LOC(grid))
+                                               LOGICAL(transpose, C_BOOL), C_LOC(grid))
    END SUBROUTINE fft_register_3d_r2c_local_inplace
 
 ! **************************************************************************************************
@@ -1242,7 +1242,7 @@ CONTAINS
       END INTERFACE
 
       CALL fft_register_1d_c2r_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
-                              LOGICAL(transpose, C_BOOL), INT(leading_dimension, C_INT), C_LOC(grid))
+                                               LOGICAL(transpose, C_BOOL), INT(leading_dimension, C_INT), C_LOC(grid))
    END SUBROUTINE fft_register_1d_c2r_local_inplace
 
 ! **************************************************************************************************
@@ -1267,7 +1267,7 @@ CONTAINS
       END INTERFACE
 
       CALL fft_register_2d_c2r_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
-                              LOGICAL(transpose, C_BOOL), C_LOC(grid))
+                                               LOGICAL(transpose, C_BOOL), C_LOC(grid))
    END SUBROUTINE fft_register_2d_c2r_local_inplace
 
 ! **************************************************************************************************
@@ -1292,7 +1292,7 @@ CONTAINS
       END INTERFACE
 
       CALL fft_register_3d_c2r_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
-                              LOGICAL(transpose, C_BOOL), C_LOC(grid))
+                                               LOGICAL(transpose, C_BOOL), C_LOC(grid))
    END SUBROUTINE fft_register_3d_c2r_local_inplace
 
 ! **************************************************************************************************
@@ -1315,7 +1315,7 @@ CONTAINS
       END INTERFACE
 
       CALL fft_1d_r2c_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
-                              LOGICAL(transpose, C_BOOL), INT(leading_dimension, C_INT), C_LOC(grid))
+                                      LOGICAL(transpose, C_BOOL), INT(leading_dimension, C_INT), C_LOC(grid))
    END SUBROUTINE fft_1d_r2c_local_inplace
 
 ! **************************************************************************************************
@@ -1340,7 +1340,7 @@ CONTAINS
       END INTERFACE
 
       CALL fft_2d_r2c_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
-                              LOGICAL(transpose, C_BOOL), C_LOC(grid))
+                                      LOGICAL(transpose, C_BOOL), C_LOC(grid))
    END SUBROUTINE fft_2d_r2c_local_inplace
 
 ! **************************************************************************************************
@@ -1365,7 +1365,7 @@ CONTAINS
       END INTERFACE
 
       CALL fft_3d_r2c_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
-                              LOGICAL(transpose, C_BOOL), C_LOC(grid))
+                                      LOGICAL(transpose, C_BOOL), C_LOC(grid))
    END SUBROUTINE fft_3d_r2c_local_inplace
 
 ! **************************************************************************************************
@@ -1388,7 +1388,7 @@ CONTAINS
       END INTERFACE
 
       CALL fft_1d_c2r_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
-                              LOGICAL(transpose, C_BOOL), INT(leading_dimension, C_INT), C_LOC(grid))
+                                      LOGICAL(transpose, C_BOOL), INT(leading_dimension, C_INT), C_LOC(grid))
    END SUBROUTINE fft_1d_c2r_local_inplace
 
 ! **************************************************************************************************
@@ -1413,7 +1413,7 @@ CONTAINS
       END INTERFACE
 
       CALL fft_2d_c2r_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
-                              LOGICAL(transpose, C_BOOL), C_LOC(grid))
+                                      LOGICAL(transpose, C_BOOL), C_LOC(grid))
    END SUBROUTINE fft_2d_c2r_local_inplace
 
 ! **************************************************************************************************
@@ -1438,7 +1438,7 @@ CONTAINS
       END INTERFACE
 
       CALL fft_3d_c2r_local_inplace_c(INT(fft_size, C_INT), INT(number_of_ffts, C_INT), &
-                              LOGICAL(transpose, C_BOOL), C_LOC(grid))
+                                      LOGICAL(transpose, C_BOOL), C_LOC(grid))
    END SUBROUTINE fft_3d_c2r_local_inplace
 
 END MODULE fft_api

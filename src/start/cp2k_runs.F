@@ -55,7 +55,6 @@ MODULE cp2k_runs
                                               f_env_add_defaults,&
                                               f_env_rm_defaults,&
                                               f_env_type
-   USE fft_api,                         ONLY: fft_print_timing_report
    USE farming_methods,                 ONLY: do_deadlock,&
                                               do_nothing,&
                                               do_wait,&
@@ -66,6 +65,7 @@ MODULE cp2k_runs
                                               init_farming_env,&
                                               job_finished,&
                                               job_running
+   USE fft_api,                         ONLY: fft_print_timing_report
    USE force_env_methods,               ONLY: force_env_calc_energy_force
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type

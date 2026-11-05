@@ -87,7 +87,6 @@ int main(int argc, char *argv[]) {
   fft_finalize_lib(NULL);
   fft_finalize_timer();
 
-
   if (cp_mpi_comm_rank(cp_mpi_get_comm_world()) == 0) {
     if (errors == 0) {
       printf("\nAll tests have passed :-)\n");
