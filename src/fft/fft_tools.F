@@ -162,7 +162,7 @@ MODULE fft_tools
    ! these saved variables are FFT globals
    LOGICAL, SAVE :: alltoall_sgl = .FALSE.
 
-   ! these are only needed for pw_gpu (-D__OFFLOAD)
+   ! these are only needed for fft_gpu (-D__OFFLOAD)
    PUBLIC :: get_fft_scratch, release_fft_scratch
    PUBLIC :: cube_transpose_1, cube_transpose_2
    PUBLIC :: yz_to_x, x_to_yz, xz_to_yz, yz_to_xz

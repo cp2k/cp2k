@@ -306,7 +306,7 @@ Packages: all | ace | cosma | deepmd | dftd4 | dlaf | elpa | gauxc | greenx | hd
           libgint | libint2 | libsmeagol | libtorch | libvdwxc | libxs | mimic | openpmd | pexsi | plumed |
           sirius | spfft | spglib | spla | tblite | trexio | vori 
 
-Features: cray_pm_accel_energy | cusolver_mp | dbm_gpu | elpa_gpu | grid_gpu | libxc_gpu | pw_gpu |
+Features: cray_pm_accel_energy | cusolver_mp | dbm_gpu | elpa_gpu | grid_gpu | libxc_gpu | fft_gpu |
           spla_gemm_offloading | unified_memory
 ```
 
