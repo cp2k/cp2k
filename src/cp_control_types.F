@@ -864,7 +864,6 @@ MODULE cp_control_types
                                               apply_embed_pot = .FALSE., &
                                               apply_dmfet_pot = .FALSE., &
                                               hairy_probes = .FALSE., &
-                                              negf = .FALSE., &
                                               do_paep = .FALSE., &
                                               do_pcc = .FALSE., &
                                               do_fde = .FALSE., &
@@ -1049,7 +1048,6 @@ CONTAINS
       dft_control%apply_embed_pot = .FALSE.
       dft_control%apply_dmfet_pot = .FALSE.
       dft_control%hairy_probes = .FALSE.
-      dft_control%negf = .FALSE.
       dft_control%do_pcc = .FALSE.
       dft_control%do_paep = .FALSE.
       CALL qs_control_create(dft_control%qs_control)
