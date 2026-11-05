@@ -5,22 +5,12 @@
 !   SPDX-License-Identifier: BSD-3-Clause                                                          !
 !--------------------------------------------------------------------------------------------------!
 PROGRAM fft_api_unittest
-   USE fft_api,                         ONLY: FFT_LIBRARY_BACKEND_DEFAULT,&
-                                              FFT_LIBRARY_FFTW_MODE_ESTIMATE,&
-                                              fft_1d_local,&
-                                              fft_1d_local_inplace,&
-                                              fft_2d_local,&
-                                              fft_2d_local_inplace,&
-                                              fft_3d_local,&
-                                              fft_3d_local_inplace,&
-                                              fft_library_finalize,&
-                                              fft_library_init,&
-                                              fft_register_1d_local,&
-                                              fft_register_1d_local_inplace,&
-                                              fft_register_2d_local,&
-                                              fft_register_2d_local_inplace,&
-                                              fft_register_3d_local,&
-                                              fft_register_3d_local_inplace
+   USE fft_api,                         ONLY: &
+        FFT_LIBRARY_BACKEND_DEFAULT, FFT_LIBRARY_FFTW_MODE_ESTIMATE, fft_1d_local, &
+        fft_1d_local_inplace, fft_2d_local, fft_2d_local_inplace, fft_3d_local, &
+        fft_3d_local_inplace, fft_library_finalize, fft_library_init, fft_register_1d_local, &
+        fft_register_1d_local_inplace, fft_register_2d_local, fft_register_2d_local_inplace, &
+        fft_register_3d_local, fft_register_3d_local_inplace
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_world_finalize,&
@@ -52,19 +42,19 @@ PROGRAM fft_api_unittest
    errors = errors + test_1d_c2c_inplace(15, 13, .TRUE.)
    errors = errors + test_1d_c2c_inplace(14, 13, .FALSE.)
 
-   errors = errors + test_2d_c2c((/10, 10/), 10, .TRUE., .TRUE.)
-   errors = errors + test_2d_c2c((/8, 9/), 10, .TRUE., .FALSE.)
-   errors = errors + test_2d_c2c((/7, 10/), 11, .FALSE., .TRUE.)
-   errors = errors + test_2d_c2c((/6, 7/), 10, .FALSE., .FALSE.)
+   errors = errors + test_2d_c2c([10, 10], 10, .TRUE., .TRUE.)
+   errors = errors + test_2d_c2c([8, 9], 10, .TRUE., .FALSE.)
+   errors = errors + test_2d_c2c([7, 10], 11, .FALSE., .TRUE.)
+   errors = errors + test_2d_c2c([6, 7], 10, .FALSE., .FALSE.)
 
-   errors = errors + test_2d_c2c_inplace((/8, 9/), 10, .TRUE.)
-   errors = errors + test_2d_c2c_inplace((/7, 10/), 11, .FALSE.)
+   errors = errors + test_2d_c2c_inplace([8, 9], 10, .TRUE.)
+   errors = errors + test_2d_c2c_inplace([7, 10], 11, .FALSE.)
 
-   errors = errors + test_3d_c2c((/8, 8, 8/), .FALSE., .FALSE.)
-   errors = errors + test_3d_c2c((/7, 5, 3/), .TRUE., .TRUE.)
+   errors = errors + test_3d_c2c([8, 8, 8], .FALSE., .FALSE.)
+   errors = errors + test_3d_c2c([7, 5, 3], .TRUE., .TRUE.)
 
-   errors = errors + test_3d_c2c_inplace((/8, 8, 8/), .FALSE.)
-   errors = errors + test_3d_c2c_inplace((/7, 5, 3/), .TRUE.)
+   errors = errors + test_3d_c2c_inplace([8, 8, 8], .FALSE.)
+   errors = errors + test_3d_c2c_inplace([7, 5, 3], .TRUE.)
 
    CALL fft_library_finalize("")
    CALL mp_world_finalize()
@@ -80,6 +70,14 @@ PROGRAM fft_api_unittest
 
 CONTAINS
 
+! **************************************************************************************************
+!> \brief ...
+!> \param fft_size ...
+!> \param number_of_ffts ...
+!> \param transpose_in ...
+!> \param transpose_out ...
+!> \return ...
+! **************************************************************************************************
    INTEGER FUNCTION test_1d_c2c(fft_size, number_of_ffts, transpose_in, transpose_out)
       INTEGER, INTENT(IN)                                :: fft_size, number_of_ffts
       LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
@@ -117,6 +115,13 @@ CONTAINS
       DEALLOCATE (input, output, reference)
    END FUNCTION test_1d_c2c
 
+! **************************************************************************************************
+!> \brief ...
+!> \param fft_size ...
+!> \param number_of_ffts ...
+!> \param transpose ...
+!> \return ...
+! **************************************************************************************************
    INTEGER FUNCTION test_1d_c2c_inplace(fft_size, number_of_ffts, transpose)
       INTEGER, INTENT(IN)                                :: fft_size, number_of_ffts
       LOGICAL, INTENT(IN)                                :: transpose
@@ -147,6 +152,14 @@ CONTAINS
       DEALLOCATE (grid, reference)
    END FUNCTION test_1d_c2c_inplace
 
+! **************************************************************************************************
+!> \brief ...
+!> \param fft_size ...
+!> \param number_of_ffts ...
+!> \param transpose_in ...
+!> \param transpose_out ...
+!> \return ...
+! **************************************************************************************************
    INTEGER FUNCTION test_2d_c2c(fft_size, number_of_ffts, transpose_in, transpose_out)
       INTEGER, DIMENSION(2), INTENT(IN)                  :: fft_size
       INTEGER, INTENT(IN)                                :: number_of_ffts
@@ -182,6 +195,13 @@ CONTAINS
       DEALLOCATE (input, output, reference)
    END FUNCTION test_2d_c2c
 
+! **************************************************************************************************
+!> \brief ...
+!> \param fft_size ...
+!> \param number_of_ffts ...
+!> \param transpose ...
+!> \return ...
+! **************************************************************************************************
    INTEGER FUNCTION test_2d_c2c_inplace(fft_size, number_of_ffts, transpose)
       INTEGER, DIMENSION(2), INTENT(IN)                  :: fft_size
       INTEGER, INTENT(IN)                                :: number_of_ffts
@@ -213,6 +233,13 @@ CONTAINS
       DEALLOCATE (grid, reference)
    END FUNCTION test_2d_c2c_inplace
 
+! **************************************************************************************************
+!> \brief ...
+!> \param fft_size ...
+!> \param transpose_in ...
+!> \param transpose_out ...
+!> \return ...
+! **************************************************************************************************
    INTEGER FUNCTION test_3d_c2c(fft_size, transpose_in, transpose_out)
       INTEGER, DIMENSION(3), INTENT(IN)                  :: fft_size
       LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
@@ -248,6 +275,12 @@ CONTAINS
       DEALLOCATE (input, output, reference)
    END FUNCTION test_3d_c2c
 
+! **************************************************************************************************
+!> \brief ...
+!> \param fft_size ...
+!> \param transpose ...
+!> \return ...
+! **************************************************************************************************
    INTEGER FUNCTION test_3d_c2c_inplace(fft_size, transpose)
       INTEGER, DIMENSION(3), INTENT(IN)                  :: fft_size
       LOGICAL, INTENT(IN)                                :: transpose
