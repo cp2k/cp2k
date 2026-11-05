@@ -5,6 +5,7 @@
 # the order will be regularly checked and modified...
 QS/regtest-nonlinear-optics
 QMMM/QS/regtest-mpi                                         parallel mpiranks>2
+Fist/regtest-symmetrix                                      symmetrix
 QS/regtest-libgint                                          libGint libint offload_cuda !ifx
 MIMIC/regtest-qmmm                                          mimic mpiranks==4
 TMC/regtest_ana_on_the_fly                                  parallel mpiranks>2
