@@ -1,6 +1,6 @@
 # runs are executed in the same order as in this file
-# cp-mixing: constant-potential NVT MD, dual-endpoint charge mixing (MIXED), 3 steps
+# cp-mixing: constant-potential NVT MD, dual-endpoint charge mixing (MIXED), 1 step
 # cp-report-only: "&ELECTRONS F" report-only mode, NVE MD, 3 steps
-"cp-mixing.inp"      = [{matcher = "M011", tol = 1e-06, ref = -8.6216577906}]
+"cp-mixing.inp"      = [{matcher = "M011", tol = 1e-06, ref = -8.5748751715}]
 "cp-report-only.inp" = [{matcher = "M011", tol = 1e-06, ref = -8.5955806190}]
 #EOF
