@@ -93,7 +93,7 @@ CONTAINS
       DO i = 1, SIZE(input)
          input(i) = CMPLX(SIN(0.1_dp*i), COS(0.07_dp*i), KIND=dp)
       END DO
-      reference = input
+      reference(:) = input(:)
 
       CALL fft_register_1d_local(.TRUE., fft_size, number_of_ffts, transpose_in, transpose_out, &
                                  ld_in, ld_out, input, output)
@@ -135,7 +135,7 @@ CONTAINS
       DO i = 1, SIZE(grid)
          grid(i) = CMPLX(SIN(0.11_dp*i), COS(0.05_dp*i), KIND=dp)
       END DO
-      reference = grid
+      reference(:) = grid(:)
       CALL fft_register_1d_local_inplace(.TRUE., fft_size, number_of_ffts, transpose, ld, grid)
       CALL fft_1d_local_inplace(.TRUE., fft_size, number_of_ffts, transpose, ld, grid)
       CALL fft_register_1d_local_inplace(.FALSE., fft_size, number_of_ffts, transpose, ld, grid)
@@ -175,7 +175,7 @@ CONTAINS
       DO i = 1, SIZE(input)
          input(i) = CMPLX(SIN(0.09_dp*i), COS(0.04_dp*i), KIND=dp)
       END DO
-      reference = input
+      reference(:) = input(:)
 
       CALL fft_register_2d_local(.TRUE., fft_size, number_of_ffts, transpose_in, transpose_out, &
                                  input, output)
@@ -216,7 +216,7 @@ CONTAINS
       DO i = 1, SIZE(grid)
          grid(i) = CMPLX(SIN(0.08_dp*i), COS(0.03_dp*i), KIND=dp)
       END DO
-      reference = grid
+      reference(:) = grid(:)
       CALL fft_register_2d_local_inplace(.TRUE., fft_size, number_of_ffts, transpose, grid)
       CALL fft_2d_local_inplace(.TRUE., fft_size, number_of_ffts, transpose, grid)
       CALL fft_register_2d_local_inplace(.FALSE., fft_size, number_of_ffts, transpose, grid)
@@ -255,7 +255,7 @@ CONTAINS
       DO i = 1, SIZE(input)
          input(i) = CMPLX(SIN(0.07_dp*i), COS(0.02_dp*i), KIND=dp)
       END DO
-      reference = input
+      reference(:) = input(:)
 
       CALL fft_register_3d_local(.TRUE., fft_size, number_of_ffts, transpose_in, transpose_out, &
                                  input, output)
@@ -295,7 +295,7 @@ CONTAINS
       DO i = 1, SIZE(grid)
          grid(i) = CMPLX(SIN(0.06_dp*i), COS(0.015_dp*i), KIND=dp)
       END DO
-      reference = grid
+      reference(:) = grid(:)
       CALL fft_register_3d_local_inplace(.TRUE., fft_size, number_of_ffts, transpose, grid)
       CALL fft_3d_local_inplace(.TRUE., fft_size, number_of_ffts, transpose, grid)
       CALL fft_register_3d_local_inplace(.FALSE., fft_size, number_of_ffts, transpose, grid)
