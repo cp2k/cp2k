@@ -676,7 +676,7 @@ CONTAINS
          DEALLOCATE (cb)
          DEALLOCATE (cc)
 
-         CALL finalize_fft(para_env, wisdom_file=wisdom_file, export_wisdom=export_wisdom)
+         CALL finalize_fft(wisdom_file=wisdom_file)
       END DO
 
    END SUBROUTINE fft_test
@@ -789,8 +789,7 @@ CONTAINS
       CALL ca%release()
       CALL pw_grid_release(grid)
       CALL cell_release(box)
-      CALL finalize_fft(para_env, wisdom_file=globenv%fftw_wisdom_file_name, &
-                        export_wisdom=globenv%fftw_wisdom_file_explicit)
+      CALL finalize_fft(wisdom_file=globenv%fftw_wisdom_file_name)
 
       CALL timestop(handle)
 
@@ -1013,8 +1012,7 @@ CONTAINS
 
       ! cleanup
       CALL cell_release(box)
-      CALL finalize_fft(para_env, wisdom_file=globenv%fftw_wisdom_file_name, &
-                        export_wisdom=globenv%fftw_wisdom_file_explicit)
+      CALL finalize_fft(wisdom_file=globenv%fftw_wisdom_file_name)
 
    END SUBROUTINE pw_fft_test
 

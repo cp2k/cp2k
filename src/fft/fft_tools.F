@@ -223,10 +223,8 @@ CONTAINS
 !> \par History
 !>      10.2007 created [Joost VandeVondele]
 ! **************************************************************************************************
-   SUBROUTINE finalize_fft(para_env, wisdom_file, export_wisdom)
-      CLASS(mp_comm_type)                    :: para_env
+   SUBROUTINE finalize_fft(wisdom_file)
       CHARACTER(LEN=*), INTENT(IN)           :: wisdom_file
-      LOGICAL, INTENT(IN), OPTIONAL          :: export_wisdom
 
 ! release the FFT scratch pool
 

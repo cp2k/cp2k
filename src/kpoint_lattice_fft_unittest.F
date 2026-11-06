@@ -359,7 +359,7 @@ PROGRAM kpoint_lattice_fft_unittest
    DEALLOCATE (coarse_inverse, correction_indices, local_operator)
    DEALLOCATE (inverse_k)
 
-   CALL finalize_fft(mp_comm, "")
+   CALL finalize_fft("")
    CALL mp_world_finalize()
 
 CONTAINS

@@ -119,8 +119,8 @@ CONTAINS
          DIMENSION(:), TARGET                            :: wisdom_file_c
       INTEGER                                            :: i
       INTERFACE
-         INTEGER FUNCTION fft_library_init_c(backend, planning_mode, use_guru_interface, &
-                                             wisdom_file) BIND(C, name="fft_library_init_F")
+         INTEGER(C_INT) FUNCTION fft_library_init_c(backend, planning_mode, use_guru_interface, &
+                                                    wisdom_file) BIND(C, name="fft_library_init_F")
             IMPORT :: C_INT, C_BOOL, C_PTR
             INTEGER(C_INT), VALUE :: backend, planning_mode
             LOGICAL(C_BOOL), VALUE :: use_guru_interface
