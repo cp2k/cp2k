@@ -724,7 +724,7 @@ CONTAINS
          END DO
       END IF
 
-      dft_control%charge = REAL(new_charge, KIND=dp)
+      dft_control%charge = new_charge
       dft_control%multiplicity = multiplicity
 
       CALL qs_subsys_set(subsys, nelectron_total=new_n_electron, &
