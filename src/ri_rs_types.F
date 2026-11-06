@@ -15,7 +15,6 @@ MODULE ri_rs_types
                                               dbcsr_type
    USE kinds,                           ONLY: dp
    USE particle_types,                  ONLY: particle_type
-   USE physcon,                         ONLY: angstrom
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -33,9 +32,9 @@ MODULE ri_rs_types
    ! User input for the in-memory RI-RS grid optimization.
    TYPE ri_rs_grid_opt_type
       LOGICAL                                          :: enabled = .FALSE.
-      REAL(KIND=dp)                                    :: cutoff_atomic_cluster = 3.0_dp/angstrom
-      REAL(KIND=dp)                                    :: rs_ao_ratio = 5.0_dp
-      INTEGER                                          :: max_iter = 300
+      REAL(KIND=dp)                                    :: cutoff_atomic_cluster = -1.0_dp
+      REAL(KIND=dp)                                    :: rs_ao_ratio = 7.0_dp
+      INTEGER                                          :: max_iter = 20
    END TYPE ri_rs_grid_opt_type
 
    TYPE ri_rs_env

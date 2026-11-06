@@ -49,14 +49,12 @@
       &GW
         NUM_TIME_FREQ_POINTS 10
         &AUTO_RI
-          NEIGHBOR_RADIUS [angstrom] 3
           OCC_EMPTY_FRONTIER_ORBITAL_WINDOW [eV] 5
-          RI_AO_RATIO 2.5
+          ! Request 14 of the 16 retained modes so the size does not depend on their cutoff.
+          RI_AO_RATIO 2.0
         &END AUTO_RI
         &RI_RS
-          GRID_SELECT 1
           &GRID_OPTIMIZATION
-            MAX_ITER 100
             ! Resolve the RI-RS fit before comparing AUTO_RI quasiparticle energies.
             RS_AO_RATIO 6
           &END GRID_OPTIMIZATION

@@ -2524,10 +2524,11 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER", &
-                          description="Determines a threshold for the DBCSR based sparse "// &
-                          "multiplications. Normally, `EPS_FILTER` determines accuracy "// &
-                          "and timing of low-scaling GW calculations. (Lower filter means "// &
-                          "higher numerical precision, but higher computational cost.)", &
+                          description="Threshold for sparse operations on spatially local "// &
+                          "matrices, including DBCSR matrix multiplication. EPS_FILTER "// &
+                          "usually controls the accuracy and runtime of low-scaling GW: "// &
+                          "a smaller value increases numerical precision and computational "// &
+                          "cost.", &
                           usage="EPS_FILTER 1.0E-6", &
                           default_r_val=1.0E-8_dp)
       CALL section_add_keyword(section, keyword)
@@ -2544,7 +2545,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="REGULARIZATION_RI", &
                           description="Regularization applied to the GW RI fitting matrix "// &
                           "$M_{PQ}$. A negative value selects the context-dependent default: "// &
-                          "zero for molecules and 1.0E-2 for periodic systems.", &
+                          "zero for molecules, 1.0E-8 for periodic RI-RS GW and 1.0E-2 "// &
+                          "for other periodic systems.", &
                           usage="REGULARIZATION_RI 1.0E-4", &
                           default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
@@ -2559,6 +2561,16 @@ CONTAINS
                           usage="CUTOFF_RADIUS_RI 3.0", &
                           default_r_val=cp_unit_to_cp2k(value=3.0_dp, unit_str="angstrom"), &
                           type_of_var=real_t, unit_str="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="RI_CUTOFF_ATTENUATION", &
+                          description="Positive attenuation omega (in inverse bohr) of the "// &
+                          "erfc(omega*r)/r RI metric used by periodic full-k RI-RS GW. "// &
+                          "The default is 0.3 bohr^-1. Other GW implementations use "// &
+                          "the truncated Coulomb metric set by CUTOFF_RADIUS_RI.", &
+                          usage="RI_CUTOFF_ATTENUATION 0.3", default_r_val=0.3_dp, &
+                          type_of_var=real_t, unit_str="bohr^-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2743,12 +2755,9 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="AUTO_RI", &
-                          description="Optimizes the RI basis for non-periodic RI-RS GW "// &
-                          "calculations. The fitting target combines occupied-empty "// &
-                          "transitions and exchange products. Atom-local (AA) functions are "// &
-                          "selected first. Neighbor-pair (AB) functions are also used to fit "// &
-                          "occupied-empty transitions and exchange products. Currently only "// &
-                          "non-periodic molecules are supported.", &
+                          description="Optimizes an RI basis for molecular "// &
+                          "and full-k periodic RI-RS GW. The fitting target combines "// &
+                          "occupied-empty transitions and exchange products.", &
                           n_keywords=3, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="RI_AO_RATIO", &
@@ -2758,7 +2767,7 @@ CONTAINS
                           "as 1, 1.5, 2, 3 and 4 until the GW energies are converged. "// &
                           "Larger values increase time and memory, but also increase the "// &
                           "numerical accuracy.", &
-                          default_r_val=2.0_dp, usage="RI_AO_RATIO 2")
+                          default_r_val=3.0_dp, usage="RI_AO_RATIO 3")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2770,18 +2779,6 @@ CONTAINS
                           "GW-BSE excitations up to 10 eV.", &
                           default_r_val=cp_unit_to_cp2k(value=5.0_dp, unit_str="eV"), &
                           unit_str="eV", usage="OCC_EMPTY_FRONTIER_ORBITAL_WINDOW [eV] 5.0")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="NEIGHBOR_RADIUS", &
-                          description="The RI basis also contains contractions of Gaussian "// &
-                          "functions centered on different atoms. An atom pair A-B is "// &
-                          "included for these contractions when its distance is smaller than "// &
-                          "NEIGHBOR_RADIUS. Larger radii increase the computational cost. "// &
-                          "Three angstrom is a reasonable value and usually does not need to "// &
-                          "be changed.", &
-                          default_r_val=cp_unit_to_cp2k(value=3.0_dp, unit_str="angstrom"), &
-                          unit_str="angstrom", usage="NEIGHBOR_RADIUS [angstrom] 3.0")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2931,9 +2928,10 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="CUTOFF_ATOMIC_CLUSTER", &
          description="Radius of the atom-centred cluster used to optimize the grid points. "// &
-         "All atoms within this distance of the centre atom are included.", &
-         usage="CUTOFF_ATOMIC_CLUSTER [angstrom] 3.0", type_of_var=real_t, &
-         default_r_val=cp_unit_to_cp2k(value=3.0_dp, unit_str="angstrom"), &
+         "All atoms within this distance of the centre atom are included. "// &
+         "A negative value selects 1.4 times the distance to the nearest neighbouring atom.", &
+         usage="CUTOFF_ATOMIC_CLUSTER -1", type_of_var=real_t, &
+         default_r_val=cp_unit_to_cp2k(value=-1.0_dp, unit_str="angstrom"), &
          unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -2942,7 +2940,7 @@ CONTAINS
          keyword, __LOCATION__, name="MAX_ITER", &
          description="Maximum number of objective-and-gradient evaluations in the single "// &
          "cooperative Cartesian grid optimization.", &
-         usage="MAX_ITER 300", default_i_val=300)
+         usage="MAX_ITER 20", default_i_val=20)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

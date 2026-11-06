@@ -19,6 +19,7 @@ MODULE mathlib
    USE mathconstants, ONLY: euler, &
                             fac, &
                             oorootpi, &
+                            pi, &
                             z_one, &
                             z_zero
 #include "../base/base_uses.f90"
@@ -46,7 +47,8 @@ MODULE mathlib
              diag_antisym, &
              diag_complex, &
              gemm_square, &
-             geeig_right
+             geeig_right, &
+             gauss_legendre
 
    ! Public functions
 
@@ -2184,5 +2186,45 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE geeig_right
+
+! **************************************************************************************************
+!> \brief Gauss-Legendre nodes and weights on [-1,1], with nodes in ascending order.
+!>        The Legendre roots are refined by Newton iterations to machine precision.
+!> \param n number of nodes
+!> \param nodes ...
+!> \param weights ...
+! **************************************************************************************************
+   SUBROUTINE gauss_legendre(n, nodes, weights)
+      INTEGER, INTENT(IN)                                :: n
+      REAL(KIND=dp), DIMENSION(n), INTENT(OUT)           :: nodes, weights
+
+      INTEGER, PARAMETER                                 :: max_iter = 100
+
+      INTEGER                                            :: i, iter, j
+      REAL(KIND=dp)                                      :: derivative, dz, p0, p1, p2, z
+
+      DO i = 1, (n + 1)/2
+         z = COS(pi*(REAL(i, dp) - 0.25_dp)/(REAL(n, dp) + 0.5_dp))
+         DO iter = 1, max_iter
+            p0 = 1.0_dp
+            p1 = 0.0_dp
+            DO j = 1, n
+               p2 = p1
+               p1 = p0
+               p0 = (REAL(2*j - 1, dp)*z*p1 - REAL(j - 1, dp)*p2)/REAL(j, dp)
+            END DO
+            derivative = REAL(n, dp)*(z*p0 - p1)/(z*z - 1.0_dp)
+            dz = p0/derivative
+            z = z - dz
+            IF (ABS(dz) <= EPSILON(1.0_dp)) EXIT
+         END DO
+         IF (iter > max_iter) CPABORT("Gauss-Legendre roots did not converge")
+         nodes(i) = -z
+         nodes(n + 1 - i) = z
+         weights(i) = 2.0_dp/((1.0_dp - z*z)*derivative**2)
+         weights(n + 1 - i) = weights(i)
+      END DO
+
+   END SUBROUTINE gauss_legendre
 
 END MODULE mathlib

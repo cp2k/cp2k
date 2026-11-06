@@ -121,24 +121,26 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Compute a spectral power of a local complex Hermitian matrix.
-!>        Eigenvalues not larger than eps are discarded.
+!>        Eigenvalues not larger than eps (or relative_eps times the largest one) are discarded.
 !> \param matrix input/output matrix
 !> \param exponent matrix exponent
 !> \param eps eigenvalue threshold
 !> \param cond_nr optional condition number
 !> \param min_ev optional minimum absolute eigenvalue
 !> \param max_ev optional maximum absolute eigenvalue
+!> \param relative_eps optional threshold relative to the largest eigenvalue
 ! **************************************************************************************************
-   SUBROUTINE local_complex_power(matrix, exponent, eps, cond_nr, min_ev, max_ev)
+   SUBROUTINE local_complex_power(matrix, exponent, eps, cond_nr, min_ev, max_ev, relative_eps)
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: matrix
       REAL(KIND=dp), INTENT(IN)                          :: exponent, eps
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: cond_nr, min_ev, max_ev
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: relative_eps
 
       CHARACTER(len=*), PARAMETER :: routineN = 'local_complex_power'
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: eigenvectors
       INTEGER                                            :: handle, i, n
-      REAL(KIND=dp)                                      :: sqrt_power_eval
+      REAL(KIND=dp)                                      :: eigenvalue_cutoff, sqrt_power_eval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
 
       CALL timeset(routineN, handle)
@@ -153,11 +155,13 @@ CONTAINS
       IF (PRESENT(cond_nr)) cond_nr = MAXVAL(ABS(eigenvalues))/MINVAL(ABS(eigenvalues))
       IF (PRESENT(min_ev)) min_ev = MINVAL(ABS(eigenvalues))
       IF (PRESENT(max_ev)) max_ev = MAXVAL(ABS(eigenvalues))
+      eigenvalue_cutoff = eps
+      IF (PRESENT(relative_eps)) eigenvalue_cutoff = MAX(eps, relative_eps*MAXVAL(eigenvalues))
 
       ! Reconstruct matrix**exponent as X*X^H, where
       ! X = U*diag(eigenvalues**(exponent/2)).
       DO i = 1, n
-         IF (eps < eigenvalues(i)) THEN
+         IF (eigenvalue_cutoff < eigenvalues(i)) THEN
             sqrt_power_eval = eigenvalues(i)**(0.5_dp*exponent)
          ELSE
             sqrt_power_eval = 0.0_dp

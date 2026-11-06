@@ -43,3 +43,20 @@ O  RI_O_MINI
       4.3887768259    1.0000000000
 
 
+
+# Compact uncontracted s basis and its on-site AO-product exponents.
+H RIRS-KP-TEST
+1
+1 0 0 3 3
+0.7 1.0 0.0 0.0
+2.0 0.0 1.0 0.0
+8.0 0.0 0.0 1.0
+H RI-RIRS-KP-TEST
+1
+1 0 0 6 6
+1.4 1 0 0 0 0 0
+2.7 0 1 0 0 0 0
+4.0 0 0 1 0 0 0
+8.7 0 0 0 1 0 0
+10.0 0 0 0 0 1 0
+16.0 0 0 0 0 0 1

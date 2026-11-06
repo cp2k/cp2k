@@ -40,7 +40,7 @@ MODULE gw_tensor_small_cell_full_kp
                                               local_complex_power
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp_small_cell
+   USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp_dense
    USE kpoint_k_r_trafo_simple,         ONLY: add_kp_to_all_rs,&
                                               fm_add_kp_to_all_rs,&
                                               fm_rs_to_kp,&
@@ -708,15 +708,15 @@ CONTAINS
 
       ! 1. 2c Coulomb integrals for the first "original" k-point grid
       bs_env%kpoints_chi_eps_W%nkp_grid = bs_env%nkp_grid_chi_eps_W_orig
-      CALL build_2c_coulomb_matrix_kp_small_cell(V_sqrt, qs_env, bs_env%kpoints_chi_eps_W, &
-                                                 bs_env%size_lattice_sum_V, basis_type="RI_AUX", &
-                                                 ikp_start=1, ikp_end=nkp_orig)
+      CALL build_2c_coulomb_matrix_kp_dense(V_sqrt, qs_env, bs_env%kpoints_chi_eps_W, &
+                                            bs_env%size_lattice_sum_V, basis_type="RI_AUX", &
+                                            ikp_start=1, ikp_end=nkp_orig)
 
       ! 2. 2c Coulomb integrals for the second "extrapolation" k-point grid
       bs_env%kpoints_chi_eps_W%nkp_grid = bs_env%nkp_grid_chi_eps_W_extra
-      CALL build_2c_coulomb_matrix_kp_small_cell(V_sqrt, qs_env, bs_env%kpoints_chi_eps_W, &
-                                                 bs_env%size_lattice_sum_V, basis_type="RI_AUX", &
-                                                 ikp_start=nkp_orig + 1, ikp_end=nkp)
+      CALL build_2c_coulomb_matrix_kp_dense(V_sqrt, qs_env, bs_env%kpoints_chi_eps_W, &
+                                            bs_env%size_lattice_sum_V, basis_type="RI_AUX", &
+                                            ikp_start=nkp_orig + 1, ikp_end=nkp)
 
       ! now get M^-1(k) and M^-1(k)*V^0.5(k)
 

@@ -49,7 +49,6 @@
       &GW
         NUM_TIME_FREQ_POINTS 10
         &AUTO_RI
-          NEIGHBOR_RADIUS [angstrom] 0.5
           OCC_EMPTY_FRONTIER_ORBITAL_WINDOW [eV] 5
           RI_AO_RATIO 1.5
         &END AUTO_RI
@@ -58,9 +57,7 @@
           &END RESTART
         &END PRINT
         &RI_RS
-          GRID_SELECT 1
           &GRID_OPTIMIZATION
-            MAX_ITER 100
             RS_AO_RATIO 3
           &END GRID_OPTIMIZATION
         &END RI_RS

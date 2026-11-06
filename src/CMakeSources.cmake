@@ -226,6 +226,11 @@ list(
   grrm_utils.F
   gapw_1c_basis_set.F
   gw_ri_rs_chi_sigma_kernels.F
+  gw_ri_rs_small_cell_full_kp.F
+  gw_ri_rs_small_cell_full_kp_gamma.F
+  gw_ri_rs_small_cell_full_kp_lattice.F
+  gw_ri_rs_small_cell_full_kp_types.F
+  gw_ri_rs_small_cell_full_kp_utils.F
   gw_auto_ri_generate_RI_basis.F
   gw_auto_ri_types.F
   gw_compute_V_and_W.F
@@ -244,6 +249,9 @@ list(
   ri_rs_setup.F
   ri_rs_types.F
   ri_rs_utils.F
+  ri_rs_kp_fitting.F
+  ri_rs_kp_integrals.F
+  ri_rs_kp_types.F
   ri_rs_fitting.F
   ri_rs_matrices.F
   post_scf_bandstructure_types.F

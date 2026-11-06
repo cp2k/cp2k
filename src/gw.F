@@ -13,12 +13,14 @@
 MODULE gw
    USE gw_ri_rs_large_cell_Gamma,       ONLY: gw_calc_ri_rs_large_cell_Gamma
    USE gw_ri_rs_non_periodic,           ONLY: gw_calc_ri_rs_non_periodic
+   USE gw_ri_rs_small_cell_full_kp,     ONLY: gw_calc_ri_rs_small_cell_full_kp
    USE gw_tensor_large_cell_Gamma,      ONLY: gw_calc_tensor_large_cell_Gamma
    USE gw_tensor_large_cell_Gamma_static_cohsex,ONLY: gw_calc_tensor_large_cell_Gamma_static_cohsex
    USE gw_tensor_small_cell_full_kp,    ONLY: gw_calc_tensor_small_cell_full_kp
    USE gw_utils,                        ONLY: create_and_init_bs_env_for_gw
    USE input_constants,                 ONLY: ri_rs_large_cell_Gamma,&
                                               ri_rs_non_periodic,&
+                                              ri_rs_small_cell_full_kp,&
                                               tensor_large_cell_Gamma,&
                                               tensor_small_cell_full_kp,&
                                               tensor_static_cohsex
@@ -80,6 +82,10 @@ CONTAINS
       CASE (tensor_static_cohsex)
 
          CALL gw_calc_tensor_large_cell_Gamma_static_cohsex(qs_env, bs_env)
+
+      CASE (ri_rs_small_cell_full_kp)
+
+         CALL gw_calc_ri_rs_small_cell_full_kp(qs_env, bs_env)
 
       CASE DEFAULT
 
