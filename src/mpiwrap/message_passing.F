@@ -852,7 +852,7 @@ MODULE message_passing
    INTEGER, PARAMETER, PUBLIC :: mp_comm_compare_default = -1
 
    ! init and error
-   PUBLIC :: mp_world_init, mp_world_finalize, mp_query_thread_level
+   PUBLIC :: mp_world_init, mp_world_finalize, mp_world_owns_mpi, mp_query_thread_level
    PUBLIC :: mp_abort
 
    ! informational / generation of sub comms
@@ -1205,6 +1205,18 @@ CONTAINS
       END SUBROUTINE mp_query_thread_level
 
 ! **************************************************************************************************
+!> \brief Check if MPI was initialized by CP2K and will thus be finalized by CP2K.
+!> \return true if CP2K owns MPI
+! **************************************************************************************************
+      LOGICAL FUNCTION mp_world_owns_mpi()
+#if defined(__parallel)
+         mp_world_owns_mpi = mp_mpi_initialized_by_cp2k
+#else
+         mp_world_owns_mpi = .FALSE.
+#endif
+      END FUNCTION mp_world_owns_mpi
+
+! **************************************************************************************************
 !> \brief Return a human-readable name for the observed MPI thread-support level.
 !> \return MPI thread-support level name
 ! **************************************************************************************************
@@ -1241,7 +1253,9 @@ CONTAINS
 #if defined(__parallel)
          INTEGER                                  :: ierr
 #if defined(__MIMIC)
-         INTEGER                                  :: mimic_handle
+         INTEGER                                  :: env_status, mimic_handle
+         INTEGER(KIND=MPI_ADDRESS_KIND)           :: appnum
+         LOGICAL                                  :: flag, mimic_requested
 #endif
 #endif
 
@@ -1257,14 +1271,26 @@ CONTAINS
          debug_comm_count = 1
          mp_comm = mp_comm_world
 #if defined(__MIMIC)
-         mimic_handle = mp_comm%get_handle()
-         CALL mcl_initialize(mimic_handle)
-         CALL mp_comm%set_handle(mimic_handle)
+         ! Initialize MCL only for MiMiC runs, since MCL creates communicators it never frees.
+         ! A MiMiC run is requested either explicitly by setting MCL_COMM_MODE or implicitly
+         ! by launching CP2K as a client (MPI_APPNUM > 0) in an MPMD run (MCL default mode).
+         CALL get_environment_variable("MCL_COMM_MODE", status=env_status)
+         CALL mpi_comm_get_attr(MPI_COMM_WORLD, MPI_APPNUM, appnum, flag, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_get_attr @ mp_world_init")
+         mimic_requested = (env_status == 0)
+         IF (flag) mimic_requested = mimic_requested .OR. (appnum > 0_MPI_ADDRESS_KIND)
+         IF (mimic_requested) THEN
+            mimic_handle = mp_comm%get_handle()
+            CALL mcl_initialize(mimic_handle)
+            CALL mp_comm%set_handle(mimic_handle)
 #if defined(__MPI_F08)
-         mimic_comm_world%mpi_val = mimic_handle
+            mimic_comm_world%mpi_val = mimic_handle
 #else
-         mimic_comm_world = mimic_handle
+            mimic_comm_world = mimic_handle
 #endif
+         ELSE
+            mimic_comm_world = MPI_COMM_WORLD
+         END IF
 #endif
          CALL mp_comm%init()
          CALL add_mp_perf_env()

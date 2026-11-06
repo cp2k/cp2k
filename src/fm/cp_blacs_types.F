@@ -25,7 +25,7 @@ MODULE cp_blacs_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_blacs_types'
    PRIVATE
 
-   PUBLIC :: cp_blacs_type
+   PUBLIC :: cp_blacs_type, cp_blacs_exit
 
    TYPE cp_blacs_type
       PRIVATE
@@ -96,6 +96,18 @@ CONTAINS
       MARK_USED(this)
 #endif
    END SUBROUTINE cp_blacs_gridexit
+
+! **************************************************************************************************
+!> \brief Release all BLACS resources without finalizing MPI
+!> \note  BLACS completes its asynchronous sends lazily and the requests of the last sends keep
+!>        their communicators alive. Since all BLACS contexts are destroyed, also those of a
+!>        calling program, call it only at the very end and only if CP2K owns MPI.
+! **************************************************************************************************
+   SUBROUTINE cp_blacs_exit()
+#if defined(__parallel)
+      CALL blacs_exit(1)
+#endif
+   END SUBROUTINE cp_blacs_exit
 
 ! **************************************************************************************************
 !> \brief ...
