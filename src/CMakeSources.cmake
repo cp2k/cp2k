@@ -1627,6 +1627,7 @@ set(CP2K_PROGS_F
     pseudopotentials/upf_local_integrals_unittest.F
     gapw_unittest.F
     kpoint_lattice_fft_unittest.F
+    fft/fft_api_unittest.F
     kpoint_smearing_unittest.F
     motion/cell_opt_utils_unittest.F
     topology_wilson_unittest.F
