@@ -406,10 +406,11 @@ void cp_fm_diag_cusolver_sygvd(const int fortran_comm,
                                const int a_matrix_desc[9],
                                const int b_matrix_desc[9], const int nprow,
                                const int npcol, const int myprow,
-                               const int mypcol, const int n,
+                               const int mypcol, const int n, const int nmo,
                                const double *aMatrix, const double *bMatrix,
                                double *eigenvectors, double *eigenvalues) {
 
+  assert(nmo >= 0 && nmo <= n);
   const int local_device = offload_get_chosen_device();
 
   MPI_Comm comm = MPI_Comm_f2c(fortran_comm);
@@ -570,11 +571,20 @@ void cp_fm_diag_cusolver_sygvd(const int fortran_comm,
     abort();
   }
 
-  // Copy results back to host
-  CUDA_CHECK(cudaMemcpyAsync(eigenvectors, dev_Z, matrix_local_size,
-                             cudaMemcpyDeviceToHost, stream));
-  CUDA_CHECK(cudaMemcpyAsync(eigenvalues, eigenvalues_dev, n * sizeof(double),
-                             cudaMemcpyDeviceToHost, stream));
+  // The requested eigenvectors occupy a contiguous prefix of the local columns.
+  const int nq_eigenvectors =
+      cusolverMpNUMROC(nmo, nb_a, mypcol, csrc_a, npcol);
+  const size_t eigenvectors_local_size =
+      (size_t)ldA * nq_eigenvectors * sizeof(double);
+  if (eigenvectors_local_size > 0) {
+    CUDA_CHECK(cudaMemcpyAsync(eigenvectors, dev_Z, eigenvectors_local_size,
+                               cudaMemcpyDeviceToHost, stream));
+  }
+  if (nmo > 0) {
+    CUDA_CHECK(cudaMemcpyAsync(eigenvalues, eigenvalues_dev,
+                               nmo * sizeof(double), cudaMemcpyDeviceToHost,
+                               stream));
+  }
 
   // Wait for copy to finish
   CUDA_CHECK(cudaStreamSynchronize(stream));
@@ -608,10 +618,11 @@ void cp_fm_diag_cusolver_sygvd(const int fortran_comm,
 void cp_cfm_diag_cusolver_hegvd(
     const int fortran_comm, const int a_matrix_desc[9],
     const int b_matrix_desc[9], const int nprow, const int npcol,
-    const int myprow, const int mypcol, const int n,
+    const int myprow, const int mypcol, const int n, const int nmo,
     const cuDoubleComplex *aMatrix, const cuDoubleComplex *bMatrix,
     cuDoubleComplex *eigenvectors, double *eigenvalues) {
 
+  assert(nmo >= 0 && nmo <= n);
   const int local_device = offload_get_chosen_device();
 
   MPI_Comm comm = MPI_Comm_f2c(fortran_comm);
@@ -757,10 +768,20 @@ void cp_cfm_diag_cusolver_hegvd(
     abort();
   }
 
-  CUDA_CHECK(cudaMemcpyAsync(eigenvectors, dev_Z, matrix_local_size,
-                             cudaMemcpyDeviceToHost, stream));
-  CUDA_CHECK(cudaMemcpyAsync(eigenvalues, eigenvalues_dev, n * sizeof(double),
-                             cudaMemcpyDeviceToHost, stream));
+  // The requested eigenvectors occupy a contiguous prefix of the local columns.
+  const int nq_eigenvectors =
+      cusolverMpNUMROC(nmo, nb_a, mypcol, csrc_a, npcol);
+  const size_t eigenvectors_local_size =
+      (size_t)ldA * nq_eigenvectors * sizeof(cuDoubleComplex);
+  if (eigenvectors_local_size > 0) {
+    CUDA_CHECK(cudaMemcpyAsync(eigenvectors, dev_Z, eigenvectors_local_size,
+                               cudaMemcpyDeviceToHost, stream));
+  }
+  if (nmo > 0) {
+    CUDA_CHECK(cudaMemcpyAsync(eigenvalues, eigenvalues_dev,
+                               nmo * sizeof(double), cudaMemcpyDeviceToHost,
+                               stream));
+  }
 
   CUDA_CHECK(cudaStreamSynchronize(stream));
 
