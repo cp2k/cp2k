@@ -545,8 +545,10 @@ CONTAINS
       Cached = get_field_value_in_bytes('Cached:')
       Slab = get_field_value_in_bytes('Slab:')
       SReclaimable = get_field_value_in_bytes('SReclaimable:')
-      ! opinions here vary but this might work
-      MemLikelyFree = MemFree + Buffers + Cached + SReclaimable
+      ! the kernel's own estimate (Linux 3.14 and later), since Cached includes memory that is not
+      ! reclaimable (Shmem, e.g., shared-memory segments of MPI)
+      MemLikelyFree = get_field_value_in_bytes('MemAvailable:')
+      IF (MemLikelyFree <= 0) MemLikelyFree = MemFree + Buffers + Cached + SReclaimable
 
    CONTAINS
 
