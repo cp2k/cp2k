@@ -37,7 +37,7 @@ RUN ./install_cp2k_toolchain.sh \
     --enable-cuda=yes \
     --with-libgint=install \
     --with-sirius=install \
-    --gpu-ver=A40 \
+    --gpu-ver=A100 \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.

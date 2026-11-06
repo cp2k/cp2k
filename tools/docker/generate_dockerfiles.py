@@ -342,11 +342,13 @@ def main() -> None:
         f.write(performance("toolchain"))
 
     with OutputFile(f"Dockerfile.test_cuda_A40", args.check) as f:
-        f.write(install_deps_toolchain_cuda(gpu_ver="A40"))
+        # TODO Revert A100 -> A40 once #6450 is resolved.
+        f.write(install_deps_toolchain_cuda(gpu_ver="A100"))
         f.write(regtest(f"toolchain_cuda_A40", "psmp"))
 
     with OutputFile(f"Dockerfile.test_performance_cuda_A40", args.check) as f:
-        f.write(install_deps_toolchain_cuda(gpu_ver="A40"))
+        # TODO Revert A100 -> A40 once #6450 is resolved.
+        f.write(install_deps_toolchain_cuda(gpu_ver="A100"))
         f.write(performance(f"toolchain_cuda_A40"))
 
     with OutputFile(f"Dockerfile.build_hip_rocm_Mi100", args.check) as f:
