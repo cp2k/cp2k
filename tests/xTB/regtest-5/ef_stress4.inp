@@ -26,6 +26,7 @@
       METHOD xTB
       &XTB
         DO_EWALD T
+        SPIN_POLARISATION T
       &END XTB
     &END QS
     &SCF

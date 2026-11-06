@@ -26,6 +26,7 @@
       &XTB
         CHECK_ATOMIC_CHARGES F
         GFN_TYPE 1
+        SPIN_POLARISATION T
       &END XTB
     &END QS
     &SCF

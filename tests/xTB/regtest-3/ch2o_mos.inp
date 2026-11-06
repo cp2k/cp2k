@@ -18,6 +18,9 @@
     &END PRINT
     &QS
       METHOD xTB
+      &XTB
+        SPIN_POLARISATION T
+      &END XTB
     &END QS
     &SCF
       ADDED_MOS 10 10

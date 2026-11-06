@@ -250,8 +250,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="SPIN_POLARISATION", &
-                          description="Use the spin polarisation Hamiltonian for gfn1/2", &
-                          usage="SPIN_POLARISATION T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+                          description="Use the spin polarisation Hamiltonian for gfn1/2. "// &
+                          "Enabled by default for gfn1; not available for gfn0.", &
+                          usage="SPIN_POLARISATION T", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

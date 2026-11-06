@@ -29,7 +29,7 @@
       METHOD xTB
       &XTB
         CHECK_ATOMIC_CHARGES F
-        SPIN_POLARISATION F
+        SPIN_POLARISATION T
       &END XTB
     &END QS
     &SCF
