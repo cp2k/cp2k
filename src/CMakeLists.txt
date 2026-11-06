@@ -263,42 +263,42 @@ add_library(cp2k_link_libs INTERFACE)
 # the order is important so keep it that way
 target_link_libraries(
   cp2k_link_libs
-  INTERFACE
-    $<$<BOOL:${CP2K_USE_DFTD4}>:mctc-lib::mctc-lib>
-    $<$<BOOL:${CP2K_USE_DFTD4}>:dftd4::dftd4>
-    $<$<BOOL:${CP2K_USE_DEEPMD}>:DeePMD::deepmd
-    DeePMD::deepmd_c>
-    $<$<BOOL:${CP2K_USE_PEXSI}>:PEXSI::PEXSI>
-    $<$<BOOL:${CP2K_USE_ACE}>:pace::pace>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:cp2k::tblite>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:s-dftd3::s-dftd3>
-    $<$<BOOL:${CP2K_USE_SIRIUS}>:sirius::sirius>
-    $<$<BOOL:${CP2K_USE_VORI}>:cp2k::VORI::vori>
-    $<$<BOOL:${CP2K_USE_SPGLIB}>:Spglib::symspg>
-    $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:cp2k::libsmeagol::smeagol>
-    $<$<BOOL:${CP2K_USE_LIBXC}>:Libxc::xcf03>
-    $<$<BOOL:${CP2K_USE_GAUXC}>:gauxc::gauxc>
-    $<$<BOOL:${CP2K_USE_ELPA}>:cp2k::ELPA::elpa>
-    $<$<BOOL:${CP2K_USE_PLUMED}>:cp2k::plumed::plumed>
-    $<$<BOOL:${CP2K_USE_SPLA}>:SPLA::spla>
-    $<$<BOOL:${CP2K_USE_MIMIC}>:CP2K::MIMIC::mclf>
-    $<$<BOOL:${CP2K_USE_MIMIC}>:CP2K::MIMIC::mcl>
-    $<$<BOOL:${CP2K_USE_LIBINT2}>:Libint2::int2>
-    $<$<BOOL:${CP2K_USE_LIBFCI}>:libfci::fci>
-    $<$<BOOL:${CP2K_USE_LIBGINT}>:cp2k::LibGint::libGint>
-    $<$<BOOL:${CP2K_USE_COSMA}>:cp2k::cosma>
-    $<$<BOOL:${CP2K_USE_DLAF}>:${CP2K_DLAF_FORTRAN_TARGET}>
-    $<$<BOOL:${CP2K_USE_GREENX}>:cp2k::greenx>
-    $<$<BOOL:${CP2K_USE_TREXIO}>:cp2k::trexio::trexio>
-    $<$<BOOL:${CP2K_USE_HDF5}>:HDF5::HDF5
-    hdf5::hdf5_fortran>
-    wignernj::wignernj
-    DBCSR::dbcsr
-    $<$<BOOL:${CP2K_USE_MPI}>:cp2k::SCALAPACK::scalapack>
-    cp2k_linalg_libs
-    # Torch includes some LAPACK routines, but with floating-point exceptions.
-    $<$<BOOL:${CP2K_USE_LIBTORCH}>:${TORCH_LIBRARIES}>
-    $<$<BOOL:${CP2K_USE_OPENPMD}>:openPMD::openPMD>)
+  INTERFACE $<$<BOOL:${CP2K_USE_DFTD4}>:mctc-lib::mctc-lib>
+            $<$<BOOL:${CP2K_USE_DFTD4}>:dftd4::dftd4>
+            $<$<BOOL:${CP2K_USE_DEEPMD}>:DeePMD::deepmd
+            DeePMD::deepmd_c>
+            $<$<BOOL:${CP2K_USE_PEXSI}>:PEXSI::PEXSI>
+            $<$<BOOL:${CP2K_USE_ACE}>:pace::pace>
+            $<$<BOOL:${CP2K_USE_TBLITE}>:cp2k::tblite>
+            $<$<BOOL:${CP2K_USE_TBLITE}>:s-dftd3::s-dftd3>
+            $<$<BOOL:${CP2K_USE_SIRIUS}>:sirius::sirius>
+            $<$<BOOL:${CP2K_USE_VORI}>:cp2k::VORI::vori>
+            $<$<BOOL:${CP2K_USE_SPGLIB}>:Spglib::symspg>
+            $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:cp2k::libsmeagol::smeagol>
+            $<$<BOOL:${CP2K_USE_LIBXC}>:Libxc::xcf03>
+            $<$<BOOL:${CP2K_USE_GAUXC}>:gauxc::gauxc>
+            $<$<BOOL:${CP2K_USE_ELPA}>:cp2k::ELPA::elpa>
+            $<$<BOOL:${CP2K_USE_PLUMED}>:cp2k::plumed::plumed>
+            $<$<BOOL:${CP2K_USE_SPLA}>:SPLA::spla>
+            $<$<BOOL:${CP2K_USE_MIMIC}>:CP2K::MIMIC::mclf>
+            $<$<BOOL:${CP2K_USE_MIMIC}>:CP2K::MIMIC::mcl>
+            $<$<BOOL:${CP2K_USE_LIBINT2}>:Libint2::int2>
+            $<$<BOOL:${CP2K_USE_LIBFCI}>:libfci::fci>
+            $<$<BOOL:${CP2K_USE_LIBGINT}>:cp2k::LibGint::libGint>
+            $<$<BOOL:${CP2K_USE_COSMA}>:cp2k::cosma>
+            $<$<BOOL:${CP2K_USE_DLAF}>:${CP2K_DLAF_FORTRAN_TARGET}>
+            $<$<BOOL:${CP2K_USE_GREENX}>:cp2k::greenx>
+            $<$<BOOL:${CP2K_USE_TREXIO}>:cp2k::trexio::trexio>
+            $<$<BOOL:${CP2K_USE_HDF5}>:HDF5::HDF5
+            hdf5::hdf5_fortran>
+            wignernj::wignernj
+            DBCSR::dbcsr
+            $<$<BOOL:${CP2K_USE_MPI}>:cp2k::SCALAPACK::scalapack>
+            cp2k_linalg_libs
+            # Torch includes some LAPACK routines, but with floating-point
+            # exceptions.
+            $<$<BOOL:${CP2K_USE_LIBTORCH}>:${TORCH_LIBRARIES}>
+            $<$<BOOL:${CP2K_USE_OPENPMD}>:openPMD::openPMD>)
 
 set(CP2K_BUILD_INFO_FILE "${CMAKE_CURRENT_BINARY_DIR}/cp2k_build_info.h")
 file(
