@@ -32,12 +32,18 @@
 
 namespace rocm_backend {
 
+// tasks with lp >= this value go to integrate_separable_kernel. Below,
+// integrate_kernel does a single pass over the cube and is faster.
+constexpr int integrate_separable_lp_threshold = 4;
+
 __inline__ __device__ double sep_row_reduce(double val) {
-  for (int offset = SEP_ROW_LANES / 2; offset > 0; offset >>= 1) {
+  for (int offset = CP2K_SEP_INTEGRATE_ROW_LANES / 2; offset > 0;
+       offset >>= 1) {
 #if defined(__CUDACC__)
-    val += __shfl_down_sync(0xffffffff, val, offset, SEP_ROW_LANES);
+    val +=
+        __shfl_down_sync(0xffffffff, val, offset, CP2K_SEP_INTEGRATE_ROW_LANES);
 #else
-    val += __shfl_down(val, offset, SEP_ROW_LANES);
+    val += __shfl_down(val, offset, CP2K_SEP_INTEGRATE_ROW_LANES);
 #endif
   }
   return val;
@@ -180,9 +186,7 @@ __global__ __launch_bounds__(64) void compute_hab_two_step(
         &dev_.buffers_dev.coef[dev_.tasks[task_id].coef_offset], 32));
 
     __syncthreads();
-    compute_alpha(task, smem_alpha);
-    __syncthreads();
-    cxyz_to_cab(task, smem_alpha, coef_, smem_cab);
+    cxyz_to_cab_factorized(task, coef_, smem_cab);
     __syncthreads();
 
     const int nco_a = task.ncoseta - task.first_coseta;
@@ -454,7 +458,7 @@ __launch_bounds__(64) void compute_hab_forces(const kernel_params dev_) {
  *        after alpha, at work_offset (in doubles), see sphi_work_size.
  ******************************************************************************/
 template <typename T, bool COMPUTE_TAU>
-__global__ __launch_bounds__(64) void compute_hab_forces_two_step(
+__global__ __launch_bounds__(64) void compute_hab_forces_two_steps(
     const kernel_params dev_, const int work_offset, const int ld,
     const int max_nsgf_set) {
   extern __shared__ T shared_memory[];
@@ -490,9 +494,7 @@ __global__ __launch_bounds__(64) void compute_hab_forces_two_step(
         &dev_.buffers_dev.coef[dev_.tasks[task_id].coef_offset], 32));
 
     __syncthreads();
-    compute_alpha(task, smem_alpha);
-    __syncthreads();
-    cxyz_to_cab(task, smem_alpha, coef_, smem_cab);
+    cxyz_to_cab_factorized(task, coef_, smem_cab);
 
     const int nco_a = task.ncoseta - task.first_coseta;
     const int nco_b = task.ncosetb - task.first_cosetb;
@@ -613,7 +615,7 @@ where in practice the summation is over a finite domain. The discrete form has
 this shape
 
 $$
-\sum_{ijk < dmoain} V_{ijk} (x_i - x_c)^\alpha (y_j - y_c)^\beta (z_k - z_c) ^
+\sum_{ijk < domain} V_{ijk} (x_i - x_c)^\alpha (y_j - y_c)^\beta (z_k - z_c) ^
 \gamma Exp(- \eta |r_{ijk} - r_c|^2)
 $$
 
@@ -626,10 +628,10 @@ So most of the code is the same except the core of the routine that is
 specialized to the integration.
 
 ******************************************************************************/
-template <typename T, typename T3, bool distributed__, bool orthogonal_,
-          int lbatch = 20>
+template <typename T, typename T3, bool distributed__, bool orthogonal_>
 __global__
 __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
+  const int lbatch = 20;
   const task_info &glb_task = dev_.tasks[dev_.first_task + block_index()];
   if (glb_task.skip_task)
     return;
@@ -641,11 +643,7 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
 
   const int tid = thread_global_index();
 
-  // __shared__ T dh_inv_[9];
   __shared__ T dh_[9];
-
-  // for (int d = tid; d < 9; d += blockDim.x * blockDim.y * blockDim.z)
-  //   dh_inv_[d] = dev_.dh_inv_[d];
 
   if (tid < 9)
     dh_[tid] = dev_.dh_[tid];
@@ -658,7 +656,7 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
   }
   __syncthreads();
 
-  __shared__ T accumulator[lbatch][64];
+  __shared__ T accumulator[20][64];
 
   // we use a multi pass algorithm here because shared memory usage (or
   // register) would become too high for high angular momentum
@@ -757,7 +755,7 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
               continue;
           }
 
-          // read the next point assuming that reading is non blocking untill
+          // read the next point assuming that reading is non blocking until
           // the register is actually needed for computation. This is true on
           // NVIDIA hardware
 
@@ -1011,10 +1009,6 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
  * aligned cell.
  ******************************************************************************/
 
-// tasks with lp >= this value go to integrate_separable_kernel. Below,
-// integrate_kernel does a single pass over the cube and is faster.
-constexpr int integrate_separable_lp_threshold = 4;
-
 template <bool distributed__, bool axis_aligned_, int lmax_>
 __global__ __launch_bounds__(64) void integrate_separable_kernel(
     const kernel_params dev_, const int mc, const int lp_max,
@@ -1022,6 +1016,7 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
   // an axis aligned cell is orthogonal, otherwise the cell is treated as non
   // orthogonal (see integrate_one_grid_level).
   constexpr bool orthogonal_ = axis_aligned_;
+
   // the per thread accumulators have lmax_ + 1 entries, lmax_ >= lp_max (see
   // separable_lmax_bucket)
   static_assert(lmax_ <= SEP_MAX_L, "lmax_ larger than SEP_MAX_L");
@@ -1039,8 +1034,14 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
   const int ls = lp_max + 1;
 
   extern __shared__ double sep_smem[];
+  // exponetials along the x direction (note that it is the lattice direction
+  // not necessarily the cartesian coordinate)
   double *ex = sep_smem;
+  // y coordinate and its powers (note that it is the lattice direction not
+  // necessarily the cartesian coordinate)
   double *py = ex + mc;
+  // z coordinate and its powers common to all threads and single point (note
+  // that it is the lattice direction not necessarily the cartesian coordinate)
   double *pz = py + ls * mc;
   double *A = pz + ls;
   double *acc = A + mc * ls;
@@ -1067,6 +1068,8 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
       ex[x] = exp(-zetp * r * r);
     }
   }
+
+  // p[beta][y]
   for (int y = tid; y < task.cube_size.y; y += 64) {
     const double v = y + task.lb_cube.y + task.roffset.y;
     const double r = axis_aligned_ ? v * dev_.dh_[4] : v;
@@ -1079,9 +1082,9 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
   __syncthreads();
 
   const int npairs = (lp + 1) * (lp + 2) / 2;
-  const int row_group = tid / SEP_ROW_LANES;
-  const int lane = tid % SEP_ROW_LANES;
-  constexpr int nrow_groups = 64 / SEP_ROW_LANES;
+  const int row_group = tid / CP2K_SEP_INTEGRATE_ROW_LANES;
+  const int lane = tid % CP2K_SEP_INTEGRATE_ROW_LANES;
+  constexpr int nrow_groups = 64 / CP2K_SEP_INTEGRATE_ROW_LANES;
 
   for (int z = 0; z < task.cube_size.z; z++) {
     // the plane decisions below are uniform over the block
@@ -1103,15 +1106,18 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
 
     // pz for this plane. Made visible to step C by the barrier after step A,
     // and only overwritten after the barrier that ends step C.
+
+    // Calculate 1, z, z^2, .., z^lp recursively
+
     if (tid == 0) {
       double p = axis_aligned_ ? exp(-zetp * rz * rz) : 1.0;
       for (int c = 0; c <= lp; c++, p *= rz)
         pz[c] = p;
     }
 
-    // step A: one group of SEP_ROW_LANES lanes per row y. The trip count of
-    // the y0 loop is uniform over the block so that every lane takes part in
-    // the shuffle reduction, even when its row is past ymax.
+    // step A: one group of CP2K_SEP_INTEGRATE_ROW_LANES lanes per row y. The
+    // trip count of the y0 loop is uniform over the block so that every lane
+    // takes part in the shuffle reduction, even when its row is past ymax.
     for (int y0 = ymin; y0 <= ymax; y0 += nrow_groups) {
       const int y = y0 + row_group;
       const bool row_valid = (y <= ymax);
@@ -1141,8 +1147,9 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
         // periodic index of x, updated incrementally
         const int nx_full = dev_.grid_full_size_.x;
         int x2 = wrap_grid_index(xmin + lane + task.cube_center.x, nx_full);
-        for (int x = xmin + lane; x <= xmax;
-             x += SEP_ROW_LANES, x2 = sep_advance_wrapped_index(x2, nx_full)) {
+        for (int x = xmin + lane; x <= xmax; x += CP2K_SEP_INTEGRATE_ROW_LANES,
+                 x2 = sep_advance_wrapped_index<CP2K_SEP_INTEGRATE_ROW_LANES>(
+                     x2, nx_full)) {
           if (distributed__ && task.apply_border_mask &&
               ((x2 < task.window_shift.x) || (x2 > task.window_size.x)))
             continue;
@@ -1166,6 +1173,8 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
             continue;
           }
 
+          // Calculate x_i^\alpha \exp (-x_i^2) V_{ijk}
+
           double p = __ldg(&row[x2]);
           p *= axis_aligned_ ? ex[x] : exp(-zetp * r2);
 #pragma unroll
@@ -1178,6 +1187,8 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
         }
       }
 
+      // now calculate B_{j k \alpha} = \sum_{i} V_{ijk} x_i ^ \alpha \exp(
+      // -x_i^2)
 #pragma unroll
       for (int a = 0; a <= lmax_; a++) {
         if (a <= lp) {
@@ -1191,6 +1202,16 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
 
     // steps B and C: each thread owns the (a, b, *) coefficients of its pairs,
     // so no atomics are needed.
+
+    // finally calculate
+    //
+    // C_{\alpha\beta\gamma} = \sum_{jk} B_{jk\alpha} p^y_{j\beta}
+    // p^z_{k,\gamma}
+    //
+    // with \alpha+\beta+\gamma<=l. The pair list contains the \alpha,\beta
+    // pairs that are required. $\gamma$ can be derived from the constraint over
+    // angular momentum.
+
     for (int ip = tid; ip < npairs; ip += 64) {
       const int a = sep_pair_ab[ip].x;
       const int b = sep_pair_ab[ip].y;
@@ -1202,6 +1223,12 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
     }
     __syncthreads();
   }
+
+  // finally store the results directly when the lattice is orthorhombic or
+  // rotate the coefficients when the lattice is generic.
+  //
+  // the dgemm backend uses the same trick.
+  //
 
   double *coef = &dev_.buffers_dev.coef[glb_task.coef_offset];
   if (axis_aligned_) {
@@ -1288,11 +1315,18 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
   const int lp_max = smem_params.lp_max();
   const int max_cube_size = grid.max_cube_size();
   const bool axis_aligned = grid.is_axis_aligned();
+
+  // fall back to the old integrate if shared memory is not large enough or
+  // anything else happens
+
+  // most important unless l >= 4 the old kernel is faster (single round)
+
   const bool use_separable =
       (lp_max >= integrate_separable_lp_threshold) && (lp_max <= SEP_MAX_L) &&
       (max_cube_size > 0) && (axis_aligned || !grid.is_orthogonal()) &&
       (integrate_separable_smem_size(max_cube_size, lp_max) <=
        separable_max_smem);
+
   if (use_separable)
     params.separable_lp_min = integrate_separable_lp_threshold;
 
@@ -1305,21 +1339,21 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
   const dim3 threads_per_block(4, 4, 4);
   if (grid_[level].is_distributed()) {
     if (grid_[level].is_orthogonal()) {
-      integrate_kernel<double, double3, true, true, 20>
+      integrate_kernel<double, double3, true, true>
           <<<number_of_tasks_per_level_[level], threads_per_block, 0,
              level_streams[level]>>>(params);
     } else {
-      integrate_kernel<double, double3, true, false, 20>
+      integrate_kernel<double, double3, true, false>
           <<<number_of_tasks_per_level_[level], threads_per_block, 0,
              level_streams[level]>>>(params);
     }
   } else {
     if (grid_[level].is_orthogonal()) {
-      integrate_kernel<double, double3, false, true, 20>
+      integrate_kernel<double, double3, false, true>
           <<<number_of_tasks_per_level_[level], threads_per_block, 0,
              level_streams[level]>>>(params);
     } else {
-      integrate_kernel<double, double3, false, false, 20>
+      integrate_kernel<double, double3, false, false>
           <<<number_of_tasks_per_level_[level], threads_per_block, 0,
              level_streams[level]>>>(params);
     }
@@ -1407,7 +1441,7 @@ void context_info::compute_hab_coefficients() {
 
   if (!compute_tau && calculate_forces) {
     if (two_step)
-      compute_hab_forces_two_step<double, false>
+      compute_hab_forces_two_steps<double, false>
           <<<this->nblocks, threads_per_block, smem_two_step,
              this->main_stream>>>(params, work_offset, ld, max_nsgf_set());
     else
@@ -1419,7 +1453,7 @@ void context_info::compute_hab_coefficients() {
 
   if (compute_tau && calculate_forces) {
     if (two_step)
-      compute_hab_forces_two_step<double, true>
+      compute_hab_forces_two_steps<double, true>
           <<<this->nblocks, threads_per_block, smem_two_step,
              this->main_stream>>>(params, work_offset, ld, max_nsgf_set());
     else

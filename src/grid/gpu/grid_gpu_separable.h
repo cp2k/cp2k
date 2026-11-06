@@ -25,16 +25,34 @@
 
 namespace rocm_backend {
 
-// lanes cooperating on one row of the cube. 64 / SEP_ROW_LANES rows are
-// processed concurrently.
-#define SEP_ROW_LANES 8
+// lanes cooperating on one row of the cube, set separately for each kernel.
+// 64 / <lanes> rows are processed concurrently. Must be a power of two not
+// larger than the warp size. The values come from a sweep over lmax and the
+// cell type on V100: integrate prefers short rows (fewer shuffle steps in the
+// row reduction, more points per thread), collocate prefers 8 lanes (8
+// contiguous atomicAdd per row).
+#ifndef CP2K_SEP_COLLOCATE_ROW_LANES
+#define CP2K_SEP_COLLOCATE_ROW_LANES 8
+#endif
+#ifndef CP2K_SEP_INTEGRATE_ROW_LANES
+#define CP2K_SEP_INTEGRATE_ROW_LANES 4
+#endif
+static_assert((CP2K_SEP_COLLOCATE_ROW_LANES &
+               (CP2K_SEP_COLLOCATE_ROW_LANES - 1)) == 0 &&
+                  CP2K_SEP_COLLOCATE_ROW_LANES <= 32,
+              "CP2K_SEP_COLLOCATE_ROW_LANES must be a power of two <= 32");
+static_assert((CP2K_SEP_INTEGRATE_ROW_LANES &
+               (CP2K_SEP_INTEGRATE_ROW_LANES - 1)) == 0 &&
+                  CP2K_SEP_INTEGRATE_ROW_LANES <= 32,
+              "CP2K_SEP_INTEGRATE_ROW_LANES must be a power of two <= 32");
 // largest angular momentum handled by the separable kernels
 #define SEP_MAX_L 18
 
-// advances the periodic index x2 in [0, n) by SEP_ROW_LANES. The modulo is
-// only evaluated when wrapping around, which also covers n < SEP_ROW_LANES.
+// advances the periodic index x2 in [0, n) by STRIDE. The modulo is only
+// evaluated when wrapping around, which also covers n < STRIDE.
+template <int STRIDE>
 __device__ __inline__ int sep_advance_wrapped_index(const int x2, const int n) {
-  const int next = x2 + SEP_ROW_LANES;
+  const int next = x2 + STRIDE;
   return (next >= n) ? next % n : next;
 }
 

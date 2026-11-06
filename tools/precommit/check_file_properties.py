@@ -87,6 +87,8 @@ FLAG_EXCEPTIONS = (
     r"__SCALAPACK_NO_WA",
     r"__STATM_RESIDENT",
     r"__STATM_TOTAL",
+    r"CP2K_SEP_.+",
+    r"SEP_.+",
 )
 
 FLAG_EXCEPTIONS_RE = re.compile(r"|".join(FLAG_EXCEPTIONS))

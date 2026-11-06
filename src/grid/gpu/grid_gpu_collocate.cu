@@ -159,8 +159,6 @@ __global__ __launch_bounds__(64) void calculate_coefficients_two_step(
     T *__restrict__ coef_ =
         &dev_.buffers_dev.coef[dev_.tasks[task_id].coef_offset];
 
-    compute_alpha(task, smem_alpha);
-
     for (int z = tid; z < task.n1 * task.n2; z += nthreads)
       smem_cab[z] = 0.0;
 
@@ -209,7 +207,7 @@ __global__ __launch_bounds__(64) void calculate_coefficients_two_step(
       __syncthreads();
     }
 
-    cab_to_cxyz(task, smem_alpha, smem_cab, coef_);
+    cab_to_cxyz_factorized(task, smem_cab, coef_);
     __syncthreads();
   }
 }
@@ -257,9 +255,8 @@ __global__ __launch_bounds__(64) void calculate_coefficients_two_step(
  *
  * The powers of y are computed on the fly in step 2 and the rows of a plane
  * are processed by chunks of erows rows, so that the shared memory is bounded
- * for any cube size (see collocate_separable_erows), the x coordinates are computed
- * on the fly. fy is only used when
- * axis_aligned_ = false.
+ * for any cube size (see collocate_separable_erows), the x coordinates are
+ * computed on the fly. fy is only used when axis_aligned_ = false.
  ******************************************************************************/
 
 template <bool distributed__, bool axis_aligned_>
@@ -343,9 +340,9 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
   __syncthreads();
 
   const int npairs = (lp + 1) * (lp + 2) / 2;
-  const int row_group = tid / SEP_ROW_LANES;
-  const int lane = tid % SEP_ROW_LANES;
-  constexpr int nrow_groups = 64 / SEP_ROW_LANES;
+  const int row_group = tid / CP2K_SEP_COLLOCATE_ROW_LANES;
+  const int lane = tid % CP2K_SEP_COLLOCATE_ROW_LANES;
+  constexpr int nrow_groups = 64 / CP2K_SEP_COLLOCATE_ROW_LANES;
 
   for (int z = 0; z < task.cube_size.z; z++) {
     // the plane decisions below are uniform over the block
@@ -408,7 +405,8 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
       }
       __syncthreads();
 
-      // step 3: one group of SEP_ROW_LANES lanes per row y, Horner in x.
+      // step 3: one group of CP2K_SEP_COLLOCATE_ROW_LANES lanes per row y,
+      // Horner in x.
       for (int y = y0 + row_group; y <= y1; y += nrow_groups) {
         const int y2 =
             wrap_grid_index(y + task.cube_center.y, dev_.grid_full_size_.y);
@@ -433,14 +431,16 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
           const double s = g01 * v + g02 * w;
           const double u0 = xmin + lane + task.lb_cube.x + task.roffset.x;
           t = exp(-2.0 * zetp * s * u0);
-          q = exp(-2.0 * zetp * s * SEP_ROW_LANES);
+          q = exp(-2.0 * zetp * s * CP2K_SEP_COLLOCATE_ROW_LANES);
         }
 
         // periodic index of x, updated incrementally
         const int nx_full = dev_.grid_full_size_.x;
         int x2 = wrap_grid_index(xmin + lane + task.cube_center.x, nx_full);
-        for (int x = xmin + lane; x <= xmax; x += SEP_ROW_LANES, t *= q,
-                 x2 = sep_advance_wrapped_index(x2, nx_full)) {
+        for (int x = xmin + lane; x <= xmax; x += CP2K_SEP_COLLOCATE_ROW_LANES,
+                 t *= q,
+                 x2 = sep_advance_wrapped_index<CP2K_SEP_COLLOCATE_ROW_LANES>(
+                     x2, nx_full)) {
           if (distributed__ && task.apply_border_mask &&
               ((x2 < task.window_shift.x) || (x2 > task.window_size.x)))
             continue;

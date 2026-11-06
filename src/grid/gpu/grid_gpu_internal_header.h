@@ -56,15 +56,17 @@ __device__ __inline__ double atomicAdd(double *address, double val) {
  * \brief Orbital angular momentum.
  ******************************************************************************/
 struct orbital {
-  int l[3];
+  // signed char keeps coset_inv at 4 kB of constant memory (16 kB with int).
+  // The components are promoted to int in any arithmetic expression.
+  signed char l[3];
 };
+static_assert(sizeof(orbital) == 3, "orbital is expected to be packed");
 
 // largest angular momentum covered by the tables of the backend (ncoset,
-// coset_inv, binomial_coef). It bounds la + lb of every operation.
+// coset_inv). It bounds la + lb of every operation.
 constexpr int grid_gpu_max_l = 18;
 
 __constant__ orbital coset_inv[1330];
-__constant__ int binomial_coef[19][19];
 
 /*******************************************************************************
  * \brief Differences in angular momentum.
@@ -247,43 +249,15 @@ inline static void init_constant_memory() {
     for (int ly = 0; ly <= 18 - lx; ly++) {
       for (int lz = 0; lz <= 18 - lx - ly; lz++) {
         const int i = coset(lx, ly, lz);
-        coset_inv_host[i] = {{lx, ly, lz}};
+        coset_inv_host[i] = {{static_cast<signed char>(lx),
+                              static_cast<signed char>(ly),
+                              static_cast<signed char>(lz)}};
       }
     }
   }
 
   offloadMemcpyToSymbol(coset_inv, &coset_inv_host, sizeof(coset_inv_host));
 
-  // Binomial coefficient
-  int binomial_coef_host[19][19] = {
-      {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 3, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 4, 6, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 5, 10, 10, 5, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 6, 15, 20, 15, 6, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 7, 21, 35, 35, 21, 7, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 8, 28, 56, 70, 56, 28, 8, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 9, 36, 84, 126, 126, 84, 36, 9, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 10, 45, 120, 210, 252, 210, 120, 45, 10, 1, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 11, 55, 165, 330, 462, 462, 330, 165, 55, 11, 1, 0, 0, 0, 0, 0, 0, 0},
-      {1, 12, 66, 220, 495, 792, 924, 792, 495, 220, 66, 12, 1, 0, 0, 0, 0, 0,
-       0},
-      {1, 13, 78, 286, 715, 1287, 1716, 1716, 1287, 715, 286, 78, 13, 1, 0, 0,
-       0, 0, 0},
-      {1, 14, 91, 364, 1001, 2002, 3003, 3432, 3003, 2002, 1001, 364, 91, 14, 1,
-       0, 0, 0, 0},
-      {1, 15, 105, 455, 1365, 3003, 5005, 6435, 6435, 5005, 3003, 1365, 455,
-       105, 15, 1, 0, 0, 0},
-      {1, 16, 120, 560, 1820, 4368, 8008, 11440, 12870, 11440, 8008, 4368, 1820,
-       560, 120, 16, 1, 0, 0},
-      {1, 17, 136, 680, 2380, 6188, 12376, 19448, 24310, 24310, 19448, 12376,
-       6188, 2380, 680, 136, 17, 1, 0},
-      {1, 18, 153, 816, 3060, 8568, 18564, 31824, 43758, 48620, 43758, 31824,
-       18564, 8568, 3060, 816, 153, 18, 1}};
-  offloadMemcpyToSymbol(binomial_coef, &binomial_coef_host[0][0],
-                        sizeof(binomial_coef_host));
   initialized = true;
 }
 
@@ -348,16 +322,21 @@ __inline__ __device__ void compute_alpha(const smem_task<T> &task,
     const T drpb = task.rp[idir] - task.rb[idir];
     for (int la = threadIdx.y; la <= task.la_max; la += blockDim.y) {
       for (int lb = threadIdx.x; lb <= task.lb_max; lb += blockDim.x) {
+        // binomial coefficients by the recurrence
+        // C(n, k + 1) = C(n, k) * (n - k) / (k + 1), exact in integers.
         T a = 1.0;
+        int binom_a = 1;
         for (int k = 0; k <= la; k++) {
           T b = 1.0;
+          int binom_b = 1;
           const int base = idir * s1 + lb * s2 + la * s3;
           for (int l = 0; l <= lb; l++) {
-            alpha[base + la - l + lb - k] +=
-                a * b * binomial_coef[la][k] * binomial_coef[lb][l];
+            alpha[base + la - l + lb - k] += a * b * binom_a * binom_b;
             b *= drpb;
+            binom_b = binom_b * (lb - l) / (l + 1);
           }
           a *= drpa;
+          binom_a = binom_a * (la - k) / (k + 1);
         }
       }
     }
@@ -696,6 +675,175 @@ cxyz_to_cab(const smem_task<T> &task, const T *__restrict__ alpha,
       cab[jco * task.n1 + ico] =
           task.prefactor * reg; // partial loop coverage -> zero it
     }
+  }
+}
+
+/*******************************************************************************
+ * \brief Factorized cab <-> cxyz transformations.
+ *
+ *        In each direction alpha expands (x - a)^la (x - b)^lb around p, so
+ *        cab_to_cxyz is the product of three steps: move the expansion center
+ *        of the a index from a to p, of the b index from b to p, then multiply
+ *        the polynomials,
+ *
+ *          (x - a)^n = sum_k C(n, k) (p - a)^k (x - p)^(n - k)
+ *          cxyz[c]   = prefactor sum_{a' + b' = c} cab_p[b'][a']
+ *
+ *        The center moves are triangular, separable in x, y and z and map cab
+ *        onto itself, so they are done in place, one 1D line of cab per
+ *        thread. cxyz_to_cab is the transpose: a gather followed by the
+ *        transposed moves. Neither needs alpha.
+ ******************************************************************************/
+
+// decodes t in [0, (l + 1) (l + 2) / 2) into (p, q) with p + q <= l
+__device__ __inline__ void decode_pair(int t, int &p, int &q) {
+  int s = 0;
+  while (t > s) {
+    t -= s + 1;
+    s++;
+  }
+  p = t;
+  q = s - t;
+}
+
+__device__ __inline__ int line_index(const int dir, const int m, const int p,
+                                     const int q, const bool on_a,
+                                     const int other, const int n1) {
+  int l[3];
+  l[dir] = m;
+  l[(dir + 1) % 3] = p;
+  l[(dir + 2) % 3] = q;
+  const int c = coset(l[0], l[1], l[2]);
+  return on_a ? other * n1 + c : c * n1 + other;
+}
+
+/*******************************************************************************
+ * \brief Moves the expansion center of the a (on_a) or b cartesian index of
+ *        cab along direction dir, in place:
+ *
+ *          forward:   new[m] = sum_{k >= 0} C(m + k, k) dr^k old[m + k]
+ *          transpose: new[m] = sum_{k <= m} C(m, k)     dr^k old[m - k]
+ *
+ *        Each thread owns a whole line (all other indices fixed). The forward
+ *        update is a Taylor shift of the polynomial sum_m old[m] x^m by dr,
+ *        done in place by repeated synthetic division (Ruffini-Horner):
+ *          for i = 0 .. len-1, for j = len-1 down to i: c[j] += dr c[j+1]
+ *        The transpose applies the transposed elementary updates in reverse
+ *        order:
+ *          for i = len-1 down to 0, for j = i .. len-1: c[j+1] += dr c[j]
+ *        No binomial coefficient is needed, len (len + 1) / 2 FMA per line.
+ ******************************************************************************/
+template <typename T, bool TRANSPOSE>
+__device__ __inline__ void move_center(const int la, const int lb, const int n1,
+                                       const int dir, const bool on_a,
+                                       const T dr, T *cab) {
+  const int tid = thread_global_index();
+  const int nthreads = blockDim.x * blockDim.y * blockDim.z;
+  const int l = on_a ? la : lb;
+  const int nother = on_a ? ncoset(lb) : ncoset(la);
+  const int ntri = (l + 1) * (l + 2) / 2;
+
+  for (int line = tid; line < nother * ntri; line += nthreads) {
+    const int other = line / ntri;
+    int p, q;
+    decode_pair(line - other * ntri, p, q);
+    const int len = l - p - q;
+    if (len == 0)
+      continue; // new[0] = old[0]
+    if (!TRANSPOSE) {
+      for (int i = 0; i < len; i++) {
+        // c[j] += dr c[j + 1] for j descending, c[j + 1] carried in a register
+        T carry = cab[line_index(dir, len, p, q, on_a, other, n1)];
+        for (int j = len - 1; j >= i; j--) {
+          const int idx = line_index(dir, j, p, q, on_a, other, n1);
+          carry = cab[idx] + dr * carry;
+          cab[idx] = carry;
+        }
+      }
+    } else {
+      for (int i = len - 1; i >= 0; i--) {
+        // c[j + 1] += dr c[j] for j ascending, c[j] carried in a register
+        T carry = cab[line_index(dir, i, p, q, on_a, other, n1)];
+        for (int j = i + 1; j <= len; j++) {
+          const int idx = line_index(dir, j, p, q, on_a, other, n1);
+          carry = cab[idx] + dr * carry;
+          cab[idx] = carry;
+        }
+      }
+    }
+  }
+}
+
+/*******************************************************************************
+ * \brief Same result as cab_to_cxyz. cab is overwritten.
+ ******************************************************************************/
+template <typename T>
+__device__ __inline__ void cab_to_cxyz_factorized(const smem_task<T> &task,
+                                                  T *__restrict__ cab,
+                                                  T *__restrict__ cxyz) {
+  const int la = task.la_max, lb = task.lb_max, n1 = task.n1;
+  for (int dir = 0; dir < 3; dir++) {
+    move_center<T, false>(la, lb, n1, dir, true, task.rp[dir] - task.ra[dir],
+                          cab);
+    __syncthreads();
+  }
+  for (int dir = 0; dir < 3; dir++) {
+    move_center<T, false>(la, lb, n1, dir, false, task.rp[dir] - task.rb[dir],
+                          cab);
+    __syncthreads();
+  }
+
+  // cxyz[c] = prefactor sum_{a' + b' = c} cab_p[b'][a']
+  const int tid = thread_global_index();
+  const int nthreads = blockDim.x * blockDim.y * blockDim.z;
+  for (int ic = tid; ic < ncoset(task.lp); ic += nthreads) {
+    const auto &c = coset_inv[ic];
+    T val = 0.0;
+    for (int ax = 0; ax <= min(c.l[0], la); ax++) {
+      for (int ay = 0; ay <= min(c.l[1], la - ax); ay++) {
+        for (int az = 0; az <= min(c.l[2], la - ax - ay); az++) {
+          const int bx = c.l[0] - ax, by = c.l[1] - ay, bz = c.l[2] - az;
+          if (bx + by + bz <= lb)
+            val += cab[coset(bx, by, bz) * n1 + coset(ax, ay, az)];
+        }
+      }
+    }
+    cxyz[ic] = task.prefactor * val;
+  }
+  __syncthreads();
+}
+
+/*******************************************************************************
+ * \brief Same result as cxyz_to_cab.
+ ******************************************************************************/
+template <typename T>
+__device__ __inline__ void cxyz_to_cab_factorized(const smem_task<T> &task,
+                                                  const T *__restrict__ cxyz,
+                                                  T *__restrict__ cab) {
+  const int la = task.la_max, lb = task.lb_max, n1 = task.n1;
+  const int tid = thread_global_index();
+  const int nthreads = blockDim.x * blockDim.y * blockDim.z;
+
+  // cab_p[b'][a'] = prefactor cxyz[a' + b']
+  for (int k = tid; k < n1 * task.n2; k += nthreads) {
+    const int jco = k / n1;
+    const int ico = k - jco * n1;
+    const auto &a = coset_inv[ico];
+    const auto &b = coset_inv[jco];
+    cab[k] = task.prefactor *
+             cxyz[coset(a.l[0] + b.l[0], a.l[1] + b.l[1], a.l[2] + b.l[2])];
+  }
+  __syncthreads();
+
+  for (int dir = 0; dir < 3; dir++) {
+    move_center<T, true>(la, lb, n1, dir, true, task.rp[dir] - task.ra[dir],
+                         cab);
+    __syncthreads();
+  }
+  for (int dir = 0; dir < 3; dir++) {
+    move_center<T, true>(la, lb, n1, dir, false, task.rp[dir] - task.rb[dir],
+                         cab);
+    __syncthreads();
   }
 }
 
