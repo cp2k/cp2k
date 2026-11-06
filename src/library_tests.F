@@ -154,9 +154,8 @@ CONTAINS
       IF (runtest(2) /= 0) CALL matmul_test(para_env, test_matmul=.TRUE., test_dgemm=.FALSE., iw=iw)
       IF (runtest(5) /= 0) CALL matmul_test(para_env, test_matmul=.FALSE., test_dgemm=.TRUE., iw=iw)
       !
-      IF (runtest(3) /= 0) CALL fft_test(para_env, iw, globenv%fftw_plan_type, &
-                                         globenv%fftw_wisdom_file_name, &
-                                         globenv%fftw_wisdom_file_explicit)
+      IF (runtest(3) /= 0) CALL fft_test(iw, globenv%fftw_plan_type, &
+                                         globenv%fftw_wisdom_file_name)
       !
       IF (runtest(4) /= 0) CALL eri_test(iw)
       !
@@ -545,21 +544,17 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Tests the performance of all available FFT libraries for 3D FFTs
-!> \param para_env ...
 !> \param iw ...
 !> \param fftw_plan_type ...
 !> \param wisdom_file where FFTW3 should look to save/load wisdom
-!> \param export_wisdom whether the FFTW3 wisdom is saved to wisdom_file
 !> \par History
 !>      none
 !> \author JGH  6-NOV-2000
 ! **************************************************************************************************
-   SUBROUTINE fft_test(para_env, iw, fftw_plan_type, wisdom_file, export_wisdom)
+   SUBROUTINE fft_test(iw, fftw_plan_type, wisdom_file)
 
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: iw, fftw_plan_type
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
-      LOGICAL, INTENT(IN)                                :: export_wisdom
 
       INTEGER, PARAMETER :: backends(2) = [FFT_LIBRARY_BACKEND_FFTW, FFT_LIBRARY_BACKEND_GPU], &
          ndate(3) = [12, 48, 96]
