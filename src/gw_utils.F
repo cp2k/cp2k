@@ -3627,7 +3627,8 @@ CONTAINS
       INTEGER, DIMENSION(max_pade_orders)                :: order_index
       LOGICAL                                            :: is_bandstruc_kpoint, print_DOS_kpoints, &
                                                             print_ikp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dummy, eigenval_G, Sigma_c_ikp_n_qp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval_G, m_value, Sigma_c_ikp_n_qp, &
+                                                            z_value
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Sigma_c_orders
       REAL(KIND=dp), DIMENSION(max_pade_orders)          :: Sigma_c_sorted
 
@@ -3646,7 +3647,7 @@ CONTAINS
       i_central = (n_orders - n_central)/2 + 1
 
       n_mo = bs_env%n_ao
-      ALLOCATE (dummy(n_mo), Sigma_c_ikp_n_qp(n_mo), eigenval_G(n_mo), &
+      ALLOCATE (z_value(n_mo), m_value(n_mo), Sigma_c_ikp_n_qp(n_mo), eigenval_G(n_mo), &
                 Sigma_c_orders(n_mo, n_orders))
       Sigma_c_orders(:, :) = 0.0_dp
 
@@ -3667,7 +3668,7 @@ CONTAINS
 
          DO i_order = 1, n_orders
             CALL continuation_pade(Sigma_c_orders(:, i_order), &
-                                   bs_env%imag_freq_points_fit, dummy, dummy, &
+                                   bs_env%imag_freq_points_fit, z_value, m_value, &
                                    Sigma_c_ikp_n_freq(:, 1:bs_env%num_freq_points_fit), &
                                    Sigma_x_ikp_n(:) - V_xc_ikp_n(:), &
                                    eigenval_G(:), eigenval_scf(:), &
