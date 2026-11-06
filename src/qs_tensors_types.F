@@ -73,6 +73,8 @@ MODULE qs_tensors_types
       INTEGER                                                    :: iter_level = 0
       TYPE(neighbor_list_3c_type)                                :: ijk_nl = neighbor_list_3c_type()
       INTEGER, DIMENSION(2)                                      :: bounds_i = 0, bounds_j = 0, bounds_k = 0
+      ! pairs taken in turn (neighbor_list_3c_iterate with a shared counter): index and ticket
+      INTEGER                                                    :: ipair = -1, my_pair = -1
    END TYPE neighbor_list_3c_iterator_type
 
 CONTAINS
