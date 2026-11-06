@@ -109,6 +109,8 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: qpoints(:, :)
       COMPLEX(dp), ALLOCATABLE, INTENT(OUT)              :: charge_lq(:, :)
 
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_d_lP_R'
+
       INTEGER                                            :: first_l, handle, last_l
       TYPE(uniform_settings_type)                        :: settings
 
@@ -119,7 +121,7 @@ CONTAINS
                              bs_env%para_env%mepos, first_l, last_l)
       ALLOCATE (d_lP_R(last_l - first_l + 1, bs_env%n_RI, SIZE(cells_R_d_lP, 2)))
 
-      CALL timeset("d_lP_uniform_grid", handle)
+      CALL timeset(routineN, handle)
 
       CALL prepare_d_lP_integration_grid(bs_env, grid_points, settings)
       ALLOCATE (charge_lq(bs_env%ri_rs%n_grid_points, SIZE(qpoints, 2)))
@@ -147,10 +149,14 @@ CONTAINS
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       REAL(dp), ALLOCATABLE, INTENT(OUT)                 :: cutoffs(:)
 
-      INTEGER                                            :: iatom, ikind
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_d_lP_cutoffs'
+
+      INTEGER                                            :: handle, iatom, ikind
       REAL(dp)                                           :: accuracy, ao_max, ao_min, ri_max, ri_min
       TYPE(gto_basis_set_type), POINTER                  :: basis
       TYPE(particle_type), POINTER                       :: particles(:)
+
+      CALL timeset(routineN, handle)
 
       particles => bs_env%ri_rs%particle_set
       accuracy = d_lP_integration_accuracy(bs_env)
@@ -164,6 +170,8 @@ CONTAINS
          cutoffs(iatom) = MAX(0.0_dp, bs_env%ri_metric%cutoff_radius) + &
                           SQRT(LOG(1.0_dp/accuracy)*(1.0_dp/ao_min + 2.0_dp/ri_min))
       END DO
+
+      CALL timestop(handle)
 
    END SUBROUTINE compute_d_lP_cutoffs
 
@@ -334,14 +342,16 @@ CONTAINS
       REAL(dp), CONTIGUOUS, INTENT(IN), TARGET           :: partial(:, :, :)
       REAL(dp), ALLOCATABLE, INTENT(OUT), TARGET         :: cells(:, :, :)
 
-      INTEGER                                            :: block_cells, first_rank, first_T, &
-                                                            icycle, last_rank, last_T, nl, nlocal, &
-                                                            np, nranks, nt, rank, round_first, &
-                                                            round_last
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'sum_d_lP_R_over_mpi_ranks'
+
+      INTEGER :: block_cells, first_rank, first_T, handle, icycle, last_rank, last_T, nl, nlocal, &
+         np, nranks, nt, rank, round_first, round_last
       INTEGER(int_8)                                     :: iround, plane_count
       REAL(dp), CONTIGUOUS, POINTER                      :: receive_block(:), send_block(:, :)
       REAL(dp), TARGET                                   :: empty(0)
       INTEGER                                            :: recv_counts(comm%num_pe)
+
+      CALL timeset(routineN, handle)
 
       nl = SIZE(partial, 1)
       np = SIZE(partial, 2)
@@ -351,9 +361,13 @@ CONTAINS
       nlocal = 0
       IF (nt > rank) nlocal = 1 + (nt - 1 - rank)/nranks
       ALLOCATE (cells(nl, np, nlocal))
-      IF (nl == 0 .OR. np == 0 .OR. nt == 0) RETURN
+      IF (nl == 0 .OR. np == 0 .OR. nt == 0) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
       IF (nranks == 1) THEN
          cells(:, :, :) = partial(:, :, :)
+         CALL timestop(handle)
          RETURN
       END IF
       plane_count = INT(nl, int_8)*INT(np, int_8)
@@ -384,6 +398,8 @@ CONTAINS
             first_T = last_T + 1
          END DO
       END DO
+
+      CALL timestop(handle)
 
    END SUBROUTINE sum_d_lP_R_over_mpi_ranks
 
@@ -492,16 +508,23 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: q_cart(:, :), weight
       COMPLEX(dp), INTENT(INOUT)                         :: charge_lq(:, :)
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'accumulate_fourier_charge'
       INTEGER, PARAMETER                                 :: row_block = 64
 
       COMPLEX(dp)                                        :: phase
-      INTEGER                                            :: first_l, ig, il, iq, nblock, ng, nl, nq
+      INTEGER                                            :: first_l, handle, ig, il, iq, nblock, ng, &
+                                                            nl, nq
       REAL(dp), ALLOCATABLE                              :: charge_parts(:, :), phase_parts(:, :)
+
+      CALL timeset(routineN, handle)
 
       ng = SIZE(points, 2)
       nl = SIZE(field, 2)
       nq = SIZE(q_cart, 2)
-      IF (ng == 0 .OR. nl == 0 .OR. nq == 0) RETURN
+      IF (ng == 0 .OR. nl == 0 .OR. nq == 0) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
       ALLOCATE (phase_parts(ng, 2*nq))
       DO iq = 1, nq
          DO ig = 1, ng
@@ -531,6 +554,8 @@ CONTAINS
       DEALLOCATE (charge_parts)
       !$OMP END PARALLEL
       DEALLOCATE (phase_parts)
+
+      CALL timestop(handle)
 
    END SUBROUTINE accumulate_fourier_charge
 
@@ -800,6 +825,8 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: qpoints(:, :)
       COMPLEX(dp), INTENT(OUT)                           :: charge_lq(:, :)
 
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'integrate_d_lP_R'
+
       INTEGER :: block_class, block_point(3), copy(3), counts(3), first_block(3), handle, iatom, &
          ibatch, iblock, ig, igroup, il, indices(quadrature_block_size), irank, it, last_rank, &
          n_blocks(3), n_class(3), next_progress, ngroups, nkeep, nl, np, npoints, nranks, &
@@ -824,6 +851,8 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: field_comm, integration_comm
       TYPE(particle_type), POINTER                       :: particles(:)
       TYPE(radial_interpolation_type), ALLOCATABLE       :: aux_potentials(:)
+
+      CALL timeset(routineN, handle)
 
       nl = bs_env%ri_rs%n_grid_points
       cell => bs_env%ri_rs%cell
@@ -857,8 +886,6 @@ CONTAINS
       ALLOCATE (local_cells(3, SIZE(cells_R_d_lP(:, igroup + 1::ngroups), 2)))
       local_cells(:, :) = cells_R_d_lP(:, igroup + 1::ngroups)
 
-      CALL timeset('d_lP_prepare_RI_geometry', handle)
-
       CALL compute_d_lP_cutoffs(bs_env, cutoffs_lP)
       ALLOCATE (include_lP_R(nl, bs_env%n_atom, SIZE(local_cells, 2)))
       ALLOCATE (include_l_blocks_P_R(blocks%nblocks, bs_env%n_atom, SIZE(local_cells, 2)), source=.FALSE.)
@@ -880,8 +907,6 @@ CONTAINS
       IF (bs_env%unit_nr > 0) THEN
          FLUSH (bs_env%unit_nr)
       END IF
-
-      CALL timestop(handle)
 
       ALLOCATE (local_d_lP_R(nl, np, SIZE(local_cells, 2)), source=0.0_dp)
       ALLOCATE (kept_per_rank(nranks), recv_counts(nranks), recv_offsets(nranks))
@@ -935,16 +960,11 @@ CONTAINS
                mesh_index = lower + REAL(quadrature_block_first + block_point, dp)
                points(:, npoints) = settings%origin + MATMUL(settings%step, mesh_index)
             END DO
-            CALL timeset('d_lP_f_l_squared', handle)
             IF (block_class /= ao_cache%block_class) CALL reset_block_class_cache(ao_cache, block_class)
             CALL evaluate_rho_l_squared(images, points(:, 1:npoints), point_index(1:npoints), copy, ao_cache, &
                                         field(1:npoints, :), &
                                         settings%accuracy/(8.0_dp*weight*REAL(ntotal, dp)*MAX(1.0_dp, bound)))
-            CALL timestop(handle)
-            CALL timeset('d_lP_charge_fourier', handle)
             CALL accumulate_fourier_charge(points(:, 1:npoints), field, q_cart, weight, charge_lq)
-            CALL timestop(handle)
-            CALL timeset('d_lP_screen_pack_fields', handle)
             nkeep = 0
             field_bound(1:npoints) = 0.0_dp
             DO il = 1, nl
@@ -968,7 +988,6 @@ CONTAINS
                   send_fields(4*nkeep + (il - 1)*nkeep + ig) = field(indices(ig), il)
                END DO
             END DO
-            CALL timestop(handle)
          END IF
          CALL field_comm%allgather(nkeep, kept_per_rank)
          DO ibatch = 1, nranks, ranks_per_batch
@@ -982,14 +1001,11 @@ CONTAINS
             END DO
             IF (nreceived == 0) CYCLE
             CPASSERT(nreceived <= SIZE(receive_fields))
-            CALL timeset('d_lP_uniform_exchange', handle)
             CALL field_comm%allgatherv(send_fields(1:recv_counts(rank + 1)), &
                                        receive_fields(1:nreceived), recv_counts, recv_offsets)
-            CALL timestop(handle)
             DO irank = ibatch, last_rank
                nkeep = kept_per_rank(irank)
                IF (nkeep == 0 .OR. SIZE(local_cells, 2) == 0) CYCLE
-               CALL timeset('d_lP_unpack_fields', handle)
                position = recv_offsets(irank)
                DO ig = 1, nkeep
                   points(:, ig) = receive_fields(position + 4*ig - 3:position + 4*ig - 1)
@@ -1005,21 +1021,16 @@ CONTAINS
                                             chunk_part, chunk_parts, chunk_first, block_class, copy, &
                                             quadrature_block_first, quadrature_block_points)
                IF (block_class /= cache%block_class) CALL reset_block_class_cache(cache, block_class)
-               CALL timestop(handle)
-               CALL timeset('d_lP_integrate_quadrature_blocks', handle)
                CALL integrate_potentials(bs_env, local_cells, include_lP_R, include_l_blocks_P_R, &
                                          points(:, 1:nkeep), point_index(1:nkeep), field(1:nkeep, :), &
                                          weight, envelopes, blocks, threshold, copy, cache, potential_points, &
                                          contraction_products, local_d_lP_R, aux_potentials)
-               CALL timestop(handle)
             END DO
          END DO
          n_completed_quadrature_blocks = iround + 1_int_8
          CALL write_ri_rs_progress(bs_env%unit_nr, 'd_lP Integration batch done', &
                                    n_completed_quadrature_blocks, n_local_quadrature_blocks, next_progress, elapsed)
       END DO
-
-      CALL timeset('d_lP_uniform_reduce', handle)
 
       DEALLOCATE (field, send_fields, receive_fields, kept_per_rank, recv_counts, recv_offsets, &
                   chunk_class, chunk_part, chunk_parts, chunk_first)
@@ -1032,8 +1043,6 @@ CONTAINS
       CALL bs_env%para_env%sum(charge_lq)
       CALL bs_env%para_env%sum(potential_points)
       CALL bs_env%para_env%sum(contraction_products)
-
-      CALL timestop(handle)
 
       IF (bs_env%unit_nr > 0) THEN
          WRITE (bs_env%unit_nr, '(T2,A,T72,ES9.1E2)') &
@@ -1050,6 +1059,8 @@ CONTAINS
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(T2,A,T69,F10.1,A)') &
          'd_lP completed numerical integration, Exec. time:', elapsed, ' s'
       IF (bs_env%unit_nr > 0) FLUSH (bs_env%unit_nr)
+
+      CALL timestop(handle)
 
    END SUBROUTINE integrate_d_lP_R
 
@@ -1554,8 +1565,9 @@ CONTAINS
          END DO
       END DO
       image%radial_envelope(:, :) = image%radial_envelope* &
-                                    (1.0_dp + EPSILON(1.0_dp)*(64.0_dp + &
-                                                            4.0_dp*REAL(SIZE(image%radial_envelope), dp)*REAL(SIZE(ao_weight), dp)))
+                                    (1.0_dp + EPSILON(1.0_dp)* &
+                                     (64.0_dp + 4.0_dp*REAL(SIZE(image%radial_envelope), dp)* &
+                                      REAL(SIZE(ao_weight), dp)))
 
    END SUBROUTINE prepare_ao_radial_envelope
 
@@ -1617,6 +1629,8 @@ CONTAINS
       REAL(dp), INTENT(OUT)                              :: field_squared(:, :)
       REAL(dp), INTENT(IN)                               :: tolerance
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_rho_l_squared'
+
       INTEGER                                            :: first, handle, ig, iimage, islot, last, &
                                                             nao, ng, nimages, nmissing, nslice, &
                                                             nthreads, row, u(3)
@@ -1624,6 +1638,8 @@ CONTAINS
       REAL(dp), ALLOCATABLE                              :: values(:, :)
       LOGICAL                                            :: image_needed(SIZE(images))
       INTEGER                                            :: image_slot(SIZE(images))
+
+      CALL timeset(routineN, handle)
 
       ng = SIZE(points, 2)
       nimages = 0
@@ -1634,12 +1650,13 @@ CONTAINS
       CALL screen_ao_images(images(1:nimages), points, tolerance, image_needed(1:nimages))
       IF (.NOT. ANY(image_needed(1:nimages))) THEN
          field_squared = 0.0_dp
+         CALL timestop(handle)
          RETURN
       END IF
       image_slot = 0
       !$OMP PARALLEL DEFAULT(NONE) &
       !$OMP SHARED(images, points, point_index, copy, cache, ng, nimages, image_needed, image_slot) &
-      !$OMP PRIVATE(handle, ig, iimage, islot, nao, nmissing, row, u, missing_indices, values)
+      !$OMP PRIVATE(ig, iimage, islot, nao, nmissing, row, u, missing_indices, values)
       ALLOCATE (missing_indices(ng))
       !$OMP DO SCHEDULE(DYNAMIC)
       DO iimage = 1, nimages
@@ -1668,7 +1685,6 @@ CONTAINS
             END IF
          END DO
          IF (nmissing == 0) CYCLE
-         CALL timeset('d_lP_AO_values', handle)
          nao = SIZE(images(iimage)%primary, 2)
          ALLOCATE (values(nmissing, nao))
          CALL evaluate_mu_r_values(values, points(:, missing_indices(1:nmissing)), &
@@ -1678,7 +1694,6 @@ CONTAINS
             cache%evaluated(point_index(missing_indices(row)), islot) = .TRUE.
          END DO
          DEALLOCATE (values)
-         CALL timestop(handle)
       END DO
       !$OMP END DO
       DEALLOCATE (missing_indices)
@@ -1695,6 +1710,8 @@ CONTAINS
                                            image_slot(1:nimages), cache, field_squared(first:last, :), tolerance)
       END DO
       !$OMP END PARALLEL DO
+
+      CALL timestop(handle)
 
    END SUBROUTINE evaluate_rho_l_squared
 
@@ -1739,8 +1756,9 @@ CONTAINS
          IF (image_bounds(iimage) <= delta) THEN
             image_needed(iimage) = .FALSE.
          ELSE
-            image_needed(iimage) = bound_ao_image_distance(images(iimage), &
-                                                           distance_to_box_squared(images(iimage)%center, lower, upper)) > delta
+            image_needed(iimage) = bound_ao_image_distance( &
+                                   images(iimage), distance_to_box_squared(images(iimage)%center, lower, upper)) &
+                                   > delta
          END IF
       END DO
 
@@ -1766,8 +1784,7 @@ CONTAINS
       REAL(dp), INTENT(OUT)                              :: field_squared(:, :)
       REAL(dp), INTENT(IN)                               :: tolerance
 
-      INTEGER                                            :: handle, ig, iimage, il, nao, ng, nl, &
-                                                            nprimary
+      INTEGER                                            :: ig, iimage, il, nao, ng, nl, nprimary
       REAL(dp), ALLOCATABLE                              :: field(:, :), image_field(:, :), &
                                                             values(:, :)
       LOGICAL                                            :: image_needed(SIZE(images))
@@ -1780,7 +1797,6 @@ CONTAINS
          IF (.NOT. image_needed(iimage)) CYCLE
          nao = SIZE(images(iimage)%primary, 2)
          ALLOCATE (values(ng, nao))
-         CALL timeset('d_lP_AO_values', handle)
          IF (image_slot(iimage) > 0) THEN
             DO ig = 1, ng
                values(ig, :) = cache%values(1:nao, point_index(ig), image_slot(iimage))
@@ -1788,8 +1804,6 @@ CONTAINS
          ELSE
             CALL evaluate_mu_r_values(values, points, images(iimage)%basis, images(iimage)%center)
          END IF
-         CALL timestop(handle)
-         CALL timeset('d_lP_f_l_sum_AO', handle)
          nprimary = SIZE(images(iimage)%primary, 1)
          IF (ALLOCATED(images(iimage)%primary_l)) THEN
             IF (.NOT. ALLOCATED(image_field)) ALLOCATE (image_field(ng, nl))
@@ -1803,7 +1817,6 @@ CONTAINS
             CALL dgemm('N', 'T', ng, nl, nao, 1.0_dp, values, ng, &
                        images(iimage)%primary, nl, 1.0_dp, field, ng)
          END IF
-         CALL timestop(handle)
          DEALLOCATE (values)
       END DO
       field_squared = field**2
@@ -2008,6 +2021,8 @@ CONTAINS
       TYPE(radial_interpolation_type), ALLOCATABLE, &
          INTENT(IN)                                      :: aux_potentials(:)
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potentials'
+
       INTEGER :: firstp, handle, iatom, iblock, ig, ikind, ilocal, iradial, islot, it, lastp, &
          maxnp, nactive, nmissing, np, nthreads, nunion, row, u(3)
       REAL(dp)                                           :: center(3), decay, field_max, &
@@ -2023,17 +2038,13 @@ CONTAINS
       TYPE(particle_type), POINTER                       :: particles(:)
       INTEGER :: active_l(bs_env%ri_rs%n_grid_points)
 
+      CALL timeset(routineN, handle)
+
       cell => bs_env%ri_rs%cell
       particles => bs_env%ri_rs%particle_set
       maxnp = MAXVAL(bs_env%i_RI_end_from_atom - bs_env%i_RI_start_from_atom + 1)
 
-      CALL timeset('d_lP_allocate_field_bounds', handle)
-
       ALLOCATE (block_field_bound(SIZE(points, 2), blocks%nblocks))
-
-      CALL timestop(handle)
-
-      CALL timeset('d_lP_prepare_field_bounds', handle)
 
       DO iblock = 1, blocks%nblocks
          block_field_bound(:, iblock) = 0.0_dp
@@ -2049,8 +2060,6 @@ CONTAINS
       points_lower = MINVAL(points, DIM=2)
       points_upper = MAXVAL(points, DIM=2)
 
-      CALL timestop(handle)
-
       ! Bound the additional thread workspaces to 128 MiB per MPI rank.
       ! A single thread retains the original memory bound for large global l grids.
       nthreads = 1
@@ -2065,21 +2074,17 @@ CONTAINS
       !$OMP blocks, threshold, copy, cache, d_lP_R, aux_potentials, cell, particles, &
       !$OMP maxnp, block_field_bound, field_max, points_lower, points_upper, include_lP_R, &
       !$OMP include_l_blocks_P_R) &
-      !$OMP PRIVATE(firstp, handle, iatom, iblock, ig, ikind, ilocal, iradial, islot, it, lastp, &
+      !$OMP PRIVATE(firstp, iatom, iblock, ig, ikind, ilocal, iradial, islot, it, lastp, &
       !$OMP nactive, nmissing, np, nunion, row, u, center, decay, basis, &
       !$OMP block_RI, field_work, maximum_field, point_bound, potential, potential_t, point_needed, &
       !$OMP union_indices, missing_indices, &
       !$OMP active_l, block_needed, block_active_last, block_active_first) &
       !$OMP REDUCTION(+:potential_points, contraction_products)
 
-      CALL timeset('d_lP_allocate_thread_buffers', handle)
-
       ALLOCATE (block_RI(bs_env%ri_rs%n_grid_points, maxnp), &
                 field_work(SIZE(points, 2), bs_env%ri_rs%n_grid_points), point_bound(SIZE(points, 2)), &
                 maximum_field(SIZE(points, 2)), potential(SIZE(points, 2), maxnp), &
                 potential_t(maxnp, SIZE(points, 2)))
-
-      CALL timestop(handle)
 
       !$OMP DO COLLAPSE(2) SCHEDULE(DYNAMIC)
       DO it = 1, SIZE(cells_R_d_lP, 2)
@@ -2094,13 +2099,11 @@ CONTAINS
             ! The block of the lattice copy T' sees V_P around R_A + hT at U = T - T'.
             u = cells_R_d_lP(:, it) - copy
             islot = cache%slot(u(1), u(2), u(3), iatom)
-            CALL timeset('d_lP_screen_atom_image', handle)
             decay = envelopes(2, iatom)*bs_env%ri_metric%omega**2/ &
                     (envelopes(2, iatom) + 2.0_dp*bs_env%ri_metric%omega**2)
             ! No point bound exceeds the envelope at the block point nearest to the atom image.
             IF (field_max*envelopes(1, iatom)* &
                 EXP(-decay*distance_to_box_squared(center, points_lower, points_upper)) <= threshold) THEN
-               CALL timestop(handle)
                CYCLE
             END IF
             DO ig = 1, SIZE(points, 2)
@@ -2137,7 +2140,6 @@ CONTAINS
                   union_indices(nunion) = ig
                END IF
             END DO
-            CALL timestop(handle)
             IF (nunion == 0) CYCLE
             IF (islot == 0) THEN
                !$OMP CRITICAL(d_lP_potential_cache)
@@ -2164,11 +2166,9 @@ CONTAINS
                   END IF
                END DO
                IF (nmissing > 0) THEN
-                  CALL timeset('d_lP_potential_eval', handle)
                   CALL contract_selected_potentials(potential(:, 1:np), &
                                                     points(:, missing_indices(1:nmissing)), &
                                                     basis, center, aux_potentials(iatom))
-                  CALL timestop(handle)
                   DO row = 1, nmissing
                      cache%values(1:np, point_index(missing_indices(row)), islot) = potential(row, 1:np)
                      cache%evaluated(point_index(missing_indices(row)), islot) = .TRUE.
@@ -2179,15 +2179,12 @@ CONTAINS
                END DO
                potential_points = potential_points + INT(nmissing, int_8)
             ELSE
-               CALL timeset('d_lP_potential_eval', handle)
                CALL contract_selected_potentials(potential(:, 1:np), &
                                                  points(:, union_indices(1:nunion)), &
                                                  basis, center, aux_potentials(iatom))
-               CALL timestop(handle)
                potential_t(1:np, 1:nunion) = TRANSPOSE(potential(1:nunion, 1:np))
                potential_points = potential_points + INT(nunion, int_8)
             END IF
-            CALL timeset('d_lP_prepare_quadrature', handle)
             nactive = 0
             block_active_first = 0
             block_active_last = -1
@@ -2210,39 +2207,30 @@ CONTAINS
                END DO
                DO ilocal = block_active_first(iblock), block_active_last(iblock)
                   DO row = 1, nunion
-                     field_work(row, ilocal) = MERGE( &
-                                               field_squared(union_indices(row), active_l(ilocal)), 0.0_dp, point_needed(row))
+                     field_work(row, ilocal) = MERGE(field_squared(union_indices(row), active_l(ilocal)), &
+                                                     0.0_dp, point_needed(row))
                   END DO
                END DO
             END DO
-            CALL timestop(handle)
-            CALL timeset('d_lP_sum_g_f2_v', handle)
             CALL dgemm('T', 'T', nactive, np, nunion, weight, field_work, SIZE(field_work, 1), &
                        potential_t, SIZE(potential_t, 1), 0.0_dp, block_RI, SIZE(block_RI, 1))
             DO ilocal = 1, nactive
                d_lP_R(active_l(ilocal), firstp:lastp, it) = &
                   d_lP_R(active_l(ilocal), firstp:lastp, it) + block_RI(ilocal, 1:np)
             END DO
-            CALL timestop(handle)
             contraction_products = contraction_products + &
                                    INT(nactive, int_8)*INT(np, int_8)*INT(nunion, int_8)
          END DO
       END DO
       !$OMP END DO NOWAIT
 
-      CALL timeset('d_lP_wait_for_threads', handle)
-
       !$OMP BARRIER
-
-      CALL timestop(handle)
-
-      CALL timeset('d_lP_release_thread_buffers', handle)
 
       DEALLOCATE (block_RI, field_work, maximum_field, point_bound, potential, potential_t)
 
-      CALL timestop(handle)
-
       !$OMP END PARALLEL
+
+      CALL timestop(handle)
 
    END SUBROUTINE integrate_potentials
 
@@ -2629,8 +2617,8 @@ CONTAINS
       TYPE(radial_interpolation_type), INTENT(IN), &
          TARGET                                          :: contracted
 
-      INTEGER                                            :: handle, iangular, ico, ig, imesh, ipgf, &
-                                                            irow, iset, isgf, ishell, l, lmax, m, &
+      INTEGER                                            :: iangular, ico, ig, imesh, ipgf, irow, &
+                                                            iset, isgf, ishell, l, lmax, m, &
                                                             nchannels, ng, np, nrows, nwork
       INTEGER, ALLOCATABLE                               :: angular_count(:, :, :), &
                                                             angular_index(:), &
@@ -2646,8 +2634,6 @@ CONTAINS
          monomial(:), radial(:), radial_channels(:, :, :), radial_mesh(:), work(:, :)
       REAL(dp), CONTIGUOUS, POINTER                      :: coefficient_matrix(:, :)
       REAL(dp), POINTER                                  :: series(:, :, :), short_series(:, :, :)
-
-      CALL timeset('d_lP_potential_prepare', handle)
 
       ng = SIZE(points, 2)
       np = SIZE(values, 2)
@@ -2706,10 +2692,6 @@ CONTAINS
          END DO
       END IF
       tabulated = ALLOCATED(contracted%short_moments)
-
-      CALL timestop(handle)
-
-      CALL timeset('d_lP_potential_radial', handle)
 
       parallel_points = .TRUE.
 !$    parallel_points = .NOT. omp_in_parallel()
@@ -2782,7 +2764,8 @@ CONTAINS
                   in_table = .FALSE.
                   IF (tabulated) in_table = x <= contracted%short_abscissae(UBOUND(contracted%short_abscissae, 1))
                   IF (in_table) THEN
-        CALL evaluate_short_radial_table(x, contracted%short_abscissae, contracted%short_moments(minimum_l(iset):, :, ipgf, iset), &
+                     CALL evaluate_short_radial_table(x, contracted%short_abscissae, &
+                                                      contracted%short_moments(minimum_l(iset):, :, ipgf, iset), &
                                                       radial(minimum_l(iset):basis%lmax(iset)))
                   ELSE
                      CALL radial_potential_short(radius, basis%zet(ipgf, iset), omega, &
@@ -2844,10 +2827,6 @@ CONTAINS
       IF (factorized) DEALLOCATE (radial_channels, angular_values)
       !$OMP END PARALLEL
 
-      CALL timestop(handle)
-
-      CALL timeset('d_lP_potential_RI_transform', handle)
-
       ! The caller supplies the full leading dimension; write only the active point rows.
       IF (factorized) THEN
          coefficient_matrix => contracted%spherical_selection
@@ -2858,8 +2837,6 @@ CONTAINS
                  coefficient_matrix, nwork, 0.0_dp, values, SIZE(values, 1))
       IF (factorized) DEALLOCATE (angular_count, angular_term)
       DEALLOCATE (angular_used, minimum_l, mesh_channel, angular_index)
-
-      CALL timestop(handle)
 
    END SUBROUTINE contract_selected_potentials
 

@@ -781,8 +781,8 @@ CONTAINS
       INTEGER :: first_k, handle, handle2, i_cell, i_class, i_own, i_rank, i_x, i_x_inner, &
          i_x_outer, idim, ik, j_y, j_y_inner, j_y_outer, k_z, k_z_inner, k_z_outer, last_k, &
          n_atom, n_batch, n_bf, n_block, n_cells, n_chunk, n_class, n_cols, n_k, num_pe, pos, q_col
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: bf_end_from_atom, bf_start_from_atom, cell_class, &
-         class_first, col_first, n_own, recv_counts, recv_displs, send_counts, send_displs
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: bf_end_from_atom, bf_start_from_atom, class_first, &
+         col_first, n_own, recv_counts, recv_displs, send_counts, send_displs
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cell_s
       INTEGER, DIMENSION(3)                              :: fold_sign, nkp_grid, period
       REAL(KIND=dp)                                      :: arg
@@ -828,7 +828,7 @@ CONTAINS
       ! Cells within the bounds, ordered by their class L mod period; classes without a cell are skipped.
       ! A class has the phase of its reference vector [x_min, y_min, z_min] + (L mod period).
       n_cells = (x_max - x_min + 1)*(y_max - y_min + 1)*(z_max - z_min + 1)
-      ALLOCATE (cell_s(3, n_cells), cell_class(n_cells), cell_sign(n_cells), class_first(n_cells + 1), &
+      ALLOCATE (cell_s(3, n_cells), cell_sign(n_cells), class_first(n_cells + 1), &
                 class_ref(3, n_cells))
       n_cells = 0
       n_class = 0
@@ -845,7 +845,6 @@ CONTAINS
                         IF (i_x > x_max .OR. j_y > y_max .OR. k_z > z_max) CYCLE
                         n_cells = n_cells + 1
                         cell_s(:, n_cells) = [i_x, j_y, k_z]
-                        cell_class(n_cells) = n_class + 1
                         cell_sign(n_cells) = REAL(fold_sign(1)**((i_x_outer - x_min)/period(1))* &
                                                   fold_sign(2)**((j_y_outer - y_min)/period(2))* &
                                                   fold_sign(3)**((k_z_outer - z_min)/period(3)), dp)
@@ -880,7 +879,7 @@ CONTAINS
 !$OMP             SHARED(V_part, V_L, kpoints, cell_s, i_cell, first_k, last_k) PRIVATE(ik, arg, phase)
                DO ik = first_k, last_k
                   arg = twopi*DOT_PRODUCT(REAL(cell_s(:, i_cell), dp), kpoints%xkp(1:3, ik))
-                  phase = CMPLX(COS(arg), SIN(arg), KIND=dp)
+                  phase = EXP(CMPLX(0.0_dp, arg, KIND=dp))
                   V_part(:, :, ik - first_k + 1) = V_part(:, :, ik - first_k + 1) + phase*V_L(:, 1, :)
                END DO
 !$OMP END PARALLEL DO
@@ -892,7 +891,7 @@ CONTAINS
                                                          V_part(:, :, ik - first_k + 1)
             END DO
          END DO
-         DEALLOCATE (V_L, V_part, cell_s, cell_class, cell_sign, class_first, class_ref)
+         DEALLOCATE (V_L, V_part, cell_s, cell_sign, class_first, class_ref)
          CALL timestop(handle)
          RETURN
       END IF
@@ -967,9 +966,9 @@ CONTAINS
          n_k = last_k - first_k + 1
          DO ik = first_k, last_k
             DO i_class = 1, n_class
-               arg = twopi*DOT_PRODUCT(class_ref(:, i_class), kpoints%xkp(1:3, ik))
-               cos_phase(i_class, ik - first_k + 1) = COS(arg)
-               sin_phase(i_class, ik - first_k + 1) = SIN(arg)
+               phase = EXP(CMPLX(0.0_dp, twopi*DOT_PRODUCT(class_ref(:, i_class), kpoints%xkp(1:3, ik)), KIND=dp))
+               cos_phase(i_class, ik - first_k + 1) = REAL(phase, KIND=dp)
+               sin_phase(i_class, ik - first_k + 1) = AIMAG(phase)
             END DO
          END DO
 !$OMP PARALLEL DEFAULT(NONE) &
@@ -1024,7 +1023,7 @@ CONTAINS
       CALL timestop(handle2)
 
       DEALLOCATE (V_cols, V_q_cols, cos_phase, sin_phase, col_first, n_own, send_counts, send_displs, &
-                  recv_counts, recv_displs, cell_s, cell_class, cell_sign, class_first, class_ref)
+                  recv_counts, recv_displs, cell_s, cell_sign, class_first, class_ref)
 
       CALL timestop(handle)
 

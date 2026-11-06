@@ -297,6 +297,7 @@ CONTAINS
       TYPE(local_cluster_3c_integrals_type), &
          DIMENSION(:), INTENT(IN)                        :: cluster_3c_int
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'optimize_grid_coordinates'
       INTEGER, PARAMETER                                 :: lbfgs_history = 7
       REAL(KIND=dp), PARAMETER                           :: lbfgs_factr = 0.0_dp, &
                                                             lbfgs_pgtol = 1.0E-9_dp
@@ -316,7 +317,7 @@ CONTAINS
          grid_coordinates(:), lower_bounds(:), upper_bounds(:), workspace(:)
       REAL(KIND=dp), DIMENSION(29)                       :: real_state
 
-      CALL timeset("rirs_grid_LBFGS", handle)
+      CALL timeset(routineN, handle)
 
       start_time = m_walltime()
 
@@ -443,6 +444,8 @@ CONTAINS
       TYPE(local_cluster_3c_integrals_type), &
          ALLOCATABLE, INTENT(OUT)                        :: cluster_3c_int(:)
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_cluster_3c_int'
+
       INTEGER :: first_ri, handle, iatom, icenter, icluster, iimage, ij, ik, ikind, inu, ip, &
          jatom, katom, last_ri, my_group, nao, ngroups, nlocal, nri, p_first, p_last, patom
       INTEGER, ALLOCATABLE                               :: ao_offset(:), cells(:, :), ri_offset(:), &
@@ -453,7 +456,7 @@ CONTAINS
       TYPE(gw_3c_ctx_type)                               :: integral_context
       TYPE(gw_3c_ws_type)                                :: workspace
 
-      CALL timeset('rirs_grid_build_clusters', handle)
+      CALL timeset(routineN, handle)
 
       ngroups = MIN(bs_env%n_atom, bs_env%para_env%num_pe)
       my_group = MOD(bs_env%para_env%mepos, ngroups)

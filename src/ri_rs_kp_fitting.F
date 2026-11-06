@@ -143,13 +143,15 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: i_cell
       REAL(dp), INTENT(OUT)                              :: ao_values(:, :)
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_mu_rl_R_values'
+
       INTEGER                                            :: first_ao, handle, i_atom, i_kind, last_ao
       REAL(dp)                                           :: cutoff_squared, source_position(3)
       TYPE(cell_type), POINTER                           :: cell
       TYPE(gto_basis_set_type), POINTER                  :: basis
       TYPE(particle_type), POINTER                       :: particle_set(:)
 
-      CALL timeset('evaluate_mu_rl_R_values', handle)
+      CALL timeset(routineN, handle)
 
       cell => bs_env%ri_rs%cell
       particle_set => bs_env%ri_rs%particle_set
@@ -578,6 +580,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: active_cells(:), first_l, last_l
       REAL(KIND=dp), CONTIGUOUS, INTENT(OUT)             :: D_llp_R(:, :, :)
 
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_D_llp'
+
       INTEGER                                            :: cell_A(3), handle, i_A, i_active, &
                                                             i_active_prime, i_R, i_R_prime, &
                                                             next_progress, nrows
@@ -586,7 +590,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: progress_start
       REAL(KIND=dp), ALLOCATABLE                         :: phi_full(:, :), phi_local(:, :)
 
-      CALL timeset('compute_D_llp', handle)
+      CALL timeset(routineN, handle)
 
       progress_start = m_walltime()
       next_progress = 1
@@ -679,6 +683,8 @@ CONTAINS
       COMPLEX(dp), ASYNCHRONOUS, CONTIGUOUS, INTENT(OUT) :: d_lP_q(:, :)
       INTEGER, INTENT(OUT)                               :: iq
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fourier_transform_d_lP_R_to_q'
+
       COMPLEX(dp), ALLOCATABLE                           :: result_q(:, :, :)
       COMPLEX(dp), ALLOCATABLE, ASYNCHRONOUS             :: receive_q(:), send_q(:, :, :)
       INTEGER :: first_l, first_q, handle, i_dest, i_l, i_P, i_q, i_rank, i_slot, last_l, last_q, &
@@ -689,7 +695,7 @@ CONTAINS
       TYPE(mp_request_type)                              :: send_requests(2)
       TYPE(mp_request_type), ALLOCATABLE                 :: recv_requests(:)
 
-      CALL timeset('d_lP_T_to_q', handle)
+      CALL timeset(routineN, handle)
 
       n_ranks = bs_env%para_env%num_pe
       i_rank = bs_env%para_env%mepos
@@ -795,8 +801,8 @@ CONTAINS
 
       INTEGER, PARAMETER                                 :: row_block = 4096
 
+      COMPLEX(KIND=dp)                                   :: phase
       INTEGER                                            :: first, i_R, iq, n_q, n_R, nrows
-      REAL(KIND=dp)                                      :: angle
       REAL(KIND=dp), ALLOCATABLE                         :: phase_cos(:, :), phase_sin(:, :), &
                                                             work_cos(:, :), work_sin(:, :)
 
@@ -809,9 +815,9 @@ CONTAINS
       ALLOCATE (phase_cos(n_R, n_q), phase_sin(n_R, n_q))
       DO iq = 1, n_q
          DO i_R = 1, n_R
-            angle = sign*twopi*SUM(qpoints(1:3, iq)*REAL(cells(1:3, i_R), dp))
-            phase_cos(i_R, iq) = COS(angle)
-            phase_sin(i_R, iq) = SIN(angle)
+            phase = EXP(CMPLX(0.0_dp, sign*twopi*SUM(qpoints(1:3, iq)*REAL(cells(1:3, i_R), dp)), KIND=dp))
+            phase_cos(i_R, iq) = REAL(phase, KIND=dp)
+            phase_sin(i_R, iq) = AIMAG(phase)
          END DO
       END DO
       !$OMP PARALLEL DEFAULT(NONE) SHARED(n, n_q, n_R, values_R, values_q, phase_cos, phase_sin) &

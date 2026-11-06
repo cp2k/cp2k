@@ -217,9 +217,10 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iatom
       TYPE(mp_comm_type), INTENT(IN)                     :: atom_env
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'select_cholesky_grid_iatom'
+
       CHARACTER(LEN=3*default_string_length)             :: failure
-      INTEGER                                            :: handle, igrid_point, npoints, nretained, &
-                                                            phase_handle
+      INTEGER                                            :: handle, igrid_point, npoints, nretained
       INTEGER, ALLOCATABLE :: ao_point_indices(:), atom_n_ao(:), atom_point_offsets(:), &
          atom_value_offsets(:), cluster_atoms(:), cluster_cells(:, :), selected_indices(:)
       LOGICAL, ALLOCATABLE                               :: inside_voronoi(:)
@@ -227,7 +228,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE                         :: ao_values(:), cluster_centers(:, :), &
                                                             cluster_points(:, :)
 
-      CALL timeset('rirs_grid_select_atom', handle)
+      CALL timeset(routineN, handle)
 
       CALL get_rirs_cluster_atoms(bs_env%ri_rs%particle_set, bs_env%ri_rs%cell, iatom, &
                                   bs_env%ri_rs%grid_opt%cutoff_atomic_cluster, cluster_atoms, &
@@ -237,10 +238,8 @@ CONTAINS
                                           cluster_centers, center, cluster_points)
       npoints = SIZE(cluster_points, 2)
       ALLOCATE (inside_voronoi(npoints))
-      CALL timeset('rirs_grid_voronoi_filter', phase_handle)
       CALL filter_grid_to_voronoi(cluster_points, iatom, bs_env%ri_rs%particle_set, &
                                   bs_env%ri_rs%cell, mask=inside_voronoi)
-      CALL timestop(phase_handle)
       IF (COUNT(inside_voronoi) < bs_env%ri_rs%atomic_grids(iatom)%npts) THEN
          WRITE (failure, '(A,I0,A,I0,A,I0,A)') 'Atom ', iatom, ': only ', COUNT(inside_voronoi), &
             ' Voronoi grid points for ', bs_env%ri_rs%atomic_grids(iatom)%npts, &
@@ -248,17 +247,13 @@ CONTAINS
          CPABORT(TRIM(failure))
       END IF
 
-      CALL timeset('rirs_grid_cluster_ao', phase_handle)
       CALL evaluate_cluster_ao_values(bs_env, cluster_atoms, cluster_centers, center, cluster_points, &
                                       ao_point_indices, atom_point_offsets, atom_value_offsets, &
                                       atom_n_ao, ao_values)
-      CALL timestop(phase_handle)
       ALLOCATE (selected_indices(bs_env%ri_rs%atomic_grids(iatom)%npts))
-      CALL timeset('rirs_grid_cholesky_select', phase_handle)
       CALL select_cholesky_grid_points(ao_point_indices, atom_point_offsets, atom_value_offsets, &
                                        atom_n_ao, ao_values, npoints, &
                                        inside_voronoi, selected_indices, atom_env)
-      CALL timestop(phase_handle)
       nretained = COUNT(selected_indices > 0)
       IF (nretained == 0) THEN
          WRITE (failure, '(A,I0,A)') 'Atom ', iatom, &
@@ -407,14 +402,18 @@ CONTAINS
                                                             atom_value_offsets(:), atom_n_ao(:)
       REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: ao_values(:)
 
-      INTEGER :: cluster_iatom, first_point, first_value, i_cluster_atom, igrid_point, ikind, &
-         last_point, last_value, nactive, npoints
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_cluster_ao_values'
+
+      INTEGER :: cluster_iatom, first_point, first_value, handle, i_cluster_atom, igrid_point, &
+         ikind, last_point, last_value, nactive, npoints
       INTEGER, ALLOCATABLE                               :: point_indices(:)
       LOGICAL, ALLOCATABLE                               :: active(:)
       REAL(KIND=dp)                                      :: source_position(3)
       REAL(KIND=dp), ALLOCATABLE                         :: atom_points(:, :), atom_values(:, :), &
                                                             relative_points(:, :)
       TYPE(gto_basis_set_type), POINTER                  :: ao
+
+      CALL timeset(routineN, handle)
 
       npoints = SIZE(cluster_points, 2)
       ALLOCATE (relative_points(3, npoints))
@@ -469,6 +468,9 @@ CONTAINS
          ao_values(first_value:last_value) = RESHAPE(atom_values, [nactive*ao%nsgf])
          DEALLOCATE (atom_points, atom_values)
       END DO
+
+      CALL timestop(handle)
+
    END SUBROUTINE evaluate_cluster_ao_values
 
 ! **************************************************************************************************
@@ -495,14 +497,18 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: selected_indices(:)
       TYPE(mp_comm_type), INTENT(IN)                     :: atom_env
 
-      INTEGER :: capacity, first_local, first_point, first_row, first_value, iblock, igrid_point, &
-         irow, last_local, last_point, last_row, last_value, n_ao, new_capacity, nretained, nrows, &
-         nselected, selected_point
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'select_cholesky_grid_points'
+
+      INTEGER :: capacity, first_local, first_point, first_row, first_value, handle, iblock, &
+         igrid_point, irow, last_local, last_point, last_row, last_value, n_ao, new_capacity, &
+         nretained, nrows, nselected, selected_point
       INTEGER, ALLOCATABLE                               :: first_row_local(:), last_row_local(:)
       REAL(KIND=dp)                                      :: selected_diagonal
       REAL(KIND=dp), ALLOCATABLE :: diagonal(:), factor(:, :), grown(:, :), initial_diagonal(:), &
          selected_ao_values(:), selected_factor_values(:), selection_matrix_column(:)
       REAL(KIND=dp), POINTER                             :: atom_ao_values(:, :)
+
+      CALL timeset(routineN, handle)
 
       ALLOCATE (diagonal(npoints), initial_diagonal(npoints), &
                 selection_matrix_column(npoints))
@@ -585,8 +591,9 @@ CONTAINS
             IF (atom_env%num_pe > 1) selection_matrix_column(:first_local - 1) = 0.0_dp
             IF (atom_env%num_pe > 1) selection_matrix_column(last_local + 1:) = 0.0_dp
             DO igrid_point = first_local, last_local
-               selection_matrix_column(igrid_point) = selection_matrix_column(igrid_point) - &
-                                                    DOT_PRODUCT(factor(igrid_point, :nselected), selected_factor_values(:nselected))
+               selection_matrix_column(igrid_point) = &
+                  selection_matrix_column(igrid_point) - &
+                  DOT_PRODUCT(factor(igrid_point, :nselected), selected_factor_values(:nselected))
             END DO
             CALL atom_env%sum(selection_matrix_column)
          END IF
@@ -601,6 +608,9 @@ CONTAINS
             selected_indices(nretained) = selected_point
          END IF
       END DO
+
+      CALL timestop(handle)
+
    END SUBROUTINE select_cholesky_grid_points
 
 ! **************************************************************************************************

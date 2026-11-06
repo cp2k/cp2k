@@ -492,11 +492,7 @@ CONTAINS
             CPABORT("APPROX_KP_EXTRAPOL cannot be combined with RI-RS GW")
          END IF
       END IF
-      IF (do_evgw0) THEN
-         IF (bs_env%evgw0_n_iter < 2) CPABORT("EVGW0%MAX_ITER must be at least two")
-      ELSE
-         bs_env%evgw0_n_iter = 1
-      END IF
+      IF (.NOT. do_evgw0) bs_env%evgw0_n_iter = 1
       IF (do_evgw0 .AND. bs_env%evgw0_eps_iter <= 0.0_dp) THEN
          CPABORT("EVGW0%EPS_ITER must be positive")
       END IF

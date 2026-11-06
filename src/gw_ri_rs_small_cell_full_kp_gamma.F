@@ -39,6 +39,7 @@ MODULE gw_ri_rs_small_cell_full_kp_gamma
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
+   USE cp_log_handling,                 ONLY: cp_to_string
    USE gw_auto_ri_types,                ONLY: auto_ri_type
    USE gw_ri_rs_small_cell_full_kp_lattice,ONLY: assemble_AA_contraction,&
                                               block_range,&
@@ -106,6 +107,8 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_ri_rs_gamma_correction'
+
       INTEGER                                            :: handle, i_image, i_spin, n_img
       LOGICAL                                            :: created_scf_image_map
       TYPE(dbcsr_p_type), POINTER                        :: matrix_h(:, :), matrix_s(:, :)
@@ -113,7 +116,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints_all, kpoints_scf
       TYPE(neighbor_list_set_p_type), POINTER            :: sab_all(:), sab_kp(:)
 
-      CALL timeset('prepare_ri_rs_gamma_correction', handle)
+      CALL timeset(routineN, handle)
 
       CPASSERT(.NOT. ALLOCATED(bs_env%gwkp_env))
       ALLOCATE (bs_env%gwkp_env)
@@ -187,8 +190,10 @@ CONTAINS
          metric_rows(:, :), metric_zero(:, :), pi_cartesian(:, :), response_cartesian(:, :), &
          schur_cartesian(:, :), time_chi(:, :, :), time_head(:, :, :), time_wing(:, :, :), &
          V_sqrt_zero(:, :)
-      INTEGER :: a, detail_handle, first_row, handle, i_cartesian, i_direction, ikp, j_cartesian, &
-         j_w, n_angular, n_directions, n_near, n_w_kpoints
+      INTEGER                                            :: a, first_row, handle, i_cartesian, &
+                                                            i_direction, ikp, j_cartesian, j_w, &
+                                                            n_angular, n_directions, n_near, &
+                                                            n_w_kpoints
       INTEGER, ALLOCATABLE                               :: metric_cells(:, :)
       LOGICAL                                            :: is_slab
       REAL(KIND=dp)                                      :: near_q(3, 8), q_cart(3), q_direction(3), &
@@ -244,7 +249,6 @@ CONTAINS
       ALLOCATE (head_response(n_directions, bs_env%num_time_freq_points))
       ! The finite RI metric at q=0 retains its complete Gaussian channel.
       ! The singular full-Coulomb Gamma-correction head is integrated separately.
-      CALL timeset('gamma_ri_metric_build', detail_handle)
       ALLOCATE (metric_zero(bs_env%n_RI, bs_env%n_RI), F_zero(bs_env%n_RI, bs_env%n_RI))
       CALL build_ri_2c_lattice(fm_metric, metric_cells, bs_env%ri_metric, &
                                0.0_dp, bs_env, qs_env, reference_basis=bs_env%auto_ri%enabled)
@@ -260,16 +264,13 @@ CONTAINS
       END IF
       CALL cp_fm_release(fm_metric)
       DEALLOCATE (metric_cells)
-      CALL timestop(detail_handle)
       IF (is_slab) THEN
          CALL slab_gamma_factors(qs_env, bs_env, metric_zero, F_zero, F_external)
       ELSE
          CALL coulomb_matrix_gamma(qs_env, bs_env, V_sqrt_zero, metric_ref_zero)
          DEALLOCATE (metric_ref_zero)
-         CALL timeset('gamma_ri_metric_factor', detail_handle)
          CALL gamma_metric_factor_distributed(bs_env%para_env, bs_env%regularization_RI, &
                                               metric_zero, V_sqrt_zero, F_zero)
-         CALL timestop(detail_handle)
          DEALLOCATE (V_sqrt_zero)
       END IF
       DEALLOCATE (metric_zero)
@@ -293,7 +294,6 @@ CONTAINS
       DO j_w = 1, bs_env%num_time_freq_points
          CALL gamma_ao_time_response(bs_env, time_chi, time_wing, time_head, metric_rows, first_row, &
                                      j_w, eps_P_cartesian, pi_cartesian, response_cartesian)
-         CALL timeset('gamma_headwing_apply', detail_handle)
          CALL zgemm('C', 'N', 3, 3, bs_env%n_RI, CMPLX(fourpi, 0.0_dp, dp), &
                     eps_P_cartesian, bs_env%n_RI, response_cartesian, bs_env%n_RI, &
                     z_zero, schur_cartesian, 3)
@@ -330,7 +330,6 @@ CONTAINS
             ! The Schur complement is a Hermitian quadratic form in the real d, so ε⁻¹_00(d) is real.
             head_response(i_direction, j_w) = REAL(z_one/schur_denom, dp)
          END DO
-         CALL timestop(detail_handle)
 
       END DO
 
@@ -371,7 +370,7 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE                      :: U(:, :), V_contracted(:, :), &
                                                             V_owned(:, :, :)
       INTEGER                                            :: handle, n_local, n_ref
-      TYPE(kpoint_type), POINTER                         :: gamma
+      TYPE(kpoint_type), POINTER                         :: gamma_kp
 
       CALL timeset(routineN, handle)
 
@@ -379,25 +378,25 @@ CONTAINS
       IF (bs_env%auto_ri%enabled) n_ref = SUM(bs_env%auto_ri%sizes_ref_RI)
       n_local = 0
       IF (MODULO(1, bs_env%para_env%num_pe) == bs_env%para_env%mepos) n_local = 1
-      ALLOCATE (gamma, V_owned(n_ref, n_ref, n_local), V_zero(n_ref, n_ref))
-      ALLOCATE (gamma%xkp(3, 1))
-      gamma%xkp = 0.0_dp
-      gamma%nkp = 1
-      gamma%nkp_grid = bs_env%nkp_grid_chi_eps_W_orig
+      ALLOCATE (gamma_kp, V_owned(n_ref, n_ref, n_local), V_zero(n_ref, n_ref))
+      ALLOCATE (gamma_kp%xkp(3, 1))
+      gamma_kp%xkp = 0.0_dp
+      gamma_kp%nkp = 1
+      gamma_kp%nkp_grid = bs_env%nkp_grid_chi_eps_W_orig
       V_owned = z_zero
       IF (ALL(bs_env%periodic == [1, 1, 0])) THEN
-         CALL build_2c_coulomb_matrix_kp_dense(V_owned, qs_env, gamma, &
+         CALL build_2c_coulomb_matrix_kp_dense(V_owned, qs_env, gamma_kp, &
                                                bs_env%size_lattice_sum_V, 'RI_AUX', 1, 1)
       ELSE
          CPASSERT(PRESENT(metric_ref_zero))
          IF (n_local == 1) V_owned(:, :, 1) = metric_ref_zero
-         CALL add_ewald_reciprocal(V_owned, qs_env, gamma, 'RI_AUX', bs_env%ri_metric%omega, 1, 1)
+         CALL add_ewald_reciprocal(V_owned, qs_env, gamma_kp, 'RI_AUX', bs_env%ri_metric%omega, 1, 1)
       END IF
       V_zero(:, :) = z_zero
       IF (n_local == 1) V_zero(:, :) = V_owned(:, :, 1)
       CALL bs_env%para_env%sum(V_zero)
-      DEALLOCATE (gamma%xkp)
-      DEALLOCATE (gamma, V_owned)
+      DEALLOCATE (gamma_kp%xkp)
+      DEALLOCATE (gamma_kp, V_owned)
       IF (bs_env%auto_ri%enabled) THEN
          CALL assemble_AA_contraction(bs_env, U)
          ALLOCATE (V_contracted(bs_env%n_RI, bs_env%n_RI))
@@ -878,10 +877,12 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: first_row, j_w
       COMPLEX(KIND=dp), INTENT(OUT)                      :: E(:, :), P(:, :), X(:, :)
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'gamma_ao_time_response'
+
       COMPLEX(KIND=dp), ALLOCATABLE                      :: chi_frequency(:, :), wing_frequency(:, :)
       INTEGER                                            :: handle, nr, t
 
-      CALL timeset('gamma_ao_time_response', handle)
+      CALL timeset(routineN, handle)
 
       ! Apply the existing cosine coefficients to the local cache, without rebuilding Green matrices.
       nr = SIZE(chi_tau, 1)
@@ -998,11 +999,13 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, INTENT(OUT)         :: chi_tau(:, :, :), wing_tau(:, :, :), &
                                                             head_tau(:, :, :)
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'accumulate_time_state'
+
       COMPLEX(KIND=dp), ALLOCATABLE                      :: gamma_corr(:, :, :), orbitals(:, :)
       INTEGER                                            :: c, handle, k, local_k, n_grid, n_rows, &
                                                             n_time, no, nv, owner, spin
 
-      CALL timeset('gamma_ao_time_prepare', handle)
+      CALL timeset(routineN, handle)
 
       CPASSERT(volume > 0.0_dp)
       n_grid = bs_env%ri_rs%n_grid_points
@@ -1139,10 +1142,12 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: first_row, nr
       COMPLEX(KIND=dp), ALLOCATABLE, INTENT(OUT)         :: metric_rows(:, :)
 
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'metric_grid_rows'
+
       COMPLEX(KIND=dp), ALLOCATABLE                      :: Z_rows(:, :)
       INTEGER                                            :: handle
 
-      CALL timeset('gamma_metric_grid_rows', handle)
+      CALL timeset(routineN, handle)
 
       ALLOCATE (metric_rows(nr, SIZE(F, 2)))
       IF (nr > 0) THEN
@@ -1217,17 +1222,18 @@ CONTAINS
       COMPLEX(KIND=dp), INTENT(IN)                       :: b(:, :)
       COMPLEX(KIND=dp), INTENT(OUT)                      :: x(:, :)
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_gamma_corr_body'
       REAL(KIND=dp), PARAMETER                           :: tolerance = 1.0E-12_dp
 
       COMPLEX(KIND=dp)                                   :: denominator
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: aux_y(:, :), direction(:, :), &
-                                                            grid_x(:, :), grid_y(:, :), &
-                                                            PRODUCT(:, :), r(:, :)
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: A_direction(:, :), aux_y(:, :), &
+                                                            direction(:, :), grid_x(:, :), &
+                                                            grid_y(:, :), r(:, :)
       INTEGER                                            :: handle, i_c, i_iter, nc
       REAL(KIND=dp)                                      :: alpha, rr(SIZE(b, 2)), &
                                                             rr_converged(SIZE(b, 2)), rr_new
 
-      CALL timeset('gamma_body_iterative_solve', handle)
+      CALL timeset(routineN, handle)
 
       nc = SIZE(b, 2)
       x = z_zero
@@ -1238,25 +1244,29 @@ CONTAINS
       ALLOCATE (grid_x(SIZE(chi, 2), nc), grid_y(SIZE(chi, 1), nc), aux_y(SIZE(T_rows, 2), nc))
       ALLOCATE (r, SOURCE=b)
       ALLOCATE (direction, SOURCE=b)
-      ALLOCATE (PRODUCT(SIZE(b, 1), nc))
+      ALLOCATE (A_direction(SIZE(b, 1), nc))
       DO i_iter = 1, 4*SIZE(b, 1)
          IF (ALL(rr <= rr_converged)) EXIT
-         CALL apply_gamma_corr_body(bs_env, T_rows, chi, first_row, direction, product, aux_y, grid_x, grid_y)
-         PRODUCT(:, :) = product + direction
+         CALL apply_gamma_corr_body(bs_env, T_rows, chi, first_row, direction, A_direction, aux_y, grid_x, grid_y)
+         A_direction(:, :) = A_direction + direction
          DO i_c = 1, nc
             IF (rr(i_c) <= rr_converged(i_c)) CYCLE
-            denominator = DOT_PRODUCT(direction(:, i_c), PRODUCT(:, i_c))
+            denominator = DOT_PRODUCT(direction(:, i_c), A_direction(:, i_c))
             IF (REAL(denominator, dp) <= 0.0_dp) THEN
                CPABORT('Gamma body action is not positive')
             END IF
             alpha = rr(i_c)/REAL(denominator, dp)
             x(:, i_c) = x(:, i_c) + alpha*direction(:, i_c)
-            r(:, i_c) = r(:, i_c) - alpha*PRODUCT(:, i_c)
+            r(:, i_c) = r(:, i_c) - alpha*A_direction(:, i_c)
             rr_new = REAL(DOT_PRODUCT(r(:, i_c), r(:, i_c)), dp)
             direction(:, i_c) = r(:, i_c) + (rr_new/rr(i_c))*direction(:, i_c)
             rr(i_c) = rr_new
          END DO
       END DO
+      IF (ANY(rr > rr_converged)) THEN
+         CALL cp_warn(__LOCATION__, "Gamma-point body CG not converged after "// &
+                      TRIM(cp_to_string(4*SIZE(b, 1)))//" iterations")
+      END IF
 
       CALL timestop(handle)
 
@@ -1278,10 +1288,12 @@ CONTAINS
       TYPE(auto_ri_type), INTENT(IN)                     :: auto_ri
       COMPLEX(KIND=dp), INTENT(OUT)                      :: metric(:, :)
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'gamma_metric_contract_atoms'
+
       INTEGER                                            :: handle
       TYPE(gamma_atom_projection_type), ALLOCATABLE      :: left(:), right(:)
 
-      CALL timeset('gamma_metric_contract_atoms', handle)
+      CALL timeset(routineN, handle)
 
       CALL prepare_gamma_atom_projections(images, auto_ri, left, right)
       CALL accumulate_gamma_atom_metric(images, left, right, metric)
@@ -1382,14 +1394,15 @@ CONTAINS
 
       INTEGER                                            :: ia, ib, icell, n_opt_total, nc, noleft, &
                                                             nopt, noright, nr, nref, pfirst, qfirst
-      REAL(KIND=dp), ALLOCATABLE                         :: block(:, :), PRODUCT(:, :), value(:, :)
+      REAL(KIND=dp), ALLOCATABLE                         :: block(:, :), block_right(:, :), &
+                                                            value(:, :)
 
       nopt = MAXVAL([(SIZE(left(ia)%values, 2), ia=1, SIZE(left))])
       nref = MAX(1, MAXVAL([(SIZE(left(ia)%positions), ia=1, SIZE(left))]), &
                  MAXVAL([(SIZE(right(ib)%positions), ib=1, SIZE(right))]))
       n_opt_total = SUM([(SIZE(left(ia)%values, 2), ia=1, SIZE(left))])
       CPASSERT(ALL(SHAPE(metric) == n_opt_total))
-      ALLOCATE (block(nref, nref), PRODUCT(nref, nopt), value(nopt, nopt))
+      ALLOCATE (block(nref, nref), block_right(nref, nopt), value(nopt, nopt))
       metric = z_zero
       DO ib = 1, SIZE(right)
          nc = SIZE(right(ib)%positions)
@@ -1406,16 +1419,16 @@ CONTAINS
                                    images(icell)%local_data(left(ia)%positions, right(ib)%positions)
             END DO
             CALL dgemm('N', 'N', nr, noright, nc, 1.0_dp, block, nref, &
-                       right(ib)%values, nc, 0.0_dp, product, nref)
+                       right(ib)%values, nc, 0.0_dp, block_right, nref)
             CALL dgemm('T', 'N', noleft, noright, nr, 1.0_dp, left(ia)%values, nr, &
-                       product, nref, 0.0_dp, value, nopt)
+                       block_right, nref, 0.0_dp, value, nopt)
             metric(pfirst:pfirst + noleft - 1, qfirst:qfirst + noright - 1) = &
                CMPLX(value(1:noleft, 1:noright), 0.0_dp, dp)
          END DO
          CPASSERT(noright <= HUGE(0)/SIZE(metric, 1))
          CALL images(1)%matrix_struct%para_env%sum(metric(:, qfirst:qfirst + noright - 1))
       END DO
-      DEALLOCATE (block, product, value)
+      DEALLOCATE (block, block_right, value)
    END SUBROUTINE accumulate_gamma_atom_metric
 
 ! **************************************************************************************************
@@ -1438,12 +1451,14 @@ CONTAINS
       COMPLEX(KIND=dp), INTENT(IN)                       :: metric(:, :), coulomb(:, :)
       COMPLEX(KIND=dp), INTENT(OUT)                      :: factor(:, :)
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'gamma_metric_factor_distributed'
+
       INTEGER                                            :: handle, n
       TYPE(cp_blacs_env_type), POINTER                   :: blacs
       TYPE(cp_cfm_type)                                  :: coulomb_d, factor_d, metric_d, work_d
       TYPE(cp_fm_struct_type), POINTER                   :: structure
 
-      CALL timeset('gamma_metric_factor_distributed', handle)
+      CALL timeset(routineN, handle)
 
       n = SIZE(metric, 1)
       CALL cp_blacs_env_create(blacs, para_env)
@@ -1551,6 +1566,7 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :, :), INTENT(OUT)           :: dipole
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'gw_gamma_transition_moments'
       REAL(KIND=dp), PARAMETER                           :: eps_degenerate = 1.0E-10_dp
 
       COMPLEX(KIND=dp), ALLOCATABLE :: bloch(:, :, :, :), coeff_owned(:, :, :, :), &
@@ -1568,11 +1584,12 @@ CONTAINS
       LOGICAL                                            :: valid_layout
       REAL(KIND=dp)                                      :: energy_diff, hmat(3, 3)
       REAL(KIND=dp), ALLOCATABLE :: cell_cartesian(:, :), d_cols(:, :, :, :), h_cols(:, :, :, :), &
-         phase_cos(:, :), phase_sin(:, :), s_cols(:, :, :, :), weight_im(:, :), weight_re(:, :)
+         phase_angle(:, :), phase_cos(:, :), phase_sin(:, :), s_cols(:, :, :, :), weight_im(:, :), &
+         weight_re(:, :)
       TYPE(cell_type), POINTER                           :: cell
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
-      CALL timeset('gw_gamma_transition_moments', handle)
+      CALL timeset(routineN, handle)
 
       cell => bs_env%ri_rs%cell
       para_env => bs_env%para_env
@@ -1612,6 +1629,8 @@ CONTAINS
       CALL block_range(n_ao, para_env%mepos, para_env%num_pe, first_col, n_col)
       ALLOCATE (cell_cartesian(3, n_img))
       cell_cartesian(:, :) = MATMUL(hmat, REAL(index_to_cell, dp))
+      ALLOCATE (phase_angle(n_img, n_k))
+      phase_angle(:, :) = twopi*MATMUL(TRANSPOSE(REAL(index_to_cell, dp)), kpoints%xkp(:, 1:n_k))
 
       n_k_local = (n_k + para_env%num_pe - 1 - para_env%mepos)/para_env%num_pe
       ALLOCATE (dipole(n_spin, n_k_local, 3, MAXVAL(nocc_spin), MAXVAL(nmo_spin - nocc_spin)), source=z_zero)
@@ -1629,8 +1648,8 @@ CONTAINS
       DO first_k = 1, n_k, para_env%num_pe
          n_batch = MIN(para_env%num_pe, n_k - first_k + 1)
          DO ib = 1, n_batch
-            phase_cos(:, ib) = COS(twopi*MATMUL(kpoints%xkp(:, first_k + ib - 1), REAL(index_to_cell, dp)))
-            phase_sin(:, ib) = SIN(twopi*MATMUL(kpoints%xkp(:, first_k + ib - 1), REAL(index_to_cell, dp)))
+            phase_cos(:, ib) = COS(phase_angle(:, first_k + ib - 1))
+            phase_sin(:, ib) = SIN(phase_angle(:, first_k + ib - 1))
          END DO
          bloch(:, :, :, 1:n_batch) = z_zero
          DO i_dir = 1, 3
@@ -1695,7 +1714,7 @@ CONTAINS
             DEALLOCATE (projected_h, projected_s, projected_d)
          END DO
       END DO
-      DEALLOCATE (bloch, cell_cartesian, coeff_owned, d_cols, h_cols, nmo_spin, operators_k, phase_cos, &
+      DEALLOCATE (bloch, cell_cartesian, coeff_owned, d_cols, h_cols, nmo_spin, operators_k, phase_angle, phase_cos, &
                   phase_sin, recv_buffer, recv_counts, recv_displs, s_cols, send_counts, send_displs, &
                   weight_im, weight_re)
       DEALLOCATE (gwkp_env%gamma_corr_index_to_cell, gwkp_env%gamma_corr_cell_to_index)

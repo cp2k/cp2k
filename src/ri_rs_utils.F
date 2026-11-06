@@ -140,12 +140,16 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       LOGICAL, INTENT(OUT), OPTIONAL                     :: mask(:)
 
-      INTEGER                                            :: iimage, ipoint, n_keep
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'filter_grid_to_voronoi'
+
+      INTEGER                                            :: handle, iimage, ipoint, n_keep
       INTEGER, ALLOCATABLE                               :: atom_indices(:), cell_indices(:, :)
       LOGICAL, ALLOCATABLE                               :: keep(:)
       REAL(KIND=dp)                                      :: displacement(3), distance2, max_radius, &
                                                             tolerance
       REAL(KIND=dp), ALLOCATABLE                         :: centers(:, :), filtered_points(:, :)
+
+      CALL timeset(routineN, handle)
 
       CPASSERT(SIZE(points, 1) == 3)
       ALLOCATE (keep(SIZE(points, 2)), SOURCE=.TRUE.)
@@ -176,12 +180,16 @@ CONTAINS
       IF (PRESENT(mask)) THEN
          CPASSERT(SIZE(mask) == SIZE(keep))
          mask(:) = keep
+         CALL timestop(handle)
          RETURN
       END IF
       n_keep = COUNT(keep)
       ALLOCATE (filtered_points(3, n_keep))
       IF (n_keep > 0) filtered_points(:, :) = RESHAPE(PACK(points, SPREAD(keep, 1, 3)), [3, n_keep])
       CALL MOVE_ALLOC(filtered_points, points)
+
+      CALL timestop(handle)
+
    END SUBROUTINE filter_grid_to_voronoi
 
 ! **************************************************************************************************
@@ -321,6 +329,7 @@ CONTAINS
       CALL evaluate_ao_basis_on_points(phi, grid_points, basis, &
                                        particle_set(iatom)%r, cell, dphi, cutoff_squared)
       CALL timestop(handle)
+
    END SUBROUTINE evaluate_ao_on_points
 
 ! **************************************************************************************************
