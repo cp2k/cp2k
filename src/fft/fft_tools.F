@@ -3431,7 +3431,7 @@ CONTAINS
 
                !set up fft plans
                CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(1), FWFFT, .TRUE., .FALSE., &
-                                       [n(3), n(2)], mx1, &
+                                       [n(2), n(3)], mx1, &
                                        fft_scratch_new%fft_scratch%a1buf, fft_scratch_new%fft_scratch%a4buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(3), FWFFT, .TRUE., .FALSE., &
                                        my3*mz3, n(1), n(1), my3*mz3, &
@@ -3440,7 +3440,7 @@ CONTAINS
                                        n(1), my3*mz3, n(1), my3*mz3, &
                                        fft_scratch_new%fft_scratch%a6buf, fft_scratch_new%fft_scratch%a5buf)
                CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(5), BWFFT, .FALSE., .TRUE., &
-                                       [n(3), n(2)], mx1, fft_scratch_new%fft_scratch%a4buf, fft_scratch_new%fft_scratch%a1buf)
+                                       [n(2), n(3)], mx1, fft_scratch_new%fft_scratch%a4buf, fft_scratch_new%fft_scratch%a1buf)
 
             CASE (200) ! fft3d_ps: plane distribution
                CPASSERT(PRESENT(fft_sizes))
@@ -3480,7 +3480,7 @@ CONTAINS
 
                !set up fft plans
                CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(1), FWFFT, .TRUE., .FALSE., &
-                                       [nz, ny], nx, fft_scratch_new%fft_scratch%r1buf, fft_scratch_new%fft_scratch%tbuf)
+                                       [ny, nz], nx, fft_scratch_new%fft_scratch%r1buf, fft_scratch_new%fft_scratch%tbuf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(3), FWFFT, .TRUE., .FALSE., &
                                        nyzray, n(1), n(1), nyzray, &
                                        fft_scratch_new%fft_scratch%r1buf, fft_scratch_new%fft_scratch%r2buf)
@@ -3488,7 +3488,7 @@ CONTAINS
                                        n(1), nyzray, n(1), nyzray, &
                                        fft_scratch_new%fft_scratch%r2buf, fft_scratch_new%fft_scratch%r1buf)
                CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(5), BWFFT, .FALSE., .TRUE., &
-                                       [nz, ny], nx, &
+                                       [ny, nz], nx, &
                                        fft_scratch_new%fft_scratch%tbuf, fft_scratch_new%fft_scratch%r1buf)
 
             CASE (300) ! fft3d_ps: block distribution
