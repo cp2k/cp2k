@@ -17,8 +17,9 @@ v_\text{xc}(\mathbf{r}) \right) \psi_{n\mathbf{k}}(\mathbf{r}) =
 
 The KS equations are solved to obtain the KS orbitals $\psi_{n\mathbf{k}}(\mathbf{r})$ and the KS
 eigenvalues $\varepsilon_{n\mathbf{k}}^\text{DFT}$ with band index $n$ and crystal momentum
-$\mathbf{k}$. For a molecule, the KS orbitals $\psi_n(\mathbf{r})$ and KS eigenvalues
-$\varepsilon_n^\text{DFT}$ only carry a single quantum number, the molecular-orbital index $n$.
+$\mathbf{k}$. For a molecule, the KS orbitals $\psi_n(\mathbf{r})$ and the KS eigenvalues
+$\varepsilon_n^\text{DFT}$ do not carry a crystal momentum $\mathbf{k}$, only the molecular-orbital
+index $n$.
 
 The KS eigenvalues $\varepsilon_{n\mathbf{k}}^\text{DFT}$ are often used to approximate the
 electronic band structure of a solid. This approximation comes with limitations:
@@ -78,21 +79,22 @@ v_\text{xc}|\psi_{n\mathbf{k}}}$, from the DFT eigenvalue $\varepsilon_{n\mathbf
 we add the xc contribution from *G*<sub>0</sub>*W*<sub>0</sub>, $\braket{\psi_{n\mathbf{k}}|
 \Sigma^{G_0W_0}(\varepsilon_{n\mathbf{k}}^{G_0W_0}) |\psi_{n\mathbf{k}}}$.
 
-CP2K also allows to perform eigenvalue-selfconsistency in $G$ (ev*GW*<sub>0</sub>) and
-eigenvalue-selfconsistency in $G$ and in $W$ (ev*GW*), where especially the
-*G*<sub>0</sub>*W*<sub>0</sub> quasiparticle energies can be heavily influenced by the DFT xc
-functional.
+CP2K also allows to perform eigenvalue-selfconsistency in $G$ (ev*GW*<sub>0</sub>). In general, we
+recommend to use ev*GW*<sub>0</sub>@PBE for both molecules and solids, motivated by the discussion
+in \[[](#Schambeck2024)\].
 
-In general, we recommend to use ev*GW*<sub>0</sub>@PBE for both molecules and solids, motivated by
-the discussion in \[[](#Schambeck2024)\].
+Please note that *G*<sub>0</sub>*W*<sub>0</sub> and ev*GW*<sub>0</sub> use the KS orbitals as
+quasiparticle wavefunctions. This requires that the KS orbitals are reasonable. For systems with a
+complicated electronic structure, for example transition-metal complexes or a defect with unpaired
+spins in a solid, a hybrid functional may be needed to obtain a qualitatively correct electron
+density and thus qualitatively correct quasiparticle wavefunctions. In such cases, one might need to
+start the *GW* calculation from a hybrid functional.
 
-CP2K contains three different *GW* implementations:
+CP2K contains two different *GW* implementations:
 
 - *GW* for molecules \[[](#Wilhelm2016)\] (Sec. 3)
-- *GW* for computing the band structure of a solid with small unit cell with *k*-point sampling in
-  DFT (publication in preparation TODO: insert reference, Sec. 4)
-- *GW* for computing the band structure of a large cell in a $\Gamma$-only approach
-  \[[](#Graml2024)\] (Sec. 5)
+- *GW* for computing the band structure of a solid with a small unit cell with *k*-point sampling
+  (\[[](#Pasquier2025)\] and publication in preparation, Sec. 4)
 
 In the following, we will discuss details and usage of these *GW* implementations.
 
@@ -129,7 +131,9 @@ In the upper *GW* section, the following keywords have been used:
 
 - [SELF_CONSISTENCY](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.SELF_CONSISTENCY):
   Determines which *GW* self-consistency (*G*<sub>0</sub>*W*<sub>0</sub>, ev*GW*<sub>0</sub> or
-  ev*GW*) is used to calculate the *GW* quasiparticle energies.
+  ev*GW*) is used to calculate the *GW* quasiparticle energies. For molecules, CP2K also offers
+  eigenvalue self-consistency in both $G$ and $W$ (ev*GW*): the quasiparticle energies replace the
+  KS eigenvalues in $G$ and in $W$ until the quasiparticle energies no longer change.
 
 The numerical precision of the *GW* implementation is 10 meV compared to reference calculations, for
 example the *GW*100 test set \[[](#vanSetten2015)\]. To help new users get familiar with the *GW*
@@ -176,109 +180,156 @@ When facing out-of-memory, please increase the number of nodes of your calculati
 Input and output of a large-scale *GW* calculation on a nanographene with 200 atoms is available
 [here](https://github.com/cp2k/cp2k-examples/tree/master/gw/2_Nanographene_206_atoms_N%5E4_scaling).
 
-## 4. *GW* for small unit cells with *k*-point sampling
+## 4. *GW* band structures of solids with *k*-point sampling
 
-For a periodic *GW* calculation, *k*-point sampling is required. *k*-point sampling is defined in
-the [DFT/KPOINTS](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS) section, see below a *k*-point section for a
-2D-periodic cell:
+CP2K computes *GW* band structures of 2D materials (`PERIODIC XY`) and of 3D bulk crystals
+(`PERIODIC XYZ`) with a small unit cell. The calculation starts from a DFT calculation with
+*k*-point sampling and then computes the *G*<sub>0</sub>*W*<sub>0</sub> or ev*GW*<sub>0</sub>
+quasiparticle energies $\varepsilon_{n\mathbf{k}}^{GW}$ along a path in the Brillouin zone.
+
+### 4.1 Real-space resolution of the identity (RI-RS)
+
+A *GW* calculation needs products of two Gaussian basis functions, $\phi_\mu(\mathbf{r})
+\phi_\nu(\mathbf{r})$. In the resolution of the identity (RI), such a product is expanded in an
+auxiliary basis $\{\varphi_P\}$, the RI basis. The expansion needs the three-center integrals
+$(\mu\nu|P)$, and with *k*-point sampling, there are very many of them. The real-space resolution of
+the identity (RI-RS) \[[](#Duchemin2019), [](#Duchemin2021)\] replaces these three-center integrals
+by the values of the basis functions on a small set of real-space grid points $\mathbf{r}_\ell$
+around every atom:
+
+$$ (\mu\nu|P) \approx \sum_\ell \phi_\mu(\mathbf{r}_\ell)\,\phi_\nu(\mathbf{r}_\ell)\,Z_{\ell P}\,. $$
+
+The fit coefficients $Z_{\ell P}$ are computed once. Afterwards, the density response $\chi$, the
+screened Coulomb interaction $W$ and the self-energy $\Sigma$ follow from fast matrix
+multiplications.
+
+Users do not need to construct the RI basis or the grid points themselves. CP2K builds both
+automatically for the material:
+
+- **Automatic RI basis** ([AUTO_RI](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.AUTO_RI)):
+  CP2K starts from a large RI basis and compresses it for every atom to the
+  [RI_AO_RATIO](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.AUTO_RI.RI_AO_RATIO)-fold number
+  of the atom's basis functions. We recommend `RI_AO_RATIO 3` (this is also the default).
+- **Automatic RI-RS grid**
+  ([RI_RS/GRID_OPTIMIZATION](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.RI_RS.GRID_OPTIMIZATION)):
+  CP2K optimizes the positions of the grid points around every atom such that the RI-RS formula
+  above reproduces the exact three-center integrals. Every atom gets
+  [RS_AO_RATIO](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.RI_RS.GRID_OPTIMIZATION.RS_AO_RATIO)
+  grid points per basis function. We recommend `RS_AO_RATIO 7` (this is also the default).
+
+### 4.2 Input
+
+*k*-point sampling is defined in the [DFT/KPOINTS](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS) section. The
+*GW* calculation uses the same *k*-point mesh as DFT, i.e. the density response $\chi$, the screened
+Coulomb interaction $W$ and the self-energy $\Sigma$ are computed on this mesh:
 
 ```
 &DFT
   ...
   &KPOINTS
-    SCHEME MONKHORST-PACK 32 32 1
+    SCHEME MONKHORST-PACK 12 12 12   ! 3D crystal; use e.g. 16 16 1 for a 2D material
     PARALLEL_GROUP_SIZE   -1
   &END KPOINTS
 &END DFT
 ```
 
-The *k*-point mesh size is a convergence parameter, 32x32 for a 2D material is expected to reach
-convergence of the *GW* bandgap within 10 meV.
-
-The periodic *GW* calculation is activated via the
-[PROPERTIES/BANDSTRUCTURE/GW](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW) section:
+The *GW* band structure calculation is activated via the
+[PROPERTIES/BANDSTRUCTURE/GW](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW) section. A minimal
+input for ev*GW*<sub>0</sub>@PBE with spin-orbit coupling reads:
 
 ```
 &PROPERTIES
   &BANDSTRUCTURE
     &GW
-      NUM_TIME_FREQ_POINTS         30
-      MEMORY_PER_PROC              10
-      EPS_FILTER              1.0E-11
-      REGULARIZATION_RI        1.0E-2
-      CUTOFF_RADIUS_RI            7.0
+      &AUTO_RI
+        RI_AO_RATIO 3
+      &END AUTO_RI
+      &RI_RS
+        &GRID_OPTIMIZATION
+          RS_AO_RATIO 7
+        &END GRID_OPTIMIZATION
+      &END RI_RS
+      &EVGW0
+      &END EVGW0
     &END GW
     &SOC
     &END SOC
     &BANDSTRUCTURE_PATH
-      NPOINTS 19
-      SPECIAL_POINT K     0.33 0.33 0.00
-      SPECIAL_POINT GAMMA 0.00 0.00 0.00
-      SPECIAL_POINT M     0.00 0.50 0.00
+      NPOINTS 20
+      SPECIAL_POINT GAMMA 0.000 0.000 0.000
+      SPECIAL_POINT X     0.000 0.500 0.500
+      SPECIAL_POINT L     0.500 0.500 0.500
     &END BANDSTRUCTURE_PATH
   &END BANDSTRUCTURE
 &END PROPERTIES
 ```
 
-All parameters from above have been chosen to converge the *GW* bandgap within 10 meV, see also
-details in forthcoming publication (TODO Link):
+All other parameters have well-tested default values. The sections and keywords from above are:
 
-- [NUM_TIME_FREQ_POINTS](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.NUM_TIME_FREQ_POINTS):
-  Number of imaginary-time and imaginary-frequency points used for computing the self-energy.
-  Between 20 and 30 points are usually enough for converging quasiparticle energies within 10 meV.
-  Grids up to 34 points are available.
-- [MEMORY_PER_PROC](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.MEMORY_PER_PROC): Specifies
-  the available memory per MPI process in GB which is specific to your hardware. A larger
-  `MEMORY_PER_PROC` can increase performance but also the memory requirement increases.
-- [EPS_FILTER](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.EPS_FILTER): Filter for
-  three-center integrals, 10<sup>-11</sup> should be well-converged.
-- [REGULARIZATION_RI](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.REGULARIZATION_RI):
-  Regularization parameter for resolution-of-the-identity (RI) basis set. For big RI basis set (> 50
-  RI function per atom) we recommend 10<sup>-2</sup> to prevent for linear dependencies. For small
-  RI basis set, one can turn RI regularization off by setting 0.0.
-- [CUTOFF_RADIUS_RI](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.CUTOFF_RADIUS_RI): Cutoff
-  radius of truncated Coulomb metric in Å. A larger cutoff leads to faster the RI basis set
-  convergence, but also computational cost increases. A cutoff of 7 Å is an accurate choice.
+- [&AUTO_RI](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.AUTO_RI): Automatic RI basis, see
+  Sec. 4.1. No `RI_AUX` basis set needs to be specified in `&KIND`.
+- [&RI_RS](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.RI_RS) with
+  [&GRID_OPTIMIZATION](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.RI_RS.GRID_OPTIMIZATION):
+  Activates RI-RS with the automatic grid, see Sec. 4.1.
+- [&EVGW0](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.EVGW0): Activates ev*GW*<sub>0</sub>.
+  Without this section, CP2K performs *G*<sub>0</sub>*W*<sub>0</sub>.
 - [&SOC](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.SOC): Activates spin-orbit coupling (SOC
-  from Hartwigsen-Goedecker-Hutter pseudopotentials \[[Hartwigsen1998](#Hartwigsen1998)\]). SOC also
-  needs `POTENTIAL_FILE_NAME  GTH_SOC_POTENTIALS`.
+  from Hartwigsen-Goedecker-Hutter pseudopotentials \[[](#Hartwigsen1998)\]). SOC also needs
+  `POTENTIAL_FILE_NAME  GTH_SOC_POTENTIALS`.
 - [&BANDSTRUCTURE_PATH](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.BANDSTRUCTURE_PATH): Specify
   the *k*-path in the Brillouin zone for computing the band structure. Relative *k*-coordinates are
   needed which you can retrieve for your crystal structure from \[[](#Setyawan2010)\].
 
-We recommend TZVP-MOLOPT basis sets together with GTH/HGH pseudopotentials, see basis set
-convergence study in (TODOref). At present, 2d-periodic boundary conditions are supported, 1d- and
-3d-periodic boundary conditions are work in progress.
+The *k*-point mesh is a convergence parameter for both DFT and *GW*. For the benchmark below, we
+used 12×12×12 for 3D crystals and 16×16×1 for 2D materials. We recommend the augmented basis sets
+`aug-SZV-MOLOPT-GTH-tier-2`, `aug-DZVP-MOLOPT-GTH-tier-2` and `aug-TZVP-MOLOPT-GTH-tier-2` from the
+file `BASIS_AUG_MOLOPT_GTH` together with GTH pseudopotentials. `aug-SZV-MOLOPT-GTH-tier-2` is a
+cheap choice for a first band structure, `aug-TZVP-MOLOPT-GTH-tier-2` is the accurate choice.
+
+### 4.3 Analytic continuation
+
+CP2K computes the *GW* self-energy on the imaginary frequency axis, $\Sigma_{n\mathbf{k}}(i\omega)$.
+The quasiparticle equation from Sec. 2, however, needs the self-energy at real frequencies,
+$\Sigma_{n\mathbf{k}}(\omega)$. CP2K obtains it by analytic continuation: a Padé approximant is
+fitted to the values $\Sigma_{n\mathbf{k}}(i\omega_j)$ on the imaginary frequency grid, and this
+fitted function is then evaluated at real frequencies,
+
+$$ \Sigma_{n\mathbf{k}}(i\omega_j) \;\xrightarrow{\;\text{fit}\;}\; \Sigma_{n\mathbf{k}}^\text{Padé}(z)
+\;\xrightarrow{\;z\,=\,\omega\;}\; \Sigma_{n\mathbf{k}}(\omega)\,. $$
+
+```{warning}
+With analytic continuation, *GW* quasiparticle energies are only reliable in the energy window from
+about 3 eV below the valence band maximum to about 3 eV above the conduction band minimum,
+$\varepsilon_\text{VBM}-3\,\text{eV} \lesssim \varepsilon_{n\mathbf{k}}^{GW} \lesssim
+\varepsilon_\text{CBM}+3\,\text{eV}$. Deeper occupied levels and higher unoccupied levels can be very
+unreliable. Increasing the number of imaginary-frequency points does not fix this, because the
+continuation from the imaginary to the real frequency axis is a numerically ill-posed problem. We are
+working on more robust methods; until then, please keep this limitation in mind when you interpret
+*GW* band structures.
+```
+
+### 4.4 Output, accuracy and computation time
 
 The *GW* band structure is written to the files `bandstructure_SCF_and_G0W0` and
 `bandstructure_SCF_and_G0W0_plus_SOC`. The direct and indirect band gaps are also listed in the CP2K
-output file. When facing an out-of-memory crash, please increase `MEMORY_PER_PROC`. An input and
-output for a *G*<sub>0</sub>*W*<sub>0</sub>@PBE band structure calculation of the 2d material
-WSe<sub>2</sub> can be found
-[here](https://github.com/cp2k/cp2k-examples/tree/master/gw/3_3-atom_unit_cell_2d_WSe2_loose_parameters)
-using loose parameters (*G*<sub>0</sub>*W*<sub>0</sub>@PBE band gap: 2.30 eV, computation time: 3
-hours on 3 large-memory nodes) and
-[here](https://github.com/cp2k/cp2k-examples/tree/master/gw/4_3-atom_unit_cell_2d_WSe2_tight_parameters)
-using tight parameters (*G*<sub>0</sub>*W*<sub>0</sub>@PBE band gap: 2.30 eV, computation time: 12
-hours on 20 large-memory nodes).
+output file.
 
-## 5. *GW* for large cells in $\Gamma$-only approach
+Inputs, outputs and *GW* band structures of 2D materials and 3D crystals with five different basis
+sets are available in the GitHub repository
+[CP2K_GW_RIRS_Bandstructures_3D_2D](https://github.com/JWilhelm/CP2K_GW_RIRS_Bandstructures_3D_2D).
+We recommend to start from one of these inputs. The table summarizes the mean computational cost and
+the mean absolute error (MAE) of the *G*<sub>0</sub>*W*<sub>0</sub>@PBE band gap:
 
-For a large unit cell, a $\Gamma$-only *GW* algorithm is available in CP2K \[[](#Graml2024)\]. The
-requirement on the cell is that elements of the density matrix decay by several orders of magnitude
-when the two basis functions of the matrix element have a distance similar to the cell size. As rule
-of thumb, for a 2d material, a 9x9 unit cell is large enough for the $\Gamma$-only algorithm, see
-Fig. 1 in \[[](#Graml2024)\].
+| Materials                             | Basis set                    | Cost (core-h) | Gap MAE to ref. (eV) | Gap MAE to prev. CP2K (eV) |
+| ------------------------------------- | ---------------------------- | ------------: | -------------------: | -------------------------: |
+| 2D materials (MoS₂, MoSe₂, WS₂, WSe₂) | `aug-SZV-MOLOPT-GTH-tier-2`  |           2.2 |                0.074 |                      0.040 |
+| 2D materials (MoS₂, MoSe₂, WS₂, WSe₂) | `aug-TZVP-MOLOPT-GTH-tier-2` |          22.8 |                0.040 |                      0.034 |
+| 3D crystals                           | `aug-SZV-MOLOPT-GTH-tier-2`  |          42.7 |                0.205 |                          – |
+| 3D crystals                           | `aug-TZVP-MOLOPT-GTH-tier-2` |         973.4 |                0.137 |                          – |
 
-The input file for a $\Gamma$-only *GW* calculation is identical as for *GW* for small cells with
-*k*-point sampling except that the `&KPOINTS` section in DFT needs to be removed. An exemplary input
-and output is available
-[here](https://github.com/cp2k/cp2k-examples/tree/master/gw/5_9x9_supercell_2d_MoS2). Running the
-input file requires access to a large computer (the calculation took 2.5 hours on 32 nodes on
-Noctua2 cluster in Paderborn). The computational parameters from this input file reach numerical
-convergence of the band gap within ~ 50 meV (TZVP basis set, 10 time and frequency points). Detailed
-convergence tests are available in the SI, Table S1 of \[[](#Graml2024)\] We recommend the numerical
-parameters from the input file for large-scale *GW* calculations. The code prints restart files with
-ending .matrix that can be used to restart a crashed calculation.
+The cost is the mean over all materials. As an example, 22.8 core-hours correspond to about 11
+minutes on a single compute node with 128 cores. For 2D materials, the *GW* calculation is very
+cheap. For 3D crystals, the *GW* calculation is only roughly 2–10 times more expensive than the
+preceding PBE calculation.
 
 In case anything does not work, please feel free to contact jan.wilhelm (at) ur.de.
