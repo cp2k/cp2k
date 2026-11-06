@@ -1698,15 +1698,14 @@ int fft_test_2d_local_r2c_inplace_low(const int fft_size[2],
  ******************************************************************************/
 int fft_test_3d_local_low(const int fft_size[3], const int test_every,
                           const bool transpose_in, const bool transpose_out) {
-  (void)test_every;
+  assert(test_every > 0);
   const int my_process = cp_mpi_comm_rank(cp_mpi_get_comm_world());
 
   int errors = 0;
 
   const double pi = acos(-1);
   const int volume = product3(fft_size);
-  const int number_of_ffts =
-      test_every > 0 ? (volume + test_every - 1) / test_every : volume;
+  const int number_of_ffts = (volume + test_every - 1) / test_every;
 
   double complex *input_array = NULL, *output_array = NULL;
   fft_allocate_complex(volume * number_of_ffts, &input_array);
@@ -1724,9 +1723,9 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every,
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
         const int index = (mx * fft_size[1] + my) * fft_size[2] + mz;
-        if (test_every > 0 && index % test_every != 0)
+        if (index % test_every != 0)
           continue;
-        const int batch = test_every > 0 ? index / test_every : index;
+        const int batch = index / test_every;
         input_array[fft3d_index(fft_size, mx, my, mz, batch, number_of_ffts,
                                 transpose_in)] = 1.0;
       }
@@ -1743,13 +1742,12 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every,
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
         const int basis = (mx * fft_size[1] + my) * fft_size[2] + mz;
-        if (test_every > 0 && basis % test_every != 0)
+        if (basis % test_every != 0)
           continue;
-        const int batch = test_every > 0 ? basis / test_every : basis;
+        const int batch = basis / test_every;
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2]; nz++) {
-              const int index = (nx * fft_size[1] + ny) * fft_size[2] + nz;
               const double complex my_value = output_array[fft3d_index(
                   fft_size, nx, ny, nz, batch, number_of_ffts, transpose_out)];
               const double complex ref_value =
@@ -1787,9 +1785,9 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every,
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
         const int index = (mx * fft_size[1] + my) * fft_size[2] + mz;
-        if (test_every > 0 && index % test_every != 0)
+        if (index % test_every != 0)
           continue;
-        const int batch = test_every > 0 ? index / test_every : index;
+        const int batch = index / test_every;
         output_array[fft3d_index(fft_size, mx, my, mz, batch, number_of_ffts,
                                  transpose_out)] = 1.0;
       }
@@ -1806,13 +1804,12 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every,
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
         const int basis = (mx * fft_size[1] + my) * fft_size[2] + mz;
-        if (test_every > 0 && basis % test_every != 0)
+        if (basis % test_every != 0)
           continue;
-        const int batch = test_every > 0 ? basis / test_every : basis;
+        const int batch = basis / test_every;
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2]; nz++) {
-              const int index = (nx * fft_size[1] + ny) * fft_size[2] + nz;
               const double complex my_value = input_array[fft3d_index(
                   fft_size, nx, ny, nz, batch, number_of_ffts, transpose_in)];
               const double complex ref_value =
@@ -1858,15 +1855,14 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every,
  ******************************************************************************/
 int fft_test_3d_local_inplace_low(const int fft_size[3], const int test_every,
                                   const bool transpose) {
-  (void)test_every;
+  assert(test_every > 0);
   const int my_process = cp_mpi_comm_rank(cp_mpi_get_comm_world());
 
   int errors = 0;
 
   const double pi = acos(-1);
   const int volume = product3(fft_size);
-  const int number_of_ffts =
-      test_every > 0 ? (volume + test_every - 1) / test_every : volume;
+  const int number_of_ffts = (volume + test_every - 1) / test_every;
 
   double complex *input_array = NULL;
   fft_allocate_complex(volume * number_of_ffts, &input_array);
@@ -1884,9 +1880,9 @@ int fft_test_3d_local_inplace_low(const int fft_size[3], const int test_every,
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
         const int index = (mx * fft_size[1] + my) * fft_size[2] + mz;
-        if (test_every > 0 && index % test_every != 0)
+        if (index % test_every != 0)
           continue;
-        const int batch = test_every > 0 ? index / test_every : index;
+        const int batch = index / test_every;
         input_array[fft3d_index(fft_size, mx, my, mz, batch, number_of_ffts,
                                 transpose)] = 1.0;
       }
@@ -1903,13 +1899,12 @@ int fft_test_3d_local_inplace_low(const int fft_size[3], const int test_every,
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
         const int basis = (mx * fft_size[1] + my) * fft_size[2] + mz;
-        if (test_every > 0 && basis % test_every != 0)
+        if (basis % test_every != 0)
           continue;
-        const int batch = test_every > 0 ? basis / test_every : basis;
+        const int batch = basis / test_every;
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2]; nz++) {
-              const int index = (nx * fft_size[1] + ny) * fft_size[2] + nz;
               const double complex my_value = output_array[fft3d_index(
                   fft_size, nx, ny, nz, batch, number_of_ffts, transpose)];
               const double complex ref_value =
@@ -1943,9 +1938,9 @@ int fft_test_3d_local_inplace_low(const int fft_size[3], const int test_every,
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
         const int index = (mx * fft_size[1] + my) * fft_size[2] + mz;
-        if (test_every > 0 && index % test_every != 0)
+        if (index % test_every != 0)
           continue;
-        const int batch = test_every > 0 ? index / test_every : index;
+        const int batch = index / test_every;
         output_array[fft3d_index(fft_size, mx, my, mz, batch, number_of_ffts,
                                  transpose)] = 1.0;
       }
@@ -1962,13 +1957,12 @@ int fft_test_3d_local_inplace_low(const int fft_size[3], const int test_every,
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
         const int basis = (mx * fft_size[1] + my) * fft_size[2] + mz;
-        if (test_every > 0 && basis % test_every != 0)
+        if (basis % test_every != 0)
           continue;
-        const int batch = test_every > 0 ? basis / test_every : basis;
+        const int batch = basis / test_every;
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2]; nz++) {
-              const int index = (nx * fft_size[1] + ny) * fft_size[2] + nz;
               const double complex my_value = input_array[fft3d_index(
                   fft_size, nx, ny, nz, batch, number_of_ffts, transpose)];
               const double complex ref_value =
@@ -2010,7 +2004,7 @@ int fft_test_3d_local_inplace_low(const int fft_size[3], const int test_every,
 int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every,
                               const bool transpose_in,
                               const bool transpose_out) {
-  (void)test_every;
+  assert(test_every > 0);
   const int my_process = cp_mpi_comm_rank(cp_mpi_get_comm_world());
 
   int errors = 0;
@@ -2018,8 +2012,7 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every,
   const double pi = acos(-1);
   const int volume = product3(fft_size);
   const int complex_volume = fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1);
-  const int number_of_ffts =
-      test_every > 0 ? (volume + test_every - 1) / test_every : volume;
+  const int number_of_ffts = (volume + test_every - 1) / test_every;
 
   double *double_buffer = NULL;
   double complex *complex_buffer = NULL;
@@ -2038,9 +2031,9 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every,
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
         const int index = (mx * fft_size[1] + my) * fft_size[2] + mz;
-        if (test_every > 0 && index % test_every != 0)
+        if (index % test_every != 0)
           continue;
-        const int batch = test_every > 0 ? index / test_every : index;
+        const int batch = index / test_every;
         double_buffer[fft3d_index(fft_size, mx, my, mz, batch, number_of_ffts,
                                   transpose_in)] = 1.0;
       }
@@ -2057,13 +2050,12 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every,
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
         const int basis = (mx * fft_size[1] + my) * fft_size[2] + mz;
-        if (test_every > 0 && basis % test_every != 0)
+        if (basis % test_every != 0)
           continue;
-        const int batch = test_every > 0 ? basis / test_every : basis;
+        const int batch = basis / test_every;
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2] / 2 + 1; nz++) {
-              const int index =
                   (nx * fft_size[1] + ny) * (fft_size[2] / 2 + 1) + nz;
               const double complex my_value =
                   complex_buffer[fft3d_index_complex(fft_size, nx, ny, nz,
@@ -2103,14 +2095,12 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every,
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
         const int basis = (mx * fft_size[1] + my) * fft_size[2] + mz;
-        if (test_every > 0 && basis % test_every != 0)
+        if (basis % test_every != 0)
           continue;
-        const int batch = test_every > 0 ? basis / test_every : basis;
+        const int batch = basis / test_every;
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2] / 2 + 1; nz++) {
-              const int index =
-                  (nx * fft_size[1] + ny) * (fft_size[2] / 2 + 1) + nz;
               complex_buffer[fft3d_index_complex(
                   fft_size, nx, ny, nz, batch, number_of_ffts, transpose_out)] =
                   cexp(-2.0 * I * pi *
@@ -2134,13 +2124,12 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every,
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
         const int basis = (mx * fft_size[1] + my) * fft_size[2] + mz;
-        if (test_every > 0 && basis % test_every != 0)
+        if (basis % test_every != 0)
           continue;
-        const int batch = test_every > 0 ? basis / test_every : basis;
+        const int batch = basis / test_every;
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2]; nz++) {
-              const int index = (nx * fft_size[1] + ny) * fft_size[2] + nz;
               const double my_value = double_buffer[fft3d_index(
                   fft_size, nx, ny, nz, batch, number_of_ffts, transpose_in)];
               const double ref_value =
@@ -2183,7 +2172,7 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every,
 int fft_test_3d_local_r2c_inplace_low(const int fft_size[3],
                                       const int test_every,
                                       const bool transpose) {
-  (void)test_every;
+  assert(test_every > 0);
   const int my_process = cp_mpi_comm_rank(cp_mpi_get_comm_world());
 
   int errors = 0;
@@ -2191,8 +2180,7 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3],
   const double pi = acos(-1);
   const int volume = product3(fft_size);
   const int complex_volume = fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1);
-  const int number_of_ffts =
-      test_every > 0 ? (volume + test_every - 1) / test_every : volume;
+  const int number_of_ffts = (volume + test_every - 1) / test_every;
   const int buffer_size = complex_volume * number_of_ffts;
   double *double_buffer = NULL;
   fft_allocate_double(2 * buffer_size, &double_buffer);
@@ -2210,9 +2198,9 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3],
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
         const int basis = (mx * fft_size[1] + my) * fft_size[2] + mz;
-        if (test_every > 0 && basis % test_every != 0)
+        if (basis % test_every != 0)
           continue;
-        const int batch = test_every > 0 ? basis / test_every : basis;
+        const int batch = basis / test_every;
         double_buffer[fft3d_index_padded(fft_size, mx, my, mz, batch,
                                          number_of_ffts, transpose)] = 1.0;
       }
@@ -2229,14 +2217,12 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3],
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
         const int basis = (mx * fft_size[1] + my) * fft_size[2] + mz;
-        if (test_every > 0 && basis % test_every != 0)
+        if (basis % test_every != 0)
           continue;
-        const int batch = test_every > 0 ? basis / test_every : basis;
+        const int batch = basis / test_every;
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2] / 2 + 1; nz++) {
-              const int index =
-                  (nx * fft_size[1] + ny) * (fft_size[2] / 2 + 1) + nz;
               const double complex my_value =
                   complex_buffer[fft3d_index_complex(
                       fft_size, nx, ny, nz, batch, number_of_ffts, transpose)];
@@ -2275,14 +2261,12 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3],
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
         const int basis = (mx * fft_size[1] + my) * fft_size[2] + mz;
-        if (test_every > 0 && basis % test_every != 0)
+        if (basis % test_every != 0)
           continue;
-        const int batch = test_every > 0 ? basis / test_every : basis;
+        const int batch = basis / test_every;
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2] / 2 + 1; nz++) {
-              const int index =
-                  (nx * fft_size[1] + ny) * (fft_size[2] / 2 + 1) + nz;
               complex_buffer[fft3d_index_complex(fft_size, nx, ny, nz, batch,
                                                  number_of_ffts, transpose)] =
                   cexp(-2.0 * I * pi *
@@ -2306,9 +2290,9 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3],
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
         const int basis = (mx * fft_size[1] + my) * fft_size[2] + mz;
-        if (test_every > 0 && basis % test_every != 0)
+        if (basis % test_every != 0)
           continue;
-        const int batch = test_every > 0 ? basis / test_every : basis;
+        const int batch = basis / test_every;
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2]; nz++) {
