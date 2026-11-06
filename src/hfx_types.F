@@ -2913,7 +2913,8 @@ CONTAINS
          DEALLOCATE (data%maxval_container(bin)%first)
       END DO
       DEALLOCATE (data%maxval_container)
-      DEALLOCATE (data%maxval_cache)
+      ! compress_tensor (qs_tensors) keeps no caches, a (de)compression holds them while it runs
+      IF (ASSOCIATED(data%maxval_cache)) DEALLOCATE (data%maxval_cache)
 
       DO bin = 1, SIZE(data%integral_containers, 2)
          DO i = 1, 64
@@ -2924,7 +2925,7 @@ CONTAINS
       END DO
       DEALLOCATE (data%integral_containers)
 
-      DEALLOCATE (data%integral_caches)
+      IF (ASSOCIATED(data%integral_caches)) DEALLOCATE (data%integral_caches)
 
    END SUBROUTINE dealloc_containers
 
