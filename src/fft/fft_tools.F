@@ -222,7 +222,7 @@ CONTAINS
 !>      10.2007 created [Joost VandeVondele]
 ! **************************************************************************************************
    SUBROUTINE finalize_fft(wisdom_file)
-      CHARACTER(LEN=*), INTENT(IN)           :: wisdom_file
+      CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
 
 ! release the FFT scratch pool
 
