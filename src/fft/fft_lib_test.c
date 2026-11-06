@@ -2056,7 +2056,6 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every,
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2] / 2 + 1; nz++) {
-                  (nx * fft_size[1] + ny) * (fft_size[2] / 2 + 1) + nz;
               const double complex my_value =
                   complex_buffer[fft3d_index_complex(fft_size, nx, ny, nz,
                                                      batch, number_of_ffts,
