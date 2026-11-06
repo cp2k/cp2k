@@ -1357,6 +1357,8 @@ CONTAINS
       ! Clean up
       NULLIFY (logger)
       logger => cp_get_default_logger()
+      iw = cp_print_key_unit_nr(logger, root_section, "GLOBAL%PROGRAM_RUN_INFO", &
+                                extension=".log")
       IF (do_finalize) THEN
          CALL deallocate_spherical_harmonics()
          CALL deallocate_orbital_pointers()
@@ -1365,14 +1367,12 @@ CONTAINS
          ! the LibXC functional objects are kept alive across calculations
          CALL libxc_release_workers()
          ! finalize the fft (i.e. writes the wisdom if FFTW3 and a wisdom file was specified)
-         CALL finalize_fft(globenv%fftw_wisdom_file_name)
+         CALL finalize_fft(para_env, globenv%fftw_wisdom_file_name, iw)
          CALL finalize_libvori()
       END IF
 
       ! Write message passing performance info
 
-      iw = cp_print_key_unit_nr(logger, root_section, "GLOBAL%PROGRAM_RUN_INFO", &
-                                extension=".log")
       CALL describe_mp_perf_env(iw)
       CALL cp_print_key_finished_output(iw, logger, root_section, &
                                         "GLOBAL%PROGRAM_RUN_INFO")

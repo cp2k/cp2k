@@ -65,7 +65,6 @@ MODULE cp2k_runs
                                               init_farming_env,&
                                               job_finished,&
                                               job_running
-   USE fft_api,                         ONLY: fft_print_timing_report
    USE force_env_methods,               ONLY: force_env_calc_energy_force
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
@@ -426,7 +425,6 @@ CONTAINS
       CALL dbm_library_print_stats(mpi_comm=mpi_comm, output_unit=output_unit)
       CALL dbt_library_print_stats(mpi_comm=mpi_comm, output_unit=output_unit)
       CALL grid_library_print_stats(mpi_comm=mpi_comm, output_unit=output_unit)
-      CALL fft_print_timing_report(0.0_dp, output_unit, mpi_comm)
       CALL offload_mempool_stats_print(mpi_comm=mpi_comm, output_unit=output_unit)
 
       m_memory_max_mpi = m_memory_max
