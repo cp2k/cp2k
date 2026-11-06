@@ -40,7 +40,7 @@ MODULE hfx_compression_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_compression_methods'
 
    ! values per group stored at one width (records of a cache), zero or negative: one width per
-   ! container; LIBXS takes 1 to 255 (exceptions at 8), the Fortran path multiples of 8 up to 248
+   ! container; the Fortran path takes multiples of 8 up to 248 (LIBXS chooses its own format)
    INTEGER, PARAMETER, PRIVATE :: group_size = 8
 
    INTEGER(kind=int_8), PARAMETER :: ugly_duck = ISHFT(1_int_8, 63)
@@ -127,13 +127,14 @@ CONTAINS
       INTEGER                                            :: end_idx, increment_counter, nwords, &
                                                             start_idx, tmp_elements, tmp_nints
       INTEGER(int_8), DIMENSION(CACHE_SIZE)              :: values
-      INTEGER(int_8), DIMENSION(CACHE_SIZE+32)           :: record
+      INTEGER(int_8), DIMENSION(CACHE_SIZE+64)           :: record
 
       IF (group_size > 0) THEN
          ! a record is its length in words followed by the values at a width per group
          values = full_array(1:CACHE_SIZE) - shifts(nbits - 1)
 #if defined(__LIBXS)
-         nwords = INT(libxs_vpack(record(2:), values, nbits, group_size))
+         ! default level (LIBXS_PACK in the environment), at most CACHE_SIZE+51 words for 64 bits
+         nwords = INT(libxs_vpack(record(2:), values, nbits))
 #else
          nwords = ints2groups(nbits, group_size, record(2:), values)
 #endif
@@ -233,7 +234,7 @@ CONTAINS
                                                             tmp_nints
       INTEGER(int_8)                                     :: nread
       INTEGER(int_8), DIMENSION(CACHE_SIZE)              :: values
-      INTEGER(int_8), DIMENSION(CACHE_SIZE+32)           :: record
+      INTEGER(int_8), DIMENSION(CACHE_SIZE+64)           :: record
 
       CPASSERT(ASSOCIATED(container%current))
 
