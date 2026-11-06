@@ -1,12 +1,7 @@
 # Leak suppressions
 # MPICH
-leak:MPIR_Find_local
-leak:MPIR_Find_external
+leak:ADIOI_cb_gather_name_array
 leak:MPIR_Csel_prune
-leak:MPIDIU_avt_init
-leak:MPIR_Group_create
-leak:MPIDIU_alloc_lut
-leak:MPI_File_open
 # xrootd
 leak:getMyFQN
 # PEXSI
