@@ -45,7 +45,6 @@ MODULE integrator
                                               pv_constraint
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_iterate
@@ -1025,8 +1024,7 @@ CONTAINS
       TYPE(md_environment_type), POINTER                 :: md_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      INTEGER                                            :: ivar, nparticle, nparticle_kind, nshell, &
-                                                            output_unit
+      INTEGER                                            :: ivar, nparticle, nparticle_kind, nshell
       INTEGER, POINTER                                   :: itimes
       LOGICAL                                            :: shell_adiabatic, shell_check_distance, &
                                                             shell_present
@@ -1167,13 +1165,6 @@ CONTAINS
             ELSE
                CALL apply_ne_core_correction(force_env, electrons%q, electrons%neutral_electrons)
             END IF
-         END IF
-         output_unit = cp_logger_get_default_io_unit()
-         IF (output_unit > 0) THEN
-            WRITE (output_unit, '(A,ES25.16E3,A,ES25.16E3,A,ES25.16E3)') &
-               ' CHAR_MIX: "fermi_level_eV": ', electrons%current_fermi_level_eV, &
-               '  "nelect": ', electrons%q, &
-               '  "workfunction_eV": ', electrons%current_workfunction
          END IF
       END IF
 
