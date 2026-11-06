@@ -2216,17 +2216,6 @@ CONTAINS
          END IF
       END IF
 
-      ! Native GFN1 spin polarization must be requested explicitly. The tblite
-      ! backend applies its GFN1 spin polarization automatically.
-      IF (dft_control%qs_control%xtb) THEN
-         IF (.NOT. dft_control%qs_control%xtb_control%do_tblite .AND. &
-             dft_control%qs_control%xtb_control%gfn_type == gfn1xtb .AND. &
-             dft_control%nspins == 2 .AND. &
-             .NOT. dft_control%qs_control%xtb_control%do_spinpol) THEN
-            CPABORT("Spin-polarized native GFN1 requires XTB/SPIN_POLARISATION T")
-         END IF
-      END IF
-
       ! The transition potential method to calculate XAS needs LSD
       IF (dft_control%do_xas_calculation) THEN
          IF (dft_control%nspins == 1) THEN
