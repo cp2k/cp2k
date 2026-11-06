@@ -607,6 +607,11 @@ list(
   qs_efield_local.F
   qs_elec_field.F
   qs_electric_field_gradient.F
+  qs_electrons_charge_mixing.F
+  qs_electrons_ne_electrode.F
+  qs_electrons_types.F
+  qs_electrons_utils.F
+  qs_electrons_workfunction.F
   qs_elf_methods.F
   qs_energy.F
   qs_energy_init.F
