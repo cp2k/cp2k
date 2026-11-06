@@ -280,9 +280,6 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_GAUXC}>:gauxc::gauxc>
     $<$<BOOL:${CP2K_USE_ELPA}>:cp2k::ELPA::elpa>
     $<$<BOOL:${CP2K_USE_PLUMED}>:cp2k::plumed::plumed>
-    $<$<BOOL:${CP2K_USE_FFTW3_}>:cp2k::FFTW3::fftw3>
-    $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_THREADS_SUPPORT}>>:cp2k::FFTW3::fftw3_threads>
-    $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>>:cp2k::FFTW3::fftw3_omp>
     $<$<BOOL:${CP2K_USE_SPLA}>:SPLA::spla>
     $<$<BOOL:${CP2K_USE_MIMIC}>:CP2K::MIMIC::mclf>
     $<$<BOOL:${CP2K_USE_MIMIC}>:CP2K::MIMIC::mcl>
