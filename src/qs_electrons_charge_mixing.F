@@ -700,9 +700,9 @@ CONTAINS
          END IF
          nelectron_spin(1) = (new_n_electron + multiplicity - 1)/2
          nelectron_spin(2) = (new_n_electron - multiplicity + 1)/2
-         IF (nelectron_spin(2) < 0) then
-           CPABORT("CHARGE MIXING: too few electrons for this MULTIPLICITY")
-         end if
+         IF (nelectron_spin(2) < 0) THEN
+            CPABORT("CHARGE MIXING: too few electrons for this MULTIPLICITY")
+         END IF
       END IF
 
       ! Every orbital the new occupation needs must already be allocated: nmo is

@@ -14,7 +14,7 @@
 MODULE input_cp2k_md
    USE bibliography,                    ONLY: &
         Evans1983, Guidon2008, Kantorovich2008, Kantorovich2008a, Kuhne2007, Minary2003, &
-        Rengaraj2020, Ricci2003, Tuckerman1992, VandeVondele2002, West2006
+        Rengaraj2020, Ricci2003, Tuckerman1992, VandeVondele2002, West2006, Zhang2026
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -1311,6 +1311,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="ELECTRONS", &
                           description="Settings for the electronic potentiostat driving a "// &
                           "constant-potential / Ne-electrode MD run.", &
+                          citations=[Zhang2026], &
                           n_keywords=3, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
