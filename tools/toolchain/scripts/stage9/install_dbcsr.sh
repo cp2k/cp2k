@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "${SCRIPT_NAME}")/.." && pwd -P)"
 
-dbcsr_ver="97a623c"
-dbcsr_sha256="3c6bea467dbd9fb120bf6de8fc8c343ef8ac5cb17bd85d487d124cc012afc0a4"
+dbcsr_ver="8e8c7d4"
+dbcsr_sha256="30b5ae6a41d6547196110b74271b7baf923bb1e6b2986cefcf6c497d86c07861"
 # DBCSR's fypp submodule (tools/build_utils/fypp), fetched if the archive lacks it
 fypp_ver="b8dd58b"
 fypp_sha256="e4c007903d1457b7000d1b3d0546355b570f0f9d747416701ca015f5bbb215a9"
