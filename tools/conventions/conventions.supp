@@ -202,6 +202,9 @@ skala_gpw_functional.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "get_sk
 xc_gauxc_functional.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "apply_gauxc" https://cp2k.org/conv#c107
 xc_gauxc_interface.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "print_gauxc_status_message" https://cp2k.org/conv#c107
 
+# MCL_COMM_MODE is MCL's own setting. It must be checked before the input is read to decide whether MCL is initialized for a MiMiC run
+message_passing.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "mp_world_init" https://cp2k.org/conv#c107
+
 # Suppression kept for toolchain based convention check
 cp_output_handling_openpmd.F: Found type cp_openpmd_per_call_value_type without initializer https://cp2k.org/conv#c016
 

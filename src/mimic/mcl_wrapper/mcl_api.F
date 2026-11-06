@@ -16,7 +16,8 @@ MODULE mcl_api
 
    USE kinds, ONLY: int_4, int_8, sp, dp
 #if defined(__MIMIC)
-   USE mcl, ONLY: mcl_finalize, mcl_get_api_version, mcl_get_program_id, mcl_receive, mcl_send
+   USE mcl, ONLY: mcl_finalize, mcl_get_api_version, mcl_get_program_id, mcl_is_initialized, &
+                  mcl_receive, mcl_send
 #endif
 
 #include "../../base/base_uses.f90"
@@ -27,7 +28,8 @@ MODULE mcl_api
 
    PRIVATE
 
-   PUBLIC :: mcl_finalize, mcl_get_api_version, mcl_get_program_id, mcl_receive, mcl_send
+   PUBLIC :: mcl_finalize, mcl_get_api_version, mcl_get_program_id, mcl_is_initialized, &
+             mcl_receive, mcl_send
 
 #if !defined(__MIMIC)
 
@@ -59,6 +61,12 @@ CONTAINS
       CPABORT("This CP2K executable has not been linked against MiMiC.")
       dummy_id = id
    END SUBROUTINE mcl_get_program_id
+
+   SUBROUTINE mcl_is_initialized(is_initialized)
+      LOGICAL, INTENT(OUT) :: is_initialized
+      CPABORT("This CP2K executable has not been linked against MiMiC.")
+      is_initialized = .FALSE.
+   END SUBROUTINE mcl_is_initialized
 
    #:for direction in mcl_direction
       SUBROUTINE mcl_${direction}$_char(buffer, length, tag, remote_id, err)

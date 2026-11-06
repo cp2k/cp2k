@@ -1,7 +1,6 @@
 # Leak suppressions
 # MPICH
 leak:ADIOI_cb_gather_name_array
-leak:MPIR_Csel_prune
 # xrootd
 leak:getMyFQN
 # PEXSI

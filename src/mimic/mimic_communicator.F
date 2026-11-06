@@ -29,6 +29,7 @@ MODULE mimic_communicator
    USE mcl_api,                         ONLY: mcl_finalize,&
                                               mcl_get_api_version,&
                                               mcl_get_program_id,&
+                                              mcl_is_initialized,&
                                               mcl_receive,&
                                               mcl_send
    USE mcl_requests,                    ONLY: MCL_DATA,&
@@ -127,8 +128,15 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       INTEGER                                            :: handle
+      LOGICAL                                            :: mcl_initialized
 
       CALL timeset(routineN, handle)
+
+      CALL mcl_is_initialized(mcl_initialized)
+      IF (.NOT. mcl_initialized) THEN
+         CALL cp_abort(__LOCATION__, "MiMiC run requested, but MCL is not initialized. "// &
+                       "Launch CP2K as a client in an MPMD run or set MCL_COMM_MODE.")
+      END IF
 
       CALL mcl_get_program_id(this%client_id)
 
