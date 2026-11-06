@@ -32,7 +32,6 @@ MODULE mc_types
                                               force_env_type,&
                                               use_fist_force,&
                                               use_qs_force
-   USE global_types,                    ONLY: global_environment_type
    USE input_constants,                 ONLY: do_fist,&
                                               do_qs
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -1196,17 +1195,15 @@ CONTAINS
 !> \brief reads in the Monte Carlo simulation parameters from an input file
 !> \param mc_par the structure that will store the parameters
 !> \param para_env ...
-!> \param globenv the global environment for the simulation
 !> \param input_file_name the name of the input_file
 !> \param input_file the structure that contains all the keywords in the input file
 !> \param force_env_section used to grab the type of force_env
 !> \author MJM
 ! **************************************************************************************************
-   SUBROUTINE read_mc_section(mc_par, para_env, globenv, input_file_name, input_file, force_env_section)
+   SUBROUTINE read_mc_section(mc_par, para_env, input_file_name, input_file, force_env_section)
 
       TYPE(mc_simpar_type), POINTER                      :: mc_par
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(global_environment_type), POINTER             :: globenv
       CHARACTER(LEN=*), INTENT(IN)                       :: input_file_name
       TYPE(section_vals_type), POINTER                   :: input_file, force_env_section
 
