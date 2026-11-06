@@ -12,7 +12,8 @@
 MODULE cp_fm_cusolver_api
    USE ISO_C_BINDING,                   ONLY: C_DOUBLE,&
                                               C_DOUBLE_COMPLEX,&
-                                              C_INT
+                                              C_INT,&
+                                              C_PTR
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_types,                    ONLY: cp_cfm_type
    USE cp_fm_types,                     ONLY: cp_fm_type
@@ -46,11 +47,12 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues_buffer
       TYPE(cp_blacs_env_type), POINTER                   :: context
       INTERFACE
-         SUBROUTINE cp_fm_diag_cusolver_c(fortran_comm, matrix_desc, &
+         SUBROUTINE cp_fm_diag_cusolver_c(cusolver_context, fortran_comm, matrix_desc, &
                                           nprow, npcol, myprow, mypcol, &
                                           n, matrix, eigenvectors, eigenvalues) &
             BIND(C, name="cp_fm_diag_cusolver")
-            IMPORT :: C_INT, C_DOUBLE
+            IMPORT :: C_INT, C_DOUBLE, C_PTR
+            TYPE(C_PTR), INTENT(INOUT)                 :: cusolver_context
             INTEGER(kind=C_INT), VALUE                :: fortran_comm
             INTEGER(kind=C_INT), DIMENSION(*)         :: matrix_desc
             INTEGER(kind=C_INT), VALUE                :: nprow
@@ -74,6 +76,7 @@ CONTAINS
       ALLOCATE (eigenvalues_buffer(n))
 
       CALL cp_fm_diag_cusolver_c( &
+         cusolver_context=context%cusolver_context, &
          fortran_comm=matrix%matrix_struct%para_env%get_handle(), &
          matrix_desc=matrix%matrix_struct%descriptor, &
          nprow=context%num_pe(1), &
@@ -119,11 +122,12 @@ CONTAINS
       INTEGER(kind=C_INT)                                :: handle, n
       TYPE(cp_blacs_env_type), POINTER                   :: context
       INTERFACE
-         SUBROUTINE cp_fm_general_cusolver_c(fortran_comm, a_matrix_desc, b_matrix_desc, &
+         SUBROUTINE cp_fm_general_cusolver_c(cusolver_context, fortran_comm, a_matrix_desc, b_matrix_desc, &
                                              nprow, npcol, myprow, mypcol, &
                                              n, nmo, aMatrix, bMatrix, eigenvectors, eigenvalues) &
             BIND(C, name="cp_fm_diag_cusolver_sygvd")
-            IMPORT :: C_INT, C_DOUBLE
+            IMPORT :: C_INT, C_DOUBLE, C_PTR
+            TYPE(C_PTR), INTENT(INOUT)                 :: cusolver_context
             INTEGER(kind=C_INT), VALUE                :: fortran_comm
             INTEGER(kind=C_INT), DIMENSION(*)         :: a_matrix_desc, b_matrix_desc
             INTEGER(kind=C_INT), VALUE                :: nprow
@@ -146,6 +150,7 @@ CONTAINS
       context => aMatrix%matrix_struct%context
 
       CALL cp_fm_general_cusolver_c( &
+         cusolver_context=context%cusolver_context, &
          fortran_comm=INT(aMatrix%matrix_struct%para_env%get_handle(), C_INT), &
          a_matrix_desc=INT(aMatrix%matrix_struct%descriptor, C_INT), &
          b_matrix_desc=INT(bMatrix%matrix_struct%descriptor, C_INT), &
@@ -190,11 +195,12 @@ CONTAINS
       INTEGER(kind=C_INT)                                :: handle, n
       TYPE(cp_blacs_env_type), POINTER                   :: context
       INTERFACE
-         SUBROUTINE cp_cfm_general_cusolver_c(fortran_comm, a_matrix_desc, b_matrix_desc, &
+         SUBROUTINE cp_cfm_general_cusolver_c(cusolver_context, fortran_comm, a_matrix_desc, b_matrix_desc, &
                                               nprow, npcol, myprow, mypcol, &
                                               n, nmo, aMatrix, bMatrix, eigenvectors, eigenvalues) &
             BIND(C, name="cp_cfm_diag_cusolver_hegvd")
-            IMPORT :: C_DOUBLE, C_DOUBLE_COMPLEX, C_INT
+            IMPORT :: C_DOUBLE, C_DOUBLE_COMPLEX, C_INT, C_PTR
+            TYPE(C_PTR), INTENT(INOUT)                 :: cusolver_context
             INTEGER(kind=C_INT), VALUE                :: fortran_comm
             INTEGER(kind=C_INT), DIMENSION(*)         :: a_matrix_desc, b_matrix_desc
             INTEGER(kind=C_INT), VALUE                :: nprow
@@ -217,6 +223,7 @@ CONTAINS
       context => aMatrix%matrix_struct%context
 
       CALL cp_cfm_general_cusolver_c( &
+         cusolver_context=context%cusolver_context, &
          fortran_comm=INT(aMatrix%matrix_struct%para_env%get_handle(), C_INT), &
          a_matrix_desc=INT(aMatrix%matrix_struct%descriptor, C_INT), &
          b_matrix_desc=INT(bMatrix%matrix_struct%descriptor, C_INT), &
