@@ -319,6 +319,7 @@ list(
   input_cp2k_resp.F
   input_cp2k_restarts_util.F
   input_cp2k_rsgrid.F
+  input_cp2k_skala.F
   input_cp2k_subsys.F
   input_cp2k_smeagol.F
   input_cp2k_thermostats.F

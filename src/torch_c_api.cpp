@@ -381,14 +381,16 @@ static bool tensor_matches(const torch_c_tensor_t *tensor,
   return tensor->is_contiguous();
 }
 
-static void reset_tensor_from_array_double(torch_c_tensor_t **tensor,
+static bool reset_tensor_from_array_double(torch_c_tensor_t **tensor,
                                            const bool req_grad, const int ndims,
                                            const int64_t sizes[],
                                            double source[]) {
   c10::OptionalDeviceGuard guard;
   const auto device = get_device_with_guard(guard);
   const auto sizes_ref = c10::IntArrayRef(sizes, ndims);
-  if (!tensor_matches(*tensor, torch::kFloat64, device, ndims, sizes)) {
+  const bool reallocated =
+      !tensor_matches(*tensor, torch::kFloat64, device, ndims, sizes);
+  if (reallocated) {
     delete (*tensor);
     const auto opts =
         torch::TensorOptions().dtype(torch::kFloat64).device(device);
@@ -402,6 +404,7 @@ static void reset_tensor_from_array_double(torch_c_tensor_t **tensor,
     (*tensor)->mutable_grad() = torch::Tensor();
   }
   (*tensor)->set_requires_grad(req_grad);
+  return reallocated;
 }
 
 /*******************************************************************************
@@ -475,14 +478,14 @@ void torch_c_tensor_from_array_double(torch_c_tensor_t **tensor,
 void torch_c_free_string(char *content) { free(content); }
 
 /*******************************************************************************
- * \brief Reuses or creates a device tensor and copies double data into it.
+ * \brief Reuses or creates a device tensor and reports reallocation.
  ******************************************************************************/
-void torch_c_tensor_reset_from_array_double(torch_c_tensor_t **tensor,
-                                            const bool req_grad,
-                                            const int ndims,
-                                            const int64_t sizes[],
-                                            double source[]) {
-  reset_tensor_from_array_double(tensor, req_grad, ndims, sizes, source);
+bool torch_c_tensor_reset_from_array_double_status(torch_c_tensor_t **tensor,
+                                                   const bool req_grad,
+                                                   const int ndims,
+                                                   const int64_t sizes[],
+                                                   double source[]) {
+  return reset_tensor_from_array_double(tensor, req_grad, ndims, sizes, source);
 }
 
 /*******************************************************************************
@@ -603,6 +606,11 @@ void torch_c_tensor_to_device_leaf(torch_c_tensor_t **tensor,
  * \brief Select whether Torch wrappers should use CUDA when available.
  ******************************************************************************/
 void torch_c_use_cuda(const bool use_cuda) { use_cuda_if_available = use_cuda; }
+
+/*******************************************************************************
+ * \brief Returns whether Torch wrappers currently select CUDA when available.
+ ******************************************************************************/
+bool torch_c_get_use_cuda() { return use_cuda_if_available; }
 
 /*******************************************************************************
  * \brief Returns the gradient of a Torch tensor which was computed by autograd.
