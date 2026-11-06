@@ -217,9 +217,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief does whatever is needed to finalize the current fft setup
-!> \param para_env ...
 !> \param wisdom_file ...
-!> \param export_wisdom Export the FFTW wisdom to wisdom_file (default: no export)
 !> \par History
 !>      10.2007 created [Joost VandeVondele]
 ! **************************************************************************************************
