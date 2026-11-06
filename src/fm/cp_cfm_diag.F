@@ -484,7 +484,7 @@ CONTAINS
             CALL cp_cfm_create(scratch_check, bmatrix%matrix_struct)
             CALL cp_cfm_to_cfm(bmatrix, overlap_check)
          END IF
-         CALL cp_cfm_general_cusolver(amatrix, bmatrix, work, evals)
+         CALL cp_cfm_general_cusolver(amatrix, bmatrix, work, evals(1:nmo))
          IF (check_eigenvectors) THEN
             CALL check_generalized_diag(overlap_check, work, scratch_check, nmo)
             CALL cp_cfm_release(scratch_check)
