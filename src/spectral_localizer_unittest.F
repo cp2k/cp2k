@@ -368,26 +368,11 @@ CONTAINS
 !> \author Thomas D. Kuehne, tkuehne@cp2k.org
 ! **************************************************************************************************
    SUBROUTINE check_localizer_flattening(para_env)
-<<<<<<< HEAD
       USE cp_dbcsr_api, ONLY: dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_release, &
                               dbcsr_distribution_type, dbcsr_finalize, dbcsr_finalize_lib, &
                               dbcsr_init_lib, dbcsr_put_block, dbcsr_type_no_symmetry
-      USE fft_tools, ONLY: finalize_fft, init_fft
-=======
-      USE cp_dbcsr_api, ONLY: &
-         dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
-         dbcsr_finalize, dbcsr_finalize_lib, dbcsr_init_lib, dbcsr_put_block, dbcsr_type_no_symmetry
-      USE cp_log_handling, ONLY: cp_add_default_logger, &
-                                 cp_logger_create, &
-                                 cp_logger_release, &
-                                 cp_logger_type, &
-                                 cp_rm_default_logger
       USE fft_api, ONLY: FFT_LIBRARY_BACKEND_DEFAULT, FFT_LIBRARY_FFTW_MODE_ESTIMATE
-      USE fft_tools, ONLY: finalize_fft, &
-                           init_fft
-      USE ieee_arithmetic, ONLY: ieee_quiet_nan, &
-                                 ieee_value
->>>>>>> c7ec833756 (Add the new local FFT backend)
+      USE fft_tools, ONLY: finalize_fft, init_fft
       USE kinds, ONLY: dp
       USE mathconstants, ONLY: twopi
       USE message_passing, ONLY: mp_para_env_type
@@ -518,7 +503,7 @@ CONTAINS
       CALL dbcsr_distribution_release(distribution)
       DEALLOCATE (process_grid, row_dist, col_dist, sizes)
       CALL dbcsr_finalize_lib()
-      CALL finalize_fft(para_env, '')
+      CALL finalize_fft('')
    CONTAINS
 
 ! **************************************************************************************************
