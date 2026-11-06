@@ -1,6 +1,4 @@
 # Leak suppressions
-# MPICH
-leak:ADIOI_cb_gather_name_array
 # xrootd
 leak:getMyFQN
 # PEXSI
