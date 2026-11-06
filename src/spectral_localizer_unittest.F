@@ -1280,7 +1280,7 @@ CONTAINS
       CALL dbcsr_distribution_release(distribution)
       DEALLOCATE (process_grid, row_dist, col_dist, sizes)
       CALL dbcsr_finalize_lib()
-      CALL finalize_fft(para_env, '')
+      CALL finalize_fft('')
 
    CONTAINS
 
