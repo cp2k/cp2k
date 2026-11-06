@@ -983,8 +983,6 @@ void fft_fftw_register_2d_local(const bool direction, const int fft_size[2],
     const int block_size =
         (number_of_ffts + number_of_threads - 1) / number_of_threads;
     const int number_of_full_blocks = number_of_ffts / block_size;
-    const int total_number_of_blocks =
-        number_of_full_blocks + (number_of_ffts % block_size != 0);
     fft_key_t key;
     get_key_2d(direction, fft_size, block_size, transpose_in, transpose_out,
                transpose_in ? number_of_ffts : fft_size[0] * fft_size[1],
@@ -1059,8 +1057,6 @@ void fft_fftw_register_2d_r2c_local(const int fft_size[2],
     const int block_size =
         (number_of_ffts + number_of_threads - 1) / number_of_threads;
     const int number_of_full_blocks = number_of_ffts / block_size;
-    const int total_number_of_blocks =
-        number_of_full_blocks + (number_of_ffts % block_size != 0);
     fft_key_t key;
     get_key_2d_r2c(
         true, fft_size, block_size, transpose_in, transpose_out,
@@ -1143,8 +1139,6 @@ void fft_fftw_register_2d_c2r_local(const int fft_size[2],
     const int block_size =
         (number_of_ffts + number_of_threads - 1) / number_of_threads;
     const int number_of_full_blocks = number_of_ffts / block_size;
-    const int total_number_of_blocks =
-        number_of_full_blocks + (number_of_ffts % block_size != 0);
     fft_key_t key;
     get_key_2d_r2c(
         false, fft_size, block_size, transpose_in, transpose_out,
