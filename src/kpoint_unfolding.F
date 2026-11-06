@@ -21,6 +21,7 @@ MODULE kpoint_unfolding
 
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
+   USE bibliography,                    ONLY: Quan2026
    USE cell_types,                      ONLY: cell_type,&
                                               pbc,&
                                               pbc_stable,&
@@ -29,18 +30,30 @@ MODULE kpoint_unfolding
                                               cp_cfm_get_submatrix,&
                                               cp_cfm_release,&
                                               cp_cfm_type
+   USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
+   USE input_section_types,             ONLY: section_vals_type,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_methods,                  ONLY: lowdin_kp_mo_coeff
-   USE kpoint_types,                    ONLY: kpoint_env_type
+   USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_env_type,&
+                                              kpoint_type
    USE mathconstants,                   ONLY: twopi
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
-   USE physcon,                         ONLY: angstrom
+   USE physcon,                         ONLY: angstrom,&
+                                              evolt
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
+   USE qs_scf_diagonalization,          ONLY: diag_kp_smat
+   USE qs_scf_types,                    ONLY: qs_scf_env_type
+   USE reference_manager,               ONLY: cite_reference
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -50,6 +63,8 @@ MODULE kpoint_unfolding
    INTEGER, PARAMETER, PRIVATE :: msg_length = 256
    ! tolerance for identifying k-points that differ by a reciprocal lattice vector
    REAL(KIND=dp), PARAMETER :: kdifftol = 1.0E-6_dp
+   ! bound-inclusion tolerance for unfolded f = M^-T (K + p): coordinates on the
+   ! unit-cell edge reach 0 or 1 only within roundoff
    REAL(KIND=dp), PARAMETER :: unit_tol = 1.0E-9_dp
    ! full-atom-selection Loewdin populations equal 1 to the k-point MO orthonormality
    ! accuracy (set by the diagonalization threshold, EPS_DEFAULT-level); violations
@@ -68,13 +83,142 @@ MODULE kpoint_unfolding
       INTEGER :: n_incomplete = 0                           ! channels with fewer than m members
       INTEGER :: n_groups = 1                               ! atom groups (independent clustering)
       INTEGER, DIMENSION(:), ALLOCATABLE :: channel_group   ! group of each channel (upper bound nao)
+      LOGICAL :: full_selection = .TRUE.                    ! no atom screened: Loewdin populations are 1
+      LOGICAL :: lowdin_proj = .FALSE.                      ! S(K)^{1/2} prebuilt by the DFT+U projection
    END TYPE unfolding_env_type
 
-   PUBLIC :: unfolding_env_type, unfolding_env_create, unfolding_env_release, &
-             unfolding_env_build_map, unfolding_fold_kpath, unfolding_unfolded_kspace, &
-             unfolding_kp_weights, kdifftol, mo_orthonorm_tol
+   PUBLIC :: unfolding_env_type, unfolding_setup, unfolding_fold_kpath, unfolding_process_set, &
+             unfolding_env_release
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Set up band structure unfolding from the UNFOLDING section: primitive cell of
+!>        TRANSFORMATION_MATRIX, ATOMS groups, and the supercell-to-primitive orbit map. The
+!>        setup is summarized on the output unit and in the header of the band structure file
+!> \param uf unfolding environment
+!> \param qs_env ...
+!> \param u_input UNFOLDING section
+!> \param unit_nr default output unit
+!> \param bs_data_unit band structure data unit
+! **************************************************************************************************
+   SUBROUTINE unfolding_setup(uf, qs_env, u_input, unit_nr, bs_data_unit)
+      TYPE(unfolding_env_type), INTENT(OUT)              :: uf
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(section_vals_type), POINTER                   :: u_input
+      INTEGER, INTENT(IN)                                :: unit_nr, bs_data_unit
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'unfolding_setup'
+
+      INTEGER                                            :: g, handle, i, ia, ia_first, ia_last, j, &
+                                                            n_atom_groups, natom
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: group_of_atom
+      INTEGER, DIMENSION(3, 3)                           :: transmat
+      INTEGER, DIMENSION(:), POINTER                     :: atom_vals, mvals
+      LOGICAL                                            :: stable_images
+      REAL(KIND=dp)                                      :: symm_tol
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: cart_hmat
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL timeset(routineN, handle)
+
+      CALL cite_reference(Quan2026)
+      NULLIFY (cell, kpoints, particle_set, qs_kind_set)
+      CALL get_qs_env(qs_env, cell=cell, kpoints=kpoints, particle_set=particle_set, qs_kind_set=qs_kind_set)
+
+      NULLIFY (mvals)
+      CALL section_vals_val_get(u_input, "TRANSFORMATION_MATRIX", i_vals=mvals)
+      ! input lists the three matrix rows; RESHAPE fills columns first
+      transmat = RESHAPE(mvals, [3, 3], ORDER=[2, 1])
+      NULLIFY (mvals)  ! aliases section storage, must not be deallocated
+      CALL section_vals_val_get(u_input, "SYMM_TOL", r_val=symm_tol)
+      cart_hmat(:, :) = cell%hmat(:, :)
+      IF (cell%input_cell_canonicalized) cart_hmat(:, :) = cell%input_hmat(:, :)
+      CALL unfolding_env_create(uf, transmat, symm_tol, cart_hmat)
+
+      natom = SIZE(particle_set)
+      ALLOCATE (group_of_atom(natom))
+      group_of_atom = 0
+      CALL section_vals_val_get(u_input, "ATOMS", n_rep_val=n_atom_groups)
+      DO g = 1, n_atom_groups
+         NULLIFY (atom_vals)
+         CALL section_vals_val_get(u_input, "ATOMS", i_rep_val=g, i_vals=atom_vals)
+         DO j = 1, SIZE(atom_vals)
+            ia = atom_vals(j)
+            IF (ia < 1 .OR. ia > natom) THEN
+               CPABORT("UNFOLD_BAND| ATOMS index outside 1..natom")
+            END IF
+            IF (group_of_atom(ia) /= 0) THEN
+               CPABORT("UNFOLD_BAND| ATOMS groups must be disjoint")
+            END IF
+            group_of_atom(ia) = g
+         END DO
+         NULLIFY (atom_vals)
+      END DO
+      ! no ATOMS keyword: all atoms form a single implicit group
+      IF (n_atom_groups == 0) group_of_atom = 1
+      uf%full_selection = ALL(group_of_atom /= 0)
+      IF (n_atom_groups > 1 .AND. unit_nr > 0) THEN
+         WRITE (unit_nr, FMT="(T2,A,I0,A)") "UNFOLD_BAND| atom groups: ", n_atom_groups, &
+            " (weights per group; column 4 = total)"
+         DO g = 1, n_atom_groups
+            ia_first = 0
+            ia_last = 0
+            DO j = 1, natom
+               IF (group_of_atom(j) == g) THEN
+                  IF (ia_first == 0) ia_first = j
+                  ia_last = j
+               END IF
+            END DO
+            WRITE (unit_nr, FMT="(T2,A,I0,A,I0,A,I0,A,I0,A)") "UNFOLD_BAND| group ", g, ": ", &
+               COUNT(group_of_atom == g), " atoms (first ", ia_first, ", last ", ia_last, ")"
+         END DO
+      END IF
+      IF (n_atom_groups >= 1 .AND. unit_nr > 0) THEN
+         WRITE (unit_nr, FMT="(T2,A,I0)") "UNFOLD_BAND| screened atoms (excluded): ", &
+            COUNT(group_of_atom == 0)
+      END IF
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, FMT="(T2,A,9(1X,I3))") "UNFOLD_BAND| M (rows) =", TRANSPOSE(uf%transmat)
+         WRITE (unit_nr, FMT="(T2,A,I0,A,F8.4)") "UNFOLD_BAND| m = |det M| = ", uf%m, &
+            " ; site tolerance [angstrom] = ", uf%symm_tol*angstrom
+         DO i = 1, 3
+            WRITE (unit_nr, FMT="(T2,A,I0,A,3F12.6)") "UNFOLD_BAND| primitive cell vector ", i, &
+               " [Bohr] =", uf%h_pc(1:3, i)
+         END DO
+      END IF
+      ! mirror the neighbor-list anchoring convention (qs_neighbor_lists):
+      ! stable images when the SCF ran k-points with symmetry, plain pbc otherwise
+      stable_images = .FALSE.
+      IF (ASSOCIATED(kpoints)) stable_images = kpoints%nkp > 0 .AND. kpoints%symmetry
+      CALL unfolding_env_build_map(uf, cell, particle_set, qs_kind_set, group_of_atom, &
+                                   stable_images, unit_nr)
+
+      IF (bs_data_unit > 0 .AND. bs_data_unit /= unit_nr) THEN
+         WRITE (UNIT=bs_data_unit, FMT="(A,9(1X,I3))") "# UNFOLD_BAND| M (rows) =", TRANSPOSE(uf%transmat)
+         WRITE (UNIT=bs_data_unit, FMT="(A,I0,A,F8.4)") "# UNFOLD_BAND| m = |det M| = ", uf%m, &
+            " ; site tolerance [angstrom] = ", uf%symm_tol*angstrom
+         DO i = 1, 3
+            WRITE (UNIT=bs_data_unit, FMT="(A,I0,A,3F14.8)") "# UNFOLD_BAND| primitive cell vector ", i, &
+               " [Bohr] =", uf%h_pc(1:3, i)
+         END DO
+         WRITE (UNIT=bs_data_unit, FMT="(A,I0,A,I0)") "# UNFOLD_BAND| orbits: ", uf%n_channels, &
+            " channels; incomplete: ", uf%n_incomplete
+         WRITE (UNIT=bs_data_unit, FMT="(A,I0,A,I0)") "# UNFOLD_BAND| atom groups: ", uf%n_groups, &
+            " ; screened atoms: ", COUNT(group_of_atom == 0)
+      END IF
+      ! DFT+U inputs (nonzero lowdin_v) build S(K)^{1/2} inside the band structure
+      ! diagonalization; rebuilding it for the weights would repeat the eigensolver
+      IF (ASSOCIATED(kpoints)) THEN
+         IF (ALLOCATED(kpoints%lowdin_v)) uf%lowdin_proj = ANY(kpoints%lowdin_v /= 0.0_dp)
+      END IF
+
+      DEALLOCATE (group_of_atom)
+      CALL timestop(handle)
+   END SUBROUTINE unfolding_setup
 
 ! **************************************************************************************************
 !> \brief Initialize the unfolding environment from the integer transformation matrix
@@ -167,17 +311,17 @@ CONTAINS
 !> \param qs_kind_set kinds
 !> \param group_of_atom (natom) 0 = fully screened, >= 1 = clustering group
 !> \param stable_images wrap atoms with pbc_stable (SCF k-point symmetry anchoring)
-!> \param iounit summary output unit (<= 0 suppresses)
+!> \param unit_nr summary output unit (<= 0 suppresses)
 ! **************************************************************************************************
    SUBROUTINE unfolding_env_build_map(uf, cell, particle_set, qs_kind_set, group_of_atom, &
-                                      stable_images, iounit)
+                                      stable_images, unit_nr)
       TYPE(unfolding_env_type), INTENT(INOUT)            :: uf
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       INTEGER, DIMENSION(:), INTENT(IN)                  :: group_of_atom
       LOGICAL, INTENT(IN)                                :: stable_images
-      INTEGER, INTENT(IN)                                :: iounit
+      INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'unfolding_env_build_map'
 
@@ -362,10 +506,10 @@ CONTAINS
       END IF
       uf%n_incomplete = COUNT(channel_size < uf%m)
 
-      IF (iounit > 0) THEN
-         WRITE (UNIT=iounit, FMT="(T2,A,I0,A,I0)") "UNFOLD_BAND| orbit channels: ", uf%n_channels, &
+      IF (unit_nr > 0) THEN
+         WRITE (UNIT=unit_nr, FMT="(T2,A,I0,A,I0)") "UNFOLD_BAND| orbit channels: ", uf%n_channels, &
             "; incomplete channels (vacancies): ", uf%n_incomplete
-         WRITE (UNIT=iounit, FMT="(T2,A,F12.6)") "UNFOLD_BAND| max assignment residual [angstrom] = ", &
+         WRITE (UNIT=unit_nr, FMT="(T2,A,F12.6)") "UNFOLD_BAND| max assignment residual [angstrom] = ", &
             max_res*angstrom
       END IF
 
@@ -421,6 +565,186 @@ CONTAINS
       END DO
       CALL timestop(handle)
    END SUBROUTINE unfolding_fold_kpath
+
+! **************************************************************************************************
+!> \brief Unfolding weights at all path points of one k-point set from its diagonalized unique
+!>        supercell K-points, checked against the subspace sum rule and written together with
+!>        the band energies
+!> \param uf unfolding environment
+!> \param qs_env ...
+!> \param kpoint unique supercell K-points of the set with their MOs
+!> \param kpgeneral (3, npoints) primitive-cell path points
+!> \param path2K (npoints) supercell K-point of each path point
+!> \param unit_nr default output unit
+!> \param bs_data_unit band structure data unit
+! **************************************************************************************************
+   SUBROUTINE unfolding_process_set(uf, qs_env, kpoint, kpgeneral, path2K, unit_nr, bs_data_unit)
+      TYPE(unfolding_env_type), INTENT(IN)               :: uf
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(kpoint_type), POINTER                         :: kpoint
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: kpgeneral
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: path2K
+      INTEGER, INTENT(IN)                                :: unit_nr, bs_data_unit
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'unfolding_process_set'
+
+      INTEGER                                            :: handle, ik, ikpgr, iq, iqc, ispin, &
+                                                            jpath, nfold, nmo, npoints, nspins
+      INTEGER, DIMENSION(2)                              :: kp_range
+      REAL(KIND=dp)                                      :: sumdev
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: psub
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: fqs
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: wmat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: wall
+      REAL(KIND=dp), DIMENSION(3)                        :: dvec
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (dft_control, matrix_s, scf_env)
+      CALL get_qs_env(qs_env, dft_control=dft_control, matrix_s_kp=matrix_s, scf_env=scf_env)
+      nspins = dft_control%nspins
+      npoints = SIZE(path2K)
+
+      ! S(k)^{1/2} of the local K-points, reused across spins and path points
+      IF (.NOT. uf%lowdin_proj) CALL diag_kp_smat(matrix_s, kpoint, scf_env%scf_work1)
+      kp => kpoint%kp_env(1)%kpoint_env
+      CALL get_mo_set(kp%mos(1), nmo=nmo)
+      CALL get_kpoint_info(kpoint, nkp=nfold, kp_range=kp_range, xkp=xkp)
+      ALLOCATE (wall(npoints, nmo, 0:uf%n_groups, nspins))
+      ALLOCATE (wmat(uf%m, nmo, 0:uf%n_groups), psub(nmo))
+      wall = 0.0_dp
+      sumdev = 0.0_dp
+      DO ik = 1, nfold
+         IF (ik < kp_range(1) .OR. ik > kp_range(2)) CYCLE
+         ikpgr = ik - kp_range(1) + 1
+         kp => kpoint%kp_env(ikpgr)%kpoint_env
+         CALL unfolding_unfolded_kspace(uf, xkp(1:3, ik), fqs)
+         DO ispin = 1, nspins
+            CALL unfolding_kp_weights(uf, kp, ispin, fqs, wmat, psub)
+            ! generalized subspace sum rule: holds for screened selections too
+            sumdev = MAX(sumdev, MAXVAL(ABS(SUM(wmat(:, 1:nmo, 0), 1) - psub(1:nmo))))
+            ! with all atoms selected the Loewdin populations are the MO
+            ! S-orthonormality row sums and must equal 1
+            IF (uf%full_selection .AND. MAXVAL(ABS(psub(1:nmo) - 1.0_dp)) > mo_orthonorm_tol) THEN
+               CPABORT("UNFOLD_BAND| the full-selection Loewdin population deviates from 1")
+            END IF
+            DO jpath = 1, npoints
+               IF (path2K(jpath) /= ik) CYCLE
+               iq = 0
+               DO iqc = 1, SIZE(fqs, 2)
+                  dvec(1:3) = fqs(1:3, iqc) - kpgeneral(1:3, jpath)
+                  dvec(1:3) = dvec(1:3) - ANINT(dvec(1:3))
+                  IF (MAXVAL(ABS(dvec(1:3))) < kdifftol) THEN
+                     iq = iqc
+                     EXIT
+                  END IF
+               END DO
+               IF (iq == 0) THEN
+                  CPABORT("UNFOLD_BAND| path point not in unfolded set")
+               END IF
+               wall(jpath, 1:nmo, 0:uf%n_groups, ispin) = wmat(iq, 1:nmo, 0:uf%n_groups)
+            END DO
+         END DO
+         DEALLOCATE (fqs)
+      END DO
+      DEALLOCATE (wmat, psub)
+      ! one-shot reduction across the k-point subgroups: each unique K (and
+      ! hence each path-point weight slice) is local to a single subgroup
+      CALL kpoint%para_env_inter_kp%sum(wall)
+      CALL kpoint%para_env_inter_kp%max(sumdev)
+      CALL unfolding_write_set(kpoint, kpgeneral, path2K, wall, bs_data_unit)
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, FMT="(T2,A,ES9.2)") &
+            "UNFOLD_BAND| Set check max|sum_q W - Loewdin population| = ", sumdev
+      END IF
+      DEALLOCATE (wall)
+
+      CALL timestop(handle)
+   END SUBROUTINE unfolding_process_set
+
+! **************************************************************************************************
+!> \brief Collect the band energies and occupations at the path points of one unfolded
+!>        k-point set from the k-point groups and write their blocks with the unfolding weights
+!> \param kpoint unique supercell K-points of the set with their MOs
+!> \param kpgeneral (3, npoints) primitive-cell path points
+!> \param path2K (npoints) supercell K-point of each path point
+!> \param wall (npoints, nmo, 0:n_groups, nspins) unfolding weights, slice 0 is the total
+!> \param bs_data_unit band structure data unit
+! **************************************************************************************************
+   SUBROUTINE unfolding_write_set(kpoint, kpgeneral, path2K, wall, bs_data_unit)
+      TYPE(kpoint_type), POINTER                         :: kpoint
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: kpgeneral
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: path2K
+      REAL(KIND=dp), DIMENSION(:, :, 0:, :), INTENT(IN)  :: wall
+      INTEGER, INTENT(IN)                                :: bs_data_unit
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'unfolding_write_set'
+
+      INTEGER                                            :: g, handle, ik, ikmap, ikpgr, imo, ispin, &
+                                                            n_groups, ngrp_out, nmo, npoints, &
+                                                            nspins
+      INTEGER, DIMENSION(2)                              :: kp_range
+      LOGICAL                                            :: my_kpgrp
+      REAL(KIND=dp)                                      :: path_weight
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval, occnum
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      TYPE(kpoint_env_type), POINTER                     :: kp
+
+      CALL timeset(routineN, handle)
+
+      npoints = SIZE(wall, 1)
+      nmo = SIZE(wall, 2)
+      n_groups = UBOUND(wall, 3)  ! group axis of wall runs 0:n_groups (0 = total)
+      nspins = SIZE(wall, 4)
+      path_weight = 1.0_dp/REAL(npoints, KIND=dp)
+      ! per-group weight columns only for two or more groups: a single group equals the total
+      ngrp_out = MERGE(n_groups, 0, n_groups >= 2)
+      CALL get_kpoint_info(kpoint, kp_range=kp_range, xkp=xkp)
+
+      ALLOCATE (eigval(nmo), occnum(nmo))
+      DO ik = 1, npoints
+         ikmap = path2K(ik)
+         my_kpgrp = (ikmap >= kp_range(1) .AND. ikmap <= kp_range(2))
+         DO ispin = 1, nspins
+            IF (my_kpgrp) THEN
+               ikpgr = ikmap - kp_range(1) + 1
+               kp => kpoint%kp_env(ikpgr)%kpoint_env
+               CALL get_mo_set(kp%mos(ispin), eigenvalues=eigenvalues, occupation_numbers=occupation_numbers)
+               eigval(1:nmo) = eigenvalues(1:nmo)
+               occnum(1:nmo) = occupation_numbers(1:nmo)
+            ELSE
+               eigval(1:nmo) = 0.0_dp
+               occnum(1:nmo) = 0.0_dp
+            END IF
+            CALL kpoint%para_env_inter_kp%sum(eigval)
+            CALL kpoint%para_env_inter_kp%sum(occnum)
+            IF (bs_data_unit > 0) THEN
+               WRITE (UNIT=bs_data_unit, FMT="(A,I0,A,I0,A,3(1X,F14.8))") &
+                  "# UNFOLD_BAND| path point ", ik, " -> SC K #", ikmap, " :", xkp(1:3, ikmap)
+               WRITE (UNIT=bs_data_unit, FMT="(A,I0,T15,A,I0,A,T24,3(1X,F14.8),3X,F14.8)") &
+                  "#  Point ", ik, "  Spin ", ispin, ":", kpgeneral(1:3, ik), path_weight
+               WRITE (UNIT=bs_data_unit, FMT="(A)", ADVANCE="NO") &
+                  "#   Band    Energy [eV]     Occupation   Unfold_Weight"
+               DO g = 1, ngrp_out
+                  WRITE (UNIT=bs_data_unit, FMT="(A,I0)", ADVANCE="NO") "   W_grp", g
+               END DO
+               WRITE (UNIT=bs_data_unit, FMT="(A)") ""
+               DO imo = 1, nmo
+                  WRITE (UNIT=bs_data_unit, FMT="(T2,I7,*(1X,F14.8))") imo, eigval(imo)*evolt, occnum(imo), &
+                     (wall(ik, imo, g, ispin), g=0, ngrp_out)
+               END DO
+            END IF
+         END DO
+      END DO
+      DEALLOCATE (eigval, occnum)
+      CALL timestop(handle)
+   END SUBROUTINE unfolding_write_set
 
 ! **************************************************************************************************
 !> \brief The m primitive k-points f (in [0,1)) with M^T f = K (mod 1)
