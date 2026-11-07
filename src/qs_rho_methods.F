@@ -766,14 +766,15 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Allocate a density structure and fill it with data from an input structure
-!>        SIZE(rho_input) == mspin == 1  direct copy
-!>        SIZE(rho_input) == mspin == 2  direct copy of alpha and beta spin
-!>        SIZE(rho_input) == 1 AND mspin == 2  copy rho/2 into alpha and beta spin
+!>        Equal input/output spin counts: direct copy of each spin channel.
+!>        One input spin and mspin == 2: copy rho/2 into alpha and beta spin,
+!>        with additional scaling if factor is present.
+!>        AO matrices are copied for every image, including the imaginary part.
 !> \param rho_input ...
 !> \param rho_output ...
 !> \param auxbas_pw_pool ...
 !> \param mspin ...
-!> \param factor ...
+!> \param factor additional scaling when expanding one spin channel into two
 ! **************************************************************************************************
    SUBROUTINE qs_rho_copy(rho_input, rho_output, auxbas_pw_pool, mspin, factor)
 
@@ -785,15 +786,14 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_rho_copy'
 
-      INTEGER                                            :: handle, i, j, nspins
+      INTEGER                                            :: handle, i, img, j, nspins
       LOGICAL :: complex_rho_ao, drho_g_valid_in, drho_r_valid_in, rho_g_valid_in, rho_r_valid_in, &
          soft_valid_in, tau_g_valid_in, tau_r_valid_in
       REAL(KIND=dp)                                      :: ospin
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_g_in, tot_rho_g_out, &
                                                             tot_rho_r_in, tot_rho_r_out
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_im_in, rho_ao_im_out, rho_ao_in, &
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_im_in, rho_ao_im_out, rho_ao_in, &
                                                             rho_ao_out
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp_in
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g_in, rho_g_out, tau_g_in, tau_g_out
       TYPE(pw_c1d_gs_type), DIMENSION(:, :), POINTER     :: drho_g_in, drho_g_out
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r_in, rho_r_out, tau_r_in, tau_r_out
@@ -810,13 +810,12 @@ CONTAINS
 
       CALL qs_rho_clear(rho_output)
 
-      NULLIFY (rho_ao_in, rho_ao_kp_in, rho_ao_im_in, rho_r_in, rho_g_in, drho_r_in, &
+      NULLIFY (rho_ao_in, rho_ao_im_in, rho_r_in, rho_g_in, drho_r_in, &
                drho_g_in, tau_r_in, tau_g_in, tot_rho_r_in, tot_rho_g_in, rho_r_sccs_in)
 
       CALL qs_rho_get(rho_input, &
-                      rho_ao=rho_ao_in, &
-                      rho_ao_kp=rho_ao_kp_in, &
-                      rho_ao_im=rho_ao_im_in, &
+                      rho_ao_kp=rho_ao_in, &
+                      rho_ao_im_kp=rho_ao_im_in, &
                       rho_r=rho_r_in, &
                       rho_g=rho_g_in, &
                       drho_r=drho_r_in, &
@@ -839,48 +838,32 @@ CONTAINS
                drho_g_out, tau_r_out, tau_g_out, tot_rho_r_out, tot_rho_g_out, rho_r_sccs_out)
       ! rho_ao
       IF (ASSOCIATED(rho_ao_in)) THEN
-         nspins = SIZE(rho_ao_in)
+         nspins = SIZE(rho_ao_in, 1)
          CPASSERT(mspin >= nspins)
-         CALL dbcsr_allocate_matrix_set(rho_ao_out, mspin)
-         CALL qs_rho_set(rho_output, rho_ao=rho_ao_out)
-         IF (mspin > nspins) THEN
+         CALL dbcsr_allocate_matrix_set(rho_ao_out, mspin, SIZE(rho_ao_in, 2))
+         CALL qs_rho_set(rho_output, rho_ao_kp=rho_ao_out)
+         DO img = 1, SIZE(rho_ao_in, 2)
             DO i = 1, mspin
-               ALLOCATE (rho_ao_out(i)%matrix)
-               CALL dbcsr_copy(rho_ao_out(i)%matrix, rho_ao_in(1)%matrix, name="RHO copy")
-               CALL dbcsr_scale(rho_ao_out(i)%matrix, ospin)
+               ALLOCATE (rho_ao_out(i, img)%matrix)
+               CALL dbcsr_copy(rho_ao_out(i, img)%matrix, rho_ao_in(MIN(i, nspins), img)%matrix, name="RHO copy")
+               IF (mspin > nspins) CALL dbcsr_scale(rho_ao_out(i, img)%matrix, ospin)
             END DO
-         ELSE
-            DO i = 1, nspins
-               ALLOCATE (rho_ao_out(i)%matrix)
-               CALL dbcsr_copy(rho_ao_out(i)%matrix, rho_ao_in(i)%matrix, name="RHO copy")
-            END DO
-         END IF
+         END DO
       END IF
-
-      ! rho_ao_kp
-      ! only for non-kp, we could probably just copy this pointer, should work also for non-kp?
-      !IF (ASSOCIATED(rho_ao_kp_in)) THEN
-      !   CPABORT("Copy not available")
-      !END IF
 
       ! rho_ao_im
       IF (ASSOCIATED(rho_ao_im_in)) THEN
-         nspins = SIZE(rho_ao_im_in)
+         nspins = SIZE(rho_ao_im_in, 1)
          CPASSERT(mspin >= nspins)
-         CALL dbcsr_allocate_matrix_set(rho_ao_im_out, mspin)
-         CALL qs_rho_set(rho_output, rho_ao_im=rho_ao_im_out)
-         IF (mspin > nspins) THEN
+         CALL dbcsr_allocate_matrix_set(rho_ao_im_out, mspin, SIZE(rho_ao_im_in, 2))
+         CALL qs_rho_set(rho_output, rho_ao_im_kp=rho_ao_im_out)
+         DO img = 1, SIZE(rho_ao_im_in, 2)
             DO i = 1, mspin
-               ALLOCATE (rho_ao_im_out(i)%matrix)
-               CALL dbcsr_copy(rho_ao_im_out(i)%matrix, rho_ao_im_in(1)%matrix, name="RHO copy")
-               CALL dbcsr_scale(rho_ao_im_out(i)%matrix, ospin)
+               ALLOCATE (rho_ao_im_out(i, img)%matrix)
+               CALL dbcsr_copy(rho_ao_im_out(i, img)%matrix, rho_ao_im_in(MIN(i, nspins), img)%matrix, name="RHO copy")
+               IF (mspin > nspins) CALL dbcsr_scale(rho_ao_im_out(i, img)%matrix, ospin)
             END DO
-         ELSE
-            DO i = 1, nspins
-               ALLOCATE (rho_ao_im_out(i)%matrix)
-               CALL dbcsr_copy(rho_ao_im_out(i)%matrix, rho_ao_im_in(i)%matrix, name="RHO copy")
-            END DO
-         END IF
+         END DO
       END IF
 
       ! rho_r
@@ -1082,14 +1065,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_rho_transfer'
 
-      INTEGER                                            :: handle, i, j, nspins
+      INTEGER                                            :: handle, i, img, j, nspins
       LOGICAL :: complex_rho_ao, drho_g_valid_in, drho_r_valid_in, rho_g_valid_in, rho_r_valid_in, &
          soft_valid_in, tau_g_valid_in, tau_r_valid_in
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_g_in, tot_rho_g_out, &
                                                             tot_rho_r_in, tot_rho_r_out
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_im_in, rho_ao_im_out, rho_ao_in, &
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_im_in, rho_ao_im_out, rho_ao_in, &
                                                             rho_ao_out
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp_in
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g_in, rho_g_out, tau_g_in, tau_g_out
       TYPE(pw_c1d_gs_type), DIMENSION(:, :), POINTER     :: drho_g_in, drho_g_out
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r_in, rho_r_out, tau_r_in, tau_r_out
@@ -1100,13 +1082,12 @@ CONTAINS
 
       CALL qs_rho_clear(rho_output)
 
-      NULLIFY (rho_ao_in, rho_ao_kp_in, rho_ao_im_in, rho_r_in, rho_g_in, drho_r_in, &
+      NULLIFY (rho_ao_in, rho_ao_im_in, rho_r_in, rho_g_in, drho_r_in, &
                drho_g_in, tau_r_in, tau_g_in, tot_rho_r_in, tot_rho_g_in, rho_r_sccs_in)
 
       CALL qs_rho_get(rho_input, &
-                      rho_ao=rho_ao_in, &
-                      rho_ao_kp=rho_ao_kp_in, &
-                      rho_ao_im=rho_ao_im_in, &
+                      rho_ao_kp=rho_ao_in, &
+                      rho_ao_im_kp=rho_ao_im_in, &
                       rho_r=rho_r_in, &
                       rho_g=rho_g_in, &
                       drho_r=drho_r_in, &
@@ -1129,29 +1110,27 @@ CONTAINS
                drho_g_out, tau_r_out, tau_g_out, tot_rho_r_out, tot_rho_g_out, rho_r_sccs_out)
       ! rho_ao
       IF (ASSOCIATED(rho_ao_in)) THEN
-         nspins = SIZE(rho_ao_in)
-         CALL dbcsr_allocate_matrix_set(rho_ao_out, nspins)
-         CALL qs_rho_set(rho_output, rho_ao=rho_ao_out)
-         DO i = 1, nspins
-            ALLOCATE (rho_ao_out(i)%matrix)
-            CALL dbcsr_copy(rho_ao_out(i)%matrix, rho_ao_in(i)%matrix, name="RHO copy")
+         nspins = SIZE(rho_ao_in, 1)
+         CALL dbcsr_allocate_matrix_set(rho_ao_out, nspins, SIZE(rho_ao_in, 2))
+         CALL qs_rho_set(rho_output, rho_ao_kp=rho_ao_out)
+         DO img = 1, SIZE(rho_ao_in, 2)
+            DO i = 1, nspins
+               ALLOCATE (rho_ao_out(i, img)%matrix)
+               CALL dbcsr_copy(rho_ao_out(i, img)%matrix, rho_ao_in(i, img)%matrix, name="RHO copy")
+            END DO
          END DO
       END IF
 
-      ! rho_ao_kp
-      ! only for non-kp, we could probably just copy this pointer, should work also for non-kp?
-      !IF (ASSOCIATED(rho_ao_kp_in)) THEN
-      !   CPABORT("Copy not available")
-      !END IF
-
       ! rho_ao_im
       IF (ASSOCIATED(rho_ao_im_in)) THEN
-         nspins = SIZE(rho_ao_im_in)
-         CALL dbcsr_allocate_matrix_set(rho_ao_im_out, nspins)
-         CALL qs_rho_set(rho_output, rho_ao_im=rho_ao_im_out)
-         DO i = 1, nspins
-            ALLOCATE (rho_ao_im_out(i)%matrix)
-            CALL dbcsr_copy(rho_ao_im_out(i)%matrix, rho_ao_im_in(i)%matrix, name="RHO copy")
+         nspins = SIZE(rho_ao_im_in, 1)
+         CALL dbcsr_allocate_matrix_set(rho_ao_im_out, nspins, SIZE(rho_ao_im_in, 2))
+         CALL qs_rho_set(rho_output, rho_ao_im_kp=rho_ao_im_out)
+         DO img = 1, SIZE(rho_ao_im_in, 2)
+            DO i = 1, nspins
+               ALLOCATE (rho_ao_im_out(i, img)%matrix)
+               CALL dbcsr_copy(rho_ao_im_out(i, img)%matrix, rho_ao_im_in(i, img)%matrix, name="RHO copy")
+            END DO
          END DO
       END IF
 
@@ -1319,6 +1298,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief rhoa(2) = alpha*rhoa(2)+beta*rhob(1)
+!>        AO matrix operations include every image of the real and imaginary parts.
 !> \param rhoa ...
 !> \param rhob ...
 !> \param alpha ...
@@ -1331,10 +1311,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_scale_and_add_b'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, img
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_g_a, tot_rho_g_b, tot_rho_r_a, &
                                                             tot_rho_r_b
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_a, rho_ao_b, rho_ao_im_a, &
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_a, rho_ao_b, rho_ao_im_a, &
                                                             rho_ao_im_b
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g_a, rho_g_b, tau_g_a, tau_g_b
       TYPE(pw_c1d_gs_type), DIMENSION(:, :), POINTER     :: drho_g_a, drho_g_b
@@ -1348,8 +1328,8 @@ CONTAINS
                drho_g_a, tau_r_a, tau_g_a, tot_rho_r_a, tot_rho_g_a, rho_r_sccs_a)
 
       CALL qs_rho_get(rhoa, &
-                      rho_ao=rho_ao_a, &
-                      rho_ao_im=rho_ao_im_a, &
+                      rho_ao_kp=rho_ao_a, &
+                      rho_ao_im_kp=rho_ao_im_a, &
                       rho_r=rho_r_a, &
                       rho_g=rho_g_a, &
                       drho_r=drho_r_a, &
@@ -1364,8 +1344,8 @@ CONTAINS
                drho_g_b, tau_r_b, tau_g_b, tot_rho_r_b, tot_rho_g_b, rho_r_sccs_b)
 
       CALL qs_rho_get(rhob, &
-                      rho_ao=rho_ao_b, &
-                      rho_ao_im=rho_ao_im_b, &
+                      rho_ao_kp=rho_ao_b, &
+                      rho_ao_im_kp=rho_ao_im_b, &
                       rho_r=rho_r_b, &
                       rho_g=rho_g_b, &
                       drho_r=drho_r_b, &
@@ -1377,12 +1357,18 @@ CONTAINS
                       rho_r_sccs=rho_r_sccs_b)
       ! rho_ao
       IF (ASSOCIATED(rho_ao_a) .AND. ASSOCIATED(rho_ao_b)) THEN
-         CALL dbcsr_add(rho_ao_a(2)%matrix, rho_ao_b(1)%matrix, alpha, beta)
+         CPASSERT(SIZE(rho_ao_a, 2) == SIZE(rho_ao_b, 2))
+         DO img = 1, SIZE(rho_ao_a, 2)
+            CALL dbcsr_add(rho_ao_a(2, img)%matrix, rho_ao_b(1, img)%matrix, alpha, beta)
+         END DO
       END IF
 
       ! rho_ao_im
       IF (ASSOCIATED(rho_ao_im_a) .AND. ASSOCIATED(rho_ao_im_b)) THEN
-         CALL dbcsr_add(rho_ao_im_a(2)%matrix, rho_ao_im_b(1)%matrix, alpha, beta)
+         CPASSERT(SIZE(rho_ao_im_a, 2) == SIZE(rho_ao_im_b, 2))
+         DO img = 1, SIZE(rho_ao_im_a, 2)
+            CALL dbcsr_add(rho_ao_im_a(2, img)%matrix, rho_ao_im_b(1, img)%matrix, alpha, beta)
+         END DO
       END IF
 
       ! rho_r
@@ -1436,6 +1422,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief rhoa = alpha*rhoa+beta*rhob
+!>        AO matrix operations include every image and the common spin channels.
 !> \param rhoa ...
 !> \param rhob ...
 !> \param alpha ...
@@ -1448,10 +1435,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_scale_and_add'
 
-      INTEGER                                            :: handle, i, j, nspina, nspinb, nspins
+      INTEGER                                            :: handle, i, img, j, nspins
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_g_a, tot_rho_g_b, tot_rho_r_a, &
                                                             tot_rho_r_b
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_a, rho_ao_b, rho_ao_im_a, &
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_a, rho_ao_b, rho_ao_im_a, &
                                                             rho_ao_im_b
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g_a, rho_g_b, tau_g_a, tau_g_b
       TYPE(pw_c1d_gs_type), DIMENSION(:, :), POINTER     :: drho_g_a, drho_g_b
@@ -1465,8 +1452,8 @@ CONTAINS
                drho_g_a, tau_r_a, tau_g_a, tot_rho_r_a, tot_rho_g_a, rho_r_sccs_a)
 
       CALL qs_rho_get(rhoa, &
-                      rho_ao=rho_ao_a, &
-                      rho_ao_im=rho_ao_im_a, &
+                      rho_ao_kp=rho_ao_a, &
+                      rho_ao_im_kp=rho_ao_im_a, &
                       rho_r=rho_r_a, &
                       rho_g=rho_g_a, &
                       drho_r=drho_r_a, &
@@ -1481,8 +1468,8 @@ CONTAINS
                drho_g_b, tau_r_b, tau_g_b, tot_rho_r_b, tot_rho_g_b, rho_r_sccs_b)
 
       CALL qs_rho_get(rhob, &
-                      rho_ao=rho_ao_b, &
-                      rho_ao_im=rho_ao_im_b, &
+                      rho_ao_kp=rho_ao_b, &
+                      rho_ao_im_kp=rho_ao_im_b, &
                       rho_r=rho_r_b, &
                       rho_g=rho_g_b, &
                       drho_r=drho_r_b, &
@@ -1494,29 +1481,29 @@ CONTAINS
                       rho_r_sccs=rho_r_sccs_b)
       ! rho_ao
       IF (ASSOCIATED(rho_ao_a) .AND. ASSOCIATED(rho_ao_b)) THEN
-         nspina = SIZE(rho_ao_a)
-         nspinb = SIZE(rho_ao_b)
-         nspins = MIN(nspina, nspinb)
-         DO i = 1, nspins
-            CALL dbcsr_add(rho_ao_a(i)%matrix, rho_ao_b(i)%matrix, alpha, beta)
+         CPASSERT(SIZE(rho_ao_a, 2) == SIZE(rho_ao_b, 2))
+         nspins = MIN(SIZE(rho_ao_a, 1), SIZE(rho_ao_b, 1))
+         DO img = 1, SIZE(rho_ao_a, 2)
+            DO i = 1, nspins
+               CALL dbcsr_add(rho_ao_a(i, img)%matrix, rho_ao_b(i, img)%matrix, alpha, beta)
+            END DO
          END DO
       END IF
 
       ! rho_ao_im
       IF (ASSOCIATED(rho_ao_im_a) .AND. ASSOCIATED(rho_ao_im_b)) THEN
-         nspina = SIZE(rho_ao_im_a)
-         nspinb = SIZE(rho_ao_im_b)
-         nspins = MIN(nspina, nspinb)
-         DO i = 1, nspins
-            CALL dbcsr_add(rho_ao_im_a(i)%matrix, rho_ao_im_b(i)%matrix, alpha, beta)
+         CPASSERT(SIZE(rho_ao_im_a, 2) == SIZE(rho_ao_im_b, 2))
+         nspins = MIN(SIZE(rho_ao_im_a, 1), SIZE(rho_ao_im_b, 1))
+         DO img = 1, SIZE(rho_ao_im_a, 2)
+            DO i = 1, nspins
+               CALL dbcsr_add(rho_ao_im_a(i, img)%matrix, rho_ao_im_b(i, img)%matrix, alpha, beta)
+            END DO
          END DO
       END IF
 
       ! rho_r
       IF (ASSOCIATED(rho_r_a) .AND. ASSOCIATED(rho_r_b)) THEN
-         nspina = SIZE(rho_ao_a)
-         nspinb = SIZE(rho_ao_b)
-         nspins = MIN(nspina, nspinb)
+         nspins = MIN(SIZE(rho_r_a), SIZE(rho_r_b))
          DO i = 1, nspins
             CALL pw_axpy(rho_r_b(i), rho_r_a(i), beta, alpha)
          END DO
@@ -1524,9 +1511,7 @@ CONTAINS
 
       ! rho_g
       IF (ASSOCIATED(rho_g_a) .AND. ASSOCIATED(rho_g_b)) THEN
-         nspina = SIZE(rho_ao_a)
-         nspinb = SIZE(rho_ao_b)
-         nspins = MIN(nspina, nspinb)
+         nspins = MIN(SIZE(rho_g_a), SIZE(rho_g_b))
          DO i = 1, nspins
             CALL pw_axpy(rho_g_b(i), rho_g_a(i), beta, alpha)
          END DO
@@ -1559,9 +1544,7 @@ CONTAINS
 
       ! tau_r
       IF (ASSOCIATED(tau_r_a) .AND. ASSOCIATED(tau_r_b)) THEN
-         nspina = SIZE(rho_ao_a)
-         nspinb = SIZE(rho_ao_b)
-         nspins = MIN(nspina, nspinb)
+         nspins = MIN(SIZE(tau_r_a), SIZE(tau_r_b))
          DO i = 1, nspins
             CALL pw_axpy(tau_r_b(i), tau_r_a(i), beta, alpha)
          END DO
@@ -1569,9 +1552,7 @@ CONTAINS
 
       ! tau_g
       IF (ASSOCIATED(tau_g_a) .AND. ASSOCIATED(tau_g_b)) THEN
-         nspina = SIZE(rho_ao_a)
-         nspinb = SIZE(rho_ao_b)
-         nspins = MIN(nspina, nspinb)
+         nspins = MIN(SIZE(tau_g_a), SIZE(tau_g_b))
          DO i = 1, nspins
             CALL pw_axpy(tau_g_b(i), tau_g_a(i), beta, alpha)
          END DO
@@ -1579,9 +1560,7 @@ CONTAINS
 
       ! tot_rho_r
       IF (ASSOCIATED(tot_rho_r_a) .AND. ASSOCIATED(tot_rho_r_b)) THEN
-         nspina = SIZE(rho_ao_a)
-         nspinb = SIZE(rho_ao_b)
-         nspins = MIN(nspina, nspinb)
+         nspins = MIN(SIZE(tot_rho_r_a), SIZE(tot_rho_r_b))
          DO i = 1, nspins
             tot_rho_r_a(i) = alpha*tot_rho_r_a(i) + beta*tot_rho_r_b(i)
          END DO
@@ -1589,9 +1568,7 @@ CONTAINS
 
       ! tot_rho_g
       IF (ASSOCIATED(tot_rho_g_a) .AND. ASSOCIATED(tot_rho_g_b)) THEN
-         nspina = SIZE(rho_ao_a)
-         nspinb = SIZE(rho_ao_b)
-         nspins = MIN(nspina, nspinb)
+         nspins = MIN(SIZE(tot_rho_g_a), SIZE(tot_rho_g_b))
          DO i = 1, nspins
             tot_rho_g_a(i) = alpha*tot_rho_g_a(i) + beta*tot_rho_g_b(i)
          END DO
