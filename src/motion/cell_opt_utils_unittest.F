@@ -33,7 +33,8 @@ PROGRAM cell_opt_utils_TEST
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: pi,&
-                                              sqrt3
+                                              sqrt3,&
+                                              sqrthalf
    USE space_groups_types,              ONLY: release_spgr_type,&
                                               spgr_type
    USE string_utilities,                ONLY: remove_word
@@ -137,18 +138,28 @@ CONTAINS
    END SUBROUTINE check_parser
 
 ! **************************************************************************************************
-!> \brief Check cell geometry, FD Jacobian, orthonormal [Y, Z] basis, and LICQ/degeneracy guards.
+!> \brief Check cell geometry, FD Jacobian, canonical [Y, Z] basis, and LICQ/degeneracy guards.
 ! **************************************************************************************************
    SUBROUTINE check_manifold_basis()
       INTEGER, PARAMETER :: &
          codes(6) = [info_ok, info_degenerate, info_licq, info_no_converge, info_bad_input, -99], &
          masks(7) = [gfix_gamma, gfix_alpha + gfix_beta + gfix_gamma, mask_x, mask_a + gfix_gamma, &
          gfix_a + gfix_b + gfix_c + gfix_v, mask_all, 0]
+      REAL(KIND=dp), PARAMETER :: lin_gen(n_slot, 3) = RESHAPE([1.0_dp, -0.4_dp, 0.2_dp, 0.0_dp, &
+         0.3_dp, -0.5_dp, 0.0_dp, 1.1_dp, 0.7_dp, -0.6_dp, 0.2_dp, 0.1_dp, 0.3_dp, 0.0_dp, -0.5_dp,&
+         0.8_dp, 1.2_dp, -0.9_dp], [n_slot, 3]), lin_sym(n_slot, 3) = RESHAPE([1.0_dp, 0.0_dp, &
+         -1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, &
+         0.0_dp, 0.0_dp, 0.0_dp, 1.0_dp, 0.0_dp], [n_slot, 3]), rot_3x3(3, 3) = RESHAPE([1.0_dp, &
+         -2.0_dp, -2.0_dp, -2.0_dp, 1.0_dp, -2.0_dp, -2.0_dp, -2.0_dp, 1.0_dp], [3, 3])/3.0_dp
+      REAL(KIND=dp), PARAMETER :: z_sym_ref(n_slot, 3) = RESHAPE([0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, &
+         0.0_dp, 1.0_dp, sqrthalf, 0.0_dp, sqrthalf, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, sqrthalf, &
+         0.0_dp, -sqrthalf, 0.0_dp, 0.0_dp], [n_slot, 3])
 
       INTEGER                                            :: c, i, info, j, pmax
       REAL(KIND=dp) :: A(n_slot, n_slot), eye(n_slot, n_slot), h, jac(n_geom, n_slot), qm(n_slot), &
-         qp(n_slot), rel, s(n_geom), sm(n_geom), sp(n_geom), yz(n_slot, n_slot)
-      TYPE(cell_manifold_type)                           :: m
+         qp(n_slot), rel, s(n_geom), sm(n_geom), sp(n_geom), yz(n_slot, n_slot), &
+         z_ang_ref(n_slot, 3)
+      TYPE(cell_manifold_type)                           :: m, m_rot
 
       CALL cell_manifold_geometry(q_rhom, s, info)
       IF (info /= info_ok .OR. ANY(ABS(s(1:3) - 5.1_dp) > 1.0E-13_dp) .OR. &
@@ -210,11 +221,44 @@ CONTAINS
                                   ANY(m%Y /= 0.0_dp))) THEN
             ERROR STOP "Unconstrained k = 0 basis is not canonical identity"
          END IF
-         DO j = 1, n_slot
+         DO j = 1, m%k
             pmax = MAXLOC(ABS(yz(:, j)), DIM=1)
-            IF (yz(pmax, j) <= 0.0_dp) ERROR STOP "Basis column broke sign rule"
+            IF (yz(pmax, j) <= 0.0_dp) ERROR STOP "Y column broke sign rule"
+         END DO
+         DO j = m%k + 1, n_slot
+            pmax = FINDLOC(ABS(yz(:, j)) >= (1.0_dp - 1.0E-8_dp)*MAXVAL(ABS(yz(:, j))), &
+                           .TRUE., DIM=1)
+            IF (yz(pmax, j) <= 0.0_dp) ERROR STOP "Z column broke canonical pivot sign rule"
          END DO
       END DO
+
+      ! Analytic golden basis for fixed angles: tangent columns must be the packed unit
+      ! lattice-vector scaling directions [a_hat, b_hat, c_hat].
+      CALL cell_manifold_geometry(q_rhom, s, info)
+      z_ang_ref = 0.0_dp
+      z_ang_ref(slot_ax, 1) = 1.0_dp
+      z_ang_ref(slot_bx:slot_by, 2) = q_rhom(slot_bx:slot_by)/s(geom_b)
+      z_ang_ref(slot_cx:n_slot, 3) = q_rhom(slot_cx:n_slot)/s(geom_c)
+      CALL cell_manifold_init(m, q_rhom, gfix_alpha + gfix_beta + gfix_gamma, info)
+      IF (info /= info_ok .OR. MAXVAL(ABS(m%Z(:, 1:3) - z_ang_ref)) > 1.0E-14_dp .OR. &
+          MAXVAL(ABS(m%u0(1:3) - s(geom_a:geom_c))) > 1.0E-13_dp) THEN
+         ERROR STOP "Fixed-angle canonical basis Z disagreed with [a_hat, b_hat, c_hat]"
+      END IF
+
+      ! Canonical Z must depend only on ker(A(q0)), including under O(k) constraint mixing
+      ! with det = -1 and exact equal-norm slot ties.
+      CALL cell_manifold_init(m, q_tri, 0, info, lin_w=lin_gen)
+      CALL cell_manifold_init(m_rot, q_tri, 0, info, lin_w=MATMUL(lin_gen, rot_3x3))
+      IF (info /= info_ok .OR. MAXVAL(ABS(m%Z(:, 1:3) - m_rot%Z(:, 1:3))) > 1.0E-14_dp .OR. &
+          MAXVAL(ABS(m%u0(1:3) - m_rot%u0(1:3))) > 1.0E-13_dp) THEN
+         ERROR STOP "Canonical Z changed under O(k) rotation/reflection of constraints"
+      END IF
+      CALL cell_manifold_init(m, q_cubic, 0, info, lin_w=lin_sym)
+      CALL cell_manifold_init(m_rot, q_cubic, 0, info, lin_w=MATMUL(lin_sym, rot_3x3))
+      IF (info /= info_ok .OR. MAXVAL(ABS(m%Z(:, 1:3) - z_sym_ref)) > 1.0E-14_dp .OR. &
+          MAXVAL(ABS(m_rot%Z(:, 1:3) - z_sym_ref)) > 1.0E-14_dp) THEN
+         ERROR STOP "Symmetric-tie canonical Z changed or broke lowest-slot tie rule"
+      END IF
 
       CALL cell_manifold_init(m, q_tri, comp_ax + gfix_a, info)
       IF (info /= info_licq) ERROR STOP "Accepted redundant AX + gfix_a pair"

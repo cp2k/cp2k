@@ -110,6 +110,7 @@ MODULE cell_manifold_utils
    REAL(KIND=dp), PARAMETER, PRIVATE :: max_cell_coord = 1.0E90_dp
    REAL(KIND=dp), PARAMETER, PRIVATE :: collinear_cos_margin = 1.0E-8_dp
    REAL(KIND=dp), PARAMETER, PRIVATE :: licq_pivot_tol = 1.0E-6_dp
+   REAL(KIND=dp), PARAMETER, PRIVATE :: basis_tie_rel_tol = 1.0E-8_dp
    REAL(KIND=dp), PARAMETER, PRIVATE :: default_chart_tol = 1.0E-12_dp
    INTEGER, PARAMETER, PRIVATE       :: default_chart_max_iter = 100
    REAL(KIND=dp), PARAMETER, PRIVATE :: proj_pressure_rel_tol = 1.0E-12_dp
@@ -1241,15 +1242,17 @@ CONTAINS
 !> \param info info_ok, info_degenerate, or info_licq
 !> \note Cholesky factorization of the row-normalized Gram matrix A A^T rejects both
 !>       exact row dependence and near-collinear rows before QR builds [Y, Z].
-!>       Each QR column has a positive largest-magnitude entry, so the basis does not
-!>       depend on LAPACK Householder signs.
+!>       Pivoted Gram-Schmidt over the kernel rows makes Z depend only on ker(A(q0)),
+!>       not on LAPACK reflector signs or nullspace rotations.
 ! **************************************************************************************************
    SUBROUTINE build_chart_basis(m, info)
       TYPE(cell_manifold_type), INTENT(INOUT)            :: m
       INTEGER, INTENT(OUT)                               :: info
 
-      INTEGER                                            :: i, info_lapack, j, lwork, pmax
-      REAL(KIND=dp)                                      :: Qfull(n_slot, n_slot), work_query(1)
+      INTEGER                                            :: cs, i, info_lapack, j, lwork, piv, pmax
+      LOGICAL                                            :: slot_used(n_slot)
+      REAL(KIND=dp) :: c_rot(n_slot, n_slot), Qfull(n_slot, n_slot), row_norms_slot(n_slot), &
+         work_query(1), z_rows(n_slot, n_slot)
       REAL(KIND=dp), ALLOCATABLE                         :: work(:)
       REAL(KIND=dp)                                      :: tau(m%k), row_norms(m%k), &
                                                             gram(m%k, m%k), gdiag(m%k), &
@@ -1306,16 +1309,44 @@ CONTAINS
          RETURN
       END IF
 
-      DO j = 1, n_slot
+      m%ndof = n_slot - m%k
+      DO j = 1, m%k
          pmax = MAXLOC(ABS(Qfull(:, j)), DIM=1)
          IF (Qfull(pmax, j) < 0.0_dp) Qfull(:, j) = -Qfull(:, j)
       END DO
-
-      m%ndof = n_slot - m%k
       m%Y = 0.0_dp
       m%Y(:, 1:m%k) = Qfull(:, 1:m%k)
+
+      ! Canonical tangent basis: pivoted Gram-Schmidt over the rows of the raw
+      ! kernel columns. The kernel span is basis-choice invariant, but its QR
+      ! representation is not (LAPACK builds differ by signs and rotations),
+      ! and the reduced coordinates must stay reproducible across builds.
       m%Z = 0.0_dp
-      m%Z(:, 1:m%ndof) = Qfull(:, m%k + 1:n_slot)
+      IF (m%ndof > 0) THEN
+         c_rot = 0.0_dp
+         z_rows = 0.0_dp
+         z_rows(:, 1:m%ndof) = Qfull(:, m%k + 1:n_slot)
+         slot_used = .FALSE.
+         DO cs = 1, m%ndof
+            row_norms_slot = 0.0_dp
+            DO i = 1, n_slot
+               IF (.NOT. slot_used(i)) row_norms_slot(i) = NORM2(z_rows(i, 1:m%ndof))
+            END DO
+            ! Lowest slot index among near-equal norms, so symmetric ties resolve
+            ! the same way on every build.
+            piv = FINDLOC(row_norms_slot >= (1.0_dp - basis_tie_rel_tol)*MAXVAL(row_norms_slot), &
+                          .TRUE., DIM=1)
+            c_rot(1:m%ndof, cs) = z_rows(piv, 1:m%ndof)/row_norms_slot(piv)
+            slot_used(piv) = .TRUE.
+            DO i = 1, n_slot
+               IF (.NOT. slot_used(i)) THEN
+                  z_rows(i, 1:m%ndof) = z_rows(i, 1:m%ndof) - &
+                                        DOT_PRODUCT(z_rows(i, 1:m%ndof), c_rot(1:m%ndof, cs))*c_rot(1:m%ndof, cs)
+               END IF
+            END DO
+         END DO
+         m%Z(:, 1:m%ndof) = MATMUL(Qfull(:, m%k + 1:n_slot), c_rot(1:m%ndof, 1:m%ndof))
+      END IF
       m%u0 = 0.0_dp
       m%u0(1:m%ndof) = MATMUL(TRANSPOSE(m%Z(:, 1:m%ndof)), m%q0)
 
