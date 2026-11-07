@@ -6,23 +6,20 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Batched lattice Fourier transforms on regular k-point grids.
+!> \brief Sparse direct and regular-grid lattice Fourier transforms.
 !>
 !>        Image cells are folded modulo the reciprocal grid; shifted meshes use a phase twist.
-!>        Forward transforms may return any subset of a regular grid. The inverse can embed
-!>        an explicitly allowed subset with its supplied weights and zero missing points.
-!>        Unsupported grids retain the direct phase-sum fallback.
+!>        Forward transforms can embed a regular-grid subset. The inverse transform can also
+!>        embed an explicitly allowed subset with its supplied weights and zero missing points.
+!>        Generic low-level wrappers retain a direct phase-sum fallback for non-RSKP
+!>        callers. The selected RSKP FFT backend requires successful FFT execution.
 ! **************************************************************************************************
 MODULE kpoint_lattice_fft
-   USE fft_lib,                         ONLY: fft_3d,&
-                                              fft_create_plan_3d,&
-                                              fft_destroy_plan,&
-                                              fft_supports_arbitrary_lengths
-   USE fft_plan,                        ONLY: fft_plan_type
+   USE fft_lib,                         ONLY: fft_supports_arbitrary_lengths
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_NEXT,&
                                               FWFFT,&
-                                              fft3d,&
+                                              fft_1d_many,&
                                               fft_alloc,&
                                               fft_dealloc,&
                                               fft_radix_operations
@@ -31,8 +28,6 @@ MODULE kpoint_lattice_fft
    USE mathconstants,                   ONLY: gaussi,&
                                               twopi,&
                                               z_zero
-
-!$ USE omp_lib, ONLY: omp_get_max_threads, omp_get_thread_num, omp_set_num_threads
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -41,12 +36,20 @@ MODULE kpoint_lattice_fft
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kpoint_lattice_fft'
 
-   PUBLIC :: cell_to_k_grid_fft, &
-             k_grid_to_cell_fft, &
-             k_grid_to_cell_prepare, k_grid_to_cell_execute, k_grid_to_cell_release, &
-             k_grid_to_cell_work_type, &
-             lattice_fft_num_threads, lattice_fft_shape, &
-             regular_kpoint_grid
+   PUBLIC :: cell_to_k_grid_fft, cell_to_k_grid_prepare, cell_to_k_grid_release, cell_to_k_grid_work_type
+   PUBLIC :: k_grid_to_cell_fft, k_grid_to_cell_prepare, k_grid_to_cell_execute, k_grid_to_cell_release
+   PUBLIC :: k_grid_to_cell_work_type, lattice_fft_shape, regular_kpoint_grid
+
+   INTEGER(KIND=int_8), PARAMETER :: fft_batch_bytes = 32_int_8*1024_int_8**2
+
+   ! Reusable forward lattice geometry and bounded numerical FFT workspace.
+   TYPE cell_to_k_grid_work_type
+      LOGICAL :: regular = .FALSE.
+      INTEGER :: nfft(3) = 0
+      INTEGER, ALLOCATABLE, PRIVATE :: grid_index(:, :), cell_index(:, :)
+      COMPLEX(KIND=dp), ALLOCATABLE, PRIVATE :: cell_factor(:)
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER, PRIVATE :: fft_in(:) => NULL(), fft_out(:) => NULL()
+   END TYPE cell_to_k_grid_work_type
 
    ! Call-scoped mathematical maps and buffers. Backend plans remain owned by fft_tools.
    TYPE k_grid_to_cell_work_type
@@ -56,7 +59,7 @@ MODULE kpoint_lattice_fft
       INTEGER, ALLOCATABLE :: cells(:, :), grid_index(:, :), cell_index(:, :)
       REAL(KIND=dp), ALLOCATABLE :: xkp(:, :), weight(:)
       COMPLEX(KIND=dp), ALLOCATABLE :: cell_phase(:)
-      COMPLEX(KIND=dp), CONTIGUOUS, POINTER :: fft_in(:, :, :) => NULL(), fft_out(:, :, :) => NULL()
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER :: fft_in(:) => NULL(), fft_out(:) => NULL()
    END TYPE k_grid_to_cell_work_type
 
 CONTAINS
@@ -149,7 +152,8 @@ CONTAINS
       END IF
       DO d = 1, 3
          DO attempt = 0, 15
-            IF (nfft(d) >= 3) THEN
+            IF (nfft(d) == 1) EXIT
+            IF (nfft(d) >= 2) THEN
                CALL fft_radix_operations(nfft(d), radix_length, FFT_RADIX_NEXT)
                IF (radix_length == nfft(d)) EXIT
             END IF
@@ -162,24 +166,39 @@ CONTAINS
    END FUNCTION lattice_fft_shape
 
 ! **************************************************************************************************
-!> \brief Bound concurrent forward transforms to 64 MiB of scratch, or one grid if larger.
-!> \param nfft FFT grid dimensions
-!> \param nentries number of independent AO entries
-!> \return number of OpenMP workers
+!> \brief Transform all lattice lines in three batched 1D FFTs.
+!>        Each axis moves from first to last through the existing transpose interface.
+!>        Input order is (x,y,z,batch), result order (batch,x,y,z), returned in buffer.
+!> \param sign fft_tools transform direction
+!> \param n lattice dimensions
+!> \param nbatch number of independent matrix elements
+!> \param buffer input, then transformed data; ownership swaps with scratch
+!> \param scratch equally sized FFT workspace
+!> \param stat nonzero on backend execution failure
 ! **************************************************************************************************
-   INTEGER FUNCTION lattice_fft_num_threads(nfft, nentries) RESULT(nthreads)
-      INTEGER, DIMENSION(3), INTENT(IN)                  :: nfft
-      INTEGER, INTENT(IN)                                :: nentries
+   SUBROUTINE lattice_fft_execute(sign, n, nbatch, buffer, scratch, stat)
+      INTEGER, INTENT(IN)                                :: sign, n(3), nbatch
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: buffer(:), scratch(:)
+      INTEGER, INTENT(OUT)                               :: stat
 
-      ! Two complex grids per worker plus an optional backend transpose buffer.
-      nthreads = 1
-!$    nthreads = omp_get_max_threads()
-      nthreads = INT(MIN(INT(nthreads, int_8), INT(MAX(1, nentries), int_8), &
-                         MAX(1_int_8, 64_int_8*1024_int_8**2/(48_int_8*PRODUCT(INT(nfft, int_8))))))
-   END FUNCTION lattice_fft_num_threads
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: swap(:)
+      INTEGER                                            :: d, nlines
+
+      stat = 0
+      DO d = 1, 3
+         IF (n(d) == 1) CYCLE
+         nlines = nbatch*PRODUCT(n)/n(d)
+         CALL fft_1d_many(sign, n(d), nlines, .FALSE., .TRUE., n(d), nlines, &
+                          buffer, scratch, 1.0_dp, stat)
+         IF (stat /= 0) RETURN
+         swap => buffer
+         buffer => scratch
+         scratch => swap
+      END DO
+   END SUBROUTINE lattice_fft_execute
 
 ! **************************************************************************************************
-!> \brief Transform real matrices to a regular reciprocal grid or any subset of that grid.
+!> \brief Transform a batch of real matrices from image cells to every supplied k point.
 !> \param values_rs real-space matrices; the last dimension enumerates image cells
 !> \param index_to_cell integer lattice vector for every image cell
 !> \param xkp reciprocal coordinates of all requested k points
@@ -189,9 +208,14 @@ CONTAINS
 !> \param deriv_direction optional Cartesian k derivative (1, 2, or 3)
 !> \param hmat direct-lattice cell matrix, required for a derivative
 !> \param selected_kpoints optional indices of k points to retain in values_k
+!> \param require_fft abort if FFT cannot be used; never execute a direct phase sum
+!> \param work optional prepared geometry, unchanged throughout repeated calls
+!> \param cell_first first prepared image-map column for this batch
+!> \param max_workspace_bytes optional FFT workspace bound
 ! **************************************************************************************************
    SUBROUTINE cell_to_k_grid_fft(values_rs, index_to_cell, xkp, nkp_grid, values_k, &
-                                 used_fft, deriv_direction, hmat, selected_kpoints)
+                                 used_fft, deriv_direction, hmat, selected_kpoints, require_fft, work, cell_first, &
+                                 max_workspace_bytes)
 
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: values_rs
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell
@@ -203,25 +227,20 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN), &
          OPTIONAL                                        :: hmat
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: selected_kpoints
+      LOGICAL, INTENT(IN), OPTIONAL                      :: require_fft
+      TYPE(cell_to_k_grid_work_type), INTENT(INOUT), &
+         OPTIONAL, TARGET                                :: work
+      INTEGER, INTENT(IN), OPTIONAL                      :: cell_first
+      INTEGER(KIND=int_8), INTENT(IN), OPTIONAL          :: max_workspace_bytes
 
-      TYPE fft_work_type
-         COMPLEX(KIND=dp), CONTIGUOUS, POINTER :: zin(:, :, :), zout(:, :, :)
-      END TYPE fft_work_type
-
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cell_factor
-      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
-         POINTER                                         :: fft_in, fft_out
-      INTEGER                                            :: d, handle, i, icell, ik, ik_out, &
-                                                            ithread, j, local_stat, nout, &
-                                                            nthreads, stat
-
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cell_index, grid_index
-      INTEGER, DIMENSION(3)                              :: n, nfft
-      LOGICAL                                            :: regular
-      REAL(KIND=dp)                                      :: arg
-      REAL(KIND=dp), DIMENSION(3)                        :: cell_vector, k_offset
-      TYPE(fft_plan_type)                                :: plan
-      TYPE(fft_work_type), ALLOCATABLE                    :: work(:)
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: input(:, :, :, :), output(:, :, :, :)
+      INTEGER                                            :: first, handle, i, icell, ik, ik_out, &
+                                                            image, j, nbatch, nout, start, stat, &
+                                                            width
+      INTEGER(KIND=int_8)                                :: budget, needed, ngrid
+      LOGICAL                                            :: success
+      TYPE(cell_to_k_grid_work_type), POINTER            :: plan
+      TYPE(cell_to_k_grid_work_type), TARGET             :: local_work
 
       CALL timeset("cell_to_k_grid_fft", handle)
 
@@ -250,90 +269,143 @@ CONTAINS
          END IF
       END IF
 
-      ALLOCATE (grid_index(3, SIZE(xkp, 2)))
-      regular = regular_kpoint_grid(xkp, nkp_grid, grid_index, k_offset, allow_incomplete=.TRUE.)
-      n = nkp_grid
-      IF (regular) regular = lattice_fft_shape(n, nfft, allow_arbitrary=.TRUE.)
-      IF (.NOT. regular) THEN
-         CALL direct_cell_to_k(values_rs, index_to_cell, xkp, values_k, deriv_direction, hmat, &
-                               selected_kpoints)
-         IF (PRESENT(used_fft)) used_fft = .FALSE.
-         DEALLOCATE (grid_index)
-         CALL timestop(handle)
-         RETURN
+      IF (PRESENT(work)) THEN
+         plan => work
+      ELSE
+         plan => local_work
+         CALL cell_to_k_grid_prepare(plan, index_to_cell, xkp, nkp_grid, deriv_direction, hmat)
       END IF
+      IF (.NOT. plan%regular .AND. PRESENT(require_fft)) THEN
+         IF (require_fft) THEN
+            CPABORT("Forced lattice FFT needs a supported complete regular grid")
+         END IF
+      END IF
+      success = .FALSE.
+      IF (plan%regular) THEN
+         start = 1
+         IF (PRESENT(cell_first)) start = cell_first
+         CPASSERT(start >= 1 .AND. start + SIZE(values_rs, 3) - 1 <= SIZE(plan%cell_factor))
+         ngrid = PRODUCT(INT(plan%nfft, int_8))
+         budget = fft_batch_bytes
+         IF (PRESENT(max_workspace_bytes)) budget = MIN(budget, max_workspace_bytes)
+         width = MIN(SIZE(values_rs, 1), INT(MAX(1_int_8, budget/(48_int_8*ngrid))))
+         IF (width == 0) THEN
+            success = .TRUE.
+         ELSE
+            needed = ngrid*width
+            CPASSERT(needed <= HUGE(0))
+            IF (ASSOCIATED(plan%fft_in)) THEN
+               ! Reuse capacity while also allowing a smaller caller budget.
+               IF (SIZE(plan%fft_in, KIND=int_8) < needed .OR. &
+                   32_int_8*SIZE(plan%fft_in, KIND=int_8) + 16_int_8*needed > budget) THEN
+                  CALL fft_dealloc(plan%fft_in)
+                  CALL fft_dealloc(plan%fft_out)
+               END IF
+            END IF
+            IF (.NOT. ASSOCIATED(plan%fft_in)) THEN
+               CALL fft_alloc(plan%fft_in, [INT(needed)])
+               CALL fft_alloc(plan%fft_out, [INT(needed)])
+            END IF
+            stat = 0
+            DO j = 1, SIZE(values_rs, 2)
+               DO first = 1, SIZE(values_rs, 1), width
+                  nbatch = MIN(width, SIZE(values_rs, 1) - first + 1)
+                  input(1:plan%nfft(1), 1:plan%nfft(2), 1:plan%nfft(3), 1:nbatch) => plan%fft_in(1:INT(ngrid)*nbatch)
+                  input = z_zero
+                  DO i = 1, nbatch
+                     DO icell = 1, SIZE(values_rs, 3)
+                        image = start + icell - 1
+                        input(plan%cell_index(1, image), plan%cell_index(2, image), plan%cell_index(3, image), i) = &
+                           input(plan%cell_index(1, image), plan%cell_index(2, image), plan%cell_index(3, image), i) + &
+                           plan%cell_factor(image)*values_rs(first + i - 1, j, icell)
+                     END DO
+                  END DO
+                  CALL lattice_fft_execute(BWFFT, plan%nfft, nbatch, plan%fft_in, plan%fft_out, stat)
+                  IF (stat /= 0) EXIT
+                  output(1:nbatch, 1:plan%nfft(1), 1:plan%nfft(2), 1:plan%nfft(3)) => plan%fft_in(1:INT(ngrid)*nbatch)
+                  DO ik_out = 1, SIZE(values_k, 3)
+                     ik = ik_out
+                     IF (PRESENT(selected_kpoints)) ik = selected_kpoints(ik_out)
+                     values_k(first:first + nbatch - 1, j, ik_out) = &
+                        output(:, plan%grid_index(1, ik), plan%grid_index(2, ik), plan%grid_index(3, ik))
+                  END DO
+               END DO
+               IF (stat /= 0) EXIT
+            END DO
+            success = stat == 0
+         END IF
+      END IF
+      IF (.NOT. success) THEN
+         IF (PRESENT(require_fft)) THEN
+            IF (require_fft) THEN
+               CPABORT("Forced lattice FFT execution failed")
+            END IF
+         END IF
+         CALL direct_cell_to_k(values_rs, index_to_cell, xkp, values_k, deriv_direction, hmat, selected_kpoints)
+      END IF
+      IF (PRESENT(used_fft)) used_fft = success
+      IF (.NOT. PRESENT(work)) CALL cell_to_k_grid_release(local_work)
+      CALL timestop(handle)
+   END SUBROUTINE cell_to_k_grid_fft
 
-      nthreads = lattice_fft_num_threads(nfft, SIZE(values_rs, 1)*SIZE(values_rs, 2))
-      ALLOCATE (work(nthreads))
-      DO ithread = 1, nthreads
-         CALL fft_alloc(work(ithread)%zin, nfft)
-         CALL fft_alloc(work(ithread)%zout, nfft)
-      END DO
-      ALLOCATE (cell_index(3, SIZE(values_rs, 3)), cell_factor(SIZE(values_rs, 3)))
-      DO icell = 1, SIZE(values_rs, 3)
+! **************************************************************************************************
+!> \brief Prepare fixed forward lattice maps; the caller keeps geometry and k points unchanged.
+!> \param work owned image/grid maps and reusable FFT buffers
+!> \param index_to_cell image translations, including repeated cells from different atom pairs
+!> \param xkp full reciprocal grid
+!> \param nkp_grid reciprocal-grid dimensions
+!> \param deriv_direction optional Cartesian derivative direction
+!> \param hmat direct-lattice cell matrix for a derivative
+! **************************************************************************************************
+   SUBROUTINE cell_to_k_grid_prepare(work, index_to_cell, xkp, nkp_grid, deriv_direction, hmat)
+      TYPE(cell_to_k_grid_work_type), INTENT(INOUT)      :: work
+      INTEGER, INTENT(IN)                                :: index_to_cell(:, :)
+      REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
+      INTEGER, INTENT(IN)                                :: nkp_grid(3)
+      INTEGER, INTENT(IN), OPTIONAL                      :: deriv_direction
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: hmat(3, 3)
+
+      INTEGER                                            :: d, icell
+      REAL(KIND=dp)                                      :: arg, cell_vector(3), k_offset(3)
+
+      CALL cell_to_k_grid_release(work)
+      ALLOCATE (work%grid_index(3, SIZE(xkp, 2)))
+      work%regular = regular_kpoint_grid(xkp, nkp_grid, work%grid_index, k_offset, &
+                                         allow_incomplete=.TRUE.)
+      IF (work%regular) work%regular = lattice_fft_shape(nkp_grid, work%nfft, allow_arbitrary=.TRUE.)
+      IF (.NOT. work%regular) RETURN
+      IF (PRESENT(deriv_direction)) THEN
+         CPASSERT(PRESENT(hmat))
+         CPASSERT(deriv_direction >= 1 .AND. deriv_direction <= 3)
+      END IF
+      ALLOCATE (work%cell_index(3, SIZE(index_to_cell, 2)), work%cell_factor(SIZE(index_to_cell, 2)))
+      DO icell = 1, SIZE(index_to_cell, 2)
          DO d = 1, 3
-            cell_index(d, icell) = MODULO(index_to_cell(d, icell), n(d))*(nfft(d)/n(d)) + 1
+            work%cell_index(d, icell) = MODULO(index_to_cell(d, icell), nkp_grid(d))* &
+                                        (work%nfft(d)/nkp_grid(d)) + 1
          END DO
-         arg = SUM(k_offset*REAL(index_to_cell(1:3, icell), KIND=dp))
-         cell_factor(icell) = EXP(gaussi*twopi*arg)
+         arg = SUM(k_offset*REAL(index_to_cell(1:3, icell), dp))
+         work%cell_factor(icell) = EXP(gaussi*twopi*arg)
          IF (PRESENT(deriv_direction)) THEN
-            cell_vector = MATMUL(hmat, REAL(index_to_cell(1:3, icell), KIND=dp))
-            cell_factor(icell) = cell_factor(icell)*gaussi*cell_vector(deriv_direction)
+            cell_vector = MATMUL(hmat, REAL(index_to_cell(1:3, icell), dp))
+            work%cell_factor(icell) = work%cell_factor(icell)*gaussi*cell_vector(deriv_direction)
          END IF
       END DO
+   END SUBROUTINE cell_to_k_grid_prepare
 
-      stat = 0
-!$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(nthreads) &
-!$OMP SHARED(work,plan,nfft,values_rs,values_k,cell_index,cell_factor,grid_index,nout,selected_kpoints) &
-!$OMP PRIVATE(ithread,fft_in,fft_out,i,j,icell,ik,ik_out,local_stat) REDUCTION(MAX:stat)
-      ! Each worker executes a serial FFT; this ICV change is scoped to its implicit task.
-!$    CALL omp_set_num_threads(1)
-!$OMP SINGLE
-      CALL fft_create_plan_3d(plan, .FALSE., BWFFT, nfft, work(1)%zin, work(1)%zout)
-!$OMP END SINGLE
-      ithread = 1
-!$    ithread = omp_get_thread_num() + 1
-      fft_in => work(ithread)%zin
-      fft_out => work(ithread)%zout
-!$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
-      DO j = 1, SIZE(values_rs, 2)
-         DO i = 1, SIZE(values_rs, 1)
-            fft_in = z_zero
-            DO icell = 1, SIZE(values_rs, 3)
-               fft_in(cell_index(1, icell), cell_index(2, icell), cell_index(3, icell)) = &
-                  fft_in(cell_index(1, icell), cell_index(2, icell), cell_index(3, icell)) + &
-                  cell_factor(icell)*values_rs(i, j, icell)
-            END DO
-            CALL fft_3d(plan, 1.0_dp, fft_in, fft_out, local_stat)
-            stat = MAX(stat, local_stat)
-            IF (local_stat /= 0) CYCLE
-            DO ik_out = 1, nout
-               ik = ik_out
-               IF (PRESENT(selected_kpoints)) ik = selected_kpoints(ik_out)
-               values_k(i, j, ik_out) = &
-                  fft_out(grid_index(1, ik), grid_index(2, ik), grid_index(3, ik))
-            END DO
-         END DO
-      END DO
-!$OMP END DO
-!$OMP END PARALLEL
-      CALL fft_destroy_plan(plan)
+! **************************************************************************************************
+!> \brief Release forward lattice maps and numerical buffers.
+!> \param work caller-owned prepared transform
+! **************************************************************************************************
+   SUBROUTINE cell_to_k_grid_release(work)
+      TYPE(cell_to_k_grid_work_type), INTENT(INOUT)      :: work
 
-      IF (stat /= 0) THEN
-         CALL direct_cell_to_k(values_rs, index_to_cell, xkp, values_k, deriv_direction, hmat, &
-                               selected_kpoints)
-         regular = .FALSE.
-      END IF
-      IF (PRESENT(used_fft)) used_fft = regular
-
-      DO ithread = 1, nthreads
-         CALL fft_dealloc(work(ithread)%zin)
-         CALL fft_dealloc(work(ithread)%zout)
-      END DO
-      DEALLOCATE (work, cell_factor, cell_index, grid_index)
-      CALL timestop(handle)
-
-   END SUBROUTINE cell_to_k_grid_fft
+      IF (ASSOCIATED(work%fft_in)) CALL fft_dealloc(work%fft_in)
+      IF (ASSOCIATED(work%fft_out)) CALL fft_dealloc(work%fft_out)
+      IF (ALLOCATED(work%grid_index)) DEALLOCATE (work%grid_index)
+      IF (ALLOCATED(work%cell_index)) DEALLOCATE (work%cell_index, work%cell_factor)
+      work%regular = .FALSE.
+   END SUBROUTINE cell_to_k_grid_release
 
 ! **************************************************************************************************
 !> \brief Transform reciprocal-grid data back to image-cell values.
@@ -402,11 +474,9 @@ CONTAINS
          work%weight(:) = weights
       END IF
       work%regular = regular_kpoint_grid(xkp, nkp_grid, work%grid_index, k_offset, allow_incomplete)
-      IF (work%regular) work%regular = lattice_fft_shape(nkp_grid, work%nfft, allow_incomplete)
+      IF (work%regular) work%regular = lattice_fft_shape(nkp_grid, work%nfft, allow_arbitrary=.TRUE.)
       IF (.NOT. work%regular) RETURN
 
-      CALL fft_alloc(work%fft_in, work%nfft)
-      CALL fft_alloc(work%fft_out, work%nfft)
       ALLOCATE (work%cell_index(3, ncell), work%cell_phase(ncell))
       DO icell = 1, ncell
          DO d = 1, 3
@@ -424,16 +494,22 @@ CONTAINS
 !> \param work prepared transform; scratch is reused, never shared between concurrent callers
 !> \param values_k matrices at the prepared reciprocal points
 !> \param values_rs matrices at the prepared lattice translations
-!> \param used_fft whether this batch used FFT, including execution failure fallback
+!> \param used_fft whether this batch used FFT; false denotes a direct fallback or no result
+!> \param require_fft abort on an unsupported mapping or FFT failure, without a direct fallback
+!> \param allow_direct_fallback execute the generic direct sum when FFT is unavailable; defaults to true
 ! **************************************************************************************************
-   SUBROUTINE k_grid_to_cell_execute(work, values_k, values_rs, used_fft)
+   SUBROUTINE k_grid_to_cell_execute(work, values_k, values_rs, used_fft, require_fft, allow_direct_fallback)
 
       TYPE(k_grid_to_cell_work_type), INTENT(INOUT)      :: work
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: values_k
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)  :: values_rs
       LOGICAL, INTENT(OUT), OPTIONAL                     :: used_fft
+      LOGICAL, INTENT(IN), OPTIONAL                      :: require_fft, allow_direct_fallback
 
-      INTEGER                                            :: handle, i, icell, ik, j, stat
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: input(:, :, :, :), output(:, :, :, :)
+      INTEGER                                            :: first, handle, i, icell, ik, j, nbatch, &
+                                                            stat, width
+      INTEGER(KIND=int_8)                                :: ngrid
 
       CALL timeset("k_grid_to_cell_fft", handle)
       CPASSERT(ALLOCATED(work%xkp))
@@ -445,21 +521,51 @@ CONTAINS
       END IF
 
       stat = 0
+      IF (PRESENT(require_fft)) THEN
+         IF (require_fft .AND. .NOT. work%regular) THEN
+            CPABORT("Forced inverse lattice FFT needs a supported regular grid")
+         END IF
+      END IF
       IF (work%regular) THEN
+         ngrid = PRODUCT(INT(work%nfft, int_8))
+         width = MIN(SIZE(values_k, 1), INT(MAX(1_int_8, fft_batch_bytes/(48_int_8*ngrid))))
+         IF (width == 0) THEN
+            IF (PRESENT(used_fft)) used_fft = .TRUE.
+            CALL timestop(handle)
+            RETURN
+         END IF
+         CPASSERT(ngrid*width <= HUGE(0))
+         IF (ASSOCIATED(work%fft_in)) THEN
+            IF (SIZE(work%fft_in, KIND=int_8) < ngrid*width) THEN
+               CALL fft_dealloc(work%fft_in)
+               CALL fft_dealloc(work%fft_out)
+            END IF
+         END IF
+         IF (.NOT. ASSOCIATED(work%fft_in)) THEN
+            CALL fft_alloc(work%fft_in, [INT(ngrid)*width])
+            CALL fft_alloc(work%fft_out, [INT(ngrid)*width])
+         END IF
          DO j = 1, SIZE(values_k, 2)
-            DO i = 1, SIZE(values_k, 1)
-               work%fft_in = z_zero
-               DO ik = 1, SIZE(values_k, 3)
-                  work%fft_in(work%grid_index(1, ik), work%grid_index(2, ik), work%grid_index(3, ik)) = &
-                     work%weight(ik)*values_k(i, j, ik)
+            DO first = 1, SIZE(values_k, 1), width
+               nbatch = MIN(width, SIZE(values_k, 1) - first + 1)
+               input(1:work%nfft(1), 1:work%nfft(2), 1:work%nfft(3), 1:nbatch) => &
+                  work%fft_in(1:INT(ngrid)*nbatch)
+               input = z_zero
+               DO i = 1, nbatch
+                  DO ik = 1, SIZE(values_k, 3)
+                     input(work%grid_index(1, ik), work%grid_index(2, ik), work%grid_index(3, ik), i) = &
+                        work%weight(ik)*values_k(first + i - 1, j, ik)
+                  END DO
                END DO
-               CALL fft3d(FWFFT, work%nfft, work%fft_in, work%fft_out, status=stat)
+               CALL lattice_fft_execute(FWFFT, work%nfft, nbatch, work%fft_in, work%fft_out, stat)
                IF (stat /= 0) EXIT
+               output(1:nbatch, 1:work%nfft(1), 1:work%nfft(2), 1:work%nfft(3)) => &
+                  work%fft_in(1:INT(ngrid)*nbatch)
                DO icell = 1, SIZE(values_rs, 3)
-                  ! fft_tools applies 1/PRODUCT(nfft); weights are already final.
-                  values_rs(i, j, icell) = REAL(PRODUCT(work%nfft), dp)*work%cell_phase(icell)* &
-                                           work%fft_out(work%cell_index(1, icell), work%cell_index(2, icell), &
-                                                        work%cell_index(3, icell))
+                  ! The 1D passes are unnormalized; supplied k weights are already final.
+                  values_rs(first:first + nbatch - 1, j, icell) = work%cell_phase(icell)* &
+                                                                  output(:, work%cell_index(1, icell), work%cell_index(2, icell), &
+                                                                         work%cell_index(3, icell))
                END DO
             END DO
             IF (stat /= 0) EXIT
@@ -467,6 +573,19 @@ CONTAINS
       END IF
       IF (stat /= 0) work%regular = .FALSE.
       IF (.NOT. work%regular) THEN
+         IF (PRESENT(require_fft)) THEN
+            IF (require_fft) THEN
+               CPABORT("Forced inverse lattice FFT execution failed")
+            END IF
+         END IF
+         IF (PRESENT(allow_direct_fallback)) THEN
+            IF (.NOT. allow_direct_fallback) THEN
+               values_rs = z_zero
+               IF (PRESENT(used_fft)) used_fft = .FALSE.
+               CALL timestop(handle)
+               RETURN
+            END IF
+         END IF
          CALL direct_k_to_cell(values_k, work%xkp, work%cells, values_rs, work%weight)
       END IF
       IF (PRESENT(used_fft)) used_fft = work%regular
