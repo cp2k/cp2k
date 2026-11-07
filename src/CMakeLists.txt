@@ -295,8 +295,6 @@ target_link_libraries(
     DBCSR::dbcsr
     $<$<BOOL:${CP2K_USE_MPI}>:cp2k::SCALAPACK::scalapack>
     cp2k_linalg_libs
-    # Torch includes some LAPACK routines, but with floating-point exceptions.
-    $<$<BOOL:${CP2K_USE_LIBTORCH}>:${TORCH_LIBRARIES}>
     $<$<BOOL:${CP2K_USE_OPENPMD}>:openPMD::openPMD>)
 
 set(CP2K_BUILD_INFO_FILE "${CMAKE_CURRENT_BINARY_DIR}/cp2k_build_info.h")
@@ -321,6 +319,11 @@ if(CP2K_DATA_DIR STREQUAL "default")
 endif()
 
 target_link_libraries(cp2k PUBLIC cp2k_link_libs)
+
+# Torch is used only inside libcp2k (torch_c_api.cpp / torch_api.F); link it PRIVATE so
+# TorchConfig.cmake's -Wl,--no-as-needed,libtorch_cpu.so does not leak into consumers,
+# where its statically embedded MKL would outrank the configured BLAS/LAPACK.
+target_link_libraries(cp2k PRIVATE $<$<BOOL:${CP2K_USE_LIBTORCH}>:${TORCH_LIBRARIES}>)
 
 if(CP2K_USE_ACCEL MATCHES "CUDA"
    AND CP2K_LIBXC_CUDA_SUPPORT
