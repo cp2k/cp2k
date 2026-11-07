@@ -296,6 +296,9 @@ registry["WANNIER90_SCF_MO_REUSE"] = TextPresenceMatcher(
 registry["WANNIER90_PROJECTION_MIN_SVALUE"] = GenericMatcher(
     "WANNIER90| Minimum projection singular value", col=6
 )
+registry["WANNIER90_HYBRID_CANDIDATE_COUNT"] = GenericMatcher(
+    "WANNIER90| Exported hybrid projection candidates", col=6
+)
 registry["WANNIER90_FULL_MESH_DIAG"] = TextPresenceMatcher(
     "WANNIER90| Falling back to full-mesh diagonalization for the Wannier90 files."
 )

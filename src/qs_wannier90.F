@@ -301,8 +301,8 @@ CONTAINS
          initial_projections, ipoint, iunit, ix, iy, iz, jpar, k, kept_index, kpoints_source, &
          loop_direction(3), n_rep, nadd, nao, nberry_images, nbs, nelectron, nexcl, nkp, nloop, &
          nmo, nntot, npoint, nscalar, num_atoms, num_bands, num_bands_tot, num_kpts, num_wann, &
-         spin_channel, state_components, state_unit, status, strong, tqc_dimension, trim_id, &
-         weak(3), z4
+         projection_candidates, spin_channel, state_components, state_unit, status, strong, &
+         tqc_dimension, trim_id, weak(3), z4
       INTEGER, ALLOCATABLE :: ebr_coefficients(:, :), hybrid_groups(:, :), loop_index(:), &
          parity_map(:), parity_odd(:), projection_pivots(:)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: band_indices, exclude_bands
@@ -313,11 +313,11 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: invals
       INTEGER, DIMENSION(:, :, :), POINTER               :: berry_cell_index, cell_to_index
       LOGICAL :: diis_step, do_chern, do_kpoints, do_parity, do_soc, do_tqc, do_wilson, do_z2, &
-         export_state, full_mesh_diagonalized, input_full_grid, input_gamma_centered, &
-         input_kpoint_symmetry, lowest_bands, mp_grid_explicit, mp_grid_valid, my_kpgrp, mygrp, &
-         nonnegative_atomic, ordered_berry, require_global_gap, reuse_scf_mos, reused_scf_mos, &
-         signed_atomic, time_reversal, use_bloch_phases, validate_reuse_ok, &
-         validate_reuse_scf_mos, window_set(4)
+         export_ao, export_hybrids, export_state, full_mesh_diagonalized, input_full_grid, &
+         input_gamma_centered, input_kpoint_symmetry, lowest_bands, mp_grid_explicit, &
+         mp_grid_valid, my_kpgrp, mygrp, nonnegative_atomic, ordered_berry, require_global_gap, &
+         reuse_scf_mos, reused_scf_mos, signed_atomic, time_reversal, use_bloch_phases, &
+         validate_reuse_ok, validate_reuse_scf_mos, window_set(4)
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: allowed_band, keep_band
       REAL(KIND=dp) :: aligned_degenerate_min_svalue, berry_phase, chern_winding, cmmn, &
          conduction_min, direct_gap, energy_window(4), gap_tol, gauge_arg, gauge_imag, gauge_real, &
@@ -449,13 +449,16 @@ CONTAINS
       CALL section_vals_val_get(input, "VALIDATE_REUSE_SCF_MOS", l_val=validate_reuse_scf_mos)
       CALL section_vals_val_get(input, "USE_BLOCH_PHASES", l_val=use_bloch_phases)
       CALL section_vals_val_get(input, "INITIAL_PROJECTIONS", i_val=initial_projections)
+      CALL section_vals_val_get(input, "EXPORT_PROJECTION_CANDIDATES", i_val=projection_candidates)
+      export_ao = projection_candidates == 1 .OR. projection_candidates == 3
+      export_hybrids = projection_candidates == 2 .OR. projection_candidates == 3
       IF (initial_projections == -1 .AND. use_bloch_phases) initial_projections = 0
       energy_window = [-HUGE(0.0_dp)/100, HUGE(0.0_dp)/100, -HUGE(0.0_dp)/100, HUGE(0.0_dp)/100]
       DO i = 1, 4
          CALL section_vals_val_get(input, TRIM(window_keywords(i)), explicit=window_set(i))
          IF (window_set(i)) CALL section_vals_val_get(input, TRIM(window_keywords(i)), r_val=energy_window(i))
       END DO
-      IF (ordered_berry .AND. (initial_projections > 0 .OR. ANY(window_set))) THEN
+      IF (ordered_berry .AND. (initial_projections > 0 .OR. projection_candidates > 0 .OR. ANY(window_set))) THEN
          CPABORT("AO projections and energy windows require KPOINTS_SOURCE MP_GRID or SCF.")
       END IF
       IF (window_set(3) .AND. .NOT. window_set(4)) CPABORT("DIS_FROZ_MIN requires DIS_FROZ_MAX.")
@@ -1230,6 +1233,29 @@ CONTAINS
       IF (iunit > 0) THEN
          CALL close_file(iunit)
       END IF
+      IF (initial_projections > 0 .OR. projection_candidates > 0) THEN
+         CALL build_wannier90_ao_projections(kpoint, matrix_s, sab_nl, para_env, ispin, band_indices, &
+                                             reused_scf_mos .AND. use_bloch_phases, phase_center, ao_projections)
+         IF (export_ao) THEN
+            CALL write_wannier90_amn(ao_projections, para_env, TRIM(seed_name)//"_ao_candidates.amn")
+         END IF
+         IF (initial_projections == 2 .OR. export_hybrids) THEN
+            CALL build_wannier90_hybrid_groups(qs_env, hybrid_groups)
+            CALL wannier90_hybrid_candidates(ao_projections, hybrid_groups, hybrid_projections)
+            DEALLOCATE (hybrid_groups)
+            IF (export_hybrids) THEN
+               CALL write_wannier90_amn(hybrid_projections, para_env, TRIM(seed_name)//"_hybrid_candidates.amn")
+               IF (iw > 0) WRITE (iw, '(T2,A,I0)') &
+                  "WANNIER90| Exported hybrid projection candidates ", SIZE(hybrid_projections, 2)
+            END IF
+            IF (initial_projections == 2) THEN
+               CALL MOVE_ALLOC(hybrid_projections, ao_projections)
+               IF (iw > 0) WRITE (iw, '(T2,A)') "WANNIER90| Selecting from the full radial s/p hybrid candidate bank."
+            ELSE
+               DEALLOCATE (hybrid_projections)
+            END IF
+         END IF
+      END IF
       IF (.NOT. ordered_berry .AND. initial_projections >= 0) THEN
          ALLOCATE (initial_amn(num_bands, num_wann, num_kpts))
          IF (initial_projections == 0) THEN
@@ -1238,8 +1264,6 @@ CONTAINS
                initial_amn(i, i, :) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
             END DO
          ELSE
-            CALL build_wannier90_ao_projections(kpoint, matrix_s, sab_nl, para_env, ispin, band_indices, &
-                                                reused_scf_mos .AND. use_bloch_phases, phase_center, ao_projections)
             IF (para_env%is_source() .AND. ANY(window_set)) THEN
                DO ik = 1, num_kpts
                   CALL wannier90_window_mask(projection_eigenvalues(:, ik), num_wann, energy_window*evolt, &
@@ -1248,13 +1272,6 @@ CONTAINS
                      IF (.NOT. allowed_band(ib)) ao_projections(ib, :, ik) = CMPLX(0.0_dp, 0.0_dp, dp)
                   END DO
                END DO
-            END IF
-            IF (initial_projections == 2) THEN
-               CALL build_wannier90_hybrid_groups(qs_env, hybrid_groups)
-               CALL wannier90_hybrid_candidates(ao_projections, hybrid_groups, hybrid_projections)
-               DEALLOCATE (ao_projections, hybrid_groups)
-               CALL MOVE_ALLOC(hybrid_projections, ao_projections)
-               IF (iw > 0) WRITE (iw, '(T2,A)') "WANNIER90| Selecting from the full radial s/p hybrid candidate bank."
             END IF
             ALLOCATE (projection_pivots(num_wann))
             CALL wannier90_select_projections(ao_projections, para_env, initial_amn, projection_pivots, &
@@ -1267,11 +1284,11 @@ CONTAINS
                CPABORT("No full-rank Wannier90 AO trial set was found on the entire k-point mesh.")
             END IF
             DEALLOCATE (projection_pivots)
-            DEALLOCATE (ao_projections)
          END IF
-         CALL write_wannier90_amn(initial_amn, para_env, seed_name)
+         CALL write_wannier90_amn(initial_amn, para_env, TRIM(seed_name)//".amn")
          DEALLOCATE (initial_amn)
       END IF
+      IF (ALLOCATED(ao_projections)) DEALLOCATE (ao_projections)
       IF (para_env%is_source()) THEN
          WRITE (filename, '(A,A)') TRIM(seed_name), ".mmn"
          CALL open_file(filename, unit_number=iunit, file_status="REPLACE", file_action="WRITE")
@@ -2669,17 +2686,17 @@ CONTAINS
 !> \brief Write fixed trial projections in the exported MO gauge for external Wannier90.
 !> \param amn Band/trial/k-point projection matrices.
 !> \param para_env Global parallel environment.
-!> \param seed_name Output filename prefix.
+!> \param filename Output AMN filename.
 ! **************************************************************************************************
-   SUBROUTINE write_wannier90_amn(amn, para_env, seed_name)
+   SUBROUTINE write_wannier90_amn(amn, para_env, filename)
       COMPLEX(KIND=dp), INTENT(IN)                       :: amn(:, :, :)
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      CHARACTER(LEN=*), INTENT(IN)                       :: seed_name
+      CHARACTER(LEN=*), INTENT(IN)                       :: filename
 
       INTEGER                                            :: ib, ik, iunit, iwann
 
       IF (.NOT. para_env%is_source()) RETURN
-      CALL open_file(TRIM(seed_name)//'.amn', unit_number=iunit, file_status='REPLACE', file_action='WRITE')
+      CALL open_file(filename, unit_number=iunit, file_status='REPLACE', file_action='WRITE')
       WRITE (iunit, '(A)') '! Initial Wannier90 projections generated by CP2K'
       WRITE (iunit, '(3I10)') SIZE(amn, 1), SIZE(amn, 3), SIZE(amn, 2)
       DO ik = 1, SIZE(amn, 3)
