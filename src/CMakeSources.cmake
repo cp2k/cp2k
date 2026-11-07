@@ -359,6 +359,7 @@ list(
   kpoint_mo_symmetry_methods.F
   kpoint_transitional.F
   kpoint_types.F
+  kpoint_unfolding.F
   kpsym.F
   libgrpp_integrals.F
   libint_2c_3c.F
