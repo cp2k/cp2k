@@ -34,6 +34,8 @@ MODULE md_environment_types
                                               release_md_ener
    USE message_passing,                 ONLY: mp_para_env_release,&
                                               mp_para_env_type
+   USE qs_electrons_types,              ONLY: qs_electrons_dealloc,&
+                                              qs_electrons_type
    USE reftraj_types,                   ONLY: reftraj_type,&
                                               release_reftraj
    USE simpar_types,                    ONLY: simpar_type
@@ -69,6 +71,7 @@ MODULE md_environment_types
       TYPE(simpar_type), POINTER                 :: simpar => NULL()
       TYPE(average_quantities_type), POINTER     :: averages => NULL()
       TYPE(thermal_regions_type), POINTER        :: thermal_regions => NULL()
+      TYPE(qs_electrons_type), POINTER           :: electrons => NULL()
    END TYPE md_environment_type
 
    ! *** Public subroutines and data types ***
@@ -154,6 +157,9 @@ CONTAINS
          CALL release_thermal_regions(md_env%thermal_regions)
          DEALLOCATE (md_env%thermal_regions)
       END IF
+      IF (ASSOCIATED(md_env%electrons)) THEN
+         CALL qs_electrons_dealloc(md_env%electrons)
+      END IF
 
    END SUBROUTINE md_env_release
 
@@ -185,12 +191,13 @@ CONTAINS
 !> \param averages ...
 !> \param thermal_regions ...
 !> \param ehrenfest_md ...
+!> \param electrons ...
 ! **************************************************************************************************
    SUBROUTINE get_md_env(md_env, itimes, constant, used_time, cell, simpar, npt, &
                          force_env, para_env, reftraj, t, init, first_time, fe_env, thermostats, barostat, &
                          thermostat_coeff, thermostat_part, thermostat_shell, thermostat_baro, &
                          thermostat_fast, thermostat_slow, md_ener, averages, &
-                         thermal_regions, ehrenfest_md)
+                         thermal_regions, ehrenfest_md, electrons)
 
       TYPE(md_environment_type), INTENT(IN)              :: md_env
       INTEGER, OPTIONAL, POINTER                         :: itimes
@@ -213,6 +220,7 @@ CONTAINS
       TYPE(average_quantities_type), OPTIONAL, POINTER   :: averages
       TYPE(thermal_regions_type), OPTIONAL, POINTER      :: thermal_regions
       LOGICAL, OPTIONAL                                  :: ehrenfest_md
+      TYPE(qs_electrons_type), OPTIONAL, POINTER         :: electrons
 
       IF (PRESENT(itimes)) itimes => md_env%itimes
       IF (PRESENT(fe_env)) fe_env => md_env%fe_env
@@ -261,6 +269,7 @@ CONTAINS
       IF (PRESENT(first_time)) first_time = md_env%first_time
       IF (PRESENT(ehrenfest_md)) ehrenfest_md = md_env%ehrenfest_md
       IF (PRESENT(thermal_regions)) thermal_regions => md_env%thermal_regions
+      IF (PRESENT(electrons)) electrons => md_env%electrons
 
    END SUBROUTINE get_md_env
 
@@ -283,10 +292,11 @@ CONTAINS
 !> \param averages Ownership is transferred to this routine
 !> \param thermal_regions ...
 !> \param ehrenfest_md ...
+!> \param electrons ...
 ! **************************************************************************************************
    SUBROUTINE set_md_env(md_env, itimes, constant, cell, simpar, fe_env, force_env, &
                          para_env, init, first_time, thermostats, barostat, reftraj, md_ener, averages, &
-                         thermal_regions, ehrenfest_md)
+                         thermal_regions, ehrenfest_md, electrons)
 
       TYPE(md_environment_type), INTENT(INOUT)           :: md_env
       INTEGER, OPTIONAL, POINTER                         :: itimes
@@ -304,6 +314,7 @@ CONTAINS
       TYPE(average_quantities_type), OPTIONAL, POINTER   :: averages
       TYPE(thermal_regions_type), OPTIONAL, POINTER      :: thermal_regions
       LOGICAL, OPTIONAL                                  :: ehrenfest_md
+      TYPE(qs_electrons_type), OPTIONAL, POINTER         :: electrons
 
       IF (PRESENT(init)) md_env%init = init
       IF (PRESENT(first_time)) md_env%first_time = first_time
@@ -370,6 +381,14 @@ CONTAINS
             END IF
          END IF
          md_env%thermal_regions => thermal_regions
+      END IF
+      IF (PRESENT(electrons)) THEN
+         IF (ASSOCIATED(md_env%electrons)) THEN
+         IF (.NOT. ASSOCIATED(md_env%electrons, electrons)) THEN
+            CALL qs_electrons_dealloc(md_env%electrons)
+         END IF
+         END IF
+         md_env%electrons => electrons
       END IF
 
    END SUBROUTINE set_md_env

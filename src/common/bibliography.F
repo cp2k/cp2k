@@ -99,7 +99,7 @@ MODULE bibliography
                             KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2, &
                             Shiga2022, Lindh1995, Chai2024a, Rullan2026, Sundararaman2017, Andreussi2019, &
                             Chai2025a, Neugebauer2023, Chai2024b, Moynihan2017, Cococcioni2005, &
-                            Cances2000, Herbst2022, Zhang2025, Gresch2017, Soluyanov2011, Dixon2023, Doll2025, &
+                            Cances2000, Herbst2022, Zhang2025, Zhang2026, Gresch2017, Soluyanov2011, Dixon2023, Doll2025, &
                             Wong2026, Loring2015, EsteveParedes2023, Cerjan2023, Bairnsfather2026, Davidson1975, &
                             Olsen1988, Stratmann1998, Vecharynski2017, Stathopoulos1998, Bai2012, &
                             Fukaya2014, Schreder2024_3, Pizzi2020, Marzari1997, Souza2001, &
@@ -2391,6 +2391,12 @@ CONTAINS
                          "Deep Potential Molecular Dynamics with Enhanced Sampling", &
                          source="Langmuir", volume="41", pages="3675-3683", &
                          year=2025, doi="10.1021/acs.langmuir.4c05004")
+
+      CALL add_reference(key=Zhang2026, &
+                         authors=s2a("C. Zhang", "R. Zhao", "Z. He", "M. Iannuzzi", "Y. Chen", "J. Lan"), &
+                         title="A Flexible and Generalized Constant-Potential Framework in i-PI", &
+                         source="J. Chem. Theory Comput.", volume="22", pages="5761-5769", &
+                         year=2026, doi="10.1021/acs.jctc.6c00504")
 
       CALL add_reference(key=Gresch2017, &
                          authors=s2a("D. Gresch", "G. Autes", "O. V. Yazyev", "M. Troyer", &

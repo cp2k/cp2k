@@ -89,6 +89,16 @@ MODULE integrator
    USE physcon,                         ONLY: femtoseconds
    USE qmmm_util,                       ONLY: apply_qmmm_walls_reflective
    USE qmmmx_update,                    ONLY: qmmmx_update_force_env
+   USE qs_electrons_charge_mixing,      ONLY: charge_mixing_maybe_rebuild,&
+                                              compute_mixed_workfunction,&
+                                              push_lambda_to_mixed_env,&
+                                              qs_electrons_charge_mixing_lambda
+   USE qs_electrons_ne_electrode,       ONLY: apply_ne_core_correction
+   USE qs_electrons_types,              ONLY: qs_electrons_type
+   USE qs_electrons_utils,              ONLY: qs_electrons_drift,&
+                                              qs_electrons_kick,&
+                                              qs_electrons_thermostat_step
+   USE qs_electrons_workfunction,       ONLY: qs_electrons_compute_workfunction
    USE qs_environment_types,            ONLY: get_qs_env
    USE reftraj_types,                   ONLY: REFTRAJ_EVAL_ENERGY_FORCES,&
                                               REFTRAJ_EVAL_NONE,&
@@ -146,8 +156,9 @@ CONTAINS
          nparticle_kind, nparticle_local, nshell
       INTEGER, POINTER                                   :: itimes
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: do_langevin
-      REAL(KIND=dp)                                      :: c, c1, c2, c3, c4, dm, dt, gam, mass, &
-                                                            noisy_gamma_region, reg_temp, sigma
+      REAL(KIND=dp)                                      :: c, c1, c2, c3, c4, dm, dt, gam, &
+                                                            lambda_mix, mass, noisy_gamma_region, &
+                                                            reg_temp, sigma
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: var_w
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pos, vel, w
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
@@ -165,6 +176,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_electrons_type), POINTER                   :: electrons
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(thermal_region_type), POINTER                 :: thermal_region
       TYPE(thermal_regions_type), POINTER                :: thermal_regions
@@ -173,11 +185,11 @@ CONTAINS
       NULLIFY (cell, para_env, gci, force_env)
       NULLIFY (atomic_kinds, local_particles, subsys, local_molecules, molecule_kinds, molecules)
       NULLIFY (molecule_kind_set, molecule_set, particles, particle_set, simpar, virial)
-      NULLIFY (thermal_region, thermal_regions, itimes)
+      NULLIFY (thermal_region, thermal_regions, itimes, electrons)
 
       CALL get_md_env(md_env=md_env, simpar=simpar, force_env=force_env, &
                       para_env=para_env, thermal_regions=thermal_regions, &
-                      itimes=itimes)
+                      itimes=itimes, electrons=electrons)
 
       dt = simpar%dt
       gam = simpar%gamma + simpar%shadow_gamma
@@ -279,6 +291,27 @@ CONTAINS
       ! Apply fix atom constraint
       CALL fix_atom_control(force_env, w)
 
+      ! ---------------------------------------------------------------------
+      ! Constant-potential electronic dynamics, first electronic O half-step.
+      !
+      ! These hooks mirror nvt() one for one.  Until they were added, langevin()
+      ! propagated the atoms normally while never calling qs_electrons_kick,
+      ! qs_electrons_drift, charge_mixing_maybe_rebuild or
+      ! push_lambda_to_mixed_env: q(t) stayed frozen at Q_INIT, the mixing weight
+      ! never updated, and the run completed and wrote entirely plausible output
+      ! that meant nothing.  nve(), isokin(), nvt_adiabatic() and the npt/nph
+      ! family still have this property -- see the guard in md_run.F.
+      !
+      ! The electronic potentiostat remains CSVR regardless of what the atoms
+      ! use, independent of the atomic thermostat.  qs_electrons_thermostat_step computes
+      ! taut = (tau/femtoseconds)/(0.5*dt) on the assumption that it is called
+      ! TWICE per MD step, which is why there is a matching call at the end.
+      IF (ASSOCIATED(electrons)) THEN
+         ! report_only ("&ELECTRONS 0"): q is never propagated, so no O step.
+         IF (.NOT. electrons%report_only) CALL qs_electrons_thermostat_step(electrons, 0.5_dp*dt)
+      END IF
+      ! ---------------------------------------------------------------------
+
       ! Velocity Verlet (first part)
       c = EXP(-0.25_dp*dt*gam)
       c2 = c*c
@@ -326,8 +359,49 @@ CONTAINS
 
       DEALLOCATE (pos)
 
+      ! ---------------------------------------------------------------------
+      ! Electronic half-kick (B) and drift (A), then re-bracket and push the new
+      ! mixing weight, so that the force evaluation below sees BOTH the new
+      ! positions and the new q(t) -- the same ordering as nvt().
+      IF (ASSOCIATED(electrons)) THEN
+         ! report_only ("&ELECTRONS 0"): none of this runs. q is not propagated,
+         ! the endpoints are never rebuilt, and apply_ne_core_correction is NOT
+         ! called -- that last one matters, since it would alter the system's
+         ! charge, which in report-only mode must stay exactly as the input set
+         ! it. Only the work-function readback below still runs.
+         IF (.NOT. electrons%report_only) THEN
+            CALL qs_electrons_kick(electrons, 0.5_dp*dt)
+            CALL qs_electrons_drift(electrons, dt)
+            IF (electrons%charge_mixing_enabled) THEN
+               CALL charge_mixing_maybe_rebuild(force_env, electrons)
+               CALL qs_electrons_charge_mixing_lambda(electrons, lambda_mix)
+               CALL push_lambda_to_mixed_env(force_env, lambda_mix)
+            ELSE
+               CALL apply_ne_core_correction(force_env, electrons%q, electrons%neutral_electrons)
+            END IF
+         END IF
+      END IF
+      ! ---------------------------------------------------------------------
+
       ! Update forces
       CALL force_env_calc_energy_force(force_env)
+
+      ! Refresh the mixed workfunction and Fermi level from the freshly
+      ! converged density; qs_electrons_force reads current_workfunction, so this
+      ! must precede the closing electronic half-kick below.
+      IF (ASSOCIATED(electrons)) THEN
+         IF (electrons%charge_mixing_enabled) THEN
+            CALL compute_mixed_workfunction(force_env, electrons%potential_average_axis, &
+                                            electrons%potential_average_min, electrons%potential_average_max, &
+                                            electrons%q, electrons%charge_mixing_span, &
+                                            electrons%current_fermi_level_eV, electrons%current_workfunction, &
+                                            lambda_in=lambda_mix)
+         ELSE
+            CALL qs_electrons_compute_workfunction(force_env, electrons%potential_average_axis, &
+                                                   electrons%potential_average_min, electrons%potential_average_max, &
+                                                   electrons%current_fermi_level_eV, electrons%current_workfunction)
+         END IF
+      END IF
 
       ! Metadynamics
       CALL metadyn_integrator(force_env, itimes, vel)
@@ -356,6 +430,13 @@ CONTAINS
          END DO
       END DO
 
+      ! Closing electronic half-kick (B), using the workfunction just recomputed
+      ! from the new density.
+      IF (ASSOCIATED(electrons)) THEN
+         ! report_only ("&ELECTRONS 0"): q is never propagated, so no B step.
+         IF (.NOT. electrons%report_only) CALL qs_electrons_kick(electrons, 0.5_dp*dt)
+      END IF
+
       IF (simpar%temperature_annealing) THEN
          simpar%temp_ext = simpar%temp_ext*simpar%f_temperature_annealing
          simpar%var_w = simpar%var_w*simpar%f_temperature_annealing
@@ -366,6 +447,13 @@ CONTAINS
                              particle_set, vel, dt, simpar%shake_tol, &
                              simpar%info_constraint, simpar%lagrange_multipliers, &
                              simpar%dump_lm, cell, para_env, local_particles)
+      END IF
+
+      ! Second electronic O half-step, completing the pair assumed by
+      ! qs_electrons_thermostat_step's taut = (tau/femtoseconds)/(0.5*dt).
+      IF (ASSOCIATED(electrons)) THEN
+         ! report_only ("&ELECTRONS 0"): q is never propagated, so no O step.
+         IF (.NOT. electrons%report_only) CALL qs_electrons_thermostat_step(electrons, 0.5_dp*dt)
       END IF
 
       ! Broadcast the new particle velocities
@@ -940,7 +1028,7 @@ CONTAINS
       INTEGER, POINTER                                   :: itimes
       LOGICAL                                            :: shell_adiabatic, shell_check_distance, &
                                                             shell_present
-      REAL(KIND=dp)                                      :: dt
+      REAL(KIND=dp)                                      :: dt, lambda_mix
       REAL(KIND=dp), DIMENSION(:), POINTER               :: rand
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -958,6 +1046,7 @@ CONTAINS
                                                             shell_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &
                                                             shell_particle_set
+      TYPE(qs_electrons_type), POINTER                   :: electrons
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(thermostat_type), POINTER                     :: thermostat_coeff, thermostat_part, &
                                                             thermostat_shell
@@ -969,12 +1058,12 @@ CONTAINS
                shell_particle_set, core_particles, core_particle_set, rand)
       NULLIFY (para_env, subsys, local_molecules, local_particles, molecule_kinds, &
                molecules, molecule_kind_set, molecule_set, atomic_kinds, particles)
-      NULLIFY (simpar, thermostat_coeff, thermostat_part, thermostat_shell, itimes)
+      NULLIFY (simpar, thermostat_coeff, thermostat_part, thermostat_shell, itimes, electrons)
 
       CALL get_md_env(md_env=md_env, simpar=simpar, force_env=force_env, &
                       thermostat_part=thermostat_part, thermostat_coeff=thermostat_coeff, &
                       thermostat_shell=thermostat_shell, para_env=para_env, &
-                      itimes=itimes)
+                      itimes=itimes, electrons=electrons)
       dt = simpar%dt
 
       CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell)
@@ -1034,6 +1123,10 @@ CONTAINS
                                          particle_set, local_molecules, local_particles, para_env)
       END IF
 
+      ! The potentiostat (O step) fires once per MD step, in the middle of the
+      ! electronic drift below, giving a B A O A B splitting for the electronic
+      ! degree of freedom.
+
       IF (simpar%constraint) CALL getold(gci, local_molecules, molecule_set, &
                                          molecule_kind_set, particle_set, cell)
 
@@ -1050,6 +1143,30 @@ CONTAINS
       ! Velocity Verlet (first part)
       CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
                     core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
+      IF (ASSOCIATED(electrons)) THEN
+         ! BAOAB on the electronic coordinate: half kick, half drift, ONE full
+         ! thermostat step, half drift.  The closing half kick is after the force
+         ! evaluation below.  qs_electrons_thermostat_step takes the interval
+         ! BETWEEN calls, which is now dt (one call per step), not 0.5*dt.
+         ! report_only ("&ELECTRONS 0"): skip the whole BAOAB block. q is not
+         ! propagated, the endpoints are never rebuilt, and in particular
+         ! apply_ne_core_correction is NOT called -- it would alter the system's
+         ! charge, which in report-only mode must stay exactly as the input set
+         ! it. Only the work-function readback below still runs.
+         IF (.NOT. electrons%report_only) THEN
+            CALL qs_electrons_kick(electrons, 0.5_dp*dt)
+            CALL qs_electrons_drift(electrons, 0.5_dp*dt)
+            CALL qs_electrons_thermostat_step(electrons, dt)
+            CALL qs_electrons_drift(electrons, 0.5_dp*dt)
+            IF (electrons%charge_mixing_enabled) THEN
+               CALL charge_mixing_maybe_rebuild(force_env, electrons)
+               CALL qs_electrons_charge_mixing_lambda(electrons, lambda_mix)
+               CALL push_lambda_to_mixed_env(force_env, lambda_mix)
+            ELSE
+               CALL apply_ne_core_correction(force_env, electrons%q, electrons%neutral_electrons)
+            END IF
+         END IF
+      END IF
 
       IF (simpar%variable_dt) CALL variable_timestep(md_env, tmp, dt, simpar, para_env, atomic_kind_set, &
                                                      local_particles, particle_set, core_particle_set, shell_particle_set, &
@@ -1116,12 +1233,31 @@ CONTAINS
       ![NB] let nvt work with force mixing which does not have consistent energies and forces
       CALL force_env_calc_energy_force(force_env, require_consistent_energy_force=.FALSE.)
 
+      IF (ASSOCIATED(electrons)) THEN
+         IF (electrons%charge_mixing_enabled) THEN
+            CALL compute_mixed_workfunction(force_env, electrons%potential_average_axis, &
+                                            electrons%potential_average_min, electrons%potential_average_max, &
+                                            electrons%q, electrons%charge_mixing_span, &
+                                            electrons%current_fermi_level_eV, electrons%current_workfunction, &
+                                            lambda_in=lambda_mix)
+         ELSE
+            CALL qs_electrons_compute_workfunction(force_env, electrons%potential_average_axis, &
+                                                   electrons%potential_average_min, electrons%potential_average_max, &
+                                                   electrons%current_fermi_level_eV, electrons%current_workfunction)
+         END IF
+      END IF
+
       ! Metadynamics
       CALL metadyn_integrator(force_env, itimes, tmp%vel, rand=rand)
 
       ! Velocity Verlet (second part)
       CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
                      core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
+
+      IF (ASSOCIATED(electrons)) THEN
+         ! report_only ("&ELECTRONS 0"): q is never propagated, so no B step.
+         IF (.NOT. electrons%report_only) CALL qs_electrons_kick(electrons, 0.5_dp*dt)
+      END IF
 
       IF (simpar%constraint) CALL rattle_control(gci, local_molecules, molecule_set, &
                                                  molecule_kind_set, particle_set, tmp%vel, dt, simpar%shake_tol, &
@@ -1141,6 +1277,9 @@ CONTAINS
          CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
                                          particle_set, local_molecules, local_particles, para_env, vel=tmp%vel)
       END IF
+
+      ! (no trailing electronic O: BAOAB places the single potentiostat step in
+      !  the middle of the drift, not at the step boundaries.)
 
       ! Broadcast the new particle velocities and deallocate temporary
       CALL update_dealloc_tmp(tmp, particle_set, shell_particle_set, &
