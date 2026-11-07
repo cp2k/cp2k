@@ -9,7 +9,7 @@
 
 #include "../mpiwrap/cp_mpi.h"
 
-#define FFT_MAX_STRING_LENGTH 42
+#define FFT_MAX_STRING_LENGTH 30
 
 /*******************************************************************************
  * \brief Initializes the internal timer.

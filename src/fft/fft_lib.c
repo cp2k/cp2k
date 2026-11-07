@@ -59,7 +59,6 @@ int fft_init_lib(const fft_lib lib, const int fftw_planning_flag,
   case FFT_LIB_FFTW:
     status =
         fft_fftw_init_lib(fftw_planning_flag, use_guru_interface, wisdom_file);
-    printf("Using FFTW library.\n");
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
     // Distributed FFTs always use the GPU backend, so it must be initialized
     // even when FFTW3 is selected for the local FFTs.
@@ -70,7 +69,6 @@ int fft_init_lib(const fft_lib lib, const int fftw_planning_flag,
     break;
   case FFT_LIB_GPU:
     status = fft_init_acc_lib();
-    printf("Using GPU-FFT library.\n");
     break;
   default:
     assert(0 && "Unknown FFT library.");
@@ -203,12 +201,12 @@ void fft_register_1d_local(const bool dir, const int fft_size,
                            double complex *grid_in, double complex *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_1d_local");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_1d_local");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "fft_register_1d_local_%s_%s_%i_%i", dir ? "fw" : "bw",
-           grid_in == grid_out ? "i" : "o", fft_size, number_of_ffts);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_1d_l_%s_%s_%i_%i",
+           dir ? "fw" : "bw", grid_in == grid_out ? "i" : "o", fft_size,
+           number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
@@ -240,11 +238,10 @@ void fft_register_1d_r2c_local(const int fft_size, const int number_of_ffts,
                                double complex *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_1d_r2c_local");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_1d_r2c_local");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "fft_register_1d_r2c_local_%s_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_1d_r2c_l_%s_%i_%i",
            grid_in == (double *)grid_out ? "i" : "o", fft_size, number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
@@ -278,11 +275,10 @@ void fft_register_1d_c2r_local(const int fft_size, const int number_of_ffts,
                                double complex *grid_in, double *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_1d_c2r_local");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_1d_c2r_local");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "fft_register_1d_c2r_local_%s_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_1d_c2r_l_%s_%i_%i",
            (double *)grid_in == grid_out ? "i" : "o", fft_size, number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
@@ -314,13 +310,12 @@ void fft_register_2d_local(const bool dir, const int fft_size[2],
                            double complex *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_local");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_2d_local");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "fft_register_2d_local_%s_%s_%i_%i_%i", dir ? "fw" : "bw",
-           grid_in == grid_out ? "i" : "o", fft_size[0], fft_size[1],
-           number_of_ffts);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_2d_l_%s_%s_%i_%i_%i",
+           dir ? "fw" : "bw", grid_in == grid_out ? "i" : "o", fft_size[0],
+           fft_size[1], number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
@@ -348,11 +343,10 @@ void fft_register_2d_r2c_local(const int fft_size[2], const int number_of_ffts,
                                double complex *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_r2c_local");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_2d_r2c_local");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "fft_register_2d_r2c_local_%s_%i_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_2d_r2c_l_%s_%i_%i_%i",
            grid_in == (double *)grid_out ? "i" : "o", fft_size[0], fft_size[1],
            number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
@@ -382,11 +376,10 @@ void fft_register_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
                                double complex *grid_in, double *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_c2r_local");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_2d_c2r_local");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "fft_register_2d_c2r_local_%s_%i_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_2d_c2r_l_%s_%i_%i_%i",
            (double *)grid_in == grid_out ? "i" : "o", fft_size[0], fft_size[1],
            number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
@@ -419,13 +412,12 @@ void fft_register_3d_local(const bool dir, const int fft_size[3],
                            double complex *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_local");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_3d_local");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "fft_register_3d_local_%s_%s_%i_%i_%i", dir ? "fw" : "bw",
-           grid_in == grid_out ? "i" : "o", fft_size[0], fft_size[1],
-           fft_size[2]);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_3d_l_%s_%s_%i_%i_%i",
+           dir ? "fw" : "bw", grid_in == grid_out ? "i" : "o", fft_size[0],
+           fft_size[1], fft_size[2]);
   const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
@@ -453,11 +445,10 @@ void fft_register_3d_r2c_local(const int fft_size[3], const int number_of_ffts,
                                double complex *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_r2c_local");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_3d_r2c_local");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "fft_register_3d_r2c_local_%s_%i_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_3d_r2c_l_%s_%i_%i_%i",
            grid_in == (double *)grid_out ? "i" : "o", fft_size[0], fft_size[1],
            fft_size[2]);
   const int handle2 = fft_start_timer(routine_name);
@@ -487,11 +478,10 @@ void fft_register_3d_c2r_local(const int fft_size[3], const int number_of_ffts,
                                double complex *grid_in, double *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_c2r_local");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_3d_c2r_local");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "fft_register_3d_c2r_local_%s_%i_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_3d_c2r_l_%s_%i_%i_%i",
            (double *)grid_in == grid_out ? "i" : "o", fft_size[0], fft_size[1],
            fft_size[2]);
   const int handle2 = fft_start_timer(routine_name);
@@ -523,10 +513,10 @@ void fft_1d_local(const bool dir, const int fft_size, const int number_of_ffts,
                   double complex *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_1d_local");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "1d_local");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_1d_local_%s_%s_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "1d_l_%s_%s_%i_%i",
            dir ? "fw" : "bw", grid_in == grid_out ? "i" : "o", fft_size,
            number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
@@ -559,10 +549,10 @@ void fft_1d_r2c_local(const int fft_size, const int number_of_ffts,
                       double complex *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_1d_r2c_local");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "1d_r2c_local");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_1d_r2c_local_%s_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "1d_r2c_l_%s_%i_%i",
            grid_in == (double *)grid_out ? "i" : "o", fft_size, number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
@@ -594,10 +584,10 @@ void fft_1d_c2r_local(const int fft_size, const int number_of_ffts,
                       double *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_1d_c2r_local");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "1d_c2r_local");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_1d_c2r_local_%s_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "1d_c2r_l_%s_%i_%i",
            (double *)grid_in == grid_out ? "i" : "o", fft_size, number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
@@ -628,10 +618,10 @@ void fft_2d_local(const bool dir, const int fft_size[2],
                   double complex *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_local");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "2d_local");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_local_%s_%s_%i_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "2d_l_%s_%s_%i_%i_%i",
            dir ? "fw" : "bw", grid_in == grid_out ? "i" : "o", fft_size[0],
            fft_size[1], number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
@@ -660,10 +650,10 @@ void fft_2d_r2c_local(const int fft_size[2], const int number_of_ffts,
                       double *grid_in, double complex *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_r2c_local");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "2d_r2c_local");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_r2c_local_%s_%i_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "2d_r2c_l_%s_%i_%i_%i",
            grid_in == (double *)grid_out ? "i" : "o", fft_size[0], fft_size[1],
            number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
@@ -692,10 +682,10 @@ void fft_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
                       double complex *grid_in, double *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_c2r_local");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "2d_c2r_local");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_c2r_local_%s_%i_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "2d_c2r_l_%s_%i_%i_%i",
            (double *)grid_in == grid_out ? "i" : "o", fft_size[0], fft_size[1],
            number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
@@ -725,10 +715,10 @@ void fft_3d_local(const bool dir, const int fft_size[3],
                   double complex *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_local");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_local");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_local_%s_%s_%i_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_l_%s_%s_%i_%i_%i",
            dir ? "fw" : "bw", grid_in == grid_out ? "i" : "o", fft_size[0],
            fft_size[1], fft_size[2]);
   const int handle2 = fft_start_timer(routine_name);
@@ -757,10 +747,10 @@ void fft_3d_r2c_local(const int fft_size[3], const int number_of_ffts,
                       double *grid_in, double complex *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_r2c_local");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_r2c_local");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_r2c_local_%s_%i_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_r2c_l_%s_%i_%i_%i",
            grid_in == (double *)grid_out ? "i" : "o", fft_size[0], fft_size[1],
            fft_size[2]);
   const int handle2 = fft_start_timer(routine_name);
@@ -789,10 +779,10 @@ void fft_3d_c2r_local(const int fft_size[3], const int number_of_ffts,
                       double complex *grid_in, double *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_c2r_local");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_c2r_local");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_c2r_local_%s_%i_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_c2r_l_%s_%i_%i_%i",
            (double *)grid_in == grid_out ? "i" : "o", fft_size[0], fft_size[1],
            fft_size[2]);
   const int handle2 = fft_start_timer(routine_name);

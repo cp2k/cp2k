@@ -560,7 +560,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
 
       INTEGER, PARAMETER :: backends(2) = [FFT_LIBRARY_BACKEND_FFTW, FFT_LIBRARY_BACKEND_GPU], &
-         ndate(3) = [12, 48, 96]
+                            ndate(3) = [12, 48, 96]
 
       INTEGER                                            :: iall, it, j, len, n(3), ntim, radix_in, &
                                                             radix_out, siz, status

@@ -291,49 +291,41 @@ void fft_print_timing_report_unit(const double threshold,
       fft_report_printf(
           print_func, output_unit,
           " -------------------------------------------------------"
-          "----------------------"
           "------------------------\n");
       fft_report_printf(
           print_func, output_unit,
           " -                                                      "
-          "                      "
           "                       -\n");
-      fft_report_printf(print_func, output_unit,
-                        " -                                         FFT TIMING "
-                        "REPORT                  "
-                        "                       -\n");
+      fft_report_printf(
+          print_func, output_unit,
+          " -                             FFT TIMING REPORT        "
+          "                       -\n");
       fft_report_printf(
           print_func, output_unit,
           " -                                                      "
-          "                      "
           "                       -\n");
       fft_report_printf(
           print_func, output_unit,
           " -------------------------------------------------------"
-          "----------------------"
           "------------------------\n");
-      fft_report_printf(
-          print_func, output_unit,
-          " ROUTINE                                       CALLS    "
-          " AVG SELF     MAX SELF   AVG TOTAL    MAX TOTAL\n");
-      fft_report_printf(
-          print_func, output_unit,
-          "                                                          "
-          "  TIME         TIME  "
-          "      TIME        TIME   \n");
+      fft_report_printf(print_func, output_unit,
+                        " ROUTINE                          CALLS           "
+                        "SELF TIME            MAX TIME\n");
+      fft_report_printf(print_func, output_unit,
+                        "                                          "
+                        "AVERAGE   MAXIMUM   AVERAGE   MAXIMUM\n");
       for (int routine = 0; routine < size_of_timing_statistics; routine++) {
         if (timing_statistics[routine].max_total_time >=
             threshold * timing_statistics[0].max_total_time) {
           if (timing_statistics[routine].number_of_calls > 0)
-            fft_report_printf(
-                print_func, output_unit,
-                " %-43s %7i      %7.3f      %7.3f     %7.3f     %7.3f\n",
-                timing_statistics[routine].routine_name,
-                timing_statistics[routine].number_of_calls,
-                timing_statistics[routine].avg_self_time,
-                timing_statistics[routine].max_self_time,
-                timing_statistics[routine].avg_total_time,
-                timing_statistics[routine].max_total_time);
+            fft_report_printf(print_func, output_unit,
+                              " %-30s %7i %9.3f %9.3f %9.3f %9.3f\n",
+                              timing_statistics[routine].routine_name,
+                              timing_statistics[routine].number_of_calls,
+                              timing_statistics[routine].avg_self_time,
+                              timing_statistics[routine].max_self_time,
+                              timing_statistics[routine].avg_total_time,
+                              timing_statistics[routine].max_total_time);
         }
         free(timing_statistics[routine].routine_name);
       }
@@ -442,7 +434,7 @@ void fft_stop_timer(const int handle) {
       }
       update_routine(handle, total_time, self_time);
       if (stack == NULL) {
-        const char routine_name[] = "fft_library";
+        const char routine_name[] = "library";
         const int global_handle = get_routine_handle(routine_name);
         update_routine(global_handle, total_time, 0.0);
       }
