@@ -17,4 +17,6 @@
   default is `HOST` and the GPU backend is only used when `DEVICE` is explicitly requested.
   Requesting `DEVICE` is an error (abort) when the build has no device path or when no usable GPU is
   found at runtime; `HOST` always runs and touches no GPU.
+- Use `-DCP2K_ENABLE_NNP_GPU=OFF` to disable the GPU backend of the neural network potential (NNP)
+  force evaluation.
 - Use `-DCP2K_DBCSR_USE_CPU_ONLY=ON` to disable the GPU backend of DBCSR.

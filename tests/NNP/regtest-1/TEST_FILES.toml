@@ -1,25 +1,103 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-"H2O-64_NNP_MD.inp"                  = [{matcher = "M002", tol = 1.0E-14, ref = 0.375124218267E+04}]
-"H2O_C-NNP_MD.inp"                   = [{matcher = "M002", tol = 1.0E-14, ref = 0.586488095231E+02}]
-"H2O-64_C-NNP_MD.inp"                = [{matcher = "M002", tol = 1.0E-14, ref = 0.375124235844E+04}]
-"H2O-64_C-NNP_MD-NpT.inp"            = [{matcher = "M002", tol = 1.0E-14, ref = 0.375126784023E+04}]
-"H2O-64_C-NNP_MD-NpT-numeric.inp"    = [{matcher = "M002", tol = 1.0E-14, ref = 0.375124841615E+04}]
+#
+# One set of tests for every architecture. The inputs leave USE_GPU at its
+# default, AUTO, which declines the device below gpu_auto_min_atoms_per_rank
+# (1000) rank-local atoms. Every system below is smaller than that -- the
+# largest is H2O-256 at 768 atoms -- so these runs take the CPU path on every
+# machine, with or without a device, and keep the 1e-14 tolerances the CPU path
+# holds on its own. Measured on an A100: 4 of the 15 inputs carried the GPU
+# banner, and all four were VALIDATE inputs.
+#
+# The GPU path is covered instead by the VALIDATE inputs at the end of this
+# file, which override the size heuristic so the device engages wherever one is
+# present, and which assert CPU-versus-GPU agreement in-code, aborting on
+# divergence. Those carry the looser tolerances, because the GPU descriptor
+# accumulation uses atomic additions whose ordering is not guaranteed identical
+# across GPU architectures, nor between two runs on one.
+"H2O-64_NNP_MD.inp"       = [{matcher = "M002", tol = 1.0E-14, ref = 0.375124218267E+04}]
+"H2O_C-NNP_MD.inp"        = [{matcher = "M002", tol = 1.0E-14, ref = 0.586488095231E+02}]
+"H2O-64_C-NNP_MD.inp"     = [{matcher = "M002", tol = 1.0E-14, ref = 0.375124235844E+04}]
+"H2O-64_C-NNP_MD-NVE.inp" = [{matcher = "M002", tol = 1.0E-14, ref = 0.375124383284E+04}]
+
+# The NPT runs match the pressure as well as the energy. The pressure is the only
+# quantity in this output that the virial alone determines, so it is what
+# actually pins the stress tensor: an energy matcher still passes when the virial
+# is identically zero. Dropping the NNP virial moves this number by around ten
+# kilobar (measured 7.5e3 to 3.4e4 bar; the exact value is trajectory
+# dependent), so even the loosest gate below catches that by orders of
+# magnitude.
+#
+# The tolerances are looser than the energies' because the pressure is a
+# derivative quantity and ten NPT steps amplify the last bits by about four
+# orders; the analytic runs get 1e-8 so that compiler and architecture
+# differences in the last bits cannot trip them, which still leaves six to eight
+# orders of margin against a missing virial. The numeric-stress run gets 1e-6: its virial comes from differencing
+# energies over a finite cell displacement, which amplifies rounding by one
+# over the step size, and it was measured to move by 5e-8 between gcc-13/Linux
+# and gcc-15/macOS.
+"H2O-64_C-NNP_MD-NpT.inp"            = [
+  {matcher = "M002", tol = 1.0E-14, ref = 0.375126784023E+04},
+  {matcher = "M_PRESSURE", tol = 1.0E-8, ref = 7.913385731135E+03},
+]
+"H2O-64_C-NNP_MD-NpT-numeric.inp"    = [
+  {matcher = "M002", tol = 1.0E-14, ref = 0.375124841615E+04},
+  {matcher = "M_PRESSURE", tol = 1.0E-6, ref = 6.603770676757E+03},
+]
 "H2O-64_C-NNP_biased_MD.inp"         = [{matcher = "M002", tol = 1.0E-14, ref = 0.375124232248E+04}]
 "H2O-64_C-NNP_biased_MD_restart.inp" = [{matcher = "M002", tol = 1.0E-14, ref = 0.375124124406E+04}]
 
-# H2O-256_C-NNP_MD-bitexact: non-cubic 256-water NVT (24.84 x 24.84
-# x 12.42 A, two axes with L > 2*r_cut). Locks the step-zero
-# energy, final-step energy and conserved quantity at 1e-14
-# relative. Runtime ~3 s on one rank. The bit-exact conserved
-# quantity check may need relaxing in future (Lyapunov-divergent FP
-# across compilers), but without it integrator and neighbour-cache
-# bugs that let energy drift and blow up the temperature can pass
-# silently.
-"H2O-256_C-NNP_MD-bitexact.inp" = [
+# H2O-256_C-NNP_MD: non-cubic 256-water NVT (24.84 x 24.84 x 12.42 A, two axes
+# with L > 2*r_cut); catches neighbour-walk and image bugs. Locks the step-zero
+# energy, final-step energy and conserved quantity. Runtime ~3 s on one rank.
+# Without the conserved-quantity check, integrator and neighbour-cache bugs
+# that let energy drift and blow up the temperature can pass silently.
+"H2O-256_C-NNP_MD.inp" = [
   {matcher = "M_INIT_ENERGY", tol = 1.0E-14, ref = 15004.992479346592518},
   {matcher = "M002", tol = 1.0E-14, ref = 0.150049870566E+05},
   {matcher = "M_CONS_QTY", tol = 1.0E-14, ref = 0.150060861414E+05},
+]
+
+# Dilute electrolyte (62 H2O + 1 Na + 1 Cl, ions beyond the SF cutoff):
+# heterogeneous angular groups with empty neighbour lists on every step. Pins
+# the invariant that a group skipped at symmetry-function time is also skipped
+# at force-scatter time.
+"NaCl-dilute-hetero.inp" = [{matcher = "M002", tol = 1.0E-14, ref = -0.111644640894E+04}]
+
+# MIXED force environment: committee NNP summed with a FIST point-charge
+# baseline, analytic virial from both halves under NPT_F. Pins the per-force-env
+# stress aggregation. Each &FORCE_EVAL carries its own STRESS_TENSOR because
+# pv_availability is not inherited from the MIXED level.
+"H2O-64_MIXED_C-NNP-FIST_MD-NpT.inp" = [
+  {matcher = "M002", tol = 1.0E-14, ref = 0.372936358260E+04},
+  {matcher = "M_PRESSURE", tol = 1.0E-8, ref = -1.299133163874E+05},
+]
+
+# Shadow-mode validation of the GPU code path (&NNP VALIDATE). On a machine
+# with a device every force evaluation runs both code paths and aborts in-code
+# when they disagree; on a CPU-only build or machine the keyword has no effect
+# and the runs below are ordinary CPU trajectories. The references are the same
+# as the corresponding tests above.
+"H2O-64_C-NNP_MD-validate.inp"    = [{matcher = "M002", tol = 1.0E-9, ref = 0.375124235844E+04}]
+"NaCl-dilute-hetero-validate.inp" = [{matcher = "M002", tol = 1.0E-9, ref = -0.111644640894E+04}]
+
+# GPU_PRECISION MIXED under validation, i.e. single-precision angular symmetry
+# functions wherever a device runs. Only the step-zero energy is regressed: on
+# a GPU machine the trajectory follows the single-precision results, which
+# separate chaotically from the double-precision reference over ten steps, so a
+# per-step matcher would test the Lyapunov exponent rather than the kernel. The
+# in-code validation still compares both paths at the same coordinates on every
+# step.
+"H2O-64_C-NNP_MD-validate-mixed.inp" = [{matcher = "M_INIT_ENERGY", tol = 1.0E-6, ref = 3751.248119836647220}]
+# The same shadow-mode validation under NPT, so the comparison covers the
+# analytic virial as well as the energies and forces. The NVT inputs above
+# cannot reach that branch: nnp_gpu_validate only compares the stress when the
+# ensemble requests a virial, so without this input the stress half of the
+# check is never exercised. Measured max relative stress difference on an A100:
+# 5.0e-13 over 11 evaluations.
+"H2O-64_C-NNP_MD-NpT-validate.inp"   = [
+  {matcher = "M002", tol = 1.0E-9, ref = 0.375126784023E+04},
+  {matcher = "M_PRESSURE", tol = 1.0E-5, ref = 7.913385731135E+03},
 ]
 #EOF
