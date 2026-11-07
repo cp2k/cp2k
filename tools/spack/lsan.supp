@@ -1,6 +1,4 @@
 # Leak suppressions
-# xrootd
-leak:getMyFQN
 # PEXSI
 leak:BcTree_Create
 leak:MPIR_Type_contiguous_impl
