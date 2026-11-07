@@ -26,7 +26,8 @@ MODULE rpa_rse
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
-                                              dbcsr_allocate_matrix_set
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -416,7 +417,7 @@ CONTAINS
 
       INTEGER                                            :: handle, i, nao, nmo
       REAL(KIND=dp)                                      :: edisp, exc
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_vxc
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: tau_rspace, v_rspace
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -426,7 +427,7 @@ CONTAINS
 
       NULLIFY (matrix_vxc, v_rspace, tau_rspace, input, xc_section, ks_env, &
                rho)
-      CALL get_qs_env(qs_env, matrix_vxc=matrix_vxc, input=input, ks_env=ks_env, rho=rho)
+      CALL get_qs_env(qs_env, input=input, ks_env=ks_env, rho=rho)
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
 
       ! Compute XC matrix in AO basis
@@ -435,7 +436,9 @@ CONTAINS
                          edisp=edisp, dispersion_env=qs_env%dispersion_env)
 
       IF (ASSOCIATED(v_rspace)) THEN
+         ! This temporary belongs to the RSE calculation; the cached XC matrices stay untouched.
          CALL compute_matrix_vxc(qs_env=qs_env, v_rspace=v_rspace, matrix_vxc=matrix_vxc)
+         CPASSERT(SIZE(matrix_vxc, 2) == 1)
 
          DO i = 1, SIZE(v_rspace)
             CALL v_rspace(i)%release()
@@ -444,9 +447,9 @@ CONTAINS
 
          CALL cp_fm_get_info(mo_coeff(1), nrow_global=nao, ncol_global=nmo)
 
-         DO i = 1, SIZE(matrix_vxc)
+         DO i = 1, SIZE(matrix_vxc, 1)
             CALL cp_fm_set_all(fm_XC_ao, 0.0_dp)
-            CALL copy_dbcsr_to_fm(matrix=matrix_vxc(i)%matrix, fm=fm_XC_ao)
+            CALL copy_dbcsr_to_fm(matrix=matrix_vxc(i, 1)%matrix, fm=fm_XC_ao)
             CALL cp_fm_set_all(fm_XC_mo(i), 0.0_dp)
 
             ! First index
@@ -459,11 +462,7 @@ CONTAINS
 
          END DO
 
-         DO i = 1, SIZE(matrix_vxc)
-            CALL dbcsr_release(matrix_vxc(i)%matrix)
-            DEALLOCATE (matrix_vxc(i)%matrix)
-         END DO
-         DEALLOCATE (matrix_vxc)
+         CALL dbcsr_deallocate_matrix_set(matrix_vxc)
       END IF
 
       CALL timestop(handle)

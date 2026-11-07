@@ -148,7 +148,7 @@ MODULE qs_ks_utils
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_utils'
 
    PUBLIC :: low_spin_roks, sic_explicit_orbitals, calc_v_sic_rspace, check_sum_energies, print_densities, &
-             print_detailed_energy, compute_matrix_vxc, compute_matrix_vxc_kp, sum_up_and_integrate, &
+             print_detailed_energy, compute_matrix_vxc, sum_up_and_integrate, &
              calculate_zmp_potential, get_embed_potential_energy
 
 CONTAINS
@@ -1418,13 +1418,13 @@ CONTAINS
    END SUBROUTINE print_detailed_energy
 
 ! **************************************************************************************************
-!> \brief compute matrix_vxc, defined via the potential created by qs_vxc_create
-!>        ignores things like tau functional, gapw, sic, ...
-!>         so only OK for GGA & GPW right now
-!> \param qs_env ...
-!> \param v_rspace ...
-!> \param matrix_vxc ...
-!> \param gapw_full_basis ...
+!> \brief Integrate the scalar XC potential into spin/image-resolved AO matrices.
+!>        Gamma-only calculations have one image. Tau-dependent operators and
+!>        GAPW one-center corrections are handled separately by the caller.
+!> \param qs_env Quickstep environment
+!> \param v_rspace scalar XC potential on the real-space grid, for each spin
+!> \param matrix_vxc XC matrices indexed by spin and image
+!> \param gapw_full_basis use the full orbital basis instead of the GAPW soft basis
 !> \par History
 !>    created 23.10.2012 [Joost VandeVondele]
 !> \author
@@ -1432,14 +1432,15 @@ CONTAINS
    SUBROUTINE compute_matrix_vxc(qs_env, v_rspace, matrix_vxc, gapw_full_basis)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN)     :: v_rspace
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_vxc
       LOGICAL, INTENT(IN), OPTIONAL                      :: gapw_full_basis
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_matrix_vxc'
 
-      INTEGER                                            :: handle, ispin
+      INTEGER                                            :: handle, img, ispin
       LOGICAL                                            :: gapw
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks
       TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)
@@ -1448,73 +1449,15 @@ CONTAINS
       IF (ASSOCIATED(matrix_vxc)) THEN
          CALL dbcsr_deallocate_matrix_set(matrix_vxc)
       END IF
-      CALL get_qs_env(qs_env, matrix_ks=matrix_ks)
-      ALLOCATE (matrix_vxc(SIZE(matrix_ks)))
-      DO ispin = 1, SIZE(matrix_ks)
-         NULLIFY (matrix_vxc(ispin)%matrix)
-         CALL dbcsr_init_p(matrix_vxc(ispin)%matrix)
-         CALL dbcsr_copy(matrix_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, &
-                         name="Matrix VXC of spin "//cp_to_string(ispin))
-         CALL dbcsr_set(matrix_vxc(ispin)%matrix, 0.0_dp)
-      END DO
-
-      ! and integrate
-      CALL get_qs_env(qs_env, dft_control=dft_control)
-      gapw = dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc
-      IF (PRESENT(gapw_full_basis)) THEN
-         IF (gapw_full_basis) gapw = .FALSE.
-      END IF
-      DO ispin = 1, SIZE(matrix_ks)
-         CALL integrate_v_rspace(v_rspace=v_rspace(ispin), &
-                                 hmat=matrix_vxc(ispin), &
-                                 qs_env=qs_env, &
-                                 calculate_forces=.FALSE., &
-                                 gapw=gapw)
-         ! scale by the volume element... should really become part of integrate_v_rspace
-         CALL dbcsr_scale(matrix_vxc(ispin)%matrix, v_rspace(ispin)%pw_grid%dvol)
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE compute_matrix_vxc
-
-! **************************************************************************************************
-!> \brief Build the XC potential matrix for k-point/image-resolved KS matrices.
-!> \param qs_env Quickstep environment
-!> \param v_rspace XC potential on the real-space grid
-!> \param matrix_vxc_kp k-point/image-resolved XC potential matrix
-!> \param gapw_full_basis ...
-!> \author
-! **************************************************************************************************
-   SUBROUTINE compute_matrix_vxc_kp(qs_env, v_rspace, matrix_vxc_kp, gapw_full_basis)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN)     :: v_rspace
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_vxc_kp
-      LOGICAL, INTENT(IN), OPTIONAL                      :: gapw_full_basis
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_matrix_vxc_kp'
-
-      INTEGER                                            :: handle, img, ispin
-      LOGICAL                                            :: gapw
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp
-      TYPE(dft_control_type), POINTER                    :: dft_control
-
-      CALL timeset(routineN, handle)
-
-      ! create the matrix using matrix_ks as a template
-      IF (ASSOCIATED(matrix_vxc_kp)) THEN
-         CALL dbcsr_deallocate_matrix_set(matrix_vxc_kp)
-      END IF
-      CALL get_qs_env(qs_env, dft_control=dft_control, matrix_ks_kp=matrix_ks_kp)
-      ALLOCATE (matrix_vxc_kp(SIZE(matrix_ks_kp, 1), SIZE(matrix_ks_kp, 2)))
-      DO img = 1, SIZE(matrix_ks_kp, 2)
-         DO ispin = 1, SIZE(matrix_ks_kp, 1)
-            NULLIFY (matrix_vxc_kp(ispin, img)%matrix)
-            CALL dbcsr_init_p(matrix_vxc_kp(ispin, img)%matrix)
-            CALL dbcsr_copy(matrix_vxc_kp(ispin, img)%matrix, matrix_ks_kp(ispin, img)%matrix, &
+      CALL get_qs_env(qs_env, dft_control=dft_control, matrix_ks_kp=matrix_ks)
+      ALLOCATE (matrix_vxc(SIZE(matrix_ks, 1), SIZE(matrix_ks, 2)))
+      DO img = 1, SIZE(matrix_ks, 2)
+         DO ispin = 1, SIZE(matrix_ks, 1)
+            NULLIFY (matrix_vxc(ispin, img)%matrix)
+            CALL dbcsr_init_p(matrix_vxc(ispin, img)%matrix)
+            CALL dbcsr_copy(matrix_vxc(ispin, img)%matrix, matrix_ks(ispin, img)%matrix, &
                             name="Matrix VXC of spin "//cp_to_string(ispin)//" image "//cp_to_string(img))
-            CALL dbcsr_set(matrix_vxc_kp(ispin, img)%matrix, 0.0_dp)
+            CALL dbcsr_set(matrix_vxc(ispin, img)%matrix, 0.0_dp)
          END DO
       END DO
 
@@ -1523,22 +1466,22 @@ CONTAINS
       IF (PRESENT(gapw_full_basis)) THEN
          IF (gapw_full_basis) gapw = .FALSE.
       END IF
-      DO ispin = 1, SIZE(matrix_ks_kp, 1)
-         ksmat => matrix_vxc_kp(ispin, :)
+      DO ispin = 1, SIZE(matrix_ks, 1)
+         ksmat => matrix_vxc(ispin, :)
          CALL integrate_v_rspace(v_rspace=v_rspace(ispin), &
                                  hmat_kp=ksmat, &
                                  qs_env=qs_env, &
                                  calculate_forces=.FALSE., &
                                  gapw=gapw)
          ! scale by the volume element... should really become part of integrate_v_rspace
-         DO img = 1, SIZE(matrix_ks_kp, 2)
-            CALL dbcsr_scale(matrix_vxc_kp(ispin, img)%matrix, v_rspace(ispin)%pw_grid%dvol)
+         DO img = 1, SIZE(matrix_ks, 2)
+            CALL dbcsr_scale(matrix_vxc(ispin, img)%matrix, v_rspace(ispin)%pw_grid%dvol)
          END DO
       END DO
 
       CALL timestop(handle)
 
-   END SUBROUTINE compute_matrix_vxc_kp
+   END SUBROUTINE compute_matrix_vxc
 
 ! **************************************************************************************************
 !> \brief Sum up all potentials defined  on the grid and integrate
