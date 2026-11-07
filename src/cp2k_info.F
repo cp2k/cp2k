@@ -176,12 +176,6 @@ CONTAINS
 #if defined(__DEEPMD)
       flags = TRIM(flags)//" deepmd"
 #endif
-#if defined(__PW_FPGA)
-      flags = TRIM(flags)//" pw_fpga"
-#endif
-#if defined(__PW_FPGA_SP)
-      flags = TRIM(flags)//" pw_fpga_sp"
-#endif
 #if defined(__LIBXS)
       flags = TRIM(flags)//" libxs"
 #endif
@@ -212,9 +206,6 @@ CONTAINS
 #endif
 #if defined(__NO_STATM_ACCESS)
       flags = TRIM(flags)//" no_statm_access"
-#endif
-#if defined(__PW_CUDA_NO_HOSTALLOC)
-      flags = TRIM(flags)//" pw_cuda_no_hostalloc"
 #endif
 #if defined(__STATM_RESIDENT)
       flags = TRIM(flags)//" statm_resident"
@@ -308,8 +299,8 @@ CONTAINS
 #if defined(__NO_OFFLOAD_DBM)
       flags = TRIM(flags)//" no_offload_dbm"
 #endif
-#if defined(__NO_OFFLOAD_PW)
-      flags = TRIM(flags)//" no_offload_pw"
+#if defined(__NO_OFFLOAD_FFT)
+      flags = TRIM(flags)//" no_offload_fft"
 #endif
 #if defined(__OFFLOAD_PROFILING)
       flags = TRIM(flags)//" offload_profiling"

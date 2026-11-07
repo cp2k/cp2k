@@ -40,7 +40,6 @@ FLAG_EXCEPTIONS = (
     r"XC_MINOR_VERSION",
     r"NDEBUG",
     r"M_PI",
-    r"OMP_DEFAULT_NONE_WITH_OOP",
     r"FTN_NO_DEFAULT_INIT",
     r"_OPENMP",
     r"__COMPILE_ARCH",
@@ -58,7 +57,6 @@ FLAG_EXCEPTIONS = (
     r"__OFFLOAD_CUDA",
     r"__OFFLOAD_HIP",
     r"__PILAENV_BLOCKSIZE",
-    r"__PW_CUDA_NO_HOSTALLOC",
     r"__T_C_G0",
     r"__YUKAWA",
     r"__cplusplus",
@@ -81,8 +79,6 @@ FLAG_EXCEPTIONS = (
     r"openPMD_HAVE_MPI",
     # TODO: Add CMake support for the following flags or remove the corresponding code.
     # See also https://github.com/cp2k/cp2k/issues/4611
-    r"__PW_FPGA",
-    r"__PW_FPGA_SP",
     r"__NO_SOCKETS",
     r"__SCALAPACK_NO_WA",
     r"__STATM_RESIDENT",
@@ -141,6 +137,14 @@ BSD_PATHS = (
     "src/offload/",
     "src/grid/",
     "src/dbm/",
+    "src/fft/fft_api",
+    "src/fft/fft_key.h",
+    "src/fft/fft_lib",
+    "src/fft/fft_timer",
+    "src/fft/fft_unittest",
+    "src/fft/fft_utils.h",
+    "src/fft/gpu/",
+    "src/fft/LICENSE",
 )
 MIT_PATHS = ("src/grpp/",)
 

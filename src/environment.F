@@ -55,9 +55,10 @@ MODULE environment
                                               low_print_level,&
                                               medium_print_level,&
                                               silent_print_level
-   USE fft_tools,                       ONLY: FWFFT,&
-                                              fft3d,&
-                                              finalize_fft,&
+   USE fft_api,                         ONLY: FFT_LIBRARY_BACKEND_DEFAULT,&
+                                              FFT_LIBRARY_BACKEND_FFTW,&
+                                              FFT_LIBRARY_BACKEND_GPU
+   USE fft_tools,                       ONLY: finalize_fft,&
                                               init_fft
    USE force_env_types,                 ONLY: multiple_fe_list
    USE gamma,                           ONLY: deallocate_md_ftable
@@ -71,8 +72,8 @@ MODULE environment
                                               cp2k_header
    USE input_constants,                 ONLY: &
         callgraph_all, callgraph_none, do_cosma, do_cp2k, do_dgemm_blas, do_dgemm_spla, do_eip, &
-        do_farming, do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_scalapack, do_sirius, do_test, &
-        energy_run, mol_dyn_run, none_run
+        do_farming, do_fist, do_qs, do_scalapack, do_sirius, do_test, energy_run, mol_dyn_run, &
+        none_run
    USE input_cp2k_global,               ONLY: create_global_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
@@ -565,7 +566,8 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: basis_set_file_name, coord_file_name, &
                                                             mm_potential_file_name, &
                                                             potential_file_name
-      CHARACTER(LEN=default_string_length)               :: env_num, model_name, project_name
+      CHARACTER(LEN=default_string_length)               :: env_num, fft_lib_string, model_name, &
+                                                            project_name
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: trace_routines
       INTEGER :: cpuid, cpuid_static, i_cholesky, i_dgemm, i_diag, i_fft, i_grid_backend, &
@@ -614,6 +616,8 @@ CONTAINS
       CALL section_vals_val_get(global_section, "PROGRAM_NAME", i_val=globenv%prog_name_id)
       CALL section_vals_val_get(global_section, "FFT_POOL_SCRATCH_LIMIT", i_val=globenv%fft_pool_scratch_limit)
       CALL section_vals_val_get(global_section, "FFTW_PLAN_TYPE", i_val=globenv%fftw_plan_type)
+      CALL section_vals_val_get(global_section, "FFTW_USE_GURU_INTERFACE", &
+                                l_val=globenv%fftw_use_guru_interface)
       CALL section_vals_val_get(global_section, "PROJECT_NAME", c_val=project_name)
       CALL section_vals_val_get(global_section, "FFTW_WISDOM_FILE_NAME", c_val=globenv%fftw_wisdom_file_name, &
                                 explicit=globenv%fftw_wisdom_file_explicit)
@@ -686,12 +690,15 @@ CONTAINS
          CPABORT("Unknown Cholesky decomposition library specified")
       END SELECT
 
+      globenv%default_fft_library = i_fft
       SELECT CASE (i_fft)
-      CASE (do_fft_sg)
-         globenv%default_fft_library = "FFTSG"
-      CASE (do_fft_fftw3)
-         globenv%default_fft_library = "FFTW3"
+      CASE (FFT_LIBRARY_BACKEND_DEFAULT)
+         fft_lib_string = "DEFAULT"
+      CASE (FFT_LIBRARY_BACKEND_FFTW)
+         fft_lib_string = "FFTW"
          CALL cite_reference(Frigo2005)
+      CASE (FFT_LIBRARY_BACKEND_GPU)
+         fft_lib_string = "GPU"
       CASE DEFAULT
          CPABORT("Unknown FFT library specified")
       END SELECT
@@ -864,7 +871,7 @@ CONTAINS
             start_section_label//"| Run type", &
             ADJUSTR(TRIM(enum_i2c(enum2, globenv%run_type_id))), &
             start_section_label//"| FFT library", &
-            ADJUSTR(globenv%default_fft_library(:40)), &
+            ADJUSTR(TRIM(fft_lib_string)), &
             start_section_label//"| Diagonalization library", &
             ADJUSTR(globenv%diag_library(:40)), &
             start_section_label//"| Cholesky decomposition library", &
@@ -1131,63 +1138,46 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: global_section
 
       CHARACTER(LEN=3*default_string_length)             :: message
-      COMPLEX(KIND=dp), DIMENSION(4, 4, 4)               :: zz
       INTEGER                                            :: stat
-      INTEGER, DIMENSION(3)                              :: n
       LOGICAL                                            :: try_fftw
-
-      n(:) = 4
-      zz(:, :, :) = 0.0_dp
 
       ! Setup the FFT library
       ! If the user has specified PREFERRED_FFT_LIBRARY try that first (default FFTW3)
       ! If that one is not available, try FFTW3 (unless it has been tried already)
       ! If FFTW3 is not available use FFTSG
 
-      IF (globenv%default_fft_library == "FFTW3") THEN
+      IF (globenv%default_fft_library == FFT_LIBRARY_BACKEND_FFTW) THEN
          try_fftw = .FALSE.
       ELSE
          try_fftw = .TRUE.
       END IF
 
       ! Initialize FFT library with the user's preferred FFT library
-      CALL init_fft(fftlib=TRIM(globenv%default_fft_library), &
+      CALL init_fft(fftlib=globenv%default_fft_library, &
                     alltoall=section_get_lval(global_section, "ALLTOALL_SGL"), &
                     pool_limit=globenv%fft_pool_scratch_limit, &
                     wisdom_file=globenv%fftw_wisdom_file_name, &
-                    plan_style=globenv%fftw_plan_type)
+                    plan_style=globenv%fftw_plan_type, status=stat, &
+                    use_guru_interface=globenv%fftw_use_guru_interface)
 
-      ! Check for FFT library
-      CALL fft3d(FWFFT, n, zz, status=stat)
       IF (stat /= 0) THEN
          IF (try_fftw) THEN
-            message = "FFT library "//TRIM(globenv%default_fft_library)// &
-                      " is not available. Trying FFT library FFTW3."
+            IF (globenv%default_fft_library == FFT_LIBRARY_BACKEND_DEFAULT) THEN
+               message = "FFT library DEFAULT is not available. Trying FFT library FFTW."
+            ELSE
+               message = "FFT library GPU is not available. Trying FFT library FFTW."
+            END IF
             CPWARN(TRIM(message))
-            globenv%default_fft_library = "FFTW3"
-            CALL init_fft(fftlib=TRIM(globenv%default_fft_library), &
+            globenv%default_fft_library = FFT_LIBRARY_BACKEND_FFTW
+            CALL init_fft(fftlib=globenv%default_fft_library, &
                           alltoall=section_get_lval(global_section, "ALLTOALL_SGL"), &
                           pool_limit=globenv%fft_pool_scratch_limit, &
                           wisdom_file=globenv%fftw_wisdom_file_name, &
-                          plan_style=globenv%fftw_plan_type)
-
-            CALL fft3d(FWFFT, n, zz, status=stat)
+                          plan_style=globenv%fftw_plan_type, status=stat, &
+                          use_guru_interface=globenv%fftw_use_guru_interface)
          END IF
          IF (stat /= 0) THEN
-            message = "FFT library "//TRIM(globenv%default_fft_library)// &
-                      " is not available. Trying FFT library FFTSG."
-            CPWARN(TRIM(message))
-            globenv%default_fft_library = "FFTSG"
-            CALL init_fft(fftlib=TRIM(globenv%default_fft_library), &
-                          alltoall=section_get_lval(global_section, "ALLTOALL_SGL"), &
-                          pool_limit=globenv%fft_pool_scratch_limit, &
-                          wisdom_file=globenv%fftw_wisdom_file_name, &
-                          plan_style=globenv%fftw_plan_type)
-
-            CALL fft3d(FWFFT, n, zz, status=stat)
-            IF (stat /= 0) THEN
-               CPABORT("FFT library FFTSG does not work. No FFT library available.")
-            END IF
+            CPABORT("FFT library FFTW does not work. No FFT library available.")
          END IF
       END IF
 
@@ -1375,8 +1365,7 @@ CONTAINS
          ! the LibXC functional objects are kept alive across calculations
          CALL libxc_release_workers()
          ! finalize the fft (i.e. writes the wisdom if FFTW3 and a wisdom file was specified)
-         CALL finalize_fft(para_env, globenv%fftw_wisdom_file_name, &
-                           export_wisdom=globenv%fftw_wisdom_file_explicit)
+         CALL finalize_fft(globenv%fftw_wisdom_file_name)
          CALL finalize_libvori()
       END IF
 

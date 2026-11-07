@@ -51,6 +51,8 @@ MODULE library_tests
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_init,          ONLY: init_input_type
    USE dbm_tests,                       ONLY: dbm_run_tests
+   USE fft_api,                         ONLY: FFT_LIBRARY_BACKEND_FFTW,&
+                                              FFT_LIBRARY_BACKEND_GPU
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_CLOSEST,&
                                               FWFFT,&
@@ -152,9 +154,8 @@ CONTAINS
       IF (runtest(2) /= 0) CALL matmul_test(para_env, test_matmul=.TRUE., test_dgemm=.FALSE., iw=iw)
       IF (runtest(5) /= 0) CALL matmul_test(para_env, test_matmul=.FALSE., test_dgemm=.TRUE., iw=iw)
       !
-      IF (runtest(3) /= 0) CALL fft_test(para_env, iw, globenv%fftw_plan_type, &
-                                         globenv%fftw_wisdom_file_name, &
-                                         globenv%fftw_wisdom_file_explicit)
+      IF (runtest(3) /= 0) CALL fft_test(iw, globenv%fftw_plan_type, &
+                                         globenv%fftw_wisdom_file_name)
       !
       IF (runtest(4) /= 0) CALL eri_test(iw)
       !
@@ -543,26 +544,23 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Tests the performance of all available FFT libraries for 3D FFTs
-!> \param para_env ...
 !> \param iw ...
 !> \param fftw_plan_type ...
 !> \param wisdom_file where FFTW3 should look to save/load wisdom
-!> \param export_wisdom whether the FFTW3 wisdom is saved to wisdom_file
 !> \par History
 !>      none
 !> \author JGH  6-NOV-2000
 ! **************************************************************************************************
-   SUBROUTINE fft_test(para_env, iw, fftw_plan_type, wisdom_file, export_wisdom)
+   SUBROUTINE fft_test(iw, fftw_plan_type, wisdom_file)
 
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: iw, fftw_plan_type
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
-      LOGICAL, INTENT(IN)                                :: export_wisdom
 
-      INTEGER, PARAMETER                                 :: ndate(3) = [12, 48, 96]
+      INTEGER, PARAMETER :: backends(2) = [FFT_LIBRARY_BACKEND_FFTW, FFT_LIBRARY_BACKEND_GPU], &
+         ndate(3) = [12, 48, 96]
 
       INTEGER                                            :: iall, it, j, len, n(3), ntim, radix_in, &
-                                                            radix_out, siz, stat
+                                                            radix_out, siz, status
       COMPLEX(KIND=dp), DIMENSION(4, 4, 4)               :: zz
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: ca, cb, cc
       CHARACTER(LEN=7)                                   :: method
@@ -572,113 +570,108 @@ CONTAINS
 
 ! test for 3d FFT
 
-      IF (para_env%is_source()) WRITE (iw, '(//,A,/)') " Test of 3D-FFT "
+      IF (iw > 0) WRITE (iw, '(//,A,/)') " Test of 3D-FFT "
       siz = ABS(runtest(3))
 
-      DO iall = 1, 100
-         SELECT CASE (iall)
-         CASE DEFAULT
+      DO iall = 1, 2
+         IF (backends(iall) == FFT_LIBRARY_BACKEND_FFTW) THEN
+            method = "FFTW  "
+         ELSE IF (backends(iall) == FFT_LIBRARY_BACKEND_GPU) THEN
+            method = "GPU   "
+         ELSE
             EXIT
-         CASE (1)
-            CALL init_fft("FFTSG", alltoall=.FALSE., wisdom_file=wisdom_file, &
-                          pool_limit=10, plan_style=fftw_plan_type)
-            method = "FFTSG  "
-         CASE (2)
-            CYCLE
-         CASE (3)
-            CALL init_fft("FFTW3", alltoall=.FALSE., wisdom_file=wisdom_file, &
-                          pool_limit=10, plan_style=fftw_plan_type)
-            method = "FFTW3  "
-         END SELECT
+         END IF
+         CALL init_fft(backends(iall), alltoall=.FALSE., wisdom_file=wisdom_file, &
+                       pool_limit=10, plan_style=fftw_plan_type, status=status)
+         IF (status /= 0) CYCLE
          n = 4
          zz = 0.0_dp
-         CALL fft3d(FWFFT, n, zz, status=stat)
-         IF (stat == 0) THEN
-            DO it = 1, 3
-               radix_in = ndate(it)
-               CALL fft_radix_operations(radix_in, radix_out, FFT_RADIX_CLOSEST)
-               len = radix_out
-               n = len
-               IF (16.0_dp*REAL(len*len*len, KIND=dp) > max_memory*0.5_dp) EXIT
-               ALLOCATE (ra(len, len, len))
-               ALLOCATE (ca(len, len, len))
-               CALL RANDOM_NUMBER(ra)
-               ca(:, :, :) = ra
-               CALL RANDOM_NUMBER(ra)
-               ca(:, :, :) = ca + gaussi*ra
-               flops = REAL(len**3, KIND=dp)*15.0_dp*LOG(REAL(len, KIND=dp))
-               ntim = NINT(siz*1.e7_dp/flops)
-               ntim = MAX(ntim, 1)
-               ntim = MIN(ntim, 200)
-               scale = 1.0_dp/REAL(len**3, KIND=dp)
-               tstart = m_walltime()
-               DO j = 1, ntim
-                  CALL fft3d(FWFFT, n, ca)
-                  CALL fft3d(BWFFT, n, ca)
-               END DO
-               tend = m_walltime()
-               t = tend - tstart + threshold
-               IF (t > 0.0_dp) THEN
-                  perf = REAL(ntim, KIND=dp)*2.0_dp*flops*1.e-6_dp/t
-               ELSE
-                  perf = 0.0_dp
-               END IF
-
-               IF (para_env%is_source()) THEN
-                  WRITE (iw, '(T2,A,A,i6,T59,F14.4,A)') &
-                     ADJUSTR(method), " test (in-place)    Size = ", len, perf, " Mflop/s"
-               END IF
-               DEALLOCATE (ca)
-               DEALLOCATE (ra)
-            END DO
-            IF (para_env%is_source()) WRITE (iw, *)
-            ! test if input data is preserved
-            len = 24
+         CALL fft3d(FWFFT, n, zz)
+         DO it = 1, 3
+            radix_in = ndate(it)
+            CALL fft_radix_operations(radix_in, radix_out, FFT_RADIX_CLOSEST)
+            len = radix_out
             n = len
+            IF (16.0_dp*REAL(len*len*len, KIND=dp) > max_memory*0.5_dp) EXIT
             ALLOCATE (ra(len, len, len))
             ALLOCATE (ca(len, len, len))
-            ALLOCATE (cb(len, len, len))
-            ALLOCATE (cc(len, len, len))
             CALL RANDOM_NUMBER(ra)
             ca(:, :, :) = ra
             CALL RANDOM_NUMBER(ra)
             ca(:, :, :) = ca + gaussi*ra
-            cc(:, :, :) = ca
-            CALL fft3d(FWFFT, n, ca, cb)
-            tdiff = MAXVAL(ABS(ca - cc))
-            IF (tdiff > 1.0E-12_dp) THEN
-               IF (para_env%is_source()) THEN
-                  WRITE (iw, '(T2,A,A,A)') ADJUSTR(method), "         FWFFT ", &
-                     "             Input array is changed in out-of-place FFT !"
-               END IF
+            flops = REAL(len**3, KIND=dp)*15.0_dp*LOG(REAL(len, KIND=dp))
+            ntim = NINT(siz*1.e7_dp/flops)
+            ntim = MAX(ntim, 1)
+            ntim = MIN(ntim, 200)
+            scale = 1.0_dp/REAL(len**3, KIND=dp)
+            tstart = m_walltime()
+            DO j = 1, ntim
+               CALL fft3d(FWFFT, n, ca)
+               CALL fft3d(BWFFT, n, ca)
+            END DO
+            tend = m_walltime()
+            t = tend - tstart + threshold
+            IF (t > 0.0_dp) THEN
+               perf = REAL(ntim, KIND=dp)*2.0_dp*flops*1.e-6_dp/t
             ELSE
-               IF (para_env%is_source()) THEN
-                  WRITE (iw, '(T2,A,A,A)') ADJUSTR(method), "         FWFFT ", &
-                     "         Input array is not changed in out-of-place FFT !"
-               END IF
+               perf = 0.0_dp
             END IF
-            ca(:, :, :) = cc
-            CALL fft3d(BWFFT, n, ca, cb)
-            tdiff = MAXVAL(ABS(ca - cc))
-            IF (tdiff > 1.0E-12_dp) THEN
-               IF (para_env%is_source()) THEN
-                  WRITE (iw, '(T2,A,A,A)') ADJUSTR(method), "         BWFFT ", &
-                     "             Input array is changed in out-of-place FFT !"
-               END IF
-            ELSE
-               IF (para_env%is_source()) THEN
-                  WRITE (iw, '(T2,A,A,A)') ADJUSTR(method), "         BWFFT ", &
-                     "         Input array is not changed in out-of-place FFT !"
-               END IF
-            END IF
-            IF (para_env%is_source()) WRITE (iw, *)
 
-            DEALLOCATE (ra)
+            IF (iw > 0) THEN
+               WRITE (iw, '(T2,A,A,i6,T59,F14.4,A)') &
+                  ADJUSTR(method), " test (in-place)    Size = ", len, perf, " Mflop/s"
+            END IF
             DEALLOCATE (ca)
-            DEALLOCATE (cb)
-            DEALLOCATE (cc)
+            DEALLOCATE (ra)
+         END DO
+         IF (iw > 0) WRITE (iw, *)
+         ! test if input data is preserved
+         len = 24
+         n = len
+         ALLOCATE (ra(len, len, len))
+         ALLOCATE (ca(len, len, len))
+         ALLOCATE (cb(len, len, len))
+         ALLOCATE (cc(len, len, len))
+         CALL RANDOM_NUMBER(ra)
+         ca(:, :, :) = ra
+         CALL RANDOM_NUMBER(ra)
+         ca(:, :, :) = ca + gaussi*ra
+         cc(:, :, :) = ca
+         CALL fft3d(FWFFT, n, ca, cb)
+         tdiff = MAXVAL(ABS(ca - cc))
+         IF (tdiff > 1.0E-12_dp) THEN
+            IF (iw > 0) THEN
+               WRITE (iw, '(T2,A,A,A)') ADJUSTR(method), "         FWFFT ", &
+                  "             Input array is changed in out-of-place FFT !"
+            END IF
+         ELSE
+            IF (iw > 0) THEN
+               WRITE (iw, '(T2,A,A,A)') ADJUSTR(method), "         FWFFT ", &
+                  "         Input array is not changed in out-of-place FFT !"
+            END IF
          END IF
-         CALL finalize_fft(para_env, wisdom_file=wisdom_file, export_wisdom=export_wisdom)
+         ca(:, :, :) = cc
+         CALL fft3d(BWFFT, n, ca, cb)
+         tdiff = MAXVAL(ABS(ca - cc))
+         IF (tdiff > 1.0E-12_dp) THEN
+            IF (iw > 0) THEN
+               WRITE (iw, '(T2,A,A,A)') ADJUSTR(method), "         BWFFT ", &
+                  "             Input array is changed in out-of-place FFT !"
+            END IF
+         ELSE
+            IF (iw > 0) THEN
+               WRITE (iw, '(T2,A,A,A)') ADJUSTR(method), "         BWFFT ", &
+                  "         Input array is not changed in out-of-place FFT !"
+            END IF
+         END IF
+         IF (iw > 0) WRITE (iw, *)
+
+         DEALLOCATE (ra)
+         DEALLOCATE (ca)
+         DEALLOCATE (cb)
+         DEALLOCATE (cc)
+
+         CALL finalize_fft(wisdom_file=wisdom_file)
       END DO
 
    END SUBROUTINE fft_test
@@ -702,7 +695,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_pw_transfer_test'
 
-      INTEGER                                            :: halo_size, handle, i_loop, n_loop, ns_max
+      INTEGER                                            :: halo_size, handle, i_loop, n_loop, &
+                                                            ns_max, status
       INTEGER, DIMENSION(3)                              :: no, np
       INTEGER, DIMENSION(:), POINTER                     :: i_vals
       LOGICAL                                            :: do_rs2pw
@@ -721,7 +715,10 @@ CONTAINS
       CALL init_fft(globenv%default_fft_library, alltoall=.FALSE., &
                     pool_limit=globenv%fft_pool_scratch_limit, &
                     wisdom_file=globenv%fftw_wisdom_file_name, &
-                    plan_style=globenv%fftw_plan_type)
+                    plan_style=globenv%fftw_plan_type, status=status)
+      IF (status /= 0) THEN
+         CPABORT("Initialization of the FFT library failed!")
+      END IF
 
       ! .. set cell (should otherwise be irrelevant)
       NULLIFY (box)
@@ -787,8 +784,7 @@ CONTAINS
       CALL ca%release()
       CALL pw_grid_release(grid)
       CALL cell_release(box)
-      CALL finalize_fft(para_env, wisdom_file=globenv%fftw_wisdom_file_name, &
-                        export_wisdom=globenv%fftw_wisdom_file_explicit)
+      CALL finalize_fft(wisdom_file=globenv%fftw_wisdom_file_name)
 
       CALL timestop(handle)
 
@@ -815,7 +811,8 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: toler = 1.e-11_dp
 
       INTEGER                                            :: blocked_id, grid_span, i_layout, i_rep, &
-                                                            ig, ip, itmp, n_loop, n_rep, nn, p, q
+                                                            ig, ip, itmp, n_loop, n_rep, nn, p, q, &
+                                                            status
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: layouts
       INTEGER, DIMENSION(2)                              :: distribution_layout
       INTEGER, DIMENSION(3)                              :: no, np
@@ -835,7 +832,10 @@ CONTAINS
       CALL init_fft(globenv%default_fft_library, alltoall=.FALSE., &
                     pool_limit=globenv%fft_pool_scratch_limit, &
                     wisdom_file=globenv%fftw_wisdom_file_name, &
-                    plan_style=globenv%fftw_plan_type)
+                    plan_style=globenv%fftw_plan_type, status=status)
+      IF (status /= 0) THEN
+         CPABORT("Initialization of the FFT library failed!")
+      END IF
 
       !..the unit cell (should not really matter, the number of grid points do)
       NULLIFY (box, grid)
@@ -1007,8 +1007,7 @@ CONTAINS
 
       ! cleanup
       CALL cell_release(box)
-      CALL finalize_fft(para_env, wisdom_file=globenv%fftw_wisdom_file_name, &
-                        export_wisdom=globenv%fftw_wisdom_file_explicit)
+      CALL finalize_fft(wisdom_file=globenv%fftw_wisdom_file_name)
 
    END SUBROUTINE pw_fft_test
 

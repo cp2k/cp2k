@@ -17,8 +17,8 @@
 #if !defined(__NO_OFFLOAD_GRID)
 #define __NO_OFFLOAD_GRID
 #endif
-#if !defined(__NO_OFFLOAD_PW)
-#define __NO_OFFLOAD_PW
+#if !defined(__NO_OFFLOAD_FFT)
+#define __NO_OFFLOAD_FFT
 #endif
 #endif
 
@@ -162,6 +162,23 @@ static inline void offloadMemcpyAsyncDtoH(void *ptr_hst, const void *ptr_dev,
 #elif defined(__OFFLOAD_HIP)
   OFFLOAD_CHECK(
       hipMemcpyAsync(ptr_hst, ptr_dev, size, hipMemcpyDeviceToHost, stream));
+#endif
+}
+
+/*******************************************************************************
+ * \brief Wrapper around cudaMemcpy2DAsync(...,cudaMemcpyDeviceToHost,...).
+ ******************************************************************************/
+static inline void offloadMemcpy2DAsync(void *ptr_hst, const size_t dpitch,
+                                        const void *ptr_dev,
+                                        const size_t spitch, const size_t width,
+                                        const size_t height,
+                                        const offloadStream_t stream) {
+#if defined(__OFFLOAD_CUDA)
+  OFFLOAD_CHECK(cudaMemcpy2DAsync(ptr_hst, dpitch, ptr_dev, spitch, width,
+                                  height, cudaMemcpyDeviceToHost, stream));
+#elif defined(__OFFLOAD_HIP)
+  OFFLOAD_CHECK(hipMemcpy2DAsync(ptr_hst, dpitch, ptr_dev, spitch, width,
+                                 height, hipMemcpyDeviceToHost, stream));
 #endif
 }
 

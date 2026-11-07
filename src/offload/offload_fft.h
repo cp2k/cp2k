@@ -39,11 +39,15 @@ typedef hipfftResult offload_fftResult;
 #define OFFLOAD_FFT_FORWARD CUFFT_FORWARD
 #define OFFLOAD_FFT_INVERSE CUFFT_INVERSE
 #define OFFLOAD_FFT_Z2Z CUFFT_Z2Z
+#define OFFLOAD_FFT_D2Z CUFFT_D2Z
+#define OFFLOAD_FFT_Z2D CUFFT_Z2D
 #elif defined(__OFFLOAD_HIP)
 #define OFFLOAD_FFT_SUCCESS HIPFFT_SUCCESS
 #define OFFLOAD_FFT_FORWARD HIPFFT_FORWARD
 #define OFFLOAD_FFT_INVERSE HIPFFT_BACKWARD // inconsistent
 #define OFFLOAD_FFT_Z2Z HIPFFT_Z2Z
+#define OFFLOAD_FFT_D2Z HIPFFT_D2Z
+#define OFFLOAD_FFT_Z2D HIPFFT_Z2D
 #endif
 
 /*******************************************************************************
@@ -205,6 +209,34 @@ static inline void offload_fftExecZ2Z(offload_fftHandle plan,
 #elif defined(__OFFLOAD_HIP)
   OFFLOAD_FFT_CHECK(hipfftExecZ2Z(plan, (hipfftDoubleComplex *)idata,
                                   (hipfftDoubleComplex *)odata, direction));
+#endif
+}
+
+/*******************************************************************************
+ * \brief Wrapper around cufftExecD2Z.
+ ******************************************************************************/
+static inline void offload_fftExecD2Z(offload_fftHandle plan,
+                                      const double *idata, double *odata) {
+#if defined(__OFFLOAD_CUDA)
+  OFFLOAD_FFT_CHECK(cufftExecD2Z(plan, (cufftDoubleReal *)idata,
+                                 (cufftDoubleComplex *)odata));
+#elif defined(__OFFLOAD_HIP)
+  OFFLOAD_FFT_CHECK(hipfftExecD2Z(plan, (hipfftDoubleReal *)idata,
+                                  (hipfftDoubleComplex *)odata));
+#endif
+}
+
+/*******************************************************************************
+ * \brief Wrapper around cufftExecZ2D.
+ ******************************************************************************/
+static inline void offload_fftExecZ2D(offload_fftHandle plan,
+                                      const double *idata, double *odata) {
+#if defined(__OFFLOAD_CUDA)
+  OFFLOAD_FFT_CHECK(cufftExecZ2D(plan, (cufftDoubleComplex *)idata,
+                                 (cufftDoubleReal *)odata));
+#elif defined(__OFFLOAD_HIP)
+  OFFLOAD_FFT_CHECK(hipfftExecZ2D(plan, (hipfftDoubleComplex *)idata,
+                                  (hipfftDoubleReal *)odata));
 #endif
 }
 

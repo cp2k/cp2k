@@ -37,6 +37,8 @@ gapw_unittest
 qs_fod_unittest
 qs_ot_complex_ref_unittest
 gx_ac_unittest                                           greenx
+fft_unittest
+fft_api_unittest
 
 spectral_localizer_unittest
 quadratic_pseudospectrum_unittest

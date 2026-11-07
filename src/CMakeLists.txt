@@ -14,8 +14,8 @@ configure_file(base/base_uses.f90 base/base_uses.f90 @ONLY)
 # Source lists are kept separately from source selection and build logic.
 include("${CMAKE_CURRENT_LIST_DIR}/CMakeSources.cmake")
 
-if(CP2K_USE_PW_GPU)
-  list(APPEND CP2K_SRCS_F pw/pw_gpu.F)
+if(CP2K_USE_FFT_GPU)
+  list(APPEND CP2K_SRCS_F fft/fft_gpu.F)
 endif()
 
 list(APPEND CP2K_SRCS_C "${CP2K_OFFLOAD_SRCS_C}" "${CP2K_MPIWRAP_SRCS_C}")
@@ -37,9 +37,8 @@ endif()
 if(CP2K_USE_CUDA
    OR CP2K_USE_HIP
    OR CP2K_USE_OPENCL)
-  if(CP2K_ENABLE_PW_GPU)
-    list(APPEND CP2K_SRCS_GPU "pw/gpu/pw_gpu_kernels.cu")
-    list(APPEND CP2K_SRCS_C ${CP2K_PW_SRCS_C})
+  if(CP2K_ENABLE_FFT_GPU)
+    list(APPEND CP2K_SRCS_GPU "fft/gpu/fft_gpu_kernels.cu")
   endif()
 
   if(CP2K_ENABLE_DBM_GPU)
@@ -79,7 +78,8 @@ if(CP2K_USE_CUDA
   endif()
 endif()
 
-list(APPEND CP2K_SRCS_C ${CP2K_DBM_SRCS_C} ${CP2K_GRID_SRCS_C})
+list(APPEND CP2K_SRCS_C ${CP2K_DBM_SRCS_C} ${CP2K_GRID_SRCS_C}
+     ${CP2K_FFT_SRCS_C})
 
 # ##############################################################################
 # Check that the registered source files match the source tree. When enabled,
@@ -88,14 +88,14 @@ list(APPEND CP2K_SRCS_C ${CP2K_DBM_SRCS_C} ${CP2K_GRID_SRCS_C})
 
 if(CP2K_ENABLE_CONSISTENCY_CHECKS)
   cp2k_compare_src_with_list(
-    "${CP2K_FPGA_SRC_C};${CP2K_SRCS_C};${CP2K_MPIWRAP_SRCS_C};${CP2K_OFFLOAD_SRCS_C};${CP2K_DBM_SRCS_C};${CP2K_GRID_SRCS_C};${CP2K_PW_SRCS_C};${CP2K_DBM_SRCS_GPU_C};${CP2K_PROGS_C}"
+    "${CP2K_SRCS_C};${CP2K_MPIWRAP_SRCS_C};${CP2K_OFFLOAD_SRCS_C};${CP2K_DBM_SRCS_C};${CP2K_GRID_SRCS_C};${CP2K_FFT_SRCS_C};${CP2K_DBM_SRCS_GPU_C};${CP2K_PROGS_C}"
     "*.c"
     "${CP2K_EXCLUDED_SRCS_C}")
   cp2k_compare_src_with_list(
     "${CP2K_SRCS_F};${CP2K_OFFLOAD_SRCS_F};${CP2K_PROGS_F}" "*.F"
     "${CP2K_EXCLUDED_SRCS_F}")
   cp2k_compare_src_with_list(
-    "${CP2K_GRID_SRCS_GPU};${CP2K_GRID_SRCS_HIP};${CP2K_DBM_SRCS_GPU};${CP2K_PW_SRCS_GPU}"
+    "${CP2K_GRID_SRCS_GPU};${CP2K_GRID_SRCS_HIP};${CP2K_DBM_SRCS_GPU};${CP2K_FFT_SRCS_GPU}"
     "*.cu"
     "")
   cp2k_compare_src_with_list("${CP2K_SRCS_CPP}" "*.cpp" "")
@@ -134,20 +134,24 @@ endif()
 add_library(cp2k_linalg_libs INTERFACE)
 target_link_libraries(
   cp2k_linalg_libs
-  INTERFACE cp2k::LAPACK::lapack
-            $<$<BOOL:${CP2K_USE_OPENCL}>:OpenCL::OpenCL>
-            $<$<BOOL:${CP2K_USE_OPENCL}>:libxstream::libxstream>
-            $<$<BOOL:${CP2K_USE_LIBXS}>:libxs::libxs>
-            $<$<BOOL:${CP2K_USE_LIBXSMM}>:libxsmm::libxsmm>
-            cp2k::BLAS::blas
-            $<$<BOOL:${CP2K_USE_CUDA}>:cp2k_cuda_libs>
-            $<$<BOOL:${CP2K_USE_HIP}>:cp2k_hip_libs>
-            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_Fortran>
-            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_C>
-            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_CXX>
-            OpenMP::OpenMP_Fortran
-            OpenMP::OpenMP_C
-            OpenMP::OpenMP_CXX)
+  INTERFACE
+    cp2k::LAPACK::lapack
+    $<$<BOOL:${CP2K_USE_OPENCL}>:OpenCL::OpenCL>
+    $<$<BOOL:${CP2K_USE_OPENCL}>:libxstream::libxstream>
+    $<$<BOOL:${CP2K_USE_LIBXS}>:libxs::libxs>
+    $<$<BOOL:${CP2K_USE_LIBXSMM}>:libxsmm::libxsmm>
+    cp2k::BLAS::blas
+    $<$<BOOL:${CP2K_USE_CUDA}>:cp2k_cuda_libs>
+    $<$<BOOL:${CP2K_USE_HIP}>:cp2k_hip_libs>
+    $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_Fortran>
+    $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_C>
+    $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_CXX>
+    $<$<BOOL:${CP2K_USE_FFTW3_}>:cp2k::FFTW3::fftw3>
+    $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_THREADS_SUPPORT}>>:cp2k::FFTW3::fftw3_threads>
+    $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>>:cp2k::FFTW3::fftw3_omp>
+    OpenMP::OpenMP_Fortran
+    OpenMP::OpenMP_C
+    OpenMP::OpenMP_CXX)
 
 if(CMAKE_HIP_PLATFORM MATCHES "amd")
   set(CP2K_GPU_PLATFORM_DFLAGS "__HIP_PLATFORM_AMD__")
@@ -259,45 +263,42 @@ add_library(cp2k_link_libs INTERFACE)
 # the order is important so keep it that way
 target_link_libraries(
   cp2k_link_libs
-  INTERFACE
-    $<$<BOOL:${CP2K_USE_DFTD4}>:mctc-lib::mctc-lib>
-    $<$<BOOL:${CP2K_USE_DFTD4}>:dftd4::dftd4>
-    $<$<BOOL:${CP2K_USE_DEEPMD}>:DeePMD::deepmd
-    DeePMD::deepmd_c>
-    $<$<BOOL:${CP2K_USE_PEXSI}>:PEXSI::PEXSI>
-    $<$<BOOL:${CP2K_USE_ACE}>:pace::pace>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:cp2k::tblite>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:s-dftd3::s-dftd3>
-    $<$<BOOL:${CP2K_USE_SIRIUS}>:sirius::sirius>
-    $<$<BOOL:${CP2K_USE_VORI}>:cp2k::VORI::vori>
-    $<$<BOOL:${CP2K_USE_SPGLIB}>:Spglib::symspg>
-    $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:cp2k::libsmeagol::smeagol>
-    $<$<BOOL:${CP2K_USE_LIBXC}>:Libxc::xcf03>
-    $<$<BOOL:${CP2K_USE_GAUXC}>:gauxc::gauxc>
-    $<$<BOOL:${CP2K_USE_ELPA}>:cp2k::ELPA::elpa>
-    $<$<BOOL:${CP2K_USE_PLUMED}>:cp2k::plumed::plumed>
-    $<$<BOOL:${CP2K_USE_FFTW3_}>:cp2k::FFTW3::fftw3>
-    $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_THREADS_SUPPORT}>>:cp2k::FFTW3::fftw3_threads>
-    $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>>:cp2k::FFTW3::fftw3_omp>
-    $<$<BOOL:${CP2K_USE_SPLA}>:SPLA::spla>
-    $<$<BOOL:${CP2K_USE_MIMIC}>:CP2K::MIMIC::mclf>
-    $<$<BOOL:${CP2K_USE_MIMIC}>:CP2K::MIMIC::mcl>
-    $<$<BOOL:${CP2K_USE_LIBINT2}>:Libint2::int2>
-    $<$<BOOL:${CP2K_USE_LIBFCI}>:libfci::fci>
-    $<$<BOOL:${CP2K_USE_LIBGINT}>:cp2k::LibGint::libGint>
-    $<$<BOOL:${CP2K_USE_COSMA}>:cp2k::cosma>
-    $<$<BOOL:${CP2K_USE_DLAF}>:${CP2K_DLAF_FORTRAN_TARGET}>
-    $<$<BOOL:${CP2K_USE_GREENX}>:cp2k::greenx>
-    $<$<BOOL:${CP2K_USE_TREXIO}>:cp2k::trexio::trexio>
-    $<$<BOOL:${CP2K_USE_HDF5}>:HDF5::HDF5
-    hdf5::hdf5_fortran>
-    wignernj::wignernj
-    DBCSR::dbcsr
-    $<$<BOOL:${CP2K_USE_MPI}>:cp2k::SCALAPACK::scalapack>
-    cp2k_linalg_libs
-    # Torch includes some LAPACK routines, but with floating-point exceptions.
-    $<$<BOOL:${CP2K_USE_LIBTORCH}>:${TORCH_LIBRARIES}>
-    $<$<BOOL:${CP2K_USE_OPENPMD}>:openPMD::openPMD>)
+  INTERFACE $<$<BOOL:${CP2K_USE_DFTD4}>:mctc-lib::mctc-lib>
+            $<$<BOOL:${CP2K_USE_DFTD4}>:dftd4::dftd4>
+            $<$<BOOL:${CP2K_USE_DEEPMD}>:DeePMD::deepmd
+            DeePMD::deepmd_c>
+            $<$<BOOL:${CP2K_USE_PEXSI}>:PEXSI::PEXSI>
+            $<$<BOOL:${CP2K_USE_ACE}>:pace::pace>
+            $<$<BOOL:${CP2K_USE_TBLITE}>:cp2k::tblite>
+            $<$<BOOL:${CP2K_USE_TBLITE}>:s-dftd3::s-dftd3>
+            $<$<BOOL:${CP2K_USE_SIRIUS}>:sirius::sirius>
+            $<$<BOOL:${CP2K_USE_VORI}>:cp2k::VORI::vori>
+            $<$<BOOL:${CP2K_USE_SPGLIB}>:Spglib::symspg>
+            $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:cp2k::libsmeagol::smeagol>
+            $<$<BOOL:${CP2K_USE_LIBXC}>:Libxc::xcf03>
+            $<$<BOOL:${CP2K_USE_GAUXC}>:gauxc::gauxc>
+            $<$<BOOL:${CP2K_USE_ELPA}>:cp2k::ELPA::elpa>
+            $<$<BOOL:${CP2K_USE_PLUMED}>:cp2k::plumed::plumed>
+            $<$<BOOL:${CP2K_USE_SPLA}>:SPLA::spla>
+            $<$<BOOL:${CP2K_USE_MIMIC}>:CP2K::MIMIC::mclf>
+            $<$<BOOL:${CP2K_USE_MIMIC}>:CP2K::MIMIC::mcl>
+            $<$<BOOL:${CP2K_USE_LIBINT2}>:Libint2::int2>
+            $<$<BOOL:${CP2K_USE_LIBFCI}>:libfci::fci>
+            $<$<BOOL:${CP2K_USE_LIBGINT}>:cp2k::LibGint::libGint>
+            $<$<BOOL:${CP2K_USE_COSMA}>:cp2k::cosma>
+            $<$<BOOL:${CP2K_USE_DLAF}>:${CP2K_DLAF_FORTRAN_TARGET}>
+            $<$<BOOL:${CP2K_USE_GREENX}>:cp2k::greenx>
+            $<$<BOOL:${CP2K_USE_TREXIO}>:cp2k::trexio::trexio>
+            $<$<BOOL:${CP2K_USE_HDF5}>:HDF5::HDF5
+            hdf5::hdf5_fortran>
+            wignernj::wignernj
+            DBCSR::dbcsr
+            $<$<BOOL:${CP2K_USE_MPI}>:cp2k::SCALAPACK::scalapack>
+            cp2k_linalg_libs
+            # Torch includes some LAPACK routines, but with floating-point
+            # exceptions.
+            $<$<BOOL:${CP2K_USE_LIBTORCH}>:${TORCH_LIBRARIES}>
+            $<$<BOOL:${CP2K_USE_OPENPMD}>:openPMD::openPMD>)
 
 set(CP2K_BUILD_INFO_FILE "${CMAKE_CURRENT_BINARY_DIR}/cp2k_build_info.h")
 file(
@@ -404,7 +405,7 @@ if(CP2K_USE_CUDA
            $<$<NOT:$<BOOL:${CP2K_ENABLE_ELPA_GPU}>>:__NO_OFFLOAD_ELPA>
            $<$<NOT:$<BOOL:${CP2K_ENABLE_GRID_GPU}>>:__NO_OFFLOAD_GRID>
            $<$<NOT:$<BOOL:${CP2K_ENABLE_DBM_GPU}>>:__NO_OFFLOAD_DBM>
-           $<$<NOT:$<BOOL:${CP2K_ENABLE_PW_GPU}>>:__NO_OFFLOAD_PW>)
+           $<$<NOT:$<BOOL:${CP2K_ENABLE_FFT_GPU}>>:__NO_OFFLOAD_FFT>)
 endif()
 
 add_dependencies(cp2k cp2k_build_info)
@@ -441,6 +442,7 @@ list(
   "upf_local_integrals_unittest"
   "gapw_unittest"
   "kpoint_lattice_fft_unittest"
+  "fft_api_unittest"
   "kpoint_smearing_unittest"
   "topology_wilson_unittest"
   "kubo_unittest"
@@ -494,6 +496,7 @@ add_executable(upf_local_integrals_unittest
                pseudopotentials/upf_local_integrals_unittest.F)
 add_executable(gapw_unittest gapw_unittest.F)
 add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)
+add_executable(fft_api_unittest fft/fft_api_unittest.F)
 add_executable(kpoint_smearing_unittest kpoint_smearing_unittest.F)
 add_executable(topology_wilson_unittest topology_wilson_unittest.F)
 add_executable(kubo_unittest kubo_unittest.F)
@@ -623,6 +626,40 @@ foreach(__app grid_miniapp grid_unittest)
   endif()
 endforeach()
 
+foreach(__app fft_unittest)
+  add_executable(
+    ${__app}
+    "fft/${__app}.c"
+    ${CP2K_FFT_SRCS_C}
+    $<$<OR:$<BOOL:${CP2K_USE_CUDA}>,$<BOOL:${CP2K_USE_HIP}>>:${CP2K_FFT_SRCS_GPU}>
+    $<$<BOOL:${CP2K_USE_HIP}>:${CP2K_FFT_SRCS_HIP}>
+    ${CP2K_MPIWRAP_SRCS_C}
+    ${CP2K_OFFLOAD_SRCS_C})
+  target_compile_definitions(
+    ${__app}
+    PRIVATE
+      $<$<BOOL:${CP2K_USE_MPI}>:__parallel>
+      $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:__FFTW3>
+      $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>)
+
+  if(NOT CP2K_ENABLE_FFT_GPU)
+    target_compile_definitions(${__app} PUBLIC __NO_OFFLOAD_FFT)
+  else()
+    target_compile_definitions(${__app} PUBLIC ${CP2K_GPU_DFLAGS})
+  endif()
+
+  target_include_directories(
+    ${__app}
+    PRIVATE
+      $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:${CP2K_FFTW3_INCLUDE_DIRS}>
+  )
+  target_link_libraries(
+    ${__app}
+    PRIVATE
+      $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:${CP2K_FFTW3_LINK_LIBRARIES}>
+  )
+endforeach()
+
 # ##############################################################################
 # common to all c executables
 # ##############################################################################
@@ -630,7 +667,7 @@ endforeach()
 # list of all targets that share the same properties. simplify code as most
 # cmake function can work on list of targets
 
-foreach(__app grid_miniapp grid_unittest dbm_miniapp)
+foreach(__app grid_miniapp grid_unittest dbm_miniapp fft_unittest)
   set_target_properties(
     ${__app}
     PROPERTIES POSITION_INDEPENDENT_CODE ON
@@ -667,7 +704,7 @@ endforeach()
 # ##############################################################################
 
 set(__CP2K_INSTALL_APPS ${__CP2K_APPS} cp2k-bin grid_miniapp grid_unittest
-                        dbm_miniapp)
+                        dbm_miniapp fft_unittest)
 if(NOT CP2K_INSTALL_UNITTESTS)
   list(FILTER __CP2K_INSTALL_APPS EXCLUDE REGEX "_unittest$")
 endif()
