@@ -436,7 +436,7 @@ CONTAINS
 !> \brief Distribute the cluster integrals over the RI columns of each atom's MPI group.
 !> \param bs_env ...
 !> \param atom_env Communicator shared by the ranks processing the same atom clusters.
-!> \param cluster_3c_int Each rank stores the upper AO triangle of its contiguous range of RI columns.
+!> \param cluster_3c_int Each rank stores both AO triangles of its contiguous range of RI columns.
 ! **************************************************************************************************
    SUBROUTINE build_cluster_3c_int(bs_env, atom_env, cluster_3c_int)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
@@ -446,7 +446,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_cluster_3c_int'
 
-      INTEGER :: first_ri, handle, iatom, icenter, icluster, iimage, ij, ik, ikind, inu, ip, &
+      INTEGER :: first_ri, handle, iatom, icenter, icluster, iimage, ij, ik, ikind, imu, inu, ip, &
          jatom, katom, last_ri, my_group, nao, ngroups, nlocal, nri, p_first, p_last, patom
       INTEGER, ALLOCATABLE                               :: ao_offset(:), cells(:, :), ri_offset(:), &
                                                             sizes_ri(:)
@@ -536,6 +536,14 @@ CONTAINS
             END DO
          END DO
          CALL atom_env%sum(cluster_3c_int(icluster)%Int_3c_norm2)
+         ! The evaluator multiplies by the full symmetric B_P (one DGEMM per RI function).
+         DO ip = first_ri, last_ri
+            DO inu = 1, nao
+               DO imu = inu + 1, nao
+                  cluster_3c_int(icluster)%Int_3c(imu, inu, ip) = cluster_3c_int(icluster)%Int_3c(inu, imu, ip)
+               END DO
+            END DO
+         END DO
          resident_bytes = resident_bytes + integral_bytes
          DEALLOCATE (ao_offset, ri_offset, cells)
       END DO
@@ -615,12 +623,16 @@ CONTAINS
       CALL evaluate_ri_rs_fit(Phi_l_mu, cluster_3c_int%Int_3c, cluster_3c_int%Int_3c_norm2, &
                               bs_env%ri_rs%tikhonov, atom_env, normalized_error, fit_successful, &
                               ao_gradient, max_abs_error)
+      !$OMP PARALLEL DO DEFAULT(NONE) &
+      !$OMP SHARED(n_grid_points, coordinate_gradient, ao_gradient, dPhi_alpha_l_mu) &
+      !$OMP PRIVATE(igrid, icartesian) SCHEDULE(STATIC)
       DO igrid = 1, n_grid_points
          DO icartesian = 1, 3
             coordinate_gradient(icartesian, igrid) = &
                DOT_PRODUCT(ao_gradient(igrid, :), dPhi_alpha_l_mu(icartesian, igrid, :))
          END DO
       END DO
+      !$OMP END PARALLEL DO
    END SUBROUTINE evaluate_local_cluster
 
 ! **************************************************************************************************
