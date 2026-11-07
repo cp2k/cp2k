@@ -598,16 +598,20 @@ CONTAINS
    END SUBROUTINE dbt_put_block_data
 
 ! **************************************************************************************************
-!> \brief Copy a block between tensors with the same index mapping and block sizes (e.g., one
-!>        created from the other), which needs no reshape since the matrix blocks are equal.
+!> \brief Copy a local block between tensors with the same index mapping and matching block sizes,
+!>        without an intermediate copy or reshape. Both blocks must belong to the calling rank,
+!>        and the tensors must have separate block storage.
 !> \param ind block index
 !> \param summation whether block should be summed to existing block
+!> \param ind_out destination block index, defaults to ind
 !> \author Hans Pabst
 ! **************************************************************************************************
-   SUBROUTINE dbt_copy_block(tensor_in, tensor_out, ind, summation)
+   SUBROUTINE dbt_copy_block(tensor_in, tensor_out, ind, summation, ind_out)
       TYPE(dbt_type), INTENT(INOUT)                           :: tensor_in, tensor_out
       INTEGER, DIMENSION(ndims_tensor(tensor_in)), INTENT(IN) :: ind
       LOGICAL, INTENT(IN), OPTIONAL                           :: summation
+      INTEGER, DIMENSION(ndims_tensor(tensor_out)), &
+         INTENT(IN), OPTIONAL                               :: ind_out
 
       INTEGER(KIND=int_8), DIMENSION(2)                       :: ind_2d
       REAL(dp), DIMENSION(:, :), POINTER, CONTIGUOUS          :: block_2d
@@ -616,6 +620,11 @@ CONTAINS
       ind_2d(:) = get_2d_indices_tensor(tensor_in%nd_index_blk, ind)
       CALL dbt_tas_get_block_p(tensor_in%matrix_rep, ind_2d(1), ind_2d(2), block_2d)
       IF (ASSOCIATED(block_2d)) THEN
+         IF (PRESENT(ind_out)) THEN
+            ind_2d(:) = get_2d_indices_tensor(tensor_out%nd_index_blk, ind_out)
+         ELSE
+            ind_2d(:) = get_2d_indices_tensor(tensor_out%nd_index_blk, ind)
+         END IF
          CALL dbt_tas_put_block(tensor_out%matrix_rep, ind_2d(1), ind_2d(2), block_2d, summation=summation)
       END IF
    END SUBROUTINE dbt_copy_block
