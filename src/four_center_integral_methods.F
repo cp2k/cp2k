@@ -9,23 +9,16 @@
 !> \brief Prepare and evaluate screened four-center Gaussian integrals and derivatives.
 ! **************************************************************************************************
 MODULE four_center_integral_methods
-   USE cell_types,                      ONLY: cell_type,&
-                                              pbc
+   USE cell_types,                      ONLY: cell_type
    USE four_center_integral_interface,  ONLY: evaluate_deriv_eri,&
                                               evaluate_eri,&
-                                              four_center_integral_context_type
-   USE four_center_integral_preparation,ONLY: prepare_eri4_pair,&
-                                              prepare_eri4_primitive,&
-                                              prepare_eri4_product
+                                              four_center_integral_context_type,&
+                                              prepare_four_center_batch
+   USE four_center_integral_preparation,ONLY: min_image_gap_sq,&
+                                              prepare_eri4_pair
    USE four_center_integral_types,      ONLY: eri4_cell_type,&
-                                              eri4_pgf_image_type,&
                                               eri4_pgf_pair_type,&
-                                              eri4_pgf_product_type,&
                                               eri4_screen_coeff_type
-   USE input_constants,                 ONLY: do_potential_TShPSC,&
-                                              do_potential_mix_cl_trunc,&
-                                              do_potential_short,&
-                                              do_potential_truncated
    USE integral_library_types,          ONLY: coulomb_operator_type
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -36,161 +29,9 @@ MODULE four_center_integral_methods
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC :: coulomb4, forces4, min_image_gap_sq, pgf_product_list_size
-
-   ! Initial capacity estimate, shared by the per-thread product buffers.
-   INTEGER, SAVE :: pgf_product_list_size = 128
+   PUBLIC :: coulomb4, forces4, min_image_gap_sq
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief ...
-!> \param list1 ...
-!> \param list2 ...
-!> \param product_list ...
-!> \param nproducts ...
-!> \param log10_pmax ...
-!> \param log10_eps_schwarz ...
-!> \param neighbor_cells ...
-!> \param cell ...
-!> \param potential_parameter ...
-!> \param m_max ...
-!> \param do_periodic ...
-! **************************************************************************************************
-   SUBROUTINE build_pgf_product_list(list1, list2, product_list, nproducts, &
-                                     log10_pmax, log10_eps_schwarz, neighbor_cells, &
-                                     cell, potential_parameter, m_max, do_periodic)
-
-      TYPE(eri4_pgf_pair_type)                           :: list1, list2
-      TYPE(eri4_pgf_product_type), ALLOCATABLE, &
-         DIMENSION(:), INTENT(INOUT)                     :: product_list
-      INTEGER, INTENT(OUT)                               :: nproducts
-      REAL(dp), INTENT(IN)                               :: log10_pmax, log10_eps_schwarz
-      TYPE(eri4_cell_type), DIMENSION(:), POINTER        :: neighbor_cells
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(coulomb_operator_type)                        :: potential_parameter
-      INTEGER, INTENT(IN)                                :: m_max
-      LOGICAL, INTENT(IN)                                :: do_periodic
-
-      REAL(dp), PARAMETER                                :: r_cutoff_eps = 1.0E-12_dp
-
-      INTEGER                                            :: i, j, k, k_max, nimages1, nimages2, &
-                                                            tmp_i4
-      LOGICAL                                            :: has_r_cutoff
-      REAL(dp) :: C11(3), EtaInv, min_img_delta, P(3), pgf_max_1, pgf_max_2, PQ(3), pq2, Q(3), R1, &
-         R2, r_cutoff_sq, r_cutoff_sq_guard, rc(3), rcut_eff, rd(3), rpq2, S1234, S1234a, S1234b, &
-         shift(3), temp(3), temp_CC(3), temp_DD(3), tmp_D(3), Zeta_C, Zeta_D
-      TYPE(eri4_pgf_image_type)                          :: shifted_image
-      TYPE(eri4_pgf_product_type)                        :: product
-      TYPE(eri4_pgf_product_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: tmp_product_list
-
-      nimages1 = list1%nimages
-      nimages2 = list2%nimages
-      nproducts = 0
-      IF (nimages1 == 0 .OR. nimages2 == 0) RETURN
-      CALL prepare_eri4_product(list1, list2, m_max, product)
-      EtaInv = list2%ZetaInv
-      Zeta_C = list2%zeta
-      Zeta_D = list2%zetb
-      temp_CC = 0.0_dp
-      temp_DD = 0.0_dp
-      r_cutoff_sq = 0.0_dp
-      r_cutoff_sq_guard = 0.0_dp
-      SELECT CASE (potential_parameter%potential_type)
-      CASE (do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
-         has_r_cutoff = .TRUE.
-         rcut_eff = potential_parameter%cutoff_radius
-      CASE (do_potential_TShPSC)
-         has_r_cutoff = .TRUE.
-         rcut_eff = potential_parameter%cutoff_radius*2.0_dp
-      CASE DEFAULT
-         has_r_cutoff = .FALSE.
-         rcut_eff = 0.0_dp
-      END SELECT
-      DO i = 1, nimages1
-         P = list1%image_list(i)%P
-         R1 = list1%image_list(i)%R
-         S1234a = list1%image_list(i)%S1234
-         pgf_max_1 = list1%image_list(i)%pgf_max
-         DO j = 1, nimages2
-            pgf_max_2 = list2%image_list(j)%pgf_max
-            IF (pgf_max_1 + pgf_max_2 + log10_pmax < log10_eps_schwarz) CYCLE
-            Q = list2%image_list(j)%P
-            R2 = list2%image_list(j)%R
-            S1234b = list2%image_list(j)%S1234
-            rc = list2%image_list(j)%ra
-            rd = list2%image_list(j)%rb
-
-            IF (has_r_cutoff) THEN
-               r_cutoff_sq = (R1 + R2 + rcut_eff)**2
-               r_cutoff_sq_guard = r_cutoff_sq*(1.0_dp + r_cutoff_eps)
-            END IF
-            k_max = SIZE(neighbor_cells)
-            IF (do_periodic) THEN
-               temp = P - Q
-               PQ = pbc(temp, cell)
-               IF (has_r_cutoff .AND. cell%orthorhombic .AND. ALL(cell%perd == 1) .AND. k_max >= 1) THEN
-                  IF (ALL(neighbor_cells(1)%cell_r == 0.0_dp)) THEN
-                     pq2 = PQ(1)**2 + PQ(2)**2 + PQ(3)**2
-                     IF (pq2 > r_cutoff_sq_guard) CYCLE
-                     min_img_delta = min_image_gap_sq(PQ, cell%hmat)
-                     IF (min_img_delta >= 0.0_dp .AND. pq2 + min_img_delta > r_cutoff_sq_guard) k_max = 1
-                  END IF
-               END IF
-               shift = -PQ + temp
-               temp_CC = rc + shift
-               temp_DD = rd + shift
-            END IF
-
-            S1234 = EXP(S1234a + S1234b)
-
-            DO k = 1, k_max
-               IF (do_periodic) THEN
-                  IF (has_r_cutoff .AND. k_max > 1) THEN
-                     IF ((PQ(1) - neighbor_cells(k)%cell_r(1))**2 + &
-                         (PQ(2) - neighbor_cells(k)%cell_r(2))**2 + &
-                         (PQ(3) - neighbor_cells(k)%cell_r(3))**2 > r_cutoff_sq_guard) CYCLE
-                  END IF
-                  C11 = temp_CC + neighbor_cells(k)%cell_r(:)
-                  tmp_D = temp_DD + neighbor_cells(k)%cell_r(:)
-               ELSE
-                  C11 = rc
-                  tmp_D = rd
-               END IF
-               Q = (Zeta_C*C11 + Zeta_D*tmp_D)*EtaInv
-               rpq2 = (P(1) - Q(1))**2 + (P(2) - Q(2))**2 + (P(3) - Q(3))**2
-               IF (has_r_cutoff) THEN
-                  IF (rpq2 > r_cutoff_sq) CYCLE
-               END IF
-               nproducts = nproducts + 1
-
-               ! allocate size as needed,
-               ! updating the global size estimate to make this a rare event in longer simulations
-               IF (nproducts > SIZE(product_list)) THEN
-!$OMP              ATOMIC READ
-                  tmp_i4 = pgf_product_list_size
-                  tmp_i4 = MAX(pgf_product_list_size, (3*nproducts + 1)/2)
-!$OMP              ATOMIC WRITE
-                  pgf_product_list_size = tmp_i4
-                  ALLOCATE (tmp_product_list(SIZE(product_list)))
-                  tmp_product_list(:) = product_list
-                  DEALLOCATE (product_list)
-                  ALLOCATE (product_list(tmp_i4))
-                  product_list(1:SIZE(tmp_product_list)) = tmp_product_list
-                  DEALLOCATE (tmp_product_list)
-               END IF
-
-               shifted_image%ra = C11
-               shifted_image%rb = tmp_D
-               shifted_image%P = Q
-               CALL prepare_eri4_primitive(product, list1%image_list(i), shifted_image, S1234, rpq2, &
-                                           potential_parameter, product_list(nproducts))
-            END DO
-         END DO
-      END DO
-
-   END SUBROUTINE build_pgf_product_list
 
 ! **************************************************************************************************
 !> \brief ...
@@ -288,7 +129,6 @@ CONTAINS
 
                list(element_counter)%image_list(nimages(element_counter))%R = &
                   MAX(0.0_dp, R_pgf(jpgf, ipgf)%x(1)*rab2 + R_pgf(jpgf, ipgf)%x(2))
-               list(element_counter)%image_list(nimages(element_counter))%bcell = neighbor_cells(i)%cell
             END DO
          END DO
          nelements = MAX(nelements, element_counter)
@@ -317,26 +157,6 @@ CONTAINS
       nelements = element_counter
 
    END SUBROUTINE build_pair_list_pgf
-
-! **************************************************************************************************
-!> \brief Smallest increase of |r|**2 when r is moved to any other periodic image of an
-!>        orthorhombic, fully periodic cell, i.e. min over n /= 0 of |r - hmat*n|**2 - |r|**2.
-!>        Exact if r is a minimum-image vector (|r(i)| <= |hmat(i,i)|/2); negative otherwise.
-!> \param r displacement vector
-!> \param hmat cell matrix; its diagonal entries are signed cell-vector components
-!> \return the squared-distance gap to the nearest other periodic image
-! **************************************************************************************************
-   PURE FUNCTION min_image_gap_sq(r, hmat) RESULT(gap)
-      REAL(dp), DIMENSION(3), INTENT(IN)                 :: r
-      REAL(dp), DIMENSION(3, 3), INTENT(IN)              :: hmat
-      REAL(dp)                                           :: gap
-
-      REAL(dp), DIMENSION(3)                             :: cell_len
-
-      cell_len = [ABS(hmat(1, 1)), ABS(hmat(2, 2)), ABS(hmat(3, 3))]
-      gap = MINVAL(cell_len*(cell_len - 2.0_dp*ABS(r)))
-
-   END FUNCTION min_image_gap_sq
 
 ! **************************************************************************************************
 !> \brief calculates two-electron integrals of a quartet/shell using the library
@@ -396,7 +216,6 @@ CONTAINS
 !> \param pgf2 schwarz coefficients pgf basid
 !> \param pgf_list_ij ...
 !> \param pgf_list_kl ...
-!> \param pgf_product_list ...
 !> \param nsgfl_a ...
 !> \param nsgfl_b ...
 !> \param nsgfl_c ...
@@ -405,7 +224,6 @@ CONTAINS
 !> \param sphi_b_ext ...
 !> \param sphi_c_ext ...
 !> \param sphi_d_ext ...
-!> \param ee_work ...
 !> \param ee_work2 ...
 !> \param ee_buffer1 ...
 !> \param ee_buffer2 ...
@@ -431,14 +249,14 @@ CONTAINS
                        cart_estimate, cell, neris_tmp, log10_pmax, &
                        log10_eps_schwarz, R1_pgf, R2_pgf, pgf1, pgf2, &
                        pgf_list_ij, pgf_list_kl, &
-                       pgf_product_list, &
                        nsgfl_a, nsgfl_b, nsgfl_c, &
                        nsgfl_d, &
                        sphi_a_ext, sphi_b_ext, sphi_c_ext, sphi_d_ext, &
-                       ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
+                       ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
                        nimages, do_periodic)
 
-      TYPE(four_center_integral_context_type)            :: context
+      TYPE(four_center_integral_context_type), &
+         INTENT(INOUT)                                   :: context
       REAL(dp), INTENT(IN)                               :: ra(3), rb(3), rc(3), rd(3)
       INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, lb_min, lb_max, lc_min, &
          lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd, sphi_a_u1, sphi_a_u2, sphi_a_u3, &
@@ -460,14 +278,12 @@ CONTAINS
       TYPE(eri4_screen_coeff_type), DIMENSION(:, :), &
          POINTER                                         :: R1_pgf, R2_pgf, pgf1, pgf2
       TYPE(eri4_pgf_pair_type), DIMENSION(*)             :: pgf_list_ij, pgf_list_kl
-      TYPE(eri4_pgf_product_type), ALLOCATABLE, &
-         DIMENSION(:), INTENT(INOUT)                     :: pgf_product_list
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: nsgfl_a, nsgfl_b, nsgfl_c, nsgfl_d
       REAL(dp), INTENT(IN) :: sphi_a_ext(sphi_a_u1, sphi_a_u2, sphi_a_u3), &
          sphi_b_ext(sphi_b_u1, sphi_b_u2, sphi_b_u3), sphi_c_ext(sphi_c_u1, sphi_c_u2, sphi_c_u3), &
          sphi_d_ext(sphi_d_u1, sphi_d_u2, sphi_d_u3)
-      REAL(dp), DIMENSION(*)                             :: ee_work, ee_work2, ee_buffer1, &
-                                                            ee_buffer2, ee_primitives_tmp
+      REAL(dp), DIMENSION(*)                             :: ee_work2, ee_buffer1, ee_buffer2, &
+                                                            ee_primitives_tmp
       INTEGER, DIMENSION(*)                              :: nimages
       LOGICAL, INTENT(IN)                                :: do_periodic
 
@@ -501,9 +317,9 @@ CONTAINS
             kpgf = pgf_list_kl(list_kl)%ipgf
             lpgf = pgf_list_kl(list_kl)%jpgf
 
-            CALL build_pgf_product_list(pgf_list_ij(list_ij), pgf_list_kl(list_kl), pgf_product_list, &
-                                        nproducts, log10_pmax, log10_eps_schwarz, neighbor_cells, cell, &
-                                        potential_parameter, max_l, do_periodic)
+            CALL prepare_four_center_batch(context, pgf_list_ij(list_ij), pgf_list_kl(list_kl), &
+                                           nproducts, log10_pmax, log10_eps_schwarz, neighbor_cells, cell, &
+                                           potential_parameter, max_l, do_periodic)
             IF (nproducts == 0) CYCLE
 
             s_offset_a = 0
@@ -531,7 +347,7 @@ CONTAINS
                         nsod = nso(ld)
 
                         tmp_max = 0.0_dp
-                        CALL evaluate_eri(context, nproducts, pgf_product_list, &
+                        CALL evaluate_eri(context, &
                                           la, lb, lc, ld, &
                                           ncoa, ncob, ncoc, ncod, &
                                           nsgfa, nsgfb, nsgfc, nsgfd, &
@@ -544,7 +360,7 @@ CONTAINS
                                           sphi_b_ext(1, lb + 1, jpgf), &
                                           sphi_c_ext(1, lc + 1, kpgf), &
                                           sphi_d_ext(1, ld + 1, lpgf), &
-                                          ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp)
+                                          ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp)
                         cart_estimate = MAX(tmp_max, cart_estimate)
                         s_offset_d = s_offset_d + nsod*nsgfld
                      END DO !ld
@@ -616,7 +432,6 @@ CONTAINS
 !> \param pgf2 ...
 !> \param pgf_list_ij ...
 !> \param pgf_list_kl ...
-!> \param pgf_product_list ...
 !> \param nsgfl_a ...
 !> \param nsgfl_b ...
 !> \param nsgfl_c ...
@@ -654,7 +469,6 @@ CONTAINS
                       cart_estimate, cell, neris_tmp, log10_pmax, &
                       log10_eps_schwarz, R1_pgf, R2_pgf, pgf1, pgf2, &
                       pgf_list_ij, pgf_list_kl, &
-                      pgf_product_list, &
                       nsgfl_a, nsgfl_b, nsgfl_c, &
                       nsgfl_d, &
                       sphi_a_ext, sphi_b_ext, sphi_c_ext, sphi_d_ext, &
@@ -664,7 +478,8 @@ CONTAINS
                       ede_work2_virial, ede_primitives_tmp_virial, primitive_integrals_virial, &
                       cart_estimate_virial)
 
-      TYPE(four_center_integral_context_type)            :: context
+      TYPE(four_center_integral_context_type), &
+         INTENT(INOUT)                                   :: context
       REAL(dp), INTENT(IN)                               :: ra(3), rb(3), rc(3), rd(3)
       INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, lb_min, lb_max, lc_min, &
          lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd, sphi_a_u1, sphi_a_u2, sphi_a_u3, &
@@ -687,8 +502,6 @@ CONTAINS
       TYPE(eri4_screen_coeff_type), DIMENSION(:, :), &
          POINTER                                         :: R1_pgf, R2_pgf, pgf1, pgf2
       TYPE(eri4_pgf_pair_type), DIMENSION(*)             :: pgf_list_ij, pgf_list_kl
-      TYPE(eri4_pgf_product_type), ALLOCATABLE, &
-         DIMENSION(:), INTENT(INOUT)                     :: pgf_product_list
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: nsgfl_a, nsgfl_b, nsgfl_c, nsgfl_d
       REAL(dp), INTENT(IN) :: sphi_a_ext(sphi_a_u1, sphi_a_u2, sphi_a_u3), &
          sphi_b_ext(sphi_b_u1, sphi_b_u2, sphi_b_u3), sphi_c_ext(sphi_c_u1, sphi_c_u2, sphi_c_u3), &
@@ -737,9 +550,9 @@ CONTAINS
             kpgf = pgf_list_kl(list_kl)%ipgf
             lpgf = pgf_list_kl(list_kl)%jpgf
 
-            CALL build_pgf_product_list(pgf_list_ij(list_ij), pgf_list_kl(list_kl), pgf_product_list, &
-                                        nproducts, log10_pmax, log10_eps_schwarz, neighbor_cells, cell, &
-                                        potential_parameter, max_l, do_periodic)
+            CALL prepare_four_center_batch(context, pgf_list_ij(list_ij), pgf_list_kl(list_kl), &
+                                           nproducts, log10_pmax, log10_eps_schwarz, neighbor_cells, cell, &
+                                           potential_parameter, max_l, do_periodic)
             IF (nproducts == 0) CYCLE
             s_offset_a = 0
             DO la = la_min, la_max
@@ -766,7 +579,7 @@ CONTAINS
                         nsod = nso(ld)
                         tmp_max = 0.0_dp
                         tmp_max_virial = 0.0_dp
-                        CALL evaluate_deriv_eri(context, nproducts, pgf_product_list, &
+                        CALL evaluate_deriv_eri(context, &
                                                 la, lb, lc, ld, &
                                                 ncoa, ncob, ncoc, ncod, &
                                                 nsgfa, nsgfb, nsgfc, nsgfd, &

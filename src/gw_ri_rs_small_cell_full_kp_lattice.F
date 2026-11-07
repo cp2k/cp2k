@@ -32,11 +32,11 @@ MODULE gw_ri_rs_small_cell_full_kp_lattice
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE input_constants,                 ONLY: do_potential_short,&
                                               do_potential_truncated
+   USE integral_library_types,          ONLY: coulomb_operator_type
    USE kinds,                           ONLY: dp,&
                                               dp_size,&
                                               int_8
    USE kpoint_types,                    ONLY: kpoint_type
-   USE libint_2c_3c,                    ONLY: libint_potential_type
    USE mathconstants,                   ONLY: pi,&
                                               twopi,&
                                               z_zero
@@ -272,7 +272,7 @@ CONTAINS
    SUBROUTINE build_ri_2c_lattice(fm_R, cells, potential, regularization, bs_env, qs_env, reference_basis)
       TYPE(cp_fm_type), ALLOCATABLE, INTENT(OUT)         :: fm_R(:)
       INTEGER, ALLOCATABLE, INTENT(OUT)                  :: cells(:, :)
-      TYPE(libint_potential_type), INTENT(IN)            :: potential
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential
       REAL(KIND=dp), INTENT(IN)                          :: regularization
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env

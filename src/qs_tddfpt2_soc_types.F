@@ -12,7 +12,6 @@ MODULE qs_tddfpt2_soc_types
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE kinds,                           ONLY: dp
-   USE libint_wrapper,                  ONLY: cp_libint_static_cleanup
    USE qs_grid_atom,                    ONLY: deallocate_grid_atom,&
                                               grid_atom_type
    USE qs_harmonics_atom,               ONLY: deallocate_harmonics_atom,&
@@ -205,9 +204,6 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(soc_atom_env%soc_pp)) CALL dbcsr_deallocate_matrix_set(soc_atom_env%soc_pp)
-
-      !Clean-up libint
-      CALL cp_libint_static_cleanup()
 
       DEALLOCATE (soc_atom_env)
 
