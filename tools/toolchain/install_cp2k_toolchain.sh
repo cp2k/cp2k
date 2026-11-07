@@ -371,6 +371,13 @@ Specific options of --with-PKG:
                           Hartree-Fock exchange on (nvidia) GPUs.
                           Default = no
 
+Specific options of Intel MKL:
+  --mkl-interface         Select the MKL Fortran interface: gnu or intel.
+                          Defaults to the selected GNU/Intel compiler.
+  --mkl-thread            Select the MKL threading layer: sequential, gnu,
+                          or intel. Defaults to the GNU/Intel compiler's
+                          threading layer, or sequential otherwise.
+
 FURTHER INSTRUCTIONS
 
 Before running the script, please ensure that several prerequisites including
@@ -488,6 +495,9 @@ else
 fi
 with_acml="__SYSTEM__"
 with_openblas="__INSTALL__"
+
+mkl_interface=""
+mkl_thread=""
 
 # for MPI, we try to detect system MPI variant
 if (command -v mpiexec > /dev/null 2>&1); then
@@ -798,6 +808,20 @@ Otherwise use option no."
       if [ "${with_mkl}" != "__DONTUSE__" ]; then
         export MATH_MODE="mkl"
       fi
+      ;;
+    --mkl-interface=*)
+      mkl_interface="${1#*=}"
+      case "${mkl_interface}" in
+        gnu | intel) ;;
+        *) report_error ${LINENO} "Invalid --mkl-interface: ${mkl_interface} (expected gnu or intel)." ;;
+      esac
+      ;;
+    --mkl-thread=*)
+      mkl_thread="${1#*=}"
+      case "${mkl_thread}" in
+        sequential | gnu | intel) ;;
+        *) report_error ${LINENO} "Invalid --mkl-thread: ${mkl_thread} (expected sequential, gnu or intel)." ;;
+      esac
       ;;
     --with-acml*)
       with_acml=$(read_with "${1}")
@@ -1319,6 +1343,28 @@ if [ "${ENABLE_CRAY}" = "__TRUE__" ]; then
   export SCALAPACK_LIBS=" "
 fi
 
+# Resolve MKL defaults from the selected compiler
+if [ "${MATH_MODE}" = "mkl" ]; then
+  mkl_default=""
+  if [ "${ENABLE_CRAY}" != "__TRUE__" ] && [ "${with_amd}" = "__DONTUSE__" ]; then
+    if [ "${with_intel}" != "__DONTUSE__" ]; then
+      mkl_default="intel"
+    elif [ "${with_gcc}" != "__DONTUSE__" ]; then
+      mkl_default="gnu"
+    fi
+  fi
+  if [ -z "${mkl_thread}" ]; then
+    mkl_thread="${mkl_default:-sequential}"
+    if [ -z "${mkl_default}" ]; then
+      report_warning ${LINENO} "Cannot infer MKL threading layer; defaulting to sequential. Use --mkl-thread to override."
+    fi
+  fi
+  if [ -z "${mkl_interface}" ]; then
+    [ -n "${mkl_default}" ] || report_error ${LINENO} "Cannot infer MKL interface; specify --mkl-interface={gnu|intel}."
+    mkl_interface="${mkl_default}"
+  fi
+fi
+
 # ------------------------------------------------------------------------
 # Installing tools required for building CP2K and associated libraries
 # ------------------------------------------------------------------------
@@ -1344,6 +1390,8 @@ echo "tool_list=\"${tool_list}\"" > "${INSTALLDIR}"/toolchain.conf
 echo "mpi_mode=\"${MPI_MODE}\"" >> "${INSTALLDIR}"/toolchain.conf
 echo "math_mode=\"${MATH_MODE}\"" >> "${INSTALLDIR}"/toolchain.conf
 if [ "${MATH_MODE}" = "mkl" ]; then
+  echo "mkl_interface=\"${mkl_interface}\"" >> "${INSTALLDIR}"/toolchain.conf
+  echo "mkl_thread=\"${mkl_thread}\"" >> "${INSTALLDIR}"/toolchain.conf
   echo "MKL_FFTW=\"${MKL_FFTW}\"" >> "${INSTALLDIR}"/toolchain.conf
   echo "MKL_SCALAPACK=\"${MKL_SCALAPACK}\"" >> "${INSTALLDIR}"/toolchain.conf
 fi
@@ -1514,6 +1562,10 @@ print_toolchain_summary() {
   printf '  --%-20s = %s\n' "gpu-ver" "${GPUVER}"
   printf '  --%-20s = %s\n' "mpi-mode" "${MPI_MODE}"
   printf '  --%-20s = %s\n' "math-mode" "${MATH_MODE}"
+  if [ "${MATH_MODE}" = "mkl" ]; then
+    printf '  --%-20s = %s\n' "mkl-interface     " "${mkl_interface}"
+    printf '  --%-20s = %s\n' "mkl-thread     " "${mkl_thread}"
+  fi
   printf '\nEnabled features:\n'
   printf '  --%-20s = %s\n' "enable-tsan" "$(format_bool "${enable_tsan}")"
   printf '  --%-20s = %s\n' "enable-cuda" "$(format_bool "${enable_cuda}")"
