@@ -12,14 +12,14 @@
 ! **************************************************************************************************
 MODULE dbt_tas_base
    USE dbm_api,                         ONLY: &
-        dbm_clear, dbm_create, dbm_create_from_template, dbm_distribution_col_dist, &
-        dbm_distribution_hold, dbm_distribution_new, dbm_distribution_obj, &
-        dbm_distribution_release, dbm_distribution_row_dist, dbm_filter, dbm_finalize, &
-        dbm_get_block_p, dbm_get_col_block_sizes, dbm_get_distribution, dbm_get_local_cols, &
-        dbm_get_local_rows, dbm_get_name, dbm_get_num_blocks, dbm_get_nze, &
+        dbm_clear, dbm_copy, dbm_create, dbm_create_from_template, dbm_distribution_col_dist, &
+        dbm_distribution_hold, dbm_distribution_is_same, dbm_distribution_new, &
+        dbm_distribution_obj, dbm_distribution_release, dbm_distribution_row_dist, dbm_filter, &
+        dbm_finalize, dbm_get_block_p, dbm_get_col_block_sizes, dbm_get_distribution, &
+        dbm_get_local_cols, dbm_get_local_rows, dbm_get_name, dbm_get_num_blocks, dbm_get_nze, &
         dbm_get_row_block_sizes, dbm_iterator, dbm_iterator_blocks_left, dbm_iterator_next_block, &
         dbm_iterator_num_blocks, dbm_iterator_start, dbm_iterator_stop, dbm_put_block, &
-        dbm_release, dbm_reserve_blocks, dbm_type
+        dbm_release, dbm_reserve_blocks, dbm_reserve_blocks_template, dbm_type
    USE dbt_tas_global,                  ONLY: dbt_tas_blk_size_arb,&
                                               dbt_tas_dist_arb,&
                                               dbt_tas_distribution,&
@@ -36,6 +36,7 @@ MODULE dbt_tas_base
                                               dbt_tas_iterator,&
                                               dbt_tas_split_info,&
                                               dbt_tas_type
+   USE dbt_tas_util,                    ONLY: array_eq
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
@@ -255,15 +256,21 @@ CONTAINS
 
       INTEGER                                            :: handle
       INTEGER(KIND=int_8)                                :: column, row
+      LOGICAL                                            :: summation_prv
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
       TYPE(dbt_tas_iterator)                             :: iter
 
       CALL timeset(routineN, handle)
       CPASSERT(matrix_b%valid)
 
-      IF (PRESENT(summation)) THEN
-         IF (.NOT. summation) CALL dbt_tas_clear(matrix_b)
-      ELSE
+      summation_prv = .FALSE.
+      IF (PRESENT(summation)) summation_prv = summation
+      IF (.NOT. summation_prv) THEN
+         IF (dbt_tas_distribution_is_same(matrix_a%dist, matrix_b%dist)) THEN
+            CALL dbm_copy(matrix_b%matrix, matrix_a%matrix)
+            CALL timestop(handle)
+            RETURN
+         END IF
          CALL dbt_tas_clear(matrix_b)
       END IF
 
@@ -300,6 +307,15 @@ CONTAINS
       TYPE(dbt_tas_iterator)                             :: iter
 
       CALL timeset(routineN, handle)
+
+      ! Bound the mapping comparison by the number of blocks to reserve.
+      IF (SIZE(matrix_in%dist%local_rowcols) <= dbm_get_num_blocks(matrix_in%matrix)) THEN
+         IF (dbt_tas_distribution_is_same(matrix_in%dist, matrix_out%dist)) THEN
+            CALL dbm_reserve_blocks_template(matrix_out%matrix, matrix_in%matrix)
+            CALL timestop(handle)
+            RETURN
+         END IF
+      END IF
 
 !$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_in,matrix_out) &
 !$OMP PRIVATE(iter,nblk,rows,columns)
@@ -796,6 +812,22 @@ CONTAINS
 
       dist_out = dist_in
    END SUBROUTINE dbt_tas_copy_distribution
+
+! **************************************************************************************************
+!> \brief Check for a shared DBM distribution and identical TAS local-to-global index mappings.
+!> \param dist_a ...
+!> \param dist_b ...
+!> \return Whether DBM blocks can be reused without translating their TAS indices.
+! **************************************************************************************************
+   FUNCTION dbt_tas_distribution_is_same(dist_a, dist_b) RESULT(res)
+      TYPE(dbt_tas_distribution_type), INTENT(IN)        :: dist_a, dist_b
+      LOGICAL                                            :: res
+
+      res = .FALSE.
+      IF (.NOT. dbm_distribution_is_same(dist_a%dbm_dist, dist_b%dbm_dist)) RETURN
+      IF (dist_a%info%split_rowcol /= dist_b%info%split_rowcol) RETURN
+      res = array_eq(dist_a%local_rowcols, dist_b%local_rowcols)
+   END FUNCTION dbt_tas_distribution_is_same
 
 ! **************************************************************************************************
 !> \brief Get block size for a given row & column
