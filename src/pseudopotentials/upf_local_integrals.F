@@ -12,6 +12,7 @@
 !>        Gaussian products, center derivatives and RI integrals share this operator.
 ! **************************************************************************************************
 MODULE upf_local_integrals
+   USE bessel_lib,                      ONLY: bessel0
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi,&
                                               pi
@@ -34,7 +35,7 @@ MODULE upf_local_integrals
       REAL(KIND=dp) :: eps = 0.0_dp
    END TYPE upf_local_type
 
-   PUBLIC :: upf_local_type, upf_local_init, upf_local_matrix, upf_local_ri
+   PUBLIC :: upf_local_type, upf_local_init, upf_local_matrix, upf_local_ri, upf_local_fourier
 
 CONTAINS
 
@@ -96,6 +97,60 @@ CONTAINS
       local%radial%radius = 0.0_dp
       IF (last > 0) local%radial%radius = pot%r(last)
    END SUBROUTINE upf_local_init
+
+! **************************************************************************************************
+!> \brief Fourier transform of the same short-range potential used in the AO integrals.
+!>        USPP augmentation must couple to the local potentials of all ionic centers.
+!>        The Gaussian-core Coulomb contribution is excluded here to avoid double counting.
+!> \param local Prepared radial potential; its screening radius does not truncate this integral.
+!> \param gvecs Cartesian reciprocal vectors (3,ng), in inverse bohr.
+!> \param position Potential center in bohr.
+!> \param volume Cell volume in bohr cubed.
+!> \param vg Fourier coefficients, integral divided by volume, overwritten.
+!> \param dv_position Optional derivatives with respect to the potential center (3,ng).
+!> \param dv_g Optional derivatives with respect to Cartesian G, holding position/volume fixed.
+!>        The separate volume derivative is -vg/volume; combine all terms for cell strain.
+! **************************************************************************************************
+   SUBROUTINE upf_local_fourier(local, gvecs, position, volume, vg, dv_position, dv_g)
+      TYPE(upf_local_type), INTENT(IN)                   :: local
+      REAL(KIND=dp), INTENT(IN)                          :: gvecs(:, :), position(3), volume
+      COMPLEX(KIND=dp), INTENT(OUT)                      :: vg(:)
+      COMPLEX(KIND=dp), INTENT(OUT), OPTIONAL            :: dv_position(:, :), dv_g(:, :)
+
+      COMPLEX(KIND=dp)                                   :: phase
+      INTEGER                                            :: ig
+      REAL(KIND=dp)                                      :: norm_g, radial, radial_derivative
+
+      CPASSERT(volume > 0.0_dp)
+      CPASSERT(SIZE(gvecs, 1) == 3 .AND. SIZE(gvecs, 2) == SIZE(vg))
+      CPASSERT(local%radial%nproj == 1 .AND. local%radial%lmax == 0)
+      IF (PRESENT(dv_position)) THEN
+         CPASSERT(ALL(SHAPE(dv_position) == SHAPE(gvecs)))
+      END IF
+      IF (PRESENT(dv_g)) THEN
+         CPASSERT(ALL(SHAPE(dv_g) == SHAPE(gvecs)))
+      END IF
+      DO ig = 1, SIZE(vg)
+         norm_g = SQRT(SUM(gvecs(:, ig)**2))
+         ! weighted_beta contains sqrt(4*pi)*r^2*V_sr(r) times radial weights.
+         phase = SQRT(fourpi)/volume*EXP(CMPLX(0.0_dp, -DOT_PRODUCT(gvecs(:, ig), position), dp))
+         IF (norm_g == 0.0_dp) THEN
+            radial = SUM(local%radial%weighted_beta(:, 1))
+         ELSE
+            radial = DOT_PRODUCT(bessel0(norm_g*local%radial%r, 0), local%radial%weighted_beta(:, 1))
+         END IF
+         vg(ig) = phase*radial
+         IF (PRESENT(dv_position)) dv_position(:, ig) = CMPLX(0.0_dp, -gvecs(:, ig), dp)*vg(ig)
+         IF (PRESENT(dv_g)) THEN
+            dv_g(:, ig) = CMPLX(0.0_dp, -position, dp)*vg(ig)
+            IF (norm_g > 0.0_dp) THEN
+               radial_derivative = -SUM(local%radial%r*bessel0(norm_g*local%radial%r, 1)* &
+                                        local%radial%weighted_beta(:, 1))
+               dv_g(:, ig) = dv_g(:, ig) + phase*radial_derivative*gvecs(:, ig)/norm_g
+            END IF
+         END IF
+      END DO
+   END SUBROUTINE upf_local_fourier
 
 ! **************************************************************************************************
 !> \brief Evaluate primitive three-center local integrals by the Gaussian product theorem.

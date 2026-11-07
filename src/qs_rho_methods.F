@@ -60,6 +60,9 @@ MODULE qs_rho_methods
                                               qs_rho_get,&
                                               qs_rho_set,&
                                               qs_rho_type
+   USE qs_upf_inverse_scf,              ONLY: qs_upf_inverse_scf_active,&
+                                              qs_upf_inverse_scf_collocate
+   USE qs_uspp_methods,                 ONLY: qs_uspp_init_ao_matrix
    USE ri_environment_methods,          ONLY: calculate_ri_densities
    USE task_list_types,                 ONLY: task_list_type
 #include "./base/base_uses.f90"
@@ -206,6 +209,7 @@ CONTAINS
                CALL dbcsr_create(matrix=tmatrix, template=refmatrix, name=TRIM(headline), &
                                  matrix_type=dbcsr_type_symmetric)
                CALL cp_dbcsr_alloc_block_from_nbl(tmatrix, sab_orb)
+               IF (.NOT. my_admm) CALL qs_uspp_init_ao_matrix(qs_env%ks_env, tmatrix)
                CALL dbcsr_set(tmatrix, 0.0_dp)
             END DO
          END DO
@@ -517,7 +521,16 @@ CONTAINS
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
                       dft_control=dft_control, &
-                      atomic_kind_set=atomic_kind_set)
+                      atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set)
+
+      IF (qs_upf_inverse_scf_active(ks_env)) THEN
+         CPASSERT(.NOT. PRESENT(pw_env_external))
+         CPASSERT(.NOT. PRESENT(task_list_external))
+         CPASSERT(.NOT. PRESENT(rho_xc_external))
+         CALL qs_upf_inverse_scf_collocate(ks_env, rho_struct)
+         CALL timestop(handle)
+         RETURN
+      END IF
 
       CALL qs_rho_get(rho_struct, &
                       rho_r=rho_r, &
