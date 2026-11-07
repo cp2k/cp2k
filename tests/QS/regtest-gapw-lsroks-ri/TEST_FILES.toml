@@ -1,0 +1,10 @@
+# Exchange uses RI_HFX RI_DZ with the 6-31G* orbital basis.
+# Short EPS_SCF=0.1 trajectories exercise RI cache transitions and orbital updates.
+# These are regression diagnostics, not converged molecular references.
+# The final frozen read uses the shared-orbital restart from O2-ri-rho.
+"O2-ri-rho.inp"      = [{matcher = "E_total", tol = 1e-11, ref = -149.72689893764664}]
+"O2-ri-mo.inp"       = [{matcher = "E_total", tol = 1e-11, ref = -149.72689893764425}]
+"O2-ri-reorder.inp"  = [{matcher = "E_total", tol = 1e-11, ref = -149.72689893764661}]
+"O2-ri-cancel.inp"   = [{matcher = "E_total", tol = 1e-11, ref = -149.75371795502934}]
+"O2-ri-highspin.inp" = [{matcher = "E_total", tol = 1e-11, ref = -149.75371795502997}]
+"O2-ri-restart.inp"  = [{matcher = "E_total", tol = 1e-11, ref = -149.73238292891787}]

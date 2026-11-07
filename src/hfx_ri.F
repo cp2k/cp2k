@@ -1634,7 +1634,9 @@ CONTAINS
 
          CALL dbt_copy_matrix_to_tensor(rho_ao(ispin, 1)%matrix, rho_ao_tmp)
 
-         !We work with Delta P: the diff between previous SCF step and this one, for increased sparsity
+         ! We work with Delta P, the difference between the previous and current SCF
+         ! density matrices, to increase sparsity. For low-spin ROKS, consecutive calls
+         ! may correspond to different spin configurations within the same SCF iteration.
          CALL dbt_scale(ri_data%rho_ao_t(ispin, 1), -1.0_dp)
          CALL dbt_copy(rho_ao_tmp, ri_data%rho_ao_t(ispin, 1), summation=.TRUE., move_data=.TRUE.)
 

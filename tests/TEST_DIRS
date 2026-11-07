@@ -485,6 +485,7 @@ QS/regtest-negf-2                                           fftw3
 Fist/regtest-moving-colvar
 Fist/regtest-16
 QS/regtest-gapw-lsroks-hybrid                               libint
+QS/regtest-gapw-lsroks-ri                                   libint !ifx
 QS/regtest-gapw-lsroks-gauxc-pbe                          gauxc gauxc_host
 QS/regtest-nmr-2
 QS/regtest-gapw-lsroks-meta-hybrid                          libxc libint
