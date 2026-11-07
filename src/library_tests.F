@@ -76,8 +76,7 @@ MODULE library_tests
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE mathconstants,                   ONLY: gaussi
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_type
    USE minimax_exp,                     ONLY: validate_exp_minimax
    USE mp_perf_test,                    ONLY: mpi_perf_test
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -155,7 +154,7 @@ CONTAINS
       IF (runtest(2) /= 0) CALL matmul_test(para_env, test_matmul=.TRUE., test_dgemm=.FALSE., iw=iw)
       IF (runtest(5) /= 0) CALL matmul_test(para_env, test_matmul=.FALSE., test_dgemm=.TRUE., iw=iw)
       !
-      IF (runtest(3) /= 0) CALL fft_test(para_env, iw, globenv%fftw_plan_type, &
+      IF (runtest(3) /= 0) CALL fft_test(iw, globenv%fftw_plan_type, &
                                          globenv%fftw_wisdom_file_name)
       !
       IF (runtest(4) /= 0) CALL eri_test(iw)
@@ -545,7 +544,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Tests the performance of all available FFT libraries for 3D FFTs
-!> \param para_env ...
 !> \param iw ...
 !> \param fftw_plan_type ...
 !> \param wisdom_file where FFTW3 should look to save/load wisdom
@@ -553,9 +551,8 @@ CONTAINS
 !>      none
 !> \author JGH  6-NOV-2000
 ! **************************************************************************************************
-   SUBROUTINE fft_test(para_env, iw, fftw_plan_type, wisdom_file)
+   SUBROUTINE fft_test(iw, fftw_plan_type, wisdom_file)
 
-      CLASS(mp_comm_type), INTENT(IN)                    :: para_env
       INTEGER                                            :: iw, fftw_plan_type
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
 
@@ -674,7 +671,7 @@ CONTAINS
          DEALLOCATE (cb)
          DEALLOCATE (cc)
 
-         CALL finalize_fft(para_env, wisdom_file, iw)
+         CALL finalize_fft(wisdom_file)
       END DO
 
    END SUBROUTINE fft_test
@@ -787,7 +784,7 @@ CONTAINS
       CALL ca%release()
       CALL pw_grid_release(grid)
       CALL cell_release(box)
-      CALL finalize_fft(para_env, globenv%fftw_wisdom_file_name, iw)
+      CALL finalize_fft(globenv%fftw_wisdom_file_name)
 
       CALL timestop(handle)
 
@@ -1010,7 +1007,7 @@ CONTAINS
 
       ! cleanup
       CALL cell_release(box)
-      CALL finalize_fft(para_env, globenv%fftw_wisdom_file_name, iw)
+      CALL finalize_fft(globenv%fftw_wisdom_file_name)
 
    END SUBROUTINE pw_fft_test
 

@@ -46,10 +46,7 @@ int fft_library_init_F(const int backend_F, const int fftw_plan,
   default:
     return 1;
   }
-  const int status =
-      fft_init_lib(backend, plan_type, use_guru_interface, wisdom_file);
-  fft_init_timer(false);
-  return status;
+  return fft_init_lib(backend, plan_type, use_guru_interface, wisdom_file);
 }
 
 void fft_library_finalize_F(const char *wisdom_file) {

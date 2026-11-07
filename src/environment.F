@@ -1367,7 +1367,7 @@ CONTAINS
          ! the LibXC functional objects are kept alive across calculations
          CALL libxc_release_workers()
          ! finalize the fft (i.e. writes the wisdom if FFTW3 and a wisdom file was specified)
-         CALL finalize_fft(para_env, globenv%fftw_wisdom_file_name, iw)
+         CALL finalize_fft(globenv%fftw_wisdom_file_name)
          CALL finalize_libvori()
       END IF
 

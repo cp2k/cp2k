@@ -75,7 +75,9 @@ int fft_init_lib(const fft_lib lib, const int fftw_planning_flag,
   }
   if (status != 0) {
     fft_finalize_lib(NULL);
+    return status;
   }
+  fft_init_timer();
   return status;
 }
 

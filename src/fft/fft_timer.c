@@ -45,7 +45,6 @@ struct fft_stack_type *stack = NULL;
 bool timers_initialized = false;
 int number_of_timed_routines = 0;
 int buffer_size_timed_routines = 0;
-bool debug_mode = false;
 
 /*******************************************************************************
  * \brief String duplication. Can be removed with migration to C23.
@@ -199,13 +198,12 @@ int compare_fft_timing_statistics(const void *a, const void *b) {
  * \note To be called by all threads or outside of a parallel region.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_init_timer(const bool use_debug_mode) {
+void fft_init_timer() {
   assert(omp_get_num_threads() == 1);
   if (!timers_initialized) {
     timed_routines = calloc(16, sizeof(fft_timed_routine));
     buffer_size_timed_routines = 16;
     timers_initialized = true;
-    debug_mode = use_debug_mode;
   }
 }
 
@@ -240,6 +238,18 @@ void fft_print_timing_report_unit(const double threshold,
                                   const int output_unit,
                                   const cp_mpi_comm_t comm) {
   assert(omp_get_num_threads() == 1);
+
+  // Ensure that all ranks have initialized the timer
+  int initialized_ranks = timers_initialized ? 1 : 0;
+  cp_mpi_sum_int(&initialized_ranks, 1, comm);
+  if (initialized_ranks != cp_mpi_comm_size(comm)) {
+    if (cp_mpi_comm_rank(comm) == 0)
+      fft_report_printf(
+          print_func, output_unit,
+          "FFT timer not initialized on every rank. Timing report is not "
+          "available!\n");
+    return;
+  }
   if (timers_initialized) {
     // We restrict ourselves to the routines from rank 0
     if (cp_mpi_comm_rank(comm) == 0) {
@@ -359,12 +369,6 @@ void fft_print_timing_report_unit(const double threshold,
     }
     // Wait for the printing to be finished
     cp_mpi_barrier(comm);
-  } else {
-    if (cp_mpi_comm_rank(comm) == 0)
-      fft_report_printf(
-          print_func, output_unit,
-          "Timing module is not initialized. Timing report is not "
-          "available!\n");
   }
 }
 
@@ -401,11 +405,6 @@ int fft_start_timer(const char *routine_name) {
   if (omp_get_thread_num() == 0) {
     const int handle = get_routine_handle(routine_name);
     push_on_stack(handle);
-    const int my_rank = cp_mpi_comm_rank(cp_mpi_get_comm_world());
-    if (debug_mode && my_rank == 0) {
-      fprintf(stdout, "FFT_PROFILE Start (%i) %s\n", my_rank, routine_name);
-      fflush(stdout);
-    }
     return handle;
   }
   return -1;
@@ -426,12 +425,6 @@ void fft_stop_timer(const int handle) {
       pop_from_stack(&stack_handle, &total_time, &self_time);
       assert(stack_handle == handle && "Incorrect order of timing regions!\n");
       // Merge with the list of routines
-      const int my_rank = cp_mpi_comm_rank(cp_mpi_get_comm_world());
-      if (debug_mode && my_rank == 0) {
-        fprintf(stdout, "FFT_PROFILE Stop (%i) %s %f %f\n", my_rank,
-                get_routine_name(stack_handle), total_time, self_time);
-        fflush(stdout);
-      }
       update_routine(handle, total_time, self_time);
       if (stack == NULL) {
         const char routine_name[] = "library";
