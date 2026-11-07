@@ -1285,6 +1285,10 @@ CONTAINS
       AT = TRANSPOSE(A)
       CALL dgeqrf(n_slot, m%k, AT, n_slot, tau, work_query, -1, info_lapack)
       lwork = INT(work_query(1))
+      ! DORGQR regenerates all n_slot columns and needs its own workspace query:
+      ! DGEQRF's optimal LWORK does not cover it (rejected by MKL for k < n_slot).
+      CALL dorgqr(n_slot, n_slot, m%k, Qfull, n_slot, tau, work_query, -1, info_lapack)
+      lwork = MAX(lwork, INT(work_query(1)))
       ALLOCATE (work(MAX(1, lwork)))
 
       CALL dgeqrf(n_slot, m%k, AT, n_slot, tau, work, SIZE(work), info_lapack)
