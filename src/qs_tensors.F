@@ -43,18 +43,16 @@ MODULE qs_tensors
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE gamma,                           ONLY: init_md_ftable
-   USE hfx_compression_methods,         ONLY: hfx_add_mult_cache_elements,&
-                                              hfx_add_single_cache_element,&
-                                              hfx_decompress_first_cache,&
-                                              hfx_flush_last_cache,&
-                                              hfx_get_mult_cache_elements,&
-                                              hfx_get_single_cache_element,&
-                                              hfx_reset_cache_and_container
+   USE hfx_compression_methods,         ONLY: hfx_add_mult_real_elements,&
+                                              hfx_decompress_first_real_cache,&
+                                              hfx_flush_last_real_cache,&
+                                              hfx_get_mult_real_elements,&
+                                              hfx_reset_real_cache_and_container
    USE hfx_types,                       ONLY: dealloc_containers,&
-                                              hfx_cache_type,&
                                               hfx_compression_type,&
                                               hfx_container_type,&
-                                              hfx_init_container
+                                              hfx_init_container,&
+                                              hfx_real_cache_type
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_id,&
                                               do_potential_mix_cl_trunc,&
@@ -3442,31 +3440,26 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compress_tensor'
 
-      INTEGER :: buffer_left, buffer_size, buffer_start, handle, i, ibin, iblk, init_usage, &
-         memory_usage, nbins, nbits, nblk, nints, offset, shared_offset
-      INTEGER(int_8)                                     :: estimate_to_store_int, &
-                                                            storage_counter_integrals
+      INTEGER                                            :: buffer_left, buffer_size, buffer_start, &
+                                                            handle, i, ibin, iblk, memory_usage, &
+                                                            nbins, nblk, nints, offset, &
+                                                            shared_offset
+      INTEGER(int_8)                                     :: storage_counter_integrals
       INTEGER, DIMENSION(3)                              :: ind
       LOGICAL                                            :: found
-      LOGICAL, DIMENSION(64)                             :: used
-      REAL(dp)                                           :: spherical_estimate
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :), TARGET  :: blk_data
       REAL(dp), DIMENSION(:), POINTER                    :: blk_data_1d
       TYPE(dbt_iterator_type)                            :: iter
-      TYPE(hfx_cache_type), ALLOCATABLE, DIMENSION(:), &
-         TARGET                                          :: caches
-      TYPE(hfx_cache_type), DIMENSION(:), POINTER        :: integral_caches
-      TYPE(hfx_cache_type), POINTER                      :: maxval_cache
-      TYPE(hfx_container_type), DIMENSION(:), POINTER    :: integral_containers
-      TYPE(hfx_container_type), POINTER                  :: maxval_container
+      TYPE(hfx_container_type), POINTER                  :: integral_container
+      TYPE(hfx_real_cache_type)                          :: real_cache
 
       CALL timeset(routineN, handle)
 
       CALL dealloc_containers(compressed, memory_usage)
       ! one bin (independent stream) per thread lets decompress_tensor run in parallel
       nbins = omp_get_max_threads()
-      ! Only containers: a container receives its first node once its bit width is used, and the
-      ! caches exist per bin while a (de)compression runs, which keeps the fixed cost per bin low.
+      ! Only containers (in the shape dealloc_containers expects): a bin uses its first container,
+      ! and its cache exists while a (de)compression runs, which keeps the fixed cost per bin low.
       ALLOCATE (compressed%maxval_container(nbins), compressed%integral_containers(64, nbins))
 
       IF (ALLOCATED(blk_indices)) DEALLOCATE (blk_indices)
@@ -3490,22 +3483,15 @@ CONTAINS
       ! Can not use the tensor iterator here because the order of the blocks is not guaranteed.
       nblk = SIZE(blk_indices, 1)
       storage_counter_integrals = 0
+      ! values as they are, quantized and packed within eps (one stream per bin)
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(tensor,blk_indices,compressed,eps,nbins,nblk) &
-!$OMP PRIVATE(ibin,i,ind,blk_data,blk_data_1d,found,nints,spherical_estimate,nbits) &
-!$OMP PRIVATE(estimate_to_store_int,buffer_left,buffer_size,buffer_start,memory_usage,used) &
-!$OMP PRIVATE(maxval_cache,maxval_container,integral_caches,integral_containers,caches,init_usage) &
+!$OMP PRIVATE(ibin,i,ind,blk_data,blk_data_1d,found,nints,buffer_left,buffer_size,buffer_start) &
+!$OMP PRIVATE(memory_usage,integral_container,real_cache) &
 !$OMP REDUCTION(+:storage_counter_integrals) SCHEDULE(STATIC,1)
       DO ibin = 1, nbins
-         used(:) = .FALSE.
-         maxval_container => compressed%maxval_container(ibin)
-         integral_containers => compressed%integral_containers(:, ibin)
-         CALL hfx_init_container(maxval_container, memory_usage, .FALSE.)
-
-         ! caches of the bin (0: maxvals), held only while compressing
-         ALLOCATE (caches(0:64))
-         caches(:)%element_counter = 1
-         maxval_cache => caches(0)
-         integral_caches => caches(1:64)
+         integral_container => compressed%integral_containers(1, ibin)
+         CALL hfx_init_container(integral_container, memory_usage, .FALSE.)
+         real_cache%element_counter = 1
 
          DO i = (ibin - 1)*nblk/nbins + 1, ibin*nblk/nbins
             ind = blk_indices(i, :)
@@ -3513,39 +3499,14 @@ CONTAINS
             CPASSERT(found)
             nints = SIZE(blk_data)
             blk_data_1d(1:nints) => blk_data
-            spherical_estimate = MAXVAL(ABS(blk_data_1d))
-            IF (spherical_estimate == 0.0_dp) spherical_estimate = TINY(spherical_estimate)
-            estimate_to_store_int = EXPONENT(spherical_estimate)
-            estimate_to_store_int = MAX(estimate_to_store_int, -15_int_8)
-
-            CALL hfx_add_single_cache_element(estimate_to_store_int, 6, &
-                                              maxval_cache, maxval_container, memory_usage, &
-                                              .FALSE.)
-
-            spherical_estimate = SET_EXPONENT(1.0_dp, estimate_to_store_int + 1)
-
-            nbits = EXPONENT(ANINT(spherical_estimate/eps)) + 1
-            IF (nbits > 64) THEN
-               CALL cp_abort(__LOCATION__, &
-                             "Overflow during tensor compression. Please use a larger EPS_FILTER or EPS_STORAGE_SCALING")
-            END IF
-            IF (.NOT. used(nbits)) THEN ! first node once the bit width is used (own counter)
-               CALL hfx_init_container(integral_containers(nbits), init_usage, .FALSE.)
-               used(nbits) = .TRUE.
-            END IF
 
             buffer_left = nints
             buffer_start = 1
 
             DO WHILE (buffer_left > 0)
                buffer_size = MIN(buffer_left, cache_size)
-               CALL hfx_add_mult_cache_elements(blk_data_1d(buffer_start:), &
-                                                buffer_size, nbits, &
-                                                integral_caches(nbits), &
-                                                integral_containers(nbits), &
-                                                eps, 1.0_dp, &
-                                                memory_usage, &
-                                                .FALSE.)
+               CALL hfx_add_mult_real_elements(blk_data_1d(buffer_start:), buffer_size, real_cache, &
+                                               integral_container, eps, memory_usage, .FALSE.)
                buffer_left = buffer_left - buffer_size
                buffer_start = buffer_start + buffer_size
             END DO
@@ -3553,23 +3514,12 @@ CONTAINS
             NULLIFY (blk_data_1d); DEALLOCATE (blk_data)
          END DO
 
-         CALL hfx_flush_last_cache(6, maxval_cache, maxval_container, memory_usage, &
-                                   .FALSE.)
-         DO i = 1, 64
-            IF (used(i)) CALL hfx_flush_last_cache(i, integral_caches(i), integral_containers(i), &
-                                                   memory_usage, .FALSE.)
-         END DO
+         CALL hfx_flush_last_real_cache(real_cache, integral_container, eps, memory_usage, .FALSE.)
 
-         ! all of the bin (before the reset restarts memory_usage): a first node for the maxval
-         ! container and for each bit width used, and the nodes added since (memory_usage from one)
-         storage_counter_integrals = storage_counter_integrals + INT(COUNT(used) + memory_usage, int_8)*cache_size
+         ! all of the bin (before the reset restarts memory_usage): the first node and the nodes added since
+         storage_counter_integrals = storage_counter_integrals + INT(memory_usage, int_8)*cache_size
 
-         CALL hfx_reset_cache_and_container(maxval_cache, maxval_container, memory_usage, .FALSE.)
-         DO i = 1, 64
-            IF (used(i)) CALL hfx_reset_cache_and_container(integral_caches(i), integral_containers(i), &
-                                                            memory_usage, .FALSE.)
-         END DO
-         DEALLOCATE (caches)
+         CALL hfx_reset_real_cache_and_container(real_cache, integral_container, memory_usage, .FALSE.)
       END DO
 !$OMP END PARALLEL DO
 
@@ -3601,19 +3551,13 @@ CONTAINS
 
       INTEGER                                            :: A, b, buffer_left, buffer_size, &
                                                             buffer_start, handle, i, ibin, &
-                                                            memory_usage, nbins, nbits, nblk, &
+                                                            memory_usage, nbins, nblk, &
                                                             nblk_per_thread, nints
-      INTEGER(int_8)                                     :: estimate_to_store_int
       INTEGER, DIMENSION(3)                              :: blk_size, ind
-      REAL(dp)                                           :: spherical_estimate
       REAL(dp), ALLOCATABLE, DIMENSION(:), TARGET        :: blk_data
       REAL(dp), DIMENSION(:, :, :), POINTER              :: blk_data_3d
-      TYPE(hfx_cache_type), ALLOCATABLE, DIMENSION(:), &
-         TARGET                                          :: caches
-      TYPE(hfx_cache_type), DIMENSION(:), POINTER        :: integral_caches
-      TYPE(hfx_cache_type), POINTER                      :: maxval_cache
-      TYPE(hfx_container_type), DIMENSION(:), POINTER    :: integral_containers
-      TYPE(hfx_container_type), POINTER                  :: maxval_container
+      TYPE(hfx_container_type), POINTER                  :: integral_container
+      TYPE(hfx_real_cache_type)                          :: real_cache
 
       CALL timeset(routineN, handle)
 
@@ -3629,44 +3573,17 @@ CONTAINS
       nbins = SIZE(compressed%integral_containers, 2)
       nblk = SIZE(blk_indices, 1)
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(tensor,blk_indices,compressed,eps,nbins,nblk) &
-!$OMP PRIVATE(ibin,i,ind,blk_size,nints,estimate_to_store_int,spherical_estimate,nbits) &
-!$OMP PRIVATE(buffer_left,buffer_size,buffer_start,blk_data,blk_data_3d,memory_usage) &
-!$OMP PRIVATE(maxval_cache,maxval_container,integral_caches,integral_containers,caches) &
-!$OMP SCHEDULE(STATIC,1)
+!$OMP PRIVATE(ibin,i,ind,blk_size,nints,buffer_left,buffer_size,buffer_start,blk_data,blk_data_3d) &
+!$OMP PRIVATE(memory_usage,integral_container,real_cache) SCHEDULE(STATIC,1)
       DO ibin = 1, nbins
-         maxval_container => compressed%maxval_container(ibin)
-         integral_containers => compressed%integral_containers(:, ibin)
-
-         ! caches of the bin (0: maxvals), held only while decompressing
-         ALLOCATE (caches(0:64))
-         caches(:)%element_counter = 1
-         maxval_cache => caches(0)
-         integral_caches => caches(1:64)
-
+         integral_container => compressed%integral_containers(1, ibin)
          memory_usage = 0
+         CALL hfx_decompress_first_real_cache(real_cache, integral_container, eps, memory_usage, .FALSE.)
 
-         CALL hfx_decompress_first_cache(6, maxval_cache, maxval_container, memory_usage, .FALSE.)
-
-         DO i = 1, 64 ! a container without a first node received no data
-            IF (ASSOCIATED(integral_containers(i)%first)) THEN
-               CALL hfx_decompress_first_cache(i, integral_caches(i), integral_containers(i), &
-                                               memory_usage, .FALSE.)
-            END IF
-         END DO
-
-         ! Can not use the tensor iterator here because the order of the blocks is not guaranteed.
          DO i = (ibin - 1)*nblk/nbins + 1, ibin*nblk/nbins
             ind = blk_indices(i, :)
             CALL dbt_blk_sizes(tensor, ind, blk_size)
             nints = PRODUCT(blk_size)
-            CALL hfx_get_single_cache_element( &
-               estimate_to_store_int, 6, &
-               maxval_cache, maxval_container, memory_usage, &
-               .FALSE.)
-
-            spherical_estimate = SET_EXPONENT(1.0_dp, estimate_to_store_int + 1)
-
-            nbits = EXPONENT(ANINT(spherical_estimate/eps)) + 1
 
             buffer_left = nints
             buffer_start = 1
@@ -3674,13 +3591,8 @@ CONTAINS
             ALLOCATE (blk_data(nints))
             DO WHILE (buffer_left > 0)
                buffer_size = MIN(buffer_left, cache_size)
-               CALL hfx_get_mult_cache_elements(blk_data(buffer_start), &
-                                                buffer_size, nbits, &
-                                                integral_caches(nbits), &
-                                                integral_containers(nbits), &
-                                                eps, 1.0_dp, &
-                                                memory_usage, &
-                                                .FALSE.)
+               CALL hfx_get_mult_real_elements(blk_data(buffer_start), buffer_size, real_cache, &
+                                               integral_container, eps, memory_usage, .FALSE.)
                buffer_left = buffer_left - buffer_size
                buffer_start = buffer_start + buffer_size
             END DO
@@ -3690,14 +3602,7 @@ CONTAINS
             NULLIFY (blk_data_3d); DEALLOCATE (blk_data)
          END DO
 
-         CALL hfx_reset_cache_and_container(maxval_cache, maxval_container, memory_usage, .FALSE.)
-         DO i = 1, 64
-            IF (ASSOCIATED(integral_containers(i)%first)) THEN
-               CALL hfx_reset_cache_and_container(integral_caches(i), integral_containers(i), &
-                                                  memory_usage, .FALSE.)
-            END IF
-         END DO
-         DEALLOCATE (caches)
+         CALL hfx_reset_real_cache_and_container(real_cache, integral_container, memory_usage, .FALSE.)
       END DO
 !$OMP END PARALLEL DO
 

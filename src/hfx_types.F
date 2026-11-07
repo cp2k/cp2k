@@ -104,7 +104,7 @@ MODULE hfx_types
              hfx_cell_type, hfx_distribution, &
              hfx_potential_type, hfx_screening_type, &
              hfx_memory_type, hfx_load_balance_type, hfx_general_type, &
-             hfx_container_type, hfx_cache_type, &
+             hfx_container_type, hfx_cache_type, hfx_real_cache_type, &
              hfx_basis_type, parse_memory_section, &
              hfx_init_container, &
              hfx_basis_info_type, hfx_screen_coeff_type, &
@@ -233,6 +233,12 @@ MODULE hfx_types
       INTEGER(int_8), DIMENSION(CACHE_SIZE)    :: DATA = 0_int_8
       INTEGER                                  :: element_counter = 0
    END TYPE hfx_cache_type
+
+! **************************************************************************************************
+   TYPE hfx_real_cache_type
+      REAL(dp), DIMENSION(CACHE_SIZE)          :: DATA = 0.0_dp
+      INTEGER                                  :: element_counter = 0
+   END TYPE hfx_real_cache_type
 
 ! **************************************************************************************************
    TYPE hfx_container_node
