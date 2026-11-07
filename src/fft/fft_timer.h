@@ -15,7 +15,7 @@
  * \brief Initializes the internal timer.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_init_timer(const bool use_debug_mode);
+void fft_init_timer();
 
 typedef void (*fft_print_func_t)(const char *, int, int);
 

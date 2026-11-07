@@ -34,9 +34,8 @@ MODULE fft_tools
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE fft_api,                         ONLY: &
         fft_1d_local, fft_2d_local, fft_3d_local, fft_3d_local_inplace, fft_allocate, &
-        fft_deallocate, fft_library_finalize, fft_library_init, fft_print_timing_report, &
-        fft_register_1d_local, fft_register_2d_local, fft_register_3d_local, &
-        fft_register_3d_local_inplace
+        fft_deallocate, fft_library_finalize, fft_library_init, fft_register_1d_local, &
+        fft_register_2d_local, fft_register_3d_local, fft_register_3d_local_inplace
    USE kinds,                           ONLY: dp,&
                                               dp_size,&
                                               sp
@@ -218,23 +217,16 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief does whatever is needed to finalize the current fft setup
-!> \param para_env ...
 !> \param wisdom_file ...
-!> \param output_unit ...
 !> \par History
 !>      10.2007 created [Joost VandeVondele]
 ! **************************************************************************************************
-   SUBROUTINE finalize_fft(para_env, wisdom_file, output_unit)
-      CLASS(mp_comm_type), INTENT(IN)                    :: para_env
+   SUBROUTINE finalize_fft(wisdom_file)
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
-      INTEGER, INTENT(IN)                                :: output_unit
 
 ! release the FFT scratch pool
 
       CALL release_fft_scratch_pool()
-
-      ! Print the FFT timing report while the timer is still initialized.
-      CALL fft_print_timing_report(0.0_dp, output_unit, para_env)
 
       ! finalize fft libs
 

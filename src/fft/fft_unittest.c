@@ -16,7 +16,7 @@
 #include "fft_lib_test.h"
 #include "fft_timer.h"
 
-int run_unittests(const bool debug, const int backend, const int planning_mode,
+int run_unittests(const int backend, const int planning_mode,
                   const bool use_guru, const double threshold) {
   int errors = 0;
   fft_finalize_timer();
@@ -25,7 +25,6 @@ int run_unittests(const bool debug, const int backend, const int planning_mode,
   fflush(stdout);
   cp_mpi_barrier(cp_mpi_get_comm_world());
 
-  fft_init_timer(debug);
   fft_init_lib(backend, planning_mode, use_guru, NULL);
 
   errors += fft_test_local();
@@ -46,7 +45,6 @@ int main(int argc, char *argv[]) {
     offload_set_chosen_device(my_rank % device_count);
   }
 
-  const bool debug = false;
   const double threshold = 1e-4;
   const int backend = fft_lib_default_library();
 
@@ -68,20 +66,20 @@ int main(int argc, char *argv[]) {
 
   // First run tests with ESTIMATE mode, which is faster and should be
   // sufficient to catch most errors
-  int errors = run_unittests(debug, backend, FFT_ESTIMATE, true, threshold);
+  int errors = run_unittests(backend, FFT_ESTIMATE, true, threshold);
 
   if (fft_lib_has_guru_interface()) {
 
-    errors += run_unittests(debug, backend, FFT_ESTIMATE, false, threshold);
+    errors += run_unittests(backend, FFT_ESTIMATE, false, threshold);
   }
 
   // Rerun the tests with MEASURE mode, which is slower but more accurate and
   // should catch any remaining errors
-  errors += run_unittests(debug, backend, FFT_MEASURE, true, threshold);
+  errors += run_unittests(backend, FFT_MEASURE, true, threshold);
 
   if (fft_lib_has_guru_interface()) {
 
-    errors += run_unittests(debug, backend, FFT_MEASURE, false, threshold);
+    errors += run_unittests(backend, FFT_MEASURE, false, threshold);
   }
 
   fft_finalize_lib(NULL);
