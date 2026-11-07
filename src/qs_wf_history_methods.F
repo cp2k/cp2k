@@ -153,7 +153,7 @@ CONTAINS
       TYPE(qs_wf_snapshot_type), INTENT(OUT)             :: snapshot
 
       NULLIFY (snapshot%wf, snapshot%rho_r, &
-               snapshot%rho_g, snapshot%rho_ao, snapshot%rho_ao_kp, &
+               snapshot%rho_g, snapshot%rho_ao, &
                snapshot%overlap, snapshot%wf_kp, snapshot%wf_kp_cfm, snapshot%overlap_cfm_kp, &
                snapshot%kp_pbc_shift, snapshot%rho_frozen)
       snapshot%dt = 1.0_dp
@@ -185,8 +185,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_pools
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -276,31 +276,15 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(snapshot%rho_ao)
       END IF
       IF (wf_history%store_rho_ao) THEN
-         CALL qs_rho_get(rho, rho_ao=rho_ao)
+         CALL qs_rho_get(rho, rho_ao_kp=rho_ao)
          CPASSERT(ASSOCIATED(rho_ao))
 
-         CALL dbcsr_allocate_matrix_set(snapshot%rho_ao, nspins)
-         DO ispin = 1, nspins
-            ALLOCATE (snapshot%rho_ao(ispin)%matrix)
-            CALL dbcsr_copy(snapshot%rho_ao(ispin)%matrix, rho_ao(ispin)%matrix)
-         END DO
-      END IF
-
-      IF (ASSOCIATED(snapshot%rho_ao_kp)) THEN ! the sparsity might be different
-         ! (future struct:check)
-         CALL dbcsr_deallocate_matrix_set(snapshot%rho_ao_kp)
-      END IF
-      IF (wf_history%store_rho_ao_kp) THEN
-         CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
-         CPASSERT(ASSOCIATED(rho_ao_kp))
-
-         nimg = dft_control%nimages
-         CALL dbcsr_allocate_matrix_set(snapshot%rho_ao_kp, nspins, nimg)
+         nimg = SIZE(rho_ao, 2)
+         CALL dbcsr_allocate_matrix_set(snapshot%rho_ao, nspins, nimg)
          DO ispin = 1, nspins
             DO img = 1, nimg
-               ALLOCATE (snapshot%rho_ao_kp(ispin, img)%matrix)
-               CALL dbcsr_copy(snapshot%rho_ao_kp(ispin, img)%matrix, &
-                               rho_ao_kp(ispin, img)%matrix)
+               ALLOCATE (snapshot%rho_ao(ispin, img)%matrix)
+               CALL dbcsr_copy(snapshot%rho_ao(ispin, img)%matrix, rho_ao(ispin, img)%matrix)
             END DO
          END DO
       END IF
@@ -474,7 +458,6 @@ CONTAINS
       wf_history%store_rho_r = .FALSE.
       wf_history%store_rho_g = .FALSE.
       wf_history%store_rho_ao = .FALSE.
-      wf_history%store_rho_ao_kp = .FALSE.
       wf_history%store_overlap = .FALSE.
       wf_history%store_wf_kp = .FALSE.
       wf_history%store_overlap_kp = .FALSE.
@@ -562,10 +545,6 @@ CONTAINS
       INTEGER                                            :: i
 
       CPASSERT(ASSOCIATED(wf_history))
-      IF (wf_history%store_rho_ao) THEN
-         wf_history%store_rho_ao_kp = .TRUE.
-         wf_history%store_rho_ao = .FALSE.
-      END IF
       ! KP-compatible WFN history: store complex k-point MOs in snapshots.
       ! USE_PREV_WF needs one snapshot as well, since the PBC image convention
       ! of the saved WFN has to be known before reorthogonalization.
@@ -750,30 +729,20 @@ CONTAINS
          t0_state => wfi_get_snapshot(wf_history, wf_index=1)
          nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
          CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec)
-         IF (do_kpoints) THEN
-            CPASSERT(ASSOCIATED(t0_state%rho_ao_kp))
-            CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
-            DO ispin = 1, SIZE(t0_state%rho_ao_kp, 1)
-               DO img = 1, SIZE(t0_state%rho_ao_kp, 2)
-                  IF (img > SIZE(rho_ao_kp, 2)) THEN
-                     CALL cp_warn(__LOCATION__, &
-                                  "Change in cell neighborlist: might affect quality of initial guess")
-                  ELSE
-                     CALL dbcsr_copy(rho_ao_kp(ispin, img)%matrix, &
-                                     t0_state%rho_ao_kp(ispin, img)%matrix, &
-                                     keep_sparsity=.TRUE.)
-                  END IF
-               END DO
+         CPASSERT(ASSOCIATED(t0_state%rho_ao))
+         CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
+         DO ispin = 1, SIZE(t0_state%rho_ao, 1)
+            DO img = 1, SIZE(t0_state%rho_ao, 2)
+               IF (img > SIZE(rho_ao_kp, 2)) THEN
+                  CALL cp_warn(__LOCATION__, &
+                               "Change in cell neighborlist: might affect quality of initial guess")
+               ELSE
+                  CALL dbcsr_copy(rho_ao_kp(ispin, img)%matrix, &
+                                  t0_state%rho_ao(ispin, img)%matrix, &
+                                  keep_sparsity=.TRUE.)
+               END IF
             END DO
-         ELSE
-            CPASSERT(ASSOCIATED(t0_state%rho_ao))
-            CALL qs_rho_get(rho, rho_ao=rho_ao)
-            DO ispin = 1, SIZE(t0_state%rho_ao)
-               CALL dbcsr_copy(rho_ao(ispin)%matrix, &
-                               t0_state%rho_ao(ispin)%matrix, &
-                               keep_sparsity=.TRUE.)
-            END DO
-         END IF
+         END DO
          !FM updating rho_ao directly with t0_state%rho_ao would have the
          !FM wrong matrix structure
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
@@ -846,44 +815,29 @@ CONTAINS
          t1_state => wfi_get_snapshot(wf_history, wf_index=1)
          CPASSERT(ASSOCIATED(t0_state))
          CPASSERT(ASSOCIATED(t1_state))
-         IF (do_kpoints) THEN
-            CPASSERT(ASSOCIATED(t0_state%rho_ao_kp))
-            CPASSERT(ASSOCIATED(t1_state%rho_ao_kp))
-         ELSE
-            CPASSERT(ASSOCIATED(t0_state%rho_ao))
-            CPASSERT(ASSOCIATED(t1_state%rho_ao))
-         END IF
+         CPASSERT(ASSOCIATED(t0_state%rho_ao))
+         CPASSERT(ASSOCIATED(t1_state%rho_ao))
          nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
          CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec)
 
          t0 = 0.0_dp
          t1 = t1_state%dt
          t2 = t1 + dt
-         IF (do_kpoints) THEN
-            CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
-            DO ispin = 1, SIZE(rho_ao_kp, 1)
-               DO img = 1, SIZE(rho_ao_kp, 2)
-                  IF (img > SIZE(t0_state%rho_ao_kp, 2) .OR. &
-                      img > SIZE(t1_state%rho_ao_kp, 2)) THEN
-                     CALL cp_warn(__LOCATION__, &
-                                  "Change in cell neighborlist: might affect quality of initial guess")
-                  ELSE
-                     CALL dbcsr_add(rho_ao_kp(ispin, img)%matrix, t1_state%rho_ao_kp(ispin, img)%matrix, &
-                                    alpha_scalar=0.0_dp, beta_scalar=(t2 - t0)/(t1 - t0)) ! this copy should be unnecessary
-                     CALL dbcsr_add(rho_ao_kp(ispin, img)%matrix, t0_state%rho_ao_kp(ispin, img)%matrix, &
-                                    alpha_scalar=1.0_dp, beta_scalar=(t1 - t2)/(t1 - t0))
-                  END IF
-               END DO
+         CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
+         DO ispin = 1, SIZE(rho_ao_kp, 1)
+            DO img = 1, SIZE(rho_ao_kp, 2)
+               IF (img > SIZE(t0_state%rho_ao, 2) .OR. &
+                   img > SIZE(t1_state%rho_ao, 2)) THEN
+                  CALL cp_warn(__LOCATION__, &
+                               "Change in cell neighborlist: might affect quality of initial guess")
+               ELSE
+                  CALL dbcsr_add(rho_ao_kp(ispin, img)%matrix, t1_state%rho_ao(ispin, img)%matrix, &
+                                 alpha_scalar=0.0_dp, beta_scalar=(t2 - t0)/(t1 - t0)) ! this copy should be unnecessary
+                  CALL dbcsr_add(rho_ao_kp(ispin, img)%matrix, t0_state%rho_ao(ispin, img)%matrix, &
+                                 alpha_scalar=1.0_dp, beta_scalar=(t1 - t2)/(t1 - t0))
+               END IF
             END DO
-         ELSE
-            CALL qs_rho_get(rho, rho_ao=rho_ao)
-            DO ispin = 1, SIZE(rho_ao)
-               CALL dbcsr_add(rho_ao(ispin)%matrix, t1_state%rho_ao(ispin)%matrix, &
-                              alpha_scalar=0.0_dp, beta_scalar=(t2 - t0)/(t1 - t0)) ! this copy should be unnecessary
-               CALL dbcsr_add(rho_ao(ispin)%matrix, t0_state%rho_ao(ispin)%matrix, &
-                              alpha_scalar=1.0_dp, beta_scalar=(t1 - t2)/(t1 - t0))
-            END DO
-         END IF
+         END DO
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
       CASE (wfi_linear_ps_method_nr)

@@ -46,7 +46,7 @@ MODULE qs_wf_history_types
 !> \param wf the wavefunctions
 !> \param rho_r the density in r space
 !> \param rho_g the density in g space
-!> \param rho_ao the density in ao space
+!> \param rho_ao the AO density matrices indexed by spin and real-space image
 !> \param overlap the overlap matrix
 !> \param wf_kp real k-point MO snapshots
 !> \param wf_kp_cfm complex k-point MO snapshots
@@ -63,8 +63,7 @@ MODULE qs_wf_history_types
       TYPE(cp_fm_type), DIMENSION(:), POINTER :: wf => NULL()
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER :: rho_r => NULL()
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER :: rho_g => NULL()
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: rho_ao => NULL()
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: rho_ao_kp => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: rho_ao => NULL()
       TYPE(dbcsr_type), POINTER :: overlap => NULL()
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: wf_kp => NULL()
       TYPE(cp_cfm_type), DIMENSION(:, :), POINTER :: wf_kp_cfm => NULL()
@@ -107,7 +106,7 @@ MODULE qs_wf_history_types
       INTEGER :: ref_count = -1, memory_depth = -1, last_state_index = -1, &
                  interpolation_method_nr = -1, snapshot_count = -1
       LOGICAL :: store_wf = .FALSE., store_rho_r = .FALSE., store_rho_g = .FALSE., &
-                 store_rho_ao = .FALSE., store_rho_ao_kp = .FALSE., &
+                 store_rho_ao = .FALSE., &
                  store_overlap = .FALSE., store_wf_kp = .FALSE., store_overlap_kp = .FALSE., &
                  store_frozen_density = .FALSE.
       TYPE(qs_wf_snapshot_p_type), DIMENSION(:), POINTER :: past_states => NULL()
@@ -142,9 +141,6 @@ CONTAINS
       ! of qs_wf_history_methods, in case you wonder about it.
       IF (ASSOCIATED(snapshot%rho_ao)) THEN
          CALL dbcsr_deallocate_matrix_set(snapshot%rho_ao)
-      END IF
-      IF (ASSOCIATED(snapshot%rho_ao_kp)) THEN
-         CALL dbcsr_deallocate_matrix_set(snapshot%rho_ao_kp)
       END IF
       IF (ASSOCIATED(snapshot%overlap)) THEN
          CALL dbcsr_deallocate_matrix(snapshot%overlap)
