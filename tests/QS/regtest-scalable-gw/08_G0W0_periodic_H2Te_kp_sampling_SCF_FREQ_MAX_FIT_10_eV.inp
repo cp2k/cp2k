@@ -45,6 +45,7 @@
         KPOINTS 1 2 2
       &END DOS
       &GW
+        ANALYTIC_CONTINUATION PADE
         EPS_FILTER 1.0E-5
         FREQ_MAX_FIT 10.0
         NUM_TIME_FREQ_POINTS 6

@@ -163,12 +163,14 @@ CONTAINS
 !> \param unit_nr Output unit used by an external backend.
 !> \param prefer_external_backend Whether to try an available external backend first.
 !> \param used_external_backend Whether the external backend supplied the grid.
+!> \param rcond If present and > 0, relative SVD cutoff of the fitted transform weights, used
+!>        instead of the regularization.
 ! **************************************************************************************************
    SUBROUTINE build_minimax_time_frequency_grid(num_points, energy_min, energy_max, regularization, &
                                                 num_points_per_magnitude, grid, build_frequency, build_time, &
                                                 build_transforms, build_sine, time_scaling, time_weight_scaling, &
                                                 max_fit_error, print_warning, unit_nr, prefer_external_backend, &
-                                                used_external_backend)
+                                                used_external_backend, rcond)
 
       INTEGER, INTENT(IN)                                :: num_points
       REAL(KIND=dp), INTENT(IN)                          :: energy_min, energy_max, regularization
@@ -182,6 +184,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN)                                :: prefer_external_backend
       LOGICAL, INTENT(OUT), OPTIONAL                     :: used_external_backend
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: rcond
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_minimax_time_frequency_grid'
 
@@ -250,18 +253,18 @@ CONTAINS
             ALLOCATE (grid%cosine_time_to_frequency(num_points, num_points))
             CALL fit_l_sq_weights(cosine_time_to_frequency, num_points, grid%imaginary_time, &
                                   grid%cosine_time_to_frequency, grid%frequency, energy_min, energy_max, &
-                                  max_error, num_points_per_magnitude, regularization)
+                                  max_error, num_points_per_magnitude, regularization, rcond)
 
             ALLOCATE (grid%cosine_frequency_to_time(num_points, num_points))
             CALL fit_l_sq_weights(cosine_frequency_to_time, num_points, grid%imaginary_time, &
                                   grid%cosine_frequency_to_time, grid%frequency, energy_min, energy_max, &
-                                  max_error, num_points_per_magnitude, regularization)
+                                  max_error, num_points_per_magnitude, regularization, rcond)
 
             IF (build_sine) THEN
                ALLOCATE (grid%sine_time_to_frequency(num_points, num_points))
                CALL fit_l_sq_weights(sine_time_to_frequency, num_points, grid%imaginary_time, &
                                      grid%sine_time_to_frequency, grid%frequency, energy_min, energy_max, &
-                                     max_error, num_points_per_magnitude, regularization)
+                                     max_error, num_points_per_magnitude, regularization, rcond)
             END IF
          END IF
       END IF
@@ -285,9 +288,11 @@ CONTAINS
 !> \param max_error Maximum fitting error.
 !> \param num_points_per_magnitude Number of fitting points per decade.
 !> \param regularization Regularization parameter for the pseudoinverse.
+!> \param rcond If present and > 0, singular values below rcond times the largest one are discarded
+!>        (truncated SVD) instead of applying the regularization.
 ! **************************************************************************************************
    SUBROUTINE fit_l_sq_weights(transform_kind, num_integ_points, tau_tj, weights, omega_tj, E_min, E_max, &
-                               max_error, num_points_per_magnitude, regularization)
+                               max_error, num_points_per_magnitude, regularization, rcond)
 
       INTEGER, INTENT(IN)                                :: transform_kind, num_integ_points
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tau_tj
@@ -297,6 +302,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: max_error
       INTEGER, INTENT(IN)                                :: num_points_per_magnitude
       REAL(KIND=dp), INTENT(IN)                          :: regularization
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: rcond
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fit_l_sq_weights'
 
@@ -305,7 +311,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwork
       LOGICAL                                            :: sine_transform, time_to_frequency
       REAL(KIND=dp)                                      :: func_val, max_error_tmp, multiplicator, &
-                                                            omega, tau, x_value
+                                                            my_rcond, omega, s_cut, tau, x_value
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: sing_values, vec_UTy, weight_work, work, &
                                                             x_values, y_values
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mat_A, mat_SinvVSinvSigma, &
@@ -322,6 +328,9 @@ CONTAINS
 
       time_to_frequency = transform_kind /= cosine_frequency_to_time
       sine_transform = transform_kind == sine_time_to_frequency
+
+      my_rcond = 0.0_dp
+      IF (PRESENT(rcond)) my_rcond = rcond
 
       ! take num_points_per_magnitude points per 10-interval
       num_x_nodes = (INT(LOG10(E_max/E_min)) + 1)*num_points_per_magnitude
@@ -395,13 +404,27 @@ CONTAINS
                      mat_SinvVSinvT, num_x_nodes, work, lwork, iwork, info)
          CPASSERT(info == 0)
 
-         ! integration weights = V Sigma U^T y
-         DO jjj = 1, num_integ_points
-            DO iii = 1, num_integ_points
-               mat_SinvVSinvSigma(iii, jjj) = mat_SinvVSinvT(jjj, iii)*sing_values(jjj) &
-                                              /(regularization**2 + sing_values(jjj)**2)
+         ! integration weights = V Sigma U^T y; with rcond > 0, singular values below
+         ! rcond*s_max are discarded (truncated SVD) instead of the Tikhonov regularization
+         IF (my_rcond > 0.0_dp) THEN
+            s_cut = my_rcond*sing_values(1)
+            DO jjj = 1, num_integ_points
+               DO iii = 1, num_integ_points
+                  IF (sing_values(jjj) > s_cut) THEN
+                     mat_SinvVSinvSigma(iii, jjj) = mat_SinvVSinvT(jjj, iii)/sing_values(jjj)
+                  ELSE
+                     mat_SinvVSinvSigma(iii, jjj) = 0.0_dp
+                  END IF
+               END DO
             END DO
-         END DO
+         ELSE
+            DO jjj = 1, num_integ_points
+               DO iii = 1, num_integ_points
+                  mat_SinvVSinvSigma(iii, jjj) = mat_SinvVSinvT(jjj, iii)*sing_values(jjj) &
+                                                 /(regularization**2 + sing_values(jjj)**2)
+               END DO
+            END DO
+         END IF
 
          CALL DGEMM('T', 'N', num_x_nodes, 1, num_x_nodes, 1.0_dp, mat_U, num_x_nodes, y_values, num_x_nodes, &
                     0.0_dp, vec_UTy, num_x_nodes)

@@ -54,7 +54,7 @@
 ]
 "CH3-PBE-uks-xastdp-gapw-accurate.inp" = [{matcher = "XAS_excit_ener", tol = 1e-06, ref = 265.861328}]
 "h2-rtbse-gapw-accurate.inp"           = [
-  {matcher = "M115", tol = 1e-3, ref = 1.476478e-06},
+  {matcher = "M115", tol = 1e-3, ref = 1.2024008e-06},
   {matcher = "M116", tol = 1e-5, ref = 0.00000000E+000}
 ]
 #EOF

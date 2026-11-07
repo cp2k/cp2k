@@ -1,54 +1,54 @@
 "01_RIRS_G0W0_PBE_H2O.inp" = [
   {matcher = "RIRS_Grid", tol = 1e-03, ref = 608},
-  {matcher = "E_RIRS_HOMO", tol = 1e-03, ref = -6.152},
-  {matcher = "E_RIRS_LUMO", tol = 1e-03, ref = 17.695},
-  {matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 23.846}
+  {matcher = "E_RIRS_HOMO", tol = 1e-03, ref = -6.129},
+  {matcher = "E_RIRS_LUMO", tol = 1e-03, ref = 17.282},
+  {matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 23.412}
 ]
 
-"02_RIRS_G0W0_PBE0_H2O.inp" = [{matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 24.168}]
+"02_RIRS_G0W0_PBE0_H2O.inp" = [{matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 23.902}]
 
 "03_RIRS_G0W0_PBE0_O2.inp" = [
   {matcher = "RIRS_Grid", tol = 1e-03, ref = 672},
-  {matcher = "E_RIRS_HOMO", tol = 1e-03, ref = -6.683},
-  {matcher = "E_RIRS_LUMO", tol = 1e-03, ref = 10.743},
-  {matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 21.699}
+  {matcher = "E_RIRS_HOMO", tol = 1e-03, ref = -6.674},
+  {matcher = "E_RIRS_LUMO", tol = 1e-03, ref = 10.703},
+  {matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 21.627}
 ]
 
 "04_RIRS_G0W0_GPW_PBE_H2O.inp" = [
-  {matcher = "E_RIRS_HOMO", tol = 1e-03, ref = -6.419},
-  {matcher = "E_RIRS_LUMO", tol = 1e-03, ref = 16.905},
-  {matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 23.324}
+  {matcher = "E_RIRS_HOMO", tol = 1e-03, ref = -6.377},
+  {matcher = "E_RIRS_LUMO", tol = 1e-03, ref = 16.501},
+  {matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 22.878}
 ]
 
 "05_RIRS_RESTART_G0W0_PBE_H2O.inp" = [
-  {matcher = "E_RIRS_HOMO", tol = 1e-03, ref = -6.092},
-  {matcher = "E_RIRS_LUMO", tol = 1e-03, ref = 17.425},
-  {matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 23.517}
+  {matcher = "E_RIRS_HOMO", tol = 1e-03, ref = -6.068},
+  {matcher = "E_RIRS_LUMO", tol = 1e-03, ref = 17.007},
+  {matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 23.075}
 ]
 
 "06_RIRS_G0W0_PBE_H2O_CUTOFFS.inp" = [
-  {matcher = "E_RIRS_HOMO", tol = 1e-03, ref = -5.903},
-  {matcher = "E_RIRS_LUMO", tol = 1e-03, ref = 17.821},
-  {matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 23.724}
+  {matcher = "E_RIRS_HOMO", tol = 1e-03, ref = -5.869},
+  {matcher = "E_RIRS_LUMO", tol = 1e-03, ref = 17.335},
+  {matcher = "E_G0W0_direct_gap", tol = 1e-03, ref = 23.204}
 ]
 
 "07_RIRS_EVGW0_GPW_PBE_H2O.inp" = [
   {matcher = "E_RIRS_evGW0_HOMO", tol = 1e-03, ref = -6.777},
-  {matcher = "E_RIRS_evGW0_LUMO", tol = 1e-03, ref = 16.897},
-  {matcher = "E_evGW0_direct_gap", tol = 1e-03, ref = 23.674}
+  {matcher = "E_RIRS_evGW0_LUMO", tol = 1e-03, ref = 16.705},
+  {matcher = "E_evGW0_direct_gap", tol = 1e-03, ref = 23.487}
 ]
 
 "08_RIRS_EVGW0_PBE0_O2.inp" = [
-  {matcher = "E_RIRS_evGW0_HOMO", tol = 1e-03, ref = -6.741},
-  {matcher = "E_RIRS_evGW0_LUMO", tol = 1e-03, ref = 10.718},
-  {matcher = "E_evGW0_direct_gap", tol = 1e-03, ref = 21.416}
+  {matcher = "E_RIRS_evGW0_HOMO", tol = 1e-03, ref = -6.719},
+  {matcher = "E_RIRS_evGW0_LUMO", tol = 1e-03, ref = 10.704},
+  {matcher = "E_evGW0_direct_gap", tol = 1e-03, ref = 21.359}
 ]
 
 # AUTO_RI contracts a large QZ reference basis; the resolved RS grid gives a stable GW gap.
 "auto-ri-size-H2O.inp"                      = [
   {matcher = "Auto_RI_Size", tol = 1e-12, ref = 14},
   {matcher = "RIRS_Grid", tol = 1e-12, ref = 42},
-  {matcher = "E_G0W0_direct_gap", tol = 1e-3, ref = 24.506}
+  {matcher = "E_G0W0_direct_gap", tol = 1e-3, ref = 24.108}
 ]
 # Molecular AUTO_RI uses only atom-local AA contractions.
 "auto-ri-aa-only-H2O.inp"                   = [{matcher = "Auto_RI_Size", tol = 1e-12, ref = 11}]
@@ -64,25 +64,25 @@
 "rirs-grid-rank-saturation-maximin-H2O.inp" = [{matcher = "RIRS_Grid", tol = 1e-12, ref = 280}]
 # Periodic full-k RI-RS GW: SCF mesh and a separate Gamma-X band path.
 "09_RIRS_G0W0_PBE_periodic_H2.inp"          = [
-  {matcher = "E_RIRS_HOMO", tol = 1e-4, ref = -4.488},
-  {matcher = "E_RIRS_LUMO", tol = 1e-4, ref = 19.118},
-  {matcher = "E_G0W0_indirect_gap", tol = 1e-4, ref = 23.607},
-  {matcher = "E_G0W0_direct_gap", tol = 1e-4, ref = 23.696}
+  {matcher = "E_RIRS_HOMO", tol = 1e-4, ref = -4.480},
+  {matcher = "E_RIRS_LUMO", tol = 1e-4, ref = 19.114},
+  {matcher = "E_G0W0_indirect_gap", tol = 1e-4, ref = 23.595},
+  {matcher = "E_G0W0_direct_gap", tol = 1e-4, ref = 23.685}
 ]
 # AUTO_RI trains on the shared SCF mesh before evaluating the separate band path.
 "10_RIRS_G0W0_PBE_periodic_AUTO_RI_H2.inp"  = [
   {matcher = "Auto_RI_Size", tol = 1e-12, ref = 10},
-  {matcher = "E_G0W0_indirect_gap", tol = 1e-4, ref = 23.642}
+  {matcher = "E_G0W0_indirect_gap", tol = 1e-4, ref = 23.639}
 ]
 # Fast 2D Ewald smoke tests with GAPW and GPW.
 "13_RIRS_G0W0_PBE_2D_AUTO_RI_H2_GAPW.inp"   = [
   {matcher = "Auto_RI_Size", tol = 1e-12, ref = 2},
-  {matcher = "E_G0W0_indirect_gap", tol = 1e-3, ref = 23.721},
-  {matcher = "E_G0W0_direct_gap", tol = 1e-3, ref = 24.698}
+  {matcher = "E_G0W0_indirect_gap", tol = 1e-3, ref = 23.176},
+  {matcher = "E_G0W0_direct_gap", tol = 1e-3, ref = 24.100}
 ]
 "14_RIRS_G0W0_PBE_2D_AUTO_RI_H2_GPW.inp"    = [
   {matcher = "Auto_RI_Size", tol = 1e-12, ref = 2},
-  {matcher = "E_G0W0_indirect_gap", tol = 1e-3, ref = 23.726},
-  {matcher = "E_G0W0_direct_gap", tol = 1e-3, ref = 24.703}
+  {matcher = "E_G0W0_indirect_gap", tol = 1e-3, ref = 23.183},
+  {matcher = "E_G0W0_direct_gap", tol = 1e-3, ref = 24.108}
 ]
 #EOF

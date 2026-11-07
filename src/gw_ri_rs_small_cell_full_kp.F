@@ -365,7 +365,7 @@ CONTAINS
             Sigma_c_ikp_n_time(:, :, :) = sigma_c_bands(:, ikp, :, :, ispin)
 
             ! 2. Σ^c_nn(k_i,iω) = ∫ from -∞ to ∞ dτ e^-iωτ Σ^c_nn(k_i,iτ)
-            CALL transform_time_to_frequency(bs_env%time_frequency_grid, Sigma_c_ikp_n_time, Sigma_c_ikp_n_freq)
+            CALL transform_time_to_frequency(bs_env%time_frequency_grid_sigma, Sigma_c_ikp_n_time, Sigma_c_ikp_n_freq)
             Sigma_c_ikp_n_freq(1:bs_env%n_occ(ispin), :) = CONJG(Sigma_c_ikp_n_freq(1:bs_env%n_occ(ispin), :))
 
             ! 3. Analytic continuation Σ^c_nn(k_i,iω) -> Σ^c_nn(k_i,ϵ) and

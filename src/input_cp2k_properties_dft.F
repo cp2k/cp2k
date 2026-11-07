@@ -12,7 +12,7 @@
 !> \author MI
 ! **************************************************************************************************
 MODULE input_cp2k_properties_dft
-   USE bibliography, ONLY: Dixon2023, Doll2025, Wong2026, Loring2015, Cerjan2023, Futera2017, &
+   USE bibliography, ONLY: Dixon2023, Doll2025, Wong2026, Loring2015, Cerjan2023, Fei2021, Futera2017, &
                            Hedin1965, &
                            Hybertsen1986, &
                            Hartwigsen1998, &
@@ -44,7 +44,7 @@ MODULE input_cp2k_properties_dft
                                  silent_print_level
    USE cp_units, ONLY: cp_unit_to_cp2k
    USE input_constants, ONLY: &
-      cohsex_diagonal, cohsex_off, cohsex_qp_update, &
+      cohsex_diagonal, cohsex_off, cohsex_qp_update, gw_ac_nevanlinna, gw_ac_pade, &
       current_gauge_atom, current_gauge_r, current_gauge_r_and_step_func, &
       current_orb_center_atom, current_orb_center_box, current_orb_center_common, &
       current_orb_center_wannier, do_et_ddapc, do_full_density, do_no_et, do_spin_density, &
@@ -2649,10 +2649,30 @@ CONTAINS
                           "A small benchmark of ω_max is contained in Fig. 5 of "// &
                           "J. Wilhelm et al., JCTC 12, 3623-3635 (2016). "// &
                           "Note that we used ω_max = 1 Ha = 27.211 eV in the benchmark "// &
-                          "M. Azizi et al., PRB 109, 245101 (2024).", &
+                          "M. Azizi et al., PRB 109, 245101 (2024). "// &
+                          "With ANALYTIC_CONTINUATION NEVANLINNA, only used for the Padé fallback of "// &
+                          "levels without Nevanlinna interpolant.", &
                           unit_str="eV", &
                           usage="FREQ_MAX_FIT 20.0", &
                           default_r_val=cp_unit_to_cp2k(value=10.0_dp, unit_str="eV"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ANALYTIC_CONTINUATION", &
+                          description="Method for the analytic continuation of the self-energy Σ(iω) "// &
+                          "to real frequencies. NEVANLINNA only uses functions with a positive spectral "// &
+                          "function on the real-frequency axis. It comes with an error estimate for the "// &
+                          "analytic continuation: in the file bandstructure_SCF_and_G0W0, GW levels with "// &
+                          "unstable analytic continuation are marked with *, and GW levels with multiple "// &
+                          "solutions of the quasiparticle equation are marked with m. PADE fits a Padé "// &
+                          "approximant to Σ(iω) below FREQ_MAX_FIT.", &
+                          usage="ANALYTIC_CONTINUATION PADE", &
+                          enum_c_vals=s2a("NEVANLINNA", "PADE"), &
+                          enum_i_vals=[gw_ac_nevanlinna, gw_ac_pade], &
+                          enum_desc=s2a("Nevanlinna interpolant with error estimate.", &
+                                        "Padé approximant."), &
+                          citations=[Fei2021], &
+                          default_i_val=gw_ac_nevanlinna)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

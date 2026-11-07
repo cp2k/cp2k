@@ -1,8 +1,8 @@
 "h2_rt.inp"         = [
-  {matcher = "M115", tol = 1e-3, ref = 1.4458596e-06},
+  {matcher = "M115", tol = 1e-3, ref = 1.1742418e-06},
   {matcher = "M116", tol = 1e-5, ref = 0.00000000E+000}
 ]
-"h2_rt_cont.inp"    = [{matcher = "M117", tol = 1e-3, ref = 9.2328597e-07}]
-"h2_delta.inp"      = [{matcher = "M115", tol = 1e-3, ref = -0.021325665}]
-"h2_delta_cont.inp" = [{matcher = "M117", tol = 1e-3, ref = 0.0078707878}]
-"h2_ft.inp"         = [{matcher = "M118", tol = 1e-3, ref = 7.9866273}]
+"h2_rt_cont.inp"    = [{matcher = "M117", tol = 1e-3, ref = 1.7659606e-06}]
+"h2_delta.inp"      = [{matcher = "M115", tol = 1e-3, ref = -0.021528392}]
+"h2_delta_cont.inp" = [{matcher = "M117", tol = 1e-3, ref = -0.011117334}]
+"h2_ft.inp"         = [{matcher = "M118", tol = 1e-3, ref = 2.780519}]
