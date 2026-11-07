@@ -29,6 +29,7 @@
 // what a workload needs again stays cached, whereas sizes that do not fit
 // cannot let the pool grow without bound (the bound covers the reuse waste).
 #define OFFLOAD_MEMPOOL_SLACK 4 /* 1/4 */
+enum { MEMPOOL_INITIAL_BUCKETS = 64 };
 
 /*******************************************************************************
  * \brief Private struct for storing a chunk of memory.
@@ -36,8 +37,13 @@
  ******************************************************************************/
 typedef struct offload_memchunk {
   void *mem; // first: allows to cast memchunk into mem-ptr...
-  struct offload_memchunk *next;
-  size_t size, used;
+  struct offload_memchunk *next; // hash chain or idle stack of one size
+  struct offload_memchunk *left;
+  union {
+    struct offload_memchunk *right; // idle size tree
+    size_t used;                    // requested bytes while on loan
+  };
+  size_t size;
 } offload_memchunk_t;
 
 /*******************************************************************************
@@ -45,23 +51,26 @@ typedef struct offload_memchunk {
  * \author Ole Schuett
  ******************************************************************************/
 typedef struct offload_mempool {
-  offload_memchunk_t *available_head, *allocated_head; // single-linked lists
-  uint64_t available_size, allocated_size; // sums of chunk sizes in the lists
-  uint64_t allocated_used, used_peak;      // requested sizes in use, most ever
-  uint64_t peak_size;                      // for statistics
+  offload_memchunk_t *available;  // one tree node per distinct idle capacity
+  offload_memchunk_t **allocated; // allocated chunks indexed by address
+  offload_memchunk_t *initial_buckets[MEMPOOL_INITIAL_BUCKETS];
+  size_t nbuckets, nallocated;
+  uint64_t mallocs; // backend allocations, retained across clear
+  uint64_t available_size, allocated_size;
+  uint64_t allocated_used, used_peak; // requested sizes in use, most ever
+  uint64_t peak_size;                 // peak total capacity before trimming
 } offload_mempool_t;
 
 /*******************************************************************************
  * \brief Private pools for host and device memory.
  * \author Ole Schuett
  ******************************************************************************/
-static offload_mempool_t mempool_host = {0}, mempool_device = {0};
-
-/*******************************************************************************
- * \brief Private counters for statistics.
- * \author Hans Pabst
- ******************************************************************************/
-static uint64_t host_malloc_counter = 0, device_malloc_counter = 0;
+static offload_mempool_t mempool_host = {.allocated =
+                                             mempool_host.initial_buckets,
+                                         .nbuckets = MEMPOOL_INITIAL_BUCKETS};
+static offload_mempool_t mempool_device = {.allocated =
+                                               mempool_device.initial_buckets,
+                                           .nbuckets = MEMPOOL_INITIAL_BUCKETS};
 
 /*******************************************************************************
  * \brief Returns the larger of two given integer (missing from the C standard)
@@ -79,6 +88,7 @@ static void *actual_malloc(const size_t size, const bool on_device) {
   }
 
   void *memory = NULL;
+  (void)on_device; // used only by offload backends
 
 // This pool must not sit on top of LIBXSTREAM's pool (double caching).
 #if defined(__OFFLOAD) && defined(__LIBXSTREAM)
@@ -109,15 +119,6 @@ static void *actual_malloc(const size_t size, const bool on_device) {
 #else
   memory = malloc(size);
 #endif
-
-  // Update statistics.
-  if (on_device) {
-#pragma omp atomic
-    ++device_malloc_counter;
-  } else {
-#pragma omp atomic
-    ++host_malloc_counter;
-  }
 
   assert(memory != NULL);
   return memory;
@@ -167,26 +168,201 @@ static void actual_free(void *memory, const bool on_device) {
 }
 
 /*******************************************************************************
- * \brief Private routine for taking the largest available chunks out of the
- *        pool while it holds more than its bound (caller in critical region).
- *        Returns the chunks to be freed outside of the critical region.
+ * \brief Bucket for an aligned host or device address (power-of-two table).
+ ******************************************************************************/
+static size_t mempool_bucket(const void *mem, size_t nbuckets) {
+  uint64_t key = (uintptr_t)mem;
+  key ^= key >> 32;
+  key *= UINT64_C(11400714819323198485);
+  return (key ^ (key >> 32)) & (nbuckets - 1);
+}
+
+/*******************************************************************************
+ * \brief Grow the address index. Chaining still works if resizing fails.
+ ******************************************************************************/
+static void mempool_grow_table(offload_mempool_t *pool) {
+  const size_t n = 2 * pool->nbuckets;
+  offload_memchunk_t **buckets = calloc(n, sizeof(*buckets));
+  if (buckets == NULL) {
+    return;
+  }
+  for (size_t i = 0; i < pool->nbuckets; ++i) {
+    offload_memchunk_t *entry = pool->allocated[i];
+    while (entry != NULL) {
+      offload_memchunk_t *next = entry->next;
+      const size_t bucket = mempool_bucket(entry->mem, n);
+      entry->next = buckets[bucket];
+      buckets[bucket] = entry;
+      entry = next;
+    }
+  }
+  if (pool->allocated != pool->initial_buckets) {
+    free(pool->allocated);
+  }
+  pool->allocated = buckets;
+  pool->nbuckets = n;
+}
+
+/*******************************************************************************
+ * \brief Register a loan and account for the requested and actual chunk sizes.
+ *        All index operations on the pool use offload_mempool_modify.
+ ******************************************************************************/
+static void mempool_register(offload_mempool_t *pool, offload_memchunk_t *chunk,
+                             size_t requested) {
+  if (pool->nallocated >= pool->nbuckets) {
+    mempool_grow_table(pool);
+  }
+  const size_t bucket = mempool_bucket(chunk->mem, pool->nbuckets);
+  chunk->next = pool->allocated[bucket];
+  pool->allocated[bucket] = chunk;
+  ++pool->nallocated;
+  chunk->used = requested;
+  pool->allocated_size += chunk->size;
+  pool->allocated_used += requested;
+  pool->used_peak = imax(pool->used_peak, pool->allocated_used);
+}
+
+/*******************************************************************************
+ * \brief Bring an idle capacity (or the last node on its search path) to the
+ *        root. Top-down splaying needs no parent pointers or recursion.
+ ******************************************************************************/
+static offload_memchunk_t *mempool_splay(offload_memchunk_t *root,
+                                         size_t size) {
+  offload_memchunk_t head, *less = &head, *greater = &head;
+  head.left = head.right = NULL;
+  for (;;) {
+    if (size < root->size && root->left != NULL) {
+      offload_memchunk_t *child = root->left;
+      if (size < child->size) {
+        root->left = child->right;
+        child->right = root;
+        root = child;
+        if (root->left == NULL) {
+          break;
+        }
+      }
+      greater->left = root;
+      greater = root;
+      root = root->left;
+    } else if (size > root->size && root->right != NULL) {
+      offload_memchunk_t *child = root->right;
+      if (size > child->size) {
+        root->right = child->left;
+        child->left = root;
+        root = child;
+        if (root->right == NULL) {
+          break;
+        }
+      }
+      less->right = root;
+      less = root;
+      root = root->right;
+    } else {
+      break;
+    }
+  }
+  less->right = root->left;
+  greater->left = root->right;
+  root->left = head.right;
+  root->right = head.left;
+  return root;
+}
+
+/*******************************************************************************
+ * \brief Insert a returned chunk by its actual capacity. Within a size, the
+ *        most recently returned chunk is the first one reused or trimmed.
+ ******************************************************************************/
+static void mempool_cache(offload_mempool_t *pool, offload_memchunk_t *chunk) {
+  offload_memchunk_t *root = pool->available;
+  if (root != NULL && root->size != chunk->size) {
+    root = mempool_splay(root, chunk->size);
+  }
+  if (root != NULL && root->size == chunk->size) {
+    chunk->next = root->next;
+    root->next = chunk;
+    pool->available = root;
+  } else {
+    chunk->next = chunk->left = chunk->right = NULL;
+    if (root != NULL) {
+      if (chunk->size < root->size) {
+        chunk->left = root->left;
+        chunk->right = root;
+        root->left = NULL;
+      } else {
+        chunk->right = root->right;
+        chunk->left = root;
+        root->right = NULL;
+      }
+    }
+    pool->available = chunk;
+  }
+  pool->available_size += chunk->size;
+}
+
+/*******************************************************************************
+ * \brief Take a chunk from the size currently at the root of the idle tree.
+ ******************************************************************************/
+static offload_memchunk_t *mempool_take_root(offload_mempool_t *pool) {
+  offload_memchunk_t *root = pool->available;
+  offload_memchunk_t *chunk = root->next;
+  if (chunk != NULL) {
+    root->next = chunk->next;
+  } else {
+    chunk = root;
+    if (root->left == NULL) {
+      pool->available = root->right;
+    } else if (root->right == NULL) {
+      pool->available = root->left;
+    } else {
+      pool->available = mempool_splay(root->left, root->size);
+      pool->available->right = root->right;
+    }
+  }
+  pool->available_size -= chunk->size;
+  return chunk;
+}
+
+/*******************************************************************************
+ * \brief Take the smallest idle chunk within the existing reuse tolerance.
+ ******************************************************************************/
+static offload_memchunk_t *mempool_take_fit(offload_mempool_t *pool,
+                                            size_t size) {
+  offload_memchunk_t *root = pool->available;
+  if (root == NULL) {
+    return NULL;
+  }
+  if (root->size != size) {
+    root = mempool_splay(root, size);
+    if (root->size < size && root->right != NULL) {
+      // The search ended at the predecessor. Promote its successor.
+      offload_memchunk_t *successor = mempool_splay(root->right, size);
+      assert(successor->left == NULL);
+      root->right = NULL;
+      successor->left = root;
+      root = successor;
+    }
+    pool->available = root;
+  }
+  if (root->size < size || root->size - size > size / OFFLOAD_MEMPOOL_SLACK) {
+    return NULL;
+  }
+  return mempool_take_root(pool);
+}
+
+/*******************************************************************************
+ * \brief Trim the largest idle chunks after a backend allocation. A cache hit
+ *        or return only transfers capacity between the idle and live sets.
  ******************************************************************************/
 static offload_memchunk_t *internal_mempool_trim(offload_mempool_t *pool) {
   offload_memchunk_t *release = NULL;
-  const uint64_t bound =
-      pool->used_peak + pool->used_peak / OFFLOAD_MEMPOOL_SLACK;
-  while (pool->available_head != NULL &&
-         bound < pool->available_size + pool->allocated_size) {
-    offload_memchunk_t **largest = &pool->available_head;
-    for (offload_memchunk_t **indirect = &(*largest)->next; *indirect != NULL;
-         indirect = &(*indirect)->next) {
-      if ((*largest)->size < (*indirect)->size) {
-        largest = indirect;
-      }
+  uint64_t total = pool->available_size + pool->allocated_size;
+  while (pool->available != NULL && total > pool->used_peak &&
+         total - pool->used_peak > pool->used_peak / OFFLOAD_MEMPOOL_SLACK) {
+    if (pool->available->right != NULL) {
+      pool->available = mempool_splay(pool->available, SIZE_MAX);
     }
-    offload_memchunk_t *const chunk = *largest;
-    *largest = chunk->next; // remove chunk from available list
-    pool->available_size -= chunk->size;
+    offload_memchunk_t *chunk = mempool_take_root(pool);
+    total -= chunk->size;
     chunk->next = release;
     release = chunk;
   }
@@ -216,55 +392,37 @@ static void *internal_mempool_malloc(offload_mempool_t *pool, const size_t size,
     return NULL;
   }
 
-  offload_memchunk_t *chunk = NULL, *release = NULL;
-
+  offload_memchunk_t *chunk;
 #pragma omp critical(offload_mempool_modify)
   {
-    // Find the smallest available chunk that fits (not overly large).
-    offload_memchunk_t **reuse = NULL; // ** for easy list removal
-    offload_memchunk_t **indirect = &pool->available_head;
-    while (*indirect != NULL) {
-      const size_t s = (*indirect)->size;
-      if (size <= s && s - size <= size / OFFLOAD_MEMPOOL_SLACK &&
-          (reuse == NULL || s < (*reuse)->size)) {
-        reuse = indirect;
-        if (s == size) {
-          break; // perfect match, exit early
-        }
-      }
-      indirect = &(*indirect)->next;
-    }
-    if (reuse != NULL) {
-      chunk = *reuse;
-      *reuse = chunk->next; // remove chunk from available list
-      pool->available_size -= chunk->size;
+    chunk = mempool_take_fit(pool, size);
+    if (chunk != NULL) {
+      mempool_register(pool, chunk, size);
     }
   }
 
-  // Allocate a new chunk outside of critical region (none fits).
   if (chunk == NULL) {
-    chunk = calloc(1, sizeof(offload_memchunk_t));
-    assert(chunk != NULL);
+    chunk = malloc(sizeof(*chunk));
+    if (chunk == NULL) {
+      return NULL;
+    }
     chunk->mem = actual_malloc(size, on_device);
+    if (chunk->mem == NULL) {
+      free(chunk);
+      return NULL;
+    }
     chunk->size = size;
-  }
-
-  chunk->used = size; // for statistics
-
-  // Insert chunk into allocated list, and keep the pool within its bound.
+    offload_memchunk_t *release;
 #pragma omp critical(offload_mempool_modify)
-  {
-    chunk->next = pool->allocated_head;
-    pool->allocated_head = chunk;
-    pool->allocated_size += chunk->size;
-    pool->allocated_used += size;
-    pool->used_peak = imax(pool->used_peak, pool->allocated_used);
-    pool->peak_size =
-        imax(pool->peak_size, pool->available_size + pool->allocated_size);
-    release = internal_mempool_trim(pool);
+    {
+      mempool_register(pool, chunk, size);
+      ++pool->mallocs;
+      pool->peak_size =
+          imax(pool->peak_size, pool->available_size + pool->allocated_size);
+      release = internal_mempool_trim(pool);
+    }
+    internal_mempool_release(release, on_device);
   }
-
-  internal_mempool_release(release, on_device);
   return chunk->mem;
 }
 
@@ -288,37 +446,26 @@ void *offload_mempool_device_malloc(const size_t size) {
  * \brief Private routine for releasing memory back to the pool.
  * \author Ole Schuett
  ******************************************************************************/
-static void internal_mempool_free(offload_mempool_t *pool, const void *mem,
-                                  const bool on_device) {
+static void internal_mempool_free(offload_mempool_t *pool, const void *mem) {
   if (mem == NULL) {
     return;
   }
-
-  offload_memchunk_t *release = NULL;
-
 #pragma omp critical(offload_mempool_modify)
   {
-    // Find chunk in allocated list.
-    offload_memchunk_t **indirect = &pool->allocated_head;
-    while (*indirect != NULL && (*indirect)->mem != mem) {
-      indirect = &(*indirect)->next;
+    assert(pool->nallocated > 0);
+    const size_t bucket = mempool_bucket(mem, pool->nbuckets);
+    offload_memchunk_t **link = &pool->allocated[bucket];
+    while (*link != NULL && (*link)->mem != mem) {
+      link = &(*link)->next;
     }
-    offload_memchunk_t *chunk = *indirect;
-    assert(chunk != NULL && chunk->mem == mem);
-
-    // Remove chunk from allocated list.
-    *indirect = chunk->next;
+    offload_memchunk_t *chunk = *link;
+    assert(chunk != NULL);
+    *link = chunk->next;
+    --pool->nallocated;
     pool->allocated_size -= chunk->size;
     pool->allocated_used -= chunk->used;
-
-    // Add chunk to available list, and keep the pool within its bound.
-    chunk->next = pool->available_head;
-    pool->available_head = chunk;
-    pool->available_size += chunk->size;
-    release = internal_mempool_trim(pool);
+    mempool_cache(pool, chunk);
   }
-
-  internal_mempool_release(release, on_device);
 }
 
 /*******************************************************************************
@@ -326,7 +473,7 @@ static void internal_mempool_free(offload_mempool_t *pool, const void *mem,
  * \author Ole Schuett
  ******************************************************************************/
 void offload_mempool_host_free(const void *memory) {
-  internal_mempool_free(&mempool_host, memory, false);
+  internal_mempool_free(&mempool_host, memory);
 }
 
 /*******************************************************************************
@@ -334,7 +481,7 @@ void offload_mempool_host_free(const void *memory) {
  * \author Ole Schuett
  ******************************************************************************/
 void offload_mempool_device_free(const void *memory) {
-  internal_mempool_free(&mempool_device, memory, true);
+  internal_mempool_free(&mempool_device, memory);
 }
 
 /*******************************************************************************
@@ -343,27 +490,29 @@ void offload_mempool_device_free(const void *memory) {
  ******************************************************************************/
 static void internal_mempool_clear(offload_mempool_t *pool,
                                    const bool on_device) {
-
+  offload_memchunk_t *available, **buckets = NULL;
 #pragma omp critical(offload_mempool_modify)
   {
-    uint64_t pool_size = 0;
-
-    // Check for leaks, i.e. that the allocated list is empty.
-    assert(pool->allocated_head == NULL);
-
-    // Free all chunks in available list.
-    while (pool->available_head != NULL) {
-      offload_memchunk_t *chunk = pool->available_head;
-      pool->available_head = chunk->next; // remove chunk
-      actual_free(chunk->mem, on_device);
-      pool_size += chunk->size;
-      free(chunk);
+    assert(pool->nallocated == 0);
+    if (pool->nallocated == 0 && pool->allocated != pool->initial_buckets) {
+      buckets = pool->allocated;
+      memset(pool->initial_buckets, 0, sizeof(pool->initial_buckets));
+      pool->allocated = pool->initial_buckets;
+      pool->nbuckets = MEMPOOL_INITIAL_BUCKETS;
     }
+    available = pool->available;
+    pool->available = NULL;
     pool->available_size = 0;
-    pool->used_peak = 0;
-
-    // Update stats.
-    pool->peak_size = imax(pool->peak_size, pool_size);
+    pool->used_peak = pool->allocated_used;
+  }
+  free(buckets);
+  while (available != NULL) {
+    if (available->right != NULL) {
+      available = mempool_splay(available, SIZE_MAX);
+    }
+    offload_memchunk_t *next = available->left;
+    internal_mempool_release(available, on_device);
+    available = next;
   }
 }
 
@@ -377,19 +526,6 @@ void offload_mempool_clear(void) {
 }
 
 /*******************************************************************************
- * \brief Private routine for summing used sizes of all chunks in given list.
- * \author Ole Schuett
- ******************************************************************************/
-static uint64_t sum_chunks_used(const offload_memchunk_t *head) {
-  uint64_t used_sum = 0;
-  for (const offload_memchunk_t *chunk = head; chunk != NULL;
-       chunk = chunk->next) {
-    used_sum += chunk->used;
-  }
-  return used_sum;
-}
-
-/*******************************************************************************
  * \brief Internal routine to query statistics.
  * \author Hans Pabst
  ******************************************************************************/
@@ -397,20 +533,17 @@ void offload_mempool_stats_get(offload_mempool_stats_t *memstats) {
   assert(NULL != memstats);
 #pragma omp critical(offload_mempool_modify)
   {
-    memstats->host_mallocs = host_malloc_counter;
-    memstats->host_used = sum_chunks_used(mempool_host.available_head) +
-                          sum_chunks_used(mempool_host.allocated_head);
+    memstats->host_mallocs = mempool_host.mallocs;
+    memstats->host_used = mempool_host.used_peak;
     memstats->host_size =
         mempool_host.available_size + mempool_host.allocated_size;
-    memstats->host_peak = imax(mempool_host.peak_size, memstats->host_size);
+    memstats->host_peak = mempool_host.peak_size;
 
-    memstats->device_mallocs = device_malloc_counter;
-    memstats->device_used = sum_chunks_used(mempool_device.available_head) +
-                            sum_chunks_used(mempool_device.allocated_head);
+    memstats->device_mallocs = mempool_device.mallocs;
+    memstats->device_used = mempool_device.used_peak;
     memstats->device_size =
         mempool_device.available_size + mempool_device.allocated_size;
-    memstats->device_peak =
-        imax(mempool_device.peak_size, memstats->device_size);
+    memstats->device_peak = mempool_device.peak_size;
   }
 }
 
