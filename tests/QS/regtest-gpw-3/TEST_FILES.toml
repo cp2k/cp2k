@@ -22,6 +22,11 @@
   {matcher = "S2_estimate", tol = 1.0E-14, ref = 0.751382},
   {matcher = "M041", tol = 1.0E-14, ref = 1.000000}
 ]
+# Overlap-rank reduction must resize the MO occupation and eigenvalue vectors.
+"H-uks-overlap.inp"              = [
+  {matcher = "S2_estimate", tol = 1.0e-6, ref = 0.750000},
+  {matcher = "QS_number_of_molecular_orbitals", tol = 0.0, ref = 1.0}
+]
 # testing of distributed rs grids
 "rsgrid-dist-1.inp"              = [{matcher = "E_total", tol = 3e-11, ref = -1.71460241038275}]
 #BSSE
