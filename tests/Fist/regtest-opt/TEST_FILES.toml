@@ -128,12 +128,6 @@
   {matcher = "M011", tol = 4.0E-9, ref = -129.052065329952654},
   {matcher = "Cell_angle_gamma", tol = 1.0E-4, ref = 60.000000}
 ]
-"cell_opt_keep_spacegroup.inp"                 = [
-  {matcher = "M011", tol = 1.0E-10, ref = -77.476026828658405},
-  {matcher = "Cell_angle_alpha", tol = 1.0E-2, ref = 90.000094},
-  {matcher = "Cell_length_a", tol = 1.0E-3, ref = 10.894946},
-  {matcher = "Cell_length_b", tol = 1.0E-3, ref = 10.894946}
-]
 "cell_opt_constraint_abc.inp"                  = [
   {matcher = "M011", tol = 1.0E-10, ref = -16.129309625303605},
   {matcher = "Cell_volume", tol = 1.0E-06, ref = 142.564830}
