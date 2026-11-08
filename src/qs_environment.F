@@ -273,7 +273,7 @@ CONTAINS
          CALL cp_abort(__LOCATION__, "ADMM not compatible with low spin ROKS method.")
       END IF
 
-      ! Only XC and full-AO exchange are reevaluated for the spin configurations.
+      ! Only (semi-)local XC and exact exchange (full-AO or RI) are reevaluated for the spin configurations.
       ! Other spin-dependent corrections would retain the high-spin contribution.
       IF (dft_control%sic_method_id /= sic_none) THEN
          CALL cp_abort(__LOCATION__, "GAPW low spin ROKS does not support SIC.")
@@ -314,8 +314,6 @@ CONTAINS
       CALL section_vals_get(section, explicit=explicit, n_repetition=nrep)
       IF (explicit) THEN
          IF (nrep /= 1) CALL cp_abort(__LOCATION__, "GAPW low spin ROKS requires a single HF section.")
-         CALL section_vals_val_get(section, "RI%_SECTION_PARAMETERS_", l_val=active)
-         IF (active) CALL cp_abort(__LOCATION__, "GAPW low spin ROKS does not support RI-HFX.")
          CALL section_vals_val_get(section, "ACE%ACTIVE", l_val=active)
          IF (active) CALL cp_abort(__LOCATION__, "GAPW low spin ROKS does not support ACE-HFX.")
          CALL section_vals_val_get(section, "SCREENING%SCREEN_ON_INITIAL_P", l_val=active)
