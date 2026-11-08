@@ -185,6 +185,11 @@ spack:
       require:
         - "+fortran"
 
+    # SuperLU_DIST 7 (required by PEXSI 2) does not compile with C23 (default since GCC 15)
+    superlu-dist:
+      require:
+        - "cflags=-std=gnu17"
+
     trexio:
       require:
         - "+hdf5"
