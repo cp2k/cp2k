@@ -158,11 +158,7 @@ MODULE dm_ls_scf_types
 
       LOGICAL :: calculate_forces = .FALSE.
 
-#if defined(__PEXSI)
-      TYPE(lib_pexsi_env) :: pexsi
-#else
       TYPE(lib_pexsi_env) :: pexsi = lib_pexsi_env()
-#endif
 
       TYPE(mp_para_env_type), POINTER :: para_env => NULL()
       LOGICAL                 :: do_pao = .FALSE.
