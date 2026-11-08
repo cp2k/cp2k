@@ -2,9 +2,8 @@
 # PEXSI
 leak:BcTree_Create
 leak:MPIR_Type_contiguous_impl
-leak:MPIR_Typerep_init
 leak:symbfact_dist
-leak:yaksa_type_create_contig
+leak:yaksi_type_create_contig
 # OpenMPI
 leak:avx_component_op_query
 leak:libpmix.so
@@ -19,3 +18,4 @@ leak:opal_hash_table_init2
 leak:opal_reachable_allocate
 leak:opal_vasprintf
 leak:strdup
+leak:__vasprintf_internal
