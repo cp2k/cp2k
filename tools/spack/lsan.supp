@@ -17,5 +17,5 @@ leak:ompi_mpi_instance_init_common
 leak:ompi_proc_self
 leak:opal_hash_table_init2
 leak:opal_reachable_allocate
+leak:opal_vasprintf
 leak:strdup
-leak:__vasprintf_internal
