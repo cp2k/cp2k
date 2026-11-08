@@ -48,7 +48,7 @@ MODULE pexsi_interface
    TYPE cp_pexsi_options
       PRIVATE
 #if defined(__PEXSI)
-      TYPE(f_ppexsi_options) :: options
+      TYPE(f_ppexsi_options), ALLOCATABLE :: options
 #else
       INTEGER :: unused = -1
 #endif
@@ -264,6 +264,7 @@ CONTAINS
       TYPE(cp_pexsi_options), INTENT(OUT)      :: pexsi_options
 
 #if defined(__PEXSI)
+      ALLOCATE (pexsi_options%options)
       CALL f_ppexsi_set_default_options(pexsi_options%options)
 #else
       CPABORT("Requires linking to the PEXSI library.")
