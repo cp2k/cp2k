@@ -2190,10 +2190,12 @@ CONTAINS
 !> \brief ...
 !> \param fm ...
 !> \param unit ...
+!> \param ncol Number of leading columns to write; If omitted, write all columns.
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_write_unformatted(fm, unit)
+   SUBROUTINE cp_fm_write_unformatted(fm, unit, ncol)
       TYPE(cp_fm_type), INTENT(IN)             :: fm
       INTEGER, INTENT(IN)                      :: unit
+      INTEGER, INTENT(IN), OPTIONAL            :: ncol
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_write_unformatted'
 
@@ -2216,6 +2218,11 @@ CONTAINS
       CALL timeset(routineN, handle)
       CALL cp_fm_get_info(fm, nrow_global=nrow_global, ncol_global=ncol_global, ncol_block=max_block, &
                           para_env=para_env)
+
+      IF (PRESENT(ncol)) THEN
+         CPASSERT(ncol >= 0 .AND. ncol <= ncol_global)
+         ncol_global = ncol
+      END IF
 
 #if defined(__parallel)
       num_pe = para_env%num_pe

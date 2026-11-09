@@ -5,6 +5,9 @@
 #      for details see cp2k/tools/do_regtest
 # tests GAPW GTH and ALL
 #XAS
+# XAS restart must write the reduced MO count of coefficient columns.
+"H2-xas-overlap.inp"         = [{matcher = "E_total", tol = 1.0e-12, ref = -0.155036757806855}]
+"H2-xas-overlap-restart.inp" = [{matcher = "E_total", tol = 1.0e-12, ref = -0.155036757806855}]
 "CO.inp"                     = [{matcher = "E_total", tol = 8e-14, ref = -110.24233125201312}]
 "CO_xastphh.inp"             = [{matcher = "E_total", tol = 1e-13, ref = -100.25171072116430}]
 "CO_xastphh_r.inp"           = [{matcher = "E_total", tol = 1e-13, ref = -90.51322995242667}]

@@ -349,7 +349,7 @@ CONTAINS
                WRITE (rst_unit) eigenvalues(1:nmo), &
                   occupation_numbers(1:nmo)
             END IF
-            CALL cp_fm_write_unformatted(mo_coeff, rst_unit)
+            CALL cp_fm_write_unformatted(mo_coeff, rst_unit, ncol=nmo)
          END DO
 
 ! Close file

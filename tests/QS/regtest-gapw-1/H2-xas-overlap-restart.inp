@@ -1,0 +1,83 @@
+# Minimal restart-format test; not a physical core-excitation spectrum.
+#CPQA DEPENDS H2-xas-overlap.inp
+&GLOBAL
+  PROJECT H2-xas-overlap-restart
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    MULTIPLICITY 1
+    POTENTIAL_FILE_NAME POTENTIAL
+    UKS
+    &MGRID
+      CUTOFF 60
+      REL_CUTOFF 20
+    &END MGRID
+    &QS
+      METHOD GAPW
+    &END QS
+    &SCF
+      ADDED_MOS -1
+      CHOLESKY OFF
+      EPS_EIGVAL 1.0E-5
+      EPS_SCF 1.0E-9
+      MAX_SCF 40
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XAS
+      ADDED_MOS 0
+      ATOMS_LIST 1
+      METHOD TP_HH
+      RESTART
+      STATE_SEARCH 1
+      STATE_TYPE 1S
+      WFN_RESTART_FILE_NAME ./H2-xas-overlap
+      &LOCALIZE
+      &END LOCALIZE
+      &PRINT
+        &RESTART
+          FILENAME ./H2-xas-overlap-restart
+          &EACH
+            XAS_SCF 0
+          &END EACH
+        &END RESTART
+      &END PRINT
+      &SCF
+        CHOLESKY OFF
+        EPS_EIGVAL 1.0E-5
+        EPS_SCF 1.0E-9
+        MAX_SCF 40
+        &DIAGONALIZATION
+        &END DIAGONALIZATION
+        &MIXING
+          ALPHA 0.5
+          METHOD DIRECT_P_MIXING
+        &END MIXING
+      &END SCF
+    &END XAS
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+    &END CELL
+    &COORD
+      H 0.0 0.0 0.0
+      H 0.0 0.0 0.74
+    &END COORD
+    &KIND H
+      POTENTIAL ALL
+      ! Identical contractions reduce four requested MOs to two.
+      &BASIS
+        1
+        1 0 0 1 2
+        0.5 1.0 1.0
+      &END BASIS
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

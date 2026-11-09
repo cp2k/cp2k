@@ -27,6 +27,15 @@
   {matcher = "S2_estimate", tol = 1.0e-6, ref = 0.750000},
   {matcher = "QS_number_of_molecular_orbitals", tol = 0.0, ref = 1.0}
 ]
+# Restart after removing basis combinations with small overlap eigenvalues.
+"H2-uks-overlap.inp"             = [
+  {matcher = "E_total", tol = 1.0e-12, ref = -0.346503897955537},
+  {matcher = "QS_number_of_molecular_orbitals", tol = 0.0, ref = 2.0}
+]
+"H2-uks-overlap-restart.inp"     = [
+  {matcher = "E_total", tol = 1.0e-12, ref = -0.346503897955537},
+  {matcher = "S2_estimate", tol = 1.0e-6, ref = 0.0}
+]
 # testing of distributed rs grids
 "rsgrid-dist-1.inp"              = [{matcher = "E_total", tol = 3e-11, ref = -1.71460241038275}]
 #BSSE

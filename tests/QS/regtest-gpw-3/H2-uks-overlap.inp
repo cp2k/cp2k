@@ -1,0 +1,47 @@
+&GLOBAL
+  PROJECT H2-uks-overlap
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    MULTIPLICITY 1
+    POTENTIAL_FILE_NAME POTENTIAL
+    UKS
+    &MGRID
+      CUTOFF 60
+      REL_CUTOFF 20
+    &END MGRID
+    &SCF
+      ADDED_MOS -1
+      CHOLESKY OFF
+      EPS_EIGVAL 1.0E-5
+      EPS_SCF 1.0E-9
+      MAX_SCF 40
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+    &END CELL
+    &COORD
+      H 0.0 0.0 0.0
+      H 0.0 0.0 0.74
+    &END COORD
+    &KIND H
+      POTENTIAL GTH-PADE-q1
+      ! Identical contractions reduce four requested MOs to two.
+      &BASIS
+        1
+        1 0 0 1 2
+        0.5 1.0 1.0
+      &END BASIS
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
