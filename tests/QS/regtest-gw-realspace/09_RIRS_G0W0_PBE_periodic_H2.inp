@@ -57,7 +57,7 @@
         SPECIAL_POINT X 0 0.5 0.5
       &END BANDSTRUCTURE_PATH
       &GW
-        EPS_FILTER 1.0E-7
+        EPS_FILTER 1.0E-10
         FREQ_MAX_FIT 27.211
         NUM_TIME_FREQ_POINTS 32
         &RI_RS

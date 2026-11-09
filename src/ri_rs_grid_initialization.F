@@ -282,6 +282,8 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: inside_voronoi(:)
       INTEGER, INTENT(INOUT)                             :: selected_indices(:)
 
+      REAL(KIND=dp), PARAMETER                           :: tie_tolerance = 1.0E-8_dp
+
       INTEGER                                            :: igrid_point, inew_point, iselected, &
                                                             nretained
       LOGICAL, ALLOCATABLE                               :: unselected_inside(:)
@@ -315,7 +317,8 @@ CONTAINS
          largest_distance_sq = MAXVAL(nearest_distance_sq, MASK=unselected_inside)
          DO igrid_point = 1, SIZE(inside_voronoi)
             IF (.NOT. unselected_inside(igrid_point)) CYCLE
-            IF (nearest_distance_sq(igrid_point) >= largest_distance_sq) THEN
+            ! Ties up to rounding go to the first point, independent of the compiler.
+            IF (nearest_distance_sq(igrid_point) >= (1.0_dp - tie_tolerance)*largest_distance_sq) THEN
                inew_point = igrid_point
                EXIT
             END IF
@@ -498,20 +501,20 @@ CONTAINS
       TYPE(mp_comm_type), INTENT(IN)                     :: atom_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'select_cholesky_grid_points'
+      REAL(KIND=dp), PARAMETER                           :: tie_tolerance = 1.0E-8_dp
 
       INTEGER :: capacity, first_local, first_point, first_row, first_value, handle, iblock, &
          igrid_point, irow, last_local, last_point, last_row, last_value, n_ao, new_capacity, &
          nretained, nrows, nselected, selected_point
       INTEGER, ALLOCATABLE                               :: first_row_local(:), last_row_local(:)
-      REAL(KIND=dp)                                      :: selected_diagonal
-      REAL(KIND=dp), ALLOCATABLE :: diagonal(:), factor(:, :), grown(:, :), initial_diagonal(:), &
-         selected_ao_values(:), selected_factor_values(:), selection_matrix_column(:)
+      REAL(KIND=dp)                                      :: rank_tolerance, selected_diagonal
+      REAL(KIND=dp), ALLOCATABLE :: diagonal(:), factor(:, :), grown(:, :), selected_ao_values(:), &
+         selected_factor_values(:), selection_matrix_column(:)
       REAL(KIND=dp), POINTER                             :: atom_ao_values(:, :)
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (diagonal(npoints), initial_diagonal(npoints), &
-                selection_matrix_column(npoints))
+      ALLOCATE (diagonal(npoints), selection_matrix_column(npoints))
 
       ! d_l^(0) = D_ll = [Σ_μ ϕ_μ(r_l)^2]^2.
       diagonal(:) = 0.0_dp
@@ -528,7 +531,9 @@ CONTAINS
          END DO
       END DO
       diagonal(:) = diagonal**2
-      initial_diagonal(:) = diagonal
+      ! Residuals below N*eps*max(D_ll) are rounding noise (rank tolerance of LAPACK DPSTRF);
+      ! accepting them would let the compiler's rounding decide the grid.
+      rank_tolerance = REAL(npoints, dp)*EPSILON(1.0_dp)*MAXVAL(diagonal)
 
       capacity = MIN(32, npoints)
       ALLOCATE (factor(npoints, capacity), selected_ao_values(MAXVAL(atom_n_ao)), &
@@ -546,9 +551,12 @@ CONTAINS
       nselected = 0
       nretained = 0
       DO WHILE (nretained < SIZE(selected_indices) .AND. nselected < npoints)
-         selected_point = MAXLOC(diagonal, DIM=1)
-         selected_diagonal = diagonal(selected_point)
+         ! Symmetry-equivalent points tie up to rounding; take the first of them so that the
+         ! grid does not depend on the compiler's floating-point evaluation (e.g. FMA).
+         selected_diagonal = MAXVAL(diagonal)
          IF (selected_diagonal <= 0.0_dp) EXIT
+         selected_point = FINDLOC(diagonal >= (1.0_dp - tie_tolerance)*selected_diagonal, .TRUE., DIM=1)
+         selected_diagonal = diagonal(selected_point)
 
          IF (nselected == capacity) THEN
             new_capacity = MIN(npoints, capacity + MAX(32, capacity/2))
@@ -600,7 +608,7 @@ CONTAINS
          nselected = nselected + 1
          factor(:, nselected) = selection_matrix_column/SQRT(selected_diagonal)
          diagonal(:) = MAX(0.0_dp, diagonal - factor(:, nselected)**2)
-         WHERE (diagonal <= 64.0_dp*EPSILON(1.0_dp)*initial_diagonal) diagonal = 0.0_dp
+         WHERE (diagonal <= rank_tolerance) diagonal = 0.0_dp
          diagonal(selected_point) = 0.0_dp
 
          IF (inside_voronoi(selected_point)) THEN
