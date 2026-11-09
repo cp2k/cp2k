@@ -78,13 +78,11 @@ MODULE kpoint_methods
                                               k_grid_to_cell_work_type,&
                                               lattice_fft_shape,&
                                               regular_kpoint_grid
-   USE kpoint_transform,                ONLY: ensure_work_matrix => rskp_work_matrix,&
-                                              k_grid_to_cell_contract,&
-                                              k_grid_to_cell_profile_type,&
-                                              kp_symmetry_phase_factors => rskp_phase_factors,&
-                                              kp_transform_plan_create,&
-                                              kp_transform_plan_type,&
-                                              rskp_transform
+   USE kpoint_transform,                ONLY: &
+        ensure_work_matrix => rskp_work_matrix, k_grid_to_cell_contract, &
+        k_grid_to_cell_phase_prepare, k_grid_to_cell_phase_type, k_grid_to_cell_profile_type, &
+        kp_symmetry_phase_factors => rskp_phase_factors, kp_transform_plan_create, &
+        kp_transform_plan_type, rskp_transform
    USE kpoint_types,                    ONLY: &
         find_kpoint_rotation_slot, get_kpoint_info, kind_rotmat_type, kpoint_env_create, &
         kpoint_env_p_type, kpoint_env_type, kpoint_sym_create, kpoint_sym_type, kpoint_type
@@ -148,6 +146,7 @@ MODULE kpoint_methods
    ! Non-owning operation metadata and owned, group-local density contributions.
    TYPE :: kp_density_group_type
       TYPE(kp_symmetry_op_type) :: op
+      TYPE(k_grid_to_cell_phase_type) :: phases
       LOGICAL :: reverse_phase = .FALSE.
       INTEGER, ALLOCATABLE :: inverse(:), ikp(:)
       REAL(KIND=dp), ALLOCATABLE :: xkp(:, :), weight(:)
@@ -2019,8 +2018,8 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: for_aux_fit, mixed_aux_orb
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform_batched'
-      CHARACTER(LEN=12), PARAMETER :: profile_stages(6) = [CHARACTER(LEN=12) :: 'setup', 'phase', &
-         'pack/gauge', 'GEMM', 'merge/expand', 'rotate/add']
+      CHARACTER(LEN=13), PARAMETER :: profile_stages(7) = [CHARACTER(LEN=13) :: 'setup', &
+         'phase/table', 'phase/compose', 'pack/gauge', 'GEMM', 'merge/expand', 'rotate/add']
 
       INTEGER :: a, b, first, handle, i, ic, igroup, ikp, image, ispin, j, last, nblock, njob, &
          nlocal, nrow, nthreads, nvalue, orientation, owner, profile_handle, slot, thread, unit_nr
@@ -2034,8 +2033,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_offset, col_size, row_offset, &
                                                             row_size
       LOGICAL                                            :: found, trans
-      REAL(KIND=dp)                                      :: profile_flops, profile_max_seconds(6), &
-                                                            profile_seconds(6), profile_total
+      REAL(KIND=dp)                                      :: profile_flops, profile_max_seconds(7), &
+                                                            profile_seconds(7), profile_total
       REAL(KIND=dp), ALLOCATABLE                         :: rotation_work(:, :)
       REAL(KIND=dp), ALLOCATABLE, TARGET                 :: sums(:, :, :), values(:, :)
       REAL(KIND=dp), POINTER                             :: block(:, :)
@@ -2102,6 +2101,15 @@ CONTAINS
       DO thread = 1, nthreads
          gemm_ctx(thread) = local_gemm_ctxt_type()
          CALL gemm_ctx(thread)%create(LOCAL_GEMM_PU_HOST, timing=.FALSE.)
+      END DO
+      ! The image map is global, whereas neighbor-list entries can be rank-local.
+      CPASSERT(ASSOCIATED(kpoint%index_to_cell))
+      CPASSERT(SIZE(kpoint%index_to_cell, 1) == 3)
+      CPASSERT(SIZE(denmat, 2) <= SIZE(kpoint%index_to_cell, 2))
+      DO slot = 0, UBOUND(groups, 1)
+         IF (SIZE(groups(slot)%ikp) == 0) CYCLE
+         CALL k_grid_to_cell_phase_prepare(groups(slot)%phases, &
+                                           kpoint%index_to_cell(:, 1:SIZE(denmat, 2)), groups(slot)%xkp, profiles)
       END DO
 
       DO owner = 0, world%num_pe - 1
@@ -2200,7 +2208,7 @@ CONTAINS
          WRITE (unit_nr, '(T2,A)') 'K2R_PROFILE| Worker-seconds summed over all MPI ranks and OpenMP workers'
          WRITE (unit_nr, '(T2,A)') 'K2R_PROFILE| Stage           sum worker-s   max worker-s   fraction'
          DO i = 1, SIZE(profile_stages)
-            WRITE (unit_nr, '(T2,A,A12,2F14.6,F9.2,A)') 'K2R_PROFILE| ', profile_stages(i), &
+            WRITE (unit_nr, '(T2,A,A13,2F14.6,F9.2,A)') 'K2R_PROFILE| ', profile_stages(i), &
                profile_seconds(i), profile_max_seconds(i), &
                100.0_dp*profile_seconds(i)/MAX(TINY(1.0_dp), profile_total), ' %'
          END DO
@@ -2214,7 +2222,7 @@ CONTAINS
             WRITE (unit_nr, '(T2,A,3I12)') 'K2R_PROFILE| GEMM M/N/K max: ', shape_max
             WRITE (unit_nr, '(T2,A,ES14.6)') 'K2R_PROFILE| GEMM FLOPs: ', profile_flops
             WRITE (unit_nr, '(T2,A,F14.6)') 'K2R_PROFILE| GEMM GF/s per calling worker: ', &
-               profile_flops/MAX(1.0E-12_dp, profile_seconds(4))/1.0E9_dp
+               profile_flops/MAX(1.0E-12_dp, profile_seconds(5))/1.0E9_dp
          END IF
       END IF
       CALL timestop(handle)
@@ -2461,7 +2469,7 @@ CONTAINS
             CALL k_grid_to_cell_contract(source, tiles, groups(slot)%ikp, groups(slot)%xkp, groups(slot)%weight, &
                                          jobs(4:8, :), [a, b], [row_size(a), col_size(b)], &
                                          [row_offset(a), col_offset(b)], shift, groups(slot)%op%time_reversal, &
-                                         trans, sums, gemm_ctx, profile)
+                                         trans, groups(slot)%phases, sums, gemm_ctx, profile)
             started = m_walltime()
             m = row_size(jobs(1, 1))*col_size(jobs(2, 1))
             IF (.NOT. groups(slot)%op%identity) THEN
@@ -2482,7 +2490,7 @@ CONTAINS
                   END IF
                END DO
             END DO
-            profile(1)%seconds(6) = profile(1)%seconds(6) + m_walltime() - started
+            profile(1)%seconds(7) = profile(1)%seconds(7) + m_walltime() - started
          END DO
       END DO
    END SUBROUTINE kp_density_contract_tile

@@ -49,7 +49,8 @@ MODULE kpoint_transform
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
-   USE util,                            ONLY: sort
+   USE util,                            ONLY: locate,&
+                                              sort
 
 !$ USE omp_lib, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 #include "./base/base_uses.f90"
@@ -72,16 +73,24 @@ MODULE kpoint_transform
    PUBLIC :: rskp_transform_evaluate, rskp_transform_release
    PUBLIC :: rskp_transform
    PUBLIC :: cell_to_k_sparse_fft, k_grid_to_cell_contract, rskp_phase_factors, rskp_work_matrix
+   PUBLIC :: k_grid_to_cell_phase_prepare
    PUBLIC :: cell_to_k_transform, k_to_real_cell_transform
 
    ! One accumulator per worker; reduce only after leaving the OpenMP region.
    TYPE, PUBLIC :: k_grid_to_cell_profile_type
-      ! Setup, phase, pack/gauge, GEMM, parity expansion, AO rotation/accumulation.
-      REAL(KIND=dp) :: seconds(6) = 0.0_dp, flops = 0.0_dp
+      ! Setup, phase table, phase composition, pack/gauge, GEMM, merge/expand, AO rotation.
+      REAL(KIND=dp) :: seconds(7) = 0.0_dp, flops = 0.0_dp
       ! Contractions, trig evaluations, FM values gathered, GEMM calls.
       INTEGER(KIND=int_8) :: counts(4) = 0_int_8
       INTEGER(KIND=int_8) :: shape_sum(3) = 0_int_8, shape_min(3) = HUGE(0_int_8), shape_max(3) = 0_int_8
    END TYPE k_grid_to_cell_profile_type
+
+   ! Unweighted one-dimensional phases for one symmetry group's local k domain.
+   TYPE, PUBLIC :: k_grid_to_cell_phase_type
+      INTEGER :: first(4) = 1
+      INTEGER, ALLOCATABLE :: coordinate(:)
+      REAL(KIND=dp), ALLOCATABLE :: cosine(:, :), sine(:, :)
+   END TYPE k_grid_to_cell_phase_type
 
    TYPE, PUBLIC :: kp_transform_plan_type
       INTEGER :: nentry = 0, ngroup = 0
@@ -2206,6 +2215,82 @@ CONTAINS
    END SUBROUTINE cell_to_k_backend_evaluate_batch
 
 ! **************************************************************************************************
+!> \brief Tabulate distinct absolute translation coordinates for a group's local k points.
+!>        All AO pairs share these unweighted phases. Zero coordinates are exact;
+!>        negative coordinates use the same cosine and the opposite sine.
+!> \param table owned axis-coordinate dictionary and phases
+!> \param cells globally available image translations
+!> \param xkp this symmetry group's local contribution coordinates
+!> \param profile worker-owned diagnostic accumulators
+! **************************************************************************************************
+   SUBROUTINE k_grid_to_cell_phase_prepare(table, cells, xkp, profile)
+      TYPE(k_grid_to_cell_phase_type), INTENT(OUT)       :: table
+      INTEGER, INTENT(IN)                                :: cells(:, :)
+      REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
+      TYPE(k_grid_to_cell_profile_type), INTENT(INOUT)   :: profile(:)
+
+      INTEGER                                            :: axis, i, k, n, nk, nworkers, pos, thread
+      INTEGER(KIND=int_8)                                :: ntrig
+      INTEGER, ALLOCATABLE                               :: coordinates(:, :), COUNT(:), &
+                                                            direction(:), order(:), values(:)
+      REAL(KIND=dp)                                      :: arg, started
+
+      CPASSERT(SIZE(cells, 1) == 3 .AND. SIZE(xkp, 1) == 3)
+      CPASSERT(SIZE(profile) > 0)
+      started = m_walltime()
+      n = SIZE(cells, 2) + 1
+      nk = SIZE(xkp, 2)
+      ALLOCATE (coordinates(3, n), COUNT(3), values(n), order(n))
+      DO axis = 1, 3
+         values(1) = 0
+         values(2:n) = ABS(cells(axis, :))
+         CALL sort(values, n, order)
+         COUNT(axis) = 0
+         DO i = 1, n
+            IF (i > 1) THEN
+               IF (values(i) == values(i - 1)) CYCLE
+            END IF
+            COUNT(axis) = COUNT(axis) + 1
+            coordinates(axis, COUNT(axis)) = values(i)
+         END DO
+         table%first(axis + 1) = table%first(axis) + COUNT(axis)
+      END DO
+      n = SUM(count)
+      ALLOCATE (table%coordinate(n), direction(n), table%cosine(nk, n), table%sine(nk, n))
+      DO axis = 1, 3
+         pos = table%first(axis)
+         table%coordinate(pos:pos + COUNT(axis) - 1) = coordinates(axis, 1:COUNT(axis))
+         direction(pos:pos + COUNT(axis) - 1) = axis
+      END DO
+      profile(1)%seconds(1) = profile(1)%seconds(1) + m_walltime() - started
+      nworkers = MIN(SIZE(profile), MAX(1, nk))
+!$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(nworkers) IF(nworkers > 1) &
+!$OMP SHARED(table,xkp,profile,direction,n,nk) PRIVATE(thread,started,i,k,arg,ntrig)
+      thread = 1
+!$    thread = omp_get_thread_num() + 1
+      started = m_walltime()
+      ntrig = 0_int_8
+!$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
+      DO i = 1, n
+         DO k = 1, nk
+            IF (table%coordinate(i) == 0) THEN
+               table%cosine(k, i) = 1.0_dp
+               table%sine(k, i) = 0.0_dp
+            ELSE
+               arg = twopi*REAL(table%coordinate(i), dp)*xkp(direction(i), k)
+               table%cosine(k, i) = COS(arg)
+               table%sine(k, i) = SIN(arg)
+               ntrig = ntrig + 2_int_8
+            END IF
+         END DO
+      END DO
+!$OMP END DO NOWAIT
+      profile(thread)%seconds(2) = profile(thread)%seconds(2) + m_walltime() - started
+      profile(thread)%counts(2) = profile(thread)%counts(2) + ntrig
+!$OMP END PARALLEL
+   END SUBROUTINE k_grid_to_cell_phase_prepare
+
+! **************************************************************************************************
 !> \brief Weighted K-to-R contraction of one AO block, before spatial rotations and MPI.
 !>        The caller supplies the atom mapping and image multiplicities. Phases include
 !>        the gauge shift, time reversal and conjugation of a transposed source block.
@@ -2221,13 +2306,14 @@ CONTAINS
 !> \param shift column-minus-row gauge shift
 !> \param time_reversal conjugate the source before applying its gauge phase
 !> \param trans conjugate the imaginary contribution on transposition
+!> \param phase_table group-local unweighted one-dimensional phases
 !> \param sums allocated flattened source blocks by image and spin
 !> \param gemm_ctx worker-owned host GEMM contexts
 !> \param profile worker-owned diagnostic times, work counts and GEMM shapes
 ! **************************************************************************************************
    SUBROUTINE k_grid_to_cell_contract(source, tiles, ikp_index, xkp, weight, images, source_pair, &
                                       block_shape, block_offset, shift, time_reversal, trans, &
-                                      sums, gemm_ctx, profile)
+                                      phase_table, sums, gemm_ctx, profile)
       TYPE(cp_fm_p_type), INTENT(IN)                     :: source(:, :, :)
       INTEGER, INTENT(IN)                                :: tiles(:, :, :, :, :), ikp_index(:)
       REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :), weight(:)
@@ -2235,20 +2321,22 @@ CONTAINS
                                                             block_shape(2), block_offset(2), &
                                                             shift(3)
       LOGICAL, INTENT(IN)                                :: time_reversal, trans
+      TYPE(k_grid_to_cell_phase_type), INTENT(IN)        :: phase_table
       REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT)          :: sums(:, :, :)
       TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm_ctx(:)
       TYPE(k_grid_to_cell_profile_type), INTENT(INOUT)   :: profile(:)
 
       INTEGER(KIND=int_8), PARAMETER                     :: max_elements = 1048576_int_8
 
-      INTEGER :: a, actual_workers, b, batch, column, first, i, ic, ifirst, ii, ikp, ilast, image, &
-         ispin, j, jj, k, last, nc, ncall, nclass, nelement, nimage, nrow, nsine, nspin, nworkers, &
-         thread
+      INTEGER :: a, actual_workers, axis, b, batch, column, first, i, ic, ifirst, ii, ikp, ilast, &
+         image, ispin, ix, iy, iz, j, jj, k, last, nc, ncall, nclass, nelement, nimage, nrow, &
+         nsine, nspin, nworkers, pos, thread
       INTEGER, ALLOCATABLE                               :: cells(:, :), image_class(:), &
-                                                            sine_index(:)
+                                                            phase_index(:, :), sine_index(:)
       LOGICAL                                            :: contributes, has_zero, identity_gauge, &
-                                                            real_only
-      REAL(KIND=dp)                                      :: arg, sine, started
+                                                            real_only, zero_shift
+      REAL(KIND=dp)                                      :: cosine_xy, sine, sine_xy, started, sx, &
+                                                            sy, sz
       REAL(KIND=dp), ALLOCATABLE :: beta(:), gauge(:), gauge_factors(:, :, :), packed(:, :), &
          phases(:, :), reduced(:, :, :, :), zero_sum(:, :, :)
       TYPE(cp_fm_type), POINTER                          :: matrix
@@ -2259,6 +2347,7 @@ CONTAINS
       real_only = nc == 1
       CPASSERT(nc == 1 .OR. nc == 2)
       CPASSERT(SIZE(xkp, 2) == SIZE(ikp_index) .AND. SIZE(weight) == SIZE(ikp_index))
+      CPASSERT(SIZE(phase_table%cosine, 1) == SIZE(ikp_index))
       a = source_pair(1)
       b = source_pair(2)
       nelement = block_shape(1)*block_shape(2)
@@ -2291,7 +2380,20 @@ CONTAINS
          nsine = nsine + 1
          sine_index(i) = nsine
       END DO
-      identity_gauge = ALL(shift == 0) .AND. .NOT. time_reversal
+      ALLOCATE (phase_index(3, nclass))
+      DO image = 1, nclass
+         DO axis = 1, 3
+            first = phase_table%first(axis)
+            last = phase_table%first(axis + 1) - 1
+            pos = locate(phase_table%coordinate(first:last), ABS(cells(axis, image)))
+            CPASSERT(pos > 0)
+            pos = pos + first - 1
+            CPASSERT(phase_table%coordinate(pos) == ABS(cells(axis, image)))
+            phase_index(axis, image) = pos
+         END DO
+      END DO
+      zero_shift = ALL(shift == 0)
+      identity_gauge = zero_shift .AND. .NOT. time_reversal
       nworkers = MIN(SIZE(gemm_ctx), SIZE(ikp_index))
       ! Split K for parallelism and an 8 MiB packed/phase scratch target per worker.
       ! N retains the complete canonical image set; no image-based task limit applies.
@@ -2306,9 +2408,11 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(nworkers) IF(nworkers > 1) &
 !$OMP SHARED(source,tiles,ikp_index,xkp,weight,A,b,block_shape,block_offset,shift,time_reversal, &
 !$OMP        nelement,nspin,nclass,nsine,nc,batch,cells,sine_index,identity_gauge,real_only,has_zero, &
+!$OMP        phase_table,phase_index,zero_shift, &
 !$OMP        reduced,zero_sum,gemm_ctx,profile,actual_workers) &
 !$OMP PRIVATE(thread,started,packed,phases,beta,gauge,gauge_factors,first,last,image,k,ispin, &
-!$OMP         contributes,ikp,ic,ifirst,ilast,column,matrix,nrow,j,jj,ii,i,arg,ncall)
+!$OMP         contributes,ikp,ic,ifirst,ilast,column,matrix,nrow,j,jj,ii,i,ncall, &
+!$OMP         ix,iy,iz,sx,sy,sz,cosine_xy,sine_xy)
       thread = 1
 !$    thread = omp_get_thread_num() + 1
 !$OMP MASTER
@@ -2326,23 +2430,42 @@ CONTAINS
          last = MIN(first + batch - 1, SIZE(ikp_index))
          started = m_walltime()
          DO image = 1, nclass
+            ix = phase_index(1, image)
+            iy = phase_index(2, image)
+            iz = phase_index(3, image)
+            sx = REAL(SIGN(1, cells(1, image)), dp)
+            sy = REAL(SIGN(1, cells(2, image)), dp)
+            sz = REAL(SIGN(1, cells(3, image)), dp)
+!$OMP SIMD PRIVATE(cosine_xy,sine_xy)
             DO k = first, last
-               arg = twopi*DOT_PRODUCT(REAL(cells(:, image), dp), xkp(:, k))
-               phases(k - first + 1, image) = weight(k)*COS(arg)
+               cosine_xy = phase_table%cosine(k, ix)*phase_table%cosine(k, iy) - &
+                           sx*sy*phase_table%sine(k, ix)*phase_table%sine(k, iy)
+               sine_xy = sx*phase_table%sine(k, ix)*phase_table%cosine(k, iy) + &
+                         sy*phase_table%cosine(k, ix)*phase_table%sine(k, iy)
+               phases(k - first + 1, image) = weight(k)*( &
+                                              cosine_xy*phase_table%cosine(k, iz) - sine_xy*sz*phase_table%sine(k, iz))
                IF (sine_index(image) > 0) THEN
-                  phases(k - first + 1, nclass + sine_index(image)) = weight(k)*SIN(arg)
+                  phases(k - first + 1, nclass + sine_index(image)) = weight(k)*( &
+                                                           sine_xy*phase_table%cosine(k, iz) + cosine_xy*sz*phase_table%sine(k, iz))
                END IF
             END DO
          END DO
          IF (.NOT. identity_gauge) THEN
             DO k = first, last
-               CALL rskp_phase_factors(shift, xkp(:, k), time_reversal, real_only, &
-                                       gauge_factors(:, :, k - first + 1))
+               IF (zero_shift) THEN
+                  gauge_factors(:, :, k - first + 1) = 0.0_dp
+                  gauge_factors(1, 1, k - first + 1) = 1.0_dp
+                  gauge_factors(2, 2, k - first + 1) = MERGE(-1.0_dp, 1.0_dp, time_reversal)
+               ELSE
+                  CALL rskp_phase_factors(shift, xkp(:, k), time_reversal, real_only, &
+                                          gauge_factors(:, :, k - first + 1))
+               END IF
             END DO
          END IF
-         profile(thread)%seconds(2) = profile(thread)%seconds(2) + m_walltime() - started
-         profile(thread)%counts(2) = profile(thread)%counts(2) + &
-                                     INT(nclass + nsine + MERGE(0, 2, identity_gauge), int_8)*INT(last - first + 1, int_8)
+         profile(thread)%seconds(3) = profile(thread)%seconds(3) + m_walltime() - started
+         IF (.NOT. zero_shift) THEN
+            profile(thread)%counts(2) = profile(thread)%counts(2) + 2_int_8*INT(last - first + 1, int_8)
+         END IF
          DO ispin = 1, nspin
             started = m_walltime()
             packed = 0.0_dp
@@ -2387,7 +2510,7 @@ CONTAINS
                END IF
                IF (has_zero) zero_sum(:, ispin, thread) = zero_sum(:, ispin, thread) + weight(k)*packed(:, column)
             END DO
-            profile(thread)%seconds(3) = profile(thread)%seconds(3) + m_walltime() - started
+            profile(thread)%seconds(4) = profile(thread)%seconds(4) + m_walltime() - started
             IF (.NOT. contributes .OR. nclass == 0) CYCLE
             started = m_walltime()
             CALL gemm_ctx(thread)%gemm('N', 'N', nelement, nclass, last - first + 1, 1.0_dp, &
@@ -2397,7 +2520,7 @@ CONTAINS
                                           packed(:, batch + 1:), nelement, phases(:, nclass + 1:), batch, &
                                           beta(ispin), reduced(:, nclass + 1:, ispin, thread), nelement)
             END IF
-            profile(thread)%seconds(4) = profile(thread)%seconds(4) + m_walltime() - started
+            profile(thread)%seconds(5) = profile(thread)%seconds(5) + m_walltime() - started
             ncall = MERGE(2, 1, nsine > 0)
             profile(thread)%counts(4) = profile(thread)%counts(4) + INT(ncall, int_8)
             profile(thread)%shape_sum = profile(thread)%shape_sum + &
@@ -2439,7 +2562,7 @@ CONTAINS
             END IF
          END DO
       END DO
-      profile(1)%seconds(5) = profile(1)%seconds(5) + m_walltime() - started
+      profile(1)%seconds(6) = profile(1)%seconds(6) + m_walltime() - started
    END SUBROUTINE k_grid_to_cell_contract
 
 ! **************************************************************************************************

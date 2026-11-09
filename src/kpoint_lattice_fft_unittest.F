@@ -400,7 +400,8 @@ CONTAINS
                                  cp_logger_type, cp_rm_default_logger
       USE kpoint_k_r_trafo_simple, ONLY: replicate_rs_matrices
       USE kinds, ONLY: int_8
-      USE kpoint_transform, ONLY: k_grid_to_cell_contract, k_grid_to_cell_profile_type
+      USE kpoint_transform, ONLY: k_grid_to_cell_contract, k_grid_to_cell_phase_prepare, &
+                                  k_grid_to_cell_phase_type, k_grid_to_cell_profile_type
       USE kpoint_types, ONLY: kpoint_type
       USE local_gemm_api, ONLY: LOCAL_GEMM_PU_HOST, local_gemm_ctxt_type
       USE machine, ONLY: default_output_unit
@@ -503,6 +504,7 @@ CONTAINS
          TYPE(cp_fm_p_type), ALLOCATABLE :: views(:, :, :)
          TYPE(local_gemm_ctxt_type), ALLOCATABLE :: contexts(:)
          TYPE(k_grid_to_cell_profile_type), ALLOCATABLE :: stats(:)
+         TYPE(k_grid_to_cell_phase_type) :: phase_table
 
          ! Borrowed FM views over test-owned storage; no owning FM release is used.
          ALLOCATE (DATA(5, 5, nk, 2, 2), matrices(nk, 2, 2), views(nk, 2, 2))
@@ -531,7 +533,7 @@ CONTAINS
          END DO
          image_data = RESHAPE([0, 0, 0, 2, 0, 1, 0, 0, 1, 1, -1, 0, 0, 2, -1, &
                                0, 1, 0, 3, 0, 0, -1, 0, 1, 2, 1, 1, 0, 1, 1, -1, -1, 0, 1, -1, &
-                               0, 0, 1, 2, 1, 0, 0, -1, 1, 1, 1, 0, 0, 2, 2, 2, -1, 1, 1, -2], [5, nimages])
+                               0, 0, 1, 2, 1, 0, 0, -1, 1, 1, 1, 0, 0, 2, 2, 17, -19, 0, 1, -2], [5, nimages])
          DO request = 1, 2
             workers = 1
 !$          IF (request == 2) workers = MIN(4, omp_get_max_threads())
@@ -541,13 +543,20 @@ CONTAINS
                contexts(worker) = local_gemm_ctxt_type()
                CALL contexts(worker)%create(LOCAL_GEMM_PU_HOST, timing=.FALSE.)
             END DO
-            DO mode = 1, 4
+            CALL k_grid_to_cell_phase_prepare(phase_table, image_data(1:3, :), coordinates, stats)
+            gathered = 0_int_8
+            DO worker = 1, workers
+               gathered = gathered + stats(worker)%counts(2)
+            END DO
+            ! Distinct nonzero magnitudes: x={1,17}, y={1,19}, z={1}.
+            IF (gathered /= 10_int_8*INT(nk, int_8)) ERROR STOP 'Axis phase table did not deduplicate coordinates'
+            DO mode = 1, 5
                stats(:) = k_grid_to_cell_profile_type()
                nc = MERGE(1, 2, mode == 3)
                reverse = mode /= 1
                transposed = mode == 4
                shift = [1, -2, 1]
-               IF (nc == 1) shift = 0
+               IF (nc == 1 .OR. mode == 5) shift = 0
                row_map = [1, 2, 3, 4, 5]
                col_map = [1, 2, 3, 4, 5]
                DO s = 1, 2
@@ -593,7 +602,7 @@ CONTAINS
                END DO
                CALL k_grid_to_cell_contract(views(:, 1:nc, :), layout(:, :, :, 1:nc, :), k_index, &
                                             coordinates, weight, image_data, [1, 2], [3, 2], [1, 4], &
-                                            shift, reverse, transposed, RESULT, contexts, stats)
+                                            shift, reverse, transposed, phase_table, RESULT, contexts, stats)
                IF (MAXVAL(ABS(RESULT - reference)) > 2.0E-11_dp) THEN
                   ERROR STOP 'Parallel k-batch density contraction differs from explicit phase sum'
                END IF
@@ -602,6 +611,15 @@ CONTAINS
                   gathered = gathered + stats(worker)%counts(3)
                END DO
                IF (gathered /= expected_gather) ERROR STOP 'K-batch contraction gathered a source element more than once'
+               gathered = 0_int_8
+               DO worker = 1, workers
+                  gathered = gathered + stats(worker)%counts(2)
+               END DO
+               IF (ALL(shift == 0)) THEN
+                  IF (gathered /= 0_int_8) ERROR STOP 'Zero-shift contraction recomputed trigonometric phases'
+               ELSE
+                  IF (gathered /= 2_int_8*INT(nk, int_8)) ERROR STOP 'Contraction recomputed image phases'
+               END IF
             END DO
             DO worker = 1, workers
                CALL contexts(worker)%destroy()
