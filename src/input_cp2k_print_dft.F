@@ -3288,6 +3288,17 @@ CONTAINS
                           enum_i_vals=[-1, 0, 1, 2], default_i_val=-1, citations=[Pizzi2020])
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="EXPORT_PROJECTION_CANDIDATES", &
+                          description="Write complete projection banks for external trial selection, "// &
+                          "without changing INITIAL_PROJECTIONS. AO writes SEED_NAME_ao_candidates.amn. "// &
+                          "AO_HYBRID writes SEED_NAME_hybrid_candidates.amn using the same s/p hybrids "// &
+                          "as INITIAL_PROJECTIONS AO_HYBRID. BOTH writes both files. "// &
+                          "The banks use the exported bands and Bloch gauge before energy-window masking. "// &
+                          "Requires KPOINTS_SOURCE MP_GRID or SCF.", &
+                          type_of_var=enum_t, enum_c_vals=s2a("NONE", "AO", "AO_HYBRID", "BOTH"), &
+                          enum_i_vals=[0, 1, 2, 3], default_i_val=0)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="DIS_WIN_MIN", &
                  description="Lower edge of the disentanglement outer energy window; defaults to the lowest exported eigenvalue.", &
                           type_of_var=real_t, unit_str="eV")
