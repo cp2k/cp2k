@@ -69,7 +69,9 @@ __device__ __inline__ void block_to_cab(const kernel_params &params,
       } else {
         const auto a = coset_inv[ico];
         const auto b = coset_inv[jco];
-        // remains the atomicAdd used in prepare_pab. Are they needed ?
+        // prepare_pab adds to the neighbours up/down(i, a) x up/down(i, b),
+        // which other (ico, jco) pairs of the block also update: the
+        // atomicAdd in prep_term is required.
         prepare_pab(params.func, a, b, task.zeta, task.zetb, pab_val, task.n1,
                     cab);
       }
@@ -131,7 +133,7 @@ __launch_bounds__(64) void calculate_coefficients(const kernel_params dev_) {
  *        sphi_work_size.
  ******************************************************************************/
 template <typename T, bool IS_FUNC_AB>
-__global__ __launch_bounds__(64) void calculate_coefficients_two_step(
+__global__ __launch_bounds__(64) void calculate_coefficients_two_steps(
     const kernel_params dev_, const int work_offset, const int ld,
     const int max_nsgf_set) {
   extern __shared__ T shared_memory[];
@@ -524,18 +526,18 @@ void context_info::calculate_all_coefficients(const enum grid_func func,
 
   // two step sphi transformation when its work arrays fit in the shared memory
   const int ld = ncoset(lmax());
-  const size_t smem_two_step =
+  const size_t smem_two_steps =
       smem_params.smem_per_block() +
       sizeof(double) * sphi_work_size(lmax(), max_nsgf_set());
   const int work_offset = smem_params.smem_per_block() / sizeof(double);
-  if (smem_two_step <= sphi_two_step_max_smem) {
+  if (smem_two_steps <= sphi_two_step_max_smem) {
     if (func == GRID_FUNC_AB) {
-      calculate_coefficients_two_step<double, true>
-          <<<nblocks, threads_per_block, smem_two_step, main_stream>>>(
+      calculate_coefficients_two_steps<double, true>
+          <<<nblocks, threads_per_block, smem_two_steps, main_stream>>>(
               params, work_offset, ld, max_nsgf_set());
     } else {
-      calculate_coefficients_two_step<double, false>
-          <<<nblocks, threads_per_block, smem_two_step, main_stream>>>(
+      calculate_coefficients_two_steps<double, false>
+          <<<nblocks, threads_per_block, smem_two_steps, main_stream>>>(
               params, work_offset, ld, max_nsgf_set());
     }
     return;
@@ -578,8 +580,8 @@ void context_info::collocate_one_grid_level(const int level,
   const int lp_max = smem_params.lp_max();
   const int max_cube_size = std::max(grid.max_cube_size(), 1);
   const bool axis_aligned = grid.is_axis_aligned();
-  // lp_max <= grid_gpu_max_l == SEP_MAX_L is checked by smem_parameters
-  static_assert(grid_gpu_max_l <= SEP_MAX_L, "separable tables too small");
+  // lp_max <= grid_gpu_max_l == CP2K_SEP_MAX_L is checked by smem_parameters
+  static_assert(grid_gpu_max_l <= CP2K_SEP_MAX_L, "separable tables too small");
 
   init_separable_constant_memory();
   const double *lattice_to_cartesian =

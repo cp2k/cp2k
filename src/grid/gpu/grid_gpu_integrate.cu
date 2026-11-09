@@ -32,9 +32,11 @@
 
 namespace rocm_backend {
 
-// tasks with lp >= this value go to integrate_separable_kernel. Below,
-// integrate_kernel does a single pass over the cube and is faster.
-constexpr int integrate_separable_lp_threshold = 4;
+// tasks with lp >= this value go to integrate_separable_kernel, the others to
+// integrate_kernel. The standalone driver shows the separable kernel 20-37%
+// faster than integrate_kernel for lp = 0..3 as well (V100), so all tasks go
+// to it and integrate_kernel is only launched as a fallback.
+constexpr int integrate_separable_lp_threshold = 0;
 
 __inline__ __device__ double sep_row_reduce(double val) {
   for (int offset = CP2K_SEP_INTEGRATE_ROW_LANES / 2; offset > 0;
@@ -155,7 +157,7 @@ __global__ __launch_bounds__(64) void compute_hab(const kernel_params dev_) {
  *        at work_offset (in doubles), see sphi_work_size.
  ******************************************************************************/
 template <typename T, bool COMPUTE_TAU>
-__global__ __launch_bounds__(64) void compute_hab_two_step(
+__global__ __launch_bounds__(64) void compute_hab_two_steps(
     const kernel_params dev_, const int work_offset, const int ld,
     const int max_nsgf_set) {
   extern __shared__ T shared_memory[];
@@ -1019,7 +1021,7 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
 
   // the per thread accumulators have lmax_ + 1 entries, lmax_ >= lp_max (see
   // separable_lmax_bucket)
-  static_assert(lmax_ <= SEP_MAX_L, "lmax_ larger than SEP_MAX_L");
+  static_assert(lmax_ <= CP2K_SEP_MAX_L, "lmax_ larger than CP2K_SEP_MAX_L");
 
   const task_info &glb_task = dev_.tasks[dev_.first_task + block_index()];
   if (glb_task.skip_task)
@@ -1318,12 +1320,10 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
 
   // fall back to the old integrate if shared memory is not large enough or
   // anything else happens
-
-  // most important unless l >= 4 the old kernel is faster (single round)
-
   const bool use_separable =
-      (lp_max >= integrate_separable_lp_threshold) && (lp_max <= SEP_MAX_L) &&
-      (max_cube_size > 0) && (axis_aligned || !grid.is_orthogonal()) &&
+      (lp_max >= integrate_separable_lp_threshold) &&
+      (lp_max <= CP2K_SEP_MAX_L) && (max_cube_size > 0) &&
+      (axis_aligned || !grid.is_orthogonal()) &&
       (integrate_separable_smem_size(max_cube_size, lp_max) <=
        separable_max_smem);
 
@@ -1336,8 +1336,13 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
    * templating parameters or simply adjust the switch statements inside the
    * integrate kernels */
 
+  // integrate_kernel handles the tasks the separable kernel does not take
+  const bool use_integrate_kernel =
+      !use_separable || (integrate_separable_lp_threshold > 0);
   const dim3 threads_per_block(4, 4, 4);
-  if (grid_[level].is_distributed()) {
+  if (!use_integrate_kernel) {
+    // nothing to do
+  } else if (grid_[level].is_distributed()) {
     if (grid_[level].is_orthogonal()) {
       integrate_kernel<double, double3, true, true>
           <<<number_of_tasks_per_level_[level], threads_per_block, 0,
@@ -1384,7 +1389,7 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
                                    params, lattice_to_cartesian);
     break;
   default:
-    launch_integrate_separable<SEP_MAX_L>(
+    launch_integrate_separable<CP2K_SEP_MAX_L>(
         cfg, grid.is_distributed(), axis_aligned, params, lattice_to_cartesian);
   }
 }
@@ -1410,16 +1415,16 @@ void context_info::compute_hab_coefficients() {
 
   // two step sphi transformation when its work arrays fit in the shared memory
   const int ld = ncoset(lmax());
-  const size_t smem_two_step =
+  const size_t smem_two_steps =
       smem_params.smem_per_block() +
       sizeof(double) * sphi_work_size(lmax(), max_nsgf_set());
   const int work_offset = smem_params.smem_per_block() / sizeof(double);
-  const bool two_step = (smem_two_step <= sphi_two_step_max_smem);
+  const bool two_step = (smem_two_steps <= sphi_two_step_max_smem);
 
   if (!compute_tau && !calculate_forces) {
     if (two_step)
-      compute_hab_two_step<double, false>
-          <<<this->nblocks, threads_per_block, smem_two_step,
+      compute_hab_two_steps<double, false>
+          <<<this->nblocks, threads_per_block, smem_two_steps,
              this->main_stream>>>(params, work_offset, ld, max_nsgf_set());
     else
       compute_hab<double, false>
@@ -1430,8 +1435,8 @@ void context_info::compute_hab_coefficients() {
 
   if (compute_tau && !calculate_forces) {
     if (two_step)
-      compute_hab_two_step<double, true>
-          <<<this->nblocks, threads_per_block, smem_two_step,
+      compute_hab_two_steps<double, true>
+          <<<this->nblocks, threads_per_block, smem_two_steps,
              this->main_stream>>>(params, work_offset, ld, max_nsgf_set());
     else
       compute_hab<double, true>
@@ -1442,7 +1447,7 @@ void context_info::compute_hab_coefficients() {
   if (!compute_tau && calculate_forces) {
     if (two_step)
       compute_hab_forces_two_steps<double, false>
-          <<<this->nblocks, threads_per_block, smem_two_step,
+          <<<this->nblocks, threads_per_block, smem_two_steps,
              this->main_stream>>>(params, work_offset, ld, max_nsgf_set());
     else
       compute_hab_forces<double, double3, false>
@@ -1454,7 +1459,7 @@ void context_info::compute_hab_coefficients() {
   if (compute_tau && calculate_forces) {
     if (two_step)
       compute_hab_forces_two_steps<double, true>
-          <<<this->nblocks, threads_per_block, smem_two_step,
+          <<<this->nblocks, threads_per_block, smem_two_steps,
              this->main_stream>>>(params, work_offset, ld, max_nsgf_set());
     else
       compute_hab_forces<double, double3, true>

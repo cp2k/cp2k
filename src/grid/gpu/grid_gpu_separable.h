@@ -46,7 +46,7 @@ static_assert((CP2K_SEP_INTEGRATE_ROW_LANES &
                   CP2K_SEP_INTEGRATE_ROW_LANES <= 32,
               "CP2K_SEP_INTEGRATE_ROW_LANES must be a power of two <= 32");
 // largest angular momentum handled by the separable kernels
-#define SEP_MAX_L 18
+#define CP2K_SEP_MAX_L 18
 
 // advances the periodic index x2 in [0, n) by STRIDE. The modulo is only
 // evaluated when wrapping around, which also covers n < STRIDE.
@@ -66,7 +66,7 @@ inline int separable_lmax_bucket(const int lp_max) {
     return 8;
   if (lp_max <= 12)
     return 12;
-  return SEP_MAX_L;
+  return CP2K_SEP_MAX_L;
 }
 
 // launch configuration of a separable kernel for one grid level
@@ -84,11 +84,11 @@ constexpr size_t separable_max_smem = 48 * 1024;
 
 // (a, b) pairs ordered by a + b so that the first (lp+1)(lp+2)/2 entries are
 // exactly the pairs with a + b <= lp.
-__constant__ char2 sep_pair_ab[(SEP_MAX_L + 1) * (SEP_MAX_L + 2) / 2];
+__constant__ char2 sep_pair_ab[(CP2K_SEP_MAX_L + 1) * (CP2K_SEP_MAX_L + 2) / 2];
 
 // offset of the block of total angular momentum l in the lattice to cartesian
 // matrix
-__constant__ int sep_m_offset[SEP_MAX_L + 1];
+__constant__ int sep_m_offset[CP2K_SEP_MAX_L + 1];
 
 /*******************************************************************************
  * \brief Initializes the constant memory of integrate_separable_kernel.
@@ -99,16 +99,16 @@ static void init_separable_constant_memory() {
     return;
   }
 
-  char2 pairs[(SEP_MAX_L + 1) * (SEP_MAX_L + 2) / 2];
+  char2 pairs[(CP2K_SEP_MAX_L + 1) * (CP2K_SEP_MAX_L + 2) / 2];
   int ip = 0;
-  for (int s = 0; s <= SEP_MAX_L; s++)
+  for (int s = 0; s <= CP2K_SEP_MAX_L; s++)
     for (int a = s; a >= 0; a--)
       pairs[ip++] = make_char2(a, s - a);
   offloadMemcpyToSymbol(sep_pair_ab, pairs, sizeof(pairs));
 
-  int m_offset[SEP_MAX_L + 1];
+  int m_offset[CP2K_SEP_MAX_L + 1];
   int offset = 0;
-  for (int l = 0; l <= SEP_MAX_L; l++) {
+  for (int l = 0; l <= CP2K_SEP_MAX_L; l++) {
     const int nl = (l + 1) * (l + 2) / 2;
     m_offset[l] = offset;
     offset += nl * nl;

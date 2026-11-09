@@ -607,7 +607,6 @@ cab_to_cxyz(const smem_task<T> &task, const T *__restrict__ alpha,
   const int s2 = (task.la_max + 1) * s3;
   const int s1 = (task.lb_max + 1) * s2;
 
-  // TODO: Maybe we can transpose alpha to index it directly with ico and jco.
   const int tid =
       threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
 
@@ -995,8 +994,8 @@ __device__ __inline__ void fill_smem_task_coef(const kernel_params &dev,
 
 /*******************************************************************************
  * \brief Size (in doubles) of the work arrays of the two step spherical <->
- *        cartesian transformations of calculate_coefficients_two_step and
- *        compute_hab_two_step: [max_nsgf_set][ld] and [ld][ld] with
+ *        cartesian transformations of calculate_coefficients_two_steps and
+ *        compute_hab_two_steps: [max_nsgf_set][ld] and [ld][ld] with
  *        ld = ncoset(lmax).
  ******************************************************************************/
 inline int sphi_work_size(const int lmax, const int max_nsgf_set) {
@@ -1057,8 +1056,6 @@ public:
 
   // copy and move are trivial
 
-  inline int alpha_size() const { return alpha_size_; }
-
   inline int cab_size() const { return cab_size_; }
 
   inline int smem_per_block() const { return smem_per_block_; }
@@ -1068,8 +1065,6 @@ public:
   inline ldiffs_value ldiffs() const { return ldiffs_; }
 
   inline int lp_max() const { return lp_max_; }
-
-  inline int cxyz_size() const { return ncoset(lp_max_); }
 };
 template <typename T>
 __inline__ __device__ T *allocate_workspace(const kernel_params &dev_) {

@@ -741,11 +741,6 @@ public:
     offloadStreamSynchronize(stream);
   }
 
-  void synchornize() {
-    // wait for all the streams to finish
-    offloadDeviceSynchronize();
-  }
-
   void set_device() {
     offload_set_chosen_device(device_id_);
     offload_activate_chosen_device();
