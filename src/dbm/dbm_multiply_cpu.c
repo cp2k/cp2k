@@ -55,13 +55,46 @@ static inline unsigned int hash(const dbm_task_t task) {
 }
 
 /*******************************************************************************
+ * \brief Private routine for mapping a task to its bucket (by shape).
+ * \author Hans Pabst
+ ******************************************************************************/
+static inline int task_bucket(const dbm_task_t task) {
+  return (int)(hash(task) % DBM_BATCH_NUM_BUCKETS);
+}
+
+/*******************************************************************************
+ * \brief Internal routine for ordering the tasks of a batch approximately by
+ *        shape (bucket counting).
+ * \author Hans Pabst
+ ******************************************************************************/
+void dbm_multiply_cpu_task_order(const int ntasks,
+                                 const dbm_task_t batch[ntasks],
+                                 int order[ntasks]) {
+  int buckets[DBM_BATCH_NUM_BUCKETS] = {0};
+  for (int itask = 0; itask < ntasks; ++itask) {
+    ++buckets[task_bucket(batch[itask])];
+  }
+  for (int i = 1; i < DBM_BATCH_NUM_BUCKETS; ++i) {
+    buckets[i] += buckets[i - 1];
+  }
+  assert(0 >= ntasks || buckets[DBM_BATCH_NUM_BUCKETS - 1] == ntasks);
+  for (int itask = 0; itask < ntasks; ++itask) {
+    const int i = task_bucket(batch[itask]);
+    --buckets[i];
+    order[buckets[i]] = itask;
+  }
+}
+
+/*******************************************************************************
  * \brief Internal routine for executing the tasks in given batch on the CPU.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_multiply_cpu_process_batch(int ntasks, const dbm_task_t batch[ntasks],
-                                    double alpha, const dbm_pack_t *pack_a,
+void dbm_multiply_cpu_process_batch(const dbm_batch_t *batch, double alpha,
+                                    const dbm_pack_t *pack_a,
                                     const dbm_pack_t *pack_b,
                                     dbm_shard_t *shard_c, int options) {
+  const int ntasks = batch->ntasks;
+  const dbm_task_t *const tasks = batch->tasks;
   if (0 >= ntasks) { // nothing to do
     return;
   }
@@ -69,21 +102,7 @@ void dbm_multiply_cpu_process_batch(int ntasks, const dbm_task_t batch[ntasks],
 
   int batch_order[ntasks];
   if (DBM_MULTIPLY_TASK_REORDER & options) {
-    // Sort tasks approximately by m,n,k via bucket sort.
-    int buckets[DBM_BATCH_NUM_BUCKETS] = {0};
-    for (int itask = 0; itask < ntasks; ++itask) {
-      const int i = hash(batch[itask]) % DBM_BATCH_NUM_BUCKETS;
-      ++buckets[i];
-    }
-    for (int i = 1; i < DBM_BATCH_NUM_BUCKETS; ++i) {
-      buckets[i] += buckets[i - 1];
-    }
-    assert(buckets[DBM_BATCH_NUM_BUCKETS - 1] == ntasks);
-    for (int itask = 0; itask < ntasks; ++itask) {
-      const int i = hash(batch[itask]) % DBM_BATCH_NUM_BUCKETS;
-      --buckets[i];
-      batch_order[buckets[i]] = itask;
-    }
+    dbm_multiply_cpu_task_order(ntasks, tasks, batch_order);
   } else {
     for (int itask = 0; itask < ntasks; ++itask) {
       batch_order[itask] = itask;
@@ -96,10 +115,10 @@ void dbm_multiply_cpu_process_batch(int ntasks, const dbm_task_t batch[ntasks],
 #endif
 
   // Loop over tasks.
-  dbm_task_t task_next = batch[batch_order[0]];
+  dbm_task_t task_next = tasks[batch_order[0]];
   for (int itask = 0; itask < ntasks; ++itask) {
     const dbm_task_t task = task_next;
-    task_next = batch[batch_order[(itask + 1) < ntasks ? (itask + 1) : itask]];
+    task_next = tasks[batch_order[(itask + 1) < ntasks ? (itask + 1) : itask]];
 
 #if defined(__LIBXS)
     if (0 == (DBM_MULTIPLY_BLAS_LIBRARY & options) &&

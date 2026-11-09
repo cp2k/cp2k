@@ -116,12 +116,13 @@ bool dbm_multiply_gpu_upload_packs(const dbm_pack_t *pack_a,
  * \brief Internal routine for executing the tasks in given batch on the GPU.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
+void dbm_multiply_gpu_process_batch(const dbm_batch_t *batch,
                                     const double alpha, dbm_shard_t *shard_c,
                                     const int kshard, const bool finish,
                                     dbm_multiply_gpu_context_t *ctx) {
   // Assume GPU device was activated earlier.
   dbm_shard_gpu_t *const shard_g = &ctx->shards_c_dev[kshard];
+  const int ntasks = batch->ntasks;
   double *old_data_dev = NULL;
 
   if (0 < ntasks) {
@@ -130,7 +131,7 @@ void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
     // Upload new batch.
     dbm_task_t *batch_dev = &ctx->batches_dev[kshard * ctx->max_batch_size];
     const size_t size = ntasks * sizeof(dbm_task_t);
-    offloadMemcpyAsyncHtoD(batch_dev, batch, size, shard_g->stream);
+    offloadMemcpyAsyncHtoD(batch_dev, batch->tasks, size, shard_g->stream);
 
     // Reallocate shard_g->data if necessary.
     if (shard_c->data_promised > shard_g->data_allocated) {
@@ -158,9 +159,9 @@ void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
     assert(0 != shard_g->data_size);
 
     // Launch kernel.
-    dbm_multiply_gpu_launch_kernel(shard_g->stream, alpha, ntasks, batch,
-                                   batch_dev, ctx->pack_a_dev.data,
-                                   ctx->pack_b_dev.data, shard_g->data);
+    dbm_multiply_gpu_launch_kernel(shard_g->stream, alpha, batch, batch_dev,
+                                   ctx->pack_a_dev.data, ctx->pack_b_dev.data,
+                                   shard_g->data);
     OFFLOAD_CHECK(offloadGetLastError());
   }
 

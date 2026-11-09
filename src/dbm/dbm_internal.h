@@ -7,6 +7,9 @@
 #ifndef DBM_INTERNAL_H
 #define DBM_INTERNAL_H
 
+#include <stdbool.h>
+#include <stdint.h>
+
 /*******************************************************************************
  * \brief Returns the larger of two given integers (missing from the C standard)
  * \author Ole Schuett
@@ -47,6 +50,23 @@ typedef struct {
   int offset_b;
   int offset_c;
 } dbm_task_t;
+
+/*******************************************************************************
+ * \brief Internal struct for storing a batch of tasks along with its shape,
+ *        which is tracked while the batch is generated such that a backend
+ *        needs no pass over the tasks. The batch is homogeneous if
+ *        flops == 2*ntasks*max_m*max_n*max_k, otherwise their ratio is the
+ *        fill of a kernel padded to the maxima.
+ * \author Hans Pabst
+ ******************************************************************************/
+typedef struct {
+  int max_m;
+  int max_n;
+  int max_k;
+  int64_t flops;
+  int ntasks;
+  dbm_task_t *tasks;
+} dbm_batch_t;
 
 #endif
 
