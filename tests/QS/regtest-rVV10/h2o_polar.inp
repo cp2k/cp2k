@@ -75,7 +75,7 @@
   &END PROPERTIES
   &SUBSYS
     &CELL
-      ABC [bohr] 7.5 7.5 7.5
+      ABC [bohr] 6 6 6
       PERIODIC NONE
     &END CELL
     &COORD
