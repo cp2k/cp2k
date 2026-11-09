@@ -39,13 +39,13 @@ namespace rocm_backend {
 constexpr int integrate_separable_lp_threshold = 0;
 
 __inline__ __device__ double sep_row_reduce(double val) {
-  for (int offset = CP2K_SEP_INTEGRATE_ROW_LANES / 2; offset > 0;
+  for (int offset = GRID_SEP_INTEGRATE_ROW_LANES / 2; offset > 0;
        offset >>= 1) {
 #if defined(__CUDACC__)
     val +=
-        __shfl_down_sync(0xffffffff, val, offset, CP2K_SEP_INTEGRATE_ROW_LANES);
+        __shfl_down_sync(0xffffffff, val, offset, GRID_SEP_INTEGRATE_ROW_LANES);
 #else
-    val += __shfl_down(val, offset, CP2K_SEP_INTEGRATE_ROW_LANES);
+    val += __shfl_down(val, offset, GRID_SEP_INTEGRATE_ROW_LANES);
 #endif
   }
   return val;
@@ -1021,7 +1021,7 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
 
   // the per thread accumulators have lmax_ + 1 entries, lmax_ >= lp_max (see
   // separable_lmax_bucket)
-  static_assert(lmax_ <= CP2K_SEP_MAX_L, "lmax_ larger than CP2K_SEP_MAX_L");
+  static_assert(lmax_ <= GRID_SEP_MAX_L, "lmax_ larger than GRID_SEP_MAX_L");
 
   const task_info &glb_task = dev_.tasks[dev_.first_task + block_index()];
   if (glb_task.skip_task)
@@ -1084,9 +1084,9 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
   __syncthreads();
 
   const int npairs = (lp + 1) * (lp + 2) / 2;
-  const int row_group = tid / CP2K_SEP_INTEGRATE_ROW_LANES;
-  const int lane = tid % CP2K_SEP_INTEGRATE_ROW_LANES;
-  constexpr int nrow_groups = 64 / CP2K_SEP_INTEGRATE_ROW_LANES;
+  const int row_group = tid / GRID_SEP_INTEGRATE_ROW_LANES;
+  const int lane = tid % GRID_SEP_INTEGRATE_ROW_LANES;
+  constexpr int nrow_groups = 64 / GRID_SEP_INTEGRATE_ROW_LANES;
 
   for (int z = 0; z < task.cube_size.z; z++) {
     // the plane decisions below are uniform over the block
@@ -1117,7 +1117,7 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
         pz[c] = p;
     }
 
-    // step A: one group of CP2K_SEP_INTEGRATE_ROW_LANES lanes per row y. The
+    // step A: one group of GRID_SEP_INTEGRATE_ROW_LANES lanes per row y. The
     // trip count of the y0 loop is uniform over the block so that every lane
     // takes part in the shuffle reduction, even when its row is past ymax.
     for (int y0 = ymin; y0 <= ymax; y0 += nrow_groups) {
@@ -1149,8 +1149,8 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
         // periodic index of x, updated incrementally
         const int nx_full = dev_.grid_full_size_.x;
         int x2 = wrap_grid_index(xmin + lane + task.cube_center.x, nx_full);
-        for (int x = xmin + lane; x <= xmax; x += CP2K_SEP_INTEGRATE_ROW_LANES,
-                 x2 = sep_advance_wrapped_index<CP2K_SEP_INTEGRATE_ROW_LANES>(
+        for (int x = xmin + lane; x <= xmax; x += GRID_SEP_INTEGRATE_ROW_LANES,
+                 x2 = sep_advance_wrapped_index<GRID_SEP_INTEGRATE_ROW_LANES>(
                      x2, nx_full)) {
           if (distributed__ && task.apply_border_mask &&
               ((x2 < task.window_shift.x) || (x2 > task.window_size.x)))
@@ -1322,7 +1322,7 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
   // anything else happens
   const bool use_separable =
       (lp_max >= integrate_separable_lp_threshold) &&
-      (lp_max <= CP2K_SEP_MAX_L) && (max_cube_size > 0) &&
+      (lp_max <= GRID_SEP_MAX_L) && (max_cube_size > 0) &&
       (axis_aligned || !grid.is_orthogonal()) &&
       (integrate_separable_smem_size(max_cube_size, lp_max) <=
        separable_max_smem);
@@ -1389,7 +1389,7 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
                                    params, lattice_to_cartesian);
     break;
   default:
-    launch_integrate_separable<CP2K_SEP_MAX_L>(
+    launch_integrate_separable<GRID_SEP_MAX_L>(
         cfg, grid.is_distributed(), axis_aligned, params, lattice_to_cartesian);
   }
 }

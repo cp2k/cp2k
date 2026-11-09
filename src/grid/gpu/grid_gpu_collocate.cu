@@ -342,9 +342,9 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
   __syncthreads();
 
   const int npairs = (lp + 1) * (lp + 2) / 2;
-  const int row_group = tid / CP2K_SEP_COLLOCATE_ROW_LANES;
-  const int lane = tid % CP2K_SEP_COLLOCATE_ROW_LANES;
-  constexpr int nrow_groups = 64 / CP2K_SEP_COLLOCATE_ROW_LANES;
+  const int row_group = tid / GRID_SEP_COLLOCATE_ROW_LANES;
+  const int lane = tid % GRID_SEP_COLLOCATE_ROW_LANES;
+  constexpr int nrow_groups = 64 / GRID_SEP_COLLOCATE_ROW_LANES;
 
   for (int z = 0; z < task.cube_size.z; z++) {
     // the plane decisions below are uniform over the block
@@ -407,7 +407,7 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
       }
       __syncthreads();
 
-      // step 3: one group of CP2K_SEP_COLLOCATE_ROW_LANES lanes per row y,
+      // step 3: one group of GRID_SEP_COLLOCATE_ROW_LANES lanes per row y,
       // Horner in x.
       for (int y = y0 + row_group; y <= y1; y += nrow_groups) {
         const int y2 =
@@ -433,15 +433,15 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
           const double s = g01 * v + g02 * w;
           const double u0 = xmin + lane + task.lb_cube.x + task.roffset.x;
           t = exp(-2.0 * zetp * s * u0);
-          q = exp(-2.0 * zetp * s * CP2K_SEP_COLLOCATE_ROW_LANES);
+          q = exp(-2.0 * zetp * s * GRID_SEP_COLLOCATE_ROW_LANES);
         }
 
         // periodic index of x, updated incrementally
         const int nx_full = dev_.grid_full_size_.x;
         int x2 = wrap_grid_index(xmin + lane + task.cube_center.x, nx_full);
-        for (int x = xmin + lane; x <= xmax; x += CP2K_SEP_COLLOCATE_ROW_LANES,
+        for (int x = xmin + lane; x <= xmax; x += GRID_SEP_COLLOCATE_ROW_LANES,
                  t *= q,
-                 x2 = sep_advance_wrapped_index<CP2K_SEP_COLLOCATE_ROW_LANES>(
+                 x2 = sep_advance_wrapped_index<GRID_SEP_COLLOCATE_ROW_LANES>(
                      x2, nx_full)) {
           if (distributed__ && task.apply_border_mask &&
               ((x2 < task.window_shift.x) || (x2 > task.window_size.x)))
@@ -580,8 +580,8 @@ void context_info::collocate_one_grid_level(const int level,
   const int lp_max = smem_params.lp_max();
   const int max_cube_size = std::max(grid.max_cube_size(), 1);
   const bool axis_aligned = grid.is_axis_aligned();
-  // lp_max <= grid_gpu_max_l == CP2K_SEP_MAX_L is checked by smem_parameters
-  static_assert(grid_gpu_max_l <= CP2K_SEP_MAX_L, "separable tables too small");
+  // lp_max <= grid_gpu_max_l == GRID_SEP_MAX_L is checked by smem_parameters
+  static_assert(grid_gpu_max_l <= GRID_SEP_MAX_L, "separable tables too small");
 
   init_separable_constant_memory();
   const double *lattice_to_cartesian =

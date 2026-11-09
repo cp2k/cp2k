@@ -285,20 +285,6 @@ compute_coordinates(const double *__restrict__ dh_, const double x,
   return r3;
 }
 
-__inline__ __device__ float3 compute_coordinates(const float *__restrict__ dh_,
-                                                 const float x, const float y,
-                                                 const float z) {
-
-  float3 r3;
-  // I make no distinction between orthorhombic and non orthorhombic
-  // cases
-
-  r3.x = z * dh_[6] + y * dh_[3] + x * dh_[0];
-  r3.y = z * dh_[7] + y * dh_[4] + x * dh_[1];
-  r3.z = z * dh_[8] + y * dh_[5] + x * dh_[2];
-  return r3;
-}
-
 /*******************************************************************************
  * \brief Computes the polynomial expansion coefficients:
  *        (x-a)**lxa (x-b)**lxb -> sum_{ls} alpha(ls,lxa,lxb,1)*(x-p)**ls
@@ -356,24 +342,6 @@ __host__ __inline__ __device__ void
 convert_from_lattice_coordinates_to_cartesian(
     const double *__restrict__ dh_, const double3 *__restrict__ const rp,
     double3 *__restrict__ rp_c) {
-  rp_c->x = dh_[0] * rp->x + dh_[3] * rp->y + dh_[6] * rp->z;
-  rp_c->y = dh_[1] * rp->x + dh_[4] * rp->y + dh_[7] * rp->z;
-  rp_c->z = dh_[2] * rp->x + dh_[5] * rp->y + dh_[8] * rp->z;
-}
-
-__host__ __inline__ __device__ void
-convert_to_lattice_coordinates(const float *dh_inv_,
-                               const float3 *__restrict__ const rp,
-                               float3 *__restrict__ rp_c) {
-  rp_c->x = dh_inv_[0] * rp->x + dh_inv_[3] * rp->y + dh_inv_[6] * rp->z;
-  rp_c->y = dh_inv_[1] * rp->x + dh_inv_[4] * rp->y + dh_inv_[7] * rp->z;
-  rp_c->z = dh_inv_[2] * rp->x + dh_inv_[5] * rp->y + dh_inv_[8] * rp->z;
-}
-
-__host__ __inline__ __device__ void
-convert_from_lattice_coordinates_to_cartesian(
-    const float *__restrict__ dh_, const float3 *__restrict__ const rp,
-    float3 *__restrict__ rp_c) {
   rp_c->x = dh_[0] * rp->x + dh_[3] * rp->y + dh_[6] * rp->z;
   rp_c->y = dh_[1] * rp->x + dh_[4] * rp->y + dh_[7] * rp->z;
   rp_c->z = dh_[2] * rp->x + dh_[5] * rp->y + dh_[8] * rp->z;
@@ -814,6 +782,40 @@ __device__ __inline__ void cab_to_cxyz_factorized(const smem_task<T> &task,
 
 /*******************************************************************************
  * \brief Same result as cxyz_to_cab.
+ *
+ *        cxyz_to_cab computes, with the 3D multi-indices a, b, c,
+ *
+ *          cab[b][a] = prefactor sum_c alpha[a][b][c] cxyz[c]
+ *
+ *        where alpha expands the product of the two cartesian monomials
+ *        around p, (x - A)^a (x - B)^b = sum_c alpha[a][b][c] (x - P)^c.
+ *        In each direction, with dA = P - A and dB = P - B,
+ *
+ *          (x - A)^a = sum_{a' <= a} TA[a][a'] (x - P)^a',
+ *          TA[a][a'] = C(a, a') dA^(a - a')
+ *
+ *        and similarly TB for b. Multiplying the two expansions,
+ *
+ *          alpha[a][b][c] = sum_{a' + b' = c} TA[a][a'] TB[b][b'],
+ *
+ *        hence
+ *
+ *          cab[b][a] = sum_{a', b'} TB[b][b'] TA[a][a'] G[b'][a'],
+ *          G[b'][a'] = prefactor cxyz[a' + b'].
+ *
+ *        The sum is done in three steps without forming alpha:
+ *
+ *          1. gather G from cxyz (a' + b' summed per direction);
+ *          2. apply TA to the a index, one direction at a time, since the 3D
+ *             TA is the product of the x, y and z 1D matrices:
+ *               new[m] = sum_{k <= m} C(m, k) dA^k old[m - k]
+ *             (move_center<T, true>, in place, one 1D line per thread);
+ *          3. apply TB to the b index in the same way.
+ *
+ *        TA and TB are lower triangular, so both steps map cab onto itself.
+ *        cab_to_cxyz_factorized is the transpose of the same product: TA^T
+ *        and TB^T (move_center<T, false>), then the scatter
+ *        cxyz[c] = prefactor sum_{a' + b' = c} cab[b'][a'].
  ******************************************************************************/
 template <typename T>
 __device__ __inline__ void cxyz_to_cab_factorized(const smem_task<T> &task,

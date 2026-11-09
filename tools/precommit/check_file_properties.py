@@ -31,6 +31,7 @@ FLAG_EXCEPTIONS = (
     r"FD_DEBUG",
     r"GRID_DO_COLLOCATE",
     r"GRID_GPU.*_H",
+    r"GRID_SEP_.+",
     r"INTEL_MKL_VERSION",
     r"LIBINT2_MAX_AM_eri",
     r"LIBGRPP",
@@ -87,8 +88,6 @@ FLAG_EXCEPTIONS = (
     r"__SCALAPACK_NO_WA",
     r"__STATM_RESIDENT",
     r"__STATM_TOTAL",
-    r"CP2K_SEP_.+",
-    r"SEP_.+",
 )
 
 FLAG_EXCEPTIONS_RE = re.compile(r"|".join(FLAG_EXCEPTIONS))
