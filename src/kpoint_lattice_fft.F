@@ -212,16 +212,18 @@ CONTAINS
 !> \param work optional prepared geometry, unchanged throughout repeated calls
 !> \param cell_first first prepared image-map column for this batch
 !> \param max_workspace_bytes optional FFT workspace bound
+!> \param accumulate add to values_k; abort on FFT execution failure to avoid partial accumulation
 ! **************************************************************************************************
    SUBROUTINE cell_to_k_grid_fft(values_rs, index_to_cell, xkp, nkp_grid, values_k, &
                                  used_fft, deriv_direction, hmat, selected_kpoints, require_fft, work, cell_first, &
-                                 max_workspace_bytes)
+                                 max_workspace_bytes, accumulate)
 
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: values_rs
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp
       INTEGER, DIMENSION(3), INTENT(IN)                  :: nkp_grid
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)  :: values_k
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: values_k
       LOGICAL, INTENT(OUT), OPTIONAL                     :: used_fft
       INTEGER, INTENT(IN), OPTIONAL                      :: deriv_direction
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN), &
@@ -232,17 +234,20 @@ CONTAINS
          OPTIONAL, TARGET                                :: work
       INTEGER, INTENT(IN), OPTIONAL                      :: cell_first
       INTEGER(KIND=int_8), INTENT(IN), OPTIONAL          :: max_workspace_bytes
+      LOGICAL, INTENT(IN), OPTIONAL                      :: accumulate
 
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: input(:, :, :, :), output(:, :, :, :)
       INTEGER                                            :: first, handle, i, icell, ik, ik_out, &
                                                             image, j, nbatch, nout, start, stat, &
                                                             width
       INTEGER(KIND=int_8)                                :: budget, needed, ngrid
-      LOGICAL                                            :: success
+      LOGICAL                                            :: add, success
       TYPE(cell_to_k_grid_work_type), POINTER            :: plan
       TYPE(cell_to_k_grid_work_type), TARGET             :: local_work
 
       CALL timeset("cell_to_k_grid_fft", handle)
+      add = .FALSE.
+      IF (PRESENT(accumulate)) add = accumulate
 
       IF (SIZE(index_to_cell, 1) < 3 .OR. &
           SIZE(index_to_cell, 2) /= SIZE(values_rs, 3)) THEN
@@ -326,13 +331,22 @@ CONTAINS
                   DO ik_out = 1, SIZE(values_k, 3)
                      ik = ik_out
                      IF (PRESENT(selected_kpoints)) ik = selected_kpoints(ik_out)
-                     values_k(first:first + nbatch - 1, j, ik_out) = &
-                        output(:, plan%grid_index(1, ik), plan%grid_index(2, ik), plan%grid_index(3, ik))
+                     IF (add) THEN
+                        values_k(first:first + nbatch - 1, j, ik_out) = &
+                           values_k(first:first + nbatch - 1, j, ik_out) + &
+                           output(:, plan%grid_index(1, ik), plan%grid_index(2, ik), plan%grid_index(3, ik))
+                     ELSE
+                        values_k(first:first + nbatch - 1, j, ik_out) = &
+                           output(:, plan%grid_index(1, ik), plan%grid_index(2, ik), plan%grid_index(3, ik))
+                     END IF
                   END DO
                END DO
                IF (stat /= 0) EXIT
             END DO
             success = stat == 0
+            IF (stat /= 0 .AND. add) THEN
+               CPABORT("Accumulating lattice FFT execution failed")
+            END IF
          END IF
       END IF
       IF (.NOT. success) THEN
@@ -341,7 +355,7 @@ CONTAINS
                CPABORT("Forced lattice FFT execution failed")
             END IF
          END IF
-         CALL direct_cell_to_k(values_rs, index_to_cell, xkp, values_k, deriv_direction, hmat, selected_kpoints)
+         CALL direct_cell_to_k(values_rs, index_to_cell, xkp, values_k, deriv_direction, hmat, selected_kpoints, add)
       END IF
       IF (PRESENT(used_fft)) used_fft = success
       IF (.NOT. PRESENT(work)) CALL cell_to_k_grid_release(local_work)
@@ -493,30 +507,34 @@ CONTAINS
 !>        Call outside OpenMP worker regions: fft_tools owns its shared pool and planner.
 !> \param work prepared transform; scratch is reused, never shared between concurrent callers
 !> \param values_k matrices at the prepared reciprocal points
-!> \param values_rs matrices at the prepared lattice translations
+!> \param values_rs complex matrices at the prepared lattice translations; omit for values_real
 !> \param used_fft whether this batch used FFT; false denotes a direct fallback or no result
 !> \param require_fft abort on an unsupported mapping or FFT failure, without a direct fallback
 !> \param allow_direct_fallback execute the generic direct sum when FFT is unavailable; defaults to true
+!> \param values_real real part of the inverse transform, instead of values_rs
 ! **************************************************************************************************
-   SUBROUTINE k_grid_to_cell_execute(work, values_k, values_rs, used_fft, require_fft, allow_direct_fallback)
+   SUBROUTINE k_grid_to_cell_execute(work, values_k, values_rs, used_fft, require_fft, allow_direct_fallback, values_real)
 
       TYPE(k_grid_to_cell_work_type), INTENT(INOUT)      :: work
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: values_k
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)  :: values_rs
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+         INTENT(OUT), OPTIONAL                           :: values_rs
       LOGICAL, INTENT(OUT), OPTIONAL                     :: used_fft
       LOGICAL, INTENT(IN), OPTIONAL                      :: require_fft, allow_direct_fallback
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: values_real(:, :, :)
 
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: input(:, :, :, :), output(:, :, :, :)
       INTEGER                                            :: first, handle, i, icell, ik, j, nbatch, &
-                                                            stat, width
+                                                            output_shape(3), stat, width
       INTEGER(KIND=int_8)                                :: ngrid
 
       CALL timeset("k_grid_to_cell_fft", handle)
       CPASSERT(ALLOCATED(work%xkp))
+      CPASSERT(PRESENT(values_rs) .NEQV. PRESENT(values_real))
+      IF (PRESENT(values_rs)) output_shape = SHAPE(values_rs)
+      IF (PRESENT(values_real)) output_shape = SHAPE(values_real)
       IF (SIZE(values_k, 3) /= SIZE(work%xkp, 2) .OR. &
-          SIZE(values_rs, 1) /= SIZE(values_k, 1) .OR. &
-          SIZE(values_rs, 2) /= SIZE(values_k, 2) .OR. &
-          SIZE(values_rs, 3) /= SIZE(work%cells, 2)) THEN
+          ANY(output_shape /= [SIZE(values_k, 1), SIZE(values_k, 2), SIZE(work%cells, 2)])) THEN
          CALL cp_abort(__LOCATION__, "Inconsistent matrix batches in inverse lattice FFT")
       END IF
 
@@ -561,11 +579,15 @@ CONTAINS
                IF (stat /= 0) EXIT
                output(1:nbatch, 1:work%nfft(1), 1:work%nfft(2), 1:work%nfft(3)) => &
                   work%fft_in(1:INT(ngrid)*nbatch)
-               DO icell = 1, SIZE(values_rs, 3)
+               DO icell = 1, SIZE(work%cells, 2)
                   ! The 1D passes are unnormalized; supplied k weights are already final.
-                  values_rs(first:first + nbatch - 1, j, icell) = work%cell_phase(icell)* &
-                                                                  output(:, work%cell_index(1, icell), work%cell_index(2, icell), &
-                                                                         work%cell_index(3, icell))
+                  IF (PRESENT(values_rs)) THEN
+                     values_rs(first:first + nbatch - 1, j, icell) = work%cell_phase(icell)* &
+                                          output(:, work%cell_index(1, icell), work%cell_index(2, icell), work%cell_index(3, icell))
+                  ELSE
+                     values_real(first:first + nbatch - 1, j, icell) = REAL(work%cell_phase(icell)* &
+                                     output(:, work%cell_index(1, icell), work%cell_index(2, icell), work%cell_index(3, icell)), dp)
+                  END IF
                END DO
             END DO
             IF (stat /= 0) EXIT
@@ -580,13 +602,14 @@ CONTAINS
          END IF
          IF (PRESENT(allow_direct_fallback)) THEN
             IF (.NOT. allow_direct_fallback) THEN
-               values_rs = z_zero
+               IF (PRESENT(values_rs)) values_rs = z_zero
+               IF (PRESENT(values_real)) values_real = 0.0_dp
                IF (PRESENT(used_fft)) used_fft = .FALSE.
                CALL timestop(handle)
                RETURN
             END IF
          END IF
-         CALL direct_k_to_cell(values_k, work%xkp, work%cells, values_rs, work%weight)
+         CALL direct_k_to_cell(values_k, work%xkp, work%cells, values_rs, work%weight, values_real)
       END IF
       IF (PRESENT(used_fft)) used_fft = work%regular
       CALL timestop(handle)
@@ -616,27 +639,35 @@ CONTAINS
 !> \param index_to_cell ...
 !> \param values_rs ...
 !> \param weights optional k weights, otherwise 1/number-of-points
+!> \param values_real real part of the inverse transform, instead of values_rs
 ! **************************************************************************************************
-   SUBROUTINE direct_k_to_cell(values_k, xkp, index_to_cell, values_rs, weights)
+   SUBROUTINE direct_k_to_cell(values_k, xkp, index_to_cell, values_rs, weights, values_real)
 
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: values_k
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)  :: values_rs
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+         INTENT(OUT), OPTIONAL                           :: values_rs
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: weights
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: values_real(:, :, :)
 
       COMPLEX(KIND=dp)                                   :: factor
       INTEGER                                            :: icell, ik
       REAL(KIND=dp)                                      :: arg, normalization
 
-      values_rs = z_zero
+      IF (PRESENT(values_rs)) values_rs = z_zero
+      IF (PRESENT(values_real)) values_real = 0.0_dp
       normalization = 1.0_dp/REAL(SIZE(xkp, 2), KIND=dp)
       DO icell = 1, SIZE(index_to_cell, 2)
          DO ik = 1, SIZE(xkp, 2)
             IF (PRESENT(weights)) normalization = weights(ik)
             arg = SUM(xkp(1:3, ik)*REAL(index_to_cell(1:3, icell), KIND=dp))
             factor = normalization*EXP(-gaussi*twopi*arg)
-            values_rs(:, :, icell) = values_rs(:, :, icell) + factor*values_k(:, :, ik)
+            IF (PRESENT(values_rs)) THEN
+               values_rs(:, :, icell) = values_rs(:, :, icell) + factor*values_k(:, :, ik)
+            ELSE
+               values_real(:, :, icell) = values_real(:, :, icell) + REAL(factor*values_k(:, :, ik), dp)
+            END IF
          END DO
       END DO
 
@@ -651,25 +682,28 @@ CONTAINS
 !> \param deriv_direction ...
 !> \param hmat ...
 !> \param selected_kpoints ...
+!> \param accumulate add to the existing output
 ! **************************************************************************************************
    SUBROUTINE direct_cell_to_k(values_rs, index_to_cell, xkp, values_k, &
-                               deriv_direction, hmat, selected_kpoints)
+                               deriv_direction, hmat, selected_kpoints, accumulate)
 
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: values_rs
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)  :: values_k
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: values_k
       INTEGER, INTENT(IN), OPTIONAL                      :: deriv_direction
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN), &
          OPTIONAL                                        :: hmat
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: selected_kpoints
+      LOGICAL, INTENT(IN)                                :: accumulate
 
       COMPLEX(KIND=dp)                                   :: factor
       INTEGER                                            :: icell, ik, ik_out
       REAL(KIND=dp)                                      :: arg
       REAL(KIND=dp), DIMENSION(3)                        :: cell_vector
 
-      values_k = z_zero
+      IF (.NOT. accumulate) values_k = z_zero
       DO ik_out = 1, SIZE(values_k, 3)
          ik = ik_out
          IF (PRESENT(selected_kpoints)) ik = selected_kpoints(ik_out)

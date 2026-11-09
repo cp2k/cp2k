@@ -170,18 +170,15 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: backend
       LOGICAL, INTENT(IN), OPTIONAL                      :: accumulate
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: transformed(:, :, :)
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: complex_values(:, :)
-      INTEGER                                            :: first, handle, i, image, j, kfirst, &
-                                                            last, nk, nphase, nrow, ntile, &
-                                                            nworkers, odd, panels(4), pos, sense, &
-                                                            start, width
+      INTEGER                                            :: handle, i, image, kfirst, last, nk, &
+                                                            nphase, nrow, ntile, nworkers, odd, &
+                                                            panels(4), pos, sense, start, width
       INTEGER(KIND=int_8)                                :: cache_bytes, ifirst, nvalues, &
                                                             worker_bytes
       LOGICAL                                            :: active(4), add
       REAL(KIND=dp), ALLOCATABLE                         :: factors(:, :), packed(:), RESULT(:, :)
       REAL(KIND=dp), CONTIGUOUS, POINTER                 :: real_values(:, :)
-      TYPE(cell_to_k_grid_work_type)                     :: fft_work
       TYPE(rskp_backend_plan_type)                       :: plan
 
       CALL timeset('cell_to_k_transform', handle)
@@ -200,19 +197,8 @@ CONTAINS
       END IF
       SELECT CASE (backend)
       CASE (rskp_backend_fft)
-         CALL cell_to_k_grid_prepare(fft_work, cells, xkp, nkp_grid)
-         ntile = MIN(SIZE(values_rs, 1), INT(MAX(1_int_8, fft_batch_bytes/(16_int_8*nk))))
-         ALLOCATE (transformed(ntile, 1, nk))
-         DO j = 1, SIZE(values_rs, 2)
-            DO first = 1, SIZE(values_rs, 1), ntile
-               last = MIN(first + ntile - 1, SIZE(values_rs, 1))
-               nrow = last - first + 1
-               CALL cell_to_k_grid_fft(values_rs(first:last, j:j, :), cells, xkp, nkp_grid, &
-                                       transformed(1:nrow, :, :), require_fft=.TRUE., work=fft_work)
-               values_k(first:last, j:j, :) = values_k(first:last, j:j, :) + transformed(1:nrow, :, :)
-            END DO
-         END DO
-         CALL cell_to_k_grid_release(fft_work)
+         CALL cell_to_k_grid_fft(values_rs, cells, xkp, nkp_grid, values_k, &
+                                 require_fft=.TRUE., accumulate=add)
       CASE (rskp_backend_gemm)
          nvalues = SIZE(values_rs, 1, KIND=int_8)*SIZE(values_rs, 2, KIND=int_8)
          real_values(1:nvalues, 1:SIZE(values_rs, 3)) => values_rs
@@ -295,14 +281,12 @@ CONTAINS
       REAL(KIND=dp), CONTIGUOUS, INTENT(OUT), TARGET     :: values_rs(:, :, :)
       INTEGER, INTENT(IN)                                :: backend
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: transformed(:, :, :)
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: complex_values(:, :)
-      INTEGER                                            :: first, handle, i, icell, ik, j, last, &
-                                                            ncell, nk, nrow, ntile, nworkers, width
+      INTEGER                                            :: handle, i, icell, ik, last, ncell, nk, &
+                                                            nrow, ntile, nworkers, width
       INTEGER(KIND=int_8)                                :: ifirst, nvalues, worker_bytes
       REAL(KIND=dp)                                      :: arg, weight
-      REAL(KIND=dp), ALLOCATABLE                         :: factors(:, :), packed(:, :, :), &
-                                                            RESULT(:, :)
+      REAL(KIND=dp), ALLOCATABLE                         :: factors(:, :), packed(:, :), RESULT(:, :)
       REAL(KIND=dp), CONTIGUOUS, POINTER                 :: real_values(:, :)
       TYPE(k_grid_to_cell_work_type)                     :: fft_work
 
@@ -321,17 +305,7 @@ CONTAINS
       SELECT CASE (backend)
       CASE (rskp_backend_fft)
          CALL k_grid_to_cell_prepare(fft_work, xkp, nkp_grid, cells)
-         ntile = MIN(SIZE(values_k, 1), INT(MAX(1_int_8, fft_batch_bytes/(16_int_8*ncell))))
-         ALLOCATE (transformed(ntile, 1, ncell))
-         DO j = 1, SIZE(values_k, 2)
-            DO first = 1, SIZE(values_k, 1), ntile
-               last = MIN(first + ntile - 1, SIZE(values_k, 1))
-               nrow = last - first + 1
-               CALL k_grid_to_cell_execute(fft_work, values_k(first:last, j:j, :), &
-                                           transformed(1:nrow, :, :), require_fft=.TRUE.)
-               values_rs(first:last, j:j, :) = REAL(transformed(1:nrow, :, :), dp)
-            END DO
-         END DO
+         CALL k_grid_to_cell_execute(fft_work, values_k, values_real=values_rs, require_fft=.TRUE.)
          CALL k_grid_to_cell_release(fft_work)
       CASE (rskp_backend_gemm)
          nvalues = SIZE(values_k, 1, KIND=int_8)*SIZE(values_k, 2, KIND=int_8)
@@ -343,7 +317,7 @@ CONTAINS
          worker_bytes = (rskp_panel_bytes - 16_int_8*nk*width)/nworkers
          ntile = INT(MIN(nvalues, 4096_int_8, &
                          MAX(1_int_8, worker_bytes/(16_int_8*nk + 8_int_8*width))))
-         ALLOCATE (factors(nk, 2*width))
+         ALLOCATE (factors(2*nk, width))
          weight = 1.0_dp/REAL(nk, dp)
          DO icell = 1, ncell, width
             last = MIN(icell + width - 1, ncell)
@@ -351,24 +325,21 @@ CONTAINS
                DO ik = 1, nk
                   arg = twopi*DOT_PRODUCT(xkp(:, ik), REAL(cells(:, icell + i - 1), dp))
                   factors(ik, i) = weight*COS(arg)
-                  factors(ik, width + i) = weight*SIN(arg)
+                  factors(nk + ik, i) = weight*SIN(arg)
                END DO
             END DO
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED(complex_values, real_values, nvalues, factors, ntile, nk, width, icell, last) &
 !$OMP PRIVATE(packed, result, ifirst, nrow)
-            ALLOCATE (packed(ntile, nk, 2), RESULT(ntile, width))
+            ALLOCATE (packed(ntile, 2*nk), RESULT(ntile, width))
 !$OMP DO SCHEDULE(STATIC)
             DO ifirst = 1, nvalues, ntile
                nrow = INT(MIN(INT(ntile, int_8), nvalues - ifirst + 1))
-               packed(:, :, :) = 0.0_dp
-               packed(1:nrow, :, 1) = REAL(complex_values(ifirst:ifirst + nrow - 1, :), dp)
-               packed(1:nrow, :, 2) = AIMAG(complex_values(ifirst:ifirst + nrow - 1, :))
-               CALL rskp_gemm_contract(ntile, nk, last - icell + 1, packed(:, :, 1), &
+               packed(:, :) = 0.0_dp
+               packed(1:nrow, 1:nk) = REAL(complex_values(ifirst:ifirst + nrow - 1, :), dp)
+               packed(1:nrow, nk + 1:2*nk) = AIMAG(complex_values(ifirst:ifirst + nrow - 1, :))
+               CALL rskp_gemm_contract(ntile, 2*nk, last - icell + 1, packed, &
                                        factors(:, 1:last - icell + 1), RESULT(:, 1:last - icell + 1), 0.0_dp)
-               CALL rskp_gemm_contract(ntile, nk, last - icell + 1, packed(:, :, 2), &
-                                       factors(:, width + 1:width + last - icell + 1), &
-                                       RESULT(:, 1:last - icell + 1), 1.0_dp)
                real_values(ifirst:ifirst + nrow - 1, icell:last) = RESULT(1:nrow, 1:last - icell + 1)
             END DO
 !$OMP END DO
@@ -1267,7 +1238,7 @@ CONTAINS
    END SUBROUTINE kp_transform_plan_create
 
 ! **************************************************************************************************
-!> \brief Contract one real-space image panel with real and optional imaginary phase panels.
+!> \brief Contract one real image panel with real phase factors.
 !> \param nrow number of AO elements in the panel
 !> \param nimages number of real-space images in the panel
 !> \param nk number of k-point columns
@@ -1275,35 +1246,20 @@ CONTAINS
 !> \param phase_re real phase factors
 !> \param result_re real output panel
 !> \param beta output accumulation factor
-!> \param values_im optional image values contributing to the imaginary output
-!> \param phase_im optional imaginary phase factors
-!> \param result_im optional imaginary output panel
 ! **************************************************************************************************
-   SUBROUTINE rskp_gemm_contract(nrow, nimages, nk, values_re, phase_re, result_re, beta, &
-                                 values_im, phase_im, result_im)
+   SUBROUTINE rskp_gemm_contract(nrow, nimages, nk, values_re, phase_re, result_re, beta)
       INTEGER, INTENT(IN)                                :: nrow, nimages, nk
       REAL(KIND=dp), CONTIGUOUS, INTENT(IN)              :: values_re(:, :), phase_re(:, :)
       REAL(KIND=dp), CONTIGUOUS, INTENT(INOUT)           :: result_re(:, :)
       REAL(KIND=dp), INTENT(IN)                          :: beta
-      REAL(KIND=dp), CONTIGUOUS, INTENT(IN), OPTIONAL    :: values_im(:, :), phase_im(:, :)
-      REAL(KIND=dp), CONTIGUOUS, INTENT(INOUT), OPTIONAL :: result_im(:, :)
 
       CPASSERT(nrow > 0 .AND. nimages > 0 .AND. nk > 0)
       CPASSERT(SIZE(values_re, 1) >= nrow .AND. SIZE(values_re, 2) >= nimages)
       CPASSERT(SIZE(phase_re, 1) >= nimages .AND. SIZE(phase_re, 2) >= nk)
       CPASSERT(SIZE(result_re, 1) >= nrow .AND. SIZE(result_re, 2) >= nk)
-      CPASSERT(PRESENT(values_im) .EQV. PRESENT(phase_im))
-      CPASSERT(PRESENT(values_im) .EQV. PRESENT(result_im))
 
       CALL dgemm('N', 'N', nrow, nk, nimages, 1.0_dp, values_re, SIZE(values_re, 1), &
                  phase_re, SIZE(phase_re, 1), beta, result_re, SIZE(result_re, 1))
-      IF (PRESENT(values_im)) THEN
-         CPASSERT(SIZE(values_im, 1) >= nrow .AND. SIZE(values_im, 2) >= nimages)
-         CPASSERT(SIZE(phase_im, 1) >= nimages .AND. SIZE(phase_im, 2) >= nk)
-         CPASSERT(SIZE(result_im, 1) >= nrow .AND. SIZE(result_im, 2) >= nk)
-         CALL dgemm('N', 'N', nrow, nk, nimages, 1.0_dp, values_im, SIZE(values_im, 1), &
-                    phase_im, SIZE(phase_im, 1), beta, result_im, SIZE(result_im, 1))
-      END IF
    END SUBROUTINE rskp_gemm_contract
 
 ! **************************************************************************************************

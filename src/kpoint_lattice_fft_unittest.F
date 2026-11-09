@@ -46,6 +46,7 @@ PROGRAM kpoint_lattice_fft_unittest
    INTEGER, DIMENSION(3, base_cell)                    :: base_index
    INTEGER, DIMENSION(3)                               :: nkp_grid
    INTEGER, DIMENSION(3, ncell)                        :: index_to_cell
+   INTEGER, DIMENSION(3, 259)                          :: panel_cells
    INTEGER, DIMENSION(nselected)                       :: selected_kpoints
    LOGICAL                                             :: used_fft
    REAL(KIND=dp), DIMENSION(3, 3)                      :: hmat
@@ -148,6 +149,10 @@ PROGRAM kpoint_lattice_fft_unittest
    IF (MAXVAL(ABS(transformed - direct)) > 1.0E-14_dp) THEN
       ERROR STOP "Direct lattice-transform fallback is inconsistent"
    END IF
+   CALL cell_to_k_grid_fft(values_rs, index_to_cell, xkp_bad, nkp_grid, transformed, used_fft, accumulate=.TRUE.)
+   IF (used_fft .OR. MAXVAL(ABS(transformed - 2.0_dp*direct)) > 3.0E-12_dp) THEN
+      ERROR STOP 'Direct lattice-transform fallback did not preserve accumulation'
+   END IF
 
    ! An incomplete shifted grid must use the supplied, non-normalized weights.
    ! Include negative translations and reuse preparation for separate matrix batches.
@@ -169,6 +174,23 @@ PROGRAM kpoint_lattice_fft_unittest
    END DO
    IF (MAXVAL(ABS(weighted_result - weighted_reference)) > 3.0E-12_dp) THEN
       ERROR STOP "Prepared weighted inverse differs from explicit phase sum"
+   END IF
+   CALL k_grid_to_cell_execute(inverse_work, transformed(:, :, 1:9), values_real=real_transformed, used_fft=used_fft)
+   IF (.NOT. used_fft .OR. MAXVAL(ABS(real_transformed - REAL(weighted_reference, dp))) > 3.0E-12_dp) THEN
+      ERROR STOP 'Real-output weighted inverse differs from explicit phase sum'
+   END IF
+   CALL k_grid_to_cell_release(inverse_work)
+   CALL k_grid_to_cell_prepare(inverse_work, xkp_bad, nkp_grid, index_to_cell)
+   CALL k_grid_to_cell_execute(inverse_work, transformed, weighted_result, used_fft)
+   IF (used_fft) ERROR STOP 'Irregular inverse incorrectly used lattice FFT'
+   CALL k_grid_to_cell_execute(inverse_work, transformed, values_real=real_transformed, used_fft=used_fft)
+   IF (used_fft .OR. MAXVAL(ABS(real_transformed - REAL(weighted_result, dp))) > 3.0E-12_dp) THEN
+      ERROR STOP 'Real-output inverse fallback differs from the complex result'
+   END IF
+   CALL k_grid_to_cell_execute(inverse_work, transformed, values_real=real_transformed, &
+                               used_fft=used_fft, allow_direct_fallback=.FALSE.)
+   IF (used_fft .OR. ANY(real_transformed /= 0.0_dp)) THEN
+      ERROR STOP 'Disabled real-output inverse fallback did not return zero'
    END IF
    CALL k_grid_to_cell_release(inverse_work)
 
@@ -251,6 +273,23 @@ PROGRAM kpoint_lattice_fft_unittest
       END IF
    END DO
    DEALLOCATE (panel_input, panel_inverse, panel_output, panel_reference)
+
+   ! Exercise a final partial cell tile after the 256-column GEMM tile.
+   ALLOCATE (panel_inverse(2, 3, SIZE(panel_cells, 2)))
+   DO icell = 1, SIZE(panel_cells, 2)
+      panel_cells(:, icell) = index_to_cell(:, MODULO(icell - 1, ncell) + 1)
+   END DO
+   CALL direct_reference(values_rs, index_to_cell, xkp, direct)
+   DO backend = 1, SIZE(backends)
+      CALL k_to_real_cell_transform(direct, xkp, nkp_grid, panel_cells, panel_inverse, backends(backend))
+      DO icell = 1, SIZE(panel_cells, 2)
+         IF (MAXVAL(ABS(panel_inverse(:, :, icell) - &
+                        REAL(weighted_reference(:, :, MODULO(icell - 1, ncell) + 1), dp))) > 3.0E-12_dp) THEN
+            ERROR STOP 'Local RSKP inverse partial cell tile is inconsistent'
+         END IF
+      END DO
+   END DO
+   DEALLOCATE (panel_inverse)
 
    ! Verify the block-circulant inverse by applying the original dense operator.
    base_dims = [4, 2, 1]
