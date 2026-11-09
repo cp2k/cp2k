@@ -80,6 +80,7 @@ MODULE kpoint_methods
                                               regular_kpoint_grid
    USE kpoint_transform,                ONLY: ensure_work_matrix => rskp_work_matrix,&
                                               k_grid_to_cell_contract,&
+                                              k_grid_to_cell_profile_type,&
                                               kp_symmetry_phase_factors => rskp_phase_factors,&
                                               kp_transform_plan_create,&
                                               kp_transform_plan_type,&
@@ -90,6 +91,7 @@ MODULE kpoint_methods
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
                                               LOCAL_GEMM_PU_HOST,&
                                               local_gemm_ctxt_type
+   USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: twopi,&
                                               z_one,&
                                               z_zero
@@ -2016,12 +2018,17 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: for_aux_fit, mixed_aux_orb
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform_batched'
+      CHARACTER(LEN=12), PARAMETER :: profile_stages(6) = [CHARACTER(LEN=12) :: 'setup', 'phase', &
+         'pack/gauge', 'GEMM', 'expand', 'rotate/add']
       INTEGER(KIND=int_8), PARAMETER                     :: max_bytes = 64_int_8*1024*1024
       INTEGER, PARAMETER                                 :: images_per_tile = 8, max_batch = 256
 
       INTEGER :: a, b, batch, first, handle, i, ic, igroup, ikp, image, ispin, j, last, nblock, &
-         njob, nlocal, nrow, nthreads, ntile, nvalue, orientation, owner, slot, thread, tile
-      INTEGER(KIND=int_8)                                :: block_size
+         njob, nlocal, nrow, nthreads, ntile, nvalue, orientation, owner, profile_handle, slot, &
+         thread, tile, unit_nr
+      INTEGER(KIND=int_8)                                :: block_size, profile_counts(4), &
+                                                            shape_max(3), shape_min(3), &
+                                                            shape_sum(3)
       INTEGER, ALLOCATABLE                               :: available(:, :, :), counts(:), &
                                                             jobs(:, :), local_jobs(:, :), &
                                                             offsets(:), tile_start(:), &
@@ -2029,16 +2036,20 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_offset, col_size, row_offset, &
                                                             row_size
       LOGICAL                                            :: found, trans
+      REAL(KIND=dp)                                      :: profile_flops, profile_max_seconds(6), &
+                                                            profile_seconds(6), profile_total
       REAL(KIND=dp), ALLOCATABLE                         :: packed(:, :), phases(:, :), &
                                                             rotation_work(:, :)
       REAL(KIND=dp), ALLOCATABLE, TARGET                 :: sums(:, :, :), values(:, :)
       REAL(KIND=dp), POINTER                             :: block(:, :)
+      TYPE(k_grid_to_cell_profile_type), ALLOCATABLE     :: profiles(:)
       TYPE(kp_density_group_type), ALLOCATABLE           :: groups(:)
       TYPE(local_gemm_ctxt_type), ALLOCATABLE            :: gemm_ctx(:)
       TYPE(mp_para_env_type), POINTER                    :: world
 
       CALL timeset(routineN, handle)
       world => kpoint%blacs_env_all%para_env
+      CALL timeset('kp_density_plan', profile_handle)
       CALL dbcsr_get_info(template, row_blk_size=row_size, col_blk_size=col_size, &
                           row_blk_offset=row_offset, col_blk_offset=col_offset)
       CALL kp_density_groups_create(kpoint, SIZE(row_size), groups, for_aux_fit=for_aux_fit, &
@@ -2073,6 +2084,7 @@ CONTAINS
                                   NINT(SUM(plan%symmetry_sign(first:last)))]
       END DO
       CALL world%allgather(nlocal, counts)
+      CALL timestop(profile_handle)
       IF (MAXVAL(counts) == 0) THEN
          CALL timestop(handle)
          RETURN
@@ -2086,6 +2098,7 @@ CONTAINS
       nthreads = 1
 !$    nthreads = MIN(omp_get_max_threads(), batch)
       ALLOCATE (gemm_ctx(nthreads))
+      ALLOCATE (profiles(nthreads), source=k_grid_to_cell_profile_type())
       DO thread = 1, nthreads
          CALL gemm_ctx(thread)%create(LOCAL_GEMM_PU_HOST, timing=.FALSE.)
       END DO
@@ -2134,9 +2147,10 @@ CONTAINS
             nvalue = offsets(njob + 1) - 1
             nthreads = MIN(SIZE(gemm_ctx), ntile)
             values(1:nvalue, :) = 0.0_dp
+            CALL timeset('kp_density_contract', profile_handle)
 !$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(nthreads) &
 !$OMP SHARED(source,tiles,groups,jobs,available,plan,row_size,col_size,row_offset,col_offset, &
-!$OMP        values,offsets,tile_start,ntile,gemm_ctx) &
+!$OMP        values,offsets,tile_start,ntile,gemm_ctx,profiles) &
 !$OMP PRIVATE(tile,j,last,packed,phases,sums,rotation_work,thread)
             thread = 1
 !$          thread = omp_get_thread_num() + 1
@@ -2148,13 +2162,17 @@ CONTAINS
                                              jobs(:, j:last), available(:, :, tile), plan%symmetric, &
                                              row_size, col_size, row_offset, col_offset, &
                                              values(offsets(j):offsets(last + 1) - 1, :), &
-                                             packed, phases, sums, rotation_work, gemm_ctx(thread))
+                                             packed, phases, sums, rotation_work, gemm_ctx(thread), profiles(thread))
             END DO
 !$OMP END DO
 !$OMP END PARALLEL
+            CALL timestop(profile_handle)
             DO ispin = 1, SIZE(source, 3)
+               CALL timeset('kp_density_reduce', profile_handle)
                IF (world%num_pe > 1) CALL world%sum(values(1:nvalue, ispin), root=owner)
+               CALL timestop(profile_handle)
                IF (world%mepos /= owner) CYCLE
+               CALL timeset('kp_density_scatter', profile_handle)
                DO j = 1, njob
                   CALL dbcsr_get_block_p(denmat(ispin, jobs(3, j))%matrix, jobs(1, j), jobs(2, j), block, found=found)
                   CPASSERT(found)
@@ -2164,12 +2182,59 @@ CONTAINS
                      block(:, i) = values(nblock:nblock + nrow - 1, ispin)
                   END DO
                END DO
+               CALL timestop(profile_handle)
             END DO
          END DO
       END DO
       DO thread = 1, SIZE(gemm_ctx)
          CALL gemm_ctx(thread)%destroy()
       END DO
+      profile_seconds(:) = 0.0_dp
+      profile_max_seconds(:) = 0.0_dp
+      profile_counts(:) = 0_int_8
+      profile_flops = 0.0_dp
+      shape_min(:) = HUGE(0_int_8)
+      shape_sum(:) = 0_int_8
+      shape_max(:) = 0_int_8
+      DO thread = 1, SIZE(profiles)
+         profile_seconds(:) = profile_seconds + profiles(thread)%seconds
+         profile_max_seconds(:) = MAX(profile_max_seconds, profiles(thread)%seconds)
+         profile_counts(:) = profile_counts + profiles(thread)%counts
+         profile_flops = profile_flops + profiles(thread)%flops
+         shape_min(:) = MIN(shape_min, profiles(thread)%shape_min)
+         shape_sum(:) = shape_sum + profiles(thread)%shape_sum
+         shape_max(:) = MAX(shape_max, profiles(thread)%shape_max)
+      END DO
+      CALL world%sum(profile_seconds)
+      CALL world%max(profile_max_seconds)
+      CALL world%sum(profile_counts)
+      CALL world%sum(profile_flops)
+      CALL world%min(shape_min)
+      CALL world%sum(shape_sum)
+      CALL world%max(shape_max)
+      profile_total = SUM(profile_seconds)
+      unit_nr = cp_logger_get_default_io_unit()
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A)') 'K2R_PROFILE| Worker-seconds summed over all MPI ranks and OpenMP workers'
+         WRITE (unit_nr, '(T2,A)') 'K2R_PROFILE| Stage           sum worker-s   max worker-s   fraction'
+         DO i = 1, SIZE(profile_stages)
+            WRITE (unit_nr, '(T2,A,A12,2F14.6,F9.2,A)') 'K2R_PROFILE| ', profile_stages(i), &
+               profile_seconds(i), profile_max_seconds(i), &
+               100.0_dp*profile_seconds(i)/MAX(TINY(1.0_dp), profile_total), ' %'
+         END DO
+         WRITE (unit_nr, '(T2,A,4I16)') 'K2R_PROFILE| contracts/trig/FM-values/GEMMs: ', profile_counts
+         WRITE (unit_nr, '(T2,A,F14.6)') 'K2R_PROFILE| FM values gathered (GiB): ', &
+            8.0_dp*REAL(profile_counts(3), dp)/1024.0_dp**3
+         IF (profile_counts(4) > 0_int_8) THEN
+            WRITE (unit_nr, '(T2,A,3I12)') 'K2R_PROFILE| GEMM M/N/K min: ', shape_min
+            WRITE (unit_nr, '(T2,A,3F12.2)') 'K2R_PROFILE| GEMM M/N/K mean: ', &
+               REAL(shape_sum, dp)/REAL(profile_counts(4), dp)
+            WRITE (unit_nr, '(T2,A,3I12)') 'K2R_PROFILE| GEMM M/N/K max: ', shape_max
+            WRITE (unit_nr, '(T2,A,ES14.6)') 'K2R_PROFILE| GEMM FLOPs: ', profile_flops
+            WRITE (unit_nr, '(T2,A,F14.6)') 'K2R_PROFILE| GEMM GF/s per calling worker: ', &
+               profile_flops/MAX(1.0E-12_dp, profile_seconds(4))/1.0E9_dp
+         END IF
+      END IF
       CALL timestop(handle)
    END SUBROUTINE kpoint_density_transform_batched
 
@@ -2193,6 +2258,7 @@ CONTAINS
       INTEGER                                            :: i, ik, ikp, is, ncontrib, nrot, pass, &
                                                             slot
       INTEGER, ALLOCATABLE                               :: counts(:)
+      LOGICAL                                            :: same_gauge
       TYPE(kpoint_sym_type), POINTER                     :: kpsym
 
       nrot = 0
@@ -2231,7 +2297,8 @@ CONTAINS
                   ELSE IF (slot > 0) THEN
                      ! One crystallographic operation has one atom/gauge mapping.
                      CPASSERT(ALL(groups(slot)%op%atom_map == kpsym%f0(:, is)))
-                     CPASSERT(ALL(groups(slot)%op%cell_shift == kpsym%fcell_gauge(:, :, is)))
+                     same_gauge = ALL(groups(slot)%op%cell_shift == kpsym%fcell_gauge(:, :, is))
+                     CPASSERT(same_gauge)
                   END IF
                END IF
                IF (ik < kpoint%kp_range(1) .OR. ik > kpoint%kp_range(2)) CYCLE
@@ -2376,10 +2443,11 @@ CONTAINS
 !> \param sums reusable thread-local contracted blocks
 !> \param rotation_work reusable thread-local GEMM buffer
 !> \param gemm_ctx thread-owned local GEMM context
+!> \param profile thread-owned diagnostic accumulator
 ! **************************************************************************************************
    SUBROUTINE kp_density_contract_tile(source, tiles, groups, jobs, available, symmetric, &
                                        row_size, col_size, row_offset, col_offset, TARGET, &
-                                       packed, phases, sums, rotation_work, gemm_ctx)
+                                       packed, phases, sums, rotation_work, gemm_ctx, profile)
       TYPE(cp_fm_p_type), INTENT(IN)                     :: source(:, :, :)
       INTEGER, INTENT(IN)                                :: tiles(:, :, :, :, :)
       TYPE(kp_density_group_type), INTENT(IN)            :: groups(0:)
@@ -2392,10 +2460,12 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT), TARGET  :: sums(:, :, :)
       REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT)          :: rotation_work(:, :)
       TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm_ctx
+      TYPE(k_grid_to_cell_profile_type), INTENT(INOUT)   :: profile
 
       INTEGER                                            :: a, b, image, ispin, m, orientation, &
                                                             shift(3), slot
       LOGICAL                                            :: trans
+      REAL(KIND=dp)                                      :: started
       REAL(KIND=dp), POINTER                             :: left_rot(:, :), right_rot(:, :), &
                                                             source_block(:, :), target_block(:, :)
 
@@ -2413,7 +2483,8 @@ CONTAINS
             CALL k_grid_to_cell_contract(source, tiles, groups(slot)%ikp, groups(slot)%xkp, groups(slot)%weight, &
                                          jobs(4:8, :), [a, b], [row_size(a), col_size(b)], &
                                          [row_offset(a), col_offset(b)], shift, groups(slot)%op%time_reversal, &
-                                         trans, packed, phases, sums, gemm_ctx)
+                                         trans, packed, phases, sums, gemm_ctx, profile)
+            started = m_walltime()
             m = row_size(jobs(1, 1))*col_size(jobs(2, 1))
             IF (.NOT. groups(slot)%op%identity) THEN
                left_rot => groups(slot)%op%kind_rot(groups(slot)%op%atom_kind(groups(slot)%inverse(jobs(1, 1))))%rmat
@@ -2433,6 +2504,7 @@ CONTAINS
                   END IF
                END DO
             END DO
+            profile%seconds(6) = profile%seconds(6) + m_walltime() - started
          END DO
       END DO
    END SUBROUTINE kp_density_contract_tile
