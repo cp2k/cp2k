@@ -101,8 +101,9 @@ void dbm_copy(dbm_matrix_t *matrix_a, const dbm_matrix_t *matrix_b) {
 
   assert(matrix_a->dist == matrix_b->dist);
 
+  const int num_shards = dbm_get_num_shards(matrix_a);
 #pragma omp parallel for DBM_OMP_SCHEDULE
-  for (int ishard = 0; ishard < dbm_get_num_shards(matrix_a); ishard++) {
+  for (int ishard = 0; ishard < num_shards; ++ishard) {
     dbm_shard_copy(&matrix_a->shards[ishard], &matrix_b->shards[ishard]);
   }
 }
