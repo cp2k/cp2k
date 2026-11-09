@@ -51,7 +51,7 @@ MODULE kpoint_transform
                                               neighbor_list_set_p_type
    USE util,                            ONLY: sort
 
-!$ USE omp_lib, ONLY: omp_get_max_threads
+!$ USE omp_lib, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -2221,15 +2221,13 @@ CONTAINS
 !> \param shift column-minus-row gauge shift
 !> \param time_reversal conjugate the source before applying its gauge phase
 !> \param trans conjugate the imaginary contribution on transposition
-!> \param packed reusable thread-local source workspace
-!> \param phases reusable thread-local phase workspace
 !> \param sums allocated flattened source blocks by image and spin
-!> \param gemm_ctx thread-owned host GEMM context
-!> \param profile thread-owned diagnostic times, work counts and GEMM shapes
+!> \param gemm_ctx worker-owned host GEMM contexts
+!> \param profile worker-owned diagnostic times, work counts and GEMM shapes
 ! **************************************************************************************************
    SUBROUTINE k_grid_to_cell_contract(source, tiles, ikp_index, xkp, weight, images, source_pair, &
                                       block_shape, block_offset, shift, time_reversal, trans, &
-                                      packed, phases, sums, gemm_ctx, profile)
+                                      sums, gemm_ctx, profile)
       TYPE(cp_fm_p_type), INTENT(IN)                     :: source(:, :, :)
       INTEGER, INTENT(IN)                                :: tiles(:, :, :, :, :), ikp_index(:)
       REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :), weight(:)
@@ -2237,26 +2235,25 @@ CONTAINS
                                                             block_shape(2), block_offset(2), &
                                                             shift(3)
       LOGICAL, INTENT(IN)                                :: time_reversal, trans
-      REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT)          :: packed(:, :), phases(:, :), sums(:, :, :)
-      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm_ctx
-      TYPE(k_grid_to_cell_profile_type), INTENT(INOUT)   :: profile
+      REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT)          :: sums(:, :, :)
+      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm_ctx(:)
+      TYPE(k_grid_to_cell_profile_type), INTENT(INOUT)   :: profile(:)
 
-      INTEGER(KIND=int_8), PARAMETER                     :: max_elements = 65536_int_8
+      INTEGER(KIND=int_8), PARAMETER                     :: max_elements = 1048576_int_8
 
-      INTEGER                                            :: a, b, batch, column, first, i, ic, &
-                                                            ifirst, ii, ikp, ilast, image, ispin, &
-                                                            j, jj, k, last, nc, ncall, nclass, &
-                                                            nelement, nimage, nrow, nsine, nspin
+      INTEGER :: a, actual_workers, b, batch, column, first, i, ic, ifirst, ii, ikp, ilast, image, &
+         ispin, j, jj, k, last, nc, ncall, nclass, nelement, nimage, nrow, nsine, nspin, nworkers, &
+         thread
       INTEGER, ALLOCATABLE                               :: cells(:, :), image_class(:), &
                                                             sine_index(:)
       LOGICAL                                            :: contributes, has_zero, identity_gauge, &
                                                             real_only
       REAL(KIND=dp)                                      :: arg, sine, started
-      REAL(KIND=dp), ALLOCATABLE                         :: beta(:), gauge(:), &
-                                                            gauge_factors(:, :, :), &
-                                                            reduced(:, :, :), zero_sum(:, :)
+      REAL(KIND=dp), ALLOCATABLE :: beta(:), gauge(:), gauge_factors(:, :, :), packed(:, :), &
+         phases(:, :), reduced(:, :, :, :), zero_sum(:, :, :)
       TYPE(cp_fm_type), POINTER                          :: matrix
 
+      CPASSERT(SIZE(gemm_ctx) > 0 .AND. SIZE(profile) == SIZE(gemm_ctx))
       nc = SIZE(source, 2)
       nspin = SIZE(source, 3)
       real_only = nc == 1
@@ -2267,14 +2264,14 @@ CONTAINS
       nelement = block_shape(1)*block_shape(2)
       nimage = SIZE(images, 2)
       started = m_walltime()
-      profile%counts(1) = profile%counts(1) + 1_int_8
+      profile(1)%counts(1) = profile(1)%counts(1) + 1_int_8
       IF (ALLOCATED(sums)) THEN
          IF (ANY(SHAPE(sums) /= [nelement, nimage, nspin])) DEALLOCATE (sums)
       END IF
       IF (.NOT. ALLOCATED(sums)) ALLOCATE (sums(nelement, nimage, nspin))
       IF (nelement == 0 .OR. nimage == 0 .OR. SIZE(ikp_index) == 0) THEN
          sums = 0.0_dp
-         profile%seconds(1) = profile%seconds(1) + m_walltime() - started
+         profile(1)%seconds(1) = profile(1)%seconds(1) + m_walltime() - started
          RETURN
       END IF
       CALL rskp_image_classes(images(1:3, :), image_class, cells)
@@ -2295,17 +2292,36 @@ CONTAINS
          sine_index(i) = nsine
       END DO
       identity_gauge = ALL(shift == 0) .AND. .NOT. time_reversal
-      IF (.NOT. identity_gauge .AND. nc == 2) ALLOCATE (gauge(nelement))
-      ALLOCATE (reduced(nelement, nclass + nsine, nspin))
+      nworkers = MIN(SIZE(gemm_ctx), SIZE(ikp_index))
+      ! Split K for parallelism and an 8 MiB packed/phase scratch target per worker.
+      ! N retains the complete canonical image set; no image-based task limit applies.
+      batch = MIN(512, 1 + (SIZE(ikp_index) - 1)/nworkers)
+      batch = MAX(1, MIN(batch, INT(max_elements/(INT(nc, int_8)*INT(nelement, int_8) + &
+                                                  INT(nclass + nsine, int_8)))))
+      nworkers = MIN(nworkers, 1 + (SIZE(ikp_index) - 1)/batch)
+      actual_workers = 1
+      ALLOCATE (reduced(nelement, nclass + nsine, nspin, nworkers))
+      IF (has_zero) ALLOCATE (zero_sum(nelement, nspin, nworkers), source=0.0_dp)
+      profile(1)%seconds(1) = profile(1)%seconds(1) + m_walltime() - started
+!$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(nworkers) IF(nworkers > 1) &
+!$OMP SHARED(source,tiles,ikp_index,xkp,weight,A,b,block_shape,block_offset,shift,time_reversal, &
+!$OMP        nelement,nspin,nclass,nsine,nc,batch,cells,sine_index,identity_gauge,real_only,has_zero, &
+!$OMP        reduced,zero_sum,gemm_ctx,profile,actual_workers) &
+!$OMP PRIVATE(thread,started,packed,phases,beta,gauge,gauge_factors,first,last,image,k,ispin, &
+!$OMP         contributes,ikp,ic,ifirst,ilast,column,matrix,nrow,j,jj,ii,i,arg,ncall)
+      thread = 1
+!$    thread = omp_get_thread_num() + 1
+!$OMP MASTER
+!$    actual_workers = omp_get_num_threads()
+!$OMP END MASTER
+      started = m_walltime()
       ALLOCATE (beta(nspin), source=0.0_dp)
-      IF (has_zero) ALLOCATE (zero_sum(nelement, nspin), source=0.0_dp)
-      ! Bound packed input and the shared phase tile; all spins reuse the same phases.
-      batch = MAX(1, MIN(128, SIZE(ikp_index), &
-                         INT(max_elements/(INT(nc, int_8)*nelement + nclass + nsine))))
       CALL rskp_work_matrix(packed, nelement, nc*batch)
       CALL rskp_work_matrix(phases, batch, nclass + nsine)
+      IF (.NOT. identity_gauge .AND. nc == 2) ALLOCATE (gauge(nelement))
       IF (.NOT. identity_gauge) ALLOCATE (gauge_factors(2, 2, batch))
-      profile%seconds(1) = profile%seconds(1) + m_walltime() - started
+      profile(thread)%seconds(1) = profile(thread)%seconds(1) + m_walltime() - started
+!$OMP DO SCHEDULE(STATIC)
       DO first = 1, SIZE(ikp_index), batch
          last = MIN(first + batch - 1, SIZE(ikp_index))
          started = m_walltime()
@@ -2324,9 +2340,9 @@ CONTAINS
                                        gauge_factors(:, :, k - first + 1))
             END DO
          END IF
-         profile%seconds(2) = profile%seconds(2) + m_walltime() - started
-         profile%counts(2) = profile%counts(2) + &
-                             INT(nclass + nsine + MERGE(0, 2, identity_gauge), int_8)*INT(last - first + 1, int_8)
+         profile(thread)%seconds(2) = profile(thread)%seconds(2) + m_walltime() - started
+         profile(thread)%counts(2) = profile(thread)%counts(2) + &
+                                     INT(nclass + nsine + MERGE(0, 2, identity_gauge), int_8)*INT(last - first + 1, int_8)
          DO ispin = 1, nspin
             started = m_walltime()
             packed = 0.0_dp
@@ -2341,8 +2357,8 @@ CONTAINS
                   column = k - first + 1 + (ic - 1)*batch
                   matrix => source(ikp, ic, ispin)%matrix
                   nrow = ilast - ifirst + 1
-                  profile%counts(3) = profile%counts(3) + INT(nrow, int_8)* &
-                                      INT(tiles(4, b, ikp, ic, ispin) - tiles(3, b, ikp, ic, ispin) + 1, int_8)
+                  profile(thread)%counts(3) = profile(thread)%counts(3) + INT(nrow, int_8)* &
+                                              INT(tiles(4, b, ikp, ic, ispin) - tiles(3, b, ikp, ic, ispin) + 1, int_8)
                   DO j = tiles(3, b, ikp, ic, ispin), tiles(4, b, ikp, ic, ispin)
                      jj = matrix%matrix_struct%col_indices(j) - block_offset(2)
                      ii = matrix%matrix_struct%row_indices(ifirst) - block_offset(1) + 1 + jj*block_shape(1)
@@ -2369,49 +2385,61 @@ CONTAINS
                      packed(:, column) = gauge
                   END IF
                END IF
-               IF (has_zero) zero_sum(:, ispin) = zero_sum(:, ispin) + weight(k)*packed(:, column)
+               IF (has_zero) zero_sum(:, ispin, thread) = zero_sum(:, ispin, thread) + weight(k)*packed(:, column)
             END DO
-            profile%seconds(3) = profile%seconds(3) + m_walltime() - started
+            profile(thread)%seconds(3) = profile(thread)%seconds(3) + m_walltime() - started
             IF (.NOT. contributes .OR. nclass == 0) CYCLE
             started = m_walltime()
-            CALL gemm_ctx%gemm('N', 'N', nelement, nclass, last - first + 1, 1.0_dp, &
-                               packed, nelement, phases, batch, beta(ispin), reduced(:, :, ispin), nelement)
+            CALL gemm_ctx(thread)%gemm('N', 'N', nelement, nclass, last - first + 1, 1.0_dp, &
+                                       packed, nelement, phases, batch, beta(ispin), reduced(:, :, ispin, thread), nelement)
             IF (nsine > 0) THEN
-               CALL gemm_ctx%gemm('N', 'N', nelement, nsine, last - first + 1, 1.0_dp, &
-                                  packed(:, batch + 1:), nelement, phases(:, nclass + 1:), batch, &
-                                  beta(ispin), reduced(:, nclass + 1:, ispin), nelement)
+               CALL gemm_ctx(thread)%gemm('N', 'N', nelement, nsine, last - first + 1, 1.0_dp, &
+                                          packed(:, batch + 1:), nelement, phases(:, nclass + 1:), batch, &
+                                          beta(ispin), reduced(:, nclass + 1:, ispin, thread), nelement)
             END IF
-            profile%seconds(4) = profile%seconds(4) + m_walltime() - started
+            profile(thread)%seconds(4) = profile(thread)%seconds(4) + m_walltime() - started
             ncall = MERGE(2, 1, nsine > 0)
-            profile%counts(4) = profile%counts(4) + INT(ncall, int_8)
-            profile%shape_sum = profile%shape_sum + &
-                                [INT(nelement, int_8)*INT(ncall, int_8), INT(nclass + nsine, int_8), &
-                                 INT(last - first + 1, int_8)*INT(ncall, int_8)]
-            profile%shape_min = MIN(profile%shape_min, &
-                                    INT([nelement, MERGE(MIN(nclass, nsine), nclass, nsine > 0), last - first + 1], int_8))
-            profile%shape_max = MAX(profile%shape_max, INT([nelement, nclass, last - first + 1], int_8))
-            profile%flops = profile%flops + 2.0_dp*REAL(nelement, dp)* &
-                            REAL(nclass + nsine, dp)*REAL(last - first + 1, dp)
+            profile(thread)%counts(4) = profile(thread)%counts(4) + INT(ncall, int_8)
+            profile(thread)%shape_sum = profile(thread)%shape_sum + &
+                                        [INT(nelement, int_8)*INT(ncall, int_8), INT(nclass + nsine, int_8), &
+                                         INT(last - first + 1, int_8)*INT(ncall, int_8)]
+            profile(thread)%shape_min = MIN(profile(thread)%shape_min, &
+                                            INT([nelement, MERGE(MIN(nclass, nsine), nclass, nsine > 0), last - first + 1], int_8))
+            profile(thread)%shape_max = MAX(profile(thread)%shape_max, INT([nelement, nclass, last - first + 1], int_8))
+            profile(thread)%flops = profile(thread)%flops + 2.0_dp*REAL(nelement, dp)* &
+                                    REAL(nclass + nsine, dp)*REAL(last - first + 1, dp)
             beta(ispin) = 1.0_dp
          END DO
       END DO
-      ! Expand the shared parity sums with each image's original multiplicities.
-      started = m_walltime()
+!$OMP END DO
+      ! An idle worker, or a spin with no locally owned source elements, contributes zero.
       DO ispin = 1, nspin
-         IF (beta(ispin) == 0.0_dp) reduced(:, :, ispin) = 0.0_dp
+         IF (beta(ispin) == 0.0_dp) reduced(:, :, ispin, thread) = 0.0_dp
+      END DO
+      DEALLOCATE (beta, packed, phases)
+      IF (ALLOCATED(gauge)) DEALLOCATE (gauge)
+      IF (ALLOCATED(gauge_factors)) DEALLOCATE (gauge_factors)
+!$OMP END PARALLEL
+      ! Merge local k contributions before expanding multiplicities and rotating AO blocks.
+      started = m_walltime()
+      DO thread = 2, actual_workers
+         reduced(:, :, :, 1) = reduced(:, :, :, 1) + reduced(:, :, :, thread)
+         IF (has_zero) zero_sum(:, :, 1) = zero_sum(:, :, 1) + zero_sum(:, :, thread)
+      END DO
+      DO ispin = 1, nspin
          DO image = 1, nimage
             i = ABS(image_class(image))
             IF (i == 0) THEN
-               sums(:, image, ispin) = REAL(images(4, image), dp)*zero_sum(:, ispin)
+               sums(:, image, ispin) = REAL(images(4, image), dp)*zero_sum(:, ispin, 1)
             ELSE
-               sums(:, image, ispin) = REAL(images(4, image), dp)*reduced(:, i, ispin)
+               sums(:, image, ispin) = REAL(images(4, image), dp)*reduced(:, i, ispin, 1)
                IF (sine_index(i) == 0) CYCLE
                sine = REAL(images(5, image)*SIGN(1, image_class(image)), dp)*MERGE(-1.0_dp, 1.0_dp, trans)
-               sums(:, image, ispin) = sums(:, image, ispin) + sine*reduced(:, nclass + sine_index(i), ispin)
+               sums(:, image, ispin) = sums(:, image, ispin) + sine*reduced(:, nclass + sine_index(i), ispin, 1)
             END IF
          END DO
       END DO
-      profile%seconds(5) = profile%seconds(5) + m_walltime() - started
+      profile(1)%seconds(5) = profile(1)%seconds(5) + m_walltime() - started
    END SUBROUTINE k_grid_to_cell_contract
 
 ! **************************************************************************************************

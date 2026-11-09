@@ -122,7 +122,8 @@ MODULE kpoint_methods
                                               Smearkp2,&
                                               smearing_separate_spin,&
                                               smearing_spin_targets
-   USE util,                            ONLY: get_limit
+   USE util,                            ONLY: get_limit,&
+                                              sort
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, &
 !$                    omp_get_thread_num
@@ -1996,10 +1997,10 @@ CONTAINS
    END SUBROUTINE kpoint_density_transform
 
 ! **************************************************************************************************
-!> \brief Contract group-local densities into bounded batches of real-space AO blocks.
-!>        Small tiles of images sharing an AO block are independent OpenMP work items. Rotations follow the
-!>        k-point contraction; phases are reused across spins. The resulting blocks go to their DBCSR
-!>        owner. This also works when a source AO block spans several MPI ranks.
+!> \brief Contract complete image sets of owner-local AO pairs over parallel k-point batches.
+!>        Each worker packs its k interval once for all images. Thread-local parity sums are
+!>        merged before expansion and rotation; MPI then returns the blocks to their DBCSR owner.
+!>        Source AO blocks may span several MPI ranks.
 !> \param kpoint ...
 !> \param source borrowed P, W or external density matrices
 !> \param denmat real-space output matrices
@@ -2019,27 +2020,23 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform_batched'
       CHARACTER(LEN=12), PARAMETER :: profile_stages(6) = [CHARACTER(LEN=12) :: 'setup', 'phase', &
-         'pack/gauge', 'GEMM', 'expand', 'rotate/add']
-      INTEGER(KIND=int_8), PARAMETER                     :: max_bytes = 64_int_8*1024*1024
-      INTEGER, PARAMETER                                 :: images_per_tile = 8, max_batch = 256
+         'pack/gauge', 'GEMM', 'merge/expand', 'rotate/add']
 
-      INTEGER :: a, b, batch, first, handle, i, ic, igroup, ikp, image, ispin, j, last, nblock, &
-         njob, nlocal, nrow, nthreads, ntile, nvalue, orientation, owner, profile_handle, slot, &
-         thread, tile, unit_nr
+      INTEGER :: a, b, first, handle, i, ic, igroup, ikp, image, ispin, j, last, nblock, njob, &
+         nlocal, nrow, nthreads, nvalue, orientation, owner, profile_handle, slot, thread, unit_nr
       INTEGER(KIND=int_8)                                :: block_size, profile_counts(4), &
                                                             shape_max(3), shape_min(3), &
                                                             shape_sum(3)
-      INTEGER, ALLOCATABLE                               :: available(:, :, :), counts(:), &
-                                                            jobs(:, :), local_jobs(:, :), &
-                                                            offsets(:), tile_start(:), &
+      INTEGER(KIND=int_8), ALLOCATABLE                   :: keys(:)
+      INTEGER, ALLOCATABLE                               :: available(:, :), counts(:), jobs(:, :), &
+                                                            local_jobs(:, :), order(:), &
                                                             tiles(:, :, :, :, :)
       INTEGER, DIMENSION(:), POINTER                     :: col_offset, col_size, row_offset, &
                                                             row_size
       LOGICAL                                            :: found, trans
       REAL(KIND=dp)                                      :: profile_flops, profile_max_seconds(6), &
                                                             profile_seconds(6), profile_total
-      REAL(KIND=dp), ALLOCATABLE                         :: packed(:, :), phases(:, :), &
-                                                            rotation_work(:, :)
+      REAL(KIND=dp), ALLOCATABLE                         :: rotation_work(:, :)
       REAL(KIND=dp), ALLOCATABLE, TARGET                 :: sums(:, :, :), values(:, :)
       REAL(KIND=dp), POINTER                             :: block(:, :)
       TYPE(k_grid_to_cell_profile_type), ALLOCATABLE     :: profiles(:)
@@ -2083,93 +2080,76 @@ CONTAINS
                                   plan%cell(:, first), last - first + 1, &
                                   NINT(SUM(plan%symmetry_sign(first:last)))]
       END DO
+      ! Keep every image of a canonical AO pair together, irrespective of image order.
+      IF (nlocal > 1) THEN
+         ALLOCATE (keys(nlocal), order(nlocal))
+         DO i = 1, nlocal
+            keys(i) = INT(local_jobs(1, i), int_8) + INT(SIZE(row_size), int_8)*INT(local_jobs(2, i) - 1, int_8)
+         END DO
+         CALL sort(keys, nlocal, order)
+         local_jobs(:, 1:nlocal) = local_jobs(:, order)
+      END IF
       CALL world%allgather(nlocal, counts)
       CALL timestop(profile_handle)
       IF (MAXVAL(counts) == 0) THEN
          CALL timestop(handle)
          RETURN
       END IF
-      block_size = INT(MAXVAL(row_size), int_8)*MAXVAL(col_size)
-      ! Include the output buffer, returned blocks and separate parity sums.
-      batch = MAX(1, MIN(max_batch, MAXVAL(counts), &
-                         INT(max_bytes/(8_int_8*(2 + SIZE(source, 2))*block_size*SIZE(source, 3)))))
-      ALLOCATE (jobs(8, batch), offsets(batch + 1), tile_start(batch + 1), values(INT(block_size)*batch, SIZE(source, 3)), &
-                available(2, 0:UBOUND(groups, 1), batch))
       nthreads = 1
-!$    nthreads = MIN(omp_get_max_threads(), batch)
-      ALLOCATE (gemm_ctx(nthreads))
+!$    nthreads = MIN(omp_get_max_threads(), MAX(1, SIZE(source, 1)))
+      ALLOCATE (available(2, 0:UBOUND(groups, 1)), gemm_ctx(nthreads))
       ALLOCATE (profiles(nthreads), source=k_grid_to_cell_profile_type())
       DO thread = 1, nthreads
+         gemm_ctx(thread) = local_gemm_ctxt_type()
          CALL gemm_ctx(thread)%create(LOCAL_GEMM_PU_HOST, timing=.FALSE.)
       END DO
 
       DO owner = 0, world%num_pe - 1
-         DO first = 1, counts(owner), batch
-            njob = MIN(batch, counts(owner) - first + 1)
-            IF (world%mepos == owner) jobs(:, 1:njob) = local_jobs(:, first:first + njob - 1)
-            IF (world%num_pe > 1) CALL world%bcast(jobs(:, 1:njob), owner)
-            offsets(1) = 1
-            DO j = 1, njob
-               offsets(j + 1) = offsets(j) + row_size(jobs(1, j))*col_size(jobs(2, j))
-            END DO
-            ! Reuse each packed source batch across all images of this AO pair
-            ! in the current owner batch.
-            ntile = 0
-            i = 1
-            DO WHILE (i <= njob)
-               ntile = ntile + 1
-               tile_start(ntile) = i
-               j = i + 1
-               DO WHILE (j <= MIN(njob, i + images_per_tile - 1))
-                  IF (ANY(jobs(1:2, j) /= jobs(1:2, i))) EXIT
-                  j = j + 1
+         first = 1
+         DO WHILE (first <= counts(owner))
+            IF (world%mepos == owner) THEN
+               last = first
+               DO WHILE (last < counts(owner))
+                  IF (ANY(local_jobs(1:2, last + 1) /= local_jobs(1:2, first))) EXIT
+                  last = last + 1
                END DO
-               i = j
-            END DO
-            tile_start(ntile + 1) = njob + 1
-            available(:, :, :) = 0
-            DO tile = 1, ntile
-               j = tile_start(tile)
-               DO slot = 0, UBOUND(groups, 1)
-                  IF (.NOT. ALLOCATED(groups(slot)%inverse)) CYCLE
-                  DO orientation = 1, 2
-                     CALL kp_density_source_block(groups(slot), jobs(1:2, j), plan%symmetric, &
-                                                  orientation, a, b, trans)
-                     IF (a == 0) CYCLE
-                     CALL dbcsr_get_readonly_block_p(template, a, b, block, found=found)
-                     available(orientation, slot, tile) = MERGE(1, 0, found)
-                  END DO
+               njob = last - first + 1
+            END IF
+            IF (world%num_pe > 1) CALL world%bcast(njob, owner)
+            CPASSERT(njob > 0)
+            IF (INT(njob, int_8) > INT(HUGE(njob), int_8)/8_int_8) THEN
+               CPABORT("K-to-R AO-pair metadata exceeds the integer MPI count range")
+            END IF
+            ALLOCATE (jobs(8, njob))
+            IF (world%mepos == owner) jobs(:, :) = local_jobs(:, first:first + njob - 1)
+            IF (world%num_pe > 1) CALL world%bcast(jobs, owner)
+            block_size = INT(row_size(jobs(1, 1)), int_8)*INT(col_size(jobs(2, 1)), int_8)
+            IF (block_size > INT(HUGE(nvalue), int_8)/INT(njob, int_8)) THEN
+               CPABORT("K-to-R AO-pair output exceeds the integer MPI count range")
+            END IF
+            nvalue = INT(block_size*INT(njob, int_8))
+            ALLOCATE (values(nvalue, SIZE(source, 3)), source=0.0_dp)
+            available(:, :) = 0
+            DO slot = 0, UBOUND(groups, 1)
+               IF (.NOT. ALLOCATED(groups(slot)%inverse)) CYCLE
+               DO orientation = 1, 2
+                  CALL kp_density_source_block(groups(slot), jobs(1:2, 1), plan%symmetric, &
+                                               orientation, a, b, trans)
+                  IF (a == 0) CYCLE
+                  CALL dbcsr_get_readonly_block_p(template, a, b, block, found=found)
+                  available(orientation, slot) = MERGE(1, 0, found)
                END DO
             END DO
             ! Source sparsity is distributed independently of the FM layout.
-            ! Reduce only presence flags, never the k-dependent source matrices.
-            IF (world%num_pe > 1) CALL world%sum(available(:, :, 1:ntile))
-            nvalue = offsets(njob + 1) - 1
-            nthreads = MIN(SIZE(gemm_ctx), ntile)
-            values(1:nvalue, :) = 0.0_dp
+            IF (world%num_pe > 1) CALL world%sum(available)
             CALL timeset('kp_density_contract', profile_handle)
-!$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(nthreads) &
-!$OMP SHARED(source,tiles,groups,jobs,available,plan,row_size,col_size,row_offset,col_offset, &
-!$OMP        values,offsets,tile_start,ntile,gemm_ctx,profiles) &
-!$OMP PRIVATE(tile,j,last,packed,phases,sums,rotation_work,thread)
-            thread = 1
-!$          thread = omp_get_thread_num() + 1
-!$OMP DO SCHEDULE(DYNAMIC, 1)
-            DO tile = 1, ntile
-               j = tile_start(tile)
-               last = tile_start(tile + 1) - 1
-               CALL kp_density_contract_tile(source, tiles, groups, &
-                                             jobs(:, j:last), available(:, :, tile), plan%symmetric, &
-                                             row_size, col_size, row_offset, col_offset, &
-                                             values(offsets(j):offsets(last + 1) - 1, :), &
-                                             packed, phases, sums, rotation_work, gemm_ctx(thread), profiles(thread))
-            END DO
-!$OMP END DO
-!$OMP END PARALLEL
+            CALL kp_density_contract_tile(source, tiles, groups, jobs, available, plan%symmetric, &
+                                          row_size, col_size, row_offset, col_offset, values, &
+                                          sums, rotation_work, gemm_ctx, profiles)
             CALL timestop(profile_handle)
             DO ispin = 1, SIZE(source, 3)
                CALL timeset('kp_density_reduce', profile_handle)
-               IF (world%num_pe > 1) CALL world%sum(values(1:nvalue, ispin), root=owner)
+               IF (world%num_pe > 1) CALL world%sum(values(:, ispin), root=owner)
                CALL timestop(profile_handle)
                IF (world%mepos /= owner) CYCLE
                CALL timeset('kp_density_scatter', profile_handle)
@@ -2178,12 +2158,14 @@ CONTAINS
                   CPASSERT(found)
                   nrow = SIZE(block, 1)
                   DO i = 1, SIZE(block, 2)
-                     nblock = offsets(j) + (i - 1)*nrow
+                     nblock = (j - 1)*INT(block_size) + (i - 1)*nrow + 1
                      block(:, i) = values(nblock:nblock + nrow - 1, ispin)
                   END DO
                END DO
                CALL timestop(profile_handle)
             END DO
+            DEALLOCATE (jobs, values)
+            first = first + njob
          END DO
       END DO
       DO thread = 1, SIZE(gemm_ctx)
@@ -2423,10 +2405,9 @@ CONTAINS
    END SUBROUTINE kp_density_source_block
 
 ! **************************************************************************************************
-!> \brief Contract a small tile of images sharing an output AO block.
-!>        Pack bounded k-point batches once and reuse them across images in GEMM.
-!>        Gauge/Fourier phases remain inside the contraction; AO rotations follow
-!>        the completed local sum. MPI can then reduce the rotated partial blocks.
+!> \brief Contract all owner-local images of one AO pair over parallel k-point batches.
+!>        Gauge/Fourier phases remain inside the contraction. Worker sums merge
+!>        before AO rotation and the existing MPI reduction of partial blocks.
 !> \param source ...
 !> \param tiles local first/last row and column indices by atom, k-point and component
 !> \param groups ...
@@ -2438,16 +2419,14 @@ CONTAINS
 !> \param row_offset ...
 !> \param col_offset ...
 !> \param TARGET flattened output images, one column per spin
-!> \param packed reusable thread-local source batch
-!> \param phases reusable thread-local contraction coefficients
 !> \param sums reusable thread-local contracted blocks
 !> \param rotation_work reusable thread-local GEMM buffer
-!> \param gemm_ctx thread-owned local GEMM context
-!> \param profile thread-owned diagnostic accumulator
+!> \param gemm_ctx worker-owned local GEMM contexts
+!> \param profile worker-owned diagnostic accumulators
 ! **************************************************************************************************
    SUBROUTINE kp_density_contract_tile(source, tiles, groups, jobs, available, symmetric, &
                                        row_size, col_size, row_offset, col_offset, TARGET, &
-                                       packed, phases, sums, rotation_work, gemm_ctx, profile)
+                                       sums, rotation_work, gemm_ctx, profile)
       TYPE(cp_fm_p_type), INTENT(IN)                     :: source(:, :, :)
       INTEGER, INTENT(IN)                                :: tiles(:, :, :, :, :)
       TYPE(kp_density_group_type), INTENT(IN)            :: groups(0:)
@@ -2456,11 +2435,10 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: row_size(:), col_size(:), row_offset(:), &
                                                             col_offset(:)
       REAL(KIND=dp), INTENT(INOUT), TARGET               :: target(:, :)
-      REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT)          :: packed(:, :), phases(:, :)
       REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT), TARGET  :: sums(:, :, :)
       REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT)          :: rotation_work(:, :)
-      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm_ctx
-      TYPE(k_grid_to_cell_profile_type), INTENT(INOUT)   :: profile
+      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm_ctx(:)
+      TYPE(k_grid_to_cell_profile_type), INTENT(INOUT)   :: profile(:)
 
       INTEGER                                            :: a, b, image, ispin, m, orientation, &
                                                             shift(3), slot
@@ -2483,7 +2461,7 @@ CONTAINS
             CALL k_grid_to_cell_contract(source, tiles, groups(slot)%ikp, groups(slot)%xkp, groups(slot)%weight, &
                                          jobs(4:8, :), [a, b], [row_size(a), col_size(b)], &
                                          [row_offset(a), col_offset(b)], shift, groups(slot)%op%time_reversal, &
-                                         trans, packed, phases, sums, gemm_ctx, profile)
+                                         trans, sums, gemm_ctx, profile)
             started = m_walltime()
             m = row_size(jobs(1, 1))*col_size(jobs(2, 1))
             IF (.NOT. groups(slot)%op%identity) THEN
@@ -2504,7 +2482,7 @@ CONTAINS
                   END IF
                END DO
             END DO
-            profile%seconds(6) = profile%seconds(6) + m_walltime() - started
+            profile(1)%seconds(6) = profile(1)%seconds(6) + m_walltime() - started
          END DO
       END DO
    END SUBROUTINE kp_density_contract_tile

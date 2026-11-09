@@ -390,6 +390,8 @@ CONTAINS
 !> \param comm MPI communicator
 ! **************************************************************************************************
    SUBROUTINE check_image_reconstruction(comm)
+      USE cp_fm_struct, ONLY: cp_fm_struct_type
+      USE cp_fm_types, ONLY: cp_fm_p_type, cp_fm_type
       USE cp_dbcsr_api, ONLY: &
          dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
          dbcsr_finalize, dbcsr_finalize_lib, dbcsr_init_lib, dbcsr_p_type, dbcsr_put_block, &
@@ -397,11 +399,15 @@ CONTAINS
       USE cp_log_handling, ONLY: cp_add_default_logger, cp_logger_create, cp_logger_release, &
                                  cp_logger_type, cp_rm_default_logger
       USE kpoint_k_r_trafo_simple, ONLY: replicate_rs_matrices
+      USE kinds, ONLY: int_8
+      USE kpoint_transform, ONLY: k_grid_to_cell_contract, k_grid_to_cell_profile_type
       USE kpoint_types, ONLY: kpoint_type
+      USE local_gemm_api, ONLY: LOCAL_GEMM_PU_HOST, local_gemm_ctxt_type
       USE machine, ONLY: default_output_unit
       USE message_passing, ONLY: mp_para_env_release, mp_para_env_type
       USE qs_neighbor_list_types, ONLY: add_neighbor_list, add_neighbor_node, &
                                         allocate_neighbor_list_set, deallocate_neighbor_list_set, neighbor_list_p_type
+!$    USE omp_lib, ONLY: omp_get_max_threads
       TYPE(mp_comm_type), INTENT(IN)                     :: comm
 
       CHARACTER                                          :: matrix_type
@@ -481,6 +487,128 @@ CONTAINS
       DEALLOCATE (points%cell_to_index, points%sab_nl)
       DEALLOCATE (points, source)
       DEALLOCATE (process_grid, row_dist, col_dist, sizes)
+      BLOCK
+         INTEGER, PARAMETER :: nk = 1031, nimages = 11
+         INTEGER :: c, e, g, j, k, layout(4, 2, nk, 2, 2), nc, request, s, shift(3), worker, workers
+         INTEGER :: image_data(5, nimages), k_index(nk)
+         INTEGER(KIND=int_8) :: gathered, expected_gather
+         INTEGER, TARGET :: row_map(5), col_map(5)
+         LOGICAL :: reverse, transposed
+         REAL(dp) :: arg, cosine, sine, re(6), im(6), raw(6, 2), coordinates(3, nk), weight(nk)
+         REAL(dp) :: reference(6, nimages, 2)
+         REAL(dp), ALLOCATABLE, TARGET :: data(:, :, :, :, :)
+         REAL(dp), ALLOCATABLE :: result(:, :, :)
+         TYPE(cp_fm_struct_type), TARGET :: structure
+         TYPE(cp_fm_type), ALLOCATABLE, TARGET :: matrices(:, :, :)
+         TYPE(cp_fm_p_type), ALLOCATABLE :: views(:, :, :)
+         TYPE(local_gemm_ctxt_type), ALLOCATABLE :: contexts(:)
+         TYPE(k_grid_to_cell_profile_type), ALLOCATABLE :: stats(:)
+
+         ! Borrowed FM views over test-owned storage; no owning FM release is used.
+         ALLOCATE (DATA(5, 5, nk, 2, 2), matrices(nk, 2, 2), views(nk, 2, 2))
+         structure%row_indices => row_map
+         structure%col_indices => col_map
+         structure%local_leading_dimension = 5
+         DO s = 1, 2
+            DO c = 1, 2
+               DO k = 1, nk
+                  matrices(k, c, s)%matrix_struct => structure
+                  matrices(k, c, s)%local_data => DATA(:, :, k, c, s)
+                  views(k, c, s)%matrix => matrices(k, c, s)
+                  DO j = 1, 5
+                     DO atom = 1, 5
+                        DATA(atom, j, k, c, s) = 0.02_dp*REAL(s, dp) + 0.003_dp*REAL(atom - j, dp) + &
+                                                 0.1_dp*SIN(0.017_dp*REAL(k, dp) + REAL(c, dp))
+                     END DO
+                  END DO
+               END DO
+            END DO
+         END DO
+         DO k = 1, nk
+            k_index(k) = nk + 1 - k
+            coordinates(:, k) = REAL(k, dp)*[0.0017_dp, -0.0009_dp, 0.0003_dp]
+            weight(k) = (1.0_dp + 0.05_dp*REAL(MOD(k, 5), dp))/REAL(nk, dp)
+         END DO
+         image_data = RESHAPE([0, 0, 0, 2, 0, 1, 0, 0, 1, 1, -1, 0, 0, 2, -1, &
+                               0, 1, 0, 3, 0, 0, -1, 0, 1, 2, 1, 1, 0, 1, 1, -1, -1, 0, 1, -1, &
+                               0, 0, 1, 2, 1, 0, 0, -1, 1, 1, 1, 0, 0, 2, 2, 2, -1, 1, 1, -2], [5, nimages])
+         DO request = 1, 2
+            workers = 1
+!$          IF (request == 2) workers = MIN(4, omp_get_max_threads())
+            ALLOCATE (contexts(workers))
+            ALLOCATE (stats(workers), source=k_grid_to_cell_profile_type())
+            DO worker = 1, workers
+               contexts(worker) = local_gemm_ctxt_type()
+               CALL contexts(worker)%create(LOCAL_GEMM_PU_HOST, timing=.FALSE.)
+            END DO
+            DO mode = 1, 4
+               stats(:) = k_grid_to_cell_profile_type()
+               nc = MERGE(1, 2, mode == 3)
+               reverse = mode /= 1
+               transposed = mode == 4
+               shift = [1, -2, 1]
+               IF (nc == 1) shift = 0
+               row_map = [1, 2, 3, 4, 5]
+               col_map = [1, 2, 3, 4, 5]
+               DO s = 1, 2
+                  DO c = 1, 2
+                     DO k = 1, nk
+                        layout(:, 1, k, c, s) = [1, 3, 1, 3]
+                        layout(:, 2, k, c, s) = [4, 5, 4, 5]
+                        IF (mode == 2 .AND. k <= nk/2) layout(2, 1, k, c, s) = 0
+                        IF (mode == 2 .AND. s == 2) layout(2, 1, k, c, s) = 0
+                        IF (mode == 4) layout(2, 1, k, c, s) = 2
+                     END DO
+                  END DO
+               END DO
+               IF (mode == 4) row_map = [1, 3, 4, 5, 6]
+               reference = 0.0_dp
+               expected_gather = 0_int_8
+               DO k = 1, nk
+                  g = k_index(k)
+                  arg = twopi*SUM(REAL(shift, dp)*coordinates(:, k))
+                  cosine = COS(arg)
+                  sine = SIN(arg)
+                  DO s = 1, 2
+                     raw = 0.0_dp
+                     DO c = 1, nc
+                        DO j = layout(3, 2, g, c, s), layout(4, 2, g, c, s)
+                           DO atom = layout(1, 1, g, c, s), layout(2, 1, g, c, s)
+                              e = row_map(atom) + 3*(col_map(j) - 4)
+                              raw(e, c) = DATA(atom, j, g, c, s)
+                              expected_gather = expected_gather + 1_int_8
+                           END DO
+                        END DO
+                     END DO
+                     re = cosine*raw(:, 1) + MERGE(-1.0_dp, 1.0_dp, reverse)*sine*raw(:, 2)
+                     im = -sine*raw(:, 1) + MERGE(-1.0_dp, 1.0_dp, reverse)*cosine*raw(:, 2)
+                     DO img = 1, nimages
+                        arg = twopi*SUM(REAL(image_data(1:3, img), dp)*coordinates(:, k))
+                        reference(:, img, s) = reference(:, img, s) + weight(k)*( &
+                                               REAL(image_data(4, img), dp)*re*COS(arg) + &
+                                               MERGE(-1.0_dp, 1.0_dp, transposed)* &
+                                               REAL(image_data(5, img), dp)*im*SIN(arg))
+                     END DO
+                  END DO
+               END DO
+               CALL k_grid_to_cell_contract(views(:, 1:nc, :), layout(:, :, :, 1:nc, :), k_index, &
+                                            coordinates, weight, image_data, [1, 2], [3, 2], [1, 4], &
+                                            shift, reverse, transposed, RESULT, contexts, stats)
+               IF (MAXVAL(ABS(RESULT - reference)) > 2.0E-11_dp) THEN
+                  ERROR STOP 'Parallel k-batch density contraction differs from explicit phase sum'
+               END IF
+               gathered = 0_int_8
+               DO worker = 1, workers
+                  gathered = gathered + stats(worker)%counts(3)
+               END DO
+               IF (gathered /= expected_gather) ERROR STOP 'K-batch contraction gathered a source element more than once'
+            END DO
+            DO worker = 1, workers
+               CALL contexts(worker)%destroy()
+            END DO
+            DEALLOCATE (contexts, stats)
+         END DO
+      END BLOCK
       CALL dbcsr_finalize_lib()
       CALL cp_rm_default_logger()
       CALL cp_logger_release(logger)
