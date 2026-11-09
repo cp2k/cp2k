@@ -189,6 +189,7 @@ spack:
     superlu-dist:
       require:
         - "cflags=-std=gnu17"
+        - "~cuda"
 
     trexio:
       require:

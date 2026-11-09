@@ -1416,12 +1416,6 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
     sed -E -e "s/gcc@10:/gcc@${GCC_VERSION}/" -i "${CP2K_CONFIG_FILE}"
   fi
 
-  # Disable PEXSI for CUDA builds
-  if ((CUDA_SM_CODE > 0)); then
-    sed -E -e '/\s*-\s+"pexsi@/ s/^ /#/' -i "${CP2K_CONFIG_FILE}"
-    echo "INFO: PEXSI has been disabled because CUDA is used"
-  fi
-
   # Create CP2K environment if needed
   if spack env list | grep -q "${CP2K_ENV}"; then
     echo "The Spack environment \"${CP2K_ENV}\" exists already"
@@ -1581,14 +1575,6 @@ export CMAKE_BUILD_PATH="${BUILD_PATH}/build"
 Torch_DIR="$(dirname "$(find "${SPACK_ROOT}" ! -type l -name TorchConfig.cmake | tail -n 1)")"
 export Torch_DIR
 
-# Check if PEXSI was built
-if [[ "${MPI_MODE}" != "no" ]]; then
-  CP2K_USE_PEXSI="$(grep -Eq '\s*#\s*-\s+"pexsi@' "${CP2K_CONFIG_FILE}" && echo OFF || echo ON)"
-else
-  CP2K_USE_PEXSI="ON"
-fi
-export CP2K_USE_PEXSI
-
 if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
   mkdir -p "${CMAKE_BUILD_PATH}"
   case "${CP2K_VERSION}" in
@@ -1605,7 +1591,6 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         -DCMAKE_SKIP_RPATH="ON" \
         -DCMAKE_VERBOSE_MAKEFILE="${VERBOSE_MAKEFILE}" \
         ${CMAKE_FEATURE_FLAGS} \
-        -DCP2K_USE_PEXSI="${CP2K_USE_PEXSI}" \
         ${CMAKE_CUDA_FLAGS} \
         -Wno-error=dev |&
         tee "${CMAKE_BUILD_PATH}/cmake.log"
