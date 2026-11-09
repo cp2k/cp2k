@@ -26,8 +26,8 @@ MODULE libint_wrapper
                             C_F_POINTER, &
                             C_F_PROCPOINTER, &
                             C_NULL_PTR, &
+                            C_NULL_FUNPTR, &
                             C_FUNPTR
-   USE cp_log_handling, ONLY: cp_to_string
    USE kinds, ONLY: dp
 #if(__LIBINT)
    USE libint_f, ONLY: &
@@ -43,11 +43,12 @@ MODULE libint_wrapper
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: cp_libint_t, prim_data_f_size, build_eri_size, build_deriv1_eri_size, &
-             libint_max_am, libderiv_max_am1, cp_libint_get_eris, cp_libint_get_derivs, &
+   PUBLIC :: get_eri_permutation, reorder_eri_block
+   PUBLIC :: cp_libint_t, prim_data_f_size, &
+             libint_max_am, cp_libint_get_eris, cp_libint_get_derivs, &
              cp_libint_init_eri, cp_libint_init_eri1, cp_libint_cleanup_eri, &
              cp_libint_cleanup_eri1, cp_libint_static_init, cp_libint_static_cleanup, &
-             get_ssss_f_val, cp_libint_set_contrdepth, &
+             cp_libint_set_contrdepth, &
              cp_libint_set_params_eri, cp_libint_set_params_eri_deriv, &
              cp_libint_init_3eri, cp_libint_cleanup_3eri, cp_libint_get_3eris, &
              cp_libint_init_2eri, cp_libint_cleanup_2eri, cp_libint_get_2eris, &
@@ -62,12 +63,7 @@ MODULE libint_wrapper
    INTEGER, PARAMETER :: libint_max_am = 0
 #endif
 
-   INTEGER, PARAMETER :: libderiv_max_am1 = libint_max_am
    INTEGER, PARAMETER :: prim_data_f_size = 4*(libint_max_am) + 1
-   INTEGER, PARAMETER :: libint_vrr_classes_size = 2*(libint_max_am) + 1
-   INTEGER, PARAMETER :: libint_dvrr_classes_size = 2*(libderiv_max_am1) + 1
-   INTEGER, PARAMETER :: build_eri_size = libint_max_am
-   INTEGER, PARAMETER :: build_deriv1_eri_size = libderiv_max_am1
 
 !> \brief Prepared primitive in original center order for the legacy Libint backend.
 !> \note Zero exponents denote dummy centers. Fm contains orders zero through prepared_max_order.
@@ -88,7 +84,118 @@ MODULE libint_wrapper
 #endif
    END TYPE cp_libint_t
 
+#if(__LIBINT)
+   INTERFACE build_eri_kernel
+      MODULE PROCEDURE build_eri_kernel_2c, build_eri_kernel_3c, build_eri_kernel_4c
+   END INTERFACE build_eri_kernel
+#endif
+
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Select the canonical center order required by generated Libint kernels.
+!> \param la original first-center angular momentum
+!> \param lb original second-center angular momentum
+!> \param lc original third-center angular momentum
+!> \param ld original fourth-center angular momentum
+!> \param permutation original center index for each canonical center
+! **************************************************************************************************
+   PURE SUBROUTINE get_eri_permutation(la, lb, lc, ld, permutation)
+      INTEGER, INTENT(IN)                                :: la, lb, lc, ld
+      INTEGER, INTENT(OUT)                               :: permutation(4)
+
+      permutation = [1, 2, 3, 4]
+      IF (la < lb) permutation(1:2) = [2, 1]
+      IF (lc < ld) permutation(3:4) = [4, 3]
+      IF (la + lb > lc + ld) permutation = permutation([3, 4, 1, 2])
+   END SUBROUTINE get_eri_permutation
+
+! **************************************************************************************************
+!> \brief Restore original Cartesian axes and derivative center labels.
+!> \param source canonical block with the fourth Cartesian index varying fastest
+!> \param destination original block with the first Cartesian index varying fastest
+!> \param ncart Cartesian shell sizes in original center order
+!> \param permutation original center index for each canonical center
+!> \param ncomponents one integral component or twelve center derivatives
+!> \param nplanes number of independent planes
+! **************************************************************************************************
+   PURE SUBROUTINE reorder_eri_block(source, destination, ncart, permutation, ncomponents, nplanes)
+      INTEGER, INTENT(IN)                                :: ncart(4), permutation(4), ncomponents, &
+                                                            nplanes
+      REAL(dp), INTENT(OUT) :: destination(PRODUCT(ncart), ncomponents, nplanes)
+      REAL(dp), INTENT(IN) :: source(PRODUCT(ncart), ncomponents, nplanes)
+
+      INTEGER                                            :: component, extent(4), i, isource, j, k, &
+                                                            l, output_component, p1, p2, p3, p4, &
+                                                            plane, stride(4)
+
+      stride = [1, ncart(1), ncart(1)*ncart(2), ncart(1)*ncart(2)*ncart(3)]
+      stride = stride(permutation)
+      extent = ncart(permutation)
+      ! Read the Libint block contiguously and restore the original Fortran layout with strides.
+      DO plane = 1, nplanes
+         DO component = 1, ncomponents
+            output_component = component
+            IF (ncomponents == 12) THEN
+               output_component = 3*(permutation((component - 1)/3 + 1) - 1) + MOD(component - 1, 3) + 1
+            END IF
+            isource = 0
+            p1 = 1
+            DO i = 1, extent(1)
+               p2 = p1
+               DO j = 1, extent(2)
+                  p3 = p2
+                  DO k = 1, extent(3)
+                     p4 = p3
+                     DO l = 1, extent(4)
+                        isource = isource + 1
+                        destination(p4, output_component, plane) = source(isource, component, plane)
+                        p4 = p4 + stride(4)
+                     END DO
+                     p3 = p3 + stride(3)
+                  END DO
+                  p2 = p2 + stride(2)
+               END DO
+               p1 = p1 + stride(1)
+            END DO
+         END DO
+      END DO
+   END SUBROUTINE reorder_eri_block
+
+#if(__LIBINT)
+   #:for rank in range(2, 5)
+! **************************************************************************************************
+!> \brief Validate and invoke a generated Libint kernel without indexing outside its task table.
+!> \param lib backend workspace
+!> \param kernels zero-based kernel table for this integral task and derivative order
+!> \param angular_momenta indices in the table's own center order
+!> \param kernel_name integral task used in diagnostics
+! **************************************************************************************************
+      SUBROUTINE build_eri_kernel_${rank}$c(lib, kernels, angular_momenta, kernel_name)
+         TYPE(cp_libint_t), INTENT(INOUT) :: lib
+         TYPE(C_FUNPTR), INTENT(IN) :: kernels(${", ".join(["0:"]*rank)}$)
+         INTEGER, INTENT(IN) :: angular_momenta(${rank}$)
+         CHARACTER(LEN=*), INTENT(IN) :: kernel_name
+
+         CHARACTER(LEN=160) :: error_msg
+         TYPE(C_FUNPTR) :: build_funptr
+         PROCEDURE(libint2_build), POINTER :: pbuild
+
+         build_funptr = C_NULL_FUNPTR
+         IF (ALL(angular_momenta >= LBOUND(kernels)) .AND. ALL(angular_momenta <= UBOUND(kernels))) THEN
+            build_funptr = kernels(${", ".join("angular_momenta(" + str(i) + ")" for i in range(1, rank + 1))}$)
+         END IF
+         IF (.NOT. C_ASSOCIATED(build_funptr)) THEN
+            WRITE (error_msg, '(A,${rank}$(I0,1X))') &
+               "LIBINT has no "//TRIM(kernel_name)//" kernel for angular momenta: ", angular_momenta
+            CPABORT(TRIM(error_msg))
+         END IF
+         CALL C_F_PROCPOINTER(build_funptr, pbuild)
+         CALL pbuild(lib%prv)
+      END SUBROUTINE build_eri_kernel_${rank}$c
+
+   #:endfor
+#endif
 
 ! **************************************************************************************************
 !> \brief Fill an ERI backend from one prepared primitive and a pair-symmetry permutation.
@@ -232,21 +339,16 @@ CONTAINS
 !> \param n_a ...
 !> \param lib ...
 !> \param p_work ...
-!> \param a_mysize ...
 ! **************************************************************************************************
-   SUBROUTINE cp_libint_get_eris(n_d, n_c, n_b, n_a, lib, p_work, a_mysize)
+   SUBROUTINE cp_libint_get_eris(n_d, n_c, n_b, n_a, lib, p_work)
       INTEGER, INTENT(IN)                                :: n_d, n_c, n_b, n_a
       TYPE(cp_libint_t)                                  :: lib
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
-      INTEGER                                            :: a_mysize(1)
 
 #if(__LIBINT)
-      PROCEDURE(libint2_build), POINTER                  :: pbuild
+      CALL build_eri_kernel(lib, libint2_build_eri, [n_d, n_c, n_b, n_a], "4-center ERI")
 
-      CALL C_F_PROCPOINTER(libint2_build_eri(n_d, n_c, n_b, n_a), pbuild)
-      CALL pbuild(lib%prv)
-
-      CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=a_mysize)
+      CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=[nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d)])
 #else
       MARK_USED(n_d)
       MARK_USED(n_c)
@@ -254,7 +356,6 @@ CONTAINS
       MARK_USED(n_a)
       MARK_USED(lib)
       MARK_USED(p_work)
-      MARK_USED(a_mysize)
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
 
@@ -267,72 +368,55 @@ CONTAINS
 !> \param n_a ...
 !> \param lib ...
 !> \param p_work ...
-!> \param a_mysize ...
 ! **************************************************************************************************
-   SUBROUTINE cp_libint_get_3eris(n_c, n_b, n_a, lib, p_work, a_mysize)
+   SUBROUTINE cp_libint_get_3eris(n_c, n_b, n_a, lib, p_work)
       INTEGER, INTENT(IN)                                :: n_c, n_b, n_a
       TYPE(cp_libint_t)                                  :: lib
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
-      INTEGER                                            :: a_mysize(1)
 
 #if(__LIBINT)
-      CHARACTER(LEN=160)                                 :: error_msg
-      PROCEDURE(libint2_build), POINTER                  :: pbuild
-      TYPE(C_FUNPTR)                                     :: build_funptr
+      CALL build_eri_kernel(lib, libint2_build_3eri, [n_c, n_b, n_a], "3-center ERI")
 
-      build_funptr = libint2_build_3eri(n_c, n_b, n_a)
-      IF (.NOT. C_ASSOCIATED(build_funptr)) THEN
-         error_msg = "LIBINT has no 3-center ERI kernel for (lc,lb,la)=("// &
-                     TRIM(cp_to_string(n_c))//","//TRIM(cp_to_string(n_b))//","// &
-                     TRIM(cp_to_string(n_a))//")"
-         CALL cp_abort(__LOCATION__, TRIM(error_msg))
-      END IF
-      CALL C_F_PROCPOINTER(build_funptr, pbuild)
-      CALL pbuild(lib%prv)
-
-      CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=a_mysize)
+      CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=[nco(n_a)*nco(n_b)*nco(n_c)])
 #else
       MARK_USED(n_c)
       MARK_USED(n_b)
       MARK_USED(n_a)
       MARK_USED(lib)
       MARK_USED(p_work)
-      MARK_USED(a_mysize)
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
 
    END SUBROUTINE cp_libint_get_3eris
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Copy independent 3-center derivatives into caller-owned compact scratch.
 !> \param n_c ...
 !> \param n_b ...
 !> \param n_a ...
 !> \param lib ...
-!> \param p_work ...
-!> \param a_mysize ...
+!> \param p_work leading Cartesian block rows and 6 columns receive Cartesian derivative triplets
 ! **************************************************************************************************
-   SUBROUTINE cp_libint_get_3eri_derivs(n_c, n_b, n_a, lib, p_work, a_mysize)
+   SUBROUTINE cp_libint_get_3eri_derivs(n_c, n_b, n_a, lib, p_work)
       INTEGER, INTENT(IN)                                :: n_c, n_b, n_a
       TYPE(cp_libint_t)                                  :: lib
-      INTEGER                                            :: a_mysize(1)
-      REAL(dp), DIMENSION(:, :), POINTER                    :: p_work
+      REAL(dp), DIMENSION(:, :), INTENT(OUT)              :: p_work
 
 #if(__LIBINT)
       REAL(dp), DIMENSION(:), POINTER                    :: p_work_tmp
-      PROCEDURE(libint2_build), POINTER                  :: pbuild
-      INTEGER :: i
+      INTEGER :: i, ncart
 
-      CALL C_F_PROCPOINTER(libint2_build_3eri1(n_c, n_b, n_a), pbuild)
-      CALL pbuild(lib%prv)
+      ncart = nco(n_a)*nco(n_b)*nco(n_c)
+      CPASSERT(SIZE(p_work, 1) >= ncart)
+      CPASSERT(SIZE(p_work, 2) >= 6)
 
-      ALLOCATE (p_work(a_mysize(1), 9))
+      CALL build_eri_kernel(lib, libint2_build_3eri1, [n_c, n_b, n_a], "3-center ERI derivative")
 
       !Derivatives 1-3 can be obtained using translational invariance
       DO i = 4, 9
          NULLIFY (p_work_tmp)
-         CALL C_F_POINTER(lib%prv(1)%targets(i), p_work_tmp, SHAPE=a_mysize)
-         p_work(:, i) = p_work_tmp
+         CALL C_F_POINTER(lib%prv(1)%targets(i), p_work_tmp, SHAPE=[ncart])
+         p_work(1:ncart, i - 3) = p_work_tmp
       END DO
 #else
       MARK_USED(n_c)
@@ -340,49 +424,44 @@ CONTAINS
       MARK_USED(n_a)
       MARK_USED(lib)
       MARK_USED(p_work)
-      MARK_USED(a_mysize)
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
 
    END SUBROUTINE cp_libint_get_3eri_derivs
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param n_c ...
+!> \brief Copy independent 2-center derivatives into caller-owned compact scratch.
 !> \param n_b ...
 !> \param n_a ...
 !> \param lib ...
-!> \param p_work ...
-!> \param a_mysize ...
+!> \param p_work leading Cartesian block rows and 3 columns receive Cartesian derivative triplets
 ! **************************************************************************************************
-   SUBROUTINE cp_libint_get_2eri_derivs(n_b, n_a, lib, p_work, a_mysize)
+   SUBROUTINE cp_libint_get_2eri_derivs(n_b, n_a, lib, p_work)
       INTEGER, INTENT(IN)                                :: n_b, n_a
       TYPE(cp_libint_t)                                  :: lib
-      INTEGER                                            :: a_mysize(1)
-      REAL(dp), DIMENSION(:, :), POINTER                 :: p_work
+      REAL(dp), DIMENSION(:, :), INTENT(OUT)              :: p_work
 
 #if(__LIBINT)
       REAL(dp), DIMENSION(:), POINTER                    :: p_work_tmp
-      PROCEDURE(libint2_build), POINTER                  :: pbuild
-      INTEGER :: i
+      INTEGER :: i, ncart
 
-      CALL C_F_PROCPOINTER(libint2_build_2eri1(n_b, n_a), pbuild)
-      CALL pbuild(lib%prv)
+      ncart = nco(n_a)*nco(n_b)
+      CPASSERT(SIZE(p_work, 1) >= ncart)
+      CPASSERT(SIZE(p_work, 2) >= 3)
 
-      ALLOCATE (p_work(a_mysize(1), 6))
+      CALL build_eri_kernel(lib, libint2_build_2eri1, [n_b, n_a], "2-center ERI derivative")
 
       !Derivatives 1-3 can be obtained using translational invariance
       DO i = 4, 6
          NULLIFY (p_work_tmp)
-         CALL C_F_POINTER(lib%prv(1)%targets(i), p_work_tmp, SHAPE=a_mysize)
-         p_work(:, i) = p_work_tmp
+         CALL C_F_POINTER(lib%prv(1)%targets(i), p_work_tmp, SHAPE=[ncart])
+         p_work(1:ncart, i - 3) = p_work_tmp
       END DO
 #else
       MARK_USED(n_b)
       MARK_USED(n_a)
       MARK_USED(lib)
       MARK_USED(p_work)
-      MARK_USED(a_mysize)
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
 
@@ -395,27 +474,21 @@ CONTAINS
 !> \param n_a ...
 !> \param lib ...
 !> \param p_work ...
-!> \param a_mysize ...
 ! **************************************************************************************************
-   SUBROUTINE cp_libint_get_2eris(n_b, n_a, lib, p_work, a_mysize)
+   SUBROUTINE cp_libint_get_2eris(n_b, n_a, lib, p_work)
       INTEGER, INTENT(IN)                                :: n_b, n_a
       TYPE(cp_libint_t)                                  :: lib
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
-      INTEGER                                            :: a_mysize(1)
 
 #if(__LIBINT)
-      PROCEDURE(libint2_build), POINTER                  :: pbuild
+      CALL build_eri_kernel(lib, libint2_build_2eri, [n_b, n_a], "2-center ERI")
 
-      CALL C_F_PROCPOINTER(libint2_build_2eri(n_b, n_a), pbuild)
-      CALL pbuild(lib%prv)
-
-      CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=a_mysize)
+      CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=[nco(n_a)*nco(n_b)])
 #else
       MARK_USED(n_b)
       MARK_USED(n_a)
       MARK_USED(lib)
       MARK_USED(p_work)
-      MARK_USED(a_mysize)
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
 
@@ -429,36 +502,33 @@ CONTAINS
 !> \param n_a ...
 !> \param lib ...
 !> \param work_forces ...
-!> \param a_mysize ...
 ! **************************************************************************************************
-   SUBROUTINE cp_libint_get_derivs(n_d, n_c, n_b, n_a, lib, work_forces, a_mysize)
+   SUBROUTINE cp_libint_get_derivs(n_d, n_c, n_b, n_a, lib, work_forces)
       INTEGER, INTENT(IN)                                :: n_d, n_c, n_b, n_a
       TYPE(cp_libint_t)                                  :: lib
       REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*nco(n_c)*nco &
                           (n_d), 12)                                      :: work_forces
-      INTEGER                                            :: a_mysize(1)
 
 #if(__LIBINT)
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
 
-      PROCEDURE(libint2_build), POINTER                  :: pbuild
-      INTEGER                                            :: i, k
+      INTEGER                                            :: i, k, ncart
 #endif
 
 #if(__LIBINT)
-      CALL C_F_PROCPOINTER(libint2_build_eri1(n_d, n_c, n_b, n_a), pbuild)
-      CALL pbuild(lib%prv)
+      ncart = SIZE(work_forces, 1)
+      CALL build_eri_kernel(lib, libint2_build_eri1, [n_d, n_c, n_b, n_a], "4-center ERI derivative")
 
       DO k = 1, 12
          IF (k == 4 .OR. k == 5 .OR. k == 6) CYCLE
-         CALL C_F_POINTER(lib%prv(1)%targets(k), p_work, SHAPE=a_mysize)
-         DO i = 1, a_mysize(1)
+         CALL C_F_POINTER(lib%prv(1)%targets(k), p_work, SHAPE=[ncart])
+         DO i = 1, ncart
             work_forces(i, k) = p_work(i)
          END DO
       END DO
       ! Libint omits the canonical second-center derivatives; recover them by translation invariance.
       DO k = 4, 6
-         DO i = 1, a_mysize(1)
+         DO i = 1, ncart
             work_forces(i, k) = -1.0_dp*(work_forces(i, k - 3) + &
                                          work_forces(i, k + 3) + work_forces(i, k + 6))
          END DO
@@ -470,27 +540,10 @@ CONTAINS
       MARK_USED(n_a)
       MARK_USED(lib)
       MARK_USED(work_forces)
-      MARK_USED(a_mysize)
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
 
    END SUBROUTINE cp_libint_get_derivs
-
-   FUNCTION get_ssss_f_val(lib)
-      TYPE(cp_libint_t) :: lib
-      REAL(KIND=dp) :: get_ssss_f_val
-
-      get_ssss_f_val = 0
-
-#if(__LIBINT)
-      get_ssss_f_val = lib%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_0(1)
-#else
-      MARK_USED(lib)
-      get_ssss_f_val = 0.0_dp
-      CPABORT("This CP2K executable has not been linked against the required library libint.")
-#endif
-
-   END FUNCTION get_ssss_f_val
 
    SUBROUTINE cp_libint_init_eri(lib, max_am)
       TYPE(cp_libint_t)               :: lib

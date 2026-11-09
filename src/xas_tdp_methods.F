@@ -76,7 +76,6 @@ MODULE xas_tdp_methods
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE libint_wrapper,                  ONLY: cp_libint_static_init
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: get_diag
    USE memory_utilities,                ONLY: reallocate
@@ -918,9 +917,6 @@ CONTAINS
 
 !  Check that everything is allowed
       CALL safety_check(xas_tdp_control, qs_env)
-
-!  Initialize libint for the 3-center integrals
-      CALL cp_libint_static_init()
 
 !  Compute LUMOs as guess for OT solver and/or for GW2X correction
       IF (xas_tdp_control%do_ot .OR. xas_tdp_control%do_gw2x) THEN
