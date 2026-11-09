@@ -147,7 +147,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="RSKP_TRANSFORM", &
                           description="Select the backend for bulk real-space/k-point transforms, including RI-RS GW. "// &
-                          "GEMM contracts image panels with Bloch phases and streams oversized prepared caches. "// &
+                          "GEMM contracts captured image panels with Bloch phases in k-point batches. "// &
                           "FFT uses supported regular grids; forward transforms also accept subsets. "// &
                           "Inverse FFT accepts weighted regular-grid subsets "// &
                           "without spatial rotations. Explicit single-point and property Fourier calls "// &

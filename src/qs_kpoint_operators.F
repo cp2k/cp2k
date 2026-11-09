@@ -10,7 +10,6 @@
 !>        SCF slots and spin rows adapt the generic kpoint_transform machinery.
 !>        Prepare captures values collectively; evaluation reads immutable snapshots
 !>        into group-local or explicitly prepared world-distributed destinations.
-!>        Budget-limited GEMM slots use collective single-k transforms and transfers.
 !>        Start/finish retain the round bookkeeping used by SCF drivers.
 !>        Serialize context mutation and collective preparation. Parallel evaluation
 !>        requires private destinations and scratch. Release before the host environment.
@@ -34,17 +33,15 @@ MODULE qs_kpoint_operators
                                               int_8
    USE kpoint_transform,                ONLY: &
         cell_to_k_backend_evaluate_batch, cell_to_k_backend_prepare, cell_to_k_sparse_fft, &
-        rskp_backend_fft, rskp_backend_gemm, rskp_batch_size, rskp_capture, rskp_compatible, &
-        rskp_prepared_transform_type, rskp_route_create, rskp_route_release, rskp_route_type, &
-        rskp_transform_evaluate, rskp_transform_release, rskp_transform_stream_prepare, &
-        rskp_values_release, rskp_values_type
+        rskp_backend_fft, rskp_batch_size, rskp_capture, rskp_compatible, rskp_route_create, &
+        rskp_route_release, rskp_route_type, rskp_values_release, rskp_values_type
    USE kpoint_types,                    ONLY: kpoint_env_type,&
                                               kpoint_type
    USE message_passing,                 ONLY: mp_para_env_type
    USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
 
-!$ USE omp_lib, ONLY: omp_get_max_threads, omp_get_num_threads
+!$ USE omp_lib, ONLY: omp_get_max_threads
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -81,8 +78,8 @@ MODULE qs_kpoint_operators
    ! borrowed source neighbor lists must remain alive and unchanged with it.
    ! Immutable captured values; FFT slots also own the local reciprocal matrices.
    ! Shared metadata belong to the route; source identifies explicitly prepared starts.
-   INTEGER(KIND=int_8), PARAMETER :: rs_snapshot_bytes = 64_int_8*1024_int_8**2
-   ! Temporary benchmark allowance: shared phases, worker scratch and output tiles.
+   INTEGER(KIND=int_8), PARAMETER :: rs_fft_snapshot_bytes = 64_int_8*1024_int_8**2
+   ! Shared phases, worker scratch and output tiles; at least one k point is evaluated.
    INTEGER(KIND=int_8), PARAMETER :: rs_batch_bytes = 64_int_8*1024_int_8**2
 
 ! **************************************************************************************************
@@ -100,8 +97,6 @@ MODULE qs_kpoint_operators
       TYPE(cp_fm_type), ALLOCATABLE :: fmlocal, fmimag
       TYPE(rskp_values_type), ALLOCATABLE :: rs(:, :)
       TYPE(rskp_route_type), ALLOCATABLE :: rs_route
-      TYPE(rskp_prepared_transform_type), POINTER :: stream(:) => NULL()
-      LOGICAL :: streaming(kpoint_num_slots) = .FALSE.
       INTEGER, ALLOCATABLE :: status(:, :, :)
    END TYPE kpoint_operator_context_type
 
@@ -173,13 +168,6 @@ CONTAINS
          END DO
          DEALLOCATE (ctx%rs)
       END IF
-      IF (ASSOCIATED(ctx%stream)) THEN
-         DO slot = 1, kpoint_num_slots
-            CALL rskp_transform_release(ctx%stream(slot))
-         END DO
-         DEALLOCATE (ctx%stream)
-      END IF
-      ctx%streaming = .FALSE.
       IF (ALLOCATED(ctx%rs_route)) THEN
          CALL rskp_route_release(ctx%rs_route)
          DEALLOCATE (ctx%rs_route)
@@ -226,7 +214,6 @@ CONTAINS
 !> \param ctx context spanning the current initialized k-point environment
 !> \param rsmat current real-space operator images
 !> \param slot slot to replace (KS, S or T)
-!> \param prepared true for independent cached evaluation; false for collective streaming
 !> \param matrix_row optional explicit spin-free operator row
 !> \param TARGET optional FM object defining the prepared-output layout
 !> \param target_struct optional FM structure defining the prepared-output
@@ -234,13 +221,12 @@ CONTAINS
 !> \param sab_nl optional source neighbor lists; defaults to the host AO lists
 !> \param mirror_sign optional transpose sign (+1 Hermitian, -1 anti-Hermitian)
 ! **************************************************************************************************
-   SUBROUTINE kpoint_operator_prepare(ctx, rsmat, slot, prepared, matrix_row, TARGET, target_struct, sab_nl, &
+   SUBROUTINE kpoint_operator_prepare(ctx, rsmat, slot, matrix_row, TARGET, target_struct, sab_nl, &
                                       mirror_sign)
 
       TYPE(kpoint_operator_context_type), INTENT(INOUT)  :: ctx
       TYPE(dbcsr_p_type), POINTER                        :: rsmat(:, :)
       INTEGER, INTENT(IN)                                :: slot
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: prepared
       INTEGER, INTENT(IN), OPTIONAL                      :: matrix_row
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: target
       TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: target_struct
@@ -254,15 +240,13 @@ CONTAINS
                                                             nrow, output_mirror_sign, row
       INTEGER(KIND=int_8)                                :: fft_storage, retained, storage, &
                                                             workspace_bytes
-      INTEGER, ALLOCATABLE                               :: source_rows(:)
-      LOGICAL                                            :: over_budget, ready, world_target
+      LOGICAL                                            :: ready, world_target
       TYPE(cp_fm_struct_type), POINTER                   :: fms
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: source_sab
 
       CALL timeset(routineN, handle)
-      IF (PRESENT(prepared)) prepared = .FALSE.
       CPASSERT(ASSOCIATED(ctx%kpoints))
       CPASSERT(.NOT. (PRESENT(TARGET) .AND. PRESENT(target_struct)))
       output_mirror_sign = 1
@@ -282,9 +266,6 @@ CONTAINS
       IF (.NOT. ALLOCATED(ctx%rs)) THEN
          ALLOCATE (ctx%rs(ctx%nspin, kpoint_num_slots))
       END IF
-      IF (.NOT. ASSOCIATED(ctx%stream)) ALLOCATE (ctx%stream(kpoint_num_slots))
-      CALL rskp_transform_release(ctx%stream(slot))
-      ctx%streaming(slot) = .FALSE.
       DO ispin = 1, ctx%nspin
          CALL rskp_values_release(ctx%rs(ispin, slot))
       END DO
@@ -315,40 +296,38 @@ CONTAINS
       IF (compatible == 0) THEN
          CPABORT("R-to-K output must use the host group or world communicator")
       END IF
-      snapshot_preparation: BLOCK
-         ready = .FALSE.
-         IF (.NOT. ALLOCATED(ctx%rs_route)) THEN
-            ALLOCATE (ctx%rs_route)
-            CALL rskp_route_create(rsmat, source_sab, ctx%kpoints%cell_to_index, fms, &
-                                   ctx%kpoints%blacs_env_all%para_env, ctx%kpoints%para_env_kp, &
-                                   ctx%kpoints%para_env_inter_kp, ctx%kpoints%rskp_transform, &
-                                   rs_snapshot_bytes, ctx%rs_route, ready, over_budget)
-            IF (.NOT. ready) THEN
-               IF (.NOT. over_budget .OR. ctx%kpoints%rskp_transform /= rskp_backend_gemm) THEN
-                  CPABORT("R-to-K route is incompatible or forced FFT exceeds the memory budget")
-               END IF
-               CALL rskp_route_release(ctx%rs_route)
-               DEALLOCATE (ctx%rs_route)
-               EXIT snapshot_preparation
-            END IF
-            IF (ctx%rs_route%transform%backend == rskp_backend_fft .OR. ctx%rs_route%world_target) THEN
-               CALL cell_to_k_backend_prepare(ctx%rs_route, ctx%kpoints%xkp, ctx%kpoints%nkp_grid, rs_batch_bytes)
-            ELSE
-               CALL cell_to_k_backend_prepare(ctx%rs_route, &
-                                              ctx%kpoints%xkp(:, ctx%kpoints%kp_range(1):ctx%kpoints%kp_range(2)), &
-                                              ctx%kpoints%nkp_grid, rs_batch_bytes)
-            END IF
+      IF (.NOT. ALLOCATED(ctx%rs_route)) THEN
+         ALLOCATE (ctx%rs_route)
+         CALL rskp_route_create(rsmat, source_sab, ctx%kpoints%cell_to_index, fms, &
+                                ctx%kpoints%blacs_env_all%para_env, ctx%kpoints%para_env_kp, &
+                                ctx%kpoints%para_env_inter_kp, ctx%kpoints%rskp_transform, &
+                                rs_fft_snapshot_bytes, ctx%rs_route, ready)
+         IF (.NOT. ready) THEN
+            CPABORT("R-to-K route is incompatible or forced FFT exceeds the memory budget")
          END IF
-         compatible = MERGE(1, 0, cp_fm_struct_equivalent(fms, ctx%rs_route%matrix_struct))
-         IF (world_target .NEQV. ctx%rs_route%world_target) compatible = 0
-         DO ispin = 1, nrow
-            row = ispin
-            IF (PRESENT(matrix_row)) row = matrix_row
-            IF (.NOT. rskp_compatible(ctx%rs_route, rsmat, row, source_sab)) compatible = 0
-         END DO
-         CALL para_env%min(compatible)
-         ! Fixed element/scatter metadata belong to the route; packed snapshots own only values.
+         IF (ctx%rs_route%transform%backend == rskp_backend_fft .OR. ctx%rs_route%world_target) THEN
+            CALL cell_to_k_backend_prepare(ctx%rs_route, ctx%kpoints%xkp, ctx%kpoints%nkp_grid, rs_batch_bytes)
+         ELSE
+            CALL cell_to_k_backend_prepare(ctx%rs_route, &
+                                           ctx%kpoints%xkp(:, ctx%kpoints%kp_range(1):ctx%kpoints%kp_range(2)), &
+                                           ctx%kpoints%nkp_grid, rs_batch_bytes)
+         END IF
+      END IF
+      compatible = MERGE(1, 0, cp_fm_struct_equivalent(fms, ctx%rs_route%matrix_struct))
+      IF (world_target .NEQV. ctx%rs_route%world_target) compatible = 0
+      DO ispin = 1, nrow
+         row = ispin
+         IF (PRESENT(matrix_row)) row = matrix_row
+         IF (.NOT. rskp_compatible(ctx%rs_route, rsmat, row, source_sab)) compatible = 0
+      END DO
+      CALL para_env%min(compatible)
+      IF (compatible == 0) THEN
+         CPABORT("R-to-K snapshot has an incompatible layout")
+      END IF
+      IF (ctx%rs_route%transform%backend == rskp_backend_fft) THEN
+         ! FFT retains its source and reciprocal-cache limits.
          retained = 0_int_8
+         fft_storage = 0_int_8
          DO jslot = kpoint_slot_ks, kpoint_slot_t
             DO ispin = 1, ctx%nspin
                IF (ALLOCATED(ctx%rs(ispin, jslot)%packed)) THEN
@@ -357,74 +336,37 @@ CONTAINS
                IF (ALLOCATED(ctx%rs(ispin, jslot)%active)) THEN
                   retained = retained + INT(STORAGE_SIZE(.FALSE.)/8, int_8)*SIZE(ctx%rs(ispin, jslot)%active, KIND=int_8)
                END IF
+               IF (ALLOCATED(ctx%rs(ispin, jslot)%fft_values)) THEN
+                  fft_storage = fft_storage + 16_int_8*SIZE(ctx%rs(ispin, jslot)%fft_values, KIND=int_8)
+               END IF
             END DO
          END DO
-         storage = ctx%rs_route%storage + retained
-         storage = storage + 8_int_8*nrow*( &
-                   ctx%rs_route%transform%packed_first(SIZE(ctx%rs_route%transform%packed_first)) - 1)
-         IF (ctx%rs_route%transform%backend == rskp_backend_gemm) THEN
-            storage = storage + INT(STORAGE_SIZE(.FALSE.)/8, int_8)*4_int_8*nrow*SIZE(ctx%rs_route%transform%phase_count, 2)
-         END IF
+         storage = ctx%rs_route%storage + retained + 8_int_8*nrow* &
+                   (ctx%rs_route%transform%packed_first(SIZE(ctx%rs_route%transform%packed_first)) - 1)
          CALL para_env%max(storage)
-         IF (compatible == 0) THEN
-            CPABORT("R-to-K snapshot has an incompatible layout")
+         IF (storage > rs_fft_snapshot_bytes) THEN
+            CPABORT("FFT snapshot exceeds budget")
          END IF
-         ready = storage <= rs_snapshot_bytes
-         IF (.NOT. ready) THEN
-            IF (ctx%kpoints%rskp_transform /= rskp_backend_gemm) THEN
-               CPABORT("FFT snapshot exceeds budget")
-            END IF
-            EXIT snapshot_preparation
+         nk = SIZE(ctx%kpoints%xkp, 2)
+         IF (.NOT. world_target) nk = SIZE(ctx%kpoints%kp_env)
+         fft_storage = fft_storage + 16_int_8*nrow*nk*fms%local_leading_dimension*MAX(1, ctx%rs_route%ncol)
+         workspace_bytes = 512_int_8*1024_int_8**2 - storage - fft_storage
+         IF (workspace_bytes <= 0_int_8) THEN
+            CPABORT("Forced lattice FFT cache exceeds the memory budget")
          END IF
-         IF (ready) THEN
-            fft_storage = 0_int_8
-            IF (ctx%rs_route%transform%backend == rskp_backend_fft) THEN
-               DO jslot = kpoint_slot_ks, kpoint_slot_t
-                  DO ispin = 1, ctx%nspin
-                     IF (ALLOCATED(ctx%rs(ispin, jslot)%fft_values)) THEN
-                        fft_storage = fft_storage + 16_int_8*SIZE(ctx%rs(ispin, jslot)%fft_values, KIND=int_8)
-                     END IF
-                  END DO
-               END DO
-               nk = SIZE(ctx%kpoints%xkp, 2)
-               IF (.NOT. world_target) nk = SIZE(ctx%kpoints%kp_env)
-               fft_storage = fft_storage + 16_int_8*nrow*nk*fms%local_leading_dimension*MAX(1, ctx%rs_route%ncol)
-               workspace_bytes = 512_int_8*1024_int_8**2 - storage - fft_storage
-               IF (workspace_bytes <= 0_int_8) THEN
-                  CPABORT("Forced lattice FFT cache exceeds the memory budget")
-               END IF
-            END IF
-            DO ispin = 1, nrow
-               row = ispin
-               IF (PRESENT(matrix_row)) row = matrix_row
-               CALL rskp_capture(rsmat, row, ctx%rs_route, ctx%rs(ispin, slot), mirror_sign=output_mirror_sign)
-               IF (ctx%rs_route%transform%backend == rskp_backend_fft) THEN
-                  ALLOCATE (ctx%rs(ispin, slot)%fft_values(fms%local_leading_dimension, MAX(1, ctx%rs_route%ncol), nk))
-                  CALL cell_to_k_sparse_fft(ctx%rs(ispin, slot), ctx%rs_route, ctx%kpoints%xkp, &
-                                            ctx%kpoints%nkp_grid, ctx%kpoints%kp_dist, ctx%kpoints%para_env_inter_kp, &
-                                            ctx%rs(ispin, slot)%fft_values, workspace_bytes)
-                  ! The reciprocal cache no longer needs the replicated real-space values.
-                  DEALLOCATE (ctx%rs(ispin, slot)%packed)
-               END IF
-            END DO
-         END IF
-      END BLOCK snapshot_preparation
-      IF (.NOT. ready) THEN
-         ALLOCATE (source_rows(nrow))
-         DO ispin = 1, nrow
-            row = ispin
-            IF (PRESENT(matrix_row)) row = matrix_row
-            source_rows(ispin) = row
-            ctx%rs(ispin, slot)%source => rsmat
-            ctx%rs(ispin, slot)%matrix_row = row
-         END DO
-         CALL rskp_transform_stream_prepare(ctx%stream(slot), rsmat, source_rows, source_sab, &
-                                            ctx%kpoints%cell_to_index, fms, para_env, ctx%kpoints%para_env_kp, &
-                                            ctx%kpoints%para_env_inter_kp, ctx%kpoints%kp_dist, &
-                                            mirror_sign=output_mirror_sign)
-         ctx%streaming(slot) = .TRUE.
       END IF
-      IF (PRESENT(prepared)) prepared = ready
+      DO ispin = 1, nrow
+         row = ispin
+         IF (PRESENT(matrix_row)) row = matrix_row
+         CALL rskp_capture(rsmat, row, ctx%rs_route, ctx%rs(ispin, slot), mirror_sign=output_mirror_sign)
+         IF (ctx%rs_route%transform%backend == rskp_backend_fft) THEN
+            ALLOCATE (ctx%rs(ispin, slot)%fft_values(fms%local_leading_dimension, MAX(1, ctx%rs_route%ncol), nk))
+            CALL cell_to_k_sparse_fft(ctx%rs(ispin, slot), ctx%rs_route, ctx%kpoints%xkp, &
+                                      ctx%kpoints%nkp_grid, ctx%kpoints%kp_dist, ctx%kpoints%para_env_inter_kp, &
+                                      ctx%rs(ispin, slot)%fft_values, workspace_bytes)
+            DEALLOCATE (ctx%rs(ispin, slot)%packed)
+         END IF
+      END DO
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_operator_prepare
@@ -457,8 +399,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Evaluate an immutable prepared operator with exclusively caller-owned output and scratch.
-!>        Cached slots support independent worker evaluation. Streaming slots require
-!>        collective rounds outside worker regions. Source blocks must stay unchanged.
+!>        Slots support independent worker evaluation through width-one batches.
+!>        Source blocks must stay unchanged until the next collective refresh.
 !> \param ctx prepared read-only context
 !> \param ispin instance spin
 !> \param slot operator slot
@@ -466,38 +408,21 @@ CONTAINS
 !> \param TARGET optional private complex singleton output
 !> \param fm_re optional private real output instead of TARGET
 !> \param fm_im optional private imaginary output, accompanying fm_re for a complex operator
-!> \param round collective streaming round; k is a local round shared by all groups
 ! **************************************************************************************************
-   SUBROUTINE kpoint_operator_evaluate(ctx, ispin, slot, ik, TARGET, fm_re, fm_im, round)
+   SUBROUTINE kpoint_operator_evaluate(ctx, ispin, slot, ik, TARGET, fm_re, fm_im)
       TYPE(kpoint_operator_context_type), INTENT(IN)     :: ctx
       INTEGER, INTENT(IN)                                :: ispin, slot, ik
       TYPE(cp_cfm_type), INTENT(INOUT), OPTIONAL         :: target
       TYPE(cp_fm_type), INTENT(INOUT), OPTIONAL, TARGET  :: fm_re, fm_im
-      LOGICAL, INTENT(IN), OPTIONAL                      :: round
 
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: batch(:, :, :)
-      INTEGER                                            :: first, nc, nk, nworkers, requested, row, &
-                                                            width
-      INTEGER(KIND=int_8)                                :: work_size
+      INTEGER                                            :: first, nc, row
+      LOGICAL                                            :: target_layout_matches
       REAL(KIND=dp), ALLOCATABLE                         :: work(:)
       TYPE(cp_fm_p_type)                                 :: output(1, 2)
 
       CPASSERT(PRESENT(TARGET) .NEQV. PRESENT(fm_re))
       CPASSERT(.NOT. PRESENT(fm_im) .OR. PRESENT(fm_re))
-      IF (ctx%streaming(slot)) THEN
-         row = ispin
-         IF (.NOT. ASSOCIATED(ctx%rs(row, slot)%source)) row = 1
-         CALL rskp_transform_evaluate(ctx%stream(slot), row, ik, ctx%kpoints%xkp, &
-                                      fm_re=fm_re, fm_im=fm_im, cfm=TARGET, round=round)
-         IF (PRESENT(round)) THEN
-            IF (round .AND. ik > SIZE(ctx%kpoints%kp_env)) RETURN
-         END IF
-         IF (ctx%kpoints%use_real_wfn) THEN
-            IF (PRESENT(TARGET)) target%local_data(:, :) = CMPLX(REAL(target%local_data, dp), 0.0_dp, dp)
-            IF (PRESENT(fm_im)) fm_im%local_data(:, :) = 0.0_dp
-         END IF
-         RETURN
-      END IF
       IF (ctx%rs_route%world_target) THEN
          CPASSERT(ik >= 1 .AND. ik <= ctx%kpoints%nkp)
       ELSE
@@ -507,25 +432,17 @@ CONTAINS
       row = ispin
       IF (.NOT. ASSOCIATED(ctx%rs(row, slot)%source)) row = 1
       CPASSERT(ASSOCIATED(ctx%rs(row, slot)%source))
-      requested = 1
-!$    requested = omp_get_num_threads()
-      nworkers = requested
       first = ik
       IF (.NOT. ctx%rs_route%world_target) first = ik - ctx%kpoints%kp_range(1) + 1
+      nc = 2
       IF (PRESENT(TARGET)) THEN
-         CPASSERT(cp_fm_struct_equivalent(target%matrix_struct, ctx%rs_route%matrix_struct))
-         CALL kpoint_operator_batch_size(ctx, nworkers, 1, width, work_size)
-      ELSE
+         target_layout_matches = cp_fm_struct_equivalent(target%matrix_struct, ctx%rs_route%matrix_struct)
+         CPASSERT(target_layout_matches)
+      ELSE IF (.NOT. PRESENT(fm_im) .AND. AIMAG(ctx%rs(row, slot)%scale) == 0.0_dp) THEN
          nc = 1
-         IF (PRESENT(fm_im) .OR. AIMAG(ctx%rs(row, slot)%scale) /= 0.0_dp) nc = 2
-         nk = SIZE(ctx%kpoints%kp_env)
-         IF (ctx%rs_route%world_target) nk = ctx%kpoints%nkp
-         CALL rskp_batch_size(ctx%rs_route, nk, nc, nworkers, 0, rs_batch_bytes, width, work_size)
       END IF
-      IF (nworkers < requested) THEN
-         CPABORT("R-to-K singleton workers exceed the budget; use batched assembly")
-      END IF
-      ALLOCATE (work(work_size/width))
+      ! Caller-owned output needs only width-one contraction scratch.
+      ALLOCATE (work(INT(nc, int_8)*ctx%rs_route%transform%max_per_k))
       IF (PRESENT(TARGET)) THEN
          batch(1:SIZE(target%local_data, 1), 1:SIZE(target%local_data, 2), 1:1) => target%local_data
          CALL kpoint_operator_evaluate_batch(ctx, row, slot, ik, batch, work)
@@ -638,9 +555,7 @@ CONTAINS
       irs = ispin
       IF (.NOT. ASSOCIATED(ctx%rs(irs, slot)%source)) irs = 1
       ik = kp_range(1) + ikp - 1
-      IF (ctx%streaming(slot)) THEN
-         CALL kpoint_operator_evaluate(ctx, irs, slot, ikp, cmat, fm_re=fm_re, round=.TRUE.)
-      ELSE IF (ik <= kp_range(2)) THEN
+      IF (ik <= kp_range(2)) THEN
          CALL kpoint_operator_evaluate(ctx, irs, slot, ik, cmat, fm_re=fm_re)
       END IF
       ctx%status(ikp, ispin, slot) = kpoint_slot_idle
@@ -715,24 +630,7 @@ CONTAINS
          CPABORT("Operator get requires a matching prepared source row")
       END IF
       ik = ctx%kpoints%kp_range(1) + ikp - 1
-      IF (ctx%streaming(selected_slot)) THEN
-         IF (PRESENT(mat_re)) THEN
-            CALL kpoint_operator_ensure_group(ctx)
-            IF (.NOT. ALLOCATED(ctx%fmimag)) THEN
-               ALLOCATE (ctx%fmimag)
-               CALL cp_fm_create(ctx%fmimag, ctx%fmlocal%matrix_struct)
-            END IF
-            CALL kpoint_operator_evaluate(ctx, irs, selected_slot, ikp, &
-                                          fm_re=ctx%fmlocal, fm_im=ctx%fmimag, round=.TRUE.)
-            IF (ik <= ctx%kpoints%kp_range(2)) THEN
-               CALL copy_fm_to_dbcsr_bc(ctx%fmlocal, mat_re)
-               CALL copy_fm_to_dbcsr_bc(ctx%fmimag, mat_im)
-            END IF
-         ELSE
-            CALL kpoint_operator_evaluate(ctx, irs, selected_slot, ikp, &
-                                          TARGET=cmat, fm_re=fm_re, fm_im=fm_im, round=.TRUE.)
-         END IF
-      ELSE IF (ik <= ctx%kpoints%kp_range(2)) THEN
+      IF (ik <= ctx%kpoints%kp_range(2)) THEN
          IF (PRESENT(mat_re)) THEN
             CALL kpoint_operator_ensure_group(ctx)
             IF (.NOT. ALLOCATED(ctx%fmimag)) THEN
@@ -808,15 +706,14 @@ CONTAINS
       INTEGER                                            :: handle, ik, ikp, kplocal, kpmax, &
                                                             nworkers, width
       INTEGER(KIND=int_8)                                :: work_size
-      LOGICAL                                            :: prepared
       TYPE(kpoint_operator_context_type)                 :: ctx
 
       CALL timeset(routineN, handle)
       kplocal = SIZE(kpoints%kp_env)
       CPASSERT(SIZE(cmat) == kplocal .AND. kplocal > 0)
       CALL kpoint_operator_context_create(ctx, kpoints, ao_ao_fm, 1)
-      CALL kpoint_operator_prepare(ctx, rsmat, slot, prepared=prepared, matrix_row=matrix_row)
-      IF (prepared .AND. kpoints%para_env_kp%num_pe == 1) THEN
+      CALL kpoint_operator_prepare(ctx, rsmat, slot, matrix_row=matrix_row)
+      IF (kpoints%para_env_kp%num_pe == 1) THEN
          nworkers = 1
 !$       nworkers = MIN(omp_get_max_threads(), kplocal)
          CALL kpoint_operator_batch_size(ctx, nworkers, 1, width, work_size)
@@ -885,25 +782,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       nk = SIZE(ctx%kpoints%kp_env)
-      IF (ctx%streaming(slot)) THEN
-         DO first = 1, MAXVAL(ctx%kpoints%kp_dist(2, :) - ctx%kpoints%kp_dist(1, :) + 1)
-            DO ispin = 1, nrows
-               IF (first <= nk) THEN
-                  cache => kpoint_operator_cache(ctx%kpoints%kp_env(first)%kpoint_env, slot, ispin)
-                  IF (ctx%kpoints%use_real_wfn) THEN
-                     CALL kpoint_operator_evaluate(ctx, ispin, slot, first, fm_re=cache(1), round=.TRUE.)
-                  ELSE
-                     CALL kpoint_operator_evaluate(ctx, ispin, slot, first, &
-                                                   fm_re=cache(1), fm_im=cache(2), round=.TRUE.)
-                  END IF
-               ELSE
-                  CALL kpoint_operator_evaluate(ctx, ispin, slot, first, fm_re=ctx%fmlocal, round=.TRUE.)
-               END IF
-            END DO
-         END DO
-         CALL timestop(handle)
-         RETURN
-      END IF
       IF (nk == 0) THEN
          CALL timestop(handle)
          RETURN
@@ -1116,8 +994,6 @@ CONTAINS
                CALL rskp_values_release(ctx%rs(ispin, slot))
             END DO
          END IF
-         CALL rskp_transform_release(ctx%stream(slot))
-         ctx%streaming(slot) = .FALSE.
       END SUBROUTINE store_slot
 
    END SUBROUTINE kpoint_operator_store
