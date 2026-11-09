@@ -19,6 +19,8 @@ MODULE md_run
    USE cell_types,                      ONLY: cell_type
    USE constraint_clv,                  ONLY: shake_update_colv_low
    USE cp_external_control,             ONLY: external_control
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -44,12 +46,14 @@ MODULE md_run
    USE input_constants,                 ONLY: &
         ehrenfest, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
         nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, &
-        npt_ia_ensemble, reftraj_ensemble
+        npt_ia_ensemble, nvt_ensemble, reftraj_ensemble
    USE input_cp2k_check,                ONLY: remove_restart_info
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_get_subs_vals,&
                                               section_vals_remove_values,&
                                               section_vals_type,&
-                                              section_vals_val_get
+                                              section_vals_val_get,&
+                                              section_vals_val_set
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE machine,                         ONLY: m_flush,&
@@ -84,7 +88,21 @@ MODULE md_run
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: global_constraint_type
    USE particle_list_types,             ONLY: particle_list_type
+   USE physcon,                         ONLY: angstrom,&
+                                              evolt,&
+                                              femtoseconds
+   USE qs_electrons_charge_mixing,      ONLY: charge_mixing_maybe_rebuild,&
+                                              charge_mixing_sync_endpoint_state,&
+                                              compute_mixed_workfunction,&
+                                              push_lambda_to_mixed_env,&
+                                              qs_electrons_charge_mixing_lambda
+   USE qs_electrons_ne_electrode,       ONLY: apply_ne_core_correction
+   USE qs_electrons_types,              ONLY: qs_electrons_init,&
+                                              qs_electrons_type
+   USE qs_electrons_workfunction,       ONLY: qs_electrons_compute_workfunction
    USE qs_environment_methods,          ONLY: qs_env_time_update
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
    USE reftraj_types,                   ONLY: create_reftraj,&
                                               reftraj_type
    USE reftraj_util,                    ONLY: initialize_reftraj,&
@@ -201,9 +219,12 @@ CONTAINS
       INTEGER                                            :: handle, i, istep, md_stride, &
                                                             output_unit, run_type_id
       INTEGER, POINTER                                   :: itimes
-      LOGICAL                                            :: check, ehrenfest_md, save_mem, &
-                                                            should_stop, write_binary_restart_file
-      REAL(KIND=dp)                                      :: dummy, time_iter_start, time_iter_stop
+      LOGICAL                                            :: check, ehrenfest_md, electrons_enabled, &
+                                                            save_mem, should_stop, &
+                                                            write_binary_restart_file
+      REAL(KIND=dp)                                      :: dummy, grand_canonical_eV, lambda_mix, &
+                                                            legendre_eV, target_col, &
+                                                            time_iter_start, time_iter_stop
       REAL(KIND=dp), POINTER                             :: constant, time, used_time
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(barostat_type), POINTER                       :: barostat
@@ -215,13 +236,26 @@ CONTAINS
       TYPE(md_ener_type), POINTER                        :: md_ener
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(qs_electrons_type), POINTER                   :: electrons
       TYPE(reftraj_type), POINTER                        :: reftraj
-      TYPE(section_vals_type), POINTER :: constraint_section, force_env_section, &
-         free_energy_section, global_section, reftraj_section, subsys_section, work_section
+      TYPE(section_vals_type), POINTER :: constraint_section, electrons_section, &
+         force_env_section, free_energy_section, global_section, reftraj_section, subsys_section, &
+         work_section
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(thermal_regions_type), POINTER                :: thermal_regions
       TYPE(thermostats_type), POINTER                    :: thermostats
       TYPE(virial_type), POINTER                         :: virial
+
+! Column 9 of the .cpcont carries whichever target the run is actually controlling:
+! target_col is set per step from the Fermi-level or work-function target.
+! legendre_eV is the Legendre term Phi_target*(q - N_neutral), used by the
+! grand-canonical potential below. It is not added to Conserved[eV], which is
+! CP2K's own md_ener%constant, so that column means the same thing as in any
+! other MD run. The electronic contributions to an extended-system invariant
+! can be reconstructed from the printed columns:
+!   p^2/2m           = 0.5_dp*electrons%p**2/electrons%mass * evolt
+!   thermostat heat  = electrons%thermostat_energy * evolt
+!   Legendre term    = Grand_canonical_potential[eV] - Potential[eV]
 
       CALL timeset(routineN, handle)
       CPASSERT(ASSOCIATED(globenv))
@@ -275,6 +309,15 @@ CONTAINS
       ! If requested setup different thermal regions
       CALL create_thermal_regions(thermal_regions, md_section, simpar, force_env)
 
+      NULLIFY (electrons_section, electrons)
+      electrons_section => section_vals_get_subs_vals(md_section, "ELECTRONS")
+      CALL section_vals_val_get(electrons_section, "_SECTION_PARAMETERS_", l_val=electrons_enabled)
+
+      ! Constant-potential setup (&ELECTRONS): the potentiostat driver, or the report-only
+      ! logger. electrons stays NULL if the section is absent.
+      CALL init_md_electrons(md_section, electrons_section, force_env, simpar, &
+                             electrons_enabled, electrons, lambda_mix)
+
       ! If doing langevin_ensemble, then print out langevin_regions information upon request
       IF (simpar%ensemble == langevin_ensemble) THEN
          my_pos = "REWIND"
@@ -283,7 +326,8 @@ CONTAINS
                                              pos=my_pos, act=my_act)
       END IF
 
-      CALL set_md_env(md_env, thermostats=thermostats, barostat=barostat, thermal_regions=thermal_regions)
+      CALL set_md_env(md_env, thermostats=thermostats, barostat=barostat, thermal_regions=thermal_regions, &
+                      electrons=electrons)
 
       CALL get_md_env(md_env, ehrenfest_md=ehrenfest_md)
 
@@ -392,6 +436,23 @@ CONTAINS
             ! consistent_energies=.FALSE. by default
             CALL force_env_calc_energy_force(force_env, calc_force=.TRUE.)
          END IF
+         ! ASSOCIATED rather than electrons_enabled: report-only mode needs this
+         ! readback too -- computing the Fermi level and work function every step
+         ! is the entire point of it. charge_mixing_enabled is false there, so it
+         ! takes the plain single-force_env branch below.
+         IF (ASSOCIATED(electrons)) THEN
+            IF (electrons%charge_mixing_enabled) THEN
+               CALL compute_mixed_workfunction(force_env, electrons%potential_average_axis, &
+                                               electrons%potential_average_min, electrons%potential_average_max, &
+                                               electrons%q, electrons%charge_mixing_span, &
+                                               electrons%current_fermi_level_eV, electrons%current_workfunction, &
+                                               lambda_in=lambda_mix)
+            ELSE
+               CALL qs_electrons_compute_workfunction(force_env, electrons%potential_average_axis, &
+                                                      electrons%potential_average_min, electrons%potential_average_max, &
+                                                      electrons%current_fermi_level_eV, electrons%current_workfunction)
+            END IF
+         END IF
 
          IF (ASSOCIATED(force_env%qs_env)) THEN
             CALL qs_env_time_update(force_env%qs_env, time, itimes)
@@ -447,6 +508,36 @@ CONTAINS
                               virial, force_env%para_env)
 
          CALL md_energy(md_env, md_ener)
+
+         ! ASSOCIATED rather than electrons_enabled, so report-only mode writes
+         ! its step-0 line too. There target_workfunction is 0, so legendre_eV
+         ! vanishes and grand_canonical_eV reduces to E_pot.
+         IF (ASSOCIATED(electrons)) THEN
+            IF (output_unit > 0 .AND. electrons%cpcont_unit > 0) THEN
+               ! Grand-canonical potential, Omega = E - mu*(q - N_neutral), with
+               ! mu = -Phi_target in work-function control and mu = e_F_target in
+               ! Fermi-level control.
+               ! Column 9 carries the control target actually in use (the work function
+               ! or the Fermi level); the header written at file-open names which one.
+               IF (electrons%control_fermi) THEN
+                  legendre_eV = -electrons%target_fermi_level* &
+                                (electrons%q - electrons%neutral_electrons)
+                  target_col = electrons%target_fermi_level
+               ELSE
+                  legendre_eV = electrons%target_workfunction* &
+                                (electrons%q - electrons%neutral_electrons)
+                  target_col = electrons%target_workfunction
+               END IF
+               grand_canonical_eV = md_ener%epot*evolt + legendre_eV
+               WRITE (electrons%cpcont_unit, '(I10,9ES20.10E3)') itimes, time*femtoseconds, &
+                  md_ener%epot*evolt, md_ener%constant*evolt, md_ener%temp_part, &
+                  electrons%q, electrons%current_fermi_level_eV, electrons%current_workfunction, &
+                  target_col, grand_canonical_eV
+               CALL m_flush(electrons%cpcont_unit)
+            END IF
+         END IF
+
+         IF (electrons_enabled) CALL store_electrons_restart(electrons_section, electrons)
          CALL md_write_output(md_env) !inits the print env at itimes == 0 also writes trajectories
          md_stride = 1
       ELSE
@@ -551,8 +642,10 @@ CONTAINS
             !In Ehrenfest molecular dynamics the external control is only checked after a converged propagation
             !The restart needs to be written in order to be consistent with the mos/density matrix for the restart
             IF (run_type_id == ehrenfest) THEN
+               IF (electrons_enabled) CALL store_electrons_restart(electrons_section, electrons)
                CALL md_output(md_env, md_section, force_env%root_section, .FALSE.)
             ELSE
+               IF (electrons_enabled) CALL store_electrons_restart(electrons_section, electrons)
                CALL md_output(md_env, md_section, force_env%root_section, should_stop)
             END IF
             EXIT
@@ -563,6 +656,30 @@ CONTAINS
             CALL temperature_control(simpar, md_env, md_ener, force_env, logger)
             CALL comvel_control(md_ener, force_env, md_section, logger)
             CALL angvel_control(md_ener, force_env, md_section, logger)
+
+            ! ASSOCIATED rather than electrons_enabled, so report-only mode
+            ! writes a line every step as well.
+            IF (ASSOCIATED(electrons)) THEN
+               IF (output_unit > 0 .AND. electrons%cpcont_unit > 0) THEN
+                  ! Column 9 is the control target -- see the comment at the
+                  ! step-0 write above.
+                  IF (electrons%control_fermi) THEN
+                     legendre_eV = -electrons%target_fermi_level* &
+                                   (electrons%q - electrons%neutral_electrons)
+                     target_col = electrons%target_fermi_level
+                  ELSE
+                     legendre_eV = electrons%target_workfunction* &
+                                   (electrons%q - electrons%neutral_electrons)
+                     target_col = electrons%target_workfunction
+                  END IF
+                  grand_canonical_eV = md_ener%epot*evolt + legendre_eV
+                  WRITE (electrons%cpcont_unit, '(I10,9ES20.10E3)') itimes, time*femtoseconds, &
+                     md_ener%epot*evolt, md_ener%constant*evolt, md_ener%temp_part, &
+                     electrons%q, electrons%current_fermi_level_eV, electrons%current_workfunction, &
+                     target_col, grand_canonical_eV
+                  CALL m_flush(electrons%cpcont_unit)
+               END IF
+            END IF
          ELSE
             CALL md_ener_reftraj(md_env, md_ener)
          END IF
@@ -571,11 +688,22 @@ CONTAINS
          used_time = time_iter_stop - time_iter_start
          time_iter_start = time_iter_stop
 
+         IF (electrons_enabled) CALL store_electrons_restart(electrons_section, electrons)
          CALL md_output(md_env, md_section, force_env%root_section, should_stop)
          IF (simpar%ensemble == reftraj_ensemble) THEN
             CALL write_output_reftraj(md_env)
          END IF
       END DO
+
+      ! Guarded on ASSOCIATED: with no &ELECTRONS section at all, `electrons` is
+      ! NULL and this dereferenced a null pointer on the ionode of every ordinary
+      ! MD run. Also guarded on cpcont_unit > 0, since the unit keeps its -1
+      ! default on every rank that never opened the file.
+      IF (ASSOCIATED(electrons)) THEN
+         IF (output_unit > 0 .AND. electrons%cpcont_unit > 0) THEN
+            CALL close_file(electrons%cpcont_unit)
+         END IF
+      END IF
 
 ! if we need the final kinetic energy for Hybrid Monte Carlo
       IF (PRESENT(hmc_e_final)) hmc_e_final = md_ener%ekin
@@ -631,5 +759,376 @@ CONTAINS
       gci%joint_colvar_checks = moving
       IF (moving) CALL force_env_rattle(force_env, dt=dt, shake_tol=simpar%shake_tol, reset=.TRUE.)
    END SUBROUTINE initialize_moving_colvars
+
+! **************************************************************************************************
+!> \brief Reads the &ELECTRONS section and sets up the electronic driver for the MD run.
+!>        "&ELECTRONS T": constant-potential driver (potentiostat, optional charge mixing) and
+!>        .cpcont log. "&ELECTRONS 0": report-only, an ordinary MD run that also logs the Fermi
+!>        level and work function. Absent section: electrons is left NULL.
+!> \param md_section ...
+!> \param electrons_section ...
+!> \param force_env ...
+!> \param simpar ...
+!> \param electrons_enabled value of _SECTION_PARAMETERS_
+!> \param electrons the electronic state, NULL if no electronic driver is active
+!> \param lambda_mix initial charge-mixing weight, 0 if charge mixing is off
+! **************************************************************************************************
+   SUBROUTINE init_md_electrons(md_section, electrons_section, force_env, simpar, &
+                                electrons_enabled, electrons, lambda_mix)
+      TYPE(section_vals_type), POINTER                   :: md_section, electrons_section
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(simpar_type), POINTER                         :: simpar
+      LOGICAL, INTENT(IN)                                :: electrons_enabled
+      TYPE(qs_electrons_type), POINTER                   :: electrons
+      REAL(KIND=dp), INTENT(OUT)                         :: lambda_mix
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_md_electrons'
+
+      CHARACTER(LEN=23)                                  :: cpcont_target_label
+      CHARACTER(LEN=6)                                   :: cpcont_pos
+      INTEGER                                            :: charge_span, cpcont_step0, handle, iw, &
+                                                            nelec_report, output_unit, wf_axis
+      LOGICAL                                            :: charge_mixing, cm_inplace, &
+                                                            control_fermi, electrons_explicit, &
+                                                            electrons_report, lambda_is_fixed
+      REAL(KIND=dp) :: cur_ef, cur_wf, lambda_fix, mass_electrons, neutral_e, p_init, pot_energy, &
+         q_init, target_ef, target_wf, tau_pot, temp_pot, wf_max_a, wf_min_a
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: wf_region
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(qs_environment_type), POINTER                 :: qs_env_report
+
+      CALL timeset(routineN, handle)
+      lambda_mix = 0.0_dp
+
+      ! "&ELECTRONS 0" -- section present with a false parameter -- selects
+      ! report-only mode: the .cpcont file is written for an ordinary MD run,
+      ! with the Fermi level and work function computed and logged every step,
+      ! but q is never propagated and no potentiostat, charge mixing or core
+      ! correction is applied. An ABSENT section must keep meaning "do nothing
+      ! at all", and both cases leave _SECTION_PARAMETERS_ at .FALSE., so the
+      ! two are separated by asking whether the section was written explicitly.
+      ! (CP2K's logical parser accepts 0/1 as well as F/T, so "&ELECTRONS 0"
+      ! and "&ELECTRONS F" are the same thing.)
+      CALL section_vals_get(electrons_section, explicit=electrons_explicit)
+      electrons_report = electrons_explicit .AND. (.NOT. electrons_enabled)
+
+      NULLIFY (electrons, qs_env_report, wf_region)
+      IF (electrons_enabled) THEN
+         ! The constant-potential hooks (electronic kick/drift, endpoint rebuild,
+         ! lambda push, potentiostat) live inside the per-ensemble integrator
+         ! routines in integrator.F, and are currently implemented only in nvt()
+         ! and langevin().  Under any other ensemble the atoms would propagate
+         ! normally while q(t) stayed frozen at Q_INIT and the mixing weight was
+         ! never updated -- the run would finish and write entirely plausible
+         ! output that means nothing.  Refuse rather than fail silently.
+         IF (simpar%ensemble /= nvt_ensemble .AND. &
+             simpar%ensemble /= langevin_ensemble) THEN
+            CPABORT("&ELECTRONS requires ENSEMBLE NVT or LANGEVIN")
+         END IF
+
+         CALL section_vals_val_get(electrons_section, "POTENTIAL_AVERAGE_AXIS", i_val=wf_axis)
+         ! r_vals returns a POINTER INTO THE INPUT TREE, not a copy. The previous
+         ! line here was
+         !
+         !    wf_region = wf_region*angstrom
+         !
+         ! which converted the stored value from bohr to angstrom IN PLACE,
+         ! corrupting the input tree. On a fresh run that was invisible: the
+         ! converted numbers were what the work-function routine wanted, and
+         ! nothing read the section again. But CP2K's restart writer does read it,
+         ! and converts bohr -> angstrom a second time on output, so every restart
+         ! divided the averaging region by 1.8897 (bohr per angstrom) and the
+         ! error COMPOUNDED with each continuation. A 12.5-15.0 angstrom vacuum
+         ! window became 6.61-7.94 after one restart -- inside the slab rather
+         ! than in the vacuum, making the work function, dPhi/dq and hence the
+         ! whole potentiostat meaningless while still looking plausible.
+         !
+         ! Convert into local scalars and leave the input tree alone.
+         CALL section_vals_val_get(electrons_section, "POTENTIAL_AVERAGE_REGION", r_vals=wf_region)
+         wf_min_a = wf_region(1)*angstrom
+         wf_max_a = wf_region(2)*angstrom
+         CALL section_vals_val_get(electrons_section, "NEUTRAL_ELECTRONS", r_val=neutral_e)
+         CALL section_vals_val_get(electrons_section, "Q_INIT", r_val=q_init)
+         CALL section_vals_val_get(electrons_section, "TARGET_WORKFUNCTION", r_val=target_wf)
+         ! TARGET_WORKFUNCTION carries unit_str="eV", so the input machinery
+         ! returns it in atomic units (Hartree) whether the deck wrote a bare
+         ! number, [eV] or [hartree].  The potentiostat works in eV throughout --
+         ! qs_electrons_force forms (current_workfunction - target_workfunction)
+         ! in eV before dividing by HARTREE_TO_EV, and the .cpcont writes both
+         ! columns as eV -- so convert back here, exactly as
+         ! POTENTIAL_AVERAGE_REGION above is converted with `angstrom'.
+         target_wf = target_wf*evolt
+         ! Fermi-level control is selected simply by setting TARGET_FERMI_LEVEL;
+         ! its default is HUGE, the sentinel for "not given".
+         CALL section_vals_val_get(electrons_section, "CHARGE_MIXING_INPLACE", l_val=cm_inplace)
+         CALL section_vals_val_get(electrons_section, "LAMBDA", r_val=lambda_fix)
+         lambda_is_fixed = (lambda_fix < 0.5_dp*HUGE(0.0_dp))
+         IF (.NOT. lambda_is_fixed) lambda_fix = 0.0_dp
+         IF (lambda_is_fixed) THEN
+            CPWARN("LAMBDA is fixed: q(t) frozen, potentiostat inactive, no endpoint rebuilds")
+         END IF
+         CALL section_vals_val_get(electrons_section, "TARGET_FERMI_LEVEL", r_val=target_ef)
+         control_fermi = (target_ef < 0.5_dp*HUGE(0.0_dp))
+         IF (control_fermi) THEN
+            ! TARGET_FERMI_LEVEL takes PRECEDENCE rather than being mutually
+            ! exclusive. It cannot be an abort: TARGET_WORKFUNCTION has a
+            ! non-zero default (5.0 eV), so "was it set?" is unanswerable from
+            ! its value alone, and an exclusivity check would fire on every
+            ! Fermi-mode run. Precedence also means a restart file written in
+            ! work-function mode -- which necessarily carries an explicit
+            ! TARGET_WORKFUNCTION -- can be switched to Fermi control by adding
+            ! one line, without having to delete the old target by hand.
+            IF (ABS(target_wf - 5.0_dp) > 1.0E-12_dp) THEN
+               CPWARN("TARGET_FERMI_LEVEL is set: TARGET_WORKFUNCTION is ignored")
+            END IF
+         ELSE
+            target_ef = 0.0_dp
+         END IF
+         CALL section_vals_val_get(electrons_section, "MASS", r_val=mass_electrons)
+         CALL section_vals_val_get(electrons_section, "TAU_POTENTIOSTAT", r_val=tau_pot)
+         CALL section_vals_val_get(electrons_section, "TEMP_POTENTIOSTAT", r_val=temp_pot)
+         CALL section_vals_val_get(electrons_section, "CHARGE_MIXING", l_val=charge_mixing)
+         charge_span = 1
+         IF (charge_mixing) CALL section_vals_val_get(electrons_section, "CHARGE_MIXING_SPAN", i_val=charge_span)
+         ! The mixing code clamps S with MAX(1, S), but a zero or negative span is
+         ! an input error, not something to correct silently.
+         IF (charge_span < 1) CPABORT("CHARGE_MIXING_SPAN must be a positive integer")
+         ! Restartable state. On a fresh run these carry their defaults (p = 0,
+         ! no accumulated potentiostat heat) so behaviour is unchanged; on a
+         ! restart they carry the live values written by store_electrons_restart
+         ! below, and the electronic dynamics continues rather than restarting.
+         CALL section_vals_val_get(electrons_section, "P_INIT", r_val=p_init)
+         CALL section_vals_val_get(electrons_section, "POTENTIOSTAT_ENERGY", r_val=pot_energy)
+         CALL section_vals_val_get(electrons_section, "CURRENT_FERMI_LEVEL", r_val=cur_ef)
+         CALL section_vals_val_get(electrons_section, "CURRENT_WORKFUNCTION", r_val=cur_wf)
+
+         IF (charge_mixing) THEN
+            CALL qs_electrons_init(electrons, q_init=q_init, p_init=p_init, mass=mass_electrons, &
+                                   neutral_electrons=neutral_e, target_workfunction=target_wf, &
+                                   tau_potentiostat=tau_pot, temp_potentiostat=temp_pot, &
+                                   potential_average_axis=wf_axis, potential_average_min=wf_min_a, &
+                                   potential_average_max=wf_max_a, charge_mixing_span=charge_span, &
+                                   target_fermi_level=target_ef, control_fermi=control_fermi, &
+                                   lambda_fixed=lambda_fix, lambda_is_fixed=lambda_is_fixed, &
+                                   charge_mixing_inplace=cm_inplace)
+         ELSE
+            CALL qs_electrons_init(electrons, q_init=q_init, p_init=p_init, mass=mass_electrons, &
+                                   neutral_electrons=neutral_e, target_workfunction=target_wf, &
+                                   tau_potentiostat=tau_pot, temp_potentiostat=temp_pot, &
+                                   potential_average_axis=wf_axis, potential_average_min=wf_min_a, &
+                                   potential_average_max=wf_max_a, &
+                                   target_fermi_level=target_ef, control_fermi=control_fermi, &
+                                   lambda_fixed=lambda_fix, lambda_is_fixed=lambda_is_fixed, &
+                                   charge_mixing_inplace=cm_inplace)
+         END IF
+         ! qs_electrons_init zeroes these; restore them after it.
+         !
+         ! p and thermostat_energy are load-bearing: without them a restart
+         ! resumes with the electronic variable at rest and its potentiostat
+         ! heat accounting reset to zero, mid-trajectory.
+         !
+         ! current_fermi_level_eV and current_workfunction are NOT load-bearing:
+         ! the initial force evaluation below (line ~523) recomputes both before
+         ! the first electronic kick, on restarts as well as fresh runs. They are
+         ! restored only so the step-0 .cpcont line of a continued run reports the
+         ! values the previous run ended on rather than zeros.
+         electrons%p = p_init
+         electrons%thermostat_energy = pot_energy
+         electrons%current_fermi_level_eV = cur_ef
+         electrons%current_workfunction = cur_wf
+
+         IF (charge_mixing) THEN
+            ! Normalise the endpoints BEFORE the first force evaluation, so that
+            ! slot 1 holds N_lo and slot 2 holds N_hi whatever order the input's
+            ! two FORCE_EVAL blocks were written in, and whether or not their
+            ! CHARGE values bracket Q_INIT.  Without this the step-0 energy,
+            ! Fermi level and work function are computed from endpoints that need
+            ! not bracket q -- the "startup endpoint mismatch" -- and if the two
+            ! blocks happen to be in the wrong order the mixing is inverted for
+            ! the whole run.  Reading the counts back off the sub_force_envs
+            ! first means the common case -- an input that already agrees with
+            ! Q_INIT -- costs nothing at all, while a disagreeing or misordered
+            ! one is corrected before it can affect a single step.
+            CALL charge_mixing_sync_endpoint_state(force_env, electrons)
+            CALL charge_mixing_maybe_rebuild(force_env, electrons)
+            CALL qs_electrons_charge_mixing_lambda(electrons, lambda_mix)
+            CALL push_lambda_to_mixed_env(force_env, lambda_mix)
+            ! Report the bracket explicitly.  The whole scheme rests on slot 1
+            ! being the LOW endpoint, and until now nothing in the output let
+            ! you check that; a misordered input was invisible.
+            iw = cp_logger_get_default_io_unit()
+            IF (iw > 0) THEN
+               WRITE (iw, '(/,T2,A)') REPEAT("-", 77)
+               WRITE (iw, '(T2,A)') "CHARGE MIXING| endpoint bracket at start of MD"
+               WRITE (iw, '(T2,A,T50,I20)') "CHARGE MIXING|   FORCE_EVAL 1, N_lo [electrons]", &
+                  electrons%charge_mixing_current_n_lo
+               WRITE (iw, '(T2,A,T50,I20)') "CHARGE MIXING|   FORCE_EVAL 2, N_hi [electrons]", &
+                  electrons%charge_mixing_current_n_hi
+               WRITE (iw, '(T2,A,T50,F20.10)') "CHARGE MIXING|   q [electrons]", electrons%q
+               WRITE (iw, '(T2,A,T50,F20.10)') "CHARGE MIXING|   lambda (weight on N_hi)", lambda_mix
+               WRITE (iw, '(T2,A)') REPEAT("-", 77)
+            END IF
+         ELSE
+            CALL apply_ne_core_correction(force_env, electrons%q, electrons%neutral_electrons)
+         END IF
+
+         logger => cp_get_default_logger()
+         output_unit = cp_logger_get_default_io_unit()
+         IF (output_unit > 0) THEN
+            ! ALWAYS append, never truncate. This deliberately does not mirror
+            ! CP2K's own .ener file, which rewinds on a fresh run.
+            !
+            ! The previous version keyed the choice on STEP_START_VAL > 0, which
+            ! is set only when a restart file supplies it. Any other route back
+            ! into a directory -- resuming from copied coordinates, a restart
+            ! that did not carry STEP_START_VAL, or simply relaunching after a
+            ! job was killed mid-run -- left it at 0 and silently overwrote the
+            ! whole preceding trajectory. The asymmetry matters: an overwritten
+            ! trajectory is unrecoverable, whereas a file that accumulates across
+            ! runs costs only a little disk and is trivially split on the header
+            ! lines. STEP_START_VAL is still read, but now only to label the
+            ! boundary in the header below.
+            CALL section_vals_val_get(md_section, "STEP_START_VAL", i_val=cpcont_step0)
+            cpcont_pos = "APPEND"
+            CALL open_file(file_name=TRIM(logger%iter_info%project_name)//"-1.cpcont", &
+                           file_status="UNKNOWN", file_form="FORMATTED", file_action="WRITE", &
+                           file_position=TRIM(cpcont_pos), unit_number=electrons%cpcont_unit)
+            ! Column meanings:
+            !
+            ! Conserved[eV] -- CP2K's own md_ener%constant: the atomic degrees of
+            !   freedom plus, under NVT, the atomic thermostat. It does not include
+            !   the electronic kinetic energy, the potentiostat heat or the Legendre
+            !   term, so that it keeps its usual meaning in every CP2K MD run.
+            !
+            ! Grand_canonical_potential[eV] -- Omega = E_pot - mu*(q - N_neutral).
+            !   In work-function control mu = -Phi_target, so
+            !   Omega = E_pot + Phi_target*(q - N_neutral).
+            ! Header on every run, fresh or continued. Since the file is now
+            ! always opened APPEND, this lands at the start of each run's block
+            ! and marks where that run began -- the boundary is explicit rather
+            ! than inferred. It costs nothing downstream: gnuplot skips '#' lines
+            ! by default, and the awk idiom used throughout this project already
+            ! filters them with !/^#/.
+            ! Column 9 holds whichever target this run controls, so the header
+            ! names that one. Under Fermi control TARGET_WORKFUNCTION is ignored
+            ! everywhere else, and labelling the column after it made a
+            ! Fermi-mode file look as though a 5.0 eV work-function target were
+            ! in force.
+            IF (control_fermi) THEN
+               cpcont_target_label = "Fermi_target[eV]"
+            ELSE
+               cpcont_target_label = "Workfunction_target[eV]"
+            END IF
+            WRITE (electrons%cpcont_unit, '(A,I0)') &
+               "# --- run opened here, STEP_START_VAL = ", cpcont_step0
+            WRITE (electrons%cpcont_unit, '(A)') "# Step  Time[fs]  Potential[eV]  Conserved[eV]  "// &
+               "Temperature[K]  Electronic_charge  Fermi_level[eV]  Workfunction[eV]  "// &
+               TRIM(cpcont_target_label)//"  Grand_canonical_potential[eV]"
+            CALL m_flush(electrons%cpcont_unit)
+         END IF
+      END IF
+
+      ! ------------------------------------------------------------------
+      ! Report-only mode: "&ELECTRONS 0"
+      ! ------------------------------------------------------------------
+      IF (electrons_report) THEN
+         ! Plain single-FORCE_EVAL only. A MIXED force_env has no single qs_env
+         ! to read the electron count or the Hartree potential from, and routing
+         ! through compute_mixed_workfunction would drag in exactly the
+         ! charge-mixing machinery this mode exists to stay clear of.
+         IF (ASSOCIATED(force_env%sub_force_env)) THEN
+            CPABORT("&ELECTRONS 0 (report-only) requires a plain FORCE_EVAL, not METHOD MIXED")
+         END IF
+
+         ! Unlike the full mode this works under any ensemble: q is never
+         ! propagated, so there is no integrator hook that has to exist.
+         CALL section_vals_val_get(electrons_section, "POTENTIAL_AVERAGE_AXIS", i_val=wf_axis)
+         CALL section_vals_val_get(electrons_section, "POTENTIAL_AVERAGE_REGION", r_vals=wf_region)
+         wf_min_a = wf_region(1)*angstrom
+         wf_max_a = wf_region(2)*angstrom
+
+         ! Electronic_charge is the system's real electron count, constant for
+         ! the whole run. Read it from the environment rather than from
+         ! NEUTRAL_ELECTRONS so the column is right whatever DFT%CHARGE was set
+         ! to, and so the keyword is not silently required in this mode.
+         CALL force_env_get(force_env, qs_env=qs_env_report)
+         CALL get_qs_env(qs_env_report, nelectron_total=nelec_report)
+
+         ! target_workfunction = 0 does double duty: the Workfunction_target
+         ! column reads 0 throughout, as intended, and the Legendre term
+         ! Phi_target*(q - N) vanishes so Grand_canonical_potential reduces to
+         ! E_pot. Every column therefore keeps the same definition it has in the
+         ! full mode -- the two file types stay directly comparable, and the same
+         ! plotting scripts work on both. mass/tau/temp are never used because
+         ! report_only gates every kick, drift and thermostat call in
+         ! integrator.F; they are given harmless non-zero values only so that
+         ! nothing downstream can divide by zero.
+         CALL qs_electrons_init(electrons, q_init=REAL(nelec_report, KIND=dp), p_init=0.0_dp, &
+                                mass=1.0_dp, neutral_electrons=REAL(nelec_report, KIND=dp), &
+                                target_workfunction=0.0_dp, tau_potentiostat=1.0_dp, &
+                                temp_potentiostat=0.0_dp, &
+                                potential_average_axis=wf_axis, potential_average_min=wf_min_a, &
+                                potential_average_max=wf_max_a, report_only=.TRUE.)
+
+         logger => cp_get_default_logger()
+         output_unit = cp_logger_get_default_io_unit()
+         IF (output_unit > 0) THEN
+            CALL section_vals_val_get(md_section, "STEP_START_VAL", i_val=cpcont_step0)
+            CALL open_file(file_name=TRIM(logger%iter_info%project_name)//"-1.cpcont", &
+                           file_status="UNKNOWN", file_form="FORMATTED", file_action="WRITE", &
+                           file_position="APPEND", unit_number=electrons%cpcont_unit)
+            ! Report-only controls nothing, so column 9 has no target to name.
+            ! It is written as 0 (target_workfunction is 0 in this mode and
+            ! control_fermi is false) and the header says so plainly rather than
+            ! borrowing a label that would imply a target is in force.
+            cpcont_target_label = "Nothing_important"
+            WRITE (electrons%cpcont_unit, '(A,I0,A)') &
+               "# --- run opened here, STEP_START_VAL = ", cpcont_step0, &
+               "   (report-only: no potentiostat, q fixed at the system electron count)"
+            WRITE (electrons%cpcont_unit, '(A)') "# Step  Time[fs]  Potential[eV]  Conserved[eV]  "// &
+               "Temperature[K]  Electronic_charge  Fermi_level[eV]  Workfunction[eV]  "// &
+               TRIM(cpcont_target_label)//"  Grand_canonical_potential[eV]"
+            CALL m_flush(electrons%cpcont_unit)
+         END IF
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE init_md_electrons
+
+! **************************************************************************************************
+!> \brief Write the live state of the electronic extended variable back into the
+!>        &ELECTRONS input section, so that CP2K's ordinary restart dump carries
+!>        it and a continued run resumes the electronic dynamics instead of
+!>        silently resetting q to Q_INIT with p = 0 mid-trajectory.
+!>
+!>        Called immediately before every md_output / md_write_output, which are
+!>        the only places a restart file is produced. Deliberately NOT guarded by
+!>        output_unit > 0: section_vals_val_set mutates the replicated input tree,
+!>        so every rank must apply the same update or the trees diverge.
+!>
+!>        Q_INIT doubles as the restart slot for q, in the same way CP2K reuses
+!>        the input coordinates as the restart slot for the positions. The units
+!>        match the getters in qs_mol_dyn_low: q and p in atomic units,
+!>        thermostat_energy in Hartree, Fermi level and work function in eV.
+!> \param electrons_section the &MOTION%MD%ELECTRONS section
+!> \param electrons the live electronic state
+! **************************************************************************************************
+   SUBROUTINE store_electrons_restart(electrons_section, electrons)
+      TYPE(section_vals_type), POINTER                   :: electrons_section
+      TYPE(qs_electrons_type), POINTER                   :: electrons
+
+      IF (.NOT. ASSOCIATED(electrons_section)) RETURN
+      IF (.NOT. ASSOCIATED(electrons)) RETURN
+
+      CALL section_vals_val_set(electrons_section, "Q_INIT", r_val=electrons%q)
+      CALL section_vals_val_set(electrons_section, "P_INIT", r_val=electrons%p)
+      CALL section_vals_val_set(electrons_section, "POTENTIOSTAT_ENERGY", &
+                                r_val=electrons%thermostat_energy)
+      CALL section_vals_val_set(electrons_section, "CURRENT_FERMI_LEVEL", &
+                                r_val=electrons%current_fermi_level_eV)
+      CALL section_vals_val_set(electrons_section, "CURRENT_WORKFUNCTION", &
+                                r_val=electrons%current_workfunction)
+
+   END SUBROUTINE store_electrons_restart
 
 END MODULE md_run

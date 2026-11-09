@@ -586,6 +586,31 @@ CONTAINS
                   CALL set_restart_info("MD COUNTERS", restarted_infos)
                END IF
                !
+               ! Electronic extended variable (&MOTION&MD&ELECTRONS): q, p and the potentiostat
+               ! state belong to the trajectory, so they are restored together with the MD counters.
+               ! Without this a continued run silently restarts from the input deck's Q_INIT/P_INIT.
+               ! check_restart requires the section in BOTH decks, so inputs without &ELECTRONS
+               ! are unaffected.
+               IF (check_restart(input_file, restart_file, "MOTION%MD%ELECTRONS")) THEN
+                  CALL section_vals_val_get(restart_file, "MOTION%MD%ELECTRONS%Q_INIT", r_val=myt)
+                  CALL section_vals_val_set(input_file, "MOTION%MD%ELECTRONS%Q_INIT", r_val=myt)
+                  CALL section_vals_val_get(restart_file, "MOTION%MD%ELECTRONS%P_INIT", r_val=myt)
+                  CALL section_vals_val_set(input_file, "MOTION%MD%ELECTRONS%P_INIT", r_val=myt)
+                  CALL section_vals_val_get(restart_file, "MOTION%MD%ELECTRONS%POTENTIOSTAT_ENERGY", &
+                                            r_val=myt)
+                  CALL section_vals_val_set(input_file, "MOTION%MD%ELECTRONS%POTENTIOSTAT_ENERGY", &
+                                            r_val=myt)
+                  CALL section_vals_val_get(restart_file, "MOTION%MD%ELECTRONS%CURRENT_FERMI_LEVEL", &
+                                            r_val=myt)
+                  CALL section_vals_val_set(input_file, "MOTION%MD%ELECTRONS%CURRENT_FERMI_LEVEL", &
+                                            r_val=myt)
+                  CALL section_vals_val_get(restart_file, "MOTION%MD%ELECTRONS%CURRENT_WORKFUNCTION", &
+                                            r_val=myt)
+                  CALL section_vals_val_set(input_file, "MOTION%MD%ELECTRONS%CURRENT_WORKFUNCTION", &
+                                            r_val=myt)
+                  CALL set_restart_info("ELECTRONIC POTENTIOSTAT STATE", restarted_infos)
+               END IF
+               !
                IF (check_restart(input_file, restart_file, "MOTION%GEO_OPT")) THEN
                   ! GEO_OPT
                   CALL section_vals_val_get(restart_file, "MOTION%GEO_OPT%STEP_START_VAL", i_val=myi)
