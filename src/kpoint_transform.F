@@ -43,7 +43,11 @@ MODULE kpoint_transform
    USE kpoint_lattice_fft,              ONLY: cell_to_k_grid_fft,&
                                               cell_to_k_grid_prepare,&
                                               cell_to_k_grid_release,&
-                                              cell_to_k_grid_work_type
+                                              cell_to_k_grid_work_type,&
+                                              k_grid_to_cell_execute,&
+                                              k_grid_to_cell_prepare,&
+                                              k_grid_to_cell_release,&
+                                              k_grid_to_cell_work_type
    USE local_gemm_api,                  ONLY: local_gemm_ctxt_type
    USE mathconstants,                   ONLY: twopi,&
                                               z_one,&
@@ -57,12 +61,15 @@ MODULE kpoint_transform
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
    USE util,                            ONLY: sort
+
+!$ USE omp_lib, ONLY: omp_get_max_threads
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kpoint_transform'
    INTEGER(KIND=int_8), PARAMETER :: fft_batch_bytes = 32_int_8*1024_int_8**2
+   INTEGER(KIND=int_8), PARAMETER :: rskp_panel_bytes = 64_int_8*1024_int_8**2
    INTEGER(KIND=int_8), PARAMETER, PRIVATE :: rskp_route_bytes = 64_int_8*1024_int_8**2, &
                                               rskp_fft_bytes = 512_int_8*1024_int_8**2, &
                                               rskp_gemm_bytes = 1000_int_8*1024_int_8**2, &
@@ -76,6 +83,7 @@ MODULE kpoint_transform
    PUBLIC :: rskp_transform_evaluate, rskp_transform_release
    PUBLIC :: rskp_transform, rskp_transform_stream_prepare
    PUBLIC :: cell_to_k_sparse_fft, k_grid_to_cell_contract, rskp_phase_factors, rskp_work_matrix
+   PUBLIC :: cell_to_k_transform, k_to_real_cell_transform
 
    TYPE, PUBLIC :: kp_transform_plan_type
       INTEGER :: nentry = 0, ngroup = 0
@@ -138,6 +146,240 @@ MODULE kpoint_transform
    END TYPE rskp_prepared_transform_type
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Transform contiguous local real matrix panels with the selected RSKP backend.
+!>        GEMM reuses the prepared parity folding and block contraction. FFT reuses one geometry
+!>        across bounded matrix tiles. Both accept rectangular panels and regular-grid subsets.
+!>        Call outside OpenMP worker regions; this service owns its numerical workspace.
+!> \param values_rs real matrices, with one image per third-dimension column
+!> \param cells lattice translations of the images
+!> \param xkp requested reciprocal coordinates, in output order
+!> \param nkp_grid mesh dimensions for FFT
+!> \param values_k complex transformed matrices
+!> \param backend GEMM or FFT
+!> \param accumulate add this image panel to an existing output
+! **************************************************************************************************
+   SUBROUTINE cell_to_k_transform(values_rs, cells, xkp, nkp_grid, values_k, backend, accumulate)
+      REAL(KIND=dp), CONTIGUOUS, INTENT(IN), TARGET      :: values_rs(:, :, :)
+      INTEGER, INTENT(IN)                                :: cells(:, :)
+      REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
+      INTEGER, INTENT(IN)                                :: nkp_grid(3)
+      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(INOUT), &
+         TARGET                                          :: values_k(:, :, :)
+      INTEGER, INTENT(IN)                                :: backend
+      LOGICAL, INTENT(IN), OPTIONAL                      :: accumulate
+
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: transformed(:, :, :)
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: complex_values(:, :)
+      INTEGER                                            :: first, handle, i, image, j, kfirst, &
+                                                            last, nk, nphase, nrow, ntile, &
+                                                            nworkers, odd, panels(4), pos, sense, &
+                                                            start, width
+      INTEGER(KIND=int_8)                                :: cache_bytes, ifirst, nvalues, &
+                                                            worker_bytes
+      LOGICAL                                            :: active(4), add
+      REAL(KIND=dp), ALLOCATABLE                         :: factors(:, :), packed(:), RESULT(:, :)
+      REAL(KIND=dp), CONTIGUOUS, POINTER                 :: real_values(:, :)
+      TYPE(cell_to_k_grid_work_type)                     :: fft_work
+      TYPE(rskp_backend_plan_type)                       :: plan
+
+      CALL timeset('cell_to_k_transform', handle)
+      CPASSERT(SIZE(cells, 1) == 3 .AND. SIZE(xkp, 1) == 3)
+      CPASSERT(SIZE(cells, 2) == SIZE(values_rs, 3))
+      CPASSERT(SIZE(values_k, 1) == SIZE(values_rs, 1))
+      CPASSERT(SIZE(values_k, 2) == SIZE(values_rs, 2))
+      nk = SIZE(xkp, 2)
+      CPASSERT(SIZE(values_k, 3) == nk)
+      add = .FALSE.
+      IF (PRESENT(accumulate)) add = accumulate
+      IF (.NOT. add) values_k = z_zero
+      IF (SIZE(values_rs, KIND=int_8) == 0 .OR. nk == 0) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+      SELECT CASE (backend)
+      CASE (rskp_backend_fft)
+         CALL cell_to_k_grid_prepare(fft_work, cells, xkp, nkp_grid)
+         ntile = MIN(SIZE(values_rs, 1), INT(MAX(1_int_8, fft_batch_bytes/(16_int_8*nk))))
+         ALLOCATE (transformed(ntile, 1, nk))
+         DO j = 1, SIZE(values_rs, 2)
+            DO first = 1, SIZE(values_rs, 1), ntile
+               last = MIN(first + ntile - 1, SIZE(values_rs, 1))
+               nrow = last - first + 1
+               CALL cell_to_k_grid_fft(values_rs(first:last, j:j, :), cells, xkp, nkp_grid, &
+                                       transformed(1:nrow, :, :), require_fft=.TRUE., work=fft_work)
+               values_k(first:last, j:j, :) = values_k(first:last, j:j, :) + transformed(1:nrow, :, :)
+            END DO
+         END DO
+         CALL cell_to_k_grid_release(fft_work)
+      CASE (rskp_backend_gemm)
+         nvalues = SIZE(values_rs, 1, KIND=int_8)*SIZE(values_rs, 2, KIND=int_8)
+         real_values(1:nvalues, 1:SIZE(values_rs, 3)) => values_rs
+         complex_values(1:nvalues, 1:nk) => values_k
+         nworkers = 1
+!$       nworkers = omp_get_max_threads()
+         worker_bytes = rskp_panel_bytes/(2*nworkers)
+         ntile = INT(MIN(nvalues, 4096_int_8, &
+                         MAX(1_int_8, worker_bytes/(16_int_8*(SIZE(cells, 2, KIND=int_8) + 1)))))
+         CALL cell_to_k_phase_prepare(plan, cells, [1, SIZE(cells, 2) + 1], &
+                                      [(image, image=1, SIZE(cells, 2))], [1, ntile + 1], &
+                                      xkp, rskp_panel_bytes/2, 0_int_8)
+         cache_bytes = 0_int_8
+         IF (ALLOCATED(plan%phases)) cache_bytes = 8_int_8*SIZE(plan%phases, KIND=int_8)
+         worker_bytes = (rskp_panel_bytes - cache_bytes)/nworkers - &
+                        8_int_8*(plan%packed_first(2) - 1)
+         width = INT(MIN(INT(nk, int_8), MAX(1_int_8, worker_bytes/(16_int_8*plan%max_per_k))))
+         nphase = MAXVAL(plan%phase_count(1:2, 1))
+         panels = plan%phase_count([1, 1, 2, 3], 1)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(real_values, complex_values, nvalues, xkp, plan, ntile, nphase, panels, nk, width) &
+!$OMP PRIVATE(packed, factors, result, ifirst, last, nrow, image, pos, odd, sense, start, active, i, kfirst)
+         ALLOCATE (packed(plan%packed_first(2) - 1), factors(nphase, 2*width), RESULT(ntile, 2*width))
+!$OMP DO SCHEDULE(STATIC)
+         DO ifirst = 1, nvalues, ntile
+            nrow = INT(MIN(INT(ntile, int_8), nvalues - ifirst + 1))
+            packed(:) = 0.0_dp
+            DO image = 1, SIZE(real_values, 2)
+               pos = plan%fold_map(1, image)
+               packed(pos:pos + nrow - 1) = packed(pos:pos + nrow - 1) + &
+                                            real_values(ifirst:ifirst + nrow - 1, image)
+               odd = ABS(plan%fold_map(2, image))
+               IF (odd == 0) CYCLE
+               sense = SIGN(1, plan%fold_map(2, image))
+               packed(odd:odd + nrow - 1) = packed(odd:odd + nrow - 1) + &
+                                            REAL(sense, dp)*real_values(ifirst:ifirst + nrow - 1, image)
+            END DO
+            active = .FALSE.
+            start = 1
+            DO i = 1, 4
+               IF (panels(i) > 0) active(i) = ANY(packed(start:start + ntile*panels(i) - 1) /= 0.0_dp)
+               start = start + ntile*panels(i)
+            END DO
+            DO kfirst = 1, nk, width
+               last = MIN(kfirst + width - 1, nk)
+               CALL cell_to_k_block_gemm(packed, plan, 1, xkp(:, kfirst:last), kfirst, &
+                                         factors(:, 1:2*(last - kfirst + 1)), &
+                                         RESULT(:, 1:2*(last - kfirst + 1)), active)
+               complex_values(ifirst:ifirst + nrow - 1, kfirst:last) = &
+                  complex_values(ifirst:ifirst + nrow - 1, kfirst:last) + &
+                  CMPLX(RESULT(1:nrow, 1:last - kfirst + 1), &
+                        RESULT(1:nrow, last - kfirst + 2:2*(last - kfirst + 1)), KIND=dp)
+            END DO
+         END DO
+!$OMP END DO
+         DEALLOCATE (packed, factors, RESULT)
+!$OMP END PARALLEL
+      CASE DEFAULT
+         CPABORT('Unknown R-to-K backend')
+      END SELECT
+      CALL timestop(handle)
+   END SUBROUTINE cell_to_k_transform
+
+! **************************************************************************************************
+!> \brief Real part of the inverse lattice transform, normalized by the number of k points.
+!>        Local rectangular panels use shared FFT execution or real GEMM contractions with
+!>        cosine and sine weights. Matrix and cell tiles bound temporary storage.
+!>        Call outside OpenMP worker regions; this service owns its numerical workspace.
+!> \param values_k complex reciprocal-space matrices
+!> \param xkp reciprocal coordinates
+!> \param nkp_grid mesh dimensions for FFT
+!> \param cells requested lattice translations
+!> \param values_rs real part of the reconstructed matrices
+!> \param backend GEMM or FFT
+! **************************************************************************************************
+   SUBROUTINE k_to_real_cell_transform(values_k, xkp, nkp_grid, cells, values_rs, backend)
+      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(IN), TARGET   :: values_k(:, :, :)
+      REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
+      INTEGER, INTENT(IN)                                :: nkp_grid(3), cells(:, :)
+      REAL(KIND=dp), CONTIGUOUS, INTENT(OUT), TARGET     :: values_rs(:, :, :)
+      INTEGER, INTENT(IN)                                :: backend
+
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: transformed(:, :, :)
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: complex_values(:, :)
+      INTEGER                                            :: first, handle, i, icell, ik, j, last, &
+                                                            ncell, nk, nrow, ntile, nworkers, width
+      INTEGER(KIND=int_8)                                :: ifirst, nvalues, worker_bytes
+      REAL(KIND=dp)                                      :: arg, weight
+      REAL(KIND=dp), ALLOCATABLE                         :: factors(:, :), packed(:, :, :), &
+                                                            RESULT(:, :)
+      REAL(KIND=dp), CONTIGUOUS, POINTER                 :: real_values(:, :)
+      TYPE(k_grid_to_cell_work_type)                     :: fft_work
+
+      CALL timeset('k_to_real_cell_transform', handle)
+      nk = SIZE(xkp, 2)
+      ncell = SIZE(cells, 2)
+      CPASSERT(SIZE(cells, 1) == 3 .AND. SIZE(xkp, 1) == 3)
+      CPASSERT(nk > 0 .AND. SIZE(values_k, 3) == nk)
+      CPASSERT(SIZE(values_rs, 1) == SIZE(values_k, 1))
+      CPASSERT(SIZE(values_rs, 2) == SIZE(values_k, 2))
+      CPASSERT(SIZE(values_rs, 3) == ncell)
+      IF (SIZE(values_rs, KIND=int_8) == 0) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+      SELECT CASE (backend)
+      CASE (rskp_backend_fft)
+         CALL k_grid_to_cell_prepare(fft_work, xkp, nkp_grid, cells)
+         ntile = MIN(SIZE(values_k, 1), INT(MAX(1_int_8, fft_batch_bytes/(16_int_8*ncell))))
+         ALLOCATE (transformed(ntile, 1, ncell))
+         DO j = 1, SIZE(values_k, 2)
+            DO first = 1, SIZE(values_k, 1), ntile
+               last = MIN(first + ntile - 1, SIZE(values_k, 1))
+               nrow = last - first + 1
+               CALL k_grid_to_cell_execute(fft_work, values_k(first:last, j:j, :), &
+                                           transformed(1:nrow, :, :), require_fft=.TRUE.)
+               values_rs(first:last, j:j, :) = REAL(transformed(1:nrow, :, :), dp)
+            END DO
+         END DO
+         CALL k_grid_to_cell_release(fft_work)
+      CASE (rskp_backend_gemm)
+         nvalues = SIZE(values_k, 1, KIND=int_8)*SIZE(values_k, 2, KIND=int_8)
+         complex_values(1:nvalues, 1:nk) => values_k
+         real_values(1:nvalues, 1:ncell) => values_rs
+         nworkers = 1
+!$       nworkers = omp_get_max_threads()
+         width = MIN(ncell, 256, INT(MAX(1_int_8, rskp_panel_bytes/(32_int_8*nk))))
+         worker_bytes = (rskp_panel_bytes - 16_int_8*nk*width)/nworkers
+         ntile = INT(MIN(nvalues, 4096_int_8, &
+                         MAX(1_int_8, worker_bytes/(16_int_8*nk + 8_int_8*width))))
+         ALLOCATE (factors(nk, 2*width))
+         weight = 1.0_dp/REAL(nk, dp)
+         DO icell = 1, ncell, width
+            last = MIN(icell + width - 1, ncell)
+            DO i = 1, last - icell + 1
+               DO ik = 1, nk
+                  arg = twopi*DOT_PRODUCT(xkp(:, ik), REAL(cells(:, icell + i - 1), dp))
+                  factors(ik, i) = weight*COS(arg)
+                  factors(ik, width + i) = weight*SIN(arg)
+               END DO
+            END DO
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(complex_values, real_values, nvalues, factors, ntile, nk, width, icell, last) &
+!$OMP PRIVATE(packed, result, ifirst, nrow)
+            ALLOCATE (packed(ntile, nk, 2), RESULT(ntile, width))
+!$OMP DO SCHEDULE(STATIC)
+            DO ifirst = 1, nvalues, ntile
+               nrow = INT(MIN(INT(ntile, int_8), nvalues - ifirst + 1))
+               packed(:, :, :) = 0.0_dp
+               packed(1:nrow, :, 1) = REAL(complex_values(ifirst:ifirst + nrow - 1, :), dp)
+               packed(1:nrow, :, 2) = AIMAG(complex_values(ifirst:ifirst + nrow - 1, :))
+               CALL rskp_gemm_contract(ntile, nk, last - icell + 1, packed(:, :, 1), &
+                                       factors(:, 1:last - icell + 1), RESULT(:, 1:last - icell + 1), 0.0_dp)
+               CALL rskp_gemm_contract(ntile, nk, last - icell + 1, packed(:, :, 2), &
+                                       factors(:, width + 1:width + last - icell + 1), &
+                                       RESULT(:, 1:last - icell + 1), 1.0_dp)
+               real_values(ifirst:ifirst + nrow - 1, icell:last) = RESULT(1:nrow, 1:last - icell + 1)
+            END DO
+!$OMP END DO
+            DEALLOCATE (packed, RESULT)
+!$OMP END PARALLEL
+         END DO
+      CASE DEFAULT
+         CPABORT('Unknown K-to-R backend')
+      END SELECT
+      CALL timestop(handle)
+   END SUBROUTINE k_to_real_cell_transform
 
 ! **************************************************************************************************
 !> \brief Transformation of real space matrices to a kpoint

@@ -13,6 +13,10 @@ PROGRAM kpoint_lattice_fft_unittest
                                               k_grid_to_cell_prepare,&
                                               k_grid_to_cell_release,&
                                               k_grid_to_cell_work_type
+   USE kpoint_transform,                ONLY: cell_to_k_transform,&
+                                              k_to_real_cell_transform,&
+                                              rskp_backend_fft,&
+                                              rskp_backend_gemm
    USE lattice_preconditioner_operator, ONLY: apply_lattice_inverse_dense,&
                                               apply_lattice_state_inverse_dense,&
                                               build_lattice_inverse,&
@@ -31,11 +35,12 @@ PROGRAM kpoint_lattice_fft_unittest
    INTEGER, PARAMETER                                  :: base_block = 2, base_cell = 8, base_n = 16, &
                                                           base_ncol = 3, ncell = 31, nkp = 64, &
                                                           nselected = 3
+   INTEGER, PARAMETER                                  :: backends(2) = [rskp_backend_gemm, rskp_backend_fft]
    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)   :: inverse_k
    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :) :: state_inverse_k
    COMPLEX(KIND=dp), DIMENSION(2, 3, nkp)              :: direct, transformed
    COMPLEX(KIND=dp), DIMENSION(2, 3, nselected)         :: selected_transformed
-   INTEGER                                             :: d, i, icell, info, j, jcell, ik, ix, iy, iz
+   INTEGER                                             :: backend, d, i, icell, info, j, jcell, ik, ix, iy, iz
    INTEGER, ALLOCATABLE, DIMENSION(:)                  :: correction_indices
    INTEGER, DIMENSION(3)                               :: base_dims, delta
    INTEGER, DIMENSION(3, base_cell)                    :: base_index
@@ -58,6 +63,9 @@ PROGRAM kpoint_lattice_fft_unittest
    TYPE(k_grid_to_cell_work_type)                      :: inverse_work
    REAL(KIND=dp), DIMENSION(9)                         :: subset_weights
    COMPLEX(KIND=dp), DIMENSION(2, 3, ncell)            :: weighted_reference, weighted_result
+   REAL(KIND=dp), DIMENSION(2, 3, ncell)               :: real_transformed
+   REAL(KIND=dp), ALLOCATABLE                          :: panel_input(:, :, :), panel_inverse(:, :, :)
+   COMPLEX(KIND=dp), ALLOCATABLE                       :: panel_output(:, :, :), panel_reference(:, :, :)
 
    CALL mp_world_init(mp_comm)
    CALL check_image_reconstruction(mp_comm)
@@ -163,6 +171,86 @@ PROGRAM kpoint_lattice_fft_unittest
       ERROR STOP "Prepared weighted inverse differs from explicit phase sum"
    END IF
    CALL k_grid_to_cell_release(inverse_work)
+
+   ! Local RSKP panels cover origin, repeated images, +/-R folding and shuffled subsets.
+   index_to_cell(:, 1) = 0
+   index_to_cell(:, 2) = index_to_cell(:, 3)
+   index_to_cell(:, 4) = -index_to_cell(:, 3)
+   CALL direct_reference(values_rs, index_to_cell, xkp, direct)
+   weighted_reference = z_zero
+   DO icell = 1, ncell
+      DO ik = 1, nkp
+         weighted_reference(:, :, icell) = weighted_reference(:, :, icell) + direct(:, :, ik)* &
+                                           EXP(-gaussi*twopi*SUM(xkp(:, ik)*REAL(index_to_cell(:, icell), dp)))/REAL(nkp, dp)
+      END DO
+   END DO
+   DO backend = 1, SIZE(backends)
+      CALL cell_to_k_transform(values_rs, index_to_cell, xkp, nkp_grid, transformed, backends(backend))
+      IF (MAXVAL(ABS(transformed - direct)) > 3.0E-12_dp) THEN
+         ERROR STOP 'Local RSKP forward transform differs from explicit phase sum'
+      END IF
+      CALL cell_to_k_transform(values_rs, index_to_cell, xkp(:, selected_kpoints), nkp_grid, &
+                               selected_transformed, backends(backend))
+      IF (MAXVAL(ABS(selected_transformed - direct(:, :, selected_kpoints))) > 3.0E-12_dp) THEN
+         ERROR STOP 'Local RSKP subset changed k-point order'
+      END IF
+      CALL cell_to_k_transform(values_rs, index_to_cell, -xkp, nkp_grid, transformed, backends(backend))
+      IF (MAXVAL(ABS(transformed - CONJG(direct))) > 3.0E-12_dp) THEN
+         ERROR STOP 'Local RSKP negative phase sign is inconsistent'
+      END IF
+      CALL cell_to_k_transform(values_rs(:, :, 1:1), index_to_cell(:, 1:1), xkp, nkp_grid, &
+                               transformed, backends(backend))
+      DO ik = 1, nkp
+         IF (MAXVAL(ABS(transformed(:, :, ik) - values_rs(:, :, 1))) > 3.0E-12_dp) THEN
+            ERROR STOP 'Local RSKP origin-only transform is inconsistent'
+         END IF
+      END DO
+      CALL cell_to_k_transform(values_rs(:, :, 1:15), index_to_cell(:, 1:15), xkp, nkp_grid, &
+                               transformed, backends(backend))
+      CALL cell_to_k_transform(values_rs(:, :, 16:), index_to_cell(:, 16:), xkp, nkp_grid, &
+                               transformed, backends(backend), accumulate=.TRUE.)
+      IF (MAXVAL(ABS(transformed - direct)) > 3.0E-12_dp) THEN
+         ERROR STOP 'Local RSKP image-panel accumulation differs from full transform'
+      END IF
+      CALL k_to_real_cell_transform(direct, xkp, nkp_grid, index_to_cell, real_transformed, backends(backend))
+      IF (MAXVAL(ABS(real_transformed - REAL(weighted_reference, dp))) > 3.0E-12_dp) THEN
+         ERROR STOP 'Local RSKP inverse changed the phase sign or normalization'
+      END IF
+      CALL cell_to_k_transform(values_rs(1:0, :, :), index_to_cell, xkp, nkp_grid, &
+                               transformed(1:0, :, :), backends(backend))
+      CALL k_to_real_cell_transform(direct(1:0, :, :), xkp, nkp_grid, index_to_cell, &
+                                    real_transformed(1:0, :, :), backends(backend))
+   END DO
+   CALL direct_reference(values_rs, index_to_cell, xkp_bad, direct)
+   CALL cell_to_k_transform(values_rs, index_to_cell, xkp_bad, nkp_grid, transformed, rskp_backend_gemm)
+   IF (MAXVAL(ABS(transformed - direct)) > 3.0E-12_dp) THEN
+      ERROR STOP 'Local RSKP irregular-grid GEMM differs from explicit phase sum'
+   END IF
+
+   ! A final, partial matrix tile must use its own row count while retaining the packed stride.
+   ALLOCATE (panel_input(4097, 1, 3), panel_inverse(4097, 1, 3), &
+             panel_output(4097, 1, nkp), panel_reference(4097, 1, nkp))
+   DO icell = 1, 3
+      panel_input(:, 1, icell) = [(SIN(0.017_dp*REAL(i + icell, dp)), i=1, 4097)]
+   END DO
+   CALL direct_reference(panel_input, index_to_cell(:, 1:3), xkp, panel_reference)
+   DO backend = 1, SIZE(backends)
+      CALL cell_to_k_transform(panel_input, index_to_cell(:, 1:3), xkp, nkp_grid, &
+                               panel_output, backends(backend))
+      IF (MAXVAL(ABS(panel_output - panel_reference)) > 3.0E-12_dp) THEN
+         ERROR STOP 'Local RSKP forward partial row tile is inconsistent'
+      END IF
+      CALL k_to_real_cell_transform(panel_output, xkp, nkp_grid, index_to_cell(:, 1:3), &
+                                    panel_inverse, backends(backend))
+      ! Images 2 and 3 coincide, so their coefficients add under inverse reconstruction.
+      IF (MAXVAL(ABS(panel_inverse(:, :, 1) - panel_input(:, :, 1))) > 3.0E-12_dp) THEN
+         ERROR STOP 'Local RSKP inverse partial row tile is inconsistent'
+      END IF
+      IF (MAXVAL(ABS(panel_inverse(:, :, 2) - SUM(panel_input(:, :, 2:3), DIM=3))) > 3.0E-12_dp) THEN
+         ERROR STOP 'Local RSKP inverse lost repeated images'
+      END IF
+   END DO
+   DEALLOCATE (panel_input, panel_inverse, panel_output, panel_reference)
 
    ! Verify the block-circulant inverse by applying the original dense operator.
    base_dims = [4, 2, 1]

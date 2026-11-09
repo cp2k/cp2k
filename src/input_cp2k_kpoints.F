@@ -146,12 +146,12 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="RSKP_TRANSFORM", &
-                          description="Select the backend for prepared bulk real-space/k-point transforms. "// &
-                          "GEMM contracts sparse image panels with Bloch phases. "// &
-                          "FFT uses lattice FFTs on supported regular grids. Forward FFT requires a "// &
-                          "complete grid; inverse FFT also accepts weighted regular-grid subsets "// &
+                          description="Select the backend for bulk real-space/k-point transforms, including RI-RS GW. "// &
+                          "GEMM contracts image panels with Bloch phases and streams oversized prepared caches. "// &
+                          "FFT uses supported regular grids; forward transforms also accept subsets. "// &
+                          "Inverse FFT accepts weighted regular-grid subsets "// &
                           "without spatial rotations. Explicit single-point and property Fourier calls "// &
-                          "are independent of this setting. Incompatible layouts or insufficient memory abort.", &
+                          "are independent of this setting. Unsupported forced FFT configurations abort.", &
                           usage="RSKP_TRANSFORM GEMM", type_of_var=enum_t, &
                           enum_c_vals=s2a("GEMM", "FFT"), &
                           enum_i_vals=[rskp_backend_gemm, rskp_backend_fft], &

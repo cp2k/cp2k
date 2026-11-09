@@ -1054,6 +1054,9 @@ CONTAINS
       CALL kpoint_create(kpoints_chi_eps_W)
 
       kpoints_chi_eps_W%kp_scheme = "GENERAL"
+      IF (ASSOCIATED(bs_env%kpoints_scf_desymm)) THEN
+         kpoints_chi_eps_W%rskp_transform = bs_env%kpoints_scf_desymm%rskp_transform
+      END IF
 
       periodic(1:3) = bs_env%periodic(1:3)
 
