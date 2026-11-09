@@ -60,13 +60,12 @@
  *        (and its derivative) by the previous layer's node count.
  *
  *        Shared memory holds the per-layer pre- and post-activation node values
- *        and two alternating buffers for the chained descriptor gradient. The
- *        layout needs 2*max_n_nodes*n_layer + 2*n_input_max*max_n_nodes
- *        doubles per block; the launcher opts into the device's per-block
- *        shared-memory maximum when that exceeds the 48 KB default (e.g.
- *        80-input nets need ~105 KB, fine on an A100) and rejects only what
- *        the device cannot hold. The final layer is the scalar energy
- *        output (node 0).
+ *        and two alternating node vectors for the backpropagated energy
+ *        gradient, 2*max_n_nodes*(n_layer + 1) doubles per block (6.4 KB for
+ *        an 80-25-25-1 net). The launcher opts into the device's per-block
+ *        shared-memory maximum only when that exceeds the 48 KB default, and
+ *        rejects only what the device cannot hold. The final layer is the
+ *        scalar energy output (node 0).
  * \author Dhruv Sharma (ds2173@cam.ac.uk)
  ******************************************************************************/
 __global__ void nnp_nn_kernel_atomwise(
@@ -93,8 +92,8 @@ __global__ void nnp_nn_kernel_atomwise(
   extern __shared__ double smem[];
   double *node_pre = smem;
   double *node_post = node_pre + (size_t)max_n_nodes * n_layer;
-  double *td_curr = node_post + (size_t)max_n_nodes * n_layer;
-  double *td_prev = td_curr + (size_t)n_input_max * max_n_nodes;
+  double *delta_curr = node_post + (size_t)max_n_nodes * n_layer;
+  double *delta_prev = delta_curr + max_n_nodes;
 
   /* Init layer 1 (input descriptor) into node_post. 64-bit atom offset,
    * matching nnp_gpu_pack.h: G_batch scales with the rank's atom count. */
@@ -236,32 +235,22 @@ __global__ void nnp_nn_kernel_atomwise(
   }
   __syncthreads();
 
-  /* Step 2: init layer-2 tmp_der.
-   *   tmp_der[2][i, j] = node_grad[2, j] * weights[2][i, j, c]
-   * tmp_der_curr is used as the "current" buffer; it alternates
-   * with tmp_der_prev each iteration of the chain. */
+  /* Step 2: reverse-mode backpropagation of the scalar energy, node 0 of the
+   * output layer. delta_curr holds dE/d(post-activation) of layer L, seeded
+   * with the unit vector e_0 at the output layer. One step through layer L
+   * gives layer L-1:
+   *   delta[L-1][i] = sum_j weights[L][i, j, c] * deriv[L, j] * delta[L][j]
+   * and the delta of the input layer is dE/dG. This yields the same gradient
+   * as chaining the full (n_input x n_nodes) Jacobian forward through the
+   * layers, but needs one node vector per layer instead of a Jacobian tile. */
   {
-    const int n_out_2 = n_nodes[1 + n_layer * ele];
-    const size_t W2_off =
-        (size_t)max_n_nodes * max_n_nodes * c +
-        /* (L-2)=0 for L=2 */
-        (size_t)max_n_nodes * max_n_nodes * n_committee * (n_layer - 1) * ele;
-    const double *W2 = weights + W2_off;
-    /* Each thread handles a row m of tmp_der. */
-    for (int m = tid; m < n_input; m += nth) {
-      for (int j = 0; j < n_out_2; j++) {
-        td_curr[m + n_input_max * j] =
-            node_pre[j + max_n_nodes * 1] /* deriv at layer 2 */
-            * W2[m + max_n_nodes * j];
-      }
-    }
+    const int n_out_last = n_nodes[(n_layer - 1) + n_layer * ele];
+    for (int j = tid; j < n_out_last; j += nth)
+      delta_curr[j] = (j == 0) ? 1.0 : 0.0;
   }
   __syncthreads();
 
-  /* Step 3: chain through layers 3..n_layer.
-   *   tmp_der_new[m, j] = sum_kp tmp_der_old[m, kp] * weights[L][kp, j, c]
-   *   then *= deriv[L, j] (Hadamard). */
-  for (int L = 3; L <= n_layer; L++) {
+  for (int L = n_layer; L >= 2; L--) {
     const int n_in_L = n_nodes[(L - 2) + n_layer * ele];
     const int n_out_L = n_nodes[(L - 1) + n_layer * ele];
     const size_t WL_off =
@@ -270,31 +259,29 @@ __global__ void nnp_nn_kernel_atomwise(
         (size_t)max_n_nodes * max_n_nodes * n_committee * (n_layer - 1) * ele;
     const double *WL = weights + WL_off;
 
-    /* Swap roles: read td_curr (= old), write td_prev (= new). */
-    for (int m = tid; m < n_input; m += nth) {
-      for (int j = 0; j < n_out_L; j++) {
-        double acc = 0.0;
-        for (int kp = 0; kp < n_in_L; kp++) {
-          acc += td_curr[m + n_input_max * kp] * WL[kp + max_n_nodes * j];
-        }
-        td_prev[m + n_input_max * j] =
-            acc * node_pre[j + max_n_nodes * (L - 1)];
-      }
+    /* Fold the activation derivative of layer L into its delta. */
+    for (int j = tid; j < n_out_L; j += nth)
+      delta_curr[j] *= node_pre[j + max_n_nodes * (L - 1)];
+    __syncthreads();
+
+    /* Each thread computes one node i of layer L-1 (stride nth). */
+    for (int i = tid; i < n_in_L; i += nth) {
+      double acc = 0.0;
+      for (int j = 0; j < n_out_L; j++)
+        acc += WL[i + max_n_nodes * j] * delta_curr[j];
+      delta_prev[i] = acc;
     }
     __syncthreads();
 
-    /* Swap pointers: td_curr <- td_prev (logical swap). */
-    double *tmp_swap = td_curr;
-    td_curr = td_prev;
-    td_prev = tmp_swap;
+    double *tmp_swap = delta_curr;
+    delta_curr = delta_prev;
+    delta_prev = tmp_swap;
   }
 
-  /* Step 4: write dE_dG = tmp_der at last layer, j=0 column.
-   *   For final layer with n_out = 1 (single energy output), tmp_der
-   *   has shape (n_input, 1). dE_dG[m] = td_curr[m, 0]. */
+  /* Step 3: dE_dG[m] is the delta of the input layer. */
   for (int m = tid; m < n_input; m += nth) {
     dE_dG[m + n_input_max * c + (long long)n_input_max * n_committee * atom] =
-        td_curr[m + n_input_max * 0];
+        delta_curr[m];
   }
 }
 
@@ -426,16 +413,13 @@ nnp_gpu_nn_atomwise_with_G_dev_c(const int n_atoms, const int n_committee,
     return -1;
   }
   /* Shared-memory footprint of nnp_nn_kernel_atomwise for these sizes:
-   * per-layer pre/post node values plus the two chained-gradient tiles. */
+   * per-layer pre/post node values plus the two backpropagation vectors. */
   const size_t smem_bytes =
-      sizeof(double) * (2ULL * (size_t)max_n_nodes * (size_t)n_layer +
-                        2ULL * (size_t)n_input_max * (size_t)max_n_nodes);
+      sizeof(double) * 2ULL * (size_t)max_n_nodes * ((size_t)n_layer + 1ULL);
 
-  /* Networks beyond the 48 KB default dynamic-shared-memory window (the
-   * old 64x64 cap) opt into the device's per-block maximum instead of
-   * being rejected: an 80-input net needs ~105 KB, which fits the A100's
-   * 164 KB opt-in limit (Ada tops out near 99 KB, so such nets are still
-   * rejected there with the size message below).
+  /* Networks beyond the 48 KB default dynamic-shared-memory window (more
+   * than ~3000 nodes summed over the layers) opt into the device's
+   * per-block maximum instead of being rejected.
    * The granted size is a property of the network, not of the device, so what
    * is remembered is the number of bytes already opted into rather than a
    * boolean. A process that runs NNP environments in sequence can raise the
