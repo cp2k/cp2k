@@ -4,11 +4,11 @@
   {matcher = "AS_embedding_iterations", tol = 0, ref = 4}
 ]
 "h3_as_fci_uks.inp"  = [
-  {matcher = "M011", tol = 1e-10, ref = -1.535750401949410},
+  {matcher = "M011", tol = 1e-10, ref = -1.535740976289106},
   {matcher = "AS_embedding_iterations", tol = 0, ref = 3}
 ]
 "h3_as_fci_roks.inp" = [
-  {matcher = "M011", tol = 1e-12, ref = -1.534849252925639},
+  {matcher = "M011", tol = 1e-12, ref = -1.534839826833863},
   {matcher = "AS_embedding_iterations", tol = 0, ref = 4}
 ]
 #EOF

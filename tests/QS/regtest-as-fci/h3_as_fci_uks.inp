@@ -26,7 +26,7 @@
         PERIODICITY 0 0 0
       &END ERI
       &ERI_GPW
-        CUTOFF 500
+        CUTOFF 400
       &END ERI_GPW
       &MIXING
         ALPHA 1.0
@@ -34,7 +34,7 @@
       &END MIXING
     &END ACTIVE_SPACE
     &MGRID
-      CUTOFF 500
+      CUTOFF 200
     &END MGRID
     &POISSON
       PERIODIC NONE
@@ -45,9 +45,7 @@
     &END QS
     &SCF
       ADDED_MOS 4
-      EPS_DIIS 1E-003
-      EPS_EIGVAL 1E-009
-      EPS_SCF 1E-011
+      EPS_SCF 1E-06
       MAX_SCF 100
       &PRINT
         &RESTART OFF
