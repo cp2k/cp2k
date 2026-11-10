@@ -76,13 +76,14 @@ MODULE kpoint_methods
                                               k_grid_to_cell_prepare,&
                                               k_grid_to_cell_release,&
                                               k_grid_to_cell_work_type,&
+                                              lattice_fft_profile_type,&
                                               lattice_fft_shape,&
                                               regular_kpoint_grid
    USE kpoint_transform,                ONLY: &
         ensure_work_matrix => rskp_work_matrix, k_grid_to_cell_contract, &
         k_grid_to_cell_phase_prepare, k_grid_to_cell_phase_type, k_grid_to_cell_profile_type, &
         kp_symmetry_phase_factors => rskp_phase_factors, kp_transform_plan_create, &
-        kp_transform_plan_type, rskp_transform
+        kp_transform_plan_type, rskp_fft_profile_print, rskp_transform
    USE kpoint_types,                    ONLY: &
         find_kpoint_rotation_slot, get_kpoint_info, kind_rotmat_type, kpoint_env_create, &
         kpoint_env_p_type, kpoint_env_type, kpoint_sym_create, kpoint_sym_type, kpoint_type
@@ -2523,12 +2524,14 @@ CONTAINS
       INTEGER, DIMENSION(14)                             :: layout, layout_max, layout_min
       INTEGER, DIMENSION(2)                              :: fft_range
       LOGICAL                                            :: local, same_layout
+      REAL(KIND=dp)                                      :: started
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: fft_density
       TYPE(copy_info_type), DIMENSION(2)                 :: info
       TYPE(cp_fm_struct_type), POINTER                   :: fms
       TYPE(cp_fm_type)                                   :: dummy
       TYPE(cp_fm_type), DIMENSION(2), TARGET             :: partial
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: image_source
+      TYPE(lattice_fft_profile_type)                     :: profile
       TYPE(mp_para_env_type), POINTER                    :: inter, para_env
 
       para_env => kpoint%blacs_env_all%para_env
@@ -2565,9 +2568,12 @@ CONTAINS
       END IF
 
       CALL timeset(routineN, handle)
+      profile = lattice_fft_profile_type()
       DO ispin = 1, SIZE(source, 3)
          CALL kp_density_fft(kpoint, source(:, :, ispin), nrow, ncol, SIZE(denmat, 2), &
-                             fft_range, fft_density)
+                             fft_range, fft_density, profile)
+         started = m_walltime()
+         profile%counts(6) = profile%counts(6) + 8_int_8*SIZE(fft_density, KIND=int_8)
          IF (kpoint%para_env_kp%num_pe == 1) THEN
             IF (.NOT. ALLOCATED(blocks)) THEN
                ! Keep neighbor-list multiplicity and imaginary signs in the k-point layer.
@@ -2583,6 +2589,7 @@ CONTAINS
             CALL cp_array_to_dbcsr_blocks(fft_density, fft_range(1), fft_range(2), para_env, &
                                           denmat(ispin, :), blocks, factors)
             DEALLOCATE (fft_density)
+            profile%seconds(9) = profile%seconds(9) + m_walltime() - started
             CYCLE
          END IF
          IF (ispin == 1) THEN
@@ -2631,10 +2638,12 @@ CONTAINS
                                              components(2)%matrix, image, nc == 1, plan)
          END DO
          IF (ALLOCATED(fft_density)) DEALLOCATE (fft_density)
+         profile%seconds(9) = profile%seconds(9) + m_walltime() - started
       END DO
       DO ic = 1, nc
          CALL cp_fm_release(partial(ic))
       END DO
+      CALL rskp_fft_profile_print(profile, para_env, 'K2R_FFT_PROFILE|')
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_density_transform_regular_grid
@@ -2652,8 +2661,9 @@ CONTAINS
 !> \param nimg number of requested real-space images
 !> \param owned local FM element range assigned to this inter-group rank
 !> \param density owned real-space matrix pencils
+!> \param profile ...
 ! **************************************************************************************************
-   SUBROUTINE kp_density_fft(kpoint, source, nrow, ncol, nimg, owned, density)
+   SUBROUTINE kp_density_fft(kpoint, source, nrow, ncol, nimg, owned, density, profile)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(IN)    :: source
@@ -2661,6 +2671,7 @@ CONTAINS
       INTEGER, DIMENSION(2), INTENT(OUT)                 :: owned
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: density
+      TYPE(lattice_fft_profile_type), INTENT(INOUT)      :: profile
 
       INTEGER(KIND=int_8), PARAMETER                     :: max_bytes = 64_int_8*1024*1024
       INTEGER, PARAMETER                                 :: max_batch = 32
@@ -2680,9 +2691,11 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: choice
       INTEGER, DIMENSION(3)                              :: nfft
       LOGICAL                                            :: compatible, fft_success, used_fft
+      REAL(KIND=dp)                                      :: detail_started, started
       TYPE(k_grid_to_cell_work_type)                     :: fft_work_data
       TYPE(mp_para_env_type), POINTER                    :: inter
 
+      started = m_walltime()
       owned = [1, 0]
       CPASSERT(kpoint%rskp_transform == rskp_backend_fft)
       nkp = SIZE(kpoint%xkp, 2)
@@ -2728,8 +2741,10 @@ CONTAINS
          CPABORT("Inverse FFT tile exceeds the integer MPI count range")
       END IF
       width = choice(2)
+      profile%setup_seconds(3) = profile%setup_seconds(3) + m_walltime() - started
 
       CALL timeset("kp_density_fft", handle)
+      detail_started = m_walltime()
       ALLOCATE (density(nowned, nc, nimg))
       ALLOCATE (cells(3, nc*nimg))
       cells(:, 1:nimg) = kpoint%index_to_cell(:, 1:nimg)
@@ -2742,12 +2757,25 @@ CONTAINS
          ALLOCATE (sendbuf(MAX(1, width*ngroup*local_k)))
       END IF
       ALLOCATE (values_rs(width, 1, nc*nimg))
+      profile%setup_seconds(6) = profile%setup_seconds(6) + m_walltime() - detail_started
       IF (nowned > 0) THEN
+         detail_started = m_walltime()
          CALL k_grid_to_cell_prepare(fft_work_data, kpoint%xkp, kpoint%nkp_grid, cells, &
                                      weights=kpoint%wkp, allow_incomplete=.TRUE.)
+         profile%setup_seconds(2) = profile%setup_seconds(2) + m_walltime() - detail_started
+         profile%setup_calls(2) = profile%setup_calls(2) + 1_int_8
       END IF
+      profile%seconds(1) = profile%seconds(1) + m_walltime() - started
+      profile%grid = kpoint%nkp_grid
+      profile%padded = nfft
+      profile%memory(2) = MAX(profile%memory(2), 8_int_8*INT(nc, int_8)*SIZE(source, 1, KIND=int_8)* &
+                              SIZE(source(1, 1)%matrix%local_data, KIND=int_8))
+      profile%memory(4) = MAX(profile%memory(4), 8_int_8*SIZE(density, KIND=int_8))
+      profile%memory(6) = MAX(profile%memory(6), 16_int_8*(SIZE(recvbuf, KIND=int_8) + SIZE(values_rs, KIND=int_8) + &
+                                                           MERGE(0_int_8, SIZE(sendbuf, KIND=int_8), ngroup == 1)))
       fft_success = .TRUE.
       DO batch = 1, MAXVAL(ranges(2, :) - ranges(1, :) + 1), width
+         started = m_walltime()
          count = MAX(0, MIN(width, nowned - batch + 1))
          offset = 0
          DO group = 1, ngroup
@@ -2775,18 +2803,26 @@ CONTAINS
             END DO
 !$OMP END PARALLEL DO
          END DO
-         IF (ngroup > 1) CALL inter%alltoall(sendbuf, scount, sdispl, recvbuf, rcount, rdispl)
+         profile%seconds(2) = profile%seconds(2) + m_walltime() - started
+         profile%counts(3) = profile%counts(3) + 8_int_8*INT(nc, int_8)*SUM(INT(scount, int_8))
+         started = m_walltime()
+         IF (ngroup > 1) THEN
+            CALL inter%alltoall(sendbuf, scount, sdispl, recvbuf, rcount, rdispl)
+            profile%counts(4) = profile%counts(4) + 16_int_8*SUM(INT(scount, int_8))
+         END IF
+         profile%seconds(8) = profile%seconds(8) + m_walltime() - started
          used_fft = .TRUE.
          IF (count > 0) THEN
             values_k(1:count, 1:1, 1:nkp) => recvbuf(1:count*nkp)
             ! Keep fft_tools pool/planner access outside OpenMP worker regions.
             CALL k_grid_to_cell_execute(fft_work_data, values_k, values_rs(1:count, :, :), &
                                         used_fft=used_fft, require_fft=.TRUE., &
-                                        allow_direct_fallback=.FALSE.)
+                                        allow_direct_fallback=.FALSE., profile=profile)
          END IF
          fft_success = fft_success .AND. used_fft
          IF (count == 0) CYCLE
          IF (.NOT. used_fft) CYCLE
+         started = m_walltime()
          DO i = 1, nimg
             IF (nc == 1) THEN
                density(batch:batch + count - 1, 1, i) = REAL(values_rs(1:count, 1, i), dp)
@@ -2797,6 +2833,8 @@ CONTAINS
                                                         REAL(values_rs(1:count, 1, i) - values_rs(1:count, 1, nimg + i), dp)
             END IF
          END DO
+         profile%seconds(9) = profile%seconds(9) + m_walltime() - started
+         profile%counts(6) = profile%counts(6) + 8_int_8*INT(count, int_8)*INT(nc, int_8)*INT(nimg, int_8)
       END DO
       fft_status = MERGE(1, 0, fft_success)
       CALL kpoint%blacs_env_all%para_env%min(fft_status)

@@ -39,6 +39,7 @@ MODULE fft_tools
    USE kinds,                           ONLY: dp,&
                                               dp_size,&
                                               sp
+   USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: z_zero
    USE message_passing,                 ONLY: mp_cart_type,&
                                               mp_comm_null,&
@@ -347,20 +348,23 @@ CONTAINS
 !> \param zout   output array
 !> \param scale  scaling factor
 !> \param stat   status of the operation, non-zero code indicates an error
+!> \param profile_times optional elapsed scratch allocation, planning, execution and plan release times
 ! **************************************************************************************************
-   SUBROUTINE fft_1d_many(sign, n, m, trans_in, trans_out, ldx_in, ldx_out, zin, zout, scale, stat)
+   SUBROUTINE fft_1d_many(sign, n, m, trans_in, trans_out, ldx_in, ldx_out, zin, zout, scale, stat, profile_times)
       INTEGER, INTENT(in)                                :: sign, n, m
       LOGICAL, INTENT(in)                                :: trans_in, trans_out
       INTEGER, INTENT(in)                                :: ldx_in, ldx_out
       COMPLEX(kind=dp), DIMENSION(*), INTENT(inout)      :: zin, zout
       REAL(kind=dp), INTENT(in)                          :: scale
       INTEGER, INTENT(out)                               :: stat
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: profile_times(4)
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_1d_many'
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:), &
          POINTER                                         :: ztmp
       INTEGER                                            :: handle
+      REAL(KIND=dp)                                      :: started
       TYPE(fft_plan_type)                                :: fft_plan
 
       CALL timeset(routineN, handle)
@@ -370,15 +374,33 @@ CONTAINS
       END IF
 
       NULLIFY (ztmp)
+      IF (PRESENT(profile_times)) started = m_walltime()
       IF (trans_in) THEN
          CALL fft_alloc(ztmp, [ldx_in*n])
       ELSE
          CALL fft_alloc(ztmp, [ldx_in*m])
       END IF
+      IF (PRESENT(profile_times)) THEN
+         profile_times(1) = m_walltime() - started
+         started = m_walltime()
+      END IF
       CALL fft_create_plan_1d(fft_plan, sign, trans_in, trans_out, ldx_in, ldx_out, n, m, ztmp, zout)
+      IF (PRESENT(profile_times)) THEN
+         profile_times(2) = m_walltime() - started
+         started = m_walltime()
+      END IF
       CALL fft_dealloc(ztmp)
+      IF (PRESENT(profile_times)) THEN
+         profile_times(1) = profile_times(1) + m_walltime() - started
+         started = m_walltime()
+      END IF
       CALL fft_1d(fft_plan, zin, zout, scale, stat)
+      IF (PRESENT(profile_times)) THEN
+         profile_times(3) = m_walltime() - started
+         started = m_walltime()
+      END IF
       CALL fft_destroy_plan(fft_plan)
+      IF (PRESENT(profile_times)) profile_times(4) = m_walltime() - started
 
       CALL timestop(handle)
    END SUBROUTINE fft_1d_many

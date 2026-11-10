@@ -113,7 +113,7 @@ PROGRAM kpoint_lattice_fft_unittest
       USE kinds, ONLY: int_8
       USE kpoint_transform, ONLY: cell_to_k_backend_evaluate_batch, cell_to_k_backend_prepare, &
                                   cell_to_k_sparse_fft, rskp_route_type, rskp_values_type
-      USE kpoint_lattice_fft, ONLY: cell_to_k_grid_release
+      USE kpoint_lattice_fft, ONLY: cell_to_k_grid_release, lattice_fft_profile_type
       USE message_passing, ONLY: mp_para_env_type, mp_para_env_release
       INTEGER :: p, sign
       COMPLEX(dp), TARGET :: dense(4, 3, nkp), expected(4, 3, nkp)
@@ -124,6 +124,7 @@ PROGRAM kpoint_lattice_fft_unittest
       TYPE(cp_fm_p_type) :: destinations(nkp, 2)
       TYPE(rskp_route_type) :: route
       TYPE(rskp_values_type) :: snapshot
+      TYPE(lattice_fft_profile_type) :: profile
       TYPE(mp_para_env_type), POINTER :: env
 
       ALLOCATE (env)
@@ -157,8 +158,23 @@ PROGRAM kpoint_lattice_fft_unittest
          snapshot%mirror_sign = sign
          snapshot%scale = CMPLX(0.3_dp, 0.7_dp, dp)
          ALLOCATE (snapshot%fft_values(3, nkp))
+         profile = lattice_fft_profile_type()
          CALL cell_to_k_sparse_fft(snapshot, route, xkp, nkp_grid, RESHAPE([1, nkp], [2, 1]), env, &
-                                   1_int_8, cache=snapshot%fft_values)
+                                   1_int_8, cache=snapshot%fft_values, profile=profile)
+         IF (profile%counts(1) /= 3_int_8 .OR. profile%counts(2) /= 3_int_8) THEN
+            ERROR STOP 'Soft FFT target did not retain one-element tiles'
+         END IF
+         IF (ANY(profile%passes /= 3_int_8)) ERROR STOP 'FFT profile missed an axis pass'
+         IF (SUM(profile%buffer_counts(1:2)) /= 3_int_8 .OR. ANY(profile%buffer_counts(3:4) /= 0_int_8)) THEN
+            ERROR STOP 'FFT profile missed buffer allocation or reuse'
+         END IF
+         IF (SUM(profile%setup_seconds) > profile%seconds(1) + 1.0E-6_dp) THEN
+            ERROR STOP 'FFT profile setup substages exceed the parent stage'
+         END IF
+         IF (ANY(SUM(profile%fft_seconds, DIM=1) > profile%seconds(4:6) + 1.0E-6_dp)) THEN
+            ERROR STOP 'FFT profile axis substages exceed the parent stages'
+         END IF
+         IF (profile%memory(3) /= 16_int_8*3_int_8*INT(nkp, int_8)) ERROR STOP 'FFT profile cache size is incorrect'
          IF (MAXVAL(ABS(snapshot%fft_values - transformed(1, :, :))) > 2.0E-12_dp) THEN
             ERROR STOP 'Canonical FFT cache changed raw Fourier values'
          END IF
@@ -181,8 +197,14 @@ PROGRAM kpoint_lattice_fft_unittest
             ERROR STOP 'Canonical FFT cache split-FM scatter is incorrect'
          END IF
          DEALLOCATE (snapshot%fft_values)
+         profile = lattice_fft_profile_type()
          CALL cell_to_k_sparse_fft(snapshot, route, xkp, nkp_grid, RESHAPE([1, nkp], [2, 1]), env, &
-                                   1_int_8, output=destinations)
+                                   1_int_8, output=destinations, profile=profile)
+         IF (profile%memory(3) /= 0_int_8) ERROR STOP 'Direct FFT output retained an intermediate cache'
+         IF (profile%memory(4) /= 8_int_8*SIZE(split, KIND=int_8)) ERROR STOP 'FFT profile target size is incorrect'
+         IF (ANY(profile%buffer_counts /= [0_int_8, 3_int_8, 0_int_8, 0_int_8])) THEN
+            ERROR STOP 'FFT profile missed prepared buffer reuse'
+         END IF
          IF (MAXVAL(ABS(CMPLX(split(:, :, :, 1), split(:, :, :, 2), dp) - expected)) > 2.0E-12_dp) THEN
             ERROR STOP 'Direct FFT output differs from cached evaluation'
          END IF
@@ -260,7 +282,28 @@ PROGRAM kpoint_lattice_fft_unittest
    IF (MAXVAL(ABS(weighted_result - weighted_reference)) > 3.0E-12_dp) THEN
       ERROR STOP "Prepared weighted inverse differs from explicit phase sum"
    END IF
-   CALL k_grid_to_cell_execute(inverse_work, transformed(:, :, 1:9), values_real=real_transformed, used_fft=used_fft)
+   BLOCK
+      USE kinds, ONLY: int_8
+      USE kpoint_lattice_fft, ONLY: lattice_fft_profile_type
+      TYPE(lattice_fft_profile_type) :: profile
+      CALL k_grid_to_cell_execute(inverse_work, transformed(:, :, 1:9), values_real=real_transformed, &
+                                  used_fft=used_fft, profile=profile)
+      IF (profile%counts(1) /= 6_int_8 .OR. ANY(profile%passes /= 3_int_8)) THEN
+         ERROR STOP 'Inverse FFT profile missed transforms or axis passes'
+      END IF
+      IF (profile%counts(5) /= 8_int_8*SIZE(real_transformed, KIND=int_8)) THEN
+         ERROR STOP 'Inverse FFT profile counted real output as complex storage'
+      END IF
+      IF (ANY(profile%buffer_counts /= [1_int_8, 0_int_8, 1_int_8, 0_int_8])) THEN
+         ERROR STOP 'Inverse FFT profile missed buffer growth for the wider batch'
+      END IF
+      IF (SUM(profile%setup_seconds) > profile%seconds(1) + 1.0E-6_dp) THEN
+         ERROR STOP 'Inverse FFT profile setup substages exceed the parent stage'
+      END IF
+      IF (ANY(SUM(profile%fft_seconds, DIM=1) > profile%seconds(4:6) + 1.0E-6_dp)) THEN
+         ERROR STOP 'Inverse FFT profile axis substages exceed the parent stages'
+      END IF
+   END BLOCK
    IF (.NOT. used_fft .OR. MAXVAL(ABS(real_transformed - REAL(weighted_reference, dp))) > 3.0E-12_dp) THEN
       ERROR STOP 'Real-output weighted inverse differs from explicit phase sum'
    END IF

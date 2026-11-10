@@ -25,6 +25,7 @@ MODULE kpoint_lattice_fft
                                               fft_radix_operations
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: gaussi,&
                                               twopi,&
                                               z_zero
@@ -41,6 +42,26 @@ MODULE kpoint_lattice_fft
    PUBLIC :: k_grid_to_cell_work_type, lattice_fft_shape, regular_kpoint_grid
 
    INTEGER(KIND=int_8), PARAMETER :: fft_batch_bytes = 32_int_8*1024_int_8**2
+
+   ! Rank-local elapsed times; FFT-library threading is included, not multiplied out.
+   TYPE, PUBLIC :: lattice_fft_profile_type
+      ! Setup, capture/pack, grid fill, X/Y/Z FFT+plan, extract, exchange, scatter.
+      REAL(KIND=dp) :: seconds(9) = 0.0_dp
+      ! Included in setup: route, geometry, layout/collectives, cache initialization,
+      ! FFT buffer management and adapter buffer management. Remainder is reported separately.
+      REAL(KIND=dp) :: setup_seconds(6) = 0.0_dp
+      ! Included in each axis: planning scratch, plan creation, execution, plan release.
+      REAL(KIND=dp) :: fft_seconds(4, 3) = 0.0_dp
+      INTEGER(KIND=int_8) :: setup_calls(2) = 0_int_8
+      ! FFT input/output buffer pairs: allocation, reuse, growth, budget-driven shrinkage.
+      INTEGER(KIND=int_8) :: buffer_counts(4) = 0_int_8
+      ! Transforms, batches, packed/exchanged/extracted/scattered bytes.
+      INTEGER(KIND=int_8) :: counts(6) = 0_int_8, passes(3) = 0_int_8
+      ! Per-category visible allocation peaks/estimates; backend pool internals excluded.
+      ! Route, source, cache, final target, FFT scratch, adapter scratch, geometry maps.
+      INTEGER(KIND=int_8) :: memory(7) = 0_int_8
+      INTEGER :: grid(3) = 0, padded(3) = 0, width_min = HUGE(0), width_max = 0
+   END TYPE lattice_fft_profile_type
 
    ! Reusable forward lattice geometry and bounded numerical FFT workspace.
    TYPE cell_to_k_grid_work_type
@@ -175,21 +196,34 @@ CONTAINS
 !> \param buffer input, then transformed data; ownership swaps with scratch
 !> \param scratch equally sized FFT workspace
 !> \param stat nonzero on backend execution failure
+!> \param profile ...
 ! **************************************************************************************************
-   SUBROUTINE lattice_fft_execute(sign, n, nbatch, buffer, scratch, stat)
+   SUBROUTINE lattice_fft_execute(sign, n, nbatch, buffer, scratch, stat, profile)
       INTEGER, INTENT(IN)                                :: sign, n(3), nbatch
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: buffer(:), scratch(:)
       INTEGER, INTENT(OUT)                               :: stat
+      TYPE(lattice_fft_profile_type), INTENT(INOUT), &
+         OPTIONAL                                        :: profile
 
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: swap(:)
       INTEGER                                            :: d, nlines
+      REAL(KIND=dp)                                      :: profile_times(4), started
 
       stat = 0
       DO d = 1, 3
          IF (n(d) == 1) CYCLE
          nlines = nbatch*PRODUCT(n)/n(d)
-         CALL fft_1d_many(sign, n(d), nlines, .FALSE., .TRUE., n(d), nlines, &
-                          buffer, scratch, 1.0_dp, stat)
+         IF (PRESENT(profile)) THEN
+            started = m_walltime()
+            CALL fft_1d_many(sign, n(d), nlines, .FALSE., .TRUE., n(d), nlines, &
+                             buffer, scratch, 1.0_dp, stat, profile_times=profile_times)
+            profile%seconds(3 + d) = profile%seconds(3 + d) + m_walltime() - started
+            profile%fft_seconds(:, d) = profile%fft_seconds(:, d) + profile_times
+            profile%passes(d) = profile%passes(d) + 1_int_8
+         ELSE
+            CALL fft_1d_many(sign, n(d), nlines, .FALSE., .TRUE., n(d), nlines, &
+                             buffer, scratch, 1.0_dp, stat)
+         END IF
          IF (stat /= 0) RETURN
          swap => buffer
          buffer => scratch
@@ -213,10 +247,11 @@ CONTAINS
 !> \param cell_first first prepared image-map column for this batch
 !> \param max_workspace_bytes optional soft FFT workspace target; one element always fits the policy
 !> \param accumulate add to values_k; abort on FFT execution failure to avoid partial accumulation
+!> \param profile optional rank-local stage and allocation counters
 ! **************************************************************************************************
    SUBROUTINE cell_to_k_grid_fft(values_rs, index_to_cell, xkp, nkp_grid, values_k, &
                                  used_fft, deriv_direction, hmat, selected_kpoints, require_fft, work, cell_first, &
-                                 max_workspace_bytes, accumulate)
+                                 max_workspace_bytes, accumulate, profile)
 
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: values_rs
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell
@@ -235,6 +270,8 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: cell_first
       INTEGER(KIND=int_8), INTENT(IN), OPTIONAL          :: max_workspace_bytes
       LOGICAL, INTENT(IN), OPTIONAL                      :: accumulate
+      TYPE(lattice_fft_profile_type), INTENT(INOUT), &
+         OPTIONAL                                        :: profile
 
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: input(:, :, :, :), output(:, :, :, :)
       INTEGER                                            :: first, handle, i, icell, ik, ik_out, &
@@ -242,10 +279,12 @@ CONTAINS
                                                             width
       INTEGER(KIND=int_8)                                :: budget, needed, ngrid
       LOGICAL                                            :: add, success
+      REAL(KIND=dp)                                      :: detail_started, started
       TYPE(cell_to_k_grid_work_type), POINTER            :: plan
       TYPE(cell_to_k_grid_work_type), TARGET             :: local_work
 
       CALL timeset("cell_to_k_grid_fft", handle)
+      IF (PRESENT(profile)) started = m_walltime()
       add = .FALSE.
       IF (PRESENT(accumulate)) add = accumulate
 
@@ -278,7 +317,12 @@ CONTAINS
          plan => work
       ELSE
          plan => local_work
+         IF (PRESENT(profile)) detail_started = m_walltime()
          CALL cell_to_k_grid_prepare(plan, index_to_cell, xkp, nkp_grid, deriv_direction, hmat)
+         IF (PRESENT(profile)) THEN
+            profile%setup_seconds(2) = profile%setup_seconds(2) + m_walltime() - detail_started
+            profile%setup_calls(2) = profile%setup_calls(2) + 1_int_8
+         END IF
       END IF
       IF (.NOT. plan%regular .AND. PRESENT(require_fft)) THEN
          IF (require_fft) THEN
@@ -303,10 +347,18 @@ CONTAINS
          ELSE
             needed = ngrid*width
             CPASSERT(needed <= HUGE(0))
+            IF (PRESENT(profile)) detail_started = m_walltime()
             IF (ASSOCIATED(plan%fft_in)) THEN
                ! Reuse capacity while also allowing a smaller caller budget.
                IF (SIZE(plan%fft_in, KIND=int_8) < needed .OR. &
                    32_int_8*SIZE(plan%fft_in, KIND=int_8) + 16_int_8*needed > budget) THEN
+                  IF (PRESENT(profile)) THEN
+                     IF (SIZE(plan%fft_in, KIND=int_8) < needed) THEN
+                        profile%buffer_counts(3) = profile%buffer_counts(3) + 1_int_8
+                     ELSE
+                        profile%buffer_counts(4) = profile%buffer_counts(4) + 1_int_8
+                     END IF
+                  END IF
                   CALL fft_dealloc(plan%fft_in)
                   CALL fft_dealloc(plan%fft_out)
                END IF
@@ -314,11 +366,25 @@ CONTAINS
             IF (.NOT. ASSOCIATED(plan%fft_in)) THEN
                CALL fft_alloc(plan%fft_in, [INT(needed)])
                CALL fft_alloc(plan%fft_out, [INT(needed)])
+               IF (PRESENT(profile)) profile%buffer_counts(1) = profile%buffer_counts(1) + 1_int_8
+            ELSE
+               IF (PRESENT(profile)) profile%buffer_counts(2) = profile%buffer_counts(2) + 1_int_8
+            END IF
+            IF (PRESENT(profile)) THEN
+               profile%setup_seconds(5) = profile%setup_seconds(5) + m_walltime() - detail_started
+               profile%seconds(1) = profile%seconds(1) + m_walltime() - started
+               profile%grid = nkp_grid
+               profile%padded = plan%nfft
+               profile%memory(5) = MAX(profile%memory(5), &
+                                       32_int_8*SIZE(plan%fft_in, KIND=int_8) + 16_int_8*needed)
+               profile%memory(7) = MAX(profile%memory(7), &
+                                       28_int_8*SIZE(plan%cell_factor, KIND=int_8) + 12_int_8*SIZE(xkp, 2, KIND=int_8))
             END IF
             stat = 0
             DO j = 1, SIZE(values_rs, 2)
                DO first = 1, SIZE(values_rs, 1), width
                   nbatch = MIN(width, SIZE(values_rs, 1) - first + 1)
+                  IF (PRESENT(profile)) started = m_walltime()
                   input(1:plan%nfft(1), 1:plan%nfft(2), 1:plan%nfft(3), 1:nbatch) => plan%fft_in(1:INT(ngrid)*nbatch)
                   input = z_zero
                   DO i = 1, nbatch
@@ -329,8 +395,16 @@ CONTAINS
                            plan%cell_factor(image)*values_rs(first + i - 1, j, icell)
                      END DO
                   END DO
-                  CALL lattice_fft_execute(BWFFT, plan%nfft, nbatch, plan%fft_in, plan%fft_out, stat)
+                  IF (PRESENT(profile)) THEN
+                     profile%seconds(3) = profile%seconds(3) + m_walltime() - started
+                     profile%counts(1) = profile%counts(1) + INT(nbatch, int_8)
+                     profile%counts(2) = profile%counts(2) + 1_int_8
+                     profile%width_min = MIN(profile%width_min, nbatch)
+                     profile%width_max = MAX(profile%width_max, nbatch)
+                  END IF
+                  CALL lattice_fft_execute(BWFFT, plan%nfft, nbatch, plan%fft_in, plan%fft_out, stat, profile)
                   IF (stat /= 0) EXIT
+                  IF (PRESENT(profile)) started = m_walltime()
                   output(1:nbatch, 1:plan%nfft(1), 1:plan%nfft(2), 1:plan%nfft(3)) => plan%fft_in(1:INT(ngrid)*nbatch)
                   DO ik_out = 1, SIZE(values_k, 3)
                      ik = ik_out
@@ -344,6 +418,10 @@ CONTAINS
                            output(:, plan%grid_index(1, ik), plan%grid_index(2, ik), plan%grid_index(3, ik))
                      END IF
                   END DO
+                  IF (PRESENT(profile)) THEN
+                     profile%seconds(7) = profile%seconds(7) + m_walltime() - started
+                     profile%counts(5) = profile%counts(5) + 16_int_8*INT(nbatch, int_8)*INT(nout, int_8)
+                  END IF
                END DO
                IF (stat /= 0) EXIT
             END DO
@@ -516,8 +594,10 @@ CONTAINS
 !> \param require_fft abort on an unsupported mapping or FFT failure, without a direct fallback
 !> \param allow_direct_fallback execute the generic direct sum when FFT is unavailable; defaults to true
 !> \param values_real real part of the inverse transform, instead of values_rs
+!> \param profile optional rank-local stage and allocation counters
 ! **************************************************************************************************
-   SUBROUTINE k_grid_to_cell_execute(work, values_k, values_rs, used_fft, require_fft, allow_direct_fallback, values_real)
+   SUBROUTINE k_grid_to_cell_execute(work, values_k, values_rs, used_fft, require_fft, allow_direct_fallback, values_real, &
+                                     profile)
 
       TYPE(k_grid_to_cell_work_type), INTENT(INOUT)      :: work
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: values_k
@@ -526,13 +606,17 @@ CONTAINS
       LOGICAL, INTENT(OUT), OPTIONAL                     :: used_fft
       LOGICAL, INTENT(IN), OPTIONAL                      :: require_fft, allow_direct_fallback
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: values_real(:, :, :)
+      TYPE(lattice_fft_profile_type), INTENT(INOUT), &
+         OPTIONAL                                        :: profile
 
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: input(:, :, :, :), output(:, :, :, :)
       INTEGER                                            :: first, handle, i, icell, ik, j, nbatch, &
                                                             output_shape(3), stat, width
       INTEGER(KIND=int_8)                                :: ngrid
+      REAL(KIND=dp)                                      :: detail_started, started
 
       CALL timeset("k_grid_to_cell_fft", handle)
+      IF (PRESENT(profile)) started = m_walltime()
       CPASSERT(ALLOCATED(work%xkp))
       CPASSERT(PRESENT(values_rs) .NEQV. PRESENT(values_real))
       IF (PRESENT(values_rs)) output_shape = SHAPE(values_rs)
@@ -557,8 +641,10 @@ CONTAINS
             RETURN
          END IF
          CPASSERT(ngrid*width <= HUGE(0))
+         IF (PRESENT(profile)) detail_started = m_walltime()
          IF (ASSOCIATED(work%fft_in)) THEN
             IF (SIZE(work%fft_in, KIND=int_8) < ngrid*width) THEN
+               IF (PRESENT(profile)) profile%buffer_counts(3) = profile%buffer_counts(3) + 1_int_8
                CALL fft_dealloc(work%fft_in)
                CALL fft_dealloc(work%fft_out)
             END IF
@@ -566,10 +652,23 @@ CONTAINS
          IF (.NOT. ASSOCIATED(work%fft_in)) THEN
             CALL fft_alloc(work%fft_in, [INT(ngrid)*width])
             CALL fft_alloc(work%fft_out, [INT(ngrid)*width])
+            IF (PRESENT(profile)) profile%buffer_counts(1) = profile%buffer_counts(1) + 1_int_8
+         ELSE
+            IF (PRESENT(profile)) profile%buffer_counts(2) = profile%buffer_counts(2) + 1_int_8
+         END IF
+         IF (PRESENT(profile)) THEN
+            profile%setup_seconds(5) = profile%setup_seconds(5) + m_walltime() - detail_started
+            profile%seconds(1) = profile%seconds(1) + m_walltime() - started
+            profile%padded = work%nfft
+            profile%memory(5) = MAX(profile%memory(5), &
+                                    32_int_8*SIZE(work%fft_in, KIND=int_8) + 16_int_8*ngrid*INT(width, int_8))
+            profile%memory(7) = MAX(profile%memory(7), &
+                                    44_int_8*SIZE(work%xkp, 2, KIND=int_8) + 40_int_8*SIZE(work%cells, 2, KIND=int_8))
          END IF
          DO j = 1, SIZE(values_k, 2)
             DO first = 1, SIZE(values_k, 1), width
                nbatch = MIN(width, SIZE(values_k, 1) - first + 1)
+               IF (PRESENT(profile)) started = m_walltime()
                input(1:work%nfft(1), 1:work%nfft(2), 1:work%nfft(3), 1:nbatch) => &
                   work%fft_in(1:INT(ngrid)*nbatch)
                input = z_zero
@@ -579,8 +678,16 @@ CONTAINS
                         work%weight(ik)*values_k(first + i - 1, j, ik)
                   END DO
                END DO
-               CALL lattice_fft_execute(FWFFT, work%nfft, nbatch, work%fft_in, work%fft_out, stat)
+               IF (PRESENT(profile)) THEN
+                  profile%seconds(3) = profile%seconds(3) + m_walltime() - started
+                  profile%counts(1) = profile%counts(1) + INT(nbatch, int_8)
+                  profile%counts(2) = profile%counts(2) + 1_int_8
+                  profile%width_min = MIN(profile%width_min, nbatch)
+                  profile%width_max = MAX(profile%width_max, nbatch)
+               END IF
+               CALL lattice_fft_execute(FWFFT, work%nfft, nbatch, work%fft_in, work%fft_out, stat, profile)
                IF (stat /= 0) EXIT
+               IF (PRESENT(profile)) started = m_walltime()
                output(1:nbatch, 1:work%nfft(1), 1:work%nfft(2), 1:work%nfft(3)) => &
                   work%fft_in(1:INT(ngrid)*nbatch)
                DO icell = 1, SIZE(work%cells, 2)
@@ -593,6 +700,11 @@ CONTAINS
                                      output(:, work%cell_index(1, icell), work%cell_index(2, icell), work%cell_index(3, icell)), dp)
                   END IF
                END DO
+               IF (PRESENT(profile)) THEN
+                  profile%seconds(7) = profile%seconds(7) + m_walltime() - started
+                  profile%counts(5) = profile%counts(5) + &
+                                   INT(MERGE(8, 16, PRESENT(values_real)), int_8)*INT(nbatch, int_8)*SIZE(work%cells, 2, KIND=int_8)
+               END IF
             END DO
             IF (stat /= 0) EXIT
          END DO

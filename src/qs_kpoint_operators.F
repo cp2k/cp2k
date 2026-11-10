@@ -31,12 +31,15 @@ MODULE qs_kpoint_operators
                                               cp_fm_type
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE kpoint_lattice_fft,              ONLY: lattice_fft_profile_type
    USE kpoint_transform,                ONLY: &
         cell_to_k_backend_evaluate_batch, cell_to_k_backend_prepare, cell_to_k_sparse_fft, &
-        rskp_backend_fft, rskp_batch_size, rskp_capture, rskp_compatible, rskp_route_create, &
-        rskp_route_release, rskp_route_type, rskp_values_release, rskp_values_type
+        rskp_backend_fft, rskp_batch_size, rskp_capture, rskp_compatible, rskp_fft_profile_print, &
+        rskp_route_create, rskp_route_release, rskp_route_type, rskp_values_release, &
+        rskp_values_type
    USE kpoint_types,                    ONLY: kpoint_env_type,&
                                               kpoint_type
+   USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_para_env_type
    USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
@@ -237,16 +240,21 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_prepare'
 
-      INTEGER                                            :: compatible, handle, ic, ikp, ispin, nk, &
-                                                            nrow, output_mirror_sign, row
+      INTEGER                                            :: compatible, handle, ic, ikp, ispin, &
+                                                            jslot, nk, nrow, output_mirror_sign, &
+                                                            row
       INTEGER(KIND=int_8)                                :: workspace_bytes
       LOGICAL                                            :: ready, world_target
+      REAL(KIND=dp)                                      :: detail_started, started
       TYPE(cp_fm_struct_type), POINTER                   :: fms
+      TYPE(lattice_fft_profile_type)                     :: profile
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: source_sab
 
       CALL timeset(routineN, handle)
+      profile = lattice_fft_profile_type()
+      started = m_walltime()
       CPASSERT(ASSOCIATED(ctx%kpoints))
       CPASSERT(.NOT. (PRESENT(TARGET) .AND. PRESENT(target_struct)))
       output_mirror_sign = 1
@@ -287,6 +295,7 @@ CONTAINS
          fms => ctx%fmlocal%matrix_struct
       END IF
       CPASSERT(ASSOCIATED(fms))
+      IF (ctx%kpoints%rskp_transform == rskp_backend_fft) detail_started = m_walltime()
       ! Group-local targets are routed through group leaders and broadcast
       ! within each group; world targets are routed directly to world ranks.
       world_target = ASSOCIATED(fms%para_env, para_env)
@@ -296,12 +305,21 @@ CONTAINS
       IF (compatible == 0) THEN
          CPABORT("R-to-K output must use the host group or world communicator")
       END IF
+      IF (ctx%kpoints%rskp_transform == rskp_backend_fft) THEN
+         profile%setup_seconds(3) = profile%setup_seconds(3) + m_walltime() - detail_started
+      END IF
       IF (.NOT. ALLOCATED(ctx%rs_route)) THEN
+         IF (ctx%kpoints%rskp_transform == rskp_backend_fft) detail_started = m_walltime()
          ALLOCATE (ctx%rs_route)
          CALL rskp_route_create(rsmat, source_sab, ctx%kpoints%cell_to_index, fms, &
                                 ctx%kpoints%blacs_env_all%para_env, ctx%kpoints%para_env_kp, &
                                 ctx%kpoints%para_env_inter_kp, ctx%kpoints%rskp_transform, &
                                 ctx%rs_route, ready)
+         IF (ctx%kpoints%rskp_transform == rskp_backend_fft) THEN
+            profile%setup_seconds(1) = m_walltime() - detail_started
+            profile%setup_calls(1) = 1_int_8
+            detail_started = m_walltime()
+         END IF
          IF (.NOT. ready) THEN
             CPABORT("R-to-K route has an incompatible source or target layout")
          END IF
@@ -312,7 +330,12 @@ CONTAINS
                                            ctx%kpoints%xkp(:, ctx%kpoints%kp_range(1):ctx%kpoints%kp_range(2)), &
                                            ctx%kpoints%nkp_grid, rs_batch_bytes)
          END IF
+         IF (ctx%kpoints%rskp_transform == rskp_backend_fft) THEN
+            profile%setup_seconds(2) = m_walltime() - detail_started
+            profile%setup_calls(2) = 1_int_8
+         END IF
       END IF
+      IF (ctx%kpoints%rskp_transform == rskp_backend_fft) detail_started = m_walltime()
       compatible = MERGE(1, 0, cp_fm_struct_equivalent(fms, ctx%rs_route%matrix_struct))
       IF (world_target .NEQV. ctx%rs_route%world_target) compatible = 0
       DO ispin = 1, nrow
@@ -339,31 +362,50 @@ CONTAINS
          CPASSERT(compatible == 1)
       END IF
       IF (ctx%rs_route%transform%backend == rskp_backend_fft) THEN
+         profile%setup_seconds(3) = profile%setup_seconds(3) + m_walltime() - detail_started
          nk = SIZE(ctx%kpoints%xkp, 2)
          IF (.NOT. world_target) nk = SIZE(ctx%kpoints%kp_env)
          ! Retained inputs and outputs do not limit the temporary element tile.
          workspace_bytes = rs_batch_bytes
+         profile%seconds(1) = m_walltime() - started
       END IF
       DO ispin = 1, nrow
          row = ispin
          IF (PRESENT(matrix_row)) row = matrix_row
+         started = m_walltime()
          CALL rskp_capture(rsmat, row, ctx%rs_route, ctx%rs(ispin, slot), mirror_sign=output_mirror_sign)
          IF (ctx%rs_route%transform%backend == rskp_backend_fft) THEN
+            profile%seconds(2) = profile%seconds(2) + m_walltime() - started
+            profile%counts(3) = profile%counts(3) + 8_int_8*SIZE(ctx%rs(ispin, slot)%packed, KIND=int_8)
             IF (PRESENT(output)) THEN
                CPASSERT(SIZE(output, 1) == nk .AND. SIZE(output, 2) == nrow)
                CALL cell_to_k_sparse_fft(ctx%rs(ispin, slot), ctx%rs_route, ctx%kpoints%xkp, &
                                          ctx%kpoints%nkp_grid, ctx%kpoints%kp_dist, ctx%kpoints%para_env_inter_kp, &
-                                         workspace_bytes, output=output(:, ispin, :))
+                                         workspace_bytes, output=output(:, ispin, :), profile=profile)
             ELSE
+               detail_started = m_walltime()
                ALLOCATE (ctx%rs(ispin, slot)%fft_values( &
                          ctx%rs_route%element_first(SIZE(ctx%rs_route%element_first)) - 1, nk))
+               detail_started = m_walltime() - detail_started
+               profile%setup_seconds(4) = profile%setup_seconds(4) + detail_started
+               profile%seconds(1) = profile%seconds(1) + detail_started
                CALL cell_to_k_sparse_fft(ctx%rs(ispin, slot), ctx%rs_route, ctx%kpoints%xkp, &
                                          ctx%kpoints%nkp_grid, ctx%kpoints%kp_dist, ctx%kpoints%para_env_inter_kp, &
-                                         workspace_bytes, cache=ctx%rs(ispin, slot)%fft_values)
+                                         workspace_bytes, cache=ctx%rs(ispin, slot)%fft_values, profile=profile)
             END IF
             DEALLOCATE (ctx%rs(ispin, slot)%packed)
          END IF
       END DO
+      IF (ctx%rs_route%transform%backend == rskp_backend_fft) THEN
+         profile%memory(3) = 0_int_8
+         DO jslot = kpoint_slot_ks, kpoint_slot_t
+            DO ispin = 1, ctx%nspin
+               IF (ALLOCATED(ctx%rs(ispin, jslot)%fft_values)) profile%memory(3) = profile%memory(3) + &
+                                                                          16_int_8*SIZE(ctx%rs(ispin, jslot)%fft_values, KIND=int_8)
+            END DO
+         END DO
+         CALL rskp_fft_profile_print(profile, para_env, 'R2K_FFT_PROFILE|')
+      END IF
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_operator_prepare
