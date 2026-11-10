@@ -46,6 +46,12 @@ def main() -> None:
         help="allow the tools to modify files",
     )
     parser.add_argument(
+        "-p",
+        "--plot-file-count",
+        action="store_true",
+        help="enable plotting of # of files (for dashboard)",
+    )
+    parser.add_argument(
         "-j",
         "--num_workers",
         type=int,
@@ -188,11 +194,24 @@ def main() -> None:
         sleep(args.progressbar_wait)
 
     # Print final message.
+    checked = num_done - num_skipped
+    failed = len(failed_files)
+    if args.plot_file_count:
+        print(
+            'Plot: name="precommit", title="Precommit checked files", ylabel="# files"'
+            + (" " * 50)
+        )
+        print(
+            f'PlotPoint: name="checked", plot="precommit", label="Checked", y={checked}, yerr=0'
+        )
+        print(
+            f'PlotPoint: name="failed", plot="precommit", label="Failed", y={failed}, yerr=0'
+        )
     print(
         f"Summary: Found {len(file_list)}, "
         f"skipped {num_skipped}, "
-        f"checked {num_done - num_skipped}, "
-        f"and failed {len(failed_files)} files." + (" " * 50)
+        f"checked {checked}, "
+        f"and failed {failed} files." + (" " * 50)
     )
     print("Status: " + ("FAILED" if failed_files else "OK"))
     sys.exit(len(failed_files))
