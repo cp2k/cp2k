@@ -220,9 +220,10 @@ CONTAINS
 !>        layout, as an alternative to TARGET
 !> \param sab_nl optional source neighbor lists; defaults to the host AO lists
 !> \param mirror_sign optional transpose sign (+1 Hermitian, -1 anti-Hermitian)
+!> \param output optional final split-FM destinations for FFT, without an intermediate cache
 ! **************************************************************************************************
    SUBROUTINE kpoint_operator_prepare(ctx, rsmat, slot, matrix_row, TARGET, target_struct, sab_nl, &
-                                      mirror_sign)
+                                      mirror_sign, output)
 
       TYPE(kpoint_operator_context_type), INTENT(INOUT)  :: ctx
       TYPE(dbcsr_p_type), POINTER                        :: rsmat(:, :)
@@ -233,11 +234,13 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_nl
       INTEGER, INTENT(IN), OPTIONAL                      :: mirror_sign
+      TYPE(cp_fm_p_type), INTENT(IN), OPTIONAL           :: output(:, :, :)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_prepare'
 
-      INTEGER                                            :: compatible, handle, ispin, jslot, nk, &
-                                                            nrow, output_mirror_sign, row
+      INTEGER                                            :: compatible, handle, ic, ikp, ispin, &
+                                                            jslot, nk, nrow, output_mirror_sign, &
+                                                            row
       INTEGER(KIND=int_8)                                :: fft_storage, retained, storage, &
                                                             workspace_bytes
       LOGICAL                                            :: ready, world_target
@@ -324,6 +327,20 @@ CONTAINS
       IF (compatible == 0) THEN
          CPABORT("R-to-K snapshot has an incompatible layout")
       END IF
+      IF (PRESENT(output)) THEN
+         CPASSERT(ctx%rs_route%transform%backend == rskp_backend_fft)
+         compatible = MERGE(1, 0, SIZE(output, 2) == nrow .AND. &
+                            SIZE(output, 3) >= 1 .AND. SIZE(output, 3) <= 2)
+         DO ispin = 1, SIZE(output, 2)
+            DO ikp = 1, SIZE(output, 1)
+               DO ic = 1, SIZE(output, 3)
+                  IF (.NOT. cp_fm_struct_equivalent(fms, output(ikp, ispin, ic)%matrix%matrix_struct)) compatible = 0
+               END DO
+            END DO
+         END DO
+         CALL para_env%min(compatible)
+         CPASSERT(compatible == 1)
+      END IF
       IF (ctx%rs_route%transform%backend == rskp_backend_fft) THEN
          ! FFT retains its source and reciprocal-cache limits.
          retained = 0_int_8
@@ -349,7 +366,8 @@ CONTAINS
          END IF
          nk = SIZE(ctx%kpoints%xkp, 2)
          IF (.NOT. world_target) nk = SIZE(ctx%kpoints%kp_env)
-         fft_storage = fft_storage + 16_int_8*nrow*nk*fms%local_leading_dimension*MAX(1, ctx%rs_route%ncol)
+         IF (.NOT. PRESENT(output)) fft_storage = fft_storage + 16_int_8*nrow*nk* &
+                                                  (ctx%rs_route%element_first(SIZE(ctx%rs_route%element_first)) - 1)
          workspace_bytes = 512_int_8*1024_int_8**2 - storage - fft_storage
          IF (workspace_bytes <= 0_int_8) THEN
             CPABORT("Forced lattice FFT cache exceeds the memory budget")
@@ -360,10 +378,18 @@ CONTAINS
          IF (PRESENT(matrix_row)) row = matrix_row
          CALL rskp_capture(rsmat, row, ctx%rs_route, ctx%rs(ispin, slot), mirror_sign=output_mirror_sign)
          IF (ctx%rs_route%transform%backend == rskp_backend_fft) THEN
-            ALLOCATE (ctx%rs(ispin, slot)%fft_values(fms%local_leading_dimension, MAX(1, ctx%rs_route%ncol), nk))
-            CALL cell_to_k_sparse_fft(ctx%rs(ispin, slot), ctx%rs_route, ctx%kpoints%xkp, &
-                                      ctx%kpoints%nkp_grid, ctx%kpoints%kp_dist, ctx%kpoints%para_env_inter_kp, &
-                                      ctx%rs(ispin, slot)%fft_values, workspace_bytes)
+            IF (PRESENT(output)) THEN
+               CPASSERT(SIZE(output, 1) == nk .AND. SIZE(output, 2) == nrow)
+               CALL cell_to_k_sparse_fft(ctx%rs(ispin, slot), ctx%rs_route, ctx%kpoints%xkp, &
+                                         ctx%kpoints%nkp_grid, ctx%kpoints%kp_dist, ctx%kpoints%para_env_inter_kp, &
+                                         workspace_bytes, output=output(:, ispin, :))
+            ELSE
+               ALLOCATE (ctx%rs(ispin, slot)%fft_values( &
+                         ctx%rs_route%element_first(SIZE(ctx%rs_route%element_first)) - 1, nk))
+               CALL cell_to_k_sparse_fft(ctx%rs(ispin, slot), ctx%rs_route, ctx%kpoints%xkp, &
+                                         ctx%kpoints%nkp_grid, ctx%kpoints%kp_dist, ctx%kpoints%para_env_inter_kp, &
+                                         workspace_bytes, cache=ctx%rs(ispin, slot)%fft_values)
+            END IF
             DEALLOCATE (ctx%rs(ispin, slot)%packed)
          END IF
       END DO
@@ -979,14 +1005,27 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rsmat
       INTEGER, INTENT(IN)                                :: slot, nrows
 
-      INTEGER                                            :: ispin
+      INTEGER                                            :: component, ik, ispin
+      TYPE(cp_fm_p_type), ALLOCATABLE                    :: destinations(:, :, :)
+      TYPE(cp_fm_type), POINTER                          :: cache(:)
 
-         IF (slot == kpoint_slot_ks .AND. nrows == ctx%nspin) THEN
-            CALL kpoint_operator_prepare(ctx, rsmat, slot)
-         ELSE
-            CALL kpoint_operator_prepare(ctx, rsmat, slot, matrix_row=kpoint_spin_free)
+         IF (kpoints%rskp_transform == rskp_backend_fft) THEN
+            ALLOCATE (destinations(SIZE(kpoints%kp_env), nrows, ncomp))
+            DO ik = 1, SIZE(kpoints%kp_env)
+               DO ispin = 1, nrows
+                  cache => kpoint_operator_cache(kpoints%kp_env(ik)%kpoint_env, slot, ispin)
+                  DO component = 1, ncomp
+                     destinations(ik, ispin, component)%matrix => cache(component)
+                  END DO
+               END DO
+            END DO
          END IF
-         CALL kpoint_operator_store_prepared(ctx, slot, nrows)
+         IF (slot == kpoint_slot_ks .AND. nrows == ctx%nspin) THEN
+            CALL kpoint_operator_prepare(ctx, rsmat, slot, output=destinations)
+         ELSE
+            CALL kpoint_operator_prepare(ctx, rsmat, slot, matrix_row=kpoint_spin_free, output=destinations)
+         END IF
+         IF (.NOT. ALLOCATED(destinations)) CALL kpoint_operator_store_prepared(ctx, slot, nrows)
          ! The split-FM caches now own the results. Do not retain source block
          ! pointers or duplicate snapshots across Hamiltonian rebuilds.
          IF (ALLOCATED(ctx%rs)) THEN

@@ -132,7 +132,8 @@ MODULE kpoint_transform
    TYPE rskp_values_type
       REAL(KIND=dp), ALLOCATABLE :: packed(:)
       LOGICAL, ALLOCATABLE :: active(:, :)
-      COMPLEX(KIND=dp), ALLOCATABLE :: fft_values(:, :, :)
+      ! Unscaled canonical elements by local k; mirrors and FM padding are not stored.
+      COMPLEX(KIND=dp), ALLOCATABLE :: fft_values(:, :)
       TYPE(dbcsr_p_type), POINTER :: source(:, :) => NULL()
       INTEGER :: matrix_row = 0, mirror_sign = 1
       COMPLEX(KIND=dp) :: scale = z_one
@@ -575,17 +576,17 @@ CONTAINS
                        eval_kp_dist(1, eval_inter%mepos + 1) + 1
          END IF
          retained_bytes = retained_bytes + 16_int_8*SIZE(source_rows, KIND=int_8)*nk_local* &
-                          target_struct%local_leading_dimension*MAX(1, prepared%route%ncol)
+                          (prepared%route%element_first(SIZE(prepared%route%element_first)) - 1)
          workspace_bytes = max_backend_bytes - retained_bytes
          IF (workspace_bytes <= 0_int_8) THEN
             CPABORT("Prepared lattice FFT exceeds the memory budget")
          END IF
          DO irow = 1, SIZE(source_rows)
-            ALLOCATE (prepared%values(irow)%fft_values(target_struct%local_leading_dimension, &
-                                                       MAX(1, prepared%route%ncol), nk_local))
+            ALLOCATE (prepared%values(irow)%fft_values( &
+                      prepared%route%element_first(SIZE(prepared%route%element_first)) - 1, nk_local))
             CALL cell_to_k_sparse_fft(prepared%values(irow), prepared%route, xkp, nkp_grid, &
                                       eval_kp_dist, eval_inter, &
-                                      prepared%values(irow)%fft_values, workspace_bytes)
+                                      workspace_bytes, cache=prepared%values(irow)%fft_values)
             DEALLOCATE (prepared%values(irow)%packed)
          END DO
          ALLOCATE (prepared%work(0))
@@ -1662,38 +1663,50 @@ CONTAINS
 !> \param nkp_grid reciprocal-grid dimensions
 !> \param kp_dist global k-point range of each group
 !> \param inter communicator joining equivalent FM ranks across groups
-!> \param batch complex local operators (row, column, local k point), including padding
 !> \param max_bytes available workspace, excluding the caller-owned destination
+!> \param cache optional unscaled canonical elements by local k point
+!> \param output optional existing split-FM destinations, instead of cache
 ! **************************************************************************************************
-   SUBROUTINE cell_to_k_sparse_fft(snapshot, route, xkp, nkp_grid, kp_dist, inter, batch, max_bytes)
+   SUBROUTINE cell_to_k_sparse_fft(snapshot, route, xkp, nkp_grid, kp_dist, inter, max_bytes, cache, output)
       TYPE(rskp_values_type), INTENT(IN), TARGET         :: snapshot
       TYPE(rskp_route_type), INTENT(INOUT)               :: route
       REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
       INTEGER, INTENT(IN)                                :: nkp_grid(3), kp_dist(:, :)
       TYPE(mp_para_env_type), INTENT(IN)                 :: inter
-      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(OUT), TARGET  :: batch(:, :, :)
       INTEGER(KIND=int_8), INTENT(IN)                    :: max_bytes
+      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(OUT), &
+         OPTIONAL                                        :: cache(:, :)
+      TYPE(cp_fm_p_type), INTENT(IN), OPTIONAL           :: output(:, :)
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: received(:)
-      COMPLEX(KIND=dp), ALLOCATABLE, TARGET              :: transformed(:, :, :)
-      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: output_values(:, :), send(:)
+      COMPLEX(KIND=dp), ALLOCATABLE, TARGET              :: received(:), transformed(:, :, :)
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: canonical(:, :), send(:)
       INTEGER                                            :: element, first, group, i, igroup, ik, &
                                                             last, my_peer, nelem, nimages, nk, &
                                                             nlocal, npeers, ntile, nwave, offset, &
                                                             start, width
-      INTEGER(KIND=int_8)                                :: available, dest, fixed_bytes, ngrid, &
+      INTEGER(KIND=int_8)                                :: available, fixed_bytes, ngrid, &
                                                             per_element, workspace_bytes
       INTEGER, ALLOCATABLE                               :: ranges(:, :), rcount(:), rdisp(:), &
                                                             scount(:), sdisp(:)
       REAL(KIND=dp), CONTIGUOUS, POINTER                 :: values(:, :, :)
 
       CPASSERT(route%transform%backend == rskp_backend_fft)
-      CPASSERT(SIZE(batch, 1) == route%matrix_struct%local_leading_dimension)
-      output_values(1:SIZE(batch, 1, KIND=int_8)*SIZE(batch, 2), 1:SIZE(batch, 3)) => batch
+      CPASSERT(PRESENT(cache) .NEQV. PRESENT(output))
       CPASSERT(route%transform%fft_work%regular)
       ngrid = PRODUCT(INT(route%transform%fft_work%nfft, int_8))
       nk = SIZE(xkp, 2)
-      nlocal = SIZE(batch, 3)
+      IF (PRESENT(cache)) THEN
+         CPASSERT(SIZE(cache, 1) == route%element_first(SIZE(route%element_first)) - 1)
+         nlocal = SIZE(cache, 2)
+         cache = z_zero
+      ELSE
+         nlocal = SIZE(output, 1)
+         DO ik = 1, nlocal
+            DO i = 1, SIZE(output, 2)
+               output(ik, i)%matrix%local_data(:, :) = 0.0_dp
+            END DO
+         END DO
+      END IF
       npeers = 1
       my_peer = 0
       IF (.NOT. route%world_target) THEN
@@ -1707,7 +1720,6 @@ CONTAINS
       available = max_bytes
       IF (.NOT. route%world_target) CALL inter%min(available)
       ALLOCATE (scount(npeers), sdisp(npeers), rcount(npeers), rdisp(npeers))
-      batch = z_zero
       DO igroup = 1, SIZE(route%block_first) - 1
          first = route%block_first(igroup)
          last = route%block_first(igroup + 1) - 1
@@ -1758,21 +1770,82 @@ CONTAINS
             END IF
             DO group = 1, npeers
                ntile = rcount(group)/MAX(1, nlocal)
-               DO ik = 1, nlocal
-                  DO i = 1, ntile
-                     start = route%element_first(igroup) + element + (group - 1)*width + i - 2
-                     dest = route%element_offset(1, start)
-                     IF (dest > 0) output_values(dest, ik) = snapshot%scale*received(rdisp(group) + (ik - 1)*ntile + i)
-                     dest = route%element_offset(2, start)
-                     IF (dest > 0) output_values(dest, ik) = snapshot%scale*REAL(snapshot%mirror_sign, dp)* &
-                                                             CONJG(received(rdisp(group) + (ik - 1)*ntile + i))
-                  END DO
-               END DO
+               IF (ntile == 0) CYCLE
+               start = route%element_first(igroup) + element + (group - 1)*width - 1
+               canonical(1:ntile, 1:nlocal) => received(rdisp(group) + 1:rdisp(group) + rcount(group))
+               IF (PRESENT(cache)) THEN
+                  cache(start:start + ntile - 1, :) = canonical
+               ELSE
+                  CALL cell_to_k_scatter(canonical, start, route, snapshot%mirror_sign, snapshot%scale, output=output)
+               END IF
             END DO
             DEALLOCATE (transformed, received)
          END DO
       END DO
    END SUBROUTINE cell_to_k_sparse_fft
+
+! **************************************************************************************************
+!> \brief Scatter unscaled canonical element tiles into caller-owned dense destinations.
+!>        The caller clears the destinations once. Mirror parity applies before complex scaling.
+!> \param values canonical elements by local k point
+!> \param first_element first canonical element in the route
+!> \param route immutable destination offsets
+!> \param mirror_sign transpose parity
+!> \param scale complex output prefactor
+!> \param batch optional complex matrix batch
+!> \param output optional split-FM destinations instead of batch
+! **************************************************************************************************
+   SUBROUTINE cell_to_k_scatter(values, first_element, route, mirror_sign, scale, batch, output)
+      COMPLEX(KIND=dp), INTENT(IN)                       :: values(:, :)
+      INTEGER, INTENT(IN)                                :: first_element
+      TYPE(rskp_route_type), INTENT(IN)                  :: route
+      INTEGER, INTENT(IN)                                :: mirror_sign
+      COMPLEX(KIND=dp), INTENT(IN)                       :: scale
+      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(INOUT), &
+         OPTIONAL, TARGET                                :: batch(:, :, :)
+      TYPE(cp_fm_p_type), INTENT(IN), OPTIONAL           :: output(:, :)
+
+      COMPLEX(KIND=dp)                                   :: value
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: dense(:, :)
+      INTEGER                                            :: element, i, ic, k
+      INTEGER(KIND=int_8)                                :: dest
+      REAL(KIND=dp), CONTIGUOUS, POINTER                 :: real_values(:)
+
+      CPASSERT(PRESENT(batch) .NEQV. PRESENT(output))
+      IF (PRESENT(batch)) THEN
+         CPASSERT(SIZE(batch, 3) == SIZE(values, 2))
+         dense(1:SIZE(batch, 1, KIND=int_8)*SIZE(batch, 2, KIND=int_8), 1:SIZE(batch, 3)) => batch
+         DO k = 1, SIZE(values, 2)
+!$OMP SIMD PRIVATE(element,dest,value)
+            DO i = 1, SIZE(values, 1)
+               element = first_element + i - 1
+               dest = route%element_offset(1, element)
+               IF (dest > 0) dense(dest, k) = scale*values(i, k)
+               dest = route%element_offset(2, element)
+               value = REAL(mirror_sign, dp)*CONJG(values(i, k))
+               IF (dest > 0) dense(dest, k) = scale*value
+            END DO
+         END DO
+      ELSE
+         CPASSERT(SIZE(output, 1) == SIZE(values, 2))
+         CPASSERT(SIZE(output, 2) >= 1 .AND. SIZE(output, 2) <= 2)
+         DO k = 1, SIZE(values, 2)
+            DO ic = 1, SIZE(output, 2)
+               real_values(1:SIZE(output(k, ic)%matrix%local_data, KIND=int_8)) => output(k, ic)%matrix%local_data
+!$OMP SIMD PRIVATE(element,dest,value)
+               DO i = 1, SIZE(values, 1)
+                  element = first_element + i - 1
+                  dest = route%element_offset(1, element)
+                  value = scale*values(i, k)
+                  IF (dest > 0) real_values(dest) = MERGE(REAL(value, dp), AIMAG(value), ic == 1)
+                  dest = route%element_offset(2, element)
+                  value = scale*(REAL(mirror_sign, dp)*CONJG(values(i, k)))
+                  IF (dest > 0) real_values(dest) = MERGE(REAL(value, dp), AIMAG(value), ic == 1)
+               END DO
+            END DO
+         END DO
+      END IF
+   END SUBROUTINE cell_to_k_scatter
 
 ! **************************************************************************************************
 !> \brief Fix parity panels per canonical atom pair and cache their shared phases.
@@ -2155,7 +2228,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Evaluate a k-point tile through the selected prepared R-to-K backend.
 !>        GEMM contracts the retained real-space panel; FFT returns a slice of
-!>        the reciprocal-space snapshot materialized during capture.
+!>        the canonical reciprocal-space snapshot materialized during capture.
 !> \param snapshot backend input or prepared reciprocal-space values
 !> \param route fixed sparse layout and backend plan
 !> \param xkp reciprocal coordinates for this k tile
@@ -2195,20 +2268,21 @@ CONTAINS
       CASE (rskp_backend_fft)
          CPASSERT(ALLOCATED(snapshot%fft_values))
          CPASSERT(first_local >= 1)
-         CPASSERT(first_local + width - 1 <= SIZE(snapshot%fft_values, 3))
+         CPASSERT(first_local + width - 1 <= SIZE(snapshot%fft_values, 2))
          IF (PRESENT(batch)) THEN
-            CPASSERT(SIZE(batch, 1) == SIZE(snapshot%fft_values, 1))
-            CPASSERT(SIZE(batch, 2) == SIZE(snapshot%fft_values, 2))
+            CPASSERT(SIZE(batch, 1) == route%matrix_struct%local_leading_dimension)
+            CPASSERT(SIZE(batch, 2) >= route%ncol)
             CPASSERT(SIZE(batch, 3) == width)
-            batch = snapshot%fft_values(:, :, first_local:first_local + width - 1)
+            batch = z_zero
          ELSE
             DO j = 1, width
-               output(j, 1)%matrix%local_data = REAL(snapshot%fft_values(:, :, first_local + j - 1), dp)
-               IF (SIZE(output, 2) == 2) THEN
-                  output(j, 2)%matrix%local_data = AIMAG(snapshot%fft_values(:, :, first_local + j - 1))
-               END IF
+               DO ic = 1, SIZE(output, 2)
+                  output(j, ic)%matrix%local_data(:, :) = 0.0_dp
+               END DO
             END DO
          END IF
+         CALL cell_to_k_scatter(snapshot%fft_values(:, first_local:first_local + width - 1), 1, route, &
+                                snapshot%mirror_sign, snapshot%scale, batch=batch, output=output)
       CASE DEFAULT
          CPABORT("Unknown R-to-K backend")
       END SELECT

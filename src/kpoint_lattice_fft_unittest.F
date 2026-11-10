@@ -107,6 +107,91 @@ PROGRAM kpoint_lattice_fft_unittest
       ERROR STOP "Shifted lattice FFT differs from direct transform"
    END IF
 
+   BLOCK
+      USE cp_fm_struct, ONLY: cp_fm_struct_type
+      USE cp_fm_types, ONLY: cp_fm_p_type, cp_fm_type
+      USE kinds, ONLY: int_8
+      USE kpoint_transform, ONLY: cell_to_k_backend_evaluate_batch, cell_to_k_backend_prepare, &
+                                  cell_to_k_sparse_fft, rskp_route_type, rskp_values_type
+      USE kpoint_lattice_fft, ONLY: cell_to_k_grid_release
+      USE message_passing, ONLY: mp_para_env_type, mp_para_env_release
+      INTEGER :: p, sign
+      COMPLEX(dp), TARGET :: dense(4, 3, nkp), expected(4, 3, nkp)
+      REAL(dp), TARGET :: split(4, 3, nkp, 2)
+      REAL(dp) :: scratch(0)
+      TYPE(cp_fm_struct_type), TARGET :: structure
+      TYPE(cp_fm_type), TARGET :: matrices(nkp, 2)
+      TYPE(cp_fm_p_type) :: destinations(nkp, 2)
+      TYPE(rskp_route_type) :: route
+      TYPE(rskp_values_type) :: snapshot
+      TYPE(mp_para_env_type), POINTER :: env
+
+      ALLOCATE (env)
+      CALL env%from_dup(mp_comm)
+      structure%ref_count = 1
+      structure%local_leading_dimension = 4
+      route%matrix_struct => structure
+      route%world_target = .TRUE.
+      route%ncol = 3
+      route%transform%backend = rskp_backend_fft
+      ALLOCATE (route%entry(8, ncell), source=0)
+      route%entry(5:7, :) = index_to_cell
+      ALLOCATE (route%block_order(ncell), source=[(p, p=1, ncell)])
+      ALLOCATE (route%block_first(2), source=[1, ncell + 1])
+      ALLOCATE (route%element_first(2), source=[1, 4])
+      ALLOCATE (route%element_offset(2, 3))
+      route%element_offset(:, 1) = [1_int_8, 0_int_8]
+      route%element_offset(:, 2) = [5_int_8, 2_int_8]
+      route%element_offset(:, 3) = [10_int_8, 7_int_8]
+      ALLOCATE (route%transform%packed_first(2), source=[1, 3*ncell + 1])
+      ALLOCATE (snapshot%packed(3*ncell), source=RESHAPE(values_rs(1, :, :), [3*ncell]))
+      CALL cell_to_k_backend_prepare(route, xkp, nkp_grid, 32_int_8*1024_int_8**2)
+      DO p = 1, nkp
+         DO sign = 1, 2
+            matrices(p, sign)%matrix_struct => structure
+            matrices(p, sign)%local_data => split(:, :, p, sign)
+            destinations(p, sign)%matrix => matrices(p, sign)
+         END DO
+      END DO
+      DO sign = -1, 1, 2
+         snapshot%mirror_sign = sign
+         snapshot%scale = CMPLX(0.3_dp, 0.7_dp, dp)
+         ALLOCATE (snapshot%fft_values(3, nkp))
+         CALL cell_to_k_sparse_fft(snapshot, route, xkp, nkp_grid, RESHAPE([1, nkp], [2, 1]), env, &
+                                   64_int_8*1024_int_8**2, cache=snapshot%fft_values)
+         IF (MAXVAL(ABS(snapshot%fft_values - transformed(1, :, :))) > 2.0E-12_dp) THEN
+            ERROR STOP 'Canonical FFT cache changed raw Fourier values'
+         END IF
+         expected = z_zero
+         DO p = 1, nkp
+            expected(1, 1, p) = snapshot%scale*transformed(1, 1, p)
+            expected(1, 2, p) = snapshot%scale*transformed(1, 2, p)
+            expected(2, 3, p) = snapshot%scale*transformed(1, 3, p)
+            expected(2, 1, p) = snapshot%scale*REAL(sign, dp)*CONJG(transformed(1, 2, p))
+            expected(3, 2, p) = snapshot%scale*REAL(sign, dp)*CONJG(transformed(1, 3, p))
+         END DO
+         CALL cell_to_k_backend_evaluate_batch(snapshot, route, xkp, 1, scratch, batch=dense)
+         IF (MAXVAL(ABS(dense - expected)) > 2.0E-12_dp) ERROR STOP 'Canonical FFT cache scatter is incorrect'
+         CALL cell_to_k_backend_evaluate_batch(snapshot, route, xkp(:, 3:5), 3, scratch, batch=dense(:, :, 3:5))
+         IF (MAXVAL(ABS(dense(:, :, 3:5) - expected(:, :, 3:5))) > 2.0E-12_dp) THEN
+            ERROR STOP 'Canonical FFT cache lost its local k offset'
+         END IF
+         CALL cell_to_k_backend_evaluate_batch(snapshot, route, xkp, 1, scratch, output=destinations)
+         IF (MAXVAL(ABS(CMPLX(split(:, :, :, 1), split(:, :, :, 2), dp) - expected)) > 2.0E-12_dp) THEN
+            ERROR STOP 'Canonical FFT cache split-FM scatter is incorrect'
+         END IF
+         DEALLOCATE (snapshot%fft_values)
+         CALL cell_to_k_sparse_fft(snapshot, route, xkp, nkp_grid, RESHAPE([1, nkp], [2, 1]), env, &
+                                   64_int_8*1024_int_8**2, output=destinations)
+         IF (MAXVAL(ABS(CMPLX(split(:, :, :, 1), split(:, :, :, 2), dp) - expected)) > 2.0E-12_dp) THEN
+            ERROR STOP 'Direct FFT output differs from cached evaluation'
+         END IF
+      END DO
+      CALL cell_to_k_grid_release(route%transform%fft_work)
+      NULLIFY (route%matrix_struct)
+      CALL mp_para_env_release(env)
+   END BLOCK
+
    selected_kpoints = [64, 2, 31]
    ! A reduced request retains the full mesh spacing and shift, including a single point.
    CALL cell_to_k_grid_fft(values_rs, index_to_cell, xkp(:, selected_kpoints), nkp_grid, &
