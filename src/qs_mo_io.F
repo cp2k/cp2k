@@ -435,10 +435,10 @@ CONTAINS
          END IF
          IF (PRESENT(rt_mos)) THEN
             DO imat = 2*ispin - 1, 2*ispin
-               CALL cp_fm_write_unformatted(rt_mos(imat), ires)
+               CALL cp_fm_write_unformatted(rt_mos(imat), ires, ncol=nmo)
             END DO
          ELSE
-            CALL cp_fm_write_unformatted(mo_coeff, ires)
+            CALL cp_fm_write_unformatted(mo_coeff, ires, ncol=nmo)
          END IF
       END DO
 
