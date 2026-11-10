@@ -371,6 +371,69 @@ PROGRAM kpoint_lattice_fft_unittest
       CALL k_to_real_cell_transform(direct(1:0, :, :), xkp, nkp_grid, index_to_cell, &
                                     real_transformed(1:0, :, :), backends(backend))
    END DO
+
+   ! Caller-owned panels may have holes in every dimension, including reversed axes.
+   BLOCK
+      REAL(KIND=dp) :: input_storage(5, 7, 2*ncell), original_input(5, 7, 2*ncell)
+      COMPLEX(KIND=dp) :: output_storage(5, 7, 2*nkp), expected_storage(5, 7, 2*nkp), reference(2, 3, nkp)
+      COMPLEX(KIND=dp), PARAMETER :: sentinel = CMPLX(-19.0_dp, 7.0_dp, KIND=dp)
+
+      input_storage = -13.0_dp
+      input_storage(2:4:2, 2:6:2, 2:2*ncell:2) = values_rs
+      original_input = input_storage
+      DO backend = 1, SIZE(backends)
+         expected_storage = sentinel
+         expected_storage(2:4:2, 2:6:2, 2:2*nkp:2) = direct
+         output_storage = sentinel
+         CALL cell_to_k_transform(input_storage(2:4:2, 2:6:2, 2:2*ncell:2), index_to_cell, xkp, nkp_grid, &
+                                  output_storage(2:4:2, 2:6:2, 2:2*nkp:2), backends(backend))
+         IF (MAXVAL(ABS(output_storage - expected_storage)) > 3.0E-12_dp) THEN
+            ERROR STOP 'Strided RSKP forward transform changed values or neighboring elements'
+         END IF
+         expected_storage(2:4:2, 2:6:2, 2:2*nkp:2) = 2.0_dp*direct
+         CALL cell_to_k_transform(input_storage(2:4:2, 2:6:2, 2:2*ncell:2), index_to_cell, xkp, nkp_grid, &
+                                  output_storage(2:4:2, 2:6:2, 2:2*nkp:2), backends(backend), accumulate=.TRUE.)
+         IF (MAXVAL(ABS(output_storage - expected_storage)) > 6.0E-12_dp) THEN
+            ERROR STOP 'Strided RSKP forward accumulation is inconsistent'
+         END IF
+         CALL direct_reference(input_storage(4:2:-2, 6:2:-2, 2*ncell:2:-2), index_to_cell, xkp, reference)
+         expected_storage = sentinel
+         expected_storage(4:2:-2, 6:2:-2, 2*nkp:2:-2) = reference
+         output_storage = sentinel
+         CALL cell_to_k_transform(input_storage(4:2:-2, 6:2:-2, 2*ncell:2:-2), index_to_cell, xkp, nkp_grid, &
+                                  output_storage(4:2:-2, 6:2:-2, 2*nkp:2:-2), backends(backend))
+         IF (MAXVAL(ABS(output_storage - expected_storage)) > 3.0E-12_dp) THEN
+            ERROR STOP 'Reversed RSKP forward transform changed values or neighboring elements'
+         END IF
+      END DO
+      IF (MAXVAL(ABS(input_storage - original_input)) > 0.0_dp) THEN
+         ERROR STOP 'Strided RSKP forward transform modified its input'
+      END IF
+   END BLOCK
+
+   ! Match Sigma(R) chunks, including a short final input and strided output rows.
+   BLOCK
+      INTEGER :: first_pair, pair_count
+      REAL(KIND=dp) :: pairs_rs(5, 1, ncell), chunk(2, 1, ncell)
+      COMPLEX(KIND=dp) :: pairs_k(5, 1, nkp), reference(5, 1, nkp)
+
+      DO icell = 1, ncell
+         pairs_rs(:, 1, icell) = [(SIN(REAL(i + icell, dp)), i=1, 5)]
+      END DO
+      CALL direct_reference(pairs_rs, index_to_cell, xkp, reference)
+      DO backend = 1, SIZE(backends)
+         DO first_pair = 1, SIZE(pairs_rs, 1), SIZE(chunk, 1)
+            pair_count = MIN(SIZE(chunk, 1), SIZE(pairs_rs, 1) - first_pair + 1)
+            chunk(1:pair_count, :, :) = pairs_rs(first_pair:first_pair + pair_count - 1, :, :)
+            CALL cell_to_k_transform(chunk(1:pair_count, :, :), index_to_cell, xkp, nkp_grid, &
+                                     pairs_k(first_pair:first_pair + pair_count - 1, :, :), backends(backend))
+         END DO
+         IF (MAXVAL(ABS(pairs_k - reference)) > 3.0E-12_dp) THEN
+            ERROR STOP 'Chunked RSKP forward transform lost rows or the short final chunk'
+         END IF
+      END DO
+   END BLOCK
+
    CALL direct_reference(values_rs, index_to_cell, xkp_bad, direct)
    CALL cell_to_k_transform(values_rs, index_to_cell, xkp_bad, nkp_grid, transformed, rskp_backend_gemm)
    IF (MAXVAL(ABS(transformed - direct)) > 3.0E-12_dp) THEN

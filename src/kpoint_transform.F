@@ -238,9 +238,10 @@ CONTAINS
    END SUBROUTINE rskp_fft_profile_print
 
 ! **************************************************************************************************
-!> \brief Transform contiguous local real matrix panels with the selected RSKP backend.
+!> \brief Transform local real matrix panels with the selected RSKP backend.
 !>        GEMM reuses the prepared parity folding and block contraction. FFT reuses one geometry
 !>        across bounded matrix tiles. Both accept rectangular panels and regular-grid subsets.
+!>        Input and output may be strided; only the internal GEMM panels are contiguous.
 !>        Call outside OpenMP worker regions; this service owns its numerical workspace.
 !> \param values_rs real matrices, with one image per third-dimension column
 !> \param cells lattice translations of the images
@@ -251,24 +252,21 @@ CONTAINS
 !> \param accumulate add this image panel to an existing output
 ! **************************************************************************************************
    SUBROUTINE cell_to_k_transform(values_rs, cells, xkp, nkp_grid, values_k, backend, accumulate)
-      REAL(KIND=dp), CONTIGUOUS, INTENT(IN), TARGET      :: values_rs(:, :, :)
+      REAL(KIND=dp), INTENT(IN)                          :: values_rs(:, :, :)
       INTEGER, INTENT(IN)                                :: cells(:, :)
       REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
       INTEGER, INTENT(IN)                                :: nkp_grid(3)
-      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(INOUT), &
-         TARGET                                          :: values_k(:, :, :)
+      COMPLEX(KIND=dp), INTENT(INOUT)                    :: values_k(:, :, :)
       INTEGER, INTENT(IN)                                :: backend
       LOGICAL, INTENT(IN), OPTIONAL                      :: accumulate
 
-      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: complex_values(:, :)
-      INTEGER                                            :: handle, i, image, kfirst, last, nk, &
-                                                            nphase, nrow, ntile, nworkers, odd, &
-                                                            panels(4), pos, sense, start, width
+      INTEGER :: column, count, first_column, first_row, handle, i, image, kfirst, last, &
+         last_column, matrix_rows, nk, nphase, nrow, ntile, nworkers, odd, offset, panels(4), pos, &
+         row, sense, start, width
       INTEGER(KIND=int_8)                                :: cache_bytes, ifirst, nvalues, &
                                                             worker_bytes
       LOGICAL                                            :: active(4), add
       REAL(KIND=dp), ALLOCATABLE                         :: factors(:, :), packed(:), RESULT(:, :)
-      REAL(KIND=dp), CONTIGUOUS, POINTER                 :: real_values(:, :)
       TYPE(rskp_backend_plan_type)                       :: plan
 
       CALL timeset('cell_to_k_transform', handle)
@@ -291,8 +289,7 @@ CONTAINS
                                  require_fft=.TRUE., accumulate=add)
       CASE (rskp_backend_gemm)
          nvalues = SIZE(values_rs, 1, KIND=int_8)*SIZE(values_rs, 2, KIND=int_8)
-         real_values(1:nvalues, 1:SIZE(values_rs, 3)) => values_rs
-         complex_values(1:nvalues, 1:nk) => values_k
+         matrix_rows = SIZE(values_rs, 1)
          nworkers = 1
 !$       nworkers = omp_get_max_threads()
          worker_bytes = rskp_panel_bytes/(2*nworkers)
@@ -309,22 +306,37 @@ CONTAINS
          nphase = MAXVAL(plan%phase_count(1:2, 1))
          panels = plan%phase_count([1, 1, 2, 3], 1)
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED(real_values, complex_values, nvalues, xkp, plan, ntile, nphase, panels, nk, width) &
-!$OMP PRIVATE(packed, factors, result, ifirst, last, nrow, image, pos, odd, sense, start, active, i, kfirst)
+!$OMP SHARED(values_rs, values_k, matrix_rows, nvalues, xkp, plan, ntile, nphase, panels, nk, width) &
+!$OMP PRIVATE(packed, factors, result, ifirst, last, nrow, image, pos, odd, sense, start, active, i, kfirst) &
+!$OMP PRIVATE(first_row, first_column, last_column, column, row, count, offset)
          ALLOCATE (packed(plan%packed_first(2) - 1), factors(nphase, 2*width), RESULT(ntile, 2*width))
 !$OMP DO SCHEDULE(STATIC)
          DO ifirst = 1, nvalues, ntile
             nrow = INT(MIN(INT(ntile, int_8), nvalues - ifirst + 1))
+            first_row = INT(MODULO(ifirst - 1, INT(matrix_rows, int_8))) + 1
+            first_column = INT((ifirst - 1)/INT(matrix_rows, int_8)) + 1
+            last_column = INT((ifirst + INT(nrow, int_8) - 2)/INT(matrix_rows, int_8)) + 1
             packed(:) = 0.0_dp
-            DO image = 1, SIZE(real_values, 2)
+            DO image = 1, SIZE(values_rs, 3)
                pos = plan%fold_map(1, image)
-               packed(pos:pos + nrow - 1) = packed(pos:pos + nrow - 1) + &
-                                            real_values(ifirst:ifirst + nrow - 1, image)
                odd = ABS(plan%fold_map(2, image))
-               IF (odd == 0) CYCLE
                sense = SIGN(1, plan%fold_map(2, image))
-               packed(odd:odd + nrow - 1) = packed(odd:odd + nrow - 1) + &
-                                            REAL(sense, dp)*real_values(ifirst:ifirst + nrow - 1, image)
+               ! Split the flattened tile into column-local row spans. Array descriptors
+               ! retain the caller's strides, including a partial first-dimension chunk.
+               offset = 0
+               row = first_row
+               DO column = first_column, last_column
+                  count = MIN(nrow - offset, matrix_rows - row + 1)
+                  packed(pos + offset:pos + offset + count - 1) = &
+                     packed(pos + offset:pos + offset + count - 1) + values_rs(row:row + count - 1, column, image)
+                  IF (odd > 0) THEN
+                     packed(odd + offset:odd + offset + count - 1) = &
+                        packed(odd + offset:odd + offset + count - 1) + &
+                        REAL(sense, dp)*values_rs(row:row + count - 1, column, image)
+                  END IF
+                  offset = offset + count
+                  row = 1
+               END DO
             END DO
             active = .FALSE.
             start = 1
@@ -337,10 +349,17 @@ CONTAINS
                CALL cell_to_k_block_gemm(packed, plan, 1, xkp(:, kfirst:last), kfirst, &
                                          factors(:, 1:2*(last - kfirst + 1)), &
                                          RESULT(:, 1:2*(last - kfirst + 1)), active)
-               complex_values(ifirst:ifirst + nrow - 1, kfirst:last) = &
-                  complex_values(ifirst:ifirst + nrow - 1, kfirst:last) + &
-                  CMPLX(RESULT(1:nrow, 1:last - kfirst + 1), &
-                        RESULT(1:nrow, last - kfirst + 2:2*(last - kfirst + 1)), KIND=dp)
+               offset = 0
+               row = first_row
+               DO column = first_column, last_column
+                  count = MIN(nrow - offset, matrix_rows - row + 1)
+                  values_k(row:row + count - 1, column, kfirst:last) = &
+                     values_k(row:row + count - 1, column, kfirst:last) + &
+                     CMPLX(RESULT(offset + 1:offset + count, 1:last - kfirst + 1), &
+                           RESULT(offset + 1:offset + count, last - kfirst + 2:2*(last - kfirst + 1)), KIND=dp)
+                  offset = offset + count
+                  row = 1
+               END DO
             END DO
          END DO
 !$OMP END DO
