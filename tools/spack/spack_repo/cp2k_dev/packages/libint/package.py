@@ -16,27 +16,27 @@ class Libint(CMakePackage):
     """
 
     homepage = "https://github.com/evaleev/libint"
-    url = "https://www.cp2k.org/static/downloads/libint-v2.13.1.tar.xz"
+    url = "https://www.cp2k.org/static/downloads/libint-2.14.0.tar.xz"
 
     maintainers("mkrack")
 
     license("LGPL-3.0-only")
 
     version(
-        "2.13.1-cp2k-lmax-7",
-        sha256="ba19571deefa5c3063e620210c87cf706ef8d75b47f3b0d66547f889f906b3dd",
+        "2.14.1-cp2k-lmax-7",
+        sha256="aa78b4868050e3e8605e1cb3b96f5a81238ae4b24d83eb01e9845f95c8999eec",
     )
     version(
-        "2.13.1-cp2k-lmax-6",
-        sha256="a7990c4862d549e6328596f20b8a7ece40ded396b953d5d5d7c3200f13e37429",
+        "2.14.1-cp2k-lmax-6",
+        sha256="72bda0d0eb92f63600c3fdf65806ed9b4d49a0a3c706a3576e9a2c0c2619f31c",
     )
     version(
-        "2.13.1-cp2k-lmax-5",
-        sha256="527000f915bea9879391273b96689a8c2b98beeec37cb64637e3c11dd421a5e8",
+        "2.14.1-cp2k-lmax-5",
+        sha256="6e61df7a3bbc298ded738698cb735f01bf43a2d6ec996360c6cd4b31346c571a",
     )
     version(
-        "2.13.1-cp2k-lmax-4",
-        sha256="8ff388fbf171635420fdfdbafc7dc949e9cf4c0b6a62f23dac3af8b1c942d407",
+        "2.14.1-cp2k-lmax-4",
+        sha256="4e71faf2ba1e9b0242c8970c79a74d3b9fa593fdedaaceddb2e2dcd2eed6e314",
     )
 
     variant("fortran", default=True, description="Build Fortran interface")
