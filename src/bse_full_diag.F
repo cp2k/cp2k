@@ -38,8 +38,7 @@ MODULE bse_full_diag
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_row_scale,&
                                               cp_fm_scale,&
-                                              cp_fm_scale_and_add,&
-                                              cp_fm_triangular_multiply
+                                              cp_fm_scale_and_add
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_redistribution,            ONLY: cp_fm_permute
@@ -523,18 +522,19 @@ CONTAINS
 !> \brief Construct C = U (A+B) U^T with A-B = U^T U (U upper Cholesky factor) to solve the full
 !>   BSE as a hermitian problem; C is similar to (A-B)(A+B) and has eigenvalues Ω_n^2.
 !>   Any factor M with A-B = M M^T works in Eq. (A7) of F. Furche, J. Chem. Phys. 114, 5982 (2001);
-!>   here M = U^T, and U is kept for the back-transform of Eq. (A10).
+!>   here M = U^T; U and A+B are kept for the back-transform of Eq. (A10).
 !> \param fm_A matrix A
 !> \param fm_B matrix B
 !> \param fm_C on exit C = U (A+B) U^T
 !> \param fm_chol_A_minus_B on exit the upper Cholesky factor U of A-B, zero below the diagonal
+!> \param fm_A_plus_B on exit A+B
 !> \param unit_nr output unit
 !> \param bse_env the BSE environment (settings)
 ! **************************************************************************************************
-   SUBROUTINE create_hermitian_form_of_ABBA(fm_A, fm_B, fm_C, fm_chol_A_minus_B, unit_nr, bse_env)
+   SUBROUTINE create_hermitian_form_of_ABBA(fm_A, fm_B, fm_C, fm_chol_A_minus_B, fm_A_plus_B, unit_nr, bse_env)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_A, fm_B
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_C, fm_chol_A_minus_B
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_C, fm_chol_A_minus_B, fm_A_plus_B
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(bse_env_type), INTENT(IN)                     :: bse_env
 
@@ -545,6 +545,10 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: fm_work
 
       CALL timeset(routineN, handle)
+
+      CALL cp_fm_create(fm_A_plus_B, fm_A%matrix_struct)
+      CALL cp_fm_to_fm(fm_A, fm_A_plus_B)
+      CALL cp_fm_scale_and_add(1.0_dp, fm_A_plus_B, 1.0_dp, fm_B)
 
       IF (bse_env%screening_method == bse_screening_rpa) THEN
          ! In RPA, A-B is diagonal; neither a matrix power nor dense products are needed.
@@ -586,10 +590,8 @@ CONTAINS
 
       ! C = U (A+B) U^T by two GEMMs, which run faster than pdtrmm at half the flops
       CALL cp_fm_get_info(fm_A, nrow_global=dim_mat)
-      CALL cp_fm_to_fm(fm_A, fm_work)
-      CALL cp_fm_scale_and_add(1.0_dp, fm_work, 1.0_dp, fm_B)
       CALL cp_fm_create(fm_C, fm_A%matrix_struct)
-      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_chol_A_minus_B, fm_work, 0.0_dp, fm_C)
+      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_chol_A_minus_B, fm_A_plus_B, 0.0_dp, fm_C)
       CALL parallel_gemm("N", "T", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_C, fm_chol_A_minus_B, 0.0_dp, fm_work)
       CALL cp_fm_to_fm(fm_work, fm_C)
       CALL cp_fm_release(fm_work)
@@ -610,17 +612,18 @@ CONTAINS
 !> \param virtual ...
 !> \param homo_irred ...
 !> \param fm_chol_A_minus_B upper Cholesky factor U of A-B = U^T U; deallocated on exit
+!> \param fm_A_plus_B A+B; deallocated on exit
 !> \param unit_nr ...
 !> \param diag_est ...
 !> \param bse_env the BSE environment (settings, and the state the post-processing reads)
 !> \param mo_coeff ...
 ! **************************************************************************************************
-   SUBROUTINE diagonalize_C(fm_C, homo, virtual, homo_irred, fm_chol_A_minus_B, &
+   SUBROUTINE diagonalize_C(fm_C, homo, virtual, homo_irred, fm_chol_A_minus_B, fm_A_plus_B, &
                             unit_nr, diag_est, bse_env, mo_coeff)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_C
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual, homo_irred
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_chol_A_minus_B
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_chol_A_minus_B, fm_A_plus_B
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), INTENT(IN)                          :: diag_est
       TYPE(bse_env_type), INTENT(IN)                     :: bse_env
@@ -682,18 +685,19 @@ CONTAINS
       CALL parallel_gemm(transa="T", transb="N", m=n_ov_joint, n=n_ov_joint, k=n_ov_joint, alpha=1.0_dp, &
                          matrix_a=fm_chol_A_minus_B, matrix_b=fm_eigvec_Z, beta=0.0_dp, &
                          matrix_c=fm_mat_eigvec_transform_sum)
+      CALL cp_fm_release(fm_chol_A_minus_B)
+      CALL cp_fm_release(fm_eigvec_Z)
       ! This normalizes the eigenvectors
       CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform_sum, Exc_ens, -0.5_dp, gamma=2.0_dp, do_transpose=.TRUE.)
 
-      ! Second, Eq. II from (A10) from Furche with (A-B)^-0.5 -> U^-1: (X-Y)_n = (Ω_n)^0.5 U^-1 T_n
+      ! Second, Eq. II from (A10) from Furche, (X-Y)_n = (Ω_n)^0.5 U^-1 T_n, taken from
+      ! (A+B)(X+Y)_n = Ω_n (X-Y)_n: a GEMM instead of the triangular solve, same normalization
       CALL cp_fm_create(fm_mat_eigvec_transform_diff, fm_C%matrix_struct)
-      CALL cp_fm_to_fm(fm_eigvec_Z, fm_mat_eigvec_transform_diff)
-      CALL cp_fm_triangular_multiply(fm_chol_A_minus_B, fm_mat_eigvec_transform_diff, side="L", invert_tr=.TRUE.)
-      CALL cp_fm_release(fm_chol_A_minus_B)
-      CALL cp_fm_release(fm_eigvec_Z)
-
-      ! This normalizes the eigenvectors
-      CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform_diff, Exc_ens, 0.5_dp, gamma=2.0_dp, do_transpose=.TRUE.)
+      CALL parallel_gemm(transa="N", transb="N", m=n_ov_joint, n=n_ov_joint, k=n_ov_joint, alpha=1.0_dp, &
+                         matrix_a=fm_A_plus_B, matrix_b=fm_mat_eigvec_transform_sum, beta=0.0_dp, &
+                         matrix_c=fm_mat_eigvec_transform_diff)
+      CALL cp_fm_release(fm_A_plus_B)
+      CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform_diff, Exc_ens, -1.0_dp, gamma=1.0_dp, do_transpose=.TRUE.)
 
       ! Now, we add the two equations to obtain X_n
       ! Add overwrites the first argument, therefore we copy it beforehand

@@ -2834,8 +2834,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ref_ens
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: diff_ref, sum_ref, X_dav, X_ref, Y_dav, &
                                                             Y_ref
-      TYPE(cp_fm_type)                                   :: fm_C, fm_chol_A_minus_B, fm_eigvec, &
-                                                            fm_work
+      TYPE(cp_fm_type)                                   :: fm_A_plus_B, fm_C, fm_chol_A_minus_B, &
+                                                            fm_eigvec, fm_work
 
       CALL timeset(routineN, handle)
 
@@ -2855,7 +2855,9 @@ CONTAINS
 
       IF (PRESENT(fm_B_explicit)) THEN
          CALL create_hermitian_form_of_ABBA(fm_A_explicit, fm_B_explicit, fm_C, fm_chol_A_minus_B, &
-                                            unit_nr, bse_env)
+                                            fm_A_plus_B, unit_nr, bse_env)
+         ! the n_ref columns of X-Y come from the triangular solve here
+         CALL cp_fm_release(fm_A_plus_B)
          CALL cp_fm_create(fm_eigvec, fm_C%matrix_struct)
          CALL choose_eigv_solver(fm_C, fm_eigvec, ref_ens, diag_info)
          IF (diag_info /= 0) CPABORT("Reference diagonalization of C failed in the BSE Davidson check")
