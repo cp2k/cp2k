@@ -52,7 +52,10 @@ __inline__ __device__ double sep_row_reduce(double val) {
 }
 
 // do a block reduction for a block of size 64 and return the final sum to
-// thread_id = 0
+// thread_id = 0. table is 64 elements of the dynamic shared memory, see
+// block_reduce_64_smem.
+constexpr size_t block_reduce_64_smem = 64 * sizeof(double);
+
 template <typename T>
 __device__ __inline__ T block_reduce_64(T *table, const T val_, const int tid) {
   // AMD GPU have warp size of 64 while nvidia GPUs have warpSize of 32 so the
@@ -82,15 +85,11 @@ __device__ __inline__ T block_reduce_64(T *table, const T val_, const int tid) {
 
 template <typename T, bool COMPUTE_TAU>
 __global__ __launch_bounds__(64) void compute_hab(const kernel_params dev_) {
-  // Copy task from global to shared memory and precompute some stuff.
-  extern __shared__ T shared_memory[];
-  // T *smem_cab = &shared_memory[dev_.smem_cab_offset];
   const int number_of_tasks = dev_.num_tasks_per_block_dev[block_index()];
 
   if (number_of_tasks == 0)
     return;
 
-  T *smem_alpha = &shared_memory[0];
   const int tid = thread_global_index();
   const int offset = dev_.sorted_blocks_offset_dev[block_index()];
 
@@ -113,9 +112,7 @@ __global__ __launch_bounds__(64) void compute_hab(const kernel_params dev_) {
         &dev_.buffers_dev.coef[dev_.tasks[task_id].coef_offset], 32));
 
     __syncthreads();
-    compute_alpha(task, smem_alpha);
-    __syncthreads();
-    cxyz_to_cab(task, smem_alpha, coef_, smem_cab);
+    cxyz_to_cab_factorized(task, coef_, smem_cab);
     __syncthreads();
 
     for (int i = tid / 8; i < task.nsgf_setb; i += 8) {
@@ -153,21 +150,19 @@ __global__ __launch_bounds__(64) void compute_hab(const kernel_params dev_) {
  *
  *        instead of evaluating get_hab and both sphi factors in the innermost
  *        loop of a nsgfb nsgfa ncob ncoa loop. The work arrays H [ld][ld] and
- *        U [max_nsgf_set][ld] live in the dynamic shared memory, after alpha,
- *        at work_offset (in doubles), see sphi_work_size.
+ *        U [max_nsgf_set][ld] live in the dynamic shared memory, see
+ *        sphi_work_size.
  ******************************************************************************/
 template <typename T, bool COMPUTE_TAU>
 __global__ __launch_bounds__(64) void compute_hab_two_steps(
-    const kernel_params dev_, const int work_offset, const int ld,
-    const int max_nsgf_set) {
+    const kernel_params dev_, const int ld, const int max_nsgf_set) {
   extern __shared__ T shared_memory[];
   const int number_of_tasks = dev_.num_tasks_per_block_dev[block_index()];
 
   if (number_of_tasks == 0)
     return;
 
-  T *smem_alpha = &shared_memory[0];
-  T *smem_h = &shared_memory[work_offset]; // [ld][ld], H[jco][ico]
+  T *smem_h = &shared_memory[0]; // [ld][ld], H[jco][ico]
   T *smem_u = smem_h + ld * ld;            // [max_nsgf_set][ld]
   const int tid = thread_global_index();
   const int nthreads = blockDim.x * blockDim.y * blockDim.z;
@@ -235,14 +230,13 @@ __global__ __launch_bounds__(64) void compute_hab_two_steps(
 template <typename T, typename T3, bool COMPUTE_TAU>
 __global__
 __launch_bounds__(64) void compute_hab_forces(const kernel_params dev_) {
-  // Copy task from global to shared memory and precompute some stuff.
+  // only used by the final block reductions, block_reduce_64_smem bytes
   extern __shared__ T shared_memory[];
   const int number_of_tasks = dev_.num_tasks_per_block_dev[block_index()];
 
   if (number_of_tasks == 0)
     return;
 
-  T *smem_alpha = &shared_memory[0];
   const int tid = thread_global_index();
   const int offset = dev_.sorted_blocks_offset_dev[block_index()];
 
@@ -278,9 +272,7 @@ __launch_bounds__(64) void compute_hab_forces(const kernel_params dev_) {
     T *__restrict__ coef_ =
         &dev_.buffers_dev.coef[dev_.tasks[task_id].coef_offset];
     __syncthreads();
-    compute_alpha(task, smem_alpha);
-    __syncthreads();
-    cxyz_to_cab(task, smem_alpha, coef_, smem_cab);
+    cxyz_to_cab_factorized(task, coef_, smem_cab);
     __syncthreads();
 
     for (int i = tid / 8; i < task.nsgf_setb; i += 8) {
@@ -456,21 +448,19 @@ __launch_bounds__(64) void compute_hab_forces(const kernel_params dev_) {
  *   hab[i][j]  += sum_ico U[i][ico] sphia[j][ico]            (nsgfb nsgfa ncoa)
  *
  *        P is never stored. The work arrays H [ld][ld] and W / U
- *        [max_nsgf_set][ld] (U overwrites W) live in the dynamic shared memory
- *        after alpha, at work_offset (in doubles), see sphi_work_size.
+ *        [max_nsgf_set][ld] (U overwrites W) live in the dynamic shared
+ *        memory, see sphi_work_size.
  ******************************************************************************/
 template <typename T, bool COMPUTE_TAU>
 __global__ __launch_bounds__(64) void compute_hab_forces_two_steps(
-    const kernel_params dev_, const int work_offset, const int ld,
-    const int max_nsgf_set) {
+    const kernel_params dev_, const int ld, const int max_nsgf_set) {
   extern __shared__ T shared_memory[];
   const int number_of_tasks = dev_.num_tasks_per_block_dev[block_index()];
 
   if (number_of_tasks == 0)
     return;
 
-  T *smem_alpha = &shared_memory[0];
-  T *smem_h = &shared_memory[work_offset]; // [ld][ld], H[jco][ico]
+  T *smem_h = &shared_memory[0]; // [ld][ld], H[jco][ico]
   T *smem_w = smem_h + ld * ld;            // [max_nsgf_set][ld], W then U
   const int tid = thread_global_index();
   const int nthreads = blockDim.x * blockDim.y * blockDim.z;
@@ -1415,21 +1405,21 @@ void context_info::compute_hab_coefficients() {
 
   // two step sphi transformation when its work arrays fit in the shared memory
   const int ld = ncoset(lmax());
+  // (the forces kernels reuse the first 64 doubles for the block reductions)
   const size_t smem_two_steps =
-      smem_params.smem_per_block() +
-      sizeof(double) * sphi_work_size(lmax(), max_nsgf_set());
-  const int work_offset = smem_params.smem_per_block() / sizeof(double);
+      std::max(sizeof(double) * sphi_work_size(lmax(), max_nsgf_set()),
+               block_reduce_64_smem);
   const bool two_step = (smem_two_steps <= sphi_two_step_max_smem);
 
   if (!compute_tau && !calculate_forces) {
     if (two_step)
       compute_hab_two_steps<double, false>
           <<<this->nblocks, threads_per_block, smem_two_steps,
-             this->main_stream>>>(params, work_offset, ld, max_nsgf_set());
+             this->main_stream>>>(params, ld, max_nsgf_set());
     else
       compute_hab<double, false>
-          <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
-             this->main_stream>>>(params);
+          <<<this->nblocks, threads_per_block, 0, this->main_stream>>>(
+              params);
     return;
   }
 
@@ -1437,21 +1427,21 @@ void context_info::compute_hab_coefficients() {
     if (two_step)
       compute_hab_two_steps<double, true>
           <<<this->nblocks, threads_per_block, smem_two_steps,
-             this->main_stream>>>(params, work_offset, ld, max_nsgf_set());
+             this->main_stream>>>(params, ld, max_nsgf_set());
     else
       compute_hab<double, true>
-          <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
-             this->main_stream>>>(params);
+          <<<this->nblocks, threads_per_block, 0, this->main_stream>>>(
+              params);
   }
 
   if (!compute_tau && calculate_forces) {
     if (two_step)
       compute_hab_forces_two_steps<double, false>
           <<<this->nblocks, threads_per_block, smem_two_steps,
-             this->main_stream>>>(params, work_offset, ld, max_nsgf_set());
+             this->main_stream>>>(params, ld, max_nsgf_set());
     else
       compute_hab_forces<double, double3, false>
-          <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
+          <<<this->nblocks, threads_per_block, block_reduce_64_smem,
              this->main_stream>>>(params);
     return;
   }
@@ -1460,10 +1450,10 @@ void context_info::compute_hab_coefficients() {
     if (two_step)
       compute_hab_forces_two_steps<double, true>
           <<<this->nblocks, threads_per_block, smem_two_steps,
-             this->main_stream>>>(params, work_offset, ld, max_nsgf_set());
+             this->main_stream>>>(params, ld, max_nsgf_set());
     else
       compute_hab_forces<double, double3, true>
-          <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
+          <<<this->nblocks, threads_per_block, block_reduce_64_smem,
              this->main_stream>>>(params);
   }
 }

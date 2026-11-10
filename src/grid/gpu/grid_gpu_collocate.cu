@@ -82,14 +82,11 @@ __device__ __inline__ void block_to_cab(const kernel_params &params,
 template <typename T, bool IS_FUNC_AB>
 __global__
 __launch_bounds__(64) void calculate_coefficients(const kernel_params dev_) {
-  // Copy task from global to shared memory and precompute some stuff.
-  extern __shared__ T shared_memory[];
   const int number_of_tasks = dev_.num_tasks_per_block_dev[block_index()];
 
   if (number_of_tasks == 0)
     return;
 
-  T *smem_alpha = &shared_memory[0];
   const int tid = thread_global_index();
   const int offset = dev_.sorted_blocks_offset_dev[block_index()];
   T *smem_cab = reinterpret_cast<double *>(
@@ -105,8 +102,6 @@ __launch_bounds__(64) void calculate_coefficients(const kernel_params dev_) {
     T *__restrict__ coef_ =
         &dev_.buffers_dev.coef[dev_.tasks[task_id].coef_offset];
 
-    compute_alpha(task, smem_alpha);
-
     for (int z = tid; z < task.n1 * task.n2;
          z += blockDim.x * blockDim.y * blockDim.z)
       smem_cab[z] = 0.0;
@@ -115,8 +110,7 @@ __launch_bounds__(64) void calculate_coefficients(const kernel_params dev_) {
     block_to_cab<T, IS_FUNC_AB>(dev_, task, smem_cab);
     __syncthreads();
 
-    cab_to_cxyz(task, smem_alpha, smem_cab, coef_);
-    __syncthreads();
+    cab_to_cxyz_factorized(task, smem_cab, coef_);
   }
 }
 
@@ -129,22 +123,19 @@ __launch_bounds__(64) void calculate_coefficients(const kernel_params dev_) {
  *
  *        instead of the fused loop of cost ncoa ncob nsgfb (nsgfa + 1). The
  *        work arrays T [max_nsgf_set][ld] and P [ld][ld] live in the dynamic
- *        shared memory, after alpha, at work_offset (in doubles), see
- *        sphi_work_size.
+ *        shared memory, see sphi_work_size.
  ******************************************************************************/
 template <typename T, bool IS_FUNC_AB>
 __global__ __launch_bounds__(64) void calculate_coefficients_two_steps(
-    const kernel_params dev_, const int work_offset, const int ld,
-    const int max_nsgf_set) {
+    const kernel_params dev_, const int ld, const int max_nsgf_set) {
   extern __shared__ T shared_memory[];
   const int number_of_tasks = dev_.num_tasks_per_block_dev[block_index()];
 
   if (number_of_tasks == 0)
     return;
 
-  T *smem_alpha = &shared_memory[0];
-  T *smem_t = &shared_memory[work_offset]; // [max_nsgf_set][ld]
-  T *smem_p = smem_t + max_nsgf_set * ld;  // [ld][ld], P[jco][ico]
+  T *smem_t = &shared_memory[0];          // [max_nsgf_set][ld]
+  T *smem_p = smem_t + max_nsgf_set * ld; // [ld][ld], P[jco][ico]
   const int tid = thread_global_index();
   const int nthreads = blockDim.x * blockDim.y * blockDim.z;
   const int offset = dev_.sorted_blocks_offset_dev[block_index()];
@@ -527,30 +518,26 @@ void context_info::calculate_all_coefficients(const enum grid_func func,
   // two step sphi transformation when its work arrays fit in the shared memory
   const int ld = ncoset(lmax());
   const size_t smem_two_steps =
-      smem_params.smem_per_block() +
       sizeof(double) * sphi_work_size(lmax(), max_nsgf_set());
-  const int work_offset = smem_params.smem_per_block() / sizeof(double);
   if (smem_two_steps <= sphi_two_step_max_smem) {
     if (func == GRID_FUNC_AB) {
       calculate_coefficients_two_steps<double, true>
           <<<nblocks, threads_per_block, smem_two_steps, main_stream>>>(
-              params, work_offset, ld, max_nsgf_set());
+              params, ld, max_nsgf_set());
     } else {
       calculate_coefficients_two_steps<double, false>
           <<<nblocks, threads_per_block, smem_two_steps, main_stream>>>(
-              params, work_offset, ld, max_nsgf_set());
+              params, ld, max_nsgf_set());
     }
     return;
   }
 
   if (func == GRID_FUNC_AB) {
     calculate_coefficients<double, true>
-        <<<nblocks, threads_per_block, smem_params.smem_per_block(),
-           main_stream>>>(params);
+        <<<nblocks, threads_per_block, 0, main_stream>>>(params);
   } else {
     calculate_coefficients<double, false>
-        <<<nblocks, threads_per_block, smem_params.smem_per_block(),
-           main_stream>>>(params);
+        <<<nblocks, threads_per_block, 0, main_stream>>>(params);
   }
 }
 /*******************************************************************************

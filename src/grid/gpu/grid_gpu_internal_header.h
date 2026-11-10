@@ -285,50 +285,6 @@ compute_coordinates(const double *__restrict__ dh_, const double x,
   return r3;
 }
 
-/*******************************************************************************
- * \brief Computes the polynomial expansion coefficients:
- *        (x-a)**lxa (x-b)**lxb -> sum_{ls} alpha(ls,lxa,lxb,1)*(x-p)**ls
- ******************************************************************************/
-template <typename T>
-__inline__ __device__ void compute_alpha(const smem_task<T> &task,
-                                         T *__restrict__ alpha) {
-  // strides for accessing alpha
-  const int s3 = (task.lp + 1);
-  const int s2 = (task.la_max + 1) * s3;
-  const int s1 = (task.lb_max + 1) * s2;
-  const int tid = thread_global_index();
-
-  for (int i = tid; i < 3 * s1; i += blockDim.x * blockDim.y * blockDim.z)
-    alpha[i] = 0.0;
-
-  __syncthreads();
-
-  for (int idir = threadIdx.z; idir < 3; idir += blockDim.z) {
-    const T drpa = task.rp[idir] - task.ra[idir];
-    const T drpb = task.rp[idir] - task.rb[idir];
-    for (int la = threadIdx.y; la <= task.la_max; la += blockDim.y) {
-      for (int lb = threadIdx.x; lb <= task.lb_max; lb += blockDim.x) {
-        // binomial coefficients by the recurrence
-        // C(n, k + 1) = C(n, k) * (n - k) / (k + 1), exact in integers.
-        T a = 1.0;
-        int binom_a = 1;
-        for (int k = 0; k <= la; k++) {
-          T b = 1.0;
-          int binom_b = 1;
-          const int base = idir * s1 + lb * s2 + la * s3;
-          for (int l = 0; l <= lb; l++) {
-            alpha[base + la - l + lb - k] += a * b * binom_a * binom_b;
-            b *= drpb;
-            binom_b = binom_b * (lb - l) / (l + 1);
-          }
-          a *= drpa;
-          binom_a = binom_a * (la - k) / (k + 1);
-        }
-      }
-    }
-  }
-}
-
 __host__ __inline__ __device__ void
 convert_to_lattice_coordinates(const double *dh_inv_,
                                const double3 *__restrict__ const rp,
@@ -550,108 +506,12 @@ setup_task_cube_center(const kernel_params &dev_,
 }
 
 /*******************************************************************************
- * \brief Transforms coefficients C_ab into C_xyz.
- ******************************************************************************/
-template <typename T>
-__device__ __inline__ static void
-cab_to_cxyz(const smem_task<T> &task, const T *__restrict__ alpha,
-            const T *__restrict__ cab, T *__restrict__ cxyz) {
-
-  //   *** initialise the coefficient matrix, we transform the sum
-  //
-  // sum_{lxa,lya,lza,lxb,lyb,lzb} P_{lxa,lya,lza,lxb,lyb,lzb} *
-  //         (x-a_x)**lxa (y-a_y)**lya (z-a_z)**lza (x-b_x)**lxb (y-a_y)**lya
-  //         (z-a_z)**lza
-  //
-  // into
-  //
-  // sum_{lxp,lyp,lzp} P_{lxp,lyp,lzp} (x-p_x)**lxp (y-p_y)**lyp (z-p_z)**lzp
-  //
-  // where p is center of the product gaussian, and lp = la_max + lb_max
-  // (current implementation is l**7)
-
-  // strides for accessing alpha
-  const int s3 = (task.lp + 1);
-  const int s2 = (task.la_max + 1) * s3;
-  const int s1 = (task.lb_max + 1) * s2;
-
-  const int tid =
-      threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
-
-  for (int i = tid; i < ncoset(task.lp);
-       i += blockDim.x * blockDim.y * blockDim.z) {
-    auto &co = coset_inv[i];
-    T reg = 0.0; // accumulate into a register
-    for (int jco = 0; jco < ncoset(task.lb_max); jco++) {
-      const auto &b = coset_inv[jco];
-      for (int ico = 0; ico < ncoset(task.la_max); ico++) {
-        const auto &a = coset_inv[ico];
-        const T p = alpha[0 * s1 + b.l[0] * s2 + a.l[0] * s3 + co.l[0]] *
-                    alpha[1 * s1 + b.l[1] * s2 + a.l[1] * s3 + co.l[1]] *
-                    alpha[2 * s1 + b.l[2] * s2 + a.l[2] * s3 + co.l[2]];
-        reg += p * cab[jco * task.n1 + ico]; // collocate
-      }
-    }
-
-    cxyz[i] = task.prefactor * reg;
-  }
-  __syncthreads(); // because of concurrent writes to cxyz / cab
-}
-
-/*******************************************************************************
- * \brief Transforms coefficients C_xyz into C_ab.
- ******************************************************************************/
-template <typename T>
-__device__ __inline__ static void
-cxyz_to_cab(const smem_task<T> &task, const T *__restrict__ alpha,
-            const T *__restrict__ cxyz, T *__restrict__ cab) {
-
-  //   *** initialise the coefficient matrix, we transform the sum
-  //
-  // sum_{lxa,lya,lza,lxb,lyb,lzb} P_{lxa,lya,lza,lxb,lyb,lzb} *
-  //         (x-a_x)**lxa (y-a_y)**lya (z-a_z)**lza (x-b_x)**lxb (y-a_y)**lya
-  //         (z-a_z)**lza
-  //
-  // into
-  //
-  // sum_{lxp,lyp,lzp} P_{lxp,lyp,lzp} (x-p_x)**lxp (y-p_y)**lyp (z-p_z)**lzp
-  //
-  // where p is center of the product gaussian, and lp = la_max + lb_max
-  // (current implementation is l**7)
-
-  // strides for accessing alpha
-  const int s3 = (task.lp + 1);
-  const int s2 = (task.la_max + 1) * s3;
-  const int s1 = (task.lb_max + 1) * s2;
-
-  const int tid =
-      threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
-  for (int jco = tid / 8; jco < ncoset(task.lb_max); jco += 8) {
-    const orbital b = coset_inv[jco];
-    for (int ico = tid % 8; ico < ncoset(task.la_max); ico += 8) {
-      const auto &a = coset_inv[ico];
-      T reg = 0.0; // accumulate into a register
-      for (int ic = 0; ic < ncoset(task.lp); ic++) {
-        const auto &co = coset_inv[ic];
-        const T p = alpha[b.l[0] * s2 + a.l[0] * s3 + co.l[0]] *
-                    alpha[s1 + b.l[1] * s2 + a.l[1] * s3 + co.l[1]] *
-                    alpha[2 * s1 + b.l[2] * s2 + a.l[2] * s3 + co.l[2]];
-
-        reg += p * cxyz[ic]; // integrate
-      }
-      cab[jco * task.n1 + ico] =
-          task.prefactor * reg; // partial loop coverage -> zero it
-    }
-  }
-}
-
-/*******************************************************************************
  * \brief Factorized cab <-> cxyz transformations.
  *
- *        In each direction alpha expands (x - a)^la (x - b)^lb around p, so
- *        cab_to_cxyz is the product of three steps: move the expansion center
- *        of the a index from a to p, of the b index from b to p, then multiply
- *        the polynomials,
+ *        cab_to_cxyz expands (x - a)^la (x - b)^lb around p in each direction.
+ *        It is the product of three steps: move the expansion center of the a
+ *        index from a to p, of the b index from b to p, then multiply the
+ *        polynomials,
  *
  *          (x - a)^n = sum_k C(n, k) (p - a)^k (x - p)^(n - k)
  *          cxyz[c]   = prefactor sum_{a' + b' = c} cab_p[b'][a']
@@ -659,7 +519,8 @@ cxyz_to_cab(const smem_task<T> &task, const T *__restrict__ alpha,
  *        The center moves are triangular, separable in x, y and z and map cab
  *        onto itself, so they are done in place, one 1D line of cab per
  *        thread. cxyz_to_cab is the transpose: a gather followed by the
- *        transposed moves. Neither needs alpha.
+ *        transposed moves. The expansion coefficients alpha of the product are
+ *        never formed.
  ******************************************************************************/
 
 // decodes t in [0, (l + 1) (l + 2) / 2) into (p, q) with p + q <= l
@@ -742,7 +603,9 @@ __device__ __inline__ void move_center(const int la, const int lb, const int n1,
 }
 
 /*******************************************************************************
- * \brief Same result as cab_to_cxyz. cab is overwritten.
+ * \brief Transforms the coefficients C_ab into C_xyz,
+ *          cxyz[c] = prefactor sum_{a, b} alpha[a][b][c] cab[b][a]
+ *        (see cxyz_to_cab_factorized). cab is overwritten.
  ******************************************************************************/
 template <typename T>
 __device__ __inline__ void cab_to_cxyz_factorized(const smem_task<T> &task,
@@ -781,9 +644,8 @@ __device__ __inline__ void cab_to_cxyz_factorized(const smem_task<T> &task,
 }
 
 /*******************************************************************************
- * \brief Same result as cxyz_to_cab.
- *
- *        cxyz_to_cab computes, with the 3D multi-indices a, b, c,
+ * \brief Transforms the coefficients C_xyz into C_ab, with the 3D
+ *        multi-indices a, b, c,
  *
  *          cab[b][a] = prefactor sum_c alpha[a][b][c] cxyz[c]
  *
@@ -1013,8 +875,6 @@ class smem_parameters {
 private:
   int la_max_{-1};
   int lb_max_{-1};
-  int smem_per_block_{0};
-  int alpha_size_{-1};
   int cab_size_{-1};
   int lp_max_{-1};
   ldiffs_value ldiffs_;
@@ -1041,17 +901,6 @@ public:
     // its own cab space
 
     cab_size_ = (rocm_backend::ncoset(la_max_) * rocm_backend::ncoset(lb_max_));
-    alpha_size_ = 3 * (lb_max_ + 1) * (la_max_ + 1) * (lp_max_ + 1);
-    smem_per_block_ = std::max(alpha_size_, 64) * sizeof(double);
-
-    if (smem_per_block_ > 64 * 1024) {
-      fprintf(stderr,
-              "ERROR: Not enough shared memory in grid_gpu_collocate.\n");
-      fprintf(stderr, "alpha_len: %i, ", alpha_size_);
-      fprintf(stderr, "total smem_per_block: %f kB\n\n",
-              smem_per_block_ / 1024.0);
-      abort();
-    }
   }
 
   ~smem_parameters() {};
@@ -1059,8 +908,6 @@ public:
   // copy and move are trivial
 
   inline int cab_size() const { return cab_size_; }
-
-  inline int smem_per_block() const { return smem_per_block_; }
 
   inline int lp_diff() const { return lp_diff_; }
 
