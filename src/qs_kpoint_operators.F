@@ -78,7 +78,6 @@ MODULE qs_kpoint_operators
    ! borrowed source neighbor lists must remain alive and unchanged with it.
    ! Immutable captured values; FFT slots also own the local reciprocal matrices.
    ! Shared metadata belong to the route; source identifies explicitly prepared starts.
-   INTEGER(KIND=int_8), PARAMETER :: rs_fft_snapshot_bytes = 64_int_8*1024_int_8**2
    ! Shared phases, worker scratch and output tiles; at least one k point is evaluated.
    INTEGER(KIND=int_8), PARAMETER :: rs_batch_bytes = 64_int_8*1024_int_8**2
 
@@ -238,11 +237,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_prepare'
 
-      INTEGER                                            :: compatible, handle, ic, ikp, ispin, &
-                                                            jslot, nk, nrow, output_mirror_sign, &
-                                                            row
-      INTEGER(KIND=int_8)                                :: fft_storage, retained, storage, &
-                                                            workspace_bytes
+      INTEGER                                            :: compatible, handle, ic, ikp, ispin, nk, &
+                                                            nrow, output_mirror_sign, row
+      INTEGER(KIND=int_8)                                :: workspace_bytes
       LOGICAL                                            :: ready, world_target
       TYPE(cp_fm_struct_type), POINTER                   :: fms
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -304,9 +301,9 @@ CONTAINS
          CALL rskp_route_create(rsmat, source_sab, ctx%kpoints%cell_to_index, fms, &
                                 ctx%kpoints%blacs_env_all%para_env, ctx%kpoints%para_env_kp, &
                                 ctx%kpoints%para_env_inter_kp, ctx%kpoints%rskp_transform, &
-                                rs_fft_snapshot_bytes, ctx%rs_route, ready)
+                                ctx%rs_route, ready)
          IF (.NOT. ready) THEN
-            CPABORT("R-to-K route is incompatible or forced FFT exceeds the memory budget")
+            CPABORT("R-to-K route has an incompatible source or target layout")
          END IF
          IF (ctx%rs_route%transform%backend == rskp_backend_fft .OR. ctx%rs_route%world_target) THEN
             CALL cell_to_k_backend_prepare(ctx%rs_route, ctx%kpoints%xkp, ctx%kpoints%nkp_grid, rs_batch_bytes)
@@ -342,36 +339,10 @@ CONTAINS
          CPASSERT(compatible == 1)
       END IF
       IF (ctx%rs_route%transform%backend == rskp_backend_fft) THEN
-         ! FFT retains its source and reciprocal-cache limits.
-         retained = 0_int_8
-         fft_storage = 0_int_8
-         DO jslot = kpoint_slot_ks, kpoint_slot_t
-            DO ispin = 1, ctx%nspin
-               IF (ALLOCATED(ctx%rs(ispin, jslot)%packed)) THEN
-                  retained = retained + 8_int_8*SIZE(ctx%rs(ispin, jslot)%packed, KIND=int_8)
-               END IF
-               IF (ALLOCATED(ctx%rs(ispin, jslot)%active)) THEN
-                  retained = retained + INT(STORAGE_SIZE(.FALSE.)/8, int_8)*SIZE(ctx%rs(ispin, jslot)%active, KIND=int_8)
-               END IF
-               IF (ALLOCATED(ctx%rs(ispin, jslot)%fft_values)) THEN
-                  fft_storage = fft_storage + 16_int_8*SIZE(ctx%rs(ispin, jslot)%fft_values, KIND=int_8)
-               END IF
-            END DO
-         END DO
-         storage = ctx%rs_route%storage + retained + 8_int_8*nrow* &
-                   (ctx%rs_route%transform%packed_first(SIZE(ctx%rs_route%transform%packed_first)) - 1)
-         CALL para_env%max(storage)
-         IF (storage > rs_fft_snapshot_bytes) THEN
-            CPABORT("FFT snapshot exceeds budget")
-         END IF
          nk = SIZE(ctx%kpoints%xkp, 2)
          IF (.NOT. world_target) nk = SIZE(ctx%kpoints%kp_env)
-         IF (.NOT. PRESENT(output)) fft_storage = fft_storage + 16_int_8*nrow*nk* &
-                                                  (ctx%rs_route%element_first(SIZE(ctx%rs_route%element_first)) - 1)
-         workspace_bytes = 512_int_8*1024_int_8**2 - storage - fft_storage
-         IF (workspace_bytes <= 0_int_8) THEN
-            CPABORT("Forced lattice FFT cache exceeds the memory budget")
-         END IF
+         ! Retained inputs and outputs do not limit the temporary element tile.
+         workspace_bytes = rs_batch_bytes
       END IF
       DO ispin = 1, nrow
          row = ispin

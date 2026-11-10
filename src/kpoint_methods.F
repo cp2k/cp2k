@@ -2674,7 +2674,7 @@ CONTAINS
          POINTER                                         :: values_k
       INTEGER :: batch, count, element, fft_status, first, group, handle, i, ikp, j, last, &
          local_k, mine, nc, nel, ngroup, nkp, nowned, offset, pos, width
-      INTEGER(KIND=int_8)                                :: fixed_bytes, per_entry, tile_size
+      INTEGER(KIND=int_8)                                :: count_limit, per_entry, tile_size
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcount, rdispl, scount, sdispl
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cells, ranges
       INTEGER, DIMENSION(2)                              :: choice
@@ -2689,16 +2689,9 @@ CONTAINS
       IF (ANY(kpoint%nkp_grid <= 0)) THEN
          CPABORT("Inverse FFT needs a regular k-point grid")
       END IF
-      ! Bound map/scratch allocations before attempting a candidate-grid mapping.
-      IF (32_int_8*PRODUCT(INT(kpoint%nkp_grid, int_8)) > max_bytes) THEN
-         CPABORT("Inverse FFT exceeds the grid workspace budget")
-      END IF
       compatible = lattice_fft_shape(kpoint%nkp_grid, nfft, allow_arbitrary=.TRUE.)
       IF (.NOT. compatible) THEN
          CPABORT("Inverse FFT grid is unsupported")
-      END IF
-      IF (32_int_8*PRODUCT(INT(nfft, int_8)) > max_bytes) THEN
-         CPABORT("Inverse FFT padded grid exceeds memory budget")
       END IF
       compatible = regular_kpoint_grid(kpoint%xkp, kpoint%nkp_grid, allow_incomplete=.TRUE.)
       IF (.NOT. compatible) THEN
@@ -2721,18 +2714,18 @@ CONTAINS
       END DO
       owned = ranges(:, mine)
       nowned = MAX(0, owned(2) - owned(1) + 1)
-      fixed_bytes = 8_int_8*nowned*nc*nimg + 32_int_8*PRODUCT(INT(nfft, int_8)) + &
-                    4_int_8*PRODUCT(INT(kpoint%nkp_grid, int_8)) + 44_int_8*nkp + 52_int_8*nc*nimg + &
-                    24_int_8*ngroup + 64_int_8
-      ! Bound the batched inverse FFT, including fft_1d_many's planning scratch.
+      ! A soft target for communication and FFT scratch, independent of the density output.
       per_entry = 16_int_8*(INT(ngroup, int_8)*local_k + nkp + INT(nc, int_8)*nimg) + &
                   48_int_8*PRODUCT(INT(nfft, int_8))
-      width = INT(MAX(0_int_8, MIN(INT(max_batch, int_8), (max_bytes - fixed_bytes)/per_entry)))
+      count_limit = MIN(INT(HUGE(0), int_8)/MAX(1_int_8, INT(nkp, int_8)), &
+                        INT(HUGE(0), int_8)/MAX(1_int_8, INT(ngroup, int_8)*INT(local_k, int_8)), &
+                        INT(HUGE(0), int_8)/MAX(1_int_8, INT(nc, int_8)*INT(nimg, int_8)))
+      width = INT(MIN(INT(max_batch, int_8), count_limit, MAX(1_int_8, max_bytes/per_entry)))
       choice = [MERGE(1, 0, tile_size <= HUGE(nel)), width]
       ! All ranks use the same pencil width, including ranks with empty FM tiles.
       IF (kpoint%blacs_env_all%para_env%num_pe > 1) CALL kpoint%blacs_env_all%para_env%min(choice)
       IF (choice(1) == 0 .OR. choice(2) == 0) THEN
-         CPABORT("Inverse FFT density exceeds memory budget")
+         CPABORT("Inverse FFT tile exceeds the integer MPI count range")
       END IF
       width = choice(2)
 

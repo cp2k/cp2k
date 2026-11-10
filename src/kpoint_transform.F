@@ -60,9 +60,7 @@ MODULE kpoint_transform
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kpoint_transform'
    INTEGER(KIND=int_8), PARAMETER :: fft_batch_bytes = 32_int_8*1024_int_8**2
    INTEGER(KIND=int_8), PARAMETER :: rskp_panel_bytes = 64_int_8*1024_int_8**2
-   INTEGER(KIND=int_8), PARAMETER, PRIVATE :: rskp_fft_route_bytes = 64_int_8*1024_int_8**2, &
-                                              rskp_fft_bytes = 512_int_8*1024_int_8**2, &
-                                              rskp_gemm_bytes = 1000_int_8*1024_int_8**2, &
+   INTEGER(KIND=int_8), PARAMETER, PRIVATE :: rskp_gemm_bytes = 1000_int_8*1024_int_8**2, &
                                               dbcsr_batch_bytes = 1000_int_8*1024_int_8**2
    PUBLIC :: kp_transform_plan_type, kp_transform_plan_create, rskp_route_type, rskp_values_type
    PUBLIC :: rskp_route_create, rskp_route_release, rskp_capture, rskp_compatible, rskp_values_release
@@ -504,7 +502,7 @@ CONTAINS
 
       INTEGER                                            :: first, handle, irow, nk_local
       INTEGER(KIND=int_8)                                :: max_backend_bytes, phase_bytes, &
-                                                            retained_bytes, workspace_bytes
+                                                            workspace_bytes
       INTEGER, ALLOCATABLE                               :: eval_kp_dist(:, :)
       LOGICAL                                            :: ready
       REAL(KIND=dp), ALLOCATABLE                         :: phase_xkp(:, :)
@@ -539,13 +537,13 @@ CONTAINS
          eval_kp_dist(:, 1) = [1, SIZE(xkp, 2)]
       END IF
       max_backend_bytes = rskp_gemm_bytes
-      IF (backend == rskp_backend_fft) max_backend_bytes = rskp_fft_bytes
+      IF (backend == rskp_backend_fft) max_backend_bytes = rskp_panel_bytes
       ALLOCATE (prepared%kp_dist, source=eval_kp_dist)
       ALLOCATE (prepared%values(SIZE(source_rows)))
       CALL rskp_route_create(source, source_sab, cell_to_index, target_struct, world, eval_group, eval_inter, backend, &
-                             rskp_fft_route_bytes, prepared%route, ready)
+                             prepared%route, ready)
       IF (.NOT. ready) THEN
-         CPABORT("R-to-K route is unsupported, incompatible with the target, or over budget")
+         CPABORT("R-to-K route has an incompatible source or target layout")
       END IF
 
       phase_bytes = max_backend_bytes
@@ -558,14 +556,6 @@ CONTAINS
          ALLOCATE (phase_xkp, source=xkp(:, first:eval_kp_dist(2, eval_inter%mepos + 1)))
          CALL cell_to_k_backend_prepare(prepared%route, phase_xkp, nkp_grid, phase_bytes)
       END IF
-      IF (backend == rskp_backend_fft) THEN
-         retained_bytes = prepared%route%storage + 8_int_8*SIZE(source_rows, KIND=int_8)* &
-                          (prepared%route%transform%packed_first(SIZE(prepared%route%transform%packed_first)) - 1)
-         CALL world%max(retained_bytes)
-         IF (retained_bytes > rskp_fft_route_bytes) THEN
-            CPABORT("Prepared FFT source exceeds the memory budget")
-         END IF
-      END IF
       DO irow = 1, SIZE(source_rows)
          CALL rskp_capture(source, source_rows(irow), prepared%route, prepared%values(irow), mirror_sign, scale)
       END DO
@@ -575,12 +565,7 @@ CONTAINS
             nk_local = eval_kp_dist(2, eval_inter%mepos + 1) - &
                        eval_kp_dist(1, eval_inter%mepos + 1) + 1
          END IF
-         retained_bytes = retained_bytes + 16_int_8*SIZE(source_rows, KIND=int_8)*nk_local* &
-                          (prepared%route%element_first(SIZE(prepared%route%element_first)) - 1)
-         workspace_bytes = max_backend_bytes - retained_bytes
-         IF (workspace_bytes <= 0_int_8) THEN
-            CPABORT("Prepared lattice FFT exceeds the memory budget")
-         END IF
+         workspace_bytes = max_backend_bytes
          DO irow = 1, SIZE(source_rows)
             ALLOCATE (prepared%values(irow)%fft_values( &
                       prepared%route%element_first(SIZE(prepared%route%element_first)) - 1, nk_local))
@@ -783,17 +768,10 @@ CONTAINS
          tile_width = INT(MIN(INT(nk, int_8), MAX(1_int_8, available_bytes/MAX(1_int_8, per_k_bytes))))
          ALLOCATE (work(per_k_bytes/8*tile_width))
       ELSE
-         IF (panel_bytes >= dbcsr_batch_bytes) THEN
-            CPABORT("R-to-K DBCSR FFT input exceeds the memory budget")
-         END IF
-         available_bytes = available_bytes - fft_batch_bytes
-         IF (available_bytes <= 0_int_8) THEN
-            CPABORT("R-to-K DBCSR FFT workspace exceeds the memory budget")
-         END IF
-         fft_tile_budget = MIN(fft_batch_bytes, available_bytes)
+         fft_tile_budget = fft_batch_bytes
          CALL cell_to_k_grid_prepare(fft_work, signed_cells, xkp, nkp_grid)
          IF (.NOT. fft_work%regular) THEN
-            CPABORT("Forced lattice FFT needs a supported complete regular grid")
+            CPABORT("Forced lattice FFT needs a supported regular grid or subset")
          END IF
       END IF
       ALLOCATE (packed(panel_bytes/8))
@@ -811,7 +789,7 @@ CONTAINS
          ELSE
             nfold = nimages
          END IF
-         image_re(1:nelem*nspin, 1:nfold) => packed(1:nelem*nspin*nfold)
+         image_re(1:nelem*nspin, 1:nfold) => packed(1:INT(nelem, int_8)*INT(nspin, int_8)*INT(nfold, int_8))
          image_re = 0.0_dp
          DO i = first, last
             pos = i - first + 1
@@ -872,11 +850,12 @@ CONTAINS
             END DO
          ELSE
             per_tile_bytes = 16_int_8*nspin*nk
-            IF (per_tile_bytes > fft_tile_budget) THEN
-               CPABORT("R-to-K DBCSR FFT element tile exceeds the memory budget")
+            IF (INT(nspin, int_8)*INT(nk, int_8) > INT(HUGE(0), int_8)) THEN
+               CPABORT("R-to-K DBCSR FFT tile exceeds the integer range")
             END IF
-            tile_width = MIN(nelem, INT(fft_tile_budget/per_tile_bytes))
-            fft_input(1:nelem, 1:nspin, 1:nimages) => packed(1:nelem*nspin*nimages)
+            tile_width = MIN(nelem, INT(MAX(1_int_8, MIN(fft_tile_budget/per_tile_bytes, &
+                                                         INT(HUGE(0), int_8)/(INT(nspin, int_8)*INT(nk, int_8))))))
+            fft_input(1:nelem, 1:nspin, 1:nimages) => packed(1:INT(nelem, int_8)*INT(nspin, int_8)*INT(nimages, int_8))
             ALLOCATE (fft_output(tile_width, nspin, nk))
             DO tile_first = 1, nelem, tile_width
                tile_size = MIN(tile_width, nelem - tile_first + 1)
@@ -1072,12 +1051,11 @@ CONTAINS
 !> \param group communicator of group-local FM targets
 !> \param inter communicator joining equivalent FM ranks across groups
 !> \param backend GEMM or FFT
-!> \param max_bytes per-rank routing/capture budget for FFT; GEMM retains the full sparse source
 !> \param route context-owned structural route
-!> \param ready false collectively if incompatible or over the FFT budget
+!> \param ready false collectively if source or target layout is incompatible
 ! **************************************************************************************************
    SUBROUTINE rskp_route_create(source, source_sab, cell_to_index, matrix_struct, world, group, inter, &
-                                backend, max_bytes, route, ready)
+                                backend, route, ready)
 
       TYPE(dbcsr_p_type), POINTER                        :: source(:, :)
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -1086,7 +1064,6 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(mp_para_env_type), POINTER                    :: world, group, inter
       INTEGER, INTENT(IN)                                :: backend
-      INTEGER(KIND=int_8), INTENT(IN)                    :: max_bytes
       TYPE(rskp_route_type), INTENT(OUT)                 :: route
       LOGICAL, INTENT(OUT)                               :: ready
 
@@ -1182,7 +1159,7 @@ CONTAINS
       ns = SUM(send_size, DIM=2)
       nr = SUM(recv_size, DIM=2)
       IF (.NOT. route%world_target) CALL inter%bcast(nr, 0)
-      ! Conservative peak accounting for the FFT source/cache budget.
+      ! Conservative routing/capture allocation estimate for diagnostics.
       storage = 40_int_8*route%traversal%nentry + &
                 4_int_8*(SIZE(row_size) + SIZE(col_size) + matrix_struct%nrow_global + matrix_struct%ncol_global) + &
                 48_int_8*ns(1) + MERGE(0_int_8, 8_int_8*ns(2), world%num_pe == 1) + 68_int_8*nr(1) + &
@@ -1195,20 +1172,10 @@ CONTAINS
       IF (world%num_pe > 1) storage = storage + 8_int_8*nr(2)
       IF (SIZE(owner) > 1) storage = storage + 4_int_8*ns(2)
       route%storage = storage
-      storage = storage + 128_int_8*nr(1)
-      ! Temporary canonical-image classification and one packed snapshot.
-      storage = storage + 128_int_8*nr(1) + 8_int_8
       ! Values, offsets and eight-integer metadata records use default INTEGER MPI counts.
       IF (MAXVAL(ns) >= INT(HUGE(0), int_8) .OR. MAXVAL(nr) >= INT(HUGE(0), int_8) .OR. &
           MAX(ns(1), nr(1)) > INT(HUGE(0), int_8)/8_int_8) THEN
          CALL cp_abort(__LOCATION__, "R-to-K route counts exceed the integer range")
-      END IF
-      IF (backend == rskp_backend_fft) THEN
-         CALL world%max(storage)
-         IF (storage > max_bytes) THEN
-            CALL timestop(handle)
-            RETURN
-         END IF
       END IF
       ! Route counts are checked explicitly before conversion to default INTEGER.
       nblock = INT(nr(1))
@@ -1663,7 +1630,7 @@ CONTAINS
 !> \param nkp_grid reciprocal-grid dimensions
 !> \param kp_dist global k-point range of each group
 !> \param inter communicator joining equivalent FM ranks across groups
-!> \param max_bytes available workspace, excluding the caller-owned destination
+!> \param max_bytes soft workspace target, excluding retained inputs and destinations
 !> \param cache optional unscaled canonical elements by local k point
 !> \param output optional existing split-FM destinations, instead of cache
 ! **************************************************************************************************
@@ -1732,13 +1699,13 @@ CONTAINS
          fixed_bytes = 16_int_8*nk + 28_int_8*SIZE(route%entry, 2) + 16_int_8*npeers
          per_element = 16_int_8*nk + 48_int_8*ngrid + &
                        16_int_8*npeers*MAXVAL(ranges(2, :) - ranges(1, :) + 1)
-         width = INT(MAX(0_int_8, MIN(INT((nelem + npeers - 1)/npeers, int_8), &
+         width = INT(MAX(0_int_8, MIN((INT(nelem, int_8) + INT(npeers, int_8) - 1_int_8)/INT(npeers, int_8), &
                                       MAX(1_int_8, fft_batch_bytes/(48_int_8*ngrid)), &
-                                      (available - fixed_bytes)/per_element, INT(HUGE(0), int_8)/nk, &
+                                      MAX(1_int_8, (available - fixed_bytes)/per_element), INT(HUGE(0), int_8)/nk, &
                                       INT(HUGE(0), int_8)/(INT(npeers, int_8)* &
                                                            MAXVAL(ranges(2, :) - ranges(1, :) + 1)))))
          IF (width == 0) THEN
-            CPABORT("Forced lattice FFT block exceeds the memory budget")
+            CPABORT("Lattice FFT tile exceeds the integer MPI count range")
          END IF
          DO element = 1, nelem, width*npeers
             start = element + my_peer*width
@@ -1974,7 +1941,7 @@ CONTAINS
       CASE (rskp_backend_fft)
          CALL cell_to_k_grid_prepare(route%transform%fft_work, route%entry(5:7, route%block_order), xkp, nkp_grid)
          IF (.NOT. route%transform%fft_work%regular) THEN
-            CPABORT("Forced lattice FFT needs a supported complete regular grid")
+            CPABORT("Forced lattice FFT needs a supported regular grid or subset")
          END IF
       CASE DEFAULT
          CPABORT("Unknown R-to-K backend")

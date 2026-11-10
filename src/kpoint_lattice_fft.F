@@ -211,7 +211,7 @@ CONTAINS
 !> \param require_fft abort if FFT cannot be used; never execute a direct phase sum
 !> \param work optional prepared geometry, unchanged throughout repeated calls
 !> \param cell_first first prepared image-map column for this batch
-!> \param max_workspace_bytes optional FFT workspace bound
+!> \param max_workspace_bytes optional soft FFT workspace target; one element always fits the policy
 !> \param accumulate add to values_k; abort on FFT execution failure to avoid partial accumulation
 ! **************************************************************************************************
    SUBROUTINE cell_to_k_grid_fft(values_rs, index_to_cell, xkp, nkp_grid, values_k, &
@@ -282,17 +282,21 @@ CONTAINS
       END IF
       IF (.NOT. plan%regular .AND. PRESENT(require_fft)) THEN
          IF (require_fft) THEN
-            CPABORT("Forced lattice FFT needs a supported complete regular grid")
+            CPABORT("Forced lattice FFT needs a supported regular grid or subset")
          END IF
       END IF
       success = .FALSE.
       IF (plan%regular) THEN
          start = 1
          IF (PRESENT(cell_first)) start = cell_first
-         CPASSERT(start >= 1 .AND. start + SIZE(values_rs, 3) - 1 <= SIZE(plan%cell_factor))
+         CPASSERT(start >= 1)
+         IF (SIZE(values_rs, 3) > SIZE(plan%cell_factor) - start + 1) THEN
+            CPABORT("Lattice FFT image range exceeds the prepared geometry")
+         END IF
          ngrid = PRODUCT(INT(plan%nfft, int_8))
          budget = fft_batch_bytes
          IF (PRESENT(max_workspace_bytes)) budget = MIN(budget, max_workspace_bytes)
+         budget = MAX(48_int_8*ngrid, budget)
          width = MIN(SIZE(values_rs, 1), INT(MAX(1_int_8, budget/(48_int_8*ngrid))))
          IF (width == 0) THEN
             success = .TRUE.

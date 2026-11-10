@@ -158,7 +158,7 @@ PROGRAM kpoint_lattice_fft_unittest
          snapshot%scale = CMPLX(0.3_dp, 0.7_dp, dp)
          ALLOCATE (snapshot%fft_values(3, nkp))
          CALL cell_to_k_sparse_fft(snapshot, route, xkp, nkp_grid, RESHAPE([1, nkp], [2, 1]), env, &
-                                   64_int_8*1024_int_8**2, cache=snapshot%fft_values)
+                                   1_int_8, cache=snapshot%fft_values)
          IF (MAXVAL(ABS(snapshot%fft_values - transformed(1, :, :))) > 2.0E-12_dp) THEN
             ERROR STOP 'Canonical FFT cache changed raw Fourier values'
          END IF
@@ -182,7 +182,7 @@ PROGRAM kpoint_lattice_fft_unittest
          END IF
          DEALLOCATE (snapshot%fft_values)
          CALL cell_to_k_sparse_fft(snapshot, route, xkp, nkp_grid, RESHAPE([1, nkp], [2, 1]), env, &
-                                   64_int_8*1024_int_8**2, output=destinations)
+                                   1_int_8, output=destinations)
          IF (MAXVAL(ABS(CMPLX(split(:, :, :, 1), split(:, :, :, 2), dp) - expected)) > 2.0E-12_dp) THEN
             ERROR STOP 'Direct FFT output differs from cached evaluation'
          END IF
