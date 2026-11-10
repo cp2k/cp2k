@@ -19,6 +19,7 @@
     &QS
       METHOD xTB
       &XTB
+        SPIN_POLARISATION T
         &PARAMETER
           DISPERSION_PARAMETER_FILE dftd3.dat
         &END PARAMETER

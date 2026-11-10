@@ -871,6 +871,7 @@ CONTAINS
 
             t2 = m_walltime()
 
+            CALL rebuild_xtb_total_energy(energy, dft_control)
             CALL qs_scf_loop_info(scf_env, output_unit, just_energy, t1, t2, energy, &
                                   scf_control%diagonalization%adiis_verbose)
 
@@ -3347,5 +3348,32 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_cdft_line_search
+
+! **************************************************************************************************
+!> \brief Rebuild the native xTB total energy from its components using the current
+!>        electronic entropy. The SCF matrix construction sees the entropy from the
+!>        previous iteration (or zero on the first/only one), so recompute it here
+!>        before the energy is reported or used.
+!> \param energy ...
+!> \param dft_control ...
+! **************************************************************************************************
+   SUBROUTINE rebuild_xtb_total_energy(energy, dft_control)
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(dft_control_type), POINTER                    :: dft_control
+
+      IF (.NOT. dft_control%qs_control%xtb) RETURN
+      IF (dft_control%qs_control%xtb_control%do_tblite) RETURN
+
+      SELECT CASE (dft_control%qs_control%xtb_control%gfn_type)
+      CASE (0)
+         energy%total = energy%core + energy%eeq + energy%efield + energy%qmmm_el + &
+                        energy%repulsive + energy%dispersion + energy%kTS
+      CASE (1)
+         energy%total = energy%core + energy%repulsive + energy%hartree + &
+                        energy%xtb_spinpol + energy%efield + energy%qmmm_el + &
+                        energy%dispersion + energy%dftb3 + energy%kTS
+      END SELECT
+
+   END SUBROUTINE rebuild_xtb_total_energy
 
 END MODULE qs_scf

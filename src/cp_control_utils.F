@@ -1649,8 +1649,15 @@ CONTAINS
             qs_control%xtb_control%do_ewald = (qs_control%periodicity /= 0)
          END IF
          ! Spin Polarisation
+         CALL section_vals_val_get(xtb_section, "SPIN_POLARISATION", explicit=explicit)
          CALL section_vals_val_get(xtb_section, "SPIN_POLARISATION", &
                                    l_val=qs_control%xtb_control%do_spinpol)
+         IF (qs_control%xtb_control%gfn_type == 0) THEN
+            IF (explicit .AND. qs_control%xtb_control%do_spinpol) THEN
+               CPABORT("XTB/SPIN_POLARISATION is not available for CP2K-internal GFN0-xTB")
+            END IF
+            qs_control%xtb_control%do_spinpol = .FALSE.
+         END IF
          ! vdW
          CALL section_vals_val_get(xtb_section, "VDW_POTENTIAL", explicit=explicit)
          IF (explicit) THEN

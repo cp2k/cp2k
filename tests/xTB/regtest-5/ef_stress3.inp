@@ -30,6 +30,7 @@
       &XTB
         CHECK_ATOMIC_CHARGES Off
         DO_EWALD T
+        SPIN_POLARISATION T
       &END XTB
     &END QS
     &SCF
