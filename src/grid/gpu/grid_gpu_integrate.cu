@@ -163,7 +163,7 @@ __global__ __launch_bounds__(64) void compute_hab_two_steps(
     return;
 
   T *smem_h = &shared_memory[0]; // [ld][ld], H[jco][ico]
-  T *smem_u = smem_h + ld * ld;            // [max_nsgf_set][ld]
+  T *smem_u = smem_h + ld * ld;  // [max_nsgf_set][ld]
   const int tid = thread_global_index();
   const int nthreads = blockDim.x * blockDim.y * blockDim.z;
   const int offset = dev_.sorted_blocks_offset_dev[block_index()];
@@ -461,7 +461,7 @@ __global__ __launch_bounds__(64) void compute_hab_forces_two_steps(
     return;
 
   T *smem_h = &shared_memory[0]; // [ld][ld], H[jco][ico]
-  T *smem_w = smem_h + ld * ld;            // [max_nsgf_set][ld], W then U
+  T *smem_w = smem_h + ld * ld;  // [max_nsgf_set][ld], W then U
   const int tid = thread_global_index();
   const int nthreads = blockDim.x * blockDim.y * blockDim.z;
   const int offset = dev_.sorted_blocks_offset_dev[block_index()];
@@ -1418,8 +1418,7 @@ void context_info::compute_hab_coefficients() {
              this->main_stream>>>(params, ld, max_nsgf_set());
     else
       compute_hab<double, false>
-          <<<this->nblocks, threads_per_block, 0, this->main_stream>>>(
-              params);
+          <<<this->nblocks, threads_per_block, 0, this->main_stream>>>(params);
     return;
   }
 
@@ -1430,8 +1429,7 @@ void context_info::compute_hab_coefficients() {
              this->main_stream>>>(params, ld, max_nsgf_set());
     else
       compute_hab<double, true>
-          <<<this->nblocks, threads_per_block, 0, this->main_stream>>>(
-              params);
+          <<<this->nblocks, threads_per_block, 0, this->main_stream>>>(params);
   }
 
   if (!compute_tau && calculate_forces) {
