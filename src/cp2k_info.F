@@ -311,6 +311,9 @@ CONTAINS
 #if defined(__NO_OFFLOAD_PW)
       flags = TRIM(flags)//" no_offload_pw"
 #endif
+#if defined(__NO_OFFLOAD_NNP)
+      flags = TRIM(flags)//" no_offload_nnp"
+#endif
 #if defined(__OFFLOAD_PROFILING)
       flags = TRIM(flags)//" offload_profiling"
 #endif

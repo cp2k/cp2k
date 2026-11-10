@@ -102,6 +102,17 @@ static inline offloadError_t offloadGetLastError(void) {
 }
 
 /*******************************************************************************
+ * \brief Wrapper around cudaPeekAtLastError.
+ ******************************************************************************/
+static inline offloadError_t offloadPeekAtLastError(void) {
+#if defined(__OFFLOAD_CUDA)
+  return cudaPeekAtLastError();
+#elif defined(__OFFLOAD_HIP)
+  return hipPeekAtLastError();
+#endif
+}
+
+/*******************************************************************************
  * \brief Wrapper around cudaMemsetAsync.
  ******************************************************************************/
 static inline void offloadMemsetAsync(void *ptr, const int val,
