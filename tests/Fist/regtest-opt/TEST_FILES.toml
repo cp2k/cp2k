@@ -100,7 +100,7 @@
   {matcher = "Cell_length_b", tol = 1.0E-9, ref = 16.500000}
 ]
 "cell_opt_constraint_a_keep_angles.inp"        = [
-  {matcher = "M011", tol = 1.0E-8, ref = -261.473321602206113},
+  {matcher = "M011", tol = 1.0E-8, ref = -261.473321602204294},
   {matcher = "Cell_length_a", tol = 1.0E-9, ref = 16.500000}
 ]
 # Non-orthorhombic KEEP_ANGLES variants. The 60-degree rhombohedral cell fixes
