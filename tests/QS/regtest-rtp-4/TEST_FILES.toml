@@ -5,22 +5,32 @@
 #      for details see cp2k/tools/do_regtest
 #
 # Delta pulse in the length representation, velocity gauge and magnetic delta pulse
-"H2O-delta-mag.inp"     = [{matcher = "E_total", tol = 1e-13, ref = -17.17816619814588}]
-"H2O-delta-lenrep.inp"  = [{matcher = "E_total", tol = 1e-13, ref = -17.17816511743962}]
-"H2O-vg.inp"            = [{matcher = "E_total", tol = 1e-13, ref = -17.17816535335717}]
-"H2O-delta-velrepr.inp" = [{matcher = "E_total", tol = 1e-13, ref = -17.17816551662581}]
+"H2O-delta-mag.inp"          = [{matcher = "E_total", tol = 1e-13, ref = -17.17816619814588}]
+"H2O-delta-lenrep.inp"       = [{matcher = "E_total", tol = 1e-13, ref = -17.17816511743962}]
+"H2O-vg.inp"                 = [{matcher = "E_total", tol = 1e-13, ref = -17.17816535335717}]
+"H2O-delta-velrepr.inp"      = [{matcher = "E_total", tol = 1e-13, ref = -17.17816551662581}]
 # EMD in a static field: length gauge (dipole-integral derivative and initial field in H)
 # and velocity gauge (A.p and 1/2 A^2 kinetic terms), checked on the force of the last step
-"H2O-emd-lg-forces.inp" = [{matcher = "M002", tol = 1e-10, ref = -17.1811643543},
-                           {matcher = "QS_atom_2_force_y", tol = 1e-6, ref = -1.21405656E-02}]
-"H2O-emd-vg-forces.inp" = [{matcher = "M002", tol = 1e-10, ref = -17.1758219490},
-                           {matcher = "QS_atom_2_force_y", tol = 1e-6, ref = -1.73951729E-03}]
+"H2O-emd-lg-forces.inp"      = [
+  {matcher = "M002", tol = 1e-10, ref = -17.1811643543},
+  {matcher = "QS_atom_2_force_y", tol = 1e-6, ref = -1.21405656E-02}
+]
+"H2O-emd-vg-forces.inp"      = [
+  {matcher = "M002", tol = 1e-10, ref = -17.1758219490},
+  {matcher = "QS_atom_2_force_y", tol = 1e-6, ref = -1.73951729E-03}
+]
 # same with the plain non-local pseudopotential (VG_COM_NL F), checks the initial KS matrix
-"H2O-emd-vg-plain-nl.inp" = [{matcher = "M002", tol = 1e-10, ref = -17.1757886293},
-                             {matcher = "QS_atom_2_force_y", tol = 1e-6, ref = -1.95279897E-03}]
+"H2O-emd-vg-plain-nl.inp"    = [
+  {matcher = "M002", tol = 1e-10, ref = -17.1757886293},
+  {matcher = "QS_atom_2_force_y", tol = 1e-6, ref = -1.95279897E-03}
+]
 # same field forces with all-electron GAPW
-"H2O-emd-lg-forces-gapw.inp" = [{matcher = "M002", tol = 1e-10, ref = -75.8525402578},
-                                {matcher = "QS_atom_2_force_y", tol = 1e-6, ref = -1.15173316E-02}]
-"H2O-emd-vg-forces-gapw.inp" = [{matcher = "M002", tol = 1e-10, ref = -75.8462154010},
-                                {matcher = "QS_atom_2_force_y", tol = 1e-6, ref = -3.87096766E-03}]
+"H2O-emd-lg-forces-gapw.inp" = [
+  {matcher = "M002", tol = 1e-10, ref = -75.8525402578},
+  {matcher = "QS_atom_2_force_y", tol = 1e-6, ref = -1.15173316E-02}
+]
+"H2O-emd-vg-forces-gapw.inp" = [
+  {matcher = "M002", tol = 1e-10, ref = -75.8462154010},
+  {matcher = "QS_atom_2_force_y", tol = 1e-6, ref = -3.87096766E-03}
+]
 #EOF
