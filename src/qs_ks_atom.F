@@ -21,8 +21,7 @@ MODULE qs_ks_atom
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
                                               dbcsr_p_type
-   USE kinds,                           ONLY: dp,&
-                                              int_8
+   USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
    USE message_passing,                 ONLY: mp_para_env_type
@@ -32,20 +31,8 @@ MODULE qs_ks_atom
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_neighbor_list_types,          ONLY: get_iterator_task,&
-                                              neighbor_list_iterate,&
-                                              neighbor_list_iterator_create,&
-                                              neighbor_list_iterator_p_type,&
-                                              neighbor_list_iterator_release,&
-                                              neighbor_list_set_p_type,&
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
                                               neighbor_list_task_type
-   USE qs_nl_hash_table_types,          ONLY: nl_hash_table_add,&
-                                              nl_hash_table_create,&
-                                              nl_hash_table_get_from_index,&
-                                              nl_hash_table_is_null,&
-                                              nl_hash_table_obj,&
-                                              nl_hash_table_release,&
-                                              nl_hash_table_status
    USE qs_oce_methods,                  ONLY: prj_gather
    USE qs_oce_types,                    ONLY: oce_matrix_type
    USE qs_rho_atom_types,               ONLY: get_rho_atom,&
@@ -54,14 +41,13 @@ MODULE qs_ks_atom
    USE sap_kind_types,                  ONLY: alist_post_align_blk,&
                                               alist_pre_align_blk,&
                                               alist_type,&
+                                              clist_type,&
                                               get_alist
    USE util,                            ONLY: get_limit
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
 
-!$ USE OMP_LIB, ONLY: omp_get_max_threads, &
-!$                    omp_get_thread_num, &
-!$                    omp_lock_kind, &
+!$ USE OMP_LIB, ONLY: omp_lock_kind, &
 !$                    omp_init_lock, omp_set_lock, &
 !$                    omp_unset_lock, omp_destroy_lock
 
@@ -72,6 +58,7 @@ MODULE qs_ks_atom
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_atom'
+   INTEGER, PARAMETER, PRIVATE :: l2_chunk_dp = 16000
 
    PUBLIC :: update_ks_atom
 
@@ -124,47 +111,45 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'update_ks_atom'
 
-      INTEGER :: bo(2), handle, ia_kind, iac, iat, iatom, ibc, ikind, img, ip, ispin, ja_kind, &
-         jatom, jkind, ka_kind, kac, katom, kbc, kkind, max_gau, max_nsgf, n_cont_a, n_cont_b, &
-         nat, natom, nimages, nkind, nl_table_num_slots, nsoctot, nspins, slot_num
-      INTEGER(KIND=int_8)                                :: nl_table_key
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
+      INTEGER :: bo(2), dir, handle, i, ia_kind, iac, iat, iatom, ibc, ikind, img, inb, ip, ispin, &
+         ja_kind, jatom, jkind, k_total, ka_kind, kac, kac_hi, kac_lo, katom, kbc, kkind, &
+         ku_alloc, max_gau, max_nb, max_nclist, max_nsgf, n_cont_a, n_cont_b, n_nb, nat, natom, &
+         nimages, nkind, nl_size, nsoctot, nspins, slot
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, ia_ptr, ia_work, k_offset, &
+                                                            slot_order
       INTEGER, DIMENSION(3)                              :: cell_b
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, list_a, list_b
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: dista, distb, do_forces, found, &
-                                                            is_entry_null, is_task_valid, &
-                                                            my_tddft, paw_atom, use_virial
+      LOGICAL                                            :: dista, do_forces, found, my_tddft, &
+                                                            paw_atom, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: has_intac, paw_kind
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a_matrix, p_matrix
-      REAL(dp), DIMENSION(3)                             :: rac, rbc
-      REAL(dp), DIMENSION(3, 3)                          :: force_tmp
-      REAL(kind=dp)                                      :: eps_cpc, factor1, factor2
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: C_int_h, C_int_s, coc
+      LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: u_touched
+      REAL(KIND=dp)                                      :: beta, factor1, factor2, ieqj, trace
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: C_int_h, C_int_s
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: a_matrix, coc, f_katom, k_buf, p_matrix, &
+                                                            u_buf
       REAL(KIND=dp), DIMENSION(2)                        :: force_fac
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_virial_thread
+      REAL(KIND=dp), DIMENSION(3)                        :: f_jatom, fb_triple, rac, rbc
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: force_tmp, pv_virial_thread
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: C_coeff_hh_a, C_coeff_hh_b, &
                                                             C_coeff_ss_a, C_coeff_ss_b
       TYPE(alist_type), POINTER                          :: alist_ac, alist_bc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: mat_h, mat_p
+      TYPE(clist_type), POINTER                          :: clist_a, clist_b
+      TYPE(cp_2d_r_p_type), ALLOCATABLE, DIMENSION(:, :) :: nb_hblk, nb_pblk
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(neighbor_list_iterator_p_type), &
-         DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: my_sab
-      TYPE(neighbor_list_task_type), POINTER             :: next_task, task
-      TYPE(nl_hash_table_obj)                            :: nl_hash_table
+      TYPE(neighbor_list_task_type), POINTER             :: task
       TYPE(oce_matrix_type), POINTER                     :: my_oce
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: my_kind_set
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: int_local_h, int_local_s
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: my_rho_atom
-      TYPE(rho_atom_type), POINTER                       :: rho_at
       TYPE(virial_type), POINTER                         :: virial
 
 !$    INTEGER(kind=omp_lock_kind), ALLOCATABLE, DIMENSION(:) :: locks
@@ -172,8 +157,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (my_kind_set, atomic_kind_set, force, my_oce, para_env, my_rho_atom, my_sab)
-      NULLIFY (mat_h, mat_p, dft_control)
+      NULLIFY (my_kind_set, atomic_kind_set, force, my_oce, para_env, my_rho_atom, my_sab, dft_control)
 
       CALL get_qs_env(qs_env=qs_env, &
                       qs_kind_set=my_kind_set, &
@@ -219,8 +203,6 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
       END IF
-
-      eps_cpc = dft_control%qs_control%gapw_control%eps_cpc
 
       CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
       CALL get_qs_kind_set(my_kind_set, maxsgf=max_nsgf, maxgtops=max_gau, basis_type="GAPW_1C")
@@ -284,62 +266,57 @@ CONTAINS
          has_intac(ikind) = ASSOCIATED(my_oce%intac(ikind)%alist)
       END DO
 
-      ! build the hash table in serial...
-      ! ... creation ...
-      CALL neighbor_list_iterator_create(nl_iterator, my_sab)
-      nl_table_num_slots = natom*natom/2 ! this is probably not optimal, but it seems a good start
-      CALL nl_hash_table_create(nl_hash_table, nmax=nl_table_num_slots)
-      ! ... and population
-      DO WHILE (neighbor_list_iterate(nl_iterator) == 0) ! build hash table in serial, so don't pass mepos
-         ALLOCATE (task) ! They must be deallocated before the nl_hash_table is released
-         CALL get_iterator_task(nl_iterator, task) ! build hash table in serial, so don't pass mepos
-         ! tasks with the same key access the same blocks of H & P
-         IF (task%iatom <= task%jatom) THEN
-            nl_table_key = natom*task%iatom + task%jatom
-         ELSE
-            nl_table_key = natom*task%jatom + task%iatom
-         END IF
-         CALL nl_hash_table_add(nl_hash_table, nl_table_key, task)
+      ku_alloc = MAX(1, l2_chunk_dp/nspins, max_nsgf*max_gau) ! 16k-double L2 chunk across spins
+      max_nclist = 1
+      DO iac = 1, nkind*nkind
+         IF (.NOT. has_intac(iac)) CYCLE
+         DO i = 1, SIZE(my_oce%intac(iac)%alist)
+            max_nclist = MAX(max_nclist, my_oce%intac(iac)%alist(i)%nclist)
+         END DO
       END DO
-      CALL neighbor_list_iterator_release(nl_iterator)
 
-      ! Get the total number of (possibly empty) entries in the table
-      CALL nl_hash_table_status(nl_hash_table, nmax=nl_table_num_slots)
-
-!$OMP PARALLEL DEFAULT(NONE)                                         &
-!$OMP           SHARED(nl_table_num_slots, nl_hash_table             &
-!$OMP                 , max_gau, max_nsgf, nspins, forces            &
-!$OMP                 , basis_set_list, nimages, cell_to_index       &
-!$OMP                 , ksmat, pmat, natom, nkind, my_kind_set, my_oce &
-!$OMP                 , my_rho_atom, factor1, factor2, use_virial    &
-!$OMP                 , atom_of_kind, force, locks, force_fac        &
-!$OMP                 , paw_kind, has_intac                          &
-!$OMP                 )                                              &
-!$OMP          PRIVATE( slot_num, is_entry_null, TASK, is_task_valid &
-!$OMP                 , C_int_h, C_int_s, coc, a_matrix, p_matrix    &
-!$OMP                 , mat_h, mat_p                               &
-!$OMP                 , int_local_h, int_local_s                     &
-!$OMP                 , ikind, jkind, iatom, jatom, cell_b           &
-!$OMP                 , basis_set_a, basis_set_b, img                &
-!$OMP                 , found, next_task                             &
-!$OMP                 , kkind, lock_num                              &
-!$OMP                 , iac, alist_ac, kac, n_cont_a, list_a         &
-!$OMP                 , ibc, alist_bc, kbc, n_cont_b, list_b         &
-!$OMP                 , katom, rho_at, nsoctot                       &
-!$OMP                 , C_coeff_hh_a, C_coeff_ss_a, dista, rac       &
-!$OMP                 , C_coeff_hh_b, C_coeff_ss_b, distb, rbc       &
-!$OMP                 , ia_kind, ja_kind, ka_kind, force_tmp, do_forces &
-!$OMP                 )                                              &
-!$OMP        REDUCTION(+:pv_virial_thread                            &
-!$OMP                 )
-
-      ALLOCATE (C_int_h(max_gau*max_nsgf), C_int_s(max_gau*max_nsgf), coc(max_gau*max_gau), &
-                a_matrix(max_gau, max_gau), p_matrix(max_nsgf, max_nsgf))
-
-      ALLOCATE (mat_h(nspins), mat_p(nspins))
-      DO ispin = 1, nspins
-         NULLIFY (mat_h(ispin)%array, mat_p(ispin)%array)
+      CPASSERT(ASSOCIATED(my_sab(1)%nlist_task))
+      nl_size = my_sab(1)%nl_size
+      ALLOCATE (ia_ptr(natom + 1), ia_work(natom), slot_order(MAX(1, nl_size)))
+      ia_work(:) = 0
+      DO i = 1, 2
+         DO slot = 1, nl_size
+            task => my_sab(1)%nlist_task(slot)
+            IF (.NOT. ASSOCIATED(basis_set_list(task%ikind)%gto_basis_set)) CYCLE
+            IF (.NOT. ASSOCIATED(basis_set_list(task%jkind)%gto_basis_set)) CYCLE
+            iatom = MIN(task%iatom, task%jatom)
+            IF (i == 2) slot_order(ia_work(iatom)) = slot
+            ia_work(iatom) = ia_work(iatom) + 1
+         END DO
+         IF (i == 2) EXIT
+         ia_ptr(1) = 1
+         max_nb = MAX(1, MAXVAL(ia_work))
+         DO iatom = 1, natom
+            ia_ptr(iatom + 1) = ia_ptr(iatom) + ia_work(iatom)
+            ia_work(iatom) = ia_ptr(iatom)
+         END DO
       END DO
+      DEALLOCATE (ia_work)
+
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP          SHARED(natom, nkind, nspins, nimages, cell_to_index, ksmat, pmat, forces, max_gau, &
+!$OMP                 max_nsgf, max_nb, max_nclist, ku_alloc, ia_ptr, slot_order, my_sab, paw_kind, &
+!$OMP                 has_intac, my_oce, my_rho_atom, factor1, factor2, force_fac, use_virial, &
+!$OMP                 atom_of_kind, force, locks) &
+!$OMP          PRIVATE(nb_hblk, nb_pblk, C_int_h, C_int_s, coc, a_matrix, p_matrix, k_buf, k_offset, &
+!$OMP                  u_buf, u_touched, f_katom, f_jatom, fb_triple, beta, dir, ieqj, trace, iatom, &
+!$OMP                  n_nb, ikind, TASK, inb, jatom, cell_b, img, ispin, found, kkind, iac, &
+!$OMP                  alist_ac, kac_lo, kac_hi, k_total, kac, clist_a, n_cont_a, nsoctot, katom, &
+!$OMP                  int_local_h, int_local_s, C_coeff_hh_a, C_coeff_ss_a, jkind, ibc, alist_bc, &
+!$OMP                  kbc, clist_b, n_cont_b, list_a, list_b, dista, C_coeff_hh_b, C_coeff_ss_b, &
+!$OMP                  rac, rbc, do_forces, force_tmp, ia_kind, ja_kind, ka_kind, lock_num) &
+!$OMP          REDUCTION(+:pv_virial_thread)
+
+      ALLOCATE (nb_hblk(nspins, max_nb), nb_pblk(nspins, max_nb), k_buf(ku_alloc, nspins), &
+                k_offset(max_nclist), C_int_h(MAX(1, max_gau*max_nsgf)), &
+                C_int_s(MAX(1, max_gau*max_nsgf)), coc(MAX(1, max_gau), MAX(1, max_gau)), &
+                a_matrix(MAX(1, max_nsgf), MAX(1, max_nsgf)), p_matrix(MAX(1, max_nsgf), MAX(1, max_nsgf)))
+      IF (forces) ALLOCATE (u_buf(ku_alloc, nspins), u_touched(max_nclist, nspins), f_katom(3, max_nclist))
 
       IF (forces) THEN
 !$OMP SINGLE
@@ -353,134 +330,157 @@ CONTAINS
 !$OMP END DO
       END IF
 
-      ! Dynamic schedule to take account of the fact that some slots may be empty
-      ! or contain 1 or more tasks
-!$OMP DO SCHEDULE(DYNAMIC,5)
-      DO slot_num = 1, nl_table_num_slots
-         CALL nl_hash_table_is_null(nl_hash_table, slot_num, is_entry_null)
+!$OMP DO SCHEDULE(DYNAMIC, 1)
+      DO iatom = 1, natom
+         n_nb = ia_ptr(iatom + 1) - ia_ptr(iatom)
+         IF (n_nb == 0) CYCLE
+         task => my_sab(1)%nlist_task(slot_order(ia_ptr(iatom)))
+         ikind = MERGE(task%jkind, task%ikind, task%iatom > task%jatom)
 
-         IF (.NOT. is_entry_null) THEN
-            CALL nl_hash_table_get_from_index(nl_hash_table, slot_num, task)
-
-            is_task_valid = ASSOCIATED(task)
-            DO WHILE (is_task_valid)
-
-               ikind = task%ikind
-               jkind = task%jkind
-               iatom = task%iatom
-               jatom = task%jatom
-               cell_b(:) = task%cell(:)
-
-               basis_set_a => basis_set_list(ikind)%gto_basis_set
-               IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
-               basis_set_b => basis_set_list(jkind)%gto_basis_set
-               IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
-
-               IF (nimages > 1) THEN
-                  img = cell_to_index(cell_b(1), cell_b(2), cell_b(3))
-                  CPASSERT(img > 0)
-               ELSE
-                  img = 1
-               END IF
-
-               DO ispin = 1, nspins
-                  NULLIFY (mat_h(ispin)%array, mat_p(ispin)%array)
-
-                  found = .FALSE.
-                  IF (iatom <= jatom) THEN
-                     CALL dbcsr_get_block_p(matrix=ksmat(nspins*(img - 1) + ispin)%matrix, &
-                                            row=iatom, col=jatom, &
-                                            BLOCK=mat_h(ispin)%array, found=found)
-                  ELSE
-                     CALL dbcsr_get_block_p(matrix=ksmat(nspins*(img - 1) + ispin)%matrix, &
-                                            row=jatom, col=iatom, &
-                                            BLOCK=mat_h(ispin)%array, found=found)
-                  END IF
+         DO inb = 1, n_nb
+            task => my_sab(1)%nlist_task(slot_order(ia_ptr(iatom) + inb - 1))
+            jatom = MAX(task%iatom, task%jatom)
+            img = 1
+            IF (nimages > 1) img = cell_to_index(task%cell(1), task%cell(2), task%cell(3))
+            CPASSERT(img > 0)
+            DO ispin = 1, nspins
+               CALL dbcsr_get_block_p(ksmat(nspins*(img - 1) + ispin)%matrix, iatom, jatom, nb_hblk(ispin, inb)%array, found)
+               CPASSERT(found)
+               IF (forces) THEN
+                  CALL dbcsr_get_block_p(pmat(nspins*(img - 1) + ispin)%matrix, iatom, jatom, nb_pblk(ispin, inb)%array, found)
                   CPASSERT(found)
+               END IF
+            END DO
+         END DO
 
-                  IF (forces) THEN
-                     found = .FALSE.
-                     IF (iatom <= jatom) THEN
-                        CALL dbcsr_get_block_p(matrix=pmat(nspins*(img - 1) + ispin)%matrix, &
-                                               row=iatom, col=jatom, &
-                                               BLOCK=mat_p(ispin)%array, found=found)
-                     ELSE
-                        CALL dbcsr_get_block_p(matrix=pmat(nspins*(img - 1) + ispin)%matrix, &
-                                               row=jatom, col=iatom, &
-                                               BLOCK=mat_p(ispin)%array, found=found)
-                     END IF
-                     CPASSERT(found)
+         DO kkind = 1, nkind
+            IF (.NOT. paw_kind(kkind)) CYCLE
+            iac = ikind + nkind*(kkind - 1)
+            IF (.NOT. has_intac(iac)) CYCLE
+            CALL get_alist(my_oce%intac(iac), alist_ac, iatom)
+            IF (.NOT. ASSOCIATED(alist_ac)) CYCLE
+
+            ! Precompute K_a = C_a^h V_h - C_a^s V_s and accumulate U_a = sum_(B/=K) f P_AB C_b^s.
+            kac_lo = 1
+            DO WHILE (kac_lo <= alist_ac%nclist)
+               k_total = 0
+               DO kac = kac_lo, alist_ac%nclist
+                  clist_a => alist_ac%clist(kac)
+                  n_cont_a = clist_a%nsgf_cnt
+                  IF (n_cont_a == 0) CYCLE
+                  nsoctot = SIZE(clist_a%acint, 2)
+                  IF (k_total > 0 .AND. k_total + n_cont_a*nsoctot > ku_alloc) EXIT
+                  katom = clist_a%catom
+                  k_offset(kac) = k_total + 1
+                  k_total = k_total + n_cont_a*nsoctot
+                  CALL get_rho_atom(rho_atom=my_rho_atom(katom), int_scr_h=int_local_h, int_scr_s=int_local_s)
+                  C_coeff_ss_a => clist_a%acint
+                  IF (iatom == katom .AND. ALL(clist_a%cell == 0)) THEN
+                     C_coeff_hh_a => clist_a%achint
+                     DO ispin = 1, nspins
+                        CALL DGEMM('N', 'N', n_cont_a, nsoctot, nsoctot, 1.0_dp, C_coeff_hh_a(:, :, 1), n_cont_a, &
+                                   int_local_h(ispin)%r_coef, nsoctot, 0.0_dp, k_buf(k_offset(kac):, ispin), n_cont_a)
+                        CALL DGEMM('N', 'N', n_cont_a, nsoctot, nsoctot, -1.0_dp, C_coeff_ss_a(:, :, 1), n_cont_a, &
+                                   int_local_s(ispin)%r_coef, nsoctot, 1.0_dp, k_buf(k_offset(kac):, ispin), n_cont_a)
+                     END DO
+                  ELSE
+                     DO ispin = 1, nspins
+                        coc(1:nsoctot, 1:nsoctot) = int_local_h(ispin)%r_coef - int_local_s(ispin)%r_coef
+                        CALL DGEMM('N', 'N', n_cont_a, nsoctot, nsoctot, 1.0_dp, C_coeff_ss_a(:, :, 1), n_cont_a, &
+                                   coc, SIZE(coc, 1), 0.0_dp, k_buf(k_offset(kac):, ispin), n_cont_a)
+                     END DO
                   END IF
                END DO
+               kac_hi = kac - 1
 
-               DO kkind = 1, nkind
-                  IF (.NOT. paw_kind(kkind)) CYCLE
+               IF (k_total > 0) THEN
+                  IF (forces) THEN
+                     u_touched(kac_lo:kac_hi, 1:nspins) = .FALSE.
+                     f_katom(1:3, kac_lo:kac_hi) = 0.0_dp
+                  END IF
+                  DO inb = 1, n_nb
+                     task => my_sab(1)%nlist_task(slot_order(ia_ptr(iatom) + inb - 1))
+                     jkind = MERGE(task%ikind, task%jkind, task%iatom > task%jatom)
+                     jatom = MAX(task%iatom, task%jatom)
+                     cell_b = MERGE(-task%cell, task%cell, task%iatom > task%jatom)
+                     ibc = jkind + nkind*(kkind - 1)
+                     IF (.NOT. has_intac(ibc)) CYCLE
+                     CALL get_alist(my_oce%intac(ibc), alist_bc, jatom)
+                     IF (.NOT. ASSOCIATED(alist_bc)) CYCLE
 
-                  iac = ikind + nkind*(kkind - 1)
-                  ibc = jkind + nkind*(kkind - 1)
-                  IF (.NOT. has_intac(iac)) CYCLE
-                  IF (.NOT. has_intac(ibc)) CYCLE
+                     f_jatom = 0.0_dp
+                     ieqj = MERGE(1.0_dp, 2.0_dp, iatom == jatom)
 
-                  CALL get_alist(my_oce%intac(iac), alist_ac, iatom)
-                  CALL get_alist(my_oce%intac(ibc), alist_bc, jatom)
-                  IF (.NOT. ASSOCIATED(alist_ac)) CYCLE
-                  IF (.NOT. ASSOCIATED(alist_bc)) CYCLE
-
-                  DO kac = 1, alist_ac%nclist
                      DO kbc = 1, alist_bc%nclist
-                        IF (alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom) CYCLE
+                        clist_b => alist_bc%clist(kbc)
+                        n_cont_b = clist_b%nsgf_cnt
+                        IF (n_cont_b == 0) CYCLE
+                        katom = clist_b%catom
+                        DO kac = kac_lo, kac_hi
+                           IF (alist_ac%clist(kac)%catom /= katom) CYCLE
+                           IF (ALL(cell_b + clist_b%cell == alist_ac%clist(kac)%cell)) EXIT
+                        END DO
+                        IF (kac > kac_hi) CYCLE
+                        clist_a => alist_ac%clist(kac)
+                        n_cont_a = clist_a%nsgf_cnt
+                        IF (n_cont_a == 0) CYCLE
+                        list_a => clist_a%sgf_list
+                        list_b => clist_b%sgf_list
 
-                        IF (ALL(cell_b + alist_bc%clist(kbc)%cell - alist_ac%clist(kac)%cell == 0)) THEN
-                           n_cont_a = alist_ac%clist(kac)%nsgf_cnt
-                           n_cont_b = alist_bc%clist(kbc)%nsgf_cnt
-                           IF (n_cont_a == 0 .OR. n_cont_b == 0) CYCLE
-
-                           list_a => alist_ac%clist(kac)%sgf_list
-                           list_b => alist_bc%clist(kbc)%sgf_list
-
-                           katom = alist_ac%clist(kac)%catom
-
-                           IF (iatom == katom .AND. ALL(alist_ac%clist(kac)%cell == 0)) THEN
-                              C_coeff_hh_a => alist_ac%clist(kac)%achint
-                              C_coeff_ss_a => alist_ac%clist(kac)%acint
+                        IF (jatom /= katom .OR. ANY(clist_b%cell /= 0)) THEN
+                           nsoctot = SIZE(clist_a%acint, 2)
+                           C_coeff_ss_b => clist_b%acint
+                           DO ispin = 1, nspins
+                              CALL DGEMM('N', 'T', n_cont_a, n_cont_b, nsoctot, factor1, k_buf(k_offset(kac):, ispin), &
+                                         n_cont_a, C_coeff_ss_b(:, :, 1), n_cont_b, 0.0_dp, a_matrix, SIZE(a_matrix, 1))
+                              CALL alist_post_align_blk(a_matrix, SIZE(a_matrix, 1), nb_hblk(ispin, inb)%array, &
+                                                        SIZE(nb_hblk(ispin, inb)%array, 1), list_a, n_cont_a, list_b, n_cont_b)
+                           END DO
+                           IF (forces) THEN
+                              dista = (iatom /= katom .OR. ANY(clist_a%cell /= 0))
+                              fb_triple = 0.0_dp
+                              DO ispin = 1, nspins
+                                 CALL alist_pre_align_blk(nb_pblk(ispin, inb)%array, SIZE(nb_pblk(ispin, inb)%array, 1), &
+                                                          p_matrix, SIZE(p_matrix, 1), list_a, n_cont_a, list_b, n_cont_b)
+                                 CALL DGEMM('T', 'N', n_cont_b, nsoctot, n_cont_a, 1.0_dp, p_matrix, SIZE(p_matrix, 1), &
+                                            k_buf(k_offset(kac):, ispin), n_cont_a, 0.0_dp, C_int_s, n_cont_b)
+                                 IF (dista) THEN
+                                    beta = MERGE(1.0_dp, 0.0_dp, u_touched(kac, ispin))
+                                    u_touched(kac, ispin) = .TRUE.
+                                    CALL DGEMM('N', 'N', n_cont_a, nsoctot, n_cont_b, ieqj*force_fac(ispin), p_matrix, &
+                                               SIZE(p_matrix, 1), C_coeff_ss_b(:, :, 1), n_cont_b, beta, &
+                                               u_buf(k_offset(kac):, ispin), n_cont_a)
+                                 END IF
+                                 DO dir = 2, 4
+                                    trace = factor2*ieqj*force_fac(ispin)* &
+                                            trace_r_AxB(C_int_s, n_cont_b, C_coeff_ss_b(:, :, dir), n_cont_b, n_cont_b, nsoctot)
+                                    f_katom(dir - 1, kac) = f_katom(dir - 1, kac) + trace
+                                    fb_triple(dir - 1) = fb_triple(dir - 1) - trace
+                                 END DO
+                              END DO
+                              f_jatom = f_jatom + fb_triple
+                              IF (use_virial) CALL virial_pair_force(pv_virial_thread, 1.0_dp, fb_triple, clist_b%rac)
+                           END IF
+                        ELSE
+                           C_coeff_ss_a => clist_a%acint
+                           IF (iatom == katom .AND. ALL(clist_a%cell == 0)) THEN
+                              C_coeff_hh_a => clist_a%achint
                               dista = .FALSE.
                            ELSE
-                              C_coeff_hh_a => alist_ac%clist(kac)%acint
-                              C_coeff_ss_a => alist_ac%clist(kac)%acint
+                              C_coeff_hh_a => clist_a%acint
                               dista = .TRUE.
                            END IF
-
-                           IF (jatom == katom .AND. ALL(alist_bc%clist(kbc)%cell == 0)) THEN
-                              C_coeff_hh_b => alist_bc%clist(kbc)%achint
-                              C_coeff_ss_b => alist_bc%clist(kbc)%acint
-                              distb = .FALSE.
-                           ELSE
-                              C_coeff_hh_b => alist_bc%clist(kbc)%acint
-                              C_coeff_ss_b => alist_bc%clist(kbc)%acint
-                              distb = .TRUE.
-                           END IF
-
-                           rho_at => my_rho_atom(katom)
+                           C_coeff_hh_b => clist_b%achint
+                           C_coeff_ss_b => clist_b%acint
                            nsoctot = SIZE(C_coeff_ss_a, 2)
-
-                           CALL get_rho_atom(rho_atom=rho_at, int_scr_h=int_local_h, int_scr_s=int_local_s)
-                           do_forces = forces .AND. (dista .OR. distb)
+                           CALL get_rho_atom(rho_atom=my_rho_atom(katom), int_scr_h=int_local_h, int_scr_s=int_local_s)
+                           do_forces = forces .AND. dista
                            ! Use the stored block ordering for both KS and force contractions.
-                           IF (iatom <= jatom) THEN
-                              CALL add_vhxca(mat_h, mat_p, C_coeff_hh_a, C_coeff_hh_b, C_coeff_ss_a, C_coeff_ss_b, &
-                                             int_local_h, int_local_s, nspins, iatom, jatom, nsoctot, factor1, &
-                                             list_a, n_cont_a, list_b, n_cont_b, dista, distb, &
-                                             C_int_h, C_int_s, max_nsgf, coc, a_matrix, p_matrix, &
-                                             do_forces, force_tmp, force_fac)
-                           ELSE
-                              CALL add_vhxca(mat_h, mat_p, C_coeff_hh_b, C_coeff_hh_a, C_coeff_ss_b, C_coeff_ss_a, &
-                                             int_local_h, int_local_s, nspins, jatom, iatom, nsoctot, factor1, &
-                                             list_b, n_cont_b, list_a, n_cont_a, distb, dista, &
-                                             C_int_h, C_int_s, max_nsgf, coc, a_matrix, p_matrix, &
-                                             do_forces, force_tmp, force_fac)
-                              ! Restore the original task ordering of the two endpoint forces.
-                              force_tmp(:, 1:2) = force_tmp(:, 2:1:-1)
-                           END IF
+                           CALL add_vhxca(nb_hblk(:, inb), nb_pblk(:, inb), C_coeff_hh_a, C_coeff_hh_b, &
+                                          C_coeff_ss_a, C_coeff_ss_b, int_local_h, int_local_s, nspins, &
+                                          iatom, jatom, nsoctot, factor1, list_a, n_cont_a, list_b, n_cont_b, &
+                                          dista, .FALSE., C_int_h, C_int_s, MAX(1, max_nsgf), coc, a_matrix, &
+                                          p_matrix, do_forces, force_tmp, force_fac)
 
                            IF (do_forces) THEN
                               IF (use_virial) THEN
@@ -505,31 +505,62 @@ CONTAINS
                                  CALL virial_pair_force(pv_virial_thread, 1._dp, force_tmp(1:3, 2), rbc)
                               END IF
                            END IF
-                           EXIT ! search loop over jatom-katom list
                         END IF
                      END DO ! kbc
-                  END DO ! kac
 
-               END DO ! kkind
+                     IF (forces .AND. ANY(f_jatom /= 0.0_dp)) THEN
+                        ja_kind = atom_of_kind(jatom)
+!$                      CALL omp_set_lock(locks((ja_kind - 1)*nkind + jkind))
+                        force(jkind)%vhxc_atom(:, ja_kind) = force(jkind)%vhxc_atom(:, ja_kind) + f_jatom
+!$                      CALL omp_unset_lock(locks((ja_kind - 1)*nkind + jkind))
+                     END IF
+                  END DO
 
-               next_task => task%next
-               ! We are done with this task, we can deallocate it
-               DEALLOCATE (task)
-               is_task_valid = ASSOCIATED(next_task)
-               IF (is_task_valid) task => next_task
-
+                  IF (forces) THEN
+                     ia_kind = atom_of_kind(iatom)
+                     DO kac = kac_lo, kac_hi
+                        clist_a => alist_ac%clist(kac)
+                        n_cont_a = clist_a%nsgf_cnt
+                        katom = clist_a%catom
+                        IF (ANY(u_touched(kac, 1:nspins))) THEN
+                           CALL get_rho_atom(rho_atom=my_rho_atom(katom), int_scr_h=int_local_h, int_scr_s=int_local_s)
+                           C_coeff_ss_a => clist_a%acint
+                           nsoctot = SIZE(C_coeff_ss_a, 2)
+                           fb_triple = 0.0_dp
+                           DO ispin = 1, nspins
+                              IF (.NOT. u_touched(kac, ispin)) CYCLE
+                              coc(1:nsoctot, 1:nsoctot) = int_local_h(ispin)%r_coef - int_local_s(ispin)%r_coef
+                              CALL DGEMM('N', 'N', n_cont_a, nsoctot, nsoctot, 1.0_dp, u_buf(k_offset(kac):, ispin), &
+                                         n_cont_a, coc, SIZE(coc, 1), 0.0_dp, C_int_s, n_cont_a)
+                              DO dir = 2, 4
+                                 trace = factor2*trace_r_AxB(C_int_s, n_cont_a, C_coeff_ss_a(:, :, dir), &
+                                                             n_cont_a, n_cont_a, nsoctot)
+                                 f_katom(dir - 1, kac) = f_katom(dir - 1, kac) + trace
+                                 fb_triple(dir - 1) = fb_triple(dir - 1) - trace
+                              END DO
+                           END DO
+!$                         CALL omp_set_lock(locks((ia_kind - 1)*nkind + ikind))
+                           force(ikind)%vhxc_atom(:, ia_kind) = force(ikind)%vhxc_atom(:, ia_kind) + fb_triple
+!$                         CALL omp_unset_lock(locks((ia_kind - 1)*nkind + ikind))
+                           IF (use_virial) CALL virial_pair_force(pv_virial_thread, 1.0_dp, fb_triple, clist_a%rac)
+                        END IF
+                        IF (ANY(f_katom(:, kac) /= 0.0_dp)) THEN
+                           ka_kind = atom_of_kind(katom)
+!$                         CALL omp_set_lock(locks((ka_kind - 1)*nkind + kkind))
+                           force(kkind)%vhxc_atom(:, ka_kind) = force(kkind)%vhxc_atom(:, ka_kind) + f_katom(:, kac)
+!$                         CALL omp_unset_lock(locks((ka_kind - 1)*nkind + kkind))
+                        END IF
+                     END DO
+                  END IF
+               END IF
+               kac_lo = kac_hi + 1
             END DO
-
-         ELSE
-            ! NO KEY/VALUE
-         END IF
+         END DO
       END DO
 !$OMP END DO
 
-      DO ispin = 1, nspins
-         NULLIFY (mat_h(ispin)%array, mat_p(ispin)%array)
-      END DO
-      DEALLOCATE (mat_h, mat_p, C_int_h, C_int_s, a_matrix, p_matrix, coc)
+      DEALLOCATE (nb_hblk, nb_pblk, k_buf, k_offset, C_int_h, C_int_s, a_matrix, p_matrix, coc)
+      IF (forces) DEALLOCATE (u_buf, u_touched, f_katom)
 
       IF (forces) THEN
          ! Implicit barrier at end of OMP DO, so locks can be freed
@@ -551,7 +582,7 @@ CONTAINS
          virial%pv_virial(1:3, 1:3) = virial%pv_virial(1:3, 1:3) + pv_virial_thread(1:3, 1:3)
       END IF
 
-      CALL nl_hash_table_release(nl_hash_table)
+      DEALLOCATE (ia_ptr, slot_order)
 
       DEALLOCATE (basis_set_list, paw_kind, has_intac)
 
