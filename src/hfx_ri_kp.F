@@ -2436,8 +2436,12 @@ CONTAINS
       ALLOCATE (ri_data%kp_RI_atom(nRI))
       CALL get_idx_to_atom(ri_data%kp_RI_atom, ri_data%bsizes_RI_split, ri_data%bsizes_RI)
 
-      lo = MINVAL(index_to_cell(:, ri_data%RI_cell_to_img), DIM=2) - MAXVAL(index_to_cell(:, 1:nimg), DIM=2)
-      hi = MAXVAL(index_to_cell(:, ri_data%RI_cell_to_img), DIM=2) - MINVAL(index_to_cell(:, 1:nimg), DIM=2)
+      ! Avoid ifx miscompilation of rank-reducing MINVAL/MAXVAL expressions
+      ! used to define allocation bounds. Each scalar reduction gives the same range.
+      DO i = 1, 3
+         lo(i) = MINVAL(index_to_cell(i, ri_data%RI_cell_to_img)) - MAXVAL(index_to_cell(i, 1:nimg))
+         hi(i) = MAXVAL(index_to_cell(i, ri_data%RI_cell_to_img)) - MINVAL(index_to_cell(i, 1:nimg))
+      END DO
       ALLOCATE (cell_index(lo(1):hi(1), lo(2):hi(2), lo(3):hi(3)))
       cell_index = 0
       DO b = 1, nimg
