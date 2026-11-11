@@ -285,7 +285,7 @@ CONTAINS
             ! use the inbuild fft-lib
             ! CALL fft_1d(fft_scratch%fft_plan(2), rbuf, pbuf, 1.0_dp, stat)
             ! or cufft (works faster, but is only faster if plans are stored)
-            CALL fft_gpu_f(rbuf, pbuf, +1, n(2), mx2*mz2)
+            CALL fft_gpu_1d_local(rbuf, pbuf, +1, n(2), mx2*mz2)
 
             ! Exchange data ( transpose of matrix ) and sort
             CALL xz_to_yz(pbuf, rs_group, r_dim, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
@@ -450,7 +450,7 @@ CONTAINS
             ! use the inbuild fft-lib
             ! CALL fft_1d(fft_scratch%fft_plan(5), qbuf, rbuf, 1.0_dp, stat)
             ! or cufft (works faster, but is only faster if plans are stored)
-            CALL fft_gpu_f(qbuf, rbuf, -1, n(2), mx2*mz2)
+            CALL fft_gpu_1d_local(qbuf, rbuf, -1, n(2), mx2*mz2)
 
             ! Exchange data ( transpose of matrix )
             IF (pw1%pw_grid%grid_span /= FULLSPACE) sbuf = z_zero
@@ -699,21 +699,21 @@ CONTAINS
 !> \param m ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE fft_gpu_f(pwbuf1, pwbuf2, dir, n, m)
+   SUBROUTINE fft_gpu_1d_local(pwbuf1, pwbuf2, dir, n, m)
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          TARGET                                          :: pwbuf1
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          TARGET                                          :: pwbuf2
       INTEGER, INTENT(IN)                                :: dir, n, m
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_gpu_f'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_gpu_1d_local'
 
       COMPLEX(KIND=dp), POINTER                          :: ptr_pwin, ptr_pwout
       INTEGER                                            :: handle, ldx_in, ldx_out
       LOGICAL                                            :: transpose_in, transpose_out
       INTERFACE
          SUBROUTINE fft_gpu_f_c(zin, zout, dir, n, m, transpose_in, transpose_out, ldx_in, ldx_out) &
-            BIND(C, name="fft_gpu_f")
+            BIND(C, name="fft_gpu_1d_local")
             IMPORT
             TYPE(C_PTR), INTENT(IN), VALUE               :: zin
             TYPE(C_PTR), VALUE                           :: zout
@@ -753,7 +753,7 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE fft_gpu_f
+   END SUBROUTINE fft_gpu_1d_local
 ! **************************************************************************************************
 !> \brief perform a parallel 1D-FFT followed by a gather on the gpu
 !> \param pwbuf ...
