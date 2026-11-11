@@ -65,6 +65,53 @@ MODULE qs_ks_atom
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief Sum zero-padded rank-owned PAW potential blocks across MPI ranks in L2-sized chunks.
+!> \param my_rho_atom atomic PAW data holding local potential integral blocks
+!> \param natom total number of atoms
+!> \param nspins number of spin components
+!> \param max_gau maximum size of the one-center basis
+!> \param para_env MPI parallel environment
+! **************************************************************************************************
+   SUBROUTINE replicate_int_scr(my_rho_atom, natom, nspins, max_gau, para_env)
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: my_rho_atom
+      INTEGER, INTENT(IN)                                :: natom, nspins, max_gau
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      INTEGER                                            :: b_end, b_lo, iat, ispin, jj, m1, off, p
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buf
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: scr_h, scr_s
+
+      ALLOCATE (buf(MAX(l2_chunk_dp, 2*nspins*max_gau*max_gau)))
+      b_lo = 1
+      DO WHILE (b_lo <= natom)
+         b_end = natom
+         DO p = 1, 2
+            off = 0
+            DO iat = b_lo, b_end
+               IF (.NOT. ASSOCIATED(my_rho_atom(iat)%int_scr_h(1)%r_coef)) CYCLE
+               m1 = SIZE(my_rho_atom(iat)%int_scr_h(1)%r_coef, 1)
+               IF (p == 1 .AND. off > 0 .AND. off + 2*nspins*m1*m1 > SIZE(buf)) EXIT
+               DO ispin = 1, nspins
+                  scr_h => my_rho_atom(iat)%int_scr_h(ispin)%r_coef
+                  scr_s => my_rho_atom(iat)%int_scr_s(ispin)%r_coef
+                  DO jj = 1, m1
+                     IF (p == 1) buf(off + 1:off + m1) = scr_h(1:m1, jj)
+                     IF (p == 1) buf(off + m1 + 1:off + 2*m1) = scr_s(1:m1, jj)
+                     IF (p == 2) scr_h(1:m1, jj) = buf(off + 1:off + m1)
+                     IF (p == 2) scr_s(1:m1, jj) = buf(off + m1 + 1:off + 2*m1)
+                     off = off + 2*m1
+                  END DO
+               END DO
+            END DO
+            b_end = iat - 1
+            IF (p == 1 .AND. off > 0) CALL para_env%sum(buf(1:off))
+         END DO
+         b_lo = b_end + 1
+      END DO
+      DEALLOCATE (buf)
+   END SUBROUTINE replicate_int_scr
+
+! **************************************************************************************************
 !> \brief The correction to the KS matrix due to the GAPW local terms to the hartree and
 !>      XC contributions is here added. The correspondig forces contribution are also calculated
 !>      if required. Each sparse-matrix block A-B is corrected by all the atomic contributions
@@ -235,19 +282,17 @@ CONTAINS
                                   my_rho_atom(iatom)%int_scr_s(ispin)%r_coef, my_kind_set(ikind))
                END DO
             END DO
-            ! broadcast the CPC arrays to all processors (replicated data)
-            DO ip = 0, num_pe - 1
-               bo = get_limit(nat, num_pe, ip)
-               DO iat = bo(1), bo(2)
-                  iatom = atom_list(iat)
-                  DO ispin = 1, nspins
-                     CALL para_env%bcast(my_rho_atom(iatom)%int_scr_h(ispin)%r_coef, ip)
-                     CALL para_env%bcast(my_rho_atom(iatom)%int_scr_s(ispin)%r_coef, ip)
-                  END DO
+            ! Zero non-local PAW blocks and sum across ranks to replicate int_scr_h/s
+            DO ip = 1, MERGE(nat, 0, num_pe > 1)
+               IF (ip >= bo(1) .AND. ip <= bo(2)) CYCLE
+               DO ispin = 1, nspins
+                  my_rho_atom(atom_list(ip))%int_scr_h(ispin)%r_coef = 0.0_dp
+                  my_rho_atom(atom_list(ip))%int_scr_s(ispin)%r_coef = 0.0_dp
                END DO
             END DO
          END IF
       END DO
+      IF (num_pe > 1) CALL replicate_int_scr(my_rho_atom, natom, nspins, max_gau, para_env)
       END ASSOCIATE
 
       ALLOCATE (basis_set_list(nkind))
