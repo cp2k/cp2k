@@ -11,7 +11,7 @@
   {matcher = "M067", tol = 9e-9, ref = 2.23001754e-06},
 ]
 "H2O-ls-emd-ngs.inp"                   = [
-  {matcher = "E_total", tol = 2e-14, ref = -17.05272806062355},
+  {matcher = "E_total", tol = 2e-14, ref = -17.05272806062441},
 ]
 "H2O-ls-rtp-bch.inp"                   = [
   {matcher = "E_total", tol = 3e-14, ref = -17.08907706662020},
@@ -45,6 +45,6 @@
   {matcher = "E_total", tol = 8e-13, ref = -21.07372556817139},
 ]
 "H2O2-emd-overlap-second-deriv.inp"    = [
-  {matcher = "M072", tol = 1e-8, ref = 0.901511984},
+  {matcher = "M072", tol = 1e-8, ref = 0.901510732},
 ]
 #EOF

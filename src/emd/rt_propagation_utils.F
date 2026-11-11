@@ -134,11 +134,11 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_S_derivs'
+      INTEGER, DIMENSION(3, 3), PARAMETER :: ider = RESHAPE([4, 5, 6, 5, 7, 8, 6, 8, 9], [3, 3])
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
-      INTEGER                                            :: col_atom, handle, i, j, m, maxder, n, &
-                                                            nder, row_atom
-      INTEGER, DIMENSION(6, 2)                           :: c_map_mat
+      INTEGER                                            :: col_atom, handle, i, k, m, maxder, nder, &
+                                                            row_atom
       LOGICAL                                            :: return_s_derivatives
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_values
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -221,38 +221,22 @@ CONTAINS
          CALL dbcsr_add(B_mat, tmp_mat, one, one)
       END DO
       CALL dbcsr_filter(B_mat, rtp%filter_eps)
-      !calculate C matrix: v(Rb)*<d/dRa alpha| d/dRb beta>
-
-      c_map_mat = 0
-      n = 0
-      DO j = 1, 3
-         DO m = j, 3
-            n = n + 1
-            c_map_mat(n, 1) = j
-            IF (m == j) CYCLE
-            c_map_mat(n, 2) = m
-         END DO
-      END DO
+      !calculate C matrix: C(i) = <d/dt alpha| d/dRb_i beta> = sum_k v_k(Ra)*<d/dRa_k alpha| d/dRb_i beta>
+      ! with alpha on atom a (row) and beta on atom b (column)
 
       DO i = 1, 3
          CALL dbcsr_set(C_mat(i)%matrix, zero)
-      END DO
-      DO m = 1, 6
-         CALL dbcsr_copy(tmp_mat, S_der(m + 3)%matrix)
-         DO j = 1, 2
-            IF (c_map_mat(m, j) == 0) CYCLE
-            CALL dbcsr_add(C_mat(c_map_mat(m, j))%matrix, tmp_mat, one, one)
+         DO k = 1, 3
+            CALL dbcsr_copy(tmp_mat, S_der(ider(i, k))%matrix)
+            CALL dbcsr_iterator_start(iter, tmp_mat)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
+               block_values = block_values*particle_set(row_atom)%v(k)
+            END DO
+            CALL dbcsr_iterator_stop(iter)
+            CALL dbcsr_add(C_mat(i)%matrix, tmp_mat, one, one)
          END DO
-      END DO
-
-      DO m = 1, 3
-         CALL dbcsr_iterator_start(iter, C_mat(m)%matrix)
-         DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
-            block_values = block_values*particle_set(row_atom)%v(m)
-         END DO
-         CALL dbcsr_iterator_stop(iter)
-         CALL dbcsr_filter(C_mat(m)%matrix, rtp%filter_eps)
+         CALL dbcsr_filter(C_mat(i)%matrix, rtp%filter_eps)
       END DO
 
       CALL dbcsr_deallocate_matrix(tmp_mat)
