@@ -179,6 +179,13 @@ void pop_from_stack(int *handle, double *run_time, double *self_time) {
   free(top_of_stack);
 }
 
+/*******************************************************************************
+ * \brief Comparator for sorting FFT timing entries by maximum total time.
+ * \param a First timing entry.
+ * \param b Second timing entry.
+ * \return Negative, zero, or positive according to the sort order.
+ * \author Frederick Stein
+ ******************************************************************************/
 int compare_fft_timing_statistics(const void *a, const void *b) {
   const double max_total_time_a =
       ((const fft_timing_statistics *)a)->max_total_time;
@@ -207,12 +214,27 @@ void fft_init_timer() {
   }
 }
 
+/*******************************************************************************
+ * \brief Write an FFT timing message to standard output.
+ * \param msg Message buffer.
+ * \param msglen Number of characters to write.
+ * \param output_unit Unused stdout marker.
+ * \author Frederick Stein
+ ******************************************************************************/
 static void fft_print_to_stdout(const char *msg, const int msglen,
                                 const int output_unit) {
   (void)output_unit;
   fwrite(msg, 1, msglen, stdout);
 }
 
+/*******************************************************************************
+ * \brief Format and emit one FFT timing-report line through a callback.
+ * \param print_func Output callback.
+ * \param output_unit Destination output unit.
+ * \param format printf-style format string.
+ * \param ... Optional format arguments.
+ * \author Frederick Stein
+ ******************************************************************************/
 static void fft_report_printf(fft_print_func_t print_func,
                               const int output_unit, const char *format, ...) {
   char buffer[4096];
@@ -372,6 +394,12 @@ void fft_print_timing_report_unit(const double threshold,
   }
 }
 
+/*******************************************************************************
+ * \brief Print the FFT timing report to standard output.
+ * \param threshold Minimum relative timing value to report.
+ * \param comm MPI communicator used to aggregate timing data.
+ * \author Frederick Stein
+ ******************************************************************************/
 void fft_print_timing_report(const double threshold, const cp_mpi_comm_t comm) {
   fft_print_timing_report_unit(threshold, fft_print_to_stdout, 0, comm);
   fflush(stdout);
