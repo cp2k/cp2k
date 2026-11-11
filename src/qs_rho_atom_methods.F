@@ -568,7 +568,7 @@ CONTAINS
          kac_hi, kac_lo, katom, kbc, kkind, len_PC1, max_gau, max_nb, max_nclist, max_nsgf, mepos, &
          n_cont_a, n_cont_b, n_nb, nat_kind, natom, nimages, nkind, nl_size, nsoctot, nspins, &
          num_pe, slot, w_alloc, w_total
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ia_ptr, ia_work, kind_of, nsatbas_kind, &
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ia_ptr, ia_work, nsatbas_kind, &
                                                             slot_order, w_offset
       INTEGER, DIMENSION(3)                              :: cell_b
       INTEGER, DIMENSION(:), POINTER                     :: a_list, list_a, list_b
@@ -876,26 +876,9 @@ CONTAINS
 !$OMP END PARALLEL
 
       DEALLOCATE (ia_ptr, slot_order)
+      CALL reduce_symmetrize_cpc(rho_atom_set, natom, nspins, max_gau, para_env)
 
-      CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
-
-      DO iatom = 1, natom
-         ikind = kind_of(iatom)
-
-         DO ispin = 1, nspins
-            IF (ASSOCIATED(rho_atom_set(iatom)%cpc_h(ispin)%r_coef)) THEN
-               CALL para_env%sum(rho_atom_set(iatom)%cpc_h(ispin)%r_coef)
-               CALL para_env%sum(rho_atom_set(iatom)%cpc_s(ispin)%r_coef)
-               r_coef_h => rho_atom_set(iatom)%cpc_h(ispin)%r_coef
-               r_coef_s => rho_atom_set(iatom)%cpc_s(ispin)%r_coef
-               r_coef_h(:, :) = r_coef_h(:, :) + TRANSPOSE(r_coef_h(:, :))
-               r_coef_s(:, :) = r_coef_s(:, :) + TRANSPOSE(r_coef_s(:, :))
-            END IF
-         END DO
-
-      END DO
-
-      DEALLOCATE (kind_of, basis_set_list, paw_kind, nsatbas_kind, has_intac)
+      DEALLOCATE (basis_set_list, paw_kind, nsatbas_kind, has_intac)
 
       CALL timestop(handle)
 
@@ -1208,5 +1191,56 @@ CONTAINS
       END DO
 
    END SUBROUTINE set2zero_rho_atom_rad
+
+! **************************************************************************************************
+!> \brief Symmetrize PAW cpc_h/cpc_s blocks and MPI-sum packed lower triangles in L2-sized chunks.
+!> \param rho_atom_set atomic PAW density set holding cpc_h and cpc_s blocks
+!> \param natom total number of atoms
+!> \param nspins number of spin components
+!> \param max_gau maximum size of the one-center basis
+!> \param para_env MPI parallel environment
+! **************************************************************************************************
+   SUBROUTINE reduce_symmetrize_cpc(rho_atom_set, natom, nspins, max_gau, para_env)
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
+      INTEGER, INTENT(IN)                                :: natom, nspins, max_gau
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      INTEGER                                            :: b_end, b_lo, iat, ispin, jj, m1, n, off, &
+                                                            p
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buf
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: r_h, r_s
+
+      ALLOCATE (buf(MAX(l2_chunk_dp, nspins*max_gau*(max_gau + 1))))
+      b_lo = 1
+      DO WHILE (b_lo <= natom)
+         b_end = natom
+         DO p = 1, 2
+            off = 0
+            DO iat = b_lo, b_end
+               IF (.NOT. ASSOCIATED(rho_atom_set(iat)%cpc_h(1)%r_coef)) CYCLE
+               m1 = SIZE(rho_atom_set(iat)%cpc_h(1)%r_coef, 1)
+               IF (p == 1 .AND. off > 0 .AND. off + nspins*m1*(m1 + 1) > SIZE(buf)) EXIT
+               DO ispin = 1, nspins
+                  r_h => rho_atom_set(iat)%cpc_h(ispin)%r_coef
+                  r_s => rho_atom_set(iat)%cpc_s(ispin)%r_coef
+                  DO jj = 1, m1
+                     n = m1 - jj + 1
+                     IF (p == 1) buf(off + 1:off + n) = r_h(jj:m1, jj) + r_h(jj, jj:m1)
+                     IF (p == 1) buf(off + n + 1:off + 2*n) = r_s(jj:m1, jj) + r_s(jj, jj:m1)
+                     IF (p == 2) r_h(jj:m1, jj) = buf(off + 1:off + n)
+                     IF (p == 2) r_h(jj, jj:m1) = buf(off + 1:off + n)
+                     IF (p == 2) r_s(jj:m1, jj) = buf(off + n + 1:off + 2*n)
+                     IF (p == 2) r_s(jj, jj:m1) = buf(off + n + 1:off + 2*n)
+                     off = off + 2*n
+                  END DO
+               END DO
+            END DO
+            b_end = iat - 1
+            IF (p == 1 .AND. off > 0) CALL para_env%sum(buf(1:off))
+         END DO
+         b_lo = b_end + 1
+      END DO
+      DEALLOCATE (buf)
+   END SUBROUTINE reduce_symmetrize_cpc
 
 END MODULE qs_rho_atom_methods
