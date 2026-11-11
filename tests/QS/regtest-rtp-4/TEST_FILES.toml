@@ -33,4 +33,9 @@
   {matcher = "M002", tol = 1e-10, ref = -75.8462154010},
   {matcher = "QS_atom_2_force_y", tol = 1e-6, ref = -3.87083229E-03}
 ]
+# fast proton hitting water, no field: velocity-dependent C-matrix force term
+"H2O-emd-proton-cterm.inp"   = [
+  {matcher = "M002", tol = 1e-10, ref = -17.3014855127},
+  {matcher = "QS_atom_1_force_z", tol = 1e-6, ref = -1.53594840E-01}
+]
 #EOF

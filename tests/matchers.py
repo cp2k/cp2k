@@ -187,6 +187,9 @@ registry["FIST_atom_1_force_x"] = GenericMatcher(
 registry["QS_atom_2_force_y"] = GenericMatcher(
     r"^\s*FORCES\|\s+2\s+\S+\s+([-+0-9.EeDd]+)", col=1, regex=True
 )
+registry["QS_atom_1_force_z"] = GenericMatcher(
+    r"^\s*FORCES\|\s+1\s+\S+\s+\S+\s+([-+0-9.EeDd]+)", col=1, regex=True
+)
 registry["N_special_kpoints"] = GenericMatcher(r"Number of Special K-points:", col=5)
 registry["QS_number_of_molecular_orbitals"] = GenericMatcher(
     r"Number of molecular orbitals:", col=5
