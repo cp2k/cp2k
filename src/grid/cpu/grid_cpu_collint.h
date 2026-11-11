@@ -680,16 +680,16 @@ static inline void __attribute__((always_inline)) general_cij_to_grid_low(
 }
 
 /*******************************************************************************
- * \brief Collocates coefficients C_ij onto the grid for general case.
+ * \brief Collocates coefficients C_ij onto the grid for j in [jsmin, jsmax].
  * \author Ole Schuett
  ******************************************************************************/
 static inline void __attribute__((always_inline)) general_cij_to_grid(
-    const int lp, const int k, const int kg, const int npts_local[3],
-    const int index_min[3], const int index_max[3], const int map_i[],
-    const int map_j[], const int sections_i[], const int sections_j[],
-    const double dh[3][3], const double gp[3], const double radius,
-    const double exp_ij[], const double exp_jk[], const double exp_ik[],
-    GRID_CONST_WHEN_COLLOCATE double *cij,
+    const int lp, const int k, const int kg, const int jsmin, const int jsmax,
+    const int npts_local[3], const int index_min[3], const int index_max[3],
+    const int map_i[], const int map_j[], const int sections_i[],
+    const int sections_j[], const double dh[3][3], const double gp[3],
+    const double radius, const double exp_ij[], const double exp_jk[],
+    const double exp_ik[], GRID_CONST_WHEN_COLLOCATE double *cij,
     GRID_CONST_WHEN_INTEGRATE double *grid) {
 
   const double a =
@@ -701,7 +701,7 @@ static inline void __attribute__((always_inline)) general_cij_to_grid(
   const double dk_dh2[3] = {(k - gp[2]) * dh[2][0], (k - gp[2]) * dh[2][1],
                             (k - gp[2]) * dh[2][2]};
 
-  for (int j = index_min[1]; j <= index_max[1]; j++) {
+  for (int j = jsmin; j <= jsmax; j++) {
     const int jg = map_j[j - index_min[1]];
     if (jg < 0) {
       j += sections_j[j - index_min[1]]; // skip over out-of-bounds indicies
@@ -740,6 +740,8 @@ static inline void __attribute__((always_inline)) general_cij_to_grid(
       const double sqrt_d = sqrt(d);
       const int ismin = (int)ceil((-b - sqrt_d) * inv_2a);
       const int ismax = (int)floor((-b + sqrt_d) * inv_2a);
+      if (ismin > ismax)
+        continue;
 
       double ci[lp + 1];
       memset(ci, 0, sizeof(ci));
@@ -884,6 +886,38 @@ static inline void __attribute__((always_inline)) general_cijk_kloop_low(
     const double exp_ik[], double *cij, GRID_CONST_WHEN_COLLOCATE double *cijk,
     GRID_CONST_WHEN_INTEGRATE double *grid) {
 
+  const double *h0 = dh[0], *h1 = dh[1], *h2 = dh[2];
+  const double h00 = h0[0] * h0[0] + h0[1] * h0[1] + h0[2] * h0[2];
+  const double h11 = h1[0] * h1[0] + h1[1] * h1[1] + h1[2] * h1[2];
+  const double h22 = h2[0] * h2[0] + h2[1] * h2[1] + h2[2] * h2[2];
+  const double c01[3] = {h0[1] * h1[2] - h0[2] * h1[1],
+                         h0[2] * h1[0] - h0[0] * h1[2],
+                         h0[0] * h1[1] - h0[1] * h1[0]};
+  const double c02[3] = {h0[1] * h2[2] - h0[2] * h2[1],
+                         h0[2] * h2[0] - h0[0] * h2[2],
+                         h0[0] * h2[1] - h0[1] * h2[0]};
+  const double det_dh = c01[0] * h2[0] + c01[1] * h2[1] + c01[2] * h2[2];
+  // Minimizing ||di*dh[0] + dj*dh[1] + dk*dh[2]||^2 <= radius^2 over real
+  // di = i - gp[0] projects onto the plane orthogonal to dh[0], giving
+  // ||dj*c01 + dk*c02||^2 <= h00*radius^2 with c01 = dh[0] x dh[1],
+  // c02 = dh[0] x dh[2], and ||c01 x c02||^2 = h00*det(dh)^2. Fall back to
+  // [index_min[1], index_max[1]] if any cell angle or elevation has
+  // sin^2 <= 1e-6; +/-1 pad absorbs rounding and j_disc_rtol skips
+  // outward-rounded endpoint k-planes outside the sphere.
+  const double j_sin2_min = 1e-6;
+  const double j_disc_rtol = 1e-9;
+  const double A_j = c01[0] * c01[0] + c01[1] * c01[1] + c01[2] * c01[2];
+  const double c02_norm2 = c02[0] * c02[0] + c02[1] * c02[1] + c02[2] * c02[2];
+  const double det_dh2 = det_dh * det_dh;
+  const bool has_j_bound = (A_j > j_sin2_min * h00 * h11) &&
+                           (c02_norm2 > j_sin2_min * h00 * h22) &&
+                           (det_dh2 > j_sin2_min * h00 * h11 * h22);
+  const double inv_Aj = has_j_bound ? (1.0 / A_j) : 0.0;
+  const double Bj_coeff =
+      -(c01[0] * c02[0] + c01[1] * c02[1] + c01[2] * c02[2]);
+  const double disc_r2 = h00 * A_j * radius * radius;
+  const double disc_k2_coeff = h00 * det_dh2;
+
   const int cij_size = (lp + 1) * (lp + 1);
   for (int k = index_min[2]; k <= index_max[2]; k++) {
     const int kg = map_k[k - index_min[2]];
@@ -892,21 +926,41 @@ static inline void __attribute__((always_inline)) general_cijk_kloop_low(
       continue;
     }
 
+    const double dk = (double)k - gp[2];
+    int jsmin = index_min[1];
+    int jsmax = index_max[1];
+    if (has_j_bound) {
+      const double dk2_term = dk * dk * disc_k2_coeff;
+      const double disc_j = disc_r2 - dk2_term;
+      if (disc_j < -j_disc_rtol * (disc_r2 + dk2_term))
+        continue;
+      const double B_j = dk * Bj_coeff;
+      const double s_j = sqrt(fmax(0.0, disc_j));
+      const double j_lo =
+          fmax((double)jsmin, ceil(gp[1] + (B_j - s_j) * inv_Aj) - 1.0);
+      const double j_hi =
+          fmin((double)jsmax, floor(gp[1] + (B_j + s_j) * inv_Aj) + 1.0);
+      if (j_lo > j_hi)
+        continue;
+      jsmin = (int)j_lo;
+      jsmax = (int)j_hi;
+    }
+
     // zero coef_xyt
     memset(cij, 0, cij_size * sizeof(double));
 
 #if (GRID_DO_COLLOCATE)
     // collocate
-    general_cijk_to_cij(lp, (double)k - gp[2], cijk, cij);
-    general_cij_to_grid(lp, k, kg, npts_local, index_min, index_max, map_i,
-                        map_j, sections_i, sections_j, dh, gp, radius, exp_ij,
-                        exp_jk, exp_ik, cij, grid);
+    general_cijk_to_cij(lp, dk, cijk, cij);
+    general_cij_to_grid(lp, k, kg, jsmin, jsmax, npts_local, index_min,
+                        index_max, map_i, map_j, sections_i, sections_j, dh, gp,
+                        radius, exp_ij, exp_jk, exp_ik, cij, grid);
 #else
     // integrate
-    general_cij_to_grid(lp, k, kg, npts_local, index_min, index_max, map_i,
-                        map_j, sections_i, sections_j, dh, gp, radius, exp_ij,
-                        exp_jk, exp_ik, cij, grid);
-    general_cijk_to_cij(lp, (double)k - gp[2], cijk, cij);
+    general_cij_to_grid(lp, k, kg, jsmin, jsmax, npts_local, index_min,
+                        index_max, map_i, map_j, sections_i, sections_j, dh, gp,
+                        radius, exp_ij, exp_jk, exp_ik, cij, grid);
+    general_cijk_to_cij(lp, dk, cijk, cij);
 #endif
   }
 }
@@ -1042,6 +1096,89 @@ general_cijk_to_grid(const int border_mask, const int lp, const double zetp,
 }
 
 /*******************************************************************************
+ * \brief Contracts (x, y) multinomials between C_xyz and scratch tensor T_xy.
+ ******************************************************************************/
+static inline void __attribute__((always_inline))
+general_cxyz_to_txy(const int lp,
+                    const double trinom[3][lp + 1][lp + 1][lp + 1],
+                    GRID_CONST_WHEN_COLLOCATE double *restrict cxyz,
+                    GRID_CONST_WHEN_INTEGRATE double *restrict t_xy_raw) {
+  const int lp1 = lp + 1;
+  GRID_CONST_WHEN_INTEGRATE double (*restrict const t_xy)[lp1][lp1][lp1] =
+      (GRID_CONST_WHEN_INTEGRATE double (*)[lp1][lp1][lp1])t_xy_raw;
+  for (int klx = 0; klx <= lp; klx++) {
+    for (int jlx = 0; jlx <= lp - klx; jlx++) {
+      for (int ilx = 0; ilx <= lp - klx - jlx; ilx++) {
+        const double px = trinom[0][klx][jlx][ilx];
+        if (px == 0.0)
+          continue;
+        const int lx = ilx + jlx + klx;
+        const int lpy = lp - lx;
+        for (int kly = 0; kly <= lpy; kly++) {
+          for (int jly = 0; jly <= lpy - kly; jly++) {
+            for (int ily = 0; ily <= lpy - kly - jly; ily++) {
+              const double py = trinom[1][kly][jly][ily];
+              if (py == 0.0)
+                continue;
+              const int ly = ily + jly + kly;
+              const double pxy = px * py;
+              const int lpz = lp - lx - ly;
+              const int cxyz_base = ly * lp1 + lx;
+              GRID_CONST_WHEN_INTEGRATE double *restrict t_row =
+                  t_xy[klx + kly][jlx + jly][ilx + ily];
+              for (int lz = 0; lz <= lpz; lz++) {
+#if (GRID_DO_COLLOCATE)
+                t_row[lz] += pxy * cxyz[lz * lp1 * lp1 + cxyz_base];
+#else
+                cxyz[lz * lp1 * lp1 + cxyz_base] += pxy * t_row[lz];
+#endif
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+/*******************************************************************************
+ * \brief Contracts z multinomials between scratch tensor T_xy and C_ijk.
+ ******************************************************************************/
+static inline void __attribute__((always_inline))
+general_txy_to_cijk(const int lp,
+                    const double trinom[3][lp + 1][lp + 1][lp + 1],
+                    GRID_CONST_WHEN_COLLOCATE double *restrict t_xy_raw,
+                    GRID_CONST_WHEN_INTEGRATE double *restrict cijk) {
+  const int lp1 = lp + 1;
+  GRID_CONST_WHEN_COLLOCATE double (*restrict const t_xy)[lp1][lp1][lp1] =
+      (GRID_CONST_WHEN_COLLOCATE double (*)[lp1][lp1][lp1])t_xy_raw;
+  for (int kl_xy = 0; kl_xy <= lp; kl_xy++) {
+    for (int jl_xy = 0; jl_xy <= lp - kl_xy; jl_xy++) {
+      for (int il_xy = 0; il_xy <= lp - kl_xy - jl_xy; il_xy++) {
+        const int lpz = lp - (il_xy + jl_xy + kl_xy);
+        GRID_CONST_WHEN_COLLOCATE double *restrict t_row =
+            t_xy[kl_xy][jl_xy][il_xy];
+        for (int klz = 0; klz <= lpz; klz++) {
+          const int kl_base = (kl_xy + klz) * lp1 * lp1;
+          for (int jlz = 0; jlz <= lpz - klz; jlz++) {
+            GRID_CONST_WHEN_INTEGRATE double *restrict cijk_row =
+                &cijk[kl_base + (jl_xy + jlz) * lp1 + il_xy];
+            for (int ilz = 0; ilz <= lpz - klz - jlz; ilz++) {
+              const double pz = trinom[2][klz][jlz][ilz];
+#if (GRID_DO_COLLOCATE)
+              cijk_row[ilz] += t_row[ilz + jlz + klz] * pz;
+#else
+              t_row[ilz + jlz + klz] += cijk_row[ilz] * pz;
+#endif
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+/*******************************************************************************
  * \brief Transforms coefficients C_xyz into C_ijk.
  * \author Ole Schuett
  ******************************************************************************/
@@ -1079,48 +1216,22 @@ general_cxyz_to_cijk(const int lp, const double dh[3][3],
       }
     }
   }
+  const double (*trinom_const)[lp1][lp1][lp1] =
+      (const double (*)[lp1][lp1][lp1])trinom;
 
-  const int lpx = lp;
-  for (int klx = 0; klx <= lpx; klx++) {
-    for (int jlx = 0; jlx <= lpx - klx; jlx++) {
-      for (int ilx = 0; ilx <= lpx - klx - jlx; ilx++) {
-        const int lx = ilx + jlx + klx;
-        const double px = trinom[0][klx][jlx][ilx];
-        const int lpy = lp - lx;
-        for (int kly = 0; kly <= lpy; kly++) {
-          for (int jly = 0; jly <= lpy - kly; jly++) {
-            for (int ily = 0; ily <= lpy - kly - jly; ily++) {
-              const int ly = ily + jly + kly;
-              const double pxy = px * trinom[1][kly][jly][ily];
-              const int il_xy = ilx + ily;
-              const int jl_xy = jlx + jly;
-              const int kl_xy = klx + kly;
-              const int lpz = lp - lx - ly;
-              const int cxyz_base = ly * lp1 + lx;
-              for (int klz = 0; klz <= lpz; klz++) {
-                const int kl_base = (kl_xy + klz) * lp1 * lp1;
-                for (int jlz = 0; jlz <= lpz - klz; jlz++) {
-                  const int cijk_base = kl_base + (jl_xy + jlz) * lp1 + il_xy;
-                  for (int ilz = 0; ilz <= lpz - klz - jlz; ilz++) {
-                    const int lz = ilz + jlz + klz;
-                    const int cijk_index = cijk_base + ilz; // [kl,jl,il]
-                    const int cxyz_index =
-                        lz * lp1 * lp1 + cxyz_base; // [lz,ly,lx]
-                    const double p = pxy * trinom[2][klz][jlz][ilz];
+  // Factor the 6D multinomial sum through T_xy[kl_xy][jl_xy][il_xy][lz] in
+  // thread-local heap scratch (reused sequentially by general_cijk_to_grid).
+  const size_t t_xy_bytes = (size_t)lp1 * lp1 * lp1 * lp1 * sizeof(double);
+  double *const scratch = (double *)grid_library_get_scratch(t_xy_bytes);
+  memset(scratch, 0, t_xy_bytes);
+
 #if (GRID_DO_COLLOCATE)
-                    cijk[cijk_index] += cxyz[cxyz_index] * p; // collocate
+  general_cxyz_to_txy(lp, trinom_const, cxyz, scratch);
+  general_txy_to_cijk(lp, trinom_const, scratch, cijk);
 #else
-                    cxyz[cxyz_index] += cijk[cijk_index] * p; // integrate
+  general_txy_to_cijk(lp, trinom_const, scratch, cijk);
+  general_cxyz_to_txy(lp, trinom_const, cxyz, scratch);
 #endif
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
 }
 
 /*******************************************************************************
