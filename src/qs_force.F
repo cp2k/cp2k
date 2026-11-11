@@ -75,7 +75,8 @@ MODULE qs_force
    USE ri_environment_methods,          ONLY: build_ri_matrices
    USE rt_propagation_forces,           ONLY: calc_c_mat_force,&
                                               rt_admm_force
-   USE rt_propagation_velocity_gauge,   ONLY: velocity_gauge_ks_matrix,&
+   USE rt_propagation_velocity_gauge,   ONLY: velocity_gauge_kinetic_force,&
+                                              velocity_gauge_ks_matrix,&
                                               velocity_gauge_nl_force
    USE se_core_core,                    ONLY: se_core_core_interaction
    USE se_core_matrix,                  ONLY: build_se_core_matrix
@@ -237,8 +238,9 @@ CONTAINS
 
          CALL calc_c_mat_force(qs_env)
          IF (dft_control%do_admm) CALL rt_admm_force(qs_env)
-         IF (dft_control%rtp_control%velocity_gauge .AND. dft_control%rtp_control%nl_gauge_transform) THEN
-            CALL velocity_gauge_nl_force(qs_env, particle_set)
+         IF (dft_control%rtp_control%velocity_gauge) THEN
+            CALL velocity_gauge_kinetic_force(qs_env)
+            IF (dft_control%rtp_control%nl_gauge_transform) CALL velocity_gauge_nl_force(qs_env, particle_set)
          END IF
       END IF
       ! from an eventual Mulliken restraint
@@ -323,7 +325,7 @@ CONTAINS
          ! The above line reset the core H, which should be re-updated in case a TD field is applied:
          IF (qs_env%run_rtp) THEN
             IF (dft_control%apply_efield_field) THEN
-               CALL efield_potential_lengh_gauge(qs_env)
+               CALL efield_potential_lengh_gauge(qs_env, calculate_forces=.TRUE.)
             END IF
             IF (dft_control%rtp_control%velocity_gauge) THEN
                CALL velocity_gauge_ks_matrix(qs_env, subtract_nl_term=.FALSE.)

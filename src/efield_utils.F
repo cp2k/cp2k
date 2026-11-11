@@ -11,7 +11,8 @@
 
 MODULE efield_utils
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                              get_atomic_kind
+                                              get_atomic_kind,&
+                                              get_atomic_kind_set
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type,&
@@ -29,8 +30,10 @@ MODULE efield_utils
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi,&
                                               twopi
+   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: c_light_au
+   USE qs_efield_local,                 ONLY: qs_efield_dipole_force
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -38,6 +41,8 @@ MODULE efield_utils
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_moments,                      ONLY: build_local_moment_matrix
+   USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                              qs_rho_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -60,20 +65,29 @@ CONTAINS
 !>        the grid but using matrices to match the velocity gauge implementation.
 !>        Note: The energy is stored in energy%core and computed later on.
 !> \param qs_env ...
+!> \param calculate_forces add the electronic force from the derivative of the dipole integrals
 !> \author Guillaume Le Breton (02.23)
 ! **************************************************************************************************
 
-   SUBROUTINE efield_potential_lengh_gauge(qs_env)
+   SUBROUTINE efield_potential_lengh_gauge(qs_env, calculate_forces)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
 
       CHARACTER(len=*), PARAMETER :: routineN = 'efield_potential_lengh_gauge'
 
-      INTEGER                                            :: handle, i, image
+      INTEGER                                            :: handle, i, iatom, image, natom
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
+      LOGICAL                                            :: my_force
       REAL(kind=dp)                                      :: field(3)
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, moments
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: fdip
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p, matrix_s, moments
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_rho_type), POINTER                         :: rho
 
       NULLIFY (dft_control)
       CALL timeset(routineN, handle)
@@ -102,6 +116,25 @@ CONTAINS
       END DO
 
       CALL dbcsr_deallocate_matrix_set(moments)
+
+      my_force = .FALSE.
+      IF (PRESENT(calculate_forces)) my_force = calculate_forces
+      IF (my_force) THEN
+         ! The dipole integrals are real and symmetric: only the real part of P contributes
+         CALL get_qs_env(qs_env, rho=rho, force=force, atomic_kind_set=atomic_kind_set, &
+                         natom=natom, para_env=para_env)
+         CALL qs_rho_get(rho, rho_ao=matrix_p)
+         ALLOCATE (fdip(3, natom))
+         fdip = 0.0_dp
+         CALL qs_efield_dipole_force(qs_env, matrix_p, field, [0.0_dp, 0.0_dp, 0.0_dp], fdip)
+         CALL para_env%sum(fdip)
+         CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
+         DO iatom = 1, natom
+            force(kind_of(iatom))%efield(:, atom_of_kind(iatom)) = &
+               force(kind_of(iatom))%efield(:, atom_of_kind(iatom)) + fdip(:, iatom)
+         END DO
+         DEALLOCATE (fdip)
+      END IF
 
       CALL timestop(handle)
 

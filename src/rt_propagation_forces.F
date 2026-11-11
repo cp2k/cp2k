@@ -18,10 +18,10 @@ MODULE rt_propagation_forces
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_block_p, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_get_block_p, &
+        dbcsr_get_matrix_type, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -169,9 +169,16 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, atom_of_kind
 
       INTEGER                                            :: col_atom, i, ikind, kind_atom, row_atom
-      LOGICAL                                            :: found
+      LOGICAL                                            :: found, triangle
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_values, block_values2
       TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_type)                                   :: rho_im_full
+
+      ! A block of a (anti)symmetric matrix need not be on the process that holds the same
+      ! block of the non-symmetric C_mat, so the stored triangle is taken from a full copy
+      triangle = dbcsr_get_matrix_type(rho_im) /= dbcsr_type_no_symmetry
+      CALL dbcsr_create(rho_im_full, template=C_mat(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_desymmetrize(rho_im, rho_im_full)
 
       DO i = 1, 3
          !Calculate the sum over the hadmard product
@@ -194,9 +201,10 @@ CONTAINS
 
          !C_mat part
 
-         CALL dbcsr_iterator_start(iter, rho_im)
+         CALL dbcsr_iterator_start(iter, rho_im_full)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             CALL dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
+            IF (triangle .AND. row_atom > col_atom) CYCLE
             CALL dbcsr_get_block_p(C_mat(i)%matrix, row_atom, col_atom, block_values2, found=found)
             IF (found) THEN
                ikind = kind_of(col_atom)
@@ -209,6 +217,7 @@ CONTAINS
          END DO
          CALL dbcsr_iterator_stop(iter)
       END DO
+      CALL dbcsr_release(rho_im_full)
 
    END SUBROUTINE compute_forces
 
