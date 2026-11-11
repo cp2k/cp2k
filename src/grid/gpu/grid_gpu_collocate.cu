@@ -222,15 +222,16 @@ __global__ __launch_bounds__(64) void calculate_coefficients_two_steps(
  *   C_ijk[(i,j,k)] = sum_{a+b+c=i+j+k} M[(a,b,c)][(i,j,k)] C[(a,b,c)]
  *
  * with the matrix M of build_lattice_to_cartesian_matrix (the transpose of the
- * integrate transformation). With the metric g_ij = a_i . a_j of the lattice
- * vectors, the gaussian is factored as in the dgemm backend,
+ * integrate transformation). Only the polynomial is separated, the gaussian
+ * exp(-zetp r^2) is evaluated per grid point from the r^2 of the sphere test,
+ * as in integrate_separable_kernel. Factoring it as
  *
- *   exp(-zetp r^2) = exp(-zetp g00 u^2) exp(-zetp g11 v^2) exp(-zetp g22 w^2)
- *                    exp(-2 zetp g12 v w) exp(-2 zetp u (g01 v + g02 w))
+ *   exp(-zetp g00 u^2) exp(-zetp g11 v^2) exp(-zetp g22 w^2)
+ *   exp(-2 zetp g12 v w) exp(-2 zetp u (g01 v + g02 w))
  *
- * The first three factors go into the 1D tables, the v w term is applied once
- * per row in step 2 and the last one by a multiplicative recurrence along x,
- * so that no exponential is evaluated per grid point.
+ * with the metric g_ij = a_i . a_j is not numerically stable: on strongly
+ * sheared cells the diagonal factors underflow while the cross terms
+ * overflow, even though their product is finite.
  *
  * For each z plane of the cube:
  *
@@ -244,12 +245,12 @@ __global__ __launch_bounds__(64) void calculate_coefficients_two_steps(
  * same y / x trimming in the orthogonal case, same sphere test.
  *
  * Dynamic shared memory layout (doubles), mc = max cube size, ls = lp_max + 1:
- *   ex[mc], ey[mc], fy[mc], D[ls][ls], C[ncoset(lp_max)], E[erows][ls]
+ *   ex[mc], ey[mc], D[ls][ls], C[ncoset(lp_max)], E[erows][ls]
  *
  * The powers of y are computed on the fly in step 2 and the rows of a plane
  * are processed by chunks of erows rows, so that the shared memory is bounded
  * for any cube size (see collocate_separable_erows), the x coordinates are
- * computed on the fly. fy is only used when axis_aligned_ = false.
+ * computed on the fly. ex and ey are only used when axis_aligned_ = true.
  ******************************************************************************/
 
 template <bool distributed__, bool axis_aligned_>
@@ -270,8 +271,7 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
   extern __shared__ double sep_smem[];
   double *ex = sep_smem;
   double *ey = ex + mc;
-  double *fy = ey + mc;
-  double *D = fy + mc;
+  double *D = ey + mc;
   double *C = D + ls * ls;
   double *E = C + ncoset(lp_max); // [erows][ls]
 
@@ -287,15 +287,6 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
   const double zetp = task.zetp;
   const double r2max = task.radius * task.radius;
   const bool trim = orthogonal_ && !task.apply_border_mask;
-
-  // metric of the lattice, |r|^2 = sum_ij g_ij u_i u_j
-  const double *a1 = &dev_.dh_[0], *a2 = &dev_.dh_[3], *a3 = &dev_.dh_[6];
-  const double g00 = a1[0] * a1[0] + a1[1] * a1[1] + a1[2] * a1[2];
-  const double g11 = a2[0] * a2[0] + a2[1] * a2[1] + a2[2] * a2[2];
-  const double g22 = a3[0] * a3[0] + a3[1] * a3[1] + a3[2] * a3[2];
-  const double g01 = a1[0] * a2[0] + a1[1] * a2[1] + a1[2] * a2[2];
-  const double g02 = a1[0] * a3[0] + a1[1] * a3[1] + a1[2] * a3[2];
-  const double g12 = a2[0] * a3[0] + a2[1] * a3[1] + a2[2] * a3[2];
 
   const double *__restrict__ coef =
       &dev_.buffers_dev.coef[glb_task.coef_offset];
@@ -318,17 +309,16 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
     }
   }
 
-  // 1D tables of the diagonal part of the gaussian. The coordinates (cartesian
-  // for an axis aligned cell, lattice otherwise) are computed on the fly.
-  for (int x = tid; x < task.cube_size.x; x += 64) {
-    const double u = x + task.lb_cube.x + task.roffset.x;
-    const double r = axis_aligned_ ? u * dev_.dh_[0] : u;
-    ex[x] = exp(-zetp * (axis_aligned_ ? 1.0 : g00) * r * r);
-  }
-  for (int y = tid; y < task.cube_size.y; y += 64) {
-    const double v = y + task.lb_cube.y + task.roffset.y;
-    const double r = axis_aligned_ ? v * dev_.dh_[4] : v;
-    ey[y] = exp(-zetp * (axis_aligned_ ? r * r : g11 * v * v));
+  // 1D tables of the gaussian for an axis aligned cell
+  if (axis_aligned_) {
+    for (int x = tid; x < task.cube_size.x; x += 64) {
+      const double r = (x + task.lb_cube.x + task.roffset.x) * dev_.dh_[0];
+      ex[x] = exp(-zetp * r * r);
+    }
+    for (int y = tid; y < task.cube_size.y; y += 64) {
+      const double r = (y + task.lb_cube.y + task.roffset.y) * dev_.dh_[4];
+      ey[y] = exp(-zetp * r * r);
+    }
   }
   __syncthreads();
 
@@ -354,16 +344,7 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
 
     const double w = z + task.lb_cube.z + task.roffset.z;
     const double rz = axis_aligned_ ? w * dev_.dh_[8] : w;
-    const double ez = exp(-zetp * (axis_aligned_ ? rz * rz : g22 * w * w));
-    const int ny = ymax - ymin + 1;
-
-    // v w cross term of the gaussian, one value per row
-    if (!axis_aligned_) {
-      for (int yy = tid; yy < ny; yy += 64) {
-        const double v = ymin + yy + task.lb_cube.y + task.roffset.y;
-        fy[yy] = exp(-2.0 * zetp * g12 * v * w);
-      }
-    }
+    const double ez = axis_aligned_ ? exp(-zetp * rz * rz) : 1.0;
 
     // step 1: contract c (Horner in rz). D is only read by step 2 so the
     // barrier ending step 2 of the previous plane protects it.
@@ -390,11 +371,11 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
         const int y = y0 + yy;
         const double v = y + task.lb_cube.y + task.roffset.y;
         const double r = axis_aligned_ ? v * dev_.dh_[4] : v;
-        double p = ey[y];
+        double p = axis_aligned_ ? ey[y] : 1.0;
         double e = 0.0;
         for (int b = 0; b <= lp - a; b++, p *= r)
           e += D[a * ls + b] * p;
-        E[yy * ls + a] = axis_aligned_ ? e : e * fy[y - ymin];
+        E[yy * ls + a] = e;
       }
       __syncthreads();
 
@@ -417,21 +398,10 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
             &dev_.buffers_dev.grid[(z2 * dev_.grid_local_size_.y + y2) *
                                    dev_.grid_local_size_.x];
 
-        // u (v, w) cross term of the gaussian, exp(-2 zetp u s) with
-        // s = g01 v + g02 w, by recurrence along the x of this lane.
-        double t = 1.0, q = 1.0;
-        if (!axis_aligned_) {
-          const double s = g01 * v + g02 * w;
-          const double u0 = xmin + lane + task.lb_cube.x + task.roffset.x;
-          t = exp(-2.0 * zetp * s * u0);
-          q = exp(-2.0 * zetp * s * GRID_SEP_COLLOCATE_ROW_LANES);
-        }
-
         // periodic index of x, updated incrementally
         const int nx_full = dev_.grid_full_size_.x;
         int x2 = wrap_grid_index(xmin + lane + task.cube_center.x, nx_full);
         for (int x = xmin + lane; x <= xmax; x += GRID_SEP_COLLOCATE_ROW_LANES,
-                 t *= q,
                  x2 = sep_advance_wrapped_index<GRID_SEP_COLLOCATE_ROW_LANES>(
                      x2, nx_full)) {
           if (distributed__ && task.apply_border_mask &&
@@ -455,7 +425,7 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
             } else if (!orthogonal_ && outside) {
               continue;
             }
-            gauss = ex[x] * t;
+            gauss = exp(-zetp * r2);
           }
           if (axis_aligned_ && distributed__ && task.apply_border_mask) {
             const double ry = v * dev_.dh_[4];
@@ -481,7 +451,7 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
 static size_t collocate_separable_smem_size(const int mc, const int lp_max,
                                             const int erows) {
   const int ls = lp_max + 1;
-  return sizeof(double) * (3 * mc + ls * ls + ncoset(lp_max) + erows * ls);
+  return sizeof(double) * (2 * mc + ls * ls + ncoset(lp_max) + erows * ls);
 }
 
 // rows of E per chunk: all the rows of the cube when they fit in smem_max
