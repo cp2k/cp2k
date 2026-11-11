@@ -76,21 +76,22 @@ MODULE kpoint_methods
                                               k_grid_to_cell_prepare,&
                                               k_grid_to_cell_release,&
                                               k_grid_to_cell_work_type,&
-                                              lattice_fft_profile_type,&
                                               lattice_fft_shape,&
                                               regular_kpoint_grid
-   USE kpoint_transform,                ONLY: &
-        ensure_work_matrix => rskp_work_matrix, k_grid_to_cell_contract, &
-        k_grid_to_cell_phase_prepare, k_grid_to_cell_phase_type, k_grid_to_cell_profile_type, &
-        kp_symmetry_phase_factors => rskp_phase_factors, kp_transform_plan_create, &
-        kp_transform_plan_type, rskp_fft_profile_print, rskp_transform
+   USE kpoint_transform,                ONLY: ensure_work_matrix => rskp_work_matrix,&
+                                              k_grid_to_cell_contract,&
+                                              k_grid_to_cell_phase_prepare,&
+                                              k_grid_to_cell_phase_type,&
+                                              kp_symmetry_phase_factors => rskp_phase_factors,&
+                                              kp_transform_plan_create,&
+                                              kp_transform_plan_type,&
+                                              rskp_transform
    USE kpoint_types,                    ONLY: &
         find_kpoint_rotation_slot, get_kpoint_info, kind_rotmat_type, kpoint_env_create, &
         kpoint_env_p_type, kpoint_env_type, kpoint_sym_create, kpoint_sym_type, kpoint_type
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
                                               LOCAL_GEMM_PU_HOST,&
                                               local_gemm_ctxt_type
-   USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: twopi,&
                                               z_one,&
                                               z_zero
@@ -2019,14 +2020,10 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: for_aux_fit, mixed_aux_orb
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform_batched'
-      CHARACTER(LEN=13), PARAMETER :: profile_stages(7) = [CHARACTER(LEN=13) :: 'setup', &
-         'phase/table', 'phase/compose', 'pack/gauge', 'GEMM', 'merge/expand', 'rotate/add']
 
       INTEGER :: a, b, first, handle, i, ic, igroup, ikp, image, ispin, j, last, nblock, njob, &
-         nlocal, nrow, nthreads, nvalue, orientation, owner, profile_handle, slot, thread, unit_nr
-      INTEGER(KIND=int_8)                                :: block_size, profile_counts(4), &
-                                                            shape_max(3), shape_min(3), &
-                                                            shape_sum(3)
+         nlocal, nrow, nthreads, nvalue, orientation, owner, slot, stage_handle, thread
+      INTEGER(KIND=int_8)                                :: block_size
       INTEGER(KIND=int_8), ALLOCATABLE                   :: keys(:)
       INTEGER, ALLOCATABLE                               :: available(:, :), counts(:), jobs(:, :), &
                                                             local_jobs(:, :), order(:), &
@@ -2034,19 +2031,16 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_offset, col_size, row_offset, &
                                                             row_size
       LOGICAL                                            :: found, trans
-      REAL(KIND=dp)                                      :: profile_flops, profile_max_seconds(7), &
-                                                            profile_seconds(7), profile_total
       REAL(KIND=dp), ALLOCATABLE                         :: rotation_work(:, :)
       REAL(KIND=dp), ALLOCATABLE, TARGET                 :: sums(:, :, :), values(:, :)
       REAL(KIND=dp), POINTER                             :: block(:, :)
-      TYPE(k_grid_to_cell_profile_type), ALLOCATABLE     :: profiles(:)
       TYPE(kp_density_group_type), ALLOCATABLE           :: groups(:)
       TYPE(local_gemm_ctxt_type), ALLOCATABLE            :: gemm_ctx(:)
       TYPE(mp_para_env_type), POINTER                    :: world
 
       CALL timeset(routineN, handle)
       world => kpoint%blacs_env_all%para_env
-      CALL timeset('kp_density_plan', profile_handle)
+      CALL timeset('kp_density_plan', stage_handle)
       CALL dbcsr_get_info(template, row_blk_size=row_size, col_blk_size=col_size, &
                           row_blk_offset=row_offset, col_blk_offset=col_offset)
       CALL kp_density_groups_create(kpoint, SIZE(row_size), groups, for_aux_fit=for_aux_fit, &
@@ -2090,7 +2084,7 @@ CONTAINS
          local_jobs(:, 1:nlocal) = local_jobs(:, order)
       END IF
       CALL world%allgather(nlocal, counts)
-      CALL timestop(profile_handle)
+      CALL timestop(stage_handle)
       IF (MAXVAL(counts) == 0) THEN
          CALL timestop(handle)
          RETURN
@@ -2098,7 +2092,6 @@ CONTAINS
       nthreads = 1
 !$    nthreads = MIN(omp_get_max_threads(), MAX(1, SIZE(source, 1)))
       ALLOCATE (available(2, 0:UBOUND(groups, 1)), gemm_ctx(nthreads))
-      ALLOCATE (profiles(nthreads), source=k_grid_to_cell_profile_type())
       DO thread = 1, nthreads
          gemm_ctx(thread) = local_gemm_ctxt_type()
          CALL gemm_ctx(thread)%create(LOCAL_GEMM_PU_HOST, timing=.FALSE.)
@@ -2110,7 +2103,7 @@ CONTAINS
       DO slot = 0, UBOUND(groups, 1)
          IF (SIZE(groups(slot)%ikp) == 0) CYCLE
          CALL k_grid_to_cell_phase_prepare(groups(slot)%phases, &
-                                           kpoint%index_to_cell(:, 1:SIZE(denmat, 2)), groups(slot)%xkp, profiles)
+                                           kpoint%index_to_cell(:, 1:SIZE(denmat, 2)), groups(slot)%xkp, nthreads)
       END DO
 
       DO owner = 0, world%num_pe - 1
@@ -2151,17 +2144,17 @@ CONTAINS
             END DO
             ! Source sparsity is distributed independently of the FM layout.
             IF (world%num_pe > 1) CALL world%sum(available)
-            CALL timeset('kp_density_contract', profile_handle)
+            CALL timeset('kp_density_contract', stage_handle)
             CALL kp_density_contract_tile(source, tiles, groups, jobs, available, plan%symmetric, &
                                           row_size, col_size, row_offset, col_offset, values, &
-                                          sums, rotation_work, gemm_ctx, profiles)
-            CALL timestop(profile_handle)
+                                          sums, rotation_work, gemm_ctx)
+            CALL timestop(stage_handle)
             DO ispin = 1, SIZE(source, 3)
-               CALL timeset('kp_density_reduce', profile_handle)
+               CALL timeset('kp_density_reduce', stage_handle)
                IF (world%num_pe > 1) CALL world%sum(values(:, ispin), root=owner)
-               CALL timestop(profile_handle)
+               CALL timestop(stage_handle)
                IF (world%mepos /= owner) CYCLE
-               CALL timeset('kp_density_scatter', profile_handle)
+               CALL timeset('kp_density_scatter', stage_handle)
                DO j = 1, njob
                   CALL dbcsr_get_block_p(denmat(ispin, jobs(3, j))%matrix, jobs(1, j), jobs(2, j), block, found=found)
                   CPASSERT(found)
@@ -2171,7 +2164,7 @@ CONTAINS
                      block(:, i) = values(nblock:nblock + nrow - 1, ispin)
                   END DO
                END DO
-               CALL timestop(profile_handle)
+               CALL timestop(stage_handle)
             END DO
             DEALLOCATE (jobs, values)
             first = first + njob
@@ -2180,52 +2173,6 @@ CONTAINS
       DO thread = 1, SIZE(gemm_ctx)
          CALL gemm_ctx(thread)%destroy()
       END DO
-      profile_seconds(:) = 0.0_dp
-      profile_max_seconds(:) = 0.0_dp
-      profile_counts(:) = 0_int_8
-      profile_flops = 0.0_dp
-      shape_min(:) = HUGE(0_int_8)
-      shape_sum(:) = 0_int_8
-      shape_max(:) = 0_int_8
-      DO thread = 1, SIZE(profiles)
-         profile_seconds(:) = profile_seconds + profiles(thread)%seconds
-         profile_max_seconds(:) = MAX(profile_max_seconds, profiles(thread)%seconds)
-         profile_counts(:) = profile_counts + profiles(thread)%counts
-         profile_flops = profile_flops + profiles(thread)%flops
-         shape_min(:) = MIN(shape_min, profiles(thread)%shape_min)
-         shape_sum(:) = shape_sum + profiles(thread)%shape_sum
-         shape_max(:) = MAX(shape_max, profiles(thread)%shape_max)
-      END DO
-      CALL world%sum(profile_seconds)
-      CALL world%max(profile_max_seconds)
-      CALL world%sum(profile_counts)
-      CALL world%sum(profile_flops)
-      CALL world%min(shape_min)
-      CALL world%sum(shape_sum)
-      CALL world%max(shape_max)
-      profile_total = SUM(profile_seconds)
-      unit_nr = cp_logger_get_default_io_unit()
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A)') 'K2R_PROFILE| Worker-seconds summed over all MPI ranks and OpenMP workers'
-         WRITE (unit_nr, '(T2,A)') 'K2R_PROFILE| Stage           sum worker-s   max worker-s   fraction'
-         DO i = 1, SIZE(profile_stages)
-            WRITE (unit_nr, '(T2,A,A13,2F14.6,F9.2,A)') 'K2R_PROFILE| ', profile_stages(i), &
-               profile_seconds(i), profile_max_seconds(i), &
-               100.0_dp*profile_seconds(i)/MAX(TINY(1.0_dp), profile_total), ' %'
-         END DO
-         WRITE (unit_nr, '(T2,A,4I16)') 'K2R_PROFILE| contracts/trig/FM-values/GEMMs: ', profile_counts
-         WRITE (unit_nr, '(T2,A,F14.6)') 'K2R_PROFILE| FM values gathered (GiB): ', &
-            8.0_dp*REAL(profile_counts(3), dp)/1024.0_dp**3
-         IF (profile_counts(4) > 0_int_8) THEN
-            WRITE (unit_nr, '(T2,A,3I12)') 'K2R_PROFILE| GEMM M/N/K min: ', shape_min
-            WRITE (unit_nr, '(T2,A,3F12.2)') 'K2R_PROFILE| GEMM M/N/K mean: ', &
-               REAL(shape_sum, dp)/REAL(profile_counts(4), dp)
-            WRITE (unit_nr, '(T2,A,3I12)') 'K2R_PROFILE| GEMM M/N/K max: ', shape_max
-            WRITE (unit_nr, '(T2,A,ES14.6)') 'K2R_PROFILE| GEMM FLOPs: ', profile_flops
-            WRITE (unit_nr, '(T2,A,F14.6)') 'K2R_PROFILE| GEMM GF/s per calling worker: ', &
-               profile_flops/MAX(1.0E-12_dp, profile_seconds(5))/1.0E9_dp
-         END IF
-      END IF
       CALL timestop(handle)
    END SUBROUTINE kpoint_density_transform_batched
 
@@ -2431,11 +2378,10 @@ CONTAINS
 !> \param sums reusable thread-local contracted blocks
 !> \param rotation_work reusable thread-local GEMM buffer
 !> \param gemm_ctx worker-owned local GEMM contexts
-!> \param profile worker-owned diagnostic accumulators
 ! **************************************************************************************************
    SUBROUTINE kp_density_contract_tile(source, tiles, groups, jobs, available, symmetric, &
                                        row_size, col_size, row_offset, col_offset, TARGET, &
-                                       sums, rotation_work, gemm_ctx, profile)
+                                       sums, rotation_work, gemm_ctx)
       TYPE(cp_fm_p_type), INTENT(IN)                     :: source(:, :, :)
       INTEGER, INTENT(IN)                                :: tiles(:, :, :, :, :)
       TYPE(kp_density_group_type), INTENT(IN)            :: groups(0:)
@@ -2447,12 +2393,10 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT), TARGET  :: sums(:, :, :)
       REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT)          :: rotation_work(:, :)
       TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm_ctx(:)
-      TYPE(k_grid_to_cell_profile_type), INTENT(INOUT)   :: profile(:)
 
       INTEGER                                            :: a, b, image, ispin, m, orientation, &
                                                             shift(3), slot
       LOGICAL                                            :: trans
-      REAL(KIND=dp)                                      :: started
       REAL(KIND=dp), POINTER                             :: left_rot(:, :), right_rot(:, :), &
                                                             source_block(:, :), target_block(:, :)
 
@@ -2470,8 +2414,7 @@ CONTAINS
             CALL k_grid_to_cell_contract(source, tiles, groups(slot)%ikp, groups(slot)%xkp, groups(slot)%weight, &
                                          jobs(4:8, :), [a, b], [row_size(a), col_size(b)], &
                                          [row_offset(a), col_offset(b)], shift, groups(slot)%op%time_reversal, &
-                                         trans, groups(slot)%phases, sums, gemm_ctx, profile)
-            started = m_walltime()
+                                         trans, groups(slot)%phases, sums, gemm_ctx)
             m = row_size(jobs(1, 1))*col_size(jobs(2, 1))
             IF (.NOT. groups(slot)%op%identity) THEN
                left_rot => groups(slot)%op%kind_rot(groups(slot)%op%atom_kind(groups(slot)%inverse(jobs(1, 1))))%rmat
@@ -2491,7 +2434,6 @@ CONTAINS
                   END IF
                END DO
             END DO
-            profile(1)%seconds(7) = profile(1)%seconds(7) + m_walltime() - started
          END DO
       END DO
    END SUBROUTINE kp_density_contract_tile
@@ -2524,14 +2466,12 @@ CONTAINS
       INTEGER, DIMENSION(14)                             :: layout, layout_max, layout_min
       INTEGER, DIMENSION(2)                              :: fft_range
       LOGICAL                                            :: local, same_layout
-      REAL(KIND=dp)                                      :: started
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: fft_density
       TYPE(copy_info_type), DIMENSION(2)                 :: info
       TYPE(cp_fm_struct_type), POINTER                   :: fms
       TYPE(cp_fm_type)                                   :: dummy
       TYPE(cp_fm_type), DIMENSION(2), TARGET             :: partial
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: image_source
-      TYPE(lattice_fft_profile_type)                     :: profile
       TYPE(mp_para_env_type), POINTER                    :: inter, para_env
 
       para_env => kpoint%blacs_env_all%para_env
@@ -2568,12 +2508,9 @@ CONTAINS
       END IF
 
       CALL timeset(routineN, handle)
-      profile = lattice_fft_profile_type()
       DO ispin = 1, SIZE(source, 3)
          CALL kp_density_fft(kpoint, source(:, :, ispin), nrow, ncol, SIZE(denmat, 2), &
-                             fft_range, fft_density, profile)
-         started = m_walltime()
-         profile%counts(6) = profile%counts(6) + 8_int_8*SIZE(fft_density, KIND=int_8)
+                             fft_range, fft_density)
          IF (kpoint%para_env_kp%num_pe == 1) THEN
             IF (.NOT. ALLOCATED(blocks)) THEN
                ! Keep neighbor-list multiplicity and imaginary signs in the k-point layer.
@@ -2589,7 +2526,6 @@ CONTAINS
             CALL cp_array_to_dbcsr_blocks(fft_density, fft_range(1), fft_range(2), para_env, &
                                           denmat(ispin, :), blocks, factors)
             DEALLOCATE (fft_density)
-            profile%seconds(9) = profile%seconds(9) + m_walltime() - started
             CYCLE
          END IF
          IF (ispin == 1) THEN
@@ -2638,12 +2574,10 @@ CONTAINS
                                              components(2)%matrix, image, nc == 1, plan)
          END DO
          IF (ALLOCATED(fft_density)) DEALLOCATE (fft_density)
-         profile%seconds(9) = profile%seconds(9) + m_walltime() - started
       END DO
       DO ic = 1, nc
          CALL cp_fm_release(partial(ic))
       END DO
-      CALL rskp_fft_profile_print(profile, para_env, 'K2R_FFT_PROFILE|')
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_density_transform_regular_grid
@@ -2661,9 +2595,8 @@ CONTAINS
 !> \param nimg number of requested real-space images
 !> \param owned local FM element range assigned to this inter-group rank
 !> \param density owned real-space matrix pencils
-!> \param profile ...
 ! **************************************************************************************************
-   SUBROUTINE kp_density_fft(kpoint, source, nrow, ncol, nimg, owned, density, profile)
+   SUBROUTINE kp_density_fft(kpoint, source, nrow, ncol, nimg, owned, density)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(IN)    :: source
@@ -2671,7 +2604,6 @@ CONTAINS
       INTEGER, DIMENSION(2), INTENT(OUT)                 :: owned
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: density
-      TYPE(lattice_fft_profile_type), INTENT(INOUT)      :: profile
 
       INTEGER(KIND=int_8), PARAMETER                     :: max_bytes = 64_int_8*1024*1024
       INTEGER, PARAMETER                                 :: max_batch = 32
@@ -2691,11 +2623,9 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: choice
       INTEGER, DIMENSION(3)                              :: nfft
       LOGICAL                                            :: compatible, fft_success, used_fft
-      REAL(KIND=dp)                                      :: detail_started, started
       TYPE(k_grid_to_cell_work_type)                     :: fft_work_data
       TYPE(mp_para_env_type), POINTER                    :: inter
 
-      started = m_walltime()
       owned = [1, 0]
       CPASSERT(kpoint%rskp_transform == rskp_backend_fft)
       nkp = SIZE(kpoint%xkp, 2)
@@ -2741,10 +2671,8 @@ CONTAINS
          CPABORT("Inverse FFT tile exceeds the integer MPI count range")
       END IF
       width = choice(2)
-      profile%setup_seconds(3) = profile%setup_seconds(3) + m_walltime() - started
 
       CALL timeset("kp_density_fft", handle)
-      detail_started = m_walltime()
       ALLOCATE (density(nowned, nc, nimg))
       ALLOCATE (cells(3, nc*nimg))
       cells(:, 1:nimg) = kpoint%index_to_cell(:, 1:nimg)
@@ -2757,25 +2685,12 @@ CONTAINS
          ALLOCATE (sendbuf(MAX(1, width*ngroup*local_k)))
       END IF
       ALLOCATE (values_rs(width, 1, nc*nimg))
-      profile%setup_seconds(6) = profile%setup_seconds(6) + m_walltime() - detail_started
       IF (nowned > 0) THEN
-         detail_started = m_walltime()
          CALL k_grid_to_cell_prepare(fft_work_data, kpoint%xkp, kpoint%nkp_grid, cells, &
                                      weights=kpoint%wkp, allow_incomplete=.TRUE.)
-         profile%setup_seconds(2) = profile%setup_seconds(2) + m_walltime() - detail_started
-         profile%setup_calls(2) = profile%setup_calls(2) + 1_int_8
       END IF
-      profile%seconds(1) = profile%seconds(1) + m_walltime() - started
-      profile%grid = kpoint%nkp_grid
-      profile%padded = nfft
-      profile%memory(2) = MAX(profile%memory(2), 8_int_8*INT(nc, int_8)*SIZE(source, 1, KIND=int_8)* &
-                              SIZE(source(1, 1)%matrix%local_data, KIND=int_8))
-      profile%memory(4) = MAX(profile%memory(4), 8_int_8*SIZE(density, KIND=int_8))
-      profile%memory(6) = MAX(profile%memory(6), 16_int_8*(SIZE(recvbuf, KIND=int_8) + SIZE(values_rs, KIND=int_8) + &
-                                                           MERGE(0_int_8, SIZE(sendbuf, KIND=int_8), ngroup == 1)))
       fft_success = .TRUE.
       DO batch = 1, MAXVAL(ranges(2, :) - ranges(1, :) + 1), width
-         started = m_walltime()
          count = MAX(0, MIN(width, nowned - batch + 1))
          offset = 0
          DO group = 1, ngroup
@@ -2803,26 +2718,18 @@ CONTAINS
             END DO
 !$OMP END PARALLEL DO
          END DO
-         profile%seconds(2) = profile%seconds(2) + m_walltime() - started
-         profile%counts(3) = profile%counts(3) + 8_int_8*INT(nc, int_8)*SUM(INT(scount, int_8))
-         started = m_walltime()
-         IF (ngroup > 1) THEN
-            CALL inter%alltoall(sendbuf, scount, sdispl, recvbuf, rcount, rdispl)
-            profile%counts(4) = profile%counts(4) + 16_int_8*SUM(INT(scount, int_8))
-         END IF
-         profile%seconds(8) = profile%seconds(8) + m_walltime() - started
+         IF (ngroup > 1) CALL inter%alltoall(sendbuf, scount, sdispl, recvbuf, rcount, rdispl)
          used_fft = .TRUE.
          IF (count > 0) THEN
             values_k(1:count, 1:1, 1:nkp) => recvbuf(1:count*nkp)
             ! Keep fft_tools pool/planner access outside OpenMP worker regions.
             CALL k_grid_to_cell_execute(fft_work_data, values_k, values_rs(1:count, :, :), &
                                         used_fft=used_fft, require_fft=.TRUE., &
-                                        allow_direct_fallback=.FALSE., profile=profile)
+                                        allow_direct_fallback=.FALSE.)
          END IF
          fft_success = fft_success .AND. used_fft
          IF (count == 0) CYCLE
          IF (.NOT. used_fft) CYCLE
-         started = m_walltime()
          DO i = 1, nimg
             IF (nc == 1) THEN
                density(batch:batch + count - 1, 1, i) = REAL(values_rs(1:count, 1, i), dp)
@@ -2833,8 +2740,6 @@ CONTAINS
                                                         REAL(values_rs(1:count, 1, i) - values_rs(1:count, 1, nimg + i), dp)
             END IF
          END DO
-         profile%seconds(9) = profile%seconds(9) + m_walltime() - started
-         profile%counts(6) = profile%counts(6) + 8_int_8*INT(count, int_8)*INT(nc, int_8)*INT(nimg, int_8)
       END DO
       fft_status = MERGE(1, 0, fft_success)
       CALL kpoint%blacs_env_all%para_env%min(fft_status)

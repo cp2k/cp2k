@@ -113,7 +113,7 @@ PROGRAM kpoint_lattice_fft_unittest
       USE kinds, ONLY: int_8
       USE kpoint_transform, ONLY: cell_to_k_backend_evaluate_batch, cell_to_k_backend_prepare, &
                                   cell_to_k_sparse_fft, rskp_route_type, rskp_values_type
-      USE kpoint_lattice_fft, ONLY: cell_to_k_grid_release, lattice_fft_profile_type
+      USE kpoint_lattice_fft, ONLY: cell_to_k_grid_release
       USE message_passing, ONLY: mp_para_env_type, mp_para_env_release
       INTEGER :: p, sign
       COMPLEX(dp), TARGET :: dense(4, 3, nkp), expected(4, 3, nkp)
@@ -124,7 +124,6 @@ PROGRAM kpoint_lattice_fft_unittest
       TYPE(cp_fm_p_type) :: destinations(nkp, 2)
       TYPE(rskp_route_type) :: route
       TYPE(rskp_values_type) :: snapshot
-      TYPE(lattice_fft_profile_type) :: profile
       TYPE(mp_para_env_type), POINTER :: env
 
       ALLOCATE (env)
@@ -158,23 +157,8 @@ PROGRAM kpoint_lattice_fft_unittest
          snapshot%mirror_sign = sign
          snapshot%scale = CMPLX(0.3_dp, 0.7_dp, dp)
          ALLOCATE (snapshot%fft_values(3, nkp))
-         profile = lattice_fft_profile_type()
          CALL cell_to_k_sparse_fft(snapshot, route, xkp, nkp_grid, RESHAPE([1, nkp], [2, 1]), env, &
-                                   1_int_8, cache=snapshot%fft_values, profile=profile)
-         IF (profile%counts(1) /= 3_int_8 .OR. profile%counts(2) /= 3_int_8) THEN
-            ERROR STOP 'Soft FFT target did not retain one-element tiles'
-         END IF
-         IF (ANY(profile%passes /= 3_int_8)) ERROR STOP 'FFT profile missed an axis pass'
-         IF (SUM(profile%buffer_counts(1:2)) /= 3_int_8 .OR. ANY(profile%buffer_counts(3:4) /= 0_int_8)) THEN
-            ERROR STOP 'FFT profile missed buffer allocation or reuse'
-         END IF
-         IF (SUM(profile%setup_seconds) > profile%seconds(1) + 1.0E-6_dp) THEN
-            ERROR STOP 'FFT profile setup substages exceed the parent stage'
-         END IF
-         IF (ANY(SUM(profile%fft_seconds, DIM=1) > profile%seconds(4:6) + 1.0E-6_dp)) THEN
-            ERROR STOP 'FFT profile axis substages exceed the parent stages'
-         END IF
-         IF (profile%memory(3) /= 16_int_8*3_int_8*INT(nkp, int_8)) ERROR STOP 'FFT profile cache size is incorrect'
+                                   1_int_8, cache=snapshot%fft_values)
          IF (MAXVAL(ABS(snapshot%fft_values - transformed(1, :, :))) > 2.0E-12_dp) THEN
             ERROR STOP 'Canonical FFT cache changed raw Fourier values'
          END IF
@@ -197,14 +181,8 @@ PROGRAM kpoint_lattice_fft_unittest
             ERROR STOP 'Canonical FFT cache split-FM scatter is incorrect'
          END IF
          DEALLOCATE (snapshot%fft_values)
-         profile = lattice_fft_profile_type()
          CALL cell_to_k_sparse_fft(snapshot, route, xkp, nkp_grid, RESHAPE([1, nkp], [2, 1]), env, &
-                                   1_int_8, output=destinations, profile=profile)
-         IF (profile%memory(3) /= 0_int_8) ERROR STOP 'Direct FFT output retained an intermediate cache'
-         IF (profile%memory(4) /= 8_int_8*SIZE(split, KIND=int_8)) ERROR STOP 'FFT profile target size is incorrect'
-         IF (ANY(profile%buffer_counts /= [0_int_8, 3_int_8, 0_int_8, 0_int_8])) THEN
-            ERROR STOP 'FFT profile missed prepared buffer reuse'
-         END IF
+                                   1_int_8, output=destinations)
          IF (MAXVAL(ABS(CMPLX(split(:, :, :, 1), split(:, :, :, 2), dp) - expected)) > 2.0E-12_dp) THEN
             ERROR STOP 'Direct FFT output differs from cached evaluation'
          END IF
@@ -282,28 +260,7 @@ PROGRAM kpoint_lattice_fft_unittest
    IF (MAXVAL(ABS(weighted_result - weighted_reference)) > 3.0E-12_dp) THEN
       ERROR STOP "Prepared weighted inverse differs from explicit phase sum"
    END IF
-   BLOCK
-      USE kinds, ONLY: int_8
-      USE kpoint_lattice_fft, ONLY: lattice_fft_profile_type
-      TYPE(lattice_fft_profile_type) :: profile
-      CALL k_grid_to_cell_execute(inverse_work, transformed(:, :, 1:9), values_real=real_transformed, &
-                                  used_fft=used_fft, profile=profile)
-      IF (profile%counts(1) /= 6_int_8 .OR. ANY(profile%passes /= 3_int_8)) THEN
-         ERROR STOP 'Inverse FFT profile missed transforms or axis passes'
-      END IF
-      IF (profile%counts(5) /= 8_int_8*SIZE(real_transformed, KIND=int_8)) THEN
-         ERROR STOP 'Inverse FFT profile counted real output as complex storage'
-      END IF
-      IF (ANY(profile%buffer_counts /= [1_int_8, 0_int_8, 1_int_8, 0_int_8])) THEN
-         ERROR STOP 'Inverse FFT profile missed buffer growth for the wider batch'
-      END IF
-      IF (SUM(profile%setup_seconds) > profile%seconds(1) + 1.0E-6_dp) THEN
-         ERROR STOP 'Inverse FFT profile setup substages exceed the parent stage'
-      END IF
-      IF (ANY(SUM(profile%fft_seconds, DIM=1) > profile%seconds(4:6) + 1.0E-6_dp)) THEN
-         ERROR STOP 'Inverse FFT profile axis substages exceed the parent stages'
-      END IF
-   END BLOCK
+   CALL k_grid_to_cell_execute(inverse_work, transformed(:, :, 1:9), values_real=real_transformed, used_fft=used_fft)
    IF (.NOT. used_fft .OR. MAXVAL(ABS(real_transformed - REAL(weighted_reference, dp))) > 3.0E-12_dp) THEN
       ERROR STOP 'Real-output weighted inverse differs from explicit phase sum'
    END IF
@@ -590,9 +547,8 @@ CONTAINS
       USE cp_log_handling, ONLY: cp_add_default_logger, cp_logger_create, cp_logger_release, &
                                  cp_logger_type, cp_rm_default_logger
       USE kpoint_k_r_trafo_simple, ONLY: replicate_rs_matrices
-      USE kinds, ONLY: int_8
       USE kpoint_transform, ONLY: k_grid_to_cell_contract, k_grid_to_cell_phase_prepare, &
-                                  k_grid_to_cell_phase_type, k_grid_to_cell_profile_type
+                                  k_grid_to_cell_phase_type
       USE kpoint_types, ONLY: kpoint_type
       USE local_gemm_api, ONLY: LOCAL_GEMM_PU_HOST, local_gemm_ctxt_type
       USE machine, ONLY: default_output_unit
@@ -683,7 +639,6 @@ CONTAINS
          INTEGER, PARAMETER :: nk = 1031, nimages = 11
          INTEGER :: c, e, g, j, k, layout(4, 2, nk, 2, 2), nc, request, s, shift(3), worker, workers
          INTEGER :: image_data(5, nimages), k_index(nk)
-         INTEGER(KIND=int_8) :: gathered, expected_gather
          INTEGER, TARGET :: row_map(5), col_map(5)
          LOGICAL :: reverse, transposed
          REAL(dp) :: arg, cosine, sine, re(6), im(6), raw(6, 2), coordinates(3, nk), weight(nk)
@@ -694,7 +649,6 @@ CONTAINS
          TYPE(cp_fm_type), ALLOCATABLE, TARGET :: matrices(:, :, :)
          TYPE(cp_fm_p_type), ALLOCATABLE :: views(:, :, :)
          TYPE(local_gemm_ctxt_type), ALLOCATABLE :: contexts(:)
-         TYPE(k_grid_to_cell_profile_type), ALLOCATABLE :: stats(:)
          TYPE(k_grid_to_cell_phase_type) :: phase_table
 
          ! Borrowed FM views over test-owned storage; no owning FM release is used.
@@ -729,20 +683,16 @@ CONTAINS
             workers = 1
 !$          IF (request == 2) workers = MIN(4, omp_get_max_threads())
             ALLOCATE (contexts(workers))
-            ALLOCATE (stats(workers), source=k_grid_to_cell_profile_type())
             DO worker = 1, workers
                contexts(worker) = local_gemm_ctxt_type()
                CALL contexts(worker)%create(LOCAL_GEMM_PU_HOST, timing=.FALSE.)
             END DO
-            CALL k_grid_to_cell_phase_prepare(phase_table, image_data(1:3, :), coordinates, stats)
-            gathered = 0_int_8
-            DO worker = 1, workers
-               gathered = gathered + stats(worker)%counts(2)
-            END DO
+            CALL k_grid_to_cell_phase_prepare(phase_table, image_data(1:3, :), coordinates, workers)
             ! Distinct nonzero magnitudes: x={1,17}, y={1,19}, z={1}.
-            IF (gathered /= 10_int_8*INT(nk, int_8)) ERROR STOP 'Axis phase table did not deduplicate coordinates'
+            IF (COUNT(phase_table%coordinate /= 0) /= 5) THEN
+               ERROR STOP 'Axis phase table did not deduplicate coordinates'
+            END IF
             DO mode = 1, 5
-               stats(:) = k_grid_to_cell_profile_type()
                nc = MERGE(1, 2, mode == 3)
                reverse = mode /= 1
                transposed = mode == 4
@@ -763,7 +713,6 @@ CONTAINS
                END DO
                IF (mode == 4) row_map = [1, 3, 4, 5, 6]
                reference = 0.0_dp
-               expected_gather = 0_int_8
                DO k = 1, nk
                   g = k_index(k)
                   arg = twopi*SUM(REAL(shift, dp)*coordinates(:, k))
@@ -776,7 +725,6 @@ CONTAINS
                            DO atom = layout(1, 1, g, c, s), layout(2, 1, g, c, s)
                               e = row_map(atom) + 3*(col_map(j) - 4)
                               raw(e, c) = DATA(atom, j, g, c, s)
-                              expected_gather = expected_gather + 1_int_8
                            END DO
                         END DO
                      END DO
@@ -793,29 +741,15 @@ CONTAINS
                END DO
                CALL k_grid_to_cell_contract(views(:, 1:nc, :), layout(:, :, :, 1:nc, :), k_index, &
                                             coordinates, weight, image_data, [1, 2], [3, 2], [1, 4], &
-                                            shift, reverse, transposed, phase_table, RESULT, contexts, stats)
+                                            shift, reverse, transposed, phase_table, RESULT, contexts)
                IF (MAXVAL(ABS(RESULT - reference)) > 2.0E-11_dp) THEN
                   ERROR STOP 'Parallel k-batch density contraction differs from explicit phase sum'
-               END IF
-               gathered = 0_int_8
-               DO worker = 1, workers
-                  gathered = gathered + stats(worker)%counts(3)
-               END DO
-               IF (gathered /= expected_gather) ERROR STOP 'K-batch contraction gathered a source element more than once'
-               gathered = 0_int_8
-               DO worker = 1, workers
-                  gathered = gathered + stats(worker)%counts(2)
-               END DO
-               IF (ALL(shift == 0)) THEN
-                  IF (gathered /= 0_int_8) ERROR STOP 'Zero-shift contraction recomputed trigonometric phases'
-               ELSE
-                  IF (gathered /= 2_int_8*INT(nk, int_8)) ERROR STOP 'Contraction recomputed image phases'
                END IF
             END DO
             DO worker = 1, workers
                CALL contexts(worker)%destroy()
             END DO
-            DEALLOCATE (contexts, stats)
+            DEALLOCATE (contexts)
          END DO
       END BLOCK
       CALL dbcsr_finalize_lib()

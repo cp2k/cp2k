@@ -24,17 +24,19 @@ MODULE kpoint_transform
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                               cp_fm_type
-   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE input_constants,                 ONLY: rskp_backend_fft,&
                                               rskp_backend_gemm
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE kpoint_lattice_fft,              ONLY: &
-        cell_to_k_grid_fft, cell_to_k_grid_prepare, cell_to_k_grid_release, &
-        cell_to_k_grid_work_type, k_grid_to_cell_execute, k_grid_to_cell_prepare, &
-        k_grid_to_cell_release, k_grid_to_cell_work_type, lattice_fft_profile_type
+   USE kpoint_lattice_fft,              ONLY: cell_to_k_grid_fft,&
+                                              cell_to_k_grid_prepare,&
+                                              cell_to_k_grid_release,&
+                                              cell_to_k_grid_work_type,&
+                                              k_grid_to_cell_execute,&
+                                              k_grid_to_cell_prepare,&
+                                              k_grid_to_cell_release,&
+                                              k_grid_to_cell_work_type
    USE local_gemm_api,                  ONLY: local_gemm_ctxt_type
-   USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: twopi,&
                                               z_one,&
                                               z_zero
@@ -70,16 +72,6 @@ MODULE kpoint_transform
    PUBLIC :: cell_to_k_sparse_fft, k_grid_to_cell_contract, rskp_phase_factors, rskp_work_matrix
    PUBLIC :: k_grid_to_cell_phase_prepare
    PUBLIC :: cell_to_k_transform, k_to_real_cell_transform
-   PUBLIC :: rskp_fft_profile_print
-
-   ! One accumulator per worker; reduce only after leaving the OpenMP region.
-   TYPE, PUBLIC :: k_grid_to_cell_profile_type
-      ! Setup, phase table, phase composition, pack/gauge, GEMM, merge/expand, AO rotation.
-      REAL(KIND=dp) :: seconds(7) = 0.0_dp, flops = 0.0_dp
-      ! Contractions, trig evaluations, FM values gathered, GEMM calls.
-      INTEGER(KIND=int_8) :: counts(4) = 0_int_8
-      INTEGER(KIND=int_8) :: shape_sum(3) = 0_int_8, shape_min(3) = HUGE(0_int_8), shape_max(3) = 0_int_8
-   END TYPE k_grid_to_cell_profile_type
 
    ! Unweighted one-dimensional phases for one symmetry group's local k domain.
    TYPE, PUBLIC :: k_grid_to_cell_phase_type
@@ -145,97 +137,6 @@ MODULE kpoint_transform
    END TYPE rskp_prepared_transform_type
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief Collect FFT diagnostics outside OpenMP regions and print once on the logger rank.
-!> \param profile call-local elapsed times and visible allocation estimates
-!> \param world communicator spanning the transform
-!> \param tag output prefix identifying R-to-K or K-to-R
-! **************************************************************************************************
-   SUBROUTINE rskp_fft_profile_print(profile, world, tag)
-      TYPE(lattice_fft_profile_type), INTENT(IN)         :: profile
-      TYPE(mp_para_env_type), INTENT(IN)                 :: world
-      CHARACTER(LEN=*), INTENT(IN)                       :: tag
-
-      CHARACTER(LEN=1), PARAMETER                        :: axes(3) = ['X', 'Y', 'Z']
-      CHARACTER(LEN=13), PARAMETER :: allocations(7) = [CHARACTER(LEN=13) :: 'route-est', 'source',&
-         'cache', 'final-target', 'FFT-scratch', 'adapter-work', 'geometry'], stages(9) = [ &
-         CHARACTER(LEN=13) :: 'setup', 'capture/pack', 'grid-fill', 'FFT-X/plan', 'FFT-Y/plan', &
-         'FFT-Z/plan', 'extract', 'exchange', 'scatter/add']
-      CHARACTER(LEN=18), PARAMETER :: fft_stages(4) = [CHARACTER(LEN=18) :: 'planning-scratch', &
-         'plan-create', 'execute', 'plan-release'], setup_stages(7) = [CHARACTER(LEN=18) :: 'route'&
-         , 'geometry', 'layout/collective', 'cache-init', 'FFT-buffers', 'adapter-buffers', 'other'&
-         ]
-
-      INTEGER                                            :: d, i, unit_nr
-      INTEGER(KIND=int_8)                                :: max_memory(7)
-      REAL(KIND=dp)                                      :: elapsed, max_fft_seconds(4, 3), &
-                                                            max_seconds(9), max_setup_seconds(7), &
-                                                            setup_seconds(7)
-      TYPE(lattice_fft_profile_type)                     :: total
-
-      total = profile
-      max_seconds = profile%seconds
-      max_memory = profile%memory
-      setup_seconds(1:6) = profile%setup_seconds
-      setup_seconds(7) = MAX(0.0_dp, profile%seconds(1) - SUM(profile%setup_seconds))
-      max_setup_seconds = setup_seconds
-      max_fft_seconds = profile%fft_seconds
-      CALL world%sum(total%seconds)
-      CALL world%max(max_seconds)
-      CALL world%sum(total%counts)
-      CALL world%sum(total%passes)
-      CALL world%sum(setup_seconds)
-      CALL world%max(max_setup_seconds)
-      CALL world%sum(total%fft_seconds)
-      CALL world%max(max_fft_seconds)
-      CALL world%sum(total%setup_calls)
-      CALL world%sum(total%buffer_counts)
-      CALL world%sum(total%memory)
-      CALL world%max(max_memory)
-      CALL world%max(total%grid)
-      CALL world%max(total%padded)
-      CALL world%min(total%width_min)
-      CALL world%max(total%width_max)
-      elapsed = SUM(total%seconds)
-      unit_nr = cp_logger_get_default_io_unit()
-      IF (unit_nr <= 0) RETURN
-      WRITE (unit_nr, '(T2,A,A)') tag, ' Rank-seconds summed over MPI ranks; FFT library threading included'
-      WRITE (unit_nr, '(T2,A,A)') tag, ' Stage           sum rank-s    max rank-s   fraction'
-      DO i = 1, SIZE(stages)
-         WRITE (unit_nr, '(T2,A,1X,A13,2F14.6,F9.2,A)') tag, stages(i), total%seconds(i), max_seconds(i), &
-            100.0_dp*total%seconds(i)/MAX(TINY(1.0_dp), elapsed), ' %'
-      END DO
-      WRITE (unit_nr, '(T2,A,A)') tag, ' Substages are included above; sum rank-s, max rank-s, fraction of parent'
-      DO i = 1, SIZE(setup_stages)
-         WRITE (unit_nr, '(T2,A,A,A18,2F14.6,F9.2,A)') tag, ' setup/', setup_stages(i), &
-            setup_seconds(i), max_setup_seconds(i), &
-            100.0_dp*setup_seconds(i)/MAX(TINY(1.0_dp), total%seconds(1)), ' %'
-      END DO
-      DO d = 1, 3
-         DO i = 1, SIZE(fft_stages)
-            WRITE (unit_nr, '(T2,A,A,A1,A,A18,2F14.6,F9.2,A)') tag, ' FFT-', axes(d), '/', fft_stages(i), &
-               total%fft_seconds(i, d), max_fft_seconds(i, d), &
-               100.0_dp*total%fft_seconds(i, d)/MAX(TINY(1.0_dp), total%seconds(3 + d)), ' %'
-         END DO
-      END DO
-      WRITE (unit_nr, '(T2,A,A,2I16)') tag, ' route/geometry builds (summed over ranks):', total%setup_calls
-      WRITE (unit_nr, '(T2,A,A,4I16)') tag, ' FFT buffer pairs alloc/reuse/grow/shrink:', total%buffer_counts
-      WRITE (unit_nr, '(T2,A,A)') tag, ' Buffer counts are wrapper requests; alloc includes grow/shrink, backend pools excluded'
-      WRITE (unit_nr, '(T2,A,A,6I12)') tag, ' grid / padded:', total%grid, total%padded
-      WRITE (unit_nr, '(T2,A,A,5I16)') tag, ' transforms/batches/X/Y/Z passes:', total%counts(1:2), total%passes
-      IF (total%counts(2) > 0_int_8) THEN
-         WRITE (unit_nr, '(T2,A,A,I9,F12.2,I9)') tag, ' AO tile min/mean/max:', total%width_min, &
-            REAL(total%counts(1), dp)/REAL(total%counts(2), dp), total%width_max
-      END IF
-      WRITE (unit_nr, '(T2,A,A,4F14.6)') tag, ' packed/exchanged/extracted/scattered GiB:', &
-         REAL(total%counts(3:6), dp)/1024.0_dp**3
-      WRITE (unit_nr, '(T2,A,A)') tag, ' Visible allocation peaks/estimates: sum MiB, max-rank MiB; backend pools excluded'
-      DO i = 1, SIZE(allocations)
-         WRITE (unit_nr, '(T2,A,1X,A13,2F14.3)') tag, allocations(i), &
-            REAL(total%memory(i), dp)/1024.0_dp**2, REAL(max_memory(i), dp)/1024.0_dp**2
-      END DO
-   END SUBROUTINE rskp_fft_profile_print
 
 ! **************************************************************************************************
 !> \brief Transform local real matrix panels with the selected RSKP backend.
@@ -613,14 +514,10 @@ CONTAINS
                                                             workspace_bytes
       INTEGER, ALLOCATABLE                               :: eval_kp_dist(:, :)
       LOGICAL                                            :: ready
-      REAL(KIND=dp)                                      :: detail_started, started
       REAL(KIND=dp), ALLOCATABLE                         :: phase_xkp(:, :)
-      TYPE(lattice_fft_profile_type)                     :: profile
       TYPE(mp_para_env_type), POINTER                    :: eval_group, eval_inter
 
       CALL timeset(routineN, handle)
-      profile = lattice_fft_profile_type()
-      started = m_walltime()
       CALL rskp_transform_release(prepared)
       CPASSERT(SIZE(source_rows) > 0)
       CPASSERT(ALL(source_rows >= 1) .AND. ALL(source_rows <= SIZE(source, 1)))
@@ -652,19 +549,13 @@ CONTAINS
       IF (backend == rskp_backend_fft) max_backend_bytes = rskp_panel_bytes
       ALLOCATE (prepared%kp_dist, source=eval_kp_dist)
       ALLOCATE (prepared%values(SIZE(source_rows)))
-      IF (backend == rskp_backend_fft) detail_started = m_walltime()
       CALL rskp_route_create(source, source_sab, cell_to_index, target_struct, world, eval_group, eval_inter, backend, &
                              prepared%route, ready)
-      IF (backend == rskp_backend_fft) THEN
-         profile%setup_seconds(1) = m_walltime() - detail_started
-         profile%setup_calls(1) = 1_int_8
-      END IF
       IF (.NOT. ready) THEN
          CPABORT("R-to-K route has an incompatible source or target layout")
       END IF
 
       phase_bytes = max_backend_bytes
-      IF (backend == rskp_backend_fft) detail_started = m_walltime()
       IF (backend == rskp_backend_fft .OR. prepared%route%world_target) THEN
          workspace_bytes = max_backend_bytes
          IF (backend == rskp_backend_gemm) workspace_bytes = phase_bytes
@@ -674,19 +565,8 @@ CONTAINS
          ALLOCATE (phase_xkp, source=xkp(:, first:eval_kp_dist(2, eval_inter%mepos + 1)))
          CALL cell_to_k_backend_prepare(prepared%route, phase_xkp, nkp_grid, phase_bytes)
       END IF
-      IF (backend == rskp_backend_fft) THEN
-         profile%setup_seconds(2) = m_walltime() - detail_started
-         profile%setup_calls(2) = 1_int_8
-         profile%seconds(1) = m_walltime() - started
-      END IF
       DO irow = 1, SIZE(source_rows)
-         started = m_walltime()
          CALL rskp_capture(source, source_rows(irow), prepared%route, prepared%values(irow), mirror_sign, scale)
-         IF (backend == rskp_backend_fft) THEN
-            profile%seconds(2) = profile%seconds(2) + m_walltime() - started
-            profile%counts(3) = profile%counts(3) + 8_int_8*SIZE(prepared%values(irow)%packed, KIND=int_8)
-            profile%memory(2) = profile%memory(2) + 8_int_8*SIZE(prepared%values(irow)%packed, KIND=int_8)
-         END IF
       END DO
       IF (backend == rskp_backend_fft) THEN
          nk_local = SIZE(xkp, 2)
@@ -696,19 +576,14 @@ CONTAINS
          END IF
          workspace_bytes = max_backend_bytes
          DO irow = 1, SIZE(source_rows)
-            detail_started = m_walltime()
             ALLOCATE (prepared%values(irow)%fft_values( &
                       prepared%route%element_first(SIZE(prepared%route%element_first)) - 1, nk_local))
-            detail_started = m_walltime() - detail_started
-            profile%setup_seconds(4) = profile%setup_seconds(4) + detail_started
-            profile%seconds(1) = profile%seconds(1) + detail_started
             CALL cell_to_k_sparse_fft(prepared%values(irow), prepared%route, xkp, nkp_grid, &
                                       eval_kp_dist, eval_inter, &
-                                      workspace_bytes, cache=prepared%values(irow)%fft_values, profile=profile)
+                                      workspace_bytes, cache=prepared%values(irow)%fft_values)
             DEALLOCATE (prepared%values(irow)%packed)
          END DO
          ALLOCATE (prepared%work(0))
-         CALL rskp_fft_profile_print(profile, world, 'R2K_FFT_PROFILE|')
       ELSE
          ALLOCATE (prepared%work(2_int_8*prepared%route%transform%max_per_k))
       END IF
@@ -1767,9 +1642,8 @@ CONTAINS
 !> \param max_bytes soft workspace target, excluding retained inputs and destinations
 !> \param cache optional unscaled canonical elements by local k point
 !> \param output optional existing split-FM destinations, instead of cache
-!> \param profile optional call-local FFT diagnostics
 ! **************************************************************************************************
-   SUBROUTINE cell_to_k_sparse_fft(snapshot, route, xkp, nkp_grid, kp_dist, inter, max_bytes, cache, output, profile)
+   SUBROUTINE cell_to_k_sparse_fft(snapshot, route, xkp, nkp_grid, kp_dist, inter, max_bytes, cache, output)
       TYPE(rskp_values_type), INTENT(IN), TARGET         :: snapshot
       TYPE(rskp_route_type), INTENT(INOUT)               :: route
       REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
@@ -1779,8 +1653,6 @@ CONTAINS
       COMPLEX(KIND=dp), CONTIGUOUS, INTENT(OUT), &
          OPTIONAL                                        :: cache(:, :)
       TYPE(cp_fm_p_type), INTENT(IN), OPTIONAL           :: output(:, :)
-      TYPE(lattice_fft_profile_type), INTENT(INOUT), &
-         OPTIONAL                                        :: profile
 
       COMPLEX(KIND=dp), ALLOCATABLE, TARGET              :: received(:), transformed(:, :, :)
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: canonical(:, :), send(:)
@@ -1792,10 +1664,8 @@ CONTAINS
                                                             per_element, workspace_bytes
       INTEGER, ALLOCATABLE                               :: ranges(:, :), rcount(:), rdisp(:), &
                                                             scount(:), sdisp(:)
-      REAL(KIND=dp)                                      :: detail_started, started
       REAL(KIND=dp), CONTIGUOUS, POINTER                 :: values(:, :, :)
 
-      IF (PRESENT(profile)) started = m_walltime()
       CPASSERT(route%transform%backend == rskp_backend_fft)
       CPASSERT(PRESENT(cache) .NEQV. PRESENT(output))
       CPASSERT(route%transform%fft_work%regular)
@@ -1804,20 +1674,14 @@ CONTAINS
       IF (PRESENT(cache)) THEN
          CPASSERT(SIZE(cache, 1) == route%element_first(SIZE(route%element_first)) - 1)
          nlocal = SIZE(cache, 2)
-         IF (PRESENT(profile)) detail_started = m_walltime()
          cache = z_zero
       ELSE
          nlocal = SIZE(output, 1)
-         IF (PRESENT(profile)) detail_started = m_walltime()
          DO ik = 1, nlocal
             DO i = 1, SIZE(output, 2)
                output(ik, i)%matrix%local_data(:, :) = 0.0_dp
             END DO
          END DO
-      END IF
-      IF (PRESENT(profile)) THEN
-         profile%setup_seconds(4) = profile%setup_seconds(4) + m_walltime() - detail_started
-         detail_started = m_walltime()
       END IF
       npeers = 1
       my_peer = 0
@@ -1831,25 +1695,7 @@ CONTAINS
       CPASSERT(nlocal == ranges(2, my_peer + 1) - ranges(1, my_peer + 1) + 1)
       available = max_bytes
       IF (.NOT. route%world_target) CALL inter%min(available)
-      IF (PRESENT(profile)) THEN
-         profile%setup_seconds(3) = profile%setup_seconds(3) + m_walltime() - detail_started
-      END IF
       ALLOCATE (scount(npeers), sdisp(npeers), rcount(npeers), rdisp(npeers))
-      IF (PRESENT(profile)) THEN
-         profile%seconds(1) = profile%seconds(1) + m_walltime() - started
-         profile%grid = nkp_grid
-         profile%padded = route%transform%fft_work%nfft
-         profile%memory(1) = route%storage
-         profile%memory(2) = MAX(profile%memory(2), 8_int_8*SIZE(snapshot%packed, KIND=int_8))
-         IF (PRESENT(cache)) profile%memory(3) = profile%memory(3) + 16_int_8*SIZE(cache, KIND=int_8)
-         IF (PRESENT(output)) THEN
-            DO ik = 1, nlocal
-               DO i = 1, SIZE(output, 2)
-                  profile%memory(4) = profile%memory(4) + 8_int_8*SIZE(output(ik, i)%matrix%local_data, KIND=int_8)
-               END DO
-            END DO
-         END IF
-      END IF
       DO igroup = 1, SIZE(route%block_first) - 1
          first = route%block_first(igroup)
          last = route%block_first(igroup + 1) - 1
@@ -1874,15 +1720,7 @@ CONTAINS
             start = element + my_peer*width
             ntile = MAX(0, MIN(width, nelem - start + 1))
             nwave = MIN(width*npeers, nelem - element + 1)
-            IF (PRESENT(profile)) detail_started = m_walltime()
             ALLOCATE (transformed(ntile, 1, nk), received(nwave*nlocal))
-            IF (PRESENT(profile)) THEN
-               detail_started = m_walltime() - detail_started
-               profile%setup_seconds(6) = profile%setup_seconds(6) + detail_started
-               profile%seconds(1) = profile%seconds(1) + detail_started
-            END IF
-            IF (PRESENT(profile)) profile%memory(6) = MAX(profile%memory(6), &
-                                                          16_int_8*(SIZE(transformed, KIND=int_8) + SIZE(received, KIND=int_8)))
             IF (ntile > 0) THEN
                workspace_bytes = available - fixed_bytes - 16_int_8*(SIZE(transformed, KIND=int_8) + &
                                                                      SIZE(received, KIND=int_8))
@@ -1890,7 +1728,7 @@ CONTAINS
                                        route%entry(5:7, route%block_order(first:last)), &
                                        xkp, nkp_grid, transformed, &
                                        require_fft=.TRUE., work=route%transform%fft_work, cell_first=first, &
-                                       max_workspace_bytes=workspace_bytes, profile=profile)
+                                       max_workspace_bytes=workspace_bytes)
             END IF
             send(1:SIZE(transformed)) => transformed
             scount(:) = ntile*(ranges(2, :) - ranges(1, :) + 1)
@@ -1901,16 +1739,10 @@ CONTAINS
                rdisp(group) = offset
                offset = offset + rcount(group)
             END DO
-            IF (PRESENT(profile)) started = m_walltime()
             IF (npeers > 1) THEN
                CALL inter%alltoall(send, scount, sdisp, received, rcount, rdisp)
-               IF (PRESENT(profile)) profile%counts(4) = profile%counts(4) + 16_int_8*SUM(INT(scount, int_8))
             ELSE
                received(:) = send
-            END IF
-            IF (PRESENT(profile)) THEN
-               profile%seconds(8) = profile%seconds(8) + m_walltime() - started
-               started = m_walltime()
             END IF
             DO group = 1, npeers
                ntile = rcount(group)/MAX(1, nlocal)
@@ -1919,22 +1751,11 @@ CONTAINS
                canonical(1:ntile, 1:nlocal) => received(rdisp(group) + 1:rdisp(group) + rcount(group))
                IF (PRESENT(cache)) THEN
                   cache(start:start + ntile - 1, :) = canonical
-                  IF (PRESENT(profile)) profile%counts(6) = profile%counts(6) + 16_int_8*SIZE(canonical, KIND=int_8)
                ELSE
                   CALL cell_to_k_scatter(canonical, start, route, snapshot%mirror_sign, snapshot%scale, output=output)
-                  IF (PRESENT(profile)) profile%counts(6) = profile%counts(6) + &
-                                                            8_int_8*INT(SIZE(output, 2), int_8)*INT(nlocal, int_8)* &
-                                                            COUNT(route%element_offset(:, start:start + ntile - 1) > 0, KIND=int_8)
                END IF
             END DO
-            IF (PRESENT(profile)) profile%seconds(9) = profile%seconds(9) + m_walltime() - started
-            IF (PRESENT(profile)) detail_started = m_walltime()
             DEALLOCATE (transformed, received)
-            IF (PRESENT(profile)) THEN
-               detail_started = m_walltime() - detail_started
-               profile%setup_seconds(6) = profile%setup_seconds(6) + detail_started
-               profile%seconds(1) = profile%seconds(1) + detail_started
-            END IF
          END DO
       END DO
    END SUBROUTINE cell_to_k_sparse_fft
@@ -2450,23 +2271,21 @@ CONTAINS
 !> \param table owned axis-coordinate dictionary and phases
 !> \param cells globally available image translations
 !> \param xkp this symmetry group's local contribution coordinates
-!> \param profile worker-owned diagnostic accumulators
+!> \param nworkers maximum number of OpenMP workers
 ! **************************************************************************************************
-   SUBROUTINE k_grid_to_cell_phase_prepare(table, cells, xkp, profile)
+   SUBROUTINE k_grid_to_cell_phase_prepare(table, cells, xkp, nworkers)
       TYPE(k_grid_to_cell_phase_type), INTENT(OUT)       :: table
       INTEGER, INTENT(IN)                                :: cells(:, :)
       REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
-      TYPE(k_grid_to_cell_profile_type), INTENT(INOUT)   :: profile(:)
+      INTEGER, INTENT(IN)                                :: nworkers
 
-      INTEGER                                            :: axis, i, k, n, nk, nworkers, pos, thread
-      INTEGER(KIND=int_8)                                :: ntrig
+      INTEGER                                            :: axis, i, k, n, nk, pos
       INTEGER, ALLOCATABLE                               :: coordinates(:, :), COUNT(:), &
                                                             direction(:), order(:), values(:)
-      REAL(KIND=dp)                                      :: arg, started
+      REAL(KIND=dp)                                      :: arg
 
       CPASSERT(SIZE(cells, 1) == 3 .AND. SIZE(xkp, 1) == 3)
-      CPASSERT(SIZE(profile) > 0)
-      started = m_walltime()
+      CPASSERT(nworkers > 0)
       n = SIZE(cells, 2) + 1
       nk = SIZE(xkp, 2)
       ALLOCATE (coordinates(3, n), COUNT(3), values(n), order(n))
@@ -2491,14 +2310,8 @@ CONTAINS
          table%coordinate(pos:pos + COUNT(axis) - 1) = coordinates(axis, 1:COUNT(axis))
          direction(pos:pos + COUNT(axis) - 1) = axis
       END DO
-      profile(1)%seconds(1) = profile(1)%seconds(1) + m_walltime() - started
-      nworkers = MIN(SIZE(profile), MAX(1, nk))
-!$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(nworkers) IF(nworkers > 1) &
-!$OMP SHARED(table,xkp,profile,direction,n,nk) PRIVATE(thread,started,i,k,arg,ntrig)
-      thread = 1
-!$    thread = omp_get_thread_num() + 1
-      started = m_walltime()
-      ntrig = 0_int_8
+!$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(MIN(nworkers,MAX(1,nk))) IF(MIN(nworkers,MAX(1,nk)) > 1) &
+!$OMP SHARED(table,xkp,direction,n,nk) PRIVATE(i,k,arg)
 !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
       DO i = 1, n
          DO k = 1, nk
@@ -2509,13 +2322,10 @@ CONTAINS
                arg = twopi*REAL(table%coordinate(i), dp)*xkp(direction(i), k)
                table%cosine(k, i) = COS(arg)
                table%sine(k, i) = SIN(arg)
-               ntrig = ntrig + 2_int_8
             END IF
          END DO
       END DO
 !$OMP END DO NOWAIT
-      profile(thread)%seconds(2) = profile(thread)%seconds(2) + m_walltime() - started
-      profile(thread)%counts(2) = profile(thread)%counts(2) + ntrig
 !$OMP END PARALLEL
    END SUBROUTINE k_grid_to_cell_phase_prepare
 
@@ -2538,11 +2348,10 @@ CONTAINS
 !> \param phase_table group-local unweighted one-dimensional phases
 !> \param sums allocated flattened source blocks by image and spin
 !> \param gemm_ctx worker-owned host GEMM contexts
-!> \param profile worker-owned diagnostic times, work counts and GEMM shapes
 ! **************************************************************************************************
    SUBROUTINE k_grid_to_cell_contract(source, tiles, ikp_index, xkp, weight, images, source_pair, &
                                       block_shape, block_offset, shift, time_reversal, trans, &
-                                      phase_table, sums, gemm_ctx, profile)
+                                      phase_table, sums, gemm_ctx)
       TYPE(cp_fm_p_type), INTENT(IN)                     :: source(:, :, :)
       INTEGER, INTENT(IN)                                :: tiles(:, :, :, :, :), ikp_index(:)
       REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :), weight(:)
@@ -2553,24 +2362,22 @@ CONTAINS
       TYPE(k_grid_to_cell_phase_type), INTENT(IN)        :: phase_table
       REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT)          :: sums(:, :, :)
       TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm_ctx(:)
-      TYPE(k_grid_to_cell_profile_type), INTENT(INOUT)   :: profile(:)
 
       INTEGER(KIND=int_8), PARAMETER                     :: max_elements = 1048576_int_8
 
       INTEGER :: a, actual_workers, axis, b, batch, column, first, i, ic, ifirst, ii, ikp, ilast, &
-         image, ispin, ix, iy, iz, j, jj, k, last, nc, ncall, nclass, nelement, nimage, nrow, &
-         nsine, nspin, nworkers, pos, thread
+         image, ispin, ix, iy, iz, j, jj, k, last, nc, nclass, nelement, nimage, nrow, nsine, &
+         nspin, nworkers, pos, thread
       INTEGER, ALLOCATABLE                               :: cells(:, :), image_class(:), &
                                                             phase_index(:, :), sine_index(:)
       LOGICAL                                            :: contributes, has_zero, identity_gauge, &
                                                             real_only, zero_shift
-      REAL(KIND=dp)                                      :: cosine_xy, sine, sine_xy, started, sx, &
-                                                            sy, sz
+      REAL(KIND=dp)                                      :: cosine_xy, sine, sine_xy, sx, sy, sz
       REAL(KIND=dp), ALLOCATABLE :: beta(:), gauge(:), gauge_factors(:, :, :), packed(:, :), &
          phases(:, :), reduced(:, :, :, :), zero_sum(:, :, :)
       TYPE(cp_fm_type), POINTER                          :: matrix
 
-      CPASSERT(SIZE(gemm_ctx) > 0 .AND. SIZE(profile) == SIZE(gemm_ctx))
+      CPASSERT(SIZE(gemm_ctx) > 0)
       nc = SIZE(source, 2)
       nspin = SIZE(source, 3)
       real_only = nc == 1
@@ -2581,15 +2388,12 @@ CONTAINS
       b = source_pair(2)
       nelement = block_shape(1)*block_shape(2)
       nimage = SIZE(images, 2)
-      started = m_walltime()
-      profile(1)%counts(1) = profile(1)%counts(1) + 1_int_8
       IF (ALLOCATED(sums)) THEN
          IF (ANY(SHAPE(sums) /= [nelement, nimage, nspin])) DEALLOCATE (sums)
       END IF
       IF (.NOT. ALLOCATED(sums)) ALLOCATE (sums(nelement, nimage, nspin))
       IF (nelement == 0 .OR. nimage == 0 .OR. SIZE(ikp_index) == 0) THEN
          sums = 0.0_dp
-         profile(1)%seconds(1) = profile(1)%seconds(1) + m_walltime() - started
          RETURN
       END IF
       CALL rskp_image_classes(images(1:3, :), image_class, cells)
@@ -2633,31 +2437,27 @@ CONTAINS
       actual_workers = 1
       ALLOCATE (reduced(nelement, nclass + nsine, nspin, nworkers))
       IF (has_zero) ALLOCATE (zero_sum(nelement, nspin, nworkers), source=0.0_dp)
-      profile(1)%seconds(1) = profile(1)%seconds(1) + m_walltime() - started
 !$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(nworkers) IF(nworkers > 1) &
 !$OMP SHARED(source,tiles,ikp_index,xkp,weight,A,b,block_shape,block_offset,shift,time_reversal, &
 !$OMP        nelement,nspin,nclass,nsine,nc,batch,cells,sine_index,identity_gauge,real_only,has_zero, &
 !$OMP        phase_table,phase_index,zero_shift, &
-!$OMP        reduced,zero_sum,gemm_ctx,profile,actual_workers) &
-!$OMP PRIVATE(thread,started,packed,phases,beta,gauge,gauge_factors,first,last,image,k,ispin, &
-!$OMP         contributes,ikp,ic,ifirst,ilast,column,matrix,nrow,j,jj,ii,i,ncall, &
+!$OMP        reduced,zero_sum,gemm_ctx,actual_workers) &
+!$OMP PRIVATE(thread,packed,phases,beta,gauge,gauge_factors,first,last,image,k,ispin, &
+!$OMP         contributes,ikp,ic,ifirst,ilast,column,matrix,nrow,j,jj,ii,i, &
 !$OMP         ix,iy,iz,sx,sy,sz,cosine_xy,sine_xy)
       thread = 1
 !$    thread = omp_get_thread_num() + 1
 !$OMP MASTER
 !$    actual_workers = omp_get_num_threads()
 !$OMP END MASTER
-      started = m_walltime()
       ALLOCATE (beta(nspin), source=0.0_dp)
       CALL rskp_work_matrix(packed, nelement, nc*batch)
       CALL rskp_work_matrix(phases, batch, nclass + nsine)
       IF (.NOT. identity_gauge .AND. nc == 2) ALLOCATE (gauge(nelement))
       IF (.NOT. identity_gauge) ALLOCATE (gauge_factors(2, 2, batch))
-      profile(thread)%seconds(1) = profile(thread)%seconds(1) + m_walltime() - started
 !$OMP DO SCHEDULE(STATIC)
       DO first = 1, SIZE(ikp_index), batch
          last = MIN(first + batch - 1, SIZE(ikp_index))
-         started = m_walltime()
          DO image = 1, nclass
             ix = phase_index(1, image)
             iy = phase_index(2, image)
@@ -2691,12 +2491,7 @@ CONTAINS
                END IF
             END DO
          END IF
-         profile(thread)%seconds(3) = profile(thread)%seconds(3) + m_walltime() - started
-         IF (.NOT. zero_shift) THEN
-            profile(thread)%counts(2) = profile(thread)%counts(2) + 2_int_8*INT(last - first + 1, int_8)
-         END IF
          DO ispin = 1, nspin
-            started = m_walltime()
             packed = 0.0_dp
             contributes = .FALSE.
             DO k = first, last
@@ -2709,8 +2504,6 @@ CONTAINS
                   column = k - first + 1 + (ic - 1)*batch
                   matrix => source(ikp, ic, ispin)%matrix
                   nrow = ilast - ifirst + 1
-                  profile(thread)%counts(3) = profile(thread)%counts(3) + INT(nrow, int_8)* &
-                                              INT(tiles(4, b, ikp, ic, ispin) - tiles(3, b, ikp, ic, ispin) + 1, int_8)
                   DO j = tiles(3, b, ikp, ic, ispin), tiles(4, b, ikp, ic, ispin)
                      jj = matrix%matrix_struct%col_indices(j) - block_offset(2)
                      ii = matrix%matrix_struct%row_indices(ifirst) - block_offset(1) + 1 + jj*block_shape(1)
@@ -2739,9 +2532,7 @@ CONTAINS
                END IF
                IF (has_zero) zero_sum(:, ispin, thread) = zero_sum(:, ispin, thread) + weight(k)*packed(:, column)
             END DO
-            profile(thread)%seconds(4) = profile(thread)%seconds(4) + m_walltime() - started
             IF (.NOT. contributes .OR. nclass == 0) CYCLE
-            started = m_walltime()
             CALL gemm_ctx(thread)%gemm('N', 'N', nelement, nclass, last - first + 1, 1.0_dp, &
                                        packed, nelement, phases, batch, beta(ispin), reduced(:, :, ispin, thread), nelement)
             IF (nsine > 0) THEN
@@ -2749,17 +2540,6 @@ CONTAINS
                                           packed(:, batch + 1:), nelement, phases(:, nclass + 1:), batch, &
                                           beta(ispin), reduced(:, nclass + 1:, ispin, thread), nelement)
             END IF
-            profile(thread)%seconds(5) = profile(thread)%seconds(5) + m_walltime() - started
-            ncall = MERGE(2, 1, nsine > 0)
-            profile(thread)%counts(4) = profile(thread)%counts(4) + INT(ncall, int_8)
-            profile(thread)%shape_sum = profile(thread)%shape_sum + &
-                                        [INT(nelement, int_8)*INT(ncall, int_8), INT(nclass + nsine, int_8), &
-                                         INT(last - first + 1, int_8)*INT(ncall, int_8)]
-            profile(thread)%shape_min = MIN(profile(thread)%shape_min, &
-                                            INT([nelement, MERGE(MIN(nclass, nsine), nclass, nsine > 0), last - first + 1], int_8))
-            profile(thread)%shape_max = MAX(profile(thread)%shape_max, INT([nelement, nclass, last - first + 1], int_8))
-            profile(thread)%flops = profile(thread)%flops + 2.0_dp*REAL(nelement, dp)* &
-                                    REAL(nclass + nsine, dp)*REAL(last - first + 1, dp)
             beta(ispin) = 1.0_dp
          END DO
       END DO
@@ -2773,7 +2553,6 @@ CONTAINS
       IF (ALLOCATED(gauge_factors)) DEALLOCATE (gauge_factors)
 !$OMP END PARALLEL
       ! Merge local k contributions before expanding multiplicities and rotating AO blocks.
-      started = m_walltime()
       DO thread = 2, actual_workers
          reduced(:, :, :, 1) = reduced(:, :, :, 1) + reduced(:, :, :, thread)
          IF (has_zero) zero_sum(:, :, 1) = zero_sum(:, :, 1) + zero_sum(:, :, thread)
@@ -2791,7 +2570,6 @@ CONTAINS
             END IF
          END DO
       END DO
-      profile(1)%seconds(6) = profile(1)%seconds(6) + m_walltime() - started
    END SUBROUTINE k_grid_to_cell_contract
 
 ! **************************************************************************************************
