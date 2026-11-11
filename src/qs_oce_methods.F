@@ -15,7 +15,8 @@
 ! **************************************************************************************************
 MODULE qs_oce_methods
 
-   USE ai_overlap,                      ONLY: overlap
+   USE ai_overlap,                      ONLY: overlap,&
+                                              overlap_ab
    USE ao_util,                         ONLY: exp_radius
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
@@ -54,21 +55,24 @@ MODULE qs_oce_methods
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param oces ...
-!> \param atom_ka ...
-!> \param atom_kb ...
-!> \param rab ...
-!> \param nder ...
-!> \param sgf_list ...
-!> \param nsgf_cnt ...
-!> \param sgf_soft_only ...
-!> \param eps_fit ...
+!> \brief Overlap and derivative integrals <b|p_a> between orbital basis on B and PAW projectors on A
+!> \param oces_t Transposed projector-orbital integrals (nsgf_cnt, nsatbas, maxder)
+!> \param atom_ka Atomic kind of projector center A
+!> \param atom_kb Atomic kind of orbital basis center B
+!> \param rab Distance vector between centers A and B
+!> \param nder Derivative order (0 <= nder <= 1)
+!> \param sgf_list Indices of active spherical orbital functions on B
+!> \param nsgf_cnt Number of active spherical orbital functions on B
+!> \param sgf_soft_only True if all active functions on B are soft
+!> \param eps_fit Threshold used to classify hard vs. soft functions
+!> \param ovs_ws Spherical projector-primitive workspace (>= np_sph, >= maxco, maxder)
+!> \param work One-dimensional scratch buffer for overlap_ab and DGEMM contractions
 ! **************************************************************************************************
-   SUBROUTINE build_oce_block(oces, atom_ka, atom_kb, rab, nder, sgf_list, nsgf_cnt, sgf_soft_only, &
-                              eps_fit)
+   SUBROUTINE build_oce_block(oces_t, atom_ka, atom_kb, rab, nder, sgf_list, nsgf_cnt, &
+                              sgf_soft_only, eps_fit, ovs_ws, work)
 
-      TYPE(block_p_type), DIMENSION(:), POINTER          :: oces
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: oces_t
       TYPE(qs_kind_type), POINTER                        :: atom_ka, atom_kb
       REAL(KIND=dp), DIMENSION(3)                        :: rab
       INTEGER, INTENT(IN)                                :: nder
@@ -76,28 +80,33 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: nsgf_cnt
       LOGICAL, INTENT(OUT)                               :: sgf_soft_only
       REAL(KIND=dp), INTENT(IN)                          :: eps_fit
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: ovs_ws
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:), &
+         INTENT(INOUT), TARGET                           :: work
 
-      INTEGER :: first_col, ic, ider, ig1, igau, ip, ipgf, is, isgfb, isgfb_cnt, isp, jc, jset, &
-         lds, lm, lpoint, lprj, lsgfb, lsgfb_cnt, lshell, m, m1, maxcob, maxder, maxlb, maxlprj, &
-         maxnprja, maxsoa, msab, n, ncob, np_car, np_sph, nsatbas, nseta, nsetb, nsoatot, &
-         ntotsgfb, sgf_hard_only
-      INTEGER, DIMENSION(:), POINTER                     :: fp_cara, fp_spha, lb_max, lb_min, npgfb, &
-                                                            nprjla, nsgfb
+      INTEGER :: ic, ider, igau, ip, ipgf, isgfb, isgfb_cnt, jc, jset, lprj, lsgfb, lshell, m0, &
+         maxder, maxlprj, n, na_tot, nb_tot, nco_l, ncob, ncob_max, np_sph, nprj_l, nsatbas, &
+         nsetb, nso_l, nso_tot, ofb, ovlp_cnt, rr_off, sgf_hard_only, sph_off
+      INTEGER, DIMENSION(:), POINTER                     :: fp_spha, lb_max, lb_min, npgfb, nprjla, &
+                                                            nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfb
-      LOGICAL                                            :: calculate_forces, paw_atom_a, paw_atom_b
-      REAL(KIND=dp)                                      :: dab, hard_radius_a, hard_radius_b, &
-                                                            radius, rcprja
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ovs, spa_sb
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: s
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_b, zisomina, zisominb
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: csprj, rpgfb, rzetprja, spa_tmp, sphi_b, &
+      LOGICAL                                            :: paw_atom_a, paw_atom_b
+      REAL(KIND=dp)                                      :: dab, hard_radius_a, hard_radius_b, radius
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_b, zisominb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: csprj, rpgfb, rzetprja, sab_p, sphi_b, &
                                                             zetb, zetprja
-      TYPE(gto_basis_set_type), POINTER                  :: basis_1c_a, orb_basis_b
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dab_p
+      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: sph_p4
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_b
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_a, paw_proj_b
 
-      NULLIFY (basis_1c_a, paw_proj_a)
-      CALL get_qs_kind(qs_kind=atom_ka, basis_set=basis_1c_a, basis_type="GAPW_1C", &
-                       paw_proj_set=paw_proj_a, paw_atom=paw_atom_a, &
+      CPASSERT(nder >= 0 .AND. nder <= 1)
+      nsgf_cnt = 0
+      sgf_soft_only = .TRUE.
+
+      NULLIFY (paw_proj_a)
+      CALL get_qs_kind(qs_kind=atom_ka, paw_proj_set=paw_proj_a, paw_atom=paw_atom_a, &
                        hard_radius=hard_radius_a)
 
       NULLIFY (orb_basis_b, paw_proj_b)
@@ -107,44 +116,24 @@ CONTAINS
 
       IF (.NOT. paw_atom_a) RETURN
 
-      NULLIFY (nprjla, fp_cara, fp_spha, rzetprja, zetprja)
-      CALL get_paw_proj_set(paw_proj_set=paw_proj_a, csprj=csprj, maxl=maxlprj, &
-                            nprj=nprjla, ncgauprj=np_car, nsgauprj=np_sph, nsatbas=nsatbas, rcprj=rcprja, &
-                            first_prj=fp_cara, first_prjs=fp_spha, &
-                            zisomin=zisomina, rzetprj=rzetprja, zetprj=zetprja)
-
       NULLIFY (first_sgfb, lb_max, lb_min, npgfb, nsgfb, rpgfb, sphi_b, set_radius_b, zetb, zisominb)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_b, nset=nsetb, nsgf=ntotsgfb, &
+      CALL get_gto_basis_set(gto_basis_set=orb_basis_b, nset=nsetb, &
                              set_radius=set_radius_b, lmax=lb_max, lmin=lb_min, &
                              npgf=npgfb, nsgf_set=nsgfb, pgf_radius=rpgfb, &
-                             sphi=sphi_b, zet=zetb, first_sgf=first_sgfb, &
-                             maxco=maxcob, maxl=maxlb)
-
-      CALL get_gto_basis_set(gto_basis_set=basis_1c_a, nset=nseta, maxso=maxsoa)
+                             sphi=sphi_b, zet=zetb, first_sgf=first_sgfb)
 
       !  Add the block ab
       dab = SQRT(SUM(rab*rab))
+      IF (hard_radius_a + MAXVAL(set_radius_b(1:nsetb)) < dab) RETURN
+
+      NULLIFY (nprjla, fp_spha, rzetprja, zetprja, csprj)
+      CALL get_paw_proj_set(paw_proj_set=paw_proj_a, csprj=csprj, maxl=maxlprj, &
+                            nprj=nprjla, nsgauprj=np_sph, nsatbas=nsatbas, &
+                            first_prjs=fp_spha, rzetprj=rzetprja, zetprj=zetprja)
+      IF (nsatbas == 0 .OR. np_sph == 0) RETURN
+      IF (paw_atom_b) CALL get_paw_proj_set(paw_proj_set=paw_proj_b, zisomin=zisominb)
 
       maxder = ncoset(nder)
-      nsoatot = maxsoa*nseta
-      maxnprja = SIZE(zetprja, 1)
-
-      calculate_forces = .FALSE.
-      IF (nder > 0) THEN
-         calculate_forces = .TRUE.
-      END IF
-
-      lm = MAX(maxlb, maxlprj)
-      lds = ncoset(lm + nder + 1)
-      msab = MAX(maxnprja*ncoset(maxlprj), maxcob)
-
-      ALLOCATE (s(lds, lds, ncoset(nder + 1)))
-      ALLOCATE (spa_sb(np_car, ntotsgfb))
-      ALLOCATE (spa_tmp(msab, msab*maxder))
-      ALLOCATE (ovs(np_sph, maxcob*nsetb*maxder))
-
-      m1 = 0
-      nsgf_cnt = 0
       isgfb_cnt = 1
       sgf_hard_only = 0
       DO jset = 1, nsetb
@@ -164,53 +153,58 @@ CONTAINS
 
             ! Integral between proj of iatom and primitives of jatom
             ! Calculate the primitives overlap
-            spa_tmp = 0.0_dp
-            ovs = 0.0_dp
-            s = 0.0_dp
-            ncob = npgfb(jset)*ncoset(lb_max(jset))
-            isgfb = first_sgfb(1, jset)
-            lsgfb = isgfb - 1 + nsgfb(jset)
-
-            lsgfb_cnt = isgfb_cnt - 1 + nsgfb(jset)
+            ncob_max = ncoset(lb_max(jset))
+            ofb = ncoset(lb_min(jset) - 1)
+            n = ncob_max - ofb
+            ncob = npgfb(jset)*ncob_max
+            nb_tot = npgfb(jset)*n
+            IF (ofb > 0) ovs_ws(1:np_sph, 1:ncob, 1:maxder) = 0.0_dp
 
             DO lprj = 0, maxlprj
-               CALL overlap(lprj, lprj, nprjla(lprj), &
-                            rzetprja(:, lprj), zetprja(:, lprj), &
-                            lb_max(jset), lb_min(jset), npgfb(jset), &
-                            rpgfb(:, jset), zetb(:, jset), &
-                            -rab, dab, spa_tmp, &
-                            nder, .TRUE., s, lds)
+               nprj_l = nprjla(lprj)
+               IF (nprj_l <= 0) CYCLE
+               nco_l = nco(lprj)
+               nso_l = nso(lprj)
+               na_tot = nco_l*nprj_l
+               nso_tot = nso_l*nprj_l
+               m0 = fp_spha(lprj)
+               ovlp_cnt = na_tot*nb_tot*maxder
+               sph_off = ovlp_cnt + 1
+               rr_off = ovlp_cnt + nso_tot*nb_tot*maxder + 1
+
+               sab_p(1:na_tot, 1:nb_tot) => work(1:na_tot*nb_tot)
+               IF (nder == 0) THEN
+                  CALL overlap_ab(lprj, lprj, nprj_l, rzetprja(:, lprj), zetprja(:, lprj), &
+                                  lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), &
+                                  zetb(:, jset), -rab, sab=sab_p, rr_work=work(rr_off:))
+               ELSE
+                  dab_p(1:na_tot, 1:nb_tot, 1:3) => work(na_tot*nb_tot + 1:ovlp_cnt)
+                  CALL overlap_ab(lprj, lprj, nprj_l, rzetprja(:, lprj), zetprja(:, lprj), &
+                                  lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), &
+                                  zetb(:, jset), -rab, sab=sab_p, dab=dab_p, rr_work=work(rr_off:))
+               END IF
+
+               CALL dgemm("N", "N", nso_l, nprj_l*nb_tot*maxder, nco_l, &
+                          1.0_dp, orbtramat(lprj)%slm(1, 1), SIZE(orbtramat(lprj)%slm, 1), &
+                          work(1), nco_l, &
+                          0.0_dp, work(sph_off), nso_l)
+
+               sph_p4(1:nso_tot, 1:n, 1:npgfb(jset), 1:maxder) => &
+                  work(sph_off:sph_off + nso_tot*nb_tot*maxder - 1)
                DO ider = 1, maxder
-                  is = (ider - 1)*SIZE(spa_tmp, 1)
-                  isp = (ider - 1)*maxcob*nsetb
-                  DO ipgf = 1, nprjla(lprj)
-                     lpoint = ncoset(lprj - 1) + 1 + (ipgf - 1)*ncoset(lprj)
-                     m = fp_spha(lprj) + (ipgf - 1)*nso(lprj)
-                     DO ip = 1, npgfb(jset)
-                        ic = (ip - 1)*ncoset(lb_max(jset))
-                        igau = isp + ic + m1 + ncoset(lb_min(jset) - 1) + 1
-                        ig1 = is + ic + ncoset(lb_min(jset) - 1) + 1
-                        n = ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1)
-                        ovs(m:m + nso(lprj) - 1, igau:igau + n - 1) = &
-                           MATMUL(orbtramat(lprj)%slm(1:nso(lprj), 1:nco(lprj)), &
-                                  spa_tmp(lpoint:lpoint + nco(lprj) - 1, ig1:ig1 + n - 1))
-                     END DO
+                  DO ip = 1, npgfb(jset)
+                     ic = (ip - 1)*ncob_max + ofb
+                     ovs_ws(m0:m0 + nso_tot - 1, ic + 1:ic + n, ider) = sph_p4(1:nso_tot, 1:n, ip, ider)
                   END DO
                END DO
             END DO
 
             IF (paw_atom_b) THEN
-               CALL get_paw_proj_set(paw_proj_set=paw_proj_b, zisomin=zisominb)
                DO ipgf = 1, npgfb(jset)
                   DO lshell = lb_min(jset), lb_max(jset)
                      IF (zetb(ipgf, jset) >= zisominb(lshell)) THEN
-                        n = ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1)
                         igau = n*(ipgf - 1) + ncoset(lshell - 1)
-                        DO ider = 1, maxder
-                           is = maxcob*(ider - 1)
-                           isp = (ider - 1)*maxcob*nsetb
-                           ovs(:, igau + 1 + isp + m1:igau + nco(lshell) + isp + m1) = 0.0_dp
-                        END DO
+                        ovs_ws(1:np_sph, igau + 1:igau + nco(lshell), 1:maxder) = 0.0_dp
                      END IF
                   END DO
                END DO
@@ -218,34 +212,22 @@ CONTAINS
 
             ! Contraction step (integrals and derivatives)
             DO ider = 1, maxder
-               first_col = (ider - 1)*maxcob*nsetb + 1 + m1
-               ! CALL dgemm("N", "N", np_sph, nsgfb(jset), ncob, &
-               !           1.0_dp, ovs(1, first_col), SIZE(ovs, 1), &
-               !           sphi_b(1, isgfb), SIZE(sphi_b, 1), &
-               !           0.0_dp, spa_sb(1, isgfb), SIZE(spa_sb, 1))
-               spa_sb(1:np_sph, isgfb:isgfb + nsgfb(jset) - 1) = &
-                  MATMUL(ovs(1:np_sph, first_col:first_col + ncob - 1), &
-                         sphi_b(1:ncob, isgfb:isgfb + nsgfb(jset) - 1))
-
-               ! CALL dgemm("T", "N", nsatbas, nsgfb(jset), np_sph, &
-               !          1.0_dp, csprj(1, 1), SIZE(csprj, 1), &
-               !          spa_sb(1, isgfb), SIZE(spa_sb, 1), &
-               !          1.0_dp, oces(ider)%block(1, isgfb_cnt), SIZE(oces(ider)%block, 1))
-               oces(ider)%block(1:nsatbas, isgfb_cnt:isgfb_cnt + nsgfb(jset) - 1) = &
-                  oces(ider)%block(1:nsatbas, isgfb_cnt:isgfb_cnt + nsgfb(jset) - 1) + &
-                  MATMUL(TRANSPOSE(csprj(1:np_sph, 1:nsatbas)), &
-                         spa_sb(1:np_sph, isgfb:isgfb + nsgfb(jset) - 1))
+               CALL dgemm("N", "N", np_sph, nsgfb(jset), ncob, &
+                          1.0_dp, ovs_ws(1, 1, ider), SIZE(ovs_ws, 1), &
+                          sphi_b(1, isgfb), SIZE(sphi_b, 1), &
+                          0.0_dp, work(1), np_sph)
+               CALL dgemm("T", "N", nsgfb(jset), nsatbas, np_sph, &
+                          1.0_dp, work(1), np_sph, &
+                          csprj(1, 1), SIZE(csprj, 1), &
+                          0.0_dp, oces_t(isgfb_cnt, 1, ider), SIZE(oces_t, 1))
             END DO
             isgfb_cnt = isgfb_cnt + nsgfb(jset)
          END IF ! radius
-         m1 = m1 + maxcob
       END DO !jset
 
       ! Check if the screened functions are all soft
       sgf_soft_only = .FALSE.
       IF (sgf_hard_only == 0) sgf_soft_only = .TRUE.
-
-      DEALLOCATE (s, spa_sb, spa_tmp, ovs)
 
    END SUBROUTINE build_oce_block
 
@@ -492,7 +474,7 @@ CONTAINS
 !>      This routine uses the same logic as the nonlocal pseudopotential
 !> \param intac TYPE that holds the integrals (a=basis; c=projector)
 !> \param calculate_forces ...
-!> \param nder ...
+!> \param nder Derivative order (0 <= nder <= 1)
 !> \param qs_kind_set ...
 !> \param particle_set ...
 !> \param sap_oce ...
@@ -515,27 +497,21 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_oce_matrices'
 
-      INTEGER :: atom_a, atom_b, handle, i, iac, ikind, ilist, jkind, jneighbor, ldai, ldsab, &
-         maxco, maxder, maxl, maxlgto, maxlprj, maxprj, maxsgf, maxsoa, maxsob, mlprj, natom, &
-         ncoa_sum, nkind, nlist, nneighbor, nsatbas, nseta, nsetb, nsgf_cnt, nsgfa, nsobtot, slot
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sgf_list
+      INTEGER :: atom_a, atom_b, handle, i, iac, ikind, ilist, jkind, jneighbor, lwork, &
+         max_nsatbas, maxco, maxder, maxl, maxlgto, maxlprj, maxprj, maxsgf, natom, nkind, nlist, &
+         nneighbor, nsgf_cnt, nsgfa, nsobtot, slot
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nsatbas_kind, nsgfa_kind, sgf_list
       INTEGER, DIMENSION(3)                              :: cell_b
-      INTEGER, DIMENSION(:), POINTER                     :: fp_car, fp_sph, la_max, la_min, npgfa, &
-                                                            nprjla, nsgf_seta
-      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: local, paw_atom_b, sgf_soft_only
+      LOGICAL                                            :: local, sgf_soft_only
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: has_1c_basis, has_orb_basis, paw_kind
-      REAL(KIND=dp)                                      :: dab, rcprj
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sab, work
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ai_work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oces_t, ovs_ws
       REAL(KIND=dp), DIMENSION(3)                        :: rab
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rzetprj, sphi_a, zeta, zetb
       TYPE(block_p_type), DIMENSION(:), POINTER          :: oceh, oces
       TYPE(clist_type), POINTER                          :: clist
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_paw, orb_basis_set
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_b
-      TYPE(qs_kind_type), POINTER                        :: at_a, at_b, qs_kind
+      TYPE(qs_kind_type), POINTER                        :: at_a, at_b
 
       IF (calculate_forces) THEN
          CALL timeset(routineN//"_forces", handle)
@@ -548,6 +524,7 @@ CONTAINS
          nkind = SIZE(qs_kind_set)
          natom = SIZE(particle_set)
 
+         CPASSERT(nder >= 0 .AND. nder <= 1)
          maxder = ncoset(nder)
 
          CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
@@ -565,20 +542,23 @@ CONTAINS
             intac(i)%nalist = 0
          END DO
 
-         ALLOCATE (has_orb_basis(nkind), paw_kind(nkind), has_1c_basis(nkind))
-         has_orb_basis(:) = .FALSE.
-         paw_kind(:) = .FALSE.
-         has_1c_basis(:) = .FALSE.
+         ALLOCATE (has_orb_basis(nkind), paw_kind(nkind), has_1c_basis(nkind), &
+                   nsgfa_kind(nkind), nsatbas_kind(nkind))
+         nsgfa_kind(:) = 0
+         nsatbas_kind(:) = 0
          DO ikind = 1, nkind
-            NULLIFY (orb_basis_set)
-            CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=orb_basis_set)
-            has_orb_basis(ikind) = ASSOCIATED(orb_basis_set)
-            NULLIFY (paw_proj_b)
-            CALL get_qs_kind(qs_kind=qs_kind_set(ikind), paw_proj_set=paw_proj_b, paw_atom=paw_kind(ikind))
-            NULLIFY (orb_basis_paw)
+            NULLIFY (orb_basis_set, paw_proj_b, orb_basis_paw)
+            CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=orb_basis_set, &
+                             paw_proj_set=paw_proj_b, paw_atom=paw_kind(ikind))
             CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=orb_basis_paw, basis_type="GAPW_1C")
+            has_orb_basis(ikind) = ASSOCIATED(orb_basis_set)
             has_1c_basis(ikind) = ASSOCIATED(orb_basis_paw)
+            IF (has_orb_basis(ikind)) CALL get_gto_basis_set(orb_basis_set, nsgf=nsgfa_kind(ikind))
+            IF (paw_kind(ikind) .AND. ASSOCIATED(paw_proj_b)) THEN
+               CALL get_paw_proj_set(paw_proj_b, nsatbas=nsatbas_kind(ikind))
+            END IF
          END DO
+         max_nsatbas = MAXVAL(nsatbas_kind)
 
          ! Allocate memory list
          DO slot = 1, sap_oce(1)%nl_size
@@ -612,25 +592,20 @@ CONTAINS
             END IF
          END DO
 
-         ldsab = MAX(maxco, ncoset(maxlprj), maxsgf, maxprj)
-         ldai = ncoset(maxl + nder + 1)
+         lwork = MAX(1, maxprj*maxsgf, 2*maxprj*maxco*maxder + 3*(maxl + nder + 1)**2)
 
          !calculate the overlap integrals <a|p>
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED (intac, ldsab, ldai, nder, nkind, maxder, ncoset, sap_oce, qs_kind_set, eps_fit, &
-!$OMP         has_orb_basis, paw_kind, has_1c_basis, maxsgf) &
-!$OMP PRIVATE (sab, work, ai_work, oceh, oces, slot, ikind, jkind, atom_a, atom_b, ilist, jneighbor, rab, cell_b, &
-!$OMP          iac, dab, qs_kind, orb_basis_set, first_sgfa, la_max, la_min, ncoa_sum, maxsoa, npgfa, nseta, &
-!$OMP          nsgfa, nsgf_seta, rpgfa, set_radius_a, sphi_a, zeta, paw_proj_b, paw_atom_b, orb_basis_paw, &
-!$OMP          maxsob, nsetb, mlprj, nprjla, nsatbas, rcprj, fp_car, fp_sph, rzetprj, zetb, nsobtot, clist, &
-!$OMP          sgf_list, at_a, at_b, local, i, sgf_soft_only, nsgf_cnt)
+!$OMP SHARED (intac, nder, nkind, maxder, sap_oce, qs_kind_set, eps_fit, &
+!$OMP         has_orb_basis, paw_kind, has_1c_basis, nsgfa_kind, nsatbas_kind, &
+!$OMP         maxco, maxprj, maxsgf, max_nsatbas, lwork) &
+!$OMP PRIVATE (oceh, oces, oces_t, ovs_ws, work, sgf_list, slot, ikind, jkind, atom_a, atom_b, &
+!$OMP          ilist, jneighbor, rab, cell_b, iac, nsgfa, nsobtot, clist, at_a, at_b, local, i, &
+!$OMP          sgf_soft_only, nsgf_cnt)
 
-         ALLOCATE (sab(ldsab, ldsab*maxder), work(ldsab, ldsab*maxder))
-         sab = 0.0_dp
-         ALLOCATE (ai_work(ldai, ldai, ncoset(nder + 1)))
-         ai_work = 0.0_dp
-         ALLOCATE (oceh(maxder), oces(maxder))
-         ALLOCATE (sgf_list(maxsgf))
+         ALLOCATE (oces_t(MAX(1, maxsgf), MAX(1, max_nsatbas), maxder), &
+                   ovs_ws(MAX(1, maxprj), MAX(1, maxco), maxder), work(lwork), &
+                   oceh(maxder), oces(maxder), sgf_list(maxsgf))
 
 !$OMP DO SCHEDULE(GUIDED)
          DO slot = 1, sap_oce(1)%nl_size
@@ -644,52 +619,13 @@ CONTAINS
             cell_b(1:3) = sap_oce(1)%nlist_task(slot)%cell(1:3)
 
             iac = ikind + nkind*(jkind - 1)
-            dab = SQRT(SUM(rab*rab))
 
             IF (.NOT. has_orb_basis(ikind)) CYCLE
             IF (.NOT. paw_kind(jkind)) CYCLE
             IF (.NOT. has_1c_basis(jkind)) CYCLE
 
-            qs_kind => qs_kind_set(ikind)
-            CALL get_qs_kind(qs_kind=qs_kind, basis_set=orb_basis_set)
-
-            IF (.NOT. ASSOCIATED(orb_basis_set)) CYCLE
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
-                                   first_sgf=first_sgfa, &
-                                   lmax=la_max, &
-                                   lmin=la_min, &
-                                   nco_sum=ncoa_sum, &
-                                   maxso=maxsoa, &
-                                   npgf=npgfa, &
-                                   nset=nseta, &
-                                   nsgf=nsgfa, &
-                                   nsgf_set=nsgf_seta, &
-                                   pgf_radius=rpgfa, &
-                                   set_radius=set_radius_a, &
-                                   sphi=sphi_a, &
-                                   zet=zeta)
-
-            qs_kind => qs_kind_set(jkind)
-
-            NULLIFY (paw_proj_b)
-            CALL get_qs_kind(qs_kind=qs_kind, paw_proj_set=paw_proj_b, paw_atom=paw_atom_b)
-            IF (.NOT. paw_atom_b) CYCLE
-
-            CALL get_qs_kind(qs_kind=qs_kind, basis_set=orb_basis_paw, basis_type="GAPW_1C")
-            IF (.NOT. ASSOCIATED(orb_basis_paw)) CYCLE
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_paw, maxso=maxsob, nset=nsetb)
-
-            CALL get_paw_proj_set(paw_proj_set=paw_proj_b, &
-                                  maxl=mlprj, &
-                                  nprj=nprjla, &
-                                  nsatbas=nsatbas, &
-                                  rcprj=rcprj, &
-                                  first_prj=fp_car, &
-                                  first_prjs=fp_sph, &
-                                  rzetprj=rzetprj, &
-                                  zetprj=zetb)
-
-            nsobtot = nsatbas
+            nsgfa = nsgfa_kind(ikind)
+            nsobtot = nsatbas_kind(jkind)
 
             clist => intac(iac)%alist(ilist)%clist(jneighbor)
             clist%catom = atom_b
@@ -732,40 +668,28 @@ CONTAINS
                   DEALLOCATE (oceh(i)%block, oces(i)%block)
                END DO
             ELSE
-               DO i = 1, maxder
-                  ALLOCATE (oces(i)%block(nsobtot, nsgfa))
-                  oces(i)%block = 0._dp
-               END DO
-               CALL build_oce_block(oces, at_a, at_b, rab, nder, sgf_list, nsgf_cnt, sgf_soft_only, eps_fit)
+               CALL build_oce_block(oces_t, at_a, at_b, rab, nder, sgf_list, nsgf_cnt, &
+                                    sgf_soft_only, eps_fit, ovs_ws, work)
                clist%nsgf_cnt = nsgf_cnt
                clist%sgf_soft_only = sgf_soft_only
                IF (nsgf_cnt > 0) THEN
                   ALLOCATE (clist%acint(nsgf_cnt, nsobtot, maxder), clist%sgf_list(nsgf_cnt))
-                  clist%acint(:, :, :) = 0._dp
-                  clist%sgf_list(:) = HUGE(0)
-                  DO i = 1, maxder
-                     clist%acint(1:nsgf_cnt, 1:nsobtot, i) = TRANSPOSE(oces(i)%block(1:nsobtot, 1:nsgf_cnt))
-                  END DO
+                  clist%acint(:, :, :) = oces_t(1:nsgf_cnt, 1:nsobtot, 1:maxder)
                   clist%maxac = MAXVAL(ABS(clist%acint(:, :, 1)))
                   clist%maxach = 0._dp
                   clist%sgf_list(1:nsgf_cnt) = sgf_list(1:nsgf_cnt)
                END IF
-               DO i = 1, maxder
-                  DEALLOCATE (oces(i)%block)
-               END DO
             END IF
 
          END DO
 
-         DEALLOCATE (sab, work, ai_work)
-         DEALLOCATE (sgf_list)
-         DEALLOCATE (oceh, oces)
+         DEALLOCATE (oces_t, ovs_ws, work, sgf_list, oceh, oces)
 !$OMP END PARALLEL
 
          ! Setup sort index
          CALL sap_sort(intac)
 
-         DEALLOCATE (has_orb_basis, paw_kind, has_1c_basis)
+         DEALLOCATE (has_orb_basis, paw_kind, has_1c_basis, nsgfa_kind, nsatbas_kind)
 
       END IF
 
