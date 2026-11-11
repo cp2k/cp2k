@@ -90,6 +90,11 @@ static void add_plan_to_cache(const fft_key_t key, fftw_plan *plan) {
 static bool has_guru_interface = false;
 
 #if defined(__FFTW3)
+/*******************************************************************************
+ * \brief Check whether the FFTW guru interface is available.
+ * \return True when a minimal guru plan can be created.
+ * \author Frederick Stein
+ ******************************************************************************/
 bool is_guru_interface_available() {
   fftw_iodim dims[1];
   dims[0].n = 1;
@@ -117,6 +122,15 @@ bool is_guru_interface_available() {
 #endif
 
 #if defined(__FFTW3)
+/*******************************************************************************
+ * \brief Decide whether a 3D FFT should be split into threaded 1D batches.
+ * \param fft_size Size of the 3D transform.
+ * \param transpose_in Whether the input layout is transposed.
+ * \param transpose_out Whether the output layout is transposed.
+ * \param in_place Whether the transform is in-place.
+ * \return True when the threaded batched implementation should be used.
+ * \author Frederick Stein
+ ******************************************************************************/
 static bool use_threaded_3d(const int fft_size[3], const bool transpose_in,
                             const bool transpose_out, const bool in_place) {
   return !transpose_in && !transpose_out && has_guru_interface &&
@@ -135,6 +149,11 @@ fftw_plan *fft_fftw_create_3d_plan(const fft_key_t key, double complex *grid_in,
 fftw_plan *fft_fftw_create_3d_plan_r2c(const fft_key_t key, double *grid_in,
                                        double *grid_out);
 
+/*******************************************************************************
+ * \brief Return the number of OpenMP threads available to the FFT backend.
+ * \return Number of threads in the current OpenMP team.
+ * \author Frederick Stein
+ ******************************************************************************/
 static int threaded_thread_count(void) {
   int number_of_threads = 1;
 #pragma omp parallel default(none) shared(number_of_threads)
@@ -147,6 +166,16 @@ static int threaded_thread_count(void) {
   return number_of_threads;
 }
 
+/*******************************************************************************
+ * \brief Register FFTW plans for a threaded batched complex 3D FFT.
+ * \param direction FFT direction.
+ * \param fft_size Size of the 3D transform.
+ * \param number_of_ffts Number of batched transforms.
+ * \param in_place Whether the transform is in-place.
+ * \param grid_in Input complex grid buffer.
+ * \param grid_out Output complex grid buffer.
+ * \author Frederick Stein
+ ******************************************************************************/
 static void
 register_threaded_3d_c2c(const bool direction, const int fft_size[3],
                          const int number_of_ffts, const bool in_place,
@@ -169,6 +198,16 @@ register_threaded_3d_c2c(const bool direction, const int fft_size[3],
   }
 }
 
+/*******************************************************************************
+ * \brief Register FFTW plans for a threaded batched real-to-complex 3D FFT.
+ * \param direction FFT direction.
+ * \param fft_size Size of the 3D transform.
+ * \param number_of_ffts Number of batched transforms.
+ * \param in_place Whether the transform is in-place.
+ * \param grid_in Input real grid buffer.
+ * \param grid_out Output complex grid buffer.
+ * \author Frederick Stein
+ ******************************************************************************/
 static void register_threaded_3d_r2c(const bool direction,
                                      const int fft_size[3],
                                      const int number_of_ffts,
@@ -193,6 +232,16 @@ static void register_threaded_3d_r2c(const bool direction,
   }
 }
 
+/*******************************************************************************
+ * \brief Execute a threaded batched complex-to-complex 3D FFT.
+ * \param direction FFT direction.
+ * \param fft_size Size of the 3D transform.
+ * \param number_of_ffts Number of batched transforms.
+ * \param in_place Whether the transform is in-place.
+ * \param grid_in Input complex grid buffer.
+ * \param grid_out Output complex grid buffer.
+ * \author Frederick Stein
+ ******************************************************************************/
 static void execute_threaded_3d_c2c(const bool direction, const int fft_size[3],
                                     const int number_of_ffts,
                                     const bool in_place,
@@ -232,6 +281,16 @@ static void execute_threaded_3d_c2c(const bool direction, const int fft_size[3],
   }
 }
 
+/*******************************************************************************
+ * \brief Execute a threaded batched real-to-complex 3D FFT.
+ * \param direction FFT direction.
+ * \param fft_size Size of the 3D transform.
+ * \param number_of_ffts Number of batched transforms.
+ * \param in_place Whether the transform is in-place.
+ * \param grid_in Input real grid buffer.
+ * \param grid_out Output complex grid buffer.
+ * \author Frederick Stein
+ ******************************************************************************/
 static void execute_threaded_3d_r2c(const bool direction, const int fft_size[3],
                                     const int number_of_ffts,
                                     const bool in_place, double *grid_in,
