@@ -57,7 +57,9 @@ MODULE environment
                                               silent_print_level
    USE fft_api,                         ONLY: FFT_LIBRARY_BACKEND_DEFAULT,&
                                               FFT_LIBRARY_BACKEND_FFTW,&
-                                              FFT_LIBRARY_BACKEND_GPU
+                                              FFT_LIBRARY_BACKEND_GPU,&
+                                              fft_backend_in_use,&
+                                              fft_has_guru_interface
    USE fft_tools,                       ONLY: finalize_fft,&
                                               init_fft
    USE force_env_types,                 ONLY: multiple_fe_list
@@ -1075,6 +1077,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
 
+      CHARACTER(LEN=40)                                  :: fft_backend_name, fft_guru_string
       INTEGER                                            :: output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: global_section
@@ -1088,6 +1091,22 @@ CONTAINS
       CALL integral_setup_library(global_section)
       CALL fft_setup_library(globenv, global_section)
       CALL diag_setup_library(globenv, global_section)
+
+      SELECT CASE (fft_backend_in_use())
+      CASE (FFT_LIBRARY_BACKEND_FFTW)
+         fft_backend_name = "FFTW"
+      CASE (FFT_LIBRARY_BACKEND_GPU)
+         fft_backend_name = "GPU"
+      CASE DEFAULT
+         fft_backend_name = "UNKNOWN"
+      END SELECT
+      fft_guru_string = MERGE("T", "F", fft_has_guru_interface())
+      IF (output_unit > 0) THEN
+         WRITE (output_unit, '(T2,A,T41,A40)') "GLOBAL| FFT backend in use", &
+            ADJUSTR(TRIM(fft_backend_name))
+         WRITE (output_unit, '(T2,A,T41,A40)') "GLOBAL| FFTW guru interface", &
+            ADJUSTR(TRIM(fft_guru_string))
+      END IF
 
       ! Run a one-time correctness check of the ELPA complex kernels if they may be used.
       IF (diag_type == FM_DIAG_TYPE_ELPA .AND. diag_lib_explicit) THEN
