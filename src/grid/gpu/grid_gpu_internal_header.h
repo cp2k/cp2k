@@ -843,8 +843,39 @@ inline int sphi_work_size(const int lmax, const int max_nsgf_set) {
 }
 
 // shared memory budget of the two step kernels (default limit without opting
-// in on NVIDIA hardware). Above, the fused kernels are used.
+// in on NVIDIA hardware), static and dynamic. Above, the fused kernels are
+// used.
 constexpr size_t sphi_two_step_max_smem = 48 * 1024;
+
+/*******************************************************************************
+ * \brief Largest dynamic shared memory the kernel can be launched with when
+ *        its static and dynamic shared memory together must fit in budget
+ *        bytes. The static part (e.g. __shared__ task structures) is taken
+ *        from the compiled kernel and rounded up to 16 bytes for the
+ *        alignment of the dynamic array placed after it.
+ ******************************************************************************/
+template <typename Kernel>
+inline size_t max_dynamic_smem(Kernel kernel, const size_t budget) {
+#if defined(__OFFLOAD_HIP)
+  hipFuncAttributes attr;
+  OFFLOAD_CHECK(
+      hipFuncGetAttributes(&attr, reinterpret_cast<const void *>(kernel)));
+#else
+  cudaFuncAttributes attr;
+  OFFLOAD_CHECK(cudaFuncGetAttributes(&attr, kernel));
+#endif
+  const size_t static_smem = (attr.sharedSizeBytes + 15) & ~size_t(15);
+  if (static_smem >= budget)
+    return 0;
+  return std::min(budget - static_smem,
+                  (size_t)std::max(attr.maxDynamicSharedSizeBytes, 0));
+}
+
+/*******************************************************************************
+ * \brief Aborts with the location if the last kernel launch failed, e.g.
+ *        because of an invalid launch configuration.
+ ******************************************************************************/
+#define GRID_GPU_CHECK_LAUNCH() OFFLOAD_CHECK(offloadGetLastError())
 
 class smem_parameters {
 private:

@@ -69,17 +69,8 @@ inline int separable_lmax_bucket(const int lp_max) {
   return GRID_SEP_MAX_L;
 }
 
-// launch configuration of a separable kernel for one grid level
-struct separable_launch_config {
-  int nblocks;
-  size_t smem;
-  offloadStream_t stream;
-  int max_cube_size;
-  int lp_max;
-};
-
-// shared memory budget of the separable kernels (default limit without
-// opting in on NVIDIA hardware)
+// shared memory budget of the separable kernels, static and dynamic (default
+// limit without opting in on NVIDIA hardware)
 constexpr size_t separable_max_smem = 48 * 1024;
 
 // (a, b) pairs ordered by a + b so that the first (lp+1)(lp+2)/2 entries are

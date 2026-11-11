@@ -517,29 +517,26 @@ void context_info::calculate_all_coefficients(const enum grid_func func,
   const dim3 threads_per_block(4, 4, 4);
 
   // two step sphi transformation when its work arrays fit in the shared memory
+  // next to the static shared memory of the kernel
   const int ld = ncoset(lmax());
   const size_t smem_two_steps =
       sizeof(double) * sphi_work_size(lmax(), max_nsgf_set());
-  if (smem_two_steps <= sphi_two_step_max_smem) {
-    if (func == GRID_FUNC_AB) {
-      calculate_coefficients_two_steps<double, true>
-          <<<nblocks, threads_per_block, smem_two_steps, main_stream>>>(
-              params, ld, max_nsgf_set());
-    } else {
-      calculate_coefficients_two_steps<double, false>
-          <<<nblocks, threads_per_block, smem_two_steps, main_stream>>>(
-              params, ld, max_nsgf_set());
-    }
+  const auto two_steps_kernel =
+      (func == GRID_FUNC_AB) ? calculate_coefficients_two_steps<double, true>
+                             : calculate_coefficients_two_steps<double, false>;
+  if (smem_two_steps <=
+      max_dynamic_smem(two_steps_kernel, sphi_two_step_max_smem)) {
+    two_steps_kernel<<<nblocks, threads_per_block, smem_two_steps,
+                       main_stream>>>(params, ld, max_nsgf_set());
+    GRID_GPU_CHECK_LAUNCH();
     return;
   }
 
-  if (func == GRID_FUNC_AB) {
-    calculate_coefficients<double, true>
-        <<<nblocks, threads_per_block, 0, main_stream>>>(params);
-  } else {
-    calculate_coefficients<double, false>
-        <<<nblocks, threads_per_block, 0, main_stream>>>(params);
-  }
+  const auto fused_kernel = (func == GRID_FUNC_AB)
+                                ? calculate_coefficients<double, true>
+                                : calculate_coefficients<double, false>;
+  fused_kernel<<<nblocks, threads_per_block, 0, main_stream>>>(params);
+  GRID_GPU_CHECK_LAUNCH();
 }
 /*******************************************************************************
  * \brief Launches the Cuda kernel that collocates all tasks of one grid level.
@@ -574,29 +571,19 @@ void context_info::collocate_one_grid_level(const int level,
   init_separable_constant_memory();
   const double *lattice_to_cartesian =
       axis_aligned ? nullptr : get_lattice_to_cartesian(grid, lp_max);
-  const int erows =
-      collocate_separable_erows(max_cube_size, lp_max, separable_max_smem);
+  const bool distributed = grid.is_distributed();
+  const auto kernel =
+      distributed ? (axis_aligned ? collocate_separable_kernel<true, true>
+                                  : collocate_separable_kernel<true, false>)
+                  : (axis_aligned ? collocate_separable_kernel<false, true>
+                                  : collocate_separable_kernel<false, false>);
+  const int erows = collocate_separable_erows(
+      max_cube_size, lp_max, max_dynamic_smem(kernel, separable_max_smem));
   const size_t smem =
       collocate_separable_smem_size(max_cube_size, lp_max, erows);
   const int nblocks_level = number_of_tasks_per_level_[level];
-  if (grid.is_distributed()) {
-    if (axis_aligned)
-      collocate_separable_kernel<true, true>
-          <<<nblocks_level, 64, smem, level_streams[level]>>>(
-              params, max_cube_size, lp_max, erows, lattice_to_cartesian);
-    else
-      collocate_separable_kernel<true, false>
-          <<<nblocks_level, 64, smem, level_streams[level]>>>(
-              params, max_cube_size, lp_max, erows, lattice_to_cartesian);
-  } else {
-    if (axis_aligned)
-      collocate_separable_kernel<false, true>
-          <<<nblocks_level, 64, smem, level_streams[level]>>>(
-              params, max_cube_size, lp_max, erows, lattice_to_cartesian);
-    else
-      collocate_separable_kernel<false, false>
-          <<<nblocks_level, 64, smem, level_streams[level]>>>(
-              params, max_cube_size, lp_max, erows, lattice_to_cartesian);
-  }
+  kernel<<<nblocks_level, 64, smem, level_streams[level]>>>(
+      params, max_cube_size, lp_max, erows, lattice_to_cartesian);
+  GRID_GPU_CHECK_LAUNCH();
 }
 } // namespace rocm_backend

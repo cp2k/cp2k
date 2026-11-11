@@ -1184,33 +1184,40 @@ static size_t integrate_separable_smem_size(const int mc, const int lp_max) {
   return sizeof(double) * (mc + ls * mc + ls + mc * ls + ncoset(lp_max));
 }
 
+using integrate_separable_kernel_t = void (*)(const kernel_params, const int,
+                                              const int, const double *);
+
 /*******************************************************************************
- * \brief Launches integrate_separable_kernel for one value of lmax_.
+ * \brief Selects the instance of integrate_separable_kernel for one value of
+ *        lmax_.
  ******************************************************************************/
 template <int lmax_>
-static void launch_integrate_separable(const separable_launch_config &cfg,
-                                       const bool distributed,
-                                       const bool axis_aligned,
-                                       const kernel_params &params,
-                                       const double *lattice_to_cartesian) {
-  if (distributed) {
-    if (axis_aligned)
-      integrate_separable_kernel<true, true, lmax_>
-          <<<cfg.nblocks, 64, cfg.smem, cfg.stream>>>(
-              params, cfg.max_cube_size, cfg.lp_max, lattice_to_cartesian);
-    else
-      integrate_separable_kernel<true, false, lmax_>
-          <<<cfg.nblocks, 64, cfg.smem, cfg.stream>>>(
-              params, cfg.max_cube_size, cfg.lp_max, lattice_to_cartesian);
-  } else {
-    if (axis_aligned)
-      integrate_separable_kernel<false, true, lmax_>
-          <<<cfg.nblocks, 64, cfg.smem, cfg.stream>>>(
-              params, cfg.max_cube_size, cfg.lp_max, lattice_to_cartesian);
-    else
-      integrate_separable_kernel<false, false, lmax_>
-          <<<cfg.nblocks, 64, cfg.smem, cfg.stream>>>(
-              params, cfg.max_cube_size, cfg.lp_max, lattice_to_cartesian);
+static integrate_separable_kernel_t
+select_integrate_separable(const bool distributed, const bool axis_aligned) {
+  if (distributed)
+    return axis_aligned ? integrate_separable_kernel<true, true, lmax_>
+                        : integrate_separable_kernel<true, false, lmax_>;
+  return axis_aligned ? integrate_separable_kernel<false, true, lmax_>
+                      : integrate_separable_kernel<false, false, lmax_>;
+}
+
+/*******************************************************************************
+ * \brief Selects the instance of integrate_separable_kernel with the smallest
+ *        bucket of the angular momentum covering lp_max.
+ ******************************************************************************/
+static integrate_separable_kernel_t
+select_integrate_separable(const int lp_max, const bool distributed,
+                           const bool axis_aligned) {
+  switch (separable_lmax_bucket(lp_max)) {
+  case 4:
+    return select_integrate_separable<4>(distributed, axis_aligned);
+  case 8:
+    return select_integrate_separable<8>(distributed, axis_aligned);
+  case 12:
+    return select_integrate_separable<12>(distributed, axis_aligned);
+  default:
+    return select_integrate_separable<GRID_SEP_MAX_L>(distributed,
+                                                      axis_aligned);
   }
 }
 
@@ -1246,12 +1253,14 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
 
   // fall back to the old integrate if shared memory is not large enough or
   // anything else happens
+  const integrate_separable_kernel_t separable_kernel =
+      select_integrate_separable(lp_max, grid.is_distributed(), axis_aligned);
   const bool use_separable =
       (lp_max >= integrate_separable_lp_threshold) &&
       (lp_max <= GRID_SEP_MAX_L) && (max_cube_size > 0) &&
       (axis_aligned || !grid.is_orthogonal()) &&
       (integrate_separable_smem_size(max_cube_size, lp_max) <=
-       separable_max_smem);
+       max_dynamic_smem(separable_kernel, separable_max_smem));
 
   if (use_separable)
     params.separable_lp_min = integrate_separable_lp_threshold;
@@ -1290,6 +1299,9 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
     }
   }
 
+  if (use_integrate_kernel)
+    GRID_GPU_CHECK_LAUNCH();
+
   if (!use_separable)
     return;
 
@@ -1299,25 +1311,9 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
       axis_aligned ? nullptr : get_lattice_to_cartesian(grid, lp_max);
   const size_t smem = integrate_separable_smem_size(max_cube_size, lp_max);
   const int nblocks_level = number_of_tasks_per_level_[level];
-  const separable_launch_config cfg{nblocks_level, smem, level_streams[level],
-                                    max_cube_size, lp_max};
-  switch (separable_lmax_bucket(lp_max)) {
-  case 4:
-    launch_integrate_separable<4>(cfg, grid.is_distributed(), axis_aligned,
-                                  params, lattice_to_cartesian);
-    break;
-  case 8:
-    launch_integrate_separable<8>(cfg, grid.is_distributed(), axis_aligned,
-                                  params, lattice_to_cartesian);
-    break;
-  case 12:
-    launch_integrate_separable<12>(cfg, grid.is_distributed(), axis_aligned,
-                                   params, lattice_to_cartesian);
-    break;
-  default:
-    launch_integrate_separable<GRID_SEP_MAX_L>(
-        cfg, grid.is_distributed(), axis_aligned, params, lattice_to_cartesian);
-  }
+  separable_kernel<<<nblocks_level, 64, smem, level_streams[level]>>>(
+      params, max_cube_size, lp_max, lattice_to_cartesian);
+  GRID_GPU_CHECK_LAUNCH();
 }
 
 void context_info::compute_hab_coefficients() {
@@ -1341,55 +1337,37 @@ void context_info::compute_hab_coefficients() {
   const dim3 threads_per_block(4, 4, 4);
 
   // two step sphi transformation when its work arrays fit in the shared memory
+  // next to the static shared memory of the kernel
   const int ld = ncoset(lmax());
   // (the forces kernels reuse the first 64 doubles for the block reductions)
   const size_t smem_two_steps =
       std::max(sizeof(double) * sphi_work_size(lmax(), max_nsgf_set()),
                block_reduce_64_smem);
-  const bool two_step = (smem_two_steps <= sphi_two_step_max_smem);
 
-  if (!compute_tau && !calculate_forces) {
-    if (two_step)
-      compute_hab_two_steps<double, false>
-          <<<this->nblocks, threads_per_block, smem_two_steps,
-             this->main_stream>>>(params, ld, max_nsgf_set());
-    else
-      compute_hab<double, false>
-          <<<this->nblocks, threads_per_block, 0, this->main_stream>>>(params);
+  const auto two_steps_kernel =
+      calculate_forces
+          ? (compute_tau ? compute_hab_forces_two_steps<double, true>
+                         : compute_hab_forces_two_steps<double, false>)
+          : (compute_tau ? compute_hab_two_steps<double, true>
+                         : compute_hab_two_steps<double, false>);
+  if (smem_two_steps <=
+      max_dynamic_smem(two_steps_kernel, sphi_two_step_max_smem)) {
+    two_steps_kernel<<<this->nblocks, threads_per_block, smem_two_steps,
+                       this->main_stream>>>(params, ld, max_nsgf_set());
+    GRID_GPU_CHECK_LAUNCH();
     return;
   }
 
-  if (compute_tau && !calculate_forces) {
-    if (two_step)
-      compute_hab_two_steps<double, true>
-          <<<this->nblocks, threads_per_block, smem_two_steps,
-             this->main_stream>>>(params, ld, max_nsgf_set());
-    else
-      compute_hab<double, true>
-          <<<this->nblocks, threads_per_block, 0, this->main_stream>>>(params);
-  }
-
-  if (!compute_tau && calculate_forces) {
-    if (two_step)
-      compute_hab_forces_two_steps<double, false>
-          <<<this->nblocks, threads_per_block, smem_two_steps,
-             this->main_stream>>>(params, ld, max_nsgf_set());
-    else
-      compute_hab_forces<double, double3, false>
-          <<<this->nblocks, threads_per_block, block_reduce_64_smem,
-             this->main_stream>>>(params);
-    return;
-  }
-
-  if (compute_tau && calculate_forces) {
-    if (two_step)
-      compute_hab_forces_two_steps<double, true>
-          <<<this->nblocks, threads_per_block, smem_two_steps,
-             this->main_stream>>>(params, ld, max_nsgf_set());
-    else
-      compute_hab_forces<double, double3, true>
-          <<<this->nblocks, threads_per_block, block_reduce_64_smem,
-             this->main_stream>>>(params);
-  }
+  // fused fallback, the forces kernels need block_reduce_64_smem
+  const auto fused_kernel =
+      calculate_forces
+          ? (compute_tau ? compute_hab_forces<double, double3, true>
+                         : compute_hab_forces<double, double3, false>)
+          : (compute_tau ? compute_hab<double, true>
+                         : compute_hab<double, false>);
+  const size_t smem_fused = calculate_forces ? block_reduce_64_smem : 0;
+  fused_kernel<<<this->nblocks, threads_per_block, smem_fused,
+                 this->main_stream>>>(params);
+  GRID_GPU_CHECK_LAUNCH();
 }
 }; // namespace rocm_backend
