@@ -113,10 +113,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Waux_mat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dWaux_mat
 
-      PROCEDURE(ab_sint_shg), POINTER                    :: s_operator_ab
-
-      NULLIFY (s_operator_ab)
-
       la_max = MAXVAL(fba%lmax)
       lb_max = MAXVAL(fbb%lmax)
 
@@ -125,25 +121,27 @@ CONTAINS
 
       SELECT CASE (r12_operator)
       CASE (operator_coulomb)
-         s_operator_ab => s_coulomb_ab
+         CALL int_operator_ab_shg_low(s_coulomb_ab, vab, dvab, rab, fba, fbb, scona_shg, sconb_shg, &
+                                      my_omega, Waux_mat, dWaux_mat, calculate_forces)
       CASE (operator_verf)
-         s_operator_ab => s_verf_ab
          IF (PRESENT(omega)) my_omega = omega
+         CALL int_operator_ab_shg_low(s_verf_ab, vab, dvab, rab, fba, fbb, scona_shg, sconb_shg, &
+                                      my_omega, Waux_mat, dWaux_mat, calculate_forces)
       CASE (operator_verfc)
-         s_operator_ab => s_verfc_ab
          IF (PRESENT(omega)) my_omega = omega
+         CALL int_operator_ab_shg_low(s_verfc_ab, vab, dvab, rab, fba, fbb, scona_shg, sconb_shg, &
+                                      my_omega, Waux_mat, dWaux_mat, calculate_forces)
       CASE (operator_vgauss)
-         s_operator_ab => s_vgauss_ab
          IF (PRESENT(omega)) my_omega = omega
+         CALL int_operator_ab_shg_low(s_vgauss_ab, vab, dvab, rab, fba, fbb, scona_shg, sconb_shg, &
+                                      my_omega, Waux_mat, dWaux_mat, calculate_forces)
       CASE (operator_gauss)
-         s_operator_ab => s_gauss_ab
          IF (PRESENT(omega)) my_omega = omega
+         CALL int_operator_ab_shg_low(s_gauss_ab, vab, dvab, rab, fba, fbb, scona_shg, sconb_shg, &
+                                      my_omega, Waux_mat, dWaux_mat, calculate_forces)
       CASE DEFAULT
          CPABORT("Operator not available")
       END SELECT
-
-      CALL int_operator_ab_shg_low(s_operator_ab, vab, dvab, rab, fba, fbb, scona_shg, sconb_shg, &
-                                   my_omega, Waux_mat, dWaux_mat, calculate_forces)
 
       DEALLOCATE (Waux_mat, dWaux_mat)
 
@@ -391,7 +389,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief calculate integrals (a|O(r12)|b)
-!> \param s_operator_ab procedure pointer for the respective operator. The integral evaluation
+!> \param s_operator_ab procedure for the respective operator. The integral evaluation
 !>        differs only in the calculation of the [s|O(r12)|s] integrals and their scalar
 !>        derivatives.
 !> \param vab integral matrix of spherical contracted Gaussian functions
@@ -409,7 +407,7 @@ CONTAINS
    SUBROUTINE int_operator_ab_shg_low(s_operator_ab, vab, dvab, rab, fba, fbb, scona_shg, sconb_shg, &
                                       omega, Waux_mat, dWaux_mat, calculate_forces)
 
-      PROCEDURE(ab_sint_shg), POINTER                    :: s_operator_ab
+      PROCEDURE(ab_sint_shg)                             :: s_operator_ab
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vab
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, INTENT(INOUT)   :: dvab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
