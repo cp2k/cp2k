@@ -2463,11 +2463,13 @@ CONTAINS
    INTEGER, INTENT(in)                                :: grad_deriv, npoints
    CHARACTER(LEN=default_string_length), INTENT(IN)   :: func_name
    REAL(KIND=dp), INTENT(in)                          :: sc
-   TYPE(libxc_worker_set_type), INTENT(INOUT)         :: workers
+   TYPE(libxc_worker_set_type), INTENT(INOUT), TARGET :: workers
 
    INTEGER                                            :: bsize, family, i, i0, ib, ii, ithread, &
                                                          nb, nblocks, nthreads
-   LOGICAL                                            :: is_gga, is_mgga
+   LOGICAL                                            :: has_laplace, is_gga, is_mgga, no_exc
+   REAL(KIND=dp)                                      :: eps_rho, eps_tau
+   TYPE(libxc_worker_type), POINTER                   :: w
 
    ithread = 0
    nthreads = 1
@@ -2493,9 +2495,12 @@ CONTAINS
    CALL libxc_family_flags(family, is_gga, is_mgga, TRIM(func_name))
 
    ! Below the cutoff LibXC leaves outputs at zero, so no test is needed here.
-   ASSOCIATE (w => workers%worker(ithread + 1), has_laplace => workers%has_laplace, &
-              no_exc => workers%no_exc, eps_rho => workers%epsilon_rho, &
-              eps_tau => workers%epsilon_tau)
+   ! Avoid ifx crashes with ASSOCIATE inside the parallel region.
+   w => workers%worker(ithread + 1)
+   has_laplace = workers%has_laplace
+   no_exc = workers%no_exc
+   eps_rho = workers%epsilon_rho
+   eps_tau = workers%epsilon_tau
       !$OMP    DO
       DO ib = 1, nblocks
          IF (libxc_is_gpu()) CALL libxc_worker_resize_cuda(w, workers%family, workers%nspin, npoints)
@@ -2629,7 +2634,6 @@ CONTAINS
          END IF
       END DO
 !$OMP    END DO
-   END ASSOCIATE
 
 END SUBROUTINE libxc_spin_unpolarized_calc
 #endif
@@ -2767,11 +2771,13 @@ REAL(KIND=dp), DIMENSION(*), INTENT(INOUT) :: e_ndrhoa_laplace_rhob, e_ndrhob_la
 INTEGER, INTENT(in)                                :: grad_deriv, npoints
 CHARACTER(LEN=default_string_length), INTENT(IN)   :: func_name
 REAL(KIND=dp), INTENT(in)                          :: sc
-TYPE(libxc_worker_set_type), INTENT(INOUT)         :: workers
+TYPE(libxc_worker_set_type), INTENT(INOUT), TARGET :: workers
 
 INTEGER                                            :: bsize, family, i, i0, ib, ii, ithread, &
                                                       nb, nblocks, nthreads
-LOGICAL                                            :: is_gga, is_mgga
+LOGICAL                                            :: has_laplace, is_gga, is_mgga, no_exc
+REAL(KIND=dp)                                      :: eps_rho, eps_tau
+TYPE(libxc_worker_type), POINTER                   :: w
 
 ithread = 0
 nthreads = 1
@@ -2796,9 +2802,12 @@ CALL libxc_family_flags(family, is_gga, is_mgga, TRIM(func_name))
 
 ! Density and tau cutoffs are applied by LibXC itself, as in the
 ! spin-unpolarized case.
-ASSOCIATE (w => workers%worker(ithread + 1), has_laplace => workers%has_laplace, &
-           no_exc => workers%no_exc, eps_rho => workers%epsilon_rho, &
-           eps_tau => workers%epsilon_tau)
+! Avoid ifx crashes with ASSOCIATE inside the parallel region.
+w => workers%worker(ithread + 1)
+has_laplace = workers%has_laplace
+no_exc = workers%no_exc
+eps_rho = workers%epsilon_rho
+eps_tau = workers%epsilon_tau
 !$OMP    DO
    DO ib = 1, nblocks
       IF (libxc_is_gpu()) CALL libxc_worker_resize_cuda(w, workers%family, workers%nspin, npoints)
@@ -3030,7 +3039,6 @@ ASSOCIATE (w => workers%worker(ithread + 1), has_laplace => workers%has_laplace,
       END IF
    END DO
 !$OMP    END DO
-END ASSOCIATE
 
 END SUBROUTINE libxc_spin_polarized_calc
 #endif
