@@ -35,6 +35,7 @@ MODULE qs_rho0_methods
                                               nso,&
                                               nsoset
    USE orbital_transformation_matrices, ONLY: orbtramat
+   USE paw_basis_types,                 ONLY: get_paw_basis_info
    USE qs_cneo_methods,                 ONLY: allocate_rhoz_cneo_internals,&
                                               init_cneo_potential_internals
    USE qs_cneo_types,                   ONLY: cneo_potential_type,&
@@ -54,7 +55,6 @@ MODULE qs_rho0_methods
                                               local_rho_type,&
                                               rhoz_type,&
                                               set_local_rho
-   USE qs_oce_methods,                  ONLY: prj_scatter
    USE qs_rho0_types,                   ONLY: &
         allocate_multipoles, allocate_rho0_atom, allocate_rho0_atom_rad, allocate_rho0_mpole, &
         calculate_g0, get_rho0_mpole, initialize_mpole_rho, mpole_gau_overlap, mpole_rho_atom, &
@@ -194,17 +194,20 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho0_atom'
 
-      INTEGER                                            :: handle, iat, iatom, ic, ico, ir, is, &
-                                                            iso, ispin, l, lmax0, lshell, lx, ly, &
-                                                            lz, nr, nsotot, nsotot_nuc, nspins
+      INTEGER                                            :: handle, i, iat, iatom, ic, ico, ij, ip, &
+                                                            ir, is, iso, ispin, j, l, lmax0, &
+                                                            lshell, lx, ly, lz, nbas, nbas2, &
+                                                            nchan_q, nr, nsotot_nuc, nspins
+      INTEGER, DIMENSION(:), POINTER                     :: n2oindex
       LOGICAL                                            :: paw_atom
-      REAL(KIND=dp)                                      :: sum1
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cpc_h_nuc, cpc_s_nuc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: cpc_ah, cpc_as
+      REAL(KIND=dp)                                      :: inv_sqrt_fourpi, sum1
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: qh_tmp, qs_tmp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cpc_h_nuc, cpc_s_nuc, q_sub
       REAL(KIND=dp), DIMENSION(:), POINTER               :: norm_g0l_h
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: g0_h, vg0_h
       TYPE(cneo_potential_type), POINTER                 :: cneo_potential
       TYPE(grid_atom_type), POINTER                      :: g_atom
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(mpole_gau_overlap), POINTER                   :: mpole_gau
       TYPE(mpole_rho_atom), POINTER                      :: mpole_rho
@@ -217,7 +220,7 @@ CONTAINS
       NULLIFY (mpole_rho)
       NULLIFY (g0_h, vg0_h, g_atom)
       NULLIFY (norm_g0l_h, harmonics)
-      NULLIFY (cneo_potential)
+      NULLIFY (cneo_potential, basis_1c, n2oindex)
 
       CALL get_rho0_mpole(rho0_mpole=rho0_mp, ikind=ikind, &
                           l0_ikind=lmax0, mp_gau_ikind=mpole_gau, &
@@ -248,6 +251,28 @@ CONTAINS
       END DO
 
       IF (.NOT. (.NOT. paw_atom .AND. gapw_control%nopaw_as_gpw)) THEN
+         IF (paw_atom .AND. natom > 0) THEN
+            CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_1c, basis_type="GAPW_1C")
+            CALL get_paw_basis_info(basis_1c, n2oindex=n2oindex, nsatbas=nbas)
+            nbas2 = nbas*nbas
+            nchan_q = MIN(nsoset(lmax0), harmonics%max_iso_not0, SIZE(mpole_gau%Qlm_gg, 3))
+            CPASSERT(nbas2 > 0)
+            CPASSERT(nchan_q > 0)
+            ALLOCATE (q_sub(nbas2, nchan_q), qh_tmp(nchan_q), qs_tmp(nchan_q))
+            DO iso = 1, nchan_q
+               ij = 0
+               DO i = 1, nbas
+                  ip = n2oindex(i)
+                  DO j = 1, nbas
+                     ij = ij + 1
+                     q_sub(ij, iso) = mpole_gau%Qlm_gg(n2oindex(j), ip, iso)
+                  END DO
+               END DO
+            END DO
+            DEALLOCATE (n2oindex)
+            inv_sqrt_fourpi = 1.0_dp/SQRT(fourpi)
+         END IF
+
          DO iat = 1, natom
             iatom = a_list(iat)
             mpole_rho => rho0_mp%mp_rho(iatom)
@@ -257,23 +282,6 @@ CONTAINS
                NULLIFY (cpc_h, cpc_s)
                CALL get_rho_atom(rho_atom=rho_atom, cpc_h=cpc_h, cpc_s=cpc_s)
                nspins = SIZE(cpc_h)
-               nsotot = SIZE(mpole_gau%Qlm_gg, 1)
-               IF (ALLOCATED(cpc_ah)) THEN
-                  IF (SIZE(cpc_ah, 1) /= nsotot .OR. SIZE(cpc_ah, 2) /= nsotot .OR. &
-                      SIZE(cpc_ah, 3) /= nspins) DEALLOCATE (cpc_ah)
-               END IF
-               IF (.NOT. ALLOCATED(cpc_ah)) ALLOCATE (cpc_ah(nsotot, nsotot, nspins))
-               cpc_ah = 0._dp
-               IF (ALLOCATED(cpc_as)) THEN
-                  IF (SIZE(cpc_as, 1) /= nsotot .OR. SIZE(cpc_as, 2) /= nsotot .OR. &
-                      SIZE(cpc_as, 3) /= nspins) DEALLOCATE (cpc_as)
-               END IF
-               IF (.NOT. ALLOCATED(cpc_as)) ALLOCATE (cpc_as(nsotot, nsotot, nspins))
-               cpc_as = 0._dp
-               DO ispin = 1, nspins
-                  CALL prj_scatter(cpc_h(ispin)%r_coef, cpc_ah(:, :, ispin), qs_kind)
-                  CALL prj_scatter(cpc_s(ispin)%r_coef, cpc_as(:, :, ispin), qs_kind)
-               END DO
                nsotot_nuc = 0
                IF (ASSOCIATED(cneo_potential)) THEN
                   IF (rhoz_cneo_set(iatom)%ready) THEN
@@ -297,34 +305,24 @@ CONTAINS
                   END IF
                END IF
 
-               ! Total charge (hard-soft) at atom
-               IF (paw_atom) THEN
-                  DO ispin = 1, nspins
-                     mpole_rho%Q0(ispin) = (trace_r_AxB(mpole_gau%Qlm_gg(:, :, 1), nsotot, &
-                                                        cpc_ah(:, :, ispin), nsotot, nsotot, nsotot) &
-                                            - trace_r_AxB(mpole_gau%Qlm_gg(:, :, 1), nsotot, &
-                                                          cpc_as(:, :, ispin), nsotot, nsotot, nsotot))/SQRT(fourpi)
-                  END DO
-               END IF
-               ! Multipoles of local charge distribution
-               DO iso = 1, MIN(nsoset(lmax0), harmonics%max_iso_not0)
-                  IF (paw_atom) THEN
-                     mpole_rho%Qlm_h(iso) = 0.0_dp
-                     mpole_rho%Qlm_s(iso) = 0.0_dp
-
-                     DO ispin = 1, nspins
-                        mpole_rho%Qlm_h(iso) = mpole_rho%Qlm_h(iso) + &
-                                               trace_r_AxB(mpole_gau%Qlm_gg(:, :, iso), nsotot, &
-                                                           cpc_ah(:, :, ispin), nsotot, nsotot, nsotot)
-                        mpole_rho%Qlm_s(iso) = mpole_rho%Qlm_s(iso) + &
-                                               trace_r_AxB(mpole_gau%Qlm_gg(:, :, iso), nsotot, &
-                                                           cpc_as(:, :, ispin), nsotot, nsotot, nsotot)
-                     END DO ! ispin
-
-                     mpole_rho%Qlm_tot(iso) = mpole_rho%Qlm_tot(iso) + &
-                                              mpole_rho%Qlm_h(iso) - mpole_rho%Qlm_s(iso)
-                  END IF
-               END DO ! iso
+               ! Total charge (hard-soft) and multipoles of local charge distribution
+               mpole_rho%Qlm_h(1:nchan_q) = 0.0_dp
+               mpole_rho%Qlm_s(1:nchan_q) = 0.0_dp
+               DO ispin = 1, nspins
+                  CPASSERT(IS_CONTIGUOUS(cpc_h(ispin)%r_coef))
+                  CPASSERT(IS_CONTIGUOUS(cpc_s(ispin)%r_coef))
+                  CPASSERT(SIZE(cpc_h(ispin)%r_coef) == nbas2)
+                  CPASSERT(SIZE(cpc_s(ispin)%r_coef) == nbas2)
+                  CALL dgemv('T', nbas2, nchan_q, 1.0_dp, q_sub(1, 1), nbas2, &
+                             cpc_h(ispin)%r_coef(1, 1), 1, 0.0_dp, qh_tmp(1), 1)
+                  CALL dgemv('T', nbas2, nchan_q, 1.0_dp, q_sub(1, 1), nbas2, &
+                             cpc_s(ispin)%r_coef(1, 1), 1, 0.0_dp, qs_tmp(1), 1)
+                  mpole_rho%Q0(ispin) = (qh_tmp(1) - qs_tmp(1))*inv_sqrt_fourpi
+                  mpole_rho%Qlm_h(1:nchan_q) = mpole_rho%Qlm_h(1:nchan_q) + qh_tmp(1:nchan_q)
+                  mpole_rho%Qlm_s(1:nchan_q) = mpole_rho%Qlm_s(1:nchan_q) + qs_tmp(1:nchan_q)
+               END DO
+               mpole_rho%Qlm_tot(1:nchan_q) = mpole_rho%Qlm_tot(1:nchan_q) + &
+                                              mpole_rho%Qlm_h(1:nchan_q) - mpole_rho%Qlm_s(1:nchan_q)
 
                ! Multipoles of CNEO quantum nuclear charge distribuition
                IF (ASSOCIATED(cneo_potential)) THEN
@@ -362,8 +360,7 @@ CONTAINS
          END DO ! iat
       END IF
 
-      IF (ALLOCATED(cpc_ah)) DEALLOCATE (cpc_ah)
-      IF (ALLOCATED(cpc_as)) DEALLOCATE (cpc_as)
+      IF (ALLOCATED(q_sub)) DEALLOCATE (q_sub, qh_tmp, qs_tmp)
       IF (ALLOCATED(cpc_h_nuc)) DEALLOCATE (cpc_h_nuc)
       IF (ALLOCATED(cpc_s_nuc)) DEALLOCATE (cpc_s_nuc)
 
