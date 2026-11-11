@@ -399,7 +399,6 @@ struct task_info {
   int ikind, jkind;
   int border_mask;
   int block_num;
-  int max_cab_size{0};
   double radius;
   double ra[3], rb[3], rp[3];
   double rab2;
@@ -494,6 +493,11 @@ public:
   gpu_vector<int> cab_block_offset_dev;
   gpu_vector<double> coef_dev_;
   gpu_vector<double> cab_dev_;
+  // largest basis set la_max / lb_max of the tasks of each block (-1 for an
+  // empty block), used to size the cab workspace of each block
+  std::vector<int> block_la_max_, block_lb_max_;
+  // (la_max_diff, lb_max_diff) the cab workspace is currently laid out for
+  int cab_la_max_diff_{-1}, cab_lb_max_diff_{-1};
   gpu_vector<double> pab_block_;
   gpu_vector<double> hab_block_;
   gpu_vector<double> forces_;
@@ -537,6 +541,10 @@ public:
         cab_block_offset_dev{std::move(other.cab_block_offset_dev)},
         coef_dev_{std::move(other.coef_dev_)},
         cab_dev_{std::move(other.cab_dev_)},
+        block_la_max_{std::move(other.block_la_max_)},
+        block_lb_max_{std::move(other.block_lb_max_)},
+        cab_la_max_diff_{other.cab_la_max_diff_},
+        cab_lb_max_diff_{other.cab_lb_max_diff_},
         pab_block_{std::move(other.pab_block_)},
         hab_block_{std::move(other.hab_block_)},
         forces_{std::move(other.forces_)}, virial_{std::move(other.virial_)},
@@ -601,6 +609,10 @@ public:
       cab_block_offset_dev = std::move(other.cab_block_offset_dev);
       coef_dev_ = std::move(other.coef_dev_);
       cab_dev_ = std::move(other.cab_dev_);
+      block_la_max_ = std::move(other.block_la_max_);
+      block_lb_max_ = std::move(other.block_lb_max_);
+      cab_la_max_diff_ = other.cab_la_max_diff_;
+      cab_lb_max_diff_ = other.cab_lb_max_diff_;
       pab_block_ = std::move(other.pab_block_);
       hab_block_ = std::move(other.hab_block_);
       forces_ = std::move(other.forces_);
@@ -650,6 +662,10 @@ public:
     cab_block_offset_dev.reset();
     coef_dev_.reset();
     cab_dev_.reset();
+    block_la_max_.clear();
+    block_lb_max_.clear();
+    cab_la_max_diff_ = -1;
+    cab_lb_max_diff_ = -1;
     task_sorted_by_blocks_dev.reset();
     sorted_blocks_offset_dev.reset();
     sphi_dev.reset();
@@ -761,6 +777,7 @@ public:
     }
   }
   void calculate_all_coefficients(const enum grid_func func, int *lp_diff);
+  void prepare_cab_workspace(const int la_max_diff, const int lb_max_diff);
 
 private:
   kernel_params set_kernel_parameters(const int level,

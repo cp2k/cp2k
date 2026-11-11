@@ -12,6 +12,7 @@
  - Ole Schuett
 */
 
+#include <algorithm>
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -84,6 +85,45 @@ context_info::set_kernel_parameters(const int level,
   params.cab_block_offset_dev = this->cab_block_offset_dev.data();
   params.sphi_dev = this->sphi_dev.data();
   return params;
+}
+
+/*******************************************************************************
+ * \brief Lays out the cab workspace of the coefficient kernels for the angular
+ *        momentum offsets of the current operation: block b gets
+ *        ncoset(la_max_b + la_max_diff) * ncoset(lb_max_b + lb_max_diff)
+ *        elements, la_max_b / lb_max_b being the largest basis set angular
+ *        momenta of its tasks. Must be called before set_kernel_parameters,
+ *        when no coefficient kernel is running (the collocate and integrate
+ *        entry points synchronize the main stream before returning). The
+ *        allocation only grows, the layout is recomputed when the offsets
+ *        change.
+ ******************************************************************************/
+void context_info::prepare_cab_workspace(const int la_max_diff,
+                                         const int lb_max_diff) {
+  if ((la_max_diff == cab_la_max_diff_) && (lb_max_diff == cab_lb_max_diff_))
+    return;
+
+  std::vector<int> offsets(nblocks, 0);
+  size_t total = 0;
+  for (int b = 0; b < nblocks; b++) {
+    offsets[b] = (int)total;
+    if (block_la_max_[b] >= 0)
+      total += align_up_elems(ncoset(block_la_max_[b] + la_max_diff) *
+                                  ncoset(block_lb_max_[b] + lb_max_diff),
+                              4);
+  }
+
+  if (total > (size_t)INT_MAX) {
+    fprintf(stderr, "ERROR: the cab workspace of the GPU grid backend is too "
+                    "large for 32 bits offsets.\n");
+    abort();
+  }
+
+  cab_dev_.resize(std::max(total, (size_t)1));
+  cab_block_offset_dev.resize(nblocks);
+  cab_block_offset_dev.copy_to_gpu(offsets);
+  cab_la_max_diff_ = la_max_diff;
+  cab_lb_max_diff_ = lb_max_diff;
 }
 }; // namespace rocm_backend
 
@@ -239,13 +279,6 @@ extern "C" void grid_gpu_create_task_list(
     // size of decontracted set, ie. pab and hab
     tasks_host[i].ncoseta = rocm_backend::ncoset(la_max_basis);
     tasks_host[i].ncosetb = rocm_backend::ncoset(lb_max_basis);
-    // it should lmax + 3 because calculating forces+stress+compute_tau requires
-    // l + 3
-    tasks_host[i].max_cab_size =
-        rocm_backend::align_up_elems(rocm_backend::ncoset(la_max_basis + 3) *
-                                         rocm_backend::ncoset(lb_max_basis + 3),
-                                     4);
-
     // size of entire spherical basis
     tasks_host[i].nsgfa = ibasis->nsgf;
     tasks_host[i].nsgfb = jbasis->nsgf;
@@ -377,9 +410,11 @@ extern "C" void grid_gpu_create_task_list(
   ctx->task_sorted_by_blocks_dev.resize(sorted_blocks.size());
   ctx->task_sorted_by_blocks_dev.copy_to_gpu(sorted_blocks);
 
-  std::vector<int> cab_size_offset_tmp(nblocks, 0);
-  std::vector<int> cab_size_tmp(nblocks);
-
+  // largest basis set angular momenta of each block. The cab workspace of a
+  // block is sized from them in prepare_cab_workspace, once the angular
+  // momentum offsets of the operation are known.
+  ctx->block_la_max_.assign(nblocks, -1);
+  ctx->block_lb_max_.assign(nblocks, -1);
   for (int i = 0; i < (int)sorted_blocks_offset.size(); i++) {
     int num_tasks = 0;
     if (i == (int)sorted_blocks_offset.size() - 1)
@@ -390,27 +425,18 @@ extern "C" void grid_gpu_create_task_list(
     // invariants tests since they should be equal.
     assert(num_tasks == num_tasks_per_block[i]);
 
-    int tmp_cab_size = 0;
     for (int tk = 0; tk < num_tasks; tk++) {
-      auto &task = tasks_host[sorted_blocks[tk + sorted_blocks_offset[i]]];
+      const auto &task =
+          tasks_host[sorted_blocks[tk + sorted_blocks_offset[i]]];
       // check that all tasks point to the same block
-      assert(
-          tasks_host[sorted_blocks[tk + sorted_blocks_offset[i]]].block_num ==
-          i);
-
-      // calculate the largest cab block needed for this block
-      tmp_cab_size = std::max(task.max_cab_size, tmp_cab_size);
+      assert(task.block_num == i);
+      ctx->block_la_max_[i] = std::max(ctx->block_la_max_[i], task.la_max);
+      ctx->block_lb_max_[i] = std::max(ctx->block_lb_max_[i], task.lb_max);
     }
-
-    // keep the size of the largest cab block
-    cab_size_tmp[i] = tmp_cab_size;
   }
-
-  cab_size_offset_tmp[0] = 0;
-
-  for (int i = 1; i < cab_size_tmp.size(); i++) {
-    cab_size_offset_tmp[i] = cab_size_offset_tmp[i - 1] + cab_size_tmp[i - 1];
-  }
+  // the layout of the cab workspace has to be recomputed for this task list
+  ctx->cab_la_max_diff_ = -1;
+  ctx->cab_lb_max_diff_ = -1;
 
   for (auto &block : task_sorted_by_block)
     block.clear();
@@ -419,27 +445,8 @@ extern "C" void grid_gpu_create_task_list(
   sorted_blocks.clear();
   sorted_blocks_offset.clear();
 
-  ctx->cab_block_offset_dev.resize(cab_size_offset_tmp.size());
-  ctx->cab_block_offset_dev.copy_to_gpu(cab_size_offset_tmp);
-
   ctx->num_tasks_per_block_dev_.resize(num_tasks_per_block.size());
   ctx->num_tasks_per_block_dev_.copy_to_gpu(num_tasks_per_block);
-
-  // Calculate the total amount of workspace needed
-  size_t cab_size_total = 0;
-
-  for (auto &elem : cab_size_tmp)
-    cab_size_total += elem;
-
-  cab_size_offset_tmp.clear();
-  cab_size_tmp.clear();
-
-  // To avoid memory saturation, cab only depends on the number of blocks not
-  // the number of tasks. It forces us to compute all xyz coefficients before
-  // calling collocate. However it does not change the logic of the integrate
-  // counterpart.
-
-  ctx->cab_dev_.resize(cab_size_total);
 
   // allocate workspace for the coefficients
   ctx->coef_dev_.resize(coef_size);

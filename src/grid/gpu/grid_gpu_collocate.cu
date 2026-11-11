@@ -507,6 +507,7 @@ void context_info::calculate_all_coefficients(const enum grid_func func,
 
   *lp_diff = smem_params.lp_diff();
   init_constant_memory();
+  prepare_cab_workspace(ldiffs.la_max_diff, ldiffs.lb_max_diff);
 
   // kernel parameters
   kernel_params params = set_kernel_parameters(-1, smem_params);

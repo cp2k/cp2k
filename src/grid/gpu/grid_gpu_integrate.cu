@@ -1330,6 +1330,7 @@ void context_info::compute_hab_coefficients() {
 
   smem_parameters smem_params(ldiffs, lmax());
   init_constant_memory();
+  prepare_cab_workspace(ldiffs.la_max_diff, ldiffs.lb_max_diff);
 
   kernel_params params = set_kernel_parameters(-1, smem_params);
 
