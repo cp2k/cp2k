@@ -103,6 +103,7 @@ void dbm_shard_copy(dbm_shard_t *shard_a, const dbm_shard_t *shard_b) {
     assert(shard_a->data != NULL);
   }
   shard_a->data_size = shard_b->data_size;
+  shard_a->data_promised = shard_b->data_size;
 
   if (shard_b->nblocks != 0) {
     assert(shard_a->blocks != NULL && shard_b->blocks != NULL);
@@ -189,8 +190,10 @@ void dbm_shard_reserve(dbm_shard_t *shard, const int nblocks) {
     shard->blocks =
         realloc(shard->blocks, shard->nblocks_allocated * sizeof(dbm_block_t));
     assert(shard->blocks != NULL);
+  }
 
-    // rebuild hashtable
+  // A copied hash table can hold fewer blocks than the block array.
+  if (shard->hashtable_size < DBM_HASHTABLE_FACTOR * nblocks) {
     free(shard->hashtable);
     hashtable_init(shard);
     for (int i = 0; i < shard->nblocks; i++) {
