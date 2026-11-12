@@ -9,6 +9,7 @@ from time import time, sleep
 import re
 import os
 import sys
+from collections import Counter
 import concurrent.futures
 from subprocess import PIPE, STDOUT
 import subprocess
@@ -44,6 +45,12 @@ def main() -> None:
         "--allow-modifications",
         action="store_true",
         help="allow the tools to modify files",
+    )
+    parser.add_argument(
+        "-p",
+        "--plot-file-count",
+        action="store_true",
+        help="enable plotting of # of files (for dashboard)",
     )
     parser.add_argument(
         "-j",
@@ -187,12 +194,40 @@ def main() -> None:
             break
         sleep(args.progressbar_wait)
 
-    # Print final message.
+    # Optionally print the file counts by type.
+    print(" " * 100)  # Clear the \r terminated progressbar line
+    checked = num_done - num_skipped
+    failed = len(failed_files)
+    if args.plot_file_count:
+        counts_by_type: Counter[str] = Counter()
+        for fn, f in futures.items():
+            if f.done() and not f.exception():
+                filetype = f.result()
+                counts_by_type[filetype] += 1
+        div = 500
+        name_1 = "precommit_high"
+        name_2 = "precommit_low"
+        print(
+            f'Plot: name="{name_1}", title="Precommit checked files (high)", ylabel="# files"'
+        )
+        print(
+            f'Plot: name="{name_2}", title="Precommit checked files (low)", ylabel="# files"'
+        )
+        print(
+            f'PlotPoint: name="total", plot="{name_1}", label="Total", y={checked}, yerr=0'
+        )
+        for filetype, count in counts_by_type.most_common():
+            plot_name = name_1 if count > div else name_2
+            print(
+                f'PlotPoint: name="{filetype.lower()}", plot="{plot_name}", label="{filetype}", y={count}, yerr=0'
+            )
+
+    # Print the final message.
     print(
         f"Summary: Found {len(file_list)}, "
         f"skipped {num_skipped}, "
-        f"checked {num_done - num_skipped}, "
-        f"and failed {len(failed_files)} files." + (" " * 50)
+        f"checked {checked}, "
+        f"and failed {failed} files."
     )
     print("Status: " + ("FAILED" if failed_files else "OK"))
     sys.exit(len(failed_files))
@@ -209,14 +244,16 @@ def print_box(fn: str, message: str) -> None:
 
 
 # ======================================================================================
-def process_file(fn: str, allow_modifications: bool) -> None:
+def process_file(fn: str, allow_modifications: bool) -> str:
     # Make a backup copy.
     basename = Path(fn).name
     orig_content = Path(fn).read_bytes()
     bak_fn = SCRATCH_DIR / f"{basename}_{time()}.bak"
     shutil.copy2(fn, bak_fn)
+    filetype = "Other"  # Default filetype if no specific type is matched.
 
     if re.match(r".*\.(F|fypp)$", fn):
+        filetype = "Fortran/Fypp"
         run_local_tool("./tools/doxify/doxify.sh", fn)
         run_format_fortran(fn)
 
@@ -231,11 +268,13 @@ def process_file(fn: str, allow_modifications: bool) -> None:
             fypped_fn.unlink()
 
     if re.match(r".*\.(c|cu|cl|h)$", fn):
+        filetype = "C"
         run_remote_tool("clangformat", fn)
 
     if re.match(r".*\.(cc|cpp|cxx|hcc|hpp|hxx)$", fn):
         if basename in ["torch_c_api.cpp", "ace_c_api.cpp", "openpmd_c_api.cpp"]:
             # Begrudgingly tolerated for C++ code with a narrow C ABI.
+            filetype = "C++"
             run_remote_tool("clangformat", fn)
         else:
             raise Exception(f"C++ is not supported.")
@@ -243,31 +282,40 @@ def process_file(fn: str, allow_modifications: bool) -> None:
     if re.match(r"(.*/PACKAGE)|(.*\.py)$", fn):
         ast.parse(orig_content, filename=fn)
         if "tools/spack/spack_repo/cp2k_dev/packages" in fn:
+            filetype = "Spack"
             run_remote_tool("spackformat", fn)
         else:
+            filetype = "Python"
             run_remote_tool("black", fn)
 
     if re.match(r".*\.sh$", fn):
+        filetype = "Shell"
         run_remote_tool("shfmt", fn)
         run_remote_tool("shellcheck", fn)
 
     if re.match(r".*\.md$", fn):
+        filetype = "MarkDown"
         run_remote_tool("mdformat", fn)
 
     if basename == "TEST_FILES.toml":
+        filetype = "TOML"
         run_remote_tool("tombi", fn)
 
     if re.match(r"(.*/CMakeLists.txt)|(.*\.cmake)$", fn):
+        filetype = "CMake"
         run_remote_tool("cmakeformat", fn)
         run_remote_tool("cmakelint", fn)
 
     if re.match(r"./data/.*POTENTIALS?$", fn):
+        filetype = "CP2K-data"
         check_data_files()
 
     if re.match(r".*/Makefile", fn):
+        filetype = "Makefile"
         run_local_tool("./tools/precommit/format_makefile.py", fn)
 
     if re.match(r".*\.inp$", fn):
+        filetype = "CP2K-input"
         run_local_tool("./tools/precommit/format_input_file.py", fn)
 
     run_check_file_properties(fn)
@@ -286,6 +334,8 @@ def process_file(fn: str, allow_modifications: bool) -> None:
         except Exception:
             diff = iter([])
         raise Exception(f"File modified:\n" + "\n".join(diff))
+
+    return filetype
 
 
 # ======================================================================================
