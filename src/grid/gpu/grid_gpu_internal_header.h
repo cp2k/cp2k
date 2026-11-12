@@ -30,7 +30,7 @@ extern "C" {
 
 #include "grid_gpu_context.h"
 
-namespace rocm_backend {
+namespace grid_gpu_backend {
 
 #if defined(__OFFLOAD_CUDA) || defined(__HIP_PLATFORM_NVIDIA__)
 #if __CUDA_ARCH__ < 600
@@ -56,11 +56,17 @@ __device__ __inline__ double atomicAdd(double *address, double val) {
  * \brief Orbital angular momentum.
  ******************************************************************************/
 struct orbital {
-  int l[3];
+  // signed char keeps coset_inv at 4 kB of constant memory (16 kB with int).
+  // The components are promoted to int in any arithmetic expression.
+  signed char l[3];
 };
+static_assert(sizeof(orbital) == 3, "orbital is expected to be packed");
+
+// largest angular momentum covered by the tables of the backend (ncoset,
+// coset_inv). It bounds la + lb of every operation.
+constexpr int grid_gpu_max_l = 18;
 
 __constant__ orbital coset_inv[1330];
-__constant__ int binomial_coef[19][19];
 
 /*******************************************************************************
  * \brief Differences in angular momentum.
@@ -135,31 +141,6 @@ template <typename T, typename T3> struct smem_task_reduced {
   char lp;
   bool apply_border_mask;
 };
-
-/*******************************************************************************
- * \brief Factorial function, e.g. fac(5) = 5! = 120.
- * \author Ole Schuett
- ******************************************************************************/
-__device__ __inline__ double fac(const int i) {
-  static const double table[] = {
-      0.10000000000000000000E+01, 0.10000000000000000000E+01,
-      0.20000000000000000000E+01, 0.60000000000000000000E+01,
-      0.24000000000000000000E+02, 0.12000000000000000000E+03,
-      0.72000000000000000000E+03, 0.50400000000000000000E+04,
-      0.40320000000000000000E+05, 0.36288000000000000000E+06,
-      0.36288000000000000000E+07, 0.39916800000000000000E+08,
-      0.47900160000000000000E+09, 0.62270208000000000000E+10,
-      0.87178291200000000000E+11, 0.13076743680000000000E+13,
-      0.20922789888000000000E+14, 0.35568742809600000000E+15,
-      0.64023737057280000000E+16, 0.12164510040883200000E+18,
-      0.24329020081766400000E+19, 0.51090942171709440000E+20,
-      0.11240007277776076800E+22, 0.25852016738884976640E+23,
-      0.62044840173323943936E+24, 0.15511210043330985984E+26,
-      0.40329146112660563558E+27, 0.10888869450418352161E+29,
-      0.30488834461171386050E+30, 0.88417619937397019545E+31,
-      0.26525285981219105864E+33};
-  return table[i];
-}
 
 /*******************************************************************************
  * \brief Number of Cartesian orbitals up to given angular momentum quantum.
@@ -243,43 +224,15 @@ inline static void init_constant_memory() {
     for (int ly = 0; ly <= 18 - lx; ly++) {
       for (int lz = 0; lz <= 18 - lx - ly; lz++) {
         const int i = coset(lx, ly, lz);
-        coset_inv_host[i] = {{lx, ly, lz}};
+        coset_inv_host[i] = {{static_cast<signed char>(lx),
+                              static_cast<signed char>(ly),
+                              static_cast<signed char>(lz)}};
       }
     }
   }
 
   offloadMemcpyToSymbol(coset_inv, &coset_inv_host, sizeof(coset_inv_host));
 
-  // Binomial coefficient
-  int binomial_coef_host[19][19] = {
-      {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 3, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 4, 6, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 5, 10, 10, 5, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 6, 15, 20, 15, 6, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 7, 21, 35, 35, 21, 7, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 8, 28, 56, 70, 56, 28, 8, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 9, 36, 84, 126, 126, 84, 36, 9, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 10, 45, 120, 210, 252, 210, 120, 45, 10, 1, 0, 0, 0, 0, 0, 0, 0, 0},
-      {1, 11, 55, 165, 330, 462, 462, 330, 165, 55, 11, 1, 0, 0, 0, 0, 0, 0, 0},
-      {1, 12, 66, 220, 495, 792, 924, 792, 495, 220, 66, 12, 1, 0, 0, 0, 0, 0,
-       0},
-      {1, 13, 78, 286, 715, 1287, 1716, 1716, 1287, 715, 286, 78, 13, 1, 0, 0,
-       0, 0, 0},
-      {1, 14, 91, 364, 1001, 2002, 3003, 3432, 3003, 2002, 1001, 364, 91, 14, 1,
-       0, 0, 0, 0},
-      {1, 15, 105, 455, 1365, 3003, 5005, 6435, 6435, 5005, 3003, 1365, 455,
-       105, 15, 1, 0, 0, 0},
-      {1, 16, 120, 560, 1820, 4368, 8008, 11440, 12870, 11440, 8008, 4368, 1820,
-       560, 120, 16, 1, 0, 0},
-      {1, 17, 136, 680, 2380, 6188, 12376, 19448, 24310, 24310, 19448, 12376,
-       6188, 2380, 680, 136, 17, 1, 0},
-      {1, 18, 153, 816, 3060, 8568, 18564, 31824, 43758, 48620, 43758, 31824,
-       18564, 8568, 3060, 816, 153, 18, 1}};
-  offloadMemcpyToSymbol(binomial_coef, &binomial_coef_host[0][0],
-                        sizeof(binomial_coef_host));
   initialized = true;
 }
 
@@ -293,7 +246,7 @@ __inline__ __device__ unsigned int thread_global_index() {
   return threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
 }
 
-__inline__ __device__ double3
+__inline__ __host__ __device__ double3
 compute_coordinates(const double *__restrict__ dh_, const double x,
                     const double y, const double z) {
 
@@ -307,112 +260,24 @@ compute_coordinates(const double *__restrict__ dh_, const double x,
   return r3;
 }
 
-__inline__ __device__ float3 compute_coordinates(const float *__restrict__ dh_,
-                                                 const float x, const float y,
-                                                 const float z) {
-
-  float3 r3;
-  // I make no distinction between orthorhombic and non orthorhombic
-  // cases
-
-  r3.x = z * dh_[6] + y * dh_[3] + x * dh_[0];
-  r3.y = z * dh_[7] + y * dh_[4] + x * dh_[1];
-  r3.z = z * dh_[8] + y * dh_[5] + x * dh_[2];
-  return r3;
-}
-
-/*******************************************************************************
- * \brief Computes the polynomial expansion coefficients:
- *        (x-a)**lxa (x-b)**lxb -> sum_{ls} alpha(ls,lxa,lxb,1)*(x-p)**ls
- ******************************************************************************/
-template <typename T>
-__inline__ __device__ void compute_alpha(const smem_task<T> &task,
-                                         T *__restrict__ alpha) {
-  // strides for accessing alpha
-  const int s3 = (task.lp + 1);
-  const int s2 = (task.la_max + 1) * s3;
-  const int s1 = (task.lb_max + 1) * s2;
-  const int tid = thread_global_index();
-
-  for (int i = tid; i < 3 * s1; i += blockDim.x * blockDim.y * blockDim.z)
-    alpha[i] = 0.0;
-
-  __syncthreads();
-
-  for (int idir = threadIdx.z; idir < 3; idir += blockDim.z) {
-    const T drpa = task.rp[idir] - task.ra[idir];
-    const T drpb = task.rp[idir] - task.rb[idir];
-    for (int la = threadIdx.y; la <= task.la_max; la += blockDim.y) {
-      for (int lb = threadIdx.x; lb <= task.lb_max; lb += blockDim.x) {
-        T a = 1.0;
-        for (int k = 0; k <= la; k++) {
-          T b = 1.0;
-          const int base = idir * s1 + lb * s2 + la * s3;
-          for (int l = 0; l <= lb; l++) {
-            alpha[base + la - l + lb - k] +=
-                a * b * binomial_coef[la][k] * binomial_coef[lb][l];
-            b *= drpb;
-          }
-          a *= drpa;
-        }
-      }
-    }
-  }
-}
-
-__host__ __inline__ __device__ void
-convert_to_lattice_coordinates(const double *dh_inv_,
-                               const double3 *__restrict__ const rp,
-                               double3 *__restrict__ rp_c) {
-  rp_c->x = dh_inv_[0] * rp->x + dh_inv_[3] * rp->y + dh_inv_[6] * rp->z;
-  rp_c->y = dh_inv_[1] * rp->x + dh_inv_[4] * rp->y + dh_inv_[7] * rp->z;
-  rp_c->z = dh_inv_[2] * rp->x + dh_inv_[5] * rp->y + dh_inv_[8] * rp->z;
-}
-
-__host__ __inline__ __device__ void
-convert_from_lattice_coordinates_to_cartesian(
-    const double *__restrict__ dh_, const double3 *__restrict__ const rp,
-    double3 *__restrict__ rp_c) {
-  rp_c->x = dh_[0] * rp->x + dh_[3] * rp->y + dh_[6] * rp->z;
-  rp_c->y = dh_[1] * rp->x + dh_[4] * rp->y + dh_[7] * rp->z;
-  rp_c->z = dh_[2] * rp->x + dh_[5] * rp->y + dh_[8] * rp->z;
-}
-
-__host__ __inline__ __device__ void
-convert_to_lattice_coordinates(const float *dh_inv_,
-                               const float3 *__restrict__ const rp,
-                               float3 *__restrict__ rp_c) {
-  rp_c->x = dh_inv_[0] * rp->x + dh_inv_[3] * rp->y + dh_inv_[6] * rp->z;
-  rp_c->y = dh_inv_[1] * rp->x + dh_inv_[4] * rp->y + dh_inv_[7] * rp->z;
-  rp_c->z = dh_inv_[2] * rp->x + dh_inv_[5] * rp->y + dh_inv_[8] * rp->z;
-}
-
-__host__ __inline__ __device__ void
-convert_from_lattice_coordinates_to_cartesian(
-    const float *__restrict__ dh_, const float3 *__restrict__ const rp,
-    float3 *__restrict__ rp_c) {
-  rp_c->x = dh_[0] * rp->x + dh_[3] * rp->y + dh_[6] * rp->z;
-  rp_c->y = dh_[1] * rp->x + dh_[4] * rp->y + dh_[7] * rp->z;
-  rp_c->z = dh_[2] * rp->x + dh_[5] * rp->y + dh_[8] * rp->z;
-}
-
 template <typename T, typename T3, bool orthorhombic_>
-__inline__ T compute_cube_properties(
-    const T radius, const T *const __restrict__ dh_,
-    const T *const __restrict__ dh_inv_, const T3 *__restrict__ rp,
-    T3 *__restrict__ roffset, int3 *__restrict__ cubecenter,
-    int3 *__restrict__ lb_cube, int3 *__restrict__ cube_size) {
+__inline__ T
+compute_cube_properties(const T radius, const T *const __restrict__ dh_,
+                        const T *const __restrict__ dh_inv_, const T3 &rp,
+                        T3 &roffset, int3 &cubecenter, int3 &lb_cube,
+                        int3 &cube_size) {
 
   /* center of the gaussian in the lattice coordinates */
   T3 rp1, rp2, rp3;
 
   /* it is in the lattice vector frame */
-  convert_to_lattice_coordinates(dh_inv_, rp, &rp1);
+  rp1 = compute_coordinates(dh_inv_, rp.x, rp.y, rp.z);
+  // convert_to_lattice_coordinates(dh_inv_, rp, &rp1);
 
   /* compute the grid point that is the closest to the sphere center. */
-  cubecenter->x = std::floor(rp1.x);
-  cubecenter->y = std::floor(rp1.y);
-  cubecenter->z = std::floor(rp1.z);
+  cubecenter.x = std::floor(rp1.x);
+  cubecenter.y = std::floor(rp1.y);
+  cubecenter.z = std::floor(rp1.z);
 
   /* seting up the cube parameters */
 
@@ -443,16 +308,17 @@ __inline__ T compute_cube_properties(
         (std::max(1,
                   (int)ceil(radius / std::min(norm1, std::min(norm2, norm3)))));
 
-    rp2.x = cubecenter->x;
-    rp2.y = cubecenter->y;
-    rp2.z = cubecenter->z;
+    rp2.x = cubecenter.x;
+    rp2.y = cubecenter.y;
+    rp2.z = cubecenter.z;
 
     /* convert the cube center from grid points coordinates to cartesian */
-    convert_from_lattice_coordinates_to_cartesian(dh_, &rp2, roffset);
+    roffset = compute_coordinates(dh_, rp2.x, rp2.y, rp2.z);
+
     /* cube center */
-    roffset->x -= rp->x;
-    roffset->y -= rp->y;
-    roffset->z -= rp->z;
+    roffset.x -= rp.x;
+    roffset.y -= rp.y;
+    roffset.z -= rp.z;
 
     /* This potentially makes the cube bigger than necessary because disc_radius
        is derived with the smallest lattice parameter. It is not an issue when
@@ -463,73 +329,73 @@ __inline__ T compute_cube_properties(
     rp2.z = disr_radius;
 
     /* it is in the lattice vector frame */
-    convert_to_lattice_coordinates(dh_inv_, &rp2, &rp3);
+    rp3 = compute_coordinates(dh_inv_, rp2.x, rp2.y, rp2.z);
     /* lower and upper bounds */
-    lb_cube->x = std::ceil(-1e-8 - rp3.x);
-    lb_cube->y = std::ceil(-1e-8 - rp3.y);
-    lb_cube->z = std::ceil(-1e-8 - rp3.z);
+    lb_cube.x = std::ceil(-1e-8 - rp3.x);
+    lb_cube.y = std::ceil(-1e-8 - rp3.y);
+    lb_cube.z = std::ceil(-1e-8 - rp3.z);
 
     /* it is in the lattice vector frame */
-    convert_to_lattice_coordinates(dh_inv_, roffset, &rp2);
+    rp2 = compute_coordinates(dh_inv_, roffset.x, roffset.y, roffset.z);
 
     /* Express the offset in lattice coordinates */
-    roffset->x = rp2.x;
-    roffset->y = rp2.y;
-    roffset->z = rp2.z;
+    roffset.x = rp2.x;
+    roffset.y = rp2.y;
+    roffset.z = rp2.z;
 
     /* compute the cube size ignoring periodicity */
     /* the interval is not symmetrical for some curious reasons. it should go
      * from [-L..L+1] so the number of points is multiple of two */
-    cube_size->x = 2 - 2 * lb_cube->x;
-    cube_size->y = 2 - 2 * lb_cube->y;
-    cube_size->z = 2 - 2 * lb_cube->z;
+    cube_size.x = 2 - 2 * lb_cube.x;
+    cube_size.y = 2 - 2 * lb_cube.y;
+    cube_size.z = 2 - 2 * lb_cube.z;
     return disr_radius;
   } else {
     int3 ub_cube;
 
-    lb_cube->x = INT_MAX;
+    lb_cube.x = INT_MAX;
     ub_cube.x = INT_MIN;
-    lb_cube->y = INT_MAX;
+    lb_cube.y = INT_MAX;
     ub_cube.y = INT_MIN;
-    lb_cube->z = INT_MAX;
+    lb_cube.z = INT_MAX;
     ub_cube.z = INT_MIN;
 
     for (int i = -1; i <= 1; i++) {
       for (int j = -1; j <= 1; j++) {
         for (int k = -1; k <= 1; k++) {
           T3 r;
-          r.x = rp->x + ((T)i) * radius;
-          r.y = rp->y + ((T)j) * radius;
-          r.z = rp->z + ((T)k) * radius;
-          convert_to_lattice_coordinates(dh_inv_, &r, roffset);
+          r.x = rp.x + ((T)i) * radius;
+          r.y = rp.y + ((T)j) * radius;
+          r.z = rp.z + ((T)k) * radius;
+          roffset = compute_coordinates(dh_inv_, r.x, r.y, r.z);
 
-          lb_cube->x = std::min(lb_cube->x, (int)std::floor(roffset->x));
-          ub_cube.x = std::max(ub_cube.x, (int)std::ceil(roffset->x));
+          lb_cube.x = std::min(lb_cube.x, (int)std::floor(roffset.x));
+          ub_cube.x = std::max(ub_cube.x, (int)std::ceil(roffset.x));
 
-          lb_cube->y = std::min(lb_cube->y, (int)std::floor(roffset->y));
-          ub_cube.y = std::max(ub_cube.y, (int)std::ceil(roffset->y));
+          lb_cube.y = std::min(lb_cube.y, (int)std::floor(roffset.y));
+          ub_cube.y = std::max(ub_cube.y, (int)std::ceil(roffset.y));
 
-          lb_cube->z = std::min(lb_cube->z, (int)std::floor(roffset->z));
-          ub_cube.z = std::max(ub_cube.z, (int)std::ceil(roffset->z));
+          lb_cube.z = std::min(lb_cube.z, (int)std::floor(roffset.z));
+          ub_cube.z = std::max(ub_cube.z, (int)std::ceil(roffset.z));
         }
       }
     }
     /* compute the cube size ignoring periodicity */
-    cube_size->x = ub_cube.x - lb_cube->x;
-    cube_size->y = ub_cube.y - lb_cube->y;
-    cube_size->z = ub_cube.z - lb_cube->z;
+    cube_size.x = ub_cube.x - lb_cube.x;
+    cube_size.y = ub_cube.y - lb_cube.y;
+    cube_size.z = ub_cube.z - lb_cube.z;
 
     /* compute the offset in lattice coordinates */
 
-    roffset->x = cubecenter->x - rp1.x;
-    roffset->y = cubecenter->y - rp1.y;
-    roffset->z = cubecenter->z - rp1.z;
+    roffset.x = cubecenter.x - rp1.x;
+    roffset.y = cubecenter.y - rp1.y;
+    roffset.z = cubecenter.z - rp1.z;
 
     // shift the boundaries compared to the cube center so that the
     // specialization ortho / non ortho is minimal
-    lb_cube->x -= cubecenter->x;
-    lb_cube->y -= cubecenter->y;
-    lb_cube->z -= cubecenter->z;
+    lb_cube.x -= cubecenter.x;
+    lb_cube.y -= cubecenter.y;
+    lb_cube.z -= cubecenter.z;
 
     return radius;
   }
@@ -599,99 +465,207 @@ setup_task_cube_center(const kernel_params &dev_,
 }
 
 /*******************************************************************************
- * \brief Transforms coefficients C_ab into C_xyz.
+ * \brief Factorized cab <-> cxyz transformations.
+ *
+ *        cab_to_cxyz expands (x - a)^la (x - b)^lb around p in each direction.
+ *        It is the product of three steps: move the expansion center of the a
+ *        index from a to p, of the b index from b to p, then multiply the
+ *        polynomials,
+ *
+ *          (x - a)^n = sum_k C(n, k) (p - a)^k (x - p)^(n - k)
+ *          cxyz[c]   = prefactor sum_{a' + b' = c} cab_p[b'][a']
+ *
+ *        The center moves are triangular, separable in x, y and z and map cab
+ *        onto itself, so they are done in place, one 1D line of cab per
+ *        thread. cxyz_to_cab is the transpose: a gather followed by the
+ *        transposed moves. The expansion coefficients alpha of the product are
+ *        never formed.
  ******************************************************************************/
-template <typename T>
-__device__ __inline__ static void
-cab_to_cxyz(const smem_task<T> &task, const T *__restrict__ alpha,
-            const T *__restrict__ cab, T *__restrict__ cxyz) {
 
-  //   *** initialise the coefficient matrix, we transform the sum
-  //
-  // sum_{lxa,lya,lza,lxb,lyb,lzb} P_{lxa,lya,lza,lxb,lyb,lzb} *
-  //         (x-a_x)**lxa (y-a_y)**lya (z-a_z)**lza (x-b_x)**lxb (y-a_y)**lya
-  //         (z-a_z)**lza
-  //
-  // into
-  //
-  // sum_{lxp,lyp,lzp} P_{lxp,lyp,lzp} (x-p_x)**lxp (y-p_y)**lyp (z-p_z)**lzp
-  //
-  // where p is center of the product gaussian, and lp = la_max + lb_max
-  // (current implementation is l**7)
-
-  // strides for accessing alpha
-  const int s3 = (task.lp + 1);
-  const int s2 = (task.la_max + 1) * s3;
-  const int s1 = (task.lb_max + 1) * s2;
-
-  // TODO: Maybe we can transpose alpha to index it directly with ico and jco.
-  const int tid =
-      threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
-
-  for (int i = tid; i < ncoset(task.lp);
-       i += blockDim.x * blockDim.y * blockDim.z) {
-    auto &co = coset_inv[i];
-    T reg = 0.0; // accumulate into a register
-    for (int jco = 0; jco < ncoset(task.lb_max); jco++) {
-      const auto &b = coset_inv[jco];
-      for (int ico = 0; ico < ncoset(task.la_max); ico++) {
-        const auto &a = coset_inv[ico];
-        const T p = alpha[0 * s1 + b.l[0] * s2 + a.l[0] * s3 + co.l[0]] *
-                    alpha[1 * s1 + b.l[1] * s2 + a.l[1] * s3 + co.l[1]] *
-                    alpha[2 * s1 + b.l[2] * s2 + a.l[2] * s3 + co.l[2]];
-        reg += p * cab[jco * task.n1 + ico]; // collocate
-      }
-    }
-
-    cxyz[i] = task.prefactor * reg;
+// decodes t in [0, (l + 1) (l + 2) / 2) into (p, q) with p + q <= l
+__device__ __inline__ void decode_pair(int t, int &p, int &q) {
+  int s = 0;
+  while (t > s) {
+    t -= s + 1;
+    s++;
   }
-  __syncthreads(); // because of concurrent writes to cxyz / cab
+  p = t;
+  q = s - t;
+}
+
+__device__ __inline__ int line_index(const int dir, const int m, const int p,
+                                     const int q, const bool on_a,
+                                     const int other, const int n1) {
+  int l[3];
+  l[dir] = m;
+  l[(dir + 1) % 3] = p;
+  l[(dir + 2) % 3] = q;
+  const int c = coset(l[0], l[1], l[2]);
+  return on_a ? other * n1 + c : c * n1 + other;
 }
 
 /*******************************************************************************
- * \brief Transforms coefficients C_xyz into C_ab.
+ * \brief Moves the expansion center of the a (on_a) or b cartesian index of
+ *        cab along direction dir, in place:
+ *
+ *          forward:   new[m] = sum_{k >= 0} C(m + k, k) dr^k old[m + k]
+ *          transpose: new[m] = sum_{k <= m} C(m, k)     dr^k old[m - k]
+ *
+ *        Each thread owns a whole line (all other indices fixed). The forward
+ *        update is a Taylor shift of the polynomial sum_m old[m] x^m by dr,
+ *        done in place by repeated synthetic division (Ruffini-Horner):
+ *          for i = 0 .. len-1, for j = len-1 down to i: c[j] += dr c[j+1]
+ *        The transpose applies the transposed elementary updates in reverse
+ *        order:
+ *          for i = len-1 down to 0, for j = i .. len-1: c[j+1] += dr c[j]
+ *        No binomial coefficient is needed, len (len + 1) / 2 FMA per line.
+ ******************************************************************************/
+template <typename T, bool TRANSPOSE>
+__device__ __inline__ void move_center(const int la, const int lb, const int n1,
+                                       const int dir, const bool on_a,
+                                       const T dr, T *cab) {
+  const int tid = thread_global_index();
+  const int nthreads = blockDim.x * blockDim.y * blockDim.z;
+  const int l = on_a ? la : lb;
+  const int nother = on_a ? ncoset(lb) : ncoset(la);
+  const int ntri = (l + 1) * (l + 2) / 2;
+
+  for (int line = tid; line < nother * ntri; line += nthreads) {
+    const int other = line / ntri;
+    int p, q;
+    decode_pair(line - other * ntri, p, q);
+    const int len = l - p - q;
+    if (len == 0)
+      continue; // new[0] = old[0]
+    if (!TRANSPOSE) {
+      for (int i = 0; i < len; i++) {
+        // c[j] += dr c[j + 1] for j descending, c[j + 1] carried in a register
+        T carry = cab[line_index(dir, len, p, q, on_a, other, n1)];
+        for (int j = len - 1; j >= i; j--) {
+          const int idx = line_index(dir, j, p, q, on_a, other, n1);
+          carry = cab[idx] + dr * carry;
+          cab[idx] = carry;
+        }
+      }
+    } else {
+      for (int i = len - 1; i >= 0; i--) {
+        // c[j + 1] += dr c[j] for j ascending, c[j] carried in a register
+        T carry = cab[line_index(dir, i, p, q, on_a, other, n1)];
+        for (int j = i + 1; j <= len; j++) {
+          const int idx = line_index(dir, j, p, q, on_a, other, n1);
+          carry = cab[idx] + dr * carry;
+          cab[idx] = carry;
+        }
+      }
+    }
+  }
+}
+
+/*******************************************************************************
+ * \brief Transforms the coefficients C_ab into C_xyz,
+ *          cxyz[c] = prefactor sum_{a, b} alpha[a][b][c] cab[b][a]
+ *        (see cxyz_to_cab_factorized). cab is overwritten.
  ******************************************************************************/
 template <typename T>
-__device__ __inline__ static void
-cxyz_to_cab(const smem_task<T> &task, const T *__restrict__ alpha,
-            const T *__restrict__ cxyz, T *__restrict__ cab) {
+__device__ __inline__ void cab_to_cxyz_factorized(const smem_task<T> &task,
+                                                  T *__restrict__ cab,
+                                                  T *__restrict__ cxyz) {
+  const int la = task.la_max, lb = task.lb_max, n1 = task.n1;
+  for (int dir = 0; dir < 3; dir++) {
+    move_center<T, false>(la, lb, n1, dir, true, task.rp[dir] - task.ra[dir],
+                          cab);
+    __syncthreads();
+  }
+  for (int dir = 0; dir < 3; dir++) {
+    move_center<T, false>(la, lb, n1, dir, false, task.rp[dir] - task.rb[dir],
+                          cab);
+    __syncthreads();
+  }
 
-  //   *** initialise the coefficient matrix, we transform the sum
-  //
-  // sum_{lxa,lya,lza,lxb,lyb,lzb} P_{lxa,lya,lza,lxb,lyb,lzb} *
-  //         (x-a_x)**lxa (y-a_y)**lya (z-a_z)**lza (x-b_x)**lxb (y-a_y)**lya
-  //         (z-a_z)**lza
-  //
-  // into
-  //
-  // sum_{lxp,lyp,lzp} P_{lxp,lyp,lzp} (x-p_x)**lxp (y-p_y)**lyp (z-p_z)**lzp
-  //
-  // where p is center of the product gaussian, and lp = la_max + lb_max
-  // (current implementation is l**7)
-
-  // strides for accessing alpha
-  const int s3 = (task.lp + 1);
-  const int s2 = (task.la_max + 1) * s3;
-  const int s1 = (task.lb_max + 1) * s2;
-
-  const int tid =
-      threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
-  for (int jco = tid / 8; jco < ncoset(task.lb_max); jco += 8) {
-    const orbital b = coset_inv[jco];
-    for (int ico = tid % 8; ico < ncoset(task.la_max); ico += 8) {
-      const auto &a = coset_inv[ico];
-      T reg = 0.0; // accumulate into a register
-      for (int ic = 0; ic < ncoset(task.lp); ic++) {
-        const auto &co = coset_inv[ic];
-        const T p = alpha[b.l[0] * s2 + a.l[0] * s3 + co.l[0]] *
-                    alpha[s1 + b.l[1] * s2 + a.l[1] * s3 + co.l[1]] *
-                    alpha[2 * s1 + b.l[2] * s2 + a.l[2] * s3 + co.l[2]];
-
-        reg += p * cxyz[ic]; // integrate
+  // cxyz[c] = prefactor sum_{a' + b' = c} cab_p[b'][a']
+  const int tid = thread_global_index();
+  const int nthreads = blockDim.x * blockDim.y * blockDim.z;
+  for (int ic = tid; ic < ncoset(task.lp); ic += nthreads) {
+    const auto &c = coset_inv[ic];
+    T val = 0.0;
+    for (int ax = 0; ax <= min(c.l[0], la); ax++) {
+      for (int ay = 0; ay <= min(c.l[1], la - ax); ay++) {
+        for (int az = 0; az <= min(c.l[2], la - ax - ay); az++) {
+          const int bx = c.l[0] - ax, by = c.l[1] - ay, bz = c.l[2] - az;
+          if (bx + by + bz <= lb)
+            val += cab[coset(bx, by, bz) * n1 + coset(ax, ay, az)];
+        }
       }
-      cab[jco * task.n1 + ico] =
-          task.prefactor * reg; // partial loop coverage -> zero it
     }
+    cxyz[ic] = task.prefactor * val;
+  }
+  __syncthreads();
+}
+
+/*******************************************************************************
+ * \brief Transforms the coefficients C_xyz into C_ab, with the 3D
+ *        multi-indices a, b, c,
+ *
+ *          cab[b][a] = prefactor sum_c alpha[a][b][c] cxyz[c]
+ *
+ *        where alpha expands the product of the two cartesian monomials
+ *        around p, (x - A)^a (x - B)^b = sum_c alpha[a][b][c] (x - P)^c.
+ *        In each direction, with dA = P - A and dB = P - B,
+ *
+ *          (x - A)^a = sum_{a' <= a} TA[a][a'] (x - P)^a',
+ *          TA[a][a'] = C(a, a') dA^(a - a')
+ *
+ *        and similarly TB for b. Multiplying the two expansions,
+ *
+ *          alpha[a][b][c] = sum_{a' + b' = c} TA[a][a'] TB[b][b'],
+ *
+ *        hence
+ *
+ *          cab[b][a] = sum_{a', b'} TB[b][b'] TA[a][a'] G[b'][a'],
+ *          G[b'][a'] = prefactor cxyz[a' + b'].
+ *
+ *        The sum is done in three steps without forming alpha:
+ *
+ *          1. gather G from cxyz (a' + b' summed per direction);
+ *          2. apply TA to the a index, one direction at a time, since the 3D
+ *             TA is the product of the x, y and z 1D matrices:
+ *               new[m] = sum_{k <= m} C(m, k) dA^k old[m - k]
+ *             (move_center<T, true>, in place, one 1D line per thread);
+ *          3. apply TB to the b index in the same way.
+ *
+ *        TA and TB are lower triangular, so both steps map cab onto itself.
+ *        cab_to_cxyz_factorized is the transpose of the same product: TA^T
+ *        and TB^T (move_center<T, false>), then the scatter
+ *        cxyz[c] = prefactor sum_{a' + b' = c} cab[b'][a'].
+ ******************************************************************************/
+template <typename T>
+__device__ __inline__ void cxyz_to_cab_factorized(const smem_task<T> &task,
+                                                  const T *__restrict__ cxyz,
+                                                  T *__restrict__ cab) {
+  const int la = task.la_max, lb = task.lb_max, n1 = task.n1;
+  const int tid = thread_global_index();
+  const int nthreads = blockDim.x * blockDim.y * blockDim.z;
+
+  // cab_p[b'][a'] = prefactor cxyz[a' + b']
+  for (int k = tid; k < n1 * task.n2; k += nthreads) {
+    const int jco = k / n1;
+    const int ico = k - jco * n1;
+    const auto &a = coset_inv[ico];
+    const auto &b = coset_inv[jco];
+    cab[k] = task.prefactor *
+             cxyz[coset(a.l[0] + b.l[0], a.l[1] + b.l[1], a.l[2] + b.l[2])];
+  }
+  __syncthreads();
+
+  for (int dir = 0; dir < 3; dir++) {
+    move_center<T, true>(la, lb, n1, dir, true, task.rp[dir] - task.ra[dir],
+                         cab);
+    __syncthreads();
+  }
+  for (int dir = 0; dir < 3; dir++) {
+    move_center<T, true>(la, lb, n1, dir, false, task.rp[dir] - task.rb[dir],
+                         cab);
+    __syncthreads();
   }
 }
 
@@ -841,12 +815,56 @@ __device__ __inline__ void fill_smem_task_coef(const kernel_params &dev,
   __syncthreads();
 }
 
+/*******************************************************************************
+ * \brief Size (in doubles) of the work arrays of the two step spherical <->
+ *        cartesian transformations of calculate_coefficients_two_steps and
+ *        compute_hab_two_steps: [max_nsgf_set][ld] and [ld][ld] with
+ *        ld = ncoset(lmax).
+ ******************************************************************************/
+inline int sphi_work_size(const int lmax, const int max_nsgf_set) {
+  const int ld = ncoset(lmax);
+  return max_nsgf_set * ld + ld * ld;
+}
+
+// shared memory budget of the two step kernels (default limit without opting
+// in on NVIDIA hardware), static and dynamic. Above, the fused kernels are
+// used.
+constexpr size_t sphi_two_step_max_smem = 48 * 1024;
+
+/*******************************************************************************
+ * \brief Largest dynamic shared memory the kernel can be launched with when
+ *        its static and dynamic shared memory together must fit in budget
+ *        bytes. The static part (e.g. __shared__ task structures) is taken
+ *        from the compiled kernel and rounded up to 16 bytes for the
+ *        alignment of the dynamic array placed after it.
+ ******************************************************************************/
+template <typename Kernel>
+inline size_t max_dynamic_smem(Kernel kernel, const size_t budget) {
+#if defined(__OFFLOAD_HIP)
+  hipFuncAttributes attr;
+  OFFLOAD_CHECK(
+      hipFuncGetAttributes(&attr, reinterpret_cast<const void *>(kernel)));
+#else
+  cudaFuncAttributes attr;
+  OFFLOAD_CHECK(cudaFuncGetAttributes(&attr, kernel));
+#endif
+  const size_t static_smem = (attr.sharedSizeBytes + 15) & ~size_t(15);
+  if (static_smem >= budget)
+    return 0;
+  return std::min(budget - static_smem,
+                  (size_t)std::max(attr.maxDynamicSharedSizeBytes, 0));
+}
+
+/*******************************************************************************
+ * \brief Aborts with the location if the last kernel launch failed, e.g.
+ *        because of an invalid launch configuration.
+ ******************************************************************************/
+#define GRID_GPU_CHECK_LAUNCH() OFFLOAD_CHECK(offloadGetLastError())
+
 class smem_parameters {
 private:
   int la_max_{-1};
   int lb_max_{-1};
-  int smem_per_block_{0};
-  int alpha_size_{-1};
   int cab_size_{-1};
   int lp_max_{-1};
   ldiffs_value ldiffs_;
@@ -860,40 +878,33 @@ public:
     lb_max_ = lmax + ldiffs.lb_max_diff;
     lp_max_ = la_max_ + lb_max_;
 
+    if (lp_max_ > grid_gpu_max_l) {
+      fprintf(stderr,
+              "ERROR: the GPU grid backend supports la + lb <= %d, this "
+              "operation needs %d (lmax %d, la_max_diff %d, lb_max_diff %d).\n",
+              grid_gpu_max_l, lp_max_, lmax, ldiffs.la_max_diff,
+              ldiffs.lb_max_diff);
+      abort();
+    }
+
     // NB: cab is allocated in global memory not shared memory. Each block has
     // its own cab space
 
-    cab_size_ = (rocm_backend::ncoset(la_max_) * rocm_backend::ncoset(lb_max_));
-    alpha_size_ = 3 * (lb_max_ + 1) * (la_max_ + 1) * (lp_max_ + 1);
-    smem_per_block_ = std::max(alpha_size_, 64) * sizeof(double);
-
-    if (smem_per_block_ > 64 * 1024) {
-      fprintf(stderr,
-              "ERROR: Not enough shared memory in grid_gpu_collocate.\n");
-      fprintf(stderr, "alpha_len: %i, ", alpha_size_);
-      fprintf(stderr, "total smem_per_block: %f kB\n\n",
-              smem_per_block_ / 1024.0);
-      abort();
-    }
+    cab_size_ =
+        (grid_gpu_backend::ncoset(la_max_) * grid_gpu_backend::ncoset(lb_max_));
   }
 
   ~smem_parameters() {};
 
   // copy and move are trivial
 
-  inline int alpha_size() const { return alpha_size_; }
-
   inline int cab_size() const { return cab_size_; }
-
-  inline int smem_per_block() const { return smem_per_block_; }
 
   inline int lp_diff() const { return lp_diff_; }
 
   inline ldiffs_value ldiffs() const { return ldiffs_; }
 
   inline int lp_max() const { return lp_max_; }
-
-  inline int cxyz_size() const { return ncoset(lp_max_); }
 };
 template <typename T>
 __inline__ __device__ T *allocate_workspace(const kernel_params &dev_) {
@@ -930,5 +941,5 @@ calculate_xmin_xmax_boundaries(smem_task_reduced<T, T3> &task, const int y,
   xmin -= task.lb_cube.x;
 }
 
-} // namespace rocm_backend
+} // namespace grid_gpu_backend
 #endif

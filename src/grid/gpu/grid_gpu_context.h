@@ -20,6 +20,7 @@
 #include <cuda_runtime.h>
 #endif
 #include <array>
+#include <climits>
 #include <vector>
 
 extern "C" {
@@ -30,7 +31,7 @@ extern "C" {
 #include "../../offload/offload_library.h"
 #include "../../offload/offload_runtime.h"
 
-namespace rocm_backend {
+namespace grid_gpu_backend {
 // a little helper class in the same spirit than std::vector. it must exist
 // somewhere. Maybe possible to get the same thing with std::vector and
 // specific allocator.
@@ -223,8 +224,18 @@ private:
   std::array<T, 9> dh_;
   std::array<T, 9> dh_inv_;
   bool orthogonal_{false};
+  // lattice vectors along x, y and z
+  bool axis_aligned_{false};
   bool is_distributed_{false};
+  // largest cube size (in grid points, all directions) of the tasks of this
+  // level. Used to size the shared memory of the separable kernels.
+  int max_cube_size_{0};
   gpu_vector<T> grid_;
+  // expansion of the cartesian monomials in lattice monomials, see
+  // build_lattice_to_cartesian_matrix in grid_gpu_separable.h. Valid up to
+  // lattice_to_cartesian_lmax_ (-1 when not computed for the current dh).
+  gpu_vector<T> lattice_to_cartesian_;
+  int lattice_to_cartesian_lmax_{-1};
 
 public:
   grid_info(const grid_info &) = delete;
@@ -273,6 +284,22 @@ public:
       dh_[i] = dh__[i];
       dh_inv_[i] = dh_inv__[i];
     }
+    axis_aligned_ = (dh_[1] == 0.0) && (dh_[2] == 0.0) && (dh_[3] == 0.0) &&
+                    (dh_[5] == 0.0) && (dh_[6] == 0.0) && (dh_[7] == 0.0);
+    lattice_to_cartesian_lmax_ = -1;
+  }
+
+  inline bool is_axis_aligned() const { return axis_aligned_; }
+
+  inline int max_cube_size() const { return max_cube_size_; }
+  inline void max_cube_size(const int size__) { max_cube_size_ = size__; }
+
+  inline gpu_vector<T> &lattice_to_cartesian() { return lattice_to_cartesian_; }
+  inline int lattice_to_cartesian_lmax() const {
+    return lattice_to_cartesian_lmax_;
+  }
+  inline void lattice_to_cartesian_lmax(const int lmax__) {
+    lattice_to_cartesian_lmax_ = lmax__;
   }
 
   inline void is_distributed(const bool distributed__) {
@@ -280,35 +307,14 @@ public:
   }
 
   /// Check if the lattice vectors form a orthogonal basis
+  // The orthogonal code paths (cube setup, x / y trimming, separable kernels)
+  // assume lattice vectors along x, y and z. A rotated orthogonal cell is
+  // therefore handled as non orthogonal. ortho (cell%orthorhombic on the
+  // fortran side) is only true for a diagonal hmat, up to 1e-14.
   void check_orthogonality(const bool ortho) {
-    if (ortho) {
-      orthogonal_ = true;
-      return;
-    }
-    T norm1, norm2, norm3;
-    bool orthogonal[3] = {false, false, false};
-    norm1 = dh_[0] * dh_[0] + dh_[1] * dh_[1] + dh_[2] * dh_[2];
-    norm2 = dh_[3] * dh_[3] + dh_[4] * dh_[4] + dh_[5] * dh_[5];
-    norm3 = dh_[6] * dh_[6] + dh_[7] * dh_[7] + dh_[8] * dh_[8];
-
-    norm1 = 1.0 / sqrt(norm1);
-    norm2 = 1.0 / sqrt(norm2);
-    norm3 = 1.0 / sqrt(norm3);
-
-    /* x z */
-    orthogonal[0] =
-        ((fabs(dh_[0] * dh_[6] + dh_[1] * dh_[7] + dh_[2] * dh_[8]) * norm1 *
-          norm3) < 1e-12);
-    /* y z */
-    orthogonal[1] =
-        ((fabs(dh_[3] * dh_[6] + dh_[4] * dh_[7] + dh_[5] * dh_[8]) * norm2 *
-          norm3) < 1e-12);
-    /* x y */
-    orthogonal[2] =
-        ((fabs(dh_[0] * dh_[3] + dh_[1] * dh_[4] + dh_[2] * dh_[5]) * norm1 *
-          norm2) < 1e-12);
-
-    orthogonal_ = orthogonal[0] && orthogonal[1] && orthogonal[2];
+    if (ortho)
+      axis_aligned_ = true;
+    orthogonal_ = axis_aligned_;
   }
 
   inline void copy_to_host(T *data__, offloadStream_t &stream) {
@@ -393,7 +399,6 @@ struct task_info {
   int ikind, jkind;
   int border_mask;
   int block_num;
-  int max_cab_size{0};
   double radius;
   double ra[3], rb[3], rp[3];
   double rab2;
@@ -456,6 +461,9 @@ struct kernel_params {
   int *sorted_blocks_offset_dev{nullptr};
   int *num_tasks_per_block_dev{nullptr};
   int *cab_block_offset_dev{nullptr};
+  // integrate: tasks with lp >= separable_lp_min are handled by
+  // integrate_separable_kernel, the others by integrate_kernel.
+  int separable_lp_min{INT_MAX};
 };
 
 /* regroup all information about the context. */
@@ -463,6 +471,9 @@ class context_info {
 private:
   int device_id_{-1};
   int lmax_{0};
+  // largest number of spherical functions of a set over all basis sets. Sizes
+  // the shared memory of calculate_coefficients / compute_hab.
+  int max_nsgf_set_{0};
   unsigned int checksum_{0};
 
 public:
@@ -482,6 +493,11 @@ public:
   gpu_vector<int> cab_block_offset_dev;
   gpu_vector<double> coef_dev_;
   gpu_vector<double> cab_dev_;
+  // largest basis set la_max / lb_max of the tasks of each block (-1 for an
+  // empty block), used to size the cab workspace of each block
+  std::vector<int> block_la_max_, block_lb_max_;
+  // (la_max_diff, lb_max_diff) the cab workspace is currently laid out for
+  int cab_la_max_diff_{-1}, cab_lb_max_diff_{-1};
   gpu_vector<double> pab_block_;
   gpu_vector<double> hab_block_;
   gpu_vector<double> forces_;
@@ -514,9 +530,10 @@ public:
   // Movable
   context_info(context_info &&other) noexcept
       : device_id_{other.device_id_}, lmax_{other.lmax_},
-        checksum_{other.checksum_}, ntasks{other.ntasks},
-        nlevels{other.nlevels}, natoms{other.natoms}, nkinds{other.nkinds},
-        nblocks{other.nblocks}, cab_size_per_block_{other.cab_size_per_block_},
+        max_nsgf_set_{other.max_nsgf_set_}, checksum_{other.checksum_},
+        ntasks{other.ntasks}, nlevels{other.nlevels}, natoms{other.natoms},
+        nkinds{other.nkinds}, nblocks{other.nblocks},
+        cab_size_per_block_{other.cab_size_per_block_},
         sphi{std::move(other.sphi)},
         level_streams{std::move(other.level_streams)},
         main_stream{other.main_stream},
@@ -524,6 +541,10 @@ public:
         cab_block_offset_dev{std::move(other.cab_block_offset_dev)},
         coef_dev_{std::move(other.coef_dev_)},
         cab_dev_{std::move(other.cab_dev_)},
+        block_la_max_{std::move(other.block_la_max_)},
+        block_lb_max_{std::move(other.block_lb_max_)},
+        cab_la_max_diff_{other.cab_la_max_diff_},
+        cab_lb_max_diff_{other.cab_lb_max_diff_},
         pab_block_{std::move(other.pab_block_)},
         hab_block_{std::move(other.hab_block_)},
         forces_{std::move(other.forces_)}, virial_{std::move(other.virial_)},
@@ -549,6 +570,7 @@ public:
     // leave other in a safe state (no ownership)
     other.device_id_ = -1;
     other.lmax_ = 0;
+    other.max_nsgf_set_ = 0;
     other.checksum_ = 0;
     other.ntasks = 0;
     other.nlevels = 0;
@@ -568,6 +590,7 @@ public:
 
       device_id_ = other.device_id_;
       lmax_ = other.lmax_;
+      max_nsgf_set_ = other.max_nsgf_set_;
       checksum_ = other.checksum_;
       ntasks = other.ntasks;
       nlevels = other.nlevels;
@@ -586,6 +609,10 @@ public:
       cab_block_offset_dev = std::move(other.cab_block_offset_dev);
       coef_dev_ = std::move(other.coef_dev_);
       cab_dev_ = std::move(other.cab_dev_);
+      block_la_max_ = std::move(other.block_la_max_);
+      block_lb_max_ = std::move(other.block_lb_max_);
+      cab_la_max_diff_ = other.cab_la_max_diff_;
+      cab_lb_max_diff_ = other.cab_lb_max_diff_;
       pab_block_ = std::move(other.pab_block_);
       hab_block_ = std::move(other.hab_block_);
       forces_ = std::move(other.forces_);
@@ -608,6 +635,7 @@ public:
       // reset other
       other.device_id_ = -1;
       other.lmax_ = 0;
+      other.max_nsgf_set_ = 0;
       other.checksum_ = 0;
       other.ntasks = 0;
       other.nlevels = 0;
@@ -634,6 +662,10 @@ public:
     cab_block_offset_dev.reset();
     coef_dev_.reset();
     cab_dev_.reset();
+    block_la_max_.clear();
+    block_lb_max_.clear();
+    cab_la_max_diff_ = -1;
+    cab_lb_max_diff_ = -1;
     task_sorted_by_blocks_dev.reset();
     sorted_blocks_offset_dev.reset();
     sphi_dev.reset();
@@ -664,6 +696,7 @@ public:
   }
 
   int lmax() const { return lmax_; }
+  int max_nsgf_set() const { return max_nsgf_set_; }
 
   void initialize_basis_sets(const grid_basis_set **basis_sets,
                              const int nkinds__) {
@@ -695,11 +728,14 @@ public:
                         basis_set->nsgf * basis_set->maxco * sizeof(double));
     }
     sphi_dev.copy_to_gpu(sphi);
-    // Find largest angular momentum.
+    // Find largest angular momentum and set size.
     lmax_ = 0;
+    max_nsgf_set_ = 0;
     for (int ikind = 0; ikind < nkinds; ikind++) {
       for (int iset = 0; iset < basis_sets[ikind]->nset; iset++) {
         lmax_ = std::max(lmax_, basis_sets[ikind]->lmax[iset]);
+        max_nsgf_set_ =
+            std::max(max_nsgf_set_, basis_sets[ikind]->nsgf_set[iset]);
       }
     }
   }
@@ -719,11 +755,6 @@ public:
 
   void synchronize(offloadStream_t &stream) {
     offloadStreamSynchronize(stream);
-  }
-
-  void synchornize() {
-    // wait for all the streams to finish
-    offloadDeviceSynchronize();
   }
 
   void set_device() {
@@ -746,6 +777,7 @@ public:
     }
   }
   void calculate_all_coefficients(const enum grid_func func, int *lp_diff);
+  void prepare_cab_workspace(const int la_max_diff, const int lb_max_diff);
 
 private:
   kernel_params set_kernel_parameters(const int level,
@@ -754,5 +786,5 @@ private:
     return natoms ^ ntasks ^ nlevels ^ nkinds ^ nblocks ^ 0x4F2C5D1A;
   }
 };
-} // namespace rocm_backend
+} // namespace grid_gpu_backend
 #endif
