@@ -258,14 +258,17 @@ def process_file(fn: str, allow_modifications: bool) -> str:
         run_format_fortran(fn)
 
     if re.match(r".*\.F$", fn):
-        try:
-            # First try without fypp as this allows for auto-fixing.
-            run_remote_tool("fortitude", fn)
-        except Exception as err:
+        if re.search(r"(?m)^[ \t]*(?:[#$@]:|#!)|[#$@]\{", Path(fn).read_text()):
+            # Do not fold generated lines: this can split identifiers that
+            # Fortitude cannot parse.
             fypped_fn = SCRATCH_DIR / basename
-            run_local_tool("./tools/build_utils/fypp", fn, str(fypped_fn))
-            run_remote_tool("fortitude_nofix", str(fypped_fn))
-            fypped_fn.unlink()
+            try:
+                run_local_tool("./tools/build_utils/fypp", "-F", fn, str(fypped_fn))
+                run_remote_tool("fortitude_nofix", str(fypped_fn))
+            finally:
+                fypped_fn.unlink(missing_ok=True)
+        else:
+            run_remote_tool("fortitude", fn)
 
     if re.match(r".*\.(c|cu|cl|h)$", fn):
         filetype = "C"

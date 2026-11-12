@@ -160,16 +160,16 @@ CONTAINS
       INTEGER, PARAMETER                                 :: bufferlen = 2048
 
       CHARACTER(LEN=bufferlen)                           :: buffer
-      INTEGER                                            :: i, icol, iline, stat
+      INTEGER                                            :: i, icol, iline, stat, unit_nr
 
       model_name = "UNKNOWN"
       buffer = ""
-      OPEN (121245, FILE="/proc/cpuinfo", ACTION="READ", STATUS="OLD", ACCESS="STREAM", IOSTAT=stat)
+      OPEN (NEWUNIT=unit_nr, FILE="/proc/cpuinfo", ACTION="READ", STATUS="OLD", ACCESS="STREAM", IOSTAT=stat)
       IF (stat == 0) THEN
          DO i = 1, bufferlen
-            READ (121245, END=999) buffer(I:I)
+            READ (unit_nr, END=999) buffer(I:I)
          END DO
-999      CLOSE (121245)
+999      CLOSE (unit_nr)
          i = INDEX(buffer, "model name")
          IF (i > 0) THEN
             icol = i - 1 + INDEX(buffer(i:), ":")
@@ -354,14 +354,14 @@ CONTAINS
       REAL(KIND=dp)                                      :: wt
 
       CHARACTER(LEN=80)                                  :: DATA
-      INTEGER                                            :: i, iostat
+      INTEGER                                            :: i, iostat, unit_nr
       INTEGER(KIND=int_8)                                :: raw
 
-      OPEN (121245, FILE=filename, ACTION="READ", STATUS="OLD", ACCESS="STREAM")
+      OPEN (NEWUNIT=unit_nr, FILE=filename, ACTION="READ", STATUS="OLD", ACCESS="STREAM")
       DO I = 1, 80
-         READ (121245, END=999) DATA(I:I)
+         READ (unit_nr, END=999) DATA(I:I)
       END DO
-999   CLOSE (121245)
+999   CLOSE (unit_nr)
       DATA(I:80) = ""
       READ (DATA, *, IOSTAT=iostat) raw
       IF (iostat /= 0) THEN
@@ -452,7 +452,7 @@ CONTAINS
 #else
       INTEGER(KIND=int_8)                      :: m1, m2, m3
       CHARACTER(LEN=80) :: DATA
-      INTEGER :: iostat, i
+      INTEGER :: iostat, i, unit_nr
 
       ! the size of a page, might not be available everywhere
       INTERFACE
@@ -466,11 +466,11 @@ CONTAINS
       !
       mem_local = -1
       DATA = ""
-      OPEN (121245, FILE="/proc/self/statm", ACTION="READ", STATUS="OLD", ACCESS="STREAM")
+      OPEN (NEWUNIT=unit_nr, FILE="/proc/self/statm", ACTION="READ", STATUS="OLD", ACCESS="STREAM")
       DO I = 1, 80
-         READ (121245, END=999) DATA(I:I)
+         READ (unit_nr, END=999) DATA(I:I)
       END DO
-999   CLOSE (121245)
+999   CLOSE (unit_nr)
       DATA(I:80) = ""
       ! m1 = total
       ! m2 = resident
@@ -516,7 +516,7 @@ CONTAINS
       INTEGER, PARAMETER :: Nbuffer = 10000
       CHARACTER(LEN=Nbuffer) :: meminfo
 
-      INTEGER :: i
+      INTEGER :: i, unit_nr
 
       MemTotal = 0
       MemFree = 0
@@ -527,17 +527,16 @@ CONTAINS
       MemLikelyFree = 0
       meminfo = ""
 
-      OPEN (UNIT=8123, file="/proc/meminfo", ACCESS="STREAM", ERR=901)
+      OPEN (NEWUNIT=unit_nr, file="/proc/meminfo", ACCESS="STREAM", ERR=902)
       i = 0
       DO
          i = i + 1
          IF (i > Nbuffer) EXIT
-         READ (8123, END=900, ERR=900) meminfo(i:i)
+         READ (unit_nr, END=900, ERR=900) meminfo(i:i)
       END DO
 900   CONTINUE
       meminfo(i:Nbuffer) = ""
-901   CONTINUE
-      CLOSE (8123, ERR=902)
+      CLOSE (unit_nr, ERR=902)
 902   CONTINUE
       MemTotal = get_field_value_in_bytes('MemTotal:')
       MemFree = get_field_value_in_bytes('MemFree:')

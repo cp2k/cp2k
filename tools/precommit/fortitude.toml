@@ -1,8 +1,21 @@
+include = ["*.F", "*.f90", "*.F90"]
+
 [check]
 line-length = 132
 force-exclude = true
+# CP2K forbids FORALL even though it is valid in Fortran 2008. OB071 needs
+# f2018 or later; the compiler separately enforces CP2K's language standard.
+target-std = "f2018"
+extend-select = [
+    "default-public-accessibility",
+    "multiple-modules",
+    "program-with-module",
+    "magic-io-unit",
+]
 
 # Also see https://fortitude.readthedocs.io/en/stable/rules
+# Keep the AST STAT check: CP2K requires checking in the very next statement,
+# whereas C181 only checks that the status is checked in the same scope.
 ignore = [
     "non-standard-file-extension",
     "implicit-external-procedures", # requires Fortran 2018
@@ -14,6 +27,10 @@ ignore = [
     "interface-implicit-typing",
     "missing-default-case",
     "external-procedure",
+    "superfluous-save",
+    "bare-decimal", # leave numeric-literal formatting to prettify
+    "incorrect-keyword-case", # prettify also uses mixed-case names such as Null
+    "missing-intrinsic", # CP2K requires ONLY, not the INTRINSIC modifier
 ]
 
 # ==============================================================================
@@ -21,9 +38,7 @@ ignore = [
 # Usually because Fortran statements are inter-leafed with pre-processor macros.
 exclude = [
     "local_gemm_api.F",
-    "smeagol_control_types.F",
     "ai_contraction_sphi.F",
-    "qs_loc_states.F",
     "dbt_array_list_methods.F",
     "cp_cfm_basic_linalg.F",
     "cp_cfm_diag.F",
@@ -31,7 +46,6 @@ exclude = [
     "cp_fm_cholesky.F",
     "cp_fm_diag.F",
     "message_passing.F",
-    "dbt_split.F",
     "cp_cfm_cholesky.F",
     "pw_methods.F",
     "xc_libxc_wrap.F",
@@ -40,6 +54,9 @@ exclude = [
 
 # ==============================================================================
 [check.per-file-ignores]
+# These test drivers keep their private helper module in the same source file.
+"kubo_unittest.F" = ["program-with-module"]
+"spectral_localizer_unittest.F" = ["program-with-module"]
 "qs_local_properties.F" = ["unreachable-statement"]
 "semi_empirical_int_ana.F" = ["misleading-inline-if-semicolon"]
 "fftw3_lib.F" = ["misleading-inline-if-semicolon"]

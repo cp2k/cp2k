@@ -691,7 +691,7 @@ PROGRAM graph
    CALL open_file(unit_number=unit_nr, file_name=out3, file_action="WRITE", file_status="UNKNOWN", file_form="FORMATTED")
    IF (l_cube) THEN
       ind = 1
-      CALL fes_cube_write(ndim, fes, ind, ndim, ngrid, dp_grid, x0, ndw, l_fes_int, file)
+      CALL fes_cube_write(ndim, fes, ind, ndim, ngrid, dp_grid, x0, ndw, l_fes_int, file, unit_nr)
    ELSE
       ix = 0
       IF (l_math) WRITE (unit_nr, '(10g12.5)') (ngrid(id), id=ndim, ndim - ndw + 1, -1), ix

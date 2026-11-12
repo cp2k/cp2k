@@ -90,15 +90,21 @@ def cmakelint():
 # ======================================================================================
 @app.route("/fortitude", methods=["POST"])
 def fortitude():
-    config = f"--config-file={os.getcwd()}/fortitude.toml"
-    return run_tool(["fortitude", config, "check", "--fix", "--unsafe-fixes"])
+    config = f"--config={os.getcwd()}/fortitude.toml"
+    return run_tool(
+        ["fortitude", config, "check", "--fix", "--unsafe-fixes"], timeout=5
+    )
 
 
 # ======================================================================================
 @app.route("/fortitude_nofix", methods=["POST"])
 def fortitude_nofix():
-    config = f"--config-file={os.getcwd()}/fortitude.toml"
-    return run_tool(["fortitude", config, "check"])
+    config = f"--config={os.getcwd()}/fortitude.toml"
+    # Source formatting happens before expansion; generated lines may be longer.
+    return run_tool(
+        ["fortitude", config, "check", "--extend-per-file-ignores=*:line-too-long"],
+        timeout=5,
+    )
 
 
 # ======================================================================================

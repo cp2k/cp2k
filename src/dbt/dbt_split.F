@@ -531,7 +531,7 @@ CONTAINS
                               IF (PRESENT(order)) THEN
                                  order_prv(:) = dbt_inverse_order(order)
                               ELSE
-                                 order_prv(:) = (/(i, i=1, ndims_tensor(tensor1))/)
+                                 order_prv(:) = [(i, i=1, ndims_tensor(tensor1))]
                               END IF
 
                               DO idim = 1, ndims_tensor(tensor2)

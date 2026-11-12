@@ -21,6 +21,7 @@ MODULE task_list_methods
    USE cell_types, ONLY: cell_type, &
                          pbc
    USE cp_control_types, ONLY: dft_control_type
+   USE cp_log_handling, ONLY: cp_logger_get_default_unit_nr
    USE cube_utils, ONLY: compute_cube_center, &
                          cube_info_type, &
                          return_cube, &
@@ -133,7 +134,7 @@ CONTAINS
 
       INTEGER :: cindex, curr_tasks, handle, i, iatom, iatom_old, igrid_level, igrid_level_old, &
                  ikind, ilevel, img, img_old, ipair, ipgf, iset, itask, jatom, jatom_old, jkind, jpgf, &
-                 jset, maxpgf, maxset, natoms, nimages, nkind, nseta, nsetb, slot
+                 jset, maxpgf, maxset, natoms, nimages, nkind, nseta, nsetb, output_unit, slot
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: blocks
       INTEGER, DIMENSION(3)                              :: cellind
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
@@ -452,14 +453,15 @@ CONTAINS
 
       ! Debug task destribution
       IF (debug_this_module) THEN
+         output_unit = cp_logger_get_default_unit_nr(local=.TRUE.)
          tasks => task_list%tasks
-         WRITE (6, *)
-         WRITE (6, *) "Total number of tasks              ", task_list%ntasks
+         IF (output_unit > 0) WRITE (output_unit, *)
+         IF (output_unit > 0) WRITE (output_unit, *) "Total number of tasks              ", task_list%ntasks
          DO igrid_level = 1, gridlevel_info%ngrid_levels
-            WRITE (6, *) "Total number of pairs(grid_level)  ", &
+            IF (output_unit > 0) WRITE (output_unit, *) "Total number of pairs(grid_level)  ", &
                igrid_level, task_list%npairs(igrid_level)
          END DO
-         WRITE (6, *)
+         IF (output_unit > 0) WRITE (output_unit, *)
 
          DO igrid_level = 1, gridlevel_info%ngrid_levels
 
@@ -479,8 +481,8 @@ CONTAINS
                   blocks(iatom, jatom, img) = 1
                   blocks(jatom, iatom, img) = 1
                ELSE
-                  WRITE (6, *) "TASK LIST CONFLICT IN PAIR       ", ipair
-                  WRITE (6, *) "Reuse of iatom, jatom, image     ", iatom, jatom, img
+                  IF (output_unit > 0) WRITE (output_unit, *) "TASK LIST CONFLICT IN PAIR       ", ipair
+                  IF (output_unit > 0) WRITE (output_unit, *) "Reuse of iatom, jatom, image     ", iatom, jatom, img
                END IF
 
                iatom_old = iatom
@@ -496,9 +498,9 @@ CONTAINS
                   ipgf = task_list%tasks(itask)%ipgf
                   jpgf = task_list%tasks(itask)%jpgf
                   IF (iatom /= iatom_old .OR. jatom /= jatom_old .OR. img /= img_old) THEN
-                     WRITE (6, *) "TASK LIST CONFLICT IN TASK       ", itask
-                     WRITE (6, *) "Inconsistent iatom, jatom, image ", iatom, jatom, img
-                     WRITE (6, *) "Should be    iatom, jatom, image ", iatom_old, jatom_old, img_old
+                     IF (output_unit > 0) WRITE (output_unit, *) "TASK LIST CONFLICT IN TASK       ", itask
+                     IF (output_unit > 0) WRITE (output_unit, *) "Inconsistent iatom, jatom, image ", iatom, jatom, img
+                     IF (output_unit > 0) WRITE (output_unit, *) "Should be    iatom, jatom, image ", iatom_old, jatom_old, img_old
                   END IF
 
                END DO

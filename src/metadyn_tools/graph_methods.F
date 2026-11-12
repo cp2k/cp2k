@@ -577,12 +577,13 @@ CONTAINS
 !> \param ndw ...
 !> \param l_fes_int ...
 !> \param file ...
+!> \param unit_nr Output unit opened by the caller.
 !> \par History
 !>      12.2013 created [tlaino]
 !>      teodoro.laino .at. gmail.com
 !> \author Teodoro Laino
 ! **************************************************************************************************
-   SUBROUTINE fes_cube_write(idim, fes, pos, ndim, ngrid, dp_grid, x0, ndw, l_fes_int, file)
+   SUBROUTINE fes_cube_write(idim, fes, pos, ndim, ngrid, dp_grid, x0, ndw, l_fes_int, file, unit_nr)
       INTEGER, INTENT(IN)                                :: idim
       REAL(KIND=dp), DIMENSION(:), POINTER               :: fes
       INTEGER, DIMENSION(:), POINTER                     :: pos
@@ -592,11 +593,12 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ndw
       LOGICAL, INTENT(IN)                                :: l_fes_int
       CHARACTER(LEN=80)                                  :: file
+      INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=120)                                 :: line
       CHARACTER(LEN=5)                                   :: label, labelp
-      INTEGER                                            :: i, id(3), ii, iix, iiy, iiz, ix, iy, iz, &
-                                                            natoms, np
+      INTEGER                                            :: i, id(3), ii, iix, iiy, iiz, input_unit, &
+                                                            ix, iy, iz, natoms, np
       INTEGER, DIMENSION(:), POINTER                     :: izat
       REAL(KIND=dp)                                      :: cell(3, 3), delta(3), dr(3), residual, &
                                                             rt(3)
@@ -608,11 +610,11 @@ CONTAINS
          CPABORT("ERROR: GAUSSIAN format can only handle FES on 3 CV !")
       END IF
 
-      OPEN (10, file=file, status='old')
-      CALL get_val_res(unit=10, section="&SUBSYS", subsection="&CELL")
-      READ (10, *) label, cell(1, 1), cell(2, 1), cell(3, 1)
-      READ (10, *) label, cell(1, 2), cell(2, 2), cell(3, 2)
-      READ (10, *) label, cell(1, 3), cell(2, 3), cell(3, 3)
+      CALL open_file(file_name=file, unit_number=input_unit, file_status="OLD", file_action="READ")
+      CALL get_val_res(unit=input_unit, section="&SUBSYS", subsection="&CELL")
+      READ (input_unit, *) label, cell(1, 1), cell(2, 1), cell(3, 1)
+      READ (input_unit, *) label, cell(1, 2), cell(2, 2), cell(3, 2)
+      READ (input_unit, *) label, cell(1, 3), cell(2, 3), cell(3, 3)
       rt(1) = -(cell(1, 1)/2._dp)
       rt(2) = -(cell(2, 2)/2._dp)
       rt(3) = -(cell(3, 3)/2._dp)
@@ -645,7 +647,7 @@ CONTAINS
 
       np = ngrid(1)*ngrid(2)*ngrid(3)
       ALLOCATE (rho(np), rhot(np))
-      CALL fes_write(123, idim, fes, pos, ndim, ngrid, dp_grid, x0, ndw, l_fes_int, rho)
+      CALL fes_write(unit_nr, idim, fes, pos, ndim, ngrid, dp_grid, x0, ndw, l_fes_int, rho)
       WRITE (*, *) 'Internal FES transfer completed!'
 
       ! translate cell
@@ -681,13 +683,13 @@ CONTAINS
          END DO
       END DO
 
-      REWIND (10)
-      CALL get_val_res(unit=10, section="&SUBSYS", subsection="&COORD")
+      REWIND (input_unit)
+      CALL get_val_res(unit=input_unit, section="&SUBSYS", subsection="&COORD")
       natoms = 0
       ALLOCATE (xat(1000, 3))
       ALLOCATE (izat(1000))
       DO WHILE (.TRUE.)
-         READ (10, '(A)') line
+         READ (input_unit, '(A)') line
          IF (INDEX(line, '&END') /= 0) EXIT
          natoms = natoms + 1
          READ (line, *) label, (xat(natoms, ix), ix=1, 3)
@@ -707,6 +709,7 @@ CONTAINS
          END IF
          izat(natoms) = i
       END DO
+      CALL close_file(input_unit)
       CALL reallocate(xat, 1, natoms, 1, 3)
       CALL reallocate(izat, 1, natoms)
 
@@ -718,24 +721,24 @@ CONTAINS
          END DO
       END DO
 
-      WRITE (123, *) "FES on CUBE"
-      WRITE (123, *) "created by fes in CP2K"
-      WRITE (123, '(i5,3f12.6)') natoms, rt(1:3)*bohr
+      WRITE (unit_nr, *) "FES on CUBE"
+      WRITE (unit_nr, *) "created by fes in CP2K"
+      WRITE (unit_nr, '(i5,3f12.6)') natoms, rt(1:3)*bohr
 
       DO ix = 1, 3
          ii = ngrid(ix)
-         WRITE (123, '(i5,4f12.6)') ii, (cell(ix, iy)/ii*bohr, iy=1, 3)
+         WRITE (unit_nr, '(i5,4f12.6)') ii, (cell(ix, iy)/ii*bohr, iy=1, 3)
       END DO
 
       DO i = 1, natoms
-         WRITE (123, '(i5,4f12.6)') izat(i), 0.0, (xat(i, ix)*bohr, ix=1, 3)
+         WRITE (unit_nr, '(i5,4f12.6)') izat(i), 0.0, (xat(i, ix)*bohr, ix=1, 3)
       END DO
 
       DO ix = 1, ngrid(1)
          DO iy = 1, ngrid(2)
 
-            WRITE (123, '(6e13.5)') (rhot(ix + (iy - 1)*ngrid(1) + (iz - 1)*ngrid(1)&
-                                         &*ngrid(2)), iz=1, ngrid(3))
+            WRITE (unit_nr, '(6e13.5)') (rhot(ix + (iy - 1)*ngrid(1) + (iz - 1)*ngrid(1)&
+                                             &*ngrid(2)), iz=1, ngrid(3))
          END DO
       END DO
       DEALLOCATE (xat, rho, rhot)

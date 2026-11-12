@@ -52,7 +52,6 @@ glbopt_mincrawl.F: Found WRITE statement with hardcoded unit in "print_tempdist"
 graphcon.F: Found WRITE statement with hardcoded unit in "reorder_graph" https://cp2k.org/conv#c012
 graph.F: Found CALL RANDOM_SEED in procedure "graph" https://cp2k.org/conv#c105
 graph.F: Found WRITE statement with hardcoded unit in "graph" https://cp2k.org/conv#c012
-graph_methods.F: Found OPEN statement in procedure "fes_cube_write" https://cp2k.org/conv#c203
 graph_methods.F: Found WRITE statement with hardcoded unit in "fes_cube_write" https://cp2k.org/conv#c012
 graph_methods.F: Found WRITE statement with hardcoded unit in "fes_min" https://cp2k.org/conv#c012
 graph_methods.F: Found WRITE statement with hardcoded unit in "fes_path" https://cp2k.org/conv#c012
@@ -124,10 +123,8 @@ semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_value" https://cp2k.org/conv#c012
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "rot_2el_2c_first_debug" https://cp2k.org/conv#c012
 semi_empirical_mpole_methods.F: Found WRITE statement with hardcoded unit in "semi_empirical_mpole_p_setup" https://cp2k.org/conv#c012
-statistical_methods.F: Found WRITE statement with hardcoded unit in "tests" https://cp2k.org/conv#c012
 swarm_mpi.F: Found CLOSE statement in procedure "logger_init_master" https://cp2k.org/conv#c204
 swarm_mpi.F: Found OPEN statement in procedure "logger_finalize" https://cp2k.org/conv#c203
-task_list_methods.F: Found WRITE statement with hardcoded unit in "generate_qs_task_list" https://cp2k.org/conv#c012
 tblite_reference_cli.F: Found OPEN statement in procedure "tb_read_reference_grad" https://cp2k.org/conv#c203
 tblite_scc_mixer.F: Found type cp2k_tblite_broyden_mixer_type without initializer https://cp2k.org/conv#c016
 tblite_types.F: Found type tblite_type without initializer https://cp2k.org/conv#c016
