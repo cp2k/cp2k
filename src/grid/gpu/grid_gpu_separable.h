@@ -69,10 +69,6 @@ inline int separable_lmax_bucket(const int lp_max) {
   return GRID_SEP_MAX_L;
 }
 
-// shared memory budget of the separable kernels, static and dynamic (default
-// limit without opting in on NVIDIA hardware)
-constexpr size_t separable_max_smem = 48 * 1024;
-
 // (a, b) pairs ordered by a + b so that the first (lp+1)(lp+2)/2 entries are
 // exactly the pairs with a + b <= lp.
 __constant__ char2 sep_pair_ab[(GRID_SEP_MAX_L + 1) * (GRID_SEP_MAX_L + 2) / 2];

@@ -495,18 +495,17 @@ void context_info::calculate_all_coefficients(const enum grid_func func,
       (func == GRID_FUNC_AB) ? calculate_coefficients_two_steps<double, true>
                              : calculate_coefficients_two_steps<double, false>;
   if (smem_two_steps <=
-      max_dynamic_smem(two_steps_kernel, sphi_two_step_max_smem)) {
-    two_steps_kernel<<<nblocks, threads_per_block, smem_two_steps,
-                       main_stream>>>(params, ld, max_nsgf_set());
-    GRID_GPU_CHECK_LAUNCH();
+      max_dynamic_smem(two_steps_kernel, grid_gpu_smem_budget)) {
+    GRID_GPU_LAUNCH(two_steps_kernel, nblocks, threads_per_block,
+                    smem_two_steps, main_stream, params, ld, max_nsgf_set());
     return;
   }
 
   const auto fused_kernel = (func == GRID_FUNC_AB)
                                 ? calculate_coefficients<double, true>
                                 : calculate_coefficients<double, false>;
-  fused_kernel<<<nblocks, threads_per_block, 0, main_stream>>>(params);
-  GRID_GPU_CHECK_LAUNCH();
+  GRID_GPU_LAUNCH(fused_kernel, nblocks, threads_per_block, 0, main_stream,
+                  params);
 }
 /*******************************************************************************
  * \brief Launches the Cuda kernel that collocates all tasks of one grid level.
@@ -548,12 +547,11 @@ void context_info::collocate_one_grid_level(const int level,
                   : (axis_aligned ? collocate_separable_kernel<false, true>
                                   : collocate_separable_kernel<false, false>);
   const int erows = collocate_separable_erows(
-      max_cube_size, lp_max, max_dynamic_smem(kernel, separable_max_smem));
+      max_cube_size, lp_max, max_dynamic_smem(kernel, grid_gpu_smem_budget));
   const size_t smem =
       collocate_separable_smem_size(max_cube_size, lp_max, erows);
   const int nblocks_level = number_of_tasks_per_level_[level];
-  kernel<<<nblocks_level, 64, smem, level_streams[level]>>>(
-      params, max_cube_size, lp_max, erows, lattice_to_cartesian);
-  GRID_GPU_CHECK_LAUNCH();
+  GRID_GPU_LAUNCH(kernel, nblocks_level, 64, smem, level_streams[level], params,
+                  max_cube_size, lp_max, erows, lattice_to_cartesian);
 }
 } // namespace grid_gpu_backend

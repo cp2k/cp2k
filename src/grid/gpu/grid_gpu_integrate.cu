@@ -1260,7 +1260,7 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
       (lp_max <= GRID_SEP_MAX_L) && (max_cube_size > 0) &&
       (axis_aligned || !grid.is_orthogonal()) &&
       (integrate_separable_smem_size(max_cube_size, lp_max) <=
-       max_dynamic_smem(separable_kernel, separable_max_smem));
+       max_dynamic_smem(separable_kernel, grid_gpu_smem_budget));
 
   if (use_separable)
     params.separable_lp_min = integrate_separable_lp_threshold;
@@ -1275,32 +1275,17 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
   const bool use_integrate_kernel =
       !use_separable || (integrate_separable_lp_threshold > 0);
   const dim3 threads_per_block(4, 4, 4);
-  if (!use_integrate_kernel) {
-    // nothing to do
-  } else if (grid_[level].is_distributed()) {
-    if (grid_[level].is_orthogonal()) {
-      integrate_kernel<double, double3, true, true>
-          <<<number_of_tasks_per_level_[level], threads_per_block, 0,
-             level_streams[level]>>>(params);
-    } else {
-      integrate_kernel<double, double3, true, false>
-          <<<number_of_tasks_per_level_[level], threads_per_block, 0,
-             level_streams[level]>>>(params);
-    }
-  } else {
-    if (grid_[level].is_orthogonal()) {
-      integrate_kernel<double, double3, false, true>
-          <<<number_of_tasks_per_level_[level], threads_per_block, 0,
-             level_streams[level]>>>(params);
-    } else {
-      integrate_kernel<double, double3, false, false>
-          <<<number_of_tasks_per_level_[level], threads_per_block, 0,
-             level_streams[level]>>>(params);
-    }
+  if (use_integrate_kernel) {
+    const bool orthogonal = grid.is_orthogonal();
+    const auto kernel =
+        grid.is_distributed()
+            ? (orthogonal ? integrate_kernel<double, double3, true, true>
+                          : integrate_kernel<double, double3, true, false>)
+            : (orthogonal ? integrate_kernel<double, double3, false, true>
+                          : integrate_kernel<double, double3, false, false>);
+    GRID_GPU_LAUNCH(kernel, number_of_tasks_per_level_[level],
+                    threads_per_block, 0, level_streams[level], params);
   }
-
-  if (use_integrate_kernel)
-    GRID_GPU_CHECK_LAUNCH();
 
   if (!use_separable)
     return;
@@ -1311,9 +1296,9 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
       axis_aligned ? nullptr : get_lattice_to_cartesian(grid, lp_max);
   const size_t smem = integrate_separable_smem_size(max_cube_size, lp_max);
   const int nblocks_level = number_of_tasks_per_level_[level];
-  separable_kernel<<<nblocks_level, 64, smem, level_streams[level]>>>(
-      params, max_cube_size, lp_max, lattice_to_cartesian);
-  GRID_GPU_CHECK_LAUNCH();
+  GRID_GPU_LAUNCH(separable_kernel, nblocks_level, 64, smem,
+                  level_streams[level], params, max_cube_size, lp_max,
+                  lattice_to_cartesian);
 }
 
 void context_info::compute_hab_coefficients() {
@@ -1351,10 +1336,10 @@ void context_info::compute_hab_coefficients() {
           : (compute_tau ? compute_hab_two_steps<double, true>
                          : compute_hab_two_steps<double, false>);
   if (smem_two_steps <=
-      max_dynamic_smem(two_steps_kernel, sphi_two_step_max_smem)) {
-    two_steps_kernel<<<this->nblocks, threads_per_block, smem_two_steps,
-                       this->main_stream>>>(params, ld, max_nsgf_set());
-    GRID_GPU_CHECK_LAUNCH();
+      max_dynamic_smem(two_steps_kernel, grid_gpu_smem_budget)) {
+    GRID_GPU_LAUNCH(two_steps_kernel, this->nblocks, threads_per_block,
+                    smem_two_steps, this->main_stream, params, ld,
+                    max_nsgf_set());
     return;
   }
 
@@ -1366,8 +1351,7 @@ void context_info::compute_hab_coefficients() {
           : (compute_tau ? compute_hab<double, true>
                          : compute_hab<double, false>);
   const size_t smem_fused = calculate_forces ? block_reduce_64_smem : 0;
-  fused_kernel<<<this->nblocks, threads_per_block, smem_fused,
-                 this->main_stream>>>(params);
-  GRID_GPU_CHECK_LAUNCH();
+  GRID_GPU_LAUNCH(fused_kernel, this->nblocks, threads_per_block, smem_fused,
+                  this->main_stream, params);
 }
 }; // namespace grid_gpu_backend
