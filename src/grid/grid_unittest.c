@@ -188,6 +188,10 @@ int main(int argc, char *argv[]) {
   errors += run_test(argv[1], "general_subpatch0.task");
   errors += run_test(argv[1], "general_subpatch16.task");
   errors += run_test(argv[1], "general_overflow.task");
+  errors += run_test(argv[1], "general_skewed.task");
+  // Exercise shared-memory limits in GPU collocation and integration.
+  errors += run_test(argv[1], "ortho_large_cube.task");
+  errors += run_test(argv[1], "general_large_cube.task");
   errors += run_sheared_tests();
 
   if (errors == 0) {
