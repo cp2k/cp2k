@@ -203,6 +203,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: inv_sqrt_fourpi, sum1
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: qh_tmp, qs_tmp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cpc_h_nuc, cpc_s_nuc, q_sub
+      REAL(KIND=dp), CONTIGUOUS, POINTER                 :: cpc_vec(:)
       REAL(KIND=dp), DIMENSION(:), POINTER               :: norm_g0l_h
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: g0_h, vg0_h
       TYPE(cneo_potential_type), POINTER                 :: cneo_potential
@@ -309,14 +310,12 @@ CONTAINS
                mpole_rho%Qlm_h(1:nchan_q) = 0.0_dp
                mpole_rho%Qlm_s(1:nchan_q) = 0.0_dp
                DO ispin = 1, nspins
-                  CPASSERT(IS_CONTIGUOUS(cpc_h(ispin)%r_coef))
-                  CPASSERT(IS_CONTIGUOUS(cpc_s(ispin)%r_coef))
                   CPASSERT(SIZE(cpc_h(ispin)%r_coef) == nbas2)
                   CPASSERT(SIZE(cpc_s(ispin)%r_coef) == nbas2)
-                  CALL dgemv('T', nbas2, nchan_q, 1.0_dp, q_sub(1, 1), nbas2, &
-                             cpc_h(ispin)%r_coef(1, 1), 1, 0.0_dp, qh_tmp(1), 1)
-                  CALL dgemv('T', nbas2, nchan_q, 1.0_dp, q_sub(1, 1), nbas2, &
-                             cpc_s(ispin)%r_coef(1, 1), 1, 0.0_dp, qs_tmp(1), 1)
+                  cpc_vec(1:nbas2) => cpc_h(ispin)%r_coef
+                  CALL dgemv('T', nbas2, nchan_q, 1.0_dp, q_sub, nbas2, cpc_vec, 1, 0.0_dp, qh_tmp, 1)
+                  cpc_vec(1:nbas2) => cpc_s(ispin)%r_coef
+                  CALL dgemv('T', nbas2, nchan_q, 1.0_dp, q_sub, nbas2, cpc_vec, 1, 0.0_dp, qs_tmp, 1)
                   mpole_rho%Q0(ispin) = (qh_tmp(1) - qs_tmp(1))*inv_sqrt_fourpi
                   mpole_rho%Qlm_h(1:nchan_q) = mpole_rho%Qlm_h(1:nchan_q) + qh_tmp(1:nchan_q)
                   mpole_rho%Qlm_s(1:nchan_q) = mpole_rho%Qlm_s(1:nchan_q) + qs_tmp(1:nchan_q)
