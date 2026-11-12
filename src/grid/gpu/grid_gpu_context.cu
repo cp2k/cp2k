@@ -35,7 +35,7 @@ extern "C" {
 #error "OpenMP should not be used in .cu files to accommodate HIP."
 #endif
 
-namespace rocm_backend {
+namespace grid_gpu_backend {
 
 constexpr size_t align_up_elems(size_t n_elems, size_t elem_alignment) {
   return (n_elems + elem_alignment - 1) & ~(elem_alignment - 1);
@@ -125,7 +125,7 @@ void context_info::prepare_cab_workspace(const int la_max_diff,
   cab_la_max_diff_ = la_max_diff;
   cab_lb_max_diff_ = lb_max_diff;
 }
-}; // namespace rocm_backend
+}; // namespace grid_gpu_backend
 
 /*******************************************************************************
  * \brief Allocates a task list for the GPU backend.
@@ -143,7 +143,8 @@ extern "C" void grid_gpu_create_task_list(
     const int *npts_local, const int *shift_local, const int *border_width,
     const double *dh, const double *dh_inv, grid_gpu_task_list **ptr) {
 
-  rocm_backend::context_info **ctx_out = (rocm_backend::context_info **)ptr;
+  grid_gpu_backend::context_info **ctx_out =
+      (grid_gpu_backend::context_info **)ptr;
 
   // Yes it makes no sense
   if ((nblocks == 0) || (ntasks == 0)) {
@@ -152,9 +153,9 @@ extern "C" void grid_gpu_create_task_list(
   }
 
   // Select GPU device.
-  rocm_backend::context_info *ctx = nullptr;
+  grid_gpu_backend::context_info *ctx = nullptr;
   if (*ctx_out == nullptr) {
-    ctx = new rocm_backend::context_info(offload_get_chosen_device());
+    ctx = new grid_gpu_backend::context_info(offload_get_chosen_device());
     *ctx_out = ctx;
   } else {
     ctx = *ctx_out;
@@ -193,7 +194,7 @@ extern "C" void grid_gpu_create_task_list(
   memset(ctx->first_task_per_level_.data(), 0, sizeof(int) * nlevels);
   memset(ctx->number_of_tasks_per_level_.data(), 0, sizeof(int) * nlevels);
 
-  std::vector<rocm_backend::task_info> tasks_host(ntasks);
+  std::vector<grid_gpu_backend::task_info> tasks_host(ntasks);
 
   size_t coef_size = 0;
   int lmax_ = 0;
@@ -272,13 +273,13 @@ extern "C" void grid_gpu_create_task_list(
 
     // start of decontracted set, ie. pab and hab
     tasks_host[i].first_coseta =
-        (la_min_basis > 0) ? rocm_backend::ncoset(la_min_basis - 1) : 0;
+        (la_min_basis > 0) ? grid_gpu_backend::ncoset(la_min_basis - 1) : 0;
     tasks_host[i].first_cosetb =
-        (lb_min_basis > 0) ? rocm_backend::ncoset(lb_min_basis - 1) : 0;
+        (lb_min_basis > 0) ? grid_gpu_backend::ncoset(lb_min_basis - 1) : 0;
 
     // size of decontracted set, ie. pab and hab
-    tasks_host[i].ncoseta = rocm_backend::ncoset(la_max_basis);
-    tasks_host[i].ncosetb = rocm_backend::ncoset(lb_max_basis);
+    tasks_host[i].ncoseta = grid_gpu_backend::ncoset(la_max_basis);
+    tasks_host[i].ncosetb = grid_gpu_backend::ncoset(lb_max_basis);
     // size of entire spherical basis
     tasks_host[i].nsgfa = ibasis->nsgf;
     tasks_host[i].nsgfb = jbasis->nsgf;
@@ -314,19 +315,19 @@ extern "C" void grid_gpu_create_task_list(
      * above */
     tasks_host[i].lp_max =
         std::min(tasks_host[i].lb_max + tasks_host[i].la_max + 6,
-                 rocm_backend::grid_gpu_max_l);
+                 grid_gpu_backend::grid_gpu_max_l);
     if (i == 0) {
       tasks_host[i].coef_offset = 0;
     } else {
       tasks_host[i].coef_offset =
           tasks_host[i - 1].coef_offset +
-          rocm_backend::align_up_elems(
-              rocm_backend::ncoset(tasks_host[i - 1].lp_max), 4);
+          grid_gpu_backend::align_up_elems(
+              grid_gpu_backend::ncoset(tasks_host[i - 1].lp_max), 4);
     }
 
     // calculate the size such that the coef table is a multiple of 4.
-    coef_size += rocm_backend::align_up_elems(
-        rocm_backend::ncoset(tasks_host[i].lp_max), 4);
+    coef_size += grid_gpu_backend::align_up_elems(
+        grid_gpu_backend::ncoset(tasks_host[i].lp_max), 4);
 
     auto &grid = ctx->grid_[tasks_host[i].level];
     // compute the cube properties
@@ -335,24 +336,26 @@ extern "C" void grid_gpu_create_task_list(
 
     if (grid.is_orthogonal() && (tasks_host[i].border_mask == 0)) {
       tasks_host[i].discrete_radius =
-          rocm_backend::compute_cube_properties<double, double3, true>(
+          grid_gpu_backend::compute_cube_properties<double, double3, true>(
               tasks_host[i].radius, grid.dh(), grid.dh_inv(),
-              (double3 *)tasks_host[i].rp, // center of the gaussian
-              &tasks_host[i]
-                   .roffset, // offset compared to the closest grid point
-              &tasks_host[i].cube_center, // center coordinates in grid space
-              &tasks_host[i].lb_cube,     // lower boundary
-              &tasks_host[i].cube_size);
+              make_double3(tasks_host[i].rp[0], tasks_host[i].rp[1],
+                           tasks_host[i].rp[2]), // center of the gaussian
+              tasks_host[i]
+                  .roffset, // offset compared to the closest grid point
+              tasks_host[i].cube_center, // center coordinates in grid space
+              tasks_host[i].lb_cube,     // lower boundary
+              tasks_host[i].cube_size);
     } else {
       tasks_host[i].discrete_radius =
-          rocm_backend::compute_cube_properties<double, double3, false>(
+          grid_gpu_backend::compute_cube_properties<double, double3, false>(
               tasks_host[i].radius, grid.dh(), grid.dh_inv(),
-              (double3 *)tasks_host[i].rp, // center of the gaussian
-              &tasks_host[i]
-                   .roffset, // offset compared to the closest grid point
-              &tasks_host[i].cube_center, // center coordinates in grid space
-              &tasks_host[i].lb_cube,     // lower boundary
-              &tasks_host[i].cube_size);
+              make_double3(tasks_host[i].rp[0], tasks_host[i].rp[1],
+                           tasks_host[i].rp[2]), // center of the gaussian
+              tasks_host[i]
+                  .roffset, // offset compared to the closest grid point
+              tasks_host[i].cube_center, // center coordinates in grid space
+              tasks_host[i].lb_cube,     // lower boundary
+              tasks_host[i].cube_size);
     }
 
     const int3 &cube_size = tasks_host[i].cube_size;
@@ -482,7 +485,7 @@ extern "C" void grid_gpu_create_task_list(
  ******************************************************************************/
 extern "C" void grid_gpu_free_task_list(grid_gpu_task_list *ptr) {
 
-  rocm_backend::context_info *ctx = (rocm_backend::context_info *)ptr;
+  grid_gpu_backend::context_info *ctx = (grid_gpu_backend::context_info *)ptr;
   // Select GPU device.
   if (ctx == nullptr)
     return;
@@ -499,7 +502,7 @@ extern "C" void grid_gpu_collocate_task_list(const grid_gpu_task_list *ptr,
                                              const int nlevels,
                                              const offload_buffer *pab_blocks,
                                              offload_buffer **grids) {
-  rocm_backend::context_info *ctx = (rocm_backend::context_info *)ptr;
+  grid_gpu_backend::context_info *ctx = (grid_gpu_backend::context_info *)ptr;
 
   if (ptr == nullptr)
     return;
@@ -582,7 +585,7 @@ extern "C" void grid_gpu_integrate_task_list(
     const offload_buffer *pab_blocks, const offload_buffer **grids,
     offload_buffer *hab_blocks, double *forces, double *virial) {
 
-  rocm_backend::context_info *ctx = (rocm_backend::context_info *)ptr;
+  grid_gpu_backend::context_info *ctx = (grid_gpu_backend::context_info *)ptr;
 
   if (ptr == nullptr)
     return;

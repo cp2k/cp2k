@@ -30,7 +30,7 @@ extern "C" {
 
 #include "grid_gpu_context.h"
 
-namespace rocm_backend {
+namespace grid_gpu_backend {
 
 #if defined(__OFFLOAD_CUDA) || defined(__HIP_PLATFORM_NVIDIA__)
 #if __CUDA_ARCH__ < 600
@@ -246,7 +246,7 @@ __inline__ __device__ unsigned int thread_global_index() {
   return threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
 }
 
-__inline__ __device__ double3
+__inline__ __host__ __device__ double3
 compute_coordinates(const double *__restrict__ dh_, const double x,
                     const double y, const double z) {
 
@@ -260,41 +260,24 @@ compute_coordinates(const double *__restrict__ dh_, const double x,
   return r3;
 }
 
-__host__ __inline__ __device__ void
-convert_to_lattice_coordinates(const double *dh_inv_,
-                               const double3 *__restrict__ const rp,
-                               double3 *__restrict__ rp_c) {
-  rp_c->x = dh_inv_[0] * rp->x + dh_inv_[3] * rp->y + dh_inv_[6] * rp->z;
-  rp_c->y = dh_inv_[1] * rp->x + dh_inv_[4] * rp->y + dh_inv_[7] * rp->z;
-  rp_c->z = dh_inv_[2] * rp->x + dh_inv_[5] * rp->y + dh_inv_[8] * rp->z;
-}
-
-__host__ __inline__ __device__ void
-convert_from_lattice_coordinates_to_cartesian(
-    const double *__restrict__ dh_, const double3 *__restrict__ const rp,
-    double3 *__restrict__ rp_c) {
-  rp_c->x = dh_[0] * rp->x + dh_[3] * rp->y + dh_[6] * rp->z;
-  rp_c->y = dh_[1] * rp->x + dh_[4] * rp->y + dh_[7] * rp->z;
-  rp_c->z = dh_[2] * rp->x + dh_[5] * rp->y + dh_[8] * rp->z;
-}
-
 template <typename T, typename T3, bool orthorhombic_>
-__inline__ T compute_cube_properties(
-    const T radius, const T *const __restrict__ dh_,
-    const T *const __restrict__ dh_inv_, const T3 *__restrict__ rp,
-    T3 *__restrict__ roffset, int3 *__restrict__ cubecenter,
-    int3 *__restrict__ lb_cube, int3 *__restrict__ cube_size) {
+__inline__ T
+compute_cube_properties(const T radius, const T *const __restrict__ dh_,
+                        const T *const __restrict__ dh_inv_, const T3 &rp,
+                        T3 &roffset, int3 &cubecenter, int3 &lb_cube,
+                        int3 &cube_size) {
 
   /* center of the gaussian in the lattice coordinates */
   T3 rp1, rp2, rp3;
 
   /* it is in the lattice vector frame */
-  convert_to_lattice_coordinates(dh_inv_, rp, &rp1);
+  rp1 = compute_coordinates(dh_inv_, rp.x, rp.y, rp.z);
+  // convert_to_lattice_coordinates(dh_inv_, rp, &rp1);
 
   /* compute the grid point that is the closest to the sphere center. */
-  cubecenter->x = std::floor(rp1.x);
-  cubecenter->y = std::floor(rp1.y);
-  cubecenter->z = std::floor(rp1.z);
+  cubecenter.x = std::floor(rp1.x);
+  cubecenter.y = std::floor(rp1.y);
+  cubecenter.z = std::floor(rp1.z);
 
   /* seting up the cube parameters */
 
@@ -325,16 +308,17 @@ __inline__ T compute_cube_properties(
         (std::max(1,
                   (int)ceil(radius / std::min(norm1, std::min(norm2, norm3)))));
 
-    rp2.x = cubecenter->x;
-    rp2.y = cubecenter->y;
-    rp2.z = cubecenter->z;
+    rp2.x = cubecenter.x;
+    rp2.y = cubecenter.y;
+    rp2.z = cubecenter.z;
 
     /* convert the cube center from grid points coordinates to cartesian */
-    convert_from_lattice_coordinates_to_cartesian(dh_, &rp2, roffset);
+    roffset = compute_coordinates(dh_, rp2.x, rp2.y, rp2.z);
+
     /* cube center */
-    roffset->x -= rp->x;
-    roffset->y -= rp->y;
-    roffset->z -= rp->z;
+    roffset.x -= rp.x;
+    roffset.y -= rp.y;
+    roffset.z -= rp.z;
 
     /* This potentially makes the cube bigger than necessary because disc_radius
        is derived with the smallest lattice parameter. It is not an issue when
@@ -345,73 +329,73 @@ __inline__ T compute_cube_properties(
     rp2.z = disr_radius;
 
     /* it is in the lattice vector frame */
-    convert_to_lattice_coordinates(dh_inv_, &rp2, &rp3);
+    rp3 = compute_coordinates(dh_inv_, rp2.x, rp2.y, rp2.z);
     /* lower and upper bounds */
-    lb_cube->x = std::ceil(-1e-8 - rp3.x);
-    lb_cube->y = std::ceil(-1e-8 - rp3.y);
-    lb_cube->z = std::ceil(-1e-8 - rp3.z);
+    lb_cube.x = std::ceil(-1e-8 - rp3.x);
+    lb_cube.y = std::ceil(-1e-8 - rp3.y);
+    lb_cube.z = std::ceil(-1e-8 - rp3.z);
 
     /* it is in the lattice vector frame */
-    convert_to_lattice_coordinates(dh_inv_, roffset, &rp2);
+    rp2 = compute_coordinates(dh_inv_, roffset.x, roffset.y, roffset.z);
 
     /* Express the offset in lattice coordinates */
-    roffset->x = rp2.x;
-    roffset->y = rp2.y;
-    roffset->z = rp2.z;
+    roffset.x = rp2.x;
+    roffset.y = rp2.y;
+    roffset.z = rp2.z;
 
     /* compute the cube size ignoring periodicity */
     /* the interval is not symmetrical for some curious reasons. it should go
      * from [-L..L+1] so the number of points is multiple of two */
-    cube_size->x = 2 - 2 * lb_cube->x;
-    cube_size->y = 2 - 2 * lb_cube->y;
-    cube_size->z = 2 - 2 * lb_cube->z;
+    cube_size.x = 2 - 2 * lb_cube.x;
+    cube_size.y = 2 - 2 * lb_cube.y;
+    cube_size.z = 2 - 2 * lb_cube.z;
     return disr_radius;
   } else {
     int3 ub_cube;
 
-    lb_cube->x = INT_MAX;
+    lb_cube.x = INT_MAX;
     ub_cube.x = INT_MIN;
-    lb_cube->y = INT_MAX;
+    lb_cube.y = INT_MAX;
     ub_cube.y = INT_MIN;
-    lb_cube->z = INT_MAX;
+    lb_cube.z = INT_MAX;
     ub_cube.z = INT_MIN;
 
     for (int i = -1; i <= 1; i++) {
       for (int j = -1; j <= 1; j++) {
         for (int k = -1; k <= 1; k++) {
           T3 r;
-          r.x = rp->x + ((T)i) * radius;
-          r.y = rp->y + ((T)j) * radius;
-          r.z = rp->z + ((T)k) * radius;
-          convert_to_lattice_coordinates(dh_inv_, &r, roffset);
+          r.x = rp.x + ((T)i) * radius;
+          r.y = rp.y + ((T)j) * radius;
+          r.z = rp.z + ((T)k) * radius;
+          roffset = compute_coordinates(dh_inv_, r.x, r.y, r.z);
 
-          lb_cube->x = std::min(lb_cube->x, (int)std::floor(roffset->x));
-          ub_cube.x = std::max(ub_cube.x, (int)std::ceil(roffset->x));
+          lb_cube.x = std::min(lb_cube.x, (int)std::floor(roffset.x));
+          ub_cube.x = std::max(ub_cube.x, (int)std::ceil(roffset.x));
 
-          lb_cube->y = std::min(lb_cube->y, (int)std::floor(roffset->y));
-          ub_cube.y = std::max(ub_cube.y, (int)std::ceil(roffset->y));
+          lb_cube.y = std::min(lb_cube.y, (int)std::floor(roffset.y));
+          ub_cube.y = std::max(ub_cube.y, (int)std::ceil(roffset.y));
 
-          lb_cube->z = std::min(lb_cube->z, (int)std::floor(roffset->z));
-          ub_cube.z = std::max(ub_cube.z, (int)std::ceil(roffset->z));
+          lb_cube.z = std::min(lb_cube.z, (int)std::floor(roffset.z));
+          ub_cube.z = std::max(ub_cube.z, (int)std::ceil(roffset.z));
         }
       }
     }
     /* compute the cube size ignoring periodicity */
-    cube_size->x = ub_cube.x - lb_cube->x;
-    cube_size->y = ub_cube.y - lb_cube->y;
-    cube_size->z = ub_cube.z - lb_cube->z;
+    cube_size.x = ub_cube.x - lb_cube.x;
+    cube_size.y = ub_cube.y - lb_cube.y;
+    cube_size.z = ub_cube.z - lb_cube.z;
 
     /* compute the offset in lattice coordinates */
 
-    roffset->x = cubecenter->x - rp1.x;
-    roffset->y = cubecenter->y - rp1.y;
-    roffset->z = cubecenter->z - rp1.z;
+    roffset.x = cubecenter.x - rp1.x;
+    roffset.y = cubecenter.y - rp1.y;
+    roffset.z = cubecenter.z - rp1.z;
 
     // shift the boundaries compared to the cube center so that the
     // specialization ortho / non ortho is minimal
-    lb_cube->x -= cubecenter->x;
-    lb_cube->y -= cubecenter->y;
-    lb_cube->z -= cubecenter->z;
+    lb_cube.x -= cubecenter.x;
+    lb_cube.y -= cubecenter.y;
+    lb_cube.z -= cubecenter.z;
 
     return radius;
   }
@@ -906,7 +890,8 @@ public:
     // NB: cab is allocated in global memory not shared memory. Each block has
     // its own cab space
 
-    cab_size_ = (rocm_backend::ncoset(la_max_) * rocm_backend::ncoset(lb_max_));
+    cab_size_ =
+        (grid_gpu_backend::ncoset(la_max_) * grid_gpu_backend::ncoset(lb_max_));
   }
 
   ~smem_parameters() {};
@@ -956,5 +941,5 @@ calculate_xmin_xmax_boundaries(smem_task_reduced<T, T3> &task, const int y,
   xmin -= task.lb_cube.x;
 }
 
-} // namespace rocm_backend
+} // namespace grid_gpu_backend
 #endif

@@ -31,7 +31,7 @@ extern "C" {
 #include "../../offload/offload_library.h"
 #include "../../offload/offload_runtime.h"
 
-namespace rocm_backend {
+namespace grid_gpu_backend {
 // a little helper class in the same spirit than std::vector. it must exist
 // somewhere. Maybe possible to get the same thing with std::vector and
 // specific allocator.
@@ -786,5 +786,5 @@ private:
     return natoms ^ ntasks ^ nlevels ^ nkinds ^ nblocks ^ 0x4F2C5D1A;
   }
 };
-} // namespace rocm_backend
+} // namespace grid_gpu_backend
 #endif

@@ -23,7 +23,7 @@
 #include "grid_gpu_context.h"
 #include "grid_gpu_internal_header.h"
 
-namespace rocm_backend {
+namespace grid_gpu_backend {
 
 // lanes cooperating on one row of the cube, set separately for each kernel.
 // 64 / <lanes> rows are processed concurrently. Must be a power of two not
@@ -205,5 +205,5 @@ static const double *get_lattice_to_cartesian(grid_info<double> &grid,
   return grid.lattice_to_cartesian().data();
 }
 
-} // namespace rocm_backend
+} // namespace grid_gpu_backend
 #endif

@@ -18,7 +18,7 @@
 #include "grid_gpu_internal_header.h"
 
 /* taken from ../common/grid_process_vab.h but added template parameter */
-namespace rocm_backend {
+namespace grid_gpu_backend {
 /*******************************************************************************
  * \brief Returns matrix element cab[idx(b)][idx(a)].
  * \author Ole Schuett
@@ -268,5 +268,5 @@ inline ldiffs_value process_get_ldiffs(bool calculate_forces,
 
   return ldiffs;
 }
-}; // namespace rocm_backend
+}; // namespace grid_gpu_backend
 #endif

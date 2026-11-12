@@ -30,7 +30,7 @@
 #error "OpenMP should not be used in .cu files to accommodate HIP."
 #endif
 
-namespace rocm_backend {
+namespace grid_gpu_backend {
 
 // tasks with lp >= this value go to integrate_separable_kernel, the others to
 // integrate_kernel. The standalone driver shows the separable kernel 20-37%
@@ -1370,4 +1370,4 @@ void context_info::compute_hab_coefficients() {
                  this->main_stream>>>(params);
   GRID_GPU_CHECK_LAUNCH();
 }
-}; // namespace rocm_backend
+}; // namespace grid_gpu_backend

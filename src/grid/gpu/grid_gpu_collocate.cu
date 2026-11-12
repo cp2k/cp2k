@@ -28,7 +28,7 @@
 #error "OpenMP should not be used in .cu files to accommodate HIP."
 #endif
 
-namespace rocm_backend {
+namespace grid_gpu_backend {
 /*******************************************************************************
  * \brief Decontracts the subblock, going from spherical to cartesian harmonics.
  ******************************************************************************/
@@ -556,4 +556,4 @@ void context_info::collocate_one_grid_level(const int level,
       params, max_cube_size, lp_max, erows, lattice_to_cartesian);
   GRID_GPU_CHECK_LAUNCH();
 }
-} // namespace rocm_backend
+} // namespace grid_gpu_backend
