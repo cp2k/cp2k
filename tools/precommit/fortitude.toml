@@ -10,6 +10,7 @@ extend-select = [
     "default-public-accessibility",
     "multiple-modules",
     "program-with-module",
+    "magic-io-unit",
 ]
 
 # Also see https://fortitude.readthedocs.io/en/stable/rules

@@ -15,7 +15,6 @@
 ! **************************************************************************************************
 MODULE statistical_methods
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE global_types,                    ONLY: global_environment_type
    USE kinds,                           ONLY: dp
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
@@ -24,7 +23,6 @@ MODULE statistical_methods
 
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'statistical_methods'
-   LOGICAL, PARAMETER                   :: debug_this_module = .FALSE.
    INTEGER, PARAMETER, PUBLIC           :: min_sample_size = 20
    PUBLIC :: sw_test, &
              k_test, &
@@ -428,56 +426,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE vn_test
-
-! **************************************************************************************************
-!> \brief Performs tests on statistical methods
-!>      Debug use only
-!> \param xdata ...
-!> \param globenv ...
-!> \par History
-!>      Teodoro Laino (02.2007) [tlaino]
-! **************************************************************************************************
-   SUBROUTINE tests(xdata, globenv)
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: xdata
-      TYPE(global_environment_type), POINTER             :: globenv
-
-      INTEGER                                            :: i, n
-      REAL(KINd=dp)                                      :: prob, pw, r, tau, u, w, z
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: ydata
-
-      IF (debug_this_module) THEN
-         n = 50 ! original sample size
-         NULLIFY (xdata)
-         ALLOCATE (xdata(n))
-         DO i = 1, 10
-            xdata(i) = 5.0_dp - REAL(i, KIND=dp)/2.0_dp + 0.1_dp*globenv%gaussian_rng_stream%next()
-            WRITE (3, *) xdata(i)
-         END DO
-         DO i = 11, n
-            xdata(i) = 0.1_dp*globenv%gaussian_rng_stream%next()
-         END DO
-
-         ! Test for trend
-         DO i = 1, n
-            CALL k_test(xdata, i, n, tau, z, prob)
-            IF (prob <= 0.2_dp) EXIT
-         END DO
-         WRITE (*, *) "Mann-Kendall test", i
-
-         ! Test for normality distribution and for serial correlation
-         DO i = 1, n
-            ALLOCATE (ydata(n - i + 1))
-            ydata = xdata(i:n)
-            CALL sw_test(ydata, n - i + 1, w, pw)
-            CALL vn_test(ydata, n - i + 1, r, u, prob)
-            WRITE (*, *) "Shapiro Wilks test", i, w, pw
-            WRITE (*, *) "Von Neu", i, r, u, prob
-            DEALLOCATE (ydata)
-         END DO
-
-         DEALLOCATE (xdata)
-      END IF
-   END SUBROUTINE tests
 
 END MODULE statistical_methods
 
