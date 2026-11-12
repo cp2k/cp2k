@@ -6,18 +6,18 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Gaussian-product geometry and radial seeds shared by four-center evaluation and screening.
+!> \brief Pair geometry for screening and external radial seeds for the TShPSC recurrence.
 ! **************************************************************************************************
 MODULE four_center_integral_preparation
    USE four_center_integral_types,      ONLY: eri4_pgf_image_type,&
                                               eri4_pgf_pair_type
-   USE input_constants,                 ONLY: do_potential_id
+   USE input_constants,                 ONLY: do_potential_TShPSC
    USE integral_library_types,          ONLY: coulomb_operator_type
    USE kinds,                           ONLY: dp
-   USE libint_wrapper,                  ONLY: eri_primitive_data_type,&
-                                              prim_data_f_size
+   USE libint_wrapper,                  ONLY: tshpsc_fundamentals_size,&
+                                              tshpsc_primitive_data_type
    USE mathconstants,                   ONLY: pi
-   USE r12_fundamentals,                ONLY: compute_r12_fundamentals
+   USE r12_fundamentals,                ONLY: compute_tshpsc_fundamentals
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -61,9 +61,9 @@ CONTAINS
    SUBROUTINE prepare_eri4_product(pair_a, pair_b, m_max, product)
       TYPE(eri4_pgf_pair_type), INTENT(IN)               :: pair_a, pair_b
       INTEGER, INTENT(IN)                                :: m_max
-      TYPE(eri_primitive_data_type), INTENT(INOUT)       :: product
+      TYPE(tshpsc_primitive_data_type), INTENT(INOUT)    :: product
 
-      CPASSERT(m_max < prim_data_f_size)
+      CPASSERT(m_max < tshpsc_fundamentals_size)
 
       product%prepared_max_order = m_max
       product%exponents = [pair_a%zeta, pair_a%zetb, pair_b%zeta, pair_b%zetb]
@@ -85,16 +85,16 @@ CONTAINS
 !> \param params complete primitive in original center order, ready for backend permutation
 ! **************************************************************************************************
    SUBROUTINE prepare_eri4_primitive(product, image_a, image_b, attenuation, pq2, potential_parameter, params)
-      TYPE(eri_primitive_data_type), INTENT(IN)          :: product
+      TYPE(tshpsc_primitive_data_type), INTENT(IN)       :: product
       TYPE(eri4_pgf_image_type), INTENT(IN)              :: image_a, image_b
       REAL(dp), INTENT(IN)                               :: attenuation, pq2
       TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
-      TYPE(eri_primitive_data_type), INTENT(INOUT)       :: params
+      TYPE(tshpsc_primitive_data_type), INTENT(INOUT)    :: params
 
       INTEGER                                            :: i, m_max
-      REAL(dp) :: den, fundamentals_work(prim_data_f_size), G(3), normalization, num, prefactor, &
-         ssss, T
+      REAL(dp)                                           :: normalization, prefactor, T
 
+      CPASSERT(potential_parameter%potential_type == do_potential_TShPSC)
       m_max = product%prepared_max_order
       params%prepared_max_order = m_max
       params%exponents = product%exponents
@@ -109,36 +109,11 @@ CONTAINS
       params%P = image_a%P
       params%Q = image_b%P
 
-      ASSOCIATE (A => image_a%ra, B => image_a%rb, C => image_b%ra, D => image_b%rb, &
-                 zeta_a => product%exponents(1), zeta_b => product%exponents(2), &
-                 zeta_c => product%exponents(3), zeta_d => product%exponents(4))
-         params%W = ((zeta_a + zeta_b)*params%P + (zeta_c + zeta_d)*params%Q)*params%ZetapEtaInv
-         T = params%Rho*pq2
-         IF (potential_parameter%potential_type == do_potential_id) THEN
-            num = zeta_a*zeta_b
-            den = zeta_a + zeta_b
-            ssss = -num/den*SUM((A - B)**2)
-            num = den*zeta_c
-            den = den + zeta_c
-            ssss = ssss - num/den*SUM((params%P - C)**2)
-            G = (zeta_a*A + zeta_b*B + zeta_c*C)/den
-            num = den*zeta_d
-            den = den + zeta_d
-            ssss = ssss - num/den*SUM((G - D)**2)
-            params%Fm(:) = EXP(ssss)
-            ! The ID seed already contains the four-Gaussian attenuation.
-            normalization = 1.0_dp
-            IF (attenuation > EPSILON(0.0_dp)) normalization = 1.0_dp/attenuation
-         ELSE
-            CALL compute_r12_fundamentals(params%Fm, normalization, m_max, potential_parameter%potential_type, &
-                                          params%Rho, T, fundamentals_work, &
-                                          omega=potential_parameter%omega, &
-                                          cutoff_radius=potential_parameter%cutoff_radius, &
-                                          scale_coulomb=potential_parameter%scale_coulomb, &
-                                          scale_longrange=potential_parameter%scale_longrange, &
-                                          scale_gaussian=potential_parameter%scale_gaussian)
-         END IF
-      END ASSOCIATE
+      params%W = ((product%exponents(1) + product%exponents(2))*params%P + &
+                  (product%exponents(3) + product%exponents(4))*params%Q)*params%ZetapEtaInv
+      T = params%Rho*pq2
+      CALL compute_tshpsc_fundamentals(params%Fm, normalization, m_max, params%Rho, T, &
+                                       potential_parameter%cutoff_radius)
 
       prefactor = normalization*attenuation*SQRT((Pi*params%ZetapEtaInv)**3)
       DO i = 1, m_max + 1

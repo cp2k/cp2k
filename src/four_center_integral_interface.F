@@ -32,11 +32,15 @@ MODULE four_center_integral_interface
    USE integral_library_types,          ONLY: coulomb_operator_type
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE libint_engine,                   ONLY: cp_libint_engine_context_type,&
+                                              cp_libint_engine_evaluate,&
+                                              cp_libint_engine_init,&
+                                              cp_libint_engine_release
    USE libint_wrapper,                  ONLY: &
         cp_libint_cleanup_eri, cp_libint_cleanup_eri1, cp_libint_get_derivs, cp_libint_get_eris, &
-        cp_libint_init_eri, cp_libint_init_eri1, cp_libint_set_contrdepth, &
-        cp_libint_set_params_eri, cp_libint_set_params_eri_deriv, cp_libint_t, &
-        eri_primitive_data_type, get_eri_permutation, reorder_eri_block
+        cp_libint_init_eri, cp_libint_init_eri1, cp_libint_set_params_eri, &
+        cp_libint_set_params_eri_deriv, get_eri_permutation, reorder_eri_block, &
+        tshpsc_libint_type, tshpsc_primitive_data_type
    USE orbital_pointers,                ONLY: nco
 #include "./base/base_uses.f90"
 
@@ -47,13 +51,22 @@ MODULE four_center_integral_interface
              evaluate_deriv_eri, &
              evaluate_eri_screen
 
+!> \brief Selected image quartet; only TShPSC retains external radial seeds.
+   TYPE :: eri4_shell_product_type
+      REAL(dp) :: centers(3, 4) = 0.0_dp, exponents(4) = 0.0_dp
+      TYPE(tshpsc_primitive_data_type), ALLOCATABLE :: tshpsc
+   END TYPE eri4_shell_product_type
+
 !> \brief Context owning the energy and first-derivative backend workspaces.
 !> \note Each thread owns its context. Pass it directly without intrinsic copying.
    TYPE, PUBLIC :: four_center_integral_context_type
       PRIVATE
-      TYPE(cp_libint_t) :: eri, deriv
-      TYPE(eri_primitive_data_type), ALLOCATABLE :: products(:)
-      INTEGER :: nproducts = 0
+      TYPE(cp_libint_engine_context_type) :: eri = cp_libint_engine_context_type(), &
+                                             deriv = cp_libint_engine_context_type()
+      TYPE(tshpsc_libint_type), ALLOCATABLE :: tshpsc_eri, tshpsc_deriv
+      TYPE(eri4_shell_product_type), ALLOCATABLE :: products(:)
+      TYPE(coulomb_operator_type) :: potential = coulomb_operator_type()
+      INTEGER :: nproducts = 0, max_am = 0
    END TYPE four_center_integral_context_type
 
 CONTAINS
@@ -96,16 +109,19 @@ CONTAINS
          R2, r_cutoff_sq, r_cutoff_sq_guard, rc(3), rcut_eff, rd(3), rpq2, S1234, S1234a, S1234b, &
          shift(3), temp(3), temp_CC(3), temp_DD(3), tmp_D(3), Zeta_C, Zeta_D
       TYPE(eri4_pgf_image_type)                          :: shifted_image
-      TYPE(eri_primitive_data_type)                      :: product
-      TYPE(eri_primitive_data_type), ALLOCATABLE, &
+      TYPE(eri4_shell_product_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: tmp_product_list
+      TYPE(tshpsc_primitive_data_type)                   :: product
 
       nimages1 = list1%nimages
       nimages2 = list2%nimages
       nproducts = 0
       context%nproducts = 0
+      context%potential = potential_parameter
       IF (nimages1 == 0 .OR. nimages2 == 0) RETURN
-      CALL prepare_eri4_product(list1, list2, m_max, product)
+      IF (potential_parameter%potential_type == do_potential_TShPSC) THEN
+         CALL prepare_eri4_product(list1, list2, m_max, product)
+      END IF
       EtaInv = list2%ZetaInv
       Zeta_C = list2%zeta
       Zeta_D = list2%zetb
@@ -159,8 +175,6 @@ CONTAINS
                temp_DD = rd + shift
             END IF
 
-            S1234 = EXP(S1234a + S1234b)
-
             DO k = 1, k_max
                IF (do_periodic) THEN
                   IF (has_r_cutoff .AND. k_max > 1) THEN
@@ -192,8 +206,17 @@ CONTAINS
                shifted_image%ra = C11
                shifted_image%rb = tmp_D
                shifted_image%P = Q
-               CALL prepare_eri4_primitive(product, list1%image_list(i), shifted_image, S1234, rpq2, potential_parameter, &
-                                           context%products(nproducts))
+               context%products(nproducts)%centers(:, 1) = list1%image_list(i)%ra
+               context%products(nproducts)%centers(:, 2) = list1%image_list(i)%rb
+               context%products(nproducts)%centers(:, 3) = C11
+               context%products(nproducts)%centers(:, 4) = tmp_D
+               context%products(nproducts)%exponents = [list1%zeta, list1%zetb, list2%zeta, list2%zetb]
+               IF (potential_parameter%potential_type == do_potential_TShPSC) THEN
+                  S1234 = EXP(S1234a + S1234b)
+                  IF (.NOT. ALLOCATED(context%products(nproducts)%tshpsc)) ALLOCATE (context%products(nproducts)%tshpsc)
+                  CALL prepare_eri4_primitive(product, list1%image_list(i), shifted_image, S1234, rpq2, potential_parameter, &
+                                              context%products(nproducts)%tshpsc)
+               END IF
             END DO
          END DO
       END DO
@@ -211,10 +234,9 @@ CONTAINS
          INTENT(INOUT)                                   :: context
       INTEGER, INTENT(IN)                                :: max_am
 
-      CALL cp_libint_init_eri(context%eri, max_am)
-      CALL cp_libint_init_eri1(context%deriv, max_am)
-      CALL cp_libint_set_contrdepth(context%eri, 1)
-      CALL cp_libint_set_contrdepth(context%deriv, 1)
+      CALL cp_libint_engine_init(context%eri, 4, max_am, 0)
+      CALL cp_libint_engine_init(context%deriv, 4, max_am, 1)
+      context%max_am = max_am
       ALLOCATE (context%products(128))
    END SUBROUTINE four_center_integral_init
 
@@ -226,8 +248,16 @@ CONTAINS
       TYPE(four_center_integral_context_type), &
          INTENT(INOUT)                                   :: context
 
-      CALL cp_libint_cleanup_eri(context%eri)
-      CALL cp_libint_cleanup_eri1(context%deriv)
+      CALL cp_libint_engine_release(context%eri)
+      CALL cp_libint_engine_release(context%deriv)
+      IF (ALLOCATED(context%tshpsc_eri)) THEN
+         CALL cp_libint_cleanup_eri(context%tshpsc_eri)
+         DEALLOCATE (context%tshpsc_eri)
+      END IF
+      IF (ALLOCATED(context%tshpsc_deriv)) THEN
+         CALL cp_libint_cleanup_eri1(context%tshpsc_deriv)
+         DEALLOCATE (context%tshpsc_deriv)
+      END IF
       DEALLOCATE (context%products)
       context%nproducts = 0
    END SUBROUTINE four_center_integral_cleanup
@@ -333,6 +363,7 @@ CONTAINS
                                                             permutation(4)
       LOGICAL                                            :: direct_contract
       REAL(dp)                                           :: scoord(12)
+      REAL(dp), POINTER                                  :: engine_values(:, :)
 
       mysize = ncoa*ncob*ncoc*ncod
 
@@ -346,11 +377,26 @@ CONTAINS
       angular_momenta = [n_a, n_b, n_c, n_d]
       angular_momenta = angular_momenta(permutation)
 
+      IF (context%potential%potential_type == do_potential_TShPSC) THEN
+         IF (.NOT. ALLOCATED(context%tshpsc_deriv)) THEN
+            ALLOCATE (context%tshpsc_deriv)
+            CALL cp_libint_init_eri1(context%tshpsc_deriv, context%max_am)
+
+         END IF
+      END IF
       DO i = 1, context%nproducts
-         CALL cp_libint_set_params_eri_deriv(context%deriv, context%products(i), &
-                                             permutation, SUM(angular_momenta) + 1)
-         CALL cp_libint_get_derivs(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
-                                   angular_momenta(1), context%deriv, work_forces)
+         IF (context%potential%potential_type == do_potential_TShPSC) THEN
+            CALL cp_libint_set_params_eri_deriv(context%tshpsc_deriv, context%products(i)%tshpsc, &
+                                                permutation, SUM(angular_momenta) + 1)
+            CALL cp_libint_get_derivs(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
+                                      angular_momenta(1), context%tshpsc_deriv, work_forces)
+         ELSE
+            CALL cp_libint_engine_evaluate(context%deriv, angular_momenta, &
+                                           context%products(i)%centers(:, permutation), [1, 1, 1, 1], &
+                                           RESHAPE(context%products(i)%exponents(permutation), [1, 4]), &
+                                           RESHAPE([1.0_dp, 1.0_dp, 1.0_dp, 1.0_dp], [1, 4]), context%potential, engine_values)
+            work_forces = engine_values
+         END IF
          DO k = 1, 12
             DO j = 1, mysize
                work(j, k) = work(j, k) + work_forces(j, k)
@@ -502,10 +548,10 @@ CONTAINS
                                                             permutation(4)
       REAL(dp)                                           :: centers(3, 4), exponents(4), PQ(3), PQ2, &
                                                             S1234
-      REAL(dp), POINTER                                  :: p_work(:)
+      REAL(dp), POINTER                                  :: engine_values(:, :), p_work(:)
       TYPE(eri4_pgf_image_type)                          :: image_a, image_b
       TYPE(eri4_pgf_pair_type)                           :: pair_a, pair_b
-      TYPE(eri_primitive_data_type)                      :: product
+      TYPE(tshpsc_primitive_data_type)                   :: product, tshpsc_product
 
       m_max = n_a + n_b + n_c + n_d
       mysize = nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d)
@@ -535,15 +581,31 @@ CONTAINS
          IF (PQ2 > (R1 + R2 + potential_parameter%cutoff_radius)**2) RETURN
       END SELECT
 
-      CALL prepare_eri4_product(pair_a, pair_b, m_max, product)
-      S1234 = EXP(image_a%S1234 + image_b%S1234)
-      CALL prepare_eri4_primitive(product, image_a, image_b, S1234, PQ2, potential_parameter, context%products(1))
-      IF (m_max == 0) THEN
-         max_val = ABS(context%products(1)%Fm(1))
-      ELSE
-         CALL cp_libint_set_params_eri(context%eri, context%products(1), [1, 2, 3, 4], m_max)
+      IF (potential_parameter%potential_type == do_potential_TShPSC) THEN
+         CALL prepare_eri4_product(pair_a, pair_b, m_max, product)
+         S1234 = EXP(image_a%S1234 + image_b%S1234)
+         CALL prepare_eri4_primitive(product, image_a, image_b, S1234, PQ2, potential_parameter, tshpsc_product)
+         IF (m_max == 0) THEN
+            max_val = ABS(tshpsc_product%Fm(1))
+            RETURN
+         END IF
+         IF (.NOT. ALLOCATED(context%tshpsc_eri)) THEN
+            ALLOCATE (context%tshpsc_eri)
+            CALL cp_libint_init_eri(context%tshpsc_eri, context%max_am)
+
+         END IF
+         CALL cp_libint_set_params_eri(context%tshpsc_eri, tshpsc_product, [1, 2, 3, 4], m_max)
          CALL cp_libint_get_eris(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
-                                 angular_momenta(1), context%eri, p_work)
+                                 angular_momenta(1), context%tshpsc_eri, p_work)
+      ELSE
+         CALL cp_libint_engine_evaluate(context%eri, angular_momenta, centers, [1, 1, 1, 1], &
+                                        RESHAPE(exponents, [1, 4]), &
+                                        RESHAPE([1.0_dp, 1.0_dp, 1.0_dp, 1.0_dp], [1, 4]), potential_parameter, engine_values)
+         p_work => engine_values(:, 1)
+      END IF
+      IF (m_max == 0) THEN
+         max_val = ABS(p_work(1))
+      ELSE
          DO i = 1, mysize
             max_val = MAX(max_val, ABS(p_work(i)))
          END DO
@@ -629,8 +691,8 @@ CONTAINS
 
       INTEGER                                            :: angular_momenta(4), i, m_max, mysize, &
                                                             permutation(4)
-      LOGICAL                                            :: direct_contract
-      REAL(dp), POINTER                                  :: p_work(:)
+      LOGICAL                                            :: direct_contract, use_engine
+      REAL(dp), POINTER                                  :: engine_values(:, :), p_work(:)
 
       IF (context%nproducts == 0) RETURN
       mysize = ncoa*ncob*ncoc*ncod
@@ -638,12 +700,28 @@ CONTAINS
       CALL get_eri_permutation(n_a, n_b, n_c, n_d, permutation)
       angular_momenta = [n_a, n_b, n_c, n_d]
       angular_momenta = angular_momenta(permutation)
-      IF (m_max /= 0) THEN
+      use_engine = context%potential%potential_type /= do_potential_TShPSC
+      IF (.NOT. use_engine .AND. m_max /= 0) THEN
+         IF (.NOT. ALLOCATED(context%tshpsc_eri)) THEN
+            ALLOCATE (context%tshpsc_eri)
+            CALL cp_libint_init_eri(context%tshpsc_eri, context%max_am)
+
+         END IF
+      END IF
+      IF (m_max /= 0 .OR. use_engine) THEN
          IF (context%nproducts > 1) buffer1 = 0.0_dp
          DO i = 1, context%nproducts
-            CALL cp_libint_set_params_eri(context%eri, context%products(i), permutation, m_max)
-            CALL cp_libint_get_eris(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
-                                    angular_momenta(1), context%eri, p_work)
+            IF (use_engine) THEN
+               CALL cp_libint_engine_evaluate(context%eri, angular_momenta, &
+                                              context%products(i)%centers(:, permutation), [1, 1, 1, 1], &
+                                              RESHAPE(context%products(i)%exponents(permutation), [1, 4]), &
+                                              RESHAPE([1.0_dp, 1.0_dp, 1.0_dp, 1.0_dp], [1, 4]), context%potential, engine_values)
+               p_work => engine_values(:, 1)
+            ELSE
+               CALL cp_libint_set_params_eri(context%tshpsc_eri, context%products(i)%tshpsc, permutation, m_max)
+               CALL cp_libint_get_eris(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
+                                       angular_momenta(1), context%tshpsc_eri, p_work)
+            END IF
             IF (context%nproducts > 1) buffer1 = buffer1 + p_work(1:mysize)
          END DO
          IF (context%nproducts > 1) p_work => buffer1
@@ -651,14 +729,14 @@ CONTAINS
       ELSE
          work2 = 0.0_dp
          DO i = 1, context%nproducts
-            work2(1, 1, 1, 1) = work2(1, 1, 1, 1) + context%products(i)%Fm(1)
+            work2(1, 1, 1, 1) = work2(1, 1, 1, 1) + context%products(i)%tshpsc%Fm(1)
          END DO
          tmp_max = MAX(tmp_max, ABS(work2(1, 1, 1, 1)))
       END IF
       neris = neris + INT(context%nproducts, int_8)*mysize
       tmp_max = tmp_max*max_contraction
       IF (tmp_max < eps_schwarz) RETURN
-      IF (m_max /= 0) CALL reorder_eri_block(p_work, work2, [ncoa, ncob, ncoc, ncod], permutation, 1, 1)
+      IF (m_max /= 0 .OR. use_engine) CALL reorder_eri_block(p_work, work2, [ncoa, ncob, ncoc, ncod], permutation, 1, 1)
 
       direct_contract = (s_offset_a == 0 .AND. s_offset_b == 0 .AND. &
                          s_offset_c == 0 .AND. s_offset_d == 0 .AND. &

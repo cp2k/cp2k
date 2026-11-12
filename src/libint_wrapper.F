@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Interface to the Libint-Library or a c++ wrapper.
+!> \brief Generated four-center recurrence retained for TShPSC external fundamentals.
 !> \par History
 !>      11.2007 created [Manuel Guidon]
 !>      10.2009 refactored [Manuel Guidon]
@@ -31,13 +31,8 @@ MODULE libint_wrapper
 #if(__LIBINT)
    USE ISO_C_BINDING, ONLY: C_CHAR, C_INT, C_SIZE_T, C_NULL_CHAR
    USE libint_engine, ONLY: cp_libint_engine_initialize, cp_libint_engine_finalize
-   USE libint_f, ONLY: &
-      libint2_build_eri, libint2_build_eri1, libint2_cleanup_eri, &
-      libint2_cleanup_eri1, libint2_init_eri, libint2_init_eri1, &
-      libint_t, libint2_max_am_eri, libint2_init_3eri, libint2_cleanup_3eri, &
-      libint2_init_2eri, libint2_cleanup_2eri, &
-      libint2_build_2eri, libint2_build_3eri, libint2_build_3eri1, libint2_cleanup_3eri1, libint2_init_3eri1, &
-      libint2_build_2eri1, libint2_cleanup_2eri1, libint2_init_2eri1
+   USE libint_f, ONLY: libint2_build_eri, libint2_build_eri1, libint2_cleanup_eri, &
+                       libint2_cleanup_eri1, libint2_init_eri, libint2_init_eri1, libint_t, libint2_max_am_eri
 #endif
    USE orbital_pointers, ONLY: nco
 #include "./base/base_uses.f90"
@@ -45,16 +40,10 @@ MODULE libint_wrapper
    IMPLICIT NONE
    PRIVATE
    PUBLIC :: get_eri_permutation, reorder_eri_block
-   PUBLIC :: cp_libint_t, prim_data_f_size, &
-             libint_max_am, cp_libint_get_eris, cp_libint_get_derivs, &
-             cp_libint_init_eri, cp_libint_init_eri1, cp_libint_cleanup_eri, &
-             cp_libint_cleanup_eri1, cp_libint_static_init, cp_libint_static_cleanup, &
-             cp_libint_set_contrdepth, &
-             cp_libint_set_params_eri, cp_libint_set_params_eri_deriv, &
-             cp_libint_init_3eri, cp_libint_cleanup_3eri, cp_libint_get_3eris, &
-             cp_libint_init_2eri, cp_libint_cleanup_2eri, cp_libint_get_2eris, &
-             cp_libint_get_3eri_derivs, cp_libint_init_3eri1, cp_libint_cleanup_3eri1, &
-             cp_libint_get_2eri_derivs, cp_libint_init_2eri1, cp_libint_cleanup_2eri1
+   PUBLIC :: tshpsc_libint_type, tshpsc_fundamentals_size, libint_max_am, &
+             cp_libint_get_eris, cp_libint_get_derivs, cp_libint_init_eri, cp_libint_init_eri1, &
+             cp_libint_cleanup_eri, cp_libint_cleanup_eri1, cp_libint_static_init, cp_libint_static_cleanup, &
+             cp_libint_set_params_eri, cp_libint_set_params_eri_deriv
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'libint_wrapper'
 
@@ -64,26 +53,26 @@ MODULE libint_wrapper
    INTEGER, PARAMETER :: libint_max_am = 0
 #endif
 
-   INTEGER, PARAMETER :: prim_data_f_size = 4*(libint_max_am) + 1
+   INTEGER, PARAMETER :: tshpsc_fundamentals_size = 4*(libint_max_am) + 1
 
-!> \brief Prepared primitive in original center order for the legacy Libint backend.
+!> \brief Prepared TShPSC primitive in original center order for the legacy recurrence.
 !> \note Zero exponents denote dummy centers. Fm contains orders zero through prepared_max_order.
-   TYPE, PUBLIC :: eri_primitive_data_type
+   TYPE, PUBLIC :: tshpsc_primitive_data_type
       INTEGER :: prepared_max_order = -1
       REAL(dp) :: centers(3, 4) = 0.0_dp, exponents(4) = 0.0_dp
       REAL(dp) :: P(3) = 0.0_dp, Q(3) = 0.0_dp, W(3) = 0.0_dp
       REAL(dp) :: ZetaInv = 0.0_dp, EtaInv = 0.0_dp, ZetapEtaInv = 0.0_dp, Rho = 0.0_dp
-      REAL(dp) :: Fm(prim_data_f_size) = 0.0_dp
-   END TYPE eri_primitive_data_type
+      REAL(dp) :: Fm(tshpsc_fundamentals_size) = 0.0_dp
+   END TYPE tshpsc_primitive_data_type
 
-   TYPE :: cp_libint_t
+   TYPE :: tshpsc_libint_type
       PRIVATE
 #if(__LIBINT)
-      TYPE(libint_t), DIMENSION(1) :: prv
+      TYPE(libint_t), ALLOCATABLE :: prv(:)
 #else
       INTEGER :: unused = -1
 #endif
-   END TYPE cp_libint_t
+   END TYPE tshpsc_libint_type
 
 #if(__LIBINT)
    INTERFACE
@@ -95,9 +84,6 @@ MODULE libint_wrapper
       END SUBROUTINE cp_libint_build
    END INTERFACE
 
-   INTERFACE build_eri_kernel
-      MODULE PROCEDURE build_eri_kernel_2c, build_eri_kernel_3c, build_eri_kernel_4c
-   END INTERFACE build_eri_kernel
 #endif
 
 CONTAINS
@@ -173,7 +159,6 @@ CONTAINS
    END SUBROUTINE reorder_eri_block
 
 #if(__LIBINT)
-   #:for rank in range(2, 5)
 ! **************************************************************************************************
 !> \brief Validate and invoke a generated Libint kernel without indexing outside its task table.
 !> \param lib backend workspace
@@ -181,28 +166,27 @@ CONTAINS
 !> \param angular_momenta indices in the table's own center order
 !> \param kernel_name integral task used in diagnostics
 ! **************************************************************************************************
-      SUBROUTINE build_eri_kernel_${rank}$c(lib, kernels, angular_momenta, kernel_name)
-         TYPE(cp_libint_t), INTENT(INOUT) :: lib
-         TYPE(C_FUNPTR), INTENT(IN) :: kernels(${", ".join(["0:"]*rank)}$)
-         INTEGER, INTENT(IN) :: angular_momenta(${rank}$)
-         CHARACTER(LEN=*), INTENT(IN) :: kernel_name
+   SUBROUTINE build_eri_kernel(lib, kernels, angular_momenta, kernel_name)
+      TYPE(tshpsc_libint_type), INTENT(INOUT) :: lib
+      TYPE(C_FUNPTR), INTENT(IN) :: kernels(0:, 0:, 0:, 0:)
+      INTEGER, INTENT(IN) :: angular_momenta(4)
+      CHARACTER(LEN=*), INTENT(IN) :: kernel_name
 
-         CHARACTER(LEN=160) :: error_msg
-         TYPE(C_FUNPTR) :: build_funptr
+      CHARACTER(LEN=160) :: error_msg
+      TYPE(C_FUNPTR) :: build_funptr
 
-         build_funptr = C_NULL_FUNPTR
-         IF (ALL(angular_momenta >= LBOUND(kernels)) .AND. ALL(angular_momenta <= UBOUND(kernels))) THEN
-            build_funptr = kernels(${", ".join("angular_momenta(" + str(i) + ")" for i in range(1, rank + 1))}$)
-         END IF
-         IF (.NOT. C_ASSOCIATED(build_funptr)) THEN
-            WRITE (error_msg, '(A,${rank}$(I0,1X))') &
-               "LIBINT has no "//TRIM(kernel_name)//" kernel for angular momenta: ", angular_momenta
-            CPABORT(TRIM(error_msg))
-         END IF
-         CALL cp_libint_build(build_funptr, lib%prv)
-      END SUBROUTINE build_eri_kernel_${rank}$c
+      build_funptr = C_NULL_FUNPTR
+      IF (ALL(angular_momenta >= LBOUND(kernels)) .AND. ALL(angular_momenta <= UBOUND(kernels))) THEN
+         build_funptr = kernels(angular_momenta(1), angular_momenta(2), angular_momenta(3), angular_momenta(4))
+      END IF
+      IF (.NOT. C_ASSOCIATED(build_funptr)) THEN
+         WRITE (error_msg, '(A,4(I0,1X))') &
+            "LIBINT has no "//TRIM(kernel_name)//" kernel for angular momenta: ", angular_momenta
+         CPABORT(TRIM(error_msg))
+      END IF
+      CALL cp_libint_build(build_funptr, lib%prv)
+   END SUBROUTINE build_eri_kernel
 
-   #:endfor
 #endif
 
 ! **************************************************************************************************
@@ -213,8 +197,8 @@ CONTAINS
 !> \param m_max requested radial order, not exceeding the prepared order
 ! **************************************************************************************************
    SUBROUTINE cp_libint_set_params_eri(libint, params, permutation, m_max)
-      TYPE(cp_libint_t), INTENT(INOUT) :: libint
-      TYPE(eri_primitive_data_type), INTENT(IN) :: params
+      TYPE(tshpsc_libint_type), INTENT(INOUT) :: libint
+      TYPE(tshpsc_primitive_data_type), INTENT(IN) :: params
       INTEGER, INTENT(IN) :: permutation(4), m_max
 
 #if(__LIBINT)
@@ -295,8 +279,8 @@ CONTAINS
 !> \param m_max requested radial order, including the first-derivative increment
 ! **************************************************************************************************
    SUBROUTINE cp_libint_set_params_eri_deriv(libint, params, permutation, m_max)
-      TYPE(cp_libint_t), INTENT(INOUT) :: libint
-      TYPE(eri_primitive_data_type), INTENT(IN) :: params
+      TYPE(tshpsc_libint_type), INTENT(INOUT) :: libint
+      TYPE(tshpsc_primitive_data_type), INTENT(IN) :: params
       INTEGER, INTENT(IN) :: permutation(4), m_max
 
 #if(__LIBINT)
@@ -350,7 +334,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_libint_get_eris(n_d, n_c, n_b, n_a, lib, p_work)
       INTEGER, INTENT(IN)                                :: n_d, n_c, n_b, n_a
-      TYPE(cp_libint_t)                                  :: lib
+      TYPE(tshpsc_libint_type)                                  :: lib
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
 
 #if(__LIBINT)
@@ -371,139 +355,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param n_c ...
-!> \param n_b ...
-!> \param n_a ...
-!> \param lib ...
-!> \param p_work ...
-! **************************************************************************************************
-   SUBROUTINE cp_libint_get_3eris(n_c, n_b, n_a, lib, p_work)
-      INTEGER, INTENT(IN)                                :: n_c, n_b, n_a
-      TYPE(cp_libint_t)                                  :: lib
-      REAL(dp), DIMENSION(:), POINTER                    :: p_work
-
-#if(__LIBINT)
-      CALL build_eri_kernel(lib, libint2_build_3eri, [n_c, n_b, n_a], "3-center ERI")
-
-      CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=[nco(n_a)*nco(n_b)*nco(n_c)])
-#else
-      MARK_USED(n_c)
-      MARK_USED(n_b)
-      MARK_USED(n_a)
-      MARK_USED(lib)
-      MARK_USED(p_work)
-      CPABORT("This CP2K executable has not been linked against the required library libint.")
-#endif
-
-   END SUBROUTINE cp_libint_get_3eris
-
-! **************************************************************************************************
-!> \brief Copy independent 3-center derivatives into caller-owned compact scratch.
-!> \param n_c ...
-!> \param n_b ...
-!> \param n_a ...
-!> \param lib ...
-!> \param p_work leading Cartesian block rows and 6 columns receive Cartesian derivative triplets
-! **************************************************************************************************
-   SUBROUTINE cp_libint_get_3eri_derivs(n_c, n_b, n_a, lib, p_work)
-      INTEGER, INTENT(IN)                                :: n_c, n_b, n_a
-      TYPE(cp_libint_t)                                  :: lib
-      REAL(dp), DIMENSION(:, :), INTENT(OUT)              :: p_work
-
-#if(__LIBINT)
-      REAL(dp), DIMENSION(:), POINTER                    :: p_work_tmp
-      INTEGER :: i, ncart
-
-      ncart = nco(n_a)*nco(n_b)*nco(n_c)
-      CPASSERT(SIZE(p_work, 1) >= ncart)
-      CPASSERT(SIZE(p_work, 2) >= 6)
-
-      CALL build_eri_kernel(lib, libint2_build_3eri1, [n_c, n_b, n_a], "3-center ERI derivative")
-
-      !Derivatives 1-3 can be obtained using translational invariance
-      DO i = 4, 9
-         NULLIFY (p_work_tmp)
-         CALL C_F_POINTER(lib%prv(1)%targets(i), p_work_tmp, SHAPE=[ncart])
-         p_work(1:ncart, i - 3) = p_work_tmp
-      END DO
-#else
-      MARK_USED(n_c)
-      MARK_USED(n_b)
-      MARK_USED(n_a)
-      MARK_USED(lib)
-      MARK_USED(p_work)
-      CPABORT("This CP2K executable has not been linked against the required library libint.")
-#endif
-
-   END SUBROUTINE cp_libint_get_3eri_derivs
-
-! **************************************************************************************************
-!> \brief Copy independent 2-center derivatives into caller-owned compact scratch.
-!> \param n_b ...
-!> \param n_a ...
-!> \param lib ...
-!> \param p_work leading Cartesian block rows and 3 columns receive Cartesian derivative triplets
-! **************************************************************************************************
-   SUBROUTINE cp_libint_get_2eri_derivs(n_b, n_a, lib, p_work)
-      INTEGER, INTENT(IN)                                :: n_b, n_a
-      TYPE(cp_libint_t)                                  :: lib
-      REAL(dp), DIMENSION(:, :), INTENT(OUT)              :: p_work
-
-#if(__LIBINT)
-      REAL(dp), DIMENSION(:), POINTER                    :: p_work_tmp
-      INTEGER :: i, ncart
-
-      ncart = nco(n_a)*nco(n_b)
-      CPASSERT(SIZE(p_work, 1) >= ncart)
-      CPASSERT(SIZE(p_work, 2) >= 3)
-
-      CALL build_eri_kernel(lib, libint2_build_2eri1, [n_b, n_a], "2-center ERI derivative")
-
-      !Derivatives 1-3 can be obtained using translational invariance
-      DO i = 4, 6
-         NULLIFY (p_work_tmp)
-         CALL C_F_POINTER(lib%prv(1)%targets(i), p_work_tmp, SHAPE=[ncart])
-         p_work(1:ncart, i - 3) = p_work_tmp
-      END DO
-#else
-      MARK_USED(n_b)
-      MARK_USED(n_a)
-      MARK_USED(lib)
-      MARK_USED(p_work)
-      CPABORT("This CP2K executable has not been linked against the required library libint.")
-#endif
-
-   END SUBROUTINE cp_libint_get_2eri_derivs
-
-! **************************************************************************************************
-!> \brief ...
-!> \param n_c ...
-!> \param n_b ...
-!> \param n_a ...
-!> \param lib ...
-!> \param p_work ...
-! **************************************************************************************************
-   SUBROUTINE cp_libint_get_2eris(n_b, n_a, lib, p_work)
-      INTEGER, INTENT(IN)                                :: n_b, n_a
-      TYPE(cp_libint_t)                                  :: lib
-      REAL(dp), DIMENSION(:), POINTER                    :: p_work
-
-#if(__LIBINT)
-      CALL build_eri_kernel(lib, libint2_build_2eri, [n_b, n_a], "2-center ERI")
-
-      CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=[nco(n_a)*nco(n_b)])
-#else
-      MARK_USED(n_b)
-      MARK_USED(n_a)
-      MARK_USED(lib)
-      MARK_USED(p_work)
-      CPABORT("This CP2K executable has not been linked against the required library libint.")
-#endif
-
-   END SUBROUTINE cp_libint_get_2eris
-
-! **************************************************************************************************
-!> \brief ...
 !> \param n_d ...
 !> \param n_c ...
 !> \param n_b ...
@@ -513,7 +364,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_libint_get_derivs(n_d, n_c, n_b, n_a, lib, work_forces)
       INTEGER, INTENT(IN)                                :: n_d, n_c, n_b, n_a
-      TYPE(cp_libint_t)                                  :: lib
+      TYPE(tshpsc_libint_type)                                  :: lib
       REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*nco(n_c)*nco &
                           (n_d), 12)                                      :: work_forces
 
@@ -554,10 +405,12 @@ CONTAINS
    END SUBROUTINE cp_libint_get_derivs
 
    SUBROUTINE cp_libint_init_eri(lib, max_am)
-      TYPE(cp_libint_t)               :: lib
+      TYPE(tshpsc_libint_type)               :: lib
       INTEGER                         :: max_am
 #if(__LIBINT)
+      ALLOCATE (lib%prv(1))
       CALL libint2_init_eri(lib%prv, max_am, C_NULL_PTR)
+      lib%prv(1)%contrdepth = 1
 #else
       MARK_USED(lib)
       MARK_USED(max_am)
@@ -565,29 +418,13 @@ CONTAINS
 #endif
    END SUBROUTINE cp_libint_init_eri
 
-   SUBROUTINE cp_libint_set_contrdepth(lib, contrdepth)
-      TYPE(cp_libint_t) :: lib
-      INTEGER           :: contrdepth
-#if(__LIBINT)
-#if LIBINT_CONTRACTED_INTS
-      lib%prv(1)%contrdepth = contrdepth
-#else
-      MARK_USED(lib)
-      MARK_USED(contrdepth)
-#endif
-#else
-      MARK_USED(lib)
-      MARK_USED(contrdepth)
-      CPABORT("This CP2K executable has not been linked against the required library libint.")
-#endif
-
-   END SUBROUTINE cp_libint_set_contrdepth
-
    SUBROUTINE cp_libint_init_eri1(lib, max_am)
-      TYPE(cp_libint_t)               :: lib
+      TYPE(tshpsc_libint_type)               :: lib
       INTEGER                         :: max_am
 #if(__LIBINT)
+      ALLOCATE (lib%prv(1))
       CALL libint2_init_eri1(lib%prv, max_am, C_NULL_PTR)
+      lib%prv(1)%contrdepth = 1
 #else
       MARK_USED(lib)
       MARK_USED(max_am)
@@ -595,58 +432,11 @@ CONTAINS
 #endif
    END SUBROUTINE cp_libint_init_eri1
 
-   SUBROUTINE cp_libint_init_3eri(lib, max_am)
-      TYPE(cp_libint_t)               :: lib
-      INTEGER                         :: max_am
-#if(__LIBINT)
-      CALL libint2_init_3eri(lib%prv, max_am, C_NULL_PTR)
-#else
-      MARK_USED(lib)
-      MARK_USED(max_am)
-      CPABORT("This CP2K executable has not been linked against the required library libint.")
-#endif
-   END SUBROUTINE cp_libint_init_3eri
-
-   SUBROUTINE cp_libint_init_3eri1(lib, max_am)
-      TYPE(cp_libint_t)               :: lib
-      INTEGER                         :: max_am
-#if(__LIBINT)
-      CALL libint2_init_3eri1(lib%prv, max_am, C_NULL_PTR)
-#else
-      MARK_USED(lib)
-      MARK_USED(max_am)
-      CPABORT("This CP2K executable has not been linked against the required library libint.")
-#endif
-   END SUBROUTINE cp_libint_init_3eri1
-
-   SUBROUTINE cp_libint_init_2eri1(lib, max_am)
-      TYPE(cp_libint_t)               :: lib
-      INTEGER                         :: max_am
-#if(__LIBINT)
-      CALL libint2_init_2eri1(lib%prv, max_am, C_NULL_PTR)
-#else
-      MARK_USED(lib)
-      MARK_USED(max_am)
-      CPABORT("This CP2K executable has not been linked against the required library libint.")
-#endif
-   END SUBROUTINE cp_libint_init_2eri1
-
-   SUBROUTINE cp_libint_init_2eri(lib, max_am)
-      TYPE(cp_libint_t)               :: lib
-      INTEGER                         :: max_am
-#if(__LIBINT)
-      CALL libint2_init_2eri(lib%prv, max_am, C_NULL_PTR)
-#else
-      MARK_USED(lib)
-      MARK_USED(max_am)
-      CPABORT("This CP2K executable has not been linked against the required library libint.")
-#endif
-   END SUBROUTINE cp_libint_init_2eri
-
    SUBROUTINE cp_libint_cleanup_eri(lib)
-      TYPE(cp_libint_t)               :: lib
+      TYPE(tshpsc_libint_type)               :: lib
 #if(__LIBINT)
       CALL libint2_cleanup_eri(lib%prv)
+      DEALLOCATE (lib%prv)
 #else
       MARK_USED(lib)
       CPABORT("This CP2K executable has not been linked against the required library libint.")
@@ -654,54 +444,15 @@ CONTAINS
    END SUBROUTINE cp_libint_cleanup_eri
 
    SUBROUTINE cp_libint_cleanup_eri1(lib)
-      TYPE(cp_libint_t)               :: lib
+      TYPE(tshpsc_libint_type)               :: lib
 #if(__LIBINT)
       CALL libint2_cleanup_eri1(lib%prv)
+      DEALLOCATE (lib%prv)
 #else
       MARK_USED(lib)
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
    END SUBROUTINE cp_libint_cleanup_eri1
-
-   SUBROUTINE cp_libint_cleanup_3eri(lib)
-      TYPE(cp_libint_t)               :: lib
-#if(__LIBINT)
-      CALL libint2_cleanup_3eri(lib%prv)
-#else
-      MARK_USED(lib)
-      CPABORT("This CP2K executable has not been linked against the required library libint.")
-#endif
-   END SUBROUTINE cp_libint_cleanup_3eri
-
-   SUBROUTINE cp_libint_cleanup_3eri1(lib)
-      TYPE(cp_libint_t)               :: lib
-#if(__LIBINT)
-      CALL libint2_cleanup_3eri1(lib%prv)
-#else
-      MARK_USED(lib)
-      CPABORT("This CP2K executable has not been linked against the required library libint.")
-#endif
-   END SUBROUTINE cp_libint_cleanup_3eri1
-
-   SUBROUTINE cp_libint_cleanup_2eri1(lib)
-      TYPE(cp_libint_t)               :: lib
-#if(__LIBINT)
-      CALL libint2_cleanup_2eri1(lib%prv)
-#else
-      MARK_USED(lib)
-      CPABORT("This CP2K executable has not been linked against the required library libint.")
-#endif
-   END SUBROUTINE cp_libint_cleanup_2eri1
-
-   SUBROUTINE cp_libint_cleanup_2eri(lib)
-      TYPE(cp_libint_t)               :: lib
-#if(__LIBINT)
-      CALL libint2_cleanup_2eri(lib%prv)
-#else
-      MARK_USED(lib)
-      CPABORT("This CP2K executable has not been linked against the required library libint.")
-#endif
-   END SUBROUTINE cp_libint_cleanup_2eri
 
    SUBROUTINE cp_libint_static_init()
 #if(__LIBINT)
