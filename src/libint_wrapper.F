@@ -24,14 +24,13 @@ MODULE libint_wrapper
 
    USE ISO_C_BINDING, ONLY: C_ASSOCIATED, &
                             C_F_POINTER, &
-                            C_F_PROCPOINTER, &
                             C_NULL_PTR, &
                             C_NULL_FUNPTR, &
                             C_FUNPTR
    USE kinds, ONLY: dp
 #if(__LIBINT)
    USE libint_f, ONLY: &
-      libint2_build, libint2_build_eri, libint2_build_eri1, libint2_cleanup_eri, &
+      libint2_build_eri, libint2_build_eri1, libint2_cleanup_eri, &
       libint2_cleanup_eri1, libint2_init_eri, libint2_init_eri1, libint2_static_cleanup, &
       libint2_static_init, libint_t, libint2_max_am_eri, libint2_init_3eri, libint2_cleanup_3eri, &
       libint2_init_2eri, libint2_cleanup_2eri, &
@@ -85,6 +84,15 @@ MODULE libint_wrapper
    END TYPE cp_libint_t
 
 #if(__LIBINT)
+   INTERFACE
+      ! Keep the indirect kernel call on the C side of the interoperability boundary.
+      SUBROUTINE cp_libint_build(build, libint) BIND(C, NAME="cp2k_libint_build")
+         IMPORT :: C_FUNPTR, libint_t
+         TYPE(C_FUNPTR), VALUE :: build
+         TYPE(libint_t), DIMENSION(*) :: libint
+      END SUBROUTINE cp_libint_build
+   END INTERFACE
+
    INTERFACE build_eri_kernel
       MODULE PROCEDURE build_eri_kernel_2c, build_eri_kernel_3c, build_eri_kernel_4c
    END INTERFACE build_eri_kernel
@@ -179,7 +187,6 @@ CONTAINS
 
          CHARACTER(LEN=160) :: error_msg
          TYPE(C_FUNPTR) :: build_funptr
-         PROCEDURE(libint2_build), POINTER :: pbuild
 
          build_funptr = C_NULL_FUNPTR
          IF (ALL(angular_momenta >= LBOUND(kernels)) .AND. ALL(angular_momenta <= UBOUND(kernels))) THEN
@@ -190,8 +197,7 @@ CONTAINS
                "LIBINT has no "//TRIM(kernel_name)//" kernel for angular momenta: ", angular_momenta
             CPABORT(TRIM(error_msg))
          END IF
-         CALL C_F_PROCPOINTER(build_funptr, pbuild)
-         CALL pbuild(lib%prv)
+         CALL cp_libint_build(build_funptr, lib%prv)
       END SUBROUTINE build_eri_kernel_${rank}$c
 
    #:endfor

@@ -73,7 +73,8 @@ CONTAINS
    SUBROUTINE test_scratch_links()
       CHARACTER(LEN=5)                                   :: text
       COMPLEX(KIND=dp)                                   :: link(2, 2), restored(2, 2)
-      INTEGER                                            :: binary_unit, ios, record_size, text_unit
+      INTEGER                                            :: binary_unit, ios, second_position, &
+                                                            text_unit
       LOGICAL                                            :: named, opened
 
       link(:, :) = CMPLX(1.0_dp, 2.0_dp, dp)
@@ -84,12 +85,13 @@ CONTAINS
       IF (named) ERROR STOP 'Link scratch storage must be anonymous'
       CALL open_file(unit_number=text_unit, file_status='SCRATCH', file_pad='NO', file_action='READWRITE')
       IF (binary_unit == text_unit) ERROR STOP 'Scratch streams share a unit'
-      INQUIRE (IOLENGTH=record_size) link
       WRITE (binary_unit, IOSTAT=ios) link
       IF (ios /= 0) ERROR STOP 'Cannot write first scratch link'
+      INQUIRE (UNIT=binary_unit, POS=second_position, IOSTAT=ios)
+      IF (ios /= 0) ERROR STOP 'Cannot inquire second scratch link position'
       WRITE (binary_unit, IOSTAT=ios) 2.0_dp*link
       IF (ios /= 0) ERROR STOP 'Cannot write second scratch link'
-      READ (binary_unit, POS=record_size + 1, IOSTAT=ios) restored
+      READ (binary_unit, POS=second_position, IOSTAT=ios) restored
       IF (ios /= 0) ERROR STOP 'Cannot read second scratch link'
       IF (MAXVAL(ABS(restored - 2.0_dp*link)) > tolerance) ERROR STOP 'Incorrect second scratch link'
       READ (binary_unit, POS=1, IOSTAT=ios) restored

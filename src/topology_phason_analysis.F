@@ -89,7 +89,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: io_unit
       CHARACTER(LEN=256) :: header
       CHARACTER(LEN=default_path_length), ALLOCATABLE :: files(:)
-      INTEGER :: input, store, stat, dim, rank, nvertex, nframe, nat, vertex, axis, mu, nu, p, i, j, na, nb, nbase, idx, record_size
+      INTEGER :: input, store, stat, dim, rank, nvertex, nframe, nat, vertex, axis, mu, nu, p, i, j, na, nb, nbase, idx
       INTEGER, ALLOCATABLE :: shape(:), extended(:), INDEX(:), next(:), zero(:), points(:), permutation(:, :)
       LOGICAL, ALLOCATABLE :: checked(:)
       REAL(KIND=dp), ALLOCATABLE :: offsets(:), directions(:, :)
@@ -99,7 +99,7 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE :: raw(:, :), link(:, :), sewing(:, :), u(:, :, :), pqs(:, :, :)
       TYPE(snapshot_type), ALLOCATABLE :: a, b, base
       LOGICAL :: common_reference, prefix
-      INTEGER(KIND=int64) :: total
+      INTEGER(KIND=int64) :: record_size, record_start, total
 
       CALL open_file(path, unit_number=input, file_status='OLD', file_action='READ')
       READ (input, '(A)', IOSTAT=stat) header
@@ -150,7 +150,8 @@ CONTAINS
       ! Anonymous scratch storage avoids persistent, stale link caches.
       CALL open_file(unit_number=store, file_status='SCRATCH', file_access='STREAM', &
                      file_form='UNFORMATTED', file_action='READWRITE')
-      INQUIRE (IOLENGTH=record_size) link
+      INQUIRE (UNIT=store, POS=record_start, IOSTAT=stat)
+      CPASSERT(stat == 0)
       minimum = HUGE(1.0_dp)
       max_metric = 0.0_dp
       min_gap = HUGE(1.0_dp)
@@ -270,6 +271,12 @@ CONTAINS
             minimum = MIN(minimum, local_min)
             WRITE (store, IOSTAT=stat) link
             CPASSERT(stat == 0)
+            IF (vertex == 1 .AND. axis == 1) THEN
+               ! Measure the stride in stream-position units; IOLENGTH may use different units.
+               INQUIRE (UNIT=store, POS=record_size, IOSTAT=stat)
+               CPASSERT(stat == 0)
+               record_size = record_size - record_start
+            END IF
          END DO
       END DO
       DO
@@ -372,7 +379,7 @@ CONTAINS
 
       INTEGER(KIND=int64)                                :: position
 
-         position = (INT(vertex_index - 1, int64)*INT(dim, int64) + INT(direction - 1, int64))*INT(record_size, int64) + 1_int64
+         position = (INT(vertex_index - 1, int64)*INT(dim, int64) + INT(direction - 1, int64))*record_size + 1_int64
          READ (store, POS=position, IOSTAT=stat) matrix
          CPASSERT(stat == 0)
       END SUBROUTINE read_link

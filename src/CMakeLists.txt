@@ -174,6 +174,7 @@ add_fypp_sources(CP2K_PROGS_F_FYPP ${CP2K_PROGS_F})
 if(CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM")
   set_source_files_properties(
     ${CMAKE_CURRENT_BINARY_DIR}/hfxbase/hfx_contraction_methods.F
+    ${CMAKE_CURRENT_BINARY_DIR}/hfxbase/hfx_contract_block.F
     PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS} -O1")
   if(CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     set_source_files_properties(

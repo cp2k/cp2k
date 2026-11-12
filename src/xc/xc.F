@@ -1707,7 +1707,7 @@ CONTAINS
                                            tau_r, tau1_r, tau_a, tau_b, vxc_tau, &
                                            xc_section, weights, pw_pool, step)
 
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER, INTENT(IN) :: vxc_rho, vxc_tau
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER, INTENT(INOUT) :: vxc_rho, vxc_tau
       TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN)            :: rho1_r
       TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN), POINTER   :: tau1_r
       TYPE(pw_r3d_rs_type), INTENT(IN), POINTER                 :: weights

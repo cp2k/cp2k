@@ -1274,7 +1274,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: budget
       LOGICAL, INTENT(IN)                                :: point_bounds
 
-      INTEGER                                            :: copy_lower(3), copy_upper(3), &
+      INTEGER                                            :: copy_lower(3), copy_upper(3), idir, &
                                                             u_lower(3), u_upper(3)
 
       copy_lower = FLOOR(REAL(first_block, dp)/REAL(n_class, dp))
@@ -1282,8 +1282,10 @@ CONTAINS
       u_lower = 0
       u_upper = 0
       IF (SIZE(cells, 2) > 0) THEN
-         u_lower = MINVAL(cells, DIM=2) - copy_upper
-         u_upper = MAXVAL(cells, DIM=2) - copy_lower
+         DO idir = 1, 3
+            u_lower(idir) = MINVAL(cells(idir, :)) - copy_upper(idir)
+            u_upper(idir) = MAXVAL(cells(idir, :)) - copy_lower(idir)
+         END DO
       END IF
       ALLOCATE (cache%slot(u_lower(1):u_upper(1), u_lower(2):u_upper(2), u_lower(3):u_upper(3), n_atom), &
                 SOURCE=0)
