@@ -807,3 +807,9 @@ registry["Kubo_symmetry_current_error"] = GenericMatcher(
 registry["Kubo_symmetry_points"] = GenericMatcher(
     r"KUBO_TRANSPORT| Property symmetry representatives:", col=5
 )
+
+# Band structure unfolding (&UNFOLDING): energy of the first band in the .bs
+# file (the row carries extra occupation/weight columns, hence no end anchor)
+registry["Unfold_band1_energy"] = GenericMatcher(
+    r"^\s*1\s+([-+]?\d+\.\d+)\s+\d+\.\d+\s+\d+\.\d+", col=2, regex=True
+)

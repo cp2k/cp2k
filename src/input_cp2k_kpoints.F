@@ -13,7 +13,9 @@
 ! **************************************************************************************************
 MODULE input_cp2k_kpoints
    USE bibliography,                    ONLY: MacDonald1978,&
-                                              Monkhorst1976
+                                              Monkhorst1976,&
+                                              Quan2026
+   USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -22,6 +24,7 @@ MODULE input_cp2k_kpoints
                                               section_type
    USE input_val_types,                 ONLY: char_t,&
                                               enum_t,&
+                                              integer_t,&
                                               real_t
    USE kinds,                           ONLY: default_path_length,&
                                               dp
@@ -46,6 +49,7 @@ MODULE input_cp2k_kpoints
 
    PUBLIC :: create_kpoints_section
    PUBLIC :: create_kpoint_set_section
+   PUBLIC :: create_unfolding_section
    PUBLIC :: use_real_wfn, use_complex_wfn
    PUBLIC :: use_k290_kpoint_symmetry, use_spglib_kpoint_symmetry
    PUBLIC :: use_k290_kpoint_backend, use_spglib_kpoint_backend
@@ -312,5 +316,63 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_kpoint_set_section
+
+! **************************************************************************************************
+!> \brief Unfolding subsection of &BAND_STRUCTURE: projection of supercell bands onto a
+!>        primitive-cell k-path (Quan et al., PRB 113, 085112 (2026))
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_unfolding_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="UNFOLDING", &
+                          description="Unfold the supercell band structure onto a primitive"// &
+                          " cell. When this section is enabled, SPECIAL_POINTs give"// &
+                          " primitive-cell k coordinates. CP2K diagonalizes the unique folded"// &
+                          " supercell K-points and appends the spectral weights as a fourth"// &
+                          " column of the band structure file.", &
+                          n_keywords=0, n_subsections=0, repeats=.FALSE., &
+                          citations=[Quan2026])
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="TRANSFORMATION_MATRIX", &
+                          description="Integer 3x3 matrix M with hmat_SC = hmat_PC . M. List"// &
+                          " the three rows in order. Example for the FCC primitive cell in a"// &
+                          " conventional cubic cell: -1 1 1 / 1 -1 1 / 1 1 -1, with"// &
+                          " m = |det(M)| = 4.", &
+                          usage="TRANSFORMATION_MATRIX 2 0 0 0 2 0 0 0 2", &
+                          type_of_var=integer_t, n_var=9, &
+                          default_i_vals=[1, 0, 0, 0, 1, 0, 0, 0, 1])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
+                          description="Select supercell atoms for unfolding and assign them"// &
+                          " to groups (repeatable). Absent: all atoms form one group. Given"// &
+                          " once: unfold only the listed atoms and screen the rest (e.g. a film"// &
+                          " on an incommensurate substrate). Given G>=2 times: cluster orbits"// &
+                          " independently per group and print one weight column per group. Use"// &
+                          " this for layer or orbital attribution. With M = 1 the groups reduce"// &
+                          " to Loewdin fatbands. Groups must be disjoint.", &
+                          usage="ATOMS 1..24", n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="SYMM_TOL", &
+                          description="Cartesian tolerance for assigning supercell atoms to"// &
+                          " ideal primitive lattice sites. A vacancy is a missing orbit"// &
+                          " member. Atoms are matched by element (GHOST kinds equal their base"// &
+                          " element). The basis set must be identical inside an orbit. The"// &
+                          " tolerance must be positive and smaller than half the smallest"// &
+                          " primitive-cell plane distance (checked at runtime). The 0.5 A"// &
+                          " default matches the reference implementation. It is above typical"// &
+                          " thermal displacements and below the nearest ideal sites"// &
+                          " (2.35 A in Si).", &
+                          usage="SYMM_TOL 0.5", unit_str="angstrom", &
+                          default_r_val=cp_unit_to_cp2k(0.5_dp, "angstrom"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_unfolding_section
 
 END MODULE input_cp2k_kpoints
