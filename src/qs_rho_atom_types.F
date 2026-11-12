@@ -17,7 +17,7 @@ MODULE qs_rho_atom_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho_atom_types'
 
    TYPE rho_atom_coeff
-      REAL(dp), DIMENSION(:, :), POINTER :: r_coef => NULL()
+      REAL(dp), CONTIGUOUS, DIMENSION(:, :), POINTER :: r_coef => NULL()
    END TYPE rho_atom_coeff
 
    TYPE rho_atom_type
