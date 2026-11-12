@@ -273,7 +273,6 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_SPGLIB}>:Spglib::symspg>
     $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:cp2k::libsmeagol::smeagol>
     $<$<BOOL:${CP2K_USE_LIBXC}>:Libxc::xcf03>
-    $<$<BOOL:${CP2K_USE_GAUXC}>:gauxc::gauxc>
     $<$<BOOL:${CP2K_USE_ELPA}>:cp2k::ELPA::elpa>
     $<$<BOOL:${CP2K_USE_PLUMED}>:cp2k::plumed::plumed>
     $<$<BOOL:${CP2K_USE_FFTW3_}>:cp2k::FFTW3::fftw3>
@@ -320,10 +319,17 @@ endif()
 
 target_link_libraries(cp2k PUBLIC cp2k_link_libs)
 
-# Torch is used only inside libcp2k (torch_c_api.cpp / torch_api.F); link it PRIVATE so
-# TorchConfig.cmake's -Wl,--no-as-needed,libtorch_cpu.so does not leak into consumers,
-# where its statically embedded MKL would outrank the configured BLAS/LAPACK.
-target_link_libraries(cp2k PRIVATE $<$<BOOL:${CP2K_USE_LIBTORCH}>:${TORCH_LIBRARIES}>)
+# Link Torch and GauXC PRIVATE so TorchConfig.cmake's -Wl,--no-as-needed flags,
+# static helper archives, and caffe2::mkl link directories do not leak into
+# downstream executables. Expose GauXC's module path for Fortran consumers of
+# xc_gauxc_interface.
+if(CP2K_USE_GAUXC)
+  target_include_directories(
+    cp2k PUBLIC $<TARGET_PROPERTY:gauxc::gauxc,INTERFACE_INCLUDE_DIRECTORIES>)
+endif()
+target_link_libraries(
+  cp2k PRIVATE $<$<BOOL:${CP2K_USE_GAUXC}>:gauxc::gauxc>
+               $<$<BOOL:${CP2K_USE_LIBTORCH}>:${TORCH_LIBRARIES}>)
 
 if(CP2K_USE_ACCEL MATCHES "CUDA"
    AND CP2K_LIBXC_CUDA_SUPPORT
