@@ -8,6 +8,8 @@ force-exclude = true
 target-std = "f2018"
 extend-select = [
     "default-public-accessibility",
+    "multiple-modules",
+    "program-with-module",
 ]
 
 # Also see https://fortitude.readthedocs.io/en/stable/rules
@@ -51,6 +53,9 @@ exclude = [
 
 # ==============================================================================
 [check.per-file-ignores]
+# These test drivers keep their private helper module in the same source file.
+"kubo_unittest.F" = ["program-with-module"]
+"spectral_localizer_unittest.F" = ["program-with-module"]
 "qs_local_properties.F" = ["unreachable-statement"]
 "semi_empirical_int_ana.F" = ["misleading-inline-if-semicolon"]
 "fftw3_lib.F" = ["misleading-inline-if-semicolon"]
