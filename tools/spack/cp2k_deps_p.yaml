@@ -235,7 +235,7 @@ spack:
     - "libfabric@2.6.0"
     - "libfci@0.1.0"
     - "libgint@release_v1"
-    - "libint@2.13.1-cp2k-lmax-5"
+    - "libint@2.14.1-cp2k-lmax-5"
     - "libsmeagol@1.2"
     - "libvdwxc@0.5.0"
     - "libvori@220621"

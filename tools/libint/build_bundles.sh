@@ -1,11 +1,11 @@
 #!/bin/bash -e
 
-libint_ver="2.13.1"
-libint_sha256="9651705c79f77418ef0230aafc0cf1b71b17c1c89e413ee0e5ee7818650ce978"
+libint_ver="2.14.1"
+libint_sha256="d40f15a1e3c271d5520ec06028f76152fa9ed796f7fc27fd36ee4f93b940605a"
 
 mkdir /opt/libint-bundles
 
-wget -q "https://github.com/evaleev/libint/archive/refs/tags/v${libint_ver}.tar.gz" -O "libint-${libint_ver}.tar.gz"
+wget -q "https://github.com/evaleev/libint/archive/v${libint_ver}/libint-${libint_ver}.tar.gz"
 if ! echo "${libint_sha256} libint-${libint_ver}.tar.gz" | sha256sum --check; then
   rm "libint-${libint_ver}.tar.gz"
   exit 1
@@ -30,10 +30,12 @@ for lmax in 4 5 6 7; do
     -DLIBINT2_ERI3_MAX_AM="$((lmax + 2));$((lmax + 1))" \
     -DLIBINT2_OPT_AM=3 \
     -DLIBINT2_ENABLE_FORTRAN=ON \
-    -DLIBINT2_ENABLE_UNROLLING=0 &> cmake.log
+    -DLIBINT2_ENABLE_UNROLLING=0 \
+    -DLIBINT_BUILDID="cp2k-lmax-$((lmax))" \
+    -DLIBINT2_GENERATOR_JOBS=32 \
+    -DLIBINT2_EXPORT_COMPRESSOR=xz &> cmake.log
   make export -j 32 &> build.log
-  mv -f ./libint-2.13.1-post999 ./libint-v${libint_ver}-cp2k-lmax-${lmax}
-  tar -cJf "/opt/libint-bundles/libint-v${libint_ver}-cp2k-lmax-${lmax}.tar.xz" ./libint-v${libint_ver}-cp2k-lmax-${lmax}
+  mv ./libint-${libint_ver}-cp2k-lmax-"$((lmax))".tar.xz /opt/libint-bundles/
   cd ..
 done
 

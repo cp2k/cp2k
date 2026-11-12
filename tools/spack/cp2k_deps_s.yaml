@@ -142,7 +142,7 @@ spack:
     - "hdf5@2.2.0"
     - "libfci@0.1.0"
     - "libgint@release_v1"
-    - "libint@2.13.1-cp2k-lmax-5"
+    - "libint@2.14.1-cp2k-lmax-5"
     - "libvori@220621"
     - "libwignernj@0.8.0"
     - "libxc@7.1.2"

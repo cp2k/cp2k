@@ -12,21 +12,21 @@ source "${SCRIPT_DIR}"/signal_trap.sh
 source "${INSTALLDIR}"/toolchain.conf
 source "${INSTALLDIR}"/toolchain.env
 
-libint_ver="2.13.1"
-libint_pkg="libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}.tar.xz"
+libint_ver="2.14.1"
+libint_pkg="libint-${libint_ver}-cp2k-lmax-${LIBINT_LMAX}.tar.xz"
 
 case "${LIBINT_LMAX}" in
   4)
-    libint_sha256="8ff388fbf171635420fdfdbafc7dc949e9cf4c0b6a62f23dac3af8b1c942d407"
+    libint_sha256="4e71faf2ba1e9b0242c8970c79a74d3b9fa593fdedaaceddb2e2dcd2eed6e314"
     ;;
   5)
-    libint_sha256="527000f915bea9879391273b96689a8c2b98beeec37cb64637e3c11dd421a5e8"
+    libint_sha256="6e61df7a3bbc298ded738698cb735f01bf43a2d6ec996360c6cd4b31346c571a"
     ;;
   6)
-    libint_sha256="a7990c4862d549e6328596f20b8a7ece40ded396b953d5d5d7c3200f13e37429"
+    libint_sha256="72bda0d0eb92f63600c3fdf65806ed9b4d49a0a3c706a3576e9a2c0c2619f31c"
     ;;
   7)
-    libint_sha256="ba19571deefa5c3063e620210c87cf706ef8d75b47f3b0d66547f889f906b3dd"
+    libint_sha256="aa78b4868050e3e8605e1cb3b96f5a81238ae4b24d83eb01e9845f95c8999eec"
     ;;
   *)
     report_error "Unsupported value --libint-lmax=${LIBINT_LMAX}."
@@ -42,36 +42,30 @@ cd "${BUILDDIR}"
 case "$with_libint" in
   __INSTALL__)
     echo "==================== Installing LIBINT ===================="
-    pkg_install_dir="${INSTALLDIR}/libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}"
+    pkg_install_dir="${INSTALLDIR}/libint-${libint_ver}-cp2k-lmax-${LIBINT_LMAX}"
     install_lock_file="${pkg_install_dir}/install_successful"
     if verify_checksums "${install_lock_file}"; then
       echo "libint-${libint_ver} is already installed, skipping it."
     else
       retrieve_package "${libint_sha256}" "${libint_pkg}"
       echo "Installing from scratch into ${pkg_install_dir}"
-      [ -d libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX} ] && rm -rf libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}
+      [ -d libint-${libint_ver}-cp2k-lmax-${LIBINT_LMAX} ] && rm -rf libint-${libint_ver}-cp2k-lmax-${LIBINT_LMAX}
       tar -xJf ${libint_pkg}
-      cd libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}
-
+      cd libint-${libint_ver}-cp2k-lmax-${LIBINT_LMAX}
       # reduce debug information to level 1 since
       # level 2 (default for -g flag) leads to very large binary size
-      LIBINT_CXXFLAGS="$CXXFLAGS -g1"
-      LIBINT_FCFLAGS="$FCFLAGS -g1"
-
-      mkdir build
-      cd build
-      CXXFLAGS="$LIBINT_CXXFLAGS" \
-        FCFLAGS="$LIBINT_FCFLAGS" cmake .. \
+      cmake -Bbuild \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
-        -DCMAKE_CXX_COMPILER="$CXX" \
+        -DCMAKE_CXX_COMPILER="${CXX}" \
         -DCMAKE_INSTALL_LIBDIR="lib" \
+        -DCMAKE_VERBOSE_MAKEFILE=ON \
+        -DCMAKE_CXX_FLAGS="-g1" \
         -DBUILD_TESTING=OFF \
         -DLIBINT2_ENABLE_FORTRAN=ON \
-        -DCMAKE_DISABLE_FIND_PACKAGE_Boost=ON \
-        > configure.log 2>&1 || tail_excerpt configure.log
-      make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
-
-      cd ..
+        -DLIBINT2_REQUIRE_CXX_API=OFF \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+        > cmake.log 2>&1 || tail_excerpt cmake.log
+      cmake --build build -t install -j $(get_nprocs) > build.log 2>&1 || tail_excerpt build.log
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage3/$(basename ${SCRIPT_NAME})"
     fi
     ;;
