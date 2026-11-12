@@ -40,6 +40,16 @@ case "${with_libtorch}" in
       unzip -q ${archive_file}
       mv libtorch ${pkg_install_dir}
 
+      # Prefix symbols shared with OpenBLAS so embedded MKL does not clash.
+      if [ "${MATH_MODE}" = "openblas" ]; then
+        openblas_lib="$(find_in_paths "libopenblas*.so*" $LIB_PATHS)"
+        nm -D --defined-only -j "${openblas_lib}" | LC_ALL=C sort -u > openblas.syms
+        nm -D --defined-only -j "${pkg_install_dir}/lib/libtorch_cpu.so" | LC_ALL=C sort -u > libtorch.syms
+        LC_ALL=C comm -12 openblas.syms libtorch.syms | awk '!/^_/ {print $1, "__cp2k_torch_" $1}' > libtorch.map
+        patchelf --rename-dynamic-symbols libtorch.map "${pkg_install_dir}/lib/libtorch_cpu.so"
+        rm -f openblas.syms libtorch.syms libtorch.map
+      fi
+
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename "${SCRIPT_NAME}")"
     fi
     ;;
