@@ -461,9 +461,6 @@ struct kernel_params {
   int *sorted_blocks_offset_dev{nullptr};
   int *num_tasks_per_block_dev{nullptr};
   int *cab_block_offset_dev{nullptr};
-  // integrate: tasks with lp >= separable_lp_min are handled by
-  // integrate_separable_kernel, the others by integrate_kernel.
-  int separable_lp_min{INT_MAX};
 };
 
 /* regroup all information about the context. */

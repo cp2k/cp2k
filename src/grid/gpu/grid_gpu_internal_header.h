@@ -430,8 +430,8 @@ __inline__ __device__ void compute_window_size(const int3 grid_size,
 
 /*******************************************************************************
  * \brief Wraps a cube-local coordinate into the periodic full grid along one
- *        axis. Single point of entry shared by collocate_kernel and
- *        integrate_kernel.
+ *        axis. Single point of entry shared by the collocate and integrate
+ *        kernels.
  ******************************************************************************/
 __inline__ __device__ int wrap_grid_index(const int idx, const int full_size) {
   int idx2 = idx % full_size;
@@ -443,7 +443,7 @@ __inline__ __device__ int wrap_grid_index(const int idx, const int full_size) {
 /*******************************************************************************
  * \brief Shifts task.cube_center into the local grid's coordinate system and,
  *        for distributed grids, derives the border window. Single point of
- *        entry shared by collocate_kernel and integrate_kernel so the two
+ *        entry shared by the collocate and integrate kernels so that they
  *        cannot drift apart on which axis maps to which.
  ******************************************************************************/
 template <typename T, typename T3, bool distributed__>

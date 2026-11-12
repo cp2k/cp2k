@@ -32,12 +32,6 @@
 
 namespace grid_gpu_backend {
 
-// tasks with lp >= this value go to integrate_separable_kernel, the others to
-// integrate_kernel. The standalone driver shows the separable kernel 20-37%
-// faster than integrate_kernel for lp = 0..3 as well (V100), so all tasks go
-// to it and integrate_kernel is only launched as a fallback.
-constexpr int integrate_separable_lp_threshold = 0;
-
 __inline__ __device__ double sep_row_reduce(double val) {
   for (int offset = GRID_SEP_INTEGRATE_ROW_LANES / 2; offset > 0;
        offset >>= 1) {
@@ -531,377 +525,15 @@ __global__ __launch_bounds__(64) void compute_hab_forces_two_steps(
 }
 
 /*******************************************************************************
- * Cuda kernel for calculating the coefficients of a potential (density,
- etc...) for a given pair of gaussian basis sets
-
-We compute the discretized version of the following integral
-
-$$\int _\infty ^\infty V_{ijk} P^\alpha_iP^beta_j P ^ \gamma _ k Exp(- \eta
-|r_{ijk} - r_c|^2)$$
-
-where in practice the summation is over a finite domain. The discrete form has
-this shape
-
-$$
-\sum_{ijk < domain} V_{ijk} (x_i - x_c)^\alpha (y_j - y_c)^\beta (z_k - z_c) ^
-\gamma Exp(- \eta |r_{ijk} - r_c|^2)
-$$
-
-where $0 \le \alpha + \beta + \gamma \le lmax$
-
-It is formely the same operation than collocate (from a discrete point of view)
-but the implementation differ because of technical reasons.
-
-So most of the code is the same except the core of the routine that is
-specialized to the integration.
-
-******************************************************************************/
-template <typename T, typename T3, bool distributed__, bool orthogonal_>
-__global__
-__launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
-  const int lbatch = 20;
-  const task_info &glb_task = dev_.tasks[dev_.first_task + block_index()];
-  if (glb_task.skip_task)
-    return;
-
-  // handled by integrate_separable_kernel
-  if (glb_task.la_max + dev_.la_max_diff + glb_task.lb_max + dev_.lb_max_diff >=
-      dev_.separable_lp_min)
-    return;
-
-  const int tid = thread_global_index();
-
-  __shared__ T dh_[9];
-
-  if (tid < 9)
-    dh_[tid] = dev_.dh_[tid];
-
-  __shared__ smem_task_reduced<T, T3> task;
-  fill_smem_task_reduced(dev_, dev_.first_task + block_index(), task);
-
-  if (tid == 0) {
-    setup_task_cube_center<T, T3, distributed__>(dev_, task);
-  }
-  __syncthreads();
-
-  __shared__ T accumulator[20][64];
-
-  // we use a multi pass algorithm here because shared memory usage (or
-  // register) would become too high for high angular momentum
-
-  const short int size_loop =
-      (ncoset(task.lp) / lbatch + ((ncoset(task.lp) % lbatch) != 0)) * lbatch;
-  const short int length = ncoset(task.lp);
-  for (int ico = 0; ico < size_loop; ico += lbatch) {
-#pragma unroll lbatch
-    for (int i = 0; i < lbatch; i++)
-      accumulator[i][tid] = 0.0;
-
-    __syncthreads();
-
-    for (int z = threadIdx.z; z < task.cube_size.z; z += blockDim.z) {
-      int z2 = wrap_grid_index(z + task.cube_center.z, dev_.grid_full_size_.z);
-
-      if (distributed__) {
-        // known at compile time. Will be stripped away
-        if (task.apply_border_mask) {
-          /* check if the point is within the window */
-          if ((z2 < task.window_shift.z) || (z2 > task.window_size.z)) {
-            continue;
-          }
-        }
-      }
-
-      /* compute the coordinates of the point in atomic coordinates */
-      int ymin = 0;
-      int ymax = task.cube_size.y - 1;
-      T kremain = 0.0;
-
-      if (orthogonal_ && !task.apply_border_mask) {
-        kremain = calculate_ymix_ymax_boundaries(task, z, ymin, ymax);
-      }
-
-      for (int y = ymin + threadIdx.y; y <= ymax; y += blockDim.y) {
-        int y2 =
-            wrap_grid_index(y + task.cube_center.y, dev_.grid_full_size_.y);
-
-        if (distributed__) {
-          /* check if the point is within the window */
-          if (task.apply_border_mask) {
-            if ((y2 < task.window_shift.y) || (y2 > task.window_size.y)) {
-              continue;
-            }
-          }
-        }
-
-        int xmin = 0;
-        int xmax = task.cube_size.x - 1;
-
-        if (orthogonal_ && !task.apply_border_mask) {
-          calculate_xmin_xmax_boundaries<T, T3>(task, y, kremain, xmin, xmax);
-        }
-
-        for (int x = xmin + threadIdx.x; x <= xmax; x += blockDim.x) {
-          int x2 =
-              wrap_grid_index(x + task.cube_center.x, dev_.grid_full_size_.x);
-
-          if (distributed__) {
-            /* check if the point is within the window */
-            if (task.apply_border_mask) {
-              if ((x2 < task.window_shift.x) || (x2 > task.window_size.x)) {
-                continue;
-              }
-            }
-          }
-
-          // I make no distinction between orthogonal and non orthogonal
-          // cases
-          T3 r3;
-
-          r3 = compute_coordinates(dh_, (x + task.lb_cube.x + task.roffset.x),
-                                   (y + task.lb_cube.y + task.roffset.y),
-                                   (z + task.lb_cube.z + task.roffset.z));
-          // check if the point is inside the sphere or not. Note that it does
-          // not apply for the orthogonal case when the full sphere is inside
-          // the region of interest.
-          const T r3x2 = r3.x * r3.x;
-          const T r3y2 = r3.y * r3.y;
-          const T r3z2 = r3.z * r3.z;
-
-          if (distributed__) {
-            // check if the point is inside the sphere or not. Note that it does
-            // not apply for the orthorhombic case when the full sphere is
-            // inside the region of interest.
-
-            if (((task.radius * task.radius) <= (r3x2 + r3y2 + r3z2)) &&
-                (!orthogonal_ || task.apply_border_mask))
-              continue;
-          } else {
-            // we do not need to do this test for the orthorhombic case
-            if ((!orthogonal_) &&
-                ((task.radius * task.radius) <= (r3x2 + r3y2 + r3z2)))
-              continue;
-          }
-
-          // read the next point assuming that reading is non blocking until
-          // the register is actually needed for computation. This is true on
-          // NVIDIA hardware
-
-          const int grid_index =
-              (z2 * dev_.grid_local_size_.y + y2) * dev_.grid_local_size_.x +
-              x2;
-          T grid_value = __ldg(&dev_.buffers_dev.grid[grid_index]);
-
-          const T r3xy = r3.x * r3.y;
-          const T r3xz = r3.x * r3.z;
-          const T r3yz = r3.y * r3.z;
-
-          grid_value *= exp(-(r3x2 + r3y2 + r3z2) * task.zetp);
-
-          switch (ico / lbatch) {
-          case 0: {
-            accumulator[0][tid] += grid_value;
-
-            if (task.lp >= 1) {
-              accumulator[1][tid] += grid_value * r3.x;
-              accumulator[2][tid] += grid_value * r3.y;
-              accumulator[3][tid] += grid_value * r3.z;
-            }
-
-            if (task.lp >= 2) {
-              accumulator[4][tid] += grid_value * r3x2;
-              accumulator[5][tid] += grid_value * r3xy;
-              accumulator[6][tid] += grid_value * r3xz;
-              accumulator[7][tid] += grid_value * r3y2;
-              accumulator[8][tid] += grid_value * r3yz;
-              accumulator[9][tid] += grid_value * r3z2;
-            }
-            if (task.lp >= 3) {
-              T tmp = grid_value * r3x2;
-              accumulator[10][tid] += tmp * r3.x;
-              accumulator[11][tid] += tmp * r3.y;
-              accumulator[12][tid] += tmp * r3.z;
-              tmp = grid_value * r3.x;
-              accumulator[13][tid] += tmp * r3y2;
-              accumulator[14][tid] += tmp * r3yz;
-              accumulator[15][tid] += tmp * r3z2;
-              tmp = grid_value * r3y2;
-              accumulator[16][tid] += tmp * r3.y;
-              accumulator[17][tid] += tmp * r3.z;
-              tmp = grid_value * r3z2;
-              accumulator[18][tid] += tmp * r3.y;
-              accumulator[19][tid] += tmp * r3.z;
-            }
-          } break;
-          case 1: {
-            if (task.lp >= 4) {
-              T tmp = grid_value * r3x2;
-              accumulator[0][tid] += tmp * r3x2;
-              accumulator[1][tid] += tmp * r3xy;
-              accumulator[2][tid] += tmp * r3xz;
-              accumulator[3][tid] += tmp * r3y2;
-              accumulator[4][tid] += tmp * r3yz;
-              accumulator[5][tid] += tmp * r3z2;
-              tmp = grid_value * r3y2;
-              accumulator[6][tid] += tmp * r3xy;
-              accumulator[7][tid] += tmp * r3xz;
-              tmp = grid_value * r3z2;
-              accumulator[8][tid] += tmp * r3xy;
-              accumulator[9][tid] += tmp * r3xz;
-            }
-            if (task.lp >= 4) {
-              T tmp = grid_value * r3y2;
-              accumulator[10][tid] += tmp * r3y2;
-              accumulator[11][tid] += tmp * r3yz;
-              accumulator[12][tid] += tmp * r3z2;
-              accumulator[13][tid] += grid_value * r3yz * r3z2;
-              accumulator[14][tid] += grid_value * r3z2 * r3z2;
-            }
-            if (task.lp >= 5) {
-              T tmp = grid_value * r3x2 * r3x2;
-              accumulator[15][tid] += tmp * r3.x;
-              accumulator[16][tid] += tmp * r3.y;
-              accumulator[17][tid] += tmp * r3.z;
-              tmp = grid_value * r3x2;
-              accumulator[18][tid] += tmp * r3.x * r3y2;
-              accumulator[19][tid] += tmp * r3xy * r3.z;
-            }
-          } break;
-          case 2: {
-            T tmp = grid_value * r3x2;
-            accumulator[0][tid] += tmp * r3.x * r3z2;
-            accumulator[1][tid] += tmp * r3y2 * r3.y;
-            accumulator[2][tid] += tmp * r3y2 * r3.z;
-            accumulator[3][tid] += tmp * r3.y * r3z2;
-            accumulator[4][tid] += tmp * r3z2 * r3.z;
-            tmp = grid_value * r3.x * r3y2;
-            accumulator[5][tid] += tmp * r3y2;
-            accumulator[6][tid] += tmp * r3yz;
-            accumulator[7][tid] += tmp * r3z2;
-            tmp = grid_value * r3.x * r3z2;
-            accumulator[8][tid] += tmp * r3yz;
-            accumulator[9][tid] += tmp * r3z2;
-            tmp = grid_value * r3y2 * r3.y;
-            accumulator[10][tid] += tmp * r3y2;
-            accumulator[11][tid] += tmp * r3yz;
-            accumulator[12][tid] += tmp * r3z2;
-            accumulator[13][tid] += grid_value * r3y2 * r3z2 * r3.z;
-            accumulator[14][tid] += grid_value * r3.y * r3z2 * r3z2;
-            accumulator[15][tid] += grid_value * r3z2 * r3z2 * r3.z;
-            if (task.lp >= 6) {
-              tmp = grid_value * r3x2 * r3x2;
-              accumulator[16][tid] += tmp * r3x2; // x^6
-              accumulator[17][tid] += tmp * r3xy; // x^5 y
-              accumulator[18][tid] += tmp * r3xz; // x^5 z
-              accumulator[19][tid] += tmp * r3y2; // x^4 y^2
-            }
-          } break;
-          case 3: {
-            T tmp = grid_value * r3x2;
-            accumulator[0][tid] += tmp * r3x2 * r3yz;  // x^4 y z
-            accumulator[1][tid] += tmp * r3x2 * r3z2;  // x^4 z^2
-            accumulator[2][tid] += tmp * r3y2 * r3xy;  // x^3 y^3
-            accumulator[3][tid] += tmp * r3y2 * r3xz;  // x^3 y^2 z
-            accumulator[4][tid] += tmp * r3xy * r3z2;  // x^3 y z^2
-            accumulator[5][tid] += tmp * r3z2 * r3xz;  // x^3 z^3
-            accumulator[6][tid] += tmp * r3y2 * r3y2;  // x^2 y^4
-            accumulator[7][tid] += tmp * r3y2 * r3yz;  // x^3 y^2 z
-            accumulator[8][tid] += tmp * r3y2 * r3z2;  // x^2 y^2 z^2
-            accumulator[9][tid] += tmp * r3z2 * r3yz;  // x^2 y z^3
-            accumulator[10][tid] += tmp * r3z2 * r3z2; // x^2 z^4
-            tmp = grid_value * r3y2 * r3y2;
-            accumulator[11][tid] += tmp * r3xy; // x y^5
-            accumulator[12][tid] += tmp * r3xz; // x y^4 z
-            accumulator[13][tid] +=
-                grid_value * r3y2 * r3xy * r3z2; // x y^3 z^2
-            accumulator[14][tid] +=
-                grid_value * r3y2 * r3z2 * r3xz; // x y^2 z^3
-            accumulator[15][tid] += grid_value * r3xy * r3z2 * r3z2; // x y z^4
-            accumulator[16][tid] += grid_value * r3z2 * r3z2 * r3xz; // x z^5
-            accumulator[17][tid] += tmp * r3y2;                      // y^6
-            accumulator[18][tid] += tmp * r3yz;                      // y^5 z
-            accumulator[19][tid] += tmp * r3z2;                      // y^4 z^2
-          } break;
-          default:
-            for (int ic = 0; (ic < lbatch) && ((ic + ico) < length); ic++) {
-              auto &co = coset_inv[ic + ico];
-              T tmp = 1.0;
-              for (int po = 0; po < (co.l[2] >> 1); po++)
-                tmp *= r3z2;
-              if (co.l[2] & 0x1)
-                tmp *= r3.z;
-              for (int po = 0; po < (co.l[1] >> 1); po++)
-                tmp *= r3y2;
-              if (co.l[1] & 0x1)
-                tmp *= r3.y;
-              for (int po = 0; po < (co.l[0] >> 1); po++)
-                tmp *= r3x2;
-              if (co.l[0] & 0x1)
-                tmp *= r3.x;
-              accumulator[ic][tid] += tmp * grid_value;
-            }
-            break;
-          }
-        }
-      }
-    }
-
-    const int max_i = min(length - ico, lbatch);
-
-    __syncthreads();
-
-    // we know there is only 1 wavefront in each block lbatch threads could
-    // reduce the values saved by all threads of the warp and save results do a
-    // shuffle_down by hand
-
-    if (tid < 32) {
-      for (int i = 0; i < max_i; i++) {
-        // Load local value
-        T val = accumulator[i][tid] + accumulator[i][tid + 32];
-
-        // Warp-level reduction (32 lanes) After this loop, lane 0 of warp 0
-        // holds the result All threads should execute this operation so
-        // __activemask() is incorrect here.
-
-        // The ifdef statement is needed because hip does not necessarily
-        // support the instruction either. Reverting back to __shfl_down is
-        // required.
-        //
-        for (int offset = 16; offset > 0; offset >>= 1) {
-#if defined(__CUDACC__)
-          val += __shfl_down_sync(0xffffffff, val, offset);
-#else
-          val += __shfl_down(val, offset);
-#endif
-        }
-
-        if (tid == 0)
-          accumulator[i][0] = val;
-      }
-#if defined(__CUDACC__)
-      __syncwarp();
-#endif
-    }
-
-#if !defined(__CUDACC__)
-    __syncthreads();
-#endif
-
-    if (tid < min(length - ico, lbatch)) {
-      const size_t coef_offset =
-          dev_.tasks[dev_.first_task + block_index()].coef_offset;
-      dev_.buffers_dev.coef[coef_offset + tid + ico] = accumulator[tid][0];
-    }
-    __syncthreads();
-  }
-}
-
-/*******************************************************************************
  * Separable (plane streaming) integrate kernel.
  *
- * Computes the same coefficients as integrate_kernel, but with a cost per grid
- * point linear in lp instead of proportional to ncoset(lp), and reading the
- * cube only once whatever lp is.
+ * Computes the coefficients of the potential V for each task
+ *
+ *   coef[coset(a, b, c)] = sum_{ijk} V_{ijk} (x_i - x_c)^a (y_j - y_c)^b
+ *                          (z_k - z_c)^c exp(-zetp |r_{ijk} - r_c|^2)
+ *
+ * for a + b + c <= lp, with a cost per grid point linear in lp instead of
+ * proportional to ncoset(lp), and reading the cube only once whatever lp is.
  *
  * It uses the same underlying method than the DGEMM backend which is a tensor
  * contraction. Speedup comes from different areas:
@@ -928,8 +560,8 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
  *
  * B only lives in registers and the reduction over z is a running sum in acc,
  * so the shared memory does not depend on the z extent of the cube. The set of
- * grid points visited is the same as for integrate_kernel (window masks, y / x
- * trimming in the orthogonal case, sphere test).
+ * grid points visited is the same as for collocate_separable_kernel (window
+ * masks, y / x trimming in the orthogonal case, sphere test).
  *
  * When the rows of the cube do not all fit in the shared memory (chunked_ =
  * true, see integrate_separable_yrows), the rows of a plane are processed by
@@ -959,11 +591,6 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
 
   const task_info &glb_task = dev_.tasks[dev_.first_task + block_index()];
   if (glb_task.skip_task)
-    return;
-
-  // handled by integrate_kernel
-  if (glb_task.la_max + dev_.la_max_diff + glb_task.lb_max + dev_.lb_max_diff <
-      dev_.separable_lp_min)
     return;
 
   const int tid = thread_global_index();
@@ -1123,7 +750,7 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
               r2 = r3.x * r3.x + r3.y * r3.y + r3.z * r3.z;
             }
 
-            // same sphere test as integrate_kernel
+            // same sphere test as collocate_separable_kernel
             const bool outside = (r2max <= r2);
             if (distributed__) {
               if (outside && (!orthogonal_ || task.apply_border_mask))
@@ -1237,14 +864,18 @@ static size_t integrate_separable_smem_size(const int mc, const int lp_max,
   return sizeof(double) * (mc + ls + ncoset(lp_max) + 2 * ls * yrows + nb);
 }
 
-// rows per chunk of the chunked instances (< mc), 0 when not even one row fits
-// in smem_max.
+// rows per chunk of the chunked instances (< mc)
 static int integrate_separable_yrows(const int mc, const int lp_max,
                                      const size_t smem_max) {
   const size_t fixed = integrate_separable_smem_size(mc, lp_max, 0);
   const size_t per_row = 2 * sizeof(double) * (lp_max + 1);
-  if (fixed + per_row > smem_max)
-    return 0;
+  if (fixed + per_row > smem_max) {
+    fprintf(stderr,
+            "ERROR: cube too large for integrate_separable_kernel (%d "
+            "points, lp %d).\n",
+            mc, lp_max);
+    abort();
+  }
   return (int)std::min<size_t>(mc - 1, (smem_max - fixed) / per_row);
 }
 
@@ -1312,76 +943,38 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
 
   kernel_params params = set_kernel_parameters(level, smem_params);
 
-  // Tasks with lp >= integrate_separable_lp_threshold go to the separable
-  // kernel when it applies:
-  // - axis aligned cells (cartesian factorization) and all the other cells,
-  //   rotated orthogonal ones included (lattice coordinates +
-  //   transformation, see grid_info::check_orthogonality).
-  // - the angular momentum fits the tables and at least one row of the cube
-  //   fits the shared memory budget, the rows being processed by chunks.
+  // cartesian factorization for an axis aligned cell, lattice coordinates +
+  // transformation otherwise (rotated orthogonal cells included, see
+  // grid_info::check_orthogonality).
   auto &grid = grid_[level];
   const int lp_max = smem_params.lp_max();
-  const int max_cube_size = grid.max_cube_size();
+  const int max_cube_size = std::max(grid.max_cube_size(), 1);
   const bool axis_aligned = grid.is_axis_aligned();
+  // lp_max <= grid_gpu_max_l == GRID_SEP_MAX_L is checked by smem_parameters
+  static_assert(grid_gpu_max_l <= GRID_SEP_MAX_L, "separable tables too small");
 
   // the whole plane in one pass when all the rows of the cube fit in the
-  // shared memory, by chunks of rows otherwise. Fall back to the old integrate
-  // if not even one row fits or anything else happens.
+  // shared memory, by chunks of rows otherwise.
   const bool distributed = grid.is_distributed();
-  integrate_separable_kernel_t separable_kernel =
+  integrate_separable_kernel_t kernel =
       select_integrate_separable(lp_max, distributed, axis_aligned, false);
   int yrows = max_cube_size;
   if (integrate_separable_smem_size(max_cube_size, lp_max, yrows) >
-      max_dynamic_smem(separable_kernel, grid_gpu_smem_budget)) {
-    separable_kernel =
+      max_dynamic_smem(kernel, grid_gpu_smem_budget)) {
+    kernel =
         select_integrate_separable(lp_max, distributed, axis_aligned, true);
     yrows = integrate_separable_yrows(
-        max_cube_size, lp_max,
-        max_dynamic_smem(separable_kernel, grid_gpu_smem_budget));
-  }
-  const bool use_separable = (lp_max >= integrate_separable_lp_threshold) &&
-                             (lp_max <= GRID_SEP_MAX_L) &&
-                             (max_cube_size > 0) && (yrows > 0) &&
-                             (axis_aligned || !grid.is_orthogonal());
-
-  if (use_separable)
-    params.separable_lp_min = integrate_separable_lp_threshold;
-
-  /* WARNING : if you change the block size please be aware of that the number
-   * of warps is hardcoded when we do the block reduction in the integrate
-   * kernel. The number of warps should be explicitly indicated in the
-   * templating parameters or simply adjust the switch statements inside the
-   * integrate kernels */
-
-  // integrate_kernel handles the tasks the separable kernel does not take
-  const bool use_integrate_kernel =
-      !use_separable || (integrate_separable_lp_threshold > 0);
-  const dim3 threads_per_block(4, 4, 4);
-  if (use_integrate_kernel) {
-    const bool orthogonal = grid.is_orthogonal();
-    const auto kernel =
-        grid.is_distributed()
-            ? (orthogonal ? integrate_kernel<double, double3, true, true>
-                          : integrate_kernel<double, double3, true, false>)
-            : (orthogonal ? integrate_kernel<double, double3, false, true>
-                          : integrate_kernel<double, double3, false, false>);
-    GRID_GPU_LAUNCH(kernel, number_of_tasks_per_level_[level],
-                    threads_per_block, 0, level_streams[level], params);
+        max_cube_size, lp_max, max_dynamic_smem(kernel, grid_gpu_smem_budget));
   }
 
-  if (!use_separable)
-    return;
-
-  // both kernels write the coefficients of disjoint sets of tasks.
   init_separable_constant_memory();
   const double *lattice_to_cartesian =
       axis_aligned ? nullptr : get_lattice_to_cartesian(grid, lp_max);
   const size_t smem =
       integrate_separable_smem_size(max_cube_size, lp_max, yrows);
   const int nblocks_level = number_of_tasks_per_level_[level];
-  GRID_GPU_LAUNCH(separable_kernel, nblocks_level, 64, smem,
-                  level_streams[level], params, max_cube_size, lp_max, yrows,
-                  lattice_to_cartesian);
+  GRID_GPU_LAUNCH(kernel, nblocks_level, 64, smem, level_streams[level], params,
+                  max_cube_size, lp_max, yrows, lattice_to_cartesian);
 }
 
 void context_info::compute_hab_coefficients() {
