@@ -6,8 +6,13 @@ force-exclude = true
 # CP2K forbids FORALL even though it is valid in Fortran 2008. OB071 needs
 # f2018 or later; the compiler separately enforces CP2K's language standard.
 target-std = "f2018"
+extend-select = [
+    "default-public-accessibility",
+]
 
 # Also see https://fortitude.readthedocs.io/en/stable/rules
+# Keep the AST STAT check: CP2K requires checking in the very next statement,
+# whereas C181 only checks that the status is checked in the same scope.
 ignore = [
     "non-standard-file-extension",
     "implicit-external-procedures", # requires Fortran 2018
