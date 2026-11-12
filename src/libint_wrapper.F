@@ -29,10 +29,12 @@ MODULE libint_wrapper
                             C_FUNPTR
    USE kinds, ONLY: dp
 #if(__LIBINT)
+   USE ISO_C_BINDING, ONLY: C_CHAR, C_INT, C_SIZE_T, C_NULL_CHAR
+   USE libint_engine, ONLY: cp_libint_engine_initialize, cp_libint_engine_finalize
    USE libint_f, ONLY: &
       libint2_build_eri, libint2_build_eri1, libint2_cleanup_eri, &
-      libint2_cleanup_eri1, libint2_init_eri, libint2_init_eri1, libint2_static_cleanup, &
-      libint2_static_init, libint_t, libint2_max_am_eri, libint2_init_3eri, libint2_cleanup_3eri, &
+      libint2_cleanup_eri1, libint2_init_eri, libint2_init_eri1, &
+      libint_t, libint2_max_am_eri, libint2_init_3eri, libint2_cleanup_3eri, &
       libint2_init_2eri, libint2_cleanup_2eri, &
       libint2_build_2eri, libint2_build_3eri, libint2_build_3eri1, libint2_cleanup_3eri1, libint2_init_3eri1, &
       libint2_build_2eri1, libint2_cleanup_2eri1, libint2_init_2eri1
@@ -703,7 +705,13 @@ CONTAINS
 
    SUBROUTINE cp_libint_static_init()
 #if(__LIBINT)
-      CALL libint2_static_init()
+      CHARACTER(KIND=C_CHAR, LEN=512) :: error
+      INTEGER(C_INT) :: status
+
+      status = cp_libint_engine_initialize(error, INT(LEN(error), C_SIZE_T))
+      IF (status /= 0) THEN
+         CPABORT("Libint initialization failed: "//error(:INDEX(error, C_NULL_CHAR) - 1))
+      END IF
 #else
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
@@ -711,7 +719,13 @@ CONTAINS
 
    SUBROUTINE cp_libint_static_cleanup()
 #if(__LIBINT)
-      CALL libint2_static_cleanup()
+      CHARACTER(KIND=C_CHAR, LEN=512) :: error
+      INTEGER(C_INT) :: status
+
+      status = cp_libint_engine_finalize(error, INT(LEN(error), C_SIZE_T))
+      IF (status /= 0) THEN
+         CPABORT("Libint finalization failed: "//error(:INDEX(error, C_NULL_CHAR) - 1))
+      END IF
 #else
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
