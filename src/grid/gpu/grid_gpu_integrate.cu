@@ -931,15 +931,23 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
  * grid points visited is the same as for integrate_kernel (window masks, y / x
  * trimming in the orthogonal case, sphere test).
  *
- * Shared memory layout: mc = max cube size, ls = lp_max + 1:
- *   ex[mc], py[ls][mc], pz[ls], A[mc][ls], acc[ncoset(lp_max)]
- * pz only holds the values of the current plane, ex is only used for an axis
- * aligned cell.
+ * When the rows of the cube do not all fit in the shared memory (chunked_ =
+ * true, see integrate_separable_yrows), the rows of a plane are processed by
+ * chunks of yrows rows, B is accumulated over the chunks in the shared memory
+ * and step C runs once per plane. The other instances keep the whole plane in
+ * one chunk, which the compiler reduces to a single pass.
+ *
+ * Shared memory layout (doubles), mc = max cube size, ls = lp_max + 1:
+ *   ex[mc], pz[ls], acc[ncoset(lp_max)], py[ls][yrows], A[yrows][ls],
+ *   B[ls (ls + 1) / 2] (chunked_ only)
+ * yrows = mc unless chunked_. pz only holds the values of the current plane,
+ * ex is only used for an axis aligned cell. py is filled once per task, or for
+ * each chunk when chunked_.
  ******************************************************************************/
 
-template <bool distributed__, bool axis_aligned_, int lmax_>
+template <bool distributed__, bool axis_aligned_, int lmax_, bool chunked_>
 __global__ __launch_bounds__(64) void integrate_separable_kernel(
-    const kernel_params dev_, const int mc, const int lp_max,
+    const kernel_params dev_, const int mc, const int lp_max, const int yrows,
     const double *__restrict__ lattice_to_cartesian) {
   // an axis aligned cell is orthogonal, otherwise the cell is treated as non
   // orthogonal (see integrate_one_grid_level).
@@ -965,14 +973,16 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
   // exponetials along the x direction (note that it is the lattice direction
   // not necessarily the cartesian coordinate)
   double *ex = sep_smem;
-  // y coordinate and its powers (note that it is the lattice direction not
-  // necessarily the cartesian coordinate)
-  double *py = ex + mc;
   // z coordinate and its powers common to all threads and single point (note
   // that it is the lattice direction not necessarily the cartesian coordinate)
-  double *pz = py + ls * mc;
-  double *A = pz + ls;
-  double *acc = A + mc * ls;
+  double *pz = ex + mc;
+  double *acc = pz + ls;
+  // y coordinate and its powers (note that it is the lattice direction not
+  // necessarily the cartesian coordinate), py[b * yrows + row]
+  double *py = acc + ncoset(lp_max);
+  double *A = py + ls * yrows; // [yrows][ls]
+  // B[a][b] of the current plane, accumulated over the chunks of rows
+  double *B = A + yrows * ls; // chunked_ only
 
   __shared__ smem_task_reduced<double, double3> task;
   fill_smem_task_reduced(dev_, dev_.first_task + block_index(), task);
@@ -997,14 +1007,19 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
     }
   }
 
-  // p[beta][y]
-  for (int y = tid; y < task.cube_size.y; y += 64) {
-    const double v = y + task.lb_cube.y + task.roffset.y;
-    const double r = axis_aligned_ ? v * dev_.dh_[4] : v;
-    double p = axis_aligned_ ? exp(-zetp * r * r) : 1.0;
-    for (int b = 0; b <= lp; b++, p *= r)
-      py[b * mc + y] = p;
-  }
+  // py[beta][y - ybase] for the rows y0 <= y <= y1
+  auto fill_py = [&](const int y0, const int y1, const int ybase) {
+    for (int y = y0 + tid; y <= y1; y += 64) {
+      const double v = y + task.lb_cube.y + task.roffset.y;
+      const double r = axis_aligned_ ? v * dev_.dh_[4] : v;
+      double p = axis_aligned_ ? exp(-zetp * r * r) : 1.0;
+      for (int b = 0; b <= lp; b++, p *= r)
+        py[b * yrows + y - ybase] = p;
+    }
+  };
+
+  if (!chunked_)
+    fill_py(0, task.cube_size.y - 1, 0);
   for (int i = tid; i < ncoef; i += 64)
     acc[i] = 0.0;
   __syncthreads();
@@ -1043,111 +1058,145 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
         pz[c] = p;
     }
 
-    // step A: one group of GRID_SEP_INTEGRATE_ROW_LANES lanes per row y. The
-    // trip count of the y0 loop is uniform over the block so that every lane
-    // takes part in the shuffle reduction, even when its row is past ymax.
-    for (int y0 = ymin; y0 <= ymax; y0 += nrow_groups) {
-      const int y = y0 + row_group;
-      const bool row_valid = (y <= ymax);
-      double part[lmax_ + 1];
+    // B is owned by the threads of step B, pair ip by thread ip % 64, so that
+    // it needs no barrier of its own.
+    if (chunked_)
+      for (int ip = tid; ip < npairs; ip += 64)
+        B[ip] = 0.0;
+
+    // the trip count of the chunk loop is uniform over the block, a single
+    // pass over the whole plane unless chunked_
+    for (int yc = ymin; yc <= ymax; yc = chunked_ ? yc + yrows : ymax + 1) {
+      const int yc1 = chunked_ ? min(ymax, yc + yrows - 1) : ymax;
+      // py is read in step B, after the barrier that ends step A
+      const int ybase = chunked_ ? yc : 0;
+      if (chunked_)
+        fill_py(yc, yc1, yc);
+
+      // step A: one group of GRID_SEP_INTEGRATE_ROW_LANES lanes per row y. The
+      // trip count of the y0 loop is uniform over the block so that every lane
+      // takes part in the shuffle reduction, even when its row is past yc1.
+      for (int y0 = yc; y0 <= yc1; y0 += nrow_groups) {
+        const int y = y0 + row_group;
+        const bool row_valid = (y <= yc1);
+        double part[lmax_ + 1];
 #pragma unroll
-      for (int a = 0; a <= lmax_; a++)
-        part[a] = 0.0;
+        for (int a = 0; a <= lmax_; a++)
+          part[a] = 0.0;
 
-      const int y2 =
-          wrap_grid_index(y + task.cube_center.y, dev_.grid_full_size_.y);
-      const bool row_masked =
-          distributed__ && task.apply_border_mask &&
-          ((y2 < task.window_shift.y) || (y2 > task.window_size.y));
+        const int y2 =
+            wrap_grid_index(y + task.cube_center.y, dev_.grid_full_size_.y);
+        const bool row_masked =
+            distributed__ && task.apply_border_mask &&
+            ((y2 < task.window_shift.y) || (y2 > task.window_size.y));
 
-      if (row_valid && !row_masked) {
-        int xmin = 0, xmax = task.cube_size.x - 1;
-        if (trim)
-          calculate_xmin_xmax_boundaries<double, double3>(task, y, kremain,
-                                                          xmin, xmax);
-        const double v = y + task.lb_cube.y + task.roffset.y;
-        const double ry = v * dev_.dh_[4];
-        const double r2yz = ry * ry + rz * rz; // only used when axis aligned
-        const double *__restrict__ row =
-            &dev_.buffers_dev.grid[(z2 * dev_.grid_local_size_.y + y2) *
-                                   dev_.grid_local_size_.x];
+        if (row_valid && !row_masked) {
+          int xmin = 0, xmax = task.cube_size.x - 1;
+          if (trim)
+            calculate_xmin_xmax_boundaries<double, double3>(task, y, kremain,
+                                                            xmin, xmax);
+          const double v = y + task.lb_cube.y + task.roffset.y;
+          const double ry = v * dev_.dh_[4];
+          const double r2yz = ry * ry + rz * rz; // only used when axis aligned
+          const double *__restrict__ row =
+              &dev_.buffers_dev.grid[(z2 * dev_.grid_local_size_.y + y2) *
+                                     dev_.grid_local_size_.x];
 
-        // periodic index of x, updated incrementally
-        const int nx_full = dev_.grid_full_size_.x;
-        int x2 = wrap_grid_index(xmin + lane + task.cube_center.x, nx_full);
-        for (int x = xmin + lane; x <= xmax; x += GRID_SEP_INTEGRATE_ROW_LANES,
-                 x2 = sep_advance_wrapped_index<GRID_SEP_INTEGRATE_ROW_LANES>(
-                     x2, nx_full)) {
-          if (distributed__ && task.apply_border_mask &&
-              ((x2 < task.window_shift.x) || (x2 > task.window_size.x)))
-            continue;
-
-          const double u = x + task.lb_cube.x + task.roffset.x;
-          const double r = axis_aligned_ ? u * dev_.dh_[0] : u;
-          double r2;
-          if (axis_aligned_) {
-            r2 = r * r + r2yz;
-          } else {
-            const double3 r3 = compute_coordinates(dev_.dh_, r, v, w);
-            r2 = r3.x * r3.x + r3.y * r3.y + r3.z * r3.z;
-          }
-
-          // same sphere test as integrate_kernel
-          const bool outside = (r2max <= r2);
-          if (distributed__) {
-            if (outside && (!orthogonal_ || task.apply_border_mask))
+          // periodic index of x, updated incrementally
+          const int nx_full = dev_.grid_full_size_.x;
+          int x2 = wrap_grid_index(xmin + lane + task.cube_center.x, nx_full);
+          for (int x = xmin + lane; x <= xmax;
+               x += GRID_SEP_INTEGRATE_ROW_LANES,
+                   x2 = sep_advance_wrapped_index<GRID_SEP_INTEGRATE_ROW_LANES>(
+                       x2, nx_full)) {
+            if (distributed__ && task.apply_border_mask &&
+                ((x2 < task.window_shift.x) || (x2 > task.window_size.x)))
               continue;
-          } else if (!orthogonal_ && outside) {
-            continue;
-          }
 
-          // Calculate x_i^\alpha \exp (-x_i^2) V_{ijk}
+            const double u = x + task.lb_cube.x + task.roffset.x;
+            const double r = axis_aligned_ ? u * dev_.dh_[0] : u;
+            double r2;
+            if (axis_aligned_) {
+              r2 = r * r + r2yz;
+            } else {
+              const double3 r3 = compute_coordinates(dev_.dh_, r, v, w);
+              r2 = r3.x * r3.x + r3.y * r3.y + r3.z * r3.z;
+            }
 
-          double p = __ldg(&row[x2]);
-          p *= axis_aligned_ ? ex[x] : exp(-zetp * r2);
+            // same sphere test as integrate_kernel
+            const bool outside = (r2max <= r2);
+            if (distributed__) {
+              if (outside && (!orthogonal_ || task.apply_border_mask))
+                continue;
+            } else if (!orthogonal_ && outside) {
+              continue;
+            }
+
+            // Calculate x_i^\alpha \exp (-x_i^2) V_{ijk}
+
+            double p = __ldg(&row[x2]);
+            p *= axis_aligned_ ? ex[x] : exp(-zetp * r2);
 #pragma unroll
-          for (int a = 0; a <= lmax_; a++) {
-            if (a <= lp) {
-              part[a] += p;
-              p *= r;
+            for (int a = 0; a <= lmax_; a++) {
+              if (a <= lp) {
+                part[a] += p;
+                p *= r;
+              }
             }
           }
         }
-      }
 
-      // now calculate B_{j k \alpha} = \sum_{i} V_{ijk} x_i ^ \alpha \exp(
-      // -x_i^2)
+        // now calculate B_{j k \alpha} = \sum_{i} V_{ijk} x_i ^ \alpha \exp(
+        // -x_i^2)
 #pragma unroll
-      for (int a = 0; a <= lmax_; a++) {
-        if (a <= lp) {
-          const double val = sep_row_reduce(part[a]);
-          if (row_valid && lane == 0)
-            A[(y - ymin) * ls + a] = val;
+        for (int a = 0; a <= lmax_; a++) {
+          if (a <= lp) {
+            const double val = sep_row_reduce(part[a]);
+            if (row_valid && lane == 0)
+              A[(y - yc) * ls + a] = val;
+          }
         }
       }
+      __syncthreads();
+
+      // steps B and C: each thread owns the (a, b, *) coefficients of its
+      // pairs, so no atomics are needed.
+
+      // finally calculate
+      //
+      // C_{\alpha\beta\gamma} = \sum_{jk} B_{jk\alpha} p^y_{j\beta}
+      // p^z_{k,\gamma}
+      //
+      // with \alpha+\beta+\gamma<=l. The pair list contains the \alpha,\beta
+      // pairs that are required. $\gamma$ can be derived from the constraint
+      // over angular momentum.
+
+      for (int ip = tid; ip < npairs; ip += 64) {
+        const int a = sep_pair_ab[ip].x;
+        const int b = sep_pair_ab[ip].y;
+        double bab = 0.0;
+        for (int y = yc; y <= yc1; y++)
+          bab += A[(y - yc) * ls + a] * py[b * yrows + y - ybase];
+        if (chunked_) {
+          B[ip] += bab;
+        } else {
+          for (int c = 0; c <= lp - a - b; c++)
+            acc[coset(a, b, c)] += bab * pz[c];
+        }
+      }
+      // A and py are overwritten by the next chunk
+      if (chunked_ && (yc1 < ymax))
+        __syncthreads();
     }
-    __syncthreads();
 
-    // steps B and C: each thread owns the (a, b, *) coefficients of its pairs,
-    // so no atomics are needed.
-
-    // finally calculate
-    //
-    // C_{\alpha\beta\gamma} = \sum_{jk} B_{jk\alpha} p^y_{j\beta}
-    // p^z_{k,\gamma}
-    //
-    // with \alpha+\beta+\gamma<=l. The pair list contains the \alpha,\beta
-    // pairs that are required. $\gamma$ can be derived from the constraint over
-    // angular momentum.
-
-    for (int ip = tid; ip < npairs; ip += 64) {
-      const int a = sep_pair_ab[ip].x;
-      const int b = sep_pair_ab[ip].y;
-      double bab = 0.0;
-      for (int y = ymin; y <= ymax; y++)
-        bab += A[(y - ymin) * ls + a] * py[b * mc + y];
-      for (int c = 0; c <= lp - a - b; c++)
-        acc[coset(a, b, c)] += bab * pz[c];
+    if (chunked_) {
+      for (int ip = tid; ip < npairs; ip += 64) {
+        const int a = sep_pair_ab[ip].x;
+        const int b = sep_pair_ab[ip].y;
+        const double bab = B[ip];
+        for (int c = 0; c <= lp - a - b; c++)
+          acc[coset(a, b, c)] += bab * pz[c];
+      }
     }
     __syncthreads();
   }
@@ -1179,35 +1228,58 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
   }
 }
 
-static size_t integrate_separable_smem_size(const int mc, const int lp_max) {
+// shared memory of integrate_separable_kernel for yrows rows per chunk, the
+// kernel is chunked when yrows < mc.
+static size_t integrate_separable_smem_size(const int mc, const int lp_max,
+                                            const int yrows) {
   const int ls = lp_max + 1;
-  return sizeof(double) * (mc + ls * mc + ls + mc * ls + ncoset(lp_max));
+  const int nb = (yrows < mc) ? ls * (ls + 1) / 2 : 0;
+  return sizeof(double) * (mc + ls + ncoset(lp_max) + 2 * ls * yrows + nb);
+}
+
+// rows per chunk of the chunked instances (< mc), 0 when not even one row fits
+// in smem_max.
+static int integrate_separable_yrows(const int mc, const int lp_max,
+                                     const size_t smem_max) {
+  const size_t fixed = integrate_separable_smem_size(mc, lp_max, 0);
+  const size_t per_row = 2 * sizeof(double) * (lp_max + 1);
+  if (fixed + per_row > smem_max)
+    return 0;
+  return (int)std::min<size_t>(mc - 1, (smem_max - fixed) / per_row);
 }
 
 using integrate_separable_kernel_t = void (*)(const kernel_params, const int,
-                                              const int, const double *);
+                                              const int, const int,
+                                              const double *);
 
 /*******************************************************************************
  * \brief Selects the instance of integrate_separable_kernel for one value of
  *        lmax_.
  ******************************************************************************/
-template <int lmax_>
+template <int lmax_, bool chunked_ = false>
 static integrate_separable_kernel_t
 select_integrate_separable(const bool distributed, const bool axis_aligned) {
   if (distributed)
-    return axis_aligned ? integrate_separable_kernel<true, true, lmax_>
-                        : integrate_separable_kernel<true, false, lmax_>;
-  return axis_aligned ? integrate_separable_kernel<false, true, lmax_>
-                      : integrate_separable_kernel<false, false, lmax_>;
+    return axis_aligned
+               ? integrate_separable_kernel<true, true, lmax_, chunked_>
+               : integrate_separable_kernel<true, false, lmax_, chunked_>;
+  return axis_aligned
+             ? integrate_separable_kernel<false, true, lmax_, chunked_>
+             : integrate_separable_kernel<false, false, lmax_, chunked_>;
 }
 
 /*******************************************************************************
  * \brief Selects the instance of integrate_separable_kernel with the smallest
- *        bucket of the angular momentum covering lp_max.
+ *        bucket of the angular momentum covering lp_max. The chunked instances
+ *        are only needed for very large cubes, they are only instantiated for
+ *        the largest bucket.
  ******************************************************************************/
 static integrate_separable_kernel_t
 select_integrate_separable(const int lp_max, const bool distributed,
-                           const bool axis_aligned) {
+                           const bool axis_aligned, const bool chunked) {
+  if (chunked)
+    return select_integrate_separable<GRID_SEP_MAX_L, true>(distributed,
+                                                            axis_aligned);
   switch (separable_lmax_bucket(lp_max)) {
   case 4:
     return select_integrate_separable<4>(distributed, axis_aligned);
@@ -1242,25 +1314,35 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
 
   // Tasks with lp >= integrate_separable_lp_threshold go to the separable
   // kernel when it applies:
-  // - axis aligned cells (cartesian factorization) and non orthogonal cells
-  //   (lattice coordinates + transformation). Rotated orthogonal cells keep
-  //   integrate_kernel since their cube is set up by the orthogonal code path.
-  // - the angular momentum fits the tables and the shared memory the budget.
+  // - axis aligned cells (cartesian factorization) and all the other cells,
+  //   rotated orthogonal ones included (lattice coordinates +
+  //   transformation, see grid_info::check_orthogonality).
+  // - the angular momentum fits the tables and at least one row of the cube
+  //   fits the shared memory budget, the rows being processed by chunks.
   auto &grid = grid_[level];
   const int lp_max = smem_params.lp_max();
   const int max_cube_size = grid.max_cube_size();
   const bool axis_aligned = grid.is_axis_aligned();
 
-  // fall back to the old integrate if shared memory is not large enough or
-  // anything else happens
-  const integrate_separable_kernel_t separable_kernel =
-      select_integrate_separable(lp_max, grid.is_distributed(), axis_aligned);
-  const bool use_separable =
-      (lp_max >= integrate_separable_lp_threshold) &&
-      (lp_max <= GRID_SEP_MAX_L) && (max_cube_size > 0) &&
-      (axis_aligned || !grid.is_orthogonal()) &&
-      (integrate_separable_smem_size(max_cube_size, lp_max) <=
-       max_dynamic_smem(separable_kernel, grid_gpu_smem_budget));
+  // the whole plane in one pass when all the rows of the cube fit in the
+  // shared memory, by chunks of rows otherwise. Fall back to the old integrate
+  // if not even one row fits or anything else happens.
+  const bool distributed = grid.is_distributed();
+  integrate_separable_kernel_t separable_kernel =
+      select_integrate_separable(lp_max, distributed, axis_aligned, false);
+  int yrows = max_cube_size;
+  if (integrate_separable_smem_size(max_cube_size, lp_max, yrows) >
+      max_dynamic_smem(separable_kernel, grid_gpu_smem_budget)) {
+    separable_kernel =
+        select_integrate_separable(lp_max, distributed, axis_aligned, true);
+    yrows = integrate_separable_yrows(
+        max_cube_size, lp_max,
+        max_dynamic_smem(separable_kernel, grid_gpu_smem_budget));
+  }
+  const bool use_separable = (lp_max >= integrate_separable_lp_threshold) &&
+                             (lp_max <= GRID_SEP_MAX_L) &&
+                             (max_cube_size > 0) && (yrows > 0) &&
+                             (axis_aligned || !grid.is_orthogonal());
 
   if (use_separable)
     params.separable_lp_min = integrate_separable_lp_threshold;
@@ -1294,10 +1376,11 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
   init_separable_constant_memory();
   const double *lattice_to_cartesian =
       axis_aligned ? nullptr : get_lattice_to_cartesian(grid, lp_max);
-  const size_t smem = integrate_separable_smem_size(max_cube_size, lp_max);
+  const size_t smem =
+      integrate_separable_smem_size(max_cube_size, lp_max, yrows);
   const int nblocks_level = number_of_tasks_per_level_[level];
   GRID_GPU_LAUNCH(separable_kernel, nblocks_level, 64, smem,
-                  level_streams[level], params, max_cube_size, lp_max,
+                  level_streams[level], params, max_cube_size, lp_max, yrows,
                   lattice_to_cartesian);
 }
 
