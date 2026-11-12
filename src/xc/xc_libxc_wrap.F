@@ -2370,6 +2370,7 @@ CONTAINS
    END SUBROUTINE libxc_mgga_vxc_device
 
 #else
+   #! Resynchronize Fypp line numbering after the inactive CPP branch.
 ! **************************************************************************************************
 !> \brief CPU-only build: a worker never carries device buffers. The device
 !>        entry points libxc_worker_eval calls are compiled as no-ops/aborts so

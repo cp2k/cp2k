@@ -642,7 +642,7 @@ CONTAINS
          END IF
          amax = MAX(amax, ABS(values(i)))
       END DO
-      nbits = BIT_SIZE(amax) - LEADZ(amax) + 1 ! a sign bit more
+      nbits = INT(BIT_SIZE(amax)) - LEADZ(amax) + 1 ! a sign bit more
       nwords = ints2groups(nbits, group_size, record(2:), values)
 #endif
       CPASSERT(0 < nwords .AND. nwords < SIZE(record))
