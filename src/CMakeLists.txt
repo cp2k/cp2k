@@ -282,6 +282,7 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_MIMIC}>:CP2K::MIMIC::mclf>
     $<$<BOOL:${CP2K_USE_MIMIC}>:CP2K::MIMIC::mcl>
     $<$<BOOL:${CP2K_USE_LIBINT2}>:${CP2K_LIBINT2_TARGET}>
+    $<$<BOOL:${CP2K_USE_LIBINT2}>:Libint2::cxx>
     $<$<BOOL:${CP2K_USE_LIBFCI}>:libfci::fci>
     $<$<BOOL:${CP2K_USE_LIBGINT}>:cp2k::LibGint::libGint>
     $<$<BOOL:${CP2K_USE_COSMA}>:cp2k::cosma>

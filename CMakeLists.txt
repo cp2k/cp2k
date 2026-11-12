@@ -838,7 +838,7 @@ endif()
 
 # Libint
 if(CP2K_USE_LIBINT2)
-  find_package(Libint2 CONFIG REQUIRED)
+  find_package(Libint2 2.14.1 CONFIG REQUIRED COMPONENTS CXX)
   # Check Fortran interface; libint exports Fortran target since 2.14
   if(TARGET Libint2::int_f)
     set(CP2K_LIBINT2_TARGET Libint2::int_f)
