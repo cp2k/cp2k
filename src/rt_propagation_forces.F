@@ -19,9 +19,9 @@ MODULE rt_propagation_forces
                                               rtp_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_get_block_p, &
-        dbcsr_get_matrix_type, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -169,14 +169,13 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, atom_of_kind
 
       INTEGER                                            :: col_atom, i, ikind, kind_atom, row_atom
-      LOGICAL                                            :: found, triangle
+      LOGICAL                                            :: found
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_values, block_values2
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type)                                   :: rho_im_full
 
       ! A block of a (anti)symmetric matrix need not be on the process that holds the same
-      ! block of the non-symmetric C_mat, so the stored triangle is taken from a full copy
-      triangle = dbcsr_get_matrix_type(rho_im) /= dbcsr_type_no_symmetry
+      ! block of the non-symmetric C_mat, and both triangles are needed, so use a full copy
       CALL dbcsr_create(rho_im_full, template=C_mat(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_desymmetrize(rho_im, rho_im_full)
 
@@ -199,19 +198,19 @@ CONTAINS
          END DO
          CALL dbcsr_iterator_stop(iter)
 
-         !C_mat part
+         !C_mat part: i*Tr[(C^T - C)P] = -2*sum(C*P_im) for the column atom, over all blocks,
+         ! since the blocks below and above the diagonal carry the velocities of different atoms
 
          CALL dbcsr_iterator_start(iter, rho_im_full)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             CALL dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
-            IF (triangle .AND. row_atom > col_atom) CYCLE
             CALL dbcsr_get_block_p(C_mat(i)%matrix, row_atom, col_atom, block_values2, found=found)
             IF (found) THEN
                ikind = kind_of(col_atom)
                kind_atom = atom_of_kind(col_atom)
                !The block_values are in a vector format, so the dot_product is
                ! the sum over all elements of the hamand product, that I need
-               force(ikind)%ehrenfest(i, kind_atom) = force(ikind)%ehrenfest(i, kind_atom) + &
+               force(ikind)%ehrenfest(i, kind_atom) = force(ikind)%ehrenfest(i, kind_atom) - &
                                                       2.0_dp*SUM(block_values*block_values2)
             END IF
          END DO

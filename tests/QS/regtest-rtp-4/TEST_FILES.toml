@@ -17,12 +17,12 @@
 ]
 "H2O-emd-vg-forces.inp"      = [
   {matcher = "M002", tol = 1e-10, ref = -17.1758219490},
-  {matcher = "QS_atom_2_force_y", tol = 1e-6, ref = -1.73951729E-03}
+  {matcher = "QS_atom_2_force_y", tol = 1e-6, ref = -1.73948991E-03}
 ]
 # same with the plain non-local pseudopotential (VG_COM_NL F), checks the initial KS matrix
 "H2O-emd-vg-plain-nl.inp"    = [
   {matcher = "M002", tol = 1e-10, ref = -17.1757886293},
-  {matcher = "QS_atom_2_force_y", tol = 1e-6, ref = -1.95279897E-03}
+  {matcher = "QS_atom_2_force_y", tol = 1e-6, ref = -1.95282502E-03}
 ]
 # same field forces with all-electron GAPW
 "H2O-emd-lg-forces-gapw.inp" = [
@@ -31,6 +31,11 @@
 ]
 "H2O-emd-vg-forces-gapw.inp" = [
   {matcher = "M002", tol = 1e-10, ref = -75.8462154010},
-  {matcher = "QS_atom_2_force_y", tol = 1e-6, ref = -3.87096766E-03}
+  {matcher = "QS_atom_2_force_y", tol = 1e-6, ref = -3.87083229E-03}
+]
+# fast proton hitting water, no field: velocity-dependent C-matrix force term
+"H2O-emd-proton-cterm.inp"   = [
+  {matcher = "M002", tol = 1e-10, ref = -17.3014855127},
+  {matcher = "QS_atom_1_force_z", tol = 1e-6, ref = -1.53594840E-01}
 ]
 #EOF
