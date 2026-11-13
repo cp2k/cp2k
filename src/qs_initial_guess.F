@@ -200,7 +200,7 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       particle_set=particle_set, &
                       mos=mo_array, &
-                      matrix_s_kp=matrix_s_kp, &
+                      matrix_metric_kp=matrix_s_kp, &
                       matrix_h_kp=matrix_h_kp, &
                       matrix_ks_kp=matrix_ks_kp, &
                       input=input, &

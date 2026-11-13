@@ -323,7 +323,7 @@ CONTAINS
          NULLIFY (fm_struct_tmp, mo_coeff, mo_coeff_deriv, mo_eigenvalues, &
                   mo_set, umo_coeff, umo_eigenvalues, umo_set)
 
-         CALL get_qs_env(qs_env, matrix_ks=ks, matrix_s=s, mos=mos)
+         CALL get_qs_env(qs_env, matrix_ks=ks, matrix_metric=s, mos=mos)
          CPASSERT(ASSOCIATED(ks))
          CPASSERT(ASSOCIATED(s))
          CPASSERT(ASSOCIATED(mos))
@@ -1048,7 +1048,7 @@ CONTAINS
             IF (scf_env%method == special_diag_method_nr) THEN
                CALL calculate_orthonormality(orthonormality, mos)
             ELSE
-               CALL get_qs_env(qs_env=qs_env, matrix_s_kp=matrix_s)
+               CALL get_qs_env(qs_env=qs_env, matrix_metric_kp=matrix_s)
                CALL calculate_orthonormality(orthonormality, mos, matrix_s(1, 1)%matrix)
             END IF
             iw = cp_print_key_unit_nr(logger, scf_section, "PRINT%MO_ORTHONORMALITY", &
