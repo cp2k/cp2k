@@ -43,6 +43,8 @@ MODULE kpoint_lattice_fft
    PUBLIC :: lattice_fft_profile_type
 
    INTEGER(KIND=int_8), PARAMETER :: fft_batch_bytes = 32_int_8*1024_int_8**2
+   ! Bound the source/FFT-grid transpose working set without another packing buffer.
+   INTEGER, PARAMETER :: fft_pack_rows = 8, fft_pack_cells = 32
 
    ! Optional local-panel diagnostics. Axis times include the one-shot planner.
    TYPE lattice_fft_profile_type
@@ -256,8 +258,8 @@ CONTAINS
 
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: input(:, :, :, :), output(:, :, :, :)
       INTEGER                                            :: first, handle, i, icell, ik, ik_out, &
-                                                            image, j, nbatch, nout, start, stat, &
-                                                            width
+                                                            image, image_first, j, nbatch, nout, &
+                                                            row_first, start, stat, width
       INTEGER(KIND=int_8)                                :: budget, needed, ngrid
       LOGICAL                                            :: add, success
       REAL(KIND=dp)                                      :: started
@@ -354,12 +356,18 @@ CONTAINS
                   END IF
                   input(1:plan%nfft(1), 1:plan%nfft(2), 1:plan%nfft(3), 1:nbatch) => plan%fft_in(1:INT(ngrid)*nbatch)
                   input = z_zero
-                  DO i = 1, nbatch
-                     DO icell = 1, SIZE(values_rs, 3)
-                        image = start + icell - 1
-                        input(plan%cell_index(1, image), plan%cell_index(2, image), plan%cell_index(3, image), i) = &
-                           input(plan%cell_index(1, image), plan%cell_index(2, image), plan%cell_index(3, image), i) + &
-                           plan%cell_factor(image)*values_rs(first + i - 1, j, icell)
+                  ! Read adjacent AO elements together while retaining each element's image order.
+                  DO row_first = 1, nbatch, fft_pack_rows
+                     DO image_first = 1, SIZE(values_rs, 3), fft_pack_cells
+                        DO icell = image_first, MIN(image_first + fft_pack_cells - 1, SIZE(values_rs, 3))
+                           image = start + icell - 1
+!$OMP SIMD
+                           DO i = row_first, MIN(row_first + fft_pack_rows - 1, nbatch)
+                              input(plan%cell_index(1, image), plan%cell_index(2, image), plan%cell_index(3, image), i) = &
+                                 input(plan%cell_index(1, image), plan%cell_index(2, image), plan%cell_index(3, image), i) + &
+                                 plan%cell_factor(image)*values_rs(first + i - 1, j, icell)
+                           END DO
+                        END DO
                      END DO
                   END DO
                   IF (PRESENT(profile)) profile%seconds(4) = profile%seconds(4) + m_walltime() - started
@@ -572,8 +580,9 @@ CONTAINS
          OPTIONAL                                        :: profile
 
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: input(:, :, :, :), output(:, :, :, :)
-      INTEGER                                            :: first, handle, i, icell, ik, j, nbatch, &
-                                                            output_shape(3), stat, width
+      INTEGER                                            :: first, handle, i, icell, ik, j, kfirst, &
+                                                            nbatch, output_shape(3), row_first, &
+                                                            stat, width
       INTEGER(KIND=int_8)                                :: ngrid
       REAL(KIND=dp)                                      :: started
 
@@ -629,11 +638,18 @@ CONTAINS
                END IF
                input(1:work%nfft(1), 1:work%nfft(2), 1:work%nfft(3), 1:nbatch) => &
                   work%fft_in(1:INT(ngrid)*nbatch)
-               input = z_zero
-               DO i = 1, nbatch
-                  DO ik = 1, SIZE(values_k, 3)
-                     input(work%grid_index(1, ik), work%grid_index(2, ik), work%grid_index(3, ik), i) = &
-                        work%weight(ik)*values_k(first + i - 1, j, ik)
+               ! Preparation guarantees unique grid indices. Only a complete, unpadded
+               ! grid overwrites every slot; subsets and padded grids retain zero holes.
+               IF (SIZE(values_k, 3, KIND=int_8) /= ngrid) input = z_zero
+               DO row_first = 1, nbatch, fft_pack_rows
+                  DO kfirst = 1, SIZE(values_k, 3), fft_pack_cells
+                     DO ik = kfirst, MIN(kfirst + fft_pack_cells - 1, SIZE(values_k, 3))
+!$OMP SIMD
+                        DO i = row_first, MIN(row_first + fft_pack_rows - 1, nbatch)
+                           input(work%grid_index(1, ik), work%grid_index(2, ik), work%grid_index(3, ik), i) = &
+                              work%weight(ik)*values_k(first + i - 1, j, ik)
+                        END DO
+                     END DO
                   END DO
                END DO
                IF (PRESENT(profile)) profile%seconds(4) = profile%seconds(4) + m_walltime() - started

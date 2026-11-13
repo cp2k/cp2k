@@ -188,7 +188,8 @@ CONTAINS
       CPASSERT(SIZE(values_k, 3) == nk)
       add = .FALSE.
       IF (PRESENT(accumulate)) add = accumulate
-      IF (.NOT. add) values_k = z_zero
+      ! A nonempty FFT overwrites its output; GEMM and empty image sums need zeros.
+      IF (.NOT. add .AND. (backend /= rskp_backend_fft .OR. SIZE(values_rs, KIND=int_8) == 0)) values_k = z_zero
       IF (measure_fft) fft_profile%seconds(1) = m_walltime() - profile_started
       IF (SIZE(values_rs, KIND=int_8) == 0 .OR. nk == 0) THEN
          CALL timestop(handle)

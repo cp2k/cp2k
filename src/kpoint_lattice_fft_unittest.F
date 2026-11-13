@@ -32,8 +32,9 @@ PROGRAM kpoint_lattice_fft_unittest
 
    IMPLICIT NONE
 
+   ! The image count and the 4097-row panel below exercise both packing tile tails.
    INTEGER, PARAMETER                                  :: base_block = 2, base_cell = 8, base_n = 16, &
-                                                          base_ncol = 3, ncell = 31, nkp = 64, &
+                                                          base_ncol = 3, ncell = 37, nkp = 64, &
                                                           nselected = 3
    INTEGER, PARAMETER                                  :: backends(2) = [rskp_backend_gemm, rskp_backend_fft]
    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)   :: inverse_k
@@ -291,7 +292,17 @@ PROGRAM kpoint_lattice_fft_unittest
                                            EXP(-gaussi*twopi*SUM(xkp(:, ik)*REAL(index_to_cell(:, icell), dp)))/REAL(nkp, dp)
       END DO
    END DO
+   ! Reusing complete-grid FFT buffers must overwrite all previous transform data.
+   CALL k_grid_to_cell_prepare(inverse_work, xkp, nkp_grid, index_to_cell)
+   DO i = 1, 2
+      CALL k_grid_to_cell_execute(inverse_work, REAL(i, dp)*direct, weighted_result, used_fft)
+      IF (.NOT. used_fft .OR. MAXVAL(ABS(weighted_result - REAL(i, dp)*weighted_reference)) > 3.0E-12_dp) THEN
+         ERROR STOP 'Complete inverse grid retained stale FFT buffer values'
+      END IF
+   END DO
+   CALL k_grid_to_cell_release(inverse_work)
    DO backend = 1, SIZE(backends)
+      transformed = CMPLX(-19.0_dp, 7.0_dp, KIND=dp)
       CALL cell_to_k_transform(values_rs, index_to_cell, xkp, nkp_grid, transformed, backends(backend))
       IF (MAXVAL(ABS(transformed - direct)) > 3.0E-12_dp) THEN
          ERROR STOP 'Local RSKP forward transform differs from explicit phase sum'
@@ -323,6 +334,13 @@ PROGRAM kpoint_lattice_fft_unittest
       IF (MAXVAL(ABS(real_transformed - REAL(weighted_reference, dp))) > 3.0E-12_dp) THEN
          ERROR STOP 'Local RSKP inverse changed the phase sign or normalization'
       END IF
+      CALL cell_to_k_transform(values_rs(:, :, 1:0), index_to_cell(:, 1:0), xkp, nkp_grid, &
+                               transformed, backends(backend))
+      IF (ANY(transformed /= z_zero)) ERROR STOP 'Empty image sum did not clear its output'
+      transformed = direct
+      CALL cell_to_k_transform(values_rs(:, :, 1:0), index_to_cell(:, 1:0), xkp, nkp_grid, &
+                               transformed, backends(backend), accumulate=.TRUE.)
+      IF (ANY(transformed /= direct)) ERROR STOP 'Empty image accumulation changed its output'
       CALL cell_to_k_transform(values_rs(1:0, :, :), index_to_cell, xkp, nkp_grid, &
                                transformed(1:0, :, :), backends(backend))
       CALL k_to_real_cell_transform(direct(1:0, :, :), xkp, nkp_grid, index_to_cell, &
