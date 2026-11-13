@@ -15,7 +15,8 @@
 !>        callers. The selected RSKP FFT backend requires successful FFT execution.
 ! **************************************************************************************************
 MODULE kpoint_lattice_fft
-   USE fft_lib,                         ONLY: fft_supports_arbitrary_lengths
+   USE fft_lib,                         ONLY: fft_pair_major_3d,&
+                                              fft_supports_arbitrary_lengths
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_NEXT,&
                                               FWFFT,&
@@ -46,12 +47,14 @@ MODULE kpoint_lattice_fft
    INTEGER, PARAMETER :: fft_pack_rows = 8, fft_pack_cells = 32
    ! Avoid OpenMP launch overhead unless a packing/extraction stage has enough values.
    INTEGER(KIND=int_8), PARAMETER :: fft_parallel_values = 32768_int_8
+   ! FFTW3 pair-major K2R path; set to .FALSE. to benchmark the existing 1D path.
 
    ! Optional local-panel diagnostics. Axis times include the one-shot planner.
    TYPE lattice_fft_profile_type
       REAL(KIND=dp) :: seconds(9) = 0.0_dp
       INTEGER(KIND=int_8) :: batches = 0_int_8, elements = 0_int_8
       INTEGER :: nfft(3) = 0, tile_min = HUGE(0), tile_max = 0
+      LOGICAL :: pair_major = .FALSE.
    END TYPE lattice_fft_profile_type
 
    ! Reusable forward lattice geometry and bounded numerical FFT workspace.
@@ -279,6 +282,36 @@ CONTAINS
          scratch => swap
       END DO
    END SUBROUTINE lattice_fft_execute
+
+! **************************************************************************************************
+!> \brief Transform pair-major FFT input directly to pair-major output.
+!>        Report the complete 3D transform under the first FFT stage in the profile.
+!> \param sign ...
+!> \param n ...
+!> \param nbatch ...
+!> \param buffer ...
+!> \param scratch ...
+!> \param stat ...
+!> \param profile ...
+! **************************************************************************************************
+   SUBROUTINE lattice_fft_execute_pair_major(sign, n, nbatch, buffer, scratch, stat, profile)
+      INTEGER, INTENT(IN)                                :: sign, n(3), nbatch
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: buffer(:), scratch(:)
+      INTEGER, INTENT(OUT)                               :: stat
+      TYPE(lattice_fft_profile_type), INTENT(INOUT), &
+         OPTIONAL                                        :: profile
+
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: swap(:)
+      REAL(KIND=dp)                                      :: started
+
+      IF (PRESENT(profile)) started = m_walltime()
+      CALL fft_pair_major_3d(sign, n, nbatch, buffer, scratch, stat)
+      IF (PRESENT(profile)) profile%seconds(5) = profile%seconds(5) + m_walltime() - started
+      IF (stat /= 0) RETURN
+      swap => buffer
+      buffer => scratch
+      scratch => swap
+   END SUBROUTINE lattice_fft_execute_pair_major
 
 ! **************************************************************************************************
 !> \brief Transform a batch of real matrices from image cells to every supplied k point.
@@ -683,11 +716,8 @@ CONTAINS
       TYPE(lattice_fft_profile_type), INTENT(INOUT), &
          OPTIONAL                                        :: profile
 
-      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: input(:, :, :, :), output(:, :, :, :)
-      INTEGER                                            :: handle, i, icell, ik, kfirst, &
-                                                            matrix_column, matrix_row, nbatch, &
-                                                            output_shape(3), row_first, stat, width
-      INTEGER(KIND=int_8)                                :: first, matrix_index, ngrid, nvalues
+      INTEGER                                            :: handle, nbatch, output_shape(3), stat, width
+      INTEGER(KIND=int_8)                                :: first, ngrid, nvalues
       REAL(KIND=dp)                                      :: started
 
       CALL timeset("k_grid_to_cell_fft", handle)
@@ -718,6 +748,10 @@ CONTAINS
             RETURN
          END IF
          CPASSERT(ngrid*width <= HUGE(0))
+         IF (.NOT. fft_supports_arbitrary_lengths()) THEN
+            CPABORT('Inverse batched lattice FFT requires FFTW3')
+         END IF
+         IF (PRESENT(profile)) profile%pair_major = .TRUE.
          IF (PRESENT(profile)) THEN
             profile%nfft = work%nfft
             started = m_walltime()
@@ -743,94 +777,9 @@ CONTAINS
                profile%tile_max = MAX(profile%tile_max, nbatch)
                started = m_walltime()
             END IF
-            input(1:work%nfft(1), 1:work%nfft(2), 1:work%nfft(3), 1:nbatch) => &
-               work%fft_in(1:INT(ngrid)*nbatch)
-            ! Preparation guarantees unique grid indices. Only a complete, unpadded
-            ! grid overwrites every slot; subsets and padded grids retain zero holes.
-            IF (SIZE(values_k, 3, KIND=int_8) /= ngrid) input = z_zero
-!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-!$OMP IF(INT(nbatch, int_8)*SIZE(values_k, 3, KIND=int_8) >= fft_parallel_values) &
-!$OMP SHARED(input, work, values_k, first, nbatch) &
-!$OMP PRIVATE(kfirst, ik, i, matrix_index, matrix_row, matrix_column)
-            DO row_first = 1, nbatch, fft_pack_rows
-               DO kfirst = 1, SIZE(values_k, 3), fft_pack_cells
-                  DO ik = kfirst, MIN(kfirst + fft_pack_cells - 1, SIZE(values_k, 3))
-                     IF (SIZE(values_k, 2) == 1) THEN
-                        IF (work%uniform_weights) THEN
-!$OMP SIMD
-                           DO i = row_first, MIN(row_first + fft_pack_rows - 1, nbatch)
-                              input(work%grid_index(1, ik), work%grid_index(2, ik), work%grid_index(3, ik), i) = &
-                                 values_k(INT(first) + i - 1, 1, ik)
-                           END DO
-                        ELSE
-!$OMP SIMD
-                           DO i = row_first, MIN(row_first + fft_pack_rows - 1, nbatch)
-                              input(work%grid_index(1, ik), work%grid_index(2, ik), work%grid_index(3, ik), i) = &
-                                 work%weight(ik)*values_k(INT(first) + i - 1, 1, ik)
-                           END DO
-                        END IF
-                     ELSE
-                        IF (work%uniform_weights) THEN
-!$OMP SIMD PRIVATE(matrix_index, matrix_row, matrix_column)
-                           DO i = row_first, MIN(row_first + fft_pack_rows - 1, nbatch)
-                              matrix_index = first + INT(i - 2, int_8)
-                              matrix_row = INT(MODULO(matrix_index, INT(SIZE(values_k, 1), int_8))) + 1
-                              matrix_column = INT(matrix_index/INT(SIZE(values_k, 1), int_8)) + 1
-                              input(work%grid_index(1, ik), work%grid_index(2, ik), work%grid_index(3, ik), i) = &
-                                 values_k(matrix_row, matrix_column, ik)
-                           END DO
-                        ELSE
-!$OMP SIMD PRIVATE(matrix_index, matrix_row, matrix_column)
-                           DO i = row_first, MIN(row_first + fft_pack_rows - 1, nbatch)
-                              matrix_index = first + INT(i - 2, int_8)
-                              matrix_row = INT(MODULO(matrix_index, INT(SIZE(values_k, 1), int_8))) + 1
-                              matrix_column = INT(matrix_index/INT(SIZE(values_k, 1), int_8)) + 1
-                              input(work%grid_index(1, ik), work%grid_index(2, ik), work%grid_index(3, ik), i) = &
-                                 work%weight(ik)*values_k(matrix_row, matrix_column, ik)
-                           END DO
-                        END IF
-                     END IF
-                  END DO
-               END DO
-            END DO
-!$OMP END PARALLEL DO
-            IF (PRESENT(profile)) profile%seconds(4) = profile%seconds(4) + m_walltime() - started
-            CALL lattice_fft_execute(FWFFT, work%nfft, nbatch, work%fft_in, work%fft_out, stat, profile)
+            CALL k_grid_to_cell_pair_major_batch(work, values_k, first, nbatch, stat, &
+                                                 values_rs, values_real, profile)
             IF (stat /= 0) EXIT
-            IF (PRESENT(profile)) started = m_walltime()
-            output(1:nbatch, 1:work%nfft(1), 1:work%nfft(2), 1:work%nfft(3)) => &
-               work%fft_in(1:INT(ngrid)*nbatch)
-!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-!$OMP IF(INT(nbatch, int_8)*SIZE(work%cells, 2, KIND=int_8) >= fft_parallel_values) &
-!$OMP SHARED(output, work, values_k, values_rs, values_real, first, nbatch) &
-!$OMP PRIVATE(i, matrix_index, matrix_row, matrix_column)
-            DO icell = 1, SIZE(work%cells, 2)
-               ! The 1D passes are unnormalized; supplied k weights are already final.
-               IF (SIZE(values_k, 2) == 1) THEN
-                  IF (PRESENT(values_rs)) THEN
-                     values_rs(INT(first):INT(first) + nbatch - 1, 1, icell) = work%cell_phase(icell)* &
-                                          output(:, work%cell_index(1, icell), work%cell_index(2, icell), work%cell_index(3, icell))
-                  ELSE
-                     values_real(INT(first):INT(first) + nbatch - 1, 1, icell) = REAL(work%cell_phase(icell)* &
-                                     output(:, work%cell_index(1, icell), work%cell_index(2, icell), work%cell_index(3, icell)), dp)
-                  END IF
-               ELSE
-                  DO i = 1, nbatch
-                     matrix_index = first + INT(i - 2, int_8)
-                     matrix_row = INT(MODULO(matrix_index, INT(SIZE(values_k, 1), int_8))) + 1
-                     matrix_column = INT(matrix_index/INT(SIZE(values_k, 1), int_8)) + 1
-                     IF (PRESENT(values_rs)) THEN
-                        values_rs(matrix_row, matrix_column, icell) = work%cell_phase(icell)* &
-                                          output(i, work%cell_index(1, icell), work%cell_index(2, icell), work%cell_index(3, icell))
-                     ELSE
-                        values_real(matrix_row, matrix_column, icell) = REAL(work%cell_phase(icell)* &
-                                     output(i, work%cell_index(1, icell), work%cell_index(2, icell), work%cell_index(3, icell)), dp)
-                     END IF
-                  END DO
-               END IF
-            END DO
-!$OMP END PARALLEL DO
-            IF (PRESENT(profile)) profile%seconds(8) = profile%seconds(8) + m_walltime() - started
          END DO
       END IF
       IF (stat /= 0) work%regular = .FALSE.
@@ -855,6 +804,104 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE k_grid_to_cell_execute
+
+! **************************************************************************************************
+!> \brief One K2R FFT panel with pair-major buffers at both ends.
+!>        Mapping from k-point order to FFT slot is performed by contiguous pair strips.
+!> \param work ...
+!> \param values_k ...
+!> \param first ...
+!> \param nbatch ...
+!> \param stat ...
+!> \param values_rs ...
+!> \param values_real ...
+!> \param profile ...
+! **************************************************************************************************
+   SUBROUTINE k_grid_to_cell_pair_major_batch(work, values_k, first, nbatch, stat, values_rs, values_real, profile)
+      TYPE(k_grid_to_cell_work_type), INTENT(INOUT)      :: work
+      COMPLEX(KIND=dp), INTENT(IN)                       :: values_k(:, :, :)
+      INTEGER(KIND=int_8), INTENT(IN)                    :: first
+      INTEGER, INTENT(IN)                                :: nbatch
+      INTEGER, INTENT(OUT)                               :: stat
+      COMPLEX(KIND=dp), INTENT(INOUT), OPTIONAL          :: values_rs(:, :, :)
+      REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: values_real(:, :, :)
+      TYPE(lattice_fft_profile_type), INTENT(INOUT), &
+         OPTIONAL                                        :: profile
+
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: input(:, :), output(:, :)
+      INTEGER                                            :: i, icell, ik, matrix_column, matrix_row, &
+                                                            slot
+      INTEGER(KIND=int_8)                                :: matrix_index, ngrid
+      REAL(KIND=dp)                                      :: started
+
+      ngrid = PRODUCT(INT(work%nfft, int_8))
+      input(1:nbatch, 1:INT(ngrid)) => work%fft_in(1:nbatch*INT(ngrid))
+      IF (PRESENT(profile)) started = m_walltime()
+      ! Missing k points and FFT padding must be zero-filled.
+      IF (SIZE(values_k, 3, KIND=int_8) /= ngrid) input = z_zero
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP IF(INT(nbatch, int_8)*SIZE(values_k, 3, KIND=int_8) >= fft_parallel_values) &
+!$OMP SHARED(input, work, values_k, first, nbatch) &
+!$OMP PRIVATE(ik, slot, i, matrix_index, matrix_row, matrix_column)
+      DO ik = 1, SIZE(values_k, 3)
+         slot = work%grid_index(1, ik) + work%nfft(1)* &
+                (work%grid_index(2, ik) - 1 + work%nfft(2)*(work%grid_index(3, ik) - 1))
+         IF (SIZE(values_k, 2) == 1) THEN
+            IF (work%uniform_weights) THEN
+               input(:, slot) = values_k(INT(first):INT(first) + nbatch - 1, 1, ik)
+            ELSE
+               input(:, slot) = work%weight(ik)*values_k(INT(first):INT(first) + nbatch - 1, 1, ik)
+            END IF
+         ELSE
+            DO i = 1, nbatch
+               matrix_index = first + INT(i - 2, int_8)
+               matrix_row = INT(MODULO(matrix_index, INT(SIZE(values_k, 1), int_8))) + 1
+               matrix_column = INT(matrix_index/INT(SIZE(values_k, 1), int_8)) + 1
+               IF (work%uniform_weights) THEN
+                  input(i, slot) = values_k(matrix_row, matrix_column, ik)
+               ELSE
+                  input(i, slot) = work%weight(ik)*values_k(matrix_row, matrix_column, ik)
+               END IF
+            END DO
+         END IF
+      END DO
+!$OMP END PARALLEL DO
+      IF (PRESENT(profile)) profile%seconds(4) = profile%seconds(4) + m_walltime() - started
+      CALL lattice_fft_execute_pair_major(FWFFT, work%nfft, nbatch, work%fft_in, work%fft_out, stat, profile)
+      IF (stat /= 0) RETURN
+      output(1:nbatch, 1:INT(ngrid)) => work%fft_in(1:nbatch*INT(ngrid))
+      IF (PRESENT(profile)) started = m_walltime()
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP IF(INT(nbatch, int_8)*SIZE(work%cells, 2, KIND=int_8) >= fft_parallel_values) &
+!$OMP SHARED(output, work, values_rs, values_real, values_k, first, nbatch) &
+!$OMP PRIVATE(icell, slot, i, matrix_index, matrix_row, matrix_column)
+      DO icell = 1, SIZE(work%cells, 2)
+         slot = work%cell_index(1, icell) + work%nfft(1)* &
+                (work%cell_index(2, icell) - 1 + work%nfft(2)*(work%cell_index(3, icell) - 1))
+         IF (SIZE(values_k, 2) == 1) THEN
+            IF (PRESENT(values_rs)) THEN
+               values_rs(INT(first):INT(first) + nbatch - 1, 1, icell) = &
+                  work%cell_phase(icell)*output(:, slot)
+            ELSE
+               values_real(INT(first):INT(first) + nbatch - 1, 1, icell) = &
+                  REAL(work%cell_phase(icell)*output(:, slot), dp)
+            END IF
+         ELSE
+            DO i = 1, nbatch
+               matrix_index = first + INT(i - 2, int_8)
+               matrix_row = INT(MODULO(matrix_index, INT(SIZE(values_k, 1), int_8))) + 1
+               matrix_column = INT(matrix_index/INT(SIZE(values_k, 1), int_8)) + 1
+               IF (PRESENT(values_rs)) THEN
+                  values_rs(matrix_row, matrix_column, icell) = work%cell_phase(icell)*output(i, slot)
+               ELSE
+                  values_real(matrix_row, matrix_column, icell) = REAL(work%cell_phase(icell)*output(i, slot), dp)
+               END IF
+            END DO
+         END IF
+      END DO
+!$OMP END PARALLEL DO
+      IF (PRESENT(profile)) profile%seconds(8) = profile%seconds(8) + m_walltime() - started
+   END SUBROUTINE k_grid_to_cell_pair_major_batch
 
 ! **************************************************************************************************
 !> \brief Release call-scoped inverse lattice maps and FFT buffers.

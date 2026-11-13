@@ -425,6 +425,10 @@ CONTAINS
                omp_limit, IS_CONTIGUOUS(values_k), IS_CONTIGUOUS(values_rs)
             WRITE (unit_nr, '(T2,A)') &
                'K2R_FFT_PROFILE| grid-fill/extract use size-gated OpenMP; FFT axes include one-shot planning'
+            WRITE (unit_nr, '(T2,A,L2)') 'K2R_FFT_PROFILE| pair-major FFT input/output: ', &
+               fft_profile%pair_major
+            IF (fft_profile%pair_major) WRITE (unit_nr, '(T2,A)') &
+               'K2R_FFT_PROFILE| FFT-X/plan reports full 3D batched FFT (Y/Z entries zero)'
             DO i = 1, SIZE(fft_profile_stages)
                WRITE (unit_nr, '(T2,A,A14,F14.6)') 'K2R_FFT_PROFILE| ', fft_profile_stages(i), fft_profile%seconds(i)
             END DO
