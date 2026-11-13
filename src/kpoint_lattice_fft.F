@@ -180,7 +180,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Transform all lattice lines in three batched 1D FFTs.
 !>        Each axis moves from first to last through the existing transpose interface.
-!>        Input order is (x,y,z,batch), result order (batch,x,y,z), returned in buffer.
+!>        Axis order is caller-defined; result order is (batch,axis1,axis2,axis3).
 !> \param sign fft_tools transform direction
 !> \param n lattice dimensions
 !> \param nbatch number of independent matrix elements
@@ -483,6 +483,9 @@ CONTAINS
                                          allow_incomplete=.TRUE.)
       IF (work%regular) work%regular = lattice_fft_shape(nkp_grid, work%nfft, allow_arbitrary=.TRUE.)
       IF (.NOT. work%regular) RETURN
+      ! Keep physical x,y,z coordinates; FFT storage uses z,y,x (z fastest).
+      work%nfft = work%nfft([3, 2, 1])
+      work%grid_index = work%grid_index([3, 2, 1], :)
       IF (PRESENT(deriv_direction)) THEN
          CPASSERT(PRESENT(hmat))
          CPASSERT(deriv_direction >= 1 .AND. deriv_direction <= 3)
@@ -490,8 +493,8 @@ CONTAINS
       ALLOCATE (work%cell_index(3, SIZE(index_to_cell, 2)), work%cell_factor(SIZE(index_to_cell, 2)))
       DO icell = 1, SIZE(index_to_cell, 2)
          DO d = 1, 3
-            work%cell_index(d, icell) = MODULO(index_to_cell(d, icell), nkp_grid(d))* &
-                                        (work%nfft(d)/nkp_grid(d)) + 1
+            work%cell_index(d, icell) = MODULO(index_to_cell(4 - d, icell), nkp_grid(4 - d))* &
+                                        (work%nfft(d)/nkp_grid(4 - d)) + 1
          END DO
          arg = SUM(k_offset*REAL(index_to_cell(1:3, icell), dp))
          work%cell_factor(icell) = EXP(gaussi*twopi*arg)
@@ -585,12 +588,14 @@ CONTAINS
       work%regular = regular_kpoint_grid(xkp, nkp_grid, work%grid_index, k_offset, allow_incomplete)
       IF (work%regular) work%regular = lattice_fft_shape(nkp_grid, work%nfft, allow_arbitrary=.TRUE.)
       IF (.NOT. work%regular) RETURN
+      work%nfft = work%nfft([3, 2, 1])
+      work%grid_index = work%grid_index([3, 2, 1], :)
 
       ALLOCATE (work%cell_index(3, ncell), work%cell_phase(ncell))
       DO icell = 1, ncell
          DO d = 1, 3
-            work%cell_index(d, icell) = MODULO(index_to_cell(d, icell), nkp_grid(d))* &
-                                        (work%nfft(d)/nkp_grid(d)) + 1
+            work%cell_index(d, icell) = MODULO(index_to_cell(4 - d, icell), nkp_grid(4 - d))* &
+                                        (work%nfft(d)/nkp_grid(4 - d)) + 1
          END DO
          work%cell_phase(icell) = EXP(-gaussi*twopi*SUM(k_offset*REAL(index_to_cell(1:3, icell), dp)))
       END DO

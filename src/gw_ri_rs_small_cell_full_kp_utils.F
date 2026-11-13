@@ -2127,7 +2127,7 @@ CONTAINS
       INTEGER, PARAMETER                                 :: pack_cells = 32, pack_pairs = 16
 
       COMPLEX(KIND=dp) :: pack_buffer(pack_pairs, pack_cells)
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: axis_factor(:, :, :)
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: axis_factor(:, :, :), origin_phase(:)
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: fft_in(:), fft_out(:), input(:, :), &
                                                             output(:, :, :, :)
       INTEGER :: cell_first, cell_last, class_x, class_y, class_z, coordinate, count, first, &
@@ -2136,7 +2136,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: axis_classes, nfft_grid, &
                                                             phase_evaluations
       INTEGER, ALLOCATABLE :: axis_class(:, :), cell_coordinate(:, :), cell_index(:), &
-         cell_order(:), grid_index(:, :), keys(:, :), order(:), pair_shift(:, :)
+         grid_index(:, :), keys(:, :), order(:), pair_shift(:, :)
       LOGICAL                                            :: tie(3), unpadded
       LOGICAL, ALLOCATABLE                               :: pair_tie(:, :)
       REAL(KIND=dp)                                      :: endpoint(3), k_offset(3), setup_seconds, &
@@ -2161,13 +2161,20 @@ CONTAINS
       IF (bs_env%kpoints_scf_desymm%rskp_transform == rskp_backend_fft) THEN
          ! GW's physical centering stays here; the common FFT executor sees only packed grids.
          ALLOCATE (grid_index(3, SIZE(xkp, 2)), cell_index(SIZE(cells, 2)), &
-                   cell_order(SIZE(cells, 2)), cell_coordinate(3, SIZE(cells, 2)))
+                   cell_coordinate(3, SIZE(cells, 2)), origin_phase(SIZE(xkp, 2)))
          IF (.NOT. regular_kpoint_grid(xkp, nmesh, grid_index, k_offset)) THEN
             CPABORT('GW product needs a full FFT mesh')
          END IF
          IF (.NOT. lattice_fft_shape(nmesh, nfft, allow_arbitrary=.TRUE.)) THEN
             CPABORT('Unsupported GW FFT shape')
          END IF
+         ! Centered cell R = lower + j; a zero-origin FFT adds exp(2*pi*i*k_grid*lower).
+         DO ik = 1, SIZE(xkp, 2)
+            origin_phase(ik) = EXP(gaussi*twopi*SUM( &
+               REAL(grid_index(:, ik) - 1, dp)*REAL(lower, dp)/REAL(nmesh, dp)))
+         END DO
+         nfft = nfft([3, 2, 1])
+         grid_index = grid_index([3, 2, 1], :)
          CPASSERT(SIZE(cells, 2, KIND=int_8) == PRODUCT(INT(nmesh, int_8)))
          CPASSERT(SIZE(values_R, 3) == SIZE(cells, 2))
          IF (ANY(SHAPE(values_k) /= [SIZE(values_R, 1), 1, SIZE(xkp, 2)])) THEN
@@ -2177,16 +2184,14 @@ CONTAINS
             isource = 1 + cells(3, icell) - lower(3) + &
                       nmesh(3)*(cells(2, icell) - lower(2) + nmesh(2)*(cells(1, icell) - lower(1)))
             IF (isource /= icell) CPABORT('GW product needs canonical cells')
-            ! Ascending FFT slots make each transposed tile's destination contiguous without padding.
-            slot = [MODULO(icell - 1, nmesh(1)), MODULO((icell - 1)/nmesh(1), nmesh(2)), &
-                    (icell - 1)/(nmesh(1)*nmesh(2))]
-            cell_coordinate(:, icell) = MODULO(slot - lower, nmesh) + 1
-            cell_order(icell) = cell_coordinate(3, icell) + &
-                                nmesh(3)*(cell_coordinate(2, icell) - 1 + nmesh(2)*(cell_coordinate(1, icell) - 1))
-            slot = slot*(nfft/nmesh)
+            ! Canonical cells and FFT storage now both have z as the fastest axis.
+            slot = [(icell - 1)/(nmesh(2)*nmesh(3)), &
+                    MODULO((icell - 1)/nmesh(3), nmesh(2)), MODULO(icell - 1, nmesh(3))]
+            cell_coordinate(:, icell) = slot + 1
+            slot = slot([3, 2, 1])*(nfft/nmesh([3, 2, 1]))
             cell_index(icell) = 1 + slot(1) + nfft(1)*(slot(2) + nfft(2)*slot(3))
          END DO
-         unpadded = ALL(nfft == nmesh)
+         unpadded = ALL(nfft == nmesh([3, 2, 1]))
          profile%seconds(2) = m_walltime() - total_started
          nfft_grid = PRODUCT(INT(nfft, int_8))
          width = INT(MIN(MAX(1_int_8, SIZE(values_R, 1, KIND=int_8)), &
@@ -2264,18 +2269,17 @@ CONTAINS
             ! The canonical cell list covers each mesh slot once. Only padded slots need zeros.
             IF (.NOT. unpadded) input = z_zero
             !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-            !$OMP SHARED(input, values_R, cell_index, cell_coordinate, cell_order, first, count, unpadded) &
+            !$OMP SHARED(input, values_R, cell_index, cell_coordinate, first, count, unpadded) &
             !$OMP SHARED(axis_class, axis_factor) &
             !$OMP PRIVATE(i, ilocal, icell, isource, class_x, class_y, class_z, row_first, row_last) &
             !$OMP PRIVATE(cell_first, cell_last, pack_buffer)
             DO row_first = 1, count, pack_pairs
                row_last = MIN(count, row_first + pack_pairs - 1)
-               DO cell_first = 1, SIZE(cell_order), pack_cells
-                  cell_last = MIN(SIZE(cell_order), cell_first + pack_cells - 1)
+               DO cell_first = 1, SIZE(cell_index), pack_cells
+                  cell_last = MIN(SIZE(cell_index), cell_first + pack_cells - 1)
                   ! Adjacent pairs share source cache lines. The private tile keeps the subsequent
                   ! transpose in cache while the destination is streamed one FFT grid at a time.
                   DO icell = cell_first, cell_last
-                     isource = cell_order(icell)
                      !$OMP SIMD PRIVATE(ilocal, class_x, class_y, class_z)
                      DO i = row_first, row_last
                         ilocal = first + i - 1
@@ -2285,7 +2289,7 @@ CONTAINS
                         pack_buffer(i - row_first + 1, icell - cell_first + 1) = &
                            axis_factor(cell_coordinate(1, icell), class_x, 1)* &
                            axis_factor(cell_coordinate(2, icell), class_y, 2)* &
-                           axis_factor(cell_coordinate(3, icell), class_z, 3)*values_R(ilocal, 1, isource)
+                           axis_factor(cell_coordinate(3, icell), class_z, 3)*values_R(ilocal, 1, icell)
                      END DO
                   END DO
                   DO i = row_first, row_last
@@ -2306,10 +2310,10 @@ CONTAINS
             output(1:count, 1:nfft(1), 1:nfft(2), 1:nfft(3)) => fft_in(1:INT(nfft_grid)*count)
             started = m_walltime()
             !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-            !$OMP SHARED(values_k, output, grid_index, xkp, first, count) PRIVATE(ik, i)
+            !$OMP SHARED(values_k, output, grid_index, xkp, first, count, origin_phase) PRIVATE(ik, i)
             DO ik = 1, SIZE(xkp, 2)
                DO i = 1, count
-                  values_k(first + i - 1, 1, ik) = &
+                  values_k(first + i - 1, 1, ik) = origin_phase(ik)* &
                      output(i, grid_index(1, ik), grid_index(2, ik), grid_index(3, ik))
                END DO
             END DO
@@ -2320,7 +2324,7 @@ CONTAINS
          CALL fft_dealloc(fft_in)
          CALL fft_dealloc(fft_out)
          DEALLOCATE (pair_shift, pair_tie, keys, order, axis_class, axis_factor, &
-                     cell_index, cell_coordinate, cell_order, grid_index)
+                     cell_index, cell_coordinate, grid_index, origin_phase)
          profile%seconds(2) = profile%seconds(2) + setup_seconds
          profile%seconds(9) = m_walltime() - started
          unit_nr = cp_logger_get_default_io_unit()

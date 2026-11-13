@@ -107,6 +107,35 @@ PROGRAM kpoint_lattice_fft_unittest
    IF (MAXVAL(ABS(transformed - direct)) > 2.0E-12_dp) THEN
       ERROR STOP "Shifted lattice FFT differs from direct transform"
    END IF
+   ! Non-cubic, z-fastest canonical cells with a shifted and reordered k mesh.
+   BLOCK
+      INTEGER, PARAMETER :: mesh(3) = [3, 2, 4], nk = PRODUCT(mesh)
+      INTEGER :: c(3, nk), ix, iy, iz, j
+      REAL(dp) :: coord(3, nk), source(2, 1, nk), recovered(2, 1, nk)
+      COMPLEX(dp) :: expected(2, 1, nk), actual(2, 1, nk)
+
+      j = 0
+      DO ix = 0, mesh(1) - 1
+         DO iy = 0, mesh(2) - 1
+            DO iz = 0, mesh(3) - 1
+               j = j + 1
+               c(:, j) = -mesh/2 + [ix, iy, iz]
+               coord(:, j) = (REAL([ix, iy, iz], dp) + [0.25_dp, 0.5_dp, 0.375_dp])/REAL(mesh, dp)
+               source(:, 1, j) = [SIN(0.19_dp*j), COS(0.27_dp*j)]
+            END DO
+         END DO
+      END DO
+      coord = CSHIFT(coord, 5, DIM=2)
+      CALL direct_reference(source, c, coord, expected)
+      CALL cell_to_k_grid_fft(source, c, coord, mesh, actual, used_fft)
+      IF (.NOT. used_fft .OR. MAXVAL(ABS(actual - expected)) > 3.0E-12_dp) THEN
+         ERROR STOP 'Noncubic z-fastest forward FFT differs from direct transform'
+      END IF
+      CALL k_to_real_cell_transform(expected, coord, mesh, c, recovered, rskp_backend_fft)
+      IF (MAXVAL(ABS(recovered - source)) > 3.0E-12_dp) THEN
+         ERROR STOP 'Noncubic z-fastest inverse FFT did not recover its input'
+      END IF
+   END BLOCK
 
    BLOCK
       USE cp_fm_struct, ONLY: cp_fm_struct_type
