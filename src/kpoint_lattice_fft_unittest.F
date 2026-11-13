@@ -546,6 +546,121 @@ PROGRAM kpoint_lattice_fft_unittest
    DEALLOCATE (coarse_inverse, correction_indices, local_operator)
    DEALLOCATE (inverse_k)
 
+   ! Exercise the production GW adapter against the unchanged, materialized GEMM path.
+   BLOCK
+      USE cell_types, ONLY: cell_type
+      USE gw_ri_rs_small_cell_full_kp_lattice, ONLY: build_full_cell_grid
+      USE gw_ri_rs_small_cell_full_kp_utils, ONLY: product_to_k_pair_centered
+      USE kpoint_types, ONLY: kpoint_type
+      USE post_scf_bandstructure_types, ONLY: post_scf_bandstructure_type
+      TYPE(cell_type), TARGET :: cell
+      TYPE(kpoint_type), TARGET :: mesh
+      TYPE(post_scf_bandstructure_type), TARGET :: environment
+      TYPE(post_scf_bandstructure_type), POINTER :: bs
+      INTEGER, PARAMETER :: gw_grid_points = 7, gw_pairs = gw_grid_points**2
+      INTEGER :: mode, point, np, pair
+      INTEGER, ALLOCATABLE :: cells(:, :)
+      REAL(dp), ALLOCATABLE :: source(:, :, :), saved(:, :, :), centered(:, :, :), points(:, :)
+      COMPLEX(dp), ALLOCATABLE :: expected(:, :, :), actual(:, :, :)
+
+      bs => environment
+      bs%ri_rs%cell => cell
+      bs%kpoints_scf_desymm => mesh
+      bs%ri_rs%n_grid_points = gw_grid_points
+      ALLOCATE (bs%ri_rs%grid_points(3, gw_grid_points))
+      bs%ri_rs%grid_points(:, 1) = [0.0_dp, 0.0_dp, 0.0_dp]
+      bs%ri_rs%grid_points(:, 2) = [0.5_dp, 0.5_dp, 0.5_dp]
+      bs%ri_rs%grid_points(:, 3) = [0.83_dp, 0.17_dp, 0.66_dp]
+      bs%ri_rs%grid_points(:, 4) = bs%ri_rs%grid_points(:, 1)
+      bs%ri_rs%grid_points(:, 5) = [-0.5_dp, 1.5_dp, -2.5_dp]
+      bs%ri_rs%grid_points(:, 6) = bs%ri_rs%grid_points(:, 3)
+      bs%ri_rs%grid_points(:, 7) = [2.83_dp, -2.83_dp, 1.66_dp]
+      cell%h_inv = 0.0_dp
+      DO i = 1, 3
+         cell%h_inv(i, i) = 1.0_dp
+      END DO
+      DO mode = 1, 10
+         mesh%nkp_grid = [4, 3, 2]
+         IF (mode > 2) mesh%nkp_grid = [3, 2, 1]
+         IF (mode == 7) mesh%nkp_grid = [4, 3, 2]
+         IF (mode >= 9) mesh%nkp_grid = [5, 3, 3]
+         bs%periodic = [1, 1, 1]
+         IF (mode == 3 .OR. mode == 4 .OR. mode == 8) bs%periodic(3) = 0
+         ! Class discovery must retain shifts outside {-1,0,1}, including their Bloch phase.
+         IF (mode >= 5) bs%ri_rs%grid_points(:, 3) = [2.83_dp, -2.83_dp, 1.66_dp]
+         CALL build_full_cell_grid(bs, cells)
+         np = PRODUCT(mesh%nkp_grid)
+         ! 49 pairs cross three 16-pair tiles with a one-pair tail; 45 cells cross a 32-cell tile.
+         ALLOCATE (source(2*gw_pairs, 1, np), saved(2*gw_pairs, 1, np), centered(gw_pairs, 1, np), &
+                   points(3, np), expected(gw_pairs, 1, np), actual(2*gw_pairs, 1, np))
+         point = 0
+         DO iz = 0, mesh%nkp_grid(3) - 1
+            DO iy = 0, mesh%nkp_grid(2) - 1
+               DO ix = 0, mesh%nkp_grid(1) - 1
+                  point = point + 1
+                  points(:, point) = REAL([ix, iy, iz], dp)/REAL(mesh%nkp_grid, dp)
+                  IF (MODULO(mode, 2) == 0) points(:, point) = &
+                     points(:, point) + 0.5_dp/REAL(mesh%nkp_grid, dp)
+                  IF (mode == 7 .OR. mode == 8) points(:, point) = REAL([ix, iy, iz], dp)/REAL(mesh%nkp_grid, dp) + &
+                                                                   [0.25_dp, -0.25_dp, 0.5_dp]/REAL(mesh%nkp_grid, dp)
+               END DO
+            END DO
+         END DO
+         ! The first point need not be the mesh origin; the FFT twist uses the common offset.
+         points(:, :) = CSHIFT(points, 3, DIM=2)
+         DO point = 1, np
+            source(:, 1, point) = [(SIN(0.17_dp*REAL(pair + 3*point, dp)), pair=1, 2*gw_pairs)]
+         END DO
+         saved(:, :, :) = source
+         centered(:, :, :) = source(2:2*gw_pairs:2, :, :)
+         mesh%rskp_transform = rskp_backend_gemm
+         CALL product_to_k_pair_centered(bs, cells, points, centered, expected, 1)
+         mesh%rskp_transform = rskp_backend_fft
+         actual = CMPLX(-19.0_dp, 7.0_dp, dp)
+         CALL product_to_k_pair_centered(bs, cells, points, source(2:2*gw_pairs:2, :, :), actual(2:2*gw_pairs:2, :, :), 1)
+         IF (MAXVAL(ABS(actual(2:2*gw_pairs:2, :, :) - expected)) > 3.0E-11_dp) THEN
+            ERROR STOP 'Fused GW FFT changed pair centering or endpoint weights'
+         END IF
+         IF (ANY(source /= saved)) ERROR STOP 'Fused GW FFT modified its source'
+         IF (ANY(actual(1:2*gw_pairs - 1:2, :, :) /= CMPLX(-19.0_dp, 7.0_dp, dp))) THEN
+            ERROR STOP 'Fused GW FFT overwrote neighboring output rows'
+         END IF
+         ! A partial pair range has its own (shift,tie) class order.
+         actual = CMPLX(-19.0_dp, 7.0_dp, dp)
+         CALL product_to_k_pair_centered(bs, cells, points, source(6:2*gw_pairs - 2:2, :, :), &
+                                         actual(6:2*gw_pairs - 2:2, :, :), 3)
+         IF (MAXVAL(ABS(actual(6:2*gw_pairs - 2:2, :, :) - expected(3:gw_pairs - 1, :, :))) > 3.0E-11_dp) THEN
+            ERROR STOP 'Shared GW shift classes lost the first-pair offset'
+         END IF
+         IF (ANY(source /= saved)) ERROR STOP 'Shared GW shift classes modified their source'
+         IF (ANY(actual(1:2*gw_pairs - 1:2, :, :) /= CMPLX(-19.0_dp, 7.0_dp, dp))) THEN
+            ERROR STOP 'Shared GW shift classes overwrote neighboring output rows'
+         END IF
+         IF (ANY(actual(2:4:2, :, :) /= CMPLX(-19.0_dp, 7.0_dp, dp)) .OR. &
+             ANY(actual(2*gw_pairs, :, :) /= CMPLX(-19.0_dp, 7.0_dp, dp))) THEN
+            ERROR STOP 'GW packing tiles overwrote pairs outside the partial range'
+         END IF
+         CALL product_to_k_pair_centered(bs, cells, points, source(2:0:2, :, :), actual(2:0:2, :, :), 1)
+         ! Descriptor strides remain valid after moving all phases into the FFT input.
+         centered(:, :, :) = source(2*gw_pairs:2:-2, :, np:1:-1)
+         mesh%rskp_transform = rskp_backend_gemm
+         CALL product_to_k_pair_centered(bs, cells, points, centered, expected, 1)
+         mesh%rskp_transform = rskp_backend_fft
+         actual = CMPLX(-19.0_dp, 7.0_dp, dp)
+         CALL product_to_k_pair_centered(bs, cells, points, source(2*gw_pairs:2:-2, :, np:1:-1), &
+                                         actual(2*gw_pairs:2:-2, :, np:1:-1), 1)
+         IF (MAXVAL(ABS(actual(2*gw_pairs:2:-2, :, np:1:-1) - expected)) > 3.0E-11_dp) THEN
+            ERROR STOP 'GW input phase folding lost reversed descriptor strides'
+         END IF
+         IF (ANY(source /= saved)) ERROR STOP 'GW input phase folding modified its source'
+         IF (ANY(actual(1:2*gw_pairs - 1:2, :, :) /= CMPLX(-19.0_dp, 7.0_dp, dp))) THEN
+            ERROR STOP 'GW input phase folding overwrote neighboring output rows'
+         END IF
+         DEALLOCATE (source, saved, centered, points, expected, actual, cells)
+      END DO
+      NULLIFY (bs%ri_rs%cell, bs%kpoints_scf_desymm)
+   END BLOCK
+
    CALL finalize_fft(mp_comm, "")
    CALL mp_world_finalize()
 

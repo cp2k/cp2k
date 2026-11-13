@@ -40,7 +40,7 @@ MODULE kpoint_lattice_fft
    PUBLIC :: cell_to_k_grid_fft, cell_to_k_grid_prepare, cell_to_k_grid_release, cell_to_k_grid_work_type
    PUBLIC :: k_grid_to_cell_fft, k_grid_to_cell_prepare, k_grid_to_cell_execute, k_grid_to_cell_release
    PUBLIC :: k_grid_to_cell_work_type, lattice_fft_shape, regular_kpoint_grid
-   PUBLIC :: lattice_fft_profile_type
+   PUBLIC :: lattice_fft_profile_type, lattice_fft_execute
 
    INTEGER(KIND=int_8), PARAMETER :: fft_batch_bytes = 32_int_8*1024_int_8**2
    ! Bound the source/FFT-grid transpose working set without another packing buffer.
