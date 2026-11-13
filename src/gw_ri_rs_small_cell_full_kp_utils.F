@@ -2127,17 +2127,18 @@ CONTAINS
       INTEGER, PARAMETER                                 :: pack_cells = 32, pack_pairs = 16
 
       COMPLEX(KIND=dp) :: pack_buffer(pack_pairs, pack_cells)
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: axis_factor(:, :, :), origin_phase(:)
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: axis_factor(:, :, :), combined_factor(:, :), origin_phase(:)
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: fft_in(:), fft_out(:), input(:, :), &
                                                             output(:, :, :, :)
       INTEGER :: cell_first, cell_last, class_x, class_y, class_z, coordinate, count, first, &
          handle, i, icell, idir, ik, ilocal, isource, lower(3), naxis, nfft(3), ngrid, nmesh(3), &
          row_first, row_last, shift(3), slot(3), stat, unit_nr, width, wrapped(3)
-      INTEGER(KIND=int_8)                                :: axis_classes, nfft_grid, &
+      INTEGER(KIND=int_8)                                :: axis_classes, combined_classes, cached_coefficients, nfft_grid, &
                                                             phase_evaluations
+      INTEGER                                            :: combined_count, combined_id
       INTEGER, ALLOCATABLE :: axis_class(:, :), cell_coordinate(:, :), cell_index(:), &
-         grid_index(:, :), keys(:, :), order(:), pair_shift(:, :)
-      LOGICAL                                            :: tie(3), unpadded
+         combined_class(:), grid_index(:, :), keys(:, :), order(:), pair_shift(:, :)
+      LOGICAL                                            :: tie(3), unpadded, use_combined
       LOGICAL, ALLOCATABLE                               :: pair_tie(:, :)
       REAL(KIND=dp)                                      :: endpoint(3), k_offset(3), setup_seconds, &
                                                             started, total_started, weight
@@ -2200,12 +2201,14 @@ CONTAINS
          started = m_walltime()
          CALL fft_alloc(fft_in, [INT(nfft_grid)*width])
          CALL fft_alloc(fft_out, [INT(nfft_grid)*width])
-         ALLOCATE (pair_shift(3, width), pair_tie(3, width), keys(2, width), order(width), &
-                   axis_class(3, width), axis_factor(MAXVAL(nmesh), width, 3))
+         ALLOCATE (pair_shift(3, width), pair_tie(3, width), keys(3, width), order(width), &
+                   axis_class(3, width), combined_class(width), axis_factor(MAXVAL(nmesh), width, 3))
          profile%seconds(3) = m_walltime() - started
          setup_seconds = 0.0_dp
          phase_evaluations = 0_int_8
          axis_classes = 0_int_8
+         combined_classes = 0_int_8
+         cached_coefficients = 0_int_8
          DO first = 1, SIZE(values_R, 1), width
             count = MIN(width, SIZE(values_R, 1) - first + 1)
             profile%elements = profile%elements + INT(count, int_8)
@@ -2263,6 +2266,39 @@ CONTAINS
                axis_classes = axis_classes + INT(naxis, int_8)
                phase_evaluations = phase_evaluations + INT(naxis, int_8)*INT(nmesh(idir), int_8)
             END DO
+            ! Group the complete (x,y,z) stencil triples, retaining original pair order.
+            keys(1:3, 1:count) = axis_class(:, 1:count)
+            CALL sort(keys, 1, count, 1, 3, order)
+            combined_count = 0
+            DO i = 1, count
+               IF (i == 1) THEN
+                  combined_count = 1
+               ELSE IF (ANY(keys(:, i) /= keys(:, i - 1))) THEN
+                  combined_count = combined_count + 1
+               END IF
+               combined_class(order(i)) = combined_count
+            END DO
+            combined_classes = combined_classes + INT(combined_count, int_8)
+
+            ! Bound cache memory to at most one quarter of the packed input.
+            use_combined = combined_count <= count/4
+            IF (use_combined) THEN
+               ALLOCATE (combined_factor(combined_count, SIZE(cell_index)))
+               DO i = 1, count
+                  IF (i > 1) THEN
+                     IF (ALL(keys(:, i) == keys(:, i - 1))) CYCLE
+                  END IF
+                  combined_id = combined_class(order(i))
+                  DO icell = 1, SIZE(cell_index)
+                     combined_factor(combined_id, icell) = &
+                        axis_factor(cell_coordinate(1, icell), keys(1, i), 1)* &
+                        axis_factor(cell_coordinate(2, icell), keys(2, i), 2)* &
+                        axis_factor(cell_coordinate(3, icell), keys(3, i), 3)
+                  END DO
+               END DO
+               cached_coefficients = cached_coefficients + &
+                  SIZE(cell_index, KIND=int_8)*INT(combined_count, int_8)
+            END IF
             setup_seconds = setup_seconds + m_walltime() - started
             input(1:INT(nfft_grid), 1:count) => fft_in(1:INT(nfft_grid)*count)
             started = m_walltime()
@@ -2270,7 +2306,7 @@ CONTAINS
             IF (.NOT. unpadded) input = z_zero
             !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
             !$OMP SHARED(input, values_R, cell_index, cell_coordinate, first, count, unpadded) &
-            !$OMP SHARED(axis_class, axis_factor) &
+            !$OMP SHARED(axis_class, axis_factor, combined_factor, combined_class, use_combined) &
             !$OMP PRIVATE(i, ilocal, icell, isource, class_x, class_y, class_z, row_first, row_last) &
             !$OMP PRIVATE(cell_first, cell_last, pack_buffer)
             DO row_first = 1, count, pack_pairs
@@ -2283,13 +2319,18 @@ CONTAINS
                      !$OMP SIMD PRIVATE(ilocal, class_x, class_y, class_z)
                      DO i = row_first, row_last
                         ilocal = first + i - 1
-                        class_x = axis_class(1, i)
-                        class_y = axis_class(2, i)
-                        class_z = axis_class(3, i)
-                        pack_buffer(i - row_first + 1, icell - cell_first + 1) = &
-                           axis_factor(cell_coordinate(1, icell), class_x, 1)* &
-                           axis_factor(cell_coordinate(2, icell), class_y, 2)* &
-                           axis_factor(cell_coordinate(3, icell), class_z, 3)*values_R(ilocal, 1, icell)
+                        IF (use_combined) THEN
+                           pack_buffer(i - row_first + 1, icell - cell_first + 1) = &
+                              combined_factor(combined_class(i), icell)*values_R(ilocal, 1, icell)
+                        ELSE
+                           class_x = axis_class(1, i)
+                           class_y = axis_class(2, i)
+                           class_z = axis_class(3, i)
+                           pack_buffer(i - row_first + 1, icell - cell_first + 1) = &
+                              axis_factor(cell_coordinate(1, icell), class_x, 1)* &
+                              axis_factor(cell_coordinate(2, icell), class_y, 2)* &
+                              axis_factor(cell_coordinate(3, icell), class_z, 3)*values_R(ilocal, 1, icell)
+                        END IF
                      END DO
                   END DO
                   DO i = row_first, row_last
@@ -2305,6 +2346,7 @@ CONTAINS
             END DO
             !$OMP END PARALLEL DO
             profile%seconds(4) = profile%seconds(4) + m_walltime() - started
+            IF (ALLOCATED(combined_factor)) DEALLOCATE (combined_factor)
             CALL lattice_fft_execute(BWFFT, nfft, count, fft_in, fft_out, stat, profile)
             IF (stat /= 0) CPABORT('GW product FFT failed')
             output(1:count, 1:nfft(1), 1:nfft(2), 1:nfft(3)) => fft_in(1:INT(nfft_grid)*count)
@@ -2323,7 +2365,7 @@ CONTAINS
          started = m_walltime()
          CALL fft_dealloc(fft_in)
          CALL fft_dealloc(fft_out)
-         DEALLOCATE (pair_shift, pair_tie, keys, order, axis_class, axis_factor, &
+         DEALLOCATE (pair_shift, pair_tie, keys, order, axis_class, axis_factor, combined_class, &
                      cell_index, cell_coordinate, grid_index, origin_phase)
          profile%seconds(2) = profile%seconds(2) + setup_seconds
          profile%seconds(9) = m_walltime() - started
@@ -2338,6 +2380,8 @@ CONTAINS
             WRITE (unit_nr, '(T2,A,F14.6)') 'R2K_FFT_PROFILE| class-setup (included in geometry): ', setup_seconds
             WRITE (unit_nr, '(T2,A,2I16)') 'R2K_FFT_PROFILE| input-axis phase evaluations / stencil classes: ', &
                phase_evaluations, axis_classes
+            WRITE (unit_nr, '(T2,A,2I16)') 'R2K_FFT_PROFILE| 3D stencil classes / cached coefficients: ', &
+               combined_classes, cached_coefficients
             WRITE (unit_nr, '(T2,A,2I8)') 'R2K_FFT_PROFILE| packing tile pairs/cells: ', pack_pairs, pack_cells
             WRITE (unit_nr, '(T2,A,F14.6)') 'R2K_FFT_PROFILE| total         ', m_walltime() - total_started
          END IF
