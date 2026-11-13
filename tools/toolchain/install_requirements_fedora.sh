@@ -23,6 +23,7 @@ dnf -qy install \
   make \
   nano \
   patch \
+  patchelf \
   perl-open \
   perl-FindBin \
   pkg-config \
