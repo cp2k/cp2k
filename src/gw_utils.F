@@ -72,10 +72,10 @@ MODULE gw_utils
                                               local_complex_power
    USE input_constants,                 ONLY: &
         G0W0, cohsex_qp_update, do_potential_coulomb, do_potential_short, do_potential_truncated, &
-        evGW0, ri_rpa_g0w0_crossing_newton, ri_rs_large_cell_Gamma, ri_rs_non_periodic, &
-        ri_rs_small_cell_full_kp, rtp_bse_kernel_ri_ao, rtp_bse_kernel_ri_rs, rtp_method_bse, &
-        rtp_method_bse_linearized, tensor_large_cell_Gamma, tensor_small_cell_full_kp, &
-        tensor_static_cohsex, xc_none
+        evGW0, gw_ac_nevanlinna, ri_rpa_g0w0_crossing_newton, ri_rs_large_cell_Gamma, &
+        ri_rs_non_periodic, ri_rs_small_cell_full_kp, rtp_bse_kernel_ri_ao, rtp_bse_kernel_ri_rs, &
+        rtp_method_bse, rtp_method_bse_linearized, tensor_large_cell_Gamma, &
+        tensor_small_cell_full_kp, tensor_static_cohsex, xc_none
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -316,6 +316,7 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "KPOINTS_W", i_vals=bs_env%nkp_grid_chi_eps_W_input)
       CALL section_vals_val_get(gw_sec, "HEDIN_SHIFT", l_val=bs_env%do_hedin_shift)
       CALL section_vals_val_get(gw_sec, "FREQ_MAX_FIT", r_val=bs_env%freq_max_fit)
+      CALL section_vals_val_get(gw_sec, "ANALYTIC_CONTINUATION", i_val=bs_env%ac_method)
       CALL section_vals_val_get(cohsex_sec, "SCALE_OCC", r_val=bs_env%cohsex_scale_occ)
       CALL section_vals_val_get(cohsex_sec, "SCALE_VIRT", r_val=bs_env%cohsex_scale_virt)
       CALL read_rirs_input(bs_env%ri_rs, ri_rs_sec)
@@ -607,6 +608,11 @@ CONTAINS
          WRITE (u, '(T2,A)') ' '
          WRITE (u, '(T2,A,I45)') 'Input: Number of time/freq. points', bs_env%num_time_freq_points
          WRITE (u, "(T2,A,F44.1,A)") 'Input: ω_max for fitting Σ(iω) (eV)', bs_env%freq_max_fit*evolt
+         IF (bs_env%ac_method == gw_ac_nevanlinna) THEN
+            WRITE (u, "(T2,A,A51)") 'Input: Analytic continuation', 'NEVANLINNA'
+         ELSE
+            WRITE (u, "(T2,A,A51)") 'Input: Analytic continuation', 'PADE'
+         END IF
          WRITE (u, '(T2,A,ES27.1)') 'Input: Filter threshold for sparse tensor operations', &
             bs_env%eps_filter
          WRITE (u, "(T2,A,L55)") 'Input: Apply Hedin shift', bs_env%do_hedin_shift
@@ -821,6 +827,19 @@ CONTAINS
       bs_env%stabilize_exp = 70.0_dp
       bs_env%eps_atom_grid_2d_mat = 1.0E-50_dp
 
+      ! Nevanlinna continuation: weights of Σ^c(iτ) -> Σ^c(iω) by a truncated SVD, and the
+      ! quasiparticle solution as median over fit windows with the Newton search and the
+      ! solution of largest weight Z
+      IF (bs_env%ac_method == gw_ac_nevanlinna) THEN
+         bs_env%nevanlinna%rcond_weights = 1.0E-10_dp
+         bs_env%nevanlinna%window_min_points = 6
+         bs_env%nevanlinna%window_freq_min = 10.0_dp/evolt
+         bs_env%nevanlinna%window_freq_max = 100.0_dp/evolt
+         bs_env%nevanlinna%window_spread = 0.05_dp/evolt
+         bs_env%nevanlinna%qp_newton_max_step = 1.0_dp/evolt
+         bs_env%nevanlinna%qp_maxz_radius = 1.5_dp/evolt
+      END IF
+
       ! Resolution of the identity with the truncated Coulomb metric.
       bs_env%ri_metric%potential_type = do_potential_truncated
       bs_env%ri_metric%filename = "t_c_g.dat"
@@ -894,6 +913,10 @@ CONTAINS
          IF (bs_env%num_time_freq_points < 35) THEN
             WRITE (u, FMT="(T2,A,ES38.1)") "Regularization parameter of minimax grids", &
                bs_env%regularization_minimax
+         END IF
+         IF (bs_env%ac_method == gw_ac_nevanlinna) THEN
+            WRITE (u, FMT="(T2,A,ES31.1)") "SVD cutoff of minimax weights for Σ(iτ) -> Σ(iω)", &
+               bs_env%nevanlinna%rcond_weights
          END IF
          IF (bs_env%gw_implementation == ri_rs_small_cell_full_kp) THEN
             WRITE (u, FMT="(T2,A,T72,A9)") "Coulomb matrix V(q) from", "Ewald sum"
@@ -3418,7 +3441,7 @@ CONTAINS
       INTEGER                                            :: handle, homo, ispin, n_mo, n_top, &
                                                             num_time_freq_points, u
       REAL(KIND=dp)                                      :: E_max, E_max_ispin, E_min, E_min_ispin, &
-                                                            E_range, max_error_min
+                                                            E_range, max_error_min, max_error_sigma
 
       CALL timeset(routineN, handle)
 
@@ -3470,6 +3493,21 @@ CONTAINS
                                              max_fit_error=max_error_min, print_warning=.FALSE., unit_nr=0, &
                                              prefer_external_backend=.FALSE.)
 
+      ! Σ^c(iτ) -> Σ^c(iω) has its own weights: for NEVANLINNA, a truncated SVD keeps the samples
+      ! of Σ^c(iω) causal; χ and W keep the regularized weights and do not depend on the
+      ! analytic continuation
+      IF (bs_env%ac_method == gw_ac_nevanlinna) THEN
+         CALL build_minimax_time_frequency_grid(num_time_freq_points, E_min, E_max, bs_env%regularization_minimax, &
+                                                bs_env%num_points_per_magnitude, bs_env%time_frequency_grid_sigma, &
+                                                build_frequency=.TRUE., build_time=.TRUE., build_transforms=.TRUE., &
+                                                build_sine=.TRUE., time_scaling=2.0_dp, time_weight_scaling=1.0_dp, &
+                                                max_fit_error=max_error_sigma, print_warning=.FALSE., unit_nr=0, &
+                                                prefer_external_backend=.FALSE., &
+                                                rcond=bs_env%nevanlinna%rcond_weights)
+      ELSE
+         bs_env%time_frequency_grid_sigma = bs_env%time_frequency_grid
+      END IF
+
       ! determine number of fit points in the interval [0,ω_max] for virt, or [-ω_max,0] for occ
       bs_env%num_freq_points_fit = COUNT(bs_env%time_frequency_grid%frequency < bs_env%freq_max_fit)
 
@@ -3482,6 +3520,16 @@ CONTAINS
       ! imaginary-frequency points for the fit
       IF (bs_env%num_freq_points_fit < bs_env%nparam_pade) THEN
          bs_env%nparam_pade = bs_env%num_freq_points_fit
+      END IF
+
+      ! the Nevanlinna interpolant goes through all imaginary frequencies; its Padé fallback keeps
+      ! the points below ω_max and the number of Padé parameters of the PADE continuation
+      bs_env%num_freq_points_pade = bs_env%num_freq_points_fit
+      IF (bs_env%ac_method == gw_ac_nevanlinna) THEN
+         bs_env%num_freq_points_fit = num_time_freq_points
+         DEALLOCATE (bs_env%imag_freq_points_fit)
+         ALLOCATE (bs_env%imag_freq_points_fit(num_time_freq_points))
+         bs_env%imag_freq_points_fit(:) = bs_env%time_frequency_grid%frequency
       END IF
 
       u = bs_env%unit_nr
@@ -3615,12 +3663,14 @@ CONTAINS
       CHARACTER(len=3)                                   :: occ_vir
       CHARACTER(len=default_path_length)                 :: fname
       CHARACTER(len=default_string_length)               :: gw_label
-      INTEGER                                            :: handle, i_central, i_mo, i_order, &
-                                                            icycle, ikp_for_print, iunit, &
-                                                            n_central, n_mo, n_orders, nkp
+      INTEGER :: ac_used, handle, i_central, i_mo, i_order, icycle, ikp_for_print, iunit, &
+         n_ac_nevanlinna, n_ac_pade, n_central, n_mo, n_orders, n_window, nkp
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: multi_count
       INTEGER, DIMENSION(max_pade_orders)                :: order_index
-      LOGICAL                                            :: is_bandstruc_kpoint, print_DOS_kpoints, &
-                                                            print_ikp
+      LOGICAL                                            :: do_nevanlinna, is_bandstruc_kpoint, &
+                                                            multi_i, print_DOS_kpoints, print_ikp
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: multi, unstable
+      REAL(KIND=dp)                                      :: ac_pick, pick_min
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval_G, m_value, Sigma_c_ikp_n_qp, &
                                                             z_value
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Sigma_c_orders
@@ -3644,6 +3694,17 @@ CONTAINS
       ALLOCATE (z_value(n_mo), m_value(n_mo), Sigma_c_ikp_n_qp(n_mo), eigenval_G(n_mo), &
                 Sigma_c_orders(n_mo, n_orders))
       Sigma_c_orders(:, :) = 0.0_dp
+      Sigma_c_ikp_n_qp(:) = 0.0_dp
+
+      do_nevanlinna = (bs_env%ac_method == gw_ac_nevanlinna)
+      ALLOCATE (unstable(n_mo), multi(n_mo), multi_count(n_mo))
+      unstable(:) = .FALSE.
+      multi(:) = .FALSE.
+      multi_count(:) = 0
+      n_window = 0
+      n_ac_nevanlinna = 0
+      n_ac_pade = 0
+      pick_min = 0.0_dp
 
       ! Eigenvalues of the Green's function that produced Σ^c: the DFT ones for G0W0, the
       ! previous cycle's quasiparticle energies for evGW0. They set the Newton start value,
@@ -3655,33 +3716,80 @@ CONTAINS
          eigenval_G(:) = eigenval_scf(:)
       END IF
 
-      DO i_mo = 1, n_mo
+      IF (do_nevanlinna) THEN
 
-         ! parallelization
-         IF (MODULO(i_mo, bs_env%para_env%num_pe) /= bs_env%para_env%mepos) CYCLE
-
-         DO i_order = 1, n_orders
-            CALL continuation_pade(Sigma_c_orders(:, i_order), &
+         ! Nevanlinna continuation through all imaginary frequencies, then the median over fit
+         ! windows and the marks of unreliable (*) and multi-solution (m) levels
+         DO i_mo = 1, n_mo
+            IF (MODULO(i_mo, bs_env%para_env%num_pe) /= bs_env%para_env%mepos) CYCLE
+            CALL continuation_pade(Sigma_c_ikp_n_qp, &
                                    bs_env%imag_freq_points_fit, z_value, m_value, &
                                    Sigma_c_ikp_n_freq(:, 1:bs_env%num_freq_points_fit), &
                                    Sigma_x_ikp_n(:) - V_xc_ikp_n(:), &
                                    eigenval_G(:), eigenval_scf(:), &
                                    bs_env%do_hedin_shift, &
                                    i_mo, bs_env%n_occ(ispin), bs_env%n_vir(ispin), &
-                                   bs_env%nparam_pade - i_order + 1, bs_env%num_freq_points_fit, &
+                                   bs_env%nparam_pade, bs_env%num_freq_points_fit, &
                                    ri_rpa_g0w0_crossing_newton, bs_env%n_occ(ispin), &
-                                   0.0_dp, .TRUE., .FALSE., 1, e_fermi_ext=bs_env%e_fermi(ispin))
+                                   0.0_dp, .TRUE., .FALSE., 1, e_fermi_ext=bs_env%e_fermi(ispin), &
+                                   ac_method=gw_ac_nevanlinna, ac_used=ac_used, ac_pick=ac_pick, &
+                                   num_fit_points_pade=bs_env%num_freq_points_pade, &
+                                   qp_start_eigenval=.TRUE., &
+                                   qp_newton_max_step=bs_env%nevanlinna%qp_newton_max_step, &
+                                   qp_maxz_radius=bs_env%nevanlinna%qp_maxz_radius, qp_multi=multi_i)
+            IF (multi_i) multi_count(i_mo) = 1
+            IF (ac_used == gw_ac_nevanlinna) THEN
+               n_ac_nevanlinna = n_ac_nevanlinna + 1
+            ELSE
+               n_ac_pade = n_ac_pade + 1
+            END IF
+            pick_min = MIN(pick_min, ac_pick)
          END DO
-      END DO
 
-      CALL bs_env%para_env%sum(Sigma_c_orders)
+         CALL bs_env%para_env%sum(Sigma_c_ikp_n_qp)
+         CALL bs_env%para_env%sum(n_ac_nevanlinna)
+         CALL bs_env%para_env%sum(n_ac_pade)
+         CALL bs_env%para_env%min(pick_min)
+         CALL bs_env%para_env%sum(multi_count)
+         multi(:) = (multi_count(:) > 0)
 
-      DO i_mo = 1, n_mo
-         Sigma_c_sorted(1:n_orders) = Sigma_c_orders(i_mo, 1:n_orders)
-         CALL sort(Sigma_c_sorted(1:n_orders), n_orders, order_index(1:n_orders))
-         Sigma_c_ikp_n_qp(i_mo) = SUM(Sigma_c_sorted(i_central:i_central + n_central - 1))/ &
-                                  REAL(n_central, KIND=dp)
-      END DO
+         CALL qp_median_over_windows(bs_env, Sigma_c_ikp_n_freq, Sigma_x_ikp_n, V_xc_ikp_n, &
+                                     eigenval_G, eigenval_scf, ispin, Sigma_c_ikp_n_qp, unstable, &
+                                     multi, n_window)
+         CALL propagate_unstable_marks(unstable, multi, bs_env%n_occ(ispin))
+         CALL print_qp_marks(bs_env, unstable, multi, n_window, ikp, ispin)
+
+      ELSE
+
+         DO i_mo = 1, n_mo
+
+            ! parallelization
+            IF (MODULO(i_mo, bs_env%para_env%num_pe) /= bs_env%para_env%mepos) CYCLE
+
+            DO i_order = 1, n_orders
+               CALL continuation_pade(Sigma_c_orders(:, i_order), &
+                                      bs_env%imag_freq_points_fit, z_value, m_value, &
+                                      Sigma_c_ikp_n_freq(:, 1:bs_env%num_freq_points_fit), &
+                                      Sigma_x_ikp_n(:) - V_xc_ikp_n(:), &
+                                      eigenval_G(:), eigenval_scf(:), &
+                                      bs_env%do_hedin_shift, &
+                                      i_mo, bs_env%n_occ(ispin), bs_env%n_vir(ispin), &
+                                      bs_env%nparam_pade - i_order + 1, bs_env%num_freq_points_fit, &
+                                      ri_rpa_g0w0_crossing_newton, bs_env%n_occ(ispin), &
+                                      0.0_dp, .TRUE., .FALSE., 1, e_fermi_ext=bs_env%e_fermi(ispin))
+            END DO
+         END DO
+
+         CALL bs_env%para_env%sum(Sigma_c_orders)
+
+         DO i_mo = 1, n_mo
+            Sigma_c_sorted(1:n_orders) = Sigma_c_orders(i_mo, 1:n_orders)
+            CALL sort(Sigma_c_sorted(1:n_orders), n_orders, order_index(1:n_orders))
+            Sigma_c_ikp_n_qp(i_mo) = SUM(Sigma_c_sorted(i_central:i_central + n_central - 1))/ &
+                                     REAL(n_central, KIND=dp)
+         END DO
+
+      END IF
 
       CALL correct_obvious_fitting_fails(Sigma_c_ikp_n_qp, ispin, bs_env)
 
@@ -3736,6 +3844,12 @@ CONTAINS
          WRITE (iunit, "(A10,I7,A25,3F10.4,T90,A7,I2)") "kpoint: ", ikp_for_print, "coordinate: ", &
             bs_env%kpoints_DOS%xkp(:, ikp), "spin: ", ispin
          WRITE (iunit, "(A)") " "
+         IF (do_nevanlinna) THEN
+            WRITE (iunit, "(A,I6,A,I6,A,ES10.2)") " analytic continuation: Nevanlinna for", &
+               n_ac_nevanlinna, " level(s), Padé fallback for", n_ac_pade, &
+               " level(s); smallest relative Pick eigenvalue", pick_min
+            WRITE (iunit, "(A)") " "
+         END IF
          gw_label = "ϵ_nk^"//TRIM(gw_flavour_label(bs_env))//" (eV)"
          IF (bs_env%gw_flavour == evGW0 .AND. icycle == 1) THEN
             gw_label = "ϵ_nk^G0W0 (eV)"
@@ -3747,15 +3861,22 @@ CONTAINS
          DO i_mo = 1, n_mo
             IF (i_mo <= bs_env%n_occ(ispin)) occ_vir = 'occ'
             IF (i_mo > bs_env%n_occ(ispin)) occ_vir = 'vir'
-            WRITE (iunit, "(I5,3A,I5,4F16.3,F17.3)") i_mo, ' (', occ_vir, ') ', ikp_for_print, &
+            WRITE (iunit, "(I5,3A,I5,4F16.3,F17.3,A)") i_mo, ' (', occ_vir, ') ', ikp_for_print, &
                eigenval_scf(i_mo)*evolt, &
                Sigma_c_ikp_n_qp(i_mo)*evolt, &
                Sigma_x_ikp_n(i_mo)*evolt, &
                V_xc_ikp_n(i_mo)*evolt, &
-               bs_env%eigenval_GW(i_mo, ikp, ispin)*evolt
+               bs_env%eigenval_GW(i_mo, ikp, ispin)*evolt, &
+               TRIM(MERGE('  *', '   ', unstable(i_mo)))//TRIM(MERGE('  m', '   ', multi(i_mo)))
          END DO
 
          WRITE (iunit, "(A)") " "
+         IF (ANY(unstable)) WRITE (iunit, "(A)") &
+            " * not reliable: the fit windows disagree, or an unstable or multi-solution level "// &
+            "lies between this level and the HOMO (occupied) or the LUMO (virtual)"
+         IF (ANY(multi)) WRITE (iunit, "(A)") &
+            " m multi-solution level: a second quasiparticle solution carries more than a quarter "// &
+            "of the weight"
 
          CALL close_file(iunit)
 
@@ -3764,6 +3885,237 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE analyt_conti_and_print
+
+! **************************************************************************************************
+!> \brief quasiparticle energies as median over Nevanlinna continuations from fit windows; each
+!>        window consists of the lowest k imaginary frequencies, k >= window_min_points, with the
+!>        highest frequency in [window_freq_min, window_freq_max] (bs_env%nevanlinna)
+!> \param bs_env ...
+!> \param Sigma_c_ikp_n_freq Sigma^c(iω) of all levels
+!> \param Sigma_x_ikp_n ...
+!> \param V_xc_ikp_n ...
+!> \param eigenval_G eigenvalues of the Green's function that produced Σ^c
+!> \param eigenval_scf ...
+!> \param ispin ...
+!> \param Sigma_c_ikp_n_qp Sigma^c at the quasiparticle energy; replaced by the window median
+!> \param unstable the window solutions of the level spread more than window_spread
+!> \param multi more than half of the windows find a second solution of comparable weight
+!> \param n_window number of fit windows; zero if no window exists, then nothing is changed
+! **************************************************************************************************
+   SUBROUTINE qp_median_over_windows(bs_env, Sigma_c_ikp_n_freq, Sigma_x_ikp_n, V_xc_ikp_n, &
+                                     eigenval_G, eigenval_scf, ispin, Sigma_c_ikp_n_qp, unstable, multi, &
+                                     n_window)
+
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: Sigma_c_ikp_n_freq
+      REAL(KIND=dp), DIMENSION(:)                        :: Sigma_x_ikp_n, V_xc_ikp_n, eigenval_G, &
+                                                            eigenval_scf
+      INTEGER                                            :: ispin
+      REAL(KIND=dp), DIMENSION(:)                        :: Sigma_c_ikp_n_qp
+      LOGICAL, DIMENSION(:)                              :: unstable, multi
+      INTEGER, INTENT(OUT)                               :: n_window
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qp_median_over_windows'
+      REAL(KIND=dp), PARAMETER                           :: max_abs_sigma = 1.0E3_dp
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: sig_sel
+      INTEGER                                            :: handle, i_mo, i_win, j, k_w, n_mo, &
+                                                            n_valid, n_w
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: multi_count, order, window_size
+      LOGICAL                                            :: multi_i
+      REAL(KIND=dp)                                      :: v
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: m_dummy, q_sorted, Sigma_c_win, w_sel, &
+                                                            z_dummy
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: q_win
+
+      CALL timeset(routineN, handle)
+
+      n_mo = bs_env%n_ao
+      n_w = bs_env%num_time_freq_points
+
+      ! imaginary frequencies in ascending order
+      ALLOCATE (order(n_w), window_size(n_w))
+      DO j = 1, n_w
+         order(j) = j
+      END DO
+      DO j = 2, n_w
+         k_w = order(j)
+         i_win = j - 1
+         DO WHILE (i_win >= 1)
+            IF (bs_env%time_frequency_grid%frequency(order(i_win)) <= bs_env%time_frequency_grid%frequency(k_w)) EXIT
+            order(i_win + 1) = order(i_win)
+            i_win = i_win - 1
+         END DO
+         order(i_win + 1) = k_w
+      END DO
+
+      n_window = 0
+      DO j = bs_env%nevanlinna%window_min_points, n_w
+         v = bs_env%time_frequency_grid%frequency(order(j))
+         IF (v >= bs_env%nevanlinna%window_freq_min .AND. v <= bs_env%nevanlinna%window_freq_max) THEN
+            n_window = n_window + 1
+            window_size(n_window) = j
+         END IF
+      END DO
+
+      ! without at least two fit windows there is no error estimate: all levels are marked
+      IF (n_window < 2) THEN
+         CALL cp_warn(__LOCATION__, "Fewer than two fit windows for the Nevanlinna continuation, "// &
+                      "so no error estimate; all GW levels are marked as not reliable. "// &
+                      "Increase NUM_TIME_FREQ_POINTS.")
+         unstable(:) = .TRUE.
+      END IF
+      IF (n_window == 0) THEN
+         DEALLOCATE (order, window_size)
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      ALLOCATE (q_win(n_mo, n_window), Sigma_c_win(n_mo), q_sorted(n_window), &
+                multi_count(n_mo), z_dummy(n_mo), m_dummy(n_mo))
+      q_win(:, :) = 0.0_dp
+      multi_count(:) = 0
+
+      DO i_win = 1, n_window
+         k_w = window_size(i_win)
+         ALLOCATE (w_sel(k_w), sig_sel(n_mo, k_w))
+         DO j = 1, k_w
+            w_sel(j) = bs_env%time_frequency_grid%frequency(order(j))
+            sig_sel(:, j) = Sigma_c_ikp_n_freq(:, order(j))
+         END DO
+         Sigma_c_win(:) = 0.0_dp
+         DO i_mo = 1, n_mo
+            IF (MODULO(i_mo, bs_env%para_env%num_pe) /= bs_env%para_env%mepos) CYCLE
+            CALL continuation_pade(Sigma_c_win, w_sel, z_dummy, m_dummy, sig_sel, &
+                                   Sigma_x_ikp_n(:) - V_xc_ikp_n(:), &
+                                   eigenval_G(:), eigenval_scf(:), &
+                                   bs_env%do_hedin_shift, &
+                                   i_mo, bs_env%n_occ(ispin), bs_env%n_vir(ispin), &
+                                   k_w, k_w, &
+                                   ri_rpa_g0w0_crossing_newton, bs_env%n_occ(ispin), &
+                                   0.0_dp, .TRUE., .FALSE., 1, e_fermi_ext=bs_env%e_fermi(ispin), &
+                                   ac_method=gw_ac_nevanlinna, qp_start_eigenval=.TRUE., &
+                                   qp_newton_max_step=bs_env%nevanlinna%qp_newton_max_step, &
+                                   qp_maxz_radius=bs_env%nevanlinna%qp_maxz_radius, qp_multi=multi_i)
+            q_win(i_mo, i_win) = Sigma_c_win(i_mo)
+            IF (multi_i) multi_count(i_mo) = multi_count(i_mo) + 1
+         END DO
+         DEALLOCATE (w_sel, sig_sel)
+      END DO
+
+      CALL bs_env%para_env%sum(q_win)
+      CALL bs_env%para_env%sum(multi_count)
+      multi(:) = (2*multi_count(:) > n_window)
+
+      DO i_mo = 1, n_mo
+         ! sort the valid window solutions
+         n_valid = 0
+         DO i_win = 1, n_window
+            v = q_win(i_mo, i_win)
+            IF (.NOT. (v == v) .OR. ABS(v) > max_abs_sigma) CYCLE
+            n_valid = n_valid + 1
+            j = n_valid
+            DO WHILE (j > 1)
+               IF (q_sorted(j - 1) <= v) EXIT
+               q_sorted(j) = q_sorted(j - 1)
+               j = j - 1
+            END DO
+            q_sorted(j) = v
+         END DO
+         ! a level without two valid window solutions has no error estimate
+         IF (n_valid < 2) unstable(i_mo) = .TRUE.
+         IF (n_valid == 0) CYCLE
+         IF (MODULO(n_valid, 2) == 1) THEN
+            Sigma_c_ikp_n_qp(i_mo) = q_sorted((n_valid + 1)/2)
+         ELSE
+            Sigma_c_ikp_n_qp(i_mo) = 0.5_dp*(q_sorted(n_valid/2) + q_sorted(n_valid/2 + 1))
+         END IF
+         IF (n_valid > 1) unstable(i_mo) = (q_sorted(n_valid) - q_sorted(1) > bs_env%nevanlinna%window_spread)
+      END DO
+
+      DEALLOCATE (order, window_size, q_win, Sigma_c_win, q_sorted, multi_count, z_dummy, m_dummy)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qp_median_over_windows
+
+! **************************************************************************************************
+!> \brief counted from the HOMO downwards and from the LUMO upwards, all levels beyond the first
+!>        unstable or multi-solution level are marked unstable: the quasiparticle solution of a
+!>        deeper level cannot be trusted once a closer level is not reliable
+!> \param unstable ...
+!> \param multi ...
+!> \param homo ...
+! **************************************************************************************************
+   SUBROUTINE propagate_unstable_marks(unstable, multi, homo)
+
+      LOGICAL, DIMENSION(:), INTENT(INOUT)               :: unstable
+      LOGICAL, DIMENSION(:), INTENT(IN)                  :: multi
+      INTEGER, INTENT(IN)                                :: homo
+
+      INTEGER                                            :: i_mo
+      LOGICAL                                            :: beyond_mark
+
+      beyond_mark = .FALSE.
+      DO i_mo = homo, 1, -1
+         IF (beyond_mark) unstable(i_mo) = .TRUE.
+         IF (unstable(i_mo) .OR. multi(i_mo)) beyond_mark = .TRUE.
+      END DO
+
+      beyond_mark = .FALSE.
+      DO i_mo = homo + 1, SIZE(unstable)
+         IF (beyond_mark) unstable(i_mo) = .TRUE.
+         IF (unstable(i_mo) .OR. multi(i_mo)) beyond_mark = .TRUE.
+      END DO
+
+   END SUBROUTINE propagate_unstable_marks
+
+! **************************************************************************************************
+!> \brief print the number of marked levels and warn if the HOMO or the LUMO is marked
+!> \param bs_env ...
+!> \param unstable ...
+!> \param multi ...
+!> \param n_window ...
+!> \param ikp ...
+!> \param ispin ...
+! **************************************************************************************************
+   SUBROUTINE print_qp_marks(bs_env, unstable, multi, n_window, ikp, ispin)
+
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      LOGICAL, DIMENSION(:), INTENT(IN)                  :: unstable, multi
+      INTEGER, INTENT(IN)                                :: n_window, ikp, ispin
+
+      INTEGER                                            :: homo, u
+
+      homo = bs_env%n_occ(ispin)
+      u = bs_env%unit_nr
+
+      IF (u > 0) THEN
+         WRITE (u, '(T2,A,I6,A,I2,A,I4,A)') 'GW analytic continuation (k-point', ikp, ', spin', &
+            ispin, '): Nevanlinna, median over', n_window, ' fit windows'
+         WRITE (u, '(T2,A,I49)') 'Levels marked * (not reliable)', COUNT(unstable)
+         WRITE (u, '(T2,A,I47)') 'Levels marked m (multi-solution)', COUNT(multi)
+         WRITE (u, '(T2,A)') ' '
+      END IF
+
+      IF (homo >= 1) THEN
+         IF (unstable(homo)) THEN
+            CPWARN("Analytic continuation unstable for the HOMO; its G0W0 energy is not reliable.")
+         END IF
+         IF (multi(homo)) THEN
+            CPWARN("The HOMO has a second quasiparticle solution of comparable weight.")
+         END IF
+      END IF
+      IF (homo < SIZE(unstable)) THEN
+         IF (unstable(homo + 1)) THEN
+            CPWARN("Analytic continuation unstable for the LUMO; its G0W0 energy is not reliable.")
+         END IF
+         IF (multi(homo + 1)) THEN
+            CPWARN("The LUMO has a second quasiparticle solution of comparable weight.")
+         END IF
+      END IF
+
+   END SUBROUTINE print_qp_marks
 
 ! **************************************************************************************************
 !> \brief ...

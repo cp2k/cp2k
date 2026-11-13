@@ -297,6 +297,16 @@ fitted function is then evaluated at real frequencies,
 $$ \Sigma_{n\mathbf{k}}(i\omega_j) \;\xrightarrow{\;\text{fit}\;}\; \Sigma_{n\mathbf{k}}^\text{Padé}(z)
 \;\xrightarrow{\;z\,=\,\omega\;}\; \Sigma_{n\mathbf{k}}(\omega)\,. $$
 
+By default, CP2K uses a Nevanlinna function for this fit
+([ANALYTIC_CONTINUATION](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.ANALYTIC_CONTINUATION)
+`NEVANLINNA`, \[[](#Fei2021)\]), named after the Finnish mathematician Rolf Nevanlinna, i.e. only
+functions with a positive spectral function on the real-frequency axis, as for the exact
+self-energy. The quasiparticle energy is the median over several such fits to subsets of the
+imaginary frequencies, and their spread serves as an error estimate: in
+`bandstructure_SCF_and_G0W0`, a level is marked `*` if its analytic continuation is unstable (the
+fits disagree, or a level between it and the HOMO or LUMO is marked), and `m` if the quasiparticle
+equation has several solutions of comparable weight.
+
 ```{warning}
 With analytic continuation, *GW* quasiparticle energies are only reliable in the energy window from
 about 3 eV below the valence band maximum to about 3 eV above the conduction band minimum,
@@ -305,7 +315,8 @@ $\varepsilon_\text{VBM}-3\,\text{eV} \lesssim \varepsilon_{n\mathbf{k}}^{GW} \le
 unreliable. Increasing the number of imaginary-frequency points does not fix this, because the
 continuation from the imaginary to the real frequency axis is a numerically ill-posed problem. We are
 working on more robust methods; until then, please keep this limitation in mind when you interpret
-*GW* band structures.
+*GW* band structures. With `NEVANLINNA`, levels outside the reliable window are marked `*`; the marks
+need enough imaginary-frequency points to be meaningful, we recommend NUM_TIME_FREQ_POINTS ≥ 26.
 ```
 
 ### 4.4 Output, accuracy and computation time

@@ -1195,6 +1195,9 @@ MODULE input_constants
                                                cohsex_diagonal = 1, &
                                                cohsex_qp_update = 2
 
+   INTEGER, PARAMETER, PUBLIC               :: gw_ac_pade = 1, &
+                                               gw_ac_nevanlinna = 2
+
    ! periodic RESP parameters
    INTEGER, PARAMETER, PUBLIC               :: do_resp_x_dir = 0, &
                                                do_resp_y_dir = 1, &

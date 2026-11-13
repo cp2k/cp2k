@@ -23,11 +23,13 @@ MODULE post_scf_bandstructure_types
                                               dbt_type
    USE gw_auto_ri_types,                ONLY: auto_ri_release,&
                                               auto_ri_type
+   USE gw_nevanlinna,                   ONLY: gw_nevanlinna_env_type
    USE gw_ri_rs_small_cell_full_kp_types,ONLY: gwkp_type
    USE hfx_types,                       ONLY: dealloc_containers,&
                                               hfx_compression_type
    USE input_constants,                 ONLY: G0W0,&
                                               cohsex_off,&
+                                              gw_ac_nevanlinna,&
                                               tensor_small_cell_full_kp
    USE integral_library_types,          ONLY: coulomb_operator_type
    USE kinds,                           ONLY: default_path_length,&
@@ -207,8 +209,12 @@ MODULE post_scf_bandstructure_types
 
       ! imaginary time and frequency grids
       INTEGER                                      :: num_time_freq_points = -1, &
-                                                      num_freq_points_fit = -1
+                                                      num_freq_points_fit = -1, &
+                                                      num_freq_points_pade = -1
       TYPE(time_frequency_grid_type)               :: time_frequency_grid
+      ! same grid points; weights of the transform Σ^c(iτ) -> Σ^c(iω), which for NEVANLINNA are
+      ! fitted by a truncated SVD; χ and W always use time_frequency_grid
+      TYPE(time_frequency_grid_type)               :: time_frequency_grid_sigma
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: imag_freq_points_fit
       INTEGER                                      :: nparam_pade = -1, &
                                                       num_points_per_magnitude = -1
@@ -216,6 +222,10 @@ MODULE post_scf_bandstructure_types
                                                       input_regularization_minimax = -1.0_dp, &
                                                       regularization_minimax = -1.0_dp, &
                                                       stabilize_exp = -1.0_dp
+
+      ! analytic continuation of Σ^c(iω): Padé or Nevanlinna, with the parameters of the latter
+      INTEGER                                      :: ac_method = gw_ac_nevanlinna
+      TYPE(gw_nevanlinna_env_type)                 :: nevanlinna
 
       ! filter threshold for matrix-tensor operations
       REAL(KIND=dp)                                :: eps_filter = -1.0_dp, &
@@ -447,6 +457,7 @@ CONTAINS
       IF (ALLOCATED(bs_env%l_RI)) DEALLOCATE (bs_env%l_RI)
       IF (ALLOCATED(bs_env%xkp_special)) DEALLOCATE (bs_env%xkp_special)
       CALL time_frequency_grid_release(bs_env%time_frequency_grid)
+      CALL time_frequency_grid_release(bs_env%time_frequency_grid_sigma)
       IF (ALLOCATED(bs_env%eigenval_scf_Gamma)) DEALLOCATE (bs_env%eigenval_scf_Gamma)
       IF (ALLOCATED(bs_env%eigenval_scf)) DEALLOCATE (bs_env%eigenval_scf)
       IF (ALLOCATED(bs_env%eigenval_GW)) DEALLOCATE (bs_env%eigenval_GW)

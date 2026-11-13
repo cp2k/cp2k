@@ -71,18 +71,18 @@ MODULE rpa_gw
         dbt_get_block, dbt_get_info, dbt_iterator_blocks_left, dbt_iterator_next_block, &
         dbt_iterator_start, dbt_iterator_stop, dbt_iterator_type, dbt_nblks_total, &
         dbt_pgrid_create, dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
+   USE gw_nevanlinna,                   ONLY: nevanlinna_create,&
+                                              nevanlinna_evaluate,&
+                                              nevanlinna_release,&
+                                              nevanlinna_type
    USE gw_utils_fm,                     ONLY: cfm_contract_ABA
    USE hfx_types,                       ONLY: block_ind_type,&
                                               dealloc_containers,&
                                               hfx_compression_type
-   USE input_constants,                 ONLY: bse_screening_rpa,&
-                                              bse_singlet,&
-                                              gw_pade_approx,&
-                                              gw_two_pole_model,&
-                                              ri_rpa_g0w0_crossing_bisection,&
-                                              ri_rpa_g0w0_crossing_newton,&
-                                              ri_rpa_g0w0_crossing_z_shot,&
-                                              soc_none
+   USE input_constants,                 ONLY: &
+        bse_screening_rpa, bse_singlet, gw_ac_nevanlinna, gw_ac_pade, gw_pade_approx, &
+        gw_two_pole_model, ri_rpa_g0w0_crossing_bisection, ri_rpa_g0w0_crossing_newton, &
+        ri_rpa_g0w0_crossing_z_shot, soc_none
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
@@ -4222,6 +4222,15 @@ CONTAINS
 !> \param e_fermi_ext ...
 !> \param output_spin Optional spin index for the output filename.
 !> \param output_kpoint Optional k-point index for the output filename.
+!> \param ac_method analytic continuation: gw_ac_pade (default) or gw_ac_nevanlinna
+!> \param ac_used continuation actually used; Pade if the Nevanlinna interpolant does not exist
+!> \param ac_pick smallest relative eigenvalue of the Pick matrix (Nevanlinna only)
+!> \param num_fit_points_pade number of fit points of the Padé approximant, if fewer than num_fit_points
+!> \param qp_start_eigenval start the Newton search from the eigenvalue of the level
+!> \param qp_newton_max_step if > 0, maximal step of the Newton search (Hartree)
+!> \param qp_maxz_radius if > 0, take the solution of largest weight Z within this distance of the
+!>        Newton solution (Hartree)
+!> \param qp_multi a second solution within qp_maxz_radius carries more than a quarter of the weight
 ! **************************************************************************************************
    SUBROUTINE continuation_pade(vec_gw_energ, vec_omega_fit_gw, &
                                 z_value, m_value, vec_Sigma_c_gw, vec_Sigma_x_minus_vxc_gw, &
@@ -4231,7 +4240,9 @@ CONTAINS
                                 fermi_level_offset, do_gw_im_time, print_self_energy, count_ev_sc_GW, &
                                 vec_gw_dos, dos_lower_bound, dos_precision, ndos, &
                                 min_level_self_energy, max_level_self_energy, &
-                                dos_eta, dos_min, dos_max, e_fermi_ext, output_spin, output_kpoint)
+                                dos_eta, dos_min, dos_max, e_fermi_ext, output_spin, output_kpoint, &
+                                ac_method, ac_used, ac_pick, num_fit_points_pade, qp_start_eigenval, &
+                                qp_newton_max_step, qp_maxz_radius, qp_multi)
 
       ! Optional arguments for spectral function
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_gw_energ
@@ -4254,7 +4265,13 @@ CONTAINS
       REAL(KIND=dp), OPTIONAL                            :: dos_eta
       INTEGER, INTENT(IN), OPTIONAL                      :: dos_min, dos_max
       REAL(KIND=dp), OPTIONAL                            :: e_fermi_ext
-      INTEGER, INTENT(IN), OPTIONAL                      :: output_spin, output_kpoint
+      INTEGER, INTENT(IN), OPTIONAL                      :: output_spin, output_kpoint, ac_method
+      INTEGER, INTENT(OUT), OPTIONAL                     :: ac_used
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: ac_pick
+      INTEGER, INTENT(IN), OPTIONAL                      :: num_fit_points_pade
+      LOGICAL, INTENT(IN), OPTIONAL                      :: qp_start_eigenval
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: qp_newton_max_step, qp_maxz_radius
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: qp_multi
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'continuation_pade'
 
@@ -4262,17 +4279,19 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: coeff_pade, omega_points_pade, &
                                                             Sigma_c_gw_reorder
       INTEGER                                            :: handle, i_omega, idos, iunit, jquad, &
-                                                            n_level_gw_ref, num_omega
-      REAL(KIND=dp)                                      :: e_fermi, energy_val, hedin_shift, &
-                                                            level_energ_GW_start, omega, &
-                                                            omega_dos, omega_dos_pade_eval, &
-                                                            sign_occ_virt
+                                                            n_level_gw_ref, num_fit_pade, num_omega
+      LOGICAL                                            :: multi
+      REAL(KIND=dp) :: e_fermi, energy_val, hedin_shift, level_energ_GW_start, max_step, omega, &
+         omega_dos, omega_dos_pade_eval, sign_occ_virt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: real_frequency, self_energy_im, &
                                                             self_energy_re, vec_omega_fit_gw_sign, &
                                                             vec_omega_fit_gw_sign_reorder
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(nevanlinna_type)                              :: nev
 
       CALL timeset(routineN, handle)
+
+      IF (PRESENT(qp_multi)) qp_multi = .FALSE.
 
       ALLOCATE (vec_omega_fit_gw_sign(num_fit_points))
 
@@ -4324,22 +4343,44 @@ CONTAINS
       ALLOCATE (coeff_pade(nparam_pade))
       ALLOCATE (omega_points_pade(nparam_pade))
       coeff_pade = 0.0_dp
+      num_fit_pade = num_fit_points
+      IF (PRESENT(num_fit_points_pade)) num_fit_pade = MIN(num_fit_points_pade, num_fit_points)
       CALL get_pade_parameters(Sigma_c_gw_reorder, vec_omega_fit_gw_sign_reorder, &
-                               num_fit_points, nparam_pade, omega_points_pade, coeff_pade)
+                               num_fit_pade, nparam_pade, omega_points_pade, coeff_pade)
+
+      !*** Nevanlinna interpolant through all fit points; the Pade approximant above is kept as
+      !*** fallback for levels whose samples admit no causal interpolant
+      IF (PRESENT(ac_method)) THEN
+         IF (ac_method == gw_ac_nevanlinna) THEN
+            CALL nevanlinna_create(nev, gaussi*vec_omega_fit_gw_sign_reorder(1:num_fit_points), &
+                                   Sigma_c_gw_reorder(1:num_fit_points))
+         END IF
+      END IF
+      IF (PRESENT(ac_used)) THEN
+         IF (nev%solvable) THEN
+            ac_used = gw_ac_nevanlinna
+         ELSE
+            ac_used = gw_ac_pade
+         END IF
+      END IF
+      IF (PRESENT(ac_pick)) ac_pick = nev%pick_min
 
       !*** calculate start_value for iterative cross-searching methods
       IF ((crossing_search == ri_rpa_g0w0_crossing_bisection) .OR. &
           (crossing_search == ri_rpa_g0w0_crossing_newton)) THEN
          energy_val = Eigenval(n_level_gw_ref) - e_fermi
-         CALL evaluate_pade_function(energy_val, nparam_pade, omega_points_pade, &
-                                     coeff_pade, sigma_c_pade)
-         CALL get_z_and_m_value_pade(energy_val, nparam_pade, omega_points_pade, &
-                                     coeff_pade, z_value(n_level_gw), m_value(n_level_gw))
+         CALL evaluate_ac_function(nev, energy_val, nparam_pade, omega_points_pade, &
+                                   coeff_pade, sigma_c_pade)
+         CALL get_z_and_m_value_ac(nev, energy_val, nparam_pade, omega_points_pade, &
+                                   coeff_pade, z_value(n_level_gw), m_value(n_level_gw))
          level_energ_GW_start = (Eigenval_scf(n_level_gw_ref) - &
                                  m_value(n_level_gw)*Eigenval(n_level_gw_ref) + &
                                  REAL(sigma_c_pade) + &
                                  vec_Sigma_x_minus_vxc_gw(n_level_gw_ref))* &
                                 z_value(n_level_gw)
+         IF (PRESENT(qp_start_eigenval)) THEN
+            IF (qp_start_eigenval) level_energ_GW_start = Eigenval(n_level_gw_ref)
+         END IF
 
          ! calculate Hedin shift; the last line is for evGW0 and evGW
          hedin_shift = 0.0_dp
@@ -4366,8 +4407,8 @@ CONTAINS
          DO idos = 1, ndos
             omega_dos = dos_lower_bound + REAL(idos - 1, KIND=dp)*dos_precision
             omega_dos_pade_eval = omega_dos - e_fermi
-            CALL evaluate_pade_function(omega_dos_pade_eval, nparam_pade, omega_points_pade, &
-                                        coeff_pade, sigma_c_pade)
+            CALL evaluate_ac_function(nev, omega_dos_pade_eval, nparam_pade, omega_points_pade, &
+                                      coeff_pade, sigma_c_pade)
 
             IF (n_level_gw_ref >= dos_min .AND. &
                 (n_level_gw_ref <= dos_max .OR. dos_max == 0)) THEN
@@ -4391,26 +4432,38 @@ CONTAINS
          ! Hedin shift not implemented
          CPASSERT(.NOT. do_hedin_shift)
          energy_val = Eigenval(n_level_gw_ref) - e_fermi
-         CALL evaluate_pade_function(energy_val, nparam_pade, omega_points_pade, &
-                                     coeff_pade, sigma_c_pade)
+         CALL evaluate_ac_function(nev, energy_val, nparam_pade, omega_points_pade, &
+                                   coeff_pade, sigma_c_pade)
          vec_gw_energ(n_level_gw) = REAL(sigma_c_pade)
 
-         CALL get_z_and_m_value_pade(energy_val, nparam_pade, omega_points_pade, &
-                                     coeff_pade, z_value(n_level_gw), m_value(n_level_gw))
+         CALL get_z_and_m_value_ac(nev, energy_val, nparam_pade, omega_points_pade, &
+                                   coeff_pade, z_value(n_level_gw), m_value(n_level_gw))
 
       CASE (ri_rpa_g0w0_crossing_bisection)
          CALL get_sigma_c_bisection_pade(vec_gw_energ(n_level_gw), Eigenval_scf(n_level_gw_ref), &
                                          vec_Sigma_x_minus_vxc_gw(n_level_gw_ref), e_fermi, &
                                          nparam_pade, omega_points_pade, coeff_pade, &
-                                         level_energ_GW_start, hedin_shift)
+                                         level_energ_GW_start, hedin_shift, nev)
          z_value(n_level_gw) = 1.0_dp
          m_value(n_level_gw) = 0.0_dp
 
       CASE (ri_rpa_g0w0_crossing_newton)
+         max_step = 0.0_dp
+         IF (PRESENT(qp_newton_max_step)) max_step = qp_newton_max_step
          CALL get_sigma_c_newton(vec_gw_energ(n_level_gw), Eigenval_scf(n_level_gw_ref), &
                                  vec_Sigma_x_minus_vxc_gw(n_level_gw_ref), level_energ_GW_start, &
                                  e_fermi=e_fermi, nparam_pade=nparam_pade, &
-                                 omega_points_pade=omega_points_pade, coeff_pade=coeff_pade, hedin_shift=hedin_shift)
+                                 omega_points_pade=omega_points_pade, coeff_pade=coeff_pade, hedin_shift=hedin_shift, &
+                                 nev=nev, max_step=max_step)
+         IF (PRESENT(qp_maxz_radius)) THEN
+            IF (qp_maxz_radius > 0.0_dp) THEN
+               CALL select_qp_maxz(vec_gw_energ(n_level_gw), multi, Eigenval_scf(n_level_gw_ref), &
+                                   vec_Sigma_x_minus_vxc_gw(n_level_gw_ref), e_fermi, &
+                                   nparam_pade, omega_points_pade, coeff_pade, hedin_shift, &
+                                   qp_maxz_radius, nev)
+               IF (PRESENT(qp_multi)) qp_multi = multi
+            END IF
+         END IF
          z_value(n_level_gw) = 1.0_dp
          m_value(n_level_gw) = 0.0_dp
 
@@ -4431,8 +4484,8 @@ CONTAINS
                    self_energy_im(num_omega + 1))
          DO i_omega = 0, num_omega
             omega = dos_lower_bound + REAL(i_omega, dp)*dos_precision
-            CALL evaluate_pade_function(omega - e_fermi, nparam_pade, omega_points_pade, &
-                                        coeff_pade, sigma_c_pade)
+            CALL evaluate_ac_function(nev, omega - e_fermi, nparam_pade, omega_points_pade, &
+                                      coeff_pade, sigma_c_pade)
             real_frequency(i_omega + 1) = omega*evolt
             self_energy_re(i_omega + 1) = REAL(sigma_c_pade)
             self_energy_im(i_omega + 1) = AIMAG(sigma_c_pade)
@@ -4453,6 +4506,7 @@ CONTAINS
       END IF
       END IF
 
+      CALL nevanlinna_release(nev)
       DEALLOCATE (vec_omega_fit_gw_sign)
       DEALLOCATE (Sigma_c_gw_reorder)
       DEALLOCATE (vec_omega_fit_gw_sign_reorder)
@@ -4596,6 +4650,80 @@ CONTAINS
    END SUBROUTINE get_z_and_m_value_pade
 
 ! **************************************************************************************************
+!> \brief evaluate the continued correlation self-energy: the Nevanlinna interpolant if one was
+!>        built, otherwise the Pade approximant
+!> \param nev Nevanlinna interpolant (optional)
+!> \param x_val real value
+!> \param nparam number of pade parameters
+!> \param xpoints selection of points of the original complex function, i.e. here of Sigma_c(iomega)
+!> \param coeff pade coefficients
+!> \param func_val function value
+! **************************************************************************************************
+   SUBROUTINE evaluate_ac_function(nev, x_val, nparam, xpoints, coeff, func_val)
+
+      TYPE(nevanlinna_type), INTENT(IN), OPTIONAL        :: nev
+      REAL(KIND=dp), INTENT(IN)                          :: x_val
+      INTEGER, INTENT(IN)                                :: nparam
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: xpoints, coeff
+      COMPLEX(KIND=dp), INTENT(OUT)                      :: func_val
+
+      LOGICAL                                            :: use_nevanlinna
+
+      use_nevanlinna = .FALSE.
+      IF (PRESENT(nev)) use_nevanlinna = nev%solvable
+
+      IF (use_nevanlinna) THEN
+         CALL nevanlinna_evaluate(nev, x_val, func_val)
+      ELSE
+         CALL evaluate_pade_function(x_val, nparam, xpoints, coeff, func_val)
+      END IF
+
+   END SUBROUTINE evaluate_ac_function
+
+! **************************************************************************************************
+!> \brief get the z-value and the m-value (derivative) of the continued correlation self-energy:
+!>        of the Nevanlinna interpolant (by central differences) if one was built, otherwise of
+!>        the Pade approximant
+!> \param nev Nevanlinna interpolant (optional)
+!> \param x_val real value
+!> \param nparam number of pade parameters
+!> \param xpoints selection of points of the original complex function, i.e. here of Sigma_c(iomega)
+!> \param coeff pade coefficients
+!> \param z_value 1/(1-dev)
+!> \param m_value derivative
+! **************************************************************************************************
+   SUBROUTINE get_z_and_m_value_ac(nev, x_val, nparam, xpoints, coeff, z_value, m_value)
+
+      TYPE(nevanlinna_type), INTENT(IN), OPTIONAL        :: nev
+      REAL(KIND=dp), INTENT(IN)                          :: x_val
+      INTEGER, INTENT(IN)                                :: nparam
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: xpoints, coeff
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: z_value, m_value
+
+      REAL(KIND=dp), PARAMETER                           :: min_step = 1.0E-2_dp, &
+                                                            rel_step = 1.0E-4_dp
+
+      COMPLEX(KIND=dp)                                   :: f_minus, f_plus
+      LOGICAL                                            :: use_nevanlinna
+      REAL(KIND=dp)                                      :: dev, step
+
+      use_nevanlinna = .FALSE.
+      IF (PRESENT(nev)) use_nevanlinna = nev%solvable
+
+      IF (use_nevanlinna) THEN
+         step = rel_step*MAX(ABS(x_val), min_step)
+         CALL nevanlinna_evaluate(nev, x_val + step, f_plus)
+         CALL nevanlinna_evaluate(nev, x_val - step, f_minus)
+         dev = REAL(f_plus - f_minus, KIND=dp)/(2.0_dp*step)
+         IF (PRESENT(z_value)) z_value = 1.0_dp/(1.0_dp - dev)
+         IF (PRESENT(m_value)) m_value = dev
+      ELSE
+         CALL get_z_and_m_value_pade(x_val, nparam, xpoints, coeff, z_value, m_value)
+      END IF
+
+   END SUBROUTINE get_z_and_m_value_ac
+
+! **************************************************************************************************
 !> \brief crossing search using the bisection method to find the quasiparticle energy
 !> \param gw_energ real Sigma_c
 !> \param Eigenval_scf Eigenvalue from the SCF
@@ -4606,10 +4734,11 @@ CONTAINS
 !> \param coeff_pade pade coefficients
 !> \param start_val start value for the quasiparticle iteration
 !> \param hedin_shift ...
+!> \param nev Nevanlinna interpolant, used instead of the Pade approximant if it exists
 ! **************************************************************************************************
    SUBROUTINE get_sigma_c_bisection_pade(gw_energ, Eigenval_scf, Sigma_x_minus_vxc_gw, e_fermi, &
                                          nparam_pade, omega_points_pade, coeff_pade, start_val, &
-                                         hedin_shift)
+                                         hedin_shift, nev)
 
       REAL(KIND=dp), INTENT(OUT)                         :: gw_energ
       REAL(KIND=dp), INTENT(IN)                          :: Eigenval_scf, Sigma_x_minus_vxc_gw, &
@@ -4617,6 +4746,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nparam_pade
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: omega_points_pade, coeff_pade
       REAL(KIND=dp), INTENT(IN)                          :: start_val, hedin_shift
+      TYPE(nevanlinna_type), INTENT(IN), OPTIONAL        :: nev
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_sigma_c_bisection_pade'
 
@@ -4639,8 +4769,8 @@ CONTAINS
          qp_energy = qp_energy_old + 0.5_dp*delta
          qp_energy_old = qp_energy
          energy_val = qp_energy - e_fermi - hedin_shift
-         CALL evaluate_pade_function(energy_val, nparam_pade, omega_points_pade, &
-                                     coeff_pade, sigma_c)
+         CALL evaluate_ac_function(nev, energy_val, nparam_pade, omega_points_pade, &
+                                   coeff_pade, sigma_c)
          qp_energy = Eigenval_scf + REAL(sigma_c) + Sigma_x_minus_vxc_gw
          delta = qp_energy - qp_energy_old
          ! Self-consistent quasi-particle solution has not been found
@@ -4670,10 +4800,12 @@ CONTAINS
 !> \param homo Number of occupied orbitals for exact RPA.
 !> \param eta Exact RPA self-energy broadening.
 !> \param para_env Parallel environment for the exact RPA mode sum.
+!> \param nev Nevanlinna interpolant, used instead of the Pade approximant if it exists
+!> \param max_step if present and > 0, the Newton step is limited to this length
 ! **************************************************************************************************
    SUBROUTINE get_sigma_c_newton(gw_energ, Eigenval_scf, Sigma_x_minus_vxc_gw, start_val, &
                                  e_fermi, nparam_pade, omega_points_pade, coeff_pade, hedin_shift, &
-                                 modes, eigenval, homo, eta, para_env)
+                                 modes, eigenval, homo, eta, para_env, nev, max_step)
       REAL(KIND=dp), INTENT(OUT)                         :: gw_energ
       REAL(KIND=dp), INTENT(IN)                          :: Eigenval_scf, Sigma_x_minus_vxc_gw, &
                                                             start_val
@@ -4687,6 +4819,8 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: homo
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eta
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(nevanlinna_type), INTENT(IN), OPTIONAL        :: nev
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: max_step
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_sigma_c_newton'
       INTEGER, PARAMETER                                 :: max_qp_iterations = 500
@@ -4694,10 +4828,15 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: sigma(1)
       INTEGER                                            :: handle, icount
+      LOGICAL                                            :: limit_step
       REAL(KIND=dp)                                      :: delta, derivative, energy_val, &
-                                                            qp_energy, qp_energy_old, slope(1)
+                                                            qp_energy, qp_energy_old, slope(1), &
+                                                            step
 
       CALL timeset(routineN, handle)
+
+      limit_step = .FALSE.
+      IF (PRESENT(max_step)) limit_step = (max_step > 0.0_dp)
 
       qp_energy = start_val
       qp_energy_old = start_val
@@ -4711,12 +4850,17 @@ CONTAINS
             derivative = slope(1)
          ELSE
             energy_val = qp_energy - e_fermi - hedin_shift
-            CALL evaluate_pade_function(energy_val, nparam_pade, omega_points_pade, coeff_pade, sigma(1))
-            CALL get_z_and_m_value_pade(energy_val, nparam_pade, omega_points_pade, coeff_pade, m_value=derivative)
+            CALL evaluate_ac_function(nev, energy_val, nparam_pade, omega_points_pade, coeff_pade, sigma(1))
+            CALL get_z_and_m_value_ac(nev, energy_val, nparam_pade, omega_points_pade, coeff_pade, m_value=derivative)
          END IF
          qp_energy_old = qp_energy
-         qp_energy = qp_energy - (Eigenval_scf + Sigma_x_minus_vxc_gw + REAL(sigma(1)) - qp_energy)/ &
-                     (derivative - 1.0_dp)
+         IF (limit_step) THEN
+            step = -(Eigenval_scf + Sigma_x_minus_vxc_gw + REAL(sigma(1)) - qp_energy)/(derivative - 1.0_dp)
+            qp_energy = qp_energy + SIGN(MIN(ABS(step), max_step), step)
+         ELSE
+            qp_energy = qp_energy - (Eigenval_scf + Sigma_x_minus_vxc_gw + REAL(sigma(1)) - qp_energy)/ &
+                        (derivative - 1.0_dp)
+         END IF
          delta = qp_energy - qp_energy_old
          IF (icount > max_qp_iterations) EXIT
       END DO
@@ -4726,6 +4870,125 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE get_sigma_c_newton
+
+! **************************************************************************************************
+!> \brief among the quasiparticle solutions within a radius of the Newton solution, select the one
+!>        of largest weight Z; the solutions are bracketed on a fine energy grid and refined by
+!>        bisection
+!> \param gw_energ on input Sigma_c at the Newton solution, on output Sigma_c at the selected one
+!> \param qp_multi a second solution within the radius carries more than a quarter of the weight
+!> \param Eigenval_scf DFT eigenvalue
+!> \param Sigma_x_minus_vxc_gw Sigma_x - v_xc
+!> \param e_fermi Fermi level
+!> \param nparam_pade number of Pade parameters
+!> \param omega_points_pade imaginary frequencies of the Pade approximant
+!> \param coeff_pade Pade coefficients
+!> \param hedin_shift ...
+!> \param radius search radius around the Newton solution (Hartree)
+!> \param nev Nevanlinna interpolant, used instead of the Pade approximant if it exists
+! **************************************************************************************************
+   SUBROUTINE select_qp_maxz(gw_energ, qp_multi, Eigenval_scf, Sigma_x_minus_vxc_gw, e_fermi, &
+                             nparam_pade, omega_points_pade, coeff_pade, hedin_shift, radius, nev)
+
+      REAL(KIND=dp), INTENT(INOUT)                       :: gw_energ
+      LOGICAL, INTENT(OUT)                               :: qp_multi
+      REAL(KIND=dp), INTENT(IN)                          :: Eigenval_scf, Sigma_x_minus_vxc_gw, &
+                                                            e_fermi
+      INTEGER, INTENT(IN)                                :: nparam_pade
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: omega_points_pade, coeff_pade
+      REAL(KIND=dp), INTENT(IN)                          :: hedin_shift, radius
+      TYPE(nevanlinna_type), INTENT(IN), OPTIONAL        :: nev
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'select_qp_maxz'
+      INTEGER, PARAMETER                                 :: n_bisection = 60
+      REAL(KIND=dp), PARAMETER :: grid_step = 0.002_dp/evolt, max_residual = 1.0E-6_dp, &
+                                  multi_ratio = 0.25_dp, z_max = 1.05_dp, z_min = 0.02_dp
+
+      COMPLEX(KIND=dp)                                   :: sigma_c
+      INTEGER                                            :: handle, i, i_best, it, j, n_grid, &
+                                                            n_root
+      REAL(KIND=dp)                                      :: e_a, e_b, e_mid, e_newton, f_a, f_mid, &
+                                                            m_val, z_val
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: grid_e, grid_f, root_e, root_z
+
+      CALL timeset(routineN, handle)
+
+      qp_multi = .FALSE.
+      e_newton = Eigenval_scf + Sigma_x_minus_vxc_gw + gw_energ
+      n_grid = NINT(2.0_dp*radius/grid_step) + 1
+      ALLOCATE (grid_e(n_grid), grid_f(n_grid), root_e(n_grid), root_z(n_grid))
+      DO i = 1, n_grid
+         grid_e(i) = e_newton - radius + REAL(i - 1, KIND=dp)*grid_step
+         grid_f(i) = qp_residual(grid_e(i))
+      END DO
+
+      ! bracket all sign changes of the residual e_DFT + Sigma_x - v_xc + Re Sigma_c(e) - e
+      n_root = 0
+      DO i = 1, n_grid - 1
+         IF (.NOT. (grid_f(i) == grid_f(i) .AND. grid_f(i + 1) == grid_f(i + 1))) CYCLE
+         IF (SIGN(1.0_dp, grid_f(i)) == SIGN(1.0_dp, grid_f(i + 1))) CYCLE
+         e_a = grid_e(i)
+         e_b = grid_e(i + 1)
+         f_a = grid_f(i)
+         DO it = 1, n_bisection
+            e_mid = 0.5_dp*(e_a + e_b)
+            f_mid = qp_residual(e_mid)
+            IF (SIGN(1.0_dp, f_mid) == SIGN(1.0_dp, f_a)) THEN
+               e_a = e_mid
+               f_a = f_mid
+            ELSE
+               e_b = e_mid
+            END IF
+         END DO
+         e_mid = 0.5_dp*(e_a + e_b)
+         ! skip poles of Re Sigma_c, where the residual changes sign without a root
+         IF (ABS(qp_residual(e_mid)) > max_residual) CYCLE
+         CALL get_z_and_m_value_ac(nev, e_mid - e_fermi - hedin_shift, nparam_pade, &
+                                   omega_points_pade, coeff_pade, m_value=m_val)
+         IF (ABS(1.0_dp - m_val) < 1.0E-12_dp) CYCLE
+         z_val = 1.0_dp/(1.0_dp - m_val)
+         IF (z_val <= z_min .OR. z_val > z_max) CYCLE
+         n_root = n_root + 1
+         root_e(n_root) = e_mid
+         root_z(n_root) = z_val
+      END DO
+
+      IF (n_root > 0) THEN
+         i_best = MAXLOC(root_z(1:n_root), 1)
+         CALL evaluate_ac_function(nev, root_e(i_best) - e_fermi - hedin_shift, nparam_pade, &
+                                   omega_points_pade, coeff_pade, sigma_c)
+         gw_energ = REAL(sigma_c)
+         DO j = 1, n_root
+            IF (j == i_best) CYCLE
+            IF (ABS(root_e(j) - root_e(i_best)) < radius .AND. &
+                root_z(j) > multi_ratio*root_z(i_best)) qp_multi = .TRUE.
+         END DO
+      END IF
+
+      DEALLOCATE (grid_e, grid_f, root_e, root_z)
+
+      CALL timestop(handle)
+
+   CONTAINS
+
+! **************************************************************************************************
+!> \brief residual of the quasiparticle equation
+!> \param e quasiparticle energy
+!> \return e_DFT + Sigma_x - v_xc + Re Sigma_c(e) - e
+! **************************************************************************************************
+      FUNCTION qp_residual(e) RESULT(res)
+      REAL(KIND=dp), INTENT(IN)                          :: e
+      REAL(KIND=dp)                                      :: res
+
+      COMPLEX(KIND=dp)                                   :: sig
+
+         CALL evaluate_ac_function(nev, e - e_fermi - hedin_shift, nparam_pade, omega_points_pade, &
+                                   coeff_pade, sig)
+         res = Eigenval_scf + Sigma_x_minus_vxc_gw + REAL(sig) - e
+
+      END FUNCTION qp_residual
+
+   END SUBROUTINE select_qp_maxz
 
 ! **************************************************************************************************
 !> \brief Prints the GW stuff to the output and optinally to an external file.
@@ -4766,7 +5029,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_Sigma_x_minus_vxc_gw, Eigenval, &
                                                             Eigenval_last, Eigenval_scf
       INTEGER, INTENT(IN) :: gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, crossing_search, &
-         homo, unit_nr, count_ev_sc_GW, count_sc_GW0, ikp, nkp_self_energy
+                             homo, unit_nr, count_ev_sc_GW, count_sc_GW0, ikp, nkp_self_energy
       TYPE(kpoint_type), INTENT(IN), POINTER             :: kpoints
       INTEGER, INTENT(IN)                                :: ispin
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: E_VBM_GW, E_CBM_GW, E_VBM_SCF, E_CBM_SCF

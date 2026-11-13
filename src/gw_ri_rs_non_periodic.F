@@ -554,7 +554,7 @@ CONTAINS
          END DO
 
          ! 4. Σ^c_nn(iτ) -> Σ^c_nn(iω)
-         CALL transform_time_to_frequency(bs_env%time_frequency_grid, Sigma_c_n_time, Sigma_c_n_freq)
+         CALL transform_time_to_frequency(bs_env%time_frequency_grid_sigma, Sigma_c_n_time, Sigma_c_n_freq)
          Sigma_c_n_freq(1:bs_env%n_occ(ispin), :) = CONJG(Sigma_c_n_freq(1:bs_env%n_occ(ispin), :))
 
          ! 5. Analytic continuation Σ^c_nn(iω) -> Σ^c_nn(ϵ) and the QP levels

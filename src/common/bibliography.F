@@ -103,7 +103,7 @@ MODULE bibliography
                             Wong2026, Loring2015, EsteveParedes2023, Cerjan2023, Bairnsfather2026, Davidson1975, &
                             Olsen1988, Stratmann1998, Vecharynski2017, Stathopoulos1998, Bai2012, &
                             Fukaya2014, Schreder2024_3, Pizzi2020, Marzari1997, Souza2001, &
-                            Hummel2017, Cheng2015
+                            Hummel2017, Cheng2015, Fei2021
 
 CONTAINS
 
@@ -2516,6 +2516,12 @@ CONTAINS
                          "relaxation and finite temperature", &
                          source="Phys. Rev. B", volume="91", pages="235320", &
                          year=2015, doi="10.1103/PhysRevB.91.235320")
+
+      CALL add_reference(key=Fei2021, &
+                         authors=s2a("J. Fei", "C.-N. Yeh", "E. Gull"), &
+                         title="Nevanlinna Analytical Continuation", &
+                         source="Phys. Rev. Lett.", volume="126", pages="056402", &
+                         year=2021, doi="10.1103/PhysRevLett.126.056402")
 
    END SUBROUTINE add_all_references
 
