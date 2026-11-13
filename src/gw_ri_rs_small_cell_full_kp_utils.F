@@ -697,11 +697,11 @@ CONTAINS
             CALL build_green_pairs(bs_env, psi_values(:, :, :, ispin), chi_env, tau, ispin, .TRUE., G_grid_k)
             CALL k_to_real_cell_transform(G_grid_k, bs_env%kpoints_scf_desymm%xkp, &
                                           bs_env%kpoints_scf_desymm%nkp_grid, full_cells, &
-                                          G_occ_R, bs_env%kpoints_scf_desymm%rskp_transform)
+                                          G_occ_R, bs_env%kpoints_scf_desymm%rskp_transform, profile_fft=.TRUE.)
             CALL build_green_pairs(bs_env, psi_values(:, :, :, ispin), chi_env, tau, ispin, .FALSE., G_grid_k)
             CALL k_to_real_cell_transform(G_grid_k, bs_env%kpoints_scf_desymm%xkp, &
                                           bs_env%kpoints_scf_desymm%nkp_grid, full_cells, &
-                                          chi_grid_R, bs_env%kpoints_scf_desymm%rskp_transform)
+                                          chi_grid_R, bs_env%kpoints_scf_desymm%rskp_transform, profile_fft=.TRUE.)
             CALL filter_full_green_cells(bs_env, chi_env, G_occ_R)
             CALL filter_full_green_cells(bs_env, chi_env, chi_grid_R)
             DEALLOCATE (G_grid_k)
@@ -1038,7 +1038,7 @@ CONTAINS
       CALL build_full_cell_grid(bs_env, full_cells)
       ALLOCATE (V_grid_R(n_pairs_local, 1, SIZE(full_cells, 2)))
       CALL k_to_real_cell_transform(G_grid_k, qpoints, bs_env%kpoints_scf_desymm%nkp_grid, &
-                                    full_cells, V_grid_R, bs_env%kpoints_scf_desymm%rskp_transform)
+                                    full_cells, V_grid_R, bs_env%kpoints_scf_desymm%rskp_transform, profile_fft=.TRUE.)
       CALL singular_head_cell_factors(bs_env, full_cells, head_cell_factor)
       head_metric_zero = ri_metric_head_zero(bs_env)
       DO iq = 1, SIZE(full_cells, 2)
@@ -1060,7 +1060,7 @@ CONTAINS
                                 0.0_dp, ispin, .TRUE., G_grid_k)
          CALL k_to_real_cell_transform(G_grid_k, bs_env%kpoints_scf_desymm%xkp, &
                                        bs_env%kpoints_scf_desymm%nkp_grid, full_cells, Sigma_grid_R, &
-                                       bs_env%kpoints_scf_desymm%rskp_transform)
+                                       bs_env%kpoints_scf_desymm%rskp_transform, profile_fft=.TRUE.)
          Sigma_grid_R(:, :, :) = -Sigma_grid_R*V_grid_R
          CALL self_energy_on_mesh(bs_env, full_cells, Sigma_grid_R, first_pair, G_grid_k)
 
@@ -1122,7 +1122,7 @@ CONTAINS
 
          CALL k_to_real_cell_transform(G_grid_k, qpoints, &
                                        bs_env%kpoints_scf_desymm%nkp_grid, full_cells, &
-                                       W_grid_R, bs_env%kpoints_scf_desymm%rskp_transform)
+                                       W_grid_R, bs_env%kpoints_scf_desymm%rskp_transform, profile_fft=.TRUE.)
          CALL add_gamma_corr_cell_correction(bs_env, full_cells, gwkp_env%gamma_correction, i_t, &
                                              gwkp_env%Z_lP_zero(:, 1, 1), first_pair, W_grid_R)
          CALL truncate_grid_W_by_pair_distance_pairs(bs_env, full_cells, first_pair, W_grid_R)
@@ -1132,7 +1132,7 @@ CONTAINS
                                    tau, ispin, .TRUE., G_grid_k)
             CALL k_to_real_cell_transform(G_grid_k, bs_env%kpoints_scf_desymm%xkp, &
                                           bs_env%kpoints_scf_desymm%nkp_grid, full_cells, Sigma_grid_R, &
-                                          bs_env%kpoints_scf_desymm%rskp_transform)
+                                          bs_env%kpoints_scf_desymm%rskp_transform, profile_fft=.TRUE.)
             CALL filter_full_green_cells(bs_env, gwkp_env%group_env, Sigma_grid_R)
             Sigma_grid_R(:, :, :) = -Sigma_grid_R*W_grid_R
             CALL self_energy_on_mesh(bs_env, full_cells, Sigma_grid_R, first_pair, G_grid_k)
@@ -1144,7 +1144,7 @@ CONTAINS
                                    tau, ispin, .FALSE., G_grid_k)
             CALL k_to_real_cell_transform(G_grid_k, bs_env%kpoints_scf_desymm%xkp, &
                                           bs_env%kpoints_scf_desymm%nkp_grid, full_cells, Sigma_grid_R, &
-                                          bs_env%kpoints_scf_desymm%rskp_transform)
+                                          bs_env%kpoints_scf_desymm%rskp_transform, profile_fft=.TRUE.)
             CALL filter_full_green_cells(bs_env, gwkp_env%group_env, Sigma_grid_R)
             Sigma_grid_R(:, :, :) = Sigma_grid_R*W_grid_R
             CALL self_energy_on_mesh(bs_env, full_cells, Sigma_grid_R, first_pair, G_grid_k)
@@ -1442,7 +1442,7 @@ CONTAINS
                                      bs_env%index_to_cell_3c(:, first:last), &
                                      bs_env%kpoints_scf_desymm%xkp(:, owned_k), &
                                      bs_env%kpoints_scf_desymm%nkp_grid, phi_lmu_k, &
-                                     bs_env%kpoints_scf_desymm%rskp_transform, accumulate=.TRUE.)
+                                     bs_env%kpoints_scf_desymm%rskp_transform, accumulate=.TRUE., profile_fft=.TRUE.)
          END DO
       END IF
 
@@ -1542,7 +1542,7 @@ CONTAINS
             values_R(:, :, icell) = fm_R(icell)%local_data(1:nrows, 1:ncols)
          END DO
          values_q(1:nrows, 1:ncols, 1:n_q) => send_buffer(1:nsend)
-         CALL cell_to_k_transform(values_R, cells, qpoints(:, q_order), nkp_grid, values_q, backend)
+         CALL cell_to_k_transform(values_R, cells, qpoints(:, q_order), nkp_grid, values_q, backend, profile_fft=.TRUE.)
          DEALLOCATE (values_R)
       END IF
       CALL para_env%alltoall(send_buffer, send_counts, send_displs, &
@@ -2160,7 +2160,7 @@ CONTAINS
       DEALLOCATE (scratch)
       !$OMP END PARALLEL
       CALL cell_to_k_transform(values_R, cells, xkp, nmesh, values_k, &
-                               bs_env%kpoints_scf_desymm%rskp_transform)
+                               bs_env%kpoints_scf_desymm%rskp_transform, profile_fft=.TRUE.)
       !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
       !$OMP SHARED(values_k, xkp, first_pair, ngrid, fractional_grid) &
       !$OMP PRIVATE(ilocal, shift, tie, ik)

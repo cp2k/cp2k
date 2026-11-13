@@ -25,6 +25,7 @@ MODULE kpoint_lattice_fft
                                               fft_radix_operations
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: gaussi,&
                                               twopi,&
                                               z_zero
@@ -39,8 +40,16 @@ MODULE kpoint_lattice_fft
    PUBLIC :: cell_to_k_grid_fft, cell_to_k_grid_prepare, cell_to_k_grid_release, cell_to_k_grid_work_type
    PUBLIC :: k_grid_to_cell_fft, k_grid_to_cell_prepare, k_grid_to_cell_execute, k_grid_to_cell_release
    PUBLIC :: k_grid_to_cell_work_type, lattice_fft_shape, regular_kpoint_grid
+   PUBLIC :: lattice_fft_profile_type
 
    INTEGER(KIND=int_8), PARAMETER :: fft_batch_bytes = 32_int_8*1024_int_8**2
+
+   ! Optional local-panel diagnostics. Axis times include the one-shot planner.
+   TYPE lattice_fft_profile_type
+      REAL(KIND=dp) :: seconds(9) = 0.0_dp
+      INTEGER(KIND=int_8) :: batches = 0_int_8, elements = 0_int_8
+      INTEGER :: nfft(3) = 0, tile_min = HUGE(0), tile_max = 0
+   END TYPE lattice_fft_profile_type
 
    ! Reusable forward lattice geometry and bounded numerical FFT workspace.
    TYPE cell_to_k_grid_work_type
@@ -175,21 +184,27 @@ CONTAINS
 !> \param buffer input, then transformed data; ownership swaps with scratch
 !> \param scratch equally sized FFT workspace
 !> \param stat nonzero on backend execution failure
+!> \param profile optional elapsed axis calls, including planning and execution
 ! **************************************************************************************************
-   SUBROUTINE lattice_fft_execute(sign, n, nbatch, buffer, scratch, stat)
+   SUBROUTINE lattice_fft_execute(sign, n, nbatch, buffer, scratch, stat, profile)
       INTEGER, INTENT(IN)                                :: sign, n(3), nbatch
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: buffer(:), scratch(:)
       INTEGER, INTENT(OUT)                               :: stat
+      TYPE(lattice_fft_profile_type), INTENT(INOUT), &
+         OPTIONAL                                        :: profile
 
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: swap(:)
       INTEGER                                            :: d, nlines
+      REAL(KIND=dp)                                      :: started
 
       stat = 0
       DO d = 1, 3
          IF (n(d) == 1) CYCLE
          nlines = nbatch*PRODUCT(n)/n(d)
+         IF (PRESENT(profile)) started = m_walltime()
          CALL fft_1d_many(sign, n(d), nlines, .FALSE., .TRUE., n(d), nlines, &
                           buffer, scratch, 1.0_dp, stat)
+         IF (PRESENT(profile)) profile%seconds(4 + d) = profile%seconds(4 + d) + m_walltime() - started
          IF (stat /= 0) RETURN
          swap => buffer
          buffer => scratch
@@ -213,10 +228,11 @@ CONTAINS
 !> \param cell_first first prepared image-map column for this batch
 !> \param max_workspace_bytes optional soft FFT workspace target; one element always fits the policy
 !> \param accumulate add to values_k; abort on FFT execution failure to avoid partial accumulation
+!> \param profile optional local-panel stage timings and batch counts
 ! **************************************************************************************************
    SUBROUTINE cell_to_k_grid_fft(values_rs, index_to_cell, xkp, nkp_grid, values_k, &
                                  used_fft, deriv_direction, hmat, selected_kpoints, require_fft, work, cell_first, &
-                                 max_workspace_bytes, accumulate)
+                                 max_workspace_bytes, accumulate, profile)
 
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: values_rs
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell
@@ -235,6 +251,8 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: cell_first
       INTEGER(KIND=int_8), INTENT(IN), OPTIONAL          :: max_workspace_bytes
       LOGICAL, INTENT(IN), OPTIONAL                      :: accumulate
+      TYPE(lattice_fft_profile_type), INTENT(INOUT), &
+         OPTIONAL                                        :: profile
 
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: input(:, :, :, :), output(:, :, :, :)
       INTEGER                                            :: first, handle, i, icell, ik, ik_out, &
@@ -242,6 +260,7 @@ CONTAINS
                                                             width
       INTEGER(KIND=int_8)                                :: budget, needed, ngrid
       LOGICAL                                            :: add, success
+      REAL(KIND=dp)                                      :: started
       TYPE(cell_to_k_grid_work_type), POINTER            :: plan
       TYPE(cell_to_k_grid_work_type), TARGET             :: local_work
 
@@ -278,7 +297,9 @@ CONTAINS
          plan => work
       ELSE
          plan => local_work
+         IF (PRESENT(profile)) started = m_walltime()
          CALL cell_to_k_grid_prepare(plan, index_to_cell, xkp, nkp_grid, deriv_direction, hmat)
+         IF (PRESENT(profile)) profile%seconds(2) = profile%seconds(2) + m_walltime() - started
       END IF
       IF (.NOT. plan%regular .AND. PRESENT(require_fft)) THEN
          IF (require_fft) THEN
@@ -303,6 +324,10 @@ CONTAINS
          ELSE
             needed = ngrid*width
             CPASSERT(needed <= HUGE(0))
+            IF (PRESENT(profile)) THEN
+               profile%nfft = plan%nfft
+               started = m_walltime()
+            END IF
             IF (ASSOCIATED(plan%fft_in)) THEN
                ! Reuse capacity while also allowing a smaller caller budget.
                IF (SIZE(plan%fft_in, KIND=int_8) < needed .OR. &
@@ -315,10 +340,18 @@ CONTAINS
                CALL fft_alloc(plan%fft_in, [INT(needed)])
                CALL fft_alloc(plan%fft_out, [INT(needed)])
             END IF
+            IF (PRESENT(profile)) profile%seconds(3) = profile%seconds(3) + m_walltime() - started
             stat = 0
             DO j = 1, SIZE(values_rs, 2)
                DO first = 1, SIZE(values_rs, 1), width
                   nbatch = MIN(width, SIZE(values_rs, 1) - first + 1)
+                  IF (PRESENT(profile)) THEN
+                     profile%batches = profile%batches + 1_int_8
+                     profile%elements = profile%elements + INT(nbatch, int_8)
+                     profile%tile_min = MIN(profile%tile_min, nbatch)
+                     profile%tile_max = MAX(profile%tile_max, nbatch)
+                     started = m_walltime()
+                  END IF
                   input(1:plan%nfft(1), 1:plan%nfft(2), 1:plan%nfft(3), 1:nbatch) => plan%fft_in(1:INT(ngrid)*nbatch)
                   input = z_zero
                   DO i = 1, nbatch
@@ -329,8 +362,10 @@ CONTAINS
                            plan%cell_factor(image)*values_rs(first + i - 1, j, icell)
                      END DO
                   END DO
-                  CALL lattice_fft_execute(BWFFT, plan%nfft, nbatch, plan%fft_in, plan%fft_out, stat)
+                  IF (PRESENT(profile)) profile%seconds(4) = profile%seconds(4) + m_walltime() - started
+                  CALL lattice_fft_execute(BWFFT, plan%nfft, nbatch, plan%fft_in, plan%fft_out, stat, profile)
                   IF (stat /= 0) EXIT
+                  IF (PRESENT(profile)) started = m_walltime()
                   output(1:nbatch, 1:plan%nfft(1), 1:plan%nfft(2), 1:plan%nfft(3)) => plan%fft_in(1:INT(ngrid)*nbatch)
                   DO ik_out = 1, SIZE(values_k, 3)
                      ik = ik_out
@@ -344,6 +379,7 @@ CONTAINS
                            output(:, plan%grid_index(1, ik), plan%grid_index(2, ik), plan%grid_index(3, ik))
                      END IF
                   END DO
+                  IF (PRESENT(profile)) profile%seconds(8) = profile%seconds(8) + m_walltime() - started
                END DO
                IF (stat /= 0) EXIT
             END DO
@@ -362,7 +398,11 @@ CONTAINS
          CALL direct_cell_to_k(values_rs, index_to_cell, xkp, values_k, deriv_direction, hmat, selected_kpoints, add)
       END IF
       IF (PRESENT(used_fft)) used_fft = success
-      IF (.NOT. PRESENT(work)) CALL cell_to_k_grid_release(local_work)
+      IF (.NOT. PRESENT(work)) THEN
+         IF (PRESENT(profile)) started = m_walltime()
+         CALL cell_to_k_grid_release(local_work)
+         IF (PRESENT(profile)) profile%seconds(9) = profile%seconds(9) + m_walltime() - started
+      END IF
       CALL timestop(handle)
    END SUBROUTINE cell_to_k_grid_fft
 
@@ -516,8 +556,10 @@ CONTAINS
 !> \param require_fft abort on an unsupported mapping or FFT failure, without a direct fallback
 !> \param allow_direct_fallback execute the generic direct sum when FFT is unavailable; defaults to true
 !> \param values_real real part of the inverse transform, instead of values_rs
+!> \param profile optional local-panel stage timings and batch counts
 ! **************************************************************************************************
-   SUBROUTINE k_grid_to_cell_execute(work, values_k, values_rs, used_fft, require_fft, allow_direct_fallback, values_real)
+   SUBROUTINE k_grid_to_cell_execute(work, values_k, values_rs, used_fft, require_fft, allow_direct_fallback, values_real, &
+                                     profile)
 
       TYPE(k_grid_to_cell_work_type), INTENT(INOUT)      :: work
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: values_k
@@ -526,11 +568,14 @@ CONTAINS
       LOGICAL, INTENT(OUT), OPTIONAL                     :: used_fft
       LOGICAL, INTENT(IN), OPTIONAL                      :: require_fft, allow_direct_fallback
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: values_real(:, :, :)
+      TYPE(lattice_fft_profile_type), INTENT(INOUT), &
+         OPTIONAL                                        :: profile
 
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: input(:, :, :, :), output(:, :, :, :)
       INTEGER                                            :: first, handle, i, icell, ik, j, nbatch, &
                                                             output_shape(3), stat, width
       INTEGER(KIND=int_8)                                :: ngrid
+      REAL(KIND=dp)                                      :: started
 
       CALL timeset("k_grid_to_cell_fft", handle)
       CPASSERT(ALLOCATED(work%xkp))
@@ -557,6 +602,10 @@ CONTAINS
             RETURN
          END IF
          CPASSERT(ngrid*width <= HUGE(0))
+         IF (PRESENT(profile)) THEN
+            profile%nfft = work%nfft
+            started = m_walltime()
+         END IF
          IF (ASSOCIATED(work%fft_in)) THEN
             IF (SIZE(work%fft_in, KIND=int_8) < ngrid*width) THEN
                CALL fft_dealloc(work%fft_in)
@@ -567,9 +616,17 @@ CONTAINS
             CALL fft_alloc(work%fft_in, [INT(ngrid)*width])
             CALL fft_alloc(work%fft_out, [INT(ngrid)*width])
          END IF
+         IF (PRESENT(profile)) profile%seconds(3) = profile%seconds(3) + m_walltime() - started
          DO j = 1, SIZE(values_k, 2)
             DO first = 1, SIZE(values_k, 1), width
                nbatch = MIN(width, SIZE(values_k, 1) - first + 1)
+               IF (PRESENT(profile)) THEN
+                  profile%batches = profile%batches + 1_int_8
+                  profile%elements = profile%elements + INT(nbatch, int_8)
+                  profile%tile_min = MIN(profile%tile_min, nbatch)
+                  profile%tile_max = MAX(profile%tile_max, nbatch)
+                  started = m_walltime()
+               END IF
                input(1:work%nfft(1), 1:work%nfft(2), 1:work%nfft(3), 1:nbatch) => &
                   work%fft_in(1:INT(ngrid)*nbatch)
                input = z_zero
@@ -579,8 +636,10 @@ CONTAINS
                         work%weight(ik)*values_k(first + i - 1, j, ik)
                   END DO
                END DO
-               CALL lattice_fft_execute(FWFFT, work%nfft, nbatch, work%fft_in, work%fft_out, stat)
+               IF (PRESENT(profile)) profile%seconds(4) = profile%seconds(4) + m_walltime() - started
+               CALL lattice_fft_execute(FWFFT, work%nfft, nbatch, work%fft_in, work%fft_out, stat, profile)
                IF (stat /= 0) EXIT
+               IF (PRESENT(profile)) started = m_walltime()
                output(1:nbatch, 1:work%nfft(1), 1:work%nfft(2), 1:work%nfft(3)) => &
                   work%fft_in(1:INT(ngrid)*nbatch)
                DO icell = 1, SIZE(work%cells, 2)
@@ -593,6 +652,7 @@ CONTAINS
                                      output(:, work%cell_index(1, icell), work%cell_index(2, icell), work%cell_index(3, icell)), dp)
                   END IF
                END DO
+               IF (PRESENT(profile)) profile%seconds(8) = profile%seconds(8) + m_walltime() - started
             END DO
             IF (stat /= 0) EXIT
          END DO

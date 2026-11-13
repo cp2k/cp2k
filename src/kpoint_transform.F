@@ -24,19 +24,17 @@ MODULE kpoint_transform
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                               cp_fm_type
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE input_constants,                 ONLY: rskp_backend_fft,&
                                               rskp_backend_gemm
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE kpoint_lattice_fft,              ONLY: cell_to_k_grid_fft,&
-                                              cell_to_k_grid_prepare,&
-                                              cell_to_k_grid_release,&
-                                              cell_to_k_grid_work_type,&
-                                              k_grid_to_cell_execute,&
-                                              k_grid_to_cell_prepare,&
-                                              k_grid_to_cell_release,&
-                                              k_grid_to_cell_work_type
+   USE kpoint_lattice_fft,              ONLY: &
+        cell_to_k_grid_fft, cell_to_k_grid_prepare, cell_to_k_grid_release, &
+        cell_to_k_grid_work_type, k_grid_to_cell_execute, k_grid_to_cell_prepare, &
+        k_grid_to_cell_release, k_grid_to_cell_work_type, lattice_fft_profile_type
    USE local_gemm_api,                  ONLY: local_gemm_ctxt_type
+   USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: twopi,&
                                               z_one,&
                                               z_zero
@@ -59,6 +57,8 @@ MODULE kpoint_transform
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kpoint_transform'
    INTEGER(KIND=int_8), PARAMETER :: fft_batch_bytes = 32_int_8*1024_int_8**2
    INTEGER(KIND=int_8), PARAMETER :: rskp_panel_bytes = 64_int_8*1024_int_8**2
+   CHARACTER(LEN=14), PARAMETER :: fft_profile_stages(9) = [CHARACTER(LEN=14) :: &
+                   'initialize', 'geometry', 'buffers', 'grid-fill', 'FFT-X/plan', 'FFT-Y/plan', 'FFT-Z/plan', 'extract', 'release']
    INTEGER(KIND=int_8), PARAMETER, PRIVATE :: rskp_gemm_bytes = 1000_int_8*1024_int_8**2, &
                                               dbcsr_batch_bytes = 1000_int_8*1024_int_8**2
    PUBLIC :: kp_transform_plan_type, kp_transform_plan_create, rskp_route_type, rskp_values_type
@@ -151,26 +151,35 @@ CONTAINS
 !> \param values_k complex transformed matrices
 !> \param backend GEMM or FFT
 !> \param accumulate add this image panel to an existing output
+!> \param profile_fft print local FFT stage times on the logger rank, without MPI collectives
 ! **************************************************************************************************
-   SUBROUTINE cell_to_k_transform(values_rs, cells, xkp, nkp_grid, values_k, backend, accumulate)
+   SUBROUTINE cell_to_k_transform(values_rs, cells, xkp, nkp_grid, values_k, backend, accumulate, profile_fft)
       REAL(KIND=dp), INTENT(IN)                          :: values_rs(:, :, :)
       INTEGER, INTENT(IN)                                :: cells(:, :)
       REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
       INTEGER, INTENT(IN)                                :: nkp_grid(3)
       COMPLEX(KIND=dp), INTENT(INOUT)                    :: values_k(:, :, :)
       INTEGER, INTENT(IN)                                :: backend
-      LOGICAL, INTENT(IN), OPTIONAL                      :: accumulate
+      LOGICAL, INTENT(IN), OPTIONAL                      :: accumulate, profile_fft
 
       INTEGER :: column, count, first_column, first_row, handle, i, image, kfirst, last, &
-         last_column, matrix_rows, nk, nphase, nrow, ntile, nworkers, odd, offset, panels(4), pos, &
-         row, sense, start, width
+         last_column, matrix_rows, nk, nphase, nrow, ntile, nworkers, odd, offset, omp_limit, &
+         panels(4), pos, row, sense, start, unit_nr, width
       INTEGER(KIND=int_8)                                :: cache_bytes, ifirst, nvalues, &
                                                             worker_bytes
-      LOGICAL                                            :: active(4), add
+      LOGICAL                                            :: active(4), add, measure_fft
+      REAL(KIND=dp)                                      :: profile_started, started
       REAL(KIND=dp), ALLOCATABLE                         :: factors(:, :), packed(:), RESULT(:, :)
+      TYPE(lattice_fft_profile_type), ALLOCATABLE        :: fft_profile
       TYPE(rskp_backend_plan_type)                       :: plan
 
       CALL timeset('cell_to_k_transform', handle)
+      measure_fft = .FALSE.
+      IF (PRESENT(profile_fft)) measure_fft = profile_fft .AND. backend == rskp_backend_fft
+      IF (measure_fft) THEN
+         ALLOCATE (fft_profile)
+         profile_started = m_walltime()
+      END IF
       CPASSERT(SIZE(cells, 1) == 3 .AND. SIZE(xkp, 1) == 3)
       CPASSERT(SIZE(cells, 2) == SIZE(values_rs, 3))
       CPASSERT(SIZE(values_k, 1) == SIZE(values_rs, 1))
@@ -180,6 +189,7 @@ CONTAINS
       add = .FALSE.
       IF (PRESENT(accumulate)) add = accumulate
       IF (.NOT. add) values_k = z_zero
+      IF (measure_fft) fft_profile%seconds(1) = m_walltime() - profile_started
       IF (SIZE(values_rs, KIND=int_8) == 0 .OR. nk == 0) THEN
          CALL timestop(handle)
          RETURN
@@ -187,7 +197,7 @@ CONTAINS
       SELECT CASE (backend)
       CASE (rskp_backend_fft)
          CALL cell_to_k_grid_fft(values_rs, cells, xkp, nkp_grid, values_k, &
-                                 require_fft=.TRUE., accumulate=add)
+                                 require_fft=.TRUE., accumulate=add, profile=fft_profile)
       CASE (rskp_backend_gemm)
          nvalues = SIZE(values_rs, 1, KIND=int_8)*SIZE(values_rs, 2, KIND=int_8)
          matrix_rows = SIZE(values_rs, 1)
@@ -269,6 +279,26 @@ CONTAINS
       CASE DEFAULT
          CPABORT('Unknown R-to-K backend')
       END SELECT
+      IF (measure_fft) THEN
+         started = m_walltime() - profile_started
+         unit_nr = cp_logger_get_default_io_unit()
+         omp_limit = 1
+!$       omp_limit = omp_get_max_threads()
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T2,A)') 'R2K_FFT_PROFILE| Local panels; logger-rank wall seconds, no MPI reduction'
+            WRITE (unit_nr, '(T2,A,3I10)') 'R2K_FFT_PROFILE| source shape: ', SHAPE(values_rs)
+            WRITE (unit_nr, '(T2,A,6I8)') 'R2K_FFT_PROFILE| grid / padded: ', nkp_grid, fft_profile%nfft
+            WRITE (unit_nr, '(T2,A,2I16,2I8)') 'R2K_FFT_PROFILE| elements/batches/tile min/max: ', &
+               fft_profile%elements, fft_profile%batches, fft_profile%tile_min, fft_profile%tile_max
+            WRITE (unit_nr, '(T2,A,I8,2L3)') 'R2K_FFT_PROFILE| FFT OpenMP limit / input,output contiguous: ', &
+               omp_limit, IS_CONTIGUOUS(values_rs), IS_CONTIGUOUS(values_k)
+            WRITE (unit_nr, '(T2,A)') 'R2K_FFT_PROFILE| grid-fill/extract are serial; FFT axes include one-shot planning'
+            DO i = 1, SIZE(fft_profile_stages)
+               WRITE (unit_nr, '(T2,A,A14,F14.6)') 'R2K_FFT_PROFILE| ', fft_profile_stages(i), fft_profile%seconds(i)
+            END DO
+            WRITE (unit_nr, '(T2,A,F14.6)') 'R2K_FFT_PROFILE| total         ', started
+         END IF
+      END IF
       CALL timestop(handle)
    END SUBROUTINE cell_to_k_transform
 
@@ -283,24 +313,35 @@ CONTAINS
 !> \param cells requested lattice translations
 !> \param values_rs real part of the reconstructed matrices
 !> \param backend GEMM or FFT
+!> \param profile_fft print local FFT stage times on the logger rank, without MPI collectives
 ! **************************************************************************************************
-   SUBROUTINE k_to_real_cell_transform(values_k, xkp, nkp_grid, cells, values_rs, backend)
+   SUBROUTINE k_to_real_cell_transform(values_k, xkp, nkp_grid, cells, values_rs, backend, profile_fft)
       COMPLEX(KIND=dp), CONTIGUOUS, INTENT(IN), TARGET   :: values_k(:, :, :)
       REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
       INTEGER, INTENT(IN)                                :: nkp_grid(3), cells(:, :)
       REAL(KIND=dp), CONTIGUOUS, INTENT(OUT), TARGET     :: values_rs(:, :, :)
       INTEGER, INTENT(IN)                                :: backend
+      LOGICAL, INTENT(IN), OPTIONAL                      :: profile_fft
 
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: complex_values(:, :)
       INTEGER                                            :: handle, i, icell, ik, last, ncell, nk, &
-                                                            nrow, ntile, nworkers, width
+                                                            nrow, ntile, nworkers, omp_limit, &
+                                                            unit_nr, width
       INTEGER(KIND=int_8)                                :: ifirst, nvalues, worker_bytes
-      REAL(KIND=dp)                                      :: arg, weight
+      LOGICAL                                            :: measure_fft
+      REAL(KIND=dp)                                      :: arg, profile_started, started, weight
       REAL(KIND=dp), ALLOCATABLE                         :: factors(:, :), packed(:, :), RESULT(:, :)
       REAL(KIND=dp), CONTIGUOUS, POINTER                 :: real_values(:, :)
       TYPE(k_grid_to_cell_work_type)                     :: fft_work
+      TYPE(lattice_fft_profile_type), ALLOCATABLE        :: fft_profile
 
       CALL timeset('k_to_real_cell_transform', handle)
+      measure_fft = .FALSE.
+      IF (PRESENT(profile_fft)) measure_fft = profile_fft .AND. backend == rskp_backend_fft
+      IF (measure_fft) THEN
+         ALLOCATE (fft_profile)
+         profile_started = m_walltime()
+      END IF
       nk = SIZE(xkp, 2)
       ncell = SIZE(cells, 2)
       CPASSERT(SIZE(cells, 1) == 3 .AND. SIZE(xkp, 1) == 3)
@@ -314,9 +355,13 @@ CONTAINS
       END IF
       SELECT CASE (backend)
       CASE (rskp_backend_fft)
+         IF (measure_fft) started = m_walltime()
          CALL k_grid_to_cell_prepare(fft_work, xkp, nkp_grid, cells)
-         CALL k_grid_to_cell_execute(fft_work, values_k, values_real=values_rs, require_fft=.TRUE.)
+         IF (measure_fft) fft_profile%seconds(2) = m_walltime() - started
+         CALL k_grid_to_cell_execute(fft_work, values_k, values_real=values_rs, require_fft=.TRUE., profile=fft_profile)
+         IF (measure_fft) started = m_walltime()
          CALL k_grid_to_cell_release(fft_work)
+         IF (measure_fft) fft_profile%seconds(9) = m_walltime() - started
       CASE (rskp_backend_gemm)
          nvalues = SIZE(values_k, 1, KIND=int_8)*SIZE(values_k, 2, KIND=int_8)
          complex_values(1:nvalues, 1:nk) => values_k
@@ -359,6 +404,26 @@ CONTAINS
       CASE DEFAULT
          CPABORT('Unknown K-to-R backend')
       END SELECT
+      IF (measure_fft) THEN
+         started = m_walltime() - profile_started
+         unit_nr = cp_logger_get_default_io_unit()
+         omp_limit = 1
+!$       omp_limit = omp_get_max_threads()
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T2,A)') 'K2R_FFT_PROFILE| Local panels; logger-rank wall seconds, no MPI reduction'
+            WRITE (unit_nr, '(T2,A,3I10)') 'K2R_FFT_PROFILE| source shape: ', SHAPE(values_k)
+            WRITE (unit_nr, '(T2,A,6I8)') 'K2R_FFT_PROFILE| grid / padded: ', nkp_grid, fft_profile%nfft
+            WRITE (unit_nr, '(T2,A,2I16,2I8)') 'K2R_FFT_PROFILE| elements/batches/tile min/max: ', &
+               fft_profile%elements, fft_profile%batches, fft_profile%tile_min, fft_profile%tile_max
+            WRITE (unit_nr, '(T2,A,I8,2L3)') 'K2R_FFT_PROFILE| FFT OpenMP limit / input,output contiguous: ', &
+               omp_limit, IS_CONTIGUOUS(values_k), IS_CONTIGUOUS(values_rs)
+            WRITE (unit_nr, '(T2,A)') 'K2R_FFT_PROFILE| grid-fill/extract are serial; FFT axes include one-shot planning'
+            DO i = 1, SIZE(fft_profile_stages)
+               WRITE (unit_nr, '(T2,A,A14,F14.6)') 'K2R_FFT_PROFILE| ', fft_profile_stages(i), fft_profile%seconds(i)
+            END DO
+            WRITE (unit_nr, '(T2,A,F14.6)') 'K2R_FFT_PROFILE| total         ', started
+         END IF
+      END IF
       CALL timestop(handle)
    END SUBROUTINE k_to_real_cell_transform
 
