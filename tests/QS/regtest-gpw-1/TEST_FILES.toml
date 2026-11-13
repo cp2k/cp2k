@@ -49,6 +49,8 @@
 "vdW_PP_GRIMME_p2.inp"         = [{matcher = "M033", tol = 1.0E-14, ref = -0.03685997321302}]
 # finer xc grids
 "Ar-fine-1.inp"                = [{matcher = "E_total", tol = 4e-14, ref = -21.10344502369165}]
+# atomic guess
+"Ni.inp"                       = [{matcher = "M035", tol = 1.0E-14, ref = -168.646717886896}]
 # a basis none first kind
 "H2O-none.inp"                 = [{matcher = "E_total", tol = 3e-14, ref = -17.64549062000253}]
 # Test printing of sparse matrices without headers
