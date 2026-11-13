@@ -40,7 +40,7 @@ MODULE kpoint_lattice_fft
    PUBLIC :: cell_to_k_grid_fft, cell_to_k_grid_prepare, cell_to_k_grid_release, cell_to_k_grid_work_type
    PUBLIC :: k_grid_to_cell_fft, k_grid_to_cell_prepare, k_grid_to_cell_execute, k_grid_to_cell_release
    PUBLIC :: k_grid_to_cell_work_type, lattice_fft_shape, regular_kpoint_grid
-   PUBLIC :: lattice_fft_profile_type, lattice_fft_execute
+   PUBLIC :: lattice_fft_profile_type, lattice_fft_execute, lattice_fft_prepare_geometry
 
    ! Bound the source/FFT-grid transpose working set without another packing buffer.
    INTEGER, PARAMETER :: fft_pack_rows = 8, fft_pack_cells = 32
@@ -176,6 +176,71 @@ CONTAINS
       compatible = .TRUE.
 
    END FUNCTION lattice_fft_shape
+
+! **************************************************************************************************
+!> \brief Prepare shared lattice FFT geometry in internal z,y,x storage order.
+!>        An optional translated origin maps R to R-cell_origin. The output phase
+!>        restores exp(2*pi*i*m*cell_origin/nkp_grid) for a forward transform;
+!>        the physical k offset is returned separately for caller-specific factors.
+!> \param xkp ...
+!> \param nkp_grid ...
+!> \param cells ...
+!> \param grid_index ...
+!> \param nfft ...
+!> \param k_offset ...
+!> \param cell_index ...
+!> \param cell_linear ...
+!> \param cell_origin ...
+!> \param origin_phase ...
+!> \param allow_incomplete ...
+!> \return ...
+! **************************************************************************************************
+   LOGICAL FUNCTION lattice_fft_prepare_geometry(xkp, nkp_grid, cells, grid_index, nfft, k_offset, &
+                                                 cell_index, cell_linear, cell_origin, origin_phase, &
+                                                 allow_incomplete) RESULT(compatible)
+      REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
+      INTEGER, INTENT(IN)                                :: nkp_grid(3), cells(:, :)
+      INTEGER, INTENT(OUT)                               :: grid_index(:, :), nfft(3)
+      REAL(KIND=dp), INTENT(OUT)                         :: k_offset(3)
+      INTEGER, ALLOCATABLE, INTENT(OUT), OPTIONAL        :: cell_index(:, :), cell_linear(:)
+      INTEGER, INTENT(IN), OPTIONAL                      :: cell_origin(3)
+      COMPLEX(KIND=dp), INTENT(OUT), OPTIONAL            :: origin_phase(:)
+      LOGICAL, INTENT(IN), OPTIONAL                      :: allow_incomplete
+
+      INTEGER                                            :: d, icell, ik, INDEX(3), origin(3), &
+                                                            physical_axis, SHAPE(3)
+      REAL(KIND=dp)                                      :: arg
+
+      compatible = regular_kpoint_grid(xkp, nkp_grid, grid_index, k_offset, allow_incomplete)
+      IF (.NOT. compatible) RETURN
+      compatible = lattice_fft_shape(nkp_grid, shape, allow_arbitrary=.TRUE.)
+      IF (.NOT. compatible) RETURN
+
+      nfft = SHAPE([3, 2, 1])
+      grid_index = grid_index([3, 2, 1], :)
+      origin = 0
+      IF (PRESENT(cell_origin)) origin = cell_origin
+      IF (PRESENT(cell_index)) ALLOCATE (cell_index(3, SIZE(cells, 2)))
+      IF (PRESENT(cell_linear)) ALLOCATE (cell_linear(SIZE(cells, 2)))
+      DO icell = 1, SIZE(cells, 2)
+         DO d = 1, 3
+            physical_axis = 4 - d
+            INDEX(d) = 1 + MODULO(cells(physical_axis, icell) - origin(physical_axis), &
+                                  nkp_grid(physical_axis))*(nfft(d)/nkp_grid(physical_axis))
+         END DO
+         IF (PRESENT(cell_index)) cell_index(:, icell) = index
+         IF (PRESENT(cell_linear)) cell_linear(icell) = &
+            INDEX(1) + nfft(1)*(INDEX(2) - 1 + nfft(2)*(INDEX(3) - 1))
+      END DO
+      IF (PRESENT(origin_phase)) THEN
+         CPASSERT(SIZE(origin_phase) == SIZE(xkp, 2))
+         DO ik = 1, SIZE(xkp, 2)
+            arg = SUM(REAL(grid_index([3, 2, 1], ik) - 1, dp)*REAL(origin, dp)/REAL(nkp_grid, dp))
+            origin_phase(ik) = EXP(gaussi*twopi*arg)
+         END DO
+      END IF
+
+   END FUNCTION lattice_fft_prepare_geometry
 
 ! **************************************************************************************************
 !> \brief Transform all lattice lines in three batched 1D FFTs.
@@ -474,28 +539,21 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: deriv_direction
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: hmat(3, 3)
 
-      INTEGER                                            :: d, icell
+      INTEGER                                            :: icell
       REAL(KIND=dp)                                      :: arg, cell_vector(3), k_offset(3)
 
       CALL cell_to_k_grid_release(work)
       ALLOCATE (work%grid_index(3, SIZE(xkp, 2)))
-      work%regular = regular_kpoint_grid(xkp, nkp_grid, work%grid_index, k_offset, &
-                                         allow_incomplete=.TRUE.)
-      IF (work%regular) work%regular = lattice_fft_shape(nkp_grid, work%nfft, allow_arbitrary=.TRUE.)
+      work%regular = lattice_fft_prepare_geometry(xkp, nkp_grid, index_to_cell, work%grid_index, &
+                                                  work%nfft, k_offset, cell_index=work%cell_index, &
+                                                  allow_incomplete=.TRUE.)
       IF (.NOT. work%regular) RETURN
-      ! Keep physical x,y,z coordinates; FFT storage uses z,y,x (z fastest).
-      work%nfft = work%nfft([3, 2, 1])
-      work%grid_index = work%grid_index([3, 2, 1], :)
       IF (PRESENT(deriv_direction)) THEN
          CPASSERT(PRESENT(hmat))
          CPASSERT(deriv_direction >= 1 .AND. deriv_direction <= 3)
       END IF
-      ALLOCATE (work%cell_index(3, SIZE(index_to_cell, 2)), work%cell_factor(SIZE(index_to_cell, 2)))
+      ALLOCATE (work%cell_factor(SIZE(index_to_cell, 2)))
       DO icell = 1, SIZE(index_to_cell, 2)
-         DO d = 1, 3
-            work%cell_index(d, icell) = MODULO(index_to_cell(4 - d, icell), nkp_grid(4 - d))* &
-                                        (work%nfft(d)/nkp_grid(4 - d)) + 1
-         END DO
          arg = SUM(k_offset*REAL(index_to_cell(1:3, icell), dp))
          work%cell_factor(icell) = EXP(gaussi*twopi*arg)
          IF (PRESENT(deriv_direction)) THEN
@@ -568,7 +626,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: weights
       LOGICAL, INTENT(IN), OPTIONAL                      :: allow_incomplete
 
-      INTEGER                                            :: d, icell, ncell, nkp
+      INTEGER                                            :: icell, ncell, nkp
       REAL(KIND=dp), DIMENSION(3)                        :: k_offset
 
       CALL k_grid_to_cell_release(work)
@@ -585,20 +643,15 @@ CONTAINS
          CPASSERT(SIZE(weights) == nkp)
          work%weight(:) = weights
       END IF
-      work%regular = regular_kpoint_grid(xkp, nkp_grid, work%grid_index, k_offset, allow_incomplete)
-      IF (work%regular) work%regular = lattice_fft_shape(nkp_grid, work%nfft, allow_arbitrary=.TRUE.)
+      work%regular = lattice_fft_prepare_geometry(xkp, nkp_grid, index_to_cell, work%grid_index, &
+                                                  work%nfft, k_offset, cell_index=work%cell_index, &
+                                                  allow_incomplete=allow_incomplete)
       IF (.NOT. work%regular) RETURN
-      work%nfft = work%nfft([3, 2, 1])
-      work%grid_index = work%grid_index([3, 2, 1], :)
       ! For uniform k weights, apply the common scale once at extraction.
       work%uniform_weights = ALL(work%weight == work%weight(1))
 
-      ALLOCATE (work%cell_index(3, ncell), work%cell_phase(ncell))
+      ALLOCATE (work%cell_phase(ncell))
       DO icell = 1, ncell
-         DO d = 1, 3
-            work%cell_index(d, icell) = MODULO(index_to_cell(4 - d, icell), nkp_grid(4 - d))* &
-                                        (work%nfft(d)/nkp_grid(4 - d)) + 1
-         END DO
          work%cell_phase(icell) = EXP(-gaussi*twopi*SUM(k_offset*REAL(index_to_cell(1:3, icell), dp)))
          IF (work%uniform_weights) work%cell_phase(icell) = work%weight(1)*work%cell_phase(icell)
       END DO

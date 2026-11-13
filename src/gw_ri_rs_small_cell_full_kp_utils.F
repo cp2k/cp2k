@@ -52,9 +52,8 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
                                               int_8
    USE kpoint_coulomb_2c,               ONLY: add_ewald_reciprocal
    USE kpoint_lattice_fft,              ONLY: lattice_fft_execute,&
-                                              lattice_fft_profile_type,&
-                                              lattice_fft_shape,&
-                                              regular_kpoint_grid
+                                              lattice_fft_prepare_geometry,&
+                                              lattice_fft_profile_type
    USE kpoint_transform,                ONLY: cell_to_k_transform,&
                                               k_to_real_cell_transform
    USE machine,                         ONLY: m_flush,&
@@ -2132,7 +2131,7 @@ CONTAINS
                                                             output(:, :, :, :)
       INTEGER :: cell_first, cell_last, class_x, class_y, class_z, coordinate, count, first, &
          handle, i, icell, idir, ik, ilocal, isource, lower(3), naxis, nfft(3), ngrid, nmesh(3), &
-         row_first, row_last, shift(3), slot(3), stat, unit_nr, width, wrapped(3)
+         row_first, row_last, shift(3), stat, unit_nr, width, wrapped(3)
       INTEGER(KIND=int_8)                                :: axis_classes, combined_classes, cached_coefficients, nfft_grid, &
                                                             phase_evaluations
       INTEGER                                            :: combined_count, combined_id
@@ -2161,21 +2160,13 @@ CONTAINS
       CPASSERT(SIZE(values_R, 2) == 1)
       IF (bs_env%kpoints_scf_desymm%rskp_transform == rskp_backend_fft) THEN
          ! GW's physical centering stays here; the common FFT executor sees only packed grids.
-         ALLOCATE (grid_index(3, SIZE(xkp, 2)), cell_index(SIZE(cells, 2)), &
-                   cell_coordinate(3, SIZE(cells, 2)), origin_phase(SIZE(xkp, 2)))
-         IF (.NOT. regular_kpoint_grid(xkp, nmesh, grid_index, k_offset)) THEN
-            CPABORT('GW product needs a full FFT mesh')
+         ALLOCATE (grid_index(3, SIZE(xkp, 2)), cell_coordinate(3, SIZE(cells, 2)), &
+                   origin_phase(SIZE(xkp, 2)))
+         IF (.NOT. lattice_fft_prepare_geometry(xkp, nmesh, cells, grid_index, nfft, k_offset, &
+                                                 cell_linear=cell_index, cell_origin=lower, &
+                                                 origin_phase=origin_phase)) THEN
+            CPABORT('GW product needs a supported full FFT mesh')
          END IF
-         IF (.NOT. lattice_fft_shape(nmesh, nfft, allow_arbitrary=.TRUE.)) THEN
-            CPABORT('Unsupported GW FFT shape')
-         END IF
-         ! Centered cell R = lower + j; a zero-origin FFT adds exp(2*pi*i*k_grid*lower).
-         DO ik = 1, SIZE(xkp, 2)
-            origin_phase(ik) = EXP(gaussi*twopi*SUM( &
-               REAL(grid_index(:, ik) - 1, dp)*REAL(lower, dp)/REAL(nmesh, dp)))
-         END DO
-         nfft = nfft([3, 2, 1])
-         grid_index = grid_index([3, 2, 1], :)
          CPASSERT(SIZE(cells, 2, KIND=int_8) == PRODUCT(INT(nmesh, int_8)))
          CPASSERT(SIZE(values_R, 3) == SIZE(cells, 2))
          IF (ANY(SHAPE(values_k) /= [SIZE(values_R, 1), 1, SIZE(xkp, 2)])) THEN
@@ -2185,12 +2176,8 @@ CONTAINS
             isource = 1 + cells(3, icell) - lower(3) + &
                       nmesh(3)*(cells(2, icell) - lower(2) + nmesh(2)*(cells(1, icell) - lower(1)))
             IF (isource /= icell) CPABORT('GW product needs canonical cells')
-            ! Canonical cells and FFT storage now both have z as the fastest axis.
-            slot = [(icell - 1)/(nmesh(2)*nmesh(3)), &
-                    MODULO((icell - 1)/nmesh(3), nmesh(2)), MODULO(icell - 1, nmesh(3))]
-            cell_coordinate(:, icell) = slot + 1
-            slot = slot([3, 2, 1])*(nfft/nmesh([3, 2, 1]))
-            cell_index(icell) = 1 + slot(1) + nfft(1)*(slot(2) + nfft(2)*slot(3))
+            ! The shared geometry maps canonical cells directly into z-fastest FFT storage.
+            cell_coordinate(:, icell) = cells(:, icell) - lower + 1
          END DO
          unpadded = ALL(nfft == nmesh([3, 2, 1]))
          profile%seconds(2) = m_walltime() - total_started
