@@ -48,12 +48,12 @@
     &END SCF
     &XC
       &XC_FUNCTIONAL
-        &GAUXC
+        &SKALA_NATIVE
+          ATOM_PARTITION SMOOTH
+          DIAGNOSTICS F
           MODEL SKALA
-          NATIVE_GRID T
-          NATIVE_GRID_ATOM_PARTITION SMOOTH
-          NATIVE_GRID_DIAGNOSTICS F
-        &END GAUXC
+          USE_GPU GPU
+        &END SKALA_NATIVE
       &END XC_FUNCTIONAL
     &END XC
   &END DFT

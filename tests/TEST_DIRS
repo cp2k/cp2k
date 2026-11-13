@@ -12,11 +12,11 @@ QS/regtest-cusolver                                         cusolvermp
 QS/regtest-dlaf                                             dlaf spglib
 QS/regtest-dlaf-2                                           dlaf libint
 QS/regtest-openpmd                                          openpmd
-QS/regtest-gauxc-cuda                                       gauxc_cuda
+QS/regtest-gauxc-cuda                                       gauxc_cuda libtorch_cuda
 QS/regtest-pexsi                                            pexsi
 Fist/regtest-deepmd                                         deepmd !lsan
 Fist/regtest-quip                                           quip
-QS/regtest-skala-cuda                                       skala offload_cuda
+QS/regtest-skala-cuda                                       skala offload_cuda libtorch_cuda
 QS/regtest-gpw-4
 QS/regtest-debug-5                                          libint
 QS/regtest-ec                                               libint libvori

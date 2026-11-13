@@ -137,6 +137,20 @@ Everything is under the `CP2K_ROOT` directory mentioned above by default: the CP
 `build/`, and the headers, modules, binary executables and a `cp2k_env` file in `install/`. Options
 are also available to make installed dependencies and program outside of the source tree.
 
+```{warning}
+For packages that depend on libtorch (NequIP/Allegro, DeePMD-kit, GauXC/Skala), the toolchain
+installs a prebuilt libtorch when `--with-libtorch=install` (or simply `--with-libtorch`) is used.
+That package is selected for a specific platform, and for a specific GPU and CUDA version, so it is
+highly recommended to provide your own matching libtorch instead: `--with-libtorch=system` searches
+for an existing libtorch in the system paths, while
+`--with-libtorch=<path-to-libtorch>` uses a libtorch that you installed or built yourself. Otherwise
+poor performance is expected and the calculation may even fail.
+
+This only applies to the toolchain-based build. The [Spack-based build via
+`make_cp2k.sh`](#spack-based-build-via-make_cp2ksh) installs a matching libtorch itself, so no
+manual libtorch installation is needed there.
+```
+
 ```shell
 ./install_cp2k_toolchain.sh --install-dir=/opt/cp2k/toolchain
 ./build_cp2k.sh --prefix /opt/cp2k -j {nprocs} --preset native-gnu-x86_64
