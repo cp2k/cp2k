@@ -563,18 +563,22 @@ __global__ __launch_bounds__(64) void compute_hab_forces_two_steps(
  * grid points visited is the same as for collocate_separable_kernel (window
  * masks, y / x trimming in the orthogonal case, sphere test).
  *
- * When the rows of the cube do not all fit in the shared memory (chunked_ =
- * true, see integrate_separable_yrows), the rows of a plane are processed by
- * chunks of yrows rows, B is accumulated over the chunks in the shared memory
- * and step C runs once per plane. The other instances keep the whole plane in
- * one chunk, which the compiler reduces to a single pass.
+ * The tasks are split between two instances (see sep_skip_task):
  *
- * Shared memory layout (doubles), mc = max cube size, ls = lp_max + 1:
+ * - chunked_ = false: tasks with a cube edge of at most mc points, the whole
+ *   plane in one chunk (yrows = mc), which the compiler reduces to a single
+ *   pass, and the gaussian along x tabulated in ex.
+ * - chunked_ = true: larger cubes, the rows of a plane by chunks of yrows rows
+ *   (see integrate_separable_yrows), B accumulated over the chunks in the
+ *   shared memory and step C once per plane. The gaussian along x is evaluated
+ *   on the fly, so that the shared memory does not depend on the cube size.
+ *
+ * Shared memory layout (doubles), ls = lp_max + 1:
  *   ex[mc], pz[ls], acc[ncoset(lp_max)], py[ls][yrows], A[yrows][ls],
  *   B[ls (ls + 1) / 2] (chunked_ only)
- * yrows = mc unless chunked_. pz only holds the values of the current plane,
- * ex is only allocated for an axis aligned cell. py is filled once per task, or
- * for each chunk when chunked_.
+ * ex is only allocated for an axis aligned cell and chunked_ = false. pz only
+ * holds the values of the current plane. py is filled once per task, or for
+ * each chunk when chunked_.
  ******************************************************************************/
 
 template <bool distributed__, bool axis_aligned_, int lmax_, bool chunked_>
@@ -588,9 +592,11 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
   // the per thread accumulators have lmax_ + 1 entries, lmax_ >= lp_max (see
   // separable_lmax_bucket)
   static_assert(lmax_ <= GRID_SEP_MAX_L, "lmax_ larger than GRID_SEP_MAX_L");
+  // the gaussian along x is tabulated
+  constexpr bool tables_ = axis_aligned_ && !chunked_;
 
   const task_info &glb_task = dev_.tasks[dev_.first_task + block_index()];
-  if (glb_task.skip_task)
+  if (sep_skip_task<chunked_>(glb_task, mc))
     return;
 
   const int tid = thread_global_index();
@@ -599,10 +605,10 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
   extern __shared__ double sep_smem[];
   // exponetials along the x direction (note that it is the lattice direction
   // not necessarily the cartesian coordinate)
-  double *ex = sep_smem; // axis_aligned_ only
+  double *ex = sep_smem; // tables_ only
   // z coordinate and its powers common to all threads and single point (note
   // that it is the lattice direction not necessarily the cartesian coordinate)
-  double *pz = ex + (axis_aligned_ ? mc : 0);
+  double *pz = ex + (tables_ ? mc : 0);
   double *acc = pz + ls;
   // y coordinate and its powers (note that it is the lattice direction not
   // necessarily the cartesian coordinate), py[b * yrows + row]
@@ -628,7 +634,7 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
   // are computed on the fly) and powers of y in py.
   for (int x = tid; x < task.cube_size.x; x += 64) {
     const double u = x + task.lb_cube.x + task.roffset.x;
-    if (axis_aligned_) {
+    if (tables_) {
       const double r = u * dev_.dh_[0];
       ex[x] = exp(-zetp * r * r);
     }
@@ -762,7 +768,7 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
             // Calculate x_i^\alpha \exp (-x_i^2) V_{ijk}
 
             double p = __ldg(&row[x2]);
-            p *= axis_aligned_ ? ex[x] : exp(-zetp * r2);
+            p *= tables_ ? ex[x] : exp(-zetp * (axis_aligned_ ? r * r : r2));
 #pragma unroll
             for (int a = 0; a <= lmax_; a++) {
               if (a <= lp) {
@@ -855,32 +861,39 @@ __global__ __launch_bounds__(64) void integrate_separable_kernel(
   }
 }
 
-// shared memory of integrate_separable_kernel for yrows rows per chunk, the
-// kernel is chunked when yrows < mc.
-static size_t integrate_separable_smem_size(const int mc, const int lp_max,
-                                            const int yrows,
-                                            const bool axis_aligned) {
+// shared memory of integrate_separable_kernel, yrows rows per chunk and ntab
+// entries in the table of the gaussian along x
+static size_t integrate_separable_smem_size(const int lp_max, const int yrows,
+                                            const int ntab,
+                                            const bool chunked) {
   const int ls = lp_max + 1;
-  const int nx = axis_aligned ? mc : 0;
-  const int nb = (yrows < mc) ? ls * (ls + 1) / 2 : 0;
-  return sizeof(double) * (nx + ls + ncoset(lp_max) + 2 * ls * yrows + nb);
+  const int nb = chunked ? ls * (ls + 1) / 2 : 0;
+  return sizeof(double) * (ntab + ls + ncoset(lp_max) + 2 * ls * yrows + nb);
 }
 
-// rows per chunk of the chunked instances (< mc)
+// largest cube edge processed by the instances with chunked_ = false: all the
+// rows of the cube (yrows = mc) and for an axis aligned cell the table ex (mc
+// entries) in smem_max.
+static int integrate_separable_max_edge(const int lp_max,
+                                        const bool axis_aligned,
+                                        const size_t smem_max) {
+  const size_t fixed = integrate_separable_smem_size(lp_max, 0, 0, false);
+  const size_t per_edge =
+      sizeof(double) * (2 * (lp_max + 1) + (axis_aligned ? 1 : 0));
+  return (smem_max > fixed) ? (int)((smem_max - fixed) / per_edge) : 0;
+}
+
+// rows per chunk of the chunked_ instances, at most mc
 static int integrate_separable_yrows(const int mc, const int lp_max,
-                                     const bool axis_aligned,
                                      const size_t smem_max) {
-  const size_t fixed =
-      integrate_separable_smem_size(mc, lp_max, 0, axis_aligned);
+  const size_t fixed = integrate_separable_smem_size(lp_max, 0, 0, true);
   const size_t per_row = 2 * sizeof(double) * (lp_max + 1);
   if (fixed + per_row > smem_max) {
-    fprintf(stderr,
-            "ERROR: cube too large for integrate_separable_kernel (%d "
-            "points, lp %d).\n",
-            mc, lp_max);
+    fprintf(stderr, "ERROR: lp %d too large for integrate_separable_kernel.\n",
+            lp_max);
     abort();
   }
-  return (int)std::min<size_t>(mc - 1, (smem_max - fixed) / per_row);
+  return (int)std::min<size_t>(mc, (smem_max - fixed) / per_row);
 }
 
 using integrate_separable_kernel_t = void (*)(const kernel_params, const int,
@@ -957,30 +970,37 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
   // lp_max <= grid_gpu_max_l == GRID_SEP_MAX_L is checked by smem_parameters
   static_assert(grid_gpu_max_l <= GRID_SEP_MAX_L, "separable tables too small");
 
-  // the whole plane in one pass when all the rows of the cube fit in the
-  // shared memory, by chunks of rows otherwise.
-  const bool distributed = grid.is_distributed();
-  integrate_separable_kernel_t kernel =
-      select_integrate_separable(lp_max, distributed, axis_aligned, false);
-  int yrows = max_cube_size;
-  if (integrate_separable_smem_size(max_cube_size, lp_max, yrows,
-                                    axis_aligned) >
-      max_dynamic_smem(kernel, grid_gpu_smem_budget)) {
-    kernel =
-        select_integrate_separable(lp_max, distributed, axis_aligned, true);
-    yrows = integrate_separable_yrows(
-        max_cube_size, lp_max, axis_aligned,
-        max_dynamic_smem(kernel, grid_gpu_smem_budget));
-  }
-
   init_separable_constant_memory();
   const double *lattice_to_cartesian =
       axis_aligned ? nullptr : get_lattice_to_cartesian(grid, lp_max);
-  const size_t smem =
-      integrate_separable_smem_size(max_cube_size, lp_max, yrows, axis_aligned);
+  const bool distributed = grid.is_distributed();
   const int nblocks_level = number_of_tasks_per_level_[level];
-  GRID_GPU_LAUNCH(kernel, nblocks_level, 64, smem, level_streams[level], params,
-                  max_cube_size, lp_max, yrows, lattice_to_cartesian);
+
+  // the tasks with a cube edge of at most mc, the whole plane in one pass (see
+  // sep_skip_task)
+  const integrate_separable_kernel_t kernel =
+      select_integrate_separable(lp_max, distributed, axis_aligned, false);
+  const int mc = std::min(max_cube_size,
+                          integrate_separable_max_edge(
+                              lp_max, axis_aligned,
+                              max_dynamic_smem(kernel, grid_gpu_smem_budget)));
+  if (mc > 0) {
+    const size_t smem =
+        integrate_separable_smem_size(lp_max, mc, axis_aligned ? mc : 0, false);
+    GRID_GPU_LAUNCH(kernel, nblocks_level, 64, smem, level_streams[level],
+                    params, mc, lp_max, mc, lattice_to_cartesian);
+  }
+
+  // the larger cubes by chunks of rows, on the same stream
+  if (max_cube_size > mc) {
+    const integrate_separable_kernel_t chunked =
+        select_integrate_separable(lp_max, distributed, axis_aligned, true);
+    const int yrows = integrate_separable_yrows(
+        max_cube_size, lp_max, max_dynamic_smem(chunked, grid_gpu_smem_budget));
+    const size_t smem = integrate_separable_smem_size(lp_max, yrows, 0, true);
+    GRID_GPU_LAUNCH(chunked, nblocks_level, 64, smem, level_streams[level],
+                    params, mc, lp_max, yrows, lattice_to_cartesian);
+  }
 }
 
 void context_info::compute_hab_coefficients() {

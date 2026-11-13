@@ -244,25 +244,32 @@ __global__ __launch_bounds__(64) void calculate_coefficients_two_steps(
  * visited is the same as for the original collocate kernel: same window masks,
  * same y / x trimming in the orthogonal case, same sphere test.
  *
- * Dynamic shared memory layout (doubles), mc = max cube size, ls = lp_max + 1:
- *   ex[mc], ey[mc], D[ls][ls], C[ncoset(lp_max)], E[erows][ls]
+ * The powers of y and the x coordinates are computed on the fly. The tasks are
+ * split between two instances (see sep_skip_task):
  *
- * The powers of y are computed on the fly in step 2 and the rows of a plane
- * are processed by chunks of erows rows, so that the shared memory is bounded
- * for any cube size (see collocate_separable_erows), the x coordinates are
- * computed on the fly. ex and ey are only allocated for an axis aligned cell.
+ * - chunked_ = false: tasks with a cube edge of at most mc points, the whole
+ *   plane in one pass (erows = mc) and the gaussian along x and y tabulated.
+ * - chunked_ = true: larger cubes, the rows of a plane by chunks of erows rows
+ *   (see collocate_separable_erows) and the gaussian along x and y evaluated
+ *   on the fly, so that the shared memory does not depend on the cube size.
+ *
+ * Dynamic shared memory layout (doubles), ls = lp_max + 1:
+ *   ex[mc], ey[mc], D[ls][ls], C[ncoset(lp_max)], E[erows][ls]
+ * ex and ey are only allocated for an axis aligned cell and chunked_ = false.
  ******************************************************************************/
 
-template <bool distributed__, bool axis_aligned_>
+template <bool distributed__, bool axis_aligned_, bool chunked_>
 __global__ __launch_bounds__(64) void collocate_separable_kernel(
     const kernel_params dev_, const int mc, const int lp_max, const int erows,
     const double *__restrict__ M) {
   // the orthogonal code paths are only used for an axis aligned cell (see
   // grid_info::check_orthogonality)
   constexpr bool orthogonal_ = axis_aligned_;
+  // the gaussian along x and y is tabulated
+  constexpr bool tables_ = axis_aligned_ && !chunked_;
 
   const task_info &glb_task = dev_.tasks[dev_.first_task + block_index()];
-  if (glb_task.skip_task)
+  if (sep_skip_task<chunked_>(glb_task, mc))
     return;
 
   const int tid = threadIdx.x;
@@ -270,8 +277,8 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
 
   extern __shared__ double sep_smem[];
   double *ex = sep_smem;
-  double *ey = ex + (axis_aligned_ ? mc : 0);
-  double *D = ey + (axis_aligned_ ? mc : 0);
+  double *ey = ex + (tables_ ? mc : 0);
+  double *D = ey + (tables_ ? mc : 0);
   double *C = D + ls * ls;
   double *E = C + ncoset(lp_max); // [erows][ls]
 
@@ -310,7 +317,7 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
   }
 
   // 1D tables of the gaussian for an axis aligned cell
-  if (axis_aligned_) {
+  if (tables_) {
     for (int x = tid; x < task.cube_size.x; x += 64) {
       const double r = (x + task.lb_cube.x + task.roffset.x) * dev_.dh_[0];
       ex[x] = exp(-zetp * r * r);
@@ -359,9 +366,10 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
     __syncthreads();
 
     // steps 2 and 3 by chunks of erows rows, so that E fits in the shared
-    // memory for any cube size. The trip count is uniform over the block.
-    for (int y0 = ymin; y0 <= ymax; y0 += erows) {
-      const int y1 = min(ymax, y0 + erows - 1);
+    // memory for any cube size. The trip count is uniform over the block, a
+    // single pass over the whole plane unless chunked_.
+    for (int y0 = ymin; y0 <= ymax; y0 = chunked_ ? y0 + erows : ymax + 1) {
+      const int y1 = chunked_ ? min(ymax, y0 + erows - 1) : ymax;
       const int nyc = y1 - y0 + 1;
 
       // step 2: contract b, with the powers of y computed on the fly
@@ -371,7 +379,7 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
         const int y = y0 + yy;
         const double v = y + task.lb_cube.y + task.roffset.y;
         const double r = axis_aligned_ ? v * dev_.dh_[4] : v;
-        double p = axis_aligned_ ? ey[y] : 1.0;
+        double p = tables_ ? ey[y] : (axis_aligned_ ? exp(-zetp * r * r) : 1.0);
         double e = 0.0;
         for (int b = 0; b <= lp - a; b++, p *= r)
           e += D[a * ls + b] * p;
@@ -413,7 +421,7 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
           double gauss;
           if (axis_aligned_) {
             // the sphere test is never applied in this case (orthogonal_)
-            gauss = ex[x];
+            gauss = tables_ ? ex[x] : exp(-zetp * r * r);
           } else {
             const double3 r3 = compute_coordinates(dev_.dh_, r, v, w);
             const double r2 = r3.x * r3.x + r3.y * r3.y + r3.z * r3.z;
@@ -441,33 +449,40 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
         }
       }
       // E is overwritten by the next chunk
-      if (y1 < ymax)
+      if (chunked_ && (y1 < ymax))
         __syncthreads();
     }
   }
 }
 
-// shared memory of collocate_separable_kernel for erows rows of E per chunk
-static size_t collocate_separable_smem_size(const int mc, const int lp_max,
-                                            const int erows,
-                                            const bool axis_aligned) {
+// shared memory of collocate_separable_kernel, erows rows of E per chunk and
+// ntab entries in the 1D tables of the gaussian
+static size_t collocate_separable_smem_size(const int lp_max, const int erows,
+                                            const int ntab) {
   const int ls = lp_max + 1;
-  const int nt = axis_aligned ? 2 * mc : 0;
-  return sizeof(double) * (nt + ls * ls + ncoset(lp_max) + erows * ls);
+  return sizeof(double) * (ntab + ls * ls + ncoset(lp_max) + erows * ls);
 }
 
-// rows of E per chunk: all the rows of the cube when they fit in smem_max
+// largest cube edge processed by the instances with chunked_ = false: all the
+// rows of the cube (erows = mc) and for an axis aligned cell the tables ex and
+// ey (2 mc entries) in smem_max.
+static int collocate_separable_max_edge(const int lp_max,
+                                        const bool axis_aligned,
+                                        const size_t smem_max) {
+  const size_t fixed = collocate_separable_smem_size(lp_max, 0, 0);
+  const size_t per_edge =
+      sizeof(double) * (lp_max + 1 + (axis_aligned ? 2 : 0));
+  return (smem_max > fixed) ? (int)((smem_max - fixed) / per_edge) : 0;
+}
+
+// rows of E per chunk of the chunked_ instances, at most mc
 static int collocate_separable_erows(const int mc, const int lp_max,
-                                     const bool axis_aligned,
                                      const size_t smem_max) {
-  const size_t fixed =
-      collocate_separable_smem_size(mc, lp_max, 0, axis_aligned);
+  const size_t fixed = collocate_separable_smem_size(lp_max, 0, 0);
   const size_t per_row = sizeof(double) * (lp_max + 1);
   if (fixed + per_row > smem_max) {
-    fprintf(stderr,
-            "ERROR: cube too large for collocate_separable_kernel (%d "
-            "points, lp %d).\n",
-            mc, lp_max);
+    fprintf(stderr, "ERROR: lp %d too large for collocate_separable_kernel.\n",
+            lp_max);
     abort();
   }
   return (int)std::min<size_t>(mc, (smem_max - fixed) / per_row);
@@ -511,6 +526,20 @@ void context_info::calculate_all_coefficients(const enum grid_func func,
   GRID_GPU_LAUNCH(fused_kernel, nblocks, threads_per_block, 0, main_stream,
                   params);
 }
+using collocate_separable_kernel_t = void (*)(const kernel_params, const int,
+                                              const int, const int,
+                                              const double *);
+
+template <bool chunked_>
+static collocate_separable_kernel_t
+select_collocate_separable(const bool distributed, const bool axis_aligned) {
+  if (distributed)
+    return axis_aligned ? collocate_separable_kernel<true, true, chunked_>
+                        : collocate_separable_kernel<true, false, chunked_>;
+  return axis_aligned ? collocate_separable_kernel<false, true, chunked_>
+                      : collocate_separable_kernel<false, false, chunked_>;
+}
+
 /*******************************************************************************
  * \brief Launches the Cuda kernel that collocates all tasks of one grid level.
  ******************************************************************************/
@@ -546,17 +575,31 @@ void context_info::collocate_one_grid_level(const int level,
       axis_aligned ? nullptr : get_lattice_to_cartesian(grid, lp_max);
   const bool distributed = grid.is_distributed();
   const auto kernel =
-      distributed ? (axis_aligned ? collocate_separable_kernel<true, true>
-                                  : collocate_separable_kernel<true, false>)
-                  : (axis_aligned ? collocate_separable_kernel<false, true>
-                                  : collocate_separable_kernel<false, false>);
-  const int erows =
-      collocate_separable_erows(max_cube_size, lp_max, axis_aligned,
-                                max_dynamic_smem(kernel, grid_gpu_smem_budget));
-  const size_t smem =
-      collocate_separable_smem_size(max_cube_size, lp_max, erows, axis_aligned);
+      select_collocate_separable<false>(distributed, axis_aligned);
   const int nblocks_level = number_of_tasks_per_level_[level];
-  GRID_GPU_LAUNCH(kernel, nblocks_level, 64, smem, level_streams[level], params,
-                  max_cube_size, lp_max, erows, lattice_to_cartesian);
+
+  // the tasks with a cube edge of at most mc in one pass over the planes (see
+  // sep_skip_task)
+  const int mc = std::min(max_cube_size,
+                          collocate_separable_max_edge(
+                              lp_max, axis_aligned,
+                              max_dynamic_smem(kernel, grid_gpu_smem_budget)));
+  if (mc > 0) {
+    const size_t smem =
+        collocate_separable_smem_size(lp_max, mc, axis_aligned ? 2 * mc : 0);
+    GRID_GPU_LAUNCH(kernel, nblocks_level, 64, smem, level_streams[level],
+                    params, mc, lp_max, mc, lattice_to_cartesian);
+  }
+
+  // the larger cubes by chunks of rows, on the same stream
+  if (max_cube_size > mc) {
+    const auto chunked =
+        select_collocate_separable<true>(distributed, axis_aligned);
+    const int erows = collocate_separable_erows(
+        max_cube_size, lp_max, max_dynamic_smem(chunked, grid_gpu_smem_budget));
+    const size_t smem = collocate_separable_smem_size(lp_max, erows, 0);
+    GRID_GPU_LAUNCH(chunked, nblocks_level, 64, smem, level_streams[level],
+                    params, mc, lp_max, erows, lattice_to_cartesian);
+  }
 }
 } // namespace grid_gpu_backend
