@@ -1347,14 +1347,6 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
     # sed -E -e 's/"~cuda\s+~gdrcopy"/"\+cuda \+gdrcopy"/' -i "${CP2K_CONFIG_FILE}"
     sed -E -e 's/"~cuda\s+~gdrcopy"/"\~cuda"/' -i "${CP2K_CONFIG_FILE}"
     echo -e "\nLibxc will be built with CUDA support (cuda_arch=${CUDA_SM_CODE})"
-    # Enable CUDA for PyTorch (libtorch) and GauXC; the global preference is
-    # not enough for the packages that depend on them (NequIP/Allegro, GauXC,
-    # Skala).
-    sed -E \
-      -e "/^[[:space:]]+py-torch:/{n; s/require:/require:\n        - \"+cuda cuda_arch=${CUDA_SM_CODE}\"/}" \
-      -e "/^[[:space:]]+gauxc:/{n; s/require:/require:\n        - \"+cuda cuda_arch=${CUDA_SM_CODE}\"/}" \
-      -i "${CP2K_CONFIG_FILE}"
-    echo -e "PyTorch (libtorch) and GauXC will be built with CUDA support (cuda_arch=${CUDA_SM_CODE})"
     if [[ -n "${CUDA_VERSION:-}" ]]; then
       # Set CUDA SM code
       sed -E -e "s/spec:\s+cuda@[.0-9]*/spec: cuda@${CUDA_VERSION}/" -i "${CP2K_CONFIG_FILE}"
