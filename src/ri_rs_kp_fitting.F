@@ -277,7 +277,8 @@ CONTAINS
             last_q = MIN(first_q + n_sub - 1, n_q, (i_batch + 1)*bs_env%para_env%num_pe)
             CALL cell_to_k_transform(D_llp_R, cells_R_D_llp, -qpoints(:, first_q:last_q), &
                                      bs_env%kpoints_scf_desymm%nkp_grid, &
-                                     D_llp_q_batch(:, :, 1:last_q - first_q + 1), backend)
+                                     D_llp_q_batch(:, :, 1:last_q - first_q + 1), backend, &
+                                     profile_fft=.TRUE., profile_label='RI-RS D_R -> D_q')
             DO iq_batch = first_q, last_q
                D_llp_q_local(:, :) = TRANSPOSE(D_llp_q_batch(:, :, iq_batch - first_q + 1))
                i_rank = MODULO(iq_batch - 1, bs_env%para_env%num_pe)
@@ -747,7 +748,8 @@ CONTAINS
             last_q = MIN(first_q + n_sub - 1, n_active_q)
             CALL cell_to_k_transform(d_lP_R, cells_R_d_lP, qpoints(:, q_indices(first_q:last_q)), &
                                      bs_env%kpoints_scf_desymm%nkp_grid, &
-                                     result_q(:, :, 1:last_q - first_q + 1), backend)
+                                     result_q(:, :, 1:last_q - first_q + 1), backend, &
+                                     profile_fft=.TRUE., profile_label='RI-RS d_lP_R -> d_lP_q')
             DO q_column = first_q, last_q
                i_dest = q_dest(q_column)
                i_slot = MODULO(i_dest, 2) + 1

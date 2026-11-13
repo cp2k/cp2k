@@ -152,8 +152,10 @@ CONTAINS
 !> \param backend GEMM or FFT
 !> \param accumulate add this image panel to an existing output
 !> \param profile_fft print local FFT stage times on the logger rank, without MPI collectives
+!> \param profile_label identify the caller operation in the optional FFT profile
 ! **************************************************************************************************
-   SUBROUTINE cell_to_k_transform(values_rs, cells, xkp, nkp_grid, values_k, backend, accumulate, profile_fft)
+   SUBROUTINE cell_to_k_transform(values_rs, cells, xkp, nkp_grid, values_k, backend, accumulate, &
+                                  profile_fft, profile_label)
       REAL(KIND=dp), INTENT(IN)                          :: values_rs(:, :, :)
       INTEGER, INTENT(IN)                                :: cells(:, :)
       REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
@@ -161,6 +163,7 @@ CONTAINS
       COMPLEX(KIND=dp), INTENT(INOUT)                    :: values_k(:, :, :)
       INTEGER, INTENT(IN)                                :: backend
       LOGICAL, INTENT(IN), OPTIONAL                      :: accumulate, profile_fft
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: profile_label
 
       INTEGER :: column, count, first_column, first_row, handle, i, image, kfirst, last, &
          last_column, matrix_rows, nk, nphase, nrow, ntile, nworkers, odd, offset, omp_limit, &
@@ -287,6 +290,7 @@ CONTAINS
 !$       omp_limit = omp_get_max_threads()
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A)') 'R2K_FFT_PROFILE| Local panels; logger-rank wall seconds, no MPI reduction'
+            IF (PRESENT(profile_label)) WRITE (unit_nr, '(T2,A,A)') 'R2K_FFT_PROFILE| operation: ', TRIM(profile_label)
             WRITE (unit_nr, '(T2,A,3I10)') 'R2K_FFT_PROFILE| source shape: ', SHAPE(values_rs)
             WRITE (unit_nr, '(T2,A,6I8)') 'R2K_FFT_PROFILE| grid / padded: ', nkp_grid, fft_profile%nfft
             WRITE (unit_nr, '(T2,A,2I16,2I8)') 'R2K_FFT_PROFILE| elements/batches/tile min/max: ', &
