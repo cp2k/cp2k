@@ -250,7 +250,7 @@ __global__ __launch_bounds__(64) void calculate_coefficients_two_steps(
  * The powers of y are computed on the fly in step 2 and the rows of a plane
  * are processed by chunks of erows rows, so that the shared memory is bounded
  * for any cube size (see collocate_separable_erows), the x coordinates are
- * computed on the fly. ex and ey are only used when axis_aligned_ = true.
+ * computed on the fly. ex and ey are only allocated for an axis aligned cell.
  ******************************************************************************/
 
 template <bool distributed__, bool axis_aligned_>
@@ -270,8 +270,8 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
 
   extern __shared__ double sep_smem[];
   double *ex = sep_smem;
-  double *ey = ex + mc;
-  double *D = ey + mc;
+  double *ey = ex + (axis_aligned_ ? mc : 0);
+  double *D = ey + (axis_aligned_ ? mc : 0);
   double *C = D + ls * ls;
   double *E = C + ncoset(lp_max); // [erows][ls]
 
@@ -449,15 +449,19 @@ __global__ __launch_bounds__(64) void collocate_separable_kernel(
 
 // shared memory of collocate_separable_kernel for erows rows of E per chunk
 static size_t collocate_separable_smem_size(const int mc, const int lp_max,
-                                            const int erows) {
+                                            const int erows,
+                                            const bool axis_aligned) {
   const int ls = lp_max + 1;
-  return sizeof(double) * (2 * mc + ls * ls + ncoset(lp_max) + erows * ls);
+  const int nt = axis_aligned ? 2 * mc : 0;
+  return sizeof(double) * (nt + ls * ls + ncoset(lp_max) + erows * ls);
 }
 
 // rows of E per chunk: all the rows of the cube when they fit in smem_max
 static int collocate_separable_erows(const int mc, const int lp_max,
+                                     const bool axis_aligned,
                                      const size_t smem_max) {
-  const size_t fixed = collocate_separable_smem_size(mc, lp_max, 0);
+  const size_t fixed =
+      collocate_separable_smem_size(mc, lp_max, 0, axis_aligned);
   const size_t per_row = sizeof(double) * (lp_max + 1);
   if (fixed + per_row > smem_max) {
     fprintf(stderr,
@@ -546,10 +550,11 @@ void context_info::collocate_one_grid_level(const int level,
                                   : collocate_separable_kernel<true, false>)
                   : (axis_aligned ? collocate_separable_kernel<false, true>
                                   : collocate_separable_kernel<false, false>);
-  const int erows = collocate_separable_erows(
-      max_cube_size, lp_max, max_dynamic_smem(kernel, grid_gpu_smem_budget));
+  const int erows =
+      collocate_separable_erows(max_cube_size, lp_max, axis_aligned,
+                                max_dynamic_smem(kernel, grid_gpu_smem_budget));
   const size_t smem =
-      collocate_separable_smem_size(max_cube_size, lp_max, erows);
+      collocate_separable_smem_size(max_cube_size, lp_max, erows, axis_aligned);
   const int nblocks_level = number_of_tasks_per_level_[level];
   GRID_GPU_LAUNCH(kernel, nblocks_level, 64, smem, level_streams[level], params,
                   max_cube_size, lp_max, erows, lattice_to_cartesian);
