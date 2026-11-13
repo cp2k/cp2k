@@ -1349,11 +1349,9 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
     echo -e "\nLibxc will be built with CUDA support (cuda_arch=${CUDA_SM_CODE})"
     # Enable CUDA for PyTorch (libtorch) and GauXC; the global preference is
     # not enough for the packages that depend on them (NequIP/Allegro, GauXC,
-    # Skala). The CUDA-only PyTorch options that CP2K does not use (cuDNN,
-    # cuSPARSELt, MAGMA, NCCL, FlashAttention) are disabled to shorten the
-    # build.
+    # Skala).
     sed -E \
-      -e "/^[[:space:]]+py-torch:/{n; s/require:/require:\n        - \"+cuda cuda_arch=${CUDA_SM_CODE}\"\n        - \"~cudnn\"\n        - \"~cusparselt\"\n        - \"~magma\"\n        - \"~nccl\"\n        - \"~flash_attention\"/}" \
+      -e "/^[[:space:]]+py-torch:/{n; s/require:/require:\n        - \"+cuda cuda_arch=${CUDA_SM_CODE}\"/}" \
       -e "/^[[:space:]]+gauxc:/{n; s/require:/require:\n        - \"+cuda cuda_arch=${CUDA_SM_CODE}\"/}" \
       -i "${CP2K_CONFIG_FILE}"
     echo -e "PyTorch (libtorch) and GauXC will be built with CUDA support (cuda_arch=${CUDA_SM_CODE})"
