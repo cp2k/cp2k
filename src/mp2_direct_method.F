@@ -27,7 +27,6 @@ MODULE mp2_direct_method
                                               hfx_screen_coeff_type,&
                                               hfx_type,&
                                               pair_set_list_type
-   USE input_constants,                 ONLY: do_potential_TShPSC
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE machine,                         ONLY: m_flush
@@ -108,11 +107,6 @@ CONTAINS
 
       alpha_beta_case = .FALSE.
       IF (PRESENT(C_j) .AND. PRESENT(Auto_j)) alpha_beta_case = .TRUE.
-
-      IF (unit_nr > 0 .AND. mp2_env%potential_parameter%potential_type == do_potential_TShPSC) THEN
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T64,F12.6,A5)') 'Truncated MP2 method, Rt=', &
-            mp2_env%potential_parameter%cutoff_radius, ' Bohr'
-      END IF
 
       ! create the local para env
       ! each para_env_sub corresponds to a group that is going to compute

@@ -27,8 +27,8 @@ MODULE libint_2c_3c
    USE libint_engine,                   ONLY: cp_libint_engine_context_type,&
                                               cp_libint_engine_evaluate,&
                                               cp_libint_engine_init,&
-                                              cp_libint_engine_release
-   USE libint_wrapper,                  ONLY: libint_max_am
+                                              cp_libint_engine_release,&
+                                              libint_max_am
    USE orbital_pointers,                ONLY: nco,&
                                               ncoset
 #include "./base/base_uses.f90"

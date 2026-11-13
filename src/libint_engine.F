@@ -12,16 +12,19 @@
 !>       Mixed radial operators are composed behind the existing integral interfaces.
 ! **************************************************************************************************
 MODULE libint_engine
-   USE ISO_C_BINDING,                   ONLY: &
-        C_ASSOCIATED, C_CHAR, C_DOUBLE, C_F_POINTER, C_INT, C_NULL_CHAR, C_NULL_PTR, C_PTR, &
-        C_SIZE_T
-   USE input_constants,                 ONLY: &
-        do_potential_coulomb, do_potential_gaussian, do_potential_id, do_potential_long, &
-        do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, do_potential_short, &
-        do_potential_truncated
-   USE integral_library_types,          ONLY: compare_potential_types,&
-                                              coulomb_operator_type
-   USE kinds,                           ONLY: dp
+#if defined(__LIBINT)
+#include <libint2/libint2_params.h>
+#endif
+   USE ISO_C_BINDING, ONLY: &
+      C_ASSOCIATED, C_CHAR, C_DOUBLE, C_F_POINTER, C_INT, C_NULL_CHAR, C_NULL_PTR, C_PTR, &
+      C_SIZE_T
+   USE input_constants, ONLY: &
+      do_potential_coulomb, do_potential_gaussian, do_potential_id, do_potential_long, &
+      do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, do_potential_short, &
+      do_potential_truncated
+   USE integral_library_types, ONLY: compare_potential_types, &
+                                     coulomb_operator_type
+   USE kinds, ONLY: dp
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -51,6 +54,13 @@ MODULE libint_engine
    PUBLIC :: cp_libint_engine_initialize, cp_libint_engine_finalize, cp_libint_engine_create, &
              cp_libint_engine_set_shell, cp_libint_engine_compute, cp_libint_engine_destroy
    PUBLIC :: cp_libint_engine_init, cp_libint_engine_release, cp_libint_engine_evaluate
+   PUBLIC :: cp_libint_static_init, cp_libint_static_cleanup
+
+#if defined(__LIBINT)
+   INTEGER, PARAMETER, PUBLIC :: libint_max_am = LIBINT2_MAX_AM_eri
+#else
+   INTEGER, PARAMETER, PUBLIC :: libint_max_am = 0
+#endif
 
    INTERFACE
       !> Called by CP2K's process-level Libint initialization and finalization.
@@ -119,6 +129,40 @@ MODULE libint_engine
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief Initialize Libint at CP2K process startup.
+! **************************************************************************************************
+   SUBROUTINE cp_libint_static_init()
+#if(__LIBINT)
+      CHARACTER(KIND=C_CHAR, LEN=512) :: error
+      INTEGER(C_INT) :: status
+
+      status = cp_libint_engine_initialize(error, INT(LEN(error), C_SIZE_T))
+      IF (status /= 0) THEN
+         CPABORT("Libint initialization failed: "//error(:INDEX(error, C_NULL_CHAR) - 1))
+      END IF
+#else
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
+   END SUBROUTINE cp_libint_static_init
+
+! **************************************************************************************************
+!> \brief Finalize Libint after all Engine contexts have been released.
+! **************************************************************************************************
+   SUBROUTINE cp_libint_static_cleanup()
+#if(__LIBINT)
+      CHARACTER(KIND=C_CHAR, LEN=512) :: error
+      INTEGER(C_INT) :: status
+
+      status = cp_libint_engine_finalize(error, INT(LEN(error), C_SIZE_T))
+      IF (status /= 0) THEN
+         CPABORT("Libint finalization failed: "//error(:INDEX(error, C_NULL_CHAR) - 1))
+      END IF
+#else
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
+   END SUBROUTINE cp_libint_static_cleanup
+
+! **************************************************************************************************
 !> \brief Record the capacities of a fresh, owning Engine context.
 !> \param context uninitialized owning context
 !> \param ncenters number of physical centers, two through four
@@ -160,7 +204,7 @@ CONTAINS
 !> \param nprim number of primitives in each shell
 !> \param exponents primitive exponents, padded to MAXVAL(nprim)
 !> \param coefficients coefficients of normalization-free Cartesian primitives
-!> \param potential radial operator; TShPSC uses its separate legacy recurrence
+!> \param potential radial operator
 !> \param values borrowed result with last physical shell index fastest; derivatives
 !>        are ordered by physical center, then x/y/z. Valid until the next evaluation or release.
 !> \note Internal primitive screening is disabled; existing callers retain their screening policy.

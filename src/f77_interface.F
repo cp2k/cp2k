@@ -95,7 +95,7 @@ MODULE f77_interface
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE libint_wrapper,                  ONLY: cp_libint_static_cleanup,&
+   USE libint_engine,                   ONLY: cp_libint_static_cleanup,&
                                               cp_libint_static_init
    USE machine,                         ONLY: default_output_unit,&
                                               m_chdir,&

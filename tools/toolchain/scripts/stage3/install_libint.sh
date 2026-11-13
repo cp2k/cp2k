@@ -61,7 +61,7 @@ case "$with_libint" in
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DCMAKE_CXX_FLAGS="-g1" \
         -DBUILD_TESTING=OFF \
-        -DLIBINT2_ENABLE_FORTRAN=ON \
+        -DLIBINT2_ENABLE_FORTRAN=OFF \
         -DLIBINT2_REQUIRE_CXX_API=ON \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
         > cmake.log 2>&1 || tail_excerpt cmake.log

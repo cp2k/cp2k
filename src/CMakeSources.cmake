@@ -363,7 +363,6 @@ list(
   libgrpp_integrals.F
   libint_2c_3c.F
   coulomb_integral_interface.F
-  libint_wrapper.F
   libint_engine.F
   libgint_wrapper.F
   library_tests.F
@@ -1069,7 +1068,6 @@ list(
   common/timings.F
   common/timings_report.F
   common/timings_types.F
-  common/t_sh_p_s_c.F
   common/util.F
   common/xmgrace.F
   common/erf_complex.F
@@ -1522,7 +1520,6 @@ list(
 list(
   APPEND
   CP2K_SRCS_C
-  libint_c_api.c
   sockets.c
   base/machine_cpuid.c
   base/openmp_trace.c

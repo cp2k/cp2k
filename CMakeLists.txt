@@ -839,25 +839,6 @@ endif()
 # Libint
 if(CP2K_USE_LIBINT2)
   find_package(Libint2 2.14.1 CONFIG REQUIRED COMPONENTS CXX)
-  # Check Fortran interface; libint exports Fortran target since 2.14
-  if(TARGET Libint2::int_f)
-    set(CP2K_LIBINT2_TARGET Libint2::int_f)
-  else()
-    set(CP2K_LIBINT2_TARGET Libint2::int2)
-    get_target_property(_libint2_include_dirs Libint2::int2
-                        INTERFACE_INCLUDE_DIRECTORIES)
-    find_file(
-      CP2K_LIBINT2_MOD_FILE
-      NAMES libint_f.mod
-      PATHS ${_libint2_include_dirs} "/usr/lib64/gfortran/modules")
-    if(NOT CP2K_LIBINT2_MOD_FILE)
-      message(
-        FATAL_ERROR "Libint2 was found, but its Fortran interface is missing")
-    endif()
-    get_filename_component(_libint2_mod_dir "${CP2K_LIBINT2_MOD_FILE}"
-                           DIRECTORY)
-    include_directories(BEFORE ${_libint2_include_dirs} "${_libint2_mod_dir}")
-  endif()
 endif()
 
 if(CP2K_USE_LIBGINT)
