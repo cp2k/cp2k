@@ -11,6 +11,6 @@ ARG REVISION
 ENV REVISION=${REVISION}
 
 COPY . ./
-CMD ["gunicorn", "--bind=:8080", "--workers=1", "--threads=8", "--timeout=0", "precommit_server:app"]
+CMD ["./precommit_server.py", "--port=8080"]
 
 #EOF
