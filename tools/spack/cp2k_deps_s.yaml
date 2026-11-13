@@ -107,15 +107,16 @@ spack:
       require:
         - "~distributed"
         - "~fbgemm"
-        - "~kineto"
+        - spec: "~flash_attention"
+          when: "+cuda"
+        - spec: "~kineto"
+          when: "@:2.10"
+        - spec: "~magma"
+          when: "+cuda"
         - "~mkldnn"
         - "~rocm"
         - "~valgrind"
         - "~xnnpack"
-        - spec: "~flash_attention"
-          when: "+cuda"
-        - spec: "~magma"
-          when: "+cuda"
 
     trexio:
       require:
@@ -123,7 +124,7 @@ spack:
 
   repos:
     builtin:
-      commit: 6a537c627fdc2ab328f0aef5eeb5db9b76d8a6cd # 2026-11-09
+      commit: 9e16dc370fb1ea0fa9971c6c6283b85fa414ec6a # 2026-11-13
 
   specs:
     # Build tools

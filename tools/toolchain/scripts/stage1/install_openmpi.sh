@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-openmpi_ver="5.0.10"
-openmpi_sha256="0acecc4fc218e5debdbcb8a41d182c6b0f1d29393015ed763b2a91d5d7374cc6"
+openmpi_ver="5.0.11"
+openmpi_sha256="e668a3c4acd50c41dc204c8a6dd98a611e0f26af89cf677577fa9be8a2698003"
 openmpi_pkg="openmpi-${openmpi_ver}.tar.bz2"
 
 source "${SCRIPT_DIR}"/common_vars.sh
@@ -35,14 +35,6 @@ case "${with_openmpi}" in
       [ -d openmpi-${openmpi_ver} ] && rm -rf openmpi-${openmpi_ver}
       tar -xjf ${openmpi_pkg}
       cd openmpi-${openmpi_ver}
-      # Backport module lifetime fixes requested in open-mpi/ompi#13783.
-      patch -l -p1 < "${SCRIPT_DIR}/stage1/openmpi-${openmpi_ver}-op-module-lifetime.patch" \
-        > openmpi_op_module_lifetime.patch.log 2>&1 ||
-        tail_excerpt openmpi_op_module_lifetime.patch.log
-      # Backport the OB1 progress fix scheduled for OpenMPI 5.0.11.
-      patch -l -p1 < "${SCRIPT_DIR}/stage1/openmpi-${openmpi_ver}-pml-ob1-pending.patch" \
-        > openmpi_pml_ob1_pending.patch.log 2>&1 ||
-        tail_excerpt openmpi_pml_ob1_pending.patch.log
       if [ "${SYSTEM_ARCH}" = "x86_64" ]; then
         # can have issue with older glibc libraries, in which case
         # we need to add the -fgnu89-inline to CFLAGS. We can check
@@ -67,9 +59,7 @@ case "${with_openmpi}" in
       make -j $(get_nprocs) install > install.log 2>&1 || tail_excerpt install.log
       cd ..
       write_checksums "${install_lock_file}" \
-        "${SCRIPT_DIR}/stage1/$(basename ${SCRIPT_NAME})" \
-        "${SCRIPT_DIR}/stage1/openmpi-${openmpi_ver}-op-module-lifetime.patch" \
-        "${SCRIPT_DIR}/stage1/openmpi-${openmpi_ver}-pml-ob1-pending.patch"
+        "${SCRIPT_DIR}/stage1/$(basename ${SCRIPT_NAME})"
     fi
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
