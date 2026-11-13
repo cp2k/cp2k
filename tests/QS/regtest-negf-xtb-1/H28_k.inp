@@ -21,6 +21,7 @@
 !--------------------------------------------------------------------------------------------------!
 &GLOBAL
   PREFERRED_DIAG_LIBRARY SL
+  PREFERRED_FFT_LIBRARY FFTW3
   PRINT_LEVEL LOW  #SILENT #LOW #MEDIUM #HIGH #DEBUG
   PROJECT ${Project}
   RUN_TYPE NEGF
