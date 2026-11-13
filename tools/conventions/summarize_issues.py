@@ -46,6 +46,7 @@ def summarize(issue_files, suppressions):
         """
 Plot: name="supps", title="Suppressed Convention Violations", ylabel="# suppressions"
 PlotPoint: name="coding", plot="supps", label="Coding Conventions", y={suppressed}, yerr=0
+
 Summary: Found {issues} issues ({suppressed} suppressed)
 Status: {status}""".format(
             issues=len(issues_shown),
