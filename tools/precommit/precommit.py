@@ -4,6 +4,7 @@
 
 import ast
 import argparse
+import gzip
 import json
 from time import time, sleep
 import re
@@ -221,6 +222,7 @@ def main() -> None:
             print(
                 f'PlotPoint: name="{filetype.lower()}", plot="{plot_name}", label="{filetype}", y={count}, yerr=0'
             )
+        print("")
 
     # Print the final message.
     print(
@@ -380,6 +382,9 @@ def run_remote_tool(tool: str, fn: str) -> None:
     r = http_post(url, fn)
     body = r.read()
     r.close()
+    if r.headers.get("Content-Encoding") == "gzip":
+        body = gzip.decompress(body)
+
     if r.status == 304:
         pass  # file not modified
     elif r.status == 200:
@@ -395,15 +400,19 @@ def http_post(url: str, fn: str) -> HTTPResponse:
 
     boundary = uuid.uuid1().hex
     name = Path(fn).name
-    data = b"".join(
-        [
-            f"--{boundary}\r\nContent-Disposition: ".encode("utf8"),
-            f'form-data; name="{name}"; filename="{name}"\r\n\r\n'.encode("utf8"),
-            Path(fn).read_bytes(),
-            f"\r\n--{boundary}--\r\n".encode("utf8"),
-        ]
+    data = gzip.compress(
+        b"".join(
+            [
+                f"--{boundary}\r\nContent-Disposition: ".encode("utf8"),
+                f'form-data; name="{name}"; filename="{name}"\r\n\r\n'.encode("utf8"),
+                Path(fn).read_bytes(),
+                f"\r\n--{boundary}--\r\n".encode("utf8"),
+            ]
+        )
     )
     headers = {
+        "Accept-Encoding": "gzip",
+        "Content-Encoding": "gzip",
         "Content-Length": f"{len(data)}",
         "Content-Type": f"multipart/form-data; boundary={boundary}",
     }
