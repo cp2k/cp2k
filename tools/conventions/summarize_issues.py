@@ -4,6 +4,7 @@
 
 
 import argparse
+from collections import Counter
 
 
 def summarize(issue_files, suppressions):
@@ -27,32 +28,49 @@ def summarize(issue_files, suppressions):
     issues_shown = [i for i in issues if i not in suppress]
     issues_supp = [i for i in issues if i in suppress]
     unused_supp = [i for i in suppress if i not in issues]
+    n_shown = len(issues_shown)
+    n_supp = len(issues_supp)
+    n_unused = len(unused_supp)
+    counts_by_conv: Counter[str] = Counter()
+    for i in issues:
+        conv = "other"
+        if "https://cp2k.org/conv#" in i:
+            conv = i.split("https://cp2k.org/conv#")[1]
+        counts_by_conv[conv] += 1
 
-    print("Suppressed entries:\n")
-    for i in issues_supp:
-        print("  {}".format(i))
-    print()
+    if n_supp:
+        print("\nRegistered suppression entries:\n")
+        for i in issues_supp:
+            print(f"  {i}")
 
-    print("There are %d unused suppressions:\n" % len(unused_supp))
-    for i in unused_supp:
-        print("  {}".format(i))
-    print()
+    if n_unused:
+        print(f"\nThere are {n_unused} registered but unused suppressions:\n")
+        for i in unused_supp:
+            print(f"  {i}")
 
-    print("Found {} unsuppressed issues:\n".format(len(issues_shown)))
-    for i in issues_shown:
-        print("  {}".format(i))
+    if n_shown:
+        print(f"\nFound {n_shown} unregistered unsuppressed issues:\n")
+        for i in issues_shown:
+            print(f"  {i}")
 
+    # Plotting was formerly only the total number of suppressed issues;
+    # now the number of issues per convention is also plotted, but the
+    # plot title and the label for n_supp remain the same for backward
+    # compatibility (which has a long history in the dashboard).
     print(
-        """
-Plot: name="supps", title="Suppressed Convention Violations", ylabel="# suppressions"
-PlotPoint: name="coding", plot="supps", label="Coding Conventions", y={suppressed}, yerr=0
-Summary: Found {issues} issues ({suppressed} suppressed)
-Status: {status}""".format(
-            issues=len(issues_shown),
-            suppressed=len(issues_supp),
-            status="FAILED" if issues_shown else "OK",
-        )
+        '\nPlot: name="supps", title="Suppressed Convention Violations", ylabel="# suppressions"'
     )
+    print(
+        f'PlotPoint: name="coding", plot="supps", label="Coding Conventions", y={n_supp}, yerr=0'
+    )
+    for conv, count in counts_by_conv.most_common():
+        print(
+            f'PlotPoint: name="{conv}", plot="supps", label="{conv}", y={count}, yerr=0'
+        )
+
+    # Print summary and status
+    print(f"Summary: Found {n_shown} issues ({n_supp} suppressed)")
+    print("Status: {status}".format(status="FAILED" if issues_shown else "OK"))
 
 
 if __name__ == "__main__":
