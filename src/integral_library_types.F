@@ -9,10 +9,14 @@
 !> \brief Library choices for electronic integral APIs.
 ! **************************************************************************************************
 MODULE integral_library_types
-   USE input_constants,                 ONLY: &
-        do_potential_TShPSC, do_potential_coulomb, do_potential_gaussian, do_potential_long, &
-        do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, do_potential_short, &
-        do_potential_truncated
+   USE input_constants,                 ONLY: do_potential_coulomb,&
+                                              do_potential_gaussian,&
+                                              do_potential_long,&
+                                              do_potential_mix_cl,&
+                                              do_potential_mix_cl_trunc,&
+                                              do_potential_mix_lg,&
+                                              do_potential_short,&
+                                              do_potential_truncated
    USE kinds,                           ONLY: default_path_length,&
                                               dp
 
@@ -73,7 +77,7 @@ CONTAINS
       SELECT CASE (potential1%potential_type)
       CASE (do_potential_short, do_potential_long, do_potential_gaussian)
          IF (potential1%omega /= potential2%omega) equals = .FALSE.
-      CASE (do_potential_truncated, do_potential_TShPSC)
+      CASE (do_potential_truncated)
          IF (potential1%cutoff_radius /= potential2%cutoff_radius) equals = .FALSE.
       CASE (do_potential_mix_cl, do_potential_mix_cl_trunc)
          IF (potential1%omega /= potential2%omega) equals = .FALSE.

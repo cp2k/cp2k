@@ -275,7 +275,12 @@ def process_file(fn: str, allow_modifications: bool) -> str:
         run_remote_tool("clangformat", fn)
 
     if re.match(r".*\.(cc|cpp|cxx|hcc|hpp|hxx)$", fn):
-        if basename in ["torch_c_api.cpp", "ace_c_api.cpp", "openpmd_c_api.cpp"]:
+        if basename in [
+            "torch_c_api.cpp",
+            "ace_c_api.cpp",
+            "openpmd_c_api.cpp",
+            "libint_engine_c_api.cpp",
+        ]:
             # Begrudgingly tolerated for C++ code with a narrow C ABI.
             filetype = "C++"
             run_remote_tool("clangformat", fn)

@@ -364,7 +364,7 @@ list(
   libgrpp_integrals.F
   libint_2c_3c.F
   coulomb_integral_interface.F
-  libint_wrapper.F
+  libint_engine.F
   libgint_wrapper.F
   library_tests.F
   linesearch.F
@@ -1070,7 +1070,6 @@ list(
   common/timings.F
   common/timings_report.F
   common/timings_types.F
-  common/t_sh_p_s_c.F
   common/util.F
   common/xmgrace.F
   common/erf_complex.F
@@ -1523,7 +1522,6 @@ list(
 list(
   APPEND
   CP2K_SRCS_C
-  libint_c_api.c
   sockets.c
   base/machine_cpuid.c
   base/openmp_trace.c
@@ -1572,7 +1570,7 @@ list(
 
 list(APPEND CP2K_SRCS_F grpp/libgrpp.F)
 
-set(CP2K_SRCS_CPP torch_c_api.cpp ace_c_api.cpp)
+set(CP2K_SRCS_CPP torch_c_api.cpp ace_c_api.cpp libint_engine_c_api.cpp)
 
 list(APPEND CP2K_SRCS_F openpmd_api.F input/cp_output_handling_openpmd.F
      cp_realspace_grid_openpmd.F pw/realspace_grid_openpmd.F)

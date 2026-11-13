@@ -874,7 +874,6 @@ MODULE input_constants
                                                do_potential_id = 7, &
                                                do_potential_truncated = 8, &
                                                do_potential_mix_cl_trunc = 9, &
-                                               do_potential_TShPSC = 1009, &
                                                ri_default = 10001
 
    ! HFX periodic number of shells

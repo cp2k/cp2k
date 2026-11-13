@@ -129,6 +129,8 @@ available.
 Hartree--Fock exchange and related methods.
 
 - Pass `-DCP2K_USE_LIBINT2=ON` to CMake to enable Libint2.
+- Libint 2.14.1 or newer is required, with the C++ interface enabled
+  (`-DLIBINT2_REQUIRE_CXX_API=ON`). The C++ interface requires Eigen3.
 - The CP2K toolchain and Spack are the recommended ways to obtain a compatible Libint2 build. For a
   manual build, CP2K-configured Libint source packages are available from the
   [CP2K download server](https://www.cp2k.org/static/downloads/); see also
@@ -137,7 +139,7 @@ Hartree--Fock exchange and related methods.
   particularly for static builds, the binary size.
 - CP2K is not restricted to these source packages. A manually built installation must provide
   electron-repulsion integrals (`--enable-eri=1`) with Libint's default ordering, export a CMake
-  package, and include the Fortran interface (`libint_f.mod`).
+  package, and enable the C++ Engine interface. The Fortran interface is optional.
 - Avoid compiling Libint with extensive debug information unless it is specifically required, since
   this can increase the library size substantially.
 

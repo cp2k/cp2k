@@ -120,7 +120,7 @@ CONTAINS
                END IF
                nimages(element_counter) = nimages(element_counter) + 1
                list(element_counter)%image_list(nimages(element_counter))%pgf_max = pgf_max
-               CALL prepare_eri4_pair(ra, im_B, zeta(ipgf), zetb(jpgf), rab2, &
+               CALL prepare_eri4_pair(ra, im_B, zeta(ipgf), zetb(jpgf), &
                                       list(element_counter), list(element_counter)%image_list(nimages(element_counter)))
                IF (nimages(element_counter) == 1) THEN
                   list(element_counter)%ipgf = ipgf
@@ -287,9 +287,9 @@ CONTAINS
       INTEGER, DIMENSION(*)                              :: nimages
       LOGICAL, INTENT(IN)                                :: do_periodic
 
-      INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, list_ij, list_kl, lpgf, max_l, ncoa, ncob, &
-         ncoc, ncod, nelements_ij, nelements_kl, nproducts, nsgfla, nsgflb, nsgflc, nsgfld, nsoa, &
-         nsob, nsoc, nsod, s_offset_a, s_offset_b, s_offset_c, s_offset_d
+      INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, list_ij, list_kl, lpgf, ncoa, ncob, ncoc, ncod, &
+         nelements_ij, nelements_kl, nproducts, nsgfla, nsgflb, nsgflc, nsgfld, nsoa, nsob, nsoc, &
+         nsod, s_offset_a, s_offset_b, s_offset_c, s_offset_d
       REAL(dp)                                           :: tmp_max
 
       cart_estimate = 0.0_dp
@@ -307,8 +307,6 @@ CONTAINS
                                neighbor_cells, nimages, do_periodic, cell)
       IF (nelements_kl == 0) RETURN
 
-      max_l = la_max + lb_max + lc_max + ld_max
-
       DO list_ij = 1, nelements_ij
          ipgf = pgf_list_ij(list_ij)%ipgf
          jpgf = pgf_list_ij(list_ij)%jpgf
@@ -319,7 +317,7 @@ CONTAINS
 
             CALL prepare_four_center_batch(context, pgf_list_ij(list_ij), pgf_list_kl(list_kl), &
                                            nproducts, log10_pmax, log10_eps_schwarz, neighbor_cells, cell, &
-                                           potential_parameter, max_l, do_periodic)
+                                           potential_parameter, do_periodic)
             IF (nproducts == 0) CYCLE
 
             s_offset_a = 0
@@ -517,9 +515,9 @@ CONTAINS
          DIMENSION(nsgfa, nsgfb, nsgfc, nsgfd, 12, 3)    :: primitive_integrals_virial
       REAL(dp)                                           :: cart_estimate_virial
 
-      INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, list_ij, list_kl, lpgf, max_l, ncoa, ncob, &
-         ncoc, ncod, nelements_ij, nelements_kl, nproducts, nsgfla, nsgflb, nsgflc, nsgfld, nsoa, &
-         nsob, nsoc, nsod, s_offset_a, s_offset_b, s_offset_c, s_offset_d
+      INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, list_ij, list_kl, lpgf, ncoa, ncob, ncoc, ncod, &
+         nelements_ij, nelements_kl, nproducts, nsgfla, nsgflb, nsgflc, nsgfld, nsoa, nsob, nsoc, &
+         nsod, s_offset_a, s_offset_b, s_offset_c, s_offset_d
       REAL(dp)                                           :: tmp_max, tmp_max_virial
 
       cart_estimate = 0.0_dp
@@ -541,7 +539,6 @@ CONTAINS
                                neighbor_cells, nimages, do_periodic, cell)
       IF (nelements_kl == 0) RETURN
 
-      max_l = la_max + lb_max + lc_max + ld_max + 1
       DO list_ij = 1, nelements_ij
          ipgf = pgf_list_ij(list_ij)%ipgf
          jpgf = pgf_list_ij(list_ij)%jpgf
@@ -552,7 +549,7 @@ CONTAINS
 
             CALL prepare_four_center_batch(context, pgf_list_ij(list_ij), pgf_list_kl(list_kl), &
                                            nproducts, log10_pmax, log10_eps_schwarz, neighbor_cells, cell, &
-                                           potential_parameter, max_l, do_periodic)
+                                           potential_parameter, do_periodic)
             IF (nproducts == 0) CYCLE
             s_offset_a = 0
             DO la = la_min, la_max

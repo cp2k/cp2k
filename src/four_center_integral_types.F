@@ -31,7 +31,6 @@ MODULE four_center_integral_types
 ! **************************************************************************************************
    TYPE eri4_pgf_image_type
       REAL(dp)                                 :: ra(3) = 0.0_dp, rb(3) = 0.0_dp
-      REAL(dp)                                 :: S1234 = 0.0_dp
       REAL(dp)                                 :: P(3) = 0.0_dp
       REAL(dp)                                 :: R = 0.0_dp
       REAL(dp)                                 :: pgf_max = 0.0_dp

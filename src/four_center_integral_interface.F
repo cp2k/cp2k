@@ -18,25 +18,21 @@ MODULE four_center_integral_interface
                                               pbc,&
                                               real_to_scaled
    USE four_center_integral_preparation,ONLY: min_image_gap_sq,&
-                                              prepare_eri4_pair,&
-                                              prepare_eri4_primitive,&
-                                              prepare_eri4_product
+                                              prepare_eri4_pair
    USE four_center_integral_types,      ONLY: eri4_cell_type,&
                                               eri4_pgf_image_type,&
                                               eri4_pgf_pair_type
    USE hfx_contraction_methods,         ONLY: contract
-   USE input_constants,                 ONLY: do_potential_TShPSC,&
-                                              do_potential_mix_cl_trunc,&
+   USE input_constants,                 ONLY: do_potential_mix_cl_trunc,&
                                               do_potential_short,&
                                               do_potential_truncated
    USE integral_library_types,          ONLY: coulomb_operator_type
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE libint_wrapper,                  ONLY: &
-        cp_libint_cleanup_eri, cp_libint_cleanup_eri1, cp_libint_get_derivs, cp_libint_get_eris, &
-        cp_libint_init_eri, cp_libint_init_eri1, cp_libint_set_contrdepth, &
-        cp_libint_set_params_eri, cp_libint_set_params_eri_deriv, cp_libint_t, &
-        eri_primitive_data_type, get_eri_permutation, reorder_eri_block
+   USE libint_engine,                   ONLY: cp_libint_engine_context_type,&
+                                              cp_libint_engine_evaluate,&
+                                              cp_libint_engine_init,&
+                                              cp_libint_engine_release
    USE orbital_pointers,                ONLY: nco
 #include "./base/base_uses.f90"
 
@@ -47,12 +43,19 @@ MODULE four_center_integral_interface
              evaluate_deriv_eri, &
              evaluate_eri_screen
 
+!> \brief Shell centers and exponents for a selected image quartet.
+   TYPE :: eri4_shell_product_type
+      REAL(dp) :: centers(3, 4) = 0.0_dp, exponents(4) = 0.0_dp
+   END TYPE eri4_shell_product_type
+
 !> \brief Context owning the energy and first-derivative backend workspaces.
 !> \note Each thread owns its context. Pass it directly without intrinsic copying.
    TYPE, PUBLIC :: four_center_integral_context_type
       PRIVATE
-      TYPE(cp_libint_t) :: eri, deriv
-      TYPE(eri_primitive_data_type), ALLOCATABLE :: products(:)
+      TYPE(cp_libint_engine_context_type) :: eri = cp_libint_engine_context_type(), &
+                                             deriv = cp_libint_engine_context_type()
+      TYPE(eri4_shell_product_type), ALLOCATABLE :: products(:)
+      TYPE(coulomb_operator_type) :: potential = coulomb_operator_type()
       INTEGER :: nproducts = 0
    END TYPE four_center_integral_context_type
 
@@ -69,12 +72,11 @@ CONTAINS
 !> \param neighbor_cells periodic image translations
 !> \param cell simulation cell
 !> \param potential_parameter physical radial operator
-!> \param m_max maximum radial order including any derivative increment
 !> \param do_periodic whether to enumerate periodic translations
 ! **************************************************************************************************
    SUBROUTINE prepare_four_center_batch(context, list1, list2, nproducts, &
                                         log10_pmax, log10_eps_schwarz, neighbor_cells, &
-                                        cell, potential_parameter, m_max, do_periodic)
+                                        cell, potential_parameter, do_periodic)
 
       TYPE(four_center_integral_context_type), &
          INTENT(INOUT)                                   :: context
@@ -84,7 +86,6 @@ CONTAINS
       TYPE(eri4_cell_type), DIMENSION(:), POINTER        :: neighbor_cells
       TYPE(cell_type), POINTER                           :: cell
       TYPE(coulomb_operator_type)                        :: potential_parameter
-      INTEGER, INTENT(IN)                                :: m_max
       LOGICAL, INTENT(IN)                                :: do_periodic
 
       REAL(dp), PARAMETER                                :: r_cutoff_eps = 1.0E-12_dp
@@ -93,19 +94,17 @@ CONTAINS
                                                             tmp_i4
       LOGICAL                                            :: has_r_cutoff
       REAL(dp) :: C11(3), EtaInv, min_img_delta, P(3), pgf_max_1, pgf_max_2, PQ(3), pq2, Q(3), R1, &
-         R2, r_cutoff_sq, r_cutoff_sq_guard, rc(3), rcut_eff, rd(3), rpq2, S1234, S1234a, S1234b, &
-         shift(3), temp(3), temp_CC(3), temp_DD(3), tmp_D(3), Zeta_C, Zeta_D
-      TYPE(eri4_pgf_image_type)                          :: shifted_image
-      TYPE(eri_primitive_data_type)                      :: product
-      TYPE(eri_primitive_data_type), ALLOCATABLE, &
+         R2, r_cutoff_sq, r_cutoff_sq_guard, rc(3), rcut_eff, rd(3), rpq2, shift(3), temp(3), &
+         temp_CC(3), temp_DD(3), tmp_D(3), Zeta_C, Zeta_D
+      TYPE(eri4_shell_product_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: tmp_product_list
 
       nimages1 = list1%nimages
       nimages2 = list2%nimages
       nproducts = 0
       context%nproducts = 0
+      context%potential = potential_parameter
       IF (nimages1 == 0 .OR. nimages2 == 0) RETURN
-      CALL prepare_eri4_product(list1, list2, m_max, product)
       EtaInv = list2%ZetaInv
       Zeta_C = list2%zeta
       Zeta_D = list2%zetb
@@ -117,9 +116,6 @@ CONTAINS
       CASE (do_potential_truncated, do_potential_short, do_potential_mix_cl_trunc)
          has_r_cutoff = .TRUE.
          rcut_eff = potential_parameter%cutoff_radius
-      CASE (do_potential_TShPSC)
-         has_r_cutoff = .TRUE.
-         rcut_eff = potential_parameter%cutoff_radius*2.0_dp
       CASE DEFAULT
          has_r_cutoff = .FALSE.
          rcut_eff = 0.0_dp
@@ -127,14 +123,12 @@ CONTAINS
       DO i = 1, nimages1
          P = list1%image_list(i)%P
          R1 = list1%image_list(i)%R
-         S1234a = list1%image_list(i)%S1234
          pgf_max_1 = list1%image_list(i)%pgf_max
          DO j = 1, nimages2
             pgf_max_2 = list2%image_list(j)%pgf_max
             IF (pgf_max_1 + pgf_max_2 + log10_pmax < log10_eps_schwarz) CYCLE
             Q = list2%image_list(j)%P
             R2 = list2%image_list(j)%R
-            S1234b = list2%image_list(j)%S1234
             rc = list2%image_list(j)%ra
             rd = list2%image_list(j)%rb
 
@@ -158,8 +152,6 @@ CONTAINS
                temp_CC = rc + shift
                temp_DD = rd + shift
             END IF
-
-            S1234 = EXP(S1234a + S1234b)
 
             DO k = 1, k_max
                IF (do_periodic) THEN
@@ -189,11 +181,11 @@ CONTAINS
                   CALL MOVE_ALLOC(tmp_product_list, context%products)
                END IF
 
-               shifted_image%ra = C11
-               shifted_image%rb = tmp_D
-               shifted_image%P = Q
-               CALL prepare_eri4_primitive(product, list1%image_list(i), shifted_image, S1234, rpq2, potential_parameter, &
-                                           context%products(nproducts))
+               context%products(nproducts)%centers(:, 1) = list1%image_list(i)%ra
+               context%products(nproducts)%centers(:, 2) = list1%image_list(i)%rb
+               context%products(nproducts)%centers(:, 3) = C11
+               context%products(nproducts)%centers(:, 4) = tmp_D
+               context%products(nproducts)%exponents = [list1%zeta, list1%zetb, list2%zeta, list2%zetb]
             END DO
          END DO
       END DO
@@ -211,10 +203,8 @@ CONTAINS
          INTENT(INOUT)                                   :: context
       INTEGER, INTENT(IN)                                :: max_am
 
-      CALL cp_libint_init_eri(context%eri, max_am)
-      CALL cp_libint_init_eri1(context%deriv, max_am)
-      CALL cp_libint_set_contrdepth(context%eri, 1)
-      CALL cp_libint_set_contrdepth(context%deriv, 1)
+      CALL cp_libint_engine_init(context%eri, 4, max_am, 0)
+      CALL cp_libint_engine_init(context%deriv, 4, max_am, 1)
       ALLOCATE (context%products(128))
    END SUBROUTINE four_center_integral_init
 
@@ -226,8 +216,8 @@ CONTAINS
       TYPE(four_center_integral_context_type), &
          INTENT(INOUT)                                   :: context
 
-      CALL cp_libint_cleanup_eri(context%eri)
-      CALL cp_libint_cleanup_eri1(context%deriv)
+      CALL cp_libint_engine_release(context%eri)
+      CALL cp_libint_engine_release(context%deriv)
       DEALLOCATE (context%products)
       context%nproducts = 0
    END SUBROUTINE four_center_integral_cleanup
@@ -333,6 +323,7 @@ CONTAINS
                                                             permutation(4)
       LOGICAL                                            :: direct_contract
       REAL(dp)                                           :: scoord(12)
+      REAL(dp), POINTER                                  :: engine_values(:, :)
 
       mysize = ncoa*ncob*ncoc*ncod
 
@@ -347,10 +338,11 @@ CONTAINS
       angular_momenta = angular_momenta(permutation)
 
       DO i = 1, context%nproducts
-         CALL cp_libint_set_params_eri_deriv(context%deriv, context%products(i), &
-                                             permutation, SUM(angular_momenta) + 1)
-         CALL cp_libint_get_derivs(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
-                                   angular_momenta(1), context%deriv, work_forces)
+         CALL cp_libint_engine_evaluate(context%deriv, angular_momenta, &
+                                        context%products(i)%centers(:, permutation), [1, 1, 1, 1], &
+                                        RESHAPE(context%products(i)%exponents(permutation), [1, 4]), &
+                                        RESHAPE([1.0_dp, 1.0_dp, 1.0_dp, 1.0_dp], [1, 4]), context%potential, engine_values)
+         work_forces = engine_values
          DO k = 1, 12
             DO j = 1, mysize
                work(j, k) = work(j, k) + work_forces(j, k)
@@ -500,12 +492,10 @@ CONTAINS
 
       INTEGER                                            :: angular_momenta(4), i, m_max, mysize, &
                                                             permutation(4)
-      REAL(dp)                                           :: centers(3, 4), exponents(4), PQ(3), PQ2, &
-                                                            S1234
-      REAL(dp), POINTER                                  :: p_work(:)
+      REAL(dp)                                           :: centers(3, 4), exponents(4), PQ(3), PQ2
+      REAL(dp), POINTER                                  :: engine_values(:, :), p_work(:)
       TYPE(eri4_pgf_image_type)                          :: image_a, image_b
       TYPE(eri4_pgf_pair_type)                           :: pair_a, pair_b
-      TYPE(eri_primitive_data_type)                      :: product
 
       m_max = n_a + n_b + n_c + n_d
       mysize = nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d)
@@ -522,12 +512,10 @@ CONTAINS
       centers = centers(:, permutation)
       exponents = exponents(permutation)
 
-      PQ = centers(:, 1) - centers(:, 2)
       CALL prepare_eri4_pair(centers(:, 1), centers(:, 2), exponents(1), exponents(2), &
-                             DOT_PRODUCT(PQ, PQ), pair_a, image_a)
-      PQ = centers(:, 3) - centers(:, 4)
+                             pair_a, image_a)
       CALL prepare_eri4_pair(centers(:, 3), centers(:, 4), exponents(3), exponents(4), &
-                             DOT_PRODUCT(PQ, PQ), pair_b, image_b)
+                             pair_b, image_b)
       PQ = image_a%P - image_b%P
       PQ2 = DOT_PRODUCT(PQ, PQ)
       SELECT CASE (potential_parameter%potential_type)
@@ -535,15 +523,13 @@ CONTAINS
          IF (PQ2 > (R1 + R2 + potential_parameter%cutoff_radius)**2) RETURN
       END SELECT
 
-      CALL prepare_eri4_product(pair_a, pair_b, m_max, product)
-      S1234 = EXP(image_a%S1234 + image_b%S1234)
-      CALL prepare_eri4_primitive(product, image_a, image_b, S1234, PQ2, potential_parameter, context%products(1))
+      CALL cp_libint_engine_evaluate(context%eri, angular_momenta, centers, [1, 1, 1, 1], &
+                                     RESHAPE(exponents, [1, 4]), &
+                                     RESHAPE([1.0_dp, 1.0_dp, 1.0_dp, 1.0_dp], [1, 4]), potential_parameter, engine_values)
+      p_work => engine_values(:, 1)
       IF (m_max == 0) THEN
-         max_val = ABS(context%products(1)%Fm(1))
+         max_val = ABS(p_work(1))
       ELSE
-         CALL cp_libint_set_params_eri(context%eri, context%products(1), [1, 2, 3, 4], m_max)
-         CALL cp_libint_get_eris(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
-                                 angular_momenta(1), context%eri, p_work)
          DO i = 1, mysize
             max_val = MAX(max_val, ABS(p_work(i)))
          END DO
@@ -627,38 +613,31 @@ CONTAINS
       REAL(dp), DIMENSION(nsoa*nl_a, nsob*nl_b, nsoc*&
          nl_c, nsod*nl_d)                                :: primitives_tmp
 
-      INTEGER                                            :: angular_momenta(4), i, m_max, mysize, &
+      INTEGER                                            :: angular_momenta(4), i, mysize, &
                                                             permutation(4)
       LOGICAL                                            :: direct_contract
-      REAL(dp), POINTER                                  :: p_work(:)
+      REAL(dp), POINTER                                  :: engine_values(:, :), p_work(:)
 
       IF (context%nproducts == 0) RETURN
       mysize = ncoa*ncob*ncoc*ncod
-      m_max = n_a + n_b + n_c + n_d
       CALL get_eri_permutation(n_a, n_b, n_c, n_d, permutation)
       angular_momenta = [n_a, n_b, n_c, n_d]
       angular_momenta = angular_momenta(permutation)
-      IF (m_max /= 0) THEN
-         IF (context%nproducts > 1) buffer1 = 0.0_dp
-         DO i = 1, context%nproducts
-            CALL cp_libint_set_params_eri(context%eri, context%products(i), permutation, m_max)
-            CALL cp_libint_get_eris(angular_momenta(4), angular_momenta(3), angular_momenta(2), &
-                                    angular_momenta(1), context%eri, p_work)
-            IF (context%nproducts > 1) buffer1 = buffer1 + p_work(1:mysize)
-         END DO
-         IF (context%nproducts > 1) p_work => buffer1
-         tmp_max = MAX(tmp_max, MAXVAL(ABS(p_work)))
-      ELSE
-         work2 = 0.0_dp
-         DO i = 1, context%nproducts
-            work2(1, 1, 1, 1) = work2(1, 1, 1, 1) + context%products(i)%Fm(1)
-         END DO
-         tmp_max = MAX(tmp_max, ABS(work2(1, 1, 1, 1)))
-      END IF
+      IF (context%nproducts > 1) buffer1 = 0.0_dp
+      DO i = 1, context%nproducts
+         CALL cp_libint_engine_evaluate(context%eri, angular_momenta, &
+                                        context%products(i)%centers(:, permutation), [1, 1, 1, 1], &
+                                        RESHAPE(context%products(i)%exponents(permutation), [1, 4]), &
+                                        RESHAPE([1.0_dp, 1.0_dp, 1.0_dp, 1.0_dp], [1, 4]), context%potential, engine_values)
+         p_work => engine_values(:, 1)
+         IF (context%nproducts > 1) buffer1 = buffer1 + p_work(1:mysize)
+      END DO
+      IF (context%nproducts > 1) p_work => buffer1
+      tmp_max = MAX(tmp_max, MAXVAL(ABS(p_work)))
       neris = neris + INT(context%nproducts, int_8)*mysize
       tmp_max = tmp_max*max_contraction
       IF (tmp_max < eps_schwarz) RETURN
-      IF (m_max /= 0) CALL reorder_eri_block(p_work, work2, [ncoa, ncob, ncoc, ncod], permutation, 1, 1)
+      CALL reorder_eri_block(p_work, work2, [ncoa, ncob, ncoc, ncod], permutation, 1, 1)
 
       direct_contract = (s_offset_a == 0 .AND. s_offset_b == 0 .AND. &
                          s_offset_c == 0 .AND. s_offset_d == 0 .AND. &
@@ -696,5 +675,75 @@ CONTAINS
       END IF
 
    END SUBROUTINE evaluate_eri
+
+! **************************************************************************************************
+!> \brief Select the canonical center order for four-center integral evaluation.
+!> \param la original first-center angular momentum
+!> \param lb original second-center angular momentum
+!> \param lc original third-center angular momentum
+!> \param ld original fourth-center angular momentum
+!> \param permutation original center index for each canonical center
+! **************************************************************************************************
+   PURE SUBROUTINE get_eri_permutation(la, lb, lc, ld, permutation)
+      INTEGER, INTENT(IN)                                :: la, lb, lc, ld
+      INTEGER, INTENT(OUT)                               :: permutation(4)
+
+      permutation = [1, 2, 3, 4]
+      IF (la < lb) permutation(1:2) = [2, 1]
+      IF (lc < ld) permutation(3:4) = [4, 3]
+      IF (la + lb > lc + ld) permutation = permutation([3, 4, 1, 2])
+   END SUBROUTINE get_eri_permutation
+
+! **************************************************************************************************
+!> \brief Restore original Cartesian axes and derivative center labels.
+!> \param source canonical block with the fourth Cartesian index varying fastest
+!> \param destination original block with the first Cartesian index varying fastest
+!> \param ncart Cartesian shell sizes in original center order
+!> \param permutation original center index for each canonical center
+!> \param ncomponents one integral component or twelve center derivatives
+!> \param nplanes number of independent planes
+! **************************************************************************************************
+   PURE SUBROUTINE reorder_eri_block(source, destination, ncart, permutation, ncomponents, nplanes)
+      INTEGER, INTENT(IN)                                :: ncart(4), permutation(4), ncomponents, &
+                                                            nplanes
+      REAL(dp), INTENT(OUT) :: destination(PRODUCT(ncart), ncomponents, nplanes)
+      REAL(dp), INTENT(IN) :: source(PRODUCT(ncart), ncomponents, nplanes)
+
+      INTEGER                                            :: component, extent(4), i, isource, j, k, &
+                                                            l, output_component, p1, p2, p3, p4, &
+                                                            plane, stride(4)
+
+      stride = [1, ncart(1), ncart(1)*ncart(2), ncart(1)*ncart(2)*ncart(3)]
+      stride = stride(permutation)
+      extent = ncart(permutation)
+      ! Read the Libint block contiguously and restore the original Fortran layout with strides.
+      DO plane = 1, nplanes
+         DO component = 1, ncomponents
+            output_component = component
+            IF (ncomponents == 12) THEN
+               output_component = 3*(permutation((component - 1)/3 + 1) - 1) + MOD(component - 1, 3) + 1
+            END IF
+            isource = 0
+            p1 = 1
+            DO i = 1, extent(1)
+               p2 = p1
+               DO j = 1, extent(2)
+                  p3 = p2
+                  DO k = 1, extent(3)
+                     p4 = p3
+                     DO l = 1, extent(4)
+                        isource = isource + 1
+                        destination(p4, output_component, plane) = source(isource, component, plane)
+                        p4 = p4 + stride(4)
+                     END DO
+                     p3 = p3 + stride(3)
+                  END DO
+                  p2 = p2 + stride(2)
+               END DO
+               p1 = p1 + stride(1)
+            END DO
+         END DO
+      END DO
+   END SUBROUTINE reorder_eri_block
 
 END MODULE four_center_integral_interface
