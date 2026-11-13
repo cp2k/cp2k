@@ -66,7 +66,7 @@ MODULE kpoint_lattice_fft
    ! Call-scoped mathematical maps and buffers. Backend plans remain owned by fft_tools.
    TYPE k_grid_to_cell_work_type
       PRIVATE
-      LOGICAL :: regular = .FALSE.
+      LOGICAL :: regular = .FALSE., uniform_weights = .FALSE.
       INTEGER :: nfft(3) = 0
       INTEGER, ALLOCATABLE :: cells(:, :), grid_index(:, :), cell_index(:, :)
       REAL(KIND=dp), ALLOCATABLE :: xkp(:, :), weight(:)
@@ -590,6 +590,8 @@ CONTAINS
       IF (.NOT. work%regular) RETURN
       work%nfft = work%nfft([3, 2, 1])
       work%grid_index = work%grid_index([3, 2, 1], :)
+      ! For uniform k weights, apply the common scale once at extraction.
+      work%uniform_weights = ALL(work%weight == work%weight(1))
 
       ALLOCATE (work%cell_index(3, ncell), work%cell_phase(ncell))
       DO icell = 1, ncell
@@ -598,6 +600,7 @@ CONTAINS
                                         (work%nfft(d)/nkp_grid(4 - d)) + 1
          END DO
          work%cell_phase(icell) = EXP(-gaussi*twopi*SUM(k_offset*REAL(index_to_cell(1:3, icell), dp)))
+         IF (work%uniform_weights) work%cell_phase(icell) = work%weight(1)*work%cell_phase(icell)
       END DO
 
    END SUBROUTINE k_grid_to_cell_prepare
@@ -700,20 +703,39 @@ CONTAINS
                DO kfirst = 1, SIZE(values_k, 3), fft_pack_cells
                   DO ik = kfirst, MIN(kfirst + fft_pack_cells - 1, SIZE(values_k, 3))
                      IF (SIZE(values_k, 2) == 1) THEN
+                        IF (work%uniform_weights) THEN
 !$OMP SIMD
-                        DO i = row_first, MIN(row_first + fft_pack_rows - 1, nbatch)
-                           input(work%grid_index(1, ik), work%grid_index(2, ik), work%grid_index(3, ik), i) = &
-                              work%weight(ik)*values_k(INT(first) + i - 1, 1, ik)
-                        END DO
+                           DO i = row_first, MIN(row_first + fft_pack_rows - 1, nbatch)
+                              input(work%grid_index(1, ik), work%grid_index(2, ik), work%grid_index(3, ik), i) = &
+                                 values_k(INT(first) + i - 1, 1, ik)
+                           END DO
+                        ELSE
+!$OMP SIMD
+                           DO i = row_first, MIN(row_first + fft_pack_rows - 1, nbatch)
+                              input(work%grid_index(1, ik), work%grid_index(2, ik), work%grid_index(3, ik), i) = &
+                                 work%weight(ik)*values_k(INT(first) + i - 1, 1, ik)
+                           END DO
+                        END IF
                      ELSE
+                        IF (work%uniform_weights) THEN
 !$OMP SIMD PRIVATE(matrix_index, matrix_row, matrix_column)
-                        DO i = row_first, MIN(row_first + fft_pack_rows - 1, nbatch)
-                           matrix_index = first + INT(i - 2, int_8)
-                           matrix_row = INT(MODULO(matrix_index, INT(SIZE(values_k, 1), int_8))) + 1
-                           matrix_column = INT(matrix_index/INT(SIZE(values_k, 1), int_8)) + 1
-                           input(work%grid_index(1, ik), work%grid_index(2, ik), work%grid_index(3, ik), i) = &
-                              work%weight(ik)*values_k(matrix_row, matrix_column, ik)
-                        END DO
+                           DO i = row_first, MIN(row_first + fft_pack_rows - 1, nbatch)
+                              matrix_index = first + INT(i - 2, int_8)
+                              matrix_row = INT(MODULO(matrix_index, INT(SIZE(values_k, 1), int_8))) + 1
+                              matrix_column = INT(matrix_index/INT(SIZE(values_k, 1), int_8)) + 1
+                              input(work%grid_index(1, ik), work%grid_index(2, ik), work%grid_index(3, ik), i) = &
+                                 values_k(matrix_row, matrix_column, ik)
+                           END DO
+                        ELSE
+!$OMP SIMD PRIVATE(matrix_index, matrix_row, matrix_column)
+                           DO i = row_first, MIN(row_first + fft_pack_rows - 1, nbatch)
+                              matrix_index = first + INT(i - 2, int_8)
+                              matrix_row = INT(MODULO(matrix_index, INT(SIZE(values_k, 1), int_8))) + 1
+                              matrix_column = INT(matrix_index/INT(SIZE(values_k, 1), int_8)) + 1
+                              input(work%grid_index(1, ik), work%grid_index(2, ik), work%grid_index(3, ik), i) = &
+                                 work%weight(ik)*values_k(matrix_row, matrix_column, ik)
+                           END DO
+                        END IF
                      END IF
                   END DO
                END DO
@@ -794,6 +816,7 @@ CONTAINS
       IF (ALLOCATED(work%xkp)) DEALLOCATE (work%xkp, work%cells, work%weight, work%grid_index)
       IF (ALLOCATED(work%cell_index)) DEALLOCATE (work%cell_index, work%cell_phase)
       work%regular = .FALSE.
+      work%uniform_weights = .FALSE.
 
    END SUBROUTINE k_grid_to_cell_release
 
