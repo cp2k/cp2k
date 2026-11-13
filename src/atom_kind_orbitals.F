@@ -21,9 +21,9 @@ MODULE atom_kind_orbitals
    USE atom_set_basis,                  ONLY: set_kind_basis_atomic
    USE atom_types,                      ONLY: &
         CGTO_BASIS, Clementi_geobas, GTO_BASIS, atom_basis_type, atom_ecppot_type, &
-        atom_gthpot_type, atom_integrals, atom_orbitals, atom_potential_type, atom_sgppot_type, &
-        atom_type, create_atom_orbs, create_atom_type, lmat, release_atom_basis, &
-        release_atom_potential, release_atom_type, set_atom
+        atom_gthpot_type, atom_integrals, atom_optimization_type, atom_orbitals, &
+        atom_potential_type, atom_sgppot_type, atom_type, create_atom_orbs, create_atom_type, &
+        lmat, release_atom_basis, release_atom_potential, release_atom_type, set_atom
    USE atom_utils,                      ONLY: atom_density,&
                                               get_maxl_occ,&
                                               get_maxn_occ
@@ -62,6 +62,16 @@ MODULE atom_kind_orbitals
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_kind_orbitals'
+
+   ! Default values for optimization in an atomic guess
+   ! Commented values are the defaults in create_optimization_section
+   ! of input_cp2k_atom.F for the input section ATOM/OPTIMIZATION
+   TYPE(atom_optimization_type), PARAMETER :: atom_optimization = atom_optimization_type( &
+                                              damping=0.2_dp, &    ! 0.4_dp
+                                              eps_scf=1.0E-6_dp, & ! 1.0E-6_dp
+                                              eps_diis=100.0_dp, & ! 10000.0_dp
+                                              max_iter=200, &      ! 200
+                                              n_diis=5)            ! 5
 
    PUBLIC :: calculate_atomic_orbitals, calculate_atomic_density, &
              calculate_atomic_relkin, gth_potential_conversion, sgp_potential_conversion
@@ -218,11 +228,7 @@ CONTAINS
       CALL set_atom(atom, basis=basis)
 
       ! optimization defaults
-      atom%optimization%damping = 0.2_dp
-      atom%optimization%eps_scf = 1.e-6_dp
-      atom%optimization%eps_diis = 100._dp
-      atom%optimization%max_iter = 50
-      atom%optimization%n_diis = 5
+      atom%optimization = atom_optimization
 
       ! set up the electronic state
       CALL init_atom_electronic_state(atomic_kind=atomic_kind, &
@@ -745,11 +751,7 @@ CONTAINS
       CALL set_atom(atom, basis=basis)
 
       ! optimization defaults
-      atom%optimization%damping = 0.2_dp
-      atom%optimization%eps_scf = 1.e-6_dp
-      atom%optimization%eps_diis = 100._dp
-      atom%optimization%max_iter = 50
-      atom%optimization%n_diis = 5
+      atom%optimization = atom_optimization
 
       nelem = 0
       ncore = 0
@@ -1055,11 +1057,7 @@ CONTAINS
          CALL set_atom(atom, basis=basis)
 
          ! optimization defaults
-         atom%optimization%damping = 0.2_dp
-         atom%optimization%eps_scf = 1.e-6_dp
-         atom%optimization%eps_diis = 100._dp
-         atom%optimization%max_iter = 50
-         atom%optimization%n_diis = 5
+         atom%optimization = atom_optimization
 
          ! electronic state
          nelem = 0
