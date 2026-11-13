@@ -42,9 +42,10 @@ MODULE kpoint_lattice_fft
    PUBLIC :: k_grid_to_cell_work_type, lattice_fft_shape, regular_kpoint_grid
    PUBLIC :: lattice_fft_profile_type, lattice_fft_execute
 
-   INTEGER(KIND=int_8), PARAMETER :: fft_batch_bytes = 32_int_8*1024_int_8**2
    ! Bound the source/FFT-grid transpose working set without another packing buffer.
    INTEGER, PARAMETER :: fft_pack_rows = 8, fft_pack_cells = 32
+   ! Avoid OpenMP launch overhead unless a packing/extraction stage has enough values.
+   INTEGER(KIND=int_8), PARAMETER :: fft_parallel_values = 32768_int_8
 
    ! Optional local-panel diagnostics. Axis times include the one-shot planner.
    TYPE lattice_fft_profile_type
@@ -257,10 +258,12 @@ CONTAINS
          OPTIONAL                                        :: profile
 
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: input(:, :, :, :), output(:, :, :, :)
-      INTEGER                                            :: first, handle, i, icell, ik, ik_out, &
-                                                            image, image_first, j, nbatch, nout, &
-                                                            row_first, start, stat, width
-      INTEGER(KIND=int_8)                                :: budget, needed, ngrid
+      INTEGER                                            :: handle, i, icell, ik, ik_out, image, &
+                                                            image_first, matrix_column, &
+                                                            matrix_row, nbatch, nout, row_first, &
+                                                            start, stat, width
+      INTEGER(KIND=int_8)                                :: budget, first, matrix_index, needed, &
+                                                            ngrid, nvalues
       LOGICAL                                            :: add, success
       REAL(KIND=dp)                                      :: started
       TYPE(cell_to_k_grid_work_type), POINTER            :: plan
@@ -317,10 +320,14 @@ CONTAINS
             CPABORT("Lattice FFT image range exceeds the prepared geometry")
          END IF
          ngrid = PRODUCT(INT(plan%nfft, int_8))
-         budget = fft_batch_bytes
-         IF (PRESENT(max_workspace_bytes)) budget = MIN(budget, max_workspace_bytes)
-         budget = MAX(48_int_8*ngrid, budget)
-         width = MIN(SIZE(values_rs, 1), INT(MAX(1_int_8, budget/(48_int_8*ngrid))))
+         ! No implicit workspace budget. Honor an explicit caller soft limit.
+         budget = HUGE(0_int_8)
+         IF (PRESENT(max_workspace_bytes)) budget = MAX(48_int_8*ngrid, max_workspace_bytes)
+         nvalues = SIZE(values_rs, 1, KIND=int_8)*SIZE(values_rs, 2, KIND=int_8)
+         ! The FFT wrappers and allocated buffer sizes use default INTEGER.
+         CPASSERT(ngrid <= HUGE(0))
+         width = INT(MIN(nvalues, MAX(1_int_8, budget/(48_int_8*ngrid)), &
+                         INT(HUGE(0), int_8)/ngrid))
          IF (width == 0) THEN
             success = .TRUE.
          ELSE
@@ -344,52 +351,88 @@ CONTAINS
             END IF
             IF (PRESENT(profile)) profile%seconds(3) = profile%seconds(3) + m_walltime() - started
             stat = 0
-            DO j = 1, SIZE(values_rs, 2)
-               DO first = 1, SIZE(values_rs, 1), width
-                  nbatch = MIN(width, SIZE(values_rs, 1) - first + 1)
-                  IF (PRESENT(profile)) THEN
-                     profile%batches = profile%batches + 1_int_8
-                     profile%elements = profile%elements + INT(nbatch, int_8)
-                     profile%tile_min = MIN(profile%tile_min, nbatch)
-                     profile%tile_max = MAX(profile%tile_max, nbatch)
-                     started = m_walltime()
-                  END IF
-                  input(1:plan%nfft(1), 1:plan%nfft(2), 1:plan%nfft(3), 1:nbatch) => plan%fft_in(1:INT(ngrid)*nbatch)
-                  input = z_zero
-                  ! Read adjacent AO elements together while retaining each element's image order.
-                  DO row_first = 1, nbatch, fft_pack_rows
-                     DO image_first = 1, SIZE(values_rs, 3), fft_pack_cells
-                        DO icell = image_first, MIN(image_first + fft_pack_cells - 1, SIZE(values_rs, 3))
-                           image = start + icell - 1
+            ! Flatten both matrix dimensions so each FFT batch spans whole columns.
+            DO first = 1_int_8, nvalues, INT(width, int_8)
+               nbatch = INT(MIN(INT(width, int_8), nvalues - first + 1_int_8))
+               IF (PRESENT(profile)) THEN
+                  profile%batches = profile%batches + 1_int_8
+                  profile%elements = profile%elements + INT(nbatch, int_8)
+                  profile%tile_min = MIN(profile%tile_min, nbatch)
+                  profile%tile_max = MAX(profile%tile_max, nbatch)
+                  started = m_walltime()
+               END IF
+               input(1:plan%nfft(1), 1:plan%nfft(2), 1:plan%nfft(3), 1:nbatch) => plan%fft_in(1:INT(ngrid)*nbatch)
+               input = z_zero
+               ! Read adjacent AO elements together while retaining each element's image order.
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP IF(INT(nbatch, int_8)*SIZE(values_rs, 3, KIND=int_8) >= fft_parallel_values) &
+!$OMP SHARED(input, plan, values_rs, first, nbatch, start) &
+!$OMP PRIVATE(image_first, icell, image, i, matrix_index, matrix_row, matrix_column)
+               DO row_first = 1, nbatch, fft_pack_rows
+                  DO image_first = 1, SIZE(values_rs, 3), fft_pack_cells
+                     DO icell = image_first, MIN(image_first + fft_pack_cells - 1, SIZE(values_rs, 3))
+                        image = start + icell - 1
+                        IF (SIZE(values_rs, 2) == 1) THEN
 !$OMP SIMD
                            DO i = row_first, MIN(row_first + fft_pack_rows - 1, nbatch)
                               input(plan%cell_index(1, image), plan%cell_index(2, image), plan%cell_index(3, image), i) = &
                                  input(plan%cell_index(1, image), plan%cell_index(2, image), plan%cell_index(3, image), i) + &
-                                 plan%cell_factor(image)*values_rs(first + i - 1, j, icell)
+                                 plan%cell_factor(image)*values_rs(INT(first) + i - 1, 1, icell)
                            END DO
-                        END DO
+                        ELSE
+!$OMP SIMD PRIVATE(matrix_index, matrix_row, matrix_column)
+                           DO i = row_first, MIN(row_first + fft_pack_rows - 1, nbatch)
+                              matrix_index = first + INT(i - 2, int_8)
+                              matrix_row = INT(MODULO(matrix_index, INT(SIZE(values_rs, 1), int_8))) + 1
+                              matrix_column = INT(matrix_index/INT(SIZE(values_rs, 1), int_8)) + 1
+                              input(plan%cell_index(1, image), plan%cell_index(2, image), plan%cell_index(3, image), i) = &
+                                 input(plan%cell_index(1, image), plan%cell_index(2, image), plan%cell_index(3, image), i) + &
+                                 plan%cell_factor(image)*values_rs(matrix_row, matrix_column, icell)
+                           END DO
+                        END IF
                      END DO
                   END DO
-                  IF (PRESENT(profile)) profile%seconds(4) = profile%seconds(4) + m_walltime() - started
-                  CALL lattice_fft_execute(BWFFT, plan%nfft, nbatch, plan%fft_in, plan%fft_out, stat, profile)
-                  IF (stat /= 0) EXIT
-                  IF (PRESENT(profile)) started = m_walltime()
-                  output(1:nbatch, 1:plan%nfft(1), 1:plan%nfft(2), 1:plan%nfft(3)) => plan%fft_in(1:INT(ngrid)*nbatch)
-                  DO ik_out = 1, SIZE(values_k, 3)
-                     ik = ik_out
-                     IF (PRESENT(selected_kpoints)) ik = selected_kpoints(ik_out)
+               END DO
+!$OMP END PARALLEL DO
+               IF (PRESENT(profile)) profile%seconds(4) = profile%seconds(4) + m_walltime() - started
+               CALL lattice_fft_execute(BWFFT, plan%nfft, nbatch, plan%fft_in, plan%fft_out, stat, profile)
+               IF (stat /= 0) EXIT
+               IF (PRESENT(profile)) started = m_walltime()
+               output(1:nbatch, 1:plan%nfft(1), 1:plan%nfft(2), 1:plan%nfft(3)) => plan%fft_in(1:INT(ngrid)*nbatch)
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP IF(INT(nbatch, int_8)*SIZE(values_k, 3, KIND=int_8) >= fft_parallel_values) &
+!$OMP SHARED(output, plan, values_k, selected_kpoints, first, nbatch, add) &
+!$OMP PRIVATE(ik, i, matrix_index, matrix_row, matrix_column)
+               DO ik_out = 1, SIZE(values_k, 3)
+                  ik = ik_out
+                  IF (PRESENT(selected_kpoints)) ik = selected_kpoints(ik_out)
+                  IF (SIZE(values_k, 2) == 1) THEN
                      IF (add) THEN
-                        values_k(first:first + nbatch - 1, j, ik_out) = &
-                           values_k(first:first + nbatch - 1, j, ik_out) + &
+                        values_k(INT(first):INT(first) + nbatch - 1, 1, ik_out) = &
+                           values_k(INT(first):INT(first) + nbatch - 1, 1, ik_out) + &
                            output(:, plan%grid_index(1, ik), plan%grid_index(2, ik), plan%grid_index(3, ik))
                      ELSE
-                        values_k(first:first + nbatch - 1, j, ik_out) = &
+                        values_k(INT(first):INT(first) + nbatch - 1, 1, ik_out) = &
                            output(:, plan%grid_index(1, ik), plan%grid_index(2, ik), plan%grid_index(3, ik))
                      END IF
-                  END DO
-                  IF (PRESENT(profile)) profile%seconds(8) = profile%seconds(8) + m_walltime() - started
+                  ELSE
+                     DO i = 1, nbatch
+                        matrix_index = first + INT(i - 2, int_8)
+                        matrix_row = INT(MODULO(matrix_index, INT(SIZE(values_k, 1), int_8))) + 1
+                        matrix_column = INT(matrix_index/INT(SIZE(values_k, 1), int_8)) + 1
+                        IF (add) THEN
+                           values_k(matrix_row, matrix_column, ik_out) = &
+                              values_k(matrix_row, matrix_column, ik_out) + &
+                              output(i, plan%grid_index(1, ik), plan%grid_index(2, ik), plan%grid_index(3, ik))
+                        ELSE
+                           values_k(matrix_row, matrix_column, ik_out) = &
+                              output(i, plan%grid_index(1, ik), plan%grid_index(2, ik), plan%grid_index(3, ik))
+                        END IF
+                     END DO
+                  END IF
                END DO
-               IF (stat /= 0) EXIT
+!$OMP END PARALLEL DO
+               IF (PRESENT(profile)) profile%seconds(8) = profile%seconds(8) + m_walltime() - started
             END DO
             success = stat == 0
             IF (stat /= 0 .AND. add) THEN
@@ -580,10 +623,10 @@ CONTAINS
          OPTIONAL                                        :: profile
 
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: input(:, :, :, :), output(:, :, :, :)
-      INTEGER                                            :: first, handle, i, icell, ik, j, kfirst, &
-                                                            nbatch, output_shape(3), row_first, &
-                                                            stat, width
-      INTEGER(KIND=int_8)                                :: ngrid
+      INTEGER                                            :: handle, i, icell, ik, kfirst, &
+                                                            matrix_column, matrix_row, nbatch, &
+                                                            output_shape(3), row_first, stat, width
+      INTEGER(KIND=int_8)                                :: first, matrix_index, ngrid, nvalues
       REAL(KIND=dp)                                      :: started
 
       CALL timeset("k_grid_to_cell_fft", handle)
@@ -604,7 +647,10 @@ CONTAINS
       END IF
       IF (work%regular) THEN
          ngrid = PRODUCT(INT(work%nfft, int_8))
-         width = MIN(SIZE(values_k, 1), INT(MAX(1_int_8, fft_batch_bytes/(48_int_8*ngrid))))
+         nvalues = SIZE(values_k, 1, KIND=int_8)*SIZE(values_k, 2, KIND=int_8)
+         ! Unbounded in memory; restrict only by default-INTEGER FFT indexing.
+         CPASSERT(ngrid <= HUGE(0))
+         width = INT(MIN(nvalues, INT(HUGE(0), int_8)/ngrid))
          IF (width == 0) THEN
             IF (PRESENT(used_fft)) used_fft = .TRUE.
             CALL timestop(handle)
@@ -626,51 +672,85 @@ CONTAINS
             CALL fft_alloc(work%fft_out, [INT(ngrid)*width])
          END IF
          IF (PRESENT(profile)) profile%seconds(3) = profile%seconds(3) + m_walltime() - started
-         DO j = 1, SIZE(values_k, 2)
-            DO first = 1, SIZE(values_k, 1), width
-               nbatch = MIN(width, SIZE(values_k, 1) - first + 1)
-               IF (PRESENT(profile)) THEN
-                  profile%batches = profile%batches + 1_int_8
-                  profile%elements = profile%elements + INT(nbatch, int_8)
-                  profile%tile_min = MIN(profile%tile_min, nbatch)
-                  profile%tile_max = MAX(profile%tile_max, nbatch)
-                  started = m_walltime()
-               END IF
-               input(1:work%nfft(1), 1:work%nfft(2), 1:work%nfft(3), 1:nbatch) => &
-                  work%fft_in(1:INT(ngrid)*nbatch)
-               ! Preparation guarantees unique grid indices. Only a complete, unpadded
-               ! grid overwrites every slot; subsets and padded grids retain zero holes.
-               IF (SIZE(values_k, 3, KIND=int_8) /= ngrid) input = z_zero
-               DO row_first = 1, nbatch, fft_pack_rows
-                  DO kfirst = 1, SIZE(values_k, 3), fft_pack_cells
-                     DO ik = kfirst, MIN(kfirst + fft_pack_cells - 1, SIZE(values_k, 3))
+         ! Flatten both matrix dimensions so each FFT batch spans whole columns.
+         DO first = 1_int_8, nvalues, INT(width, int_8)
+            nbatch = INT(MIN(INT(width, int_8), nvalues - first + 1_int_8))
+            IF (PRESENT(profile)) THEN
+               profile%batches = profile%batches + 1_int_8
+               profile%elements = profile%elements + INT(nbatch, int_8)
+               profile%tile_min = MIN(profile%tile_min, nbatch)
+               profile%tile_max = MAX(profile%tile_max, nbatch)
+               started = m_walltime()
+            END IF
+            input(1:work%nfft(1), 1:work%nfft(2), 1:work%nfft(3), 1:nbatch) => &
+               work%fft_in(1:INT(ngrid)*nbatch)
+            ! Preparation guarantees unique grid indices. Only a complete, unpadded
+            ! grid overwrites every slot; subsets and padded grids retain zero holes.
+            IF (SIZE(values_k, 3, KIND=int_8) /= ngrid) input = z_zero
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP IF(INT(nbatch, int_8)*SIZE(values_k, 3, KIND=int_8) >= fft_parallel_values) &
+!$OMP SHARED(input, work, values_k, first, nbatch) &
+!$OMP PRIVATE(kfirst, ik, i, matrix_index, matrix_row, matrix_column)
+            DO row_first = 1, nbatch, fft_pack_rows
+               DO kfirst = 1, SIZE(values_k, 3), fft_pack_cells
+                  DO ik = kfirst, MIN(kfirst + fft_pack_cells - 1, SIZE(values_k, 3))
+                     IF (SIZE(values_k, 2) == 1) THEN
 !$OMP SIMD
                         DO i = row_first, MIN(row_first + fft_pack_rows - 1, nbatch)
                            input(work%grid_index(1, ik), work%grid_index(2, ik), work%grid_index(3, ik), i) = &
-                              work%weight(ik)*values_k(first + i - 1, j, ik)
+                              work%weight(ik)*values_k(INT(first) + i - 1, 1, ik)
                         END DO
-                     END DO
+                     ELSE
+!$OMP SIMD PRIVATE(matrix_index, matrix_row, matrix_column)
+                        DO i = row_first, MIN(row_first + fft_pack_rows - 1, nbatch)
+                           matrix_index = first + INT(i - 2, int_8)
+                           matrix_row = INT(MODULO(matrix_index, INT(SIZE(values_k, 1), int_8))) + 1
+                           matrix_column = INT(matrix_index/INT(SIZE(values_k, 1), int_8)) + 1
+                           input(work%grid_index(1, ik), work%grid_index(2, ik), work%grid_index(3, ik), i) = &
+                              work%weight(ik)*values_k(matrix_row, matrix_column, ik)
+                        END DO
+                     END IF
                   END DO
                END DO
-               IF (PRESENT(profile)) profile%seconds(4) = profile%seconds(4) + m_walltime() - started
-               CALL lattice_fft_execute(FWFFT, work%nfft, nbatch, work%fft_in, work%fft_out, stat, profile)
-               IF (stat /= 0) EXIT
-               IF (PRESENT(profile)) started = m_walltime()
-               output(1:nbatch, 1:work%nfft(1), 1:work%nfft(2), 1:work%nfft(3)) => &
-                  work%fft_in(1:INT(ngrid)*nbatch)
-               DO icell = 1, SIZE(work%cells, 2)
-                  ! The 1D passes are unnormalized; supplied k weights are already final.
+            END DO
+!$OMP END PARALLEL DO
+            IF (PRESENT(profile)) profile%seconds(4) = profile%seconds(4) + m_walltime() - started
+            CALL lattice_fft_execute(FWFFT, work%nfft, nbatch, work%fft_in, work%fft_out, stat, profile)
+            IF (stat /= 0) EXIT
+            IF (PRESENT(profile)) started = m_walltime()
+            output(1:nbatch, 1:work%nfft(1), 1:work%nfft(2), 1:work%nfft(3)) => &
+               work%fft_in(1:INT(ngrid)*nbatch)
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP IF(INT(nbatch, int_8)*SIZE(work%cells, 2, KIND=int_8) >= fft_parallel_values) &
+!$OMP SHARED(output, work, values_k, values_rs, values_real, first, nbatch) &
+!$OMP PRIVATE(i, matrix_index, matrix_row, matrix_column)
+            DO icell = 1, SIZE(work%cells, 2)
+               ! The 1D passes are unnormalized; supplied k weights are already final.
+               IF (SIZE(values_k, 2) == 1) THEN
                   IF (PRESENT(values_rs)) THEN
-                     values_rs(first:first + nbatch - 1, j, icell) = work%cell_phase(icell)* &
+                     values_rs(INT(first):INT(first) + nbatch - 1, 1, icell) = work%cell_phase(icell)* &
                                           output(:, work%cell_index(1, icell), work%cell_index(2, icell), work%cell_index(3, icell))
                   ELSE
-                     values_real(first:first + nbatch - 1, j, icell) = REAL(work%cell_phase(icell)* &
+                     values_real(INT(first):INT(first) + nbatch - 1, 1, icell) = REAL(work%cell_phase(icell)* &
                                      output(:, work%cell_index(1, icell), work%cell_index(2, icell), work%cell_index(3, icell)), dp)
                   END IF
-               END DO
-               IF (PRESENT(profile)) profile%seconds(8) = profile%seconds(8) + m_walltime() - started
+               ELSE
+                  DO i = 1, nbatch
+                     matrix_index = first + INT(i - 2, int_8)
+                     matrix_row = INT(MODULO(matrix_index, INT(SIZE(values_k, 1), int_8))) + 1
+                     matrix_column = INT(matrix_index/INT(SIZE(values_k, 1), int_8)) + 1
+                     IF (PRESENT(values_rs)) THEN
+                        values_rs(matrix_row, matrix_column, icell) = work%cell_phase(icell)* &
+                                          output(i, work%cell_index(1, icell), work%cell_index(2, icell), work%cell_index(3, icell))
+                     ELSE
+                        values_real(matrix_row, matrix_column, icell) = REAL(work%cell_phase(icell)* &
+                                     output(i, work%cell_index(1, icell), work%cell_index(2, icell), work%cell_index(3, icell)), dp)
+                     END IF
+                  END DO
+               END IF
             END DO
-            IF (stat /= 0) EXIT
+!$OMP END PARALLEL DO
+            IF (PRESENT(profile)) profile%seconds(8) = profile%seconds(8) + m_walltime() - started
          END DO
       END IF
       IF (stat /= 0) work%regular = .FALSE.

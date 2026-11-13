@@ -297,7 +297,8 @@ CONTAINS
                fft_profile%elements, fft_profile%batches, fft_profile%tile_min, fft_profile%tile_max
             WRITE (unit_nr, '(T2,A,I8,2L3)') 'R2K_FFT_PROFILE| FFT OpenMP limit / input,output contiguous: ', &
                omp_limit, IS_CONTIGUOUS(values_rs), IS_CONTIGUOUS(values_k)
-            WRITE (unit_nr, '(T2,A)') 'R2K_FFT_PROFILE| grid-fill/extract are serial; FFT axes include one-shot planning'
+            WRITE (unit_nr, '(T2,A)') &
+               'R2K_FFT_PROFILE| grid-fill/extract use size-gated OpenMP; FFT axes include one-shot planning'
             DO i = 1, SIZE(fft_profile_stages)
                WRITE (unit_nr, '(T2,A,A14,F14.6)') 'R2K_FFT_PROFILE| ', fft_profile_stages(i), fft_profile%seconds(i)
             END DO
@@ -422,7 +423,8 @@ CONTAINS
                fft_profile%elements, fft_profile%batches, fft_profile%tile_min, fft_profile%tile_max
             WRITE (unit_nr, '(T2,A,I8,2L3)') 'K2R_FFT_PROFILE| FFT OpenMP limit / input,output contiguous: ', &
                omp_limit, IS_CONTIGUOUS(values_k), IS_CONTIGUOUS(values_rs)
-            WRITE (unit_nr, '(T2,A)') 'K2R_FFT_PROFILE| grid-fill/extract are serial; FFT axes include one-shot planning'
+            WRITE (unit_nr, '(T2,A)') &
+               'K2R_FFT_PROFILE| grid-fill/extract use size-gated OpenMP; FFT axes include one-shot planning'
             DO i = 1, SIZE(fft_profile_stages)
                WRITE (unit_nr, '(T2,A,A14,F14.6)') 'K2R_FFT_PROFILE| ', fft_profile_stages(i), fft_profile%seconds(i)
             END DO
