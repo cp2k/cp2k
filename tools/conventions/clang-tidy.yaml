@@ -1,0 +1,26 @@
+# Requires clang-tidy 20 or newer (CustomFunctions was added in LLVM 20).
+---
+Checks: >-
+  -*,
+  bugprone-unsafe-functions
+
+# Turn violations into hard errors so CI fails.
+WarningsAsErrors: >-
+  bugprone-unsafe-functions
+
+# Only report issues in your own headers, not system/third-party ones.
+HeaderFilterRegex: '^src/'
+
+CheckOptions:
+  # Set to true if you also want the built-in list (gets, strcpy, sprintf, ...).
+  bugprone-unsafe-functions.ReportDefaultFunctions: true
+
+  # Format per entry:  regex, replacement, reason   (entries separated by ';')
+  # Regexes match the fully qualified name, so anchor them with ^:: and $.
+  bugprone-unsafe-functions.CustomFunctions: >-
+    ^::getenv$,,is banned;
+    ^::secure_getenv$,,is banned;
+    ^::setenv$,,is banned;
+    ^::putenv$,,is banned;
+
+# EOF

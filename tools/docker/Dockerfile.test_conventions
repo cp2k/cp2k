@@ -57,6 +57,8 @@ RUN  ./scripts/stage8/install_stage8.sh && rm -rf ./build
 COPY ./tools/toolchain/scripts/stage9/ ./scripts/stage9/
 RUN  ./scripts/stage9/install_stage9.sh && rm -rf ./build
 
+RUN apt-get update -qq && apt-get install -qq clang-tidy libomp-dev
+
 COPY ./tools/conventions/redirect_gfortran_output.py /usr/bin/
 
 # Install CP2K sources.

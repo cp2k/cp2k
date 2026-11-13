@@ -434,6 +434,8 @@ RUN ./test_coverage.sh 2>&1 | tee report.log
 def conventions() -> str:
     return (
         f"""
+RUN apt-get update -qq && apt-get install -qq clang-tidy libomp-dev
+
 COPY ./tools/conventions/redirect_gfortran_output.py /usr/bin/
 """
         + install_cp2k(profile="toolchain_conventions", version="psmp")

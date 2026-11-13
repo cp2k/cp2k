@@ -44,6 +44,7 @@
       "displayName": "GNU conventions check",
       "description": "Build CP2K with additional GNU Fortran convention diagnostics.",
       "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "CMAKE_C_FLAGS_RELWITHDEBINFO": "-O1",
         "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-O1",
         "CMAKE_Fortran_FLAGS_RELWITHDEBINFO": "-O1 -Wno-pedantic -Wall -Wextra -Wsurprising -Warray-temporaries -Wconversion-extra -Wimplicit-interface -Wimplicit-procedure -Wreal-q-constant -Walign-commons -Wfunction-elimination -Wrealloc-lhs -Wcompare-reals -Wzerotrip -fdump-fortran-original"
