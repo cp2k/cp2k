@@ -2596,12 +2596,12 @@ CONTAINS
             IF (restricted) THEN
                ALLOCATE (fock_diff(nmo, nmo), pmat(nmo, nmo))
                CALL replicate_and_symmetrize_matrix(nmo, active_space_env%fock_sub(2), fock_diff)
-               fock_diff = fmat - fock_diff
+               fock_diff(:, :) = fmat - fock_diff
                ASSOCIATE (active => active_space_env%active_orbitals(:, 1))
                   spin_difference = MAXVAL(ABS(fock_diff(active, active)))
                END ASSOCIATE
                ! Use one spin-independent operator and preserve the energy at the embedding density.
-               fmat = fmat - 0.5_dp*fock_diff
+               fmat(:, :) = fmat - 0.5_dp*fock_diff
                CALL replicate_and_symmetrize_matrix(nmo, active_space_env%p_active(1), pmat)
                esub = esub + 0.5_dp*SUM(fock_diff*pmat)
                CALL replicate_and_symmetrize_matrix(nmo, active_space_env%p_active(2), pmat)
