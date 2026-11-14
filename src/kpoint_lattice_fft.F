@@ -20,7 +20,6 @@ MODULE kpoint_lattice_fft
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_NEXT,&
                                               FWFFT,&
-                                              fft_1d_many,&
                                               fft_alloc,&
                                               fft_dealloc,&
                                               fft_radix_operations
@@ -41,13 +40,12 @@ MODULE kpoint_lattice_fft
    PUBLIC :: cell_to_k_grid_fft, cell_to_k_grid_prepare, cell_to_k_grid_release, cell_to_k_grid_work_type
    PUBLIC :: k_grid_to_cell_fft, k_grid_to_cell_prepare, k_grid_to_cell_execute, k_grid_to_cell_release
    PUBLIC :: k_grid_to_cell_work_type, lattice_fft_shape, regular_kpoint_grid
-   PUBLIC :: lattice_fft_profile_type, lattice_fft_execute, lattice_fft_prepare_geometry
+   PUBLIC :: lattice_fft_profile_type, lattice_fft_execute_pair_major, lattice_fft_prepare_geometry
 
-   ! Bound the source/FFT-grid transpose working set without another packing buffer.
+   ! Keep pair-major grid filling in cache-sized strips of AO elements and images.
    INTEGER, PARAMETER :: fft_pack_rows = 8, fft_pack_cells = 32
    ! Avoid OpenMP launch overhead unless a packing/extraction stage has enough values.
    INTEGER(KIND=int_8), PARAMETER :: fft_parallel_values = 32768_int_8
-   ! FFTW3 pair-major K2R path; set to .FALSE. to benchmark the existing 1D path.
 
    ! Optional local-panel diagnostics. Axis times include the one-shot planner.
    TYPE lattice_fft_profile_type
@@ -61,7 +59,7 @@ MODULE kpoint_lattice_fft
    TYPE cell_to_k_grid_work_type
       LOGICAL :: regular = .FALSE.
       INTEGER :: nfft(3) = 0
-      INTEGER, ALLOCATABLE, PRIVATE :: grid_index(:, :), cell_index(:, :)
+      INTEGER, ALLOCATABLE, PRIVATE :: k_slot(:), cell_slot(:)
       COMPLEX(KIND=dp), ALLOCATABLE, PRIVATE :: cell_factor(:)
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER, PRIVATE :: fft_in(:) => NULL(), fft_out(:) => NULL()
    END TYPE cell_to_k_grid_work_type
@@ -71,7 +69,7 @@ MODULE kpoint_lattice_fft
       PRIVATE
       LOGICAL :: regular = .FALSE., uniform_weights = .FALSE.
       INTEGER :: nfft(3) = 0
-      INTEGER, ALLOCATABLE :: cells(:, :), grid_index(:, :), cell_index(:, :)
+      INTEGER, ALLOCATABLE :: cells(:, :), k_slot(:), cell_slot(:)
       REAL(KIND=dp), ALLOCATABLE :: xkp(:, :), weight(:)
       COMPLEX(KIND=dp), ALLOCATABLE :: cell_phase(:)
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER :: fft_in(:) => NULL(), fft_out(:) => NULL()
@@ -196,11 +194,12 @@ CONTAINS
 !> \param cell_origin ...
 !> \param origin_phase ...
 !> \param allow_incomplete ...
+!> \param grid_linear ...
 !> \return ...
 ! **************************************************************************************************
    LOGICAL FUNCTION lattice_fft_prepare_geometry(xkp, nkp_grid, cells, grid_index, nfft, k_offset, &
                                                  cell_index, cell_linear, cell_origin, origin_phase, &
-                                                 allow_incomplete) RESULT(compatible)
+                                                 allow_incomplete, grid_linear) RESULT(compatible)
       REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
       INTEGER, INTENT(IN)                                :: nkp_grid(3), cells(:, :)
       INTEGER, INTENT(OUT)                               :: grid_index(:, :), nfft(3)
@@ -209,6 +208,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: cell_origin(3)
       COMPLEX(KIND=dp), INTENT(OUT), OPTIONAL            :: origin_phase(:)
       LOGICAL, INTENT(IN), OPTIONAL                      :: allow_incomplete
+      INTEGER, ALLOCATABLE, INTENT(OUT), OPTIONAL        :: grid_linear(:)
 
       INTEGER                                            :: d, icell, ik, INDEX(3), origin(3), &
                                                             physical_axis, SHAPE(3)
@@ -221,6 +221,13 @@ CONTAINS
 
       nfft = SHAPE([3, 2, 1])
       grid_index = grid_index([3, 2, 1], :)
+      IF (PRESENT(grid_linear)) THEN
+         ALLOCATE (grid_linear(SIZE(xkp, 2)))
+         DO ik = 1, SIZE(xkp, 2)
+            grid_linear(ik) = grid_index(1, ik) + nfft(1)* &
+                              (grid_index(2, ik) - 1 + nfft(2)*(grid_index(3, ik) - 1))
+         END DO
+      END IF
       origin = 0
       IF (PRESENT(cell_origin)) origin = cell_origin
       IF (PRESENT(cell_index)) ALLOCATE (cell_index(3, SIZE(cells, 2)))
@@ -244,44 +251,6 @@ CONTAINS
       END IF
 
    END FUNCTION lattice_fft_prepare_geometry
-
-! **************************************************************************************************
-!> \brief Transform all lattice lines in three batched 1D FFTs.
-!>        Each axis moves from first to last through the existing transpose interface.
-!>        Axis order is caller-defined; result order is (batch,axis1,axis2,axis3).
-!> \param sign fft_tools transform direction
-!> \param n lattice dimensions
-!> \param nbatch number of independent matrix elements
-!> \param buffer input, then transformed data; ownership swaps with scratch
-!> \param scratch equally sized FFT workspace
-!> \param stat nonzero on backend execution failure
-!> \param profile optional elapsed axis calls, including planning and execution
-! **************************************************************************************************
-   SUBROUTINE lattice_fft_execute(sign, n, nbatch, buffer, scratch, stat, profile)
-      INTEGER, INTENT(IN)                                :: sign, n(3), nbatch
-      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: buffer(:), scratch(:)
-      INTEGER, INTENT(OUT)                               :: stat
-      TYPE(lattice_fft_profile_type), INTENT(INOUT), &
-         OPTIONAL                                        :: profile
-
-      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: swap(:)
-      INTEGER                                            :: d, nlines
-      REAL(KIND=dp)                                      :: started
-
-      stat = 0
-      DO d = 1, 3
-         IF (n(d) == 1) CYCLE
-         nlines = nbatch*PRODUCT(n)/n(d)
-         IF (PRESENT(profile)) started = m_walltime()
-         CALL fft_1d_many(sign, n(d), nlines, .FALSE., .TRUE., n(d), nlines, &
-                          buffer, scratch, 1.0_dp, stat)
-         IF (PRESENT(profile)) profile%seconds(4 + d) = profile%seconds(4 + d) + m_walltime() - started
-         IF (stat /= 0) RETURN
-         swap => buffer
-         buffer => scratch
-         scratch => swap
-      END DO
-   END SUBROUTINE lattice_fft_execute
 
 ! **************************************************************************************************
 !> \brief Transform pair-major FFT input directly to pair-major output.
@@ -355,11 +324,11 @@ CONTAINS
       TYPE(lattice_fft_profile_type), INTENT(INOUT), &
          OPTIONAL                                        :: profile
 
-      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: input(:, :, :, :), output(:, :, :, :)
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: input(:, :), output(:, :)
       INTEGER                                            :: handle, i, icell, ik, ik_out, image, &
                                                             image_first, matrix_column, &
                                                             matrix_row, nbatch, nout, row_first, &
-                                                            start, stat, width
+                                                            slot, start, stat, width
       INTEGER(KIND=int_8)                                :: budget, first, matrix_index, needed, &
                                                             ngrid, nvalues
       LOGICAL                                            :: add, success
@@ -410,7 +379,8 @@ CONTAINS
          END IF
       END IF
       success = .FALSE.
-      IF (plan%regular) THEN
+      ! Pair-major 3D execution requires FFTW3. Generic callers retain the direct fallback.
+      IF (plan%regular .AND. fft_supports_arbitrary_lengths()) THEN
          start = 1
          IF (PRESENT(cell_first)) start = cell_first
          CPASSERT(start >= 1)
@@ -447,7 +417,10 @@ CONTAINS
                CALL fft_alloc(plan%fft_in, [INT(needed)])
                CALL fft_alloc(plan%fft_out, [INT(needed)])
             END IF
-            IF (PRESENT(profile)) profile%seconds(3) = profile%seconds(3) + m_walltime() - started
+            IF (PRESENT(profile)) THEN
+               profile%pair_major = .TRUE.
+               profile%seconds(3) = profile%seconds(3) + m_walltime() - started
+            END IF
             stat = 0
             ! Flatten both matrix dimensions so each FFT batch spans whole columns.
             DO first = 1_int_8, nvalues, INT(width, int_8)
@@ -459,23 +432,23 @@ CONTAINS
                   profile%tile_max = MAX(profile%tile_max, nbatch)
                   started = m_walltime()
                END IF
-               input(1:plan%nfft(1), 1:plan%nfft(2), 1:plan%nfft(3), 1:nbatch) => plan%fft_in(1:INT(ngrid)*nbatch)
+               input(1:nbatch, 1:INT(ngrid)) => plan%fft_in(1:INT(ngrid)*nbatch)
                input = z_zero
                ! Read adjacent AO elements together while retaining each element's image order.
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
 !$OMP IF(INT(nbatch, int_8)*SIZE(values_rs, 3, KIND=int_8) >= fft_parallel_values) &
 !$OMP SHARED(input, plan, values_rs, first, nbatch, start) &
-!$OMP PRIVATE(image_first, icell, image, i, matrix_index, matrix_row, matrix_column)
+!$OMP PRIVATE(image_first, icell, image, slot, i, matrix_index, matrix_row, matrix_column)
                DO row_first = 1, nbatch, fft_pack_rows
                   DO image_first = 1, SIZE(values_rs, 3), fft_pack_cells
                      DO icell = image_first, MIN(image_first + fft_pack_cells - 1, SIZE(values_rs, 3))
                         image = start + icell - 1
+                        slot = plan%cell_slot(image)
                         IF (SIZE(values_rs, 2) == 1) THEN
 !$OMP SIMD
                            DO i = row_first, MIN(row_first + fft_pack_rows - 1, nbatch)
-                              input(plan%cell_index(1, image), plan%cell_index(2, image), plan%cell_index(3, image), i) = &
-                                 input(plan%cell_index(1, image), plan%cell_index(2, image), plan%cell_index(3, image), i) + &
-                                 plan%cell_factor(image)*values_rs(INT(first) + i - 1, 1, icell)
+                              input(i, slot) = input(i, slot) + &
+                                               plan%cell_factor(image)*values_rs(INT(first) + i - 1, 1, icell)
                            END DO
                         ELSE
 !$OMP SIMD PRIVATE(matrix_index, matrix_row, matrix_column)
@@ -483,9 +456,8 @@ CONTAINS
                               matrix_index = first + INT(i - 2, int_8)
                               matrix_row = INT(MODULO(matrix_index, INT(SIZE(values_rs, 1), int_8))) + 1
                               matrix_column = INT(matrix_index/INT(SIZE(values_rs, 1), int_8)) + 1
-                              input(plan%cell_index(1, image), plan%cell_index(2, image), plan%cell_index(3, image), i) = &
-                                 input(plan%cell_index(1, image), plan%cell_index(2, image), plan%cell_index(3, image), i) + &
-                                 plan%cell_factor(image)*values_rs(matrix_row, matrix_column, icell)
+                              input(i, slot) = input(i, slot) + &
+                                               plan%cell_factor(image)*values_rs(matrix_row, matrix_column, icell)
                            END DO
                         END IF
                      END DO
@@ -493,10 +465,10 @@ CONTAINS
                END DO
 !$OMP END PARALLEL DO
                IF (PRESENT(profile)) profile%seconds(4) = profile%seconds(4) + m_walltime() - started
-               CALL lattice_fft_execute(BWFFT, plan%nfft, nbatch, plan%fft_in, plan%fft_out, stat, profile)
+               CALL lattice_fft_execute_pair_major(BWFFT, plan%nfft, nbatch, plan%fft_in, plan%fft_out, stat, profile)
                IF (stat /= 0) EXIT
                IF (PRESENT(profile)) started = m_walltime()
-               output(1:nbatch, 1:plan%nfft(1), 1:plan%nfft(2), 1:plan%nfft(3)) => plan%fft_in(1:INT(ngrid)*nbatch)
+               output(1:nbatch, 1:INT(ngrid)) => plan%fft_in(1:INT(ngrid)*nbatch)
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
 !$OMP IF(INT(nbatch, int_8)*SIZE(values_k, 3, KIND=int_8) >= fft_parallel_values) &
 !$OMP SHARED(output, plan, values_k, selected_kpoints, first, nbatch, add) &
@@ -508,10 +480,10 @@ CONTAINS
                      IF (add) THEN
                         values_k(INT(first):INT(first) + nbatch - 1, 1, ik_out) = &
                            values_k(INT(first):INT(first) + nbatch - 1, 1, ik_out) + &
-                           output(:, plan%grid_index(1, ik), plan%grid_index(2, ik), plan%grid_index(3, ik))
+                           output(:, plan%k_slot(ik))
                      ELSE
                         values_k(INT(first):INT(first) + nbatch - 1, 1, ik_out) = &
-                           output(:, plan%grid_index(1, ik), plan%grid_index(2, ik), plan%grid_index(3, ik))
+                           output(:, plan%k_slot(ik))
                      END IF
                   ELSE
                      DO i = 1, nbatch
@@ -521,10 +493,10 @@ CONTAINS
                         IF (add) THEN
                            values_k(matrix_row, matrix_column, ik_out) = &
                               values_k(matrix_row, matrix_column, ik_out) + &
-                              output(i, plan%grid_index(1, ik), plan%grid_index(2, ik), plan%grid_index(3, ik))
+                              output(i, plan%k_slot(ik))
                         ELSE
                            values_k(matrix_row, matrix_column, ik_out) = &
-                              output(i, plan%grid_index(1, ik), plan%grid_index(2, ik), plan%grid_index(3, ik))
+                              output(i, plan%k_slot(ik))
                         END IF
                      END DO
                   END IF
@@ -573,13 +545,14 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: hmat(3, 3)
 
       INTEGER                                            :: icell
+      INTEGER, ALLOCATABLE                               :: grid_index(:, :)
       REAL(KIND=dp)                                      :: arg, cell_vector(3), k_offset(3)
 
       CALL cell_to_k_grid_release(work)
-      ALLOCATE (work%grid_index(3, SIZE(xkp, 2)))
-      work%regular = lattice_fft_prepare_geometry(xkp, nkp_grid, index_to_cell, work%grid_index, &
-                                                  work%nfft, k_offset, cell_index=work%cell_index, &
-                                                  allow_incomplete=.TRUE.)
+      ALLOCATE (grid_index(3, SIZE(xkp, 2)))
+      work%regular = lattice_fft_prepare_geometry(xkp, nkp_grid, index_to_cell, grid_index, &
+                                                  work%nfft, k_offset, cell_linear=work%cell_slot, &
+                                                  grid_linear=work%k_slot, allow_incomplete=.TRUE.)
       IF (.NOT. work%regular) RETURN
       IF (PRESENT(deriv_direction)) THEN
          CPASSERT(PRESENT(hmat))
@@ -605,8 +578,8 @@ CONTAINS
 
       IF (ASSOCIATED(work%fft_in)) CALL fft_dealloc(work%fft_in)
       IF (ASSOCIATED(work%fft_out)) CALL fft_dealloc(work%fft_out)
-      IF (ALLOCATED(work%grid_index)) DEALLOCATE (work%grid_index)
-      IF (ALLOCATED(work%cell_index)) DEALLOCATE (work%cell_index, work%cell_factor)
+      IF (ALLOCATED(work%k_slot)) DEALLOCATE (work%k_slot)
+      IF (ALLOCATED(work%cell_slot)) DEALLOCATE (work%cell_slot, work%cell_factor)
       work%regular = .FALSE.
    END SUBROUTINE cell_to_k_grid_release
 
@@ -660,6 +633,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: allow_incomplete
 
       INTEGER                                            :: icell, ncell, nkp
+      INTEGER, ALLOCATABLE                               :: grid_index(:, :)
       REAL(KIND=dp), DIMENSION(3)                        :: k_offset
 
       CALL k_grid_to_cell_release(work)
@@ -668,7 +642,7 @@ CONTAINS
       IF (SIZE(xkp, 1) < 3 .OR. SIZE(index_to_cell, 1) < 3 .OR. nkp == 0) THEN
          CALL cp_abort(__LOCATION__, "Inconsistent reciprocal-grid mapping in inverse lattice FFT")
       END IF
-      ALLOCATE (work%xkp(3, nkp), work%cells(3, ncell), work%weight(nkp), work%grid_index(3, nkp))
+      ALLOCATE (work%xkp(3, nkp), work%cells(3, ncell), work%weight(nkp), grid_index(3, nkp))
       work%xkp(:, :) = xkp(1:3, :)
       work%cells(:, :) = index_to_cell(1:3, :)
       work%weight(:) = 1.0_dp/REAL(nkp, dp)
@@ -676,9 +650,9 @@ CONTAINS
          CPASSERT(SIZE(weights) == nkp)
          work%weight(:) = weights
       END IF
-      work%regular = lattice_fft_prepare_geometry(xkp, nkp_grid, index_to_cell, work%grid_index, &
-                                                  work%nfft, k_offset, cell_index=work%cell_index, &
-                                                  allow_incomplete=allow_incomplete)
+      work%regular = lattice_fft_prepare_geometry(xkp, nkp_grid, index_to_cell, grid_index, &
+                                                  work%nfft, k_offset, cell_linear=work%cell_slot, &
+                                                  grid_linear=work%k_slot, allow_incomplete=allow_incomplete)
       IF (.NOT. work%regular) RETURN
       ! For uniform k weights, apply the common scale once at extraction.
       work%uniform_weights = ALL(work%weight == work%weight(1))
@@ -716,7 +690,8 @@ CONTAINS
       TYPE(lattice_fft_profile_type), INTENT(INOUT), &
          OPTIONAL                                        :: profile
 
-      INTEGER                                            :: handle, nbatch, output_shape(3), stat, width
+      INTEGER                                            :: handle, nbatch, output_shape(3), stat, &
+                                                            width
       INTEGER(KIND=int_8)                                :: first, ngrid, nvalues
       REAL(KIND=dp)                                      :: started
 
@@ -844,8 +819,7 @@ CONTAINS
 !$OMP SHARED(input, work, values_k, first, nbatch) &
 !$OMP PRIVATE(ik, slot, i, matrix_index, matrix_row, matrix_column)
       DO ik = 1, SIZE(values_k, 3)
-         slot = work%grid_index(1, ik) + work%nfft(1)* &
-                (work%grid_index(2, ik) - 1 + work%nfft(2)*(work%grid_index(3, ik) - 1))
+         slot = work%k_slot(ik)
          IF (SIZE(values_k, 2) == 1) THEN
             IF (work%uniform_weights) THEN
                input(:, slot) = values_k(INT(first):INT(first) + nbatch - 1, 1, ik)
@@ -876,8 +850,7 @@ CONTAINS
 !$OMP SHARED(output, work, values_rs, values_real, values_k, first, nbatch) &
 !$OMP PRIVATE(icell, slot, i, matrix_index, matrix_row, matrix_column)
       DO icell = 1, SIZE(work%cells, 2)
-         slot = work%cell_index(1, icell) + work%nfft(1)* &
-                (work%cell_index(2, icell) - 1 + work%nfft(2)*(work%cell_index(3, icell) - 1))
+         slot = work%cell_slot(icell)
          IF (SIZE(values_k, 2) == 1) THEN
             IF (PRESENT(values_rs)) THEN
                values_rs(INT(first):INT(first) + nbatch - 1, 1, icell) = &
@@ -913,8 +886,9 @@ CONTAINS
 
       IF (ASSOCIATED(work%fft_in)) CALL fft_dealloc(work%fft_in)
       IF (ASSOCIATED(work%fft_out)) CALL fft_dealloc(work%fft_out)
-      IF (ALLOCATED(work%xkp)) DEALLOCATE (work%xkp, work%cells, work%weight, work%grid_index)
-      IF (ALLOCATED(work%cell_index)) DEALLOCATE (work%cell_index, work%cell_phase)
+      IF (ALLOCATED(work%xkp)) DEALLOCATE (work%xkp, work%cells, work%weight)
+      IF (ALLOCATED(work%k_slot)) DEALLOCATE (work%k_slot)
+      IF (ALLOCATED(work%cell_slot)) DEALLOCATE (work%cell_slot, work%cell_phase)
       work%regular = .FALSE.
       work%uniform_weights = .FALSE.
 

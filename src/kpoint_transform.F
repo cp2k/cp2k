@@ -297,6 +297,8 @@ CONTAINS
                fft_profile%elements, fft_profile%batches, fft_profile%tile_min, fft_profile%tile_max
             WRITE (unit_nr, '(T2,A,I8,2L3)') 'R2K_FFT_PROFILE| FFT OpenMP limit / input,output contiguous: ', &
                omp_limit, IS_CONTIGUOUS(values_rs), IS_CONTIGUOUS(values_k)
+            IF (fft_profile%pair_major) WRITE (unit_nr, '(T2,A)') &
+               'R2K_FFT_PROFILE| FFT-X/plan reports full 3D batched FFT (Y/Z entries zero)'
             WRITE (unit_nr, '(T2,A)') &
                'R2K_FFT_PROFILE| grid-fill/extract use size-gated OpenMP; FFT axes include one-shot planning'
             DO i = 1, SIZE(fft_profile_stages)
@@ -537,8 +539,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rskp_transform_prepare'
 
       INTEGER                                            :: first, handle, irow, nk_local
-      INTEGER(KIND=int_8)                                :: max_backend_bytes, phase_bytes, &
-                                                            workspace_bytes
+      INTEGER(KIND=int_8)                                :: max_backend_bytes
       INTEGER, ALLOCATABLE                               :: eval_kp_dist(:, :)
       LOGICAL                                            :: ready
       REAL(KIND=dp), ALLOCATABLE                         :: phase_xkp(:, :)
@@ -582,15 +583,12 @@ CONTAINS
          CPABORT("R-to-K route has an incompatible source or target layout")
       END IF
 
-      phase_bytes = max_backend_bytes
       IF (backend == rskp_backend_fft .OR. prepared%route%world_target) THEN
-         workspace_bytes = max_backend_bytes
-         IF (backend == rskp_backend_gemm) workspace_bytes = phase_bytes
-         CALL cell_to_k_backend_prepare(prepared%route, xkp, nkp_grid, workspace_bytes)
+         CALL cell_to_k_backend_prepare(prepared%route, xkp, nkp_grid, max_backend_bytes)
       ELSE
          first = eval_kp_dist(1, eval_inter%mepos + 1)
          ALLOCATE (phase_xkp, source=xkp(:, first:eval_kp_dist(2, eval_inter%mepos + 1)))
-         CALL cell_to_k_backend_prepare(prepared%route, phase_xkp, nkp_grid, phase_bytes)
+         CALL cell_to_k_backend_prepare(prepared%route, phase_xkp, nkp_grid, max_backend_bytes)
       END IF
       DO irow = 1, SIZE(source_rows)
          CALL rskp_capture(source, source_rows(irow), prepared%route, prepared%values(irow), mirror_sign, scale)
@@ -601,13 +599,12 @@ CONTAINS
             nk_local = eval_kp_dist(2, eval_inter%mepos + 1) - &
                        eval_kp_dist(1, eval_inter%mepos + 1) + 1
          END IF
-         workspace_bytes = max_backend_bytes
          DO irow = 1, SIZE(source_rows)
             ALLOCATE (prepared%values(irow)%fft_values( &
                       prepared%route%element_first(SIZE(prepared%route%element_first)) - 1, nk_local))
             CALL cell_to_k_sparse_fft(prepared%values(irow), prepared%route, xkp, nkp_grid, &
                                       eval_kp_dist, eval_inter, &
-                                      workspace_bytes, cache=prepared%values(irow)%fft_values)
+                                      max_backend_bytes, cache=prepared%values(irow)%fft_values)
             DEALLOCATE (prepared%values(irow)%packed)
          END DO
          ALLOCATE (prepared%work(0))
