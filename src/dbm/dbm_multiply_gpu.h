@@ -48,7 +48,14 @@ typedef struct {
   dbm_pack_gpu_t pack_b_dev;
 
   int max_batch_size;
+#if defined(__OFFLOAD_UNIFIED_MEMORY)
+  // Kernels read the tasks where the host writes them: a slot per shard in
+  // either of two sets, which alternate with each turn of the main loop.
+  dbm_task_t *batches_host;
+  int batches_set; // set filled in the current turn
+#else
   dbm_task_t *batches_dev;
+#endif
 } dbm_multiply_gpu_context_t;
 
 /*******************************************************************************
@@ -66,6 +73,23 @@ void dbm_multiply_gpu_start(const int max_batch_size, const int nshards,
 bool dbm_multiply_gpu_upload_packs(const dbm_pack_t *pack_a,
                                    const dbm_pack_t *pack_b,
                                    dbm_multiply_gpu_context_t *ctx);
+
+/*******************************************************************************
+ * \brief Internal routine for concluding a turn of the main loop: waits until
+ *        the packs are uploaded such that the host can reuse or release their
+ *        buffers, and switches the set of batches (unified memory).
+ * \author Hans Pabst
+ ******************************************************************************/
+void dbm_multiply_gpu_end_turn(dbm_multiply_gpu_context_t *ctx);
+
+/*******************************************************************************
+ * \brief Internal routine returning where the tasks for the given shard are
+ *        written such that kernels read them directly (unified memory), or
+ *        NULL if the batch is uploaded.
+ * \author Hans Pabst
+ ******************************************************************************/
+dbm_task_t *dbm_multiply_gpu_batch_tasks(const int kshard,
+                                         dbm_multiply_gpu_context_t *ctx);
 
 /*******************************************************************************
  * \brief Internal routine for executing the tasks in given batch on the GPU.
