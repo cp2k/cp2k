@@ -359,7 +359,7 @@ PROGRAM kpoint_lattice_fft_unittest
       IF (MAXVAL(ABS(transformed - direct)) > 3.0E-12_dp) THEN
          ERROR STOP 'Local RSKP image-panel accumulation differs from full transform'
       END IF
-      CALL k_to_real_cell_transform(direct, xkp, nkp_grid, index_to_cell, real_transformed, backends(backend))
+      CALL k_to_real_cell_transform(direct, xkp, nkp_grid, index_to_cell, real_transformed, rskp_backend_fft)
       IF (MAXVAL(ABS(real_transformed - REAL(weighted_reference, dp))) > 3.0E-12_dp) THEN
          ERROR STOP 'Local RSKP inverse changed the phase sign or normalization'
       END IF
@@ -373,7 +373,7 @@ PROGRAM kpoint_lattice_fft_unittest
       CALL cell_to_k_transform(values_rs(1:0, :, :), index_to_cell, xkp, nkp_grid, &
                                transformed(1:0, :, :), backends(backend))
       CALL k_to_real_cell_transform(direct(1:0, :, :), xkp, nkp_grid, index_to_cell, &
-                                    real_transformed(1:0, :, :), backends(backend))
+                                    real_transformed(1:0, :, :), rskp_backend_fft)
    END DO
 
    ! Caller-owned panels may have holes in every dimension, including reversed axes.
@@ -458,7 +458,7 @@ PROGRAM kpoint_lattice_fft_unittest
          ERROR STOP 'Local RSKP forward partial row tile is inconsistent'
       END IF
       CALL k_to_real_cell_transform(panel_output, xkp, nkp_grid, index_to_cell(:, 1:3), &
-                                    panel_inverse, backends(backend))
+                                    panel_inverse, rskp_backend_fft)
       ! Images 2 and 3 coincide, so their coefficients add under inverse reconstruction.
       IF (MAXVAL(ABS(panel_inverse(:, :, 1) - panel_input(:, :, 1))) > 3.0E-12_dp) THEN
          ERROR STOP 'Local RSKP inverse partial row tile is inconsistent'
@@ -476,7 +476,7 @@ PROGRAM kpoint_lattice_fft_unittest
    END DO
    CALL direct_reference(values_rs, index_to_cell, xkp, direct)
    DO backend = 1, SIZE(backends)
-      CALL k_to_real_cell_transform(direct, xkp, nkp_grid, panel_cells, panel_inverse, backends(backend))
+      CALL k_to_real_cell_transform(direct, xkp, nkp_grid, panel_cells, panel_inverse, rskp_backend_fft)
       DO icell = 1, SIZE(panel_cells, 2)
          IF (MAXVAL(ABS(panel_inverse(:, :, icell) - &
                         REAL(weighted_reference(:, :, MODULO(icell - 1, ncell) + 1), dp))) > 3.0E-12_dp) THEN

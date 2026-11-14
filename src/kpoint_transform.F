@@ -318,7 +318,7 @@ CONTAINS
 !> \param nkp_grid mesh dimensions for FFT
 !> \param cells requested lattice translations
 !> \param values_rs real part of the reconstructed matrices
-!> \param backend GEMM or FFT
+!> \param backend FFT backend (required)
 !> \param profile_fft print local FFT stage times on the logger rank, without MPI collectives
 ! **************************************************************************************************
    SUBROUTINE k_to_real_cell_transform(values_k, xkp, nkp_grid, cells, values_rs, backend, profile_fft)
@@ -329,15 +329,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: backend
       LOGICAL, INTENT(IN), OPTIONAL                      :: profile_fft
 
-      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: complex_values(:, :)
-      INTEGER                                            :: handle, i, icell, ik, last, ncell, nk, &
-                                                            nrow, ntile, nworkers, omp_limit, &
-                                                            unit_nr, width
-      INTEGER(KIND=int_8)                                :: ifirst, nvalues, worker_bytes
+      INTEGER                                            :: handle, i, ncell, nk, omp_limit, unit_nr
       LOGICAL                                            :: measure_fft
-      REAL(KIND=dp)                                      :: arg, profile_started, started, weight
-      REAL(KIND=dp), ALLOCATABLE                         :: factors(:, :), packed(:, :), RESULT(:, :)
-      REAL(KIND=dp), CONTIGUOUS, POINTER                 :: real_values(:, :)
+      REAL(KIND=dp)                                      :: profile_started, started
       TYPE(k_grid_to_cell_work_type)                     :: fft_work
       TYPE(lattice_fft_profile_type), ALLOCATABLE        :: fft_profile
 
@@ -359,57 +353,14 @@ CONTAINS
          CALL timestop(handle)
          RETURN
       END IF
-      SELECT CASE (backend)
-      CASE (rskp_backend_fft)
-         IF (measure_fft) started = m_walltime()
-         CALL k_grid_to_cell_prepare(fft_work, xkp, nkp_grid, cells)
-         IF (measure_fft) fft_profile%seconds(2) = m_walltime() - started
-         CALL k_grid_to_cell_execute(fft_work, values_k, values_real=values_rs, require_fft=.TRUE., profile=fft_profile)
-         IF (measure_fft) started = m_walltime()
-         CALL k_grid_to_cell_release(fft_work)
-         IF (measure_fft) fft_profile%seconds(9) = m_walltime() - started
-      CASE (rskp_backend_gemm)
-         nvalues = SIZE(values_k, 1, KIND=int_8)*SIZE(values_k, 2, KIND=int_8)
-         complex_values(1:nvalues, 1:nk) => values_k
-         real_values(1:nvalues, 1:ncell) => values_rs
-         nworkers = 1
-!$       nworkers = omp_get_max_threads()
-         width = MIN(ncell, 256, INT(MAX(1_int_8, rskp_panel_bytes/(32_int_8*nk))))
-         worker_bytes = (rskp_panel_bytes - 16_int_8*nk*width)/nworkers
-         ntile = INT(MIN(nvalues, 4096_int_8, &
-                         MAX(1_int_8, worker_bytes/(16_int_8*nk + 8_int_8*width))))
-         ALLOCATE (factors(2*nk, width))
-         weight = 1.0_dp/REAL(nk, dp)
-         DO icell = 1, ncell, width
-            last = MIN(icell + width - 1, ncell)
-            DO i = 1, last - icell + 1
-               DO ik = 1, nk
-                  arg = twopi*DOT_PRODUCT(xkp(:, ik), REAL(cells(:, icell + i - 1), dp))
-                  factors(ik, i) = weight*COS(arg)
-                  factors(nk + ik, i) = weight*SIN(arg)
-               END DO
-            END DO
-!$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED(complex_values, real_values, nvalues, factors, ntile, nk, width, icell, last) &
-!$OMP PRIVATE(packed, result, ifirst, nrow)
-            ALLOCATE (packed(ntile, 2*nk), RESULT(ntile, width))
-!$OMP DO SCHEDULE(STATIC)
-            DO ifirst = 1, nvalues, ntile
-               nrow = INT(MIN(INT(ntile, int_8), nvalues - ifirst + 1))
-               packed(:, :) = 0.0_dp
-               packed(1:nrow, 1:nk) = REAL(complex_values(ifirst:ifirst + nrow - 1, :), dp)
-               packed(1:nrow, nk + 1:2*nk) = AIMAG(complex_values(ifirst:ifirst + nrow - 1, :))
-               CALL rskp_gemm_contract(ntile, 2*nk, last - icell + 1, packed, &
-                                       factors(:, 1:last - icell + 1), RESULT(:, 1:last - icell + 1), 0.0_dp)
-               real_values(ifirst:ifirst + nrow - 1, icell:last) = RESULT(1:nrow, 1:last - icell + 1)
-            END DO
-!$OMP END DO
-            DEALLOCATE (packed, RESULT)
-!$OMP END PARALLEL
-         END DO
-      CASE DEFAULT
-         CPABORT('Unknown K-to-R backend')
-      END SELECT
+      CPASSERT(backend == rskp_backend_fft)
+      IF (measure_fft) started = m_walltime()
+      CALL k_grid_to_cell_prepare(fft_work, xkp, nkp_grid, cells)
+      IF (measure_fft) fft_profile%seconds(2) = m_walltime() - started
+      CALL k_grid_to_cell_execute(fft_work, values_k, values_real=values_rs, require_fft=.TRUE., profile=fft_profile)
+      IF (measure_fft) started = m_walltime()
+      CALL k_grid_to_cell_release(fft_work)
+      IF (measure_fft) fft_profile%seconds(9) = m_walltime() - started
       IF (measure_fft) THEN
          started = m_walltime() - profile_started
          unit_nr = cp_logger_get_default_io_unit()
