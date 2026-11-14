@@ -1,0 +1,104 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT argon_init_vel
+  RUN_TYPE md
+  &PRINT
+    PHYSCON .TRUE.
+  &END PRINT
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 200
+    TIMESTEP 0.5
+  &END MD
+  &PRINT
+    &RESTART ON
+      BACKUP_COPIES 0
+      &EACH
+        MD 1
+      &END EACH
+    &END RESTART
+    &TRAJECTORY ON
+      FORMAT EXTXYZ
+    &END TRAJECTORY
+    &VELOCITIES ON
+      ! Default unit is bohr/au_t
+      FORMAT EXTXYZ
+    &END VELOCITIES
+  &END PRINT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM Ar
+        CHARGE 0.0
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS Ar Ar
+          EPSILON 119.8
+          RCUT 8.4
+          SIGMA 3.405
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 24.0
+    &END CELL
+    &COORD
+      Ar 0.0 0.0 12.0
+      Ar 2.5 0.0 12.0
+      Ar 5.0 0.0 12.0
+      Ar 7.5 0.0 12.0
+      Ar 0.0 2.5 12.0
+      Ar 2.5 2.5 12.0
+      Ar 5.0 2.5 12.0
+      Ar 7.5 2.5 12.0
+      Ar 0.0 5.0 12.0
+      Ar 2.5 5.0 12.0
+      Ar 5.0 5.0 12.0
+      Ar 7.5 5.0 12.0
+      Ar 0.0 7.5 12.0
+      Ar 2.5 7.5 12.0
+      Ar 5.0 7.5 12.0
+      Ar 7.5 7.5 12.0
+      Ar 5.0 5.0 17.0
+    &END COORD
+    &TOPOLOGY
+    &END TOPOLOGY
+    &VELOCITY
+      ! Set up the initial velocity
+      ! Hint: 1 angstrom/fs = 100 km/s ~= 0.04571 a.u.
+      UNIT angstrom*fs^-1
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 -0.1
+    &END VELOCITY
+  &END SUBSYS
+&END FORCE_EVAL

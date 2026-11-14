@@ -32,7 +32,8 @@ MODULE md_vel_utils
                                               cp_print_key_unit_nr
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
-   USE cp_units,                        ONLY: cp_unit_from_cp2k
+   USE cp_units,                        ONLY: cp_unit_from_cp2k,&
+                                              cp_unit_to_cp2k
    USE extended_system_types,           ONLY: npt_info_type
    USE force_env_methods,               ONLY: force_env_calc_energy_force
    USE force_env_types,                 ONLY: force_env_get,&
@@ -50,7 +51,8 @@ MODULE md_vel_utils
                                               section_vals_get_subs_vals,&
                                               section_vals_list_get,&
                                               section_vals_type,&
-                                              section_vals_val_get
+                                              section_vals_val_get,&
+                                              section_vals_val_unset
    USE input_val_types,                 ONLY: val_get,&
                                               val_type
    USE kinds,                           ONLY: default_string_length,&
@@ -701,10 +703,12 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: is_fixed
       LOGICAL, INTENT(OUT)                               :: success
 
+      CHARACTER(LEN=default_string_length)               :: unit_str1, unit_str2
       INTEGER                                            :: i, natoms, nshell, shell_index
       LOGICAL :: atomvel_explicit, atomvel_read, corevel_explicit, corevel_read, is_ok, &
          rescale_regions, shellvel_explicit, shellvel_read
-      REAL(KIND=dp)                                      :: ecom, ekin, fac_massc, fac_masss, mass
+      REAL(KIND=dp)                                      :: ecom, ekin, fac_massc, fac_masss, mass, &
+                                                            unit_conv1, unit_conv2
       REAL(KIND=dp), DIMENSION(3)                        :: vc, vcom, vs
       REAL(KIND=dp), DIMENSION(:), POINTER               :: vel
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -759,12 +763,16 @@ CONTAINS
       IF (.NOT. atomvel_read) THEN
          ! Read the atom velocities if explicitly given in the input file
          CALL section_vals_list_get(atomvel_section, "_DEFAULT_KEYWORD_", list=atom_list)
+         CALL section_vals_val_get(atomvel_section, "UNIT", c_val=unit_str1)
+         unit_conv1 = cp_unit_to_cp2k(1.0_dp, TRIM(unit_str1))
          DO i = 1, natoms
             is_ok = cp_sll_val_next(atom_list, val)
             CALL val_get(val, r_vals=vel)
-            part(i)%v = vel
+            CPASSERT(SIZE(vel) == 3)
+            part(i)%v(:) = vel(:)*unit_conv1
             CALL cell_transform_input_cartesian(cell, part(i)%v)
          END DO
+         CALL section_vals_val_unset(atomvel_section, "UNIT")
       END IF
       DO i = 1, natoms
          SELECT CASE (is_fixed(i))
@@ -792,17 +800,25 @@ CONTAINS
             ! If the atoms positions are given (?) and core and shell velocities are
             ! present in the input, read the latter.
             CALL section_vals_list_get(shellvel_section, "_DEFAULT_KEYWORD_", list=shell_list)
+            CALL section_vals_val_get(shellvel_section, "UNIT", c_val=unit_str1)
             CALL section_vals_list_get(corevel_section, "_DEFAULT_KEYWORD_", list=core_list)
+            CALL section_vals_val_get(corevel_section, "UNIT", c_val=unit_str2)
+            unit_conv1 = cp_unit_to_cp2k(1.0_dp, TRIM(unit_str1))
+            unit_conv2 = cp_unit_to_cp2k(1.0_dp, TRIM(unit_str2))
             DO i = 1, nshell
                is_ok = cp_sll_val_next(shell_list, val)
                CALL val_get(val, r_vals=vel)
-               shell_part(i)%v = vel
+               CPASSERT(SIZE(vel) == 3)
+               shell_part(i)%v(:) = vel(:)*unit_conv1
                CALL cell_transform_input_cartesian(cell, shell_part(i)%v)
                is_ok = cp_sll_val_next(core_list, val)
                CALL val_get(val, r_vals=vel)
-               core_part(i)%v = vel
+               CPASSERT(SIZE(vel) == 3)
+               core_part(i)%v(:) = vel(:)*unit_conv2
                CALL cell_transform_input_cartesian(cell, core_part(i)%v)
             END DO
+            CALL section_vals_val_unset(shellvel_section, "UNIT")
+            CALL section_vals_val_unset(corevel_section, "UNIT")
          ELSE
             IF (.NOT. (shellvel_read .AND. corevel_read)) THEN
                ! Otherwise, just copy atom velocties into shell and core velocities.

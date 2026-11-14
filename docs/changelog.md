@@ -83,6 +83,7 @@
 - CELL_OPT: optimize cell in reduced constraint coordinates
   ([#6433](https://github.com/cp2k/cp2k/pull/6433))
 - RI-HFX for GAPW low-spin ROKS ([#6496](https://github.com/cp2k/cp2k/pull/6496))
+- General unit specification for SUBSYS/VELOCITY ([#6548](https://github.com/cp2k/cp2k/pull/6548))
 - IDPP initialization for Cartesian bands ([#6570](https://github.com/cp2k/cp2k/pull/6570))
 - **TODO**
 
@@ -104,6 +105,7 @@
 - Require an external libwignernj installation (version 0.8 or newer)
   ([#5961](https://github.com/cp2k/cp2k/pull/5961))
 - Require FFTW3 as hard dependency ([#6119](https://github.com/cp2k/cp2k/pull/6119))
+- Rename SUBSYS/VELOCITY/PINT_UNIT keyword to UNIT ([#6548](https://github.com/cp2k/cp2k/pull/6548))
 - **TODO**
 
 ### Fixes

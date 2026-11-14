@@ -26,6 +26,7 @@
 "argon_muc-r.inp"              = [{matcher = "M002", tol = 1.0E-14, ref = -0.419092358902E+00}]
 "argon.inp"                    = [{matcher = "M002", tol = 1.0E-14, ref = -0.211229963864E+00}]
 "argon_npt.inp"                = [{matcher = "M002", tol = 1.0E-14, ref = -0.205974024480E+00}]
+"argon_init_vel.inp"           = [{matcher = "M002", tol = 1.0E-14, ref = 0.113550417399E+01}]
 "water_1.inp"                  = [{matcher = "M002", tol = 1.0E-14, ref = 0.374760458659E-02}]
 "water_1_res_1.inp"            = [{matcher = "M002", tol = 1.0E-14, ref = 0.280676726224E-02}]
 "water_1_res_2.inp"            = [{matcher = "M002", tol = 1.0E-14, ref = 0.906352439916E-02}]

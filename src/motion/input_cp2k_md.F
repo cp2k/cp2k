@@ -244,24 +244,23 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="INITIALIZATION_METHOD", &
-                          description="This keyword selects which method to use to initialize MD. "// &
-                          "If velecities are not set explicitly, DEFAULT optioin will assign "// &
-                          "random velocities and then scale according to TEMPERATURE; VIBRATIONAL "// &
-                          "option will then use previously calculated vibrational modes to "// &
-                          "initialise both the atomic positions and velocities so that the "// &
-                          "starting point for MD is as close to canonical ensemble as possible, "// &
-                          "without the need for lengthy equilibration steps. See PRL 96, 115504 "// &
-                          "(2006). The user input atomic positions in this case are expected to "// &
-                          "be already geometry optimised. Further options for VIBRATIONAL mode "// &
-                          "is can be set in INITIAL_VIBRATION subsection. If unspecified, then "// &
-                          "the DEFAULT mode will be used.", &
+                          description="This keyword selects which method to use to initialize MD if "// &
+                          "no initial velocity has been provided explicitly in the VELOCITY section "// &
+                          "of the FORCE_EVAL/SUBSYS.", &
                           usage="INITIALIZATION_METHOD DEFAULT", &
+                          citations=[West2006], &
                           default_i_val=md_init_default, &
                           enum_c_vals=s2a("DEFAULT", "VIBRATIONAL"), &
                           enum_desc=s2a("Assign random velocities and then scale according to "// &
-                                        "TEMPERATURE", &
-                                        "Initialise positions and velocities to give canonical ensemble "// &
-                                        "with TEMPERATURE, using the method described in PRL 96, 115504 (2006)"), &
+                                        "TEMPERATURE, which is the default of omitted", &
+                                        "Initialise both positions and velocities to give canonical "// &
+                                        "ensemble with TEMPERATURE, using the method described in "// &
+                                        "PRL 96, 115504 (2006). Previously calculated vibrational "// &
+                                        "modes are used so that the starting point for MD is as close "// &
+                                        "to canonical ensemble as possible, without the need for "// &
+                                        "lengthy equilibration steps. The user input atomic positions "// &
+                                        "in this case are expected to be already geometry optimised. "// &
+                                        "Further options can be set in the INITIAL_VIBRATION subsection."), &
                           enum_i_vals=[md_init_default, md_init_vib])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
