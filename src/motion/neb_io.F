@@ -748,11 +748,13 @@ CONTAINS
             "**                                                                           **"
       END IF
       DO irep = 1, n_rep_neb, n_rep
-         replica_proj_name = get_replica_project_name(rep_env, n_rep_neb, irep + rep_env%local_rep_indices(1) - 1)
-         IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, FMT='(T2,A,I6,T32,A,T79,A)') &
-               "** Band Replica   Nr.: ", irep + rep_env%local_rep_indices(1) - 1, &
-               "Output available on file: "//TRIM(replica_proj_name)//".out", "**"
+         IF (irep + rep_env%local_rep_indices(1) - 1 <= n_rep_neb) THEN
+            replica_proj_name = get_replica_project_name(rep_env, n_rep_neb, irep + rep_env%local_rep_indices(1) - 1)
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, FMT='(T2,A,I6,T32,A,T79,A)') &
+                  "** Band Replica   Nr.: ", irep + rep_env%local_rep_indices(1) - 1, &
+                  "Output available on file: "//TRIM(replica_proj_name)//".out", "**"
+            END IF
          END IF
       END DO
       IF (output_unit > 0) THEN

@@ -84,16 +84,18 @@ CONTAINS
 !>        basis (defaults to true for QS jobs)
 !> \param row_force to use the new mapping to the cart with rows
 !>        working on force instead of columns.
+!> \param nrep_total total number of logical replicas sharing this replica_env
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE rep_env_create(rep_env, para_env, input, input_declaration, nrep, prep, &
-                             sync_v, keep_wf_history, row_force)
+                             sync_v, keep_wf_history, row_force, nrep_total)
       TYPE(replica_env_type), POINTER                    :: rep_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(section_type), POINTER                        :: input_declaration
       INTEGER                                            :: nrep, prep
       LOGICAL, INTENT(in), OPTIONAL                      :: sync_v, keep_wf_history, row_force
+      INTEGER, INTENT(in), OPTIONAL                      :: nrep_total
 
       CHARACTER(len=default_path_length)                 :: input_file_path, output_file_path
       INTEGER                                            :: forcedim, i, i0, ierr, ip, ir, irep, lp, &
@@ -247,6 +249,13 @@ CONTAINS
             END IF
          END DO
          CPASSERT(nrep_local == SIZE(rep_env%local_rep_indices))
+         rep_env%n_wf_history = SIZE(rep_env%local_rep_indices)
+         IF (PRESENT(nrep_total)) THEN
+            IF (nrep_total > rep_env%nrep) THEN
+               CPASSERT(SIZE(rep_env%local_rep_indices) == 1)
+               rep_env%n_wf_history = (nrep_total + rep_env%nrep - 1)/rep_env%nrep
+            END IF
+         END IF
 
          rep_env%cart => cart
          rep_env%para_env => para_env_full
@@ -309,7 +318,7 @@ CONTAINS
          IF (in_use == use_qs_force) THEN
             CALL force_env_get(f_env%force_env, qs_env=qs_env)
             CALL get_qs_env(qs_env, dft_control=dft_control)
-            ALLOCATE (rep_env%wf_history(SIZE(rep_env%local_rep_indices)))
+            ALLOCATE (rep_env%wf_history(rep_env%n_wf_history))
             DO i = 1, SIZE(rep_env%wf_history)
                NULLIFY (rep_env%wf_history(i)%wf_history)
                IF (i == 1) THEN
@@ -358,13 +367,17 @@ CONTAINS
 !>        forces
 !> \param calc_f if true calculates also the forces, if false only the
 !>        energy
+!> \param wf_hist_slot slot in rep_env%wf_history to bind for this evaluation
+!> \param do_calc whether this replica group evaluates its force_env
 !> \author fawzi
 !> \note
 !>      indirect through f77_int_low to work around fortran madness
 ! **************************************************************************************************
-   SUBROUTINE rep_env_calc_e_f(rep_env, calc_f)
+   SUBROUTINE rep_env_calc_e_f(rep_env, calc_f, wf_hist_slot, do_calc)
       TYPE(replica_env_type), POINTER                    :: rep_env
       LOGICAL, OPTIONAL                                  :: calc_f
+      INTEGER, INTENT(in), OPTIONAL                      :: wf_hist_slot
+      LOGICAL, INTENT(in), OPTIONAL                      :: do_calc
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'rep_env_calc_e_f'
 
@@ -377,7 +390,8 @@ CONTAINS
       IF (PRESENT(calc_f)) THEN
          IF (calc_f) my_calc_f = 1
       END IF
-      CALL rep_env_calc_e_f_low(rep_env%id_nr, my_calc_f, ierr)
+      CALL rep_env_calc_e_f_low(rep_env%id_nr, my_calc_f, ierr, &
+                                wf_hist_slot=wf_hist_slot, do_calc=do_calc)
       CPASSERT(ierr == 0)
       CALL timestop(handle)
    END SUBROUTINE rep_env_calc_e_f
@@ -389,14 +403,18 @@ CONTAINS
 !> \param calc_f if nonzero calculates also the forces along with the
 !>        energy
 !> \param ierr if an error happens this will be nonzero
+!> \param wf_hist_slot slot in rep_env%wf_history to bind for this evaluation
+!> \param do_calc whether this replica group evaluates its force_env
 !> \author fawzi
 !> \note
 !>      low level wrapper to export this function in f77_int_low and work
 !>      around the handling of circular dependencies in fortran
 ! **************************************************************************************************
-   RECURSIVE SUBROUTINE rep_env_calc_e_f_low(rep_env_id, calc_f, ierr)
+   RECURSIVE SUBROUTINE rep_env_calc_e_f_low(rep_env_id, calc_f, ierr, wf_hist_slot, do_calc)
       INTEGER, INTENT(in)                                :: rep_env_id, calc_f
       INTEGER, INTENT(out)                               :: ierr
+      INTEGER, INTENT(in), OPTIONAL                      :: wf_hist_slot
+      LOGICAL, INTENT(in), OPTIONAL                      :: do_calc
 
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(replica_env_type), POINTER                    :: rep_env
@@ -404,7 +422,8 @@ CONTAINS
       rep_env => rep_envs_get_rep_env(rep_env_id, ierr)
       IF (ASSOCIATED(rep_env)) THEN
          CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env)
-         CALL rep_env_calc_e_f_int(rep_env, calc_f /= 0)
+         CALL rep_env_calc_e_f_int(rep_env, calc_f /= 0, &
+                                   wf_hist_slot=wf_hist_slot, do_calc=do_calc)
          CALL f_env_rm_defaults(f_env, ierr)
       ELSE
          ierr = 111
@@ -415,15 +434,21 @@ CONTAINS
 !> \brief calculates energy and force, internal private method
 !> \param rep_env the replica env to update
 !> \param calc_f if the force should be calculated as well (defaults to true)
+!> \param wf_hist_slot slot in rep_env%wf_history to bind for this evaluation
+!> \param do_calc whether this replica group evaluates its force_env
 !> \author fawzi
 !> \note
 !>      this is the where the real work is done
 ! **************************************************************************************************
-   SUBROUTINE rep_env_calc_e_f_int(rep_env, calc_f)
+   SUBROUTINE rep_env_calc_e_f_int(rep_env, calc_f, wf_hist_slot, do_calc)
       TYPE(replica_env_type), POINTER                    :: rep_env
       LOGICAL, OPTIONAL                                  :: calc_f
+      INTEGER, INTENT(in), OPTIONAL                      :: wf_hist_slot
+      LOGICAL, INTENT(in), OPTIONAL                      :: do_calc
 
-      INTEGER                                            :: i, ierr, irep, md_iter, my_calc_f, ndim
+      INTEGER                                            :: i, ierr, ihist, irep, md_iter, &
+                                                            my_calc_f, ndim
+      LOGICAL                                            :: my_do_calc
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(f_env_type), POINTER                          :: f_env
@@ -436,16 +461,24 @@ CONTAINS
       IF (PRESENT(calc_f)) THEN
          IF (.NOT. calc_f) my_calc_f = 0
       END IF
+      my_do_calc = .TRUE.
+      IF (PRESENT(do_calc)) my_do_calc = do_calc
 
-      CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env)
-      logger => cp_get_default_logger()
-      !     md_iter=logger%iter_info%iteration(2)+1
-      md_iter = logger%iter_info%iteration(2)
-      CALL f_env_rm_defaults(f_env, ierr)
-      CPASSERT(ierr == 0)
+      IF (my_do_calc) THEN
+         CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env)
+         logger => cp_get_default_logger()
+         !     md_iter=logger%iter_info%iteration(2)+1
+         md_iter = logger%iter_info%iteration(2)
+         CALL f_env_rm_defaults(f_env, ierr)
+         CPASSERT(ierr == 0)
+      END IF
       DO i = 1, SIZE(rep_env%local_rep_indices)
          irep = rep_env%local_rep_indices(i)
          ndim = 3*rep_env%nparticle
+         IF (.NOT. my_do_calc) THEN
+            rep_env%f(:, irep) = 0.0_dp
+            CYCLE
+         END IF
          IF (rep_env%sync_v) THEN
             CALL set_vel(rep_env%f_env_id, rep_env%v(:, irep), ndim, ierr)
             CPASSERT(ierr == 0)
@@ -455,10 +488,16 @@ CONTAINS
          logger%iter_info%iteration(2) = md_iter
 
          IF (rep_env%keep_wf_history) THEN
+            ihist = i
+            IF (PRESENT(wf_hist_slot)) THEN
+               CPASSERT(SIZE(rep_env%local_rep_indices) == 1)
+               ihist = wf_hist_slot
+            END IF
+            CPASSERT(ihist >= 1 .AND. ihist <= SIZE(rep_env%wf_history))
             CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env)
             CALL force_env_get(f_env%force_env, qs_env=qs_env)
             CALL set_qs_env(qs_env, &
-                            wf_history=rep_env%wf_history(i)%wf_history)
+                            wf_history=rep_env%wf_history(ihist)%wf_history)
             CALL f_env_rm_defaults(f_env, ierr)
             CPASSERT(ierr == 0)
          END IF

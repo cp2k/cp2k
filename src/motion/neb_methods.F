@@ -41,7 +41,8 @@ MODULE neb_methods
    USE input_constants,                 ONLY: band_diis_opt,&
                                               band_md_opt,&
                                               do_rep_blocked,&
-                                              do_sm
+                                              do_sm,&
+                                              pot_neb_full
    USE input_section_types,             ONLY: section_type,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -98,8 +99,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'neb'
 
-      INTEGER                                            :: handle, ierr, iw, iw2, nrep, &
-                                                            output_unit, prep, proc_dist_type
+      INTEGER                                            :: handle, ierr, iw, iw2, nr_replica, nrep, &
+                                                            nrep_total, output_unit, pot_type, &
+                                                            prep, proc_dist_type
       LOGICAL                                            :: check, row_force
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -124,8 +126,12 @@ CONTAINS
                                          extension=".nebLog")
       CALL section_vals_val_get(neb_section, "NPROC_REP", i_val=prep)
       CALL section_vals_val_get(neb_section, "PROC_DIST_TYPE", i_val=proc_dist_type)
+      CALL section_vals_val_get(neb_section, "NUMBER_OF_REPLICA", i_val=nr_replica)
+      CALL section_vals_val_get(neb_section, "POT_TYPE", i_val=pot_type)
       row_force = (proc_dist_type == do_rep_blocked)
       nrep = MAX(1, para_env%num_pe/prep)
+      nrep_total = nrep
+      IF (pot_type == pot_neb_full) nrep_total = nr_replica
       IF (nrep*prep /= para_env%num_pe .AND. output_unit > 0) THEN
          CALL cp_warn(__LOCATION__, &
                       "Number of totally requested processors ("//TRIM(ADJUSTL(cp_to_string(para_env%num_pe)))//") "// &
@@ -138,7 +144,8 @@ CONTAINS
       ! Create Replica Environments
       IF (output_unit > 0) WRITE (output_unit, '(T2,"NEB|",A)') " Replica_env Setup. START"
       CALL rep_env_create(rep_env, para_env=para_env, input=input, &
-                          input_declaration=input_declaration, nrep=nrep, prep=prep, row_force=row_force)
+                          input_declaration=input_declaration, nrep=nrep, prep=prep, &
+                          row_force=row_force, nrep_total=nrep_total)
       IF (output_unit > 0) WRITE (output_unit, '(T2,"NEB|",A)') " Replica_env Setup. END"
       IF (ASSOCIATED(rep_env)) THEN
          CPASSERT(SIZE(rep_env%local_rep_indices) == 1)
