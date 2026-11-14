@@ -727,11 +727,11 @@ CONTAINS
             CALL build_green_pairs(bs_env, psi_values(:, :, :, ispin), chi_env, tau, ispin, .TRUE., G_grid_k)
             CALL k_to_real_cell_transform(G_grid_k, bs_env%kpoints_scf_desymm%xkp, &
                                           bs_env%kpoints_scf_desymm%nkp_grid, full_cells, &
-                                          G_occ_R, bs_env%kpoints_scf_desymm%rskp_transform, profile_fft=.TRUE.)
+                                          G_occ_R, rskp_backend_fft, profile_fft=.TRUE.)
             CALL build_green_pairs(bs_env, psi_values(:, :, :, ispin), chi_env, tau, ispin, .FALSE., G_grid_k)
             CALL k_to_real_cell_transform(G_grid_k, bs_env%kpoints_scf_desymm%xkp, &
                                           bs_env%kpoints_scf_desymm%nkp_grid, full_cells, &
-                                          chi_grid_R, bs_env%kpoints_scf_desymm%rskp_transform, profile_fft=.TRUE.)
+                                          chi_grid_R, rskp_backend_fft, profile_fft=.TRUE.)
             CALL filter_full_green_cells(bs_env, chi_env, G_occ_R)
             CALL filter_full_green_cells(bs_env, chi_env, chi_grid_R)
             DEALLOCATE (G_grid_k)
@@ -1068,7 +1068,7 @@ CONTAINS
       CALL build_full_cell_grid(bs_env, full_cells)
       ALLOCATE (V_grid_R(n_pairs_local, 1, SIZE(full_cells, 2)))
       CALL k_to_real_cell_transform(G_grid_k, qpoints, bs_env%kpoints_scf_desymm%nkp_grid, &
-                                    full_cells, V_grid_R, bs_env%kpoints_scf_desymm%rskp_transform, profile_fft=.TRUE.)
+                                    full_cells, V_grid_R, rskp_backend_fft, profile_fft=.TRUE.)
       CALL singular_head_cell_factors(bs_env, full_cells, head_cell_factor)
       head_metric_zero = ri_metric_head_zero(bs_env)
       DO iq = 1, SIZE(full_cells, 2)
@@ -1090,7 +1090,7 @@ CONTAINS
                                 0.0_dp, ispin, .TRUE., G_grid_k)
          CALL k_to_real_cell_transform(G_grid_k, bs_env%kpoints_scf_desymm%xkp, &
                                        bs_env%kpoints_scf_desymm%nkp_grid, full_cells, Sigma_grid_R, &
-                                       bs_env%kpoints_scf_desymm%rskp_transform, profile_fft=.TRUE.)
+                                       rskp_backend_fft, profile_fft=.TRUE.)
          Sigma_grid_R(:, :, :) = -Sigma_grid_R*V_grid_R
          CALL self_energy_on_mesh(bs_env, full_cells, Sigma_grid_R, first_pair, G_grid_k)
 
@@ -1153,7 +1153,7 @@ CONTAINS
 
          CALL k_to_real_cell_transform(G_grid_k, qpoints, &
                                        bs_env%kpoints_scf_desymm%nkp_grid, full_cells, &
-                                       W_grid_R, bs_env%kpoints_scf_desymm%rskp_transform, profile_fft=.TRUE.)
+                                       W_grid_R, rskp_backend_fft, profile_fft=.TRUE.)
          CALL add_gamma_corr_cell_correction(bs_env, full_cells, gwkp_env%gamma_correction, i_t, &
                                              gwkp_env%Z_lP_zero(:, 1, 1), first_pair, W_grid_R)
          CALL truncate_grid_W_by_pair_distance_pairs(bs_env, full_cells, first_pair, W_grid_R)
@@ -1163,7 +1163,7 @@ CONTAINS
                                    tau, ispin, .TRUE., G_grid_k)
             CALL k_to_real_cell_transform(G_grid_k, bs_env%kpoints_scf_desymm%xkp, &
                                           bs_env%kpoints_scf_desymm%nkp_grid, full_cells, Sigma_grid_R, &
-                                          bs_env%kpoints_scf_desymm%rskp_transform, profile_fft=.TRUE.)
+                                          rskp_backend_fft, profile_fft=.TRUE.)
             CALL filter_full_green_cells(bs_env, gwkp_env%group_env, Sigma_grid_R)
             Sigma_grid_R(:, :, :) = -Sigma_grid_R*W_grid_R
             CALL self_energy_on_mesh(bs_env, full_cells, Sigma_grid_R, first_pair, G_grid_k, &
@@ -1176,7 +1176,7 @@ CONTAINS
                                    tau, ispin, .FALSE., G_grid_k)
             CALL k_to_real_cell_transform(G_grid_k, bs_env%kpoints_scf_desymm%xkp, &
                                           bs_env%kpoints_scf_desymm%nkp_grid, full_cells, Sigma_grid_R, &
-                                          bs_env%kpoints_scf_desymm%rskp_transform, profile_fft=.TRUE.)
+                                          rskp_backend_fft, profile_fft=.TRUE.)
             CALL filter_full_green_cells(bs_env, gwkp_env%group_env, Sigma_grid_R)
             Sigma_grid_R(:, :, :) = Sigma_grid_R*W_grid_R
             CALL self_energy_on_mesh(bs_env, full_cells, Sigma_grid_R, first_pair, G_grid_k, &
@@ -1777,8 +1777,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Σ_ll′(k) = Σ_R exp(2πik·R) Σ_ll′(R) on the native k mesh for the ordered grid pairs of
-!> this rank. FFT packs the original input directly. The destructive GEMM adapter uses copies
-!> of at most 64 MiB, keeping Σ(R) available for the band k points in both cases.
+!> this rank. FFT packs the original input without changing Σ(R).
 !> \param bs_env ...
 !> \param cells ...
 !> \param sigma_R ...
@@ -1789,31 +1788,14 @@ CONTAINS
    SUBROUTINE self_energy_on_mesh(bs_env, cells, sigma_R, first_pair, sigma_mesh, fft_work)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       INTEGER, INTENT(IN)                                :: cells(:, :)
-      REAL(KIND=dp), INTENT(INOUT)                       :: sigma_R(:, :, :)
+      REAL(KIND=dp), INTENT(IN)                          :: sigma_R(:, :, :)
       INTEGER, INTENT(IN)                                :: first_pair
       COMPLEX(KIND=dp), INTENT(OUT)                      :: sigma_mesh(:, :, :)
       TYPE(gw_pair_fft_work_type), INTENT(INOUT), &
          OPTIONAL, TARGET                                :: fft_work
 
-      INTEGER                                            :: i_first, n_chunk, n_pairs
-      REAL(KIND=dp), ALLOCATABLE                         :: chunk(:, :, :)
-
-      IF (bs_env%kpoints_scf_desymm%rskp_transform == rskp_backend_fft) THEN
-         ! The FFT adapter reads this array without modifying it; no protective chunk is needed.
-         CALL product_to_k_pair_centered(bs_env, cells, bs_env%kpoints_scf_desymm%xkp, sigma_R, sigma_mesh, &
-                                         first_pair, fft_work=fft_work)
-         RETURN
-      END IF
-      n_chunk = MAX(1, MIN(SIZE(sigma_R, 1), INT(64.0_dp*bytes_per_MiB/real_bytes)/SIZE(cells, 2)))
-      ALLOCATE (chunk(n_chunk, 1, SIZE(cells, 2)))
-      DO i_first = 1, SIZE(sigma_R, 1), n_chunk
-         n_pairs = MIN(n_chunk, SIZE(sigma_R, 1) - i_first + 1)
-         chunk(1:n_pairs, :, :) = sigma_R(i_first:i_first + n_pairs - 1, :, :)
-         CALL product_to_k_pair_centered(bs_env, cells, bs_env%kpoints_scf_desymm%xkp, chunk(1:n_pairs, :, :), &
-                                         sigma_mesh(i_first:i_first + n_pairs - 1, :, :), &
-                                         first_pair + i_first - 1)
-      END DO
-      DEALLOCATE (chunk)
+      CALL product_to_k_pair_centered(bs_env, cells, bs_env%kpoints_scf_desymm%xkp, sigma_R, sigma_mesh, &
+                                      first_pair, fft_work=fft_work)
    END SUBROUTINE self_energy_on_mesh
 
 ! **************************************************************************************************
@@ -2129,8 +2111,7 @@ CONTAINS
 !> H^{-1}(r_l-r_l'), F_ll'(k)=exp(2πiks) Σ_R exp(2πikR) F_ll'(R+s).
 !> The even-mesh Nyquist endpoints and half-cell choices of s are averaged symmetrically.
 !> On integer/half-shifted band meshes these averages are real separable endpoint weights,
-!> allowing one mesh transform. FFT fuses centering into its input packing and leaves values_R
-!> unchanged; the GEMM adapter consumes values_R in place using one cell-vector scratch.
+!> allowing one FFT. Centering is folded into input packing, leaving values_R unchanged.
 !> FFT tiles fold the source permutation and output Bloch phase into separable input factors.
 !> The rank owns the flattened column-major pairs first_pair, first_pair+1, ...
 !> \param bs_env ...
@@ -2145,7 +2126,7 @@ CONTAINS
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       INTEGER, INTENT(IN)                                :: cells(:, :)
       REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
-      REAL(KIND=dp), INTENT(INOUT)                       :: values_R(:, :, :)
+      REAL(KIND=dp), INTENT(IN)                          :: values_R(:, :, :)
       COMPLEX(KIND=dp), INTENT(OUT)                      :: values_k(:, :, :)
       INTEGER, INTENT(IN)                                :: first_pair
       TYPE(gw_pair_fft_work_type), INTENT(INOUT), &
@@ -2161,19 +2142,18 @@ CONTAINS
                                                             output(:, :, :, :)
       INTEGER :: cell_first, cell_last, class_x, class_y, class_z, combined_count, combined_id, &
          coordinate, count, first, handle, i, ibatch, icell, idir, ik, ilocal, isource, lower(3), &
-         naxis, nfft(3), ngrid, nmesh(3), row_first, row_last, shift(3), stat, unit_nr, width, &
-         wrapped(3)
+         naxis, nfft(3), ngrid, nmesh(3), row_first, row_last, stat, unit_nr, width
       INTEGER(KIND=int_8)                                :: axis_classes, cached_coefficients, &
                                                             combined_classes, nfft_grid, &
                                                             phase_evaluations
       INTEGER, ALLOCATABLE                               :: cell_coordinate(:, :), cell_index(:), &
                                                             grid_index(:, :), keys(:, :), &
                                                             order(:), pair_shift(:, :)
-      LOGICAL                                            :: cache_hit, tie(3), unpadded
+      LOGICAL                                            :: cache_hit, unpadded
       LOGICAL, ALLOCATABLE                               :: pair_tie(:, :)
       REAL(KIND=dp)                                      :: endpoint(3), k_offset(3), setup_seconds, &
                                                             started, total_started, weight
-      REAL(KIND=dp), ALLOCATABLE                         :: fractional_grid(:, :), scratch(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: fractional_grid(:, :)
       TYPE(gw_pair_fft_batch_type), POINTER              :: batch
       TYPE(gw_pair_fft_work_type), POINTER               :: plan
       TYPE(gw_pair_fft_work_type), TARGET                :: local_fft_work
@@ -2193,316 +2173,264 @@ CONTAINS
          IF (bs_env%periodic(idir) == 0) fractional_grid(idir, :) = 0.0_dp
       END DO
       CPASSERT(SIZE(values_R, 2) == 1)
-      IF (bs_env%kpoints_scf_desymm%rskp_transform == rskp_backend_fft) THEN
-         ! GW's physical centering stays here; the common FFT executor sees only packed grids.
-         ALLOCATE (grid_index(3, SIZE(xkp, 2)), cell_coordinate(3, SIZE(cells, 2)), &
-                   origin_phase(SIZE(xkp, 2)))
-         IF (.NOT. lattice_fft_prepare_geometry(xkp, nmesh, cells, grid_index, nfft, k_offset, &
-                                                cell_linear=cell_index, cell_origin=lower, &
-                                                origin_phase=origin_phase)) THEN
-            CPABORT('GW product needs a supported full FFT mesh')
-         END IF
-         CPASSERT(SIZE(cells, 2, KIND=int_8) == PRODUCT(INT(nmesh, int_8)))
-         CPASSERT(SIZE(values_R, 3) == SIZE(cells, 2))
-         IF (ANY(SHAPE(values_k) /= [SIZE(values_R, 1), 1, SIZE(xkp, 2)])) THEN
-            CPABORT('Inconsistent GW FFT output')
-         END IF
-         DO icell = 1, SIZE(cells, 2)
-            isource = 1 + cells(3, icell) - lower(3) + &
-                      nmesh(3)*(cells(2, icell) - lower(2) + nmesh(2)*(cells(1, icell) - lower(1)))
-            IF (isource /= icell) CPABORT('GW product needs canonical cells')
-            ! The shared geometry maps canonical cells directly into z-fastest FFT storage.
-            cell_coordinate(:, icell) = cells(:, icell) - lower + 1
-         END DO
-         unpadded = ALL(nfft == nmesh([3, 2, 1]))
-         profile%seconds(2) = m_walltime() - total_started
-         nfft_grid = PRODUCT(INT(nfft, int_8))
-         width = INT(MIN(MAX(1_int_8, SIZE(values_R, 1, KIND=int_8)), &
-                         MAX(1_int_8, fft_panel_bytes/(48_int_8*nfft_grid))))
-         CPASSERT(nfft_grid*width <= HUGE(0))
-         plan => local_fft_work
-         IF (PRESENT(fft_work)) plan => fft_work
-         cache_hit = plan%initialized
-         IF (cache_hit) THEN
-            CPASSERT(plan%first_pair == first_pair)
-            CPASSERT(plan%n_pairs == SIZE(values_R, 1))
-            CPASSERT(plan%width == width)
-            CPASSERT(plan%ngrid == ngrid)
-            CPASSERT(ALL(plan%nmesh == nmesh))
-            CPASSERT(ALL(SHAPE(plan%xkp) == [3, SIZE(xkp, 2)]))
-            CPASSERT(ALL(SHAPE(plan%cells) == [3, SIZE(cells, 2)]))
-            CPASSERT(ALL(plan%xkp == xkp(1:3, :)))
-            CPASSERT(ALL(plan%cells == cells(1:3, :)))
-         ELSE
-            plan%first_pair = first_pair
-            plan%n_pairs = SIZE(values_R, 1)
-            plan%width = width
-            plan%ngrid = ngrid
-            plan%nmesh = nmesh
-            ALLOCATE (plan%xkp, SOURCE=xkp(1:3, :))
-            ALLOCATE (plan%cells, SOURCE=cells(1:3, :))
-            ALLOCATE (plan%batches((SIZE(values_R, 1) + width - 1)/width))
-         END IF
-         started = m_walltime()
-         CALL fft_alloc(fft_in, [INT(nfft_grid)*width])
-         CALL fft_alloc(fft_out, [INT(nfft_grid)*width])
-         IF (.NOT. cache_hit) THEN
-            ALLOCATE (pair_shift(3, width), pair_tie(3, width), keys(3, width), order(width))
-         END IF
-         profile%seconds(3) = m_walltime() - started
-         setup_seconds = 0.0_dp
-         phase_evaluations = 0_int_8
-         axis_classes = 0_int_8
-         combined_classes = 0_int_8
-         cached_coefficients = 0_int_8
-         DO first = 1, SIZE(values_R, 1), width
-            count = MIN(width, SIZE(values_R, 1) - first + 1)
-            ibatch = (first - 1)/width + 1
-            batch => plan%batches(ibatch)
-            profile%elements = profile%elements + INT(count, int_8)
-            profile%batches = profile%batches + 1_int_8
-            profile%tile_min = MIN(profile%tile_min, count)
-            profile%tile_max = MAX(profile%tile_max, count)
-            started = m_walltime()
-            IF (.NOT. cache_hit) THEN
-               ALLOCATE (batch%axis_class(3, count), batch%combined_class(count), &
-                         batch%axis_factor(MAXVAL(nmesh), count, 3))
-               batch%axis_count = 0
-               !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-               !$OMP SHARED(first, count, pair_shift, pair_tie, first_pair, ngrid, fractional_grid) &
-               !$OMP PRIVATE(i, ilocal)
-               DO i = 1, count
-                  ilocal = first + i - 1
-                  CALL product_pair_shift(first_pair + ilocal - 1, ngrid, fractional_grid, &
-                                          pair_shift(:, i), pair_tie(:, i))
-               END DO
-               !$OMP END PARALLEL DO
-               ! For source cell t, let R = wrap(t-s) and R+s = t+n*h. On k=m/n+offset,
-               ! exp(2*pi*i*k*(R+s)) = exp(2*pi*i*m*t/n)*exp(2*pi*i*offset*(R+s)).
-               ! Pack F(t) at its original cell with the latter phase and the original weight w(R).
-               ! Each axis shares this input factor by exact (shift,tie), including large shifts.
-               DO idir = 1, 3
-                  keys(1, 1:count) = pair_shift(idir, 1:count)
-                  keys(2, 1:count) = MERGE(1, 0, pair_tie(idir, 1:count))
-                  CALL sort(keys, 1, count, 1, 2, order)
-                  naxis = 0
-                  DO i = 1, count
-                     IF (i > 1) THEN
-                        IF (ALL(keys(1:2, i) == keys(1:2, i - 1))) THEN
-                           batch%axis_class(idir, order(i)) = naxis
-                           CYCLE
-                        END IF
-                     END IF
-                     naxis = naxis + 1
-                     batch%axis_class(idir, order(i)) = naxis
-                     DO coordinate = 1, nmesh(idir)
-                        icell = lower(idir) + MODULO(coordinate - 1 - keys(1, i), nmesh(idir))
-                        weight = 1.0_dp
-                        IF (MODULO(nmesh(idir), 2) == 0) THEN
-                           IF (icell == lower(idir)) THEN
-                              IF (keys(2, i) == 1) THEN
-                                 weight = weight*(1.0_dp + 3.0_dp*endpoint(idir))/4.0_dp
-                              ELSE
-                                 weight = weight*(1.0_dp + endpoint(idir))/2.0_dp
-                              END IF
-                           ELSE IF (keys(2, i) == 1 .AND. icell == lower(idir) + 1) THEN
-                              weight = weight*(3.0_dp + endpoint(idir))/4.0_dp
-                           END IF
-                        ELSE IF (keys(2, i) == 1 .AND. icell == lower(idir)) THEN
-                           weight = weight*(1.0_dp + endpoint(idir))/2.0_dp
-                        END IF
-                        batch%axis_factor(coordinate, naxis, idir) = weight* &
-                                                                     EXP(CMPLX(0.0_dp, twopi*k_offset(idir)* &
-                                                                               (REAL(icell, dp) + REAL(keys(1, i), dp)), dp))
-                     END DO
-                  END DO
-                  axis_classes = axis_classes + INT(naxis, int_8)
-                  phase_evaluations = phase_evaluations + INT(naxis, int_8)*INT(nmesh(idir), int_8)
-               END DO
-               ! Group the complete (x,y,z) stencil triples, retaining original pair order.
-               keys(1:3, 1:count) = batch%axis_class(:, 1:count)
-               CALL sort(keys, 1, count, 1, 3, order)
-               combined_count = 0
-               DO i = 1, count
-                  IF (i == 1) THEN
-                     combined_count = 1
-                  ELSE IF (ANY(keys(:, i) /= keys(:, i - 1))) THEN
-                     combined_count = combined_count + 1
-                  END IF
-                  batch%combined_class(order(i)) = combined_count
-               END DO
-               combined_classes = combined_classes + INT(combined_count, int_8)
-
-               ! Bound cache memory to at most one quarter of the packed input.
-               batch%use_combined = combined_count <= count/4
-               IF (batch%use_combined) THEN
-                  ALLOCATE (batch%combined_factor(combined_count, SIZE(cell_index)))
-                  DO i = 1, count
-                     IF (i > 1) THEN
-                        IF (ALL(keys(:, i) == keys(:, i - 1))) CYCLE
-                     END IF
-                     combined_id = batch%combined_class(order(i))
-                     DO icell = 1, SIZE(cell_index)
-                        batch%combined_factor(combined_id, icell) = &
-                           batch%axis_factor(cell_coordinate(1, icell), keys(1, i), 1)* &
-                           batch%axis_factor(cell_coordinate(2, icell), keys(2, i), 2)* &
-                           batch%axis_factor(cell_coordinate(3, icell), keys(3, i), 3)
-                     END DO
-                  END DO
-                  cached_coefficients = cached_coefficients + &
-                                        SIZE(cell_index, KIND=int_8)*INT(combined_count, int_8)
-               END IF
-               batch%axis_count = INT(axis_classes, KIND=KIND(batch%axis_count)) - &
-                                  SUM([(plan%batches(i)%axis_count, i=1, ibatch - 1)])
-               batch%combined_count = combined_count
-               IF (batch%use_combined) THEN
-                  batch%cached_count = INT(SIZE(cell_index), int_8)*INT(combined_count, int_8)
-                  ! The combined path no longer needs its intermediate one-axis tables.
-                  DEALLOCATE (batch%axis_class, batch%axis_factor)
-               END IF
-            ELSE
-               axis_classes = axis_classes + INT(batch%axis_count, int_8)
-               combined_classes = combined_classes + INT(batch%combined_count, int_8)
-               cached_coefficients = cached_coefficients + batch%cached_count
-            END IF
-            IF (.NOT. cache_hit) setup_seconds = setup_seconds + m_walltime() - started
-            input(1:INT(nfft_grid), 1:count) => fft_in(1:INT(nfft_grid)*count)
-            started = m_walltime()
-            ! The canonical cell list covers each mesh slot once. Only padded slots need zeros.
-            IF (.NOT. unpadded) input = z_zero
-            !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-            !$OMP SHARED(input, values_R, cell_index, cell_coordinate, first, count, unpadded) &
-            !$OMP SHARED(batch) &
-            !$OMP PRIVATE(i, ilocal, icell, isource, class_x, class_y, class_z, row_first, row_last) &
-            !$OMP PRIVATE(cell_first, cell_last, pack_buffer)
-            DO row_first = 1, count, pack_pairs
-               row_last = MIN(count, row_first + pack_pairs - 1)
-               DO cell_first = 1, SIZE(cell_index), pack_cells
-                  cell_last = MIN(SIZE(cell_index), cell_first + pack_cells - 1)
-                  ! Adjacent pairs share source cache lines. The private tile keeps the subsequent
-                  ! transpose in cache while the destination is streamed one FFT grid at a time.
-                  DO icell = cell_first, cell_last
-                     !$OMP SIMD PRIVATE(ilocal, class_x, class_y, class_z)
-                     DO i = row_first, row_last
-                        ilocal = first + i - 1
-                        IF (batch%use_combined) THEN
-                           pack_buffer(i - row_first + 1, icell - cell_first + 1) = &
-                              batch%combined_factor(batch%combined_class(i), icell)*values_R(ilocal, 1, icell)
-                        ELSE
-                           class_x = batch%axis_class(1, i)
-                           class_y = batch%axis_class(2, i)
-                           class_z = batch%axis_class(3, i)
-                           pack_buffer(i - row_first + 1, icell - cell_first + 1) = &
-                              batch%axis_factor(cell_coordinate(1, icell), class_x, 1)* &
-                              batch%axis_factor(cell_coordinate(2, icell), class_y, 2)* &
-                              batch%axis_factor(cell_coordinate(3, icell), class_z, 3)*values_R(ilocal, 1, icell)
-                        END IF
-                     END DO
-                  END DO
-                  DO i = row_first, row_last
-                     IF (unpadded) THEN
-                        input(cell_first:cell_last, i) = pack_buffer(i - row_first + 1, 1:cell_last - cell_first + 1)
-                     ELSE
-                        DO icell = cell_first, cell_last
-                           input(cell_index(icell), i) = pack_buffer(i - row_first + 1, icell - cell_first + 1)
-                        END DO
-                     END IF
-                  END DO
-               END DO
-            END DO
-            !$OMP END PARALLEL DO
-            profile%seconds(4) = profile%seconds(4) + m_walltime() - started
-            CALL lattice_fft_execute(BWFFT, nfft, count, fft_in, fft_out, stat, profile)
-            IF (stat /= 0) CPABORT('GW product FFT failed')
-            output(1:count, 1:nfft(1), 1:nfft(2), 1:nfft(3)) => fft_in(1:INT(nfft_grid)*count)
-            started = m_walltime()
-            !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-            !$OMP SHARED(values_k, output, grid_index, xkp, first, count, origin_phase) PRIVATE(ik, i)
-            DO ik = 1, SIZE(xkp, 2)
-               DO i = 1, count
-                  values_k(first + i - 1, 1, ik) = origin_phase(ik)* &
-                                                   output(i, grid_index(1, ik), grid_index(2, ik), grid_index(3, ik))
-               END DO
-            END DO
-            !$OMP END PARALLEL DO
-            profile%seconds(8) = profile%seconds(8) + m_walltime() - started
-         END DO
-         started = m_walltime()
-         CALL fft_dealloc(fft_in)
-         CALL fft_dealloc(fft_out)
-         IF (.NOT. cache_hit) DEALLOCATE (pair_shift, pair_tie, keys, order)
-         DEALLOCATE (cell_index, cell_coordinate, grid_index, origin_phase)
-         plan%initialized = .TRUE.
-         profile%seconds(2) = profile%seconds(2) + setup_seconds
-         profile%seconds(9) = m_walltime() - started
-         unit_nr = cp_logger_get_default_io_unit()
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T2,A)') 'R2K_FFT_PROFILE| GW pair-centered packing/extraction; logger-rank wall seconds'
-            WRITE (unit_nr, '(T2,A,3I10)') 'R2K_FFT_PROFILE| source shape: ', SHAPE(values_R)
-            WRITE (unit_nr, '(T2,A,6I8)') 'R2K_FFT_PROFILE| grid / padded: ', nmesh, nfft
-            WRITE (unit_nr, '(T2,A,2I16,2I8)') 'R2K_FFT_PROFILE| elements/batches/tile min/max: ', &
-               profile%elements, profile%batches, profile%tile_min, profile%tile_max
-            WRITE (unit_nr, '(T2,A,9F12.6)') 'R2K_FFT_PROFILE| init/geometry/buffers/fill/X/Y/Z/extract/release: ', profile%seconds
-            WRITE (unit_nr, '(T2,A,F14.6)') 'R2K_FFT_PROFILE| class-setup (included in geometry): ', setup_seconds
-            WRITE (unit_nr, '(T2,A,2I16)') 'R2K_FFT_PROFILE| input-axis phase evaluations / stencil classes: ', &
-               phase_evaluations, axis_classes
-            WRITE (unit_nr, '(T2,A,2I16)') 'R2K_FFT_PROFILE| 3D stencil classes / cached coefficients: ', &
-               combined_classes, cached_coefficients
-            WRITE (unit_nr, '(T2,A,L2)') 'R2K_FFT_PROFILE| reused stencil cache: ', cache_hit
-            WRITE (unit_nr, '(T2,A,2I8)') 'R2K_FFT_PROFILE| packing tile pairs/cells: ', pack_pairs, pack_cells
-            WRITE (unit_nr, '(T2,A,F14.6)') 'R2K_FFT_PROFILE| total         ', m_walltime() - total_started
-         END IF
-         CALL timestop(handle)
-         RETURN
+      ! GW's physical centering stays here; the common FFT executor sees only packed grids.
+      ALLOCATE (grid_index(3, SIZE(xkp, 2)), cell_coordinate(3, SIZE(cells, 2)), &
+                origin_phase(SIZE(xkp, 2)))
+      IF (.NOT. lattice_fft_prepare_geometry(xkp, nmesh, cells, grid_index, nfft, k_offset, &
+                                             cell_linear=cell_index, cell_origin=lower, &
+                                             origin_phase=origin_phase)) THEN
+         CPABORT('GW product needs a supported full FFT mesh')
       END IF
-      !$OMP PARALLEL DEFAULT(NONE) &
-      !$OMP SHARED(values_R, cells, nmesh, lower, endpoint, first_pair, ngrid, fractional_grid) &
-      !$OMP PRIVATE(ilocal, shift, tie, scratch, icell, wrapped, isource, weight, idir)
-      ALLOCATE (scratch(SIZE(cells, 2)))
-      !$OMP DO SCHEDULE(STATIC)
-      DO ilocal = 1, SIZE(values_R, 1)
-         CALL product_pair_shift(first_pair + ilocal - 1, ngrid, fractional_grid, shift, tie)
-         scratch(:) = values_R(ilocal, 1, :)
-         DO icell = 1, SIZE(cells, 2)
-            wrapped = MODULO(cells(:, icell) + shift - lower, nmesh) + lower
-            isource = 1 + wrapped(3) - lower(3) + &
-                      nmesh(3)*(wrapped(2) - lower(2) + nmesh(2)*(wrapped(1) - lower(1)))
-            weight = 1.0_dp
+      CPASSERT(SIZE(cells, 2, KIND=int_8) == PRODUCT(INT(nmesh, int_8)))
+      CPASSERT(SIZE(values_R, 3) == SIZE(cells, 2))
+      IF (ANY(SHAPE(values_k) /= [SIZE(values_R, 1), 1, SIZE(xkp, 2)])) THEN
+         CPABORT('Inconsistent GW FFT output')
+      END IF
+      DO icell = 1, SIZE(cells, 2)
+         isource = 1 + cells(3, icell) - lower(3) + &
+                   nmesh(3)*(cells(2, icell) - lower(2) + nmesh(2)*(cells(1, icell) - lower(1)))
+         IF (isource /= icell) CPABORT('GW product needs canonical cells')
+         ! The shared geometry maps canonical cells directly into z-fastest FFT storage.
+         cell_coordinate(:, icell) = cells(:, icell) - lower + 1
+      END DO
+      unpadded = ALL(nfft == nmesh([3, 2, 1]))
+      profile%seconds(2) = m_walltime() - total_started
+      nfft_grid = PRODUCT(INT(nfft, int_8))
+      width = INT(MIN(MAX(1_int_8, SIZE(values_R, 1, KIND=int_8)), &
+                      MAX(1_int_8, fft_panel_bytes/(48_int_8*nfft_grid))))
+      CPASSERT(nfft_grid*width <= HUGE(0))
+      plan => local_fft_work
+      IF (PRESENT(fft_work)) plan => fft_work
+      cache_hit = plan%initialized
+      IF (cache_hit) THEN
+         CPASSERT(plan%first_pair == first_pair)
+         CPASSERT(plan%n_pairs == SIZE(values_R, 1))
+         CPASSERT(plan%width == width)
+         CPASSERT(plan%ngrid == ngrid)
+         CPASSERT(ALL(plan%nmesh == nmesh))
+         CPASSERT(ALL(SHAPE(plan%xkp) == [3, SIZE(xkp, 2)]))
+         CPASSERT(ALL(SHAPE(plan%cells) == [3, SIZE(cells, 2)]))
+         CPASSERT(ALL(plan%xkp == xkp(1:3, :)))
+         CPASSERT(ALL(plan%cells == cells(1:3, :)))
+      ELSE
+         plan%first_pair = first_pair
+         plan%n_pairs = SIZE(values_R, 1)
+         plan%width = width
+         plan%ngrid = ngrid
+         plan%nmesh = nmesh
+         ALLOCATE (plan%xkp, SOURCE=xkp(1:3, :))
+         ALLOCATE (plan%cells, SOURCE=cells(1:3, :))
+         ALLOCATE (plan%batches((SIZE(values_R, 1) + width - 1)/width))
+      END IF
+      started = m_walltime()
+      CALL fft_alloc(fft_in, [INT(nfft_grid)*width])
+      CALL fft_alloc(fft_out, [INT(nfft_grid)*width])
+      IF (.NOT. cache_hit) THEN
+         ALLOCATE (pair_shift(3, width), pair_tie(3, width), keys(3, width), order(width))
+      END IF
+      profile%seconds(3) = m_walltime() - started
+      setup_seconds = 0.0_dp
+      phase_evaluations = 0_int_8
+      axis_classes = 0_int_8
+      combined_classes = 0_int_8
+      cached_coefficients = 0_int_8
+      DO first = 1, SIZE(values_R, 1), width
+         count = MIN(width, SIZE(values_R, 1) - first + 1)
+         ibatch = (first - 1)/width + 1
+         batch => plan%batches(ibatch)
+         profile%elements = profile%elements + INT(count, int_8)
+         profile%batches = profile%batches + 1_int_8
+         profile%tile_min = MIN(profile%tile_min, count)
+         profile%tile_max = MAX(profile%tile_max, count)
+         started = m_walltime()
+         IF (.NOT. cache_hit) THEN
+            ALLOCATE (batch%axis_class(3, count), batch%combined_class(count), &
+                      batch%axis_factor(MAXVAL(nmesh), count, 3))
+            batch%axis_count = 0
+            !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+            !$OMP SHARED(first, count, pair_shift, pair_tie, first_pair, ngrid, fractional_grid) &
+            !$OMP PRIVATE(i, ilocal)
+            DO i = 1, count
+               ilocal = first + i - 1
+               CALL product_pair_shift(first_pair + ilocal - 1, ngrid, fractional_grid, &
+                                       pair_shift(:, i), pair_tie(:, i))
+            END DO
+            !$OMP END PARALLEL DO
+            ! For source cell t, let R = wrap(t-s) and R+s = t+n*h. On k=m/n+offset,
+            ! exp(2*pi*i*k*(R+s)) = exp(2*pi*i*m*t/n)*exp(2*pi*i*offset*(R+s)).
+            ! Pack F(t) at its original cell with the latter phase and the original weight w(R).
+            ! Each axis shares this input factor by exact (shift,tie), including large shifts.
             DO idir = 1, 3
-               IF (MODULO(nmesh(idir), 2) == 0) THEN
-                  IF (cells(idir, icell) == lower(idir)) THEN
-                     IF (tie(idir)) THEN
-                        weight = weight*(1.0_dp + 3.0_dp*endpoint(idir))/4.0_dp
-                     ELSE
+               keys(1, 1:count) = pair_shift(idir, 1:count)
+               keys(2, 1:count) = MERGE(1, 0, pair_tie(idir, 1:count))
+               CALL sort(keys, 1, count, 1, 2, order)
+               naxis = 0
+               DO i = 1, count
+                  IF (i > 1) THEN
+                     IF (ALL(keys(1:2, i) == keys(1:2, i - 1))) THEN
+                        batch%axis_class(idir, order(i)) = naxis
+                        CYCLE
+                     END IF
+                  END IF
+                  naxis = naxis + 1
+                  batch%axis_class(idir, order(i)) = naxis
+                  DO coordinate = 1, nmesh(idir)
+                     icell = lower(idir) + MODULO(coordinate - 1 - keys(1, i), nmesh(idir))
+                     weight = 1.0_dp
+                     IF (MODULO(nmesh(idir), 2) == 0) THEN
+                        IF (icell == lower(idir)) THEN
+                           IF (keys(2, i) == 1) THEN
+                              weight = weight*(1.0_dp + 3.0_dp*endpoint(idir))/4.0_dp
+                           ELSE
+                              weight = weight*(1.0_dp + endpoint(idir))/2.0_dp
+                           END IF
+                        ELSE IF (keys(2, i) == 1 .AND. icell == lower(idir) + 1) THEN
+                           weight = weight*(3.0_dp + endpoint(idir))/4.0_dp
+                        END IF
+                     ELSE IF (keys(2, i) == 1 .AND. icell == lower(idir)) THEN
                         weight = weight*(1.0_dp + endpoint(idir))/2.0_dp
                      END IF
-                  ELSE IF (tie(idir) .AND. cells(idir, icell) == lower(idir) + 1) THEN
-                     weight = weight*(3.0_dp + endpoint(idir))/4.0_dp
-                  END IF
-               ELSE IF (tie(idir) .AND. cells(idir, icell) == lower(idir)) THEN
-                  weight = weight*(1.0_dp + endpoint(idir))/2.0_dp
-               END IF
+                     batch%axis_factor(coordinate, naxis, idir) = weight* &
+                                                                  EXP(CMPLX(0.0_dp, twopi*k_offset(idir)* &
+                                                                            (REAL(icell, dp) + REAL(keys(1, i), dp)), dp))
+                  END DO
+               END DO
+               axis_classes = axis_classes + INT(naxis, int_8)
+               phase_evaluations = phase_evaluations + INT(naxis, int_8)*INT(nmesh(idir), int_8)
             END DO
-            values_R(ilocal, 1, icell) = weight*scratch(isource)
-         END DO
-      END DO
-      !$OMP END DO
-      DEALLOCATE (scratch)
-      !$OMP END PARALLEL
-      CALL cell_to_k_transform(values_R, cells, xkp, nmesh, values_k, &
-                               bs_env%kpoints_scf_desymm%rskp_transform, profile_fft=.TRUE.)
-      !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-      !$OMP SHARED(values_k, xkp, first_pair, ngrid, fractional_grid) &
-      !$OMP PRIVATE(ilocal, shift, tie, ik)
-      DO ilocal = 1, SIZE(values_k, 1)
-         CALL product_pair_shift(first_pair + ilocal - 1, ngrid, fractional_grid, shift, tie)
-         DO ik = 1, SIZE(xkp, 2)
-            values_k(ilocal, 1, ik) = values_k(ilocal, 1, ik)* &
-                                      EXP(CMPLX(0.0_dp, twopi*DOT_PRODUCT(xkp(1:3, ik), REAL(shift, dp)), dp))
-         END DO
-      END DO
-      !$OMP END PARALLEL DO
+            ! Group the complete (x,y,z) stencil triples, retaining original pair order.
+            keys(1:3, 1:count) = batch%axis_class(:, 1:count)
+            CALL sort(keys, 1, count, 1, 3, order)
+            combined_count = 0
+            DO i = 1, count
+               IF (i == 1) THEN
+                  combined_count = 1
+               ELSE IF (ANY(keys(:, i) /= keys(:, i - 1))) THEN
+                  combined_count = combined_count + 1
+               END IF
+               batch%combined_class(order(i)) = combined_count
+            END DO
+            combined_classes = combined_classes + INT(combined_count, int_8)
 
+            ! Bound cache memory to at most one quarter of the packed input.
+            batch%use_combined = combined_count <= count/4
+            IF (batch%use_combined) THEN
+               ALLOCATE (batch%combined_factor(combined_count, SIZE(cell_index)))
+               DO i = 1, count
+                  IF (i > 1) THEN
+                     IF (ALL(keys(:, i) == keys(:, i - 1))) CYCLE
+                  END IF
+                  combined_id = batch%combined_class(order(i))
+                  DO icell = 1, SIZE(cell_index)
+                     batch%combined_factor(combined_id, icell) = &
+                        batch%axis_factor(cell_coordinate(1, icell), keys(1, i), 1)* &
+                        batch%axis_factor(cell_coordinate(2, icell), keys(2, i), 2)* &
+                        batch%axis_factor(cell_coordinate(3, icell), keys(3, i), 3)
+                  END DO
+               END DO
+               cached_coefficients = cached_coefficients + &
+                                     SIZE(cell_index, KIND=int_8)*INT(combined_count, int_8)
+            END IF
+            batch%axis_count = INT(axis_classes, KIND=KIND(batch%axis_count)) - &
+                               SUM([(plan%batches(i)%axis_count, i=1, ibatch - 1)])
+            batch%combined_count = combined_count
+            IF (batch%use_combined) THEN
+               batch%cached_count = INT(SIZE(cell_index), int_8)*INT(combined_count, int_8)
+               ! The combined path no longer needs its intermediate one-axis tables.
+               DEALLOCATE (batch%axis_class, batch%axis_factor)
+            END IF
+         ELSE
+            axis_classes = axis_classes + INT(batch%axis_count, int_8)
+            combined_classes = combined_classes + INT(batch%combined_count, int_8)
+            cached_coefficients = cached_coefficients + batch%cached_count
+         END IF
+         IF (.NOT. cache_hit) setup_seconds = setup_seconds + m_walltime() - started
+         input(1:INT(nfft_grid), 1:count) => fft_in(1:INT(nfft_grid)*count)
+         started = m_walltime()
+         ! The canonical cell list covers each mesh slot once. Only padded slots need zeros.
+         IF (.NOT. unpadded) input = z_zero
+         !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+         !$OMP SHARED(input, values_R, cell_index, cell_coordinate, first, count, unpadded) &
+         !$OMP SHARED(batch) &
+         !$OMP PRIVATE(i, ilocal, icell, isource, class_x, class_y, class_z, row_first, row_last) &
+         !$OMP PRIVATE(cell_first, cell_last, pack_buffer)
+         DO row_first = 1, count, pack_pairs
+            row_last = MIN(count, row_first + pack_pairs - 1)
+            DO cell_first = 1, SIZE(cell_index), pack_cells
+               cell_last = MIN(SIZE(cell_index), cell_first + pack_cells - 1)
+               ! Adjacent pairs share source cache lines. The private tile keeps the subsequent
+               ! transpose in cache while the destination is streamed one FFT grid at a time.
+               DO icell = cell_first, cell_last
+                  !$OMP SIMD PRIVATE(ilocal, class_x, class_y, class_z)
+                  DO i = row_first, row_last
+                     ilocal = first + i - 1
+                     IF (batch%use_combined) THEN
+                        pack_buffer(i - row_first + 1, icell - cell_first + 1) = &
+                           batch%combined_factor(batch%combined_class(i), icell)*values_R(ilocal, 1, icell)
+                     ELSE
+                        class_x = batch%axis_class(1, i)
+                        class_y = batch%axis_class(2, i)
+                        class_z = batch%axis_class(3, i)
+                        pack_buffer(i - row_first + 1, icell - cell_first + 1) = &
+                           batch%axis_factor(cell_coordinate(1, icell), class_x, 1)* &
+                           batch%axis_factor(cell_coordinate(2, icell), class_y, 2)* &
+                           batch%axis_factor(cell_coordinate(3, icell), class_z, 3)*values_R(ilocal, 1, icell)
+                     END IF
+                  END DO
+               END DO
+               DO i = row_first, row_last
+                  IF (unpadded) THEN
+                     input(cell_first:cell_last, i) = pack_buffer(i - row_first + 1, 1:cell_last - cell_first + 1)
+                  ELSE
+                     DO icell = cell_first, cell_last
+                        input(cell_index(icell), i) = pack_buffer(i - row_first + 1, icell - cell_first + 1)
+                     END DO
+                  END IF
+               END DO
+            END DO
+         END DO
+         !$OMP END PARALLEL DO
+         profile%seconds(4) = profile%seconds(4) + m_walltime() - started
+         CALL lattice_fft_execute(BWFFT, nfft, count, fft_in, fft_out, stat, profile)
+         IF (stat /= 0) CPABORT('GW product FFT failed')
+         output(1:count, 1:nfft(1), 1:nfft(2), 1:nfft(3)) => fft_in(1:INT(nfft_grid)*count)
+         started = m_walltime()
+         !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+         !$OMP SHARED(values_k, output, grid_index, xkp, first, count, origin_phase) PRIVATE(ik, i)
+         DO ik = 1, SIZE(xkp, 2)
+            DO i = 1, count
+               values_k(first + i - 1, 1, ik) = origin_phase(ik)* &
+                                                output(i, grid_index(1, ik), grid_index(2, ik), grid_index(3, ik))
+            END DO
+         END DO
+         !$OMP END PARALLEL DO
+         profile%seconds(8) = profile%seconds(8) + m_walltime() - started
+      END DO
+      started = m_walltime()
+      CALL fft_dealloc(fft_in)
+      CALL fft_dealloc(fft_out)
+      IF (.NOT. cache_hit) DEALLOCATE (pair_shift, pair_tie, keys, order)
+      DEALLOCATE (cell_index, cell_coordinate, grid_index, origin_phase)
+      plan%initialized = .TRUE.
+      profile%seconds(2) = profile%seconds(2) + setup_seconds
+      profile%seconds(9) = m_walltime() - started
+      unit_nr = cp_logger_get_default_io_unit()
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A)') 'R2K_FFT_PROFILE| GW pair-centered packing/extraction; logger-rank wall seconds'
+         WRITE (unit_nr, '(T2,A,3I10)') 'R2K_FFT_PROFILE| source shape: ', SHAPE(values_R)
+         WRITE (unit_nr, '(T2,A,6I8)') 'R2K_FFT_PROFILE| grid / padded: ', nmesh, nfft
+         WRITE (unit_nr, '(T2,A,2I16,2I8)') 'R2K_FFT_PROFILE| elements/batches/tile min/max: ', &
+            profile%elements, profile%batches, profile%tile_min, profile%tile_max
+         WRITE (unit_nr, '(T2,A,9F12.6)') 'R2K_FFT_PROFILE| init/geometry/buffers/fill/X/Y/Z/extract/release: ', profile%seconds
+         WRITE (unit_nr, '(T2,A,F14.6)') 'R2K_FFT_PROFILE| class-setup (included in geometry): ', setup_seconds
+         WRITE (unit_nr, '(T2,A,2I16)') 'R2K_FFT_PROFILE| input-axis phase evaluations / stencil classes: ', &
+            phase_evaluations, axis_classes
+         WRITE (unit_nr, '(T2,A,2I16)') 'R2K_FFT_PROFILE| 3D stencil classes / cached coefficients: ', &
+            combined_classes, cached_coefficients
+         WRITE (unit_nr, '(T2,A,L2)') 'R2K_FFT_PROFILE| reused stencil cache: ', cache_hit
+         WRITE (unit_nr, '(T2,A,2I8)') 'R2K_FFT_PROFILE| packing tile pairs/cells: ', pack_pairs, pack_cells
+         WRITE (unit_nr, '(T2,A,F14.6)') 'R2K_FFT_PROFILE| total         ', m_walltime() - total_started
+      END IF
       CALL timestop(handle)
 
    END SUBROUTINE product_to_k_pair_centered
