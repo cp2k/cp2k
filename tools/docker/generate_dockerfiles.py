@@ -83,7 +83,12 @@ def main() -> None:
         with OutputFile(
             f"Dockerfile.test_spack_psmp-gcc{gcc_version}", args.check
         ) as f:
-            base_image = "ubuntu:26.04" if gcc_version > 12 else "ubuntu:24.04"
+            if gcc_version > 15:
+                base_image = "ubuntu:26.10"
+            elif gcc_version > 12:
+                base_image = "ubuntu:26.04"
+            else:
+                base_image = "ubuntu:24.04"
             feature_flags = "" if gcc_version > 10 else "-df libtorch"
             f.write(
                 install_cp2k_spack(
