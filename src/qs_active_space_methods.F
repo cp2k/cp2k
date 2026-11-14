@@ -2545,14 +2545,20 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: as_input
       LOGICAL, INTENT(IN)                                :: restricted
 
+      CHARACTER(LEN=*), PARAMETER :: roks_warning = &
+         "ROKS FCIDUMP spin blocks differ. Check the cell size and the consistency of "// &
+         "the SCF exchange and active-space ERI operators."
+      REAL(KIND=dp), PARAMETER                           :: roks_fock_tol = 1.0E-6_dp
+
       INTEGER                                            :: i, i1, i2, i3, i4, isym, iw, m1, m2, &
                                                             ms2, nmo, norb, nspins
-      REAL(KIND=dp)                                      :: checksum, esub
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: fmat
+      REAL(KIND=dp)                                      :: checksum, esub, spin_difference
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: fmat, fock_diff, pmat
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(eri_fcidump_checksum)                         :: eri_checksum
 
       checksum = 0.0_dp
+      spin_difference = 0.0_dp
 
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, as_input, "FCIDUMP", &
@@ -2586,6 +2592,22 @@ CONTAINS
             nmo = active_space_env%eri%norb
             ALLOCATE (fmat(nmo, nmo))
             CALL replicate_and_symmetrize_matrix(nmo, active_space_env%fock_sub(1), fmat)
+            esub = active_space_env%energy_inactive
+            IF (restricted) THEN
+               ALLOCATE (fock_diff(nmo, nmo), pmat(nmo, nmo))
+               CALL replicate_and_symmetrize_matrix(nmo, active_space_env%fock_sub(2), fock_diff)
+               fock_diff(:, :) = fmat - fock_diff
+               ASSOCIATE (active => active_space_env%active_orbitals(:, 1))
+                  spin_difference = MAXVAL(ABS(fock_diff(active, active)))
+               END ASSOCIATE
+               ! Use one spin-independent operator and preserve the energy at the embedding density.
+               fmat(:, :) = fmat - 0.5_dp*fock_diff
+               CALL replicate_and_symmetrize_matrix(nmo, active_space_env%p_active(1), pmat)
+               esub = esub + 0.5_dp*SUM(fock_diff*pmat)
+               CALL replicate_and_symmetrize_matrix(nmo, active_space_env%p_active(2), pmat)
+               esub = esub - 0.5_dp*SUM(fock_diff*pmat)
+               DEALLOCATE (fock_diff, pmat)
+            END IF
             IF (iw > 0) THEN
                i3 = 0; i4 = 0
                DO m1 = 1, SIZE(active_space_env%active_orbitals, 1)
@@ -2599,7 +2621,6 @@ CONTAINS
             END IF
             DEALLOCATE (fmat)
             ! Print energy
-            esub = active_space_env%energy_inactive
             i1 = 0; i2 = 0; i3 = 0; i4 = 0
             checksum = checksum + ABS(esub)
             IF (iw > 0) WRITE (iw, "(ES23.16,4I4)") esub, i1, i2, i3, i4
@@ -2679,6 +2700,13 @@ CONTAINS
       !>>
       iw = cp_logger_get_default_io_unit(logger)
       IF (iw > 0) WRITE (iw, '(T4,A,T66,F12.8)') "FCIDUMP| Checksum:", eri_checksum%checksum + checksum
+      IF (restricted) THEN
+         IF (iw > 0) WRITE (iw, '(T4,A,1X,ES12.5)') &
+            "FCIDUMP| Max. ROKS spin-block difference [hartree]:", spin_difference
+         IF (spin_difference > roks_fock_tol) THEN
+            CPWARN(roks_warning)
+         END IF
+      END IF
       !<<
 
    END SUBROUTINE fcidump
