@@ -35,7 +35,7 @@ MODULE fftw3_lib
 
    PUBLIC :: fftw3_do_init, fftw3_do_cleanup, fftw3_get_lengths, fftw33d, fftw31dm
    PUBLIC :: fftw3_destroy_plan, fftw3_create_plan_1d, fftw3_create_plan_3d
-   PUBLIC :: fftw_alloc, fftw_dealloc
+   PUBLIC :: fftw_alloc, fftw_dealloc, fftw3_pair_major_3d
 
    INTEGER, SAVE :: fftw_plan_type = -1
 
@@ -1053,6 +1053,45 @@ CONTAINS
 #endif
 
    END SUBROUTINE fftw3_create_plan_1d
+
+! **************************************************************************************************
+!> \brief Complete all three FFT axes on pair-major (P,Z,Y,X) data using FFTW3.
+!>        Input and output use the same layout. n is in z,y,x storage order.
+!>        FFTW_ESTIMATE does not overwrite the input during planning.
+! **************************************************************************************************
+   SUBROUTINE fftw3_pair_major_3d(sign, n, nbatch, zin, zout, stat)
+      INTEGER, INTENT(IN)                                :: sign, n(3), nbatch
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
+      INTEGER, INTENT(OUT)                               :: stat
+#if defined(__FFTW3)
+      TYPE(C_PTR)                                        :: plan
+      INTEGER                                            :: fft_sign, nthreads, shape(3)
+
+      ! Legacy Fortran FFTW wrappers reverse dimensions internally.
+      ! Supply z,y,x here to obtain C-side x,y,z.
+      shape = n
+      fft_sign = FFTW_BACKWARD
+      IF (sign == 1) fft_sign = FFTW_FORWARD
+
+      nthreads = 1
+!$    nthreads = MIN(omp_get_max_threads(), nbatch)
+      CALL fftw_plan_with_nthreads(nthreads)
+      CALL dfftw_plan_many_dft(plan, 3, shape, nbatch, zin, shape, nbatch, 1, &
+                               zout, shape, nbatch, 1, fft_sign, FFTW_ESTIMATE)
+      CALL fftw_plan_with_nthreads(1)
+      stat = 1
+      IF (.NOT. C_ASSOCIATED(plan)) RETURN
+      CALL fftw_execute_dft(plan, zin, zout)
+      CALL fftw_destroy_plan(plan)
+      stat = 0
+#else
+      MARK_USED(sign)
+      MARK_USED(n)
+      MARK_USED(nbatch)
+      IF (.FALSE.) THEN; DO; IF (ABS(zin(1)) > ABS(zout(1))) EXIT; END DO; END IF
+      stat = 1
+#endif
+   END SUBROUTINE fftw3_pair_major_3d
 
 ! **************************************************************************************************
 !> \brief ...

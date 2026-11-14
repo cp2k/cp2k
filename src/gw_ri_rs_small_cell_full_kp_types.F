@@ -12,7 +12,7 @@
 MODULE gw_ri_rs_small_cell_full_kp_types
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
-   USE kpoint_methods,                  ONLY: kp_transform_plan_type
+   USE kpoint_transform,                ONLY: kp_transform_plan_type
    USE message_passing,                 ONLY: mp_para_env_type
 #include "./base/base_uses.f90"
 

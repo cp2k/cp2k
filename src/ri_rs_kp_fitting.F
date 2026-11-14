@@ -13,12 +13,13 @@ MODULE ri_rs_kp_fitting
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
-   USE input_constants,                 ONLY: do_potential_short
+   USE input_constants,                 ONLY: do_potential_short,&
+                                              rskp_backend_gemm
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE kpoint_transform,                ONLY: cell_to_k_transform
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: pi,&
-                                              twopi,&
                                               z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_print_mem_per_rank,&
@@ -210,9 +211,9 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: empty_matrix(0, 0), phase
       COMPLEX(KIND=dp), ALLOCATABLE                      :: D_llp_q(:, :), D_llp_q_batch(:, :, :), &
                                                             D_llp_q_local(:, :), d_lP_q(:, :)
-      INTEGER :: first_l_rank, first_q, handle, i_batch, i_rank, info, iq, iq_batch, iq_local, &
-         iq_store, l, last_l_rank, last_q, lp, n_grid, n_q, n_q_local, n_RI, n_RI_solve, n_sub, &
-         next_progress
+      INTEGER :: backend, first_l_rank, first_q, handle, i_batch, i_rank, info, iq, iq_batch, &
+         iq_local, iq_store, l, last_l_rank, last_q, lp, n_grid, n_q, n_q_local, n_RI, n_RI_solve, &
+         n_sub, next_progress
       INTEGER(KIND=int_8)                                :: n_done, n_local
       INTEGER, ALLOCATABLE                               :: displs(:), recvcounts(:)
       LOGICAL, ALLOCATABLE                               :: active_grid_point(:)
@@ -232,6 +233,7 @@ CONTAINS
          n_RI_solve = n_RI + 1
       END IF
       n_q = SIZE(qpoints, 2)
+      backend = MERGE(bs_env%kpoints_scf_desymm%rskp_transform, rskp_backend_gemm, distributed)
       ! q points are cyclic: rank MOD(q,P) for the SCF mesh, MOD(q-1,P) otherwise.
       iq = MODULO(bs_env%para_env%mepos - MERGE(1, 0, distributed), bs_env%para_env%num_pe) + 1
       n_q_local = n_q
@@ -273,8 +275,10 @@ CONTAINS
          DO first_q = i_batch*bs_env%para_env%num_pe + 1, &
             MIN(n_q, (i_batch + 1)*bs_env%para_env%num_pe), n_sub
             last_q = MIN(first_q + n_sub - 1, n_q, (i_batch + 1)*bs_env%para_env%num_pe)
-            CALL lattice_sum_to_q(SIZE(D_llp_q_batch, 1)*n_grid, D_llp_R, cells_R_D_llp, &
-                                  qpoints(:, first_q:last_q), -1.0_dp, D_llp_q_batch)
+            CALL cell_to_k_transform(D_llp_R, cells_R_D_llp, -qpoints(:, first_q:last_q), &
+                                     bs_env%kpoints_scf_desymm%nkp_grid, &
+                                     D_llp_q_batch(:, :, 1:last_q - first_q + 1), backend, &
+                                     profile_fft=.TRUE., profile_label='RI-RS D_R -> D_q')
             DO iq_batch = first_q, last_q
                D_llp_q_local(:, :) = TRANSPOSE(D_llp_q_batch(:, :, iq_batch - first_q + 1))
                i_rank = MODULO(iq_batch - 1, bs_env%para_env%num_pe)
@@ -687,9 +691,9 @@ CONTAINS
 
       COMPLEX(dp), ALLOCATABLE                           :: result_q(:, :, :)
       COMPLEX(dp), ALLOCATABLE, ASYNCHRONOUS             :: receive_q(:), send_q(:, :, :)
-      INTEGER :: first_l, first_q, handle, i_dest, i_l, i_P, i_q, i_rank, i_slot, last_l, last_q, &
-         local_first_l, local_last_l, n_active_q, n_l, n_P, n_ranks, n_recv, n_sub, position, &
-         q_column, q_offset
+      INTEGER :: backend, first_l, first_q, handle, i_dest, i_l, i_P, i_q, i_rank, i_slot, last_l, &
+         last_q, local_first_l, local_last_l, n_active_q, n_l, n_P, n_ranks, n_recv, n_sub, &
+         position, q_column, q_offset
       INTEGER, ALLOCATABLE                               :: q_dest(:), q_indices(:)
       LOGICAL                                            :: receiving, sending(2)
       TYPE(mp_request_type)                              :: send_requests(2)
@@ -698,6 +702,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       n_ranks = bs_env%para_env%num_pe
+      backend = MERGE(bs_env%kpoints_scf_desymm%rskp_transform, rskp_backend_gemm, distributed)
       i_rank = bs_env%para_env%mepos
       q_offset = 0
       IF (distributed) q_offset = 1
@@ -741,8 +746,10 @@ CONTAINS
          ALLOCATE (result_q(SIZE(d_lP_R, 1), n_P, n_sub))
          DO first_q = 1, n_active_q, n_sub
             last_q = MIN(first_q + n_sub - 1, n_active_q)
-            CALL lattice_sum_to_q(SIZE(d_lP_R, 1)*n_P, d_lP_R, cells_R_d_lP, &
-                                  qpoints(:, q_indices(first_q:last_q)), 1.0_dp, result_q)
+            CALL cell_to_k_transform(d_lP_R, cells_R_d_lP, qpoints(:, q_indices(first_q:last_q)), &
+                                     bs_env%kpoints_scf_desymm%nkp_grid, &
+                                     result_q(:, :, 1:last_q - first_q + 1), backend, &
+                                     profile_fft=.TRUE., profile_label='RI-RS d_lP_R -> d_lP_q')
             DO q_column = first_q, last_q
                i_dest = q_dest(q_column)
                i_slot = MODULO(i_dest, 2) + 1
@@ -782,60 +789,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE fourier_transform_d_lP_R_to_q
-
-! **************************************************************************************************
-!> \brief Lattice sums X_q(:, q) = Σ_R exp(±2πi q·R) X_R(:, R) for several q points, as two real
-!>        GEMMs against cosine and sine tables over row blocks of X_R on all OpenMP threads.
-!> \param n number of rows of X_R and X_q
-!> \param values_R X_R, one column per lattice vector
-!> \param cells lattice vectors of the columns of X_R
-!> \param qpoints q points in reciprocal lattice coordinates
-!> \param sign +1 or -1, the sign of the phase
-!> \param values_q X_q, one column per q point
-! **************************************************************************************************
-   SUBROUTINE lattice_sum_to_q(n, values_R, cells, qpoints, sign, values_q)
-      INTEGER, INTENT(IN)                                :: n, cells(:, :)
-      REAL(KIND=dp), INTENT(IN)                          :: values_R(n, SIZE(cells, 2)), &
-                                                            qpoints(:, :), sign
-      COMPLEX(KIND=dp), INTENT(OUT)                      :: values_q(n, SIZE(qpoints, 2))
-
-      INTEGER, PARAMETER                                 :: row_block = 4096
-
-      COMPLEX(KIND=dp)                                   :: phase
-      INTEGER                                            :: first, i_R, iq, n_q, n_R, nrows
-      REAL(KIND=dp), ALLOCATABLE                         :: phase_cos(:, :), phase_sin(:, :), &
-                                                            work_cos(:, :), work_sin(:, :)
-
-      n_R = SIZE(cells, 2)
-      n_q = SIZE(qpoints, 2)
-      IF (n_R == 0) THEN
-         values_q = z_zero
-         RETURN
-      END IF
-      ALLOCATE (phase_cos(n_R, n_q), phase_sin(n_R, n_q))
-      DO iq = 1, n_q
-         DO i_R = 1, n_R
-            phase = EXP(CMPLX(0.0_dp, sign*twopi*SUM(qpoints(1:3, iq)*REAL(cells(1:3, i_R), dp)), KIND=dp))
-            phase_cos(i_R, iq) = REAL(phase, KIND=dp)
-            phase_sin(i_R, iq) = AIMAG(phase)
-         END DO
-      END DO
-      !$OMP PARALLEL DEFAULT(NONE) SHARED(n, n_q, n_R, values_R, values_q, phase_cos, phase_sin) &
-      !$OMP PRIVATE(first, nrows, work_cos, work_sin)
-      ALLOCATE (work_cos(row_block, n_q), work_sin(row_block, n_q))
-      !$OMP DO SCHEDULE(DYNAMIC)
-      DO first = 1, n, row_block
-         nrows = MIN(row_block, n - first + 1)
-         CALL dgemm('N', 'N', nrows, n_q, n_R, 1.0_dp, values_R(first, 1), n, phase_cos, n_R, &
-                    0.0_dp, work_cos, row_block)
-         CALL dgemm('N', 'N', nrows, n_q, n_R, 1.0_dp, values_R(first, 1), n, phase_sin, n_R, &
-                    0.0_dp, work_sin, row_block)
-         values_q(first:first + nrows - 1, :) = CMPLX(work_cos(1:nrows, :), work_sin(1:nrows, :), KIND=dp)
-      END DO
-      !$OMP END DO
-      DEALLOCATE (work_cos, work_sin)
-      !$OMP END PARALLEL
-
-   END SUBROUTINE lattice_sum_to_q
 
 END MODULE ri_rs_kp_fitting

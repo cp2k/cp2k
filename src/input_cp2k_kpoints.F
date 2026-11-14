@@ -14,6 +14,8 @@
 MODULE input_cp2k_kpoints
    USE bibliography,                    ONLY: MacDonald1978,&
                                               Monkhorst1976
+   USE input_constants,                 ONLY: rskp_backend_fft,&
+                                              rskp_backend_gemm
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -39,17 +41,13 @@ MODULE input_cp2k_kpoints
                                               use_k290_kpoint_symmetry = 200, &
                                               use_spglib_kpoint_symmetry = 201, &
                                               use_k290_kpoint_backend = 300, &
-                                              use_spglib_kpoint_backend = 301, &
-                                              lattice_fft_auto = 400, &
-                                              lattice_fft_on = 401, &
-                                              lattice_fft_off = 402
+                                              use_spglib_kpoint_backend = 301
 
    PUBLIC :: create_kpoints_section
    PUBLIC :: create_kpoint_set_section
    PUBLIC :: use_real_wfn, use_complex_wfn
    PUBLIC :: use_k290_kpoint_symmetry, use_spglib_kpoint_symmetry
    PUBLIC :: use_k290_kpoint_backend, use_spglib_kpoint_backend
-   PUBLIC :: lattice_fft_auto, lattice_fft_on, lattice_fft_off
 
 CONTAINS
 
@@ -63,7 +61,7 @@ CONTAINS
 !>      SYMMETRY         [on, off]
 !>      WAVEFUNCTION     [real, complex]
 !>      FULL_GRID        [on, off]
-!>      LATTICE_FFT      [auto, on, off]
+!>      RSKP_TRANSFORM   [gemm, fft]
 !>      INVERSION_SYMMETRY_ONLY [on, off]
 !>      DEBUG_FULL_KPOINT_SYMMETRY [on, off]
 !>      SYMMETRY_BACKEND [K290, SPGLIB]
@@ -147,22 +145,18 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="LATTICE_FFT", &
-                          description="Control lattice FFTs for real-space operators and grouped k-point densities. "// &
-                          "The density path also accepts regular-grid subsets with their original weights. "// &
-                          "AUTO uses the lattice FFT for at least "// &
-                          "27 k points when the grid, memory, and communication-granularity requirements "// &
-                          "are satisfied. ON bypasses these performance thresholds. OFF always uses the "// &
-                          "established direct phase sum. "// &
-                          "Unsupported or oversized grids retain the direct fallback. Both directions accept "// &
-                          "subsets of a regular grid; the forward transform returns only the requested points.", &
-                          usage="LATTICE_FFT AUTO", type_of_var=enum_t, &
-                          enum_c_vals=s2a("AUTO", "ON", "OFF"), &
-                          enum_i_vals=[lattice_fft_auto, lattice_fft_on, lattice_fft_off], &
-                          enum_desc=s2a("Select the FFT from a conservative cost threshold.", &
-                                        "Prefer the FFT whenever the grid and memory checks allow it.", &
-                                        "Use direct phase sums instead of lattice FFTs."), &
-                          default_i_val=lattice_fft_auto)
+      CALL keyword_create(keyword, __LOCATION__, name="RSKP_TRANSFORM", &
+                          description="Select the backend for bulk real-space/k-point transforms, including RI-RS GW. "// &
+                          "GEMM contracts captured image panels with Bloch phases in k-point batches. "// &
+                          "FFT uses supported regular grids; forward transforms also accept subsets. "// &
+                          "Inverse FFT accepts weighted regular-grid subsets "// &
+                          "without spatial rotations. Explicit single-point and property Fourier calls "// &
+                          "are independent of this setting. Unsupported forced FFT configurations abort.", &
+                          usage="RSKP_TRANSFORM GEMM", type_of_var=enum_t, &
+                          enum_c_vals=s2a("GEMM", "FFT"), &
+                          enum_i_vals=[rskp_backend_gemm, rskp_backend_fft], &
+                          enum_desc=s2a("Use sparse phase GEMMs.", "Use regular-grid lattice FFTs."), &
+                          default_i_val=rskp_backend_gemm)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

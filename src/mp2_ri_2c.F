@@ -36,10 +36,8 @@ MODULE mp2_ri_2c
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_p_type, dbcsr_release, &
-        dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric
+        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks
-   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_dist2d_to_dist,&
                                               dbcsr_allocate_matrix_set,&
@@ -78,8 +76,11 @@ MODULE mp2_ri_2c
                                               coulomb_operator_type
    USE kinds,                           ONLY: dp
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
-   USE kpoint_methods,                  ONLY: kpoint_init_cell_index,&
-                                              rskp_transform
+   USE kpoint_methods,                  ONLY: kpoint_init_cell_index
+   USE kpoint_transform,                ONLY: rskp_prepared_transform_type,&
+                                              rskp_transform_evaluate,&
+                                              rskp_transform_prepare,&
+                                              rskp_transform_release
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
    USE machine,                         ONLY: m_flush
@@ -664,10 +665,8 @@ CONTAINS
                                                             nimg, nkind, nkp
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sizes_RI
       INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: my_do_build_cell_index, my_put_mat_KS_env
       REAL(KIND=dp)                                      :: my_regularization_RI
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_cfm_type)                                  :: cfm_matrix_S_global
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -676,8 +675,7 @@ CONTAINS
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_RI_aux_transl
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: mat_2c
-      TYPE(dbcsr_type), POINTER                          :: cmatrix, matrix_s_RI_aux_desymm, &
-                                                            rmatrix, tmpmat
+      TYPE(dbcsr_type), POINTER                          :: matrix_s_RI_aux_desymm
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_2d_type), POINTER                :: dist_2d
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_RI
@@ -686,6 +684,7 @@ CONTAINS
          POINTER                                         :: sab_RI
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(rskp_prepared_transform_type)                 :: transform
 
       CALL timeset(routineN, handle)
 
@@ -745,8 +744,7 @@ CONTAINS
          IF (my_do_build_cell_index) THEN
             CALL kpoint_init_cell_index(kpoints, sab_RI, para_env, dft_control%nimages)
          END IF
-         CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, &
-                              cell_to_index=cell_to_index)
+         CALL get_kpoint_info(kpoints, nkp=nkp)
          nimg = dft_control%nimages
       ELSE
          nkp = 1
@@ -801,57 +799,29 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_RI, &
                                ncol_global=dimen_RI, para_env=para_env)
 
-      CALL cp_fm_create(fm_matrix_S_global, fm_struct)
-      CALL cp_fm_set_all(fm_matrix_S_global, 0.0_dp)
-      IF (do_kpoints) CALL cp_cfm_create(cfm_matrix_S_global, fm_struct, set_zero=.TRUE.)
+      IF (do_kpoints) THEN
+         CALL cp_cfm_create(cfm_matrix_S_global, fm_struct, set_zero=.TRUE.)
+      ELSE
+         CALL cp_fm_create(fm_matrix_S_global, fm_struct)
+         CALL cp_fm_set_all(fm_matrix_S_global, 0.0_dp)
+      END IF
 
       IF (do_kpoints) THEN
-
-         ALLOCATE (rmatrix, cmatrix, tmpmat)
-         CALL dbcsr_create(rmatrix, template=matrix_s_RI_aux_transl(1, 1)%matrix, &
-                           matrix_type=dbcsr_type_symmetric)
-         CALL dbcsr_create(cmatrix, template=matrix_s_RI_aux_transl(1, 1)%matrix, &
-                           matrix_type=dbcsr_type_antisymmetric)
-         CALL dbcsr_create(tmpmat, template=matrix_s_RI_aux_transl(1, 1)%matrix, &
-                           matrix_type=dbcsr_type_no_symmetry)
-         CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_RI)
-         CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_RI)
+         CALL rskp_transform_prepare(transform, matrix_s_RI_aux_transl, [1], sab_RI, &
+                                     kpoints%cell_to_index, fm_struct, world=para_env, &
+                                     backend=kpoints%rskp_transform, xkp=kpoints%xkp, &
+                                     nkp_grid=kpoints%nkp_grid)
 
          DO ikp = 1, nkp
-
-            ! s matrix is not spin dependent, double the work
-            CALL dbcsr_set(rmatrix, 0.0_dp)
-            CALL dbcsr_set(cmatrix, 0.0_dp)
-
-            IF (PRESENT(ikp_ext)) THEN
-               ikp_for_xkp = ikp_ext
-            ELSE
-               ikp_for_xkp = ikp
-            END IF
-
-            CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_s_RI_aux_transl, ispin=1, &
-                                xkp=xkp(1:3, ikp_for_xkp), cell_to_index=cell_to_index, sab_nl=sab_RI)
-
-            CALL dbcsr_set(tmpmat, 0.0_dp)
-            CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-
-            CALL cp_fm_set_all(fm_matrix_S_global, 0.0_dp)
-            CALL copy_dbcsr_to_fm(tmpmat, fm_matrix_S_global)
-            CALL cp_fm_to_cfm(msourcer=fm_matrix_S_global, mtarget=cfm_matrix_S_global)
-
-            CALL dbcsr_set(tmpmat, 0.0_dp)
-            CALL dbcsr_desymmetrize(cmatrix, tmpmat)
-
-            CALL cp_fm_set_all(fm_matrix_S_global, 0.0_dp)
-            CALL copy_dbcsr_to_fm(tmpmat, fm_matrix_S_global)
-            CALL cp_cfm_scale_and_add_fm(z_one, cfm_matrix_S_global, gaussi, fm_matrix_S_global)
+            ikp_for_xkp = ikp
+            IF (PRESENT(ikp_ext)) ikp_for_xkp = ikp_ext
+            CALL rskp_transform_evaluate(transform, 1, ikp_for_xkp, kpoints%xkp, &
+                                         cfm=cfm_matrix_S_global)
             CALL cp_cfm_copy_general(cfm_matrix_S_global, cfm_matrix_M_kpoints(ikp), para_env)
 
          END DO
 
-         CALL dbcsr_deallocate_matrix(rmatrix)
-         CALL dbcsr_deallocate_matrix(cmatrix)
-         CALL dbcsr_deallocate_matrix(tmpmat)
+         CALL rskp_transform_release(transform)
 
       ELSE
 
@@ -874,7 +844,7 @@ CONTAINS
 
       CALL cp_fm_struct_release(fm_struct)
 
-      CALL cp_fm_release(fm_matrix_S_global)
+      IF (.NOT. do_kpoints) CALL cp_fm_release(fm_matrix_S_global)
 
       IF (do_kpoints) THEN
          CALL cp_cfm_release(cfm_matrix_S_global)

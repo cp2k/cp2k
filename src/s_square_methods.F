@@ -41,6 +41,10 @@ MODULE s_square_methods
    USE input_constants,                 ONLY: do_s2_constraint,&
                                               do_s2_restraint
    USE kinds,                           ONLY: dp
+   USE kpoint_transform,                ONLY: rskp_prepared_transform_type,&
+                                              rskp_transform_evaluate,&
+                                              rskp_transform_prepare,&
+                                              rskp_transform_release
    USE kpoint_types,                    ONLY: get_kpoint_env,&
                                               get_kpoint_info,&
                                               kpoint_env_type,&
@@ -51,14 +55,6 @@ MODULE s_square_methods
                                               zero
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE qs_kpoint_operators,             ONLY: kpoint_operator_context_create,&
-                                              kpoint_operator_context_release,&
-                                              kpoint_operator_context_type,&
-                                              kpoint_operator_finish,&
-                                              kpoint_operator_prepare,&
-                                              kpoint_operator_start,&
-                                              kpoint_slot_s,&
-                                              kpoint_spin_free
    USE qs_matrix_pools,                 ONLY: mpools_get,&
                                               qs_matrix_pools_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -163,8 +159,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_s_square_kp'
 
-      INTEGER                                            :: handle, ikp, kplocal, kpmax, nalpha, &
-                                                            nao, nbeta
+      INTEGER                                            :: handle, ik, ikp, kplocal, nalpha, nao, &
+                                                            nbeta
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       LOGICAL                                            :: wfn_real
@@ -174,23 +170,24 @@ CONTAINS
       TYPE(cp_cfm_type), POINTER                         :: c_alpha, c_beta
       TYPE(cp_fm_pool_type), POINTER                     :: ao_ao_fm_pool
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, matrix_struct
-      TYPE(cp_fm_type)                                   :: asb, asb2, fmglobal, fmlocal, rsmat, scb
-      TYPE(cp_fm_type), POINTER                          :: moc, r_alpha, r_beta
+      TYPE(cp_fm_type)                                   :: asb, asb2, fmlocal, rsmat, scb
+      TYPE(cp_fm_type), POINTER                          :: r_alpha, r_beta
       TYPE(kpoint_env_type), POINTER                     :: kp
-      TYPE(kpoint_operator_context_type)                 :: op_ctx
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env_inter_kp, para_env_kp
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
+      TYPE(rskp_prepared_transform_type)                 :: transform
 
       CALL timeset(routineN, handle)
 
       CALL get_kpoint_info(kpoints, use_real_wfn=wfn_real, kp_range=kp_range, &
-                           kp_dist=kp_dist, sab_nl=sab_nl)
+                           kp_dist=kp_dist, sab_nl=sab_nl, para_env_kp=para_env_kp, &
+                           para_env_inter_kp=para_env_inter_kp)
       CPASSERT(ASSOCIATED(sab_nl))
 
       kplocal = kp_range(2) - kp_range(1) + 1
-      kpmax = MAXVAL(kp_dist(2, :) - kp_dist(1, :) + 1)
 
       ! fm pools to be used within a kpoint group
       CALL get_kpoint_info(kpoints, mpools=mpools)
@@ -204,28 +201,22 @@ CONTAINS
       END IF
       CALL fm_pool_give_back_fm(ao_ao_fm_pool, fmlocal)
 
-      ! fm matrix_structure for the global environment
-      CALL get_mo_set(mo_set=mosin(1), mo_coeff=moc, nao=nao)
-      CALL cp_fm_create(fmglobal, moc%matrix_struct, nrow=nao, ncol=nao)
-      ! The overlap is spin free: the routine drives every instance under the
-      ! single spin-free key.
-      CALL kpoint_operator_context_create(op_ctx, kpoints, fmglobal, 1)
-      CALL kpoint_operator_prepare(op_ctx, matrix_s, kpoint_slot_s, matrix_row=kpoint_spin_free)
-      DO ikp = 1, kpmax
-         CALL kpoint_operator_start(op_ctx, ikp, kpoint_spin_free, matrix_s, kpoint_slot_s, &
-                                    use_grid=.FALSE., matrix_row=kpoint_spin_free)
-      END DO
-      CALL cp_fm_release(fmglobal)
+      ! The overlap has one spin-free real-space row shared by both spins.
+      CALL get_mo_set(mo_set=mosin(1), nao=nao)
+      CALL rskp_transform_prepare(transform, matrix_s, [1], sab_nl, kpoints%cell_to_index, &
+                                  matrix_struct, kpoints%blacs_env_all%para_env, para_env_kp, &
+                                  para_env_inter_kp, kpoints%rskp_transform, kpoints%xkp, &
+                                  kpoints%nkp_grid, kp_dist)
 
       s2 = 0.0_dp
-      DO ikp = 1, kpmax
+      DO ik = 1, SIZE(kpoints%xkp, 2)
+         ikp = ik - kp_range(1) + 1
          IF (wfn_real) THEN
-            CALL kpoint_operator_finish(op_ctx, ikp, kpoint_spin_free, kpoint_slot_s, fm_re=rsmat)
+            CALL rskp_transform_evaluate(transform, 1, ik, kpoints%xkp, fm_re=rsmat)
          ELSE
-            CALL kpoint_operator_finish(op_ctx, ikp, kpoint_spin_free, kpoint_slot_s, cmat=csmat)
+            CALL rskp_transform_evaluate(transform, 1, ik, kpoints%xkp, cfm=csmat)
          END IF
-
-         IF (ikp > kplocal) CYCLE
+         IF (ikp < 1 .OR. ikp > kplocal) CYCLE
 
          kp => kpoints%kp_env(ikp)%kpoint_env
          CALL get_kpoint_env(kp, wkp=wkp, mos=mos)
@@ -289,7 +280,7 @@ CONTAINS
       s_square_ideal = REAL((nela - nelb)*(nela - nelb + 2), KIND=dp)/4.0_dp
       s_square = s_square_ideal + nelb - s2
 
-      CALL kpoint_operator_context_release(op_ctx)
+      CALL rskp_transform_release(transform)
 
       IF (wfn_real) THEN
          CALL cp_fm_release(rsmat)
