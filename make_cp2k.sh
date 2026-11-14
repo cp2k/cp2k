@@ -1883,7 +1883,7 @@ run_benchmark_input() {
   else
     echo "failed."
     echo
-    [[ -f "\${output}" ]] && tail -n 100 "\${output}"
+    [[ -f "\${output}" ]] && tail -n 1000 "\${output}"
     echo
     echo "Summary: Running \${input} failed."
     echo "Status: FAILED"
@@ -2111,7 +2111,7 @@ if [[ -n "${GROMACS_VERSION}" ]]; then
   if ((EXIT_CODE != 0)); then
     echo "ERROR: The CMake configuration step for GROMACS failed with the error code ${EXIT_CODE}"
     [[ "${IN_CONTAINER}" == "yes" ]] && mkdir -p /workspace/artifacts/ && cp "${GROMACS_BUILD_PATH}"/*.log /workspace/artifacts/
-    tail -n 200 "${GROMACS_BUILD_PATH}"/cmake.log
+    tail -n 1000 "${GROMACS_BUILD_PATH}"/cmake.log
     echo -e "\nStatus: FAILED\n"
     ${EXIT_CMD} "${EXIT_CODE}"
   fi
@@ -2123,7 +2123,7 @@ if [[ -n "${GROMACS_VERSION}" ]]; then
   if ((EXIT_CODE != 0)); then
     echo "ERROR: The CMake build step for GROMACS failed with the error code ${EXIT_CODE}"
     [[ "${IN_CONTAINER}" == "yes" ]] && mkdir -p /workspace/artifacts/ && cp "${GROMACS_BUILD_PATH}"/*.log /workspace/artifacts/
-    tail -n 200 "${GROMACS_BUILD_PATH}"/make.log
+    tail -n 1000 "${GROMACS_BUILD_PATH}"/make.log
     ${EXIT_CMD} "${EXIT_CODE}"
   fi
 
@@ -2135,7 +2135,7 @@ if [[ -n "${GROMACS_VERSION}" ]]; then
   if ((EXIT_CODE != 0)); then
     [[ "${IN_CONTAINER}" == "yes" ]] && mkdir -p /workspace/artifacts/ && cp "${GROMACS_BUILD_PATH}"/*.log /workspace/artifacts/
     echo -e "\nERROR: The CMake installation step for GROMACS failed with the error code ${EXIT_CODE}"
-    tail -n 100 "${GROMACS_BUILD_PATH}"/install.log
+    tail -n 1000 "${GROMACS_BUILD_PATH}"/install.log
     ${EXIT_CMD} "${EXIT_CODE}"
   fi
 
