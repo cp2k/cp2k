@@ -83,6 +83,7 @@
 - CELL_OPT: optimize cell in reduced constraint coordinates
   ([#6433](https://github.com/cp2k/cp2k/pull/6433))
 - RI-HFX for GAPW low-spin ROKS ([#6496](https://github.com/cp2k/cp2k/pull/6496))
+- General unit specification for SUBSYS/VELOCITY ([#6548](https://github.com/cp2k/cp2k/pull/6548))
 - IDPP initialization for Cartesian bands ([#6570](https://github.com/cp2k/cp2k/pull/6570))
   [#5887](https://github.com/cp2k/cp2k/pull/5887))
 - All requested local FFTs can be performed on the GPU by requesting PREFERRED_FFT_LIBRARY GPU

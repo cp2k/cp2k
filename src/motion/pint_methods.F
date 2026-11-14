@@ -1323,11 +1323,12 @@ CONTAINS
       CALL section_vals_get(input_section, explicit=explicit)
       IF (explicit) THEN
 
-         CALL section_vals_val_get(input_section, "PINT_UNIT", &
-                                   c_val=unit_str)
+         CALL section_vals_val_get(input_section, "UNIT", c_val=unit_str)
          unit_conv = cp_unit_to_cp2k(1.0_dp, TRIM(unit_str))
 
          ! assign all the beads with the same velocities from FORCE_EVAL%SUBSYS%VELOCITY
+         ! TODO: same as read_input_velocities in md_vel_utils.F,
+         ! consider cell_transform_input_cartesian
          NULLIFY (r_vals)
          CALL section_vals_val_get(input_section, "_DEFAULT_KEYWORD_", &
                                    n_rep_val=n_rep_val)

@@ -139,10 +139,17 @@ section on equilibration below for how to address this.
 
 ## Initial velocities
 
-If velocities are not provided by a restart file or an external trajectory, CP2K can initialise
-atomic velocities from [TEMPERATURE](#CP2K_INPUT.MOTION.MD.TEMPERATURE). The
-[INITIALIZATION_METHOD](#CP2K_INPUT.MOTION.MD.INITIALIZATION_METHOD) keyword controls how the
-initial positions and velocities are generated.
+The initial velocities can be provided by a [motion restart file](../restarting.md#motion-restart)
+or the [SUBSYS/VELOCITY](#CP2K_INPUT.FORCE_EVAL.SUBSYS.VELOCITY) section. For the latter, the unit
+can be given in the [UNIT](#CP2K_INPUT.FORCE_EVAL.SUBSYS.VELOCITY.UNIT) keyword, which defaults to
+the atomic unit (a.u.) of velocity, i.e. the atomic unit of length (bohr) divided by the atomic unit
+of time (au_t). 1 a.u. of velocity is about $2.18769 \times 10^6$ m/s or $21.8769$ angstrom/fs.
+
+In the absence of input data provided above, CP2K can initialise atomic velocities from the keyword
+[TEMPERATURE](#CP2K_INPUT.MOTION.MD.TEMPERATURE). The generation of initial positions and velocities
+is controlled by [INITIALIZATION_METHOD](#CP2K_INPUT.MOTION.MD.INITIALIZATION_METHOD); `DEFAULT` is
+the most common choice, which randomizes the velocities with a pseudo-random number generator seeded
+by [GLOBAL/SEED](#CP2K_INPUT.GLOBAL.SEED) and then rescales them to match the specified temperature.
 
 For isolated molecules, clusters, slabs, or other systems where global translation or rotation is
 not part of the intended dynamics, it can be useful to remove centre-of-mass translation and, when
@@ -217,6 +224,20 @@ Do not use crude velocity rescaling as a production thermostat.
 [TEMP_TOL](#CP2K_INPUT.MOTION.MD.TEMP_TOL) can trigger velocity rescaling when the instantaneous
 temperature deviates from the target, but this keyword is obsolescent; a CSVR thermostat with a
 short time constant is usually the better early- equilibration replacement.
+
+```{note}
+Currently, the value given in the `TEMPERATURE` keyword is used both for generating the initial
+velocities and as the constant target temperature of thermostats.
+
+Initializing velocities with the `DEFAULT` method and applying a thermostat using a common value of
+temperature do not guarantee that the temperature stays near that value during the run. A common
+observation is that the earlier steps show temperature dropping (especially if the initial structure
+has been optimized) or rising (if the initial structure is crude) drastically; this is fine as long
+as nothing peculiar happens when visualizing the trajectory. It takes time for constant-temperature
+thermostats to catch up with the fluctuating system dynamics and adjust the actual temperature near
+the equilibrium target; hence, do not make hasty judgements before the trajectory gets sufficiently
+long.
+```
 
 ## Barostats and NPT simulations
 
@@ -327,9 +348,13 @@ For stochastic equilibration, use the `LANGEVIN` ensemble and adjust
 equilibrate more slowly; larger values thermostat more aggressively.
 
 Temperature is an instantaneous kinetic estimator and is expected to fluctuate. A single snapshot at
-the target temperature is not evidence of equilibration. Check structural, energetic, and
-property-specific observables. For heterogeneous systems, do not rely only on total energy or global
-temperature; also inspect the region of interest.
+the target temperature is not evidence of equilibration. The relevant structural, energetic, and
+property-specific observables should be checked: plot both the instantaneous data and its running
+average, calculate important characteristics such as the mean, standard deviation and kurtosis for
+several time windows, and perform [normality tests](https://en.wikipedia.org/wiki/Normality_test)
+and/or [linear regressions](https://en.wikipedia.org/wiki/Linear_regression) on the quantities. For
+heterogeneous systems, do not rely only on total energy or global temperature; also inspect the
+region of interest.
 
 ## Trajectories, energies, and restarts
 
@@ -352,6 +377,18 @@ different types of calculations. MD tasks make use of motion restart files, and 
 there are wavefunction restart files; details about them can be found at [](../restarting). For
 production runs, writing restart files frequently enough can be helpful for extending the trajectory
 and sampling time, both for normal terminations and for erroneous or interrupted tasks.
+
+## Post-analysis
+
+Standalone post-analysis programs, with installation and documentation separated from the main CP2K
+program, are available under the `tools/` directory for recent versions (development since August
+2026, release 2027.1 or later):
+
+- `trajana` ([repository link](https://github.com/cp2k/cp2k/tree/master/tools/trajana)) for various
+  general post-processing workflows;
+- `spatial_distribution`
+  ([repository link](https://github.com/cp2k/cp2k/tree/master/tools/spatial_distribution)) for the
+  spatial distribution function (SDF).
 
 ## Validation checklist
 
