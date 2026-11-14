@@ -31,13 +31,11 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE fft_lib,                         ONLY: fft_3d,&
-                                              fft_create_plan_3d,&
-                                              fft_destroy_plan
-   USE fft_plan,                        ONLY: fft_plan_type
-   USE fft_tools,                       ONLY: FWFFT,&
-                                              fft_alloc,&
-                                              fft_dealloc
+   USE fft_api,                         ONLY: fft_3d_local,&
+                                              fft_allocate,&
+                                              fft_deallocate,&
+                                              fft_register_3d_local
+   USE fft_tools,                       ONLY: FWFFT
    USE gw_ri_rs_small_cell_full_kp_gamma,ONLY: add_gamma_corr_cell_correction,&
                                               add_gamma_corr_pair_cell,&
                                               gamma_point_correction,&
@@ -2280,12 +2278,11 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE                      :: cell_phase(:), row_R(:, :, :)
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: fft_in(:, :, :), fft_out(:, :, :)
       INTEGER                                            :: d, handle, i, icell, ik, irow, ithread, &
-                                                            j, local_stat, nfft(3), nthreads, stat
+                                                            j, nfft(3), nthreads, stat
       INTEGER, ALLOCATABLE                               :: cell_index(:, :), grid_index(:, :)
       LOGICAL                                            :: regular
       REAL(KIND=dp)                                      :: k_offset(3), weight
       TYPE(fft_buffer_type), ALLOCATABLE                 :: buffers(:)
-      TYPE(fft_plan_type)                                :: plan
       TYPE(k_grid_to_cell_work_type)                     :: work
 
       CALL timeset(routineN, handle)
@@ -2305,17 +2302,17 @@ CONTAINS
          nthreads = lattice_fft_num_threads(nfft, SIZE(values_R, 1)*SIZE(values_R, 2))
          ALLOCATE (buffers(nthreads))
          DO ithread = 1, nthreads
-            CALL fft_alloc(buffers(ithread)%zin, nfft)
-            CALL fft_alloc(buffers(ithread)%zout, nfft)
+            CALL fft_allocate(buffers(ithread)%zin, nfft)
+            CALL fft_allocate(buffers(ithread)%zout, nfft)
          END DO
          stat = 0
 !$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(nthreads) &
-!$OMP SHARED(buffers, plan, nfft, values_k, values_R, grid_index, cell_index, cell_phase, weight) &
-!$OMP PRIVATE(ithread, fft_in, fft_out, i, j, ik, icell, local_stat) REDUCTION(MAX:stat)
+!$OMP SHARED(buffers, nfft, values_k, values_R, grid_index, cell_index, cell_phase, weight) &
+!$OMP PRIVATE(ithread, fft_in, fft_out, i, j, ik, icell) REDUCTION(MAX:stat)
          ! Each worker executes serial FFTs; this ICV change is scoped to its implicit task.
 !$       CALL omp_set_num_threads(1)
 !$OMP SINGLE
-         CALL fft_create_plan_3d(plan, .FALSE., FWFFT, nfft, buffers(1)%zin, buffers(1)%zout)
+         CALL fft_register_3d_local(FWFFT, nfft, 1, .FALSE., .FALSE., buffers(1)%zin, buffers(1)%zout)
 !$OMP END SINGLE
          ithread = 1
 !$       ithread = omp_get_thread_num() + 1
@@ -2328,9 +2325,7 @@ CONTAINS
                DO ik = 1, SIZE(values_k, 3)
                   fft_in(grid_index(1, ik), grid_index(2, ik), grid_index(3, ik)) = weight*values_k(i, j, ik)
                END DO
-               CALL fft_3d(plan, 1.0_dp, fft_in, fft_out, local_stat)
-               stat = MAX(stat, local_stat)
-               IF (local_stat /= 0) CYCLE
+               CALL fft_3d_local(FWFFT, nfft, 1, .FALSE., .FALSE., fft_in, fft_out)
                DO icell = 1, SIZE(values_R, 3)
                   values_R(i, j, icell) = REAL(cell_phase(icell)* &
                                                fft_out(cell_index(1, icell), cell_index(2, icell), &
@@ -2340,10 +2335,9 @@ CONTAINS
          END DO
 !$OMP END DO
 !$OMP END PARALLEL
-         CALL fft_destroy_plan(plan)
          DO ithread = 1, nthreads
-            CALL fft_dealloc(buffers(ithread)%zin)
-            CALL fft_dealloc(buffers(ithread)%zout)
+            CALL fft_deallocate(buffers(ithread)%zin)
+            CALL fft_deallocate(buffers(ithread)%zout)
          END DO
          DEALLOCATE (buffers, cell_index, cell_phase)
       END IF

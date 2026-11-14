@@ -182,6 +182,9 @@ list(
   farming_types.F
   fde_main.F
   fde_methods.F
+  fft/fft_api.F
+  fft/fft_gpu.F
+  fft/fft_tools.F
   fist_efield_methods.F
   fist_efield_types.F
   fist_energy_types.F
@@ -1308,13 +1311,6 @@ list(
   pw_env_methods.F
   pw_env/pw_env_types.F
   pw_env/rs_pw_interface.F
-  pw/fft/fft_kinds.F
-  pw/fft/fft_lib.F
-  pw/fft/fft_plan.F
-  pw/fft/fftsg_lib.F
-  pw/fft/fftw3_lib.F
-  pw/fft/mltfftsg_tools.F
-  pw/fft_tools.F
   pw/lazy.F
   pw/mt_util.F
   pw_poisson_read_input.F
@@ -1327,10 +1323,8 @@ list(
   pw/ps_wavelet_types.F
   pw/ps_wavelet_util.F
   pw/pw_copy_all.F
-  pw/pw_fpga.F
   pw/pw_grid_info.F
   pw/pw_grids.F
-  pw/pw_gpu.F
   pw/pw_grid_types.F
   pw/pw_methods.F
   pw/pw_poisson_methods.F
@@ -1594,6 +1588,9 @@ set(CP2K_DBM_SRCS_C
     dbm/dbm_multiply_cpu.c
     dbm/dbm_shard.c)
 
+set(CP2K_FFT_SRCS_C fft/fft_api_F.c fft/fft_lib.c fft/fft_lib_fftw.c
+                    fft/fft_lib_test.c fft/fft_timer.c fft/gpu/fft_gpu.c)
+
 set(CP2K_GRID_SRCS_C
     grid/common/grid_basis_set.c
     grid/common/grid_library.c
@@ -1618,9 +1615,6 @@ set(CP2K_GRID_SRCS_C
     grid/cpu/grid_cpu_task_list.c
     grid/grid_replay.c)
 
-set(CP2K_FPGA_SRC_C pw/fpga/fft_fpga.c pw/fpga/opencl_utils.c)
-set(CP2K_PW_SRCS_C pw/gpu/pw_gpu_internal.c)
-
 # GPU source lists.
 set(CP2K_GRID_SRCS_GPU
     grid/gpu/grid_gpu_collocate.cu grid/gpu/grid_gpu_integrate.cu
@@ -1629,7 +1623,7 @@ set(CP2K_GRID_SRCS_GPU
 set(CP2K_DBM_SRCS_GPU dbm/dbm_multiply_gpu_kernel.cu)
 set(CP2K_DBM_SRCS_GPU_C dbm/dbm_multiply_opencl.c dbm/dbm_multiply_gpu.c)
 
-set(CP2K_PW_SRCS_GPU pw/gpu/pw_gpu_kernels.cu)
+set(CP2K_FFT_SRCS_GPU fft/gpu/fft_gpu_kernels.cu)
 
 set(CP2K_NNP_SRCS_GPU nnp/gpu/nnp_gpu_acsf.cu nnp/gpu/nnp_gpu_scatter.cu
                       nnp/gpu/nnp_gpu_walk.cu nnp/gpu/nnp_gpu_nn.cu)
@@ -1637,7 +1631,7 @@ set(CP2K_NNP_SRCS_GPU_C nnp/gpu/nnp_gpu_state.c)
 
 # Standalone programs and unit tests.
 set(CP2K_PROGS_C
-    grid/grid_miniapp.c;grid/grid_unittest.c;dbm/dbm_miniapp.c;start/libcp2k_unittest.c
+    grid/grid_miniapp.c;grid/grid_unittest.c;dbm/dbm_miniapp.c;start/libcp2k_unittest.c;fft/fft_unittest.c;
 )
 set(CP2K_PROGS_F
     aobasis/orbital_transformation_matrices_unittest.F
@@ -1653,6 +1647,7 @@ set(CP2K_PROGS_F
     pseudopotentials/upf_local_integrals_unittest.F
     gapw_unittest.F
     kpoint_lattice_fft_unittest.F
+    fft/fft_api_unittest.F
     kpoint_smearing_unittest.F
     motion/cell_opt_utils_unittest.F
     topology_wilson_unittest.F

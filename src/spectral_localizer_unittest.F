@@ -371,10 +371,13 @@ CONTAINS
       USE cp_dbcsr_api, ONLY: dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_release, &
                               dbcsr_distribution_type, dbcsr_finalize, dbcsr_finalize_lib, &
                               dbcsr_init_lib, dbcsr_put_block, dbcsr_type_no_symmetry
+      USE fft_api, ONLY: FFT_LIBRARY_BACKEND_DEFAULT, FFT_LIBRARY_FFTW_MODE_ESTIMATE
       USE fft_tools, ONLY: finalize_fft, init_fft
       USE kinds, ONLY: dp
       USE mathconstants, ONLY: twopi
       USE message_passing, ONLY: mp_para_env_type
+      USE offload_api, ONLY: offload_get_device_count, &
+                             offload_set_chosen_device
       USE spectral_localizer_bloch, ONLY: localizer_flatten_bloch
       USE spectral_localizer_dbcsr, ONLY: localizer_dbcsr_dense, localizer_dbcsr_release, localizer_matrix_type
       USE spectral_localizer_flatten, ONLY: localizer_flatten_checked
@@ -396,8 +399,14 @@ CONTAINS
       CHARACTER(LEN=32) :: argument
 
       io = cp_logger_get_default_io_unit()
+      ! Select the active offload device before initializing the FFT library.
+      IF (offload_get_device_count() > 0) THEN
+         CALL offload_set_chosen_device(MOD(para_env%mepos, offload_get_device_count()))
+      END IF
       CALL dbcsr_init_lib(para_env%get_handle(), io)
-      CALL init_fft('FFTSG', alltoall=.FALSE., pool_limit=4, wisdom_file='', plan_style=1)
+      CALL init_fft(FFT_LIBRARY_BACKEND_DEFAULT, alltoall=.FALSE., pool_limit=4, wisdom_file='', &
+                    plan_style=FFT_LIBRARY_FFTW_MODE_ESTIMATE, status=status)
+      IF (status /= 0) CPABORT("FFT initalization step failed")
       nr = para_env%num_pe
       nc = 1
       DO i = 1, command_argument_count()
@@ -494,7 +503,7 @@ CONTAINS
       CALL dbcsr_distribution_release(distribution)
       DEALLOCATE (process_grid, row_dist, col_dist, sizes)
       CALL dbcsr_finalize_lib()
-      CALL finalize_fft(para_env, '')
+      CALL finalize_fft('')
    CONTAINS
 
 ! **************************************************************************************************

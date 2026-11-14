@@ -50,6 +50,13 @@ MODULE input_cp2k_global
                                               low_print_level,&
                                               medium_print_level,&
                                               silent_print_level
+   USE fft_api,                         ONLY: FFT_LIBRARY_BACKEND_DEFAULT,&
+                                              FFT_LIBRARY_BACKEND_FFTW,&
+                                              FFT_LIBRARY_BACKEND_GPU,&
+                                              FFT_LIBRARY_FFTW_MODE_ESTIMATE,&
+                                              FFT_LIBRARY_FFTW_MODE_EXHAUSTIVE,&
+                                              FFT_LIBRARY_FFTW_MODE_MEASURE,&
+                                              FFT_LIBRARY_FFTW_MODE_PATIENT
    USE grid_api,                        ONLY: GRID_BACKEND_AUTO,&
                                               GRID_BACKEND_CPU,&
                                               GRID_BACKEND_DGEMM,&
@@ -58,9 +65,8 @@ MODULE input_cp2k_global
    USE input_constants,                 ONLY: &
         bsse_run, callgraph_all, callgraph_master, callgraph_none, cell_opt_run, debug_run, &
         do_atom, do_band, do_cosma, do_cp2k, do_dgemm_blas, do_dgemm_spla, do_farming, &
-        do_fft_fftw3, do_fft_sg, do_opt_basis, do_optimize_input, do_scalapack, do_swarm, do_tamc, &
-        do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, energy_force_run, energy_run, &
-        fftw_plan_estimate, fftw_plan_exhaustive, fftw_plan_measure, fftw_plan_patient, gaussian, &
+        do_opt_basis, do_optimize_input, do_scalapack, do_swarm, do_tamc, do_test, do_tree_mc, &
+        do_tree_mc_ana, driver_run, ehrenfest, energy_force_run, energy_run, gaussian, &
         geo_opt_run, linear_response_run, mimic_run, mol_dyn_run, mon_car_run, mtlr_run, negf_run, &
         none_run, pint_run, real_time_propagation, tree_mc_run, vib_anal
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -275,22 +281,18 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="PREFERRED_FFT_LIBRARY", &
-         description="Specifies the FFT library which should be preferred. "// &
-         "If it is not available, use FFTW3 if this is linked in, if FFTW3 is not available use FFTSG. "// &
-         "Improved performance with FFTW3 can be obtained specifying a proper value for FFTW_PLAN_TYPE. "// &
-         "Contrary to earlier CP2K versions, all libraries will result in the same grids, "// &
-         "i.e. the subset of grids which all FFT libraries can transform. "// &
-         "FFTW3 is often (close to) optimal, and well tested with CP2K.", &
+         description="Specifies the preferred FFT library for local FFTs. "// &
+         "Distributed FFTs are unaffected if CP2K was compiled with support for FFT offloading. "// &
+         "Improved performance with FFTW3 can be obtained specifying a proper value for FFTW_PLAN_TYPE. ", &
          usage="PREFERRED_FFT_LIBRARY FFTW3", &
          citations=[Frigo2005], &
-         default_i_val=do_fft_fftw3, &
-         enum_i_vals=[do_fft_sg, do_fft_fftw3, do_fft_fftw3], &
-         enum_c_vals=s2a("FFTSG", "FFTW3", "FFTW"), &
-         enum_desc=s2a("Stefan Goedecker's FFT (FFTSG), always available, "// &
-                       "will be used in case a FFT library is specified and not available.", &
-                       "a fast portable FFT library. Recommended. "// &
+         default_i_val=FFT_LIBRARY_BACKEND_DEFAULT, &
+         enum_i_vals=[FFT_LIBRARY_BACKEND_DEFAULT, FFT_LIBRARY_BACKEND_FFTW, FFT_LIBRARY_BACKEND_GPU], &
+         enum_c_vals=s2a("DEFAULT", "FFTW3", "GPU"), &
+         enum_desc=s2a("Equivalent to GPU if offloading was enabled, FFTW otherwise.", &
+                       "A fast portable FFT library. Recommended. "// &
                        "See also the FFTW_PLAN_TYPE, and FFTW_WISDOM_FILE_NAME keywords.", &
-                       "Same as FFTW3 (for compatibility with CP2K 2.3)"))
+                       "CUFFT/HIPFFT-based backend if offloading was enabled."))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -345,11 +347,13 @@ CONTAINS
                           "While a plan based on measurements is generally faster, "// &
                           "differences in machine load will lead to different plans for the same input file, "// &
                           "and thus numerics for the FFTs will be slightly different from run to run. "// &
-                          "PATIENT planning is recommended for long ab initio MD runs.", &
+                          "PATIENT planning is recommended for long ab initio MD runs. Ignored if PREFERRED_FFT_LIBRARY "// &
+                          "was set to DEFAULT or GPU and offloading was enabled.", &
                           usage="FFTW_PLAN_TYPE PATIENT", &
                           citations=[Frigo2005], &
-                          default_i_val=fftw_plan_estimate, &
-                          enum_i_vals=[fftw_plan_estimate, fftw_plan_measure, fftw_plan_patient, fftw_plan_exhaustive], &
+                          default_i_val=FFT_LIBRARY_FFTW_MODE_ESTIMATE, &
+                          enum_i_vals=[FFT_LIBRARY_FFTW_MODE_ESTIMATE, FFT_LIBRARY_FFTW_MODE_MEASURE, &
+                                       FFT_LIBRARY_FFTW_MODE_PATIENT, FFT_LIBRARY_FFTW_MODE_EXHAUSTIVE], &
                           enum_c_vals=s2a("ESTIMATE", &
                                           "MEASURE", &
                                           "PATIENT", &
@@ -358,6 +362,15 @@ CONTAINS
                                         "Quick measurement, somewhat faster FFTs.", &
                                         "Measurements trying a wider range of possibilities.", &
                                         "Measurements trying all possibilities - use with caution."))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FFTW_USE_GURU_INTERFACE", &
+                          description="Use the FFTW guru interface for local FFTs when it is available. "// &
+                          "This can enable additional optimized plans, but disabling it may help when "// &
+                          "the regular FFTW interface is preferred.", &
+                          usage="FFTW_USE_GURU_INTERFACE .TRUE.", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

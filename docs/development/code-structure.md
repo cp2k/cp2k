@@ -27,6 +27,7 @@ Source files should have prefixes corresponding to their main functionalities. F
 - `atomic_*` for datatypes related to information on atoms in a simulation
 - `atom_*` for atomic calculations
 - `cp_fm_*`/`cp_cfm_*` for operations on dense real/complex-valued matrices
+- `fft_*` for FFTs (distributed and local)
 
 These prefixes are not exclusive, nor are they always logical. There are exceptions in code naming
 conventions, for example:
