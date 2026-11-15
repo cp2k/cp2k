@@ -36,6 +36,12 @@ case "$with_libfci" in
       mkdir "libfci-${libfci_ver}"
       tar -xzf "libfci-${libfci_ver}.tar.gz" -C "libfci-${libfci_ver}" --strip-components=1
 
+      # Plain char is unsigned on aarch64, which breaks the fermionic signs.
+      cd "libfci-${libfci_ver}"
+      patch -p1 < "${SCRIPT_DIR}/stage7/libfci-${libfci_ver}-signed-char.patch" \
+        > libfci_signed_char.patch.log 2>&1 || tail_excerpt libfci_signed_char.patch.log
+      cd ..
+
       mkdir "libfci-${libfci_ver}/build"
       cd "libfci-${libfci_ver}/build"
       cmake \

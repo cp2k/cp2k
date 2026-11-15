@@ -1,0 +1,14 @@
+# Store the +/-1 fermionic sign in a signed char. Plain char is unsigned on
+# aarch64, which turns -1 into 255 and breaks the FCI Hamiltonian and 1-RDMs.
+
+--- a/src/FciOps.h
++++ b/src/FciOps.h
+@@ -92,7 +92,7 @@
+ // orbital strings of the given spin projection (i.e., alpha or
+ // beta strings)
+ struct FSubstResult {
+-  char k, l, sign; // k, l references, and sign shift obtained (+/- 1)
++  signed char k, l, sign; // k, l references, and sign shift obtained (+/- 1)
+   FOrbPat
+       Str; // orbital string K resulting from c^{sigma k} c_{sigma l} |I[sigma]>
+   FAdr iStr; // address of string K
