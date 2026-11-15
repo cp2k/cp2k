@@ -31,10 +31,7 @@ case "$with_libfci" in
     if verify_checksums "${install_lock_file}"; then
       echo "libfci-${libfci_ver} is already installed, skipping it."
     else
-      if [ ! -f "${libfci_archive}" ] || ! checksum "${libfci_sha256}" "${libfci_archive}"; then
-        download_pkg_from_urlpath "${libfci_sha256}" "${libfci_archive}" \
-          "https://github.com/DCM-Uni-Paderborn/libfci/releases/download/v${libfci_ver}"
-      fi
+      retrieve_package "${libfci_sha256}" "${libfci_archive}"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d "libfci-${libfci_ver}" ] && rm -rf "libfci-${libfci_ver}"
       mkdir "libfci-${libfci_ver}"
