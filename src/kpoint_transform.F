@@ -95,7 +95,7 @@ MODULE kpoint_transform
       INTEGER, ALLOCATABLE :: phase_index(:), phase_cells(:, :), phase_count(:, :), phase_first(:)
       INTEGER(KIND=int_8) :: max_per_k = 0_int_8
       REAL(KIND=dp), ALLOCATABLE :: phases(:, :, :)
-      TYPE(cell_to_k_grid_work_type) :: fft_work
+      TYPE(cell_to_k_grid_work_type) :: fft_work = cell_to_k_grid_work_type()
    END TYPE rskp_backend_plan_type
 
    ! Stable canonical AO route and destination mapping, shared by both backends.
@@ -104,7 +104,7 @@ MODULE kpoint_transform
       TYPE(mp_para_env_type), POINTER :: world => NULL(), group => NULL(), inter => NULL()
       TYPE(kp_transform_plan_type) :: traversal = kp_transform_plan_type()
       TYPE(neighbor_list_set_p_type), POINTER :: source_sab(:) => NULL()
-      TYPE(rskp_backend_plan_type) :: transform
+      TYPE(rskp_backend_plan_type) :: transform = rskp_backend_plan_type()
       INTEGER :: nrow = 0, ncol = 0, nimage = 0, nvalue = 0
       LOGICAL :: world_target = .FALSE.
       INTEGER(KIND=int_8) :: storage = 0_int_8
@@ -130,7 +130,7 @@ MODULE kpoint_transform
    ! Slot-free owner for captured source rows sharing one target-local R-to-K map.
    TYPE, PUBLIC :: rskp_prepared_transform_type
       PRIVATE
-      TYPE(rskp_route_type) :: route
+      TYPE(rskp_route_type) :: route = rskp_route_type()
       TYPE(rskp_values_type), ALLOCATABLE :: values(:)
       INTEGER, ALLOCATABLE :: kp_dist(:, :)
       REAL(KIND=dp), ALLOCATABLE :: work(:)

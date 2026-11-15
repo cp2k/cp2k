@@ -131,7 +131,7 @@ CONTAINS
       ctx%kpoints => kpoints
       IF (PRESENT(ao_ao_fm)) THEN
          IF (.NOT. ASSOCIATED(ao_ao_fm%matrix_struct%para_env, kpoints%blacs_env_all%para_env)) THEN
-            CPABORT("R-to-K template must use the world communicator")
+            CPABORT("R-to-K template must use the k-point host communicator")
          END IF
       END IF
 
