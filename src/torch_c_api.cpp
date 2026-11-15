@@ -14,8 +14,10 @@
 #endif
 #include <c10/core/DeviceGuard.h>
 #include <torch/csrc/api/include/torch/cuda.h>
+#include <torch/csrc/autograd/autograd.h>
 #include <torch/csrc/jit/passes/freeze_module.h>
 #include <torch/csrc/jit/passes/inliner.h>
+#include <torch/csrc/jit/passes/subgraph_rewrite.h>
 #include <torch/csrc/jit/runtime/graph_executor.h>
 #include <torch/script.h>
 
@@ -35,6 +37,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #if defined(__OPENBLAS)
@@ -577,6 +580,75 @@ void torch_c_tensor_backward(const torch_c_tensor_t *tensor,
 }
 
 /*******************************************************************************
+ * \brief Apply a scalar tensor's Hessian to directions of its independent
+ * inputs.
+ ******************************************************************************/
+void torch_c_tensor_hessian_vector(const torch_c_tensor_t *tensor,
+                                   const int count,
+                                   const torch_c_tensor_t *const inputs[],
+                                   const torch_c_tensor_t *const directions[],
+                                   torch_c_tensor_t *responses[],
+                                   const bool to_host, int *status) {
+  *status = 0;
+  for (int i = 0; i < count; i++)
+    responses[i] = nullptr;
+  try {
+    TorchFloatingPointMaskGuard fpe_guard;
+    c10::OptionalDeviceGuard guard;
+    get_device_with_guard(guard);
+    TORCH_CHECK(
+        count > 0 && tensor->numel() == 1,
+        "Hessian-vector evaluation requires a scalar and input tensors");
+    std::vector<torch::Tensor> variables;
+    std::vector<torch::Tensor> active_variables;
+    std::vector<torch::Tensor> active_directions;
+    for (int i = 0; i < count; i++) {
+      TORCH_CHECK(inputs[i]->requires_grad() &&
+                      inputs[i]->sizes() == directions[i]->sizes() &&
+                      inputs[i]->device() == directions[i]->device(),
+                  "Hessian-vector inputs and directions must have matching "
+                  "shapes and devices");
+      variables.push_back(*inputs[i]);
+      if (directions[i]->count_nonzero().item<int64_t>() != 0) {
+        active_variables.push_back(*inputs[i]);
+        active_directions.push_back(directions[i]->detach());
+      }
+    }
+    std::vector<torch::Tensor> first(active_variables.size());
+    if (tensor->requires_grad() && !active_variables.empty()) {
+      first = torch::autograd::grad({*tensor}, active_variables, {}, true, true,
+                                    true);
+    }
+    torch::Tensor contraction;
+    for (size_t i = 0; i < first.size(); i++) {
+      if (first[i].defined() && first[i].requires_grad()) {
+        auto term = (first[i] * active_directions[i]).sum();
+        contraction = contraction.defined() ? contraction + term : term;
+      }
+    }
+    std::vector<torch::Tensor> second(count);
+    if (contraction.defined()) {
+      // Retain all mixed responses, even for inputs with a zero direction.
+      second = torch::autograd::grad({contraction}, variables, {}, false, false,
+                                     true);
+    }
+    for (int i = 0; i < count; i++) {
+      auto response = second[i].defined() ? second[i].detach()
+                                          : torch::zeros_like(*inputs[i]);
+      responses[i] = new torch_c_tensor_t(to_host ? response.cpu().contiguous()
+                                                  : response);
+    }
+  } catch (const std::exception &error) {
+    fprintf(stderr, "Torch Hessian evaluation failed: %s\n", error.what());
+    for (int i = 0; i < count; i++) {
+      delete responses[i];
+      responses[i] = nullptr;
+    }
+    *status = 1;
+  }
+}
+
+/*******************************************************************************
  * \brief Runs autograd on a scalar Torch tensor.
  ******************************************************************************/
 void torch_c_tensor_backward_scalar(const torch_c_tensor_t *tensor) {
@@ -781,6 +853,31 @@ void torch_c_model_promote_float32(torch_c_model_t *model) {
   TorchFloatingPointMaskGuard fpe_guard;
   torch::NoGradGuard no_grad;
   promote_model_float32(*model);
+}
+
+/*******************************************************************************
+ * \brief Prepare a model for higher input derivatives.
+ ******************************************************************************/
+void torch_c_model_prepare_higher_derivatives(torch_c_model_t *model) {
+  // Preserve parameter values while avoiding fp32 cancellation and saturated
+  // SiLU backward in higher input derivatives.
+  torch_c_model_promote_float32(model);
+  torch::jit::SubgraphRewriter rewriter;
+  rewriter.RegisterRewritePattern(
+      "graph(%x):\n %y = aten::silu(%x)\n return (%y)", R"IR(
+graph(%x):
+  %s = aten::sigmoid(%x)
+  %y = aten::mul(%x, %s)
+  return (%y))IR");
+  std::unordered_set<torch::jit::Graph *> prepared;
+  for (const auto &module : model->modules()) {
+    for (const auto &method : module.get_methods()) {
+      auto graph = method.graph();
+      if (prepared.insert(graph.get()).second) {
+        rewriter.runOnGraph(graph);
+      }
+    }
+  }
 }
 
 /*******************************************************************************

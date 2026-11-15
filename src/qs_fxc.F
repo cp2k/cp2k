@@ -14,6 +14,7 @@
 ! **************************************************************************************************
 MODULE qs_fxc
 
+   USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE input_constants,                 ONLY: xc_vdw_fun_nonloc
    USE input_section_types,             ONLY: section_get_ival,&
@@ -24,6 +25,7 @@ MODULE qs_fxc
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
+   USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_grids,                        ONLY: pw_grid_compare
@@ -50,10 +52,15 @@ MODULE qs_fxc
                                               qs_rho_release,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
+   USE skala_gpw_functional,            ONLY: native_skala_uses_atom_composite_grid,&
+                                              skala_gpw_fxc,&
+                                              skala_gpw_fxc_prep,&
+                                              xc_section_uses_native_skala_grid
    USE xc,                              ONLY: xc_calc_2nd_deriv_analytical,&
                                               xc_calc_2nd_deriv_numerical,&
                                               xc_prep_2nd_deriv
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
+                                              xc_dset_create,&
                                               xc_dset_release
    USE xc_derivatives,                  ONLY: xc_functionals_get_needs
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
@@ -146,6 +153,14 @@ CONTAINS
       IF (PRESENT(compute_virial)) do_virial = compute_virial
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
+      IF (xc_section_uses_native_skala_grid(xc_section)) THEN
+         IF (do_onecenter .OR. dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+            CALL cp_abort(__LOCATION__, "Native Skala response requires GPW without atom-centred corrections.")
+         END IF
+         IF (native_skala_uses_atom_composite_grid(xc_section)) THEN
+            CALL cp_abort(__LOCATION__, "Native Skala response requires NATIVE_GRID_LAYOUT COMMON_GRID.")
+         END IF
+      END IF
 
       IF (PRESENT(pw_env_ext)) THEN
          pw_env => pw_env_ext
@@ -216,7 +231,7 @@ CONTAINS
          CALL qs_fxc_calculate(rho0_uf, rho1_uf, xc_section, weights_uf, xc_pw_pool, &
                                fxc_rho_uf, fxc_tau_uf, &
                                is_triplet=is_triplet, spinflip=spinflip, &
-                               compute_virial=do_virial, virial_xc=virial_xc)
+                               compute_virial=do_virial, virial_xc=virial_xc, qs_env=qs_env)
          !
          CALL qs_rho_release(rho0_uf)
          CALL qs_rho_release(rho1_uf)
@@ -271,7 +286,7 @@ CONTAINS
          CALL qs_fxc_calculate(rho0_struct, rho1_struct, xc_section, weights, auxbas_pw_pool, &
                                fxc_rho_lo, fxc_tau_lo, &
                                is_triplet=is_triplet, spinflip=spinflip, &
-                               compute_virial=do_virial, virial_xc=virial_xc)
+                               compute_virial=do_virial, virial_xc=virial_xc, qs_env=qs_env)
       END IF
 
       ! nonlocal vdW functionals
@@ -365,10 +380,11 @@ CONTAINS
 !> \param spinflip ...
 !> \param compute_virial ...
 !> \param virial_xc ...
+!> \param qs_env Atomic positions and cell for nonlocal XC response.
 ! **************************************************************************************************
    SUBROUTINE qs_fxc_calculate(rho0, rho1, xc_section, weights, auxbas_pw_pool, &
                                fxc_rho, fxc_tau, is_triplet, spinflip, &
-                               compute_virial, virial_xc)
+                               compute_virial, virial_xc, qs_env)
 
       TYPE(qs_rho_type), POINTER                         :: rho0, rho1
       TYPE(section_vals_type), POINTER                   :: xc_section
@@ -378,6 +394,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: is_triplet, spinflip, compute_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
          OPTIONAL                                        :: virial_xc
+      TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fxc_calculate'
 
@@ -410,6 +427,16 @@ CONTAINS
       CALL qs_rho_get(rho0, rho_r=rho0_r, rho_g=rho0_g, tau_r=tau0_r)
       CALL qs_rho_get(rho1, rho_r=rho1_r, tau_r=tau1_r)
       NULLIFY (rho1_g)
+
+      IF (xc_section_uses_native_skala_grid(xc_section)) THEN
+         CALL qs_fxc_deriv(rho0, rho0_set, xc_deriv_set, xc_section, weights, auxbas_pw_pool, do_triplet)
+         CALL qs_fxc_eval(xc_deriv_set, rho0_set, rho1, xc_section, weights, auxbas_pw_pool, &
+                          fxc_rho, fxc_tau, is_triplet, spinflip, compute_virial, virial_xc, qs_env)
+         CALL xc_dset_release(xc_deriv_set)
+         CALL xc_rho_set_release(rho0_set)
+         CALL timestop(handle)
+         RETURN
+      END IF
 
       mspins = SIZE(rho0_r)
       nspins = SIZE(rho0_r)
@@ -655,18 +682,31 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      LOGICAL, INTENT(IN)                                :: is_triplet
+      LOGICAL, INTENT(IN), OPTIONAL                      :: is_triplet
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fxc_deriv'
 
       INTEGER                                            :: handle
+      LOGICAL                                            :: do_triplet
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho0_r, tau0_r
       TYPE(qs_rho_type), POINTER                         :: rhot0
 
       CALL timeset(routineN, handle)
 
       NULLIFY (rho0_r, tau0_r)
-      IF (is_triplet) THEN
+      do_triplet = .FALSE.
+      IF (PRESENT(is_triplet)) do_triplet = is_triplet
+      IF (xc_section_uses_native_skala_grid(xc_section)) THEN
+         IF (do_triplet) THEN
+            CALL cp_abort(__LOCATION__, "Native Skala response does not yet support triplet excitations.")
+         END IF
+         CALL qs_rho_get(rho0, rho_r=rho0_r, tau_r=tau0_r)
+         CALL skala_gpw_fxc_prep(xc_rho_set, rho0_r, tau0_r, xc_section, auxbas_pw_pool)
+         CALL xc_dset_create(xc_deriv_set, auxbas_pw_pool)
+         CALL timestop(handle)
+         RETURN
+      END IF
+      IF (do_triplet) THEN
          ! split the density and response density arrays for triplet calculation
          ALLOCATE (rhot0)
          CALL qs_rho_create(rhot0)
@@ -748,6 +788,14 @@ CONTAINS
       IF (PRESENT(compute_virial)) do_virial = compute_virial
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
+      IF (xc_section_uses_native_skala_grid(xc_section)) THEN
+         IF (do_onecenter .OR. dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+            CALL cp_abort(__LOCATION__, "Native Skala response requires GPW without atom-centred corrections.")
+         END IF
+         IF (native_skala_uses_atom_composite_grid(xc_section)) THEN
+            CALL cp_abort(__LOCATION__, "Native Skala response requires NATIVE_GRID_LAYOUT COMMON_GRID.")
+         END IF
+      END IF
 
       IF (PRESENT(pw_env_ext)) THEN
          pw_env => pw_env_ext
@@ -793,7 +841,7 @@ CONTAINS
          CALL qs_fxc_eval(xc_deriv_set, xc_rho_set, rho1_uf, xc_section, &
                           weights_uf, xc_pw_pool, fxc_rho_uf, fxc_tau_uf, &
                           is_triplet=is_triplet, spinflip=spinflip, &
-                          compute_virial=do_virial, virial_xc=virial_xc)
+                          compute_virial=do_virial, virial_xc=virial_xc, qs_env=qs_env)
          !
          CALL qs_rho_release(rho1_uf)
          DEALLOCATE (rho1_uf)
@@ -842,7 +890,7 @@ CONTAINS
          CALL qs_fxc_eval(xc_deriv_set, xc_rho_set, rho1_struct, xc_section, &
                           weights, auxbas_pw_pool, fxc_rho_lo, fxc_tau_lo, &
                           is_triplet=is_triplet, spinflip=spinflip, &
-                          compute_virial=do_virial, virial_xc=virial_xc)
+                          compute_virial=do_virial, virial_xc=virial_xc, qs_env=qs_env)
       END IF
 
       ! return potentials
@@ -900,10 +948,11 @@ CONTAINS
 !> \param spinflip ...
 !> \param compute_virial ...
 !> \param virial_xc ...
+!> \param qs_env Atomic positions and cell for nonlocal XC response.
 ! **************************************************************************************************
    SUBROUTINE qs_fxc_eval(xc_deriv_set, xc_rho_set, rho1, xc_section, weights, auxbas_pw_pool, &
                           fxc_rho, fxc_tau, is_triplet, spinflip, &
-                          compute_virial, virial_xc)
+                          compute_virial, virial_xc, qs_env)
 
       TYPE(xc_derivative_set_type)                       :: xc_deriv_set
       TYPE(xc_rho_set_type)                              :: xc_rho_set
@@ -915,6 +964,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: is_triplet, spinflip, compute_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
          OPTIONAL                                        :: virial_xc
+      TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fxc_eval'
 
@@ -923,6 +973,8 @@ CONTAINS
       LOGICAL                                            :: do_analytic, do_sf, do_triplet, &
                                                             do_virial, lsd
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: vxg
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_g
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, tau1_r
       TYPE(qs_rho_type), POINTER                         :: rhot1
@@ -945,6 +997,20 @@ CONTAINS
 
       CALL qs_rho_get(rho1, rho_r=rho1_r, tau_r=tau1_r)
       NULLIFY (rho1_g)
+
+      IF (xc_section_uses_native_skala_grid(xc_section)) THEN
+         IF (do_triplet .OR. do_sf) THEN
+            CALL cp_abort(__LOCATION__, "Native Skala response requires spin-conserving perturbations.")
+         END IF
+         IF (do_virial) THEN
+            CALL cp_abort(__LOCATION__, "Native Skala response does not yet provide XC kernel strain derivatives.")
+         END IF
+         CALL get_qs_env(qs_env, particle_set=particle_set, cell=cell)
+         CALL skala_gpw_fxc(xc_rho_set, rho1_r, tau1_r, xc_section, weights, auxbas_pw_pool, &
+                            particle_set, cell, fxc_rho, fxc_tau)
+         CALL timestop(handle)
+         RETURN
+      END IF
 
       mspins = SIZE(rho1_r)
       nspins = SIZE(rho1_r)

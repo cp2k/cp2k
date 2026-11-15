@@ -15,7 +15,8 @@ MODULE skala_gpw_functional
                                               pbc
    USE cp_array_utils,                  ONLY: cp_3d_r_cp_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE input_section_types,             ONLY: section_get_rval,&
+   USE input_section_types,             ONLY: section_get_ival,&
+                                              section_get_rval,&
                                               section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
                                               section_vals_type,&
@@ -47,9 +48,10 @@ MODULE skala_gpw_functional
    USE torch_api,                       ONLY: &
         torch_cuda_device_count, torch_cuda_is_available, torch_dict_create, torch_dict_insert, &
         torch_dict_release, torch_dict_type, torch_tensor_backward_scalar, torch_tensor_data_ptr, &
-        torch_tensor_from_array, torch_tensor_grad, torch_tensor_grad_batch3, torch_tensor_narrow, &
-        torch_tensor_release, torch_tensor_reset_from_array, torch_tensor_to_device_leaf, &
-        torch_tensor_type, torch_use_cuda
+        torch_tensor_from_array, torch_tensor_grad, torch_tensor_grad_batch3, &
+        torch_tensor_hessian_vector, torch_tensor_narrow, torch_tensor_release, &
+        torch_tensor_reset_from_array, torch_tensor_to_device_leaf, torch_tensor_type, &
+        torch_use_cuda
    USE xc_input_constants,              ONLY: skala_gapw_atom_composite_grid,&
                                               skala_gapw_common_grid,&
                                               skala_gapw_cp2k_default,&
@@ -92,7 +94,8 @@ MODULE skala_gpw_functional
              native_skala_uses_atom_composite_grid, &
              native_skala_gapw_composite_direct_ao, native_skala_gapw_composite_reference, &
              native_skala_gapw_density_partition, skala_gpw_eval, skala_gpw_weight_derivative, &
-             skala_gapw_representation, xc_section_uses_native_skala_evaluator, &
+             skala_gapw_representation, skala_gpw_fxc, skala_gpw_fxc_prep, &
+             xc_section_uses_native_skala_evaluator, &
              xc_section_uses_native_skala_grid, xc_section_uses_gauxc_model, &
              xc_section_uses_skala_model
 
@@ -101,6 +104,7 @@ MODULE skala_gpw_functional
    CHARACTER(len=default_path_length), SAVE            :: cached_model_path = ""
    LOGICAL, SAVE                                       :: cached_model_loaded = .FALSE.
    LOGICAL, SAVE                                       :: cached_model_fp64 = .FALSE.
+   LOGICAL, SAVE                                       :: cached_model_higher_derivatives = .FALSE.
    INTEGER, SAVE                                       :: cached_model_cuda_device = -3
    INTEGER, SAVE                                       :: logged_cuda_device = -3, &
                                                           logged_cuda_device_count = -1, &
@@ -722,6 +726,146 @@ CONTAINS
       CALL timestop(phase_handle)
 
    END SUBROUTINE skala_gpw_eval
+
+! **************************************************************************************************
+!> \brief Cache the unmodified reference fields for the nonlocal Skala response.
+!> \param rho_set Reference density, gradient and kinetic-energy density.
+!> \param rho_r Real-space reference density.
+!> \param tau_r Reference kinetic-energy density.
+!> \param xc_section XC settings.
+!> \param pw_pool Grid and Fourier transforms.
+! **************************************************************************************************
+   SUBROUTINE skala_gpw_fxc_prep(rho_set, rho_r, tau_r, xc_section, pw_pool)
+      TYPE(xc_rho_set_type), INTENT(OUT)                 :: rho_set
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, tau_r
+      TYPE(section_vals_type), POINTER                   :: xc_section
+      TYPE(pw_pool_type), POINTER                        :: pw_pool
+
+      INTEGER                                            :: ispin
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: tau_copy
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
+      TYPE(xc_rho_cflags_type)                           :: needs
+
+      IF (.NOT. ASSOCIATED(tau_r)) THEN
+         CALL cp_abort(__LOCATION__, "Native Skala response requires kinetic-energy density.")
+      END IF
+      IF (SIZE(rho_r) == 1) THEN
+         needs%rho = .TRUE.
+         needs%drho = .TRUE.
+         needs%tau = .TRUE.
+      ELSE
+         needs%rho_spin = .TRUE.
+         needs%drho_spin = .TRUE.
+         needs%tau_spin = .TRUE.
+      END IF
+      CALL xc_rho_set_create(rho_set, rho_r(1)%pw_grid%bounds_local, &
+                             rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
+                             drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
+                             tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"))
+      NULLIFY (rho_g)
+      CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau_r, needs, &
+                             section_get_ival(xc_section, "XC_GRID%XC_DERIV"), &
+                             section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), pw_pool)
+      ! Unlike rho and its gradient, xc_rho_set_update borrows tau storage.
+      ! A cached response reference must survive release of a transferred grid.
+      DO ispin = 1, SIZE(tau_r)
+         NULLIFY (tau_copy)
+         CALL pw_pool%create_cr3d(tau_copy)
+         tau_copy = tau_r(ispin)%array
+         IF (SIZE(tau_r) == 1) THEN
+            rho_set%tau => tau_copy
+            rho_set%owns%tau = .TRUE.
+         ELSE IF (ispin == 1) THEN
+            rho_set%tau_a => tau_copy
+         ELSE
+            rho_set%tau_b => tau_copy
+            rho_set%owns%tau_spin = .TRUE.
+         END IF
+      END DO
+   END SUBROUTINE skala_gpw_fxc_prep
+
+! **************************************************************************************************
+!> \brief Apply the nonlocal Skala Hessian to a density and kinetic-density response.
+!> \param rho0_set Reference fields.
+!> \param rho1_r Density response.
+!> \param tau1_r Kinetic-energy-density response.
+!> \param xc_section XC settings.
+!> \param weights Integration weights.
+!> \param pw_pool Grid and Fourier transforms.
+!> \param particle_set Fixed nuclei.
+!> \param cell Fixed simulation cell.
+!> \param fxc_rho XC potential response.
+!> \param fxc_tau Kinetic-energy-density potential response.
+! **************************************************************************************************
+   SUBROUTINE skala_gpw_fxc(rho0_set, rho1_r, tau1_r, xc_section, weights, pw_pool, &
+                            particle_set, cell, fxc_rho, fxc_tau)
+      TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho0_set
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, tau1_r
+      TYPE(section_vals_type), POINTER                   :: xc_section
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
+      TYPE(pw_pool_type), POINTER                        :: pw_pool
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho, fxc_tau
+
+      CHARACTER(len=default_path_length)                 :: model_path
+      INTEGER                                            :: device, i, partition, selected_device
+      LOGICAL                                            :: fp64, use_cuda
+      REAL(KIND=dp)                                      :: exc
+      REAL(KIND=dp), ALLOCATABLE                         :: density_grad(:, :), grad_grad(:, :, :), &
+                                                            kin_grad(:, :)
+      TYPE(section_vals_type), POINTER                   :: gauxc_section
+      TYPE(skala_gpw_feature_type)                       :: direction, reference
+      TYPE(torch_tensor_type)                            :: directions(3), exc_tensor, responses(3)
+      TYPE(xc_rho_set_type)                              :: rho1_set
+
+      gauxc_section => get_gauxc_section(xc_section)
+      CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_MODEL_FP64", l_val=fp64)
+      IF (.NOT. fp64) THEN
+         CALL cp_abort(__LOCATION__, "Native Skala response requires NATIVE_GRID_MODEL_FP64.")
+      END IF
+      CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_USE_CUDA", l_val=use_cuda)
+      CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_CUDA_DEVICE", i_val=device)
+      CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_ATOM_PARTITION", i_val=partition)
+      CALL torch_use_cuda(use_cuda)
+      selected_device = configure_native_grid_cuda(use_cuda, device, rho1_r(1)%pw_grid%para%group)
+      CALL get_skala_model_path(xc_section, model_path)
+      CALL ensure_model_loaded(model_path, selected_device, xc_section, higher_derivatives=.TRUE.)
+
+      CALL skala_gpw_fxc_prep(rho1_set, rho1_r, tau1_r, xc_section, pw_pool)
+      ! Both maps use the fixed SCF grid. The second map packs a signed direction,
+      ! not a new physical density, without clipping or density normalization.
+      CALL skala_gpw_feature_build(direction, rho1_set, rho1_r, particle_set, cell, &
+                                   requires_grad=.FALSE., weights=weights, atom_partition=partition)
+      ! The feature builder reuses dynamic tensors. Keep independent direction
+      ! tensors before packing the reference into that cache.
+      CALL torch_tensor_from_array(directions(1), direction%density)
+      CALL torch_tensor_from_array(directions(2), direction%grad)
+      CALL torch_tensor_from_array(directions(3), direction%kin)
+      DO i = 1, SIZE(directions)
+         CALL torch_tensor_to_device_leaf(directions(i), .FALSE.)
+      END DO
+      CALL skala_gpw_feature_build(reference, rho0_set, rho1_r, particle_set, cell, &
+                                   requires_grad=.TRUE., weights=weights, atom_partition=partition)
+      CALL skala_torch_model_get_exc(cached_model, reference%inputs, reference%grid_weights_t, exc_tensor, exc)
+      CALL torch_tensor_hessian_vector(exc_tensor, &
+                                       [reference%density_t, reference%grad_t, reference%kin_t], &
+                                       directions, responses)
+      CALL fetch_local_feature_grads(reference, density_grad, grad_grad, kin_grad, responses)
+      CALL build_vxc_from_feature_grads(fxc_rho, fxc_tau, rho1_r, pw_pool, &
+                                        density_grad, grad_grad, kin_grad, &
+                                        section_get_ival(xc_section, "XC_GRID%XC_DERIV"))
+      DO i = 1, SIZE(responses)
+         CALL torch_tensor_release(responses(i))
+         CALL torch_tensor_release(directions(i))
+      END DO
+      CALL torch_tensor_release(exc_tensor)
+      CALL skala_gpw_feature_release(direction)
+      CALL skala_gpw_feature_release(reference)
+      CALL xc_rho_set_release(rho1_set)
+      CALL torch_use_cuda(.TRUE.)
+   END SUBROUTINE skala_gpw_fxc
 
 ! **************************************************************************************************
 !> \brief Evaluate the derivative of native SKALA XC energy with respect to CP2K's external
@@ -2017,8 +2161,9 @@ CONTAINS
 !> \param density_grad ...
 !> \param grad_grad ...
 !> \param kin_grad ...
+!> \param derivatives Optional Hessian-vector result instead of accumulated gradients.
 ! **************************************************************************************************
-   SUBROUTINE fetch_local_feature_grads(features, density_grad, grad_grad, kin_grad)
+   SUBROUTINE fetch_local_feature_grads(features, density_grad, grad_grad, kin_grad, derivatives)
       TYPE(skala_gpw_feature_type), INTENT(IN)           :: features
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: density_grad
@@ -2026,6 +2171,7 @@ CONTAINS
          INTENT(OUT)                                     :: grad_grad
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: kin_grad
+      TYPE(torch_tensor_type), INTENT(IN), OPTIONAL      :: derivatives(3)
 
       INTEGER                                            :: feature_pos, i, j, k, local_row, row
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: density_grad_all, kin_grad_all
@@ -2033,8 +2179,14 @@ CONTAINS
       TYPE(torch_tensor_type)                            :: density_grad_t, grad_grad_t, kin_grad_t
 
       NULLIFY (density_grad_all, grad_grad_all, kin_grad_all)
-      CALL get_feature_grad_views(features, density_grad_t, grad_grad_t, kin_grad_t, &
-                                  density_grad_all, grad_grad_all, kin_grad_all)
+      IF (PRESENT(derivatives)) THEN
+         CALL torch_tensor_data_ptr(derivatives(1), density_grad_all)
+         CALL torch_tensor_data_ptr(derivatives(2), grad_grad_all)
+         CALL torch_tensor_data_ptr(derivatives(3), kin_grad_all)
+      ELSE
+         CALL get_feature_grad_views(features, density_grad_t, grad_grad_t, kin_grad_t, &
+                                     density_grad_all, grad_grad_all, kin_grad_all)
+      END IF
       CPASSERT(SIZE(density_grad_all, 1) == features%nflat)
       CPASSERT(SIZE(density_grad_all, 2) == 2)
       CPASSERT(SIZE(grad_grad_all, 1) == features%nflat)
@@ -2069,9 +2221,11 @@ CONTAINS
       END DO
       CPASSERT(local_row == features%nflat_local)
 
-      CALL torch_tensor_release(density_grad_t)
-      CALL torch_tensor_release(grad_grad_t)
-      CALL torch_tensor_release(kin_grad_t)
+      IF (.NOT. PRESENT(derivatives)) THEN
+         CALL torch_tensor_release(density_grad_t)
+         CALL torch_tensor_release(grad_grad_t)
+         CALL torch_tensor_release(kin_grad_t)
+      END IF
 
    END SUBROUTINE fetch_local_feature_grads
 
@@ -2980,30 +3134,38 @@ CONTAINS
 !> \param model_path ...
 !> \param cuda_device ...
 !> \param xc_section XC settings, including the native model precision.
+!> \param higher_derivatives Require a model prepared for second input derivatives.
 ! **************************************************************************************************
-   SUBROUTINE ensure_model_loaded(model_path, cuda_device, xc_section)
+   SUBROUTINE ensure_model_loaded(model_path, cuda_device, xc_section, higher_derivatives)
       CHARACTER(len=*), INTENT(IN)                       :: model_path
       INTEGER, INTENT(IN)                                :: cuda_device
       TYPE(section_vals_type), POINTER                   :: xc_section
+      LOGICAL, INTENT(IN), OPTIONAL                      :: higher_derivatives
 
-      LOGICAL                                            :: fp64
+      LOGICAL                                            :: fp64, prepare_derivatives
       TYPE(section_vals_type), POINTER                   :: gauxc_section
 
       gauxc_section => get_gauxc_section(xc_section)
       CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_MODEL_FP64", l_val=fp64)
+      prepare_derivatives = .FALSE.
+      IF (PRESENT(higher_derivatives)) prepare_derivatives = higher_derivatives
+      fp64 = fp64 .OR. prepare_derivatives
 
       IF (cached_model_loaded) THEN
          IF (TRIM(cached_model_path) == TRIM(model_path) .AND. &
              cached_model_cuda_device == cuda_device .AND. &
-             (cached_model_fp64 .EQV. fp64)) RETURN
+             (cached_model_fp64 .EQV. fp64) .AND. &
+             (.NOT. prepare_derivatives .OR. cached_model_higher_derivatives)) RETURN
          CALL skala_torch_model_release(cached_model)
          cached_model_loaded = .FALSE.
       END IF
 
-      CALL skala_torch_model_load(cached_model, TRIM(model_path), fp64=fp64)
+      CALL skala_torch_model_load(cached_model, TRIM(model_path), fp64=fp64, &
+                                  higher_derivatives=prepare_derivatives)
       cached_model_path = model_path
       cached_model_cuda_device = cuda_device
       cached_model_fp64 = fp64
+      cached_model_higher_derivatives = prepare_derivatives
       cached_model_loaded = .TRUE.
 
    END SUBROUTINE ensure_model_loaded
