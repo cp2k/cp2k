@@ -416,7 +416,8 @@ CONTAINS
                                   mo_coeff=mo_coeff, nmo=nmo, homo=homo)
 
                   IF (has_unit_metric) THEN
-                     CALL make_basis_simple(mo_coeff, nmo)
+                     CALL make_basis_simple(mo_coeff, &
+                                            MERGE(homo, nmo, scf_control%use_ot .AND. .NOT. dft_control%smear))
                   ELSE IF (dft_control%smear) THEN
                      CALL make_basis_lowdin(vmatrix=mo_coeff, ncol=nmo, &
                                             matrix_s=s_sparse(1)%matrix)
@@ -481,7 +482,8 @@ CONTAINS
                   CALL get_mo_set(mo_set=mo_array(ispin), mo_coeff=mo_coeff, nmo=nmo, homo=homo)
 
                   IF (has_unit_metric) THEN
-                     CALL make_basis_simple(mo_coeff, nmo)
+                     CALL make_basis_simple(mo_coeff, &
+                                            MERGE(homo, nmo, scf_control%use_ot .AND. .NOT. dft_control%smear))
                   ELSE
                      ! ortho so that one can restart for different positions (basis sets?)
                      CALL make_basis_sm(mo_coeff, homo, s_sparse(1)%matrix)
