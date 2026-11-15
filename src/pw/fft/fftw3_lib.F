@@ -10,6 +10,7 @@ MODULE fftw3_lib
                             C_DOUBLE, &
                             C_DOUBLE_COMPLEX, &
                             C_INT, &
+                            C_NULL_PTR, &
                             C_PTR
 #if defined(__FFTW3)
    USE ISO_C_BINDING, ONLY: &
@@ -36,8 +37,16 @@ MODULE fftw3_lib
    PUBLIC :: fftw3_do_init, fftw3_do_cleanup, fftw3_get_lengths, fftw33d, fftw31dm
    PUBLIC :: fftw3_destroy_plan, fftw3_create_plan_1d, fftw3_create_plan_3d
    PUBLIC :: fftw_alloc, fftw_dealloc, fftw3_pair_major_3d
+   PUBLIC :: fftw3_pair_major_plan_type, fftw3_pair_major_plan_destroy
 
    INTEGER, SAVE :: fftw_plan_type = -1
+
+   ! The handle is owned by one caller and reused only with matching FFTW parameters.
+   TYPE fftw3_pair_major_plan_type
+      PRIVATE
+      TYPE(C_PTR) :: handle = C_NULL_PTR
+      INTEGER :: sign = 0, n(3) = 0, nbatch = 0, nthreads = 0
+   END TYPE fftw3_pair_major_plan_type
 
 #if defined(__FFTW3)
 #include "fftw3.f03"
@@ -1055,40 +1064,80 @@ CONTAINS
    END SUBROUTINE fftw3_create_plan_1d
 
 ! **************************************************************************************************
+!> \brief Destroy a caller-owned pair-major plan, including plans for short final batches.
+! **************************************************************************************************
+   SUBROUTINE fftw3_pair_major_plan_destroy(cached_plan)
+      TYPE(fftw3_pair_major_plan_type), INTENT(INOUT)     :: cached_plan
+
+#if defined(__FFTW3)
+      IF (C_ASSOCIATED(cached_plan%handle)) CALL fftw_destroy_plan(cached_plan%handle)
+#endif
+      cached_plan%handle = C_NULL_PTR
+      cached_plan%sign = 0
+      cached_plan%n = 0
+      cached_plan%nbatch = 0
+      cached_plan%nthreads = 0
+   END SUBROUTINE fftw3_pair_major_plan_destroy
+
+! **************************************************************************************************
 !> \brief Complete all three FFT axes on pair-major (P,Z,Y,X) data using FFTW3.
 !>        Input and output use the same layout. n is in z,y,x storage order.
 !>        FFTW_ESTIMATE does not overwrite the input during planning.
+!>        Cached plans may execute with new FFTW-aligned arrays of the same layout.
 ! **************************************************************************************************
-   SUBROUTINE fftw3_pair_major_3d(sign, n, nbatch, zin, zout, stat)
+   SUBROUTINE fftw3_pair_major_3d(sign, n, nbatch, zin, zout, stat, cached_plan)
       INTEGER, INTENT(IN)                                :: sign, n(3), nbatch
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
       INTEGER, INTENT(OUT)                               :: stat
+      TYPE(fftw3_pair_major_plan_type), INTENT(INOUT), &
+         OPTIONAL                                        :: cached_plan
 #if defined(__FFTW3)
       TYPE(C_PTR)                                        :: plan
       INTEGER                                            :: fft_sign, nthreads, shape(3)
 
-      ! Legacy Fortran FFTW wrappers reverse dimensions internally.
-      ! Supply z,y,x here to obtain C-side x,y,z.
-      shape = n
+      ! The FFTW C binding expects x,y,z dimensions for z-fastest storage.
+      shape = n([3, 2, 1])
       fft_sign = FFTW_BACKWARD
       IF (sign == 1) fft_sign = FFTW_FORWARD
 
       nthreads = 1
 !$    nthreads = MIN(omp_get_max_threads(), nbatch)
-      CALL fftw_plan_with_nthreads(nthreads)
-      CALL dfftw_plan_many_dft(plan, 3, shape, nbatch, zin, shape, nbatch, 1, &
-                               zout, shape, nbatch, 1, fft_sign, FFTW_ESTIMATE)
-      CALL fftw_plan_with_nthreads(1)
       stat = 1
+      IF (PRESENT(cached_plan)) THEN
+         IF (C_ASSOCIATED(cached_plan%handle)) THEN
+            IF (cached_plan%sign /= sign .OR. ANY(cached_plan%n /= n) .OR. &
+                cached_plan%nbatch /= nbatch .OR. cached_plan%nthreads /= nthreads) THEN
+               CALL fftw3_pair_major_plan_destroy(cached_plan)
+            END IF
+         END IF
+         IF (C_ASSOCIATED(cached_plan%handle)) THEN
+            CALL fftw_execute_dft(cached_plan%handle, zin, zout)
+            stat = 0
+            RETURN
+         END IF
+      END IF
+
+      CALL fftw_plan_with_nthreads(nthreads)
+      plan = fftw_plan_many_dft(3, shape, nbatch, zin, shape, nbatch, 1, &
+                                zout, shape, nbatch, 1, fft_sign, FFTW_ESTIMATE)
+      CALL fftw_plan_with_nthreads(1)
       IF (.NOT. C_ASSOCIATED(plan)) RETURN
+      IF (PRESENT(cached_plan)) THEN
+         cached_plan%handle = plan
+         cached_plan%sign = sign
+         cached_plan%n = n
+         cached_plan%nbatch = nbatch
+         cached_plan%nthreads = nthreads
+      END IF
       CALL fftw_execute_dft(plan, zin, zout)
-      CALL fftw_destroy_plan(plan)
+      IF (.NOT. PRESENT(cached_plan)) CALL fftw_destroy_plan(plan)
       stat = 0
 #else
       MARK_USED(sign)
       MARK_USED(n)
       MARK_USED(nbatch)
       IF (.FALSE.) THEN; DO; IF (ABS(zin(1)) > ABS(zout(1))) EXIT; END DO; END IF
+      IF (PRESENT(cached_plan)) CALL fftw3_pair_major_plan_destroy(cached_plan)
       stat = 1
 #endif
    END SUBROUTINE fftw3_pair_major_3d

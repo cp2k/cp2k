@@ -32,6 +32,8 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+   USE fft_lib,                         ONLY: fft_pair_major_plan_destroy,&
+                                              fft_pair_major_plan_type
    USE fft_tools,                       ONLY: BWFFT,&
                                               fft_alloc,&
                                               fft_dealloc
@@ -2150,6 +2152,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: endpoint(3), k_offset(3), setup_seconds, &
                                                             started, total_started, weight
       REAL(KIND=dp), ALLOCATABLE                         :: fractional_grid(:, :)
+      TYPE(fft_pair_major_plan_type)                     :: full_fft_plan, tail_fft_plan
       TYPE(gw_pair_fft_batch_type), POINTER              :: batch
       TYPE(gw_pair_fft_work_type), POINTER               :: plan
       TYPE(gw_pair_fft_work_type), TARGET                :: local_fft_work
@@ -2372,7 +2375,11 @@ CONTAINS
          !$OMP END PARALLEL DO
          profile%seconds(4) = profile%seconds(4) + m_walltime() - started
          profile%pair_major = .TRUE.
-         CALL lattice_fft_execute_pair_major(BWFFT, nfft, count, fft_in, fft_out, stat, profile)
+         IF (count == width) THEN
+            CALL lattice_fft_execute_pair_major(BWFFT, nfft, count, fft_in, fft_out, stat, profile, full_fft_plan)
+         ELSE
+            CALL lattice_fft_execute_pair_major(BWFFT, nfft, count, fft_in, fft_out, stat, profile, tail_fft_plan)
+         END IF
          IF (stat /= 0) CPABORT('GW product FFT failed')
          output(1:count, 1:INT(nfft_grid)) => fft_in(1:INT(nfft_grid)*count)
          started = m_walltime()
@@ -2387,6 +2394,8 @@ CONTAINS
          profile%seconds(8) = profile%seconds(8) + m_walltime() - started
       END DO
       started = m_walltime()
+      CALL fft_pair_major_plan_destroy(full_fft_plan)
+      CALL fft_pair_major_plan_destroy(tail_fft_plan)
       CALL fft_dealloc(fft_in)
       CALL fft_dealloc(fft_out)
       IF (.NOT. cache_hit) DEALLOCATE (pair_shift, pair_tie, keys, order)

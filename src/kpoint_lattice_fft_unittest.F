@@ -7,7 +7,8 @@
 PROGRAM kpoint_lattice_fft_unittest
    USE fft_tools,                       ONLY: finalize_fft,&
                                               init_fft
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE kpoint_lattice_fft,              ONLY: cell_to_k_grid_fft,&
                                               k_grid_to_cell_execute,&
                                               k_grid_to_cell_prepare,&
@@ -101,7 +102,9 @@ PROGRAM kpoint_lattice_fft_unittest
       END DO
    END DO
 
-   CALL cell_to_k_grid_fft(values_rs, index_to_cell, xkp, nkp_grid, transformed, used_fft)
+   ! A two-pair workspace forces repeated execution of one FFTW plan.
+   CALL cell_to_k_grid_fft(values_rs, index_to_cell, xkp, nkp_grid, transformed, used_fft, &
+                           max_workspace_bytes=48_int_8*PRODUCT(INT(nkp_grid, int_8))*2_int_8)
    IF (.NOT. used_fft) ERROR STOP "Complete regular grid did not use lattice FFT"
    CALL direct_reference(values_rs, index_to_cell, xkp, direct)
    IF (MAXVAL(ABS(transformed - direct)) > 2.0E-12_dp) THEN
@@ -324,7 +327,9 @@ PROGRAM kpoint_lattice_fft_unittest
    ! Reusing complete-grid FFT buffers must overwrite all previous transform data.
    CALL k_grid_to_cell_prepare(inverse_work, xkp, nkp_grid, index_to_cell)
    DO i = 1, 2
-      CALL k_grid_to_cell_execute(inverse_work, REAL(i, dp)*direct, weighted_result, used_fft)
+      ! Four pairs in the first batch and two in the final batch exercise both plans.
+      CALL k_grid_to_cell_execute(inverse_work, REAL(i, dp)*direct, weighted_result, used_fft, &
+                                  max_workspace_bytes=48_int_8*PRODUCT(INT(nkp_grid, int_8))*4_int_8)
       IF (.NOT. used_fft .OR. MAXVAL(ABS(weighted_result - REAL(i, dp)*weighted_reference)) > 3.0E-12_dp) THEN
          ERROR STOP 'Complete inverse grid retained stale FFT buffer values'
       END IF

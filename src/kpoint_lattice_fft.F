@@ -16,6 +16,8 @@
 ! **************************************************************************************************
 MODULE kpoint_lattice_fft
    USE fft_lib,                         ONLY: fft_pair_major_3d,&
+                                              fft_pair_major_plan_destroy,&
+                                              fft_pair_major_plan_type,&
                                               fft_supports_arbitrary_lengths
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_NEXT,&
@@ -264,19 +266,22 @@ CONTAINS
 !> \param scratch ...
 !> \param stat ...
 !> \param profile ...
+!> \param cached_plan optional caller-owned plan for repeated batch shapes
 ! **************************************************************************************************
-   SUBROUTINE lattice_fft_execute_pair_major(sign, n, nbatch, buffer, scratch, stat, profile)
+   SUBROUTINE lattice_fft_execute_pair_major(sign, n, nbatch, buffer, scratch, stat, profile, cached_plan)
       INTEGER, INTENT(IN)                                :: sign, n(3), nbatch
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: buffer(:), scratch(:)
       INTEGER, INTENT(OUT)                               :: stat
       TYPE(lattice_fft_profile_type), INTENT(INOUT), &
          OPTIONAL                                        :: profile
+      TYPE(fft_pair_major_plan_type), INTENT(INOUT), &
+         OPTIONAL                                        :: cached_plan
 
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: swap(:)
       REAL(KIND=dp)                                      :: started
 
       IF (PRESENT(profile)) started = m_walltime()
-      CALL fft_pair_major_3d(sign, n, nbatch, buffer, scratch, stat)
+      CALL fft_pair_major_3d(sign, n, nbatch, buffer, scratch, stat, cached_plan)
       IF (PRESENT(profile)) profile%seconds(5) = profile%seconds(5) + m_walltime() - started
       IF (stat /= 0) RETURN
       swap => buffer
@@ -337,6 +342,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: started
       TYPE(cell_to_k_grid_work_type), POINTER            :: plan
       TYPE(cell_to_k_grid_work_type), TARGET             :: local_work
+      TYPE(fft_pair_major_plan_type)                     :: full_fft_plan, tail_fft_plan
 
       CALL timeset("cell_to_k_grid_fft", handle)
       add = .FALSE.
@@ -467,7 +473,13 @@ CONTAINS
                END DO
 !$OMP END PARALLEL DO
                IF (PRESENT(profile)) profile%seconds(4) = profile%seconds(4) + m_walltime() - started
-               CALL lattice_fft_execute_pair_major(BWFFT, plan%nfft, nbatch, plan%fft_in, plan%fft_out, stat, profile)
+               IF (nbatch == width) THEN
+                  CALL lattice_fft_execute_pair_major(BWFFT, plan%nfft, nbatch, plan%fft_in, plan%fft_out, stat, &
+                                                      profile, full_fft_plan)
+               ELSE
+                  CALL lattice_fft_execute_pair_major(BWFFT, plan%nfft, nbatch, plan%fft_in, plan%fft_out, stat, &
+                                                      profile, tail_fft_plan)
+               END IF
                IF (stat /= 0) EXIT
                IF (PRESENT(profile)) started = m_walltime()
                output(1:nbatch, 1:INT(ngrid)) => plan%fft_in(1:INT(ngrid)*nbatch)
@@ -506,6 +518,8 @@ CONTAINS
 !$OMP END PARALLEL DO
                IF (PRESENT(profile)) profile%seconds(8) = profile%seconds(8) + m_walltime() - started
             END DO
+            CALL fft_pair_major_plan_destroy(full_fft_plan)
+            CALL fft_pair_major_plan_destroy(tail_fft_plan)
             success = stat == 0
             IF (stat /= 0 .AND. add) THEN
                CPABORT("Accumulating lattice FFT execution failed")
@@ -698,6 +712,7 @@ CONTAINS
                                                             width
       INTEGER(KIND=int_8)                                :: budget, first, ngrid, nvalues
       REAL(KIND=dp)                                      :: started
+      TYPE(fft_pair_major_plan_type)                     :: full_fft_plan, tail_fft_plan
 
       CALL timeset("k_grid_to_cell_fft", handle)
       CPASSERT(ALLOCATED(work%xkp))
@@ -759,10 +774,17 @@ CONTAINS
                profile%tile_max = MAX(profile%tile_max, nbatch)
                started = m_walltime()
             END IF
-            CALL k_grid_to_cell_pair_major_batch(work, values_k, first, nbatch, stat, &
-                                                 values_rs, values_real, profile)
+            IF (nbatch == width) THEN
+               CALL k_grid_to_cell_pair_major_batch(work, values_k, first, nbatch, stat, &
+                                                    values_rs, values_real, profile, full_fft_plan)
+            ELSE
+               CALL k_grid_to_cell_pair_major_batch(work, values_k, first, nbatch, stat, &
+                                                    values_rs, values_real, profile, tail_fft_plan)
+            END IF
             IF (stat /= 0) EXIT
          END DO
+         CALL fft_pair_major_plan_destroy(full_fft_plan)
+         CALL fft_pair_major_plan_destroy(tail_fft_plan)
       END IF
       IF (stat /= 0) work%regular = .FALSE.
       IF (.NOT. work%regular) THEN
@@ -798,8 +820,10 @@ CONTAINS
 !> \param values_rs ...
 !> \param values_real ...
 !> \param profile ...
+!> \param cached_plan ...
 ! **************************************************************************************************
-   SUBROUTINE k_grid_to_cell_pair_major_batch(work, values_k, first, nbatch, stat, values_rs, values_real, profile)
+   SUBROUTINE k_grid_to_cell_pair_major_batch(work, values_k, first, nbatch, stat, values_rs, values_real, profile, &
+                                              cached_plan)
       TYPE(k_grid_to_cell_work_type), INTENT(INOUT)      :: work
       COMPLEX(KIND=dp), INTENT(IN)                       :: values_k(:, :, :)
       INTEGER(KIND=int_8), INTENT(IN)                    :: first
@@ -809,6 +833,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: values_real(:, :, :)
       TYPE(lattice_fft_profile_type), INTENT(INOUT), &
          OPTIONAL                                        :: profile
+      TYPE(fft_pair_major_plan_type), INTENT(INOUT)      :: cached_plan
 
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: input(:, :), output(:, :)
       INTEGER                                            :: i, icell, ik, matrix_column, matrix_row, &
@@ -848,7 +873,8 @@ CONTAINS
       END DO
 !$OMP END PARALLEL DO
       IF (PRESENT(profile)) profile%seconds(4) = profile%seconds(4) + m_walltime() - started
-      CALL lattice_fft_execute_pair_major(FWFFT, work%nfft, nbatch, work%fft_in, work%fft_out, stat, profile)
+      CALL lattice_fft_execute_pair_major(FWFFT, work%nfft, nbatch, work%fft_in, work%fft_out, stat, &
+                                          profile, cached_plan)
       IF (stat /= 0) RETURN
       output(1:nbatch, 1:INT(ngrid)) => work%fft_in(1:nbatch*INT(ngrid))
       IF (PRESENT(profile)) started = m_walltime()
