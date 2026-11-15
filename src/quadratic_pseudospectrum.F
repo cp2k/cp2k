@@ -409,7 +409,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE :: eigenvalues(:)
       REAL(dp) :: square, scale, norm_before, norm_after, full_square, lost_square
       COMPLEX(dp) :: coefficient
-      INTEGER :: capacity, m, old, i, j, p, iteration, seed, initial, pass, keep
+      INTEGER :: capacity, m, old, first, i, j, p, iteration, seed, initial, pass, keep
       LOGICAL :: accepted
       LOGICAL, ALLOCATABLE :: continuum(:)
 
@@ -513,23 +513,29 @@ CONTAINS
             RETURN
          END IF
          ! Fill remaining slots with a partial residual block before restarting.
+         first = m + 1
          IF (m == capacity) THEN
             ! Retain nearby Ritz vectors across restarts, important for clustered spectra.
             keep = MIN(m, MAX(nstates, capacity/2))
             ALLOCATE (restarted(n, keep))
             restarted(:, :) = MATMUL(v(:, :m), projected(:, :keep))
-            v(:, :keep) = restarted
-            restarted(:, :) = MATMUL(sv(:, :m), projected(:, :keep))
-            sv(:, :keep) = restarted
-            restarted(:, :) = MATMUL(qv(:, :m), projected(:, :keep))
-            qv(:, :keep) = restarted
+            ! Rebuild an S-orthonormal basis with fresh metric and operator images, since
+            ! transforming cached images lets V^H S V drift from unity and limits the residuals.
+            m = 0
+            DO j = 1, keep
+               trial(:, 1) = restarted(:, j)
+               CALL append_vector(accepted)
+               IF (status /= 0) RETURN
+            END DO
             DEALLOCATE (restarted)
-            m = keep
+            first = 1
          END IF
          DEALLOCATE (projected, eigenvalues)
          old = m
          DO j = 1, nstates
             IF (m == capacity) EXIT
+            ! Converged residuals are rounding noise and would only pollute the trial space.
+            IF (result%residuals(j) <= tolerance*MAX(1.0_dp, ABS(result%eigenvalues(j)))) CYCLE
             trial(:, 1) = z(:, j)
             CALL append_vector(accepted)
             IF (status /= 0) RETURN
@@ -544,7 +550,7 @@ CONTAINS
                RETURN
             END IF
          END IF
-         CALL apply_q(v(:, old + 1:m), qv(:, old + 1:m), status)
+         CALL apply_q(v(:, first:m), qv(:, first:m), status)
          IF (status /= 0) RETURN
       END DO
       IF (ANY(result%eigenvalues < -tolerance*MAX(1.0_dp, MAXVAL(ABS(result%eigenvalues))))) THEN
