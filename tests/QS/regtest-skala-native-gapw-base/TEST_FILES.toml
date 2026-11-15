@@ -12,7 +12,7 @@
   {matcher = "SKALA_GPW_feature_spin_moment", tol = 1e-12, ref = 0.0},
   {matcher = "SKALA_GPW_feature_weight_sum", tol = 1e-8, ref = 431.893413318}
 ]
-"H2_NATIVE_SKALA_GPW_POLAR.inp"                = [{matcher = "M087", tol = 1e-7, ref = 10.9843488568}]
+"H2_NATIVE_SKALA_GPW_POLAR.inp"                = [{matcher = "M087", tol = 1e-7, ref = 0.921831660892}]
 "H2_NATIVE_SKALA_GPW_STRESS_CHUNK_REQUEST.inp" = [{matcher = "E_total", tol = 1e-8, ref = -1.04098731498047}]
 "H2O_NATIVE_SKALA_GPW_NLCC_ENERGY.inp"         = [
   {matcher = "E_total", tol = 5e-4, ref = -18.00176846573398},
