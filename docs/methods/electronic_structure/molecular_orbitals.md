@@ -16,6 +16,8 @@ The most useful choices are:
 - **K-point MO dump** ([&MO_KP](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_KP)): export MO information for
   k-point calculations in the CP2K-specific `.mokp` text format, including k-points, eigenvalues,
   occupations, complex MO coefficients, and AO information.
+- **Chargemol WFX file** ([&CHARGEMOL](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CHARGEMOL)): export occupied
+  Gamma-point orbitals and Gaussian basis information for external charge analysis with Chargemol.
 - **TREXIO file** ([&TREXIO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.TREXIO)): export orbital information
   in TREXIO HDF5 format for interoperability with quantum-chemistry post-processing tools. This
   requires TREXIO support in the CP2K build.
@@ -285,6 +287,34 @@ s      5    1.00
 `&MO`, or `&MO_CUBES` depending on the intended use.
 ```
 
+## Chargemol WFX file
+
+[&CHARGEMOL](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CHARGEMOL) writes a `.wfx` file for analysis with the
+external Chargemol program. The file contains the Gaussian primitives and the coefficients,
+energies, occupations, and spin labels of the occupied orbitals. For all-electron calculations, it
+includes both core and valence electrons.
+
+```text
+&FORCE_EVAL
+  &DFT
+    &PRINT
+      &CHARGEMOL ON
+        FILENAME =orbitals.wfx
+      &END CHARGEMOL
+    &END PRINT
+  &END DFT
+&END FORCE_EVAL
+```
+
+The export supports restricted and unrestricted Hartree--Fock and Kohn--Sham calculations at Gamma
+only. For periodic Gamma-only calculations, set
+[PERIODIC](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CHARGEMOL.PERIODIC) to `T` in `&CHARGEMOL` to include
+the periodic cell vectors.
+
+With orbital transformation (OT), the occupied orbitals must have uniform occupations within each
+spin channel. CP2K canonicalizes a copy of the occupied orbitals for export without changing the SCF
+state.
+
 ## TREXIO HDF5 file
 
 ```{important}
@@ -467,6 +497,8 @@ and therefore the output size. More advanced openPMD runtime options can be pass
   and the goal is visualization in common molecular-orbital viewers.
 - Use [&MO_KP](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_KP) when the calculation uses k-points and a
   post-processing tool needs k-point-resolved coefficients.
+- Use [&CHARGEMOL](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.CHARGEMOL) for external charge analysis with
+  Chargemol.
 - Use [&TREXIO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.TREXIO) when a structured HDF5 orbital file is
   needed for interoperability with external quantum-chemistry tools.
 - Use [&MO_CUBES](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES) or
