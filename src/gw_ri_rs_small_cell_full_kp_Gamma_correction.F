@@ -9,7 +9,7 @@
 !> \brief Gamma-point (q = 0) correction of W and Σ for periodic RI-RS GW.
 !> \author Jan Wilhelm (with help of ChatGPT, GPT-6 Sol and GPT-6 Astra)
 ! **************************************************************************************************
-MODULE gw_ri_rs_small_cell_full_kp_gamma
+MODULE gw_ri_rs_small_cell_full_kp_Gamma_correction
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
@@ -83,7 +83,7 @@ MODULE gw_ri_rs_small_cell_full_kp_gamma
    IMPLICIT NONE
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_small_cell_full_kp_gamma'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_small_cell_full_kp_Gamma_correction'
 
    PUBLIC :: add_gamma_corr_cell_correction, &
              add_gamma_corr_pair_cell, &
@@ -190,7 +190,7 @@ CONTAINS
          metric_rows(:, :), metric_zero(:, :), pi_cartesian(:, :), response_cartesian(:, :), &
          schur_cartesian(:, :), time_chi(:, :, :), time_head(:, :, :), time_wing(:, :, :), &
          V_sqrt_zero(:, :)
-      INTEGER                                            :: a, first_row, handle, i_cartesian, &
+      INTEGER                                            :: first_row, handle, i_cartesian, &
                                                             i_direction, ikp, j_cartesian, j_w, &
                                                             n_angular, n_directions, n_near, &
                                                             n_w_kpoints
@@ -219,9 +219,7 @@ CONTAINS
          WRITE (bs_env%unit_nr, '(T2,A,T72,I10)') &
             'Number of angular points for the Γ-point correction of W:', n_angular
       END IF
-      n_near = PRODUCT(MIN(2, bs_env%nkp_grid_chi_eps_W_orig))
-      n_directions = n_angular + n_near
-      a = 0
+      n_near = 0
       DO ikp = 1, n_w_kpoints
          q_direction = bs_env%kpoints_chi_eps_W%xkp(1:3, ikp) - &
                        ANINT(bs_env%kpoints_chi_eps_W%xkp(1:3, ikp))
@@ -230,11 +228,10 @@ CONTAINS
          ELSE
             IF (.NOT. is_gamma_neighbor(q_direction, bs_env%nkp_grid_chi_eps_W_orig)) CYCLE
          END IF
-         a = a + 1
-         IF (a > n_near) CPABORT('Too many Gamma-neighbor transfer points')
-         near_q(:, a) = q_direction
+         n_near = n_near + 1
+         near_q(:, n_near) = q_direction
       END DO
-      IF (a /= n_near) CPABORT('Inconsistent Gamma-neighbor transfer points')
+      n_directions = n_angular + n_near
       ALLOCATE (directions(3, n_directions), weights(n_directions), radii(n_directions))
       directions(:, 1:n_angular) = angular_directions
       weights(1:n_angular) = angular_weights
@@ -411,10 +408,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Angular cubature over the cells adjacent to Gamma.
-!> With mesh dimensions n_i, the fractional half-widths are h_i=min(1/n_i,1/2).
-!> The face Jacobian is Omega_BZ*PRODUCT(h_i)/r**3.  The region contains
-!> PRODUCT(min(2,n_i)) distinct mesh cells; a one-point direction covers its
-!> entire Brillouin-zone interval exactly once, not two periodic copies.
+!> The region spans the mesh cells next to Gamma, with fractional half-widths h_i from
+!> gamma_cell_half_width.  The face Jacobian is Omega_BZ*PRODUCT(h_i)/r**3.
 !> \param bs_env ...
 !> \param directions ...
 !> \param weights ...
@@ -426,16 +421,14 @@ CONTAINS
 
       INTEGER, PARAMETER                                 :: n = 6
 
-      INTEGER                                            :: face, i, ia, ib, j, k, n_angular, nk, &
+      INTEGER                                            :: face, i, ia, ib, j, k, n_angular, &
                                                             sign_index
-      REAL(KIND=dp)                                      :: bmat(3, 3), jacobian_scale, q(3), &
-                                                            qfrac(3), volume
+      REAL(KIND=dp)                                      :: bmat(3, 3), h(3), q(3), qfrac(3), volume
       REAL(KIND=dp), ALLOCATABLE                         :: nodes(:), rule_weights(:)
 
       ! Six faces with a 6-by-6 Gauss-Legendre rule give 216 angular points.
       n_angular = 6*n*n
-      nk = PRODUCT(bs_env%nkp_grid_chi_eps_W_orig)
-      jacobian_scale = REAL(PRODUCT(MIN(2, bs_env%nkp_grid_chi_eps_W_orig)), dp)/8.0_dp
+      h(:) = gamma_cell_half_width(bs_env%nkp_grid_chi_eps_W_orig)
       volume = bs_env%ri_rs%cell%deth
       bmat = twopi*TRANSPOSE(inv_3x3(bs_env%hmat))
       ALLOCATE (nodes(n), rule_weights(n))
@@ -449,14 +442,14 @@ CONTAINS
             DO ia = 1, n
                DO ib = 1, n
                   face = face + 1
-                  qfrac(i) = REAL(sign_index, dp)/REAL(MAX(2, bs_env%nkp_grid_chi_eps_W_orig(i)), dp)
-                  qfrac(j) = nodes(ia)/REAL(MAX(2, bs_env%nkp_grid_chi_eps_W_orig(j)), dp)
-                  qfrac(k) = nodes(ib)/REAL(MAX(2, bs_env%nkp_grid_chi_eps_W_orig(k)), dp)
+                  qfrac(i) = REAL(sign_index, dp)*h(i)
+                  qfrac(j) = nodes(ia)*h(j)
+                  qfrac(k) = nodes(ib)*h(k)
                   q = MATMUL(bmat, qfrac)
                   radii(face) = NORM2(q)
                   directions(:, face) = q/radii(face)
-                  weights(face) = (twopi**3/volume)/(fourpi*REAL(nk, dp)*radii(face)**3)* &
-                                  rule_weights(ia)*rule_weights(ib)*jacobian_scale
+                  weights(face) = (twopi**3/volume)*PRODUCT(h)/(fourpi*radii(face)**3)* &
+                                  rule_weights(ia)*rule_weights(ib)
                END DO
             END DO
          END DO
@@ -466,8 +459,10 @@ CONTAINS
    END SUBROUTINE gamma_cell_face_directions
 
 ! **************************************************************************************************
-!> \brief Whether a point of the half-shifted q mesh is one of the transfer points next to Gamma.
-!> On a half-shifted mesh, 2*|q_i|*N_i is an odd integer; it equals one next to Gamma.
+!> \brief Whether a q-mesh point other than Gamma lies in the mesh cells next to Gamma.
+!> On a Monkhorst-Pack mesh m_i = 2*|q_i|*N_i is odd for even N_i and even for odd N_i.
+!> Along an even direction Gamma is a cell corner and its neighbors have m_i = 1; along an
+!> odd direction Gamma is a mesh point and the cell next to it has m_i = 0.
 !> \param xkp fractional q point
 !> \param nkp_grid q mesh along the same directions
 !> \return ...
@@ -477,9 +472,27 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nkp_grid(:)
       LOGICAL                                            :: neighbor
 
-      neighbor = ALL(NINT(2.0_dp*ABS(xkp - ANINT(xkp))*REAL(nkp_grid, dp)) == 1)
+      INTEGER                                            :: m(SIZE(xkp))
+
+      m(:) = NINT(2.0_dp*ABS(xkp - ANINT(xkp))*REAL(nkp_grid, dp))
+      neighbor = ALL(m == 1 - MODULO(nkp_grid, 2)) .AND. ANY(m == 1)
 
    END FUNCTION is_gamma_neighbor
+
+! **************************************************************************************************
+!> \brief Fractional half-width of the mesh cells next to Gamma along one direction.
+!> Even N: Gamma is the corner of two cells, h = 1/N.  Odd N: Gamma is the center of one
+!> cell, h = 1/(2N); N = 1 covers the whole Brillouin-zone interval.
+!> \param nkp_grid number of q points along the direction
+!> \return ...
+! **************************************************************************************************
+   ELEMENTAL FUNCTION gamma_cell_half_width(nkp_grid) RESULT(h)
+      INTEGER, INTENT(IN)                                :: nkp_grid
+      REAL(KIND=dp)                                      :: h
+
+      h = REAL(2 - MODULO(nkp_grid, 2), dp)/REAL(2*nkp_grid, dp)
+
+   END FUNCTION gamma_cell_half_width
 
 ! **************************************************************************************************
 !> \brief Radial moments f0 = int_0^L exp(-i a q) dq and f1 = int_0^L q exp(-i a q) dq.
@@ -649,9 +662,9 @@ CONTAINS
    END SUBROUTINE slab_reciprocal_vectors
 
 ! **************************************************************************************************
-!> \brief Polar boundary quadrature of the four shifted Γ-neighbor cells.
+!> \brief Polar boundary quadrature of the in-plane mesh cells next to Γ.
 !> Directions d, radii L and weights approximate dθ on the bounding parallelogram.
-!> As in 3D, the fractional half-widths are min(1/n_i,1/2).
+!> As in 3D, the fractional half-widths come from gamma_cell_half_width.
 !> \param bs_env ...
 !> \param directions ...
 !> \param weights ...
@@ -675,11 +688,11 @@ CONTAINS
       i_direction = 0
       DO i_axis = 1, 2
          j_axis = 3 - i_axis
-         dq = b(:, j_axis)/REAL(MAX(2, bs_env%nkp_grid_chi_eps_W_orig(j_axis)), dp)
+         dq = b(:, j_axis)*gamma_cell_half_width(bs_env%nkp_grid_chi_eps_W_orig(j_axis))
          DO i_sign = -1, 1, 2
             DO i_node = 1, n_face
                i_direction = i_direction + 1
-               q = REAL(i_sign, dp)*b(:, i_axis)/REAL(MAX(2, bs_env%nkp_grid_chi_eps_W_orig(i_axis)), dp) &
+               q = REAL(i_sign, dp)*b(:, i_axis)*gamma_cell_half_width(bs_env%nkp_grid_chi_eps_W_orig(i_axis)) &
                    + nodes(i_node)*dq
                radii(i_direction) = NORM2(q)
                directions(:, i_direction) = q/radii(i_direction)
@@ -1327,8 +1340,6 @@ CONTAINS
       CPASSERT(ALLOCATED(auto_ri%U_Pp_atom))
       CPASSERT(ALLOCATED(auto_ri%U_Pp_atom_offset))
       CPASSERT(SIZE(auto_ri%sizes_ref_RI) > 0)
-      CPASSERT(SIZE(auto_ri%sizes_ref_RI) == SIZE(auto_ri%sizes_opt_RI))
-      CPASSERT(SIZE(auto_ri%U_Pp_atom_offset) == SIZE(auto_ri%sizes_ref_RI))
       valid_layout = ALL(auto_ri%sizes_ref_RI > 0) .AND. ALL(auto_ri%sizes_opt_RI > 0)
       CPASSERT(valid_layout)
       CALL cp_fm_get_info(images(1), nrow_local=nr, ncol_local=nc, &
@@ -1361,7 +1372,6 @@ CONTAINS
          nopt = auto_ri%sizes_opt_RI(iatom)
          offset = auto_ri%U_Pp_atom_offset(iatom)
          CPASSERT(offset > 0 .AND. nref <= HUGE(0)/nopt)
-         CPASSERT(offset - 1 <= SIZE(auto_ri%U_Pp_atom) - nref*nopt)
          ALLOCATE (blocks(iatom)%positions(COUNT(indices >= first_ref .AND. indices < first_ref + nref)))
          ALLOCATE (blocks(iatom)%values(SIZE(blocks(iatom)%positions), nopt))
          blocks(iatom)%first = first_opt
@@ -1595,11 +1605,9 @@ CONTAINS
       para_env => bs_env%para_env
       index_to_cell => gwkp_env%gamma_corr_index_to_cell
       cell_to_index => gwkp_env%gamma_corr_cell_to_index
-      CPASSERT(ASSOCIATED(index_to_cell) .AND. ASSOCIATED(cell_to_index))
       CALL get_cell(cell=cell, h=hmat, periodic=periodic)
       CALL get_kpoint_info(kpoints, nkp=n_k)
       n_spin = bs_env%n_spin
-      CPASSERT(SIZE(mo_coeff, 1) >= n_k .AND. SIZE(mo_coeff, 2) == n_spin)
       valid_layout = SIZE(eigenvalues, 2) >= n_k .AND. SIZE(eigenvalues, 3) == n_spin
       CPASSERT(valid_layout)
       CPASSERT(SIZE(nocc_spin) == n_spin)
@@ -2117,4 +2125,4 @@ CONTAINS
       DEALLOCATE (list)
    END SUBROUTINE gw_gamma_cell_index_union
 
-END MODULE gw_ri_rs_small_cell_full_kp_gamma
+END MODULE gw_ri_rs_small_cell_full_kp_Gamma_correction

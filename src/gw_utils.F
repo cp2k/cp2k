@@ -65,7 +65,7 @@ MODULE gw_utils
    USE gw_auto_ri_generate_RI_basis,    ONLY: generate_auto_ri_basis
    USE gw_auto_ri_types,                ONLY: auto_ri_type
    USE gw_compute_V_and_W,              ONLY: get_V_tr_R
-   USE gw_ri_rs_small_cell_full_kp_gamma,ONLY: prepare_ri_rs_gamma_correction
+   USE gw_ri_rs_small_cell_full_kp_Gamma_correction,ONLY: prepare_ri_rs_gamma_correction
    USE gw_utils_compute_integrals,      ONLY: build_3c_integral_block
    USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
                                               fm_invert,&

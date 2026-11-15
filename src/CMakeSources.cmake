@@ -227,7 +227,7 @@ list(
   gapw_1c_basis_set.F
   gw_ri_rs_chi_sigma_kernels.F
   gw_ri_rs_small_cell_full_kp.F
-  gw_ri_rs_small_cell_full_kp_gamma.F
+  gw_ri_rs_small_cell_full_kp_Gamma_correction.F
   gw_ri_rs_small_cell_full_kp_lattice.F
   gw_ri_rs_small_cell_full_kp_types.F
   gw_ri_rs_small_cell_full_kp_utils.F

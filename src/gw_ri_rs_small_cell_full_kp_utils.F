@@ -37,7 +37,7 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
    USE fft_tools,                       ONLY: BWFFT,&
                                               fft_alloc,&
                                               fft_dealloc
-   USE gw_ri_rs_small_cell_full_kp_gamma,ONLY: add_gamma_corr_cell_correction,&
+   USE gw_ri_rs_small_cell_full_kp_Gamma_correction,ONLY: add_gamma_corr_cell_correction,&
                                               add_gamma_corr_pair_cell,&
                                               gamma_point_correction,&
                                               singular_head_cell_factors
@@ -551,8 +551,10 @@ CONTAINS
 !> \param group_rank Within-group index i.
 !> \param Z_group Z(q) of this group rank, indexed (grid, RI, local q).
 !> \param psi_group ψ(k) of this group rank, indexed (grid, AO, local k, spin).
+!> \param needed q points whose Z(q) is copied; all q if absent.
 ! **************************************************************************************************
-   SUBROUTINE gather_group_columns(bs_env, gwkp_env, column_env, group_size, group_rank, Z_group, psi_group)
+   SUBROUTINE gather_group_columns(bs_env, gwkp_env, column_env, group_size, group_rank, Z_group, psi_group, &
+                                   needed)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(gwkp_type), INTENT(IN)                        :: gwkp_env
       TYPE(mp_comm_type), INTENT(IN)                     :: column_env
@@ -560,18 +562,22 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, INTENT(OUT)         :: Z_group(:, :, :)
       COMPLEX(KIND=dp), ALLOCATABLE, INTENT(OUT), &
          OPTIONAL                                        :: psi_group(:, :, :, :)
+      LOGICAL, INTENT(IN), OPTIONAL                      :: needed(:)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'gather_group_columns'
 
       COMPLEX(KIND=dp), ALLOCATABLE                      :: psi_block(:, :, :), Z_block(:, :)
       INTEGER                                            :: handle, i_root, ik, ik_local, iq, &
                                                             iq_local, n_grid, n_k, n_world
+      LOGICAL, ALLOCATABLE                               :: copy_q(:)
 
       CALL timeset(routineN, handle)
 
       n_world = bs_env%para_env%num_pe
       n_grid = bs_env%ri_rs%n_grid_points
       n_k = bs_env%nkp_scf_desymm
+      ALLOCATE (copy_q(n_k), SOURCE=.TRUE.)
+      IF (PRESENT(needed)) copy_q(:) = needed
       IF (PRESENT(psi_group)) THEN
          ALLOCATE (psi_group(n_grid, bs_env%n_ao, COUNT([(MODULO(ik - 1, group_size) == group_rank, ik=1, n_k)]), &
                              bs_env%n_spin))
@@ -586,17 +592,19 @@ CONTAINS
          END DO
          DEALLOCATE (psi_block)
       END IF
-      ALLOCATE (Z_group(n_grid, bs_env%n_RI, COUNT([(MODULO(iq, group_size) == group_rank, iq=1, n_k)])))
+      ALLOCATE (Z_group(n_grid, bs_env%n_RI, COUNT([(MODULO(iq, group_size) == group_rank .AND. copy_q(iq), &
+                                                     iq=1, n_k)])))
       ALLOCATE (Z_block(n_grid, bs_env%n_RI))
       iq_local = 0
       DO iq = MODULO(group_rank - 1, group_size) + 1, n_k, group_size
+         IF (.NOT. copy_q(iq)) CYCLE
          i_root = MODULO(iq, n_world)/group_size
          IF (column_env%mepos == i_root) Z_block(:, :) = gwkp_env%Z_lP_q(:, :, (iq - 1)/n_world + 1)
          CALL column_env%bcast(Z_block, i_root)
          iq_local = iq_local + 1
          Z_group(:, :, iq_local) = Z_block
       END DO
-      DEALLOCATE (Z_block)
+      DEALLOCATE (copy_q, Z_block)
 
       CALL timestop(handle)
 
@@ -619,8 +627,8 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, TARGET              :: psi_time(:, :, :, :), Z_group(:, :, :)
       COMPLEX(KIND=dp), POINTER                          :: psi_values(:, :, :, :), Z_time(:, :, :)
       INTEGER :: first_pair, handle, i_group, i_needed, i_q_world, i_rank, i_root, i_size, &
-         i_source, i_t, i_tag, i_time_group, i_time_local, iq, iq_local, ispin, n_aux, n_cells, &
-         n_grid, n_groups, n_local, n_needed_local, n_pairs_local, n_q_local, n_threads, &
+         i_source, i_t, i_tag, i_time_group, i_time_local, i_z, iq, iq_local, ispin, n_aux, &
+         n_cells, n_grid, n_groups, n_local, n_needed_local, n_pairs_local, n_q_local, n_threads, &
          n_time_local, n_world
       INTEGER, ALLOCATABLE                               :: full_cells(:, :), needed_local(:), &
                                                             q_partner(:)
@@ -696,7 +704,7 @@ CONTAINS
       CALL chi_env%from_split(gwkp_env%group_env, i_group)
       CALL column_env%from_split(gwkp_env%group_env, chi_env%mepos)
       IF (n_groups > 1) THEN
-         CALL gather_group_columns(bs_env, gwkp_env, column_env, i_size, chi_env%mepos, Z_group, psi_time)
+         CALL gather_group_columns(bs_env, gwkp_env, column_env, i_size, chi_env%mepos, Z_group, psi_time, needed)
          psi_values => psi_time
          Z_time => Z_group
       ELSE
@@ -706,7 +714,7 @@ CONTAINS
       n_time_local = (bs_env%num_time_freq_points + n_groups - 1 - i_group)/n_groups
       CALL block_range(n_grid**2, chi_env%mepos, chi_env%num_pe, first_pair, n_pairs_local)
       n_q_local = COUNT([(MODULO(iq, chi_env%num_pe) == chi_env%mepos, iq=1, bs_env%nkp_scf_desymm)])
-      ALLOCATE (chi_q(n_aux, n_aux, n_q_local), needed_local(n_q_local))
+      ALLOCATE (needed_local(n_q_local))
       ALLOCATE (chi_partial(n_q_local))
       iq_local = 0
       n_needed_local = 0
@@ -717,6 +725,7 @@ CONTAINS
          needed_local(n_needed_local) = iq_local
          ALLOCATE (chi_partial(iq_local)%values(n_aux, n_aux, n_time_local), SOURCE=z_zero)
       END DO
+      ALLOCATE (chi_q(n_aux, n_aux, n_needed_local))
 
       ALLOCATE (step_times(bs_env%num_time_freq_points), SOURCE=0.0_dp)
       DO i_t = i_group + 1, bs_env%num_time_freq_points, n_groups
@@ -750,19 +759,20 @@ CONTAINS
             DEALLOCATE (chi_grid_q)
             ! χ_PQ(q) = Σ_ll′ Z_lP(q)* χ_ll′(q) Z_l′Q(q).
             ! Parallelize distinct q matrices; leave singleton GEMM threading to BLAS.
+            ! Z_group holds only the needed q, Z_lP_q all q of this rank.
             !$OMP PARALLEL DEFAULT(NONE) IF(n_needed_local > 1) &
-            !$OMP SHARED(n_grid, n_aux, n_needed_local, needed_local, chi_grid_local_q, Z_time, chi_q) &
-            !$OMP PRIVATE(work, i_needed, iq_local)
+            !$OMP SHARED(n_grid, n_aux, n_groups, n_needed_local, needed_local, chi_grid_local_q, Z_time, chi_q) &
+            !$OMP PRIVATE(work, i_needed, i_z)
             ALLOCATE (work(n_grid, n_aux))
             !$OMP DO SCHEDULE(STATIC)
             DO i_needed = 1, n_needed_local
-               iq_local = needed_local(i_needed)
+               i_z = MERGE(i_needed, needed_local(i_needed), n_groups > 1)
                CALL zgemm('N', 'N', n_grid, n_aux, n_grid, z_one, &
                           chi_grid_local_q(:, :, i_needed), n_grid, &
-                          Z_time(:, :, iq_local), n_grid, z_zero, work, n_grid)
+                          Z_time(:, :, i_z), n_grid, z_zero, work, n_grid)
                CALL zgemm('C', 'N', n_aux, n_aux, n_grid, z_one, &
-                          Z_time(:, :, iq_local), n_grid, work, n_grid, z_one, &
-                          chi_q(:, :, iq_local), n_aux)
+                          Z_time(:, :, i_z), n_grid, work, n_grid, z_one, &
+                          chi_q(:, :, i_needed), n_aux)
             END DO
             !$OMP END DO
             DEALLOCATE (work)
@@ -772,7 +782,7 @@ CONTAINS
          i_time_local = (i_t - 1)/n_groups + 1
          DO i_needed = 1, n_needed_local
             iq_local = needed_local(i_needed)
-            chi_partial(iq_local)%values(:, :, i_time_local) = chi_q(:, :, iq_local)
+            chi_partial(iq_local)%values(:, :, i_time_local) = chi_q(:, :, i_needed)
          END DO
          IF (chi_env%mepos == 0) step_times(i_t) = m_walltime() - step_start
       END DO
