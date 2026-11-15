@@ -46,6 +46,8 @@ MODULE kpoint_lattice_fft
    INTEGER, PARAMETER :: fft_pack_rows = 8, fft_pack_cells = 32
    ! Avoid OpenMP launch overhead unless a packing/extraction stage has enough values.
    INTEGER(KIND=int_8), PARAMETER :: fft_parallel_values = 32768_int_8
+   ! Keep the default pair-major workspace bounded, as in the master lattice FFT.
+   INTEGER(KIND=int_8), PARAMETER :: fft_workspace_bytes = 64_int_8*1024_int_8**2
 
    ! Optional local-panel diagnostics. Axis times include the one-shot planner.
    TYPE lattice_fft_profile_type
@@ -388,8 +390,8 @@ CONTAINS
             CPABORT("Lattice FFT image range exceeds the prepared geometry")
          END IF
          ngrid = PRODUCT(INT(plan%nfft, int_8))
-         ! No implicit workspace budget. Honor an explicit caller soft limit.
-         budget = HUGE(0_int_8)
+         ! A single pair may exceed this soft limit; otherwise keep workspaces bounded.
+         budget = fft_workspace_bytes
          IF (PRESENT(max_workspace_bytes)) budget = MAX(48_int_8*ngrid, max_workspace_bytes)
          nvalues = SIZE(values_rs, 1, KIND=int_8)*SIZE(values_rs, 2, KIND=int_8)
          ! The FFT wrappers and allocated buffer sizes use default INTEGER.
@@ -676,9 +678,10 @@ CONTAINS
 !> \param allow_direct_fallback execute the generic direct sum when FFT is unavailable; defaults to true
 !> \param values_real real part of the inverse transform, instead of values_rs
 !> \param profile optional local-panel stage timings and batch counts
+!> \param max_workspace_bytes optional soft FFT workspace target (default 64 MiB)
 ! **************************************************************************************************
    SUBROUTINE k_grid_to_cell_execute(work, values_k, values_rs, used_fft, require_fft, allow_direct_fallback, values_real, &
-                                     profile)
+                                     profile, max_workspace_bytes)
 
       TYPE(k_grid_to_cell_work_type), INTENT(INOUT)      :: work
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: values_k
@@ -689,10 +692,11 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: values_real(:, :, :)
       TYPE(lattice_fft_profile_type), INTENT(INOUT), &
          OPTIONAL                                        :: profile
+      INTEGER(KIND=int_8), INTENT(IN), OPTIONAL          :: max_workspace_bytes
 
       INTEGER                                            :: handle, nbatch, output_shape(3), stat, &
                                                             width
-      INTEGER(KIND=int_8)                                :: first, ngrid, nvalues
+      INTEGER(KIND=int_8)                                :: budget, first, ngrid, nvalues
       REAL(KIND=dp)                                      :: started
 
       CALL timeset("k_grid_to_cell_fft", handle)
@@ -714,9 +718,11 @@ CONTAINS
       IF (work%regular) THEN
          ngrid = PRODUCT(INT(work%nfft, int_8))
          nvalues = SIZE(values_k, 1, KIND=int_8)*SIZE(values_k, 2, KIND=int_8)
-         ! Unbounded in memory; restrict only by default-INTEGER FFT indexing.
+         budget = fft_workspace_bytes
+         IF (PRESENT(max_workspace_bytes)) budget = MAX(48_int_8*ngrid, max_workspace_bytes)
          CPASSERT(ngrid <= HUGE(0))
-         width = INT(MIN(nvalues, INT(HUGE(0), int_8)/ngrid))
+         width = INT(MIN(nvalues, MAX(1_int_8, budget/(48_int_8*ngrid)), &
+                         INT(HUGE(0), int_8)/ngrid))
          IF (width == 0) THEN
             IF (PRESENT(used_fft)) used_fft = .TRUE.
             CALL timestop(handle)
@@ -732,7 +738,8 @@ CONTAINS
             started = m_walltime()
          END IF
          IF (ASSOCIATED(work%fft_in)) THEN
-            IF (SIZE(work%fft_in, KIND=int_8) < ngrid*width) THEN
+            IF (SIZE(work%fft_in, KIND=int_8) < ngrid*width .OR. &
+                32_int_8*SIZE(work%fft_in, KIND=int_8) + 16_int_8*ngrid*width > budget) THEN
                CALL fft_dealloc(work%fft_in)
                CALL fft_dealloc(work%fft_out)
             END IF
