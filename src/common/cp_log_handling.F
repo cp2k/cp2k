@@ -655,7 +655,7 @@ CONTAINS
                CALL m_hostnm(host_name)
                WRITE (UNIT=lggr%default_local_unit_nr, FMT='(T2,A,I0)', IOSTAT=iostat) &
                   '*** PID      = ', pid, &
-                  '*** Hostname = '//host_name
+                  '*** Hostname = '//TRIM(host_name)
                CALL print_stack(lggr%default_local_unit_nr)
             END IF
             IF (iostat /= 0) THEN

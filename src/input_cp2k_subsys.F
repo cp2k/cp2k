@@ -777,9 +777,9 @@ CONTAINS
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="UNIT", &
                           description="Specify the units of measurement for the velocities. "// &
-                          "Formerly named PINT_UNIT when it works only for the path integral "// &
-                          "code, now this is renamed UNIT to generalize to conventional MD; "// &
-                          "the old name is deprecated and will be removed in the future."//newline//newline// &
+                          "Formerly named PINT_UNIT that works only for the path integral code, "// &
+                          "this keyword is now renamed UNIT to generalize to conventional MD, "// &
+                          "retaining the old name as an alias for compatibility."//newline//newline// &
                           "All available CP2K units can be used; the default is atomic unit "// &
                           "[bohr\*au_t^-1], which is about 1/137.036-th of the speed of light "// &
                           "or $2.18769 \times 10^6$ [m\*s^-1]. The kinetic energy $K_i$ "// &
