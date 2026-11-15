@@ -17,7 +17,6 @@ MODULE ri_rs_kp_fitting
                                               rskp_backend_gemm
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE kpoint_lattice_fft,              ONLY: fft_profile_enabled
    USE kpoint_transform,                ONLY: cell_to_k_transform
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: pi,&
@@ -273,7 +272,7 @@ CONTAINS
             CALL cell_to_k_transform(D_llp_R, cells_R_D_llp, -qpoints(:, first_q:last_q), &
                                      bs_env%kpoints_scf_desymm%nkp_grid, &
                                      D_llp_q_batch(:, :, 1:last_q - first_q + 1), backend, &
-                                     profile_fft=fft_profile_enabled, profile_label='RI-RS D_R -> D_q')
+                                     profile_fft=.TRUE., profile_label='RI-RS D_R -> D_q')
             DO iq_batch = first_q, last_q
                D_llp_q_local(:, :) = TRANSPOSE(D_llp_q_batch(:, :, iq_batch - first_q + 1))
                i_rank = MODULO(iq_batch - 1, bs_env%para_env%num_pe)
@@ -723,7 +722,7 @@ CONTAINS
             CALL cell_to_k_transform(d_lP_R, cells_R_d_lP, qpoints(:, q_indices(first_q:last_q)), &
                                      bs_env%kpoints_scf_desymm%nkp_grid, &
                                      result_q(:, :, 1:last_q - first_q + 1), backend, &
-                                     profile_fft=fft_profile_enabled, profile_label='RI-RS d_lP_R -> d_lP_q')
+                                     profile_fft=.TRUE., profile_label='RI-RS d_lP_R -> d_lP_q')
             DO q_column = first_q, last_q
                i_dest = q_dest(q_column)
                i_slot = MODULO(i_dest, 2) + 1

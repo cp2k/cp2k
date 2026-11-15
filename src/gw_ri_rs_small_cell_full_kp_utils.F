@@ -54,8 +54,7 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_coulomb_2c,               ONLY: add_ewald_reciprocal
-   USE kpoint_lattice_fft,              ONLY: fft_profile_enabled,&
-                                              lattice_fft_execute_pair_major,&
+   USE kpoint_lattice_fft,              ONLY: lattice_fft_execute_pair_major,&
                                               lattice_fft_prepare_geometry,&
                                               lattice_fft_profile_type
    USE kpoint_transform,                ONLY: cell_to_k_transform,&
@@ -745,11 +744,11 @@ CONTAINS
             CALL build_green_pairs(bs_env, psi_values(:, :, :, ispin), chi_env, tau, ispin, .TRUE., G_grid_k)
             CALL k_to_real_cell_transform(G_grid_k, bs_env%kpoints_scf_desymm%xkp, &
                                           bs_env%kpoints_scf_desymm%nkp_grid, full_cells, &
-                                          G_occ_R, rskp_backend_fft, profile_fft=fft_profile_enabled)
+                                          G_occ_R, rskp_backend_fft, profile_fft=.TRUE.)
             CALL build_green_pairs(bs_env, psi_values(:, :, :, ispin), chi_env, tau, ispin, .FALSE., G_grid_k)
             CALL k_to_real_cell_transform(G_grid_k, bs_env%kpoints_scf_desymm%xkp, &
                                           bs_env%kpoints_scf_desymm%nkp_grid, full_cells, &
-                                          chi_grid_R, rskp_backend_fft, profile_fft=fft_profile_enabled)
+                                          chi_grid_R, rskp_backend_fft, profile_fft=.TRUE.)
             CALL filter_full_green_cells(bs_env, chi_env, G_occ_R)
             CALL filter_full_green_cells(bs_env, chi_env, chi_grid_R)
             DEALLOCATE (G_grid_k)
@@ -1076,7 +1075,7 @@ CONTAINS
       CALL build_full_cell_grid(bs_env, full_cells)
       ALLOCATE (V_grid_R(n_pairs_local, 1, SIZE(full_cells, 2)))
       CALL k_to_real_cell_transform(G_grid_k, qpoints, bs_env%kpoints_scf_desymm%nkp_grid, &
-                                    full_cells, V_grid_R, rskp_backend_fft, profile_fft=fft_profile_enabled)
+                                    full_cells, V_grid_R, rskp_backend_fft, profile_fft=.TRUE.)
       CALL singular_head_cell_factors(bs_env, full_cells, head_cell_factor)
       head_metric_zero = ri_metric_head_zero(bs_env)
       DO iq = 1, SIZE(full_cells, 2)
@@ -1098,7 +1097,7 @@ CONTAINS
                                 0.0_dp, ispin, .TRUE., G_grid_k)
          CALL k_to_real_cell_transform(G_grid_k, bs_env%kpoints_scf_desymm%xkp, &
                                        bs_env%kpoints_scf_desymm%nkp_grid, full_cells, Sigma_grid_R, &
-                                       rskp_backend_fft, profile_fft=fft_profile_enabled)
+                                       rskp_backend_fft, profile_fft=.TRUE.)
          Sigma_grid_R(:, :, :) = -Sigma_grid_R*V_grid_R
          CALL self_energy_on_mesh(bs_env, full_cells, Sigma_grid_R, first_pair, G_grid_k)
 
@@ -1166,7 +1165,7 @@ CONTAINS
          CALL q_mesh_and_gamma_shell_average(bs_env, values_q=G_grid_k)
          CALL k_to_real_cell_transform(G_grid_k, qpoints, &
                                        bs_env%kpoints_scf_desymm%nkp_grid, full_cells, &
-                                       W_grid_R, rskp_backend_fft, profile_fft=fft_profile_enabled)
+                                       W_grid_R, rskp_backend_fft, profile_fft=.TRUE.)
          CALL add_gamma_corr_cell_correction(bs_env, full_cells, gwkp_env%gamma_correction, i_t, &
                                              gwkp_env%Z_lP_zero(:, 1, 1), first_pair, W_grid_R)
          CALL truncate_grid_W_by_pair_distance_pairs(bs_env, full_cells, first_pair, W_grid_R)
@@ -1176,7 +1175,7 @@ CONTAINS
                                    tau, ispin, .TRUE., G_grid_k)
             CALL k_to_real_cell_transform(G_grid_k, bs_env%kpoints_scf_desymm%xkp, &
                                           bs_env%kpoints_scf_desymm%nkp_grid, full_cells, Sigma_grid_R, &
-                                          rskp_backend_fft, profile_fft=fft_profile_enabled)
+                                          rskp_backend_fft, profile_fft=.TRUE.)
             CALL filter_full_green_cells(bs_env, gwkp_env%group_env, Sigma_grid_R)
             Sigma_grid_R(:, :, :) = -Sigma_grid_R*W_grid_R
             CALL self_energy_on_mesh(bs_env, full_cells, Sigma_grid_R, first_pair, G_grid_k, &
@@ -1189,7 +1188,7 @@ CONTAINS
                                    tau, ispin, .FALSE., G_grid_k)
             CALL k_to_real_cell_transform(G_grid_k, bs_env%kpoints_scf_desymm%xkp, &
                                           bs_env%kpoints_scf_desymm%nkp_grid, full_cells, Sigma_grid_R, &
-                                          rskp_backend_fft, profile_fft=fft_profile_enabled)
+                                          rskp_backend_fft, profile_fft=.TRUE.)
             CALL filter_full_green_cells(bs_env, gwkp_env%group_env, Sigma_grid_R)
             Sigma_grid_R(:, :, :) = Sigma_grid_R*W_grid_R
             CALL self_energy_on_mesh(bs_env, full_cells, Sigma_grid_R, first_pair, G_grid_k, &
@@ -1536,8 +1535,7 @@ CONTAINS
                                      bs_env%index_to_cell_3c(:, first:last), &
                                      bs_env%kpoints_scf_desymm%xkp(:, owned_k), &
                                      bs_env%kpoints_scf_desymm%nkp_grid, phi_lmu_k, &
-                                     bs_env%kpoints_scf_desymm%rskp_transform, accumulate=.TRUE., &
-                                     profile_fft=fft_profile_enabled)
+                                     bs_env%kpoints_scf_desymm%rskp_transform, accumulate=.TRUE., profile_fft=.TRUE.)
          END DO
       END IF
 
@@ -1637,8 +1635,7 @@ CONTAINS
             values_R(:, :, icell) = fm_R(icell)%local_data(1:nrows, 1:ncols)
          END DO
          values_q(1:nrows, 1:ncols, 1:n_q) => send_buffer(1:nsend)
-         CALL cell_to_k_transform(values_R, cells, qpoints(:, q_order), nkp_grid, values_q, backend, &
-                                  profile_fft=fft_profile_enabled)
+         CALL cell_to_k_transform(values_R, cells, qpoints(:, q_order), nkp_grid, values_q, backend, profile_fft=.TRUE.)
          DEALLOCATE (values_R)
       END IF
       CALL para_env%alltoall(send_buffer, send_counts, send_displs, &
@@ -2466,7 +2463,7 @@ CONTAINS
       profile%seconds(2) = profile%seconds(2) + setup_seconds
       profile%seconds(9) = m_walltime() - started
       unit_nr = cp_logger_get_default_io_unit()
-      IF (fft_profile_enabled .AND. unit_nr > 0) THEN
+      IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A)') 'R2K_FFT_PROFILE| GW pair-centered packing/extraction; logger-rank wall seconds'
          WRITE (unit_nr, '(T2,A,3I10)') 'R2K_FFT_PROFILE| source shape: ', SHAPE(values_R)
          WRITE (unit_nr, '(T2,A)') 'R2K_FFT_PROFILE| pair-major FFT-X/plan includes the full 3D batched FFT'
