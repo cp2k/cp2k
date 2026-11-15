@@ -152,9 +152,16 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="TEMPERATURE", &
-                          description="The temperature in K used to initialize "// &
-                          "the velocities with init and pos restart, and in the NPT/NVT simulations", &
-                          usage="TEMPERATURE 325.0", default_r_val=cp_unit_to_cp2k(value=300.0_dp, unit_str="K"), &
+                          description="The temperature value in K used to initialize "// &
+                          "the velocities, and for a constant-temperature ENSEMBLE like "// &
+                          "NPT or NVT, to set up the target temperature of the thermostat. "// &
+                          "When no explicit values are provided under the section "// &
+                          "SUBSYS/VELOCITY and external restart of velocities is not "// &
+                          "activated with EXT_RESTART/RESTART_VEL, the initial velocities "// &
+                          "will be generated with INITIALIZATION_METHOD regardless of "// &
+                          "the presence of thermostats.", &
+                          usage="TEMPERATURE 325.0", &
+                          default_r_val=cp_unit_to_cp2k(value=300.0_dp, unit_str="K"), &
                           unit_str="K")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -246,13 +253,13 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="INITIALIZATION_METHOD", &
                           description="This keyword selects which method to use to initialize MD if "// &
                           "no initial velocity has been provided explicitly in the VELOCITY section "// &
-                          "of the FORCE_EVAL/SUBSYS.", &
+                          "of the FORCE_EVAL/SUBSYS and external restart of velocity is not used.", &
                           usage="INITIALIZATION_METHOD DEFAULT", &
                           citations=[West2006], &
                           default_i_val=md_init_default, &
                           enum_c_vals=s2a("DEFAULT", "VIBRATIONAL"), &
-                          enum_desc=s2a("Assign random velocities and then scale according to "// &
-                                        "TEMPERATURE, which is the default of omitted", &
+                          enum_desc=s2a("Assign random velocities and then rescale to satisfy the "// &
+                                        "TEMPERATURE value, which is the default if omitted", &
                                         "Initialise both positions and velocities to give canonical "// &
                                         "ensemble with TEMPERATURE, using the method described in "// &
                                         "PRL 96, 115504 (2006). Previously calculated vibrational "// &

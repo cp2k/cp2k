@@ -74,7 +74,7 @@
       Ar 2.5 7.5 12.0
       Ar 5.0 7.5 12.0
       Ar 7.5 7.5 12.0
-      Ar 5.0 5.0 17.0
+      Ar 3.75 3.75 17.0
     &END COORD
     &TOPOLOGY
     &END TOPOLOGY
