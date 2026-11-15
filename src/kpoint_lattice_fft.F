@@ -44,6 +44,9 @@ MODULE kpoint_lattice_fft
    PUBLIC :: k_grid_to_cell_work_type, lattice_fft_shape, regular_kpoint_grid
    PUBLIC :: lattice_fft_profile_type, lattice_fft_execute_pair_major, lattice_fft_prepare_geometry
 
+   ! Optional FFT timing diagnostics; change to .TRUE. for profiling builds.
+   LOGICAL, PARAMETER, PUBLIC :: fft_profile_enabled = .FALSE.
+
    ! Keep pair-major grid filling in cache-sized strips of AO elements and images.
    INTEGER, PARAMETER :: fft_pack_rows = 8, fft_pack_cells = 32
    ! Avoid OpenMP launch overhead unless a packing/extraction stage has enough values.
