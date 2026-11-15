@@ -16,6 +16,14 @@ MODULE qs_mo_methods
    USE admm_utils,                      ONLY: admm_correct_for_eigenvalues,&
                                               admm_uncorrect_for_eigenvalues
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_triangular_multiply,&
+                                              cp_cfm_vectorsnorm
+   USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_release,&
+                                              cp_cfm_to_cfm,&
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
    USE cp_control_types,                ONLY: hairy_probes_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_get_info,&
@@ -40,15 +48,13 @@ MODULE qs_mo_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_get_submatrix,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_release, &
+        cp_fm_set_all, cp_fm_to_fm, cp_fm_type, cp_fm_vectorsnorm
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: z_one,&
+                                              z_zero
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
@@ -61,7 +67,9 @@ MODULE qs_mo_methods
    IMPLICIT NONE
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mo_methods'
+   REAL(KIND=dp), PARAMETER :: empty_mo_norm = 100.0_dp*EPSILON(1.0_dp)
 
+   PUBLIC :: complete_mo_basis
    PUBLIC :: make_basis_simple, make_basis_cholesky, make_basis_sv, make_basis_sm, &
              make_basis_lowdin, calculate_subspace_eigenvalues, &
              calculate_orthonormality, calculate_magnitude, make_mo_eig, &
@@ -77,7 +85,138 @@ MODULE qs_mo_methods
       MODULE PROCEDURE make_basis_sv_dbcsr
    END INTERFACE
 
+   INTERFACE complete_mo_basis
+      MODULE PROCEDURE complete_mo_basis_real
+      MODULE PROCEDURE complete_mo_basis_complex
+   END INTERFACE
+
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Complete and orthonormalize virtual MOs while preserving the occupied columns.
+!> \param mo_coeff Orbital coefficients, with possible trailing storage columns.
+!> \param nocc Number of occupied columns to preserve.
+!> \param nactive Number of orbitals to prepare, including virtual states.
+!> \param matrix_s Overlap matrix, or a null pointer for the unit metric.
+! **************************************************************************************************
+   SUBROUTINE complete_mo_basis_real(mo_coeff, nocc, nactive, matrix_s)
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
+      INTEGER, INTENT(IN)                                :: nocc, nactive
+      TYPE(dbcsr_type), POINTER                          :: matrix_s
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'complete_mo_basis_real'
+
+      INTEGER                                            :: handle, imo, nao, pass
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: column_norm
+      TYPE(cp_fm_struct_type), POINTER                   :: active_struct
+      TYPE(cp_fm_type)                                   :: coeff, gram, s_coeff
+
+      CPASSERT(nocc >= 0 .AND. nocc <= nactive)
+      CPASSERT(nactive <= mo_coeff%matrix_struct%ncol_global)
+      IF (nactive == nocc) RETURN
+
+      CALL timeset(routineN, handle)
+      nao = mo_coeff%matrix_struct%nrow_global
+      CPASSERT(nactive <= nao)
+      NULLIFY (active_struct)
+      CALL cp_fm_struct_create(active_struct, template_fmstruct=mo_coeff%matrix_struct, ncol_global=nactive)
+      CALL cp_fm_create(coeff, active_struct)
+      CALL cp_fm_create(s_coeff, active_struct)
+      CALL cp_fm_create(gram, active_struct, nrow=nactive, ncol=nactive)
+      CALL cp_fm_to_fm(mo_coeff, coeff, nactive)
+      ALLOCATE (column_norm(nactive))
+      CALL cp_fm_vectorsnorm(coeff, column_norm)
+      IF (ANY(column_norm(nocc + 1:nactive) <= empty_mo_norm)) THEN
+         CALL cp_fm_init_random(s_coeff)
+         DO imo = nocc + 1, nactive
+            IF (column_norm(imo) > empty_mo_norm) CYCLE
+            CALL cp_fm_to_fm(s_coeff, coeff, 1, source_start=imo, target_start=imo)
+         END DO
+      END IF
+      DEALLOCATE (column_norm)
+
+      ! Upper-triangular Cholesky orthogonalization preserves the occupied span.
+      ! A second pass removes roundoff from the randomly completed complement.
+      DO pass = 1, 2
+         IF (ASSOCIATED(matrix_s)) THEN
+            CALL cp_dbcsr_sm_fm_multiply(matrix_s, coeff, s_coeff, nactive)
+         ELSE
+            CALL cp_fm_to_fm(coeff, s_coeff)
+         END IF
+         CALL parallel_gemm('T', 'N', nactive, nactive, nao, 1.0_dp, coeff, s_coeff, 0.0_dp, gram)
+         CALL cp_fm_cholesky_decompose(gram)
+         CALL cp_fm_triangular_multiply(gram, coeff, side='R', invert_tr=.TRUE.)
+      END DO
+      CALL cp_fm_to_fm(coeff, mo_coeff, nactive - nocc, source_start=nocc + 1, target_start=nocc + 1)
+      CALL cp_fm_release(gram)
+      CALL cp_fm_release(s_coeff)
+      CALL cp_fm_release(coeff)
+      CALL cp_fm_struct_release(active_struct)
+      CALL timestop(handle)
+   END SUBROUTINE complete_mo_basis_real
+
+! **************************************************************************************************
+!> \brief Complete and orthonormalize virtual MOs while preserving the occupied columns.
+!> \param mo_coeff Orbital coefficients, with possible trailing storage columns.
+!> \param nocc Number of occupied columns to preserve.
+!> \param nactive Number of orbitals to prepare, including virtual states.
+!> \param matrix_s Overlap matrix.
+! **************************************************************************************************
+   SUBROUTINE complete_mo_basis_complex(mo_coeff, nocc, nactive, matrix_s)
+      TYPE(cp_cfm_type), INTENT(IN)                      :: mo_coeff
+      INTEGER, INTENT(IN)                                :: nocc, nactive
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_s
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'complete_mo_basis_complex'
+
+      INTEGER                                            :: handle, imo, nao, pass
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: column_norm
+      TYPE(cp_cfm_type)                                  :: coeff, gram, s_coeff
+      TYPE(cp_fm_struct_type), POINTER                   :: active_struct
+      TYPE(cp_fm_type)                                   :: random_coeff
+
+      CPASSERT(nocc >= 0 .AND. nocc <= nactive)
+      CPASSERT(nactive <= mo_coeff%matrix_struct%ncol_global)
+      IF (nactive == nocc) RETURN
+
+      CALL timeset(routineN, handle)
+      nao = mo_coeff%matrix_struct%nrow_global
+      CPASSERT(nactive <= nao)
+      NULLIFY (active_struct)
+      CALL cp_fm_struct_create(active_struct, template_fmstruct=mo_coeff%matrix_struct, ncol_global=nactive)
+      CALL cp_cfm_create(coeff, active_struct)
+      CALL cp_cfm_create(s_coeff, active_struct)
+      CALL cp_cfm_create(gram, active_struct, nrow=nactive, ncol=nactive)
+      CALL cp_cfm_to_cfm(mo_coeff, coeff, nactive)
+      ALLOCATE (column_norm(nactive))
+      CALL cp_cfm_vectorsnorm(coeff, column_norm)
+      IF (ANY(column_norm(nocc + 1:nactive) <= empty_mo_norm)) THEN
+         CALL cp_fm_create(random_coeff, active_struct, set_zero=.TRUE.)
+         CALL cp_fm_init_random(random_coeff)
+         CALL cp_fm_to_cfm(msourcer=random_coeff, mtarget=s_coeff)
+         CALL cp_fm_release(random_coeff)
+         DO imo = nocc + 1, nactive
+            IF (column_norm(imo) > empty_mo_norm) CYCLE
+            CALL cp_cfm_to_cfm(s_coeff, coeff, 1, source_start=imo, target_start=imo)
+         END DO
+      END IF
+      DEALLOCATE (column_norm)
+
+      ! Upper-triangular Cholesky orthogonalization preserves the occupied span.
+      ! A second pass removes roundoff from the randomly completed complement.
+      DO pass = 1, 2
+         CALL parallel_gemm('N', 'N', nao, nactive, nao, z_one, matrix_s, coeff, z_zero, s_coeff)
+         CALL parallel_gemm('C', 'N', nactive, nactive, nao, z_one, coeff, s_coeff, z_zero, gram)
+         CALL cp_cfm_cholesky_decompose(gram)
+         CALL cp_cfm_triangular_multiply(gram, coeff, side='R', invert_tr=.TRUE.)
+      END DO
+      CALL cp_cfm_to_cfm(coeff, mo_coeff, nactive - nocc, source_start=nocc + 1, target_start=nocc + 1)
+      CALL cp_cfm_release(gram)
+      CALL cp_cfm_release(s_coeff)
+      CALL cp_cfm_release(coeff)
+      CALL cp_fm_struct_release(active_struct)
+      CALL timestop(handle)
+   END SUBROUTINE complete_mo_basis_complex
 
 ! **************************************************************************************************
 !> \brief returns an S-orthonormal basis v (v^T S v ==1)

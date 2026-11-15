@@ -51,6 +51,7 @@ MODULE qs_scf
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_p_type,&
                                               cp_cfm_release,&
+                                              cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
@@ -178,7 +179,8 @@ MODULE qs_scf
                                               mpools_release
    USE qs_mixing_utils,                 ONLY: mixing_init
    USE qs_mo_io,                        ONLY: write_mo_set_to_restart
-   USE qs_mo_methods,                   ONLY: make_basis_simple,&
+   USE qs_mo_methods,                   ONLY: complete_mo_basis,&
+                                              make_basis_simple,&
                                               make_basis_sm
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
@@ -1302,10 +1304,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_scf_loop'
 
       INTEGER                                            :: entry_reason, handle, ikind, ispin, &
-                                                            nkpoint, nmo, nspin_ot
+                                                            nkpoint, nmo, nocc, nspin_ot
       INTEGER, DIMENSION(2)                              :: kp_range
-      LOGICAL :: do_adiis, do_kpoints, do_rotation, fixed_density_prepared, has_unit_metric, &
-         kp_diis_step, kpoint_mos_initialized
+      LOGICAL :: do_adiis, do_kpoints, do_rotation, do_smear, fixed_density_prepared, &
+         has_unit_metric, kp_diis_step, kpoint_mos_initialized
       REAL(KIND=dp)                                      :: u_ramping
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -1339,6 +1341,8 @@ CONTAINS
                       mos=mos, &
                       rho=rho, &
                       qs_kind_set=qs_kind_set)
+
+      do_smear = dft_control%smear .OR. scf_control%smear%do_smear
 
       nkpoint = 1
       kp_range = 0
@@ -1547,11 +1551,11 @@ CONTAINS
 
                ! A previous zero-width filling may have changed the occupied rank at each k point.
                ! Restore the fixed OT ranks before validating or reconstructing the active space.
-               IF (.NOT. scf_env%qs_ot_env(1)%settings%do_ener) THEN
+               IF (.NOT. do_smear) THEN
                   CALL qs_kpoint_set_fixed_occupations(kpoints)
                END IF
                kpoint_mos_initialized = qs_kpoint_mos_initialized( &
-                                        kpoints, require_full_space=scf_env%qs_ot_env(1)%settings%do_ener)
+                                        kpoints, require_full_space=do_smear)
                SELECT CASE (entry_reason)
                CASE (kp_ot_entry_initial)
                   IF (kpoint_mos_initialized) THEN
@@ -1561,7 +1565,7 @@ CONTAINS
                      CALL qs_kpoint_state_commit( &
                         qs_env, update_occupations=.TRUE., &
                         separate_spin_occupations=dft_control%restricted, &
-                        fixed_occupations=.NOT. (dft_control%smear .OR. scf_control%smear%do_smear))
+                        fixed_occupations=.NOT. do_smear)
                   END IF
                CASE (kp_ot_entry_reuse, kp_ot_entry_resized, kp_ot_entry_refresh)
                   CPASSERT(kpoint_mos_initialized)
@@ -1573,7 +1577,7 @@ CONTAINS
                ! density-only guess. This preserves its physical content instead of replacing it
                ! with the potentially remote ground-state projector of H[P].
                IF (entry_reason == kp_ot_entry_initial .AND. .NOT. kpoint_mos_initialized .AND. &
-                   .NOT. scf_env%qs_ot_env(1)%settings%do_ener) THEN
+                   .NOT. do_smear) THEN
                   CPASSERT(ASSOCIATED(rho))
                   CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
                   CPASSERT(ASSOCIATED(rho_ao_kp))
@@ -1619,7 +1623,7 @@ CONTAINS
                      CALL qs_kpoint_state_commit( &
                         qs_env, update_occupations=.TRUE., &
                         separate_spin_occupations=dft_control%restricted, &
-                        fixed_occupations=.NOT. (dft_control%smear .OR. scf_control%smear%do_smear))
+                        fixed_occupations=.NOT. do_smear)
 
                      ! The accepted projector replaced the density-only input. Rebuild H and E so
                      ! the first minimizer call sees one coherent physical electronic state.
@@ -1709,6 +1713,19 @@ CONTAINS
                END IF
             END IF
 
+            IF (has_unit_metric) THEN
+               NULLIFY (orthogonality_metric)
+            ELSE
+               orthogonality_metric => matrix_s(1)%matrix
+            END IF
+            IF (.NOT. do_smear) THEN
+               DO ispin = 1, nspin_ot
+                  CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, homo=nocc, nmo=nmo)
+                  CALL complete_mo_basis(mo_coeff, nocc, nmo, orthogonality_metric)
+                  IF (dft_control%restricted .AND. nmo > nocc) CALL mo_set_restrict(mos)
+               END DO
+            END IF
+
             ! might need the KS matrix to init properly
             CALL qs_ks_update_qs_env(qs_env, just_energy=.FALSE., &
                                      calculate_forces=.FALSE.)
@@ -1725,12 +1742,6 @@ CONTAINS
             ! preconditioning still needs to be done correctly with has_unit_metric
             ! notice that a big part of the preconditioning (S^-1) is fine anyhow
             !
-            IF (has_unit_metric) THEN
-               NULLIFY (orthogonality_metric)
-            ELSE
-               orthogonality_metric => matrix_s(1)%matrix
-            END IF
-
             IF (.NOT. reuse_precond) THEN
                CALL prepare_preconditioner(qs_env, mos, matrix_ks, matrix_s, scf_env%ot_preconditioner, &
                                            scf_env%qs_ot_env(1)%settings%preconditioner_type, &
@@ -1996,10 +2007,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_qs_ot_kpoint_state'
 
       INTEGER :: energy_dimension, energy_spin, energy_start, first_channel, handle, ikpoint, &
-         ikpoint_local, ispin, local_channel, nao, nmo, nocc, ot_channel
-      LOGICAL                                            :: local_init, use_real_wfn
+         ikpoint_local, ispin, local_channel, nactive, nao, nmo, nocc, ot_channel
+      LOGICAL                                            :: do_smear, local_init, use_real_wfn
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(cp_cfm_p_type), ALLOCATABLE                   :: local_c(:)
+      TYPE(cp_cfm_type)                                  :: overlap
       TYPE(cp_fm_p_type), ALLOCATABLE                    :: local_s(:, :)
       TYPE(cp_fm_struct_type), POINTER                   :: active_mo_struct
       TYPE(cp_fm_type)                                   :: active_mo_coeff, active_mo_coeff_im, &
@@ -2007,10 +2019,11 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix_sk_im, matrix_sk_re
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(scf_control_type), POINTER                    :: scf_control
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (active_mo_struct, eigenvalues, kp, matrix_sk_im, matrix_sk_re, mo_set)
+      NULLIFY (active_mo_struct, eigenvalues, kp, matrix_sk_im, matrix_sk_re, mo_set, scf_control)
 
       CPASSERT(ASSOCIATED(qs_env))
       CPASSERT(ASSOCIATED(scf_env%qs_ot_env))
@@ -2023,6 +2036,9 @@ CONTAINS
 
       CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn)
       CPASSERT(.NOT. use_real_wfn)
+
+      CALL get_qs_env(qs_env, scf_control=scf_control)
+      do_smear = dft_control%smear .OR. scf_control%smear%do_smear
 
       local_init = kpoints%para_env_kp%num_pe == 1
       first_channel = qs_ot_channel_index(1, kpoints%kp_range(1), nspin_ot)
@@ -2051,18 +2067,28 @@ CONTAINS
             CPASSERT(ASSOCIATED(eigenvalues))
             CPASSERT(nao > 0)
             CPASSERT(nmo > 0)
-            IF (scf_env%qs_ot_env(ot_channel)%settings%do_ener) nocc = nmo
-            IF (nocc < 1 .OR. nocc > nmo) THEN
+            ! Fixed occupations retain only requested orbitals, excluding spin-padding columns.
+            nactive = nmo
+            IF (.NOT. do_smear) nactive = MIN(nmo, nocc + scf_control%added_mos(ispin))
+            IF (nactive < 1 .OR. nactive > nmo) THEN
                CALL cp_abort(__LOCATION__, &
                              "K-point OT requires at least one occupied orbital in every spin channel.")
             END IF
 
+            IF (.NOT. do_smear .AND. nactive > nocc) THEN
+               CALL cp_cfm_create(overlap, kp%ot_smat(1)%matrix_struct)
+               CALL cp_fm_to_cfm(kp%ot_smat(1), kp%ot_smat(2), overlap)
+               CALL complete_mo_basis(mo_set%cmo_coeff, nocc, nactive, overlap)
+               IF (dft_control%restricted) CALL cp_cfm_to_cfm(mo_set%cmo_coeff, kp%mos(2)%cmo_coeff)
+               CALL cp_cfm_release(overlap)
+            END IF
+
             CALL cp_fm_struct_create(active_mo_struct, template_fmstruct=mo_set%cmo_coeff%matrix_struct, &
-                                     ncol_global=nocc)
-            energy_dimension = nocc
+                                     ncol_global=nactive)
+            energy_dimension = nactive
             IF (dft_control%restricted .AND. &
                 scf_env%qs_ot_env(ot_channel)%settings%do_ener) THEN
-               energy_dimension = nocc*SIZE(kp%mos)
+               energy_dimension = nactive*SIZE(kp%mos)
             END IF
             CALL qs_ot_allocate(scf_env%qs_ot_env(ot_channel), &
                                 matrix_sk_re, &
@@ -2079,12 +2105,12 @@ CONTAINS
                CALL cp_fm_create(mo_coeff_im, mo_set%cmo_coeff%matrix_struct)
                CALL cp_cfm_to_fm(mo_set%cmo_coeff, mo_coeff, mo_coeff_im)
                CALL cp_fm_create(active_mo_coeff, active_mo_struct)
-               CALL cp_fm_to_fm(mo_coeff, active_mo_coeff, nocc)
+               CALL cp_fm_to_fm(mo_coeff, active_mo_coeff, nactive)
                CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_c0, 0.0_dp)
                CALL copy_fm_to_dbcsr(active_mo_coeff, scf_env%qs_ot_env(ot_channel)%matrix_c0)
 
                CALL cp_fm_create(active_mo_coeff_im, active_mo_struct)
-               CALL cp_fm_to_fm(mo_coeff_im, active_mo_coeff_im, nocc)
+               CALL cp_fm_to_fm(mo_coeff_im, active_mo_coeff_im, nactive)
                CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_c0_im, 0.0_dp)
                CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_sc0_im, 0.0_dp)
                CALL copy_fm_to_dbcsr(active_mo_coeff_im, scf_env%qs_ot_env(ot_channel)%matrix_c0_im)
@@ -2106,12 +2132,12 @@ CONTAINS
                IF (dft_control%restricted) THEN
                   DO energy_spin = 1, SIZE(kp%mos)
                      CALL get_mo_set(kp%mos(energy_spin), eigenvalues=eigenvalues)
-                     energy_start = (energy_spin - 1)*nocc + 1
-                     scf_env%qs_ot_env(ot_channel)%ener_x(energy_start:energy_start + nocc - 1) = &
-                        eigenvalues(1:nocc)
+                     energy_start = (energy_spin - 1)*nactive + 1
+                     scf_env%qs_ot_env(ot_channel)%ener_x(energy_start:energy_start + nactive - 1) = &
+                        eigenvalues(1:nactive)
                   END DO
                ELSE
-                  scf_env%qs_ot_env(ot_channel)%ener_x(:) = eigenvalues(1:nocc)
+                  scf_env%qs_ot_env(ot_channel)%ener_x(:) = eigenvalues(1:nactive)
                END IF
             END IF
             scf_env%qs_ot_env(ot_channel)%broyden_adaptive_sigma = qs_env%broyden_adaptive_sigma
