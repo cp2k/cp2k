@@ -56,6 +56,7 @@ MODULE gw_ri_rs_small_cell_full_kp_q0_corr
    USE kinds,                           ONLY: dp
    USE kpoint_coulomb_2c,               ONLY: add_ewald_reciprocal,&
                                               build_2c_coulomb_matrix_kp_dense
+   USE kpoint_lattice_fft,              ONLY: k_grid_to_cell_fft
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index
    USE kpoint_transform,                ONLY: kp_transform_plan_create,&
                                               kp_transform_plan_type
@@ -65,10 +66,12 @@ MODULE gw_ri_rs_small_cell_full_kp_q0_corr
                                               kpoint_type
    USE mathconstants,                   ONLY: fourpi,&
                                               gaussi,&
+                                              pi,&
                                               twopi,&
                                               z_one,&
                                               z_zero
    USE mathlib,                         ONLY: gauss_legendre,&
+                                              get_pseudo_inverse_diag,&
                                               inv_3x3,&
                                               vector_product
    USE message_passing,                 ONLY: mp_para_env_type
@@ -170,8 +173,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Gamma-correction head and wing coefficients over the Brillouin zone.
-!> Construct the q->0 dielectric limit along face-cubature and mesh-point directions
-!> from SCF dipole transitions and the directly fitted Gamma Gaussian body.
+!> Construct the q->0 dielectric limit along the face-cubature directions and the directions of
+!> the χ/W mesh points from SCF dipole transitions and the directly fitted Gamma Gaussian body.
 !> \param bs_env ...
 !> \param qs_env ...
 !> \param gwkp_env RI-RS work data and Gamma correction.
@@ -192,14 +195,13 @@ CONTAINS
          schur_cartesian(:, :), time_chi(:, :, :), time_head(:, :, :), time_wing(:, :, :), &
          V_sqrt_zero(:, :)
       INTEGER                                            :: first_row, handle, i_cartesian, &
-                                                            i_direction, i_gamma, iq, j_cartesian, &
-                                                            j_w, n_angular, n_directions
+                                                            i_direction, iq, j_cartesian, j_w, &
+                                                            n_angular, n_directions
       INTEGER, ALLOCATABLE                               :: metric_cells(:, :)
       LOGICAL                                            :: is_slab
-      REAL(KIND=dp)                                      :: slab_b(3, 2), volume
+      REAL(KIND=dp)                                      :: q_norm, slab_b(3, 2), volume
       REAL(KIND=dp), ALLOCATABLE :: angular_directions(:, :), angular_radii(:), &
-         angular_weights(:), directions(:, :), head_response(:, :), q_mesh(:, :), radii(:), &
-         shell_weights(:), weights(:)
+         angular_weights(:), directions(:, :), head_response(:, :), q_mesh(:, :), shell_weights(:)
       TYPE(cp_fm_type), ALLOCATABLE                      :: fm_metric(:)
 
       CALL timeset(routineN, handle)
@@ -217,20 +219,15 @@ CONTAINS
          WRITE (bs_env%unit_nr, '(T2,A,T72,I10)') &
             'Number of angular points for the Γ-point correction of W:', n_angular
       END IF
-      CALL q_mesh_and_gamma_shell_average(bs_env, q_mesh, shell_weights, i_gamma)
-      n_directions = n_angular + SIZE(q_mesh, 2) - MERGE(1, 0, i_gamma > 0)
-      ALLOCATE (directions(3, n_directions), weights(n_directions), radii(n_directions))
+      ! Directions: the angular rule, then q/|q| of the mesh points (zero vector for q = 0).
+      CALL q_mesh_and_gamma_shell_average(bs_env, q_mesh, shell_weights)
+      n_directions = n_angular + SIZE(q_mesh, 2)
+      ALLOCATE (directions(3, n_directions), SOURCE=0.0_dp)
       directions(:, 1:n_angular) = angular_directions
-      weights(1:n_angular) = angular_weights
-      radii(1:n_angular) = angular_radii
-      DEALLOCATE (angular_directions, angular_weights, angular_radii)
-      i_direction = n_angular
+      DEALLOCATE (angular_directions)
       DO iq = 1, SIZE(q_mesh, 2)
-         IF (iq == i_gamma) CYCLE
-         i_direction = i_direction + 1
-         radii(i_direction) = NORM2(q_mesh(:, iq))
-         directions(:, i_direction) = q_mesh(:, iq)/radii(i_direction)
-         weights(i_direction) = shell_weights(iq)
+         q_norm = NORM2(q_mesh(:, iq))
+         IF (q_norm > 1.0E-8_dp) directions(:, n_angular + iq) = q_mesh(:, iq)/q_norm
       END DO
       ALLOCATE (head_response(n_directions, bs_env%num_time_freq_points))
       ! The finite RI metric at q=0 retains its complete Gaussian channel.
@@ -319,9 +316,9 @@ CONTAINS
 
       END DO
 
-      CALL gamma_corr_cell_integrals(bs_env, directions, weights, radii, n_angular, head_response, &
-                                     gwkp_env%gamma_correction)
-      DEALLOCATE (directions, head_response, radii, q_mesh, shell_weights, weights)
+      CALL gamma_corr_cell_integrals(bs_env, directions, angular_weights, angular_radii, q_mesh, &
+                                     shell_weights, head_response, gwkp_env%gamma_correction)
+      DEALLOCATE (angular_radii, angular_weights, directions, head_response, q_mesh, shell_weights)
       DEALLOCATE (time_chi, time_wing, time_head, metric_rows)
       DEALLOCATE (F_external)
 
@@ -412,9 +409,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: bmat(3, 3), q(3), qfrac(3), volume
       REAL(KIND=dp), ALLOCATABLE                         :: nodes(:), rule_weights(:)
 
-      ! The phase exp(-iqR) varies over a face by up to |R| |q|, which grows with the mesh size N
-      ! through the largest cell R, so the n-by-n Gauss-Legendre rule per face grows with N.
-      n = MAX(18, MAXVAL(bs_env%nkp_grid_chi_eps_W_orig))
+      ! Over a face, the phase exp(-iqR) runs through up to N/2 periods for the largest cells
+      ! |R_i| = N/2; 2N Gauss-Legendre nodes per face direction integrate it to machine precision.
+      n = MAX(18, 2*MAXVAL(bs_env%nkp_grid_chi_eps_W_orig))
       n_angular = 6*n*n
       volume = bs_env%ri_rs%cell%deth
       bmat = twopi*TRANSPOSE(inv_3x3(bs_env%hmat))
@@ -446,29 +443,34 @@ CONTAINS
    END SUBROUTINE gamma_cell_face_directions
 
 ! **************************************************************************************************
-!> \brief Cartesian q of the χ/W mesh, folded into |q_i| <= 1/2, and the weights of the nearest
-!> shell around Γ. On a Γ-centred mesh, the value at q = 0 is replaced by its average over this shell.
-!> W - M is smooth at Γ up to a direction-dependent limit c(d) of the wings and pair densities, odd
-!> or a quadratic form in d. The Γ-cell average of W - M is the angular average of c plus O(|q|).
-!> W(0) itself has no direction and misses c. The average over the nearest mesh shell has the
-!> same limit (±q pairs cancel the odd part, the symmetric shell averages the quadratic form),
-!> so it replaces the value at q = 0, with an error O(1/N) in a mesh point of weight 1/N^d.
+!> \brief Cartesian q of the χ/W mesh, folded into |q_i| <= 1/2, and the weights of the shells
+!> around Γ whose weighted average replaces the value at q = 0 of a Γ-centred mesh.
+!> W - M is smooth at Γ up to a direction-dependent limit c(q̂) of the wings and pair densities,
+!> odd or a quadratic form q̂ᵀ C q̂. The mesh sum of c is exact if its value at q = 0 is tr(C T),
+!> with T the value at q = 0 of the unit dyad q̂ q̂ᵀ (unit_q_dyad_value_at_gamma). Weights with
+!> Σ_q w_q q̂ q̂ᵀ = T give Σ_q w_q c(q̂) = tr(C T); ±q get equal weights and cancel the odd part.
+!> Shells of neighbours of Γ are added by increasing |q| until T is reproduced. On cubic and
+!> hexagonal meshes T = I/d and the nearest shell has equal weights; anisotropic meshes need
+!> further shells with weights of both signs. The error is O(1/N) in a mesh point of weight 1/N^d.
 !> \param bs_env ...
 !> \param q_mesh Cartesian q of all mesh points
-!> \param shell_weights 1/(number of shell points) on the nearest shell around Γ, 0 elsewhere
-!> \param i_gamma index of q = 0, 0 for a shifted mesh
+!> \param shell_weights weights w_q of the shells around Γ, 0 elsewhere and on shifted meshes
 !> \param values_q values on the χ/W mesh, last index q; the value at q = 0 is replaced by the
-!>        nearest-shell average
+!>        weighted shell average
 ! **************************************************************************************************
-   SUBROUTINE q_mesh_and_gamma_shell_average(bs_env, q_mesh, shell_weights, i_gamma, values_q)
+   SUBROUTINE q_mesh_and_gamma_shell_average(bs_env, q_mesh, shell_weights, values_q)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       REAL(KIND=dp), ALLOCATABLE, INTENT(OUT), OPTIONAL  :: q_mesh(:, :), shell_weights(:)
-      INTEGER, INTENT(OUT), OPTIONAL                     :: i_gamma
       COMPLEX(KIND=dp), INTENT(INOUT), OPTIONAL          :: values_q(:, :, :)
 
-      INTEGER                                            :: i_q0, nk
-      REAL(KIND=dp)                                      :: area, bmat(3, 3), q_min
-      REAL(KIND=dp), ALLOCATABLE                         :: q(:, :), q_norm(:), weights(:)
+      INTEGER                                            :: i, i_q0, iq, nk
+      LOGICAL, ALLOCATABLE                               :: in_shells(:), neighbour(:)
+      REAL(KIND=dp)                                      :: area, bmat(3, 3), d(3), dyad_gamma(6), &
+                                                            gram(6, 6), gram_inverse(6, 6), &
+                                                            mesh_vectors(3, 3), radius
+      REAL(KIND=dp), ALLOCATABLE                         :: dyads(:, :), q(:, :), q_frac(:, :), &
+                                                            q_norm(:), shell_dyads(:, :), &
+                                                            weights(:)
 
       nk = PRODUCT(bs_env%nkp_grid_chi_eps_W_orig)
       IF (ALL(bs_env%periodic == [1, 1, 0])) THEN
@@ -477,25 +479,101 @@ CONTAINS
       ELSE
          bmat = twopi*TRANSPOSE(inv_3x3(bs_env%hmat))
       END IF
-      ALLOCATE (q(3, nk), weights(nk), q_norm(nk))
-      q(:, :) = MATMUL(bmat, bs_env%kpoints_chi_eps_W%xkp(1:3, 1:nk) - &
-                       ANINT(bs_env%kpoints_chi_eps_W%xkp(1:3, 1:nk)))
+      ALLOCATE (q_frac(3, nk), q(3, nk), q_norm(nk), weights(nk))
+      q_frac(:, :) = bs_env%kpoints_chi_eps_W%xkp(1:3, 1:nk) - ANINT(bs_env%kpoints_chi_eps_W%xkp(1:3, 1:nk))
+      q(:, :) = MATMUL(bmat, q_frac)
       q_norm(:) = NORM2(q, DIM=1)
       weights(:) = 0.0_dp
       i_q0 = MINLOC(q_norm, 1)
-      IF (q_norm(i_q0) > 1.0E-8_dp) i_q0 = 0
-      IF (i_q0 > 0 .AND. nk > 1) THEN
-         q_min = MINVAL(q_norm, MASK=q_norm > 1.0E-8_dp)
-         WHERE (ABS(q_norm - q_min) < 1.0E-6_dp*q_min) weights = 1.0_dp
-         weights(:) = weights/SUM(weights)
+      IF (q_norm(i_q0) < 1.0E-8_dp .AND. nk > 1) THEN
+         DO i = 1, 3
+            mesh_vectors(:, i) = bmat(:, i)/REAL(bs_env%nkp_grid_chi_eps_W_orig(i), dp)
+            q_frac(i, :) = q_frac(i, :)*REAL(bs_env%nkp_grid_chi_eps_W_orig(i), dp)
+         END DO
+         CALL unit_q_dyad_value_at_gamma(mesh_vectors, dyad_gamma)
+         ! Neighbours of Γ: mesh points with integer mesh coordinates m_i = -1, 0, 1, m /= 0.
+         ALLOCATE (neighbour(nk), in_shells(nk), dyads(6, nk), shell_dyads(6, nk))
+         neighbour(:) = q_norm > 1.0E-8_dp .AND. ALL(ABS(q_frac) < 1.5_dp, DIM=1)
+         dyads(:, :) = 0.0_dp
+         DO iq = 1, nk
+            IF (.NOT. neighbour(iq)) CYCLE
+            d(:) = q(:, iq)/q_norm(iq)
+            dyads(:, iq) = [d(1)**2, d(2)**2, d(3)**2, d(1)*d(2), d(1)*d(3), d(2)*d(3)]
+         END DO
+         radius = 0.0_dp
+         DO
+            radius = MINVAL(q_norm, MASK=neighbour .AND. q_norm > radius*(1.0_dp + 1.0E-6_dp))
+            in_shells(:) = neighbour .AND. q_norm < radius*(1.0_dp + 1.0E-6_dp)
+            ! Minimum-norm weights w = Aᵀ (A Aᵀ)⁺ T with the unit dyads A of the selected shells.
+            shell_dyads(:, :) = dyads*SPREAD(MERGE(1.0_dp, 0.0_dp, in_shells), 1, 6)
+            gram(:, :) = MATMUL(shell_dyads, TRANSPOSE(shell_dyads))
+            CALL get_pseudo_inverse_diag(gram, gram_inverse, 1.0E-10_dp)
+            weights(:) = MATMUL(MATMUL(gram_inverse, dyad_gamma), shell_dyads)
+            IF (NORM2(MATMUL(shell_dyads, weights) - dyad_gamma) < 1.0E-8_dp .OR. &
+                ALL(in_shells .EQV. neighbour)) EXIT
+         END DO
          IF (PRESENT(values_q)) values_q(:, 1, i_q0) = MATMUL(values_q(:, 1, :), weights)
       END IF
-      DEALLOCATE (q_norm)
-      IF (PRESENT(i_gamma)) i_gamma = i_q0
       IF (PRESENT(q_mesh)) CALL MOVE_ALLOC(q, q_mesh)
       IF (PRESENT(shell_weights)) CALL MOVE_ALLOC(weights, shell_weights)
 
    END SUBROUTINE q_mesh_and_gamma_shell_average
+
+! **************************************************************************************************
+!> \brief Value T at q = 0 of the unit dyad q̂ q̂ᵀ for which the sum over a Γ-centred mesh is
+!> exact (derived here by Poisson summation):
+!> T = ∫ q̂ q̂ᵀ exp(-|q|²/σ²) d^dq / V_cell - Σ_m≠0 m̂ m̂ᵀ exp(-|m|²/σ²)
+!> with the mesh vectors m and the volume (2D: area) V_cell of a mesh cell. The integral is
+!> P π^(d/2) σ^d / d with the projector P on the periodic directions. T is independent of σ
+!> up to exp(-σ²|G|²/4) for the reciprocal vectors G of the mesh, i.e. below 1E-16 for
+!> σ = 2 max|m_i|. On cubic and hexagonal meshes T = P/d.
+!> \param mesh_vectors Cartesian mesh vectors, zero for the non-periodic direction of a slab
+!> \param dyad_gamma T as (xx, yy, zz, xy, xz, yz)
+! **************************************************************************************************
+   SUBROUTINE unit_q_dyad_value_at_gamma(mesh_vectors, dyad_gamma)
+      REAL(KIND=dp), INTENT(IN)                          :: mesh_vectors(3, 3)
+      REAL(KIND=dp), INTENT(OUT)                         :: dyad_gamma(6)
+
+      INTEGER                                            :: i, m1, m2, m3, m_max(3), n_dim
+      REAL(KIND=dp)                                      :: basis(3, 3), cell_volume, normal(3), &
+                                                            projector(3, 3), r2, sigma, x(3)
+
+      n_dim = 3
+      basis(:, :) = mesh_vectors
+      projector(:, :) = 0.0_dp
+      DO i = 1, 3
+         projector(i, i) = 1.0_dp
+      END DO
+      IF (ALL(mesh_vectors(:, 3) == 0.0_dp)) THEN
+         n_dim = 2
+         normal(:) = vector_product(mesh_vectors(:, 1), mesh_vectors(:, 2))
+         normal(:) = normal/NORM2(normal)
+         basis(:, 3) = normal
+         DO i = 1, 3
+            projector(:, i) = projector(:, i) - normal(i)*normal
+         END DO
+      END IF
+      cell_volume = ABS(DOT_PRODUCT(basis(:, 1), vector_product(basis(:, 2), basis(:, 3))))
+      sigma = 2.0_dp*MAXVAL(NORM2(mesh_vectors, DIM=1))
+      ! |m_i| <= |m| |row i of basis⁻¹|; the Gaussian is below 1E-15 beyond |m| = 6σ.
+      m_max(:) = CEILING(6.0_dp*sigma*NORM2(inv_3x3(basis), DIM=2))
+      IF (n_dim == 2) m_max(3) = 0
+      dyad_gamma(:) = pi**(0.5_dp*n_dim)*sigma**n_dim/(n_dim*cell_volume)* &
+                      [projector(1, 1), projector(2, 2), projector(3, 3), &
+                       projector(1, 2), projector(1, 3), projector(2, 3)]
+      DO m1 = -m_max(1), m_max(1)
+         DO m2 = -m_max(2), m_max(2)
+            DO m3 = -m_max(3), m_max(3)
+               x(:) = MATMUL(mesh_vectors, REAL([m1, m2, m3], dp))
+               r2 = SUM(x**2)
+               IF (r2 == 0.0_dp .OR. r2 > 36.0_dp*sigma**2) CYCLE
+               dyad_gamma(:) = dyad_gamma - EXP(-r2/sigma**2)/r2* &
+                               [x(1)**2, x(2)**2, x(3)**2, x(1)*x(2), x(1)*x(3), x(2)*x(3)]
+            END DO
+         END DO
+      END DO
+
+   END SUBROUTINE unit_q_dyad_value_at_gamma
 
 ! **************************************************************************************************
 !> \brief Radial moments f0 = int_0^L exp(-i a q) dq and f1 = int_0^L q exp(-i a q) dq.
@@ -528,11 +606,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Integrate 1/q**2 (3D) or 1/|q| (2D slab) over the Brillouin zone.
 !> The regular mesh sum already contains the model at all mesh points q /= 0, which is
-!> subtracted here; the nearest shell is subtracted once more with phase 1 for the value at
-!> q = 0 of a Γ-centred mesh. In 3D the returned coefficient multiplies the factored head
-!> density 4*pi*Z_l0(0)*conjg(Z_l'0(0))/M_0(0)**2; in 2D it has units of inverse
-!> in-plane momentum.  The face-to-polar Jacobian resolves the integrable singularity
-!> without sampling q=0.
+!> subtracted here by the lattice FFT; the nearest-shell average is subtracted once more with
+!> phase 1 for the value at q = 0 of a Γ-centred mesh. In 3D the returned coefficient multiplies
+!> the factored head density 4*pi*Z_l0(0)*conjg(Z_l'0(0))/M_0(0)**2; in 2D it has units of
+!> inverse in-plane momentum. The face-to-polar Jacobian resolves the integrable singularity
+!> without evaluating q=0.
 !> \param bs_env ...
 !> \param cells ...
 !> \param factors ...
@@ -543,8 +621,9 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, INTENT(OUT)         :: factors(:)
 
       COMPLEX(KIND=dp)                                   :: f0
-      INTEGER                                            :: i_gamma, icell, idir, iq, n_dim, nk
-      REAL(KIND=dp)                                      :: area, b(3, 2), rcart(3), scale
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: mesh_cells(:, :, :), mesh_values(:, :, :)
+      INTEGER                                            :: icell, idir, iq, n_dim, nk
+      REAL(KIND=dp)                                      :: area, b(3, 2), q_norm, rcart(3), scale
       REAL(KIND=dp), ALLOCATABLE                         :: directions(:, :), q_mesh(:, :), &
                                                             radii(:), shell_weights(:), weights(:)
 
@@ -559,24 +638,28 @@ CONTAINS
          CALL gamma_cell_face_directions(bs_env, directions, weights, radii)
          scale = bs_env%ri_rs%cell%deth*fourpi/(twopi**3)
       END IF
-      CALL q_mesh_and_gamma_shell_average(bs_env, q_mesh, shell_weights, i_gamma)
-      ALLOCATE (factors(SIZE(cells, 2)))
-      DO icell = 1, SIZE(cells, 2)
+      ALLOCATE (factors(SIZE(cells, 2)), SOURCE=z_zero)
+      DO icell = bs_env%para_env%mepos + 1, SIZE(cells, 2), bs_env%para_env%num_pe
          rcart = MATMUL(bs_env%hmat, REAL(cells(:, icell), dp))
-         factors(icell) = z_zero
          DO idir = 1, SIZE(weights)
             CALL radial_phase_moments(DOT_PRODUCT(directions(:, idir), rcart), radii(idir), f0)
-            factors(icell) = factors(icell) + weights(idir)*f0
-         END DO
-         factors(icell) = factors(icell)*scale
-         DO iq = 1, SIZE(q_mesh, 2)
-            IF (iq == i_gamma) CYCLE
-            factors(icell) = factors(icell) - &
-                             (EXP(-gaussi*DOT_PRODUCT(q_mesh(:, iq), rcart)) + shell_weights(iq))/ &
-                             (REAL(nk, dp)*NORM2(q_mesh(:, iq))**(n_dim - 1))
+            factors(icell) = factors(icell) + scale*weights(idir)*f0
          END DO
       END DO
-      DEALLOCATE (directions, weights, radii, q_mesh, shell_weights)
+      CALL bs_env%para_env%sum(factors)
+
+      ! (1/N_q) Σ_q≠0 exp(-iqR)/|q|^(d-1) for all cells R at once
+      CALL q_mesh_and_gamma_shell_average(bs_env, q_mesh, shell_weights)
+      ALLOCATE (mesh_values(1, 1, nk), SOURCE=z_zero)
+      ALLOCATE (mesh_cells(1, 1, SIZE(cells, 2)))
+      DO iq = 1, nk
+         q_norm = NORM2(q_mesh(:, iq))
+         IF (q_norm > 1.0E-8_dp) mesh_values(1, 1, iq) = 1.0_dp/q_norm**(n_dim - 1)
+      END DO
+      CALL k_grid_to_cell_fft(mesh_values, bs_env%kpoints_chi_eps_W%xkp(1:3, 1:nk), &
+                              bs_env%nkp_grid_chi_eps_W_orig, cells, mesh_cells)
+      factors(:) = factors - mesh_cells(1, 1, :) - SUM(shell_weights*mesh_values(1, 1, :))/REAL(nk, dp)
+      DEALLOCATE (directions, weights, radii, q_mesh, shell_weights, mesh_values, mesh_cells)
    END SUBROUTINE singular_head_cell_factors
 
 ! **************************************************************************************************
@@ -673,13 +756,13 @@ CONTAINS
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: directions(:, :), weights(:), radii(:)
 
-      INTEGER, PARAMETER                                 :: n_face = 24
-
       INTEGER                                            :: i_axis, i_direction, i_node, i_sign, &
-                                                            j_axis
+                                                            j_axis, n_face
       REAL(KIND=dp)                                      :: area, b(3, 2), dq(3), q(3)
       REAL(KIND=dp), ALLOCATABLE                         :: nodes(:), rule(:)
 
+      ! Along an edge, exp(-iqR) runs through up to N/2 periods for the largest cells |R_i| = N/2.
+      n_face = MAX(24, 2*MAXVAL(bs_env%nkp_grid_chi_eps_W_orig))
       CALL slab_reciprocal_vectors(bs_env, b, area)
       ALLOCATE (nodes(n_face), rule(n_face))
       CALL gauss_legendre(n_face, nodes, rule)
@@ -703,14 +786,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Integrate the Gamma-correction head and wings over the Brillouin zone, in 2D and 3D.
-!> The regular mesh sum already contains the model at all mesh points q /= 0 (directions after
-!> n_angular), which are subtracted here; exp(-iqR) is retained per real-space cell R. The value at
-!> q = 0 of a Γ-centred mesh is the nearest-shell average (q_mesh_and_gamma_shell_average), so the
-!> shell is subtracted once more with phase 1.
-!> Integrating over the whole zone instead of the cells next to Γ removes the sampling error of the
-!> non-analytic model on the mesh, which does not decay with N in 2D (2π/(q(1+2πqA)) changes from
-!> 1/q to 1/q² within the first mesh cells) and decays only as 1/N in 3D. Γ-centred and shifted
-!> meshes then converge to the same value.
+!> The regular mesh sum already contains the model at all mesh points q /= 0, which is subtracted
+!> here with exp(-iqR) for all real-space cells R by one lattice FFT. The value at q = 0 of a
+!> Γ-centred mesh is the weighted shell average (q_mesh_and_gamma_shell_average), so the shells
+!> are subtracted once more with phase 1.
+!> Integrating over the whole zone instead of the cells next to Γ removes the discretization error
+!> of the non-analytic model on the mesh, which does not decay with N in 2D (2π/(q(1+2πqA))
+!> changes from 1/q to 1/q² within the first mesh cells) and decays only as 1/N in 3D. Γ-centred
+!> and shifted meshes then converge to the same value.
 !> Per cell only the head and one Cartesian wing coefficient per frequency are stored; the wing
 !> on the grid is wing_cartesian(ω) times that coefficient.
 !> 3D: ε⁻¹_00(d,ω) does not depend on |q|, so Wc_00 = 4π(ε⁻¹_00-1)/q² and Wc_l0 = -4π ε⁻¹_00 t_l·d/q
@@ -718,40 +801,44 @@ CONTAINS
 !> 2D: with A(d,ω)=d†[α-E†B⁻¹E]d and v=2π/q, Wc_00=-4π²A/(1+2πqA) and Wc_l0=-2π t_l·d/(1+2πqA)
 !>     are integrated radially by Gauss-Legendre.
 !> \param bs_env ...
-!> \param directions unit directions d around Gamma
-!> \param weights angular weights, or for the mesh points their weights in the value at q = 0
-!> \param radii extent of the Brillouin zone along d, or |q| of a mesh point
-!> \param n_angular number of angular directions, followed by the mesh points
-!> \param head_response ε⁻¹_00(d,ω) in 3D, A(d,ω) in 2D
+!> \param directions unit directions d of the angular rule, then q/|q| of the mesh points
+!> \param weights weights of the angular rule
+!> \param radii extent of the Brillouin zone along the directions of the angular rule
+!> \param q_mesh Cartesian q of the mesh points
+!> \param shell_weights weights of the mesh points in the value at q = 0
+!> \param head_response ε⁻¹_00(d,ω) in 3D, A(d,ω) in 2D, for all directions
 !> \param model Gamma correction per real-space cell
 ! **************************************************************************************************
-   SUBROUTINE gamma_corr_cell_integrals(bs_env, directions, weights, radii, n_angular, head_response, model)
+   SUBROUTINE gamma_corr_cell_integrals(bs_env, directions, weights, radii, q_mesh, shell_weights, &
+                                        head_response, model)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), INTENT(IN)                          :: directions(:, :), weights(:), radii(:)
-      INTEGER, INTENT(IN)                                :: n_angular
-      REAL(KIND=dp), INTENT(IN)                          :: head_response(:, :)
+      REAL(KIND=dp), INTENT(IN)                          :: directions(:, :), weights(:), radii(:), &
+                                                            q_mesh(:, :), shell_weights(:), &
+                                                            head_response(:, :)
       TYPE(gamma_correction_type), INTENT(INOUT)         :: model
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'gamma_corr_cell_integrals'
-      INTEGER, PARAMETER                                 :: n_radial = 32
 
-      COMPLEX(KIND=dp)                                   :: f0, f1, head, integral, phase, wing
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: head_frequency(:, :)
+      COMPLEX(KIND=dp)                                   :: f0, f1, head, integral, wing
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: head_frequency(:, :), &
+                                                            mesh_cells(:, :, :), &
+                                                            mesh_values(:, :, :), radial_phase(:), &
+                                                            shell_average(:, :)
       INTEGER                                            :: handle, i_cell, i_direction, &
-                                                            i_frequency, i_node, n_cells, &
-                                                            n_frequency, nk
+                                                            i_frequency, iq, n_angular, n_cells, &
+                                                            n_frequency, n_radial, nk
       INTEGER, ALLOCATABLE                               :: cells(:, :)
       LOGICAL                                            :: is_slab
       REAL(KIND=dp)                                      :: area, b(3, 2), head_scale, length, &
-                                                            measure, projection, q, rcart(3), &
-                                                            response
-      REAL(KIND=dp), ALLOCATABLE                         :: nodes(:), rule(:)
+                                                            measure, projection, rcart(3), response
+      REAL(KIND=dp), ALLOCATABLE                         :: nodes(:), q_nodes(:), rule(:)
 
       CALL timeset(routineN, handle)
 
       is_slab = ALL(bs_env%periodic == [1, 1, 0])
       CALL build_full_cell_grid(bs_env, cells)
-      nk = PRODUCT(bs_env%nkp_grid_chi_eps_W_orig)
+      nk = SIZE(q_mesh, 2)
+      n_angular = SIZE(weights)
       n_cells = SIZE(cells, 2)
       n_frequency = bs_env%num_time_freq_points
       head_scale = 1.0_dp/ri_metric_head_zero(bs_env)**2
@@ -760,7 +847,9 @@ CONTAINS
       IF (is_slab) THEN
          CALL slab_reciprocal_vectors(bs_env, b, area)
          measure = area/twopi**2
-         ALLOCATE (nodes(n_radial), rule(n_radial))
+         ! Along d, exp(-iqR) runs through up to N/2 periods, as along an edge of the zone.
+         n_radial = MAX(32, 2*MAXVAL(bs_env%nkp_grid_chi_eps_W_orig))
+         ALLOCATE (nodes(n_radial), rule(n_radial), q_nodes(n_radial), radial_phase(n_radial))
          CALL gauss_legendre(n_radial, nodes, rule)
       ELSE
          measure = bs_env%ri_rs%cell%deth*fourpi/twopi**3
@@ -769,39 +858,25 @@ CONTAINS
       ALLOCATE (model%wing_cell_frequency(3, n_frequency, n_cells), SOURCE=z_zero)
       DO i_cell = bs_env%para_env%mepos + 1, n_cells, bs_env%para_env%num_pe
          rcart = MATMUL(bs_env%hmat, REAL(cells(:, i_cell), dp))
-         DO i_direction = 1, SIZE(radii)
+         DO i_direction = 1, n_angular
             length = radii(i_direction)
             projection = DOT_PRODUCT(directions(:, i_direction), rcart)
-            phase = EXP(-gaussi*length*projection)
-            IF (.NOT. is_slab) THEN
-               IF (i_direction <= n_angular) THEN
-                  CALL radial_phase_moments(projection, length, f0, f1)
-                  f0 = measure*weights(i_direction)*f0
-                  f1 = measure*weights(i_direction)*f1
-               ELSE
-                  f0 = -(phase + weights(i_direction))/(REAL(nk, dp)*length**2)
-                  f1 = -(phase + weights(i_direction))/(REAL(nk, dp)*length)
-               END IF
+            IF (is_slab) THEN
+               q_nodes(:) = 0.5_dp*length*(nodes + 1.0_dp)
+               radial_phase(:) = 0.5_dp*length*rule*q_nodes*EXP(-gaussi*q_nodes*projection)
+            ELSE
+               CALL radial_phase_moments(projection, length, f0, f1)
             END IF
             DO i_frequency = 1, n_frequency
                response = head_response(i_direction, i_frequency)
                IF (is_slab) THEN
-                  IF (i_direction <= n_angular) THEN
-                     integral = z_zero
-                     DO i_node = 1, n_radial
-                        q = 0.5_dp*length*(nodes(i_node) + 1.0_dp)
-                        integral = integral + 0.5_dp*length*rule(i_node)*q/(1.0_dp + twopi*q*response)* &
-                                   EXP(-gaussi*q*projection)
-                     END DO
-                     integral = measure*weights(i_direction)*integral
-                  ELSE
-                     integral = -(phase + weights(i_direction))/(REAL(nk, dp)*(1.0_dp + twopi*length*response))
-                  END IF
+                  integral = measure*weights(i_direction)* &
+                             SUM(radial_phase/(1.0_dp + twopi*q_nodes*response))
                   head = -twopi**2*response*integral
                   wing = -integral
                ELSE
-                  head = fourpi*(response - 1.0_dp)*f0
-                  wing = -response*f1
+                  head = measure*weights(i_direction)*fourpi*(response - 1.0_dp)*f0
+                  wing = -measure*weights(i_direction)*response*f1
                END IF
                head_frequency(i_cell, i_frequency) = head_frequency(i_cell, i_frequency) + head_scale*head
                model%wing_cell_frequency(:, i_frequency, i_cell) = &
@@ -811,11 +886,42 @@ CONTAINS
       END DO
       CALL bs_env%para_env%sum(head_frequency)
       CALL bs_env%para_env%sum(model%wing_cell_frequency)
+
+      ! Model head (index 1) and wings (2:4) at the mesh points q /= 0, without the factor 1/N_q
+      ! of the mesh sum, which the lattice FFT applies.
+      ALLOCATE (mesh_values(4, n_frequency, nk), SOURCE=z_zero)
+      ALLOCATE (mesh_cells(4, n_frequency, n_cells), shell_average(4, n_frequency))
+      DO iq = 1, nk
+         length = NORM2(q_mesh(:, iq))
+         IF (length < 1.0E-8_dp) CYCLE
+         DO i_frequency = 1, n_frequency
+            response = head_response(n_angular + iq, i_frequency)
+            IF (is_slab) THEN
+               mesh_values(1, i_frequency, iq) = -head_scale*twopi**2*response/(1.0_dp + twopi*length*response)
+               mesh_values(2:4, i_frequency, iq) = -directions(:, n_angular + iq)/(1.0_dp + twopi*length*response)
+            ELSE
+               mesh_values(1, i_frequency, iq) = head_scale*fourpi*(response - 1.0_dp)/length**2
+               mesh_values(2:4, i_frequency, iq) = -response*directions(:, n_angular + iq)/length
+            END IF
+         END DO
+      END DO
+      CALL k_grid_to_cell_fft(mesh_values, bs_env%kpoints_chi_eps_W%xkp(1:3, 1:nk), &
+                              bs_env%nkp_grid_chi_eps_W_orig, cells, mesh_cells)
+      shell_average(:, :) = z_zero
+      DO iq = 1, nk
+         shell_average(:, :) = shell_average + shell_weights(iq)*mesh_values(:, :, iq)/REAL(nk, dp)
+      END DO
+      DO i_cell = 1, n_cells
+         head_frequency(i_cell, :) = head_frequency(i_cell, :) - mesh_cells(1, :, i_cell) - shell_average(1, :)
+         model%wing_cell_frequency(:, :, i_cell) = model%wing_cell_frequency(:, :, i_cell) - &
+                                                   mesh_cells(2:4, :, i_cell) - shell_average(2:4, :)
+      END DO
+
       ALLOCATE (model%head_cell_tau(n_cells, n_frequency))
       model%head_cell_tau(:, :) = MATMUL(head_frequency, &
                                          TRANSPOSE(bs_env%time_frequency_grid%cosine_frequency_to_time))
-      DEALLOCATE (cells, head_frequency)
-      IF (is_slab) DEALLOCATE (nodes, rule)
+      DEALLOCATE (cells, head_frequency, mesh_cells, mesh_values, shell_average)
+      IF (is_slab) DEALLOCATE (nodes, rule, q_nodes, radial_phase)
 
       CALL timestop(handle)
 
@@ -1344,7 +1450,9 @@ CONTAINS
       CPASSERT(ALLOCATED(auto_ri%U_Pp_atom))
       CPASSERT(ALLOCATED(auto_ri%U_Pp_atom_offset))
       CPASSERT(SIZE(auto_ri%sizes_ref_RI) > 0)
-      valid_layout = ALL(auto_ri%sizes_ref_RI > 0) .AND. ALL(auto_ri%sizes_opt_RI > 0)
+      CPASSERT(SIZE(auto_ri%sizes_ref_RI) == SIZE(auto_ri%sizes_opt_RI))
+      valid_layout = ALL(auto_ri%sizes_ref_RI > 0) .AND. ALL(auto_ri%sizes_opt_RI > 0) .AND. &
+                     SIZE(auto_ri%U_Pp_atom_offset) == SIZE(auto_ri%sizes_ref_RI)
       CPASSERT(valid_layout)
       CALL cp_fm_get_info(images(1), nrow_local=nr, ncol_local=nc, &
                           nrow_global=ngr, ncol_global=ngc, row_indices=rows, col_indices=cols)
@@ -1376,6 +1484,7 @@ CONTAINS
          nopt = auto_ri%sizes_opt_RI(iatom)
          offset = auto_ri%U_Pp_atom_offset(iatom)
          CPASSERT(offset > 0 .AND. nref <= HUGE(0)/nopt)
+         CPASSERT(offset - 1 <= SIZE(auto_ri%U_Pp_atom) - nref*nopt)
          ALLOCATE (blocks(iatom)%positions(COUNT(indices >= first_ref .AND. indices < first_ref + nref)))
          ALLOCATE (blocks(iatom)%values(SIZE(blocks(iatom)%positions), nopt))
          blocks(iatom)%first = first_opt
@@ -1609,9 +1718,11 @@ CONTAINS
       para_env => bs_env%para_env
       index_to_cell => gwkp_env%gamma_corr_index_to_cell
       cell_to_index => gwkp_env%gamma_corr_cell_to_index
+      CPASSERT(ASSOCIATED(index_to_cell) .AND. ASSOCIATED(cell_to_index))
       CALL get_cell(cell=cell, h=hmat, periodic=periodic)
       CALL get_kpoint_info(kpoints, nkp=n_k)
       n_spin = bs_env%n_spin
+      CPASSERT(SIZE(mo_coeff, 1) >= n_k .AND. SIZE(mo_coeff, 2) == n_spin)
       valid_layout = SIZE(eigenvalues, 2) >= n_k .AND. SIZE(eigenvalues, 3) == n_spin
       CPASSERT(valid_layout)
       CPASSERT(SIZE(nocc_spin) == n_spin)
