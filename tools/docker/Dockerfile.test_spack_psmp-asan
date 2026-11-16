@@ -1,0 +1,112 @@
+#
+# This file was created by generate_dockerfiles.py.
+# Usage: ./spack_cache_start.sh; podman build --shm-size=1g -t spack_psmp-asan -f ./Dockerfile.test_spack_psmp-asan ../../
+#
+
+ARG BASE_IMAGE="docker.io/ubuntu:26.04"
+
+###### Stage 1: Build CP2K dependencies ######
+
+FROM "${BASE_IMAGE}" AS build_deps
+
+ARG APT_GET="apt-get -o APT::Sandbox::User=root -qq"
+
+RUN ${APT_GET} update && \
+    ${APT_GET} install --no-install-recommends \
+    bzip2 \
+    ca-certificates \
+    cmake \
+    g++ gcc gfortran \
+    git \
+    gnupg \
+    libssh-dev \
+    libssl-dev \
+    libtool \
+    libtool-bin \
+    lsb-release \
+    make \
+    patch \
+    pkgconf \
+    python3 \
+    python3-dev \
+    python3-pip \
+    python3-venv \
+    unzip \
+    wget \
+    xxd \
+    xz-utils \
+    zlib1g \
+    zlib1g-dev \
+    zstd \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG IMAGE_TAG="spack_psmp-asan"
+ENV IMAGE_TAG="${IMAGE_TAG}"
+
+# Set number CPU cores if requested
+ARG NUM_PROCS=""
+ENV NUM_PROCS="${NUM_PROCS}"
+
+ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://host.containers.internal:9000"
+ENV SPACK_CACHE="${SPACK_CACHE}"
+
+# Build CP2K dependencies
+WORKDIR /opt/cp2k
+COPY ./tools/spack ./tools/spack
+COPY ./tools/docker ./tools/docker
+COPY ./make_cp2k.sh .
+RUN ./make_cp2k.sh -bd_only -cv psmp -gpu none  -j${NUM_PROCS} -mpi mpich -ue -preset asan
+
+###### Stage 2: Build CP2K ######
+
+FROM build_deps AS build_cp2k
+
+COPY ./CMakeLists.txt ./CMakePresets.json ./
+COPY ./cmake ./cmake
+COPY ./data ./data
+COPY ./src ./src
+COPY ./tests ./tests
+COPY ./tools/build_utils ./tools/build_utils
+COPY ./tools/conventions ./tools/conventions
+
+RUN ./make_cp2k.sh -cv psmp  -gpu none -j${NUM_PROCS} -mpi mpich -preset asan
+
+###### Stage 3: Install CP2K ######
+
+FROM "${BASE_IMAGE}" AS install_cp2k
+
+ARG APT_GET="apt-get -o APT::Sandbox::User=root -qq"
+
+RUN ${APT_GET} update && \
+    ${APT_GET} install --no-install-recommends \
+    g++ gcc gfortran \
+    python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/cp2k
+
+# Install CP2K dependencies built with spack
+COPY --from=build_cp2k /opt/cp2k/spack/spack/opt/spack ./spack/spack/opt/spack
+
+# Install CP2K
+COPY --from=build_cp2k /opt/cp2k/install ./install
+
+# Install CP2K regression tests
+COPY --from=build_cp2k /opt/cp2k/tests ./tests
+COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
+
+# Install CP2K/Quickstep CI benchmarks
+COPY ./benchmarks/CI ./benchmarks/CI
+
+# Do not rely only on LD_LIBRARY_PATH because it is fragile
+COPY --from=build_cp2k /etc/ld.so.conf.d/cp2k.conf /etc/ld.so.conf.d/cp2k.conf
+RUN ldconfig
+
+# Run CP2K regression test
+RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests --timeout 400 2>&1 | tee report.log; \
+    grep -q '^Status:' report.log || printf "\nSummary: Regression test run failed\nStatus: FAILED\n" | tee -a report.log
+
+# Create entrypoint and finalise container build
+WORKDIR /mnt
+ENTRYPOINT ["/opt/cp2k/install/bin/launch"]
+CMD ["cp2k", "--help", "--version"]

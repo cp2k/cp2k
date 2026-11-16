@@ -316,6 +316,17 @@ def main() -> None:
             )
         )
 
+    with OutputFile(f"Dockerfile.test_spack_psmp-asan", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                version="psmp",
+                mpi_mode="mpich",
+                feature_flags="-preset asan",
+                testopts="--timeout 400",
+                image_tag=f.image_tag,
+            )
+        )
+
     # End Spack/CMake based tester
 
     with OutputFile(f"Dockerfile.test_asan-psmp", args.check) as f:
