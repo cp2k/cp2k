@@ -89,6 +89,7 @@ MODULE gw_ri_rs_small_cell_full_kp_Gamma_correction
              add_gamma_corr_pair_cell, &
              gamma_point_correction, &
              prepare_ri_rs_gamma_correction, &
+             replace_gamma_sample, &
              singular_head_cell_factors
 
    ! Below |a*L| = taylor_switch, radial phase moments use their Taylor series.
@@ -168,7 +169,7 @@ CONTAINS
    END SUBROUTINE prepare_ri_rs_gamma_correction
 
 ! **************************************************************************************************
-!> \brief Gamma-correction head and wing coefficients for the near-Gamma cells.
+!> \brief Gamma-correction head and wing coefficients over the Brillouin zone.
 !> Construct the q->0 dielectric limit along face-cubature and mesh-sample directions
 !> from SCF dipole transitions and the directly fitted Gamma Gaussian body.
 !> \param bs_env ...
@@ -191,25 +192,22 @@ CONTAINS
          schur_cartesian(:, :), time_chi(:, :, :), time_head(:, :, :), time_wing(:, :, :), &
          V_sqrt_zero(:, :)
       INTEGER                                            :: first_row, handle, i_cartesian, &
-                                                            i_direction, ikp, j_cartesian, j_w, &
-                                                            n_angular, n_directions, n_near, &
-                                                            n_w_kpoints
+                                                            i_direction, i_gamma, iq, j_cartesian, &
+                                                            j_w, n_angular, n_directions
       INTEGER, ALLOCATABLE                               :: metric_cells(:, :)
       LOGICAL                                            :: is_slab
-      REAL(KIND=dp)                                      :: near_q(3, 8), q_cart(3), q_direction(3), &
-                                                            reciprocal(3, 3), volume
+      REAL(KIND=dp)                                      :: slab_b(3, 2), volume
       REAL(KIND=dp), ALLOCATABLE :: angular_directions(:, :), angular_radii(:), &
-         angular_weights(:), directions(:, :), head_response(:, :), radii(:), weights(:)
+         angular_weights(:), directions(:, :), head_response(:, :), radii(:), sample_q(:, :), &
+         star_weights(:), weights(:)
       TYPE(cp_fm_type), ALLOCATABLE                      :: fm_metric(:)
 
       CALL timeset(routineN, handle)
 
       is_slab = ALL(bs_env%periodic == [1, 1, 0])
       volume = bs_env%ri_rs%cell%deth
-      n_w_kpoints = PRODUCT(bs_env%nkp_grid_chi_eps_W_orig)
-      reciprocal = twopi*TRANSPOSE(inv_3x3(bs_env%hmat))
       IF (is_slab) THEN
-         CALL slab_reciprocal_vectors(bs_env, reciprocal(:, 1:2), volume)
+         CALL slab_reciprocal_vectors(bs_env, slab_b, volume)
          CALL slab_cell_face_directions(bs_env, angular_directions, angular_weights, angular_radii)
       ELSE
          CALL gamma_cell_face_directions(bs_env, angular_directions, angular_weights, angular_radii)
@@ -219,29 +217,20 @@ CONTAINS
          WRITE (bs_env%unit_nr, '(T2,A,T72,I10)') &
             'Number of angular points for the Γ-point correction of W:', n_angular
       END IF
-      n_near = 0
-      DO ikp = 1, n_w_kpoints
-         q_direction = bs_env%kpoints_chi_eps_W%xkp(1:3, ikp) - &
-                       ANINT(bs_env%kpoints_chi_eps_W%xkp(1:3, ikp))
-         IF (is_slab) THEN
-            IF (.NOT. is_gamma_neighbor(q_direction(1:2), bs_env%nkp_grid_chi_eps_W_orig(1:2))) CYCLE
-         ELSE
-            IF (.NOT. is_gamma_neighbor(q_direction, bs_env%nkp_grid_chi_eps_W_orig)) CYCLE
-         END IF
-         n_near = n_near + 1
-         near_q(:, n_near) = q_direction
-      END DO
-      n_directions = n_angular + n_near
+      CALL mesh_samples(bs_env, sample_q, star_weights, i_gamma)
+      n_directions = n_angular + SIZE(sample_q, 2) - MERGE(1, 0, i_gamma > 0)
       ALLOCATE (directions(3, n_directions), weights(n_directions), radii(n_directions))
       directions(:, 1:n_angular) = angular_directions
       weights(1:n_angular) = angular_weights
       radii(1:n_angular) = angular_radii
       DEALLOCATE (angular_directions, angular_weights, angular_radii)
-      DO i_direction = 1, n_near
-         q_cart = MATMUL(reciprocal, near_q(:, i_direction))
-         radii(n_angular + i_direction) = NORM2(q_cart)
-         directions(:, n_angular + i_direction) = q_cart/radii(n_angular + i_direction)
-         weights(n_angular + i_direction) = 0.0_dp
+      i_direction = n_angular
+      DO iq = 1, SIZE(sample_q, 2)
+         IF (iq == i_gamma) CYCLE
+         i_direction = i_direction + 1
+         radii(i_direction) = NORM2(sample_q(:, iq))
+         directions(:, i_direction) = sample_q(:, iq)/radii(i_direction)
+         weights(i_direction) = star_weights(iq)
       END DO
       ALLOCATE (head_response(n_directions, bs_env%num_time_freq_points))
       ! The finite RI metric at q=0 retains its complete Gaussian channel.
@@ -332,7 +321,7 @@ CONTAINS
 
       CALL gamma_corr_cell_integrals(bs_env, directions, weights, radii, n_angular, head_response, &
                                      gwkp_env%gamma_correction)
-      DEALLOCATE (directions, head_response, radii, weights)
+      DEALLOCATE (directions, head_response, radii, sample_q, star_weights, weights)
       DEALLOCATE (time_chi, time_wing, time_head, metric_rows)
       DEALLOCATE (F_external)
 
@@ -407,9 +396,8 @@ CONTAINS
    END SUBROUTINE coulomb_matrix_gamma
 
 ! **************************************************************************************************
-!> \brief Angular cubature over the cells adjacent to Gamma.
-!> The region spans the mesh cells next to Gamma, with fractional half-widths h_i from
-!> gamma_cell_half_width.  The face Jacobian is Omega_BZ*PRODUCT(h_i)/r**3.
+!> \brief Angular cubature over the Brillouin zone, the parallelepiped |q_i| <= 1/2 in
+!> fractional coordinates. The face Jacobian is Omega_BZ/(8 r**3).
 !> \param bs_env ...
 !> \param directions ...
 !> \param weights ...
@@ -419,16 +407,15 @@ CONTAINS
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: directions(:, :), weights(:), radii(:)
 
-      INTEGER, PARAMETER                                 :: n = 6
-
-      INTEGER                                            :: face, i, ia, ib, j, k, n_angular, &
+      INTEGER                                            :: face, i, ia, ib, j, k, n, n_angular, &
                                                             sign_index
-      REAL(KIND=dp)                                      :: bmat(3, 3), h(3), q(3), qfrac(3), volume
+      REAL(KIND=dp)                                      :: bmat(3, 3), q(3), qfrac(3), volume
       REAL(KIND=dp), ALLOCATABLE                         :: nodes(:), rule_weights(:)
 
-      ! Six faces with a 6-by-6 Gauss-Legendre rule give 216 angular points.
+      ! The phase exp(-iqR) varies over a face by up to |R| |q|, which grows with the mesh size N
+      ! through the largest cell R, so the n-by-n Gauss-Legendre rule per face grows with N.
+      n = MAX(18, MAXVAL(bs_env%nkp_grid_chi_eps_W_orig))
       n_angular = 6*n*n
-      h(:) = gamma_cell_half_width(bs_env%nkp_grid_chi_eps_W_orig)
       volume = bs_env%ri_rs%cell%deth
       bmat = twopi*TRANSPOSE(inv_3x3(bs_env%hmat))
       ALLOCATE (nodes(n), rule_weights(n))
@@ -442,13 +429,13 @@ CONTAINS
             DO ia = 1, n
                DO ib = 1, n
                   face = face + 1
-                  qfrac(i) = REAL(sign_index, dp)*h(i)
-                  qfrac(j) = nodes(ia)*h(j)
-                  qfrac(k) = nodes(ib)*h(k)
+                  qfrac(i) = 0.5_dp*REAL(sign_index, dp)
+                  qfrac(j) = 0.5_dp*nodes(ia)
+                  qfrac(k) = 0.5_dp*nodes(ib)
                   q = MATMUL(bmat, qfrac)
                   radii(face) = NORM2(q)
                   directions(:, face) = q/radii(face)
-                  weights(face) = (twopi**3/volume)*PRODUCT(h)/(fourpi*radii(face)**3)* &
+                  weights(face) = (twopi**3/volume)/(8.0_dp*fourpi*radii(face)**3)* &
                                   rule_weights(ia)*rule_weights(ib)
                END DO
             END DO
@@ -459,40 +446,65 @@ CONTAINS
    END SUBROUTINE gamma_cell_face_directions
 
 ! **************************************************************************************************
-!> \brief Whether a q-mesh point other than Gamma lies in the mesh cells next to Gamma.
-!> On a Monkhorst-Pack mesh m_i = 2*|q_i|*N_i is odd for even N_i and even for odd N_i.
-!> Along an even direction Gamma is a cell corner and its neighbors have m_i = 1; along an
-!> odd direction Gamma is a mesh point and the cell next to it has m_i = 0.
-!> \param xkp fractional q point
-!> \param nkp_grid q mesh along the same directions
-!> \return ...
+!> \brief Cartesian q of the W mesh points, folded into |q_i| <= 1/2, and their weights in the
+!> Γ sample of a Γ-centred mesh.
+!> W - M is smooth at Γ up to a direction-dependent limit c(d) of the wings and pair densities, odd
+!> or a quadratic form in d. The Γ-cell average of W - M is the angular average of c plus O(|q|).
+!> W(0) itself has no direction and misses c. The average over the nearest mesh shell has the
+!> same limit (±q pairs cancel the odd part, the symmetric shell averages the quadratic form),
+!> so the Γ sample is replaced by it, with an error O(1/N) in the Γ sample of weight 1/N^d.
+!> \param bs_env ...
+!> \param sample_q Cartesian q of all mesh points
+!> \param star_weights 1/(number of shell points) on the nearest shell around Γ, 0 elsewhere
+!> \param i_gamma index of q = 0, 0 for a shifted mesh
 ! **************************************************************************************************
-   PURE FUNCTION is_gamma_neighbor(xkp, nkp_grid) RESULT(neighbor)
-      REAL(KIND=dp), INTENT(IN)                          :: xkp(:)
-      INTEGER, INTENT(IN)                                :: nkp_grid(:)
-      LOGICAL                                            :: neighbor
+   SUBROUTINE mesh_samples(bs_env, sample_q, star_weights, i_gamma)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: sample_q(:, :), star_weights(:)
+      INTEGER, INTENT(OUT)                               :: i_gamma
 
-      INTEGER                                            :: m(SIZE(xkp))
+      INTEGER                                            :: nk
+      REAL(KIND=dp)                                      :: area, bmat(3, 3), q_min
+      REAL(KIND=dp), ALLOCATABLE                         :: q_norm(:)
 
-      m(:) = NINT(2.0_dp*ABS(xkp - ANINT(xkp))*REAL(nkp_grid, dp))
-      neighbor = ALL(m == 1 - MODULO(nkp_grid, 2)) .AND. ANY(m == 1)
+      nk = PRODUCT(bs_env%nkp_grid_chi_eps_W_orig)
+      IF (ALL(bs_env%periodic == [1, 1, 0])) THEN
+         CALL slab_reciprocal_vectors(bs_env, bmat(:, 1:2), area)
+         bmat(:, 3) = 0.0_dp
+      ELSE
+         bmat = twopi*TRANSPOSE(inv_3x3(bs_env%hmat))
+      END IF
+      ALLOCATE (sample_q(3, nk), star_weights(nk), q_norm(nk))
+      sample_q(:, :) = MATMUL(bmat, bs_env%kpoints_chi_eps_W%xkp(1:3, 1:nk) - &
+                              ANINT(bs_env%kpoints_chi_eps_W%xkp(1:3, 1:nk)))
+      q_norm(:) = NORM2(sample_q, DIM=1)
+      star_weights(:) = 0.0_dp
+      i_gamma = MINLOC(q_norm, 1)
+      IF (q_norm(i_gamma) > 1.0E-8_dp) i_gamma = 0
+      IF (i_gamma == 0 .OR. nk == 1) RETURN
+      q_min = MINVAL(q_norm, MASK=q_norm > 1.0E-8_dp)
+      WHERE (ABS(q_norm - q_min) < 1.0E-6_dp*q_min) star_weights = 1.0_dp
+      star_weights(:) = star_weights/SUM(star_weights)
 
-   END FUNCTION is_gamma_neighbor
+   END SUBROUTINE mesh_samples
 
 ! **************************************************************************************************
-!> \brief Fractional half-width of the mesh cells next to Gamma along one direction.
-!> Even N: Gamma is the corner of two cells, h = 1/N.  Odd N: Gamma is the center of one
-!> cell, h = 1/(2N); N = 1 covers the whole Brillouin-zone interval.
-!> \param nkp_grid number of q points along the direction
-!> \return ...
+!> \brief Replace the q = 0 sample of a Γ-centred mesh by the average over the nearest mesh shell.
+!> The Γ correction subtracts the model there with phase 1, see mesh_samples.
+!> \param bs_env ...
+!> \param values_q values on the W mesh, last index q
 ! **************************************************************************************************
-   ELEMENTAL FUNCTION gamma_cell_half_width(nkp_grid) RESULT(h)
-      INTEGER, INTENT(IN)                                :: nkp_grid
-      REAL(KIND=dp)                                      :: h
+   SUBROUTINE replace_gamma_sample(bs_env, values_q)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      COMPLEX(KIND=dp), INTENT(INOUT)                    :: values_q(:, :, :)
 
-      h = REAL(2 - MODULO(nkp_grid, 2), dp)/REAL(2*nkp_grid, dp)
+      INTEGER                                            :: i_gamma
+      REAL(KIND=dp), ALLOCATABLE                         :: sample_q(:, :), star_weights(:)
 
-   END FUNCTION gamma_cell_half_width
+      CALL mesh_samples(bs_env, sample_q, star_weights, i_gamma)
+      IF (SUM(star_weights) > 0.0_dp) values_q(:, 1, i_gamma) = MATMUL(values_q(:, 1, :), star_weights)
+
+   END SUBROUTINE replace_gamma_sample
 
 ! **************************************************************************************************
 !> \brief Radial moments f0 = int_0^L exp(-i a q) dq and f1 = int_0^L q exp(-i a q) dq.
@@ -523,9 +535,10 @@ CONTAINS
    END SUBROUTINE radial_phase_moments
 
 ! **************************************************************************************************
-!> \brief Integrate 1/q**2 (3D) or 1/|q| (2D slab) over the distinct shifted-mesh cells around Gamma.
-!> The regular mesh sum already contains the near-Gamma model samples, which are
-!> subtracted here.  In 3D the returned coefficient multiplies the factored head
+!> \brief Integrate 1/q**2 (3D) or 1/|q| (2D slab) over the Brillouin zone.
+!> The regular mesh sum already contains the model samples at all q /= 0, which are
+!> subtracted here; the nearest shell is subtracted once more with phase 1 for the Γ sample
+!> of a Γ-centred mesh. In 3D the returned coefficient multiplies the factored head
 !> density 4*pi*Z_l0(0)*conjg(Z_l'0(0))/M_0(0)**2; in 2D it has units of inverse
 !> in-plane momentum.  The face-to-polar Jacobian resolves the integrable singularity
 !> without sampling q=0.
@@ -539,24 +552,24 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, INTENT(OUT)         :: factors(:)
 
       COMPLEX(KIND=dp)                                   :: f0
-      INTEGER                                            :: icell, idir, iq, n_dim, nk
-      REAL(KIND=dp)                                      :: area, bmat(3, 3), q(3), qnorm, rcart(3), &
-                                                            scale
-      REAL(KIND=dp), ALLOCATABLE                         :: directions(:, :), radii(:), weights(:)
+      INTEGER                                            :: i_gamma, icell, idir, iq, n_dim, nk
+      REAL(KIND=dp)                                      :: area, b(3, 2), rcart(3), scale
+      REAL(KIND=dp), ALLOCATABLE                         :: directions(:, :), radii(:), &
+                                                            sample_q(:, :), star_weights(:), &
+                                                            weights(:)
 
       nk = PRODUCT(bs_env%nkp_grid_chi_eps_W_orig)
       IF (ALL(bs_env%periodic == [1, 1, 0])) THEN
          n_dim = 2
          CALL slab_cell_face_directions(bs_env, directions, weights, radii)
-         bmat(:, 3) = 0.0_dp
-         CALL slab_reciprocal_vectors(bs_env, bmat(:, 1:2), area)
+         CALL slab_reciprocal_vectors(bs_env, b, area)
          scale = area/twopi**2
       ELSE
          n_dim = 3
          CALL gamma_cell_face_directions(bs_env, directions, weights, radii)
-         bmat = twopi*TRANSPOSE(inv_3x3(bs_env%hmat))
          scale = bs_env%ri_rs%cell%deth*fourpi/(twopi**3)
       END IF
+      CALL mesh_samples(bs_env, sample_q, star_weights, i_gamma)
       ALLOCATE (factors(SIZE(cells, 2)))
       DO icell = 1, SIZE(cells, 2)
          rcart = MATMUL(bs_env%hmat, REAL(cells(:, icell), dp))
@@ -566,17 +579,14 @@ CONTAINS
             factors(icell) = factors(icell) + weights(idir)*f0
          END DO
          factors(icell) = factors(icell)*scale
-         DO iq = 1, nk
-            IF (.NOT. is_gamma_neighbor(bs_env%kpoints_chi_eps_W%xkp(1:n_dim, iq), &
-                                        bs_env%nkp_grid_chi_eps_W_orig(1:n_dim))) CYCLE
-            q = MATMUL(bmat, bs_env%kpoints_chi_eps_W%xkp(1:3, iq) - &
-                       ANINT(bs_env%kpoints_chi_eps_W%xkp(1:3, iq)))
-            qnorm = NORM2(q)
-            factors(icell) = factors(icell) - EXP(-gaussi*DOT_PRODUCT(q, rcart))/ &
-                             (REAL(nk, dp)*qnorm**(n_dim - 1))
+         DO iq = 1, SIZE(sample_q, 2)
+            IF (iq == i_gamma) CYCLE
+            factors(icell) = factors(icell) - &
+                             (EXP(-gaussi*DOT_PRODUCT(sample_q(:, iq), rcart)) + star_weights(iq))/ &
+                             (REAL(nk, dp)*NORM2(sample_q(:, iq))**(n_dim - 1))
          END DO
       END DO
-      DEALLOCATE (directions, weights, radii)
+      DEALLOCATE (directions, weights, radii, sample_q, star_weights)
    END SUBROUTINE singular_head_cell_factors
 
 ! **************************************************************************************************
@@ -662,9 +672,8 @@ CONTAINS
    END SUBROUTINE slab_reciprocal_vectors
 
 ! **************************************************************************************************
-!> \brief Polar boundary quadrature of the in-plane mesh cells next to Γ.
+!> \brief Polar boundary quadrature of the in-plane Brillouin zone |q_i| <= 1/2.
 !> Directions d, radii L and weights approximate dθ on the bounding parallelogram.
-!> As in 3D, the fractional half-widths come from gamma_cell_half_width.
 !> \param bs_env ...
 !> \param directions ...
 !> \param weights ...
@@ -688,12 +697,11 @@ CONTAINS
       i_direction = 0
       DO i_axis = 1, 2
          j_axis = 3 - i_axis
-         dq = b(:, j_axis)*gamma_cell_half_width(bs_env%nkp_grid_chi_eps_W_orig(j_axis))
+         dq = 0.5_dp*b(:, j_axis)
          DO i_sign = -1, 1, 2
             DO i_node = 1, n_face
                i_direction = i_direction + 1
-               q = REAL(i_sign, dp)*b(:, i_axis)*gamma_cell_half_width(bs_env%nkp_grid_chi_eps_W_orig(i_axis)) &
-                   + nodes(i_node)*dq
+               q = 0.5_dp*REAL(i_sign, dp)*b(:, i_axis) + nodes(i_node)*dq
                radii(i_direction) = NORM2(q)
                directions(:, i_direction) = q/radii(i_direction)
                weights(i_direction) = rule(i_node)*NORM2(vector_product(q, dq))/SUM(q*q)
@@ -704,9 +712,15 @@ CONTAINS
    END SUBROUTINE slab_cell_face_directions
 
 ! **************************************************************************************************
-!> \brief Integrate the Gamma-correction head and wings over the near-Gamma cells, in 2D and 3D.
-!> The regular mesh sum already contains the near-Gamma mesh samples (directions after
-!> n_angular), which are subtracted here; exp(-iqR) is retained per real-space cell R.
+!> \brief Integrate the Gamma-correction head and wings over the Brillouin zone, in 2D and 3D.
+!> The regular mesh sum already contains the model at all mesh points q /= 0 (directions after
+!> n_angular), which are subtracted here; exp(-iqR) is retained per real-space cell R. The Γ sample
+!> of a Γ-centred mesh is the nearest-shell average (mesh_samples), so the shell is subtracted
+!> once more with phase 1.
+!> Integrating over the whole zone instead of the cells next to Γ removes the sampling error of the
+!> non-analytic model on the mesh, which does not decay with N in 2D (2π/(q(1+2πqA)) changes from
+!> 1/q to 1/q² within the first mesh cells) and decays only as 1/N in 3D. Γ-centred and shifted
+!> meshes then converge to the same value.
 !> Per cell only the head and one Cartesian wing coefficient per frequency are stored; the wing
 !> on the grid is wing_cartesian(ω) times that coefficient.
 !> 3D: ε⁻¹_00(d,ω) does not depend on |q|, so Wc_00 = 4π(ε⁻¹_00-1)/q² and Wc_l0 = -4π ε⁻¹_00 t_l·d/q
@@ -715,8 +729,8 @@ CONTAINS
 !>     are integrated radially by Gauss-Legendre.
 !> \param bs_env ...
 !> \param directions unit directions d around Gamma
-!> \param weights angular weights, zero for the mesh samples
-!> \param radii extent of the near-Gamma cell along d, or |q| of a mesh sample
+!> \param weights angular weights, or for the mesh samples their weights in the Γ sample
+!> \param radii extent of the Brillouin zone along d, or |q| of a mesh sample
 !> \param n_angular number of angular directions, followed by the mesh samples
 !> \param head_response ε⁻¹_00(d,ω) in 3D, A(d,ω) in 2D
 !> \param model Gamma correction per real-space cell
@@ -775,8 +789,8 @@ CONTAINS
                   f0 = measure*weights(i_direction)*f0
                   f1 = measure*weights(i_direction)*f1
                ELSE
-                  f0 = -phase/(REAL(nk, dp)*length**2)
-                  f1 = -phase/(REAL(nk, dp)*length)
+                  f0 = -(phase + weights(i_direction))/(REAL(nk, dp)*length**2)
+                  f1 = -(phase + weights(i_direction))/(REAL(nk, dp)*length)
                END IF
             END IF
             DO i_frequency = 1, n_frequency
@@ -791,7 +805,7 @@ CONTAINS
                      END DO
                      integral = measure*weights(i_direction)*integral
                   ELSE
-                     integral = -phase/(REAL(nk, dp)*(1.0_dp + twopi*length*response))
+                     integral = -(phase + weights(i_direction))/(REAL(nk, dp)*(1.0_dp + twopi*length*response))
                   END IF
                   head = -twopi**2*response*integral
                   wing = -integral

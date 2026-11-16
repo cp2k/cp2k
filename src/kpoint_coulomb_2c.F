@@ -1363,12 +1363,15 @@ CONTAINS
                    b2*(q(periodic_axis(2)) + REAL(iy, dp))
                pnorm = NORM2(p)
                IF (pnorm > cutoff) CYCLE
-               IF (pnorm <= 0.0_dp) THEN
-                  CPABORT('2D Coulomb at Gamma requires charge-channel separation')
-               END IF
                CALL gaussian_basis_fourier(p, particles, qs_kinds, cell, basis_type, &
                                            bf_start, bf_end, f_zero)
-               factor = twopi*ERFC(pnorm/(2.0_dp*omega))/(area*pnorm)
+               IF (pnorm <= 0.0_dp) THEN
+                  ! As in 3D, the singular 2π/(A p) of p = 0 is left to the Γ correction and
+                  ! only the regular remainder of 2π erfc(p/(2ω))/(A p) is kept.
+                  factor = -2.0_dp*SQRT(pi)/(area*omega)
+               ELSE
+                  factor = twopi*ERFC(pnorm/(2.0_dp*omega))/(area*pnorm)
+               END IF
                left(:, 1) = factor*f_zero
                right(:, 1) = f_zero
                DO inode = 1, n_kz

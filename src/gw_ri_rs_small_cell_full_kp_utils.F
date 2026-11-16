@@ -40,6 +40,7 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
    USE gw_ri_rs_small_cell_full_kp_Gamma_correction,ONLY: add_gamma_corr_cell_correction,&
                                               add_gamma_corr_pair_cell,&
                                               gamma_point_correction,&
+                                              replace_gamma_sample,&
                                               singular_head_cell_factors
    USE gw_ri_rs_small_cell_full_kp_lattice,ONLY: &
         assemble_AA_contraction, block_range, build_full_cell_grid, build_ri_2c_lattice, &
@@ -886,8 +887,8 @@ CONTAINS
                                     bs_env%kpoints_chi_eps_W%xkp(1:3, 1:nkp), &
                                     bs_env%kpoints_chi_eps_W%nkp_grid, M_ref, &
                                     bs_env%kpoints_chi_eps_W%rskp_transform)
-      ! The erfc(omega r)/r metric is the real-space Ewald part of the Coulomb matrix, which is
-      ! finite on the shifted 2D/3D q mesh. No G=0 auxiliary channel is removed at a transfer point.
+      ! The erfc(omega r)/r metric is the real-space Ewald part of the Coulomb matrix. At q = 0 of an
+      ! odd mesh the reciprocal part drops the singular G = 0 term, which the Γ correction integrates.
       V_ref(:, :, :) = M_ref
       CALL add_ewald_reciprocal(V_ref, qs_env, bs_env%kpoints_chi_eps_W, 'RI_AUX', &
                                 bs_env%ri_metric%omega, 1, nkp)
@@ -1078,6 +1079,7 @@ CONTAINS
       ALLOCATE (G_grid_k(n_pairs_local, 1, bs_env%nkp_scf_desymm))
       CALL q_matrices_to_fft_pairs(q_matrices, bs_env%para_env, G_grid_k)
       DEALLOCATE (q_matrices)
+      CALL replace_gamma_sample(bs_env, G_grid_k)
       CALL build_full_cell_grid(bs_env, full_cells)
       ALLOCATE (V_grid_R(n_pairs_local, 1, SIZE(full_cells, 2)))
       CALL k_to_real_cell_transform(G_grid_k, qpoints, bs_env%kpoints_scf_desymm%nkp_grid, &
@@ -1163,7 +1165,7 @@ CONTAINS
          CALL project_auxiliary_time_q_to_fft_pairs(gwkp_env%Z_lP_q, &
                                                     gwkp_env%W_PQ_tau, i_group, &
                                                     gwkp_env%group_env, G_grid_k)
-
+         CALL replace_gamma_sample(bs_env, G_grid_k)
          CALL k_to_real_cell_transform(G_grid_k, qpoints, &
                                        bs_env%kpoints_scf_desymm%nkp_grid, full_cells, &
                                        W_grid_R, rskp_backend_fft, profile_fft=fft_profile_enabled)
