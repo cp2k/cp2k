@@ -1867,6 +1867,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
       INTEGER(KIND=int_8), INTENT(IN)                    :: max_bytes, output_bytes
 
+      COMPLEX(KIND=dp)                                   :: phase
       INTEGER                                            :: c, first, g, i, iblock, ik, j, m, n, &
                                                             nfold, nk, npair, nr, nsingle, pos
       INTEGER(KIND=int_8)                                :: cache_bytes, minimum_bytes
@@ -1942,11 +1943,12 @@ CONTAINS
       IF (cache_bytes + minimum_bytes > max_bytes) RETURN
       ALLOCATE (plan%phases(nr, nk, 2))
       DO ik = 1, nk
-!$OMP SIMD PRIVATE(arg)
+!$OMP SIMD PRIVATE(arg,phase)
          DO i = 1, nr
             arg = twopi*DOT_PRODUCT(REAL(plan%phase_cells(:, i), dp), xkp(:, ik))
-            plan%phases(i, ik, 1) = COS(arg)
-            plan%phases(i, ik, 2) = SIN(arg)
+            phase = EXP(CMPLX(0.0_dp, arg, KIND=dp))
+            plan%phases(i, ik, 1) = REAL(phase, dp)
+            plan%phases(i, ik, 2) = AIMAG(phase)
          END DO
       END DO
    END SUBROUTINE cell_to_k_phase_prepare
@@ -2303,6 +2305,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
       INTEGER, INTENT(IN)                                :: nworkers
 
+      COMPLEX(KIND=dp)                                   :: phase
       INTEGER                                            :: axis, i, k, n, nk, pos
       INTEGER, ALLOCATABLE                               :: coordinates(:, :), COUNT(:), &
                                                             direction(:), order(:), values(:)
@@ -2335,7 +2338,7 @@ CONTAINS
          direction(pos:pos + COUNT(axis) - 1) = axis
       END DO
 !$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(MIN(nworkers,MAX(1,nk))) IF(MIN(nworkers,MAX(1,nk)) > 1) &
-!$OMP SHARED(table,xkp,direction,n,nk) PRIVATE(i,k,arg)
+!$OMP SHARED(table,xkp,direction,n,nk) PRIVATE(i,k,arg,phase)
 !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
       DO i = 1, n
          DO k = 1, nk
@@ -2344,8 +2347,9 @@ CONTAINS
                table%sine(k, i) = 0.0_dp
             ELSE
                arg = twopi*REAL(table%coordinate(i), dp)*xkp(direction(i), k)
-               table%cosine(k, i) = COS(arg)
-               table%sine(k, i) = SIN(arg)
+               phase = EXP(CMPLX(0.0_dp, arg, KIND=dp))
+               table%cosine(k, i) = REAL(phase, dp)
+               table%sine(k, i) = AIMAG(phase)
             END IF
          END DO
       END DO
