@@ -91,12 +91,14 @@ MODULE replica_types
 !> \param wf_history wavefunction history for the owned replicas
 !> \param keep_wf_history if the wavefunction history for the owned replicas
 !>        should be kept
+!> \param n_wf_history number of wavefunction history slots owned by this group
 !> \author fawzi
 ! **************************************************************************************************
    TYPE replica_env_type
       INTEGER                                           :: ref_count = -1, id_nr = -1, f_env_id = -1, &
                                                            nrep = -1, ndim = -1, nparticle = -1, &
-                                                           my_rep_group = -1, force_dim = -1
+                                                           my_rep_group = -1, force_dim = -1, &
+                                                           n_wf_history = -1
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: r => NULL(), v => NULL(), f => NULL()
       LOGICAL                                           :: sync_v = .FALSE., keep_wf_history = .FALSE.
       CHARACTER(LEN=default_path_length)                :: original_project_name = ""

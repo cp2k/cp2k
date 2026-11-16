@@ -410,8 +410,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'neb_calc_energy_forces'
       CHARACTER(LEN=1), DIMENSION(3), PARAMETER          :: lab = ["X", "Y", "Z"]
 
-      INTEGER                                            :: handle, i, irep, j, n_int, n_rep, &
+      INTEGER                                            :: handle, i, ihist, irep, j, n_int, n_rep, &
                                                             n_rep_neb, nsize_wrk
+      LOGICAL                                            :: has_local_img
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tangent, tmp_a, tmp_b
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cvalues, Mmatrix, Mmatrix_tmp
 
@@ -428,21 +429,21 @@ CONTAINS
       DO irep = 1, n_rep_neb, n_rep
          DO j = 0, n_rep - 1
             IF (irep + j <= n_rep_neb) THEN
-               ! If the number of replica in replica_env and the number of replica
-               ! used in the NEB does not match, the other replica in replica_env
-               ! just compute energies and forces keeping the fixed coordinates and
-               ! forces
                rep_env%r(:, j + 1) = coords%xyz(:, irep + j)
             END IF
          END DO
          ! Fix file name for BAND replicas.. Each BAND replica has its own file
          ! independently from the number of replicas in replica_env..
-         CALL handle_band_file_names(rep_env, irep, n_rep_neb, neb_env%istep)
+         ihist = (irep - 1)/n_rep + 1
+         has_local_img = (irep + rep_env%local_rep_indices(1) - 1 <= n_rep_neb)
+         IF (has_local_img) THEN
+            CALL handle_band_file_names(rep_env, irep, n_rep_neb, neb_env%istep)
+         END IF
          ! Let's select the potential we want to use for the band calculation
          SELECT CASE (neb_env%pot_type)
          CASE (pot_neb_full)
             ! Full potential Energy
-            CALL rep_env_calc_e_f(rep_env, calc_f=.TRUE.)
+            CALL rep_env_calc_e_f(rep_env, calc_f=.TRUE., wf_hist_slot=ihist, do_calc=has_local_img)
          CASE (pot_neb_fe)
             ! Free Energy Case
             CALL perform_replica_md(rep_env, coords, irep, n_rep_neb, cvalues, Mmatrix_tmp)
