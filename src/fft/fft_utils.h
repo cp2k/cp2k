@@ -18,6 +18,17 @@
 #define FFT_BACKWARD -1
 
 /*******************************************************************************
+ * \brief Returns the number of threads used for FFT planning.
+ *        Outside an OpenMP parallel region the maximum number of threads is
+ *        used. Inside a parallel region a single thread is used to avoid
+ *        nested parallelism and concurrently executed shared plans.
+ * \author Frederick Stein
+ ******************************************************************************/
+static inline int fft_team_size(void) {
+  return omp_in_parallel() ? 1 : omp_get_max_threads();
+}
+
+/*******************************************************************************
  * \brief Returns the smaller of two given integer (missing from the C standard)
  * \author Ole Schuett
  ******************************************************************************/

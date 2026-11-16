@@ -315,7 +315,7 @@ static void fft_gpu_register_1d(const int direction, const int n, const int m,
   fft_key_t key;
   get_key_1d(direction == OFFLOAD_FFT_FORWARD, n, m, transpose_in,
              transpose_out, leading_dimension_in, leading_dimension_out,
-             omp_get_max_threads(), inplace, key);
+             fft_team_size(), inplace, key);
 
   offload_fftHandle *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -349,7 +349,7 @@ static void fft_gpu_register_r2c_1d(const int direction, const int n,
   fft_key_t key;
   get_key_1d_r2c(direction == OFFLOAD_FFT_FORWARD, n, m, transpose_in,
                  transpose_out, leading_dimension_in, leading_dimension_out,
-                 omp_get_max_threads(), inplace, key);
+                 fft_team_size(), inplace, key);
 
   offload_fftHandle *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -387,7 +387,7 @@ static void fft_gpu_register_2d(const int direction, const int n[2],
   fft_key_t key;
   get_key_2d(direction == OFFLOAD_FFT_FORWARD, n, m, transpose_in,
              transpose_out, transpose_in ? m : n[0] * n[1],
-             transpose_out ? m : n[0] * n[1], omp_get_max_threads(), inplace,
+             transpose_out ? m : n[0] * n[1], fft_team_size(), inplace,
              key);
 
   offload_fftHandle *plan = lookup_plan_from_cache(key);
@@ -427,7 +427,7 @@ static void fft_gpu_register_r2c_2d(const int direction, const int n[2],
                     : n[0] * (direction == OFFLOAD_FFT_FORWARD
                                   ? n[1] / 2 + 1
                                   : (inplace ? 2 * (n[1] / 2 + 1) : n[1])),
-      omp_get_max_threads(), inplace, key);
+      fft_team_size(), inplace, key);
 
   offload_fftHandle *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -458,7 +458,7 @@ static void fft_gpu_register_3d(const int direction, const int nx, const int ny,
                                 const bool transpose_out, const bool inplace) {
   fft_key_t key;
   get_key_3d(direction == OFFLOAD_FFT_FORWARD, (const int[]){nx, ny, nz},
-             number_of_ffts, transpose_in, transpose_out, omp_get_max_threads(),
+             number_of_ffts, transpose_in, transpose_out, fft_team_size(),
              inplace, key);
 
   offload_fftHandle *plan = lookup_plan_from_cache(key);
@@ -492,7 +492,7 @@ static void fft_gpu_register_r2c_3d(const int direction, const int nx,
   fft_key_t key;
   get_key_3d_r2c(direction == OFFLOAD_FFT_FORWARD, (const int[]){nx, ny, nz},
                  number_of_ffts, transpose_in, transpose_out,
-                 omp_get_max_threads(), inplace, key);
+                 fft_team_size(), inplace, key);
 
   offload_fftHandle *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -527,7 +527,7 @@ static void fft_gpu_1d(const int direction, const int n, const int m,
   fft_key_t key;
   get_key_1d(direction == OFFLOAD_FFT_FORWARD, n, m, transpose_in,
              transpose_out, leading_dimension_in, leading_dimension_out,
-             omp_get_max_threads(), data_in == data_out, key);
+             fft_team_size(), data_in == data_out, key);
   offload_fftHandle *plan = lookup_plan_from_cache(key);
 
   if (plan == NULL) {
@@ -562,7 +562,7 @@ static void fft_gpu_r2c_1d(const int direction, const int n, const int m,
   fft_key_t key;
   get_key_1d_r2c(direction == OFFLOAD_FFT_FORWARD, n, m, transpose_in,
                  transpose_out, leading_dimension_in, leading_dimension_out,
-                 omp_get_max_threads(), data_in == data_out, key);
+                 fft_team_size(), data_in == data_out, key);
   offload_fftHandle *plan = lookup_plan_from_cache(key);
 
   if (plan == NULL) {
@@ -600,7 +600,7 @@ static void fft_gpu_2d(const int direction, const int n[2], const int m,
   fft_key_t key;
   get_key_2d(direction == OFFLOAD_FFT_FORWARD, n, m, transpose_in,
              transpose_out, transpose_in ? m : n[0] * n[1],
-             transpose_out ? m : n[0] * n[1], omp_get_max_threads(),
+             transpose_out ? m : n[0] * n[1], fft_team_size(),
              data_in == data_out, key);
   offload_fftHandle *plan = lookup_plan_from_cache(key);
 
@@ -643,7 +643,7 @@ static void fft_gpu_r2c_2d(const int direction, const int n[2], const int m,
           : n[0] * (direction == OFFLOAD_FFT_FORWARD
                         ? n[1] / 2 + 1
                         : (data_in == data_out ? 2 * (n[1] / 2 + 1) : n[1])),
-      omp_get_max_threads(), data_in == data_out, key);
+      fft_team_size(), data_in == data_out, key);
   offload_fftHandle *plan = lookup_plan_from_cache(key);
 
   if (plan == NULL) {
@@ -680,7 +680,7 @@ static void fft_gpu_3d(const int direction, const int nx, const int ny,
                        double *data_in, double *data_out) {
   fft_key_t key;
   get_key_3d(direction == OFFLOAD_FFT_FORWARD, (const int[]){nx, ny, nz},
-             number_of_ffts, transpose_in, transpose_out, omp_get_max_threads(),
+             number_of_ffts, transpose_in, transpose_out, fft_team_size(),
              data_in == data_out, key);
   offload_fftHandle *plan = lookup_plan_from_cache(key);
 
@@ -714,7 +714,7 @@ static void fft_gpu_r2c_3d(const int direction, const int nx, const int ny,
   fft_key_t key;
   get_key_3d_r2c(direction == OFFLOAD_FFT_FORWARD, (const int[]){nx, ny, nz},
                  number_of_ffts, transpose_in, transpose_out,
-                 omp_get_max_threads(), data_in == data_out, key);
+                 fft_team_size(), data_in == data_out, key);
   offload_fftHandle *plan = lookup_plan_from_cache(key);
 
   if (plan == NULL) {

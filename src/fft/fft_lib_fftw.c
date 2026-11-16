@@ -41,8 +41,13 @@ typedef struct {
 // (local/distributed, C2C/R2C) and potential overlap from OpenMP. This works to
 // run all tests.
 #define FFTW_CACHE_SIZE 256
-static cache_entry cache[FFTW_CACHE_SIZE];
-static int cache_oldest_entry = 0; // used for LRU eviction
+
+// A single FFTW plan cannot be executed concurrently by several OpenMP threads.
+// Keep one independent plan cache per thread so that every worker reuses only
+// its own plans. The caches are allocated once at initialization.
+static cache_entry *caches = NULL;
+static int *cache_oldest_entries = NULL;
+static int number_of_caches = 0;
 
 static bool is_initialized = false;
 
@@ -51,12 +56,43 @@ static omp_nest_lock_t cache_lock;
 static int fftw_planning_mode = -1;
 
 /*******************************************************************************
+ * \brief Index of the cache that belongs to the calling thread.
+ * \return cache index, clamped to a valid range
+ * \author Frederick Stein
+ ******************************************************************************/
+static inline int current_cache_id(void) {
+  int thread_id = omp_get_thread_num();
+  if (thread_id < 0 || thread_id >= number_of_caches)
+    thread_id = 0;
+  return thread_id;
+}
+
+/*******************************************************************************
+ * \brief Cache of the calling thread.
+ * \return pointer to the thread-local cache entries
+ * \author Frederick Stein
+ ******************************************************************************/
+static inline cache_entry *current_cache(void) {
+  return &caches[current_cache_id() * FFTW_CACHE_SIZE];
+}
+
+/*******************************************************************************
+ * \brief LRU position of the calling thread's cache.
+ * \return pointer to the thread-local LRU index
+ * \author Frederick Stein
+ ******************************************************************************/
+static inline int *current_cache_oldest_entry(void) {
+  return &cache_oldest_entries[current_cache_id()];
+}
+
+/*******************************************************************************
  * \brief Fetches an fft plan from the cache. Returns NULL if not found.
  * \author Ole Schuett, Frederick Stein
  ******************************************************************************/
 static fftw_plan *lookup_plan_from_cache(const fft_key_t key) {
   cp_assert(is_initialized);
   omp_set_nest_lock(&cache_lock);
+  cache_entry *cache = current_cache();
   fftw_plan *plan = NULL;
   for (int i = 0; i < FFTW_CACHE_SIZE; i++) {
     const int *x = cache[i].key;
@@ -75,8 +111,10 @@ static fftw_plan *lookup_plan_from_cache(const fft_key_t key) {
  ******************************************************************************/
 static void add_plan_to_cache(const fft_key_t key, fftw_plan *plan) {
   omp_set_nest_lock(&cache_lock);
-  const int i = cache_oldest_entry;
-  cache_oldest_entry = (cache_oldest_entry + 1) % FFTW_CACHE_SIZE;
+  cache_entry *cache = current_cache();
+  int *cache_oldest_entry = current_cache_oldest_entry();
+  const int i = *cache_oldest_entry;
+  *cache_oldest_entry = (*cache_oldest_entry + 1) % FFTW_CACHE_SIZE;
   if (cache[i].plan != NULL) {
     fftw_destroy_plan(*cache[i].plan);
     free(cache[i].plan);
@@ -138,7 +176,7 @@ static bool use_threaded_3d(const int fft_size[3], const bool transpose_in,
             !in_place) ||
            ((fft_size[0] >= 128 || fft_size[1] >= 128 || fft_size[2] >= 128) &&
             in_place)) &&
-          omp_get_max_threads() > 1) &&
+          fft_team_size() > 1) &&
          (fftw_planning_mode == FFTW_ESTIMATE);
 }
 #endif
@@ -148,23 +186,6 @@ fftw_plan *fft_fftw_create_3d_plan(const fft_key_t key, double complex *grid_in,
                                    double complex *grid_out);
 fftw_plan *fft_fftw_create_3d_plan_r2c(const fft_key_t key, double *grid_in,
                                        double *grid_out);
-
-/*******************************************************************************
- * \brief Return the number of OpenMP threads available to the FFT backend.
- * \return Number of threads in the current OpenMP team.
- * \author Frederick Stein
- ******************************************************************************/
-static int threaded_thread_count(void) {
-  int number_of_threads = 1;
-#pragma omp parallel default(none) shared(number_of_threads)
-  {
-#pragma omp single
-    {
-      number_of_threads = omp_get_num_threads();
-    }
-  }
-  return number_of_threads;
-}
 
 /*******************************************************************************
  * \brief Register FFTW plans for a threaded batched complex 3D FFT.
@@ -180,7 +201,7 @@ static void
 register_threaded_3d_c2c(const bool direction, const int fft_size[3],
                          const int number_of_ffts, const bool in_place,
                          double complex *grid_in, double complex *grid_out) {
-  const int number_of_threads = threaded_thread_count();
+  const int number_of_threads = fft_team_size();
   const int block_size =
       (number_of_ffts + number_of_threads - 1) / number_of_threads;
   const int number_of_full_blocks = number_of_ffts / block_size;
@@ -213,7 +234,7 @@ static void register_threaded_3d_r2c(const bool direction,
                                      const int number_of_ffts,
                                      const bool in_place, double *grid_in,
                                      double *grid_out) {
-  const int number_of_threads = threaded_thread_count();
+  const int number_of_threads = fft_team_size();
   const int block_size =
       (number_of_ffts + number_of_threads - 1) / number_of_threads;
   const int number_of_full_blocks = number_of_ffts / block_size;
@@ -247,7 +268,7 @@ static void execute_threaded_3d_c2c(const bool direction, const int fft_size[3],
                                     const bool in_place,
                                     double complex *grid_in,
                                     double complex *grid_out) {
-  const int number_of_threads = threaded_thread_count();
+  const int number_of_threads = fft_team_size();
   const int block_size =
       (number_of_ffts + number_of_threads - 1) / number_of_threads;
   const int number_of_full_blocks = number_of_ffts / block_size;
@@ -295,7 +316,7 @@ static void execute_threaded_3d_r2c(const bool direction, const int fft_size[3],
                                     const int number_of_ffts,
                                     const bool in_place, double *grid_in,
                                     double *grid_out) {
-  const int number_of_threads = threaded_thread_count();
+  const int number_of_threads = fft_team_size();
   const int block_size =
       (number_of_ffts + number_of_threads - 1) / number_of_threads;
   const int number_of_full_blocks = number_of_ffts / block_size;
@@ -360,8 +381,11 @@ int fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
   if (is_initialized) {
     return 0;
   }
-  memset(cache, 0, sizeof(cache_entry) * FFTW_CACHE_SIZE);
-  cache_oldest_entry = 0;
+  number_of_caches = imax(1, omp_get_max_threads()); // NOLINT: per-thread caches
+  caches = calloc((size_t)number_of_caches * FFTW_CACHE_SIZE,
+                  sizeof(cache_entry));
+  cache_oldest_entries = calloc((size_t)number_of_caches, sizeof(int));
+  assert(caches != NULL && cache_oldest_entries != NULL);
   omp_init_nest_lock(&cache_lock);
 
   fftw_planning_mode = fftw_planning_flag;
@@ -423,12 +447,20 @@ void fft_fftw_finalize_lib(const char *wisdom_file) {
   if (!is_initialized) {
     return;
   }
-  for (int i = 0; i < FFTW_CACHE_SIZE; i++) {
-    if (cache[i].plan != NULL) {
-      fftw_destroy_plan(*cache[i].plan);
-      free(cache[i].plan);
+  for (int t = 0; t < number_of_caches; t++) {
+    cache_entry *cache = &caches[t * FFTW_CACHE_SIZE];
+    for (int i = 0; i < FFTW_CACHE_SIZE; i++) {
+      if (cache[i].plan != NULL) {
+        fftw_destroy_plan(*cache[i].plan);
+        free(cache[i].plan);
+      }
     }
   }
+  free(caches);
+  caches = NULL;
+  free(cache_oldest_entries);
+  cache_oldest_entries = NULL;
+  number_of_caches = 0;
   omp_destroy_nest_lock(&cache_lock);
   // Export wisdom before finalizing the library to ensure storing the correct
   // threading etc.
@@ -886,14 +918,7 @@ void fft_fftw_register_1d_local(
   if (fft_size == 0 || number_of_ffts == 0)
     return;
   const bool in_place = grid_in == grid_out;
-  int number_of_threads = 1;
-#pragma omp parallel default(none) shared(number_of_threads)
-  {
-#pragma omp single
-    {
-      number_of_threads = omp_get_num_threads();
-    }
-  }
+  const int number_of_threads = fft_team_size();
   if (fftw_planning_mode == FFTW_ESTIMATE) {
     fftw_plan *plan = NULL;
     const int block_size =
@@ -919,7 +944,7 @@ void fft_fftw_register_1d_local(
     fft_key_t key;
     get_key_1d(direction, fft_size, number_of_ffts, transpose_in, transpose_out,
                leading_dimension_in, leading_dimension_out,
-               omp_get_max_threads(), in_place, key);
+               fft_team_size(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL)
       plan = fft_fftw_create_1d_plan(key, grid_in, grid_out);
@@ -955,14 +980,7 @@ void fft_fftw_register_1d_r2c_local(const int fft_size,
   if (fft_size == 0 || number_of_ffts == 0)
     return;
   const bool in_place = grid_in == (double *)grid_out;
-  int number_of_threads = 1;
-#pragma omp parallel default(none) shared(number_of_threads)
-  {
-#pragma omp single
-    {
-      number_of_threads = omp_get_num_threads();
-    }
-  }
+  const int number_of_threads = fft_team_size();
   // The self-written plans do not work with in-place transforms using the
   // transposed format
   if (fftw_planning_mode == FFTW_ESTIMATE && (!in_place || !transpose_in)) {
@@ -993,7 +1011,7 @@ void fft_fftw_register_1d_r2c_local(const int fft_size,
     fft_key_t key;
     get_key_1d_r2c(true, fft_size, number_of_ffts, transpose_in, transpose_out,
                    leading_dimension_in, leading_dimension_out,
-                   omp_get_max_threads(), in_place, key);
+                   fft_team_size(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       plan = fft_fftw_create_1d_plan_r2c(key, grid_in, (double *)grid_out);
@@ -1029,14 +1047,7 @@ void fft_fftw_register_1d_c2r_local(const int fft_size,
   if (fft_size == 0 || number_of_ffts == 0)
     return;
   const bool in_place = (double *)grid_in == grid_out;
-  int number_of_threads = 1;
-#pragma omp parallel default(none) shared(number_of_threads)
-  {
-#pragma omp single
-    {
-      number_of_threads = omp_get_num_threads();
-    }
-  }
+  const int number_of_threads = fft_team_size();
   // The self-written plans do not work with in-place transforms using the
   // transposed format
   if (fftw_planning_mode == FFTW_ESTIMATE && (!in_place || !transpose_in)) {
@@ -1067,7 +1078,7 @@ void fft_fftw_register_1d_c2r_local(const int fft_size,
     fft_key_t key;
     get_key_1d_r2c(false, fft_size, number_of_ffts, transpose_in, transpose_out,
                    leading_dimension_in, leading_dimension_out,
-                   omp_get_max_threads(), in_place, key);
+                   fft_team_size(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       plan = fft_fftw_create_1d_plan_r2c(key, (double *)grid_in, grid_out);
@@ -1102,14 +1113,7 @@ void fft_fftw_register_2d_local(const bool direction, const int fft_size[2],
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0)
     return;
   const bool in_place = grid_in == grid_out;
-  int number_of_threads = 1;
-#pragma omp parallel default(none) shared(number_of_threads)
-  {
-#pragma omp single
-    {
-      number_of_threads = omp_get_num_threads();
-    }
-  }
+  const int number_of_threads = fft_team_size();
   if (fftw_planning_mode == FFTW_ESTIMATE) {
     fftw_plan *plan = NULL, *plan_last_thread = NULL;
     const int block_size =
@@ -1142,7 +1146,7 @@ void fft_fftw_register_2d_local(const bool direction, const int fft_size[2],
     get_key_2d(direction, fft_size, number_of_ffts, transpose_in, transpose_out,
                transpose_in ? number_of_ffts : fft_size[0] * fft_size[1],
                transpose_out ? number_of_ffts : fft_size[0] * fft_size[1],
-               omp_get_max_threads(), grid_in == grid_out, key);
+               fft_team_size(), grid_in == grid_out, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       plan = fft_fftw_create_2d_plan(key, grid_in, grid_out);
@@ -1175,14 +1179,7 @@ void fft_fftw_register_2d_r2c_local(const int fft_size[2],
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0)
     return;
   const bool in_place = grid_in == (double *)grid_out;
-  int number_of_threads = 1;
-#pragma omp parallel default(none) shared(number_of_threads)
-  {
-#pragma omp single
-    {
-      number_of_threads = omp_get_num_threads();
-    }
-  }
+  const int number_of_threads = fft_team_size();
   // The self-written plans do not work with in-place transforms using the
   // transposed format
   if (fftw_planning_mode == FFTW_ESTIMATE && (!in_place || !transpose_in)) {
@@ -1226,7 +1223,7 @@ void fft_fftw_register_2d_r2c_local(const int fft_size[2],
                      : fft_size[0] *
                            (in_place ? 2 * (fft_size[1] / 2 + 1) : fft_size[1]),
         transpose_out ? number_of_ffts : fft_size[0] * (fft_size[1] / 2 + 1),
-        omp_get_max_threads(), grid_in == (double *)grid_out, key);
+        fft_team_size(), grid_in == (double *)grid_out, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       plan = fft_fftw_create_2d_plan_r2c(key, grid_in, (double *)grid_out);
@@ -1258,14 +1255,7 @@ void fft_fftw_register_2d_c2r_local(const int fft_size[2],
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0)
     return;
   const bool in_place = (double *)grid_in == grid_out;
-  int number_of_threads = 1;
-#pragma omp parallel default(none) shared(number_of_threads)
-  {
-#pragma omp single
-    {
-      number_of_threads = omp_get_num_threads();
-    }
-  }
+  const int number_of_threads = fft_team_size();
   // The self-written plans do not work with in-place transforms using the
   // transposed format
   if (fftw_planning_mode == FFTW_ESTIMATE && (!in_place || !transpose_in)) {
@@ -1309,7 +1299,7 @@ void fft_fftw_register_2d_c2r_local(const int fft_size[2],
         transpose_out ? number_of_ffts
                       : fft_size[0] * (in_place ? 2 * (fft_size[1] / 2 + 1)
                                                 : fft_size[1]),
-        omp_get_max_threads(), grid_in == (double complex *)grid_out, key);
+        fft_team_size(), grid_in == (double complex *)grid_out, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       plan = fft_fftw_create_2d_plan_r2c(key, (double *)grid_in, grid_out);
@@ -1351,14 +1341,7 @@ void fft_fftw_register_3d_local(const bool direction, const int fft_size[3],
              use_threaded_3d(fft_size, transpose_in, transpose_out, in_place)) {
     // The 3D FFT is not efficient with threading and estimate planning mode
     // So, we decompose it in a sequence of 1D FFTs
-    int number_of_threads = 1;
-#pragma omp parallel default(none) shared(number_of_threads)
-    {
-#pragma omp single
-      {
-        number_of_threads = omp_get_num_threads();
-      }
-    }
+    const int number_of_threads = fft_team_size();
     int block_sizes[3];
     fftw_plan *plans[3], *plans_last_thread[3];
     {
@@ -1443,7 +1426,7 @@ void fft_fftw_register_3d_local(const bool direction, const int fft_size[3],
   } else {
     fft_key_t key;
     get_key_3d(direction, fft_size, number_of_ffts, transpose_in, transpose_out,
-               omp_get_max_threads(), in_place, key);
+               fft_team_size(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       plan = fft_fftw_create_3d_plan(key, grid_in, grid_out);
@@ -1490,14 +1473,7 @@ void fft_fftw_register_3d_r2c_local(const int fft_size[3],
                                       (fft_size[2] / 2 + 1));
     // The 3D FFT is not efficient with threading and estimate planning mode
     // So, we decompose it in a sequence of 1D FFTs
-    int number_of_threads = 1;
-#pragma omp parallel default(none) shared(number_of_threads)
-    {
-#pragma omp single
-      {
-        number_of_threads = omp_get_num_threads();
-      }
-    }
+    const int number_of_threads = fft_team_size();
     int block_sizes[3];
     fftw_plan *plans[3], *plans_last_thread[3];
     {
@@ -1594,7 +1570,7 @@ void fft_fftw_register_3d_r2c_local(const int fft_size[3],
   } else {
     fft_key_t key;
     get_key_3d_r2c(true, fft_size, number_of_ffts, transpose_in, transpose_out,
-                   omp_get_max_threads(), in_place, key);
+                   fft_team_size(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       plan = fft_fftw_create_3d_plan_r2c(key, grid_in, (double *)grid_out);
@@ -1641,14 +1617,7 @@ void fft_fftw_register_3d_c2r_local(const int fft_size[3],
                                       (fft_size[2] / 2 + 1));
     // The 3D FFT is not efficient with threading and estimate planning mode
     // So, we decompose it in a sequence of 1D FFTs
-    int number_of_threads = 1;
-#pragma omp parallel default(none) shared(number_of_threads)
-    {
-#pragma omp single
-      {
-        number_of_threads = omp_get_num_threads();
-      }
-    }
+    const int number_of_threads = fft_team_size();
     int block_sizes[3];
     fftw_plan *plans[3], *plans_last_thread[3];
     {
@@ -1745,7 +1714,7 @@ void fft_fftw_register_3d_c2r_local(const int fft_size[3],
   } else {
     fft_key_t key;
     get_key_3d_r2c(false, fft_size, number_of_ffts, transpose_in, transpose_out,
-                   omp_get_max_threads(), in_place, key);
+                   fft_team_size(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       plan = fft_fftw_create_3d_plan_r2c(key, (double *)grid_in, grid_out);
@@ -1777,15 +1746,9 @@ void fft_fftw_1d_local(const bool direction, const int fft_size,
   if (fft_size == 0 || number_of_ffts == 0)
     return;
   const bool in_place = grid_in == grid_out;
-  int number_of_threads = 1;
-#pragma omp parallel default(none) shared(number_of_threads)
-  {
-#pragma omp single
-    {
-      number_of_threads = omp_get_num_threads();
-    }
-  }
-  if (fftw_planning_mode == FFTW_ESTIMATE) {
+  const int number_of_threads = fft_team_size();
+  if (number_of_threads == 1 && fftw_planning_mode == FFTW_ESTIMATE) {
+    // Called from inside an OpenMP region: use the original batched strategy.
     fftw_plan *plan = NULL, *plan_last_thread = NULL;
     const int block_size =
         (number_of_ffts + number_of_threads - 1) / number_of_threads;
@@ -1804,16 +1767,16 @@ void fft_fftw_1d_local(const bool direction, const int fft_size,
     }
     if (block_size * number_of_full_blocks != number_of_ffts) {
       const int block_size_last_thread = number_of_ffts % block_size;
-      fft_key_t key;
+      fft_key_t key_last;
       get_key_1d(direction, fft_size, block_size_last_thread, transpose_in,
                  transpose_out, leading_dimension_in, leading_dimension_out, 1,
-                 in_place, key);
-      plan_last_thread = lookup_plan_from_cache(key);
+                 in_place, key_last);
+      plan_last_thread = lookup_plan_from_cache(key_last);
       if (plan_last_thread == NULL) {
         double complex *buffer =
-            fftw_alloc_complex(get_buffer_size_from_key(key));
-        plan_last_thread =
-            fft_fftw_create_1d_plan(key, buffer, in_place ? buffer : grid_out);
+            fftw_alloc_complex(get_buffer_size_from_key(key_last));
+        plan_last_thread = fft_fftw_create_1d_plan(
+            key_last, buffer, in_place ? buffer : grid_out);
         fftw_free(buffer);
       }
     }
@@ -1821,7 +1784,7 @@ void fft_fftw_1d_local(const bool direction, const int fft_size,
         transpose_in ? block_size : block_size * leading_dimension_in;
     const int offset_out =
         transpose_out ? block_size : block_size * leading_dimension_out;
-#pragma omp parallel default(none)                                             \
+#pragma omp parallel num_threads(number_of_threads) default(none)             \
     shared(number_of_full_blocks, plan, grid_in, grid_out, offset_in,          \
                offset_out, plan_last_thread, total_number_of_blocks)
     {
@@ -1837,8 +1800,8 @@ void fft_fftw_1d_local(const bool direction, const int fft_size,
   } else {
     fft_key_t key;
     get_key_1d(direction, fft_size, number_of_ffts, transpose_in, transpose_out,
-               leading_dimension_in, leading_dimension_out,
-               omp_get_max_threads(), in_place, key);
+               leading_dimension_in, leading_dimension_out, number_of_threads,
+               in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       double complex *buffer =
@@ -1877,14 +1840,7 @@ void fft_fftw_1d_r2c_local(const int fft_size, const int number_of_ffts,
   if (fft_size == 0 || number_of_ffts == 0)
     return;
   const bool in_place = grid_in == (double *)grid_out;
-  int number_of_threads = 1;
-#pragma omp parallel default(none) shared(number_of_threads)
-  {
-#pragma omp single
-    {
-      number_of_threads = omp_get_num_threads();
-    }
-  }
+  const int number_of_threads = fft_team_size();
   // The self-written plans do not work with in-place transforms using the
   // transposed format
   if (fftw_planning_mode == FFTW_ESTIMATE && (!in_place || !transpose_in)) {
@@ -1940,7 +1896,7 @@ void fft_fftw_1d_r2c_local(const int fft_size, const int number_of_ffts,
     fft_key_t key;
     get_key_1d_r2c(true, fft_size, number_of_ffts, transpose_in, transpose_out,
                    leading_dimension_in, leading_dimension_out,
-                   omp_get_max_threads(), in_place, key);
+                   fft_team_size(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       double *buffer = fftw_alloc_real(2 * get_buffer_size_from_key(key));
@@ -1979,14 +1935,7 @@ void fft_fftw_1d_c2r_local(const int fft_size, const int number_of_ffts,
   if (fft_size == 0 || number_of_ffts == 0)
     return;
   const bool in_place = (double *)grid_in == grid_out;
-  int number_of_threads = 1;
-#pragma omp parallel default(none) shared(number_of_threads)
-  {
-#pragma omp single
-    {
-      number_of_threads = omp_get_num_threads();
-    }
-  }
+  const int number_of_threads = fft_team_size();
   // The self-written plans do not work with in-place transforms using the
   // transposed format
   if (fftw_planning_mode == FFTW_ESTIMATE && (!in_place || !transpose_in)) {
@@ -2042,7 +1991,7 @@ void fft_fftw_1d_c2r_local(const int fft_size, const int number_of_ffts,
     fft_key_t key;
     get_key_1d_r2c(false, fft_size, number_of_ffts, transpose_in, transpose_out,
                    leading_dimension_in, leading_dimension_out,
-                   omp_get_max_threads(), grid_in == (double complex *)grid_out,
+                   fft_team_size(), grid_in == (double complex *)grid_out,
                    key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
@@ -2081,14 +2030,7 @@ void fft_fftw_2d_local(const bool direction, const int fft_size[2],
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0)
     return;
   const bool in_place = grid_in == grid_out;
-  int number_of_threads = 1;
-#pragma omp parallel default(none) shared(number_of_threads)
-  {
-#pragma omp single
-    {
-      number_of_threads = omp_get_num_threads();
-    }
-  }
+  const int number_of_threads = fft_team_size();
   if (fftw_planning_mode == FFTW_ESTIMATE) {
     fftw_plan *plan = NULL, *plan_last_thread = NULL;
     const int block_size =
@@ -2147,7 +2089,7 @@ void fft_fftw_2d_local(const bool direction, const int fft_size[2],
     get_key_2d(direction, fft_size, number_of_ffts, transpose_in, transpose_out,
                transpose_in ? number_of_ffts : fft_size[0] * fft_size[1],
                transpose_out ? number_of_ffts : fft_size[0] * fft_size[1],
-               omp_get_max_threads(), grid_in == grid_out, key);
+               fft_team_size(), grid_in == grid_out, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       double complex *buffer =
@@ -2183,14 +2125,7 @@ void fft_fftw_2d_r2c_local(const int fft_size[2], const int number_of_ffts,
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0)
     return;
   const bool in_place = grid_in == (double *)grid_out;
-  int number_of_threads = 1;
-#pragma omp parallel default(none) shared(number_of_threads)
-  {
-#pragma omp single
-    {
-      number_of_threads = omp_get_num_threads();
-    }
-  }
+  const int number_of_threads = fft_team_size();
   // The self-written plans do not work with in-place transforms using the
   // transposed format
   if (fftw_planning_mode == FFTW_ESTIMATE && (!in_place || !transpose_in)) {
@@ -2261,7 +2196,7 @@ void fft_fftw_2d_r2c_local(const int fft_size[2], const int number_of_ffts,
                      : fft_size[0] *
                            (in_place ? 2 * (fft_size[1] / 2 + 1) : fft_size[1]),
         transpose_out ? number_of_ffts : fft_size[0] * (fft_size[1] / 2 + 1),
-        omp_get_max_threads(), grid_in == (double *)grid_out, key);
+        fft_team_size(), grid_in == (double *)grid_out, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       double *buffer = fftw_alloc_real(2 * get_buffer_size_from_key(key));
@@ -2296,14 +2231,7 @@ void fft_fftw_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0)
     return;
   const bool in_place = (double *)grid_in == grid_out;
-  int number_of_threads = 1;
-#pragma omp parallel default(none) shared(number_of_threads)
-  {
-#pragma omp single
-    {
-      number_of_threads = omp_get_num_threads();
-    }
-  }
+  const int number_of_threads = fft_team_size();
   // The self-written plans do not work with in-place transforms using the
   // transposed format
   if (fftw_planning_mode == FFTW_ESTIMATE && (!in_place || !transpose_in)) {
@@ -2375,7 +2303,7 @@ void fft_fftw_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
         transpose_out ? number_of_ffts
                       : fft_size[0] * (in_place ? 2 * (fft_size[1] / 2 + 1)
                                                 : fft_size[1]),
-        omp_get_max_threads(), grid_in == (double complex *)grid_out, key);
+        fft_team_size(), grid_in == (double complex *)grid_out, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       double complex *buffer =
@@ -2421,14 +2349,7 @@ void fft_fftw_3d_local(const bool direction, const int fft_size[3],
              use_threaded_3d(fft_size, transpose_in, transpose_out, in_place)) {
     // The 3D FFT is not efficient with threading and estimate planning mode
     // So, we decompose it in a sequence of 1D FFTs
-    int number_of_threads = 1;
-#pragma omp parallel default(none) shared(number_of_threads)
-    {
-#pragma omp single
-      {
-        number_of_threads = omp_get_num_threads();
-      }
-    }
+    const int number_of_threads = fft_team_size();
     int block_sizes[3];
     fftw_plan *plans[3], *plans_last_thread[3];
     int number_of_full_blocks[3] = {0, 0, 0};
@@ -2588,7 +2509,7 @@ void fft_fftw_3d_local(const bool direction, const int fft_size[3],
   } else {
     fft_key_t key;
     get_key_3d(direction, fft_size, number_of_ffts, transpose_in, transpose_out,
-               omp_get_max_threads(), in_place, key);
+               fft_team_size(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       double complex *buffer =
@@ -2634,14 +2555,7 @@ void fft_fftw_3d_r2c_local(const int fft_size[3], const int number_of_ffts,
              use_threaded_3d(fft_size, transpose_in, transpose_out, in_place)) {
     // The 3D FFT is not efficient with threading and estimate planning mode
     // So, we decompose it in a sequence of 1D FFTs
-    int number_of_threads = 1;
-#pragma omp parallel default(none) shared(number_of_threads)
-    {
-#pragma omp single
-      {
-        number_of_threads = omp_get_num_threads();
-      }
-    }
+    const int number_of_threads = fft_team_size();
     int block_sizes[3];
     fftw_plan *plans[3], *plans_last_thread[3];
     int number_of_full_blocks[3] = {0, 0, 0};
@@ -2817,7 +2731,7 @@ void fft_fftw_3d_r2c_local(const int fft_size[3], const int number_of_ffts,
   } else {
     fft_key_t key;
     get_key_3d_r2c(true, fft_size, number_of_ffts, transpose_in, transpose_out,
-                   omp_get_max_threads(), in_place, key);
+                   fft_team_size(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       double *buffer = fftw_alloc_real(2 * get_buffer_size_from_key(key));
@@ -2867,14 +2781,7 @@ void fft_fftw_3d_c2r_local(const int fft_size[3], const int number_of_ffts,
         fftw_alloc_complex(fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1));
     // The 3D FFT is not efficient with threading and estimate planning mode
     // So, we decompose it in a sequence of 1D FFTs
-    int number_of_threads = 1;
-#pragma omp parallel default(none) shared(number_of_threads)
-    {
-#pragma omp single
-      {
-        number_of_threads = omp_get_num_threads();
-      }
-    }
+    const int number_of_threads = fft_team_size();
     int block_sizes[3];
     fftw_plan *plans[3], *plans_last_thread[3];
     int number_of_full_blocks[3] = {0, 0, 0};
@@ -3050,7 +2957,7 @@ void fft_fftw_3d_c2r_local(const int fft_size[3], const int number_of_ffts,
   } else {
     fft_key_t key;
     get_key_3d_r2c(false, fft_size, number_of_ffts, transpose_in, transpose_out,
-                   omp_get_max_threads(), in_place, key);
+                   fft_team_size(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       double complex *buffer =
