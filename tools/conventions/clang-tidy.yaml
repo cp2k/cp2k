@@ -22,5 +22,14 @@ CheckOptions:
     ^::secure_getenv$,,is banned;
     ^::setenv$,,is banned;
     ^::putenv$,,is banned;
+    ^::socket$,,is banned;
+    ^::bind$,,is banned;
+    ^::listen$,,is banned;
+    ^::accept$,,is banned;
+    ^::connect$,,is banned;
+    ^::MPI_Open_port$,,is banned;
+    ^::system$,,is banned;
+    ^::fork$,,is banned;
+    ^::exec$,,is banned;
 
 # EOF
