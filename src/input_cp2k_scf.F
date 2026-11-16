@@ -843,6 +843,8 @@ CONTAINS
          description="Initial stepsize used for the line search, sometimes this parameter can be reduced to stabilize DIIS"// &
          " or to improve the CG behavior in the first few steps."// &
          " The optimal value depends on the quality of the preconditioner."// &
+         " With fixed-occupation ADDED_MOS, flat or uphill energy models fall back to this step,"// &
+         " and line-search steps are bounded by four times this value."// &
          " A negative values leaves the choice to CP2K depending on the preconditioner.", &
          usage="STEPSIZE 0.4", &
          default_r_val=-1.0_dp)

@@ -147,6 +147,8 @@ MODULE qs_ot_types
       LOGICAL                   :: has_kpoint_context = .FALSE.
       LOGICAL                   :: state_allocated = .FALSE.
       LOGICAL                   :: has_complex_kpoint_state = .FALSE.
+      ! Joint fixed-occupation search, including the requested zero-occupation orbitals.
+      LOGICAL                   :: optimize_virtuals = .FALSE.
 
       ! first part of the variables, for occupied subspace invariant optimisation
 
@@ -732,12 +734,14 @@ CONTAINS
 !> \param fm_struct_ref ...
 !> \param ortho_k ...
 !> \param energy_dimension number of auxiliary energy variables, defaults to the orbital count
+!> \param optimize_virtuals include zero-occupation orbitals in the common OT search
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_allocate(qs_ot_env, matrix_s, fm_struct_ref, ortho_k, energy_dimension)
+   SUBROUTINE qs_ot_allocate(qs_ot_env, matrix_s, fm_struct_ref, ortho_k, energy_dimension, optimize_virtuals)
       TYPE(qs_ot_type)                                   :: qs_ot_env
       TYPE(dbcsr_type), POINTER                          :: matrix_s
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_ref
       INTEGER, OPTIONAL                                  :: ortho_k, energy_dimension
+      LOGICAL, INTENT(IN), OPTIONAL                      :: optimize_virtuals
 
       INTEGER                                            :: i, k, m_diis, my_energy_dimension, &
                                                             my_ortho_k, n, ncoef, nhistory
@@ -747,6 +751,12 @@ CONTAINS
       CALL cite_reference(VandeVondele2003)
 
       CPASSERT(.NOT. qs_ot_env%state_allocated)
+      qs_ot_env%optimize_virtuals = .FALSE.
+      IF (PRESENT(optimize_virtuals)) qs_ot_env%optimize_virtuals = optimize_virtuals
+      IF (qs_ot_env%optimize_virtuals) THEN
+         CPASSERT(qs_ot_env%settings%ks .AND. qs_ot_env%settings%do_rotation)
+         CPASSERT(.NOT. qs_ot_env%settings%do_ener)
+      END IF
       qs_ot_env%has_complex_kpoint_state = .FALSE.
       NULLIFY (qs_ot_env%preconditioner)
       NULLIFY (qs_ot_env%matrix_psc0)
@@ -780,7 +790,7 @@ CONTAINS
 
       SELECT CASE (qs_ot_env%settings%ot_method)
       CASE ("SD")
-         ! nothing
+         qs_ot_env%use_dx = qs_ot_env%optimize_virtuals
       CASE ("CG", "LBFG")
          qs_ot_env%use_gx_old = .TRUE.
          qs_ot_env%use_dx = .TRUE.
@@ -909,7 +919,7 @@ CONTAINS
       CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_gx, template=matrix_s, n=k, &
                                              sym=dbcsr_type_no_symmetry)
 
-      IF (qs_ot_env%settings%occupation_preconditioner) THEN
+      IF (qs_ot_env%settings%occupation_preconditioner .OR. qs_ot_env%optimize_virtuals) THEN
          CALL dbcsr_init_p(qs_ot_env%matrix_preconditioned_gx)
          CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_preconditioned_gx, &
                                                 template=matrix_s, n=k, &
@@ -1111,7 +1121,7 @@ CONTAINS
          CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_gx, template=matrix_s, m=k, n=k, &
                                             sym=dbcsr_type_no_symmetry)
 
-         IF (qs_ot_env%settings%occupation_preconditioner) THEN
+         IF (qs_ot_env%settings%occupation_preconditioner .AND. .NOT. qs_ot_env%optimize_virtuals) THEN
             CALL dbcsr_init_p(qs_ot_env%rot_mat_response_gx)
             CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_response_gx, &
                                                template=matrix_s, m=k, n=k, &
@@ -1201,11 +1211,13 @@ CONTAINS
       CALL dbcsr_init_p(qs_ot_env%matrix_gx_im)
       CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_gx_im, template=matrix_s, n=nmo, &
                                              sym=dbcsr_type_no_symmetry)
-      IF (qs_ot_env%settings%occupation_preconditioner) THEN
+      IF (qs_ot_env%settings%occupation_preconditioner .OR. qs_ot_env%optimize_virtuals) THEN
          CALL dbcsr_init_p(qs_ot_env%matrix_preconditioned_gx_im)
          CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_preconditioned_gx_im, &
                                                 template=matrix_s, n=nmo, &
                                                 sym=dbcsr_type_no_symmetry)
+      END IF
+      IF (qs_ot_env%settings%occupation_preconditioner .AND. .NOT. qs_ot_env%optimize_virtuals) THEN
          IF (qs_ot_env%use_dx) THEN
             CALL dbcsr_init_p(qs_ot_env%matrix_response_gx)
             CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_response_gx, &
@@ -1308,7 +1320,7 @@ CONTAINS
          CALL dbcsr_init_p(qs_ot_env%rot_mat_gx_im)
          CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_gx_im, template=matrix_s, m=nmo, n=nmo, &
                                             sym=dbcsr_type_no_symmetry)
-         IF (qs_ot_env%settings%occupation_preconditioner) THEN
+         IF (qs_ot_env%settings%occupation_preconditioner .AND. .NOT. qs_ot_env%optimize_virtuals) THEN
             CALL dbcsr_init_p(qs_ot_env%rot_mat_response_gx_im)
             CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_response_gx_im, &
                                                template=matrix_s, m=nmo, n=nmo, &
