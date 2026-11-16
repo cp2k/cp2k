@@ -37,6 +37,9 @@
 /tests/do_regtest.py         @fstein93 @oschuett
 /tests/matcher_classes.py    @fstein93 @oschuett
 
+# Exclude bibliography
+/src/common/bibliography.F
+
 # Offload + Grid
 /src/offload/                @mtaillefumier @oschuett
 /src/grid/                   @mtaillefumier @oschuett
