@@ -18,8 +18,8 @@ def main() -> None:
     print("Fixing GitHub links...")
     build_dir = Path(sys.argv[1])
 
-    replace(build_dir / "bibliography.html", newlink("src/common/bibliography.F"))
-    replace(build_dir / "units.html", newlink("src/common/cp_units.F"))
+    replace(build_dir / "bibliography.html", newlink("src/common/bibliography.F90"))
+    replace(build_dir / "units.html", newlink("src/common/cp_units.F90"))
 
     message = "This page was generated. Please use the smaller [Edit on GitHub] links to see the original location of each string."
     replace(build_dir / "CP2K_INPUT.html", alert(message))

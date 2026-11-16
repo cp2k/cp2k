@@ -376,7 +376,7 @@ its tests remain here until that ownership and transfer are agreed. Their placem
 is not a technical dependency on the libcp2k binding.
 
 Geometry and cell relaxation require a CP2K executable that includes the separately maintained final
-optimization-cell frame fix in `src/motion/gopt_f_methods.F`: the final call to `write_geo_traj`
+optimization-cell frame fix in `src/motion/gopt_f_methods.F90`: the final call to `write_geo_traj`
 must be followed by `write_simulation_cell`. Without that fix, converged runs can write one more
 position frame than cell frames, which the AiiDA trajectory parser rejects. This Python integration
 does not itself change the native optimizer.

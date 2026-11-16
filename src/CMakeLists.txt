@@ -15,7 +15,7 @@ configure_file(base/base_uses.f90 base/base_uses.f90 @ONLY)
 include("${CMAKE_CURRENT_LIST_DIR}/CMakeSources.cmake")
 
 if(CP2K_USE_PW_GPU)
-  list(APPEND CP2K_SRCS_F pw/pw_gpu.F)
+  list(APPEND CP2K_SRCS_F pw/pw_gpu.F90)
 endif()
 
 list(APPEND CP2K_SRCS_C "${CP2K_OFFLOAD_SRCS_C}" "${CP2K_MPIWRAP_SRCS_C}")
@@ -27,11 +27,11 @@ list(APPEND CP2K_SRCS_C "${CP2K_OFFLOAD_SRCS_C}" "${CP2K_MPIWRAP_SRCS_C}")
 set(CP2K_SRCS_GPU "")
 
 if(CP2K_USE_MPI)
-  list(APPEND CP2K_PROGS_F mpiwrap/message_passing_thread_unittest.F
-       fm/cp_fm_diag_utils_unittest.F)
+  list(APPEND CP2K_PROGS_F mpiwrap/message_passing_thread_unittest.F90
+       fm/cp_fm_diag_utils_unittest.F90)
 else()
-  list(APPEND CP2K_EXCLUDED_SRCS_F mpiwrap/message_passing_thread_unittest.F
-       fm/cp_fm_diag_utils_unittest.F)
+  list(APPEND CP2K_EXCLUDED_SRCS_F mpiwrap/message_passing_thread_unittest.F90
+       fm/cp_fm_diag_utils_unittest.F90)
 endif()
 
 if(CP2K_USE_CUDA
@@ -173,13 +173,13 @@ add_fypp_sources(CP2K_PROGS_F_FYPP ${CP2K_PROGS_F})
 # Intel oneAPI workarounds for known compiler optimization bugs
 if(CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM")
   set_source_files_properties(
-    ${CMAKE_CURRENT_BINARY_DIR}/hfxbase/hfx_contraction_methods.F
-    ${CMAKE_CURRENT_BINARY_DIR}/hfxbase/hfx_contract_block.F
+    ${CMAKE_CURRENT_BINARY_DIR}/hfxbase/hfx_contraction_methods.F90
+    ${CMAKE_CURRENT_BINARY_DIR}/hfxbase/hfx_contract_block.F90
     PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS} -O1")
   if(CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     set_source_files_properties(
-      ${CMAKE_CURRENT_BINARY_DIR}/aobasis/paw_basis_types.F
-      ${CMAKE_CURRENT_BINARY_DIR}/mp2_optimize_ri_basis.F
+      ${CMAKE_CURRENT_BINARY_DIR}/aobasis/paw_basis_types.F90
+      ${CMAKE_CURRENT_BINARY_DIR}/mp2_optimize_ri_basis.F90
       PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS} -O1")
     set_source_files_properties(grid/dgemm/grid_dgemm_prepare_pab.c
                                 PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS} -O2")
@@ -312,7 +312,7 @@ add_custom_target(
   BYPRODUCTS ${CP2K_BUILD_INFO_FILE}
   COMMENT "Updating CP2K build timestamp and git revision"
   VERBATIM)
-set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/cp2k_info.F
+set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/cp2k_info.F90
                             PROPERTIES OBJECT_DEPENDS "${CP2K_BUILD_INFO_FILE}")
 
 if(CP2K_DATA_DIR STREQUAL "default")
@@ -476,62 +476,65 @@ if(CP2K_USE_MPI)
        "cp_fm_diag_utils_unittest")
 endif()
 
-add_executable(cp2k-bin start/cp2k.F)
+add_executable(cp2k-bin start/cp2k.F90)
 # for linking
 
 add_executable(orbital_transformation_matrices_unittest
-               aobasis/orbital_transformation_matrices_unittest.F)
-add_executable(gemm_square_unittest common/gemm_square_unittest.F)
-add_executable(memory_utilities_unittest common/memory_utilities_unittest.F)
-add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
-add_executable(atom_upf_unittest pseudopotentials/atom_upf_unittest.F)
-add_executable(xc_semilocal_unittest xc/xc_semilocal_unittest.F)
+               aobasis/orbital_transformation_matrices_unittest.F90)
+add_executable(gemm_square_unittest common/gemm_square_unittest.F90)
+add_executable(memory_utilities_unittest common/memory_utilities_unittest.F90)
+add_executable(parallel_rng_types_unittest
+               common/parallel_rng_types_unittest.F90)
+add_executable(atom_upf_unittest pseudopotentials/atom_upf_unittest.F90)
+add_executable(xc_semilocal_unittest xc/xc_semilocal_unittest.F90)
 add_executable(skala_periodic_partition_unittest
-               xc/skala_periodic_partition_unittest.F)
+               xc/skala_periodic_partition_unittest.F90)
 add_executable(upf_projector_integrals_unittest
-               pseudopotentials/upf_projector_integrals_unittest.F)
+               pseudopotentials/upf_projector_integrals_unittest.F90)
 add_executable(upf_local_integrals_unittest
-               pseudopotentials/upf_local_integrals_unittest.F)
-add_executable(gapw_unittest gapw_unittest.F)
-add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)
-add_executable(kpoint_smearing_unittest kpoint_smearing_unittest.F)
-add_executable(topology_wilson_unittest topology_wilson_unittest.F)
-add_executable(kubo_unittest kubo_unittest.F)
-add_executable(spectral_localizer_unittest spectral_localizer_unittest.F)
+               pseudopotentials/upf_local_integrals_unittest.F90)
+add_executable(gapw_unittest gapw_unittest.F90)
+add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F90)
+add_executable(kpoint_smearing_unittest kpoint_smearing_unittest.F90)
+add_executable(topology_wilson_unittest topology_wilson_unittest.F90)
+add_executable(kubo_unittest kubo_unittest.F90)
+add_executable(spectral_localizer_unittest spectral_localizer_unittest.F90)
 add_executable(quadratic_pseudospectrum_unittest
-               quadratic_pseudospectrum_unittest.F)
-add_executable(pw_unittest pw/pw_unittest.F)
-add_executable(topology_symmetry_unittest topology_symmetry_unittest.F)
-add_executable(topology_curvature_unittest topology_curvature_unittest.F)
-add_executable(topology_snapshot_unittest topology_snapshot_unittest.F)
-add_executable(topology_phasons topology_phasons.F)
-add_executable(kpsym_unittest kpsym_unittest.F)
-add_executable(qs_ot_minimizer_unittest qs_ot_minimizer_unittest.F)
+               quadratic_pseudospectrum_unittest.F90)
+add_executable(pw_unittest pw/pw_unittest.F90)
+add_executable(topology_symmetry_unittest topology_symmetry_unittest.F90)
+add_executable(topology_curvature_unittest topology_curvature_unittest.F90)
+add_executable(topology_snapshot_unittest topology_snapshot_unittest.F90)
+add_executable(topology_phasons topology_phasons.F90)
+add_executable(kpsym_unittest kpsym_unittest.F90)
+add_executable(qs_ot_minimizer_unittest qs_ot_minimizer_unittest.F90)
 add_executable(optbas_frontier_orbitals_utils_unittest
-               optbas_frontier_orbitals_utils_unittest.F)
+               optbas_frontier_orbitals_utils_unittest.F90)
 add_executable(low_rank_preconditioner_unittest
-               low_rank_preconditioner_unittest.F)
+               low_rank_preconditioner_unittest.F90)
 add_executable(ot_covariant_preconditioner_unittest
-               ot_covariant_preconditioner_unittest.F)
-add_executable(qs_charge_mixing_unittest qs_charge_mixing_unittest.F)
-add_executable(qs_fod_unittest qs_fod_unittest.F)
-add_executable(qs_ot_complex_ref_unittest qs_ot_complex_ref_unittest.F)
-add_executable(wannier90_projections_unittest wannier90_projections_unittest.F)
-add_executable(cell_types_unittest subsys/cell_types_unittest.F)
-add_executable(hfx_pair_list_methods_unittest hfx_pair_list_methods_unittest.F)
-add_executable(cell_opt_utils_unittest motion/cell_opt_utils_unittest.F)
-add_executable(graph metadyn_tools/graph.F)
-add_executable(dumpdcd motion/dumpdcd.F)
-add_executable(xyz2dcd motion/xyz2dcd.F)
+               ot_covariant_preconditioner_unittest.F90)
+add_executable(qs_charge_mixing_unittest qs_charge_mixing_unittest.F90)
+add_executable(qs_fod_unittest qs_fod_unittest.F90)
+add_executable(qs_ot_complex_ref_unittest qs_ot_complex_ref_unittest.F90)
+add_executable(wannier90_projections_unittest
+               wannier90_projections_unittest.F90)
+add_executable(cell_types_unittest subsys/cell_types_unittest.F90)
+add_executable(hfx_pair_list_methods_unittest
+               hfx_pair_list_methods_unittest.F90)
+add_executable(cell_opt_utils_unittest motion/cell_opt_utils_unittest.F90)
+add_executable(graph metadyn_tools/graph.F90)
+add_executable(dumpdcd motion/dumpdcd.F90)
+add_executable(xyz2dcd motion/xyz2dcd.F90)
 add_executable(libcp2k_unittest start/libcp2k_unittest.c)
-add_executable(nequip_unittest nequip_unittest.F)
-add_executable(dbt_unittest dbt/dbt_unittest.F)
-add_executable(dbt_tas_unittest dbt/tas/dbt_tas_unittest.F)
-add_executable(gx_ac_unittest gx_ac_unittest.F)
+add_executable(nequip_unittest nequip_unittest.F90)
+add_executable(dbt_unittest dbt/dbt_unittest.F90)
+add_executable(dbt_tas_unittest dbt/tas/dbt_tas_unittest.F90)
+add_executable(gx_ac_unittest gx_ac_unittest.F90)
 if(CP2K_USE_MPI)
   add_executable(message_passing_thread_unittest
-                 mpiwrap/message_passing_thread_unittest.F)
-  add_executable(cp_fm_diag_utils_unittest fm/cp_fm_diag_utils_unittest.F)
+                 mpiwrap/message_passing_thread_unittest.F90)
+  add_executable(cp_fm_diag_utils_unittest fm/cp_fm_diag_utils_unittest.F90)
 endif()
 
 set_target_properties(

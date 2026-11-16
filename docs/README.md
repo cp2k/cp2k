@@ -141,11 +141,12 @@ For a all typography options see the
   - This requires adding the definition to the [acronyms.md](./acronyms.md) and is rendered as a
     link to the [acronyms page](https://manual.cp2k.org/trunk/acronyms.html)
 - Publication: `[](#Wilhelm2018)`
-  - This requires adding the citation to the [bibliography.F](../src/common/bibliography.F) and is
-    rendered as a link to the [bibliography page](https://manual.cp2k.org/trunk/bibliography.html);
-    ⚠️ always use the auto-generated key on the bibliography page for documentation, which may or
-    may not match the name of the variable `key` passed to fortran `CALL add_reference(key=...)`
-    invocations for source codes
+  - This requires adding the citation to the [bibliography.F90](../src/common/bibliography.F90) and
+    is rendered as a link to the
+    [bibliography page](https://manual.cp2k.org/trunk/bibliography.html); ⚠️ always use the
+    auto-generated key on the bibliography page for documentation, which may or may not match the
+    name of the variable `key` passed to fortran `CALL add_reference(key=...)` invocations for
+    source codes
 - Another page: `[](../optical/tddft)`
   - Use the relative path, where the `.md` suffix for file extension can be specified or omitted
 - Subsection in the current page: `[](#problems-and-solutions)`

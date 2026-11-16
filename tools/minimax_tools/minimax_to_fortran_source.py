@@ -9,13 +9,13 @@ from dataclasses import dataclass
 
 # ======================================================================================
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generates minimax_exp_k53.F file.")
+    parser = argparse.ArgumentParser(description="Generates minimax_exp_k53.F90 file.")
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
 
     script_dir = Path(__file__).parent
     input_path = script_dir / "1_xData"
-    output_path = script_dir.parent.parent / "src" / "minimax" / "minimax_exp_k53.F"
+    output_path = script_dir.parent.parent / "src" / "minimax" / "minimax_exp_k53.F90"
     assert input_path.exists()
     assert output_path.exists()
 

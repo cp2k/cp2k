@@ -172,7 +172,7 @@ def get_build_docs() -> str:
 
 @lru_cache(maxsize=None)
 def get_flags_src() -> str:
-    cp2k_info = (CP2K_DIR / "src/cp2k_info.F").read_text(encoding="utf8")
+    cp2k_info = (CP2K_DIR / "src/cp2k_info.F90").read_text(encoding="utf8")
     match = CP2K_FLAGS_RE.search(cp2k_info)
     assert match
     return match.group(1)
@@ -180,7 +180,7 @@ def get_flags_src() -> str:
 
 @lru_cache(maxsize=None)
 def get_bibliography_dois() -> List[str]:
-    bib = (CP2K_DIR / "src/common/bibliography.F").read_text(encoding="utf8")
+    bib = (CP2K_DIR / "src/common/bibliography.F90").read_text(encoding="utf8")
     matches = re.findall(r'doi="([^"]+)"', bib, flags=re.IGNORECASE)
     assert len(matches) > 260 and "10.1016/j.cpc.2004.12.014" in matches
     return matches

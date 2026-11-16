@@ -12,7 +12,7 @@ included. Introduce a new preprocessor flag of the kind `__<LIBRARY_NAME>` (with
 being captialized) and
 [apply conditional compilation and mark unused dummy arguments depending on presence or absence of the library](preprocessing.md).
 
-## cp2k_info.F
+## cp2k_info.F90
 
 This files compiles all infos on the executable including the linked libraries. Add an additional
 flag (usually the library name in lower case) similarly to the other features conditionally compiled
@@ -23,7 +23,7 @@ regtesting.
 
 Add a new test directory with tests to check the correctness of the new library. All regtest
 directories containing tests requiring the new library should ask for the presence of the flag
-introduced in the `cp2k_info.F` file.
+introduced in the `cp2k_info.F90` file.
 
 ## Build system
 

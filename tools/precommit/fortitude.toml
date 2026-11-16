@@ -37,33 +37,33 @@ ignore = [
 # The following files can not be parsed by Fortitude.
 # Usually because Fortran statements are inter-leafed with pre-processor macros.
 exclude = [
-    "local_gemm_api.F",
-    "ai_contraction_sphi.F",
-    "dbt_array_list_methods.F",
-    "cp_cfm_basic_linalg.F",
-    "cp_cfm_diag.F",
-    "cp_fm_basic_linalg.F",
-    "cp_fm_cholesky.F",
-    "cp_fm_diag.F",
-    "message_passing.F",
-    "cp_cfm_cholesky.F",
-    "pw_methods.F",
-    "xc_libxc_wrap.F",
-    "dbt_tas_util.F",
+    "local_gemm_api.F90",
+    "ai_contraction_sphi.F90",
+    "dbt_array_list_methods.F90",
+    "cp_cfm_basic_linalg.F90",
+    "cp_cfm_diag.F90",
+    "cp_fm_basic_linalg.F90",
+    "cp_fm_cholesky.F90",
+    "cp_fm_diag.F90",
+    "message_passing.F90",
+    "cp_cfm_cholesky.F90",
+    "pw_methods.F90",
+    "xc_libxc_wrap.F90",
+    "dbt_tas_util.F90",
 ]
 
 # ==============================================================================
 [check.per-file-ignores]
 # These test drivers keep their private helper module in the same source file.
-"kubo_unittest.F" = ["program-with-module"]
-"spectral_localizer_unittest.F" = ["program-with-module"]
-"qs_local_properties.F" = ["unreachable-statement"]
-"semi_empirical_int_ana.F" = ["misleading-inline-if-semicolon"]
-"fftw3_lib.F" = ["misleading-inline-if-semicolon"]
-"eri_mme_lattice_summation.F" = ["trailing-whitespace"]
-"pilaenv_hack.F" = ["procedure-not-in-module"]
-"semi_empirical_int_debug.F" = ["procedure-not-in-module"]
-"dft_plus_u.F" = ["trailing-backslash"]
-"qs_linres_current.F" = ["trailing-backslash"]
+"kubo_unittest.F90" = ["program-with-module"]
+"spectral_localizer_unittest.F90" = ["program-with-module"]
+"qs_local_properties.F90" = ["unreachable-statement"]
+"semi_empirical_int_ana.F90" = ["misleading-inline-if-semicolon"]
+"fftw3_lib.F90" = ["misleading-inline-if-semicolon"]
+"eri_mme_lattice_summation.F90" = ["trailing-whitespace"]
+"pilaenv_hack.F90" = ["procedure-not-in-module"]
+"semi_empirical_int_debug.F90" = ["procedure-not-in-module"]
+"dft_plus_u.F90" = ["trailing-backslash"]
+"qs_linres_current.F90" = ["trailing-backslash"]
 
 #EOF

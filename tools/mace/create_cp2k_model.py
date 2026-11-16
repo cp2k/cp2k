@@ -33,7 +33,7 @@ from e3nn.util import jit  # type: ignore
 from e3nn.util.jit import compile_mode  # type: ignore
 
 # Z -> chemical symbol table (index == atomic number). Covers the dummy X plus
-# all 118 known elements, matching CP2K's src/common/periodic_table.F.
+# all 118 known elements, matching CP2K's src/common/periodic_table.F90.
 chemical_symbols = ["X"] + """
     H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co
     Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb

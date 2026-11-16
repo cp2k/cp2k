@@ -33,7 +33,7 @@ END MODULE interface_cpp_test
 class TestSingleFileFolder(unittest.TestCase):
     def setUp(self):
         self.tempdir = tempfile.mkdtemp()
-        self.fname = os.path.join(self.tempdir, "prettify_selftest.F")
+        self.fname = os.path.join(self.tempdir, "prettify_selftest.F90")
 
         # create temporary file with example code
         with open(self.fname, "w", encoding="utf8") as fhandle:
@@ -71,7 +71,7 @@ class TestSingleFileFolder(unittest.TestCase):
 class TestInterfaceCppDirective(unittest.TestCase):
     def test_prettify_preserves_interface(self):
         with tempfile.TemporaryDirectory() as tempdir:
-            fname = os.path.join(tempdir, "prettify_interface.F")
+            fname = os.path.join(tempdir, "prettify_interface.F90")
             with open(fname, "w", encoding="utf8") as fhandle:
                 fhandle.write(interface_cpp_content)
 

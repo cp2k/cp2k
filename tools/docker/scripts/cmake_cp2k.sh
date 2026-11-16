@@ -271,7 +271,7 @@ elif [[ "${PROFILE}" == "toolchain_coverage" ]] && [[ "${VERSION}" == "psmp" ]];
 
 elif [[ "${PROFILE}" == "toolchain_asan" ]] && [[ "${VERSION}" == "psmp" ]]; then
   # TODO Re-enable GREENX. It currently leads to a heap-buffer-overflow
-  # in `greenx_refine_pade()` at greenx_interface.F:80.
+  # in `greenx_refine_pade()` at greenx_interface.F90:80.
   cmake \
     --preset "asan" \
     -GNinja \

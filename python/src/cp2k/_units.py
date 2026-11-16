@@ -1,4 +1,4 @@
-"""CP2K's CODATA-2006 conversions, matching src/common/physcon.F."""
+"""CP2K's CODATA-2006 conversions, matching src/common/physcon.F90."""
 
 # SPDX-License-Identifier: GPL-2.0-or-later
 

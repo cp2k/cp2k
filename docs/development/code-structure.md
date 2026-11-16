@@ -31,8 +31,8 @@ Source files should have prefixes corresponding to their main functionalities. F
 These prefixes are not exclusive, nor are they always logical. There are exceptions in code naming
 conventions, for example:
 
-- `realspace_grid_types.F` and `realspace_grid_cube.F` are both used in Quickstep, but do not have
-  the corresponding `qs_` prefix
+- `realspace_grid_types.F90` and `realspace_grid_cube.F90` are both used in Quickstep, but do not
+  have the corresponding `qs_` prefix
 
 ## Overall Structure
 
@@ -74,20 +74,20 @@ calculations
   basis, function on RS multi-grid, and as planewave coefficients etc. All density data is contained
   in a single container derived type.
   - Module: `qs_rho_types`
-  - File: `qs_rho_types.F`
+  - File: `qs_rho_types.F90`
   - Container type: `qs_rho_type`
 - Kohn-Sham-matrices, potentials and work arrays.
   - Module: `qs_ks_types`
-  - File: qs_ks_types.F\`
+  - File: `qs_ks_types.F90`
   - Container type: `qs_ks_env_type`
 - All components related to Quickstep-DFT-calculations.
-  - Module: `qs_env_types`
-  - File: `qs_env_type.F`
+  - Module: `qs_environment_types`
+  - File: `qs_environment_types.F90`
   - Container-type: `qs_env_type`
 - CP2K's wrapper around `MPI_Comm`. They are derived from `mp_comm_type`. MPI-routines are bound to
   this type. MPI-routines requiring a Cartesian topology are bound to `mp_cart_type`.
   - Module `message_passing`
-  - File: `message_passing.F` (and `message_passing.fypp` for the definition of most communication
+  - File: `message_passing.F90` (and `message_passing.fypp` for the definition of most communication
     routines)
   - Container-types:
     - `mp_comm_type` (base communicator)

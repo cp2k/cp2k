@@ -33,7 +33,7 @@
 /src/base/                   @fstein93 @oschuett
 /src/start/                  @fstein93 @oschuett
 /src/common/                 @mkrack   @oschuett
-/src/f77_interface.F         @fstein93 @oschuett
+/src/f77_interface.F90         @fstein93 @oschuett
 /tests/do_regtest.py         @fstein93 @oschuett
 /tests/matcher_classes.py    @fstein93 @oschuett
 
@@ -45,7 +45,7 @@
 /src/grid/                   @mtaillefumier @oschuett
 
 # SIRIUS
-/src/sirius_interface.F      @mtaillefumier @RMeli
+/src/sirius_interface.F90      @mtaillefumier @RMeli
 /src/*pwdft*                 @mtaillefumier @RMeli
 
 # DLA-Future
@@ -81,7 +81,7 @@
 
 # Post SCF
 /src/qs_scf_post_*           @marci73
-/src/tb/qs_scf_post_tb.F     @marci73 @DCM-Uni-Paderborn
+/src/tb/qs_scf_post_tb.F90     @marci73 @DCM-Uni-Paderborn
 
 # Fedora
 /tools/fedora                @Growl1234

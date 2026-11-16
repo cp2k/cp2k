@@ -1,175 +1,175 @@
-al_system_dynamics.F: Found WRITE statement with hardcoded unit in "dump_vel" https://cp2k.org/conv#c012
-base_hooks.F: Found CALL m_abort in procedure "cp_abort" https://cp2k.org/conv#c102
-base_hooks.F: Found STOP statement in procedure "cp_abort" https://cp2k.org/conv#c205
-base_hooks.F: Found STOP statement in procedure "cp__a" https://cp2k.org/conv#c205
-base_hooks.F: Found STOP statement in procedure "cp__b" https://cp2k.org/conv#c205
-base_hooks.F: Found WRITE statement with hardcoded unit in "cp_abort" https://cp2k.org/conv#c012
-base_hooks.F: Found WRITE statement with hardcoded unit in "cp_hint" https://cp2k.org/conv#c012
-base_hooks.F: Found WRITE statement with hardcoded unit in "cp_warn" https://cp2k.org/conv#c012
-cp2k.F: Found OPEN statement in procedure "cp2k" https://cp2k.org/conv#c203
-cp2k.F: Found WRITE statement with hardcoded unit in "cp2k" https://cp2k.org/conv#c012
-cp_dbcsr_operations.F: Found CALL cp_fm_gemm in procedure "cp_dbcsr_plus_fm_fm_t" https://cp2k.org/conv#c101
-cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "cp_dbcsr_plus_fm_fm_t" https://cp2k.org/conv#c012
-cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "create_bl_distribution" https://cp2k.org/conv#c012
-cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_create_dist_block_cyclic" https://cp2k.org/conv#c012
-cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_charge" https://cp2k.org/conv#c012
-cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_der_a_matrix" https://cp2k.org/conv#c012
-cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_der_b_vector" https://cp2k.org/conv#c012
-cp_error_handling.F: Found CALL mp_abort in procedure "cp_abort_handler" https://cp2k.org/conv#c103
-cp_files.F: Found CLOSE statement in procedure "close_file" https://cp2k.org/conv#c204
-cp_files.F: Found OPEN statement in procedure "open_file" https://cp2k.org/conv#c203
-cp_files.F: Found WRITE statement with hardcoded unit in "open_file" https://cp2k.org/conv#c012
-cp_fm_basic_linalg.F: Found CALL cp_fm_gemm in procedure "cp_complex_fm_gemm" https://cp2k.org/conv#c101
-cp_fm_diag.F: Found CALL cp_fm_gemm in procedure "check_diag" https://cp2k.org/conv#c101
-cp_fm_diag.F: Found CALL cp_fm_gemm in procedure "cp_fm_geeig_canon" https://cp2k.org/conv#c101
-cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_int_to_string" https://cp2k.org/conv#c012
-cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_logger_get_default_unit_nr" https://cp2k.org/conv#c012
-cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_real_dp_to_string" https://cp2k.org/conv#c012
-cp_parser_inpp_methods.F: Found READ with unchecked STAT in "inpp_process_directive" https://cp2k.org/conv#c001
-d3_poly.F: Found CALL RANDOM_NUMBER in procedure "poly_random" https://cp2k.org/conv#c104
-dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral_a" https://cp2k.org/conv#c012
-dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral" https://cp2k.org/conv#c012
-dumpdcd.F: Found CLOSE statement in procedure "dumpdcd" https://cp2k.org/conv#c204
-dumpdcd.F: Found OPEN statement in procedure "dumpdcd" https://cp2k.org/conv#c203
-dumpdcd.F: Found STOP statement in procedure "abort_program" https://cp2k.org/conv#c205
-dumpdcd.F: Found STOP statement in procedure "dumpdcd" https://cp2k.org/conv#c205
-dumpdcd.F: Found WRITE statement with hardcoded unit in "abort_program" https://cp2k.org/conv#c012
-dumpdcd.F: Found WRITE statement with hardcoded unit in "print_help" https://cp2k.org/conv#c012
-ec_external.F: Found CALL RANDOM_NUMBER in procedure "ec_ext_energy" https://cp2k.org/conv#c104
-ec_external.F: Found CALL RANDOM_SEED in procedure "ec_ext_energy" https://cp2k.org/conv#c105
-fftw3_lib.F: Found type fftwf_iodim64 without initializer https://cp2k.org/conv#c016
-fftw3_lib.F: Found type fftwf_iodim without initializer https://cp2k.org/conv#c016
-fftw3_lib.F: Found type fftw_iodim64 without initializer https://cp2k.org/conv#c016
-fftw3_lib.F: Found type fftw_iodim without initializer https://cp2k.org/conv#c016
-fftw3_lib.F: Same actual argument associated with INTENT(OUT) argument 'out' and INTENT(OUT) argument 'in' at (1)
-four_center_integral_interface.F: Found type four_center_integral_context_type without initializer https://cp2k.org/conv#c016
-fparser.F: Found WRITE statement with hardcoded unit in "parseerrmsg" https://cp2k.org/conv#c012
-free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc" https://cp2k.org/conv#c012
-free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc_low" https://cp2k.org/conv#c012
-free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_trend" https://cp2k.org/conv#c012
-glbopt_history.F: Found WRITE statement with hardcoded unit in "verify_history_lookup" https://cp2k.org/conv#c012
-glbopt_mincrawl.F: Found WRITE statement with hardcoded unit in "print_tempdist" https://cp2k.org/conv#c012
-graphcon.F: Found WRITE statement with hardcoded unit in "reorder_graph" https://cp2k.org/conv#c012
-graph.F: Found CALL RANDOM_SEED in procedure "graph" https://cp2k.org/conv#c105
-graph.F: Found WRITE statement with hardcoded unit in "graph" https://cp2k.org/conv#c012
-graph_methods.F: Found WRITE statement with hardcoded unit in "fes_cube_write" https://cp2k.org/conv#c012
-graph_methods.F: Found WRITE statement with hardcoded unit in "fes_min" https://cp2k.org/conv#c012
-graph_methods.F: Found WRITE statement with hardcoded unit in "fes_path" https://cp2k.org/conv#c012
-graph_utils.F: Found WRITE statement with hardcoded unit in "get_val_res" https://cp2k.org/conv#c012
-hfx_compression_methods.F: Found READ with unchecked STAT in "hfx_decompress_cache" https://cp2k.org/conv#c001
-hfx_types.F: Found type hfx_type without initializer https://cp2k.org/conv#c016
-input_enumeration_types.F: Found WRITE statement with hardcoded unit in "enum_i2c" https://cp2k.org/conv#c012
-input_parsing.F: Found WRITE statement with hardcoded unit in "section_vals_parse" https://cp2k.org/conv#c012
-libcp2k.F: Found type eri2array without initializer https://cp2k.org/conv#c016
-libint_wrapper.F: Found type cp_libint_t without initializer https://cp2k.org/conv#c016
-library_tests.F: Found CALL RANDOM_NUMBER in procedure "copy_test" https://cp2k.org/conv#c104
-library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test" https://cp2k.org/conv#c104
-library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test" https://cp2k.org/conv#c104
-library_tests.F: Found CALL RANDOM_NUMBER in procedure "rs_pw_transfer_test" https://cp2k.org/conv#c104
-machine.F: Found CALL m_abort in procedure "m_getcwd" https://cp2k.org/conv#c102
-machine.F: Found CALL m_abort in procedure "m_hostnm" https://cp2k.org/conv#c102
-machine.F: Found CALL m_abort in procedure "m_mov" https://cp2k.org/conv#c102
-machine.F: Found CLOSE statement in procedure "m_memory_details" https://cp2k.org/conv#c204
-machine.F: Found OPEN statement in procedure "m_cpuinfo" https://cp2k.org/conv#c203
-machine.F: Found OPEN statement in procedure "m_memory_details" https://cp2k.org/conv#c203
-machine.F: Found OPEN statement in procedure "m_memory" https://cp2k.org/conv#c203
-machine.F: Found WRITE statement with hardcoded unit in "m_getcwd" https://cp2k.org/conv#c012
-machine.F: Found WRITE statement with hardcoded unit in "m_hostnm" https://cp2k.org/conv#c012
-machine.F: Found WRITE statement with hardcoded unit in "m_mov" https://cp2k.org/conv#c012
-mc_coordinates.F: Found WRITE statement with hardcoded unit in "generate_cbmc_swap_config" https://cp2k.org/conv#c012
-message_passing.F: Found STOP statement in procedure "mp_abort" https://cp2k.org/conv#c205
-message_passing.F: Found type mpi_comm without initializer https://cp2k.org/conv#c016
-message_passing.F: Found type mpi_datatype without initializer https://cp2k.org/conv#c016
-message_passing.F: Found type mpi_errhandler without initializer https://cp2k.org/conv#c016
-message_passing.F: Found type mpi_file without initializer https://cp2k.org/conv#c016
-message_passing.F: Found type mpi_group without initializer https://cp2k.org/conv#c016
-message_passing.F: Found type mpi_info without initializer https://cp2k.org/conv#c016
-message_passing.F: Found type mpi_message without initializer https://cp2k.org/conv#c016
-message_passing.F: Found type mpi_op without initializer https://cp2k.org/conv#c016
-message_passing.F: Found type mpi_request without initializer https://cp2k.org/conv#c016
-message_passing.F: Found type mpi_session without initializer https://cp2k.org/conv#c016
-message_passing.F: Found type mpi_status without initializer https://cp2k.org/conv#c016
-message_passing.F: Found type mpi_win without initializer https://cp2k.org/conv#c016
-message_passing.F: Found type mpix_stream without initializer https://cp2k.org/conv#c016
-message_passing.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+al_system_dynamics.F90: Found WRITE statement with hardcoded unit in "dump_vel" https://cp2k.org/conv#c012
+base_hooks.F90: Found CALL m_abort in procedure "cp_abort" https://cp2k.org/conv#c102
+base_hooks.F90: Found STOP statement in procedure "cp_abort" https://cp2k.org/conv#c205
+base_hooks.F90: Found STOP statement in procedure "cp__a" https://cp2k.org/conv#c205
+base_hooks.F90: Found STOP statement in procedure "cp__b" https://cp2k.org/conv#c205
+base_hooks.F90: Found WRITE statement with hardcoded unit in "cp_abort" https://cp2k.org/conv#c012
+base_hooks.F90: Found WRITE statement with hardcoded unit in "cp_hint" https://cp2k.org/conv#c012
+base_hooks.F90: Found WRITE statement with hardcoded unit in "cp_warn" https://cp2k.org/conv#c012
+cp2k.F90: Found OPEN statement in procedure "cp2k" https://cp2k.org/conv#c203
+cp2k.F90: Found WRITE statement with hardcoded unit in "cp2k" https://cp2k.org/conv#c012
+cp_dbcsr_operations.F90: Found CALL cp_fm_gemm in procedure "cp_dbcsr_plus_fm_fm_t" https://cp2k.org/conv#c101
+cp_dbcsr_operations.F90: Found WRITE statement with hardcoded unit in "cp_dbcsr_plus_fm_fm_t" https://cp2k.org/conv#c012
+cp_dbcsr_operations.F90: Found WRITE statement with hardcoded unit in "create_bl_distribution" https://cp2k.org/conv#c012
+cp_dbcsr_operations.F90: Found WRITE statement with hardcoded unit in "dbcsr_create_dist_block_cyclic" https://cp2k.org/conv#c012
+cp_ddapc_util.F90: Found WRITE statement with hardcoded unit in "debug_charge" https://cp2k.org/conv#c012
+cp_ddapc_util.F90: Found WRITE statement with hardcoded unit in "debug_der_a_matrix" https://cp2k.org/conv#c012
+cp_ddapc_util.F90: Found WRITE statement with hardcoded unit in "debug_der_b_vector" https://cp2k.org/conv#c012
+cp_error_handling.F90: Found CALL mp_abort in procedure "cp_abort_handler" https://cp2k.org/conv#c103
+cp_files.F90: Found CLOSE statement in procedure "close_file" https://cp2k.org/conv#c204
+cp_files.F90: Found OPEN statement in procedure "open_file" https://cp2k.org/conv#c203
+cp_files.F90: Found WRITE statement with hardcoded unit in "open_file" https://cp2k.org/conv#c012
+cp_fm_basic_linalg.F90: Found CALL cp_fm_gemm in procedure "cp_complex_fm_gemm" https://cp2k.org/conv#c101
+cp_fm_diag.F90: Found CALL cp_fm_gemm in procedure "check_diag" https://cp2k.org/conv#c101
+cp_fm_diag.F90: Found CALL cp_fm_gemm in procedure "cp_fm_geeig_canon" https://cp2k.org/conv#c101
+cp_log_handling.F90: Found WRITE statement with hardcoded unit in "cp_int_to_string" https://cp2k.org/conv#c012
+cp_log_handling.F90: Found WRITE statement with hardcoded unit in "cp_logger_get_default_unit_nr" https://cp2k.org/conv#c012
+cp_log_handling.F90: Found WRITE statement with hardcoded unit in "cp_real_dp_to_string" https://cp2k.org/conv#c012
+cp_parser_inpp_methods.F90: Found READ with unchecked STAT in "inpp_process_directive" https://cp2k.org/conv#c001
+d3_poly.F90: Found CALL RANDOM_NUMBER in procedure "poly_random" https://cp2k.org/conv#c104
+dkh_main.F90: Found WRITE statement with hardcoded unit in "kintegral_a" https://cp2k.org/conv#c012
+dkh_main.F90: Found WRITE statement with hardcoded unit in "kintegral" https://cp2k.org/conv#c012
+dumpdcd.F90: Found CLOSE statement in procedure "dumpdcd" https://cp2k.org/conv#c204
+dumpdcd.F90: Found OPEN statement in procedure "dumpdcd" https://cp2k.org/conv#c203
+dumpdcd.F90: Found STOP statement in procedure "abort_program" https://cp2k.org/conv#c205
+dumpdcd.F90: Found STOP statement in procedure "dumpdcd" https://cp2k.org/conv#c205
+dumpdcd.F90: Found WRITE statement with hardcoded unit in "abort_program" https://cp2k.org/conv#c012
+dumpdcd.F90: Found WRITE statement with hardcoded unit in "print_help" https://cp2k.org/conv#c012
+ec_external.F90: Found CALL RANDOM_NUMBER in procedure "ec_ext_energy" https://cp2k.org/conv#c104
+ec_external.F90: Found CALL RANDOM_SEED in procedure "ec_ext_energy" https://cp2k.org/conv#c105
+fftw3_lib.F90: Found type fftwf_iodim64 without initializer https://cp2k.org/conv#c016
+fftw3_lib.F90: Found type fftwf_iodim without initializer https://cp2k.org/conv#c016
+fftw3_lib.F90: Found type fftw_iodim64 without initializer https://cp2k.org/conv#c016
+fftw3_lib.F90: Found type fftw_iodim without initializer https://cp2k.org/conv#c016
+fftw3_lib.F90: Same actual argument associated with INTENT(OUT) argument 'out' and INTENT(OUT) argument 'in' at (1)
+four_center_integral_interface.F90: Found type four_center_integral_context_type without initializer https://cp2k.org/conv#c016
+fparser.F90: Found WRITE statement with hardcoded unit in "parseerrmsg" https://cp2k.org/conv#c012
+free_energy_methods.F90: Found WRITE statement with hardcoded unit in "ui_check_norm_sc" https://cp2k.org/conv#c012
+free_energy_methods.F90: Found WRITE statement with hardcoded unit in "ui_check_norm_sc_low" https://cp2k.org/conv#c012
+free_energy_methods.F90: Found WRITE statement with hardcoded unit in "ui_check_trend" https://cp2k.org/conv#c012
+glbopt_history.F90: Found WRITE statement with hardcoded unit in "verify_history_lookup" https://cp2k.org/conv#c012
+glbopt_mincrawl.F90: Found WRITE statement with hardcoded unit in "print_tempdist" https://cp2k.org/conv#c012
+graphcon.F90: Found WRITE statement with hardcoded unit in "reorder_graph" https://cp2k.org/conv#c012
+graph.F90: Found CALL RANDOM_SEED in procedure "graph" https://cp2k.org/conv#c105
+graph.F90: Found WRITE statement with hardcoded unit in "graph" https://cp2k.org/conv#c012
+graph_methods.F90: Found WRITE statement with hardcoded unit in "fes_cube_write" https://cp2k.org/conv#c012
+graph_methods.F90: Found WRITE statement with hardcoded unit in "fes_min" https://cp2k.org/conv#c012
+graph_methods.F90: Found WRITE statement with hardcoded unit in "fes_path" https://cp2k.org/conv#c012
+graph_utils.F90: Found WRITE statement with hardcoded unit in "get_val_res" https://cp2k.org/conv#c012
+hfx_compression_methods.F90: Found READ with unchecked STAT in "hfx_decompress_cache" https://cp2k.org/conv#c001
+hfx_types.F90: Found type hfx_type without initializer https://cp2k.org/conv#c016
+input_enumeration_types.F90: Found WRITE statement with hardcoded unit in "enum_i2c" https://cp2k.org/conv#c012
+input_parsing.F90: Found WRITE statement with hardcoded unit in "section_vals_parse" https://cp2k.org/conv#c012
+libcp2k.F90: Found type eri2array without initializer https://cp2k.org/conv#c016
+libint_wrapper.F90: Found type cp_libint_t without initializer https://cp2k.org/conv#c016
+library_tests.F90: Found CALL RANDOM_NUMBER in procedure "copy_test" https://cp2k.org/conv#c104
+library_tests.F90: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test" https://cp2k.org/conv#c104
+library_tests.F90: Found CALL RANDOM_NUMBER in procedure "fft_test" https://cp2k.org/conv#c104
+library_tests.F90: Found CALL RANDOM_NUMBER in procedure "rs_pw_transfer_test" https://cp2k.org/conv#c104
+machine.F90: Found CALL m_abort in procedure "m_getcwd" https://cp2k.org/conv#c102
+machine.F90: Found CALL m_abort in procedure "m_hostnm" https://cp2k.org/conv#c102
+machine.F90: Found CALL m_abort in procedure "m_mov" https://cp2k.org/conv#c102
+machine.F90: Found CLOSE statement in procedure "m_memory_details" https://cp2k.org/conv#c204
+machine.F90: Found OPEN statement in procedure "m_cpuinfo" https://cp2k.org/conv#c203
+machine.F90: Found OPEN statement in procedure "m_memory_details" https://cp2k.org/conv#c203
+machine.F90: Found OPEN statement in procedure "m_memory" https://cp2k.org/conv#c203
+machine.F90: Found WRITE statement with hardcoded unit in "m_getcwd" https://cp2k.org/conv#c012
+machine.F90: Found WRITE statement with hardcoded unit in "m_hostnm" https://cp2k.org/conv#c012
+machine.F90: Found WRITE statement with hardcoded unit in "m_mov" https://cp2k.org/conv#c012
+mc_coordinates.F90: Found WRITE statement with hardcoded unit in "generate_cbmc_swap_config" https://cp2k.org/conv#c012
+message_passing.F90: Found STOP statement in procedure "mp_abort" https://cp2k.org/conv#c205
+message_passing.F90: Found type mpi_comm without initializer https://cp2k.org/conv#c016
+message_passing.F90: Found type mpi_datatype without initializer https://cp2k.org/conv#c016
+message_passing.F90: Found type mpi_errhandler without initializer https://cp2k.org/conv#c016
+message_passing.F90: Found type mpi_file without initializer https://cp2k.org/conv#c016
+message_passing.F90: Found type mpi_group without initializer https://cp2k.org/conv#c016
+message_passing.F90: Found type mpi_info without initializer https://cp2k.org/conv#c016
+message_passing.F90: Found type mpi_message without initializer https://cp2k.org/conv#c016
+message_passing.F90: Found type mpi_op without initializer https://cp2k.org/conv#c016
+message_passing.F90: Found type mpi_request without initializer https://cp2k.org/conv#c016
+message_passing.F90: Found type mpi_session without initializer https://cp2k.org/conv#c016
+message_passing.F90: Found type mpi_status without initializer https://cp2k.org/conv#c016
+message_passing.F90: Found type mpi_win without initializer https://cp2k.org/conv#c016
+message_passing.F90: Found type mpix_stream without initializer https://cp2k.org/conv#c016
+message_passing.F90: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 message_passing.fypp: Type mismatch between actual argument at (1) and actual argument at (2) (COMPLEX(8)/COMPLEX(4)).
-negf_methods.F: Found CALL with NULL() as argument in procedure "converge_density" https://cp2k.org/conv#c007
-negf_methods.F: Found CALL with NULL() as argument in procedure "guess_fermi_level" https://cp2k.org/conv#c007
-negf_methods.F: Found CALL with NULL() as argument in procedure "shift_potential" https://cp2k.org/conv#c007
-parallel_gemm_api.F: Found CALL cp_fm_gemm in procedure "parallel_gemm_fm" https://cp2k.org/conv#c101
-pw_grids.F: Found WRITE statement with hardcoded unit in "pw_grid_sort" https://cp2k.org/conv#c012
-qs_active_space_methods.F: Found type eri_fcidump_checksum without initializer https://cp2k.org/conv#c016
-qs_active_space_methods.F: Found type eri_fcidump_print without initializer https://cp2k.org/conv#c016
-qs_fb_env_methods.F: Found CALL cp_fm_gemm in procedure "fb_env_do_diag" https://cp2k.org/conv#c101
-qs_linres_atom_current.F: Found WRITE statement with hardcoded unit in "calculate_jrho_atom_rad" https://cp2k.org/conv#c012
-qs_linres_current.F: Found WRITE statement with hardcoded unit in "box_atoms" https://cp2k.org/conv#c012
-qs_linres_current.F: Found WRITE statement with hardcoded unit in "box_atoms_new" https://cp2k.org/conv#c012
-qs_linres_current.F: Found WRITE statement with hardcoded unit in "calculate_jrho_resp" https://cp2k.org/conv#c012
-qs_linres_issc_utils.F: Found WRITE statement with hardcoded unit in "issc_issc" https://cp2k.org/conv#c012
-quadratic_pseudospectrum.F: Found type callback_operator_type without initializer https://cp2k.org/conv#c016
-quadratic_pseudospectrum.F: Found type dense_operator_type without initializer https://cp2k.org/conv#c016
-se_core_matrix.F: Found WRITE statement with hardcoded unit in "aa" https://cp2k.org/conv#c012
-se_core_matrix.F: Found WRITE statement with hardcoded unit in "makeds" https://cp2k.org/conv#c012
-se_core_matrix.F: Found WRITE statement with hardcoded unit in "makes" https://cp2k.org/conv#c012
-se_fock_matrix_coulomb.F: Found WRITE statement with hardcoded unit in "build_fock_matrix_coulomb_lr" https://cp2k.org/conv#c012
-se_fock_matrix_dbg.F: Found WRITE statement with hardcoded unit in "dbg_energy_coulomb_lr" https://cp2k.org/conv#c012
-semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dcorecore_ana" https://cp2k.org/conv#c012
-semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dcore_nucint_ana" https://cp2k.org/conv#c012
-semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_drotnuc_ana" https://cp2k.org/conv#c012
-semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dssss_nucint_ana" https://cp2k.org/conv#c012
-semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dterep_ana" https://cp2k.org/conv#c012
-semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_rotint_ana" https://cp2k.org/conv#c012
-semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_rotmat_der" https://cp2k.org/conv#c012
-semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_value" https://cp2k.org/conv#c012
-semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "rot_2el_2c_first_debug" https://cp2k.org/conv#c012
-semi_empirical_mpole_methods.F: Found WRITE statement with hardcoded unit in "semi_empirical_mpole_p_setup" https://cp2k.org/conv#c012
-swarm_mpi.F: Found CLOSE statement in procedure "logger_init_master" https://cp2k.org/conv#c204
-swarm_mpi.F: Found OPEN statement in procedure "logger_finalize" https://cp2k.org/conv#c203
-tblite_reference_cli.F: Found OPEN statement in procedure "tb_read_reference_grad" https://cp2k.org/conv#c203
-tblite_scc_mixer.F: Found type cp2k_tblite_broyden_mixer_type without initializer https://cp2k.org/conv#c016
-tblite_types.F: Found type tblite_type without initializer https://cp2k.org/conv#c016
-timings.F: Found WRITE statement with hardcoded unit in "timestop_handler" https://cp2k.org/conv#c012
-tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_average_displacement" https://cp2k.org/conv#c012
-tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_dipole_moment" https://cp2k.org/conv#c012
-tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_paircorrelation" https://cp2k.org/conv#c012
-tmc_cancelation.F: Found WRITE statement with hardcoded unit in "add_to_canceling_list" https://cp2k.org/conv#c012
-tmc_dot_tree.F: Found WRITE statement with hardcoded unit in "create_dot_color" https://cp2k.org/conv#c012
-tmc_dot_tree.F: Found WRITE statement with hardcoded unit in "create_global_tree_dot_color" https://cp2k.org/conv#c012
-tmc_messages.F: Found WRITE statement with hardcoded unit in "read_energy_result_message" https://cp2k.org/conv#c012
-tmc_messages.F: Found WRITE statement with hardcoded unit in "tmc_message" https://cp2k.org/conv#c012
-topology_generate_util.F: Found WRITE statement with hardcoded unit in "generate_molname_low" https://cp2k.org/conv#c012
-topology_generate_util.F: Found WRITE statement with hardcoded unit in "topology_generate_molecule" https://cp2k.org/conv#c012
-topology_gromos.F: Found READ with unchecked STAT in "read_topology_gromos" https://cp2k.org/conv#c001
-topology_pdb.F: Found READ with unchecked STAT in "read_coordinate_pdb" https://cp2k.org/conv#c001
-trexio.F: Found STOP statement in procedure "trexio_assert" https://cp2k.org/conv#c205
-trexio.F: Found WRITE statement with hardcoded unit in "trexio_assert" https://cp2k.org/conv#c012
-xc_gauxc_interface.F: Found type cp_gauxc_status_type without initializer https://cp2k.org/conv#c016
-xyz2dcd.F: Found CLOSE statement in procedure "xyz2dcd" https://cp2k.org/conv#c204
-xyz2dcd.F: Found OPEN statement in procedure "xyz2dcd" https://cp2k.org/conv#c203
-xyz2dcd.F: Found STOP statement in procedure "abort_program" https://cp2k.org/conv#c205
-xyz2dcd.F: Found STOP statement in procedure "xyz2dcd" https://cp2k.org/conv#c205
-xyz2dcd.F: Found WRITE statement with hardcoded unit in "abort_program" https://cp2k.org/conv#c012
-xyz2dcd.F: Found WRITE statement with hardcoded unit in "print_help" https://cp2k.org/conv#c012
-xyz2dcd.F: Found WRITE statement with hardcoded unit in "xyz2dcd" https://cp2k.org/conv#c012
+negf_methods.F90: Found CALL with NULL() as argument in procedure "converge_density" https://cp2k.org/conv#c007
+negf_methods.F90: Found CALL with NULL() as argument in procedure "guess_fermi_level" https://cp2k.org/conv#c007
+negf_methods.F90: Found CALL with NULL() as argument in procedure "shift_potential" https://cp2k.org/conv#c007
+parallel_gemm_api.F90: Found CALL cp_fm_gemm in procedure "parallel_gemm_fm" https://cp2k.org/conv#c101
+pw_grids.F90: Found WRITE statement with hardcoded unit in "pw_grid_sort" https://cp2k.org/conv#c012
+qs_active_space_methods.F90: Found type eri_fcidump_checksum without initializer https://cp2k.org/conv#c016
+qs_active_space_methods.F90: Found type eri_fcidump_print without initializer https://cp2k.org/conv#c016
+qs_fb_env_methods.F90: Found CALL cp_fm_gemm in procedure "fb_env_do_diag" https://cp2k.org/conv#c101
+qs_linres_atom_current.F90: Found WRITE statement with hardcoded unit in "calculate_jrho_atom_rad" https://cp2k.org/conv#c012
+qs_linres_current.F90: Found WRITE statement with hardcoded unit in "box_atoms" https://cp2k.org/conv#c012
+qs_linres_current.F90: Found WRITE statement with hardcoded unit in "box_atoms_new" https://cp2k.org/conv#c012
+qs_linres_current.F90: Found WRITE statement with hardcoded unit in "calculate_jrho_resp" https://cp2k.org/conv#c012
+qs_linres_issc_utils.F90: Found WRITE statement with hardcoded unit in "issc_issc" https://cp2k.org/conv#c012
+quadratic_pseudospectrum.F90: Found type callback_operator_type without initializer https://cp2k.org/conv#c016
+quadratic_pseudospectrum.F90: Found type dense_operator_type without initializer https://cp2k.org/conv#c016
+se_core_matrix.F90: Found WRITE statement with hardcoded unit in "aa" https://cp2k.org/conv#c012
+se_core_matrix.F90: Found WRITE statement with hardcoded unit in "makeds" https://cp2k.org/conv#c012
+se_core_matrix.F90: Found WRITE statement with hardcoded unit in "makes" https://cp2k.org/conv#c012
+se_fock_matrix_coulomb.F90: Found WRITE statement with hardcoded unit in "build_fock_matrix_coulomb_lr" https://cp2k.org/conv#c012
+se_fock_matrix_dbg.F90: Found WRITE statement with hardcoded unit in "dbg_energy_coulomb_lr" https://cp2k.org/conv#c012
+semi_empirical_int_debug.F90: Found WRITE statement with hardcoded unit in "check_dcorecore_ana" https://cp2k.org/conv#c012
+semi_empirical_int_debug.F90: Found WRITE statement with hardcoded unit in "check_dcore_nucint_ana" https://cp2k.org/conv#c012
+semi_empirical_int_debug.F90: Found WRITE statement with hardcoded unit in "check_drotnuc_ana" https://cp2k.org/conv#c012
+semi_empirical_int_debug.F90: Found WRITE statement with hardcoded unit in "check_dssss_nucint_ana" https://cp2k.org/conv#c012
+semi_empirical_int_debug.F90: Found WRITE statement with hardcoded unit in "check_dterep_ana" https://cp2k.org/conv#c012
+semi_empirical_int_debug.F90: Found WRITE statement with hardcoded unit in "check_rotint_ana" https://cp2k.org/conv#c012
+semi_empirical_int_debug.F90: Found WRITE statement with hardcoded unit in "check_rotmat_der" https://cp2k.org/conv#c012
+semi_empirical_int_debug.F90: Found WRITE statement with hardcoded unit in "check_value" https://cp2k.org/conv#c012
+semi_empirical_int_debug.F90: Found WRITE statement with hardcoded unit in "rot_2el_2c_first_debug" https://cp2k.org/conv#c012
+semi_empirical_mpole_methods.F90: Found WRITE statement with hardcoded unit in "semi_empirical_mpole_p_setup" https://cp2k.org/conv#c012
+swarm_mpi.F90: Found CLOSE statement in procedure "logger_init_master" https://cp2k.org/conv#c204
+swarm_mpi.F90: Found OPEN statement in procedure "logger_finalize" https://cp2k.org/conv#c203
+tblite_reference_cli.F90: Found OPEN statement in procedure "tb_read_reference_grad" https://cp2k.org/conv#c203
+tblite_scc_mixer.F90: Found type cp2k_tblite_broyden_mixer_type without initializer https://cp2k.org/conv#c016
+tblite_types.F90: Found type tblite_type without initializer https://cp2k.org/conv#c016
+timings.F90: Found WRITE statement with hardcoded unit in "timestop_handler" https://cp2k.org/conv#c012
+tmc_analysis.F90: Found WRITE statement with hardcoded unit in "print_average_displacement" https://cp2k.org/conv#c012
+tmc_analysis.F90: Found WRITE statement with hardcoded unit in "print_dipole_moment" https://cp2k.org/conv#c012
+tmc_analysis.F90: Found WRITE statement with hardcoded unit in "print_paircorrelation" https://cp2k.org/conv#c012
+tmc_cancelation.F90: Found WRITE statement with hardcoded unit in "add_to_canceling_list" https://cp2k.org/conv#c012
+tmc_dot_tree.F90: Found WRITE statement with hardcoded unit in "create_dot_color" https://cp2k.org/conv#c012
+tmc_dot_tree.F90: Found WRITE statement with hardcoded unit in "create_global_tree_dot_color" https://cp2k.org/conv#c012
+tmc_messages.F90: Found WRITE statement with hardcoded unit in "read_energy_result_message" https://cp2k.org/conv#c012
+tmc_messages.F90: Found WRITE statement with hardcoded unit in "tmc_message" https://cp2k.org/conv#c012
+topology_generate_util.F90: Found WRITE statement with hardcoded unit in "generate_molname_low" https://cp2k.org/conv#c012
+topology_generate_util.F90: Found WRITE statement with hardcoded unit in "topology_generate_molecule" https://cp2k.org/conv#c012
+topology_gromos.F90: Found READ with unchecked STAT in "read_topology_gromos" https://cp2k.org/conv#c001
+topology_pdb.F90: Found READ with unchecked STAT in "read_coordinate_pdb" https://cp2k.org/conv#c001
+trexio.F90: Found STOP statement in procedure "trexio_assert" https://cp2k.org/conv#c205
+trexio.F90: Found WRITE statement with hardcoded unit in "trexio_assert" https://cp2k.org/conv#c012
+xc_gauxc_interface.F90: Found type cp_gauxc_status_type without initializer https://cp2k.org/conv#c016
+xyz2dcd.F90: Found CLOSE statement in procedure "xyz2dcd" https://cp2k.org/conv#c204
+xyz2dcd.F90: Found OPEN statement in procedure "xyz2dcd" https://cp2k.org/conv#c203
+xyz2dcd.F90: Found STOP statement in procedure "abort_program" https://cp2k.org/conv#c205
+xyz2dcd.F90: Found STOP statement in procedure "xyz2dcd" https://cp2k.org/conv#c205
+xyz2dcd.F90: Found WRITE statement with hardcoded unit in "abort_program" https://cp2k.org/conv#c012
+xyz2dcd.F90: Found WRITE statement with hardcoded unit in "print_help" https://cp2k.org/conv#c012
+xyz2dcd.F90: Found WRITE statement with hardcoded unit in "xyz2dcd" https://cp2k.org/conv#c012
 
 # Existing environment queries audited in #5857. These provide runtime metadata,
 # external resource locations, or diagnostics.
-machine.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "m_getlog" https://cp2k.org/conv#c107
-machine.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "m_omp_get_stacksize" https://cp2k.org/conv#c107
-skala_gpw_functional.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "get_skala_model_path" https://cp2k.org/conv#c107
-xc_gauxc_functional.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "apply_gauxc" https://cp2k.org/conv#c107
-xc_gauxc_interface.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "print_gauxc_status_message" https://cp2k.org/conv#c107
+machine.F90: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "m_getlog" https://cp2k.org/conv#c107
+machine.F90: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "m_omp_get_stacksize" https://cp2k.org/conv#c107
+skala_gpw_functional.F90: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "get_skala_model_path" https://cp2k.org/conv#c107
+xc_gauxc_functional.F90: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "apply_gauxc" https://cp2k.org/conv#c107
+xc_gauxc_interface.F90: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "print_gauxc_status_message" https://cp2k.org/conv#c107
 
 # MCL_COMM_MODE is MCL's own setting. It must be checked before the input is read to decide whether MCL is initialized for a MiMiC run
-message_passing.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "mp_world_init" https://cp2k.org/conv#c107
+message_passing.F90: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "mp_world_init" https://cp2k.org/conv#c107
 
 # Suppression kept for toolchain based convention check
-cp_output_handling_openpmd.F: Found type cp_openpmd_per_call_value_type without initializer https://cp2k.org/conv#c016
+cp_output_handling_openpmd.F90: Found type cp_openpmd_per_call_value_type without initializer https://cp2k.org/conv#c016
 
 
 # TODO remove: https://github.com/cp2k/cp2k/issues/6183
-fde_methods.F: Found CALL EXECUTE_COMMAND_LINE in procedure "fde_spawn" https://cp2k.org/conv#c106
-tblite_reference_cli.F: Found CALL EXECUTE_COMMAND_LINE in procedure "tb_reference_cli_execute" https://cp2k.org/conv#c106
+fde_methods.F90: Found CALL EXECUTE_COMMAND_LINE in procedure "fde_spawn" https://cp2k.org/conv#c106
+tblite_reference_cli.F90: Found CALL EXECUTE_COMMAND_LINE in procedure "tb_reference_cli_execute" https://cp2k.org/conv#c106
 
 # clang-tidy
 base/openmp_trace.c: function 'getenv' is banned; it should not be used https://cp2k.org/conv#bugprone-unsafe-functions

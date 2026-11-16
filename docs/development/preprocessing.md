@@ -4,6 +4,9 @@ CP2K uses preprocessing to either write code automatically, error handling, cond
 or prevention of issues with compilers. CP2K employs two different preprocessors: the traditional
 C-Preprocessor and [Fypp](https://github.com/aradi/fypp).
 
+CP2K Fortran sources use the `.F90` extension and free source form. The build processes them with
+Fypp first, then enables C preprocessing for compilation.
+
 ## Conditional compilation
 
 CP2K requires a separate wrapper module for every of its external dependencies. To prevent linking
@@ -44,7 +47,7 @@ This trick does not work in the rare case of assumed-size arguments where we nee
   - default initializers of derived types with `ALLOCATABLE` components: Check the value of
     `FTN_NO_DEFAULT_INIT`. If it is true, call the initializer by explicitly setting all
     `ALLOCATABLE` components to `NULL()` (see for instance
-    [here](https://github.com/cp2k/cp2k/blob/master/src/mp2_types.F)), otherwise, use the ordinary
+    [here](https://github.com/cp2k/cp2k/blob/master/src/mp2_types.F90)), otherwise, use the ordinary
     default initializer.
 - Support for performance-related features.
 
@@ -62,4 +65,4 @@ places:
   of parameters.
 - In `cp_linked_list.fypp` to implement a templated linked list. In all occasions where we are in
   need of linked list, the missing parts of the template need to be provided by the module (see the
-  modules `cp_linked_list_*.F` for some examples).
+  modules `cp_linked_list_*.F90` for some examples).

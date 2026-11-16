@@ -113,17 +113,17 @@ intermediate under- or overflow while still performing optimally. Examples:
 For many common operations there exist wrappers in CP2K to prevent usage errors and to allow for
 central redirections, i.e. avoid to use direct calls to external libraries in CP2K
 
-- Use the routines from `cp_files.F` instead of calling `OPEN` and `CLOSE` directly.
+- Use the routines from `cp_files.F90` instead of calling `OPEN` and `CLOSE` directly.
 - Use the routines from the full-matrix `fm`-package instead of calling BLAS or Scalapack directly.
   Distributed matrix-matrix multiplications using full matrices from the `fm`-packe use the
   `parallel_gemm_api` module instead, large local matrix-matrix multiplications using local matrices
   use the `local_gemm_api` package instead.
-- Use the routines from `message_passing.F` instead of calling MPI directly. Most of the routines
+- Use the routines from `message_passing.F90` instead of calling MPI directly. Most of the routines
   are bound to a communicator, for instance a call to MPI_Sendrecv from communicator `comm` is
   performed by calling
   `CALL comm%sendrecv(sendbuffer, send_process, recvbuffer, recv_process, tag)`.
-- Use the routines from `fft_lib.F` instead of calling FFT (any library) directly.
-- Use the routines from `machine.F` to access architecture depended things like e.g. the working
+- Use the routines from `fft_lib.F90` instead of calling FFT (any library) directly.
+- Use the routines from `machine.F90` to access architecture depended things like e.g. the working
   directory.
 - Don't use `UNIT=*` in `WRITE` or `PRINT` statements. Instead request a unit from the logger:
   `iw=cp_logger_get_default_unit_nr()` and write only if you actually received a unit:
@@ -233,11 +233,11 @@ in case of CUDA-code.
 
 - Each file should start with the official CP2K header. Some low-level packages make use of a
   different license.
-- Each `.F` file should contain either a `PROGRAM` or a single `MODULE`, whose name matches the
+- Each `.F90` file should contain either a `PROGRAM` or a single `MODULE`, whose name matches the
   filename.
 - Each module and routine should be annotated with Doxygen documentation (see below).
 - Each preprocessor flag should start with two underscores and be documented in the `INSTALL`-file
-  and added to the cp2k_flags function (cp2k_info.F).
+  and added to the cp2k_flags function (cp2k_info.F90).
 - The code should be formatted with the prettify tool by running `./make_pretty.sh`.
 
 ## Write tests

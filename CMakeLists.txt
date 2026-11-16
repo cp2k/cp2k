@@ -30,7 +30,7 @@ if(POLICY CMP0144)
   cmake_policy(SET CMP0144 NEW)
 endif()
 
-# !!! Keep version in sync with cp2k_info.F !!!
+# !!! Keep version in sync with cp2k_info.F90 !!!
 project(
   cp2k
   DESCRIPTION "CP2K"

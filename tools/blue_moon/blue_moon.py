@@ -29,7 +29,7 @@ FloatArray = NDArray[np.float64]
 Frame = tuple[int, FloatArray]
 Sample = tuple[int, float, float, float, float, float, float]
 
-# Match src/common/physcon.F, not a different vintage of CODATA constants.
+# Match src/common/physcon.F90, not a different vintage of CODATA constants.
 ANGSTROM_PER_BOHR = 0.52917720859
 KB_HARTREE_PER_K = 1.3806504e-23 / (2 * 10973731.568527 * 6.62606896e-34 * 299792458)
 

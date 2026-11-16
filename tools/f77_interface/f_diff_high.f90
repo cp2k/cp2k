@@ -18,7 +18,7 @@
 !!     with respect to the mean quadratic force are printed.
 !!
 !!   NOTES
-!!     The easiest way to use it is to replace cp2k/src/cp2k.F with this
+!!     The easiest way to use it is to replace cp2k/src/start/cp2k.F90 with this
 !!     file and recompile cp2k.
 !!
 !!     Using this method you could also get full access to cp2k

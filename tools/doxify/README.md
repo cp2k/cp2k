@@ -5,25 +5,25 @@ subroutines and functions in CP2K. The objective of the scripts is to ensure tha
 and functions in CP2K have a standard DOXYGEN comment block and to flag any missing comments such
 that the CP2K developers can add/update these when time is available.
 
-The driver script `doxyify.sh` will process CP2K source code (`*.F` files) processing one file at a
-time. The following steps are carried out for each `*.F` file:
+The driver script `doxyify.sh` will process CP2K source code (`*.F90` files) processing one file at
+a time. The following steps are carried out for each `*.F90` file:
 
 1. Run `remove_double_ampersands.pl` - removes any any double ampersand characters
 1. Run `fixcomments.pl` - does the addition of missing comments or updating of existing comments
 1. Run `remove_extra_comments.pl` - removes any extra comment lines which arise from application of
    `fixcomments.pl`
-1. Finally, overwrite the original `*.F` file with the updated version
+1. Finally, overwrite the original `*.F90` file with the updated version
 
 To run the script, you should execute it with the name of the source file you want to process:
 
 ```shell
-./doxyify.sh full_path_to_cp2k_src/myfile.F
+./doxyify.sh full_path_to_cp2k_src/myfile.F90
 ```
 
 or with a list of files, e.g.
 
 ```shell
-./doxyify.sh full_path_to_cp2k_src/myfile.F full_path_to_cp2k_src/myfile2.F full_path_to_cp2k_src/myfile2.F
+./doxyify.sh full_path_to_cp2k_src/myfile.F90 full_path_to_cp2k_src/myfile2.F90 full_path_to_cp2k_src/myfile2.F90
 ```
 
 In debug mode, the script will produce a lot of output if the whole source tree is processed so you
