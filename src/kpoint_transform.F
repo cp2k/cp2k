@@ -61,6 +61,7 @@ MODULE kpoint_transform
                    'initialize', 'geometry', 'buffers', 'grid-fill', 'FFT-X/plan', 'FFT-Y/plan', 'FFT-Z/plan', 'extract', 'release']
    INTEGER(KIND=int_8), PARAMETER, PRIVATE :: rskp_gemm_bytes = 1000_int_8*1024_int_8**2, &
                                               dbcsr_batch_bytes = 1000_int_8*1024_int_8**2
+   PUBLIC :: k_grid_to_cell_phase_type
    PUBLIC :: kp_transform_plan_type, kp_transform_plan_create, rskp_route_type, rskp_values_type
    PUBLIC :: rskp_route_create, rskp_route_release, rskp_capture, rskp_compatible, rskp_values_release
    PUBLIC :: rskp_backend_gemm, rskp_backend_fft, cell_to_k_backend_prepare
@@ -74,13 +75,13 @@ MODULE kpoint_transform
    PUBLIC :: cell_to_k_transform, k_to_real_cell_transform
 
    ! Unweighted one-dimensional phases for one symmetry group's local k domain.
-   TYPE, PUBLIC :: k_grid_to_cell_phase_type
+   TYPE :: k_grid_to_cell_phase_type
       INTEGER :: first(4) = 1
       INTEGER, ALLOCATABLE :: coordinate(:)
       REAL(KIND=dp), ALLOCATABLE :: cosine(:, :), sine(:, :)
    END TYPE k_grid_to_cell_phase_type
 
-   TYPE, PUBLIC :: kp_transform_plan_type
+   TYPE :: kp_transform_plan_type
       INTEGER :: nentry = 0, ngroup = 0
       LOGICAL :: symmetric = .FALSE.
       INTEGER, ALLOCATABLE, DIMENSION(:) :: col, col_offset, group_start, image, row, row_offset
@@ -128,7 +129,7 @@ MODULE kpoint_transform
    END TYPE rskp_values_type
 
    ! Slot-free owner for captured source rows sharing one target-local R-to-K map.
-   TYPE, PUBLIC :: rskp_prepared_transform_type
+   TYPE :: rskp_prepared_transform_type
       PRIVATE
       TYPE(rskp_route_type) :: route = rskp_route_type()
       TYPE(rskp_values_type), ALLOCATABLE :: values(:)
