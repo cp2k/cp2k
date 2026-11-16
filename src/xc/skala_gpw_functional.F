@@ -811,26 +811,38 @@ CONTAINS
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho, fxc_tau
 
       CHARACTER(len=default_path_length)                 :: model_path
-      INTEGER                                            :: device, i, partition, selected_device
+      INTEGER                                            :: i, partition, selected_device
       LOGICAL                                            :: fp64, use_cuda
       REAL(KIND=dp)                                      :: exc
       REAL(KIND=dp), ALLOCATABLE                         :: density_grad(:, :), grad_grad(:, :, :), &
                                                             kin_grad(:, :)
-      TYPE(section_vals_type), POINTER                   :: gauxc_section
+      TYPE(section_vals_type), POINTER                   :: native_section
       TYPE(skala_gpw_feature_type)                       :: direction, reference
       TYPE(torch_tensor_type)                            :: directions(3), exc_tensor, responses(3)
       TYPE(xc_rho_set_type)                              :: rho1_set
 
-      gauxc_section => get_gauxc_section(xc_section)
-      CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_MODEL_FP64", l_val=fp64)
-      IF (.NOT. fp64) THEN
-         CALL cp_abort(__LOCATION__, "Native Skala response requires NATIVE_GRID_MODEL_FP64.")
+      fp64 = .TRUE.
+      partition = skala_gpw_atom_partition_smooth
+      native_section => get_skala_native_section(xc_section)
+      IF (ASSOCIATED(native_section)) THEN
+         CALL section_vals_val_get(native_section, "MODEL_FP64", l_val=fp64)
+         CALL section_vals_val_get(native_section, "ATOM_PARTITION", i_val=partition)
       END IF
-      CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_USE_CUDA", l_val=use_cuda)
-      CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_CUDA_DEVICE", i_val=device)
-      CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_ATOM_PARTITION", i_val=partition)
+      IF (.NOT. fp64) THEN
+         CALL cp_abort(__LOCATION__, "Native Skala response requires MODEL_FP64.")
+      END IF
+      SELECT CASE (partition)
+      CASE (1)
+         partition = skala_gpw_atom_partition_hard
+      CASE (2)
+         partition = skala_gpw_atom_partition_smooth
+      CASE DEFAULT
+         CALL cp_abort(__LOCATION__, &
+                       "Unknown SKALA_NATIVE%ATOM_PARTITION value.")
+      END SELECT
+      use_cuda = skala_execution_use_cuda(xc_section)
       CALL torch_use_cuda(use_cuda)
-      selected_device = configure_native_grid_cuda(use_cuda, device, rho1_r(1)%pw_grid%para%group)
+      selected_device = configure_native_grid_cuda(use_cuda, rho1_r(1)%pw_grid%para%group)
       CALL get_skala_model_path(xc_section, model_path)
       CALL ensure_model_loaded(model_path, selected_device, xc_section, higher_derivatives=.TRUE.)
 
@@ -838,7 +850,8 @@ CONTAINS
       ! Both maps use the fixed SCF grid. The second map packs a signed direction,
       ! not a new physical density, without clipping or density normalization.
       CALL skala_gpw_feature_build(direction, rho1_set, rho1_r, particle_set, cell, &
-                                   requires_grad=.FALSE., weights=weights, atom_partition=partition)
+                                   requires_grad=.FALSE., weights=weights, atom_partition=partition, &
+                                   cuda_device=selected_device)
       ! The feature builder reuses dynamic tensors. Keep independent direction
       ! tensors before packing the reference into that cache.
       CALL torch_tensor_from_array(directions(1), direction%density)
@@ -848,7 +861,8 @@ CONTAINS
          CALL torch_tensor_to_device_leaf(directions(i), .FALSE.)
       END DO
       CALL skala_gpw_feature_build(reference, rho0_set, rho1_r, particle_set, cell, &
-                                   requires_grad=.TRUE., weights=weights, atom_partition=partition)
+                                   requires_grad=.TRUE., weights=weights, atom_partition=partition, &
+                                   cuda_device=selected_device)
       CALL skala_torch_model_get_exc(cached_model, reference%inputs, reference%grid_weights_t, exc_tensor, exc)
       CALL torch_tensor_hessian_vector(exc_tensor, &
                                        [reference%density_t, reference%grad_t, reference%kin_t], &
