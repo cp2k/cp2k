@@ -37,15 +37,15 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
    USE fft_tools,                       ONLY: BWFFT,&
                                               fft_alloc,&
                                               fft_dealloc
-   USE gw_ri_rs_small_cell_full_kp_Gamma_correction,ONLY: add_gamma_corr_cell_correction,&
-                                              add_gamma_corr_pair_cell,&
-                                              gamma_point_correction,&
-                                              replace_gamma_sample,&
-                                              singular_head_cell_factors
    USE gw_ri_rs_small_cell_full_kp_lattice,ONLY: &
         assemble_AA_contraction, block_range, build_full_cell_grid, build_ri_2c_lattice, &
         complex_bytes, gamma_auxiliary_charges, owned_mo_coefficients, real_bytes, &
         ri_2c_lattice_to_kp, ri_metric_head_zero
+   USE gw_ri_rs_small_cell_full_kp_q0_corr,ONLY: add_gamma_corr_cell_correction,&
+                                              add_gamma_corr_pair_cell,&
+                                              gamma_point_correction,&
+                                              replace_gamma_sample,&
+                                              singular_head_cell_factors
    USE gw_ri_rs_small_cell_full_kp_types,ONLY: gwkp_type,&
                                               ri_q_matrix_block_type
    USE gw_utils_fm,                     ONLY: local_complex_power

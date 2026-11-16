@@ -9,7 +9,7 @@
 !> \brief Gamma-point (q = 0) correction of W and Σ for periodic RI-RS GW.
 !> \author Jan Wilhelm (with help of ChatGPT, GPT-6 Sol and GPT-6 Astra)
 ! **************************************************************************************************
-MODULE gw_ri_rs_small_cell_full_kp_Gamma_correction
+MODULE gw_ri_rs_small_cell_full_kp_q0_corr
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
@@ -83,7 +83,7 @@ MODULE gw_ri_rs_small_cell_full_kp_Gamma_correction
    IMPLICIT NONE
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_small_cell_full_kp_Gamma_correction'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_small_cell_full_kp_q0_corr'
 
    PUBLIC :: add_gamma_corr_cell_correction, &
              add_gamma_corr_pair_cell, &
@@ -2139,4 +2139,4 @@ CONTAINS
       DEALLOCATE (list)
    END SUBROUTINE gw_gamma_cell_index_union
 
-END MODULE gw_ri_rs_small_cell_full_kp_Gamma_correction
+END MODULE gw_ri_rs_small_cell_full_kp_q0_corr
