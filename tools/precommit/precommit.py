@@ -254,12 +254,12 @@ def process_file(fn: str, allow_modifications: bool) -> str:
     shutil.copy2(fn, bak_fn)
     filetype = "Other"  # Default filetype if no specific type is matched.
 
-    if re.match(r".*\.(F|fypp)$", fn):
+    if re.match(r".*\.(F|F90|fypp)$", fn):
         filetype = "Fortran/Fypp"
         run_local_tool("./tools/doxify/doxify.sh", fn)
         run_format_fortran(fn)
 
-    if re.match(r".*\.F$", fn):
+    if re.match(r".*\.(F|F90)$", fn):
         if re.search(r"(?m)^[ \t]*(?:[#$@]:|#!)|[#$@]\{", Path(fn).read_text()):
             # Do not fold generated lines: this can split identifiers that
             # Fortitude cannot parse.
@@ -345,7 +345,11 @@ def process_file(fn: str, allow_modifications: bool) -> str:
 
 # ======================================================================================
 def run_format_fortran(fn: str) -> None:
-    if fn in ("./src/base/base_uses.f90", "./src/common/util.F"):
+    if fn in (
+        "./src/base/base_uses.f90",
+        "./src/common/util.F",
+        "./src/common/util.F90",
+    ):
         return  # Skipping because of prettify bugs.
 
     # The prettify tool processes only about 1k lines of code per second.

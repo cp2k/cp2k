@@ -94,7 +94,7 @@ function(cp2k_compare_src_with_list _list_files _extension _exclude_list)
   file(
     GLOB_RECURSE _test_list
     RELATIVE "${CMAKE_SOURCE_DIR}/src"
-    "${_extension}")
+    ${_extension})
   # message(STATUS "ref : ${_list_files}") message(STATUS "search :
   # ${_test_list}")
 

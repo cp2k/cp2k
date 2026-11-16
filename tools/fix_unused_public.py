@@ -23,7 +23,7 @@ def main():
         if "preprettify" in root:
             continue
         for fn in files:
-            if not fn.endswith(".F"):
+            if not fn.endswith((".F", ".F90")):
                 continue
             absfn = path.join(root, fn)
 

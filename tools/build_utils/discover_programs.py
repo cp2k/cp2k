@@ -29,7 +29,7 @@ def main():
 
         for fn in files:
             abs_fn = path.join(root, fn)
-            if fn[-2:] == ".F":
+            if fn.endswith((".F", ".F90")):
                 if is_fortran_program(abs_fn):
                     programs.append(abs_fn)
 

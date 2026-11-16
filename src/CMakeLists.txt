@@ -90,7 +90,7 @@ if(CP2K_ENABLE_CONSISTENCY_CHECKS)
     "*.c"
     "${CP2K_EXCLUDED_SRCS_C}")
   cp2k_compare_src_with_list(
-    "${CP2K_SRCS_F};${CP2K_OFFLOAD_SRCS_F};${CP2K_PROGS_F}" "*.F"
+    "${CP2K_SRCS_F};${CP2K_OFFLOAD_SRCS_F};${CP2K_PROGS_F}" "*.F;*.F90"
     "${CP2K_EXCLUDED_SRCS_F}")
   cp2k_compare_src_with_list(
     "${CP2K_GRID_SRCS_GPU};${CP2K_GRID_SRCS_HIP};${CP2K_DBM_SRCS_GPU};${CP2K_PW_SRCS_GPU};${CP2K_NNP_SRCS_GPU}"

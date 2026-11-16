@@ -227,7 +227,7 @@ def check_file(path: pathlib.Path) -> List[str]:
         warnings += [f"{path}: misses check against OpenMP usage"]
 
     # Check spaces in Fortran multi-line strings.
-    if fn_ext == ".F":
+    if fn_ext in (".F", ".F90"):
         for i, (a, b) in enumerate(pairwise(content.split("\n"))):
             if STR_END_NOSPACE_RE.search(a) and STR_BEGIN_NOSPACE_RE.search(b):
                 warnings += [f"{path}:{i+1} Missing space in multi-line string"]
@@ -235,8 +235,8 @@ def check_file(path: pathlib.Path) -> List[str]:
                 warnings += [f"{path}:{i+1} Double space in multi-line string"]
 
     # Check CPASSERT(.FALSE.) and empty CPABORT() messages
-    suppress_cpabort = ["semi_empirical_int_debug.F"]
-    if fn_ext == ".F" and basefn not in suppress_cpabort:
+    suppress_cpabort = ["semi_empirical_int_debug"]
+    if fn_ext in (".F", ".F90") and path.stem not in suppress_cpabort:
         if "CPASSERT(.FALSE.)" in content:
             warnings += [
                 f"{path}: Found CPASSERT(.FALSE.) - please use CPABORT() with messages"
@@ -257,7 +257,7 @@ def check_file(path: pathlib.Path) -> List[str]:
     else:
         spdx = "GPL-2.0-or-later"
 
-    if fn_ext == ".F" and not content.startswith(BANNER_F.format(year, spdx)):
+    if fn_ext in (".F", ".F90") and not content.startswith(BANNER_F.format(year, spdx)):
         warnings += [f"{path}: Copyright banner malformed"]
     if fn_ext == ".fypp" and not content.startswith(BANNER_SHELL.format(year, spdx)):
         warnings += [f"{path}: Copyright banner malformed"]
@@ -272,7 +272,7 @@ def check_file(path: pathlib.Path) -> List[str]:
         head = "\n".join(content.split("\n")[:8])
         if "SPDX-License-Identifier: CC-BY-SA-4.0" not in head:
             warnings += [f"{path}: Missing SPDX-License-Identifier: CC-BY-SA-4.0"]
-    if path.name == "cp2k_info.F" and f'cp2k_year = "{year}"' not in content:
+    if path.stem == "cp2k_info" and f'cp2k_year = "{year}"' not in content:
         warnings += [f"{path}: Wrong year."]
 
     # check shebang

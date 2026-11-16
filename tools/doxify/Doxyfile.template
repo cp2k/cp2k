@@ -9,7 +9,7 @@ PROJECT_LOGO = "cp2k_logo.png"
 CREATE_SUBDIRS = YES
 OPTIMIZE_FOR_FORTRAN = YES
 OPTIMIZE_OUTPUT_FOR_C = YES
-EXTENSION_MAPPING += F=Fortran cu=C
+EXTENSION_MAPPING += F=Fortran F90=Fortran cu=C
 STRIP_FROM_PATH = ./src/
 JAVADOC_BANNER = YES
 
@@ -31,7 +31,7 @@ WARN_IF_DOC_ERROR = NO
 # input files
 INPUT = ./src/
 RECURSIVE = YES
-FILE_PATTERNS = *.F *.f90 *.h *.c *.cu
+FILE_PATTERNS = *.F *.F90 *.f90 *.h *.c *.cu
 
 
 # source browsing

@@ -1,4 +1,5 @@
 *.F linguist-language=Fortran-Free-Form
+*.F90 linguist-language=Fortran-Free-Form
 *.inc linguist-language=Text
 # Preserve the imported H generator text and its recorded checksum.
 tests/QS/regtest-upf/H.us.pbe.z_1.ld1.psl.v1.0.0-high-full-waves.upf whitespace=-blank-at-eol

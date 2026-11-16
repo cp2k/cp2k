@@ -44,7 +44,7 @@ function(ADD_FYPP_SOURCES OUTVAR)
       file(MAKE_DIRECTORY "${d}")
     endif()
 
-    if("${f}" MATCHES ".F$")
+    if("${ext}" STREQUAL ".F" OR "${ext}" STREQUAL ".F90")
       # append the output file to the list of outputs
       list(APPEND outfiles "${of}")
       # now add the custom command to generate the output file
@@ -54,6 +54,8 @@ function(ADD_FYPP_SOURCES OUTVAR)
                 "${f}" "${of}"
         MAIN_DEPENDENCY "${f}"
         VERBATIM)
+      set_source_files_properties("${of}" PROPERTIES Fortran_FORMAT FREE
+                                                     Fortran_PREPROCESS ON)
     elseif("${f}" MATCHES ".h$")
       # append the output file to the list of outputs
       list(APPEND outfiles "${of}")

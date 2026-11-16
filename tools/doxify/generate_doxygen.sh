@@ -8,7 +8,7 @@ while IFS= read -r -d '' SRC_FN; do
   echo "Preprocessing ${SRC_FN}"
   DEST_FN="${DOXYGENDIR}/${SRC_FN}"
   mkdir -p "$(dirname "${DEST_FN}")"
-  if [[ "${SRC_FN}" == *.F ]]; then
+  if [[ "${SRC_FN}" == *.F || "${SRC_FN}" == *.F90 ]]; then
     ./tools/build_utils/fypp "${SRC_FN}" "${DEST_FN}" &> /dev/null
   else
     cp "${SRC_FN}" "${DEST_FN}"

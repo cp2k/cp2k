@@ -56,7 +56,7 @@ def main(out_fn, project_name, mod_format, mode, archive_ext, src_dir, src_files
 
     # check "one module per file"-convention
     for m, fn in mod2fn.items():
-        if basename(fn) != m + ".F":
+        if basename(fn) not in (m + ".F", m + ".F90"):
             error("Names of module and file do not match: " + fn)
 
     # read package manifests
@@ -210,7 +210,7 @@ def parse_file(parsed_files, fn, src_dir):
     uses = []
     prog = False
 
-    if fn[-2:] == ".F" or fn[-4:] == ".f90" or fn[-5:] == ".fypp":
+    if fn.endswith((".F", ".F90", ".f90", ".fypp")):
         mods += re_module.findall(content_lower)
         prog = True if re_program.search(content_lower) is not None else False
         uses += re_use.findall(content_lower)

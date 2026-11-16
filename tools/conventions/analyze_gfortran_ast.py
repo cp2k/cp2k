@@ -23,7 +23,7 @@ re_conv = re.compile(
 # ======================================================================================
 def process_log_file(fhandle: TextIO) -> None:
     short_filename = path.basename(fhandle.name)[:-4]
-    is_unittest = short_filename.endswith("_unittest.F")
+    is_unittest = short_filename.endswith(("_unittest.F", "_unittest.F90"))
 
     def msg(message: str, conv_num: int) -> None:
         print(f"{short_filename}: {message} https://cp2k.org/conv#c{conv_num:03}")
