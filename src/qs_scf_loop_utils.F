@@ -726,7 +726,7 @@ CONTAINS
          local_kpoint, nactive, nao, nkpoint, nlocal_channels, nmo, nocc, nspin_energy, nspin_ot
       INTEGER, DIMENSION(2)                              :: kp_range
       LOGICAL :: local_orbitals, need_gradient, need_mo_coeff, ot_gradient_prepared, &
-         physical_base_state, restart_history, restricted_roks, use_real_wfn
+         physical_base_state, restart_history, restricted_roks, unweighted_search, use_real_wfn
       REAL(KIND=dp)                                      :: trial_kTS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: orbital_scaling_factor, roks_occupation, &
                                                             trial_mu
@@ -814,6 +814,7 @@ CONTAINS
 
       CALL ot_mini_prepare(local_ot_env, restart_history, para_env_inter_kp)
       need_gradient = .NOT. local_ot_env(1)%energy_only .OR. restart_history
+      unweighted_search = local_ot_env(1)%settings%occupation_preconditioner .OR. local_ot_env(1)%optimize_virtuals
 
       ! All k-point groups read H(k) from the cache, including a single distributed group.
       ! Fixed-occupation energy-only trials need no H(k) and can reuse the stored S(k).
@@ -827,7 +828,7 @@ CONTAINS
 
       ALLOCATE (matrix_hc(nlocal_channels))
       ALLOCATE (matrix_hc_im(nlocal_channels))
-      IF (need_gradient .AND. local_ot_env(1)%settings%occupation_preconditioner) THEN
+      IF (need_gradient .AND. unweighted_search) THEN
          ALLOCATE (matrix_hc_physical(nlocal_channels))
          ALLOCATE (matrix_hc_physical_im(nlocal_channels))
       END IF
@@ -1101,23 +1102,25 @@ CONTAINS
                CALL cp_fm_release(mo_coeff_im)
             END IF
             ALLOCATE (orbital_scaling_factor(nactive))
-            IF (local_ot_env(local_channel)%settings%occupation_preconditioner) THEN
+            IF (unweighted_search) THEN
                CALL dbcsr_copy(matrix_hc_physical(local_channel)%matrix, &
                                matrix_hc(local_channel)%matrix)
                CALL dbcsr_copy(matrix_hc_physical_im(local_channel)%matrix, &
                                matrix_hc_im(local_channel)%matrix)
                IF (restricted_roks) THEN
                   orbital_scaling_factor(:) = 2.0_dp*wkp(ikpoint)
-               ELSE
+               ELSE IF (local_ot_env(local_channel)%settings%do_ener) THEN
                   orbital_scaling_factor(:) = 2.0_dp*wkp(ikpoint)* &
                                               trial_occupation(1:nactive, ikpoint, ispin)
+               ELSE
+                  orbital_scaling_factor(:) = 2.0_dp*wkp(ikpoint)*occupation_numbers(1:nactive)
                END IF
                CALL dbcsr_scale_by_vector(matrix_hc_physical(local_channel)%matrix, &
                                           alpha=orbital_scaling_factor, side='right')
                CALL dbcsr_scale_by_vector(matrix_hc_physical_im(local_channel)%matrix, &
                                           alpha=orbital_scaling_factor, side='right')
             END IF
-            IF (local_ot_env(local_channel)%settings%occupation_preconditioner) THEN
+            IF (unweighted_search) THEN
                orbital_scaling_factor(:) = 2.0_dp*wkp(ikpoint)
             ELSE IF (restricted_roks) THEN
                orbital_scaling_factor(:) = 2.0_dp*wkp(ikpoint)

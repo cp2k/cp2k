@@ -995,7 +995,8 @@ CONTAINS
          !      END IF
          IF (output_unit > 0) WRITE (output_unit, *) "---------------------------------------------"
 
-         IF (scf_control%use_ot) THEN
+         IF (scf_control%use_ot .AND. &
+             .NOT. (ANY(scf_control%added_mos > 0) .AND. .NOT. scf_control%smear%do_smear)) THEN
             ! Also rotate the OT derivs, since they are needed for force calculations
             IF (ASSOCIATED(mo_derivs)) THEN
                mo_coeff_deriv => mo_derivs(ispin)%matrix
@@ -1103,14 +1104,13 @@ CONTAINS
 !>        unoccupied orbitals, so that the occupied space (the determinant) is unchanged.
 !>        The orbitals are rotated in place: the eigenvalues, the DBCSR copy of the coefficients
 !>        (if used) and the orbital derivatives (if given) are rotated consistently, C' = C U and
-!>        D' = D U. Nothing is done if the orbitals are already canonical, i.e. if no
-!>        off-diagonal Fock matrix element exceeds eps_canonical; orbitals of a converged
-!>        diagonalization SCF are therefore never changed.
+!>        D' = D U. For positive eps_canonical, nothing is done if no off-diagonal Fock
+!>        matrix element exceeds the threshold. Zero also sorts already diagonal blocks.
 !>        Requires integer occupations (0 or the maximum occupation); fractionally occupied
 !>        orbitals and ROKS orbitals must not be mixed this way.
 !> \param mo_set the MO set (e.g. the SCF orbitals after an OT optimization)
 !> \param ks_matrix Kohn-Sham or Fock matrix
-!> \param eps_canonical largest off-diagonal Fock matrix element accepted as canonical
+!> \param eps_canonical largest off-diagonal Fock element accepted as canonical; zero forces a Ritz rotation
 !> \param rotated whether the orbitals were rotated
 !> \param max_offdiag largest off-diagonal Fock matrix element before the rotation
 !> \param mo_derivs derivatives of the energy with respect to the orbitals (OT), rotated as well
@@ -1142,7 +1142,7 @@ CONTAINS
       CALL calculate_orbital_fock_elements(mo_set%mo_coeff, ks_matrix, energies, max_offdiag)
       DEALLOCATE (energies)
 
-      IF (max_offdiag > eps_canonical) THEN
+      IF (max_offdiag > eps_canonical .OR. eps_canonical <= 0.0_dp) THEN
          DO i = 1, nmo
             IF (ABS(mo_set%occupation_numbers(i)) > eps_occ .AND. &
                 ABS(mo_set%occupation_numbers(i) - mo_set%maxocc) > eps_occ) THEN

@@ -1041,10 +1041,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ROTATION", &
-                          description="Introduce additional variables so that rotations of the occupied"// &
-                          " subspace are allowed as well, only needed for cases where the energy is not invariant under"// &
-                          " a rotation of the occupied subspace such as non-singlet restricted calculations"// &
-                          " or fractional occupations. This variable is not used by DIAGONALIZATION%OT, "// &
+                          description="Introduce variables for rotations within the optimized orbital subspace. "// &
+                          "Required for orbitals with different occupations, including ADDED_MOS, "// &
+                          "fractional occupations, and non-singlet restricted calculations. "// &
+                          "This variable is not used by DIAGONALIZATION%OT, "// &
                           "which canonicalizes the converged eigenspace explicitly.", &
                           usage="ROTATION", lone_keyword_l_val=.TRUE., &
                           default_l_val=.FALSE.)
@@ -1063,8 +1063,10 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="OCCUPATION_PRECONDITIONER", &
                           description="Augment the direct SCF%OT orbital metric with coupled fixed-N "// &
                           "occupation response. This augments the independently selected orbital "// &
-                          "preconditioner. It is not used by DIAGONALIZATION%OT, where occupations are "// &
-                          "assigned after the eigensolver has converged.", &
+                          "preconditioner. With fixed-occupation ADDED_MOS, the unweighted orbital search "// &
+                          "is always used and no occupation response is needed. It is not used by "// &
+                          "DIAGONALIZATION%OT, where occupations are assigned after the eigensolver "// &
+                          "has converged.", &
                           usage="OCCUPATION_PRECONDITIONER", lone_keyword_l_val=.TRUE., &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)

@@ -141,7 +141,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_scf_mini'
 
       INTEGER                                            :: handle, ispin, k, n, nspin
-      LOGICAL                                            :: need_gradient, restart_history
+      LOGICAL                                            :: need_gradient, restart_history, &
+                                                            unweighted_search
       REAL(KIND=dp)                                      :: ener_nondiag, trace
       TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: expectation_values, occupation_numbers, &
                                                             scaling_factor
@@ -156,6 +157,7 @@ CONTAINS
 
       CALL ot_mini_prepare(qs_ot_env, restart_history)
       need_gradient = .NOT. qs_ot_env(1)%energy_only .OR. restart_history
+      unweighted_search = qs_ot_env(1)%settings%occupation_preconditioner .OR. qs_ot_env(1)%optimize_virtuals
 
       nspin = SIZE(mo_array)
 
@@ -185,7 +187,7 @@ CONTAINS
       END IF
 
       ! get a rotational force
-      IF (.NOT. energy_only) THEN
+      IF (need_gradient) THEN
          IF (qs_ot_env(1)%settings%do_rotation) THEN
             DO ispin = 1, SIZE(qs_ot_env)
                CALL get_mo_set(mo_set=mo_array(ispin), mo_coeff_b=mo_coeff)
@@ -268,14 +270,14 @@ CONTAINS
       NULLIFY (matrix_dedc_physical)
       IF (need_gradient) THEN
          ALLOCATE (matrix_dedc_scaled(SIZE(matrix_dedc)))
-         IF (qs_ot_env(1)%settings%occupation_preconditioner) THEN
+         IF (unweighted_search) THEN
             ALLOCATE (matrix_dedc_physical(SIZE(matrix_dedc)))
          END IF
          DO ispin = 1, SIZE(matrix_dedc)
             ALLOCATE (matrix_dedc_scaled(ispin)%matrix)
             CALL dbcsr_copy(matrix_dedc_scaled(ispin)%matrix, matrix_dedc(ispin)%matrix)
 
-            IF (qs_ot_env(1)%settings%occupation_preconditioner) THEN
+            IF (unweighted_search) THEN
                ALLOCATE (matrix_dedc_physical(ispin)%matrix)
                CALL dbcsr_copy(matrix_dedc_physical(ispin)%matrix, matrix_dedc(ispin)%matrix)
                CALL dbcsr_scale_by_vector(matrix_dedc_physical(ispin)%matrix, &
@@ -291,7 +293,7 @@ CONTAINS
 
       IF (ASSOCIATED(matrix_dedc_physical) .AND. &
           (qs_ot_env(1)%settings%ot_method == "CG" .OR. &
-           qs_ot_env(1)%settings%ot_method == "SD")) THEN
+           qs_ot_env(1)%settings%ot_method == "SD" .OR. qs_ot_env(1)%optimize_virtuals)) THEN
          CALL ot_mini(qs_ot_env, matrix_dedc_scaled, matrix_hc_physical=matrix_dedc_physical, &
                       restart_history=restart_history)
       ELSE
@@ -389,7 +391,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_scf_init'
 
       INTEGER                                            :: handle, ispin, k, n, nspin
-      LOGICAL                                            :: is_equal
+      LOGICAL                                            :: is_equal, optimize_virtuals
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_fm
       TYPE(dbcsr_type), POINTER                          :: mo_coeff
 
@@ -416,6 +418,8 @@ CONTAINS
       ! **** SCP
       ! adapted for work with the restricted keyword
       nspin = SIZE(qs_ot_env)
+      optimize_virtuals = .NOT. qs_ot_env(1)%settings%do_ener .AND. &
+                          ANY(mo_array(:)%nmo > mo_array(:)%homo)
 
       DO ispin = 1, nspin
 
@@ -428,7 +432,8 @@ CONTAINS
          CALL dbcsr_get_info(mo_coeff, nfullrows_total=n, nfullcols_total=k)
 
          ! allocate
-         CALL qs_ot_allocate(qs_ot_env(ispin), matrix_ks, mo_coeff_fm%matrix_struct)
+         CALL qs_ot_allocate(qs_ot_env(ispin), matrix_ks, mo_coeff_fm%matrix_struct, &
+                             optimize_virtuals=optimize_virtuals)
 
          ! set c0,sc0
          CALL dbcsr_copy(qs_ot_env(ispin)%matrix_c0, mo_coeff)
