@@ -381,9 +381,10 @@ int fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
   if (is_initialized) {
     return 0;
   }
-  number_of_caches = imax(1, omp_get_max_threads()); // NOLINT: per-thread caches
-  caches = calloc((size_t)number_of_caches * FFTW_CACHE_SIZE,
-                  sizeof(cache_entry));
+  number_of_caches =
+      imax(1, omp_get_max_threads()); // NOLINT: per-thread caches
+  caches =
+      calloc((size_t)number_of_caches * FFTW_CACHE_SIZE, sizeof(cache_entry));
   cache_oldest_entries = calloc((size_t)number_of_caches, sizeof(int));
   assert(caches != NULL && cache_oldest_entries != NULL);
   omp_init_nest_lock(&cache_lock);
@@ -943,8 +944,8 @@ void fft_fftw_register_1d_local(
   } else {
     fft_key_t key;
     get_key_1d(direction, fft_size, number_of_ffts, transpose_in, transpose_out,
-               leading_dimension_in, leading_dimension_out,
-               fft_team_size(), in_place, key);
+               leading_dimension_in, leading_dimension_out, fft_team_size(),
+               in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL)
       plan = fft_fftw_create_1d_plan(key, grid_in, grid_out);
@@ -1010,8 +1011,8 @@ void fft_fftw_register_1d_r2c_local(const int fft_size,
   } else {
     fft_key_t key;
     get_key_1d_r2c(true, fft_size, number_of_ffts, transpose_in, transpose_out,
-                   leading_dimension_in, leading_dimension_out,
-                   fft_team_size(), in_place, key);
+                   leading_dimension_in, leading_dimension_out, fft_team_size(),
+                   in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       plan = fft_fftw_create_1d_plan_r2c(key, grid_in, (double *)grid_out);
@@ -1077,8 +1078,8 @@ void fft_fftw_register_1d_c2r_local(const int fft_size,
   } else {
     fft_key_t key;
     get_key_1d_r2c(false, fft_size, number_of_ffts, transpose_in, transpose_out,
-                   leading_dimension_in, leading_dimension_out,
-                   fft_team_size(), in_place, key);
+                   leading_dimension_in, leading_dimension_out, fft_team_size(),
+                   in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       plan = fft_fftw_create_1d_plan_r2c(key, (double *)grid_in, grid_out);
@@ -1784,7 +1785,7 @@ void fft_fftw_1d_local(const bool direction, const int fft_size,
         transpose_in ? block_size : block_size * leading_dimension_in;
     const int offset_out =
         transpose_out ? block_size : block_size * leading_dimension_out;
-#pragma omp parallel num_threads(number_of_threads) default(none)             \
+#pragma omp parallel num_threads(number_of_threads) default(none)              \
     shared(number_of_full_blocks, plan, grid_in, grid_out, offset_in,          \
                offset_out, plan_last_thread, total_number_of_blocks)
     {
@@ -1895,8 +1896,8 @@ void fft_fftw_1d_r2c_local(const int fft_size, const int number_of_ffts,
   } else {
     fft_key_t key;
     get_key_1d_r2c(true, fft_size, number_of_ffts, transpose_in, transpose_out,
-                   leading_dimension_in, leading_dimension_out,
-                   fft_team_size(), in_place, key);
+                   leading_dimension_in, leading_dimension_out, fft_team_size(),
+                   in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       double *buffer = fftw_alloc_real(2 * get_buffer_size_from_key(key));
@@ -1990,9 +1991,8 @@ void fft_fftw_1d_c2r_local(const int fft_size, const int number_of_ffts,
   } else {
     fft_key_t key;
     get_key_1d_r2c(false, fft_size, number_of_ffts, transpose_in, transpose_out,
-                   leading_dimension_in, leading_dimension_out,
-                   fft_team_size(), grid_in == (double complex *)grid_out,
-                   key);
+                   leading_dimension_in, leading_dimension_out, fft_team_size(),
+                   grid_in == (double complex *)grid_out, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       double *buffer = fftw_alloc_real(2 * get_buffer_size_from_key(key));
