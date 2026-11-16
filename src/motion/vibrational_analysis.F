@@ -119,7 +119,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: Clist, Mlist
       LOGICAL :: calc_intens, calc_thchdata, do_mode_tracking, intens_ir, intens_raman, &
          keep_rotations, row_force, something_frozen
-      REAL(KIND=dp)                                      :: a1, a2, a3, conver, dummy, dx, &
+      REAL(KIND=dp)                                      :: a1, a2, a3, conver, dummy, dx, eps_sym, &
                                                             inertia(3), minimum_energy, norm, &
                                                             tc_press, tc_temp, tmp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: H_eigval1, H_eigval2, HeigvalDfull, &
@@ -174,6 +174,7 @@ CONTAINS
       CALL section_vals_val_get(vib_section, "THERMOCHEMISTRY", l_val=calc_thchdata)
       CALL section_vals_val_get(vib_section, "TC_TEMPERATURE", r_val=tc_temp)
       CALL section_vals_val_get(vib_section, "TC_PRESSURE", r_val=tc_press)
+      CALL section_vals_val_get(vib_section, "EPS_SYMMETRY", r_val=eps_sym)
 
       tc_temp = tc_temp*kelvin
       tc_press = tc_press*pascal
@@ -717,7 +718,7 @@ CONTAINS
                END IF
                IF (.NOT. something_frozen .AND. calc_thchdata) THEN
                   CALL get_thch_values(H_eigval2, iw, mass, nvib, inertia, 1, minimum_energy, tc_temp, tc_press, &
-                                       get_particles_sym_num(particles))
+                                       get_particles_sym_num(particles, eps_sym))
                END IF
                CALL write_vibrations_molden(input, particles, H_eigval2, D, intensities_d, calc_intens, &
                                             dump_only_positive=.FALSE., logger=logger, list=Mlist, cell=cell)
@@ -1154,13 +1155,13 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Rotational symmetry number of the molecule from its point group.
 !> \param particles ...
+!> \param eps_sym accuracy for the detection of the symmetry
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION get_particles_sym_num(particles) RESULT(sym_num)
+   FUNCTION get_particles_sym_num(particles, eps_sym) RESULT(sym_num)
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particles
+      REAL(KIND=dp), INTENT(IN)                          :: eps_sym
       INTEGER                                            :: sym_num
-
-      REAL(KIND=dp), PARAMETER                           :: eps_sym = 1.0E-4_dp
 
       INTEGER                                            :: i, natom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atype
