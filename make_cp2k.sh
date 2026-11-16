@@ -50,7 +50,7 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 2.4
+# Version: 2.5
 
 # Facilitate the deugging of this script
 set -uo pipefail
@@ -148,6 +148,17 @@ else
   echo -e "\nINFO: Found $(python3 -V)"
 fi
 
+# Convert a CMake build type to its canonical spelling (case-insensitive input),
+# unknown build types are returned unchanged
+canonical_build_type() {
+  case "${1,,}" in
+    debug) echo "Debug" ;;
+    release) echo "Release" ;;
+    relwithdebinfo) echo "RelWithDebInfo" ;;
+    *) echo "${1}" ;;
+  esac
+}
+
 # Default values
 ASE_VERSION=""
 BENCHMARK_PROFILE=""
@@ -155,8 +166,8 @@ BUILD_DEPS="if_needed"
 BUILD_DEPS_ONLY="no"
 BUILD_SHARED_LIBS="${BUILD_SHARED_LIBS:-ON}"
 CHECK_CONVENTIONS="no"
-CP2K_BUILD_TYPE="${CP2K_BUILD_TYPE:-Release}"
-DEPS_BUILD_TYPE="${DEPS_BUILD_TYPE:-Release}"
+CP2K_BUILD_TYPE="$(canonical_build_type "${CP2K_BUILD_TYPE:-Release}")"
+DEPS_BUILD_TYPE="$(canonical_build_type "${DEPS_BUILD_TYPE:-Release}")"
 CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=ON" # all features are activated by default
 CMAKE_FEATURE_FLAGS="-DCP2K_BLAS_VENDOR=OpenBLAS" # LAPACK/BLAS from OpenBLAS by default
 CMAKE_FEATURE_FLAG_MPI="-DCP2K_USE_MPI=ON"        # MPI is switched on by default
@@ -247,13 +258,23 @@ while [[ $# -gt 0 ]]; do
       ;;
     -bt | --build_type)
       if (($# > 1)); then
-        CP2K_BUILD_TYPE="${2}"
+        CP2K_BUILD_TYPE="$(canonical_build_type "${2}")"
         case "${CP2K_BUILD_TYPE}" in
           Debug)
-            CP2K_VERSION="${CP2K_VERSION/smp/dbg}"
+            if [[ "${CP2K_VERSION}" =~ smp$ ]]; then
+              CP2K_VERSION="${CP2K_VERSION/smp/dbg}"
+              DEPS_BUILD_TYPE="RelWithDebInfo"
+            fi
             ;;
           Release | RelWithDebInfo)
-            CP2K_VERSION="${CP2K_VERSION/dbg/smp}"
+            if [[ "${CP2K_VERSION}" =~ dbg$ ]]; then
+              CP2K_VERSION="${CP2K_VERSION/dbg/smp}"
+              DEPS_BUILD_TYPE="Release"
+            fi
+            ;;
+          *)
+            echo "ERROR: Invalid CMake build type \"${2}\" specified (choose Debug, Release, or RelWithDebInfo)"
+            ${EXIT_CMD} 1
             ;;
         esac
       else
@@ -624,7 +645,7 @@ while [[ $# -gt 0 ]]; do
     -preset)
       if (($# > 1)); then
         case "${2}" in
-          native-gnu-x86_64 | native-gnu-arm64 | native-intel | none)
+          asan | native-gnu-x86_64 | native-gnu-arm64 | native-intel | none)
             CMAKE_PRESET="${2}"
             ;;
           *)
@@ -780,6 +801,33 @@ if [[ ${TEST_ASE} == "yes" ]]; then
   ASE_VERSION=${ASE_VERSION:-master}
 fi
 
+# Perform setup for an AddressSanitizer (ASAN) build
+if [[ "${CMAKE_PRESET}" == "asan" ]]; then
+  if [[ "${CHECK_CONVENTIONS}" == "yes" ]] || [[ "${TEST_COVERAGE}" == "yes" ]]; then
+    echo -e "\nERROR: The CMake preset \"asan\" cannot be combined with convention checking or coverage testing\n"
+    ${EXIT_CMD} 1
+  fi
+  if [[ "${CP2K_VERSION}" == "ssmp-static" ]]; then
+    echo -e "\nERROR: The CMake preset \"asan\" cannot be used with CP2K_VERSION \"ssmp-static\"\n"
+    ${EXIT_CMD} 1
+  fi
+  # The ASAN flags of the preset are only defined for the build type RelWithDebInfo
+  if [[ "${CP2K_BUILD_TYPE}" != "RelWithDebInfo" ]]; then
+    echo ""
+    echo "WARNING: The CMake preset \"asan\" implies CP2K_BUILD_TYPE \"RelWithDebInfo\" but found \"${CP2K_BUILD_TYPE}\""
+    echo "         CP2K_BUILD_TYPE is set to \"RelWithDebInfo\""
+    echo ""
+    CP2K_BUILD_TYPE="RelWithDebInfo"
+    if [[ "${CP2K_VERSION}" =~ dbg$ ]]; then
+      CP2K_VERSION="${CP2K_VERSION/dbg/smp}"
+      DEPS_BUILD_TYPE="Release"
+    fi
+  fi
+  # TODO Re-enable GREENX. It currently leads to a heap-buffer-overflow
+  # in `greenx_refine_pade()` at greenx_interface.F:80.
+  CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_GREENX=OFF"
+fi
+
 # Perform setup for coding conventions check
 if [[ "${CHECK_CONVENTIONS}" == "yes" ]]; then
   if [[ "${CP2K_VERSION}" != "psmp" ]]; then
@@ -845,7 +893,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-mpi | --mpi_mode (mpich | no | openmpi)]"
   echo "                    [-np | --num_packages #PACKAGES]"
   echo "                    [-opencl]"
-  echo "                    [-preset (native-gnu-x86_64 | native-gnu-arm64 | native-intel | none)]"
+  echo "                    [-preset (asan | native-gnu-x86_64 | native-gnu-arm64 | native-intel | none)]"
   echo "                    [-rc | --rebuild_cp2k]"
   echo "                    [-t | --test \"TESTOPTS\"]"
   echo "                    [-ta | --test_ase]"
@@ -999,7 +1047,7 @@ elif ((MAX_PROCS > 0)) && ((NUM_PROCS > MAX_PROCS)); then
 fi
 
 # Check if a valid CMake build type is selected for the dependencies
-case "${DEPS_BUILD_TYPE^}" in
+case "${DEPS_BUILD_TYPE}" in
   Release | RelWithDebInfo)
     true
     ;;
@@ -1014,7 +1062,7 @@ case "${DEPS_BUILD_TYPE^}" in
 esac
 
 # Check if a valid CMake build type is selected for CP2K
-case "${CP2K_BUILD_TYPE^}" in
+case "${CP2K_BUILD_TYPE}" in
   Debug | Release | RelWithDebInfo)
     true
     ;;
@@ -1023,6 +1071,10 @@ case "${CP2K_BUILD_TYPE^}" in
     ${EXIT_CMD} 1
     ;;
 esac
+if [[ "${CP2K_VERSION}" == "ssmp-static" ]] && [[ "${CP2K_BUILD_TYPE}" == "Debug" ]]; then
+  echo "ERROR: The CMake build type \"${CP2K_BUILD_TYPE}\" is not supported for CP2K_VERSION \"ssmp-static\""
+  ${EXIT_CMD} 1
+fi
 
 # Check if a valid MPI type is selected
 case "${MPI_MODE}" in
@@ -1797,7 +1849,7 @@ else
 fi
 export ENV_VAR_FLAG
 
-# Install LSAN suppressions (only needed for dbg binaries)
+# Install LSAN suppressions (only needed for dbg and ASAN binaries)
 cp "${CP2K_ROOT}"/tools/spack/lsan.supp "${INSTALL_PREFIX}"/bin
 
 # Assemble flags for running the regression tests
@@ -1827,7 +1879,7 @@ chmod 750 "${LAUNCH_SCRIPT}"
 # Create shortcut for launching the CP2K regression tests
 cat << *** > "${INSTALL_PREFIX}"/bin/run_tests
 #!/bin/bash
-if [[ "${VERSION}" =~ ^(s|p)dbg$ ]]; then
+if [[ "${VERSION}" =~ ^(s|p)dbg$ ]] || [[ "${CMAKE_PRESET}" == "asan" ]]; then
   echo "ASAN_OPTIONS = \${ASAN_OPTIONS}"
   echo "LSAN_OPTIONS = \${LSAN_OPTIONS}"
 fi
