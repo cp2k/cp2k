@@ -32,11 +32,9 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE fft_lib,                         ONLY: fft_pair_major_plan_destroy,&
-                                              fft_pair_major_plan_type
    USE fft_tools,                       ONLY: BWFFT,&
-                                              fft_alloc,&
-                                              fft_dealloc
+                                              fft_allocate,&
+                                              fft_deallocate
    USE gw_ri_rs_small_cell_full_kp_lattice,ONLY: &
         assemble_AA_contraction, block_range, build_full_cell_grid, build_ri_2c_lattice, &
         complex_bytes, gamma_auxiliary_charges, grid_pair_gemm, grid_pair_indices, &
@@ -167,7 +165,7 @@ CONTAINS
       CALL k_grid_to_cell_release(work%inverse)
       IF (ALLOCATED(work%batches)) THEN
          DO ibatch = 1, SIZE(work%batches)
-            IF (ASSOCIATED(work%batches(ibatch)%input)) CALL fft_dealloc(work%batches(ibatch)%input)
+            IF (ASSOCIATED(work%batches(ibatch)%input)) CALL fft_deallocate(work%batches(ibatch)%input)
          END DO
          DEALLOCATE (work%batches, work%product_phase, work%grid_linear, work%partner_linear, &
                      work%extract_q, work%extract_partner, work%mirror_cell, work%diagonal, work%input_to_native)
@@ -2544,7 +2542,7 @@ CONTAINS
          ibatch = (first - 1)/width + 1
          batch => plan%batches(ibatch)
          IF (fft_profile_enabled) started = m_walltime()
-         CALL fft_alloc(batch%input, [INT(nfft_grid)*fft_count])
+         CALL fft_allocate(batch%input, [INT(nfft_grid)*fft_count])
          IF (fft_profile_enabled) plan%profile%seconds(3) = plan%profile%seconds(3) + m_walltime() - started
          IF (fft_profile_enabled) started = m_walltime()
          ALLOCATE (batch%weight(count, SIZE(cells, 2)))
@@ -2629,7 +2627,7 @@ CONTAINS
       fft_transforms = 0_int_8
       extract_reads = 0_int_8
       IF (fft_profile_enabled) started = m_walltime()
-      CALL fft_alloc(scratch, [INT(nfft_grid)*((width + 1)/2)])
+      CALL fft_allocate(scratch, [INT(nfft_grid)*((width + 1)/2)])
       IF (fft_profile_enabled) profile%seconds(3) = profile%seconds(3) + m_walltime() - started
       DO first = 1, plan%n_pairs, width
          count = MIN(width, plan%n_pairs - first + 1)
@@ -2726,7 +2724,7 @@ CONTAINS
       IF (fft_profile_enabled) started = m_walltime()
       CALL fft_pair_major_plan_destroy(full_fft_plan)
       CALL fft_pair_major_plan_destroy(tail_fft_plan)
-      CALL fft_dealloc(scratch)
+      CALL fft_deallocate(scratch)
       unit_nr = 0
       IF (fft_profile_enabled) THEN
          profile%seconds(9) = m_walltime() - started

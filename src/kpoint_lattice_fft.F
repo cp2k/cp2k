@@ -15,10 +15,7 @@
 !>        callers. The selected RSKP FFT backend requires successful FFT execution.
 ! **************************************************************************************************
 MODULE kpoint_lattice_fft
-   USE fft_lib,                         ONLY: fft_pair_major_3d,&
-                                              fft_pair_major_plan_destroy,&
-                                              fft_pair_major_plan_type,&
-                                              fft_supports_arbitrary_lengths
+   USE fft_api,                         ONLY: fft_3d_local
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_NEXT,&
                                               FWFFT,&
@@ -197,8 +194,8 @@ CONTAINS
       nfft = n
       IF (ANY(n <= 0)) RETURN
       IF (PRESENT(allow_arbitrary)) THEN
-         IF (allow_arbitrary .AND. fft_supports_arbitrary_lengths()) THEN
-            ! For capable backends, the PW grid radix list is a cost heuristic, not a capability limit.
+         IF (allow_arbitrary) THEN
+            ! The PW grid radix list is a cost heuristic, not a capability limit.
             compatible = .TRUE.
             RETURN
          END IF
@@ -295,29 +292,28 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Transform pair-major FFT input directly to pair-major output.
 !>        Report the complete 3D transform under the first FFT stage in the profile.
-!> \param sign ...
+!> \param dir ...
 !> \param n ...
 !> \param nbatch ...
 !> \param buffer ...
 !> \param scratch ...
 !> \param stat ...
 !> \param profile ...
-!> \param cached_plan optional caller-owned plan for repeated batch shapes
 ! **************************************************************************************************
-   SUBROUTINE lattice_fft_execute_pair_major(sign, n, nbatch, buffer, scratch, stat, profile, cached_plan)
-      INTEGER, INTENT(IN)                                :: sign, n(3), nbatch
+   SUBROUTINE lattice_fft_execute_pair_major(dir, n, nbatch, buffer, scratch, stat, profile)
+      LOGICAL, INTENT(IN)                                :: dir
+      INTEGER, INTENT(IN)                                :: n(3), nbatch
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: buffer(:), scratch(:)
       INTEGER, INTENT(OUT)                               :: stat
       TYPE(lattice_fft_profile_type), INTENT(INOUT), &
          OPTIONAL                                        :: profile
-      TYPE(fft_pair_major_plan_type), INTENT(INOUT), &
-         OPTIONAL                                        :: cached_plan
 
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: swap(:)
       REAL(KIND=dp)                                      :: started
 
       IF (PRESENT(profile)) started = m_walltime()
-      CALL fft_pair_major_3d(sign, n, nbatch, buffer, scratch, stat, cached_plan)
+      CALL fft_3d_local(dir, n, nbatch, .TRUE., .TRUE., buffer, scratch)
+      stat = 0
       IF (PRESENT(profile)) profile%seconds(5) = profile%seconds(5) + m_walltime() - started
       IF (stat /= 0) RETURN
       swap => buffer
@@ -378,7 +374,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: started
       TYPE(cell_to_k_grid_work_type), POINTER            :: plan
       TYPE(cell_to_k_grid_work_type), TARGET             :: local_work
-      TYPE(fft_pair_major_plan_type)                     :: full_fft_plan, tail_fft_plan
 
       CALL timeset("cell_to_k_grid_fft", handle)
       add = .FALSE.
@@ -423,8 +418,7 @@ CONTAINS
          END IF
       END IF
       success = .FALSE.
-      ! Pair-major 3D execution requires FFTW3. Generic callers retain the direct fallback.
-      IF (plan%regular .AND. fft_supports_arbitrary_lengths()) THEN
+      IF (plan%regular) THEN
          start = 1
          IF (PRESENT(cell_first)) start = cell_first
          CPASSERT(start >= 1)
@@ -511,10 +505,10 @@ CONTAINS
                IF (PRESENT(profile)) profile%seconds(4) = profile%seconds(4) + m_walltime() - started
                IF (nbatch == width) THEN
                   CALL lattice_fft_execute_pair_major(BWFFT, plan%nfft, nbatch, plan%fft_in, plan%fft_out, stat, &
-                                                      profile, full_fft_plan)
+                                                      profile)
                ELSE
                   CALL lattice_fft_execute_pair_major(BWFFT, plan%nfft, nbatch, plan%fft_in, plan%fft_out, stat, &
-                                                      profile, tail_fft_plan)
+                                                      profile)
                END IF
                IF (stat /= 0) EXIT
                IF (PRESENT(profile)) started = m_walltime()
@@ -554,8 +548,6 @@ CONTAINS
 !$OMP END PARALLEL DO
                IF (PRESENT(profile)) profile%seconds(8) = profile%seconds(8) + m_walltime() - started
             END DO
-            CALL fft_pair_major_plan_destroy(full_fft_plan)
-            CALL fft_pair_major_plan_destroy(tail_fft_plan)
             success = stat == 0
             IF (stat /= 0 .AND. add) THEN
                CPABORT("Accumulating lattice FFT execution failed")
@@ -837,9 +829,6 @@ CONTAINS
          fft_width = width
          IF (pack_real) fft_width = width/2
          CPASSERT(ngrid*width <= HUGE(0))
-         IF (.NOT. fft_supports_arbitrary_lengths()) THEN
-            CPABORT('Inverse batched lattice FFT requires FFTW3')
-         END IF
          IF (PRESENT(profile)) profile%pair_major = .TRUE.
          IF (PRESENT(profile)) THEN
             profile%two_real = pack_real
