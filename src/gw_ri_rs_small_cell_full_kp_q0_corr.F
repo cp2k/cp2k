@@ -447,7 +447,12 @@ CONTAINS
 !> around Γ whose weighted average replaces the value at q = 0 of a Γ-centred mesh.
 !> W - M is smooth at Γ up to a direction-dependent limit c(q̂) of the wings and pair densities,
 !> odd or a quadratic form q̂ᵀ C q̂. The mesh sum of c is exact if its value at q = 0 is tr(C T),
-!> with T the value at q = 0 of the unit dyad q̂ q̂ᵀ (unit_q_dyad_value_at_gamma). Weights with
+!> with T the value at q = 0 of the unit dyad q̂ q̂ᵀ, derived here by Poisson summation:
+!> T = ∫ q̂ q̂ᵀ exp(-|q|²/σ²) d^dq / V_cell - Σ_m≠0 m̂ m̂ᵀ exp(-|m|²/σ²)
+!> with the mesh vectors m and the volume (2D: area) V_cell of a mesh cell. The integral is
+!> P π^(d/2) σ^d / d with the projector P on the periodic directions. T is independent of σ
+!> up to exp(-σ²|G|²/4) for the reciprocal vectors G of the mesh, i.e. below 1E-16 for
+!> σ = 2 max|m_i|. Weights with
 !> Σ_q w_q q̂ q̂ᵀ = T give Σ_q w_q c(q̂) = tr(C T); ±q get equal weights and cancel the odd part.
 !> Shells of neighbours of Γ are added by increasing |q| until T is reproduced. On cubic and
 !> hexagonal meshes T = I/d and the nearest shell has equal weights; anisotropic meshes need
@@ -463,11 +468,12 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, INTENT(OUT), OPTIONAL  :: q_mesh(:, :), shell_weights(:)
       COMPLEX(KIND=dp), INTENT(INOUT), OPTIONAL          :: values_q(:, :, :)
 
-      INTEGER                                            :: i, i_q0, iq, nk
+      INTEGER                                            :: i, i_q0, iq, m1, m2, m3, m_max(3), &
+                                                            n_dim, nk
       LOGICAL, ALLOCATABLE                               :: in_shells(:), neighbour(:)
-      REAL(KIND=dp)                                      :: area, bmat(3, 3), d(3), dyad_gamma(6), &
-                                                            gram(6, 6), gram_inverse(6, 6), &
-                                                            mesh_vectors(3, 3), radius
+      REAL(KIND=dp) :: area, basis(3, 3), bmat(3, 3), cell_volume, d(3), dyad_gamma(6), &
+         gram(6, 6), gram_inverse(6, 6), mesh_vectors(3, 3), normal(3), projector(3, 3), r2, &
+         radius, sigma, x(3)
       REAL(KIND=dp), ALLOCATABLE                         :: dyads(:, :), q(:, :), q_frac(:, :), &
                                                             q_norm(:), shell_dyads(:, :), &
                                                             weights(:)
@@ -490,7 +496,40 @@ CONTAINS
             mesh_vectors(:, i) = bmat(:, i)/REAL(bs_env%nkp_grid_chi_eps_W_orig(i), dp)
             q_frac(i, :) = q_frac(i, :)*REAL(bs_env%nkp_grid_chi_eps_W_orig(i), dp)
          END DO
-         CALL unit_q_dyad_value_at_gamma(mesh_vectors, dyad_gamma)
+         n_dim = 3
+         basis(:, :) = mesh_vectors
+         projector(:, :) = 0.0_dp
+         DO i = 1, 3
+            projector(i, i) = 1.0_dp
+         END DO
+         IF (ALL(mesh_vectors(:, 3) == 0.0_dp)) THEN
+            n_dim = 2
+            normal(:) = vector_product(mesh_vectors(:, 1), mesh_vectors(:, 2))
+            normal(:) = normal/NORM2(normal)
+            basis(:, 3) = normal
+            DO i = 1, 3
+               projector(:, i) = projector(:, i) - normal(i)*normal
+            END DO
+         END IF
+         cell_volume = ABS(DOT_PRODUCT(basis(:, 1), vector_product(basis(:, 2), basis(:, 3))))
+         sigma = 2.0_dp*MAXVAL(NORM2(mesh_vectors, DIM=1))
+         ! |m_i| <= |m| |row i of basis⁻¹|; the Gaussian is below 1E-15 beyond |m| = 6σ.
+         m_max(:) = CEILING(6.0_dp*sigma*NORM2(inv_3x3(basis), DIM=2))
+         IF (n_dim == 2) m_max(3) = 0
+         dyad_gamma(:) = pi**(0.5_dp*n_dim)*sigma**n_dim/(n_dim*cell_volume)* &
+                         [projector(1, 1), projector(2, 2), projector(3, 3), &
+                          projector(1, 2), projector(1, 3), projector(2, 3)]
+         DO m1 = -m_max(1), m_max(1)
+            DO m2 = -m_max(2), m_max(2)
+               DO m3 = -m_max(3), m_max(3)
+                  x(:) = MATMUL(mesh_vectors, REAL([m1, m2, m3], dp))
+                  r2 = SUM(x**2)
+                  IF (r2 == 0.0_dp .OR. r2 > 36.0_dp*sigma**2) CYCLE
+                  dyad_gamma(:) = dyad_gamma - EXP(-r2/sigma**2)/r2* &
+                                  [x(1)**2, x(2)**2, x(3)**2, x(1)*x(2), x(1)*x(3), x(2)*x(3)]
+               END DO
+            END DO
+         END DO
          ! Neighbours of Γ: mesh points with integer mesh coordinates m_i = -1, 0, 1, m /= 0.
          ALLOCATE (neighbour(nk), in_shells(nk), dyads(6, nk), shell_dyads(6, nk))
          neighbour(:) = q_norm > 1.0E-8_dp .AND. ALL(ABS(q_frac) < 1.5_dp, DIM=1)
@@ -518,62 +557,6 @@ CONTAINS
       IF (PRESENT(shell_weights)) CALL MOVE_ALLOC(weights, shell_weights)
 
    END SUBROUTINE q_mesh_and_gamma_shell_average
-
-! **************************************************************************************************
-!> \brief Value T at q = 0 of the unit dyad q̂ q̂ᵀ for which the sum over a Γ-centred mesh is
-!> exact (derived here by Poisson summation):
-!> T = ∫ q̂ q̂ᵀ exp(-|q|²/σ²) d^dq / V_cell - Σ_m≠0 m̂ m̂ᵀ exp(-|m|²/σ²)
-!> with the mesh vectors m and the volume (2D: area) V_cell of a mesh cell. The integral is
-!> P π^(d/2) σ^d / d with the projector P on the periodic directions. T is independent of σ
-!> up to exp(-σ²|G|²/4) for the reciprocal vectors G of the mesh, i.e. below 1E-16 for
-!> σ = 2 max|m_i|. On cubic and hexagonal meshes T = P/d.
-!> \param mesh_vectors Cartesian mesh vectors, zero for the non-periodic direction of a slab
-!> \param dyad_gamma T as (xx, yy, zz, xy, xz, yz)
-! **************************************************************************************************
-   SUBROUTINE unit_q_dyad_value_at_gamma(mesh_vectors, dyad_gamma)
-      REAL(KIND=dp), INTENT(IN)                          :: mesh_vectors(3, 3)
-      REAL(KIND=dp), INTENT(OUT)                         :: dyad_gamma(6)
-
-      INTEGER                                            :: i, m1, m2, m3, m_max(3), n_dim
-      REAL(KIND=dp)                                      :: basis(3, 3), cell_volume, normal(3), &
-                                                            projector(3, 3), r2, sigma, x(3)
-
-      n_dim = 3
-      basis(:, :) = mesh_vectors
-      projector(:, :) = 0.0_dp
-      DO i = 1, 3
-         projector(i, i) = 1.0_dp
-      END DO
-      IF (ALL(mesh_vectors(:, 3) == 0.0_dp)) THEN
-         n_dim = 2
-         normal(:) = vector_product(mesh_vectors(:, 1), mesh_vectors(:, 2))
-         normal(:) = normal/NORM2(normal)
-         basis(:, 3) = normal
-         DO i = 1, 3
-            projector(:, i) = projector(:, i) - normal(i)*normal
-         END DO
-      END IF
-      cell_volume = ABS(DOT_PRODUCT(basis(:, 1), vector_product(basis(:, 2), basis(:, 3))))
-      sigma = 2.0_dp*MAXVAL(NORM2(mesh_vectors, DIM=1))
-      ! |m_i| <= |m| |row i of basis⁻¹|; the Gaussian is below 1E-15 beyond |m| = 6σ.
-      m_max(:) = CEILING(6.0_dp*sigma*NORM2(inv_3x3(basis), DIM=2))
-      IF (n_dim == 2) m_max(3) = 0
-      dyad_gamma(:) = pi**(0.5_dp*n_dim)*sigma**n_dim/(n_dim*cell_volume)* &
-                      [projector(1, 1), projector(2, 2), projector(3, 3), &
-                       projector(1, 2), projector(1, 3), projector(2, 3)]
-      DO m1 = -m_max(1), m_max(1)
-         DO m2 = -m_max(2), m_max(2)
-            DO m3 = -m_max(3), m_max(3)
-               x(:) = MATMUL(mesh_vectors, REAL([m1, m2, m3], dp))
-               r2 = SUM(x**2)
-               IF (r2 == 0.0_dp .OR. r2 > 36.0_dp*sigma**2) CYCLE
-               dyad_gamma(:) = dyad_gamma - EXP(-r2/sigma**2)/r2* &
-                               [x(1)**2, x(2)**2, x(3)**2, x(1)*x(2), x(1)*x(3), x(2)*x(3)]
-            END DO
-         END DO
-      END DO
-
-   END SUBROUTINE unit_q_dyad_value_at_gamma
 
 ! **************************************************************************************************
 !> \brief Radial moments f0 = int_0^L exp(-i a q) dq and f1 = int_0^L q exp(-i a q) dq.
