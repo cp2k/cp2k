@@ -77,10 +77,11 @@ MODULE kpoint_unfolding
       INTEGER :: m = 0                                      ! |det(M)|
       REAL(KIND=dp) :: symm_tol = 0.5_dp/angstrom         ! default 0.5 Angstrom in internal Bohr
       REAL(KIND=dp), DIMENSION(3, 3) :: h_pc = 0.0_dp       ! derived primitive lattice (columns)
+      INTEGER :: n_sets = 0                                 ! atomic equivalent-site sets
       INTEGER :: n_channels = 0                             ! per-AO equivalence channels
       INTEGER, DIMENSION(:), ALLOCATABLE :: channel_of_ao   ! (nao)
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: n_of_ao      ! (3, nao) primitive translation labels
-      INTEGER :: n_incomplete = 0                           ! channels with fewer than m members
+      INTEGER :: n_incomplete = 0                           ! equivalent-site sets with fewer than m atoms
       INTEGER :: n_groups = 1                               ! atom groups (independent clustering)
       INTEGER, DIMENSION(:), ALLOCATABLE :: channel_group   ! group of each channel (upper bound nao)
       LOGICAL :: full_selection = .TRUE.                    ! no atom screened: Loewdin populations are 1
@@ -205,8 +206,8 @@ CONTAINS
             WRITE (UNIT=bs_data_unit, FMT="(A,I0,A,3F14.8)") "# UNFOLD_BAND| primitive cell vector ", i, &
                " [Bohr] =", uf%h_pc(1:3, i)
          END DO
-         WRITE (UNIT=bs_data_unit, FMT="(A,I0,A,I0)") "# UNFOLD_BAND| orbits: ", uf%n_channels, &
-            " channels; incomplete: ", uf%n_incomplete
+         WRITE (UNIT=bs_data_unit, FMT="(A,I0,A,I0)") "# UNFOLD_BAND| equivalent-site sets: ", &
+            uf%n_sets, "; incomplete sets: ", uf%n_incomplete
          WRITE (UNIT=bs_data_unit, FMT="(A,I0,A,I0)") "# UNFOLD_BAND| atom groups: ", uf%n_groups, &
             " ; screened atoms: ", COUNT(group_of_atom == 0)
       END IF
@@ -289,7 +290,9 @@ CONTAINS
       IF (ALLOCATED(uf%channel_of_ao)) DEALLOCATE (uf%channel_of_ao)
       IF (ALLOCATED(uf%n_of_ao)) DEALLOCATE (uf%n_of_ao)
       IF (ALLOCATED(uf%channel_group)) DEALLOCATE (uf%channel_group)
+      uf%n_sets = 0
       uf%n_channels = 0
+      uf%n_incomplete = 0
       uf%m = 0
    END SUBROUTINE unfolding_env_release
 
@@ -411,7 +414,9 @@ CONTAINS
       adj = adj_int3(uf%transmat)
       idet = int_det3(uf%transmat)
       nref = 0
+      uf%n_sets = 0
       uf%n_channels = 0
+      uf%n_incomplete = 0
       uf%n_groups = MAXVAL(group_of_atom(1:natom))
 
       DO iatom = 1, natom
@@ -439,13 +444,14 @@ CONTAINS
                coset_test(1:3) = MATMUL(adj(1:3, 1:3), dn(1:3))
                IF (ALL(MOD(coset_test(1:3), idet) == 0)) THEN
                   WRITE (UNIT=msgstr, FMT="(A,I0,A,I0,A)") "UNFOLD_BAND| assignment conflict: atoms ", &
-                     iatom, " and ", slot_atom(nmemb, j), " map to the same orbit slot. Set a smaller SYMM_TOL."
+                     iatom, " and ", slot_atom(nmemb, j), &
+                     " map to the same equivalent-site slot. Set a smaller SYMM_TOL."
                   CPABORT(TRIM(msgstr))
                END IF
             END DO
             IF (refj /= 0) THEN
                WRITE (UNIT=msgstr, FMT="(A,I0,A)") "UNFOLD_BAND| ambiguous site for atom ", iatom, &
-                  ": it matches several orbits. Set a smaller SYMM_TOL or use ATOMS groups."
+                  ": it matches several equivalent-site sets. Set a smaller SYMM_TOL or use ATOMS groups."
                CPABORT(TRIM(msgstr))
             END IF
             refj = j
@@ -502,13 +508,15 @@ CONTAINS
          END IF
       END DO
       IF (ANY(channel_size > uf%m)) THEN
-         CPABORT("UNFOLD_BAND| orbit channel overflow: check TRANSFORMATION_MATRIX/SYMM_TOL")
+         CPABORT("UNFOLD_BAND| equivalent-site channel overflow: check TRANSFORMATION_MATRIX/SYMM_TOL")
       END IF
-      uf%n_incomplete = COUNT(channel_size < uf%m)
+      uf%n_sets = nref
+      uf%n_incomplete = COUNT(slot_count(1:nref) < uf%m)
 
       IF (unit_nr > 0) THEN
-         WRITE (UNIT=unit_nr, FMT="(T2,A,I0,A,I0)") "UNFOLD_BAND| orbit channels: ", uf%n_channels, &
-            "; incomplete channels (vacancies): ", uf%n_incomplete
+         WRITE (UNIT=unit_nr, FMT="(T2,A,I0,A,I0,A,I0)") "UNFOLD_BAND| equivalent-site sets: ", &
+            uf%n_sets, " (", uf%n_channels, " AO channels); incomplete sets (vacancies): ", &
+            uf%n_incomplete
          WRITE (UNIT=unit_nr, FMT="(T2,A,F12.6)") "UNFOLD_BAND| max assignment residual [angstrom] = ", &
             max_res*angstrom
       END IF
