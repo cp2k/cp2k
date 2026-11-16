@@ -26,16 +26,8 @@ MODULE qs_tddfpt2_methods
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rixs_control_type,&
                                               tddfpt2_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
-                                              dbcsr_deallocate_matrix,&
-                                              dbcsr_p_type,&
-                                              dbcsr_set,&
-                                              dbcsr_type,&
-                                              dbcsr_type_antisymmetric,&
-                                              dbcsr_type_symmetric
-   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              dbcsr_deallocate_matrix_set
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_pool_types,                ONLY: fm_pool_create_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -71,7 +63,10 @@ MODULE qs_tddfpt2_methods
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
-   USE kpoint_methods,                  ONLY: rskp_transform
+   USE kpoint_transform,                ONLY: rskp_prepared_transform_type,&
+                                              rskp_transform_evaluate,&
+                                              rskp_transform_prepare,&
+                                              rskp_transform_release
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_env_p_type,&
                                               kpoint_env_type,&
@@ -1017,7 +1012,6 @@ CONTAINS
          spin_offset, trans_index
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
       INTEGER, DIMENSION(2)                              :: kp_range
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       INTEGER, DIMENSION(maxspins)                       :: homo_spin, nao_spin, nmo_spin, nvirt_spin
       LOGICAL                                            :: my_kpgrp, use_real_wfn, &
                                                             use_scf_moment_dipoles
@@ -1036,7 +1030,6 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_operator_imag, fm_operator_real
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: overlap_deriv
-      TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env
       TYPE(kpoint_env_type), POINTER                     :: kp
@@ -1046,13 +1039,14 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_kp, sab_orb
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(rskp_prepared_transform_type)                 :: transform
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (blacs_env, blacs_env_all, cell_to_index, cmo_coeff_source, cmatrix, dft_control, &
+      NULLIFY (blacs_env, blacs_env_all, cmo_coeff_source, dft_control, &
                eigenvalues, fm_struct, kp, kp_env, kpoints, ks_env, &
                mos_kp, overlap_deriv, para_env, para_env_inter_kp, para_env_kp, &
-               rmatrix, sab_kp, sab_orb, wkp)
+               sab_kp, sab_orb, wkp)
       CALL get_qs_env(qs_env, dft_control=dft_control, kpoints=kpoints, ks_env=ks_env, &
                       sab_orb=sab_orb)
       CPASSERT(ASSOCIATED(kpoints))
@@ -1060,8 +1054,7 @@ CONTAINS
       CALL get_kpoint_info(kpoints, nkp=nkp, kp_range=kp_range, kp_env=kp_env, &
                            para_env=para_env, blacs_env_all=blacs_env_all, &
                            para_env_inter_kp=para_env_inter_kp, para_env_kp=para_env_kp, &
-                           blacs_env=blacs_env, wkp=wkp, cell_to_index=cell_to_index, &
-                           sab_nl=sab_kp, use_real_wfn=use_real_wfn)
+                           blacs_env=blacs_env, wkp=wkp, sab_nl=sab_kp, use_real_wfn=use_real_wfn)
       IF (use_real_wfn) CPABORT("K-point TDDFPT requires complex wavefunctions")
       CPASSERT(ASSOCIATED(para_env))
       CPASSERT(ASSOCIATED(para_env_inter_kp))
@@ -1072,7 +1065,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(ks_env))
       CPASSERT(ASSOCIATED(sab_orb))
       CPASSERT(ASSOCIATED(sab_kp))
-      CPASSERT(ASSOCIATED(cell_to_index))
 
       nspins = dft_control%nspins
       nmo_spin = 0
@@ -1124,14 +1116,12 @@ CONTAINS
          CALL build_overlap_matrix(ks_env, matrixkp_s=overlap_deriv, nderivative=1, &
                                    basis_type_a="ORB", basis_type_b="ORB", sab_nl=sab_orb, &
                                    ext_kpoints=kpoints)
-
-         ALLOCATE (rmatrix, cmatrix)
-         CALL dbcsr_create(rmatrix, template=overlap_deriv(1, 1)%matrix, &
-                           matrix_type=dbcsr_type_symmetric)
-         CALL dbcsr_create(cmatrix, template=overlap_deriv(1, 1)%matrix, &
-                           matrix_type=dbcsr_type_antisymmetric)
-         CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_kp)
-         CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_kp)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=MAXVAL(nao_spin), &
+                                  ncol_global=MAXVAL(nao_spin), para_env=para_env, context=blacs_env_all)
+         CALL rskp_transform_prepare(transform, overlap_deriv, [2, 3, 4], sab_kp, kpoints%cell_to_index, &
+                                     fm_struct, para_env, para_env_kp, para_env_inter_kp, &
+                                     kpoints%rskp_transform, kpoints%xkp, kpoints%nkp_grid, kpoints%kp_dist)
+         CALL cp_fm_struct_release(fm_struct)
       END IF
 
       DO ikp = 1, nkp
@@ -1200,15 +1190,9 @@ CONTAINS
 
             DO ideriv = 1, nderivs
                IF (.NOT. use_scf_moment_dipoles) THEN
-                  CALL dbcsr_set(rmatrix, 0.0_dp)
-                  CALL dbcsr_set(cmatrix, 0.0_dp)
-                  CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=overlap_deriv, &
-                                      ispin=ideriv + 1, xkp=kpoints%xkp(:, ikp), &
-                                      cell_to_index=cell_to_index, sab_nl=sab_kp)
-
                   ! Keep the existing transpose convention: these terms form C^T A C.
-                  CALL copy_dbcsr_to_fm(rmatrix, fm_operator_real)
-                  CALL copy_dbcsr_to_fm(cmatrix, fm_operator_imag)
+                  CALL rskp_transform_evaluate(transform, ideriv, ikp, kpoints%xkp, &
+                                               fm_operator_real, fm_operator_imag)
                   CALL cp_fm_to_cfm(fm_operator_real, fm_operator_imag, cfm_operator)
                   CALL parallel_gemm("N", "N", nao, nmo_spin(ispin), nao, z_one, cfm_operator, &
                                      cfm_mo_coeff_global, z_zero, cfm_work)
@@ -1332,8 +1316,7 @@ CONTAINS
       IF (use_scf_moment_dipoles) THEN
          DEALLOCATE (kpoint_dipole)
       ELSE
-         CALL dbcsr_deallocate_matrix(rmatrix)
-         CALL dbcsr_deallocate_matrix(cmatrix)
+         CALL rskp_transform_release(transform)
          CALL dbcsr_deallocate_matrix_set(overlap_deriv)
       END IF
 

@@ -84,8 +84,7 @@ MODULE qs_moments
    USE kpoint_k_r_trafo_simple, ONLY: replicate_rs_matrices, &
                                       rs_to_kp
    USE kpoint_methods, ONLY: kpoint_init_cell_index, &
-                             kpoint_initialize, &
-                             rskp_transform
+                             kpoint_initialize
    USE kpoint_types, ONLY: get_kpoint_info, &
                            kpoint_env_p_type, &
                            kpoint_env_type, &
@@ -112,6 +111,10 @@ MODULE qs_moments
    USE qs_kind_types, ONLY: get_qs_kind, &
                             get_qs_kind_set, &
                             qs_kind_type
+   USE kpoint_transform, ONLY: rskp_prepared_transform_type, &
+                               rskp_transform_evaluate, &
+                               rskp_transform_prepare, &
+                               rskp_transform_release
    USE qs_ks_types, ONLY: get_ks_env, &
                           qs_ks_env_type
    USE qs_mo_types, ONLY: get_mo_set, &
@@ -3852,12 +3855,10 @@ CONTAINS
          OPTIONAL                                        :: nmo_spin_out
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_moment_kpoints_scf_mos'
-
       INTEGER                                            :: handle, i_dir, ikp, ikp_local, ispin, &
                                                             m, n, nao, nkp, nmo, nspin
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: nmo_spin
       INTEGER, DIMENSION(2)                              :: kp_range
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: my_kpgrp
       REAL(KIND=dp), PARAMETER                           :: eps_degenerate = 1.0E-10_dp
       COMPLEX(KIND=dp)                                   :: moment_element
@@ -3868,28 +3869,29 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_cfm_type)                                  :: cfm_empty, cfm_mo_coeff_global, &
                                                             cfm_moment, cfm_operator, cfm_work
-      TYPE(cp_fm_type)                                   :: fm_dummy, fm_mo_coeff_global, &
-                                                            fm_operator_imag, fm_operator_real
+      TYPE(cp_fm_type)                                   :: fm_dummy, fm_mo_coeff_global
+      TYPE(cp_fm_type)                                   :: fm_operator_imag, fm_operator_real
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: overlap_deriv
-      TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: overlap_deriv_xyz
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoints_scf
+      TYPE(rskp_prepared_transform_type)                 :: transform
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_kp
       TYPE(cp_cfm_type), POINTER                         :: cmo_coeff_source
       TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff_source
-      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_kp
+      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_inter_kp, para_env_kp
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_kp, sab_orb
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (blacs_env_all, cell_to_index, cmo_coeff_source, cmatrix, dft_control, eigenvals, &
+      NULLIFY (blacs_env_all, cmo_coeff_source, dft_control, eigenvals, &
                fm_mo_coeff_source, &
                fm_struct, kp, kp_env, kpoints_scf, ks_env, mos_kp, &
-               overlap_deriv, para_env, para_env_kp, rmatrix, sab_kp, sab_orb)
+               overlap_deriv, overlap_deriv_xyz, para_env, para_env_inter_kp, para_env_kp, sab_kp, sab_orb)
       IF (PRESENT(rcc)) THEN
          MARK_USED(rcc)
       END IF
@@ -3903,14 +3905,14 @@ CONTAINS
       CPASSERT(ASSOCIATED(sab_orb))
 
       CALL get_kpoint_info(kpoints_scf, nkp=nkp, kp_range=kp_range, kp_env=kp_env, &
-                           para_env_kp=para_env_kp, blacs_env_all=blacs_env_all, &
-                           cell_to_index=cell_to_index, sab_nl=sab_kp)
+                           para_env_kp=para_env_kp, para_env_inter_kp=para_env_inter_kp, &
+                           blacs_env_all=blacs_env_all, sab_nl=sab_kp)
       IF (kp_range(2) >= kp_range(1)) THEN
          CPASSERT(ASSOCIATED(kp_env))
       END IF
       CPASSERT(ASSOCIATED(para_env_kp))
+      CPASSERT(ASSOCIATED(para_env_inter_kp))
       CPASSERT(ASSOCIATED(blacs_env_all))
-      CPASSERT(ASSOCIATED(cell_to_index))
       CPASSERT(ASSOCIATED(sab_kp))
 
       CALL build_overlap_matrix(ks_env, matrixkp_s=overlap_deriv, nderivative=1, &
@@ -3935,13 +3937,15 @@ CONTAINS
          nmo_spin_out(:) = nmo_spin(:)
       END IF
 
-      ALLOCATE (rmatrix, cmatrix)
-      CALL dbcsr_create(rmatrix, template=overlap_deriv(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_antisymmetric)
-      CALL dbcsr_create(cmatrix, template=overlap_deriv(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_symmetric)
-      CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_kp)
-      CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_kp)
+      CPASSERT(SIZE(overlap_deriv, 1) >= 4)
+      overlap_deriv_xyz => overlap_deriv(2:4, :)
+      CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, &
+                               para_env=para_env, context=blacs_env_all)
+      CALL rskp_transform_prepare(transform, overlap_deriv_xyz, [1, 2, 3], sab_kp, &
+                                  kpoints_scf%cell_to_index, fm_struct, para_env, para_env_kp, &
+                                  para_env_inter_kp, kpoints_scf%rskp_transform, kpoints_scf%xkp, &
+                                  kpoints_scf%nkp_grid, kpoints_scf%kp_dist, mirror_sign=-1)
+      CALL cp_fm_struct_release(fm_struct)
 
       DO ikp = 1, nkp
          my_kpgrp = (ikp >= kp_range(1) .AND. ikp <= kp_range(2))
@@ -4006,15 +4010,9 @@ CONTAINS
             CALL para_env%sum(eigenvalues_kp)
 
             DO i_dir = 1, 3
-               CALL dbcsr_set(rmatrix, 0.0_dp)
-               CALL dbcsr_set(cmatrix, 0.0_dp)
-               CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=overlap_deriv, &
-                                   ispin=i_dir + 1, xkp=kpoints_scf%xkp(:, ikp), &
-                                   cell_to_index=cell_to_index, sab_nl=sab_kp)
-
-               ! Project A = rmatrix + i*cmatrix as C^H A C.
-               CALL copy_dbcsr_to_fm(rmatrix, fm_operator_real)
-               CALL copy_dbcsr_to_fm(cmatrix, fm_operator_imag)
+               ! The derivative transforms are anti-Hermitian at each k point.
+               CALL rskp_transform_evaluate(transform, i_dir, ikp, kpoints_scf%xkp, &
+                                            fm_operator_real, fm_operator_imag)
                CALL cp_fm_to_cfm(fm_operator_real, fm_operator_imag, cfm_operator)
                CALL parallel_gemm("N", "N", nao, nmo, nao, z_one, cfm_operator, &
                                   cfm_mo_coeff_global, z_zero, cfm_work)
@@ -4051,8 +4049,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL dbcsr_deallocate_matrix(cmatrix)
-      CALL dbcsr_deallocate_matrix(rmatrix)
+      CALL rskp_transform_release(transform)
       CALL dbcsr_deallocate_matrix_set(overlap_deriv)
       DEALLOCATE (nmo_spin)
       CALL timestop(handle)

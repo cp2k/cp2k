@@ -397,7 +397,7 @@ CONTAINS
 
       io = cp_logger_get_default_io_unit()
       CALL dbcsr_init_lib(para_env%get_handle(), io)
-      CALL init_fft('FFTSG', alltoall=.FALSE., pool_limit=4, wisdom_file='', plan_style=1)
+      CALL init_fft('FFTW3', alltoall=.FALSE., pool_limit=4, wisdom_file='', plan_style=1)
       nr = para_env%num_pe
       nc = 1
       DO i = 1, command_argument_count()

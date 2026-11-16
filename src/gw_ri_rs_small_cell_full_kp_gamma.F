@@ -56,9 +56,9 @@ MODULE gw_ri_rs_small_cell_full_kp_gamma
    USE kinds,                           ONLY: dp
    USE kpoint_coulomb_2c,               ONLY: add_ewald_reciprocal,&
                                               build_2c_coulomb_matrix_kp_dense
-   USE kpoint_methods,                  ONLY: kp_transform_plan_create,&
-                                              kp_transform_plan_type,&
-                                              kpoint_init_cell_index
+   USE kpoint_methods,                  ONLY: kpoint_init_cell_index
+   USE kpoint_transform,                ONLY: kp_transform_plan_create,&
+                                              kp_transform_plan_type
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_create,&
                                               kpoint_release,&

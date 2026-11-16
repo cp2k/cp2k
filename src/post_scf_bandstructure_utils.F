@@ -556,6 +556,7 @@ CONTAINS
       CALL kpoint_create(kpoints)
 
       CALL get_qs_env(qs_env=qs_env, kpoints=kpoints_scf)
+      kpoints%rskp_transform = kpoints_scf%rskp_transform
 
       nkp_grid(1:3) = kpoints_scf%nkp_grid(1:3)
       nkp = nkp_grid(1)*nkp_grid(2)*nkp_grid(3)

@@ -562,6 +562,7 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: ot_lattice_fft_off = 0, &
                                                ot_lattice_fft_on = 1, &
                                                ot_lattice_fft_auto = 2
+   INTEGER, PARAMETER, PUBLIC               :: rskp_backend_gemm = 403, rskp_backend_fft = 404
    INTEGER, PARAMETER, PUBLIC               :: ot_precond_solver_default = 1, &
                                                ot_precond_solver_inv_chol = 2, &
                                                ot_precond_solver_direct = 3, &

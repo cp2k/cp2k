@@ -13,9 +13,10 @@ MODULE fft_lib
                                               fftsg_do_cleanup,&
                                               fftsg_do_init
    USE fftw3_lib,                       ONLY: &
-        fft_alloc => fftw_alloc, fft_dealloc => fftw_dealloc, fftw31dm, fftw33d, &
+        fft_alloc => fftw_alloc, fft_dealloc => fftw_dealloc, &
+        fft_pair_major_plan_type => fftw3_pair_major_plan_type, fftw31dm, fftw33d, &
         fftw3_create_plan_1d, fftw3_create_plan_3d, fftw3_destroy_plan, fftw3_do_cleanup, &
-        fftw3_do_init, fftw3_get_lengths
+        fftw3_do_init, fftw3_get_lengths, fftw3_pair_major_3d, fftw3_pair_major_plan_destroy
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -27,7 +28,8 @@ MODULE fft_lib
 
    PUBLIC :: fft_do_cleanup, fft_do_init, fft_get_lengths, fft_create_plan_3d
    PUBLIC :: fft_create_plan_1d, fft_1d, fft_library, fft_3d, fft_destroy_plan
-   PUBLIC :: fft_supports_arbitrary_lengths
+   PUBLIC :: fft_supports_arbitrary_lengths, fft_pair_major_3d
+   PUBLIC :: fft_pair_major_plan_type, fft_pair_major_plan_destroy
    PUBLIC :: fft_alloc, fft_dealloc
 
 CONTAINS
@@ -298,5 +300,37 @@ CONTAINS
       END IF
 
    END SUBROUTINE fft_1d
+
+! **************************************************************************************************
+!> \brief FFTW3-only pair-major batched 3D FFT.
+!> \param sign ...
+!> \param n ...
+!> \param nbatch ...
+!> \param zin ...
+!> \param zout ...
+!> \param stat ...
+!> \param cached_plan optional plan kept across equal-size batches
+! **************************************************************************************************
+   SUBROUTINE fft_pair_major_3d(sign, n, nbatch, zin, zout, stat, cached_plan)
+      INTEGER, INTENT(IN)                                :: sign, n(3), nbatch
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
+      INTEGER, INTENT(OUT)                               :: stat
+      TYPE(fft_pair_major_plan_type), INTENT(INOUT), &
+         OPTIONAL                                        :: cached_plan
+
+      stat = 1
+      IF (fft_type /= fft_library("FFTW3")) RETURN
+      CALL fftw3_pair_major_3d(sign, n, nbatch, zin, zout, stat, cached_plan)
+   END SUBROUTINE fft_pair_major_3d
+
+! **************************************************************************************************
+!> \brief Release a caller-owned batched 3D FFT plan before its buffers are freed.
+!> \param cached_plan ...
+! **************************************************************************************************
+   SUBROUTINE fft_pair_major_plan_destroy(cached_plan)
+      TYPE(fft_pair_major_plan_type), INTENT(INOUT)      :: cached_plan
+
+      CALL fftw3_pair_major_plan_destroy(cached_plan)
+   END SUBROUTINE fft_pair_major_plan_destroy
 
 END MODULE fft_lib
