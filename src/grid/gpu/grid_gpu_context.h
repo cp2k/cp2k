@@ -43,6 +43,8 @@ template <typename T> class gpu_vector {
   size_t allocated_size_{0};
   size_t current_size_{0};
   bool internal_allocation_{false};
+  bool host_allocated_{false};
+
   T *device_ptr_{nullptr};
   T *host_ptr_{nullptr};
 
@@ -52,12 +54,14 @@ template <typename T> class gpu_vector {
     internal_allocation_ = other.internal_allocation_;
     device_ptr_ = other.device_ptr_;
     host_ptr_ = other.host_ptr_;
+    host_allocated_ = other.host_allocated_;
 
     other.allocated_size_ = 0;
     other.current_size_ = 0;
     other.internal_allocation_ = false;
     other.device_ptr_ = nullptr;
     other.host_ptr_ = nullptr;
+    other.host_allocated_ = false;
   }
 
 public:
@@ -172,23 +176,41 @@ public:
     assert(device_ptr_ != nullptr);
     offloadMemcpyHtoD(device_ptr_, data__.data(), sizeof(T) * data__.size());
   }
+  inline void allocate_on_host() {
+    if (host_allocated_ && host_ptr_ != nullptr)
+      return; // resize keeps it in sync
+    host_allocated_ = true;
+    host_ptr_ = (T *)malloc(sizeof(T) * allocated_size_);
+    assert(host_ptr_ != nullptr);
+  }
 
   inline void resize(const size_t new_size__) {
     if (!internal_allocation_) {
       allocated_size_ = 0;
       device_ptr_ = nullptr;
       host_ptr_ = nullptr;
+      host_allocated_ = false;
     }
 
     assert(new_size__ != 0);
     if (allocated_size_ < new_size__) {
-      if (internal_allocation_ && device_ptr_ != nullptr)
+      if (internal_allocation_ && device_ptr_ != nullptr) {
         offloadFree(device_ptr_);
+      }
+
+      if (host_allocated_ && host_ptr_ != nullptr) {
+        free(host_ptr_);
+      }
+
       device_ptr_ = nullptr;
       allocated_size_ = (new_size__ < 16) ? 16 : round_up16(new_size__);
       offloadMalloc((void **)&device_ptr_, sizeof(T) * allocated_size_);
       internal_allocation_ = true;
       host_ptr_ = nullptr;
+
+      if (host_allocated_) {
+        allocate_on_host();
+      }
     }
     assert(device_ptr_ != nullptr);
     current_size_ = new_size__;
@@ -203,6 +225,12 @@ public:
       offloadFree(device_ptr_);
     }
 
+    if (host_ptr_ && host_allocated_) {
+      free(host_ptr_);
+      host_ptr_ = nullptr;
+      host_allocated_ = false;
+    }
+
     allocated_size_ = 0;
     current_size_ = 0;
     device_ptr_ = nullptr;
@@ -212,6 +240,8 @@ public:
 
   inline T *data() { return device_ptr_; }
   inline const T *data() const { return device_ptr_; }
+  inline T *data_host() { return host_ptr_; }
+  inline const T *data_host() const { return host_ptr_; }
 };
 
 template <typename T> class grid_info {
@@ -428,9 +458,11 @@ struct kernel_buffers {
   double *grid{nullptr};
   double *coef{nullptr};
   double *hab_block{nullptr};
-  double *forces{nullptr};
   double *virial{nullptr};
   double *cab{nullptr};
+  double *forces_a{nullptr};
+  double *forces_b{nullptr};
+  double *virial_buffer{nullptr};
 };
 
 /*******************************************************************************
@@ -497,8 +529,8 @@ public:
   int cab_la_max_diff_{-1}, cab_lb_max_diff_{-1};
   gpu_vector<double> pab_block_;
   gpu_vector<double> hab_block_;
-  gpu_vector<double> forces_;
   gpu_vector<double> virial_;
+  gpu_vector<double> forces_a_, forces_b_, virial_buffer_;
   gpu_vector<task_info> tasks_dev;
   gpu_vector<int> num_tasks_per_block_dev_;
   std::vector<grid_info<double>> grid_;
@@ -507,6 +539,7 @@ public:
   std::vector<int> sphi_size;
   gpu_vector<double *> sphi_dev;
   gpu_vector<int> task_sorted_by_blocks_dev, sorted_blocks_offset_dev;
+  std::vector<int> block_atoms_;
   bool calculate_forces{false};
   bool calculate_virial{false};
   bool compute_tau{false};
@@ -544,7 +577,10 @@ public:
         cab_lb_max_diff_{other.cab_lb_max_diff_},
         pab_block_{std::move(other.pab_block_)},
         hab_block_{std::move(other.hab_block_)},
-        forces_{std::move(other.forces_)}, virial_{std::move(other.virial_)},
+        virial_{std::move(other.virial_)},
+        forces_a_(std::move(other.forces_a_)),
+        forces_b_(std::move(other.forces_b_)),
+        virial_buffer_(std::move(other.virial_buffer_)),
         tasks_dev{std::move(other.tasks_dev)},
         num_tasks_per_block_dev_{std::move(other.num_tasks_per_block_dev_)},
         grid_{std::move(other.grid_)},
@@ -554,6 +590,7 @@ public:
         sphi_dev{std::move(other.sphi_dev)},
         task_sorted_by_blocks_dev{std::move(other.task_sorted_by_blocks_dev)},
         sorted_blocks_offset_dev{std::move(other.sorted_blocks_offset_dev)},
+        block_atoms_(std::move(other.block_atoms_)),
         calculate_forces{other.calculate_forces},
         calculate_virial{other.calculate_virial},
         compute_tau{other.compute_tau},
@@ -612,8 +649,10 @@ public:
       cab_lb_max_diff_ = other.cab_lb_max_diff_;
       pab_block_ = std::move(other.pab_block_);
       hab_block_ = std::move(other.hab_block_);
-      forces_ = std::move(other.forces_);
       virial_ = std::move(other.virial_);
+      forces_a_ = std::move(other.forces_a_);
+      forces_b_ = std::move(other.forces_b_);
+      virial_buffer_ = std::move(other.virial_buffer_);
       tasks_dev = std::move(other.tasks_dev);
       num_tasks_per_block_dev_ = std::move(other.num_tasks_per_block_dev_);
       grid_ = std::move(other.grid_);
@@ -623,7 +662,7 @@ public:
       sphi_dev = std::move(other.sphi_dev);
       task_sorted_by_blocks_dev = std::move(other.task_sorted_by_blocks_dev);
       sorted_blocks_offset_dev = std::move(other.sorted_blocks_offset_dev);
-
+      block_atoms_ = std::move(other.block_atoms_);
       calculate_forces = other.calculate_forces;
       calculate_virial = other.calculate_virial;
       compute_tau = other.compute_tau;
@@ -666,8 +705,11 @@ public:
     task_sorted_by_blocks_dev.reset();
     sorted_blocks_offset_dev.reset();
     sphi_dev.reset();
-    forces_.reset();
     virial_.reset();
+    forces_a_.reset();
+    forces_b_.reset();
+    block_atoms_.clear();
+    virial_buffer_.reset();
 
     for (auto &phi : sphi) {
       if (phi != nullptr)

@@ -77,6 +77,65 @@ __device__ __inline__ T block_reduce_64(T *table, const T val_, const int tid) {
   return val;
 }
 
+// Reduces the virial of the block and stores it in virial_buffer[9][nblocks].
+// The last block to finish then sums the per block values in a fixed order,
+// so that the virial is deterministic and needs no atomics. Must be called by
+// every block of the launch, including the ones without tasks (virial = 0).
+template <typename T>
+__device__ void reduce_virial(const kernel_params &dev_, T *sum,
+                              const T virial[9], const int tid) {
+  T *buf = dev_.buffers_dev.virial_buffer;
+  const unsigned int nb = gridDim.x;
+  const unsigned int b = block_index();
+  unsigned int *retirement_count =
+      (unsigned int *)(dev_.buffers_dev.virial_buffer + 9 * nb);
+
+  for (int i = 0; i < 9; i++) {
+    const T v = block_reduce_64<T>(sum, virial[i], tid);
+    if (tid == 0)
+      buf[i * nb + b] = v;
+  }
+
+  // make the partial sums visible before taking a ticket
+  __shared__ bool last;
+  __threadfence();
+  if (tid == 0)
+    last = (atomicInc(retirement_count, gridDim.x) == (gridDim.x - 1));
+  __syncthreads();
+  if (!last)
+    return;
+
+  if (dev_.buffers_dev.virial != nullptr) {
+    for (int i = 0; i < 9; i++) {
+      T s = 0.0;
+      for (unsigned int k = tid; k < nb; k += 64)
+        s += buf[i * nb + k]; // L2, never a stale L1 line
+      s = block_reduce_64<T>(sum, s, tid);
+      if (tid == 0)
+        dev_.buffers_dev.virial[i] = s;
+    }
+  }
+  if (tid == 0)
+    *retirement_count = 0; // ready for the next launch
+}
+template <typename T>
+__device__ void reduce_forces(const kernel_params &dev_, T *sum, T *fa, T *fb,
+                              const int tid) {
+  T *forces_a_tmp = &dev_.buffers_dev.forces_a[3 * block_index()];
+  T *forces_b_tmp = &dev_.buffers_dev.forces_b[3 * block_index()];
+
+  for (int i = 0; i < 3; i++) {
+    fa[i] = block_reduce_64<T>(sum, fa[i], tid);
+    if (tid == 0) {
+      forces_a_tmp[i] = fa[i];
+    }
+    fb[i] = block_reduce_64<T>(sum, fb[i], tid);
+    if (tid == 0) {
+      forces_b_tmp[i] = fb[i];
+    }
+  }
+}
+
 template <typename T, bool COMPUTE_TAU>
 __global__ __launch_bounds__(64) void compute_hab(const kernel_params dev_) {
   const int number_of_tasks = dev_.num_tasks_per_block_dev[block_index()];
@@ -266,9 +325,6 @@ __launch_bounds__(64) void compute_hab_forces(const kernel_params dev_) {
   extern __shared__ T shared_memory[];
   const int number_of_tasks = dev_.num_tasks_per_block_dev[block_index()];
 
-  if (number_of_tasks == 0)
-    return;
-
   const int tid = thread_global_index();
   const int nthreads = blockDim.x * blockDim.y * blockDim.z;
   const int offset = dev_.sorted_blocks_offset_dev[block_index()];
@@ -343,34 +399,14 @@ __launch_bounds__(64) void compute_hab_forces(const kernel_params dev_) {
   // theoretically not needed
   __syncthreads();
 
-  const int task_id = dev_.task_sorted_by_blocks_dev[offset];
-  const auto &glb_task = dev_.tasks[task_id];
-  const int iatom = glb_task.iatom;
-  const int jatom = glb_task.jatom;
-  T *forces_a = &dev_.buffers_dev.forces[3 * iatom];
-  T *forces_b = &dev_.buffers_dev.forces[3 * jatom];
-
   T *sum = (T *)shared_memory;
+
   if (dev_.buffers_dev.virial != nullptr) {
-
-    for (int i = 0; i < 9; i++) {
-      virial[i] = block_reduce_64<T>(sum, virial[i], tid);
-
-      if (tid == 0)
-        atomicAdd(dev_.buffers_dev.virial + i, virial[i]);
-    }
+    reduce_virial(dev_, sum, virial, tid);
   }
 
-  for (int i = 0; i < 3; i++) {
-    fa[i] = block_reduce_64<T>(sum, fa[i], tid);
-
-    if (tid == 0)
-      atomicAdd(forces_a + i, fa[i]);
-
-    fb[i] = block_reduce_64<T>(sum, fb[i], tid);
-
-    if (tid == 0)
-      atomicAdd(forces_b + i, fb[i]);
+  if (number_of_tasks) {
+    reduce_forces(dev_, sum, fa, fb, tid);
   }
 }
 
@@ -401,9 +437,6 @@ __global__ __launch_bounds__(64) void compute_hab_forces_two_steps(
     const kernel_params dev_, const int ld, const int max_nsgf_set) {
   extern __shared__ T shared_memory[];
   const int number_of_tasks = dev_.num_tasks_per_block_dev[block_index()];
-
-  if (number_of_tasks == 0)
-    return;
 
   T *smem_h = &shared_memory[0]; // [ld][ld], H[jco][ico]
   T *smem_w = smem_h + ld * ld;  // [max_nsgf_set][ld], W then U
@@ -500,27 +533,13 @@ __global__ __launch_bounds__(64) void compute_hab_forces_two_steps(
   // all tasks of a block belong to the same atom pair
   __syncthreads();
 
-  const int task_id = dev_.task_sorted_by_blocks_dev[offset];
-  const auto &glb_task = dev_.tasks[task_id];
-  T *forces_a = &dev_.buffers_dev.forces[3 * glb_task.iatom];
-  T *forces_b = &dev_.buffers_dev.forces[3 * glb_task.jatom];
-
   T *sum = (T *)shared_memory;
   if (compute_virial) {
-    for (int i = 0; i < 9; i++) {
-      virial[i] = block_reduce_64<T>(sum, virial[i], tid);
-      if (tid == 0)
-        atomicAdd(dev_.buffers_dev.virial + i, virial[i]);
-    }
+    reduce_virial(dev_, sum, virial, tid);
   }
 
-  for (int i = 0; i < 3; i++) {
-    fa[i] = block_reduce_64<T>(sum, fa[i], tid);
-    if (tid == 0)
-      atomicAdd(forces_a + i, fa[i]);
-    fb[i] = block_reduce_64<T>(sum, fb[i], tid);
-    if (tid == 0)
-      atomicAdd(forces_b + i, fb[i]);
+  if (number_of_tasks) {
+    reduce_forces(dev_, sum, fa, fb, tid);
   }
 }
 

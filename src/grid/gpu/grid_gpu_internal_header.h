@@ -121,8 +121,6 @@ template <typename T> struct smem_task {
   T *sphib;
   // integrate
   T *hab_block;
-  T *forces_a;
-  T *forces_b;
 };
 
 /*******************************************************************************
@@ -738,8 +736,6 @@ __device__ __inline__ void fill_smem_task_coef(const kernel_params &dev,
                                                smem_task<T> &task) {
   if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
     const auto &glb_task = dev.tasks[task_id];
-    const int iatom = glb_task.iatom;
-    const int jatom = glb_task.jatom;
     task.zeta = glb_task.zeta;
     task.zetb = glb_task.zetb;
 
@@ -806,10 +802,6 @@ __device__ __inline__ void fill_smem_task_coef(const kernel_params &dev,
     if (dev.buffers_dev.hab_block != nullptr) {
       task.hab_block =
           dev.buffers_dev.hab_block + block_offset + glb_task.subblock_offset;
-      if (dev.buffers_dev.forces != nullptr) {
-        task.forces_a = &dev.buffers_dev.forces[3 * iatom];
-        task.forces_b = &dev.buffers_dev.forces[3 * jatom];
-      }
     }
   }
   __syncthreads();
