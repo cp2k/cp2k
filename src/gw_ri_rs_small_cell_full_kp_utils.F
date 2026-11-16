@@ -44,7 +44,7 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
    USE gw_ri_rs_small_cell_full_kp_q0_corr,ONLY: add_gamma_corr_cell_correction,&
                                               add_gamma_corr_pair_cell,&
                                               gamma_point_correction,&
-                                              replace_gamma_sample,&
+                                              q_mesh_and_gamma_shell_average,&
                                               singular_head_cell_factors
    USE gw_ri_rs_small_cell_full_kp_types,ONLY: gwkp_type,&
                                               ri_q_matrix_block_type
@@ -1079,7 +1079,7 @@ CONTAINS
       ALLOCATE (G_grid_k(n_pairs_local, 1, bs_env%nkp_scf_desymm))
       CALL q_matrices_to_fft_pairs(q_matrices, bs_env%para_env, G_grid_k)
       DEALLOCATE (q_matrices)
-      CALL replace_gamma_sample(bs_env, G_grid_k)
+      CALL q_mesh_and_gamma_shell_average(bs_env, values_q=G_grid_k)
       CALL build_full_cell_grid(bs_env, full_cells)
       ALLOCATE (V_grid_R(n_pairs_local, 1, SIZE(full_cells, 2)))
       CALL k_to_real_cell_transform(G_grid_k, qpoints, bs_env%kpoints_scf_desymm%nkp_grid, &
@@ -1165,7 +1165,7 @@ CONTAINS
          CALL project_auxiliary_time_q_to_fft_pairs(gwkp_env%Z_lP_q, &
                                                     gwkp_env%W_PQ_tau, i_group, &
                                                     gwkp_env%group_env, G_grid_k)
-         CALL replace_gamma_sample(bs_env, G_grid_k)
+         CALL q_mesh_and_gamma_shell_average(bs_env, values_q=G_grid_k)
          CALL k_to_real_cell_transform(G_grid_k, qpoints, &
                                        bs_env%kpoints_scf_desymm%nkp_grid, full_cells, &
                                        W_grid_R, rskp_backend_fft, profile_fft=fft_profile_enabled)

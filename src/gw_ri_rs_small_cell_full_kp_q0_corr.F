@@ -89,7 +89,7 @@ MODULE gw_ri_rs_small_cell_full_kp_q0_corr
              add_gamma_corr_pair_cell, &
              gamma_point_correction, &
              prepare_ri_rs_gamma_correction, &
-             replace_gamma_sample, &
+             q_mesh_and_gamma_shell_average, &
              singular_head_cell_factors
 
    ! Below |a*L| = taylor_switch, radial phase moments use their Taylor series.
@@ -170,7 +170,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Gamma-correction head and wing coefficients over the Brillouin zone.
-!> Construct the q->0 dielectric limit along face-cubature and mesh-sample directions
+!> Construct the q->0 dielectric limit along face-cubature and mesh-point directions
 !> from SCF dipole transitions and the directly fitted Gamma Gaussian body.
 !> \param bs_env ...
 !> \param qs_env ...
@@ -198,8 +198,8 @@ CONTAINS
       LOGICAL                                            :: is_slab
       REAL(KIND=dp)                                      :: slab_b(3, 2), volume
       REAL(KIND=dp), ALLOCATABLE :: angular_directions(:, :), angular_radii(:), &
-         angular_weights(:), directions(:, :), head_response(:, :), radii(:), sample_q(:, :), &
-         star_weights(:), weights(:)
+         angular_weights(:), directions(:, :), head_response(:, :), q_mesh(:, :), radii(:), &
+         shell_weights(:), weights(:)
       TYPE(cp_fm_type), ALLOCATABLE                      :: fm_metric(:)
 
       CALL timeset(routineN, handle)
@@ -217,20 +217,20 @@ CONTAINS
          WRITE (bs_env%unit_nr, '(T2,A,T72,I10)') &
             'Number of angular points for the Γ-point correction of W:', n_angular
       END IF
-      CALL mesh_samples(bs_env, sample_q, star_weights, i_gamma)
-      n_directions = n_angular + SIZE(sample_q, 2) - MERGE(1, 0, i_gamma > 0)
+      CALL q_mesh_and_gamma_shell_average(bs_env, q_mesh, shell_weights, i_gamma)
+      n_directions = n_angular + SIZE(q_mesh, 2) - MERGE(1, 0, i_gamma > 0)
       ALLOCATE (directions(3, n_directions), weights(n_directions), radii(n_directions))
       directions(:, 1:n_angular) = angular_directions
       weights(1:n_angular) = angular_weights
       radii(1:n_angular) = angular_radii
       DEALLOCATE (angular_directions, angular_weights, angular_radii)
       i_direction = n_angular
-      DO iq = 1, SIZE(sample_q, 2)
+      DO iq = 1, SIZE(q_mesh, 2)
          IF (iq == i_gamma) CYCLE
          i_direction = i_direction + 1
-         radii(i_direction) = NORM2(sample_q(:, iq))
-         directions(:, i_direction) = sample_q(:, iq)/radii(i_direction)
-         weights(i_direction) = star_weights(iq)
+         radii(i_direction) = NORM2(q_mesh(:, iq))
+         directions(:, i_direction) = q_mesh(:, iq)/radii(i_direction)
+         weights(i_direction) = shell_weights(iq)
       END DO
       ALLOCATE (head_response(n_directions, bs_env%num_time_freq_points))
       ! The finite RI metric at q=0 retains its complete Gaussian channel.
@@ -321,7 +321,7 @@ CONTAINS
 
       CALL gamma_corr_cell_integrals(bs_env, directions, weights, radii, n_angular, head_response, &
                                      gwkp_env%gamma_correction)
-      DEALLOCATE (directions, head_response, radii, sample_q, star_weights, weights)
+      DEALLOCATE (directions, head_response, radii, q_mesh, shell_weights, weights)
       DEALLOCATE (time_chi, time_wing, time_head, metric_rows)
       DEALLOCATE (F_external)
 
@@ -446,26 +446,29 @@ CONTAINS
    END SUBROUTINE gamma_cell_face_directions
 
 ! **************************************************************************************************
-!> \brief Cartesian q of the W mesh points, folded into |q_i| <= 1/2, and their weights in the
-!> Γ sample of a Γ-centred mesh.
+!> \brief Cartesian q of the χ/W mesh, folded into |q_i| <= 1/2, and the weights of the nearest
+!> shell around Γ. On a Γ-centred mesh, the value at q = 0 is replaced by its average over this shell.
 !> W - M is smooth at Γ up to a direction-dependent limit c(d) of the wings and pair densities, odd
 !> or a quadratic form in d. The Γ-cell average of W - M is the angular average of c plus O(|q|).
 !> W(0) itself has no direction and misses c. The average over the nearest mesh shell has the
 !> same limit (±q pairs cancel the odd part, the symmetric shell averages the quadratic form),
-!> so the Γ sample is replaced by it, with an error O(1/N) in the Γ sample of weight 1/N^d.
+!> so it replaces the value at q = 0, with an error O(1/N) in a mesh point of weight 1/N^d.
 !> \param bs_env ...
-!> \param sample_q Cartesian q of all mesh points
-!> \param star_weights 1/(number of shell points) on the nearest shell around Γ, 0 elsewhere
+!> \param q_mesh Cartesian q of all mesh points
+!> \param shell_weights 1/(number of shell points) on the nearest shell around Γ, 0 elsewhere
 !> \param i_gamma index of q = 0, 0 for a shifted mesh
+!> \param values_q values on the χ/W mesh, last index q; the value at q = 0 is replaced by the
+!>        nearest-shell average
 ! **************************************************************************************************
-   SUBROUTINE mesh_samples(bs_env, sample_q, star_weights, i_gamma)
+   SUBROUTINE q_mesh_and_gamma_shell_average(bs_env, q_mesh, shell_weights, i_gamma, values_q)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: sample_q(:, :), star_weights(:)
-      INTEGER, INTENT(OUT)                               :: i_gamma
+      REAL(KIND=dp), ALLOCATABLE, INTENT(OUT), OPTIONAL  :: q_mesh(:, :), shell_weights(:)
+      INTEGER, INTENT(OUT), OPTIONAL                     :: i_gamma
+      COMPLEX(KIND=dp), INTENT(INOUT), OPTIONAL          :: values_q(:, :, :)
 
-      INTEGER                                            :: nk
+      INTEGER                                            :: i_q0, nk
       REAL(KIND=dp)                                      :: area, bmat(3, 3), q_min
-      REAL(KIND=dp), ALLOCATABLE                         :: q_norm(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: q(:, :), q_norm(:), weights(:)
 
       nk = PRODUCT(bs_env%nkp_grid_chi_eps_W_orig)
       IF (ALL(bs_env%periodic == [1, 1, 0])) THEN
@@ -474,37 +477,25 @@ CONTAINS
       ELSE
          bmat = twopi*TRANSPOSE(inv_3x3(bs_env%hmat))
       END IF
-      ALLOCATE (sample_q(3, nk), star_weights(nk), q_norm(nk))
-      sample_q(:, :) = MATMUL(bmat, bs_env%kpoints_chi_eps_W%xkp(1:3, 1:nk) - &
-                              ANINT(bs_env%kpoints_chi_eps_W%xkp(1:3, 1:nk)))
-      q_norm(:) = NORM2(sample_q, DIM=1)
-      star_weights(:) = 0.0_dp
-      i_gamma = MINLOC(q_norm, 1)
-      IF (q_norm(i_gamma) > 1.0E-8_dp) i_gamma = 0
-      IF (i_gamma == 0 .OR. nk == 1) RETURN
-      q_min = MINVAL(q_norm, MASK=q_norm > 1.0E-8_dp)
-      WHERE (ABS(q_norm - q_min) < 1.0E-6_dp*q_min) star_weights = 1.0_dp
-      star_weights(:) = star_weights/SUM(star_weights)
+      ALLOCATE (q(3, nk), weights(nk), q_norm(nk))
+      q(:, :) = MATMUL(bmat, bs_env%kpoints_chi_eps_W%xkp(1:3, 1:nk) - &
+                       ANINT(bs_env%kpoints_chi_eps_W%xkp(1:3, 1:nk)))
+      q_norm(:) = NORM2(q, DIM=1)
+      weights(:) = 0.0_dp
+      i_q0 = MINLOC(q_norm, 1)
+      IF (q_norm(i_q0) > 1.0E-8_dp) i_q0 = 0
+      IF (i_q0 > 0 .AND. nk > 1) THEN
+         q_min = MINVAL(q_norm, MASK=q_norm > 1.0E-8_dp)
+         WHERE (ABS(q_norm - q_min) < 1.0E-6_dp*q_min) weights = 1.0_dp
+         weights(:) = weights/SUM(weights)
+         IF (PRESENT(values_q)) values_q(:, 1, i_q0) = MATMUL(values_q(:, 1, :), weights)
+      END IF
+      DEALLOCATE (q_norm)
+      IF (PRESENT(i_gamma)) i_gamma = i_q0
+      IF (PRESENT(q_mesh)) CALL MOVE_ALLOC(q, q_mesh)
+      IF (PRESENT(shell_weights)) CALL MOVE_ALLOC(weights, shell_weights)
 
-   END SUBROUTINE mesh_samples
-
-! **************************************************************************************************
-!> \brief Replace the q = 0 sample of a Γ-centred mesh by the average over the nearest mesh shell.
-!> The Γ correction subtracts the model there with phase 1, see mesh_samples.
-!> \param bs_env ...
-!> \param values_q values on the W mesh, last index q
-! **************************************************************************************************
-   SUBROUTINE replace_gamma_sample(bs_env, values_q)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      COMPLEX(KIND=dp), INTENT(INOUT)                    :: values_q(:, :, :)
-
-      INTEGER                                            :: i_gamma
-      REAL(KIND=dp), ALLOCATABLE                         :: sample_q(:, :), star_weights(:)
-
-      CALL mesh_samples(bs_env, sample_q, star_weights, i_gamma)
-      IF (SUM(star_weights) > 0.0_dp) values_q(:, 1, i_gamma) = MATMUL(values_q(:, 1, :), star_weights)
-
-   END SUBROUTINE replace_gamma_sample
+   END SUBROUTINE q_mesh_and_gamma_shell_average
 
 ! **************************************************************************************************
 !> \brief Radial moments f0 = int_0^L exp(-i a q) dq and f1 = int_0^L q exp(-i a q) dq.
@@ -536,9 +527,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Integrate 1/q**2 (3D) or 1/|q| (2D slab) over the Brillouin zone.
-!> The regular mesh sum already contains the model samples at all q /= 0, which are
-!> subtracted here; the nearest shell is subtracted once more with phase 1 for the Γ sample
-!> of a Γ-centred mesh. In 3D the returned coefficient multiplies the factored head
+!> The regular mesh sum already contains the model at all mesh points q /= 0, which is
+!> subtracted here; the nearest shell is subtracted once more with phase 1 for the value at
+!> q = 0 of a Γ-centred mesh. In 3D the returned coefficient multiplies the factored head
 !> density 4*pi*Z_l0(0)*conjg(Z_l'0(0))/M_0(0)**2; in 2D it has units of inverse
 !> in-plane momentum.  The face-to-polar Jacobian resolves the integrable singularity
 !> without sampling q=0.
@@ -554,9 +545,8 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: f0
       INTEGER                                            :: i_gamma, icell, idir, iq, n_dim, nk
       REAL(KIND=dp)                                      :: area, b(3, 2), rcart(3), scale
-      REAL(KIND=dp), ALLOCATABLE                         :: directions(:, :), radii(:), &
-                                                            sample_q(:, :), star_weights(:), &
-                                                            weights(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: directions(:, :), q_mesh(:, :), &
+                                                            radii(:), shell_weights(:), weights(:)
 
       nk = PRODUCT(bs_env%nkp_grid_chi_eps_W_orig)
       IF (ALL(bs_env%periodic == [1, 1, 0])) THEN
@@ -569,7 +559,7 @@ CONTAINS
          CALL gamma_cell_face_directions(bs_env, directions, weights, radii)
          scale = bs_env%ri_rs%cell%deth*fourpi/(twopi**3)
       END IF
-      CALL mesh_samples(bs_env, sample_q, star_weights, i_gamma)
+      CALL q_mesh_and_gamma_shell_average(bs_env, q_mesh, shell_weights, i_gamma)
       ALLOCATE (factors(SIZE(cells, 2)))
       DO icell = 1, SIZE(cells, 2)
          rcart = MATMUL(bs_env%hmat, REAL(cells(:, icell), dp))
@@ -579,14 +569,14 @@ CONTAINS
             factors(icell) = factors(icell) + weights(idir)*f0
          END DO
          factors(icell) = factors(icell)*scale
-         DO iq = 1, SIZE(sample_q, 2)
+         DO iq = 1, SIZE(q_mesh, 2)
             IF (iq == i_gamma) CYCLE
             factors(icell) = factors(icell) - &
-                             (EXP(-gaussi*DOT_PRODUCT(sample_q(:, iq), rcart)) + star_weights(iq))/ &
-                             (REAL(nk, dp)*NORM2(sample_q(:, iq))**(n_dim - 1))
+                             (EXP(-gaussi*DOT_PRODUCT(q_mesh(:, iq), rcart)) + shell_weights(iq))/ &
+                             (REAL(nk, dp)*NORM2(q_mesh(:, iq))**(n_dim - 1))
          END DO
       END DO
-      DEALLOCATE (directions, weights, radii, sample_q, star_weights)
+      DEALLOCATE (directions, weights, radii, q_mesh, shell_weights)
    END SUBROUTINE singular_head_cell_factors
 
 ! **************************************************************************************************
@@ -714,9 +704,9 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Integrate the Gamma-correction head and wings over the Brillouin zone, in 2D and 3D.
 !> The regular mesh sum already contains the model at all mesh points q /= 0 (directions after
-!> n_angular), which are subtracted here; exp(-iqR) is retained per real-space cell R. The Γ sample
-!> of a Γ-centred mesh is the nearest-shell average (mesh_samples), so the shell is subtracted
-!> once more with phase 1.
+!> n_angular), which are subtracted here; exp(-iqR) is retained per real-space cell R. The value at
+!> q = 0 of a Γ-centred mesh is the nearest-shell average (q_mesh_and_gamma_shell_average), so the
+!> shell is subtracted once more with phase 1.
 !> Integrating over the whole zone instead of the cells next to Γ removes the sampling error of the
 !> non-analytic model on the mesh, which does not decay with N in 2D (2π/(q(1+2πqA)) changes from
 !> 1/q to 1/q² within the first mesh cells) and decays only as 1/N in 3D. Γ-centred and shifted
@@ -729,9 +719,9 @@ CONTAINS
 !>     are integrated radially by Gauss-Legendre.
 !> \param bs_env ...
 !> \param directions unit directions d around Gamma
-!> \param weights angular weights, or for the mesh samples their weights in the Γ sample
-!> \param radii extent of the Brillouin zone along d, or |q| of a mesh sample
-!> \param n_angular number of angular directions, followed by the mesh samples
+!> \param weights angular weights, or for the mesh points their weights in the value at q = 0
+!> \param radii extent of the Brillouin zone along d, or |q| of a mesh point
+!> \param n_angular number of angular directions, followed by the mesh points
 !> \param head_response ε⁻¹_00(d,ω) in 3D, A(d,ω) in 2D
 !> \param model Gamma correction per real-space cell
 ! **************************************************************************************************
