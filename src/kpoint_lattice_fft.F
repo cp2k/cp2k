@@ -297,14 +297,12 @@ CONTAINS
 !> \param nbatch ...
 !> \param buffer ...
 !> \param scratch ...
-!> \param stat ...
 !> \param profile ...
 ! **************************************************************************************************
-   SUBROUTINE lattice_fft_execute_pair_major(dir, n, nbatch, buffer, scratch, stat, profile)
+   SUBROUTINE lattice_fft_execute_pair_major(dir, n, nbatch, buffer, scratch, profile)
       LOGICAL, INTENT(IN)                                :: dir
       INTEGER, INTENT(IN)                                :: n(3), nbatch
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: buffer(:), scratch(:)
-      INTEGER, INTENT(OUT)                               :: stat
       TYPE(lattice_fft_profile_type), INTENT(INOUT), &
          OPTIONAL                                        :: profile
 
@@ -313,9 +311,7 @@ CONTAINS
 
       IF (PRESENT(profile)) started = m_walltime()
       CALL fft_3d_local(dir, n, nbatch, .TRUE., .TRUE., buffer, scratch)
-      stat = 0
       IF (PRESENT(profile)) profile%seconds(5) = profile%seconds(5) + m_walltime() - started
-      IF (stat /= 0) RETURN
       swap => buffer
       buffer => scratch
       scratch => swap
@@ -367,7 +363,7 @@ CONTAINS
       INTEGER                                            :: handle, i, icell, ik, ik_out, image, &
                                                             image_first, matrix_column, &
                                                             matrix_row, nbatch, nout, row_first, &
-                                                            slot, start, stat, width
+                                                            slot, start, width
       INTEGER(KIND=int_8)                                :: budget, first, matrix_index, needed, &
                                                             ngrid, nvalues
       LOGICAL                                            :: add, success
@@ -459,7 +455,6 @@ CONTAINS
                profile%pair_major = .TRUE.
                profile%seconds(3) = profile%seconds(3) + m_walltime() - started
             END IF
-            stat = 0
             ! Flatten both matrix dimensions so each FFT batch spans whole columns.
             DO first = 1_int_8, nvalues, INT(width, int_8)
                nbatch = INT(MIN(INT(width, int_8), nvalues - first + 1_int_8))
@@ -503,14 +498,7 @@ CONTAINS
                END DO
 !$OMP END PARALLEL DO
                IF (PRESENT(profile)) profile%seconds(4) = profile%seconds(4) + m_walltime() - started
-               IF (nbatch == width) THEN
-                  CALL lattice_fft_execute_pair_major(BWFFT, plan%nfft, nbatch, plan%fft_in, plan%fft_out, stat, &
-                                                      profile)
-               ELSE
-                  CALL lattice_fft_execute_pair_major(BWFFT, plan%nfft, nbatch, plan%fft_in, plan%fft_out, stat, &
-                                                      profile)
-               END IF
-               IF (stat /= 0) EXIT
+               CALL lattice_fft_execute_pair_major(BWFFT, plan%nfft, nbatch, plan%fft_in, plan%fft_out, profile)
                IF (PRESENT(profile)) started = m_walltime()
                output(1:nbatch, 1:INT(ngrid)) => plan%fft_in(1:INT(ngrid)*nbatch)
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
@@ -548,10 +536,7 @@ CONTAINS
 !$OMP END PARALLEL DO
                IF (PRESENT(profile)) profile%seconds(8) = profile%seconds(8) + m_walltime() - started
             END DO
-            success = stat == 0
-            IF (stat /= 0 .AND. add) THEN
-               CPABORT("Accumulating lattice FFT execution failed")
-            END IF
+            success = .TRUE.
          END IF
       END IF
       IF (.NOT. success) THEN
@@ -806,7 +791,6 @@ CONTAINS
          CALL cp_abort(__LOCATION__, "Inconsistent matrix batches in inverse lattice FFT")
       END IF
 
-      stat = 0
       IF (PRESENT(require_fft)) THEN
          IF (require_fft .AND. .NOT. work%regular) THEN
             CPABORT("Forced inverse lattice FFT needs a supported regular grid")
@@ -867,7 +851,6 @@ CONTAINS
             IF (stat /= 0) EXIT
          END DO
       END IF
-      IF (stat /= 0) work%regular = .FALSE.
       IF (.NOT. work%regular) THEN
          IF (PRESENT(real_sink)) THEN
             CPABORT('A lattice FFT consumer requires successful FFT execution')
@@ -900,7 +883,6 @@ CONTAINS
 !> \param values_k ...
 !> \param first ...
 !> \param nbatch ...
-!> \param stat ...
 !> \param values_rs ...
 !> \param values_real ...
 !> \param profile ...
@@ -914,7 +896,6 @@ CONTAINS
       COMPLEX(KIND=dp), INTENT(IN)                       :: values_k(:, :, :)
       INTEGER(KIND=int_8), INTENT(IN)                    :: first
       INTEGER, INTENT(IN)                                :: nbatch
-      INTEGER, INTENT(OUT)                               :: stat
       COMPLEX(KIND=dp), INTENT(INOUT), OPTIONAL          :: values_rs(:, :, :)
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: values_real(:, :, :)
       TYPE(lattice_fft_profile_type), INTENT(INOUT), &
