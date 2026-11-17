@@ -1,40 +1,15 @@
-# shellcheck shell=bash disable=SC2034,SC2153,SC2154
+# shellcheck shell=bash
 #
-# make_cp2k.sh module: Environment checks and helper functions
+# Helper functions shared by make_cp2k.sh and the step scripts in tools/make_cp2k
 #
-# This file is sourced by make_cp2k.sh at top level and shares all variables
-# with the other modules. It is not meant to be executed on its own.
-
-# Check platform
-if [[ "$(uname -s)" == "Darwin" ]]; then
-  echo "ERROR: A build for Apple macOS (Darwin, Homebrew) is not supported yet,"
-  echo "       but CP2K can be built within a container using podman."
-  echo "       Check the Dockerfiles in the folder cp2k/tools/docker like"
-  echo "       Dockerfile.test_spack_openmpi-psmp and the usage description in their header"
-  exit 1
-fi
-
-# Help finding ldconfig
-if ! command -v ldconfig &> /dev/null; then
-  PATH="${PATH}:/sbin"
-fi
-
-# Check if all mandatory packages are installed in the environment
-for package in awk bzip2 find g++ gcc gfortran git gzip ldconfig make patch python3 tar wget xz; do
-  if ! command -v "${package}" &> /dev/null; then
-    echo "ERROR: The package \"${package}\" is mandatory to build CP2K with Spack/CMake"
-    echo "       Install the missing package and re-run the script"
-    exit 1
-  fi
-done
-
-# Disable python bytecode generation to suppress __pycache__ folder creation
-export PYTHONDONTWRITEBYTECODE=1
-
-# Abort git transfers slower than 1 KB/s for 60 s, since git has no timeout,
-# so that a stalled clone (e.g. py-torch with submodules) fails and is retried
-export GIT_HTTP_LOW_SPEED_LIMIT=1000
-export GIT_HTTP_LOW_SPEED_TIME=60
+# This file only defines functions and is sourced by each script.
+# The scripts exchange their settings only via configuration files with
+# KEY=value lines (values quoted with printf %q), which are written by
+# write_config and read by load_config:
+#
+#   options.conf : Resolved settings of make_cp2k.sh (step 1), also printed by --print_config
+#   deps.conf    : Settings provided by the CP2K dependency build with build_deps.sh (step 2)
+#   build.conf   : Settings provided by the CP2K build with build_cp2k.sh (step 3)
 
 # Run a command that downloads data with up to 3 attempts and a backoff
 # of 60 s and 120 s to bridge transient network issues
@@ -51,45 +26,43 @@ retry_download() {
   return 1
 }
 
-# Print OS info if available
-if [[ -f /etc/os-release ]]; then
-  echo ""
-  cat /etc/os-release
-fi
+# Write the given variables as KEY=value lines to stdout, unset variables are skipped
+write_config() {
+  local name
+  for name in "$@"; do
+    if [[ -v ${name} ]]; then
+      printf '%s=%q\n' "${name}" "${!name}"
+    fi
+  done
+}
 
-# Check bash version
-if ((BASH_VERSINFO < 4)); then
-  echo ""
-  echo "ERROR: The employed bash version ${BASH_VERSION} is too old (from 2004)"
-  echo "       Install a newer bash version"
-  if [[ "$(uname -s)" == "Darwin" ]]; then
-    echo "HINT:  Use the bash command provided by Homebrew with Apple"
-    echo "       /opt/homebrew/bin should precede /bin/bash in the PATH"
+# Read and export the variables of the given configuration files in the given order
+load_config() {
+  local config_file
+  if (($# == 0)); then
+    echo "ERROR: No configuration file specified"
+    echo "Usage: $(basename "${0}") CONFIG_FILE..."
+    exit 1
   fi
-  exit 1
-elif ((BASH_VERSINFO < 5)); then
-  echo -e "\nWARNING: The employed bash version ${BASH_VERSION} is quite old (from 2009)"
-else
-  echo -e "\nINFO: Using bash version ${BASH_VERSION}"
-fi
+  for config_file in "$@"; do
+    if [[ ! -f "${config_file}" ]]; then
+      echo "ERROR: The configuration file ${config_file} was not found"
+      exit 1
+    fi
+    set -a
+    # shellcheck source=/dev/null
+    source "${config_file}"
+    set +a
+  done
+}
 
-# Check if the python3 version is new enough for spack
-if ! python3 -c "import sys; sys.exit(not(sys.version_info >= (3, 10)))"; then
-  echo ""
-  echo "ERROR: Python version is NOT >= 3.10 (needed for Spack)"
-  echo "       Found only $(python3 -V)"
-  exit 1
-else
-  echo -e "\nINFO: Found $(python3 -V)"
-fi
-
-# Convert a CMake build type to its canonical spelling (case-insensitive input),
-# unknown build types are returned unchanged
-canonical_build_type() {
-  case "${1,,}" in
-    debug) echo "Debug" ;;
-    release) echo "Release" ;;
-    relwithdebinfo) echo "RelWithDebInfo" ;;
-    *) echo "${1}" ;;
-  esac
+# Activate the Spack environment with the CP2K dependencies
+activate_spack_env() {
+  # shellcheck source=/dev/null
+  source "${SPACK_ROOT}/share/spack/setup-env.sh"
+  if ! spack env list | grep -q "${CP2K_ENV}"; then
+    echo "ERROR: No Spack environment \"${CP2K_ENV}\" found"
+    exit 1
+  fi
+  eval "$(spack env activate --sh "${CP2K_ENV}")"
 }

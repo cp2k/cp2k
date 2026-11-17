@@ -1,44 +1,23 @@
-# shellcheck shell=bash disable=SC2034,SC2153,SC2154
+#!/usr/bin/env bash
 #
-# make_cp2k.sh module: Build of the CP2K dependencies with Spack
+# build_deps.sh: Build the CP2K dependencies with Spack (step 2 of make_cp2k.sh)
 #
-# This file is sourced by make_cp2k.sh at top level and shares all variables
-# with the other modules. It is not meant to be executed on its own.
+# Usage: build_deps.sh CONFIG_FILE...
+#
+# The settings are read from the configuration file options.conf written by
+# make_cp2k.sh (see also make_cp2k.sh --print_config). The dependencies are
+# built in the folder SPACK_BUILD_PATH only if they are not complete yet. The
+# settings provided by the dependency build are written to CONFIG_PATH/deps.conf.
+
+# shellcheck disable=SC2154 # the variables are defined by the configuration files
+
+set -uo pipefail
+
+# shellcheck source=/dev/null
+source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/common.sh"
+load_config "$@"
 
 ### Build CP2K dependencies with Spack if needed or requested ###
-
-# Spack version
-export SPACK_VERSION="${SPACK_VERSION:-1.2.2}"
-export SPACK_BUILD_PATH="${BUILD_PATH}/spack"
-export SPACK_ROOT="${SPACK_BUILD_PATH}/spack"
-
-# Isolate user configuration for spack
-export SPACK_DISABLE_LOCAL_CONFIG=true
-export SPACK_USER_CONFIG_PATH="${SPACK_BUILD_PATH}"
-export SPACK_USER_CACHE_PATH="${SPACK_BUILD_PATH}/cache"
-
-# Define the CP2K spack configuration file
-export CP2K_CONFIG_FILE="${SPACK_BUILD_PATH}/cp2k_deps_${CP2K_VERSION:0:1}${CP2K_VERSION:4}.yaml"
-
-# If requested, remove the spack folder for (re)building all CP2K dependencies
-if [[ "${BUILD_DEPS}" == "always" ]]; then
-  for folder in ${SPACK_BUILD_PATH} ${BUILD_PATH}/build ${INSTALL_PREFIX}; do
-    if [[ -d "${folder}" ]]; then
-      echo "Removing folder \"${folder}\""
-      rm -rf "${folder}"
-    fi
-  done
-fi
-
-# If requested, remove the build folder for (re)building CP2K
-if [[ "${REBUILD_CP2K}" == "yes" ]]; then
-  for folder in ${BUILD_PATH}/build ${INSTALL_PREFIX}; do
-    if [[ -d "${folder}" ]]; then
-      echo "Removing folder \"${folder}\""
-      rm -rf "${folder}"
-    fi
-  done
-fi
 
 # An incomplete build already contains the Spack installation, source cache,
 # environment, and every successfully installed dependency. Re-enter the
@@ -212,14 +191,11 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
       sed -E -e "s|prefix: /usr/local/cuda|prefix: ${CUDA_HOME}|" -i "${CP2K_CONFIG_FILE}"
     fi
   else
+    # CUDA is required for LibGint (make_cp2k.sh sets -DCP2K_USE_LIBGINT=OFF accordingly)
     sed -E \
       -e 's/"~cuda\s+~gdrcopy"/"\~cuda"/' \
       -e '/\s*-\s+"libgint@/ s/^ /#/' \
       -i "${CP2K_CONFIG_FILE}"
-    # CUDA is required for LibGint
-    export CMAKE_FEATURE_FLAGS="${CMAKE_FEATURE_FLAGS} -DCP2K_USE_LIBGINT=OFF"
-    echo -e "\nLibGint requires CUDA support which is not enabled"
-    echo -e "The CMAKE_FEATURE_FLAGS have been updated to disable LibGint\n"
   fi
 
   # Activate OpenCL support if requested
@@ -396,17 +372,13 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
 
   echo -e "\n*** Installation of CP2K dependencies completed ***\n"
 
-else
-
-  # Initialize Spack shell hooks
-  # shellcheck source=/dev/null
-  source "${SPACK_ROOT}"/share/spack/setup-env.sh
-
 fi
 
-# Quit after (re)building all CP2K dependencies if requested
-if [[ "${BUILD_DEPS_ONLY}" == "yes" ]]; then
-  exit
-fi
+# PyTorch's TorchConfig.cmake is buried in the Python site-packages directory
+# shellcheck disable=SC2034 # written to deps.conf
+Torch_DIR="$(dirname "$(find "${SPACK_ROOT}" ! -type l -name TorchConfig.cmake | tail -n 1)")"
+
+# Write the settings provided by the dependency build
+write_config Torch_DIR > "${CONFIG_PATH}/deps.conf"
 
 ### End of build CP2K dependencies ###

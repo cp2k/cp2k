@@ -1,9 +1,20 @@
-# shellcheck shell=bash disable=SC2034,SC2153,SC2154
+#!/usr/bin/env bash
 #
-# make_cp2k.sh module: Optional GROMACS/CP2K build and test
+# build_gromacs.sh: Build and test GROMACS with CP2K support (step 4 of make_cp2k.sh)
 #
-# This file is sourced by make_cp2k.sh at top level and shares all variables
-# with the other modules. It is not meant to be executed on its own.
+# Usage: build_gromacs.sh CONFIG_FILE...
+#
+# The settings are read from the configuration files options.conf, deps.conf,
+# and build.conf written by make_cp2k.sh and build_deps.sh.
+
+# shellcheck disable=SC2154 # the variables are defined by the configuration files
+
+set -uo pipefail
+
+# shellcheck source=/dev/null
+source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/common.sh"
+load_config "$@"
+activate_spack_env
 
 # Optionally, build GROMACS/CP2K
 if [[ -n "${GROMACS_VERSION}" ]]; then
