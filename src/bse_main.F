@@ -413,7 +413,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval_joint
       TYPE(cp_fm_type)                                   :: fm_A_BSE, fm_B_BSE, fm_C_BSE, &
                                                             fm_chol_A_minus_B, fm_A_plus_B
-      TYPE(tddfpt2_control_type), POINTER               :: tddfpt_control
+      TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
 
       CALL timeset(routineN, handle)
 

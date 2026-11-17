@@ -588,7 +588,7 @@ CONTAINS
       CALL cp_fm_set_all(fm_chol_A_minus_B, 0.0_dp)
       CALL cp_fm_to_fm_triangular(fm_work, fm_chol_A_minus_B, "U")
 
-      ! C = U (A+B) U^T by two GEMMs, which run faster than pdtrmm at half the flops
+      ! C = U (A+B) U^T by two GEMMs, which run faster than pdtrmm despite twice its flops
       CALL cp_fm_get_info(fm_A, nrow_global=dim_mat)
       CALL cp_fm_create(fm_C, fm_A%matrix_struct)
       CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_chol_A_minus_B, fm_A_plus_B, 0.0_dp, fm_C)
@@ -677,7 +677,7 @@ CONTAINS
       ! We aim for the upper part of the vector (X,Y) for a direct comparison with the TDA result
 
       ! Following Furche, we basically use Eqs. (A10): First, we multiply
-      ! the (A-B)^+-0.5 with eigenvectors and then the eigenvalues
+      ! the factor of A-B with eigenvectors and then the eigenvalues
       ! One has to be careful about the index structure, since the eigenvector matrix is not symmetric anymore!
 
       ! First, Eq. I from (A10) from Furche with (A-B)^0.5 -> U^T: (X+Y)_n = (Ω_n)^-0.5 U^T T_n

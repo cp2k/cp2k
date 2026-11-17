@@ -2807,8 +2807,8 @@ CONTAINS
 !> \brief Debug check of a Davidson result against the full diagonalization of the explicit
 !>        matrices: energies, and per multiplet the smallest singular value of X_ref^T X for the
 !>        TDA, or of X_ref^T X - Y_ref^T Y for ABBA. ABBA diagonalizes the Hermitian reduction
-!>        C = (A-B)^1/2 (A+B) (A-B)^1/2 with C T^n = (Ω^n)^2 T^n,
-!>        (X+Y)^n = (Ω^n)^-1/2 (A-B)^1/2 T^n, (X-Y)^n = (Ω^n)^1/2 (A-B)^-1/2 T^n.
+!>        C = U (A+B) U^T, A-B = U^T U, with C T^n = (Ω^n)^2 T^n,
+!>        (X+Y)^n = (Ω^n)^-1/2 U^T T^n, (X-Y)^n = (Ω^n)^1/2 U^-1 T^n.
 !>        A failed reference solve aborts: this is debug output with nothing to fall back on
 !> \param fm_A_explicit A from create_A_and_B, N_ov x N_ov
 !> \param exc_ens Davidson energies in Hartree
