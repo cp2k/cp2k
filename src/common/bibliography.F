@@ -49,7 +49,8 @@ MODULE bibliography
                             Dudarev1997, Dudarev1998, Dewar1977, Dewar1985, Rocha2006, &
                             Stewart1989, Thiel1992, Repasky2002, Stewart2007, Weber2008, &
                             Hunt2003, Guidon2008, Elber1987, Jonsson1998, Jonsson2000_1, &
-                            Jonsson2000_2, Sheppard2012, Wales2004, Smidstrup2014, Stewart1982, E2002, Laino2008, &
+                            Jonsson2000_2, Sheppard2012, Wales2004, Smidstrup2014, Schmerwitz2024, &
+                            Stewart1982, E2002, Laino2008, &
                             Blochl1995, Tao2003, VandeVondele2006, VanVoorhis2015, Hu2007, Hu2010, Grimme2006, &
                             Chai2008, Branduardi2007, Schenter2008, BeckeRoussel1989, Proynov2007, &
                             VandenCic2006, Becke1997, Foiles1986, Ricci2003, Kolafa2004, &
@@ -248,6 +249,13 @@ CONTAINS
                          title="A generalized solid-state nudged elastic band method", &
                          source="J. Chem. Phys.", volume="136", pages="074103", &
                          year=2012, doi="10.1063/1.3684549")
+
+      CALL add_reference(key=Schmerwitz2024, &
+                         authors=s2a("Y. L. A. Schmerwitz", "V. Ásgeirsson", "H. Jónsson"), &
+                         title="Improved Initialization of Optimal Path Calculations Using Sequential Traversal "// &
+                         "over the Image-Dependent Pair Potential Surface", &
+                         source="J. Chem. Theory Comput.", volume="20", pages="155-163", &
+                         year=2024, doi="10.1021/acs.jctc.3c01111")
 
       CALL add_reference(key=Jonsson2000_2, &
                          authors=s2a("G. Henkelman", "B. P. Uberuaga", "H. Jonsson"), &

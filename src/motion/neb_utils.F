@@ -18,14 +18,9 @@
 !> \author Teodoro Laino 10.2006
 ! **************************************************************************************************
 MODULE neb_utils
-   USE bibliography,                    ONLY: E2002,&
-                                              Elber1987,&
-                                              Jonsson1998,&
-                                              Jonsson2000_1,&
-                                              Jonsson2000_2,&
-                                              Smidstrup2014,&
-                                              Wales2004,&
-                                              cite_reference
+   USE bibliography,                    ONLY: &
+        E2002, Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Schmerwitz2024, &
+        Smidstrup2014, Wales2004, cite_reference
    USE cell_methods,                    ONLY: init_cell
    USE cell_types,                      ONLY: cell_type
    USE colvar_utils,                    ONLY: eval_colvar,&
@@ -58,6 +53,9 @@ MODULE neb_utils
         band_diis_opt, do_b_neb, do_band_cartesian, do_ci_neb, do_d_neb, do_eb, do_it_neb, do_sm, &
         pot_neb_fe, pot_neb_full, pot_neb_me
    USE input_cp2k_check,                ONLY: remove_restart_info
+   USE input_cp2k_neb,                  ONLY: neb_li_bisect,&
+                                              neb_li_idpp,&
+                                              neb_s_idpp
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -160,10 +158,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_replica_coords'
 
       CHARACTER(LEN=default_path_length)                 :: filename
-      INTEGER :: handle, i_rep, iatom, ic, input_nr_replica, is, ivar, j, jtarg, k, n_rep, natom, &
-         neb_nr_replica, nr_replica_to_interpolate, nval, nvar, shell_index
+      INTEGER :: handle, i_rep, iatom, ic, input_nr_replica, interp_method, is, ivar, j, jtarg, k, &
+         legacy_method, n_rep, natom, neb_nr_replica, nr_replica_to_interpolate, nval, nvar, &
+         shell_index
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rep_map
-      LOGICAL                                            :: check, explicit, idpp, skip_vel_section
+      LOGICAL                                            :: align_interpolated, check, explicit, &
+                                                            idpp, idpp_explicit, method_explicit, &
+                                                            sequential, skip_vel_section
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: distance
       REAL(KIND=dp), DIMENSION(3)                        :: r
       REAL(KIND=dp), DIMENSION(:), POINTER               :: initial_colvars, rptr
@@ -182,11 +183,21 @@ CONTAINS
       END IF
       ! Calculation is aborted if input replicas are more then the requested ones for the BAND..
       CPASSERT(input_nr_replica <= neb_nr_replica)
-      CALL section_vals_val_get(neb_section, "IDPP", l_val=idpp)
-      IF (neb_env%solid_state .AND. idpp) THEN
+      CALL section_vals_val_get(neb_section, "INTERPOLATION_METHOD", i_val=interp_method, explicit=method_explicit)
+      CALL section_vals_val_get(neb_section, "IDPP", l_val=idpp, explicit=idpp_explicit)
+      IF (idpp_explicit) THEN
+         legacy_method = MERGE(neb_li_idpp, neb_li_bisect, idpp)
+         IF (method_explicit .AND. interp_method /= legacy_method) THEN
+            CPABORT("BAND IDPP and INTERPOLATION_METHOD disagree. Set only one interpolation option.")
+         END IF
+         interp_method = legacy_method
+      END IF
+      IF (neb_env%solid_state .AND. interp_method /= neb_li_bisect) THEN
          CPABORT("BAND IDPP is not supported with SOLID_STATE.")
       END IF
-      idpp = idpp .AND. (input_nr_replica < neb_nr_replica)
+      idpp = interp_method /= neb_li_bisect .AND. input_nr_replica < neb_nr_replica
+      sequential = idpp .AND. interp_method == neb_s_idpp
+      align_interpolated = neb_env%align_frames .AND. .NOT. sequential
       IF (idpp) THEN
          CPASSERT(input_nr_replica >= 2)
          IF (neb_env%use_colvar .OR. ANY(particle_set%shell_index /= 0)) THEN
@@ -357,20 +368,31 @@ CONTAINS
          END DO
       END IF
       IF (input_nr_replica < neb_nr_replica) THEN
+         ! S-IDPP uses the bisection only to allocate the missing images among
+         ! anchors. Align the anchors before constructing any provisional images.
+         IF (sequential .AND. neb_env%align_frames) THEN
+            DO j = 1, input_nr_replica - 1
+               CALL neb_replica_distance(particle_set, coords, j, j + 1, distance(j), iw, rotate=.TRUE.)
+            END DO
+         END IF
          ! Interpolate missing replicas
          nr_replica_to_interpolate = neb_nr_replica - input_nr_replica
          k = 0
          distance = 0.0_dp
          IF (iw > 0) THEN
-            WRITE (iw, '(T2,A,I0,A)') 'NEB| Interpolating ', nr_replica_to_interpolate, ' missing replica '// &
-               'by stepwise bisection of distance.'
+            IF (sequential) THEN
+               WRITE (iw, '(T2,A,I0,A)') 'NEB| Allocating ', nr_replica_to_interpolate, ' missing replicas for S-IDPP.'
+            ELSE
+               WRITE (iw, '(T2,A,I0,A)') 'NEB| Interpolating ', nr_replica_to_interpolate, ' missing replica '// &
+                  'by stepwise bisection of distance.'
+            END IF
          END IF
          DO WHILE (nr_replica_to_interpolate > 0)
             ! Compute distances between known images to find the interval
             ! where to add a new image
             DO j = 1, input_nr_replica - 1
                CALL neb_replica_distance(particle_set, coords, j, j + 1, distance(j), iw, &
-                                         rotate=neb_env%align_frames)
+                                         rotate=align_interpolated)
             END DO
             jtarg = MAXLOC(distance(1:input_nr_replica - 1), 1)
             IF (iw > 0) THEN
@@ -402,8 +424,10 @@ CONTAINS
             END IF
             vels%wrk(:, jtarg + 2:input_nr_replica) = vels%wrk(:, jtarg + 1:input_nr_replica - 1)
             vels%wrk(:, jtarg + 1) = 0.0_dp
-            CALL dump_replica_coordinates(particle_set, coords, jtarg + 1, &
-                                          input_nr_replica, iw, neb_env%use_colvar)
+            IF (.NOT. sequential) THEN
+               CALL dump_replica_coordinates(particle_set, coords, jtarg + 1, &
+                                             input_nr_replica, iw, neb_env%use_colvar)
+            END IF
             IF (.NOT. neb_env%solid_state) CALL neb_initialize_velocity(vels%wrk, neb_section, particle_set, &
                                                                         jtarg + 1, iw, globenv, neb_env)
             IF (iw > 0) THEN
@@ -422,11 +446,18 @@ CONTAINS
       ! Rotate the frames in order to minimize the RMSD
       DO j = 1, input_nr_replica - 1
          CALL neb_replica_distance(particle_set, coords, j, j + 1, distance(j), iw, &
-                                   rotate=neb_env%align_frames)
+                                   rotate=align_interpolated)
       END DO
       IF (idpp) THEN
          CALL cite_reference(Smidstrup2014)
-         CALL neb_initialize_idpp(coords%xyz, rep_map > 0, cell, iw)
+         IF (sequential) CALL cite_reference(Schmerwitz2024)
+         CALL neb_initialize_idpp(coords%xyz, rep_map > 0, cell, iw, sequential)
+         IF (sequential .AND. iw > 0) THEN
+            WRITE (iw, '(T2,A)') "NEB| Initial band after S-IDPP"
+            DO j = 1, input_nr_replica
+               CALL dump_replica_coordinates(particle_set, coords, j, j, iw, neb_env%use_colvar)
+            END DO
+         END IF
          DO j = 1, input_nr_replica - 1
             CALL neb_replica_distance(particle_set, coords, j, j + 1, distance(j), iw, rotate=.FALSE.)
          END DO

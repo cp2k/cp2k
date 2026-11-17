@@ -16,6 +16,7 @@ MODULE input_cp2k_neb
                                               Jonsson1998,&
                                               Jonsson2000_1,&
                                               Jonsson2000_2,&
+                                              Schmerwitz2024,&
                                               Sheppard2012,&
                                               Smidstrup2014,&
                                               Wales2004
@@ -50,6 +51,7 @@ MODULE input_cp2k_neb
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_neb'
 
    PUBLIC :: create_band_section
+   INTEGER, PARAMETER, PUBLIC :: neb_li_bisect = 1, neb_li_idpp = 2, neb_s_idpp = 3
 
 CONTAINS
 
@@ -117,7 +119,7 @@ CONTAINS
                           "in an iterative bisection procedure: on each step, the largest distance "// &
                           "between adjacent replica is found and a new replica is inserted there by "// &
                           "taking the average of adjacent replica; this is repeated until getting "// &
-                          "the requested number of replica. IDPP can subsequently improve these images. "// &
+                          "the requested number of replica. INTERPOLATION_METHOD can select another initialization. "// &
                           "Please note that the number of replica is "// &
                           "always including both end points regardless of the setting of keyword "// &
                           "OPTIMIZE_END_POINTS, which should be taken into account when adjusting "// &
@@ -126,11 +128,24 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="INTERPOLATION_METHOD", &
+                          description="Initialization of missing band images. The IDPP methods do not evaluate "// &
+                          "the physical potential and treat supplied images as anchors. They require fixed-cell "// &
+                          "Cartesian bands without shells or MOTION/CONSTRAINT. For periodic systems use an orthorhombic cell "// &
+                          "and supply consistently unwrapped coordinates.", &
+                          usage="INTERPOLATION_METHOD LI_BISECT", citations=[Smidstrup2014, Schmerwitz2024], &
+                          enum_c_vals=s2a("LI_BISECT", "LI_IDPP", "S_IDPP"), &
+                          enum_i_vals=[neb_li_bisect, neb_li_idpp, neb_s_idpp], default_i_val=neb_li_bisect, &
+                          enum_desc=s2a("Bisect the longest interval by linear interpolation.", &
+                                        "Relax the linearly interpolated images on the IDPP surface.", &
+                                        "Grow the band sequentially from its anchors on the IDPP surface."))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="IDPP", &
-                          description="Improve interpolated Cartesian images using an image-dependent pair potential "// &
-                          "without evaluating the physical potential. Explicit images are anchors. "// &
-                          "This option excludes shells and MOTION/CONSTRAINT. For periodic systems use an orthorhombic "// &
-                          "cell and supply consistently unwrapped coordinates.", citations=[Smidstrup2014], &
+                          description="Compatibility switch. True selects INTERPOLATION_METHOD LI_IDPP "// &
+                          "and false selects LI_BISECT. If both keywords are set, they must agree.", &
+                          citations=[Smidstrup2014], &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
