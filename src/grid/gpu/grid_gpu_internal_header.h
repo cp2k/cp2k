@@ -121,8 +121,6 @@ template <typename T> struct smem_task {
   T *sphib;
   // integrate
   T *hab_block;
-  T *forces_a;
-  T *forces_b;
 };
 
 /*******************************************************************************
@@ -430,8 +428,8 @@ __inline__ __device__ void compute_window_size(const int3 grid_size,
 
 /*******************************************************************************
  * \brief Wraps a cube-local coordinate into the periodic full grid along one
- *        axis. Single point of entry shared by collocate_kernel and
- *        integrate_kernel.
+ *        axis. Single point of entry shared by the collocate and integrate
+ *        kernels.
  ******************************************************************************/
 __inline__ __device__ int wrap_grid_index(const int idx, const int full_size) {
   int idx2 = idx % full_size;
@@ -443,7 +441,7 @@ __inline__ __device__ int wrap_grid_index(const int idx, const int full_size) {
 /*******************************************************************************
  * \brief Shifts task.cube_center into the local grid's coordinate system and,
  *        for distributed grids, derives the border window. Single point of
- *        entry shared by collocate_kernel and integrate_kernel so the two
+ *        entry shared by the collocate and integrate kernels so that they
  *        cannot drift apart on which axis maps to which.
  ******************************************************************************/
 template <typename T, typename T3, bool distributed__>
@@ -738,8 +736,6 @@ __device__ __inline__ void fill_smem_task_coef(const kernel_params &dev,
                                                smem_task<T> &task) {
   if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
     const auto &glb_task = dev.tasks[task_id];
-    const int iatom = glb_task.iatom;
-    const int jatom = glb_task.jatom;
     task.zeta = glb_task.zeta;
     task.zetb = glb_task.zetb;
 
@@ -806,10 +802,6 @@ __device__ __inline__ void fill_smem_task_coef(const kernel_params &dev,
     if (dev.buffers_dev.hab_block != nullptr) {
       task.hab_block =
           dev.buffers_dev.hab_block + block_offset + glb_task.subblock_offset;
-      if (dev.buffers_dev.forces != nullptr) {
-        task.forces_a = &dev.buffers_dev.forces[3 * iatom];
-        task.forces_b = &dev.buffers_dev.forces[3 * jatom];
-      }
     }
   }
   __syncthreads();
@@ -826,10 +818,10 @@ inline int sphi_work_size(const int lmax, const int max_nsgf_set) {
   return max_nsgf_set * ld + ld * ld;
 }
 
-// shared memory budget of the two step kernels (default limit without opting
-// in on NVIDIA hardware), static and dynamic. Above, the fused kernels are
-// used.
-constexpr size_t sphi_two_step_max_smem = 48 * 1024;
+// shared memory budget of a thread block, static and dynamic (default limit
+// without opting in on NVIDIA hardware). The two step kernels are used when
+// their work arrays fit, the separable kernels size their buffers with it.
+constexpr size_t grid_gpu_smem_budget = 48 * 1024;
 
 /*******************************************************************************
  * \brief Largest dynamic shared memory the kernel can be launched with when
@@ -856,10 +848,41 @@ inline size_t max_dynamic_smem(Kernel kernel, const size_t budget) {
 }
 
 /*******************************************************************************
- * \brief Aborts with the location if the last kernel launch failed, e.g.
- *        because of an invalid launch configuration.
+ * \brief Launches kernel<<<blocks, threads, smem, stream>>>(args...) after
+ *        checking that its dynamic shared memory fits next to its static
+ *        shared memory in grid_gpu_smem_budget, and checks the launch. Both
+ *        failures abort with the location of the launch (use GRID_GPU_LAUNCH).
+ *        The static shared memory is read from the compiled kernel, so that
+ *        no size has to be maintained by hand.
  ******************************************************************************/
-#define GRID_GPU_CHECK_LAUNCH() OFFLOAD_CHECK(offloadGetLastError())
+template <typename Kernel, typename... Args>
+inline void grid_gpu_launch(const char *file, const int line, Kernel kernel,
+                            const dim3 blocks, const dim3 threads,
+                            const size_t smem, const offloadStream_t stream,
+                            const Args &...args) {
+  const size_t smem_max = max_dynamic_smem(kernel, grid_gpu_smem_budget);
+  if (smem > smem_max) {
+    fprintf(stderr,
+            "ERROR: the kernel launched at %s:%d needs %zu bytes of dynamic "
+            "shared memory, only %zu are available.\n",
+            file, line, smem, smem_max);
+    abort();
+  }
+  kernel<<<blocks, threads, smem, stream>>>(args...);
+  const offloadError_t error = offloadGetLastError();
+  if (error != offloadSuccess) {
+    fprintf(stderr, "ERROR: \"%s\" when launching the kernel at %s:%d.\n",
+            offloadGetErrorName(error), file, line);
+    abort();
+  }
+}
+
+// kernel has to be a single token (e.g. a variable holding the selected
+// instance), the template arguments of an instance would split the macro
+// arguments.
+#define GRID_GPU_LAUNCH(kernel, blocks, threads, smem, stream, ...)            \
+  grid_gpu_launch(__FILE__, __LINE__, kernel, blocks, threads, smem, stream,   \
+                  __VA_ARGS__)
 
 class smem_parameters {
 private:

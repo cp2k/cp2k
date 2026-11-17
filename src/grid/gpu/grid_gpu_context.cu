@@ -47,7 +47,6 @@ context_info::set_kernel_parameters(const int level,
   kernel_params params;
   params.cab_size_ = smem_params.cab_size();
   params.first_task = 0;
-
   params.la_min_diff = smem_params.ldiffs().la_min_diff;
   params.lb_min_diff = smem_params.ldiffs().lb_min_diff;
 
@@ -79,9 +78,11 @@ context_info::set_kernel_parameters(const int level,
 
   params.buffers_dev.coef = this->coef_dev_.data();
   params.buffers_dev.hab_block = hab_block_.data();
-  params.buffers_dev.forces = forces_.data();
-  params.buffers_dev.virial = virial_.data();
+  params.buffers_dev.virial = calculate_virial ? virial_.data() : nullptr;
   params.buffers_dev.cab = this->cab_dev_.data();
+  params.buffers_dev.forces_a = this->forces_a_.data();
+  params.buffers_dev.forces_b = this->forces_b_.data();
+  params.buffers_dev.virial_buffer = this->virial_buffer_.data();
   params.cab_block_offset_dev = this->cab_block_offset_dev.data();
   params.sphi_dev = this->sphi_dev.data();
   return params;
@@ -185,7 +186,17 @@ extern "C" void grid_gpu_create_task_list(
   }
 
   ctx->block_offsets_dev.resize(nblocks);
+  ctx->block_atoms_ = std::vector<int>(2 * nblocks);
   ctx->block_offsets_dev.copy_to_gpu(block_offsets);
+
+  ctx->forces_a_.resize(3 * nblocks);
+  ctx->forces_b_.resize(3 * nblocks);
+  ctx->forces_a_.allocate_on_host();
+  ctx->forces_b_.allocate_on_host();
+  // DO NOT remove the + 1 as the last element is used as a counter for the
+  // reduce operation when calculating the virial tensor
+  ctx->virial_buffer_.resize(9 * nblocks + 1);
+
   ctx->initialize_basis_sets(basis_sets, nkinds);
 
   ctx->first_task_per_level_.resize(nlevels, 0);
@@ -436,7 +447,18 @@ extern "C" void grid_gpu_create_task_list(
       ctx->block_la_max_[i] = std::max(ctx->block_la_max_[i], task.la_max);
       ctx->block_lb_max_[i] = std::max(ctx->block_lb_max_[i], task.lb_max);
     }
+
+    // used later on for the reduction
+    if (num_tasks) {
+      const auto &task = tasks_host[sorted_blocks[sorted_blocks_offset[i]]];
+      ctx->block_atoms_[2 * i] = task.iatom;
+      ctx->block_atoms_[2 * i + 1] = task.jatom;
+    } else {
+      ctx->block_atoms_[2 * i] = -1;
+      ctx->block_atoms_[2 * i + 1] = -1;
+    }
   }
+
   // the layout of the cab workspace has to be recomputed for this task list
   ctx->cab_la_max_diff_ = -1;
   ctx->cab_lb_max_diff_ = -1;
@@ -621,14 +643,10 @@ extern "C" void grid_gpu_integrate_task_list(
   ctx->calculate_virial = (virial != nullptr);
   ctx->compute_tau = compute_tau;
 
-  if (forces != nullptr) {
-    ctx->forces_.resize(3 * ctx->natoms);
-    ctx->forces_.zero(ctx->main_stream);
-  }
-
   if (virial != nullptr) {
     ctx->virial_.resize(9);
     ctx->virial_.zero(ctx->main_stream);
+    ctx->virial_buffer_.zero(ctx->main_stream);
   }
 
   int lp_diff = -1;
@@ -660,16 +678,42 @@ extern "C" void grid_gpu_integrate_task_list(
   for (int level = 0; level < ctx->nlevels; level++) {
     ctx->synchronize(ctx->level_streams[level]);
   }
+
   // computing the hab coefficients does not depend on the number of grids so we
   // can run these calculations on the main stream
   ctx->compute_hab_coefficients();
   ctx->hab_block_.copy_gpu_to_associated_host(ctx->main_stream);
 
-  if (forces != NULL) {
-    ctx->forces_.copy_from_gpu(forces, ctx->main_stream);
-  }
   if (virial != NULL) {
     ctx->virial_.copy_from_gpu(virial, ctx->main_stream);
+  }
+
+  // Do the scatter reduce on CPU. Do not use openmp otherwise results will be
+  // undefined
+
+  if (forces != NULL) {
+    ctx->forces_a_.copy_gpu_to_associated_host(ctx->main_stream);
+    ctx->forces_b_.copy_gpu_to_associated_host(ctx->main_stream);
+    memset(forces, 0, sizeof(double) * ctx->natoms * 3);
+
+    ctx->synchronize(ctx->main_stream);
+
+    for (int nb = 0; nb < ctx->nblocks; nb++) {
+      const int iatom = ctx->block_atoms_[2 * nb];
+      const int jatom = ctx->block_atoms_[2 * nb + 1];
+      // iatom and jatom are negative when there is no task associated to a
+      // given block
+      if ((iatom >= 0) && (jatom >= 0)) {
+        const double *forces_a = ctx->forces_a_.data_host() + 3 * nb;
+        const double *forces_b = ctx->forces_b_.data_host() + 3 * nb;
+        forces[3 * iatom] += forces_a[0];
+        forces[3 * iatom + 1] += forces_a[1];
+        forces[3 * iatom + 2] += forces_a[2];
+        forces[3 * jatom] += forces_b[0];
+        forces[3 * jatom + 1] += forces_b[1];
+        forces[3 * jatom + 2] += forces_b[2];
+      }
+    }
   }
 
   ctx->synchronize(ctx->main_stream);
