@@ -1889,14 +1889,13 @@ CONTAINS
                   local_ot_env(local_channel)%mermin_physical(1)%c0, &
                   local_ot_env(local_channel)%mermin_physical(1)%c0_im, density_re, density_im, &
                   action_re, action_im, 1.0_dp, 0.0_dp)
-               CALL cp_fm_get_info( &
-                  local_ot_env(local_channel)%mermin_physical(1)%c0, nrow_global=nao)
+               ! The Lowdin response uses the AO density layout, not the rectangular MO layout.
                CALL cp_fm_create(density_kp(local_kpoint, 1, ispin), &
-                                 local_ot_env(local_channel)%mermin_physical(1)%c0%matrix_struct, &
-                                 name="hxc_density_k_re", nrow=nao, ncol=nao, set_zero=.TRUE.)
+                                 kp%pmat(1, ispin)%matrix_struct, &
+                                 name="hxc_density_k_re", set_zero=.TRUE.)
                CALL cp_fm_create(density_kp(local_kpoint, 2, ispin), &
-                                 local_ot_env(local_channel)%mermin_physical(1)%c0%matrix_struct, &
-                                 name="hxc_density_k_im", nrow=nao, ncol=nao, set_zero=.TRUE.)
+                                 kp%pmat(1, ispin)%matrix_struct, &
+                                 name="hxc_density_k_im", set_zero=.TRUE.)
                CALL multiply_complex_fm_right_adjoint( &
                   action_re, action_im, local_ot_env(local_channel)%mermin_physical(1)%c0, &
                   local_ot_env(local_channel)%mermin_physical(1)%c0_im, &
