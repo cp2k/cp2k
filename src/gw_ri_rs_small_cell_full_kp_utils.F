@@ -56,14 +56,10 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
                                               int_1_size,&
                                               int_8
    USE kpoint_coulomb_2c,               ONLY: add_ewald_reciprocal
-   USE kpoint_lattice_fft,              ONLY: k_grid_to_cell_execute,&
-                                              k_grid_to_cell_panel_width,&
-                                              k_grid_to_cell_prepare,&
-                                              k_grid_to_cell_release,&
-                                              k_grid_to_cell_work_type,&
-                                              lattice_fft_execute_pair_major,&
-                                              lattice_fft_profile_type,&
-                                              lattice_fft_real_sink_type
+   USE kpoint_lattice_fft,              ONLY: &
+        fft_profile_enabled, k_grid_to_cell_execute, k_grid_to_cell_panel_width, &
+        k_grid_to_cell_prepare, k_grid_to_cell_release, k_grid_to_cell_work_type, &
+        lattice_fft_execute_pair_major, lattice_fft_profile_type, lattice_fft_real_sink_type
    USE kpoint_transform,                ONLY: cell_to_k_transform
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
@@ -292,9 +288,9 @@ CONTAINS
       INTEGER                                            :: i, n_cells, unit_nr
       REAL(KIND=dp)                                      :: total_started
       TYPE(gw_pair_extraction_type)                      :: sink
-      TYPE(lattice_fft_profile_type)                     :: profile
+      TYPE(lattice_fft_profile_type), ALLOCATABLE        :: profile
 
-      total_started = m_walltime()
+      IF (fft_profile_enabled) total_started = m_walltime()
       CPASSERT(ALLOCATED(work%batches))
       CPASSERT(SIZE(values_k, 1) == work%n_pairs .AND. SIZE(values_k, 2) == 1)
       n_cells = SIZE(work%inverse%cell_slot)
@@ -315,13 +311,14 @@ CONTAINS
          CPASSERT(SIZE(norm_squared) == n_cells)
          ALLOCATE (sink%norms(2, n_cells), SOURCE=0.0_dp)
       END IF
-      profile = lattice_fft_profile_type()
+      IF (fft_profile_enabled) ALLOCATE (profile)
       CALL k_grid_to_cell_execute(work%inverse, values_k, require_fft=.TRUE., profile=profile, &
                                   max_workspace_bytes=fft_panel_bytes, real_sink=sink)
       IF (PRESENT(norm_squared)) THEN
          norm_squared = sink%norms(1, :) + sink%norms(2, work%mirror_cell)
       END IF
-      unit_nr = cp_logger_get_default_io_unit()
+      unit_nr = 0
+      IF (fft_profile_enabled) unit_nr = cp_logger_get_default_io_unit()
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A)') 'K2R_FFT_PROFILE| Unordered grid pairs; logger-rank wall seconds, no MPI reduction'
          WRITE (unit_nr, '(T2,A,3I10)') 'K2R_FFT_PROFILE| source shape: ', SHAPE(values_k)
@@ -959,45 +956,48 @@ CONTAINS
          chi_q = z_zero
          DO ispin = 1, bs_env%n_spin
             chi_seconds = 0.0_dp
-            chi_started = m_walltime()
-            stage_started = chi_started
+            IF (fft_profile_enabled) THEN
+               chi_started = m_walltime()
+               stage_started = chi_started
+            END IF
             ALLOCATE (G_grid_k(n_pairs_local, 1, bs_env%nkp_scf_desymm))
             CALL build_green_pairs(bs_env, psi_values(:, :, :, ispin), chi_env, tau, ispin, &
                                    .TRUE., fft_stencil_work%k_batch, G_grid_k)
-            chi_seconds(1) = m_walltime() - stage_started
-            stage_started = m_walltime()
+            IF (fft_profile_enabled) chi_seconds(1) = m_walltime() - stage_started
+            IF (fft_profile_enabled) stage_started = m_walltime()
             CALL k_to_grid_pairs(G_grid_k, fft_stencil_work, norm_squared=green_norms(:, 1))
-            chi_seconds(2) = m_walltime() - stage_started
-            stage_started = m_walltime()
+            IF (fft_profile_enabled) chi_seconds(2) = m_walltime() - stage_started
+            IF (fft_profile_enabled) stage_started = m_walltime()
             CALL build_green_pairs(bs_env, psi_values(:, :, :, ispin), chi_env, tau, ispin, &
                                    .FALSE., fft_stencil_work%k_batch, G_grid_k)
-            chi_seconds(1) = chi_seconds(1) + m_walltime() - stage_started
-            stage_started = m_walltime()
+            IF (fft_profile_enabled) chi_seconds(1) = chi_seconds(1) + m_walltime() - stage_started
+            IF (fft_profile_enabled) stage_started = m_walltime()
             CALL k_to_grid_pairs(G_grid_k, fft_stencil_work, norm_squared=green_norms(:, 2), &
                                  product_scale=bs_env%spin_degeneracy)
-            chi_seconds(2) = chi_seconds(2) + m_walltime() - stage_started
-            stage_started = m_walltime()
+            IF (fft_profile_enabled) chi_seconds(2) = chi_seconds(2) + m_walltime() - stage_started
+            IF (fft_profile_enabled) stage_started = m_walltime()
             ! Each original Green is filtered by its own full Frobenius norm.
             ! Scalar cell masks commute with their product: (m_o G_o)(m_v G_v)=m_o m_v G_o G_v.
             CPASSERT(bs_env%n_atom > 0)
             CALL chi_env%sum(green_norms)
             cell_active(:) = .NOT. (SQRT(green_norms(:, 1))/REAL(bs_env%n_atom, dp)**2 < bs_env%eps_filter) .AND. &
                              .NOT. (SQRT(green_norms(:, 2))/REAL(bs_env%n_atom, dp)**2 < bs_env%eps_filter)
-            chi_seconds(3) = m_walltime() - stage_started
-            stage_started = m_walltime()
+            IF (fft_profile_enabled) chi_seconds(3) = m_walltime() - stage_started
+            IF (fft_profile_enabled) stage_started = m_walltime()
             DEALLOCATE (G_grid_k)
             ALLOCATE (chi_grid_q(n_pairs_local, 1, SIZE(needed_q)))
             CALL execute_pair_fft(fft_stencil_work, chi_grid_q, cell_active, &
                                   'GW chi (K2R extraction feeds R2K input)')
-            chi_seconds(4) = m_walltime() - stage_started
+            IF (fft_profile_enabled) chi_seconds(4) = m_walltime() - stage_started
 
-            stage_started = m_walltime()
+            IF (fft_profile_enabled) stage_started = m_walltime()
             CALL project_fft_pairs_to_chi(chi_grid_q, chi_env, needed, Z_time, n_groups > 1, &
                                           chi_q, q_batch, chi_seconds(6))
             DEALLOCATE (chi_grid_q)
-            chi_seconds(5) = MAX(0.0_dp, m_walltime() - stage_started - chi_seconds(6))
-            chi_seconds(7) = m_walltime() - chi_started
-            unit_nr = cp_logger_get_default_io_unit()
+            IF (fft_profile_enabled) chi_seconds(5) = MAX(0.0_dp, m_walltime() - stage_started - chi_seconds(6))
+            IF (fft_profile_enabled) chi_seconds(7) = m_walltime() - chi_started
+            unit_nr = 0
+            IF (fft_profile_enabled) unit_nr = cp_logger_get_default_io_unit()
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A)') 'GW_CHI_PROFILE| logger-rank wall seconds, no MPI reduction'
                WRITE (unit_nr, '(T2,A,4I12)') 'GW_CHI_PROFILE| time/spin/pairs/cells: ', &
@@ -1526,7 +1526,7 @@ CONTAINS
       TYPE(pair_segment_type), ALLOCATABLE                :: segments(:)
 
       CALL timeset(routineN, handle)
-      total_started = m_walltime()
+      IF (fft_profile_enabled) total_started = m_walltime()
       seconds = 0.0_dp
       active_bands = 0_int_8
       possible_bands = 0_int_8
@@ -1580,7 +1580,7 @@ CONTAINS
       END DO
       column_segments(n_grid + 1) = n_segments + 1
       unused_receive = z_zero
-      seconds(1) = m_walltime() - total_started
+      IF (fft_profile_enabled) seconds(1) = m_walltime() - total_started
       ! G_ll′(k,τ) = Σ_n [ψ_ln(k) exp(-|τ(ε_nk-ε_F)|/2)]
       !                         [ψ_l′n(k) exp(-|τ(ε_nk-ε_F)|/2)]*.
       DO i_first = 1, n_k, n_rank*k_batch
@@ -1590,7 +1590,7 @@ CONTAINS
          send_displs(:) = pair_displs*n_owned
          n_workers = 1
 !$       n_workers = MIN(omp_get_max_threads(), MAX(1, n_owned))
-         started = m_walltime()
+         IF (fft_profile_enabled) started = m_walltime()
          !$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(n_workers) &
          !$OMP SHARED(bs_env, env, first_band, gwkp_env, i_first, n_bands, n_grid, n_owned, n_rank) &
          !$OMP SHARED(orbitals, pair_counts, send_displs, sent, tau, ispin, column_segments, segments) &
@@ -1611,8 +1611,10 @@ CONTAINS
                      orbitals(:, first_band + i_band - 1, (ikp - 1)/n_rank + 1)*EXP(-tau_E)
                END IF
             END DO
-            active_bands = active_bands + INT(n_active, int_8)
-            possible_bands = possible_bands + INT(n_bands, int_8)
+            IF (fft_profile_enabled) THEN
+               active_bands = active_bands + INT(n_active, int_8)
+               possible_bands = possible_bands + INT(n_bands, int_8)
+            END IF
             DO i_col = 1, n_grid, column_block_cols
                n_cols = MIN(column_block_cols, n_grid - i_col + 1)
                IF (n_active == 0) THEN
@@ -1640,7 +1642,7 @@ CONTAINS
          DEALLOCATE (scaled_coeff, gram)
          !$OMP END PARALLEL
          ! Scaling and Gram construction overlap between k jobs; time their shared wall interval.
-         seconds(2) = seconds(2) + m_walltime() - started
+         IF (fft_profile_enabled) seconds(2) = seconds(2) + m_walltime() - started
          offset = 0
          DO i_rank = 0, n_rank - 1
             recv_counts(i_rank) = n_local*MAX(0, (n_round + n_rank - 1 - i_rank)/n_rank)
@@ -1650,13 +1652,14 @@ CONTAINS
          CPASSERT(offset == n_local*n_round)
          received => unused_receive
          IF (n_local > 0) received(1:n_local*n_round) => G_pairs(:, :, i_first:i_first + n_round - 1)
-         started = m_walltime()
+         IF (fft_profile_enabled) started = m_walltime()
          CALL env%alltoall(sent, send_counts, send_displs, received, recv_counts, recv_displs)
-         seconds(3) = seconds(3) + m_walltime() - started
+         IF (fft_profile_enabled) seconds(3) = seconds(3) + m_walltime() - started
          CALL count_time_loop_k_points(bs_env, INT(n_round, int_8))
       END DO
-      seconds(4) = m_walltime() - total_started
-      unit_nr = cp_logger_get_default_io_unit()
+      IF (fft_profile_enabled) seconds(4) = m_walltime() - total_started
+      unit_nr = 0
+      IF (fft_profile_enabled) unit_nr = cp_logger_get_default_io_unit()
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A)') 'GW_GREEN_PROFILE| logger-rank wall seconds, no MPI reduction'
          WRITE (unit_nr, '(T2,A,L2,2I12)') 'GW_GREEN_PROFILE| occupied / k points / local pairs: ', occupied, n_k, n_local
@@ -1762,7 +1765,7 @@ CONTAINS
                                      bs_env%index_to_cell_3c(:, first:last), &
                                      bs_env%kpoints_scf_desymm%xkp(:, owned_k), &
                                      bs_env%kpoints_scf_desymm%nkp_grid, phi_lmu_k, &
-                                     bs_env%kpoints_scf_desymm%rskp_transform, accumulate=.TRUE., profile_fft=.TRUE.)
+                                     bs_env%kpoints_scf_desymm%rskp_transform, accumulate=.TRUE., profile_fft=fft_profile_enabled)
          END DO
       END IF
 
@@ -1862,7 +1865,8 @@ CONTAINS
             values_R(:, :, icell) = fm_R(icell)%local_data(1:nrows, 1:ncols)
          END DO
          values_q(1:nrows, 1:ncols, 1:n_q) => send_buffer(1:nsend)
-         CALL cell_to_k_transform(values_R, cells, qpoints(:, q_order), nkp_grid, values_q, backend, profile_fft=.TRUE.)
+         CALL cell_to_k_transform(values_R, cells, qpoints(:, q_order), nkp_grid, values_q, backend, &
+                                  profile_fft=fft_profile_enabled)
          DEALLOCATE (values_R)
       END IF
       CALL para_env%alltoall(send_buffer, send_counts, send_displs, &
@@ -2420,7 +2424,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE                         :: fractional_grid(:, :)
       TYPE(gw_pair_fft_batch_type), POINTER              :: batch
 
-      total_started = m_walltime()
+      IF (fft_profile_enabled) total_started = m_walltime()
       CPASSERT(.NOT. ALLOCATED(plan%batches))
       ngrid = bs_env%ri_rs%n_grid_points
       nmesh = bs_env%kpoints_scf_desymm%nkp_grid
@@ -2507,10 +2511,12 @@ CONTAINS
          IF (partner_output /= ik) extract_partner(n_extract) = partner_output
       END DO
       DEALLOCATE (q_position)
-      DO i_extract = 1, n_extract
-         ik = extract_q(i_extract)
-         spectrum_columns = spectrum_columns + MERGE(1_int_8, 2_int_8, grid_linear(ik) == partner_linear(ik))
-      END DO
+      IF (fft_profile_enabled) THEN
+         DO i_extract = 1, n_extract
+            ik = extract_q(i_extract)
+            spectrum_columns = spectrum_columns + MERGE(1_int_8, 2_int_8, grid_linear(ik) == partner_linear(ik))
+         END DO
+      END IF
 
       plan%n_pairs = n_pairs
       plan%width = width
@@ -2527,10 +2533,10 @@ CONTAINS
          fft_count = (count + 1)/2
          ibatch = (first - 1)/width + 1
          batch => plan%batches(ibatch)
-         started = m_walltime()
+         IF (fft_profile_enabled) started = m_walltime()
          CALL fft_alloc(batch%input, [INT(nfft_grid)*fft_count])
-         plan%profile%seconds(3) = plan%profile%seconds(3) + m_walltime() - started
-         started = m_walltime()
+         IF (fft_profile_enabled) plan%profile%seconds(3) = plan%profile%seconds(3) + m_walltime() - started
+         IF (fft_profile_enabled) started = m_walltime()
          ALLOCATE (batch%weight(count, SIZE(cells, 2)))
          !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
          !$OMP SHARED(first, count, first_pair, fractional_grid, batch, bs_env, cells, nmesh, half_shift, cutoff_squared, plan) &
@@ -2546,14 +2552,14 @@ CONTAINS
             END DO
          END DO
          !$OMP END PARALLEL DO
-         plan%setup_seconds = plan%setup_seconds + m_walltime() - started
+         IF (fft_profile_enabled) plan%setup_seconds = plan%setup_seconds + m_walltime() - started
       END DO
       CALL MOVE_ALLOC(grid_linear, plan%grid_linear)
       CALL MOVE_ALLOC(partner_linear, plan%partner_linear)
       CALL MOVE_ALLOC(input_to_native, plan%input_to_native)
       ALLOCATE (plan%extract_q, SOURCE=extract_q(:n_extract))
       ALLOCATE (plan%extract_partner, SOURCE=extract_partner(:n_extract))
-      plan%profile%seconds(2) = m_walltime() - total_started - plan%profile%seconds(3)
+      IF (fft_profile_enabled) plan%profile%seconds(2) = m_walltime() - total_started - plan%profile%seconds(3)
    END SUBROUTINE prepare_pair_fft
 
 ! **************************************************************************************************
@@ -2588,16 +2594,18 @@ CONTAINS
                                                             prepared_seconds, started, &
                                                             total_started
       TYPE(fft_pair_major_plan_type)                     :: full_fft_plan, tail_fft_plan
-      TYPE(lattice_fft_profile_type)                     :: profile
+      TYPE(lattice_fft_profile_type), ALLOCATABLE        :: profile
 
-      total_started = m_walltime()
+      IF (fft_profile_enabled) total_started = m_walltime()
       CPASSERT(ALLOCATED(plan%batches))
       CPASSERT(SIZE(cell_active) == SIZE(plan%inverse%cell_slot))
       CPASSERT(SIZE(values_k, 1) == plan%n_pairs)
       CPASSERT(SIZE(values_k, 2) == 1)
       CPASSERT(SIZE(values_k, 3) == SIZE(plan%grid_linear))
-      profile = plan%profile
-      prepared_seconds = SUM(profile%seconds(1:3))
+      IF (fft_profile_enabled) THEN
+         ALLOCATE (profile, SOURCE=plan%profile)
+         prepared_seconds = SUM(profile%seconds(1:3))
+      END IF
       nfft = plan%inverse%nfft
       nmesh = plan%nmesh
       nfft_grid = plan%nfft_grid
@@ -2610,22 +2618,24 @@ CONTAINS
       extract_partner => plan%extract_partner
       fft_transforms = 0_int_8
       extract_reads = 0_int_8
-      started = m_walltime()
+      IF (fft_profile_enabled) started = m_walltime()
       CALL fft_alloc(scratch, [INT(nfft_grid)*((width + 1)/2)])
-      profile%seconds(3) = profile%seconds(3) + m_walltime() - started
+      IF (fft_profile_enabled) profile%seconds(3) = profile%seconds(3) + m_walltime() - started
       DO first = 1, plan%n_pairs, width
          count = MIN(width, plan%n_pairs - first + 1)
          fft_count = (count + 1)/2
-         fft_transforms = fft_transforms + INT(fft_count, int_8)
+         IF (fft_profile_enabled) fft_transforms = fft_transforms + INT(fft_count, int_8)
          ibatch = (first - 1)/width + 1
-         profile%elements = profile%elements + INT(count, int_8)
-         profile%batches = profile%batches + 1_int_8
-         profile%tile_min = MIN(profile%tile_min, count)
-         profile%tile_max = MAX(profile%tile_max, count)
+         IF (fft_profile_enabled) THEN
+            profile%elements = profile%elements + INT(count, int_8)
+            profile%batches = profile%batches + 1_int_8
+            profile%tile_min = MIN(profile%tile_min, count)
+            profile%tile_max = MAX(profile%tile_max, count)
+         END IF
          fft_in => plan%batches(ibatch)%input
          fft_out => scratch
          input(1:fft_count, 1:INT(nfft_grid)) => fft_in
-         started = m_walltime()
+         IF (fft_profile_enabled) started = m_walltime()
          !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
          !$OMP SHARED(cell_active, input, plan, first, count, values_R) PRIVATE(icell)
          DO icell = 1, SIZE(cell_active)
@@ -2634,8 +2644,10 @@ CONTAINS
             IF (PRESENT(values_R)) values_R(first:first + count - 1, 1, icell) = 0.0_dp
          END DO
          !$OMP END PARALLEL DO
-         profile%seconds(4) = profile%seconds(4) + m_walltime() - started
-         profile%pair_major = .TRUE.
+         IF (fft_profile_enabled) THEN
+            profile%seconds(4) = profile%seconds(4) + m_walltime() - started
+            profile%pair_major = .TRUE.
+         END IF
          IF (count == width) THEN
             CALL lattice_fft_execute_pair_major(BWFFT, nfft, fft_count, fft_in, fft_out, stat, profile, full_fft_plan)
          ELSE
@@ -2643,7 +2655,7 @@ CONTAINS
          END IF
          IF (stat /= 0) CPABORT('GW product FFT failed')
          output(1:fft_count, 1:INT(nfft_grid)) => fft_in
-         started = m_walltime()
+         IF (fft_profile_enabled) started = m_walltime()
          !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
          !$OMP SHARED(values_k, output, grid_linear, partner_linear, first, count, fft_count) &
          !$OMP SHARED(n_extract, extract_q, extract_partner) &
@@ -2694,19 +2706,24 @@ CONTAINS
             END IF
          END DO
          !$OMP END PARALLEL DO
-         profile%seconds(8) = profile%seconds(8) + m_walltime() - started
-         extract_reads = extract_reads + INT(count/2, int_8)*spectrum_columns + &
-                         INT(MODULO(count, 2), int_8)*SIZE(grid_linear, KIND=int_8)
+         IF (fft_profile_enabled) THEN
+            profile%seconds(8) = profile%seconds(8) + m_walltime() - started
+            extract_reads = extract_reads + INT(count/2, int_8)*spectrum_columns + &
+                            INT(MODULO(count, 2), int_8)*SIZE(grid_linear, KIND=int_8)
+         END IF
       END DO
 
-      started = m_walltime()
+      IF (fft_profile_enabled) started = m_walltime()
       CALL fft_pair_major_plan_destroy(full_fft_plan)
       CALL fft_pair_major_plan_destroy(tail_fft_plan)
       CALL fft_dealloc(scratch)
-      profile%seconds(9) = m_walltime() - started
-      elapsed = m_walltime() - total_started + prepared_seconds
-      other_seconds = MAX(0.0_dp, elapsed - profile%seconds(4) - SUM(profile%seconds(5:8)))
-      unit_nr = cp_logger_get_default_io_unit()
+      unit_nr = 0
+      IF (fft_profile_enabled) THEN
+         profile%seconds(9) = m_walltime() - started
+         elapsed = m_walltime() - total_started + prepared_seconds
+         other_seconds = MAX(0.0_dp, elapsed - profile%seconds(4) - SUM(profile%seconds(5:8)))
+         unit_nr = cp_logger_get_default_io_unit()
+      END IF
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A)') 'R2K_FFT_PROFILE| GW unordered-pair panels; logger-rank wall seconds'
          WRITE (unit_nr, '(T2,A,A)') 'R2K_FFT_PROFILE| operation: ', profile_label
@@ -2964,7 +2981,7 @@ CONTAINS
             CALL para_env%alltoall(sent, send_counts, send_displs, received, recv_counts, pair_displs)
          END DO
          IF (n_buffer == 0) CYCLE
-         started = m_walltime()
+         IF (fft_profile_enabled) started = m_walltime()
          ! Distinct q matrices remain independent; each thread reuses its GEMM workspace.
          !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) IF(n_buffer > 1) NUM_THREADS(n_workers) &
          !$OMP SHARED(n_buffer, n_grid, n_aux, q_pairs, local_q, Z_q, chi_q, panel, work, i_local, compact_z) &
@@ -2981,7 +2998,7 @@ CONTAINS
                         work(:, :, i_thread), n_grid, 1.0_dp, chi_q(:, :, i_needed), n_aux)
          END DO
          !$OMP END PARALLEL DO
-         projection_seconds = projection_seconds + m_walltime() - started
+         IF (fft_profile_enabled) projection_seconds = projection_seconds + m_walltime() - started
       END DO
       CPASSERT(i_column == SIZE(fft_pairs, 3))
       CPASSERT(i_local == n_needed_local)

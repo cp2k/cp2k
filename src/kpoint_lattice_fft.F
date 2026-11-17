@@ -44,6 +44,9 @@ MODULE kpoint_lattice_fft
    PUBLIC :: k_grid_to_cell_work_type, lattice_fft_shape, regular_kpoint_grid
    PUBLIC :: k_grid_to_cell_panel_width
    PUBLIC :: lattice_fft_profile_type, lattice_fft_execute_pair_major, lattice_fft_prepare_geometry
+
+   ! Optional local FFT diagnostics; enable explicitly for profiling builds.
+   LOGICAL, PARAMETER, PUBLIC :: fft_profile_enabled = .FALSE.
    PUBLIC :: lattice_fft_real_sink_type
 
    ! Keep pair-major grid filling in cache-sized strips of AO elements and images.
