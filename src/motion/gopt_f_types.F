@@ -30,6 +30,7 @@ MODULE gopt_f_types
    USE gopt_param_types,                ONLY: gopt_param_read,&
                                               gopt_param_type
    USE input_constants,                 ONLY: default_cell_method_id,&
+                                              default_cg_method_id,&
                                               default_dimer_method_id,&
                                               default_minimization_method_id,&
                                               default_shellcore_method_id,&
@@ -63,6 +64,7 @@ MODULE gopt_f_types
       INTEGER                                  :: ts_method_id = 0
       INTEGER                                  :: shellcore_method_id = 0
       LOGICAL                                  :: dimer_rotation = .FALSE., do_line_search = .FALSE., eval_opt_geo = .FALSE.
+      LOGICAL                                  :: solid_state_dimer = .FALSE.
       CHARACTER(LEN=default_string_length)     :: label = "", tag = ""
       TYPE(force_env_type), POINTER            :: force_env => NULL()
       TYPE(global_environment_type), POINTER   :: globenv => NULL()
@@ -168,18 +170,31 @@ CONTAINS
                ! already defined for cp2k..
                dimer_section => section_vals_get_subs_vals(geo_opt_section, "TRANSITION_STATE%DIMER")
                CALL dimer_env_create(gopt_env%dimer_env, subsys, globenv, dimer_section, force_env)
+               gopt_env%solid_state_dimer = gopt_env%dimer_env%solid_state
 
                ! Setup the GEO_OPT environment for the rotation of the Dimer
                rot_opt_section => section_vals_get_subs_vals(dimer_section, "ROT_OPT")
                ALLOCATE (gopt_env%gopt_dimer_param)
                CALL gopt_param_read(gopt_env%gopt_dimer_param, rot_opt_section, &
                                     type_id=default_minimization_method_id)
+               IF (gopt_env%solid_state_dimer) THEN
+                  IF (gopt_param%method_id /= default_cg_method_id .OR. &
+                      gopt_env%gopt_dimer_param%method_id /= default_cg_method_id) THEN
+                     CALL cp_abort(__LOCATION__, &
+                                   "Solid-state Dimer requires CG for translation and rotation.")
+                  END IF
+                  IF (gopt_env%spgr%keep_space_group) THEN
+                     CALL cp_abort(__LOCATION__, &
+                                   "Solid-state Dimer does not support KEEP_SPACE_GROUP.")
+                  END IF
+               END IF
                gopt_env%gopt_dimer_param%type_id = default_ts_method_id
 
                CALL gopt_f_create(gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param, force_env=force_env, &
                                   globenv=globenv, geo_opt_section=rot_opt_section, eval_opt_geo=eval_opt_geo)
                CALL dimer_env_retain(gopt_env%dimer_env)
                gopt_env%gopt_dimer_env%dimer_env => gopt_env%dimer_env
+               gopt_env%gopt_dimer_env%solid_state_dimer = gopt_env%solid_state_dimer
                gopt_env%gopt_dimer_env%label = "ROT_OPT"
                gopt_env%gopt_dimer_env%dimer_rotation = .TRUE.
                ! Dimer rotation optimizes a 3D unit vector, so space-group

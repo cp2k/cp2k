@@ -1162,6 +1162,35 @@ CONTAINS
                           description="Specifies parameters for Dimer Method", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
+      CALL keyword_create(keyword, __LOCATION__, name="SOLID_STATE", &
+                          description="Search for a saddle of E+pV in joint atomic and six cell coordinates. "// &
+                          "Requires full periodicity, analytical stress and CG for translation and rotation. "// &
+                          "In solid-state mode DIMER_VECTOR contains 3*N reference-frame atom components "// &
+                          "followed by six scaled cell components ordered XX, YY, ZZ, XY, XZ, YZ.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EXTERNAL_PRESSURE", &
+                          description="Hydrostatic pressure for the solid-state enthalpy E+pV.", &
+                          unit_str="bar", default_r_val=0.0_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CELL_WEIGHT", &
+                          description="Relative weight of cell deformation in the solid-state metric. "// &
+                          "The scale is this weight times the mean atomic spacing times sqrt(number of atoms).", &
+                          default_r_val=1.0_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_CELL", &
+                          description="Reference cell vectors A, B and C for the solid-state metric. "// &
+                          "Defaults to the starting cell and is saved in the restart to preserve the dimer vector.", &
+                          type_of_var=real_t, n_var=9, unit_str="angstrom")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="DR", &
                           description="This keyword sets the value for the DR parameter.", &
                           usage="DR {real}", unit_str='angstrom', &

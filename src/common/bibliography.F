@@ -38,7 +38,7 @@ MODULE bibliography
                             Lippert1997, Lippert1999, Krack2000, Krack2002, Iannuzzi2005, &
                             Iannuzzi2006, Iannuzzi2007, Toukmaji1996, Martyna1999, &
                             VandeVondele2005b, Perdew1981, Avezac2005, Porezag1995, &
-                            Seifert1996, Elstner1998, Zhechkov2005, Henkelman1999, Henkelman2014, &
+                            Seifert1996, Elstner1998, Zhechkov2005, Henkelman1999, Henkelman2014, Xiao2014, &
                             Frigo2005, Nose1984a, Nose1984b, Brelaz1979, Bussi2007, &
                             Genovese2006, Genovese2007, Evans1983, Minary2003, Byrd1995, &
                             VandeVondele2007, Ortiz1994, Becke1988, Perdew1996, Zhang1998, &
@@ -332,6 +332,12 @@ CONTAINS
                          "potential surfaces using only first derivatives", &
                          source="J. Chem. Phys.", volume="111", pages="7010-7022", &
                          year=1999, doi="10.1063/1.480097")
+
+      CALL add_reference(key=Xiao2014, &
+                         authors=s2a("P. Xiao", "D. Sheppard", "J. Rogal", "G. Henkelman"), &
+                         title="Solid-state dimer method for calculating solid-solid phase transitions", &
+                         source="J. Chem. Phys.", volume="140", pages="174104", &
+                         year=2014, doi="10.1063/1.4873437")
 
       CALL add_reference(key=Henkelman2014, &
                          authors=s2a("P. Xiao", "Q. Wu", "G. Henkelman"), &

@@ -145,7 +145,9 @@ CONTAINS
       max_steep_steps = gopt_param%max_steep_steps
       Fletcher_Reeves = gopt_param%Fletcher_Reeves
       ! Dimer evaluations update the rotational state, so retain their original timing.
-      evaluate_before_io = gopt_env%type_id /= default_ts_method_id
+      ! For solid-state translation, the curvature check needs the accepted geometry.
+      evaluate_before_io = gopt_env%type_id /= default_ts_method_id .OR. &
+                           (gopt_env%solid_state_dimer .AND. .NOT. gopt_env%dimer_rotation)
       res_lim = gopt_param%restart_limit
       ALLOCATE (g(SIZE(x0)))
       ALLOCATE (h(SIZE(x0)))
